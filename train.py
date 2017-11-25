@@ -6,6 +6,7 @@ import traceback
 import random
 import math
 import time
+import logging
 import tensorflow as tf
 import numpy as np
 
@@ -20,14 +21,27 @@ Train neural net on Go games!
 """
 
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-weightsdir', help='Dir to write for training weights', required=True)
+parser.add_argument('-traindir', help='Dir to write to for recording training results', required=True)
 parser.add_argument('-gamesdir', help='Dir of games to read', required=True, action='append')
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 args = vars(parser.parse_args())
 
-weightsdir = args["weightsdir"]
+traindir = args["traindir"]
 gamesdirs = args["gamesdir"]
 verbose = args["verbose"]
+
+bareformatter = logging.Formatter("%(message)s")
+trainlogger = logging.getLogger("trainlogger")
+trainlogger.setLevel(logging.INFO)
+fh = logging.FileHandler(traindir+"/train.log", mode='w')
+fh.setFormatter(bareformatter)
+trainlogger.addHandler(fh)
+
+detaillogger = logging.getLogger("detaillogger")
+detaillogger.setLevel(logging.INFO)
+fh = logging.FileHandler(traindir+"/detail.log", mode='w')
+fh.setFormatter(bareformatter)
+detaillogger.addHandler(fh)
 
 #Data loading-------------------------------------------------------------------
 
@@ -149,7 +163,7 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
           target_data_weights.resize((idx,) + target_data_weights.shape[1:], refcheck=False)
 
           return
-        if idx % 1000 == 0:
+        if idx % 2500 == 0:
           print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
 
       if next_loc is not None: # pass
@@ -207,7 +221,7 @@ cur_num_channels = input_shape[2]
 
 #Convolutional RELU layer 1
 conv1diam = 3
-conv1num_channels = 16
+conv1num_channels = 32
 conv1w = weight_variable("conv1w",[conv1diam,conv1diam,cur_num_channels,conv1num_channels],cur_num_channels*conv1diam**2,conv1num_channels)
 conv1b = bias_variable("conv1b",[conv1num_channels],cur_num_channels,conv1num_channels)
 
@@ -217,7 +231,7 @@ outputs_by_layer.append(("conv1",cur_layer))
 
 #Convolutional RELU layer 2
 conv2diam = 3
-conv2num_channels = 8
+conv2num_channels = 16
 conv2w = weight_variable("conv2w",[conv2diam,conv2diam,cur_num_channels,conv2num_channels],cur_num_channels*conv2diam**2,conv2num_channels)
 conv2b = bias_variable("conv2b",[conv2num_channels],cur_num_channels,conv2num_channels)
 
@@ -225,15 +239,24 @@ cur_layer = tf.nn.relu(conv2d(cur_layer, conv2w) + conv2b)
 cur_num_channels = conv2num_channels
 outputs_by_layer.append(("conv2",cur_layer))
 
-#Convolutional linear layer 3
-conv3diam = 5
-conv3num_channels = 1
+#Convolutional RELU layer 3
+conv3diam = 3
+conv3num_channels = 8
 conv3w = weight_variable("conv3w",[conv3diam,conv3diam,cur_num_channels,conv3num_channels],cur_num_channels*conv3diam**2,conv3num_channels)
 conv3b = bias_variable("conv3b",[conv3num_channels],cur_num_channels,conv3num_channels)
 
-cur_layer = conv2d(cur_layer, conv3w) + conv3b
+cur_layer = tf.nn.relu(conv2d(cur_layer, conv3w) + conv3b)
 cur_num_channels = conv3num_channels
 outputs_by_layer.append(("conv3",cur_layer))
+
+#Convolutional linear output layer 4
+conv4diam = 5
+conv4num_channels = 1
+conv4w = weight_variable("conv4w",[conv4diam,conv4diam,cur_num_channels,conv4num_channels],cur_num_channels*conv4diam**2,conv4num_channels)
+
+cur_layer = conv2d(cur_layer, conv4w)
+cur_num_channels = conv4num_channels
+outputs_by_layer.append(("conv4",cur_layer))
 
 #Output
 assert(cur_num_channels == 1)
@@ -262,7 +285,7 @@ mean_output_by_layer = [
 ]
 
 stdev_output_by_layer = [
-  (name,reduce_stdev(layer,axis=[1,2])**2) for (name,layer) in outputs_by_layer
+  (name,reduce_stdev(layer,axis=[0,1,2])**2) for (name,layer) in outputs_by_layer
 ]
 mean_weights_by_var = [
   (v.name,tf.reduce_mean(v)) for v in tf.trainable_variables()
@@ -282,12 +305,13 @@ all_input_data = np.zeros(shape=[1]+input_shape)
 all_target_data = np.zeros(shape=[1]+target_shape)
 all_target_data_weights = np.zeros(shape=[1])
 
-fill_features(prob_to_include_row, all_input_data, all_target_data, all_target_data_weights)
+max_num_rows = None
+fill_features(prob_to_include_row, all_input_data, all_target_data, all_target_data_weights, max_num_rows = max_num_rows)
 
 print("Splitting into training and validation", flush=True)
 num_all_rows = len(all_input_data)
-num_train_rows = all_input_data - num_test_rows
-num_test_rows = min(4000,num_train_rows//10)
+num_test_rows = min(5000,num_all_rows//10)
+num_train_rows = num_all_rows - num_test_rows
 
 indices = np.random.permutation(num_all_rows)
 tinput_data = all_input_data[indices[:num_train_rows]]
@@ -364,8 +388,6 @@ lr = LR(
   plateau_min_epochs = 6,
 )
 
-do_print_debugging_stats = True
-
 with tf.Session() as session:
   session.run(tf.global_variables_initializer())
 
@@ -383,16 +405,24 @@ with tf.Session() as session:
   def val_accuracy_and_loss():
     return run([accuracy1,accuracy4,loss], vdata)
 
-  def maybe_print_debugging_stats():
-    if do_print_debugging_stats:
-      apbl,mobl,sobl = run([dict(activated_prop_by_layer), dict(mean_output_by_layer), dict(stdev_output_by_layer)], vdata)
-      for key in apbl:
-        print("%s: activated_prop %s" % (key, np_array_str(apbl[key], precision=3)))
-        print("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
-        print("%s: stdev_output %s" % (key, np_array_str(sobl[key], precision=4)))
+  def train_stats_str(tacc1,tacc4,tloss):
+    return "tacc1 %5.2f%% tacc4 %5.2f%% tloss %f" % (tacc1*100, tacc4*100, tloss)
+
+  def validation_stats_str(vacc1,vacc4,vloss):
+    return "vacc1 %5.2f%% vacc4 %5.2f%% vloss %f" % (vacc1*100, vacc4*100, vloss)
+
+  def time_str(elapsed):
+    return "time %.3f" % elapsed
+
+  def log_detail_stats():
+    apbl,mobl,sobl = run([dict(activated_prop_by_layer), dict(mean_output_by_layer), dict(stdev_output_by_layer)], vdata)
+    for key in apbl:
+      detaillogger.info("%s: activated_prop %s" % (key, np_array_str(apbl[key], precision=3)))
+      detaillogger.info("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
+      detaillogger.info("%s: stdev_output %s" % (key, np_array_str(sobl[key], precision=4)))
       mw,sw = session.run([dict(mean_weights_by_var),dict(stdev_weights_by_var)])
-      for key in mw:
-        print("%s: mean weight %f stdev weight %f" % (key, mw[key], sw[key]))
+    for key in mw:
+      detaillogger.info("%s: mean weight %f stdev weight %f" % (key, mw[key], sw[key]))
 
   def run_batches(batches):
     num_batches = len(batches)
@@ -421,9 +451,14 @@ with tf.Session() as session:
     return (tacc1,tacc4,tloss)
 
   (vacc1,vacc4,vloss) = val_accuracy_and_loss()
-  print("Initial: vacc1 %f vacc4 %f vloss %f" % (vacc1, vacc4, vloss), flush=True)
-  maybe_print_debugging_stats()
+  vstr = validation_stats_str(vacc1,vacc4,vloss)
 
+  print("Initial: %s" % (vstr), flush=True)
+  trainlogger.info("Initial: %s" % (vstr))
+  detaillogger.info("Initial: %s" % (vstr))
+  log_detail_stats()
+
+  start_time = time.process_time()
   for epoch in range(num_epochs):
     print("Epoch %d" % (epoch), end='', flush=True)
     batches = get_batches()
@@ -431,11 +466,26 @@ with tf.Session() as session:
     (vacc1,vacc4,vloss) = val_accuracy_and_loss()
     lr.report_loss(epoch=epoch,loss=tloss)
     print("")
-    print("tacc1 %f tacc4 %f tloss %f vacc1 %f vacc4 %f vloss %f lr %f" % (tacc1,tacc4,tloss,vacc1,vacc4,vloss,lr.lr()), flush=True)
-    maybe_print_debugging_stats()
+
+    elapsed = time.process_time() - start_time
+
+    tstr = train_stats_str(tacc1,tacc4,tloss)
+    vstr = validation_stats_str(vacc1,vacc4,vloss)
+    timestr = time_str(elapsed)
+    print("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr), flush=True)
+
+    trainlogger.info("Epoch %d--------------------------------------------------" % (epoch))
+    trainlogger.info("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr))
+
+    detaillogger.info("Epoch %d--------------------------------------------------" % (epoch))
+    detaillogger.info("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr))
+    log_detail_stats()
 
   (vacc1,vacc4,vloss) = val_accuracy_and_loss()
-  print("Final: vacc1 %f vacc4 %f vloss %f" % (vacc1, vacc4, vloss), flush=True)
+  vstr = validation_stats_str(vacc1,vacc4,vloss)
+  print("Final: %s" % (vstr), flush=True)
+  trainlogger.info("Final: %s" % (vstr))
+  detaillogger.info("Final: %s" % (vstr))
 
   variables_names =[v.name for v in tf.trainable_variables()]
   values = session.run(variables_names)
