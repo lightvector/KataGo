@@ -118,7 +118,7 @@ def fill_row_features(board, pla, opp, next_loc, input_data, target_data, target
     target_data[idx,y*max_size+x] = 1.0
     target_data_weights[idx] = 1.0
 
-def fill_features(num_rows, input_data, target_data, target_data_weights):
+def fill_features(num_rows, prob_to_include_row, input_data, target_data, target_data_weights):
   idx = 0
   for filename in game_files:
 
@@ -178,21 +178,30 @@ cur_num_channels = input_shape[2]
 
 #Convolutional RELU layer 1
 conv1diam = 3
-conv1num_channels = 8
+conv1num_channels = 16
 conv1w = weight_variable("conv1w",[conv1diam,conv1diam,cur_num_channels,conv1num_channels],cur_num_channels,conv1num_channels)
 conv1b = bias_variable("conv1b",[conv1num_channels],cur_num_channels,conv1num_channels)
 
 cur_layer = tf.nn.relu(conv2d(cur_layer, conv1w) + conv1b)
 cur_num_channels = conv1num_channels
 
-#Convolutional Linear layer 2
+#Convolutional RELU layer 2
 conv2diam = 3
-conv2num_channels = 1
+conv2num_channels = 8
 conv2w = weight_variable("conv2w",[conv2diam,conv2diam,cur_num_channels,conv2num_channels],cur_num_channels,conv2num_channels)
 conv2b = bias_variable("conv2b",[conv2num_channels],cur_num_channels,conv2num_channels)
 
-cur_layer = conv2d(cur_layer, conv2w) + conv2b
+cur_layer = tf.nn.relu(conv2d(cur_layer, conv2w) + conv2b)
 cur_num_channels = conv2num_channels
+
+#Convolutional linear layer 3
+conv3diam = 5
+conv3num_channels = 1
+conv3w = weight_variable("conv3w",[conv3diam,conv3diam,cur_num_channels,conv3num_channels],cur_num_channels,conv3num_channels)
+conv3b = bias_variable("conv3b",[conv3num_channels],cur_num_channels,conv3num_channels)
+
+cur_layer = conv2d(cur_layer, conv3w) + conv3b
+cur_num_channels = conv3num_channels
 
 #Output
 assert(cur_num_channels == 1)
@@ -206,8 +215,11 @@ loss = tf.reduce_mean(target_weights * tf.nn.softmax_cross_entropy_with_logits(l
 #Results
 batch_learning_rate = tf.placeholder(tf.float32)
 train_step = tf.train.AdamOptimizer(batch_learning_rate).minimize(loss)
-correct_prediction = tf.equal(tf.argmax(output_layer, 1), tf.argmax(targets, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+target_idxs = tf.argmax(targets, 1)
+top1_prediction = tf.equal(tf.argmax(output_layer, 1), target_idxs)
+top4_prediction = tf.nn.in_top_k(output_layer,target_idxs,4)
+accuracy1 = tf.reduce_mean(tf.cast(top1_prediction, tf.float32))
+accuracy4 = tf.reduce_mean(tf.cast(top4_prediction, tf.float32))
 
 print("Built model", flush=True)
 
@@ -215,62 +227,123 @@ print("Built model", flush=True)
 
 print("Loading data", flush=True)
 
-num_rows = 1000
-prob_to_include_row = 0.1
-input_data = np.zeros(shape=[num_rows]+input_shape)
-target_data = np.zeros(shape=[num_rows]+target_shape)
-target_data_weights = np.zeros(shape=[num_rows])
+num_train_rows = 12000
+num_test_rows = 1000
+num_all_rows = num_train_rows + num_test_rows
+prob_to_include_row = 0.05
 
-fill_features(num_rows, input_data, target_data, target_data_weights)
+all_input_data = np.zeros(shape=[num_all_rows]+input_shape)
+all_target_data = np.zeros(shape=[num_all_rows]+target_shape)
+all_target_data_weights = np.zeros(shape=[num_all_rows])
 
-print("Loaded data", flush=True)
+fill_features(num_all_rows, prob_to_include_row, all_input_data, all_target_data, all_target_data_weights)
+
+print("Splitting into training and validation", flush=True)
+
+indices = np.random.permutation(num_all_rows)
+tinput_data = all_input_data[indices[:num_train_rows]]
+vinput_data = all_input_data[indices[num_train_rows:]]
+ttarget_data = all_target_data[indices[:num_train_rows]]
+vtarget_data = all_target_data[indices[num_train_rows:]]
+ttarget_data_weights = all_target_data_weights[indices[:num_train_rows]]
+vtarget_data_weights = all_target_data_weights[indices[num_train_rows:]]
+
+print("Data loading done", flush=True)
 
 # Training ------------------------------------------------------------
 
-num_epochs = 100
-sample_learning_rate = 0.001
+num_epochs = 500
+
+initial_sample_learning_rate = 0.0005
+lr_plateau_decay_exponent = 3  #Exponent of the polynomial decay in learning rate based on number of plateaus
+lr_plateau_decay_offset = 15   #Offset of the exponent
+lr_plateau_no_better_epochs = 6 #Plateau if this many epochs with no training loss improvement
+lr_plateau_min_epochs = 6       #And if at least this many epochs happened since the last plateau
+
 batch_size = 10
 def get_batches():
-  idx = np.arange(0,len(input_data))
-  np.random.shuffle(idx)
+  idx = np.random.permutation(num_train_rows)
   batches = []
-  for batchnum in range(num_rows//batch_size):
-    idx0 = idx[batchnum*num_rows : (batchnum+1)*num_rows]
-    batches.append((input_data[idx], target_data[idx], target_data_weights[idx]))
+  num_batches = num_train_rows//batch_size
+  for batchnum in range(num_batches):
+    idx0 = idx[batchnum*batch_size : (batchnum+1)*batch_size]
+    batches.append((tinput_data[idx0], ttarget_data[idx0], ttarget_data_weights[idx0]))
   return batches
 
 print("Training", flush=True)
 
 
-with tf.Session() as sess:
-  sess.run(tf.global_variables_initializer())
+with tf.Session() as session:
+  session.run(tf.global_variables_initializer())
 
-  def eval_train_accuracy_and_loss():
-    (train_accuracy,train_loss) = sess.run([accuracy,loss], feed_dict={
-      inputs: input_data,
-      targets: target_data,
-      target_weights: target_data_weights,
+  def val_accuracy_and_loss():
+    return session.run([accuracy1,accuracy4,loss], feed_dict={
+      inputs: vinput_data,
+      targets: vtarget_data,
+      target_weights: vtarget_data_weights,
       batch_learning_rate: 0.0
     })
-    return (train_accuracy,train_loss)
 
-  for i in range(num_epochs):
-    (train_accuracy,train_loss) = eval_train_accuracy_and_loss()
-    print("Epoch %d, train_accuracy %f train_loss %f" % (i,train_accuracy,train_loss), flush=True)
+  (vacc1,vacc4,vloss) = val_accuracy_and_loss()
+  print("Initial: vacc1 %f vacc4 %f vloss %f" % (vacc1, vacc4, vloss), flush=True)
 
+  lr_best_epoch = 0
+  lr_best_epoch_loss = None
+  lr_reduction_count = 0
+  lr_last_reduction_epoch = 0
+  def sample_lr():
+    return initial_sample_learning_rate / (((lr_reduction_count + lr_plateau_decay_offset) / lr_plateau_decay_offset) ** lr_plateau_decay_exponent)
+
+  for epoch in range(num_epochs):
     batches = get_batches()
-    for (idata,tdata,tdataw) in batches:
-      train_step.run(feed_dict={
-        inputs: idata,
-        targets: tdata,
-        target_weights: tdataw,
-        batch_learning_rate: sample_learning_rate * batch_size
-      })
+    num_batches = len(batches)
 
-  (train_accuracy,train_loss) = eval_train_accuracy_and_loss()
-  print("Done, train_accuracy %f train_loss %f" % (train_accuracy,train_loss), flush=True)
+    tacc1_sum = 0
+    tacc4_sum = 0
+    tloss_sum = 0
+
+    print("Epoch %d" % (epoch), end='', flush=True)
+
+    for i in range(num_batches):
+      (idata,tdata,tdataw) = batches[i]
+
+      (bacc1, bacc4, bloss, _) = session.run(
+        [accuracy1, accuracy4, loss, train_step],
+        feed_dict={
+          inputs: idata,
+          targets: tdata,
+          target_weights: tdataw,
+          batch_learning_rate: sample_lr() * batch_size
+        })
+
+      tacc1_sum += bacc1
+      tacc4_sum += bacc4
+      tloss_sum += bloss
+
+      if i % (num_batches // 30) == 0:
+        print(".", end='', flush=True)
+
+    print("")
+
+    tacc1 = tacc1_sum / num_batches
+    tacc4 = tacc4_sum / num_batches
+    tloss = tloss_sum / num_batches
+    (vacc1, vacc4,vloss) = val_accuracy_and_loss()
+
+    if lr_best_epoch_loss is None or tloss < lr_best_epoch_loss:
+      lr_best_epoch_loss = tloss
+      lr_best_epoch = epoch
+
+    if epoch >= lr_best_epoch + lr_plateau_no_better_epochs and epoch >= lr_last_reduction_epoch + lr_plateau_min_epochs:
+      lr_last_reduction_epoch = epoch
+      lr_reduction_count += 1
+
+    print("tacc1 %f tacc4 %f tloss %f vacc1 %f vacc4 %f vloss %f lr %f" % (tacc1,tacc4,tloss,vacc1,vacc4,vloss,sample_lr()), flush=True)
+
+  (vacc1,vacc4,vloss) = val_accuracy_and_loss()
+  print("Final: vacc1 %f vacc4 %f vloss %f" % (vacc1, vacc4, vloss), flush=True)
 
   variables_names =[v.name for v in tf.trainable_variables()]
-  values = sess.run(variables_names)
+  values = session.run(variables_names)
   for k,v in zip(variables_names, values):
     print(k, v)
