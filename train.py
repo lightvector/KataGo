@@ -30,6 +30,9 @@ traindir = args["traindir"]
 gamesdirs = args["gamesdir"]
 verbose = args["verbose"]
 
+if not os.path.exists(traindir):
+  os.makedirs(traindir)
+
 bareformatter = logging.Formatter("%(message)s")
 trainlogger = logging.getLogger("trainlogger")
 trainlogger.setLevel(logging.INFO)
@@ -384,8 +387,8 @@ lr = LR(
   initial_lr = 0.0003,
   decay_exponent = 3,
   decay_offset = 15,
-  plateau_wait_epochs = 6,
-  plateau_min_epochs = 6,
+  plateau_wait_epochs = 4,
+  plateau_min_epochs = 4,
 )
 
 with tf.Session() as session:
@@ -458,16 +461,16 @@ with tf.Session() as session:
   detaillogger.info("Initial: %s" % (vstr))
   log_detail_stats()
 
-  start_time = time.process_time()
+  start_time = time.perf_counter()
   for epoch in range(num_epochs):
     print("Epoch %d" % (epoch), end='', flush=True)
     batches = get_batches()
     (tacc1,tacc4,tloss) = run_batches(batches)
     (vacc1,vacc4,vloss) = val_accuracy_and_loss()
-    lr.report_loss(epoch=epoch,loss=tloss)
+    lr.report_loss(epoch=epoch,loss=(tloss+vloss))
     print("")
 
-    elapsed = time.process_time() - start_time
+    elapsed = time.perf_counter() - start_time
 
     tstr = train_stats_str(tacc1,tacc4,tloss)
     vstr = validation_stats_str(vacc1,vacc4,vloss)
