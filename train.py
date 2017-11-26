@@ -227,6 +227,7 @@ print("Total: collected %d games" % (len(game_files)), flush=True)
 max_board_size = 19
 input_shape = [19,19,3]
 target_shape = [19*19]
+target_weights_shape = []
 
 def fill_row_features(board, pla, opp, next_loc, input_data, target_data, target_data_weights, idx):
   for y in range(19):
@@ -401,7 +402,7 @@ output_layer = tf.reshape(cur_layer, [-1] + target_shape)
 
 #Loss function
 targets = tf.placeholder(tf.float32, [None] + target_shape)
-target_weights = tf.placeholder(tf.float32, [None])
+target_weights = tf.placeholder(tf.float32, [None] + target_weights_shape)
 loss = tf.reduce_mean(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=output_layer))
 
 #Training results
@@ -440,14 +441,14 @@ print("Loading data", flush=True)
 prob_to_include_row = 0.05
 all_input_data = np.zeros(shape=[1]+input_shape)
 all_target_data = np.zeros(shape=[1]+target_shape)
-all_target_data_weights = np.zeros(shape=[1])
+all_target_data_weights = np.zeros(shape=[1]+target_weights_shape)
 
 max_num_rows = None
 
 start_time = time.perf_counter()
 fill_features(prob_to_include_row, all_input_data, all_target_data, all_target_data_weights, max_num_rows = max_num_rows)
 end_time = time.perf_counter()
-print("Took %f seconds" % (end_time - start_time), flush=True)
+print("Took %f seconds to load data" % (end_time - start_time), flush=True)
 
 
 print("Splitting into training and validation", flush=True)
@@ -455,13 +456,40 @@ num_all_rows = len(all_input_data)
 num_test_rows = min(5000,num_all_rows//10)
 num_train_rows = num_all_rows - num_test_rows
 
-indices = np.random.permutation(num_all_rows)
-tinput_data = all_input_data[indices[:num_train_rows]]
-vinput_data = all_input_data[indices[num_train_rows:]]
-ttarget_data = all_target_data[indices[:num_train_rows]]
-vtarget_data = all_target_data[indices[num_train_rows:]]
-ttarget_data_weights = all_target_data_weights[indices[:num_train_rows]]
-vtarget_data_weights = all_target_data_weights[indices[num_train_rows:]]
+#Shuffle all 3 arrays in unison. A little wacky, but...
+rng_state = np.random.get_state()
+np.random.shuffle(all_input_data)
+np.random.set_state(rng_state)
+np.random.shuffle(all_target_data)
+np.random.set_state(rng_state)
+np.random.shuffle(all_target_data_weights)
+
+#Just to make sure the above works...
+def test_unison_shuffle():
+  x = np.array([1,2,3,4,5,6,7,8,9])
+  y = np.array([[1],[2],[3],[4],[5],[6],[7],[8],[9]])
+  z = np.array([[1,1],[2,2],[3,3],[4,4],[5,5],[6,6],[7,7],[8,8],[9,9]])
+  rng_state = np.random.get_state()
+  np.random.shuffle(x)
+  np.random.set_state(rng_state)
+  np.random.shuffle(y)
+  np.random.set_state(rng_state)
+  np.random.shuffle(z)
+  for i in range(len(x)):
+    assert(x[i] == y[i,0])
+    assert(x[i] == z[i,0])
+    assert(x[i] == z[i,1])
+
+test_unison_shuffle()
+
+#And split out the pieces for testing and training
+tinput_data = all_input_data[:num_train_rows]
+vinput_data = all_input_data[num_train_rows:]
+ttarget_data = all_target_data[:num_train_rows]
+vtarget_data = all_target_data[num_train_rows:]
+ttarget_data_weights = all_target_data_weights[:num_train_rows]
+vtarget_data_weights = all_target_data_weights[num_train_rows:]
+
 tdata = (tinput_data,ttarget_data,ttarget_data_weights)
 vdata = (vinput_data,vtarget_data,vtarget_data_weights)
 
@@ -471,13 +499,12 @@ print("Data loading done", flush=True)
 
 batch_size = 50
 
-def get_batches():
+def get_batch_idxs():
   idx = np.random.permutation(num_train_rows)
   batches = []
   num_batches = num_train_rows//batch_size
   for batchnum in range(num_batches):
-    idx0 = idx[batchnum*batch_size : (batchnum+1)*batch_size]
-    batches.append((tinput_data[idx0], ttarget_data[idx0], ttarget_data_weights[idx0]))
+    batches.append(idx[batchnum*batch_size : (batchnum+1)*batch_size])
   return batches
 
 # Learning rate -------------------------------------------------------
@@ -566,17 +593,30 @@ with tf.Session() as session:
     for key in mw:
       detaillogger.info("%s: mean weight %f stdev weight %f" % (key, mw[key], sw[key]))
 
-  def run_batches(batches):
-    num_batches = len(batches)
+  def run_batches(batch_idxs):
+    num_batches = len(batch_idxs)
 
     tacc1_sum = 0
     tacc4_sum = 0
     tloss_sum = 0
 
+    #Allocate buffers into which we'll copy every batch, to avoid using lots of memory
+    input_buf = np.zeros(shape=[batch_size]+input_shape)
+    target_buf = np.zeros(shape=[batch_size]+target_shape)
+    target_weights_buf = np.zeros(shape=[batch_size]+target_weights_shape)
+    data_buf=(input_buf,target_buf,target_weights_buf)
+
     for i in range(num_batches):
+      bidxs = batch_idxs[i]
+      for b in range(batch_size):
+        r = bidxs[b]
+        input_buf[b] = tinput_data[r]
+        target_buf[b] = ttarget_data[r]
+        target_weights_buf[b] = ttarget_data_weights[r]
+
       (bacc1, bacc4, bloss, _) = run(
         fetches=[accuracy1, accuracy4, loss, train_step],
-        data=batches[i],
+        data=data_buf,
         blr=lr.lr() * batch_size
       )
 
@@ -603,8 +643,8 @@ with tf.Session() as session:
   start_time = time.perf_counter()
   for epoch in range(num_epochs):
     print("Epoch %d" % (epoch), end='', flush=True)
-    batches = get_batches()
-    (tacc1,tacc4,tloss) = run_batches(batches)
+    batch_idxs = get_batch_idxs()
+    (tacc1,tacc4,tloss) = run_batches(batch_idxs)
     (vacc1,vacc4,vloss) = val_accuracy_and_loss()
     lr.report_loss(epoch=epoch,loss=(tloss+vloss))
     print("")
