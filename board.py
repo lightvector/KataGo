@@ -196,7 +196,7 @@ class Board:
     self.pla = Board.get_opp(pla)
 
   def do_pass(self):
-    self.pla = Board.get_opp(pla)
+    self.pla = Board.get_opp(self.pla)
     self.simple_ko_point = None
 
   #Add a stone, assumes that the location is empty without checking

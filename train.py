@@ -257,9 +257,11 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
     ngames += 1
     try:
       (metadata,setup,moves) = load_sgf_moves_exn(filename)
-    except:
-      print(filename,flush=True)
-      raise
+    except Exception as e:
+      print("Error loading " + filename,flush=True)
+      print(e, flush=True)
+      traceback.print_exc()
+      continue
 
     #Some basic filters
     if len(moves) < 15:
@@ -287,6 +289,8 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
         idx += 1
         if max_num_rows is not None and idx >= max_num_rows:
           print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
+          trainlogger.info("Loaded %d games and %d rows" % (ngames,idx))
+
           input_data.resize((idx,) + input_data.shape[1:], refcheck=False)
           target_data.resize((idx,) + target_data.shape[1:], refcheck=False)
           target_data_weights.resize((idx,) + target_data_weights.shape[1:], refcheck=False)
@@ -300,13 +304,16 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
       else:
         try:
           board.play(pla,next_loc)
-        except:
-          print("Illegal move in: " + filename)
-          print("Move " + str((board.loc_x(next_loc),board.loc_y(next_loc))))
-          print(board.to_string())
+        except Exception as e:
+          print("Illegal move in: " + filename, flush=True)
+          print("Move " + str((board.loc_x(next_loc),board.loc_y(next_loc))), flush=True)
+          print(board.to_string(), flush=True)
+          print(e, flush=True)
           break
 
   print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
+  trainlogger.info("Loaded %d games and %d rows" % (ngames,idx))
+
   input_data.resize((idx,) + input_data.shape[1:], refcheck=False)
   target_data.resize((idx,) + target_data.shape[1:], refcheck=False)
   target_data_weights.resize((idx,) + target_data_weights.shape[1:], refcheck=False)
@@ -436,7 +443,12 @@ all_target_data = np.zeros(shape=[1]+target_shape)
 all_target_data_weights = np.zeros(shape=[1])
 
 max_num_rows = None
+
+start_time = time.perf_counter()
 fill_features(prob_to_include_row, all_input_data, all_target_data, all_target_data_weights, max_num_rows = max_num_rows)
+end_time = time.perf_counter()
+print("Took %f seconds" % (end_time - start_time), flush=True)
+
 
 print("Splitting into training and validation", flush=True)
 num_all_rows = len(all_input_data)
@@ -457,7 +469,7 @@ print("Data loading done", flush=True)
 
 # Batching ------------------------------------------------------------
 
-batch_size = 10
+batch_size = 50
 
 def get_batches():
   idx = np.random.permutation(num_train_rows)
@@ -511,7 +523,7 @@ print("Training", flush=True)
 num_epochs = 150
 
 lr = LR(
-  initial_lr = 0.0003,
+  initial_lr = 0.0001,
   decay_exponent = 3,
   decay_offset = 15,
   plateau_wait_epochs = 4,
