@@ -198,6 +198,8 @@ print("Total: collected %d games" % (len(game_files)), flush=True)
 #19x19 is on board
 #19x19 own stone present
 #19x19 opp stone present
+#19x19x2 own liberties 1,2
+#19x19x2 opp liberties 1,2
 
 #Maybe??
 #19x19x5 own stone present 0-4 turns ago
@@ -225,7 +227,7 @@ print("Total: collected %d games" % (len(game_files)), flush=True)
 #TODO gpu-acceleration!
 
 max_board_size = 19
-input_shape = [19,19,3]
+input_shape = [19,19,7]
 target_shape = [19*19]
 target_weights_shape = []
 
@@ -233,11 +235,23 @@ def fill_row_features(board, pla, opp, next_loc, input_data, target_data, target
   for y in range(19):
     for x in range(19):
       input_data[idx,y,x,0] = 1.0
-      stone = board.board[board.loc(x,y)]
+      loc = board.loc(x,y)
+      stone = board.board[loc]
       if stone == pla:
         input_data[idx,y,x,1] = 1.0
+        libs = board.num_liberties(loc)
+        if libs == 1:
+          input_data[idx,y,x,3] = 1.0
+        elif libs == 2:
+          input_data[idx,y,x,4] = 1.0
+
       elif stone == opp:
         input_data[idx,y,x,2] = 1.0
+        libs = board.num_liberties(loc)
+        if libs == 1:
+          input_data[idx,y,x,5] = 1.0
+        elif libs == 2:
+          input_data[idx,y,x,6] = 1.0
 
   if next_loc is None:
     # TODO for now we weight these rows to 0
