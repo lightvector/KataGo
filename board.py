@@ -129,6 +129,22 @@ class Board:
 
     return "\n".join("".join(get_piece(x,y) for x in range(self.size)) for y in range(self.size))
 
+  def to_liberty_string(self):
+    def get_piece(x,y):
+      loc = self.loc(x,y)
+      if self.board[loc] == Board.BLACK or self.board[loc] == Board.WHITE:
+        libs = self.group_liberty_count[self.group_head[loc]]
+        if libs <= 9:
+          return str(libs) + ' '
+        else:
+          return '@ '
+      elif (x == 3 or x == self.size/2 or x == self.size-1-3) and (y == 3 or y == self.size/2 or y == self.size-1-3):
+        return '* '
+      else:
+        return '. '
+
+    return "\n".join("".join(get_piece(x,y) for x in range(self.size)) for y in range(self.size))
+
   def set_pla(self,pla):
     self.pla = pla
   def is_on_board(self,loc):

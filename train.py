@@ -48,6 +48,33 @@ fh = logging.FileHandler(traindir+"/detail.log", mode='w')
 fh.setFormatter(bareformatter)
 detaillogger.addHandler(fh)
 
+
+#Test board --------------------------------------------------------------------
+# board = Board(size=19)
+# s = [123456789,787890901111]
+# def rotl(x,k):
+#   return ((x << k) | (x >> (64-k))) & 0xFFFFffffFFFFffff
+# def rnext():
+#   s0 = s[0]
+#   s1 = s[1]
+#   result = (s0+s1) & 0xFFFFffffFFFFffff
+#   s1 ^= s0
+#   s[0] = rotl(s0,55) ^ s1 ^ ((s1 << 14) & 0xFFFFffffFFFFffff)
+#   s[1] = rotl(s1,36)
+#   return result
+
+# for i in range(1003500):
+#   x = rnext() % 19
+#   y = rnext() % 19
+#   p = rnext() % 2 + 1
+#   loc = board.loc(x,y)
+#   if board.would_be_legal(p,loc):
+#     board.play(p,loc)
+
+# print(board.to_string())
+# print(board.to_liberty_string(), flush=True)
+# assert(False)
+
 #Data loading-------------------------------------------------------------------
 
 def load_sgf_moves(path):
@@ -107,6 +134,7 @@ print("Total: collected %d games" % (len(game_files)), flush=True)
 #TODO weight and neuron activation visualization
 #TODO save weights and such, keep a notes file of configurations and results
 #TODO run same NN several times to get an idea of consistency
+#TODO does it help if we just enforce legality and don't need the NN to do so?
 #TODO batch normalization
 #TODO try residual structure?
 #TODO gpu-acceleration!
@@ -213,7 +241,8 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
           assert(fastboard.board[loc] == Board.WHITE)
         elif slowboard.get(y,x) is None:
           assert(fastboard.board[loc] == Board.EMPTY)
-
+        else:
+          assert(False)
 
 
   print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
