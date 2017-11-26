@@ -10,9 +10,8 @@ import logging
 import tensorflow as tf
 import numpy as np
 
-from sgfmill import ascii_boards
-from sgfmill import sgf
-from sgfmill import sgf_moves
+from sgfmill import sgf as Sgf
+from sgfmill import sgf_properties as Sgf_properties
 
 from board import Board
 
@@ -51,6 +50,7 @@ detaillogger.addHandler(fh)
 
 #Test board --------------------------------------------------------------------
 # board = Board(size=19)
+# xoroshiro
 # s = [123456789,787890901111]
 # def rotl(x,k):
 #   return ((x << k) | (x >> (64-k))) & 0xFFFFffffFFFFffff
@@ -77,17 +77,102 @@ detaillogger.addHandler(fh)
 
 #Data loading-------------------------------------------------------------------
 
-def load_sgf_moves(path):
+class Metadata:
+  SOURCE_PRO = 0
+
+  def __init__(self, size, bname, wname, brank, wrank, komi, source):
+    self.size = size
+    self.bname = bname
+    self.wname = wname
+    self.brank = brank
+    self.wrank = wrank
+    self.komi = komi
+    self.source = source
+
+#Returns (metadata, list of setup stones, list of move stones)
+#Setup and move stones are both pairs of (pla,loc)
+def load_sgf_moves_exn(path):
   sgf_file = open(path,"rb")
   contents = sgf_file.read()
   sgf_file.close()
-  try:
-    game = sgf.Sgf_game.from_bytes(contents)
-  except:
-    if verbose:
-      traceback.print_exc()
-    raise Exception("Error parsing sgf file: " + path)
-  return sgf_moves.get_setup_and_moves(game)
+
+  game = Sgf.Sgf_game.from_bytes(contents)
+  size = game.get_size()
+
+  root = game.get_root()
+  ab, aw, ae = root.get_setup_stones()
+  setup = []
+  if ab or aw:
+    for (row,col) in ab:
+      loc = Board.loc_static(col,size-1-row,size)
+      setup.append((Board.BLACK,loc))
+    for (row,col) in aw:
+      loc = Board.loc_static(col,size-1-row,size)
+      setup.append((Board.WHITE,loc))
+
+    color,raw = root.get_raw_move()
+    if color is not None:
+      raise Exception("Found both setup stones and normal moves in root node")
+
+  #Walk down the leftmost branch and assume that this is the game
+  moves = []
+  prev_pla = None
+  seen_white_moves = False
+  node = root
+  while node:
+    node = node[0]
+    if node.has_setup_stones():
+      raise Exception("Found setup stones after the root node")
+
+    color,raw = node.get_raw_move()
+    if color is None:
+      raise Exception("Found node without move color")
+
+    if color == 'b':
+      pla = Board.BLACK
+    elif color == 'w':
+      pla = Board.WHITE
+    else:
+      raise Exception("Invalid move color: " + color)
+
+    rc = Sgf_properties.interpret_go_point(raw, size)
+    if rc is None:
+      loc = None
+    else:
+      (row,col) = rc
+      loc = Board.loc_static(col,size-1-row,size)
+
+    #Forbid consecutive moves by the same player, unless the previous player was black and we've seen no white moves yet (handicap setup)
+    if pla == prev_pla and not (prev_pla == Board.BLACK and not seen_white_moves):
+      raise Exception("Multiple moves in a row by same player")
+    moves.append((pla,loc))
+
+    prev_pla = pla
+    if pla == Board.WHITE:
+      seen_white_moves = True
+
+  #If there are multiple black moves in a row at the start, assume they are more handicap stones
+  first_white_move_idx = 0
+  while first_white_move_idx < len(moves) and moves[first_white_move_idx][0] == Board.BLACK:
+    first_white_move_idx += 1
+  if first_white_move_idx >= 2:
+    setup.extend((pla,loc) for (pla,loc) in moves[:first_white_move_idx] if loc is not None)
+    moves = moves[first_white_move_idx:]
+
+  bname = root.get("PB")
+  wname = root.get("PW")
+  brank = (root.get("BR") if root.has_property("BR") else None)
+  wrank = (root.get("WR") if root.has_property("WR") else None)
+  komi = (root.get("KM") if root.has_property("KM") else None)
+
+  if "70KPublicDomain" in path:
+    source = Metadata.SOURCE_PRO
+  else:
+    raise Exception("Don't know how to determine source for: " + path)
+
+  metadata = Metadata(size, bname, wname, brank, wrank, komi, source)
+  return metadata, setup, moves
+
 
 def collect_game_files(gamesdir):
   files = []
@@ -147,10 +232,10 @@ def fill_row_features(board, pla, opp, next_loc, input_data, target_data, target
   for y in range(19):
     for x in range(19):
       input_data[idx,y,x,0] = 1.0
-      color = board.get(y,x)
-      if color == pla:
+      stone = board.board[board.loc(x,y)]
+      if stone == pla:
         input_data[idx,y,x,1] = 1.0
-      elif color == opp:
+      elif stone == opp:
         input_data[idx,y,x,2] = 1.0
 
   if next_loc is None:
@@ -160,7 +245,8 @@ def fill_row_features(board, pla, opp, next_loc, input_data, target_data, target
     pass
     # target_data[idx,max_board_size*max_board_size] = 1.0
   else:
-    (y,x) = next_loc
+    x = board.loc_x(next_loc)
+    y = board.loc_y(next_loc)
     target_data[idx,y*max_board_size+x] = 1.0
     target_data_weights[idx] = 1.0
 
@@ -169,39 +255,35 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
   ngames = 0
   for filename in game_files:
     ngames += 1
-    (slowboard,moves) = load_sgf_moves(filename)
-    #TODO
-    if slowboard.side != max_board_size:
+    try:
+      (metadata,setup,moves) = load_sgf_moves_exn(filename)
+    except:
+      print(filename,flush=True)
+      raise
+
+    #Some basic filters
+    if len(moves) < 15:
+      continue
+    #TODO for now we only support exactly 19x19
+    if metadata.size != max_board_size:
       continue
 
-    fastboard = Board(size=slowboard.side)
-    for y in range(19):
-      for x in range(19):
-        loc = fastboard.loc(x,y)
-        if slowboard.get(y,x) == 'b':
-          fastboard.set_stone(Board.BLACK,loc)
-        elif slowboard.get(y,x) == 'w':
-          fastboard.set_stone(Board.WHITE,loc)
+    board = Board(size=metadata.size)
+    for (pla,loc) in setup:
+      board.set_stone(pla,loc)
+    if moves[0][0] == Board.WHITE:
+      board.set_pla(Board.WHITE)
 
-    for (color,next_loc) in moves:
-
-      if random.random() < prob_to_include_row and \
-         ((color == 'b') == (fastboard.pla == Board.BLACK)):
-        if color == 'b':
-          pla = 'b'
-          opp = 'w'
-        elif color == 'w':
-          opp = 'b'
-          pla = 'w'
-        else:
-          assert False
+    for (pla,next_loc) in moves:
+      if random.random() < prob_to_include_row:
 
         if idx >= len(input_data):
           input_data.resize((idx * 3//2 + 100,) + input_data.shape[1:], refcheck=False)
           target_data.resize((idx * 3//2 + 100,) + target_data.shape[1:], refcheck=False)
           target_data_weights.resize((idx * 3//2 + 100,) + target_data_weights.shape[1:], refcheck=False)
 
-        fill_row_features(slowboard,pla,opp,next_loc,input_data,target_data,target_data_weights,idx)
+        opp = Board.get_opp(pla)
+        fill_row_features(board,pla,opp,next_loc,input_data,target_data,target_data_weights,idx)
         idx += 1
         if max_num_rows is not None and idx >= max_num_rows:
           print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
@@ -213,37 +295,16 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
         if idx % 2500 == 0:
           print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
 
-      if next_loc is not None: # pass
-        (row,col) = next_loc
-        try:
-          slowboard.play(row,col,color)
-          loc = fastboard.loc(col,row)
-          if color == 'b':
-            fastboard.play(Board.BLACK,loc)
-          else:
-            fastboard.play(Board.WHITE,loc)
-
-        except ValueError:
-          print("Illegal move in: " + filename)
-          print("Move " + str((row,col)))
-          print(ascii_boards.render_board(slowboard))
-          break
-
+      if next_loc is None: # pass
+        board.do_pass()
       else:
-        fastboard.do_pass()
-
-    for y in range(19):
-      for x in range(19):
-        loc = fastboard.loc(x,y)
-        if slowboard.get(y,x) == 'b':
-          assert(fastboard.board[loc] == Board.BLACK)
-        elif slowboard.get(y,x) == 'w':
-          assert(fastboard.board[loc] == Board.WHITE)
-        elif slowboard.get(y,x) is None:
-          assert(fastboard.board[loc] == Board.EMPTY)
-        else:
-          assert(False)
-
+        try:
+          board.play(pla,next_loc)
+        except:
+          print("Illegal move in: " + filename)
+          print("Move " + str((board.loc_x(next_loc),board.loc_y(next_loc))))
+          print(board.to_string())
+          break
 
   print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
   input_data.resize((idx,) + input_data.shape[1:], refcheck=False)

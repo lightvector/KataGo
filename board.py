@@ -21,7 +21,7 @@ class Board:
     ZOBRIST_PLA.append(ZOBRIST_RAND.getrandbits(64))
 
   def __init__(self,size,copy_other=None):
-    if size < 2:
+    if size < 2 or size > 39:
       raise ValueError("Invalid board size: " + str(size))
     self.size = size
     self.arrsize = (size+1)*(size+2)+1
@@ -66,9 +66,17 @@ class Board:
   @staticmethod
   def get_opp(pla):
     return 3-pla
+  @staticmethod
+  def loc_static(x,y,size):
+    return (x+1) + (size+1)*(y+1)
 
   def loc(self,x,y):
     return (x+1) + self.dy*(y+1)
+  def loc_x(self,loc):
+    return (loc % self.dy)-1
+  def loc_y(self,loc):
+    return (loc // self.dy)-1
+
 
   def pos_zobrist(self):
     return self.zobrist

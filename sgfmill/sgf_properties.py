@@ -49,7 +49,7 @@ def interpret_go_point(bb, size):
     col = col_b - 97 # 97 == ord("a")
     row = size - row_b + 96
     if not ((0 <= col < size) and (0 <= row < size)):
-        raise ValueError
+        raise ValueError("Invalid point for stone")
     return row, col
 
 def serialise_go_point(move, size):
