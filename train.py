@@ -439,9 +439,9 @@ print("Built model", flush=True)
 print("Loading data", flush=True)
 
 prob_to_include_row = 0.05
-all_input_data = np.zeros(shape=[1]+input_shape)
-all_target_data = np.zeros(shape=[1]+target_shape)
-all_target_data_weights = np.zeros(shape=[1]+target_weights_shape)
+all_input_data = np.zeros(shape=[1]+input_shape, dtype=np.float32)
+all_target_data = np.zeros(shape=[1]+target_shape, dtype=np.float32)
+all_target_data_weights = np.zeros(shape=[1]+target_weights_shape, dtype=np.float32)
 
 max_num_rows = None
 
@@ -547,14 +547,14 @@ class LR:
 
 print("Training", flush=True)
 
-num_epochs = 150
+num_epochs = 80
 
 lr = LR(
   initial_lr = 0.0001,
   decay_exponent = 3,
   decay_offset = 15,
-  plateau_wait_epochs = 4,
-  plateau_min_epochs = 4,
+  plateau_wait_epochs = 3,
+  plateau_min_epochs = 3,
 )
 
 with tf.Session() as session:
@@ -601,9 +601,9 @@ with tf.Session() as session:
     tloss_sum = 0
 
     #Allocate buffers into which we'll copy every batch, to avoid using lots of memory
-    input_buf = np.zeros(shape=[batch_size]+input_shape)
-    target_buf = np.zeros(shape=[batch_size]+target_shape)
-    target_weights_buf = np.zeros(shape=[batch_size]+target_weights_shape)
+    input_buf = np.zeros(shape=[batch_size]+input_shape, dtype=np.float32)
+    target_buf = np.zeros(shape=[batch_size]+target_shape, dtype=np.float32)
+    target_weights_buf = np.zeros(shape=[batch_size]+target_weights_shape, dtype=np.float32)
     data_buf=(input_buf,target_buf,target_weights_buf)
 
     for i in range(num_batches):
