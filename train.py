@@ -14,6 +14,8 @@ from sgfmill import ascii_boards
 from sgfmill import sgf
 from sgfmill import sgf_moves
 
+from board import Board
+
 #Command and args-------------------------------------------------------------------
 
 description = """
@@ -97,6 +99,7 @@ print("Total: collected %d games" % (len(game_files)), flush=True)
 #19x19 move
 #1 pass #TODO
 
+#TODO check if some KGS games leftmost variation actually isn't the game because of an undo
 #TODO data symmetrizing
 #TODO data deduplication
 #TODO more data features?? definitely at least history
@@ -112,7 +115,6 @@ max_board_size = 19
 input_shape = [19,19,3]
 target_shape = [19*19]
 
-#TODO don't assume 19
 def fill_row_features(board, pla, opp, next_loc, input_data, target_data, target_data_weights, idx):
   for y in range(19):
     for x in range(19):
@@ -139,10 +141,24 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
   ngames = 0
   for filename in game_files:
     ngames += 1
-    (board,moves) = load_sgf_moves(filename)
+    (slowboard,moves) = load_sgf_moves(filename)
+    #TODO
+    if slowboard.side != max_board_size:
+      continue
+
+    fastboard = Board(size=slowboard.side)
+    for y in range(19):
+      for x in range(19):
+        loc = fastboard.loc(x,y)
+        if slowboard.get(y,x) == 'b':
+          fastboard.set_stone(Board.BLACK,loc)
+        elif slowboard.get(y,x) == 'w':
+          fastboard.set_stone(Board.WHITE,loc)
+
     for (color,next_loc) in moves:
 
-      if random.random() < prob_to_include_row:
+      if random.random() < prob_to_include_row and \
+         ((color == 'b') == (fastboard.pla == Board.BLACK)):
         if color == 'b':
           pla = 'b'
           opp = 'w'
@@ -157,7 +173,7 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
           target_data.resize((idx * 3//2 + 100,) + target_data.shape[1:], refcheck=False)
           target_data_weights.resize((idx * 3//2 + 100,) + target_data_weights.shape[1:], refcheck=False)
 
-        fill_row_features(board,pla,opp,next_loc,input_data,target_data,target_data_weights,idx)
+        fill_row_features(slowboard,pla,opp,next_loc,input_data,target_data,target_data_weights,idx)
         idx += 1
         if max_num_rows is not None and idx >= max_num_rows:
           print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
@@ -172,12 +188,33 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
       if next_loc is not None: # pass
         (row,col) = next_loc
         try:
-          board.play(row,col,color)
+          slowboard.play(row,col,color)
+          loc = fastboard.loc(col,row)
+          if color == 'b':
+            fastboard.play(Board.BLACK,loc)
+          else:
+            fastboard.play(Board.WHITE,loc)
+
         except ValueError:
           print("Illegal move in: " + filename)
           print("Move " + str((row,col)))
-          print(ascii_boards.render_board(board))
+          print(ascii_boards.render_board(slowboard))
           break
+
+      else:
+        fastboard.do_pass()
+
+    for y in range(19):
+      for x in range(19):
+        loc = fastboard.loc(x,y)
+        if slowboard.get(y,x) == 'b':
+          assert(fastboard.board[loc] == Board.BLACK)
+        elif slowboard.get(y,x) == 'w':
+          assert(fastboard.board[loc] == Board.WHITE)
+        elif slowboard.get(y,x) is None:
+          assert(fastboard.board[loc] == Board.EMPTY)
+
+
 
   print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
   input_data.resize((idx,) + input_data.shape[1:], refcheck=False)
