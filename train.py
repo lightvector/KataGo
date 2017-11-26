@@ -432,7 +432,16 @@ stdev_weights_by_var = [
   (v.name,reduce_stdev(v)) for v in tf.trainable_variables()
 ]
 
-print("Built model", flush=True)
+total_parameters = 0
+for variable in tf.trainable_variables():
+  shape = variable.get_shape()
+  variable_parameters = 1
+  for dim in shape:
+    variable_parameters *= dim.value
+  total_parameters += variable_parameters
+
+print("Built model, %d total parameters" % total_parameters, flush=True)
+trainlogger.info("Built model, %d total parameters" % total_parameters)
 
 # Load data ------------------------------------------------------------
 
