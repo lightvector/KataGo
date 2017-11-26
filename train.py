@@ -200,6 +200,8 @@ print("Total: collected %d games" % (len(game_files)), flush=True)
 #19x19 opp stone present
 #19x19x2 own liberties 1,2
 #19x19x2 opp liberties 1,2
+#19x19x3 prev moves
+#19x19x1 simple ko point
 
 #Maybe??
 #19x19x5 own stone present 0-4 turns ago
@@ -227,11 +229,15 @@ print("Total: collected %d games" % (len(game_files)), flush=True)
 #TODO gpu-acceleration!
 
 max_board_size = 19
-input_shape = [19,19,7]
+input_shape = [19,19,11]
 target_shape = [19*19]
 target_weights_shape = []
 
-def fill_row_features(board, pla, opp, next_loc, input_data, target_data, target_data_weights, idx):
+prob_to_include_prev1 = 0.90
+prob_to_include_prev2 = 0.95
+prob_to_include_prev3 = 0.95
+
+def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, idx):
   for y in range(19):
     for x in range(19):
       input_data[idx,y,x,0] = 1.0
@@ -253,6 +259,25 @@ def fill_row_features(board, pla, opp, next_loc, input_data, target_data, target
         elif libs == 2:
           input_data[idx,y,x,6] = 1.0
 
+  if move_idx >= 1 and random.random() < prob_to_include_prev1:
+    prev1_loc = moves[move_idx-1][1]
+    if prev1_loc is not None:
+      input_data[idx,board.loc_y(prev1_loc),board.loc_x(prev1_loc),7] = 1.0
+
+    if move_idx >= 2 and random.random() < prob_to_include_prev2:
+      prev2_loc = moves[move_idx-2][1]
+      if prev2_loc is not None:
+        input_data[idx,board.loc_y(prev2_loc),board.loc_x(prev2_loc),8] = 1.0
+
+      if move_idx >= 3 and random.random() < prob_to_include_prev3:
+        prev3_loc = moves[move_idx-3][1]
+        if prev3_loc is not None:
+          input_data[idx,board.loc_y(prev3_loc),board.loc_x(prev3_loc),9] = 1.0
+
+  if board.simple_ko_point is not None:
+    input_data[idx,board.loc_y(board.simple_ko_point),board.loc_x(board.simple_ko_point),10] = 1.0
+
+  next_loc = moves[move_idx][1]
   if next_loc is None:
     # TODO for now we weight these rows to 0
     target_data[idx,0] = 1.0
@@ -291,7 +316,8 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
     if moves[0][0] == Board.WHITE:
       board.set_pla(Board.WHITE)
 
-    for (pla,next_loc) in moves:
+    for move_idx in range(len(moves)):
+      (pla,next_loc) = moves[move_idx]
       if random.random() < prob_to_include_row:
 
         if idx >= len(input_data):
@@ -300,7 +326,7 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
           target_data_weights.resize((idx * 3//2 + 100,) + target_data_weights.shape[1:], refcheck=False)
 
         opp = Board.get_opp(pla)
-        fill_row_features(board,pla,opp,next_loc,input_data,target_data,target_data_weights,idx)
+        fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data,target_data_weights,idx)
         idx += 1
         if max_num_rows is not None and idx >= max_num_rows:
           print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
