@@ -363,6 +363,8 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
 
 print("Building model", flush=True)
 
+reg_variables = []
+
 def init_stdev(num_inputs,num_outputs):
   #xavier
   #return math.sqrt(2.0 / (num_inputs + num_outputs))
@@ -372,12 +374,16 @@ def init_stdev(num_inputs,num_outputs):
 def weight_variable(name, shape, num_inputs, num_outputs):
   stdev = init_stdev(num_inputs,num_outputs) / 1.0
   initial = tf.truncated_normal(shape=shape, stddev=stdev)
-  return tf.Variable(initial,name=name)
+  variable = tf.Variable(initial,name=name)
+  reg_variables.append(variable)
+  return variable
 
 def bias_variable(name, shape, num_inputs, num_outputs):
   stdev = init_stdev(num_inputs,num_outputs) / 2.0
   initial = tf.truncated_normal(shape=shape, mean=stdev, stddev=stdev)
-  return tf.Variable(initial,name=name)
+  variable = tf.Variable(initial,name=name)
+  reg_variables.append(variable)
+  return variable
 
 def conv2d(x, w):
   return tf.nn.conv2d(x, w, strides=[1,1,1,1], padding='SAME')
@@ -443,11 +449,18 @@ output_layer = tf.reshape(cur_layer, [-1] + target_shape)
 #Loss function
 targets = tf.placeholder(tf.float32, [None] + target_shape)
 target_weights = tf.placeholder(tf.float32, [None] + target_weights_shape)
-loss = tf.reduce_mean(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=output_layer))
+data_loss = tf.reduce_mean(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=output_layer))
+
+#Prior/Regularization
+l2_reg_coeff = tf.placeholder(tf.float32)
+reg_loss = l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in reg_variables])
+
+#The loss to optimize
+opt_loss = data_loss + reg_loss
 
 #Training results
 batch_learning_rate = tf.placeholder(tf.float32)
-train_step = tf.train.AdamOptimizer(batch_learning_rate).minimize(loss)
+train_step = tf.train.AdamOptimizer(batch_learning_rate).minimize(opt_loss)
 target_idxs = tf.argmax(targets, 1)
 top1_prediction = tf.equal(tf.argmax(output_layer, 1), target_idxs)
 top4_prediction = tf.nn.in_top_k(output_layer,target_idxs,4)
@@ -502,7 +515,7 @@ print("Took %f seconds to load data" % (end_time - start_time), flush=True)
 
 print("Splitting into training and validation", flush=True)
 num_all_rows = len(all_input_data)
-num_test_rows = min(5000,num_all_rows//10)
+num_test_rows = min(10000,num_all_rows//10)
 num_train_rows = num_all_rows - num_test_rows
 
 #Shuffle all 3 arrays in unison. A little wacky, but...
@@ -606,6 +619,10 @@ lr = LR(
   plateau_min_epochs = 3,
 )
 
+l2_coeff_value = 3 / max(1000,num_train_rows)
+
+saver = tf.train.Saver()
+
 with tf.Session() as session:
   session.run(tf.global_variables_initializer())
 
@@ -614,17 +631,18 @@ with tf.Session() as session:
       inputs: data[0],
       targets: data[1],
       target_weights: data[2],
-      batch_learning_rate: blr
+      batch_learning_rate: blr,
+      l2_reg_coeff: l2_coeff_value
     })
 
   def np_array_str(arr,precision):
     return np.array_str(arr, precision=precision, suppress_small = True, max_line_width = 200)
 
   def val_accuracy_and_loss():
-    return run([accuracy1,accuracy4,loss], vdata)
+    return run([accuracy1,accuracy4,data_loss], vdata)
 
-  def train_stats_str(tacc1,tacc4,tloss):
-    return "tacc1 %5.2f%% tacc4 %5.2f%% tloss %f" % (tacc1*100, tacc4*100, tloss)
+  def train_stats_str(tacc1,tacc4,tdata_loss,treg_loss):
+    return "tacc1 %5.2f%% tacc4 %5.2f%% tdloss %f trloss %f" % (tacc1*100, tacc4*100, tdata_loss, treg_loss)
 
   def validation_stats_str(vacc1,vacc4,vloss):
     return "vacc1 %5.2f%% vacc4 %5.2f%% vloss %f" % (vacc1*100, vacc4*100, vloss)
@@ -647,7 +665,8 @@ with tf.Session() as session:
 
     tacc1_sum = 0
     tacc4_sum = 0
-    tloss_sum = 0
+    tdata_loss_sum = 0
+    treg_loss_sum = 0
 
     #Allocate buffers into which we'll copy every batch, to avoid using lots of memory
     input_buf = np.zeros(shape=[batch_size]+input_shape, dtype=np.float32)
@@ -663,23 +682,25 @@ with tf.Session() as session:
         target_buf[b] = ttarget_data[r]
         target_weights_buf[b] = ttarget_data_weights[r]
 
-      (bacc1, bacc4, bloss, _) = run(
-        fetches=[accuracy1, accuracy4, loss, train_step],
+      (bacc1, bacc4, bdata_loss, breg_loss, _) = run(
+        fetches=[accuracy1, accuracy4, data_loss, reg_loss, train_step],
         data=data_buf,
         blr=lr.lr() * batch_size
       )
 
       tacc1_sum += bacc1
       tacc4_sum += bacc4
-      tloss_sum += bloss
+      tdata_loss_sum += bdata_loss
+      treg_loss_sum += breg_loss
 
       if i % (num_batches // 30) == 0:
         print(".", end='', flush=True)
 
     tacc1 = tacc1_sum / num_batches
     tacc4 = tacc4_sum / num_batches
-    tloss = tloss_sum / num_batches
-    return (tacc1,tacc4,tloss)
+    tdata_loss = tdata_loss_sum / num_batches
+    treg_loss = treg_loss_sum / num_batches
+    return (tacc1,tacc4,tdata_loss,treg_loss)
 
   (vacc1,vacc4,vloss) = val_accuracy_and_loss()
   vstr = validation_stats_str(vacc1,vacc4,vloss)
@@ -693,14 +714,14 @@ with tf.Session() as session:
   for epoch in range(num_epochs):
     print("Epoch %d" % (epoch), end='', flush=True)
     batch_idxs = get_batch_idxs()
-    (tacc1,tacc4,tloss) = run_batches(batch_idxs)
+    (tacc1,tacc4,tdata_loss,treg_loss) = run_batches(batch_idxs)
     (vacc1,vacc4,vloss) = val_accuracy_and_loss()
-    lr.report_loss(epoch=epoch,loss=(tloss+vloss))
+    lr.report_loss(epoch=epoch,loss=(tdata_loss + treg_loss + vloss))
     print("")
 
     elapsed = time.perf_counter() - start_time
 
-    tstr = train_stats_str(tacc1,tacc4,tloss)
+    tstr = train_stats_str(tacc1,tacc4,tdata_loss,treg_loss)
     vstr = validation_stats_str(vacc1,vacc4,vloss)
     timestr = time_str(elapsed)
     print("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr), flush=True)
@@ -711,6 +732,9 @@ with tf.Session() as session:
     detaillogger.info("Epoch %d--------------------------------------------------" % (epoch))
     detaillogger.info("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr))
     log_detail_stats()
+
+    if epoch % 4 == 0:
+      saver.save(session, traindir + "/model" + str(epoch), max_to_keep = 10000, save_relative_paths = True)
 
   (vacc1,vacc4,vloss) = val_accuracy_and_loss()
   vstr = validation_stats_str(vacc1,vacc4,vloss)
