@@ -215,13 +215,10 @@ print("Total: collected %d games" % (len(game_files)), flush=True)
 #19x19 move
 #1 pass #TODO
 
-#TODO check if some KGS games leftmost variation actually isn't the game because of an undo
 #TODO data symmetrizing
 #TODO data deduplication
-#TODO more data features?? definitely at least history
 #TODO test different neural net structures, particularly the final combining layer
 #TODO weight and neuron activation visualization
-#TODO save weights and such, keep a notes file of configurations and results
 #TODO run same NN several times to get an idea of consistency
 #TODO does it help if we just enforce legality and don't need the NN to do so?
 #TODO batch normalization
@@ -364,6 +361,19 @@ def fill_features(prob_to_include_row, input_data, target_data, target_data_weig
 print("Building model", flush=True)
 
 reg_variables = []
+is_training = tf.placeholder(tf.bool)
+
+def batchnorm(name,tensor):
+  return tf.layers.batch_normalization(
+    tensor,
+    axis=-1, #Because channels are our last axis, -1 refers to that via wacky python indexing
+    momentum=0.999,
+    epsilon=0.001,
+    center=True,
+    scale=True,
+    training=is_training,
+    name=name,
+  )
 
 def init_stdev(num_inputs,num_outputs):
   #xavier
@@ -407,9 +417,9 @@ cur_num_channels = input_shape[2]
 conv1diam = 3
 conv1num_channels = 32
 conv1w = weight_variable("conv1w",[conv1diam,conv1diam,cur_num_channels,conv1num_channels],cur_num_channels*conv1diam**2,conv1num_channels)
-conv1b = bias_variable("conv1b",[conv1num_channels],cur_num_channels,conv1num_channels)
+# conv1b = bias_variable("conv1b",[conv1num_channels],cur_num_channels,conv1num_channels)
 
-cur_layer = tf.nn.relu(conv2d(cur_layer, conv1w) + conv1b)
+cur_layer = tf.nn.relu(batchnorm("conv1norm",conv2d(cur_layer, conv1w)))
 cur_num_channels = conv1num_channels
 outputs_by_layer.append(("conv1",cur_layer))
 
@@ -417,9 +427,9 @@ outputs_by_layer.append(("conv1",cur_layer))
 conv2diam = 3
 conv2num_channels = 16
 conv2w = weight_variable("conv2w",[conv2diam,conv2diam,cur_num_channels,conv2num_channels],cur_num_channels*conv2diam**2,conv2num_channels)
-conv2b = bias_variable("conv2b",[conv2num_channels],cur_num_channels,conv2num_channels)
+# conv2b = bias_variable("conv2b",[conv2num_channels],cur_num_channels,conv2num_channels)
 
-cur_layer = tf.nn.relu(conv2d(cur_layer, conv2w) + conv2b)
+cur_layer = tf.nn.relu(batchnorm("conv2norm",conv2d(cur_layer, conv2w)))
 cur_num_channels = conv2num_channels
 outputs_by_layer.append(("conv2",cur_layer))
 
@@ -427,9 +437,9 @@ outputs_by_layer.append(("conv2",cur_layer))
 conv3diam = 3
 conv3num_channels = 8
 conv3w = weight_variable("conv3w",[conv3diam,conv3diam,cur_num_channels,conv3num_channels],cur_num_channels*conv3diam**2,conv3num_channels)
-conv3b = bias_variable("conv3b",[conv3num_channels],cur_num_channels,conv3num_channels)
+# conv3b = bias_variable("conv3b",[conv3num_channels],cur_num_channels,conv3num_channels)
 
-cur_layer = tf.nn.relu(conv2d(cur_layer, conv3w) + conv3b)
+cur_layer = tf.nn.relu(batchnorm("conv3norm",conv2d(cur_layer, conv3w)))
 cur_num_channels = conv3num_channels
 outputs_by_layer.append(("conv3",cur_layer))
 
@@ -458,9 +468,13 @@ reg_loss = l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in reg_
 #The loss to optimize
 opt_loss = data_loss + reg_loss
 
-#Training results
+#Training operation
 batch_learning_rate = tf.placeholder(tf.float32)
-train_step = tf.train.AdamOptimizer(batch_learning_rate).minimize(opt_loss)
+update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
+with tf.control_dependencies(update_ops):
+  train_step = tf.train.AdamOptimizer(batch_learning_rate).minimize(opt_loss)
+
+#Training results
 target_idxs = tf.argmax(targets, 1)
 top1_prediction = tf.equal(tf.argmax(output_layer, 1), target_idxs)
 top4_prediction = tf.nn.in_top_k(output_layer,target_idxs,4)
@@ -492,9 +506,16 @@ for variable in tf.trainable_variables():
   for dim in shape:
     variable_parameters *= dim.value
   total_parameters += variable_parameters
+  print("Model variable %s, %d parameters" % (variable.name,variable_parameters), flush=True)
+  trainlogger.info("Model variable %s, %d parameters" % (variable.name,variable_parameters))
 
 print("Built model, %d total parameters" % total_parameters, flush=True)
 trainlogger.info("Built model, %d total parameters" % total_parameters)
+
+for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
+  print("Additional update op on train step: %s" % update_op.name, flush=True)
+  trainlogger.info("Additional update op on train step: %s" % update_op.name)
+
 
 # Load data ------------------------------------------------------------
 
@@ -621,25 +642,29 @@ lr = LR(
 
 l2_coeff_value = 3 / max(1000,num_train_rows)
 
-saver = tf.train.Saver()
+saver = tf.train.Saver(
+  max_to_keep = 10000,
+  save_relative_paths = True,
+)
 
 with tf.Session() as session:
   session.run(tf.global_variables_initializer())
 
-  def run(fetches, data, blr=0.0):
+  def run(fetches, data, training, blr=0.0):
     return session.run(fetches, feed_dict={
       inputs: data[0],
       targets: data[1],
       target_weights: data[2],
       batch_learning_rate: blr,
-      l2_reg_coeff: l2_coeff_value
+      l2_reg_coeff: l2_coeff_value,
+      is_training: training
     })
 
   def np_array_str(arr,precision):
     return np.array_str(arr, precision=precision, suppress_small = True, max_line_width = 200)
 
   def val_accuracy_and_loss():
-    return run([accuracy1,accuracy4,data_loss], vdata)
+    return run([accuracy1,accuracy4,data_loss], vdata, training=False)
 
   def train_stats_str(tacc1,tacc4,tdata_loss,treg_loss):
     return "tacc1 %5.2f%% tacc4 %5.2f%% tdloss %f trloss %f" % (tacc1*100, tacc4*100, tdata_loss, treg_loss)
@@ -651,7 +676,7 @@ with tf.Session() as session:
     return "time %.3f" % elapsed
 
   def log_detail_stats():
-    apbl,mobl,sobl = run([dict(activated_prop_by_layer), dict(mean_output_by_layer), dict(stdev_output_by_layer)], vdata)
+    apbl,mobl,sobl = run([dict(activated_prop_by_layer), dict(mean_output_by_layer), dict(stdev_output_by_layer)], vdata, training=False)
     for key in apbl:
       detaillogger.info("%s: activated_prop %s" % (key, np_array_str(apbl[key], precision=3)))
       detaillogger.info("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
@@ -685,6 +710,7 @@ with tf.Session() as session:
       (bacc1, bacc4, bdata_loss, breg_loss, _) = run(
         fetches=[accuracy1, accuracy4, data_loss, reg_loss, train_step],
         data=data_buf,
+        training=True,
         blr=lr.lr() * batch_size
       )
 
@@ -734,7 +760,7 @@ with tf.Session() as session:
     log_detail_stats()
 
     if epoch % 4 == 0:
-      saver.save(session, traindir + "/model" + str(epoch), max_to_keep = 10000, save_relative_paths = True)
+      saver.save(session, traindir + "/model" + str(epoch))
 
   (vacc1,vacc4,vloss) = val_accuracy_and_loss()
   vstr = validation_stats_str(vacc1,vacc4,vloss)
