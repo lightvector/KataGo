@@ -449,7 +449,7 @@ cur_layer = tf.nn.relu(batchnorm("conv3norm",conv2d(cur_layer, conv3w)))
 cur_num_channels = conv3num_channels
 outputs_by_layer.append(("conv3",cur_layer))
 
-#Convolutional RELU layer 3
+#Convolutional RELU layer 4
 conv4diam = 3
 conv4num_channels = 16
 conv4w = weight_variable("conv4w",[conv4diam,conv4diam,cur_num_channels,conv4num_channels],cur_num_channels*conv4diam**2,conv4num_channels)
@@ -459,7 +459,7 @@ cur_layer = tf.nn.relu(batchnorm("conv4norm",conv2d(cur_layer, conv4w)))
 cur_num_channels = conv4num_channels
 outputs_by_layer.append(("conv4",cur_layer))
 
-#Convolutional linear output layer 4
+#Convolutional linear output layer
 convodiam = 5
 convonum_channels = 1
 convow = weight_variable("convow",[convodiam,convodiam,cur_num_channels,convonum_channels],cur_num_channels*convodiam**2,convonum_channels)
