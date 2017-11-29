@@ -27,6 +27,7 @@ class Board:
     self.arrsize = (size+1)*(size+2)+1
     self.dy = size+1
     self.adj = [-self.dy,-1,1,self.dy]
+    self.diag = [-self.dy-1,-self.dy+1,self.dy-1,self.dy+1]
 
     if copy_other is not None:
       self.pla = copy_other.pla
@@ -87,6 +88,50 @@ class Board:
     if self.board[loc] == Board.EMPTY or self.board[loc] == Board.WALL:
       return 0
     return self.group_liberty_count[self.group_head[loc]]
+
+  def is_simple_eye(self,pla,loc):
+    adj0 = loc + self.adj[0]
+    adj1 = loc + self.adj[1]
+    adj2 = loc + self.adj[2]
+    adj3 = loc + self.adj[3]
+
+    if (self.board[adj0] != pla and self.board[adj0] != Board.WALL) or \
+       (self.board[adj1] != pla and self.board[adj1] != Board.WALL) or \
+       (self.board[adj2] != pla and self.board[adj2] != Board.WALL) or \
+       (self.board[adj3] != pla and self.board[adj3] != Board.WALL):
+      return False
+
+    opp = Board.get_opp(pla)
+    opp_corners = 0
+    diag0 = loc + self.diag[0]
+    diag1 = loc + self.diag[1]
+    diag2 = loc + self.diag[2]
+    diag3 = loc + self.diag[3]
+    if self.board[diag0] == opp:
+      opp_corners += 1
+    if self.board[diag1] == opp:
+      opp_corners += 1
+    if self.board[diag2] == opp:
+      opp_corners += 1
+    if self.board[diag3] == opp:
+      opp_corners += 1
+
+    if opp_corners >= 2:
+      return False
+    if opp_corners <= 0:
+      return True
+
+    against_wall = (
+      self.board[adj0] == Board.WALL or \
+      self.board[adj1] == Board.WALL or \
+      self.board[adj2] == Board.WALL or \
+      self.board[adj3] == Board.WALL
+    )
+
+    if against_wall:
+      return False
+    return True
+
 
   def would_be_legal(self,pla,loc):
     if pla != Board.BLACK and pla != Board.WHITE:
