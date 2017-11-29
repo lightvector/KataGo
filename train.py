@@ -367,7 +367,7 @@ def batchnorm(name,tensor):
   return tf.layers.batch_normalization(
     tensor,
     axis=-1, #Because channels are our last axis, -1 refers to that via wacky python indexing
-    momentum=0.999,
+    momentum=0.99,
     epsilon=0.001,
     center=True,
     scale=True,
