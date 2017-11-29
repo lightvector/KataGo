@@ -765,7 +765,7 @@ with tf.Session() as session:
     detaillogger.info("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr))
     log_detail_stats()
 
-    if epoch % 4 == 0:
+    if epoch % 4 == 0 or epoch == num_epochs-1:
       saver.save(session, traindir + "/model" + str(epoch))
 
   (vacc1,vacc4,vloss) = val_accuracy_and_loss()
