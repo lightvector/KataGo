@@ -421,7 +421,7 @@ cur_num_channels = input_shape[2]
 
 #Convolutional RELU layer 1
 conv1diam = 3
-conv1num_channels = 32
+conv1num_channels = 64
 conv1w = weight_variable("conv1w",[conv1diam,conv1diam,cur_num_channels,conv1num_channels],cur_num_channels*conv1diam**2,conv1num_channels)
 # conv1b = bias_variable("conv1b",[conv1num_channels],cur_num_channels,conv1num_channels)
 
@@ -431,7 +431,7 @@ outputs_by_layer.append(("conv1",cur_layer))
 
 #Convolutional RELU layer 2
 conv2diam = 3
-conv2num_channels = 16
+conv2num_channels = 32
 conv2w = weight_variable("conv2w",[conv2diam,conv2diam,cur_num_channels,conv2num_channels],cur_num_channels*conv2diam**2,conv2num_channels)
 # conv2b = bias_variable("conv2b",[conv2num_channels],cur_num_channels,conv2num_channels)
 
@@ -441,7 +441,7 @@ outputs_by_layer.append(("conv2",cur_layer))
 
 #Convolutional RELU layer 3
 conv3diam = 3
-conv3num_channels = 16
+conv3num_channels = 32
 conv3w = weight_variable("conv3w",[conv3diam,conv3diam,cur_num_channels,conv3num_channels],cur_num_channels*conv3diam**2,conv3num_channels)
 # conv3b = bias_variable("conv3b",[conv3num_channels],cur_num_channels,conv3num_channels)
 
@@ -451,7 +451,7 @@ outputs_by_layer.append(("conv3",cur_layer))
 
 #Convolutional RELU layer 4
 conv4diam = 3
-conv4num_channels = 16
+conv4num_channels = 32
 conv4w = weight_variable("conv4w",[conv4diam,conv4diam,cur_num_channels,conv4num_channels],cur_num_channels*conv4diam**2,conv4num_channels)
 # conv4b = bias_variable("conv4b",[conv4num_channels],cur_num_channels,conv4num_channels)
 
