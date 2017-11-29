@@ -167,6 +167,8 @@ def load_sgf_moves_exn(path):
 
   if "70KPublicDomain" in path:
     source = Metadata.SOURCE_PRO
+  elif "GoGoD" in path:
+    source = Metadata.SOURCE_PRO
   else:
     raise Exception("Don't know how to determine source for: " + path)
 
