@@ -228,7 +228,7 @@ print("Total: collected %d games" % (len(game_files)), flush=True)
 #TODO gpu-acceleration!
 
 max_board_size = 19
-input_shape = [19,19,11]
+input_shape = [19,19,13]
 target_shape = [19*19]
 target_weights_shape = []
 
@@ -249,32 +249,36 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data,
           input_data[idx,y,x,3] = 1.0
         elif libs == 2:
           input_data[idx,y,x,4] = 1.0
+        elif libs == 3:
+          input_data[idx,y,x,5] = 1.0
 
       elif stone == opp:
         input_data[idx,y,x,2] = 1.0
         libs = board.num_liberties(loc)
         if libs == 1:
-          input_data[idx,y,x,5] = 1.0
-        elif libs == 2:
           input_data[idx,y,x,6] = 1.0
+        elif libs == 2:
+          input_data[idx,y,x,7] = 1.0
+        elif libs == 3:
+          input_data[idx,y,x,8] = 1.0
 
   if move_idx >= 1 and random.random() < prob_to_include_prev1:
     prev1_loc = moves[move_idx-1][1]
     if prev1_loc is not None:
-      input_data[idx,board.loc_y(prev1_loc),board.loc_x(prev1_loc),7] = 1.0
+      input_data[idx,board.loc_y(prev1_loc),board.loc_x(prev1_loc),9] = 1.0
 
     if move_idx >= 2 and random.random() < prob_to_include_prev2:
       prev2_loc = moves[move_idx-2][1]
       if prev2_loc is not None:
-        input_data[idx,board.loc_y(prev2_loc),board.loc_x(prev2_loc),8] = 1.0
+        input_data[idx,board.loc_y(prev2_loc),board.loc_x(prev2_loc),10] = 1.0
 
       if move_idx >= 3 and random.random() < prob_to_include_prev3:
         prev3_loc = moves[move_idx-3][1]
         if prev3_loc is not None:
-          input_data[idx,board.loc_y(prev3_loc),board.loc_x(prev3_loc),9] = 1.0
+          input_data[idx,board.loc_y(prev3_loc),board.loc_x(prev3_loc),11] = 1.0
 
   if board.simple_ko_point is not None:
-    input_data[idx,board.loc_y(board.simple_ko_point),board.loc_x(board.simple_ko_point),10] = 1.0
+    input_data[idx,board.loc_y(board.simple_ko_point),board.loc_x(board.simple_ko_point),12] = 1.0
 
   next_loc = moves[move_idx][1]
   if next_loc is None:
