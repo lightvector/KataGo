@@ -40,6 +40,7 @@ def genmove(session, board, moves):
 
   output = session.run(fetches=[output_layer], feed_dict={
     model.inputs: input_data,
+    model.symmetries: [False,False,False],
     model.is_training: False
   })
   output = output[0][0]

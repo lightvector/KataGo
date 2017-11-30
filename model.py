@@ -197,15 +197,43 @@ def bias_variable(name, shape, num_inputs, num_outputs):
 def conv2d(x, w):
   return tf.nn.conv2d(x, w, strides=[1,1,1,1], padding='SAME')
 
+def apply_symmetry(tensor,symmetries,inverse):
+  ud = symmetries[0]
+  lr = symmetries[1]
+  transp = symmetries[2]
+
+  rev_axes = tf.concat([
+    tf.cond(ud, lambda: tf.constant([1]), lambda: tf.constant([],dtype='int32')),
+    tf.cond(lr, lambda: tf.constant([2]), lambda: tf.constant([],dtype='int32')),
+  ], axis=0)
+
+  if not inverse:
+    tensor = tf.reverse(tensor, rev_axes)
+
+  assert(len(tensor.shape) == 4)
+  tensor = tf.cond(
+    transp,
+    lambda: tf.transpose(tensor, [0,2,1,3]),
+    lambda: tensor)
+
+  if inverse:
+    tensor = tf.reverse(tensor, rev_axes)
+
+  return tensor
+
 #Indexing:
 #batch, bsize, bsize, channel
 
 #Input layer
 inputs = tf.placeholder(tf.float32, [None] + input_shape)
+symmetries = tf.placeholder(tf.bool, [3])
 
 outputs_by_layer = []
 cur_layer = tf.reshape(inputs, [-1] + post_input_shape)
 cur_num_channels = post_input_shape[2]
+
+#Input symmetries
+cur_layer = apply_symmetry(cur_layer,symmetries,inverse=False)
 
 #Convolutional RELU layer 1
 conv1diam = 3
@@ -252,7 +280,10 @@ cur_layer = conv2d(cur_layer, convow)
 cur_num_channels = convonum_channels
 outputs_by_layer.append(("convo",cur_layer))
 
-#Output
+#Output symmetries
 assert(cur_num_channels == 1)
+cur_layer = apply_symmetry(cur_layer,symmetries,inverse=True)
+
+#Output
 output_layer = tf.reshape(cur_layer, [-1] + target_shape)
 

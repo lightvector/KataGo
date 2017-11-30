@@ -374,11 +374,12 @@ saver = tf.train.Saver(
 with tf.Session() as session:
   session.run(tf.global_variables_initializer())
 
-  def run(fetches, data, training, blr=0.0):
+  def run(fetches, data, training, symmetries, blr=0.0):
     return session.run(fetches, feed_dict={
       model.inputs: data[0],
       targets: data[1],
       target_weights: data[2],
+      model.symmetries: symmetries,
       batch_learning_rate: blr,
       l2_reg_coeff: l2_coeff_value,
       model.is_training: training
@@ -388,7 +389,7 @@ with tf.Session() as session:
     return np.array_str(arr, precision=precision, suppress_small = True, max_line_width = 200)
 
   def val_accuracy_and_loss():
-    return run([accuracy1,accuracy4,data_loss], vdata, training=False)
+    return run([accuracy1,accuracy4,data_loss], vdata, symmetries=[False,False,False], training=False)
 
   def train_stats_str(tacc1,tacc4,tdata_loss,treg_loss):
     return "tacc1 %5.2f%% tacc4 %5.2f%% tdloss %f trloss %f" % (tacc1*100, tacc4*100, tdata_loss, treg_loss)
@@ -400,7 +401,8 @@ with tf.Session() as session:
     return "time %.3f" % elapsed
 
   def log_detail_stats():
-    apbl,mobl,sobl = run([dict(activated_prop_by_layer), dict(mean_output_by_layer), dict(stdev_output_by_layer)], vdata, training=False)
+    apbl,mobl,sobl = run([dict(activated_prop_by_layer), dict(mean_output_by_layer), dict(stdev_output_by_layer)],
+                         vdata, symmetries=[False,False,False], training=False)
     for key in apbl:
       detaillogger.info("%s: activated_prop %s" % (key, np_array_str(apbl[key], precision=3)))
       detaillogger.info("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
@@ -427,23 +429,16 @@ with tf.Session() as session:
       bidxs = batch_idxs[i]
       for b in range(batch_size):
         r = bidxs[b]
-        symmetry = np.random.randint(8)
 
-        for pos in range(model.input_shape[0]):
-          sym = model.sym_tensor_pos(pos,symmetry)
-          for channel in range(model.input_shape[1]):
-            input_buf[b,sym,channel] = tinput_data[r,pos,channel]
-
-        for pos in range(model.target_shape[0]):
-          sym = model.sym_tensor_pos(pos,symmetry)
-          target_buf[b,sym] = ttarget_data[r,pos]
-
+        input_buf[b] = tinput_data[r]
+        target_buf[b] = ttarget_data[r]
         target_weights_buf[b] = ttarget_data_weights[r]
 
       (bacc1, bacc4, bdata_loss, breg_loss, _) = run(
         fetches=[accuracy1, accuracy4, data_loss, reg_loss, train_step],
         data=data_buf,
         training=True,
+        symmetries=[np.random.random() < 0.5, np.random.random() < 0.5, np.random.random() < 0.5],
         blr=lr.lr() * batch_size
       )
 
