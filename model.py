@@ -8,13 +8,10 @@ from board import Board
 
 #Feature extraction functions-------------------------------------------------------------------
 
-#TODO data symmetrizing
 #TODO data deduplication
 #TODO test different neural net structures, particularly the final combining layer
 #TODO weight and neuron activation visualization
-#TODO run same NN several times to get an idea of consistency
 #TODO does it help if we just enforce legality and don't need the NN to do so?
-#TODO batch normalization
 #TODO try residual structure?
 #TODO gpu-acceleration!
 
@@ -22,8 +19,8 @@ from board import Board
 #19x19 is on board
 #19x19 own stone present
 #19x19 opp stone present
-#19x19x2 own liberties 1,2
-#19x19x2 opp liberties 1,2
+#19x19x3 own liberties 1,2,3
+#19x19x3 opp liberties 1,2,3
 #19x19x3 prev moves
 #19x19x1 simple ko point
 

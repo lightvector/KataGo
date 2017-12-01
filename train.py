@@ -237,7 +237,7 @@ for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
 
 print("Loading data", flush=True)
 
-prob_to_include_row = 0.05
+prob_to_include_row = 0.20
 all_input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
 all_target_data = np.zeros(shape=[1]+model.target_shape, dtype=np.float32)
 all_target_data_weights = np.zeros(shape=[1]+model.target_weights_shape, dtype=np.float32)
