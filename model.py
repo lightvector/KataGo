@@ -233,7 +233,7 @@ cur_num_channels = post_input_shape[2]
 cur_layer = apply_symmetry(cur_layer,symmetries,inverse=False)
 
 #Convolutional RELU layer 1
-conv1diam = 3
+conv1diam = 5
 conv1num_channels = 64
 conv1w = weight_variable("conv1w",[conv1diam,conv1diam,cur_num_channels,conv1num_channels],cur_num_channels*conv1diam**2,conv1num_channels)
 
