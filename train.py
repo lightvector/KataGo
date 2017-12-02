@@ -323,17 +323,23 @@ class LR:
     initial_lr,          #Initial learning rate by sample
     decay_exponent,      #Exponent of the polynomial decay in learning rate based on number of plateaus
     decay_offset,        #Offset of the exponent
-    plateau_wait_epochs, #Plateau if this many epochs with no training loss improvement
-    plateau_min_epochs   #And if at least this many epochs happened since the last plateau
+    tstat_decay,         #Drop the learning rate if the tstat of loss diffs with this per-epoch decay is positive.
+    plateau_min_epochs,  #Never drop unless this many epochs passed since the last drop
+    force_drop_epochs,   #Also forcibly drop the learning rate after these epochs if it hasn't recently already dropped
   ):
     self.initial_lr = initial_lr
     self.decay_exponent = decay_exponent
     self.decay_offset = decay_offset
-    self.plateau_wait_epochs = plateau_wait_epochs
-    self.plateau_min_epochs = plateau_min_epochs
 
-    self.best_epoch = 0
-    self.best_epoch_loss = None
+    self.tstat_decay = tstat_decay
+    self.last_loss = None
+    self.running_weight = 0
+    self.running_wsum = 0
+    self.running_wsumsq = 0
+
+    self.tstat_decay = tstat_decay
+
+    self.plateau_min_epochs = plateau_min_epochs
     self.reduction_count = 0
     self.last_reduction_epoch = 0
 
@@ -341,14 +347,24 @@ class LR:
     factor = (self.reduction_count + self.decay_offset) / self.decay_offset
     return self.initial_lr / (factor ** self.decay_exponent)
 
-  def report_loss(self,epoch,loss):
-    if self.best_epoch_loss is None or loss < self.best_epoch_loss:
-      self.best_epoch_loss = loss
-      self.best_epoch = epoch
+  def reduce_lr(self):
+    self.last_reduction_epoch = epoch
+    self.reduction_count += 1
 
-    if epoch >= self.best_epoch + self.plateau_wait_epochs and epoch >= self.last_reduction_epoch + self.plateau_min_epochs:
-      self.last_reduction_epoch = epoch
-      self.reduction_count += 1
+  def report_loss(self,epoch,loss):
+    if self.last_loss is not None:
+      diff = loss - self.last_loss
+      self.running_weight = 1 + self.running_weight * self.tstat_decay
+      self.running_wsum = diff + self.running_weight * self.tstat_decay
+      self.running_wsumsq = diff * diff + self.running_weight * self.tstat_decay
+
+    self.last_loss = loss
+
+    zmtstat = self.running_wsum / math.sqrt(self.running_wsumsq)
+
+    if epoch >= self.last_reduction_epoch + self.plateau_min_epochs:
+      if zmtstat >= 0. or epoch >= self.last_reduction_epoch + self.force_drop_epochs:
+        self.reduce_lr()
 
 
 # Training ------------------------------------------------------------
@@ -361,8 +377,9 @@ lr = LR(
   initial_lr = 0.0001,
   decay_exponent = 4,
   decay_offset = 14,
-  plateau_wait_epochs = 3,
+  tstat_decay = 0.5,
   plateau_min_epochs = 3,
+  force_drop_epochs = 7,
 )
 
 l2_coeff_value = 3 / max(1000,num_train_rows)
