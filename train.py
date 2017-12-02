@@ -343,6 +343,9 @@ class LR:
     self.reduction_count = 0
     self.last_reduction_epoch = 0
 
+    self.force_drop_epochs = force_drop_epochs
+
+
   def lr(self):
     factor = (self.reduction_count + self.decay_offset) / self.decay_offset
     return self.initial_lr / (factor ** self.decay_exponent)
