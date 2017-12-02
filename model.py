@@ -154,8 +154,6 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data,
 
 # Build model -------------------------------------------------------------
 
-print("Building model", flush=True)
-
 reg_variables = []
 is_training = tf.placeholder(tf.bool)
 

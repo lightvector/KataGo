@@ -26,6 +26,7 @@ modelpath = args["model"]
 is_white = args["white"]
 
 # Model ----------------------------------------------------------------
+print("Building model", flush=True)
 import model
 output_layer = tf.nn.softmax(model.output_layer)
 
@@ -36,7 +37,7 @@ def genmove(session, board, moves):
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
-  fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,idx=0)
+  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,idx=0)
 
   output = session.run(fetches=[output_layer], feed_dict={
     model.inputs: input_data,
