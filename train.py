@@ -360,11 +360,14 @@ class LR:
 
     self.last_loss = loss
 
-    zmtstat = self.running_wsum / math.sqrt(self.running_wsumsq)
-
     if epoch >= self.last_reduction_epoch + self.plateau_min_epochs:
-      if zmtstat >= 0. or epoch >= self.last_reduction_epoch + self.force_drop_epochs:
+      if epoch >= self.last_reduction_epoch + self.force_drop_epochs:
         self.reduce_lr()
+      elif self.running_wsumsq > 0.:
+        zmtstat = self.running_wsum / math.sqrt(self.running_wsumsq)
+        if zmtstat >= 0.:
+          self.reduce_lr()
+
 
 
 # Training ------------------------------------------------------------
