@@ -358,8 +358,8 @@ num_epochs = 80
 
 lr = LR(
   initial_lr = 0.0001,
-  decay_exponent = 3,
-  decay_offset = 15,
+  decay_exponent = 4,
+  decay_offset = 14,
   plateau_wait_epochs = 3,
   plateau_min_epochs = 3,
 )
