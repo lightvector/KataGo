@@ -26,13 +26,12 @@ modelpath = args["model"]
 is_white = args["white"]
 
 # Model ----------------------------------------------------------------
-print("Building model", flush=True)
 import model
 output_layer = tf.nn.softmax(model.output_layer)
 
 # Moves ----------------------------------------------------------------
 
-def genmove(session, board, moves):
+def get_policy_output(session, board, moves):
   input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
   pla = board.pla
   opp = Board.get_opp(pla)
@@ -45,22 +44,26 @@ def genmove(session, board, moves):
     model.is_training: False
   })
   output = output[0][0]
+  return output
 
+def get_moves_and_probs(session, board, moves):
+  pla = board.pla
+  policy = get_policy_output(session, board, moves)
   moves_and_probs = []
-  for i in range(len(output)):
+  for i in range(len(policy)):
     move = model.tensor_pos_to_loc(i,board)
     if board.would_be_legal(pla,move) and not board.is_simple_eye(pla,move):
-      moves_and_probs.append((move,output[i]))
+      moves_and_probs.append((move,policy[i]))
+  return moves_and_probs
 
-  if len(moves_and_probs) <= 0:
-    return None
-
+def genmove(session, board, moves):
+  moves_and_probs = get_moves_and_probs(session, board, moves)
   moves_and_probs = sorted(moves_and_probs, key=lambda moveandprob: moveandprob[1], reverse=True)
 
   #Generate a random number biased small and then find the appropriate move to make
   #Interpolate from moving uniformly to choosing from the triangular distribution
   alpha = 1
-  beta = 1 + (1 - 0.5 ** (len(moves) / 30))
+  beta = 1 + math.sqrt(len(moves)) / 2
   r = np.random.beta(alpha,beta)
   probsum = 0.0
   i = 0
@@ -70,6 +73,7 @@ def genmove(session, board, moves):
     if i >= len(moves_and_probs)-1 or probsum > r:
       return move
     i += 1
+
 
 #Adapted from https://github.com/pasky/michi/blob/master/michi.py, which is distributed under MIT license
 #https://opensource.org/licenses/MIT
@@ -87,6 +91,11 @@ def run_gtp(session):
     'known_command',
     'list_commands',
     'protocol_version',
+    'gogui-analyze_commands',
+    'policy',
+  ]
+  known_analyze_commands = [
+    'gfx/Policy/policy',
   ]
 
   board_size = 19
@@ -161,6 +170,25 @@ def run_gtp(session):
       ret = '\n'.join(known_commands)
     elif command[0] == "known_command":
       ret = 'true' if command[1] in known_commands else 'false'
+    elif command[0] == "gogui-analyze_commands":
+      ret = '\n'.join(known_analyze_commands)
+    elif command[0] == "policy":
+      moves_and_probs = get_moves_and_probs(session, board, moves)
+      gfx_commands = []
+      import colorsys
+      for (move,prob) in moves_and_probs:
+        if move is not None:
+          if prob <= 0.02:
+            (r,g,b) = colorsys.hls_to_rgb(0.0, 0.5, prob / 0.02)
+          elif prob <= 0.80:
+            (r,g,b) = colorsys.hsv_to_rgb((prob-0.02)/(0.80-0.02) * 0.5, 1.0, 1.0)
+          else:
+            (r,g,b) = colorsys.hls_to_rgb(0.5, 0.5 + 0.25*(prob-0.80)/(1.00-0.80), 1.0)
+          r = ("%02x" % int(r*255))
+          g = ("%02x" % int(g*255))
+          b = ("%02x" % int(b*255))
+          gfx_commands.append("COLOR #%s%s%s %s" % (r,g,b,str_coord(move)))
+      ret = "\n".join(gfx_commands)
     elif command[0] == "protocol_version":
       ret = '2'
     elif command[0] == "quit":

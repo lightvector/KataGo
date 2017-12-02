@@ -166,6 +166,7 @@ def fill_features(game_files, prob_to_include_row, input_data, target_data, targ
 
 
 # Model ----------------------------------------------------------------
+print("Building model", flush=True)
 import model
 
 #Loss function
