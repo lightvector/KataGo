@@ -234,7 +234,7 @@ cur_layer = apply_symmetry(cur_layer,symmetries,inverse=False)
 
 #Convolutional RELU layer 1
 conv1diam = 5
-conv1num_channels = 64
+conv1num_channels = 96
 conv1w = weight_variable("conv1w",[conv1diam,conv1diam,cur_num_channels,conv1num_channels],cur_num_channels*conv1diam**2,conv1num_channels)
 
 cur_layer = tf.nn.relu(batchnorm("conv1norm",conv2d(cur_layer, conv1w)))
@@ -243,7 +243,7 @@ outputs_by_layer.append(("conv1",cur_layer))
 
 #Convolutional RELU layer 2
 conv2diam = 3
-conv2num_channels = 32
+conv2num_channels = 64
 conv2w = weight_variable("conv2w",[conv2diam,conv2diam,cur_num_channels,conv2num_channels],cur_num_channels*conv2diam**2,conv2num_channels)
 
 cur_layer = tf.nn.relu(batchnorm("conv2norm",conv2d(cur_layer, conv2w)))
@@ -252,7 +252,7 @@ outputs_by_layer.append(("conv2",cur_layer))
 
 #Convolutional RELU layer 3
 conv3diam = 3
-conv3num_channels = 32
+conv3num_channels = 64
 conv3w = weight_variable("conv3w",[conv3diam,conv3diam,cur_num_channels,conv3num_channels],cur_num_channels*conv3diam**2,conv3num_channels)
 
 cur_layer = tf.nn.relu(batchnorm("conv3norm",conv2d(cur_layer, conv3w)))
@@ -261,7 +261,7 @@ outputs_by_layer.append(("conv3",cur_layer))
 
 #Convolutional RELU layer 4
 conv4diam = 3
-conv4num_channels = 32
+conv4num_channels = 64
 conv4w = weight_variable("conv4w",[conv4diam,conv4diam,cur_num_channels,conv4num_channels],cur_num_channels*conv4diam**2,conv4num_channels)
 
 cur_layer = tf.nn.relu(batchnorm("conv4norm",conv2d(cur_layer, conv4w)))
@@ -270,7 +270,7 @@ outputs_by_layer.append(("conv4",cur_layer))
 
 #Convolutional RELU layer 5
 conv5diam = 3
-conv5num_channels = 32
+conv5num_channels = 64
 conv5w = weight_variable("conv5w",[conv5diam,conv5diam,cur_num_channels,conv5num_channels],cur_num_channels*conv5diam**2,conv5num_channels)
 
 cur_layer = tf.nn.relu(batchnorm("conv5norm",conv2d(cur_layer, conv5w)))
@@ -279,7 +279,7 @@ outputs_by_layer.append(("conv5",cur_layer))
 
 #Convolutional RELU layer 6
 conv6diam = 3
-conv6num_channels = 32
+conv6num_channels = 64
 conv6w = weight_variable("conv6w",[conv6diam,conv6diam,cur_num_channels,conv6num_channels],cur_num_channels*conv6diam**2,conv6num_channels)
 
 cur_layer = tf.nn.relu(batchnorm("conv6norm",conv2d(cur_layer, conv6w)))
