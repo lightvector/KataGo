@@ -219,7 +219,7 @@ def apply_symmetry(tensor,symmetries,inverse):
 #Indexing:
 #batch, bsize, bsize, channel
 
-#Input layer
+#Input layer---------------------------------------------------------------------------------
 inputs = tf.placeholder(tf.float32, [None] + input_shape)
 symmetries = tf.placeholder(tf.bool, [3])
 
@@ -227,10 +227,10 @@ outputs_by_layer = []
 cur_layer = tf.reshape(inputs, [-1] + post_input_shape)
 cur_num_channels = post_input_shape[2]
 
-#Input symmetries
+#Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
 cur_layer = apply_symmetry(cur_layer,symmetries,inverse=False)
 
-#Convolutional RELU layer 1
+#Convolutional RELU layer 1---------------------------------------------------------------------------------
 conv1diam = 5
 conv1num_channels = 96
 conv1w = weight_variable("conv1w",[conv1diam,conv1diam,cur_num_channels,conv1num_channels],cur_num_channels*conv1diam**2,conv1num_channels)
@@ -239,7 +239,7 @@ cur_layer = tf.nn.relu(batchnorm("conv1norm",conv2d(cur_layer, conv1w)))
 cur_num_channels = conv1num_channels
 outputs_by_layer.append(("conv1",cur_layer))
 
-#Convolutional RELU layer 2
+#Convolutional RELU layer 2---------------------------------------------------------------------------------
 conv2diam = 3
 conv2num_channels = 64
 conv2w = weight_variable("conv2w",[conv2diam,conv2diam,cur_num_channels,conv2num_channels],cur_num_channels*conv2diam**2,conv2num_channels)
@@ -248,7 +248,7 @@ cur_layer = tf.nn.relu(batchnorm("conv2norm",conv2d(cur_layer, conv2w)))
 cur_num_channels = conv2num_channels
 outputs_by_layer.append(("conv2",cur_layer))
 
-#Convolutional RELU layer 3
+#Convolutional RELU layer 3---------------------------------------------------------------------------------
 conv3diam = 3
 conv3num_channels = 64
 conv3w = weight_variable("conv3w",[conv3diam,conv3diam,cur_num_channels,conv3num_channels],cur_num_channels*conv3diam**2,conv3num_channels)
@@ -257,7 +257,7 @@ cur_layer = tf.nn.relu(batchnorm("conv3norm",conv2d(cur_layer, conv3w)))
 cur_num_channels = conv3num_channels
 outputs_by_layer.append(("conv3",cur_layer))
 
-#Convolutional RELU layer 4
+#Convolutional RELU layer 4---------------------------------------------------------------------------------
 conv4diam = 3
 conv4num_channels = 64
 conv4w = weight_variable("conv4w",[conv4diam,conv4diam,cur_num_channels,conv4num_channels],cur_num_channels*conv4diam**2,conv4num_channels)
@@ -266,7 +266,7 @@ cur_layer = tf.nn.relu(batchnorm("conv4norm",conv2d(cur_layer, conv4w)))
 cur_num_channels = conv4num_channels
 outputs_by_layer.append(("conv4",cur_layer))
 
-#Convolutional RELU layer 5
+#Convolutional RELU layer 5---------------------------------------------------------------------------------
 conv5diam = 3
 conv5num_channels = 64
 conv5w = weight_variable("conv5w",[conv5diam,conv5diam,cur_num_channels,conv5num_channels],cur_num_channels*conv5diam**2,conv5num_channels)
@@ -275,28 +275,68 @@ cur_layer = tf.nn.relu(batchnorm("conv5norm",conv2d(cur_layer, conv5w)))
 cur_num_channels = conv5num_channels
 outputs_by_layer.append(("conv5",cur_layer))
 
-#Convolutional RELU layer 6
-conv6diam = 3
-conv6num_channels = 64
-conv6w = weight_variable("conv6w",[conv6diam,conv6diam,cur_num_channels,conv6num_channels],cur_num_channels*conv6diam**2,conv6num_channels)
+#Policy head---------------------------------------------------------------------------------
+p0_layer = cur_layer
+p0_num_channels = cur_num_channels
 
-cur_layer = tf.nn.relu(batchnorm("conv6norm",conv2d(cur_layer, conv6w)))
-cur_num_channels = conv6num_channels
-outputs_by_layer.append(("conv6",cur_layer))
+#Convolve to compute policy-relevant features
+convp1diam = 3
+convp1num_channels = 48
+convp1w = weight_variable("convp1w",[convp1diam,convp1diam,p0_num_channels,convp1num_channels],p0_num_channels*convp1diam**2,convp1num_channels)
+p1_intermediate_conv = conv2d(p0layer, convp1w)
+outputs_by_layer.append(("p1_intermediate_conv",p1_intermediate_conv))
 
-#Convolutional linear output layer
-convodiam = 5
-convonum_channels = 1
-convow = weight_variable("convow",[convodiam,convodiam,cur_num_channels,convonum_channels],cur_num_channels*convodiam**2,convonum_channels)
+#Convolve to compute some features about the global state of the board
+#Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
+convg1diam = 3
+convg1num_channels = 16
+convg1w = weight_variable("convg1w",[convg1diam,convg1diam,p0_num_channels,convg1num_channels],p0_num_channels*convg1diam**2,convg1num_channels)
 
-cur_layer = conv2d(cur_layer, convow)
-cur_num_channels = convonum_channels
-outputs_by_layer.append(("convo",cur_layer))
+g1_output = tf.nn.relu(batchnorm("convg1norm",conv2d(p0_layer, convg1w)))
+outputs_by_layer.append(("convg1",g1_output))
 
-#Output symmetries
-assert(cur_num_channels == 1)
-cur_layer = apply_symmetry(cur_layer,symmetries,inverse=True)
+#Fold g1 down to single values for the board.
+g1_mean = tf.reduce_mean(g1_output,axis=[1,2],keep_dims=True)
+g1_max = tf.reduce_max(g1_output,axis=[1,2],keep_dims=True)
+g1_stdev = tf.sqrt(tf.reduce_mean(tf.square(g1_output - g1_mean), axis=[1,2], keep_dims=True))
+g2_output = tf.concat([g1_mean,g1_max,g1_stdev],axis=3) #shape [b,1,1,3*convg1num_channels]
+g2_num_channels = 3*convg1num_channels
+outputs_by_layer.append(("g2",g2_output))
 
-#Output
-output_layer = tf.reshape(cur_layer, [-1] + target_shape)
+#Transform them into the space of the policy features to act as biases for the policy
+#Also divide the initial weights a bit more because we think these should matter a bit less than local shape stuff,
+#by multiplying the number of inputs for purposes of weight initialization (currently mult by 4)
+matmulg2w = weight_variable("matmulg2w",[g2_num_channels,convp1_num_channels],g2_num_channels*4,convp1_num_channels)
+g3_output = tf.matmul(g2_output,matmulg2w)
+outputs_by_layer.append(("g3",g3_output))
+
+#Add! This adds shapes [b,19,19,convp1_num_channels] + [b,1,1,convp1_num_channels]
+#so the second one should get broadcast up to the size of the first one.
+#We can think of p1 as being an ordinary convolution layer except that for every node of the convolution, the g2 values (g2_num_channels many of them)
+#have been appended to the p0 incoming values (p0_num_channels * convp1diam * convp1diam many of them).
+#The matrix matmulg2w is simply the set of weights for that additional part of the matrix. It's just that rather than appending beforehand,
+#we multiply separately and add to the output afterward.
+p1_intermediate_sum = p1_intermediate_conv_sum + g3_output
+
+#And now apply batchnorm and relu
+p1_output = tf.nn.relu(batchnorm("p1norm",p1_intermediate_sum))
+outputs_by_layer.append(("convp1",p1_output))
+
+#Finally, apply linear convolution to produce final output
+convp2diam = 5
+convp2num_channels = 1
+convp2w = weight_variable("convp2w",[convp2diam,convp2diam,convp1num_channels,convp2num_channels],convp1num_channels*convp2diam**2,convp2num_channels)
+
+p2_output = conv2d(p1_output, convp2w)
+outputs_by_layer.append(("convp2",p2_output))
+
+#Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
+policy_output = apply_symmetry(p2_output,symmetries,inverse=True)
+policy_output = tf.reshape(policy_output, [-1] + target_shape)
+
+#Add pass move based on the global g values
+#matmulpass = weight_variable("matmulpass",[pass_num_channels,1],g2_num_channels,1)
+#pass_output = tf.matmul(g2_output,matmulpass)
+#outputs_by_layer.append(("pass",pass_output))
+#policy_output = tf.concat([policy_output,pass_output],axis=1)
 

@@ -172,7 +172,7 @@ import model
 #Loss function
 targets = tf.placeholder(tf.float32, [None] + model.target_shape)
 target_weights = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
-data_loss = tf.reduce_mean(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=model.output_layer))
+data_loss = tf.reduce_mean(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=model.policy_output))
 
 #Prior/Regularization
 l2_reg_coeff = tf.placeholder(tf.float32)
@@ -189,8 +189,8 @@ with tf.control_dependencies(update_ops):
 
 #Training results
 target_idxs = tf.argmax(targets, 1)
-top1_prediction = tf.equal(tf.argmax(model.output_layer, 1), target_idxs)
-top4_prediction = tf.nn.in_top_k(model.output_layer,target_idxs,4)
+top1_prediction = tf.equal(tf.argmax(model.policy_output, 1), target_idxs)
+top4_prediction = tf.nn.in_top_k(model.policy_output,target_idxs,4)
 accuracy1 = tf.reduce_mean(tf.cast(top1_prediction, tf.float32))
 accuracy4 = tf.reduce_mean(tf.cast(top4_prediction, tf.float32))
 
