@@ -360,7 +360,7 @@ class LR:
     if epoch >= self.last_reduction_epoch + self.plateau_min_epochs:
       if epoch >= self.last_reduction_epoch + self.force_drop_epochs:
         self.reduce_lr()
-      if running_wsum >= 0.:
+      if self.running_wsum >= 0.:
         self.reduce_lr()
 
 
