@@ -323,7 +323,7 @@ class LR:
     initial_lr,          #Initial learning rate by sample
     decay_exponent,      #Exponent of the polynomial decay in learning rate based on number of plateaus
     decay_offset,        #Offset of the exponent
-    tstat_decay,         #Drop the learning rate if the tstat of loss diffs with this per-epoch decay is positive.
+    recent_change_decay, #Drop the learning rate if recent sum of loss diffs with this per-epoch decay is positive.
     plateau_min_epochs,  #Never drop unless this many epochs passed since the last drop
     force_drop_epochs,   #Also forcibly drop the learning rate after these epochs if it hasn't recently already dropped
   ):
@@ -331,13 +331,9 @@ class LR:
     self.decay_exponent = decay_exponent
     self.decay_offset = decay_offset
 
-    self.tstat_decay = tstat_decay
+    self.recent_change_decay = recent_change_decay
     self.last_loss = None
-    self.running_weight = 0
     self.running_wsum = 0
-    self.running_wsumsq = 0
-
-    self.tstat_decay = tstat_decay
 
     self.plateau_min_epochs = plateau_min_epochs
     self.reduction_count = 0
@@ -357,20 +353,15 @@ class LR:
   def report_loss(self,epoch,loss):
     if self.last_loss is not None:
       diff = loss - self.last_loss
-      self.running_weight = 1 + self.running_weight * self.tstat_decay
-      self.running_wsum = diff + self.running_weight * self.tstat_decay
-      self.running_wsumsq = diff * diff + self.running_weight * self.tstat_decay
+      self.running_wsum = diff + self.running_wsum * self.recent_change_decay
 
     self.last_loss = loss
 
     if epoch >= self.last_reduction_epoch + self.plateau_min_epochs:
       if epoch >= self.last_reduction_epoch + self.force_drop_epochs:
         self.reduce_lr()
-      elif self.running_wsumsq > 0.:
-        zmtstat = self.running_wsum / math.sqrt(self.running_wsumsq)
-        if zmtstat >= 0.:
-          self.reduce_lr()
-
+      if running_wsum >= 0.:
+        self.reduce_lr()
 
 
 # Training ------------------------------------------------------------
@@ -383,9 +374,9 @@ lr = LR(
   initial_lr = 0.0001,
   decay_exponent = 4,
   decay_offset = 14,
-  tstat_decay = 0.5,
-  plateau_min_epochs = 3,
-  force_drop_epochs = 7,
+  recent_change_decay = 0.5,
+  plateau_min_epochs = 2,
+  force_drop_epochs = 5,
 )
 
 l2_coeff_value = 3 / max(1000,num_train_rows)
