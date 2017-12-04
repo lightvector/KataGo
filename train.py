@@ -376,7 +376,7 @@ lr = LR(
   decay_offset = 14,
   recent_change_decay = 0.5,
   plateau_min_epochs = 2,
-  force_drop_epochs = 5,
+  force_drop_epochs = 4,
 )
 
 l2_coeff_value = 3 / max(1000,num_train_rows)
