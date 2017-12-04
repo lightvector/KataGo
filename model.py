@@ -283,7 +283,7 @@ p0_num_channels = cur_num_channels
 convp1diam = 3
 convp1num_channels = 48
 convp1w = weight_variable("convp1w",[convp1diam,convp1diam,p0_num_channels,convp1num_channels],p0_num_channels*convp1diam**2,convp1num_channels)
-p1_intermediate_conv = conv2d(p0layer, convp1w)
+p1_intermediate_conv = conv2d(p0_layer, convp1w)
 outputs_by_layer.append(("p1_intermediate_conv",p1_intermediate_conv))
 
 #Convolve to compute some features about the global state of the board
@@ -306,8 +306,8 @@ outputs_by_layer.append(("g2",g2_output))
 #Transform them into the space of the policy features to act as biases for the policy
 #Also divide the initial weights a bit more because we think these should matter a bit less than local shape stuff,
 #by multiplying the number of inputs for purposes of weight initialization (currently mult by 4)
-matmulg2w = weight_variable("matmulg2w",[g2_num_channels,convp1_num_channels],g2_num_channels*4,convp1_num_channels)
-g3_output = tf.matmul(g2_output,matmulg2w)
+matmulg2w = weight_variable("matmulg2w",[g2_num_channels,convp1num_channels],g2_num_channels*4,convp1num_channels)
+g3_output = tf.tensordot(g2_output,matmulg2w,axes=[[3],[0]])
 outputs_by_layer.append(("g3",g3_output))
 
 #Add! This adds shapes [b,19,19,convp1_num_channels] + [b,1,1,convp1_num_channels]
@@ -316,7 +316,7 @@ outputs_by_layer.append(("g3",g3_output))
 #have been appended to the p0 incoming values (p0_num_channels * convp1diam * convp1diam many of them).
 #The matrix matmulg2w is simply the set of weights for that additional part of the matrix. It's just that rather than appending beforehand,
 #we multiply separately and add to the output afterward.
-p1_intermediate_sum = p1_intermediate_conv_sum + g3_output
+p1_intermediate_sum = p1_intermediate_conv + g3_output
 
 #And now apply batchnorm and relu
 p1_output = tf.nn.relu(batchnorm("p1norm",p1_intermediate_sum))
