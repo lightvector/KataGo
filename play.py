@@ -8,6 +8,7 @@ import math
 import time
 import re
 import logging
+import colorsys
 import tensorflow as tf
 import numpy as np
 
@@ -26,25 +27,28 @@ modelpath = args["model"]
 is_white = args["white"]
 
 # Model ----------------------------------------------------------------
+
 import model
 policy_output = tf.nn.softmax(model.policy_output)
 
 # Moves ----------------------------------------------------------------
 
-def get_policy_output(session, board, moves):
+def fetch_output(session, board, moves, fetch):
   input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
   model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,idx=0)
 
-  output = session.run(fetches=[policy_output], feed_dict={
+  output = session.run(fetches=[fetch], feed_dict={
     model.inputs: input_data,
     model.symmetries: [False,False,False],
     model.is_training: False
   })
-  output = output[0][0]
-  return output
+  return output[0][0]
+
+def get_policy_output(session, board, moves):
+  return fetch_output(session,board,moves,policy_output)
 
 def get_moves_and_probs(session, board, moves):
   pla = board.pla
@@ -74,6 +78,57 @@ def genmove(session, board, moves):
       return move
     i += 1
 
+def get_layer_values(session, board, moves, layer, channel):
+  layer = fetch_output(session,board,moves,layer)
+  layer = layer.reshape([board.size * board.size,-1])
+  locs_and_values = []
+  for i in range(board.size * board.size):
+    loc = model.tensor_pos_to_loc(i,board)
+    locs_and_values.append((loc,layer[i,channel]))
+  return locs_and_values
+
+
+def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board):
+  for (loc,value) in locs_and_values:
+    if loc is not None:
+      hueshift = 0.0
+      huemult = 1.0
+      if value < 0:
+        value = -value
+        huemult = 0.8
+        hueshift = 0.5
+
+      if value <= 0.02:
+        (r,g,b) = colorsys.hls_to_rgb(hueshift + huemult*0.0, 0.5, max(value,0.0) / 0.02)
+      elif value <= 0.80:
+        hue = (value-0.02)/(0.80-0.02) * 0.45
+        (r,g,b) = colorsys.hsv_to_rgb(hueshift + huemult*hue, 1.0, 1.0)
+      else:
+        lightness = 0.5 + 0.25*(min(value,1.0)-0.80)/(1.00-0.80)
+        (r,g,b) = colorsys.hls_to_rgb(hueshift + huemult*0.45, lightness, 1.0)
+
+      r = ("%02x" % int(r*255))
+      g = ("%02x" % int(g*255))
+      b = ("%02x" % int(b*255))
+      gfx_commands.append("COLOR #%s%s%s %s" % (r,g,b,str_coord(loc,board)))
+
+
+# Basic parsing --------------------------------------------------------
+colstr = 'ABCDEFGHJKLMNOPQRST'
+def parse_coord(s,board):
+  if s == 'pass':
+    return None
+  return board.loc(colstr.index(s[0].upper()), board.size - int(s[1:]))
+
+def str_coord(loc,board):
+  if loc is None:
+    return 'pass'
+  x = board.loc_x(loc)
+  y = board.loc_y(loc)
+  return '%c%d' % (colstr[x], board.size - y)
+
+
+# GTP Implementation -----------------------------------------------------
 
 #Adapted from https://github.com/pasky/michi/blob/master/michi.py, which is distributed under MIT license
 #https://opensource.org/licenses/MIT
@@ -102,18 +157,27 @@ def run_gtp(session):
   board = Board(size=board_size)
   moves = []
 
-  colstr = 'ABCDEFGHJKLMNOPQRST'
-  def parse_coord(s):
-    if s == 'pass':
-      return None
-    return board.loc(colstr.index(s[0].upper()), board_size - int(s[1:]))
+  layerdict = dict(model.outputs_by_layer)
+  layer_command_lookup = dict()
 
-  def str_coord(loc):
-    if loc is None:
-      return 'pass'
-    x = board.loc_x(loc)
-    y = board.loc_y(loc)
-    return '%c%d' % (colstr[x], board_size - y)
+  def add_board_size_visualizations(layer_name):
+    layer = layerdict[layer_name]
+    assert(layer.shape[1].value == board_size)
+    assert(layer.shape[2].value == board_size)
+    num_channels = layer.shape[3].value
+    for i in range(num_channels):
+      command_name = layer_name + "-" + str(i)
+      known_commands.append(command_name)
+      known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
+      layer_command_lookup[command_name] = (layer,i)
+
+  add_board_size_visualizations("conv1")
+  add_board_size_visualizations("conv2")
+  add_board_size_visualizations("conv3")
+  add_board_size_visualizations("conv4")
+  add_board_size_visualizations("conv5")
+  add_board_size_visualizations("convg1")
+  add_board_size_visualizations("convp1")
 
   while True:
     try:
@@ -143,7 +207,7 @@ def run_gtp(session):
     elif command[0] == "komi":
       pass
     elif command[0] == "play":
-      loc = parse_coord(command[2])
+      loc = parse_coord(command[2],board)
       if loc is not None:
         moves.append((board.pla,loc))
         board.play(board.pla,loc)
@@ -155,7 +219,7 @@ def run_gtp(session):
       if loc is not None:
         moves.append((board.pla,loc))
         board.play(board.pla,loc)
-        ret = str_coord(loc)
+        ret = str_coord(loc,board)
       else:
         moves.append((board.pla,loc))
         board.do_pass()
@@ -175,20 +239,27 @@ def run_gtp(session):
     elif command[0] == "policy":
       moves_and_probs = get_moves_and_probs(session, board, moves)
       gfx_commands = []
-      import colorsys
-      for (move,prob) in moves_and_probs:
-        if move is not None:
-          if prob <= 0.02:
-            (r,g,b) = colorsys.hls_to_rgb(0.0, 0.5, prob / 0.02)
-          elif prob <= 0.80:
-            (r,g,b) = colorsys.hsv_to_rgb((prob-0.02)/(0.80-0.02) * 0.5, 1.0, 1.0)
-          else:
-            (r,g,b) = colorsys.hls_to_rgb(0.5, 0.5 + 0.25*(prob-0.80)/(1.00-0.80), 1.0)
-          r = ("%02x" % int(r*255))
-          g = ("%02x" % int(g*255))
-          b = ("%02x" % int(b*255))
-          gfx_commands.append("COLOR #%s%s%s %s" % (r,g,b,str_coord(move)))
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board)
+
+      moves_and_probs = sorted(moves_and_probs, key=lambda move_and_prob: move_and_prob[1], reverse=True)
+      texts = []
+      for i in range(min(len(moves_and_probs),8)):
+        (move,prob) = moves_and_probs[i]
+        texts.append("%s %4.1f%%" % (str_coord(move,board),prob*100))
+      gfx_commands.append("TEXT " + ", ".join(texts))
+
       ret = "\n".join(gfx_commands)
+    elif command[0] in layer_command_lookup:
+      (layer,channel) = layer_command_lookup[command[0]]
+      locs_and_values = get_layer_values(session, board, moves, layer, channel)
+      max_abs_value = max(abs(value) for (loc,value) in locs_and_values)
+      max_abs_value = max(0.0000000001,max_abs_value) #avoid divide by zero
+
+      normalized = [(loc,value/max_abs_value) for (loc,value) in locs_and_values]
+      gfx_commands = []
+      fill_gfx_commands_for_heatmap(gfx_commands, normalized, board)
+      ret = "\n".join(gfx_commands)
+
     elif command[0] == "protocol_version":
       ret = '2'
     elif command[0] == "quit":
