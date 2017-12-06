@@ -392,6 +392,8 @@ tfconfig = tf.ConfigProto(log_device_placement=True)
 #tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
 with tf.Session(config=tfconfig) as session:
   session.run(tf.global_variables_initializer())
+  sys.stdout.flush()
+  sys.stderr.flush()
 
   def run(fetches, data, training, symmetries, blr=0.0):
     return session.run(fetches, feed_dict={
