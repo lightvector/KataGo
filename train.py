@@ -379,8 +379,8 @@ lr = LR(
   force_drop_epochs = 4,
 )
 
-l2_coeff_value = 0
-#l2_coeff_value = 3 / max(1000,num_train_rows)
+# l2_coeff_value = 0
+l2_coeff_value = 0.3 / max(1000,num_train_rows)
 
 saver = tf.train.Saver(
   max_to_keep = 10000,
