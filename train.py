@@ -368,15 +368,17 @@ class LR:
 
 print("Training", flush=True)
 
-num_epochs = 80
+num_epochs = 300
+num_samples_per_epoch = 500000
+num_batches_per_epoch = num_samples_per_epoch//batch_size
 
 lr = LR(
-  initial_lr = 0.0001,
+  initial_lr = 0.0007,
   decay_exponent = 4,
   decay_offset = 14,
-  recent_change_decay = 0.5,
-  plateau_min_epochs = 2,
-  force_drop_epochs = 4,
+  recent_change_decay = 0.80,
+  plateau_min_epochs = 6,
+  force_drop_epochs = 12,
 )
 
 # l2_coeff_value = 0
@@ -433,9 +435,9 @@ with tf.Session(config=tfconfig) as session:
     for key in mw:
       detaillogger.info("%s: mean weight %f stdev weight %f" % (key, mw[key], sw[key]))
 
-  def run_batches(batch_idxs):
-    num_batches = len(batch_idxs)
-
+  batch_idxs = [[]]
+  batch_idxs_idx = [0]
+  def run_batches(num_batches):
     tacc1_sum = 0
     tacc4_sum = 0
     tdata_loss_sum = 0
@@ -448,7 +450,12 @@ with tf.Session(config=tfconfig) as session:
     data_buf=(input_buf,target_buf,target_weights_buf)
 
     for i in range(num_batches):
-      bidxs = batch_idxs[i]
+      if batch_idxs_idx[0] >= len(batch_idxs[0]):
+        batch_idxs[0] = get_batch_idxs()
+        batch_idxs_idx[0] = 0
+
+      bidxs = batch_idxs[0][batch_idxs_idx[0]]
+      batch_idxs_idx[0] += 1
       for b in range(batch_size):
         r = bidxs[b]
 
@@ -461,7 +468,7 @@ with tf.Session(config=tfconfig) as session:
         data=data_buf,
         training=True,
         symmetries=[np.random.random() < 0.5, np.random.random() < 0.5, np.random.random() < 0.5],
-        blr=lr.lr() * batch_size
+        blr=lr.lr() * math.sqrt(batch_size) #sqrt since we're using ADAM
       )
 
       tacc1_sum += bacc1
@@ -469,7 +476,7 @@ with tf.Session(config=tfconfig) as session:
       tdata_loss_sum += bdata_loss
       treg_loss_sum += breg_loss
 
-      if i % (num_batches // 30) == 0:
+      if i % (max(1,num_batches // 30)) == 0:
         print(".", end='', flush=True)
 
     tacc1 = tacc1_sum / num_batches
@@ -489,8 +496,7 @@ with tf.Session(config=tfconfig) as session:
   start_time = time.perf_counter()
   for epoch in range(num_epochs):
     print("Epoch %d" % (epoch), end='', flush=True)
-    batch_idxs = get_batch_idxs()
-    (tacc1,tacc4,tdata_loss,treg_loss) = run_batches(batch_idxs)
+    (tacc1,tacc4,tdata_loss,treg_loss) = run_batches(num_batches_per_epoch)
     (vacc1,vacc4,vloss) = val_accuracy_and_loss()
     lr.report_loss(epoch=epoch,loss=(tdata_loss + treg_loss + vloss))
     print("")
