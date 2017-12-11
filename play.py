@@ -38,7 +38,7 @@ def fetch_output(session, board, moves, fetch):
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
-  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,idx=0)
+  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_mask=None,for_training=False,idx=0)
 
   output = session.run(fetches=[fetch], feed_dict={
     model.inputs: input_data,
