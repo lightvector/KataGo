@@ -168,10 +168,13 @@ def fill_features(game_files, prob_to_include_row, input_data, target_data, targ
 print("Building model", flush=True)
 import model
 
+#Apply mask for legal moves
+target_mask = tf.placeholder(tf.float32, [None] + model.target_mask_shape)
+policy_output = model.policy_output # + target_mask * 15
+
 #Loss function
 targets = tf.placeholder(tf.float32, [None] + model.target_shape)
-target_mask = tf.placeholder(tf.float32, [None] + model.target_mask_shape)
-data_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=model.policy_output))
+data_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output))
 
 #Prior/Regularization
 l2_reg_coeff = tf.placeholder(tf.float32)
@@ -184,12 +187,14 @@ opt_loss = data_loss + reg_loss
 batch_learning_rate = tf.placeholder(tf.float32)
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
 with tf.control_dependencies(update_ops):
-  train_step = tf.train.AdamOptimizer(batch_learning_rate).minimize(opt_loss)
+  optimizer = tf.train.AdamOptimizer(batch_learning_rate)
+  gradients = optimizer.compute_gradients(opt_loss)
+  train_step = optimizer.apply_gradients(gradients)
 
 #Training results
 target_idxs = tf.argmax(targets, 1)
-top1_prediction = tf.equal(tf.argmax(model.policy_output, 1), target_idxs)
-top4_prediction = tf.nn.in_top_k(model.policy_output,target_idxs,4)
+top1_prediction = tf.equal(tf.argmax(policy_output, 1), target_idxs)
+top4_prediction = tf.nn.in_top_k(policy_output,target_idxs,4)
 accuracy1 = tf.reduce_mean(tf.cast(top1_prediction, tf.float32))
 accuracy4 = tf.reduce_mean(tf.cast(top4_prediction, tf.float32))
 
@@ -200,21 +205,25 @@ def reduce_stdev(x, axis=None, keepdims=False):
   devs_squared = tf.square(x - m)
   return tf.sqrt(tf.reduce_mean(devs_squared, axis=axis, keep_dims=keepdims))
 
-activated_prop_by_layer = [
+activated_prop_by_layer = dict([
   (name,tf.reduce_mean(tf.count_nonzero(layer,axis=[1,2])/model.max_board_size**2, axis=0)) for (name,layer) in model.outputs_by_layer
-]
-mean_output_by_layer = [
+])
+mean_output_by_layer = dict([
   (name,tf.reduce_mean(layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
-]
-stdev_output_by_layer = [
+])
+stdev_output_by_layer = dict([
   (name,reduce_stdev(layer,axis=[0,1,2])**2) for (name,layer) in model.outputs_by_layer
-]
-mean_weights_by_var = [
+])
+mean_weights_by_var = dict([
   (v.name,tf.reduce_mean(v)) for v in tf.trainable_variables()
-]
-stdev_weights_by_var = [
+])
+stdev_weights_by_var = dict([
   (v.name,reduce_stdev(v)) for v in tf.trainable_variables()
-]
+])
+maxabs_gradients_by_layer = dict([
+  (v.name,tf.reduce_max(tf.abs(grad))) for (grad,v) in gradients
+])
+
 
 total_parameters = 0
 for variable in tf.trainable_variables():
@@ -423,16 +432,21 @@ with tf.Session(config=tfconfig) as session:
   def time_str(elapsed):
     return "time %.3f" % elapsed
 
-  def log_detail_stats():
-    apbl,mobl,sobl = run([dict(activated_prop_by_layer), dict(mean_output_by_layer), dict(stdev_output_by_layer)],
+  def log_detail_stats(maxabsgrads):
+    apbl,mobl,sobl = run([activated_prop_by_layer, mean_output_by_layer, stdev_output_by_layer],
                          vdata, symmetries=[False,False,False], training=False)
     for key in apbl:
       detaillogger.info("%s: activated_prop %s" % (key, np_array_str(apbl[key], precision=3)))
       detaillogger.info("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
       detaillogger.info("%s: stdev_output %s" % (key, np_array_str(sobl[key], precision=4)))
-      mw,sw = session.run([dict(mean_weights_by_var),dict(stdev_weights_by_var)])
+
+    mw,sw = session.run([mean_weights_by_var,stdev_weights_by_var])
     for key in mw:
       detaillogger.info("%s: mean weight %f stdev weight %f" % (key, mw[key], sw[key]))
+
+    if maxabsgrads is not None:
+      for key in maxabsgrads:
+        detaillogger.info("%s: max abs gradient %f" % (key,maxabsgrads[key]))
 
   batch_idxs = [[]]
   batch_idxs_idx = [0]
@@ -441,6 +455,7 @@ with tf.Session(config=tfconfig) as session:
     tacc4_sum = 0
     tdata_loss_sum = 0
     treg_loss_sum = 0
+    maxabsgrads = dict([(key,0.0) for key in maxabs_gradients_by_layer])
 
     #Allocate buffers into which we'll copy every batch, to avoid using lots of memory
     input_buf = np.zeros(shape=[batch_size]+model.input_shape, dtype=np.float32)
@@ -462,8 +477,8 @@ with tf.Session(config=tfconfig) as session:
         target_buf[b] = ttarget_data[r]
         target_mask_buf[b] = ttarget_data_mask[r]
 
-      (bacc1, bacc4, bdata_loss, breg_loss, _) = run(
-        fetches=[accuracy1, accuracy4, data_loss, reg_loss, train_step],
+      (bacc1, bacc4, bdata_loss, breg_loss, bmaxabsgrads, _) = run(
+        fetches=[accuracy1, accuracy4, data_loss, reg_loss, maxabs_gradients_by_layer, train_step],
         data=data_buf,
         training=True,
         symmetries=[np.random.random() < 0.5, np.random.random() < 0.5, np.random.random() < 0.5],
@@ -474,6 +489,8 @@ with tf.Session(config=tfconfig) as session:
       tacc4_sum += bacc4
       tdata_loss_sum += bdata_loss
       treg_loss_sum += breg_loss
+      for key in bmaxabsgrads:
+        maxabsgrads[key] += bmaxabsgrads[key]
 
       if i % (max(1,num_batches // 30)) == 0:
         print(".", end='', flush=True)
@@ -482,7 +499,7 @@ with tf.Session(config=tfconfig) as session:
     tacc4 = tacc4_sum / num_batches
     tdata_loss = tdata_loss_sum / num_batches
     treg_loss = treg_loss_sum / num_batches
-    return (tacc1,tacc4,tdata_loss,treg_loss)
+    return (tacc1,tacc4,tdata_loss,treg_loss,maxabsgrads)
 
   (vacc1,vacc4,vloss) = val_accuracy_and_loss()
   vstr = validation_stats_str(vacc1,vacc4,vloss)
@@ -490,12 +507,12 @@ with tf.Session(config=tfconfig) as session:
   print("Initial: %s" % (vstr), flush=True)
   trainlogger.info("Initial: %s" % (vstr))
   detaillogger.info("Initial: %s" % (vstr))
-  log_detail_stats()
+  log_detail_stats(maxabsgrads=None)
 
   start_time = time.perf_counter()
   for epoch in range(num_epochs):
     print("Epoch %d" % (epoch), end='', flush=True)
-    (tacc1,tacc4,tdata_loss,treg_loss) = run_batches(num_batches_per_epoch)
+    (tacc1,tacc4,tdata_loss,treg_loss,maxabsgrads) = run_batches(num_batches_per_epoch)
     (vacc1,vacc4,vloss) = val_accuracy_and_loss()
     lr.report_loss(epoch=epoch,loss=(tdata_loss + treg_loss + vloss))
     print("")
@@ -512,7 +529,7 @@ with tf.Session(config=tfconfig) as session:
 
     detaillogger.info("Epoch %d--------------------------------------------------" % (epoch))
     detaillogger.info("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr))
-    log_detail_stats()
+    log_detail_stats(maxabsgrads)
 
     if epoch % 4 == 0 or epoch == num_epochs-1:
       saver.save(session, traindir + "/model" + str(epoch))

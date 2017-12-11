@@ -303,9 +303,10 @@ g1_output = tf.nn.relu(batchnorm("convg1norm",conv2d(p0_layer, convg1w)))
 outputs_by_layer.append(("convg1",g1_output))
 
 #Fold g1 down to single values for the board.
+#For stdev, add a tiny constant to ensure numeric stability
 g1_mean = tf.reduce_mean(g1_output,axis=[1,2],keep_dims=True)
 g1_max = tf.reduce_max(g1_output,axis=[1,2],keep_dims=True)
-g1_stdev = tf.sqrt(tf.reduce_mean(tf.square(g1_output - g1_mean), axis=[1,2], keep_dims=True))
+g1_stdev = tf.sqrt(tf.reduce_mean(tf.square(g1_output - g1_mean), axis=[1,2], keep_dims=True) + (1e-4))
 g2_output = tf.concat([g1_mean,g1_max,g1_stdev],axis=3) #shape [b,1,1,3*convg1num_channels]
 g2_num_channels = 3*convg1num_channels
 outputs_by_layer.append(("g2",g2_output))
