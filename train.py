@@ -377,7 +377,7 @@ class LR:
 print("Training", flush=True)
 
 num_epochs = 300
-num_samples_per_epoch = 500000
+num_samples_per_epoch = (500000 if max_num_rows is None else min(500000,max_num_rows))
 num_batches_per_epoch = num_samples_per_epoch//batch_size
 
 lr = LR(
