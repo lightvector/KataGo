@@ -22,6 +22,8 @@ struct Sgf {
   static Sgf* parse(const string& str);
   static Sgf* loadFile(const string& file);
   static vector<Sgf*> loadFiles(const vector<string>& files);
+
+  int depth();
 };
 
 #endif

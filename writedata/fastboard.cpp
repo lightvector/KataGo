@@ -7,6 +7,7 @@
 #include <cassert>
 #include <iostream>
 #include <cstring>
+#include <vector>
 #include "core/rand.h"
 #include "fastboard.h"
 
@@ -15,7 +16,7 @@ bool FastBoard::IS_ZOBRIST_INITALIZED = false;
 Hash FastBoard::ZOBRIST_SIZE_X_HASH[MAX_SIZE+1];
 Hash FastBoard::ZOBRIST_SIZE_Y_HASH[MAX_SIZE+1];
 Hash FastBoard::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
-Hash FastBoard::ZOBRIST_PLAYER_HASH[2];
+Hash FastBoard::ZOBRIST_PLAYER_HASH[4];
 
 //CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
 
@@ -48,7 +49,6 @@ FastBoard::FastBoard(const FastBoard& other)
   memcpy(next_in_chain, other.next_in_chain, sizeof(Loc)*arr_size);
 
   ko_loc = other.ko_loc;
-  last_loc = other.last_loc;
 
   pos_hash = other.pos_hash;
 
@@ -80,7 +80,6 @@ void FastBoard::init(int xS, int yS)
   colors[MAX_ARR_SIZE-1] = C_WALL;
 
   ko_loc = NULL_LOC;
-  last_loc = NULL_LOC;
 
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
 
@@ -92,7 +91,7 @@ void FastBoard::initHash()
   if(IS_ZOBRIST_INITALIZED)
     return;
   Rand rand("FastBoard::initHash()");
-  
+
   for(int i = 0; i<MAX_ARR_SIZE; i++)
   {
     for(Color j = 0; j<4; j++)
@@ -103,7 +102,7 @@ void FastBoard::initHash()
         ZOBRIST_BOARD_HASH[i][j] = rand.nextUInt64();
     }
   }
-  for(int i = 0; i<2; i++)
+  for(int i = 0; i<4; i++)
     ZOBRIST_PLAYER_HASH[i] = rand.nextUInt64();
   for(int i = 0; i<MAX_SIZE+1; i++)
     ZOBRIST_SIZE_X_HASH[i] = rand.nextUInt64();
@@ -125,21 +124,18 @@ int FastBoard::getNumLiberties(Loc loc) const
 bool FastBoard::isSuicide(Loc loc, Player player) const
 {
   Player enemy = getEnemy(player);
-  Color pcolor = getColorOfPlayer(player);
-  Color ecolor = getColorOfPlayer(enemy);
-
   for(int i = 0; i < 4; i++)
   {
     Loc adj = loc + adj_offsets[i];
 
     if(colors[adj] == C_EMPTY)
       return false;
-    else if(colors[adj] == pcolor)
+    else if(colors[adj] == player)
     {
       if(getNumLiberties(adj) > 1)
         return false;
     }
-    else if(colors[adj] == ecolor)
+    else if(colors[adj] == enemy)
     {
       if(getNumLiberties(adj) == 1)
         return false;
@@ -158,7 +154,7 @@ bool FastBoard::isKoBanned(Loc loc) const
 //Check if moving here is illegal.
 bool FastBoard::isLegal(Loc loc, Player player) const
 {
-  return loc == PASS_LOC || ((colors[loc] == C_EMPTY) && !isKoBanned(loc) && !isSuicide(loc, player));
+  return loc == PASS_LOC || (loc >= 0 && loc < MAX_ARR_SIZE && (colors[loc] == C_EMPTY) && !isKoBanned(loc) && !isSuicide(loc, player));
 }
 
 //Check if this location contains a simple eye for the specified player.
@@ -167,7 +163,6 @@ bool FastBoard::isSimpleEye(Loc loc, Player player) const
   if(colors[loc] != C_EMPTY)
     return false;
 
-  Color pcolor = getColorOfPlayer(player);
   bool against_wall = false;
 
   //Check that surounding points are owned
@@ -176,17 +171,17 @@ bool FastBoard::isSimpleEye(Loc loc, Player player) const
     Loc adj = loc + adj_offsets[i];
     if(colors[adj] == C_WALL)
       against_wall = true;
-    else if(colors[adj] != pcolor)
+    else if(colors[adj] != player)
       return false;
   }
 
   //Check that opponent does not own too many diagonal points
-  Color ecolor = getColorOfPlayer(getEnemy(player));
+  Player enemy = getEnemy(player);
   int num_enemy_corners = 0;
   for(int i = 4; i < 8; i++)
   {
     Loc corner = loc + adj_offsets[i];
-    if(colors[corner] == ecolor)
+    if(colors[corner] == enemy)
       num_enemy_corners++;
   }
 
@@ -195,6 +190,28 @@ bool FastBoard::isSimpleEye(Loc loc, Player player) const
 
   return true;
 }
+
+bool FastBoard::setStone(Loc loc, Color color)
+{
+  if(loc < 0 || loc >= MAX_ARR_SIZE || colors[loc] == C_WALL)
+    return false;
+
+  if(colors[loc] == color)
+  {}
+  else if(colors[loc] == C_EMPTY)
+    playMoveAssumeLegal(loc,color);
+  else if(color == C_EMPTY)
+    removeSingleStone(loc);
+  else {
+    removeSingleStone(loc);
+    if(!isSuicide(loc,color))
+      playMoveAssumeLegal(loc,color);
+  }
+
+  ko_loc = NULL_LOC;
+  return true;
+}
+
 
 //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
 bool FastBoard::playMove(Loc loc, Player player)
@@ -214,14 +231,13 @@ FastBoard::MoveRecord FastBoard::playMoveRecorded(Loc loc, Player player)
   record.loc = loc;
   record.pla = player;
   record.ko_loc = ko_loc;
-  record.last_loc = last_loc;
   record.capDirs = 0;
 
-  Color ecolor = getEnemyColor(getColorOfPlayer(player));
+  Player enemy = getEnemy(player);
   for(int i = 0; i < 4; i++)
   {
     int adj = loc + adj_offsets[i];
-    if(colors[adj] == ecolor && getNumLiberties(adj) == 1)
+    if(colors[adj] == enemy && getNumLiberties(adj) == 1)
       record.capDirs |= (((uint8_t)1) << i);
   }
   playMoveAssumeLegal(loc, player);
@@ -234,7 +250,6 @@ FastBoard::MoveRecord FastBoard::playMoveRecorded(Loc loc, Player player)
 void FastBoard::undo(FastBoard::MoveRecord record)
 {
   ko_loc = record.ko_loc;
-  last_loc = record.last_loc;
 
   Loc loc = record.loc;
   if(loc == PASS_LOC)
@@ -257,7 +272,7 @@ void FastBoard::undo(FastBoard::MoveRecord record)
   empty_list.add(loc);
 
   //Uneat enemy liberties
-  changeSurroundingLiberties(loc, getEnemyColor(getColorOfPlayer(record.pla)),+1);
+  changeSurroundingLiberties(loc, getEnemy(record.pla),+1);
 
   //If this was not a single stone, we need to recompute the chain from scratch
   if(chain_data[chain_head[loc]].num_locs > 1)
@@ -271,11 +286,10 @@ void FastBoard::undo(FastBoard::MoveRecord record)
     } while (cur != loc);
 
     //Rebuild each chain adjacent now
-    Color color = getColorOfPlayer(record.pla);
     for(int i = 0; i<4; i++)
     {
       int adj = loc + adj_offsets[i];
-      if(colors[adj] == color && chain_head[adj] == NULL_LOC)
+      if(colors[adj] == record.pla && chain_head[adj] == NULL_LOC)
         rebuildChain(adj, record.pla);
     }
   }
@@ -288,16 +302,14 @@ void FastBoard::playMoveAssumeLegal(Loc loc, Player player)
   if(loc == PASS_LOC)
   {
     ko_loc = NULL_LOC;
-    last_loc = NULL_LOC;
     return;
   }
 
-  Color pcolor = getColorOfPlayer(player);
-  Color ecolor = getColorOfPlayer(getEnemy(player));
+  Player enemy = getEnemy(player);
 
   //Add the new stone as an independent group
-  colors[loc] = pcolor;
-  pos_hash ^= ZOBRIST_BOARD_HASH[loc][pcolor];
+  colors[loc] = player;
+  pos_hash ^= ZOBRIST_BOARD_HASH[loc][player];
   chain_data[loc].owner = player;
   chain_data[loc].num_locs = 1;
   chain_data[loc].num_liberties = countImmediateLiberties(loc);
@@ -316,7 +328,7 @@ void FastBoard::playMoveAssumeLegal(Loc loc, Player player)
     int adj = loc + adj_offsets[i];
 
     //Friendly chain!
-    if(colors[adj] == pcolor)
+    if(colors[adj] == player)
     {
       //Already merged?
       if(chain_head[adj] == chain_head[loc])
@@ -328,7 +340,7 @@ void FastBoard::playMoveAssumeLegal(Loc loc, Player player)
     }
 
     //Enemy chain!
-    else if(colors[adj] == ecolor)
+    else if(colors[adj] == enemy)
     {
       Loc enemy_head = chain_head[adj];
 
@@ -353,8 +365,6 @@ void FastBoard::playMoveAssumeLegal(Loc loc, Player player)
       }
     }
   }
-
-  last_loc = loc;
 
   //We have a ko if 1 stone was captured and the capturing move is one isolated stone
   if(num_captured == 1 && chain_data[chain_head[loc]].num_locs == 1)
@@ -444,7 +454,7 @@ void FastBoard::mergeChains(Loc loc1, Loc loc2)
 int FastBoard::removeChain(Loc loc)
 {
   int num_stones_removed = 0; //Num stones removed
-  Color ecolor = getEnemyColor(colors[loc]);
+  Player enemy = getEnemy(colors[loc]);
 
   //Walk around the chain...
   Loc cur = loc;
@@ -457,13 +467,40 @@ int FastBoard::removeChain(Loc loc)
     empty_list.add(cur);
 
     //For each distinct enemy chain around, add a liberty to it.
-    changeSurroundingLiberties(cur,ecolor,+1);
+    changeSurroundingLiberties(cur,enemy,+1);
 
     cur = next_in_chain[cur];
 
   } while (cur != loc);
 
   return num_stones_removed;
+}
+
+//Remove a single stone, even a stone part of a larger group.
+void FastBoard::removeSingleStone(Loc loc)
+{
+  Player player = colors[loc];
+
+  //Save the entire chain's stone locations
+  int num_locs = chain_data[chain_head[loc]].num_locs;
+  int locs[num_locs];
+  int idx = 0;
+  Loc cur = loc;
+  do
+  {
+    locs[idx++] = cur;
+    cur = next_in_chain[cur];
+  } while (cur != loc);
+  assert(idx == num_locs);
+
+  //Delete the entire chain
+  removeChain(loc);
+
+  //Then add all the other stones back one by one.
+  for(int i = 0; i<num_locs; i++) {
+    if(locs[i] != loc)
+      playMoveAssumeLegal(locs[i],player);
+  }
 }
 
 //Add a chain of the given player to the given region of empty space, floodfilling it.
@@ -475,7 +512,7 @@ void FastBoard::addChain(Loc loc, Player pla)
   chain_data[loc].owner = pla;
 
   //Add a chain with links front -> ... -> loc -> loc with all head pointers towards loc
-  Loc front = addChainHelper(loc, loc, loc, getColorOfPlayer(pla));
+  Loc front = addChainHelper(loc, loc, loc, pla);
 
   //Now, we make loc point to front, and that completes the circle!
   next_in_chain[loc] = front;
@@ -485,18 +522,18 @@ void FastBoard::addChain(Loc loc, Player pla)
 //Make the specified loc the head for all the chains and updates the chainData of head with the number of stones.
 //Does NOT connect the stones into a circular list. Rather, it produces an linear linked list with the tail pointing
 //to tailTarget, and returns the head of the list. The tail is guaranteed to be loc.
-Loc FastBoard::addChainHelper(Loc head, Loc tailTarget, Loc loc, Color color)
+Loc FastBoard::addChainHelper(Loc head, Loc tailTarget, Loc loc, Player player)
 {
   //Add stone here
-  colors[loc] = color;
-  pos_hash ^= ZOBRIST_BOARD_HASH[loc][color];
+  colors[loc] = player;
+  pos_hash ^= ZOBRIST_BOARD_HASH[loc][player];
   chain_head[loc] = head;
   chain_data[head].num_locs++;
   next_in_chain[loc] = tailTarget;
   empty_list.remove(loc);
 
   //Eat enemy liberties
-  changeSurroundingLiberties(loc,getEnemyColor(color),-1);
+  changeSurroundingLiberties(loc,getEnemy(player),-1);
 
   //Recursively add stones around us.
   Loc nextTailTarget = loc;
@@ -504,7 +541,7 @@ Loc FastBoard::addChainHelper(Loc head, Loc tailTarget, Loc loc, Color color)
   {
     Loc adj = loc + adj_offsets[i];
     if(colors[adj] == C_EMPTY)
-      nextTailTarget = addChainHelper(head,nextTailTarget,adj,color);
+      nextTailTarget = addChainHelper(head,nextTailTarget,adj,player);
   }
   return nextTailTarget;
 }
@@ -521,7 +558,7 @@ void FastBoard::rebuildChain(Loc loc, Player pla)
   chain_data[loc].owner = pla;
 
   //Rebuild chain with links front -> ... -> loc -> loc with all head pointers towards loc
-  Loc front = rebuildChainHelper(loc, loc, loc, getColorOfPlayer(pla));
+  Loc front = rebuildChainHelper(loc, loc, loc, pla);
 
   //Now, we make loc point to front, and that completes the circle!
   next_in_chain[loc] = front;
@@ -530,7 +567,7 @@ void FastBoard::rebuildChain(Loc loc, Player pla)
 //Does same thing as addChain, but floods through a chain of the specified color already on the board
 //rebuilding its links and also counts its liberties as we go. Requires that all their heads point towards
 //some invalid location, such as NULL_LOC or a location not of color.
-Loc FastBoard::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Color color)
+Loc FastBoard::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player player)
 {
   //Count new liberties
   for(int i = 0; i<4; i++)
@@ -550,21 +587,21 @@ Loc FastBoard::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Color color
   for(int i = 0; i<4; i++)
   {
     Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == color && chain_head[adj] != head)
-      nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj,color);
+    if(colors[adj] == player && chain_head[adj] != head)
+      nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj,player);
   }
   return nextTailTarget;
 }
 
 //Apply the specified delta to the liberties of all adjacent groups of the specified color
-void FastBoard::changeSurroundingLiberties(Loc loc, Color color, int delta)
+void FastBoard::changeSurroundingLiberties(Loc loc, Player player, int delta)
 {
   int num_seen = 0;  //How many enemy chains we have seen so far
   Loc heads_seen[4];   //Heads of the enemy chains seen so far
   for(int i = 0; i < 4; i++)
   {
     int adj = loc + adj_offsets[i];
-    if(colors[adj] == color)
+    if(colors[adj] == player)
     {
       Loc head = chain_head[adj];
 
@@ -591,19 +628,17 @@ ostream& operator<<(ostream& out, const FastBoard& board)
     for(int x = 0; x < board.x_size; x++)
     {
       Loc loc = Location::getLoc(x,y,board.x_size);
-      char c = (board.last_loc == loc) ? '<' : ' ';
       //char s = getCharOfColor(board.colors[loc]);
       char s = board.colors[loc] == C_EMPTY ? '.' : '0' + board.chain_data[board.chain_head[loc]].num_liberties;
 
-      out << s << c;
+      out << s << ' ';
     }
     out << " ";
     for(int x = 0; x < board.x_size; x++)
     {
       Loc loc = Location::getLoc(x,y,board.x_size);
-      char c = (board.last_loc == loc) ? '<' : ' ';
       char s = getCharOfColor(board.colors[loc]);
-      out << s << c;
+      out << s << ' ';
     }
 
     out << "\n";

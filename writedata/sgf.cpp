@@ -16,6 +16,21 @@ Sgf::~Sgf() {
     delete children[i];
 }
 
+
+int Sgf::depth() {
+  int maxChildDepth = 0;
+  for(int i = 0; i<children.size(); i++) {
+    int childDepth = children[i]->depth();
+    if(childDepth > maxChildDepth)
+      maxChildDepth = childDepth;
+  }
+  return maxChildDepth + nodes.size();
+}
+
+
+
+//PARSING---------------------------------------------------------------------
+
 static void sgfFail(const string& msg, const string& str, int pos) {
   throw IOError(msg + " (pos " + Global::intToString(pos) + "):" + str);
 }
