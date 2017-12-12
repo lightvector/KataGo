@@ -93,7 +93,7 @@ for gamesdir in gamesdirs:
 print("Total: collected %d games" % (len(game_files)), flush=True)
 
 
-def fill_features(game_files, prob_to_include_row, input_data, target_data, target_data_mask, for_training, max_num_rows=None):
+def fill_features(game_files, prob_to_include_row, input_data, target_data, target_data_weights, for_training, max_num_rows=None):
   idx = 0
   ngames = 0
   for filename in game_files:
@@ -128,17 +128,17 @@ def fill_features(game_files, prob_to_include_row, input_data, target_data, targ
         if idx >= len(input_data):
           input_data.resize((idx * 3//2 + 100,) + input_data.shape[1:], refcheck=False)
           target_data.resize((idx * 3//2 + 100,) + target_data.shape[1:], refcheck=False)
-          target_data_mask.resize((idx * 3//2 + 100,) + target_data_mask.shape[1:], refcheck=False)
+          target_data_weights.resize((idx * 3//2 + 100,) + target_data_weights.shape[1:], refcheck=False)
 
         opp = Board.get_opp(pla)
-        idx = model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data,target_data_mask,for_training,idx)
+        idx = model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data,target_data_weights,for_training,idx)
         if max_num_rows is not None and idx >= max_num_rows:
           print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
           trainlogger.info("Loaded %d games and %d rows" % (ngames,idx))
 
           input_data.resize((idx,) + input_data.shape[1:], refcheck=False)
           target_data.resize((idx,) + target_data.shape[1:], refcheck=False)
-          target_data_mask.resize((idx,) + target_data_mask.shape[1:], refcheck=False)
+          target_data_weights.resize((idx,) + target_data_weights.shape[1:], refcheck=False)
 
           return
         if idx % 2500 == 0:
@@ -161,20 +161,19 @@ def fill_features(game_files, prob_to_include_row, input_data, target_data, targ
 
   input_data.resize((idx,) + input_data.shape[1:], refcheck=False)
   target_data.resize((idx,) + target_data.shape[1:], refcheck=False)
-  target_data_mask.resize((idx,) + target_data_mask.shape[1:], refcheck=False)
+  target_data_weights.resize((idx,) + target_data_weights.shape[1:], refcheck=False)
 
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
 import model
 
-#Apply mask for legal moves
-target_mask = tf.placeholder(tf.float32, [None] + model.target_mask_shape)
-policy_output = model.policy_output + target_mask * 20.0
+policy_output = model.policy_output
 
 #Loss function
 targets = tf.placeholder(tf.float32, [None] + model.target_shape)
-data_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output))
+target_weights = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
+data_loss = tf.reduce_mean(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output))
 
 #Prior/Regularization
 l2_reg_coeff = tf.placeholder(tf.float32)
@@ -249,7 +248,7 @@ print("Loading data", flush=True)
 prob_to_include_row = 0.30
 all_input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
 all_target_data = np.zeros(shape=[1]+model.target_shape, dtype=np.float32)
-all_target_data_mask = np.zeros(shape=[1]+model.target_mask_shape, dtype=np.float32)
+all_target_data_weights = np.zeros(shape=[1]+model.target_weights_shape, dtype=np.float32)
 
 max_num_rows = None
 
@@ -259,7 +258,7 @@ fill_features(
   prob_to_include_row,
   all_input_data,
   all_target_data,
-  all_target_data_mask,
+  all_target_data_weights,
   for_training=True,
   max_num_rows = max_num_rows
 )
@@ -278,7 +277,7 @@ np.random.shuffle(all_input_data)
 np.random.set_state(rng_state)
 np.random.shuffle(all_target_data)
 np.random.set_state(rng_state)
-np.random.shuffle(all_target_data_mask)
+np.random.shuffle(all_target_data_weights)
 
 #Just to make sure the above works...
 def test_unison_shuffle():
@@ -303,11 +302,11 @@ tinput_data = all_input_data[:num_train_rows]
 vinput_data = all_input_data[num_train_rows:]
 ttarget_data = all_target_data[:num_train_rows]
 vtarget_data = all_target_data[num_train_rows:]
-ttarget_data_mask = all_target_data_mask[:num_train_rows]
-vtarget_data_mask = all_target_data_mask[num_train_rows:]
+ttarget_data_weights = all_target_data_weights[:num_train_rows]
+vtarget_data_weights = all_target_data_weights[num_train_rows:]
 
-tdata = (tinput_data,ttarget_data,ttarget_data_mask)
-vdata = (vinput_data,vtarget_data,vtarget_data_mask)
+tdata = (tinput_data,ttarget_data,ttarget_data_weights)
+vdata = (vinput_data,vtarget_data,vtarget_data_weights)
 
 print("Data loading done", flush=True)
 
@@ -410,7 +409,7 @@ with tf.Session(config=tfconfig) as session:
     return session.run(fetches, feed_dict={
       model.inputs: data[0],
       targets: data[1],
-      target_mask: data[2],
+      target_weights: data[2],
       model.symmetries: symmetries,
       batch_learning_rate: blr,
       l2_reg_coeff: l2_coeff_value,
@@ -460,8 +459,8 @@ with tf.Session(config=tfconfig) as session:
     #Allocate buffers into which we'll copy every batch, to avoid using lots of memory
     input_buf = np.zeros(shape=[batch_size]+model.input_shape, dtype=np.float32)
     target_buf = np.zeros(shape=[batch_size]+model.target_shape, dtype=np.float32)
-    target_mask_buf = np.zeros(shape=[batch_size]+model.target_mask_shape, dtype=np.float32)
-    data_buf=(input_buf,target_buf,target_mask_buf)
+    target_weights_buf = np.zeros(shape=[batch_size]+model.target_weights_shape, dtype=np.float32)
+    data_buf=(input_buf,target_buf,target_weights_buf)
 
     for i in range(num_batches):
       if batch_idxs_idx[0] >= len(batch_idxs[0]):
@@ -475,7 +474,7 @@ with tf.Session(config=tfconfig) as session:
 
         input_buf[b] = tinput_data[r]
         target_buf[b] = ttarget_data[r]
-        target_mask_buf[b] = ttarget_data_mask[r]
+        target_weights_buf[b] = ttarget_data_weights[r]
 
       (bacc1, bacc4, bdata_loss, breg_loss, bmaxabsgrads, _) = run(
         fetches=[accuracy1, accuracy4, data_loss, reg_loss, maxabs_gradients_by_layer, train_step],

@@ -40,7 +40,7 @@ max_board_size = 19
 input_shape = [19*19,13]
 post_input_shape = [19,19,13]
 target_shape = [19*19]
-target_mask_shape = [19*19]
+target_weights_shape = []
 pass_pos = max_board_size * max_board_size
 
 def xy_to_tensor_pos(x,y,offset):
@@ -78,7 +78,7 @@ def sym_tensor_pos(pos,symmetry):
   return y*max_board_size+x
 
 #Returns the new idx, which could be the same as idx if this isn't a good training row
-def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data, target_data_mask, for_training, idx):
+def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, for_training, idx):
   if target_data is not None and moves[move_idx][1] is None:
     # TODO for now we skip passes
     return idx
@@ -110,10 +110,6 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data,
           input_data[idx,pos,7] = 1.0
         elif libs == 3:
           input_data[idx,pos,8] = 1.0
-
-      else:
-        if target_data_mask is not None and board.would_be_legal(pla,loc):
-          target_data_mask[idx,pos] = 1.0
 
   if for_training:
     prob_to_include_prev1 = 0.90
@@ -155,7 +151,8 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data,
     else:
       pos = loc_to_tensor_pos(next_loc,board,offset)
       target_data[idx,pos] = 1.0
-      assert(target_data_mask[idx,pos] == 1.0)
+      target_data_weights[idx] = 1.0
+
   return idx+1
 
 
