@@ -11,6 +11,8 @@
 #include <ctime>
 #include <cctype>
 #include <cstring>
+#include <dirent.h>
+#include <sys/types.h>
 #include "global.h"
 using namespace std;
 
@@ -211,6 +213,15 @@ bool Global::isWhitespace(const string& s)
   size_t p = s.find_first_not_of(" \t\r\n");
   return p == string::npos;
 }
+
+bool Global::isSuffix(const string& s, const string& suffix)
+{
+  if(s.length() < suffix.length())
+    return false;
+  int result = s.compare(s.length() - suffix.length(), suffix.length(), suffix);
+  return result == 0;
+}
+
 
 string Global::trim(const string& s)
 {
@@ -598,6 +609,33 @@ vector<string> Global::readFileLines(const string& filename, char delimiter)
 {
   return readFileLines(filename.c_str(), delimiter);
 }
+
+void Global::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected)
+{
+  DIR *dir;
+  struct dirent *entry;
+
+  if(!(dir = opendir(dirname.c_str()))) {
+    cerr << "Error (" << errno << ") opening " << dirname << endl;
+    return;
+  }
+
+  while ((entry = readdir(dir)) != NULL) {
+    if(entry->d_type == DT_DIR) {
+      if(strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+        continue;
+      const string subPath = dirname + "/" + entry->d_name;
+      collectFiles(subPath,fileFilter,collected);
+    }
+    else {
+      string fileName = string(entry->d_name);
+      if(fileFilter(fileName))
+        collected.push_back(dirname + "/" + fileName);
+    }
+  }
+  closedir(dir);
+}
+
 
 //USER IO----------------------------
 

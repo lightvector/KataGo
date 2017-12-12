@@ -14,6 +14,7 @@
 #include <iostream>
 #include <string>
 #include <stdint.h>
+#include <functional>
 using namespace std;
 
 #include "../core/config.h"
@@ -61,6 +62,9 @@ namespace Global
   //Check if string is all whitespace
   bool isWhitespace(char c);
   bool isWhitespace(const string& s);
+
+  //Check suffix
+  bool isSuffix(const string& s, const string& suffix);
 
   //Trim whitespace off both ends of string
   string trim(const string& s);
@@ -117,6 +121,10 @@ namespace Global
   //The delimiter characters are NOT included.
   vector<string> readFileLines(const char* filename, char delimiter = ' ');
   vector<string> readFileLines(const string& filename, char delimiter = ' ');
+
+  //Recursively walk a directory and find all the files that match fileFilter.
+  //fileFilter receives just the file name and not the full path, but collected contains the paths.
+  void collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected);
 
   //USER IO----------------------------
 
