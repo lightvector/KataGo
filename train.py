@@ -170,7 +170,7 @@ import model
 
 #Apply mask for legal moves
 target_mask = tf.placeholder(tf.float32, [None] + model.target_mask_shape)
-policy_output = model.policy_output # + target_mask * 15
+policy_output = model.policy_output + target_mask * 20.0
 
 #Loss function
 targets = tf.placeholder(tf.float32, [None] + model.target_shape)
