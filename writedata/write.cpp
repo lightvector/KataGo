@@ -17,8 +17,8 @@ static const int targetLen = 19*19;
 static const int targetWeightsLen = 1;
 static const int totalRowLen = inputLen + targetLen + targetWeightsLen;
 
-static const int chunkHeight = 10000;
-static const int deflateLevel = 6;
+static const int chunkHeight = 1000;
+static const int deflateLevel = 5;
 static const int h5Dimension = 2;
 
 static int xyToTensorPos(int x, int y, int offset) {
@@ -55,14 +55,14 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
       //Features 3,4,5 and 6,7,8 - pla 1,2,3 libs and opp 1,2,3 libs.
       if(stone == pla) {
         setRow(row,pos,1, 1.0);
-        int libs = board.getNumLiberties(pos);
+        int libs = board.getNumLiberties(loc);
         if(libs == 1) setRow(row,pos,3, 1.0);
         else if(libs == 2) setRow(row,pos,4, 1.0);
         else if(libs == 3) setRow(row,pos,5, 1.0);
       }
       else if(stone == opp) {
         setRow(row,pos,2, 1.0);
-        int libs = board.getNumLiberties(pos);
+        int libs = board.getNumLiberties(loc);
         if(libs == 1) setRow(row,pos,6, 1.0);
         else if(libs == 2) setRow(row,pos,7, 1.0);
         else if(libs == 3) setRow(row,pos,8, 1.0);
@@ -115,14 +115,15 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   row[inputLen + targetLen] = 1.0;
 }
 
-static void processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& movesBuf, DataPool& dataPool, Rand& rand) {
+//Returns number of rows processed
+static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& movesBuf, DataPool& dataPool, Rand& rand) {
   int bSize;
   try {
     bSize = sgf->getBSize();
 
     //Apply some filters
     if(bSize != 19)
-      return;
+      return 0;
 
     sgf->getPlacements(placementsBuf,bSize);
     sgf->getMoves(movesBuf,bSize);
@@ -139,7 +140,7 @@ static void processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& move
       cout << sgf->fileName << endl;
       cout << ("Illegal stone placement " + Global::intToString(j)) << endl;
       cout << board << endl;
-      return;
+      return 0;
     }
   }
 
@@ -160,6 +161,7 @@ static void processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& move
     }
   }
 
+  size_t numRowsProcessed = 0;
   Player prevPla = C_EMPTY;
   for(; j<movesBuf.size(); j++) {
     Move m = movesBuf[j];
@@ -169,12 +171,14 @@ static void processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& move
       cout << sgf->fileName << endl;
       cout << ("Multiple moves in a row by same player at " + Global::intToString(j)) << endl;
       cout << board << endl;
+      break;
     }
 
     //For now, only generate training rows for non-passes
     if(m.loc != FastBoard::PASS_LOC) {
       float* newRow = dataPool.addNewRow(rand);
       fillRow(board,movesBuf,j,newRow,rand);
+      numRowsProcessed++;
     }
 
     bool suc = board.playMove(m.loc,m.pla);
@@ -186,6 +190,8 @@ static void processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& move
 
     prevPla = m.pla;
   }
+
+  return numRowsProcessed;
 }
 
 
@@ -196,7 +202,7 @@ int main(int argc, const char* argv[]) {
 
   cout << "Command: ";
   for(int i = 0; i<argc; i++)
-    cout << argv[i];
+    cout << argv[i] << " ";
   cout << endl;
 
   vector<string> gamesDirs;
@@ -224,6 +230,16 @@ int main(int argc, const char* argv[]) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << std::endl;
     return 1;
   }
+
+  //Print some stats-----------------------------------------------------------------
+  cout << "maxBoardSize " << maxBoardSize << endl;
+  cout << "numFeatures " << numFeatures << endl;
+  cout << "inputLen " << inputLen << endl;
+  cout << "targetLen " << targetLen << endl;
+  cout << "targetWeightsLen " << targetWeightsLen << endl;
+  cout << "totalRowLen " << totalRowLen << endl;
+  cout << "chunkHeight " << chunkHeight << endl;
+  cout << "deflateLevel " << deflateLevel << endl;
 
   //Collect SGF files-----------------------------------------------------------------
   const string suffix = ".sgf";
@@ -256,31 +272,41 @@ int main(int argc, const char* argv[]) {
   DataSet* trainDataSet = new DataSet(h5File->createDataSet(trainSetName, PredType::IEEE_F32LE, trainDataSpace, dataSetProps));
 
   size_t curTrainDataSetRow = 0;
-  std::function<void(const float*)> writeTrainRow = [&trainDataSpace,&curTrainDataSetRow,&trainDataSet](const float* row) {
-    hsize_t newDims[h5Dimension] = {curTrainDataSetRow+1,totalRowLen};
+  std::function<void(const float*,size_t)> writeTrainRow = [&trainDataSpace,&curTrainDataSetRow,&trainDataSet](const float* rows, size_t numRows) {
+    hsize_t newDims[h5Dimension] = {curTrainDataSetRow+numRows,totalRowLen};
     trainDataSet->extend(newDims);
+    trainDataSpace.setExtentSimple(h5Dimension,newDims);
     hsize_t start[h5Dimension] = {curTrainDataSetRow,0};
-    hsize_t count[h5Dimension] = {1,totalRowLen};
+    hsize_t count[h5Dimension] = {numRows,totalRowLen};
     trainDataSpace.selectHyperslab(H5S_SELECT_SET, count, start);
-    trainDataSet->write(row, PredType::NATIVE_FLOAT, DataSpace::ALL, trainDataSpace);
-    curTrainDataSetRow++;
+    trainDataSet->write(rows, PredType::NATIVE_FLOAT, DataSpace::ALL, trainDataSpace);
+    curTrainDataSetRow += numRows;
   };
 
-  DataPool dataPool(totalRowLen,trainPoolSize,testSize,writeTrainRow);
+  DataPool dataPool(totalRowLen,trainPoolSize,testSize,chunkHeight,writeTrainRow);
 
   //Process SGFS to make rows----------------------------------------------------------
   Rand rand;
   cout << "Processing SGFS..." << endl;
 
+  //Shuffle sgfs
   vector<Sgf*> sgfs = Sgf::loadFiles(files);
+  for(int i = 1; i<sgfs.size(); i++) {
+    int r = rand.nextUInt(i+1);
+    Sgf* tmp = sgfs[i];
+    sgfs[i] = sgfs[r];
+    sgfs[r] = tmp;
+  }
+
+  size_t numRowsProcessed = 0;
   vector<Move> placementsBuf;
   vector<Move> movesBuf;
   for(int i = 0; i<sgfs.size(); i++) {
-    if(i > 0 && i % 500 == 0)
-      cout << "Processed " << i << " sgfs..." << endl;
+    if(i > 0 && i % 10 == 0)
+      cout << "Processed " << i << " sgfs " << numRowsProcessed << " rows " << curTrainDataSetRow << " written..." << endl;
 
     Sgf* sgf = sgfs[i];
-    processSgf(sgf, placementsBuf, movesBuf, dataPool, rand);
+    numRowsProcessed += processSgf(sgf, placementsBuf, movesBuf, dataPool, rand);
   }
 
   //Empty out pools--------------------------------------------------------------------
@@ -295,14 +321,15 @@ int main(int argc, const char* argv[]) {
   DataSet* testDataSet = new DataSet(h5File->createDataSet(testSetName, PredType::IEEE_F32LE, testDataSpace, dataSetProps));
 
   size_t curTestDataSetRow = 0;
-  std::function<void(const float*)> writeTestRow = [&testDataSpace,&curTestDataSetRow,&testDataSet](const float* row) {
-    hsize_t newDims[h5Dimension] = {curTestDataSetRow+1,totalRowLen};
+  std::function<void(const float*,size_t)> writeTestRow = [&testDataSpace,&curTestDataSetRow,&testDataSet](const float* rows, size_t numRows) {
+    hsize_t newDims[h5Dimension] = {curTestDataSetRow+numRows,totalRowLen};
     testDataSet->extend(newDims);
+    testDataSpace.setExtentSimple(h5Dimension,newDims);
     hsize_t start[h5Dimension] = {curTestDataSetRow,0};
-    hsize_t count[h5Dimension] = {1,totalRowLen};
+    hsize_t count[h5Dimension] = {numRows,totalRowLen};
     testDataSpace.selectHyperslab(H5S_SELECT_SET, count, start);
-    testDataSet->write(row, PredType::NATIVE_FLOAT, DataSpace::ALL, testDataSpace);
-    curTestDataSetRow++;
+    testDataSet->write(rows, PredType::NATIVE_FLOAT, DataSpace::ALL, testDataSpace);
+    curTestDataSetRow += numRows;
   };
 
   cout << "Writing testing set" << endl;
@@ -314,7 +341,7 @@ int main(int argc, const char* argv[]) {
   //Close the h5 file
   delete h5File;
 
-  cout << "Done" << endl;
+  cout << "Done, total " << numRowsProcessed << " rows" << endl;
 
   //Cleanup----------------------------------------------------------------------------
   // delete[] fillValue;

@@ -19,18 +19,23 @@ class DataPool {
 
   bool finished;
 
-  std::function<void(const float*)> writeTrainRow;
+  std::function<void(const float*,size_t)> writeTrainRow;
+  float* writeBuf;
+  size_t writeBufSize;
+  size_t writeBufCapacity;
 
 public:
-  DataPool(int rowWidth, int trainPoolMaxCapacity, int testPoolMaxCapacity, std::function<void(const float*)> writeTrainRow);
+  DataPool(int rowWidth, int trainPoolMaxCapacity, int testPoolMaxCapacity, int writeBufCapacity, std::function<void(const float*,size_t)> writeTrainRow);
   ~DataPool();
 
   float* addNewRow(Rand& rand);
   void finishAndWriteTrainPool(Rand& rand);
-  void writeTestPool(std::function<void(const float*)> writeTestRow, Rand& rand);
+  void writeTestPool(std::function<void(const float*,size_t)> writeTestRow, Rand& rand);
 
 private:
   float* addTrainRowHelper(Rand& rand);
+  void flushWriteBuf(std::function<void(const float*,size_t)> write);
+  void accumWriteBuf(const float* row, std::function<void(const float*,size_t)> write);
 
 };
 

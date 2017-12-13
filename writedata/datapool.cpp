@@ -4,7 +4,7 @@
 #include "core/rand.h"
 #include "datapool.h"
 
-DataPool::DataPool(int rowWidth, int trainPoolCapacity, int testPoolCapacity, std::function<void(const float*)> writeTrainRow)
+DataPool::DataPool(int rowWidth, int trainPoolCapacity, int testPoolCapacity, int writeBufCapacity, std::function<void(const float*,size_t)> writeTrainRow)
   :rowWidth(rowWidth),
    numRowsAdded(0),
    trainPoolSize(0),
@@ -12,11 +12,14 @@ DataPool::DataPool(int rowWidth, int trainPoolCapacity, int testPoolCapacity, st
    testPoolSize(0),
    testPoolCapacity(testPoolCapacity),
    finished(false),
-   writeTrainRow(writeTrainRow)
+   writeTrainRow(writeTrainRow),
+   writeBufSize(0),
+   writeBufCapacity(writeBufCapacity)
 {
   assert(sizeof(size_t) == 8);
   trainPool = new float[rowWidth * trainPoolCapacity];
   testPool = new float[rowWidth * testPoolCapacity];
+  writeBuf = new float[rowWidth * writeBufCapacity];
 
   //Zero out everything to start
   std::memset(trainPool,0,sizeof(float)*rowWidth*trainPoolCapacity);
@@ -26,6 +29,19 @@ DataPool::DataPool(int rowWidth, int trainPoolCapacity, int testPoolCapacity, st
 DataPool::~DataPool() {
   delete[] trainPool;
   delete[] testPool;
+  delete[] writeBuf;
+}
+
+void DataPool::flushWriteBuf(std::function<void(const float*,size_t)> write) {
+  write(writeBuf,writeBufSize);
+  writeBufSize = 0;
+}
+
+void DataPool::accumWriteBuf(const float* row, std::function<void(const float*,size_t)> write) {
+  std::memcpy(&(writeBuf[rowWidth*writeBufSize]),row,sizeof(float)*rowWidth);
+  writeBufSize++;
+  if(writeBufSize >= writeBufCapacity)
+    flushWriteBuf(write);
 }
 
 //Helper, add a new row and definitely put it in the training set, don't check the test set.
@@ -42,7 +58,7 @@ float* DataPool::addTrainRowHelper(Rand& rand) {
   size_t trainIdx = (size_t)rand.nextUInt64(trainPoolCapacity);
   assert(trainIdx >= 0);
   float* row = &(trainPool[rowWidth*trainIdx]);
-  writeTrainRow(row);
+  accumWriteBuf(row,writeTrainRow);
   return row;
 }
 
@@ -102,21 +118,25 @@ void DataPool::finishAndWriteTrainPool(Rand& rand) {
   for(size_t i = 0; i<trainPoolCapacity; i++) {
     size_t r = indices[i];
     float* row = &(trainPool[rowWidth*r]);
-    writeTrainRow(row);
+    accumWriteBuf(row,writeTrainRow);
   }
+  flushWriteBuf(writeTrainRow);
+
   delete[] indices;
 }
 
-void DataPool::writeTestPool(std::function<void(const float*)> writeTestRow, Rand& rand) {
+void DataPool::writeTestPool(std::function<void(const float*,size_t)> writeTestRow, Rand& rand) {
   assert(finished);
+  assert(writeBufSize == 0);
   //Pick indices to write in a random order
   size_t* indices = new size_t[testPoolCapacity];
   fillRandomPermutation(indices,testPoolCapacity,rand);
   for(size_t i = 0; i<testPoolCapacity; i++) {
     size_t r = indices[i];
     float* row = &(testPool[rowWidth*r]);
-    writeTestRow(row);
+    accumWriteBuf(row,writeTestRow);
   }
+  flushWriteBuf(writeTestRow);
   delete[] indices;
 }
 
