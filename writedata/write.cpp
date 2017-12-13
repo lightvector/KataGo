@@ -10,6 +10,7 @@ using namespace H5;
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
+//Data and feature row parameters
 static const int maxBoardSize = 19;
 static const int numFeatures = 13;
 static const int inputLen = 19*19*13;
@@ -17,6 +18,7 @@ static const int targetLen = 19*19;
 static const int targetWeightsLen = 1;
 static const int totalRowLen = inputLen + targetLen + targetWeightsLen;
 
+//HDF5 parameters
 static const int chunkHeight = 1000;
 static const int deflateLevel = 5;
 static const int h5Dimension = 2;
@@ -256,9 +258,7 @@ int main(int argc, const char* argv[]) {
   H5File* h5File = new H5File(H5std_string(outputFile), H5F_ACC_EXCL);
   hsize_t maxDims[h5Dimension] = {H5S_UNLIMITED, totalRowLen};
   hsize_t chunkDims[h5Dimension] = {chunkHeight, totalRowLen};
-
-  hsize_t trainDims[h5Dimension] = {0, totalRowLen};
-  DataSpace trainDataSpace(h5Dimension,trainDims,maxDims);
+  hsize_t initFileDims[h5Dimension] = {0, totalRowLen};
 
   DSetCreatPropList dataSetProps;
   // float* fillValue = new float[1];
@@ -269,17 +269,19 @@ int main(int argc, const char* argv[]) {
 
   H5std_string trainSetName("train");
   H5std_string testSetName("test");
-  DataSet* trainDataSet = new DataSet(h5File->createDataSet(trainSetName, PredType::IEEE_F32LE, trainDataSpace, dataSetProps));
+  DataSet* trainDataSet = new DataSet(h5File->createDataSet(trainSetName, PredType::IEEE_F32LE, DataSpace(h5Dimension,initFileDims,maxDims), dataSetProps));
 
   size_t curTrainDataSetRow = 0;
-  std::function<void(const float*,size_t)> writeTrainRow = [&trainDataSpace,&curTrainDataSetRow,&trainDataSet](const float* rows, size_t numRows) {
+  std::function<void(const float*,size_t)> writeTrainRow = [&curTrainDataSetRow,&trainDataSet](const float* rows, size_t numRows) {
     hsize_t newDims[h5Dimension] = {curTrainDataSetRow+numRows,totalRowLen};
     trainDataSet->extend(newDims);
-    trainDataSpace.setExtentSimple(h5Dimension,newDims);
+    DataSpace fileSpace = trainDataSet->getSpace();
+    hsize_t memDims[h5Dimension] = {numRows,totalRowLen};
+    DataSpace memSpace(h5Dimension,memDims);
     hsize_t start[h5Dimension] = {curTrainDataSetRow,0};
     hsize_t count[h5Dimension] = {numRows,totalRowLen};
-    trainDataSpace.selectHyperslab(H5S_SELECT_SET, count, start);
-    trainDataSet->write(rows, PredType::NATIVE_FLOAT, DataSpace::ALL, trainDataSpace);
+    fileSpace.selectHyperslab(H5S_SELECT_SET, count, start);
+    trainDataSet->write(rows, PredType::NATIVE_FLOAT, memSpace, fileSpace);
     curTrainDataSetRow += numRows;
   };
 
@@ -287,10 +289,11 @@ int main(int argc, const char* argv[]) {
 
   //Process SGFS to make rows----------------------------------------------------------
   Rand rand;
-  cout << "Processing SGFS..." << endl;
+  cout << "Loading SGFS..." << endl;
+  vector<Sgf*> sgfs = Sgf::loadFiles(files);
 
   //Shuffle sgfs
-  vector<Sgf*> sgfs = Sgf::loadFiles(files);
+  cout << "Shuffling SGFS..." << endl;
   for(int i = 1; i<sgfs.size(); i++) {
     int r = rand.nextUInt(i+1);
     Sgf* tmp = sgfs[i];
@@ -298,12 +301,13 @@ int main(int argc, const char* argv[]) {
     sgfs[r] = tmp;
   }
 
+  cout << "Processing SGFS..." << endl;
   size_t numRowsProcessed = 0;
   vector<Move> placementsBuf;
   vector<Move> movesBuf;
   for(int i = 0; i<sgfs.size(); i++) {
-    if(i > 0 && i % 10 == 0)
-      cout << "Processed " << i << " sgfs " << numRowsProcessed << " rows " << curTrainDataSetRow << " written..." << endl;
+    if(i > 0 && i % 100 == 0)
+      cout << "Processed " << i << " sgfs, " << numRowsProcessed << " rows, " << curTrainDataSetRow << " rows written..." << endl;
 
     Sgf* sgf = sgfs[i];
     numRowsProcessed += processSgf(sgf, placementsBuf, movesBuf, dataPool, rand);
@@ -316,19 +320,19 @@ int main(int argc, const char* argv[]) {
   delete trainDataSet;
 
   //Open the testing dataset
-  hsize_t testDims[h5Dimension] = {0, totalRowLen};
-  DataSpace testDataSpace(h5Dimension,testDims,maxDims);
-  DataSet* testDataSet = new DataSet(h5File->createDataSet(testSetName, PredType::IEEE_F32LE, testDataSpace, dataSetProps));
+  DataSet* testDataSet = new DataSet(h5File->createDataSet(testSetName, PredType::IEEE_F32LE, DataSpace(h5Dimension,initFileDims,maxDims), dataSetProps));
 
   size_t curTestDataSetRow = 0;
-  std::function<void(const float*,size_t)> writeTestRow = [&testDataSpace,&curTestDataSetRow,&testDataSet](const float* rows, size_t numRows) {
+  std::function<void(const float*,size_t)> writeTestRow = [&curTestDataSetRow,&testDataSet](const float* rows, size_t numRows) {
     hsize_t newDims[h5Dimension] = {curTestDataSetRow+numRows,totalRowLen};
     testDataSet->extend(newDims);
-    testDataSpace.setExtentSimple(h5Dimension,newDims);
+    DataSpace fileSpace = testDataSet->getSpace();
+    hsize_t memDims[h5Dimension] = {numRows,totalRowLen};
+    DataSpace memSpace(h5Dimension,memDims);
     hsize_t start[h5Dimension] = {curTestDataSetRow,0};
     hsize_t count[h5Dimension] = {numRows,totalRowLen};
-    testDataSpace.selectHyperslab(H5S_SELECT_SET, count, start);
-    testDataSet->write(rows, PredType::NATIVE_FLOAT, DataSpace::ALL, testDataSpace);
+    fileSpace.selectHyperslab(H5S_SELECT_SET, count, start);
+    testDataSet->write(rows, PredType::NATIVE_FLOAT, memSpace, fileSpace);
     curTestDataSetRow += numRows;
   };
 
