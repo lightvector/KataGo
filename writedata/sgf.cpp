@@ -7,6 +7,90 @@ SgfNode::SgfNode()
 SgfNode::~SgfNode()
 {}
 
+static void propertyFail(const string& msg) {
+  throw IOError(msg);
+}
+static void propertyFail(const char* msg) {
+  propertyFail(string(msg));
+}
+
+static Loc parseSgfLoc(const string& s, int bSize) {
+  if(s.length() != 2)
+    propertyFail("Invalid location: " + s);
+
+  int x = (int)s[0] - (int)'a';
+  int y = (int)s[1] - (int)'a';
+
+  if(x < 0 || x >= bSize || y < 0 || y >= bSize)
+    propertyFail("Invalid location: " + s);
+  return Location::getLoc(x,y,bSize);
+}
+
+static Loc parseSgfLocOrPass(const string& s, int bSize) {
+  if(s.length() == 0 || s == "tt")
+    return FastBoard::PASS_LOC;
+  return parseSgfLoc(s,bSize);
+}
+
+string SgfNode::getSingleProperty(const char* key) const {
+  if(!contains(props,key))
+    propertyFail("SGF does not contain property: " + string(key));
+  const vector<string>& prop = map_get(props,key);
+  if(prop.size() != 1)
+    propertyFail("SGF property is not a singleton: " + string(key));
+  return prop[0];
+}
+
+bool SgfNode::hasPlacements() const {
+  return contains(props,"AB") || contains(props,"AW") || contains(props,"AE");
+}
+
+void SgfNode::accumPlacements(vector<Move>& moves, int bSize) const {
+  if(contains(props,"AB")) {
+    const vector<string>& ab = map_get(props,"AB");
+    int len = ab.size();
+    for(int i = 0; i<len; i++) {
+      Loc loc = parseSgfLoc(ab[i],bSize);
+      moves.push_back(Move(loc,P_BLACK));
+    }
+  }
+  if(contains(props,"AW")) {
+    const vector<string>& aw = map_get(props,"AW");
+    int len = aw.size();
+    for(int i = 0; i<len; i++) {
+      Loc loc = parseSgfLoc(aw[i],bSize);
+      moves.push_back(Move(loc,P_WHITE));
+    }
+  }
+  if(contains(props,"AE")) {
+    const vector<string>& ae = map_get(props,"AE");
+    int len = ae.size();
+    for(int i = 0; i<len; i++) {
+      Loc loc = parseSgfLoc(ae[i],bSize);
+      moves.push_back(Move(loc,C_EMPTY));
+    }
+  }
+}
+
+void SgfNode::accumMoves(vector<Move>& moves, int bSize) const {
+  if(contains(props,"B")) {
+    const vector<string>& b = map_get(props,"B");
+    int len = b.size();
+    for(int i = 0; i<len; i++) {
+      Loc loc = parseSgfLocOrPass(b[i],bSize);
+      moves.push_back(Move(loc,P_BLACK));
+    }
+  }
+  if(contains(props,"W")) {
+    const vector<string>& w = map_get(props,"W");
+    int len = w.size();
+    for(int i = 0; i<len; i++) {
+      Loc loc = parseSgfLocOrPass(w[i],bSize);
+      moves.push_back(Move(loc,P_WHITE));
+    }
+  }
+}
+
 Sgf::Sgf()
 {}
 Sgf::~Sgf() {
@@ -17,7 +101,7 @@ Sgf::~Sgf() {
 }
 
 
-int Sgf::depth() {
+int Sgf::depth() const {
   int maxChildDepth = 0;
   for(int i = 0; i<children.size(); i++) {
     int childDepth = children[i]->depth();
@@ -25,6 +109,46 @@ int Sgf::depth() {
       maxChildDepth = childDepth;
   }
   return maxChildDepth + nodes.size();
+}
+
+int Sgf::getBSize() const {
+  assert(nodes.size() > 0);
+  int bSize;
+  bool suc = Global::tryStringToInt(nodes[0]->getSingleProperty("SZ"), bSize);
+  if(!suc)
+    propertyFail("Could not parse board size in sgf");
+  return bSize;
+}
+
+void Sgf::getPlacements(vector<Move>& moves, int bSize) const {
+  moves.clear();
+  assert(nodes.size() > 0);
+  nodes[0]->accumPlacements(moves,bSize);
+}
+
+//Gets the longest child if the sgf has branches
+void Sgf::getMoves(vector<Move>& moves, int bSize) const {
+  moves.clear();
+  assert(nodes.size() > 0);
+  for(int i = 0; i<nodes.size(); i++) {
+    if(i > 0 && nodes[i]->hasPlacements())
+      propertyFail("Found stone placements after the root");
+    nodes[i]->accumMoves(moves,bSize);
+  }
+
+  int maxChildDepth = 0;
+  Sgf* maxChild = NULL;
+  for(int i = 0; i<children.size(); i++) {
+    int childDepth = children[i]->depth();
+    if(childDepth > maxChildDepth) {
+      maxChildDepth = childDepth;
+      maxChild = children[i];
+    }
+  }
+
+  if(maxChild != NULL) {
+    maxChild->getMoves(moves,bSize);
+  }
 }
 
 
@@ -142,6 +266,7 @@ static Sgf* maybeParseSgf(const string& str, int& pos) {
       SgfNode* node = maybeParseNode(str,pos);
       if(node == NULL)
         break;
+      node->parent = sgf;
       sgf->nodes.push_back(node);
     }
     while(true) {
@@ -164,13 +289,16 @@ static Sgf* maybeParseSgf(const string& str, int& pos) {
 Sgf* Sgf::parse(const string& str) {
   int pos = 0;
   Sgf* sgf = maybeParseSgf(str,pos);
-  if(sgf == NULL)
+  if(sgf == NULL || sgf->nodes.size() == 0)
     sgfFail("Empty sgf",str,0);
   return sgf;
 }
 
 Sgf* Sgf::loadFile(const string& file) {
-  return parse(Global::readFile(file));
+  Sgf* sgf = parse(Global::readFile(file));
+  if(sgf != NULL)
+    sgf->fileName = file;
+  return sgf;
 }
 
 vector<Sgf*> Sgf::loadFiles(const vector<string>& files) {

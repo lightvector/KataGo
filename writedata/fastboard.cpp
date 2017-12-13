@@ -154,6 +154,8 @@ bool FastBoard::isKoBanned(Loc loc) const
 //Check if moving here is illegal.
 bool FastBoard::isLegal(Loc loc, Player player) const
 {
+  if(player != P_BLACK && player != P_WHITE)
+    return false;
   return loc == PASS_LOC || (loc >= 0 && loc < MAX_ARR_SIZE && (colors[loc] == C_EMPTY) && !isKoBanned(loc) && !isSuicide(loc, player));
 }
 
@@ -194,6 +196,8 @@ bool FastBoard::isSimpleEye(Loc loc, Player player) const
 bool FastBoard::setStone(Loc loc, Color color)
 {
   if(loc < 0 || loc >= MAX_ARR_SIZE || colors[loc] == C_WALL)
+    return false;
+  if(color != C_BLACK && color != C_WHITE && color != C_EMPTY)
     return false;
 
   if(colors[loc] == color)

@@ -6,6 +6,75 @@
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
+static void processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& movesBuf) {
+  int bSize;
+  try {
+    bSize = sgf->getBSize();
+
+    //Apply some filters
+    if(bSize != 19)
+      return;
+
+    sgf->getPlacements(placementsBuf,bSize);
+    sgf->getMoves(movesBuf,bSize);
+  }
+  catch(const IOError &e) {
+    cout << "Skipping sgf file: " << sgf->fileName << ": " << e.message << endl;
+  }
+
+  FastBoard board(bSize);
+  for(int j = 0; j<placementsBuf.size(); j++) {
+    Move m = placementsBuf[j];
+    bool suc = board.setStone(m.loc,m.pla);
+    if(!suc) {
+      cout << sgf->fileName << endl;
+      cout << ("Illegal stone placement " + Global::intToString(j)) << endl;
+      cout << board << endl;
+      return;
+    }
+  }
+
+  //If there are multiple black moves in a row, then make them all right now.
+  //Sometimes sgfs break the standard and do handicap setup in this way.
+  int j = 0;
+  if(movesBuf.size() > 1 && movesBuf[0].pla == P_BLACK && movesBuf[1].pla == P_BLACK) {
+    for(; j<movesBuf.size(); j++) {
+      Move m = movesBuf[j];
+      if(m.pla != P_BLACK)
+        break;
+      bool suc = board.playMove(m.loc,m.pla);
+      if(!suc) {
+        cout << sgf->fileName << endl;
+        cout << ("Illegal move! " + Global::intToString(j)) << endl;
+        cout << board << endl;
+      }
+    }
+  }
+
+  Player prevPla = C_EMPTY;
+  for(; j<movesBuf.size(); j++) {
+    Move m = movesBuf[j];
+
+    //Forbid consecutive moves by the same player
+    if(m.pla == prevPla) {
+      cout << sgf->fileName << endl;
+      cout << ("Multiple moves in a row by same player at " + Global::intToString(j)) << endl;
+      cout << board << endl;
+    }
+
+    bool suc = board.playMove(m.loc,m.pla);
+    if(!suc) {
+      cout << sgf->fileName << endl;
+      cout << ("Illegal move! " + Global::intToString(j)) << endl;
+      cout << board << endl;
+    }
+
+    prevPla = m.pla;
+  }
+}
+
+
+
 int main(int argc, const char* argv[]) {
   vector<string> gamesDirs;
 
@@ -37,6 +106,16 @@ int main(int argc, const char* argv[]) {
   cout << "Found " << files.size() << " sgf files!" << endl;
 
   vector<Sgf*> sgfs = Sgf::loadFiles(files);
+  vector<Move> placementsBuf;
+  vector<Move> movesBuf;
+  for(int i = 0; i<sgfs.size(); i++) {
+    Sgf* sgf = sgfs[i];
+    processSgf(sgf, placementsBuf, movesBuf);
+  }
+
+  for(int i = 0; i<sgfs.size(); i++) {
+    delete sgfs[i];
+  }
 
   // FastBoard board;
   // Rand rand("foo");

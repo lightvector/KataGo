@@ -135,7 +135,7 @@ struct FastBoard
   //Check if this location contains a simple eye for the specified player.
   bool isSimpleEye(Loc loc, Player player) const;
 
-  //Sets the specified stone if possible. Returns true usually (even if nothng changed), returns false if the location was off board.
+  //Sets the specified stone if possible. Returns true usually, returns false location or color were out of range.
   bool setStone(Loc loc, Color color);
 
   //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
