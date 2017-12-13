@@ -118,7 +118,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
 }
 
 //Returns number of rows processed
-static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& movesBuf, DataPool& dataPool, Rand& rand) {
+static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& movesBuf, DataPool& dataPool, Rand& rand, set<Hash>& posHashes) {
   int bSize;
   try {
     bSize = sgf->getBSize();
@@ -180,6 +180,7 @@ static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& mo
     if(m.loc != FastBoard::PASS_LOC) {
       float* newRow = dataPool.addNewRow(rand);
       fillRow(board,movesBuf,j,newRow,rand);
+      posHashes.insert(board.pos_hash);
       numRowsProcessed++;
     }
 
@@ -261,9 +262,6 @@ int main(int argc, const char* argv[]) {
   hsize_t initFileDims[h5Dimension] = {0, totalRowLen};
 
   DSetCreatPropList dataSetProps;
-  // float* fillValue = new float[1];
-  // fillValue[0] = 0.0;
-  // dataSetProps.setFillValue(PredType::IEEE_F32LE, &fillValue);
   dataSetProps.setChunk(h5Dimension,chunkDims);
   dataSetProps.setDeflate(deflateLevel);
 
@@ -305,12 +303,13 @@ int main(int argc, const char* argv[]) {
   size_t numRowsProcessed = 0;
   vector<Move> placementsBuf;
   vector<Move> movesBuf;
+  set<Hash> posHashes;
   for(int i = 0; i<sgfs.size(); i++) {
     if(i > 0 && i % 100 == 0)
       cout << "Processed " << i << " sgfs, " << numRowsProcessed << " rows, " << curTrainDataSetRow << " rows written..." << endl;
 
     Sgf* sgf = sgfs[i];
-    numRowsProcessed += processSgf(sgf, placementsBuf, movesBuf, dataPool, rand);
+    numRowsProcessed += processSgf(sgf, placementsBuf, movesBuf, dataPool, rand, posHashes);
   }
 
   //Empty out pools--------------------------------------------------------------------
@@ -345,10 +344,11 @@ int main(int argc, const char* argv[]) {
   //Close the h5 file
   delete h5File;
 
-  cout << "Done, total " << numRowsProcessed << " rows" << endl;
+  cout << "Done" << endl;
+  cout << numRowsProcessed << " rows" << endl;
+  cout << posHashes.size() << " unique pos hashes" << endl;
 
   //Cleanup----------------------------------------------------------------------------
-  // delete[] fillValue;
   for(int i = 0; i<sgfs.size(); i++) {
     delete sgfs[i];
   }
