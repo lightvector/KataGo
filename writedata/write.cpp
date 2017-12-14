@@ -189,6 +189,7 @@ static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& mo
       cout << sgf->fileName << endl;
       cout << ("Illegal move! " + Global::intToString(j)) << endl;
       cout << board << endl;
+      break;
     }
 
     prevPla = m.pla;
