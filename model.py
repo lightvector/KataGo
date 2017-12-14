@@ -323,14 +323,14 @@ outputs_by_layer.append(("g3",g3_output))
 #we multiply separately and add to the output afterward.
 p1_intermediate_sum = p1_intermediate_conv + g3_output
 
-#And now apply batchnorm and relu
-p1_output = tf.nn.relu(batchnorm("p1norm",p1_intermediate_sum))
+#And now apply batchnorm and crelu
+p1_output = tf.nn.crelu(batchnorm("p1norm",p1_intermediate_sum))
 outputs_by_layer.append(("convp1",p1_output))
 
 #Finally, apply linear convolution to produce final output
 convp2diam = 5
 convp2num_channels = 1
-convp2w = weight_variable("convp2w",[convp2diam,convp2diam,convp1num_channels,convp2num_channels],convp1num_channels*convp2diam**2,convp2num_channels)
+convp2w = weight_variable("convp2w",[convp2diam,convp2diam,convp1num_channels*2,convp2num_channels],convp1num_channels*2*convp2diam**2,convp2num_channels)
 
 p2_output = conv2d(p1_output, convp2w)
 outputs_by_layer.append(("convp2",p2_output))
