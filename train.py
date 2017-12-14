@@ -7,6 +7,7 @@ import random
 import math
 import time
 import logging
+import h5py
 import tensorflow as tf
 import numpy as np
 
@@ -45,33 +46,6 @@ fh = logging.FileHandler(traindir+"/detail.log", mode='w')
 fh.setFormatter(bareformatter)
 detaillogger.addHandler(fh)
 
-
-#Test board --------------------------------------------------------------------
-# board = Board(size=19)
-# xoroshiro
-# s = [123456789,787890901111]
-# def rotl(x,k):
-#   return ((x << k) | (x >> (64-k))) & 0xFFFFffffFFFFffff
-# def rnext():
-#   s0 = s[0]
-#   s1 = s[1]
-#   result = (s0+s1) & 0xFFFFffffFFFFffff
-#   s1 ^= s0
-#   s[0] = rotl(s0,55) ^ s1 ^ ((s1 << 14) & 0xFFFFffffFFFFffff)
-#   s[1] = rotl(s1,36)
-#   return result
-
-# for i in range(1003500):
-#   x = rnext() % 19
-#   y = rnext() % 19
-#   p = rnext() % 2 + 1
-#   loc = board.loc(x,y)
-#   if board.would_be_legal(p,loc):
-#     board.play(p,loc)
-
-# print(board.to_string())
-# print(board.to_liberty_string(), flush=True)
-# assert(False)
 
 #Data loading-------------------------------------------------------------------
 

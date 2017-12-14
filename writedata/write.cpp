@@ -19,8 +19,8 @@ static const int targetWeightsLen = 1;
 static const int totalRowLen = inputLen + targetLen + targetWeightsLen;
 
 //HDF5 parameters
-static const int chunkHeight = 1000;
-static const int deflateLevel = 5;
+static const int chunkHeight = 2000;
+static const int deflateLevel = 6;
 static const int h5Dimension = 2;
 
 static int xyToTensorPos(int x, int y, int offset) {
@@ -257,7 +257,7 @@ int main(int argc, const char* argv[]) {
   cout << "Found " << files.size() << " sgf files!" << endl;
 
   cout << "Opening h5 file..." << endl;
-  H5File* h5File = new H5File(H5std_string(outputFile), H5F_ACC_EXCL);
+  H5File* h5File = new H5File(H5std_string(outputFile), H5F_ACC_TRUNC);
   hsize_t maxDims[h5Dimension] = {H5S_UNLIMITED, totalRowLen};
   hsize_t chunkDims[h5Dimension] = {chunkHeight, totalRowLen};
   hsize_t initFileDims[h5Dimension] = {0, totalRowLen};
