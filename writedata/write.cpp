@@ -110,7 +110,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   //Target - the move actually made
   Loc nextMoveLoc = moves[nextMoveIdx].loc;
   assert(nextMoveLoc != FastBoard::PASS_LOC);
-  int nextMovePos = locToTensorPos(nextMovePos,bSize,offset);
+  int nextMovePos = locToTensorPos(nextMoveLoc,bSize,offset);
   row[inputLen + nextMovePos] = 1.0;
 
   //Weight of the row, currently always 1.0

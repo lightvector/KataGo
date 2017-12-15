@@ -12,6 +12,7 @@
 #include <cctype>
 #include <cstring>
 #include <dirent.h>
+#include <inttypes.h>
 #include <sys/types.h>
 #include "global.h"
 using namespace std;
@@ -86,7 +87,7 @@ string Global::uint32ToHexString(uint32_t x)
 string Global::uint64ToHexString(uint64_t x)
 {
   char buf[32];
-  sprintf(buf,"%016llx",x); //Spurious g++ warning on this line?
+  sprintf(buf,"%016" PRIu64 "x",x); //Spurious g++ warning on this line?
   return string(buf);
 }
 

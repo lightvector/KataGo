@@ -8,6 +8,7 @@ import math
 import time
 import logging
 import h5py
+import contextlib
 import tensorflow as tf
 import numpy as np
 
@@ -22,12 +23,12 @@ Train neural net on Go games!
 
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-traindir', help='Dir to write to for recording training results', required=True)
-parser.add_argument('-gamesdir', help='Dir of games to read', required=True, action='append')
+parser.add_argument('-gamesh5', help='H5 file of preprocessed game data', required=True)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 args = vars(parser.parse_args())
 
 traindir = args["traindir"]
-gamesdirs = args["gamesdir"]
+gamesh5 = args["gamesh5"]
 verbose = args["verbose"]
 
 if not os.path.exists(traindir):
@@ -45,97 +46,6 @@ detaillogger.setLevel(logging.INFO)
 fh = logging.FileHandler(traindir+"/detail.log", mode='w')
 fh.setFormatter(bareformatter)
 detaillogger.addHandler(fh)
-
-
-#Data loading-------------------------------------------------------------------
-
-def collect_game_files(gamesdir):
-  files = []
-  for root, directories, filenames in os.walk(gamesdir):
-    for filename in filenames:
-      files.append(os.path.join(root,filename))
-  return files
-
-game_files = []
-for gamesdir in gamesdirs:
-  print("Collecting games in " + gamesdir, flush=True)
-  files = collect_game_files(gamesdir)
-  files = [path for path in files if path.endswith(".sgf")]
-  game_files.extend(files)
-  print("Collected %d games" % (len(files)), flush=True)
-
-print("Total: collected %d games" % (len(game_files)), flush=True)
-
-
-def fill_features(game_files, prob_to_include_row, input_data, target_data, target_data_weights, for_training, max_num_rows=None):
-  idx = 0
-  ngames = 0
-  for filename in game_files:
-    ngames += 1
-    try:
-      (metadata,setup,moves) = data.load_sgf_moves_exn(filename)
-    except Exception as e:
-      print("Error loading " + filename,flush=True)
-      print(e, flush=True)
-      traceback.print_exc()
-      continue
-
-    #Some basic filters
-    if len(moves) < 15:
-      continue
-    if metadata.size > model.max_board_size:
-      continue
-    #For now we only support exactly 19x19
-    if metadata.size != 19:
-      continue
-
-    board = Board(size=metadata.size)
-    for (pla,loc) in setup:
-      board.set_stone(pla,loc)
-    if moves[0][0] == Board.WHITE:
-      board.set_pla(Board.WHITE)
-
-    for move_idx in range(len(moves)):
-      (pla,next_loc) = moves[move_idx]
-      if np.random.random() < prob_to_include_row:
-
-        if idx >= len(input_data):
-          input_data.resize((idx * 3//2 + 100,) + input_data.shape[1:], refcheck=False)
-          target_data.resize((idx * 3//2 + 100,) + target_data.shape[1:], refcheck=False)
-          target_data_weights.resize((idx * 3//2 + 100,) + target_data_weights.shape[1:], refcheck=False)
-
-        opp = Board.get_opp(pla)
-        idx = model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data,target_data_weights,for_training,idx)
-        if max_num_rows is not None and idx >= max_num_rows:
-          print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
-          trainlogger.info("Loaded %d games and %d rows" % (ngames,idx))
-
-          input_data.resize((idx,) + input_data.shape[1:], refcheck=False)
-          target_data.resize((idx,) + target_data.shape[1:], refcheck=False)
-          target_data_weights.resize((idx,) + target_data_weights.shape[1:], refcheck=False)
-
-          return
-        if idx % 2500 == 0:
-          print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
-
-      if next_loc is None: # pass
-        board.do_pass()
-      else:
-        try:
-          board.play(pla,next_loc)
-        except Exception as e:
-          print("Illegal move in: " + filename, flush=True)
-          print("Move " + str((board.loc_x(next_loc),board.loc_y(next_loc))), flush=True)
-          print(board.to_string(), flush=True)
-          print(e, flush=True)
-          break
-
-  print("Loaded %d games and %d rows" % (ngames,idx), flush=True)
-  trainlogger.info("Loaded %d games and %d rows" % (ngames,idx))
-
-  input_data.resize((idx,) + input_data.shape[1:], refcheck=False)
-  target_data.resize((idx,) + target_data.shape[1:], refcheck=False)
-  target_data_weights.resize((idx,) + target_data_weights.shape[1:], refcheck=False)
 
 
 # Model ----------------------------------------------------------------
@@ -215,86 +125,23 @@ for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
   print("Additional update op on train step: %s" % update_op.name, flush=True)
   trainlogger.info("Additional update op on train step: %s" % update_op.name)
 
-# Load data ------------------------------------------------------------
+# Open H5 file---------------------------------------------------------
+print("Opening H5 file: " + gamesh5)
 
-print("Loading data", flush=True)
+h5_propfaid = h5py.h5p.create(h5py.h5p.FILE_ACCESS)
+h5_settings = list(h5_propfaid.get_cache())
+assert(h5_settings[2] == 1048576) #Default h5 cache size is 1 MB
+h5_settings[2] *= 128 #Make it 128 MB
+print("Adjusting H5 cache settings to: " + str(h5_settings))
+h5_propfaid.set_cache(*h5_settings)
 
-prob_to_include_row = 0.30
-all_input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
-all_target_data = np.zeros(shape=[1]+model.target_shape, dtype=np.float32)
-all_target_data_weights = np.zeros(shape=[1]+model.target_weights_shape, dtype=np.float32)
-
-max_num_rows = None
-
-start_time = time.perf_counter()
-fill_features(
-  game_files,
-  prob_to_include_row,
-  all_input_data,
-  all_target_data,
-  all_target_data_weights,
-  for_training=True,
-  max_num_rows = max_num_rows
-)
-end_time = time.perf_counter()
-print("Took %f seconds to load data" % (end_time - start_time), flush=True)
-
-
-print("Splitting into training and validation", flush=True)
-num_all_rows = len(all_input_data)
-num_test_rows = min(10000,num_all_rows//10)
-num_train_rows = num_all_rows - num_test_rows
-
-#Shuffle all 3 arrays in unison. A little wacky, but...
-rng_state = np.random.get_state()
-np.random.shuffle(all_input_data)
-np.random.set_state(rng_state)
-np.random.shuffle(all_target_data)
-np.random.set_state(rng_state)
-np.random.shuffle(all_target_data_weights)
-
-#Just to make sure the above works...
-def test_unison_shuffle():
-  x = np.array([1,2,3,4,5,6,7,8,9])
-  y = np.array([[1],[2],[3],[4],[5],[6],[7],[8],[9]])
-  z = np.array([[1,1],[2,2],[3,3],[4,4],[5,5],[6,6],[7,7],[8,8],[9,9]])
-  rng_state = np.random.get_state()
-  np.random.shuffle(x)
-  np.random.set_state(rng_state)
-  np.random.shuffle(y)
-  np.random.set_state(rng_state)
-  np.random.shuffle(z)
-  for i in range(len(x)):
-    assert(x[i] == y[i,0])
-    assert(x[i] == z[i,0])
-    assert(x[i] == z[i,1])
-
-test_unison_shuffle()
-
-#And split out the pieces for testing and training
-tinput_data = all_input_data[:num_train_rows]
-vinput_data = all_input_data[num_train_rows:]
-ttarget_data = all_target_data[:num_train_rows]
-vtarget_data = all_target_data[num_train_rows:]
-ttarget_data_weights = all_target_data_weights[:num_train_rows]
-vtarget_data_weights = all_target_data_weights[num_train_rows:]
-
-tdata = (tinput_data,ttarget_data,ttarget_data_weights)
-vdata = (vinput_data,vtarget_data,vtarget_data_weights)
-
-print("Data loading done", flush=True)
-
-# Batching ------------------------------------------------------------
-
-batch_size = 50
-
-def get_batch_idxs():
-  idx = np.random.permutation(num_train_rows)
-  batches = []
-  num_batches = num_train_rows//batch_size
-  for batchnum in range(num_batches):
-    batches.append(idx[batchnum*batch_size : (batchnum+1)*batch_size])
-  return batches
+h5fid = h5py.h5f.open(str.encode(str(gamesh5)), fapl=h5_propfaid)
+h5file = h5py.File(h5fid)
+h5train = h5file["train"]
+h5test = h5file["test"]
+h5chunk_size = h5train.chunks[0]
+num_h5_train_rows = h5train.shape[0]
+num_h5_test_rows = h5test.shape[0]
 
 # Learning rate -------------------------------------------------------
 
@@ -350,8 +197,12 @@ class LR:
 print("Training", flush=True)
 
 num_epochs = 300
-num_samples_per_epoch = (500000 if max_num_rows is None else min(500000,max_num_rows))
+num_samples_per_epoch = 500000
+batch_size = 50
 num_batches_per_epoch = num_samples_per_epoch//batch_size
+
+assert(h5chunk_size % batch_size == 0)
+assert(num_samples_per_epoch % batch_size == 0)
 
 lr = LR(
   initial_lr = 0.0007,
@@ -363,7 +214,7 @@ lr = LR(
 )
 
 # l2_coeff_value = 0
-l2_coeff_value = 0.3 / max(1000,num_train_rows)
+l2_coeff_value = 0.3 / max(1000,num_h5_train_rows)
 
 saver = tf.train.Saver(
   max_to_keep = 10000,
@@ -379,11 +230,23 @@ with tf.Session(config=tfconfig) as session:
   sys.stdout.flush()
   sys.stderr.flush()
 
-  def run(fetches, data, training, symmetries, blr=0.0):
+  def run(fetches, rows, training, symmetries, blr=0.0):
+    assert(len(model.input_shape) == 2)
+    assert(len(model.target_shape) == 1)
+    assert(len(model.target_weights_shape) == 0)
+    input_len = model.input_shape[0] * model.input_shape[1]
+    target_len = model.target_shape[0]
+
+    if not isinstance(rows, np.ndarray):
+      rows = np.array(rows)
+    row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
+    row_targets = rows[:,input_len:input_len+target_len]
+    row_target_weights = rows[:,input_len+target_len]
+
     return session.run(fetches, feed_dict={
-      model.inputs: data[0],
-      targets: data[1],
-      target_weights: data[2],
+      model.inputs: row_inputs,
+      targets: row_targets,
+      target_weights: row_target_weights,
       model.symmetries: symmetries,
       batch_learning_rate: blr,
       l2_reg_coeff: l2_coeff_value,
@@ -394,7 +257,7 @@ with tf.Session(config=tfconfig) as session:
     return np.array_str(arr, precision=precision, suppress_small = True, max_line_width = 200)
 
   def val_accuracy_and_loss():
-    return run([accuracy1,accuracy4,data_loss], vdata, symmetries=[False,False,False], training=False)
+    return run([accuracy1,accuracy4,data_loss], h5test, symmetries=[False,False,False], training=False)
 
   def train_stats_str(tacc1,tacc4,tdata_loss,treg_loss):
     return "tacc1 %5.2f%% tacc4 %5.2f%% tdloss %f trloss %f" % (tacc1*100, tacc4*100, tdata_loss, treg_loss)
@@ -407,7 +270,7 @@ with tf.Session(config=tfconfig) as session:
 
   def log_detail_stats(maxabsgrads):
     apbl,mobl,sobl = run([activated_prop_by_layer, mean_output_by_layer, stdev_output_by_layer],
-                         vdata, symmetries=[False,False,False], training=False)
+                         h5test, symmetries=[False,False,False], training=False)
     for key in apbl:
       detaillogger.info("%s: activated_prop %s" % (key, np_array_str(apbl[key], precision=3)))
       detaillogger.info("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
@@ -421,8 +284,21 @@ with tf.Session(config=tfconfig) as session:
       for key in maxabsgrads:
         detaillogger.info("%s: max abs gradient %f" % (key,maxabsgrads[key]))
 
-  batch_idxs = [[]]
-  batch_idxs_idx = [0]
+  def make_batch_generator():
+    while(True):
+      chunk_perm = np.random.permutation(num_h5_train_rows // h5_chunk_size)
+      batch_perm = np.random.permutation(h5_chunk_size // batch_size)
+      for chunk_perm_idx in range(len(chunk_perm)):
+        chunk_start = chunk_perm[chunk_perm_idx] * h5_chunk_size
+        chunk_end = chunk_start + h5_chunk_size
+        chunk = np.array(h5train[chunk_start:chunk_end])
+        for batch_perm_idx in range(len(batch_perm)):
+          batch_start = batch_perm[h5_chunk_size] * batch_size
+          batch_end = batch_start + batch_size
+          yield chunk[batch_start:batch_end]
+        np.random.shuffle(batch_perm)
+
+  batch_generator = make_batch_generator()
   def run_batches(num_batches):
     tacc1_sum = 0
     tacc4_sum = 0
@@ -437,22 +313,10 @@ with tf.Session(config=tfconfig) as session:
     data_buf=(input_buf,target_buf,target_weights_buf)
 
     for i in range(num_batches):
-      if batch_idxs_idx[0] >= len(batch_idxs[0]):
-        batch_idxs[0] = get_batch_idxs()
-        batch_idxs_idx[0] = 0
-
-      bidxs = batch_idxs[0][batch_idxs_idx[0]]
-      batch_idxs_idx[0] += 1
-      for b in range(batch_size):
-        r = bidxs[b]
-
-        input_buf[b] = tinput_data[r]
-        target_buf[b] = ttarget_data[r]
-        target_weights_buf[b] = ttarget_data_weights[r]
-
+      rows = next(batch_generator)
       (bacc1, bacc4, bdata_loss, breg_loss, bmaxabsgrads, _) = run(
         fetches=[accuracy1, accuracy4, data_loss, reg_loss, maxabs_gradients_by_layer, train_step],
-        data=data_buf,
+        rows=rows,
         training=True,
         symmetries=[np.random.random() < 0.5, np.random.random() < 0.5, np.random.random() < 0.5],
         blr=lr.lr() * math.sqrt(batch_size) #sqrt since we're using ADAM
@@ -517,3 +381,9 @@ with tf.Session(config=tfconfig) as session:
   values = session.run(variables_names)
   for k,v in zip(variables_names, values):
     print(k, v)
+
+# Finish
+h5file.close()
+h5fid.close()
+
+
