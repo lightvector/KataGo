@@ -371,7 +371,8 @@ void FastBoard::playMoveAssumeLegal(Loc loc, Player player)
   }
 
   //We have a ko if 1 stone was captured and the capturing move is one isolated stone
-  if(num_captured == 1 && chain_data[chain_head[loc]].num_locs == 1)
+  //And the capturing move itself now only has one liberty
+  if(num_captured == 1 && chain_data[chain_head[loc]].num_locs == 1 && chain_data[chain_head[loc]].num_liberties == 1)
     ko_loc = possible_ko_loc;
   else
     ko_loc = NULL_LOC;
