@@ -34,7 +34,10 @@ static void setRow(float* row, int pos, int feature, float value) {
   row[pos*numFeatures + feature] = value;
 }
 
-static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextMoveIdx, float* row, Rand& rand) {
+static const int TARGET_NEXT_MOVE = 0;
+static const int TARGET_LADDER_CAPTURE = 1;
+
+static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextMoveIdx, int target, float* row, Rand& rand) {
   assert(board.x_size == board.y_size);
   assert(nextMoveIdx < moves.size());
 
@@ -107,18 +110,70 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   }
 
 
-  //Target - the move actually made
-  Loc nextMoveLoc = moves[nextMoveIdx].loc;
-  assert(nextMoveLoc != FastBoard::PASS_LOC);
-  int nextMovePos = locToTensorPos(nextMoveLoc,bSize,offset);
-  row[inputLen + nextMovePos] = 1.0;
+  //Target
+  if(target == TARGET_NEXT_MOVE) {
+    Loc nextMoveLoc = moves[nextMoveIdx].loc;
+    assert(nextMoveLoc != FastBoard::PASS_LOC);
+    int nextMovePos = locToTensorPos(nextMoveLoc,bSize,offset);
+    row[inputLen + nextMovePos] = 1.0;
+  }
+  else if(target == TARGET_LADDER_CAPTURE) {
+    Loc chainHeadsSolved[bSize*bSize];
+    float chainHeadsSolvedValue[bSize*bSize];
+    int numChainHeadsSolved = 0;
+    Board copy(board);
+    vector<Loc> buf;
+
+    for(int y = 0; y<bSize; y++) {
+      for(int x = 0; x<bSize; x++) {
+        int pos = xyToTensorPos(x,y,offset);
+        Loc loc = Location::getLoc(x,y,bSize);
+        Color stone = board.colors[loc];
+        if(stone == pla || stone == opp) {
+          int libs = board.getNumLiberties(loc);
+          if(libs == 1 || libs == 2) {
+            bool alreadySolved = false;
+            Loc head = board.chain_head[loc];
+            for(int i = 0; i<numChainHeadsSolved; i++) {
+              if(chainHeadsSolved[i] == head) {
+                alreadySolved = true;
+                row[inputLen + pos] = chainHeadsSolvedValue[i];
+                break;
+              }
+            }
+            if(alreadySolved)
+              continue;
+
+            float value = 0.0;
+            if(libs == 1) {
+              //Perform search on copy so as not to mess up tracking of solved heads
+              bool laddered = copy.searchIsLadderCaptured(loc,true,buf);
+              if(laddered)
+                value = 1.0;
+            }
+            else if(libs == 2) {
+              //Perform search on copy so as not to mess up tracking of solved heads
+              bool laddered = copy.searchIsLadderCaptured(loc,false,buf);
+              if(laddered)
+                value = 1.0;
+            }
+
+            chainHeadsSolved[numChainHeadsSolved] = head;
+            chainHeadsSolvedValue[numChainHeadsSolved] = value;
+            numChainHeadsSolved++;
+            row[inputLen + pos] = value;
+          }
+        }
+      }
+    }
+  }
 
   //Weight of the row, currently always 1.0
   row[inputLen + targetLen] = 1.0;
 }
 
 //Returns number of rows processed
-static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& movesBuf, DataPool& dataPool, Rand& rand, set<Hash>& posHashes) {
+static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& movesBuf, DataPool& dataPool, Rand& rand, int target, set<Hash>& posHashes) {
   int bSize;
   try {
     bSize = sgf->getBSize();
@@ -179,7 +234,7 @@ static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& mo
     //For now, only generate training rows for non-passes
     if(m.loc != FastBoard::PASS_LOC) {
       float* newRow = dataPool.addNewRow(rand);
-      fillRow(board,movesBuf,j,newRow,rand);
+      fillRow(board,movesBuf,j,target,newRow,rand);
       posHashes.insert(board.pos_hash);
       numRowsProcessed++;
     }
@@ -213,6 +268,7 @@ int main(int argc, const char* argv[]) {
   string outputFile;
   int trainPoolSize;
   int testSize;
+  int target;
 
   try {
     TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0");
@@ -220,15 +276,24 @@ int main(int argc, const char* argv[]) {
     TCLAP::ValueArg<string> outputArg("","output","H5 file to write",true,string(),"FILE");
     TCLAP::ValueArg<size_t> trainPoolSizeArg("","train-pool-size","Pool size for shuffling training rows",true,(size_t)0,"SIZE");
     TCLAP::ValueArg<size_t> testSizeArg("","test-size","Number of testing rows",true,(size_t)0,"SIZE");
+    TCLAP::ValueArg<string> targetArg("","target","nextmove or ladder",true,string(),"TARGET");
     cmd.add(gamesdirArg);
     cmd.add(outputArg);
     cmd.add(trainPoolSizeArg);
     cmd.add(testSizeArg);
+    cmd.add(targetArg);
     cmd.parse(argc,argv);
     gamesDirs = gamesdirArg.getValue();
     outputFile = outputArg.getValue();
     trainPoolSize = trainPoolSizeArg.getValue();
     testSize = testSizeArg.getValue();
+
+    if(targetArg == "nextmove")
+      target = TARGET_NEXT_MOVE;
+    else if(targetArg == "ladder")
+      target = TARGET_LADDER_CAPTURE;
+    else
+      throw IOError("Must specify target nextmove or ladder");
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << std::endl;
@@ -244,6 +309,7 @@ int main(int argc, const char* argv[]) {
   cout << "totalRowLen " << totalRowLen << endl;
   cout << "chunkHeight " << chunkHeight << endl;
   cout << "deflateLevel " << deflateLevel << endl;
+  cout << "target " << target << endl;
 
   //Collect SGF files-----------------------------------------------------------------
   const string suffix = ".sgf";
@@ -310,7 +376,7 @@ int main(int argc, const char* argv[]) {
       cout << "Processed " << i << " sgfs, " << numRowsProcessed << " rows, " << curTrainDataSetRow << " rows written..." << endl;
 
     Sgf* sgf = sgfs[i];
-    numRowsProcessed += processSgf(sgf, placementsBuf, movesBuf, dataPool, rand, posHashes);
+    numRowsProcessed += processSgf(sgf, placementsBuf, movesBuf, dataPool, rand, target, posHashes);
   }
 
   //Empty out pools--------------------------------------------------------------------

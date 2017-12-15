@@ -725,3 +725,204 @@ string Location::toString(Loc loc, int x_size)
   sprintf(buf,"(%d,%d)",getX(loc,x_size),getY(loc,x_size));
   return string(buf);
 }
+
+//TACTICAL STUFF--------------------------------------------------------------------
+
+//Helper, find liberties of group at loc. Fills in buf, returns the number of captures.
+//bufStart is where to start checking to avoid duplicates. bufIdx is where to start actually writing.
+int Board::findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const {
+  int numFound = 0;
+  Loc cur = loc;
+  do
+  {
+    for(int i = 0; i < 4; i++) {
+      Loc lib = cur + adj_offsets[i];
+      if(colors[lib] == C_EMPTY) {
+        //Check for dups
+        bool foundDup = false;
+        for(int j = bufStart; j < bufIdx+numFound; j++) {
+          if(buf[j] == lib) {
+            foundDup = true;
+            break;
+          }
+        }
+        if(!foundDup) {
+          if(bufIdx+numFound >= buf.size())
+            buf.resize(buf.size() * 3/2 + 64);
+          buf[bufIdx+numFound] = lib;
+          numFound++;
+        }
+      }
+    }
+
+    cur = next_in_chain[cur];
+  } while (cur != loc);
+
+  return numFound;
+}
+
+//Helper, find captures that gain liberties for the group at loc. Fills in result, returns the number of captures.
+//bufStart is where to start checking to avoid duplicates. bufIdx is where to start actually writing.
+int Board::findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const {
+  Player opp = getEnemy(colors[loc]);
+
+  //For performance, avoid checking for captures on any chain twice
+  Loc chainHeadsChecked[bSize*bSize];
+  int numChainHeadsChecked = 0;
+
+  int numFound = 0;
+  Loc cur = loc;
+  do
+  {
+    for(int i = 0; i < 4; i++) {
+      Loc adj = cur + adj_offsets[i];
+      if(colors[adj] == opp) {
+        Loc head = chain_head[adj];
+        if(chain_data[head].num_liberties == 1) {
+          bool alreadyChecked = false;
+          for(int j = 0; j<numChainHeadsChecked; j++) {
+            if(chainHeadsChecked[j] == head) {
+              alreadyChecked = true;
+              break;
+            }
+          }
+          if(!alreadyChecked) {
+            //Capturing moves are precisely the liberties of the groups around us with 1 liberty.
+            numFound += findLiberties(adj, buf, bufStart, bufIdx+numFound);
+            chainHeadsChecked[numChainHeadsChecked++] = head;
+          }
+        }
+      }
+    }
+
+    cur = next_in_chain[cur];
+  } while (cur != loc);
+
+  return numFound;
+}
+
+
+
+bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf) {
+  if(loc < 0 || loc >= MAX_ARR_SIZE)
+    return false;
+  if(colors[loc] != C_BLACK && colors[loc] != C_WHITE)
+    return false;
+
+  if(chain_data[chain_head[loc]].num_liberties > 2 || (defenderFirst && chain_data[chain_head[loc]].num_liberties > 1))
+    return false;
+
+  //Make it so that pla is always the defender
+  Player pla = colors[loc];
+  Player opp = getEnemy(pla);
+
+  //Stack for the search. These point to lists of possible moves to search at each level of the stack, indices refer to indices in [buf].
+  int moveListStarts[361*2]; //Buf idx of start of list
+  int moveListLens[361*2]; //Len of list
+  int moveListCur[361*2]; //Current move list idx searched, equal to -1 if list has not been generated.
+  MoveRecord records[361*2]; //Records so that we can undo moves as we search back up.
+  int stackIdx = 0;
+
+  moveListCur[0] = -1;
+  moveListStarts[0] = 0;
+  moveListLens[0] = 0;
+  bool returnValue = false;
+  bool returnedFromDeeper = false;
+  while(true) {
+    //Returned from the root - so that's the answer
+    if(stackIdx <= -1) {
+      assert(stackIdx == -1);
+      return returnValue;
+    }
+
+    bool isDefender = (defenderFirst && (stackIdx % 2) == 0) || (!defenderFirst && (stackIdx % 2) == 1);
+
+    //We just entered this level?
+    if(moveListCur[stackIdx] == -1) {
+      int libs = chain_data[chain_head[loc]].num_liberties;
+
+      //Base cases.
+      //If we are the attacker and the group has only 1 liberty, we already win.
+      if(!isDefender && libs <= 1) { returnValue = true; returnedFromDeeper = true; stackIdx--; continue; }
+      //If we are the attacker and the group has 3 liberties, we already lose.
+      if(!isDefender && libs >= 3) { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
+      //If we are the defender and the group has 2 liberties, we already win.
+      if(isDefender && libs >= 2) { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
+      //If we are the defender and the attacker left a simple ko point, assume we already win
+      //because we don't want to say yes on ladders that depend on kos
+      //This should also hopefully prevent any possible infinite loops - I don't know of any infinite loop
+      //that would come up in a continuous atari sequence that doesn't ever leave a simple ko point.
+      if(isDefender && ko_loc != NULL_LOC) { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
+
+      //Otherwise we need to keep searching.
+      //Generate the move list. Attacker and defender generate moves on the group's liberties, but only the defender
+      //generates moves on surrounding capturable opposing groups.
+      moveListLens[stackIdx] = 0;
+      if(isDefender)
+        moveListLens[stackIdx] += findLibertyGainingCaptures(loc,buf,moveListStarts[stackIdx],moveListStarts[stackIdx]+moveListLens[stackIdx]);
+      moveListLens[stackIdx] += findLiberties(loc,buf,moveListStarts[stackIdx],moveListStarts[stackIdx]+moveListLens[stackIdx]);
+
+      //And indicate to begin search the first move generated.
+      moveListCur[stackIdx] = 0;
+    }
+    //Else, we returned from a deeper level (or the same level, via illegal move)
+    else {
+      assert(moveListCur[stackIdx] >= 0);
+      assert(moveListCur[stackIdx] < moveListLens[stackIdx]);
+      //If we returned from deeper we need to undo the move we made
+      if(returnedFromDeeper)
+        undo(records[stackIdx]);
+
+      //Defender has a move that is not ladder captured?
+      if(isDefender && !returnValue) {
+        //Return! (returnValue is still false, as desired)
+        returnedFromDeeper = true;
+        stackIdx--;
+        continue;
+      }
+      //Attacker has a move that does ladder capture?
+      if(!isDefender && returnValue) {
+        //Return! (returnValue is still true, as desired)
+        returnedFromDeeper = true;
+        stackIdx--;
+        continue;
+      }
+
+      //Move on to the next move to search
+      moveListCur[stackIdx]++;
+    }
+
+    //If there is no next move to search, then we lose.
+    if(moveListCur[stackIdx] >= moveListLens[stackIdx]) {
+      //For a defender, that means a ladder capture.
+      //For an attacker, that means no ladder capture found.
+      returnValue = isDefender;
+      returnedFromDeeper = true;
+      stackIdx--;
+      continue;
+    }
+
+    //Otherwise we do have an next move to search. Grab it.
+    Loc move = buf[moveListStarts[stackIdx] + moveListCur[stackIdx]];
+    Player p = (isDefender ? pla : opp);
+
+    //Illegal move - treat it the same as a failed move, but don't return up a level so that we
+    //loop again and just try the next move.
+    if(!isLegal(move,p)) {
+      returnValue = isDefender;
+      returnedFromDeeper = false;
+      continue;
+    }
+
+    //Play and record the move!
+    records[stackIdx] = playMoveRecorded(move,p);
+
+    //And recurse to the next level
+    stackIdx++;
+    moveListCur[stackIdx] = -1;
+    moveListStarts[stackIdx] = moveListStarts[stackIdx-1] + moveListLens[stackIdx-1];
+    moveListLens[stackIdx] = 0;
+  }
+
+}
+

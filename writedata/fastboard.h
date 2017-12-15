@@ -155,6 +155,10 @@ struct FastBoard
   //Get a random legal move that does not fill a simple eye.
   Loc getRandomMCLegal(Player player);
 
+  //Check if the given stone is in unescapable atari or can be put into unescapable atari.
+  //WILL perform a mutable search - may alter the linked lists or heads, etc.
+  bool searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf);
+
   //Data--------------------------------------------
 
   int x_size;                  //Horizontal size of board
@@ -189,6 +193,9 @@ struct FastBoard
   void changeSurroundingLiberties(Loc loc, Color color, int delta);
 
   friend ostream& operator<<(ostream& out, const FastBoard& board);
+
+  int findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx);
+  int findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx);
 
   //static void monteCarloOwner(Player player, FastBoard* board, int mc_counts[]);
 };
