@@ -223,7 +223,7 @@ saver = tf.train.Saver(
 )
 
 #Some tensorflow options
-tfconfig = tf.ConfigProto(log_device_placement=True)
+tfconfig = tf.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.allow_growth = True
 #tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
 with tf.Session(config=tfconfig) as session:
@@ -232,16 +232,16 @@ with tf.Session(config=tfconfig) as session:
   sys.stderr.flush()
 
   print("Began session")
-  print("Training on " + str(num_h5_train_rows) " rows, testing on " + str(num_h5_test_rows) + " rows")
-  print("Epoch size = " + num_samples_per_epoch)
-  print("h5_chunk_size = " + h5_chunk_size)
-  print("Batch size = " + batch_size)
+  print("Training on " + str(num_h5_train_rows) + " rows, testing on " + str(num_h5_test_rows) + " rows")
+  print("Epoch size = " + str(num_samples_per_epoch))
+  print("h5_chunk_size = " + str(h5_chunk_size))
+  print("Batch size = " + str(batch_size))
 
   trainlogger.info("Began session")
-  trainlogger.info("Training on " + str(num_h5_train_rows) " rows, testing on " + str(num_h5_test_rows) + " rows")
-  trainlogger.info("Epoch size = " + num_samples_per_epoch)
-  trainlogger.info("h5_chunk_size = " + h5_chunk_size)
-  trainlogger.info("Batch size = " + batch_size)
+  trainlogger.info("Training on " + str(num_h5_train_rows) + " rows, testing on " + str(num_h5_test_rows) + " rows")
+  trainlogger.info("Epoch size = " + str(num_samples_per_epoch))
+  trainlogger.info("h5_chunk_size = " + str(h5_chunk_size))
+  trainlogger.info("Batch size = " + str(batch_size))
 
   sys.stdout.flush()
   sys.stderr.flush()
