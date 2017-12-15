@@ -730,7 +730,7 @@ string Location::toString(Loc loc, int x_size)
 
 //Helper, find liberties of group at loc. Fills in buf, returns the number of captures.
 //bufStart is where to start checking to avoid duplicates. bufIdx is where to start actually writing.
-int Board::findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const {
+int FastBoard::findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const {
   int numFound = 0;
   Loc cur = loc;
   do
@@ -763,11 +763,12 @@ int Board::findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) co
 
 //Helper, find captures that gain liberties for the group at loc. Fills in result, returns the number of captures.
 //bufStart is where to start checking to avoid duplicates. bufIdx is where to start actually writing.
-int Board::findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const {
+int FastBoard::findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const {
   Player opp = getEnemy(colors[loc]);
 
   //For performance, avoid checking for captures on any chain twice
-  Loc chainHeadsChecked[bSize*bSize];
+  int arrSize = x_size*y_size;
+  Loc chainHeadsChecked[arrSize];
   int numChainHeadsChecked = 0;
 
   int numFound = 0;
@@ -803,7 +804,7 @@ int Board::findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, i
 
 
 
-bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf) {
+bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf) {
   if(loc < 0 || loc >= MAX_ARR_SIZE)
     return false;
   if(colors[loc] != C_BLACK && colors[loc] != C_WHITE)
@@ -817,10 +818,11 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
   Player opp = getEnemy(pla);
 
   //Stack for the search. These point to lists of possible moves to search at each level of the stack, indices refer to indices in [buf].
-  int moveListStarts[361*2]; //Buf idx of start of list
-  int moveListLens[361*2]; //Len of list
-  int moveListCur[361*2]; //Current move list idx searched, equal to -1 if list has not been generated.
-  MoveRecord records[361*2]; //Records so that we can undo moves as we search back up.
+  int arrSize = x_size*y_size*2; //A bit bigger due to paranoia about recaptures making the sequence longer.
+  int moveListStarts[arrSize]; //Buf idx of start of list
+  int moveListLens[arrSize]; //Len of list
+  int moveListCur[arrSize]; //Current move list idx searched, equal to -1 if list has not been generated.
+  MoveRecord records[arrSize]; //Records so that we can undo moves as we search back up.
   int stackIdx = 0;
 
   moveListCur[0] = -1;
@@ -857,12 +859,28 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
       //Otherwise we need to keep searching.
       //Generate the move list. Attacker and defender generate moves on the group's liberties, but only the defender
       //generates moves on surrounding capturable opposing groups.
-      moveListLens[stackIdx] = 0;
-      if(isDefender)
-        moveListLens[stackIdx] += findLibertyGainingCaptures(loc,buf,moveListStarts[stackIdx],moveListStarts[stackIdx]+moveListLens[stackIdx]);
-      moveListLens[stackIdx] += findLiberties(loc,buf,moveListStarts[stackIdx],moveListStarts[stackIdx]+moveListLens[stackIdx]);
+      int start = moveListStarts[stackIdx];
+      if(isDefender) {
+        moveListLens[stackIdx] = findLibertyGainingCaptures(loc,buf,start,start);
+        moveListLens[stackIdx] += findLiberties(loc,buf,start,start+moveListLens[stackIdx]);
+      }
+      else {
+        moveListLens[stackIdx] += findLiberties(loc,buf,start,start);
+        assert(moveListLens[stackIdx] == 2);
+        int libs0 = countImmediateLiberties(buf[start]);
+        int libs1 = countImmediateLiberties(buf[start+1]);
+        //We lose automatically if both escapes get the defender too many libs.
+        if(libs0 >= 3 && libs1 >= 3)
+        { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
+        //Move 1 is not possible, so shrink the list
+        else if(libs0 >= 3)
+        { moveListLens[stackIdx] = 1; }
+        //Move 0 is not possible, so swap and shrink the list
+        else if(libs1 >= 3)
+        { buf[start] = buf[start+1]; moveListLens[stackIdx] = 1; }
+      }
 
-      //And indicate to begin search the first move generated.
+      //And indicate to begin search on the first move generated.
       moveListCur[stackIdx] = 0;
     }
     //Else, we returned from a deeper level (or the same level, via illegal move)

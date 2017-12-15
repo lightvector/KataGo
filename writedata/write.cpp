@@ -121,7 +121,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
     Loc chainHeadsSolved[bSize*bSize];
     float chainHeadsSolvedValue[bSize*bSize];
     int numChainHeadsSolved = 0;
-    Board copy(board);
+    FastBoard copy(board);
     vector<Loc> buf;
 
     for(int y = 0; y<bSize; y++) {
@@ -288,9 +288,9 @@ int main(int argc, const char* argv[]) {
     trainPoolSize = trainPoolSizeArg.getValue();
     testSize = testSizeArg.getValue();
 
-    if(targetArg == "nextmove")
+    if(targetArg.getValue() == "nextmove")
       target = TARGET_NEXT_MOVE;
-    else if(targetArg == "ladder")
+    else if(targetArg.getValue() == "ladder")
       target = TARGET_LADDER_CAPTURE;
     else
       throw IOError("Must specify target nextmove or ladder");

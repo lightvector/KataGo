@@ -194,8 +194,8 @@ struct FastBoard
 
   friend ostream& operator<<(ostream& out, const FastBoard& board);
 
-  int findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx);
-  int findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx);
+  int findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
+  int findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
 
   //static void monteCarloOwner(Player player, FastBoard* board, int mc_counts[]);
 };
