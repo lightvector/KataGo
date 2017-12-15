@@ -27,7 +27,7 @@ static int xyToTensorPos(int x, int y, int offset) {
   return (y+offset) * maxBoardSize + (x+offset);
 }
 static int locToTensorPos(Loc loc, int bSize, int offset) {
-  return (Location::getX(loc,bSize) + offset) * maxBoardSize + (Location::getY(loc,bSize) + offset);
+  return (Location::getY(loc,bSize) + offset) * maxBoardSize + (Location::getX(loc,bSize) + offset);
 }
 
 static void setRow(float* row, int pos, int feature, float value) {

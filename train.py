@@ -47,6 +47,7 @@ fh = logging.FileHandler(traindir+"/detail.log", mode='w')
 fh.setFormatter(bareformatter)
 detaillogger.addHandler(fh)
 
+np.set_printoptions(linewidth=150)
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
@@ -139,7 +140,7 @@ h5fid = h5py.h5f.open(str.encode(str(gamesh5)), fapl=h5_propfaid)
 h5file = h5py.File(h5fid)
 h5train = h5file["train"]
 h5test = h5file["test"]
-h5chunk_size = h5train.chunks[0]
+h5_chunk_size = h5train.chunks[0]
 num_h5_train_rows = h5train.shape[0]
 num_h5_test_rows = h5test.shape[0]
 
@@ -201,7 +202,7 @@ num_samples_per_epoch = 500000
 batch_size = 50
 num_batches_per_epoch = num_samples_per_epoch//batch_size
 
-assert(h5chunk_size % batch_size == 0)
+assert(h5_chunk_size % batch_size == 0)
 assert(num_samples_per_epoch % batch_size == 0)
 
 lr = LR(
@@ -226,6 +227,8 @@ tfconfig = tf.ConfigProto(log_device_placement=True)
 #tfconfig.gpu_options.allow_growth = True
 #tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
 with tf.Session(config=tfconfig) as session:
+  print("Began session")
+
   session.run(tf.global_variables_initializer())
   sys.stdout.flush()
   sys.stderr.flush()
@@ -293,7 +296,7 @@ with tf.Session(config=tfconfig) as session:
         chunk_end = chunk_start + h5_chunk_size
         chunk = np.array(h5train[chunk_start:chunk_end])
         for batch_perm_idx in range(len(batch_perm)):
-          batch_start = batch_perm[h5_chunk_size] * batch_size
+          batch_start = batch_perm[batch_perm_idx] * batch_size
           batch_end = batch_start + batch_size
           yield chunk[batch_start:batch_end]
         np.random.shuffle(batch_perm)
@@ -306,14 +309,32 @@ with tf.Session(config=tfconfig) as session:
     treg_loss_sum = 0
     maxabsgrads = dict([(key,0.0) for key in maxabs_gradients_by_layer])
 
-    #Allocate buffers into which we'll copy every batch, to avoid using lots of memory
-    input_buf = np.zeros(shape=[batch_size]+model.input_shape, dtype=np.float32)
-    target_buf = np.zeros(shape=[batch_size]+model.target_shape, dtype=np.float32)
-    target_weights_buf = np.zeros(shape=[batch_size]+model.target_weights_shape, dtype=np.float32)
-    data_buf=(input_buf,target_buf,target_weights_buf)
-
     for i in range(num_batches):
       rows = next(batch_generator)
+
+      # input_len = model.input_shape[0] * model.input_shape[1]
+      # target_len = model.target_shape[0]
+      # row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
+      # row_targets = rows[:,input_len:input_len+target_len]
+      # row_target_weights = rows[:,input_len+target_len]
+      # for j in range(len(row_inputs)):
+      #   print("BOARD")
+      #   print((row_inputs[i,:,0] + row_inputs[i,:,1] + row_inputs[i,:,2]*2).reshape([19,19]))
+      #   print("MYLIB")
+      #   print((row_inputs[i,:,3] + row_inputs[i,:,4]*2 + row_inputs[i,:,5]*3).reshape([19,19]))
+      #   print("OPPLIB")
+      #   print((row_inputs[i,:,6] + row_inputs[i,:,7]*2 + row_inputs[i,:,8]*3).reshape([19,19]))
+      #   print("LAST")
+      #   print((row_inputs[i,:,9] + row_inputs[i,:,10]*2 + row_inputs[i,:,11]*3).reshape([19,19]))
+      #   print("KO")
+      #   print((row_inputs[i,:,12]).reshape([19,19]))
+      #   print("TARGET")
+      #   print(row_targets[i].reshape([19,19]))
+      #   print("WEIGHT")
+      #   print(row_target_weights[i])
+
+      # assert(False)
+
       (bacc1, bacc4, bdata_loss, breg_loss, bmaxabsgrads, _) = run(
         fetches=[accuracy1, accuracy4, data_loss, reg_loss, maxabs_gradients_by_layer, train_step],
         rows=rows,
