@@ -141,27 +141,26 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
                 break;
               }
             }
-            if(alreadySolved)
-              continue;
+            if(!alreadySolved) {
+              float value = 0.0;
+              if(libs == 1) {
+                //Perform search on copy so as not to mess up tracking of solved heads
+                bool laddered = copy.searchIsLadderCaptured(loc,true,buf);
+                if(laddered)
+                  value = 1.0;
+              }
+              else if(libs == 2) {
+                //Perform search on copy so as not to mess up tracking of solved heads
+                bool laddered = copy.searchIsLadderCaptured(loc,false,buf);
+                if(laddered)
+                  value = 1.0;
+              }
 
-            float value = 0.0;
-            if(libs == 1) {
-              //Perform search on copy so as not to mess up tracking of solved heads
-              bool laddered = copy.searchIsLadderCaptured(loc,true,buf);
-              if(laddered)
-                value = 1.0;
+              chainHeadsSolved[numChainHeadsSolved] = head;
+              chainHeadsSolvedValue[numChainHeadsSolved] = value;
+              numChainHeadsSolved++;
+              row[inputLen + pos] = value;
             }
-            else if(libs == 2) {
-              //Perform search on copy so as not to mess up tracking of solved heads
-              bool laddered = copy.searchIsLadderCaptured(loc,false,buf);
-              if(laddered)
-                value = 1.0;
-            }
-
-            chainHeadsSolved[numChainHeadsSolved] = head;
-            chainHeadsSolvedValue[numChainHeadsSolved] = value;
-            numChainHeadsSolved++;
-            row[inputLen + pos] = value;
           }
         }
       }

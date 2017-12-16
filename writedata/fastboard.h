@@ -98,13 +98,14 @@ struct FastBoard
   struct PointList {
     PointList();
     PointList(const PointList&);
+    void operator=(const PointList&);
     void add(Loc);
     void remove(Loc);
     int size();
     Loc& operator[](int);
 
-    Loc list_[MAX_PLAY_SIZE];
-    int indices_[MAX_ARR_SIZE];
+    Loc list_[MAX_PLAY_SIZE];   //Locations in the list
+    int indices_[MAX_ARR_SIZE]; //Maps location to index in the list
     int size_;
   };
 

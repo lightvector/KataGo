@@ -50,6 +50,8 @@ FastBoard::FastBoard(const FastBoard& other)
 
   ko_loc = other.ko_loc;
 
+  empty_list = other.empty_list;
+
   pos_hash = other.pos_hash;
 
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
@@ -628,17 +630,18 @@ void FastBoard::changeSurroundingLiberties(Loc loc, Player player, int delta)
 
 ostream& operator<<(ostream& out, const FastBoard& board)
 {
+  out << "HASH: " << board.pos_hash << "\n";
   for(int y = 0; y < board.y_size; y++)
   {
-    for(int x = 0; x < board.x_size; x++)
-    {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      //char s = getCharOfColor(board.colors[loc]);
-      char s = board.colors[loc] == C_EMPTY ? '.' : '0' + board.chain_data[board.chain_head[loc]].num_liberties;
+    // for(int x = 0; x < board.x_size; x++)
+    // {
+    //   Loc loc = Location::getLoc(x,y,board.x_size);
+    //   //char s = getCharOfColor(board.colors[loc]);
+    //   char s = board.colors[loc] == C_EMPTY ? '.' : '0' + board.chain_data[board.chain_head[loc]].num_liberties;
 
-      out << s << ' ';
-    }
-    out << " ";
+    //   out << s << ' ';
+    // }
+    // out << " ";
     for(int x = 0; x < board.x_size; x++)
     {
       Loc loc = Location::getLoc(x,y,board.x_size);
@@ -667,6 +670,13 @@ FastBoard::PointList::PointList(const FastBoard::PointList& other)
   size_ = other.size_;
 }
 
+void FastBoard::PointList::operator=(const FastBoard::PointList& other)
+{
+  std::memcpy(list_, other.list_, sizeof(list_));
+  std::memcpy(indices_, other.indices_, sizeof(indices_));
+  size_ = other.size_;
+}
+
 void FastBoard::PointList::add(Loc loc)
 {
   //assert (size_ < MAX_PLAY_SIZE);
@@ -677,7 +687,10 @@ void FastBoard::PointList::add(Loc loc)
 
 void FastBoard::PointList::remove(Loc loc)
 {
+  //assert(size_ >= 0);
   int index = indices_[loc];
+  //assert(index >= 0 && index < size_);
+  //assert(list_[index] == loc);
   int end_loc = list_[size_-1];
   list_[index] = end_loc;
   indices_[end_loc] = index;
@@ -830,7 +843,11 @@ bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>&
   moveListLens[0] = 0;
   bool returnValue = false;
   bool returnedFromDeeper = false;
+  // bool print = true;
+
   while(true) {
+    // if(print) cout << ": " << stackIdx << " " << moveListCur[stackIdx] << " " << moveListStarts[stackIdx] << " " << moveListLens[stackIdx] << " " << returnValue << " " << returnedFromDeeper << endl;
+
     //Returned from the root - so that's the answer
     if(stackIdx <= -1) {
       assert(stackIdx == -1);
@@ -924,11 +941,14 @@ bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>&
     Loc move = buf[moveListStarts[stackIdx] + moveListCur[stackIdx]];
     Player p = (isDefender ? pla : opp);
 
+    // if(print) cout << "play " << Location::getX(move,19) << " " << Location::getY(move,19) << " " << p << endl;
+
     //Illegal move - treat it the same as a failed move, but don't return up a level so that we
     //loop again and just try the next move.
     if(!isLegal(move,p)) {
       returnValue = isDefender;
       returnedFromDeeper = false;
+      // if(print) cout << "illegal " << endl;
       continue;
     }
 
