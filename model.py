@@ -276,6 +276,9 @@ cur_layer = res_conv_block("rconv1",cur_layer,diam=3,main_channels=96,mid_channe
 #Residual Convolutional Block 2---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=96,mid_channels=42)
 
+#Residual Convolutional Block 3---------------------------------------------------------------------------------
+cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=96,mid_channels=42)
+
 #Policy head---------------------------------------------------------------------------------
 p0_layer = cur_layer
 
