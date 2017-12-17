@@ -210,8 +210,8 @@ lr = LR(
   decay_exponent = 4,
   decay_offset = 14,
   recent_change_decay = 0.80,
-  plateau_min_epochs = 6,
-  force_drop_epochs = 12,
+  plateau_min_epochs = 4,
+  force_drop_epochs = 8,
 )
 
 # l2_coeff_value = 0
