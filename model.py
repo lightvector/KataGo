@@ -246,7 +246,9 @@ def res_conv_block(name, in_layer, diam, main_channels, mid_channels):
   outputs_by_layer.append((name+"/mid",mid_layer))
 
   weights2 = weight_variable(name+"/w2",[diam,diam,mid_channels,main_channels],mid_channels*diam*diam,main_channels)
-  out_layer = tf.nn.relu(in_layer + batchnorm(name+"/norm2",conv2d(mid_layer, weights2)))
+  residual = batchnorm(name+"/norm2",conv2d(mid_layer, weights2))
+  outputs_by_layer.append((name+"/res",residual))
+  out_layer = tf.nn.relu(in_layer + residual)
   outputs_by_layer.append((name,out_layer))
   return out_layer
 
