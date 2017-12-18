@@ -268,28 +268,28 @@ cur_layer = apply_symmetry(cur_layer,symmetries,inverse=False)
 
 
 #Convolutional RELU layer 1---------------------------------------------------------------------------------
-cur_layer = conv_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=96)
+cur_layer = conv_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=67)
 
 #Residual Convolutional Block 1---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv1",cur_layer,diam=3,main_channels=96,mid_channels=42)
+cur_layer = res_conv_block("rconv1",cur_layer,diam=3,main_channels=67,mid_channels=67)
 
 #Residual Convolutional Block 2---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=96,mid_channels=42)
+cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=67,mid_channels=67)
 
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=96,mid_channels=42)
+cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=67,mid_channels=67)
 
 #Policy head---------------------------------------------------------------------------------
 p0_layer = cur_layer
 
 #This is the main path for policy information
 p1_num_channels = 48
-p1_intermediate_conv = conv_only_block("p1/intermediate_conv",p0_layer,diam=3,in_channels=96,out_channels=p1_num_channels)
+p1_intermediate_conv = conv_only_block("p1/intermediate_conv",p0_layer,diam=3,in_channels=67,out_channels=p1_num_channels)
 
 #But in parallel convolve to compute some features about the global state of the board
 #Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
 g1_num_channels = 16
-g1_layer = conv_block("g1",p0_layer,diam=3,in_channels=96,out_channels=g1_num_channels)
+g1_layer = conv_block("g1",p0_layer,diam=3,in_channels=67,out_channels=g1_num_channels)
 
 #Fold g1 down to single values for the board.
 #For stdev, add a tiny constant to ensure numeric stability
