@@ -272,8 +272,24 @@ with tf.Session(config=tfconfig) as session:
   def np_array_str(arr,precision):
     return np.array_str(arr, precision=precision, suppress_small = True, max_line_width = 200)
 
+  def run_validation_in_batches(fetches):
+    #Run validation accuracy in batches to avoid out of memory error from processing one supergiant batch
+    validation_batch_size = 1000
+    num_validation_batches = num_h5_test_rows//validation_batch_size
+    results = [[] for j in range(len(fetches))]
+    for i in range(num_validation_batches):
+      rows = h5test[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_test_rows)]
+      result = run(fetches, rows, symmetries=[False,False,False], training=False)
+      for j in range(len(fetches)):
+        results[j].append(result[j])
+    return results
+  def merge_dicts(dicts,merge_list):
+    keys = dicts[0].keys()
+    return dict((key,merge_list([d[key] for d in dicts])) for key in keys)
+
   def val_accuracy_and_loss():
-    return run([accuracy1,accuracy4,data_loss], h5test, symmetries=[False,False,False], training=False)
+    (acc1s,acc4s,losses) = run_validation_in_batches([accuracy1,accuracy4,data_loss])
+    return (np.mean(acc1s),np.mean(acc4s),np.mean(losses))
 
   def train_stats_str(tacc1,tacc4,tdata_loss,treg_loss):
     return "tacc1 %5.2f%% tacc4 %5.2f%% tdloss %f trloss %f" % (tacc1*100, tacc4*100, tdata_loss, treg_loss)
@@ -285,14 +301,19 @@ with tf.Session(config=tfconfig) as session:
     return "time %.3f" % elapsed
 
   def log_detail_stats(maxabsgrads):
-    apbl,mobl,sobl = run([activated_prop_by_layer, mean_output_by_layer, stdev_output_by_layer],
-                         h5test, symmetries=[False,False,False], training=False)
+    apbls,mobls,sobls = run_validation_in_batches([activated_prop_by_layer, mean_output_by_layer, stdev_output_by_layer])
+
+    apbl = merge_dicts(apbls, np.mean)
+    mobl = merge_dicts(mobls, np.mean)
+    sobl = merge_dicts(sobls, (lambda x: np.sqrt(np.mean(np.square(x)))))
+
     for key in apbl:
       detaillogger.info("%s: activated_prop %s" % (key, np_array_str(apbl[key], precision=3)))
       detaillogger.info("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
       detaillogger.info("%s: stdev_output %s" % (key, np_array_str(sobl[key], precision=4)))
 
     mw,sw = session.run([mean_weights_by_var,stdev_weights_by_var])
+
     for key in mw:
       detaillogger.info("%s: mean weight %f stdev weight %f" % (key, mw[key], sw[key]))
 
