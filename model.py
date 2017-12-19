@@ -239,16 +239,24 @@ def conv_only_block(name, in_layer, diam, in_channels, out_channels):
   outputs_by_layer.append((name,out_layer))
   return out_layer
 
-#Convolutional residual block with batch norm and nonlinear activation
+#Convolutional residual block with internal batch norm and nonlinear activation
 def res_conv_block(name, in_layer, diam, main_channels, mid_channels):
+  trans1_layer = tf.nn.relu(batchnorm(name+"/norm1",in_layer))
+  outputs_by_layer.append((name+"/trans1",trans1_layer))
+
   weights1 = weight_variable(name+"/w1",[diam,diam,main_channels,mid_channels],main_channels*diam*diam,mid_channels)
-  mid_layer = tf.nn.relu(batchnorm(name+"/norm1",conv2d(in_layer, weights1)))
-  outputs_by_layer.append((name+"/mid",mid_layer))
+  conv1_layer = conv2d(trans1_layer, weights1)
+  outputs_by_layer.append((name+"/conv1",conv1_layer))
+
+  trans2_layer = tf.nn.relu(batchnorm(name+"/norm2",conv1_layer))
+  outputs_by_layer.append((name+"/trans2",trans2_layer))
 
   weights2 = weight_variable(name+"/w2",[diam,diam,mid_channels,main_channels],mid_channels*diam*diam,main_channels)
-  residual = batchnorm(name+"/norm2",conv2d(mid_layer, weights2))
-  outputs_by_layer.append((name+"/res",residual))
-  out_layer = tf.nn.relu(in_layer + residual)
+  conv2_layer = conv2d(trans2_layer, weights2)
+  outputs_by_layer.append((name+"/conv2",conv2_layer))
+
+  residual = conv2_layer
+  out_layer = in_layer + residual
   outputs_by_layer.append((name,out_layer))
   return out_layer
 
@@ -266,9 +274,8 @@ input_num_channels = post_input_shape[2]
 #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
 cur_layer = apply_symmetry(cur_layer,symmetries,inverse=False)
 
-
-#Convolutional RELU layer 1---------------------------------------------------------------------------------
-cur_layer = conv_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=96)
+#Convolutional RELU layer 1-------------------------------------------------------------------------------------
+cur_layer = conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=96)
 
 #Residual Convolutional Block 1---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv1",cur_layer,diam=3,main_channels=96,mid_channels=96)
@@ -278,6 +285,12 @@ cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=96,mid_channe
 
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=96,mid_channels=96)
+
+#Postprocessing residual trunk----------------------------------------------------------------------------------
+
+#Normalize and relu just before the policy head
+cur_layer = tf.nn.relu(batchnorm("normtrunk",cur_layer))
+outputs_by_layer.append(("trunk",cur_layer))
 
 #Policy head---------------------------------------------------------------------------------
 p0_layer = cur_layer
