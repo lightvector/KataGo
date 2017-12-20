@@ -286,6 +286,9 @@ cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=128,mid_chann
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=128,mid_channels=128)
 
+#Residual Convolutional Block 4---------------------------------------------------------------------------------
+cur_layer = res_conv_block("rconv4",cur_layer,diam=3,main_channels=128,mid_channels=128)
+
 #Postprocessing residual trunk----------------------------------------------------------------------------------
 
 #Normalize and relu just before the policy head
