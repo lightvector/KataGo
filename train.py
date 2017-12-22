@@ -274,7 +274,7 @@ with tf.Session(config=tfconfig) as session:
 
   def run_validation_in_batches(fetches):
     #Run validation accuracy in batches to avoid out of memory error from processing one supergiant batch
-    validation_batch_size = 1000
+    validation_batch_size = 256
     num_validation_batches = num_h5_test_rows//validation_batch_size
     results = [[] for j in range(len(fetches))]
     for i in range(num_validation_batches):
