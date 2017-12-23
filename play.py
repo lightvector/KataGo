@@ -67,7 +67,7 @@ def genmove(session, board, moves):
   #Generate a random number biased small and then find the appropriate move to make
   #Interpolate from moving uniformly to choosing from the triangular distribution
   alpha = 1
-  beta = 1 + math.sqrt(len(moves)) / 2
+  beta = 1 + math.sqrt(max(0,len(moves-20)))
   r = np.random.beta(alpha,beta)
   probsum = 0.0
   i = 0
@@ -172,12 +172,12 @@ def run_gtp(session):
       layer_command_lookup[command_name] = (layer,i)
 
   add_board_size_visualizations("conv1")
-  add_board_size_visualizations("conv2")
-  add_board_size_visualizations("conv3")
-  add_board_size_visualizations("conv4")
-  add_board_size_visualizations("conv5")
-  add_board_size_visualizations("convg1")
-  add_board_size_visualizations("convp1")
+  add_board_size_visualizations("rconv1")
+  add_board_size_visualizations("rconv2")
+  add_board_size_visualizations("rconv3")
+  add_board_size_visualizations("rconv4")
+  add_board_size_visualizations("g1")
+  add_board_size_visualizations("p1")
 
   while True:
     try:
