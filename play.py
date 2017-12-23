@@ -67,7 +67,7 @@ def genmove(session, board, moves):
   #Generate a random number biased small and then find the appropriate move to make
   #Interpolate from moving uniformly to choosing from the triangular distribution
   alpha = 1
-  beta = 1 + math.sqrt(max(0,len(moves-20)))
+  beta = 1 + math.sqrt(max(0,len(moves)-20))
   r = np.random.beta(alpha,beta)
   probsum = 0.0
   i = 0
