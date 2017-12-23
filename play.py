@@ -88,11 +88,17 @@ def get_layer_values(session, board, moves, layer, channel):
   return locs_and_values
 
 
-def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board):
+def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, should_normalize, is_percent):
+  divisor = 1.0
+  if should_normalize:
+      max_abs_value = max(abs(value) for (loc,value) in locs_and_values)
+      divisor = max(0.0000000001,max_abs_value) #avoid divide by zero
+
   for (loc,value) in locs_and_values:
     if loc is not None:
       hueshift = 0.0
       huemult = 1.0
+      value = value / divisor
       if value < 0:
         value = -value
         huemult = 0.8
@@ -111,6 +117,16 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board):
       g = ("%02x" % int(g*255))
       b = ("%02x" % int(b*255))
       gfx_commands.append("COLOR #%s%s%s %s" % (r,g,b,str_coord(loc,board)))
+
+  locs_and_values = sorted(locs_and_values, key=lambda loc_and_value: loc_and_value[1], reverse=True)
+  texts = []
+  for i in range(min(len(locs_and_values),8)):
+    (loc,value) = locs_and_values[i]
+    if is_percent:
+      texts.append("%s %4.1f%%" % (str_coord(loc,board),value*100))
+    else:
+      texts.append("%s %.3f" % (str_coord(loc,board),value))
+  gfx_commands.append("TEXT " + ", ".join(texts))
 
 
 # Basic parsing --------------------------------------------------------
@@ -158,9 +174,10 @@ def run_gtp(session):
   moves = []
 
   layerdict = dict(model.outputs_by_layer)
+
   layer_command_lookup = dict()
 
-  def add_board_size_visualizations(layer_name):
+  def add_board_size_visualizations(layer_name, should_normalize):
     layer = layerdict[layer_name]
     assert(layer.shape[1].value == board_size)
     assert(layer.shape[2].value == board_size)
@@ -169,15 +186,15 @@ def run_gtp(session):
       command_name = layer_name + "-" + str(i)
       known_commands.append(command_name)
       known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
-      layer_command_lookup[command_name] = (layer,i)
+      layer_command_lookup[command_name] = (layer,i,should_normalize)
 
-  add_board_size_visualizations("conv1")
-  add_board_size_visualizations("rconv1")
-  add_board_size_visualizations("rconv2")
-  add_board_size_visualizations("rconv3")
-  add_board_size_visualizations("rconv4")
-  add_board_size_visualizations("g1")
-  add_board_size_visualizations("p1")
+  add_board_size_visualizations("conv1",should_normalize=True)
+  add_board_size_visualizations("rconv1",should_normalize=True)
+  add_board_size_visualizations("rconv2",should_normalize=True)
+  add_board_size_visualizations("rconv3",should_normalize=True)
+  add_board_size_visualizations("rconv4",should_normalize=True)
+  add_board_size_visualizations("g1",should_normalize=True)
+  add_board_size_visualizations("p1",should_normalize=True)
 
   while True:
     try:
@@ -239,25 +256,14 @@ def run_gtp(session):
     elif command[0] == "policy":
       moves_and_probs = get_moves_and_probs(session, board, moves)
       gfx_commands = []
-      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board)
-
-      moves_and_probs = sorted(moves_and_probs, key=lambda move_and_prob: move_and_prob[1], reverse=True)
-      texts = []
-      for i in range(min(len(moves_and_probs),8)):
-        (move,prob) = moves_and_probs[i]
-        texts.append("%s %4.1f%%" % (str_coord(move,board),prob*100))
-      gfx_commands.append("TEXT " + ", ".join(texts))
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, should_normalize=False, is_percent=True)
 
       ret = "\n".join(gfx_commands)
     elif command[0] in layer_command_lookup:
-      (layer,channel) = layer_command_lookup[command[0]]
+      (layer,channel,should_normalize) = layer_command_lookup[command[0]]
       locs_and_values = get_layer_values(session, board, moves, layer, channel)
-      max_abs_value = max(abs(value) for (loc,value) in locs_and_values)
-      max_abs_value = max(0.0000000001,max_abs_value) #avoid divide by zero
-
-      normalized = [(loc,value/max_abs_value) for (loc,value) in locs_and_values]
       gfx_commands = []
-      fill_gfx_commands_for_heatmap(gfx_commands, normalized, board)
+      fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, should_normalize, is_percent=False)
       ret = "\n".join(gfx_commands)
 
     elif command[0] == "protocol_version":
