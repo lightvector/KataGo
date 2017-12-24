@@ -184,6 +184,7 @@ def run_gtp(session):
     num_channels = layer.shape[3].value
     for i in range(num_channels):
       command_name = layer_name + "-" + str(i)
+      command_name = command_name.replace("/",":")
       known_commands.append(command_name)
       known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
       layer_command_lookup[command_name] = (layer,i,should_normalize)
