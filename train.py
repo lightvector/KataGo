@@ -303,8 +303,8 @@ with tf.Session(config=tfconfig) as session:
   def log_detail_stats(maxabsgrads):
     apbls,mobls,sobls = run_validation_in_batches([activated_prop_by_layer, mean_output_by_layer, stdev_output_by_layer])
 
-    apbl = merge_dicts(apbls, (lambda x: np.mean(x,axis=0))
-    mobl = merge_dicts(mobls, (lambda x: np.mean(x,axis=0))
+    apbl = merge_dicts(apbls, (lambda x: np.mean(x,axis=0)))
+    mobl = merge_dicts(mobls, (lambda x: np.mean(x,axis=0)))
     sobl = merge_dicts(sobls, (lambda x: np.sqrt(np.mean(np.square(x),axis=0))))
 
     for key in apbl:
