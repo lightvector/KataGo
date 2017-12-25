@@ -260,6 +260,129 @@ def res_conv_block(name, in_layer, diam, main_channels, mid_channels):
   outputs_by_layer.append((name,out_layer))
   return out_layer
 
+
+#Special block for detecting ladders, with mid_channels channels per each of 4 diagonal scans.
+def ladder_block(name, in_layer, main_channels, mid_channels):
+  # Converts [[123][456][789]] to [[12300][04560][00789]]
+  def skew_right(tensor):
+    n = max_board_size
+    assert(tensor.shape[1].value == n)
+    assert(tensor.shape[2].value == n)
+    c = tensor.shape[3].value
+    tensor = tf.pad(tensor,[[0,0],[0,0],[0,n],[0,0]]) #Pad 19x19 -> 19x38
+    tensor = tf.reshape(tensor,[-1,2*n*n,c]) #Linearize
+    tensor = tensor[:,:((2*n-1)*n),:] #Chop off the 19 zeroes on the end
+    tensor = tf.reshape(tensor,[-1,n,2*n-1,c]) #Now we are skewed 19x37 as desired
+    return tensor
+  # Converts [[12345][6789a][bcdef]] to [[123][789][def]]
+  def unskew_right(tensor):
+    n = max_board_size
+    assert(tensor.shape[1].value == n)
+    assert(tensor.shape[2].value == 2*n-1)
+    c = tensor.shape[3].value
+    tensor = tf.reshape(tensor,[-1,n*(2*n-1),c]) #Linearize
+    tensor = tf.pad(tensor,[[0,0],[0,n],[0,0]]) #Pad 19*37 -> 19*38
+    tensor = tf.reshape(tensor,[-1,n,2*n,c]) #Convert back to 19x38
+    tensor = tensor[:,:,:n,:] #Chop off the extra, now we are 19x19
+    return tensor
+
+  # Converts [[123][456][789]] to [[00123][04560][78900]]
+  def skew_left(tensor):
+    n = max_board_size
+    assert(tensor.shape[1].value == n)
+    assert(tensor.shape[2].value == n)
+    c = tensor.shape[3].value
+    tensor = tf.pad(tensor,[[0,0],[1,1],[n-2,0],[0,0]]) #Pad 19x19 -> 21x36
+    tensor = tf.reshape(tensor,[-1,(n+2)*(2*n-2),c]) #Linearize
+    tensor = tensor[:,(2*n-3):(-n+1),:] #Chop off the 35 extra zeroes on the start and the 18 at the end.
+    tensor = tf.reshape(tensor,[-1,n,2*n-1,c]) #Now we are skewed 19x37 as desired
+    return tensor
+
+  # Converts [[12345][6789a][bcdef]] to [[345][789][bcd]]
+  def unskew_left(tensor):
+    n = max_board_size
+    assert(tensor.shape[1].value == n)
+    assert(tensor.shape[2].value == 2*n-1)
+    c = tensor.shape[3].value
+    tensor = tf.reshape(tensor,[-1,n*(2*n-1),c]) #Linearize
+    tensor = tf.pad(tensor,[[0,0],[2*n-3,n-1],[0,0]]) #Pad 19*37 -> 21*36
+    tensor = tf.reshape(tensor,[-1,n+2,2*n-2,c]) #Convert back to 21x36
+    tensor = tensor[:,1:(n+1),(n-2):,:] #Chop off the extra, now we are 19x19
+    return tensor
+
+  #First, as usual, batchnorm and relu the trunk to get the values to a reasonable scale
+  trans1_layer = tf.nn.relu(batchnorm(name+"/norm1",in_layer))
+  outputs_by_layer.append((name+"/trans1",trans1_layer))
+
+  c = mid_channels
+
+  #The next part basically does a scan across the board each of the 4 diagonal ways, computing a moving average.
+  #We use a convolution to let the neural net choose the values and weights:
+  #a: value on this spot to be moving-averaged
+  #b: if the weight on the moving average so far is 1, the value on this spot gets a factor of exp(b)-1 weight.
+  diampre = 3
+  weightsprea = weight_variable(name+"/wprea",[diampre,diampre,main_channels,mid_channels*4],main_channels*diampre*diampre,c*4)
+  weightspreb = weight_variable(name+"/wpreb",[diampre,diampre,main_channels,mid_channels*4],main_channels*diampre*diampre,c*4)
+
+  convprea_layer = conv2d(trans1_layer, weightsprea)
+  convpreb_layer = conv2d(trans1_layer, weightspreb)
+  outputs_by_layer.append((name+"/convprea",convprea_layer))
+  outputs_by_layer.append((name+"/convpreb",convpreb_layer))
+
+  transprea_layer = tf.nn.relu(batchnorm(name+"/normprea",convprea_layer))
+  transpreb_layer = tf.nn.sigmoid(batchnorm(name+"/normpreb",convpreb_layer)) * 1.5 + 0.0001
+  outputs_by_layer.append((name+"/transprea",transprea_layer))
+  outputs_by_layer.append((name+"/transpreb",transpreb_layer))
+
+  #Now, skew each segment of the channels left and right, so that axis=1 now runs diagonally along the original board
+  skewed_r_a = skew_right(transprea_layer[:,:,:,:(2*c)])
+  skewed_r_b = skew_right(transpreb_layer[:,:,:,:(2*c)])
+  skewed_l_a = skew_left(transprea_layer[:,:,:,(2*c):])
+  skewed_l_b = skew_left(transpreb_layer[:,:,:,(2*c):])
+
+  #And extract out all the necessary bits
+  r_fwd_a = skewed_r_a[:,:,:,:c]
+  r_rev_a = skewed_r_a[:,:,:,c:]
+  r_fwd_b = skewed_r_b[:,:,:,:c]
+  r_rev_b = skewed_r_b[:,:,:,c:]
+
+  l_fwd_a = skewed_l_a[:,:,:,:c]
+  l_rev_a = skewed_l_a[:,:,:,c:]
+  l_fwd_b = skewed_l_b[:,:,:,:c]
+  l_rev_b = skewed_l_b[:,:,:,c:]
+
+  #Compute the proper weights based on b
+  r_fwd_bsum = tf.cumsum(r_fwd_b, axis=1, exclusive=True)
+  r_rev_bsum = tf.cumsum(r_rev_b, axis=1, exclusive=True, reverse=True)
+  l_fwd_bsum = tf.cumsum(l_fwd_b, axis=1, exclusive=True)
+  l_rev_bsum = tf.cumsum(l_rev_b, axis=1, exclusive=True, reverse=True)
+  r_fwd_weight = tf.exp(r_fwd_b+r_fwd_bsum) - tf.exp(r_fwd_bsum)
+  r_rev_weight = tf.exp(r_rev_b+r_rev_bsum) - tf.exp(r_rev_bsum)
+  l_fwd_weight = tf.exp(l_fwd_b+l_fwd_bsum) - tf.exp(l_fwd_bsum)
+  l_rev_weight = tf.exp(l_rev_b+l_rev_bsum) - tf.exp(l_rev_bsum)
+
+  #Compute the moving averages
+  result_r_fwd = tf.cumsum(r_fwd_a * r_fwd_weight, axis=1              ) / tf.cumsum(r_fwd_weight, axis=1)
+  result_r_rev = tf.cumsum(r_rev_a * r_rev_weight, axis=1, reverse=True) / tf.cumsum(r_rev_weight, axis=1, reverse=True)
+  result_l_fwd = tf.cumsum(l_fwd_a * l_fwd_weight, axis=1              ) / tf.cumsum(l_fwd_weight, axis=1)
+  result_l_rev = tf.cumsum(l_rev_a * l_rev_weight, axis=1, reverse=True) / tf.cumsum(l_rev_weight, axis=1, reverse=True)
+
+  #Unskew concatenate everything back together
+  results = [unskew_right(result_r_fwd), unskew_right(result_r_rev), unskew_left(result_l_fwd), unskew_left(result_l_rev)]
+  results = tf.concat(results,axis=3)
+
+  #Apply a convolution to merge the result back into the trunk
+  diampost = 1
+  weightspost = weight_variable(name+"/wpost",[diampost,diampost,mid_channels*4,main_channels],mid_channels*4*diampost*diampost,main_channels)
+  convpost_layer = conv2d(results, weightspost)
+  outputs_by_layer.append((name+"/convpost",convpost_layer))
+
+  residual = convpost_layer
+  out_layer = in_layer + residual
+  outputs_by_layer.append((name,out_layer))
+  return out_layer
+
+
 #Begin Neural net------------------------------------------------------------------------------------
 
 #Indexing:
