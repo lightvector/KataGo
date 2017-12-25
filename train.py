@@ -49,6 +49,14 @@ detaillogger.addHandler(fh)
 
 np.set_printoptions(linewidth=150)
 
+def trainlog(s):
+  print(s,flush=True)
+  trainlogger.info(s)
+  detaillogger.info(s)
+
+def detaillog(s):
+  detaillogger.info(s)
+
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
 import model
@@ -90,7 +98,7 @@ def reduce_stdev(x, axis=None, keepdims=False):
   return tf.sqrt(tf.reduce_mean(devs_squared, axis=axis, keep_dims=keepdims))
 
 activated_prop_by_layer = dict([
-  (name,tf.reduce_mean(tf.count_nonzero(layer,axis=[1,2])/model.max_board_size**2, axis=0)) for (name,layer) in model.outputs_by_layer
+  (name,tf.reduce_mean(tf.count_nonzero(layer,axis=[1,2])/layer.shape[1].value/layer.shape[2].value, axis=0)) for (name,layer) in model.outputs_by_layer
 ])
 mean_output_by_layer = dict([
   (name,tf.reduce_mean(layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
@@ -116,15 +124,12 @@ for variable in tf.trainable_variables():
   for dim in shape:
     variable_parameters *= dim.value
   total_parameters += variable_parameters
-  print("Model variable %s, %d parameters" % (variable.name,variable_parameters), flush=True)
-  trainlogger.info("Model variable %s, %d parameters" % (variable.name,variable_parameters))
+  trainlog("Model variable %s, %d parameters" % (variable.name,variable_parameters))
 
-print("Built model, %d total parameters" % total_parameters, flush=True)
-trainlogger.info("Built model, %d total parameters" % total_parameters)
+trainlog("Built model, %d total parameters" % total_parameters)
 
 for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
-  print("Additional update op on train step: %s" % update_op.name, flush=True)
-  trainlogger.info("Additional update op on train step: %s" % update_op.name)
+  trainlog("Additional update op on train step: %s" % update_op.name)
 
 # Open H5 file---------------------------------------------------------
 print("Opening H5 file: " + gamesh5)
@@ -231,17 +236,12 @@ with tf.Session(config=tfconfig) as session:
   sys.stdout.flush()
   sys.stderr.flush()
 
-  print("Began session")
-  print("Training on " + str(num_h5_train_rows) + " rows, testing on " + str(num_h5_test_rows) + " rows")
-  print("Epoch size = " + str(num_samples_per_epoch))
-  print("h5_chunk_size = " + str(h5_chunk_size))
-  print("Batch size = " + str(batch_size))
-
-  trainlogger.info("Began session")
-  trainlogger.info("Training on " + str(num_h5_train_rows) + " rows, testing on " + str(num_h5_test_rows) + " rows")
-  trainlogger.info("Epoch size = " + str(num_samples_per_epoch))
-  trainlogger.info("h5_chunk_size = " + str(h5_chunk_size))
-  trainlogger.info("Batch size = " + str(batch_size))
+  trainlog("Began session")
+  trainlog("Training on " + str(num_h5_train_rows) + " rows, testing on " + str(num_h5_test_rows) + " rows")
+  trainlog("Epoch size = " + str(num_samples_per_epoch))
+  trainlog("h5_chunk_size = " + str(h5_chunk_size))
+  trainlog("Batch size = " + str(batch_size))
+  trainlog("L2 coeff value = " + str(l2_coeff_value))
 
   sys.stdout.flush()
   sys.stderr.flush()
@@ -308,18 +308,18 @@ with tf.Session(config=tfconfig) as session:
     sobl = merge_dicts(sobls, (lambda x: np.sqrt(np.mean(np.square(x),axis=0))))
 
     for key in apbl:
-      detaillogger.info("%s: activated_prop %s" % (key, np_array_str(apbl[key], precision=3)))
-      detaillogger.info("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
-      detaillogger.info("%s: stdev_output %s" % (key, np_array_str(sobl[key], precision=4)))
+      detaillog("%s: activated_prop %s" % (key, np_array_str(apbl[key], precision=3)))
+      detaillog("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
+      detaillog("%s: stdev_output %s" % (key, np_array_str(sobl[key], precision=4)))
 
     mw,sw = session.run([mean_weights_by_var,stdev_weights_by_var])
 
     for key in mw:
-      detaillogger.info("%s: mean weight %f stdev weight %f" % (key, mw[key], sw[key]))
+      detaillog("%s: mean weight %f stdev weight %f" % (key, mw[key], sw[key]))
 
     if maxabsgrads is not None:
       for key in maxabsgrads:
-        detaillogger.info("%s: max abs gradient %f" % (key,maxabsgrads[key]))
+        detaillog("%s: max abs gradient %f" % (key,maxabsgrads[key]))
 
   def make_batch_generator():
     while(True):
@@ -396,9 +396,7 @@ with tf.Session(config=tfconfig) as session:
   (vacc1,vacc4,vloss) = val_accuracy_and_loss()
   vstr = validation_stats_str(vacc1,vacc4,vloss)
 
-  print("Initial: %s" % (vstr), flush=True)
-  trainlogger.info("Initial: %s" % (vstr))
-  detaillogger.info("Initial: %s" % (vstr))
+  trainlog("Initial: %s" % (vstr))
   log_detail_stats(maxabsgrads=None)
 
   start_time = time.perf_counter()
@@ -414,13 +412,11 @@ with tf.Session(config=tfconfig) as session:
     tstr = train_stats_str(tacc1,tacc4,tdata_loss,treg_loss)
     vstr = validation_stats_str(vacc1,vacc4,vloss)
     timestr = time_str(elapsed)
-    print("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr), flush=True)
 
     trainlogger.info("Epoch %d--------------------------------------------------" % (epoch))
-    trainlogger.info("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr))
-
     detaillogger.info("Epoch %d--------------------------------------------------" % (epoch))
-    detaillogger.info("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr))
+
+    trainlog("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr))
     log_detail_stats(maxabsgrads)
 
     if epoch % 4 == 0 or epoch == num_epochs-1:
@@ -428,9 +424,7 @@ with tf.Session(config=tfconfig) as session:
 
   (vacc1,vacc4,vloss) = val_accuracy_and_loss()
   vstr = validation_stats_str(vacc1,vacc4,vloss)
-  print("Final: %s" % (vstr), flush=True)
-  trainlogger.info("Final: %s" % (vstr))
-  detaillogger.info("Final: %s" % (vstr))
+  trainlog("Final: %s" % (vstr))
 
   variables_names =[v.name for v in tf.trainable_variables()]
   values = session.run(variables_names)

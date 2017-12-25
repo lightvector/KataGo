@@ -88,11 +88,13 @@ def get_layer_values(session, board, moves, layer, channel):
   return locs_and_values
 
 
-def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, should_normalize, is_percent):
+def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent):
   divisor = 1.0
-  if should_normalize:
-      max_abs_value = max(abs(value) for (loc,value) in locs_and_values)
-      divisor = max(0.0000000001,max_abs_value) #avoid divide by zero
+  if normalization_div == "max":
+    max_abs_value = max(abs(value) for (loc,value) in locs_and_values)
+    divisor = max(0.0000000001,max_abs_value) #avoid divide by zero
+  else if normalization_div is not None:
+    divisor = normalization_div
 
   for (loc,value) in locs_and_values:
     if loc is not None:
@@ -177,7 +179,7 @@ def run_gtp(session):
 
   layer_command_lookup = dict()
 
-  def add_board_size_visualizations(layer_name, should_normalize):
+  def add_board_size_visualizations(layer_name, normalization_div):
     layer = layerdict[layer_name]
     assert(layer.shape[1].value == board_size)
     assert(layer.shape[2].value == board_size)
@@ -187,15 +189,15 @@ def run_gtp(session):
       command_name = command_name.replace("/",":")
       known_commands.append(command_name)
       known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
-      layer_command_lookup[command_name] = (layer,i,should_normalize)
+      layer_command_lookup[command_name] = (layer,i,normalization_div)
 
-  add_board_size_visualizations("conv1",should_normalize=True)
-  add_board_size_visualizations("rconv1",should_normalize=True)
-  add_board_size_visualizations("rconv2",should_normalize=True)
-  add_board_size_visualizations("rconv3",should_normalize=True)
-  add_board_size_visualizations("rconv4",should_normalize=True)
-  add_board_size_visualizations("g1",should_normalize=True)
-  add_board_size_visualizations("p1",should_normalize=True)
+  add_board_size_visualizations("conv1",normalization_div=120)
+  add_board_size_visualizations("rconv1",normalization_div=12000)
+  add_board_size_visualizations("rconv2",normalization_div=18000)
+  add_board_size_visualizations("rconv3",normalization_div=24000)
+  add_board_size_visualizations("rconv4",normalization_div=34000)
+  add_board_size_visualizations("g1",normalization_div=100)
+  add_board_size_visualizations("p1",normalization_div=0.5)
 
   while True:
     try:
@@ -257,14 +259,14 @@ def run_gtp(session):
     elif command[0] == "policy":
       moves_and_probs = get_moves_and_probs(session, board, moves)
       gfx_commands = []
-      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, should_normalize=False, is_percent=True)
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
 
       ret = "\n".join(gfx_commands)
     elif command[0] in layer_command_lookup:
-      (layer,channel,should_normalize) = layer_command_lookup[command[0]]
+      (layer,channel,normalization_div) = layer_command_lookup[command[0]]
       locs_and_values = get_layer_values(session, board, moves, layer, channel)
       gfx_commands = []
-      fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, should_normalize, is_percent=False)
+      fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent=False)
       ret = "\n".join(gfx_commands)
 
     elif command[0] == "protocol_version":
