@@ -242,12 +242,13 @@ def run_gtp(session):
     elif command[0] == "komi":
       pass
     elif command[0] == "play":
+      pla = (Board.BLACK if command[1] == "B" or command[1] == "b" else Board.WHITE)
       loc = parse_coord(command[2],board)
       if loc is not None:
-        moves.append((board.pla,loc))
-        board.play(board.pla,loc)
+        moves.append((pla,loc))
+        board.play(pla,loc)
       else:
-        moves.append((board.pla,loc))
+        moves.append((pla,loc))
         board.do_pass()
     elif command[0] == "genmove":
       loc = genmove(session, board, moves)
