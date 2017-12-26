@@ -93,7 +93,7 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
   if normalization_div == "max":
     max_abs_value = max(abs(value) for (loc,value) in locs_and_values)
     divisor = max(0.0000000001,max_abs_value) #avoid divide by zero
-  else if normalization_div is not None:
+  elif normalization_div is not None:
     divisor = normalization_div
 
   for (loc,value) in locs_and_values:
@@ -120,15 +120,30 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
       b = ("%02x" % int(b*255))
       gfx_commands.append("COLOR #%s%s%s %s" % (r,g,b,str_coord(loc,board)))
 
-  locs_and_values = sorted(locs_and_values, key=lambda loc_and_value: loc_and_value[1], reverse=True)
+  locs_and_values = sorted(locs_and_values, key=lambda loc_and_value: loc_and_value[1])
+  locs_and_values_rev = sorted(locs_and_values, key=lambda loc_and_value: loc_and_value[1], reverse=True)
   texts = []
-  for i in range(min(len(locs_and_values),8)):
-    (loc,value) = locs_and_values[i]
+  texts_rev = []
+  maxlen_per_side = 10
+  if len(locs_and_values) > 0 and locs_and_values[0][1] < 0:
+    maxlen_per_side = 5
+
+    for i in range(min(len(locs_and_values),maxlen_per_side)):
+      (loc,value) = locs_and_values[i]
+      if is_percent:
+        texts.append("%s %4.1f%%" % (str_coord(loc,board),value*100))
+      else:
+        texts.append("%s %.3f" % (str_coord(loc,board),value))
+    texts.reverse()
+
+  for i in range(min(len(locs_and_values_rev),maxlen_per_side)):
+    (loc,value) = locs_and_values_rev[i]
     if is_percent:
-      texts.append("%s %4.1f%%" % (str_coord(loc,board),value*100))
+      texts_rev.append("%s %4.1f%%" % (str_coord(loc,board),value*100))
     else:
-      texts.append("%s %.3f" % (str_coord(loc,board),value))
-  gfx_commands.append("TEXT " + ", ".join(texts))
+      texts_rev.append("%s %.3f" % (str_coord(loc,board),value))
+
+  gfx_commands.append("TEXT " + ", ".join(texts_rev + texts))
 
 
 # Basic parsing --------------------------------------------------------
@@ -191,13 +206,13 @@ def run_gtp(session):
       known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
       layer_command_lookup[command_name] = (layer,i,normalization_div)
 
-  add_board_size_visualizations("conv1",normalization_div=120)
-  add_board_size_visualizations("rconv1",normalization_div=12000)
-  add_board_size_visualizations("rconv2",normalization_div=18000)
-  add_board_size_visualizations("rconv3",normalization_div=24000)
-  add_board_size_visualizations("rconv4",normalization_div=34000)
-  add_board_size_visualizations("g1",normalization_div=100)
-  add_board_size_visualizations("p1",normalization_div=0.5)
+  add_board_size_visualizations("conv1",normalization_div=100)
+  add_board_size_visualizations("rconv1",normalization_div=300)
+  add_board_size_visualizations("rconv2",normalization_div=400)
+  add_board_size_visualizations("rconv3",normalization_div=600)
+  add_board_size_visualizations("rconv4",normalization_div=800)
+  add_board_size_visualizations("g1",normalization_div=65)
+  add_board_size_visualizations("p1",normalization_div=0.35)
 
   while True:
     try:
