@@ -79,7 +79,8 @@ opt_loss = data_loss + reg_loss
 batch_learning_rate = tf.placeholder(tf.float32)
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
 with tf.control_dependencies(update_ops):
-  optimizer = tf.train.AdamOptimizer(batch_learning_rate)
+  #optimizer = tf.train.AdamOptimizer(batch_learning_rate)
+  optimizer = tf.train.MomentumOptimizer(batch_learning_rate, momentum=0.9, use_nesterov=True)
   gradients = optimizer.compute_gradients(opt_loss)
   train_step = optimizer.apply_gradients(gradients)
 
@@ -211,11 +212,11 @@ assert(h5_chunk_size % batch_size == 0)
 assert(num_samples_per_epoch % batch_size == 0)
 
 lr = LR(
-  initial_lr = 0.0007,
+  initial_lr = 0.0004,
   decay_exponent = 4,
   decay_offset = 14,
   recent_change_decay = 0.80,
-  plateau_min_epochs = 4,
+  plateau_min_epochs = 8,
   force_drop_epochs = 8,
 )
 
@@ -374,7 +375,7 @@ with tf.Session(config=tfconfig) as session:
         rows=rows,
         training=True,
         symmetries=[np.random.random() < 0.5, np.random.random() < 0.5, np.random.random() < 0.5],
-        blr=lr.lr() * math.sqrt(batch_size) #sqrt since we're using ADAM
+        blr=lr.lr() * batch_size
       )
 
       tacc1_sum += bacc1
