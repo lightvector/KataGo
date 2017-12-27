@@ -205,14 +205,14 @@ print("Training", flush=True)
 
 num_epochs = 300
 num_samples_per_epoch = 500000
-batch_size = 50
+batch_size = 100
 num_batches_per_epoch = num_samples_per_epoch//batch_size
 
 assert(h5_chunk_size % batch_size == 0)
 assert(num_samples_per_epoch % batch_size == 0)
 
 lr = LR(
-  initial_lr = 0.0004,
+  initial_lr = 0.00032,
   decay_exponent = 4,
   decay_offset = 14,
   recent_change_decay = 0.80,
