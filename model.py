@@ -179,6 +179,12 @@ def init_stdev(num_inputs,num_outputs):
   #herangzhen
   return math.sqrt(2.0 / (num_inputs))
 
+def weight_variable_init_zero(name, shape):
+  initial = tf.constant_initializer(0.0)
+  variable = tf.Variable(initial,name=name)
+  reg_variables.append(variable)
+  return variable
+
 def weight_variable(name, shape, num_inputs, num_outputs):
   stdev = init_stdev(num_inputs,num_outputs) / 1.0
   initial = tf.truncated_normal(shape=shape, stddev=stdev)
@@ -225,10 +231,16 @@ def apply_symmetry(tensor,symmetries,inverse):
 #Accumulates outputs for printing stats about their activations
 outputs_by_layer = []
 
+def parametric_relu(name, layer):
+  assert(len(layer.shape) == 4)
+  num_channels = layer.shape[3].value
+  alphas = weight_variable_init_zero(name+"/prelu",[1,1,1,num_channels])
+  return tf.maximum(0.0,layer) + alphas * tf.minimum(0.0,layer)
+
 #Convolutional layer with batch norm and nonlinear activation
 def conv_block(name, in_layer, diam, in_channels, out_channels):
   weights = weight_variable(name+"/w",[diam,diam,in_channels,out_channels],in_channels*diam*diam,out_channels)
-  out_layer = tf.nn.relu(batchnorm(name+"/norm",conv2d(in_layer, weights)))
+  out_layer = parametric_relu("/prelu",batchnorm(name+"/norm",conv2d(in_layer, weights)))
   outputs_by_layer.append((name,out_layer))
   return out_layer
 
@@ -241,14 +253,14 @@ def conv_only_block(name, in_layer, diam, in_channels, out_channels):
 
 #Convolutional residual block with internal batch norm and nonlinear activation
 def res_conv_block(name, in_layer, diam, main_channels, mid_channels):
-  trans1_layer = tf.nn.relu(batchnorm(name+"/norm1",in_layer))
+  trans1_layer = parametric_relu("/prelu1",(batchnorm(name+"/norm1",in_layer))
   outputs_by_layer.append((name+"/trans1",trans1_layer))
 
   weights1 = weight_variable(name+"/w1",[diam,diam,main_channels,mid_channels],main_channels*diam*diam,mid_channels)
   conv1_layer = conv2d(trans1_layer, weights1)
   outputs_by_layer.append((name+"/conv1",conv1_layer))
 
-  trans2_layer = tf.nn.relu(batchnorm(name+"/norm2",conv1_layer))
+  trans2_layer = parametric_relu("/prelu2",(batchnorm(name+"/norm2",conv1_layer))
   outputs_by_layer.append((name+"/trans2",trans2_layer))
 
   weights2 = weight_variable(name+"/w2",[diam,diam,mid_channels,main_channels],mid_channels*diam*diam,main_channels)
@@ -311,7 +323,7 @@ def ladder_block(name, in_layer, main_channels, mid_channels):
     return tensor
 
   #First, as usual, batchnorm and relu the trunk to get the values to a reasonable scale
-  trans1_layer = tf.nn.relu(batchnorm(name+"/norm1",in_layer))
+  trans1_layer = parametric_relu("/prelu1",(batchnorm(name+"/norm1",in_layer))
   outputs_by_layer.append((name+"/trans1",trans1_layer))
 
   c = mid_channels
@@ -329,7 +341,7 @@ def ladder_block(name, in_layer, main_channels, mid_channels):
   outputs_by_layer.append((name+"/convprea",convprea_layer))
   outputs_by_layer.append((name+"/convpreb",convpreb_layer))
 
-  transprea_layer = tf.nn.relu(batchnorm(name+"/normprea",convprea_layer))
+  transprea_layer = parametric_relu("/preluprea",(batchnorm(name+"/normprea",convprea_layer))
   transpreb_layer = tf.nn.sigmoid(batchnorm(name+"/normpreb",convpreb_layer)) * 1.5 + 0.0001
   outputs_by_layer.append((name+"/transprea",transprea_layer))
   outputs_by_layer.append((name+"/transpreb",transpreb_layer))
@@ -415,7 +427,7 @@ cur_layer = res_conv_block("rconv4",cur_layer,diam=3,main_channels=192,mid_chann
 #Postprocessing residual trunk----------------------------------------------------------------------------------
 
 #Normalize and relu just before the policy head
-cur_layer = tf.nn.relu(batchnorm("normtrunk",cur_layer))
+cur_layer = parametric_relu("/prelutrunk",(batchnorm("normtrunk",cur_layer))
 outputs_by_layer.append(("trunk",cur_layer))
 
 #Policy head---------------------------------------------------------------------------------
