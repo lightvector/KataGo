@@ -25,11 +25,20 @@ parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-traindir', help='Dir to write to for recording training results', required=True)
 parser.add_argument('-gamesh5', help='H5 file of preprocessed game data', required=True)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
+parser.add_argument('-restart-file', help='restart training from file', required=False)
+parser.add_argument('-restart-epoch', help='restart training epoch', required=False)
 args = vars(parser.parse_args())
 
 traindir = args["traindir"]
 gamesh5 = args["gamesh5"]
 verbose = args["verbose"]
+restart_file = None
+start_epoch = 0
+logfilemode = "w"
+if "restart_file" in args:
+  restart_file = args["restart_file"]
+  start_epoch = int(args["restart_epoch"])
+  logfilemode = "a"
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)
@@ -37,13 +46,13 @@ if not os.path.exists(traindir):
 bareformatter = logging.Formatter("%(message)s")
 trainlogger = logging.getLogger("trainlogger")
 trainlogger.setLevel(logging.INFO)
-fh = logging.FileHandler(traindir+"/train.log", mode='w')
+fh = logging.FileHandler(traindir+"/train.log", mode=logfilemode)
 fh.setFormatter(bareformatter)
 trainlogger.addHandler(fh)
 
 detaillogger = logging.getLogger("detaillogger")
 detaillogger.setLevel(logging.INFO)
-fh = logging.FileHandler(traindir+"/detail.log", mode='w')
+fh = logging.FileHandler(traindir+"/detail.log", mode=logfilemode)
 fh.setFormatter(bareformatter)
 detaillogger.addHandler(fh)
 
@@ -158,46 +167,21 @@ class LR:
     initial_lr,          #Initial learning rate by sample
     decay_exponent,      #Exponent of the polynomial decay in learning rate based on number of plateaus
     decay_offset,        #Offset of the exponent
-    recent_change_decay, #Drop the learning rate if recent sum of loss diffs with this per-epoch decay is positive.
-    plateau_min_epochs,  #Never drop unless this many epochs passed since the last drop
-    force_drop_epochs,   #Also forcibly drop the learning rate after these epochs if it hasn't recently already dropped
+    drop_every_epochs,   #Drop the learning rate after these epochs
   ):
     self.initial_lr = initial_lr
     self.decay_exponent = decay_exponent
     self.decay_offset = decay_offset
 
-    self.recent_change_decay = recent_change_decay
-    self.last_loss = None
-    self.running_wsum = 0
-
-    self.plateau_min_epochs = plateau_min_epochs
     self.reduction_count = 0
-    self.last_reduction_epoch = 0
-
-    self.force_drop_epochs = force_drop_epochs
-
+    self.drop_every_epochs = drop_every_epochs
 
   def lr(self):
     factor = (self.reduction_count + self.decay_offset) / self.decay_offset
     return self.initial_lr / (factor ** self.decay_exponent)
 
-  def reduce_lr(self):
-    self.last_reduction_epoch = epoch
-    self.reduction_count += 1
-
-  def report_loss(self,epoch,loss):
-    if self.last_loss is not None:
-      diff = loss - self.last_loss
-      self.running_wsum = diff + self.running_wsum * self.recent_change_decay
-
-    self.last_loss = loss
-
-    if epoch >= self.last_reduction_epoch + self.plateau_min_epochs:
-      if epoch >= self.last_reduction_epoch + self.force_drop_epochs:
-        self.reduce_lr()
-      elif self.running_wsum >= 0.:
-        self.reduce_lr()
-
+  def report_epoch_done(self,epoch):
+    self.reduction_count = epoch // self.drop_every_epochs
 
 # Training ------------------------------------------------------------
 
@@ -215,9 +199,7 @@ lr = LR(
   initial_lr = 0.00032,
   decay_exponent = 4,
   decay_offset = 14,
-  recent_change_decay = 0.80,
-  plateau_min_epochs = 8,
-  force_drop_epochs = 8,
+  drop_every_epochs = 8,
 )
 
 # l2_coeff_value = 0
@@ -233,7 +215,11 @@ tfconfig = tf.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.allow_growth = True
 #tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
 with tf.Session(config=tfconfig) as session:
-  session.run(tf.global_variables_initializer())
+  if restart_file is not None:
+    saver.restore(session, restart_file)
+  else:
+    session.run(tf.global_variables_initializer())
+
   sys.stdout.flush()
   sys.stderr.flush()
 
@@ -401,11 +387,16 @@ with tf.Session(config=tfconfig) as session:
   log_detail_stats(maxabsgrads=None)
 
   start_time = time.perf_counter()
-  for epoch in range(num_epochs):
+
+  if start_epoch > 0:
+    lr.report_epoch_done(start_epoch-1)
+
+  for e in range(num_epochs):
+    epoch = start_epoch + e
     print("Epoch %d" % (epoch), end='', flush=True)
     (tacc1,tacc4,tdata_loss,treg_loss,maxabsgrads) = run_batches(num_batches_per_epoch)
     (vacc1,vacc4,vloss) = val_accuracy_and_loss()
-    lr.report_loss(epoch=epoch,loss=(tdata_loss + treg_loss + vloss))
+    lr.report_epoch_done(epoch)
     print("")
 
     elapsed = time.perf_counter() - start_time
