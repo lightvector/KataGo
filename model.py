@@ -234,7 +234,7 @@ def parametric_relu(name, layer):
   assert(len(layer.shape) == 4)
   num_channels = layer.shape[3].value
   alphas = weight_variable_init_zero(name+"/prelu",[1,1,1,num_channels])
-  return tf.maximum(0.0,layer) + alphas * tf.minimum(0.0,layer)
+  return tf.nn.relu(layer) - alphas * tf.nn.relu(-layer)
 
 #Convolutional layer with batch norm and nonlinear activation
 def conv_block(name, in_layer, diam, in_channels, out_channels):
