@@ -28,8 +28,10 @@ Now, columns in the skewed board correspond to diagonals on the original board. 
    * Skew all the channels.
    * Compute a cumulative sum (tf.cumsum) along the skewed columns of both value*weight and weight, and divide to obtain a cumulative moving average.
    * Also repeat with reverse-cumulative sums and skewing the other way, to obtain all 4 diagonal directions.
-   * Concatenate all the resulting 4C channels and multiply by a 4CxN matrix where N is the number of channels in the main trunk to transform the resulting channels back into "main trunk feature space".
+   * Unskew all the results to make them square again.
+   * Concatenate all the resulting 4C channels and multiply by a 4CxN matrix where N is the number of channels in the main trunk to transform the results back into "main trunk feature space".
    * Also apply your favorite activation function and batch norm at appropriate ponts throughout the above.
+   * Add the results as residuals back to the main resnet trunk.
 
 In the event that many of the weights are near zero, this will have the effect of propagating information potentially very long distances across the diagonals. In practice, I applied an exp-based transform to the weight channel to make it behave like an exponentially-weighted moving average, to obtain the effect that ladders care mostly about the first stone or stones they hit, and not the stones beyond them, as well as a bias to try to make it easier for the neural net to put low weight on empty spaces to encourage long-distance propagation.
 
