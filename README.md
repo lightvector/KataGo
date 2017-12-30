@@ -10,18 +10,28 @@ This repo is currently a sandbox for personal experimentation in neural net trai
 See LICENSE for software license. License aside, informally, if do you successfully use any of the code or any wacky ideas about neural net structure explored in this repo in your own neural nets or to run any of your own experiments, I would to love hear about it and/or might also appreciate a casual acknowledgement where appropriate. Yay.
 
 ## Experimental Notes
+You can see the implementations neural net structures of these in "model.py", although I may adapt and change them as time goes on.
 
-### Ladders and Special Ladder Blocks
-Neural nets can easily solve ladders, if trained directly to predict ladders (i.e. identify all laddered group, rather than predict the next move)! Apparently 3 or 4 residual blocks is sufficient to solve ladders extending out up to 10ish spaces, near the theoretical max that such convolutions can reach.
+### Ladders and Special Ladder Residual Blocks
+Experimentally, I've found that neural nets can easily solve ladders, if trained directly to predict ladders (i.e. identify all laddered groups, rather than predict the next move)! Apparently 3 or 4 residual blocks is sufficient to solve ladders extending out up to 10ish spaces, near the theoretical max that such convolutions can reach. Near the theoretical max, they start to get a bit fuzzy, such as being only 70% sure of a working ladder, instead of 95+%, particularly if the ladder maker or ladder breaker stone is near the edge of the 6-wide diagonal path that affects the ladder.
 
-And specially-designed residual blocks appear to significantly help such a neural net detect solve ladders that extend well beyond the reach of its convolutions! This is definitely not a "zero" approach because it builds in Go-specific structure into the neural net, but nonetheless, the basic approach I tried was to take the 19x19 board and skew it via manual tensor reshaping:
+However, specially-designed residual blocks appear to significantly help such a neural net detect solve ladders that extend well beyond the reach of its convolutions, as well as make it much more accurate in deciding when a stone nearly at the edge of the path that could affect the ladder actually does affect the ladder. This is definitely not a "zero" approach because it builds in Go-specific structure into the neural net, but nonetheless, the basic approach I tried was to take the 19x19 board and skew it via manual tensor reshaping:
 
     1234          1234000
     5678    ->    0567800
     9abc          009abc0
     defg          000defg
 
-Now, columns in the skewed board correspond to diagonals on the original board. Do this skewing for both a "value" channel and a "weight" channel computed by the neural net via earlier convolutions. Now, compute a cumulative sum (tf.cumsum) along the columns of both value*weight and weight, and divide to obtain a cumulative moving average. In the event that many of the weights are near zero, this will have the effect of propagating information potentially very long distances across the diagonal. In practice, I applied an exp-based transform to the weight channel to make it behave like an exponentially-weighted moving average, to obtain the effect that ladders care mostly about the first stone or stones they hit, and not the stones beyond them. Do this all 4 ways in parallel to handle all 4 diagonal directions.
+Now, columns in the skewed board correspond to diagonals on the original board. Then:
+
+   * Compute a small number C of "value" and "weight" channels from the main resnet trunk via 3x3 convolutions.
+   * Skew all the channels.
+   * Compute a cumulative sum (tf.cumsum) along the skewed columns of both value*weight and weight, and divide to obtain a cumulative moving average.
+   * Also repeat with reverse-cumulative sums and skewing the other way, to obtain all 4 diagonal directions.
+   * Concatenate all the resulting 4C channels and multiply by a 4CxN matrix where N is the number of channels in the main trunk to transform the resulting channels back into "main trunk feature space".
+   * Also apply your favorite activation function and batch norm at appropriate ponts throughout the above.
+
+In the event that many of the weights are near zero, this will have the effect of propagating information potentially very long distances across the diagonals. In practice, I applied an exp-based transform to the weight channel to make it behave like an exponentially-weighted moving average, to obtain the effect that ladders care mostly about the first stone or stones they hit, and not the stones beyond them, as well as a bias to try to make it easier for the neural net to put low weight on empty spaces to encourage long-distance propagation.
 
 Adding such a residual block to the neural net appears to greatly help long-distance ladder solving! When I trained a neural net with this to identify laddered groups, it appeared to have decently accurate ladder solving in test positions well beyond the theoretical range that its convolutions could reach alone, and I'm currently investigating whether adding this special block into a policy net helps the policy net's predictions about ladder-related tactics.
 
