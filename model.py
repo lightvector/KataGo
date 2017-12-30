@@ -8,13 +8,6 @@ from board import Board
 
 #Feature extraction functions-------------------------------------------------------------------
 
-#TODO data deduplication
-#TODO test different neural net structures, particularly the final combining layer
-#TODO weight and neuron activation visualization
-#TODO does it help if we just enforce legality and don't need the NN to do so?
-#TODO try residual structure?
-#TODO gpu-acceleration!
-
 #Neural net inputs
 #19x19 is on board
 #19x19 own stone present

@@ -15,7 +15,7 @@ import numpy as np
 from board import Board
 
 description = """
-Train neural net on Go games!
+Play go with a trained neural net!
 """
 
 parser = argparse.ArgumentParser(description=description)
