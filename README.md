@@ -2,7 +2,7 @@
 
 This repo is currently a sandbox for personal experimentation in neural net training in Go. I haven't made any particular attempt to make the training pipeline usable by others, but if you're interested, the rough summary is:
 
-   * You must have HDF5 installed for C++ (https://support.hdfgroup.org/HDF5/release/obtainsrc.html)
+   * You must have HDF5 installed for C++ (https://support.hdfgroup.org/HDF5/release/obtainsrc.html), as well as Tensorflow installed for Python 3.
    * Compile using "compile.sh" in writedata, which expects you to have h5c++ available. (yes, no makefiles or build system, very hacky).
    * Run the resulting "write.exe" on a directory of SGF files to generate an h5 file of preprocessed training data.
    * Run train.py using that h5 file to train the neural net.
