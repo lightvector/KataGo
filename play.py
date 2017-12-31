@@ -213,6 +213,7 @@ def run_gtp(session):
   add_board_size_visualizations("ladder1/transprea",normalization_div=100)
   add_board_size_visualizations("ladder1/transpreb",normalization_div=1)
   add_board_size_visualizations("rconv3",normalization_div=600)
+  add_board_size_visualizations("hvconv1",normalization_div=600)
   add_board_size_visualizations("rconv4",normalization_div=800)
   add_board_size_visualizations("g1",normalization_div=65)
   add_board_size_visualizations("p1",normalization_div=0.35)
