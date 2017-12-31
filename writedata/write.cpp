@@ -12,11 +12,12 @@ using namespace H5;
 
 //Data and feature row parameters
 static const int maxBoardSize = 19;
-static const int numFeatures = 13;
-static const int inputLen = 19*19*13;
-static const int targetLen = 19*19;
+static const int numFeatures = 18;
+static const int inputLen = maxBoardSize * maxBoardSize * numFeatures;
+static const int chainLen = maxBoardSize * maxBoardSize;
+static const int targetLen = maxBoardSize * maxBoardSize;
 static const int targetWeightsLen = 1;
-static const int totalRowLen = inputLen + targetLen + targetWeightsLen;
+static const int totalRowLen = inputLen + chainLen + targetLen + targetWeightsLen;
 
 //HDF5 parameters
 static const int chunkHeight = 2000;
@@ -72,14 +73,34 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
         else if(libs == 2) setRow(row,pos,7, 1.0);
         else if(libs == 3) setRow(row,pos,8, 1.0);
       }
+
+      if(stone == pla || stone == opp) {
+        //Fill chain feature
+        Loc headLoc = board.chain_head[loc];
+        row[inputLen + pos] = locToTensorPos(headLoc,bSize,offset)+1;
+      }
+      else {
+        //Feature 15,16 - 1, 2 liberties after own play.
+        //Feature 17 - 1 liberty after opponent play
+        int plaLibAfterPlay = board.getNumLibertiesAfterPlay(loc,pla,3);
+        int oppLibAfterPlay = board.getNumLibertiesAfterPlay(loc,opp,2);
+        if(plaLibAfterPlay == 1)
+          setRow(row,pos,15, 1.0);
+        else if(plaLibAfterPlay == 2)
+          setRow(row,pos,16, 1.0);
+        if(oppLibAfterPlay == 1)
+          setRow(row,pos,17, 1.0);
+      }
     }
   }
 
   //Probabilistically include prev move features
-  //Features 9,10,11
+  //Features 9,10,11,12,13
   bool includePrev1 = rand.nextDouble() < 0.9;
   bool includePrev2 = includePrev1 && rand.nextDouble() < 0.95;
   bool includePrev3 = includePrev2 && rand.nextDouble() < 0.95;
+  bool includePrev4 = includePrev3 && rand.nextDouble() < 0.98;
+  bool includePrev5 = includePrev4 && rand.nextDouble() < 0.98;
 
   if(nextMoveIdx >= 1 && moves[nextMoveIdx-1].pla == opp && includePrev1) {
     Loc prev1Loc = moves[nextMoveIdx-1].loc;
@@ -99,23 +120,36 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
           int pos = locToTensorPos(prev3Loc,bSize,offset);
           setRow(row,pos,11, 1.0);
         }
+        if(nextMoveIdx >= 4 && moves[nextMoveIdx-4].pla == opp && includePrev4) {
+          Loc prev4Loc = moves[nextMoveIdx-4].loc;
+          if(prev4Loc != FastBoard::PASS_LOC) {
+            int pos = locToTensorPos(prev4Loc,bSize,offset);
+            setRow(row,pos,12, 1.0);
+          }
+          if(nextMoveIdx >= 5 && moves[nextMoveIdx-5].pla == opp && includePrev5) {
+            Loc prev5Loc = moves[nextMoveIdx-5].loc;
+            if(prev5Loc != FastBoard::PASS_LOC) {
+              int pos = locToTensorPos(prev5Loc,bSize,offset);
+              setRow(row,pos,13, 1.0);
+            }
+          }
+        }
       }
     }
   }
 
-  //Feature 12 - simple ko location
+  //Feature 14 - simple ko location
   if(board.ko_loc != FastBoard::NULL_LOC) {
     int pos = locToTensorPos(board.ko_loc,bSize,offset);
-    setRow(row,pos,12, 1.0);
+    setRow(row,pos,14, 1.0);
   }
-
 
   //Target
   if(target == TARGET_NEXT_MOVE) {
     Loc nextMoveLoc = moves[nextMoveIdx].loc;
     assert(nextMoveLoc != FastBoard::PASS_LOC);
     int nextMovePos = locToTensorPos(nextMoveLoc,bSize,offset);
-    row[inputLen + nextMovePos] = 1.0;
+    row[inputLen + chainLen + nextMovePos] = 1.0;
   }
   else if(target == TARGET_LADDER_CAPTURE) {
     Loc chainHeadsSolved[bSize*bSize];
@@ -137,7 +171,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
             for(int i = 0; i<numChainHeadsSolved; i++) {
               if(chainHeadsSolved[i] == head) {
                 alreadySolved = true;
-                row[inputLen + pos] = chainHeadsSolvedValue[i];
+                row[inputLen + chainLen + pos] = chainHeadsSolvedValue[i];
                 break;
               }
             }
@@ -159,7 +193,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
               chainHeadsSolved[numChainHeadsSolved] = head;
               chainHeadsSolvedValue[numChainHeadsSolved] = value;
               numChainHeadsSolved++;
-              row[inputLen + pos] = value;
+              row[inputLen + chainLen + pos] = value;
             }
           }
         }
@@ -168,7 +202,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   }
 
   //Weight of the row, currently always 1.0
-  row[inputLen + targetLen] = 1.0;
+  row[inputLen + chainLen + targetLen] = 1.0;
 }
 
 //Returns number of rows processed
@@ -303,6 +337,7 @@ int main(int argc, const char* argv[]) {
   cout << "maxBoardSize " << maxBoardSize << endl;
   cout << "numFeatures " << numFeatures << endl;
   cout << "inputLen " << inputLen << endl;
+  cout << "chainLen " << chainLen << endl;
   cout << "targetLen " << targetLen << endl;
   cout << "targetWeightsLen " << targetWeightsLen << endl;
   cout << "totalRowLen " << totalRowLen << endl;

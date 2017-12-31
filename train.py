@@ -235,16 +235,19 @@ with tf.Session(config=tfconfig) as session:
 
   def run(fetches, rows, training, symmetries, blr=0.0):
     assert(len(model.input_shape) == 2)
+    assert(len(model.chain_shape) == 1)
     assert(len(model.target_shape) == 1)
     assert(len(model.target_weights_shape) == 0)
     input_len = model.input_shape[0] * model.input_shape[1]
+    chain_len = model.chain_shape[0]
     target_len = model.target_shape[0]
 
     if not isinstance(rows, np.ndarray):
       rows = np.array(rows)
+
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
-    row_targets = rows[:,input_len:input_len+target_len]
-    row_target_weights = rows[:,input_len+target_len]
+    row_targets = rows[:,input_len+chain_len:input_len+chain_len+target_len]
+    row_target_weights = rows[:,input_len+chain_len+target_len]
 
     return session.run(fetches, feed_dict={
       model.inputs: row_inputs,

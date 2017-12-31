@@ -127,6 +127,8 @@ struct FastBoard
 
   //Gets the number of liberties of the chain at loc. Assertion: location must be black or white.
   int getNumLiberties(Loc loc) const;
+  //Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
+  int getNumLibertiesAfterPlay(Loc loc, Player player, int max) const;
   //Check if moving here is illegal due to self-capture
   bool isSuicide(Loc loc, Player player) const;
   //Check if moving here is illegal due to simple ko

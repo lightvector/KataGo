@@ -147,6 +147,93 @@ bool FastBoard::isSuicide(Loc loc, Player player) const
   return true;
 }
 
+//Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
+int FastBoard::getNumLibertiesAfterPlay(Loc loc, Player player, int max) const
+{
+  Player enemy = getEnemy(player);
+
+  int numLibs = 0;
+  Loc libs[max];
+  int numCapturedGroups = 0;
+  Loc capturedGroupHeads[4];
+
+  //First, count immediate liberties and groups that would be captured
+  for(int i = 0; i < 4; i++) {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] == C_EMPTY) {
+      libs[numLibs++] = adj;
+      if(numLibs >= max)
+        return max;
+    }
+    else if(colors[adj] == enemy && getNumLiberties(adj) == 1) {
+      libs[numLibs++] = adj;
+      if(numLibs >= max)
+        return max;
+
+      Loc head = chain_head[adj];
+      bool alreadyFound = false;
+      for(int j = 0; j<numCapturedGroups; j++) {
+        if(capturedGroupHeads[j] == head)
+        {alreadyFound = true; break;}
+      }
+      if(!alreadyFound)
+        capturedGroupHeads[numCapturedGroups++] = head;
+    }
+  }
+
+  auto wouldBeEmpty = [numCapturedGroups,&capturedGroupHeads,this,enemy](Loc loc) {
+    if(this->colors[loc] == C_EMPTY)
+      return true;
+    if(this->colors[loc] == enemy) {
+      for(int i = 0; i<numCapturedGroups; i++)
+        if(capturedGroupHeads[i] == this->chain_head[loc])
+          return true;
+    }
+    return false;
+  };
+
+  //Next, walk through all stones of all surrounding groups we would connect with and count liberties, avoiding overlap.
+  int numConnectingGroups = 0;
+  Loc connectingGroupHeads[4];
+  for(int i = 0; i<4; i++) {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] == player) {
+      Loc head = chain_head[adj];
+      bool alreadyFound = false;
+      for(int j = 0; j<numConnectingGroups; j++) {
+        if(connectingGroupHeads[j] == head)
+        {alreadyFound = true; break;}
+      }
+      if(!alreadyFound) {
+        connectingGroupHeads[numConnectingGroups++] = head;
+
+        Loc cur = adj;
+        do
+        {
+          for(int k = 0; k < 4; k++) {
+            Loc possibleLib = cur + adj_offsets[k];
+            if(possibleLib != loc && wouldBeEmpty(possibleLib)) {
+              bool alreadyCounted = false;
+              for(int l = 0; l<numLibs; l++) {
+                if(libs[l] == possibleLib)
+                {alreadyCounted = true; break;}
+              }
+              if(!alreadyCounted) {
+                libs[numLibs++] = possibleLib;
+                if(numLibs >= max)
+                  return max;
+              }
+            }
+          }
+
+          cur = next_in_chain[cur];
+        } while (cur != adj);
+      }
+    }
+  }
+  return numLibs;
+}
+
 //Check if moving here is illegal due to simple ko
 bool FastBoard::isKoBanned(Loc loc) const
 {

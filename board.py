@@ -168,6 +168,61 @@ class Board:
       return False
     return True
 
+  #Returns the number of liberties a new stone placed here would have, or maxLibs if it would be >= maxLibs.
+  def get_liberties_after_play(self,pla,loc,maxLibs):
+    opp = Board.get_opp(pla)
+    libs = []
+    capturedGroupHeads = []
+
+    #First, count immediate liberties and groups that would be captured
+    for i in range(4):
+      adj = loc + self.adj[i]
+      if self.board[adj] == Board.EMPTY:
+        libs.append(adj)
+        if len(libs) >= maxLibs:
+          return maxLibs
+
+      elif self.board[adj] == opp and self.num_liberties(adj) == 1):
+        libs.append(adj)
+        if len(libs) >= maxLibs:
+          return maxLibs
+
+        head = self.group_head[adj]
+        if head not in capturedGroupHeads:
+          capturedGroupHeads.append(head)
+
+    def wouldBeEmpty(possibleLib):
+      if self.board[possibleLib] == Board.EMPTY:
+        return true
+      elif self.board[possibleLib] == opp:
+        return (self.group_head[possibleLib] in capturedGroupHeads)
+      return False
+
+    #Next, walk through all stones of all surrounding groups we would connect with and count liberties, avoiding overlap.
+    connectingGroupHeads = []
+    for i in range(4):
+      adj = loc + self.adj[i]
+      if self.board[adj] == pla:
+        head = self.group_head[adj]
+        if head not in connectingGroupHeads:
+          connectingGroupHeads.append(head)
+
+          cur = adj
+          while True:
+            for k in range(4):
+              possibleLib = cur + self.adj[k]
+              if possibleLib != loc and wouldBeEmpty(possibleLib) and possibleLib not in libs:
+                libs.append(possibleLib)
+                if len(libs) >= maxLibs:
+                  return maxLibs
+
+            cur = self.group_next[cur]
+            if cur == adj:
+              break
+
+    return len(libs)
+
+
   def to_string(self):
     def get_piece(x,y):
       loc = self.loc(x,y)

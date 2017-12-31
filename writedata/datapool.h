@@ -25,7 +25,7 @@ class DataPool {
   size_t writeBufCapacity;
 
 public:
-  DataPool(int rowWidth, int trainPoolMaxCapacity, int testPoolMaxCapacity, int writeBufCapacity, std::function<void(const float*,size_t)> writeTrainRow);
+  DataPool(size_t rowWidth, size_t trainPoolMaxCapacity, size_t testPoolMaxCapacity, size_t writeBufCapacity, std::function<void(const float*,size_t)> writeTrainRow);
   ~DataPool();
 
   float* addNewRow(Rand& rand);

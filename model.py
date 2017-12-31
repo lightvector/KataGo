@@ -8,30 +8,11 @@ from board import Board
 
 #Feature extraction functions-------------------------------------------------------------------
 
-#Neural net inputs
-#19x19 is on board
-#19x19 own stone present
-#19x19 opp stone present
-#19x19x3 own liberties 1,2,3
-#19x19x3 opp liberties 1,2,3
-#19x19x3 prev moves
-#19x19x1 simple ko point
-
-#Maybe??
-#19x19x5 own stone present 0-4 turns ago
-#19x19x5 opp stone present 0-4 turns ago
-#19x19xn one-hot encoding of various ranks
-#19x19xn some encoding of komi
-#19x19x4 own ladder going through this spot in each direction would work (nn,np,pn,pp)
-#19x19x4 opp ladder going through this spot in each direction would work (nn,np,pn,pp)
-
-#Neural net outputs
-#19x19 move
-#1 pass #TODO
-
 max_board_size = 19
-input_shape = [19*19,13]
-post_input_shape = [19,19,13]
+input_shape = [19*19,18]
+post_input_shape = [19,19,18]
+chain_shape = [19*19]
+post_chain_shape = [19,19]
 target_shape = [19*19]
 target_weights_shape = []
 pass_pos = max_board_size * max_board_size
@@ -71,7 +52,7 @@ def sym_tensor_pos(pos,symmetry):
   return y*max_board_size+x
 
 #Returns the new idx, which could be the same as idx if this isn't a good training row
-def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, for_training, idx):
+def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, target_data, target_data_weights, for_training, idx):
   if target_data is not None and moves[move_idx][1] is None:
     # TODO for now we skip passes
     return idx
@@ -104,14 +85,31 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data,
         elif libs == 3:
           input_data[idx,pos,8] = 1.0
 
+      if stone == pla or stone == opp:
+        headloc = board.group_head[loc]
+        chain_data[idx,pos] = loc_to_tensor_pos(headloc,board,offset)+1
+      else:
+        pla_libs_after_play = board.get_liberties_after_play(pla,loc,3);
+        opp_libs_after_play = board.get_liberties_after_play(opp,loc,2);
+        if pla_libs_after_play == 1:
+          input_data[idx,pos,15] = 1.0
+        elif pla_libs_after_play == 2:
+          input_data[idx,pos,16] = 1.0
+        if opp_libs_after_play == 1:
+          input_data[idx,pos,17] = 1.0
+
   if for_training:
     prob_to_include_prev1 = 0.90
     prob_to_include_prev2 = 0.95
     prob_to_include_prev3 = 0.95
+    prob_to_include_prev4 = 0.98
+    prob_to_include_prev5 = 0.98
   else:
     prob_to_include_prev1 = 1.00
     prob_to_include_prev2 = 1.00
     prob_to_include_prev3 = 1.00
+    prob_to_include_prev4 = 1.00
+    prob_to_include_prev5 = 1.00
 
   if move_idx >= 1 and np.random.random() < prob_to_include_prev1:
     prev1_loc = moves[move_idx-1][1]
@@ -131,9 +129,21 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data,
           pos = loc_to_tensor_pos(prev3_loc,board,offset)
           input_data[idx,pos,11] = 1.0
 
+        if move_idx >= 4 and np.random.random() < prob_to_include_prev4:
+          prev4_loc = moves[move_idx-4][1]
+          if prev4_loc is not None:
+            pos = loc_to_tensor_pos(prev4_loc,board,offset)
+            input_data[idx,pos,12] = 1.0
+
+          if move_idx >= 5 and np.random.random() < prob_to_include_prev5:
+            prev5_loc = moves[move_idx-5][1]
+            if prev5_loc is not None:
+              pos = loc_to_tensor_pos(prev5_loc,board,offset)
+              input_data[idx,pos,13] = 1.0
+
   if board.simple_ko_point is not None:
     pos = loc_to_tensor_pos(board.simple_ko_point,board,offset)
-    input_data[idx,pos,12] = 1.0
+    input_data[idx,pos,14] = 1.0
 
   if target_data is not None:
     next_loc = moves[move_idx][1]
@@ -426,10 +436,34 @@ def ladder_block(name, in_layer, empty, main_channels, mid_channels):
 inputs = tf.placeholder(tf.float32, [None] + input_shape)
 symmetries = tf.placeholder(tf.bool, [3])
 
+features_active = tf.constant([
+  1.0, #0
+  1.0, #1
+  1.0, #2
+  1.0, #3
+  1.0, #4
+  1.0, #5
+  1.0, #6
+  1.0, #7
+  1.0, #8
+  1.0, #9
+  1.0, #10
+  1.0, #11
+  0.0, #12
+  0.0, #13
+  1.0, #14
+  0.0, #15
+  0.0, #16
+  0.0, #17
+])
+assert(features_active.dtype == tf.float32)
+
 cur_layer = tf.reshape(inputs, [-1] + post_input_shape)
 input_num_channels = post_input_shape[2]
 #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
 cur_layer = apply_symmetry(cur_layer,symmetries,inverse=False)
+#Disable various features
+cur_layer = cur_layer * tf.reshape(features_active,[1,1,1,-1])
 
 empty = cur_layer[:,:,:,0] - cur_layer[:,:,:,1] - cur_layer[:,:,:,2]
 

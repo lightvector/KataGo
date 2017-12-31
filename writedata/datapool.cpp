@@ -4,7 +4,7 @@
 #include "core/rand.h"
 #include "datapool.h"
 
-DataPool::DataPool(int rowWidth, int trainPoolCapacity, int testPoolCapacity, int writeBufCapacity, std::function<void(const float*,size_t)> writeTrainRow)
+DataPool::DataPool(size_t rowWidth, size_t trainPoolCapacity, size_t testPoolCapacity, size_t writeBufCapacity, std::function<void(const float*,size_t)> writeTrainRow)
   :rowWidth(rowWidth),
    numRowsAdded(0),
    trainPoolSize(0),
