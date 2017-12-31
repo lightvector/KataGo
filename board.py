@@ -182,7 +182,7 @@ class Board:
         if len(libs) >= maxLibs:
           return maxLibs
 
-      elif self.board[adj] == opp and self.num_liberties(adj) == 1):
+      elif self.board[adj] == opp and self.num_liberties(adj) == 1:
         libs.append(adj)
         if len(libs) >= maxLibs:
           return maxLibs
