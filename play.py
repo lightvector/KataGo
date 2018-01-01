@@ -35,7 +35,7 @@ policy_output = tf.nn.softmax(model.policy_output)
 
 def fetch_output(session, board, moves, fetch):
   input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
-  chain_data = np.zeros(shape=[1]+model.chain_shape, dtype=np.float32)
+  chain_data = np.zeros(shape=[1]+model.chain_shape, dtype=np.int32)
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
@@ -43,6 +43,7 @@ def fetch_output(session, board, moves, fetch):
 
   output = session.run(fetches=[fetch], feed_dict={
     model.inputs: input_data,
+    model.chains: chain_data,
     model.symmetries: [False,False,False],
     model.is_training: False
   })

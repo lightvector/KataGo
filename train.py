@@ -246,11 +246,13 @@ with tf.Session(config=tfconfig) as session:
       rows = np.array(rows)
 
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
+    row_chains = rows[:,input_len:input_len+chain_len].reshape([-1] + model.chain_shape).astype(np.int32)
     row_targets = rows[:,input_len+chain_len:input_len+chain_len+target_len]
     row_target_weights = rows[:,input_len+chain_len+target_len]
 
     return session.run(fetches, feed_dict={
       model.inputs: row_inputs,
+      model.chains: row_chains,
       targets: row_targets,
       target_weights: row_target_weights,
       model.symmetries: symmetries,

@@ -217,16 +217,53 @@ def apply_symmetry(tensor,symmetries,inverse):
   if not inverse:
     tensor = tf.reverse(tensor, rev_axes)
 
-  assert(len(tensor.shape) == 4)
-  tensor = tf.cond(
-    transp,
-    lambda: tf.transpose(tensor, [0,2,1,3]),
-    lambda: tensor)
+  assert(len(tensor.shape) == 4 or len(tensor.shape) == 3)
+  if len(tensor.shape) == 3:
+    tensor = tf.cond(
+      transp,
+      lambda: tf.transpose(tensor, [0,2,1]),
+      lambda: tensor)
+  else:
+    tensor = tf.cond(
+      transp,
+      lambda: tf.transpose(tensor, [0,2,1,3]),
+      lambda: tensor)
 
   if inverse:
     tensor = tf.reverse(tensor, rev_axes)
 
   return tensor
+
+def chain_pool(tensor,chains,empty,nonempty,mode):
+  bsize = max_board_size
+  assert(len(tensor.shape) == 4)
+  assert(len(chains.shape) == 3)
+  assert(tensor.shape[1].value == bsize)
+  assert(tensor.shape[2].value == bsize)
+  assert(chains.shape[1].value == bsize)
+  assert(chains.shape[2].value == bsize)
+  assert(mode == "sum" or mode == "max")
+  batch_size_tensor = tf.shape(tensor)[0]
+  num_channels = tensor.shape[3].value
+
+  #One greater than the max id that any chain can be indexed with
+  max_chain_idxs = bsize*bsize+1
+
+  #Since tf.unsorted_segment* doesn't operate by batches or channels, we need to manually construct
+  #a different shift to add to each batch and each channel so that they pool into disjoint buckets.
+  #Each one needs max_chain_idxs different buckets.
+  shift_dims = tf.expand_dims(batch_size_tensor,axis=0) * num_channels
+  shift = tf.cumsum(tf.fill(shift_dims,1),exclusive=True) * max_chain_idxs
+  shift = tf.reshape(shift,[-1,1,1,num_channels])
+
+  segments = tf.expand_dims(chains,3) + shift
+  if mode == "sum":
+    pools = tf.unsorted_segment_sum(tensor,segments,num_segments=batch_size_tensor*num_channels*max_chain_idxs)
+  elif mode == "max":
+    pools = tf.unsorted_segment_max(tensor,segments,num_segments=batch_size_tensor*num_channels*max_chain_idxs)
+  gathered = tf.gather(pools,indices=segments)
+  return gathered * tf.expand_dims(nonempty,axis=3) # + tensor * empty
+
 
 #Define useful components --------------------------------------------------------------------------
 
@@ -300,6 +337,39 @@ def hv_res_conv_block(name, in_layer, diam, main_channels, mid_channels):
   outputs_by_layer.append((name+"/conv2t",conv2t_layer))
 
   residual = 0.5 * (conv2s_layer + conv2t_layer)
+  out_layer = in_layer + residual
+  outputs_by_layer.append((name,out_layer))
+  return out_layer
+
+def chainpool_block(name, in_layer, chains, empty, nonempty, diam, main_channels, mid_channels):
+  trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
+  outputs_by_layer.append((name+"/trans1",trans1_layer))
+
+  weights1max = weight_variable(name+"/w1max",[diam,diam,main_channels,mid_channels],main_channels*diam*diam,mid_channels)
+  # weights1sum = weight_variable(name+"/w1sum",[diam,diam,main_channels,mid_channels],main_channels*diam*diam,mid_channels)
+  conv1max_layer = conv2d(trans1_layer, weights1max)
+  # conv1sum_layer = conv2d(trans1_layer, weights1sum)
+  outputs_by_layer.append((name+"/conv1max",conv1max_layer))
+  # outputs_by_layer.append((name+"/conv1sum",conv1sum_layer))
+
+  trans2max_layer = parametric_relu(name+"/prelu2max",(batchnorm(name+"/norm2max",conv1max_layer)))
+  # trans2sum_layer = parametric_relu(name+"/prelu2sum",(batchnorm(name+"/norm2sum",conv1sum_layer)))
+  outputs_by_layer.append((name+"/trans2max",trans2max_layer))
+  # outputs_by_layer.append((name+"/trans2sum",trans2sum_layer))
+
+  maxpooled_layer = chain_pool(trans2max_layer,chains,empty,nonempty,mode="max")
+  # sumpooled_layer = chain_pool(trans2sum_layer,chains,empty,nonempty,mode="sum")
+  outputs_by_layer.append((name+"/maxpooled",maxpooled_layer))
+  # outputs_by_layer.append((name+"/sumpooled",sumpooled_layer))
+
+  pooled_layer = maxpooled_layer
+  #pooled_layer = tf.concat([maxpooled_layer,sumpooled_layer],axis=3)
+
+  weights2 = weight_variable(name+"/w2",[1,1,mid_channels,main_channels],mid_channels,main_channels)
+  conv2_layer = conv2d(pooled_layer, weights2)
+  outputs_by_layer.append((name+"/conv2",conv2_layer))
+
+  residual = conv2_layer
   out_layer = in_layer + residual
   outputs_by_layer.append((name,out_layer))
   return out_layer
@@ -434,6 +504,7 @@ def ladder_block(name, in_layer, empty, main_channels, mid_channels):
 
 #Input layer---------------------------------------------------------------------------------
 inputs = tf.placeholder(tf.float32, [None] + input_shape)
+chains = tf.placeholder(tf.int32, [None] + chain_shape)
 symmetries = tf.placeholder(tf.bool, [3])
 
 features_active = tf.constant([
@@ -459,16 +530,23 @@ features_active = tf.constant([
 assert(features_active.dtype == tf.float32)
 
 cur_layer = tf.reshape(inputs, [-1] + post_input_shape)
+cur_chains = tf.reshape(chains, [-1] + post_chain_shape)
+
 input_num_channels = post_input_shape[2]
 #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
 cur_layer = apply_symmetry(cur_layer,symmetries,inverse=False)
+cur_chains = apply_symmetry(cur_chains,symmetries,inverse=False)
 #Disable various features
 cur_layer = cur_layer * tf.reshape(features_active,[1,1,1,-1])
 
-empty = cur_layer[:,:,:,0] - cur_layer[:,:,:,1] - cur_layer[:,:,:,2]
+nonempty = cur_layer[:,:,:,1] + cur_layer[:,:,:,2]
+empty = 1.0 - nonempty
 
 #Convolutional RELU layer 1-------------------------------------------------------------------------------------
 cur_layer = conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=192)
+
+#Chainpool Block 1----------------------------------------------------------------------------------------------
+cur_layer = chainpool_block("cpool1",cur_layer,cur_chains,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
 
 #Residual Convolutional Block 1---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv1",cur_layer,diam=3,main_channels=192,mid_channels=192)
