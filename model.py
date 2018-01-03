@@ -111,31 +111,31 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
     prob_to_include_prev4 = 1.00
     prob_to_include_prev5 = 1.00
 
-  if move_idx >= 1 and np.random.random() < prob_to_include_prev1:
+  if move_idx >= 1 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev1:
     prev1_loc = moves[move_idx-1][1]
     if prev1_loc is not None:
       pos = loc_to_tensor_pos(prev1_loc,board,offset)
       input_data[idx,pos,9] = 1.0
 
-    if move_idx >= 2 and np.random.random() < prob_to_include_prev2:
+    if move_idx >= 2 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev2:
       prev2_loc = moves[move_idx-2][1]
       if prev2_loc is not None:
         pos = loc_to_tensor_pos(prev2_loc,board,offset)
         input_data[idx,pos,10] = 1.0
 
-      if move_idx >= 3 and np.random.random() < prob_to_include_prev3:
+      if move_idx >= 3 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev3:
         prev3_loc = moves[move_idx-3][1]
         if prev3_loc is not None:
           pos = loc_to_tensor_pos(prev3_loc,board,offset)
           input_data[idx,pos,11] = 1.0
 
-        if move_idx >= 4 and np.random.random() < prob_to_include_prev4:
+        if move_idx >= 4 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev4:
           prev4_loc = moves[move_idx-4][1]
           if prev4_loc is not None:
             pos = loc_to_tensor_pos(prev4_loc,board,offset)
             input_data[idx,pos,12] = 1.0
 
-          if move_idx >= 5 and np.random.random() < prob_to_include_prev5:
+          if move_idx >= 5 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev5:
             prev5_loc = moves[move_idx-5][1]
             if prev5_loc is not None:
               pos = loc_to_tensor_pos(prev5_loc,board,offset)
@@ -449,8 +449,8 @@ features_active = tf.constant([
   1.0, #9
   1.0, #10
   1.0, #11
-  0.0, #12
-  0.0, #13
+  1.0, #12
+  1.0, #13
   1.0, #14
   0.0, #15
   0.0, #16

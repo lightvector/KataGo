@@ -120,7 +120,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
           int pos = locToTensorPos(prev3Loc,bSize,offset);
           setRow(row,pos,11, 1.0);
         }
-        if(nextMoveIdx >= 4 && moves[nextMoveIdx-4].pla == opp && includePrev4) {
+        if(nextMoveIdx >= 4 && moves[nextMoveIdx-4].pla == pla && includePrev4) {
           Loc prev4Loc = moves[nextMoveIdx-4].loc;
           if(prev4Loc != FastBoard::PASS_LOC) {
             int pos = locToTensorPos(prev4Loc,bSize,offset);
