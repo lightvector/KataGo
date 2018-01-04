@@ -523,9 +523,9 @@ features_active = tf.constant([
   1.0, #12
   1.0, #13
   1.0, #14
-  0.0, #15
-  0.0, #16
-  0.0, #17
+  1.0, #15
+  1.0, #16
+  1.0, #17
 ])
 assert(features_active.dtype == tf.float32)
 
@@ -545,11 +545,11 @@ empty = 1.0 - nonempty
 #Convolutional RELU layer 1-------------------------------------------------------------------------------------
 cur_layer = conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=192)
 
-#Chainpool Block 1----------------------------------------------------------------------------------------------
-cur_layer = chainpool_block("cpool1",cur_layer,cur_chains,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
-
 #Residual Convolutional Block 1---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv1",cur_layer,diam=3,main_channels=192,mid_channels=192)
+
+#Chainpool Block 1----------------------------------------------------------------------------------------------
+cur_layer = chainpool_block("cpool1",cur_layer,cur_chains,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
 
 #Residual Convolutional Block 2---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=192,mid_channels=192)
