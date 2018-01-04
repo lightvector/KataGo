@@ -9,8 +9,8 @@ from board import Board
 #Feature extraction functions-------------------------------------------------------------------
 
 max_board_size = 19
-input_shape = [19*19,18]
-post_input_shape = [19,19,18]
+input_shape = [19*19,23]
+post_input_shape = [19,19,23]
 chain_shape = [19*19]
 post_chain_shape = [19,19]
 target_shape = [19*19]
@@ -74,29 +74,44 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
           input_data[idx,pos,4] = 1.0
         elif libs == 3:
           input_data[idx,pos,5] = 1.0
+        elif libs == 4:
+          input_data[idx,pos,6] = 1.0
 
       elif stone == opp:
         input_data[idx,pos,2] = 1.0
         libs = board.num_liberties(loc)
         if libs == 1:
-          input_data[idx,pos,6] = 1.0
-        elif libs == 2:
           input_data[idx,pos,7] = 1.0
-        elif libs == 3:
+        elif libs == 2:
           input_data[idx,pos,8] = 1.0
+        elif libs == 3:
+          input_data[idx,pos,9] = 1.0
+        elif libs == 4:
+          input_data[idx,pos,10] = 1.0
 
       if stone == pla or stone == opp:
         headloc = board.group_head[loc]
         chain_data[idx,pos] = loc_to_tensor_pos(headloc,board,offset)+1
       else:
-        pla_libs_after_play = board.get_liberties_after_play(pla,loc,3);
-        opp_libs_after_play = board.get_liberties_after_play(opp,loc,2);
+        pla_libs_after_play = board.get_liberties_after_play(pla,loc,4);
+        opp_libs_after_play = board.get_liberties_after_play(opp,loc,4);
         if pla_libs_after_play == 1:
-          input_data[idx,pos,15] = 1.0
+          input_data[idx,pos,11] = 1.0
         elif pla_libs_after_play == 2:
-          input_data[idx,pos,16] = 1.0
+          input_data[idx,pos,12] = 1.0
+        elif pla_libs_after_play == 3:
+          input_data[idx,pos,13] = 1.0
+
         if opp_libs_after_play == 1:
-          input_data[idx,pos,17] = 1.0
+          input_data[idx,pos,14] = 1.0
+        elif opp_libs_after_play == 2:
+          input_data[idx,pos,15] = 1.0
+        elif opp_libs_after_play == 3:
+          input_data[idx,pos,16] = 1.0
+
+  if board.simple_ko_point is not None:
+    pos = loc_to_tensor_pos(board.simple_ko_point,board,offset)
+    input_data[idx,pos,17] = 1.0
 
   if for_training:
     prob_to_include_prev1 = 0.90
@@ -115,35 +130,31 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
     prev1_loc = moves[move_idx-1][1]
     if prev1_loc is not None:
       pos = loc_to_tensor_pos(prev1_loc,board,offset)
-      input_data[idx,pos,9] = 1.0
+      input_data[idx,pos,18] = 1.0
 
     if move_idx >= 2 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev2:
       prev2_loc = moves[move_idx-2][1]
       if prev2_loc is not None:
         pos = loc_to_tensor_pos(prev2_loc,board,offset)
-        input_data[idx,pos,10] = 1.0
+        input_data[idx,pos,19] = 1.0
 
       if move_idx >= 3 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev3:
         prev3_loc = moves[move_idx-3][1]
         if prev3_loc is not None:
           pos = loc_to_tensor_pos(prev3_loc,board,offset)
-          input_data[idx,pos,11] = 1.0
+          input_data[idx,pos,20] = 1.0
 
         if move_idx >= 4 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev4:
           prev4_loc = moves[move_idx-4][1]
           if prev4_loc is not None:
             pos = loc_to_tensor_pos(prev4_loc,board,offset)
-            input_data[idx,pos,12] = 1.0
+            input_data[idx,pos,21] = 1.0
 
           if move_idx >= 5 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev5:
             prev5_loc = moves[move_idx-5][1]
             if prev5_loc is not None:
               pos = loc_to_tensor_pos(prev5_loc,board,offset)
-              input_data[idx,pos,13] = 1.0
-
-  if board.simple_ko_point is not None:
-    pos = loc_to_tensor_pos(board.simple_ko_point,board,offset)
-    input_data[idx,pos,14] = 1.0
+              input_data[idx,pos,22] = 1.0
 
   if target_data is not None:
     next_loc = moves[move_idx][1]
@@ -443,18 +454,23 @@ features_active = tf.constant([
   1.0, #3
   1.0, #4
   1.0, #5
-  1.0, #6
+  0.0, #6
   1.0, #7
   1.0, #8
   1.0, #9
-  1.0, #10
+  0.0, #10
   1.0, #11
   1.0, #12
-  1.0, #13
+  0.0, #13
   1.0, #14
   0.0, #15
   0.0, #16
-  0.0, #17
+  1.0, #17
+  1.0, #18
+  1.0, #19
+  1.0, #20
+  1.0, #21
+  1.0, #22
 ])
 assert(features_active.dtype == tf.float32)
 
