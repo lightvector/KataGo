@@ -519,7 +519,7 @@ p1_intermediate_conv = conv_only_block("p1/intermediate_conv",p0_layer,diam=3,in
 
 #But in parallel convolve to compute some features about the global state of the board
 #Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
-g1_num_channels = 16
+g1_num_channels = 32
 g1_layer = conv_block("g1",p0_layer,diam=3,in_channels=192,out_channels=g1_num_channels)
 
 #Fold g1 down to single values for the board.
@@ -551,8 +551,8 @@ p1_layer = tf.nn.crelu(batchnorm("p1/norm",p1_intermediate_sum))
 outputs_by_layer.append(("p1",p1_layer))
 
 #Finally, apply linear convolution to produce final output
-#96 in_channels due to crelu (48 x 2)
-p2_layer = conv_only_block("p2",p1_layer,diam=5,in_channels=96,out_channels=1)
+#2x in_channels due to crelu
+p2_layer = conv_only_block("p2",p1_layer,diam=5,in_channels=p1_num_channels*2,out_channels=1)
 
 #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
 policy_output = apply_symmetry(p2_layer,symmetries,inverse=True)
