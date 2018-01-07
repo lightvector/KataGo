@@ -317,7 +317,7 @@ def hv_res_conv_block(name, in_layer, diam, main_channels, mid_channels):
 
 
 #Special block for detecting ladders, with mid_channels channels per each of 4 diagonal scans.
-def ladder_block(name, in_layer, empty, main_channels, mid_channels):
+def ladder_block(name, in_layer, nonempty, main_channels, mid_channels):
   # Converts [[123][456][789]] to [[12300][04560][00789]]
   def skew_right(tensor):
     n = max_board_size
@@ -385,7 +385,7 @@ def ladder_block(name, in_layer, empty, main_channels, mid_channels):
   outputs_by_layer.append((name+"/convpreb",convpreb_layer))
 
   transprea_layer = parametric_relu(name+"/preluprea",(batchnorm(name+"/normprea",convprea_layer)))
-  transpreb_layer = tf.nn.sigmoid(batchnorm(name+"/normpreb",convpreb_layer) - tf.expand_dims(empty,axis=3) * 2) * 1.5 + 0.0001
+  transpreb_layer = tf.nn.sigmoid(batchnorm(name+"/normpreb",convpreb_layer)) * tf.expand_dims(nonempty,axis=3) * 1.5 + 0.0001
   outputs_by_layer.append((name+"/transprea",transprea_layer))
   outputs_by_layer.append((name+"/transpreb",transpreb_layer))
 
@@ -481,7 +481,7 @@ cur_layer = apply_symmetry(cur_layer,symmetries,inverse=False)
 #Disable various features
 cur_layer = cur_layer * tf.reshape(features_active,[1,1,1,-1])
 
-empty = cur_layer[:,:,:,0] - cur_layer[:,:,:,1] - cur_layer[:,:,:,2]
+nonempty = cur_layer[:,:,:,1] + cur_layer[:,:,:,2]
 
 #Convolutional RELU layer 1-------------------------------------------------------------------------------------
 cur_layer = conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=192)
@@ -493,7 +493,7 @@ cur_layer = res_conv_block("rconv1",cur_layer,diam=3,main_channels=192,mid_chann
 cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=192,mid_channels=192)
 
 #Ladder Block 1-------------------------------------------------------------------------------------------------
-cur_layer = ladder_block("ladder1",cur_layer,empty,main_channels=192,mid_channels=6)
+cur_layer = ladder_block("ladder1",cur_layer,nonempty,main_channels=192,mid_channels=6)
 
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=192,mid_channels=192)
