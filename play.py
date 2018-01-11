@@ -65,6 +65,9 @@ def genmove(session, board, moves):
   moves_and_probs = get_moves_and_probs(session, board, moves)
   moves_and_probs = sorted(moves_and_probs, key=lambda moveandprob: moveandprob[1], reverse=True)
 
+  if len(moves_and_probs) <= 0:
+    return None #pass
+
   #Generate a random number biased small and then find the appropriate move to make
   #Interpolate from moving uniformly to choosing from the triangular distribution
   alpha = 1
