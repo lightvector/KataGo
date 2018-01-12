@@ -14,7 +14,7 @@ using namespace H5;
 static const int maxBoardSize = 19;
 static const int numFeatures = 23;
 static const int inputLen = maxBoardSize * maxBoardSize * numFeatures;
-static const int chainLen = maxBoardSize * maxBoardSize;
+static const int chainLen = maxBoardSize * maxBoardSize + 1;
 static const int targetLen = maxBoardSize * maxBoardSize;
 static const int targetWeightsLen = 1;
 static const int totalRowLen = inputLen + chainLen + targetLen + targetWeightsLen;
@@ -46,6 +46,11 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   Player opp = getEnemy(pla);
   int bSize = board.x_size;
   int offset = (maxBoardSize - bSize) / 2;
+
+  int nextChainLabel = 1;
+  int chainLabelsByHeadLoc[FastBoard::MAX_ARR_SIZE];
+  for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
+    chainLabelsByHeadLoc[i] = 0;
 
   for(int y = 0; y<bSize; y++) {
     for(int x = 0; x<bSize; x++) {
@@ -79,7 +84,10 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
       if(stone == pla || stone == opp) {
         //Fill chain feature
         Loc headLoc = board.chain_head[loc];
-        row[inputLen + pos] = locToTensorPos(headLoc,bSize,offset)+1;
+        if(chainLabelsByHeadLoc[headLoc] == 0)
+          chainLabelsByHeadLoc[headLoc] = (nextChainLabel++);
+
+        row[inputLen + pos] = chainLabelsByHeadLoc[headLoc];
       }
       else {
         //Feature 11,12,13 - 1, 2, 3 liberties after own play.
@@ -96,6 +104,9 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
       }
     }
   }
+
+  //Last chain entry is the number of chain segments
+  row[inputLen + maxBoardSize * maxBoardSize] = nextChainLabel;
 
   //Feature 17 - simple ko location
   if(board.ko_loc != FastBoard::NULL_LOC) {

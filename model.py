@@ -52,13 +52,17 @@ def sym_tensor_pos(pos,symmetry):
   return y*max_board_size+x
 
 #Returns the new idx, which could be the same as idx if this isn't a good training row
-def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, target_data, target_data_weights, for_training, idx):
+def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, num_chain_segments, target_data, target_data_weights, for_training, idx):
   if target_data is not None and moves[move_idx][1] is None:
     # TODO for now we skip passes
     return idx
 
   bsize = board.size
   offset = (max_board_size - bsize) // 2
+
+  nextChainLabel = 1
+  chainLabelsByHeadLoc = {}
+
   for y in range(bsize):
     for x in range(bsize):
       pos = xy_to_tensor_pos(x,y,offset)
@@ -91,7 +95,11 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
 
       if stone == pla or stone == opp:
         headloc = board.group_head[loc]
-        chain_data[idx,pos] = loc_to_tensor_pos(headloc,board,offset)+1
+        if headloc not in chainLabelsByHeadLoc:
+          chainLabelsByHeadLoc[headloc] = nextChainLabel
+          nextChainLabel += 1
+        chain_data[idx,pos] = chainLabelsByHeadLoc[headloc]
+
       else:
         pla_libs_after_play = board.get_liberties_after_play(pla,loc,4);
         opp_libs_after_play = board.get_liberties_after_play(opp,loc,4);
@@ -108,6 +116,8 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
           input_data[idx,pos,15] = 1.0
         elif opp_libs_after_play == 3:
           input_data[idx,pos,16] = 1.0
+
+  num_chain_segments[idx] = nextChainLabel
 
   if board.simple_ko_point is not None:
     pos = loc_to_tensor_pos(board.simple_ko_point,board,offset)
@@ -273,6 +283,9 @@ def chain_pool(tensor,chains,empty,nonempty,mode):
     pools = tf.unsorted_segment_sum(tensor,segments,num_segments=batch_size_tensor*num_channels*max_chain_idxs)
   elif mode == "max":
     pools = tf.unsorted_segment_max(tensor,segments,num_segments=batch_size_tensor*num_channels*max_chain_idxs)
+  else:
+    assert False
+
   gathered = tf.gather(pools,indices=segments)
   return gathered * tf.expand_dims(nonempty,axis=3) # + tensor * empty
 
@@ -381,7 +394,7 @@ def chainpool_block(name, in_layer, chains, empty, nonempty, diam, main_channels
   pooled_layer = maxpooled_layer
   #pooled_layer = tf.concat([maxpooled_layer,sumpooled_layer],axis=3)
 
-  weights2 = weight_variable(name+"/w2",[1,1,mid_channels,main_channels],mid_channels,main_channels)
+  weights2 = weight_variable(name+"/w2",[diam,diam,mid_channels,main_channels],mid_channels,main_channels)
   conv2_layer = conv2d(pooled_layer, weights2)
   outputs_by_layer.append((name+"/conv2",conv2_layer))
 
@@ -581,11 +594,11 @@ cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=192,mid_chann
 #Ladder Block 1-------------------------------------------------------------------------------------------------
 cur_layer = ladder_block("ladder1",cur_layer,near_nonempty,main_channels=192,mid_channels=6)
 
-#Residual Convolutional Block 3---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=192,mid_channels=192)
-
 #Chainpool Block 1----------------------------------------------------------------------------------------------
 cur_layer = chainpool_block("cpool1",cur_layer,cur_chains,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
+
+#Residual Convolutional Block 3---------------------------------------------------------------------------------
+cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=192,mid_channels=192)
 
 #HV Convolutional Block 1---------------------------------------------------------------------------------
 cur_layer = hv_res_conv_block("hvconv1",cur_layer,diam=9,main_channels=192,mid_channels=64)

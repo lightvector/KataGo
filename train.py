@@ -239,16 +239,46 @@ with tf.Session(config=tfconfig) as session:
     assert(len(model.target_shape) == 1)
     assert(len(model.target_weights_shape) == 0)
     input_len = model.input_shape[0] * model.input_shape[1]
-    chain_len = model.chain_shape[0]
+    chain_len = model.chain_shape[0] + 1
     target_len = model.target_shape[0]
 
     if not isinstance(rows, np.ndarray):
       rows = np.array(rows)
 
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
-    row_chains = rows[:,input_len:input_len+chain_len].reshape([-1] + model.chain_shape).astype(np.int32)
+    row_chains = rows[:,input_len:input_len+chain_len-1].reshape([-1] + model.chain_shape).astype(np.int32)
+    row_num_chain_segments = rows[:,input_len+chain_len-1].astype(np.int32)
     row_targets = rows[:,input_len+chain_len:input_len+chain_len+target_len]
     row_target_weights = rows[:,input_len+chain_len+target_len]
+
+    #DEBUG-----------------------------
+    # print(row_chains[0].reshape([19,19]))
+    # print(row_num_chain_segments[0])
+
+    # for bidx in range(len(rows)):
+    #   print("Comparing " + str(bidx))
+    #   board = Board(model.max_board_size)
+    #   for y in range(board.size):
+    #     for x in range(board.size):
+    #       if row_inputs[bidx,y*board.size+x,1] == 1.0:
+    #         board.set_stone(Board.BLACK,board.loc(x,y))
+    #       elif row_inputs[bidx,y*board.size+x,2] == 1.0:
+    #         board.set_stone(Board.WHITE,board.loc(x,y))
+
+    #   debug_input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
+    #   debug_chain_data = np.zeros(shape=[1]+model.chain_shape, dtype=np.int32)
+    #   debug_num_chain_segments = np.zeros(shape=[1])
+    #   model.fill_row_features(board,pla=Board.BLACK,opp=Board.WHITE,moves=[],move_idx=0,
+    #                           input_data=debug_input_data,chain_data=debug_chain_data,num_chain_segments=debug_num_chain_segments,
+    #                           target_data=None,target_data_weights=None,for_training=False,idx=0)
+
+    #   for y in range(board.size):
+    #     for x in range(board.size):
+    #       for fidx in range(17):
+    #         assert(debug_input_data[0,y*board.size+x,fidx] == row_inputs[bidx,y*board.size+x,fidx])
+    #       assert(debug_chain_data[0,y*board.size+x] == row_chains[bidx,y*board.size+x])
+    #   assert(debug_num_chain_segments[0] == row_num_chain_segments[bidx])
+    #---------------
 
     return session.run(fetches, feed_dict={
       model.inputs: row_inputs,
