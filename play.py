@@ -176,7 +176,6 @@ def run_gtp(session):
     'komi',
     'play',
     'genmove',
-    'final_score',
     'quit',
     'name',
     'version',
@@ -268,8 +267,8 @@ def run_gtp(session):
         moves.append((board.pla,loc))
         board.do_pass()
         ret = 'pass'
-    elif command[0] == "final_score":
-      ret = '0'
+    # elif command[0] == "final_score":
+    #   ret = '0'
     elif command[0] == "name":
       ret = 'simplenn'
     elif command[0] == "version":
