@@ -193,7 +193,7 @@ class Board:
 
     def wouldBeEmpty(possibleLib):
       if self.board[possibleLib] == Board.EMPTY:
-        return true
+        return True
       elif self.board[possibleLib] == opp:
         return (self.group_head[possibleLib] in capturedGroupHeads)
       return False
