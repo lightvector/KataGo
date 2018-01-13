@@ -283,6 +283,7 @@ with tf.Session(config=tfconfig) as session:
     return session.run(fetches, feed_dict={
       model.inputs: row_inputs,
       model.chains: row_chains,
+      model.num_chain_segments: row_num_chain_segments,
       targets: row_targets,
       target_weights: row_target_weights,
       model.symmetries: symmetries,

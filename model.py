@@ -256,33 +256,31 @@ def apply_symmetry(tensor,symmetries,inverse):
   return tensor
 
 
-def chain_pool(tensor,chains,empty,nonempty,mode):
+def chain_pool(tensor,chains,num_chain_segments,empty,nonempty,mode):
   bsize = max_board_size
   assert(len(tensor.shape) == 4)
   assert(len(chains.shape) == 3)
+  assert(len(num_chain_segments.shape) == 1)
   assert(tensor.shape[1].value == bsize)
   assert(tensor.shape[2].value == bsize)
   assert(chains.shape[1].value == bsize)
   assert(chains.shape[2].value == bsize)
   assert(mode == "sum" or mode == "max")
-  batch_size_tensor = tf.shape(tensor)[0]
   num_channels = tensor.shape[3].value
-
-  #One greater than the max id that any chain can be indexed with
-  max_chain_idxs = bsize*bsize+1
 
   #Since tf.unsorted_segment* doesn't operate by batches or channels, we need to manually construct
   #a different shift to add to each batch and each channel so that they pool into disjoint buckets.
   #Each one needs max_chain_idxs different buckets.
-  shift_dims = tf.expand_dims(batch_size_tensor,axis=0) * num_channels
-  shift = tf.cumsum(tf.fill(shift_dims,1),exclusive=True) * max_chain_idxs
+  num_segments_by_batch_and_channel = tf.fill([1,num_channels],1) * tf.expand_dims(num_chain_segments,axis=1)
+  shift = tf.cumsum(tf.reshape(num_segments_by_batch_and_channel,[-1]),exclusive=True)
+  num_segments = tf.reduce_sum(num_chain_segments) * num_channels
   shift = tf.reshape(shift,[-1,1,1,num_channels])
 
   segments = tf.expand_dims(chains,3) + shift
   if mode == "sum":
-    pools = tf.unsorted_segment_sum(tensor,segments,num_segments=batch_size_tensor*num_channels*max_chain_idxs)
+    pools = tf.unsorted_segment_sum(tensor,segments,num_segments=num_segments)
   elif mode == "max":
-    pools = tf.unsorted_segment_max(tensor,segments,num_segments=batch_size_tensor*num_channels*max_chain_idxs)
+    pools = tf.unsorted_segment_max(tensor,segments,num_segments=num_segments)
   else:
     assert False
 
@@ -370,7 +368,7 @@ def hv_res_conv_block(name, in_layer, diam, main_channels, mid_channels):
   outputs_by_layer.append((name,out_layer))
   return out_layer
 
-def chainpool_block(name, in_layer, chains, empty, nonempty, diam, main_channels, mid_channels):
+def chainpool_block(name, in_layer, chains, num_chain_segments, empty, nonempty, diam, main_channels, mid_channels):
   trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
   outputs_by_layer.append((name+"/trans1",trans1_layer))
 
@@ -386,7 +384,7 @@ def chainpool_block(name, in_layer, chains, empty, nonempty, diam, main_channels
   outputs_by_layer.append((name+"/trans2max",trans2max_layer))
   # outputs_by_layer.append((name+"/trans2sum",trans2sum_layer))
 
-  maxpooled_layer = chain_pool(trans2max_layer,chains,empty,nonempty,mode="max")
+  maxpooled_layer = chain_pool(trans2max_layer,chains,num_chain_segments,empty,nonempty,mode="max")
   # sumpooled_layer = chain_pool(trans2sum_layer,chains,empty,nonempty,mode="sum")
   outputs_by_layer.append((name+"/maxpooled",maxpooled_layer))
   # outputs_by_layer.append((name+"/sumpooled",sumpooled_layer))
@@ -539,6 +537,7 @@ def ladder_block(name, in_layer, near_nonempty, main_channels, mid_channels):
 #Input layer---------------------------------------------------------------------------------
 inputs = tf.placeholder(tf.float32, [None] + input_shape)
 chains = tf.placeholder(tf.int32, [None] + chain_shape)
+num_chain_segments = tf.placeholder(tf.int32, [None])
 symmetries = tf.placeholder(tf.bool, [3])
 
 features_active = tf.constant([
@@ -595,7 +594,7 @@ cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=192,mid_chann
 cur_layer = ladder_block("ladder1",cur_layer,near_nonempty,main_channels=192,mid_channels=6)
 
 #Chainpool Block 1----------------------------------------------------------------------------------------------
-cur_layer = chainpool_block("cpool1",cur_layer,cur_chains,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
+cur_layer = chainpool_block("cpool1",cur_layer,cur_chains,num_chain_segments,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
 
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=192,mid_channels=192)

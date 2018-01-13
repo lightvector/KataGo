@@ -45,6 +45,7 @@ def fetch_output(session, board, moves, fetch):
   output = session.run(fetches=[fetch], feed_dict={
     model.inputs: input_data,
     model.chains: chain_data,
+    model.num_chain_segments: num_chain_segments,
     model.symmetries: [False,False,False],
     model.is_training: False
   })
