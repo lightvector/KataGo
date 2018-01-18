@@ -14,6 +14,7 @@ post_input_shape = [19,19,23]
 chain_shape = [19*19]
 post_chain_shape = [19,19]
 target_shape = [19*19]
+ladder_target_shape = [19*19]
 target_weights_shape = []
 pass_pos = max_board_size * max_board_size
 
@@ -608,11 +609,12 @@ cur_layer = res_conv_block("rconv4",cur_layer,diam=3,main_channels=192,mid_chann
 #Postprocessing residual trunk----------------------------------------------------------------------------------
 
 #Normalize and relu just before the policy head
-cur_layer = parametric_relu("trunk/prelu",(batchnorm("trunk/norm",cur_layer)))
-outputs_by_layer.append(("trunk",cur_layer))
+trunk = parametric_relu("trunk/prelu",(batchnorm("trunk/norm",cur_layer)))
+outputs_by_layer.append(("trunk",trunk))
+
 
 #Policy head---------------------------------------------------------------------------------
-p0_layer = cur_layer
+p0_layer = trunk
 
 #This is the main path for policy information
 p1_num_channels = 48
@@ -665,3 +667,12 @@ policy_output = tf.reshape(policy_output, [-1] + target_shape)
 #outputs_by_layer.append(("pass",pass_output))
 #policy_output = tf.concat([policy_output,pass_output],axis=1)
 
+#Ladder head---------------------------------------------------------------------------------
+l0_layer = trunk
+
+l1_num_channels = 24
+l1_layer = tf.nn.crelu(batchnorm("l1/norm",conv_only_block("l1/conv",l0_layer,diam=3,in_channels=192,out_channels=l1_num_channels)))
+l2_layer = conv_only_block("l2",l1_layer,diam=1,in_channels=l1_num_channels*2,out_channels=1)
+
+ladder_output = apply_symmetry(l2_layer,symmetries,inverse=True)
+ladder_output = tf.reshape(ladder_output, [-1] + ladder_target_shape)
