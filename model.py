@@ -595,7 +595,7 @@ cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=192,mid_chann
 cur_layer = ladder_block("ladder1",cur_layer,near_nonempty,main_channels=192,mid_channels=6)
 
 #Chainpool Block 1----------------------------------------------------------------------------------------------
-cur_layer = chainpool_block("cpool1",cur_layer,cur_chains,num_chain_segments,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
+# cur_layer = chainpool_block("cpool1",cur_layer,cur_chains,num_chain_segments,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
 
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=192,mid_channels=192)
