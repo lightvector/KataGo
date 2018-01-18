@@ -13,11 +13,21 @@ using namespace H5;
 //Data and feature row parameters
 static const int maxBoardSize = 19;
 static const int numFeatures = 23;
+
+//Different segments of the data row
+static const int inputStart = 0;
 static const int inputLen = maxBoardSize * maxBoardSize * numFeatures;
+
+static const int chainStart = inputStart + inputLen;
 static const int chainLen = maxBoardSize * maxBoardSize + 1;
+
+static const int targetStart = chainStart + chainLen;
 static const int targetLen = maxBoardSize * maxBoardSize;
+
+static const int targetWeightsStart = targetStart + targetLen;
 static const int targetWeightsLen = 1;
-static const int totalRowLen = inputLen + chainLen + targetLen + targetWeightsLen;
+
+static const int totalRowLen = targetWeightsStart + targetWeightsLen;
 
 //HDF5 parameters
 static const int chunkHeight = 2000;
@@ -87,7 +97,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
         if(chainLabelsByHeadLoc[headLoc] == 0)
           chainLabelsByHeadLoc[headLoc] = (nextChainLabel++);
 
-        row[inputLen + pos] = chainLabelsByHeadLoc[headLoc];
+        row[chainStart + pos] = chainLabelsByHeadLoc[headLoc];
       }
       else {
         //Feature 11,12,13 - 1, 2, 3 liberties after own play.
@@ -106,7 +116,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   }
 
   //Last chain entry is the number of chain segments
-  row[inputLen + maxBoardSize * maxBoardSize] = nextChainLabel;
+  row[chainStart + maxBoardSize * maxBoardSize] = nextChainLabel;
 
   //Feature 17 - simple ko location
   if(board.ko_loc != FastBoard::NULL_LOC) {
@@ -163,7 +173,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
     Loc nextMoveLoc = moves[nextMoveIdx].loc;
     assert(nextMoveLoc != FastBoard::PASS_LOC);
     int nextMovePos = locToTensorPos(nextMoveLoc,bSize,offset);
-    row[inputLen + chainLen + nextMovePos] = 1.0;
+    row[targetStart + nextMovePos] = 1.0;
   }
   else if(target == TARGET_LADDER_CAPTURE) {
     Loc chainHeadsSolved[bSize*bSize];
@@ -185,7 +195,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
             for(int i = 0; i<numChainHeadsSolved; i++) {
               if(chainHeadsSolved[i] == head) {
                 alreadySolved = true;
-                row[inputLen + chainLen + pos] = chainHeadsSolvedValue[i];
+                row[targetStart + pos] = chainHeadsSolvedValue[i];
                 break;
               }
             }
@@ -207,7 +217,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
               chainHeadsSolved[numChainHeadsSolved] = head;
               chainHeadsSolvedValue[numChainHeadsSolved] = value;
               numChainHeadsSolved++;
-              row[inputLen + chainLen + pos] = value;
+              row[targetStart + pos] = value;
             }
           }
         }
@@ -216,7 +226,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   }
 
   //Weight of the row, currently always 1.0
-  row[inputLen + chainLen + targetLen] = 1.0;
+  row[targetWeightsStart] = 1.0;
 }
 
 //Returns number of rows processed
