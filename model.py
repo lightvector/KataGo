@@ -184,7 +184,14 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
 # Build model -------------------------------------------------------------
 
 reg_variables = []
+lr_adjusted_variables = []
 is_training = tf.placeholder(tf.bool)
+
+def ensure_variable_exists(name):
+  for v in tf.trainable_variables():
+    if v.name == name:
+      return name
+  raise Exception("Could not find variable " + name)
 
 def batchnorm(name,tensor):
   return tf.layers.batch_normalization(
@@ -673,6 +680,10 @@ l0_layer = trunk
 l1_num_channels = 24
 l1_layer = tf.nn.crelu(batchnorm("l1/norm",conv_only_block("l1/conv",l0_layer,diam=3,in_channels=192,out_channels=l1_num_channels)))
 l2_layer = conv_only_block("l2",l1_layer,diam=1,in_channels=l1_num_channels*2,out_channels=1)
+
+lr_adjusted_variables.append((ensure_variable_exists("l1/norm/beta:0"),0.10))
+lr_adjusted_variables.append((ensure_variable_exists("l1/norm/gamma:0"),0.10))
+lr_adjusted_variables.append((ensure_variable_exists("l2/w:0"),0.10))
 
 ladder_output = apply_symmetry(l2_layer,symmetries,inverse=True)
 ladder_output = tf.reshape(ladder_output, [-1] + ladder_target_shape)
