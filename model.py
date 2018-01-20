@@ -679,7 +679,9 @@ l0_layer = trunk
 
 l1_num_channels = 24
 l1_layer = tf.nn.crelu(batchnorm("l1/norm",conv_only_block("l1/conv",l0_layer,diam=3,in_channels=192,out_channels=l1_num_channels)))
+outputs_by_layer.append(("l1",l1_layer))
 l2_layer = conv_only_block("l2",l1_layer,diam=1,in_channels=l1_num_channels*2,out_channels=1)
+outputs_by_layer.append(("l2",l2_layer))
 
 lr_adjusted_variables.append((ensure_variable_exists("l1/norm/beta:0"),0.10))
 lr_adjusted_variables.append((ensure_variable_exists("l1/norm/gamma:0"),0.10))

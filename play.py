@@ -103,24 +103,53 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
   elif normalization_div is not None:
     divisor = normalization_div
 
+  #Caps value at 1.0, using an asymptotic curve
+  def loose_cap(x):
+    def transformed_softplus(x):
+      return -math.log(math.exp(-(x-1.0)*8.0)+1.0)/8.0+1.0
+    base = transformed_softplus(0.0)
+    return (transformed_softplus(x) - base) / (1.0 - base)
+
+  #Softly curves a value so that it ramps up faster than linear in that range
+  def soft_curve(x,x0,x1):
+    p = (x-x0)/(x1-x0)
+    def curve(p):
+      return math.sqrt(p+0.16)-0.4
+    p = curve(p) / curve(1.0)
+    return x0 + p * (x1-x0)
+
   for (loc,value) in locs_and_values:
     if loc is not None:
-      hueshift = 0.0
-      huemult = 1.0
       value = value / divisor
       if value < 0:
         value = -value
-        huemult = 0.8
-        hueshift = 0.5
-
-      if value <= 0.02:
-        (r,g,b) = colorsys.hls_to_rgb(hueshift + huemult*0.0, 0.5, max(value,0.0) / 0.02)
-      elif value <= 0.80:
-        hue = (value-0.02)/(0.80-0.02) * 0.45
-        (r,g,b) = colorsys.hsv_to_rgb(hueshift + huemult*hue, 1.0, 1.0)
+        huestart = 0.50
+        huestop = 0.86
       else:
-        lightness = 0.5 + 0.25*(min(value,1.0)-0.80)/(1.00-0.80)
-        (r,g,b) = colorsys.hls_to_rgb(hueshift + huemult*0.45, lightness, 1.0)
+        huestart = -0.02
+        huestop = 0.45
+
+      value = loose_cap(value)
+
+      def lerp(p,x0,x1,y0,y1):
+        return y0 + (y1-y0) * (p-x0)/(x1-x0)
+
+      if value <= 0.04:
+        hue = huestart
+        lightness = 0.5
+        saturation = value / 0.04
+        (r,g,b) = colorsys.hls_to_rgb((hue+1)%1, lightness, saturation)
+      elif value <= 0.70:
+        # value = soft_curve(value,0.04,0.70)
+        hue = lerp(value,0.04,0.70,huestart,huestop)
+        val = 1.0
+        saturation = 1.0
+        (r,g,b) = colorsys.hsv_to_rgb((hue+1)%1, val, saturation)
+      else:
+        hue = huestop
+        lightness = lerp(value,0.70,1.00,0.5,0.95)
+        saturation = 1.0
+        (r,g,b) = colorsys.hls_to_rgb((hue+1)%1, lightness, saturation)
 
       r = ("%02x" % int(r*255))
       g = ("%02x" % int(g*255))
@@ -200,8 +229,7 @@ def run_gtp(session):
 
   layer_command_lookup = dict()
 
-  def add_board_size_visualizations(layer_name, normalization_div):
-    layer = layerdict[layer_name]
+  def add_extra_board_size_visualizations(layer_name, layer, normalization_div):
     assert(layer.shape[1].value == board_size)
     assert(layer.shape[2].value == board_size)
     num_channels = layer.shape[3].value
@@ -212,17 +240,47 @@ def run_gtp(session):
       known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
       layer_command_lookup[command_name] = (layer,i,normalization_div)
 
-  add_board_size_visualizations("conv1",normalization_div=100)
-  add_board_size_visualizations("rconv1",normalization_div=300)
-  add_board_size_visualizations("rconv2",normalization_div=400)
-  add_board_size_visualizations("ladder1",normalization_div=100)
-  add_board_size_visualizations("ladder1/transprea",normalization_div=100)
-  add_board_size_visualizations("ladder1/transpreb",normalization_div=1)
-  add_board_size_visualizations("rconv3",normalization_div=600)
-  add_board_size_visualizations("hvconv1",normalization_div=600)
-  add_board_size_visualizations("rconv4",normalization_div=800)
-  add_board_size_visualizations("g1",normalization_div=65)
-  add_board_size_visualizations("p1",normalization_div=0.35)
+  def add_board_size_visualizations(layer_name, normalization_div):
+    layer = layerdict[layer_name]
+    add_extra_board_size_visualizations(layer_name, layer, normalization_div)
+
+  add_board_size_visualizations("conv1",normalization_div=5)
+  add_board_size_visualizations("rconv1",normalization_div=14)
+  add_board_size_visualizations("rconv2",normalization_div=20)
+  add_board_size_visualizations("ladder1",normalization_div=20)
+  add_board_size_visualizations("ladder1/transprea",normalization_div=5)
+  add_board_size_visualizations("ladder1/transpreb",normalization_div=1.5)
+  add_board_size_visualizations("rconv3",normalization_div=25)
+  add_board_size_visualizations("hvconv1",normalization_div=30)
+  add_board_size_visualizations("rconv4",normalization_div=35)
+  add_board_size_visualizations("g1",normalization_div=8)
+  add_board_size_visualizations("p1",normalization_div=4)
+  add_board_size_visualizations("l1",normalization_div=4)
+  add_extra_board_size_visualizations("sigmoid(l2)",tf.sigmoid(layerdict["l2"]),normalization_div=None)
+
+  linear = tf.cumsum(tf.ones([19],dtype=tf.float32),axis=0,exclusive=True) / 18.0
+  color_calibration = tf.stack(axis=0,values=[
+    linear,
+    linear*0.5,
+    linear*0.2,
+    linear*0.1,
+    linear*0.05,
+    linear*0.02,
+    linear*0.01,
+    -linear,
+    -linear*0.5,
+    -linear*0.2,
+    -linear*0.1,
+    -linear*0.05,
+    -linear*0.02,
+    -linear*0.01,
+    linear*2-1,
+    tf.zeros([19],dtype=tf.float32),
+    tf.zeros([19],dtype=tf.float32),
+    tf.zeros([19],dtype=tf.float32),
+    tf.zeros([19],dtype=tf.float32),
+  ])
+  add_extra_board_size_visualizations("colorcalibration", tf.reshape(color_calibration,[1,19,19,1]),normalization_div=None)
 
   while True:
     try:
