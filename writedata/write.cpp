@@ -318,6 +318,28 @@ int main(int argc, const char* argv[]) {
   assert(sizeof(size_t) == 8);
   FastBoard::initHash();
 
+  // FastBoard testBoard(19);
+  // testBoard.setStone(Location::getLoc(3,2,19),P_WHITE);
+  // testBoard.setStone(Location::getLoc(3,3,19),P_WHITE);
+  // testBoard.setStone(Location::getLoc(4,3,19),P_WHITE);
+  // testBoard.setStone(Location::getLoc(4,5,19),P_WHITE);
+  // testBoard.setStone(Location::getLoc(5,2,19),P_WHITE);
+  // testBoard.setStone(Location::getLoc(6,2,19),P_WHITE);
+  // testBoard.setStone(Location::getLoc(7,3,19),P_WHITE);
+  // testBoard.setStone(Location::getLoc(4,1,19),P_BLACK);
+  // testBoard.setStone(Location::getLoc(4,2,19),P_BLACK);
+  // testBoard.setStone(Location::getLoc(5,3,19),P_BLACK);
+  // testBoard.setStone(Location::getLoc(6,3,19),P_BLACK);
+  // cout << testBoard << endl;
+  // FastBoard testCopy(testBoard);
+  // vector<Loc> buf;
+  // cout << testCopy << endl;
+  //cout << testCopy.searchIsLadderCaptured(Location::getLoc(5,3,19),true,buf) << endl;
+  // cout << testCopy.searchIsLadderCaptured(Location::getLoc(5,3,19),false,buf) << endl;
+  //cout << testCopy.searchIsLadderCaptured(Location::getLoc(6,3,19),true,buf) << endl;
+  //cout << testCopy.searchIsLadderCaptured(Location::getLoc(6,3,19),false,buf) << endl;
+  // return 0;
+
   cout << "Command: ";
   for(int i = 0; i<argc; i++)
     cout << argv[i] << " ";

@@ -819,6 +819,11 @@ void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
   adj_offsets[7] = (x_size+1)+1;
 }
 
+bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
+{
+  return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
+}
+
 string Location::toString(Loc loc, int x_size)
 {
   char buf[128];
@@ -971,17 +976,21 @@ bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>&
       else {
         moveListLens[stackIdx] += findLiberties(loc,buf,start,start);
         assert(moveListLens[stackIdx] == 2);
-        int libs0 = countImmediateLiberties(buf[start]);
-        int libs1 = countImmediateLiberties(buf[start+1]);
-        //We lose automatically if both escapes get the defender too many libs.
-        if(libs0 >= 3 && libs1 >= 3)
-        { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
-        //Move 1 is not possible, so shrink the list
-        else if(libs0 >= 3)
-        { moveListLens[stackIdx] = 1; }
-        //Move 0 is not possible, so swap and shrink the list
-        else if(libs1 >= 3)
-        { buf[start] = buf[start+1]; moveListLens[stackIdx] = 1; }
+        //Early quitouts if the liberties are not adjacent
+        //(so that filling one doesn't fill an immediate liberty of the other)
+        if(!Location::isAdjacent(buf[start],buf[start+1],x_size)) {
+          int libs0 = countImmediateLiberties(buf[start]);
+          int libs1 = countImmediateLiberties(buf[start+1]);
+          //We lose automatically if both escapes get the defender too many libs
+          if(libs0 >= 3 && libs1 >= 3)
+          { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
+          //Move 1 is not possible, so shrink the list
+          else if(libs0 >= 3)
+          { moveListLens[stackIdx] = 1; }
+          //Move 0 is not possible, so swap and shrink the list
+          else if(libs1 >= 3)
+          { buf[start] = buf[start+1]; moveListLens[stackIdx] = 1; }
+        }
       }
 
       //And indicate to begin search on the first move generated.

@@ -48,6 +48,7 @@ namespace Location
   int getY(Loc loc, int x_size);
 
   void getAdjacentOffsets(short adj_offsets[8], int x_size);
+  bool isAdjacent(Loc loc0, Loc loc1, int x_size);
 
   string toString(Loc loc, int x_size);
 }
