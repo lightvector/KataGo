@@ -14,6 +14,7 @@ post_input_shape = [19,19,23]
 chain_shape = [19*19]
 post_chain_shape = [19,19]
 target_shape = [19*19]
+ladder_target_shape = [19*19]
 target_weights_shape = []
 pass_pos = max_board_size * max_board_size
 
@@ -52,13 +53,17 @@ def sym_tensor_pos(pos,symmetry):
   return y*max_board_size+x
 
 #Returns the new idx, which could be the same as idx if this isn't a good training row
-def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, target_data, target_data_weights, for_training, idx):
+def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, num_chain_segments, target_data, target_data_weights, for_training, idx):
   if target_data is not None and moves[move_idx][1] is None:
     # TODO for now we skip passes
     return idx
 
   bsize = board.size
   offset = (max_board_size - bsize) // 2
+
+  nextChainLabel = 1
+  chainLabelsByHeadLoc = {}
+
   for y in range(bsize):
     for x in range(bsize):
       pos = xy_to_tensor_pos(x,y,offset)
@@ -91,7 +96,11 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
 
       if stone == pla or stone == opp:
         headloc = board.group_head[loc]
-        chain_data[idx,pos] = loc_to_tensor_pos(headloc,board,offset)+1
+        if headloc not in chainLabelsByHeadLoc:
+          chainLabelsByHeadLoc[headloc] = nextChainLabel
+          nextChainLabel += 1
+        chain_data[idx,pos] = chainLabelsByHeadLoc[headloc]
+
       else:
         pla_libs_after_play = board.get_liberties_after_play(pla,loc,4);
         opp_libs_after_play = board.get_liberties_after_play(opp,loc,4);
@@ -108,6 +117,8 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
           input_data[idx,pos,15] = 1.0
         elif opp_libs_after_play == 3:
           input_data[idx,pos,16] = 1.0
+
+  num_chain_segments[idx] = nextChainLabel
 
   if board.simple_ko_point is not None:
     pos = loc_to_tensor_pos(board.simple_ko_point,board,offset)
@@ -173,7 +184,14 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
 # Build model -------------------------------------------------------------
 
 reg_variables = []
+lr_adjusted_variables = []
 is_training = tf.placeholder(tf.bool)
+
+def ensure_variable_exists(name):
+  for v in tf.trainable_variables():
+    if v.name == name:
+      return name
+  raise Exception("Could not find variable " + name)
 
 def batchnorm(name,tensor):
   return tf.layers.batch_normalization(
@@ -228,16 +246,55 @@ def apply_symmetry(tensor,symmetries,inverse):
   if not inverse:
     tensor = tf.reverse(tensor, rev_axes)
 
-  assert(len(tensor.shape) == 4)
-  tensor = tf.cond(
-    transp,
-    lambda: tf.transpose(tensor, [0,2,1,3]),
-    lambda: tensor)
+  assert(len(tensor.shape) == 4 or len(tensor.shape) == 3)
+  if len(tensor.shape) == 3:
+    tensor = tf.cond(
+      transp,
+      lambda: tf.transpose(tensor, [0,2,1]),
+      lambda: tensor)
+  else:
+    tensor = tf.cond(
+      transp,
+      lambda: tf.transpose(tensor, [0,2,1,3]),
+      lambda: tensor)
 
   if inverse:
     tensor = tf.reverse(tensor, rev_axes)
 
   return tensor
+
+
+def chain_pool(tensor,chains,num_chain_segments,empty,nonempty,mode):
+  bsize = max_board_size
+  assert(len(tensor.shape) == 4)
+  assert(len(chains.shape) == 3)
+  assert(len(num_chain_segments.shape) == 1)
+  assert(tensor.shape[1].value == bsize)
+  assert(tensor.shape[2].value == bsize)
+  assert(chains.shape[1].value == bsize)
+  assert(chains.shape[2].value == bsize)
+  assert(mode == "sum" or mode == "max")
+  num_channels = tensor.shape[3].value
+
+  #Since tf.unsorted_segment* doesn't operate by batches or channels, we need to manually construct
+  #a different shift to add to each batch and each channel so that they pool into disjoint buckets.
+  #Each one needs max_chain_idxs different buckets.
+  num_segments_by_batch_and_channel = tf.fill([1,num_channels],1) * tf.expand_dims(num_chain_segments,axis=1)
+  shift = tf.cumsum(tf.reshape(num_segments_by_batch_and_channel,[-1]),exclusive=True)
+  num_segments = tf.reduce_sum(num_chain_segments) * num_channels
+  shift = tf.reshape(shift,[-1,1,1,num_channels])
+
+  segments = tf.expand_dims(chains,3) + shift
+  if mode == "sum":
+    pools = tf.unsorted_segment_sum(tensor,segments,num_segments=num_segments)
+  elif mode == "max":
+    pools = tf.unsorted_segment_max(tensor,segments,num_segments=num_segments)
+  else:
+    assert False
+
+  gathered = tf.gather(pools,indices=segments)
+  return gathered * tf.expand_dims(nonempty,axis=3) # + tensor * empty
+
 
 manhattan_radius_3_kernel = tf.reshape(tf.constant([
   [0,0,0,1,0,0,0],[0,0,1,1,1,0,0],[0,1,1,1,1,1,0],[1,1,1,1,1,1,1],[0,1,1,1,1,1,0],[0,0,1,1,1,0,0],[0,0,0,1,0,0,0]
@@ -315,6 +372,39 @@ def hv_res_conv_block(name, in_layer, diam, main_channels, mid_channels):
   outputs_by_layer.append((name+"/conv2t",conv2t_layer))
 
   residual = 0.5 * (conv2s_layer + conv2t_layer)
+  out_layer = in_layer + residual
+  outputs_by_layer.append((name,out_layer))
+  return out_layer
+
+def chainpool_block(name, in_layer, chains, num_chain_segments, empty, nonempty, diam, main_channels, mid_channels):
+  trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
+  outputs_by_layer.append((name+"/trans1",trans1_layer))
+
+  weights1max = weight_variable(name+"/w1max",[diam,diam,main_channels,mid_channels],main_channels*diam*diam,mid_channels)
+  # weights1sum = weight_variable(name+"/w1sum",[diam,diam,main_channels,mid_channels],main_channels*diam*diam,mid_channels)
+  conv1max_layer = conv2d(trans1_layer, weights1max)
+  # conv1sum_layer = conv2d(trans1_layer, weights1sum)
+  outputs_by_layer.append((name+"/conv1max",conv1max_layer))
+  # outputs_by_layer.append((name+"/conv1sum",conv1sum_layer))
+
+  trans2max_layer = parametric_relu(name+"/prelu2max",(batchnorm(name+"/norm2max",conv1max_layer)))
+  # trans2sum_layer = parametric_relu(name+"/prelu2sum",(batchnorm(name+"/norm2sum",conv1sum_layer)))
+  outputs_by_layer.append((name+"/trans2max",trans2max_layer))
+  # outputs_by_layer.append((name+"/trans2sum",trans2sum_layer))
+
+  maxpooled_layer = chain_pool(trans2max_layer,chains,num_chain_segments,empty,nonempty,mode="max")
+  # sumpooled_layer = chain_pool(trans2sum_layer,chains,empty,nonempty,mode="sum")
+  outputs_by_layer.append((name+"/maxpooled",maxpooled_layer))
+  # outputs_by_layer.append((name+"/sumpooled",sumpooled_layer))
+
+  pooled_layer = maxpooled_layer
+  #pooled_layer = tf.concat([maxpooled_layer,sumpooled_layer],axis=3)
+
+  weights2 = weight_variable(name+"/w2",[diam,diam,mid_channels,main_channels],mid_channels,main_channels)
+  conv2_layer = conv2d(pooled_layer, weights2)
+  outputs_by_layer.append((name+"/conv2",conv2_layer))
+
+  residual = conv2_layer
   out_layer = in_layer + residual
   outputs_by_layer.append((name,out_layer))
   return out_layer
@@ -454,6 +544,8 @@ def ladder_block(name, in_layer, near_nonempty, main_channels, mid_channels):
 
 #Input layer---------------------------------------------------------------------------------
 inputs = tf.placeholder(tf.float32, [None] + input_shape)
+chains = tf.placeholder(tf.int32, [None] + chain_shape)
+num_chain_segments = tf.placeholder(tf.int32, [None])
 symmetries = tf.placeholder(tf.bool, [3])
 
 features_active = tf.constant([
@@ -484,13 +576,17 @@ features_active = tf.constant([
 assert(features_active.dtype == tf.float32)
 
 cur_layer = tf.reshape(inputs, [-1] + post_input_shape)
+cur_chains = tf.reshape(chains, [-1] + post_chain_shape)
+
 input_num_channels = post_input_shape[2]
 #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
 cur_layer = apply_symmetry(cur_layer,symmetries,inverse=False)
+cur_chains = apply_symmetry(cur_chains,symmetries,inverse=False)
 #Disable various features
 cur_layer = cur_layer * tf.reshape(features_active,[1,1,1,-1])
 
 nonempty = cur_layer[:,:,:,1] + cur_layer[:,:,:,2]
+empty = 1.0 - nonempty
 near_nonempty = tf.minimum(1.0,conv2d(tf.expand_dims(nonempty,axis=3),manhattan_radius_3_kernel))
 
 #Convolutional RELU layer 1-------------------------------------------------------------------------------------
@@ -505,6 +601,9 @@ cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=192,mid_chann
 #Ladder Block 1-------------------------------------------------------------------------------------------------
 cur_layer = ladder_block("ladder1",cur_layer,near_nonempty,main_channels=192,mid_channels=6)
 
+#Chainpool Block 1----------------------------------------------------------------------------------------------
+# cur_layer = chainpool_block("cpool1",cur_layer,cur_chains,num_chain_segments,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
+
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=192,mid_channels=192)
 
@@ -517,11 +616,12 @@ cur_layer = res_conv_block("rconv4",cur_layer,diam=3,main_channels=192,mid_chann
 #Postprocessing residual trunk----------------------------------------------------------------------------------
 
 #Normalize and relu just before the policy head
-cur_layer = parametric_relu("trunk/prelu",(batchnorm("trunk/norm",cur_layer)))
-outputs_by_layer.append(("trunk",cur_layer))
+trunk = parametric_relu("trunk/prelu",(batchnorm("trunk/norm",cur_layer)))
+outputs_by_layer.append(("trunk",trunk))
+
 
 #Policy head---------------------------------------------------------------------------------
-p0_layer = cur_layer
+p0_layer = trunk
 
 #This is the main path for policy information
 p1_num_channels = 48
@@ -574,3 +674,16 @@ policy_output = tf.reshape(policy_output, [-1] + target_shape)
 #outputs_by_layer.append(("pass",pass_output))
 #policy_output = tf.concat([policy_output,pass_output],axis=1)
 
+#Ladder head---------------------------------------------------------------------------------
+l0_layer = trunk
+
+l1_num_channels = 24
+l1_layer = tf.nn.crelu(batchnorm("l1/norm",conv_only_block("l1/conv",l0_layer,diam=3,in_channels=192,out_channels=l1_num_channels)))
+l2_layer = conv_only_block("l2",l1_layer,diam=1,in_channels=l1_num_channels*2,out_channels=1)
+
+lr_adjusted_variables.append((ensure_variable_exists("l1/norm/beta:0"),0.10))
+lr_adjusted_variables.append((ensure_variable_exists("l1/norm/gamma:0"),0.10))
+lr_adjusted_variables.append((ensure_variable_exists("l2/w:0"),0.10))
+
+ladder_output = apply_symmetry(l2_layer,symmetries,inverse=True)
+ladder_output = tf.reshape(ladder_output, [-1] + ladder_target_shape)

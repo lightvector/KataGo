@@ -71,27 +71,39 @@ print("Building model", flush=True)
 import model
 
 policy_output = model.policy_output
+ladder_output = model.ladder_output
 
 #Loss function
 targets = tf.placeholder(tf.float32, [None] + model.target_shape)
+ladder_targets = tf.placeholder(tf.float32, [None] + model.ladder_target_shape)
 target_weights = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
 data_loss = tf.reduce_mean(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output))
+ladder_loss = tf.reduce_mean(target_weights * tf.reduce_sum(tf.square(ladder_targets-tf.sigmoid(ladder_output)),axis=1))
+# TODO using cross entropy here causes nans?
+# ladder_loss = tf.reduce_mean(target_weights * tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=ladder_targets,logits=ladder_output),axis=1))
 
 #Prior/Regularization
 l2_reg_coeff = tf.placeholder(tf.float32)
 reg_loss = l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables])
 
 #The loss to optimize
-opt_loss = data_loss + reg_loss
+opt_loss = data_loss + 0.125 * ladder_loss + reg_loss
 
 #Training operation
 batch_learning_rate = tf.placeholder(tf.float32)
+lr_adjusted_variables = dict(model.lr_adjusted_variables)
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
 with tf.control_dependencies(update_ops):
   #optimizer = tf.train.AdamOptimizer(batch_learning_rate)
   optimizer = tf.train.MomentumOptimizer(batch_learning_rate, momentum=0.9, use_nesterov=True)
   gradients = optimizer.compute_gradients(opt_loss)
-  train_step = optimizer.apply_gradients(gradients)
+  adjusted_gradients = []
+  for (grad,x) in gradients:
+    adjusted_grad = grad
+    if x.name in lr_adjusted_variables:
+      adjusted_grad = grad * lr_adjusted_variables[x.name]
+    adjusted_gradients.append((adjusted_grad,x))
+  train_step = optimizer.apply_gradients(adjusted_gradients)
 
 #Training results
 target_idxs = tf.argmax(targets, 1)
@@ -101,6 +113,9 @@ accuracy1 = tf.reduce_mean(tf.cast(top1_prediction, tf.float32))
 accuracy4 = tf.reduce_mean(tf.cast(top4_prediction, tf.float32))
 
 #Debugging stats
+
+def reduce_norm(x, axis=None, keepdims=False):
+  return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keep_dims=keepdims))
 
 def reduce_stdev(x, axis=None, keepdims=False):
   m = tf.reduce_mean(x, axis=axis, keep_dims=True)
@@ -116,14 +131,11 @@ mean_output_by_layer = dict([
 stdev_output_by_layer = dict([
   (name,reduce_stdev(layer,axis=[0,1,2])**2) for (name,layer) in model.outputs_by_layer
 ])
-mean_weights_by_var = dict([
-  (v.name,tf.reduce_mean(v)) for v in tf.trainable_variables()
+norm_weights_by_var = dict([
+  (v.name,reduce_norm(v)) for v in tf.trainable_variables()
 ])
-stdev_weights_by_var = dict([
-  (v.name,reduce_stdev(v)) for v in tf.trainable_variables()
-])
-maxabs_gradients_by_layer = dict([
-  (v.name,tf.reduce_max(tf.abs(grad))) for (grad,v) in gradients
+relative_update_by_var = dict([
+  (v.name,batch_learning_rate * reduce_norm(grad) / (1e-10 + reduce_norm(v))) for (grad,v) in adjusted_gradients if grad is not None
 ])
 
 
@@ -237,21 +249,58 @@ with tf.Session(config=tfconfig) as session:
     assert(len(model.input_shape) == 2)
     assert(len(model.chain_shape) == 1)
     assert(len(model.target_shape) == 1)
+    assert(len(model.ladder_target_shape) == 1)
     assert(len(model.target_weights_shape) == 0)
     input_len = model.input_shape[0] * model.input_shape[1]
-    chain_len = model.chain_shape[0]
+    chain_len = model.chain_shape[0] + 1
     target_len = model.target_shape[0]
+    ladder_target_len = model.ladder_target_shape[0]
 
     if not isinstance(rows, np.ndarray):
       rows = np.array(rows)
 
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
+    row_chains = rows[:,input_len:input_len+chain_len-1].reshape([-1] + model.chain_shape).astype(np.int32)
+    row_num_chain_segments = rows[:,input_len+chain_len-1].astype(np.int32)
     row_targets = rows[:,input_len+chain_len:input_len+chain_len+target_len]
-    row_target_weights = rows[:,input_len+chain_len+target_len]
+    row_ladder_targets = rows[:,input_len+chain_len+target_len:input_len+chain_len+target_len+ladder_target_len]
+    row_target_weights = rows[:,input_len+chain_len+target_len+ladder_target_len]
+
+    #DEBUG-----------------------------
+    # print(row_chains[0].reshape([19,19]))
+    # print(row_num_chain_segments[0])
+
+    # for bidx in range(len(rows)):
+    #   print("Comparing " + str(bidx))
+    #   board = Board(model.max_board_size)
+    #   for y in range(board.size):
+    #     for x in range(board.size):
+    #       if row_inputs[bidx,y*board.size+x,1] == 1.0:
+    #         board.set_stone(Board.BLACK,board.loc(x,y))
+    #       elif row_inputs[bidx,y*board.size+x,2] == 1.0:
+    #         board.set_stone(Board.WHITE,board.loc(x,y))
+
+    #   debug_input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
+    #   debug_chain_data = np.zeros(shape=[1]+model.chain_shape, dtype=np.int32)
+    #   debug_num_chain_segments = np.zeros(shape=[1])
+    #   model.fill_row_features(board,pla=Board.BLACK,opp=Board.WHITE,moves=[],move_idx=0,
+    #                           input_data=debug_input_data,chain_data=debug_chain_data,num_chain_segments=debug_num_chain_segments,
+    #                           target_data=None,target_data_weights=None,for_training=False,idx=0)
+
+    #   for y in range(board.size):
+    #     for x in range(board.size):
+    #       for fidx in range(17):
+    #         assert(debug_input_data[0,y*board.size+x,fidx] == row_inputs[bidx,y*board.size+x,fidx])
+    #       assert(debug_chain_data[0,y*board.size+x] == row_chains[bidx,y*board.size+x])
+    #   assert(debug_num_chain_segments[0] == row_num_chain_segments[bidx])
+    #---------------
 
     return session.run(fetches, feed_dict={
       model.inputs: row_inputs,
+      model.chains: row_chains,
+      model.num_chain_segments: row_num_chain_segments,
       targets: row_targets,
+      ladder_targets: row_ladder_targets,
       target_weights: row_target_weights,
       model.symmetries: symmetries,
       batch_learning_rate: blr,
@@ -278,19 +327,19 @@ with tf.Session(config=tfconfig) as session:
     return dict((key,merge_list([d[key] for d in dicts])) for key in keys)
 
   def val_accuracy_and_loss():
-    (acc1s,acc4s,losses) = run_validation_in_batches([accuracy1,accuracy4,data_loss])
-    return (np.mean(acc1s),np.mean(acc4s),np.mean(losses))
+    (acc1s,acc4s,data_losses,ladder_losses) = run_validation_in_batches([accuracy1,accuracy4,data_loss,ladder_loss])
+    return (np.mean(acc1s),np.mean(acc4s),np.mean(data_losses),np.mean(ladder_losses))
 
-  def train_stats_str(tacc1,tacc4,tdata_loss,treg_loss):
-    return "tacc1 %5.2f%% tacc4 %5.2f%% tdloss %f trloss %f" % (tacc1*100, tacc4*100, tdata_loss, treg_loss)
+  def train_stats_str(tacc1,tacc4,tdata_loss,tladder_loss,treg_loss):
+    return "tacc1 %5.2f%% tacc4 %5.2f%% tdloss %f tlloss %f trloss %f" % (tacc1*100, tacc4*100, tdata_loss, tladder_loss, treg_loss)
 
-  def validation_stats_str(vacc1,vacc4,vloss):
-    return "vacc1 %5.2f%% vacc4 %5.2f%% vloss %f" % (vacc1*100, vacc4*100, vloss)
+  def validation_stats_str(vacc1,vacc4,vdata_loss,vladder_loss):
+    return "vacc1 %5.2f%% vacc4 %5.2f%% vdloss %f vlloss %f" % (vacc1*100, vacc4*100, vdata_loss, vladder_loss)
 
   def time_str(elapsed):
     return "time %.3f" % elapsed
 
-  def log_detail_stats(maxabsgrads):
+  def log_detail_stats(relupdates):
     apbls,mobls,sobls = run_validation_in_batches([activated_prop_by_layer, mean_output_by_layer, stdev_output_by_layer])
 
     apbl = merge_dicts(apbls, (lambda x: np.mean(x,axis=0)))
@@ -302,14 +351,14 @@ with tf.Session(config=tfconfig) as session:
       detaillog("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
       detaillog("%s: stdev_output %s" % (key, np_array_str(sobl[key], precision=4)))
 
-    mw,sw = session.run([mean_weights_by_var,stdev_weights_by_var])
+    (nw,) = session.run([norm_weights_by_var])
 
-    for key in mw:
-      detaillog("%s: mean weight %f stdev weight %f" % (key, mw[key], sw[key]))
+    for key in nw:
+      detaillog("%s: norm weight %f" % (key, nw[key]))
 
-    if maxabsgrads is not None:
-      for key in maxabsgrads:
-        detaillog("%s: max abs gradient %f" % (key,maxabsgrads[key]))
+    if relupdates is not None:
+      for key in relupdates:
+        detaillog("%s: relative update %f" % (key,relupdates[key]))
 
   def make_batch_generator():
     while(True):
@@ -330,8 +379,9 @@ with tf.Session(config=tfconfig) as session:
     tacc1_sum = 0
     tacc4_sum = 0
     tdata_loss_sum = 0
+    tladder_loss_sum = 0
     treg_loss_sum = 0
-    maxabsgrads = dict([(key,0.0) for key in maxabs_gradients_by_layer])
+    relupdates = dict([(key,0.0) for key in relative_update_by_var])
 
     for i in range(num_batches):
       rows = next(batch_generator)
@@ -359,8 +409,8 @@ with tf.Session(config=tfconfig) as session:
 
       # assert(False)
 
-      (bacc1, bacc4, bdata_loss, breg_loss, bmaxabsgrads, _) = run(
-        fetches=[accuracy1, accuracy4, data_loss, reg_loss, maxabs_gradients_by_layer, train_step],
+      (bacc1, bacc4, bdata_loss, bladder_loss, breg_loss, brelupdates, _) = run(
+        fetches=[accuracy1, accuracy4, data_loss, ladder_loss, reg_loss, relative_update_by_var, train_step],
         rows=rows,
         training=True,
         symmetries=[np.random.random() < 0.5, np.random.random() < 0.5, np.random.random() < 0.5],
@@ -370,9 +420,10 @@ with tf.Session(config=tfconfig) as session:
       tacc1_sum += bacc1
       tacc4_sum += bacc4
       tdata_loss_sum += bdata_loss
+      tladder_loss_sum += bladder_loss
       treg_loss_sum += breg_loss
-      for key in bmaxabsgrads:
-        maxabsgrads[key] += bmaxabsgrads[key]
+      for key in brelupdates:
+        relupdates[key] += brelupdates[key]
 
       if i % (max(1,num_batches // 30)) == 0:
         print(".", end='', flush=True)
@@ -380,14 +431,17 @@ with tf.Session(config=tfconfig) as session:
     tacc1 = tacc1_sum / num_batches
     tacc4 = tacc4_sum / num_batches
     tdata_loss = tdata_loss_sum / num_batches
+    tladder_loss = tladder_loss_sum / num_batches
     treg_loss = treg_loss_sum / num_batches
-    return (tacc1,tacc4,tdata_loss,treg_loss,maxabsgrads)
+    for key in relupdates:
+      relupdates[key] = relupdates[key] / num_batches
+    return (tacc1,tacc4,tdata_loss,tladder_loss,treg_loss,relupdates)
 
-  (vacc1,vacc4,vloss) = val_accuracy_and_loss()
-  vstr = validation_stats_str(vacc1,vacc4,vloss)
+  (vacc1,vacc4,vdata_loss,vladder_loss) = val_accuracy_and_loss()
+  vstr = validation_stats_str(vacc1,vacc4,vdata_loss,vladder_loss)
 
   trainlog("Initial: %s" % (vstr))
-  log_detail_stats(maxabsgrads=None)
+  log_detail_stats(relupdates=None)
 
   start_time = time.perf_counter()
 
@@ -397,28 +451,28 @@ with tf.Session(config=tfconfig) as session:
   for e in range(num_epochs):
     epoch = start_epoch + e
     print("Epoch %d" % (epoch), end='', flush=True)
-    (tacc1,tacc4,tdata_loss,treg_loss,maxabsgrads) = run_batches(num_batches_per_epoch)
-    (vacc1,vacc4,vloss) = val_accuracy_and_loss()
+    (tacc1,tacc4,tdata_loss,tladder_loss,treg_loss,relupdates) = run_batches(num_batches_per_epoch)
+    (vacc1,vacc4,vdata_loss,vladder_loss) = val_accuracy_and_loss()
     lr.report_epoch_done(epoch)
     print("")
 
     elapsed = time.perf_counter() - start_time
 
-    tstr = train_stats_str(tacc1,tacc4,tdata_loss,treg_loss)
-    vstr = validation_stats_str(vacc1,vacc4,vloss)
+    tstr = train_stats_str(tacc1,tacc4,tdata_loss,tladder_loss,treg_loss)
+    vstr = validation_stats_str(vacc1,vacc4,vdata_loss,vladder_loss)
     timestr = time_str(elapsed)
 
     trainlogger.info("Epoch %d--------------------------------------------------" % (epoch))
     detaillogger.info("Epoch %d--------------------------------------------------" % (epoch))
 
     trainlog("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr))
-    log_detail_stats(maxabsgrads)
+    log_detail_stats(relupdates)
 
     if epoch % 4 == 0 or epoch == num_epochs-1:
       saver.save(session, traindir + "/model" + str(epoch))
 
-  (vacc1,vacc4,vloss) = val_accuracy_and_loss()
-  vstr = validation_stats_str(vacc1,vacc4,vloss)
+  (vacc1,vacc4,vdata_loss,vladder_loss) = val_accuracy_and_loss()
+  vstr = validation_stats_str(vacc1,vacc4,vdata_loss,vladder_loss)
   trainlog("Final: %s" % (vstr))
 
   variables_names =[v.name for v in tf.trainable_variables()]
