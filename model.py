@@ -216,8 +216,8 @@ def weight_variable_init_zero(name, shape):
   reg_variables.append(variable)
   return variable
 
-def weight_variable(name, shape, num_inputs, num_outputs):
-  stdev = init_stdev(num_inputs,num_outputs) / 1.0
+def weight_variable(name, shape, num_inputs, num_outputs, scale_initial_weights=1.0):
+  stdev = init_stdev(num_inputs,num_outputs) / 1.0 * scale_initial_weights
   initial = tf.truncated_normal(shape=shape, stddev=stdev)
   variable = tf.Variable(initial,name=name)
   reg_variables.append(variable)
@@ -319,8 +319,8 @@ def conv_block(name, in_layer, diam, in_channels, out_channels):
   return out_layer
 
 #Convoution only, no batch norm or nonlinearity
-def conv_only_block(name, in_layer, diam, in_channels, out_channels):
-  weights = weight_variable(name+"/w",[diam,diam,in_channels,out_channels],in_channels*diam*diam,out_channels)
+def conv_only_block(name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0):
+  weights = weight_variable(name+"/w",[diam,diam,in_channels,out_channels],in_channels*diam*diam,out_channels,scale_initial_weights)
   out_layer = conv2d(in_layer, weights)
   outputs_by_layer.append((name,out_layer))
   return out_layer
@@ -680,12 +680,12 @@ l0_layer = trunk
 l1_num_channels = 24
 l1_layer = tf.nn.crelu(batchnorm("l1/norm",conv_only_block("l1/conv",l0_layer,diam=3,in_channels=192,out_channels=l1_num_channels)))
 outputs_by_layer.append(("l1",l1_layer))
-l2_layer = conv_only_block("l2",l1_layer,diam=1,in_channels=l1_num_channels*2,out_channels=1)
+l2_layer = conv_only_block("l2",l1_layer,diam=1,in_channels=l1_num_channels*2,out_channels=1,scale_initial_weights=0.5)
 outputs_by_layer.append(("l2",l2_layer))
 
-lr_adjusted_variables.append((ensure_variable_exists("l1/norm/beta:0"),0.10))
-lr_adjusted_variables.append((ensure_variable_exists("l1/norm/gamma:0"),0.10))
-lr_adjusted_variables.append((ensure_variable_exists("l2/w:0"),0.10))
+lr_adjusted_variables.append((ensure_variable_exists("l1/norm/beta:0"),0.05))
+lr_adjusted_variables.append((ensure_variable_exists("l1/norm/gamma:0"),0.05))
+lr_adjusted_variables.append((ensure_variable_exists("l2/w:0"),0.05))
 
 ladder_output = apply_symmetry(l2_layer,symmetries,inverse=True)
 ladder_output = tf.reshape(ladder_output, [-1] + ladder_target_shape)
