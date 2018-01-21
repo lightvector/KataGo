@@ -662,7 +662,11 @@ outputs_by_layer.append(("p1",p1_layer))
 
 #Finally, apply linear convolution to produce final output
 #2x in_channels due to crelu
-p2_layer = conv_only_block("p2",p1_layer,diam=5,in_channels=p1_num_channels*2,out_channels=1)
+p2_layer = conv_only_block("p2",p1_layer,diam=5,in_channels=p1_num_channels*2,out_channels=1,scale_initial_weights=0.5)
+
+lr_adjusted_variables.append((ensure_variable_exists("p1/norm/beta:0"),0.25))
+lr_adjusted_variables.append((ensure_variable_exists("p1/norm/gamma:0"),0.25))
+lr_adjusted_variables.append((ensure_variable_exists("p2/w:0"),0.25))
 
 #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
 policy_output = apply_symmetry(p2_layer,symmetries,inverse=True)
