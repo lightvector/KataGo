@@ -12,7 +12,7 @@ using namespace H5;
 
 //Data and feature row parameters
 static const int maxBoardSize = 19;
-static const int numFeatures = 23;
+static const int numFeatures = 25;
 
 //Different segments of the data row
 static const int inputStart = 0;
@@ -49,6 +49,48 @@ static void setRow(float* row, int pos, int feature, float value) {
 }
 
 static const int TARGET_NEXT_MOVE_AND_LADDER = 0;
+
+//Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
+static void iterLadders(const FastBoard& board, std::function<void(Loc,int)> f) {
+  int bSize = board.x_size;
+  int offset = (maxBoardSize - bSize) / 2;
+
+  Loc chainHeadsSolved[bSize*bSize];
+  bool chainHeadsSolvedValue[bSize*bSize];
+  int numChainHeadsSolved = 0;
+  FastBoard copy(board);
+  vector<Loc> buf;
+
+  for(int y = 0; y<bSize; y++) {
+    for(int x = 0; x<bSize; x++) {
+      int pos = xyToTensorPos(x,y,offset);
+      Loc loc = Location::getLoc(x,y,bSize);
+      Color stone = board.colors[loc];
+      if(stone == P_BLACK || stone == P_WHITE) {
+        int libs = board.getNumLiberties(loc);
+        if(libs == 1 || libs == 2) {
+          bool alreadySolved = false;
+          Loc head = board.chain_head[loc];
+          for(int i = 0; i<numChainHeadsSolved; i++) {
+            if(chainHeadsSolved[i] == head) {
+              alreadySolved = true;
+              if(chainHeadsSolvedValue[i]) f(loc,pos);
+              break;
+            }
+          }
+          if(!alreadySolved) {
+            //Perform search on copy so as not to mess up tracking of solved heads
+            bool laddered = copy.searchIsLadderCaptured(loc,libs==1,buf);
+            chainHeadsSolved[numChainHeadsSolved] = head;
+            chainHeadsSolvedValue[numChainHeadsSolved] = laddered;
+            numChainHeadsSolved++;
+            if(laddered) f(loc,pos);
+          }
+        }
+      }
+    }
+  }
+}
 
 static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextMoveIdx, int target, float* row, Rand& rand) {
   assert(board.x_size == board.y_size);
@@ -170,6 +212,18 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
     }
   }
 
+  //Ladder features 23,24
+  auto addLadderFeature = [&board,row](Loc loc, int pos){
+    assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
+    int libs = board.getNumLiberties(loc);
+    if(libs == 1)
+      setRow(row,pos,23,1.0);
+    else
+      setRow(row,pos,24,1.0);
+  };
+  iterLadders(board, addLadderFeature);
+
+
   if(target == TARGET_NEXT_MOVE_AND_LADDER) {
     //Next move target
     Loc nextMoveLoc = moves[nextMoveIdx].loc;
@@ -178,53 +232,11 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
     row[targetStart + nextMovePos] = 1.0;
 
     //Ladder target
-    Loc chainHeadsSolved[bSize*bSize];
-    float chainHeadsSolvedValue[bSize*bSize];
-    int numChainHeadsSolved = 0;
-    FastBoard copy(board);
-    vector<Loc> buf;
-
-    for(int y = 0; y<bSize; y++) {
-      for(int x = 0; x<bSize; x++) {
-        int pos = xyToTensorPos(x,y,offset);
-        Loc loc = Location::getLoc(x,y,bSize);
-        Color stone = board.colors[loc];
-        if(stone == pla || stone == opp) {
-          int libs = board.getNumLiberties(loc);
-          if(libs == 1 || libs == 2) {
-            bool alreadySolved = false;
-            Loc head = board.chain_head[loc];
-            for(int i = 0; i<numChainHeadsSolved; i++) {
-              if(chainHeadsSolved[i] == head) {
-                alreadySolved = true;
-                row[ladderTargetStart + pos] = chainHeadsSolvedValue[i];
-                break;
-              }
-            }
-            if(!alreadySolved) {
-              float value = 0.0;
-              if(libs == 1) {
-                //Perform search on copy so as not to mess up tracking of solved heads
-                bool laddered = copy.searchIsLadderCaptured(loc,true,buf);
-                if(laddered)
-                  value = 1.0;
-              }
-              else if(libs == 2) {
-                //Perform search on copy so as not to mess up tracking of solved heads
-                bool laddered = copy.searchIsLadderCaptured(loc,false,buf);
-                if(laddered)
-                  value = 1.0;
-              }
-
-              chainHeadsSolved[numChainHeadsSolved] = head;
-              chainHeadsSolvedValue[numChainHeadsSolved] = value;
-              numChainHeadsSolved++;
-              row[ladderTargetStart + pos] = value;
-            }
-          }
-        }
-      }
-    }
+    auto addLadderTarget = [&board,row](Loc loc, int pos){
+      assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
+      row[ladderTargetStart + pos] = 1.0;
+    };
+    iterLadders(board, addLadderTarget);
   }
 
   //Weight of the row, currently always 1.0

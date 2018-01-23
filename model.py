@@ -9,8 +9,8 @@ from board import Board
 #Feature extraction functions-------------------------------------------------------------------
 
 max_board_size = 19
-input_shape = [19*19,23]
-post_input_shape = [19,19,23]
+input_shape = [19*19,25]
+post_input_shape = [19,19,25]
 chain_shape = [19*19]
 post_chain_shape = [19,19]
 target_shape = [19*19]
@@ -51,6 +51,37 @@ def sym_tensor_pos(pos,symmetry):
     symmetry -= 1
     y = max_board_size-y-1
   return y*max_board_size+x
+
+
+#Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
+def iterLadders(board, f):
+  chainHeadsSolved = {}
+  copy = board.copy()
+
+  bsize = board.size
+  offset = (max_board_size - bsize) // 2
+
+  for y in range(bsize):
+    for x in range(bsize):
+      pos = xy_to_tensor_pos(x,y,offset)
+      loc = board.loc(x,y)
+      stone = board.board[loc]
+
+      if stone == Board.BLACK or stone == Board.WHITE:
+        libs = board.num_liberties(loc)
+        if libs == 1 or libs == 2:
+          head = board.group_head[loc]
+          if head in chainHeadsSolved:
+            laddered = chainHeadsSolved[head]
+            if laddered:
+              f(loc,pos)
+          else:
+            #Perform search on copy so as not to mess up tracking of solved heads
+            laddered = copy.searchIsLadderCaptured(loc,libs==1)
+            chainHeadsSolved[head] = laddered
+            if laddered:
+              f(loc,pos)
+
 
 #Returns the new idx, which could be the same as idx if this isn't a good training row
 def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, num_chain_segments, target_data, target_data_weights, for_training, idx):
@@ -166,6 +197,17 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
             if prev5_loc is not None:
               pos = loc_to_tensor_pos(prev5_loc,board,offset)
               input_data[idx,pos,22] = 1.0
+
+  def addLadderFeature(loc,pos):
+    assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE);
+    libs = board.num_liberties(loc)
+    if libs == 1:
+      input_data[idx,pos,23] = 1.0
+    else:
+      input_data[idx,pos,24] = 1.0
+
+  iterLadders(board, addLadderFeature)
+
 
   if target_data is not None:
     next_loc = moves[move_idx][1]
@@ -572,6 +614,8 @@ features_active = tf.constant([
   1.0, #20
   1.0, #21
   1.0, #22
+  1.0, #23
+  1.0, #24
 ])
 assert(features_active.dtype == tf.float32)
 
