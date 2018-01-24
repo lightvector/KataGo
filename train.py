@@ -86,7 +86,7 @@ l2_reg_coeff = tf.placeholder(tf.float32)
 reg_loss = l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables])
 
 #The loss to optimize
-opt_loss = data_loss + 0.06 * ladder_loss + reg_loss
+opt_loss = data_loss + reg_loss
 
 #Training operation
 batch_learning_rate = tf.placeholder(tf.float32)
@@ -99,7 +99,7 @@ with tf.control_dependencies(update_ops):
   adjusted_gradients = []
   for (grad,x) in gradients:
     adjusted_grad = grad
-    if x.name in lr_adjusted_variables:
+    if x.name in lr_adjusted_variables and grad is not None:
       adjusted_grad = grad * lr_adjusted_variables[x.name]
     adjusted_gradients.append((adjusted_grad,x))
   train_step = optimizer.apply_gradients(adjusted_gradients)
