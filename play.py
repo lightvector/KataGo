@@ -254,7 +254,7 @@ def run_gtp(session):
   add_board_size_visualizations("hvconv1",normalization_div=30)
   add_board_size_visualizations("rconv4",normalization_div=35)
   add_board_size_visualizations("g1",normalization_div=8)
-  add_board_size_visualizations("p1",normalization_div=4)
+  add_board_size_visualizations("p1",normalization_div=2)
   add_board_size_visualizations("l1",normalization_div=4)
   add_extra_board_size_visualizations("sigmoid(l2)",tf.sigmoid(layerdict["l2"]),normalization_div=None)
 
