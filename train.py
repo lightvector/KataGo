@@ -78,16 +78,15 @@ targets = tf.placeholder(tf.float32, [None] + model.target_shape)
 ladder_targets = tf.placeholder(tf.float32, [None] + model.ladder_target_shape)
 target_weights = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
 data_loss = tf.reduce_mean(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output))
-ladder_loss = tf.reduce_mean(target_weights * tf.reduce_sum(tf.square(ladder_targets-tf.sigmoid(ladder_output)),axis=1))
-# TODO using cross entropy here causes nans?
-# ladder_loss = tf.reduce_mean(target_weights * tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=ladder_targets,logits=ladder_output),axis=1))
+# ladder_loss = tf.reduce_mean(target_weights * tf.reduce_sum(tf.square(ladder_targets-tf.sigmoid(ladder_output)),axis=1))
+ladder_loss = tf.reduce_mean(target_weights * tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=ladder_targets,logits=ladder_output),axis=1))
 
 #Prior/Regularization
 l2_reg_coeff = tf.placeholder(tf.float32)
 reg_loss = l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables])
 
 #The loss to optimize
-opt_loss = data_loss + 0.125 * ladder_loss + reg_loss
+opt_loss = data_loss + 0.06 * ladder_loss + reg_loss
 
 #Training operation
 batch_learning_rate = tf.placeholder(tf.float32)

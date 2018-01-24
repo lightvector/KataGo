@@ -69,7 +69,7 @@ def genmove(session, board, moves):
   moves_and_probs = sorted(moves_and_probs, key=lambda moveandprob: moveandprob[1], reverse=True)
 
   if len(moves_and_probs) <= 0:
-    return None #pass
+    return Board.PASS_LOC
 
   #Generate a random number biased small and then find the appropriate move to make
   #Interpolate from moving uniformly to choosing from the triangular distribution
@@ -92,6 +92,21 @@ def get_layer_values(session, board, moves, layer, channel):
   for i in range(board.size * board.size):
     loc = model.tensor_pos_to_loc(i,board)
     locs_and_values.append((loc,layer[i,channel]))
+  return locs_and_values
+
+def get_input_feature(board, moves, feature_idx):
+  input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
+  chain_data = np.zeros(shape=[1]+model.chain_shape, dtype=np.int32)
+  num_chain_segments = np.zeros(shape=[1])
+  pla = board.pla
+  opp = Board.get_opp(pla)
+  move_idx = len(moves)
+  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,chain_data,num_chain_segments,target_data=None,target_data_weights=None,for_training=False,idx=0)
+
+  locs_and_values = []
+  for i in range(board.size * board.size):
+    loc = model.tensor_pos_to_loc(i,board)
+    locs_and_values.append((loc,input_data[0,i,feature_idx]))
   return locs_and_values
 
 
@@ -119,7 +134,7 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
     return x0 + p * (x1-x0)
 
   for (loc,value) in locs_and_values:
-    if loc is not None:
+    if loc != Board.PASS_LOC:
       value = value / divisor
       if value < 0:
         value = -value
@@ -186,11 +201,11 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
 colstr = 'ABCDEFGHJKLMNOPQRST'
 def parse_coord(s,board):
   if s == 'pass':
-    return None
+    return Board.PASS_LOC
   return board.loc(colstr.index(s[0].upper()), board.size - int(s[1:]))
 
 def str_coord(loc,board):
-  if loc is None:
+  if loc == Board.PASS_LOC:
     return 'pass'
   x = board.loc_x(loc)
   y = board.loc_y(loc)
@@ -258,6 +273,19 @@ def run_gtp(session):
   add_board_size_visualizations("l1",normalization_div=4)
   add_extra_board_size_visualizations("sigmoid(l2)",tf.sigmoid(layerdict["l2"]),normalization_div=None)
 
+
+  input_feature_command_lookup = dict()
+  def add_input_feature_visualizations(layer_name, feature_idx, normalization_div):
+    command_name = layer_name
+    command_name = command_name.replace("/",":")
+    known_commands.append(command_name)
+    known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
+    input_feature_command_lookup[command_name] = (feature_idx,normalization_div)
+
+  for i in range(model.input_shape[1]):
+    add_input_feature_visualizations("input-" + str(i),i, normalization_div=1)
+
+
   linear = tf.cumsum(tf.ones([19],dtype=tf.float32),axis=0,exclusive=True) / 18.0
   color_calibration = tf.stack(axis=0,values=[
     linear,
@@ -312,22 +340,13 @@ def run_gtp(session):
     elif command[0] == "play":
       pla = (Board.BLACK if command[1] == "B" or command[1] == "b" else Board.WHITE)
       loc = parse_coord(command[2],board)
-      if loc is not None:
-        moves.append((pla,loc))
-        board.play(pla,loc)
-      else:
-        moves.append((pla,loc))
-        board.do_pass()
+      moves.append((pla,loc))
+      board.play(pla,loc)
     elif command[0] == "genmove":
       loc = genmove(session, board, moves)
-      if loc is not None:
-        moves.append((board.pla,loc))
-        board.play(board.pla,loc)
-        ret = str_coord(loc,board)
-      else:
-        moves.append((board.pla,loc))
-        board.do_pass()
-        ret = 'pass'
+      moves.append((board.pla,loc))
+      board.play(board.pla,loc)
+      ret = str_coord(loc,board)
     # elif command[0] == "final_score":
     #   ret = '0'
     elif command[0] == "name":
@@ -349,6 +368,13 @@ def run_gtp(session):
     elif command[0] in layer_command_lookup:
       (layer,channel,normalization_div) = layer_command_lookup[command[0]]
       locs_and_values = get_layer_values(session, board, moves, layer, channel)
+      gfx_commands = []
+      fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent=False)
+      ret = "\n".join(gfx_commands)
+
+    elif command[0] in input_feature_command_lookup:
+      (feature_idx,normalization_div) = input_feature_command_lookup[command[0]]
+      locs_and_values = get_input_feature(board, moves, feature_idx)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent=False)
       ret = "\n".join(gfx_commands)
