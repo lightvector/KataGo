@@ -360,9 +360,19 @@ def conv_block(name, in_layer, diam, in_channels, out_channels):
   outputs_by_layer.append((name,out_layer))
   return out_layer
 
-#Convoution only, no batch norm or nonlinearity
+#Convolution only, no batch norm or nonlinearity
 def conv_only_block(name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0):
   weights = weight_variable(name+"/w",[diam,diam,in_channels,out_channels],in_channels*diam*diam,out_channels,scale_initial_weights)
+  out_layer = conv2d(in_layer, weights)
+  outputs_by_layer.append((name,out_layer))
+  return out_layer
+
+#Convolution emphasizing the center
+def conv_only_extra_center_block(name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0):
+  radius = diam // 2
+  center_weights = weight_variable(name+"/wcenter",[1,1,in_channels,out_channels],in_channels,out_channels,scale_initial_weights=0.3*scale_initial_weights)
+  weights = weight_variable(name+"/w",[diam,diam,in_channels,out_channels],in_channels*diam*diam,out_channels,scale_initial_weights)
+  weights = weights + tf.pad(center_weights,[(radius,radius),(radius,radius),(0,0),(0,0)])
   out_layer = conv2d(in_layer, weights)
   outputs_by_layer.append((name,out_layer))
   return out_layer
@@ -634,7 +644,7 @@ empty = 1.0 - nonempty
 near_nonempty = tf.minimum(1.0,conv2d(tf.expand_dims(nonempty,axis=3),manhattan_radius_3_kernel))
 
 #Convolutional RELU layer 1-------------------------------------------------------------------------------------
-cur_layer = conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=192)
+cur_layer = conv_only_extra_center_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=192)
 
 #Residual Convolutional Block 1---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv1",cur_layer,diam=3,main_channels=192,mid_channels=192)
