@@ -185,6 +185,7 @@ struct FastBoard
   private:
   void init(int xS, int yS);
   int countImmediateLiberties(Loc loc);
+  int countHeuristicConnectionLibertiesX2(Loc loc, Player pla);
   bool isLibertyOf(Loc loc, Loc head);
   void mergeChains(Loc loc1, Loc loc2);
   int removeChain(Loc loc);

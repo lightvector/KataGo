@@ -745,6 +745,22 @@ class Board:
       if cur == loc:
         break
 
+  def countHeuristicConnectionLiberties(self,loc,pla):
+    adj0 = loc + self.adj[0]
+    adj1 = loc + self.adj[1]
+    adj2 = loc + self.adj[2]
+    adj3 = loc + self.adj[3]
+    count = 0.0
+    if self.board[adj0] == pla:
+      count += max(0.0,self.group_liberty_count[self.group_head[adj0]]-1.5)
+    if self.board[adj1] == pla:
+      count += max(0.0,self.group_liberty_count[self.group_head[adj1]]-1.5)
+    if self.board[adj2] == pla:
+      count += max(0.0,self.group_liberty_count[self.group_head[adj2]]-1.5)
+    if self.board[adj3] == pla:
+      count += max(0.0,self.group_liberty_count[self.group_head[adj3]]-1.5)
+    return count
+
   def searchIsLadderCaptured(self,loc,defenderFirst):
     if not self.is_on_board(loc):
       return False
@@ -772,10 +788,13 @@ class Board:
     returnValue = False
     returnedFromDeeper = False
 
-    #debug = True
+    # debug = True
+    # if debug:
+    #   print("SEARCHING " + str(self.loc_x(loc)) + " " + str(self.loc_y(loc)))
 
     while True:
-      #if(debug) cout << ": " << stackIdx << " " << moveListCur[stackIdx] << " " << moveListStarts[stackIdx] << " " << moveListLens[stackIdx] << " " << returnValue << " " << returnedFromDeeper << endl;
+      # if debug:
+      #   print(str(stackIdx) + " " + str(moveListCur[stackIdx]) + "/" + str(len(moveLists[stackIdx])) + " " + str(returnValue) + " " + str(returnedFromDeeper))
 
       #Returned from the root - so that's the answer
       if stackIdx <= -1:
@@ -836,11 +855,10 @@ class Board:
           #(so that filling one doesn't fill an immediate liberty of the other)
           move0 = moveLists[stackIdx][0]
           move1 = moveLists[stackIdx][1]
+
+          libs0 = self.countImmediateLiberties(move0)
+          libs1 = self.countImmediateLiberties(move1)
           if not self.is_adjacent(move0,move1):
-
-            libs0 = self.countImmediateLiberties(move0)
-            libs1 = self.countImmediateLiberties(move1)
-
             #We lose automatically if both escapes get the defender too many libs
             if libs0 >= 3 and libs1 >= 3:
               returnValue = False
@@ -853,6 +871,15 @@ class Board:
             #Move 0 is not possible, so shrink the list
             elif libs1 >= 3:
               moveLists[stackIdx] = [move1]
+
+          #Order the two moves based on a simple heuristic - for each neighboring group with any liberties
+          #count that the opponent could connect to, count liberties - 1.5.
+          if len(moveLists[stackIdx]) > 1:
+            libs0 += self.countHeuristicConnectionLiberties(move0,pla)
+            libs1 += self.countHeuristicConnectionLiberties(move1,pla)
+            if libs1 > libs0:
+              moveLists[stackIdx][0] = move1
+              moveLists[stackIdx][1] = move0
 
         #And indicate to begin search on the first move generated.
         moveListCur[stackIdx] = 0
@@ -896,7 +923,9 @@ class Board:
       move = moveLists[stackIdx][moveListCur[stackIdx]]
       p = (pla if isDefender else opp)
 
-      #if(print) cout << "play " << Location::getX(move,19) << " " << Location::getY(move,19) << " " << p << endl;
+      # if debug:
+      #   print("play " + str(self.loc_x(move)) + " " + str(self.loc_y(move)) + " " + str(p))
+      #   print(self.to_string())
 
       #Illegal move - treat it the same as a failed move, but don't return up a level so that we
       #loop again and just try the next move.

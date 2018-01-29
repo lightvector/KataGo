@@ -290,6 +290,8 @@ with tf.Session(config=tfconfig) as session:
     #     for x in range(board.size):
     #       for fidx in range(17):
     #         assert(debug_input_data[0,y*board.size+x,fidx] == row_inputs[bidx,y*board.size+x,fidx])
+    #       for fidx in range(23,25):
+    #         assert(debug_input_data[0,y*board.size+x,fidx] == row_inputs[bidx,y*board.size+x,fidx])
     #       assert(debug_chain_data[0,y*board.size+x] == row_chains[bidx,y*board.size+x])
     #   assert(debug_num_chain_segments[0] == row_num_chain_segments[bidx])
     #---------------

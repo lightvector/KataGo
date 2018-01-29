@@ -479,6 +479,20 @@ int FastBoard::countImmediateLiberties(Loc loc)
   return num_libs;
 }
 
+int FastBoard::countHeuristicConnectionLibertiesX2(Loc loc, Player pla)
+{
+  int num_libsX2 = 0;
+  for(int i = 0; i < 4; i++) {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] == pla) {
+      int libs = chain_data[chain_head[adj]].num_liberties;
+      if(libs > 1)
+        num_libsX2 += libs * 2 - 3;
+    }
+  }
+  return num_libsX2;
+}
+
 //Loc is a liberty of head's chain if loc is empty and adjacent to a stone of head.
 //Assumes loc is empty
 bool FastBoard::isLibertyOf(Loc loc, Loc head)
@@ -976,11 +990,13 @@ bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>&
       else {
         moveListLens[stackIdx] += findLiberties(loc,buf,start,start);
         assert(moveListLens[stackIdx] == 2);
+
+        int libs0 = countImmediateLiberties(buf[start]);
+        int libs1 = countImmediateLiberties(buf[start+1]);
+
         //Early quitouts if the liberties are not adjacent
         //(so that filling one doesn't fill an immediate liberty of the other)
         if(!Location::isAdjacent(buf[start],buf[start+1],x_size)) {
-          int libs0 = countImmediateLiberties(buf[start]);
-          int libs1 = countImmediateLiberties(buf[start+1]);
           //We lose automatically if both escapes get the defender too many libs
           if(libs0 >= 3 && libs1 >= 3)
           { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
@@ -990,6 +1006,17 @@ bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>&
           //Move 0 is not possible, so swap and shrink the list
           else if(libs1 >= 3)
           { buf[start] = buf[start+1]; moveListLens[stackIdx] = 1; }
+        }
+        //Order the two moves based on a simple heuristic - for each neighboring group with any liberties
+        //count that the opponent could connect to, count liberties - 1.5.
+        if(moveListLens[stackIdx] > 1) {
+          libs0 = libs0 * 2 + countHeuristicConnectionLibertiesX2(buf[start],pla);
+          libs1 = libs1 * 2 + countHeuristicConnectionLibertiesX2(buf[start+1],pla);
+          if(libs1 > libs0) {
+            int tmp = buf[start];
+            buf[start] = buf[start+1];
+            buf[start+1] = tmp;
+          }
         }
       }
 
