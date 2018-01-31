@@ -9,8 +9,8 @@ from board import Board
 #Feature extraction functions-------------------------------------------------------------------
 
 max_board_size = 19
-input_shape = [19*19,25]
-post_input_shape = [19,19,25]
+input_shape = [19*19,26]
+post_input_shape = [19,19,26]
 chain_shape = [19*19]
 post_chain_shape = [19,19]
 target_shape = [19*19]
@@ -74,13 +74,19 @@ def iterLadders(board, f):
           if head in chainHeadsSolved:
             laddered = chainHeadsSolved[head]
             if laddered:
-              f(loc,pos)
+              f(loc,pos,[])
           else:
             #Perform search on copy so as not to mess up tracking of solved heads
-            laddered = copy.searchIsLadderCaptured(loc,libs==1)
+            if libs == 1:
+              workingMoves = []
+              laddered = copy.searchIsLadderCaptured(loc,True)
+            else:
+              workingMoves = copy.searchIsLadderCapturedAttackerFirst2Libs(loc)
+              laddered = len(workingMoves) > 0
+
             chainHeadsSolved[head] = laddered
             if laddered:
-              f(loc,pos)
+              f(loc,pos,workingMoves)
 
 
 #Returns the new idx, which could be the same as idx if this isn't a good training row
@@ -198,13 +204,16 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
               pos = loc_to_tensor_pos(prev5_loc,board,offset)
               input_data[idx,pos,22] = 1.0
 
-  def addLadderFeature(loc,pos):
+  def addLadderFeature(loc,pos,workingMoves):
     assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE);
     libs = board.num_liberties(loc)
     if libs == 1:
       input_data[idx,pos,23] = 1.0
     else:
       input_data[idx,pos,24] = 1.0
+      for workingMove in workingMoves:
+        workingPos = loc_to_tensor_pos(workingMove,board,offset)
+        input_data[idx,pos,25] = 1.0
 
   iterLadders(board, addLadderFeature)
 
@@ -626,6 +635,7 @@ features_active = tf.constant([
   1.0, #22
   1.0, #23
   1.0, #24
+  1.0, #25
 ])
 assert(features_active.dtype == tf.float32)
 

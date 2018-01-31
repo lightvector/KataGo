@@ -762,6 +762,45 @@ class Board:
       count += max(0.0,self.group_liberty_count[self.group_head[adj3]]-1.5)
     return count
 
+  def searchIsLadderCapturedAttackerFirst2Libs(self,loc):
+    if not self.is_on_board(loc):
+      return []
+    if self.board[loc] != Board.BLACK and self.board[loc] != Board.WHITE:
+      return []
+    if self.group_liberty_count[self.group_head[loc]] != 2:
+      return []
+
+    #Make it so that pla is always the defender
+    pla = self.board[loc]
+    opp = Board.get_opp(pla)
+
+    moves = []
+    self.findLiberties(loc,moves)
+    assert(len(moves) == 2)
+
+    move0 = moves[0]
+    move1 = moves[1]
+    move0Works = False
+    move1Works = False
+
+    if self.would_be_legal(opp,move0):
+      record = self.playRecordedUnsafe(opp,move0)
+      move0Works = self.searchIsLadderCaptured(loc,True);
+      self.undo(record)
+    if self.would_be_legal(opp,move1):
+      record = self.playRecordedUnsafe(opp,move1)
+      move1Works = self.searchIsLadderCaptured(loc,True);
+      self.undo(record)
+
+    workingMoves = []
+    if move0Works:
+      workingMoves.append(move0)
+    if move1Works:
+      workingMoves.append(move1)
+
+    return workingMoves
+
+
   def searchIsLadderCaptured(self,loc,defenderFirst):
     if not self.is_on_board(loc):
       return False

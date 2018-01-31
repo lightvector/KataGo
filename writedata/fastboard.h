@@ -162,6 +162,7 @@ struct FastBoard
   //Check if the given stone is in unescapable atari or can be put into unescapable atari.
   //WILL perform a mutable search - may alter the linked lists or heads, etc.
   bool searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf);
+  bool searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, vector<Loc>& workingMoves);
 
   //Data--------------------------------------------
 

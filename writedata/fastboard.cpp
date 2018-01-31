@@ -921,7 +921,47 @@ int FastBoard::findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStar
   return numFound;
 }
 
+bool FastBoard::searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, vector<Loc>& workingMoves) {
+  if(loc < 0 || loc >= MAX_ARR_SIZE)
+    return false;
+  if(colors[loc] != C_BLACK && colors[loc] != C_WHITE)
+    return false;
+  if(chain_data[chain_head[loc]].num_liberties != 2)
+    return false;
 
+  //Make it so that pla is always the defender
+  Player pla = colors[loc];
+  Player opp = getEnemy(pla);
+
+  int numLibs = findLiberties(loc,buf,0,0);
+  assert(numLibs == 2);
+
+  Loc move0 = buf[0];
+  Loc move1 = buf[1];
+  bool move0Works = false;
+  bool move1Works = false;
+
+  if(isLegal(move0,opp)) {
+    MoveRecord record = playMoveRecorded(move0,opp);
+    move0Works = searchIsLadderCaptured(loc,true,buf);
+    undo(record);
+  }
+  if(isLegal(move1,opp)) {
+    MoveRecord record = playMoveRecorded(move1,opp);
+    move1Works = searchIsLadderCaptured(loc,true,buf);
+    undo(record);
+  }
+
+  if(move0Works || move1Works) {
+    workingMoves.clear();
+    if(move0Works)
+      workingMoves.push_back(move0);
+    if(move1Works)
+      workingMoves.push_back(move1);
+    return true;
+  }
+  return false;
+}
 
 bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf) {
   if(loc < 0 || loc >= MAX_ARR_SIZE)

@@ -12,7 +12,7 @@ using namespace H5;
 
 //Data and feature row parameters
 static const int maxBoardSize = 19;
-static const int numFeatures = 25;
+static const int numFeatures = 26;
 
 //Different segments of the data row
 static const int inputStart = 0;
@@ -51,7 +51,7 @@ static void setRow(float* row, int pos, int feature, float value) {
 static const int TARGET_NEXT_MOVE_AND_LADDER = 0;
 
 //Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
-static void iterLadders(const FastBoard& board, std::function<void(Loc,int)> f) {
+static void iterLadders(const FastBoard& board, std::function<void(Loc,int,const vector<Loc>&)> f) {
   int bSize = board.x_size;
   int offset = (maxBoardSize - bSize) / 2;
 
@@ -60,6 +60,7 @@ static void iterLadders(const FastBoard& board, std::function<void(Loc,int)> f) 
   int numChainHeadsSolved = 0;
   FastBoard copy(board);
   vector<Loc> buf;
+  vector<Loc> workingMoves;
 
   for(int y = 0; y<bSize; y++) {
     for(int x = 0; x<bSize; x++) {
@@ -74,23 +75,55 @@ static void iterLadders(const FastBoard& board, std::function<void(Loc,int)> f) 
           for(int i = 0; i<numChainHeadsSolved; i++) {
             if(chainHeadsSolved[i] == head) {
               alreadySolved = true;
-              if(chainHeadsSolvedValue[i]) f(loc,pos);
+              if(chainHeadsSolvedValue[i]) {
+                workingMoves.clear();
+                f(loc,pos,workingMoves);
+              }
               break;
             }
           }
           if(!alreadySolved) {
             //Perform search on copy so as not to mess up tracking of solved heads
-            bool laddered = copy.searchIsLadderCaptured(loc,libs==1,buf);
+            bool laddered;
+            if(libs == 1)
+              laddered = copy.searchIsLadderCaptured(loc,true,buf);
+            else {
+              workingMoves.clear();
+              laddered = copy.searchIsLadderCapturedAttackerFirst2Libs(loc,buf,workingMoves);
+            }
+
             chainHeadsSolved[numChainHeadsSolved] = head;
             chainHeadsSolvedValue[numChainHeadsSolved] = laddered;
             numChainHeadsSolved++;
-            if(laddered) f(loc,pos);
+            if(laddered)
+              f(loc,pos,workingMoves);
           }
         }
       }
     }
   }
 }
+
+// //Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
+// static void iterWouldBeLadder(const FastBoard& board, Player pla, std::function<void(Loc,int)> f) {
+//   Player opp = getEnemy(pla);
+//   int bSize = board.x_size;
+//   int offset = (maxBoardSize - bSize) / 2;
+
+//   FastBoard copy(board);
+//   vector<Loc> buf;
+
+//   for(int y = 0; y<bSize; y++) {
+//     for(int x = 0; x<bSize; x++) {
+//       int pos = xyToTensorPos(x,y,offset);
+//       Loc loc = Location::getLoc(x,y,bSize);
+//       Color stone = board.colors[loc];
+//       if(stone == C_EMPTY && board.getNumLibertiesAfterPlay(loc,pla,3) == 2) {
+
+//       }
+//     }
+//   }
+// }
 
 static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextMoveIdx, int target, float* row, Rand& rand) {
   assert(board.x_size == board.y_size);
@@ -212,14 +245,19 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
     }
   }
 
-  //Ladder features 23,24
-  auto addLadderFeature = [&board,row](Loc loc, int pos){
+  //Ladder features 23,24,25
+  auto addLadderFeature = [&board,bSize,offset,row](Loc loc, int pos, const vector<Loc>& workingMoves){
     assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
     int libs = board.getNumLiberties(loc);
     if(libs == 1)
       setRow(row,pos,23,1.0);
-    else
+    else {
       setRow(row,pos,24,1.0);
+      for(size_t j = 0; j < workingMoves.size(); j++) {
+        int workingPos = locToTensorPos(workingMoves[j],bSize,offset);
+        setRow(row,workingPos,25,1.0);
+      }
+    }
   };
   iterLadders(board, addLadderFeature);
 
@@ -232,7 +270,8 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
     row[targetStart + nextMovePos] = 1.0;
 
     //Ladder target
-    auto addLadderTarget = [&board,row](Loc loc, int pos){
+    auto addLadderTarget = [&board,row](Loc loc, int pos, const vector<Loc>& workingMoves){
+      (void)workingMoves;
       assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
       row[ladderTargetStart + pos] = 1.0;
     };
