@@ -690,9 +690,9 @@ g1_layer = conv_block("g1",p0_layer,diam=3,in_channels=192,out_channels=g1_num_c
 #For stdev, add a tiny constant to ensure numeric stability
 g1_mean = tf.reduce_mean(g1_layer,axis=[1,2],keep_dims=True)
 g1_max = tf.reduce_max(g1_layer,axis=[1,2],keep_dims=True)
-g1_stdev = tf.sqrt(tf.reduce_mean(tf.square(g1_layer - g1_mean), axis=[1,2], keep_dims=True) + (1e-4))
-g2_layer = tf.concat([g1_mean,g1_max,g1_stdev],axis=3) #shape [b,1,1,3*convg1num_channels]
-g2_num_channels = 3*g1_num_channels
+#g1_stdev = tf.sqrt(tf.reduce_mean(tf.square(g1_layer - g1_mean), axis=[1,2], keep_dims=True) + (1e-4))
+g2_layer = tf.concat([g1_mean,g1_max],axis=3) #shape [b,1,1,2*convg1num_channels]
+g2_num_channels = 2*g1_num_channels
 outputs_by_layer.append(("g2",g2_layer))
 
 #Transform them into the space of the policy features to act as biases for the policy
