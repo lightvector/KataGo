@@ -313,13 +313,14 @@ class Board:
   def playRecordedUnsafe(self,pla,loc):
     capDirs = []
     opp = Board.get_opp(pla)
+    old_simple_ko_point = self.simple_ko_point
     for i in range(4):
       adj = loc + self.adj[i]
       if self.board[adj] == opp and self.group_liberty_count[self.group_head[adj]] == 1:
         capDirs.append(i)
 
     self.playUnsafe(pla,loc)
-    return (pla,loc,self.simple_ko_point,capDirs)
+    return (pla,loc,old_simple_ko_point,capDirs)
 
   def undo(self,record):
     (pla,loc,simple_ko_point,capDirs) = record
@@ -788,6 +789,11 @@ class Board:
     returnValue = False
     returnedFromDeeper = False
 
+    #Clear the ko loc for the defender at the root node - assume all kos work for the defender
+    saved_simple_ko_point = self.simple_ko_point
+    if defenderFirst:
+      self.simple_ko_point = None
+
     # debug = True
     # if debug:
     #   print("SEARCHING " + str(self.loc_x(loc)) + " " + str(self.loc_y(loc)))
@@ -799,6 +805,7 @@ class Board:
       #Returned from the root - so that's the answer
       if stackIdx <= -1:
         assert(stackIdx == -1)
+        self.simple_ko_point = saved_simple_ko_point
         return returnValue
 
       isDefender = (defenderFirst and (stackIdx % 2) == 0) or (not defenderFirst and (stackIdx % 2) == 1)

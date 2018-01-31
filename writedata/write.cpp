@@ -330,27 +330,50 @@ int main(int argc, const char* argv[]) {
   assert(sizeof(size_t) == 8);
   FastBoard::initHash();
 
-  // FastBoard testBoard(19);
-  // testBoard.setStone(Location::getLoc(3,2,19),P_WHITE);
-  // testBoard.setStone(Location::getLoc(3,3,19),P_WHITE);
-  // testBoard.setStone(Location::getLoc(4,3,19),P_WHITE);
-  // testBoard.setStone(Location::getLoc(4,5,19),P_WHITE);
-  // testBoard.setStone(Location::getLoc(5,2,19),P_WHITE);
-  // testBoard.setStone(Location::getLoc(6,2,19),P_WHITE);
-  // testBoard.setStone(Location::getLoc(7,3,19),P_WHITE);
-  // testBoard.setStone(Location::getLoc(4,1,19),P_BLACK);
-  // testBoard.setStone(Location::getLoc(4,2,19),P_BLACK);
-  // testBoard.setStone(Location::getLoc(5,3,19),P_BLACK);
-  // testBoard.setStone(Location::getLoc(6,3,19),P_BLACK);
-  // cout << testBoard << endl;
-  // FastBoard testCopy(testBoard);
-  // vector<Loc> buf;
-  // cout << testCopy << endl;
-  //cout << testCopy.searchIsLadderCaptured(Location::getLoc(5,3,19),true,buf) << endl;
-  // cout << testCopy.searchIsLadderCaptured(Location::getLoc(5,3,19),false,buf) << endl;
-  //cout << testCopy.searchIsLadderCaptured(Location::getLoc(6,3,19),true,buf) << endl;
-  //cout << testCopy.searchIsLadderCaptured(Location::getLoc(6,3,19),false,buf) << endl;
-  // return 0;
+//   string s =
+// ". . . . . O O O O . . . . . . O O X ."
+// ". . . . X X O X O O . . . . . O X . X"
+// ". . . X X O O X X . O O . X . O X X ."
+// ". . X X . X X . . O . X O . . O X . X"
+// ". X O O O X . X O . . O . O . O X . O"
+// "X X X O O X . X O . X X O X O O X . O"
+// ". X O O O X . X . O . . X . O X X X ."
+// "X O O . O X O X X O . X X O . O . . ."
+// ". X X O . O X X O X X . . X . O X X X"
+// "X . X O O O O O O X . . . . . O O O ."
+// ". X O O O X . O X X . . . . X X O . ."
+// ". X O X . X . O O X X . X X . X O . ."
+// "X . X . X . . O X X O O O O X X . . ."
+// "X X O X X X . O . X X O . . O . X X ."
+// "X O O X . O O . X . . X O . O O X O ."
+// "O . O X O . O . X O . X O . O * O O ."
+// ". O O X . O O X X X X O O O X O O . ."
+// ". O X X X O O X O O O O O . . . . . ."
+// ". O . . . O X X . . . . . . . . . . ."
+// ;
+
+//   FastBoard testBoard(19);
+
+//   int next = -1;
+//   for(int y = 0; y<19; y++) {
+//     for(int x = 0; x < 19; x++) {
+//       next += 1;
+//       while(s[next] != '.' && s[next] != '*' && s[next] != 'O' && s[next] != 'X')
+//         next += 1;
+//       if(s[next] == 'O')
+//         testBoard.setStone(Location::getLoc(x,y,19),P_WHITE);
+//       if(s[next] == 'X')
+//         testBoard.setStone(Location::getLoc(x,y,19),P_BLACK);
+//     }
+//   }
+
+//   cout << testBoard << endl;
+//   FastBoard testCopy(testBoard);
+//   vector<Loc> buf;
+//   cout << testCopy << endl;
+//   cout << testCopy.searchIsLadderCaptured(Location::getLoc(11,4,19),true,buf) << endl;
+//   cout << testCopy.searchIsLadderCaptured(Location::getLoc(6,7,19),true,buf) << endl;
+//   return 0;
 
   cout << "Command: ";
   for(int i = 0; i<argc; i++)

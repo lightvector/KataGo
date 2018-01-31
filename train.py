@@ -266,11 +266,8 @@ with tf.Session(config=tfconfig) as session:
     row_target_weights = rows[:,input_len+chain_len+target_len+ladder_target_len]
 
     #DEBUG-----------------------------
-    # print(row_chains[0].reshape([19,19]))
-    # print(row_num_chain_segments[0])
-
     # for bidx in range(len(rows)):
-    #   print("Comparing " + str(bidx))
+    #   print("Comparing " + str(bidx),flush=True)
     #   board = Board(model.max_board_size)
     #   for y in range(board.size):
     #     for x in range(board.size):
@@ -286,13 +283,28 @@ with tf.Session(config=tfconfig) as session:
     #                           input_data=debug_input_data,chain_data=debug_chain_data,num_chain_segments=debug_num_chain_segments,
     #                           target_data=None,target_data_weights=None,for_training=False,idx=0)
 
+    #   # print(board.to_string(),flush=True)
+    #   # print(row_inputs[bidx,:,23].reshape([19,19]),flush=True)
+    #   # print(debug_input_data[0,:,23].reshape([19,19]),flush=True)
+    #   # print(row_inputs[bidx,:,24].reshape([19,19]),flush=True)
+    #   # print(debug_input_data[0,:,24].reshape([19,19]),flush=True)
+    #   # print(row_inputs[bidx,:,18].reshape([19,19]),flush=True)
+    #   # print(row_chains[0].reshape([19,19]),flush=True)
+    #   # print(row_num_chain_segments[0],flush=True)
+
+    #   has_ko = (sum(row_inputs[bidx,:,17]) > 0)
+    #   # print(has_ko,flush=True)
+
     #   for y in range(board.size):
     #     for x in range(board.size):
     #       for fidx in range(17):
     #         assert(debug_input_data[0,y*board.size+x,fidx] == row_inputs[bidx,y*board.size+x,fidx])
-    #       for fidx in range(23,25):
-    #         assert(debug_input_data[0,y*board.size+x,fidx] == row_inputs[bidx,y*board.size+x,fidx])
+    #       if not has_ko:
+    #         for fidx in range(23,25):
+    #           assert(debug_input_data[0,y*board.size+x,fidx] == row_inputs[bidx,y*board.size+x,fidx])
     #       assert(debug_chain_data[0,y*board.size+x] == row_chains[bidx,y*board.size+x])
+
+
     #   assert(debug_num_chain_segments[0] == row_num_chain_segments[bidx])
     #---------------
 

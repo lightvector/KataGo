@@ -936,6 +936,11 @@ bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>&
   Player pla = colors[loc];
   Player opp = getEnemy(pla);
 
+  //Clear the ko loc for the defender at the root node - assume all kos work for the defender
+  Loc ko_loc_saved = ko_loc;
+  if(defenderFirst)
+    ko_loc = NULL_LOC;
+
   //Stack for the search. These point to lists of possible moves to search at each level of the stack, indices refer to indices in [buf].
   int arrSize = x_size*y_size*2; //A bit bigger due to paranoia about recaptures making the sequence longer.
   int moveListStarts[arrSize]; //Buf idx of start of list
@@ -957,6 +962,7 @@ bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>&
     //Returned from the root - so that's the answer
     if(stackIdx <= -1) {
       assert(stackIdx == -1);
+      ko_loc = ko_loc_saved;
       return returnValue;
     }
 
