@@ -213,7 +213,7 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
       input_data[idx,pos,24] = 1.0
       for workingMove in workingMoves:
         workingPos = loc_to_tensor_pos(workingMove,board,offset)
-        input_data[idx,pos,25] = 1.0
+        input_data[idx,workingPos,25] = 1.0
 
   iterLadders(board, addLadderFeature)
 

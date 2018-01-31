@@ -288,6 +288,8 @@ with tf.Session(config=tfconfig) as session:
     #   # print(debug_input_data[0,:,23].reshape([19,19]),flush=True)
     #   # print(row_inputs[bidx,:,24].reshape([19,19]),flush=True)
     #   # print(debug_input_data[0,:,24].reshape([19,19]),flush=True)
+    #   # print(row_inputs[bidx,:,25].reshape([19,19]),flush=True)
+    #   # print(debug_input_data[0,:,25].reshape([19,19]),flush=True)
     #   # print(row_inputs[bidx,:,18].reshape([19,19]),flush=True)
     #   # print(row_chains[0].reshape([19,19]),flush=True)
     #   # print(row_num_chain_segments[0],flush=True)
@@ -300,7 +302,7 @@ with tf.Session(config=tfconfig) as session:
     #       for fidx in range(17):
     #         assert(debug_input_data[0,y*board.size+x,fidx] == row_inputs[bidx,y*board.size+x,fidx])
     #       if not has_ko:
-    #         for fidx in range(23,25):
+    #         for fidx in range(23,26):
     #           assert(debug_input_data[0,y*board.size+x,fidx] == row_inputs[bidx,y*board.size+x,fidx])
     #       assert(debug_chain_data[0,y*board.size+x] == row_chains[bidx,y*board.size+x])
 
