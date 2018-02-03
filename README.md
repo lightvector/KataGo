@@ -1,4 +1,4 @@
-## Go Neural Net Sandbox
+# Go Neural Net Sandbox
 
 This repo is currently a sandbox for personal experimentation in neural net training in Go. I haven't made any particular attempt to make the training pipeline usable by others, but if you're interested, the rough summary is:
 
@@ -9,10 +9,10 @@ This repo is currently a sandbox for personal experimentation in neural net trai
 
 See LICENSE for software license. License aside, informally, if do you successfully use any of the code or any wacky ideas about neural net structure explored in this repo in your own neural nets or to run any of your own experiments, I would to love hear about it and/or might also appreciate a casual acknowledgement where appropriate. Yay.
 
-## Experimental Notes
+# Experimental Notes
 You can see the implementations of the relevant neural net structures in "model.py", although I may adapt and change them as time goes on.
 
-### Current results
+## Current results
 Currently, the best neural nets I've been training from this sandbox have about 3.28 million parameters, arranged as a resnet with about 6 blocks with a main trunk of 192 channels, and a policy head, trained for about 64 million samples. On GoGoD games from 1995 to mid 2016, which is about 50000 games with about 10 million training samples, the validation cross-entropy loss achieved with this many parameters is about 1.66 nats, corresponding to a perplexity of exp(1.66) = 5.26. So the neural net has achieved about the same entropy on average as if on every move it could pin down the next move to uniformly within 5 or 6 possible moves. The top-1 prediction accuracy is about 51%.
 
 I haven't tried running on the KGS dataset yet that most papers out there tend to test on. From the few papers that test on both GoGoD and KGS, it seems very roughly that KGS is a bit easier to predict, with accuracies about 4% higher than for the pro games than for KGS amateur games, so probably these results correspond to roughly a 55% top-1 accuracy on KGS, which I'll get around to testing eventually.
@@ -48,7 +48,7 @@ Also, to get an idea of how top-1 accuracy and nats and direct playing strength 
 | 51% | 1.67 | ~1300
 
 
-### Special Ladder Residual Blocks
+## Special Ladder Residual Blocks
 Experimentally, I've found that neural nets can easily solve ladders, if trained directly to predict ladders (i.e. identify all laddered groups, rather than predict the next move)! Apparently 3 or 4 residual blocks is sufficient to solve ladders extending out up to 10ish spaces, near the theoretical max that such convolutions can reach. Near the theoretical max, they start to get a bit fuzzy, such as being only 70% sure of a working ladder, instead of 95+%, particularly if the ladder maker or ladder breaker stone is near the edge of the 6-wide diagonal path that affects the ladder.
 
 However, specially-designed residual blocks appear to significantly help such a neural net detect solve ladders that extend well beyond the reach of its convolutions, as well as make it much more accurate in deciding when a stone nearly at the edge of the path that could affect the ladder actually does affect the ladder. This is definitely not a "zero" approach because it builds in Go-specific structure into the neural net, but nonetheless, the basic approach I tried was to take the 19x19 board and skew it via manual tensor reshaping:
@@ -75,11 +75,11 @@ Adding such a residual block to the neural net appears to greatly help long-dist
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/laddertarget.png" width="350" height="350"/></td></tr>
-<caption align="bottom"><small>Net correctly flags working ladders. No white stone is a ladder breaker.</small></caption>
+<tr><td><sub>Net correctly flags working ladders. No white stone is a ladder breaker.</sub></tr></td>
 </table>
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/laddertargetbroken.png" width="350" height="350"/></td></tr>
-<caption align="bottom"><small>Net correctly determines that ladders don't work.</small></caption>
+<tr><td><sub>Net correctly determines that ladders don't work.</sub></tr></td>
 </table>
 
 #### Update (201802):
@@ -87,7 +87,7 @@ Apparently, adding this block into the neural net does not cause it to be able t
 
 Strangely however, adding this block in *did* improve the loss, by about 0.015 nats at 10 epochs persisting to still a bit more than 0.010 nats at 25 epochs. I'm not sure exactly what the neural net is using this block for, but it's being used for something. Due to the bottlenecked nature of the block (I'm using only C = 6), it barely increases the number of parameters in the neural net, so this is a pretty surprising improvement in relative terms. So I kept this block in the net while moving on to later experiments, and I haven't gone back to testing further.
 
-### Using Ladders as an Extra Training Target
+## Using Ladders as an Extra Training Target
 
 In another effort to make the neural net understand ladders, I added a second head to the neural net and forced the neural net to simultaneously predict the next move and to identify all groups that were in or could be put in inescapable atari.
 
@@ -95,14 +95,14 @@ Mostly, this didn't work so well. With the size of neural net I was testing (~4-
 
 But simply adding the ladder feature directly as an input to the neural net dominated this, improving the loss very slightly further. Also, with the feature directly provided as an input to the neural net, the neural net was finally able to tease out enough signal to mostly handle ladders well. 
 
-<div class="image">
-<img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/extraladdertargetfail2.png" width="300" height="300"/><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ladderinput2.png" width="300" height="300"/>
-<p><small>Extra ladder target training doesn't stop net from trying to run from working ladder (left), but directly providing it as an input feature works (right). </small></p>
-</div>
+<table class="image">
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/extraladdertargetfail2.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ladderinput2.png" width="300" height="300"/></td></tr>
+<tr><td colspan="2"><sub>Extra ladder target training doesn't stop net from trying to run from working ladder (left), but directly providing it as an input feature works (right). </sub></td></tr>
+</table>
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ladderinput1.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ladderinput3.png" width="300" height="300"/></td></tr>
-<caption align="bottom"><small>And on the move before, whether the ladder works clearly affects the policy.</small></caption>
+<tr><td colspan="2"><sub>And on the move before, whether the ladder works clearly affects the policy.</sub></td></tr>
 </table>
 
 However, even with such a blunt signal, it still doesn't always handle ladders correctly! In some test positions, sometimes it fails to capture stones in a working ladder, or fails to run from a failed ladder, or continues to run from a working ladder, etc. Presumably pro players would not get into such situations in the first place, so there is a lack of data on these situations. 
@@ -111,11 +111,11 @@ This suggests that a lot of these difficulties are due to the supervised-learnin
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ladderinput4.png" width="350" height="350"/></td></tr>
-<caption align="bottom"><small>Even when told via input feature that this ladder works, the NN still wants to try to escape.</small></caption>
+<tr><td><sub>Even when told via input feature that this ladder works, the NN still wants to try to escape.</sub></tr></td>
 </table>
 
 
-### Global Pooled Properties
+## Global Pooled Properties
 Starting from a purely-convolutional policy net, I noticed a pretty significant change in move prediction accuracy despite only a small increase in the number of trainable parameters when I added the following structure to the policy head. The intent is to allow the neural net to compute some "global" properties of the board that may affect local play.
    * Separately from the main convolutions that feed into the rest of the policy head, on the side compute C channels of 3x3 convolutions (shape 19x19xC).
    * Max-pool, average-pool, and stdev-pool these C channels across the whole board (shape 1x1x(3C))
@@ -142,20 +142,17 @@ Experimentally, that's what it does! I tried C = 16, and when visualizing the ac
 
 So apparently global pooled properties help a lot. I bet this could also be done as a special residual block earlier in the neural net rather than putting it only in the policy head.
 
-<table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/kothreatglobalproperty.png" width="350" height="350"/></td></tr>
-<caption align="bottom"><small>Heatmap of ko-fight-detector just prior to global pooling, activating bright green after a ko was taken. Elsewhere, the heatmap is covered with checkerlike patterns. </small></caption>
-</table>
+Here's a heatmap of the ko-fight detector channel, just prior to pooling. It activates bright green in this position after a ko was just taken. Everywhere else the heatmap is covered with checkerlike patterns, suggesting the kinds of shapes that the detector is sensitive to.
 
-<table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/kothreatpolicy.png" width="350" height="350"/></td></tr>
-<caption align="bottom"><small>The net uses this to suggests a distant plausible ko threat. </small></caption>
-</table>
+<img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/kothreatglobalproperty.png" width="350" height="350"/>
 
-<table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/afterko.png" width="350" height="350"/></td></tr>
-<caption align="bottom"><small>When there is no ko, the net no longer wants to play ko threats. </small></caption>
-</table>
+As a result of the pooling, the net predicts a distant ko threat:
+
+<img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/kothreatpolicy.png" width="350" height="350"/>
+
+But when there is no ko, the net no longer wants to play ko threats:
+
+<img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/afterko.png" width="350" height="350"/>
 
 #### Update (201802):
 
@@ -164,16 +161,16 @@ The original tests of global pooled properties was done when the neural net was 
 So this is still adding plenty of value to the neural net. From a Go-playing perspective, it's also fairly obvious in practice that these channels are doing work. At least in ko fights, since the capture of an important ko plainly causes the neural net to suggest ko-threat moves all over the board that it would otherwise never suggest, including ones too far away to be easily reached by successive convolutions. I find it interesting that I haven't yet found any other published architectures include such a structure in the neural net.
 
 Just for fun, here's some more pictures of channels just prior to the pooling. These are from latest nets that use parameteric ReLU, so the channels have negative values now as well (indicated by blues, purples, and magentas).
-<table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/territorydetector.png" width="350" height="350"/></td></tr>
-<caption align="bottom"><small>Despite only being trained to predict moves, the net has developed a rough territory detector. It also clearly understands the upper right white group is dead. </small></caption>
-</table>
-<table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/unfinishedborderdetector.png" width="350" height="350"/></td></tr>
-<caption align="bottom"><small>This appears to be a detector for unfinished endgame borders. </small></caption>
-</table>
 
-### Wide Low-Rank Residual Blocks:
+Despite only being trained to predict moves, the net has developed a rough territory detector. It also clearly understands the upper right white group is dead:
+
+<img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/territorydetector.png" width="350" height="350"/>
+
+And this appears to be a detector for unfinished endgame borders:
+
+<img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/unfinishedborderdetector.png" width="350" height="350"/>
+
+## Wide Low-Rank Residual Blocks:
 
 In one experiment, I found that adding a single residual block that performs a 1x9 and then a 9x1 convolution (as well as in parallel a 9x1 and then a 1x9 convolution, sharing weights) appears to decrease the loss slightly more than adding an additional ordinary block that does two 3x3 convolutions.
 
@@ -181,13 +178,13 @@ The idea is that such a block makes it easier for the neural net to propagate ce
 
 However, there's the drawback that either this causes an horizontal-vertical asymmetry, if you don't do the convolutions in both orders of orientations, or else this block costs twice in performance as much as an ordinary residual block. I suspect it's possible to get a version that is more purely benefiting, but I haven't tried a lot of permutations on this idea yet, so this is still an area to be explored.
 
-### Parametric ReLUs
+## Parametric ReLUs
 
 I found a moderate improvement when switching to using parametric ReLUs (https://arxiv.org/pdf/1502.01852.pdf) instead of ordinary ReLUs. I also I found a very weird result about what alpha parameters it wants to choose for them. I haven't heard of anyone else using parametric ReLUs for Go, I'm curious if this result replicates in anyone else's neural nets.
 
 <table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/parametricrelu.png" width="350" height="350"/></td></tr>
-<caption align="bottom"><small>Left: ordinary ReLU. Right: parametric ReLU, where "a" is a trainable parameter. Image from https://arxiv.org/pdf/1502.01852.pdf </small></caption>
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/parametricrelu.png" width="500" height="250"/></td></tr>
+<tr><td><sub>Left: ordinary ReLU. Right: parametric ReLU, where "a" is a trainable parameter. Image from https://arxiv.org/pdf/1502.01852.pdf </sub></tr></td>
 </table>
 
 For a negligible increase in the number of parameters of the neural net, using parametric ReLUs improved the loss by about 0.025 nats over the first 10 epochs a fairly significant improvement given the simplicity of the change. This decayed to little to closer to 0.010 to 0.015 nats by 30 epochs, but was still persistently and clearly better, well above the noise in the loss between successive runs.
@@ -202,7 +199,7 @@ For the vast majority of the ReLUs though, as far as I can tell, the neural net 
 
 I'd be very curious to hear whether this reproduces for anyone else. For now, I've been keeping the parametric ReLUs, since they do seem to be an improvement, although I'm quite mystified about why non-monotone functions are good here.
 
-### Chain Pooling
+## Chain Pooling
 
 Using the following functions:
 https://www.tensorflow.org/api_docs/python/tf/unsorted_segment_max
@@ -212,15 +209,19 @@ it's possible to implement a layer that performs max-pooling across connected ch
 I tried adding a residual block that applied this layer, and got mixed results. On the one hand, when trying the resulting neural net in test cases, it improves all the situations you would expect it to improve.
 
 For example, an ordinary neural net has no problem with making two eyes in this position when its lower eye is falsified:
+
 <img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/nochainpool1.png" width="350" height="350"/>
 
 But, when you make it too far away, the neural net doesn't have enough convolutional layers to propagate the information, so it no longer suggests S19 to live:
+
 <img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/nochainpool2.png" width="350" height="350"/>
 
 Adding a residual block with a chain pooling layer improves this, the neural net now suggests to live even when the move is arbitrarily far away, as long as the group is solidly connected:
+
 <img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/chainpool1.png" width="350" height="350"/>
 
 And even does so partially when there's a gap in the chain, since the chain pooling is still able to propagate the information a good distance.
+
 <img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/chainpool2.png" width="350" height="350"/>
 
 I've also observed improvements in a variety of other cases, particularly in large capturing races or in endgame situations where a filled dame on a large chain requires a far-away defense. In all these cases, chain-pooling helped the neural net find the correct response.
@@ -233,9 +234,11 @@ One additional problem is that the chain pooling is fairly computationally expen
 
 So all the results in test positions looked promising, but the the actual stats were a bit disappointing. I'll probably revisit variations on this idea later, particularly if I can find a cheap way of a similar result in Tensorflow with less computational cost.
 
-### Redundant Parameters and Learning Rates
+## Redundant Parameters and Learning Rates
 
 There is a class of kinds of twiddles you can do to the architecture of a neural net that are completely "redundant" and leave the neural net's representation ability exactly unchanged. In many contexts I've seen people completely dismiss these sorts of twiddles, but confusingly, I've noticed that they actually can have effects on the learning. And sometimes in published papers, I've noticed the authors use such architectures without any mention of the redundancy, leaving me to wonder how widespread the knowledge about these sorts of things is.
+
+#### Redundant Convolution Weights
 
 For example, in one paper on ResNets in Go, (http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf), for the initial convolution that begins the residual trunk, the author chose to use the sum of a 5x5 convolution and a 1x1 convolution. One might intuit this change to be potentially good, since the first layer will probably often not be computing overly sophisticated 5x5 patterns, and a significant amount of its job will be computing various important logical combinations of the input features to pass through (e.g. "stone has 1 liberty AND is next to the opponent's previous move") that will frequently involve the center weight, so the center weights will be important more often than the edge weights.
 
@@ -261,10 +264,12 @@ So in my own neural nets I tried adding an additional parameter in the center of
 
 (The current neural nets in this sandbox use a 5x5 convolution rather than a 3x3 to begin the ResNet trunk since the small number of channels of the input layer it uniquely cheap to do a larger convolution here, unlike the rest of the neural net with 192 channels. It probably helps slightly in kicking things off, such as being able to detect the edge from 2 spaces away instead of only 1 space away by the start of the first residual block).
 
+I haven't gotten to it yet, but in the future I want to test more changes of this flavor. For example, given that it was a good idea to increase the weight initialization and learning rate on the center weight for the initial 5x5 convolution, could it be a good idea to do the same for all the 3x3 convolutions everywhere else in the neural net?
+
+#### Batch Norm Gammas
+
 Another redundancy I've been experimenting with is the fact that due to historical accident, the current neural nets in this sandbox use scale=True in [batch norm layers](https://www.tensorflow.org/api_docs/python/tf/layers/batch_normalization), even though the resulting gamma scale parameters are completely redundant with the convolution weights afterwards. This is because ReLUs (and parametric ReLUs) are scale-preserving, so a neural net having a batch norm layer with a given gamma is equivalent to one without gamma but where the next layer's convolution weights for that incoming channel are gamma-times-larger. 
 
 Yet, despite the redundancy, the presence of those redundant parameters does influence the learning. In some quick tests I was not able to get rid of them. Although I didn't try so extensively, in a handful of tries I was unable to find a combination of setting scale=False and increasing the learning rate to compensate that did not slow down the total efficiency of learning. So the latest neural nets for now continue to use scale=True.
-
-I haven't gotten to it yet, but in the future I want to test more changes of this flavor. For example, given that it was a good idea to increase the weight initialization and learning rate on the center weight for the initial 5x5 convolution, could it be a good idea to do the same for all the 3x3 convolutions everywhere else in the neural net?
 
 
