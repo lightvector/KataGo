@@ -95,10 +95,10 @@ Mostly, this didn't work so well. With the size of neural net I was testing (~4-
 
 But simply adding the ladder feature directly as an input to the neural net dominated this, improving the loss very slightly further. Also, with the feature directly provided as an input to the neural net, the neural net was finally able to tease out enough signal to mostly handle ladders well. 
 
-<table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/extraladdertargetfail2.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ladderinput2.png" width="300" height="300"/></td></tr>
-<caption align="bottom"><small>Extra ladder target training doesn't stop net from trying to run from working ladder (left), but directly providing it as an input feature works (right). </small></caption>
-</table>
+<div class="image">
+<img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/extraladdertargetfail2.png" width="300" height="300"/><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ladderinput2.png" width="300" height="300"/>
+<p><small>Extra ladder target training doesn't stop net from trying to run from working ladder (left), but directly providing it as an input feature works (right). </small></p>
+</div>
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ladderinput1.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ladderinput3.png" width="300" height="300"/></td></tr>
