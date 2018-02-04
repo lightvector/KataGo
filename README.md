@@ -23,15 +23,15 @@ For a comparison with other neural nets, see this table for a summary of results
 
 | Neural Net | Structure | Params | KGS Top1 | GoGoD Top1 | Training Steps | Vs GnuGo |
 |------|---|---|---|---|---|---|
-| [Clark and Stokey (2015)](https://arxiv.org/abs/1412.3409)  | CNN 8 layers | ~560000 |  44.4% | 41.1% | 147M | 87%
-| [Maddison et al. (2015)](https://arxiv.org/abs/1412.6564) |  CNN 12 layers | ~2300000 |  55.2% |  | 685M x 50 + 82M | 97%
-| [AlphaGoFanHui-192 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 3880489 | 55.4% | | 340M x 50
-| [AlphaGoFanHui-256 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 6795881 | 55.9%
-| [Darkforest (2016)](https://arxiv.org/abs/1511.06410) | CNN 12 layers  | 12329756  | 57.1%  |   | 128M | 99.7%
-| [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10 blocks | 12098304 | 55.5% | 50.7% | 70M
-| [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10 blocks | 12098304 | 58.2% | 54.6% | 350M
-| [AlphaGoZero-20Blocks(2017)](https://deepmind.com/documents/119/agz_unformatted_nature.pdf) | ResNet 20 blocks | 22837864 | 60.4% | | >1000M?
-| Current Sandbox | ResNet 4 Blocks + 2 Special | 3285048 | | 51.9% | 52M | 98-99%
+| [Clark and Stokey (2015)](https://arxiv.org/abs/1412.3409)  | CNN 8 layers | ~560,000 |  44.4% | 41.1% | 147M | 87%
+| [Maddison et al. (2015)](https://arxiv.org/abs/1412.6564) |  CNN 12 layers | ~2,300,000 |  55.2% |  | 685M x 50 + 82M | 97%
+| [AlphaGoFanHui-192 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 3,880,489 | 55.4% | | 340M x 50
+| [AlphaGoFanHui-256 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 6,795,881 | 55.9%
+| [Darkforest (2016)](https://arxiv.org/abs/1511.06410) | CNN 12 layers  | 12,329,756  | 57.1%  |   | 128M | 99.7%
+| [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10 blocks | 12,098,304 | 55.5% | 50.7% | 70M
+| [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10 blocks | 12,098,304 | 58.2% | 54.6% | 350M
+| [AlphaGoZero-20Blocks(2017)](https://deepmind.com/documents/119/agz_unformatted_nature.pdf) | ResNet 20 blocks | 22,837,864 | 60.4% | | >1000M?
+| Current Sandbox | ResNet 4 Blocks + 2 Special | 3,285,048 | | 51.9% | 52M | 98-99%
 
 Based on this table and also observations during training, I think it's almost certainly the case that the prediction quality could be increased further simply by making the neural nets bigger and training much longer. At 52M steps the loss has clearly not quite stopped decreasing, but I usually stop the training not too long afterward anyways. Also the above table suggests that making the neural net bigger is always just better at these scales. Indeed I'm observing essentially no overfitting, so we're still well within the regime where continuing to make the model capacity larger will allow a better fit. But in the interests of actually getting to run a variety of experiments in a reasonable time on a limited budget (just two single-GPU machines on Amazon EC2), I've so far deliberately refrained from making the neural net much bigger or spending weeks optimizing any particular neural net.
 
