@@ -180,7 +180,7 @@ However, there's the drawback that either this causes an horizontal-vertical asy
 
 ## Parametric ReLUs
 
-I found a moderate improvement when switching to using parametric ReLUs (https://arxiv.org/pdf/1502.01852.pdf) instead of ordinary ReLUs. I also I found a very weird result about what alpha parameters it wants to choose for them. I haven't heard of anyone else using parametric ReLUs for Go, I'm curious if this result replicates in anyone else's neural nets.
+I found a moderate improvement when switching to using parametric ReLUs (https://arxiv.org/pdf/1502.01852.pdf) instead of ordinary ReLUs. I also I found a very weird result about what parameters it wants to choose for them. I haven't heard of anyone else using parametric ReLUs for Go, I'm curious if this result replicates in anyone else's neural nets.
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/parametricrelu.png" width="500" height="250"/></td></tr>
