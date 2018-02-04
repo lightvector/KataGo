@@ -77,6 +77,7 @@ ladder_output = model.ladder_output
 targets = tf.placeholder(tf.float32, [None] + model.target_shape)
 ladder_targets = tf.placeholder(tf.float32, [None] + model.ladder_target_shape)
 target_weights = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
+#TODO this should be reduce_sum and we should separately sum the target_weights, so we can choose how to divide
 data_loss = tf.reduce_mean(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output))
 # ladder_loss = tf.reduce_mean(target_weights * tf.reduce_sum(tf.square(ladder_targets-tf.sigmoid(ladder_output)),axis=1))
 ladder_loss = tf.reduce_mean(target_weights * tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=ladder_targets,logits=ladder_output),axis=1))
@@ -104,6 +105,7 @@ with tf.control_dependencies(update_ops):
     adjusted_gradients.append((adjusted_grad,x))
   train_step = optimizer.apply_gradients(adjusted_gradients)
 
+#TODO should also apply target weights here?
 #Training results
 target_idxs = tf.argmax(targets, 1)
 top1_prediction = tf.equal(tf.argmax(policy_output, 1), target_idxs)
