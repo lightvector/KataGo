@@ -174,9 +174,9 @@ And this appears to be a detector for unfinished endgame borders:
 
 In one experiment, I found that adding a single residual block that performs a 1x9 and then a 9x1 convolution (as well as in parallel a 9x1 and then a 1x9 convolution, sharing weights) appears to decrease the loss slightly more than adding an additional ordinary block that does two 3x3 convolutions.
 
-The idea is that such a block makes it easier for the neural net to propagate certain kinds of information faster across distance, in the case where such information doesn't need to involve as-detail of nonlinear computations, faster than 3x3 convolutions would allow. For example, one might imagine this being used to propagate information about large-scale influence from walls.
+The idea is that such a block makes it easier for the neural net to propagate certain kinds of information faster across distance in the case where it doesn't need very detailed of nonlinear computations, much faster than 3x3 convolutions would allow. For example, one might imagine this being used to propagate information about large-scale influence from walls.
 
-However, there's the drawback that either this causes an horizontal-vertical asymmetry, if you don't do the convolutions in both orders of orientations, or else this block costs twice in performance as much as an ordinary residual block. I suspect it's possible to get a version that is more purely benefiting, but I haven't tried a lot of permutations on this idea yet, so this is still an area to be explored.
+However, there's the drawback that either this causes an horizontal-vertical asymmetry if you don't do the convolutions in both orders of orientations, or else this block costs twice in performance as much as an ordinary residual block. I suspect it's possible to get a version that is more purely benefiting, but I haven't tried a lot of permutations on this idea yet, so this is still an area to be explored.
 
 ## Parametric ReLUs
 
@@ -187,7 +187,7 @@ I found a moderate improvement when switching to using parametric ReLUs (https:/
 <tr><td><sub>Left: ordinary ReLU. Right: parametric ReLU, where "a" is a trainable parameter. Image from https://arxiv.org/pdf/1502.01852.pdf </sub></tr></td>
 </table>
 
-For a negligible increase in the number of parameters of the neural net, using parametric ReLUs improved the loss by about 0.025 nats over the first 10 epochs a fairly significant improvement given the simplicity of the change. This decayed to little to closer to 0.010 to 0.015 nats by 30 epochs, but was still persistently and clearly better, well above the noise in the loss between successive runs.
+For a negligible increase in the number of parameters of the neural net, using parametric ReLUs improved the loss by about 0.025 nats over the first 10 epochs, a fairly significant improvement given the simplicity of the change. This decayed to little to closer to 0.010 to 0.015 nats by 30 epochs, but was still persistently and clearly better, well above the noise in the loss between successive runs.
 
 As far as I can tell, this was not simply due to something like having a problem of dead ReLUs beforehand, or some other simple issue. Ever since batch normalization was added, much earlier, all stats about the gradients and values in the inner layers have indicated that very few of the ReLUs die during training. Rather, I think this change is some sort of genuine increase in the fitting ability of the neural net.
 
@@ -195,7 +195,7 @@ The idea that this is doing something useful for the net is supported by a stran
 
 With one exception: the ReLUs involved in the global pooled properties layer persistently choose positive *a*, with a mean of positive 0.30. If any layer were to be different, I'd expect it to be this one, since these values are used in a very different way than any other layer, being globally pooled before being globally rebroadcast. Still, it's interesting that there's such a difference.
 
-For the vast majority of the ReLUs though, as far as I can tell, the neural net actually does "want" the activation to be non-monotone. In a short test run where *a* was initialized to a positive value rather than 0, the neural net over the course of the first few epochs forced all the *a*s to be negative mean again, except for the ones in the global pooled properties layer, and in the meantime, had a larger training loss, indicating that it was not fitting as well due to the positive *a*s.
+For the vast majority of the ReLUs though, as far as I can tell, the neural net actually does "want" the activation to be non-monotone. In a short test run where *a* was initialized to a positive value of 0.25 rather than 0, the neural net over the course of the first few epochs forced all the *a*s to be negative mean again, except for the ones in the global pooled properties layer. In the meantime, it also had a larger training loss indicating that it was not fitting as well due to the positive *a*s.
 
 I'd be very curious to hear whether this reproduces for anyone else. For now, I've been keeping the parametric ReLUs, since they do seem to be an improvement, although I'm quite mystified about why non-monotone functions are good here.
 
