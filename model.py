@@ -412,30 +412,45 @@ def hv_res_conv_block(name, in_layer, diam, main_channels, mid_channels):
   trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
   outputs_by_layer.append((name+"/trans1",trans1_layer))
 
-  weights1s = weight_variable(name+"/w1",[diam,1,main_channels,mid_channels],main_channels*diam,mid_channels)
-  weights1t = tf.transpose(weights1s,perm=[1,0,2,3])
-  weights2s = weight_variable(name+"/w2",[1,diam,mid_channels,main_channels],main_channels*diam,mid_channels)
-  weights2t = tf.transpose(weights2s,perm=[1,0,2,3])
+  weights1 = weight_variable(name+"/w1",[diam,1,main_channels,mid_channels],main_channels*diam,mid_channels)
+  weights2 = weight_variable(name+"/w2",[1,diam,mid_channels,main_channels],main_channels*diam,mid_channels)
 
-  conv1s_layer = conv2d(trans1_layer, weights1s)
-  conv1t_layer = conv2d(trans1_layer, weights1t)
-  outputs_by_layer.append((name+"/conv1s",conv1s_layer))
-  outputs_by_layer.append((name+"/conv1t",conv1t_layer))
+  conv1_layer = conv2d(trans1_layer, weights1)
+  outputs_by_layer.append((name+"/conv1",conv1_layer))
 
-  trans2s_layer = parametric_relu(name+"/prelu2s",(batchnorm(name+"/norm2s",conv1s_layer)))
-  trans2t_layer = parametric_relu(name+"/prelu2t",(batchnorm(name+"/norm2t",conv1t_layer)))
-  outputs_by_layer.append((name+"/trans2s",trans2s_layer))
-  outputs_by_layer.append((name+"/trans2t",trans2t_layer))
+  trans2_layer = parametric_relu(name+"/prelu2",(batchnorm(name+"/norm2",conv1_layer)))
+  outputs_by_layer.append((name+"/trans2",trans2_layer))
 
-  conv2s_layer = conv2d(trans2s_layer, weights2s)
-  conv2t_layer = conv2d(trans2t_layer, weights2t)
-  outputs_by_layer.append((name+"/conv2s",conv2s_layer))
-  outputs_by_layer.append((name+"/conv2t",conv2t_layer))
+  conv2_layer = conv2d(trans2_layer, weights2)
+  outputs_by_layer.append((name+"/conv2",conv2_layer))
 
-  residual = 0.5 * (conv2s_layer + conv2t_layer)
+  residual = conv2_layer * 0.5
   out_layer = in_layer + residual
   outputs_by_layer.append((name,out_layer))
   return out_layer
+
+#Same, but vertical then horizontal
+def vh_res_conv_block(name, in_layer, diam, main_channels, mid_channels):
+  trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
+  outputs_by_layer.append((name+"/trans1",trans1_layer))
+
+  weights1 = weight_variable(name+"/w1",[1,diam,main_channels,mid_channels],main_channels*diam,mid_channels)
+  weights2 = weight_variable(name+"/w2",[diam,1,mid_channels,main_channels],main_channels*diam,mid_channels)
+
+  conv1_layer = conv2d(trans1_layer, weights1)
+  outputs_by_layer.append((name+"/conv1",conv1_layer))
+
+  trans2_layer = parametric_relu(name+"/prelu2",(batchnorm(name+"/norm2",conv1_layer)))
+  outputs_by_layer.append((name+"/trans2",trans2_layer))
+
+  conv2_layer = conv2d(trans2_layer, weights2)
+  outputs_by_layer.append((name+"/conv2",conv2_layer))
+
+  residual = conv2_layer * 0.5
+  out_layer = in_layer + residual
+  outputs_by_layer.append((name,out_layer))
+  return out_layer
+
 
 def chainpool_block(name, in_layer, chains, num_chain_segments, empty, nonempty, diam, main_channels, mid_channels):
   trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
@@ -671,8 +686,10 @@ cur_layer = ladder_block("ladder1",cur_layer,near_nonempty,main_channels=192,mid
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=192,mid_channels=192)
 
-#HV Convolutional Block 1---------------------------------------------------------------------------------
+#H/V Convolutional Block 1---------------------------------------------------------------------------------
 cur_layer = hv_res_conv_block("hvconv1",cur_layer,diam=9,main_channels=192,mid_channels=64)
+#H/V Convolutional Block 2---------------------------------------------------------------------------------
+cur_layer = vh_res_conv_block("hvconv2",cur_layer,diam=9,main_channels=192,mid_channels=64)
 
 #Residual Convolutional Block 4---------------------------------------------------------------------------------
 cur_layer = res_conv_block("rconv4",cur_layer,diam=3,main_channels=192,mid_channels=192)
