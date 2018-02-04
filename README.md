@@ -160,9 +160,9 @@ The original tests of global pooled properties was done when the neural net was 
 
 So this is still adding plenty of value to the neural net. From a Go-playing perspective, it's also fairly obvious in practice that these channels are doing work. At least in ko fights, since the capture of an important ko plainly causes the neural net to suggest ko-threat moves all over the board that it would otherwise never suggest, including ones too far away to be easily reached by successive convolutions. I find it interesting that I haven't yet found any other published architectures include such a structure in the neural net.
 
-Just for fun, here's some more pictures of channels just prior to the pooling. These are from latest nets that use parameteric ReLU, so the channels have negative values now as well (indicated by blues, purples, and magentas).
+Just for fun, here's some more pictures of channels just prior to the pooling. These are from the latest nets that use parametric ReLU, so the channels have negative values now as well (indicated by blues, purples, and magentas).
 
-Despite only being trained to predict moves, the net has developed a rough territory detector. It also clearly understands the upper right white group is dead:
+Despite only being trained to predict moves, this net has developed a rough territory detector! It also clearly understands the upper right white group is dead:
 
 <img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/territorydetector.png" width="350" height="350"/>
 
@@ -189,7 +189,7 @@ I found a moderate improvement when switching to using parametric ReLUs (https:/
 
 For a negligible increase in the number of parameters of the neural net, using parametric ReLUs improved the loss by about 0.025 nats over the first 10 epochs a fairly significant improvement given the simplicity of the change. This decayed to little to closer to 0.010 to 0.015 nats by 30 epochs, but was still persistently and clearly better, well above the noise in the loss between successive runs.
 
-As far as I can tell, this was not simply due to something like having a problem of dead ReLUs beforehand. Ever since batch normalization was added, much earlier, all stats about the gradients and values in the inner layers have indicated that very few of the ReLUs die during training. I think this change is some sort of genuine increase in the fitting ability of the neural net. 
+As far as I can tell, this was not simply due to something like having a problem of dead ReLUs beforehand, or some other simple issue. Ever since batch normalization was added, much earlier, all stats about the gradients and values in the inner layers have indicated that very few of the ReLUs die during training. Rather, I think this change is some sort of genuine increase in the fitting ability of the neural net.
 
 The idea that this is doing something useful for the net is supported by a strange observation: for the vast majority of the ReLUs, it seems like the neural net wants to choose a negative value for *a*! That means that the resulting activation function is non-monotone. In one of the most recent nets, depending on the layer, the mean value of *a* for all the ReLUs in a layer varies from around -0.15 to around -0.40, with standard deviation on the order of 0.10 to 0.15.
 
@@ -202,9 +202,10 @@ I'd be very curious to hear whether this reproduces for anyone else. For now, I'
 ## Chain Pooling
 
 Using the following functions:
-https://www.tensorflow.org/api_docs/python/tf/unsorted_segment_max
-https://www.tensorflow.org/api_docs/python/tf/gather
-it's possible to implement a layer that performs max-pooling across connected chains of stones (rather than pooling across 2x2 squares as you normally see in the image literature).
+   * https://www.tensorflow.org/api_docs/python/tf/unsorted_segment_max
+   * https://www.tensorflow.org/api_docs/python/tf/gather
+
+...it's possible to implement a layer that performs max-pooling across connected chains of stones (rather than pooling across 2x2 squares as you normally see in the image literature).
 
 I tried adding a residual block that applied this layer, and got mixed results. On the one hand, when trying the resulting neural net in test cases, it improves all the situations you would expect it to improve.
 
@@ -232,7 +233,7 @@ When I added two chain pooling blocks each with 64 channels, this time the loss 
 
 One additional problem is that the chain pooling is fairly computationally expensive compared to plain convolutional layers. I haven't done detailed measurements, but it's probably at least several times more expensive, so even with an improvement it's not obvious that this is worth it over simply adding more ordinary residual blocks.
 
-So all the results in test positions looked promising, but the the actual stats were a bit disappointing. I'll probably revisit variations on this idea later, particularly if I can find a cheap way of a similar result in Tensorflow with less computational cost.
+So all the results in test positions looked promising, but the actual stats on performance and improvement in the loss were a bit disappointing. I'll probably revisit variations on this idea later, particularly if I can find a cheaper way to compute something like this in Tensorflow.
 
 ## Redundant Parameters and Learning Rates
 
@@ -262,7 +263,7 @@ Nonetheless, it has an effect on the learning. With standard weight initializati
 
 So in my own neural nets I tried adding an additional parameter in the center of the existing 5x5 convolution, and in fact, it was an improvement! Only about 0.01 nats in early epochs, decaying to a slight improvement of less than 0.005 nats by epoch 50 or later. But still an improvement to the overall speed of learning.
 
-(The current neural nets in this sandbox use a 5x5 convolution rather than a 3x3 to begin the ResNet trunk since the small number of channels of the input layer it uniquely cheap to do a larger convolution here, unlike the rest of the neural net with 192 channels. It probably helps slightly in kicking things off, such as being able to detect the edge from 2 spaces away instead of only 1 space away by the start of the first residual block).
+(The current neural nets in this sandbox use a 5x5 convolution rather than a 3x3 to begin the ResNet trunk since the small number of channels of the input layer makes it uniquely cheap to do a larger convolution here, unlike the rest of the neural net with 192 channels. It probably helps slightly in kicking things off, such as being able to detect the edge from 2 spaces away instead of only 1 space away by the start of the first residual block.)
 
 I haven't gotten to it yet, but in the future I want to test more changes of this flavor. For example, given that it was a good idea to increase the weight initialization and learning rate on the center weight for the initial 5x5 convolution, could it be a good idea to do the same for all the 3x3 convolutions everywhere else in the neural net?
 
