@@ -699,10 +699,10 @@ near_nonempty = tf.minimum(1.0,conv2d(tf.expand_dims(nonempty,axis=3),manhattan_
 cur_layer = conv_only_extra_center_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=192)
 
 #Residual Convolutional Block 1---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv1",cur_layer,diam=3,main_channels=192,mid_channels=192)
+cur_layer = res_conv_block("rconv1",cur_layer,diam=3,main_channels=192,mid_channels=192, emphasize_center_lr=1.5)
 
 #Residual Convolutional Block 2---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=192,mid_channels=192)
+cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=192,mid_channels=192, emphasize_center_lr=1.5)
 
 #Ladder Block 1-------------------------------------------------------------------------------------------------
 cur_layer = ladder_block("ladder1",cur_layer,near_nonempty,main_channels=192,mid_channels=6)
@@ -711,7 +711,7 @@ cur_layer = ladder_block("ladder1",cur_layer,near_nonempty,main_channels=192,mid
 # cur_layer = chainpool_block("cpool1",cur_layer,cur_chains,num_chain_segments,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
 
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=192,mid_channels=192)
+cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=192,mid_channels=192, emphasize_center_lr=1.5)
 
 #H/V Convolutional Block 1---------------------------------------------------------------------------------
 cur_layer = hv_res_conv_block("hvconv1",cur_layer,diam=9,main_channels=192,mid_channels=64)
@@ -719,7 +719,7 @@ cur_layer = hv_res_conv_block("hvconv1",cur_layer,diam=9,main_channels=192,mid_c
 cur_layer = vh_res_conv_block("hvconv2",cur_layer,diam=9,main_channels=192,mid_channels=64)
 
 #Residual Convolutional Block 4---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv4",cur_layer,diam=3,main_channels=192,mid_channels=192)
+cur_layer = res_conv_block("rconv4",cur_layer,diam=3,main_channels=192,mid_channels=192, emphasize_center_lr=1.5)
 
 #Postprocessing residual trunk----------------------------------------------------------------------------------
 
