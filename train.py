@@ -91,7 +91,7 @@ opt_loss = data_loss + reg_loss
 
 #Training operation
 batch_learning_rate = tf.placeholder(tf.float32)
-lr_adjusted_variables = dict(model.lr_adjusted_variables)
+lr_adjusted_variables = model.lr_adjusted_variables
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
 with tf.control_dependencies(update_ops):
   #optimizer = tf.train.AdamOptimizer(batch_learning_rate)
@@ -101,7 +101,10 @@ with tf.control_dependencies(update_ops):
   for (grad,x) in gradients:
     adjusted_grad = grad
     if x.name in lr_adjusted_variables and grad is not None:
-      adjusted_grad = grad * lr_adjusted_variables[x.name]
+      adj_factor = lr_adjusted_variables[x.name]
+      adjusted_grad = grad * adj_factor
+      trainlog("Adjusting gradient for " + x.name + " by " + str(adj_factor))
+
     adjusted_gradients.append((adjusted_grad,x))
   train_step = optimizer.apply_gradients(adjusted_gradients)
 

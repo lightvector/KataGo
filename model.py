@@ -235,7 +235,7 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
 # Build model -------------------------------------------------------------
 
 reg_variables = []
-lr_adjusted_variables = []
+lr_adjusted_variables = {}
 is_training = tf.placeholder(tf.bool)
 
 def ensure_variable_exists(name):
@@ -243,6 +243,13 @@ def ensure_variable_exists(name):
     if v.name == name:
       return name
   raise Exception("Could not find variable " + name)
+
+def add_lr_factor(name,factor):
+  ensure_variable_exists(name)
+  if name in lr_adjusted_variables:
+    lr_adjusted_variables[name] = factor * lr_adjusted_variables[name]
+  else:
+    lr_adjusted_variables[name] = factor
 
 def batchnorm(name,tensor):
   return tf.layers.batch_normalization(
@@ -262,21 +269,21 @@ def init_stdev(num_inputs,num_outputs):
   #herangzhen
   return math.sqrt(2.0 / (num_inputs))
 
+def init_weights(shape, num_inputs, num_outputs):
+  stdev = init_stdev(num_inputs,num_outputs) / 1.0
+  return tf.truncated_normal(shape=shape, stddev=stdev)
+
 def weight_variable_init_zero(name, shape):
   variable = tf.Variable(tf.zeros(shape),name=name)
   reg_variables.append(variable)
   return variable
 
-def weight_variable(name, shape, num_inputs, num_outputs, scale_initial_weights=1.0):
-  stdev = init_stdev(num_inputs,num_outputs) / 1.0 * scale_initial_weights
-  initial = tf.truncated_normal(shape=shape, stddev=stdev)
-  variable = tf.Variable(initial,name=name)
-  reg_variables.append(variable)
-  return variable
+def weight_variable(name, shape, num_inputs, num_outputs, scale_initial_weights=1.0, extra_initial_weight=None):
+  initial = init_weights(shape, num_inputs, num_outputs)
+  if extra_initial_weight is not None:
+    initial = initial + extra_initial_weight
+  initial = initial * scale_initial_weights
 
-def bias_variable(name, shape, num_inputs, num_outputs):
-  stdev = init_stdev(num_inputs,num_outputs) / 2.0
-  initial = tf.truncated_normal(shape=shape, mean=stdev, stddev=stdev)
   variable = tf.Variable(initial,name=name)
   reg_variables.append(variable)
   return variable
@@ -362,16 +369,35 @@ def parametric_relu(name, layer):
   alphas = weight_variable_init_zero(name+"/prelu",[1,1,1,num_channels])
   return tf.nn.relu(layer) - alphas * tf.nn.relu(-layer)
 
+def conv_weight_variable(name, diam1, diam2, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+  radius1 = diam1 // 2
+  radius2 = diam2 // 2
+
+  if emphasize_center_weight is None:
+    weights = weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights)
+  else:
+    extra_initial_weight = init_weights([1,1,in_channels,out_channels], in_channels, out_channels) * emphasize_center_weight
+    extra_initial_weight = tf.pad(extra_initial_weight, [(radius1,radius1),(radius2,radius2),(0,0),(0,0)])
+    weights = weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,extra_initial_weight)
+
+  if emphasize_center_lr is not None:
+    factor = tf.constant([emphasize_center_lr],dtype=tf.float32)
+    factor = tf.reshape(factor,[1,1,1,1])
+    factor = tf.pad(factor, [(radius1,radius1),(radius2,radius2),(0,0),(0,0)], constant_values=1.0)
+    add_lr_factor(weights.name, factor)
+
+  return weights
+
 #Convolutional layer with batch norm and nonlinear activation
-def conv_block(name, in_layer, diam, in_channels, out_channels):
-  weights = weight_variable(name+"/w",[diam,diam,in_channels,out_channels],in_channels*diam*diam,out_channels)
+def conv_block(name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+  weights = conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
   out_layer = parametric_relu(name+"/prelu",batchnorm(name+"/norm",conv2d(in_layer, weights)))
   outputs_by_layer.append((name,out_layer))
   return out_layer
 
 #Convolution only, no batch norm or nonlinearity
-def conv_only_block(name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0):
-  weights = weight_variable(name+"/w",[diam,diam,in_channels,out_channels],in_channels*diam*diam,out_channels,scale_initial_weights)
+def conv_only_block(name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+  weights = conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
   out_layer = conv2d(in_layer, weights)
   outputs_by_layer.append((name,out_layer))
   return out_layer
@@ -387,18 +413,18 @@ def conv_only_extra_center_block(name, in_layer, diam, in_channels, out_channels
   return out_layer
 
 #Convolutional residual block with internal batch norm and nonlinear activation
-def res_conv_block(name, in_layer, diam, main_channels, mid_channels):
+def res_conv_block(name, in_layer, diam, main_channels, mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
   trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
   outputs_by_layer.append((name+"/trans1",trans1_layer))
 
-  weights1 = weight_variable(name+"/w1",[diam,diam,main_channels,mid_channels],main_channels*diam*diam,mid_channels)
+  weights1 = conv_weight_variable(name+"/w1", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
   conv1_layer = conv2d(trans1_layer, weights1)
   outputs_by_layer.append((name+"/conv1",conv1_layer))
 
   trans2_layer = parametric_relu(name+"/prelu2",(batchnorm(name+"/norm2",conv1_layer)))
   outputs_by_layer.append((name+"/trans2",trans2_layer))
 
-  weights2 = weight_variable(name+"/w2",[diam,diam,mid_channels,main_channels],mid_channels*diam*diam,main_channels)
+  weights2 = conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
   conv2_layer = conv2d(trans2_layer, weights2)
   outputs_by_layer.append((name+"/conv2",conv2_layer))
 
@@ -456,8 +482,8 @@ def chainpool_block(name, in_layer, chains, num_chain_segments, empty, nonempty,
   trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
   outputs_by_layer.append((name+"/trans1",trans1_layer))
 
-  weights1max = weight_variable(name+"/w1max",[diam,diam,main_channels,mid_channels],main_channels*diam*diam,mid_channels)
-  # weights1sum = weight_variable(name+"/w1sum",[diam,diam,main_channels,mid_channels],main_channels*diam*diam,mid_channels)
+  weights1max = conv_weight_variable(name+"/w1max", diam, diam, main_channels, mid_channels)
+  # weights1sum = conv_weight_variable(name+"/w1sum", diam, diam, main_channels, mid_channels)
   conv1max_layer = conv2d(trans1_layer, weights1max)
   # conv1sum_layer = conv2d(trans1_layer, weights1sum)
   outputs_by_layer.append((name+"/conv1max",conv1max_layer))
@@ -476,7 +502,7 @@ def chainpool_block(name, in_layer, chains, num_chain_segments, empty, nonempty,
   pooled_layer = maxpooled_layer
   #pooled_layer = tf.concat([maxpooled_layer,sumpooled_layer],axis=3)
 
-  weights2 = weight_variable(name+"/w2",[diam,diam,mid_channels,main_channels],mid_channels,main_channels)
+  weights2 = conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels)
   conv2_layer = conv2d(pooled_layer, weights2)
   outputs_by_layer.append((name+"/conv2",conv2_layer))
 
@@ -546,8 +572,8 @@ def ladder_block(name, in_layer, near_nonempty, main_channels, mid_channels):
   #a: value on this spot to be moving-averaged
   #b: if the weight on the moving average so far is 1, the value on this spot gets a factor of exp(b)-1 weight.
   diampre = 3
-  weightsprea = weight_variable(name+"/wprea",[diampre,diampre,main_channels,mid_channels*4],main_channels*diampre*diampre,c*4)
-  weightspreb = weight_variable(name+"/wpreb",[diampre,diampre,main_channels,mid_channels*4],main_channels*diampre*diampre,c*4)
+  weightsprea = conv_weight_variable(name+"/wprea", diampre, diampre, main_channels, c*4)
+  weightspreb = conv_weight_variable(name+"/wpreb", diampre, diampre, main_channels, c*4)
 
   convprea_layer = conv2d(trans1_layer, weightsprea)
   convpreb_layer = conv2d(trans1_layer, weightspreb)
@@ -603,7 +629,8 @@ def ladder_block(name, in_layer, near_nonempty, main_channels, mid_channels):
 
   #Apply a convolution to merge the result back into the trunk
   diampost = 1
-  weightspost = weight_variable(name+"/wpost",[diampost,diampost,mid_channels*4,main_channels],mid_channels*4*diampost*diampost,main_channels)
+  weightspost = conv_weight_variable(name+"/wpost", diampost, diampost, c*4, main_channels)
+
   convpost_layer = conv2d(results, weightspost)
   outputs_by_layer.append((name+"/convpost",convpost_layer))
 
@@ -745,9 +772,9 @@ outputs_by_layer.append(("p1",p1_layer))
 #2x in_channels due to crelu
 p2_layer = conv_only_block("p2",p1_layer,diam=5,in_channels=p1_num_channels*2,out_channels=1,scale_initial_weights=0.5)
 
-lr_adjusted_variables.append((ensure_variable_exists("p1/norm/beta:0"),0.25))
-lr_adjusted_variables.append((ensure_variable_exists("p1/norm/gamma:0"),0.25))
-lr_adjusted_variables.append((ensure_variable_exists("p2/w:0"),0.25))
+add_lr_factor("p1/norm/beta:0",0.25)
+add_lr_factor("p1/norm/gamma:0",0.25)
+add_lr_factor("p2/w:0",0.25)
 
 #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
 policy_output = apply_symmetry(p2_layer,symmetries,inverse=True)
@@ -768,9 +795,9 @@ outputs_by_layer.append(("l1",l1_layer))
 l2_layer = conv_only_block("l2",l1_layer,diam=1,in_channels=l1_num_channels*2,out_channels=1,scale_initial_weights=0.5)
 outputs_by_layer.append(("l2",l2_layer))
 
-lr_adjusted_variables.append((ensure_variable_exists("l1/norm/beta:0"),0.05))
-lr_adjusted_variables.append((ensure_variable_exists("l1/norm/gamma:0"),0.05))
-lr_adjusted_variables.append((ensure_variable_exists("l2/w:0"),0.05))
+add_lr_factor("l1/norm/beta:0",0.05)
+add_lr_factor("l1/norm/gamma:0",0.05)
+add_lr_factor("l2/w:0",0.05)
 
 ladder_output = apply_symmetry(l2_layer,symmetries,inverse=True)
 ladder_output = tf.reshape(ladder_output, [-1] + ladder_target_shape)
