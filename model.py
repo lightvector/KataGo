@@ -273,8 +273,11 @@ def init_weights(shape, num_inputs, num_outputs):
   stdev = init_stdev(num_inputs,num_outputs) / 1.0
   return tf.truncated_normal(shape=shape, stddev=stdev)
 
-def weight_variable_init_zero(name, shape):
-  variable = tf.Variable(tf.zeros(shape),name=name)
+def weight_variable_init_constant(name, shape, constant):
+  init = tf.zeros(shape)
+  if constant != 0.0:
+    init = init + constant
+  variable = tf.Variable(init,name=name)
   reg_variables.append(variable)
   return variable
 
@@ -366,8 +369,13 @@ outputs_by_layer = []
 def parametric_relu(name, layer):
   assert(len(layer.shape) == 4)
   num_channels = layer.shape[3].value
-  alphas = weight_variable_init_zero(name+"/prelu",[1,1,1,num_channels])
+  alphas = weight_variable_init_constant(name+"/prelu",[1,1,1,num_channels],constant=0.0)
   return tf.nn.relu(layer) - alphas * tf.nn.relu(-layer)
+
+def merge_residual(name,trunk,residual):
+  trunk = trunk + residual
+  outputs_by_layer.append((name,trunk))
+  return trunk
 
 def conv_weight_variable(name, diam1, diam2, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
   radius1 = diam1 // 2
@@ -428,10 +436,7 @@ def res_conv_block(name, in_layer, diam, main_channels, mid_channels, scale_init
   conv2_layer = conv2d(trans2_layer, weights2)
   outputs_by_layer.append((name+"/conv2",conv2_layer))
 
-  residual = conv2_layer
-  out_layer = in_layer + residual
-  outputs_by_layer.append((name,out_layer))
-  return out_layer
+  return conv2_layer
 
 #Convolutional residual block that does sequential horizontal and vertical convolutions, with internal batch norm and nonlinear activation
 def hv_res_conv_block(name, in_layer, diam, main_channels, mid_channels):
@@ -450,10 +455,7 @@ def hv_res_conv_block(name, in_layer, diam, main_channels, mid_channels):
   conv2_layer = conv2d(trans2_layer, weights2)
   outputs_by_layer.append((name+"/conv2",conv2_layer))
 
-  residual = conv2_layer * 0.5
-  out_layer = in_layer + residual
-  outputs_by_layer.append((name,out_layer))
-  return out_layer
+  return conv2_layer * 0.5
 
 #Same, but vertical then horizontal
 def vh_res_conv_block(name, in_layer, diam, main_channels, mid_channels):
@@ -472,10 +474,7 @@ def vh_res_conv_block(name, in_layer, diam, main_channels, mid_channels):
   conv2_layer = conv2d(trans2_layer, weights2)
   outputs_by_layer.append((name+"/conv2",conv2_layer))
 
-  residual = conv2_layer * 0.5
-  out_layer = in_layer + residual
-  outputs_by_layer.append((name,out_layer))
-  return out_layer
+  return conv2_layer * 0.5
 
 
 def chainpool_block(name, in_layer, chains, num_chain_segments, empty, nonempty, diam, main_channels, mid_channels):
@@ -506,10 +505,7 @@ def chainpool_block(name, in_layer, chains, num_chain_segments, empty, nonempty,
   conv2_layer = conv2d(pooled_layer, weights2)
   outputs_by_layer.append((name+"/conv2",conv2_layer))
 
-  residual = conv2_layer
-  out_layer = in_layer + residual
-  outputs_by_layer.append((name,out_layer))
-  return out_layer
+  return conv2_layer
 
 
 #Special block for detecting ladders, with mid_channels channels per each of 4 diagonal scans.
@@ -634,10 +630,7 @@ def ladder_block(name, in_layer, near_nonempty, main_channels, mid_channels):
   convpost_layer = conv2d(results, weightspost)
   outputs_by_layer.append((name+"/convpost",convpost_layer))
 
-  residual = convpost_layer
-  out_layer = in_layer + residual
-  outputs_by_layer.append((name,out_layer))
-  return out_layer
+  return convpost_layer
 
 
 #Begin Neural net------------------------------------------------------------------------------------
@@ -696,35 +689,44 @@ empty = 1.0 - nonempty
 near_nonempty = tf.minimum(1.0,conv2d(tf.expand_dims(nonempty,axis=3),manhattan_radius_3_kernel))
 
 #Convolutional RELU layer 1-------------------------------------------------------------------------------------
-cur_layer = conv_only_extra_center_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=192)
+trunk = conv_only_extra_center_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=192)
 
 #Residual Convolutional Block 1---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv1",cur_layer,diam=3,main_channels=192,mid_channels=192, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = res_conv_block("rconv1",trunk,diam=3,main_channels=192,mid_channels=192, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+trunk = merge_residual("rconv1",trunk,residual)
 
 #Residual Convolutional Block 2---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv2",cur_layer,diam=3,main_channels=192,mid_channels=192, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = res_conv_block("rconv2",trunk,diam=3,main_channels=192,mid_channels=192, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+trunk = merge_residual("rconv2",trunk,residual)
 
 #Ladder Block 1-------------------------------------------------------------------------------------------------
-cur_layer = ladder_block("ladder1",cur_layer,near_nonempty,main_channels=192,mid_channels=6)
+residual = ladder_block("ladder1",trunk,near_nonempty,main_channels=192,mid_channels=6)
+trunk = merge_residual("ladder1",trunk,residual)
 
 #Chainpool Block 1----------------------------------------------------------------------------------------------
-# cur_layer = chainpool_block("cpool1",cur_layer,cur_chains,num_chain_segments,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
+#residual = chainpool_block("cpool1",trunk,cur_chains,num_chain_segments,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
+#trunk = merge_residual("cpool1",trunk,residual)
 
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv3",cur_layer,diam=3,main_channels=192,mid_channels=192, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = res_conv_block("rconv3",trunk,diam=3,main_channels=192,mid_channels=192, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+trunk = merge_residual("rconv3",trunk,residual)
 
 #H/V Convolutional Block 1---------------------------------------------------------------------------------
-cur_layer = hv_res_conv_block("hvconv1",cur_layer,diam=9,main_channels=192,mid_channels=64)
+residual = hv_res_conv_block("hvconv1",trunk,diam=9,main_channels=192,mid_channels=64)
+trunk = merge_residual("hvconv1",trunk,residual)
+
 #H/V Convolutional Block 2---------------------------------------------------------------------------------
-cur_layer = vh_res_conv_block("hvconv2",cur_layer,diam=9,main_channels=192,mid_channels=64)
+residual = vh_res_conv_block("hvconv2",trunk,diam=9,main_channels=192,mid_channels=64)
+trunk = merge_residual("hvconv2",trunk,residual)
 
 #Residual Convolutional Block 4---------------------------------------------------------------------------------
-cur_layer = res_conv_block("rconv4",cur_layer,diam=3,main_channels=192,mid_channels=192, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = res_conv_block("rconv4",trunk,diam=3,main_channels=192,mid_channels=192, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+trunk = merge_residual("rconv4",trunk,residual)
 
 #Postprocessing residual trunk----------------------------------------------------------------------------------
 
 #Normalize and relu just before the policy head
-trunk = parametric_relu("trunk/prelu",(batchnorm("trunk/norm",cur_layer)))
+trunk = parametric_relu("trunk/prelu",(batchnorm("trunk/norm",trunk)))
 outputs_by_layer.append(("trunk",trunk))
 
 

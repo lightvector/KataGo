@@ -136,6 +136,9 @@ mean_output_by_layer = dict([
 stdev_output_by_layer = dict([
   (name,reduce_stdev(layer,axis=[0,1,2])**2) for (name,layer) in model.outputs_by_layer
 ])
+mean_weights_by_var = dict([
+  (v.name,tf.reduce_mean(v)) for v in tf.trainable_variables()
+])
 norm_weights_by_var = dict([
   (v.name,reduce_norm(v)) for v in tf.trainable_variables()
 ])
@@ -372,8 +375,10 @@ with tf.Session(config=tfconfig) as session:
       detaillog("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
       detaillog("%s: stdev_output %s" % (key, np_array_str(sobl[key], precision=4)))
 
-    (nw,) = session.run([norm_weights_by_var])
+    (mw,nw) = session.run([mean_weights_by_var,norm_weights_by_var])
 
+    for key in mw:
+      detaillog("%s: mean weight %f" % (key, mw[key]))
     for key in nw:
       detaillog("%s: norm weight %f" % (key, nw[key]))
 
