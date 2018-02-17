@@ -27,6 +27,7 @@ parser.add_argument('-gamesh5', help='H5 file of preprocessed game data', requir
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 parser.add_argument('-restart-file', help='restart training from file', required=False)
 parser.add_argument('-restart-epoch', help='restart training epoch', required=False)
+parser.add_argument('-restart-time', help='restart training time', required=False)
 args = vars(parser.parse_args())
 
 traindir = args["traindir"]
@@ -38,7 +39,7 @@ logfilemode = "w"
 if "restart_file" in args and args["restart_file"] is not None:
   restart_file = args["restart_file"]
   start_epoch = int(args["restart_epoch"])
-  logfilemode = "a"
+  start_elapsed = float(args["restart_time"])
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)
@@ -476,7 +477,7 @@ with tf.Session(config=tfconfig) as session:
     lr.report_epoch_done(epoch)
     print("")
 
-    elapsed = time.perf_counter() - start_time
+    elapsed = time.perf_counter() - start_time + start_elapsed
 
     tstr = train_stats_str(tacc1,tacc4,tdata_loss,tladder_loss,treg_loss)
     vstr = validation_stats_str(vacc1,vacc4,vdata_loss,vladder_loss)
