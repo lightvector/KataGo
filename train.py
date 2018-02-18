@@ -35,6 +35,7 @@ gamesh5 = args["gamesh5"]
 verbose = args["verbose"]
 restart_file = None
 start_epoch = 0
+start_elapsed = 0
 logfilemode = "w"
 if "restart_file" in args and args["restart_file"] is not None:
   restart_file = args["restart_file"]
