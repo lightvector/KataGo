@@ -210,7 +210,7 @@ print("Training", flush=True)
 
 num_epochs = 300
 num_samples_per_epoch = 500000
-batch_size = 100
+batch_size = 200
 num_batches_per_epoch = num_samples_per_epoch//batch_size
 
 assert(h5_chunk_size % batch_size == 0)
