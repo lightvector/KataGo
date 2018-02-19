@@ -28,7 +28,8 @@ public:
   DataPool(size_t rowWidth, size_t trainPoolMaxCapacity, size_t testPoolMaxCapacity, size_t writeBufCapacity, std::function<void(const float*,size_t)> writeTrainRow);
   ~DataPool();
 
-  float* addNewRow(Rand& rand);
+  float* addNewTrainRow(Rand& rand);
+  float* addNewTestRow();
   void finishAndWriteTrainPool(Rand& rand);
   void writeTestPool(std::function<void(const float*,size_t)> writeTestRow, Rand& rand);
 
