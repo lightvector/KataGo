@@ -23,7 +23,7 @@ Test neural net on Go games!
 
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-gamesh5', help='H5 file of preprocessed game data', required=True)
-parser.add_argument('-model-file', help='model file prefix to load', required=False)
+parser.add_argument('-model-file', help='model file prefix to load', required=True)
 args = vars(parser.parse_args())
 
 gamesh5 = args["gamesh5"]
