@@ -283,7 +283,8 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
 }
 
 //Returns number of rows processed
-static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& movesBuf, DataPool& dataPool, Rand& rand, int target, set<Hash>& posHashes) {
+static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& movesBuf, DataPool& dataPool, bool isTest, double keepTestProb,
+                         Rand& rand, int target, set<Hash>& posHashes) {
   int bSize;
   try {
     bSize = sgf->getBSize();
@@ -343,10 +344,20 @@ static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& mo
 
     //For now, only generate training rows for non-passes
     if(m.loc != FastBoard::PASS_LOC) {
-      float* newRow = dataPool.addNewRow(rand);
-      fillRow(board,movesBuf,j,target,newRow,rand);
-      posHashes.insert(board.pos_hash);
-      numRowsProcessed++;
+      float* newRow = NULL;
+      if(!isTest)
+        newRow = dataPool.addNewTrainRow(rand);
+      else
+      {
+        if(rand.nextDouble() < keepTestProb)
+          newRow = dataPool.addNewTestRow();
+      }
+
+      if(newRow != NULL) {
+        fillRow(board,movesBuf,j,target,newRow,rand);
+        posHashes.insert(board.pos_hash);
+        numRowsProcessed++;
+      }
     }
 
     bool suc = board.playMove(m.loc,m.pla);
@@ -422,7 +433,9 @@ int main(int argc, const char* argv[]) {
   vector<string> gamesDirs;
   string outputFile;
   int trainPoolSize;
-  int testSize;
+  int testPoolSize;
+  double testProb;
+  double keepTestProb;
   int target;
 
   try {
@@ -430,18 +443,24 @@ int main(int argc, const char* argv[]) {
     TCLAP::MultiArg<string> gamesdirArg("","gamesdir","Directory of sgf files",true,"DIR");
     TCLAP::ValueArg<string> outputArg("","output","H5 file to write",true,string(),"FILE");
     TCLAP::ValueArg<size_t> trainPoolSizeArg("","train-pool-size","Pool size for shuffling training rows",true,(size_t)0,"SIZE");
-    TCLAP::ValueArg<size_t> testSizeArg("","test-size","Number of testing rows",true,(size_t)0,"SIZE");
+    TCLAP::ValueArg<size_t> testPoolSizeArg("","test-pool-size","Pool size for shuffling testing rows",true,(size_t)0,"SIZE");
+    TCLAP::ValueArg<double> testProbArg("","test-prob","Probability of using a game for test instead of train",true,0.0,"PROB");
+    TCLAP::ValueArg<double> keepTestProbArg("","keep-test-prob","Probability per-move of keeping a move in the test set",true,0.0,"PROB");
     TCLAP::ValueArg<string> targetArg("","target","nextmove or ladder",true,string(),"TARGET");
     cmd.add(gamesdirArg);
     cmd.add(outputArg);
     cmd.add(trainPoolSizeArg);
-    cmd.add(testSizeArg);
+    cmd.add(testPoolSizeArg);
+    cmd.add(testProbArg);
+    cmd.add(keepTestProbArg);
     cmd.add(targetArg);
     cmd.parse(argc,argv);
     gamesDirs = gamesdirArg.getValue();
     outputFile = outputArg.getValue();
     trainPoolSize = trainPoolSizeArg.getValue();
-    testSize = testSizeArg.getValue();
+    testPoolSize = testPoolSizeArg.getValue();
+    testProb = testProbArg.getValue();
+    keepTestProb = keepTestProbArg.getValue();
 
     if(targetArg.getValue() == "nextmoveandladder")
       target = TARGET_NEXT_MOVE_AND_LADDER;
@@ -505,7 +524,7 @@ int main(int argc, const char* argv[]) {
     curTrainDataSetRow += numRows;
   };
 
-  DataPool dataPool(totalRowLen,trainPoolSize,testSize,chunkHeight,writeTrainRow);
+  DataPool dataPool(totalRowLen,trainPoolSize,testPoolSize,chunkHeight,writeTrainRow);
 
   //Process SGFS to make rows----------------------------------------------------------
   Rand rand;
@@ -531,7 +550,8 @@ int main(int argc, const char* argv[]) {
       cout << "Processed " << i << " sgfs, " << numRowsProcessed << " rows, " << curTrainDataSetRow << " rows written..." << endl;
 
     Sgf* sgf = sgfs[i];
-    numRowsProcessed += processSgf(sgf, placementsBuf, movesBuf, dataPool, rand, target, posHashes);
+    bool isTest = rand.nextDouble() < testProb;
+    numRowsProcessed += processSgf(sgf, placementsBuf, movesBuf, dataPool, isTest, keepTestProb, rand, target, posHashes);
   }
 
   //Empty out pools--------------------------------------------------------------------
