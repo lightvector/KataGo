@@ -19,13 +19,15 @@ static const int inputStart = 0;
 static const int inputLen = maxBoardSize * maxBoardSize * numFeatures;
 
 static const int chainStart = inputStart + inputLen;
-static const int chainLen = maxBoardSize * maxBoardSize + 1;
+static const int chainLen = 0;
+// static const int chainLen = maxBoardSize * maxBoardSize + 1;
 
 static const int targetStart = chainStart + chainLen;
 static const int targetLen = maxBoardSize * maxBoardSize;
 
 static const int ladderTargetStart = targetStart + targetLen;
-static const int ladderTargetLen = maxBoardSize * maxBoardSize;
+static const int ladderTargetLen = 0;
+// static const int ladderTargetLen = maxBoardSize * maxBoardSize;
 
 static const int targetWeightsStart = ladderTargetStart + ladderTargetLen;
 static const int targetWeightsLen = 1;
@@ -134,10 +136,10 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   int bSize = board.x_size;
   int offset = (maxBoardSize - bSize) / 2;
 
-  int nextChainLabel = 1;
-  int chainLabelsByHeadLoc[FastBoard::MAX_ARR_SIZE];
-  for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
-    chainLabelsByHeadLoc[i] = 0;
+  // int nextChainLabel = 1;
+  // int chainLabelsByHeadLoc[FastBoard::MAX_ARR_SIZE];
+  // for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
+  //   chainLabelsByHeadLoc[i] = 0;
 
   for(int y = 0; y<bSize; y++) {
     for(int x = 0; x<bSize; x++) {
@@ -170,11 +172,11 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
 
       if(stone == pla || stone == opp) {
         //Fill chain feature
-        Loc headLoc = board.chain_head[loc];
-        if(chainLabelsByHeadLoc[headLoc] == 0)
-          chainLabelsByHeadLoc[headLoc] = (nextChainLabel++);
+        // Loc headLoc = board.chain_head[loc];
+        // if(chainLabelsByHeadLoc[headLoc] == 0)
+        //   chainLabelsByHeadLoc[headLoc] = (nextChainLabel++);
 
-        row[chainStart + pos] = chainLabelsByHeadLoc[headLoc];
+        // row[chainStart + pos] = chainLabelsByHeadLoc[headLoc];
       }
       else {
         //Feature 11,12,13 - 1, 2, 3 liberties after own play.
@@ -193,7 +195,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   }
 
   //Last chain entry is the number of chain segments
-  row[chainStart + maxBoardSize * maxBoardSize] = nextChainLabel;
+  // row[chainStart + maxBoardSize * maxBoardSize] = nextChainLabel;
 
   //Feature 17 - simple ko location
   if(board.ko_loc != FastBoard::NULL_LOC) {
@@ -270,12 +272,12 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
     row[targetStart + nextMovePos] = 1.0;
 
     //Ladder target
-    auto addLadderTarget = [&board,row](Loc loc, int pos, const vector<Loc>& workingMoves){
-      (void)workingMoves;
-      assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
-      row[ladderTargetStart + pos] = 1.0;
-    };
-    iterLadders(board, addLadderTarget);
+    // auto addLadderTarget = [&board,row](Loc loc, int pos, const vector<Loc>& workingMoves){
+    //   (void)workingMoves;
+    //   assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
+    //   row[ladderTargetStart + pos] = 1.0;
+    // };
+    // iterLadders(board, addLadderTarget);
   }
 
   //Weight of the row, currently always 1.0
