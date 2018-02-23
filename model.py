@@ -11,10 +11,9 @@ from board import Board
 max_board_size = 19
 input_shape = [19*19,26]
 post_input_shape = [19,19,26]
-chain_shape = [19*19]
-post_chain_shape = [19,19]
+# chain_shape = [19*19]
+# post_chain_shape = [19,19]
 target_shape = [19*19]
-ladder_target_shape = [19*19]
 target_weights_shape = []
 pass_pos = max_board_size * max_board_size
 
@@ -90,7 +89,8 @@ def iterLadders(board, f):
 
 
 #Returns the new idx, which could be the same as idx if this isn't a good training row
-def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, num_chain_segments, target_data, target_data_weights, for_training, idx):
+# def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, num_chain_segments, target_data, target_data_weights, for_training, idx):
+def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, for_training, idx):
   if target_data is not None and moves[move_idx][1] is None:
     # TODO for now we skip passes
     return idx
@@ -98,8 +98,8 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
   bsize = board.size
   offset = (max_board_size - bsize) // 2
 
-  nextChainLabel = 1
-  chainLabelsByHeadLoc = {}
+  # nextChainLabel = 1
+  # chainLabelsByHeadLoc = {}
 
   for y in range(bsize):
     for x in range(bsize):
@@ -132,11 +132,12 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
           input_data[idx,pos,10] = 1.0
 
       if stone == pla or stone == opp:
-        headloc = board.group_head[loc]
-        if headloc not in chainLabelsByHeadLoc:
-          chainLabelsByHeadLoc[headloc] = nextChainLabel
-          nextChainLabel += 1
-        chain_data[idx,pos] = chainLabelsByHeadLoc[headloc]
+        pass
+        # headloc = board.group_head[loc]
+        # if headloc not in chainLabelsByHeadLoc:
+        #   chainLabelsByHeadLoc[headloc] = nextChainLabel
+        #   nextChainLabel += 1
+        # chain_data[idx,pos] = chainLabelsByHeadLoc[headloc]
 
       else:
         pla_libs_after_play = board.get_liberties_after_play(pla,loc,4);
@@ -155,7 +156,7 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, 
         elif opp_libs_after_play == 3:
           input_data[idx,pos,16] = 1.0
 
-  num_chain_segments[idx] = nextChainLabel
+  # num_chain_segments[idx] = nextChainLabel
 
   if board.simple_ko_point is not None:
     pos = loc_to_tensor_pos(board.simple_ko_point,board,offset)
@@ -640,8 +641,8 @@ def ladder_block(name, in_layer, near_nonempty, main_channels, mid_channels):
 
 #Input layer---------------------------------------------------------------------------------
 inputs = tf.placeholder(tf.float32, [None] + input_shape)
-chains = tf.placeholder(tf.int32, [None] + chain_shape)
-num_chain_segments = tf.placeholder(tf.int32, [None])
+# chains = tf.placeholder(tf.int32, [None] + chain_shape)
+# num_chain_segments = tf.placeholder(tf.int32, [None])
 symmetries = tf.placeholder(tf.bool, [3])
 
 features_active = tf.constant([
@@ -675,12 +676,12 @@ features_active = tf.constant([
 assert(features_active.dtype == tf.float32)
 
 cur_layer = tf.reshape(inputs, [-1] + post_input_shape)
-cur_chains = tf.reshape(chains, [-1] + post_chain_shape)
+# cur_chains = tf.reshape(chains, [-1] + post_chain_shape)
 
 input_num_channels = post_input_shape[2]
 #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
 cur_layer = apply_symmetry(cur_layer,symmetries,inverse=False)
-cur_chains = apply_symmetry(cur_chains,symmetries,inverse=False)
+# cur_chains = apply_symmetry(cur_chains,symmetries,inverse=False)
 #Disable various features
 cur_layer = cur_layer * tf.reshape(features_active,[1,1,1,-1])
 
@@ -787,19 +788,3 @@ policy_output = tf.reshape(policy_output, [-1] + target_shape)
 #pass_output = tf.matmul(g2_output,matmulpass)
 #outputs_by_layer.append(("pass",pass_output))
 #policy_output = tf.concat([policy_output,pass_output],axis=1)
-
-#Ladder head---------------------------------------------------------------------------------
-l0_layer = trunk
-
-l1_num_channels = 24
-l1_layer = tf.nn.crelu(batchnorm("l1/norm",conv_only_block("l1/conv",l0_layer,diam=3,in_channels=192,out_channels=l1_num_channels)))
-outputs_by_layer.append(("l1",l1_layer))
-l2_layer = conv_only_block("l2",l1_layer,diam=1,in_channels=l1_num_channels*2,out_channels=1,scale_initial_weights=0.5)
-outputs_by_layer.append(("l2",l2_layer))
-
-add_lr_factor("l1/norm/beta:0",0.05)
-add_lr_factor("l1/norm/gamma:0",0.05)
-add_lr_factor("l2/w:0",0.05)
-
-ladder_output = apply_symmetry(l2_layer,symmetries,inverse=True)
-ladder_output = tf.reshape(ladder_output, [-1] + ladder_target_shape)

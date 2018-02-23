@@ -73,31 +73,26 @@ print("Building model", flush=True)
 import model
 
 policy_output = model.policy_output
-ladder_output = model.ladder_output
 
 #Loss function
 targets = tf.placeholder(tf.float32, [None] + model.target_shape)
-ladder_targets = tf.placeholder(tf.float32, [None] + model.ladder_target_shape)
 target_weights = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
-#TODO this should be reduce_sum and we should separately sum the target_weights, so we can choose how to divide
-data_loss = tf.reduce_mean(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output))
-# ladder_loss = tf.reduce_mean(target_weights * tf.reduce_sum(tf.square(ladder_targets-tf.sigmoid(ladder_output)),axis=1))
-ladder_loss = tf.reduce_mean(target_weights * tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=ladder_targets,logits=ladder_output),axis=1))
+weight_sum = tf.reduce_sum(target_weights)
+data_loss = tf.reduce_sum(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output))
 
 #Prior/Regularization
 l2_reg_coeff = tf.placeholder(tf.float32)
-reg_loss = l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables])
+reg_loss = l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables]) * weight_sum
 
 #The loss to optimize
 opt_loss = data_loss + reg_loss
 
 #Training operation
-batch_learning_rate = tf.placeholder(tf.float32)
+per_sample_learning_rate = tf.placeholder(tf.float32)
 lr_adjusted_variables = model.lr_adjusted_variables
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
 with tf.control_dependencies(update_ops):
-  #optimizer = tf.train.AdamOptimizer(batch_learning_rate)
-  optimizer = tf.train.MomentumOptimizer(batch_learning_rate, momentum=0.9, use_nesterov=True)
+  optimizer = tf.train.MomentumOptimizer(per_sample_learning_rate, momentum=0.9, use_nesterov=True)
   gradients = optimizer.compute_gradients(opt_loss)
   adjusted_gradients = []
   for (grad,x) in gradients:
@@ -144,7 +139,7 @@ norm_weights_by_var = dict([
   (v.name,reduce_norm(v)) for v in tf.trainable_variables()
 ])
 relative_update_by_var = dict([
-  (v.name,batch_learning_rate * reduce_norm(grad) / (1e-10 + reduce_norm(v))) for (grad,v) in adjusted_gradients if grad is not None
+  (v.name,per_sample_learning_rate * reduce_norm(grad) / (1e-10 + reduce_norm(v))) for (grad,v) in adjusted_gradients if grad is not None
 ])
 
 
@@ -254,26 +249,24 @@ with tf.Session(config=tfconfig) as session:
   sys.stdout.flush()
   sys.stderr.flush()
 
-  def run(fetches, rows, training, symmetries, blr=0.0):
+  def run(fetches, rows, training, symmetries, pslr=0.0):
     assert(len(model.input_shape) == 2)
-    assert(len(model.chain_shape) == 1)
+    # assert(len(model.chain_shape) == 1)
     assert(len(model.target_shape) == 1)
-    assert(len(model.ladder_target_shape) == 1)
     assert(len(model.target_weights_shape) == 0)
     input_len = model.input_shape[0] * model.input_shape[1]
-    chain_len = model.chain_shape[0] + 1
+    # chain_len = model.chain_shape[0] + 1
+    chain_len = 0
     target_len = model.target_shape[0]
-    ladder_target_len = model.ladder_target_shape[0]
 
     if not isinstance(rows, np.ndarray):
       rows = np.array(rows)
 
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
-    row_chains = rows[:,input_len:input_len+chain_len-1].reshape([-1] + model.chain_shape).astype(np.int32)
-    row_num_chain_segments = rows[:,input_len+chain_len-1].astype(np.int32)
+    # row_chains = rows[:,input_len:input_len+chain_len-1].reshape([-1] + model.chain_shape).astype(np.int32)
+    # row_num_chain_segments = rows[:,input_len+chain_len-1].astype(np.int32)
     row_targets = rows[:,input_len+chain_len:input_len+chain_len+target_len]
-    row_ladder_targets = rows[:,input_len+chain_len+target_len:input_len+chain_len+target_len+ladder_target_len]
-    row_target_weights = rows[:,input_len+chain_len+target_len+ladder_target_len]
+    row_target_weights = rows[:,input_len+chain_len+target_len]
 
     #DEBUG-----------------------------
     # for bidx in range(len(rows)):
@@ -322,44 +315,62 @@ with tf.Session(config=tfconfig) as session:
 
     return session.run(fetches, feed_dict={
       model.inputs: row_inputs,
-      model.chains: row_chains,
-      model.num_chain_segments: row_num_chain_segments,
+      # model.chains: row_chains,
+      # model.num_chain_segments: row_num_chain_segments,
       targets: row_targets,
-      ladder_targets: row_ladder_targets,
       target_weights: row_target_weights,
       model.symmetries: symmetries,
-      batch_learning_rate: blr,
+      per_sample_learning_rate: pslr,
       l2_reg_coeff: l2_coeff_value,
       model.is_training: training
     })
 
   def np_array_str(arr,precision):
     return np.array_str(arr, precision=precision, suppress_small = True, max_line_width = 200)
+  def merge_dicts(dicts,merge_list):
+    keys = dicts[0].keys()
+    return dict((key,merge_list([d[key] for d in dicts])) for key in keys)
 
   def run_validation_in_batches(fetches):
     #Run validation accuracy in batches to avoid out of memory error from processing one supergiant batch
     validation_batch_size = 256
     num_validation_batches = num_h5_test_rows//validation_batch_size
-    results = [[] for j in range(len(fetches))]
+    results = []
     for i in range(num_validation_batches):
       rows = h5test[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_test_rows)]
       result = run(fetches, rows, symmetries=[False,False,False], training=False)
-      for j in range(len(fetches)):
-        results[j].append(result[j])
+      results.append(result)
     return results
-  def merge_dicts(dicts,merge_list):
-    keys = dicts[0].keys()
-    return dict((key,merge_list([d[key] for d in dicts])) for key in keys)
 
-  def val_accuracy_and_loss():
-    (acc1s,acc4s,data_losses,ladder_losses) = run_validation_in_batches([accuracy1,accuracy4,data_loss,ladder_loss])
-    return (np.mean(acc1s),np.mean(acc4s),np.mean(data_losses),np.mean(ladder_losses))
+  tmetrics = {
+    "acc1": accuracy1,
+    "acc4": accuracy4,
+    "dloss": data_loss,
+    "rloss": reg_loss,
+    "wsum": weight_sum,
+  }
 
-  def train_stats_str(tacc1,tacc4,tdata_loss,tladder_loss,treg_loss):
-    return "tacc1 %5.2f%% tacc4 %5.2f%% tdloss %f tlloss %f trloss %f" % (tacc1*100, tacc4*100, tdata_loss, tladder_loss, treg_loss)
+  vmetrics = {
+    "acc1": accuracy1,
+    "acc4": accuracy4,
+    "dloss": data_loss,
+    "wsum": weight_sum,
+  }
 
-  def validation_stats_str(vacc1,vacc4,vdata_loss,vladder_loss):
-    return "vacc1 %5.2f%% vacc4 %5.2f%% vdloss %f vlloss %f" % (vacc1*100, vacc4*100, vdata_loss, vladder_loss)
+  def train_stats_str(tmetrics_evaled):
+    return "tacc1 %5.2f%% tacc4 %5.2f%% tdloss %f trloss %f" % (
+      tmetrics_evaled["acc1"] * 100 / tmetrics_evaled["wsum"],
+      tmetrics_evaled["acc4"] * 100 / tmetrics_evaled["wsum"],
+      tmetrics_evaled["dloss"] / tmetrics_evaled["wsum"],
+      tmetrics_evaled["rloss"] / tmetrics_evaled["wsum"],
+    )
+
+  def validation_stats_str(vmetrics_evaled):
+    return "vacc1 %5.2f%% vacc4 %5.2f%% vdloss %f" % (
+      vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
+      vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
+      vmetrics_evaled["dloss"] / vmetrics_evaled["wsum"],
+  )
 
   def time_str(elapsed):
     return "time %.3f" % elapsed
@@ -403,11 +414,7 @@ with tf.Session(config=tfconfig) as session:
 
   batch_generator = make_batch_generator()
   def run_batches(num_batches):
-    tacc1_sum = 0
-    tacc4_sum = 0
-    tdata_loss_sum = 0
-    tladder_loss_sum = 0
-    treg_loss_sum = 0
+    tmetrics_results = []
     relupdates = dict([(key,0.0) for key in relative_update_by_var])
 
     for i in range(num_batches):
@@ -436,36 +443,28 @@ with tf.Session(config=tfconfig) as session:
 
       # assert(False)
 
-      (bacc1, bacc4, bdata_loss, bladder_loss, breg_loss, brelupdates, _) = run(
-        fetches=[accuracy1, accuracy4, data_loss, ladder_loss, reg_loss, relative_update_by_var, train_step],
+      (tmetrics_result, brelupdates, _) = run(
+        fetches=[tmetrics, relative_update_by_var, train_step],
         rows=rows,
         training=True,
         symmetries=[np.random.random() < 0.5, np.random.random() < 0.5, np.random.random() < 0.5],
-        blr=lr.lr() * batch_size
+        pslr=lr.lr()
       )
 
-      tacc1_sum += bacc1
-      tacc4_sum += bacc4
-      tdata_loss_sum += bdata_loss
-      tladder_loss_sum += bladder_loss
-      treg_loss_sum += breg_loss
+      tmetrics_results.append(tmetrics_result)
       for key in brelupdates:
         relupdates[key] += brelupdates[key]
 
       if i % (max(1,num_batches // 30)) == 0:
         print(".", end='', flush=True)
 
-    tacc1 = tacc1_sum / num_batches
-    tacc4 = tacc4_sum / num_batches
-    tdata_loss = tdata_loss_sum / num_batches
-    tladder_loss = tladder_loss_sum / num_batches
-    treg_loss = treg_loss_sum / num_batches
+    tmetrics_evaled = merge_dicts(tmetrics_results,np.sum)
     for key in relupdates:
       relupdates[key] = relupdates[key] / num_batches
-    return (tacc1,tacc4,tdata_loss,tladder_loss,treg_loss,relupdates)
+    return (tmetrics_evaled,relupdates)
 
-  (vacc1,vacc4,vdata_loss,vladder_loss) = val_accuracy_and_loss()
-  vstr = validation_stats_str(vacc1,vacc4,vdata_loss,vladder_loss)
+  vmetrics_evaled = merge_dicts(run_validation_in_batches(vmetrics), np.sum)
+  vstr = validation_stats_str(vmetrics_evaled)
 
   trainlog("Initial: %s" % (vstr))
   log_detail_stats(relupdates=None)
@@ -478,15 +477,15 @@ with tf.Session(config=tfconfig) as session:
   for e in range(num_epochs):
     epoch = start_epoch + e
     print("Epoch %d" % (epoch), end='', flush=True)
-    (tacc1,tacc4,tdata_loss,tladder_loss,treg_loss,relupdates) = run_batches(num_batches_per_epoch)
-    (vacc1,vacc4,vdata_loss,vladder_loss) = val_accuracy_and_loss()
+    (tmetrics_evaled,relupdates) = run_batches(num_batches_per_epoch)
+    vmetrics_evaled = merge_dicts(run_validation_in_batches(vmetrics), np.sum)
     lr.report_epoch_done(epoch)
     print("")
 
     elapsed = time.perf_counter() - start_time + start_elapsed
 
-    tstr = train_stats_str(tacc1,tacc4,tdata_loss,tladder_loss,treg_loss)
-    vstr = validation_stats_str(vacc1,vacc4,vdata_loss,vladder_loss)
+    tstr = train_stats_str(tmetrics_evaled)
+    vstr = validation_stats_str(vmetrics_evaled)
     timestr = time_str(elapsed)
 
     trainlogger.info("Epoch %d--------------------------------------------------" % (epoch))
@@ -498,8 +497,8 @@ with tf.Session(config=tfconfig) as session:
     if epoch % 4 == 0 or epoch == num_epochs-1:
       saver.save(session, traindir + "/model" + str(epoch))
 
-  (vacc1,vacc4,vdata_loss,vladder_loss) = val_accuracy_and_loss()
-  vstr = validation_stats_str(vacc1,vacc4,vdata_loss,vladder_loss)
+  (vmetrics_evaled) = val_accuracy_and_loss()
+  vstr = validation_stats_str(vmetrics_evaled)
   trainlog("Final: %s" % (vstr))
 
   variables_names =[v.name for v in tf.trainable_variables()]
