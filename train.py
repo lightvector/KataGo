@@ -376,7 +376,8 @@ with tf.Session(config=tfconfig) as session:
     return "time %.3f" % elapsed
 
   def log_detail_stats(relupdates):
-    apbls,mobls,sobls = run_validation_in_batches([activated_prop_by_layer, mean_output_by_layer, stdev_output_by_layer])
+    results = run_validation_in_batches([activated_prop_by_layer, mean_output_by_layer, stdev_output_by_layer])
+    [apbls,mobls,sobls] = list(map(list, zip(*results)))
 
     apbl = merge_dicts(apbls, (lambda x: np.mean(x,axis=0)))
     mobl = merge_dicts(mobls, (lambda x: np.mean(x,axis=0)))
