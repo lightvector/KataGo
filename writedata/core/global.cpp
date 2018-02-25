@@ -48,6 +48,11 @@ string Global::getDateString()
 
 //STRINGS---------------------------------
 
+string Global::boolToString(bool b)
+{
+  return b ? string("true") : string("false");
+}
+
 string Global::charToString(char c)
 {
   char buf[2];

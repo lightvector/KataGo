@@ -284,22 +284,163 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   row[targetWeightsStart] = 1.0;
 }
 
-//Returns number of rows processed
-static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& movesBuf, DataPool& dataPool, bool isTest, double keepTestProb,
-                         Rand& rand, int target, set<Hash>& posHashes) {
+//SGF sources
+int SOURCE_GOGOD = 0;
+int SOURCE_KGS = 1;
+static int parseSource(const Sgf* sgf) {
+  if(sgf->fileName.find("GoGoD") != string::npos)
+    return SOURCE_GOGOD;
+  else if(sgf->fileName.find("kgs-19") != string::npos || sgf->fileName.find("KGS2") != string::npos)
+    return SOURCE_KGS;
+  else
+    throw IOError("Unknown source for sgf: " + sgf->fileName);
+}
+
+static int parseHandicap(const string& handicap) {
+  int h;
+  bool suc = Global::tryStringToInt(handicap,h);
+  if(!suc)
+    throw IOError("Unknown handicap: " + handicap);
+  return h;
+}
+
+int RANK_UNRANKED = -1000;
+
+//1 dan = 0, higher is stronger, pros are assumed to be 9d.
+static int parseRank(const string& rank) {
+  string r = Global::toLower(rank);
+  if(r.length() < 2 || r.length() > 3)
+    throw IOError("Could not parse rank: " + rank);
+
+  int n = 0;
+  bool isK = false;
+  bool isD = false;
+  bool isP = false;
+  if(r.length() == 2) {
+    if(r[1] != 'k' && r[1] != 'd' && r[1] != 'p')
+      throw IOError("Could not parse rank: " + rank);
+    if(!Global::isDigits(r,0,1))
+      throw IOError("Could not parse rank: " + rank);
+    n = Global::parseDigits(r,0,1);
+    isK = r[1] == 'k';
+    isD = r[1] == 'd';
+    isP = r[1] == 'p';
+  }
+
+  else if(r.length() == 3) {
+    if(r[2] != 'k' && r[2] != 'd' && r[2] != 'p')
+      throw IOError("Could not parse rank: " + rank);
+    if(!Global::isDigits(r,0,2))
+      throw IOError("Could not parse rank: " + rank);
+    n = Global::parseDigits(r,0,2);
+    isK = r[2] == 'k';
+    isD = r[2] == 'd';
+    isP = r[2] == 'p';
+  }
+  else {
+    assert(false);
+  }
+
+  if(isK)
+    return -n;
+  else if(isD)
+    return n >= 9 ? 8 : n-1;
+  else if(isP)
+    return 8;
+  else {
+    assert(false);
+    return 0;
+  }
+}
+
+struct Stats {
+  size_t count;
+  map<int,int64_t> countBySource;
+  map<int,int64_t> countByRank;
+  map<string,int64_t> countByUser;
+  map<int,int64_t> countByHandicap;
+
+  Stats()
+    :count(),countBySource(),countByRank(),countByUser(),countByHandicap() {
+
+  }
+
+  void print() {
+    cout << "Count: " << count << endl;
+    cout << "Sources:" << endl;
+    for(auto const& kv: countBySource) {
+      cout << kv.first << " " << kv.second << endl;
+    }
+    cout << "Ranks:" << endl;
+    for(auto const& kv: countByRank) {
+      cout << kv.first << " " << kv.second << endl;
+    }
+    cout << "Handicap:" << endl;
+    for(auto const& kv: countByHandicap) {
+      cout << kv.first << " " << kv.second << endl;
+    }
+    cout << "Major Users:" << endl;
+    for(auto const& kv: countByUser) {
+      if(kv.second > count / 1000)
+        cout << kv.first << " " << kv.second << endl;
+    }
+  }
+};
+
+static void iterSgfMoves(
+  Sgf* sgf,
+  //board,source,rank,user,handicap,moves,index within moves
+  std::function<void(const FastBoard&,int,int,const string&,int,const vector<Move>&,int)> f
+) {
   int bSize;
+  int source;
+  int wRank;
+  int bRank;
+  string wUser;
+  string bUser;
+  int handicap;
+  vector<Move> placementsBuf;
+  vector<Move> movesBuf;
   try {
     bSize = sgf->getBSize();
 
+    assert(sgf->nodes.size() > 0);
+    SgfNode* root = sgf->nodes[0];
+
+    source = parseSource(sgf);
+    if(source == SOURCE_GOGOD) {
+      wRank = 8;
+      bRank = 8;
+    }
+    else {
+      if(contains(root->props,"WR"))
+        wRank = parseRank(root->getSingleProperty("WR"));
+      else
+        wRank = RANK_UNRANKED;
+
+      if(contains(root->props,"BR"))
+        bRank = parseRank(root->getSingleProperty("BR"));
+      else
+        bRank = RANK_UNRANKED;
+    }
+
+    wUser = root->getSingleProperty("PW");
+    bUser = root->getSingleProperty("PB");
+
+    handicap = 0;
+    if(contains(root->props,"HA"))
+      handicap = parseHandicap(root->getSingleProperty("HA"));
+
     //Apply some filters
     if(bSize != 19)
-      return 0;
+      return;
 
     sgf->getPlacements(placementsBuf,bSize);
     sgf->getMoves(movesBuf,bSize);
   }
   catch(const IOError &e) {
     cout << "Skipping sgf file: " << sgf->fileName << ": " << e.message << endl;
+    return;
   }
 
   FastBoard board(bSize);
@@ -310,7 +451,7 @@ static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& mo
       cout << sgf->fileName << endl;
       cout << ("Illegal stone placement " + Global::intToString(j)) << endl;
       cout << board << endl;
-      return 0;
+      return;
     }
   }
 
@@ -331,7 +472,6 @@ static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& mo
     }
   }
 
-  size_t numRowsProcessed = 0;
   Player prevPla = C_EMPTY;
   for(; j<movesBuf.size(); j++) {
     Move m = movesBuf[j];
@@ -344,23 +484,9 @@ static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& mo
       break;
     }
 
-    //For now, only generate training rows for non-passes
-    if(m.loc != FastBoard::PASS_LOC) {
-      float* newRow = NULL;
-      if(!isTest)
-        newRow = dataPool.addNewTrainRow(rand);
-      else
-      {
-        if(rand.nextDouble() < keepTestProb)
-          newRow = dataPool.addNewTestRow();
-      }
-
-      if(newRow != NULL) {
-        fillRow(board,movesBuf,j,target,newRow,rand);
-        posHashes.insert(board.pos_hash);
-        numRowsProcessed++;
-      }
-    }
+    int rank = m.pla == P_WHITE ? wRank : bRank;
+    const string& user = m.pla == P_WHITE ? wUser : bUser;
+    f(board,source,rank,user,handicap,movesBuf,j);
 
     bool suc = board.playMove(m.loc,m.pla);
     if(!suc) {
@@ -373,7 +499,136 @@ static size_t processSgf(Sgf* sgf, vector<Move>& placementsBuf, vector<Move>& mo
     prevPla = m.pla;
   }
 
-  return numRowsProcessed;
+  return;
+}
+
+static void iterSgfsMoves(
+  vector<Sgf*> sgfs,
+  uint64_t trainTestSeed, bool isTest, double testGameProb,
+  uint64_t shardSeed, int numShards,
+  const size_t& numMovesUsed, const size_t& curDataSetRow,
+  //source,rank,user,handicap,moves,index within moves,
+  std::function<void(const FastBoard&,int,int,const string&,int,const vector<Move>&,int)> f
+) {
+
+  size_t numMovesItered = 0;
+  size_t numMovesIteredOrSkipped = 0;
+
+  for(int shard = 0; shard < numShards; shard++) {
+    Rand trainTestRand(trainTestSeed);
+    Rand shardRand(shardSeed);
+
+    std::function<void(const FastBoard&,int,int,const string&,int,const vector<Move>&,int)> g =
+      [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered](
+        const FastBoard& board, int source, int rank, const string& user, int handicap, const vector<Move>& moves, int moveIdx
+      ) {
+      //Only use this move if it's within our shard.
+      numMovesIteredOrSkipped++;
+      if(numShards <= 1 || shard == shardRand.nextUInt(numShards)) {
+        numMovesItered++;
+        f(board,source,rank,user,handicap,moves,moveIdx);
+      }
+    };
+
+    for(int i = 0; i<sgfs.size(); i++) {
+      if(i % 1000 == 0)
+        cout << "Shard " << shard << " "
+             << "processed " << i << "/" << sgfs.size() << " sgfs, "
+             << "itered " << numMovesItered << " moves, "
+             << "used " << numMovesUsed << " moves, "
+             << "written " << curDataSetRow << " rows..." << endl;
+
+      bool gameIsTest = trainTestRand.nextDouble() < testGameProb;
+      if(isTest == gameIsTest)
+        iterSgfMoves(sgfs[i],g);
+    }
+  }
+
+  assert(numMovesIteredOrSkipped == numMovesItered * numShards);
+  cout << "Over all shards, numMovesItered = " << numMovesItered
+       << " numMovesIteredOrSkipped = " << numMovesIteredOrSkipped
+       << " numMovesItered*numShards = " << (numMovesItered * numShards) << endl;
+}
+
+
+static void maybeUseRow(
+  const FastBoard& board, int source, int rank, const string& user, int handicap, const vector<Move>& movesBuf, int moveIdx,
+  DataPool& dataPool,
+  Rand& rand, double keepProb, int minRank, int target,
+  set<Hash>& posHashes, Stats& total, Stats& used
+) {
+  //For now, only generate training rows for non-passes
+  //Also only use moves by this player if that player meets rank threshold
+  if(movesBuf[moveIdx].loc != FastBoard::PASS_LOC && rank >= minRank) {
+    float* newRow = NULL;
+    if(keepProb >= 1.0 || (rand.nextDouble() < keepProb))
+      newRow = dataPool.addNewRow(rand);
+
+    if(newRow != NULL) {
+      fillRow(board,movesBuf,moveIdx,target,newRow,rand);
+      posHashes.insert(board.pos_hash);
+
+      used.count += 1;
+      used.countBySource[source] += 1;
+      used.countByRank[rank] += 1;
+      used.countByUser[user] += 1;
+      used.countByHandicap[handicap] += 1;
+    }
+  }
+
+  total.count += 1;
+  total.countBySource[source] += 1;
+  total.countByRank[rank] += 1;
+  total.countByUser[user] += 1;
+  total.countByHandicap[handicap] += 1;
+}
+
+static void processSgfs(
+  vector<Sgf*> sgfs, DataSet* dataSet,
+  size_t poolSize,
+  uint64_t trainTestSeed, bool isTest, double testGameProb,
+  uint64_t shardSeed, int numShards,
+  Rand& rand, double keepProb,
+  int minRank, int target,
+  set<Hash>& posHashes, Stats& total, Stats& used
+) {
+  size_t curDataSetRow = 0;
+  std::function<void(const float*,size_t)> writeRow = [&curDataSetRow,&dataSet](const float* rows, size_t numRows) {
+    hsize_t newDims[h5Dimension] = {curDataSetRow+numRows,totalRowLen};
+    dataSet->extend(newDims);
+    DataSpace fileSpace = dataSet->getSpace();
+    hsize_t memDims[h5Dimension] = {numRows,totalRowLen};
+    DataSpace memSpace(h5Dimension,memDims);
+    hsize_t start[h5Dimension] = {curDataSetRow,0};
+    hsize_t count[h5Dimension] = {numRows,totalRowLen};
+    fileSpace.selectHyperslab(H5S_SELECT_SET, count, start);
+    dataSet->write(rows, PredType::NATIVE_FLOAT, memSpace, fileSpace);
+    curDataSetRow += numRows;
+  };
+
+  DataPool dataPool(totalRowLen,poolSize,chunkHeight,writeRow);
+
+  std::function<void(const FastBoard&,int,int,const string&,int,const vector<Move>&,int)> f =
+    [&dataPool,&rand,keepProb,minRank,target,&posHashes,&total,&used](
+      const FastBoard& board, int source, int rank, const string& user, int handicap, const vector<Move>& moves, int moveIdx
+    ) {
+    maybeUseRow(
+      board,source,rank,user,handicap,moves,moveIdx,
+      dataPool,rand,keepProb,minRank,target,
+      posHashes,total,used
+    );
+  };
+
+  iterSgfsMoves(
+    sgfs,
+    trainTestSeed,isTest,testGameProb,
+    shardSeed,numShards,
+    used.count,curDataSetRow,
+    f
+  );
+
+  cout << "Emptying pool" << endl;
+  dataPool.finishAndWritePool(rand);
 }
 
 
@@ -434,40 +689,44 @@ int main(int argc, const char* argv[]) {
 
   vector<string> gamesDirs;
   string outputFile;
-  int trainPoolSize;
-  int testPoolSize;
-  double testProb;
+  size_t poolSize;
+  int trainShards;
+  double testGameProb;
   double keepTestProb;
+  int minRank;
   int target;
 
   try {
     TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0");
     TCLAP::MultiArg<string> gamesdirArg("","gamesdir","Directory of sgf files",true,"DIR");
     TCLAP::ValueArg<string> outputArg("","output","H5 file to write",true,string(),"FILE");
-    TCLAP::ValueArg<size_t> trainPoolSizeArg("","train-pool-size","Pool size for shuffling training rows",true,(size_t)0,"SIZE");
-    TCLAP::ValueArg<size_t> testPoolSizeArg("","test-pool-size","Pool size for shuffling testing rows",true,(size_t)0,"SIZE");
-    TCLAP::ValueArg<double> testProbArg("","test-prob","Probability of using a game for test instead of train",true,0.0,"PROB");
+    TCLAP::ValueArg<size_t> poolSizeArg("","pool-size","Pool size for shuffling rows",true,(size_t)0,"SIZE");
+    TCLAP::ValueArg<int>    trainShardsArg("","train-shards","Make this many passes processing 1/N of the data each time",true,0,"INT");
+    TCLAP::ValueArg<double> testGameProbArg("","test-game-prob","Probability of using a game for test instead of train",true,0.0,"PROB");
     TCLAP::ValueArg<double> keepTestProbArg("","keep-test-prob","Probability per-move of keeping a move in the test set",true,0.0,"PROB");
-    TCLAP::ValueArg<string> targetArg("","target","nextmove or ladder",true,string(),"TARGET");
+    TCLAP::ValueArg<int>    minRankArg("","min-rank","Min rank to use a player's move",true,0,"RANK");
+    TCLAP::ValueArg<string> targetArg("","target","nextmove",true,string(),"TARGET");
     cmd.add(gamesdirArg);
     cmd.add(outputArg);
-    cmd.add(trainPoolSizeArg);
-    cmd.add(testPoolSizeArg);
-    cmd.add(testProbArg);
+    cmd.add(poolSizeArg);
+    cmd.add(trainShardsArg);
+    cmd.add(testGameProbArg);
     cmd.add(keepTestProbArg);
+    cmd.add(minRankArg);
     cmd.add(targetArg);
     cmd.parse(argc,argv);
     gamesDirs = gamesdirArg.getValue();
     outputFile = outputArg.getValue();
-    trainPoolSize = trainPoolSizeArg.getValue();
-    testPoolSize = testPoolSizeArg.getValue();
-    testProb = testProbArg.getValue();
+    poolSize = poolSizeArg.getValue();
+    trainShards = trainShardsArg.getValue();
+    testGameProb = testGameProbArg.getValue();
     keepTestProb = keepTestProbArg.getValue();
+    minRank = minRankArg.getValue();
 
-    if(targetArg.getValue() == "nextmoveandladder")
+    if(targetArg.getValue() == "nextmove")
       target = TARGET_NEXT_MOVE_AND_LADDER;
     else
-      throw IOError("Must specify target nextmoveandladder or... no other options right now");
+      throw IOError("Must specify target nextmove or... no other options right now");
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << std::endl;
@@ -485,6 +744,11 @@ int main(int argc, const char* argv[]) {
   cout << "totalRowLen " << totalRowLen << endl;
   cout << "chunkHeight " << chunkHeight << endl;
   cout << "deflateLevel " << deflateLevel << endl;
+  cout << "poolSize " << poolSize << endl;
+  cout << "trainShards " << trainShards << endl;
+  cout << "testGameProb " << testGameProb << endl;
+  cout << "keepTestProb " << keepTestProb << endl;
+  cout << "minRank " << minRank << endl;
   cout << "target " << target << endl;
 
   //Collect SGF files-----------------------------------------------------------------
@@ -508,26 +772,6 @@ int main(int argc, const char* argv[]) {
   dataSetProps.setChunk(h5Dimension,chunkDims);
   dataSetProps.setDeflate(deflateLevel);
 
-  H5std_string trainSetName("train");
-  H5std_string testSetName("test");
-  DataSet* trainDataSet = new DataSet(h5File->createDataSet(trainSetName, PredType::IEEE_F32LE, DataSpace(h5Dimension,initFileDims,maxDims), dataSetProps));
-
-  size_t curTrainDataSetRow = 0;
-  std::function<void(const float*,size_t)> writeTrainRow = [&curTrainDataSetRow,&trainDataSet](const float* rows, size_t numRows) {
-    hsize_t newDims[h5Dimension] = {curTrainDataSetRow+numRows,totalRowLen};
-    trainDataSet->extend(newDims);
-    DataSpace fileSpace = trainDataSet->getSpace();
-    hsize_t memDims[h5Dimension] = {numRows,totalRowLen};
-    DataSpace memSpace(h5Dimension,memDims);
-    hsize_t start[h5Dimension] = {curTrainDataSetRow,0};
-    hsize_t count[h5Dimension] = {numRows,totalRowLen};
-    fileSpace.selectHyperslab(H5S_SELECT_SET, count, start);
-    trainDataSet->write(rows, PredType::NATIVE_FLOAT, memSpace, fileSpace);
-    curTrainDataSetRow += numRows;
-  };
-
-  DataPool dataPool(totalRowLen,trainPoolSize,testPoolSize,chunkHeight,writeTrainRow);
-
   //Process SGFS to make rows----------------------------------------------------------
   Rand rand;
   cout << "Loading SGFS..." << endl;
@@ -542,60 +786,66 @@ int main(int argc, const char* argv[]) {
     sgfs[r] = tmp;
   }
 
-  cout << "Processing SGFS..." << endl;
-  size_t numRowsProcessed = 0;
-  vector<Move> placementsBuf;
-  vector<Move> movesBuf;
-  set<Hash> posHashes;
-  for(int i = 0; i<sgfs.size(); i++) {
-    if(i > 0 && i % 100 == 0)
-      cout << "Processed " << i << " sgfs, " << numRowsProcessed << " rows, " << curTrainDataSetRow << " rows written..." << endl;
+  uint64_t trainTestSeed = rand.nextUInt64();
+  uint64_t trainShardSeed = rand.nextUInt64();
+  uint64_t testShardSeed = rand.nextUInt64();
 
-    Sgf* sgf = sgfs[i];
-    bool isTest = rand.nextDouble() < testProb;
-    numRowsProcessed += processSgf(sgf, placementsBuf, movesBuf, dataPool, isTest, keepTestProb, rand, target, posHashes);
-  }
-
-  //Empty out pools--------------------------------------------------------------------
-  cout << "Emptying training pool" << endl;
-  dataPool.finishAndWriteTrainPool(rand);
-  //Close the training dataset
+  cout << "Generating TRAINING set..." << endl;
+  H5std_string trainSetName("train");
+  DataSet* trainDataSet = new DataSet(h5File->createDataSet(trainSetName, PredType::IEEE_F32LE, DataSpace(h5Dimension,initFileDims,maxDims), dataSetProps));
+  set<Hash> trainPosHashes;
+  Stats trainTotalStats;
+  Stats trainUsedStats;
+  processSgfs(
+    sgfs,trainDataSet,
+    poolSize,
+    trainTestSeed, false, testGameProb,
+    trainShardSeed, trainShards,
+    rand, 1.0,
+    minRank, target,
+    trainPosHashes, trainTotalStats, trainUsedStats
+  );
   delete trainDataSet;
 
-  //Open the testing dataset
+  cout << "Generating TEST set..." << endl;
+  H5std_string testSetName("test");
   DataSet* testDataSet = new DataSet(h5File->createDataSet(testSetName, PredType::IEEE_F32LE, DataSpace(h5Dimension,initFileDims,maxDims), dataSetProps));
-
-  size_t curTestDataSetRow = 0;
-  std::function<void(const float*,size_t)> writeTestRow = [&curTestDataSetRow,&testDataSet](const float* rows, size_t numRows) {
-    hsize_t newDims[h5Dimension] = {curTestDataSetRow+numRows,totalRowLen};
-    testDataSet->extend(newDims);
-    DataSpace fileSpace = testDataSet->getSpace();
-    hsize_t memDims[h5Dimension] = {numRows,totalRowLen};
-    DataSpace memSpace(h5Dimension,memDims);
-    hsize_t start[h5Dimension] = {curTestDataSetRow,0};
-    hsize_t count[h5Dimension] = {numRows,totalRowLen};
-    fileSpace.selectHyperslab(H5S_SELECT_SET, count, start);
-    testDataSet->write(rows, PredType::NATIVE_FLOAT, memSpace, fileSpace);
-    curTestDataSetRow += numRows;
-  };
-
-  cout << "Writing testing set" << endl;
-  dataPool.writeTestPool(writeTestRow, rand);
-
-  //Close the testing dataset
+  set<Hash> testPosHashes;
+  Stats testTotalStats;
+  Stats testUsedStats;
+  processSgfs(
+    sgfs,testDataSet,
+    poolSize,
+    trainTestSeed, true, testGameProb,
+    testShardSeed, 1,
+    rand, keepTestProb,
+    minRank, target,
+    testPosHashes, testTotalStats, testUsedStats
+  );
   delete testDataSet;
 
   //Close the h5 file
   delete h5File;
 
   cout << "Done" << endl;
-  cout << numRowsProcessed << " rows" << endl;
-  cout << posHashes.size() << " unique pos hashes" << endl;
+
+  cout << "TRAIN TOTAL------------------------------------" << endl;
+  cout << trainPosHashes.size() << " unique pos hashes" << endl;
+  trainTotalStats.print();
+  cout << "TRAIN USED------------------------------------" << endl;
+  trainUsedStats.print();
+
+  cout << "TEST TOTAL------------------------------------" << endl;
+  cout << testPosHashes.size() << " unique pos hashes" << endl;
+  testTotalStats.print();
+  cout << "TEST USED------------------------------------" << endl;
+  testUsedStats.print();
 
   //Cleanup----------------------------------------------------------------------------
   for(int i = 0; i<sgfs.size(); i++) {
     delete sgfs[i];
   }
+  cout << "Everything cleaned up" << endl;
 
   return 0;
 }

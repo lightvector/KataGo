@@ -40,6 +40,7 @@ namespace Global
   //STRINGS---------------------------------
 
   //To string conversions
+  string boolToString(bool b);
   string charToString(char c);
   string intToString(int x);
   string doubleToString(double x);

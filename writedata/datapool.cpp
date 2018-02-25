@@ -4,31 +4,26 @@
 #include "core/rand.h"
 #include "datapool.h"
 
-DataPool::DataPool(size_t rowWidth, size_t trainPoolCapacity, size_t testPoolCapacity, size_t writeBufCapacity, std::function<void(const float*,size_t)> writeTrainRow)
+DataPool::DataPool(size_t rowWidth, size_t poolCapacity, size_t writeBufCapacity, std::function<void(const float*,size_t)> writeRow)
   :rowWidth(rowWidth),
    numRowsAdded(0),
-   trainPoolSize(0),
-   trainPoolCapacity(trainPoolCapacity),
-   testPoolSize(0),
-   testPoolCapacity(testPoolCapacity),
+   poolSize(0),
+   poolCapacity(poolCapacity),
    finished(false),
-   writeTrainRow(writeTrainRow),
+   writeRow(writeRow),
    writeBufSize(0),
    writeBufCapacity(writeBufCapacity)
 {
   assert(sizeof(size_t) == 8);
-  trainPool = new float[rowWidth * trainPoolCapacity];
-  testPool = new float[rowWidth * testPoolCapacity];
+  pool = new float[rowWidth * poolCapacity];
   writeBuf = new float[rowWidth * writeBufCapacity];
 
   //Zero out everything to start
-  std::memset(trainPool,0,sizeof(float)*rowWidth*trainPoolCapacity);
-  std::memset(testPool,0,sizeof(float)*rowWidth*testPoolCapacity);
+  std::memset(pool,0,sizeof(float)*rowWidth*poolCapacity);
 }
 
 DataPool::~DataPool() {
-  delete[] trainPool;
-  delete[] testPool;
+  delete[] pool;
   delete[] writeBuf;
 }
 
@@ -44,39 +39,32 @@ void DataPool::accumWriteBuf(const float* row, std::function<void(const float*,s
     flushWriteBuf(write);
 }
 
-//Helper, add a new row and definitely put it in the training set, don't check the test set.
+//Helper, add a new row
 //Does NOT increment numRowsAdded.
 //Does NOT zero out the new row
-float* DataPool::addTrainRowHelper(Rand& rand) {
-  //If training is not full, then simply add it to the next spot.
-  if(trainPoolSize < trainPoolCapacity) {
-    float* row = &(trainPool[rowWidth*trainPoolSize]);
-    trainPoolSize++;
+float* DataPool::addRowHelper(Rand& rand) {
+  //If pool is not full, then simply add it to the next spot.
+  if(poolSize < poolCapacity) {
+    float* row = &(pool[rowWidth*poolSize]);
+    poolSize++;
     return row;
   }
   //Otherwise, randomly evict a row.
-  size_t trainIdx = (size_t)rand.nextUInt64(trainPoolCapacity);
-  assert(trainIdx >= 0);
-  float* row = &(trainPool[rowWidth*trainIdx]);
-  accumWriteBuf(row,writeTrainRow);
+  size_t evictIdx = (size_t)rand.nextUInt64(poolCapacity);
+  assert(evictIdx >= 0);
+  float* row = &(pool[rowWidth*evictIdx]);
+  accumWriteBuf(row,writeRow);
   return row;
 }
 
 
-float* DataPool::addNewTrainRow(Rand& rand) {
+float* DataPool::addNewRow(Rand& rand) {
   assert(!finished);
   numRowsAdded++;
 
-  float* trainRow = addTrainRowHelper(rand);
+  float* trainRow = addRowHelper(rand);
   std::memset(trainRow,0,sizeof(float)*rowWidth);
   return trainRow;
-}
-
-float* DataPool::addNewTestRow() {
-  assert(testPoolSize < testPoolCapacity);
-  float* ret = &(testPool[rowWidth*testPoolSize]);
-  testPoolSize++;
-  return ret;
 }
 
 static void fillRandomPermutation(size_t* arr, size_t len, Rand& rand) {
@@ -91,34 +79,20 @@ static void fillRandomPermutation(size_t* arr, size_t len, Rand& rand) {
   }
 }
 
-void DataPool::finishAndWriteTrainPool(Rand& rand) {
+void DataPool::finishAndWritePool(Rand& rand) {
   assert(!finished);
   finished = true;
   //Pick indices to write in a random order
-  size_t* indices = new size_t[trainPoolSize];
-  fillRandomPermutation(indices,trainPoolSize,rand);
-  for(size_t i = 0; i<trainPoolSize; i++) {
+  size_t* indices = new size_t[poolSize];
+  fillRandomPermutation(indices,poolSize,rand);
+  for(size_t i = 0; i<poolSize; i++) {
     size_t r = indices[i];
-    float* row = &(trainPool[rowWidth*r]);
-    accumWriteBuf(row,writeTrainRow);
+    float* row = &(pool[rowWidth*r]);
+    accumWriteBuf(row,writeRow);
   }
-  flushWriteBuf(writeTrainRow);
+  flushWriteBuf(writeRow);
 
   delete[] indices;
 }
 
-void DataPool::writeTestPool(std::function<void(const float*,size_t)> writeTestRow, Rand& rand) {
-  assert(finished);
-  assert(writeBufSize == 0);
-  //Pick indices to write in a random order
-  size_t* indices = new size_t[testPoolSize];
-  fillRandomPermutation(indices,testPoolSize,rand);
-  for(size_t i = 0; i<testPoolSize; i++) {
-    size_t r = indices[i];
-    float* row = &(testPool[rowWidth*r]);
-    accumWriteBuf(row,writeTestRow);
-  }
-  flushWriteBuf(writeTestRow);
-  delete[] indices;
-}
 
