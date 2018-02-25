@@ -295,6 +295,9 @@ def weight_variable(name, shape, num_inputs, num_outputs, scale_initial_weights=
 def conv2d(x, w):
   return tf.nn.conv2d(x, w, strides=[1,1,1,1], padding='SAME')
 
+def dilated_conv2d(x, w, dilation):
+  return tf.nn.atrous_conv2d(x, w, rate = dilation, padding='SAME')
+
 def apply_symmetry(tensor,symmetries,inverse):
   ud = symmetries[0]
   lr = symmetries[1]
@@ -434,6 +437,29 @@ def res_conv_block(name, in_layer, diam, main_channels, mid_channels, scale_init
   outputs_by_layer.append((name+"/trans2",trans2_layer))
 
   weights2 = conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+  conv2_layer = conv2d(trans2_layer, weights2)
+  outputs_by_layer.append((name+"/conv2",conv2_layer))
+
+  return conv2_layer
+
+#Convolutional residual block with internal batch norm and nonlinear activation
+def dilated_res_conv_block(name, in_layer, diam, main_channels, mid_channels, dilated_mid_channels, dilation, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+  trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
+  outputs_by_layer.append((name+"/trans1",trans1_layer))
+
+  weights1a = conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+  weights1b = conv_weight_variable(name+"/w1b", diam, diam, main_channels, dilated_mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+  conv1a_layer = conv2d(trans1_layer, weights1a)
+  conv1b_layer = dilated_conv2d(trans1_layer, weights1b, dilation=dilation)
+  outputs_by_layer.append((name+"/conv1a",conv1a_layer))
+  outputs_by_layer.append((name+"/conv1b",conv1b_layer))
+
+  conv1_layer = tf.concat([conv1a_layer,conv1b_layer],axis=3)
+
+  trans2_layer = parametric_relu(name+"/prelu2",(batchnorm(name+"/norm2",conv1_layer)))
+  outputs_by_layer.append((name+"/trans2",trans2_layer))
+
+  weights2 = conv_weight_variable(name+"/w2", diam, diam, mid_channels+dilated_mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
   conv2_layer = conv2d(trans2_layer, weights2)
   outputs_by_layer.append((name+"/conv2",conv2_layer))
 
@@ -697,7 +723,7 @@ residual = res_conv_block("rconv1",trunk,diam=3,main_channels=192,mid_channels=1
 trunk = merge_residual("rconv1",trunk,residual)
 
 #Residual Convolutional Block 2---------------------------------------------------------------------------------
-residual = res_conv_block("rconv2",trunk,diam=3,main_channels=192,mid_channels=192, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = dilated_res_conv_block("rconv2",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv2",trunk,residual)
 
 #Ladder Block 1-------------------------------------------------------------------------------------------------
@@ -709,7 +735,7 @@ trunk = merge_residual("ladder1",trunk,residual)
 #trunk = merge_residual("cpool1",trunk,residual)
 
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
-residual = res_conv_block("rconv3",trunk,diam=3,main_channels=192,mid_channels=192, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = dilated_res_conv_block("rconv3",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv3",trunk,residual)
 
 #H/V Convolutional Block 1---------------------------------------------------------------------------------
@@ -721,7 +747,7 @@ residual = vh_res_conv_block("hvconv2",trunk,diam=9,main_channels=192,mid_channe
 trunk = merge_residual("hvconv2",trunk,residual)
 
 #Residual Convolutional Block 4---------------------------------------------------------------------------------
-residual = res_conv_block("rconv4",trunk,diam=3,main_channels=192,mid_channels=192, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = dilated_res_conv_block("rconv4",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv4",trunk,residual)
 
 #Postprocessing residual trunk----------------------------------------------------------------------------------
