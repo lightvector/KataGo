@@ -41,6 +41,7 @@ if "restart_file" in args and args["restart_file"] is not None:
   restart_file = args["restart_file"]
   start_epoch = int(args["restart_epoch"])
   start_elapsed = float(args["restart_time"])
+  logfilemode = "a"
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)
@@ -105,13 +106,12 @@ with tf.control_dependencies(update_ops):
     adjusted_gradients.append((adjusted_grad,x))
   train_step = optimizer.apply_gradients(adjusted_gradients)
 
-#TODO should also apply target weights here?
 #Training results
 target_idxs = tf.argmax(targets, 1)
 top1_prediction = tf.equal(tf.argmax(policy_output, 1), target_idxs)
 top4_prediction = tf.nn.in_top_k(policy_output,target_idxs,4)
-accuracy1 = tf.reduce_mean(tf.cast(top1_prediction, tf.float32))
-accuracy4 = tf.reduce_mean(tf.cast(top4_prediction, tf.float32))
+accuracy1 = tf.reduce_sum(target_weights * tf.cast(top1_prediction, tf.float32))
+accuracy4 = tf.reduce_sum(target_weights * tf.cast(top4_prediction, tf.float32))
 
 #Debugging stats
 
