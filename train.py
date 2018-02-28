@@ -203,8 +203,8 @@ class LR:
 
 print("Training", flush=True)
 
-num_epochs = 300
-num_samples_per_epoch = 500000
+num_epochs = 10000
+num_samples_per_epoch = 1000000
 batch_size = 200
 num_batches_per_epoch = num_samples_per_epoch//batch_size
 
@@ -215,7 +215,7 @@ lr = LR(
   initial_lr = 0.00032,
   decay_exponent = 4,
   decay_offset = 18,
-  drop_every_epochs = 8,
+  drop_every_epochs = 4,
 )
 
 # l2_coeff_value = 0
@@ -498,14 +498,10 @@ with tf.Session(config=tfconfig) as session:
     if epoch % 4 == 0 or epoch == num_epochs-1:
       saver.save(session, traindir + "/model" + str(epoch))
 
-  (vmetrics_evaled) = val_accuracy_and_loss()
+  vmetrics_evaled = merge_dicts(run_validation_in_batches(vmetrics), np.sum)
   vstr = validation_stats_str(vmetrics_evaled)
   trainlog("Final: %s" % (vstr))
 
-  variables_names =[v.name for v in tf.trainable_variables()]
-  values = session.run(variables_names)
-  for k,v in zip(variables_names, values):
-    print(k, v)
 
 # Finish
 h5file.close()
