@@ -24,10 +24,14 @@ Test neural net on Go games!
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-gamesh5', help='H5 file of preprocessed game data', required=True)
 parser.add_argument('-model-file', help='model file prefix to load', required=True)
+parser.add_argument('-require-last-move', help='filter down to only instances where last move is provided', required=False, action="store_true")
+parser.add_argument('-use-training-set', help='run on training set instead of test set', required=False, action="store_true")
 args = vars(parser.parse_args())
 
 gamesh5 = args["gamesh5"]
 model_file = args["model_file"]
+require_last_move = args["require_last_move"]
+use_training_set = args["use_training_set"]
 
 def log(s):
   print(s,flush=True)
@@ -46,7 +50,8 @@ target_weights = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
 target_weights_to_use = target_weights
 
 #Require that we have the last move
-#target_weights_to_use = target_weights_to_use * tf.reduce_sum(model.inputs[:,:,18],axis=[1])
+if require_last_move:
+  target_weights_to_use = target_weights_to_use * tf.reduce_sum(model.inputs[:,:,18],axis=[1])
 
 data_loss_sum = tf.reduce_sum(target_weights_to_use * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output))
 weight_sum = tf.reduce_sum(target_weights_to_use)
@@ -88,6 +93,10 @@ h5_chunk_size = h5train.chunks[0]
 num_h5_train_rows = h5train.shape[0]
 num_h5_test_rows = h5test.shape[0]
 
+if use_training_set:
+  num_h5_test_rows = num_h5_train_rows
+  h5test = h5train
+
 # Testing ------------------------------------------------------------
 
 print("Testing", flush=True)
@@ -117,29 +126,27 @@ with tf.Session(config=tfconfig) as session:
 
   def run(fetches, rows):
     assert(len(model.input_shape) == 2)
-    assert(len(model.chain_shape) == 1)
+    # assert(len(model.chain_shape) == 1)
     assert(len(model.target_shape) == 1)
-    assert(len(model.ladder_target_shape) == 1)
     assert(len(model.target_weights_shape) == 0)
     input_len = model.input_shape[0] * model.input_shape[1]
-    chain_len = model.chain_shape[0] + 1
+    # chain_len = model.chain_shape[0] + 1
+    chain_len = 0
     target_len = model.target_shape[0]
-    ladder_target_len = model.ladder_target_shape[0]
 
     if not isinstance(rows, np.ndarray):
       rows = np.array(rows)
 
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
-    row_chains = rows[:,input_len:input_len+chain_len-1].reshape([-1] + model.chain_shape).astype(np.int32)
-    row_num_chain_segments = rows[:,input_len+chain_len-1].astype(np.int32)
+    # row_chains = rows[:,input_len:input_len+chain_len-1].reshape([-1] + model.chain_shape).astype(np.int32)
+    # row_num_chain_segments = rows[:,input_len+chain_len-1].astype(np.int32)
     row_targets = rows[:,input_len+chain_len:input_len+chain_len+target_len]
-    row_ladder_targets = rows[:,input_len+chain_len+target_len:input_len+chain_len+target_len+ladder_target_len]
-    row_target_weights = rows[:,input_len+chain_len+target_len+ladder_target_len]
+    row_target_weights = rows[:,input_len+chain_len+target_len]
 
     return session.run(fetches, feed_dict={
       model.inputs: row_inputs,
-      model.chains: row_chains,
-      model.num_chain_segments: row_num_chain_segments,
+      # model.chains: row_chains,
+      # model.num_chain_segments: row_num_chain_segments,
       targets: row_targets,
       target_weights: row_target_weights,
       model.symmetries: [False,False,False],
