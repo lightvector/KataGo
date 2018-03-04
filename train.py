@@ -28,6 +28,8 @@ parser.add_argument('-verbose', help='verbose', required=False, action='store_tr
 parser.add_argument('-restart-file', help='restart training from file', required=False)
 parser.add_argument('-restart-epoch', help='restart training epoch', required=False)
 parser.add_argument('-restart-time', help='restart training time', required=False)
+parser.add_argument('-fast-factor', help='divide training batches per epoch by this factor', required=False)
+parser.add_argument('-validation-prop', help='only use this proportion of validation set', required=False)
 args = vars(parser.parse_args())
 
 traindir = args["traindir"]
@@ -36,12 +38,19 @@ verbose = args["verbose"]
 restart_file = None
 start_epoch = 0
 start_elapsed = 0
+fast_factor = 1
+validation_prop = 1.0
 logfilemode = "w"
 if "restart_file" in args and args["restart_file"] is not None:
   restart_file = args["restart_file"]
   start_epoch = int(args["restart_epoch"])
   start_elapsed = float(args["restart_time"])
   logfilemode = "a"
+
+if "fast_factor" in args and args["fast_factor"] is not None:
+  fast_factor = int(args["fast_factor"])
+if "validation_prop" in args and args["validation_prop"] is not None:
+  validation_prop = float(args["validation_prop"])
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)
@@ -204,7 +213,7 @@ class LR:
 print("Training", flush=True)
 
 num_epochs = 10000
-num_samples_per_epoch = 1000000
+num_samples_per_epoch = 1000000//fast_factor
 batch_size = 200
 num_batches_per_epoch = num_samples_per_epoch//batch_size
 
@@ -215,7 +224,7 @@ lr = LR(
   initial_lr = 0.00032,
   decay_exponent = 4,
   decay_offset = 18,
-  drop_every_epochs = 4,
+  drop_every_epochs = 4 * fast_factor,
 )
 
 # l2_coeff_value = 0
@@ -334,7 +343,7 @@ with tf.Session(config=tfconfig) as session:
   def run_validation_in_batches(fetches):
     #Run validation accuracy in batches to avoid out of memory error from processing one supergiant batch
     validation_batch_size = 256
-    num_validation_batches = num_h5_test_rows//validation_batch_size
+    num_validation_batches = int(num_h5_test_rows * validation_prop)//validation_batch_size
     results = []
     for i in range(num_validation_batches):
       rows = h5test[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_test_rows)]
