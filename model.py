@@ -738,6 +738,18 @@ trunk = merge_residual("rconv4",trunk,residual)
 residual = dilated_res_conv_block("rconv5",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv5",trunk,residual)
 
+#Residual Convolutional Block 6---------------------------------------------------------------------------------
+residual = dilated_res_conv_block("rconv6",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+trunk = merge_residual("rconv6",trunk,residual)
+
+#Residual Convolutional Block 7---------------------------------------------------------------------------------
+residual = dilated_res_conv_block("rconv7",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+trunk = merge_residual("rconv7",trunk,residual)
+
+#Residual Convolutional Block 8---------------------------------------------------------------------------------
+residual = dilated_res_conv_block("rconv8",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+trunk = merge_residual("rconv8",trunk,residual)
+
 #Postprocessing residual trunk----------------------------------------------------------------------------------
 
 #Normalize and relu just before the policy head
