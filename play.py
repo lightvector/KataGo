@@ -256,12 +256,9 @@ def run_gtp(session):
   add_board_size_visualizations("conv1",normalization_div=5)
   add_board_size_visualizations("rconv1",normalization_div=14)
   add_board_size_visualizations("rconv2",normalization_div=20)
-  add_board_size_visualizations("ladder1",normalization_div=20)
-  add_board_size_visualizations("ladder1/transprea",normalization_div=5)
-  add_board_size_visualizations("ladder1/transpreb",normalization_div=1.5)
   add_board_size_visualizations("rconv3",normalization_div=25)
-  add_board_size_visualizations("hvconv1",normalization_div=30)
   add_board_size_visualizations("rconv4",normalization_div=35)
+  add_board_size_visualizations("rconv5",normalization_div=40)
   add_board_size_visualizations("g1",normalization_div=8)
   add_board_size_visualizations("p1",normalization_div=2)
 
