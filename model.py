@@ -726,25 +726,9 @@ trunk = merge_residual("rconv1",trunk,residual)
 residual = dilated_res_conv_block("rconv2",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv2",trunk,residual)
 
-#Ladder Block 1-------------------------------------------------------------------------------------------------
-# residual = ladder_block("ladder1",trunk,near_nonempty,main_channels=192,mid_channels=6)
-# trunk = merge_residual("ladder1",trunk,residual)
-
-#Chainpool Block 1----------------------------------------------------------------------------------------------
-#residual = chainpool_block("cpool1",trunk,cur_chains,num_chain_segments,empty,nonempty,diam=3,main_channels=192,mid_channels=32)
-#trunk = merge_residual("cpool1",trunk,residual)
-
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
 residual = dilated_res_conv_block("rconv3",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv3",trunk,residual)
-
-# #H/V Convolutional Block 1---------------------------------------------------------------------------------
-# residual = hv_res_conv_block("hvconv1",trunk,diam=9,main_channels=192,mid_channels=64)
-# trunk = merge_residual("hvconv1",trunk,residual)
-
-# #H/V Convolutional Block 2---------------------------------------------------------------------------------
-# residual = vh_res_conv_block("hvconv2",trunk,diam=9,main_channels=192,mid_channels=64)
-# trunk = merge_residual("hvconv2",trunk,residual)
 
 #Residual Convolutional Block 4---------------------------------------------------------------------------------
 residual = dilated_res_conv_block("rconv4",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
