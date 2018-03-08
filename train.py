@@ -222,8 +222,8 @@ assert(num_samples_per_epoch % batch_size == 0)
 
 lr = LR(
   initial_lr = 0.00032,
-  decay_exponent = 4,
-  decay_offset = 18,
+  decay_exponent = 2,
+  decay_offset = 8,
   drop_every_epochs = 4 * fast_factor,
 )
 
