@@ -727,7 +727,7 @@ residual = dilated_res_conv_block("rconv2",trunk,diam=3,main_channels=192,mid_ch
 trunk = merge_residual("rconv2",trunk,residual)
 
 #Residual Convolutional Block 3---------------------------------------------------------------------------------
-residual = dilated_res_conv_block("rconv3",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = dilated_res_conv_block("rconv3",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv3",trunk,residual)
 
 #Residual Convolutional Block 4---------------------------------------------------------------------------------
@@ -735,27 +735,27 @@ residual = dilated_res_conv_block("rconv4",trunk,diam=3,main_channels=192,mid_ch
 trunk = merge_residual("rconv4",trunk,residual)
 
 #Residual Convolutional Block 5---------------------------------------------------------------------------------
-residual = dilated_res_conv_block("rconv5",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = dilated_res_conv_block("rconv5",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv5",trunk,residual)
 
 #Residual Convolutional Block 6---------------------------------------------------------------------------------
-residual = dilated_res_conv_block("rconv6",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = dilated_res_conv_block("rconv6",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv6",trunk,residual)
 
 #Residual Convolutional Block 7---------------------------------------------------------------------------------
-residual = dilated_res_conv_block("rconv7",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = dilated_res_conv_block("rconv7",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv7",trunk,residual)
 
 #Residual Convolutional Block 8---------------------------------------------------------------------------------
-residual = dilated_res_conv_block("rconv8",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = dilated_res_conv_block("rconv8",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv8",trunk,residual)
 
 #Residual Convolutional Block 9---------------------------------------------------------------------------------
-residual = dilated_res_conv_block("rconv9",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = dilated_res_conv_block("rconv9",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv9",trunk,residual)
 
 #Residual Convolutional Block 10---------------------------------------------------------------------------------
-residual = dilated_res_conv_block("rconv10",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=3, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = dilated_res_conv_block("rconv10",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv10",trunk,residual)
 
 #Postprocessing residual trunk----------------------------------------------------------------------------------
