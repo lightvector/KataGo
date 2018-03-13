@@ -29,7 +29,8 @@ For a comparison with other neural nets, see this table for a summary of results
 | [AlphaGoFanHui-256 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 6,795,881 | 55.9%
 | [Darkforest (2016)](https://arxiv.org/abs/1511.06410) | CNN 12 layers  | 12,329,756  | 57.1%  |   | 128M | 99.7%
 | [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10 blocks | 12,098,304 | 55.5% | 50.7% | 70M
-| [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10 blocks | 12,098,304 | 58.2% | 54.6% | 350M
+| [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10 blocks | 12,098,304 | 58.2% | 54.1% | 380M
+| [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 14 blocks | 16,816,896 |       | 54.6% | 355M
 | [AlphaGoZero-20Blocks(2017)](https://deepmind.com/documents/119/agz_unformatted_nature.pdf) | ResNet 20 blocks | 22,837,864 | 60.4% | | >1000M?
 | Current Sandbox | ResNet 4 Blocks + 2 Special | 3,285,048 | | 51.9% | 52M | 98-99%
 
