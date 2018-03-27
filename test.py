@@ -14,6 +14,7 @@ import numpy as np
 
 import data
 from board import Board
+from model import Model
 
 #Command and args-------------------------------------------------------------------
 
@@ -39,7 +40,7 @@ def log(s):
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
-import model
+model = Model(use_ranks=False)
 
 policy_output = model.policy_output
 

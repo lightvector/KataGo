@@ -18,10 +18,6 @@ static const int numFeatures = 26;
 static const int inputStart = 0;
 static const int inputLen = maxBoardSize * maxBoardSize * numFeatures;
 
-static const int chainStart = inputStart + inputLen;
-static const int chainLen = 0;
-// static const int chainLen = maxBoardSize * maxBoardSize + 1;
-
 static const int targetStart = chainStart + chainLen;
 static const int targetLen = maxBoardSize * maxBoardSize;
 
@@ -32,10 +28,17 @@ static const int ladderTargetLen = 0;
 static const int targetWeightsStart = ladderTargetStart + ladderTargetLen;
 static const int targetWeightsLen = 1;
 
-static const int totalRowLen = targetWeightsStart + targetWeightsLen;
+static const int rankStart = targetWeightsStart + targetWeightsLen;
+static const int rankLenGoGoD = 1; //pro
+static const int rankLenKGS = 9; //1d-9d
+static const int rankLenFox = 17 + 9; //17k-9d
+static const int rankLenOGSPre2014 = 20 + 9; //20k-9d
+static const int rankLen = rankLenGoGoD + rankLenKGS + rankLenFox + rankLenOGSPre2014;
+
+static const int totalRowLen = rankStart + rankLen;
 
 //HDF5 parameters
-static const int chunkHeight = 2000;
+static const int chunkHeight = 6000;
 static const int deflateLevel = 6;
 static const int h5Dimension = 2;
 
@@ -127,7 +130,7 @@ static void iterLadders(const FastBoard& board, std::function<void(Loc,int,const
 //   }
 // }
 
-static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextMoveIdx, int target, float* row, Rand& rand) {
+static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextMoveIdx, int target, int rankOneHot, float* row, Rand& rand) {
   assert(board.x_size == board.y_size);
   assert(nextMoveIdx < moves.size());
 
@@ -135,11 +138,6 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   Player opp = getEnemy(pla);
   int bSize = board.x_size;
   int offset = (maxBoardSize - bSize) / 2;
-
-  // int nextChainLabel = 1;
-  // int chainLabelsByHeadLoc[FastBoard::MAX_ARR_SIZE];
-  // for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
-  //   chainLabelsByHeadLoc[i] = 0;
 
   for(int y = 0; y<bSize; y++) {
     for(int x = 0; x<bSize; x++) {
@@ -170,14 +168,7 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
         else if(libs == 4) setRow(row,pos,10, 1.0);
       }
 
-      if(stone == pla || stone == opp) {
-        //Fill chain feature
-        // Loc headLoc = board.chain_head[loc];
-        // if(chainLabelsByHeadLoc[headLoc] == 0)
-        //   chainLabelsByHeadLoc[headLoc] = (nextChainLabel++);
-
-        // row[chainStart + pos] = chainLabelsByHeadLoc[headLoc];
-      }
+      if(stone == pla || stone == opp) {}
       else {
         //Feature 11,12,13 - 1, 2, 3 liberties after own play.
         //Feature 14,15,16 - 1, 2, 3 liberties after opponent play
@@ -193,9 +184,6 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
       }
     }
   }
-
-  //Last chain entry is the number of chain segments
-  // row[chainStart + maxBoardSize * maxBoardSize] = nextChainLabel;
 
   //Feature 17 - simple ko location
   if(board.ko_loc != FastBoard::NULL_LOC) {
@@ -282,16 +270,26 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
 
   //Weight of the row, currently always 1.0
   row[targetWeightsStart] = 1.0;
+
+  //One-hot indicating rank
+  row[rankStart + rankOneHot] = 1.0;
 }
 
 //SGF sources
 int SOURCE_GOGOD = 0;
 int SOURCE_KGS = 1;
+int SOURCE_FOX = 2;
+int SOURCE_OGSPre2014 = 3;
 static int parseSource(const Sgf* sgf) {
   if(sgf->fileName.find("GoGoD") != string::npos)
     return SOURCE_GOGOD;
   else if(sgf->fileName.find("kgs-19") != string::npos || sgf->fileName.find("KGS2") != string::npos)
     return SOURCE_KGS;
+  else if(sgf->fileName.find("FoxGo") != string::npos)
+    return SOURCE_FOX;
+  //TODO
+  // else if(sgf->fileName.find("") != string::npos)
+  //   return SOURCE_OGSPre2014;
   else
     throw IOError("Unknown source for sgf: " + sgf->fileName);
 }
@@ -561,11 +559,18 @@ static void maybeUseRow(
   const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const vector<Move>& movesBuf, int moveIdx,
   DataPool& dataPool,
   Rand& rand, double keepProb, int minRank, int minOppRank, int maxHandicap, int target,
+  const set<string>& excludeUsers,
   set<Hash>& posHashes, Stats& total, Stats& used
 ) {
+  //TODO also filter out games that are > 85% identical hashes to another game
   //For now, only generate training rows for non-passes
   //Also only use moves by this player if that player meets rank threshold
-  if(movesBuf[moveIdx].loc != FastBoard::PASS_LOC && rank >= minRank && oppRank >= minOppRank && handicap <= maxHandicap) {
+  if(movesBuf[moveIdx].loc != FastBoard::PASS_LOC &&
+     rank >= minRank &&
+     oppRank >= minOppRank &&
+     handicap <= maxHandicap &&
+     !contains(excludeUsers,user)
+  ) {
     float* newRow = NULL;
     if(keepProb >= 1.0 || (rand.nextDouble() < keepProb))
       newRow = dataPool.addNewRow(rand);
@@ -598,6 +603,7 @@ static void processSgfs(
   uint64_t shardSeed, int numShards,
   Rand& rand, double keepProb,
   int minRank, int minOppRank, int maxHandicap, int target,
+  const set<string>& excludeUsers,
   set<Hash>& posHashes, Stats& total, Stats& used
 ) {
   size_t curDataSetRow = 0;
@@ -617,12 +623,13 @@ static void processSgfs(
   DataPool dataPool(totalRowLen,poolSize,chunkHeight,writeRow);
 
   std::function<void(const FastBoard&,int,int,int,const string&,int,const vector<Move>&,int)> f =
-    [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&posHashes,&total,&used](
+    [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,&posHashes,&total,&used](
       const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const vector<Move>& moves, int moveIdx
     ) {
     maybeUseRow(
       board,source,rank,oppRank,user,handicap,moves,moveIdx,
       dataPool,rand,keepProb,minRank,minOppRank,maxHandicap,target,
+      excludeUsers,
       posHashes,total,used
     );
   };
@@ -705,6 +712,7 @@ int main(int argc, const char* argv[]) {
   int minOppRank;
   int maxHandicap;
   int target;
+  vector<string> excludeUsersFiles;
 
   try {
     TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0");
@@ -718,6 +726,7 @@ int main(int argc, const char* argv[]) {
     TCLAP::ValueArg<int>    minOppRankArg("","min-opp-rank","Min rank of opp to use a player's move",true,0,"RANK");
     TCLAP::ValueArg<int>    maxHandicapArg("","max-handicap","Max handicap of game to use a player's move",true,0,"HCAP");
     TCLAP::ValueArg<string> targetArg("","target","nextmove",true,string(),"TARGET");
+    TCLAP::MultiArg<string> excludeUsersArg("","exclude-users","File of users to exclude, one per line",false,"FILE");
     cmd.add(gamesdirArg);
     cmd.add(outputArg);
     cmd.add(poolSizeArg);
@@ -728,6 +737,7 @@ int main(int argc, const char* argv[]) {
     cmd.add(minOppRankArg);
     cmd.add(maxHandicapArg);
     cmd.add(targetArg);
+    cmd.add(excludeUsersArg);
     cmd.parse(argc,argv);
     gamesDirs = gamesdirArg.getValue();
     outputFile = outputArg.getValue();
@@ -738,6 +748,7 @@ int main(int argc, const char* argv[]) {
     minRank = minRankArg.getValue();
     minOppRank = minOppRankArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
+    excludeUsersFiles = excludeUsersArg.getValue();
 
     if(targetArg.getValue() == "nextmove")
       target = TARGET_NEXT_MOVE_AND_LADDER;
@@ -749,14 +760,24 @@ int main(int argc, const char* argv[]) {
     return 1;
   }
 
+  set<string> excludeUsers;
+  for(size_t i = 0; i < excludeUsersFiles.size(); i++) {
+    const string& file = excludeUsersFiles[i];
+    vector<string> users = Global::readFileLines(file,'\n');
+    for(size_t j = 0; j < users.size(); j++) {
+      const string& user = Global::trim(Global::stripComments(users[j]));
+      excludeUsers.insert(user);
+    }
+  }
+
   //Print some stats-----------------------------------------------------------------
   cout << "maxBoardSize " << maxBoardSize << endl;
   cout << "numFeatures " << numFeatures << endl;
   cout << "inputLen " << inputLen << endl;
-  cout << "chainLen " << chainLen << endl;
   cout << "targetLen " << targetLen << endl;
   cout << "ladderTargetLen " << ladderTargetLen << endl;
   cout << "targetWeightsLen " << targetWeightsLen << endl;
+  cout << "rankLen " << rankLen << endl;
   cout << "totalRowLen " << totalRowLen << endl;
   cout << "chunkHeight " << chunkHeight << endl;
   cout << "deflateLevel " << deflateLevel << endl;
@@ -768,6 +789,13 @@ int main(int argc, const char* argv[]) {
   cout << "minOppRank " << minOppRank << endl;
   cout << "maxHandicap " << maxHandicap << endl;
   cout << "target " << target << endl;
+
+  cout << endl;
+  cout << "Excluding users:" << endl;
+  for(const string& s: excludeUsers) {
+    cout << s << endl;
+  }
+  cout << endl;
 
   //Collect SGF files-----------------------------------------------------------------
   const string suffix = ".sgf";
@@ -821,6 +849,7 @@ int main(int argc, const char* argv[]) {
     trainShardSeed, trainShards,
     rand, 1.0,
     minRank, minOppRank, maxHandicap, target,
+    excludeUsers,
     trainPosHashes, trainTotalStats, trainUsedStats
   );
   delete trainDataSet;
@@ -838,6 +867,7 @@ int main(int argc, const char* argv[]) {
     testShardSeed, 1,
     rand, keepTestProb,
     minRank, minOppRank, maxHandicap, target,
+    excludeUsers,
     testPosHashes, testTotalStats, testUsedStats
   );
   delete testDataSet;
