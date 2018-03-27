@@ -477,17 +477,18 @@ def global_res_conv_block(name, in_layer, diam, main_channels, mid_channels, glo
   outputs_by_layer.append((name+"/conv1a",conv1a_layer))
   outputs_by_layer.append((name+"/conv1b",conv1b_layer))
 
-  conv1b_mean = tf.reduce_mean(conv1b_layer,axis=[1,2],keep_dims=True)
-  conv1b_max = tf.reduce_max(conv1b_layer,axis=[1,2],keep_dims=True)
-  conv1b_mean_tiled = tf.tile(conv1b_mean,[1,max_board_size,max_board_size,1])
-  conv1b_max_tiled = tf.tile(conv1b_max,[1,max_board_size,max_board_size,1])
+  trans1b_layer = parametric_relu(name+"/trans1b",(batchnorm(name+"/norm1b",conv1b_layer)))
+  trans1b_mean = tf.reduce_mean(trans1b_layer,axis=[1,2],keep_dims=True)
+  trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keep_dims=True)
+  trans1b_pooled = tf.concat([trans1b_mean,trans1b_max],axis=3)
 
-  conv1_layer = tf.concat([conv1a_layer,conv1b_mean_tiled,conv1b_max_tiled],axis=3)
+  remix_weights = weight_variable(name+"/w1r",[global_mid_channels*2,mid_channels],global_mid_channels*2,mid_channels, scale_initial_weights = 0.5)
+  conv1_layer = conv1a_layer + tf.tensordot(trans1b_pooled,remix_weights,axes=[[3],[0]])
 
   trans2_layer = parametric_relu(name+"/prelu2",(batchnorm(name+"/norm2",conv1_layer)))
   outputs_by_layer.append((name+"/trans2",trans2_layer))
 
-  weights2 = conv_weight_variable(name+"/w2", diam, diam, mid_channels+global_mid_channels*2, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+  weights2 = conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
   conv2_layer = conv2d(trans2_layer, weights2)
   outputs_by_layer.append((name+"/conv2",conv2_layer))
 
@@ -771,7 +772,7 @@ residual = dilated_res_conv_block("rconv6",trunk,diam=3,main_channels=192,mid_ch
 trunk = merge_residual("rconv6",trunk,residual)
 
 #Residual Convolutional Block 7---------------------------------------------------------------------------------
-residual = global_res_conv_block("rconv7",trunk,diam=3,main_channels=192,mid_channels=128, global_mid_channels=44, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = global_res_conv_block("rconv7",trunk,diam=3,main_channels=192,mid_channels=128, global_mid_channels=64, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv7",trunk,residual)
 
 #Residual Convolutional Block 8---------------------------------------------------------------------------------
