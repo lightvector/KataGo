@@ -18,7 +18,7 @@ static const int numFeatures = 26;
 static const int inputStart = 0;
 static const int inputLen = maxBoardSize * maxBoardSize * numFeatures;
 
-static const int targetStart = chainStart + chainLen;
+static const int targetStart = inputStart + inputLen;
 static const int targetLen = maxBoardSize * maxBoardSize;
 
 static const int ladderTargetStart = targetStart + targetLen;
@@ -33,6 +33,11 @@ static const int rankLenGoGoD = 1; //pro
 static const int rankLenKGS = 9; //1d-9d
 static const int rankLenFox = 17 + 9; //17k-9d
 static const int rankLenOGSPre2014 = 20 + 9; //20k-9d
+
+static const int rankStartGoGoD = 0;
+static const int rankStartKGS = rankLenGoGoD;
+static const int rankStartFox = rankLenGoGoD + rankLenKGS;
+static const int rankStartOGSPre2014 = rankLenGoGoD + rankLenKGS + rankLenFox;
 static const int rankLen = rankLenGoGoD + rankLenKGS + rankLenFox + rankLenOGSPre2014;
 
 static const int totalRowLen = rankStart + rankLen;
@@ -272,7 +277,8 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   row[targetWeightsStart] = 1.0;
 
   //One-hot indicating rank
-  row[rankStart + rankOneHot] = 1.0;
+  if(rankOneHot != -1)
+    row[rankStart + rankOneHot] = 1.0;
 }
 
 //SGF sources
@@ -554,12 +560,28 @@ static void iterSgfsMoves(
        << " numMovesItered*numShards = " << (numMovesItered * numShards) << endl;
 }
 
+static const double rankOneHotFancyProb[rankLen] = {
+  1.00, /* GoGoD */
+  1.00, 1.00, 1.00, 1.00, 1.00, 0.40, 0.40, 0.80, 1.00, /* KGS */
+  0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.04, /* FOX 17k-10k */
+  0.03, 0.03, 0.03, 0.03, 0.03, /* FOX 9k-5k */
+  0.028, 0.025, 0.020, 0.015, /* FOX 4k-1k */
+  0.010, 0.008, 0.007, 0.010, 0.015, /* FOX 1d-5d */
+  0.035, 0.080, 0.200, 0.100, /* FOX 6d-9d */
 
+  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 20k-16k */
+  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 15k-11k */
+  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 10k-6k */
+  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 5k-1k */
+  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 1d-5d */
+  1.00, 1.00, 1.00, 1.00,        /* OGS 6d-9d */
+};
+  
 static void maybeUseRow(
   const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const vector<Move>& movesBuf, int moveIdx,
   DataPool& dataPool,
   Rand& rand, double keepProb, int minRank, int minOppRank, int maxHandicap, int target,
-  const set<string>& excludeUsers,
+  const set<string>& excludeUsers, bool fancyConditions,
   set<Hash>& posHashes, Stats& total, Stats& used
 ) {
   //TODO also filter out games that are > 85% identical hashes to another game
@@ -571,20 +593,47 @@ static void maybeUseRow(
      handicap <= maxHandicap &&
      !contains(excludeUsers,user)
   ) {
-    float* newRow = NULL;
-    if(keepProb >= 1.0 || (rand.nextDouble() < keepProb))
-      newRow = dataPool.addNewRow(rand);
+    int rankOneHot = -1;
+    if(source == SOURCE_GOGOD)
+      rankOneHot = rankStartGoGoD;
+    else if(source == SOURCE_KGS && rank >= 0 && rank <= 8)
+      rankOneHot = rankStartKGS + rank;
+    else if(source == SOURCE_FOX && rank >= -17 && rank <= 8)
+      rankOneHot = rankStartFox + 17 + rank;
+    else if(source == SOURCE_OGSPre2014 && rank >= -20 && rank <= 8)
+      rankOneHot = rankStartOGSPre2014 + 20 + rank;
 
-    if(newRow != NULL) {
-      fillRow(board,movesBuf,moveIdx,target,newRow,rand);
-      posHashes.insert(board.pos_hash);
+    bool canUse = true;
 
-      used.count += 1;
-      used.countBySource[source] += 1;
-      used.countByRank[rank] += 1;
-      used.countByOppRank[oppRank] += 1;
-      used.countByUser[user] += 1;
-      used.countByHandicap[handicap] += 1;
+    //Apply special filtering for when we want to make a rank-balanced training set
+    if(fancyConditions) {
+      //Require that we have a good rank
+      if(rankOneHot < 0)
+        canUse = false;
+      //Some ranks have too many games, filter them down
+      if(rand.nextDouble() >= rankOneHotFancyProb[rankOneHot])
+        canUse = false;
+      //No handicap games from GoGoD since they're less likely to be pro-level
+      if(source == SOURCE_GOGOD && handicap >= 0)
+        canUse = false;
+    }
+      
+    if(canUse) {
+      float* newRow = NULL;
+      if(keepProb >= 1.0 || (rand.nextDouble() < keepProb))
+        newRow = dataPool.addNewRow(rand);
+
+      if(newRow != NULL) {      
+        fillRow(board,movesBuf,moveIdx,target,rankOneHot,newRow,rand);
+        posHashes.insert(board.pos_hash);
+
+        used.count += 1;
+        used.countBySource[source] += 1;
+        used.countByRank[rank] += 1;
+        used.countByOppRank[oppRank] += 1;
+        used.countByUser[user] += 1;
+        used.countByHandicap[handicap] += 1;
+      }
     }
   }
 
@@ -603,7 +652,7 @@ static void processSgfs(
   uint64_t shardSeed, int numShards,
   Rand& rand, double keepProb,
   int minRank, int minOppRank, int maxHandicap, int target,
-  const set<string>& excludeUsers,
+  const set<string>& excludeUsers, bool fancyConditions,
   set<Hash>& posHashes, Stats& total, Stats& used
 ) {
   size_t curDataSetRow = 0;
@@ -623,13 +672,13 @@ static void processSgfs(
   DataPool dataPool(totalRowLen,poolSize,chunkHeight,writeRow);
 
   std::function<void(const FastBoard&,int,int,int,const string&,int,const vector<Move>&,int)> f =
-    [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,&posHashes,&total,&used](
+    [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,&posHashes,&total,&used](
       const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const vector<Move>& moves, int moveIdx
     ) {
     maybeUseRow(
       board,source,rank,oppRank,user,handicap,moves,moveIdx,
       dataPool,rand,keepProb,minRank,minOppRank,maxHandicap,target,
-      excludeUsers,
+      excludeUsers,fancyConditions,
       posHashes,total,used
     );
   };
@@ -712,6 +761,7 @@ int main(int argc, const char* argv[]) {
   int minOppRank;
   int maxHandicap;
   int target;
+  bool fancyConditions;
   vector<string> excludeUsersFiles;
 
   try {
@@ -726,6 +776,7 @@ int main(int argc, const char* argv[]) {
     TCLAP::ValueArg<int>    minOppRankArg("","min-opp-rank","Min rank of opp to use a player's move",true,0,"RANK");
     TCLAP::ValueArg<int>    maxHandicapArg("","max-handicap","Max handicap of game to use a player's move",true,0,"HCAP");
     TCLAP::ValueArg<string> targetArg("","target","nextmove",true,string(),"TARGET");
+    TCLAP::SwitchArg        fancyConditionsArg("","fancy-conditions","Fancy filtering for rank balancing",false);
     TCLAP::MultiArg<string> excludeUsersArg("","exclude-users","File of users to exclude, one per line",false,"FILE");
     cmd.add(gamesdirArg);
     cmd.add(outputArg);
@@ -737,6 +788,7 @@ int main(int argc, const char* argv[]) {
     cmd.add(minOppRankArg);
     cmd.add(maxHandicapArg);
     cmd.add(targetArg);
+    cmd.add(fancyConditionsArg);
     cmd.add(excludeUsersArg);
     cmd.parse(argc,argv);
     gamesDirs = gamesdirArg.getValue();
@@ -748,6 +800,7 @@ int main(int argc, const char* argv[]) {
     minRank = minRankArg.getValue();
     minOppRank = minOppRankArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
+    fancyConditions = fancyConditionsArg.getValue();
     excludeUsersFiles = excludeUsersArg.getValue();
 
     if(targetArg.getValue() == "nextmove")
@@ -789,6 +842,7 @@ int main(int argc, const char* argv[]) {
   cout << "minOppRank " << minOppRank << endl;
   cout << "maxHandicap " << maxHandicap << endl;
   cout << "target " << target << endl;
+  cout << "fancyConditions " << fancyConditions << endl;
 
   cout << endl;
   cout << "Excluding users:" << endl;
@@ -849,7 +903,7 @@ int main(int argc, const char* argv[]) {
     trainShardSeed, trainShards,
     rand, 1.0,
     minRank, minOppRank, maxHandicap, target,
-    excludeUsers,
+    excludeUsers, fancyConditions,
     trainPosHashes, trainTotalStats, trainUsedStats
   );
   delete trainDataSet;
@@ -867,7 +921,7 @@ int main(int argc, const char* argv[]) {
     testShardSeed, 1,
     rand, keepTestProb,
     minRank, minOppRank, maxHandicap, target,
-    excludeUsers,
+    excludeUsers, fancyConditions,
     testPosHashes, testTotalStats, testUsedStats
   );
   delete testDataSet;
