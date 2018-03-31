@@ -449,6 +449,14 @@ static void iterSgfMoves(
 
     sgf->getPlacements(placementsBuf,bSize);
     sgf->getMoves(movesBuf,bSize);
+
+    //OGS has a ton of garbage, for OGS require a minimum length
+    //to try to filter out random demos and problems and such
+    if(source == SOURCE_OGSPre2014) {
+      if(movesBuf.size() < 40)
+        return;
+    }
+
   }
   catch(const IOError &e) {
     cout << "Skipping sgf file: " << sgf->fileName << ": " << e.message << endl;
