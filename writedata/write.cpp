@@ -777,6 +777,7 @@ int main(int argc, const char* argv[]) {
   size_t poolSize;
   int trainShards;
   double testGameProb;
+  double keepTrainProb;
   double keepTestProb;
   int minRank;
   int minOppRank;
@@ -792,6 +793,7 @@ int main(int argc, const char* argv[]) {
     TCLAP::ValueArg<size_t> poolSizeArg("","pool-size","Pool size for shuffling rows",true,(size_t)0,"SIZE");
     TCLAP::ValueArg<int>    trainShardsArg("","train-shards","Make this many passes processing 1/N of the data each time",true,0,"INT");
     TCLAP::ValueArg<double> testGameProbArg("","test-game-prob","Probability of using a game for test instead of train",true,0.0,"PROB");
+    TCLAP::ValueArg<double> keepTrainProbArg("","keep-train-prob","Probability per-move of keeping a move in the train set",true,0.0,"PROB");
     TCLAP::ValueArg<double> keepTestProbArg("","keep-test-prob","Probability per-move of keeping a move in the test set",true,0.0,"PROB");
     TCLAP::ValueArg<int>    minRankArg("","min-rank","Min rank to use a player's move",true,0,"RANK");
     TCLAP::ValueArg<int>    minOppRankArg("","min-opp-rank","Min rank of opp to use a player's move",true,0,"RANK");
@@ -804,6 +806,7 @@ int main(int argc, const char* argv[]) {
     cmd.add(poolSizeArg);
     cmd.add(trainShardsArg);
     cmd.add(testGameProbArg);
+    cmd.add(keepTrainProbArg);
     cmd.add(keepTestProbArg);
     cmd.add(minRankArg);
     cmd.add(minOppRankArg);
@@ -817,6 +820,7 @@ int main(int argc, const char* argv[]) {
     poolSize = poolSizeArg.getValue();
     trainShards = trainShardsArg.getValue();
     testGameProb = testGameProbArg.getValue();
+    keepTrainProb = keepTrainProbArg.getValue();
     keepTestProb = keepTestProbArg.getValue();
     minRank = minRankArg.getValue();
     minOppRank = minOppRankArg.getValue();
@@ -858,6 +862,7 @@ int main(int argc, const char* argv[]) {
   cout << "poolSize " << poolSize << endl;
   cout << "trainShards " << trainShards << endl;
   cout << "testGameProb " << testGameProb << endl;
+  cout << "keepTrainProb " << keepTrainProb << endl;
   cout << "keepTestProb " << keepTestProb << endl;
   cout << "minRank " << minRank << endl;
   cout << "minOppRank " << minOppRank << endl;
@@ -922,7 +927,7 @@ int main(int argc, const char* argv[]) {
     poolSize,
     trainTestSeed, false, testGameProb,
     trainShardSeed, trainShards,
-    rand, 1.0,
+    rand, keepTrainProb,
     minRank, minOppRank, maxHandicap, target,
     excludeUsers, fancyConditions,
     trainPosHashes, trainTotalStats, trainUsedStats

@@ -17,7 +17,7 @@ class Model:
     self.target_shape = [19*19]
     self.target_weights_shape = []
     self.rank_shape=[1+9+(17+9)+(20+9)]
-    self.rank_embedding_dim = 10
+    self.rank_embedding_dim = 8
 
     self.pass_pos = self.max_board_size * self.max_board_size
 
