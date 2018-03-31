@@ -13,7 +13,7 @@ See LICENSE for software license. License aside, informally, if do you successfu
 You can see the implementations of the relevant neural net structures in "model.py", although I may adapt and change them as time goes on.
 
 ### History
-   * Mar 2018 - Much larger neural nets and updates to [current results](https://github.com/lightvector/GoNN#current-results). Global pooled properties [are good in the main trunk of the resnet as well](https://github.com/lightvector/GoNN#update-mar-2018)! Also, [increasing center-position learning rates](https://github.com/lightvector/GoNN#update-mar-2018) everywhere else in the net helps training speed a little. Promising experiments with [dilated convolutions](https://github.com/lightvector/GoNN#dilated-convolutions-mar-2018), and a note about [making neural nets not always need history](https://github.com/lightvector/GoNN#some-thoughts-about-history-as-an-input-mar-2018).
+   * Mar 2018 - Much larger neural nets and updates to [current results](https://github.com/lightvector/GoNN#current-results). Global pooled properties [are good in the main trunk of the resnet as well](https://github.com/lightvector/GoNN#update-mar-2018)! Also, [increasing center-position learning rates](https://github.com/lightvector/GoNN#update-mar-2018-1) everywhere else in the net helps training speed a little. Promising experiments with [dilated convolutions](https://github.com/lightvector/GoNN#dilated-convolutions-mar-2018), and a note about [making neural nets not always need history](https://github.com/lightvector/GoNN#some-thoughts-about-history-as-an-input-mar-2018).
    * Feb 2018 - Tried [special ladder blocks in the policy](https://github.com/lightvector/GoNN#update-feb-2018), tried [ladders as a training target](https://github.com/lightvector/GoNN#using-ladders-as-an-extra-training-target-feb-2018), retested [global pooled properties](https://github.com/lightvector/GoNN#update-feb-2018-1). And ran new experiments with net architecture - [wide low-rank residual blocks](https://github.com/lightvector/GoNN#wide-low-rank-residual-blocks-feb-2018), [parametric ReLUs](https://github.com/lightvector/GoNN#parametric-relus-feb-2018), [chain pooling](https://github.com/lightvector/GoNN#chain-pooling-feb-2018), and some [observations on redundancy in models](https://github.com/lightvector/GoNN#redundant-parameters-and-learning-rates-feb-2018)
    * Dec 2017 - Initial results and experiments - [special ladder residual blocks](https://github.com/lightvector/GoNN#special-ladder-residual-blocks-dec-2017), [global pooled properties](https://github.com/lightvector/GoNN#global-pooled-properties-dec-2017)
 
@@ -125,7 +125,7 @@ Apparently, adding this block into the neural net does not cause it to be able t
 
 Strangely however, adding this block in *did* improve the loss, by about 0.015 nats at 5 million training steps persisting to still a bit more than 0.010 nats at 12 million training steps. I'm not sure exactly what the neural net is using this block for, but it's being used for something. Due to the bottlenecked nature of the block (I'm using only C = 6), it barely increases the number of parameters in the neural net, so this is a pretty surprising improvement in relative terms. So I kept this block in the net while moving on to later experiments, and I haven't gone back to testing further.
 
-## Using Ladders as an Extra Training Target
+## Using Ladders as an Extra Training Target (Feb 2018)
 
 In another effort to make the neural net understand ladders, I added a second head to the neural net and forced the neural net to simultaneously predict the next move and to identify all groups that were in or could be put in inescapable atari.
 
@@ -291,7 +291,7 @@ I experimented with this by taking the then-latest neural net architecture and f
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/nodilated1.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/dilated1.png" width="300" height="300"/></td></tr>
-<tr><td colspan="2"><sub>Left: 5-block net fails to reply to throw-in by making eyes.
+<tr><td colspan="2"><sub>Left: 5-block net fails to reply to throw-in by making eyes in the upper right.
 
 Right: 5-block with dilated convolutions succeeds.</sub></td></tr>
 </table>
@@ -349,14 +349,14 @@ So in my own neural nets I tried adding an additional parameter in the center of
 
 I haven't gotten to it yet, but in the future I want to test more changes of this flavor. For example, given that it was a good idea to increase the weight initialization and learning rate on the center weight for the initial 5x5 convolution, could it be a good idea to do the same for all the 3x3 convolutions everywhere else in the neural net?
 
-##### Update (Mar 2018):
+#### Update (Mar 2018):
 Apparently, it is a good idea! Emphasizing the center weight initialization by 30% and increasing the learning rate by a factor of 1.5 on the center weight for the other convolutions in the neural net improved the rate of learning in one test giving about an 0.01 nat improvement at around 50 million training samples.
 
-Also, to confirm the intuition behind this idea, in a neural net without the added center emphasis I looked at the average norm of the learned convolution weights by position within the convolution kernel. Here is a screenshot of the average norm of the weights for the first 4 residual blocks of a particular such net, displayed with coloring in a spreadsheet:
+Also, to confirm the intuition behind this idea, I looked in a neural net trained without any special center emphasis at the average norm of the learned convolution weights by position within the convolution kernel. Here is a screenshot of the average norm of the weights for the first 4 residual blocks of a particular such net, displayed with coloring in a spreadsheet:
 
 <img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/convweights.png" width="450" height="350"/>
 
-So on its own, the neural net chooses on average to put more weight in the center than on any edge or corner. It's not surprising that allowing the neural net to adjust the center weight relatively more rapidly than the other weights is an improvement for learning speed, even if, as I suspect, in ultimate convergence it might not matter.
+So on its own, the neural net chooses on average to put more weight in the center than on the edges or corners of the 3x3 convolutions. So it's not surprising that allowing the neural net to adjust the center weight relatively more rapidly than the other weights is an improvement for learning speed, even if, as I suspect, in ultimate convergence it might not matter.
 
 #### Batch Norm Gammas
 
@@ -368,7 +368,15 @@ Yet, despite the redundancy, the presence of those redundant parameters does inf
 
 Most or all of the open-source projects I've seen that aim to reproduce Alpha-Zero-like training seem to have the issue that the resulting neural net requires the history of the last several moves as input to the neural net. This somewhat limits the use of these bots for analysis, whether for whole-board tsumego or for asking of "what if" questions such as analyzing with/without an extra local stone, or for seeing in kyu-level games what the policy net would suggest without the presumption that the opponent's move was a good move (as would be in nearly all later games composing the training data).
 
-I just wanted to record here that there is a very simple solution which I've used successfully so far to enable the neural net to also play well without history and that hardly costs anything. You simply take a small random percentage of positions in training, say 5%-10%, and don't provide the history information on those positions. If you're using binary indicators of past moves and captures, this corresponds to zeroing out those planes. If you're using the AlphaGoZero representation where you give whole past board states rather than giving indicators of recent moves, then I believe the equivalent would be to simply make the past board states to be unchanged copies of the current board state.
+I just wanted to record here that there is a very simple solution which I've used successfully so far to enable the neural net to also play well without history and that hardly costs anything. You simply take a small random percentage of positions in training, say 5%-10%, and don't provide the history information on those positions. If you're using binary indicators of past moves and captures, this corresponds to zeroing out those planes. If you're using the AlphaGoZero representation where you give whole past board states rather than giving indicators of recent moves, then you just make the past board states to be unchanged copies of the current board state.
 
 Now, since you have training examples without history, the neural net adapts to produce reasonable predictions without history. But since nearly all the training examples still do have history, the neural net still mostly optimizes for having history and should lose little if any strength there.
 
+Also, there might be room for further experimentation along these lines. In general, normal methods of training the policy part of a net will cause it to learn that moves provided in its history represent strong play, because all examples in its training data have that property. However in many branches of an MCTS search, or when used as an analysis tool, this is definitely not the case. This may cause the neural net to be too obedient in response to bad moves and therefore make the search less effective at rapidly refuting them.
+
+<table class="image">
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/nodilated1.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/dilated1.png" width="300" height="300"/></td></tr>
+<tr><td colspan="2"><sub>Left: With history, net wants to unnecessarily respond to black's slow gote move in the lower left.
+
+Right: With move history planes zeroed out, net suggests moves in the more urgent areas at the top.
+</table>
