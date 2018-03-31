@@ -13,18 +13,18 @@ See LICENSE for software license. License aside, informally, if do you successfu
 You can see the implementations of the relevant neural net structures in "model.py", although I may adapt and change them as time goes on.
 
 ### History
-   * 201803 - Much larger neural nets and updates to [current results](https://github.com/lightvector/GoNN#current-results). Global pooled properties [are good in the main trunk of the resnet as well](https://github.com/lightvector/GoNN#update-201803)! Also, [increasing center-position learning rates everywhere else in the net](https://github.com/lightvector/GoNN#update-201802-1) helps training speed a little. Promising experiments with [dilated convolutions](https://github.com/lightvector/GoNN#dilated-convolutions), and a note about [making neural nets not always need history](https://github.com/lightvector/GoNN#some-thoughts-about-history-as-an-input-201803).
-   * 201802 - Tried [special ladder blocks in the policy](https://github.com/lightvector/GoNN#update-201802), tried [ladders as a training target](https://github.com/lightvector/GoNN#using-ladders-as-an-extra-training-target), retested [global pooled properties](https://github.com/lightvector/GoNN#update-201802-1). And ran new experiments with net architecture - [wide low-rank residual blocks](https://github.com/lightvector/GoNN#wide-low-rank-residual-blocks), [parametric ReLUs](https://github.com/lightvector/GoNN#parametric-relus), [chain pooling](https://github.com/lightvector/GoNN#chain-pooling), and some [observations on redundancy in models](https://github.com/lightvector/GoNN#redundant-parameters-and-learning-rates)
-   * 201712 - Initial results and experiments - [special ladder residual blocks](https://github.com/lightvector/GoNN#special-ladder-residual-blocks), [global pooled properties](https://github.com/lightvector/GoNN#global-pooled-properties)
+   * Mar 2018 - Much larger neural nets and updates to [current results](https://github.com/lightvector/GoNN#current-results). Global pooled properties [are good in the main trunk of the resnet as well](https://github.com/lightvector/GoNN#update-mar-2018)! Also, [increasing center-position learning rates everywhere else in the net](https://github.com/lightvector/GoNN#update-feb-2018-1) helps training speed a little. Promising experiments with [dilated convolutions](https://github.com/lightvector/GoNN#dilated-convolutions), and a note about [making neural nets not always need history](https://github.com/lightvector/GoNN#some-thoughts-about-history-as-an-input-mar-2018).
+   * Feb 2018 - Tried [special ladder blocks in the policy](https://github.com/lightvector/GoNN#update-feb-2018), tried [ladders as a training target](https://github.com/lightvector/GoNN#using-ladders-as-an-extra-training-target), retested [global pooled properties](https://github.com/lightvector/GoNN#update-feb-2018-1). And ran new experiments with net architecture - [wide low-rank residual blocks](https://github.com/lightvector/GoNN#wide-low-rank-residual-blocks), [parametric ReLUs](https://github.com/lightvector/GoNN#parametric-relus), [chain pooling](https://github.com/lightvector/GoNN#chain-pooling), and some [observations on redundancy in models](https://github.com/lightvector/GoNN#redundant-parameters-and-learning-rates)
+   * Dec 2017 - Initial results and experiments - [special ladder residual blocks](https://github.com/lightvector/GoNN#special-ladder-residual-blocks), [global pooled properties](https://github.com/lightvector/GoNN#global-pooled-properties)
 
 ## Current Results
 As of the end of March 2018, the best neural nets I've been training from this sandbox have been quite good at matching or exceeding results I've seen published elsewhere, presumably due to the combination of the various enhancements discussed below. See this table for a summary of results and comparison with other published results:
 
 | Neural Net | Structure | Params | KGS Top1 | GoGoD Top1 | Training Steps | Vs GnuGo | Vs Pachi 100k rollouts
-|------|---|---|---|---|---|---|
+|------|---|---|---|---|---|---|---|
 | [Clark and Stokey (2015)](https://arxiv.org/abs/1412.3409)  | CNN 8 layers | ~560,000 |  44.4% | 41.1% | 147M | 87% (172/200)
-| [Maddison et al. (2015)](https://arxiv.org/abs/1412.6564) |  CNN 12 layers | ~2,300,000 |  55.2% |  | 685M x 50 + 82M | 97% (~300 games) | 11% (~220 games)
-| [AlphaGoFan-192 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 3,880,489 | 55.4% | | 340M x 50 | | 85% (after RL)
+| [Maddison et al. (2015)](https://arxiv.org/abs/1412.6564) |  CNN 12 layers | ~2,300,000 |  55.2% |  | 685M x 50 + 82M | 97% (/300?) | 11% (/220?)
+| [AlphaGoFan-192 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 3,880,489 | 55.4% | | 340M x 50 | | 85% (w/RL)
 | [AlphaGoFan-256 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 6,795,881 | 55.9% | |
 | [Darkforest (2016)](https://arxiv.org/abs/1511.06410) | CNN 12 layers  | 12,329,756  | 57.1%  |   | 128M | 100% (300/300) | 72.6% (218/300)
 | [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10 blocks | 12,098,304 | 55.5% | 50.7% | 70M (partial train) |
@@ -48,9 +48,10 @@ Also, both the 12 block KGS and GoGoD neural nets initially used cross entropy l
 
 I also tested some GoGoD-trained neural nets by direct play via GnuGo 3.8 (level 10) and Pachi 11.00 (100k playouts). I generated moves by converting the net's policy prediction into a move choice by sorting the predictions by probability then selecting from a biased distribution that would disproportionately favor the moves with more probability. The distribution depended on the move number of the game, early on favoring randomization and later nearly always choosing the top choice (see play.py for the exact algorithm). The 12 block net won every single time in 500 against GnuGo, while the 5-block net won more than 99% of games. The 12-block net also proved much stronger than Pachi, winning around 90% of games.
 
-For interest, here are a few more stats on the testing sets beyond the ones most consistently shared and reported by other papers:
+For interest, here are a few more stats beyond the ones most consistently shared and reported by other papers for the current neural nets:
 
-| Neural Net | Dataset | Params | Top1 | Top4 | Cross-Entropy Loss (nats) | Training Steps |
+| Structure | Dataset | Params | Top1 Accuracy | Top4 Accuracy | Cross-Entropy Loss (nats) | Training Steps |
+|-----|---|---|---|---|---|---|
 | ResNet 5 Blocks | GoGoD | 3,597,792 | 52.5% | 81.6% | 1.609 | 209M |
 | ResNet 12 Blocks | GoGoD | 8,250,720 | 54.2% | 82.8% | 1.542 | 325M |
 | ResNet 5 Blocks | KGS | 3,597,792 | 56.8% | 85.4% | 1.429 | 205M |
@@ -77,7 +78,7 @@ Also, to get an idea of how top-1 accuracy and nats and direct playing strength 
 As of March 2018, I'm happy with the above results and plan to move on to some experiments of other kinds, such as using neural nets to investigate systematic differences between players of different ranks. Or, maybe investigating if there is a reasonable self-play process for generating training games for a value net for territory scoring rather than area scoring. Given that white has a small but systematic advantage at 7.5 komi, and pro-game evidence from the era of 5.5 komi shows that black has a clear edge there, I'm curious who AlphaZero-strength bots would favor at 6.5 komi, if only they had the finer granularity of territory scoring where 6.5 komi would actually be meaningfully different than 7.5. Of course, I might revisit these results if I get ideas for more enhancements to try.
 
 
-## Special Ladder Residual Blocks (201712)
+## Special Ladder Residual Blocks (Dec 2017)
 Experimentally, I've found that neural nets can easily solve ladders, if trained directly to predict ladders (i.e. identify all laddered groups, rather than predict the next move)! Apparently 3 or 4 residual blocks is sufficient to solve ladders extending out up to 10ish spaces, near the theoretical max that such convolutions can reach. Near the theoretical max, they start to get a bit fuzzy, such as being only 70% sure of a working ladder, instead of 95+%, particularly if the ladder maker or ladder breaker stone is near the edge of the 6-wide diagonal path that affects the ladder.
 
 However, specially-designed residual blocks appear to significantly help such a neural net detect solve ladders that extend well beyond the reach of its convolutions, as well as make it much more accurate in deciding when a stone nearly at the edge of the path that could affect the ladder actually does affect the ladder. This is definitely not a "zero" approach because it builds in Go-specific structure into the neural net, but nonetheless, the basic approach I tried was to take the 19x19 board and skew it via manual tensor reshaping:
@@ -111,7 +112,7 @@ Adding such a residual block to the neural net appears to greatly help long-dist
 <tr><td><sub>Net correctly determines that ladders don't work.</sub></tr></td>
 </table>
 
-#### Update (201802):
+#### Update (Feb 2018):
 Apparently, adding this block into the neural net does not cause it to be able to learn ladders in a supervised setting. From digging into the data a little, my suspicion is that in supervised settings, whether a ladder works or not is too strongly correlated with whether it gets formed in the first place, and similarly for escapes due to ladder breakers. So that unless it's plainly obvious whether the ladder works or not (the ladder-target experiments show this block makes it much easier, but it's still not trivial), the neural net fails to pick up on the signal. It's possible that in a reinforcement learning setting (e.g. Leela Zero), this would be different.
 
 Strangely however, adding this block in *did* improve the loss, by about 0.015 nats at 5 million training steps persisting to still a bit more than 0.010 nats at 12 million training steps. I'm not sure exactly what the neural net is using this block for, but it's being used for something. Due to the bottlenecked nature of the block (I'm using only C = 6), it barely increases the number of parameters in the neural net, so this is a pretty surprising improvement in relative terms. So I kept this block in the net while moving on to later experiments, and I haven't gone back to testing further.
@@ -144,7 +145,7 @@ This suggests that a lot of these difficulties are due to the supervised-learnin
 </table>
 
 
-## Global Pooled Properties (201712)
+## Global Pooled Properties (Dec 2017)
 Starting from a purely-convolutional policy net, I noticed a pretty significant change in move prediction accuracy despite only a small increase in the number of trainable parameters when I added the following structure to the policy head. The intent is to allow the neural net to compute some "global" properties of the board that may affect local play.
    * Separately from the main convolutions that feed into the rest of the policy head, on the side compute C channels of 3x3 convolutions (shape 19x19xC).
    * Max-pool, average-pool, and stdev-pool these C channels across the whole board (shape 1x1x(3C))
@@ -183,7 +184,7 @@ But when there is no ko, the net no longer wants to play ko threats:
 
 <img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/afterko.png" width="350" height="350"/>
 
-#### Update (201802):
+#### Update (Feb 2018):
 
 The original tests of global pooled properties was done when the neural net was an order of magnitude smaller than it is now (~250K params instead of ~3M params), so I did a quick test of removing this part of the policy head to sanity check if this was still useful. Removing it immediately worsened the loss by about 0.04 nats on the first several million training steps. Generally, differences early in training tend to diminish as the neural net converges further, but I would still guess at minimum 0.01 nats of harm at convergence, so this was a large enough drop that I didn't think it worth the GPU time to run it any longer.
 
@@ -199,7 +200,7 @@ And this appears to be a detector for unfinished endgame borders:
 
 <img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/unfinishedborderdetector.png" width="350" height="350"/>
 
-#### Update (201803):
+#### Update (Mar 2018):
 
 I experimented with these just a little more and found that the "stdev" part of the pooling doesn't seem to help. Only the average and max components are useful. Eliminating the stdev component of the pooling resulted in a few percent of performance improvement with no noticeable loss in prediction quality. If anything, it even improved slightly, although well within noise (on the order of 0.002 nats or less throughout training).
 
@@ -209,7 +210,7 @@ One story for why global pooling might be effective in the main trunk is that th
 
 As an aside, all the stats in the "current results" tables earlier were produced without this improvement, since I didn't think to try including global pooling in the trunk before all the other final experiments and test games were underway. While the apparent gain would likely continue to diminish with further training time, I expect some of the results would be yet slightly better if this were incorporated and everything re-run.
 
-## Wide Low-Rank Residual Blocks (201802)
+## Wide Low-Rank Residual Blocks (Feb 2018)
 
 In one experiment, I found that adding a single residual block that performs a 1x9 and then a 9x1 convolution (as well as in parallel a 9x1 and then a 1x9 convolution, sharing weights) appears to decrease the loss slightly more than adding an additional ordinary block that does two 3x3 convolutions.
 
@@ -217,7 +218,7 @@ The idea is that such a block makes it easier for the neural net to propagate ce
 
 However, there's the drawback that either this causes an horizontal-vertical asymmetry if you don't do the convolutions in both orders of orientations, or else this block costs twice in performance as much as an ordinary residual block. I suspect it's possible to get a version that is more purely benefiting, but I haven't tried a lot of permutations on this idea yet, so this is still an area to be explored.
 
-## Parametric ReLUs (201802)
+## Parametric ReLUs (Feb 2018)
 
 I found a moderate improvement when switching to using parametric ReLUs (https://arxiv.org/pdf/1502.01852.pdf) instead of ordinary ReLUs. I also I found a very weird result about what parameters it wants to choose for them. I haven't heard of anyone else using parametric ReLUs for Go, so I'm curious if this result replicates in anyone else's neural nets.
 
@@ -238,7 +239,7 @@ For the vast majority of the ReLUs though, as far as I can tell, the neural net 
 
 I'd be very curious to hear whether this reproduces for anyone else. For now, I've been keeping the parametric ReLUs, since they do seem to be an improvement, although I'm quite mystified about why non-monotone functions are good here.
 
-## Chain Pooling (201802)
+## Chain Pooling (Feb 2018)
 
 Using the following functions:
    * https://www.tensorflow.org/api_docs/python/tf/unsorted_segment_max
@@ -274,7 +275,7 @@ One additional problem is that the chain pooling is fairly computationally expen
 
 So all the results in test positions looked promising, but the actual stats on performance and improvement in the loss were a bit disappointing. I'll probably revisit variations on this idea later, particularly if I can find a cheaper way to compute something like this in Tensorflow.
 
-## Dilated Convolutions (201803)
+## Dilated Convolutions (Mar 2018)
 
 It turns out that there's a far better approach than chain pooling to achieve very similar effects and allow the neural net to propogate information across larger distances, which is the technique of dilated convolutions. As described in https://arxiv.org/pdf/1511.07122.pdf, dilated convolutions are like regular convolutions except that the patch of sampled values, in our case 3x3, is not a contiguous 3x3 square, but rather is composed of 9 values sampled at a wider spacing, according to a dilation factor > 1. The idea, obviously, is that the neural net can see farther with the same number of layers at the cost of some local discrimination ability.
 
@@ -282,17 +283,23 @@ I experimented with this by taking the then-latest neural net architecture and f
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/nodilated1.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/dilated1.png" width="300" height="300"/></td></tr>
-<tr><td colspan="2"><sub>Left: 5-block net fails to reply to throw-in by making eyes. Right: 5-block with dilated convolutions succeeds.</sub></td></tr>
+<tr><td colspan="2"><sub>Left: 5-block net fails to reply to throw-in by making eyes.
+
+Right: 5-block with dilated convolutions succeeds.</sub></td></tr>
 </table>
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/nodilated2.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/dilated2.png" width="300" height="300"/></td></tr>
-<tr><td colspan="2"><sub>Left: 5-block net fails to respond to eye-poke by making eye up top. Right: 5-block with dilated convolutions succeeds.</sub></td></tr>
+<tr><td colspan="2"><sub>Left: 5-block net fails to respond to eye-poke by making eye up top.
+
+Right: 5-block with dilated convolutions succeeds.</sub></td></tr>
 </table>
 
 <table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/nodilated4.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/dilated3.png" width="300" height="300"/></td></tr>
-<tr><td colspan="2"><sub>Left: 5-block net fails to reply to distant liberty fill in a capturing race. Right: 5-block with dilated convolutions succeeds.</sub></td></tr>
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/nodilated3.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/dilated3.png" width="300" height="300"/></td></tr>
+<tr><td colspan="2"><sub>Left: 5-block net fails to reply to distant liberty fill in a capturing race.
+
+Right: 5-block with dilated convolutions succeeds.</sub></td></tr>
 </table>
 
 Presumably, the neural net learned in its first few layers to compute features that indicate when there is connectivity with stones at distance 2 or 3, which then are used by the dilated convolutions to propagate information about liberties and eyes 2 or 3 spaces per convolution, rather than only 1 space at a time.
@@ -302,7 +309,7 @@ Like chain pooling, holding the number of parameters constant I did not find it 
 So unlike chain pooling, this technique still seems quite promising and worth experimenting with further. For example, I haven't done any testing on whether this improves the overall quality of the neural net for use within MCTS. Many of the deep-learning generation of Go bots, before they reach AlphaGo-levels of dominance, appear to have their biggest weaknesses in the perception of large chains or large dragons and understanding their liberty or their life and death status. Recently also the literature appears to be filled with results like https://openreview.net/forum?id=HkpYwMZRb that suggest that the "effective depth" of neural nets does not scale as fast as their physical depth. This also might explain why it's slow for neural nets like those of AlphaGo Zero and Leela Zero to learn long-distance effects even when they have more than enough physical depth to eventually do so. These seem like precisely the kinds of problems that dilated convolutions could help with, and it's plausible that on the margin the tradeoff would be good.
 
 
-## Redundant Parameters and Learning Rates (201802)
+## Redundant Parameters and Learning Rates (Feb 2018)
 
 There is a class of kinds of twiddles you can do to the architecture of a neural net that are completely "redundant" and leave the neural net's representation ability exactly unchanged. In many contexts I've seen people completely dismiss these sorts of twiddles, but confusingly, I've noticed that they actually can have effects on the learning. And sometimes in published papers, I've noticed the authors use such architectures without any mention of the redundancy, leaving me to wonder how widespread the knowledge about these sorts of things is.
 
@@ -334,7 +341,7 @@ So in my own neural nets I tried adding an additional parameter in the center of
 
 I haven't gotten to it yet, but in the future I want to test more changes of this flavor. For example, given that it was a good idea to increase the weight initialization and learning rate on the center weight for the initial 5x5 convolution, could it be a good idea to do the same for all the 3x3 convolutions everywhere else in the neural net?
 
-##### Update (201803):
+##### Update (Mar 2018):
 Apparently, it is a good idea! Emphasizing the center weight initialization by 30% and increasing the learning rate by a factor of 1.5 on the center weight for the other convolutions in the neural net improved the rate of learning in one test giving about an 0.01 nat improvement at around 50 million training samples.
 
 Also, to confirm the intuition behind this idea, in a neural net without the added center emphasis I looked at the average norm of the learned convolution weights by position within the convolution kernel. Here is a screenshot of the average norm of the weights for the first 4 residual blocks of a particular such net, displayed with coloring in a spreadsheet:
@@ -349,13 +356,11 @@ Another redundancy I've been experimenting with is the fact that due to historic
 
 Yet, despite the redundancy, the presence of those redundant parameters does influence the learning. In some quick tests I was not able to get rid of them. Although I didn't try so extensively, in a handful of tries I was unable to find a combination of setting scale=False and increasing the learning rate to compensate that did not slow down the total efficiency of learning. So the latest neural nets for now continue to use scale=True.
 
-## Some Thoughts About History as an Input (201803)
+## Some Thoughts About History as an Input (Mar 2018)
 
-Most or all of the open-source projects I've seen that aim to replace Alpha-Zero-like training to produce strong bots seems to have the issue that the resulting neural net requires the history of the last several moves as input to the neural net. This somewhat limits the use of these bots for analysis, such as whole-board tsumego and asking of "what if" questions, like seeing how it would respond if a stone were in a slightly different position.
+Most or all of the open-source projects I've seen that aim to reproduce Alpha-Zero-like training seem to have the issue that the resulting neural net requires the history of the last several moves as input to the neural net. This somewhat limits the use of these bots for analysis, whether for whole-board tsumego or for asking of "what if" questions such as analyzing with/without an extra local stone, or for seeing in kyu-level games what the policy net would suggest without the presumption that the opponent's move was a good move (as would be in nearly all later games composing the training data).
 
-I just wanted to record here that there is a very simple solution which I've been using in all my current trained nets to enable the neural net to also play well without history and that hardly costs anything at all for when history is in fact present. You simply take a small random percentage of positions in training, say 5%-10%, and don't provide the history information on those positions. If you're using binary indicators of past moves and captures, this corresponds to zeroing out those planes. If you're using the AlphaGoZero representation where you give whole past board states rather than indicators of the differences between past board states, then I believe the equivalent would be to simply make the past board states to be unchanged copies of the current board state.
+I just wanted to record here that there is a very simple solution which I've used successfully so far to enable the neural net to also play well without history and that hardly costs anything. You simply take a small random percentage of positions in training, say 5%-10%, and don't provide the history information on those positions. If you're using binary indicators of past moves and captures, this corresponds to zeroing out those planes. If you're using the AlphaGoZero representation where you give whole past board states rather than giving indicators of recent moves, then I believe the equivalent would be to simply make the past board states to be unchanged copies of the current board state.
 
-Then, since you have training examples of both kinds, the neural net adapts to produce good predictions in both cases and can play reasonably without history. Since nearly all the training examples still do have history, the neural net mostly still optimizes for the common case of having history.
-
-
+Now, since you have training examples without history, the neural net adapts to produce reasonable predictions without history. But since nearly all the training examples still do have history, the neural net still mostly optimizes for having history and should lose little if any strength there.
 
