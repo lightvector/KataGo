@@ -440,8 +440,8 @@ class Model:
     return conv2_layer
 
   #Convolutional residual block with internal batch norm and nonlinear activation
-  def global_res_conv_block(name, in_layer, diam, main_channels, mid_channels, global_mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
-    trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
+  def global_res_conv_block(self, name, in_layer, diam, main_channels, mid_channels, global_mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+    trans1_layer = self.parametric_relu(name+"/prelu1",(self.batchnorm(name+"/norm1",in_layer)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -459,7 +459,7 @@ class Model:
     remix_weights = self.weight_variable(name+"/w1r",[global_mid_channels*2,mid_channels],global_mid_channels*2,mid_channels, scale_initial_weights = 0.5)
     conv1_layer = conv1a_layer + tf.tensordot(trans1b_pooled,remix_weights,axes=[[3],[0]])
 
-    trans2_layer = self.parametric_relu(name+"/prelu2",(batchnorm(name+"/norm2",conv1_layer)))
+    trans2_layer = self.parametric_relu(name+"/prelu2",(self.batchnorm(name+"/norm2",conv1_layer)))
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
