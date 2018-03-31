@@ -465,6 +465,35 @@ def dilated_res_conv_block(name, in_layer, diam, main_channels, mid_channels, di
 
   return conv2_layer
 
+#Convolutional residual block with internal batch norm and nonlinear activation
+def global_res_conv_block(name, in_layer, diam, main_channels, mid_channels, global_mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+  trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
+  outputs_by_layer.append((name+"/trans1",trans1_layer))
+
+  weights1a = conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+  weights1b = conv_weight_variable(name+"/w1b", diam, diam, main_channels, global_mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+  conv1a_layer = conv2d(trans1_layer, weights1a)
+  conv1b_layer = conv2d(trans1_layer, weights1b)
+  outputs_by_layer.append((name+"/conv1a",conv1a_layer))
+  outputs_by_layer.append((name+"/conv1b",conv1b_layer))
+
+  trans1b_layer = parametric_relu(name+"/trans1b",(batchnorm(name+"/norm1b",conv1b_layer)))
+  trans1b_mean = tf.reduce_mean(trans1b_layer,axis=[1,2],keep_dims=True)
+  trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keep_dims=True)
+  trans1b_pooled = tf.concat([trans1b_mean,trans1b_max],axis=3)
+
+  remix_weights = weight_variable(name+"/w1r",[global_mid_channels*2,mid_channels],global_mid_channels*2,mid_channels, scale_initial_weights = 0.5)
+  conv1_layer = conv1a_layer + tf.tensordot(trans1b_pooled,remix_weights,axes=[[3],[0]])
+
+  trans2_layer = parametric_relu(name+"/prelu2",(batchnorm(name+"/norm2",conv1_layer)))
+  outputs_by_layer.append((name+"/trans2",trans2_layer))
+
+  weights2 = conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+  conv2_layer = conv2d(trans2_layer, weights2)
+  outputs_by_layer.append((name+"/conv2",conv2_layer))
+
+  return conv2_layer
+
 #Convolutional residual block that does sequential horizontal and vertical convolutions, with internal batch norm and nonlinear activation
 def hv_res_conv_block(name, in_layer, diam, main_channels, mid_channels):
   trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
@@ -743,7 +772,7 @@ residual = dilated_res_conv_block("rconv6",trunk,diam=3,main_channels=192,mid_ch
 trunk = merge_residual("rconv6",trunk,residual)
 
 #Residual Convolutional Block 7---------------------------------------------------------------------------------
-residual = dilated_res_conv_block("rconv7",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = global_res_conv_block("rconv7",trunk,diam=3,main_channels=192,mid_channels=128, global_mid_channels=64, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv7",trunk,residual)
 
 #Residual Convolutional Block 8---------------------------------------------------------------------------------
