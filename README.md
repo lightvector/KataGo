@@ -372,10 +372,10 @@ I just wanted to record here that there is a very simple solution which I've use
 
 Now, since you have training examples without history, the neural net adapts to produce reasonable predictions without history. But since nearly all the training examples still do have history, the neural net still mostly optimizes for having history and should lose little if any strength there.
 
-Also, there might be room for further experimentation along these lines. In general, normal methods of training the policy part of a net will cause it to learn that moves provided in its history represent strong play, because all examples in its training data have that property. However in many branches of an MCTS search, or when used as an analysis tool, this is definitely not the case. This may cause the neural net to be too obedient in response to bad moves and therefore make the search less effective at rapidly refuting them.
+Also, I wonder if there might be room for further experimentation along these lines. In general, normal methods of training the policy part of a net will cause it to learn that moves provided in its history represent strong play, because all examples in its training data have that property. However in many branches of an MCTS search, or when used as an analysis tool, this is definitely not the case. This may cause the policy to be too obedient in response to bad moves ("a strong opponent wouldn't have played here unless it was sente") and make the search less effective at refuting them (by tenukiing).
 
 <table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/nodilated1.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/dilated1.png" width="300" height="300"/></td></tr>
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/lastmove.png" width="300" height="300"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/nolastmove.png" width="300" height="300"/></td></tr>
 <tr><td colspan="2"><sub>Left: With history, net wants to unnecessarily respond to black's slow gote move in the lower left.
 
 Right: With move history planes zeroed out, net suggests moves in the more urgent areas at the top.
