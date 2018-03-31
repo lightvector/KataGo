@@ -33,12 +33,12 @@ policy_output = tf.nn.softmax(model.policy_output)
 
 # Moves ----------------------------------------------------------------
 
-def fetch_output(session, board, moves, fetch):
+def fetch_output(session, board, moves, use_history, fetch):
   input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
-  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,idx=0)
+  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,use_history=use_history,idx=0)
 
   output = session.run(fetches=[fetch], feed_dict={
     model.inputs: input_data,
@@ -47,12 +47,12 @@ def fetch_output(session, board, moves, fetch):
   })
   return output[0][0]
 
-def get_policy_output(session, board, moves):
-  return fetch_output(session,board,moves,policy_output)
+def get_policy_output(session, board, moves, use_history):
+  return fetch_output(session,board,moves,use_history,policy_output)
 
-def get_moves_and_probs(session, board, moves):
+def get_moves_and_probs(session, board, moves, use_history):
   pla = board.pla
-  policy = get_policy_output(session, board, moves)
+  policy = get_policy_output(session, board, moves, use_history)
   moves_and_probs = []
   for i in range(len(policy)):
     move = model.tensor_pos_to_loc(i,board)
@@ -60,8 +60,8 @@ def get_moves_and_probs(session, board, moves):
       moves_and_probs.append((move,policy[i]))
   return moves_and_probs
 
-def genmove(session, board, moves):
-  moves_and_probs = get_moves_and_probs(session, board, moves)
+def genmove(session, board, moves, use_history):
+  moves_and_probs = get_moves_and_probs(session, board, moves, use_history)
   moves_and_probs = sorted(moves_and_probs, key=lambda moveandprob: moveandprob[1], reverse=True)
 
   if len(moves_and_probs) <= 0:
@@ -82,7 +82,7 @@ def genmove(session, board, moves):
     i += 1
 
 def get_layer_values(session, board, moves, layer, channel):
-  layer = fetch_output(session,board,moves,layer)
+  layer = fetch_output(session,board,moves,use_history=True,fetch=layer)
   layer = layer.reshape([board.size * board.size,-1])
   locs_and_values = []
   for i in range(board.size * board.size):
@@ -95,7 +95,7 @@ def get_input_feature(board, moves, feature_idx):
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
-  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,idx=0)
+  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,use_history=True,idx=0)
 
   locs_and_values = []
   for i in range(board.size * board.size):
@@ -225,9 +225,11 @@ def run_gtp(session):
     'protocol_version',
     'gogui-analyze_commands',
     'policy',
+    'policy-no-history',
   ]
   known_analyze_commands = [
     'gfx/Policy/policy',
+    'gfx/PolicyNoHistory/policy-no-history',
   ]
 
   board_size = 19
@@ -253,20 +255,24 @@ def run_gtp(session):
     layer = layerdict[layer_name]
     add_extra_board_size_visualizations(layer_name, layer, normalization_div)
 
-  add_board_size_visualizations("conv1",normalization_div=5)
+  add_board_size_visualizations("conv1",normalization_div=6)
   add_board_size_visualizations("rconv1",normalization_div=14)
   add_board_size_visualizations("rconv2",normalization_div=20)
-  add_board_size_visualizations("rconv3",normalization_div=25)
-  add_board_size_visualizations("rconv4",normalization_div=35)
+  add_board_size_visualizations("rconv3",normalization_div=26)
+  add_board_size_visualizations("rconv4",normalization_div=36)
   add_board_size_visualizations("rconv5",normalization_div=40)
-  add_board_size_visualizations("rconv6",normalization_div=40)
-  add_board_size_visualizations("rconv7",normalization_div=40)
-  add_board_size_visualizations("rconv8",normalization_div=40)
-  add_board_size_visualizations("rconv9",normalization_div=40)
-  add_board_size_visualizations("rconv10",normalization_div=40)
-  add_board_size_visualizations("rconv11",normalization_div=40)
-  add_board_size_visualizations("rconv12",normalization_div=40)
-  add_board_size_visualizations("g1",normalization_div=8)
+  add_board_size_visualizations("rconv6",normalization_div=44)
+  add_board_size_visualizations("rconv6/conv1a",normalization_div=12)
+  add_board_size_visualizations("rconv6/conv1b",normalization_div=12)
+  add_board_size_visualizations("rconv7",normalization_div=48)
+  add_board_size_visualizations("rconv8",normalization_div=52)
+  add_board_size_visualizations("rconv9",normalization_div=55)
+  add_board_size_visualizations("rconv10",normalization_div=58)
+  add_board_size_visualizations("rconv10/conv1a",normalization_div=12)
+  add_board_size_visualizations("rconv10/conv1b",normalization_div=12)
+  add_board_size_visualizations("rconv11",normalization_div=61)
+  add_board_size_visualizations("rconv12",normalization_div=64)
+  add_board_size_visualizations("g1",normalization_div=6)
   add_board_size_visualizations("p1",normalization_div=2)
 
   input_feature_command_lookup = dict()
@@ -355,10 +361,14 @@ def run_gtp(session):
     elif command[0] == "gogui-analyze_commands":
       ret = '\n'.join(known_analyze_commands)
     elif command[0] == "policy":
-      moves_and_probs = get_moves_and_probs(session, board, moves)
+      moves_and_probs = get_moves_and_probs(session, board, moves, use_history=True)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
-
+      ret = "\n".join(gfx_commands)
+    elif command[0] == "policy-no-history":
+      moves_and_probs = get_moves_and_probs(session, board, moves, use_history=False)
+      gfx_commands = []
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
       ret = "\n".join(gfx_commands)
     elif command[0] in layer_command_lookup:
       (layer,channel,normalization_div) = layer_command_lookup[command[0]]

@@ -90,7 +90,7 @@ def iterLadders(board, f):
 
 #Returns the new idx, which could be the same as idx if this isn't a good training row
 # def fill_row_features(board, pla, opp, moves, move_idx, input_data, chain_data, num_chain_segments, target_data, target_data_weights, for_training, idx):
-def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, for_training, idx):
+def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, for_training, use_history, idx):
   if target_data is not None and moves[move_idx][1] is None:
     # TODO for now we skip passes
     return idx
@@ -175,35 +175,36 @@ def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data,
     prob_to_include_prev4 = 1.00
     prob_to_include_prev5 = 1.00
 
-  if move_idx >= 1 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev1:
-    prev1_loc = moves[move_idx-1][1]
-    if prev1_loc is not None:
-      pos = loc_to_tensor_pos(prev1_loc,board,offset)
-      input_data[idx,pos,18] = 1.0
+  if use_history:
+    if move_idx >= 1 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev1:
+      prev1_loc = moves[move_idx-1][1]
+      if prev1_loc is not None:
+        pos = loc_to_tensor_pos(prev1_loc,board,offset)
+        input_data[idx,pos,18] = 1.0
 
-    if move_idx >= 2 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev2:
-      prev2_loc = moves[move_idx-2][1]
-      if prev2_loc is not None:
-        pos = loc_to_tensor_pos(prev2_loc,board,offset)
-        input_data[idx,pos,19] = 1.0
+      if move_idx >= 2 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev2:
+        prev2_loc = moves[move_idx-2][1]
+        if prev2_loc is not None:
+          pos = loc_to_tensor_pos(prev2_loc,board,offset)
+          input_data[idx,pos,19] = 1.0
 
-      if move_idx >= 3 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev3:
-        prev3_loc = moves[move_idx-3][1]
-        if prev3_loc is not None:
-          pos = loc_to_tensor_pos(prev3_loc,board,offset)
-          input_data[idx,pos,20] = 1.0
+        if move_idx >= 3 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev3:
+          prev3_loc = moves[move_idx-3][1]
+          if prev3_loc is not None:
+            pos = loc_to_tensor_pos(prev3_loc,board,offset)
+            input_data[idx,pos,20] = 1.0
 
-        if move_idx >= 4 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev4:
-          prev4_loc = moves[move_idx-4][1]
-          if prev4_loc is not None:
-            pos = loc_to_tensor_pos(prev4_loc,board,offset)
-            input_data[idx,pos,21] = 1.0
+          if move_idx >= 4 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev4:
+            prev4_loc = moves[move_idx-4][1]
+            if prev4_loc is not None:
+              pos = loc_to_tensor_pos(prev4_loc,board,offset)
+              input_data[idx,pos,21] = 1.0
 
-          if move_idx >= 5 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev5:
-            prev5_loc = moves[move_idx-5][1]
-            if prev5_loc is not None:
-              pos = loc_to_tensor_pos(prev5_loc,board,offset)
-              input_data[idx,pos,22] = 1.0
+            if move_idx >= 5 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev5:
+              prev5_loc = moves[move_idx-5][1]
+              if prev5_loc is not None:
+                pos = loc_to_tensor_pos(prev5_loc,board,offset)
+                input_data[idx,pos,22] = 1.0
 
   def addLadderFeature(loc,pos,workingMoves):
     assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE);
@@ -768,11 +769,11 @@ residual = dilated_res_conv_block("rconv5",trunk,diam=3,main_channels=192,mid_ch
 trunk = merge_residual("rconv5",trunk,residual)
 
 #Residual Convolutional Block 6---------------------------------------------------------------------------------
-residual = dilated_res_conv_block("rconv6",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = global_res_conv_block("rconv6",trunk,diam=3,main_channels=192,mid_channels=128, global_mid_channels=64, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv6",trunk,residual)
 
 #Residual Convolutional Block 7---------------------------------------------------------------------------------
-residual = global_res_conv_block("rconv7",trunk,diam=3,main_channels=192,mid_channels=128, global_mid_channels=64, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = dilated_res_conv_block("rconv7",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv7",trunk,residual)
 
 #Residual Convolutional Block 8---------------------------------------------------------------------------------
@@ -784,7 +785,7 @@ residual = dilated_res_conv_block("rconv9",trunk,diam=3,main_channels=192,mid_ch
 trunk = merge_residual("rconv9",trunk,residual)
 
 #Residual Convolutional Block 10---------------------------------------------------------------------------------
-residual = dilated_res_conv_block("rconv10",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+residual = global_res_conv_block("rconv10",trunk,diam=3,main_channels=192,mid_channels=128, global_mid_channels=64, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
 trunk = merge_residual("rconv10",trunk,residual)
 
 #Residual Convolutional Block 11---------------------------------------------------------------------------------
