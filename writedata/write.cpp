@@ -293,9 +293,8 @@ static int parseSource(const Sgf* sgf) {
     return SOURCE_KGS;
   else if(sgf->fileName.find("FoxGo") != string::npos)
     return SOURCE_FOX;
-  //TODO
-  // else if(sgf->fileName.find("") != string::npos)
-  //   return SOURCE_OGSPre2014;
+  else if(sgf->fileName.find("OGSPre2014") != string::npos)
+    return SOURCE_OGSPre2014;
   else
     throw IOError("Unknown source for sgf: " + sgf->fileName);
 }
@@ -399,7 +398,7 @@ struct Stats {
 static void iterSgfMoves(
   Sgf* sgf,
   //board,source,rank,oppRank,user,handicap,moves,index within moves
-  std::function<void(const FastBoard&,int,int,int,const string&,int,const vector<Move>&,int)> f
+  std::function<void(const FastBoard&,int,int,int,const string&,int,const string&,const vector<Move>&,int)> f
 ) {
   int bSize;
   int source;
@@ -408,6 +407,7 @@ static void iterSgfMoves(
   string wUser;
   string bUser;
   int handicap;
+  string date;
   vector<Move> placementsBuf;
   vector<Move> movesBuf;
   try {
@@ -439,6 +439,9 @@ static void iterSgfMoves(
     handicap = 0;
     if(contains(root->props,"HA"))
       handicap = parseHandicap(root->getSingleProperty("HA"));
+
+    if(contains(root->props,"DT"))
+      date = root->getSingleProperty("DT");
 
     //Apply some filters
     if(bSize != 19)
@@ -496,7 +499,7 @@ static void iterSgfMoves(
     int rank = m.pla == P_WHITE ? wRank : bRank;
     int oppRank = m.pla == P_WHITE ? bRank : wRank;
     const string& user = m.pla == P_WHITE ? wUser : bUser;
-    f(board,source,rank,oppRank,user,handicap,movesBuf,j);
+    f(board,source,rank,oppRank,user,handicap,date,movesBuf,j);
 
     bool suc = board.playMove(m.loc,m.pla);
     if(!suc) {
@@ -517,8 +520,8 @@ static void iterSgfsMoves(
   uint64_t trainTestSeed, bool isTest, double testGameProb,
   uint64_t shardSeed, int numShards,
   const size_t& numMovesUsed, const size_t& curDataSetRow,
-  //source,rank,user,handicap,moves,index within moves,
-  std::function<void(const FastBoard&,int,int,int,const string&,int,const vector<Move>&,int)> f
+  //source,rank,user,handicap,date,moves,index within moves,
+  std::function<void(const FastBoard&,int,int,int,const string&,int,const string&,const vector<Move>&,int)> f
 ) {
 
   size_t numMovesItered = 0;
@@ -528,15 +531,15 @@ static void iterSgfsMoves(
     Rand trainTestRand(trainTestSeed);
     Rand shardRand(shardSeed);
 
-    std::function<void(const FastBoard&,int,int,int,const string&,int,const vector<Move>&,int)> g =
+    std::function<void(const FastBoard&,int,int,int,const string&,int,const string&,const vector<Move>&,int)> g =
       [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered](
-        const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const vector<Move>& moves, int moveIdx
+        const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const string& date, const vector<Move>& moves, int moveIdx
       ) {
       //Only use this move if it's within our shard.
       numMovesIteredOrSkipped++;
       if(numShards <= 1 || shard == shardRand.nextUInt(numShards)) {
         numMovesItered++;
-        f(board,source,rank,oppRank,user,handicap,moves,moveIdx);
+        f(board,source,rank,oppRank,user,handicap,date,moves,moveIdx);
       }
     };
 
@@ -578,7 +581,7 @@ static const double rankOneHotFancyProb[rankLen] = {
 };
   
 static void maybeUseRow(
-  const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const vector<Move>& movesBuf, int moveIdx,
+  const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const string& date, const vector<Move>& movesBuf, int moveIdx,
   DataPool& dataPool,
   Rand& rand, double keepProb, int minRank, int minOppRank, int maxHandicap, int target,
   const set<string>& excludeUsers, bool fancyConditions,
@@ -616,6 +619,24 @@ static void maybeUseRow(
       //No handicap games from GoGoD since they're less likely to be pro-level
       if(source == SOURCE_GOGOD && handicap >= 0)
         canUse = false;
+      if(source == SOURCE_GOGOD && handicap >= 0)
+        canUse = false;
+      //OGS had a major rank shift in 2014, only use games before
+      if(source == SOURCE_OGSPre2014) {
+        if(date.size() != 10)
+          canUse = false;
+        //Find year and month of date in format yyyy-mm-dd
+        else if(!Global::isDigits(date,0,4) || !Global::isDigits(date,5,7))
+          canUse = false;
+        else {
+          int year = Global::parseDigits(date,0,4);
+          int month = Global::parseDigits(date,5,7);
+          if((year >= 1990 && year <= 2013) || (year == 2014 && month <= 3))
+          {} //good
+          else
+            canUse = false;
+        }
+      }
     }
       
     if(canUse) {
@@ -671,12 +692,12 @@ static void processSgfs(
 
   DataPool dataPool(totalRowLen,poolSize,chunkHeight,writeRow);
 
-  std::function<void(const FastBoard&,int,int,int,const string&,int,const vector<Move>&,int)> f =
+  std::function<void(const FastBoard&,int,int,int,const string&,int,const string&,const vector<Move>&,int)> f =
     [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,&posHashes,&total,&used](
-      const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const vector<Move>& moves, int moveIdx
+      const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const string& date, const vector<Move>& moves, int moveIdx
     ) {
     maybeUseRow(
-      board,source,rank,oppRank,user,handicap,moves,moveIdx,
+      board,source,rank,oppRank,user,handicap,date,moves,moveIdx,
       dataPool,rand,keepProb,minRank,minOppRank,maxHandicap,target,
       excludeUsers,fancyConditions,
       posHashes,total,used
