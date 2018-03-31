@@ -103,7 +103,7 @@ class Model:
 
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
-  def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, for_training, idx):
+  def fill_row_features(board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, for_training, use_history, idx):
     if target_data is not None and moves[move_idx][1] is None:
       # TODO for now we skip passes
       return idx
@@ -178,35 +178,36 @@ class Model:
       prob_to_include_prev4 = 1.00
       prob_to_include_prev5 = 1.00
 
-    if move_idx >= 1 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev1:
-      prev1_loc = moves[move_idx-1][1]
-      if prev1_loc is not None:
-        pos = loc_to_tensor_pos(prev1_loc,board,offset)
-        input_data[idx,pos,18] = 1.0
+    if use_history:
+      if move_idx >= 1 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev1:
+        prev1_loc = moves[move_idx-1][1]
+        if prev1_loc is not None:
+          pos = loc_to_tensor_pos(prev1_loc,board,offset)
+          input_data[idx,pos,18] = 1.0
 
-      if move_idx >= 2 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev2:
-        prev2_loc = moves[move_idx-2][1]
-        if prev2_loc is not None:
-          pos = loc_to_tensor_pos(prev2_loc,board,offset)
-          input_data[idx,pos,19] = 1.0
+        if move_idx >= 2 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev2:
+          prev2_loc = moves[move_idx-2][1]
+          if prev2_loc is not None:
+            pos = loc_to_tensor_pos(prev2_loc,board,offset)
+            input_data[idx,pos,19] = 1.0
 
-        if move_idx >= 3 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev3:
-          prev3_loc = moves[move_idx-3][1]
-          if prev3_loc is not None:
-            pos = loc_to_tensor_pos(prev3_loc,board,offset)
-            input_data[idx,pos,20] = 1.0
+          if move_idx >= 3 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev3:
+            prev3_loc = moves[move_idx-3][1]
+            if prev3_loc is not None:
+              pos = loc_to_tensor_pos(prev3_loc,board,offset)
+              input_data[idx,pos,20] = 1.0
 
-          if move_idx >= 4 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev4:
-            prev4_loc = moves[move_idx-4][1]
-            if prev4_loc is not None:
-              pos = loc_to_tensor_pos(prev4_loc,board,offset)
-              input_data[idx,pos,21] = 1.0
+            if move_idx >= 4 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev4:
+              prev4_loc = moves[move_idx-4][1]
+              if prev4_loc is not None:
+                pos = loc_to_tensor_pos(prev4_loc,board,offset)
+                input_data[idx,pos,21] = 1.0
 
-            if move_idx >= 5 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev5:
-              prev5_loc = moves[move_idx-5][1]
-              if prev5_loc is not None:
-                pos = loc_to_tensor_pos(prev5_loc,board,offset)
-                input_data[idx,pos,22] = 1.0
+              if move_idx >= 5 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev5:
+                prev5_loc = moves[move_idx-5][1]
+                if prev5_loc is not None:
+                  pos = loc_to_tensor_pos(prev5_loc,board,offset)
+                  input_data[idx,pos,22] = 1.0
 
     def addLadderFeature(loc,pos,workingMoves):
       assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE);
@@ -430,6 +431,35 @@ class Model:
     self.outputs_by_layer.append((name+"/conv1",conv1_layer))
 
     trans2_layer = self.parametric_relu(name+"/prelu2",(self.batchnorm(name+"/norm2",conv1_layer)))
+    self.outputs_by_layer.append((name+"/trans2",trans2_layer))
+
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    conv2_layer = self.conv2d(trans2_layer, weights2)
+    self.outputs_by_layer.append((name+"/conv2",conv2_layer))
+
+    return conv2_layer
+
+  #Convolutional residual block with internal batch norm and nonlinear activation
+  def global_res_conv_block(name, in_layer, diam, main_channels, mid_channels, global_mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+    trans1_layer = parametric_relu(name+"/prelu1",(batchnorm(name+"/norm1",in_layer)))
+    self.outputs_by_layer.append((name+"/trans1",trans1_layer))
+
+    weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, global_mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    conv1a_layer = self.conv2d(trans1_layer, weights1a)
+    conv1b_layer = self.conv2d(trans1_layer, weights1b)
+    self.outputs_by_layer.append((name+"/conv1a",conv1a_layer))
+    self.outputs_by_layer.append((name+"/conv1b",conv1b_layer))
+
+    trans1b_layer = self.parametric_relu(name+"/trans1b",(self.batchnorm(name+"/norm1b",conv1b_layer)))
+    trans1b_mean = tf.reduce_mean(trans1b_layer,axis=[1,2],keep_dims=True)
+    trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keep_dims=True)
+    trans1b_pooled = tf.concat([trans1b_mean,trans1b_max],axis=3)
+
+    remix_weights = self.weight_variable(name+"/w1r",[global_mid_channels*2,mid_channels],global_mid_channels*2,mid_channels, scale_initial_weights = 0.5)
+    conv1_layer = conv1a_layer + tf.tensordot(trans1b_pooled,remix_weights,axes=[[3],[0]])
+
+    trans2_layer = self.parametric_relu(name+"/prelu2",(batchnorm(name+"/norm2",conv1_layer)))
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -749,8 +779,8 @@ class Model:
     trunk = self.merge_residual("rconv5",trunk,residual)
 
     #Residual Convolutional Block 6---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv6",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+    residual = self.global_res_conv_block("rconv6",trunk,diam=3,main_channels=192,mid_channels=128, global_mid_channels=64,
+                                          emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
     trunk = self.merge_residual("rconv6",trunk,residual)
 
     #Residual Convolutional Block 7---------------------------------------------------------------------------------
@@ -769,8 +799,8 @@ class Model:
     trunk = self.merge_residual("rconv9",trunk,residual)
 
     #Residual Convolutional Block 10---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv10",trunk,diam=3,main_channels=192,mid_channels=128, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+    residual = self.global_res_conv_block("rconv10",trunk,diam=3,main_channels=192,mid_channels=128, global_mid_channels=64,
+                                          emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
     trunk = self.merge_residual("rconv10",trunk,residual)
 
     #Residual Convolutional Block 11---------------------------------------------------------------------------------
