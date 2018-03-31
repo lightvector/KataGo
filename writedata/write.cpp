@@ -32,7 +32,7 @@ static const int rankStart = targetWeightsStart + targetWeightsLen;
 static const int rankLenGoGoD = 1; //pro
 static const int rankLenKGS = 9; //1d-9d
 static const int rankLenFox = 17 + 9; //17k-9d
-static const int rankLenOGSPre2014 = 20 + 9; //20k-9d
+static const int rankLenOGSPre2014 = 19 + 9; //19k-9d
 
 static const int rankStartGoGoD = 0;
 static const int rankStartKGS = rankLenGoGoD;
@@ -580,10 +580,10 @@ static const double rankOneHotFancyProb[rankLen] = {
   0.010, 0.008, 0.007, 0.010, 0.015, /* FOX 1d-5d */
   0.035, 0.080, 0.200, 0.100, /* FOX 6d-9d */
 
-  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 20k-16k */
-  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 15k-11k */
-  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 10k-6k */
-  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 5k-1k */
+  0.50, 0.50, 0.50, 0.50,  /* OGS 19k-16k */
+  0.50, 0.50, 0.50, 0.50, 0.50,  /* OGS 15k-11k */
+  0.50, 0.50, 0.50, 0.50, 0.50,  /* OGS 10k-6k */
+  0.50, 1.00, 1.00, 1.00, 1.00,  /* OGS 5k-1k */
   1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 1d-5d */
   1.00, 1.00, 1.00, 1.00,        /* OGS 6d-9d */
 };
@@ -611,8 +611,8 @@ static void maybeUseRow(
       rankOneHot = rankStartKGS + rank;
     else if(source == SOURCE_FOX && rank >= -17 && rank <= 8)
       rankOneHot = rankStartFox + 17 + rank;
-    else if(source == SOURCE_OGSPre2014 && rank >= -20 && rank <= 8)
-      rankOneHot = rankStartOGSPre2014 + 20 + rank;
+    else if(source == SOURCE_OGSPre2014 && rank >= -19 && rank <= 8)
+      rankOneHot = rankStartOGSPre2014 + 19 + rank;
 
     bool canUse = true;
 
