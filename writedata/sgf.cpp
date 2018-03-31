@@ -129,6 +129,10 @@ void Sgf::getPlacements(vector<Move>& moves, int bSize) const {
 //Gets the longest child if the sgf has branches
 void Sgf::getMoves(vector<Move>& moves, int bSize) const {
   moves.clear();
+  getMovesHelper(moves,bSize);
+}
+
+void Sgf::getMovesHelper(vector<Move>& moves, int bSize) const {
   assert(nodes.size() > 0);
   for(int i = 0; i<nodes.size(); i++) {
     if(i > 0 && nodes[i]->hasPlacements())
@@ -147,7 +151,7 @@ void Sgf::getMoves(vector<Move>& moves, int bSize) const {
   }
 
   if(maxChild != NULL) {
-    maxChild->getMoves(moves,bSize);
+    maxChild->getMovesHelper(moves,bSize);
   }
 }
 
@@ -160,6 +164,12 @@ static void sgfFail(const string& msg, const string& str, int pos) {
 }
 static void sgfFail(const char* msg, const string& str, int pos) {
   sgfFail(string(msg),str,pos);
+}
+static void sgfFail(const string& msg, const string& str, int entryPos, int pos) {
+  throw IOError(msg + " (entryPos " + Global::intToString(entryPos) + "):" + " (pos " + Global::intToString(pos) + "):" + str);
+}
+static void sgfFail(const char* msg, const string& str, int entryPos, int pos) {
+  sgfFail(string(msg),str,entryPos,pos);
 }
 
 static char nextSgfTextChar(const string& str, int& pos) {
@@ -255,12 +265,15 @@ static SgfNode* maybeParseNode(const string& str, int& pos) {
 }
 
 static Sgf* maybeParseSgf(const string& str, int& pos) {
-  if(pos >= str.length() || str[pos] != '(')
+  if(pos >= str.length())
     return NULL;
-  nextSgfChar(str,pos); //Discard the '('
-
+  char c = nextSgfChar(str,pos);
+  if(c != '(') {
+    pos--;
+    return NULL;
+  }
+  int entryPos = pos;
   Sgf* sgf = new Sgf();
-
   try {
     while(true) {
       SgfNode* node = maybeParseNode(str,pos);
@@ -275,8 +288,9 @@ static Sgf* maybeParseSgf(const string& str, int& pos) {
         break;
       sgf->children.push_back(child);
     }
-    if(nextSgfChar(str,pos) != ')')
-      sgfFail("Expected closing paren for sgf tree",str,pos);
+    char c = nextSgfChar(str,pos);
+    if(c != ')')
+      sgfFail("Expected closing paren for sgf tree",str,entryPos,pos);
   }
   catch (...) {
     delete sgf;

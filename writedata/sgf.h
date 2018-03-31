@@ -39,6 +39,10 @@ struct Sgf {
   void getMoves(vector<Move>& moves, int bSize) const;
 
   int depth() const;
+
+  private:
+  void getMovesHelper(vector<Move>& moves, int bSize) const;
+
 };
 
 #endif
