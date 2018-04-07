@@ -282,21 +282,25 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
 }
 
 //SGF sources
-int SOURCE_GOGOD = 0;
-int SOURCE_KGS = 1;
-int SOURCE_FOX = 2;
-int SOURCE_OGSPre2014 = 3;
-static int parseSource(const Sgf* sgf) {
-  if(sgf->fileName.find("GoGoD") != string::npos)
+static const int NUM_SOURCES = 4;
+static const int SOURCE_GOGOD = 0;
+static const int SOURCE_KGS = 1;
+static const int SOURCE_FOX = 2;
+static const int SOURCE_OGSPre2014 = 3;
+static int parseSource(const string& fileName) {
+  if(fileName.find("GoGoD") != string::npos)
     return SOURCE_GOGOD;
-  else if(sgf->fileName.find("kgs-19") != string::npos || sgf->fileName.find("KGS2") != string::npos)
+  else if(fileName.find("kgs-19") != string::npos || fileName.find("KGS2") != string::npos)
     return SOURCE_KGS;
-  else if(sgf->fileName.find("FoxGo") != string::npos)
+  else if(fileName.find("FoxGo") != string::npos)
     return SOURCE_FOX;
-  else if(sgf->fileName.find("OGSPre2014") != string::npos)
+  else if(fileName.find("OGSPre2014") != string::npos)
     return SOURCE_OGSPre2014;
   else
-    throw IOError("Unknown source for sgf: " + sgf->fileName);
+    throw IOError("Unknown source for sgf: " + fileName);
+}
+static int parseSource(const Sgf* sgf) {
+  return parseSource(sgf->fileName);
 }
 
 static int parseHandicap(const string& handicap) {
@@ -307,7 +311,7 @@ static int parseHandicap(const string& handicap) {
   return h;
 }
 
-int RANK_UNRANKED = -1000;
+static const int RANK_UNRANKED = -1000;
 
 //1 dan = 0, higher is stronger, pros are assumed to be 9d.
 static int parseRank(const string& rank) {
@@ -395,6 +399,33 @@ struct Stats {
   }
 };
 
+//When doing fancy prob, randomly keep games from source only with this prob
+static const double sourceGameFancyProb[NUM_SOURCES] = {
+  1.00, /* GoGoD */
+  1.00, /* KGS */
+  0.20, /* FOX */
+  1.00, /* OGS */
+};
+
+//When doing fancy prob, randomly keep training instances from source only with this prob
+static const double rankOneHotFancyProb[rankLen] = {
+  1.00, /* GoGoD */
+  1.00, 1.00, 1.00, 1.00, 1.00, 0.40, 0.40, 0.80, 1.00, /* KGS */
+
+  0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.20, /* FOX 17k-10k */
+  0.15, 0.15, 0.15, 0.15, 0.15, /* FOX 9k-5k */
+  0.14, 0.125, 0.100, 0.075, /* FOX 4k-1k */
+  0.050, 0.040, 0.035, 0.050, 0.075, /* FOX 1d-5d */
+  0.175, 0.400, 1.000, 0.500, /* FOX 6d-9d */
+
+  0.50, 0.50, 0.50, 0.50,  /* OGS 19k-16k */
+  0.50, 0.50, 0.50, 0.50, 0.50,  /* OGS 15k-11k */
+  0.50, 0.50, 0.50, 0.50, 0.50,  /* OGS 10k-6k */
+  0.50, 1.00, 1.00, 1.00, 1.00,  /* OGS 5k-1k */
+  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 1d-5d */
+  1.00, 1.00, 1.00, 1.00,        /* OGS 6d-9d */
+};
+
 static void iterSgfMoves(
   Sgf* sgf,
   //board,source,rank,oppRank,user,handicap,moves,index within moves
@@ -456,7 +487,6 @@ static void iterSgfMoves(
       if(movesBuf.size() < 40)
         return;
     }
-
   }
   catch(const IOError &e) {
     cout << "Skipping sgf file: " << sgf->fileName << ": " << e.message << endl;
@@ -525,7 +555,6 @@ static void iterSgfMoves(
 
 static void iterSgfsMoves(
   vector<Sgf*> sgfs,
-  uint64_t trainTestSeed, bool isTest, double testGameProb,
   uint64_t shardSeed, int numShards,
   const size_t& numMovesUsed, const size_t& curDataSetRow,
   //source,rank,user,handicap,date,moves,index within moves,
@@ -536,7 +565,6 @@ static void iterSgfsMoves(
   size_t numMovesIteredOrSkipped = 0;
 
   for(int shard = 0; shard < numShards; shard++) {
-    Rand trainTestRand(trainTestSeed);
     Rand shardRand(shardSeed);
 
     std::function<void(const FastBoard&,int,int,int,const string&,int,const string&,const vector<Move>&,int)> g =
@@ -559,9 +587,7 @@ static void iterSgfsMoves(
              << "used " << numMovesUsed << " moves, "
              << "written " << curDataSetRow << " rows..." << endl;
 
-      bool gameIsTest = trainTestRand.nextDouble() < testGameProb;
-      if(isTest == gameIsTest)
-        iterSgfMoves(sgfs[i],g);
+      iterSgfMoves(sgfs[i],g);
     }
   }
 
@@ -570,23 +596,6 @@ static void iterSgfsMoves(
        << " numMovesIteredOrSkipped = " << numMovesIteredOrSkipped
        << " numMovesItered*numShards = " << (numMovesItered * numShards) << endl;
 }
-
-static const double rankOneHotFancyProb[rankLen] = {
-  1.00, /* GoGoD */
-  1.00, 1.00, 1.00, 1.00, 1.00, 0.40, 0.40, 0.80, 1.00, /* KGS */
-  0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.04, /* FOX 17k-10k */
-  0.03, 0.03, 0.03, 0.03, 0.03, /* FOX 9k-5k */
-  0.028, 0.025, 0.020, 0.015, /* FOX 4k-1k */
-  0.010, 0.008, 0.007, 0.010, 0.015, /* FOX 1d-5d */
-  0.035, 0.080, 0.200, 0.100, /* FOX 6d-9d */
-
-  0.50, 0.50, 0.50, 0.50,  /* OGS 19k-16k */
-  0.50, 0.50, 0.50, 0.50, 0.50,  /* OGS 15k-11k */
-  0.50, 0.50, 0.50, 0.50, 0.50,  /* OGS 10k-6k */
-  0.50, 1.00, 1.00, 1.00, 1.00,  /* OGS 5k-1k */
-  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 1d-5d */
-  1.00, 1.00, 1.00, 1.00,        /* OGS 6d-9d */
-};
   
 static void maybeUseRow(
   const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const string& date, const vector<Move>& movesBuf, int moveIdx,
@@ -677,7 +686,6 @@ static void maybeUseRow(
 static void processSgfs(
   vector<Sgf*> sgfs, DataSet* dataSet,
   size_t poolSize,
-  uint64_t trainTestSeed, bool isTest, double testGameProb,
   uint64_t shardSeed, int numShards,
   Rand& rand, double keepProb,
   int minRank, int minOppRank, int maxHandicap, int target,
@@ -714,7 +722,6 @@ static void processSgfs(
 
   iterSgfsMoves(
     sgfs,
-    trainTestSeed,isTest,testGameProb,
     shardSeed,numShards,
     used.count,curDataSetRow,
     f
@@ -782,6 +789,7 @@ int main(int argc, const char* argv[]) {
 
   vector<string> gamesDirs;
   string outputFile;
+  string onlyFilesFile;
   size_t poolSize;
   int trainShards;
   double testGameProb;
@@ -798,6 +806,7 @@ int main(int argc, const char* argv[]) {
     TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0");
     TCLAP::MultiArg<string> gamesdirArg("","gamesdir","Directory of sgf files",true,"DIR");
     TCLAP::ValueArg<string> outputArg("","output","H5 file to write",true,string(),"FILE");
+    TCLAP::ValueArg<string> onlyFilesArg("","only-files","Specify a list of files to filter to, one per line in a txt file",false,string(),"FILEOFFILES");
     TCLAP::ValueArg<size_t> poolSizeArg("","pool-size","Pool size for shuffling rows",true,(size_t)0,"SIZE");
     TCLAP::ValueArg<int>    trainShardsArg("","train-shards","Make this many passes processing 1/N of the data each time",true,0,"INT");
     TCLAP::ValueArg<double> testGameProbArg("","test-game-prob","Probability of using a game for test instead of train",true,0.0,"PROB");
@@ -811,6 +820,7 @@ int main(int argc, const char* argv[]) {
     TCLAP::MultiArg<string> excludeUsersArg("","exclude-users","File of users to exclude, one per line",false,"FILE");
     cmd.add(gamesdirArg);
     cmd.add(outputArg);
+    cmd.add(onlyFilesArg);
     cmd.add(poolSizeArg);
     cmd.add(trainShardsArg);
     cmd.add(testGameProbArg);
@@ -825,6 +835,7 @@ int main(int argc, const char* argv[]) {
     cmd.parse(argc,argv);
     gamesDirs = gamesdirArg.getValue();
     outputFile = outputArg.getValue();
+    onlyFilesFile = onlyFilesArg.getValue();
     poolSize = poolSizeArg.getValue();
     trainShards = trainShardsArg.getValue();
     testGameProb = testGameProbArg.getValue();
@@ -856,6 +867,17 @@ int main(int argc, const char* argv[]) {
     }
   }
 
+  bool onlyFilesProvided = false;
+  set<string> onlyFiles;
+  if(onlyFilesFile.length() > 0) {
+    onlyFilesProvided = true;
+    vector<string> files = Global::readFileLines(onlyFilesFile,'\n');
+    for(size_t j = 0; j < files.size(); j++) {
+      const string& file = Global::trim(Global::stripComments(files[j]));
+      onlyFiles.insert(file);
+    }
+  }
+
   //Print some stats-----------------------------------------------------------------
   cout << "maxBoardSize " << maxBoardSize << endl;
   cout << "numFeatures " << numFeatures << endl;
@@ -883,6 +905,9 @@ int main(int argc, const char* argv[]) {
   for(const string& s: excludeUsers) {
     cout << s << endl;
   }
+  if(onlyFilesProvided) {
+    cout << "Filtering to only " << onlyFiles.size() << " files";
+  }
   cout << endl;
 
   //Collect SGF files-----------------------------------------------------------------
@@ -906,8 +931,40 @@ int main(int argc, const char* argv[]) {
   dataSetProps.setChunk(h5Dimension,chunkDims);
   dataSetProps.setDeflate(deflateLevel);
 
-  //Process SGFS to make rows----------------------------------------------------------
+  //Load, filter and randomize SGFS----------------------------------------------------------
   Rand rand;
+
+  //Filter if filtering by file
+  if(onlyFilesProvided) {
+    int kept = 0;
+    for(int i = 0; i<files.size(); i++) {
+      if(contains(onlyFiles,files[i])) {
+        if(i != kept)
+          std::swap(files[i],files[kept]);
+        kept++;
+      }
+    }
+    files.resize(kept);
+    cout << "Kept " << files.size() << " sgf files after filtering by onlyFiles!" << endl;
+  }
+  
+  //Filter if doing fancy stuff
+  if(fancyConditions) {
+    int kept = 0;
+    for(int i = 0; i<files.size(); i++) {
+      int source = parseSource(files[i]);
+      double prob = sourceGameFancyProb[source];
+      bool keep = prob >= 1.0 || rand.nextDouble() < prob;
+      if(keep) {
+        if(i != kept)
+          std::swap(files[i],files[kept]);
+        kept++;
+      }
+    }
+    files.resize(kept);
+    cout << "Kept " << files.size() << " sgf files after filtering by fancy source!" << endl;
+  }
+    
   cout << "Loading SGFS..." << endl;
   vector<Sgf*> sgfs = Sgf::loadFiles(files);
 
@@ -920,7 +977,19 @@ int main(int argc, const char* argv[]) {
     sgfs[r] = tmp;
   }
 
-  uint64_t trainTestSeed = rand.nextUInt64();
+  //Split into train and test
+  vector<Sgf*> trainSgfs;
+  vector<Sgf*> testSgfs;
+  for(int i = 0; i<sgfs.size(); i++) {
+    if(rand.nextDouble() < testGameProb)
+      testSgfs.push_back(sgfs[i]);
+    else
+      trainSgfs.push_back(sgfs[i]);
+  }
+  //Clear sgfs via swap with enpty factor
+  vector<Sgf*>().swap(sgfs);
+
+  //Process SGFS to make rows----------------------------------------------------------
   uint64_t trainShardSeed = rand.nextUInt64();
   uint64_t testShardSeed = rand.nextUInt64();
 
@@ -931,9 +1000,8 @@ int main(int argc, const char* argv[]) {
   Stats trainTotalStats;
   Stats trainUsedStats;
   processSgfs(
-    sgfs,trainDataSet,
+    trainSgfs,trainDataSet,
     poolSize,
-    trainTestSeed, false, testGameProb,
     trainShardSeed, trainShards,
     rand, keepTrainProb,
     minRank, minOppRank, maxHandicap, target,
@@ -949,9 +1017,8 @@ int main(int argc, const char* argv[]) {
   Stats testTotalStats;
   Stats testUsedStats;
   processSgfs(
-    sgfs,testDataSet,
+    testSgfs,testDataSet,
     poolSize,
-    trainTestSeed, true, testGameProb,
     testShardSeed, 1,
     rand, keepTestProb,
     minRank, minOppRank, maxHandicap, target,
@@ -963,18 +1030,26 @@ int main(int argc, const char* argv[]) {
   //Close the h5 file
   delete h5File;
 
+  //Record names of all the test sgf files
+  ofstream testNames;
+  testNames.open(outputFile + ".test.txt");
+  for(int i = 0; i<testSgfs.size(); i++) {
+    testNames << testSgfs[i]->fileName << "\n";
+  }
+  testNames.close();
+  
   cout << "Done" << endl;
 
   cout << "TRAIN TOTAL------------------------------------" << endl;
-  cout << trainPosHashes.size() << " unique pos hashes" << endl;
   trainTotalStats.print();
   cout << "TRAIN USED------------------------------------" << endl;
+  cout << trainPosHashes.size() << " unique pos hashes used" << endl;
   trainUsedStats.print();
 
   cout << "TEST TOTAL------------------------------------" << endl;
-  cout << testPosHashes.size() << " unique pos hashes" << endl;
   testTotalStats.print();
   cout << "TEST USED------------------------------------" << endl;
+  cout << testPosHashes.size() << " unique pos hashes used" << endl;
   testUsedStats.print();
 
   //Cleanup----------------------------------------------------------------------------

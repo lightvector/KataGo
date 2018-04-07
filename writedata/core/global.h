@@ -120,8 +120,8 @@ namespace Global
 
   //Read file into separate lines, using the specified delimiter character(s).
   //The delimiter characters are NOT included.
-  vector<string> readFileLines(const char* filename, char delimiter = ' ');
-  vector<string> readFileLines(const string& filename, char delimiter = ' ');
+  vector<string> readFileLines(const char* filename, char delimiter);
+  vector<string> readFileLines(const string& filename, char delimiter);
 
   //Recursively walk a directory and find all the files that match fileFilter.
   //fileFilter receives just the file name and not the full path, but collected contains the paths.
