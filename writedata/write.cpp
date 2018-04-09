@@ -370,10 +370,17 @@ static int parseRank(const string& rank) {
     }
     //UTF-8 for 段(dan)
     else if(r[2] == '\xE6' && r[3] == '\xAE' && r[4] == '\xB5') {
-      if(!Global::isDigits(r,0,2))
-        throw IOError("Could not parse rank: " + rank);
-      isD = true;
-      n = Global::parseDigits(r,0,2);
+      //FoxGo labels pro ranks like P6<chinese character for duan> for 6p
+      if(r[0] == 'p' && Global::isDigits(r,1,2)) {
+        isP = true;
+        n = Global::parseDigits(r,1,2);
+      }
+      else {
+        if(!Global::isDigits(r,0,2))
+          throw IOError("Could not parse rank: " + rank);
+        isD = true;
+        n = Global::parseDigits(r,0,2);
+      }
     }
   }
   else {
