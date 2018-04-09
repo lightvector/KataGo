@@ -316,7 +316,7 @@ static const int RANK_UNRANKED = -1000;
 //1 dan = 0, higher is stronger, pros are assumed to be 9d.
 static int parseRank(const string& rank) {
   string r = Global::toLower(rank);
-  if(r.length() < 2 || r.length() > 3)
+  if(r.length() < 2 || r.length() > 5)
     throw IOError("Could not parse rank: " + rank);
 
   int n = 0;
@@ -343,6 +343,38 @@ static int parseRank(const string& rank) {
     isK = r[2] == 'k';
     isD = r[2] == 'd';
     isP = r[2] == 'p';
+  }
+  else if(r.length() == 4) {
+    //UTF-8 for 级(kyu/grade)
+    if(r[1] == '\xE7' && r[2] == '\xBA' && r[3] == '\xA7') {
+      if(!Global::isDigits(r,0,1))
+        throw IOError("Could not parse rank: " + rank);
+      isK = true;
+      n = Global::parseDigits(r,0,1);
+    }
+    //UTF-8 for 段(dan)
+    else if(r[1] == '\xE6' && r[2] == '\xAE' && r[3] == '\xB5') {
+      if(!Global::isDigits(r,0,1))
+        throw IOError("Could not parse rank: " + rank);
+      isD = true;
+      n = Global::parseDigits(r,0,1);
+    }
+  }
+  else if(r.length() == 5) {
+    //UTF-8 for 级(kyu/grade)
+    if(r[2] == '\xE7' && r[3] == '\xBA' && r[4] == '\xA7') {
+      if(!Global::isDigits(r,0,2))
+        throw IOError("Could not parse rank: " + rank);
+      isK = true;
+      n = Global::parseDigits(r,0,2);
+    }
+    //UTF-8 for 段(dan)
+    else if(r[2] == '\xE6' && r[3] == '\xAE' && r[4] == '\xB5') {
+      if(!Global::isDigits(r,0,2))
+        throw IOError("Could not parse rank: " + rank);
+      isD = true;
+      n = Global::parseDigits(r,0,2);
+    }
   }
   else {
     assert(false);
@@ -528,9 +560,12 @@ static void iterSgfMoves(
 
     //Forbid consecutive moves by the same player
     if(m.pla == prevPla) {
-      cout << sgf->fileName << endl;
-      cout << ("Multiple moves in a row by same player at " + Global::intToString(j)) << endl;
-      cout << board << endl;
+      //Multiple-move issues are super-common on FoxGo, so don't print on Fox
+      if(source != SOURCE_FOX) { 
+        cout << sgf->fileName << endl;
+        cout << ("Multiple moves in a row by same player at " + Global::intToString(j)) << endl;
+        cout << board << endl;
+      }
       break;
     }
 
@@ -653,6 +688,11 @@ static void maybeUseRow(
           else
             canUse = false;
         }
+      }
+      //Fox Go has a bunch of games by usernameless people. Are they guests? Anyways let's filter that.
+      if(source == SOURCE_FOX) {
+        if(user.length() < 0 || user == " ")
+          canUse = false;
       }
     }
       
