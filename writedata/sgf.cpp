@@ -3,9 +3,20 @@
 #include "sgf.h"
 
 SgfNode::SgfNode()
+  :props(NULL),move(0,0,C_EMPTY)
 {}
+SgfNode::SgfNode(const SgfNode& other)
+  :props(NULL),move(0,0,C_EMPTY)
+{
+  if(other.props != NULL)
+    props = new map<string,vector<string>>(*(other.props));
+  move = other.move;
+}
 SgfNode::~SgfNode()
-{}
+{
+  if(props != NULL)
+    delete props;
+}
 
 static void propertyFail(const string& msg) {
   throw IOError(msg);
@@ -32,38 +43,48 @@ static Loc parseSgfLocOrPass(const string& s, int bSize) {
   return parseSgfLoc(s,bSize);
 }
 
+bool SgfNode::hasProperty(const char* key) const {
+  if(props == NULL)
+    return false;
+  return contains(*props,key);
+}
+
 string SgfNode::getSingleProperty(const char* key) const {
-  if(!contains(props,key))
+  if(props == NULL)
+    propertyFail("SGF does not contain property: " + string(key));    
+  if(!contains(*props,key))
     propertyFail("SGF does not contain property: " + string(key));
-  const vector<string>& prop = map_get(props,key);
+  const vector<string>& prop = map_get(*props,key);
   if(prop.size() != 1)
     propertyFail("SGF property is not a singleton: " + string(key));
   return prop[0];
 }
 
 bool SgfNode::hasPlacements() const {
-  return contains(props,"AB") || contains(props,"AW") || contains(props,"AE");
+  return props != NULL && (contains(*props,"AB") || contains(*props,"AW") || contains(*props,"AE"));
 }
 
 void SgfNode::accumPlacements(vector<Move>& moves, int bSize) const {
-  if(contains(props,"AB")) {
-    const vector<string>& ab = map_get(props,"AB");
+  if(props == NULL)
+    return;
+  if(contains(*props,"AB")) {
+    const vector<string>& ab = map_get(*props,"AB");
     int len = ab.size();
     for(int i = 0; i<len; i++) {
       Loc loc = parseSgfLoc(ab[i],bSize);
       moves.push_back(Move(loc,P_BLACK));
     }
   }
-  if(contains(props,"AW")) {
-    const vector<string>& aw = map_get(props,"AW");
+  if(contains(*props,"AW")) {
+    const vector<string>& aw = map_get(*props,"AW");
     int len = aw.size();
     for(int i = 0; i<len; i++) {
       Loc loc = parseSgfLoc(aw[i],bSize);
       moves.push_back(Move(loc,P_WHITE));
     }
   }
-  if(contains(props,"AE")) {
-    const vector<string>& ae = map_get(props,"AE");
+  if(contains(*props,"AE")) {
+    const vector<string>& ae = map_get(*props,"AE");
     int len = ae.size();
     for(int i = 0; i<len; i++) {
       Loc loc = parseSgfLoc(ae[i],bSize);
@@ -73,16 +94,24 @@ void SgfNode::accumPlacements(vector<Move>& moves, int bSize) const {
 }
 
 void SgfNode::accumMoves(vector<Move>& moves, int bSize) const {
-  if(contains(props,"B")) {
-    const vector<string>& b = map_get(props,"B");
+  if(move.pla == C_BLACK) {
+    if(move.x >= bSize || move.y >= bSize) propertyFail("Move out of bounds: " + Global::intToString(move.x) + "," + Global::intToString(move.y));
+    moves.push_back(Move(Location::getLoc(move.x,move.y,bSize),move.pla));
+  }
+  if(props != NULL && contains(*props,"B")) {
+    const vector<string>& b = map_get(*props,"B");
     int len = b.size();
     for(int i = 0; i<len; i++) {
       Loc loc = parseSgfLocOrPass(b[i],bSize);
       moves.push_back(Move(loc,P_BLACK));
     }
   }
-  if(contains(props,"W")) {
-    const vector<string>& w = map_get(props,"W");
+  if(move.pla == C_WHITE) {
+    if(move.x >= bSize || move.y >= bSize) propertyFail("Move out of bounds: " + Global::intToString(move.x) + "," + Global::intToString(move.y));
+    moves.push_back(Move(Location::getLoc(move.x,move.y,bSize),move.pla));
+  }
+  if(props != NULL && contains(*props,"W")) {
+    const vector<string>& w = map_get(*props,"W");
     int len = w.size();
     for(int i = 0; i<len; i++) {
       Loc loc = parseSgfLocOrPass(w[i],bSize);
@@ -226,15 +255,28 @@ static bool maybeParseProperty(SgfNode* node, const string& str, int& pos) {
   if(key.length() <= 0)
     return false;
 
-  vector<string>& contents = node->props[key];
-
   bool parsedAtLeastOne = false;
   while(true) {
     if(nextSgfChar(str,pos) != '[') {
       pos--;
       break;
     }
-    contents.push_back(parseTextValue(str,pos));
+    if(node->move.pla == C_EMPTY && key == "B") {
+      int bSize = 128;
+      Loc loc = parseSgfLocOrPass(parseTextValue(str,pos),bSize);      
+      node->move = MoveNoBSize((uint8_t)Location::getX(loc,bSize),(uint8_t)Location::getY(loc,bSize),P_BLACK);
+    }
+    else if(node->move.pla == C_EMPTY && key == "W") {
+      int bSize = 128;
+      Loc loc = parseSgfLocOrPass(parseTextValue(str,pos),bSize);      
+      node->move = MoveNoBSize((uint8_t)Location::getX(loc,bSize),(uint8_t)Location::getY(loc,bSize),P_WHITE);
+    }
+    else {
+      if(node->props == NULL)
+        node->props = new map<string,vector<string>>();
+      vector<string>& contents = (*(node->props))[key];
+      contents.push_back(parseTextValue(str,pos));
+    }
     if(nextSgfChar(str,pos) != ']') sgfFail("Expected closing bracket",str,pos);
 
     parsedAtLeastOne = true;
@@ -279,7 +321,6 @@ static Sgf* maybeParseSgf(const string& str, int& pos) {
       SgfNode* node = maybeParseNode(str,pos);
       if(node == NULL)
         break;
-      node->parent = sgf;
       sgf->nodes.push_back(node);
     }
     while(true) {
@@ -319,6 +360,8 @@ vector<Sgf*> Sgf::loadFiles(const vector<string>& files) {
   vector<Sgf*> sgfs;
   try {
     for(int i = 0; i<files.size(); i++) {
+      if(i % 10000 == 0)
+        cout << "Loaded " << i << "/" << files.size() << " files" << endl;
       try {
         Sgf* sgf = loadFile(files[i]);
         sgfs.push_back(sgf);
@@ -336,3 +379,53 @@ vector<Sgf*> Sgf::loadFiles(const vector<string>& files) {
   }
   return sgfs;
 }
+
+CompactSgf::CompactSgf(const Sgf* sgf)
+  :fileName(sgf->fileName),
+   rootNode(*(sgf->nodes[0])),
+   placements(),
+   moves(),
+   bSize(),
+   depth()
+{
+  bSize = sgf->getBSize();
+  depth = sgf->depth();
+
+  sgf->getPlacements(placements, bSize);
+  sgf->getMoves(moves, bSize);
+}
+
+CompactSgf::~CompactSgf() {
+}
+
+CompactSgf* CompactSgf::loadFile(const string& file) {
+  Sgf* sgf = Sgf::loadFile(file);
+  CompactSgf* compact = new CompactSgf(sgf);
+  delete sgf;
+  return compact;
+}
+
+vector<CompactSgf*> CompactSgf::loadFiles(const vector<string>& files) {
+  vector<CompactSgf*> sgfs;
+  try {
+    for(int i = 0; i<files.size(); i++) {
+      if(i % 10000 == 0)
+        cout << "Loaded " << i << "/" << files.size() << " files" << endl;
+      try {
+        CompactSgf* sgf = loadFile(files[i]);
+        sgfs.push_back(sgf);
+      }
+      catch(const IOError& e) {
+        cout << "Skipping sgf file: " << files[i] << ": " << e.message << endl;
+      }
+    }
+  }
+  catch(...) {
+    for(int i = 0; i<sgfs.size(); i++) {
+      delete sgfs[i];
+    }
+    throw;
+  }
+  return sgfs;
+}
+

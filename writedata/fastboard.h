@@ -14,12 +14,12 @@
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
 //Player
-typedef short Player;
+typedef int8_t Player;
 static const Player P_BLACK = 1;
 static const Player P_WHITE = 2;
 
 //Color of a point on the board
-typedef short Color;
+typedef int8_t Color;
 static const Color C_EMPTY = 0;
 static const Color C_BLACK = 1;
 static const Color C_WHITE = 2;

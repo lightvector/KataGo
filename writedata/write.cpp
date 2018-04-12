@@ -299,7 +299,7 @@ static int parseSource(const string& fileName) {
   else
     throw IOError("Unknown source for sgf: " + fileName);
 }
-static int parseSource(const Sgf* sgf) {
+static int parseSource(const CompactSgf* sgf) {
   return parseSource(sgf->fileName);
 }
 
@@ -466,7 +466,7 @@ static const double rankOneHotFancyProb[rankLen] = {
 };
 
 static void iterSgfMoves(
-  Sgf* sgf,
+  CompactSgf* sgf,
   //board,source,rank,oppRank,user,handicap,moves,index within moves
   std::function<void(const FastBoard&,int,int,int,const string&,int,const string&,const vector<Move>&,int)> f
 ) {
@@ -478,13 +478,11 @@ static void iterSgfMoves(
   string bUser;
   int handicap;
   string date;
-  vector<Move> placementsBuf;
-  vector<Move> movesBuf;
+  const vector<Move>* placementsBuf = NULL;
+  const vector<Move>* movesBuf = NULL;
   try {
-    bSize = sgf->getBSize();
-
-    assert(sgf->nodes.size() > 0);
-    SgfNode* root = sgf->nodes[0];
+    bSize = sgf->bSize;
+    const SgfNode& root = sgf->rootNode;
 
     source = parseSource(sgf);
     if(source == SOURCE_GOGOD) {
@@ -492,38 +490,38 @@ static void iterSgfMoves(
       bRank = 8;
     }
     else {
-      if(contains(root->props,"WR"))
-        wRank = parseRank(root->getSingleProperty("WR"));
+      if(root.hasProperty("WR"))
+        wRank = parseRank(root.getSingleProperty("WR"));
       else
         wRank = RANK_UNRANKED;
 
-      if(contains(root->props,"BR"))
-        bRank = parseRank(root->getSingleProperty("BR"));
+      if(root.hasProperty("BR"))
+        bRank = parseRank(root.getSingleProperty("BR"));
       else
         bRank = RANK_UNRANKED;
     }
 
-    wUser = root->getSingleProperty("PW");
-    bUser = root->getSingleProperty("PB");
+    wUser = root.getSingleProperty("PW");
+    bUser = root.getSingleProperty("PB");
 
     handicap = 0;
-    if(contains(root->props,"HA"))
-      handicap = parseHandicap(root->getSingleProperty("HA"));
+    if(root.hasProperty("HA"))
+      handicap = parseHandicap(root.getSingleProperty("HA"));
 
-    if(contains(root->props,"DT"))
-      date = root->getSingleProperty("DT");
+    if(root.hasProperty("DT"))
+      date = root.getSingleProperty("DT");
 
     //Apply some filters
     if(bSize != 19)
       return;
 
-    sgf->getPlacements(placementsBuf,bSize);
-    sgf->getMoves(movesBuf,bSize);
+    placementsBuf = &(sgf->placements);
+    movesBuf = &(sgf->moves);
 
     //OGS has a ton of garbage, for OGS require a minimum length
     //to try to filter out random demos and problems and such
     if(source == SOURCE_OGSPre2014) {
-      if(movesBuf.size() < 40)
+      if(movesBuf->size() < 40)
         return;
     }
   }
@@ -532,9 +530,12 @@ static void iterSgfMoves(
     return;
   }
 
+  const vector<Move>& placements = *placementsBuf;
+  const vector<Move>& moves = *movesBuf;
+  
   FastBoard board(bSize);
-  for(int j = 0; j<placementsBuf.size(); j++) {
-    Move m = placementsBuf[j];
+  for(int j = 0; j<placements.size(); j++) {
+    Move m = placements[j];
     bool suc = board.setStone(m.loc,m.pla);
     if(!suc) {
       cout << sgf->fileName << endl;
@@ -547,9 +548,9 @@ static void iterSgfMoves(
   //If there are multiple black moves in a row, then make them all right now.
   //Sometimes sgfs break the standard and do handicap setup in this way.
   int j = 0;
-  if(movesBuf.size() > 1 && movesBuf[0].pla == P_BLACK && movesBuf[1].pla == P_BLACK) {
-    for(; j<movesBuf.size(); j++) {
-      Move m = movesBuf[j];
+  if(moves.size() > 1 && moves[0].pla == P_BLACK && moves[1].pla == P_BLACK) {
+    for(; j<moves.size(); j++) {
+      Move m = moves[j];
       if(m.pla != P_BLACK)
         break;
       bool suc = board.playMove(m.loc,m.pla);
@@ -562,8 +563,8 @@ static void iterSgfMoves(
   }
 
   Player prevPla = C_EMPTY;
-  for(; j<movesBuf.size(); j++) {
-    Move m = movesBuf[j];
+  for(; j<moves.size(); j++) {
+    Move m = moves[j];
 
     //Forbid consecutive moves by the same player
     if(m.pla == prevPla) {
@@ -579,7 +580,7 @@ static void iterSgfMoves(
     int rank = m.pla == P_WHITE ? wRank : bRank;
     int oppRank = m.pla == P_WHITE ? bRank : wRank;
     const string& user = m.pla == P_WHITE ? wUser : bUser;
-    f(board,source,rank,oppRank,user,handicap,date,movesBuf,j);
+    f(board,source,rank,oppRank,user,handicap,date,moves,j);
 
     bool suc = board.playMove(m.loc,m.pla);
     if(!suc) {
@@ -596,7 +597,7 @@ static void iterSgfMoves(
 }
 
 static void iterSgfsMoves(
-  vector<Sgf*> sgfs,
+  vector<CompactSgf*> sgfs,
   uint64_t shardSeed, int numShards,
   const size_t& numMovesUsed, const size_t& curDataSetRow,
   //source,rank,user,handicap,date,moves,index within moves,
@@ -622,7 +623,7 @@ static void iterSgfsMoves(
     };
 
     for(int i = 0; i<sgfs.size(); i++) {
-      if(i % 1000 == 0)
+      if(i % 5000 == 0)
         cout << "Shard " << shard << " "
              << "processed " << i << "/" << sgfs.size() << " sgfs, "
              << "itered " << numMovesItered << " moves, "
@@ -731,7 +732,7 @@ static void maybeUseRow(
 }
 
 static void processSgfs(
-  vector<Sgf*> sgfs, DataSet* dataSet,
+  vector<CompactSgf*> sgfs, DataSet* dataSet,
   size_t poolSize,
   uint64_t shardSeed, int numShards,
   Rand& rand, double keepProb,
@@ -1013,20 +1014,20 @@ int main(int argc, const char* argv[]) {
   }
     
   cout << "Loading SGFS..." << endl;
-  vector<Sgf*> sgfs = Sgf::loadFiles(files);
+  vector<CompactSgf*> sgfs = CompactSgf::loadFiles(files);
 
   //Shuffle sgfs
   cout << "Shuffling SGFS..." << endl;
   for(int i = 1; i<sgfs.size(); i++) {
     int r = rand.nextUInt(i+1);
-    Sgf* tmp = sgfs[i];
+    CompactSgf* tmp = sgfs[i];
     sgfs[i] = sgfs[r];
     sgfs[r] = tmp;
   }
 
   //Split into train and test
-  vector<Sgf*> trainSgfs;
-  vector<Sgf*> testSgfs;
+  vector<CompactSgf*> trainSgfs;
+  vector<CompactSgf*> testSgfs;
   for(int i = 0; i<sgfs.size(); i++) {
     if(rand.nextDouble() < testGameProb)
       testSgfs.push_back(sgfs[i]);
@@ -1034,7 +1035,7 @@ int main(int argc, const char* argv[]) {
       trainSgfs.push_back(sgfs[i]);
   }
   //Clear sgfs via swap with enpty factor
-  vector<Sgf*>().swap(sgfs);
+  vector<CompactSgf*>().swap(sgfs);
 
   //Process SGFS to make rows----------------------------------------------------------
   uint64_t trainShardSeed = rand.nextUInt64();
