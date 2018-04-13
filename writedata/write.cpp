@@ -4,6 +4,8 @@
 #include "sgf.h"
 #include "datapool.h"
 
+#include "zstr/zstr.hpp"
+
 #include <H5Cpp.h>
 using namespace H5;
 
@@ -446,7 +448,7 @@ struct Stats {
 static const double sourceGameFancyProb[NUM_SOURCES] = {
   1.00, /* GoGoD */
   1.00, /* KGS */
-  0.20, /* FOX */
+  0.15, /* FOX */
   1.00, /* OGS */
 };
 
