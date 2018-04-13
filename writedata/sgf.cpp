@@ -95,8 +95,12 @@ void SgfNode::accumPlacements(vector<Move>& moves, int bSize) const {
 
 void SgfNode::accumMoves(vector<Move>& moves, int bSize) const {
   if(move.pla == C_BLACK) {
-    if(move.x >= bSize || move.y >= bSize) propertyFail("Move out of bounds: " + Global::intToString(move.x) + "," + Global::intToString(move.y));
-    moves.push_back(Move(Location::getLoc(move.x,move.y,bSize),move.pla));
+    if(move.x == 128 && move.y == 128)
+      moves.push_back(Move(FastBoard::PASS_LOC,move.pla));
+    else {
+      if(move.x >= bSize || move.y >= bSize) propertyFail("Move out of bounds: " + Global::intToString(move.x) + "," + Global::intToString(move.y));
+      moves.push_back(Move(Location::getLoc(move.x,move.y,bSize),move.pla));
+    }
   }
   if(props != NULL && contains(*props,"B")) {
     const vector<string>& b = map_get(*props,"B");
@@ -107,8 +111,12 @@ void SgfNode::accumMoves(vector<Move>& moves, int bSize) const {
     }
   }
   if(move.pla == C_WHITE) {
-    if(move.x >= bSize || move.y >= bSize) propertyFail("Move out of bounds: " + Global::intToString(move.x) + "," + Global::intToString(move.y));
-    moves.push_back(Move(Location::getLoc(move.x,move.y,bSize),move.pla));
+    if(move.x == 128 && move.y == 128)
+      moves.push_back(Move(FastBoard::PASS_LOC,move.pla));
+    else {
+      if(move.x >= bSize || move.y >= bSize) propertyFail("Move out of bounds: " + Global::intToString(move.x) + "," + Global::intToString(move.y));
+      moves.push_back(Move(Location::getLoc(move.x,move.y,bSize),move.pla));
+    }
   }
   if(props != NULL && contains(*props,"W")) {
     const vector<string>& w = map_get(*props,"W");
@@ -263,13 +271,19 @@ static bool maybeParseProperty(SgfNode* node, const string& str, int& pos) {
     }
     if(node->move.pla == C_EMPTY && key == "B") {
       int bSize = 128;
-      Loc loc = parseSgfLocOrPass(parseTextValue(str,pos),bSize);      
-      node->move = MoveNoBSize((uint8_t)Location::getX(loc,bSize),(uint8_t)Location::getY(loc,bSize),P_BLACK);
+      Loc loc = parseSgfLocOrPass(parseTextValue(str,pos),bSize);
+      if(loc == FastBoard::PASS_LOC)
+        node->move = MoveNoBSize(128,128,P_BLACK);
+      else
+        node->move = MoveNoBSize((uint8_t)Location::getX(loc,bSize),(uint8_t)Location::getY(loc,bSize),P_BLACK);
     }
     else if(node->move.pla == C_EMPTY && key == "W") {
       int bSize = 128;
       Loc loc = parseSgfLocOrPass(parseTextValue(str,pos),bSize);      
-      node->move = MoveNoBSize((uint8_t)Location::getX(loc,bSize),(uint8_t)Location::getY(loc,bSize),P_WHITE);
+      if(loc == FastBoard::PASS_LOC)
+        node->move = MoveNoBSize(128,128,P_WHITE);
+      else
+        node->move = MoveNoBSize((uint8_t)Location::getX(loc,bSize),(uint8_t)Location::getY(loc,bSize),P_WHITE);
     }
     else {
       if(node->props == NULL)

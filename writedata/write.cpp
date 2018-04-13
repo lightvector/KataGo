@@ -290,7 +290,7 @@ static const int SOURCE_OGSPre2014 = 3;
 static int parseSource(const string& fileName) {
   if(fileName.find("GoGoD") != string::npos)
     return SOURCE_GOGOD;
-  else if(fileName.find("kgs-19") != string::npos || fileName.find("KGS2") != string::npos)
+  else if(fileName.find("/KGS/") != string::npos || fileName.find("/KGS4d/") != string::npos)
     return SOURCE_KGS;
   else if(fileName.find("FoxGo") != string::npos)
     return SOURCE_FOX;
@@ -359,6 +359,8 @@ static int parseRank(const string& rank) {
       isD = true;
       n = Global::parseDigits(r,0,1);
     }
+    else
+      throw IOError("Could not parse rank: " + rank);
   }
   else if(r.length() == 5) {
     //UTF-8 for 级(kyu/grade)
@@ -382,6 +384,8 @@ static int parseRank(const string& rank) {
         n = Global::parseDigits(r,0,2);
       }
     }
+    else
+      throw IOError("Could not parse rank: " + rank);
   }
   else {
     assert(false);
@@ -449,18 +453,18 @@ static const double sourceGameFancyProb[NUM_SOURCES] = {
 //When doing fancy prob, randomly keep training instances from source only with this prob
 static const double rankOneHotFancyProb[rankLen] = {
   1.00, /* GoGoD */
-  1.00, 1.00, 1.00, 1.00, 1.00, 0.40, 0.40, 0.80, 1.00, /* KGS */
+  0.30, 0.30, 0.20, 0.10, 0.20, 0.10, 0.20, 0.50, 1.00, /* KGS */
 
   0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.20, /* FOX 17k-10k */
   0.15, 0.15, 0.15, 0.15, 0.15, /* FOX 9k-5k */
-  0.14, 0.125, 0.100, 0.075, /* FOX 4k-1k */
-  0.050, 0.040, 0.035, 0.050, 0.075, /* FOX 1d-5d */
-  0.175, 0.400, 1.000, 0.500, /* FOX 6d-9d */
+  0.14, 0.125, 0.080, 0.060, /* FOX 4k-1k */
+  0.040, 0.030, 0.025, 0.040, 0.060, /* FOX 1d-5d */
+  0.140, 0.350, 0.800, 0.400, /* FOX 6d-9d */
 
-  0.50, 0.50, 0.50, 0.50,  /* OGS 19k-16k */
-  0.50, 0.50, 0.50, 0.50, 0.50,  /* OGS 15k-11k */
-  0.50, 0.50, 0.50, 0.50, 0.50,  /* OGS 10k-6k */
-  0.50, 1.00, 1.00, 1.00, 1.00,  /* OGS 5k-1k */
+  0.80, 0.80, 0.80, 0.80,  /* OGS 19k-16k */
+  0.80, 0.80, 0.80, 0.80, 0.80,  /* OGS 15k-11k */
+  0.80, 0.80, 0.80, 0.80, 0.80,  /* OGS 10k-6k */
+  0.80, 1.00, 1.00, 1.00, 1.00,  /* OGS 5k-1k */
   1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 1d-5d */
   1.00, 1.00, 1.00, 1.00,        /* OGS 6d-9d */
 };
