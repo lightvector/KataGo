@@ -235,15 +235,16 @@ assert(num_samples_per_epoch % batch_size == 0)
 lr = LR(
   knots = [
     (0,   0.0002500),
-    (6,   0.0001100),
-    (10,  0.0000750),
-    (20,  0.0000340),
-    (40,  0.0000160),
-    (70,  0.0000072),
-    (100, 0.0000042),
-    (140, 0.0000028),
-    (200, 0.0000018),
-    (300, 0.0000011),
+    (8,   0.0001100),
+    (14,  0.0000750),
+    (28,  0.0000340),
+    (50,  0.0000160),
+    (82,  0.0000072),
+    (114, 0.0000042),
+    (156, 0.0000028),
+    (218, 0.0000018),
+    (320, 0.0000011),
+    (400, 0.0000007),
   ],
   epoch_chunk_size = 2,
 )
@@ -286,7 +287,7 @@ with tf.Session(config=tfconfig) as session:
     input_len = model.input_shape[0] * model.input_shape[1]
     target_len = model.target_shape[0]
     target_weights_len = 1
-    rank_len = mode.rank_shape[0]
+    rank_len = model.rank_shape[0]
 
     if not isinstance(rows, np.ndarray):
       rows = np.array(rows)

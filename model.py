@@ -16,7 +16,7 @@ class Model:
     self.post_input_shape = [19,19,26]
     self.target_shape = [19*19]
     self.target_weights_shape = []
-    self.rank_shape=[1+9+(17+9)+(20+9)]
+    self.rank_shape=[1+9+(17+9)+(19+9)]
     self.rank_embedding_dim = 8
 
     self.pass_pos = self.max_board_size * self.max_board_size
@@ -748,9 +748,9 @@ class Model:
     if use_ranks:
       rank_embedding_weights = self.weight_variable("rankembedding/w",[self.rank_shape[0],self.rank_embedding_dim],self.rank_shape[0],self.rank_embedding_dim)
       rank_embedding_layer = tf.tensordot(ranks,rank_embedding_weights,axes=[[1],[0]])
-      rank_embedding_layer = tf.tile(tf.reshape(rank_embedding_layer, [-1,1,1,rank_embedding_dim]), [1,max_board_size,max_board_size,1])
+      rank_embedding_layer = tf.tile(tf.reshape(rank_embedding_layer, [-1,1,1,self.rank_embedding_dim]), [1,max_board_size,max_board_size,1])
       cur_layer = tf.concat([cur_layer,rank_embedding_layer], axis=3)
-      input_num_channels += rank_embedding_dim
+      input_num_channels += self.rank_embedding_dim
 
     #Convolutional RELU layer 1-------------------------------------------------------------------------------------
     trunk = self.conv_only_extra_center_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=224)
