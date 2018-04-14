@@ -190,24 +190,35 @@ num_h5_test_rows = h5test.shape[0]
 class LR:
   def __init__(
     self,
-    initial_lr,          #Initial learning rate by sample
-    decay_exponent,      #Exponent of the polynomial decay in learning rate based on number of plateaus
-    decay_offset,        #Offset of the exponent
-    drop_every_epochs,   #Drop the learning rate after these epochs
+    knots,
+    epoch_chunk_size,
   ):
-    self.initial_lr = initial_lr
-    self.decay_exponent = decay_exponent
-    self.decay_offset = decay_offset
-
-    self.reduction_count = 0
-    self.drop_every_epochs = drop_every_epochs
+    self.knots = knots
+    self.chunk = 0
+    self.epoch_chunk_size = epoch_chunk_size
 
   def lr(self):
-    factor = (self.reduction_count + self.decay_offset) / self.decay_offset
-    return self.initial_lr / (factor ** self.decay_exponent)
+    i = 0
+    while True:
+      if i == len(self.knots) - 2:
+        break
+      (x,y) = self.knots[i+1]
+      if self.chunk <= x:
+        break
+      i += 1
+
+    if i >= len(self.knots) - 1:
+      (x,y) = self.knots[i]
+      return y
+
+    (x0,y0) = self.knots[i]
+    (x1,y1) = self.knots[i+1]
+    ly0 = math.log(y0)
+    ly1 = math.log(y1)
+    return math.exp(ly0 + (self.chunk - x0) / (x1-x0) * (ly1-ly0))
 
   def report_epoch_done(self,epoch):
-    self.reduction_count = epoch // self.drop_every_epochs
+    self.chunk = (epoch // self.epoch_chunk_size) * float(self.epoch_chunk_size) / fast_factor
 
 # Training ------------------------------------------------------------
 
@@ -222,14 +233,18 @@ assert(h5_chunk_size % batch_size == 0)
 assert(num_samples_per_epoch % batch_size == 0)
 
 lr = LR(
-  initial_lr = 0.00032,
-  decay_exponent = 2,
-  decay_offset = 8,
-  drop_every_epochs = 4 * fast_factor,
+  knots = [
+    (0,   0.0002000),
+    (10,  0.0002500),
+    (50,  0.0001000),
+    (100, 0.0000200),
+    (200, 0.0000010),
+    (300, 0.0000001),
+  ],
+  epoch_chunk_size = 2,
 )
 
-# l2_coeff_value = 0
-l2_coeff_value = 0.3 / max(1000,num_h5_train_rows)
+l2_coeff_value = 0.00004
 
 saver = tf.train.Saver(
   max_to_keep = 10000,

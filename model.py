@@ -259,7 +259,7 @@ class Model:
       momentum=0.99,
       epsilon=0.001,
       center=True,
-      scale=True,
+      scale=False,
       training=self.is_training,
       name=name,
     )
@@ -282,14 +282,15 @@ class Model:
     self.reg_variables.append(variable)
     return variable
 
-  def weight_variable(self, name, shape, num_inputs, num_outputs, scale_initial_weights=1.0, extra_initial_weight=None):
+  def weight_variable(self, name, shape, num_inputs, num_outputs, scale_initial_weights=1.0, extra_initial_weight=None, reg=True):
     initial = self.init_weights(shape, num_inputs, num_outputs)
     if extra_initial_weight is not None:
       initial = initial + extra_initial_weight
     initial = initial * scale_initial_weights
 
     variable = tf.Variable(initial,name=name)
-    self.reg_variables.append(variable)
+    if reg:
+      self.reg_variables.append(variable)
     return variable
 
   def conv2d(self, x, w):
@@ -378,16 +379,16 @@ class Model:
     self.outputs_by_layer.append((name,trunk))
     return trunk
 
-  def conv_weight_variable(self, name, diam1, diam2, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+  def conv_weight_variable(self, name, diam1, diam2, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None, reg=True):
     radius1 = diam1 // 2
     radius2 = diam2 // 2
 
     if emphasize_center_weight is None:
-      weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights)
+      weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,reg=reg)
     else:
       extra_initial_weight = self.init_weights([1,1,in_channels,out_channels], in_channels, out_channels) * emphasize_center_weight
       extra_initial_weight = tf.pad(extra_initial_weight, [(radius1,radius1),(radius2,radius2),(0,0),(0,0)])
-      weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,extra_initial_weight)
+      weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,extra_initial_weight,reg=reg)
 
     if emphasize_center_lr is not None:
       factor = tf.constant([emphasize_center_lr],dtype=tf.float32)
@@ -405,8 +406,8 @@ class Model:
     return out_layer
 
   #Convolution only, no batch norm or nonlinearity
-  def conv_only_block(self, name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
-    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+  def conv_only_block(self, name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None, reg=True):
+    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr, reg=reg)
     out_layer = self.conv2d(in_layer, weights)
     self.outputs_by_layer.append((name,out_layer))
     return out_layer
@@ -861,10 +862,9 @@ class Model:
 
     #Finally, apply linear convolution to produce final output
     #2x in_channels due to crelu
-    p2_layer = self.conv_only_block("p2",p1_layer,diam=5,in_channels=p1_num_channels*2,out_channels=1,scale_initial_weights=0.5)
+    p2_layer = self.conv_only_block("p2",p1_layer,diam=5,in_channels=p1_num_channels*2,out_channels=1,scale_initial_weights=0.5,reg=False)
 
     self.add_lr_factor("p1/norm/beta:0",0.25)
-    self.add_lr_factor("p1/norm/gamma:0",0.25)
     self.add_lr_factor("p2/w:0",0.25)
 
     #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
