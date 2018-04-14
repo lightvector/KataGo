@@ -844,6 +844,7 @@ int main(int argc, const char* argv[]) {
   vector<string> gamesDirs;
   string outputFile;
   string onlyFilesFile;
+  string excludeFilesFile;
   size_t poolSize;
   int trainShards;
   double testGameProb;
@@ -861,6 +862,7 @@ int main(int argc, const char* argv[]) {
     TCLAP::MultiArg<string> gamesdirArg("","gamesdir","Directory of sgf files",true,"DIR");
     TCLAP::ValueArg<string> outputArg("","output","H5 file to write",true,string(),"FILE");
     TCLAP::ValueArg<string> onlyFilesArg("","only-files","Specify a list of files to filter to, one per line in a txt file",false,string(),"FILEOFFILES");
+    TCLAP::ValueArg<string> excludeFilesArg("","exclude-files","Specify a list of files to filter out, one per line in a txt file",false,string(),"FILEOFFILES");
     TCLAP::ValueArg<size_t> poolSizeArg("","pool-size","Pool size for shuffling rows",true,(size_t)0,"SIZE");
     TCLAP::ValueArg<int>    trainShardsArg("","train-shards","Make this many passes processing 1/N of the data each time",true,0,"INT");
     TCLAP::ValueArg<double> testGameProbArg("","test-game-prob","Probability of using a game for test instead of train",true,0.0,"PROB");
@@ -875,6 +877,7 @@ int main(int argc, const char* argv[]) {
     cmd.add(gamesdirArg);
     cmd.add(outputArg);
     cmd.add(onlyFilesArg);
+    cmd.add(excludeFilesArg);
     cmd.add(poolSizeArg);
     cmd.add(trainShardsArg);
     cmd.add(testGameProbArg);
@@ -890,6 +893,7 @@ int main(int argc, const char* argv[]) {
     gamesDirs = gamesdirArg.getValue();
     outputFile = outputArg.getValue();
     onlyFilesFile = onlyFilesArg.getValue();
+    excludeFilesFile = excludeFilesArg.getValue();
     poolSize = poolSizeArg.getValue();
     trainShards = trainShardsArg.getValue();
     testGameProb = testGameProbArg.getValue();
@@ -932,6 +936,17 @@ int main(int argc, const char* argv[]) {
     }
   }
 
+  bool excludeFilesProvided = false;
+  set<string> excludeFiles;
+  if(excludeFilesFile.length() > 0) {
+    excludeFilesProvided = true;
+    vector<string> files = Global::readFileLines(excludeFilesFile,'\n');
+    for(size_t j = 0; j < files.size(); j++) {
+      const string& file = Global::trim(Global::stripComments(files[j]));
+      excludeFiles.insert(file);
+    }
+  }
+
   //Print some stats-----------------------------------------------------------------
   cout << "maxBoardSize " << maxBoardSize << endl;
   cout << "numFeatures " << numFeatures << endl;
@@ -961,6 +976,9 @@ int main(int argc, const char* argv[]) {
   }
   if(onlyFilesProvided) {
     cout << "Filtering to only " << onlyFiles.size() << " files";
+  }
+  if(excludeFilesProvided) {
+    cout << "Filtering to exclude " << excludeFiles.size() << " files";
   }
   cout << endl;
 
@@ -1000,6 +1018,18 @@ int main(int argc, const char* argv[]) {
     }
     files.resize(kept);
     cout << "Kept " << files.size() << " sgf files after filtering by onlyFiles!" << endl;
+  }
+  if(excludeFilesProvided) {
+    int kept = 0;
+    for(int i = 0; i<files.size(); i++) {
+      if(!contains(excludeFiles,files[i])) {
+        if(i != kept)
+          std::swap(files[i],files[kept]);
+        kept++;
+      }
+    }
+    files.resize(kept);
+    cout << "Kept " << files.size() << " sgf files after filtering by excludeFiles!" << endl;
   }
   
   //Filter if doing fancy stuff
@@ -1073,7 +1103,7 @@ int main(int argc, const char* argv[]) {
   processSgfs(
     testSgfs,testDataSet,
     poolSize,
-    testShardSeed, 1,
+    testShardSeed, trainShards,
     rand, keepTestProb,
     minRank, minOppRank, maxHandicap, target,
     excludeUsers, fancyConditions,
@@ -1084,7 +1114,13 @@ int main(int argc, const char* argv[]) {
   //Close the h5 file
   delete h5File;
 
-  //Record names of all the test sgf files
+  //Record names of all the sgf files
+  ofstream trainNames;
+  trainNames.open(outputFile + ".train.txt");
+  for(int i = 0; i<trainSgfs.size(); i++) {
+    trainNames << trainSgfs[i]->fileName << "\n";
+  }
+  trainNames.close();
   ofstream testNames;
   testNames.open(outputFile + ".test.txt");
   for(int i = 0; i<testSgfs.size(); i++) {
