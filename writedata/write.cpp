@@ -3,8 +3,7 @@
 #include "fastboard.h"
 #include "sgf.h"
 #include "datapool.h"
-
-#include "zstr/zstr.hpp"
+#include <fstream>
 
 #include <H5Cpp.h>
 using namespace H5;
