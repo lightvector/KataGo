@@ -270,7 +270,7 @@ with tf.Session(config=tfconfig) as session:
   sys.stderr.flush()
 
   trainlog("Began session")
-  trainlog("Training on " + str(num_h5_train_rows) + " rows, testing on " + str(num_h5_test_rows) + " rows")
+  trainlog("Training on " + str(num_h5_train_rows) + " rows, testing on " + str(int(num_h5_test_rows * validation_prop)) + "/" + str(num_h5_test_rows) + " rows")
   trainlog("Epoch size = " + str(num_samples_per_epoch))
   trainlog("h5_chunk_size = " + str(h5_chunk_size))
   trainlog("Batch size = " + str(batch_size))
