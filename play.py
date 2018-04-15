@@ -13,6 +13,7 @@ import tensorflow as tf
 import numpy as np
 
 from board import Board
+from model import Model
 
 description = """
 Play go with a trained neural net!
@@ -21,38 +22,45 @@ Play go with a trained neural net!
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-model', help='Path to model to use', required=True)
 parser.add_argument('-white', help='Model plays white', action="store_true", required=False)
+parser.add_argument('-rank-one-hot', help='Model plays like this rankonehot', required=False)
 args = vars(parser.parse_args())
 
 modelpath = args["model"]
 is_white = args["white"]
 
+play_rank_one_hot = [0]
+if "rank" in args and args["rank"] != "":
+  play_rank_one_hot[0] = int(args["rank"])
+
 # Model ----------------------------------------------------------------
 
-import model
+model = Model(use_ranks=True)
 policy_output = tf.nn.softmax(model.policy_output)
 
 # Moves ----------------------------------------------------------------
 
-def fetch_output(session, board, moves, use_history, fetch):
+def fetch_output(session, board, moves, use_history, rank_one_hot, fetch):
   input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
   model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,use_history=use_history,idx=0)
-
+  row_ranks = np.zeros(shape=[1]+model.rank_shape)
+  row_ranks[0,rank_one_hot] = 1.0
   output = session.run(fetches=[fetch], feed_dict={
     model.inputs: input_data,
+    model.ranks: row_ranks,
     model.symmetries: [False,False,False],
     model.is_training: False
   })
   return output[0][0]
 
-def get_policy_output(session, board, moves, use_history):
-  return fetch_output(session,board,moves,use_history,policy_output)
+def get_policy_output(session, board, moves, use_history, rank_one_hot):
+  return fetch_output(session,board,moves,use_history,rank_one_hot,policy_output)
 
-def get_moves_and_probs(session, board, moves, use_history):
+def get_moves_and_probs(session, board, moves, use_history, rank_one_hot):
   pla = board.pla
-  policy = get_policy_output(session, board, moves, use_history)
+  policy = get_policy_output(session, board, moves, use_history, rank_one_hot)
   moves_and_probs = []
   for i in range(len(policy)):
     move = model.tensor_pos_to_loc(i,board)
@@ -61,7 +69,7 @@ def get_moves_and_probs(session, board, moves, use_history):
   return moves_and_probs
 
 def genmove(session, board, moves, use_history):
-  moves_and_probs = get_moves_and_probs(session, board, moves, use_history)
+  moves_and_probs = get_moves_and_probs(session, board, moves, use_history, play_rank_one_hot[0])
   moves_and_probs = sorted(moves_and_probs, key=lambda moveandprob: moveandprob[1], reverse=True)
 
   if len(moves_and_probs) <= 0:
@@ -82,7 +90,7 @@ def genmove(session, board, moves, use_history):
     i += 1
 
 def get_layer_values(session, board, moves, layer, channel):
-  layer = fetch_output(session,board,moves,use_history=True,fetch=layer)
+  layer = fetch_output(session,board,moves,use_history=True,rank_one_hot=play_rank_one_hot[0],fetch=layer)
   layer = layer.reshape([board.size * board.size,-1])
   locs_and_values = []
   for i in range(board.size * board.size):
@@ -238,7 +246,79 @@ def run_gtp(session):
 
   layerdict = dict(model.outputs_by_layer)
 
+  rank_policy_command_lookup = dict()
   layer_command_lookup = dict()
+
+  def add_rank_policy_command_lookup(name, rank_one_hot):
+    command_name = (name + "(" + str(rank_one_hot) + ")").replace("/",":")
+    known_commands.append(command_name)
+    known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
+    rank_policy_command_lookup[command_name.lower()] = rank_one_hot
+
+  add_rank_policy_command_lookup("policy_GoGoD",0)
+  add_rank_policy_command_lookup("policy_KGS1d",1)
+  add_rank_policy_command_lookup("policy_KGS2d",2)
+  add_rank_policy_command_lookup("policy_KGS3d",3)
+  add_rank_policy_command_lookup("policy_KGS4d",4)
+  add_rank_policy_command_lookup("policy_KGS5d",5)
+  add_rank_policy_command_lookup("policy_KGS6d",6)
+  add_rank_policy_command_lookup("policy_KGS7d",7)
+  add_rank_policy_command_lookup("policy_KGS8d",8)
+  add_rank_policy_command_lookup("policy_KGS9d",9)
+  add_rank_policy_command_lookup("policy_Fox17k",10)
+  add_rank_policy_command_lookup("policy_Fox16k",11)
+  add_rank_policy_command_lookup("policy_Fox15k",12)
+  add_rank_policy_command_lookup("policy_Fox14k",13)
+  add_rank_policy_command_lookup("policy_Fox13k",14)
+  add_rank_policy_command_lookup("policy_Fox12k",15)
+  add_rank_policy_command_lookup("policy_Fox11k",16)
+  add_rank_policy_command_lookup("policy_Fox10k",17)
+  add_rank_policy_command_lookup("policy_Fox9k",18)
+  add_rank_policy_command_lookup("policy_Fox8k",19)
+  add_rank_policy_command_lookup("policy_Fox7k",20)
+  add_rank_policy_command_lookup("policy_Fox6k",21)
+  add_rank_policy_command_lookup("policy_Fox5k",22)
+  add_rank_policy_command_lookup("policy_Fox4k",23)
+  add_rank_policy_command_lookup("policy_Fox3k",24)
+  add_rank_policy_command_lookup("policy_Fox2k",25)
+  add_rank_policy_command_lookup("policy_Fox1k",26)
+  add_rank_policy_command_lookup("policy_Fox1d",27)
+  add_rank_policy_command_lookup("policy_Fox2d",28)
+  add_rank_policy_command_lookup("policy_Fox3d",29)
+  add_rank_policy_command_lookup("policy_Fox4d",30)
+  add_rank_policy_command_lookup("policy_Fox5d",31)
+  add_rank_policy_command_lookup("policy_Fox6d",32)
+  add_rank_policy_command_lookup("policy_Fox7d",33)
+  add_rank_policy_command_lookup("policy_Fox8d",34)
+  add_rank_policy_command_lookup("policy_Fox9d",35)
+  add_rank_policy_command_lookup("policy_OGS19k",36)
+  add_rank_policy_command_lookup("policy_OGS18k",37)
+  add_rank_policy_command_lookup("policy_OGS17k",38)
+  add_rank_policy_command_lookup("policy_OGS16k",39)
+  add_rank_policy_command_lookup("policy_OGS15k",40)
+  add_rank_policy_command_lookup("policy_OGS14k",41)
+  add_rank_policy_command_lookup("policy_OGS13k",42)
+  add_rank_policy_command_lookup("policy_OGS12k",43)
+  add_rank_policy_command_lookup("policy_OGS11k",44)
+  add_rank_policy_command_lookup("policy_OGS10k",45)
+  add_rank_policy_command_lookup("policy_OGS9k",46)
+  add_rank_policy_command_lookup("policy_OGS8k",47)
+  add_rank_policy_command_lookup("policy_OGS7k",48)
+  add_rank_policy_command_lookup("policy_OGS6k",49)
+  add_rank_policy_command_lookup("policy_OGS5k",50)
+  add_rank_policy_command_lookup("policy_OGS4k",51)
+  add_rank_policy_command_lookup("policy_OGS3k",52)
+  add_rank_policy_command_lookup("policy_OGS2k",53)
+  add_rank_policy_command_lookup("policy_OGS1k",54)
+  add_rank_policy_command_lookup("policy_OGS1d",55)
+  add_rank_policy_command_lookup("policy_OGS2d",56)
+  add_rank_policy_command_lookup("policy_OGS3d",57)
+  add_rank_policy_command_lookup("policy_OGS4d",58)
+  add_rank_policy_command_lookup("policy_OGS5d",59)
+  add_rank_policy_command_lookup("policy_OGS6d",60)
+  add_rank_policy_command_lookup("policy_OGS7d",61)
+  add_rank_policy_command_lookup("policy_OGS8d",62)
+  add_rank_policy_command_lookup("policy_OGS9d",63)
 
   def add_extra_board_size_visualizations(layer_name, layer, normalization_div):
     assert(layer.shape[1].value == board_size)
@@ -249,7 +329,7 @@ def run_gtp(session):
       command_name = command_name.replace("/",":")
       known_commands.append(command_name)
       known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
-      layer_command_lookup[command_name] = (layer,i,normalization_div)
+      layer_command_lookup[command_name.lower()] = (layer,i,normalization_div)
 
   def add_board_size_visualizations(layer_name, normalization_div):
     layer = layerdict[layer_name]
@@ -344,7 +424,7 @@ def run_gtp(session):
       moves.append((pla,loc))
       board.play(pla,loc)
     elif command[0] == "genmove":
-      loc = genmove(session, board, moves)
+      loc = genmove(session, board, moves, use_history=True)
       moves.append((board.pla,loc))
       board.play(board.pla,loc)
       ret = str_coord(loc,board)
@@ -360,13 +440,26 @@ def run_gtp(session):
       ret = 'true' if command[1] in known_commands else 'false'
     elif command[0] == "gogui-analyze_commands":
       ret = '\n'.join(known_analyze_commands)
+    elif command[0] == "rank":
+      try:
+        parsed = int(command[1])
+      except ValueError:
+        parsed = None
+      if parsed is not None:
+        play_rank_one_hot[0] = parsed
     elif command[0] == "policy":
-      moves_and_probs = get_moves_and_probs(session, board, moves, use_history=True)
+      moves_and_probs = get_moves_and_probs(session, board, moves, use_history=True, rank_one_hot = play_rank_one_hot[0])
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
       ret = "\n".join(gfx_commands)
     elif command[0] == "policy-no-history":
-      moves_and_probs = get_moves_and_probs(session, board, moves, use_history=False)
+      moves_and_probs = get_moves_and_probs(session, board, moves, use_history=False, rank_one_hot = play_rank_one_hot[0])
+      gfx_commands = []
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
+      ret = "\n".join(gfx_commands)
+    elif command[0] in rank_policy_command_lookup:
+      rank_one_hot = rank_policy_command_lookup[command[0]]
+      moves_and_probs = get_moves_and_probs(session, board, moves, use_history=True, rank_one_hot = rank_one_hot)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
       ret = "\n".join(gfx_commands)
