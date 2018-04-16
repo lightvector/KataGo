@@ -14,6 +14,7 @@ import numpy as np
 
 import data
 from board import Board
+from model import Model
 
 #Command and args-------------------------------------------------------------------
 
@@ -25,11 +26,13 @@ parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-model-file', help='model file prefix to load', required=True)
 parser.add_argument('-conv-norm-by-xy', help='weights name -> average norm by position', required=False)
 parser.add_argument('-conv-norm-by-channel', help='weights name -> matrix of average weight norms by channels', required=False)
+parser.add_argument('-dump', help='weights name -> dump weights', required=False)
 args = vars(parser.parse_args())
 
 model_file = args["model_file"]
 conv_norm_by_xy = args["conv_norm_by_xy"]
 conv_norm_by_channel = args["conv_norm_by_channel"]
+dump = args["dump"]
 
 def log(s):
   print(s,flush=True)
@@ -37,7 +40,7 @@ def log(s):
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
-import model
+model = Model(use_ranks=True)
 
 def volume(variable):
   shape = variable.get_shape()
@@ -82,6 +85,31 @@ with tf.Session(config=tfconfig) as session:
 
   def run(fetches):
     return session.run(fetches, feed_dict={})
+
+  if dump is not None:
+    variables = dict((variable.name,variable) for variable in tf.trainable_variables())
+    for name in dump.split(","):
+      variable = variables[name]
+      variable = np.array(variable.eval())
+      if len(variable.shape) == 0:
+        print(variable)
+      elif len(variable.shape) == 1:
+        print(" ".join(str(variable[x0]) for x0 in range(variable.shape[0])))
+      elif len(variable.shape) == 2:
+        print("\n".join(" ".join(str(variable[x0,x1])
+                                 for x1 in range(variable.shape[1]))
+                        for x0 in range(variable.shape[0])))
+      elif len(variable.shape) == 3:
+        print("\n".join("\n".join(" ".join(str(variable[x0,x1,x2])
+                                           for x2 in range(variable.shape[2]))
+                                  for x1 in range(variable.shape[1]))
+                        for x0 in range(variable.shape[0])))
+      elif len(variable.shape) == 4:
+        print("\n".join("\n".join("\n".join(" ".join(str(variable[x0,x1,x2,x3])
+                                                     for x3 in range(variable.shape[3]))
+                                           for x2 in range(variable.shape[2]))
+                                  for x1 in range(variable.shape[1]))
+                        for x0 in range(variable.shape[0])))
 
   if conv_norm_by_xy is not None:
     variables = dict((variable.name,variable) for variable in tf.trainable_variables())
