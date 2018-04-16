@@ -39,12 +39,12 @@ policy_output = tf.nn.softmax(model.policy_output)
 
 # Moves ----------------------------------------------------------------
 
-def fetch_output(session, board, moves, use_history, rank_one_hot, fetch):
+def fetch_output(session, board, moves, use_history_prop, rank_one_hot, fetch):
   input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
-  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,use_history=use_history,idx=0)
+  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,use_history_prop=use_history_prop,idx=0)
   row_ranks = np.zeros(shape=[1]+model.rank_shape)
   row_ranks[0,rank_one_hot] = 1.0
   output = session.run(fetches=[fetch], feed_dict={
@@ -55,12 +55,12 @@ def fetch_output(session, board, moves, use_history, rank_one_hot, fetch):
   })
   return output[0][0]
 
-def get_policy_output(session, board, moves, use_history, rank_one_hot):
-  return fetch_output(session,board,moves,use_history,rank_one_hot,policy_output)
+def get_policy_output(session, board, moves, use_history_prop, rank_one_hot):
+  return fetch_output(session,board,moves,use_history_prop,rank_one_hot,policy_output)
 
-def get_moves_and_probs(session, board, moves, use_history, rank_one_hot):
+def get_moves_and_probs(session, board, moves, use_history_prop, rank_one_hot):
   pla = board.pla
-  policy = get_policy_output(session, board, moves, use_history, rank_one_hot)
+  policy = get_policy_output(session, board, moves, use_history_prop, rank_one_hot)
   moves_and_probs = []
   for i in range(len(policy)):
     move = model.tensor_pos_to_loc(i,board)
@@ -68,8 +68,8 @@ def get_moves_and_probs(session, board, moves, use_history, rank_one_hot):
       moves_and_probs.append((move,policy[i]))
   return moves_and_probs
 
-def genmove(session, board, moves, use_history):
-  moves_and_probs = get_moves_and_probs(session, board, moves, use_history, play_rank_one_hot[0])
+def genmove(session, board, moves, use_history_prop):
+  moves_and_probs = get_moves_and_probs(session, board, moves, use_history_prop, play_rank_one_hot[0])
   moves_and_probs = sorted(moves_and_probs, key=lambda moveandprob: moveandprob[1], reverse=True)
 
   if len(moves_and_probs) <= 0:
@@ -90,7 +90,7 @@ def genmove(session, board, moves, use_history):
     i += 1
 
 def get_layer_values(session, board, moves, layer, channel):
-  layer = fetch_output(session,board,moves,use_history=True,rank_one_hot=play_rank_one_hot[0],fetch=layer)
+  layer = fetch_output(session,board,moves,use_history_prop=1.0,rank_one_hot=play_rank_one_hot[0],fetch=layer)
   layer = layer.reshape([board.size * board.size,-1])
   locs_and_values = []
   for i in range(board.size * board.size):
@@ -103,7 +103,7 @@ def get_input_feature(board, moves, feature_idx):
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
-  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,use_history=True,idx=0)
+  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,use_history_prop=1.0,idx=0)
 
   locs_and_values = []
   for i in range(board.size * board.size):
@@ -233,10 +233,12 @@ def run_gtp(session):
     'protocol_version',
     'gogui-analyze_commands',
     'policy',
+    'policy-half-history',
     'policy-no-history',
   ]
   known_analyze_commands = [
     'gfx/Policy/policy',
+    'gfx/PolicyHalfHistory/policy-half-history',
     'gfx/PolicyNoHistory/policy-no-history',
   ]
 
@@ -424,7 +426,7 @@ def run_gtp(session):
       moves.append((pla,loc))
       board.play(pla,loc)
     elif command[0] == "genmove":
-      loc = genmove(session, board, moves, use_history=True)
+      loc = genmove(session, board, moves, use_history_prop=1.0)
       moves.append((board.pla,loc))
       board.play(board.pla,loc)
       ret = str_coord(loc,board)
@@ -448,18 +450,23 @@ def run_gtp(session):
       if parsed is not None:
         play_rank_one_hot[0] = parsed
     elif command[0] == "policy":
-      moves_and_probs = get_moves_and_probs(session, board, moves, use_history=True, rank_one_hot = play_rank_one_hot[0])
+      moves_and_probs = get_moves_and_probs(session, board, moves, use_history_prop=1.0, rank_one_hot = play_rank_one_hot[0])
+      gfx_commands = []
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
+      ret = "\n".join(gfx_commands)
+    elif command[0] == "policy-half-history":
+      moves_and_probs = get_moves_and_probs(session, board, moves, use_history_prop=0.5, rank_one_hot = play_rank_one_hot[0])
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
       ret = "\n".join(gfx_commands)
     elif command[0] == "policy-no-history":
-      moves_and_probs = get_moves_and_probs(session, board, moves, use_history=False, rank_one_hot = play_rank_one_hot[0])
+      moves_and_probs = get_moves_and_probs(session, board, moves, use_history_prop=0.0, rank_one_hot = play_rank_one_hot[0])
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
       ret = "\n".join(gfx_commands)
     elif command[0] in rank_policy_command_lookup:
       rank_one_hot = rank_policy_command_lookup[command[0]]
-      moves_and_probs = get_moves_and_probs(session, board, moves, use_history=True, rank_one_hot = rank_one_hot)
+      moves_and_probs = get_moves_and_probs(session, board, moves, use_history_prop=1.0, rank_one_hot = rank_one_hot)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
       ret = "\n".join(gfx_commands)

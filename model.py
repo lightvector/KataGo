@@ -103,7 +103,7 @@ class Model:
 
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
-  def fill_row_features(self, board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, for_training, use_history, idx):
+  def fill_row_features(self, board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, for_training, use_history_prop, idx):
     if target_data is not None and moves[move_idx][1] is None:
       # TODO for now we skip passes
       return idx
@@ -178,36 +178,36 @@ class Model:
       prob_to_include_prev4 = 1.00
       prob_to_include_prev5 = 1.00
 
-    if use_history:
+    if use_history_prop > 0.0:
       if move_idx >= 1 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev1:
         prev1_loc = moves[move_idx-1][1]
         if prev1_loc is not None:
           pos = self.loc_to_tensor_pos(prev1_loc,board,offset)
-          input_data[idx,pos,18] = 1.0
+          input_data[idx,pos,18] = use_history_prop
 
         if move_idx >= 2 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev2:
           prev2_loc = moves[move_idx-2][1]
           if prev2_loc is not None:
             pos = self.loc_to_tensor_pos(prev2_loc,board,offset)
-            input_data[idx,pos,19] = 1.0
+            input_data[idx,pos,19] = use_history_prop
 
           if move_idx >= 3 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev3:
             prev3_loc = moves[move_idx-3][1]
             if prev3_loc is not None:
               pos = self.loc_to_tensor_pos(prev3_loc,board,offset)
-              input_data[idx,pos,20] = 1.0
+              input_data[idx,pos,20] = use_history_prop
 
             if move_idx >= 4 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev4:
               prev4_loc = moves[move_idx-4][1]
               if prev4_loc is not None:
                 pos = self.loc_to_tensor_pos(prev4_loc,board,offset)
-                input_data[idx,pos,21] = 1.0
+                input_data[idx,pos,21] = use_history_prop
 
               if move_idx >= 5 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev5:
                 prev5_loc = moves[move_idx-5][1]
                 if prev5_loc is not None:
                   pos = self.loc_to_tensor_pos(prev5_loc,board,offset)
-                  input_data[idx,pos,22] = 1.0
+                  input_data[idx,pos,22] = use_history_prop
 
     def addLadderFeature(loc,pos,workingMoves):
       assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE);
