@@ -682,9 +682,7 @@ static void maybeUseRow(
       if(rand.nextDouble() >= rankOneHotFancyProb[rankOneHot] * fancyPosKeepFactor)
         canUse = false;
       //No handicap games from GoGoD since they're less likely to be pro-level
-      if(source == SOURCE_GOGOD && handicap >= 0)
-        canUse = false;
-      if(source == SOURCE_GOGOD && handicap >= 0)
+      if(source == SOURCE_GOGOD && handicap >= 2)
         canUse = false;
       //OGS had a major rank shift in 2014, only use games before
       if(source == SOURCE_OGSPre2014) {
