@@ -649,7 +649,7 @@ static void maybeUseRow(
   const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const string& date, const vector<Move>& movesBuf, int moveIdx,
   DataPool& dataPool,
   Rand& rand, double keepProb, int minRank, int minOppRank, int maxHandicap, int target,
-  const set<string>& excludeUsers, bool fancyConditions,
+  const set<string>& excludeUsers, bool fancyConditions, double fancyPosKeepFactor,
   set<Hash>& posHashes, Stats& total, Stats& used
 ) {
   //TODO also filter out games that are > 85% identical hashes to another game
@@ -679,7 +679,7 @@ static void maybeUseRow(
       if(rankOneHot < 0)
         canUse = false;
       //Some ranks have too many games, filter them down
-      if(rand.nextDouble() >= rankOneHotFancyProb[rankOneHot])
+      if(rand.nextDouble() >= rankOneHotFancyProb[rankOneHot] * fancyPosKeepFactor)
         canUse = false;
       //No handicap games from GoGoD since they're less likely to be pro-level
       if(source == SOURCE_GOGOD && handicap >= 0)
@@ -742,7 +742,7 @@ static void processSgfs(
   uint64_t shardSeed, int numShards,
   Rand& rand, double keepProb,
   int minRank, int minOppRank, int maxHandicap, int target,
-  const set<string>& excludeUsers, bool fancyConditions,
+  const set<string>& excludeUsers, bool fancyConditions, double fancyPosKeepFactor,
   set<Hash>& posHashes, Stats& total, Stats& used
 ) {
   size_t curDataSetRow = 0;
@@ -762,13 +762,13 @@ static void processSgfs(
   DataPool dataPool(totalRowLen,poolSize,chunkHeight,writeRow);
 
   std::function<void(const FastBoard&,int,int,int,const string&,int,const string&,const vector<Move>&,int)> f =
-    [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,&posHashes,&total,&used](
+    [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,fancyPosKeepFactor,&posHashes,&total,&used](
       const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const string& date, const vector<Move>& moves, int moveIdx
     ) {
     maybeUseRow(
       board,source,rank,oppRank,user,handicap,date,moves,moveIdx,
       dataPool,rand,keepProb,minRank,minOppRank,maxHandicap,target,
-      excludeUsers,fancyConditions,
+      excludeUsers,fancyConditions,fancyPosKeepFactor,
       posHashes,total,used
     );
   };
@@ -854,6 +854,8 @@ int main(int argc, const char* argv[]) {
   int maxHandicap;
   int target;
   bool fancyConditions;
+  double fancyGameKeepFactor;
+  double fancyPosKeepFactor;
   vector<string> excludeUsersFiles;
 
   try {
@@ -872,6 +874,8 @@ int main(int argc, const char* argv[]) {
     TCLAP::ValueArg<int>    maxHandicapArg("","max-handicap","Max handicap of game to use a player's move",true,0,"HCAP");
     TCLAP::ValueArg<string> targetArg("","target","nextmove",true,string(),"TARGET");
     TCLAP::SwitchArg        fancyConditionsArg("","fancy-conditions","Fancy filtering for rank balancing",false);
+    TCLAP::ValueArg<double> fancyGameKeepFactorArg("","fancy-game-keep-factor","Multiply fancy game keep prob by this",false,1.0,"PROB");
+    TCLAP::ValueArg<double> fancyPosKeepFactorArg("","fancy-pos-keep-factor","Multiply fancy pos keep prob by this",false,1.0,"PROB");
     TCLAP::MultiArg<string> excludeUsersArg("","exclude-users","File of users to exclude, one per line",false,"FILE");
     cmd.add(gamesdirArg);
     cmd.add(outputArg);
@@ -887,6 +891,8 @@ int main(int argc, const char* argv[]) {
     cmd.add(maxHandicapArg);
     cmd.add(targetArg);
     cmd.add(fancyConditionsArg);
+    cmd.add(fancyGameKeepFactorArg);
+    cmd.add(fancyPosKeepFactorArg);
     cmd.add(excludeUsersArg);
     cmd.parse(argc,argv);
     gamesDirs = gamesdirArg.getValue();
@@ -902,6 +908,8 @@ int main(int argc, const char* argv[]) {
     minOppRank = minOppRankArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
     fancyConditions = fancyConditionsArg.getValue();
+    fancyGameKeepFactor = fancyGameKeepFactorArg.getValue();
+    fancyPosKeepFactor = fancyPosKeepFactorArg.getValue();
     excludeUsersFiles = excludeUsersArg.getValue();
 
     if(targetArg.getValue() == "nextmove")
@@ -967,6 +975,8 @@ int main(int argc, const char* argv[]) {
   cout << "maxHandicap " << maxHandicap << endl;
   cout << "target " << target << endl;
   cout << "fancyConditions " << fancyConditions << endl;
+  cout << "fancyGameKeepFactor " << fancyGameKeepFactor << endl;
+  cout << "fancyPosKeepFactor " << fancyPosKeepFactor << endl;
 
   cout << endl;
   cout << "Excluding users:" << endl;
@@ -1036,7 +1046,7 @@ int main(int argc, const char* argv[]) {
     int kept = 0;
     for(int i = 0; i<files.size(); i++) {
       int source = parseSource(files[i]);
-      double prob = sourceGameFancyProb[source];
+      double prob = sourceGameFancyProb[source] * fancyGameKeepFactor;
       bool keep = prob >= 1.0 || rand.nextDouble() < prob;
       if(keep) {
         if(i != kept)
@@ -1088,7 +1098,7 @@ int main(int argc, const char* argv[]) {
     trainShardSeed, trainShards,
     rand, keepTrainProb,
     minRank, minOppRank, maxHandicap, target,
-    excludeUsers, fancyConditions,
+    excludeUsers, fancyConditions, fancyPosKeepFactor,
     trainPosHashes, trainTotalStats, trainUsedStats
   );
   delete trainDataSet;
@@ -1105,7 +1115,7 @@ int main(int argc, const char* argv[]) {
     testShardSeed, trainShards,
     rand, keepTestProb,
     minRank, minOppRank, maxHandicap, target,
-    excludeUsers, fancyConditions,
+    excludeUsers, fancyConditions, fancyPosKeepFactor,
     testPosHashes, testTotalStats, testUsedStats
   );
   delete testDataSet;
