@@ -136,7 +136,7 @@ static void iterLadders(const FastBoard& board, std::function<void(Loc,int,const
 //   }
 // }
 
-static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextMoveIdx, int target, int rankOneHot, float* row, Rand& rand) {
+static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextMoveIdx, int target, int rankOneHot, float* row, Rand& rand, bool alwaysHistory) {
   assert(board.x_size == board.y_size);
   assert(nextMoveIdx < moves.size());
 
@@ -199,11 +199,11 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
 
   //Probabilistically include prev move features
   //Features 18,19,20,21,22
-  bool includePrev1 = rand.nextDouble() < 0.9;
-  bool includePrev2 = includePrev1 && rand.nextDouble() < 0.95;
-  bool includePrev3 = includePrev2 && rand.nextDouble() < 0.95;
-  bool includePrev4 = includePrev3 && rand.nextDouble() < 0.98;
-  bool includePrev5 = includePrev4 && rand.nextDouble() < 0.98;
+  bool includePrev1 = alwaysHistory || rand.nextDouble() < 0.9;
+  bool includePrev2 = alwaysHistory || (includePrev1 && rand.nextDouble() < 0.95);
+  bool includePrev3 = alwaysHistory || (includePrev2 && rand.nextDouble() < 0.95);
+  bool includePrev4 = alwaysHistory || (includePrev3 && rand.nextDouble() < 0.98);
+  bool includePrev5 = alwaysHistory || (includePrev4 && rand.nextDouble() < 0.98);
 
   if(nextMoveIdx >= 1 && moves[nextMoveIdx-1].pla == opp && includePrev1) {
     Loc prev1Loc = moves[nextMoveIdx-1].loc;
@@ -537,7 +537,7 @@ static void iterSgfMoves(
 
   const vector<Move>& placements = *placementsBuf;
   const vector<Move>& moves = *movesBuf;
-  
+
   FastBoard board(bSize);
   for(int j = 0; j<placements.size(); j++) {
     Move m = placements[j];
@@ -574,7 +574,7 @@ static void iterSgfMoves(
     //Forbid consecutive moves by the same player
     if(m.pla == prevPla) {
       //Multiple-move issues are super-common on FoxGo, so don't print on Fox
-      if(source != SOURCE_FOX) { 
+      if(source != SOURCE_FOX) {
         cout << sgf->fileName << endl;
         cout << ("Multiple moves in a row by same player at " + Global::intToString(j)) << endl;
         cout << board << endl;
@@ -644,11 +644,12 @@ static void iterSgfsMoves(
        << " numMovesIteredOrSkipped = " << numMovesIteredOrSkipped
        << " numMovesItered*numShards = " << (numMovesItered * numShards) << endl;
 }
-  
+
 static void maybeUseRow(
   const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const string& date, const vector<Move>& movesBuf, int moveIdx,
   DataPool& dataPool,
   Rand& rand, double keepProb, int minRank, int minOppRank, int maxHandicap, int target,
+  bool alwaysHistory,
   const set<string>& excludeUsers, bool fancyConditions, double fancyPosKeepFactor,
   set<Hash>& posHashes, Stats& total, Stats& used
 ) {
@@ -706,14 +707,14 @@ static void maybeUseRow(
           canUse = false;
       }
     }
-      
+
     if(canUse) {
       float* newRow = NULL;
       if(keepProb >= 1.0 || (rand.nextDouble() < keepProb))
         newRow = dataPool.addNewRow(rand);
 
-      if(newRow != NULL) {      
-        fillRow(board,movesBuf,moveIdx,target,rankOneHot,newRow,rand);
+      if(newRow != NULL) {
+        fillRow(board,movesBuf,moveIdx,target,rankOneHot,newRow,rand,alwaysHistory);
         posHashes.insert(board.pos_hash);
 
         used.count += 1;
@@ -740,6 +741,7 @@ static void processSgfs(
   uint64_t shardSeed, int numShards,
   Rand& rand, double keepProb,
   int minRank, int minOppRank, int maxHandicap, int target,
+  bool alwaysHistory,
   const set<string>& excludeUsers, bool fancyConditions, double fancyPosKeepFactor,
   set<Hash>& posHashes, Stats& total, Stats& used
 ) {
@@ -760,12 +762,13 @@ static void processSgfs(
   DataPool dataPool(totalRowLen,poolSize,chunkHeight,writeRow);
 
   std::function<void(const FastBoard&,int,int,int,const string&,int,const string&,const vector<Move>&,int)> f =
-    [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,fancyPosKeepFactor,&posHashes,&total,&used](
+    [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,fancyPosKeepFactor,alwaysHistory,&posHashes,&total,&used](
       const FastBoard& board, int source, int rank, int oppRank, const string& user, int handicap, const string& date, const vector<Move>& moves, int moveIdx
     ) {
     maybeUseRow(
       board,source,rank,oppRank,user,handicap,date,moves,moveIdx,
       dataPool,rand,keepProb,minRank,minOppRank,maxHandicap,target,
+      alwaysHistory,
       excludeUsers,fancyConditions,fancyPosKeepFactor,
       posHashes,total,used
     );
@@ -851,6 +854,7 @@ int main(int argc, const char* argv[]) {
   int minOppRank;
   int maxHandicap;
   int target;
+  bool alwaysHistory;
   bool fancyConditions;
   double fancyGameKeepFactor;
   double fancyPosKeepFactor;
@@ -871,6 +875,7 @@ int main(int argc, const char* argv[]) {
     TCLAP::ValueArg<int>    minOppRankArg("","min-opp-rank","Min rank of opp to use a player's move",true,0,"RANK");
     TCLAP::ValueArg<int>    maxHandicapArg("","max-handicap","Max handicap of game to use a player's move",true,0,"HCAP");
     TCLAP::ValueArg<string> targetArg("","target","nextmove",true,string(),"TARGET");
+    TCLAP::SwitchArg        alwaysHistoryArg("","always-history","Always include history",false);
     TCLAP::SwitchArg        fancyConditionsArg("","fancy-conditions","Fancy filtering for rank balancing",false);
     TCLAP::ValueArg<double> fancyGameKeepFactorArg("","fancy-game-keep-factor","Multiply fancy game keep prob by this",false,1.0,"PROB");
     TCLAP::ValueArg<double> fancyPosKeepFactorArg("","fancy-pos-keep-factor","Multiply fancy pos keep prob by this",false,1.0,"PROB");
@@ -888,6 +893,7 @@ int main(int argc, const char* argv[]) {
     cmd.add(minOppRankArg);
     cmd.add(maxHandicapArg);
     cmd.add(targetArg);
+    cmd.add(alwaysHistoryArg);
     cmd.add(fancyConditionsArg);
     cmd.add(fancyGameKeepFactorArg);
     cmd.add(fancyPosKeepFactorArg);
@@ -905,6 +911,7 @@ int main(int argc, const char* argv[]) {
     minRank = minRankArg.getValue();
     minOppRank = minOppRankArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
+    alwaysHistory = alwaysHistoryArg.getValue();
     fancyConditions = fancyConditionsArg.getValue();
     fancyGameKeepFactor = fancyGameKeepFactorArg.getValue();
     fancyPosKeepFactor = fancyPosKeepFactorArg.getValue();
@@ -972,6 +979,7 @@ int main(int argc, const char* argv[]) {
   cout << "minOppRank " << minOppRank << endl;
   cout << "maxHandicap " << maxHandicap << endl;
   cout << "target " << target << endl;
+  cout << "alwaysHistory " << alwaysHistory << endl;
   cout << "fancyConditions " << fancyConditions << endl;
   cout << "fancyGameKeepFactor " << fancyGameKeepFactor << endl;
   cout << "fancyPosKeepFactor " << fancyPosKeepFactor << endl;
@@ -1038,7 +1046,7 @@ int main(int argc, const char* argv[]) {
     files.resize(kept);
     cout << "Kept " << files.size() << " sgf files after filtering by excludeFiles!" << endl;
   }
-  
+
   //Filter if doing fancy stuff
   if(fancyConditions) {
     int kept = 0;
@@ -1055,7 +1063,7 @@ int main(int argc, const char* argv[]) {
     files.resize(kept);
     cout << "Kept " << files.size() << " sgf files after filtering by fancy source!" << endl;
   }
-    
+
   cout << "Loading SGFS..." << endl;
   vector<CompactSgf*> sgfs = CompactSgf::loadFiles(files);
 
@@ -1096,6 +1104,7 @@ int main(int argc, const char* argv[]) {
     trainShardSeed, trainShards,
     rand, keepTrainProb,
     minRank, minOppRank, maxHandicap, target,
+    alwaysHistory,
     excludeUsers, fancyConditions, fancyPosKeepFactor,
     trainPosHashes, trainTotalStats, trainUsedStats
   );
@@ -1113,6 +1122,7 @@ int main(int argc, const char* argv[]) {
     testShardSeed, trainShards,
     rand, keepTestProb,
     minRank, minOppRank, maxHandicap, target,
+    alwaysHistory,
     excludeUsers, fancyConditions, fancyPosKeepFactor,
     testPosHashes, testTotalStats, testUsedStats
   );
@@ -1134,7 +1144,7 @@ int main(int argc, const char* argv[]) {
     testNames << testSgfs[i]->fileName << "\n";
   }
   testNames.close();
-  
+
   cout << "Done" << endl;
 
   cout << "TRAIN TOTAL------------------------------------" << endl;
