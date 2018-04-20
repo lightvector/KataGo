@@ -41,7 +41,10 @@ static const int rankStartFox = rankLenGoGoD + rankLenKGS;
 static const int rankStartOGSPre2014 = rankLenGoGoD + rankLenKGS + rankLenFox;
 static const int rankLen = rankLenGoGoD + rankLenKGS + rankLenFox + rankLenOGSPre2014;
 
-static const int totalRowLen = rankStart + rankLen;
+static const int sideStart = rankStart + rankLen;
+static const int sideLen = 1;
+
+static const int totalRowLen = sideStart + sideLen;
 
 //HDF5 parameters
 static const int chunkHeight = 6000;
@@ -280,6 +283,12 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
   //One-hot indicating rank
   if(rankOneHot != -1)
     row[rankStart + rankOneHot] = 1.0;
+
+  //Indicate the side to move, black = 0, white = 1
+  if(pla == P_BLACK)
+    row[sideStart] = 0.0;
+  else
+    row[sideStart] = 1.0;
 }
 
 //SGF sources
