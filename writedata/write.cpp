@@ -712,7 +712,7 @@ static void maybeUseRow(
       }
       //Fox Go has a bunch of games by usernameless people. Are they guests? Anyways let's filter that.
       if(source == SOURCE_FOX) {
-        if(user.length() < 0 || user == " ")
+        if(user.length() <= 0 || user == " ")
           canUse = false;
       }
     }
