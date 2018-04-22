@@ -7,8 +7,8 @@
  #define _IS_WINDOWS
 #elif _WIN64
  #define _IS_WINDOWS
-#elif __unix
- #define _IS_UNIX
+#elif __unix || __APPLE__
+  #define _IS_UNIX
 #else
  #error Unknown OS!
 #endif
