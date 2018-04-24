@@ -3,3 +3,12 @@
 *~
 __pycache__
 *.h5
+
+# For clion IDE
+.idea
+
+# For cmake
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
