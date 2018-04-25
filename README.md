@@ -26,12 +26,13 @@ See LICENSE for software license. License aside, informally, if do you successfu
 You can see the implementations of the relevant neural net structures in "model.py", although I may adapt and change them as time goes on.
 
 ### History
+   * Apr 2018 - Added a row to the [current results](https://github.com/lightvector/GoNN#current-results) reflecting the large improvement from embedding global pooled properties in the [middle of the neural net](https://github.com/lightvector/GoNN#update-mar-2018) rather than only the policy head, along with some minor adjustments to learning rates and other tweaks.
    * Mar 2018 - Much larger neural nets and updates to [current results](https://github.com/lightvector/GoNN#current-results). Global pooled properties [are good in the main trunk of the resnet as well](https://github.com/lightvector/GoNN#update-mar-2018)! Also, [increasing center-position learning rates](https://github.com/lightvector/GoNN#update-mar-2018-1) everywhere else in the net helps training speed a little. Promising experiments with [dilated convolutions](https://github.com/lightvector/GoNN#dilated-convolutions-mar-2018), and a note about [making neural nets not always need history](https://github.com/lightvector/GoNN#some-thoughts-about-history-as-an-input-mar-2018).
    * Feb 2018 - Tried [special ladder blocks in the policy](https://github.com/lightvector/GoNN#update-feb-2018), tried [ladders as a training target](https://github.com/lightvector/GoNN#using-ladders-as-an-extra-training-target-feb-2018), retested [global pooled properties](https://github.com/lightvector/GoNN#update-feb-2018-1). And ran new experiments with net architecture - [wide low-rank residual blocks](https://github.com/lightvector/GoNN#wide-low-rank-residual-blocks-feb-2018), [parametric ReLUs](https://github.com/lightvector/GoNN#parametric-relus-feb-2018), [chain pooling](https://github.com/lightvector/GoNN#chain-pooling-feb-2018), and some [observations on redundancy in models](https://github.com/lightvector/GoNN#redundant-parameters-and-learning-rates-feb-2018)
    * Dec 2017 - Initial results and experiments - [special ladder residual blocks](https://github.com/lightvector/GoNN#special-ladder-residual-blocks-dec-2017), [global pooled properties](https://github.com/lightvector/GoNN#global-pooled-properties-dec-2017)
 
 ## Current Results
-As of the end of March 2018, the best neural nets I've been training from this sandbox have been quite good at matching or exceeding results I've seen published elsewhere, presumably due to the combination of the various enhancements discussed below. See this table for a summary of results and comparison with other published results:
+As of the end of April 2018, the best neural nets I've been training from this sandbox have been quite good at matching or exceeding results I've seen published elsewhere, presumably due to the combination of the various enhancements discussed below. See this table for a summary of results (bolded) in comparison with other published results:
 
 | Neural Net | Structure | Params | KGS Top1 | GoGoD Top1 | Training Steps | Vs GnuGo | Vs Pachi
 |------|---|---|---|---|---|---|---|
@@ -39,10 +40,11 @@ As of the end of March 2018, the best neural nets I've been training from this s
 | [Maddison et al. (2015)](https://arxiv.org/abs/1412.6564) |  CNN 12 layers | ~2,300,000 |  55.2% |  | 685M x 50 + 82M | 97% (/300?) | 11% (/220?)
 | [AlphaGoFan192 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 3,880,489 | 55.4% | | 340M x 50 | | 85% (w/RL)
 | [AlphaGoFan256 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 6,795,881 | 55.9% | |
-| **Current Sandbox** | **ResNet 5 Blocks** | **3,597,792** | **56.8%** | **52.5%** | **205-209M** | **99.2% (496/500)** |
+| **Sandbox (Mar 2018)** | **ResNet 5 Blocks** | **3,597,792** | **56.8%** | **52.5%** | **205-209M** | **99.2% (496/500)** |
 | [Darkforest (2016)](https://arxiv.org/abs/1511.06410) | CNN 12 layers  | 12,329,756  | 57.1%  |   | 128M | 100% (300/300) | 72.6% (218/300)
 | [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10 blocks | 12,098,304 | 58.2% | 54.1% | 380M |
-| **Current Sandbox** | **ResNet 12 Blocks** | **8,250,720** | **58.2%** | **54.2%** | **325-333M** | **100% (500/500)** | **90.0% (45/50)**
+| **Sandbox (Mar 2018)** | **ResNet 12 Blocks** | **8,250,720** | **58.2%** | **54.2%** | **325-333M** | **100% (500/500)** | **90.0% (45/50)**
+| **Sandbox (Apr 2018)** | **ResNet 12 Blocks** | **8,057,424** |   | **54.7%** | **209M** |  |
 | [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 14 blocks | 16,816,896 |       | 54.6% | 355M |
 | [AlphaGoZero(2017)](https://deepmind.com/documents/119/agz_unformatted_nature.pdf) | ResNet 20 blocks | 22,837,864 | 60.4% | | >1000M? |
 
@@ -74,9 +76,10 @@ For interest, here are a few more stats beyond the ones most consistently shared
 | Structure | Dataset | Params | Top1 Accuracy | Top4 Accuracy | Cross-Entropy Loss (nats) | Training Steps |
 |-----|---|---|---|---|---|---|
 | ResNet 5 Blocks | GoGoD | 3,597,792 | 52.5% | 81.6% | 1.609 | 209M |
-| ResNet 12 Blocks | GoGoD | 8,250,720 | 54.2% | 82.8% | 1.542 | 325M |
+| ResNet 12 Blocks (Mar 2018) | GoGoD | 8,250,720 | 54.2% | 82.8% | 1.542 | 325M |
+| ResNet 12 Blocks (Apr 2018) | GoGoD | 8,057,424 | 54.7% | 83.8% | 1.496 | 209M |
 | ResNet 5 Blocks | KGS | 3,597,792 | 56.8% | 85.4% | 1.429 | 205M |
-| ResNet 12 Blocks | KGS | 8,250,720 | 58.2% | 86.2% | 1.378 | 329M |
+| ResNet 12 Blocks (Mar 2018) | KGS | 8,250,720 | 58.2% | 86.2% | 1.378 | 329M |
 
 Unfortunately, many papers don't report the cross entropy loss, which is a shame since its values are very nicely interpretable. For example, the cross entropy of 1.378 nats for the 12 block KGS ResNet corresponds to a perplexity of exp(1.378) = 3.967, which means that for KGS on average the neural net has achieved the same entropy as if on every move it could pin down the next move uniformly to about 4 possible moves.
 
@@ -229,7 +232,12 @@ More importantly, it seems that global pooling is valuable as an addition to the
 
 One story for why global pooling might be effective in the main trunk is that there the computed features (such as global quantity of ko threats or game phase) can have a much more integrated effect on the neural net's predictions by adjusting its procesing of different shapes and tactics (for example, favoring or disfavoring moves that could lead to future ko fights). Whereas if the global pooling is deferred only until the policy head, the only thing the neural net can do with the information is the relatively cruder operation of precomputing a few fixed sets of moves it would want to play and simply upweighting or downweighting those sets of moves based on the global features.
 
-As an aside, all the stats in the "current results" tables earlier were produced without this improvement, since I didn't think to try including global pooling in the trunk before all the other final experiments and test games were underway. While the apparent gain would likely continue to diminish with further training time, I expect some of the results would be yet slightly better if this were incorporated and everything re-run.
+As an aside, all the stats in the "current results" tables earlier were produced without this improvement, since I didn't think to try including global pooling in the trunk before all the other final experiments and test games were underway. While the apparent gain would likely continue to diminish with further training time, I expect some of the results would be yet slightly better if this were incorporated and everything re-run. (edit: as of Apr 2018, did add a row now in the stats table showing this).
+
+#### Update (Apr 2018):
+
+Just to get a proper comparison, I re-ran a proper training run with global pooling in the trunk rather than only the policy head on the GoGoD data set, along with some improvements to the learning rate schedule and updated the [current results table](https://github.com/lightvector/GoNN#current-results) above. The difference is pretty large! Global pooling is by far the most successful architectural idea I"ve tried so far.
+
 
 ## Wide Low-Rank Residual Blocks (Feb 2018)
 
@@ -376,6 +384,10 @@ So on its own, the neural net chooses on average to put more weight in the cente
 Another redundancy I've been experimenting with is the fact that due to historical accident, the current neural nets in this sandbox use scale=True in [batch norm layers](https://www.tensorflow.org/api_docs/python/tf/layers/batch_normalization), even though the resulting gamma scale parameters are completely redundant with the convolution weights afterwards. This is because ReLUs (and parametric ReLUs) are scale-preserving, so a neural net having a batch norm layer with a given gamma is equivalent to one without gamma but where the next layer's convolution weights for that incoming channel are gamma-times-larger.
 
 Yet, despite the redundancy, the presence of those redundant parameters does influence the learning. In some quick tests I was not able to get rid of them. Although I didn't try so extensively, in a handful of tries I was unable to find a combination of setting scale=False and increasing the learning rate to compensate that did not slow down the total efficiency of learning. So the latest neural nets for now continue to use scale=True.
+
+##### Update (Apr 2018):
+
+Since it's been a long time, I re-tested this again and was able to eliminate these. I'm not exactly sure what the difference was this time versus the previous attempt, or maybe the previous attempt found a difference only due to confounding noise between different initializations. It might be worth exploring this kind of detail further though. What, theoretically, should one expect the effect of having this particular kind of redundancy to have on the learning?
 
 ## Some Thoughts About History as an Input (Mar 2018)
 
