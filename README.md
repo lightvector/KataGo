@@ -1,15 +1,24 @@
 # Go Neural Net Sandbox
 
-This repo is currently a sandbox for personal experimentation in neural net training in Go. I haven't made any particular attempt to make the training pipeline usable by others, but if you're interested, the rough summary is:
+This repo is currently a sandbox for personal experimentation in neural net training in Go. I haven't put much work to make the training pipeline usable by others, since this is foremost a personal sandbox, but if you're interested, the rough summary is:
 
    * You must have HDF5 installed for C++ (https://support.hdfgroup.org/HDF5/release/obtainsrc.html), as well as Tensorflow installed for Python 3.
-   * Compile using CMake and make in writedata, which expects you to have h5c++
+   * Training consists of converting .sgf files into training rows written in HDF5 format, then reading that HDF5 file in Python to train using numpy and h5py to feed them to Tensorflow.
+   * The utility that converts .sgf to .h5 is written in C++. Compile it using CMake and make in writedata, which expects you to have h5c++
      available. (on windows you can also use the deprecated compile.sh):
       * `cd writedata`
       * `cmake .`
       * `make`
-   * Run the resulting "write.exe" with appropriate flags on a directory of SGF files to generate an h5 file of preprocessed training data.
-   * Run train.py using that h5 file to train the neural net.
+   * Run the compiled `write` executable with appropriate flags on a directory of SGF files to generate an h5 file of preprocessed training data.
+      * Example: `./write -pool-size 50000 -train-shards 10 -val-game-prob 0.05 -gamesdir <DIRECTORY WITH SGF FILES> -output <TARGET>.h5` - writes an h5 file making 10 passes over the games with a running buffer of 50000 rows to randomize the order of outputted rows, reserving 5% of games as a validation set.
+   * Back up in the root directory, run train.py using that h5 file to train the neural net.
+      * Example: `./train.py -traindir <DIRECTORY TO OUTPUT MODELS AND LOGS> -gamesh5 <H5FILE>.h5`
+      * By default, it considers 1 million samples to be one epoch. If you want to see initial results more quickly you can pass `-fast-factor N` to divide this and a few other things by N, and `-validation-prop P` to only use P proportion of the validation set, but you will probably want to manually modify train.py (see `TRAINING PARAMETERS` section) as well as model.py (to try a much smaller neural net first).
+      * Depending on how much training data you have and how long you're willing to train for, you probably want to edit the `knots` in train.py that determine the learning rate schedule.
+      * If you getting errors due to running out of GPU memory, you probably want to also edit train.py to shrink the `batch_size` and/or the `validation_batch_size`.
+   * Do things with the trained model
+      * Run a GTP engine using the model to make moves directly: `./play.py -model <MODELS_DIRECTORY>/model<EPOCH>`
+      * Dump one of the raw weight matrices: `./visualize.py -model-file <MODELS_DIRECTORY>/model<EPOCH> -dump p2/w:0`
 
 See LICENSE for software license. License aside, informally, if do you successfully use any of the code or any wacky ideas about neural net structure explored in this repo in your own neural nets or to run any of your own experiments, I would to love hear about it and/or might also appreciate a casual acknowledgement where appropriate. Yay.
 
