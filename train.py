@@ -180,10 +180,10 @@ h5_propfaid.set_cache(*h5_settings)
 h5fid = h5py.h5f.open(str.encode(str(gamesh5)), fapl=h5_propfaid)
 h5file = h5py.File(h5fid)
 h5train = h5file["train"]
-h5test = h5file["test"]
+h5val = h5file["val"]
 h5_chunk_size = h5train.chunks[0]
 num_h5_train_rows = h5train.shape[0]
-num_h5_test_rows = h5test.shape[0]
+num_h5_val_rows = h5val.shape[0]
 
 # Learning rate -------------------------------------------------------
 
@@ -270,7 +270,7 @@ with tf.Session(config=tfconfig) as session:
   sys.stderr.flush()
 
   trainlog("Began session")
-  trainlog("Training on " + str(num_h5_train_rows) + " rows, testing on " + str(int(num_h5_test_rows * validation_prop)) + "/" + str(num_h5_test_rows) + " rows")
+  trainlog("Training on " + str(num_h5_train_rows) + " rows, validating on " + str(int(num_h5_val_rows * validation_prop)) + "/" + str(num_h5_val_rows) + " rows")
   trainlog("Epoch size = " + str(num_samples_per_epoch))
   trainlog("h5_chunk_size = " + str(h5_chunk_size))
   trainlog("Batch size = " + str(batch_size))
@@ -362,10 +362,10 @@ with tf.Session(config=tfconfig) as session:
   def run_validation_in_batches(fetches):
     #Run validation accuracy in batches to avoid out of memory error from processing one supergiant batch
     validation_batch_size = 256
-    num_validation_batches = int(num_h5_test_rows * validation_prop)//validation_batch_size
+    num_validation_batches = int(num_h5_val_rows * validation_prop + validation_batch_size-1)//validation_batch_size
     results = []
     for i in range(num_validation_batches):
-      rows = h5test[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_test_rows)]
+      rows = h5val[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_val_rows)]
       result = run(fetches, rows, symmetries=[False,False,False], training=False)
       results.append(result)
     return results

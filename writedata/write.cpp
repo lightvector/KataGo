@@ -856,9 +856,9 @@ int main(int argc, const char* argv[]) {
   string excludeFilesFile;
   size_t poolSize;
   int trainShards;
-  double testGameProb;
+  double valGameProb;
   double keepTrainProb;
-  double keepTestProb;
+  double keepValProb;
   int minRank;
   int minOppRank;
   int maxHandicap;
@@ -870,20 +870,20 @@ int main(int argc, const char* argv[]) {
   vector<string> excludeUsersFiles;
 
   try {
-    TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0");
+    TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0",true);
     TCLAP::MultiArg<string> gamesdirArg("","gamesdir","Directory of sgf files",true,"DIR");
     TCLAP::ValueArg<string> outputArg("","output","H5 file to write",true,string(),"FILE");
     TCLAP::ValueArg<string> onlyFilesArg("","only-files","Specify a list of files to filter to, one per line in a txt file",false,string(),"FILEOFFILES");
     TCLAP::ValueArg<string> excludeFilesArg("","exclude-files","Specify a list of files to filter out, one per line in a txt file",false,string(),"FILEOFFILES");
     TCLAP::ValueArg<size_t> poolSizeArg("","pool-size","Pool size for shuffling rows",true,(size_t)0,"SIZE");
     TCLAP::ValueArg<int>    trainShardsArg("","train-shards","Make this many passes processing 1/N of the data each time",true,0,"INT");
-    TCLAP::ValueArg<double> testGameProbArg("","test-game-prob","Probability of using a game for test instead of train",true,0.0,"PROB");
-    TCLAP::ValueArg<double> keepTrainProbArg("","keep-train-prob","Probability per-move of keeping a move in the train set",true,0.0,"PROB");
-    TCLAP::ValueArg<double> keepTestProbArg("","keep-test-prob","Probability per-move of keeping a move in the test set",true,0.0,"PROB");
-    TCLAP::ValueArg<int>    minRankArg("","min-rank","Min rank to use a player's move",true,0,"RANK");
-    TCLAP::ValueArg<int>    minOppRankArg("","min-opp-rank","Min rank of opp to use a player's move",true,0,"RANK");
-    TCLAP::ValueArg<int>    maxHandicapArg("","max-handicap","Max handicap of game to use a player's move",true,0,"HCAP");
-    TCLAP::ValueArg<string> targetArg("","target","nextmove",true,string(),"TARGET");
+    TCLAP::ValueArg<double> valGameProbArg("","val-game-prob","Probability of using a game for validation instead of train",true,0.0,"PROB");
+    TCLAP::ValueArg<double> keepTrainProbArg("","keep-train-prob","Probability per-move of keeping a move in the train set",false,1.0,"PROB");
+    TCLAP::ValueArg<double> keepValProbArg("","keep-val-prob","Probability per-move of keeping a move in the val set",false,1.0,"PROB");
+    TCLAP::ValueArg<int>    minRankArg("","min-rank","Min rank to use a player's move",false,-10000,"RANK");
+    TCLAP::ValueArg<int>    minOppRankArg("","min-opp-rank","Min rank of opp to use a player's move",false,-10000,"RANK");
+    TCLAP::ValueArg<int>    maxHandicapArg("","max-handicap","Max handicap of game to use a player's move",false,9,"HCAP");
+    TCLAP::ValueArg<string> targetArg("","target","What should be predicted? Currently only option is nextmove",false,string("nextmove"),"TARGET");
     TCLAP::SwitchArg        alwaysHistoryArg("","always-history","Always include history",false);
     TCLAP::SwitchArg        fancyConditionsArg("","fancy-conditions","Fancy filtering for rank balancing",false);
     TCLAP::ValueArg<double> fancyGameKeepFactorArg("","fancy-game-keep-factor","Multiply fancy game keep prob by this",false,1.0,"PROB");
@@ -895,9 +895,9 @@ int main(int argc, const char* argv[]) {
     cmd.add(excludeFilesArg);
     cmd.add(poolSizeArg);
     cmd.add(trainShardsArg);
-    cmd.add(testGameProbArg);
+    cmd.add(valGameProbArg);
     cmd.add(keepTrainProbArg);
-    cmd.add(keepTestProbArg);
+    cmd.add(keepValProbArg);
     cmd.add(minRankArg);
     cmd.add(minOppRankArg);
     cmd.add(maxHandicapArg);
@@ -914,9 +914,9 @@ int main(int argc, const char* argv[]) {
     excludeFilesFile = excludeFilesArg.getValue();
     poolSize = poolSizeArg.getValue();
     trainShards = trainShardsArg.getValue();
-    testGameProb = testGameProbArg.getValue();
+    valGameProb = valGameProbArg.getValue();
     keepTrainProb = keepTrainProbArg.getValue();
-    keepTestProb = keepTestProbArg.getValue();
+    keepValProb = keepValProbArg.getValue();
     minRank = minRankArg.getValue();
     minOppRank = minOppRankArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
@@ -929,7 +929,7 @@ int main(int argc, const char* argv[]) {
     if(targetArg.getValue() == "nextmove")
       target = TARGET_NEXT_MOVE_AND_LADDER;
     else
-      throw IOError("Must specify target nextmove or... no other options right now");
+      throw IOError("Must specify target nextmove or... actually no other options right now");
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << std::endl;
@@ -981,9 +981,9 @@ int main(int argc, const char* argv[]) {
   cout << "deflateLevel " << deflateLevel << endl;
   cout << "poolSize " << poolSize << endl;
   cout << "trainShards " << trainShards << endl;
-  cout << "testGameProb " << testGameProb << endl;
+  cout << "valGameProb " << valGameProb << endl;
   cout << "keepTrainProb " << keepTrainProb << endl;
-  cout << "keepTestProb " << keepTestProb << endl;
+  cout << "keepValProb " << keepValProb << endl;
   cout << "minRank " << minRank << endl;
   cout << "minOppRank " << minOppRank << endl;
   cout << "maxHandicap " << maxHandicap << endl;
@@ -1085,12 +1085,12 @@ int main(int argc, const char* argv[]) {
     sgfs[r] = tmp;
   }
 
-  //Split into train and test
+  //Split into train and val
   vector<CompactSgf*> trainSgfs;
-  vector<CompactSgf*> testSgfs;
+  vector<CompactSgf*> valSgfs;
   for(int i = 0; i<sgfs.size(); i++) {
-    if(rand.nextDouble() < testGameProb)
-      testSgfs.push_back(sgfs[i]);
+    if(rand.nextDouble() < valGameProb)
+      valSgfs.push_back(sgfs[i]);
     else
       trainSgfs.push_back(sgfs[i]);
   }
@@ -1099,7 +1099,7 @@ int main(int argc, const char* argv[]) {
 
   //Process SGFS to make rows----------------------------------------------------------
   uint64_t trainShardSeed = rand.nextUInt64();
-  uint64_t testShardSeed = rand.nextUInt64();
+  uint64_t valShardSeed = rand.nextUInt64();
 
   cout << "Generating TRAINING set..." << endl;
   H5std_string trainSetName("train");
@@ -1119,23 +1119,23 @@ int main(int argc, const char* argv[]) {
   );
   delete trainDataSet;
 
-  cout << "Generating TEST set..." << endl;
-  H5std_string testSetName("test");
-  DataSet* testDataSet = new DataSet(h5File->createDataSet(testSetName, PredType::IEEE_F32LE, DataSpace(h5Dimension,initFileDims,maxDims), dataSetProps));
-  set<Hash> testPosHashes;
-  Stats testTotalStats;
-  Stats testUsedStats;
+  cout << "Generating VALIDATION set..." << endl;
+  H5std_string valSetName("val");
+  DataSet* valDataSet = new DataSet(h5File->createDataSet(valSetName, PredType::IEEE_F32LE, DataSpace(h5Dimension,initFileDims,maxDims), dataSetProps));
+  set<Hash> valPosHashes;
+  Stats valTotalStats;
+  Stats valUsedStats;
   processSgfs(
-    testSgfs,testDataSet,
+    valSgfs,valDataSet,
     poolSize,
-    testShardSeed, trainShards,
-    rand, keepTestProb,
+    valShardSeed, trainShards,
+    rand, keepValProb,
     minRank, minOppRank, maxHandicap, target,
     alwaysHistory,
     excludeUsers, fancyConditions, fancyPosKeepFactor,
-    testPosHashes, testTotalStats, testUsedStats
+    valPosHashes, valTotalStats, valUsedStats
   );
-  delete testDataSet;
+  delete valDataSet;
 
   //Close the h5 file
   delete h5File;
@@ -1147,12 +1147,12 @@ int main(int argc, const char* argv[]) {
     trainNames << trainSgfs[i]->fileName << "\n";
   }
   trainNames.close();
-  ofstream testNames;
-  testNames.open(outputFile + ".test.txt");
-  for(int i = 0; i<testSgfs.size(); i++) {
-    testNames << testSgfs[i]->fileName << "\n";
+  ofstream valNames;
+  valNames.open(outputFile + ".val.txt");
+  for(int i = 0; i<valSgfs.size(); i++) {
+    valNames << valSgfs[i]->fileName << "\n";
   }
-  testNames.close();
+  valNames.close();
 
   cout << "Done" << endl;
 
@@ -1162,11 +1162,11 @@ int main(int argc, const char* argv[]) {
   cout << trainPosHashes.size() << " unique pos hashes used" << endl;
   trainUsedStats.print();
 
-  cout << "TEST TOTAL------------------------------------" << endl;
-  testTotalStats.print();
-  cout << "TEST USED------------------------------------" << endl;
-  cout << testPosHashes.size() << " unique pos hashes used" << endl;
-  testUsedStats.print();
+  cout << "VAL TOTAL------------------------------------" << endl;
+  valTotalStats.print();
+  cout << "VAL USED------------------------------------" << endl;
+  cout << valPosHashes.size() << " unique pos hashes used" << endl;
+  valUsedStats.print();
 
   //Cleanup----------------------------------------------------------------------------
   for(int i = 0; i<sgfs.size(); i++) {
