@@ -323,7 +323,7 @@ static int parseHandicap(const string& handicap) {
 
 static const int RANK_UNRANKED = -1000;
 
-//1 dan = 0, higher is stronger, pros are assumed to be 9d.
+//2 kyu = -2, 1 kyu = -1, 1 dan = 0, 2 dan = 1, ...  higher is stronger, pros are assumed to be 9d.
 static int parseRank(const string& rank) {
   string r = Global::toLower(rank);
   if(r.length() < 2 || r.length() > 5)
@@ -405,6 +405,7 @@ static int parseRank(const string& rank) {
     return -n;
   else if(isD)
     return n >= 9 ? 8 : n-1;
+  //Treat all professional dan ranks as 9d amateur
   else if(isP)
     return 8;
   else {
@@ -500,6 +501,9 @@ static void iterSgfMoves(
 
     source = parseSource(sgf);
     if(source == SOURCE_GOGOD) {
+      //Treat GoGoD games as all 9d a large number of pros are labeled e.g. "3d" indicating 3 *professional* dan something like "3p".
+      //There are some games involving genuinely amateur dan players, but it's basically impossible to tell from the rank whether it's
+      //amateur or pro, so just assume it's all pro.
       wRank = 8;
       bRank = 8;
     }
@@ -582,12 +586,15 @@ static void iterSgfMoves(
 
     //Forbid consecutive moves by the same player
     if(m.pla == prevPla) {
-      //Multiple-move issues are super-common on FoxGo, so don't print on Fox
+      //Multiple-consecutive-move-by-same-player issues are super-common on FoxGo, so don't print on Fox
+      //Not actually sure how this happens. It's a large number of games, but still only a tiny percentage,
+      //and it often happens well into the middle of the game, and definitely before the end of the game.
       if(source != SOURCE_FOX) {
         cout << sgf->fileName << endl;
         cout << ("Multiple moves in a row by same player at " + Global::intToString(j)) << endl;
         cout << board << endl;
       }
+      //Terminate reading from the game in this case
       break;
     }
 

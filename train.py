@@ -220,7 +220,7 @@ class LR:
   def report_epoch_done(self,epoch):
     self.chunk = (epoch // self.epoch_chunk_size) * float(self.epoch_chunk_size) / fast_factor
 
-# Training ------------------------------------------------------------
+# TRAINING PARAMETERS ------------------------------------------------------------
 
 print("Training", flush=True)
 
@@ -234,6 +234,8 @@ assert(num_samples_per_epoch % batch_size == 0)
 
 lr = LR(
   knots = [
+    #Piecewise linear
+    #(epoch, learning rate)
     (0,   0.0002500),
     (8,   0.0001100),
     (14,  0.0000750),
@@ -249,7 +251,11 @@ lr = LR(
   epoch_chunk_size = 2,
 )
 
+#L2 regularization coefficient
 l2_coeff_value = 0.00003
+
+
+# Training ------------------------------------------------------------
 
 saver = tf.train.Saver(
   max_to_keep = 10000,
@@ -523,6 +529,7 @@ with tf.Session(config=tfconfig) as session:
     trainlog("%s %s lr %f %s" % (tstr,vstr,lr.lr(),timestr))
     log_detail_stats(relupdates)
 
+    #Save model every 4 epochs
     if epoch % 4 == 0 or epoch == num_epochs-1:
       saver.save(session, traindir + "/model" + str(epoch))
 
