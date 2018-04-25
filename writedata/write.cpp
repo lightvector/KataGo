@@ -51,6 +51,82 @@ static const int chunkHeight = 6000;
 static const int deflateLevel = 6;
 static const int h5Dimension = 2;
 
+//SGF sources
+static const int NUM_SOURCES = 5;
+static const int SOURCE_GOGOD = 0;
+static const int SOURCE_KGS = 1;
+static const int SOURCE_FOX = 2;
+static const int SOURCE_OGSPre2014 = 3;
+static const int SOURCE_UNKNOWN = 4;
+static bool emittedSourceWarningYet = false;
+static int parseSource(const string& fileName) {
+  if(fileName.find("GoGoD") != string::npos)
+    return SOURCE_GOGOD;
+  else if(fileName.find("/KGS/") != string::npos || fileName.find("/KGS4d/") != string::npos)
+    return SOURCE_KGS;
+  else if(fileName.find("FoxGo") != string::npos)
+    return SOURCE_FOX;
+  else if(fileName.find("OGSPre2014") != string::npos)
+    return SOURCE_OGSPre2014;
+  else {
+    if(!emittedSourceWarningYet) {
+      cerr << "Note: unknown source for sgf " << fileName << endl;
+      cerr << "There is some hardcoded logic for applying different filter conditions for known data sources (e.g. KGS, GoGoD, etc). If you would like to do filtering of your own, you can manually modify the parseSource function in write.cpp and/or add appropriate sources for your data, and add whatever conditions you like at appropriate points in the rest of write.cpp." << endl;
+      cerr << "Suppressing further warnings for unknown sgf sources" << endl;
+      emittedSourceWarningYet = true;
+    }
+  }
+}
+
+//When doing fancy conditions (cmdline flag -fancy-conditions), randomly keep games from source only with this prob
+static const double sourceGameFancyProb[NUM_SOURCES] = {
+  1.00, /* GoGoD */
+  1.00, /* KGS */
+  0.15, /* FOX */ //Fox dataset is enormously large, only keep some of the games to prevent it from dwarfing all others in training and using lots of memory when writing
+  1.00, /* OGS */
+  1.00, /* Unknown */
+};
+
+//When doing fancy conditions (cmdline flag -fancy-conditions), randomly keep training instances from source only with this prob
+//These numbers are tuned to try to balance the number of games in the training set coming from each different rank of player
+//on each different server.
+static const double rankOneHotFancyProb[rankLen] = {
+  1.00, /* GoGoD */
+  0.30, 0.30, 0.20, 0.10, 0.20, 0.10, 0.20, 0.50, 1.00, /* KGS */
+
+  0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.20, /* FOX 17k-10k */
+  0.15, 0.15, 0.15, 0.15, 0.15, /* FOX 9k-5k */
+  0.14, 0.125, 0.080, 0.060, /* FOX 4k-1k */
+  0.040, 0.030, 0.025, 0.040, 0.060, /* FOX 1d-5d */
+  0.140, 0.350, 0.800, 0.400, /* FOX 6d-9d */
+
+  0.80, 0.80, 0.80, 0.80,  /* OGS 19k-16k */
+  0.80, 0.80, 0.80, 0.80, 0.80,  /* OGS 15k-11k */
+  0.80, 0.80, 0.80, 0.80, 0.80,  /* OGS 10k-6k */
+  0.80, 1.00, 1.00, 1.00, 1.00,  /* OGS 5k-1k */
+  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 1d-5d */
+  1.00, 1.00, 1.00, 1.00,        /* OGS 6d-9d */
+};
+
+//Each row contains a one-hot segment that indicates the rank of the player that made this move, differentiated by
+//rank since ranks mean different things on different servers.
+//Computes the index of the one-hot entry to fill (or -1 indicating to fill none of them)
+static int computeRankOneHot(int source, int rank) {
+  int rankOneHot = -1; //Fill nothing by default for unknown sources or ranks that are out-of-range
+  if(source == SOURCE_GOGOD)
+    rankOneHot = rankStartGoGoD;
+  else if(source == SOURCE_KGS && rank >= 0 && rank <= 8)
+    rankOneHot = rankStartKGS + rank;
+  else if(source == SOURCE_FOX && rank >= -17 && rank <= 8)
+    rankOneHot = rankStartFox + 17 + rank;
+  else if(source == SOURCE_OGSPre2014 && rank >= -19 && rank <= 8)
+    rankOneHot = rankStartOGSPre2014 + 19 + rank;
+
+  assert(rankOneHot >= -1 && rankOneHot < rankLen);
+  return rankOneHot;
+}
+
+
 static int xyToTensorPos(int x, int y, int offset) {
   return (y+offset) * maxBoardSize + (x+offset);
 }
@@ -291,24 +367,6 @@ static void fillRow(const FastBoard& board, const vector<Move>& moves, int nextM
     row[sideStart] = 1.0;
 }
 
-//SGF sources
-static const int NUM_SOURCES = 4;
-static const int SOURCE_GOGOD = 0;
-static const int SOURCE_KGS = 1;
-static const int SOURCE_FOX = 2;
-static const int SOURCE_OGSPre2014 = 3;
-static int parseSource(const string& fileName) {
-  if(fileName.find("GoGoD") != string::npos)
-    return SOURCE_GOGOD;
-  else if(fileName.find("/KGS/") != string::npos || fileName.find("/KGS4d/") != string::npos)
-    return SOURCE_KGS;
-  else if(fileName.find("FoxGo") != string::npos)
-    return SOURCE_FOX;
-  else if(fileName.find("OGSPre2014") != string::npos)
-    return SOURCE_OGSPre2014;
-  else
-    throw IOError("Unknown source for sgf: " + fileName);
-}
 static int parseSource(const CompactSgf* sgf) {
   return parseSource(sgf->fileName);
 }
@@ -451,33 +509,6 @@ struct Stats {
         cout << kv.first << " " << kv.second << endl;
     }
   }
-};
-
-//When doing fancy prob, randomly keep games from source only with this prob
-static const double sourceGameFancyProb[NUM_SOURCES] = {
-  1.00, /* GoGoD */
-  1.00, /* KGS */
-  0.15, /* FOX */
-  1.00, /* OGS */
-};
-
-//When doing fancy prob, randomly keep training instances from source only with this prob
-static const double rankOneHotFancyProb[rankLen] = {
-  1.00, /* GoGoD */
-  0.30, 0.30, 0.20, 0.10, 0.20, 0.10, 0.20, 0.50, 1.00, /* KGS */
-
-  0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.20, /* FOX 17k-10k */
-  0.15, 0.15, 0.15, 0.15, 0.15, /* FOX 9k-5k */
-  0.14, 0.125, 0.080, 0.060, /* FOX 4k-1k */
-  0.040, 0.030, 0.025, 0.040, 0.060, /* FOX 1d-5d */
-  0.140, 0.350, 0.800, 0.400, /* FOX 6d-9d */
-
-  0.80, 0.80, 0.80, 0.80,  /* OGS 19k-16k */
-  0.80, 0.80, 0.80, 0.80, 0.80,  /* OGS 15k-11k */
-  0.80, 0.80, 0.80, 0.80, 0.80,  /* OGS 10k-6k */
-  0.80, 1.00, 1.00, 1.00, 1.00,  /* OGS 5k-1k */
-  1.00, 1.00, 1.00, 1.00, 1.00,  /* OGS 1d-5d */
-  1.00, 1.00, 1.00, 1.00,        /* OGS 6d-9d */
 };
 
 static void iterSgfMoves(
@@ -678,16 +709,7 @@ static void maybeUseRow(
      handicap <= maxHandicap &&
      !contains(excludeUsers,user)
   ) {
-    int rankOneHot = -1;
-    if(source == SOURCE_GOGOD)
-      rankOneHot = rankStartGoGoD;
-    else if(source == SOURCE_KGS && rank >= 0 && rank <= 8)
-      rankOneHot = rankStartKGS + rank;
-    else if(source == SOURCE_FOX && rank >= -17 && rank <= 8)
-      rankOneHot = rankStartFox + 17 + rank;
-    else if(source == SOURCE_OGSPre2014 && rank >= -19 && rank <= 8)
-      rankOneHot = rankStartOGSPre2014 + 19 + rank;
-
+    int rankOneHot = computeRankOneHot(source,rank);
     bool canUse = true;
 
     //Apply special filtering for when we want to make a rank-balanced training set
