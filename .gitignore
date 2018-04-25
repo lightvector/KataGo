@@ -4,6 +4,8 @@
 __pycache__
 *.h5
 
+writedata/write
+
 # For clion IDE
 .idea
 
