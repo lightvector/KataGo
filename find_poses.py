@@ -275,7 +275,7 @@ with tf.Session(config=tfconfig) as session:
 
         if pro_probs[loc] >= max_pro_prob * 0.30:
           big_credit_moves.append(loc)
-        if pro_probs[loc] >= max_pro_prob * 0.15:
+        elif pro_probs[loc] >= max_pro_prob * 0.15:
           medium_credit_moves.append(loc)
         elif pro_probs[loc] >= max_pro_prob * 0.05:
           small_credit_moves.append(loc)
