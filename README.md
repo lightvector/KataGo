@@ -45,7 +45,7 @@ As of the end of April 2018, the best neural nets I've been training from this s
 | [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10 blocks | 12,098,304 | 58.2% | 54.1% | 380M |
 | **This Sandbox (Mar 2018)** | **ResNet 12 Blocks** | **8,250,720** | **58.2%** | **54.2%** | **325-333M** | **100% (500/500)** | **90.0% (45/50)**
 | [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 14 blocks | 16,816,896 |       | 54.6% | 355M |
-| **This Sandbox (Apr 2018)** | **ResNet 12 Blocks** | **8,057,424** | **58.4%** | **54.7%** | **153M-209M** |  |
+| **This Sandbox (Apr 2018)** | **ResNet 12 Blocks** | **8,057,424** | **58.6%** | **54.7%** | **201M-209M** |  |
 | [AlphaGoZero(2017)](https://deepmind.com/documents/119/agz_unformatted_nature.pdf) | ResNet 20 blocks | 22,837,864 | 60.4% | | >1000M? |
 
 As seen in the above table, thanks to the various enhancements I've been playing with, the neural nets in this sandbox compare quite favorably, matching or surpassing accuracy results for neural nets with larger numbers of parameters. They require fewer training steps to achieve these results and are probably computationally faster to evaluate per step (I currently don't use any techniques such as rotational equivariance or other weight representations that reduce the number of parameters in a way that doesn't also reduce the computation cost).
@@ -80,7 +80,7 @@ For interest, here are a few more stats beyond the ones most consistently shared
 | ResNet 12 Blocks (Apr 2018) | GoGoD | 8,057,424 | 54.7% | 83.8% | 1.496 | 209M |
 | ResNet 5 Blocks | KGS | 3,597,792 | 56.8% | 85.4% | 1.429 | 205M |
 | ResNet 12 Blocks (Mar 2018) | KGS | 8,250,720 | 58.2% | 86.2% | 1.378 | 329M |
-| ResNet 12 Blocks (Apr 2018) | KGS | 8,057,424 | 58.5% | 86.6% | 1.356 | 153M |
+| ResNet 12 Blocks (Apr 2018) | KGS | 8,057,424 | 58.6% | 86.6% | 1.346 | 201M |
 
 Unfortunately, many papers don't report the cross entropy loss, which is a shame since its values are very nicely interpretable. For example, the cross entropy of 1.378 nats for the 12 block KGS ResNet corresponds to a perplexity of exp(1.378) = 3.967, which means that for KGS on average the neural net has achieved the same entropy as if on every move it could pin down the next move uniformly to about 4 possible moves.
 
