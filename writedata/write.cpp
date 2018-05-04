@@ -51,7 +51,10 @@ static const int turnNumberLen = 2;
 static const int recentCapturesStart = turnNumberStart + turnNumberLen;
 static const int recentCapturesLen = maxBoardSize * maxBoardSize;
 
-static const int totalRowLen = recentCapturesStart + recentCapturesLen;
+static const int nextMovesStart = recentCapturesStart + recentCapturesLen;
+static const int nextMovesLen = 7;
+
+static const int totalRowLen = nextMovesStart + nextMovesLen;
 
 //HDF5 parameters
 static const int chunkHeight = 6000;
@@ -138,6 +141,8 @@ static int xyToTensorPos(int x, int y, int offset) {
   return (y+offset) * maxBoardSize + (x+offset);
 }
 static int locToTensorPos(Loc loc, int bSize, int offset) {
+  if(loc == FastBoard::PASS_LOC)
+    return (bSize + offset) * maxBoardSize + (bSize + offset);
   return (Location::getY(loc,bSize) + offset) * maxBoardSize + (Location::getX(loc,bSize) + offset);
 }
 
@@ -391,6 +396,16 @@ static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& m
           row[recentCapturesStart+pos] = i+1;
         }
       }
+    }
+  }
+  
+  //Record next moves
+  for(int i = 0; i<nextMovesLen; i++) {
+    int idx = nextMoveIdx + i;
+    if(idx >= moves.size())
+      row[nextMovesStart+i] = locToTensorPos(FastBoard::PASS_LOC,bSize,offset);
+    else {
+      row[nextMovesStart+i] = locToTensorPos(moves[idx].loc,bSize,offset);
     }
   }
 }

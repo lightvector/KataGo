@@ -1,0 +1,101 @@
+{
+    "10to20easy.pickle": {
+        "user_rank": 10,
+        "better_rank": 20,
+        "user_min_score": 0.55,
+        "user_max_score": 0.80,
+        "min_better_at_min": 0.75,
+        "min_better_at_max": 0.95
+    },
+    "10to20.pickle": {
+        "user_rank": 10,
+        "better_rank": 20,
+        "user_min_score": 0.15,
+        "user_max_score": 0.60,
+        "min_better_at_min": 0.40,
+        "min_better_at_max": 0.85
+    },
+    "14to26.pickle": {
+        "user_rank": 14,
+        "better_rank": 26,
+        "user_min_score": 0.15,
+        "user_max_score": 0.60,
+        "min_better_at_min": 0.40,
+        "min_better_at_max": 0.85
+    },
+    "18to32.pickle": {
+        "user_rank": 18,
+        "better_rank": 30,
+        "user_min_score": 0.15,
+        "user_max_score": 0.50,
+        "min_better_at_min": 0.40,
+        "min_better_at_max": 0.80
+    },
+    "22to34.pickle": {
+        "user_rank": 22,
+        "better_rank": 34,
+        "user_min_score": 0.15,
+        "user_max_score": 0.50,
+        "min_better_at_min": 0.40,
+        "min_better_at_max": 0.75
+    },
+    "27to35.pickle": {
+        "user_rank": 27,
+        "better_rank": 35,
+        "user_min_score": 0.15,
+        "user_max_score": 0.50,
+        "min_better_at_min": 0.40,
+        "min_better_at_max": 0.75
+    },
+
+
+    "36to48easy.pickle": {
+        "user_rank": 36,
+        "better_rank": 48,
+        "user_min_score": 0.60,
+        "user_max_score": 0.85,
+        "min_better_at_min": 0.75,
+        "min_better_at_max": 0.95
+    },
+    "36to48.pickle": {
+        "user_rank": 36,
+        "better_rank": 48,
+        "user_min_score": 0.25,
+        "user_max_score": 0.70,
+        "min_better_at_min": 0.50,
+        "min_better_at_max": 0.85
+    },
+    "42to52.pickle": {
+        "user_rank": 42,
+        "better_rank": 52,
+        "user_min_score": 0.25,
+        "user_max_score": 0.70,
+        "min_better_at_min": 0.50,
+        "min_better_at_max": 0.85
+    },
+    "47to57.pickle": {
+        "user_rank": 47,
+        "better_rank": 57,
+        "user_min_score": 0.25,
+        "user_max_score": 0.70,
+        "min_better_at_min": 0.50,
+        "min_better_at_max": 0.85
+    },
+    "51to61.pickle": {
+        "user_rank": 51,
+        "better_rank": 61,
+        "user_min_score": 0.25,
+        "user_max_score": 0.70,
+        "min_better_at_min": 0.50,
+        "min_better_at_max": 0.85
+    },
+    "55to63.pickle": {
+        "user_rank": 55,
+        "better_rank": 63,
+        "user_min_score": 0.25,
+        "user_max_score": 0.70,
+        "min_better_at_min": 0.50,
+        "min_better_at_max": 0.85
+    }
+}
+
