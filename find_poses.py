@@ -129,7 +129,7 @@ with tf.Session(config=tfconfig) as session:
     num_h5_val_rows = h5val.shape[0]
     #Run validation accuracy in batches to avoid out of memory error from processing one supergiant batch
     validation_batch_size = 64
-    num_validation_batches = num_h5_val_rows//validation_batch_size
+    num_validation_batches = (num_h5_val_rows+validation_batch_size-1)//validation_batch_size
     num_validation_batches = math.floor(data_prop * num_validation_batches)
 
     pro_ranks_input = np.zeros([rank_len])
