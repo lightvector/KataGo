@@ -239,9 +239,20 @@ with tf.Session(config=tfconfig) as session:
   def get_probs(inputs,rank):
     ranks = np.zeros([rank_len])
     ranks[rank] = 1.0
-    probs = run([inputs],[ranks])
-    probs = probs[0]
+    batch_probs = run([inputs],[ranks])
+    probs = batch_probs[0]
     return probs
+
+  def get_multi_rank_probs(inputs,ranks):
+    batch_inputs = []
+    batch_ranks = []
+    for rank in ranks:
+      arr = np.zeros([rank_len])
+      arr[rank] = 1.0
+      batch_inputs.append(inputs)
+      batch_ranks.append(arr)
+    batch_probs = run(batch_inputs,batch_ranks)
+    return batch_probs
 
   def is_on_board(x,y):
     return (x >= 0 and x < 19 and y >= 0 and y < 19)
@@ -364,19 +375,39 @@ with tf.Session(config=tfconfig) as session:
       if strong_game_filter(rank_one_hot_idx,pro_probs,real_move):
         pro_expected_score = get_expected_score(pro_probs,pro_probs)
         outputs_to_include_in = []
+
+        #Batch up all the ranks we need to run a neural net eval for
+        desired_ranks = []
         for output_key in config:
-          output_spec = config[output_key]
-          user_probs = get_probs(inputs,output_spec["user_rank"])
-          better_probs = pro_probs if output_spec["better_rank"] == 0 else get_probs(inputs,output_spec["better_rank"])
-          user_expected_score = get_expected_score(pro_probs,user_probs)
-          better_expected_score = get_expected_score(pro_probs,better_probs)
-          prop = (user_expected_score - output_spec["user_min_score"]) / (output_spec["user_max_score"] - output_spec["user_min_score"])
-          min_better_score = output_spec["min_better_at_min"] + prop * (output_spec["min_better_at_max"] - output_spec["min_better_at_min"])
-          if (user_expected_score >= output_spec["user_min_score"] and
-              user_expected_score <= output_spec["user_max_score"] and
-              better_expected_score >= min_better_score and
-              pro_expected_score >= min_better_score):
-            outputs_to_include_in.append(output_key)
+          output_specs = config[output_key]
+          for output_spec in output_specs:
+            if output_spec["user_rank"] not in desired_ranks and output_spec["user_rank"] != 0:
+              desired_ranks.append(output_spec["user_rank"])
+            if output_spec["better_rank"] not in desired_ranks and output_spec["better_rank"] != 0:
+              desired_ranks.append(output_spec["better_rank"])
+
+        probs = get_multi_rank_probs(inputs,desired_ranks)
+        probs_by_rank = {}
+        for i in range(len(desired_ranks)):
+          probs_by_rank[desired_ranks[i]] = probs[i]
+        probs_by_rank[0] = pro_probs
+
+        for output_key in config:
+          output_specs = config[output_key]
+          for output_spec in output_specs:
+            user_probs = probs_by_rank[output_spec["user_rank"]]
+            better_probs = probs_by_rank[output_spec["better_rank"]]
+            user_expected_score = get_expected_score(pro_probs,user_probs)
+            better_expected_score = get_expected_score(pro_probs,better_probs)
+            prop = (user_expected_score - output_spec["user_min_score"]) / (output_spec["user_max_score"] - output_spec["user_min_score"])
+            min_better_score = output_spec["min_better_at_min"] + prop * (output_spec["min_better_at_max"] - output_spec["min_better_at_min"])
+            if(user_expected_score >= output_spec["user_min_score"] and
+               user_expected_score <= output_spec["user_max_score"] and
+               better_expected_score >= min_better_score and
+               pro_expected_score >= min_better_score):
+              #If any of the specs in the config want to include this row, then include it
+              outputs_to_include_in.append(output_key)
+              break
 
         num_outputs_to_include_in = len(outputs_to_include_in)
         if num_outputs_to_include_in > 0:
