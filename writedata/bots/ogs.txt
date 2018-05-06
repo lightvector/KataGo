@@ -1,0 +1,24 @@
+AyaGo
+AyaGo1
+AyaGo2
+AyaGo3
+AyaGo4
+AyaGo5
+AyaGo6
+AyaGo7
+BeginnerBot
+Billy (GnuGo lvl10)
+Fuego100k
+Fuego10k
+Fuego1k
+Fuego100
+Fuego1M
+Fuego10M
+GnuGo
+GnuGo2
+GnuGo3
+GnuGo4
+LibertyBot
+Nanny (GnuGo lvl5)
+Random Bot
+WeakBot50k

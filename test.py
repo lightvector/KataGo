@@ -25,12 +25,14 @@ Test neural net on Go games!
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-gamesh5', help='H5 file of preprocessed game data', required=True)
 parser.add_argument('-model-file', help='model file prefix to load', required=True)
+parser.add_argument('-rank-idx', help='rank to provide to model for inference', required=True)
 parser.add_argument('-require-last-move', help='filter down to only instances where last move is provided', required=False, action="store_true")
 parser.add_argument('-use-training-set', help='run on training set instead of test set', required=False, action="store_true")
 args = vars(parser.parse_args())
 
 gamesh5 = args["gamesh5"]
 model_file = args["model_file"]
+rank_idx = int(args["rank_idx"])
 require_last_move = args["require_last_move"]
 use_training_set = args["use_training_set"]
 
@@ -40,7 +42,7 @@ def log(s):
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
-model = Model(use_ranks=False)
+model = Model(use_ranks=True)
 
 policy_output = model.policy_output
 
@@ -89,14 +91,14 @@ h5_propfaid.set_cache(*h5_settings)
 h5fid = h5py.h5f.open(str.encode(str(gamesh5)), fapl=h5_propfaid)
 h5file = h5py.File(h5fid)
 h5train = h5file["train"]
-h5test = h5file["test"]
+h5val = h5file["val"]
 h5_chunk_size = h5train.chunks[0]
 num_h5_train_rows = h5train.shape[0]
-num_h5_test_rows = h5test.shape[0]
+num_h5_val_rows = h5val.shape[0]
 
 if use_training_set:
-  num_h5_test_rows = num_h5_train_rows
-  h5test = h5train
+  num_h5_val_rows = num_h5_train_rows
+  h5val = h5train
 
 # Testing ------------------------------------------------------------
 
@@ -119,35 +121,52 @@ with tf.Session(config=tfconfig) as session:
   sys.stderr.flush()
 
   log("Began session")
-  log("Testing on " + str(num_h5_test_rows) + " rows")
+  log("Testing on " + str(num_h5_val_rows) + " rows")
   log("h5_chunk_size = " + str(h5_chunk_size))
 
   sys.stdout.flush()
   sys.stderr.flush()
 
+  input_start = 0
+  input_len = model.input_shape[0] * model.input_shape[1]
+  target_start = input_start + input_len
+  target_len = model.target_shape[0]
+  target_weights_start = target_start + target_len
+  target_weights_len = 1
+  rank_start = target_weights_start + target_weights_len
+  rank_len = model.rank_shape[0]
+  side_start = rank_start + rank_len
+  side_len = 1
+  turn_number_start = side_start + side_len
+  turn_number_len = 2
+  recent_captures_start = turn_number_start + turn_number_len
+  recent_captures_len = model.max_board_size * model.max_board_size
+  next_moves_start = recent_captures_start + recent_captures_len
+  next_moves_len = 7
+  sgfhash_start = next_moves_start + next_moves_len
+  sgfhash_len = 4
+
   def run(fetches, rows):
     assert(len(model.input_shape) == 2)
-    # assert(len(model.chain_shape) == 1)
     assert(len(model.target_shape) == 1)
     assert(len(model.target_weights_shape) == 0)
     input_len = model.input_shape[0] * model.input_shape[1]
-    # chain_len = model.chain_shape[0] + 1
-    chain_len = 0
     target_len = model.target_shape[0]
 
     if not isinstance(rows, np.ndarray):
       rows = np.array(rows)
 
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
-    # row_chains = rows[:,input_len:input_len+chain_len-1].reshape([-1] + model.chain_shape).astype(np.int32)
-    # row_num_chain_segments = rows[:,input_len+chain_len-1].astype(np.int32)
-    row_targets = rows[:,input_len+chain_len:input_len+chain_len+target_len]
-    row_target_weights = rows[:,input_len+chain_len+target_len]
+    row_targets = rows[:,target_start:target_start+target_len]
+    row_target_weights = rows[:,target_weights_start]
+
+    ranks_input = np.zeros([rank_len])
+    ranks_input[rank_idx] = 1.0
+    ranks_input = [ranks_input for i in range(len(rows))]
 
     return session.run(fetches, feed_dict={
       model.inputs: row_inputs,
-      # model.chains: row_chains,
-      # model.num_chain_segments: row_num_chain_segments,
+      model.ranks: ranks_input,
       targets: row_targets,
       target_weights: row_target_weights,
       model.symmetries: [False,False,False],
@@ -159,29 +178,52 @@ with tf.Session(config=tfconfig) as session:
 
   def run_validation_in_batches(fetches):
     #Run validation accuracy in batches to avoid out of memory error from processing one supergiant batch
-    validation_batch_size = 256
-    num_validation_batches = num_h5_test_rows//validation_batch_size
+    validation_batch_size = 64
+    num_validation_batches = (num_h5_val_rows+validation_batch_size-1)//validation_batch_size
     results = [[] for j in range(len(fetches))]
     for i in range(num_validation_batches):
       print(".",end="",flush=True)
-      rows = h5test[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_test_rows)]
+      rows = h5val[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_val_rows)]
       result = run(fetches, rows)
       for j in range(len(fetches)):
         results[j].append(result[j])
     print("",flush=True)
     return results
 
-  def val_accuracy_and_loss():
-    (acc1s,acc4s,data_losses,weight_sums) = run_validation_in_batches([accuracy1,accuracy4,data_loss_sum,weight_sum])
-    return (np.sum(acc1s),np.sum(acc4s),np.sum(data_losses),np.sum(weight_sums))
-
   def validation_stats_str(vacc1,vacc4,vdata_loss,vweight_sum):
     return "vacc1 %5.2f%% vacc4 %5.2f%% vdloss %f vweight_sum %f" % (vacc1*100/vweight_sum, vacc4*100/vweight_sum, vdata_loss/vweight_sum, vweight_sum)
 
-  (vacc1,vacc4,vdata_loss,vweight_sum) = val_accuracy_and_loss()
+  (acc1s,acc4s,data_losses,weight_sums) = run_validation_in_batches([accuracy1,accuracy4,data_loss_sum,weight_sum])
+  (vacc1,vacc4,vdata_loss,vweight_sum) = (np.sum(acc1s),np.sum(acc4s),np.sum(data_losses),np.sum(weight_sums))
   vstr = validation_stats_str(vacc1,vacc4,vdata_loss,vweight_sum)
 
   log(vstr)
+
+  sys.stdout.flush()
+  sys.stderr.flush()
+
+  lossbyhash = {}
+  countbyhash = {}
+  for i in range(num_h5_val_rows):
+    sgfhash = h5val[i,sgfhash_start:sgfhash_start+sgfhash_len]
+    loss = data_losses[i]
+    sgfhash = int(sgfhash[0]) + int(sgfhash[1])*0xFFFF + int(sgfhash[2])*0xFFFFffff + int(sgfhash[3])*0xFFFFffffFFFF
+
+    if sgfhash not in lossbyhash:
+      lossbyhash[sgfhash] = 0.0
+      countbyhash[sgfhash] = 0
+
+    lossbyhash[sgfhash] += loss
+    countbyhash[sgfhash] += 1
+
+  with open("avglosses.csv","w") as out:
+    for sgfhash in lossbyhash:
+      out.write(str(sgfhash))
+      out.write(",")
+      out.write(str(lossbyhash[sgfhash]/countbyhash[sgfhash]))
+      out.write(",")
+      out.write(str(countbyhash[sgfhash]))
+      out.write("\n")
 
 # Finish
 h5file.close()
