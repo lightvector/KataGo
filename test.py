@@ -56,15 +56,15 @@ target_weights_to_use = target_weights
 if require_last_move:
   target_weights_to_use = target_weights_to_use * tf.reduce_sum(model.inputs[:,:,18],axis=[1])
 
-data_loss_sum = tf.reduce_sum(target_weights_to_use * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output))
-weight_sum = tf.reduce_sum(target_weights_to_use)
+data_loss = target_weights_to_use * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output)
+weight_output = target_weights_to_use
 
 #Training results
 target_idxs = tf.argmax(targets, 1)
 top1_prediction = tf.equal(tf.argmax(policy_output, 1), target_idxs)
 top4_prediction = tf.nn.in_top_k(policy_output,target_idxs,4)
-accuracy1 = tf.reduce_sum(target_weights_to_use * tf.cast(top1_prediction, tf.float32))
-accuracy4 = tf.reduce_sum(target_weights_to_use * tf.cast(top4_prediction, tf.float32))
+accuracy1 = target_weights_to_use * tf.cast(top1_prediction, tf.float32)
+accuracy4 = target_weights_to_use * tf.cast(top4_prediction, tf.float32)
 
 total_parameters = 0
 for variable in tf.trainable_variables():
@@ -178,7 +178,7 @@ with tf.Session(config=tfconfig) as session:
 
   def run_validation_in_batches(fetches):
     #Run validation accuracy in batches to avoid out of memory error from processing one supergiant batch
-    validation_batch_size = 64
+    validation_batch_size = 128
     num_validation_batches = (num_h5_val_rows+validation_batch_size-1)//validation_batch_size
     results = [[] for j in range(len(fetches))]
     for i in range(num_validation_batches):
@@ -186,15 +186,15 @@ with tf.Session(config=tfconfig) as session:
       rows = h5val[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_val_rows)]
       result = run(fetches, rows)
       for j in range(len(fetches)):
-        results[j].append(result[j])
+        results[j].extend(result[j])
     print("",flush=True)
     return results
 
   def validation_stats_str(vacc1,vacc4,vdata_loss,vweight_sum):
     return "vacc1 %5.2f%% vacc4 %5.2f%% vdloss %f vweight_sum %f" % (vacc1*100/vweight_sum, vacc4*100/vweight_sum, vdata_loss/vweight_sum, vweight_sum)
 
-  (acc1s,acc4s,data_losses,weight_sums) = run_validation_in_batches([accuracy1,accuracy4,data_loss_sum,weight_sum])
-  (vacc1,vacc4,vdata_loss,vweight_sum) = (np.sum(acc1s),np.sum(acc4s),np.sum(data_losses),np.sum(weight_sums))
+  (acc1s,acc4s,data_losses,weight_outputs) = run_validation_in_batches([accuracy1,accuracy4,data_loss,weight_output])
+  (vacc1,vacc4,vdata_loss,vweight_sum) = (np.sum(acc1s),np.sum(acc4s),np.sum(data_losses),np.sum(weight_outputs))
   vstr = validation_stats_str(vacc1,vacc4,vdata_loss,vweight_sum)
 
   log(vstr)
@@ -202,27 +202,29 @@ with tf.Session(config=tfconfig) as session:
   sys.stdout.flush()
   sys.stderr.flush()
 
+  print("Computing accumulated loss by hash",flush=True)
+  hashvalues = np.array(h5val[:num_h5_val_rows,sgfhash_start:sgfhash_start+sgfhash_len])
   lossbyhash = {}
-  countbyhash = {}
+  weightbyhash = {}
   for i in range(num_h5_val_rows):
-    sgfhash = h5val[i,sgfhash_start:sgfhash_start+sgfhash_len]
-    loss = data_losses[i]
+    sgfhash = hashvalues[i]
     sgfhash = int(sgfhash[0]) + int(sgfhash[1])*0xFFFF + int(sgfhash[2])*0xFFFFffff + int(sgfhash[3])*0xFFFFffffFFFF
 
     if sgfhash not in lossbyhash:
       lossbyhash[sgfhash] = 0.0
-      countbyhash[sgfhash] = 0
+      weightbyhash[sgfhash] = 0
 
-    lossbyhash[sgfhash] += loss
-    countbyhash[sgfhash] += 1
+    lossbyhash[sgfhash] += data_losses[i]
+    weightbyhash[sgfhash] += weight_outputs[i]
 
+  print("Writing avg loss by hash",flush=True)
   with open("avglosses.csv","w") as out:
     for sgfhash in lossbyhash:
-      out.write(str(sgfhash))
+      out.write(hex(sgfhash))
       out.write(",")
-      out.write(str(lossbyhash[sgfhash]/countbyhash[sgfhash]))
+      out.write(str(lossbyhash[sgfhash]/weightbyhash[sgfhash]))
       out.write(",")
-      out.write(str(countbyhash[sgfhash]))
+      out.write(str(weightbyhash[sgfhash]))
       out.write("\n")
 
 # Finish
