@@ -45,6 +45,7 @@ with open(config_file) as infile:
 
 def log(s):
   print(s,flush=True)
+np.set_printoptions(linewidth=150)
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
@@ -104,16 +105,15 @@ with tf.Session(config=tfconfig) as session:
   num_processed = [0]
   num_used = [0]
   num_used_counts = {}
-  num_used_by_output = {}
+  num_used_by_output_matrix = {}
 
+  ko_filter_key = "kofiltered.pickle"
   entries_by_output_key = {}
-  for output_key in config:
+  for output_key in ([key for key in config] + [ko_filter_key]):
     entries_by_output_key[output_key] = []
-    num_used_by_output[output_key] = 0
-
-  ko_filter_key = "kofiltered"
-  entries_by_output_key[ko_filter_key] = []
-  num_used_by_output[ko_filter_key] = 0
+    num_used_by_output_matrix[output_key] = {}
+    for output_key2 in ([key for key in config] + [ko_filter_key]):
+      num_used_by_output_matrix[output_key][output_key2] = 0
 
   def run(inputs,ranks):
     fetches = policy_probs_output
@@ -140,7 +140,7 @@ with tf.Session(config=tfconfig) as session:
       print("Batch: " + str(i) + "/" + str(num_validation_batches) +
             " Used " + str(num_used[0]) + "/" + str(num_processed[0]) +
             " " + str(num_used_counts) +
-            " " + str(num_used_by_output),
+            " " + str(num_used_by_output_matrix),
             flush=True)
       rows = h5val[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_val_rows)]
 
@@ -320,7 +320,7 @@ with tf.Session(config=tfconfig) as session:
       next_moves[i] = row[next_moves_start+i]
 
     if is_maybe_ko_recapture(pla,position,last_moves,real_move):
-      if random.random() < 0.5:
+      if random.random() < 0.25:
         outputs_to_include_in = [ko_filter_key]
       else:
         outputs_to_include_in.append(ko_filter_key)
@@ -330,7 +330,8 @@ with tf.Session(config=tfconfig) as session:
     for output_key in outputs_to_include_in:
       arr = entries_by_output_key[output_key]
       arr.append(entry)
-      num_used_by_output[output_key] += 1
+      for output_key2 in outputs_to_include_in:
+        num_used_by_output_matrix[output_key][output_key2] += 1
 
     # print_board(inputs,pla,recent_captures,a=real_move,b=None)
     # print("Used " + str(num_used[0]) + "/" + str(num_processed[0]) +
