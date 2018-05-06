@@ -1,4 +1,5 @@
 #include "core/global.h"
+#include "core/sha2.h"
 #include "fastboard.h"
 #include "sgf.h"
 
@@ -51,7 +52,7 @@ bool SgfNode::hasProperty(const char* key) const {
 
 string SgfNode::getSingleProperty(const char* key) const {
   if(props == NULL)
-    propertyFail("SGF does not contain property: " + string(key));    
+    propertyFail("SGF does not contain property: " + string(key));
   if(!contains(*props,key))
     propertyFail("SGF does not contain property: " + string(key));
   const vector<string>& prop = map_get(*props,key);
@@ -279,7 +280,7 @@ static bool maybeParseProperty(SgfNode* node, const string& str, int& pos) {
     }
     else if(node->move.pla == C_EMPTY && key == "W") {
       int bSize = 128;
-      Loc loc = parseSgfLocOrPass(parseTextValue(str,pos),bSize);      
+      Loc loc = parseSgfLocOrPass(parseTextValue(str,pos),bSize);
       if(loc == FastBoard::PASS_LOC)
         node->move = MoveNoBSize(128,128,P_WHITE);
       else
@@ -358,6 +359,9 @@ static Sgf* maybeParseSgf(const string& str, int& pos) {
 Sgf* Sgf::parse(const string& str) {
   int pos = 0;
   Sgf* sgf = maybeParseSgf(str,pos);
+  uint64_t hash[4];
+  SHA2::get256(str.c_str(),hash);
+  sgf->hash = hash[0];
   if(sgf == NULL || sgf->nodes.size() == 0)
     sgfFail("Empty sgf",str,0);
   return sgf;
@@ -400,7 +404,8 @@ CompactSgf::CompactSgf(const Sgf* sgf)
    placements(),
    moves(),
    bSize(),
-   depth()
+   depth(),
+   hash(sgf->hash)
 {
   bSize = sgf->getBSize();
   depth = sgf->depth();
