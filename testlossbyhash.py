@@ -26,6 +26,7 @@ parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-gamesh5', help='H5 file of preprocessed game data', required=True)
 parser.add_argument('-model-file', help='model file prefix to load', required=True)
 parser.add_argument('-rank-idx', help='rank to provide to model for inference', required=True)
+parser.add_argument('-only-ranks', help='restrict only to games with these rank indices', required=False, action="append")
 parser.add_argument('-require-last-move', help='filter down to only instances where last move is provided', required=False, action="store_true")
 parser.add_argument('-use-training-set', help='run on training set instead of test set', required=False, action="store_true")
 args = vars(parser.parse_args())
@@ -33,6 +34,7 @@ args = vars(parser.parse_args())
 gamesh5 = args["gamesh5"]
 model_file = args["model_file"]
 rank_idx = int(args["rank_idx"])
+only_ranks = [int(x) for x in args["only_ranks"]] if args["only_ranks"] is not None else None
 require_last_move = args["require_last_move"]
 use_training_set = args["use_training_set"]
 
@@ -58,13 +60,6 @@ if require_last_move:
 
 data_loss = target_weights_to_use * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output)
 weight_output = target_weights_to_use
-
-#Training results
-target_idxs = tf.argmax(targets, 1)
-top1_prediction = tf.equal(tf.argmax(policy_output, 1), target_idxs)
-top4_prediction = tf.nn.in_top_k(policy_output,target_idxs,4)
-accuracy1 = target_weights_to_use * tf.cast(top1_prediction, tf.float32)
-accuracy4 = target_weights_to_use * tf.cast(top4_prediction, tf.float32)
 
 total_parameters = 0
 for variable in tf.trainable_variables():
@@ -173,35 +168,47 @@ with tf.Session(config=tfconfig) as session:
   def np_array_str(arr,precision):
     return np.array_str(arr, precision=precision, suppress_small = True, max_line_width = 200)
 
-  def run_validation_in_batches(fetches):
-    #Run validation accuracy in batches to avoid out of memory error from processing one supergiant batch
-    validation_batch_size = 128
-    num_validation_batches = (num_h5_val_rows+validation_batch_size-1)//validation_batch_size
-    results = [[] for j in range(len(fetches))]
-    for i in range(num_validation_batches):
-      print(".",end="",flush=True)
-      rows = h5val[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_val_rows)]
-      if not isinstance(rows, np.ndarray):
-        rows = np.array(rows)
 
-      result = run(fetches, rows)
-      for j in range(len(fetches)):
-        results[j].extend(result[j])
+  #Run validation accuracy in batches to avoid out of memory error from processing one supergiant batch
+  validation_batch_size = 128
+  num_validation_batches = (num_h5_val_rows+validation_batch_size-1)//validation_batch_size
+  lossbyhash = {}
+  weightbyhash = {}
+  for i in range(num_validation_batches):
+    print(".",end="",flush=True)
+    rows = h5val[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_val_rows)]
+    if not isinstance(rows, np.ndarray):
+      rows = np.array(rows)
 
-    print("",flush=True)
-    return results
+    (wlosses,weights) = run((data_loss,weight_output), rows)
+    row_ranks = rows[:,rank_start:rank_start+rank_len]
+    row_hashvalues = rows[:,sgfhash_start:sgfhash_start+sgfhash_len]
+    rank_one_hot_idx = np.argmax(row_ranks,axis=1)
 
-  def validation_stats_str(vacc1,vacc4,vdata_loss,vweight_sum):
-    return "vacc1 %5.2f%% vacc4 %5.2f%% vdloss %f vweight_sum %f" % (vacc1*100/vweight_sum, vacc4*100/vweight_sum, vdata_loss/vweight_sum, vweight_sum)
+    for k in range(len(rows)):
+      if only_ranks is None or rank_one_hot_idx[k] in only_ranks:
+        sgfhash = row_hashvalues[k]
+        sgfhash = int(sgfhash[0]) + int(sgfhash[1])*0xFFFF + int(sgfhash[2])*0xFFFFffff + int(sgfhash[3])*0xFFFFffffFFFF
 
-  (acc1s,acc4s,data_losses,weight_outputs) = run_validation_in_batches([accuracy1,accuracy4,data_loss,weight_output])
-  (vacc1,vacc4,vdata_loss,vweight_sum) = (np.sum(acc1s),np.sum(acc4s),np.sum(data_losses),np.sum(weight_outputs))
-  vstr = validation_stats_str(vacc1,vacc4,vdata_loss,vweight_sum)
+        if sgfhash not in lossbyhash:
+          lossbyhash[sgfhash] = 0.0
+          weightbyhash[sgfhash] = 0
 
-  log(vstr)
+        lossbyhash[sgfhash] += wlosses[k]
+        weightbyhash[sgfhash] += weights[k]
 
-  sys.stdout.flush()
+  print("",flush=True)
   sys.stderr.flush()
+
+  print("Writing avg loss by hash",flush=True)
+  with open("avglosses.csv","w") as out:
+    for sgfhash in lossbyhash:
+      out.write(hex(sgfhash))
+      out.write(",")
+      out.write(str(lossbyhash[sgfhash]/weightbyhash[sgfhash]))
+      out.write(",")
+      out.write(str(weightbyhash[sgfhash]))
+      out.write("\n")
 
 # Finish
 h5file.close()
