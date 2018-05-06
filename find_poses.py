@@ -84,8 +84,9 @@ turn_number_len = 2
 recent_captures_start = turn_number_start + turn_number_len
 recent_captures_len = model.max_board_size * model.max_board_size
 next_moves_start = recent_captures_start + recent_captures_len
-next_moves_len = 5
-
+next_moves_len = 7
+sgfhash_start = next_moves_start + next_moves_len
+sgfhash_len = 4
 
 saver = tf.train.Saver(
   max_to_keep = 10000,
@@ -330,13 +331,16 @@ with tf.Session(config=tfconfig) as session:
     for i in range(next_moves_len):
       next_moves[i] = row[next_moves_start+i]
 
+    sgfhash = row[sgfhash_start:sgfhash_start+sgfhash_len]
+    sgfhash = hex(int(sgfhash[0]) + int(sgfhash[1])*0xFFFF + int(sgfhash[2])*0xFFFFffff + int(sgfhash[3])*0xFFFFffffFFFF)
+
     if is_maybe_ko_recapture(pla,position,last_moves,real_move):
       if random.random() < 0.25:
         outputs_to_include_in = [ko_filter_key]
       else:
         outputs_to_include_in.append(ko_filter_key)
 
-    entry = (pla,position,recent_capture_locs,last_moves,correct_net_moves,correct_lz_moves,big_credit_moves,medium_credit_moves,small_credit_moves,next_moves)
+    entry = (pla,position,recent_capture_locs,last_moves,correct_net_moves,correct_lz_moves,big_credit_moves,medium_credit_moves,small_credit_moves,next_moves,sgfhash)
 
     for output_key in outputs_to_include_in:
       arr = entries_by_output_key[output_key]
