@@ -188,7 +188,7 @@ with tf.Session(config=tfconfig) as session:
     for k in range(len(rows)):
       if only_ranks is None or rank_one_hot_idx[k] in only_ranks:
         sgfhash = row_hashvalues[k]
-        sgfhash = int(sgfhash[0]) + int(sgfhash[1])*0xFFFF + int(sgfhash[2])*0xFFFFffff + int(sgfhash[3])*0xFFFFffffFFFF
+        sgfhash = int(sgfhash[0]) + int(sgfhash[1])*0x10000 + int(sgfhash[2])*0x100000000 + int(sgfhash[3])*0x1000000000000
 
         if sgfhash not in lossbyhash:
           lossbyhash[sgfhash] = 0.0

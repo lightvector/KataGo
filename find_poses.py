@@ -332,7 +332,7 @@ with tf.Session(config=tfconfig) as session:
       next_moves[i] = row[next_moves_start+i]
 
     sgfhash = row[sgfhash_start:sgfhash_start+sgfhash_len]
-    sgfhash = hex(int(sgfhash[0]) + int(sgfhash[1])*0xFFFF + int(sgfhash[2])*0xFFFFffff + int(sgfhash[3])*0xFFFFffffFFFF)
+    sgfhash = hex(int(sgfhash[0]) + int(sgfhash[1])*0x10000 + int(sgfhash[2])*0x100000000 + int(sgfhash[3])*0x1000000000000)
 
     if is_maybe_ko_recapture(pla,position,last_moves,real_move):
       if random.random() < 0.25:
