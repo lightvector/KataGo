@@ -419,6 +419,23 @@ static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& m
   row[sgfHashStart+3] = (float)((sgfHash >> 48) & 0xFFFF);
 }
 
+static uint64_t parseHex64(const string& str) {
+  assert(str.length() == 16);
+  uint64_t x = 0;
+  for(int i = 0; i<16; i++) {
+    x *= 16;
+    if(str[i] >= '0' && str[i] <= '9')
+      x += str[i] - '0';
+    else if(str[i] >= 'a' && str[i] <= 'f')
+      x += str[i] - 'a' + 10;
+    else if(str[i] >= 'A' && str[i] <= 'F')
+      x += str[i] - 'A' + 10;
+    else
+      assert(false);
+  }
+  return x;
+}
+
 static int parseSource(const CompactSgf* sgf) {
   return parseSource(sgf->fileName);
 }
@@ -434,17 +451,26 @@ static int parseHandicap(const string& handicap) {
 static const int RANK_UNRANKED = -1000;
 
 //2 kyu = -2, 1 kyu = -1, 1 dan = 0, 2 dan = 1, ...  higher is stronger, pros are assumed to be 9d.
-static int parseRank(const string& rank) {
+static int parseRank(const string& rank, bool isGoGoD) {
   string r = Global::toLower(rank);
-  if(r.length() < 2 || r.length() > 5)
+
+  //Special case parsings
+  if(isGoGoD) {
+    if(r == "meijin" || r == "kisei" || r == "insei" || r == "judan" || r == "holder")
+      return 8;
+  }
+
+  if(r.length() < 2 || r.length() > 6)
     throw IOError("Could not parse rank: " + rank);
 
   int n = 0;
   bool isK = false;
   bool isD = false;
   bool isP = false;
+  bool isA = false;
+  bool isAK = false;
   if(r.length() == 2) {
-    if(r[1] != 'k' && r[1] != 'd' && r[1] != 'p')
+    if(r[1] != 'k' && r[1] != 'd' && r[1] != 'p' && r[1] != 'a')
       throw IOError("Could not parse rank: " + rank);
     if(!Global::isDigits(r,0,1))
       throw IOError("Could not parse rank: " + rank);
@@ -452,10 +478,10 @@ static int parseRank(const string& rank) {
     isK = r[1] == 'k';
     isD = r[1] == 'd';
     isP = r[1] == 'p';
+    isA = r[1] == 'a'; //a few GoGoD records use 'a' to represent amateur dan
   }
-
   else if(r.length() == 3) {
-    if(r[2] != 'k' && r[2] != 'd' && r[2] != 'p')
+    if(r[2] != 'k' && r[2] != 'd' && r[2] != 'p' && r[2] != 'a')
       throw IOError("Could not parse rank: " + rank);
     if(!Global::isDigits(r,0,2))
       throw IOError("Could not parse rank: " + rank);
@@ -463,6 +489,7 @@ static int parseRank(const string& rank) {
     isK = r[2] == 'k';
     isD = r[2] == 'd';
     isP = r[2] == 'p';
+    isA = r[2] == 'a'; //a few GoGoD records use 'a' to represent amateur dan
   }
   else if(r.length() == 4) {
     //UTF-8 for 级(kyu/grade)
@@ -507,20 +534,56 @@ static int parseRank(const string& rank) {
     else
       throw IOError("Could not parse rank: " + rank);
   }
+  else if(r.length() == 6) {
+    //GoGoD often labels ranks like "6d ama"
+    if(r[1] == 'd' && r[2] == ' ' && r[3] == 'a' && r[4] == 'm' && r[5] == 'a' && Global::isDigits(r,0,1)) {
+      isA = true;
+      n = Global::parseDigits(r,0,1);
+    }
+    //GoGoD often labels ranks like "1k ama"
+    else if(r[1] == 'k' && r[2] == ' ' && r[3] == 'a' && r[4] == 'm' && r[5] == 'a' && Global::isDigits(r,0,1)) {
+      isAK = true;
+      n = Global::parseDigits(r,0,1);
+    }
+    else
+      throw IOError("Could not parse rank: " + rank);
+  }
   else {
     assert(false);
   }
 
-  if(isK)
-    return -n;
-  else if(isD)
-    return n >= 9 ? 8 : n-1;
-  //Treat all professional dan ranks as 9d amateur
-  else if(isP)
-    return 8;
+  if(isGoGoD) {
+    if(isA)
+      return n >= 9 ? 8 : n-1;
+    //Treat GoGoD games as all 9d a large number of pros are labeled e.g. "3d" indicating 3 *professional* dan something like "3p".
+    //There are some games involving genuinely amateur dan players, but it's basically impossible to tell from the rank whether it's
+    //amateur or pro.
+    else if(isD)
+      return 8;
+    else if(isP)
+      return 8;
+    //Even kyu games can refer to the old korean kyu which is actually quite strong. We go ahead and exclude everything
+    //that's worse than 3k though, and anything else we label as 8d.
+    else if(isK)
+      return n >= 3 ? -n : 7;
+    else if(isAK)
+      return -n;
+    else {
+      throw IOError("Could not parse rank: " + rank);
+    }
+  }
   else {
-    assert(false);
-    return 0;
+    if(isK)
+      return -n;
+    else if(isD)
+      return n >= 9 ? 8 : n-1;
+    //Treat all professional dan ranks as 9d amateur
+    else if(isP)
+      return 8;
+    else {
+      assert(false);
+      return 0;
+    }
   }
 }
 
@@ -583,23 +646,30 @@ static void iterSgfMoves(
     const SgfNode& root = sgf->rootNode;
 
     source = parseSource(sgf);
+
     if(source == SOURCE_GOGOD) {
-      //Treat GoGoD games as all 9d a large number of pros are labeled e.g. "3d" indicating 3 *professional* dan something like "3p".
-      //There are some games involving genuinely amateur dan players, but it's basically impossible to tell from the rank whether it's
-      //amateur or pro, so just assume it's all pro.
+      //By default, assume pro rank in GoGod if not specified
       wRank = 8;
       bRank = 8;
+      bool isGoGoD = true;
+      try {
+        if(root.hasProperty("WR"))
+          wRank = parseRank(root.getSingleProperty("WR"),isGoGoD);
+        if(root.hasProperty("BR"))
+          bRank = parseRank(root.getSingleProperty("BR"),isGoGoD);
+      }
+      catch(const IOError &e) {
+        cout << "Warning: " << sgf->fileName << ": " << e.message << endl;
+      }
     }
     else {
+      wRank = RANK_UNRANKED;
+      bRank = RANK_UNRANKED;
+      bool isGoGoD = false;
       if(root.hasProperty("WR"))
-        wRank = parseRank(root.getSingleProperty("WR"));
-      else
-        wRank = RANK_UNRANKED;
-
+        wRank = parseRank(root.getSingleProperty("WR"),isGoGoD);
       if(root.hasProperty("BR"))
-        bRank = parseRank(root.getSingleProperty("BR"));
-      else
-        bRank = RANK_UNRANKED;
+        bRank = parseRank(root.getSingleProperty("BR"),isGoGoD);
     }
 
     wUser = root.getSingleProperty("PW");
@@ -688,7 +758,7 @@ static void iterSgfMoves(
     int rank = m.pla == P_WHITE ? wRank : bRank;
     int oppRank = m.pla == P_WHITE ? bRank : wRank;
     const string& user = m.pla == P_WHITE ? wUser : bUser;
-    f(recentBoards,source,rank,oppRank,user,handicap,date,moves,j,sgf->hash);
+    f(recentBoards,source,rank,oppRank,user,handicap,date,moves,j,sgf->hash[0]);
 
     for(int dj = 0; dj<numRecentBoards && j-dj >= 0; dj++) {
       Move mv = moves[j-dj];
@@ -783,6 +853,9 @@ static void maybeUseRow(
         canUse = false;
       //No handicap games from GoGoD since they're less likely to be pro-level
       if(source == SOURCE_GOGOD && handicap >= 2)
+        canUse = false;
+      //No kyu moves from GoGoD, no amateur moves that are too weak
+      if(source == SOURCE_GOGOD && rank < 4)
         canUse = false;
       //OGS had a major rank shift in 2014, only use games before
       if(source == SOURCE_OGSPre2014) {
@@ -946,6 +1019,7 @@ int main(int argc, const char* argv[]) {
   string outputFile;
   string onlyFilesFile;
   string excludeFilesFile;
+  vector<string> excludeHashesFiles;
   size_t poolSize;
   int trainShards;
   double valGameProb;
@@ -967,6 +1041,7 @@ int main(int argc, const char* argv[]) {
     TCLAP::ValueArg<string> outputArg("","output","H5 file to write",true,string(),"FILE");
     TCLAP::ValueArg<string> onlyFilesArg("","only-files","Specify a list of files to filter to, one per line in a txt file",false,string(),"FILEOFFILES");
     TCLAP::ValueArg<string> excludeFilesArg("","exclude-files","Specify a list of files to filter out, one per line in a txt file",false,string(),"FILEOFFILES");
+    TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
     TCLAP::ValueArg<size_t> poolSizeArg("","pool-size","Pool size for shuffling rows",true,(size_t)0,"SIZE");
     TCLAP::ValueArg<int>    trainShardsArg("","train-shards","Make this many passes processing 1/N of the data each time",true,0,"INT");
     TCLAP::ValueArg<double> valGameProbArg("","val-game-prob","Probability of using a game for validation instead of train",true,0.0,"PROB");
@@ -985,6 +1060,7 @@ int main(int argc, const char* argv[]) {
     cmd.add(outputArg);
     cmd.add(onlyFilesArg);
     cmd.add(excludeFilesArg);
+    cmd.add(excludeHashesArg);
     cmd.add(poolSizeArg);
     cmd.add(trainShardsArg);
     cmd.add(valGameProbArg);
@@ -1004,6 +1080,7 @@ int main(int argc, const char* argv[]) {
     outputFile = outputArg.getValue();
     onlyFilesFile = onlyFilesArg.getValue();
     excludeFilesFile = excludeFilesArg.getValue();
+    excludeHashesFiles = excludeHashesArg.getValue();
     poolSize = poolSizeArg.getValue();
     trainShards = trainShardsArg.getValue();
     valGameProb = valGameProbArg.getValue();
@@ -1060,6 +1137,26 @@ int main(int argc, const char* argv[]) {
     }
   }
 
+  bool excludeHashesProvided = false;
+  set<pair<uint64_t,uint64_t> > excludeHashes;
+  for(int i = 0; i<excludeHashesFiles.size(); i++) {
+    const string& excludeHashesFile = excludeHashesFiles[i];
+    excludeHashesProvided = true;
+    vector<string> hashes = Global::readFileLines(excludeHashesFile,'\n');
+    for(size_t j = 0; j < hashes.size(); j++) {
+      const string& hashPair = Global::trim(Global::stripComments(hashes[j]));
+      if(hashPair.length() <= 0)
+        continue;
+      vector<string> pieces = Global::split(hashPair,',');
+      if(pieces.size() != 2)
+        throw IOError("Could not parse hashpair in exclude hashes file: " + hashPair);
+
+      uint64_t hash0 = parseHex64(pieces[0]);
+      uint64_t hash1 = parseHex64(pieces[1]);
+      excludeHashes.insert(std::make_pair(hash0,hash1));
+    }
+  }
+
   //Print some stats-----------------------------------------------------------------
   cout << "maxBoardSize " << maxBoardSize << endl;
   cout << "numFeatures " << numFeatures << endl;
@@ -1091,10 +1188,10 @@ int main(int argc, const char* argv[]) {
     cout << s << endl;
   }
   if(onlyFilesProvided) {
-    cout << "Filtering to only " << onlyFiles.size() << " files";
+    cout << "Filtering to only " << onlyFiles.size() << " files (or whatever subset is present)";
   }
   if(excludeFilesProvided) {
-    cout << "Filtering to exclude " << excludeFiles.size() << " files";
+    cout << "Filtering to exclude " << excludeFiles.size() << " files (if present)";
   }
   cout << endl;
 
@@ -1167,6 +1264,33 @@ int main(int argc, const char* argv[]) {
 
   cout << "Loading SGFS..." << endl;
   vector<CompactSgf*> sgfs = CompactSgf::loadFiles(files);
+
+  // for(int i = 0; i<sgfs.size(); i++) {
+  //   if(sgfs[i]->hash[0] == 0x1f2ec0180ce048efULL ||
+  //      sgfs[i]->hash[0] == 0x3a725037aae2187dULL ||
+  //      sgfs[i]->hash[0] == 0x6525fbc0f6e1e5c8ULL ||
+  //      sgfs[i]->hash[0] == 0xf64ce12873a3b546ULL ||
+  //      sgfs[i]->hash[0] == 0x4a6b65604af66551ULL ||
+  //      sgfs[i]->hash[0] == 0xd755d3a927931751ULL)
+  //     cout << sgfs[i]->fileName << endl;
+  // }
+
+
+  if(excludeHashesProvided) {
+    int kept = 0;
+    for(int i = 0; i<sgfs.size(); i++) {
+      if(!contains(excludeHashes,std::make_pair(sgfs[i]->hash[0],sgfs[i]->hash[1]))) {
+        if(i != kept)
+          std::swap(sgfs[i],sgfs[kept]);
+        kept++;
+      }
+      else {
+        delete sgfs[i];
+      }
+    }
+    sgfs.resize(kept);
+    cout << "Kept " << sgfs.size() << " sgf files after filtering by excludeHashes!" << endl;
+  }
 
   //Shuffle sgfs
   cout << "Shuffling SGFS..." << endl;

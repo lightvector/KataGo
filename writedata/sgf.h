@@ -27,7 +27,7 @@ struct Sgf {
   string fileName;
   vector<SgfNode*> nodes;
   vector<Sgf*> children;
-  uint64_t hash;
+  uint64_t hash[2];
 
   Sgf();
   ~Sgf();
@@ -55,7 +55,7 @@ struct CompactSgf {
   vector<Move> moves;
   int bSize;
   int depth;
-  uint64_t hash;
+  uint64_t hash[2];
 
   CompactSgf(const Sgf* sgf);
   ~CompactSgf();

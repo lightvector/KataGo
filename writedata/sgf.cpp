@@ -361,7 +361,8 @@ Sgf* Sgf::parse(const string& str) {
   Sgf* sgf = maybeParseSgf(str,pos);
   uint64_t hash[4];
   SHA2::get256(str.c_str(),hash);
-  sgf->hash = hash[0];
+  sgf->hash[0] = hash[0];
+  sgf->hash[1] = hash[1];
   if(sgf == NULL || sgf->nodes.size() == 0)
     sgfFail("Empty sgf",str,0);
   return sgf;
@@ -404,11 +405,12 @@ CompactSgf::CompactSgf(const Sgf* sgf)
    placements(),
    moves(),
    bSize(),
-   depth(),
-   hash(sgf->hash)
+   depth()
 {
   bSize = sgf->getBSize();
   depth = sgf->depth();
+  hash[0] = sgf->hash[0];
+  hash[1] = sgf->hash[1];
 
   sgf->getPlacements(placements, bSize);
   sgf->getMoves(moves, bSize);
