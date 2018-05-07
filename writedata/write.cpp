@@ -1282,15 +1282,21 @@ int main(int argc, const char* argv[]) {
   vector<CompactSgf*> sgfs = CompactSgf::loadFiles(files);
 
   // for(int i = 0; i<sgfs.size(); i++) {
-  //   if(sgfs[i]->hash[0] == 0x1f2ec0180ce048efULL ||
-  //      sgfs[i]->hash[0] == 0x3a725037aae2187dULL ||
-  //      sgfs[i]->hash[0] == 0x6525fbc0f6e1e5c8ULL ||
-  //      sgfs[i]->hash[0] == 0xf64ce12873a3b546ULL ||
-  //      sgfs[i]->hash[0] == 0x4a6b65604af66551ULL ||
-  //      sgfs[i]->hash[0] == 0xd755d3a927931751ULL)
+  //   if(sgfs[i]->hash[0] == 0x1a94b16410ae6be0ULL ||
+  //      sgfs[i]->hash[0] == 0xcd09562bc06cd9bbULL ||
+  //      sgfs[i]->hash[0] == 0x2233404f2631382ULL ||
+  //      sgfs[i]->hash[0] == 0x76c1a947cde45a9eULL ||
+  //      sgfs[i]->hash[0] == 0xe471f1dbcf146ff1ULL ||
+  //      sgfs[i]->hash[0] == 0x810d5d87c8dce0cbULL ||
+  //      sgfs[i]->hash[0] == 0xa7fcf6c55ee16e30ULL ||
+  //      sgfs[i]->hash[0] == 0x594b712635a2692dULL ||
+  //      sgfs[i]->hash[0] == 0xa8cd003f20241f33ULL ||
+  //      sgfs[i]->hash[0] == 0xe069b39c42b26fe3ULL ||
+  //      sgfs[i]->hash[0] == 0xf4b683e270916e8eULL ||
+  //      sgfs[i]->hash[0] == 0x9510377733620c6dULL ||
+  //      sgfs[i]->hash[0] == 0xe8c22c39775764d2ULL)
   //     cout << sgfs[i]->fileName << endl;
   // }
-
 
   if(excludeHashesProvided) {
     int kept = 0;

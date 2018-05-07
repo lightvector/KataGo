@@ -294,7 +294,7 @@ with tf.Session(config=tfconfig) as session:
     big_credit_moves = []
     medium_credit_moves = []
     small_credit_moves = []
-    next_moves = np.zeros([5],dtype=np.int16)
+    next_moves = np.zeros([7],dtype=np.int16)
 
     #By default, set the last moves all to an offboard number if there was no such move (or it was a pass)
     for i in range(len(last_moves)):
@@ -339,7 +339,7 @@ with tf.Session(config=tfconfig) as session:
     sgfhash = hex(int(sgfhash[0]) + int(sgfhash[1])*0x10000 + int(sgfhash[2])*0x100000000 + int(sgfhash[3])*0x1000000000000)
 
     if is_maybe_ko_recapture(pla,position,last_moves,real_move):
-      if random.random() < 0.25:
+      if random.random() < 0.75:
         outputs_to_include_in = [ko_filter_key]
       else:
         outputs_to_include_in.append(ko_filter_key)
