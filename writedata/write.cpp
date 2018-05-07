@@ -1160,15 +1160,14 @@ int main(int argc, const char* argv[]) {
     excludeHashesProvided = true;
     vector<string> hashes = Global::readFileLines(excludeHashesFile,'\n');
     for(size_t j = 0; j < hashes.size(); j++) {
-      const string& hashPair = Global::trim(Global::stripComments(hashes[j]));
-      if(hashPair.length() <= 0)
+      const string& hash128 = Global::trim(Global::stripComments(hashes[j]));
+      if(hash128.length() <= 0)
         continue;
-      vector<string> pieces = Global::split(hashPair,',');
-      if(pieces.size() != 2)
+      if(hash128.length() != 32)
         throw IOError("Could not parse hashpair in exclude hashes file: " + hashPair);
 
-      uint64_t hash0 = parseHex64(pieces[0]);
-      uint64_t hash1 = parseHex64(pieces[1]);
+      uint64_t hash0 = parseHex64(hash128.substr(0,32));
+      uint64_t hash1 = parseHex64(hash128.substr(32,32));
       excludeHashes.insert(std::make_pair(hash0,hash1));
     }
   }
