@@ -460,7 +460,7 @@ static int parseRank(const string& rank, bool isGoGoD) {
       return 8;
   }
 
-  if(r.length() < 2 || r.length() > 6)
+  if(r.length() < 2 || r.length() > 7)
     throw IOError("Could not parse rank: " + rank);
 
   int n = 0;
@@ -548,8 +548,19 @@ static int parseRank(const string& rank, bool isGoGoD) {
     else
       throw IOError("Could not parse rank: " + rank);
   }
+  //GoGoD has rengos between various pros
+  else if(r.length() == 7) {
+    if(r[1] == 'd' && r[2] == ' ' && r[3] == '&' && r[4] == ' ' && r[6] == 'd' &&
+       Global::isDigits(r,0,1) && Global::isDigits(r,5,6))
+    {
+      isD = true;
+      n = std::min(Global::parseDigits(r,0,1),Global::parseDigits(r,5,6));
+    }
+    else
+      throw IOError("Could not parse rank: " + rank);
+  }
   else {
-    assert(false);
+    throw IOError("Could not parse rank: " + rank);
   }
 
   if(isGoGoD) {
@@ -655,6 +666,11 @@ static void iterSgfMoves(
       try {
         if(root.hasProperty("WR"))
           wRank = parseRank(root.getSingleProperty("WR"),isGoGoD);
+      }
+      catch(const IOError &e) {
+        cout << "Warning: " << sgf->fileName << ": " << e.message << endl;
+      }
+      try {
         if(root.hasProperty("BR"))
           bRank = parseRank(root.getSingleProperty("BR"),isGoGoD);
       }
