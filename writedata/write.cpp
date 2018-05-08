@@ -1170,8 +1170,8 @@ int main(int argc, const char* argv[]) {
       if(hash128.length() != 32)
         throw IOError("Could not parse hashpair in exclude hashes file: " + hash128);
 
-      uint64_t hash0 = parseHex64(hash128.substr(0,32));
-      uint64_t hash1 = parseHex64(hash128.substr(32,32));
+      uint64_t hash0 = parseHex64(hash128.substr(0,16));
+      uint64_t hash1 = parseHex64(hash128.substr(16,16));
       excludeHashes.insert(Hash128(hash0,hash1));
     }
   }
