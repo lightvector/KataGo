@@ -139,7 +139,7 @@ with tf.Session(config=tfconfig) as session:
   next_moves_start = recent_captures_start + recent_captures_len
   next_moves_len = 7
   sgfhash_start = next_moves_start + next_moves_len
-  sgfhash_len = 4
+  sgfhash_len = 8
 
   def run(fetches, rows):
     assert(len(model.input_shape) == 2)
@@ -188,8 +188,16 @@ with tf.Session(config=tfconfig) as session:
     for k in range(len(rows)):
       if only_ranks is None or rank_one_hot_idx[k] in only_ranks:
         sgfhash = row_hashvalues[k]
-        sgfhash = int(sgfhash[0]) + int(sgfhash[1])*0x10000 + int(sgfhash[2])*0x100000000 + int(sgfhash[3])*0x1000000000000
-
+        sgfhash = (
+          int(sgfhash[0]) +
+          int(sgfhash[1])*0x10000 +
+          int(sgfhash[2])*0x100000000 +
+          int(sgfhash[3])*0x1000000000000 +
+          int(sgfhash[4])*0x10000000000000000 +
+          int(sgfhash[5])*0x100000000000000000000 +
+          int(sgfhash[6])*0x1000000000000000000000000 +
+          int(sgfhash[7])*0x10000000000000000000000000000
+        )
         if sgfhash not in lossbyhash:
           lossbyhash[sgfhash] = 0.0
           weightbyhash[sgfhash] = 0

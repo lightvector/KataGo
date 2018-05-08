@@ -86,7 +86,7 @@ recent_captures_len = model.max_board_size * model.max_board_size
 next_moves_start = recent_captures_start + recent_captures_len
 next_moves_len = 7
 sgfhash_start = next_moves_start + next_moves_len
-sgfhash_len = 4
+sgfhash_len = 8
 
 saver = tf.train.Saver(
   max_to_keep = 10000,
@@ -336,7 +336,16 @@ with tf.Session(config=tfconfig) as session:
       next_moves[i] = row[next_moves_start+i]
 
     sgfhash = row[sgfhash_start:sgfhash_start+sgfhash_len]
-    sgfhash = hex(int(sgfhash[0]) + int(sgfhash[1])*0x10000 + int(sgfhash[2])*0x100000000 + int(sgfhash[3])*0x1000000000000)
+    sgfhash = hex(
+      int(sgfhash[0]) +
+      int(sgfhash[1])*0x10000 +
+      int(sgfhash[2])*0x100000000 +
+      int(sgfhash[3])*0x1000000000000 +
+      int(sgfhash[4])*0x10000000000000000 +
+      int(sgfhash[5])*0x100000000000000000000 +
+      int(sgfhash[6])*0x1000000000000000000000000 +
+      int(sgfhash[7])*0x10000000000000000000000000000
+    )
 
     if is_maybe_ko_recapture(pla,position,last_moves,real_move):
       if random.random() < 0.75:
