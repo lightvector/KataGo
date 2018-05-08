@@ -11,7 +11,7 @@ struct Hash128 {
   uint64_t hash1;
   inline Hash128(): hash0(), hash1() {}
   inline Hash128(uint64_t h0, uint64_t h1): hash0(h0), hash1(h1) {}
-  inline bool operator=(const Hash128& other) const { return hash0 == other.hash0 && hash1 == other.hash1; }
+  inline bool operator==(const Hash128& other) const { return hash0 == other.hash0 && hash1 == other.hash1; }
   inline bool operator<(const Hash128& other) const { return hash0 < other.hash0 || (hash0 == other.hash0 && hash1 < other.hash1); }
 };
 
