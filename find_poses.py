@@ -110,10 +110,10 @@ with tf.Session(config=tfconfig) as session:
 
   ko_filter_key = "kofiltered.pickle"
   entries_by_output_key = {}
-  for output_key in ([key for key in config] + [ko_filter_key]):
+  for output_key in ([key for key in config["specs"]] + [ko_filter_key]):
     entries_by_output_key[output_key] = []
     num_used_by_output_matrix[output_key] = {}
-    for output_key2 in ([key for key in config] + [ko_filter_key]):
+    for output_key2 in ([key for key in config["specs"]] + [ko_filter_key]):
       num_used_by_output_matrix[output_key][output_key2] = 0
 
   def run(inputs,ranks):
@@ -391,12 +391,11 @@ with tf.Session(config=tfconfig) as session:
       real_move = np.argmax(target)
       if strong_game_filter(rank_one_hot_idx,pro_probs,real_move):
         pro_expected_score = get_expected_score(pro_probs,pro_probs)
-        outputs_to_include_in = []
 
         #Batch up all the ranks we need to run a neural net eval for
         desired_ranks = []
-        for output_key in config:
-          output_specs = config[output_key]
+        for output_key in config["specs"]:
+          output_specs = config["specs"][output_key]
           for output_spec in output_specs:
             if output_spec["user_rank"] not in desired_ranks and output_spec["user_rank"] != 0:
               desired_ranks.append(output_spec["user_rank"])
@@ -409,8 +408,11 @@ with tf.Session(config=tfconfig) as session:
           probs_by_rank[desired_ranks[i]] = probs[i]
         probs_by_rank[0] = pro_probs
 
-        for output_key in config:
-          output_specs = config[output_key]
+        #Each spec has conditions for whether we should include it in that problem set, check them
+        #now and gather the specs that pass conditions
+        outputs_to_maybe_include_in = []
+        for output_key in config["specs"]:
+          output_specs = config["specs"][output_key]
           for output_spec in output_specs:
             user_probs = probs_by_rank[output_spec["user_rank"]]
             better_probs = probs_by_rank[output_spec["better_rank"]]
@@ -423,8 +425,30 @@ with tf.Session(config=tfconfig) as session:
                better_expected_score >= min_better_score and
                pro_expected_score >= min_better_score):
               #If any of the specs in the config want to include this row, then include it
-              outputs_to_include_in.append(output_key)
+              outputs_to_maybe_include_in.append(output_key)
               break
+
+        #Additionally, apply difficulty filtering
+        if len(outputs_to_maybe_include_in) <= 0:
+          return
+
+        max_difficulty = max(config["difficulties"][output_key] for output_key in outputs_to_maybe_include_in)
+        outputs_to_include_in = []
+        for output_key in outputs_to_maybe_include_in:
+          if output_key == ko_filter_key:
+            outputs_to_include_in.append(output_key)
+          else:
+            difficulty = config["difficulties"][output_key]
+            if max_difficulty >= difficulty + 4:
+              pass
+            elif max_difficulty >= difficulty + 3:
+              if random.random() < 0.25:
+                outputs_to_include_in.append(output_key)
+            elif max_difficulty >= difficulty + 2:
+              if random.random() < 0.6:
+                outputs_to_include_in.append(output_key)
+            else:
+                outputs_to_include_in.append(output_key)
 
         num_outputs_to_include_in = len(outputs_to_include_in)
         if num_outputs_to_include_in > 0:
