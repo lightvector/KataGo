@@ -144,6 +144,9 @@ with tf.Session(config=tfconfig) as session:
             " " + str(num_used_by_output_matrix),
             flush=True)
       rows = h5val[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_val_rows)]
+      this_batch_size = len(rows)
+      if this_batch_size < validation_batch_size:
+        pro_ranks_input = pro_ranks_input[:this_batch_size]
 
       if not isinstance(rows, np.ndarray):
         rows = np.array(rows)
