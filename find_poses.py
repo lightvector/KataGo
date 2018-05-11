@@ -84,7 +84,7 @@ turn_number_len = 2
 recent_captures_start = turn_number_start + turn_number_len
 recent_captures_len = model.max_board_size * model.max_board_size
 next_moves_start = recent_captures_start + recent_captures_len
-next_moves_len = 7
+next_moves_len = 12
 sgfhash_start = next_moves_start + next_moves_len
 sgfhash_len = 8
 

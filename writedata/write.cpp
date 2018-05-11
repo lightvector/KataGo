@@ -52,7 +52,7 @@ static const int recentCapturesStart = turnNumberStart + turnNumberLen;
 static const int recentCapturesLen = maxBoardSize * maxBoardSize;
 
 static const int nextMovesStart = recentCapturesStart + recentCapturesLen;
-static const int nextMovesLen = 7;
+static const int nextMovesLen = 12;
 
 static const int sgfHashStart = nextMovesStart + nextMovesLen;
 static const int sgfHashLen = 8;
