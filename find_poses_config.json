@@ -4,9 +4,9 @@
         "10k.pickle": 1,
         "7k.pickle": 2,
         "4k.pickle": 3,
-        "1k.pickle": 4,
-        "2d.pickle": 5,
-        "4d.pickle": 6
+        "2k.pickle": 4,
+        "1d.pickle": 5,
+        "3d.pickle": 6
     },
     "specs": {
         "14k.pickle": [
@@ -73,7 +73,7 @@
                 "min_better_at_max": 0.85
             }
         ],
-        "1k.pickle": [
+        "2k.pickle": [
             {
                 "user_rank": 22,
                 "better_rank": 34,
@@ -91,7 +91,7 @@
                 "min_better_at_max": 0.85
             }
         ],
-        "2d.pickle": [
+        "1d.pickle": [
             {
                 "user_rank": 27,
                 "better_rank": 35,
@@ -109,7 +109,7 @@
                 "min_better_at_max": 0.85
             }
         ],
-        "4d.pickle": [
+        "3d.pickle": [
             {
                 "user_rank": 56,
                 "better_rank": 63,
