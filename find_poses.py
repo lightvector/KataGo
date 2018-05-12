@@ -297,7 +297,7 @@ with tf.Session(config=tfconfig) as session:
     big_credit_moves = []
     medium_credit_moves = []
     small_credit_moves = []
-    next_moves = np.zeros([7],dtype=np.int16)
+    next_moves = np.zeros([next_moves_len],dtype=np.int16)
 
     #By default, set the last moves all to an offboard number if there was no such move (or it was a pass)
     for i in range(len(last_moves)):
