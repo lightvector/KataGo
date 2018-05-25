@@ -118,13 +118,38 @@ with tf.Session(config=tfconfig) as session:
 
   def run(inputs,ranks):
     fetches = policy_probs_output
-    policy_probs = session.run(fetches, feed_dict={
+    #Try 4 rotations
+    policy_probs0 = session.run(fetches, feed_dict={
       model.inputs: inputs,
       model.ranks: ranks,
       model.symmetries: [False,False,False],
       model.is_training: False
     })
-    return np.array(policy_probs)
+    policy_probs1 = session.run(fetches, feed_dict={
+      model.inputs: inputs,
+      model.ranks: ranks,
+      model.symmetries: [True,True,False],
+      model.is_training: False
+    })
+    policy_probs2 = session.run(fetches, feed_dict={
+      model.inputs: inputs,
+      model.ranks: ranks,
+      model.symmetries: [False,True,False],
+      model.is_training: False
+    })
+    policy_probs3 = session.run(fetches, feed_dict={
+      model.inputs: inputs,
+      model.ranks: ranks,
+      model.symmetries: [True,False,False],
+      model.is_training: False
+    })
+    policy_probs = np.array([policy_probs0,policy_probs1,policy_probs2,policy_probs3])
+    #Disabled - doing percentiles like this this would break the sum equalling 1:
+    #policy_probs = 0.5 * (numpy.percentile(policy_probs,200.0/3.0,axis=0) + numpy.percentile(policy_probs,100.0/3.0,axis=0))
+
+    #Average!
+    policy_probs = np.mean(policy_probs,axis=0)
+    return policy_probs
 
   def run_in_batches(h5val,f):
     num_h5_val_rows = h5val.shape[0]
@@ -351,7 +376,7 @@ with tf.Session(config=tfconfig) as session:
     )
 
     if is_maybe_ko_recapture(pla,position,last_moves,real_move):
-      if random.random() < 0.75:
+      if random.random() < 0.85:
         outputs_to_include_in = [ko_filter_key]
       else:
         outputs_to_include_in.append(ko_filter_key)

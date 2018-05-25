@@ -114,9 +114,9 @@
                 "user_rank": 56,
                 "better_rank": 63,
                 "user_min_score": 0.25,
-                "user_max_score": 0.70,
+                "user_max_score": 0.67,
                 "min_better_at_min": 0.45,
-                "min_better_at_max": 0.85
+                "min_better_at_max": 0.83
             }
         ]
     }
