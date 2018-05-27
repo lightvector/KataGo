@@ -13,6 +13,7 @@ import pickle
 import json
 import tensorflow as tf
 import numpy as np
+import hashlib
 
 import data
 from board import Board
@@ -105,15 +106,18 @@ with tf.Session(config=tfconfig) as session:
 
   num_processed = [0]
   num_used = [0]
-  num_used_counts = {}
+  num_dups_filtered = [0]
   num_used_by_output_matrix = {}
 
+  poshashes_used = {}
+
   ko_filter_key = "kofiltered.pickle"
+  all_filter_key = "all.pickle"
   entries_by_output_key = {}
-  for output_key in ([key for key in config["specs"]] + [ko_filter_key]):
+  for output_key in ([key for key in config["specs"]] + [ko_filter_key] + [all_filter_key]):
     entries_by_output_key[output_key] = []
     num_used_by_output_matrix[output_key] = {}
-    for output_key2 in ([key for key in config["specs"]] + [ko_filter_key]):
+    for output_key2 in ([key for key in config["specs"]] + [ko_filter_key] + [all_filter_key]):
       num_used_by_output_matrix[output_key][output_key2] = 0
 
   def run(inputs,ranks):
@@ -165,7 +169,7 @@ with tf.Session(config=tfconfig) as session:
     for i in range(num_validation_batches):
       print("Batch: " + str(i) + "/" + str(num_validation_batches) +
             " Used " + str(num_used[0]) + "/" + str(num_processed[0]) +
-            " " + str(num_used_counts) +
+            " DupsFiltered " + str(num_dups_filtered[0]) +
             " " + str(num_used_by_output_matrix),
             flush=True)
       rows = h5val[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_val_rows)]
@@ -308,7 +312,7 @@ with tf.Session(config=tfconfig) as session:
         return False
     return True
 
-  def write_position(inputs,target,ranks,pro_probs,row,real_move,outputs_to_include_in):
+  def write_position(inputs,target,ranks,pro_probs,row,real_move,poshash,outputs_to_include_in):
     pla = int(row[side_start]+1)
     opp = 3-pla
     recent_captures = row[recent_captures_start:recent_captures_start+recent_captures_len]
@@ -381,7 +385,10 @@ with tf.Session(config=tfconfig) as session:
       else:
         outputs_to_include_in.append(ko_filter_key)
 
-    entry = (pla,position,recent_capture_locs,last_moves,correct_net_moves,correct_lz_moves,big_credit_moves,medium_credit_moves,small_credit_moves,next_moves,sgfhash)
+    outputs_to_include_in.append(all_filter_key)
+
+    entry = (pla,position,recent_capture_locs,last_moves,correct_net_moves,correct_lz_moves,
+             big_credit_moves,medium_credit_moves,small_credit_moves,next_moves,sgfhash,poshash)
 
     for output_key in outputs_to_include_in:
       arr = entries_by_output_key[output_key]
@@ -456,14 +463,21 @@ with tf.Session(config=tfconfig) as session:
               outputs_to_maybe_include_in.append(output_key)
               break
 
-        #Additionally, apply difficulty filtering
         if len(outputs_to_maybe_include_in) <= 0:
           return
 
+        #Make sure we aren't including duplicates
+        poshash = hashlib.sha1(inputs.tobytes() + target.tobytes()).hexdigest()
+        if poshash in poshashes_used:
+          num_dups_filtered[0] =+ 1
+          return
+        poshashes_used[poshash] = True
+
+        #Prune out problems from easier sets that made it into harder ones
         max_difficulty = max(config["difficulties"][output_key] for output_key in outputs_to_maybe_include_in)
         outputs_to_include_in = []
         for output_key in outputs_to_maybe_include_in:
-          if output_key == ko_filter_key:
+          if output_key == ko_filter_key or output_key == all_filter_key:
             outputs_to_include_in.append(output_key)
           else:
             difficulty = config["difficulties"][output_key]
@@ -481,10 +495,7 @@ with tf.Session(config=tfconfig) as session:
         num_outputs_to_include_in = len(outputs_to_include_in)
         if num_outputs_to_include_in > 0:
           num_used[0] += 1
-          if num_outputs_to_include_in not in num_used_counts:
-            num_used_counts[num_outputs_to_include_in] = 0
-          num_used_counts[num_outputs_to_include_in] += 1
-          write_position(inputs,target,ranks,pro_probs,row,real_move,outputs_to_include_in)
+          write_position(inputs,target,ranks,pro_probs,row,real_move,poshash,outputs_to_include_in)
 
 
   def process_file(gamesh5_file):
