@@ -433,3 +433,5 @@ But a 1 dan player would more likely prefer to sacrifice those stones and comple
 And the net thinks a 9 dan player would be likely to do the same, but might also likely tenuki to the upper left, which is also reasonably urgent:
 
 <img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/9d.png" width="380" height="380"/>
+
+Using this neural net and a bunch of heuristic filtering criteria, I found a way to generate surprisingly reasonable whole-board open-space fighting and shape problems, which I posted here as a training tool for Go players: [neuralnetgoproblems.com](https://neuralnetgoproblems.com).
