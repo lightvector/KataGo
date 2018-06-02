@@ -5,16 +5,13 @@ from sgfmill import sgf_properties as Sgf_properties
 from board import Board
 
 class Metadata:
-  SOURCE_PRO = 0
-
-  def __init__(self, size, bname, wname, brank, wrank, komi, source):
+  def __init__(self, size, bname, wname, brank, wrank, komi):
     self.size = size
     self.bname = bname
     self.wname = wname
     self.brank = brank
     self.wrank = wrank
     self.komi = komi
-    self.source = source
 
 #Returns (metadata, list of setup stones, list of move stones)
 #Setup and move stones are both pairs of (pla,loc)
@@ -92,12 +89,5 @@ def load_sgf_moves_exn(path):
   wrank = (root.get("WR") if root.has_property("WR") else None)
   komi = (root.get("KM") if root.has_property("KM") else None)
 
-  if "70KPublicDomain" in path:
-    source = Metadata.SOURCE_PRO
-  elif "GoGoD" in path:
-    source = Metadata.SOURCE_PRO
-  else:
-    raise Exception("Don't know how to determine source for: " + path)
-
-  metadata = Metadata(size, bname, wname, brank, wrank, komi, source)
+  metadata = Metadata(size, bname, wname, brank, wrank, komi)
   return metadata, setup, moves

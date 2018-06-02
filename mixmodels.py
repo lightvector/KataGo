@@ -18,7 +18,7 @@ from board import Board
 #Command and args-------------------------------------------------------------------
 
 description = """
-Examine neural net weights!
+Linearly average different neural net weights.
 """
 
 parser = argparse.ArgumentParser(description=description)

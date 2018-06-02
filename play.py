@@ -29,12 +29,12 @@ args = vars(parser.parse_args())
 modelpath = args["model"]
 
 play_rank_one_hot = [0]
-if "rank" in args and args["rank"] != "":
-  play_rank_one_hot[0] = int(args["rank"])
+if "rank_one_hot" in args and args["rank_one_hot"] != "":
+  play_rank_one_hot[0] = int(args["rank_one_hot"])
 
 # Model ----------------------------------------------------------------
 
-with open(model_file + ".config.json") as f:
+with open(modelpath + ".config.json") as f:
   model_config = json.load(f)
 model = Model(model_config)
 policy_output = tf.nn.softmax(model.policy_output)
