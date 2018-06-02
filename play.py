@@ -9,6 +9,7 @@ import time
 import re
 import logging
 import colorsys
+import json
 import tensorflow as tf
 import numpy as np
 
@@ -17,16 +18,15 @@ from model import Model
 
 description = """
 Play go with a trained neural net!
+Implements a basic GTP engine that uses the neural net directly to play moves..
 """
 
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-model', help='Path to model to use', required=True)
-parser.add_argument('-white', help='Model plays white', action="store_true", required=False)
 parser.add_argument('-rank-one-hot', help='Model plays like this rankonehot', required=False)
 args = vars(parser.parse_args())
 
 modelpath = args["model"]
-is_white = args["white"]
 
 play_rank_one_hot = [0]
 if "rank" in args and args["rank"] != "":
@@ -34,7 +34,9 @@ if "rank" in args and args["rank"] != "":
 
 # Model ----------------------------------------------------------------
 
-model = Model(use_ranks=True)
+with open(model_file + ".config.json") as f:
+  model_config = json.load(f)
+model = Model(model_config)
 policy_output = tf.nn.softmax(model.policy_output)
 
 # Moves ----------------------------------------------------------------

@@ -9,6 +9,7 @@ import time
 import logging
 import h5py
 import contextlib
+import json
 import tensorflow as tf
 import numpy as np
 
@@ -19,7 +20,7 @@ from model import Model
 #Command and args-------------------------------------------------------------------
 
 description = """
-Train neural net on Go games!
+Train neural net on Go positions from an h5 file of preprocessed training positions.
 """
 
 parser = argparse.ArgumentParser(description=description)
@@ -31,11 +32,13 @@ parser.add_argument('-restart-epoch', help='restart training epoch', required=Fa
 parser.add_argument('-restart-time', help='restart training time', required=False)
 parser.add_argument('-fast-factor', help='divide training batches per epoch by this factor', required=False)
 parser.add_argument('-validation-prop', help='only use this proportion of validation set', required=False)
+parser.add_argument('-use-ranks', help='train model with player rank as an input', required=False, action='store_true')
 args = vars(parser.parse_args())
 
 traindir = args["traindir"]
 gamesh5 = args["gamesh5"]
 verbose = args["verbose"]
+use_ranks = args["use_ranks"]
 restart_file = None
 start_epoch = 0
 start_elapsed = 0
@@ -81,7 +84,9 @@ def detaillog(s):
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
-model = Model(use_ranks=True)
+model_config = {}
+model_config["use_ranks"] = use_ranks
+model = Model(model_config)
 
 policy_output = model.policy_output
 
@@ -531,7 +536,10 @@ with tf.Session(config=tfconfig) as session:
 
     #Save model every 4 epochs
     if epoch % 4 == 0 or epoch == num_epochs-1:
-      saver.save(session, traindir + "/model" + str(epoch))
+      savepath = traindir + "/model" + str(epoch)
+      with open(savepath + ".config.json") as f:
+        json.dump(config,f)
+      saver.save(session, savepath)
 
   vmetrics_evaled = merge_dicts(run_validation_in_batches(vmetrics), np.sum)
   vstr = validation_stats_str(vmetrics_evaled)

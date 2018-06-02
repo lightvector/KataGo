@@ -10,7 +10,7 @@ from board import Board
 
 class Model:
 
-  def __init__(self,use_ranks):
+  def __init__(self,config):
     self.max_board_size = 19
     self.input_shape = [19*19,26]
     self.post_input_shape = [19,19,26]
@@ -28,6 +28,7 @@ class Model:
     #Accumulates outputs for printing stats about their activations
     self.outputs_by_layer = []
 
+    use_ranks = config["use_ranks"]
     self.build_model(use_ranks)
 
   def xy_to_tensor_pos(self,x,y,offset):

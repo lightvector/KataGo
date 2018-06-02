@@ -22,7 +22,7 @@ from model import Model
 #Command and args-------------------------------------------------------------------
 
 description = """
-Extract positions from Go games!
+Extract positions from Go games! Used to generate the problems for neuralnetgoproblems.com.
 """
 
 parser = argparse.ArgumentParser(description=description)
@@ -50,7 +50,9 @@ np.set_printoptions(linewidth=150)
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
-model = Model(use_ranks=True)
+with open(model_file + ".config.json") as f:
+  model_config = json.load(f)
+model = Model(model_config)
 
 policy_probs_output = tf.nn.softmax(model.policy_output)
 

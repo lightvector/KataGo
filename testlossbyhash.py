@@ -9,6 +9,7 @@ import time
 import logging
 import h5py
 import contextlib
+import json
 import tensorflow as tf
 import numpy as np
 
@@ -19,7 +20,7 @@ from model import Model
 #Command and args-------------------------------------------------------------------
 
 description = """
-Test neural net on Go games!
+Compute average loss by sgf hash.
 """
 
 parser = argparse.ArgumentParser(description=description)
@@ -44,7 +45,9 @@ def log(s):
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
-model = Model(use_ranks=True)
+with open(model_file + ".config.json") as f:
+  model_config = json.load(f)
+model = Model(model_config)
 
 policy_output = model.policy_output
 

@@ -9,6 +9,7 @@ import time
 import logging
 import h5py
 import contextlib
+import json
 import tensorflow as tf
 import numpy as np
 
@@ -19,7 +20,8 @@ from model import Model
 #Command and args-------------------------------------------------------------------
 
 description = """
-Examine neural net weights!
+Examine neural net weights and other stats.
+This is mostly a sandbox for random ideas for things that might be cool to visualize.
 """
 
 parser = argparse.ArgumentParser(description=description)
@@ -40,7 +42,9 @@ def log(s):
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
-model = Model(use_ranks=True)
+with open(model_file + ".config.json") as f:
+  model_config = json.load(f)
+model = Model(model_config)
 
 def volume(variable):
   shape = variable.get_shape()
