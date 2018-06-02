@@ -286,6 +286,7 @@ with tf.Session(config=tfconfig) as session:
   trainlog("h5_chunk_size = " + str(h5_chunk_size))
   trainlog("Batch size = " + str(batch_size))
   trainlog("L2 coeff value = " + str(l2_coeff_value))
+  trainlog("use_ranks = " + str(use_ranks))
 
   sys.stdout.flush()
   sys.stderr.flush()
@@ -537,8 +538,8 @@ with tf.Session(config=tfconfig) as session:
     #Save model every 4 epochs
     if epoch % 4 == 0 or epoch == num_epochs-1:
       savepath = traindir + "/model" + str(epoch)
-      with open(savepath + ".config.json") as f:
-        json.dump(config,f)
+      with open(savepath + ".config.json","w") as f:
+        json.dump(model_config,f)
       saver.save(session, savepath)
 
   vmetrics_evaled = merge_dicts(run_validation_in_batches(vmetrics), np.sum)
