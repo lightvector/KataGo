@@ -33,6 +33,7 @@ If you'd like to train your own model and/or experiment with the architectures i
 You can see the implementations of the relevant neural net structures in "model.py", although I may adapt and change them as time goes on.
 
 ### History
+   * May-June 2018 - No significant architectural changes, but [added player ranks](https://github.com/lightvector/GoNN#ranks-as-an-input-june-2018) as an input feature to the neural net and included a lot of amateur games in the training set. Filtered pro games with the resulting net to find instructive positions for players of different ranks, producing a neat collection of Go problems: [neuralnetgoproblems.com](https://neuralnetgoproblems.com).
    * Apr 2018 - Added a row to the [current results](https://github.com/lightvector/GoNN#current-results) reflecting the large improvement from embedding global pooled properties in the [middle of the neural net](https://github.com/lightvector/GoNN#update-mar-2018) rather than only the policy head, along with some minor adjustments to learning rates and other tweaks.
    * Mar 2018 - Much larger neural nets and updates to [current results](https://github.com/lightvector/GoNN#current-results). Global pooled properties [are good in the main trunk of the resnet as well](https://github.com/lightvector/GoNN#update-mar-2018)! Also, [increasing center-position learning rates](https://github.com/lightvector/GoNN#update-mar-2018-1) everywhere else in the net helps training speed a little. Promising experiments with [dilated convolutions](https://github.com/lightvector/GoNN#dilated-convolutions-mar-2018), and a note about [making neural nets not always need history](https://github.com/lightvector/GoNN#some-thoughts-about-history-as-an-input-mar-2018).
    * Feb 2018 - Tried [special ladder blocks in the policy](https://github.com/lightvector/GoNN#update-feb-2018), tried [ladders as a training target](https://github.com/lightvector/GoNN#using-ladders-as-an-extra-training-target-feb-2018), retested [global pooled properties](https://github.com/lightvector/GoNN#update-feb-2018-1). And ran new experiments with net architecture - [wide low-rank residual blocks](https://github.com/lightvector/GoNN#wide-low-rank-residual-blocks-feb-2018), [parametric ReLUs](https://github.com/lightvector/GoNN#parametric-relus-feb-2018), [chain pooling](https://github.com/lightvector/GoNN#chain-pooling-feb-2018), and some [observations on redundancy in models](https://github.com/lightvector/GoNN#redundant-parameters-and-learning-rates-feb-2018)
@@ -415,3 +416,20 @@ Also, I wonder if there might be room for further experimentation along these li
 
 Right: With move history planes zeroed out, net suggests moves in the more urgent areas at the top.
 </table>
+
+
+## Ranks as an Input (June 2018):
+
+I added the rank of the player of the moves being predicted as an input to the neural net. A total of 64 different (rank * online server) combinations are provided to the neural net as a one-hot-encoded vector, which passes through an 8-dimensional embedding layer before being combined with the rest of the board features. As a result, the neural net can learn to predict how players of different strengths play differently!
+
+As an example, in this position, it thinks that a typical 19 kyu (OGS) player would most likely connect against black's atari:
+
+<img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/19k.png" width="380" height="380"/>
+
+But a 1 dan player would more likely prefer to sacrifice those stones and complete the lower left shape:
+
+<img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/1d.png" width="380" height="380"/>
+
+And the net thinks a 9 dan player would be likely to do the same, but might also likely tenuki to the upper left, which is also reasonably urgent:
+
+<img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/9d.png" width="380" height="380"/>
