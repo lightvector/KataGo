@@ -780,10 +780,10 @@ class Model:
                                            emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
     trunk = self.merge_residual("rconv5",trunk,residual)
 
-    #Residual Convolutional Block 6---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv6",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv6",trunk,residual)
+    # #Residual Convolutional Block 6---------------------------------------------------------------------------------
+    # residual = self.dilated_res_conv_block("rconv6",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
+    #                                        emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+    # trunk = self.merge_residual("rconv6",trunk,residual)
 
     #Residual Convolutional Block 7---------------------------------------------------------------------------------
     residual = self.global_res_conv_block("rconv7",trunk,diam=3,main_channels=224,mid_channels=160, global_mid_channels=64,
@@ -810,10 +810,10 @@ class Model:
                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
     trunk = self.merge_residual("rconv11",trunk,residual)
 
-    #Residual Convolutional Block 12---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv12",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv12",trunk,residual)
+    # #Residual Convolutional Block 12---------------------------------------------------------------------------------
+    # residual = self.dilated_res_conv_block("rconv12",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
+    #                                        emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+    # trunk = self.merge_residual("rconv12",trunk,residual)
 
     #Residual Convolutional Block 13---------------------------------------------------------------------------------
     residual = self.dilated_res_conv_block("rconv13",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
