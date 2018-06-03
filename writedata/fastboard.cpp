@@ -840,6 +840,10 @@ bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
 
 string Location::toString(Loc loc, int x_size)
 {
+  if(loc == FastBoard::PASS_LOC)
+    return string("pass");
+  if(loc == FastBoard::NULL_LOC)
+    return string("null");
   char buf[128];
   sprintf(buf,"(%d,%d)",getX(loc,x_size),getY(loc,x_size));
   return string(buf);

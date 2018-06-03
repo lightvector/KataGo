@@ -66,7 +66,9 @@ def get_moves_and_probs(session, board, moves, use_history_prop, rank_one_hot):
   moves_and_probs = []
   for i in range(len(policy)):
     move = model.tensor_pos_to_loc(i,board)
-    if board.would_be_legal(pla,move) and not board.is_simple_eye(pla,move):
+    if i == len(policy)-1:
+      moves_and_probs.append((Board.PASS_LOC,policy[i]))
+    elif board.would_be_legal(pla,move) and not board.is_simple_eye(pla,move):
       moves_and_probs.append((move,policy[i]))
   return moves_and_probs
 

@@ -77,7 +77,7 @@ struct FastBoard
   //Location used to indicate an invalid spot on the board.
   static const Loc NULL_LOC = 0;
   //Location used to indicate a pass move is desired.
-  static const Loc PASS_LOC = 0;
+  static const Loc PASS_LOC = 1;
 
   //Zobrist Hashing------------------------------
   static bool IS_ZOBRIST_INITALIZED;

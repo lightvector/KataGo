@@ -14,7 +14,8 @@ class Model:
     self.max_board_size = 19
     self.input_shape = [19*19,26]
     self.post_input_shape = [19,19,26]
-    self.target_shape = [19*19]
+    self.target_shape_nopass = [19*19]
+    self.target_shape = [19*19+1] #+1 for pass move
     self.target_weights_shape = []
     self.rank_shape=[1+9+(17+9)+(19+9)]
     self.rank_embedding_dim = 8
@@ -29,7 +30,8 @@ class Model:
     self.outputs_by_layer = []
 
     use_ranks = config["use_ranks"]
-    self.build_model(use_ranks)
+    predict_pass = config["predict_pass"]
+    self.build_model(use_ranks,predict_pass)
 
   def xy_to_tensor_pos(self,x,y,offset):
     return (y+offset) * self.max_board_size + (x+offset)
@@ -105,10 +107,6 @@ class Model:
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
   def fill_row_features(self, board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, for_training, use_history_prop, idx):
-    if target_data is not None and moves[move_idx][1] is None:
-      # TODO for now we skip passes
-      return idx
-
     bsize = board.size
     offset = (self.max_board_size - bsize) // 2
 
@@ -227,9 +225,8 @@ class Model:
     if target_data is not None:
       next_loc = moves[move_idx][1]
       if next_loc is None:
-        # TODO for now we skip passes
-        return idx
-        # target_data[idx,self.max_board_size*self.max_board_size] = 1.0
+        target_data_weights[idx] = 1.0
+        target_data[idx,self.max_board_size*self.max_board_size] = 1.0
       else:
         pos = self.loc_to_tensor_pos(next_loc,board,offset)
         target_data[idx,pos] = 1.0
@@ -692,7 +689,7 @@ class Model:
   #Indexing:
   #batch, bsize, bsize, channel
 
-  def build_model(self, use_ranks):
+  def build_model(self, use_ranks, predict_pass):
     max_board_size = self.max_board_size
 
     #Input layer---------------------------------------------------------------------------------
@@ -880,12 +877,19 @@ class Model:
 
     #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
     policy_output = self.apply_symmetry(p2_layer,symmetries,inverse=True)
-    policy_output = tf.reshape(policy_output, [-1] + self.target_shape)
+    policy_output = tf.reshape(policy_output, [-1] + self.target_shape_nopass)
 
-    #Add pass move based on the global g values
-    #matmulpass = self.weight_variable("matmulpass",[pass_num_channels,1],g2_num_channels,1)
-    #pass_output = tf.matmul(g2_output,matmulpass)
-    #self.outputs_by_layer.append(("pass",pass_output))
-    #policy_output = tf.concat([policy_output,pass_output],axis=1)
+    if not predict_pass:
+      #Simply add the pass output on with a large negative constant that's probably way more negative than anything
+      #else the neural net would output.
+      policy_output = tf.pad(policy_output,[(0,0),(0,1)], constant_values = -10000.)
+    else:
+      #Pass move not implemented yet!
+      assert(False)
+      #Add pass move based on the global g values
+      #matmulpass = self.weight_variable("matmulpass",[pass_num_channels,1],g2_num_channels,1)
+      #pass_output = tf.matmul(g2_output,matmulpass)
+      #self.outputs_by_layer.append(("pass",pass_output))
+      #policy_output = tf.concat([policy_output,pass_output],axis=1)
 
     self.policy_output = policy_output

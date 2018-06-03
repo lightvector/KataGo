@@ -21,7 +21,7 @@ static const int inputStart = 0;
 static const int inputLen = maxBoardSize * maxBoardSize * numFeatures;
 
 static const int targetStart = inputStart + inputLen;
-static const int targetLen = maxBoardSize * maxBoardSize;
+static const int targetLen = maxBoardSize * maxBoardSize + 1; //+1 for pass move
 
 static const int ladderTargetStart = targetStart + targetLen;
 static const int ladderTargetLen = 0;
@@ -145,7 +145,9 @@ static int xyToTensorPos(int x, int y, int offset) {
 }
 static int locToTensorPos(Loc loc, int bSize, int offset) {
   if(loc == FastBoard::PASS_LOC)
-    return (bSize + offset) * maxBoardSize + (bSize + offset);
+    return maxBoardSize * maxBoardSize;
+  else if(loc == FastBoard::NULL_LOC)
+    return maxBoardSize * (maxBoardSize + 1);
   return (Location::getY(loc,bSize) + offset) * maxBoardSize + (Location::getX(loc,bSize) + offset);
 }
 
@@ -303,31 +305,31 @@ static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& m
 
   if(nextMoveIdx >= 1 && moves[nextMoveIdx-1].pla == opp && includePrev1) {
     Loc prev1Loc = moves[nextMoveIdx-1].loc;
-    if(prev1Loc != FastBoard::PASS_LOC) {
+    if(prev1Loc != FastBoard::PASS_LOC && prev1Loc != FastBoard::NULL_LOC) {
       int pos = locToTensorPos(prev1Loc,bSize,offset);
       setRow(row,pos,18, 1.0);
     }
     if(nextMoveIdx >= 2 && moves[nextMoveIdx-2].pla == pla && includePrev2) {
       Loc prev2Loc = moves[nextMoveIdx-2].loc;
-      if(prev2Loc != FastBoard::PASS_LOC) {
+      if(prev2Loc != FastBoard::PASS_LOC && prev2Loc != FastBoard::NULL_LOC) {
         int pos = locToTensorPos(prev2Loc,bSize,offset);
         setRow(row,pos,19, 1.0);
       }
       if(nextMoveIdx >= 3 && moves[nextMoveIdx-3].pla == opp && includePrev3) {
         Loc prev3Loc = moves[nextMoveIdx-3].loc;
-        if(prev3Loc != FastBoard::PASS_LOC) {
+        if(prev3Loc != FastBoard::PASS_LOC && prev3Loc != FastBoard::NULL_LOC) {
           int pos = locToTensorPos(prev3Loc,bSize,offset);
           setRow(row,pos,20, 1.0);
         }
         if(nextMoveIdx >= 4 && moves[nextMoveIdx-4].pla == pla && includePrev4) {
           Loc prev4Loc = moves[nextMoveIdx-4].loc;
-          if(prev4Loc != FastBoard::PASS_LOC) {
+          if(prev4Loc != FastBoard::PASS_LOC && prev4Loc != FastBoard::NULL_LOC) {
             int pos = locToTensorPos(prev4Loc,bSize,offset);
             setRow(row,pos,21, 1.0);
           }
           if(nextMoveIdx >= 5 && moves[nextMoveIdx-5].pla == opp && includePrev5) {
             Loc prev5Loc = moves[nextMoveIdx-5].loc;
-            if(prev5Loc != FastBoard::PASS_LOC) {
+            if(prev5Loc != FastBoard::PASS_LOC && prev5Loc != FastBoard::NULL_LOC) {
               int pos = locToTensorPos(prev5Loc,bSize,offset);
               setRow(row,pos,22, 1.0);
             }
@@ -357,8 +359,9 @@ static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& m
   if(target == TARGET_NEXT_MOVE_AND_LADDER) {
     //Next move target
     Loc nextMoveLoc = moves[nextMoveIdx].loc;
-    assert(nextMoveLoc != FastBoard::PASS_LOC);
+    assert(nextMoveLoc != FastBoard::NULL_LOC);
     int nextMovePos = locToTensorPos(nextMoveLoc,bSize,offset);
+    assert(nextMovePos >= 0 && nextMovePos < targetLen);
     row[targetStart + nextMovePos] = 1.0;
 
     //Ladder target
@@ -406,7 +409,7 @@ static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& m
   for(int i = 0; i<nextMovesLen; i++) {
     int idx = nextMoveIdx + i;
     if(idx >= moves.size())
-      row[nextMovesStart+i] = locToTensorPos(FastBoard::PASS_LOC,bSize,offset);
+      row[nextMovesStart+i] = locToTensorPos(FastBoard::NULL_LOC,bSize,offset);
     else {
       row[nextMovesStart+i] = locToTensorPos(moves[idx].loc,bSize,offset);
     }
@@ -780,6 +783,7 @@ static void iterSgfMoves(
     const string& user = m.pla == P_WHITE ? wUser : bUser;
     f(recentBoards,source,rank,oppRank,user,handicap,date,moves,j,sgf->hash);
 
+    //recentBoards[0] is the most recent
     for(int dj = 0; dj<numRecentBoards && j-dj >= 0; dj++) {
       Move mv = moves[j-dj];
       bool suc = recentBoards[dj].playMove(mv.loc,mv.pla);
@@ -847,19 +851,21 @@ static void maybeUseRow(
   const string& date, const vector<Move>& movesBuf, int moveIdx, Hash128 sgfHash,
   DataPool& dataPool,
   Rand& rand, double keepProb, int minRank, int minOppRank, int maxHandicap, int target,
-  bool alwaysHistory,
+  bool alwaysHistory, bool includePasses,
   const set<string>& excludeUsers, bool fancyConditions, double fancyPosKeepFactor,
   set<Hash>& posHashes, Stats& total, Stats& used
 ) {
   //TODO also filter out games that are > 85% identical hashes to another game
   //For now, only generate training rows for non-passes
   //Also only use moves by this player if that player meets rank threshold
-  if(movesBuf[moveIdx].loc != FastBoard::PASS_LOC &&
+  if((movesBuf[moveIdx].loc != FastBoard::PASS_LOC || includePasses) &&
      rank >= minRank &&
      oppRank >= minOppRank &&
      handicap <= maxHandicap &&
      !contains(excludeUsers,user)
   ) {
+    assert(movesBuf[moveIdx].loc != FastBoard::NULL_LOC);
+
     int rankOneHot = computeRankOneHot(source,rank);
     bool canUse = true;
 
@@ -934,7 +940,7 @@ static void processSgfs(
   uint64_t shardSeed, int numShards,
   Rand& rand, double keepProb,
   int minRank, int minOppRank, int maxHandicap, int target,
-  bool alwaysHistory,
+  bool alwaysHistory, bool includePasses,
   const set<string>& excludeUsers, bool fancyConditions, double fancyPosKeepFactor,
   set<Hash>& posHashes, Stats& total, Stats& used
 ) {
@@ -955,14 +961,14 @@ static void processSgfs(
   DataPool dataPool(totalRowLen,poolSize,chunkHeight,writeRow);
 
   std::function<void(const vector<FastBoard>&,int,int,int,const string&,int,const string&,const vector<Move>&,int,Hash128)> f =
-    [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,fancyPosKeepFactor,alwaysHistory,&posHashes,&total,&used](
+    [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,fancyPosKeepFactor,alwaysHistory,includePasses,&posHashes,&total,&used](
       const vector<FastBoard>& recentBoards, int source, int rank, int oppRank, const string& user, int handicap, const string& date,
       const vector<Move>& moves, int moveIdx, Hash128 sgfHash
     ) {
     maybeUseRow(
       recentBoards,source,rank,oppRank,user,handicap,date,moves,moveIdx,sgfHash,
       dataPool,rand,keepProb,minRank,minOppRank,maxHandicap,target,
-      alwaysHistory,
+      alwaysHistory, includePasses,
       excludeUsers,fancyConditions,fancyPosKeepFactor,
       posHashes,total,used
     );
@@ -1050,6 +1056,7 @@ int main(int argc, const char* argv[]) {
   int maxHandicap;
   int target;
   bool alwaysHistory;
+  bool includePasses;
   bool fancyConditions;
   double fancyGameKeepFactor;
   double fancyPosKeepFactor;
@@ -1072,6 +1079,7 @@ int main(int argc, const char* argv[]) {
     TCLAP::ValueArg<int>    maxHandicapArg("","max-handicap","Max handicap of game to use a player's move",false,9,"HCAP");
     TCLAP::ValueArg<string> targetArg("","target","What should be predicted? Currently only option is nextmove",false,string("nextmove"),"TARGET");
     TCLAP::SwitchArg        alwaysHistoryArg("","always-history","Always include history",false);
+    TCLAP::SwitchArg        includePassesArg("","include-passes","Include pass moves",false);
     TCLAP::SwitchArg        fancyConditionsArg("","fancy-conditions","Fancy filtering for rank balancing",false);
     TCLAP::ValueArg<double> fancyGameKeepFactorArg("","fancy-game-keep-factor","Multiply fancy game keep prob by this",false,1.0,"PROB");
     TCLAP::ValueArg<double> fancyPosKeepFactorArg("","fancy-pos-keep-factor","Multiply fancy pos keep prob by this",false,1.0,"PROB");
@@ -1091,6 +1099,7 @@ int main(int argc, const char* argv[]) {
     cmd.add(maxHandicapArg);
     cmd.add(targetArg);
     cmd.add(alwaysHistoryArg);
+    cmd.add(includePassesArg);
     cmd.add(fancyConditionsArg);
     cmd.add(fancyGameKeepFactorArg);
     cmd.add(fancyPosKeepFactorArg);
@@ -1110,6 +1119,7 @@ int main(int argc, const char* argv[]) {
     minOppRank = minOppRankArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
     alwaysHistory = alwaysHistoryArg.getValue();
+    includePasses = includePassesArg.getValue();
     fancyConditions = fancyConditionsArg.getValue();
     fancyGameKeepFactor = fancyGameKeepFactorArg.getValue();
     fancyPosKeepFactor = fancyPosKeepFactorArg.getValue();
@@ -1197,6 +1207,7 @@ int main(int argc, const char* argv[]) {
   cout << "maxHandicap " << maxHandicap << endl;
   cout << "target " << target << endl;
   cout << "alwaysHistory " << alwaysHistory << endl;
+  cout << "includePasses " << includePasses << endl;
   cout << "fancyConditions " << fancyConditions << endl;
   cout << "fancyGameKeepFactor " << fancyGameKeepFactor << endl;
   cout << "fancyPosKeepFactor " << fancyPosKeepFactor << endl;
@@ -1354,7 +1365,7 @@ int main(int argc, const char* argv[]) {
     trainShardSeed, trainShards,
     rand, keepTrainProb,
     minRank, minOppRank, maxHandicap, target,
-    alwaysHistory,
+    alwaysHistory, includePasses,
     excludeUsers, fancyConditions, fancyPosKeepFactor,
     trainPosHashes, trainTotalStats, trainUsedStats
   );
@@ -1372,7 +1383,7 @@ int main(int argc, const char* argv[]) {
     valShardSeed, trainShards,
     rand, keepValProb,
     minRank, minOppRank, maxHandicap, target,
-    alwaysHistory,
+    alwaysHistory, includePasses,
     excludeUsers, fancyConditions, fancyPosKeepFactor,
     valPosHashes, valTotalStats, valUsedStats
   );

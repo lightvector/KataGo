@@ -244,9 +244,13 @@ with tf.Session(config=tfconfig) as session:
       return True
     return False
 
+  def is_pass(move):
+    return (move < 0 or move >= 19*19)
+
   strong_ranks = [0,8,9,35,62,63] #GoGoD, KGS 8d-9d, OGS Fox 9d, OGS 8d-9d
   def strong_game_filter(rank_one_hot_idx,pro_probs,real_move):
-    if (real_move == np.argmax(pro_probs) and
+    if (not is_pass(real_move) and
+        real_move == np.argmax(pro_probs) and
         rank_one_hot_idx in strong_ranks and
         pro_probs[real_move] > 0.65):
       return True

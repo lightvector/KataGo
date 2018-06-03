@@ -86,6 +86,7 @@ def detaillog(s):
 print("Building model", flush=True)
 model_config = {}
 model_config["use_ranks"] = use_ranks
+model_config["predict_pass"] = False
 model = Model(model_config)
 
 policy_output = model.policy_output
