@@ -1,4 +1,4 @@
-The code in this repository currently relies on two other libraries, sgfmill, and tclap-1.2.1. For the licenses for those libraries, see the readme and/or license files for those libraries separately within their respective subdirectories.
+The code in this repository currently relies on three other libraries, sgfmill, tclap-1.2.1, and zstr. For the licenses for those libraries, see the readme and/or license files for those libraries separately within their respective subdirectories.
 
 Except for those libraries, the license for all content in this repo is as follows:
 

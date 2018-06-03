@@ -2,8 +2,10 @@
 #include "core/rand.h"
 #include "fastboard.h"
 #include "sgf.h"
+#include "lzparse.h"
 #include "datapool.h"
 #include <fstream>
+#include <algorithm>
 
 #include <H5Cpp.h>
 using namespace H5;
@@ -65,12 +67,13 @@ static const int deflateLevel = 6;
 static const int h5Dimension = 2;
 
 //SGF sources
-static const int NUM_SOURCES = 5;
+static const int NUM_SOURCES = 6;
 static const int SOURCE_GOGOD = 0;
 static const int SOURCE_KGS = 1;
 static const int SOURCE_FOX = 2;
 static const int SOURCE_OGSPre2014 = 3;
-static const int SOURCE_UNKNOWN = 4;
+static const int SOURCE_LEELAZERO = 4;
+static const int SOURCE_UNKNOWN = 5;
 static bool emittedSourceWarningYet = false;
 static int parseSource(const string& fileName) {
   if(fileName.find("GoGoD") != string::npos)
@@ -97,6 +100,7 @@ static const double sourceGameFancyProb[NUM_SOURCES] = {
   1.00, /* KGS */
   0.15, /* FOX */ //Fox dataset is enormously large, only keep some of the games to prevent it from dwarfing all others in training and using lots of memory when writing
   1.00, /* OGS */
+  1.00, /* Leela Zero - doesn't actually do anything since LZ doesn't come in sgf files */
   1.00, /* Unknown */
 };
 
@@ -801,8 +805,8 @@ static void iterSgfMoves(
   return;
 }
 
-static void iterSgfsMoves(
-  vector<CompactSgf*> sgfs,
+static void iterSgfsAndLZMoves(
+  vector<CompactSgf*>& sgfs, vector<string>& lzFiles,
   uint64_t shardSeed, int numShards,
   const size_t& numMovesUsed, const size_t& curDataSetRow,
   //source,rank,user,handicap,date,moves,index within moves,
@@ -837,6 +841,32 @@ static void iterSgfsMoves(
              << "written " << curDataSetRow << " rows..." << endl;
 
       iterSgfMoves(sgfs[i],g);
+    }
+
+    const string lzname = string("Leela Zero");
+    const string lzdate = string("No date");
+    std::function<void(const LZSample& sample)> h =
+      [g,&lzname,&lzdate](const LZSample& sample) {
+
+      //Leela zero is pro
+      int rank = 8;
+      int oppRank = 8;
+      //Leela zero games have no handicap
+      int handicap = 0;
+      Hash128 sgfHash = Hash128(0,0);
+      //The "current" move is always after the end of the sample's reported move history
+      int moveIdx = sample.moves.size()-1;
+      g(sample.boards,SOURCE_LEELAZERO,rank,oppRank,lzname,handicap,lzdate,sample.moves,moveIdx,sgfHash);
+    };
+
+    for(int i = 0; i<lzFiles.size(); i++) {
+      if(i % 50 == 0)
+        cout << "Shard " << shard << " "
+             << "processed " << i << "/" << lzFiles.size() << " lz files, "
+             << "itered " << numMovesItered << " moves, "
+             << "used " << numMovesUsed << " moves, "
+             << "written " << curDataSetRow << " rows..." << endl;
+      LZSample::iterSamples(lzFiles[i],h);
     }
   }
 
@@ -934,8 +964,8 @@ static void maybeUseRow(
   total.countByHandicap[handicap] += 1;
 }
 
-static void processSgfs(
-  vector<CompactSgf*> sgfs, DataSet* dataSet,
+static void processData(
+  vector<CompactSgf*>& sgfs, vector<string>& lzFiles, DataSet* dataSet,
   size_t poolSize,
   uint64_t shardSeed, int numShards,
   Rand& rand, double keepProb,
@@ -974,8 +1004,8 @@ static void processSgfs(
     );
   };
 
-  iterSgfsMoves(
-    sgfs,
+  iterSgfsAndLZMoves(
+    sgfs,lzFiles,
     shardSeed,numShards,
     used.count,curDataSetRow,
     f
@@ -990,6 +1020,29 @@ static void processSgfs(
 int main(int argc, const char* argv[]) {
   assert(sizeof(size_t) == 8);
   FastBoard::initHash();
+
+  // auto f = [](const LZSample& sample) {
+  //   cout << sample.boards[0];
+  //   cout << "Prev move: " << (int)sample.moves[sample.moves.size()-1].pla << " " << Location::toString(sample.moves[sample.moves.size()-1].loc,19) << " " << endl;
+  //   cout << "Winner: " << (int)sample.winner << endl;
+  //   vector<int> movePoses;
+  //   for(int i = 0; i<19*19+1; i++)
+  //     movePoses.push_back(i);
+  //   std::sort(
+  //     movePoses.begin(),movePoses.end(),
+  //     [&](const int& a, const int& b) { return (sample.probs[a] > sample.probs[b]); }
+  //   );
+  //   for(int i = 0; i<3; i++) {
+  //     int pos = movePoses[i];
+  //     if(pos == 361)
+  //       cout << "pass";
+  //     else
+  //       cout << Location::toString(Location::getLoc(pos%19,pos/19,19),19);
+  //     cout << " " << sample.probs[pos] << endl;
+  //   }
+  // };
+  // LZSample::iterSamples(string("~/data/GoDatasets/LZData/train_521b0868/train_521b0868_0.gz"),f);
+  // return 0;
 
 //   string s =
 // ". . . . . O O O O . . . . . . O O X ."
@@ -1042,6 +1095,7 @@ int main(int argc, const char* argv[]) {
   cout << endl;
 
   vector<string> gamesDirs;
+  vector<string> lzDirs;
   string outputFile;
   string onlyFilesFile;
   string excludeFilesFile;
@@ -1065,6 +1119,7 @@ int main(int argc, const char* argv[]) {
   try {
     TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0",true);
     TCLAP::MultiArg<string> gamesdirArg("","gamesdir","Directory of sgf files",true,"DIR");
+    TCLAP::MultiArg<string> lzdirArg("","lzdir","Directory of leela zero gzipped data files",true,"DIR");
     TCLAP::ValueArg<string> outputArg("","output","H5 file to write",true,string(),"FILE");
     TCLAP::ValueArg<string> onlyFilesArg("","only-files","Specify a list of files to filter to, one per line in a txt file",false,string(),"FILEOFFILES");
     TCLAP::ValueArg<string> excludeFilesArg("","exclude-files","Specify a list of files to filter out, one per line in a txt file",false,string(),"FILEOFFILES");
@@ -1085,6 +1140,7 @@ int main(int argc, const char* argv[]) {
     TCLAP::ValueArg<double> fancyPosKeepFactorArg("","fancy-pos-keep-factor","Multiply fancy pos keep prob by this",false,1.0,"PROB");
     TCLAP::MultiArg<string> excludeUsersArg("","exclude-users","File of users to exclude, one per line",false,"FILE");
     cmd.add(gamesdirArg);
+    cmd.add(lzdirArg);
     cmd.add(outputArg);
     cmd.add(onlyFilesArg);
     cmd.add(excludeFilesArg);
@@ -1106,6 +1162,7 @@ int main(int argc, const char* argv[]) {
     cmd.add(excludeUsersArg);
     cmd.parse(argc,argv);
     gamesDirs = gamesdirArg.getValue();
+    lzDirs = lzdirArg.getValue();
     outputFile = outputArg.getValue();
     onlyFilesFile = onlyFilesArg.getValue();
     excludeFilesFile = excludeFilesArg.getValue();
@@ -1230,11 +1287,24 @@ int main(int argc, const char* argv[]) {
   auto filter = [&suffix](const string& name) {
     return Global::isSuffix(name,suffix);
   };
-
   vector<string> files;
   for(int i = 0; i<gamesDirs.size(); i++)
     Global::collectFiles(gamesDirs[i], filter, files);
   cout << "Found " << files.size() << " sgf files!" << endl;
+
+  const string lzSuffix = ".gz";
+  auto lzFilter = [&lzSuffix](const string& name) {
+    return Global::isSuffix(name,lzSuffix);
+  };
+  vector<string> lzFiles;
+  for(int i = 0; i<lzDirs.size(); i++)
+    Global::collectFiles(lzDirs[i], lzFilter, lzFiles);
+  cout << "Found " << lzFiles.size() << " leela zero gz files!" << endl;
+
+  if(files.size() > 0 && lzFiles.size() > 0) {
+    cout << "Cannot use lz data with regular sgfs, random shuffling beween the two is not implemented" << endl;
+    return 1;
+  }
 
   cout << "Opening h5 file..." << endl;
   H5File* h5File = new H5File(H5std_string(outputFile), H5F_ACC_TRUNC);
@@ -1337,6 +1407,15 @@ int main(int argc, const char* argv[]) {
     sgfs[r] = tmp;
   }
 
+  //Shuffle lz files
+  cout << "Shuffling LZ Files..." << endl;
+  for(int i = 1; i<lzFiles.size(); i++) {
+    int r = rand.nextUInt(i+1);
+    string tmp = lzFiles[i];
+    lzFiles[i] = lzFiles[r];
+    lzFiles[r] = tmp;
+  }
+
   //Split into train and val
   vector<CompactSgf*> trainSgfs;
   vector<CompactSgf*> valSgfs;
@@ -1349,6 +1428,16 @@ int main(int argc, const char* argv[]) {
   //Clear sgfs via swap with enpty factor
   vector<CompactSgf*>().swap(sgfs);
 
+  //Split into train and val
+  vector<string> trainLZFiles;
+  vector<string> valLZFiles;
+  for(int i = 0; i<lzFiles.size(); i++) {
+    if(rand.nextDouble() < valGameProb)
+      valLZFiles.push_back(lzFiles[i]);
+    else
+      trainLZFiles.push_back(lzFiles[i]);
+  }
+
   //Process SGFS to make rows----------------------------------------------------------
   uint64_t trainShardSeed = rand.nextUInt64();
   uint64_t valShardSeed = rand.nextUInt64();
@@ -1359,8 +1448,8 @@ int main(int argc, const char* argv[]) {
   set<Hash> trainPosHashes;
   Stats trainTotalStats;
   Stats trainUsedStats;
-  processSgfs(
-    trainSgfs,trainDataSet,
+  processData(
+    trainSgfs,trainLZFiles,trainDataSet,
     poolSize,
     trainShardSeed, trainShards,
     rand, keepTrainProb,
@@ -1377,8 +1466,8 @@ int main(int argc, const char* argv[]) {
   set<Hash> valPosHashes;
   Stats valTotalStats;
   Stats valUsedStats;
-  processSgfs(
-    valSgfs,valDataSet,
+  processData(
+    valSgfs,valLZFiles,valDataSet,
     poolSize,
     valShardSeed, trainShards,
     rand, keepValProb,

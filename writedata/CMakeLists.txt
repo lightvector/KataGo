@@ -49,10 +49,14 @@ add_executable(write
         tclap-1.2.1/include/tclap/Visitor.h
         tclap-1.2.1/include/tclap/XorHandler.h
         tclap-1.2.1/include/tclap/ZshCompletionOutput.h
+        zstr/src/strict_fstream.hpp
+        zstr/src/zstr.hpp
         datapool.cpp
         datapool.h
         fastboard.cpp
         fastboard.h
+        lzparse.cpp
+        lzparse.h
         sgf.cpp
         sgf.h
         write.cpp)
