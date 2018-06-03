@@ -95,7 +95,7 @@ h5_propfaid.set_cache(*h5_settings)
 h5fid = h5py.h5f.open(str.encode(str(gamesh5)), fapl=h5_propfaid)
 h5file = h5py.File(h5fid)
 h5train = h5file["train"]
-h5val = h5file["val"]
+h5val = h5file["test"]
 h5_chunk_size = h5train.chunks[0]
 num_h5_train_rows = h5train.shape[0]
 num_h5_val_rows = h5val.shape[0]
