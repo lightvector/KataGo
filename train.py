@@ -307,7 +307,8 @@ with tf.Session(config=tfconfig) as session:
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
     row_targets = rows[:,input_len:input_len+target_len]
     row_target_weights = rows[:,input_len+target_len]
-    row_ranks = rows[:,input_len+target_len+target_weights_len:input_len+target_len+target_weights_len+rank_len]
+    if use_ranks:
+      row_ranks = rows[:,input_len+target_len+target_weights_len:input_len+target_len+target_weights_len+rank_len]
 
     #DEBUG-----------------------------
     # for bidx in range(len(rows)):
@@ -354,16 +355,27 @@ with tf.Session(config=tfconfig) as session:
     #   assert(debug_num_chain_segments[0] == row_num_chain_segments[bidx])
     #---------------
 
-    return session.run(fetches, feed_dict={
-      model.inputs: row_inputs,
-      targets: row_targets,
-      target_weights: row_target_weights,
-      model.ranks: row_ranks,
-      model.symmetries: symmetries,
-      per_sample_learning_rate: pslr,
-      l2_reg_coeff: l2_coeff_value,
-      model.is_training: training
-    })
+    if use_ranks:
+      return session.run(fetches, feed_dict={
+        model.inputs: row_inputs,
+        targets: row_targets,
+        target_weights: row_target_weights,
+        model.ranks: row_ranks,
+        model.symmetries: symmetries,
+        per_sample_learning_rate: pslr,
+        l2_reg_coeff: l2_coeff_value,
+        model.is_training: training
+      })
+    else:
+      return session.run(fetches, feed_dict={
+        model.inputs: row_inputs,
+        targets: row_targets,
+        target_weights: row_target_weights,
+        model.symmetries: symmetries,
+        per_sample_learning_rate: pslr,
+        l2_reg_coeff: l2_coeff_value,
+        model.is_training: training
+      })
 
   def np_array_str(arr,precision):
     return np.array_str(arr, precision=precision, suppress_small = True, max_line_width = 200)
