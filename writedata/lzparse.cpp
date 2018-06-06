@@ -6,7 +6,7 @@
 #include <zstr/src/zstr.hpp>
 
 LZSample::LZSample()
-  :boards(),moves(),probs(),winner(C_EMPTY)
+  :boards(),moves(),probs(),next(C_BLACK),winner(C_EMPTY)
 {}
 
 LZSample::~LZSample()
@@ -172,6 +172,8 @@ void LZSample::iterSamples(
       sample.winner = opp;
     else
       assert(false);
+
+    sample.next = pla;
 
     f(sample);
   }

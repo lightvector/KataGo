@@ -9,6 +9,7 @@ struct LZSample {
   vector<FastBoard> boards; //Index 0 is the most recent
   vector<Move> moves; //Index 0 is the least recent, index (len-1) is the last move made.
   float probs[362]; //Indexed by y*19+x as usual
+  Player next;
   Player winner;
 
   LZSample();
