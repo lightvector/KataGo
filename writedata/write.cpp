@@ -15,7 +15,7 @@ using namespace H5;
 
 //Data and feature row parameters
 static const int maxBoardSize = 19;
-static const int numFeatures = 27;
+static const int numFeatures = 19;
 static const int numRecentBoards = 6; //For recent captures
 
 //Different segments of the data row
@@ -258,55 +258,38 @@ static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& m
 
       //Feature 0 - on board
       setRow(row,pos,0, 1.0);
-      //Feature 26 - komi/15 from self perspective
-      setRow(row,pos,26, selfKomi/15);
+      //Feature 18 - komi/15 from self perspective
+      setRow(row,pos,18, selfKomi/15);
 
       Color stone = board.colors[loc];
 
       //Features 1,2 - pla,opp stone
-      //Features 3,4,5,6 and 7,8,9,10 - pla 1,2,3,4 libs and opp 1,2,3,4 libs.
+      //Features 3,4,5 and 6,7,8 - pla 1,2,3 libs and opp 1,2,3 libs.
       if(stone == pla) {
         setRow(row,pos,1, 1.0);
         int libs = board.getNumLiberties(loc);
         if(libs == 1) setRow(row,pos,3, 1.0);
         else if(libs == 2) setRow(row,pos,4, 1.0);
         else if(libs == 3) setRow(row,pos,5, 1.0);
-        else if(libs == 4) setRow(row,pos,6, 1.0);
       }
       else if(stone == opp) {
         setRow(row,pos,2, 1.0);
         int libs = board.getNumLiberties(loc);
-        if(libs == 1) setRow(row,pos,7, 1.0);
-        else if(libs == 2) setRow(row,pos,8, 1.0);
-        else if(libs == 3) setRow(row,pos,9, 1.0);
-        else if(libs == 4) setRow(row,pos,10, 1.0);
-      }
-
-      if(stone == pla || stone == opp) {}
-      else {
-        //Feature 11,12,13 - 1, 2, 3 liberties after own play.
-        //Feature 14,15,16 - 1, 2, 3 liberties after opponent play
-        int plaLibAfterPlay = board.getNumLibertiesAfterPlay(loc,pla,4);
-        int oppLibAfterPlay = board.getNumLibertiesAfterPlay(loc,opp,4);
-        if(plaLibAfterPlay == 1)      setRow(row,pos,11, 1.0);
-        else if(plaLibAfterPlay == 2) setRow(row,pos,12, 1.0);
-        else if(plaLibAfterPlay == 3) setRow(row,pos,13, 1.0);
-
-        if(oppLibAfterPlay == 1)      setRow(row,pos,14, 1.0);
-        else if(oppLibAfterPlay == 2) setRow(row,pos,15, 1.0);
-        else if(oppLibAfterPlay == 3) setRow(row,pos,16, 1.0);
+        if(libs == 1) setRow(row,pos,6, 1.0);
+        else if(libs == 2) setRow(row,pos,7, 1.0);
+        else if(libs == 3) setRow(row,pos,8, 1.0);
       }
     }
   }
 
-  //Feature 17 - simple ko location
+  //Feature 9 - simple ko location
   if(board.ko_loc != FastBoard::NULL_LOC) {
     int pos = locToTensorPos(board.ko_loc,bSize,offset);
-    setRow(row,pos,17, 1.0);
+    setRow(row,pos,9, 1.0);
   }
 
   //Probabilistically include prev move features
-  //Features 18,19,20,21,22
+  //Features 10,11,12,13,14
   bool includePrev1 = alwaysHistory || rand.nextDouble() < 0.9;
   bool includePrev2 = alwaysHistory || (includePrev1 && rand.nextDouble() < 0.95);
   bool includePrev3 = alwaysHistory || (includePrev2 && rand.nextDouble() < 0.95);
@@ -317,31 +300,31 @@ static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& m
     Loc prev1Loc = moves[nextMoveIdx-1].loc;
     if(prev1Loc != FastBoard::PASS_LOC && prev1Loc != FastBoard::NULL_LOC) {
       int pos = locToTensorPos(prev1Loc,bSize,offset);
-      setRow(row,pos,18, 1.0);
+      setRow(row,pos,10, 1.0);
     }
     if(nextMoveIdx >= 2 && moves[nextMoveIdx-2].pla == pla && includePrev2) {
       Loc prev2Loc = moves[nextMoveIdx-2].loc;
       if(prev2Loc != FastBoard::PASS_LOC && prev2Loc != FastBoard::NULL_LOC) {
         int pos = locToTensorPos(prev2Loc,bSize,offset);
-        setRow(row,pos,19, 1.0);
+        setRow(row,pos,11, 1.0);
       }
       if(nextMoveIdx >= 3 && moves[nextMoveIdx-3].pla == opp && includePrev3) {
         Loc prev3Loc = moves[nextMoveIdx-3].loc;
         if(prev3Loc != FastBoard::PASS_LOC && prev3Loc != FastBoard::NULL_LOC) {
           int pos = locToTensorPos(prev3Loc,bSize,offset);
-          setRow(row,pos,20, 1.0);
+          setRow(row,pos,12, 1.0);
         }
         if(nextMoveIdx >= 4 && moves[nextMoveIdx-4].pla == pla && includePrev4) {
           Loc prev4Loc = moves[nextMoveIdx-4].loc;
           if(prev4Loc != FastBoard::PASS_LOC && prev4Loc != FastBoard::NULL_LOC) {
             int pos = locToTensorPos(prev4Loc,bSize,offset);
-            setRow(row,pos,21, 1.0);
+            setRow(row,pos,13, 1.0);
           }
           if(nextMoveIdx >= 5 && moves[nextMoveIdx-5].pla == opp && includePrev5) {
             Loc prev5Loc = moves[nextMoveIdx-5].loc;
             if(prev5Loc != FastBoard::PASS_LOC && prev5Loc != FastBoard::NULL_LOC) {
               int pos = locToTensorPos(prev5Loc,bSize,offset);
-              setRow(row,pos,22, 1.0);
+              setRow(row,pos,14, 1.0);
             }
           }
         }
@@ -349,17 +332,17 @@ static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& m
     }
   }
 
-  //Ladder features 23,24,25
+  //Ladder features 15,16,17
   auto addLadderFeature = [&board,bSize,offset,row](Loc loc, int pos, const vector<Loc>& workingMoves){
     assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
     int libs = board.getNumLiberties(loc);
     if(libs == 1)
-      setRow(row,pos,23,1.0);
+      setRow(row,pos,15,1.0);
     else {
-      setRow(row,pos,24,1.0);
+      setRow(row,pos,16,1.0);
       for(size_t j = 0; j < workingMoves.size(); j++) {
         int workingPos = locToTensorPos(workingMoves[j],bSize,offset);
-        setRow(row,workingPos,25,1.0);
+        setRow(row,workingPos,17,1.0);
       }
     }
   };
