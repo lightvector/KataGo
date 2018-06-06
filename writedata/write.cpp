@@ -15,7 +15,7 @@ using namespace H5;
 
 //Data and feature row parameters
 static const int maxBoardSize = 19;
-static const int numFeatures = 26;
+static const int numFeatures = 27;
 static const int numRecentBoards = 6; //For recent captures
 
 //Different segments of the data row
@@ -239,7 +239,8 @@ static void iterLadders(const FastBoard& board, std::function<void(Loc,int,const
 //   }
 // }
 
-static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& moves, int nextMoveIdx, float valueTarget, int target, int rankOneHot, Hash128 sgfHash, float* row, Rand& rand, bool alwaysHistory) {
+static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& moves, int nextMoveIdx, float valueTarget, float selfKomi,
+                    int target, int rankOneHot, Hash128 sgfHash, float* row, Rand& rand, bool alwaysHistory) {
   const FastBoard& board = recentBoards[0];
 
   assert(board.x_size == board.y_size);
@@ -257,6 +258,8 @@ static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& m
 
       //Feature 0 - on board
       setRow(row,pos,0, 1.0);
+      //Feature 26 - komi/15 from self perspective
+      setRow(row,pos,26, selfKomi/15);
 
       Color stone = board.colors[loc];
 
@@ -657,7 +660,7 @@ struct Stats {
 static void iterSgfMoves(
   CompactSgf* sgf,
   //board,source,rank,oppRank,user,handicap,moves,index within moves
-  std::function<void(const vector<FastBoard>&,int,int,int,const string&,int,const string&,const vector<Move>&,int,float,Hash128)> f
+  std::function<void(const vector<FastBoard>&,int,int,int,const string&,int,const string&,const vector<Move>&,int,float,float,Hash128)> f
 ) {
   int bSize;
   int source;
@@ -792,7 +795,8 @@ static void iterSgfMoves(
     int oppRank = m.pla == P_WHITE ? bRank : wRank;
     const string& user = m.pla == P_WHITE ? wUser : bUser;
     float valueTarget = 0.0; //value target not implemented for sgf
-    f(recentBoards,source,rank,oppRank,user,handicap,date,moves,j,valueTarget,sgf->hash);
+    float selfKomi = 0.0; //komi not implemented for sgf
+    f(recentBoards,source,rank,oppRank,user,handicap,date,moves,j,valueTarget,selfKomi,sgf->hash);
 
     //recentBoards[0] is the most recent
     for(int dj = 0; dj<numRecentBoards && j-dj >= 0; dj++) {
@@ -817,7 +821,7 @@ static void iterSgfsAndLZMoves(
   uint64_t shardSeed, int numShards,
   const size_t& numMovesUsed, const size_t& curDataSetRow,
   //source,rank,user,handicap,date,moves,index within moves,
-  std::function<void(const vector<FastBoard>&,int,int,int,const string&,int,const string&,const vector<Move>&,int,float,Hash128)> f
+  std::function<void(const vector<FastBoard>&,int,int,int,const string&,int,const string&,const vector<Move>&,int,float,float,Hash128)> f
 ) {
 
   size_t numMovesItered = 0;
@@ -826,16 +830,16 @@ static void iterSgfsAndLZMoves(
   for(int shard = 0; shard < numShards; shard++) {
     Rand shardRand(shardSeed);
 
-    std::function<void(const vector<FastBoard>&,int,int,int,const string&,int,const string&,const vector<Move>&,int,float,Hash128)> g =
+    std::function<void(const vector<FastBoard>&,int,int,int,const string&,int,const string&,const vector<Move>&,int,float,float,Hash128)> g =
       [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered](
         const vector<FastBoard>& recentBoards, int source, int rank, int oppRank, const string& user, int handicap, const string& date,
-        const vector<Move>& moves, int moveIdx, float valueTarget, Hash128 sgfHash
+        const vector<Move>& moves, int moveIdx, float valueTarget, float selfKomi, Hash128 sgfHash
       ) {
       //Only use this move if it's within our shard.
       numMovesIteredOrSkipped++;
       if(numShards <= 1 || shard == shardRand.nextUInt(numShards)) {
         numMovesItered++;
-        f(recentBoards,source,rank,oppRank,user,handicap,date,moves,moveIdx,valueTarget,sgfHash);
+        f(recentBoards,source,rank,oppRank,user,handicap,date,moves,moveIdx,valueTarget,selfKomi,sgfHash);
       }
     };
 
@@ -867,8 +871,16 @@ static void iterSgfsAndLZMoves(
         valueTarget = 1.0;
       else if(sample.winner == getEnemy(sample.next))
         valueTarget = -1.0;
+      float selfKomi = 0.0;
+      if(sample.next == P_BLACK)
+        selfKomi = -7.5;
+      else if(sample.next == P_WHITE)
+        selfKomi = 7.5;
+      else
+        assert(false);
+
       Hash128 sgfHash = Hash128(0,0);
-      g(sample.boards,SOURCE_LEELAZERO,rank,oppRank,lzname,handicap,lzdate,sample.moves,moveIdx,valueTarget,sgfHash);
+      g(sample.boards,SOURCE_LEELAZERO,rank,oppRank,lzname,handicap,lzdate,sample.moves,moveIdx,valueTarget,selfKomi,sgfHash);
     };
 
     for(int i = 0; i<lzFiles.size(); i++) {
@@ -890,7 +902,7 @@ static void iterSgfsAndLZMoves(
 
 static void maybeUseRow(
   const vector<FastBoard>& recentBoards, int source, int rank, int oppRank, const string& user, int handicap,
-  const string& date, const vector<Move>& movesBuf, int moveIdx, float valueTarget, Hash128 sgfHash,
+  const string& date, const vector<Move>& movesBuf, int moveIdx, float valueTarget, float selfKomi, Hash128 sgfHash,
   DataPool& dataPool,
   Rand& rand, double keepProb, int minRank, int minOppRank, int maxHandicap, int target,
   bool alwaysHistory, bool includePasses,
@@ -955,7 +967,7 @@ static void maybeUseRow(
 
       if(newRow != NULL) {
         assert(recentBoards.size() > 0);
-        fillRow(recentBoards,movesBuf,moveIdx,valueTarget,target,rankOneHot,sgfHash,newRow,rand,alwaysHistory);
+        fillRow(recentBoards,movesBuf,moveIdx,valueTarget,selfKomi,target,rankOneHot,sgfHash,newRow,rand,alwaysHistory);
         posHashes.insert(recentBoards[0].pos_hash);
 
         used.count += 1;
@@ -1002,13 +1014,13 @@ static void processData(
 
   DataPool dataPool(totalRowLen,poolSize,chunkHeight,writeRow);
 
-  std::function<void(const vector<FastBoard>&,int,int,int,const string&,int,const string&,const vector<Move>&,int,float,Hash128)> f =
+  std::function<void(const vector<FastBoard>&,int,int,int,const string&,int,const string&,const vector<Move>&,int,float,float,Hash128)> f =
     [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,fancyPosKeepFactor,alwaysHistory,includePasses,&posHashes,&total,&used](
       const vector<FastBoard>& recentBoards, int source, int rank, int oppRank, const string& user, int handicap, const string& date,
-      const vector<Move>& moves, int moveIdx, float valueTarget, Hash128 sgfHash
+      const vector<Move>& moves, int moveIdx, float valueTarget, float selfKomi, Hash128 sgfHash
     ) {
     maybeUseRow(
-      recentBoards,source,rank,oppRank,user,handicap,date,moves,moveIdx,valueTarget,sgfHash,
+      recentBoards,source,rank,oppRank,user,handicap,date,moves,moveIdx,valueTarget,selfKomi,sgfHash,
       dataPool,rand,keepProb,minRank,minOppRank,maxHandicap,target,
       alwaysHistory, includePasses,
       excludeUsers,fancyConditions,fancyPosKeepFactor,
