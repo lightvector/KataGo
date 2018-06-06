@@ -867,8 +867,8 @@ static void iterSgfsAndLZMoves(
       int oppRank = 8;
       //Leela zero games have no handicap
       int handicap = 0;
-      //The "current" move is always past the end of the sample's reported move history since it hasn't been made
-      int moveIdx = sample.moves.size();
+      //The "next" move is always the end of the sample's reported move history
+      int moveIdx = sample.moves.size()-1;
       Player nextPlayer = sample.next;
 
       float policyTarget[policyTargetLen];
@@ -1157,8 +1157,8 @@ int main(int argc, const char* argv[]) {
 
   try {
     TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0",true);
-    TCLAP::MultiArg<string> gamesdirArg("","gamesdir","Directory of sgf files",true,"DIR");
-    TCLAP::MultiArg<string> lzdirArg("","lzdir","Directory of leela zero gzipped data files",true,"DIR");
+    TCLAP::MultiArg<string> gamesdirArg("","gamesdir","Directory of sgf files",false,"DIR");
+    TCLAP::MultiArg<string> lzdirArg("","lzdir","Directory of leela zero gzipped data files",false,"DIR");
     TCLAP::ValueArg<string> outputArg("","output","H5 file to write",true,string(),"FILE");
     TCLAP::ValueArg<string> onlyFilesArg("","only-files","Specify a list of files to filter to, one per line in a txt file",false,string(),"FILEOFFILES");
     TCLAP::ValueArg<string> excludeFilesArg("","exclude-files","Specify a list of files to filter out, one per line in a txt file",false,string(),"FILEOFFILES");

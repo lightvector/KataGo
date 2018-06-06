@@ -100,7 +100,7 @@ void LZSample::iterSamples(
   LZSample sample;
   for(int i = 0; i<8; i++)
     sample.boards.push_back(emptyBoard);
-  for(int i = 0; i<7; i++)
+  for(int i = 0; i<8; i++)
     sample.moves.push_back(Move(FastBoard::NULL_LOC,C_EMPTY));
 
   zstr::ifstream in(gzippedFile);
@@ -155,13 +155,28 @@ void LZSample::iterSamples(
     getLine(in,buf);
     {
       istringstream moveIn(buf);
+      float maxProb = 0;
+      int maxI = 0;
       for(int i = 0; i<362; i++) {
         moveIn >> sample.probs[i];
         if(!moveIn)
           assert(false);
+        if(sample.probs[i] > maxProb) {
+          maxProb = sample.probs[i];
+          maxI = i;
+        }
       }
       float dummy;
       assert(!(moveIn >> dummy));
+
+      //Fill in the "next" move to be the argmax of the probs
+      if(maxI == 361)
+        sample.moves[7] = Move(FastBoard::PASS_LOC,pla);
+      else {
+        int x = maxI % 19;
+        int y = maxI / 19;
+        sample.moves[7] = Move(Location::getLoc(x,y,19),pla);
+      }
     }
 
     //Next we have one line indicating whether the current player won or lost (+1 or -1).
