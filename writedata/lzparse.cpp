@@ -7,7 +7,7 @@
 #include <cstdlib>
 
 LZSample::LZSample()
-  :boards(),moves(),probs(),next(C_BLACK),winner(C_EMPTY)
+  :emptyBoard(),plaStones(),oppStones(),sideStr(),policyStr(),resultStr()
 {}
 
 LZSample::~LZSample()
@@ -71,7 +71,7 @@ static void decodeStones(const string& linePla, const string& lineOpp, Color* st
   }
 }
 
-static Move inferMove(Color* board, Color* prev, Player whoMoved, short adj_offsets[8]) {
+static Move inferMove(Color* board, Color* prev, Player whoMoved, const short adj_offsets[8]) {
   //Search to find if there is a stone of the player who moved that is newly placed
   for(int y = 0; y<19; y++) {
     for(int x = 0; x<19; x++) {
@@ -111,117 +111,123 @@ void LZSample::iterSamples(
   const string& gzippedFile,
   std::function<void(const LZSample&)> f
 ) {
-  FastBoard emptyBoard;
-
   LZSample sample;
-  for(int i = 0; i<8; i++)
-    sample.boards.push_back(emptyBoard);
-  for(int i = 0; i<8; i++)
-    sample.moves.push_back(Move(FastBoard::NULL_LOC,C_EMPTY));
-
   zstr::ifstream in(gzippedFile);
 
-  string plaStones[8];
-  string oppStones[8];
-  string buf;
   while(in.good()) {
     //First 8 lines are pla stones, second 8 lines are opp stones
     //Most recent states are first
     for(int i = 0; i<8; i++) {
-      getLine(in,plaStones[i]);
+      getLine(in,sample.plaStones[i]);
     }
     for(int i = 0; i<8; i++) {
-      getLine(in,oppStones[i]);
+      getLine(in,sample.oppStones[i]);
     }
 
     if(!in.good())
       break;
 
     //Next line is which color, 0 = black, 1 = white
-    getLine(in,buf);
-    assert(buf.length() == 1);
-    Player pla;
-    if(buf[0] == '0')
-      pla = P_BLACK;
-    else if(buf[0] == '1')
-      pla = P_WHITE;
-    else
-      assert(false);
-    Player opp = getEnemy(pla);
-
-    //Parse all stones
-    Color stones[8][FastBoard::MAX_ARR_SIZE];
-    for(int i = 0; i<8; i++)
-      decodeStones(plaStones[i], oppStones[i], stones[i], pla);
-
-    //Infer the moves based on the stones
-    for(int i = 0; i<7; i++)
-    {
-      Color* board = stones[i];
-      Color* prev = stones[i+1];
-      Player whoMoved = (i % 2 == 0) ? opp : pla;
-      Move move = inferMove(board,prev,whoMoved,emptyBoard.adj_offsets);
-      sample.moves[7-i-1] = move;
-    }
-
-    //Generate the boards from the stones and the moves
-    sample.boards[7] = emptyBoard;
-    for(int y = 0; y<19; y++) {
-      for(int x = 0; x<19; x++) {
-        Loc loc = Location::getLoc(x,y,19);
-        sample.boards[7].setStone(loc,stones[7][loc]);
-      }
-    }
-    for(int i = 6; i>=0; i--)
-    {
-      sample.boards[i] = sample.boards[i+1];
-      Move move = sample.moves[7-i-1];
-      bool suc = sample.boards[i].playMove(move.loc,move.pla);
-      assert(suc);
-    }
+    getLine(in,sample.sideStr);
+    assert(sample.sideStr.length() == 1);
 
     //Next we have 362 floats indicating moves
-    getLine(in,buf);
-    {
-      const char* start = buf.c_str();
-      const char* s = start;
-      char* end = NULL;
-
-      float maxProb = 0;
-      int maxI = 0;
-      for(int i = 0; i<362; i++) {
-        float prob = std::strtod(s,&end);
-        sample.probs[i] = prob;
-        s = end;
-        if(prob > maxProb) {
-          maxProb = prob;
-          maxI = i;
-        }
-      }
-      assert(end == start + buf.length());
-
-      //Fill in the "next" move to be the argmax of the probs
-      if(maxI == 361)
-        sample.moves[7] = Move(FastBoard::PASS_LOC,pla);
-      else {
-        int x = maxI % 19;
-        int y = maxI / 19;
-        sample.moves[7] = Move(Location::getLoc(x,y,19),pla);
-      }
-    }
+    getLine(in,sample.policyStr);
 
     //Next we have one line indicating whether the current player won or lost (+1 or -1).
-    getLine(in,buf);
-    if(buf == "1")
-      sample.winner = pla;
-    else if(buf == "-1")
-      sample.winner = opp;
-    else
-      assert(false);
-
-    sample.next = pla;
+    getLine(in,sample.resultStr);
 
     f(sample);
   }
+}
+
+void LZSample::parse(
+  vector<FastBoard>& boards,
+  vector<Move>& moves,
+  float policyTarget[362],
+  Player& nextPlayer,
+  Player& winner
+) const {
+  if(boards.size() != 8)
+    boards.resize(8);
+  if(moves.size() != 8)
+    moves.resize(8);
+
+  Player pla;
+  if(sideStr[0] == '0')
+    pla = P_BLACK;
+  else if(sideStr[0] == '1')
+    pla = P_WHITE;
+  else
+    assert(false);
+  Player opp = getEnemy(pla);
+
+  //Parse all stones
+  Color stones[8][FastBoard::MAX_ARR_SIZE];
+  for(int i = 0; i<8; i++)
+    decodeStones(plaStones[i], oppStones[i], stones[i], pla);
+
+  //Infer the moves based on the stones
+  for(int i = 0; i<7; i++)
+  {
+    Color* board = stones[i];
+    Color* prev = stones[i+1];
+    Player whoMoved = (i % 2 == 0) ? opp : pla;
+    Move move = inferMove(board,prev,whoMoved,emptyBoard.adj_offsets);
+    moves[7-i-1] = move;
+  }
+
+  //Generate the boards from the stones and the moves
+  boards[7] = emptyBoard;
+  for(int y = 0; y<19; y++) {
+    for(int x = 0; x<19; x++) {
+      Loc loc = Location::getLoc(x,y,19);
+      boards[7].setStone(loc,stones[7][loc]);
+    }
+  }
+  for(int i = 6; i>=0; i--)
+  {
+    boards[i] = boards[i+1];
+    Move move = moves[7-i-1];
+    bool suc = boards[i].playMove(move.loc,move.pla);
+    assert(suc);
+  }
+
+  {
+    const char* start = policyStr.c_str();
+    const char* s = start;
+    char* end = NULL;
+
+    float maxProb = 0;
+    int maxI = 0;
+    for(int i = 0; i<362; i++) {
+      float prob = std::strtod(s,&end);
+      policyTarget[i] = prob;
+      s = end;
+      if(prob > maxProb) {
+        maxProb = prob;
+        maxI = i;
+      }
+    }
+    assert(end == start + policyStr.length());
+
+    //Fill in the "next" move to be the argmax of the policyTarget
+    if(maxI == 361)
+      moves[7] = Move(FastBoard::PASS_LOC,pla);
+    else {
+      int x = maxI % 19;
+      int y = maxI / 19;
+      moves[7] = Move(Location::getLoc(x,y,19),pla);
+    }
+  }
+
+  if(resultStr == "1")
+    winner = pla;
+  else if(resultStr == "-1")
+    winner = opp;
+  else
+    assert(false);
+
+  nextPlayer = pla;
 }
 

@@ -857,54 +857,61 @@ static void iterSgfsAndLZMoves(
       iterSgfMoves(sgfs[i],g);
     }
 
+    vector<FastBoard> boards;
+    vector<Move> moves;
     const string lzname = string("Leela Zero");
     const string lzdate = string("No date");
     std::function<void(const LZSample& sample)> h =
-      [g,&lzname,&lzdate](const LZSample& sample) {
+      [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered,&lzname,&lzdate,&boards,&moves](const LZSample& sample) {
 
-      //Leela zero is pro
-      int rank = 8;
-      int oppRank = 8;
-      //Leela zero games have no handicap
-      int handicap = 0;
-      //The "next" move is always the end of the sample's reported move history
-      int moveIdx = sample.moves.size()-1;
-      Player nextPlayer = sample.next;
+      //Only use this move if it's within our shard.
+      numMovesIteredOrSkipped++;
+      if(numShards <= 1 || shard == shardRand.nextUInt(numShards)) {
+        numMovesItered++;
 
-      float policyTarget[policyTargetLen];
-      {
-        for(int k = 0; k<policyTargetLen; k++)
-          policyTarget[k] = sample.probs[k];
+        assert(policyTargetLen == 362);
+        float policyTarget[362];
+        Player nextPlayer;
+        Player winner;
+        sample.parse(boards,moves,policyTarget,nextPlayer,winner);
+
+        //Leela zero is pro
+        int rank = 8;
+        int oppRank = 8;
+        //Leela zero games have no handicap
+        int handicap = 0;
+        //The "next" move is always the end of the sample's reported move history
+        int moveIdx = moves.size()-1;
+
+        float valueTarget = 0.0;
+        if(winner == nextPlayer)
+          valueTarget = 1.0;
+        else if(winner == getEnemy(nextPlayer))
+          valueTarget = -1.0;
+        float selfKomi = 0.0;
+        if(nextPlayer == P_BLACK)
+          selfKomi = -7.5;
+        else if(nextPlayer == P_WHITE)
+          selfKomi = 7.5;
+        else
+          assert(false);
+
+        // for(int n = 7; n >= 0; n--) {
+        //   cout << boards[n] << endl;
+        //   cout << Location::toString(moves[7-n].loc,19) << " " << (int)moves[7-n].pla << endl;
+        // }
+        // for(int y = 0; y<19; y++) {
+        //   for(int x = 0; x<19; x++) {
+        //     printf("%3.0f ", policyTarget[y*19+x]*100.0);
+        //   }
+        //   cout << endl;
+        // }
+        // cout << "Value target " << valueTarget << endl;
+        // cout << "Self komi " << selfKomi << endl;
+
+        Hash128 sgfHash = Hash128(0,0);
+        f(boards,SOURCE_LEELAZERO,rank,oppRank,lzname,handicap,lzdate,moves,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,sgfHash);
       }
-
-      float valueTarget = 0.0;
-      if(sample.winner == sample.next)
-        valueTarget = 1.0;
-      else if(sample.winner == getEnemy(sample.next))
-        valueTarget = -1.0;
-      float selfKomi = 0.0;
-      if(sample.next == P_BLACK)
-        selfKomi = -7.5;
-      else if(sample.next == P_WHITE)
-        selfKomi = 7.5;
-      else
-        assert(false);
-
-      // for(int n = 7; n >= 0; n--) {
-      //   cout << sample.boards[n] << endl;
-      //   cout << Location::toString(sample.moves[7-n].loc,19) << " " << (int)sample.moves[7-n].pla << endl;
-      // }
-      // for(int y = 0; y<19; y++) {
-      //   for(int x = 0; x<19; x++) {
-      //     printf("%3.0f ", policyTarget[y*19+x]*100.0);
-      //   }
-      //   cout << endl;
-      // }
-      // cout << "Value target " << valueTarget << endl;
-      // cout << "Self komi " << selfKomi << endl;
-
-      Hash128 sgfHash = Hash128(0,0);
-      g(sample.boards,SOURCE_LEELAZERO,rank,oppRank,lzname,handicap,lzdate,sample.moves,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,sgfHash);
     };
 
     for(int i = 0; i<lzFiles.size(); i++) {
