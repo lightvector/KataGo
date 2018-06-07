@@ -4,6 +4,7 @@
 #include "sgf.h"
 #include "lzparse.h"
 #include <zstr/src/zstr.hpp>
+#include <cstdlib>
 
 LZSample::LZSample()
   :boards(),moves(),probs(),next(C_BLACK),winner(C_EMPTY)
@@ -19,48 +20,63 @@ static void getLine(istream& in, string& buf) {
     buf.pop_back();
 }
 
-static void setStone(FastBoard& board, int tensorPos, Player pla) {
+static void setStone(Color* stones, int tensorPos, Color stone) {
   int x = tensorPos % 19;
   int y = tensorPos / 19;
-  board.setStone(Location::getLoc(x,y,19),pla);
+  stones[Location::getLoc(x,y,19)] = stone;
 }
 
-static void decodeStones(const string& line, FastBoard& board, Player pla)
+static int parseHexChar(char c) {
+  int d;
+  if(c >= '0' && c <= '9')
+    d = c-'0';
+  else if (c >= 'a' && c <= 'f')
+    d = c-'a'+10;
+  else
+    assert(false);
+  return d;
+}
+
+static void decodeStones(const string& linePla, const string& lineOpp, Color* stones, Player pla)
 {
-  assert(line.length() == 91);
+  assert(linePla.length() == 91);
+  assert(lineOpp.length() == 91);
+  Player opp = getEnemy(pla);
   //The first 90 characters are a hex-encoding of the first 360 points
   for(int i = 0; i<90; i++) {
-    char c = line[i];
-    int d;
-    if(c >= '0' && c <= '9')
-      d = c-'0';
-    else if (c >= 'a' && c <= 'f')
-      d = c-'a'+10;
-    else
-      assert(false);
+    int dPla = parseHexChar(linePla[i]);
+    int dOpp = parseHexChar(lineOpp[i]);
 
-    if(d & 0x1) setStone(board,i*4+3,pla);
-    if(d & 0x2) setStone(board,i*4+2,pla);
-    if(d & 0x4) setStone(board,i*4+1,pla);
-    if(d & 0x8) setStone(board,i*4+0,pla);
+    Color stone;
+    if(dPla & 0x8) stone = pla; else if(dOpp & 0x8) stone = opp; else stone = C_EMPTY;
+    setStone(stones,i*4+0,stone);
+    if(dPla & 0x4) stone = pla; else if(dOpp & 0x4) stone = opp; else stone = C_EMPTY;
+    setStone(stones,i*4+1,stone);
+    if(dPla & 0x2) stone = pla; else if(dOpp & 0x2) stone = opp; else stone = C_EMPTY;
+    setStone(stones,i*4+2,stone);
+    if(dPla & 0x1) stone = pla; else if(dOpp & 0x1) stone = opp; else stone = C_EMPTY;
+    setStone(stones,i*4+3,stone);
   }
   //The last character is either 0 or 1
   {
-    char c = line[90];
-    if(c == '0') {}
-    else if(c == '1')
-      setStone(board,90*4,pla);
-    else
-      assert(false);
+    int cPla = linePla[90];
+    int cOpp = lineOpp[90];
+
+    assert(cPla == '1' || cPla == '0');
+    assert(cOpp == '1' || cOpp == '0');
+
+    Color stone;
+    if(cPla == '1') stone = pla; else if(cOpp == '1') stone = opp; else stone = C_EMPTY;
+    setStone(stones,90*4,stone);
   }
 }
 
-static Move inferMove(FastBoard& board, FastBoard& prev, Player whoMoved) {
+static Move inferMove(Color* board, Color* prev, Player whoMoved, short adj_offsets[8]) {
   //Search to find if there is a stone of the player who moved that is newly placed
   for(int y = 0; y<19; y++) {
     for(int x = 0; x<19; x++) {
       Loc loc = Location::getLoc(x,y,19);
-      if(board.colors[loc] == whoMoved && prev.colors[loc] != whoMoved)
+      if(board[loc] == whoMoved && prev[loc] != whoMoved)
         return Move(loc,whoMoved);
     }
   }
@@ -69,12 +85,12 @@ static Move inferMove(FastBoard& board, FastBoard& prev, Player whoMoved) {
   for(int y = 0; y<19; y++) {
     for(int x = 0; x<19; x++) {
       Loc loc = Location::getLoc(x,y,19);
-      if(board.colors[loc] != whoMoved && prev.colors[loc] == whoMoved) {
-        //Look around for a suicidal spot to play
+      if(board[loc] != whoMoved && prev[loc] == whoMoved) {
+        //Look around for an empty spot to play, next to where our stones vanished.
         for(int i = 0; i < 4; i++)
         {
-          Loc adj = loc + prev.adj_offsets[i];
-          if(prev.colors[adj] == C_EMPTY && prev.isSuicide(adj,whoMoved))
+          Loc adj = loc + adj_offsets[i];
+          if(prev[adj] == C_EMPTY)
             return Move(adj,whoMoved);
         }
       }
@@ -85,7 +101,7 @@ static Move inferMove(FastBoard& board, FastBoard& prev, Player whoMoved) {
   for(int y = 0; y<19; y++) {
     for(int x = 0; x<19; x++) {
       Loc loc = Location::getLoc(x,y,19);
-      assert(board.colors[loc] == prev.colors[loc]);
+      assert(board[loc] == prev[loc]);
     }
   }
   return Move(FastBoard::PASS_LOC,whoMoved);
@@ -133,41 +149,55 @@ void LZSample::iterSamples(
       assert(false);
     Player opp = getEnemy(pla);
 
-    //Generate the boards
+    //Parse all stones
+    Color stones[8][FastBoard::MAX_ARR_SIZE];
     for(int i = 0; i<8; i++)
-    {
-      sample.boards[i] = emptyBoard;
-      decodeStones(plaStones[i], sample.boards[i], pla);
-      decodeStones(oppStones[i], sample.boards[i], opp);
-    }
+      decodeStones(plaStones[i], oppStones[i], stones[i], pla);
 
-    //Infer the previous moves
+    //Infer the moves based on the stones
     for(int i = 0; i<7; i++)
     {
-      FastBoard& board = sample.boards[i];
-      FastBoard& prev = sample.boards[i+1];
+      Color* board = stones[i];
+      Color* prev = stones[i+1];
       Player whoMoved = (i % 2 == 0) ? opp : pla;
-      Move move = inferMove(board,prev,whoMoved);
+      Move move = inferMove(board,prev,whoMoved,emptyBoard.adj_offsets);
       sample.moves[7-i-1] = move;
+    }
+
+    //Generate the boards from the stones and the moves
+    sample.boards[7] = emptyBoard;
+    for(int y = 0; y<19; y++) {
+      for(int x = 0; x<19; x++) {
+        Loc loc = Location::getLoc(x,y,19);
+        sample.boards[7].setStone(loc,stones[7][loc]);
+      }
+    }
+    for(int i = 6; i>=0; i--)
+    {
+      sample.boards[i] = sample.boards[i+1];
+      Move move = sample.moves[7-i-1];
+      bool suc = sample.boards[i].playMove(move.loc,move.pla);
+      assert(suc);
     }
 
     //Next we have 362 floats indicating moves
     getLine(in,buf);
     {
-      istringstream moveIn(buf);
+      const char* start = buf.c_str();
+      const char* s = start;
+      char* end = NULL;
+
       float maxProb = 0;
       int maxI = 0;
       for(int i = 0; i<362; i++) {
-        moveIn >> sample.probs[i];
-        if(!moveIn)
-          assert(false);
-        if(sample.probs[i] > maxProb) {
-          maxProb = sample.probs[i];
+        float prob = std::strtod(s,&end);
+        s = end;
+        if(prob > maxProb) {
+          maxProb = prob;
           maxI = i;
         }
       }
-      float dummy;
-      assert(!(moveIn >> dummy));
+      assert(end == start + buf.length());
 
       //Fill in the "next" move to be the argmax of the probs
       if(maxI == 361)
