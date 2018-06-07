@@ -890,6 +890,19 @@ static void iterSgfsAndLZMoves(
       else
         assert(false);
 
+      // for(int n = 7; n >= 0; n--) {
+      //   cout << sample.boards[n] << endl;
+      //   cout << Location::toString(sample.moves[7-n].loc,19) << " " << (int)sample.moves[7-n].pla << endl;
+      // }
+      // for(int y = 0; y<19; y++) {
+      //   for(int x = 0; x<19; x++) {
+      //     printf("%3.0f ", policyTarget[y*19+x]*100.0);
+      //   }
+      //   cout << endl;
+      // }
+      // cout << "Value target " << valueTarget << endl;
+      // cout << "Self komi " << selfKomi << endl;
+
       Hash128 sgfHash = Hash128(0,0);
       g(sample.boards,SOURCE_LEELAZERO,rank,oppRank,lzname,handicap,lzdate,sample.moves,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,sgfHash);
     };

@@ -191,6 +191,7 @@ void LZSample::iterSamples(
       int maxI = 0;
       for(int i = 0; i<362; i++) {
         float prob = std::strtod(s,&end);
+        sample.probs[i] = prob;
         s = end;
         if(prob > maxProb) {
           maxProb = prob;
