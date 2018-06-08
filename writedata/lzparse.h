@@ -18,7 +18,7 @@ struct LZSample {
 
   static void iterSamples(
     const string& gzippedFile,
-    std::function<void(const LZSample&)> f
+    std::function<void(const LZSample&,const string&,int)> f
   );
 
   void parse(

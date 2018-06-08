@@ -728,7 +728,8 @@ static void iterSgfMoves(
   const vector<Move>& placements = *placementsBuf;
   const vector<Move>& moves = *movesBuf;
 
-  FastBoard initialBoard(bSize);
+  bool multiStoneSuicideLegal = false;
+  FastBoard initialBoard(bSize,bSize,multiStoneSuicideLegal);
   for(int j = 0; j<placements.size(); j++) {
     Move m = placements[j];
     bool suc = initialBoard.setStone(m.loc,m.pla);
@@ -861,9 +862,9 @@ static void iterSgfsAndLZMoves(
     vector<Move> moves;
     const string lzname = string("Leela Zero");
     const string lzdate = string("No date");
-    std::function<void(const LZSample& sample)> h =
-      [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered,&lzname,&lzdate,&boards,&moves](const LZSample& sample) {
-
+    std::function<void(const LZSample& sample, const string& fileName, int sampleCount)> h =
+      [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered,&lzname,&lzdate,&boards,&moves]
+      (const LZSample& sample, const string& fileName, int sampleCount) {
       //Only use this move if it's within our shard.
       numMovesIteredOrSkipped++;
       if(numShards <= 1 || shard == shardRand.nextUInt(numShards)) {
@@ -873,7 +874,13 @@ static void iterSgfsAndLZMoves(
         float policyTarget[362];
         Player nextPlayer;
         Player winner;
-        sample.parse(boards,moves,policyTarget,nextPlayer,winner);
+        try {
+          sample.parse(boards,moves,policyTarget,nextPlayer,winner);
+        }
+        catch(const IOError &e) {
+          cout << "Error reading: " << fileName << " sample " << sampleCount << ": " << e.message << endl;
+          return;
+        }
 
         //Leela zero is pro
         int rank = 8;

@@ -7,7 +7,7 @@
 #include <cstdlib>
 
 LZSample::LZSample()
-  :emptyBoard(),plaStones(),oppStones(),sideStr(),policyStr(),resultStr()
+  :emptyBoard(19,19,true),plaStones(),oppStones(),sideStr(),policyStr(),resultStr()
 {}
 
 LZSample::~LZSample()
@@ -71,7 +71,7 @@ static void decodeStones(const string& linePla, const string& lineOpp, Color* st
   }
 }
 
-static Move inferMove(Color* board, Color* prev, Player whoMoved, const short adj_offsets[8]) {
+static Move inferMove(Color* board, Color* prev, Player whoMoved, Color stones[8][FastBoard::MAX_ARR_SIZE], int stonesIdx, const short adj_offsets[8]) {
   //Search to find if there is a stone of the player who moved that is newly placed
   for(int y = 0; y<19; y++) {
     for(int x = 0; x<19; x++) {
@@ -101,7 +101,21 @@ static Move inferMove(Color* board, Color* prev, Player whoMoved, const short ad
   for(int y = 0; y<19; y++) {
     for(int x = 0; x<19; x++) {
       Loc loc = Location::getLoc(x,y,19);
-      assert(board[loc] == prev[loc]);
+      if(board[loc] != prev[loc]) {
+        for(int i = 0; i<8; i++) {
+          for(int y2 = 0; y2<19; y2++) {
+            for(int x2 = 0; x2<19; x2++) {
+              Loc loc2 = Location::getLoc(x2,y2,19);
+              assert(stones[i][loc2] >= 0 && stones[i][loc2] <= 2);
+              cout << (stones[i][loc2] == 0 ? '.' : stones[i][loc2] == 1 ? 'X' : 'O');
+            }
+            cout << endl;
+          }
+          cout << endl;
+        }
+        cout << "Problem getting to index " << stonesIdx << " from " << (stonesIdx+1) << endl;
+        throw IOError(string("Bad leela zero board consistency"));
+      }
     }
   }
   return Move(FastBoard::PASS_LOC,whoMoved);
@@ -109,11 +123,12 @@ static Move inferMove(Color* board, Color* prev, Player whoMoved, const short ad
 
 void LZSample::iterSamples(
   const string& gzippedFile,
-  std::function<void(const LZSample&)> f
+  std::function<void(const LZSample&,const string&,int)> f
 ) {
   LZSample sample;
   zstr::ifstream in(gzippedFile);
 
+  int sampleCount = 0;
   while(in.good()) {
     //First 8 lines are pla stones, second 8 lines are opp stones
     //Most recent states are first
@@ -137,7 +152,8 @@ void LZSample::iterSamples(
     //Next we have one line indicating whether the current player won or lost (+1 or -1).
     getLine(in,sample.resultStr);
 
-    f(sample);
+    f(sample,gzippedFile,sampleCount);
+    sampleCount++;
   }
 }
 
@@ -173,7 +189,7 @@ void LZSample::parse(
     Color* board = stones[i];
     Color* prev = stones[i+1];
     Player whoMoved = (i % 2 == 0) ? opp : pla;
-    Move move = inferMove(board,prev,whoMoved,emptyBoard.adj_offsets);
+    Move move = inferMove(board,prev,whoMoved,stones,i,emptyBoard.adj_offsets);
     moves[7-i-1] = move;
   }
 
@@ -190,7 +206,8 @@ void LZSample::parse(
     boards[i] = boards[i+1];
     Move move = moves[7-i-1];
     bool suc = boards[i].playMove(move.loc,move.pla);
-    assert(suc);
+    if(!suc)
+      throw IOError(string("Leela zero illegal implied move"));
   }
 
   {
