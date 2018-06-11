@@ -832,13 +832,12 @@ class Model:
       #else the neural net would output.
       policy_output = tf.pad(policy_output,[(0,0),(0,1)], constant_values = -10000.)
     else:
-      #Pass move not implemented yet!
-      assert(False)
       #Add pass move based on the global g values
-      #matmulpass = self.weight_variable("matmulpass",[pass_num_channels,1],g2_num_channels,1)
-      #pass_output = tf.matmul(g2_output,matmulpass)
-      #self.outputs_by_layer.append(("pass",pass_output))
-      #policy_output = tf.concat([policy_output,pass_output],axis=1)
+      matmulpass = self.weight_variable("matmulpass",[g2_num_channels,1],g2_num_channels*4,1)
+      self.add_lr_factor("matmulpass:0",0.25)
+      pass_output = tf.matmul(g2_layer,matmulpass)
+      self.outputs_by_layer.append(("pass",pass_output))
+      policy_output = tf.concat([policy_output,pass_output],axis=1)
 
     self.policy_output = policy_output
 
