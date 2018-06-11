@@ -49,20 +49,7 @@ with open(model_file + ".config.json") as f:
   model_config = json.load(f)
 model = Model(model_config)
 
-policy_output = model.policy_output
-
-#Loss function
-targets = tf.placeholder(tf.float32, [None] + model.target_shape)
-target_weights = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
-
-target_weights_to_use = target_weights
-
-#Require that we have the last move
-if require_last_move:
-  target_weights_to_use = target_weights_to_use * tf.reduce_sum(model.inputs[:,:,18],axis=[1])
-
-data_loss = target_weights_to_use * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output)
-weight_output = target_weights_to_use
+target_vars = Target_vars(model,for_optimization=False,require_last_move=require_last_move)
 
 total_parameters = 0
 for variable in tf.trainable_variables():
@@ -127,9 +114,11 @@ with tf.Session(config=tfconfig) as session:
 
   input_start = 0
   input_len = model.input_shape[0] * model.input_shape[1]
-  target_start = input_start + input_len
-  target_len = model.target_shape[0]
-  target_weights_start = target_start + target_len
+  policy_target_start = input_start + input_len
+  policy_target_len = model.policy_target_shape[0]
+  value_target_start = policy_target_start + policy_target_len
+  value_target_len = 1
+  target_weights_start = value_target_start + value_target_len
   target_weights_len = 1
   rank_start = target_weights_start + target_weights_len
   rank_len = model.rank_shape[0]
@@ -146,13 +135,14 @@ with tf.Session(config=tfconfig) as session:
 
   def run(fetches, rows):
     assert(len(model.input_shape) == 2)
-    assert(len(model.target_shape) == 1)
+    assert(len(model.policy_target_shape) == 1)
+    assert(len(model.value_target_shape) == 0)
     assert(len(model.target_weights_shape) == 0)
-    input_len = model.input_shape[0] * model.input_shape[1]
-    target_len = model.target_shape[0]
+    assert(len(model.rank_shape) == 1)
 
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
-    row_targets = rows[:,target_start:target_start+target_len]
+    row_policy_targets = rows[:,policy_target_start:policy_target_start+policy_target_len]
+    row_value_target = rows[:,value_target_start]
     row_target_weights = rows[:,target_weights_start]
 
     ranks_input = np.zeros([rank_len])
@@ -162,8 +152,8 @@ with tf.Session(config=tfconfig) as session:
     return session.run(fetches, feed_dict={
       model.inputs: row_inputs,
       model.ranks: ranks_input,
-      targets: row_targets,
-      target_weights: row_target_weights,
+      target_vars.policy_targets: row_policy_targets,
+      target_vars.target_weights_from_data: row_target_weights,
       model.symmetries: [False,False,False],
       model.is_training: False
     })
@@ -183,7 +173,7 @@ with tf.Session(config=tfconfig) as session:
     if not isinstance(rows, np.ndarray):
       rows = np.array(rows)
 
-    (wlosses,weights) = run((data_loss,weight_output), rows)
+    (wlosses,weights) = run((target_vars.policy_loss,target_vars.target_weights_used), rows)
     row_ranks = rows[:,rank_start:rank_start+rank_len]
     row_hashvalues = rows[:,sgfhash_start:sgfhash_start+sgfhash_len]
     rank_one_hot_idx = np.argmax(row_ranks,axis=1)

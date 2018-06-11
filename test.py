@@ -47,28 +47,8 @@ print("Building model", flush=True)
 with open(model_file + ".config.json") as f:
   model_config = json.load(f)
 model = Model(model_config)
-
-policy_output = model.policy_output
-
-#Loss function
-targets = tf.placeholder(tf.float32, [None] + model.target_shape)
-target_weights = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
-
-target_weights_to_use = target_weights
-
-#Require that we have the last move
-if require_last_move:
-  target_weights_to_use = target_weights_to_use * tf.reduce_sum(model.inputs[:,:,18],axis=[1])
-
-data_loss = target_weights_to_use * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output)
-weight_output = target_weights_to_use
-
-#Training results
-target_idxs = tf.argmax(targets, 1)
-top1_prediction = tf.equal(tf.argmax(policy_output, 1), target_idxs)
-top4_prediction = tf.nn.in_top_k(policy_output,target_idxs,4)
-accuracy1 = target_weights_to_use * tf.cast(top1_prediction, tf.float32)
-accuracy4 = target_weights_to_use * tf.cast(top4_prediction, tf.float32)
+target_vars = Target_vars(model,for_optimization=False,require_last_move=require_last_move)
+metrics = Metrics(model,target_vars,include_debug_stats=False)
 
 total_parameters = 0
 for variable in tf.trainable_variables():
@@ -133,9 +113,11 @@ with tf.Session(config=tfconfig) as session:
 
   input_start = 0
   input_len = model.input_shape[0] * model.input_shape[1]
-  target_start = input_start + input_len
-  target_len = model.target_shape[0]
-  target_weights_start = target_start + target_len
+  policy_target_start = input_start + input_len
+  policy_target_len = model.policy_target_shape[0]
+  value_target_start = policy_target_start + policy_target_len
+  value_target_len = 1
+  target_weights_start = value_target_start + value_target_len
   target_weights_len = 1
   rank_start = target_weights_start + target_weights_len
   rank_len = model.rank_shape[0]
@@ -152,13 +134,14 @@ with tf.Session(config=tfconfig) as session:
 
   def run(fetches, rows):
     assert(len(model.input_shape) == 2)
-    assert(len(model.target_shape) == 1)
+    assert(len(model.policy_target_shape) == 1)
+    assert(len(model.value_target_shape) == 0)
     assert(len(model.target_weights_shape) == 0)
-    input_len = model.input_shape[0] * model.input_shape[1]
-    target_len = model.target_shape[0]
+    assert(len(model.rank_shape) == 1)
 
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
-    row_targets = rows[:,target_start:target_start+target_len]
+    row_policy_targets = rows[:,policy_target_start:policy_target_start+policy_target_len]
+    row_value_target = rows[:,value_target_start]
     row_target_weights = rows[:,target_weights_start]
 
     ranks_input = np.zeros([rank_len])
@@ -168,8 +151,8 @@ with tf.Session(config=tfconfig) as session:
     return session.run(fetches, feed_dict={
       model.inputs: row_inputs,
       model.ranks: ranks_input,
-      targets: row_targets,
-      target_weights: row_target_weights,
+      target_vars.policy_targets: row_policy_targets,
+      target_vars.target_weights_from_data: row_target_weights,
       model.symmetries: [False,False,False],
       model.is_training: False
     })
@@ -195,12 +178,17 @@ with tf.Session(config=tfconfig) as session:
     print("",flush=True)
     return results
 
-  def validation_stats_str(vacc1,vacc4,vdata_loss,vweight_sum):
-    return "vacc1 %5.2f%% vacc4 %5.2f%% vdloss %f vweight_sum %f" % (vacc1*100/vweight_sum, vacc4*100/vweight_sum, vdata_loss/vweight_sum, vweight_sum)
+  def validation_stats_str(vacc1,vacc4,vpolicy_loss,vweight_sum):
+    return "vacc1 %5.2f%% vacc4 %5.2f%% vploss %f vweight_sum %f" % (vacc1*100/vweight_sum, vacc4*100/vweight_sum, vpolicy_loss/vweight_sum, vweight_sum)
 
-  (acc1s,acc4s,data_losses,weight_outputs) = run_validation_in_batches([accuracy1,accuracy4,data_loss,weight_output])
-  (vacc1,vacc4,vdata_loss,vweight_sum) = (np.sum(acc1s),np.sum(acc4s),np.sum(data_losses),np.sum(weight_outputs))
-  vstr = validation_stats_str(vacc1,vacc4,vdata_loss,vweight_sum)
+  (acc1s,acc4s,policy_losses,weight_outputs) = run_validation_in_batches([
+    metrics.accuracy1,
+    metrics.accuracy4,
+    target_vars.policy_loss,
+    target_vars.target_weights_used
+  ])
+  (vacc1,vacc4,vpolicy_loss,vweight_sum) = (np.sum(acc1s),np.sum(acc4s),np.sum(policy_losses),np.sum(weight_outputs))
+  vstr = validation_stats_str(vacc1,vacc4,vpolicy_loss,vweight_sum)
 
   log(vstr)
 

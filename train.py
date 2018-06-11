@@ -89,20 +89,7 @@ model_config["use_ranks"] = use_ranks
 model_config["predict_pass"] = False
 model = Model(model_config)
 
-policy_output = model.policy_output
-
-#Loss function
-targets = tf.placeholder(tf.float32, [None] + model.target_shape)
-target_weights = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
-weight_sum = tf.reduce_sum(target_weights)
-data_loss = tf.reduce_sum(target_weights * tf.nn.softmax_cross_entropy_with_logits(labels=targets, logits=policy_output))
-
-#Prior/Regularization
-l2_reg_coeff = tf.placeholder(tf.float32)
-reg_loss = l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables]) * weight_sum
-
-#The loss to optimize
-opt_loss = data_loss + reg_loss
+target_vars = Target_vars(model,for_optimization=True,require_last_move=False)
 
 #Training operation
 per_sample_learning_rate = tf.placeholder(tf.float32)
@@ -110,7 +97,7 @@ lr_adjusted_variables = model.lr_adjusted_variables
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
 with tf.control_dependencies(update_ops):
   optimizer = tf.train.MomentumOptimizer(per_sample_learning_rate, momentum=0.9, use_nesterov=True)
-  gradients = optimizer.compute_gradients(opt_loss)
+  gradients = optimizer.compute_gradients(target_vars.opt_loss)
   adjusted_gradients = []
   for (grad,x) in gradients:
     adjusted_grad = grad
@@ -122,42 +109,13 @@ with tf.control_dependencies(update_ops):
     adjusted_gradients.append((adjusted_grad,x))
   train_step = optimizer.apply_gradients(adjusted_gradients)
 
-#Training results
-target_idxs = tf.argmax(targets, 1)
-top1_prediction = tf.equal(tf.argmax(policy_output, 1), target_idxs)
-top4_prediction = tf.nn.in_top_k(policy_output,target_idxs,4)
-accuracy1 = tf.reduce_sum(target_weights * tf.cast(top1_prediction, tf.float32))
-accuracy4 = tf.reduce_sum(target_weights * tf.cast(top4_prediction, tf.float32))
-
-#Debugging stats
+metrics = Metrics(model,target_vars,include_debug_stats=True)
 
 def reduce_norm(x, axis=None, keepdims=False):
   return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keep_dims=keepdims))
-
-def reduce_stdev(x, axis=None, keepdims=False):
-  m = tf.reduce_mean(x, axis=axis, keep_dims=True)
-  devs_squared = tf.square(x - m)
-  return tf.sqrt(tf.reduce_mean(devs_squared, axis=axis, keep_dims=keepdims))
-
-activated_prop_by_layer = dict([
-  (name,tf.reduce_mean(tf.count_nonzero(layer,axis=[1,2])/layer.shape[1].value/layer.shape[2].value, axis=0)) for (name,layer) in model.outputs_by_layer
-])
-mean_output_by_layer = dict([
-  (name,tf.reduce_mean(layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
-])
-stdev_output_by_layer = dict([
-  (name,reduce_stdev(layer,axis=[0,1,2])**2) for (name,layer) in model.outputs_by_layer
-])
-mean_weights_by_var = dict([
-  (v.name,tf.reduce_mean(v)) for v in tf.trainable_variables()
-])
-norm_weights_by_var = dict([
-  (v.name,reduce_norm(v)) for v in tf.trainable_variables()
-])
 relative_update_by_var = dict([
   (v.name,per_sample_learning_rate * reduce_norm(grad) / (1e-10 + reduce_norm(v))) for (grad,v) in adjusted_gradients if grad is not None
 ])
-
 
 total_parameters = 0
 for variable in tf.trainable_variables():
@@ -292,89 +250,53 @@ with tf.Session(config=tfconfig) as session:
   sys.stdout.flush()
   sys.stderr.flush()
 
+  input_start = 0
+  input_len = model.input_shape[0] * model.input_shape[1]
+  policy_target_start = input_start + input_len
+  policy_target_len = model.policy_target_shape[0]
+  value_target_start = policy_target_start + policy_target_len
+  value_target_len = 1
+  target_weights_start = value_target_start + value_target_len
+  target_weights_len = 1
+  rank_start = target_weights_start + target_weights_len
+  rank_len = model.rank_shape[0]
+
   def run(fetches, rows, training, symmetries, pslr=0.0):
     assert(len(model.input_shape) == 2)
-    assert(len(model.target_shape) == 1)
+    assert(len(model.policy_target_shape) == 1)
+    assert(len(model.value_target_shape) == 0)
     assert(len(model.target_weights_shape) == 0)
     assert(len(model.rank_shape) == 1)
-    input_len = model.input_shape[0] * model.input_shape[1]
-    target_len = model.target_shape[0]
-    target_weights_len = 1
-    rank_len = model.rank_shape[0]
 
     if not isinstance(rows, np.ndarray):
       rows = np.array(rows)
 
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
-    row_targets = rows[:,input_len:input_len+target_len]
-    row_target_weights = rows[:,input_len+target_len]
+    row_policy_targets = rows[:,policy_target_start:policy_target_start+policy_target_len]
+    row_value_target = rows[:,value_target_start]
+    row_target_weights = rows[:,target_weights_start]
     if use_ranks:
-      row_ranks = rows[:,input_len+target_len+target_weights_len:input_len+target_len+target_weights_len+rank_len]
-
-    #DEBUG-----------------------------
-    # for bidx in range(len(rows)):
-    #   print("Comparing " + str(bidx),flush=True)
-    #   board = Board(model.max_board_size)
-    #   for y in range(board.size):
-    #     for x in range(board.size):
-    #       if row_inputs[bidx,y*board.size+x,1] == 1.0:
-    #         board.set_stone(Board.BLACK,board.loc(x,y))
-    #       elif row_inputs[bidx,y*board.size+x,2] == 1.0:
-    #         board.set_stone(Board.WHITE,board.loc(x,y))
-
-    #   debug_input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
-    #   debug_chain_data = np.zeros(shape=[1]+model.chain_shape, dtype=np.int32)
-    #   debug_num_chain_segments = np.zeros(shape=[1])
-    #   model.fill_row_features(board,pla=Board.BLACK,opp=Board.WHITE,moves=[],move_idx=0,
-    #                           input_data=debug_input_data,chain_data=debug_chain_data,num_chain_segments=debug_num_chain_segments,
-    #                           target_data=None,target_data_weights=None,for_training=False,idx=0)
-
-    #   # print(board.to_string(),flush=True)
-    #   # print(row_inputs[bidx,:,23].reshape([19,19]),flush=True)
-    #   # print(debug_input_data[0,:,23].reshape([19,19]),flush=True)
-    #   # print(row_inputs[bidx,:,24].reshape([19,19]),flush=True)
-    #   # print(debug_input_data[0,:,24].reshape([19,19]),flush=True)
-    #   # print(row_inputs[bidx,:,25].reshape([19,19]),flush=True)
-    #   # print(debug_input_data[0,:,25].reshape([19,19]),flush=True)
-    #   # print(row_inputs[bidx,:,18].reshape([19,19]),flush=True)
-    #   # print(row_chains[0].reshape([19,19]),flush=True)
-    #   # print(row_num_chain_segments[0],flush=True)
-
-    #   has_ko = (sum(row_inputs[bidx,:,17]) > 0)
-    #   # print(has_ko,flush=True)
-
-    #   for y in range(board.size):
-    #     for x in range(board.size):
-    #       for fidx in range(17):
-    #         assert(debug_input_data[0,y*board.size+x,fidx] == row_inputs[bidx,y*board.size+x,fidx])
-    #       if not has_ko:
-    #         for fidx in range(23,26):
-    #           assert(debug_input_data[0,y*board.size+x,fidx] == row_inputs[bidx,y*board.size+x,fidx])
-    #       assert(debug_chain_data[0,y*board.size+x] == row_chains[bidx,y*board.size+x])
-
-
-    #   assert(debug_num_chain_segments[0] == row_num_chain_segments[bidx])
-    #---------------
+      row_ranks = rows[:,rank_start:rank_start+rank_len]
 
     if use_ranks:
       return session.run(fetches, feed_dict={
         model.inputs: row_inputs,
-        targets: row_targets,
-        target_weights: row_target_weights,
+        target_vars.policy_targets: row_policy_targets,
+        target_vars.target_weights_from_data: row_target_weights,
         model.ranks: row_ranks,
         model.symmetries: symmetries,
         per_sample_learning_rate: pslr,
-        l2_reg_coeff: l2_coeff_value,
+        target_vars.l2_reg_coeff: l2_coeff_value,
         model.is_training: training
       })
     else:
       return session.run(fetches, feed_dict={
         model.inputs: row_inputs,
-        targets: row_targets,
-        target_weights: row_target_weights,
+        target_vars.policy_targets: row_policy_targets,
+        target_vars.target_weights_from_data: row_target_weights,
         model.symmetries: symmetries,
         per_sample_learning_rate: pslr,
-        l2_reg_coeff: l2_coeff_value,
+        target_vars.l2_reg_coeff: l2_coeff_value,
         model.is_training: training
       })
 
@@ -396,40 +318,40 @@ with tf.Session(config=tfconfig) as session:
     return results
 
   tmetrics = {
-    "acc1": accuracy1,
-    "acc4": accuracy4,
-    "dloss": data_loss,
-    "rloss": reg_loss,
-    "wsum": weight_sum,
+    "acc1": metrics.accuracy1,
+    "acc4": metrics.accuracy4,
+    "ploss": target_vars.policy_loss,
+    "rloss": target_vars.reg_loss,
+    "wsum": target_vars.weight_sum,
   }
 
   vmetrics = {
-    "acc1": accuracy1,
-    "acc4": accuracy4,
-    "dloss": data_loss,
-    "wsum": weight_sum,
+    "acc1": metrics.accuracy1,
+    "acc4": metrics.accuracy4,
+    "ploss": target_vars.policy_loss,
+    "wsum": target_vars.weight_sum,
   }
 
   def train_stats_str(tmetrics_evaled):
-    return "tacc1 %5.2f%% tacc4 %5.2f%% tdloss %f trloss %f" % (
+    return "tacc1 %5.2f%% tacc4 %5.2f%% tploss %f trloss %f" % (
       tmetrics_evaled["acc1"] * 100 / tmetrics_evaled["wsum"],
       tmetrics_evaled["acc4"] * 100 / tmetrics_evaled["wsum"],
-      tmetrics_evaled["dloss"] / tmetrics_evaled["wsum"],
+      tmetrics_evaled["ploss"] / tmetrics_evaled["wsum"],
       tmetrics_evaled["rloss"] / tmetrics_evaled["wsum"],
     )
 
   def validation_stats_str(vmetrics_evaled):
-    return "vacc1 %5.2f%% vacc4 %5.2f%% vdloss %f" % (
+    return "vacc1 %5.2f%% vacc4 %5.2f%% vploss %f" % (
       vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
       vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
-      vmetrics_evaled["dloss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["ploss"] / vmetrics_evaled["wsum"],
   )
 
   def time_str(elapsed):
     return "time %.3f" % elapsed
 
   def log_detail_stats(relupdates):
-    results = run_validation_in_batches([activated_prop_by_layer, mean_output_by_layer, stdev_output_by_layer])
+    results = run_validation_in_batches([metrics.activated_prop_by_layer, metrics.mean_output_by_layer, metrics.stdev_output_by_layer])
     [apbls,mobls,sobls] = list(map(list, zip(*results)))
 
     apbl = merge_dicts(apbls, (lambda x: np.mean(x,axis=0)))
@@ -441,7 +363,7 @@ with tf.Session(config=tfconfig) as session:
       detaillog("%s: mean_output %s" % (key, np_array_str(mobl[key], precision=4)))
       detaillog("%s: stdev_output %s" % (key, np_array_str(sobl[key], precision=4)))
 
-    (mw,nw) = session.run([mean_weights_by_var,norm_weights_by_var])
+    (mw,nw) = session.run([metrics.mean_weights_by_var, metrics.norm_weights_by_var])
 
     for key in mw:
       detaillog("%s: mean weight %f" % (key, mw[key]))

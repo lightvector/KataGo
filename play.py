@@ -46,7 +46,8 @@ def fetch_output(session, board, moves, use_history_prop, rank_one_hot, fetch):
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
-  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,use_history_prop=use_history_prop,idx=0)
+  self_komi = (7.5 if pla == Board.WHITE else -7.5) #TODO use real komi of the game?
+  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,self_komi,use_history_prop=use_history_prop,idx=0)
   row_ranks = np.zeros(shape=[1]+model.rank_shape)
   row_ranks[0,rank_one_hot] = 1.0
   output = session.run(fetches=[fetch], feed_dict={
@@ -107,7 +108,8 @@ def get_input_feature(board, moves, feature_idx):
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
-  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,target_data=None,target_data_weights=None,for_training=False,use_history_prop=1.0,idx=0)
+  self_komi = (7.5 if pla == Board.WHITE else -7.5)
+  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,self_komi,use_history_prop=1.0,idx=0)
 
   locs_and_values = []
   for i in range(board.size * board.size):

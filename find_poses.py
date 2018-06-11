@@ -69,14 +69,17 @@ log("Built model, %d total parameters" % total_parameters)
 
 #H5 file format
 assert(len(model.input_shape) == 2)
-assert(len(model.target_shape) == 1)
+assert(len(model.policy_target_shape) == 1)
+assert(len(model.value_target_shape) == 0)
 assert(len(model.target_weights_shape) == 0)
 assert(len(model.rank_shape) == 1)
 input_start = 0
 input_len = model.input_shape[0] * model.input_shape[1]
-target_start = input_start + input_len
-target_len = model.target_shape[0]
-target_weights_start = target_start + target_len
+policy_target_start = input_start + input_len
+policy_target_len = model.policy_target_shape[0]
+value_target_start = policy_target_start + policy_target_len
+value_target_len = 1
+target_weights_start = value_target_start + value_target_len
 target_weights_len = 1
 rank_start = target_weights_start + target_weights_len
 rank_len = model.rank_shape[0]
@@ -183,13 +186,14 @@ with tf.Session(config=tfconfig) as session:
         rows = np.array(rows)
 
       row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
-      row_targets = rows[:,target_start:target_start+target_len]
+      row_policy_targets = rows[:,policy_target_start:policy_target_start+policy_target_len]
+      row_value_target = rows[:,value_target_start]
       row_target_weights = rows[:,target_weights_start]
       row_ranks = rows[:,rank_start:rank_start+rank_len]
       pro_probs = run(row_inputs, pro_ranks_input)
 
       for i in range(len(rows)):
-        f(row_inputs[i],row_targets[i],row_ranks[i],pro_probs[i],rows[i])
+        f(row_inputs[i],row_policy_targets[i],row_ranks[i],pro_probs[i],rows[i])
 
 
   def print_board(inputs,pla,recent_captures,a,b):
@@ -318,7 +322,7 @@ with tf.Session(config=tfconfig) as session:
         return False
     return True
 
-  def write_position(inputs,target,ranks,pro_probs,row,real_move,poshash,outputs_to_include_in):
+  def write_position(inputs,policy_target,ranks,pro_probs,row,real_move,poshash,outputs_to_include_in):
     pla = int(row[side_start]+1)
     opp = 3-pla
     recent_captures = row[recent_captures_start:recent_captures_start+recent_captures_len]
@@ -423,13 +427,13 @@ with tf.Session(config=tfconfig) as session:
     #   ),flush=True)
 
 
-  def process_position(inputs,target,ranks,pro_probs,row):
+  def process_position(inputs,policy_target,ranks,pro_probs,row):
     num_processed[0] += 1
     turn_number = row[turn_number_start]
     turns_total = row[turn_number_start+1]
     if basic_filter(inputs,turn_number,turns_total):
       rank_one_hot_idx = np.argmax(ranks)
-      real_move = np.argmax(target)
+      real_move = np.argmax(policy_target)
       if strong_game_filter(rank_one_hot_idx,pro_probs,real_move):
         pro_expected_score = get_expected_score(pro_probs,pro_probs)
 
@@ -473,7 +477,7 @@ with tf.Session(config=tfconfig) as session:
           return
 
         #Make sure we aren't including duplicates
-        poshash = hashlib.sha1(inputs.tobytes() + target.tobytes()).hexdigest()
+        poshash = hashlib.sha1(inputs.tobytes() + policy_target.tobytes()).hexdigest()
         if poshash in poshashes_used:
           num_dups_filtered[0] =+ 1
           return
@@ -501,7 +505,7 @@ with tf.Session(config=tfconfig) as session:
         num_outputs_to_include_in = len(outputs_to_include_in)
         if num_outputs_to_include_in > 0:
           num_used[0] += 1
-          write_position(inputs,target,ranks,pro_probs,row,real_move,poshash,outputs_to_include_in)
+          write_position(inputs,policy_target,ranks,pro_probs,row,real_move,poshash,outputs_to_include_in)
 
 
   def process_file(gamesh5_file):

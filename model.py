@@ -12,10 +12,12 @@ class Model:
 
   def __init__(self,config):
     self.max_board_size = 19
-    self.input_shape = [19*19,26]
-    self.post_input_shape = [19,19,26]
-    self.target_shape_nopass = [19*19]
-    self.target_shape = [19*19+1] #+1 for pass move
+    self.num_input_features = 19
+    self.input_shape = [19*19,self.num_input_features]
+    self.post_input_shape = [19,19,self.num_input_features]
+    self.policy_target_shape_nopass = [19*19]
+    self.policy_target_shape = [19*19+1] #+1 for pass move
+    self.value_target_shape = []
     self.target_weights_shape = []
     self.rank_shape=[1+9+(17+9)+(19+9)]
     self.rank_embedding_dim = 8
@@ -106,7 +108,7 @@ class Model:
 
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
-  def fill_row_features(self, board, pla, opp, moves, move_idx, input_data, target_data, target_data_weights, for_training, use_history_prop, idx):
+  def fill_row_features(self, board, pla, opp, moves, move_idx, input_data, self_komi, use_history_prop, idx):
     bsize = board.size
     offset = (self.max_board_size - bsize) // 2
 
@@ -118,6 +120,7 @@ class Model:
         stone = board.board[loc]
         if stone == pla:
           input_data[idx,pos,1] = 1.0
+          input_data[idx,pos,18] = self_komi / 15.0;
           libs = board.num_liberties(loc)
           if libs == 1:
             input_data[idx,pos,3] = 1.0
@@ -125,112 +128,64 @@ class Model:
             input_data[idx,pos,4] = 1.0
           elif libs == 3:
             input_data[idx,pos,5] = 1.0
-          elif libs == 4:
-            input_data[idx,pos,6] = 1.0
 
         elif stone == opp:
           input_data[idx,pos,2] = 1.0
           libs = board.num_liberties(loc)
           if libs == 1:
-            input_data[idx,pos,7] = 1.0
+            input_data[idx,pos,6] = 1.0
           elif libs == 2:
-            input_data[idx,pos,8] = 1.0
+            input_data[idx,pos,7] = 1.0
           elif libs == 3:
-            input_data[idx,pos,9] = 1.0
-          elif libs == 4:
-            input_data[idx,pos,10] = 1.0
-
-        if stone == pla or stone == opp:
-          pass
-
-        else:
-          pla_libs_after_play = board.get_liberties_after_play(pla,loc,4);
-          opp_libs_after_play = board.get_liberties_after_play(opp,loc,4);
-          if pla_libs_after_play == 1:
-            input_data[idx,pos,11] = 1.0
-          elif pla_libs_after_play == 2:
-            input_data[idx,pos,12] = 1.0
-          elif pla_libs_after_play == 3:
-            input_data[idx,pos,13] = 1.0
-
-          if opp_libs_after_play == 1:
-            input_data[idx,pos,14] = 1.0
-          elif opp_libs_after_play == 2:
-            input_data[idx,pos,15] = 1.0
-          elif opp_libs_after_play == 3:
-            input_data[idx,pos,16] = 1.0
+            input_data[idx,pos,8] = 1.0
 
     if board.simple_ko_point is not None:
       pos = self.loc_to_tensor_pos(board.simple_ko_point,board,offset)
-      input_data[idx,pos,17] = 1.0
-
-    if for_training:
-      prob_to_include_prev1 = 0.90
-      prob_to_include_prev2 = 0.95
-      prob_to_include_prev3 = 0.95
-      prob_to_include_prev4 = 0.98
-      prob_to_include_prev5 = 0.98
-    else:
-      prob_to_include_prev1 = 1.00
-      prob_to_include_prev2 = 1.00
-      prob_to_include_prev3 = 1.00
-      prob_to_include_prev4 = 1.00
-      prob_to_include_prev5 = 1.00
+      input_data[idx,pos,9] = 1.0
 
     if use_history_prop > 0.0:
-      if move_idx >= 1 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev1:
+      if move_idx >= 1 and moves[move_idx-1][0] == opp:
         prev1_loc = moves[move_idx-1][1]
         if prev1_loc is not None:
           pos = self.loc_to_tensor_pos(prev1_loc,board,offset)
-          input_data[idx,pos,18] = use_history_prop
+          input_data[idx,pos,10] = use_history_prop
 
-        if move_idx >= 2 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev2:
+        if move_idx >= 2 and moves[move_idx-1][0] == pla:
           prev2_loc = moves[move_idx-2][1]
           if prev2_loc is not None:
             pos = self.loc_to_tensor_pos(prev2_loc,board,offset)
-            input_data[idx,pos,19] = use_history_prop
+            input_data[idx,pos,11] = use_history_prop
 
-          if move_idx >= 3 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev3:
+          if move_idx >= 3 and moves[move_idx-1][0] == opp:
             prev3_loc = moves[move_idx-3][1]
             if prev3_loc is not None:
               pos = self.loc_to_tensor_pos(prev3_loc,board,offset)
-              input_data[idx,pos,20] = use_history_prop
+              input_data[idx,pos,12] = use_history_prop
 
-            if move_idx >= 4 and moves[move_idx-1][0] == pla and np.random.random() < prob_to_include_prev4:
+            if move_idx >= 4 and moves[move_idx-1][0] == pla:
               prev4_loc = moves[move_idx-4][1]
               if prev4_loc is not None:
                 pos = self.loc_to_tensor_pos(prev4_loc,board,offset)
-                input_data[idx,pos,21] = use_history_prop
+                input_data[idx,pos,13] = use_history_prop
 
-              if move_idx >= 5 and moves[move_idx-1][0] == opp and np.random.random() < prob_to_include_prev5:
+              if move_idx >= 5 and moves[move_idx-1][0] == opp:
                 prev5_loc = moves[move_idx-5][1]
                 if prev5_loc is not None:
                   pos = self.loc_to_tensor_pos(prev5_loc,board,offset)
-                  input_data[idx,pos,22] = use_history_prop
+                  input_data[idx,pos,14] = use_history_prop
 
     def addLadderFeature(loc,pos,workingMoves):
       assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE);
       libs = board.num_liberties(loc)
       if libs == 1:
-        input_data[idx,pos,23] = 1.0
+        input_data[idx,pos,15] = 1.0
       else:
-        input_data[idx,pos,24] = 1.0
+        input_data[idx,pos,16] = 1.0
         for workingMove in workingMoves:
           workingPos = self.loc_to_tensor_pos(workingMove,board,offset)
-          input_data[idx,workingPos,25] = 1.0
+          input_data[idx,workingPos,17] = 1.0
 
     self.iterLadders(board, addLadderFeature)
-
-
-    if target_data is not None:
-      next_loc = moves[move_idx][1]
-      if next_loc is None:
-        target_data_weights[idx] = 1.0
-        target_data[idx,self.max_board_size*self.max_board_size] = 1.0
-      else:
-        pos = self.loc_to_tensor_pos(next_loc,board,offset)
-        target_data[idx,pos] = 1.0
-        target_data_weights[idx] = 1.0
 
     return idx+1
 
@@ -707,26 +662,19 @@ class Model:
       1.0, #3
       1.0, #4
       1.0, #5
-      0.0, #6
+      1.0, #6
       1.0, #7
       1.0, #8
       1.0, #9
-      0.0, #10
-      0.0, #11
-      0.0, #12
-      0.0, #13
-      0.0, #14
-      0.0, #15
-      0.0, #16
+      1.0, #10
+      1.0, #11
+      1.0, #12
+      1.0, #13
+      1.0, #14
+      1.0, #15
+      1.0, #16
       1.0, #17
       1.0, #18
-      1.0, #19
-      1.0, #20
-      1.0, #21
-      1.0, #22
-      1.0, #23
-      1.0, #24
-      1.0, #25
     ])
     assert(features_active.dtype == tf.float32)
 
@@ -877,7 +825,7 @@ class Model:
 
     #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
     policy_output = self.apply_symmetry(p2_layer,symmetries,inverse=True)
-    policy_output = tf.reshape(policy_output, [-1] + self.target_shape_nopass)
+    policy_output = tf.reshape(policy_output, [-1] + self.policy_target_shape_nopass)
 
     if not predict_pass:
       #Simply add the pass output on with a large negative constant that's probably way more negative than anything
@@ -893,3 +841,69 @@ class Model:
       #policy_output = tf.concat([policy_output,pass_output],axis=1)
 
     self.policy_output = policy_output
+
+
+class Target_vars:
+  def __init__(self,model,for_optimization,require_last_move):
+    policy_output = model.policy_output
+
+    #Loss function
+    self.policy_targets = tf.placeholder(tf.float32, [None] + model.policy_target_shape)
+    self.target_weights_from_data = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
+
+    if require_last_move == "all":
+      self.target_weights_used = self.target_weights_from_data * tf.reduce_sum(model.inputs[:,:,14],axis=[1])
+    elif require_last_move is True:
+      self.target_weights_used = self.target_weights_from_data * tf.reduce_sum(model.inputs[:,:,10],axis=[1])
+    else:
+      self.target_weights_used = self.target_weights_from_data
+
+    self.policy_loss = tf.reduce_sum(
+      self.target_weights_used *
+      tf.nn.softmax_cross_entropy_with_logits(labels=self.policy_targets, logits=policy_output)
+    )
+
+    if for_optimization:
+      #Prior/Regularization
+      self.l2_reg_coeff = tf.placeholder(tf.float32)
+      self.weight_sum = tf.reduce_sum(self.target_weights_used)
+      self.reg_loss = self.l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables]) * self.weight_sum
+
+      #The loss to optimize
+      self.opt_loss = self.policy_loss + self.reg_loss
+
+class Metrics:
+  def __init__(self,model,target_vars,include_debug_stats):
+    #Training results
+    policy_target_idxs = tf.argmax(target_vars.policy_targets, 1)
+    self.top1_prediction = tf.equal(tf.argmax(model.policy_output, 1), policy_target_idxs)
+    self.top4_prediction = tf.nn.in_top_k(model.policy_output,policy_target_idxs,4)
+    self.accuracy1 = tf.reduce_sum(target_vars.target_weights_used * tf.cast(self.top1_prediction, tf.float32))
+    self.accuracy4 = tf.reduce_sum(target_vars.target_weights_used * tf.cast(self.top4_prediction, tf.float32))
+
+    #Debugging stats
+    if include_debug_stats:
+
+      def reduce_norm(x, axis=None, keepdims=False):
+        return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keep_dims=keepdims))
+
+      def reduce_stdev(x, axis=None, keepdims=False):
+        m = tf.reduce_mean(x, axis=axis, keep_dims=True)
+        devs_squared = tf.square(x - m)
+        return tf.sqrt(tf.reduce_mean(devs_squared, axis=axis, keep_dims=keepdims))
+
+      self.activated_prop_by_layer = dict([
+        (name,tf.reduce_mean(tf.count_nonzero(layer,axis=[1,2])/layer.shape[1].value/layer.shape[2].value, axis=0)) for (name,layer) in model.outputs_by_layer
+      ])
+      self.mean_output_by_layer = dict([
+        (name,tf.reduce_mean(layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
+      ])
+      self.stdev_output_by_layer = dict([
+        (name,reduce_stdev(layer,axis=[0,1,2])**2) for (name,layer) in model.outputs_by_layer
+      ])
+      self.mean_weights_by_var = dict([
+        (v.name,tf.reduce_mean(v)) for v in tf.trainable_variables()
+      ])
+      self.norm_weights_by_var = dict([
+        (v.name,reduce_norm(v)) for v in tf.trainable_variables()
+      ])
