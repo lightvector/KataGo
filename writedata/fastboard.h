@@ -115,13 +115,12 @@ struct FastBoard
     Player pla;
     Loc loc;
     Loc ko_loc;
-    uint8_t capDirs; //First 4 bits indicate directions of capture
+    uint8_t capDirs; //First 4 bits indicate directions of capture, fifth bit indicates suicide
   };
 
   //Constructors---------------------------------
-  FastBoard();                          //Create FastBoard of size (19,19)
-  FastBoard(int size);                  //Create Fastboard of size (size,size)
-  FastBoard(int x, int y);              //Create Fastboard of size (x,y)
+  FastBoard();  //Create FastBoard of size (19,19), multi-stone-suicide illegal
+  FastBoard(int x, int y, bool multiStoneSuicideLegal); //Create Fastboard of size (x,y)
   FastBoard(const FastBoard& other);
 
   //Functions------------------------------------
@@ -130,8 +129,10 @@ struct FastBoard
   int getNumLiberties(Loc loc) const;
   //Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
   int getNumLibertiesAfterPlay(Loc loc, Player player, int max) const;
-  //Check if moving here is illegal due to self-capture
+  //Check if moving here is would be a self-capture
   bool isSuicide(Loc loc, Player player) const;
+  //Check if moving here is would be an illegal self-capture
+  bool isIllegalSuicide(Loc loc, Player player) const;
   //Check if moving here is illegal due to simple ko
   bool isKoBanned(Loc loc) const;
   //Check if moving here is illegal.
@@ -156,6 +157,8 @@ struct FastBoard
   //might change, the order of the circular lists might change, etc.
   void undo(MoveRecord record);
 
+  void setMultiStoneSuicideLegal(bool b);
+
   //Get a random legal move that does not fill a simple eye.
   Loc getRandomMCLegal(Player player);
 
@@ -175,7 +178,7 @@ struct FastBoard
   Loc chain_head[MAX_ARR_SIZE];       //Where is the head of this chain? Undefined if EMPTY or WALL
   Loc next_in_chain[MAX_ARR_SIZE];    //Location of next stone in chain. Circular linked list. Undefined if EMPTY or WALL
 
-  Loc ko_loc;   //A ko capture was made here, making it illegal to replay here next move
+  Loc ko_loc;   //A simple ko capture was made here, making it illegal to replay here next move
 
   PointList empty_list; //List of all empty locations on board
 
@@ -183,8 +186,11 @@ struct FastBoard
 
   short adj_offsets[8]; //Indices 0-3: Offsets to add for adjacent points. Indices 4-7: Offsets for diagonal points.
 
+  //Rules
+  bool isMultiStoneSuicideLegal; //Single-stone suicide is still always illegal.
+
   private:
-  void init(int xS, int yS);
+  void init(int xS, int yS, bool multiStoneSuicideLegal);
   int countImmediateLiberties(Loc loc);
   int countHeuristicConnectionLibertiesX2(Loc loc, Player pla);
   bool isLibertyOf(Loc loc, Loc head);

@@ -22,17 +22,12 @@ Hash FastBoard::ZOBRIST_PLAYER_HASH[4];
 
 FastBoard::FastBoard()
 {
-  init(19,19);
+  init(19,19,false);
 }
 
-FastBoard::FastBoard(int size)
+FastBoard::FastBoard(int x, int y, bool multiStoneSuicideLegal)
 {
-  init(size,size);
-}
-
-FastBoard::FastBoard(int x, int y)
-{
-  init(x,y);
+  init(x,y,multiStoneSuicideLegal);
 }
 
 
@@ -55,9 +50,11 @@ FastBoard::FastBoard(const FastBoard& other)
   pos_hash = other.pos_hash;
 
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
+
+  isMultiStoneSuicideLegal = other.isMultiStoneSuicideLegal;
 }
 
-void FastBoard::init(int xS, int yS)
+void FastBoard::init(int xS, int yS, bool multiStoneSuicideLegal)
 {
   assert(IS_ZOBRIST_INITALIZED);
   assert(xS <= MAX_SIZE && yS <= MAX_SIZE);
@@ -86,6 +83,8 @@ void FastBoard::init(int xS, int yS)
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
 
   Location::getAdjacentOffsets(adj_offsets,x_size);
+
+  isMultiStoneSuicideLegal = multiStoneSuicideLegal;
 }
 
 void FastBoard::initHash()
@@ -114,6 +113,10 @@ void FastBoard::initHash()
   IS_ZOBRIST_INITALIZED = true;
 }
 
+void FastBoard::setMultiStoneSuicideLegal(bool b) {
+  isMultiStoneSuicideLegal = b;
+}
+
 
 //Gets the number of liberties of the chain at loc. Assertion: location must be black or white.
 int FastBoard::getNumLiberties(Loc loc) const
@@ -122,7 +125,7 @@ int FastBoard::getNumLiberties(Loc loc) const
   return chain_data[chain_head[loc]].num_liberties;
 }
 
-//Check if moving here is illegal due to self-capture
+//Check if moving here would be a self-capture
 bool FastBoard::isSuicide(Loc loc, Player player) const
 {
   Player enemy = getEnemy(player);
@@ -135,6 +138,31 @@ bool FastBoard::isSuicide(Loc loc, Player player) const
     else if(colors[adj] == player)
     {
       if(getNumLiberties(adj) > 1)
+        return false;
+    }
+    else if(colors[adj] == enemy)
+    {
+      if(getNumLiberties(adj) == 1)
+        return false;
+    }
+  }
+
+  return true;
+}
+
+//Check if moving here is would be an illegal self-capture
+bool FastBoard::isIllegalSuicide(Loc loc, Player player) const
+{
+  Player enemy = getEnemy(player);
+  for(int i = 0; i < 4; i++)
+  {
+    Loc adj = loc + adj_offsets[i];
+
+    if(colors[adj] == C_EMPTY)
+      return false;
+    else if(colors[adj] == player)
+    {
+      if(isMultiStoneSuicideLegal || getNumLiberties(adj) > 1)
         return false;
     }
     else if(colors[adj] == enemy)
@@ -245,7 +273,7 @@ bool FastBoard::isLegal(Loc loc, Player player) const
 {
   if(player != P_BLACK && player != P_WHITE)
     return false;
-  return loc == PASS_LOC || (loc >= 0 && loc < MAX_ARR_SIZE && (colors[loc] == C_EMPTY) && !isKoBanned(loc) && !isSuicide(loc, player));
+  return loc == PASS_LOC || (loc >= 0 && loc < MAX_ARR_SIZE && (colors[loc] == C_EMPTY) && !isKoBanned(loc) && !isIllegalSuicide(loc, player));
 }
 
 //Check if this location contains a simple eye for the specified player.
@@ -333,6 +361,8 @@ FastBoard::MoveRecord FastBoard::playMoveRecorded(Loc loc, Player player)
     if(colors[adj] == enemy && getNumLiberties(adj) == 1)
       record.capDirs |= (((uint8_t)1) << i);
   }
+  if(record.capDirs == 0 && isSuicide(loc,player))
+    record.capDirs = 0x10;
   playMoveAssumeLegal(loc, player);
   return record;
 }
@@ -357,6 +387,11 @@ void FastBoard::undo(FastBoard::MoveRecord record)
       if(colors[adj] == C_EMPTY)
         addChain(adj, getEnemy(record.pla));
     }
+  }
+  //Re-fill suicided stones
+  if(record.capDirs == 0x10) {
+    assert(colors[loc] == C_EMPTY);
+    addChain(loc,record.pla);
   }
 
   //Delete the stone played here.
@@ -466,6 +501,9 @@ void FastBoard::playMoveAssumeLegal(Loc loc, Player player)
   else
     ko_loc = NULL_LOC;
 
+  //Handle suicide
+  if(getNumLiberties(loc) == 0)
+    removeChain(loc);
 }
 
 //Counts the number of liberties immediately next to loc
