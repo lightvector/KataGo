@@ -32,8 +32,10 @@ class Model:
     self.outputs_by_layer = []
 
     use_ranks = config["use_ranks"]
+    include_policy = config["include_policy"]
+    include_value = config["include_value"]
     predict_pass = config["predict_pass"]
-    self.build_model(use_ranks,predict_pass)
+    self.build_model(use_ranks, include_policy, include_value, predict_pass)
 
   def xy_to_tensor_pos(self,x,y,offset):
     return (y+offset) * self.max_board_size + (x+offset)
@@ -644,7 +646,7 @@ class Model:
   #Indexing:
   #batch, bsize, bsize, channel
 
-  def build_model(self, use_ranks, predict_pass):
+  def build_model(self, use_ranks, include_policy, include_value, predict_pass):
     max_board_size = self.max_board_size
 
     #Input layer---------------------------------------------------------------------------------
@@ -778,77 +780,109 @@ class Model:
 
 
     #Policy head---------------------------------------------------------------------------------
-    p0_layer = trunk
+    if include_policy:
+      p0_layer = trunk
 
-    #This is the main path for policy information
-    p1_num_channels = 48
-    p1_intermediate_conv = self.conv_only_block("p1/intermediate_conv",p0_layer,diam=3,in_channels=224,out_channels=p1_num_channels)
+      #This is the main path for policy information
+      p1_num_channels = 48
+      p1_intermediate_conv = self.conv_only_block("p1/intermediate_conv",p0_layer,diam=3,in_channels=224,out_channels=p1_num_channels)
 
-    #But in parallel convolve to compute some features about the global state of the board
-    #Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
-    g1_num_channels = 32
-    g1_layer = self.conv_block("g1",p0_layer,diam=3,in_channels=224,out_channels=g1_num_channels)
+      #But in parallel convolve to compute some features about the global state of the board
+      #Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
+      g1_num_channels = 32
+      g1_layer = self.conv_block("g1",p0_layer,diam=3,in_channels=224,out_channels=g1_num_channels)
 
-    #Fold g1 down to single values for the board.
-    #For stdev, add a tiny constant to ensure numeric stability
-    g1_mean = tf.reduce_mean(g1_layer,axis=[1,2],keep_dims=True)
-    g1_max = tf.reduce_max(g1_layer,axis=[1,2],keep_dims=True)
-    g2_layer = tf.concat([g1_mean,g1_max],axis=3) #shape [b,1,1,2*convg1num_channels]
-    g2_num_channels = 2*g1_num_channels
-    self.outputs_by_layer.append(("g2",g2_layer))
+      #Fold g1 down to single values for the board.
+      #For stdev, add a tiny constant to ensure numeric stability
+      g1_mean = tf.reduce_mean(g1_layer,axis=[1,2],keep_dims=True)
+      g1_max = tf.reduce_max(g1_layer,axis=[1,2],keep_dims=True)
+      g2_layer = tf.concat([g1_mean,g1_max],axis=3) #shape [b,1,1,2*convg1num_channels]
+      g2_num_channels = 2*g1_num_channels
+      self.outputs_by_layer.append(("g2",g2_layer))
 
-    #Transform them into the space of the policy features to act as biases for the policy
-    #Also divide the initial weights a bit more because we think these should matter a bit less than local shape stuff,
-    #by multiplying the number of inputs for purposes of weight initialization (currently mult by 4)
-    matmulg2w = self.weight_variable("matmulg2w",[g2_num_channels,p1_num_channels],g2_num_channels*4,p1_num_channels)
-    g3_layer = tf.tensordot(g2_layer,matmulg2w,axes=[[3],[0]])
-    self.outputs_by_layer.append(("g3",g3_layer))
+      #Transform them into the space of the policy features to act as biases for the policy
+      #Also divide the initial weights a bit more because we think these should matter a bit less than local shape stuff,
+      #by multiplying the number of inputs for purposes of weight initialization (currently mult by 4)
+      matmulg2w = self.weight_variable("matmulg2w",[g2_num_channels,p1_num_channels],g2_num_channels*4,p1_num_channels)
+      g3_layer = tf.tensordot(g2_layer,matmulg2w,axes=[[3],[0]])
+      self.outputs_by_layer.append(("g3",g3_layer))
 
-    #Add! This adds shapes [b,19,19,convp1_num_channels] + [b,1,1,convp1_num_channels]
-    #so the second one should get broadcast up to the size of the first one.
-    #We can think of p1 as being an ordinary convolution layer except that for every node of the convolution, the g2 values (g2_num_channels many of them)
-    #have been appended to the p0 incoming values (p0_num_channels * convp1diam * convp1diam many of them).
-    #The matrix matmulg2w is simply the set of weights for that additional part of the matrix. It's just that rather than appending beforehand,
-    #we multiply separately and add to the output afterward.
-    p1_intermediate_sum = p1_intermediate_conv + g3_layer
+      #Add! This adds shapes [b,19,19,convp1_num_channels] + [b,1,1,convp1_num_channels]
+      #so the second one should get broadcast up to the size of the first one.
+      #We can think of p1 as being an ordinary convolution layer except that for every node of the convolution, the g2 values (g2_num_channels many of them)
+      #have been appended to the p0 incoming values (p0_num_channels * convp1diam * convp1diam many of them).
+      #The matrix matmulg2w is simply the set of weights for that additional part of the matrix. It's just that rather than appending beforehand,
+      #we multiply separately and add to the output afterward.
+      p1_intermediate_sum = p1_intermediate_conv + g3_layer
 
-    #And now apply batchnorm and crelu
-    p1_layer = tf.nn.crelu(self.batchnorm("p1/norm",p1_intermediate_sum))
-    self.outputs_by_layer.append(("p1",p1_layer))
+      #And now apply batchnorm and crelu
+      p1_layer = tf.nn.crelu(self.batchnorm("p1/norm",p1_intermediate_sum))
+      self.outputs_by_layer.append(("p1",p1_layer))
 
-    #Finally, apply linear convolution to produce final output
-    #2x in_channels due to crelu
-    p2_layer = self.conv_only_block("p2",p1_layer,diam=5,in_channels=p1_num_channels*2,out_channels=1,scale_initial_weights=0.5,reg=False)
+      #Finally, apply linear convolution to produce final output
+      #2x in_channels due to crelu
+      p2_layer = self.conv_only_block("p2",p1_layer,diam=5,in_channels=p1_num_channels*2,out_channels=1,scale_initial_weights=0.5,reg=False)
 
-    self.add_lr_factor("p1/norm/beta:0",0.25)
-    self.add_lr_factor("p2/w:0",0.25)
+      self.add_lr_factor("p1/norm/beta:0",0.25)
+      self.add_lr_factor("p2/w:0",0.25)
 
-    #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
-    policy_output = self.apply_symmetry(p2_layer,symmetries,inverse=True)
-    policy_output = tf.reshape(policy_output, [-1] + self.policy_target_shape_nopass)
+      #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
+      policy_output = self.apply_symmetry(p2_layer,symmetries,inverse=True)
+      policy_output = tf.reshape(policy_output, [-1] + self.policy_target_shape_nopass)
 
-    if not predict_pass:
-      #Simply add the pass output on with a large negative constant that's probably way more negative than anything
-      #else the neural net would output.
-      policy_output = tf.pad(policy_output,[(0,0),(0,1)], constant_values = -10000.)
+      if not predict_pass:
+        #Simply add the pass output on with a large negative constant that's probably way more negative than anything
+        #else the neural net would output.
+        policy_output = tf.pad(policy_output,[(0,0),(0,1)], constant_values = -10000.)
+      else:
+        #Add pass move based on the global g values
+        matmulpass = self.weight_variable("matmulpass",[g2_num_channels,1],g2_num_channels*8,1)
+        self.add_lr_factor("matmulpass:0",0.25)
+        pass_output = tf.tensordot(g2_layer,matmulpass,axes=[[3],[0]])
+        self.outputs_by_layer.append(("pass",pass_output))
+        pass_output = tf.reshape(pass_output, [-1] + [1])
+        policy_output = tf.concat([policy_output,pass_output],axis=1)
+
+      self.policy_output = policy_output
     else:
-      #Add pass move based on the global g values
-      matmulpass = self.weight_variable("matmulpass",[g2_num_channels,1],g2_num_channels*8,1)
-      self.add_lr_factor("matmulpass:0",0.25)
-      pass_output = tf.tensordot(g2_layer,matmulpass,axes=[[3],[0]])
-      self.outputs_by_layer.append(("pass",pass_output))
-      pass_output = tf.reshape(pass_output, [-1] + [1])
-      policy_output = tf.concat([policy_output,pass_output],axis=1)
+      #Don't include policy? Just set the policy output to all zeros.
+      policy_output = tf.zeros_like(inputs[:,:,0])
+      policy_output = tf.pad(policy_output,[(0,0),(0,1)])
+      self.policy_output = policy_output
 
-    self.policy_output = policy_output
+    if include_value:
+      v0_layer = trunk
+
+      v1_num_channels = 1
+      v1_layer = self.conv_block("v1",v0_layer,diam=3,in_channels=224,out_channels=v1_num_channels)
+      self.outputs_by_layer.append(("v1",v1_layer))
+      v1_size = v1_num_channels*self.max_board_size*self.max_board_size
+
+      v2_size = 64
+      v2w = self.weight_variable("v2/w",[v1_size,v2_size],v1_size,v2_size)
+      v2_layer = self.parametric_relu("v2/prelu", tf.tensordot(tf.reshape(v1_layer,[-1,1,1,v1_size]), v2w, axes=[[3],[0]]))
+      v2_layer = tf.reshape(v2_layer,[-1,v2_size])
+
+      v3_size = 1
+      v3w = self.weight_variable("v3/w",[v2_size,v3_size],v2_size,v3_size)
+      v3_layer = tf.tensordot(v2_layer, v3w, axes=[[1],[0]])
+
+      value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape)
+
+      self.value_output = value_output
+    else:
+      self.value_output = tf.zeros_like(inputs[:,0,0])
+
 
 
 class Target_vars:
   def __init__(self,model,for_optimization,require_last_move):
     policy_output = model.policy_output
+    value_output = tf.tanh(model.value_output)
 
     #Loss function
     self.policy_targets = tf.placeholder(tf.float32, [None] + model.policy_target_shape)
+    self.value_target = tf.placeholder(tf.float32, [None] + model.value_target_shape)
     self.target_weights_from_data = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
 
     if require_last_move == "all":
@@ -863,6 +897,11 @@ class Target_vars:
       tf.nn.softmax_cross_entropy_with_logits(labels=self.policy_targets, logits=policy_output)
     )
 
+    self.value_loss = tf.reduce_sum(
+      self.target_weights_used *
+      tf.square(self.value_target - value_output)
+    )
+
     if for_optimization:
       #Prior/Regularization
       self.l2_reg_coeff = tf.placeholder(tf.float32)
@@ -870,7 +909,7 @@ class Target_vars:
       self.reg_loss = self.l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables]) * self.weight_sum
 
       #The loss to optimize
-      self.opt_loss = self.policy_loss + self.reg_loss
+      self.opt_loss = self.policy_loss + self.value_loss + self.reg_loss
 
 class Metrics:
   def __init__(self,model,target_vars,include_debug_stats):

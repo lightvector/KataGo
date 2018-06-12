@@ -33,12 +33,14 @@ parser.add_argument('-restart-time', help='restart training time', required=Fals
 parser.add_argument('-fast-factor', help='divide training batches per epoch by this factor', required=False)
 parser.add_argument('-validation-prop', help='only use this proportion of validation set', required=False)
 parser.add_argument('-use-ranks', help='train model with player rank as an input', required=False, action='store_true')
+parser.add_argument('-include-value', help='add value head to model', required=False, action='store_true')
 parser.add_argument('-predict-pass', help='train model with predicting pass as an output', required=False, action='store_true')
 args = vars(parser.parse_args())
 
 traindir = args["traindir"]
 gamesh5 = args["gamesh5"]
 verbose = args["verbose"]
+include_value = args["include_value"]
 use_ranks = args["use_ranks"]
 predict_pass = args["predict_pass"]
 restart_file = None
@@ -88,6 +90,8 @@ def detaillog(s):
 print("Building model", flush=True)
 model_config = {}
 model_config["use_ranks"] = use_ranks
+model_config["include_policy"] = True
+model_config["include_value"] = include_value
 model_config["predict_pass"] = predict_pass
 model = Model(model_config)
 
@@ -285,6 +289,7 @@ with tf.Session(config=tfconfig) as session:
       return session.run(fetches, feed_dict={
         model.inputs: row_inputs,
         target_vars.policy_targets: row_policy_targets,
+        target_vars.value_target: row_value_target,
         target_vars.target_weights_from_data: row_target_weights,
         model.ranks: row_ranks,
         model.symmetries: symmetries,
@@ -296,6 +301,7 @@ with tf.Session(config=tfconfig) as session:
       return session.run(fetches, feed_dict={
         model.inputs: row_inputs,
         target_vars.policy_targets: row_policy_targets,
+        target_vars.value_target: row_value_target,
         target_vars.target_weights_from_data: row_target_weights,
         model.symmetries: symmetries,
         per_sample_learning_rate: pslr,
@@ -324,6 +330,7 @@ with tf.Session(config=tfconfig) as session:
     "acc1": metrics.accuracy1,
     "acc4": metrics.accuracy4,
     "ploss": target_vars.policy_loss,
+    "vloss": target_vars.value_loss,
     "rloss": target_vars.reg_loss,
     "wsum": target_vars.weight_sum,
   }
@@ -332,22 +339,25 @@ with tf.Session(config=tfconfig) as session:
     "acc1": metrics.accuracy1,
     "acc4": metrics.accuracy4,
     "ploss": target_vars.policy_loss,
+    "vloss": target_vars.value_loss,
     "wsum": target_vars.weight_sum,
   }
 
   def train_stats_str(tmetrics_evaled):
-    return "tacc1 %5.2f%% tacc4 %5.2f%% tploss %f trloss %f" % (
+    return "tacc1 %5.2f%% tacc4 %5.2f%% tploss %f tvloss %f trloss %f" % (
       tmetrics_evaled["acc1"] * 100 / tmetrics_evaled["wsum"],
       tmetrics_evaled["acc4"] * 100 / tmetrics_evaled["wsum"],
       tmetrics_evaled["ploss"] / tmetrics_evaled["wsum"],
+      tmetrics_evaled["vloss"] / tmetrics_evaled["wsum"],
       tmetrics_evaled["rloss"] / tmetrics_evaled["wsum"],
     )
 
   def validation_stats_str(vmetrics_evaled):
-    return "vacc1 %5.2f%% vacc4 %5.2f%% vploss %f" % (
+    return "vacc1 %5.2f%% vacc4 %5.2f%% vploss %f vvloss %f" % (
       vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
       vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
       vmetrics_evaled["ploss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["vloss"] / vmetrics_evaled["wsum"],
   )
 
   def time_str(elapsed):
