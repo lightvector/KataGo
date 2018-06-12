@@ -15,7 +15,7 @@ import numpy as np
 
 import data
 from board import Board
-from model import Model
+from model import Model, Target_vars, Metrics
 
 #Command and args-------------------------------------------------------------------
 
@@ -33,12 +33,14 @@ parser.add_argument('-restart-time', help='restart training time', required=Fals
 parser.add_argument('-fast-factor', help='divide training batches per epoch by this factor', required=False)
 parser.add_argument('-validation-prop', help='only use this proportion of validation set', required=False)
 parser.add_argument('-use-ranks', help='train model with player rank as an input', required=False, action='store_true')
+parser.add_argument('-predict-pass', help='train model with predicting pass as an output', required=False, action='store_true')
 args = vars(parser.parse_args())
 
 traindir = args["traindir"]
 gamesh5 = args["gamesh5"]
 verbose = args["verbose"]
 use_ranks = args["use_ranks"]
+predict_pass = args["predict_pass"]
 restart_file = None
 start_epoch = 0
 start_elapsed = 0
@@ -86,7 +88,7 @@ def detaillog(s):
 print("Building model", flush=True)
 model_config = {}
 model_config["use_ranks"] = use_ranks
-model_config["predict_pass"] = False
+model_config["predict_pass"] = predict_pass
 model = Model(model_config)
 
 target_vars = Target_vars(model,for_optimization=True,require_last_move=False)
@@ -246,6 +248,7 @@ with tf.Session(config=tfconfig) as session:
   trainlog("Batch size = " + str(batch_size))
   trainlog("L2 coeff value = " + str(l2_coeff_value))
   trainlog("use_ranks = " + str(use_ranks))
+  trainlog("predict_pass = " + str(predict_pass))
 
   sys.stdout.flush()
   sys.stderr.flush()

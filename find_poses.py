@@ -17,7 +17,7 @@ import hashlib
 
 import data
 from board import Board
-from model import Model
+from model import Model, Target_vars, Metrics
 
 #Command and args-------------------------------------------------------------------
 

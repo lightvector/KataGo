@@ -833,10 +833,11 @@ class Model:
       policy_output = tf.pad(policy_output,[(0,0),(0,1)], constant_values = -10000.)
     else:
       #Add pass move based on the global g values
-      matmulpass = self.weight_variable("matmulpass",[g2_num_channels,1],g2_num_channels*4,1)
+      matmulpass = self.weight_variable("matmulpass",[g2_num_channels,1],g2_num_channels*8,1)
       self.add_lr_factor("matmulpass:0",0.25)
-      pass_output = tf.matmul(g2_layer,matmulpass)
+      pass_output = tf.tensordot(g2_layer,matmulpass,axes=[[3],[0]])
       self.outputs_by_layer.append(("pass",pass_output))
+      pass_output = tf.reshape(pass_output, [-1] + [1])
       policy_output = tf.concat([policy_output,pass_output],axis=1)
 
     self.policy_output = policy_output
