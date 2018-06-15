@@ -52,7 +52,7 @@ As of the end of April 2018, the best neural nets I've been training from this s
 | [Darkforest (2016)](https://arxiv.org/abs/1511.06410) | CNN 12x384  | 12,329,756  | 57.1%  |   | 128M | 100% (300/300) | 72.6% (218/300)
 | [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10x256 | 12,098,304 | 58.2% | 54.1% | 380M |
 | **This Sandbox (Mar 2018)** | **ResNet 12x192** | **8,250,720** | **58.2%** | **54.2%** | **325-333M** | **100% (500/500)** | **90.0% (45/50)**
-| [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 14 blocks | 16,816,896 |       | 54.6% | 355M |
+| [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 14x256 | 16,816,896 |       | 54.6% | 355M |
 | **This Sandbox (Apr 2018)** | **ResNet 12x192** | **8,057,424** | **58.6%** | **54.7%** | **201M-209M** |  |
 | **This Sandbox (Jun 2018)** | **ResNet 12x224** | **10,950,416** | | **55.3%** | **301M** |  |
 | [AlphaGoZero(2017)](https://deepmind.com/documents/119/agz_unformatted_nature.pdf) | ResNet 20x256 | 22,837,864 | 60.4% | | >1000M? |
