@@ -33,7 +33,7 @@ If you'd like to train your own model and/or experiment with the architectures i
 You can see the implementations of the relevant neural net structures in "model.py", although I may adapt and change them as time goes on.
 
 ### History
-   * May-June 2018 - No significant architectural changes, but [added player ranks](https://github.com/lightvector/GoNN#ranks-as-an-input-june-2018) as an input feature to the neural net and included a lot of amateur games in the training set. Filtered pro games with the resulting net to find instructive positions for players of different ranks, producing a neat collection of Go problems: [neuralnetgoproblems.com](https://neuralnetgoproblems.com).
+   * May-June 2018 - No significant architectural changes, but [added player ranks](https://github.com/lightvector/GoNN#ranks-as-an-input-june-2018) as an input feature to the neural net and included a lot of amateur games in the training set. Filtered pro games with the resulting net to find instructive positions for players of different ranks, producing a neat collection of Go problems: [neuralnetgoproblems.com](https://neuralnetgoproblems.com). Cleaned up a few input features and tried a slightly larger net with more training.
    * Apr 2018 - Added a row to the [current results](https://github.com/lightvector/GoNN#current-results) reflecting the large improvement from embedding global pooled properties in the [middle of the neural net](https://github.com/lightvector/GoNN#update-mar-2018) rather than only the policy head, along with some minor adjustments to learning rates and other tweaks.
    * Mar 2018 - Much larger neural nets and updates to [current results](https://github.com/lightvector/GoNN#current-results). Global pooled properties [are good in the main trunk of the resnet as well](https://github.com/lightvector/GoNN#update-mar-2018)! Also, [increasing center-position learning rates](https://github.com/lightvector/GoNN#update-mar-2018-1) everywhere else in the net helps training speed a little. Promising experiments with [dilated convolutions](https://github.com/lightvector/GoNN#dilated-convolutions-mar-2018), and a note about [making neural nets not always need history](https://github.com/lightvector/GoNN#some-thoughts-about-history-as-an-input-mar-2018).
    * Feb 2018 - Tried [special ladder blocks in the policy](https://github.com/lightvector/GoNN#update-feb-2018), tried [ladders as a training target](https://github.com/lightvector/GoNN#using-ladders-as-an-extra-training-target-feb-2018), retested [global pooled properties](https://github.com/lightvector/GoNN#update-feb-2018-1). And ran new experiments with net architecture - [wide low-rank residual blocks](https://github.com/lightvector/GoNN#wide-low-rank-residual-blocks-feb-2018), [parametric ReLUs](https://github.com/lightvector/GoNN#parametric-relus-feb-2018), [chain pooling](https://github.com/lightvector/GoNN#chain-pooling-feb-2018), and some [observations on redundancy in models](https://github.com/lightvector/GoNN#redundant-parameters-and-learning-rates-feb-2018)
@@ -44,17 +44,18 @@ As of the end of April 2018, the best neural nets I've been training from this s
 
 | Neural Net | Structure | Params | KGS Top1 | GoGoD Top1 | Training Steps | Vs GnuGo | Vs Pachi
 |------|---|---|---|---|---|---|---|
-| [Clark and Stokey (2015)](https://arxiv.org/abs/1412.3409)  | CNN 8 layers | ~560,000 |  44.4% | 41.1% | 147M | 87% (172/200)
-| [Maddison et al. (2015)](https://arxiv.org/abs/1412.6564) |  CNN 12 layers | ~2,300,000 |  55.2% |  | 685M x 50 + 82M | 97% (/300?) | 11% (/220?)
-| [AlphaGoFan192 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 3,880,489 | 55.4% | | 340M x 50 | | 85% (w/RL)
-| [AlphaGoFan256 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13 layers | 6,795,881 | 55.9% | |
-| **This Sandbox (Mar 2018)** | **ResNet 5 Blocks** | **3,597,792** | **56.8%** | **52.5%** | **205-209M** | **99.2% (496/500)** |
-| [Darkforest (2016)](https://arxiv.org/abs/1511.06410) | CNN 12 layers  | 12,329,756  | 57.1%  |   | 128M | 100% (300/300) | 72.6% (218/300)
-| [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10 blocks | 12,098,304 | 58.2% | 54.1% | 380M |
-| **This Sandbox (Mar 2018)** | **ResNet 12 Blocks** | **8,250,720** | **58.2%** | **54.2%** | **325-333M** | **100% (500/500)** | **90.0% (45/50)**
+| [Clark and Stokey (2015)](https://arxiv.org/abs/1412.3409)  | CNN 8xVarious | ~560,000 |  44.4% | 41.1% | 147M | 87% (172/200)
+| [Maddison et al. (2015)](https://arxiv.org/abs/1412.6564) |  CNN 12x(64-192) | ~2,300,000 |  55.2% |  | 685M x 50 + 82M | 97% (/300?) | 11% (/220?)
+| [AlphaGoFan192 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13x192 | 3,880,489 | 55.4% | | 340M x 50 | | 85% (w/RL)
+| [AlphaGoFan256 (2016)](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) | CNN 13x256 | 6,795,881 | 55.9% | |
+| **This Sandbox (Mar 2018)** | **ResNet 5x192** | **3,597,792** | **56.8%** | **52.5%** | **205-209M** | **99.2% (496/500)** |
+| [Darkforest (2016)](https://arxiv.org/abs/1511.06410) | CNN 12x384  | 12,329,756  | 57.1%  |   | 128M | 100% (300/300) | 72.6% (218/300)
+| [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 10x256 | 12,098,304 | 58.2% | 54.1% | 380M |
+| **This Sandbox (Mar 2018)** | **ResNet 12x192** | **8,250,720** | **58.2%** | **54.2%** | **325-333M** | **100% (500/500)** | **90.0% (45/50)**
 | [Cazenave (2017)](http://www.lamsade.dauphine.fr/~cazenave/papers/resnet.pdf) | ResNet 14 blocks | 16,816,896 |       | 54.6% | 355M |
-| **This Sandbox (Apr 2018)** | **ResNet 12 Blocks** | **8,057,424** | **58.6%** | **54.7%** | **201M-209M** |  |
-| [AlphaGoZero(2017)](https://deepmind.com/documents/119/agz_unformatted_nature.pdf) | ResNet 20 blocks | 22,837,864 | 60.4% | | >1000M? |
+| **This Sandbox (Apr 2018)** | **ResNet 12x192** | **8,057,424** | **58.6%** | **54.7%** | **201M-209M** |  |
+| **This Sandbox (Jun 2018)** | **ResNet 12x224** | **10,950,416** | | **55.3%** | **301M** |  |
+| [AlphaGoZero(2017)](https://deepmind.com/documents/119/agz_unformatted_nature.pdf) | ResNet 20x256 | 22,837,864 | 60.4% | | >1000M? |
 
 As seen in the above table, thanks to the various enhancements I've been playing with, the neural nets in this sandbox compare quite favorably, matching or surpassing accuracy results for neural nets with larger numbers of parameters. They require fewer training steps to achieve these results and are probably computationally faster to evaluate per step (I currently don't use any techniques such as rotational equivariance or other weight representations that reduce the number of parameters in a way that doesn't also reduce the computation cost).
 
