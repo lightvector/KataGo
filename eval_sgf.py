@@ -34,7 +34,7 @@ sgf_file = args["sgf"]
 movenum = int(args["move"])
 
 play_rank_one_hot = 0
-if "rank_one_hot" in args and args["rank_one_hot"] != "":
+if "rank_one_hot" in args and args["rank_one_hot"] != "" and args["rank_one_hot"] is not None:
   play_rank_one_hot = int(args["rank_one_hot"])
 
 # Model ----------------------------------------------------------------

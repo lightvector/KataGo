@@ -29,7 +29,7 @@ args = vars(parser.parse_args())
 modelpath = args["model"]
 
 play_rank_one_hot = [0]
-if "rank_one_hot" in args and args["rank_one_hot"] != "":
+if "rank_one_hot" in args and args["rank_one_hot"] != "" and args["rank_one_hot"] is not None:
   play_rank_one_hot[0] = int(args["rank_one_hot"])
 
 # Model ----------------------------------------------------------------

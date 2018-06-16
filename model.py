@@ -152,25 +152,25 @@ class Model:
           pos = self.loc_to_tensor_pos(prev1_loc,board,offset)
           input_data[idx,pos,10] = use_history_prop
 
-        if move_idx >= 2 and moves[move_idx-1][0] == pla:
+        if move_idx >= 2 and moves[move_idx-2][0] == pla:
           prev2_loc = moves[move_idx-2][1]
           if prev2_loc is not None:
             pos = self.loc_to_tensor_pos(prev2_loc,board,offset)
             input_data[idx,pos,11] = use_history_prop
 
-          if move_idx >= 3 and moves[move_idx-1][0] == opp:
+          if move_idx >= 3 and moves[move_idx-3][0] == opp:
             prev3_loc = moves[move_idx-3][1]
             if prev3_loc is not None:
               pos = self.loc_to_tensor_pos(prev3_loc,board,offset)
               input_data[idx,pos,12] = use_history_prop
 
-            if move_idx >= 4 and moves[move_idx-1][0] == pla:
+            if move_idx >= 4 and moves[move_idx-4][0] == pla:
               prev4_loc = moves[move_idx-4][1]
               if prev4_loc is not None:
                 pos = self.loc_to_tensor_pos(prev4_loc,board,offset)
                 input_data[idx,pos,13] = use_history_prop
 
-              if move_idx >= 5 and moves[move_idx-1][0] == opp:
+              if move_idx >= 5 and moves[move_idx-5][0] == opp:
                 prev5_loc = moves[move_idx-5][1]
                 if prev5_loc is not None:
                   pos = self.loc_to_tensor_pos(prev5_loc,board,offset)
