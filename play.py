@@ -99,7 +99,7 @@ def genmove_and_value(session, board, moves, use_history_prop):
     i += 1
 
 def get_layer_values(session, board, moves, layer, channel):
-  layer = fetch_output(session,board,moves,use_history_prop=1.0,rank_one_hot=play_rank_one_hot[0],fetch=layer)
+  [layer] = fetch_output(session,board,moves,use_history_prop=1.0,rank_one_hot=play_rank_one_hot[0],fetches=[layer])
   layer = layer.reshape([board.size * board.size,-1])
   locs_and_values = []
   for i in range(board.size * board.size):
@@ -375,7 +375,7 @@ def run_gtp(session):
   add_layer_visualizations("p1",normalization_div=2)
   add_layer_visualizations("v1",normalization_div=2)
 
-  add_extra_board_size_visualizations("v2/w:0",tf.reshape(weightdict["v2/w:0"],[1,board_size,board_size,-1]), 0.04)
+  add_extra_board_size_visualizations("v2/w:0",tf.reshape(weightdict["v2/w:0"],[1,board_size,board_size,-1]), 0.08)
 
   input_feature_command_lookup = dict()
   def add_input_feature_visualizations(layer_name, feature_idx, normalization_div):
