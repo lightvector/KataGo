@@ -38,10 +38,11 @@ with open(modelpath + ".config.json") as f:
   model_config = json.load(f)
 model = Model(model_config)
 policy_output = tf.nn.softmax(model.policy_output)
+value_output = tf.tanh(model.value_output)
 
 # Moves ----------------------------------------------------------------
 
-def fetch_output(session, board, moves, use_history_prop, rank_one_hot, fetch):
+def fetch_output(session, board, moves, use_history_prop, rank_one_hot, fetches):
   input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
   pla = board.pla
   opp = Board.get_opp(pla)
@@ -50,20 +51,23 @@ def fetch_output(session, board, moves, use_history_prop, rank_one_hot, fetch):
   model.fill_row_features(board,pla,opp,moves,move_idx,input_data,self_komi,use_history_prop=use_history_prop,idx=0)
   row_ranks = np.zeros(shape=[1]+model.rank_shape)
   row_ranks[0,rank_one_hot] = 1.0
-  output = session.run(fetches=[fetch], feed_dict={
+  outputs = session.run(fetches, feed_dict={
     model.inputs: input_data,
     model.ranks: row_ranks,
     model.symmetries: [False,False,False],
     model.is_training: False
   })
-  return output[0][0]
+  return [output[0] for output in outputs]
 
 def get_policy_output(session, board, moves, use_history_prop, rank_one_hot):
-  return fetch_output(session,board,moves,use_history_prop,rank_one_hot,policy_output)
+  return fetch_output(session,board,moves,use_history_prop,rank_one_hot,[policy_output])
 
-def get_moves_and_probs(session, board, moves, use_history_prop, rank_one_hot):
+def get_policy_and_value_output(session, board, moves, use_history_prop, rank_one_hot):
+  return fetch_output(session,board,moves,use_history_prop,rank_one_hot,[policy_output,value_output])
+
+def get_moves_and_probs_and_value(session, board, moves, use_history_prop, rank_one_hot):
   pla = board.pla
-  policy = get_policy_output(session, board, moves, use_history_prop, rank_one_hot)
+  [policy,value] = get_policy_and_value_output(session, board, moves, use_history_prop, rank_one_hot)
   moves_and_probs = []
   for i in range(len(policy)):
     move = model.tensor_pos_to_loc(i,board)
@@ -71,14 +75,14 @@ def get_moves_and_probs(session, board, moves, use_history_prop, rank_one_hot):
       moves_and_probs.append((Board.PASS_LOC,policy[i]))
     elif board.would_be_legal(pla,move) and not board.is_simple_eye(pla,move):
       moves_and_probs.append((move,policy[i]))
-  return moves_and_probs
+  return (moves_and_probs,value)
 
-def genmove(session, board, moves, use_history_prop):
-  moves_and_probs = get_moves_and_probs(session, board, moves, use_history_prop, play_rank_one_hot[0])
+def genmove_and_value(session, board, moves, use_history_prop):
+  (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, moves, use_history_prop, play_rank_one_hot[0])
   moves_and_probs = sorted(moves_and_probs, key=lambda moveandprob: moveandprob[1], reverse=True)
 
   if len(moves_and_probs) <= 0:
-    return Board.PASS_LOC
+    return (Board.PASS_LOC,value)
 
   #Generate a random number biased small and then find the appropriate move to make
   #Interpolate from moving uniformly to choosing from the triangular distribution
@@ -91,7 +95,7 @@ def genmove(session, board, moves, use_history_prop):
     (move,prob) = moves_and_probs[i]
     probsum += prob
     if i >= len(moves_and_probs)-1 or probsum > r:
-      return move
+      return (move,value)
     i += 1
 
 def get_layer_values(session, board, moves, layer, channel):
@@ -118,7 +122,7 @@ def get_input_feature(board, moves, feature_idx):
   return locs_and_values
 
 
-def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent):
+def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent, value_head_output=None):
   divisor = 1.0
   if normalization_div == "max":
     max_abs_value = max(abs(value) for (loc,value) in locs_and_values)
@@ -183,6 +187,7 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
   locs_and_values_rev = sorted(locs_and_values, key=lambda loc_and_value: loc_and_value[1], reverse=True)
   texts = []
   texts_rev = []
+  texts_value = []
   maxlen_per_side = 10
   if len(locs_and_values) > 0 and locs_and_values[0][1] < 0:
     maxlen_per_side = 5
@@ -202,7 +207,10 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
     else:
       texts_rev.append("%s %.3f" % (str_coord(loc,board),value))
 
-  gfx_commands.append("TEXT " + ", ".join(texts_rev + texts))
+  if value_head_output is not None:
+    texts_value.append("bv %.2f%%" % (50+50*(value_head_output if board.pla == Board.BLACK else -value_head_output)))
+
+  gfx_commands.append("TEXT " + ", ".join(texts_value + texts_rev + texts))
 
 
 # Basic parsing --------------------------------------------------------
@@ -253,6 +261,9 @@ def run_gtp(session):
   moves = []
 
   layerdict = dict(model.outputs_by_layer)
+  weightdict = dict()
+  for v in tf.trainable_variables():
+    weightdict[v.name] = v
 
   rank_policy_command_lookup = dict()
   layer_command_lookup = dict()
@@ -339,29 +350,32 @@ def run_gtp(session):
       known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
       layer_command_lookup[command_name.lower()] = (layer,i,normalization_div)
 
-  def add_board_size_visualizations(layer_name, normalization_div):
+  def add_layer_visualizations(layer_name, normalization_div):
     layer = layerdict[layer_name]
     add_extra_board_size_visualizations(layer_name, layer, normalization_div)
 
-  add_board_size_visualizations("conv1",normalization_div=6)
-  add_board_size_visualizations("rconv1",normalization_div=14)
-  add_board_size_visualizations("rconv2",normalization_div=20)
-  add_board_size_visualizations("rconv3",normalization_div=26)
-  add_board_size_visualizations("rconv4",normalization_div=36)
-  add_board_size_visualizations("rconv5",normalization_div=40)
-  add_board_size_visualizations("rconv6",normalization_div=44)
-  add_board_size_visualizations("rconv6/conv1a",normalization_div=12)
-  add_board_size_visualizations("rconv6/conv1b",normalization_div=12)
-  add_board_size_visualizations("rconv7",normalization_div=48)
-  add_board_size_visualizations("rconv8",normalization_div=52)
-  add_board_size_visualizations("rconv9",normalization_div=55)
-  add_board_size_visualizations("rconv10",normalization_div=58)
-  add_board_size_visualizations("rconv10/conv1a",normalization_div=12)
-  add_board_size_visualizations("rconv10/conv1b",normalization_div=12)
-  add_board_size_visualizations("rconv11",normalization_div=61)
-  add_board_size_visualizations("rconv12",normalization_div=64)
-  add_board_size_visualizations("g1",normalization_div=6)
-  add_board_size_visualizations("p1",normalization_div=2)
+  add_layer_visualizations("conv1",normalization_div=6)
+  add_layer_visualizations("rconv1",normalization_div=14)
+  add_layer_visualizations("rconv2",normalization_div=20)
+  add_layer_visualizations("rconv3",normalization_div=26)
+  add_layer_visualizations("rconv4",normalization_div=36)
+  add_layer_visualizations("rconv5",normalization_div=40)
+  add_layer_visualizations("rconv7",normalization_div=44)
+  add_layer_visualizations("rconv7/conv1a",normalization_div=12)
+  add_layer_visualizations("rconv7/conv1b",normalization_div=12)
+  add_layer_visualizations("rconv8",normalization_div=48)
+  add_layer_visualizations("rconv9",normalization_div=52)
+  add_layer_visualizations("rconv10",normalization_div=55)
+  add_layer_visualizations("rconv11",normalization_div=58)
+  add_layer_visualizations("rconv11/conv1a",normalization_div=12)
+  add_layer_visualizations("rconv11/conv1b",normalization_div=12)
+  add_layer_visualizations("rconv13",normalization_div=64)
+  add_layer_visualizations("rconv14",normalization_div=66)
+  add_layer_visualizations("g1",normalization_div=6)
+  add_layer_visualizations("p1",normalization_div=2)
+  add_layer_visualizations("v1",normalization_div=2)
+
+  add_extra_board_size_visualizations("v2/w:0",tf.reshape(weightdict["v2/w:0"],[1,board_size,board_size,-1]), 0.04)
 
   input_feature_command_lookup = dict()
   def add_input_feature_visualizations(layer_name, feature_idx, normalization_div):
@@ -432,10 +446,12 @@ def run_gtp(session):
       moves.append((pla,loc))
       board.play(pla,loc)
     elif command[0] == "genmove":
-      loc = genmove(session, board, moves, use_history_prop=1.0)
-      moves.append((board.pla,loc))
-      board.play(board.pla,loc)
+      (loc,value) = genmove_and_value(session, board, moves, use_history_prop=1.0)
+      pla = board.pla
+      moves.append((pla,loc))
+      board.play(pla,loc)
       ret = str_coord(loc,board)
+
     # elif command[0] == "final_score":
     #   ret = '0'
     elif command[0] == "name":
@@ -456,25 +472,25 @@ def run_gtp(session):
       if parsed is not None:
         play_rank_one_hot[0] = parsed
     elif command[0] == "policy":
-      moves_and_probs = get_moves_and_probs(session, board, moves, use_history_prop=1.0, rank_one_hot = play_rank_one_hot[0])
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, moves, use_history_prop=1.0, rank_one_hot = play_rank_one_hot[0])
       gfx_commands = []
-      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_head_output=value)
       ret = "\n".join(gfx_commands)
     elif command[0] == "policy-half-history":
-      moves_and_probs = get_moves_and_probs(session, board, moves, use_history_prop=0.5, rank_one_hot = play_rank_one_hot[0])
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, moves, use_history_prop=0.5, rank_one_hot = play_rank_one_hot[0])
       gfx_commands = []
-      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_head_output=value)
       ret = "\n".join(gfx_commands)
     elif command[0] == "policy-no-history":
-      moves_and_probs = get_moves_and_probs(session, board, moves, use_history_prop=0.0, rank_one_hot = play_rank_one_hot[0])
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, moves, use_history_prop=0.0, rank_one_hot = play_rank_one_hot[0])
       gfx_commands = []
-      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_head_output=value)
       ret = "\n".join(gfx_commands)
     elif command[0] in rank_policy_command_lookup:
       rank_one_hot = rank_policy_command_lookup[command[0]]
-      moves_and_probs = get_moves_and_probs(session, board, moves, use_history_prop=1.0, rank_one_hot = rank_one_hot)
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, moves, use_history_prop=1.0, rank_one_hot = rank_one_hot)
       gfx_commands = []
-      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True)
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_head_output=value)
       ret = "\n".join(gfx_commands)
     elif command[0] in layer_command_lookup:
       (layer,channel,normalization_div) = layer_command_lookup[command[0]]

@@ -118,11 +118,11 @@ class Model:
       for x in range(bsize):
         pos = self.xy_to_tensor_pos(x,y,offset)
         input_data[idx,pos,0] = 1.0
+        input_data[idx,pos,18] = self_komi / 15.0;
         loc = board.loc(x,y)
         stone = board.board[loc]
         if stone == pla:
           input_data[idx,pos,1] = 1.0
-          input_data[idx,pos,18] = self_komi / 15.0;
           libs = board.num_liberties(loc)
           if libs == 1:
             input_data[idx,pos,3] = 1.0
