@@ -329,6 +329,12 @@ class Model:
     alphas = self.weight_variable_init_constant(name+"/prelu",[1,1,1,num_channels],constant=0.0)
     return tf.nn.relu(layer) - alphas * tf.nn.relu(-layer)
 
+  def parametric_relu_non_spatial(self, name, layer):
+    assert(len(layer.shape) == 2)
+    num_channels = layer.shape[1].value
+    alphas = self.weight_variable_init_constant(name+"/prelu",[1,num_channels],constant=0.0)
+    return tf.nn.relu(layer) - alphas * tf.nn.relu(-layer)
+
   def merge_residual(self,name,trunk,residual):
     trunk = trunk + residual
     self.outputs_by_layer.append((name,trunk))
@@ -860,12 +866,13 @@ class Model:
 
       v2_size = 64
       v2w = self.weight_variable("v2/w",[v1_size,v2_size],v1_size,v2_size)
-      v2_layer = self.parametric_relu("v2/prelu", tf.tensordot(tf.reshape(v1_layer,[-1,1,1,v1_size]), v2w, axes=[[3],[0]]))
-      v2_layer = tf.reshape(v2_layer,[-1,v2_size])
+      v2b = self.weight_variable("v2/b",[v2_size],v1_size,v2_size,scale_initial_weights=0.2,reg=False)
+      v2_layer = self.parametric_relu_non_spatial("v2/prelu", tf.matmul(tf.reshape(v1_layer,[-1,v1_size]), v2w) + v2b)
 
       v3_size = 1
       v3w = self.weight_variable("v3/w",[v2_size,v3_size],v2_size,v3_size)
-      v3_layer = tf.tensordot(v2_layer, v3w, axes=[[1],[0]])
+      v3b = self.weight_variable("v3/b",[v3_size],v2_size,v3_size,scale_initial_weights=0.2,reg=False)
+      v3_layer = tf.matmul(v2_layer, v3w) + v3b
 
       value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape)
 
