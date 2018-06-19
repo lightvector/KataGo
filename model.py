@@ -414,8 +414,8 @@ class Model:
     self.outputs_by_layer.append((name+"/conv1b",conv1b_layer))
 
     trans1b_layer = self.parametric_relu(name+"/trans1b",(self.batchnorm(name+"/norm1b",conv1b_layer)))
-    trans1b_mean = tf.reduce_mean(trans1b_layer,axis=[1,2],keep_dims=True)
-    trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keep_dims=True)
+    trans1b_mean = tf.reduce_mean(trans1b_layer,axis=[1,2],keepdims=True)
+    trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keepdims=True)
     trans1b_pooled = tf.concat([trans1b_mean,trans1b_max],axis=3)
 
     remix_weights = self.weight_variable(name+"/w1r",[global_mid_channels*2,mid_channels],global_mid_channels*2,mid_channels, scale_initial_weights = 0.5)
@@ -800,8 +800,8 @@ class Model:
 
       #Fold g1 down to single values for the board.
       #For stdev, add a tiny constant to ensure numeric stability
-      g1_mean = tf.reduce_mean(g1_layer,axis=[1,2],keep_dims=True)
-      g1_max = tf.reduce_max(g1_layer,axis=[1,2],keep_dims=True)
+      g1_mean = tf.reduce_mean(g1_layer,axis=[1,2],keepdims=True)
+      g1_max = tf.reduce_max(g1_layer,axis=[1,2],keepdims=True)
       g2_layer = tf.concat([g1_mean,g1_max],axis=3) #shape [b,1,1,2*convg1num_channels]
       g2_num_channels = 2*g1_num_channels
       self.outputs_by_layer.append(("g2",g2_layer))
@@ -931,12 +931,12 @@ class Metrics:
     if include_debug_stats:
 
       def reduce_norm(x, axis=None, keepdims=False):
-        return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keep_dims=keepdims))
+        return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keepdims=keepdims))
 
       def reduce_stdev(x, axis=None, keepdims=False):
-        m = tf.reduce_mean(x, axis=axis, keep_dims=True)
+        m = tf.reduce_mean(x, axis=axis, keepdims=True)
         devs_squared = tf.square(x - m)
-        return tf.sqrt(tf.reduce_mean(devs_squared, axis=axis, keep_dims=keepdims))
+        return tf.sqrt(tf.reduce_mean(devs_squared, axis=axis, keepdims=keepdims))
 
       self.activated_prop_by_layer = dict([
         (name,tf.reduce_mean(tf.count_nonzero(layer,axis=[1,2])/layer.shape[1].value/layer.shape[2].value, axis=0)) for (name,layer) in model.outputs_by_layer
