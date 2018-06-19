@@ -375,7 +375,7 @@ def run_gtp(session):
   add_layer_visualizations("p1",normalization_div=2)
   add_layer_visualizations("v1",normalization_div=2)
 
-  add_extra_board_size_visualizations("v2/w:0",tf.reshape(weightdict["v2/w:0"],[1,board_size,board_size,-1]), 0.3)
+  # add_extra_board_size_visualizations("v2/w:0",tf.reshape(weightdict["v2/w:0"],[1,board_size,board_size,-1]), 0.3)
 
   input_feature_command_lookup = dict()
   def add_input_feature_visualizations(layer_name, feature_idx, normalization_div):
