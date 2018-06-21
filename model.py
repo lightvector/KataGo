@@ -414,8 +414,8 @@ class Model:
     self.outputs_by_layer.append((name+"/conv1b",conv1b_layer))
 
     trans1b_layer = self.parametric_relu(name+"/trans1b",(self.batchnorm(name+"/norm1b",conv1b_layer)))
-    trans1b_mean = tf.reduce_mean(trans1b_layer,axis=[1,2],keep_dims=True)
-    trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keep_dims=True)
+    trans1b_mean = tf.reduce_mean(trans1b_layer,axis=[1,2],keepdims=True)
+    trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keepdims=True)
     trans1b_pooled = tf.concat([trans1b_mean,trans1b_max],axis=3)
 
     remix_weights = self.weight_variable(name+"/w1r",[global_mid_channels*2,mid_channels],global_mid_channels*2,mid_channels, scale_initial_weights = 0.5)
@@ -800,8 +800,8 @@ class Model:
 
       #Fold g1 down to single values for the board.
       #For stdev, add a tiny constant to ensure numeric stability
-      g1_mean = tf.reduce_mean(g1_layer,axis=[1,2],keep_dims=True)
-      g1_max = tf.reduce_max(g1_layer,axis=[1,2],keep_dims=True)
+      g1_mean = tf.reduce_mean(g1_layer,axis=[1,2],keepdims=True)
+      g1_max = tf.reduce_max(g1_layer,axis=[1,2],keepdims=True)
       g2_layer = tf.concat([g1_mean,g1_max],axis=3) #shape [b,1,1,2*convg1num_channels]
       g2_num_channels = 2*g1_num_channels
       self.outputs_by_layer.append(("g2",g2_layer))
@@ -859,15 +859,23 @@ class Model:
     if include_value:
       v0_layer = trunk
 
-      v1_num_channels = 1
-      v1_layer = self.conv_block("v1",v0_layer,diam=3,in_channels=224,out_channels=v1_num_channels)
-      self.outputs_by_layer.append(("v1",v1_layer))
-      v1_size = v1_num_channels*self.max_board_size*self.max_board_size
+      v1_num_channels = 16
+      v1_layer = self.conv_only_block("v1",v0_layer,diam=3,in_channels=224,out_channels=v1_num_channels)
 
-      v2_size = 64
+      v1_mean_layer = self.parametric_relu("v1mean/prelu",self.batchnorm("v1mean/norm",v1_layer[:,:,:,0:8]))
+      self.outputs_by_layer.append(("v1mean",v1_mean_layer))
+      v1_variance_layer = tf.square(v1_layer[:,:,:,8:16]) + 0.001
+      self.outputs_by_layer.append(("v1variance",v1_variance_layer))
+
+      v1_mean_pooled = tf.reduce_mean(v1_mean_layer,axis=[1,2],keepdims=False)
+      v1_variance_pooled = tf.reduce_mean(v1_variance_layer,axis=[1,2],keepdims=False)
+      v1_size = v1_num_channels//2
+
+      v2_size = 8
       v2w = self.weight_variable("v2/w",[v1_size,v2_size],v1_size,v2_size)
       v2b = self.weight_variable("v2/b",[v2_size],v1_size,v2_size,scale_initial_weights=0.2,reg=False)
-      v2_layer = self.parametric_relu_non_spatial("v2/prelu", tf.matmul(tf.reshape(v1_layer,[-1,v1_size]), v2w) + v2b)
+      v2_layer = tf.nn.crelu((tf.matmul(v1_mean_pooled, v2w) + v2b) / tf.sqrt(v1_variance_pooled))
+      v2_size *= 2 #for crelu
 
       v3_size = 1
       v3w = self.weight_variable("v3/w",[v2_size,v3_size],v2_size,v3_size)
@@ -931,12 +939,12 @@ class Metrics:
     if include_debug_stats:
 
       def reduce_norm(x, axis=None, keepdims=False):
-        return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keep_dims=keepdims))
+        return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keepdims=keepdims))
 
       def reduce_stdev(x, axis=None, keepdims=False):
-        m = tf.reduce_mean(x, axis=axis, keep_dims=True)
+        m = tf.reduce_mean(x, axis=axis, keepdims=True)
         devs_squared = tf.square(x - m)
-        return tf.sqrt(tf.reduce_mean(devs_squared, axis=axis, keep_dims=keepdims))
+        return tf.sqrt(tf.reduce_mean(devs_squared, axis=axis, keepdims=keepdims))
 
       self.activated_prop_by_layer = dict([
         (name,tf.reduce_mean(tf.count_nonzero(layer,axis=[1,2])/layer.shape[1].value/layer.shape[2].value, axis=0)) for (name,layer) in model.outputs_by_layer
