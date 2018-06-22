@@ -374,7 +374,9 @@ def run_gtp(session):
   add_layer_visualizations("rconv14",normalization_div=66)
   add_layer_visualizations("g1",normalization_div=6)
   add_layer_visualizations("p1",normalization_div=2)
-  add_layer_visualizations("v1",normalization_div=2)
+  add_layer_visualizations("v1",normalization_div=4)
+  add_layer_visualizations("v1mean",normalization_div=3)
+  add_layer_visualizations("v1variance",normalization_div=10)
 
   # add_extra_board_size_visualizations("v2/w:0",tf.reshape(weightdict["v2/w:0"],[1,board_size,board_size,-1]), 0.3)
 
