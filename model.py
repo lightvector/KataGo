@@ -325,15 +325,15 @@ class Model:
 
   def parametric_relu(self, name, layer):
     assert(len(layer.shape) == 4)
-    num_channels = layer.shape[3].value
-    alphas = self.weight_variable_init_constant(name+"/prelu",[1,1,1,num_channels],constant=0.0)
-    return tf.nn.relu(layer) - alphas * tf.nn.relu(-layer)
+    #num_channels = layer.shape[3].value
+    #alphas = self.weight_variable_init_constant(name+"/prelu",[1,1,1,num_channels],constant=0.0)
+    return tf.nn.relu(layer)
 
   def parametric_relu_non_spatial(self, name, layer):
     assert(len(layer.shape) == 2)
-    num_channels = layer.shape[1].value
-    alphas = self.weight_variable_init_constant(name+"/prelu",[1,num_channels],constant=0.0)
-    return tf.nn.relu(layer) - alphas * tf.nn.relu(-layer)
+    #num_channels = layer.shape[1].value
+    #alphas = self.weight_variable_init_constant(name+"/prelu",[1,num_channels],constant=0.0)
+    return tf.nn.relu(layer)
 
   def merge_residual(self,name,trunk,residual):
     trunk = trunk + residual
