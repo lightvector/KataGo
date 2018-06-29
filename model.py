@@ -859,22 +859,17 @@ class Model:
     if include_value:
       v0_layer = trunk
 
-      v1_num_channels = 16
-      v1_layer = self.conv_only_block("v1",v0_layer,diam=3,in_channels=224,out_channels=v1_num_channels)
+      v1_num_channels = 8
+      v1_layer = self.conv_block("v1",v0_layer,diam=3,in_channels=224,out_channels=v1_num_channels)
+      self.outputs_by_layer.append(("v1",v1_layer))
 
-      v1_mean_layer = self.parametric_relu("v1mean/prelu",self.batchnorm("v1mean/norm",v1_layer[:,:,:,0:8]))
-      self.outputs_by_layer.append(("v1mean",v1_mean_layer))
-      v1_variance_layer = tf.square(v1_layer[:,:,:,8:16]) + 0.001
-      self.outputs_by_layer.append(("v1variance",v1_variance_layer))
-
-      v1_mean_pooled = tf.reduce_mean(v1_mean_layer,axis=[1,2],keepdims=False)
-      v1_variance_pooled = tf.reduce_mean(v1_variance_layer,axis=[1,2],keepdims=False)
-      v1_size = v1_num_channels//2
+      v1_layer_pooled = tf.reduce_mean(v1_layer,axis=[1,2],keepdims=False)
+      v1_size = v1_num_channels
 
       v2_size = 8
       v2w = self.weight_variable("v2/w",[v1_size,v2_size],v1_size,v2_size)
       v2b = self.weight_variable("v2/b",[v2_size],v1_size,v2_size,scale_initial_weights=0.2,reg=False)
-      v2_layer = tf.nn.crelu((tf.matmul(v1_mean_pooled, v2w) + v2b) / tf.sqrt(v1_variance_pooled))
+      v2_layer = tf.nn.crelu(tf.matmul(v1_layer_pooled, v2w) + v2b)
       v2_size *= 2 #for crelu
 
       v3_size = 1
