@@ -888,7 +888,7 @@ class Model:
 class Target_vars:
   def __init__(self,model,for_optimization,require_last_move):
     policy_output = model.policy_output
-    value_output = tf.tanh(model.value_output)
+    value_output = model.value_output
 
     #Loss function
     self.policy_targets = tf.placeholder(tf.float32, [None] + model.policy_target_shape)
@@ -907,10 +907,18 @@ class Target_vars:
       tf.nn.softmax_cross_entropy_with_logits(labels=self.policy_targets, logits=policy_output)
     )
 
-    self.value_loss = tf.reduce_sum(
+    self.value_loss = 1.2*tf.reduce_sum(
       self.target_weights_used *
-      tf.square(self.value_target - value_output)
+      tf.nn.softmax_cross_entropy_with_logits(
+        labels=tf.stack([(1+self.value_target)/2,(1-self.value_target)/2],axis=1),
+        logits=tf.stack([value_output,tf.zeros_like(value_output)],axis=1)
+      )
     )
+
+    # self.value_loss = tf.reduce_sum(
+    #   self.target_weights_used *
+    #   tf.square(self.value_target - self.tanh(value_output))
+    # )
 
     if for_optimization:
       #Prior/Regularization
