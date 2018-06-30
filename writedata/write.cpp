@@ -824,6 +824,7 @@ static void iterSgfsAndLZMoves(
   vector<CompactSgf*>& sgfs, vector<string>& lzFiles,
   uint64_t shardSeed, int numShards,
   const size_t& numMovesUsed, const size_t& curDataSetRow,
+  Stats& total, double keepProb, Rand& keepRand,
   HandleRowFunc f
 ) {
 
@@ -834,7 +835,7 @@ static void iterSgfsAndLZMoves(
     Rand shardRand(shardSeed);
 
     HandleRowFunc g =
-      [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered](
+      [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered,&total,keepProb,&keepRand](
         const vector<FastBoard>& recentBoards, int source, int rank, int oppRank, const string& user, int handicap, const string& date,
         const vector<Move>& moves, int moveIdx,
         Player nextPlayer, const float* policyTarget, float valueTarget, float selfKomi, Hash128 sgfHash
@@ -843,7 +844,17 @@ static void iterSgfsAndLZMoves(
       numMovesIteredOrSkipped++;
       if(numShards <= 1 || shard == shardRand.nextUInt(numShards)) {
         numMovesItered++;
-        f(recentBoards,source,rank,oppRank,user,handicap,date,moves,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,sgfHash);
+        
+        total.count += 1;
+        total.countBySource[source] += 1;
+        total.countByRank[rank] += 1;
+        total.countByOppRank[oppRank] += 1;
+        total.countByUser[user] += 1;
+        total.countByHandicap[handicap] += 1;
+
+        if(keepProb >= 1.0 || (keepRand.nextDouble() < keepProb)) {
+          f(recentBoards,source,rank,oppRank,user,handicap,date,moves,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,sgfHash);
+        }
       }
     };
 
@@ -863,61 +874,73 @@ static void iterSgfsAndLZMoves(
     const string lzname = string("Leela Zero");
     const string lzdate = string("No date");
     std::function<void(const LZSample& sample, const string& fileName, int sampleCount)> h =
-      [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered,&lzname,&lzdate,&boards,&moves]
+      [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered,&lzname,&lzdate,&boards,&moves,&total,keepProb,&keepRand]
       (const LZSample& sample, const string& fileName, int sampleCount) {
       //Only use this move if it's within our shard.
       numMovesIteredOrSkipped++;
       if(numShards <= 1 || shard == shardRand.nextUInt(numShards)) {
         numMovesItered++;
 
-        assert(policyTargetLen == 362);
-        float policyTarget[362];
-        Player nextPlayer;
-        Player winner;
-        try {
-          sample.parse(boards,moves,policyTarget,nextPlayer,winner);
-        }
-        catch(const IOError &e) {
-          cout << "Error reading: " << fileName << " sample " << sampleCount << ": " << e.message << endl;
-          return;
-        }
-
+        int source = SOURCE_LEELAZERO;
         //Leela zero is pro
         int rank = 8;
         int oppRank = 8;
+        const string& user = lzname;
         //Leela zero games have no handicap
         int handicap = 0;
-        //The "next" move is always the end of the sample's reported move history
-        int moveIdx = moves.size()-1;
 
-        float valueTarget = 0.0;
-        if(winner == nextPlayer)
-          valueTarget = 1.0;
-        else if(winner == getEnemy(nextPlayer))
-          valueTarget = -1.0;
-        float selfKomi = 0.0;
-        if(nextPlayer == P_BLACK)
-          selfKomi = -7.5;
-        else if(nextPlayer == P_WHITE)
-          selfKomi = 7.5;
-        else
-          assert(false);
+        total.count += 1;
+        total.countBySource[source] += 1;
+        total.countByRank[rank] += 1;
+        total.countByOppRank[oppRank] += 1;
+        total.countByUser[user] += 1;
+        total.countByHandicap[handicap] += 1;
 
-        // for(int n = 7; n >= 0; n--) {
-        //   cout << boards[n] << endl;
-        //   cout << Location::toString(moves[7-n].loc,19) << " " << (int)moves[7-n].pla << endl;
-        // }
-        // for(int y = 0; y<19; y++) {
-        //   for(int x = 0; x<19; x++) {
-        //     printf("%3.0f ", policyTarget[y*19+x]*100.0);
-        //   }
-        //   cout << endl;
-        // }
-        // cout << "Value target " << valueTarget << endl;
-        // cout << "Self komi " << selfKomi << endl;
+        if(keepProb >= 1.0 || (keepRand.nextDouble() < keepProb)) {
+          assert(policyTargetLen == 362);
+          float policyTarget[362];
+          Player nextPlayer;
+          Player winner;
+          try {
+            sample.parse(boards,moves,policyTarget,nextPlayer,winner);
+          }
+          catch(const IOError &e) {
+            cout << "Error reading: " << fileName << " sample " << sampleCount << ": " << e.message << endl;
+            return;
+          }
 
-        Hash128 sgfHash = Hash128(0,0);
-        f(boards,SOURCE_LEELAZERO,rank,oppRank,lzname,handicap,lzdate,moves,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,sgfHash);
+          float valueTarget = 0.0;
+          if(winner == nextPlayer)
+            valueTarget = 1.0;
+          else if(winner == getEnemy(nextPlayer))
+            valueTarget = -1.0;
+          float selfKomi = 0.0;
+          if(nextPlayer == P_BLACK)
+            selfKomi = -7.5;
+          else if(nextPlayer == P_WHITE)
+            selfKomi = 7.5;
+          else
+            assert(false);
+
+          //The "next" move is always the end of the sample's reported move history
+          int moveIdx = moves.size()-1;
+
+          // for(int n = 7; n >= 0; n--) {
+          //   cout << boards[n] << endl;
+          //   cout << Location::toString(moves[7-n].loc,19) << " " << (int)moves[7-n].pla << endl;
+          // }
+          // for(int y = 0; y<19; y++) {
+          //   for(int x = 0; x<19; x++) {
+          //     printf("%3.0f ", policyTarget[y*19+x]*100.0);
+          //   }
+          //   cout << endl;
+          // }
+          // cout << "Value target " << valueTarget << endl;
+          // cout << "Self komi " << selfKomi << endl;
+
+          Hash128 sgfHash = Hash128(0,0);
+          f(boards,source,rank,oppRank,user,handicap,lzdate,moves,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,sgfHash);
+        }
       }
     };
 
@@ -943,10 +966,10 @@ static void maybeUseRow(
   const string& date, const vector<Move>& movesBuf, int moveIdx,
   Player nextPlayer, const float* policyTarget, float valueTarget, float selfKomi, Hash128 sgfHash,
   DataPool& dataPool,
-  Rand& rand, double keepProb, int minRank, int minOppRank, int maxHandicap, int target,
+  Rand& rand, int minRank, int minOppRank, int maxHandicap, int target,
   bool alwaysHistory, bool includePasses,
   const set<string>& excludeUsers, bool fancyConditions, double fancyPosKeepFactor,
-  set<Hash>& posHashes, Stats& total, Stats& used
+  set<Hash>& posHashes, Stats& used
 ) {
   //TODO also filter out games that are > 85% identical hashes to another game
   //For now, only generate training rows for non-passes
@@ -1000,31 +1023,20 @@ static void maybeUseRow(
     }
 
     if(canUse) {
-      float* newRow = NULL;
-      if(keepProb >= 1.0 || (rand.nextDouble() < keepProb))
-        newRow = dataPool.addNewRow(rand);
+      float* newRow = dataPool.addNewRow(rand);
 
-      if(newRow != NULL) {
-        assert(recentBoards.size() > 0);
-        fillRow(recentBoards,movesBuf,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,target,rankOneHot,sgfHash,newRow,rand,alwaysHistory);
-        posHashes.insert(recentBoards[0].pos_hash);
+      assert(recentBoards.size() > 0);
+      fillRow(recentBoards,movesBuf,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,target,rankOneHot,sgfHash,newRow,rand,alwaysHistory);
+      posHashes.insert(recentBoards[0].pos_hash);
 
-        used.count += 1;
-        used.countBySource[source] += 1;
-        used.countByRank[rank] += 1;
-        used.countByOppRank[oppRank] += 1;
-        used.countByUser[user] += 1;
-        used.countByHandicap[handicap] += 1;
-      }
+      used.count += 1;
+      used.countBySource[source] += 1;
+      used.countByRank[rank] += 1;
+      used.countByOppRank[oppRank] += 1;
+      used.countByUser[user] += 1;
+      used.countByHandicap[handicap] += 1;
     }
   }
-
-  total.count += 1;
-  total.countBySource[source] += 1;
-  total.countByRank[rank] += 1;
-  total.countByOppRank[oppRank] += 1;
-  total.countByUser[user] += 1;
-  total.countByHandicap[handicap] += 1;
 }
 
 
@@ -1055,7 +1067,7 @@ static void processData(
   DataPool dataPool(totalRowLen,poolSize,chunkHeight,writeRow);
 
   HandleRowFunc f =
-    [&dataPool,&rand,keepProb,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,fancyPosKeepFactor,alwaysHistory,includePasses,&posHashes,&total,&used](
+    [&dataPool,&rand,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,fancyPosKeepFactor,alwaysHistory,includePasses,&posHashes,&used](
       const vector<FastBoard>& recentBoards, int source, int rank, int oppRank, const string& user, int handicap, const string& date,
       const vector<Move>& moves, int moveIdx,
       Player nextPlayer, const float* policyTarget, float valueTarget, float selfKomi, Hash128 sgfHash
@@ -1063,10 +1075,10 @@ static void processData(
     maybeUseRow(
       recentBoards,source,rank,oppRank,user,handicap,date,moves,moveIdx,
       nextPlayer,policyTarget,valueTarget,selfKomi,sgfHash,
-      dataPool,rand,keepProb,minRank,minOppRank,maxHandicap,target,
+      dataPool,rand,minRank,minOppRank,maxHandicap,target,
       alwaysHistory, includePasses,
       excludeUsers,fancyConditions,fancyPosKeepFactor,
-      posHashes,total,used
+      posHashes,used
     );
   };
 
@@ -1074,6 +1086,7 @@ static void processData(
     sgfs,lzFiles,
     shardSeed,numShards,
     used.count,curDataSetRow,
+    total,keepProb,rand,
     f
   );
 
