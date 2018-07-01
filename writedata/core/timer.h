@@ -20,8 +20,11 @@ class ClockTimer
   ClockTimer();
   ~ClockTimer();
 
+  ClockTimer(const ClockTimer&) = delete;
+  ClockTimer& operator=(const ClockTimer&) = delete;
+
   void reset();
-  double getSeconds();
+  double getSeconds() const;
 
   //Return some integer indicating the current system time (for seeds/hashes), may vary with OS.
   static int64_t getPrecisionSystemTime();

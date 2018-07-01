@@ -844,7 +844,7 @@ static void iterSgfsAndLZMoves(
       numMovesIteredOrSkipped++;
       if(numShards <= 1 || shard == shardRand.nextUInt(numShards)) {
         numMovesItered++;
-        
+
         total.count += 1;
         total.countBySource[source] += 1;
         total.countByRank[rank] += 1;
