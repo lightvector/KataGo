@@ -55,6 +55,9 @@ add_executable(write
         datapool.h
         fastboard.cpp
         fastboard.h
+        rules.h
+        boardhistory.cpp
+        boardhistory.h
         lzparse.cpp
         lzparse.h
         sgf.cpp
