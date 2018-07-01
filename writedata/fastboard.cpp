@@ -13,10 +13,11 @@
 
 //STATIC VARS-----------------------------------------------------------------------------
 bool FastBoard::IS_ZOBRIST_INITALIZED = false;
-Hash FastBoard::ZOBRIST_SIZE_X_HASH[MAX_SIZE+1];
-Hash FastBoard::ZOBRIST_SIZE_Y_HASH[MAX_SIZE+1];
-Hash FastBoard::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
-Hash FastBoard::ZOBRIST_PLAYER_HASH[4];
+Hash128 FastBoard::ZOBRIST_SIZE_X_HASH[MAX_SIZE+1];
+Hash128 FastBoard::ZOBRIST_SIZE_Y_HASH[MAX_SIZE+1];
+Hash128 FastBoard::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
+Hash128 FastBoard::ZOBRIST_PLAYER_HASH[4];
+Hash128 FastBoard::ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
 
 //CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
 
@@ -62,21 +63,18 @@ void FastBoard::init(int xS, int yS, bool multiStoneSuicideLegal)
   x_size = xS;
   y_size = yS;
 
-  for(int y = 0; y < y_size+2; y++)
+  for(int i = 0; i < MAX_ARR_SIZE; i++)
+    colors[i] = C_WALL;
+
+  for(int y = 0; y < y_size; y++)
   {
-    for(int x = 0; x < x_size+1; x++)
+    for(int x = 0; x < x_size; x++)
     {
-      Loc loc = x + y*(x_size+1);
-      if(x == 0 || y == 0 || y == y_size+1)
-        colors[loc] = C_WALL;
-      else
-      {
-        colors[loc] = C_EMPTY;
-        empty_list.add(loc);
-      }
+      Loc loc = (x+1) + (y+1)*(x_size+1);
+      colors[loc] = C_EMPTY;
+      empty_list.add(loc);
     }
   }
-  colors[MAX_ARR_SIZE-1] = C_WALL;
 
   ko_loc = NULL_LOC;
 
@@ -93,28 +91,39 @@ void FastBoard::initHash()
     return;
   Rand rand("FastBoard::initHash()");
 
+  auto nextHash = [&rand]() {
+    uint64_t h0 = rand.nextUInt64();
+    uint64_t h1 = rand.nextUInt64();
+    return Hash128(h0,h1);
+  };
+
   for(int i = 0; i<MAX_ARR_SIZE; i++)
   {
     for(Color j = 0; j<4; j++)
     {
       if(j == C_EMPTY || j == C_WALL)
-        ZOBRIST_BOARD_HASH[i][j] = 0;
+        ZOBRIST_BOARD_HASH[i][j] = Hash128();
       else
-        ZOBRIST_BOARD_HASH[i][j] = rand.nextUInt64();
+        ZOBRIST_BOARD_HASH[i][j] = nextHash();
     }
+    ZOBRIST_KO_LOC_HASH[i] = nextHash();
   }
   for(int i = 0; i<4; i++)
-    ZOBRIST_PLAYER_HASH[i] = rand.nextUInt64();
+    ZOBRIST_PLAYER_HASH[i] = nextHash();
   for(int i = 0; i<MAX_SIZE+1; i++)
-    ZOBRIST_SIZE_X_HASH[i] = rand.nextUInt64();
+    ZOBRIST_SIZE_X_HASH[i] = nextHash();
   for(int i = 0; i<MAX_SIZE+1; i++)
-    ZOBRIST_SIZE_Y_HASH[i] = rand.nextUInt64();
+    ZOBRIST_SIZE_Y_HASH[i] = nextHash();
 
   IS_ZOBRIST_INITALIZED = true;
 }
 
 void FastBoard::setMultiStoneSuicideLegal(bool b) {
   isMultiStoneSuicideLegal = b;
+}
+
+void FastBoard::clearSimpleKoLoc() {
+  ko_loc = NULL_LOC;
 }
 
 
@@ -421,6 +430,86 @@ void FastBoard::undo(FastBoard::MoveRecord record)
         rebuildChain(adj, record.pla);
     }
   }
+}
+
+Hash128 FastBoard::getPosHashAfterMove(Loc loc, Player player) const {
+  if(loc == PASS_LOC)
+    return pos_hash;
+  assert(loc != NULL_LOC);
+
+  Hash128 hash = pos_hash;
+  hash ^= ZOBRIST_BOARD_HASH[loc][player];
+
+  Player enemy = getEnemy(player);
+
+  //Count immediate liberties and groups that would be captured
+  bool wouldBeSuicide = true;
+  int numCapturedGroups = 0;
+  Loc capturedGroupHeads[4];
+  for(int i = 0; i < 4; i++) {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] == C_EMPTY)
+      wouldBeSuicide = false;
+    else if(colors[adj] == player && getNumLiberties(adj) > 1)
+      wouldBeSuicide = false;
+    else if(colors[adj] == enemy) {
+      //Capture!
+      if(getNumLiberties(adj) == 1) {
+        //Make sure we haven't already counted it
+        Loc head = chain_head[adj];
+        bool alreadyFound = false;
+        for(int j = 0; j<numCapturedGroups; j++) {
+          if(capturedGroupHeads[j] == head)
+          {alreadyFound = true; break;}
+        }
+        if(!alreadyFound) {
+          capturedGroupHeads[numCapturedGroups++] = head;
+          wouldBeSuicide = false;
+
+          //Now iterate through the group to update the hash
+          Loc cur = adj;
+          do {
+            hash ^= ZOBRIST_BOARD_HASH[cur][enemy];
+            cur = next_in_chain[cur];
+          } while (cur != adj);
+        }
+      }
+    }
+  }
+
+  //Update hash for suicidal moves
+  if(wouldBeSuicide) {
+    assert(numCapturedGroups == 0);
+
+    for(int i = 0; i < 4; i++) {
+      Loc adj = loc + adj_offsets[i];
+      //Suicide capture!
+      if(colors[adj] == player && getNumLiberties(adj) == 1) {
+        //Make sure we haven't already counted it
+        Loc head = chain_head[adj];
+        bool alreadyFound = false;
+        for(int j = 0; j<numCapturedGroups; j++) {
+          if(capturedGroupHeads[j] == head)
+          {alreadyFound = true; break;}
+        }
+        if(!alreadyFound) {
+          capturedGroupHeads[numCapturedGroups++] = head;
+
+          //Now iterate through the group to update the hash
+          Loc cur = adj;
+          do {
+            hash ^= ZOBRIST_BOARD_HASH[cur][player];
+            cur = next_in_chain[cur];
+          } while (cur != adj);
+        }
+      }
+    }
+
+    //Don't forget the stone we'd place would also die
+    hash ^= ZOBRIST_BOARD_HASH[loc][player];
+  }
+
+  return hash;
 }
 
 //Plays the specified move, assuming it is legal.
@@ -886,6 +975,27 @@ string Location::toString(Loc loc, int x_size)
   sprintf(buf,"(%d,%d)",getX(loc,x_size),getY(loc,x_size));
   return string(buf);
 }
+
+int Location::locToTensorPos(Loc loc, int bSize, int maxBSize) {
+  if(loc == FastBoard::PASS_LOC)
+    return maxBSize * maxBSize;
+  else if(loc == FastBoard::NULL_LOC)
+    return maxBSize * (maxBSize + 1);
+  int offset = (maxBSize - bSize)/2;
+  return (getY(loc,bSize) + offset) * maxBSize + (getX(loc,bSize) + offset);
+}
+Loc Location::tensorPosToLoc(int pos, int bSize, int maxBSize) {
+  if(pos == maxBSize * maxBSize)
+    return FastBoard::PASS_LOC;
+  int offset = (maxBSize - bSize)/2;
+  int x = pos % maxBSize - offset;
+  int y = pos / maxBSize - offset;
+  if(x < 0 || x >= bSize || y < 0 || y >= bSize)
+    return FastBoard::NULL_LOC;
+  return getLoc(x,y,bSize);
+}
+
+
 
 //TACTICAL STUFF--------------------------------------------------------------------
 

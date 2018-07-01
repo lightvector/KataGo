@@ -969,7 +969,7 @@ static void maybeUseRow(
   Rand& rand, int minRank, int minOppRank, int maxHandicap, int target,
   bool alwaysHistory, bool includePasses,
   const set<string>& excludeUsers, bool fancyConditions, double fancyPosKeepFactor,
-  set<Hash>& posHashes, Stats& used
+  set<uint64_t>& posHashes, Stats& used
 ) {
   //TODO also filter out games that are > 85% identical hashes to another game
   //For now, only generate training rows for non-passes
@@ -1027,7 +1027,7 @@ static void maybeUseRow(
 
       assert(recentBoards.size() > 0);
       fillRow(recentBoards,movesBuf,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,target,rankOneHot,sgfHash,newRow,rand,alwaysHistory);
-      posHashes.insert(recentBoards[0].pos_hash);
+      posHashes.insert(recentBoards[0].pos_hash.hash0);
 
       used.count += 1;
       used.countBySource[source] += 1;
@@ -1048,7 +1048,7 @@ static void processData(
   int minRank, int minOppRank, int maxHandicap, int target,
   bool alwaysHistory, bool includePasses,
   const set<string>& excludeUsers, bool fancyConditions, double fancyPosKeepFactor,
-  set<Hash>& posHashes, Stats& total, Stats& used
+  set<uint64_t>& posHashes, Stats& total, Stats& used
 ) {
   size_t curDataSetRow = 0;
   std::function<void(const float*,size_t)> writeRow = [&curDataSetRow,&dataSet](const float* rows, size_t numRows) {
@@ -1525,7 +1525,7 @@ int main(int argc, const char* argv[]) {
   cout << "Generating TRAINING set..." << endl;
   H5std_string trainSetName("train");
   DataSet* trainDataSet = new DataSet(h5File->createDataSet(trainSetName, PredType::IEEE_F32LE, DataSpace(h5Dimension,initFileDims,maxDims), dataSetProps));
-  set<Hash> trainPosHashes;
+  set<uint64_t> trainPosHashes;
   Stats trainTotalStats;
   Stats trainUsedStats;
   processData(
@@ -1543,7 +1543,7 @@ int main(int argc, const char* argv[]) {
   cout << "Generating VALIDATION set..." << endl;
   H5std_string valSetName("val");
   DataSet* valDataSet = new DataSet(h5File->createDataSet(valSetName, PredType::IEEE_F32LE, DataSpace(h5Dimension,initFileDims,maxDims), dataSetProps));
-  set<Hash> valPosHashes;
+  set<uint64_t> valPosHashes;
   Stats valTotalStats;
   Stats valUsedStats;
   processData(

@@ -7,9 +7,8 @@
 #ifndef FASTBOARD_H_
 #define FASTBOARD_H_
 
-#include <iostream>
-#include <stdint.h>
 #include "core/global.h"
+#include "core/hash.h"
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
@@ -51,10 +50,10 @@ namespace Location
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);
 
   string toString(Loc loc, int x_size);
-}
 
-//Zobrist hashing type
-typedef uint64_t Hash;
+  int locToTensorPos(Loc loc, int bSize, int maxBSize);
+  Loc tensorPosToLoc(int pos, int bSize, int maxBSize);
+}
 
 //Simple structure for storing moves. Not used below, but this is a convenient place to define it.
 STRUCT_NAMED_PAIR(Loc,loc,Player,pla,Move);
@@ -83,10 +82,11 @@ struct FastBoard
 
   //Zobrist Hashing------------------------------
   static bool IS_ZOBRIST_INITALIZED;
-  static Hash ZOBRIST_SIZE_X_HASH[MAX_SIZE+1];
-  static Hash ZOBRIST_SIZE_Y_HASH[MAX_SIZE+1];
-  static Hash ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
-  static Hash ZOBRIST_PLAYER_HASH[4];
+  static Hash128 ZOBRIST_SIZE_X_HASH[MAX_SIZE+1];
+  static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_SIZE+1];
+  static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
+  static Hash128 ZOBRIST_PLAYER_HASH[4];
+  static Hash128 ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
 
   //Structs---------------------------------------
 
@@ -142,6 +142,10 @@ struct FastBoard
   //Check if this location contains a simple eye for the specified player.
   bool isSimpleEye(Loc loc, Player player) const;
 
+  //Configuration the board in various ways
+  void setMultiStoneSuicideLegal(bool b);
+  void clearSimpleKoLoc();
+
   //Sets the specified stone if possible. Returns true usually, returns false location or color were out of range.
   bool setStone(Loc loc, Color color);
 
@@ -159,7 +163,8 @@ struct FastBoard
   //might change, the order of the circular lists might change, etc.
   void undo(MoveRecord record);
 
-  void setMultiStoneSuicideLegal(bool b);
+  //Get what the position hash would be if we were to play this move. Assumes the move is legal.
+  Hash128 getPosHashAfterMove(Loc loc, Player player) const;
 
   //Get a random legal move that does not fill a simple eye.
   Loc getRandomMCLegal(Player player);
@@ -184,7 +189,7 @@ struct FastBoard
 
   PointList empty_list; //List of all empty locations on board
 
-  Hash pos_hash; //A zobrist hash of the current board position (does not include ko point or player to move)
+  Hash128 pos_hash; //A zobrist hash of the current board position (does not include ko point or player to move)
 
   short adj_offsets[8]; //Indices 0-3: Offsets to add for adjacent points. Indices 4-7: Offsets for diagonal points.
 
