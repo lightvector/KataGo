@@ -75,7 +75,7 @@ void BoardHistory::clear(const Rules& rules, const FastBoard& board, Player pla)
 }
 
 void BoardHistory::updateAfterMove(const Rules& rules, const FastBoard& board, Loc moveLoc, Player movePla) {
-  koHashHistory.push_back(getKoHash(rules,board,getEnemy(movePla)));
+  koHashHistory.push_back(getKoHash(rules,board,getOpp(movePla)));
   moveHistory.push_back(Move(moveLoc,movePla));
   wasEverOccupiedOrPlayed[moveLoc] = true;
 }

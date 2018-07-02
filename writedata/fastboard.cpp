@@ -135,21 +135,21 @@ int FastBoard::getNumLiberties(Loc loc) const
 }
 
 //Check if moving here would be a self-capture
-bool FastBoard::isSuicide(Loc loc, Player player) const
+bool FastBoard::isSuicide(Loc loc, Player pla) const
 {
-  Player enemy = getEnemy(player);
+  Player opp = getOpp(pla);
   for(int i = 0; i < 4; i++)
   {
     Loc adj = loc + adj_offsets[i];
 
     if(colors[adj] == C_EMPTY)
       return false;
-    else if(colors[adj] == player)
+    else if(colors[adj] == pla)
     {
       if(getNumLiberties(adj) > 1)
         return false;
     }
-    else if(colors[adj] == enemy)
+    else if(colors[adj] == opp)
     {
       if(getNumLiberties(adj) == 1)
         return false;
@@ -160,21 +160,21 @@ bool FastBoard::isSuicide(Loc loc, Player player) const
 }
 
 //Check if moving here is would be an illegal self-capture
-bool FastBoard::isIllegalSuicide(Loc loc, Player player) const
+bool FastBoard::isIllegalSuicide(Loc loc, Player pla) const
 {
-  Player enemy = getEnemy(player);
+  Player opp = getOpp(pla);
   for(int i = 0; i < 4; i++)
   {
     Loc adj = loc + adj_offsets[i];
 
     if(colors[adj] == C_EMPTY)
       return false;
-    else if(colors[adj] == player)
+    else if(colors[adj] == pla)
     {
       if(isMultiStoneSuicideLegal || getNumLiberties(adj) > 1)
         return false;
     }
-    else if(colors[adj] == enemy)
+    else if(colors[adj] == opp)
     {
       if(getNumLiberties(adj) == 1)
         return false;
@@ -185,9 +185,9 @@ bool FastBoard::isIllegalSuicide(Loc loc, Player player) const
 }
 
 //Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
-int FastBoard::getNumLibertiesAfterPlay(Loc loc, Player player, int max) const
+int FastBoard::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
 {
-  Player enemy = getEnemy(player);
+  Player opp = getOpp(pla);
 
   int numLibs = 0;
   Loc libs[max];
@@ -202,7 +202,7 @@ int FastBoard::getNumLibertiesAfterPlay(Loc loc, Player player, int max) const
       if(numLibs >= max)
         return max;
     }
-    else if(colors[adj] == enemy && getNumLiberties(adj) == 1) {
+    else if(colors[adj] == opp && getNumLiberties(adj) == 1) {
       libs[numLibs++] = adj;
       if(numLibs >= max)
         return max;
@@ -218,10 +218,10 @@ int FastBoard::getNumLibertiesAfterPlay(Loc loc, Player player, int max) const
     }
   }
 
-  auto wouldBeEmpty = [numCapturedGroups,&capturedGroupHeads,this,enemy](Loc loc) {
+  auto wouldBeEmpty = [numCapturedGroups,&capturedGroupHeads,this,opp](Loc loc) {
     if(this->colors[loc] == C_EMPTY)
       return true;
-    if(this->colors[loc] == enemy) {
+    if(this->colors[loc] == opp) {
       for(int i = 0; i<numCapturedGroups; i++)
         if(capturedGroupHeads[i] == this->chain_head[loc])
           return true;
@@ -234,7 +234,7 @@ int FastBoard::getNumLibertiesAfterPlay(Loc loc, Player player, int max) const
   Loc connectingGroupHeads[4];
   for(int i = 0; i<4; i++) {
     Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == player) {
+    if(colors[adj] == pla) {
       Loc head = chain_head[adj];
       bool alreadyFound = false;
       for(int j = 0; j<numConnectingGroups; j++) {
@@ -278,15 +278,15 @@ bool FastBoard::isKoBanned(Loc loc) const
 }
 
 //Check if moving here is illegal.
-bool FastBoard::isLegal(Loc loc, Player player) const
+bool FastBoard::isLegal(Loc loc, Player pla) const
 {
-  if(player != P_BLACK && player != P_WHITE)
+  if(pla != P_BLACK && pla != P_WHITE)
     return false;
-  return loc == PASS_LOC || (loc >= 0 && loc < MAX_ARR_SIZE && (colors[loc] == C_EMPTY) && !isKoBanned(loc) && !isIllegalSuicide(loc, player));
+  return loc == PASS_LOC || (loc >= 0 && loc < MAX_ARR_SIZE && (colors[loc] == C_EMPTY) && !isKoBanned(loc) && !isIllegalSuicide(loc, pla));
 }
 
 //Check if this location contains a simple eye for the specified player.
-bool FastBoard::isSimpleEye(Loc loc, Player player) const
+bool FastBoard::isSimpleEye(Loc loc, Player pla) const
 {
   if(colors[loc] != C_EMPTY)
     return false;
@@ -299,21 +299,21 @@ bool FastBoard::isSimpleEye(Loc loc, Player player) const
     Loc adj = loc + adj_offsets[i];
     if(colors[adj] == C_WALL)
       against_wall = true;
-    else if(colors[adj] != player)
+    else if(colors[adj] != pla)
       return false;
   }
 
   //Check that opponent does not own too many diagonal points
-  Player enemy = getEnemy(player);
-  int num_enemy_corners = 0;
+  Player opp = getOpp(pla);
+  int num_opp_corners = 0;
   for(int i = 4; i < 8; i++)
   {
     Loc corner = loc + adj_offsets[i];
-    if(colors[corner] == enemy)
-      num_enemy_corners++;
+    if(colors[corner] == opp)
+      num_opp_corners++;
   }
 
-  if(num_enemy_corners >= 2 || (against_wall && num_enemy_corners >= 1))
+  if(num_opp_corners >= 2 || (against_wall && num_opp_corners >= 1))
     return false;
 
   return true;
@@ -344,35 +344,35 @@ bool FastBoard::setStone(Loc loc, Color color)
 
 
 //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
-bool FastBoard::playMove(Loc loc, Player player)
+bool FastBoard::playMove(Loc loc, Player pla)
 {
-  if(isLegal(loc,player))
+  if(isLegal(loc,pla))
   {
-    playMoveAssumeLegal(loc,player);
+    playMoveAssumeLegal(loc,pla);
     return true;
   }
   return false;
 }
 
 //Plays the specified move, assuming it is legal, and returns a MoveRecord for the move
-FastBoard::MoveRecord FastBoard::playMoveRecorded(Loc loc, Player player)
+FastBoard::MoveRecord FastBoard::playMoveRecorded(Loc loc, Player pla)
 {
   MoveRecord record;
   record.loc = loc;
-  record.pla = player;
+  record.pla = pla;
   record.ko_loc = ko_loc;
   record.capDirs = 0;
 
-  Player enemy = getEnemy(player);
+  Player opp = getOpp(pla);
   for(int i = 0; i < 4; i++)
   {
     int adj = loc + adj_offsets[i];
-    if(colors[adj] == enemy && getNumLiberties(adj) == 1)
+    if(colors[adj] == opp && getNumLiberties(adj) == 1)
       record.capDirs |= (((uint8_t)1) << i);
   }
-  if(record.capDirs == 0 && isSuicide(loc,player))
+  if(record.capDirs == 0 && isSuicide(loc,pla))
     record.capDirs = 0x10;
-  playMoveAssumeLegal(loc, player);
+  playMoveAssumeLegal(loc, pla);
   return record;
 }
 
@@ -394,7 +394,7 @@ void FastBoard::undo(FastBoard::MoveRecord record)
     if(record.capDirs & (1 << i))
     {
       if(colors[adj] == C_EMPTY)
-        addChain(adj, getEnemy(record.pla));
+        addChain(adj, getOpp(record.pla));
     }
   }
   //Re-fill suicided stones
@@ -408,8 +408,8 @@ void FastBoard::undo(FastBoard::MoveRecord record)
   colors[loc] = C_EMPTY;
   empty_list.add(loc);
 
-  //Uneat enemy liberties
-  changeSurroundingLiberties(loc, getEnemy(record.pla),+1);
+  //Uneat opp liberties
+  changeSurroundingLiberties(loc, getOpp(record.pla),+1);
 
   //If this was not a single stone, we need to recompute the chain from scratch
   if(chain_data[chain_head[loc]].num_locs > 1)
@@ -432,15 +432,15 @@ void FastBoard::undo(FastBoard::MoveRecord record)
   }
 }
 
-Hash128 FastBoard::getPosHashAfterMove(Loc loc, Player player) const {
+Hash128 FastBoard::getPosHashAfterMove(Loc loc, Player pla) const {
   if(loc == PASS_LOC)
     return pos_hash;
   assert(loc != NULL_LOC);
 
   Hash128 hash = pos_hash;
-  hash ^= ZOBRIST_BOARD_HASH[loc][player];
+  hash ^= ZOBRIST_BOARD_HASH[loc][pla];
 
-  Player enemy = getEnemy(player);
+  Player opp = getOpp(pla);
 
   //Count immediate liberties and groups that would be captured
   bool wouldBeSuicide = true;
@@ -450,9 +450,9 @@ Hash128 FastBoard::getPosHashAfterMove(Loc loc, Player player) const {
     Loc adj = loc + adj_offsets[i];
     if(colors[adj] == C_EMPTY)
       wouldBeSuicide = false;
-    else if(colors[adj] == player && getNumLiberties(adj) > 1)
+    else if(colors[adj] == pla && getNumLiberties(adj) > 1)
       wouldBeSuicide = false;
-    else if(colors[adj] == enemy) {
+    else if(colors[adj] == opp) {
       //Capture!
       if(getNumLiberties(adj) == 1) {
         //Make sure we haven't already counted it
@@ -469,7 +469,7 @@ Hash128 FastBoard::getPosHashAfterMove(Loc loc, Player player) const {
           //Now iterate through the group to update the hash
           Loc cur = adj;
           do {
-            hash ^= ZOBRIST_BOARD_HASH[cur][enemy];
+            hash ^= ZOBRIST_BOARD_HASH[cur][opp];
             cur = next_in_chain[cur];
           } while (cur != adj);
         }
@@ -484,7 +484,7 @@ Hash128 FastBoard::getPosHashAfterMove(Loc loc, Player player) const {
     for(int i = 0; i < 4; i++) {
       Loc adj = loc + adj_offsets[i];
       //Suicide capture!
-      if(colors[adj] == player && getNumLiberties(adj) == 1) {
+      if(colors[adj] == pla && getNumLiberties(adj) == 1) {
         //Make sure we haven't already counted it
         Loc head = chain_head[adj];
         bool alreadyFound = false;
@@ -498,7 +498,7 @@ Hash128 FastBoard::getPosHashAfterMove(Loc loc, Player player) const {
           //Now iterate through the group to update the hash
           Loc cur = adj;
           do {
-            hash ^= ZOBRIST_BOARD_HASH[cur][player];
+            hash ^= ZOBRIST_BOARD_HASH[cur][pla];
             cur = next_in_chain[cur];
           } while (cur != adj);
         }
@@ -506,14 +506,14 @@ Hash128 FastBoard::getPosHashAfterMove(Loc loc, Player player) const {
     }
 
     //Don't forget the stone we'd place would also die
-    hash ^= ZOBRIST_BOARD_HASH[loc][player];
+    hash ^= ZOBRIST_BOARD_HASH[loc][pla];
   }
 
   return hash;
 }
 
 //Plays the specified move, assuming it is legal.
-void FastBoard::playMoveAssumeLegal(Loc loc, Player player)
+void FastBoard::playMoveAssumeLegal(Loc loc, Player pla)
 {
   //Pass?
   if(loc == PASS_LOC)
@@ -522,30 +522,30 @@ void FastBoard::playMoveAssumeLegal(Loc loc, Player player)
     return;
   }
 
-  Player enemy = getEnemy(player);
+  Player opp = getOpp(pla);
 
   //Add the new stone as an independent group
-  colors[loc] = player;
-  pos_hash ^= ZOBRIST_BOARD_HASH[loc][player];
-  chain_data[loc].owner = player;
+  colors[loc] = pla;
+  pos_hash ^= ZOBRIST_BOARD_HASH[loc][pla];
+  chain_data[loc].owner = pla;
   chain_data[loc].num_locs = 1;
   chain_data[loc].num_liberties = countImmediateLiberties(loc);
   chain_head[loc] = loc;
   next_in_chain[loc] = loc;
   empty_list.remove(loc);
 
-  //Merge with surrounding friendly chains and capture any necessary enemy chains
+  //Merge with surrounding friendly chains and capture any necessary opp chains
   int num_captured = 0; //Number of stones captured
   Loc possible_ko_loc = NULL_LOC;  //What location a ko ban might become possible in
-  int num_enemies_seen = 0;  //How many enemy chains we have seen so far
-  Loc enemy_heads_seen[4];   //Heads of the enemy chains seen so far
+  int num_enemies_seen = 0;  //How many opp chains we have seen so far
+  Loc opp_heads_seen[4];   //Heads of the opp chains seen so far
 
   for(int i = 0; i < 4; i++)
   {
     int adj = loc + adj_offsets[i];
 
     //Friendly chain!
-    if(colors[adj] == player)
+    if(colors[adj] == pla)
     {
       //Already merged?
       if(chain_head[adj] == chain_head[loc])
@@ -556,23 +556,23 @@ void FastBoard::playMoveAssumeLegal(Loc loc, Player player)
       mergeChains(adj,loc);
     }
 
-    //Enemy chain!
-    else if(colors[adj] == enemy)
+    //Opp chain!
+    else if(colors[adj] == opp)
     {
-      Loc enemy_head = chain_head[adj];
+      Loc opp_head = chain_head[adj];
 
       //Have we seen it already?
       bool seen = false;
       for(int j = 0; j<num_enemies_seen; j++)
-        if(enemy_heads_seen[j] == enemy_head)
+        if(opp_heads_seen[j] == opp_head)
         {seen = true; break;}
 
       if(seen)
         continue;
 
       //Not already seen! Eat one liberty from it and mark it as seen
-      chain_data[enemy_head].num_liberties--;
-      enemy_heads_seen[num_enemies_seen++] = enemy_head;
+      chain_data[opp_head].num_liberties--;
+      opp_heads_seen[num_enemies_seen++] = opp_head;
 
       //Kill it?
       if(getNumLiberties(adj) == 0)
@@ -689,7 +689,7 @@ void FastBoard::mergeChains(Loc loc1, Loc loc2)
 int FastBoard::removeChain(Loc loc)
 {
   int num_stones_removed = 0; //Num stones removed
-  Player enemy = getEnemy(colors[loc]);
+  Player opp = getOpp(colors[loc]);
 
   //Walk around the chain...
   Loc cur = loc;
@@ -701,8 +701,8 @@ int FastBoard::removeChain(Loc loc)
     num_stones_removed++;
     empty_list.add(cur);
 
-    //For each distinct enemy chain around, add a liberty to it.
-    changeSurroundingLiberties(cur,enemy,+1);
+    //For each distinct opp chain around, add a liberty to it.
+    changeSurroundingLiberties(cur,opp,+1);
 
     cur = next_in_chain[cur];
 
@@ -714,7 +714,7 @@ int FastBoard::removeChain(Loc loc)
 //Remove a single stone, even a stone part of a larger group.
 void FastBoard::removeSingleStone(Loc loc)
 {
-  Player player = colors[loc];
+  Player pla = colors[loc];
 
   //Save the entire chain's stone locations
   int num_locs = chain_data[chain_head[loc]].num_locs;
@@ -734,7 +734,7 @@ void FastBoard::removeSingleStone(Loc loc)
   //Then add all the other stones back one by one.
   for(int i = 0; i<num_locs; i++) {
     if(locs[i] != loc)
-      playMoveAssumeLegal(locs[i],player);
+      playMoveAssumeLegal(locs[i],pla);
   }
 }
 
@@ -757,18 +757,18 @@ void FastBoard::addChain(Loc loc, Player pla)
 //Make the specified loc the head for all the chains and updates the chainData of head with the number of stones.
 //Does NOT connect the stones into a circular list. Rather, it produces an linear linked list with the tail pointing
 //to tailTarget, and returns the head of the list. The tail is guaranteed to be loc.
-Loc FastBoard::addChainHelper(Loc head, Loc tailTarget, Loc loc, Player player)
+Loc FastBoard::addChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 {
   //Add stone here
-  colors[loc] = player;
-  pos_hash ^= ZOBRIST_BOARD_HASH[loc][player];
+  colors[loc] = pla;
+  pos_hash ^= ZOBRIST_BOARD_HASH[loc][pla];
   chain_head[loc] = head;
   chain_data[head].num_locs++;
   next_in_chain[loc] = tailTarget;
   empty_list.remove(loc);
 
-  //Eat enemy liberties
-  changeSurroundingLiberties(loc,getEnemy(player),-1);
+  //Eat opp liberties
+  changeSurroundingLiberties(loc,getOpp(pla),-1);
 
   //Recursively add stones around us.
   Loc nextTailTarget = loc;
@@ -776,7 +776,7 @@ Loc FastBoard::addChainHelper(Loc head, Loc tailTarget, Loc loc, Player player)
   {
     Loc adj = loc + adj_offsets[i];
     if(colors[adj] == C_EMPTY)
-      nextTailTarget = addChainHelper(head,nextTailTarget,adj,player);
+      nextTailTarget = addChainHelper(head,nextTailTarget,adj,pla);
   }
   return nextTailTarget;
 }
@@ -802,7 +802,7 @@ void FastBoard::rebuildChain(Loc loc, Player pla)
 //Does same thing as addChain, but floods through a chain of the specified color already on the board
 //rebuilding its links and also counts its liberties as we go. Requires that all their heads point towards
 //some invalid location, such as NULL_LOC or a location not of color.
-Loc FastBoard::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player player)
+Loc FastBoard::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 {
   //Count new liberties
   for(int i = 0; i<4; i++)
@@ -822,21 +822,21 @@ Loc FastBoard::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player play
   for(int i = 0; i<4; i++)
   {
     Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == player && chain_head[adj] != head)
-      nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj,player);
+    if(colors[adj] == pla && chain_head[adj] != head)
+      nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj,pla);
   }
   return nextTailTarget;
 }
 
 //Apply the specified delta to the liberties of all adjacent groups of the specified color
-void FastBoard::changeSurroundingLiberties(Loc loc, Player player, int delta)
+void FastBoard::changeSurroundingLiberties(Loc loc, Player pla, int delta)
 {
-  int num_seen = 0;  //How many enemy chains we have seen so far
-  Loc heads_seen[4];   //Heads of the enemy chains seen so far
+  int num_seen = 0;  //How many opp chains we have seen so far
+  Loc heads_seen[4];   //Heads of the opp chains seen so far
   for(int i = 0; i < 4; i++)
   {
     int adj = loc + adj_offsets[i];
-    if(colors[adj] == player)
+    if(colors[adj] == pla)
     {
       Loc head = chain_head[adj];
 
@@ -1035,7 +1035,7 @@ int FastBoard::findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx
 //Helper, find captures that gain liberties for the group at loc. Fills in result, returns the number of captures.
 //bufStart is where to start checking to avoid duplicates. bufIdx is where to start actually writing.
 int FastBoard::findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const {
-  Player opp = getEnemy(colors[loc]);
+  Player opp = getOpp(colors[loc]);
 
   //For performance, avoid checking for captures on any chain twice
   int arrSize = x_size*y_size;
@@ -1083,7 +1083,7 @@ bool FastBoard::searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& b
 
   //Make it so that pla is always the defender
   Player pla = colors[loc];
-  Player opp = getEnemy(pla);
+  Player opp = getOpp(pla);
 
   int numLibs = findLiberties(loc,buf,0,0);
   assert(numLibs == 2);
@@ -1126,7 +1126,7 @@ bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>&
 
   //Make it so that pla is always the defender
   Player pla = colors[loc];
-  Player opp = getEnemy(pla);
+  Player opp = getOpp(pla);
 
   //Clear the ko loc for the defender at the root node - assume all kos work for the defender
   Loc ko_loc_saved = ko_loc;

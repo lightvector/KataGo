@@ -41,7 +41,7 @@ static void decodeStones(const string& linePla, const string& lineOpp, Color* st
 {
   assert(linePla.length() == 91);
   assert(lineOpp.length() == 91);
-  Player opp = getEnemy(pla);
+  Player opp = getOpp(pla);
   //The first 90 characters are a hex-encoding of the first 360 points
   for(int i = 0; i<90; i++) {
     int dPla = parseHexChar(linePla[i]);
@@ -176,7 +176,7 @@ void LZSample::parse(
     pla = P_WHITE;
   else
     assert(false);
-  Player opp = getEnemy(pla);
+  Player opp = getOpp(pla);
 
   //Parse all stones
   Color stones[8][FastBoard::MAX_ARR_SIZE];

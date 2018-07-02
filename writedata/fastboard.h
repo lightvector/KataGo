@@ -25,7 +25,7 @@ static const Color C_WHITE = 2;
 static const Color C_WALL = 3;
 
 //Conversions for players and colors
-static inline Color getEnemy(Color c)
+static inline Color getOpp(Color c)
 {return c ^ 3;}
 static inline char getCharOfColor(Color c)
 {
@@ -130,17 +130,17 @@ struct FastBoard
   //Gets the number of liberties of the chain at loc. Assertion: location must be black or white.
   int getNumLiberties(Loc loc) const;
   //Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
-  int getNumLibertiesAfterPlay(Loc loc, Player player, int max) const;
+  int getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const;
   //Check if moving here is would be a self-capture
-  bool isSuicide(Loc loc, Player player) const;
+  bool isSuicide(Loc loc, Player pla) const;
   //Check if moving here is would be an illegal self-capture
-  bool isIllegalSuicide(Loc loc, Player player) const;
+  bool isIllegalSuicide(Loc loc, Player pla) const;
   //Check if moving here is illegal due to simple ko
   bool isKoBanned(Loc loc) const;
   //Check if moving here is illegal.
-  bool isLegal(Loc loc, Player player) const;
+  bool isLegal(Loc loc, Player pla) const;
   //Check if this location contains a simple eye for the specified player.
-  bool isSimpleEye(Loc loc, Player player) const;
+  bool isSimpleEye(Loc loc, Player pla) const;
 
   //Configuration the board in various ways
   void setMultiStoneSuicideLegal(bool b);
@@ -150,13 +150,13 @@ struct FastBoard
   bool setStone(Loc loc, Color color);
 
   //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
-  bool playMove(Loc loc, Player player);
+  bool playMove(Loc loc, Player pla);
 
   //Plays the specified move, assuming it is legal.
-  void playMoveAssumeLegal(Loc loc, Player player);
+  void playMoveAssumeLegal(Loc loc, Player pla);
 
   //Plays the specified move, assuming it is legal, and returns a MoveRecord for the move
-  MoveRecord playMoveRecorded(Loc loc, Player player);
+  MoveRecord playMoveRecorded(Loc loc, Player pla);
 
   //Undo the move given by record. Moves MUST be undone in the order they were made.
   //Undos will NOT typically restore the precise representation in the board to the way it was. The heads of chains
@@ -164,10 +164,10 @@ struct FastBoard
   void undo(MoveRecord record);
 
   //Get what the position hash would be if we were to play this move. Assumes the move is legal.
-  Hash128 getPosHashAfterMove(Loc loc, Player player) const;
+  Hash128 getPosHashAfterMove(Loc loc, Player pla) const;
 
   //Get a random legal move that does not fill a simple eye.
-  Loc getRandomMCLegal(Player player);
+  Loc getRandomMCLegal(Player pla);
 
   //Check if the given stone is in unescapable atari or can be put into unescapable atari.
   //WILL perform a mutable search - may alter the linked lists or heads, etc.

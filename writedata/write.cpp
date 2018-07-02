@@ -220,7 +220,7 @@ static void iterLadders(const FastBoard& board, std::function<void(Loc,int,const
 
 // //Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
 // static void iterWouldBeLadder(const FastBoard& board, Player pla, std::function<void(Loc,int)> f) {
-//   Player opp = getEnemy(pla);
+//   Player opp = getOpp(pla);
 //   int bSize = board.x_size;
 //   int offset = (maxBoardSize - bSize) / 2;
 
@@ -248,7 +248,7 @@ static void fillRow(const vector<FastBoard>& recentBoards, const vector<Move>& m
   assert(nextMoveIdx < moves.size());
 
   Player pla = nextPlayer;
-  Player opp = getEnemy(pla);
+  Player opp = getOpp(pla);
   int bSize = board.x_size;
   int offset = (maxBoardSize - bSize) / 2;
 
@@ -912,7 +912,7 @@ static void iterSgfsAndLZMoves(
           float valueTarget = 0.0;
           if(winner == nextPlayer)
             valueTarget = 1.0;
-          else if(winner == getEnemy(nextPlayer))
+          else if(winner == getOpp(nextPlayer))
             valueTarget = -1.0;
           float selfKomi = 0.0;
           if(nextPlayer == P_BLACK)
