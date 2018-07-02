@@ -537,7 +537,7 @@ void FastBoard::playMoveAssumeLegal(Loc loc, Player pla)
   //Merge with surrounding friendly chains and capture any necessary opp chains
   int num_captured = 0; //Number of stones captured
   Loc possible_ko_loc = NULL_LOC;  //What location a ko ban might become possible in
-  int num_enemies_seen = 0;  //How many opp chains we have seen so far
+  int num_opps_seen = 0;  //How many opp chains we have seen so far
   Loc opp_heads_seen[4];   //Heads of the opp chains seen so far
 
   for(int i = 0; i < 4; i++)
@@ -563,7 +563,7 @@ void FastBoard::playMoveAssumeLegal(Loc loc, Player pla)
 
       //Have we seen it already?
       bool seen = false;
-      for(int j = 0; j<num_enemies_seen; j++)
+      for(int j = 0; j<num_opps_seen; j++)
         if(opp_heads_seen[j] == opp_head)
         {seen = true; break;}
 
@@ -572,7 +572,7 @@ void FastBoard::playMoveAssumeLegal(Loc loc, Player pla)
 
       //Not already seen! Eat one liberty from it and mark it as seen
       chain_data[opp_head].num_liberties--;
-      opp_heads_seen[num_enemies_seen++] = opp_head;
+      opp_heads_seen[num_opps_seen++] = opp_head;
 
       //Kill it?
       if(getNumLiberties(adj) == 0)

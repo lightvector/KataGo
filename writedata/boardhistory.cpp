@@ -59,6 +59,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   koHashHistory = std::move(other.koHashHistory);
   for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
     wasEverOccupiedOrPlayed[i] = other.wasEverOccupiedOrPlayed[i];
+  return *this;
 }
 
 void BoardHistory::clear(const Rules& rules, const FastBoard& board, Player pla) {

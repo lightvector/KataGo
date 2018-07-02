@@ -72,6 +72,10 @@ if (HDF5_FOUND)
     target_link_libraries (write ${HDF5_LIBRARIES})
 endif (HDF5_FOUND)
 
+if (CMAKE_COMPILER_IS_GNUCC)
+  set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-sign-compare")
+endif ()
+
 # find_package(ZLIB REQUIRED)
 # if (ZLIB_FOUND)
 #     include_directories(${ZLIB_INCLUDE_DIRS})

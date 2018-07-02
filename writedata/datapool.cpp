@@ -51,7 +51,6 @@ float* DataPool::addRowHelper(Rand& rand) {
   }
   //Otherwise, randomly evict a row.
   size_t evictIdx = (size_t)rand.nextUInt64(poolCapacity);
-  assert(evictIdx >= 0);
   float* row = &(pool[rowWidth*evictIdx]);
   accumWriteBuf(row,writeRow);
   return row;
@@ -72,7 +71,6 @@ static void fillRandomPermutation(size_t* arr, size_t len, Rand& rand) {
     arr[i] = i;
   for(size_t i = 1; i<len; i++) {
     size_t r = (size_t)rand.nextUInt64(i+1);
-    assert(r >= 0);
     size_t tmp = arr[r];
     arr[r] = arr[i];
     arr[i] = tmp;

@@ -94,6 +94,7 @@ static int parseSource(const string& fileName) {
       cerr << "Suppressing further warnings for unknown sgf sources" << endl;
       emittedSourceWarningYet = true;
     }
+    return SOURCE_UNKNOWN;
   }
 }
 

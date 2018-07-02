@@ -38,7 +38,7 @@ struct KoHashTable {
   uint16_t* idxTable;
   vector<Hash128> koHashHistorySortedByLowBits;
 
-  static const int TABLE_SIZE = 1 >> 10;
+  static const int TABLE_SIZE = 1 << 10;
   static const uint64_t TABLE_MASK = TABLE_SIZE-1;
 
   KoHashTable();
