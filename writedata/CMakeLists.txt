@@ -65,6 +65,31 @@ add_executable(write
   write.cpp
   )
 
+
+add_executable(runtests
+  core/config.h
+  core/global.cpp
+  core/global.h
+  core/hash.cpp
+  core/hash.h
+  core/md5.cpp
+  core/md5.h
+  core/multithread.h
+  core/rand.cpp
+  core/rand.h
+  core/rand_helpers.h
+  core/sha2.cpp
+  core/sha2.h
+  core/timer.cpp
+  core/timer.h
+  fastboard.cpp
+  fastboard.h
+  rules.h
+  boardhistory.cpp
+  boardhistory.h
+  tests.cpp
+  )
+
 find_package(HDF5 REQUIRED COMPONENTS C CXX)
 
 if (HDF5_FOUND)

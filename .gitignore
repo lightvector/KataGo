@@ -5,6 +5,7 @@ __pycache__
 *.h5
 
 writedata/write
+writedata/runtests
 
 # For clion IDE
 .idea

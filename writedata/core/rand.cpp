@@ -38,7 +38,7 @@ void XorShift1024Mult::test()
     3719698449347562208ULL,
     5421263376768154227ULL
   };
-    
+
   XorShift1024Mult xorm(init_a);
 
   const uint32_t expected[32] = {
@@ -75,11 +75,15 @@ void XorShift1024Mult::test()
     0x1f2f0268u,
     0xadd59669u,
   };
-  
+
   for(int i = 0; i<32; i++) {
     uint32_t r = xorm.nextUInt();
-    cout << "XorShift1024Mult: " << Global::uint32ToHexString(r) << endl;
-    assert(r == expected[i]);
+    if(r != expected[i]) {
+      cout << i << endl;
+      cout << Global::uint32ToHexString(r) << endl;
+      cout << Global::uint32ToHexString(expected[i]) << endl;
+      Global::fatalError("XorShift1024Mult generated unexpected values");
+    }
   }
 }
 
@@ -117,11 +121,15 @@ void PCG32::test()
     0x8b778f3cu,
     0xdb72f217u,
   };
-  
+
   for(int i = 0; i<16; i++) {
     uint32_t r = pcg.nextUInt();
-    cout << "PCG32: " << Global::uint32ToHexString(r) << endl;
-    assert(r == expected[i]);
+    if(r != expected[i]) {
+      cout << i << endl;
+      cout << Global::uint32ToHexString(r) << endl;
+      cout << Global::uint32ToHexString(expected[i]) << endl;
+      Global::fatalError("PCG32 generated unexpected values");
+    }
   }
 }
 
@@ -176,7 +184,7 @@ void Rand::init()
 
   uint64_t hash[4];
   SHA2::get256(s.c_str(), hash);
-  
+
   init(Global::uint64ToHexString(hash[0]));
 }
 
@@ -193,7 +201,7 @@ void Rand::init(const char* seed)
 void Rand::init(const string& seed)
 {
   initSeed = seed;
-  
+
   string s = seed;
   int x = 0;
 
@@ -206,14 +214,14 @@ void Rand::init(const string& seed)
     } while(hash[0] == 0);
     return hash[0];
   };
-  
+
   uint64_t init_a[XorShift1024Mult::XORMULT_LEN];
   for(int i = 0; i<XorShift1024Mult::XORMULT_LEN; i++)
     init_a[i] = getNonzero();
 
   xorm.init(init_a);
-  pcg32.init(getNonzero());  
-  
+  pcg32.init(getNonzero());
+
   hasGaussian = false;
   storedGaussian = 0.0;
   numCalls = 0;
@@ -249,15 +257,21 @@ void Rand::test()
     0xa5d6e74fu,
     0x274e20a5u,
   };
-  
+
   for(int i = 0; i<24; i++) {
     uint32_t r = rand.nextUInt();
-    cout << "Rand: " << Global::uint32ToHexString(r) << endl;
-    assert(r == expected[i]);
+    if(r != expected[i]) {
+      cout << i << endl;
+      cout << Global::uint32ToHexString(r) << endl;
+      cout << Global::uint32ToHexString(expected[i]) << endl;
+      Global::fatalError("Rand generated unexpected values");
+    }
   }
 
   char hash[65];
   SHA2::get256("The quick brown fox jumps over the lazy dog.", hash);
-  cout << "SHA256: " << hash << endl;
-  assert(string(hash) == string("ef537f25c895bfa782526529a9b63d97aa631564d5d789c2b765448c8635fb6c"));
+  if(string(hash) != string("ef537f25c895bfa782526529a9b63d97aa631564d5d789c2b765448c8635fb6c")) {
+    cout << hash << endl;
+    cout << "SHA2 generated unexpected hash" << endl;
+  }
 }

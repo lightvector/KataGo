@@ -71,9 +71,9 @@ struct FastBoard
 
   //Board parameters and Constants----------------------------------------
 
-  static const int MAX_SIZE = 19;  //Maximum edge length allowed for the board
-  static const int MAX_PLAY_SIZE = MAX_SIZE * MAX_SIZE;  //Maximum number of playable spaces
-  static const int MAX_ARR_SIZE = (MAX_SIZE+1)*(MAX_SIZE+2)+1; //Maximum size of arrays needed
+  static const int MAX_LEN = 19;  //Maximum edge length allowed for the board
+  static const int MAX_PLAY_SIZE = MAX_LEN * MAX_LEN;  //Maximum number of playable spaces
+  static const int MAX_ARR_SIZE = (MAX_LEN+1)*(MAX_LEN+2)+1; //Maximum size of arrays needed
 
   //Location used to indicate an invalid spot on the board.
   static const Loc NULL_LOC = 0;
@@ -82,8 +82,8 @@ struct FastBoard
 
   //Zobrist Hashing------------------------------
   static bool IS_ZOBRIST_INITALIZED;
-  static Hash128 ZOBRIST_SIZE_X_HASH[MAX_SIZE+1];
-  static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_SIZE+1];
+  static Hash128 ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
+  static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static Hash128 ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
@@ -104,8 +104,9 @@ struct FastBoard
     void operator=(const PointList&);
     void add(Loc);
     void remove(Loc);
-    int size();
+    int size() const;
     Loc& operator[](int);
+    bool contains(Loc loc) const;
 
     Loc list_[MAX_PLAY_SIZE];   //Locations in the list
     int indices_[MAX_ARR_SIZE]; //Maps location to index in the list
@@ -131,6 +132,9 @@ struct FastBoard
   int getNumLiberties(Loc loc) const;
   //Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
   int getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const;
+  //Gets the number of empty spaces directly adjacent to this location
+  int getNumImmediateLiberties(Loc loc) const;
+
   //Check if moving here is would be a self-capture
   bool isSuicide(Loc loc, Player pla) const;
   //Check if moving here is would be an illegal self-capture
@@ -139,8 +143,12 @@ struct FastBoard
   bool isKoBanned(Loc loc) const;
   //Check if moving here is illegal.
   bool isLegal(Loc loc, Player pla) const;
+  //Check if this location is on the board
+  bool isOnBoard(Loc loc) const;
   //Check if this location contains a simple eye for the specified player.
   bool isSimpleEye(Loc loc, Player pla) const;
+  //Check if a move at this location would be a capture in a simple ko mouth.
+  bool wouldBeKoCapture(Loc loc, Player pla) const;
 
   //Configuration the board in various ways
   void setMultiStoneSuicideLegal(bool b);
@@ -174,6 +182,13 @@ struct FastBoard
   bool searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf);
   bool searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, vector<Loc>& workingMoves);
 
+  //For each player, mark all spots that are their pass-alive-group or pass-alive-territory
+  //[result] must be a buffer of size MAX_ARR_SIZE and will get filled with the result
+  void calculatePassAliveTerritory(Color* result) const;
+
+  //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
+  void checkConsistency() const;
+  
   //Data--------------------------------------------
 
   int x_size;                  //Horizontal size of board
@@ -198,9 +213,8 @@ struct FastBoard
 
   private:
   void init(int xS, int yS, bool multiStoneSuicideLegal);
-  int countImmediateLiberties(Loc loc);
-  int countHeuristicConnectionLibertiesX2(Loc loc, Player pla);
-  bool isLibertyOf(Loc loc, Loc head);
+  int countHeuristicConnectionLibertiesX2(Loc loc, Player pla) const;
+  bool isLibertyOf(Loc loc, Loc head) const;
   void mergeChains(Loc loc1, Loc loc2);
   int removeChain(Loc loc);
   void removeSingleStone(Loc loc);
@@ -215,6 +229,9 @@ struct FastBoard
 
   int findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
   int findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
+
+  void calculatePassAliveTerritoryForPla(Player pla, Color* result) const;
+
 
   //static void monteCarloOwner(Player player, FastBoard* board, int mc_counts[]);
 };
