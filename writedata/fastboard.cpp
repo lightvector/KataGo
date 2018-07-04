@@ -1109,6 +1109,26 @@ int FastBoard::findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStar
   return numFound;
 }
 
+//Helper, does the group at loc have at least one opponent group adjacent to it in atari?
+bool FastBoard::hasLibertyGainingCaptures(Loc loc) const {
+  Player opp = getOpp(colors[loc]);
+  Loc cur = loc;
+  do
+  {
+    for(int i = 0; i < 4; i++) {
+      Loc adj = cur + adj_offsets[i];
+      if(colors[adj] == opp) {
+        Loc head = chain_head[adj];
+        if(chain_data[head].num_liberties == 1)
+          return true;
+      }
+    }
+    cur = next_in_chain[cur];
+  } while (cur != loc);
+
+  return false;
+}
+
 bool FastBoard::searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, vector<Loc>& workingMoves) {
   if(loc < 0 || loc >= MAX_ARR_SIZE)
     return false;
@@ -1170,7 +1190,7 @@ bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>&
     ko_loc = NULL_LOC;
 
   //Stack for the search. These point to lists of possible moves to search at each level of the stack, indices refer to indices in [buf].
-  int arrSize = x_size*y_size*2; //A bit bigger due to paranoia about recaptures making the sequence longer.
+  int arrSize = x_size*y_size*3/2+1; //A bit bigger due to paranoia about recaptures making the sequence longer.
   int moveListStarts[arrSize]; //Buf idx of start of list
   int moveListLens[arrSize]; //Len of list
   int moveListCur[arrSize]; //Current move list idx searched, equal to -1 if list has not been generated.
@@ -1192,6 +1212,11 @@ bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>&
       assert(stackIdx == -1);
       ko_loc = ko_loc_saved;
       return returnValue;
+    }
+
+    //If we hit the stack limit, just consider it a failed ladder.
+    if(stackIdx >= arrSize-1) {
+      returnValue = true; returnedFromDeeper = true; stackIdx--; continue;
     }
 
     bool isDefender = (defenderFirst && (stackIdx % 2) == 0) || (!defenderFirst && (stackIdx % 2) == 1);
@@ -1228,6 +1253,19 @@ bool FastBoard::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>&
         int libs0 = getNumImmediateLiberties(buf[start]);
         int libs1 = getNumImmediateLiberties(buf[start+1]);
 
+        //If we are the attacker and we're in a double-ko death situation, then assume we win.
+        //Both defender liberties must be ko mouths, connecting either ko mouth must not increase the defender's
+        //liberties, and none of the attacker's surrounding stones can currently be in atari.
+        //This is not complete - there are situations where the defender's connections increase liberties, or where
+        //the attacker has stones in atari, but where the defender is still in inescapable atari even if they have
+        //a large finite number of ko threats. But it's better than nothing. 
+        if(libs0 == 0 && libs1 == 0 && wouldBeKoCapture(buf[start],opp) && wouldBeKoCapture(buf[start+1],opp)) {
+          if(getNumLibertiesAfterPlay(buf[start],pla,3) <= 2 && getNumLibertiesAfterPlay(buf[start+1],pla,3) <= 2) {
+            if(!hasLibertyGainingCaptures(loc))
+            { returnValue = true; returnedFromDeeper = true; stackIdx--; continue; }
+          }
+        }
+        
         //Early quitouts if the liberties are not adjacent
         //(so that filling one doesn't fill an immediate liberty of the other)
         if(!Location::isAdjacent(buf[start],buf[start+1],x_size)) {

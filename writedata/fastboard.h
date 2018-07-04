@@ -135,9 +135,9 @@ struct FastBoard
   //Gets the number of empty spaces directly adjacent to this location
   int getNumImmediateLiberties(Loc loc) const;
 
-  //Check if moving here is would be a self-capture
+  //Check if moving here would be a self-capture
   bool isSuicide(Loc loc, Player pla) const;
-  //Check if moving here is would be an illegal self-capture
+  //Check if moving here would be an illegal self-capture
   bool isIllegalSuicide(Loc loc, Player pla) const;
   //Check if moving here is illegal due to simple ko
   bool isKoBanned(Loc loc) const;
@@ -229,6 +229,7 @@ struct FastBoard
 
   int findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
   int findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
+  bool hasLibertyGainingCaptures(Loc loc) const;
 
   void calculatePassAliveTerritoryForPla(Player pla, Color* result) const;
 
