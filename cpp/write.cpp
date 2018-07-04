@@ -1,9 +1,9 @@
 #include "core/global.h"
 #include "core/rand.h"
 #include "game/board.h"
-#include "sgf.h"
-#include "lzparse.h"
-#include "datapool.h"
+#include "dataio/sgf.h"
+#include "dataio/lzparse.h"
+#include "dataio/datapool.h"
 #include <fstream>
 #include <algorithm>
 

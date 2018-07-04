@@ -3,9 +3,6 @@
 #include "core/global.h"
 #include "core/rand.h"
 #include "game/board.h"
-#include "sgf.h"
-#include "lzparse.h"
-#include "datapool.h"
 
 static void testAssertFailed(const char *msg, const char *file, int line) {
   Global::fatalError(string("Failed test assert: ") + string(msg) + "\n" + string("file: ") + string(file) + "\n" + string("line: ") + Global::intToString(line));

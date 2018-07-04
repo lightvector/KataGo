@@ -1,8 +1,8 @@
 
-#include "core/global.h"
-#include "game/board.h"
-#include "sgf.h"
-#include "lzparse.h"
+#include "../core/global.h"
+#include "../game/board.h"
+#include "../dataio/sgf.h"
+#include "../dataio/lzparse.h"
 #include <zstr/src/zstr.hpp>
 #include <cstdlib>
 

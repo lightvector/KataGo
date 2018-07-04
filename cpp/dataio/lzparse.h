@@ -1,9 +1,9 @@
 #ifndef LZPARSE_H_
 #define LZPARSE_H_
 
-#include "core/global.h"
-#include "game/board.h"
-#include "sgf.h"
+#include "../core/global.h"
+#include "../game/board.h"
+#include "../dataio/sgf.h"
 
 struct LZSample {
   Board emptyBoard;

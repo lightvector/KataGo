@@ -2,8 +2,8 @@
 #define DATAPOOL_H
 
 #include <functional>
-#include "core/global.h"
-#include "core/rand.h"
+#include "../core/global.h"
+#include "../core/rand.h"
 
 class DataPool {
   size_t rowWidth;

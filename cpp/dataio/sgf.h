@@ -1,9 +1,9 @@
 #ifndef SGF_H_
 #define SGF_H_
 
-#include "core/global.h"
-#include "core/hash.h"
-#include "game/board.h"
+#include "../core/global.h"
+#include "../core/hash.h"
+#include "../game/board.h"
 
 STRUCT_NAMED_TRIPLE(uint8_t,x,uint8_t,y,Player,pla,MoveNoBSize);
 

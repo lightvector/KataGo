@@ -1,6 +1,6 @@
-#include "core/global.h"
-#include "core/sha2.h"
-#include "sgf.h"
+#include "../core/global.h"
+#include "../core/sha2.h"
+#include "../dataio/sgf.h"
 
 SgfNode::SgfNode()
   :props(NULL),move(0,0,C_EMPTY)

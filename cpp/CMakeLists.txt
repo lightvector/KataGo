@@ -56,12 +56,12 @@ add_executable(write
   game/rules.h
   game/boardhistory.cpp
   game/boardhistory.h
-  datapool.cpp
-  datapool.h
-  lzparse.cpp
-  lzparse.h
-  sgf.cpp
-  sgf.h
+  dataio/datapool.cpp
+  dataio/datapool.h
+  dataio/lzparse.cpp
+  dataio/lzparse.h
+  dataio/sgf.cpp
+  dataio/sgf.h
   write.cpp
   )
 
