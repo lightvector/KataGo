@@ -2,8 +2,8 @@
 #include <blosc.h>
 #include <cstring>
 
-#include "core/global.h"
-#include "binaryfile.h"
+#include "../core/global.h"
+#include "../dataio/binaryfile.h"
 
 static bool initialized = false;
 

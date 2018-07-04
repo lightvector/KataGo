@@ -1,8 +1,8 @@
 #ifndef LOCKPOOL_H
 #define LOCKPOOL_H
 
-#include "core/global.h"
-#include "core/multithread.h"
+#include "../core/global.h"
+#include "../core/multithread.h"
 
 class MutexPool {
   mutex* mutexes;

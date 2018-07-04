@@ -2,7 +2,7 @@
 #define BINARYFILE_H
 
 #include <fstream>
-#include "core/global.h"
+#include "../core/global.h"
 
 /*
   Write raw binary data to disk.
