@@ -1419,7 +1419,7 @@ void FastBoard::calculatePassAliveTerritoryForPla(Player pla, Color* result) con
                  &vitalForPlaHeadsLists,
                  &vitalStart,&vitalLen,&numInternalSpacesMax2,
                  this,
-                 &isAdjacentToPlaHead,&buildRegion](Loc head, Loc tailTarget, Loc loc, int regionIdx) -> Loc {
+                 &isAdjacentToPlaHead,&nextEmptyOrOpp,&buildRegion](Loc head, Loc tailTarget, Loc loc, int regionIdx) -> Loc {
     if(regionHeadByLoc[loc] != NULL_LOC)
       return tailTarget;
     regionHeadByLoc[loc] = head;
@@ -1457,6 +1457,7 @@ void FastBoard::calculatePassAliveTerritoryForPla(Player pla, Color* result) con
     }
 
     //Next, recurse everywhere
+    nextEmptyOrOpp[loc] = tailTarget;
     Loc nextTailTarget = loc;
     for(int i = 0; i<4; i++)
     {
@@ -1471,6 +1472,8 @@ void FastBoard::calculatePassAliveTerritoryForPla(Player pla, Color* result) con
     for(int x = 0; x < x_size; x++) {
       Loc loc = Location::getLoc(x,y,x_size);
       if(regionHeadByLoc[loc] != NULL_LOC)
+        continue;
+      if(colors[loc] != C_EMPTY)
         continue;
       int regionIdx = numRegions;
       numRegions++;
@@ -1507,11 +1510,14 @@ void FastBoard::calculatePassAliveTerritoryForPla(Player pla, Color* result) con
         }
         vitalLen[regionIdx] = initialVLen;
       }
-      Loc tailTarget = buildRegion(head,loc,loc,regionIdx);
-      nextEmptyOrOpp[loc] = tailTarget;
+      Loc tailTarget = buildRegion(head,head,loc,regionIdx);
+      nextEmptyOrOpp[head] = tailTarget;
 
       assert(numInternalSpacesMax2[regionIdx] == 0 || vitalLen[regionIdx] == 0);
       vitalForPlaHeadsListsTotal += vitalLen[regionIdx];
+
+      // for(int k = 0; k<vitalLen[regionIdx]; k++)
+      //   cout << Location::toString(head,x_size) << "is vital for" << Location::toString(vitalForPlaHeadsLists[vitalStart[regionIdx]+k],x_size) << endl;
     }
   }
 
@@ -1544,7 +1550,6 @@ void FastBoard::calculatePassAliveTerritoryForPla(Player pla, Color* result) con
   bool plaHasBeenKilled[numPlaHeads];
   for(int i = 0; i<numPlaHeads; i++)
     plaHasBeenKilled[i] = false;
-
 
   //Now, we can begin the benson iteration
   uint16_t vitalCountByPlaHead[MAX_ARR_SIZE];
