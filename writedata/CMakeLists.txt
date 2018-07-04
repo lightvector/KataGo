@@ -51,13 +51,13 @@ add_executable(write
   tclap-1.2.1/include/tclap/ZshCompletionOutput.h
   zstr/src/strict_fstream.hpp
   zstr/src/zstr.hpp
+  game/board.cpp
+  game/board.h
+  game/rules.h
+  game/boardhistory.cpp
+  game/boardhistory.h
   datapool.cpp
   datapool.h
-  fastboard.cpp
-  fastboard.h
-  rules.h
-  boardhistory.cpp
-  boardhistory.h
   lzparse.cpp
   lzparse.h
   sgf.cpp
@@ -82,11 +82,11 @@ add_executable(runtests
   core/sha2.h
   core/timer.cpp
   core/timer.h
-  fastboard.cpp
-  fastboard.h
-  rules.h
-  boardhistory.cpp
-  boardhistory.h
+  game/board.cpp
+  game/board.h
+  game/rules.h
+  game/boardhistory.cpp
+  game/boardhistory.h
   tests.cpp
   )
 

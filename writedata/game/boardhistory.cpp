@@ -1,11 +1,11 @@
 
 #include <algorithm>
-#include "core/global.h"
-#include "boardhistory.h"
+#include "../core/global.h"
+#include "../game/boardhistory.h"
 
-static Hash128 getKoHash(const Rules& rules, const FastBoard& board, Player pla) {
+static Hash128 getKoHash(const Rules& rules, const Board& board, Player pla) {
   if(rules.koRule == Rules::KO_SITUATIONAL)
-    return board.pos_hash ^ FastBoard::ZOBRIST_PLAYER_HASH[pla];
+    return board.pos_hash ^ Board::ZOBRIST_PLAYER_HASH[pla];
   else
     return board.pos_hash;
 }
@@ -13,17 +13,17 @@ static Hash128 getKoHash(const Rules& rules, const FastBoard& board, Player pla)
 BoardHistory::BoardHistory()
   :moveHistory(),koHashHistory()
 {
-  for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
+  for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
     wasEverOccupiedOrPlayed[i] = false;
 }
 
 BoardHistory::~BoardHistory()
 {}
 
-BoardHistory::BoardHistory(const Rules& rules, const FastBoard& board, Player pla)
+BoardHistory::BoardHistory(const Rules& rules, const Board& board, Player pla)
   :moveHistory(),koHashHistory()
 {
-  for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
+  for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
     wasEverOccupiedOrPlayed[i] = false;
 
   clear(rules,board,pla);
@@ -32,7 +32,7 @@ BoardHistory::BoardHistory(const Rules& rules, const FastBoard& board, Player pl
 BoardHistory::BoardHistory(const BoardHistory& other)
   :moveHistory(other.moveHistory),koHashHistory(other.koHashHistory)
 {
-  for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
+  for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
     wasEverOccupiedOrPlayed[i] = other.wasEverOccupiedOrPlayed[i];
 }
 
@@ -41,7 +41,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
 {
   moveHistory = other.moveHistory;
   koHashHistory = other.koHashHistory;
-  for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
+  for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
     wasEverOccupiedOrPlayed[i] = other.wasEverOccupiedOrPlayed[i];
   return *this;
 }
@@ -49,7 +49,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
 BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   :moveHistory(std::move(other.moveHistory)),koHashHistory(std::move(other.koHashHistory))
 {
-  for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
+  for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
     wasEverOccupiedOrPlayed[i] = other.wasEverOccupiedOrPlayed[i];
 }
 
@@ -57,12 +57,12 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
 {
   moveHistory = std::move(other.moveHistory);
   koHashHistory = std::move(other.koHashHistory);
-  for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
+  for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
     wasEverOccupiedOrPlayed[i] = other.wasEverOccupiedOrPlayed[i];
   return *this;
 }
 
-void BoardHistory::clear(const Rules& rules, const FastBoard& board, Player pla) {
+void BoardHistory::clear(const Rules& rules, const Board& board, Player pla) {
   moveHistory.clear();
   koHashHistory.clear();
   koHashHistory.push_back(getKoHash(rules,board,pla));
@@ -75,7 +75,7 @@ void BoardHistory::clear(const Rules& rules, const FastBoard& board, Player pla)
   }
 }
 
-void BoardHistory::updateAfterMove(const Rules& rules, const FastBoard& board, Loc moveLoc, Player movePla) {
+void BoardHistory::updateAfterMove(const Rules& rules, const Board& board, Loc moveLoc, Player movePla) {
   koHashHistory.push_back(getKoHash(rules,board,getOpp(movePla)));
   moveHistory.push_back(Move(moveLoc,movePla));
   wasEverOccupiedOrPlayed[moveLoc] = true;

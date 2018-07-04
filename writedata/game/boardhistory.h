@@ -1,10 +1,10 @@
 #ifndef BOARDHISTORY_H_
 #define BOARDHISTORY_H_
 
-#include "core/global.h"
-#include "core/hash.h"
-#include "fastboard.h"
-#include "rules.h"
+#include "../core/global.h"
+#include "../core/hash.h"
+#include "../game/board.h"
+#include "../game/rules.h"
 
 //A data structure enabling fast checking if a move would be illegal due to superko.
 struct BoardHistory {
@@ -15,12 +15,12 @@ struct BoardHistory {
 
   //Did this board location ever have a stone there before, or was it ever played?
   //(Also includes locations of suicides)
-  bool wasEverOccupiedOrPlayed[FastBoard::MAX_ARR_SIZE];
+  bool wasEverOccupiedOrPlayed[Board::MAX_ARR_SIZE];
 
   BoardHistory();
   ~BoardHistory();
 
-  BoardHistory(const Rules& rules, const FastBoard& board, Player pla);
+  BoardHistory(const Rules& rules, const Board& board, Player pla);
 
   BoardHistory(const BoardHistory& other);
   BoardHistory& operator=(const BoardHistory& other);
@@ -28,9 +28,9 @@ struct BoardHistory {
   BoardHistory(BoardHistory&& other) noexcept;
   BoardHistory& operator=(BoardHistory&& other) noexcept;
 
-  void clear(const Rules& rules, const FastBoard& board, Player pla);
+  void clear(const Rules& rules, const Board& board, Player pla);
 
-  void updateAfterMove(const Rules& rules, const FastBoard& board, Loc moveLoc, Player movePla);
+  void updateAfterMove(const Rules& rules, const Board& board, Loc moveLoc, Player movePla);
 
 };
 

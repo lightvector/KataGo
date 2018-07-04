@@ -1,6 +1,5 @@
 #include "core/global.h"
 #include "core/sha2.h"
-#include "fastboard.h"
 #include "sgf.h"
 
 SgfNode::SgfNode()
@@ -40,7 +39,7 @@ static Loc parseSgfLoc(const string& s, int bSize) {
 
 static Loc parseSgfLocOrPass(const string& s, int bSize) {
   if(s.length() == 0 || s == "tt")
-    return FastBoard::PASS_LOC;
+    return Board::PASS_LOC;
   return parseSgfLoc(s,bSize);
 }
 
@@ -97,7 +96,7 @@ void SgfNode::accumPlacements(vector<Move>& moves, int bSize) const {
 void SgfNode::accumMoves(vector<Move>& moves, int bSize) const {
   if(move.pla == C_BLACK) {
     if(move.x == 128 && move.y == 128)
-      moves.push_back(Move(FastBoard::PASS_LOC,move.pla));
+      moves.push_back(Move(Board::PASS_LOC,move.pla));
     else {
       if(move.x >= bSize || move.y >= bSize) propertyFail("Move out of bounds: " + Global::intToString(move.x) + "," + Global::intToString(move.y));
       moves.push_back(Move(Location::getLoc(move.x,move.y,bSize),move.pla));
@@ -113,7 +112,7 @@ void SgfNode::accumMoves(vector<Move>& moves, int bSize) const {
   }
   if(move.pla == C_WHITE) {
     if(move.x == 128 && move.y == 128)
-      moves.push_back(Move(FastBoard::PASS_LOC,move.pla));
+      moves.push_back(Move(Board::PASS_LOC,move.pla));
     else {
       if(move.x >= bSize || move.y >= bSize) propertyFail("Move out of bounds: " + Global::intToString(move.x) + "," + Global::intToString(move.y));
       moves.push_back(Move(Location::getLoc(move.x,move.y,bSize),move.pla));
@@ -273,7 +272,7 @@ static bool maybeParseProperty(SgfNode* node, const string& str, int& pos) {
     if(node->move.pla == C_EMPTY && key == "B") {
       int bSize = 128;
       Loc loc = parseSgfLocOrPass(parseTextValue(str,pos),bSize);
-      if(loc == FastBoard::PASS_LOC)
+      if(loc == Board::PASS_LOC)
         node->move = MoveNoBSize(128,128,P_BLACK);
       else
         node->move = MoveNoBSize((uint8_t)Location::getX(loc,bSize),(uint8_t)Location::getY(loc,bSize),P_BLACK);
@@ -281,7 +280,7 @@ static bool maybeParseProperty(SgfNode* node, const string& str, int& pos) {
     else if(node->move.pla == C_EMPTY && key == "W") {
       int bSize = 128;
       Loc loc = parseSgfLocOrPass(parseTextValue(str,pos),bSize);
-      if(loc == FastBoard::PASS_LOC)
+      if(loc == Board::PASS_LOC)
         node->move = MoveNoBSize(128,128,P_WHITE);
       else
         node->move = MoveNoBSize((uint8_t)Location::getX(loc,bSize),(uint8_t)Location::getY(loc,bSize),P_WHITE);

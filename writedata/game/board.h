@@ -1,5 +1,5 @@
 /*
- * fastboard.h
+ * board.h
  * Originally from an unreleased project back in 2010, modified since.
  * Authors: brettharrison (original), David Wu (original and later modificationss).
  */
@@ -7,8 +7,8 @@
 #ifndef FASTBOARD_H_
 #define FASTBOARD_H_
 
-#include "core/global.h"
-#include "core/hash.h"
+#include "../core/global.h"
+#include "../core/hash.h"
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
@@ -62,7 +62,7 @@ STRUCT_NAMED_PAIR(Loc,loc,Player,pla,Move);
 //Undo, hashing, history, not supported. Simple ko rule only.
 //Does not enforce player turn order.
 
-struct FastBoard
+struct Board
 {
   //Initialization------------------------------
   //Initialize the zobrist hash.
@@ -122,9 +122,9 @@ struct FastBoard
   };
 
   //Constructors---------------------------------
-  FastBoard();  //Create FastBoard of size (19,19), multi-stone-suicide illegal
-  FastBoard(int x, int y, bool multiStoneSuicideLegal); //Create Fastboard of size (x,y)
-  FastBoard(const FastBoard& other);
+  Board();  //Create Board of size (19,19), multi-stone-suicide illegal
+  Board(int x, int y, bool multiStoneSuicideLegal); //Create Fastboard of size (x,y)
+  Board(const Board& other);
 
   //Functions------------------------------------
 
@@ -225,7 +225,7 @@ struct FastBoard
   Loc rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Color color);
   void changeSurroundingLiberties(Loc loc, Color color, int delta);
 
-  friend ostream& operator<<(ostream& out, const FastBoard& board);
+  friend ostream& operator<<(ostream& out, const Board& board);
 
   int findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
   int findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
@@ -234,7 +234,7 @@ struct FastBoard
   void calculatePassAliveTerritoryForPla(Player pla, Color* result) const;
 
 
-  //static void monteCarloOwner(Player player, FastBoard* board, int mc_counts[]);
+  //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);
 };
 
 

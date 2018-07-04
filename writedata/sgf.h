@@ -3,7 +3,7 @@
 
 #include "core/global.h"
 #include "core/hash.h"
-#include "fastboard.h"
+#include "game/board.h"
 
 STRUCT_NAMED_TRIPLE(uint8_t,x,uint8_t,y,Player,pla,MoveNoBSize);
 

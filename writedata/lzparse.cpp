@@ -1,6 +1,6 @@
 
 #include "core/global.h"
-#include "fastboard.h"
+#include "game/board.h"
 #include "sgf.h"
 #include "lzparse.h"
 #include <zstr/src/zstr.hpp>
@@ -71,7 +71,7 @@ static void decodeStones(const string& linePla, const string& lineOpp, Color* st
   }
 }
 
-static Move inferMove(Color* board, Color* prev, Player whoMoved, Color stones[8][FastBoard::MAX_ARR_SIZE], int stonesIdx, const short adj_offsets[8]) {
+static Move inferMove(Color* board, Color* prev, Player whoMoved, Color stones[8][Board::MAX_ARR_SIZE], int stonesIdx, const short adj_offsets[8]) {
   //Search to find if there is a stone of the player who moved that is newly placed
   for(int y = 0; y<19; y++) {
     for(int x = 0; x<19; x++) {
@@ -118,7 +118,7 @@ static Move inferMove(Color* board, Color* prev, Player whoMoved, Color stones[8
       }
     }
   }
-  return Move(FastBoard::PASS_LOC,whoMoved);
+  return Move(Board::PASS_LOC,whoMoved);
 }
 
 void LZSample::iterSamples(
@@ -158,7 +158,7 @@ void LZSample::iterSamples(
 }
 
 void LZSample::parse(
-  vector<FastBoard>& boards,
+  vector<Board>& boards,
   vector<Move>& moves,
   float policyTarget[362],
   Player& nextPlayer,
@@ -179,7 +179,7 @@ void LZSample::parse(
   Player opp = getOpp(pla);
 
   //Parse all stones
-  Color stones[8][FastBoard::MAX_ARR_SIZE];
+  Color stones[8][Board::MAX_ARR_SIZE];
   for(int i = 0; i<8; i++)
     decodeStones(plaStones[i], oppStones[i], stones[i], pla);
 
@@ -230,7 +230,7 @@ void LZSample::parse(
 
     //Fill in the "next" move to be the argmax of the policyTarget
     if(maxI == 361)
-      moves[7] = Move(FastBoard::PASS_LOC,pla);
+      moves[7] = Move(Board::PASS_LOC,pla);
     else {
       int x = maxI % 19;
       int y = maxI / 19;

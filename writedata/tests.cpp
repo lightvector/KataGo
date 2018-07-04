@@ -2,7 +2,7 @@
 #include <sstream>
 #include "core/global.h"
 #include "core/rand.h"
-#include "fastboard.h"
+#include "game/board.h"
 #include "sgf.h"
 #include "lzparse.h"
 #include "datapool.h"
@@ -31,15 +31,15 @@ static void runRandHashTests() {
   Rand::test();
 }
 
-static bool boardColorsEqual(const FastBoard& b1, const FastBoard& b2) {
-  for(int i = 0; i<FastBoard::MAX_ARR_SIZE; i++)
+static bool boardColorsEqual(const Board& b1, const Board& b2) {
+  for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
     if(b1.colors[i] != b2.colors[i])
       return false;
   return true;
 }
 
-static FastBoard parseBoard(int xSize, int ySize, const string& s) {
-  FastBoard board(xSize,ySize,false);
+static Board parseBoard(int xSize, int ySize, const string& s) {
+  Board board(xSize,ySize,false);
   vector<string> lines = Global::split(Global::trim(s),'\n');
   assert(lines.size() == ySize);
   for(int y = 0; y<ySize; y++) {
@@ -67,7 +67,7 @@ static void runBoardTests() {
   //============================================================================
   {
     const char* name = "Liberties";
-    FastBoard board = parseBoard(9,9,R"%%(
+    Board board = parseBoard(9,9,R"%%(
 .........
 .....x...
 ..oo..x..
@@ -112,7 +112,7 @@ xxoo.o.ox
   //============================================================================
   {
     const char* name = "Liberties after move";
-    FastBoard board = parseBoard(9,9,R"%%(
+    Board board = parseBoard(9,9,R"%%(
 .........
 .....x...
 ..oo..x..
@@ -182,7 +182,7 @@ After white
   {
     const char* name = "Ladders 1 Lib";
     vector<Loc> buf;
-    FastBoard board = parseBoard(9,9,R"%%(
+    Board board = parseBoard(9,9,R"%%(
 xo.x..oxo
 xoxo..o..
 xxo......
@@ -228,7 +228,7 @@ xoox..xo.
     const char* name = "Ladders 2 Libs";
     vector<Loc> buf;
     vector<Loc> buf2;
-    FastBoard board = parseBoard(9,9,R"%%(
+    Board board = parseBoard(9,9,R"%%(
 xo.x..oxo
 xo.o..o..
 xxo......
@@ -275,7 +275,7 @@ xoox..xo.
     const char* name = "LaddersKo-1";
     vector<Loc> buf;
     vector<Loc> buf2;
-    FastBoard board = parseBoard(18,9,R"%%(
+    Board board = parseBoard(18,9,R"%%(
 ..................
 ..................
 ....ox.......ox...
@@ -322,7 +322,7 @@ xoox..xo.
     const char* name = "LaddersKo-2";
     vector<Loc> buf;
     vector<Loc> buf2;
-    FastBoard board = parseBoard(18,9,R"%%(
+    Board board = parseBoard(18,9,R"%%(
 .............xo.oo
 ....x........xxooo
 ...x.xx.......xxo.
@@ -333,7 +333,7 @@ xoox..xo.
 ..................
 .....x.oo.........
 )%%");
-    FastBoard board2 = parseBoard(18,9,R"%%(
+    Board board2 = parseBoard(18,9,R"%%(
 ..................
 ....x.............
 ...x.xx...........
@@ -344,7 +344,7 @@ xoox..xo.
 ..................
 .....x.oo.........
 )%%");
-    FastBoard board3 = parseBoard(18,9,R"%%(
+    Board board3 = parseBoard(18,9,R"%%(
 ....xo.......xo...
 ....xox......xox..
 ...xo.ox....xo.ox.
@@ -433,8 +433,8 @@ xoox..xo.
   //============================================================================
   {
     const char* name = "Pass-alive 1";
-    Color result[FastBoard::MAX_ARR_SIZE];
-    FastBoard board = parseBoard(9,9,R"%%(
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = parseBoard(9,9,R"%%(
 ..o.o.xx.
 .oooo.x.x
 oo.....xx
@@ -496,8 +496,8 @@ x.x..oo.o
   //============================================================================
   {
     const char* name = "Pass-alive 2";
-    Color result[FastBoard::MAX_ARR_SIZE];
-    FastBoard board = parseBoard(9,9,R"%%(
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = parseBoard(9,9,R"%%(
 x.oooooo.
 oox..xx.o
 o...xox.o
@@ -508,7 +508,7 @@ o.xox...o
 o.xxx...o
 .ooooooo.
 )%%");
-    FastBoard board2 = parseBoard(9,9,R"%%(
+    Board board2 = parseBoard(9,9,R"%%(
 ..oooooo.
 oox..xx.o
 o...xox.o
@@ -594,12 +594,12 @@ static void runBoardStressTest() {
   Rand rand("runBoardStressTests");
 
   int numBoards = 4;
-  FastBoard boards[numBoards];
-  boards[0] = FastBoard();
-  boards[1] = FastBoard(9,16,false);
-  boards[2] = FastBoard(13,7,true);
-  boards[3] = FastBoard(4,4,false);
-  FastBoard copies[numBoards];
+  Board boards[numBoards];
+  boards[0] = Board();
+  boards[1] = Board(9,16,false);
+  boards[2] = Board(13,7,true);
+  boards[3] = Board(4,4,false);
+  Board copies[numBoards];
   Player pla = C_BLACK;
   int suicideCount = 0;
   int koBanCount = 0;
@@ -640,13 +640,13 @@ static void runBoardStressTest() {
       testAssert(isLegal[i] == suc[i]);
       boards[i].checkConsistency();
 
-      const FastBoard& board = boards[i];
-      const FastBoard& copy = copies[i];
+      const Board& board = boards[i];
+      const Board& copy = copies[i];
       Loc loc = locs[i];
       if(!suc[i]) {
         if(board.isOnBoard(loc)) {
           testAssert(boardColorsEqual(copy,board));
-          testAssert(loc < 0 || loc >= FastBoard::MAX_ARR_SIZE || board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,pla) || board.isKoBanned(loc));
+          testAssert(loc < 0 || loc >= Board::MAX_ARR_SIZE || board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,pla) || board.isKoBanned(loc));
           if(board.isKoBanned(loc)) {
             testAssert(board.colors[loc] == C_EMPTY && (board.wouldBeKoCapture(loc,C_BLACK) || board.wouldBeKoCapture(loc,C_WHITE)));
             koBanCount++;
@@ -654,9 +654,9 @@ static void runBoardStressTest() {
         }
       }
       else {
-        if(loc == FastBoard::PASS_LOC) {
+        if(loc == Board::PASS_LOC) {
           testAssert(boardColorsEqual(copy,board));
-          testAssert(board.ko_loc == FastBoard::NULL_LOC);
+          testAssert(board.ko_loc == Board::NULL_LOC);
           passCount++;
         }
         else if(copy.isSuicide(loc,pla)) {
@@ -670,7 +670,7 @@ static void runBoardStressTest() {
           testAssert(board.getNumLiberties(loc) == copy.getNumLibertiesAfterPlay(loc,pla,1000));
           testAssert(std::min(2,board.getNumLiberties(loc)) == copy.getNumLibertiesAfterPlay(loc,pla,2));
           testAssert(std::min(4,board.getNumLiberties(loc)) == copy.getNumLibertiesAfterPlay(loc,pla,4));
-          if(board.ko_loc != FastBoard::NULL_LOC) {
+          if(board.ko_loc != Board::NULL_LOC) {
             koCaptureCount++;
             testAssert(copy.wouldBeKoCapture(loc,pla));
           }
@@ -711,7 +711,7 @@ int main(int argc, const char* const* argv) {
   (void)argc;
   (void)argv;
   testAssert(sizeof(size_t) == 8);
-  FastBoard::initHash();
+  Board::initHash();
 
   runRandHashTests();
   runBoardTests();
