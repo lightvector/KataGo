@@ -1513,7 +1513,6 @@ void Board::calculatePassAliveTerritoryForPla(Player pla, Color* result) const {
       Loc tailTarget = buildRegion(head,head,loc,regionIdx);
       nextEmptyOrOpp[head] = tailTarget;
 
-      assert(numInternalSpacesMax2[regionIdx] == 0 || vitalLen[regionIdx] == 0);
       vitalForPlaHeadsListsTotal += vitalLen[regionIdx];
 
       // for(int k = 0; k<vitalLen[regionIdx]; k++)
@@ -1560,8 +1559,6 @@ void Board::calculatePassAliveTerritoryForPla(Player pla, Color* result) const {
 
     //Walk all regions that are still bordered only by pass-alive stuff and accumulate a vital liberty to each pla it is vital for.
     for(int i = 0; i<numRegions; i++) {
-      if(numInternalSpacesMax2[i] > 0)
-        continue;
       Loc head = regionHeads[i];
       if(bordersNonPassAlivePlaByHead[head])
         continue;
