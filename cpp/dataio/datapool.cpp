@@ -2,15 +2,15 @@
 #include <cstring>
 #include "../dataio/datapool.h"
 
-DataPool::DataPool(size_t rowWidth, size_t poolCapacity, size_t writeBufCapacity, std::function<void(const float*,size_t)> writeRow)
-  :rowWidth(rowWidth),
+DataPool::DataPool(size_t rowWidth_, size_t poolCapacity_, size_t writeBufCapacity_, std::function<void(const float*,size_t)> writeRow_)
+  :rowWidth(rowWidth_),
    numRowsAdded(0),
    poolSize(0),
-   poolCapacity(poolCapacity),
+   poolCapacity(poolCapacity_),
    finished(false),
-   writeRow(writeRow),
+   writeRow(writeRow_),
    writeBufSize(0),
-   writeBufCapacity(writeBufCapacity)
+   writeBufCapacity(writeBufCapacity_)
 {
   assert(sizeof(size_t) == 8);
   pool = new float[rowWidth * poolCapacity];

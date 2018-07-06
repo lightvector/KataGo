@@ -342,7 +342,7 @@ static Sgf* maybeParseSgf(const string& str, int& pos) {
         break;
       sgf->children.push_back(child);
     }
-    char c = nextSgfChar(str,pos);
+    c = nextSgfChar(str,pos);
     if(c != ')')
       sgfFail("Expected closing paren for sgf tree",str,entryPos,pos);
   }

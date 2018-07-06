@@ -606,7 +606,6 @@ static void iterSgfMoves(
 
     float policyTarget[policyTargetLen];
     {
-      int bSize = recentBoards[0].x_size;
       int offset = NNPos::getOffset(bSize);
 
       for(int k = 0; k<policyTargetLen; k++)

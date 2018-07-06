@@ -219,12 +219,12 @@ int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
     }
   }
 
-  auto wouldBeEmpty = [numCapturedGroups,&capturedGroupHeads,this,opp](Loc loc) {
-    if(this->colors[loc] == C_EMPTY)
+  auto wouldBeEmpty = [numCapturedGroups,&capturedGroupHeads,this,opp](Loc lc) {
+    if(this->colors[lc] == C_EMPTY)
       return true;
-    if(this->colors[loc] == opp) {
+    if(this->colors[lc] == opp) {
       for(int i = 0; i<numCapturedGroups; i++)
-        if(capturedGroupHeads[i] == this->chain_head[loc])
+        if(capturedGroupHeads[i] == this->chain_head[lc])
           return true;
     }
     return false;
@@ -1474,16 +1474,16 @@ void Board::calculatePassAliveTerritoryForPla(Player pla, Color* result) const {
         for(int i = 0; i<4; i++) {
           Loc adj = loc + adj_offsets[i];
           if(colors[adj] == pla) {
-            Loc head = chain_head[adj];
+            Loc plaHead = chain_head[adj];
             bool alreadyPresent = false;
             for(int j = 0; j<initialVLen; j++) {
-              if(vitalForPlaHeadsLists[vStart+j] == head) {
+              if(vitalForPlaHeadsLists[vStart+j] == plaHead) {
                 alreadyPresent = true;
                 break;
               }
             }
             if(!alreadyPresent) {
-              vitalForPlaHeadsLists[vStart+initialVLen] = head;
+              vitalForPlaHeadsLists[vStart+initialVLen] = plaHead;
               initialVLen += 1;
             }
           }

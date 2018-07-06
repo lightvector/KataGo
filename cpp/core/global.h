@@ -136,11 +136,11 @@ namespace Global
 struct StringError : public exception {
   const char* name;
   string message;
-  StringError(const char* name, const char* m)
-  :exception(),name(name),message(m)
+  StringError(const char* n, const char* m)
+  :exception(),name(n),message(m)
   {}
-  StringError(const char* name, const string& m)
-  :exception(),name(name),message(m)
+  StringError(const char* n, const string& m)
+  :exception(),name(n),message(m)
   {}
 
   const char* what() const throw ()

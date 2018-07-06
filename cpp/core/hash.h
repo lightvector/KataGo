@@ -58,8 +58,8 @@ inline Hash128::Hash128()
 :hash0(0),hash1(0)
 {}
 
-inline Hash128::Hash128(uint64_t hash0, uint64_t hash1)
-:hash0(hash0),hash1(hash1)
+inline Hash128::Hash128(uint64_t h0, uint64_t h1)
+:hash0(h0),hash1(h1)
 {}
 
 
