@@ -104,8 +104,34 @@ static void iterLadders(const Board& board, std::function<void(Loc,int,const vec
 // }
 
 
-void NNInputs::fillRow(const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
-                       Player nextPlayer, float selfKomi, float* row) {
+Hash128 NNInputs::getHash(
+    const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
+    Player nextPlayer, float selfKomi
+) {
+  Hash128 hash = board.pos_hash;
+  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
+
+  //TODO should this incorporate history?
+  (void)moveHistory;
+  (void)moveHistoryLen;
+
+  //TODO incorporate superko
+  if(board.ko_loc != Board::NULL_LOC)
+    hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
+
+  int64_t komiX2 = (int64_t)(selfKomi*2.0f);
+  uint64_t komiHash = Hash::murmurMix((uint64_t)komiX2);
+  hash.hash0 ^= komiHash;
+  hash.hash1 ^= Hash::basicLCong(komiHash);
+
+  return hash;
+}
+
+
+void NNInputs::fillRow(
+  const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
+  Player nextPlayer, float selfKomi, float* row
+) {
   assert(board.x_size == board.y_size);
   assert(moveHistoryLen <= moveHistory.size());
 
@@ -146,6 +172,7 @@ void NNInputs::fillRow(const Board& board, const vector<Move>& moveHistory, int 
     }
   }
 
+  //TODO superko
   //Feature 9 - simple ko location
   if(board.ko_loc != Board::NULL_LOC) {
     int pos = NNPos::locToPos(board.ko_loc,bSize,offset);

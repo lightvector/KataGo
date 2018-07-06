@@ -1,4 +1,8 @@
+#ifndef NNINPUTS_H
+#define NNINPUTS_H
+
 #include "../core/global.h"
+#include "../core/hash.h"
 #include "../core/rand.h"
 #include "../game/board.h"
 #include "../game/rules.h"
@@ -18,6 +22,12 @@ namespace NNPos {
 
 namespace NNInputs {
   const int NUM_FEATURES = 19;
+  const int ROW_SIZE = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES;
+
+  Hash128 getHash(
+    const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
+    Player nextPlayer, float selfKomi
+  );
 
   void fillRow(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
@@ -26,6 +36,7 @@ namespace NNInputs {
 
 }
 
+#endif
 
 
 
