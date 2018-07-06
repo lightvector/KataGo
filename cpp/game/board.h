@@ -50,9 +50,6 @@ namespace Location
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);
 
   string toString(Loc loc, int x_size);
-
-  int locToTensorPos(Loc loc, int bSize, int maxBSize);
-  Loc tensorPosToLoc(int pos, int bSize, int maxBSize);
 }
 
 //Simple structure for storing moves. Not used below, but this is a convenient place to define it.
@@ -188,7 +185,7 @@ struct Board
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
-  
+
   //Data--------------------------------------------
 
   int x_size;                  //Horizontal size of board

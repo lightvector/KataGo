@@ -56,6 +56,8 @@ add_executable(write
   game/rules.h
   game/boardhistory.cpp
   game/boardhistory.h
+  neuralnet/nninputs.cpp
+  neuralnet/nninputs.h
   dataio/datapool.cpp
   dataio/datapool.h
   dataio/lzparse.cpp

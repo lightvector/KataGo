@@ -1,6 +1,7 @@
 #include "core/global.h"
 #include "core/rand.h"
 #include "game/board.h"
+#include "neuralnet/nninputs.h"
 #include "dataio/sgf.h"
 #include "dataio/lzparse.h"
 #include "dataio/datapool.h"
@@ -14,8 +15,8 @@ using namespace H5;
 #include <tclap/CmdLine.h>
 
 //Data and feature row parameters
-static const int maxBoardSize = 19;
-static const int numFeatures = 19;
+static const int maxBoardSize = NNPos::MAX_BOARD_LEN;
+static const int numFeatures = NNInputs::NUM_FEATURES;
 static const int numRecentBoards = 6; //For recent captures
 
 //Different segments of the data row
@@ -62,7 +63,10 @@ static const int nextMovesLen = 12;
 static const int sgfHashStart = nextMovesStart + nextMovesLen;
 static const int sgfHashLen = 8;
 
-static const int totalRowLen = sgfHashStart + sgfHashLen;
+static const int includeHistoryStart = sgfHashStart + sgfHashLen;
+static const int includeHistoryLen = 5;
+
+static const int totalRowLen = includeHistoryStart + includeHistoryLen;
 
 //HDF5 parameters
 static const int chunkHeight = 6000;
@@ -148,220 +152,35 @@ static int computeRankOneHot(int source, int rank) {
 }
 
 
-static int xyToTensorPos(int x, int y, int offset) {
-  return (y+offset) * maxBoardSize + (x+offset);
-}
-static int locToTensorPos(Loc loc, int bSize, int offset) {
-  if(loc == Board::PASS_LOC)
-    return maxBoardSize * maxBoardSize;
-  else if(loc == Board::NULL_LOC)
-    return maxBoardSize * (maxBoardSize + 1);
-  return (Location::getY(loc,bSize) + offset) * maxBoardSize + (Location::getX(loc,bSize) + offset);
-}
-
-static void setRow(float* row, int pos, int feature, float value) {
-  row[pos*numFeatures + feature] = value;
-}
-
 static const int TARGET_NEXT_MOVE = 0;
 
-//Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
-static void iterLadders(const Board& board, std::function<void(Loc,int,const vector<Loc>&)> f) {
-  int bSize = board.x_size;
-  int offset = (maxBoardSize - bSize) / 2;
-
-  Loc chainHeadsSolved[bSize*bSize];
-  bool chainHeadsSolvedValue[bSize*bSize];
-  int numChainHeadsSolved = 0;
-  Board copy(board);
-  vector<Loc> buf;
-  vector<Loc> workingMoves;
-
-  for(int y = 0; y<bSize; y++) {
-    for(int x = 0; x<bSize; x++) {
-      int pos = xyToTensorPos(x,y,offset);
-      Loc loc = Location::getLoc(x,y,bSize);
-      Color stone = board.colors[loc];
-      if(stone == P_BLACK || stone == P_WHITE) {
-        int libs = board.getNumLiberties(loc);
-        if(libs == 1 || libs == 2) {
-          bool alreadySolved = false;
-          Loc head = board.chain_head[loc];
-          for(int i = 0; i<numChainHeadsSolved; i++) {
-            if(chainHeadsSolved[i] == head) {
-              alreadySolved = true;
-              if(chainHeadsSolvedValue[i]) {
-                workingMoves.clear();
-                f(loc,pos,workingMoves);
-              }
-              break;
-            }
-          }
-          if(!alreadySolved) {
-            //Perform search on copy so as not to mess up tracking of solved heads
-            bool laddered;
-            if(libs == 1)
-              laddered = copy.searchIsLadderCaptured(loc,true,buf);
-            else {
-              workingMoves.clear();
-              laddered = copy.searchIsLadderCapturedAttackerFirst2Libs(loc,buf,workingMoves);
-            }
-
-            chainHeadsSolved[numChainHeadsSolved] = head;
-            chainHeadsSolvedValue[numChainHeadsSolved] = laddered;
-            numChainHeadsSolved++;
-            if(laddered)
-              f(loc,pos,workingMoves);
-          }
-        }
-      }
-    }
-  }
-}
-
-// //Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
-// static void iterWouldBeLadder(const Board& board, Player pla, std::function<void(Loc,int)> f) {
-//   Player opp = getOpp(pla);
-//   int bSize = board.x_size;
-//   int offset = (maxBoardSize - bSize) / 2;
-
-//   Board copy(board);
-//   vector<Loc> buf;
-
-//   for(int y = 0; y<bSize; y++) {
-//     for(int x = 0; x<bSize; x++) {
-//       int pos = xyToTensorPos(x,y,offset);
-//       Loc loc = Location::getLoc(x,y,bSize);
-//       Color stone = board.colors[loc];
-//       if(stone == C_EMPTY && board.getNumLibertiesAfterPlay(loc,pla,3) == 2) {
-
-//       }
-//     }
-//   }
-// }
 
 static void fillRow(const vector<Board>& recentBoards, const vector<Move>& moves, int nextMoveIdx, Player nextPlayer,
                     const float* policyTarget, float valueTarget, float selfKomi,
                     int target, int rankOneHot, Hash128 sgfHash, float* row, Rand& rand, bool alwaysHistory) {
   const Board& board = recentBoards[0];
-
   assert(board.x_size == board.y_size);
   assert(nextMoveIdx < moves.size());
 
   Player pla = nextPlayer;
-  Player opp = getOpp(pla);
   int bSize = board.x_size;
-  int offset = (maxBoardSize - bSize) / 2;
+  int offset = NNPos::getOffset(bSize);
 
-  for(int y = 0; y<bSize; y++) {
-    for(int x = 0; x<bSize; x++) {
-      int pos = xyToTensorPos(x,y,offset);
-      Loc loc = Location::getLoc(x,y,bSize);
+  NNInputs::fillRow(board,moves,nextMoveIdx,nextPlayer,selfKomi,row);
 
-      //Feature 0 - on board
-      setRow(row,pos,0, 1.0);
-      //Feature 18 - komi/15 from self perspective
-      setRow(row,pos,18, selfKomi/15);
-
-      Color stone = board.colors[loc];
-
-      //Features 1,2 - pla,opp stone
-      //Features 3,4,5 and 6,7,8 - pla 1,2,3 libs and opp 1,2,3 libs.
-      if(stone == pla) {
-        setRow(row,pos,1, 1.0);
-        int libs = board.getNumLiberties(loc);
-        if(libs == 1) setRow(row,pos,3, 1.0);
-        else if(libs == 2) setRow(row,pos,4, 1.0);
-        else if(libs == 3) setRow(row,pos,5, 1.0);
-      }
-      else if(stone == opp) {
-        setRow(row,pos,2, 1.0);
-        int libs = board.getNumLiberties(loc);
-        if(libs == 1) setRow(row,pos,6, 1.0);
-        else if(libs == 2) setRow(row,pos,7, 1.0);
-        else if(libs == 3) setRow(row,pos,8, 1.0);
-      }
-    }
-  }
-
-  //Feature 9 - simple ko location
-  if(board.ko_loc != Board::NULL_LOC) {
-    int pos = locToTensorPos(board.ko_loc,bSize,offset);
-    setRow(row,pos,9, 1.0);
-  }
-
-  //Probabilistically include prev move features
-  //Features 10,11,12,13,14
-  bool includePrev1 = alwaysHistory || rand.nextDouble() < 0.9;
-  bool includePrev2 = alwaysHistory || (includePrev1 && rand.nextDouble() < 0.95);
-  bool includePrev3 = alwaysHistory || (includePrev2 && rand.nextDouble() < 0.95);
-  bool includePrev4 = alwaysHistory || (includePrev3 && rand.nextDouble() < 0.98);
-  bool includePrev5 = alwaysHistory || (includePrev4 && rand.nextDouble() < 0.98);
-
-  if(nextMoveIdx >= 1 && moves[nextMoveIdx-1].pla == opp && includePrev1) {
-    Loc prev1Loc = moves[nextMoveIdx-1].loc;
-    if(prev1Loc != Board::PASS_LOC && prev1Loc != Board::NULL_LOC) {
-      int pos = locToTensorPos(prev1Loc,bSize,offset);
-      setRow(row,pos,10, 1.0);
-    }
-    if(nextMoveIdx >= 2 && moves[nextMoveIdx-2].pla == pla && includePrev2) {
-      Loc prev2Loc = moves[nextMoveIdx-2].loc;
-      if(prev2Loc != Board::PASS_LOC && prev2Loc != Board::NULL_LOC) {
-        int pos = locToTensorPos(prev2Loc,bSize,offset);
-        setRow(row,pos,11, 1.0);
-      }
-      if(nextMoveIdx >= 3 && moves[nextMoveIdx-3].pla == opp && includePrev3) {
-        Loc prev3Loc = moves[nextMoveIdx-3].loc;
-        if(prev3Loc != Board::PASS_LOC && prev3Loc != Board::NULL_LOC) {
-          int pos = locToTensorPos(prev3Loc,bSize,offset);
-          setRow(row,pos,12, 1.0);
-        }
-        if(nextMoveIdx >= 4 && moves[nextMoveIdx-4].pla == pla && includePrev4) {
-          Loc prev4Loc = moves[nextMoveIdx-4].loc;
-          if(prev4Loc != Board::PASS_LOC && prev4Loc != Board::NULL_LOC) {
-            int pos = locToTensorPos(prev4Loc,bSize,offset);
-            setRow(row,pos,13, 1.0);
-          }
-          if(nextMoveIdx >= 5 && moves[nextMoveIdx-5].pla == opp && includePrev5) {
-            Loc prev5Loc = moves[nextMoveIdx-5].loc;
-            if(prev5Loc != Board::PASS_LOC && prev5Loc != Board::NULL_LOC) {
-              int pos = locToTensorPos(prev5Loc,bSize,offset);
-              setRow(row,pos,14, 1.0);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  //Ladder features 15,16,17
-  auto addLadderFeature = [&board,bSize,offset,row](Loc loc, int pos, const vector<Loc>& workingMoves){
-    assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
-    int libs = board.getNumLiberties(loc);
-    if(libs == 1)
-      setRow(row,pos,15,1.0);
-    else {
-      setRow(row,pos,16,1.0);
-      for(size_t j = 0; j < workingMoves.size(); j++) {
-        int workingPos = locToTensorPos(workingMoves[j],bSize,offset);
-        setRow(row,workingPos,17,1.0);
-      }
-    }
-  };
-  iterLadders(board, addLadderFeature);
-
+  //Optionally some stuff we can multiply the history planes by to randomly exclude history from a few training samples
+  bool includeHistory[5];
+  includeHistory[0] = alwaysHistory || rand.nextDouble() < 0.95;
+  includeHistory[1] = alwaysHistory || (includeHistory[0] && rand.nextDouble() < 0.98);
+  includeHistory[2] = alwaysHistory || (includeHistory[1] && rand.nextDouble() < 0.98);
+  includeHistory[3] = alwaysHistory || (includeHistory[2] && rand.nextDouble() < 0.98);
+  includeHistory[4] = alwaysHistory || (includeHistory[3] && rand.nextDouble() < 0.98);
+  for(int i = 0; i<5; i++)
+    row[includeHistoryStart+i] = (includeHistory[i] ? 1.0f : 0.0f);
 
   if(target == TARGET_NEXT_MOVE) {
     for(int i = 0; i<policyTargetLen; i++)
       row[policyTargetStart + i] = policyTarget[i];
-
-    //Ladder target
-    // auto addLadderTarget = [&board,row](Loc loc, int pos, const vector<Loc>& workingMoves){
-    //   (void)workingMoves;
-    //   assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
-    //   row[ladderTargetStart + pos] = 1.0;
-    // };
-    // iterLadders(board, addLadderTarget);
   }
 
   //Value target, +1 or -1
@@ -392,7 +211,7 @@ static void fillRow(const vector<Board>& recentBoards, const vector<Move>& moves
       for(int x = 0; x<bSize; x++) {
         Loc loc = Location::getLoc(x,y,bSize);
         if(b.colors[loc] == C_EMPTY && bPrev.colors[loc] != C_EMPTY) {
-          int pos = xyToTensorPos(x,y,offset);
+          int pos = NNPos::xyToPos(x,y,offset);
           row[recentCapturesStart+pos] = i+1;
         }
       }
@@ -403,9 +222,9 @@ static void fillRow(const vector<Board>& recentBoards, const vector<Move>& moves
   for(int i = 0; i<nextMovesLen; i++) {
     int idx = nextMoveIdx + i;
     if(idx >= moves.size())
-      row[nextMovesStart+i] = locToTensorPos(Board::NULL_LOC,bSize,offset);
+      row[nextMovesStart+i] = NNPos::locToPos(Board::NULL_LOC,bSize,offset);
     else {
-      row[nextMovesStart+i] = locToTensorPos(moves[idx].loc,bSize,offset);
+      row[nextMovesStart+i] = NNPos::locToPos(moves[idx].loc,bSize,offset);
     }
   }
 
@@ -788,13 +607,13 @@ static void iterSgfMoves(
     float policyTarget[policyTargetLen];
     {
       int bSize = recentBoards[0].x_size;
-      int offset = (maxBoardSize - bSize) / 2;
+      int offset = NNPos::getOffset(bSize);
 
       for(int k = 0; k<policyTargetLen; k++)
         policyTarget[k] = 0.0;
 
       assert(m.loc != Board::NULL_LOC);
-      int nextMovePos = locToTensorPos(m.loc,bSize,offset);
+      int nextMovePos = NNPos::locToPos(m.loc,bSize,offset);
       assert(nextMovePos >= 0 && nextMovePos < policyTargetLen);
       policyTarget[nextMovePos] = 1.0;
     }

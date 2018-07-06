@@ -1012,26 +1012,6 @@ string Location::toString(Loc loc, int x_size)
   return string(buf);
 }
 
-int Location::locToTensorPos(Loc loc, int bSize, int maxBSize) {
-  if(loc == Board::PASS_LOC)
-    return maxBSize * maxBSize;
-  else if(loc == Board::NULL_LOC)
-    return maxBSize * (maxBSize + 1);
-  int offset = (maxBSize - bSize)/2;
-  return (getY(loc,bSize) + offset) * maxBSize + (getX(loc,bSize) + offset);
-}
-Loc Location::tensorPosToLoc(int pos, int bSize, int maxBSize) {
-  if(pos == maxBSize * maxBSize)
-    return Board::PASS_LOC;
-  int offset = (maxBSize - bSize)/2;
-  int x = pos % maxBSize - offset;
-  int y = pos / maxBSize - offset;
-  if(x < 0 || x >= bSize || y < 0 || y >= bSize)
-    return Board::NULL_LOC;
-  return getLoc(x,y,bSize);
-}
-
-
 
 //TACTICAL STUFF--------------------------------------------------------------------
 
@@ -1258,14 +1238,14 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
         //liberties, and none of the attacker's surrounding stones can currently be in atari.
         //This is not complete - there are situations where the defender's connections increase liberties, or where
         //the attacker has stones in atari, but where the defender is still in inescapable atari even if they have
-        //a large finite number of ko threats. But it's better than nothing. 
+        //a large finite number of ko threats. But it's better than nothing.
         if(libs0 == 0 && libs1 == 0 && wouldBeKoCapture(buf[start],opp) && wouldBeKoCapture(buf[start+1],opp)) {
           if(getNumLibertiesAfterPlay(buf[start],pla,3) <= 2 && getNumLibertiesAfterPlay(buf[start+1],pla,3) <= 2) {
             if(!hasLibertyGainingCaptures(loc))
             { returnValue = true; returnedFromDeeper = true; stackIdx--; continue; }
           }
         }
-        
+
         //Early quitouts if the liberties are not adjacent
         //(so that filling one doesn't fill an immediate liberty of the other)
         if(!Location::isAdjacent(buf[start],buf[start+1],x_size)) {
@@ -1649,7 +1629,7 @@ void Board::checkConsistency() const {
       pseudoLibs += getNumImmediateLiberties(cur);
       if(cur == head)
         foundChainHead = true;
-      
+
       if(stoneCount > MAX_PLAY_SIZE)
         throw StringError(errLabel,"Chain exceeds size of board - broken circular list?");
       cur = next_in_chain[cur];
@@ -1657,16 +1637,16 @@ void Board::checkConsistency() const {
 
     if(!foundChainHead)
       throw StringError(errLabel,"Chain loop does not contain head");
-    
+
     const ChainData& data = chain_data[head];
     if(data.owner != pla)
       throw StringError(errLabel,"Chain data owner does not match stones");
     if(data.num_locs != stoneCount)
       throw StringError(errLabel,"Chain data num_locs does not match actual stone count");
     if(data.num_liberties > pseudoLibs)
-      throw StringError(errLabel,"Chain data liberties exceeds pseudoliberties");    
+      throw StringError(errLabel,"Chain data liberties exceeds pseudoliberties");
     if(data.num_liberties <= 0)
-      throw StringError(errLabel,"Chain data liberties is nonpositive");    
+      throw StringError(errLabel,"Chain data liberties is nonpositive");
   };
 
   Hash128 tmp_pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
@@ -1720,13 +1700,13 @@ void Board::checkConsistency() const {
     if(getNumImmediateLiberties(ko_loc) != 0)
       throw StringError(errLabel,"Simple ko loc has immediate liberties");
   }
-  
+
   short tmpAdjOffsets[8];
   Location::getAdjacentOffsets(tmpAdjOffsets,x_size);
   for(int i = 0; i<8; i++)
     if(tmpAdjOffsets[i] != adj_offsets[i])
         throw StringError(errLabel,"Corrupted adj_offsets array");
- 
+
 }
 
 
