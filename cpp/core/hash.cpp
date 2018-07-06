@@ -3,7 +3,6 @@
  * Author: David Wu
  */
 
-#include "../core/global.h"
 #include "../core/hash.h"
 
 //BITS-----------------------------------

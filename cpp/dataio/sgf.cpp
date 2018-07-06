@@ -1,4 +1,3 @@
-#include "../core/global.h"
 #include "../core/sha2.h"
 #include "../dataio/sgf.h"
 

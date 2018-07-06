@@ -1,10 +1,8 @@
 
-#include "../core/global.h"
-#include "../game/board.h"
-#include "../dataio/sgf.h"
-#include "../dataio/lzparse.h"
 #include <zstr/src/zstr.hpp>
 #include <cstdlib>
+
+#include "../dataio/lzparse.h"
 
 LZSample::LZSample()
   :emptyBoard(19,19,true),plaStones(),oppStones(),sideStr(),policyStr(),resultStr()

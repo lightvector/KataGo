@@ -1,6 +1,5 @@
 
 #include <algorithm>
-#include "../core/global.h"
 #include "../game/boardhistory.h"
 
 static Hash128 getKoHash(const Rules& rules, const Board& board, Player pla) {

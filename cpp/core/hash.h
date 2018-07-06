@@ -7,7 +7,7 @@
 #define HASH_H_
 
 #include <iostream>
-using namespace std;
+#include "../core/global.h"
 
 namespace Hash
 {

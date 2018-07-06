@@ -1,7 +1,5 @@
 #include <functional>
 #include <cstring>
-#include "../core/global.h"
-#include "../core/rand.h"
 #include "../dataio/datapool.h"
 
 DataPool::DataPool(size_t rowWidth, size_t poolCapacity, size_t writeBufCapacity, std::function<void(const float*,size_t)> writeRow)

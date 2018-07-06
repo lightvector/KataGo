@@ -7,6 +7,7 @@
 #define SHA2_H_
 
 #include <stdint.h>
+#include <cstdlib>
 
 namespace SHA2
 {

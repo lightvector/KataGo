@@ -1,4 +1,4 @@
-#include "../core/global.h"
+
 #include "../neuralnet/nninputs.h"
 
 int NNPos::getOffset(int bSize) {
