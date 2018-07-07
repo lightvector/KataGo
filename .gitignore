@@ -6,6 +6,7 @@ __pycache__
 
 cpp/write
 cpp/runtests
+cpp/example
 
 # For clion IDE
 .idea
