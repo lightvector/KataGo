@@ -26,7 +26,7 @@ class Model:
 
     self.reg_variables = []
     self.lr_adjusted_variables = {}
-    self.is_training = tf.placeholder(tf.bool)
+    self.is_training = tf.placeholder(tf.bool,name="is_training")
 
     #Accumulates outputs for printing stats about their activations
     self.outputs_by_layer = []
@@ -656,9 +656,9 @@ class Model:
     max_board_size = self.max_board_size
 
     #Input layer---------------------------------------------------------------------------------
-    inputs = tf.placeholder(tf.float32, [None] + self.input_shape)
-    ranks = tf.placeholder(tf.float32, [None] + self.rank_shape)
-    symmetries = tf.placeholder(tf.bool, [3])
+    inputs = tf.placeholder(tf.float32, [None] + self.input_shape, name="inputs")
+    ranks = tf.placeholder(tf.float32, [None] + self.rank_shape, name="ranks")
+    symmetries = tf.placeholder(tf.bool, [3], name="symmetries")
     self.inputs = inputs
     self.ranks = ranks
     self.symmetries = symmetries
@@ -839,7 +839,7 @@ class Model:
       if not predict_pass:
         #Simply add the pass output on with a large negative constant that's probably way more negative than anything
         #else the neural net would output.
-        policy_output = tf.pad(policy_output,[(0,0),(0,1)], constant_values = -10000.)
+        policy_output = tf.pad(policy_output,[(0,0),(0,1)], constant_values = -10000., name="policy_output")
       else:
         #Add pass move based on the global g values
         matmulpass = self.weight_variable("matmulpass",[g2_num_channels,1],g2_num_channels*8,1)
@@ -847,7 +847,7 @@ class Model:
         pass_output = tf.tensordot(g2_layer,matmulpass,axes=[[3],[0]])
         self.outputs_by_layer.append(("pass",pass_output))
         pass_output = tf.reshape(pass_output, [-1] + [1])
-        policy_output = tf.concat([policy_output,pass_output],axis=1)
+        policy_output = tf.concat([policy_output,pass_output],axis=1, name="policy_output")
 
       self.policy_output = policy_output
     else:
@@ -877,11 +877,11 @@ class Model:
       v3b = self.weight_variable("v3/b",[v3_size],v2_size,v3_size,scale_initial_weights=0.2,reg=False)
       v3_layer = tf.matmul(v2_layer, v3w) + v3b
 
-      value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape)
+      value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
 
       self.value_output = value_output
     else:
-      self.value_output = tf.zeros_like(inputs[:,0,0])
+      self.value_output = tf.zeros_like(inputs[:,0,0], name="value_output")
 
 
 

@@ -22,6 +22,7 @@ namespace NNPos {
 
 namespace NNInputs {
   const int NUM_FEATURES = 19;
+  const int NUM_SYMMETRIES = 3;
   const int ROW_SIZE = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES;
 
   Hash128 getHash(
