@@ -34,7 +34,7 @@ NNEvaluator::NNEvaluator(const string& pbModelFile)
   int inputsShapeArr[3] = {BATCH_SIZE,NNPos::MAX_BOARD_AREA,NNInputs::NUM_FEATURES};
   status = TensorShapeUtils::MakeShape(inputsShapeArr,3,&inputsShape);
   checkStatus(status,"making inputs shape");
-  int symmetriesShapeArr[1] = {NNInputs::NUM_SYMMETRIES};
+  int symmetriesShapeArr[1] = {NNInputs::NUM_SYMMETRY_BOOLS};
   status = TensorShapeUtils::MakeShape(symmetriesShapeArr,1,&symmetriesShape);
   checkStatus(status,"making symmetries shape");
   int isTrainingShapeArr[0] = {};
@@ -101,6 +101,7 @@ shared_ptr<NNOutput> NNEvaluator::evaluate(
     inputsBuffer+batch*rowSize
   );
 
+  assert(symmetry >= 0 && symmetry <= NUM_SYMMETRIES);
   symmetriesBuffer[0] = (symmetry & 0x1) != 0;
   symmetriesBuffer[1] = (symmetry & 0x2) != 0;
   symmetriesBuffer[2] = (symmetry & 0x4) != 0;
