@@ -84,16 +84,22 @@ string Global::int64ToString(int64_t x)
 
 string Global::uint32ToHexString(uint32_t x)
 {
-  char buf[32];
-  sprintf(buf,"%08x",x); //Spurious g++ warning on this line?
-  return string(buf);
+  static const char* digits = "0123456789ABCDEF";
+  size_t hex_len = sizeof(uint32_t) * 2;
+  string s(hex_len,'0');
+  for(size_t i = 0; i < hex_len; i++)
+    s[hex_len-i-1] = digits[(x >> (i*4)) & 0x0f];
+  return s;
 }
 
 string Global::uint64ToHexString(uint64_t x)
 {
-  char buf[32];
-  sprintf(buf,"%016" PRIu64 "x",x); //Spurious g++ warning on this line?
-  return string(buf);
+  static const char* digits = "0123456789ABCDEF";
+  size_t hex_len = sizeof(uint64_t) * 2;
+  string s(hex_len,'0');
+  for(size_t i = 0; i < hex_len; i++)
+    s[hex_len-i-1] = digits[(x >> (i*4)) & 0x0f];
+  return s;
 }
 
 bool Global::tryStringToInt(const string& str, int& x)
