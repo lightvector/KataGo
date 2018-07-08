@@ -1084,6 +1084,76 @@ suicideCount 145
 
 
 
+static void runBoardUndoTest() {
+  cout << "Running board undo test" << endl;
+  Rand rand("runBoardUndoTests");
+
+  int suicideCount = 0;
+  int koCaptureCount = 0;
+  int passCount = 0;
+  int regularMoveCount = 0;
+  auto run = [&](const Board& startBoard) {
+    int steps = 1000;
+    Board* boards = new Board[steps+1];
+    Board::MoveRecord records[steps];
+
+    boards[0] = startBoard;
+    for(int n = 1; n <= steps; n++) {
+      boards[n] = boards[n-1];
+      Loc loc;
+      Player pla;
+      while(true) {
+        pla = rand.nextUInt(2) == 0 ? P_BLACK : P_WHITE;
+        loc = (Loc)rand.nextUInt(Board::MAX_ARR_SIZE);
+        if(boards[n].isLegal(loc,pla))
+          break;
+      }
+
+      records[n-1] = boards[n].playMoveRecorded(loc,pla);
+
+      if(loc == Board::PASS_LOC)
+        passCount++;
+      else if(boards[n-1].isSuicide(loc,pla))
+        suicideCount++;
+      else {
+        if(boards[n].ko_loc != Board::NULL_LOC)
+          koCaptureCount++;
+        regularMoveCount++;
+      }
+    }
+
+    Board board = boards[steps];
+    for(int n = steps-1; n >= 0; n--) {
+      board.undo(records[n]);
+      assert(boardColorsEqual(boards[n],board));
+      board.checkConsistency();
+    }
+  };
+
+  run(Board(19,19,true));
+  run(Board(4,4,true));
+  run(Board(4,4,false));
+
+  ostringstream out;
+  out << endl;
+  out << "regularMoveCount " << regularMoveCount << endl;
+  out << "passCount " << passCount << endl;
+  out << "koCaptureCount " << koCaptureCount << endl;
+  out << "suicideCount " << suicideCount << endl;
+
+  string expected = R"%%(
+
+regularMoveCount 2431
+passCount 482
+koCaptureCount 25
+suicideCount 87
+
+)%%";
+  expect("Board undo test move counts",out,expected);
+}
+
+
+
 int main(int argc, const char* const* argv) {
   (void)argc;
   (void)argv;
@@ -1092,6 +1162,7 @@ int main(int argc, const char* const* argv) {
 
   runRandHashTests();
   runBoardTests();
+  runBoardUndoTest();
   runBoardStressTest();
 
   cout << "All tests passed" << endl;
