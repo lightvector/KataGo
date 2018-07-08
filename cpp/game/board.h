@@ -84,6 +84,7 @@ struct Board
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static Hash128 ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
+  static Hash128 ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
 
   //Structs---------------------------------------
 
@@ -168,7 +169,8 @@ struct Board
   //might change, the order of the circular lists might change, etc.
   void undo(MoveRecord record);
 
-  //Get what the position hash would be if we were to play this move. Assumes the move is legal.
+  //Get what the position hash would be if we were to play this move and resolve captures and suicides.
+  //Assumes the move is on an empty location.
   Hash128 getPosHashAfterMove(Loc loc, Player pla) const;
 
   //Get a random legal move that does not fill a simple eye.

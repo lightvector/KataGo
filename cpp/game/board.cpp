@@ -19,6 +19,7 @@ Hash128 Board::ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
+Hash128 Board::ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
 
 //CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
 
@@ -38,12 +39,10 @@ Board::Board(const Board& other)
   x_size = other.x_size;
   y_size = other.y_size;
 
-  int arr_size = (x_size+1)*(y_size+2)+1;
-
-  memcpy(colors, other.colors, sizeof(Color)*arr_size);
-  memcpy(chain_data, other.chain_data, sizeof(ChainData)*arr_size);
-  memcpy(chain_head, other.chain_head, sizeof(Loc)*arr_size);
-  memcpy(next_in_chain, other.next_in_chain, sizeof(Loc)*arr_size);
+  memcpy(colors, other.colors, sizeof(Color)*MAX_ARR_SIZE);
+  memcpy(chain_data, other.chain_data, sizeof(ChainData)*MAX_ARR_SIZE);
+  memcpy(chain_head, other.chain_head, sizeof(Loc)*MAX_ARR_SIZE);
+  memcpy(next_in_chain, other.next_in_chain, sizeof(Loc)*MAX_ARR_SIZE);
 
   ko_loc = other.ko_loc;
 
@@ -106,6 +105,11 @@ void Board::initHash()
         ZOBRIST_BOARD_HASH[i][j] = Hash128();
       else
         ZOBRIST_BOARD_HASH[i][j] = nextHash();
+
+      if(j == C_EMPTY || j == C_WALL)
+        ZOBRIST_KO_MARK_HASH[i][j] = Hash128();
+      else
+        ZOBRIST_KO_MARK_HASH[i][j] = nextHash();
     }
     ZOBRIST_KO_LOC_HASH[i] = nextHash();
   }
