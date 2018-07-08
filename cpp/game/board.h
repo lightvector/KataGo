@@ -181,9 +181,12 @@ struct Board
   bool searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf);
   bool searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, vector<Loc>& workingMoves);
 
-  //For each player, mark all spots that are their pass-alive-group or pass-alive-territory
+  //If a point is a pass-alive stone or pass-alive territory for a color, mark it that color
+  //If requirePassAlive is false, also mark stones that are not pass alive but aren't in the opponent's pass-alive territory
+  //If requirePassAlive is false, also mark empty points that surrounded only by one color.
+  //If none of those are true, mark it as C_EMPTY.
   //[result] must be a buffer of size MAX_ARR_SIZE and will get filled with the result
-  void calculatePassAliveTerritory(Color* result) const;
+  void calculateArea(Color* result, bool requirePassAlive) const;
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
@@ -230,8 +233,7 @@ struct Board
   int findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
   bool hasLibertyGainingCaptures(Loc loc) const;
 
-  void calculatePassAliveTerritoryForPla(Player pla, Color* result) const;
-
+  void calculatePassAliveForPla(Player pla, bool includeNonPassAliveTerritory, Color* result) const;
 
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);
 };

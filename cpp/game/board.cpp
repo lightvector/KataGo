@@ -1343,16 +1343,27 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
 }
 
-//If a point in [result] is a pass-alive stone or pass-alive territory for a color, mark it that color, otherwise mark it C_EMPTY.
-//Pass-alive assumes suicide is possible (even if according to the rules it would not be)
-void Board::calculatePassAliveTerritory(Color* result) const {
+void Board::calculateArea(Color* result, bool requirePassAlive) const {
   for(int i = 0; i<MAX_ARR_SIZE; i++)
     result[i] = C_EMPTY;
-  calculatePassAliveTerritoryForPla(P_BLACK,result);
-  calculatePassAliveTerritoryForPla(P_WHITE,result);
+  calculatePassAliveForPla(P_BLACK,!requirePassAlive,result);
+  calculatePassAliveForPla(P_WHITE,!requirePassAlive,result);
+
+  if(!requirePassAlive) {
+     //Also include non-pass-alive stones
+    for(int y = 0; y < y_size; y++) {
+      for(int x = 0; x < x_size; x++) {
+        Loc loc = Location::getLoc(x,y,x_size);
+        if(result[loc] == C_EMPTY)
+          result[loc] = colors[loc];
+      }
+    }
+  }
 }
 
-void Board::calculatePassAliveTerritoryForPla(Player pla, Color* result) const {
+//This marks pass-alive stones, pass-alive territory.
+//If includeNonPassAliveTerritory, also marks non-pass-alive territory but NOT non-pass-alive stones!
+void Board::calculatePassAliveForPla(Player pla, bool includeNonPassAliveTerritory, Color* result) const {
   Color opp = getOpp(pla);
 
   //First compute all empty-or-opp regions
@@ -1381,6 +1392,8 @@ void Board::calculatePassAliveTerritoryForPla(Player pla, Color* result) const {
   uint16_t vitalLen[maxRegions];
   //For each head of a region, 0, 1, or 2+ spaces of that region not bordering any pla
   uint8_t numInternalSpacesMax2[maxRegions];
+  bool bordersPla[maxRegions];
+  bool containsOpp[maxRegions];
 
   for(int i = 0; i<MAX_ARR_SIZE; i++) {
     regionHeadByLoc[i] = NULL_LOC;
@@ -1401,7 +1414,7 @@ void Board::calculatePassAliveTerritoryForPla(Player pla, Color* result) const {
   buildRegion = [pla,opp,
                  &regionHeadByLoc,
                  &vitalForPlaHeadsLists,
-                 &vitalStart,&vitalLen,&numInternalSpacesMax2,
+                 &vitalStart,&vitalLen,&numInternalSpacesMax2,&bordersPla,&containsOpp,
                  this,
                  &isAdjacentToPlaHead,&nextEmptyOrOpp,&buildRegion](Loc head, Loc tailTarget, Loc loc, int regionIdx) -> Loc {
     if(regionHeadByLoc[loc] != NULL_LOC)
@@ -1438,6 +1451,11 @@ void Board::calculatePassAliveTerritoryForPla(Player pla, Color* result) const {
       }
       if(isInternal && numInternalSpacesMax2[regionIdx] < 2)
         numInternalSpacesMax2[regionIdx] += 1;
+
+      if(!isInternal)
+        bordersPla[regionIdx] = true;
+      if(colors[loc] == opp)
+        containsOpp[regionIdx] = true;
     }
 
     //Next, recurse everywhere
@@ -1469,6 +1487,8 @@ void Board::calculatePassAliveTerritoryForPla(Player pla, Color* result) const {
       vitalStart[regionIdx] = vitalForPlaHeadsListsTotal;
       vitalLen[regionIdx] = 0;
       numInternalSpacesMax2[regionIdx] = 0;
+      bordersPla[regionIdx] = false;
+      containsOpp[regionIdx] = false;
 
       //Fill in all adjacent pla heads as vital, which will get filtered during buildRegion
       {
@@ -1595,21 +1615,20 @@ void Board::calculatePassAliveTerritoryForPla(Player pla, Color* result) const {
     }
   }
 
-  //Mark result with pass-alive territory
+  //Mark result with territory
   for(int i = 0; i<numRegions; i++) {
-    if(numInternalSpacesMax2[i] > 1)
-      continue;
     Loc head = regionHeads[i];
-    if(bordersNonPassAlivePlaByHead[head])
-      continue;
-    Loc cur = head;
-    do {
-      result[cur] = pla;
-      cur = nextEmptyOrOpp[cur];
-    } while (cur != head);
+    if((numInternalSpacesMax2[i] <= 1 && !bordersNonPassAlivePlaByHead[head])
+       || (includeNonPassAliveTerritory && bordersPla[i] && !containsOpp[i])) {
+
+      Loc cur = head;
+      do {
+        result[cur] = pla;
+        cur = nextEmptyOrOpp[cur];
+      } while (cur != head);
+    }
   }
 
-  return;
 }
 
 

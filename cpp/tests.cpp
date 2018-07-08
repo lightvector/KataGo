@@ -75,7 +75,7 @@ static void runBoardTests() {
 xxoo.o.ox
 .x.....oo
 )%%");
-    
+
     out << endl;
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
@@ -88,7 +88,7 @@ xxoo.o.ox
       out << endl;
     }
     out << endl;
-     
+
     string expected = R"%%(
 .........
 .....4...
@@ -146,7 +146,7 @@ xxoo.o.ox
       out << endl;
     }
     out << endl;
-     
+
     string expected = R"%%(
 After black
 233335332
@@ -203,7 +203,7 @@ xoox..xo.
       out << endl;
     }
     out << endl;
-     
+
     string expected = R"%%(
 01.0..010
 0100..0..
@@ -249,7 +249,7 @@ xoox..xo.
       out << endl;
     }
     out << endl;
-     
+
     string expected = R"%%(
 11.1..000
 11.0..0..
@@ -296,7 +296,7 @@ xoox..xo.
       out << endl;
     }
     out << endl;
-     
+
     string expected = R"%%(
 ..................
 ..................
@@ -387,7 +387,7 @@ xoox..xo.
       out << endl;
     }
     out << endl;
-     
+
     string expected = R"%%(
 
 .............00.11
@@ -426,10 +426,31 @@ xoox..xo.
     out.clear();
   }
 
-  
+  //============================================================================
+  auto printAreas = [&out](const Board& board, Color result[Board::MAX_ARR_SIZE]) {
+    for(int mode = 0; mode < 4; mode++) {
+      bool multiStoneSuicideLegal = (mode % 2 == 1);
+      bool requirePassAlive = (mode <= 1);
+      Board copy(board);
+      copy.setMultiStoneSuicideLegal(multiStoneSuicideLegal);
+      copy.calculateArea(result,requirePassAlive);
+      out << "Require pass alive " << requirePassAlive << " Suicide " << multiStoneSuicideLegal << endl;
+      for(int y = 0; y<copy.y_size; y++) {
+        for(int x = 0; x<copy.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,copy.x_size);
+          out << getCharOfColor(result[loc]);
+        }
+        out << endl;
+      }
+      out << endl;
+      testAssert(boardColorsEqual(copy,board));
+      copy.checkConsistency();
+    }
+  };
+
   //============================================================================
   {
-    const char* name = "Pass-alive 1";
+    const char* name = "Area 1";
     Color result[Board::MAX_ARR_SIZE];
     Board board = parseBoard(9,9,R"%%(
 ..o.o.xx.
@@ -442,29 +463,11 @@ x......oo
 x.x..oo.o
 .x.x.o.o.
 )%%");
-    
-    out << endl;
-    board.calculatePassAliveTerritory(result);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        out << getCharOfColor(result[loc]);
-      }
-      out << endl;
-    }
-    out << endl;
-    board.setMultiStoneSuicideLegal(true);
-    board.calculatePassAliveTerritory(result);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        out << getCharOfColor(result[loc]);
-      }
-      out << endl;
-    }
-    out << endl;
-     
+
+    printAreas(board,result);
+
     string expected = R"%%(
+Require pass alive 1 Suicide 0
 ......XXX
 ......XXX
 .......XX
@@ -475,6 +478,7 @@ x.x..oo.o
 .....OOOO
 .....OOOO
 
+Require pass alive 1 Suicide 1
 ......XXX
 ......XXX
 .......XX
@@ -484,6 +488,28 @@ x.x..oo.o
 ......OOO
 .....OOOO
 .....OOOO
+
+Require pass alive 0 Suicide 0
+OOOOO.XXX
+OOOOO.XXX
+OO.....XX
+.........
+.........
+X......OO
+XXX...OOO
+XXX..OOOO
+XXXX.OOOO
+
+Require pass alive 0 Suicide 1
+OOOOO.XXX
+OOOOO.XXX
+OO.....XX
+.........
+.........
+X......OO
+XXX...OOO
+XXX..OOOO
+XXXX.OOOO
 )%%";
     expect(name,out,expected);
     out.str("");
@@ -492,7 +518,7 @@ x.x..oo.o
 
   //============================================================================
   {
-    const char* name = "Pass-alive 2";
+    const char* name = "Area 2";
     Color result[Board::MAX_ARR_SIZE];
     Board board = parseBoard(9,9,R"%%(
 x.oooooo.
@@ -516,38 +542,12 @@ o.x.x...o
 o.xxx...o
 .ooooooo.
 )%%");
-    
-    out << endl;
-    board.calculatePassAliveTerritory(result);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        out << getCharOfColor(result[loc]);
-      }
-      out << endl;
-    }
-    out << endl;
-    board2.calculatePassAliveTerritory(result);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        out << getCharOfColor(result[loc]);
-      }
-      out << endl;
-    }
-    out << endl;
-    board.setMultiStoneSuicideLegal(true);
-    board.calculatePassAliveTerritory(result);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        out << getCharOfColor(result[loc]);
-      }
-      out << endl;
-    }
-    out << endl;
-     
+
+    printAreas(board,result);
+    printAreas(board2,result);
+
     string expected = R"%%(
+Require pass alive 1 Suicide 0
 OOOOOOOOO
 OO...XX.O
 O...XXX.O
@@ -558,6 +558,7 @@ O.XXX...O
 O.XXX...O
 OOOOOOOOO
 
+Require pass alive 1 Suicide 1
 .........
 .........
 .........
@@ -568,6 +569,29 @@ OOOOOOOOO
 .........
 .........
 
+Require pass alive 0 Suicide 0
+OOOOOOOOO
+OOX..XX.O
+O...XXX.O
+O...XXX.O
+OXXXXXX.O
+OXXXX...O
+O.XXX...O
+O.XXX...O
+OOOOOOOOO
+
+Require pass alive 0 Suicide 1
+X.OOOOOOO
+OOX..XX.O
+O...XOX.O
+O...X.X.O
+OXXXXXX.O
+OX..X...O
+O.XOX...O
+O.XXX...O
+OOOOOOOOO
+
+Require pass alive 1 Suicide 0
 .........
 .........
 .........
@@ -577,6 +601,39 @@ OOOOOOOOO
 .........
 .........
 .........
+
+Require pass alive 1 Suicide 1
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+
+Require pass alive 0 Suicide 0
+OOOOOOOOO
+OOX..XX.O
+O...XOX.O
+O...X.X.O
+OXXXXXX.O
+OXXXX...O
+O.XXX...O
+O.XXX...O
+OOOOOOOOO
+
+Require pass alive 0 Suicide 1
+OOOOOOOOO
+OOX..XX.O
+O...XOX.O
+O...X.X.O
+OXXXXXX.O
+OXXXX...O
+O.XXX...O
+O.XXX...O
+OOOOOOOOO
 )%%";
     expect(name,out,expected);
     out.str("");
@@ -585,7 +642,7 @@ OOOOOOOOO
 
   //============================================================================
   {
-    const char* name = "Pass-alive 3";
+    const char* name = "Area 3";
     Color result[Board::MAX_ARR_SIZE];
     Board board = parseBoard(19,19,R"%%(
 o.o....xx......o..o
@@ -608,28 +665,11 @@ oo.`.....`.....`...
 .oooo.o.o.o.o.oooo.
 o..o.o.oo.oo.o.o.o.
 )%%");
-    out << endl;
-    board.calculatePassAliveTerritory(result);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        out << getCharOfColor(result[loc]);
-      }
-      out << endl;
-    }
-    out << endl;
-    board.setMultiStoneSuicideLegal(true);
-    board.calculatePassAliveTerritory(result);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        out << getCharOfColor(result[loc]);
-      }
-      out << endl;
-    }
-    out << endl;
-     
+
+    printAreas(board,result);
+
     string expected = R"%%(
+Require pass alive 1 Suicide 0
 OOO................
 OOO................
 OO.................
@@ -650,6 +690,7 @@ XXX................
 ..........OOO.OOOO.
 ..........OOOOOOOO.
 
+Require pass alive 1 Suicide 1
 ...................
 ...................
 ...................
@@ -669,6 +710,48 @@ XXX................
 ..........OO.......
 ..........OOO.OOOO.
 ..........OOOOOOOO.
+
+Require pass alive 0 Suicide 0
+OOO....XX......OOOO
+OOO.XXXXX......OOOO
+OO..XXXXX........OO
+OO..XXX............
+...................
+.......XX..........
+....XXXXX......XXX.
+....XXXXX......XXX.
+....XXX........XXX.
+XXX.....XXXXX...XXX
+..X.....XXXXX...XXX
+O.XXX...XXXXX....XX
+O.XXX...XXXXXXX....
+..XXX...XXXXXXX....
+XXX.....XXXXXXX....
+OO.................
+OO.....OO.OO......O
+OOOOO.OOO.OOO.OOOOO
+OOOOOOOOO.OOOOOOOOO
+
+Require pass alive 0 Suicide 1
+OOO....XX......OOOO
+.OO.XXXXX......OOOO
+XO..XXXXX........OO
+OO..XXX............
+...................
+.......XX..........
+....XXXXX......XXX.
+....XO.XX......XXX.
+....XXX........XXX.
+XXX.....XXXXX...XXX
+..X.....XXXXX...XXX
+O.XXX...XXXXX....XX
+O.XXX...XXXXXXX....
+..XXX...XXXXXXX....
+XXX.....XXXXXXX....
+OO.................
+OO.....OO.OO......O
+OOOOO.OOO.OOO.OOOOO
+OOOOOOOOO.OOOOOOOOO
 )%%";
     expect(name,out,expected);
     out.str("");
@@ -677,7 +760,7 @@ XXX................
 
   //============================================================================
   {
-    const char* name = "Pass-alive 4";
+    const char* name = "Area 4";
     Color result[Board::MAX_ARR_SIZE];
     Board board = parseBoard(19,19,R"%%(
 .x.x.xxxx.xxxx.x.x.
@@ -700,28 +783,11 @@ ooooo....ooooo.oooo
 .o..oo...o...ooo...
 o.o.xo...o.o.o.o.oo
 )%%");
-    out << endl;
-    board.calculatePassAliveTerritory(result);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        out << getCharOfColor(result[loc]);
-      }
-      out << endl;
-    }
-    out << endl;
-    board.setMultiStoneSuicideLegal(true);
-    board.calculatePassAliveTerritory(result);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        out << getCharOfColor(result[loc]);
-      }
-      out << endl;
-    }
-    out << endl;
-     
+
+    printAreas(board,result);
+
     string expected = R"%%(
+Require pass alive 1 Suicide 0
 XXXXXXXXX..........
 XXXXXX..X..........
 XX.X....X..........
@@ -742,6 +808,7 @@ XXX.....XXXXXXX....
 ...................
 ...................
 
+Require pass alive 1 Suicide 1
 XXXXXXXXX..........
 XXXXXX..X..........
 XX.X....X..........
@@ -761,6 +828,48 @@ X......XX..........
 ...................
 ...................
 ...................
+
+Require pass alive 0 Suicide 0
+XXXXXXXXX.XXXXXXXXX
+XXXXXXXXX.XXXXXXXXX
+XXXXXXXXX.XXXXXXXXX
+XXXXXXXXX.XXXXXXXXX
+XXXXX.XX...XX.XXXXX
+XXXX...........XXXX
+XXX.............XXX
+.X...............X.
+...................
+XXX.....XXXXX......
+XXX.....XXXXX......
+XXXXX...XXXXX......
+XXXXX...XXXXXXX....
+XXXXX...XXXXXXX....
+XXX.....XXXXXXX....
+..............O....
+OOOOO....OOOOOOOOOO
+OO..OO...OOOOOOOOOO
+OOO.XO...OOOOOOOOOO
+
+Require pass alive 0 Suicide 1
+XXXXXXXXX.XXXXXXXXX
+XXXXXXXXX.XXXXXXXXX
+XXXXXXXXX.XXXXXXXXX
+XXXXXXXXX.XXXXXXXXX
+XXXXX.XX...XX.XXXXX
+XXXX...........XXXX
+XXX.............XXX
+.X...............X.
+...................
+XXX.....XXXXX......
+..X.....X...X......
+OXXXX...X..XX......
+O.XXX...X.O.XXX....
+..XXX...X...XXX....
+XXX.....XXXXXXX....
+..............O....
+OOOOO....OOOOOOOOOO
+OO..OO...OOOOOOOOOO
+OOO.XO...OOOOOOOOOO
 )%%";
     expect(name,out,expected);
     out.str("");
@@ -769,7 +878,7 @@ X......XX..........
 
   //============================================================================
   {
-    const char* name = "Pass-alive 5";
+    const char* name = "Area 5";
     Color result[Board::MAX_ARR_SIZE];
     Board board = parseBoard(19,13,R"%%(
 ...................
@@ -786,28 +895,11 @@ X......XX..........
 ....xxxxx.....xx...
 ...................
 )%%");
-    out << endl;
-    board.calculatePassAliveTerritory(result);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        out << getCharOfColor(result[loc]);
-      }
-      out << endl;
-    }
-    out << endl;
-    board.setMultiStoneSuicideLegal(true);
-    board.calculatePassAliveTerritory(result);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        out << getCharOfColor(result[loc]);
-      }
-      out << endl;
-    }
-    out << endl;
-     
+
+    printAreas(board,result);
+
     string expected = R"%%(
+Require pass alive 1 Suicide 0
 ...................
 ...................
 ...............XX..
@@ -822,6 +914,7 @@ X......XX..........
 ....XXXXX.....XX...
 ...................
 
+Require pass alive 1 Suicide 1
 ...................
 ...................
 ...................
@@ -835,12 +928,42 @@ X......XX..........
 ...................
 ...................
 ...................
+
+Require pass alive 0 Suicide 0
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+
+Require pass alive 0 Suicide 1
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXX.XX
+XXXXXXXXXXXXXX..OXX
+XXXXXXXXXXXXXXXXXXX
+XXX..XXXXXXXXXXXXXX
+XXX.OXXXXXXXXXXXXXX
+XXX.OXXX.OO.XXXXXXX
+XXX.OOO.X..XXXXXXXX
+XXXXX...XXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXX
 )%%";
     expect(name,out,expected);
     out.str("");
     out.clear();
   }
-  
+
 }
 
 static void runBoardStressTest() {
@@ -889,7 +1012,7 @@ static void runBoardStressTest() {
       testAssert(boardColorsEqual(copies[i],boards[i]));
       suc[i] = boards[i].playMove(locs[i],pla);
     }
-    
+
     for(int i = 0; i<numBoards; i++) {
       testAssert(isLegal[i] == suc[i]);
       boards[i].checkConsistency();
@@ -935,7 +1058,7 @@ static void runBoardStressTest() {
         }
       }
     }
-    
+
     pla = getOpp(pla);
   }
 
