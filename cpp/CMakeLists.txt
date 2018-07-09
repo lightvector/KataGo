@@ -91,6 +91,11 @@ add_executable(runtests
   game/rules.h
   game/boardhistory.cpp
   game/boardhistory.h
+  tests/tests.h
+  tests/testboardarea.cpp
+  tests/testboardbasic.cpp
+  tests/testmisc.cpp
+  tests/testrules.cpp
   tests.cpp
   )
 
