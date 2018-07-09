@@ -10,6 +10,8 @@ struct KoHashTable;
 
 //A data structure enabling fast checking if a move would be illegal due to superko.
 struct BoardHistory {
+  Rules rules;
+
   //Chronological history of moves
   vector<Move> moveHistory;
   //Chronological history of hashes, including the latest board's hash.
@@ -68,13 +70,13 @@ struct BoardHistory {
   bool isGameOver() const;
 
   //Check if a move on the board is legal, taking into account the full game state and superko
-  bool isLegal(const Board& board, Loc moveLoc, Player movePla, const Rules& rules) const;
+  bool isLegal(const Board& board, Loc moveLoc, Player movePla) const;
 
   //Make a move on the board assuming it's legal and update all history and game state information as well.
   //In the main phase, should still do reasonable things if the move is still board.isLegal but violates superko, or moves
   //past when the game is supposed to be over, to allow for robustness when this code is being used for analysis in a way
   //that violates ko stuff.
-  void makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const Rules& rules, const KoHashTable* rootKoHashTable);
+  void makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable);
 
 private:
   bool koHashOccursBefore(Hash128 koHash, const KoHashTable* rootKoHashTable) const;

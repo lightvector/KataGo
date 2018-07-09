@@ -11,8 +11,7 @@ void Tests::runBoardAreaTests() {
       bool multiStoneSuicideLegal = (mode % 2 == 1);
       bool requirePassAlive = (mode <= 1);
       Board copy(board);
-      copy.setMultiStoneSuicideLegal(multiStoneSuicideLegal);
-      copy.calculateArea(result,requirePassAlive);
+      copy.calculateArea(result,requirePassAlive,multiStoneSuicideLegal);
       out << "Require pass alive " << requirePassAlive << " Suicide " << multiStoneSuicideLegal << endl;
       for(int y = 0; y<copy.y_size; y++) {
         for(int x = 0; x<copy.x_size; x++) {

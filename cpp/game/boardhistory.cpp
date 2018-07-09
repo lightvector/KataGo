@@ -16,7 +16,8 @@ static Hash128 getKoHashAfterMoveNonEncore(const Rules& rules, Hash128 posHashAf
 }
 
 BoardHistory::BoardHistory()
-  :moveHistory(),koHashHistory(),
+  :rules(),
+   moveHistory(),koHashHistory(),
    consecutiveEndingPasses(0),
    hashesAfterBlackPass(),hashesAfterWhitePass(),
    encorePhase(0),koProhibitHash(),
@@ -34,8 +35,9 @@ BoardHistory::BoardHistory()
 BoardHistory::~BoardHistory()
 {}
 
-BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& rules)
-  :moveHistory(),koHashHistory(),
+BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r)
+  :rules(r),
+   moveHistory(),koHashHistory(),
    consecutiveEndingPasses(0),
    hashesAfterBlackPass(),hashesAfterWhitePass(),
    encorePhase(0),koProhibitHash(),
@@ -53,7 +55,8 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& rules)
 }
 
 BoardHistory::BoardHistory(const BoardHistory& other)
-  :moveHistory(other.moveHistory),koHashHistory(other.koHashHistory),
+  :rules(other.rules),
+   moveHistory(other.moveHistory),koHashHistory(other.koHashHistory),
    consecutiveEndingPasses(other.consecutiveEndingPasses),
    hashesAfterBlackPass(other.hashesAfterBlackPass),hashesAfterWhitePass(other.hashesAfterWhitePass),
    encorePhase(other.encorePhase),koProhibitHash(other.koProhibitHash),
@@ -71,6 +74,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
 
 BoardHistory& BoardHistory::operator=(const BoardHistory& other)
 {
+  rules = other.rules;
   moveHistory = other.moveHistory;
   koHashHistory = other.koHashHistory;
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
@@ -93,7 +97,8 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
 }
 
 BoardHistory::BoardHistory(BoardHistory&& other) noexcept
-  :moveHistory(std::move(other.moveHistory)),koHashHistory(std::move(other.koHashHistory)),
+ :rules(other.rules),
+  moveHistory(std::move(other.moveHistory)),koHashHistory(std::move(other.koHashHistory)),
   consecutiveEndingPasses(other.consecutiveEndingPasses),
   hashesAfterBlackPass(std::move(other.hashesAfterBlackPass)),hashesAfterWhitePass(std::move(other.hashesAfterWhitePass)),
   encorePhase(other.encorePhase),koProhibitHash(other.koProhibitHash),
@@ -110,6 +115,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
 
 BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
 {
+  rules = other.rules;
   moveHistory = std::move(other.moveHistory);
   koHashHistory = std::move(other.koHashHistory);
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
@@ -131,10 +137,8 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   return *this;
 }
 
-void BoardHistory::clear(const Board& board, Player pla, const Rules& rules) {
-  if(rules.multiStoneSuicideLegal != board.isMultiStoneSuicideLegal)
-    throw StringError("BoardHistory::clear","multiStoneSuicideLegal doesn't match betwen board and rules");
-
+void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
+  rules = r;
   moveHistory.clear();
   koHashHistory.clear();
 
@@ -210,7 +214,7 @@ bool BoardHistory::isGameOver() const {
   return isNoResult || winner != C_EMPTY;
 }
 
-bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla, const Rules& rules) const {
+bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) const {
   //Moves in the encore on ko-prohibited spots are treated as pass-for-ko, so they are legal
   if(encorePhase > 0 && moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE) {
     if(movePla == P_BLACK && blackKoProhibited[moveLoc])
@@ -219,7 +223,7 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla, cons
       return true;
   }
 
-  if(!board.isLegal(moveLoc,movePla))
+  if(!board.isLegal(moveLoc,movePla,rules.multiStoneSuicideLegal))
     return false;
   if(rules.koRule != Rules::KO_SIMPLE && encorePhase <= 0 && superKoBanned[moveLoc])
     return false;
@@ -253,7 +257,7 @@ int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
   int score = 0;
   bool requirePassAlive = false;
   Color area[Board::MAX_ARR_SIZE];
-  board.calculateArea(area,requirePassAlive);
+  board.calculateArea(area,requirePassAlive,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
@@ -270,7 +274,7 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board) con
   int score = 0;
   bool requirePassAlive = true;
   Color area[Board::MAX_ARR_SIZE];
-  board.calculateArea(area,requirePassAlive);
+  board.calculateArea(area,requirePassAlive,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
@@ -289,7 +293,7 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board) con
   return score;
 }
 
-void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const Rules& rules, const KoHashTable* rootKoHashTable) {
+void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable) {
   Loc koLocBeforeMove = board.ko_loc;
   Hash128 posHashBeforeMove = board.pos_hash;
 
@@ -335,7 +339,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
         Loc loc = Location::getLoc(x,y,board.x_size);
         //Cannot be superko banned if it's not a legal move in the first place, or if there was never a stone there
         //was never played before, or we would already ban the move under simple ko
-        if(board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,nextPla) || loc == board.ko_loc)
+        if(board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,nextPla,rules.multiStoneSuicideLegal) || loc == board.ko_loc)
           superKoBanned[loc] = false;
         else if(!wasEverOccupiedOrPlayed[loc] && !board.isSuicide(loc,nextPla))
           superKoBanned[loc] = false;

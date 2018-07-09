@@ -121,7 +121,7 @@ struct Board
 
   //Constructors---------------------------------
   Board();  //Create Board of size (19,19), multi-stone-suicide illegal
-  Board(int x, int y, bool multiStoneSuicideLegal); //Create Fastboard of size (x,y)
+  Board(int x, int y); //Create Fastboard of size (x,y)
   Board(const Board& other);
 
   //Functions------------------------------------
@@ -136,11 +136,11 @@ struct Board
   //Check if moving here would be a self-capture
   bool isSuicide(Loc loc, Player pla) const;
   //Check if moving here would be an illegal self-capture
-  bool isIllegalSuicide(Loc loc, Player pla) const;
+  bool isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
   //Check if moving here is illegal due to simple ko
   bool isKoBanned(Loc loc) const;
   //Check if moving here is illegal.
-  bool isLegal(Loc loc, Player pla) const;
+  bool isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
   //Check if this location is on the board
   bool isOnBoard(Loc loc) const;
   //Check if this location contains a simple eye for the specified player.
@@ -149,14 +149,13 @@ struct Board
   bool wouldBeKoCapture(Loc loc, Player pla) const;
 
   //Configuration the board in various ways
-  void setMultiStoneSuicideLegal(bool b);
   void clearSimpleKoLoc();
 
   //Sets the specified stone if possible. Returns true usually, returns false location or color were out of range.
   bool setStone(Loc loc, Color color);
 
   //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
-  bool playMove(Loc loc, Player pla);
+  bool playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal);
 
   //Plays the specified move, assuming it is legal.
   void playMoveAssumeLegal(Loc loc, Player pla);
@@ -186,7 +185,7 @@ struct Board
   //If requirePassAlive is false, also mark empty points that surrounded only by one color.
   //If none of those are true, mark it as C_EMPTY.
   //[result] must be a buffer of size MAX_ARR_SIZE and will get filled with the result
-  void calculateArea(Color* result, bool requirePassAlive) const;
+  void calculateArea(Color* result, bool requirePassAlive, bool isMultiStoneSuicideLegal) const;
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
@@ -210,11 +209,8 @@ struct Board
 
   short adj_offsets[8]; //Indices 0-3: Offsets to add for adjacent points. Indices 4-7: Offsets for diagonal points.
 
-  //Rules
-  bool isMultiStoneSuicideLegal; //Single-stone suicide is still always illegal.
-
   private:
-  void init(int xS, int yS, bool multiStoneSuicideLegal);
+  void init(int xS, int yS);
   int countHeuristicConnectionLibertiesX2(Loc loc, Player pla) const;
   bool isLibertyOf(Loc loc, Loc head) const;
   void mergeChains(Loc loc1, Loc loc2);
@@ -233,7 +229,7 @@ struct Board
   int findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
   bool hasLibertyGainingCaptures(Loc loc) const;
 
-  void calculatePassAliveForPla(Player pla, bool includeNonPassAliveTerritory, Color* result) const;
+  void calculatePassAliveForPla(Player pla, bool includeNonPassAliveTerritory, bool isMultiStoneSuicideLegal, Color* result) const;
 
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);
 };

@@ -25,12 +25,12 @@ Hash128 Board::ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
 
 Board::Board()
 {
-  init(19,19,false);
+  init(19,19);
 }
 
-Board::Board(int x, int y, bool multiStoneSuicideLegal)
+Board::Board(int x, int y)
 {
-  init(x,y,multiStoneSuicideLegal);
+  init(x,y);
 }
 
 
@@ -51,11 +51,9 @@ Board::Board(const Board& other)
   pos_hash = other.pos_hash;
 
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
-
-  isMultiStoneSuicideLegal = other.isMultiStoneSuicideLegal;
 }
 
-void Board::init(int xS, int yS, bool multiStoneSuicideLegal)
+void Board::init(int xS, int yS)
 {
   assert(IS_ZOBRIST_INITALIZED);
   assert(xS <= MAX_LEN && yS <= MAX_LEN);
@@ -81,8 +79,6 @@ void Board::init(int xS, int yS, bool multiStoneSuicideLegal)
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
 
   Location::getAdjacentOffsets(adj_offsets,x_size);
-
-  isMultiStoneSuicideLegal = multiStoneSuicideLegal;
 }
 
 void Board::initHash()
@@ -123,10 +119,6 @@ void Board::initHash()
   IS_ZOBRIST_INITALIZED = true;
 }
 
-void Board::setMultiStoneSuicideLegal(bool b) {
-  isMultiStoneSuicideLegal = b;
-}
-
 void Board::clearSimpleKoLoc() {
   ko_loc = NULL_LOC;
 }
@@ -165,7 +157,7 @@ bool Board::isSuicide(Loc loc, Player pla) const
 }
 
 //Check if moving here is would be an illegal self-capture
-bool Board::isIllegalSuicide(Loc loc, Player pla) const
+bool Board::isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
 {
   Player opp = getOpp(pla);
   for(int i = 0; i < 4; i++)
@@ -287,11 +279,17 @@ bool Board::isOnBoard(Loc loc) const {
 }
 
 //Check if moving here is illegal.
-bool Board::isLegal(Loc loc, Player pla) const
+bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
 {
   if(pla != P_BLACK && pla != P_WHITE)
     return false;
-  return loc == PASS_LOC || (loc >= 0 && loc < MAX_ARR_SIZE && (colors[loc] == C_EMPTY) && !isKoBanned(loc) && !isIllegalSuicide(loc, pla));
+  return loc == PASS_LOC || (
+    loc >= 0 &&
+    loc < MAX_ARR_SIZE &&
+    (colors[loc] == C_EMPTY) &&
+    !isKoBanned(loc) &&
+    !isIllegalSuicide(loc, pla, isMultiStoneSuicideLegal)
+  );
 }
 
 //Check if this location contains a simple eye for the specified player.
@@ -379,9 +377,9 @@ bool Board::setStone(Loc loc, Color color)
 
 
 //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
-bool Board::playMove(Loc loc, Player pla)
+bool Board::playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
 {
-  if(isLegal(loc,pla))
+  if(isLegal(loc,pla,isMultiStoneSuicideLegal))
   {
     playMoveAssumeLegal(loc,pla);
     return true;
@@ -1135,12 +1133,16 @@ bool Board::searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, 
   bool move0Works = false;
   bool move1Works = false;
 
-  if(isLegal(move0,opp)) {
+  //Suicide never relevant for ladders
+  //Attacker: A suicide move cannot reduce the defender's liberties
+  //Defender: A suicide move cannot gain liberties
+  bool isMultiStoneSuicideLegal = false;
+  if(isLegal(move0,opp,isMultiStoneSuicideLegal)) {
     MoveRecord record = playMoveRecorded(move0,opp);
     move0Works = searchIsLadderCaptured(loc,true,buf);
     undo(record);
   }
-  if(isLegal(move1,opp)) {
+  if(isLegal(move1,opp,isMultiStoneSuicideLegal)) {
     MoveRecord record = playMoveRecorded(move1,opp);
     move1Works = searchIsLadderCaptured(loc,true,buf);
     undo(record);
@@ -1326,7 +1328,8 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
     //Illegal move - treat it the same as a failed move, but don't return up a level so that we
     //loop again and just try the next move.
-    if(!isLegal(move,p)) {
+    bool isMultiStoneSuicideLegal = false;
+    if(!isLegal(move,p,isMultiStoneSuicideLegal)) {
       returnValue = isDefender;
       returnedFromDeeper = false;
       // if(print) cout << "illegal " << endl;
@@ -1345,11 +1348,11 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
 }
 
-void Board::calculateArea(Color* result, bool requirePassAlive) const {
+void Board::calculateArea(Color* result, bool requirePassAlive, bool isMultiStoneSuicideLegal) const {
   for(int i = 0; i<MAX_ARR_SIZE; i++)
     result[i] = C_EMPTY;
-  calculatePassAliveForPla(P_BLACK,!requirePassAlive,result);
-  calculatePassAliveForPla(P_WHITE,!requirePassAlive,result);
+  calculatePassAliveForPla(P_BLACK,!requirePassAlive,isMultiStoneSuicideLegal,result);
+  calculatePassAliveForPla(P_WHITE,!requirePassAlive,isMultiStoneSuicideLegal,result);
 
   if(!requirePassAlive) {
      //Also include non-pass-alive stones
@@ -1365,7 +1368,7 @@ void Board::calculateArea(Color* result, bool requirePassAlive) const {
 
 //This marks pass-alive stones, pass-alive territory.
 //If includeNonPassAliveTerritory, also marks non-pass-alive territory but NOT non-pass-alive stones!
-void Board::calculatePassAliveForPla(Player pla, bool includeNonPassAliveTerritory, Color* result) const {
+void Board::calculatePassAliveForPla(Player pla, bool includeNonPassAliveTerritory, bool isMultiStoneSuicideLegal, Color* result) const {
   Color opp = getOpp(pla);
 
   //First compute all empty-or-opp regions
@@ -1413,7 +1416,7 @@ void Board::calculatePassAliveForPla(Player pla, bool includeNonPassAliveTerrito
   };
 
   std::function<Loc(Loc,Loc,Loc,int)> buildRegion;
-  buildRegion = [pla,opp,
+  buildRegion = [pla,opp,isMultiStoneSuicideLegal,
                  &regionHeadByLoc,
                  &vitalForPlaHeadsLists,
                  &vitalStart,&vitalLen,&numInternalSpacesMax2,&bordersPla,&containsOpp,

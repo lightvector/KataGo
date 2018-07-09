@@ -5,7 +5,7 @@
 #include "../dataio/lzparse.h"
 
 LZSample::LZSample()
-  :emptyBoard(19,19,true),plaStones(),oppStones(),sideStr(),policyStr(),resultStr()
+  :emptyBoard(19,19),plaStones(),oppStones(),sideStr(),policyStr(),resultStr()
 {}
 
 LZSample::~LZSample()
@@ -203,7 +203,8 @@ void LZSample::parse(
   {
     boards[i] = boards[i+1];
     Move move = moves[7-i-1];
-    bool suc = boards[i].playMove(move.loc,move.pla);
+    bool multiStoneSuicideLegal = true; //True for LZ
+    bool suc = boards[i].playMove(move.loc,move.pla,multiStoneSuicideLegal);
     if(!suc)
       throw IOError(string("Leela zero illegal implied move"));
   }

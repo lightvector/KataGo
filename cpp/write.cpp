@@ -548,8 +548,8 @@ static void iterSgfMoves(
   const vector<Move>& placements = *placementsBuf;
   const vector<Move>& moves = *movesBuf;
 
-  bool multiStoneSuicideLegal = false;
-  Board initialBoard(bSize,bSize,multiStoneSuicideLegal);
+  Board initialBoard(bSize,bSize);
+  bool multiStoneSuicideLegal = false; //False for KGS,GoGoD, etc
   for(int j = 0; j<placements.size(); j++) {
     Move m = placements[j];
     bool suc = initialBoard.setStone(m.loc,m.pla);
@@ -569,7 +569,7 @@ static void iterSgfMoves(
       Move m = moves[j];
       if(m.pla != P_BLACK)
         break;
-      bool suc = initialBoard.playMove(m.loc,m.pla);
+      bool suc = initialBoard.playMove(m.loc,m.pla,multiStoneSuicideLegal);
       if(!suc) {
         cout << sgf->fileName << endl;
         cout << ("Illegal move! " + Global::intToString(j)) << endl;
@@ -624,7 +624,7 @@ static void iterSgfMoves(
     //recentBoards[0] is the most recent
     for(int dj = 0; dj<numRecentBoards && j-dj >= 0; dj++) {
       Move mv = moves[j-dj];
-      bool suc = recentBoards[dj].playMove(mv.loc,mv.pla);
+      bool suc = recentBoards[dj].playMove(mv.loc,mv.pla,multiStoneSuicideLegal);
       if(!suc) {
         cout << sgf->fileName << endl;
         cout << ("Illegal move! " + Global::intToString(j)) << endl;

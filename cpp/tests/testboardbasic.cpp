@@ -380,7 +380,7 @@ void Tests::runBoardUndoTest() {
   int koCaptureCount = 0;
   int passCount = 0;
   int regularMoveCount = 0;
-  auto run = [&](const Board& startBoard) {
+  auto run = [&](const Board& startBoard, bool multiStoneSuicideLegal) {
     int steps = 1000;
     Board* boards = new Board[steps+1];
     Board::MoveRecord records[steps];
@@ -393,7 +393,7 @@ void Tests::runBoardUndoTest() {
       while(true) {
         pla = rand.nextUInt(2) == 0 ? P_BLACK : P_WHITE;
         loc = (Loc)rand.nextUInt(Board::MAX_ARR_SIZE);
-        if(boards[n].isLegal(loc,pla))
+        if(boards[n].isLegal(loc,pla,multiStoneSuicideLegal))
           break;
       }
 
@@ -418,9 +418,9 @@ void Tests::runBoardUndoTest() {
     }
   };
 
-  run(Board(19,19,true));
-  run(Board(4,4,true));
-  run(Board(4,4,false));
+  run(Board(19,19),true);
+  run(Board(4,4),true);
+  run(Board(4,4),false);
 
   ostringstream out;
   out << endl;
@@ -448,9 +448,10 @@ void Tests::runBoardStressTest() {
   int numBoards = 4;
   Board boards[numBoards];
   boards[0] = Board();
-  boards[1] = Board(9,16,false);
-  boards[2] = Board(13,7,true);
-  boards[3] = Board(4,4,false);
+  boards[1] = Board(9,16);
+  boards[2] = Board(13,7);
+  boards[3] = Board(4,4);
+  bool multiStoneSuicideLegal[4] = {false,false,true,false};
   Board copies[numBoards];
   Player pla = C_BLACK;
   int suicideCount = 0;
@@ -483,9 +484,9 @@ void Tests::runBoardStressTest() {
     bool isLegal[numBoards];
     bool suc[numBoards];
     for(int i = 0; i<numBoards; i++) {
-      isLegal[i] = boards[i].isLegal(locs[i],pla);
+      isLegal[i] = boards[i].isLegal(locs[i],pla,multiStoneSuicideLegal[i]);
       testAssert(boardColorsEqual(copies[i],boards[i]));
-      suc[i] = boards[i].playMove(locs[i],pla);
+      suc[i] = boards[i].playMove(locs[i],pla,multiStoneSuicideLegal[i]);
     }
 
     for(int i = 0; i<numBoards; i++) {
@@ -498,7 +499,7 @@ void Tests::runBoardStressTest() {
       if(!suc[i]) {
         if(board.isOnBoard(loc)) {
           testAssert(boardColorsEqual(copy,board));
-          testAssert(loc < 0 || loc >= Board::MAX_ARR_SIZE || board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,pla) || board.isKoBanned(loc));
+          testAssert(loc < 0 || loc >= Board::MAX_ARR_SIZE || board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,pla,multiStoneSuicideLegal[i]) || board.isKoBanned(loc));
           if(board.isKoBanned(loc)) {
             testAssert(board.colors[loc] == C_EMPTY && (board.wouldBeKoCapture(loc,C_BLACK) || board.wouldBeKoCapture(loc,C_WHITE)));
             koBanCount++;
@@ -513,8 +514,8 @@ void Tests::runBoardStressTest() {
         }
         else if(copy.isSuicide(loc,pla)) {
           testAssert(board.colors[loc] == C_EMPTY);
-          testAssert(board.isLegal(loc,pla));
-          testAssert(board.isMultiStoneSuicideLegal);
+          testAssert(board.isLegal(loc,pla,multiStoneSuicideLegal[i]));
+          testAssert(multiStoneSuicideLegal[i]);
           suicideCount++;
         }
         else {

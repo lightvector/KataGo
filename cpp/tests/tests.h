@@ -53,7 +53,7 @@ namespace TestCommon {
   }
 
   inline Board parseBoard(int xSize, int ySize, const string& s) {
-    Board board(xSize,ySize,false);
+    Board board(xSize,ySize);
     vector<string> lines = Global::split(Global::trim(s),'\n');
     assert(lines.size() == ySize);
     for(int y = 0; y<ySize; y++) {

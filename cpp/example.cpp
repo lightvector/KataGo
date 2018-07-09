@@ -34,7 +34,7 @@ int main() {
   float selfKomi = 7.5f;
 
   Loc loc = Location::getLoc(2,3,board.x_size);
-  boardHistory.makeBoardMoveAssumeLegal(board,loc,P_BLACK,rules,NULL);
+  boardHistory.makeBoardMoveAssumeLegal(board,loc,P_BLACK,NULL);
 
   for(int symmetry = 0; symmetry < 8; symmetry++) {
     shared_ptr<NNOutput> output = nnEval->evaluate(board,boardHistory,nextPlayer,selfKomi,symmetry);
