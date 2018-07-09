@@ -36,7 +36,7 @@ class NNEvaluator {
 
   //TODO not thread-safe right now!
   shared_ptr<NNOutput> evaluate(
-    Board& board, const BoardHistory& history, Player nextPlayer, float selfKomi, int symmetry
+    Board& board, const BoardHistory& history, Player nextPlayer, int symmetry
   );
 
  private:

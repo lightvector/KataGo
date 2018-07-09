@@ -26,18 +26,17 @@ int main() {
   rules.koRule = Rules::KO_SIMPLE;
   rules.scoringRule = Rules::SCORING_AREA;
   rules.multiStoneSuicideLegal = false;
-  rules.komi = 7.5;
+  rules.komi = 7.5f;
 
   Board board;
   BoardHistory boardHistory(board,P_BLACK,rules);
   Player nextPlayer = P_WHITE;
-  float selfKomi = 7.5f;
 
   Loc loc = Location::getLoc(2,3,board.x_size);
   boardHistory.makeBoardMoveAssumeLegal(board,loc,P_BLACK,NULL);
 
   for(int symmetry = 0; symmetry < 8; symmetry++) {
-    shared_ptr<NNOutput> output = nnEval->evaluate(board,boardHistory,nextPlayer,selfKomi,symmetry);
+    shared_ptr<NNOutput> output = nnEval->evaluate(board,boardHistory,nextPlayer,symmetry);
 
     cout << "SYMMETRY " << symmetry << endl;
     for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {

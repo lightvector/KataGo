@@ -214,6 +214,18 @@ bool BoardHistory::isGameOver() const {
   return isNoResult || winner != C_EMPTY;
 }
 
+float BoardHistory::currentSelfKomi(Player pla) const {
+  float whiteKomi = whiteBonusScore + rules.komi;
+  if(pla == P_WHITE)
+    return whiteKomi;
+  else if(pla == P_BLACK)
+    return -whiteKomi;
+  else {
+    assert(false);
+    return 0.0f;
+  }
+}
+
 bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) const {
   //Moves in the encore on ko-prohibited spots are treated as pass-for-ko, so they are legal
   if(encorePhase > 0 && moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE) {

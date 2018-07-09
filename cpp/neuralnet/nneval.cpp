@@ -80,7 +80,7 @@ NNEvaluator::~NNEvaluator()
 }
 
 shared_ptr<NNOutput> NNEvaluator::evaluate(
-  Board& board, const BoardHistory& history, Player nextPlayer, float selfKomi, int symmetry
+  Board& board, const BoardHistory& history, Player nextPlayer, int symmetry
 ) {
   shared_ptr<NNOutput> nnOutput = std::make_shared<NNOutput>();
   outputsBuf.clear();
@@ -93,9 +93,10 @@ shared_ptr<NNOutput> NNEvaluator::evaluate(
   //TODO send this for batching to another thread? Probably would do so by synchronizedly
   //acquiring a buffer from that thread to be filled that doesn't conflict with threads
   //filling other entries for the same batch
-  //For now we just memory allocate
 
   int batch = 0;
+
+  float selfKomi = history.currentSelfKomi(nextPlayer);
   NNInputs::fillRow(
     board,history.moveHistory,(int)history.moveHistory.size(),nextPlayer,selfKomi,
     inputsBuffer+batch*rowSize

@@ -68,6 +68,7 @@ struct BoardHistory {
   //For all of the below, rootKoHashTable is optional and if provided will slightly speedup superko searches
 
   bool isGameOver() const;
+  float currentSelfKomi(Player pla) const;
 
   //Check if a move on the board is legal, taking into account the full game state and superko
   bool isLegal(const Board& board, Loc moveLoc, Player movePla) const;
