@@ -132,6 +132,9 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
 }
 
 void BoardHistory::clear(const Board& board, Player pla, const Rules& rules) {
+  if(rules.multiStoneSuicideLegal != board.isMultiStoneSuicideLegal)
+    throw StringError("BoardHistory::clear","multiStoneSuicideLegal doesn't match betwen board and rules");
+
   moveHistory.clear();
   koHashHistory.clear();
 

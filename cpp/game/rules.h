@@ -14,7 +14,10 @@ struct Rules {
   int scoringRule;
 
   bool multiStoneSuicideLegal;
-  double komi;
+  float komi;
+
+  Rules();
+  ~Rules();
 };
 
 #endif

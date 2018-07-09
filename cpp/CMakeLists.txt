@@ -53,6 +53,7 @@ add_executable(write
   zstr/src/zstr.hpp
   game/board.cpp
   game/board.h
+  game/rules.cpp
   game/rules.h
   game/boardhistory.cpp
   game/boardhistory.h
@@ -86,6 +87,7 @@ add_executable(runtests
   core/timer.h
   game/board.cpp
   game/board.h
+  game/rules.cpp
   game/rules.h
   game/boardhistory.cpp
   game/boardhistory.h
@@ -111,6 +113,7 @@ add_executable(example
   core/timer.h
   game/board.cpp
   game/board.h
+  game/rules.cpp
   game/rules.h
   game/boardhistory.cpp
   game/boardhistory.h

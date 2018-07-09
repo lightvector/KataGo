@@ -24,6 +24,7 @@ int main() {
 
   Rules rules;
   rules.koRule = Rules::KO_SIMPLE;
+  rules.scoringRule = Rules::SCORING_AREA;
   rules.multiStoneSuicideLegal = false;
   rules.komi = 7.5;
 
