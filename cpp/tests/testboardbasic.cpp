@@ -413,7 +413,7 @@ void Tests::runBoardUndoTest() {
     Board board = boards[steps];
     for(int n = steps-1; n >= 0; n--) {
       board.undo(records[n]);
-      assert(boardColorsEqual(boards[n],board));
+      assert(boardsSeemEqual(boards[n],board));
       board.checkConsistency();
     }
   };
@@ -485,7 +485,7 @@ void Tests::runBoardStressTest() {
     bool suc[numBoards];
     for(int i = 0; i<numBoards; i++) {
       isLegal[i] = boards[i].isLegal(locs[i],pla,multiStoneSuicideLegal[i]);
-      testAssert(boardColorsEqual(copies[i],boards[i]));
+      testAssert(boardsSeemEqual(copies[i],boards[i]));
       suc[i] = boards[i].playMove(locs[i],pla,multiStoneSuicideLegal[i]);
     }
 
@@ -498,7 +498,7 @@ void Tests::runBoardStressTest() {
       Loc loc = locs[i];
       if(!suc[i]) {
         if(board.isOnBoard(loc)) {
-          testAssert(boardColorsEqual(copy,board));
+          testAssert(boardsSeemEqual(copy,board));
           testAssert(loc < 0 || loc >= Board::MAX_ARR_SIZE || board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,pla,multiStoneSuicideLegal[i]) || board.isKoBanned(loc));
           if(board.isKoBanned(loc)) {
             testAssert(board.colors[loc] == C_EMPTY && (board.wouldBeKoCapture(loc,C_BLACK) || board.wouldBeKoCapture(loc,C_WHITE)));
@@ -508,7 +508,7 @@ void Tests::runBoardStressTest() {
       }
       else {
         if(loc == Board::PASS_LOC) {
-          testAssert(boardColorsEqual(copy,board));
+          testAssert(boardsSeemEqual(copy,board));
           testAssert(board.ko_loc == Board::NULL_LOC);
           passCount++;
         }
@@ -546,6 +546,9 @@ void Tests::runBoardStressTest() {
   out << "koBanCount " << koBanCount << endl;
   out << "suicideCount " << suicideCount << endl;
 
+  for(int i = 0; i<4; i++)
+    out << "Caps " << boards[i].numBlackCaptures << " " << boards[i].numWhiteCaptures << endl;
+  //TODO why are these cap numbers lopsided?
   string expected = R"%%(
 
 regularMoveCount 25755
@@ -553,6 +556,10 @@ passCount 269
 koCaptureCount 15
 koBanCount 3
 suicideCount 145
+Caps 1341 5052
+Caps 803 3864
+Caps 1662 9935
+Caps 390 2263
 
 )%%";
   expect("Board stress test move counts",out,expected);

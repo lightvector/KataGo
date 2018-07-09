@@ -164,10 +164,22 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
   finalWhiteMinusBlackScore = 0.0f;
   isNoResult = false;
 
-  //Using the formulation where we area score but chill one point per move, we net need to chill one
-  //for black if white's to move.
-  if(rules.scoringRule == Rules::SCORING_TERRITORY && pla == P_WHITE)
-    whiteBonusScore += 1;
+  if(rules.scoringRule == Rules::SCORING_TERRITORY) {
+    //Chill 1 point for every move played
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == P_BLACK)
+          whiteBonusScore += 1;
+        else if(board.colors[loc] == P_WHITE)
+          whiteBonusScore -= 1;
+      }
+    }
+    //If white actually played extra moves that got captured so we don't see them,
+    //then chill for those too
+    int netWhiteCaptures = board.numWhiteCaptures - board.numBlackCaptures;
+    whiteBonusScore -= netWhiteCaptures;
+  }
 
   //Push hash for the new board state
   koHashHistory.push_back(getKoHash(rules,board,pla,encorePhase,koProhibitHash));
@@ -419,6 +431,9 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     else
       assert(false);
   }
+
+  //TODO implement isNoResult usage, except be smart - the current Simpleko rule is broken because
+  //it triggers on sending2-returning1!!
 
   //Phase transitions and game end
   if(consecutiveEndingPasses >= 2 || isSpightOrEncoreEndingPass) {

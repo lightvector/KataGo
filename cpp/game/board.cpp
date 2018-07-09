@@ -45,10 +45,10 @@ Board::Board(const Board& other)
   memcpy(next_in_chain, other.next_in_chain, sizeof(Loc)*MAX_ARR_SIZE);
 
   ko_loc = other.ko_loc;
-
   empty_list = other.empty_list;
-
   pos_hash = other.pos_hash;
+  numBlackCaptures = other.numBlackCaptures;
+  numWhiteCaptures = other.numWhiteCaptures;
 
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
 }
@@ -75,8 +75,9 @@ void Board::init(int xS, int yS)
   }
 
   ko_loc = NULL_LOC;
-
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
+  numBlackCaptures = 0;
+  numWhiteCaptures = 0;
 
   Location::getAdjacentOffsets(adj_offsets,x_size);
 }
@@ -426,14 +427,26 @@ void Board::undo(Board::MoveRecord record)
     int adj = loc + adj_offsets[i];
     if(record.capDirs & (1 << i))
     {
-      if(colors[adj] == C_EMPTY)
+      if(colors[adj] == C_EMPTY) {
         addChain(adj, getOpp(record.pla));
+
+        int numUncaptured = chain_data[chain_head[adj]].num_locs;
+        if(record.pla == P_BLACK)
+          numWhiteCaptures -= numUncaptured;
+        else
+          numBlackCaptures -= numUncaptured;
+      }
     }
   }
   //Re-fill suicided stones
   if(record.capDirs == 0x10) {
     assert(colors[loc] == C_EMPTY);
     addChain(loc,record.pla);
+    int numUncaptured = chain_data[chain_head[loc]].num_locs;
+    if(record.pla == P_BLACK)
+      numBlackCaptures -= numUncaptured;
+    else
+      numWhiteCaptures -= numUncaptured;
   }
 
   //Delete the stone played here.
@@ -623,9 +636,21 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   else
     ko_loc = NULL_LOC;
 
+  if(pla == P_BLACK)
+    numWhiteCaptures += num_captured;
+  else
+    numBlackCaptures += num_captured;
+
   //Handle suicide
-  if(getNumLiberties(loc) == 0)
+  if(getNumLiberties(loc) == 0) {
+    int numSuicided = chain_data[chain_head[loc]].num_locs;
     removeChain(loc);
+
+    if(pla == P_BLACK)
+      numBlackCaptures += numSuicided;
+    else
+      numWhiteCaptures += numSuicided;
+  }
 }
 
 int Board::getNumImmediateLiberties(Loc loc) const

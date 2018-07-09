@@ -45,10 +45,14 @@ namespace TestCommon {
     }
   }
 
-  inline bool boardColorsEqual(const Board& b1, const Board& b2) {
+  inline bool boardsSeemEqual(const Board& b1, const Board& b2) {
     for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
       if(b1.colors[i] != b2.colors[i])
         return false;
+    if(b1.numBlackCaptures != b2.numBlackCaptures)
+      return false;
+    if(b1.numWhiteCaptures != b2.numWhiteCaptures)
+      return false;
     return true;
   }
 

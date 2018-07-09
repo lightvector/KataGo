@@ -21,7 +21,7 @@ void Tests::runBoardAreaTests() {
         out << endl;
       }
       out << endl;
-      testAssert(boardColorsEqual(copy,board));
+      testAssert(boardsSeemEqual(copy,board));
       copy.checkConsistency();
     }
   };
