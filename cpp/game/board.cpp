@@ -908,7 +908,9 @@ ostream& operator<<(ostream& out, const Board& board)
     {
       Loc loc = Location::getLoc(x,y,board.x_size);
       char s = getCharOfColor(board.colors[loc]);
-      out << s << ' ';
+      out << s;
+      if(x < board.x_size-1)
+        out << ' ';
     }
 
     out << "\n";
