@@ -238,45 +238,6 @@ float BoardHistory::currentSelfKomi(Player pla) const {
   }
 }
 
-bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) const {
-  //Moves in the encore on ko-prohibited spots are treated as pass-for-ko, so they are legal
-  if(encorePhase > 0 && moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE) {
-    if(movePla == P_BLACK && blackKoProhibited[moveLoc])
-      return true;
-    else if(movePla == P_WHITE && whiteKoProhibited[moveLoc])
-      return true;
-  }
-
-  if(!board.isLegal(moveLoc,movePla,rules.multiStoneSuicideLegal))
-    return false;
-  if(rules.koRule != Rules::KO_SIMPLE && encorePhase <= 0 && superKoBanned[moveLoc])
-    return false;
-
-  //One capture only of any given ko in any given board coloring in the encore
-  if(encorePhase > 0 && board.wouldBeKoCapture(moveLoc,movePla)) {
-    if(std::find(koCapturesInEncore.begin(), koCapturesInEncore.end(), std::make_pair(board.pos_hash,moveLoc)) != koCapturesInEncore.end())
-      return false;
-  }
-  return true;
-}
-
-void BoardHistory::setKoProhibited(Player pla, Loc loc, bool b) {
-  if(pla == P_BLACK) {
-    if(blackKoProhibited[loc] != b) {
-      blackKoProhibited[loc] = b;
-      koProhibitHash ^= Board::ZOBRIST_KO_MARK_HASH[loc][pla];
-    }
-  }
-  else if(pla == P_WHITE) {
-    if(whiteKoProhibited[loc] != b) {
-      whiteKoProhibited[loc] = b;
-      koProhibitHash ^= Board::ZOBRIST_KO_MARK_HASH[loc][pla];
-    }
-  }
-  else
-    assert(false);
-}
-
 int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
   int score = 0;
   bool requirePassAlive = false;
@@ -315,6 +276,40 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board) con
     }
   }
   return score;
+}
+
+void BoardHistory::setKoProhibited(Player pla, Loc loc, bool b) {
+  if(pla == P_BLACK) {
+    if(blackKoProhibited[loc] != b) {
+      blackKoProhibited[loc] = b;
+      koProhibitHash ^= Board::ZOBRIST_KO_MARK_HASH[loc][pla];
+    }
+  }
+  else if(pla == P_WHITE) {
+    if(whiteKoProhibited[loc] != b) {
+      whiteKoProhibited[loc] = b;
+      koProhibitHash ^= Board::ZOBRIST_KO_MARK_HASH[loc][pla];
+    }
+  }
+  else
+    assert(false);
+}
+
+bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) const {
+  //Moves in the encore on ko-prohibited spots are treated as pass-for-ko, so they are legal
+  if(encorePhase > 0 && moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE) {
+    if(movePla == P_BLACK && blackKoProhibited[moveLoc])
+      return true;
+    else if(movePla == P_WHITE && whiteKoProhibited[moveLoc])
+      return true;
+  }
+
+  if(!board.isLegal(moveLoc,movePla,rules.multiStoneSuicideLegal))
+    return false;
+  if(superKoBanned[moveLoc])
+    return false;
+
+  return true;
 }
 
 void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable) {
@@ -373,6 +368,15 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
           superKoBanned[loc] = koHashOccursBefore(koHashAfterMove,rootKoHashTable);
         }
       }
+    }
+  }
+  else if(encorePhase > 0) {
+    //During the encore, only one capture of each ko in a given position
+    std::fill(superKoBanned, superKoBanned+Board::MAX_ARR_SIZE, false);
+    for(size_t i = 0; i<koCapturesInEncore.size(); i++) {
+      auto pair = koCapturesInEncore[i];
+      if(pair.first == board.pos_hash)
+        superKoBanned[pair.second] = true;
     }
   }
 
