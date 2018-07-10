@@ -746,6 +746,49 @@ class Board:
       if cur == loc:
         break
 
+  #Helper, does the group at loc have at least one opponent group adjacent to it in atari?
+  def hasLibertyGainingCaptures(self, loc):
+    pla = self.board[loc]
+    opp = Board.get_opp(pla)
+
+    cur = loc
+    while True:
+      for i in range(4):
+        adj = cur + self.adj[i]
+        if self.board[adj] == opp:
+          head = self.group_head[adj]
+          if self.group_liberty_count[head] == 1:
+            return True
+
+      cur = self.group_next[cur]
+      if cur == loc:
+        break
+
+    return False
+
+  def wouldBeKoCapture(self, loc, pla):
+    if self.board[loc] == Board.EMPTY:
+      return False
+    #Check that surounding points are are all opponent owned and exactly one of them is capturable
+    opp = Board.get_opp(pla);
+    oppCapturableLoc = None
+    for i in range(4):
+      adj = loc + self.adj[i]
+      if self.board[adj] != Board.WALL and self.board[adj] != opp:
+        return False
+      if self.board[adj] == opp and self.group_liberty_count[self.group_head[adj]] == 1:
+        if oppCapturableLoc is not None:
+          return False
+        oppCapturableLoc = adj
+
+    if oppCapturableLoc is None:
+      return False
+
+    #Check that the capturable loc has exactly one stone
+    if self.group_stone_count[self.group_head[oppCapturableLoc]] != 1:
+      return False
+    return True
+
   def countHeuristicConnectionLiberties(self,loc,pla):
     adj0 = loc + self.adj[0]
     adj1 = loc + self.adj[1]
@@ -904,6 +947,21 @@ class Board:
 
           libs0 = self.countImmediateLiberties(move0)
           libs1 = self.countImmediateLiberties(move1)
+
+          #If we are the attacker and we're in a double-ko death situation, then assume we win.
+          #Both defender liberties must be ko mouths, connecting either ko mouth must not increase the defender's
+          #liberties, and none of the attacker's surrounding stones can currently be in atari.
+          #This is not complete - there are situations where the defender's connections increase liberties, or where
+          #the attacker has stones in atari, but where the defender is still in inescapable atari even if they have
+          #a large finite number of ko threats. But it's better than nothing.
+          if libs0 == 0 and libs1 == 0 and self.wouldBeKoCapture(move0,opp) && self.wouldBeKoCapture(move1,opp) :
+            if self.get_liberties_after_play(pla,move0,3) <= 2 && self.get_liberties_after_play(pla,move1,3) <= 2:
+              if self.hasLibertyGainingCaptures(loc):
+                returnValue = True
+                returnedFromDeeper = True
+                stackIdx -= 1
+                continue
+
           if not self.is_adjacent(move0,move1):
             #We lose automatically if both escapes get the defender too many libs
             if libs0 >= 3 and libs1 >= 3:
