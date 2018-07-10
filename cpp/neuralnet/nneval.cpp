@@ -7,7 +7,7 @@ static const int BATCH_SIZE = 1;
 
 static void checkStatus(Status status, const char* subLabel) {
   if(!status.ok())
-    throw StringError("NNEvaluator initialization failed: ", string(subLabel) + status.ToString());
+    throw StringError("NN Eval Error", "Initialization failed: " + string(subLabel) + status.ToString());
 }
 
 NNEvaluator::NNEvaluator(const string& pbModelFile)
@@ -117,13 +117,23 @@ shared_ptr<NNOutput> NNEvaluator::evaluate(
   auto policyMap = outputsBuf[0].matrix<float>();
   auto valueMap = outputsBuf[1].vec<float>();
 
-  float* policy = nnOutput->policyProbs;
-  float maxPolicy = -1e20f;
+  assert(board.x_size == board.y_size);
+  int bSize = board.x_size;
+  int offset = NNPos::getOffset(bSize);
 
+  float* policy = nnOutput->policyProbs;
+  float maxPolicy = -1e25f;
+
+  bool isLegal[NNPos::NN_POLICY_SIZE];
   for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
-    policy[i] = policyMap(batch,i);
-    if(policy[i] > maxPolicy)
-      maxPolicy = policy[i];
+    Loc loc = NNPos::posToLoc(i,bSize,offset);
+    isLegal[i] = history.isLegal(board,loc,nextPlayer);
+
+    float policyValue = isLegal[i] ? policyMap(batch,i) : -1e30f;
+
+    policy[i] = policyValue;
+    if(policyValue > maxPolicy)
+      maxPolicy = policyValue;
   }
 
   float policySum = 0.0f;
@@ -131,9 +141,13 @@ shared_ptr<NNOutput> NNEvaluator::evaluate(
     policy[i] = exp(policy[i] - maxPolicy);
     policySum += policy[i];
   }
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
-    policy[i] /= policySum;
-  }
+
+  //Somehow all legal moves rounded to 0 probability
+  if(policySum <= 0.0)
+    throw StringError("NN Eval Error", "Policy all rounded to 0.0");
+
+  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++)
+    policy[i] = isLegal[i] ? (policy[i] / policySum) : -1.0f;
 
   nnOutput->value = valueMap(batch);
 

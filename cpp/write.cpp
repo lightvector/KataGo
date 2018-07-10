@@ -790,7 +790,6 @@ static void maybeUseRow(
   const set<string>& excludeUsers, bool fancyConditions, double fancyPosKeepFactor,
   set<uint64_t>& posHashes, Stats& used
 ) {
-  //TODO also filter out games that are > 85% identical hashes to another game
   //For now, only generate training rows for non-passes
   //Also only use moves by this player if that player meets rank threshold
   if((movesBuf[moveIdx].loc != Board::PASS_LOC || includePasses) &&

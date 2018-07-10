@@ -20,6 +20,7 @@ using tensorflow::Session;
 #include "../neuralnet/nninputs.h"
 
 struct NNOutput {
+  //From the perspective of the player to move at the time of the eval
   float value;
 
   //Indexed by pos rather than loc

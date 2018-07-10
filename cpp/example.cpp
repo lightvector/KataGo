@@ -41,7 +41,11 @@ int main() {
     cout << "SYMMETRY " << symmetry << endl;
     for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
       for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
-        printf("%4.1f%%", output->policyProbs[x+y*NNPos::MAX_BOARD_LEN] * 100.0);
+        float prob = output->policyProbs[x+y*NNPos::MAX_BOARD_LEN];
+        if(prob < 0)
+          printf("    %%");
+        else
+          printf("%4.1f%%", prob * 100.0);
       }
       cout << endl;
     }

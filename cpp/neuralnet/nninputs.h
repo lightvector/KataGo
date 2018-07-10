@@ -19,6 +19,7 @@ namespace NNPos {
   int xyToPos(int x, int y, int offset);
   int locToPos(Loc loc, int bSize, int offset);
   Loc posToLoc(int pos, int bSize, int offset);
+  bool isPassPos(int pos);
 }
 
 namespace NNInputs {

@@ -24,6 +24,10 @@ Loc NNPos::posToLoc(int pos, int bSize, int offset) {
   return Location::getLoc(x,y,bSize);
 }
 
+bool NNPos::isPassPos(int pos) {
+  return pos == MAX_BOARD_LEN * MAX_BOARD_LEN;
+}
+
 static void setRowV0(float* row, int pos, int feature, float value) {
   row[pos * NNInputs::NUM_FEATURES_V0 + feature] = value;
 }
