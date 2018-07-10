@@ -117,7 +117,6 @@ Hash128 NNInputs::getHashV0(
   (void)moveHistory;
   (void)moveHistoryLen;
 
-  //TODO incorporate superko
   if(board.ko_loc != Board::NULL_LOC)
     hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
 
@@ -173,8 +172,6 @@ void NNInputs::fillRowV0(
     }
   }
 
-  //TODO superko
-  //TODO in the encore this should NOT get set to ko_loc and SHOULD get set for once-only moves
   //Feature 9 - simple ko location
   if(board.ko_loc != Board::NULL_LOC) {
     int pos = NNPos::locToPos(board.ko_loc,bSize,offset);
