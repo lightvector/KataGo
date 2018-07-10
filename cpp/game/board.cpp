@@ -20,6 +20,7 @@ Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
+Hash128 Board::ZOBRIST_ENCORE_HASH[3];
 
 //CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
 
@@ -116,6 +117,9 @@ void Board::initHash()
     ZOBRIST_SIZE_X_HASH[i] = nextHash();
   for(int i = 0; i<MAX_LEN+1; i++)
     ZOBRIST_SIZE_Y_HASH[i] = nextHash();
+
+  for(int i = 0; i<3; i++)
+    ZOBRIST_ENCORE_HASH[i] = nextHash();
 
   IS_ZOBRIST_INITALIZED = true;
 }

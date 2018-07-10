@@ -499,4 +499,15 @@ After pass
 
   }
 
+  //TODO
+  //Hash after suicide and superko
+  //Try the eternal fight position
+  //Try a triple ko
+  //Testing the encore - verify that moves in phase 1 are penalized but not phase 2
+  //Testing the encore - test out ko marking rules with pass-for-ko, and that they aren't removed if the board changes
+  //Testing the encore - test out ko marking going away when the ko vanishes, such as a two-step ko capture (the bottom of molasses)
+  //Testing the encore - test out the only-once rules
+  //Testing the encore - test out double seki collapse with only-once rules
+
+
 }

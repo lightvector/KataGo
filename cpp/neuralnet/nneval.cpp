@@ -31,7 +31,7 @@ NNEvaluator::NNEvaluator(const string& pbModelFile)
   TensorShape inputsShape;
   TensorShape symmetriesShape;
   TensorShape isTrainingShape;
-  int inputsShapeArr[3] = {BATCH_SIZE,NNPos::MAX_BOARD_AREA,NNInputs::NUM_FEATURES};
+  int inputsShapeArr[3] = {BATCH_SIZE,NNPos::MAX_BOARD_AREA,NNInputs::NUM_FEATURES_V1};
   status = TensorShapeUtils::MakeShape(inputsShapeArr,3,&inputsShape);
   checkStatus(status,"making inputs shape");
   int symmetriesShapeArr[1] = {NNInputs::NUM_SYMMETRY_BOOLS};
@@ -85,7 +85,7 @@ shared_ptr<NNOutput> NNEvaluator::evaluate(
   shared_ptr<NNOutput> nnOutput = std::make_shared<NNOutput>();
   outputsBuf.clear();
 
-  int rowSize = NNPos::MAX_BOARD_AREA * NNInputs::NUM_FEATURES;
+  int rowSize = NNPos::MAX_BOARD_AREA * NNInputs::NUM_FEATURES_V1;
   int bufferSize = rowSize * BATCH_SIZE;
 
   std::fill(inputsBuffer,inputsBuffer+bufferSize,0.0f);
@@ -96,11 +96,7 @@ shared_ptr<NNOutput> NNEvaluator::evaluate(
 
   int batch = 0;
 
-  float selfKomi = history.currentSelfKomi(nextPlayer);
-  NNInputs::fillRow(
-    board,history.moveHistory,(int)history.moveHistory.size(),nextPlayer,selfKomi,
-    inputsBuffer+batch*rowSize
-  );
+  NNInputs::fillRowV1(board, history, nextPlayer, inputsBuffer+batch*rowSize);
 
   assert(symmetry >= 0 && symmetry <= NUM_SYMMETRIES);
   symmetriesBuffer[0] = (symmetry & 0x1) != 0;
