@@ -3,6 +3,12 @@
 
 using namespace tensorflow;
 
+NNOutput::NNOutput() {}
+NNOutput::NNOutput(const NNOutput& other) {
+  value = other.value;
+  std::copy(other.policyProbs, other.policyProbs+NNPos::NN_POLICY_SIZE, policyProbs);
+}
+
 double NNOutput::whiteValueOfWinner(Player winner) {
   if(winner == P_WHITE)
     return 1.0;

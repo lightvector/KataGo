@@ -227,6 +227,30 @@ void Rand::init(const string& seed)
   numCalls = 0;
 }
 
+class RandToURNGWrapper {
+public:
+  typedef size_t result_type;  
+  Rand* rand;
+  RandToURNGWrapper(Rand* r)
+    :rand(r)
+  {}
+  ~RandToURNGWrapper()
+  {}
+
+  static size_t min() { return 0; }
+  static size_t max() { return (size_t)0xFFFFFFFF; }
+  size_t operator()() {
+    return (size_t)rand->nextUInt();
+  }  
+};
+
+#include <random>
+double Rand::nextGamma(double a) {
+  std::gamma_distribution<double> distribution(a,1.0);
+  RandToURNGWrapper wrapped(this);
+  return distribution(wrapped);
+}
+
 void Rand::test()
 {
   Rand rand("abc");

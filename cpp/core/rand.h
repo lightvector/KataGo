@@ -100,7 +100,9 @@ class Rand
   double nextGaussian();
   //Returns a logistically distributed double with mean 0 and scale 1 (cdf = 1/(1+exp(-x)))
   double nextLogistic();
-
+  //Returns a gamma distributed double with shape a and scale 1
+  double nextGamma(double a);
+  
   //TESTING----------------------------------------------
   static void test();
 };

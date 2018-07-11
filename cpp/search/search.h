@@ -146,7 +146,7 @@ struct Search {
 
   //Helpers-----------------------------------------------------------------------
 private:
-  double maybeAddPolicyNoise(SearchNode& node, bool isRoot) const;
+  void maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const;
 
   double getCombinedValueSum(const SearchNode& node) const;
   double getPolicySelectionValue(

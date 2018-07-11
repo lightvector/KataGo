@@ -7,7 +7,8 @@ SearchParams::SearchParams()
    cpuctExploration(1.6),
    fpuReductionMax(0.5),
    rootNoiseEnabled(false),
-   rootDirichletNoiseBoardArea(10)
+   rootDirichletNoiseTotalConcentration(10.0),
+   rootDirichletNoiseWeight(0.25)
 {}
 
 SearchParams::~SearchParams()

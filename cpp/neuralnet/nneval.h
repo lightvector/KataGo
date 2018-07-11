@@ -27,6 +27,9 @@ struct NNOutput {
   //Values in here will be set to negative for illegal moves, including superko
   float policyProbs[NNPos::NN_POLICY_SIZE];
 
+  NNOutput(); //Does NOT initialize values
+  NNOutput(const NNOutput& other);
+  
   //Utility --------------------------------------------------------------------
   //The utility of having a particular winner
   static double whiteValueOfWinner(Player winner);

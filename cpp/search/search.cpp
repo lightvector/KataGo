@@ -171,6 +171,49 @@ void Search::beginSearch(const string& seed, NNEvaluator* nnEval) {
   }
 }
 
+//Assumes node is locked
+void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const {
+  if(!isRoot || !searchParams.rootNoiseEnabled)
+    return;
+  //Copy nnOutput as we're about to modify its policy to add noise
+  shared_ptr<NNOutput> newNNOutput = std::make_shared<NNOutput>(*(node.nnOutput));
+  //Replace the old pointer
+  node.nnOutput = newNNOutput;
+  
+  int legalCount = 0;
+  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+    if(node.nnOutput->policyProbs[i] >= 0)
+      legalCount += 1;
+  }
+  
+  if(legalCount <= 0)
+    throw StringError("Add policy noise Error","No move with nonnegative policy value - can't even pass?");
+
+  double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
+  double rSum = 0.0;
+  double r[NNPos::NN_POLICY_SIZE];
+  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+    if(node.nnOutput->policyProbs[i] >= 0) {
+      r[i] = thread.rand.nextGamma(alpha);
+      rSum += r[i];
+    }
+    else
+      r[i] = 0.0;
+  }
+
+  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++)
+    r[i] /= rSum;
+
+  //At this point, r[i] contains a dirichlet distribution draw, so add it into the nnOutput.
+  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+    if(node.nnOutput->policyProbs[i] >= 0) {
+      double weight = searchParams.rootDirichletNoiseWeight;
+      node.nnOutput->policyProbs[i] = r[i] * weight + node.nnOutput->policyProbs[i] * (1.0-weight);
+    }
+  }
+}
+
+//Assumes node is locked
 double Search::getCombinedValueSum(const SearchNode& node) const {
   return
     node.winLossValueSum * searchParams.winLossUtilityFactor +
@@ -201,6 +244,7 @@ double Search::getPolicySelectionValue(
   return exploreComponent + valueComponent;
 }
 
+//Assumes node is locked
 void Search::selectBestChildToDescend(
   const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
   int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
@@ -308,7 +352,7 @@ void Search::playoutDescend(
   if(node.nnOutput == nullptr) {
     int symmetry = thread.rand.nextInt(0,NNEvaluator::NUM_SYMMETRIES-1);
     node.nnOutput = nnEvaluator->evaluate(thread.board, thread.history, thread.pla, symmetry);
-    maybeAddPolicyNoise(node,isRoot);
+    maybeAddPolicyNoise(thread,node,isRoot);
     lock.unlock();
 
     //Values in the search are from the perspective of white positive always

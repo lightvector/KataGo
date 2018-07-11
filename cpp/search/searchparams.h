@@ -11,7 +11,8 @@ struct SearchParams {
   double fpuReductionMax;
 
   bool rootNoiseEnabled;
-  double rootDirichletNoiseBoardArea;
+  double rootDirichletNoiseTotalConcentration;
+  double rootDirichletNoiseWeight;
   
   SearchParams();
   ~SearchParams();
