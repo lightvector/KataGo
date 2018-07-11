@@ -99,7 +99,6 @@ add_executable(runtests
   tests.cpp
   )
 
-find_package(TensorflowCC REQUIRED)
 add_executable(example
   core/config.h
   core/global.cpp
@@ -126,8 +125,16 @@ add_executable(example
   neuralnet/nninputs.h
   neuralnet/nneval.cpp
   neuralnet/nneval.h
+  search/searchparams.cpp
+  search/searchparams.h
+  search/mutexpool.cpp
+  search/mutexpool.h
+  search/search.h
+  search/search.cpp
   example.cpp
   )
+
+find_package(TensorflowCC REQUIRED)
 target_link_libraries(example TensorflowCC::Shared)
 find_package(CUDA)
 if(CUDA_FOUND)

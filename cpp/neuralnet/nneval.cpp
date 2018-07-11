@@ -3,6 +3,19 @@
 
 using namespace tensorflow;
 
+double NNOutput::whiteValueOfWinner(Player winner) {
+  if(winner == P_WHITE)
+    return 1.0;
+  else if(winner == P_BLACK)
+    return -1.0;
+  return 0.0;
+}
+
+double NNOutput::whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize) {
+  return tanh(finalWhiteMinusBlackScore / (bSize*2));
+}
+
+
 static const int BATCH_SIZE = 1;
 
 static void checkStatus(Status status, const char* subLabel) {

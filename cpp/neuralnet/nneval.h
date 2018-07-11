@@ -26,6 +26,12 @@ struct NNOutput {
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko
   float policyProbs[NNPos::NN_POLICY_SIZE];
+
+  //Utility --------------------------------------------------------------------
+  //The utility of having a particular winner
+  static double whiteValueOfWinner(Player winner);
+  //The utility of achieving a certain score difference
+  static double whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize);
 };
 
 class NNEvaluator {
