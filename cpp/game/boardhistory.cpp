@@ -187,7 +187,8 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
 
 //If rootKoHashTable is provided, will take advantage of rootKoHashTable rather than search within the first
 //rootKoHashTable->size() moves of koHashHistory.
-bool BoardHistory::koHashOccursBefore(Hash128 koHash, const KoHashTable* rootKoHashTable) const {
+//ALSO counts the most recent ko hash!
+bool BoardHistory::koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const {
   size_t start = 0;
   if(rootKoHashTable != NULL) {
     size_t tableSize = rootKoHashTable->size();
@@ -206,7 +207,8 @@ bool BoardHistory::koHashOccursBefore(Hash128 koHash, const KoHashTable* rootKoH
 
 //If rootKoHashTable is provided, will take advantage of rootKoHashTable rather than search within the first
 //rootKoHashTable->size() moves of koHashHistory.
-int BoardHistory::numberOfKoHashOccurrencesBefore(Hash128 koHash, const KoHashTable* rootKoHashTable) const {
+//ALSO counts the most recent ko hash!
+int BoardHistory::numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const {
   int count = 0;
   size_t start = 0;
   if(rootKoHashTable != NULL) {
@@ -342,7 +344,8 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
   //Passes clear ko history in the main phase with spight ko rules and in the encore
   //This lifts bans in spight ko rules and lifts 3-fold-repetition checking in the encore for no-resultifying infinite cycles
-  if(moveLoc == Board::PASS_LOC && (rules.koRule == Rules::KO_SPIGHT || encorePhase > 0))
+  //They also clear in simple ko rules for the purpose of no-resulting long cycles, long cycles with passes do not no-result.
+  if(moveLoc == Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT))
     koHashHistory.clear();
 
   koHashHistory.push_back(getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash));
@@ -365,7 +368,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
         else {
           Hash128 posHashAfterMove = board.getPosHashAfterMove(loc,nextPla);
           Hash128 koHashAfterMove = getKoHashAfterMoveNonEncore(rules, posHashAfterMove, getOpp(nextPla));
-          superKoBanned[loc] = koHashOccursBefore(koHashAfterMove,rootKoHashTable);
+          superKoBanned[loc] = koHashOccursInHistory(koHashAfterMove,rootKoHashTable);
         }
       }
     }
@@ -407,13 +410,13 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   }
 
   //Check if we have a game-ending pass before updating hashesAfterBlackPass and hashesAfterWhitePass
-  bool isSpightOrEncoreEndingPass = false;
-  if(moveLoc == Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SPIGHT)) {
+  bool isSimpleSpightOrEncoreEndingPass = false;
+  if(moveLoc == Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT)) {
     Hash128 lastHash = koHashHistory[koHashHistory.size()-1];
     if(movePla == P_BLACK && std::find(hashesAfterBlackPass.begin(), hashesAfterBlackPass.end(), lastHash) != hashesAfterBlackPass.end())
-      isSpightOrEncoreEndingPass = true;
+      isSimpleSpightOrEncoreEndingPass = true;
     if(movePla == P_WHITE && std::find(hashesAfterWhitePass.begin(), hashesAfterWhitePass.end(), lastHash) != hashesAfterWhitePass.end())
-      isSpightOrEncoreEndingPass = true;
+      isSimpleSpightOrEncoreEndingPass = true;
   }
 
   //Update hashesAfterBlackPass and hashesAfterWhitePass
@@ -436,11 +439,8 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
       assert(false);
   }
 
-  //TODO implement isNoResult usage, except be smart - the current Simpleko rule is broken because
-  //it triggers on sending2-returning1!!
-
   //Phase transitions and game end
-  if(consecutiveEndingPasses >= 2 || isSpightOrEncoreEndingPass) {
+  if(consecutiveEndingPasses >= 2 || isSimpleSpightOrEncoreEndingPass) {
     if(rules.scoringRule == Rules::SCORING_AREA) {
       assert(encorePhase <= 0);
       int boardScore = countAreaScoreWhiteMinusBlack(board);
@@ -476,6 +476,13 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
         koProhibitHash = Hash128();
         koCapturesInEncore.clear();
       }
+    }
+  }
+
+  //Break long cycles with no-result
+  if(moveLoc != Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE)) {
+    if(numberOfKoHashOccurrencesInHistory(koHashHistory[koHashHistory.size()-1], rootKoHashTable) >= 3) {
+      isNoResult = true;
     }
   }
 

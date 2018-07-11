@@ -80,8 +80,8 @@ struct BoardHistory {
   void makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable);
 
 private:
-  bool koHashOccursBefore(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
-  int numberOfKoHashOccurrencesBefore(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
+  bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
+  int numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   void setKoProhibited(Player pla, Loc loc, bool b);
   int countAreaScoreWhiteMinusBlack(const Board& board) const;
   int countTerritoryAreaScoreWhiteMinusBlack(const Board& board) const;

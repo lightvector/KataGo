@@ -227,9 +227,12 @@ oooo.o
       printIllegalMoves(out,board,hist,P_WHITE);
       hist.makeBoardMoveAssumeLegal(board, Location::getLoc(1,0,board.x_size), P_WHITE, NULL);
       printIllegalMoves(out,board,hist,P_BLACK);
+      testAssert(hist.encorePhase == 0);
+      testAssert(hist.isGameOver() == false);
+      //Spight ending condition cuts this cycle a bit shorter
       hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_BLACK, NULL);
       printIllegalMoves(out,board,hist,P_WHITE);
-      testAssert(hist.encorePhase == 0);
+      testAssert(hist.encorePhase == 1);
       testAssert(hist.isGameOver() == false);
 
       string expected = R"%%(
