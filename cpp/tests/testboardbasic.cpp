@@ -535,7 +535,7 @@ void Tests::runBoardStressTest() {
       }
     }
 
-    pla = getOpp(pla);
+    pla = rand.nextUInt(2) == 0 ? getOpp(pla) : pla;
   }
 
   ostringstream out;
@@ -548,18 +548,17 @@ void Tests::runBoardStressTest() {
 
   for(int i = 0; i<4; i++)
     out << "Caps " << boards[i].numBlackCaptures << " " << boards[i].numWhiteCaptures << endl;
-  //TODO why are these cap numbers lopsided?
   string expected = R"%%(
 
-regularMoveCount 25755
-passCount 269
-koCaptureCount 15
-koBanCount 3
-suicideCount 145
-Caps 1341 5052
-Caps 803 3864
-Caps 1662 9935
-Caps 390 2263
+regularMoveCount 37692
+passCount 280
+koCaptureCount 164
+koBanCount 25
+suicideCount 445
+Caps 4862 4732
+Caps 4590 4745
+Caps 4890 5071
+Caps 4364 4393
 
 )%%";
   expect("Board stress test move counts",out,expected);
