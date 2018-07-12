@@ -1380,8 +1380,8 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 void Board::calculateArea(Color* result, bool requirePassAlive, bool isMultiStoneSuicideLegal) const {
   for(int i = 0; i<MAX_ARR_SIZE; i++)
     result[i] = C_EMPTY;
-  calculatePassAliveForPla(P_BLACK,!requirePassAlive,isMultiStoneSuicideLegal,result);
-  calculatePassAliveForPla(P_WHITE,!requirePassAlive,isMultiStoneSuicideLegal,result);
+  calculateAreaForPla(P_BLACK,!requirePassAlive,isMultiStoneSuicideLegal,result);
+  calculateAreaForPla(P_WHITE,!requirePassAlive,isMultiStoneSuicideLegal,result);
 
   if(!requirePassAlive) {
      //Also include non-pass-alive stones
@@ -1395,9 +1395,9 @@ void Board::calculateArea(Color* result, bool requirePassAlive, bool isMultiSton
   }
 }
 
-//This marks pass-alive stones, pass-alive territory.
+//This marks pass-alive stones, pass-alive territory, AND non-pass-alive territory bordered only pass-alive groups
 //If includeNonPassAliveTerritory, also marks non-pass-alive territory but NOT non-pass-alive stones!
-void Board::calculatePassAliveForPla(Player pla, bool includeNonPassAliveTerritory, bool isMultiStoneSuicideLegal, Color* result) const {
+void Board::calculateAreaForPla(Player pla, bool includeNonPassAliveTerritory, bool isMultiStoneSuicideLegal, Color* result) const {
   Color opp = getOpp(pla);
 
   //First compute all empty-or-opp regions
@@ -1652,7 +1652,7 @@ void Board::calculatePassAliveForPla(Player pla, bool includeNonPassAliveTerrito
   //Mark result with territory
   for(int i = 0; i<numRegions; i++) {
     Loc head = regionHeads[i];
-    if((numInternalSpacesMax2[i] <= 1 && !bordersNonPassAlivePlaByHead[head])
+    if(((numInternalSpacesMax2[i] <= 1 || !containsOpp[i]) && bordersPla[i] && !bordersNonPassAlivePlaByHead[head])
        || (includeNonPassAliveTerritory && bordersPla[i] && !containsOpp[i])) {
 
       Loc cur = head;

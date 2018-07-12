@@ -233,7 +233,7 @@ struct Board
   int findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
   bool hasLibertyGainingCaptures(Loc loc) const;
 
-  void calculatePassAliveForPla(Player pla, bool includeNonPassAliveTerritory, bool isMultiStoneSuicideLegal, Color* result) const;
+  void calculateAreaForPla(Player pla, bool includeNonPassAliveTerritory, bool isMultiStoneSuicideLegal, Color* result) const;
 
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);
 };

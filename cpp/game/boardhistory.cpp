@@ -335,10 +335,22 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   if(!wasPassForKo) {
     board.playMoveAssumeLegal(moveLoc,movePla);
 
-    //Update ko prohibitions and record that this was a ko capture
-    if(encorePhase > 0 && board.ko_loc != Board::NULL_LOC) {
-      setKoProhibited(movePla,moveLoc,true);
-      koCapturesInEncore.push_back(std::make_pair(posHashBeforeMove,moveLoc));
+    if(encorePhase > 0) {
+      //Update ko prohibitions and record that this was a ko capture
+      if(board.ko_loc != Board::NULL_LOC) {
+        setKoProhibited(getOpp(movePla),board.ko_loc,true);
+        koCapturesInEncore.push_back(std::make_pair(posHashBeforeMove,moveLoc));
+      }
+      //Unmark for the opponent all points that aren't ko moves      
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,board.x_size);
+          if(movePla == P_BLACK && whiteKoProhibited[loc] && !board.wouldBeKoCapture(loc,P_WHITE))
+            setKoProhibited(getOpp(movePla),loc,false);
+          if(movePla == P_WHITE && blackKoProhibited[loc] && !board.wouldBeKoCapture(loc,P_BLACK))
+            setKoProhibited(getOpp(movePla),loc,false);
+        }
+      }
     }
   }
 
@@ -354,7 +366,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
   //Mark all locations that are superko-illegal for the next player
   Player nextPla = getOpp(movePla);
-  if(encorePhase <= 0 && (rules.koRule != Rules::KO_SIMPLE)) {
+  if(encorePhase <= 0 && rules.koRule != Rules::KO_SIMPLE) {
     assert(koProhibitHash == Hash128());
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
