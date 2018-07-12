@@ -134,13 +134,12 @@ namespace Global
 }
 
 struct StringError : public exception {
-  const char* name;
   string message;
-  StringError(const char* n, const char* m)
-  :exception(),name(n),message(m)
+  StringError(const char* m)
+    :exception(),message(m)
   {}
-  StringError(const char* n, const string& m)
-  :exception(),name(n),message(m)
+  StringError(const string& m)
+    :exception(),message(m)
   {}
 
   const char* what() const throw ()
@@ -148,11 +147,11 @@ struct StringError : public exception {
 };
 
 //Common exception for IO
-struct IOError : public StringError { IOError(const char* msg):StringError("IOError",msg) {}; IOError(const string& msg):StringError("IOError",msg) {}; };
+struct IOError : public StringError { IOError(const char* msg):StringError(msg) {}; IOError(const string& msg):StringError(msg) {}; };
 //Common exception for parameter values
-struct ValueError : public StringError { ValueError(const char* msg):StringError("ValueError",msg) {}; ValueError(const string& msg):StringError("ValueError",msg) {}; };
+struct ValueError : public StringError { ValueError(const char* msg):StringError(msg) {}; ValueError(const string& msg):StringError(msg) {}; };
 //Common exception for command line argument handling
-struct CommandError : public StringError { CommandError(const char* msg):StringError("CommandError",msg) {}; CommandError(const string& msg):StringError("CommandError",msg) {}; };
+struct CommandError : public StringError { CommandError(const char* msg):StringError(msg) {}; CommandError(const string& msg):StringError(msg) {}; };
 
 //Named pairs and triples of data values
 #define STRUCT_NAMED_SINGLE(A,B,C) struct C {A B; inline C(): B() {} inline C(A s_n_p_arg_0): B(s_n_p_arg_0) {}}

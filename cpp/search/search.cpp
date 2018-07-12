@@ -187,7 +187,7 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   }
   
   if(legalCount <= 0)
-    throw StringError("Add policy noise Error","No move with nonnegative policy value - can't even pass?");
+    throw StringError("maybeAddPolicyNoise: No move with nonnegative policy value - can't even pass?");
 
   double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
   double rSum = 0.0;
@@ -412,7 +412,7 @@ void Search::playoutDescend(
 
   if(bestChildIdx < -1) {
     lock.unlock();
-    throw StringError("Search Error","No move with sane selection value - can't even pass?");
+    throw StringError("Search error: No move with sane selection value - can't even pass?");
   }
 
   //TODO virtual losses

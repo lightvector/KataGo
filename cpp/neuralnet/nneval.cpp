@@ -26,7 +26,7 @@ static const int BATCH_SIZE = 1;
 
 static void checkStatus(Status status, const char* subLabel) {
   if(!status.ok())
-    throw StringError("NN Eval Error", "Initialization failed: " + string(subLabel) + status.ToString());
+    throw StringError("NN Eval Error: " + string(subLabel) + status.ToString());
 }
 
 NNEvaluator::NNEvaluator(const string& pbModelFile)
@@ -163,7 +163,7 @@ shared_ptr<NNOutput> NNEvaluator::evaluate(
 
   //Somehow all legal moves rounded to 0 probability
   if(policySum <= 0.0)
-    throw StringError("NN Eval Error", "Policy all rounded to 0.0");
+    throw StringError("NN Eval Error: Policy all rounded to 0.0");
 
   for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++)
     policy[i] = isLegal[i] ? (policy[i] / policySum) : -1.0f;

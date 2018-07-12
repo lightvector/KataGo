@@ -1667,7 +1667,7 @@ void Board::calculatePassAliveForPla(Player pla, bool includeNonPassAliveTerrito
 
 
 void Board::checkConsistency() const {
-  const char* errLabel = "Board::checkConsistency()";
+  const string errLabel = string("Board::checkConsistency(): ");
 
   auto checkChainConsistency = [errLabel,this](Loc loc) {
     Player pla = colors[loc];
@@ -1678,9 +1678,9 @@ void Board::checkConsistency() const {
     bool foundChainHead = false;
     do {
       if(colors[cur] != pla)
-        throw StringError(errLabel,"Chain is not all the same color");
+        throw StringError(errLabel + "Chain is not all the same color");
       if(chain_head[cur] != head)
-        throw StringError(errLabel,"Chain does not all have the same head");
+        throw StringError(errLabel + "Chain does not all have the same head");
 
       stoneCount++;
       pseudoLibs += getNumImmediateLiberties(cur);
@@ -1688,22 +1688,22 @@ void Board::checkConsistency() const {
         foundChainHead = true;
 
       if(stoneCount > MAX_PLAY_SIZE)
-        throw StringError(errLabel,"Chain exceeds size of board - broken circular list?");
+        throw StringError(errLabel + "Chain exceeds size of board - broken circular list?");
       cur = next_in_chain[cur];
     } while (cur != loc);
 
     if(!foundChainHead)
-      throw StringError(errLabel,"Chain loop does not contain head");
+      throw StringError(errLabel + "Chain loop does not contain head");
 
     const ChainData& data = chain_data[head];
     if(data.owner != pla)
-      throw StringError(errLabel,"Chain data owner does not match stones");
+      throw StringError(errLabel + "Chain data owner does not match stones");
     if(data.num_locs != stoneCount)
-      throw StringError(errLabel,"Chain data num_locs does not match actual stone count");
+      throw StringError(errLabel + "Chain data num_locs does not match actual stone count");
     if(data.num_liberties > pseudoLibs)
-      throw StringError(errLabel,"Chain data liberties exceeds pseudoliberties");
+      throw StringError(errLabel + "Chain data liberties exceeds pseudoliberties");
     if(data.num_liberties <= 0)
-      throw StringError(errLabel,"Chain data liberties is nonpositive");
+      throw StringError(errLabel + "Chain data liberties is nonpositive");
   };
 
   Hash128 tmp_pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
@@ -1713,56 +1713,56 @@ void Board::checkConsistency() const {
     int y = Location::getY(loc,x_size);
     if(x < 0 || x >= x_size || y < 0 || y >= y_size) {
       if(colors[loc] != C_WALL)
-        throw StringError(errLabel,"Non-WALL value outside of board legal area");
+        throw StringError(errLabel + "Non-WALL value outside of board legal area");
     }
     else {
       if(colors[loc] == C_BLACK || colors[loc] == C_WHITE) {
         checkChainConsistency(loc);
         if(empty_list.contains(loc))
-          throw StringError(errLabel,"Empty list contains filled location");
+          throw StringError(errLabel + "Empty list contains filled location");
 
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][colors[loc]];
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][C_EMPTY];
       }
       else if(colors[loc] == C_EMPTY) {
         if(!empty_list.contains(loc))
-          throw StringError(errLabel,"Empty list doesn't contain empty location");
+          throw StringError(errLabel + "Empty list doesn't contain empty location");
         emptyCount += 1;
       }
       else
-        throw StringError(errLabel,"Non-(black,white,empty) value within board legal area");
+        throw StringError(errLabel + "Non-(black,white,empty) value within board legal area");
     }
   }
 
   if(pos_hash != tmp_pos_hash)
-    throw StringError(errLabel,"Pos hash does not match expected");
+    throw StringError(errLabel + "Pos hash does not match expected");
 
   if(empty_list.size_ != emptyCount)
-    throw StringError(errLabel,"Empty list size is not the number of empty points");
+    throw StringError(errLabel + "Empty list size is not the number of empty points");
   for(int i = 0; i<emptyCount; i++) {
     Loc loc = empty_list.list_[i];
     int x = Location::getX(loc,x_size);
     int y = Location::getY(loc,x_size);
     if(x < 0 || x >= x_size || y < 0 || y >= y_size)
-      throw StringError(errLabel,"Invalid empty list loc");
+      throw StringError(errLabel + "Invalid empty list loc");
     if(empty_list.indices_[loc] != i)
-      throw StringError(errLabel,"Empty list index for loc in index i is not i");
+      throw StringError(errLabel + "Empty list index for loc in index i is not i");
   }
 
   if(ko_loc != NULL_LOC) {
     int x = Location::getX(ko_loc,x_size);
     int y = Location::getY(ko_loc,x_size);
     if(x < 0 || x >= x_size || y < 0 || y >= y_size)
-      throw StringError(errLabel,"Invalid simple ko loc");
+      throw StringError(errLabel + "Invalid simple ko loc");
     if(getNumImmediateLiberties(ko_loc) != 0)
-      throw StringError(errLabel,"Simple ko loc has immediate liberties");
+      throw StringError(errLabel + "Simple ko loc has immediate liberties");
   }
 
   short tmpAdjOffsets[8];
   Location::getAdjacentOffsets(tmpAdjOffsets,x_size);
   for(int i = 0; i<8; i++)
     if(tmpAdjOffsets[i] != adj_offsets[i])
-        throw StringError(errLabel,"Corrupted adj_offsets array");
+        throw StringError(errLabel + "Corrupted adj_offsets array");
 
 }
 
