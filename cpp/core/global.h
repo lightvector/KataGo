@@ -64,7 +64,8 @@ namespace Global
   bool isWhitespace(char c);
   bool isWhitespace(const string& s);
 
-  //Check suffix
+  //Check prefix/suffix
+  bool isPrefix(const string& s, const string& prefix);
   bool isSuffix(const string& s, const string& suffix);
 
   //Trim whitespace off both ends of string

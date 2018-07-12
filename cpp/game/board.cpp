@@ -917,35 +917,6 @@ void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
   }
 }
 
-ostream& operator<<(ostream& out, const Board& board)
-{
-  out << "HASH: " << board.pos_hash << "\n";
-  for(int y = 0; y < board.y_size; y++)
-  {
-    // for(int x = 0; x < board.x_size; x++)
-    // {
-    //   Loc loc = Location::getLoc(x,y,board.x_size);
-    //   //char s = getCharOfColor(board.colors[loc]);
-    //   char s = board.colors[loc] == C_EMPTY ? '.' : '0' + board.chain_data[board.chain_head[loc]].num_liberties;
-
-    //   out << s << ' ';
-    // }
-    // out << " ";
-    for(int x = 0; x < board.x_size; x++)
-    {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      char s = getCharOfColor(board.colors[loc]);
-      out << s;
-      if(x < board.x_size-1)
-        out << ' ';
-    }
-
-    out << "\n";
-  }
-  out << "\n";
-  return out;
-}
-
 
 Board::PointList::PointList()
 {
@@ -1033,18 +1004,6 @@ bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
 {
   return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
 }
-
-string Location::toString(Loc loc, int x_size)
-{
-  if(loc == Board::PASS_LOC)
-    return string("pass");
-  if(loc == Board::NULL_LOC)
-    return string("null");
-  char buf[128];
-  sprintf(buf,"(%d,%d)",getX(loc,x_size),getY(loc,x_size));
-  return string(buf);
-}
-
 
 //TACTICAL STUFF--------------------------------------------------------------------
 
@@ -1762,8 +1721,203 @@ void Board::checkConsistency() const {
   Location::getAdjacentOffsets(tmpAdjOffsets,x_size);
   for(int i = 0; i<8; i++)
     if(tmpAdjOffsets[i] != adj_offsets[i])
-        throw StringError(errLabel + "Corrupted adj_offsets array");
+      throw StringError(errLabel + "Corrupted adj_offsets array");
+}
 
+//IO FUNCS------------------------------------------------------------------------------------------
+
+char colorToChar(Color c)
+{
+  switch(c) {
+  case C_BLACK: return 'X';
+  case C_WHITE: return 'O';
+  case C_EMPTY: return '.';
+  default:  return '#';
+  }
+}
+
+string playerToString(Color c)
+{
+  switch(c) {
+  case C_BLACK: return "Black";
+  case C_WHITE: return "White";
+  case C_EMPTY: return "Empty";
+  default:  return "Wall";
+  }
+}
+
+string Location::toStringMach(Loc loc, int x_size)
+{
+  if(loc == Board::PASS_LOC)
+    return string("pass");
+  if(loc == Board::NULL_LOC)
+    return string("null");
+  char buf[128];
+  sprintf(buf,"(%d,%d)",getX(loc,x_size),getY(loc,x_size));
+  return string(buf);
+}
+
+string Location::toString(Loc loc, int x_size, int y_size)
+{
+  if(x_size > 25)
+    return toStringMach(loc,x_size);
+  if(loc == Board::PASS_LOC)
+    return string("pass");
+  if(loc == Board::NULL_LOC)
+    return string("null");
+  const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
+  int x = getX(loc,x_size);
+  int y = getY(loc,y_size);
+  if(x >= x_size || x < 0 || y < 0)
+    return toStringMach(loc,x_size);
+    
+  char buf[128];
+  sprintf(buf,"%c%d",xChar[x],y);
+  return string(buf);
+}
+
+string Location::toString(Loc loc, const Board& b) {
+  return toString(loc,b.x_size,b.y_size);
+}
+
+string Location::toStringMach(Loc loc, const Board& b) {
+  return toStringMach(loc,b.x_size);
+}
+
+bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& result) {
+  string s = Global::trim(str);
+  if(s.length() < 2)
+    return false;
+  if(s[0] == '(') {
+    if(s[s.length()-1] != ')')
+      return false;
+    s = s.substr(1,s.length()-2);
+    vector<string> pieces = Global::split(s,',');
+    if(pieces.size() != 2)
+      return false;
+    int x;
+    int y;
+    bool sucX = Global::tryStringToInt(pieces[0],x);
+    bool sucY = Global::tryStringToInt(pieces[1],y);
+    if(!sucX || !sucY)
+      return false;
+    result = Location::getLoc(x,y,x_size);
+    return true;
+  }
+  else {
+    int x;
+    if(s[0] >= 'A' && s[0] <= 'Z')
+      x = s[0]-'A';
+    else if(s[0] >= 'a' && s[0] <= 'z')
+      x = s[0]-'a';
+    else
+      return false;
+
+    s = s.substr(1,s.length()-1);
+    int y;
+    bool sucY = Global::tryStringToInt(s,y);
+    if(!sucY)
+      return false;
+    y = y_size - y;
+    if(x < 0 || y < 0 || x >= x_size || y >= y_size)
+      return false;
+    result = Location::getLoc(x,y,x_size);
+    return true;
+  }
+}
+
+bool Location::tryOfString(const string& str, const Board& b, Loc& result) {
+  return tryOfString(str,b.x_size,b.y_size,result);
+}
+
+Loc Location::ofString(const string& str, int x_size, int y_size) {
+  Loc result;
+  if(tryOfString(str,x_size,y_size,result))
+    return result;
+  throw StringError("Could not parse board location: " + str);
+}
+
+Loc Location::ofString(const string& str, const Board& b) {
+  return ofString(str,b.x_size,b.y_size);
+}
+
+ostream& operator<<(ostream& out, const Board& board)
+{
+  out << "HASH: " << board.pos_hash << "\n";
+  bool showCoords = board.x_size <= 25 && board.y_size <= 25;
+  if(showCoords) {
+    const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
+    out << "   ";
+    for(int x = 0; x < board.x_size; x++) {
+      out << xChar[x];
+      if(x < board.x_size-1)
+        out << ' ';
+    }
+    out << "\n";
+  }
+  
+  for(int y = 0; y < board.y_size; y++)
+  {
+    if(showCoords) {
+      char buf[16];
+      sprintf(buf,"%2d",board.y_size-y);
+      out << buf << ' ';
+    }
+    for(int x = 0; x < board.x_size; x++)
+    {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      char s = colorToChar(board.colors[loc]);
+      out << s;
+      if(x < board.x_size-1)
+        out << ' ';
+    }
+    out << "\n";
+  }
+  out << "\n";
+  return out;
 }
 
 
+Board Board::parseBoard(int xSize, int ySize, const string& s) {
+  Board board(xSize,ySize);
+  vector<string> lines = Global::split(Global::trim(s),'\n');
+
+  //Throw away coordinate labels line if it exists
+  if(lines.size() == ySize+1 && Global::isPrefix(lines[0],"A"))
+    lines.erase(lines.begin());
+  
+  if(lines.size() != ySize)
+    throw StringError("Board::parseBoard - string has different number of board rows than ySize");
+
+  for(int y = 0; y<ySize; y++) {
+    string line = Global::trim(lines[y]);
+    //Throw away coordinates if they exist
+    size_t firstNonDigitIdx = 0;
+    while(firstNonDigitIdx < line.length() && Global::isDigit(line[firstNonDigitIdx]))
+      firstNonDigitIdx++;
+    line.erase(0,firstNonDigitIdx);
+    line = Global::trim(line);
+    
+    if(line.length() != xSize && line.length() != 2*xSize-1)
+      throw StringError("Board::parseBoard - line length not compatible with xSize");
+
+    for(int x = 0; x<xSize; x++) {
+      char c;
+      if(line.length() == xSize)
+        c = line[x];
+      else
+        c = line[x*2];
+          
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(c == '.' || c == ' ' || c == '*' || c == ',' || c == '`')
+        continue;
+      else if(c == 'o' || c == 'O')
+        board.setStone(loc,P_WHITE);
+      else if(c == 'x' || c == 'X')
+        board.setStone(loc,P_BLACK);
+      else
+        assert(false);
+    }
+  }
+  return board;
+}

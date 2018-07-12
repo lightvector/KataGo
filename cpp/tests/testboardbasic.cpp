@@ -1,6 +1,61 @@
 #include "../tests/tests.h"
 using namespace TestCommon;
 
+void Tests::runBoardIOTests() {
+  cout << "Running board IO tests" << endl;
+  ostringstream out;
+
+  //============================================================================
+  {
+    const char* name = "Parse test";
+    Board board = Board::parseBoard(6,5,R"%%(
+ ABCDEF
+5......
+4......
+3......
+2......
+1......
+)%%");
+    Board board2 = Board::parseBoard(6,5,R"%%(
+   A B C D E F
+10 . . . . . .
+ 9 . . . . . .
+ 8 . . . . . .
+ 7 . X . . . .
+ 6 . . . . . .
+)%%");
+
+    board.playMove(Location::ofString("B2",board),P_BLACK,true);
+    board2.playMove(Location::ofString("F1",board),P_WHITE,true);
+    out << board << endl;
+    out << board2 << endl;
+    
+    string expected = R"%%(
+HASH: B9AF12139C31CE252E00CFACD7466195
+   A B C D E F
+ 5 . . . . . .
+ 4 . . . . . .
+ 3 . . . . . .
+ 2 . X . . . .
+ 1 . . . . . .
+
+
+HASH: FEAC8B83FDFD55B47128913D3E68E748
+   A B C D E F
+ 5 . . . . . .
+ 4 . . . . . .
+ 3 . . . . . .
+ 2 . X . . . .
+ 1 . . . . . O
+
+)%%";
+
+    expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
+}
+    
 void Tests::runBoardBasicTests() {
   cout << "Running board basic tests" << endl;
   ostringstream out;
@@ -8,7 +63,7 @@ void Tests::runBoardBasicTests() {
   //============================================================================
   {
     const char* name = "Liberties";
-    Board board = parseBoard(9,9,R"%%(
+    Board board = Board::parseBoard(9,9,R"%%(
 .........
 .....x...
 ..oo..x..
@@ -53,7 +108,7 @@ xxoo.o.ox
   //============================================================================
   {
     const char* name = "Liberties after move";
-    Board board = parseBoard(9,9,R"%%(
+    Board board = Board::parseBoard(9,9,R"%%(
 .........
 .....x...
 ..oo..x..
@@ -123,7 +178,7 @@ After white
   {
     const char* name = "Ladders 1 Lib";
     vector<Loc> buf;
-    Board board = parseBoard(9,9,R"%%(
+    Board board = Board::parseBoard(9,9,R"%%(
 xo.x..oxo
 xoxo..o..
 xxo......
@@ -169,7 +224,7 @@ xoox..xo.
     const char* name = "Ladders 2 Libs";
     vector<Loc> buf;
     vector<Loc> buf2;
-    Board board = parseBoard(9,9,R"%%(
+    Board board = Board::parseBoard(9,9,R"%%(
 xo.x..oxo
 xo.o..o..
 xxo......
@@ -216,7 +271,7 @@ xoox..xo.
     const char* name = "LaddersKo-1";
     vector<Loc> buf;
     vector<Loc> buf2;
-    Board board = parseBoard(18,9,R"%%(
+    Board board = Board::parseBoard(18,9,R"%%(
 ..................
 ..................
 ....ox.......ox...
@@ -263,7 +318,7 @@ xoox..xo.
     const char* name = "LaddersKo-2";
     vector<Loc> buf;
     vector<Loc> buf2;
-    Board board = parseBoard(18,9,R"%%(
+    Board board = Board::parseBoard(18,9,R"%%(
 .............xo.oo
 ....x........xxooo
 ...x.xx.......xxo.
@@ -274,7 +329,7 @@ xoox..xo.
 ..................
 .....x.oo.........
 )%%");
-    Board board2 = parseBoard(18,9,R"%%(
+    Board board2 = Board::parseBoard(18,9,R"%%(
 ..................
 ....x.............
 ...x.xx...........
@@ -285,7 +340,7 @@ xoox..xo.
 ..................
 .....x.oo.........
 )%%");
-    Board board3 = parseBoard(18,9,R"%%(
+    Board board3 = Board::parseBoard(18,9,R"%%(
 ....xo.......xo...
 ....xox......xox..
 ...xo.ox....xo.ox.

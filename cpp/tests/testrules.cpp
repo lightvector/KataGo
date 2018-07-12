@@ -30,10 +30,10 @@ void Tests::runRulesTests() {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(board.colors[loc] == C_EMPTY && !board.isIllegalSuicide(loc,pla,hist.rules.multiStoneSuicideLegal) && !hist.isLegal(board,loc,pla)) {
-          o << "Illegal: " << Location::toString(loc,board.x_size) << " " << getCharOfColor(pla) << endl;
+          o << "Illegal: " << Location::toStringMach(loc,board.x_size) << " " << colorToChar(pla) << endl;
         }
         if((pla == P_BLACK && hist.blackKoProhibited[loc]) || (pla == P_WHITE && hist.whiteKoProhibited[loc])) {
-          o << "Ko-prohibited: " << Location::toString(loc,board.x_size) << " " << getCharOfColor(pla) << endl;
+          o << "Ko-prohibited: " << Location::toStringMach(loc,board.x_size) << " " << colorToChar(pla) << endl;
         }
       }
     }
@@ -43,15 +43,15 @@ void Tests::runRulesTests() {
     if(!hist.isGameOver())
       o << "Game is not over";
     else {
-      o << "Winner: " << getCharOfColor(hist.winner) << endl;
+      o << "Winner: " << playerToString(hist.winner) << endl;
       o << "W-B Score: " << hist.finalWhiteMinusBlackScore << endl;
       o << "isNoResult: " << hist.isNoResult << endl;
     }
   };
     
   {
-    const char* name = "Basic area rules";
-    Board board = parseBoard(4,4,R"%%(
+    const char* name = "Area rules";
+    Board board = Board::parseBoard(4,4,R"%%(
 ....
 ....
 ....
@@ -96,10 +96,11 @@ void Tests::runRulesTests() {
     out << board << endl;
     string expected = R"%%(
 HASH: 551911C639136FD87CFD8C126ABC2737
-. X O .
-. X O .
-. X O O
-. X O .
+   A B C D
+ 4 . X O .
+ 3 . X O .
+ 2 . X O O
+ 1 . X O .
 )%%";
     expect(name,out,expected);
     out.str("");
@@ -107,8 +108,8 @@ HASH: 551911C639136FD87CFD8C126ABC2737
   }
 
   {
-    const char* name = "Basic territory rules";
-    Board board = parseBoard(4,4,R"%%(
+    const char* name = "Territory rules";
+    Board board = Board::parseBoard(4,4,R"%%(
 ....
 ....
 ....
@@ -177,24 +178,27 @@ HASH: 551911C639136FD87CFD8C126ABC2737
 
     string expected = R"%%(
 HASH: 551911C639136FD87CFD8C126ABC2737
-. X O .
-. X O .
-. X O O
-. X O .
+   A B C D
+ 4 . X O .
+ 3 . X O .
+ 2 . X O O
+ 1 . X O .
 
 
 HASH: 4234472D4CF6700889EE541B518C2FF9
-. X O .
-. X O X
-. X O O
-. X O .
+   A B C D
+ 4 . X O .
+ 3 . X O X
+ 2 . X O O
+ 1 . X O .
 
 
 HASH: FAE9F3EAAF790C5CF1EC62AFDD264F77
-. X O O
-X X O .
-. X O O
-. X O .
+   A B C D
+ 4 . X O O
+ 3 X X O .
+ 2 . X O O
+ 1 . X O .
 )%%";
     expect(name,out,expected);
     out.str("");
@@ -202,9 +206,9 @@ X X O .
   }
 
 
-  //Basic ko rule testing with a regular ko and a sending two returning 1
+  //Ko rule testing with a regular ko and a sending two returning 1
   {
-    Board baseBoard = parseBoard(6,5,R"%%(
+    Board baseBoard = Board::parseBoard(6,5,R"%%(
 .o.xxo
 oxxxo.
 o.x.oo
@@ -283,7 +287,7 @@ After black ko capture and two passes:
 White recapture:
 Illegal: (5,1) X
 Beginning sending two returning one cycle
-Winner: O
+Winner: White
 W-B Score: 0.5
 isNoResult: 0
 )%%";
@@ -544,7 +548,7 @@ Can white recapture?
 Illegal: (1,0) O
 After pass
 After pass
-Winner: X
+Winner: Black
 W-B Score: -0.5
 isNoResult: 0
 )%%";
@@ -556,7 +560,7 @@ isNoResult: 0
   
   //Testing superko with suicide
   {
-    Board baseBoard = parseBoard(6,5,R"%%(
+    Board baseBoard = Board::parseBoard(6,5,R"%%(
 .oxo.x
 oxxooo
 xx....
@@ -620,11 +624,12 @@ Looped some more
 Illegal: (0,0) O
 Illegal: (0,1) O
 HASH: D369FBF88E276F2F6D21FF1A9FA349F4
-. O X O X .
-. X X O O O
-X X . . . .
-. . . . . .
-. . . . . .
+   A B C D E F
+ 5 . O X O X .
+ 4 . X X O O O
+ 3 X X . . . .
+ 2 . . . . . .
+ 1 . . . . . .
 
 
 ------------------------------
@@ -635,11 +640,12 @@ Filling in a bit more
 Illegal: (0,1) O
 Looped some more
 HASH: D369FBF88E276F2F6D21FF1A9FA349F4
-. O X O X .
-. X X O O O
-X X . . . .
-. . . . . .
-. . . . . .
+   A B C D E F
+ 5 . O X O X .
+ 4 . X X O O O
+ 3 X X . . . .
+ 2 . . . . . .
+ 1 . . . . . .
 
 
 ------------------------------
@@ -649,11 +655,13 @@ Filling in a bit more
 Looped some more
 Illegal: (0,0) O
 HASH: D369FBF88E276F2F6D21FF1A9FA349F4
-. O X O X .
-. X X O O O
-X X . . . .
-. . . . . .
-. . . . . .
+   A B C D E F
+ 5 . O X O X .
+ 4 . X X O O O
+ 3 X X . . . .
+ 2 . . . . . .
+ 1 . . . . . .
+
 )%%";
     expect(name,out,expected);
     out.str("");
@@ -662,7 +670,7 @@ X X . . . .
 
   {
     const char* name = "Eternal life";
-    Board board = parseBoard(8,5,R"%%(
+    Board board = Board::parseBoard(8,5,R"%%(
 ........
 oooooo..
 xxxxxo..
@@ -689,7 +697,7 @@ xoooxxoo
     printGameResult(out,hist);
     
     string expected = R"%%(
-Winner: .
+Winner: Empty
 W-B Score: 0
 isNoResult: 1
 )%%";
@@ -700,7 +708,7 @@ isNoResult: 1
 
   {
     const char* name = "Triple ko simple";
-    Board board = parseBoard(7,6,R"%%(
+    Board board = Board::parseBoard(7,6,R"%%(
 ooooooo
 oxo.o.o
 x.xoxox
@@ -732,7 +740,7 @@ ooooooo
     printGameResult(out,hist);
     
     string expected = R"%%(
-Winner: .
+Winner: Empty
 W-B Score: 0
 isNoResult: 1
 )%%";
@@ -743,7 +751,7 @@ isNoResult: 1
   
   {
     const char* name = "Triple ko superko";
-    Board board = parseBoard(7,6,R"%%(
+    Board board = Board::parseBoard(7,6,R"%%(
 ooooooo
 oxo.o.o
 x.xoxox
@@ -775,7 +783,7 @@ Illegal: (5,2) O
 
   {
     const char* name = "Territory scoring in the main phase";
-    Board board = parseBoard(7,7,R"%%(
+    Board board = Board::parseBoard(7,7,R"%%(
 ox.ooo.
 oxxxxxx
 ooooooo
@@ -822,7 +830,7 @@ Score: -2.5
   }
   {
     const char* name = "Territory scoring in encore 1";
-    Board board = parseBoard(7,7,R"%%(
+    Board board = Board::parseBoard(7,7,R"%%(
 ox.ooo.
 oxxxxxx
 ooooooo
@@ -871,7 +879,7 @@ Score: -2.5
   }
   {
     const char* name = "Territory scoring in encore 2";
-    Board board = parseBoard(7,7,R"%%(
+    Board board = Board::parseBoard(7,7,R"%%(
 ox.ooo.
 oxxxxxx
 ooooooo
@@ -923,7 +931,7 @@ Score: -3.5
   
   {
     const char* name = "Pass for ko";
-    Board board = parseBoard(7,7,R"%%(
+    Board board = Board::parseBoard(7,7,R"%%(
 ..ox.oo
 ..oxxxo
 ...oox.
@@ -1043,13 +1051,14 @@ Regular pass shouldn't work in the encore
 Ko-prohibited: (6,0) X
 Pass for ko! (Should not affect the board stones)
 HASH: F1139C17E04FC2DF5ABA49348EF744D1
-. . O X X O .
-. . O X X X O
-. O X O O X .
-. . . . O X X
-. . O . O O .
-. . . . . . .
-O . . . . . .
+   A B C D E F G
+ 7 . . O X X O .
+ 6 . . O X X X O
+ 5 . O X O O X .
+ 4 . . . . O X X
+ 3 . . O . O O .
+ 2 . . . . . . .
+ 1 O . . . . . .
 
 
 Now black can retake, and white's retake isn't legal
@@ -1077,7 +1086,7 @@ Illegal: (6,0) X
 
   {
     const char* name = "Two step ko mark clearing";
-    Board board = parseBoard(7,5,R"%%(
+    Board board = Board::parseBoard(7,5,R"%%(
 x.x....
 .xx....
 xox....
@@ -1130,41 +1139,45 @@ Ko-prohibited: (0,0) X
 Just after black pass for ko
 Illegal: (0,0) X
 HASH: C31D698C43AF8F4719AF350A52362800
-. O X . . . .
-O X X . . . .
-. O X . . . .
-O O O . . . .
-. . . . . . .
+   A B C D E F G
+ 5 . O X . . . .
+ 4 O X X . . . .
+ 3 . O X . . . .
+ 2 O O O . . . .
+ 1 . . . . . . .
 
 
 After first cap
 Ko-prohibited: (1,0) O
 HASH: D9AD14AFEF3A6FB208691C6EABB3ACC0
-X . X . . . .
-O X X . . . .
-. O X . . . .
-O O O . . . .
-. . . . . . .
+   A B C D E F G
+ 5 X . X . . . .
+ 4 O X X . . . .
+ 3 . O X . . . .
+ 2 O O O . . . .
+ 1 . . . . . . .
 
 
 After second cap
 Ko-prohibited: (0,1) O
 HASH: 06E53C9488F4A69B52F544FC1C6E1D40
-X . X . . . .
-. X X . . . .
-X O X . . . .
-O O O . . . .
-. . . . . . .
+   A B C D E F G
+ 5 X . X . . . .
+ 4 . X X . . . .
+ 3 X O X . . . .
+ 2 O O O . . . .
+ 1 . . . . . . .
 
 
 After pass for ko
 Illegal: (0,1) O
 HASH: 06E53C9488F4A69B52F544FC1C6E1D40
-X . X . . . .
-. X X . . . .
-X O X . . . .
-O O O . . . .
-. . . . . . .
+   A B C D E F G
+ 5 X . X . . . .
+ 4 . X X . . . .
+ 3 X O X . . . .
+ 2 O O O . . . .
+ 1 . . . . . . .
 )%%";
     expect(name,out,expected);
     out.str("");
@@ -1173,7 +1186,7 @@ O O O . . . .
 
   {
     const char* name = "Throw in that destroys the ko momentarily does not clear ko prohibition";
-    Board board = parseBoard(7,5,R"%%(
+    Board board = Board::parseBoard(7,5,R"%%(
 x......
 oxx....
 .o.....
@@ -1202,11 +1215,12 @@ oo.....
     string expected = R"%%(
 Ko-prohibited: (0,1) O
 HASH: 7549DEF1D74769D79E9729028FF1A1D5
-X . X . . . .
-. X X . . . .
-X O . . . . .
-O O . . . . .
-. . . . . . .
+   A B C D E F G
+ 5 X . X . . . .
+ 4 . X X . . . .
+ 3 X O . . . . .
+ 2 O O . . . . .
+ 1 . . . . . . .
 
 
 Ko-prohibited: (0,1) O

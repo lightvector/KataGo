@@ -12,6 +12,8 @@
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
+struct Board;
+
 //Player
 typedef int8_t Player;
 static const Player P_BLACK = 1;
@@ -27,15 +29,9 @@ static const Color C_WALL = 3;
 //Conversions for players and colors
 static inline Color getOpp(Color c)
 {return c ^ 3;}
-static inline char getCharOfColor(Color c)
-{
-  switch(c) {
-  case C_BLACK: return 'X';
-  case C_WHITE: return 'O';
-  case C_EMPTY: return '.';
-  default:  return '#';
-  }
-}
+
+char colorToChar(Color c);
+string playerToString(Player p);
 
 //Location of a point on the board
 //(x,y) is represented as (x+1) + (y+1)*(x_size+1)
@@ -49,7 +45,15 @@ namespace Location
   void getAdjacentOffsets(short adj_offsets[8], int x_size);
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);
 
-  string toString(Loc loc, int x_size);
+  string toString(Loc loc, int x_size, int y_size);
+  string toString(Loc loc, const Board& b);
+  string toStringMach(Loc loc, int x_size);
+  string toStringMach(Loc loc, const Board& b);
+
+  bool tryOfString(const string& str, int x_size, int y_size, Loc& result);
+  bool tryOfString(const string& str, const Board& b, Loc& result);
+  Loc ofString(const string& str, int x_size, int y_size);
+  Loc ofString(const string& str, const Board& b);
 }
 
 //Simple structure for storing moves. Not used below, but this is a convenient place to define it.
@@ -191,6 +195,8 @@ struct Board
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
 
+  static Board parseBoard(int xSize, int ySize, const string& s);
+  
   //Data--------------------------------------------
 
   int x_size;                  //Horizontal size of board

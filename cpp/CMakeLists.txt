@@ -96,7 +96,7 @@ add_executable(runtests
   tests/testboardbasic.cpp
   tests/testmisc.cpp
   tests/testrules.cpp
-  tests.cpp
+  runtests.cpp
   )
 
 add_executable(example

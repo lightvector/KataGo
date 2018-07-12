@@ -226,6 +226,13 @@ bool Global::isWhitespace(const string& s)
   return p == string::npos;
 }
 
+bool Global::isPrefix(const string& s, const string& prefix)
+{
+  if(s.length() < prefix.length())
+    return false;
+  int result = s.compare(0, prefix.length(), prefix);
+  return result == 0;
+}
 bool Global::isSuffix(const string& s, const string& suffix)
 {
   if(s.length() < suffix.length())

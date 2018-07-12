@@ -13,6 +13,7 @@ namespace Tests {
   void runRandHashTests();
 
   //testboardbasic.cpp
+  void runBoardIOTests();
   void runBoardBasicTests();
   void runBoardUndoTest();
   void runBoardStressTest();
@@ -54,28 +55,6 @@ namespace TestCommon {
     if(b1.numWhiteCaptures != b2.numWhiteCaptures)
       return false;
     return true;
-  }
-
-  inline Board parseBoard(int xSize, int ySize, const string& s) {
-    Board board(xSize,ySize);
-    vector<string> lines = Global::split(Global::trim(s),'\n');
-    assert(lines.size() == ySize);
-    for(int y = 0; y<ySize; y++) {
-      assert(lines[y].length() == xSize);
-      for(int x = 0; x<xSize; x++) {
-        char c = lines[y][x];
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        if(c == '.' || c == ' ' || c == '*' || c == ',' || c == '`')
-          continue;
-        else if(c == 'o' || c == 'O')
-          board.setStone(loc,P_WHITE);
-        else if(c == 'x' || c == 'X')
-          board.setStone(loc,P_BLACK);
-        else
-          assert(false);
-      }
-    }
-    return board;
   }
 
 }

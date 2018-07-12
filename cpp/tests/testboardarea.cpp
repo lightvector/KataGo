@@ -16,7 +16,7 @@ void Tests::runBoardAreaTests() {
       for(int y = 0; y<copy.y_size; y++) {
         for(int x = 0; x<copy.x_size; x++) {
           Loc loc = Location::getLoc(x,y,copy.x_size);
-          out << getCharOfColor(result[loc]);
+          out << colorToChar(result[loc]);
         }
         out << endl;
       }
@@ -30,7 +30,7 @@ void Tests::runBoardAreaTests() {
   {
     const char* name = "Area 1";
     Color result[Board::MAX_ARR_SIZE];
-    Board board = parseBoard(9,9,R"%%(
+    Board board = Board::parseBoard(9,9,R"%%(
 ..o.o.xx.
 .oooo.x.x
 oo.....xx
@@ -98,7 +98,7 @@ XXXX.OOOO
   {
     const char* name = "Area 2";
     Color result[Board::MAX_ARR_SIZE];
-    Board board = parseBoard(9,9,R"%%(
+    Board board = Board::parseBoard(9,9,R"%%(
 x.oooooo.
 oox..xx.o
 o...xox.o
@@ -109,7 +109,7 @@ o.xox...o
 o.xxx...o
 .ooooooo.
 )%%");
-    Board board2 = parseBoard(9,9,R"%%(
+    Board board2 = Board::parseBoard(9,9,R"%%(
 ..oooooo.
 oox..xx.o
 o...xox.o
@@ -222,7 +222,7 @@ OOOOOOOOO
   {
     const char* name = "Area 3";
     Color result[Board::MAX_ARR_SIZE];
-    Board board = parseBoard(19,19,R"%%(
+    Board board = Board::parseBoard(19,19,R"%%(
 o.o....xx......o..o
 .oo.xxx.x......ooo.
 xo..x..xx........oo
@@ -340,7 +340,7 @@ OOOOOOOOO.OOOOOOOOO
   {
     const char* name = "Area 4";
     Color result[Board::MAX_ARR_SIZE];
-    Board board = parseBoard(19,19,R"%%(
+    Board board = Board::parseBoard(19,19,R"%%(
 .x.x.xxxx.xxxx.x.x.
 x.xxxx..x.x..xxxx.x
 xx.x..x.x.x.x..x.x.
@@ -458,7 +458,7 @@ OOO.XO...OOOOOOOOOO
   {
     const char* name = "Area 5";
     Color result[Board::MAX_ARR_SIZE];
-    Board board = parseBoard(19,13,R"%%(
+    Board board = Board::parseBoard(19,13,R"%%(
 ...................
 ...................
 ...............xx..

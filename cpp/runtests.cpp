@@ -14,6 +14,7 @@ int main(int argc, const char* const* argv) {
   Board::initHash();
 
   Tests::runRandHashTests();
+  Tests::runBoardIOTests();
   Tests::runBoardBasicTests();
   Tests::runBoardAreaTests();
 
