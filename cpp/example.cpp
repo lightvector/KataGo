@@ -64,16 +64,21 @@ int main() {
   SearchThread* thread = new SearchThread(0,*search);
 
   search->runSinglePlayout(*thread);
+  thread->board.checkConsistency();
+  search->runSinglePlayout(*thread);
+  thread->board.checkConsistency();
+  search->runSinglePlayout(*thread);
 
+  cout << board << endl;
   search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(10));
 
-  
+
   delete thread;
   delete search;
   delete nnEval;
 
   return 0;
-  
+
   // Board board;
   // BoardHistory boardHistory(board,P_BLACK,rules);
   // Player nextPlayer = P_WHITE;

@@ -40,6 +40,7 @@ struct SearchChildren {
 struct SearchNode {
   //Constant--------------------------------------------------------------
   uint32_t lockIdx;
+  Player pla;
 
   //Mutable---------------------------------------------------------------
   shared_ptr<NNOutput> nnOutput;
@@ -148,7 +149,7 @@ struct Search {
   //Debug functions---------------------------------------------------------------
   void printPV(ostream& out, const SearchNode* node, int maxDepth);
   void printTree(ostream& out, const SearchNode* node, PrintTreeOptions options);
-  
+
   //Helpers-----------------------------------------------------------------------
 private:
   void maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const;
@@ -157,11 +158,11 @@ private:
   double getCombinedValueSum(const SearchNode& node) const;
   double getPlaySelectionValue(
     double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
-    double childValueSum
+    double childValueSum, Player pla
   ) const;
   double getExploreSelectionValue(
     double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
-    double childValueSum, double fpuValue
+    double childValueSum, double fpuValue, Player pla
   ) const;
   double getPlaySelectionValue(const SearchNode& parent, const SearchChild* child) const;
   double getExploreSelectionValue(const SearchNode& parent, const SearchChild* child, double fpuValue) const;

@@ -29,7 +29,7 @@ void Tests::runBoardIOTests() {
     board2.playMove(Location::ofString("F1",board),P_WHITE,true);
     out << board << endl;
     out << board2 << endl;
-    
+
     string expected = R"%%(
 HASH: B9AF12139C31CE252E00CFACD7466195
    A B C D E F
@@ -55,7 +55,7 @@ HASH: FEAC8B83FDFD55B47128913D3E68E748
     out.clear();
   }
 }
-    
+
 void Tests::runBoardBasicTests() {
   cout << "Running board basic tests" << endl;
   ostringstream out;
@@ -202,6 +202,7 @@ xoox..xo.
       out << endl;
     }
     out << endl;
+    board.checkConsistency();
 
     string expected = R"%%(
 01.0..010
@@ -248,6 +249,7 @@ xoox..xo.
       out << endl;
     }
     out << endl;
+    board.checkConsistency();
 
     string expected = R"%%(
 11.1..000
@@ -295,6 +297,7 @@ xoox..xo.
       out << endl;
     }
     out << endl;
+    board.checkConsistency();
 
     string expected = R"%%(
 ..................
@@ -386,6 +389,9 @@ xoox..xo.
       out << endl;
     }
     out << endl;
+    board.checkConsistency();
+    board2.checkConsistency();
+    board3.checkConsistency();
 
     string expected = R"%%(
 
@@ -419,6 +425,74 @@ xoox..xo.
 ..010......000....
 ............0.....
 
+)%%";
+    expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
+
+  //============================================================================
+  {
+    const char* name = "LaddersBigBoard";
+    vector<Loc> buf;
+    vector<Loc> buf2;
+    Board board = Board::parseBoard(19,19,R"%%(
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . X . . . . . . . . . . . X . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . X O O . .
+ 3 . . . O . . . . . . . . . . O X X . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+)%%");
+
+    out << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] != C_EMPTY)
+          out << (int)board.searchIsLadderCapturedAttackerFirst2Libs(loc,buf,buf2);
+        else
+          out << ".";
+      }
+      out << endl;
+    }
+    out << endl;
+    board.checkConsistency();
+
+    string expected = R"%%(
+...................
+...................
+...................
+...0...........0...
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+..............000..
+...0..........000..
+...................
+...................
 )%%";
     expect(name,out,expected);
     out.str("");

@@ -5,7 +5,7 @@ using namespace tensorflow;
 
 NNOutput::NNOutput() {}
 NNOutput::NNOutput(const NNOutput& other) {
-  value = other.value;
+  whiteValue = other.whiteValue;
   std::copy(other.policyProbs, other.policyProbs+NNPos::NN_POLICY_SIZE, policyProbs);
 }
 
@@ -168,7 +168,10 @@ shared_ptr<NNOutput> NNEvaluator::evaluate(
   for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++)
     policy[i] = isLegal[i] ? (policy[i] / policySum) : -1.0f;
 
-  nnOutput->value = valueMap(batch);
+  if(nextPlayer == P_WHITE)
+    nnOutput->whiteValue = tanh(valueMap(batch));
+  else
+    nnOutput->whiteValue = -tanh(valueMap(batch));
 
   return nnOutput;
 }

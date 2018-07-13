@@ -21,7 +21,7 @@ using tensorflow::Session;
 
 struct NNOutput {
   //From the perspective of the player to move at the time of the eval
-  float value;
+  float whiteValue;
 
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko
@@ -29,7 +29,7 @@ struct NNOutput {
 
   NNOutput(); //Does NOT initialize values
   NNOutput(const NNOutput& other);
-  
+
   //Utility --------------------------------------------------------------------
   //The utility of having a particular winner
   static double whiteValueOfWinner(Player winner);

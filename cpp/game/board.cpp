@@ -1007,7 +1007,7 @@ bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
 
 //TACTICAL STUFF--------------------------------------------------------------------
 
-//Helper, find liberties of group at loc. Fills in buf, returns the number of captures.
+//Helper, find liberties of group at loc. Fills in buf, returns the number of liberties.
 //bufStart is where to start checking to avoid duplicates. bufIdx is where to start actually writing.
 int Board::findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const {
   int numFound = 0;
@@ -1770,7 +1770,7 @@ string Location::toString(Loc loc, int x_size, int y_size)
   int y = getY(loc,y_size);
   if(x >= x_size || x < 0 || y < 0)
     return toStringMach(loc,x_size);
-    
+
   char buf[128];
   sprintf(buf,"%c%d",xChar[x],y_size-y);
   return string(buf);
@@ -1855,7 +1855,7 @@ ostream& operator<<(ostream& out, const Board& board)
     }
     out << "\n";
   }
-  
+
   for(int y = 0; y < board.y_size; y++)
   {
     if(showCoords) {
@@ -1885,7 +1885,7 @@ Board Board::parseBoard(int xSize, int ySize, const string& s) {
   //Throw away coordinate labels line if it exists
   if(lines.size() == ySize+1 && Global::isPrefix(lines[0],"A"))
     lines.erase(lines.begin());
-  
+
   if(lines.size() != ySize)
     throw StringError("Board::parseBoard - string has different number of board rows than ySize");
 
@@ -1897,7 +1897,7 @@ Board Board::parseBoard(int xSize, int ySize, const string& s) {
       firstNonDigitIdx++;
     line.erase(0,firstNonDigitIdx);
     line = Global::trim(line);
-    
+
     if(line.length() != xSize && line.length() != 2*xSize-1)
       throw StringError("Board::parseBoard - line length not compatible with xSize");
 
@@ -1907,7 +1907,7 @@ Board Board::parseBoard(int xSize, int ySize, const string& s) {
         c = line[x];
       else
         c = line[x*2];
-          
+
       Loc loc = Location::getLoc(x,y,board.x_size);
       if(c == '.' || c == ' ' || c == '*' || c == ',' || c == '`')
         continue;

@@ -29,7 +29,7 @@ SearchChildren& SearchChildren::operator=(SearchChildren&& other) noexcept {
 //-----------------------------------------------------------------------------------------
 
 SearchNode::SearchNode(Search& search, SearchThread& thread)
-  :lockIdx(),nnOutput(),children(),visits(0),
+  :lockIdx(),pla(thread.pla),nnOutput(),children(),visits(0),
    winLossValueSum(0),scoreValueSum(0),
    childVisits(0)
 {
@@ -39,7 +39,7 @@ SearchNode::~SearchNode() {
 }
 
 SearchNode::SearchNode(SearchNode&& other) noexcept
- :lockIdx(other.lockIdx),
+:lockIdx(other.lockIdx),pla(other.pla),
   nnOutput(std::move(other.nnOutput)),children(std::move(other.children)),
   visits(other.visits),
   winLossValueSum(other.winLossValueSum),scoreValueSum(other.scoreValueSum),
@@ -47,6 +47,7 @@ SearchNode::SearchNode(SearchNode&& other) noexcept
 {}
 SearchNode& SearchNode::operator=(SearchNode&& other) noexcept {
   lockIdx = other.lockIdx;
+  pla = other.pla;
   nnOutput = std::move(other.nnOutput);
   children = std::move(other.children);
   visits = other.visits;
@@ -180,13 +181,13 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   shared_ptr<NNOutput> newNNOutput = std::make_shared<NNOutput>(*(node.nnOutput));
   //Replace the old pointer
   node.nnOutput = newNNOutput;
-  
+
   int legalCount = 0;
   for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
     if(node.nnOutput->policyProbs[i] >= 0)
       legalCount += 1;
   }
-  
+
   if(legalCount <= 0)
     throw StringError("maybeAddPolicyNoise: No move with nonnegative policy value - can't even pass?");
 
@@ -222,30 +223,31 @@ double Search::getCombinedValueSum(const SearchNode& node) const {
 }
 
 static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
-  
+
 double Search::getPlaySelectionValue(
   double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
-  double childValueSum
+  double childValueSum, Player pla
 ) const {
   if(nnPolicyProb < 0)
-    return POLICY_ILLEGAL_SELECTION_VALUE; 
+    return POLICY_ILLEGAL_SELECTION_VALUE;
 
   (void)(totalChildVisits);
   (void)(childValueSum);
+  (void)(pla);
   return (double)childVisits;
 }
 
 double Search::getExploreSelectionValue(
   double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
-  double childValueSum, double fpuValue
+  double childValueSum, double fpuValue, Player pla
 ) const {
   if(nnPolicyProb < 0)
-    return POLICY_ILLEGAL_SELECTION_VALUE; 
-    
-  double exploreComponent = 
+    return POLICY_ILLEGAL_SELECTION_VALUE;
+
+  double exploreComponent =
     searchParams.cpuctExploration
     * nnPolicyProb
-    * sqrt((double)totalChildVisits)
+    * sqrt((double)totalChildVisits + 0.01) //TODO this is weird when totalChildVisits == 0 - first exploration
     / (1.0 + childVisits);
 
   double valueComponent;
@@ -253,6 +255,10 @@ double Search::getExploreSelectionValue(
     valueComponent = childValueSum / childVisits;
   else
     valueComponent = fpuValue;
+
+  //Adjust it to be from the player's perspective, so that players prefer values in their favor
+  //rather than in white's favor
+  valueComponent = pla == P_WHITE ? valueComponent : -valueComponent;
 
   return exploreComponent + valueComponent;
 }
@@ -272,7 +278,7 @@ double Search::getPlaySelectionValue(const SearchNode& parent, const SearchChild
   uint64_t childVisits = child->node.visits;
   double childValueSum = getCombinedValueSum(child->node);
 
-  return getPlaySelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum);
+  return getPlaySelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,parent.pla);
 }
 double Search::getExploreSelectionValue(const SearchNode& parent, const SearchChild* child, double fpuValue) const {
   Loc moveLoc = child->moveLoc;
@@ -282,16 +288,14 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchCh
   uint64_t totalChildVisits = parent.childVisits;
   uint64_t childVisits = child->node.visits;
   double childValueSum = getCombinedValueSum(child->node);
-
-  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,fpuValue);
+  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,fpuValue,parent.pla);
 }
 double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, double fpuValue) const {
   float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
   uint64_t totalChildVisits = parent.childVisits;
   uint64_t childVisits = 0;
   double childValueSum = 0.0;
-
-  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,fpuValue);
+  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,fpuValue,parent.pla);
 }
 
 
@@ -301,6 +305,7 @@ void Search::selectBestChildToDescend(
   int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
   bool isRoot, bool checkLegalityOfNewMoves) const
 {
+  assert(thread.pla == node.pla);
   assert(node.visits > 0);
   const SearchChildren& children = node.children;
   double maxSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
@@ -322,13 +327,16 @@ void Search::selectBestChildToDescend(
   assert(policyProbMassVisited <= 1.0001);
 
   //First play urgency
+  double parentValue = node.nnOutput->whiteValue / node.visits;
   double fpuValue;
   if(isRoot && searchParams.rootNoiseEnabled)
-    fpuValue = 0.0;
+    fpuValue = parentValue;
   else {
     //double parentValue = getCombinedValueSum(node) / node.visits;
-    double parentValue = node.nnOutput->value / node.visits;
-    fpuValue = parentValue - searchParams.fpuReductionMax * sqrt(policyProbMassVisited);
+    if(thread.pla == P_WHITE)
+      fpuValue = parentValue - searchParams.fpuReductionMax * sqrt(policyProbMassVisited);
+    else
+      fpuValue = parentValue + searchParams.fpuReductionMax * sqrt(policyProbMassVisited);
   }
 
   //Try all existing children
@@ -365,7 +373,7 @@ void Search::selectBestChildToDescend(
       bestChildMoveLoc = moveLoc;
     }
   }
-  
+
 }
 
 void Search::runSinglePlayout(SearchThread& thread) {
@@ -373,6 +381,10 @@ void Search::runSinglePlayout(SearchThread& thread) {
   double retScoreValue;
   int posesWithChildBuf[NNPos::NN_POLICY_SIZE];
   playoutDescend(thread,*rootNode,retWinLossValue,retScoreValue,posesWithChildBuf,true);
+  //Restore thread state back to the root state
+  thread.pla = rootPla;
+  thread.board = rootBoard;
+  thread.history = rootHistory;
 }
 
 void Search::playoutDescend(
@@ -392,8 +404,7 @@ void Search::playoutDescend(
     lock.unlock();
 
     //Values in the search are from the perspective of white positive always
-    double value = (double)node.nnOutput->value;
-    value = (thread.pla == C_WHITE ? value : -value);
+    double value = (double)node.nnOutput->whiteValue;
 
     node.visits += 1;
     //TODO update this when we have a score prediction on the net
@@ -468,7 +479,7 @@ void Search::playoutDescend(
   }
 
   Loc moveLoc = bestChildMoveLoc;
-  
+
   //Allocate a new child node if necessary
   SearchChild* child;
   if(bestChildIdx == children.numChildren) {
@@ -488,7 +499,6 @@ void Search::playoutDescend(
     lock.unlock();
 
     assert(thread.history.isLegal(thread.board,moveLoc,thread.pla));
-    thread.board.playMoveAssumeLegal(moveLoc,thread.pla);
     thread.history.makeBoardMoveAssumeLegal(thread.board,moveLoc,thread.pla,rootKoHashTable);
     thread.pla = getOpp(thread.pla);
   }
@@ -505,11 +515,6 @@ void Search::playoutDescend(
   node.scoreValueSum += retScoreValue;
 
   lock.unlock();
-
-  //Restore thread state back to the root state
-  thread.pla = rootPla;
-  thread.board = rootBoard;
-  thread.history = rootHistory;
 }
 
 void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
@@ -540,7 +545,7 @@ void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
       out << " ";
     out << Location::toString(bestChildMoveLoc,rootBoard);
 
-    n = &(children.children[bestChildIdx]->node);     
+    n = &(children.children[bestChildIdx]->node);
   }
 }
 
@@ -569,9 +574,9 @@ void Search::printTreeHelper(
       sprintf(buf,": P %5.2f%% ",policyProb * 100.0);
       out << buf;
     }
-    
+
     if(node.nnOutput != nullptr) {
-      double value = node.nnOutput->value;
+      double value = node.nnOutput->whiteValue;
       sprintf(buf,"V %5.2f%% ", value * 100.0);
       out << buf;
     }
@@ -589,7 +594,7 @@ void Search::printTreeHelper(
       out << buf;
     }
 
-    sprintf(buf,"N %7" PRIu64, node.visits); 
+    sprintf(buf,"N %7" PRIu64, node.visits);
     out << buf;
 
     lock.unlock();
@@ -597,7 +602,7 @@ void Search::printTreeHelper(
     lock.lock();
     out << endl;
   }
-  
+
   if(depth >= options.maxDepth_)
     return;
   if(node.childVisits < options.minChildrenVisits_)
@@ -637,13 +642,13 @@ void Search::printTreeHelper(
     numChildrenToRecurseOn = options.maxChildren_;
   if(lastIdxWithEnoughVisits+1 < numChildrenToRecurseOn)
     numChildrenToRecurseOn = lastIdxWithEnoughVisits+1;
-  
+
   shared_ptr<NNOutput> nnOutput = node.nnOutput;
   assert(nnOutput != nullptr);
 
   //Unlock!! We've already copied everything we need into valuedChildren
   lock.unlock();
-  
+
   for(int i = 0; i<numChildrenToRecurseOn; i++) {
     const SearchChild* child = valuedChildren[i].first;
     Loc moveLoc = child->moveLoc;
