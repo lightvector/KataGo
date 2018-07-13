@@ -1772,7 +1772,7 @@ string Location::toString(Loc loc, int x_size, int y_size)
     return toStringMach(loc,x_size);
     
   char buf[128];
-  sprintf(buf,"%c%d",xChar[x],y);
+  sprintf(buf,"%c%d",xChar[x],y_size-y);
   return string(buf);
 }
 
