@@ -1,6 +1,7 @@
 // example.cpp
 
 #include "core/global.h"
+#include "core/timer.h"
 #include "game/board.h"
 #include "game/boardhistory.h"
 #include "neuralnet/nninputs.h"
@@ -63,14 +64,14 @@ int main() {
   search->beginSearch("randseed",nnEval);
   SearchThread* thread = new SearchThread(0,*search);
 
-  search->runSinglePlayout(*thread);
-  thread->board.checkConsistency();
-  search->runSinglePlayout(*thread);
-  thread->board.checkConsistency();
-  search->runSinglePlayout(*thread);
+  ClockTimer timer;
+  for(int i = 0; i<300; i++)
+    search->runSinglePlayout(*thread);
 
+  double seconds = timer.getSeconds();
   cout << board << endl;
-  search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(10));
+  cout << "Seconds: " << seconds << endl;
+  search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(5));
 
 
   delete thread;

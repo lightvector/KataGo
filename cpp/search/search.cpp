@@ -570,14 +570,20 @@ void Search::printTreeHelper(
     out << prefix;
     char buf[64];
 
-    if(!isnan(policyProb)) {
-      sprintf(buf,": P %5.2f%% ",policyProb * 100.0);
+    out << ": ";
+
+    if(node.visits > 0) {
+      sprintf(buf,"T %6.2f%% ",(node.winLossValueSum + node.scoreValueSum) / node.visits * 100.0);
+      out << buf;
+      sprintf(buf,"W %6.2f%% ",node.winLossValueSum / node.visits * 100.0);
+      out << buf;
+      sprintf(buf,"S %6.2f%% ",node.scoreValueSum / node.visits * 100.0);
       out << buf;
     }
 
     if(node.nnOutput != nullptr) {
       double value = node.nnOutput->whiteValue;
-      sprintf(buf,"V %5.2f%% ", value * 100.0);
+      sprintf(buf,"V %6.2f%% ", value * 100.0);
       out << buf;
     }
     else {
@@ -585,16 +591,12 @@ void Search::printTreeHelper(
       out << buf;
     }
 
-    if(node.visits > 0) {
-      sprintf(buf,"W %5.2f%% ",node.winLossValueSum / node.visits * 100.0);
-      out << buf;
-      sprintf(buf,"S %5.2f%% ",node.scoreValueSum / node.visits * 100.0);
-      out << buf;
-      sprintf(buf,"T %5.2f%% ",(node.winLossValueSum + node.scoreValueSum) / node.visits * 100.0);
+    if(!isnan(policyProb)) {
+      sprintf(buf,"P %5.2f%% ",policyProb * 100.0);
       out << buf;
     }
 
-    sprintf(buf,"N %7" PRIu64, node.visits);
+    sprintf(buf,"N %7" PRIu64 "  --  ", node.visits);
     out << buf;
 
     lock.unlock();
