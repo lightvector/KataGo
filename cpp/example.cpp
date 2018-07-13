@@ -5,6 +5,8 @@
 #include "game/boardhistory.h"
 #include "neuralnet/nninputs.h"
 #include "neuralnet/nneval.h"
+#include "search/searchparams.h"
+#include "search/search.h"
 
 // #include <tensorflow/c/c_api.h>
 #include <tensorflow/cc/client/client_session.h>
@@ -23,38 +25,81 @@ int main() {
   NNEvaluator* nnEval = new NNEvaluator("/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb");
 
   Rules rules;
-  rules.koRule = Rules::KO_SIMPLE;
+  rules.koRule = Rules::KO_POSITIONAL;
   rules.scoringRule = Rules::SCORING_AREA;
-  rules.multiStoneSuicideLegal = false;
+  rules.multiStoneSuicideLegal = true;
   rules.komi = 7.5f;
 
-  Board board;
-  BoardHistory boardHistory(board,P_BLACK,rules);
-  Player nextPlayer = P_WHITE;
+  Player pla = P_WHITE;
+  Board board = Board::parseBoard(19,19,R"(
+...................
+...................
+...................
+...x...........x...
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+..............x.o..
+...o..........ox...
+...................
+...................
+)");
 
-  Loc loc = Location::getLoc(2,3,board.x_size);
-  boardHistory.makeBoardMoveAssumeLegal(board,loc,P_BLACK,NULL);
+  BoardHistory hist(board,pla,rules);
+  SearchParams params;
+  int mutexPoolSize = 4096;
 
-  for(int symmetry = 0; symmetry < 8; symmetry++) {
-    shared_ptr<NNOutput> output = nnEval->evaluate(board,boardHistory,nextPlayer,symmetry);
+  Search* search = new Search(rules, params, mutexPoolSize);
+  search->setPosition(pla,board,hist);
 
-    cout << "SYMMETRY " << symmetry << endl;
-    for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
-      for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
-        float prob = output->policyProbs[x+y*NNPos::MAX_BOARD_LEN];
-        if(prob < 0)
-          printf("    %%");
-        else
-          printf("%4.1f%%", prob * 100.0);
-      }
-      cout << endl;
-    }
-    printf("%4.1f%%", output->policyProbs[NNPos::NN_POLICY_SIZE-1] * 100.0);
-    cout << endl;
-    cout << output->value << endl;
-    cout << endl;
-  }
+  search->beginSearch("randseed",nnEval);
+  SearchThread* thread = new SearchThread(0,*search);
 
+  search->runSinglePlayout(*thread);
+
+  search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(10));
+
+  
+  delete thread;
+  delete search;
+  delete nnEval;
+
+  return 0;
+  
+  // Board board;
+  // BoardHistory boardHistory(board,P_BLACK,rules);
+  // Player nextPlayer = P_WHITE;
+
+  // Loc loc = Location::getLoc(2,3,board.x_size);
+  // boardHistory.makeBoardMoveAssumeLegal(board,loc,P_BLACK,NULL);
+
+  // for(int symmetry = 0; symmetry < 8; symmetry++) {
+  //   shared_ptr<NNOutput> output = nnEval->evaluate(board,boardHistory,nextPlayer,symmetry);
+
+  //   cout << "SYMMETRY " << symmetry << endl;
+  //   for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
+  //     for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
+  //       float prob = output->policyProbs[x+y*NNPos::MAX_BOARD_LEN];
+  //       if(prob < 0)
+  //         printf("    %%");
+  //       else
+  //         printf("%4.1f%%", prob * 100.0);
+  //     }
+  //     cout << endl;
+  //   }
+  //   printf("%4.1f%%", output->policyProbs[NNPos::NN_POLICY_SIZE-1] * 100.0);
+  //   cout << endl;
+  //   cout << output->value << endl;
+  //   cout << endl;
+  // }
 
 }
 

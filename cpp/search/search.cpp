@@ -1,4 +1,5 @@
 
+#include <inttypes.h>
 #include <algorithm>
 #include "../search/search.h"
 
@@ -222,7 +223,19 @@ double Search::getCombinedValueSum(const SearchNode& node) const {
 
 static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
   
-double Search::getPolicySelectionValue(
+double Search::getPlaySelectionValue(
+  double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
+  double childValueSum
+) const {
+  if(nnPolicyProb < 0)
+    return POLICY_ILLEGAL_SELECTION_VALUE; 
+
+  (void)(totalChildVisits);
+  (void)(childValueSum);
+  return (double)childVisits;
+}
+
+double Search::getExploreSelectionValue(
   double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
   double childValueSum, double fpuValue
 ) const {
@@ -244,6 +257,44 @@ double Search::getPolicySelectionValue(
   return exploreComponent + valueComponent;
 }
 
+int Search::getPos(Loc moveLoc) const {
+  int offset = NNPos::getOffset(rootBoard.x_size);
+  return NNPos::locToPos(moveLoc,rootBoard.x_size,offset);
+}
+
+double Search::getPlaySelectionValue(const SearchNode& parent, const SearchChild* child) const {
+  Loc moveLoc = child->moveLoc;
+  int movePos = getPos(moveLoc);
+
+  //TODO fix the fact that this crosses multiple levels of synchronization!
+  float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
+  uint64_t totalChildVisits = parent.childVisits;
+  uint64_t childVisits = child->node.visits;
+  double childValueSum = getCombinedValueSum(child->node);
+
+  return getPlaySelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum);
+}
+double Search::getExploreSelectionValue(const SearchNode& parent, const SearchChild* child, double fpuValue) const {
+  Loc moveLoc = child->moveLoc;
+  int movePos = getPos(moveLoc);
+
+  float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
+  uint64_t totalChildVisits = parent.childVisits;
+  uint64_t childVisits = child->node.visits;
+  double childValueSum = getCombinedValueSum(child->node);
+
+  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,fpuValue);
+}
+double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, double fpuValue) const {
+  float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
+  uint64_t totalChildVisits = parent.childVisits;
+  uint64_t childVisits = 0;
+  double childValueSum = 0.0;
+
+  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,fpuValue);
+}
+
+
 //Assumes node is locked
 void Search::selectBestChildToDescend(
   const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
@@ -262,9 +313,7 @@ void Search::selectBestChildToDescend(
   for(int i = 0; i<numChildren; i++) {
     const SearchChild* child = children.children[i];
     Loc moveLoc = child->moveLoc;
-    int offset = NNPos::getOffset(thread.board.x_size);
-    int movePos = NNPos::locToPos(moveLoc,thread.board.x_size,offset);
-
+    int movePos = getPos(moveLoc);
     float nnPolicyProb = node.nnOutput->policyProbs[movePos];
     policyProbMassVisited += nnPolicyProb;
   }
@@ -286,22 +335,14 @@ void Search::selectBestChildToDescend(
   for(int i = 0; i<numChildren; i++) {
     const SearchChild* child = children.children[i];
     Loc moveLoc = child->moveLoc;
-    int offset = NNPos::getOffset(thread.board.x_size);
-    int movePos = NNPos::locToPos(moveLoc,thread.board.x_size,offset);
-
-    float nnPolicyProb = node.nnOutput->policyProbs[movePos];
-    uint64_t totalChildVisits = node.childVisits;
-    uint64_t childVisits = child->node.visits;
-    double childValueSum = getCombinedValueSum(child->node);
-
-    double selectionValue = getPolicySelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,fpuValue);
+    double selectionValue = getExploreSelectionValue(node,child,fpuValue);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = i;
       bestChildMoveLoc = moveLoc;
     }
 
-    posesWithChildBuf[i] = movePos;
+    posesWithChildBuf[i] = getPos(moveLoc);
   }
   std::sort(posesWithChildBuf, posesWithChildBuf + numChildren);
 
@@ -317,12 +358,7 @@ void Search::selectBestChildToDescend(
     if(checkLegalityOfNewMoves && !thread.history.isLegal(thread.board,moveLoc,thread.pla))
       continue;
 
-    float nnPolicyProb = node.nnOutput->policyProbs[movePos];
-    uint64_t totalChildVisits = node.childVisits;
-    uint64_t childVisits = 0;
-    double childValueSum = 0.0;
-
-    double selectionValue = getPolicySelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,fpuValue);
+    double selectionValue = getNewExploreSelectionValue(node,movePos,fpuValue);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = numChildren;
@@ -476,7 +512,152 @@ void Search::playoutDescend(
   thread.history = rootHistory;
 }
 
+void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
+  for(int depth = 0; depth < maxDepth; depth++) {
+    const SearchNode& node = *n;
+    std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
+    unique_lock<std::mutex> lock(mutex);
 
+    const SearchChildren& children = node.children;
+    double maxSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
+    int bestChildIdx = -1;
+    Loc bestChildMoveLoc = Board::NULL_LOC;
+
+    for(int i = 0; i<children.numChildren; i++) {
+      const SearchChild* child = children.children[i];
+      Loc moveLoc = child->moveLoc;
+      double selectionValue = getPlaySelectionValue(node,child);
+      if(selectionValue > maxSelectionValue) {
+        maxSelectionValue = selectionValue;
+        bestChildIdx = i;
+        bestChildMoveLoc = moveLoc;
+      }
+    }
+    if(bestChildIdx < 0 || bestChildMoveLoc == Board::NULL_LOC)
+      return;
+
+    if(depth > 0)
+      out << " ";
+    out << Location::toString(bestChildMoveLoc,rootBoard);
+
+    n = &(children.children[bestChildIdx]->node);     
+  }
+}
+
+void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options) {
+  string prefix;
+  printTreeHelper(out, node, options, prefix, 0, 0, NAN);
+}
+
+void Search::printTreeHelper(
+  ostream& out, const SearchNode* n, const PrintTreeOptions& options,
+  string& prefix, uint64_t origVisits, int depth, double policyProb
+) {
+  const SearchNode& node = *n;
+  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
+  unique_lock<std::mutex> lock(mutex);
+
+  if(depth == 0)
+    origVisits = node.visits;
+
+  //Output for this node
+  {
+    out << prefix;
+    char buf[64];
+
+    if(!isnan(policyProb)) {
+      sprintf(buf,": P %5.2f%% ",policyProb * 100.0);
+      out << buf;
+    }
+    
+    if(node.nnOutput != nullptr) {
+      double value = node.nnOutput->value;
+      sprintf(buf,"V %5.2f%% ", value * 100.0);
+      out << buf;
+    }
+    else {
+      sprintf(buf,"V --.--%% ");
+      out << buf;
+    }
+
+    if(node.visits > 0) {
+      sprintf(buf,"W %5.2f%% ",node.winLossValueSum / node.visits * 100.0);
+      out << buf;
+      sprintf(buf,"S %5.2f%% ",node.scoreValueSum / node.visits * 100.0);
+      out << buf;
+      sprintf(buf,"T %5.2f%% ",(node.winLossValueSum + node.scoreValueSum) / node.visits * 100.0);
+      out << buf;
+    }
+
+    sprintf(buf,"N %7" PRIu64, node.visits); 
+    out << buf;
+
+    lock.unlock();
+    printPV(out, &node, 5);
+    lock.lock();
+    out << endl;
+  }
+  
+  if(depth >= options.maxDepth_)
+    return;
+  if(node.childVisits < options.minChildrenVisits_)
+    return;
+  if((double)node.childVisits / origVisits < options.minChildrenVisitsProp_)
+    return;
+
+  //Recurse on children - first sort in order that we would want to play them
+  vector<pair<const SearchChild*,double>> valuedChildren;
+  for(int i = 0; i<node.children.numChildren; i++) {
+    const SearchChild* child = node.children.children[i];
+    double selectionValue = getPlaySelectionValue(node,child);
+    valuedChildren.push_back(std::make_pair(child,selectionValue));
+  }
+  auto compByValue = [](const pair<const SearchChild*,double>& a, const pair<const SearchChild*,double>& b) {
+    return a.second > b.second;
+  };
+  std::sort(valuedChildren.begin(),valuedChildren.end(),compByValue);
+
+  //Apply filtering conditions, but include children that don't match the filtering condition
+  //but where there are children afterward that do, in case we ever use something more complex
+  //than plain visits as a filter criterion. Do this by finding the last child that we want as the threshold.
+  int lastIdxWithEnoughVisits = node.children.numChildren-1;
+  while(true) {
+    if(lastIdxWithEnoughVisits <= 0)
+      break;
+    const SearchChild* child = valuedChildren[lastIdxWithEnoughVisits].first;
+    bool hasEnoughVisits = child->node.visits >= options.minChildVisits_
+      && (double)child->node.visits / origVisits >= options.minChildVisitsProp_;
+    if(hasEnoughVisits)
+      break;
+    lastIdxWithEnoughVisits--;
+  }
+
+  int numChildrenToRecurseOn = node.children.numChildren;
+  if(options.maxChildren_ < numChildrenToRecurseOn)
+    numChildrenToRecurseOn = options.maxChildren_;
+  if(lastIdxWithEnoughVisits+1 < numChildrenToRecurseOn)
+    numChildrenToRecurseOn = lastIdxWithEnoughVisits+1;
+  
+  shared_ptr<NNOutput> nnOutput = node.nnOutput;
+  assert(nnOutput != nullptr);
+
+  //Unlock!! We've already copied everything we need into valuedChildren
+  lock.unlock();
+  
+  for(int i = 0; i<numChildrenToRecurseOn; i++) {
+    const SearchChild* child = valuedChildren[i].first;
+    Loc moveLoc = child->moveLoc;
+    int movePos = getPos(moveLoc);
+    float nnPolicyProb = nnOutput->policyProbs[movePos];
+
+    size_t oldLen = prefix.length();
+    prefix += Location::toString(moveLoc,rootBoard);
+    prefix += " ";
+    printTreeHelper(out,&(child->node),options,prefix,origVisits,depth+1,nnPolicyProb);
+    prefix.erase(oldLen);
+  }
+
+}
 
 
 

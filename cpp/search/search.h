@@ -11,6 +11,7 @@
 #include "../neuralnet/nneval.h"
 #include "../search/mutexpool.h"
 #include "../search/searchparams.h"
+#include "../search/searchprint.h"
 
 struct SearchNode;
 struct SearchChild;
@@ -144,15 +145,27 @@ struct Search {
 
   void runSinglePlayout(SearchThread& thread);
 
+  //Debug functions---------------------------------------------------------------
+  void printPV(ostream& out, const SearchNode* node, int maxDepth);
+  void printTree(ostream& out, const SearchNode* node, PrintTreeOptions options);
+  
   //Helpers-----------------------------------------------------------------------
 private:
   void maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const;
+  int getPos(Loc moveLoc) const;
 
   double getCombinedValueSum(const SearchNode& node) const;
-  double getPolicySelectionValue(
+  double getPlaySelectionValue(
+    double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
+    double childValueSum
+  ) const;
+  double getExploreSelectionValue(
     double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
     double childValueSum, double fpuValue
   ) const;
+  double getPlaySelectionValue(const SearchNode& parent, const SearchChild* child) const;
+  double getExploreSelectionValue(const SearchNode& parent, const SearchChild* child, double fpuValue) const;
+  double getNewExploreSelectionValue(const SearchNode& parent, int movePos, double fpuValue) const;
 
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
@@ -165,6 +178,11 @@ private:
     double& retWinLossValue, double& retScoreValue,
     int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
     bool isRoot
+  );
+
+  void printTreeHelper(
+    ostream& out, const SearchNode* node, const PrintTreeOptions& options,
+    string& prefix, uint64_t origVisits, int depth, double policyProb
   );
 
 };
