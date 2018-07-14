@@ -71,8 +71,14 @@ int main() {
   double seconds = timer.getSeconds();
   cout << board << endl;
   cout << "Seconds: " << seconds << endl;
-  search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(5));
+  search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1));
 
+  cout << "sizeof(uint8_t) " << sizeof(uint8_t) << endl;
+  cout << "sizeof(uint16_t) " << sizeof(uint16_t) << endl;
+  cout << "sizeof(uint32_t) " << sizeof(uint32_t) << endl;
+  cout << "sizeof(uint64_t) " << sizeof(uint64_t) << endl;
+  cout << "sizeof(std::atomic_flag) " << sizeof(std::atomic_flag) << endl;;
+  cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
 
   delete thread;
   delete search;

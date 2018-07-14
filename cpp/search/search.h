@@ -2,6 +2,7 @@
 #define SEARCH_H
 
 #include <memory>
+#include <atomic>
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../core/multithread.h"
@@ -14,46 +15,46 @@
 #include "../search/searchprint.h"
 
 struct SearchNode;
-struct SearchChild;
-struct SearchChildren;
 struct SearchThread;
 struct Search;
 
-struct SearchChildren {
-  //Constant--------------------------------------------------------------
-
-  //Mutable---------------------------------------------------------------
-  SearchChild** children;
-  uint16_t numChildren;
-  uint16_t childrenCapacity;
-
-  SearchChildren();
-  ~SearchChildren();
-
-  SearchChildren(const SearchChildren&) = delete;
-  SearchChildren& operator=(const SearchChildren&) = delete;
-
-  SearchChildren(SearchChildren&& other) noexcept;
-  SearchChildren& operator=(SearchChildren&&) noexcept;
-};
-
-struct SearchNode {
-  //Constant--------------------------------------------------------------
-  uint32_t lockIdx;
-  Player pla;
-
-  //Mutable---------------------------------------------------------------
-  shared_ptr<NNOutput> nnOutput;
-  SearchChildren children;
-
+struct NodeStats {
   uint64_t visits;
   double winLossValueSum;
   double scoreValueSum;
 
-  uint64_t childVisits;
+  NodeStats();
+  ~NodeStats();
 
-  //----------------------------------------------------------------------
-  SearchNode(Search& search, SearchThread& thread);
+  NodeStats(const NodeStats& other);
+  NodeStats& operator=(const NodeStats& other);
+
+  double getCombinedValueSum(const SearchParams& searchParams) const;
+};
+
+struct SearchNode {
+  //Locks------------------------------------------------------------------------------
+  uint32_t lockIdx;
+  mutable std::atomic_flag statsLock;
+
+  //Constant during search--------------------------------------------------------------
+  Player nextPla;
+  Loc prevMoveLoc;
+
+  //Mutable---------------------------------------------------------------------------
+  //All of these values are protected under the mutex indicated by lockIdx
+  shared_ptr<NNOutput> nnOutput; //Once set, constant thereafter
+
+  SearchNode** children;
+  uint16_t numChildren;
+  uint16_t childrenCapacity;
+
+  //Lightweight mutable---------------------------------------------------------------
+  //Protected under statsLock
+  NodeStats stats;
+
+  //--------------------------------------------------------------------------------
+  SearchNode(Search& search, SearchThread& thread, Loc prevMoveLoc);
   ~SearchNode();
 
   SearchNode(const SearchNode&) = delete;
@@ -61,22 +62,6 @@ struct SearchNode {
 
   SearchNode(SearchNode&& other) noexcept;
   SearchNode& operator=(SearchNode&& other) noexcept;
-};
-
-struct SearchChild {
-  //Constant--------------------------------------------------------------
-  Loc moveLoc;
-  SearchNode node;
-
-  //Mutable---------------------------------------------------------------
-
-
-  //----------------------------------------------------------------------
-  SearchChild(Search& search, SearchThread& thread, Loc moveLoc);
-  ~SearchChild();
-
-  SearchChild(const SearchChild&) = delete;
-  SearchChild& operator=(const SearchChild&) = delete;
 };
 
 //Per-thread state
@@ -143,7 +128,6 @@ struct Search {
   void beginSearch(const string& randSeed, NNEvaluator* nnEval);
 
   //Within-search functions, threadsafe-------------------------------------------
-
   void runSinglePlayout(SearchThread& thread);
 
   //Debug functions---------------------------------------------------------------
@@ -155,18 +139,17 @@ private:
   void maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const;
   int getPos(Loc moveLoc) const;
 
-  double getCombinedValueSum(const SearchNode& node) const;
   double getPlaySelectionValue(
-    double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
+    double nnPolicyProb, uint64_t childVisits,
     double childValueSum, Player pla
   ) const;
   double getExploreSelectionValue(
     double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
     double childValueSum, double fpuValue, Player pla
   ) const;
-  double getPlaySelectionValue(const SearchNode& parent, const SearchChild* child) const;
-  double getExploreSelectionValue(const SearchNode& parent, const SearchChild* child, double fpuValue) const;
-  double getNewExploreSelectionValue(const SearchNode& parent, int movePos, double fpuValue) const;
+  double getPlaySelectionValue(const SearchNode& parent, const SearchNode* child) const;
+  double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const;
+  double getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const;
 
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
