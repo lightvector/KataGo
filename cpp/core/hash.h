@@ -7,7 +7,7 @@
 #define HASH_H_
 
 #include <iostream>
-using namespace std;
+#include "../core/global.h"
 
 namespace Hash
 {
@@ -43,6 +43,13 @@ struct Hash128
   bool operator>=(const Hash128 other) const;
   bool operator==(const Hash128 other) const;
   bool operator!=(const Hash128 other) const;
+
+  Hash128 operator^(const Hash128 other) const;
+  Hash128 operator|(const Hash128 other) const;
+  Hash128 operator&(const Hash128 other) const;
+  Hash128& operator^=(const Hash128 other);
+  Hash128& operator|=(const Hash128 other);
+  Hash128& operator&=(const Hash128 other);
 
   friend ostream& operator<<(ostream& out, const Hash128 other);
 };
@@ -86,6 +93,31 @@ inline bool Hash128::operator<=(const Hash128 other) const
   if(hash1 < other.hash1) return true;
   if(hash1 > other.hash1) return false;
   return hash0 <= other.hash0;
+}
+
+inline Hash128 Hash128::operator^(const Hash128 other) const {
+  return Hash128(hash0 ^ other.hash0, hash1 ^ other.hash1);
+}
+inline Hash128 Hash128::operator|(const Hash128 other) const {
+  return Hash128(hash0 | other.hash0, hash1 | other.hash1);
+}
+inline Hash128 Hash128::operator&(const Hash128 other) const {
+  return Hash128(hash0 & other.hash0, hash1 & other.hash1);
+}
+inline Hash128& Hash128::operator^=(const Hash128 other) {
+  hash0 ^= other.hash0;
+  hash1 ^= other.hash1;
+  return *this;
+}
+inline Hash128& Hash128::operator|=(const Hash128 other) {
+  hash0 |= other.hash0;
+  hash1 |= other.hash1;
+  return *this;
+}
+inline Hash128& Hash128::operator&=(const Hash128 other) {
+  hash0 &= other.hash0;
+  hash1 &= other.hash1;
+  return *this;
 }
 
 

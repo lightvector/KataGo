@@ -44,7 +44,7 @@ void ClockTimer::reset()
   initialTime = (int64_t)GetTickCount();
 }
 
-double ClockTimer::getSeconds()
+double ClockTimer::getSeconds() const
 {
   int64_t newTime = (int64_t)GetTickCount();
   return (double)(newTime-initialTime)/1000.0;
@@ -78,7 +78,7 @@ void ClockTimer::reset()
   initialTime = (int64_t)timeval.tv_sec * 1000000LL + (int64_t)timeval.tv_usec;
 }
 
-double ClockTimer::getSeconds()
+double ClockTimer::getSeconds() const
 {
   struct timeval timeval;
   gettimeofday(&timeval,NULL);

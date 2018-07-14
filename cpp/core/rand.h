@@ -7,7 +7,7 @@
  * Note: Signed integer functions might not be portable to other architectures.
  *
  * Combines:
- * PCG32 (period 2^64) 
+ * PCG32 (period 2^64)
  * XorShift1024Mult (period 2^1024-1)
  */
 
@@ -27,10 +27,10 @@ class Rand
  private:
   XorShift1024Mult xorm;
   PCG32 pcg32;
-  
+
   bool hasGaussian;
   double storedGaussian;
-  
+
   string initSeed;
   uint64_t numCalls;
 
@@ -54,6 +54,9 @@ class Rand
   void init(uint64_t seed);
 
   ~Rand();
+
+  Rand(const Rand&) = delete;
+  Rand& operator=(const Rand&) = delete;
 
   public:
 

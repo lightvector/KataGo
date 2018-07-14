@@ -4,7 +4,8 @@
 __pycache__
 *.h5
 
-writedata/write
+cpp/write
+cpp/runtests
 
 # For clion IDE
 .idea

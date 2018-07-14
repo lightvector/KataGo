@@ -16,9 +16,9 @@ See LICENSE for software license. License aside, informally, if do you successfu
 If you'd like to train your own model and/or experiment with the architectures in this repo, here are the steps.
    * You must have HDF5 installed for C++ (https://support.hdfgroup.org/HDF5/release/obtainsrc.html).
    * Training consists of converting .sgf files into training rows written in HDF5 format, then reading that HDF5 file in Python to train using numpy and h5py to feed them to Tensorflow.
-   * The utility that converts .sgf to .h5 is written in C++. Compile it using CMake and make in writedata, which expects you to have h5c++
+   * The utility that converts .sgf to .h5 is written in C++. Compile it using CMake and make in the cpp directory, which expects you to have h5c++
      available. (on windows you can also use the deprecated compile.sh):
-      * `cd writedata`
+      * `cd cpp`
       * `cmake .`
       * `make`
    * Run the compiled `write` executable with appropriate flags on a directory of SGF files to generate an h5 file of preprocessed training data.
