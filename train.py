@@ -118,7 +118,7 @@ with tf.control_dependencies(update_ops):
 metrics = Metrics(model,target_vars,include_debug_stats=True)
 
 def reduce_norm(x, axis=None, keepdims=False):
-  return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keep_dims=keepdims))
+  return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keepdims=keepdims))
 relative_update_by_var = dict([
   (v.name,per_sample_learning_rate * reduce_norm(grad) / (1e-10 + reduce_norm(v))) for (grad,v) in adjusted_gradients if grad is not None
 ])
