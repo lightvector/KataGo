@@ -74,6 +74,8 @@ struct SearchThread {
 
   Rand rand;
 
+  NNResultBuf nnResultBuf;
+
   SearchThread(int threadIdx, const Search& search);
   ~SearchThread();
 

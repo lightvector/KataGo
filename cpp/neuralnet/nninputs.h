@@ -24,6 +24,7 @@ namespace NNPos {
 
 namespace NNInputs {
   const int NUM_SYMMETRY_BOOLS = 3;
+  const int NUM_SYMMETRY_COMBINATIONS = 8;
 
   const int NUM_FEATURES_V0 = 19;
   const int ROW_SIZE_V0 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_V0;

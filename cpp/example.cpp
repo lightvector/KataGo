@@ -23,7 +23,27 @@ using namespace tensorflow;
 int main() {
   Board::initHash();
 
-  NNEvaluator* nnEval = new NNEvaluator("/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb");
+  int maxBatchSize = 8;
+  NNEvaluator* nnEval = new NNEvaluator("/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb", maxBatchSize);
+
+  auto serveEvals = [&nnEval](int threadIdx) {
+    NNServerBuf* buf = new NNServerBuf(*nnEval);
+    Rand rand("NNServerThread " + Global::intToString(threadIdx));
+    try {
+      nnEval->serve(*buf,&rand,0);
+    }
+    catch(const exception& e) {
+      cout << "NN Server Thread: " << e.what() << endl;
+    }
+    catch(const string& e) {
+      cout << "NN Server Thread: " << e << endl;
+    }
+    catch(...) {
+      cout << "Unexpected throw in NN server thread" << endl;
+    }
+  };
+
+  std::thread nnServerThread(serveEvals,0);
 
   Rules rules;
   rules.koRule = Rules::KO_POSITIONAL;
@@ -31,27 +51,28 @@ int main() {
   rules.multiStoneSuicideLegal = true;
   rules.komi = 7.5f;
 
-  Player pla = P_WHITE;
+  Player pla = P_BLACK;
   Board board = Board::parseBoard(19,19,R"(
-...................
-...................
-...................
-...x...........x...
-...................
-...................
-...................
-...................
-...................
-...................
-...................
-...................
-...................
-...................
-...................
-..............x.o..
-...o..........ox...
-...................
-...................
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . x . .
+18 . . x o . . . . . . x o . . o . o x .
+17 . . x o . . o x . . . . o . . o x . .
+16 . . x o . . o x x o . x . . . o x . .
+15 . x o o x . x . x x x . x . . o x . .
+14 . x o . . . x x o o o o x . x o o x .
+13 . x o . . . . . o x x x x . . . o x .
+12 . . o . . x x x . o . o o o o . o . .
+11 . . . . o x o o o o . o . x . o . . .
+10 . o o o o o x . . o x x x . o x x . .
+ 9 . x . x o o x x x x o o x . x o x . .
+ 8 . . . x x x x . . x . o o.x . o x . .
+ 7 . . . o o . x x . x . . . . . x . x .
+ 6 . . o x x x . x x o o . o . . x . x .
+ 5 . . o o o o x x . . . o . o . o x . .
+ 4 . o o x x o o . x o o x . o . o x . .
+ 3 . o x x . o o x x x . x . o x x o x .
+ 2 o x . x x o . o . . . . . o . . o x .
+ 1 . o x x o . . o . . . . . . . . . . .
 )");
 
   BoardHistory hist(board,pla,rules);
@@ -62,11 +83,11 @@ int main() {
   search->setPosition(pla,board,hist);
 
   search->beginSearch("randseed",nnEval);
-  SearchThread* thread = new SearchThread(0,*search);
+  SearchThread* searchThread = new SearchThread(0,*search);
 
   ClockTimer timer;
   for(int i = 0; i<300; i++)
-    search->runSinglePlayout(*thread);
+    search->runSinglePlayout(*searchThread);
 
   double seconds = timer.getSeconds();
   cout << board << endl;
@@ -80,47 +101,99 @@ int main() {
   cout << "sizeof(std::atomic_flag) " << sizeof(std::atomic_flag) << endl;;
   cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
 
-  delete thread;
+  nnEval->killServers();
+  nnServerThread.join();
+
+  delete searchThread;
   delete search;
   delete nnEval;
 
+  cout << "Done" << endl;
   return 0;
-
-  // Board board;
-  // BoardHistory boardHistory(board,P_BLACK,rules);
-  // Player nextPlayer = P_WHITE;
-
-  // Loc loc = Location::getLoc(2,3,board.x_size);
-  // boardHistory.makeBoardMoveAssumeLegal(board,loc,P_BLACK,NULL);
-
-  // for(int symmetry = 0; symmetry < 8; symmetry++) {
-  //   shared_ptr<NNOutput> output = nnEval->evaluate(board,boardHistory,nextPlayer,symmetry);
-
-  //   cout << "SYMMETRY " << symmetry << endl;
-  //   for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
-  //     for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
-  //       float prob = output->policyProbs[x+y*NNPos::MAX_BOARD_LEN];
-  //       if(prob < 0)
-  //         printf("    %%");
-  //       else
-  //         printf("%4.1f%%", prob * 100.0);
-  //     }
-  //     cout << endl;
-  //   }
-  //   printf("%4.1f%%", output->policyProbs[NNPos::NN_POLICY_SIZE-1] * 100.0);
-  //   cout << endl;
-  //   cout << output->value << endl;
-  //   cout << endl;
-  // }
-
 }
+
+
+
+
+
+// int main() {
+//   Board::initHash();
+
+//   int maxBatchSize = 8;
+//   NNEvaluator* nnEval = new NNEvaluator("/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb", maxBatchSize);
+
+//   auto serveEvals = [&nnEval](int threadIdx) {
+//     NNServerBuf* buf = new NNServerBuf(*nnEval);
+//     Rand rand("NNServerThread " + Global::intToString(threadIdx));
+//     try {
+//       nnEval->serve(*buf,&rand,0);
+//     }
+//     catch(const exception& e) {
+//       cout << "NN Server Thread: " << e.what() << endl;
+//     }
+//     catch(const string& e) {
+//       cout << "NN Server Thread: " << e << endl;
+//     }
+//     catch(...) {
+//       cout << "Unexpected throw in NN server thread" << endl;
+//     }
+//   };
+
+//   thread nnServerThread(serveEvals,0);
+
+//   Rules rules;
+//   rules.koRule = Rules::KO_POSITIONAL;
+//   rules.scoringRule = Rules::SCORING_AREA;
+//   rules.multiStoneSuicideLegal = true;
+//   rules.komi = 7.5f;
+
+//   Board board;
+//   BoardHistory boardHistory(board,P_BLACK,rules);
+//   Player nextPlayer = P_WHITE;
+
+//   Loc loc = Location::getLoc(2,3,board.x_size);
+//   boardHistory.makeBoardMoveAssumeLegal(board,loc,P_BLACK,NULL);
+
+//   NNResultBuf resultBuf;
+
+//   for(int i = 0; i<10; i++) {
+//     nnEval->evaluate(board,boardHistory,nextPlayer,resultBuf);
+
+//     shared_ptr<NNOutput> output = std::move(resultBuf.result);
+
+//     for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
+//       for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
+//         float prob = output->policyProbs[x+y*NNPos::MAX_BOARD_LEN];
+//         if(prob < 0)
+//           printf("    %%");
+//         else
+//           printf("%4.1f%%", prob * 100.0);
+//       }
+//       cout << endl;
+//     }
+//     printf("%4.1f%%", output->policyProbs[NNPos::NN_POLICY_SIZE-1] * 100.0);
+//     cout << endl;
+//     cout << output->whiteValue << endl;
+//     cout << endl;
+//     sleep(1);
+//   }
+
+//   nnEval->killServers();
+//   nnServerThread.join();
+//   cout << "Done" << endl;
+
+// }
+
+
+
+
 
 // int main() {
 //   Board::initHash();
 
 //   auto checkStatus = [](Status status, const char* subLabel) {
 //     if(!status.ok())
-//       throw StringError("NNEvaluator initialization failed: ", string(subLabel) + ": " + status.ToString());
+//       throw StringError("NNEvaluator initialization failed: " + string(subLabel) + ": " + status.ToString());
 //   };
 
 //   Session* session;
@@ -145,10 +218,10 @@ int main() {
 //   TensorShape inputsShape;
 //   TensorShape symmetriesShape;
 //   TensorShape isTrainingShape;
-//   int inputsShapeArr[3] = {2,NNPos::MAX_BOARD_AREA,NNInputs::NUM_FEATURES};
+//   int inputsShapeArr[3] = {2,NNPos::MAX_BOARD_AREA,NNInputs::NUM_FEATURES_V1};
 //   status = TensorShapeUtils::MakeShape(inputsShapeArr,3,&inputsShape);
 //   checkStatus(status,"making inputs shape");
-//   int symmetriesShapeArr[1] = {NNInputs::NUM_SYMMETRIES};
+//   int symmetriesShapeArr[1] = {NNInputs::NUM_SYMMETRY_BOOLS};
 //   status = TensorShapeUtils::MakeShape(symmetriesShapeArr,1,&symmetriesShape);
 //   checkStatus(status,"making symmetries shape");
 //   int isTrainingShapeArr[0] = {};
@@ -161,33 +234,67 @@ int main() {
 
 //   float* row = inputs.flat<float>().data();
 
-//   // float row[NNPos::MAX_BOARD_AREA * NNInputs::NUM_FEATURES];
-//   for(int i = 0; i<2*NNPos::MAX_BOARD_AREA * NNInputs::NUM_FEATURES; i++)
+//   // float row[NNPos::MAX_BOARD_AREA * NNInputs::NUM_FEATURES_V1];
+//   for(int i = 0; i<2*NNPos::MAX_BOARD_AREA * NNInputs::NUM_FEATURES_V1; i++)
 //     row[i] = 0.0f;
 
-//   cout << "AAAA" << endl;
-//   Board board;
-//   vector<Move> moveHistory;
-//   int moveHistoryLen = 0;
+//   Rules rules;
+//   rules.koRule = Rules::KO_POSITIONAL;
+//   rules.scoringRule = Rules::SCORING_AREA;
+//   rules.multiStoneSuicideLegal = true;
+//   rules.komi = 7.5f;
+
+//   Board board1 = Board::parseBoard(19,19,R"(
+//    A B C D E F G H J K L M N O P Q R S T
+// 19 . . . . . . . . . . . . . . . . . . .
+// 18 . . x o . . . . . . x o . . o . o x .
+// 17 . . x o . . o x . . . . o . . o x . .
+// 16 . . x o . . o x x o . x . . . o x . .
+// 15 . x o o x . x . x x x . x . . o x . .
+// 14 . x o . . . x x o o o o x . x o o x .
+// 13 . x o . . . . . o x x x x . . . o x .
+// 12 . . o . . x x x . o . o o o o . o . .
+// 11 . . . . o x o o o o . o . x . o . . .
+// 10 . o o o o o x . . o x x x . o x x . .
+//  9 . x . x o o x x x x o o x . x o x . .
+//  8 . . . x x x x . . x . o o x . o x . .
+//  7 . . . o o . x x . x . . . . . x . x .
+//  6 . . o x x x . x x o o . o . . x . x .
+//  5 . . o o o o x x . . . o . o . o x . .
+//  4 . o o x x o o . x o o x . o . o x . .
+//  3 . o x x . o o x x x . x . o x x o x .
+//  2 o x . x x o . o . . . . . o . . o x .
+//  1 . o x x o . . o . . . . . . . . . . .
+// )");
+//   Board board2 = Board::parseBoard(19,19,R"(
+//    A B C D E F G H J K L M N O P Q R S T
+// 19 . . . . . . . . . . . . . . . . . . .
+// 18 . . . . . . . . . . . . . . . . . . .
+// 17 . . . . . . . . . . . . . . o x . . .
+// 16 . . . o . . . . . . . . . . . . . . .
+// 15 . . . . . . . . . . . . . . . . x . .
+// 14 . . . . . . . . . . . . . . . . . . .
+// 13 . . . . . . . . . . . . . . . . . . .
+// 12 . . . . . . . . . . . . . . . . . . .
+// 11 . . . . . . . . . . . . . . . . . . .
+// 10 . . . . . . . . . . . . . . . . . . .
+//  9 . . . . . . . . . . . . . . . . . . .
+//  8 . . . . . . . . . . . . . . . . . . .
+//  7 . . . . . . . . . . . . . . . . . . .
+//  6 . . . . . . . . . . . . . . . . . . .
+//  5 . . . . . . . . . . . . . . . . . . .
+//  4 . . . . . . . . . . . . . . . x . . .
+//  3 . . . o . . . . . . . . . . . . . . .
+//  2 . . . . . . . . . . . . . . . . . . .
+//  1 . . . . . . . . . . . . . . . . . . .
+// )");
+
 //   Player nextPlayer = P_BLACK;
-//   float selfKomi = -7.5f;
+//   BoardHistory hist1(board1,nextPlayer,rules);
+//   BoardHistory hist2(board2,nextPlayer,rules);
 
-//   NNInputs::fillRow(board, moveHistory, moveHistoryLen, nextPlayer, selfKomi, row);
-
-//   nextPlayer = P_WHITE;
-//   selfKomi = 7.5f;
-//   board.playMove(Location::getLoc(2,3,board.x_size),P_BLACK);
-//   NNInputs::fillRow(board, moveHistory, moveHistoryLen, nextPlayer, selfKomi, row + NNPos::MAX_BOARD_AREA * NNInputs::NUM_FEATURES);
-
-//   // auto inputsMap = inputs.tensor<float, 3>();
-//   // for(int i = 0; i<NNPos::MAX_BOARD_AREA; i++) {
-//   //   for(int j = 0; j<NNInputs::NUM_FEATURES; j++) {
-//   //     inputsMap(0,i,j) = row[i*NNInputs::NUM_FEATURES + j];
-//   //   }
-//   // }
-
-//   cout << "BBBB" << endl;
-
+//   NNInputs::fillRowV1(board1, hist1, nextPlayer, row);
+//   NNInputs::fillRowV1(board2, hist2, nextPlayer, row + NNInputs::ROW_SIZE_V1);
 
 //   auto symmetriesMap = symmetries.tensor<bool, 1>();
 //   symmetriesMap(0) = false;
@@ -197,89 +304,33 @@ int main() {
 //   auto isTrainingMap = isTraining.tensor<bool, 0>();
 //   isTrainingMap(0) = false;
 
+//   cout << "ISALIGNED " << inputs.IsAligned() << endl;
+//   Tensor sliced = inputs.Slice(0,1);
+//   cout << "ISALIGNED " << sliced.IsAligned() << endl;
+//   int outputBatchSize = 1;
+
 //   vector<pair<string,Tensor>> inputsList = {
-//     {"inputs",inputs},
+//     {"inputs",sliced},
 //     {"symmetries",symmetries},
 //     {"is_training",isTraining},
 //   };
 
 //   vector<Tensor> outputs;
 
-//   cout << "CCCC" << endl;
-
 //   status = session->Run(inputsList, {"policy_output","value_output"}, {}, &outputs);
 //   checkStatus(status,"running inference");
 //   assert(outputs.size() == 2);
 
-//   cout << "DDDD" << endl;
-
 //   assert(outputs[0].dims() == 2);
 //   assert(outputs[1].dims() == 1);
-//   assert(outputs[0].dim_size(0) == 2); //batch
+//   assert(outputs[0].dim_size(0) == outputBatchSize); //batch
 //   assert(outputs[0].dim_size(1) == NNPos::NN_POLICY_SIZE);
-//   assert(outputs[1].dim_size(0) == 2); //batch
+//   assert(outputs[1].dim_size(0) == outputBatchSize); //batch
 
 //   auto policyMap = outputs[0].matrix<float>();
 //   auto valueMap = outputs[1].vec<float>();
 
-//   for(int batch = 0; batch < 2; batch++) {
-//     float policy[NNPos::NN_POLICY_SIZE];
-//     float maxPolicy = -1e10f;
-//     for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
-//       policy[i] = policyMap(batch,i);
-//       if(policy[i] > maxPolicy)
-//         maxPolicy = policy[i];
-//     }
-//     float policySum = 0.0f;
-//     for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
-//       policy[i] = exp(policy[i] - maxPolicy);
-//       policySum += policy[i];
-//     }
-//     for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
-//       policy[i] /= policySum;
-//     }
-
-//     float value = valueMap(batch);
-
-//     for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
-//       for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
-//         printf("%4.1f%%", policy[x+y*NNPos::MAX_BOARD_LEN] * 100.0);
-//       }
-//       cout << endl;
-//     }
-//     printf("%4.1f%%", policy[NNPos::NN_POLICY_SIZE-1] * 100.0);
-//     cout << endl;
-//     cout << value << endl;
-//   }
-
-//   // float row[NNPos::MAX_BOARD_AREA * NNInputs::NUM_FEATURES];
-//   for(int i = 0; i<2*NNPos::MAX_BOARD_AREA * NNInputs::NUM_FEATURES; i++)
-//     row[i] = 0.0f;
-
-//   cout << "EEEE" << endl;
-//   NNInputs::fillRow(board, moveHistory, moveHistoryLen, nextPlayer, selfKomi, row);
-
-//   nextPlayer = P_BLACK;
-//   selfKomi = -7.5f;
-//   board.playMove(Location::getLoc(3,3,board.x_size),P_WHITE);
-//   NNInputs::fillRow(board, moveHistory, moveHistoryLen, nextPlayer, selfKomi, row + NNPos::MAX_BOARD_AREA * NNInputs::NUM_FEATURES);
-
-//   status = session->Run(inputsList, {"policy_output","value_output"}, {}, &outputs);
-//   checkStatus(status,"running inference");
-//   assert(outputs.size() == 2);
-
-//   cout << "DDDD" << endl;
-
-//   assert(outputs[0].dims() == 2);
-//   assert(outputs[1].dims() == 1);
-//   assert(outputs[0].dim_size(0) == 2); //batch
-//   assert(outputs[0].dim_size(1) == NNPos::NN_POLICY_SIZE);
-//   assert(outputs[1].dim_size(0) == 2); //batch
-
-//   policyMap = outputs[0].matrix<float>();
-//   valueMap = outputs[1].vec<float>();
-
-//   for(int batch = 0; batch < 2; batch++) {
+//   for(int batch = 0; batch < outputBatchSize; batch++) {
 //     float policy[NNPos::NN_POLICY_SIZE];
 //     float maxPolicy = -1e10f;
 //     for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {

@@ -50,7 +50,7 @@ SearchNode::SearchNode(SearchNode&& other) noexcept
   children = other.children;
   other.children = NULL;
   numChildren = other.numChildren;
-  childrenCapacity = other.childrenCapacity;  
+  childrenCapacity = other.childrenCapacity;
 }
 SearchNode& SearchNode::operator=(SearchNode&& other) noexcept {
   lockIdx = other.lockIdx;
@@ -72,7 +72,8 @@ SearchThread::SearchThread(int tIdx, const Search& search)
   :threadIdx(tIdx),
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
-   rand(search.randSeed + string("$$") + Global::intToString(threadIdx))
+   rand(search.randSeed + string("$$") + Global::intToString(threadIdx)),
+   nnResultBuf()
 {}
 SearchThread::~SearchThread() {
 
@@ -272,7 +273,7 @@ double Search::getPlaySelectionValue(const SearchNode& parent, const SearchNode*
   uint64_t childVisits = child->stats.visits;
   double childValueSum = child->stats.getCombinedValueSum(searchParams);
   child->statsLock.clear(std::memory_order_release);
-  
+
   return getPlaySelectionValue(nnPolicyProb,childVisits,childValueSum,parent.nextPla);
 }
 double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const {
@@ -312,7 +313,7 @@ void Search::selectBestChildToDescend(
   bestChildMoveLoc = Board::NULL_LOC;
 
   int numChildren = node.numChildren;
-  
+
   double policyProbMassVisited = 0.0;
   uint64_t totalChildVisits = 0;
   for(int i = 0; i<numChildren; i++) {
@@ -325,8 +326,8 @@ void Search::selectBestChildToDescend(
     while(child->statsLock.test_and_set(std::memory_order_acquire));
     uint64_t childVisits = child->stats.visits;
     child->statsLock.clear(std::memory_order_release);
-    
-    totalChildVisits += childVisits;    
+
+    totalChildVisits += childVisits;
   }
   //Probability mass should not sum to more than 1, giving a generous allowance
   //for floating point error.
@@ -406,11 +407,11 @@ void Search::playoutDescend(
     if(thread.history.isNoResult) {
 
       while(node.statsLock.test_and_set(std::memory_order_acquire));
-      node.stats.visits += 1;      
+      node.stats.visits += 1;
       node.stats.winLossValueSum += searchParams.noResultUtilityForWhite;
       node.stats.scoreValueSum += 0.0;
       node.statsLock.clear(std::memory_order_release);
-      
+
       retWinLossValue = searchParams.noResultUtilityForWhite;
       retScoreValue = 0.0;
       return;
@@ -421,24 +422,24 @@ void Search::playoutDescend(
       double scoreValue = NNOutput::whiteValueOfScore(thread.history.finalWhiteMinusBlackScore, thread.board.x_size);
 
       while(node.statsLock.test_and_set(std::memory_order_acquire));
-      node.stats.visits += 1;      
+      node.stats.visits += 1;
       node.stats.winLossValueSum += winLossValue;
       node.stats.scoreValueSum += scoreValue;
       node.statsLock.clear(std::memory_order_release);
-      
+
       retWinLossValue = winLossValue;
       retScoreValue = scoreValue;
       return;
     }
   }
-  
+
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
-  
+
   //Hit leaf node, finish
   if(node.nnOutput == nullptr) {
-    int symmetry = thread.rand.nextInt(0,NNEvaluator::NUM_SYMMETRIES-1);
-    node.nnOutput = nnEvaluator->evaluate(thread.board, thread.history, thread.pla, symmetry);
+    nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf);
+    node.nnOutput = std::move(thread.nnResultBuf.result);
     maybeAddPolicyNoise(thread,node,isRoot);
     lock.unlock();
 
@@ -554,9 +555,9 @@ void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
     }
     if(bestChildIdx < 0 || bestChildMoveLoc == Board::NULL_LOC)
       return;
-    n = node.children[bestChildIdx];    
+    n = node.children[bestChildIdx];
     lock.unlock();
-    
+
     if(depth > 0)
       out << " ";
     out << Location::toString(bestChildMoveLoc,rootBoard);
@@ -581,7 +582,7 @@ void Search::printTreeHelper(
   double winLossValueSum = node.stats.winLossValueSum;
   double scoreValueSum = node.stats.scoreValueSum;
   node.statsLock.clear(std::memory_order_release);
-  
+
   if(depth == 0)
     origVisits = visits;
 
@@ -641,13 +642,13 @@ void Search::printTreeHelper(
   }
 
   lock.lock();
-  
+
   //Find all children and record their play values
   vector<tuple<const SearchNode*,double,double>> valuedChildren;
   int numChildren = node.numChildren;
   valuedChildren.reserve(numChildren);
   assert(node.nnOutput != nullptr);
-  
+
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
@@ -691,11 +692,11 @@ void Search::printTreeHelper(
   if(lastIdxWithEnoughVisits+1 < numChildrenToRecurseOn)
     numChildrenToRecurseOn = lastIdxWithEnoughVisits+1;
 
-  
+
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = std::get<0>(valuedChildren[i]);
     double childPolicyProb =  std::get<1>(valuedChildren[i]);
-    
+
     Loc moveLoc = child->prevMoveLoc;
 
     if((depth >= options.branch_.size() && i < numChildrenToRecurseOn) ||
