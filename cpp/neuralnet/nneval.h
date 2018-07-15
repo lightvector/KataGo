@@ -15,6 +15,7 @@ using tensorflow::Session;
 using tensorflow::GraphDef;
 
 #include "../core/global.h"
+#include "../core/logger.h"
 #include "../core/multithread.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
@@ -46,6 +47,7 @@ struct NNResultBuf {
   mutex resultMutex;
   bool hasResult;
   shared_ptr<NNOutput> result;
+  bool errorLogLockout; //error flag to restrict log to 1 error to prevent spam
 
   NNResultBuf();
   ~NNResultBuf();
@@ -83,9 +85,19 @@ class NNEvaluator {
   int getMaxBatchSize() const;
   void killServers();
   void serve(NNServerBuf& buf, Rand* rand, int defaultSymmetry);
-  void evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf);
+
+  //Queue a position for the next neural net batch evaluation and wait for it. Upon evaluation, result
+  //will be supplied in NNResultBuf& buf, the shared_ptr there can grabbed via std::move if desired.
+  //logout is for some rror logging, can be NULL.
+  void evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logout);
+
+  //Actually spawn threads and return the results. The caller is responsible for joining and freeing them.
+  //If doRandomize, uses randSeed as a seed, further randomized per-thread
+  //If not doRandomize, uses defaultSymmetry for all nn evaluations.
+  vector<thread*> spawnServerThreads(int numThreads, bool doRandomize, string randSeed, int defaultSymmetry, Logger& logger);
 
  private:
+  string modelFileName;
   GraphDef* graphDef;
 
   condition_variable clientWaitingForRow;

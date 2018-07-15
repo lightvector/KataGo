@@ -105,6 +105,8 @@ add_executable(example
   core/global.h
   core/hash.cpp
   core/hash.h
+  core/logger.h
+  core/logger.cpp
   core/md5.cpp
   core/md5.h
   core/multithread.h

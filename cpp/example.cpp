@@ -2,6 +2,7 @@
 
 #include "core/global.h"
 #include "core/timer.h"
+#include "core/logger.h"
 #include "game/board.h"
 #include "game/boardhistory.h"
 #include "neuralnet/nninputs.h"
@@ -23,27 +24,20 @@ using namespace tensorflow;
 int main() {
   Board::initHash();
 
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.addFile("tmp.txt");
+  ostream* logout = logger.createOStream();
+  if(logout != NULL) (*logout) << "AA" << endl;
+
   int maxBatchSize = 8;
   NNEvaluator* nnEval = new NNEvaluator("/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb", maxBatchSize);
 
-  auto serveEvals = [&nnEval](int threadIdx) {
-    NNServerBuf* buf = new NNServerBuf(*nnEval);
-    Rand rand("NNServerThread " + Global::intToString(threadIdx));
-    try {
-      nnEval->serve(*buf,&rand,0);
-    }
-    catch(const exception& e) {
-      cout << "NN Server Thread: " << e.what() << endl;
-    }
-    catch(const string& e) {
-      cout << "NN Server Thread: " << e << endl;
-    }
-    catch(...) {
-      cout << "Unexpected throw in NN server thread" << endl;
-    }
-  };
-
-  std::thread nnServerThread(serveEvals,0);
+  int numNNServerThreads = 1;
+  bool doRandomize = true;
+  string randSeed = "abc";
+  int defaultSymmetry = 0;
+  vector<std::thread*> nnServerThreads = nnEval->spawnServerThreads(numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger);
 
   Rules rules;
   rules.koRule = Rules::KO_POSITIONAL;
@@ -51,7 +45,7 @@ int main() {
   rules.multiStoneSuicideLegal = true;
   rules.komi = 7.5f;
 
-  Player pla = P_BLACK;
+  Player pla = P_WHITE;
   Board board = Board::parseBoard(19,19,R"(
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . x . .
@@ -83,7 +77,7 @@ int main() {
   search->setPosition(pla,board,hist);
 
   search->beginSearch("randseed",nnEval);
-  SearchThread* searchThread = new SearchThread(0,*search);
+  SearchThread* searchThread = new SearchThread(0,*search,&logger);
 
   ClockTimer timer;
   for(int i = 0; i<300; i++)
@@ -102,7 +96,10 @@ int main() {
   cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
 
   nnEval->killServers();
-  nnServerThread.join();
+  for(size_t i = 0; i<nnServerThreads.size(); i++)
+    nnServerThreads[i]->join();
+  for(size_t i = 0; i<nnServerThreads.size(); i++)
+    delete nnServerThreads[i];
 
   delete searchThread;
   delete search;

@@ -24,7 +24,7 @@ double NNOutput::whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize) 
 //-------------------------------------------------------------------------------------
 
 NNResultBuf::NNResultBuf()
-  :clientWaitingForResult(),resultMutex(),hasResult(false),result(nullptr)
+  :clientWaitingForResult(),resultMutex(),hasResult(false),result(nullptr),errorLogLockout(false)
 {}
 
 NNResultBuf::~NNResultBuf()
@@ -146,7 +146,8 @@ NNServerBuf::~NNServerBuf() {
 //-------------------------------------------------------------------------------------
 
 NNEvaluator::NNEvaluator(const string& pbModelFile, int maxBatchSize)
-  :clientWaitingForRow(),serverWaitingForBatchStart(),serverWaitingForBatchFinish(),
+  :modelFileName(pbModelFile),
+   clientWaitingForRow(),serverWaitingForBatchStart(),serverWaitingForBatchFinish(),
    bufferMutex(),
    isKilled(false),
    serverTryingToGrabBatch(false),
@@ -177,6 +178,36 @@ NNEvaluator::~NNEvaluator()
 
 int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
+}
+
+static void serveEvals(int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger, NNEvaluator* nnEval) {
+  NNServerBuf* buf = new NNServerBuf(*nnEval);
+  Rand* rand = NULL;
+  if(doRandomize)
+    rand = new Rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
+  ostream* logout = logger->createOStream();
+  try {
+    nnEval->serve(*buf,rand,defaultSymmetry);
+  }
+  catch(const exception& e) {
+    (*logout) << "ERROR: NNEval Server Thread " << threadIdx << " failed: " << e.what() << endl;
+  }
+  catch(const string& e) {
+    (*logout) << "ERROR: NNEval Server Thread " << threadIdx << " failed: " << e << endl;
+  }
+  catch(...) {
+    (*logout) << "ERROR: NNEval Server Thread " << threadIdx << " failed with unexpected throw" << endl;
+  }
+  delete logout;
+  delete rand;
+  delete buf;
+}
+
+vector<thread*> NNEvaluator::spawnServerThreads(int numThreads, bool doRandomize, string randSeed, int defaultSymmetry, Logger& logger) {
+  vector<thread*> vec;
+  for(int i = 0; i<numThreads; i++)
+    vec.push_back(new std::thread(&serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this));
+  return vec;
 }
 
 void NNEvaluator::killServers() {
@@ -281,7 +312,7 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand* rand, int defaultSymmetry) {
 
 }
 
-void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf) {
+void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logout) {
   assert(!isKilled);
   buf.hasResult = false;
 
@@ -348,8 +379,11 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   }
 
   //Somehow all legal moves rounded to 0 probability
-  //TODO maybe log how many times probabilities all round to 0 or log some error?
   if(policySum <= 0.0) {
+    if(!buf.errorLogLockout && logout != NULL) {
+      buf.errorLogLockout = true;
+      (*logout) << "Warning: all legal moves rounded to 0 probability for " << modelFileName << " in position " << board << endl;
+    }
     float uniform = 1.0f / legalCount;
     for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
       policy[i] = isLegal[i] ? uniform : -1.0f;

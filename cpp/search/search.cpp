@@ -68,15 +68,21 @@ SearchNode& SearchNode::operator=(SearchNode&& other) noexcept {
 //-----------------------------------------------------------------------------------------
 
 
-SearchThread::SearchThread(int tIdx, const Search& search)
+SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
   :threadIdx(tIdx),
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
    rand(search.randSeed + string("$$") + Global::intToString(threadIdx)),
-   nnResultBuf()
-{}
+   nnResultBuf(),
+   logout(NULL)
+{
+  if(logger != NULL)
+    logout = logger->createOStream();
+}
 SearchThread::~SearchThread() {
-
+  if(logout != NULL)
+    delete logout;
+  logout = NULL;
 }
 
 //-----------------------------------------------------------------------------------------
@@ -134,6 +140,10 @@ void Search::setParams(SearchParams params) {
   searchParams = params;
 }
 
+void Search::setLog(ostream* o) {
+  logout = o;
+}
+
 void Search::clearSearch() {
   delete rootNode;
   rootNode = NULL;
@@ -170,7 +180,7 @@ void Search::beginSearch(const string& seed, NNEvaluator* nnEval) {
   nnEvaluator = nnEval;
 
   if(rootNode == NULL) {
-    SearchThread dummyThread(-1, *this);
+    SearchThread dummyThread(-1, *this, NULL);
     rootNode = new SearchNode(*this, dummyThread, Board::NULL_LOC);
   }
 }
@@ -438,7 +448,7 @@ void Search::playoutDescend(
 
   //Hit leaf node, finish
   if(node.nnOutput == nullptr) {
-    nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf);
+    nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logout);
     node.nnOutput = std::move(thread.nnResultBuf.result);
     maybeAddPolicyNoise(thread,node,isRoot);
     lock.unlock();

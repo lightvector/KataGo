@@ -5,6 +5,7 @@
 #include <atomic>
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../core/logger.h"
 #include "../core/multithread.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
@@ -75,8 +76,9 @@ struct SearchThread {
   Rand rand;
 
   NNResultBuf nnResultBuf;
+  ostream* logout;
 
-  SearchThread(int threadIdx, const Search& search);
+  SearchThread(int threadIdx, const Search& search, Logger* logger);
   ~SearchThread();
 
   SearchThread(const SearchThread&) = delete;
@@ -103,6 +105,7 @@ struct Search {
   //Services--------------------------------------------------------------
   MutexPool* mutexPool;
   NNEvaluator* nnEvaluator; //externally owned
+  ostream* logout;
 
   Search(Rules rules, SearchParams params, uint32_t mutexPoolSize);
   ~Search();
@@ -118,6 +121,7 @@ struct Search {
   void setRulesAndClearHistory(Rules rules);
   void setRootPassLegal(bool b);
   void setParams(SearchParams params);
+  void setLog(ostream* logout);
 
   //Just directly clear search without changing anything
   void clearSearch();
