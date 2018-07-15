@@ -2,7 +2,6 @@
 #define SEARCH_H
 
 #include <memory>
-#include <atomic>
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../core/logger.h"

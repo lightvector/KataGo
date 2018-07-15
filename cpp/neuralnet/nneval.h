@@ -24,6 +24,8 @@ using tensorflow::GraphDef;
 class NNEvaluator;
 
 struct NNOutput {
+  Hash128 nnHash; //NNInputs - getHashV0 or getHashV1
+
   //From the perspective of the player to move at the time of the eval
   float whiteValue;
 
@@ -39,6 +41,32 @@ struct NNOutput {
   static double whiteValueOfWinner(Player winner);
   //The utility of achieving a certain score difference
   static double whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize);
+};
+
+class NNCacheTable {
+  struct Entry {
+    shared_ptr<NNOutput> ptr;
+    std::atomic_flag spinLock;
+    Entry();
+    ~Entry();
+  };
+
+  Entry* entries;
+  uint64_t tableSize;
+  uint64_t tableMask;
+
+ public:
+  NNCacheTable(int sizePowerOfTwo);
+  ~NNCacheTable();
+
+  NNCacheTable(const NNCacheTable& other) = delete;
+  NNCacheTable& operator=(const NNCacheTable& other) = delete;
+  NNCacheTable(NNCacheTable&& other) = delete;
+  NNCacheTable& operator=(NNCacheTable&& other) = delete;
+
+  //These are thread-safe
+  bool get(Hash128 nnHash, shared_ptr<NNOutput>& ret);
+  void set(const shared_ptr<NNOutput>& p);
 };
 
 //Each thread should allocate and re-use one of these
@@ -79,7 +107,7 @@ struct NNServerBuf {
 
 class NNEvaluator {
  public:
-  NNEvaluator(const string& pbModelFile, int maxBatchSize);
+  NNEvaluator(const string& pbModelFile, int maxBatchSize, int nnCacheSizePowerOfTwo);
   ~NNEvaluator();
 
   int getMaxBatchSize() const;
@@ -99,6 +127,7 @@ class NNEvaluator {
  private:
   string modelFileName;
   GraphDef* graphDef;
+  NNCacheTable* nnCacheTable;
 
   condition_variable clientWaitingForRow;
   condition_variable serverWaitingForBatchStart;

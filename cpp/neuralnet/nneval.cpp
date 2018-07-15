@@ -5,6 +5,7 @@ using namespace tensorflow;
 
 NNOutput::NNOutput() {}
 NNOutput::NNOutput(const NNOutput& other) {
+  nnHash = other.nnHash;
   whiteValue = other.whiteValue;
   std::copy(other.policyProbs, other.policyProbs+NNPos::NN_POLICY_SIZE, policyProbs);
 }
@@ -145,8 +146,9 @@ NNServerBuf::~NNServerBuf() {
 
 //-------------------------------------------------------------------------------------
 
-NNEvaluator::NNEvaluator(const string& pbModelFile, int maxBatchSize)
+NNEvaluator::NNEvaluator(const string& pbModelFile, int maxBatchSize, int nnCacheSizePowerOfTwo)
   :modelFileName(pbModelFile),
+   nnCacheTable(NULL),
    clientWaitingForRow(),serverWaitingForBatchStart(),serverWaitingForBatchFinish(),
    bufferMutex(),
    isKilled(false),
@@ -161,6 +163,9 @@ NNEvaluator::NNEvaluator(const string& pbModelFile, int maxBatchSize)
   Status status;
   graphDef = new GraphDef();
 
+  if(nnCacheSizePowerOfTwo >= 0)
+    nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo);
+
   //Read graph from file
   status = ReadBinaryProto(Env::Default(), pbModelFile, graphDef);
   checkStatus(status,"reading graph");
@@ -173,6 +178,7 @@ NNEvaluator::~NNEvaluator()
   assert(isKilled);
   assert(!serverTryingToGrabBatch);
   freeTensorInputBufs(m_inputsBuffer, m_symmetriesBuffer, m_inputsList, m_resultBufs);
+  delete nnCacheTable;
   delete graphDef;
 }
 
@@ -296,6 +302,7 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand* rand, int defaultSymmetry) {
 
       //These are not actually correct, the client does the postprocessing to turn them into
       //probabilities and white value
+      //Also we don't fill in the nnHash here either
       std::copy(
         policyData + row * NNPos::NN_POLICY_SIZE,
         policyData + (row+1) * NNPos::NN_POLICY_SIZE,
@@ -315,6 +322,12 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand* rand, int defaultSymmetry) {
 void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logout) {
   assert(!isKilled);
   buf.hasResult = false;
+
+  Hash128 nnHash = NNInputs::getHashV1(board, history, nextPlayer);
+  if(nnCacheTable != NULL && nnCacheTable->get(nnHash,buf.result)) {
+    buf.hasResult = true;
+    return;
+  }
 
   unique_lock<std::mutex> lock(bufferMutex);
   while(m_numRowsStarted >= maxNumRows || serverTryingToGrabBatch)
@@ -343,6 +356,7 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
     buf.clientWaitingForResult.wait(resultLock);
   resultLock.unlock();
 
+  //Perform postprocessing on the result - turn the nn output into probabilities
   float* policy = buf.result->policyProbs;
 
   assert(board.x_size == board.y_size);
@@ -394,10 +408,56 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
       policy[i] = isLegal[i] ? (policy[i] / policySum) : -1.0f;
   }
 
+  //Fix up the value as well
   if(nextPlayer == P_WHITE)
     buf.result->whiteValue = tanh(buf.result->whiteValue);
   else
     buf.result->whiteValue = -tanh(buf.result->whiteValue);
 
+  //And record the nnHash in the result and put it into the table
+  buf.result->nnHash = nnHash;
+  if(nnCacheTable != NULL)
+    nnCacheTable->set(buf.result);
+
+}
+
+
+
+NNCacheTable::Entry::Entry()
+  :ptr(nullptr),spinLock()
+{}
+NNCacheTable::Entry::~Entry()
+{}
+
+NNCacheTable::NNCacheTable(int sizePowerOfTwo) {
+  if(sizePowerOfTwo < 0 || sizePowerOfTwo > 63)
+    throw StringError("NNCacheTable: Invalid sizePowerOfTwo: " + Global::intToString(sizePowerOfTwo));
+  tableSize = ((uint64_t)1) << sizePowerOfTwo;
+  tableMask = tableSize-1;
+  entries = new Entry[tableSize];
+}
+NNCacheTable::~NNCacheTable() {
+  delete[] entries;
+}
+
+bool NNCacheTable::get(Hash128 nnHash, shared_ptr<NNOutput>& ret) {
+  uint64_t idx = nnHash.hash0 & tableMask;
+  Entry& entry = entries[idx];
+  while(entry.spinLock.test_and_set(std::memory_order_acquire));
+  bool found = false;
+  if(entry.ptr != nullptr && entry.ptr->nnHash == nnHash) {
+    ret = entry.ptr;
+    found = true;
+  }
+  entry.spinLock.clear(std::memory_order_release);
+  return found;
+}
+
+void NNCacheTable::set(const shared_ptr<NNOutput>& p) {
+  uint64_t idx = p->nnHash.hash0 & tableMask;
+  Entry& entry = entries[idx];
+  while(entry.spinLock.test_and_set(std::memory_order_acquire));
+  entry.ptr = p;
+  entry.spinLock.clear(std::memory_order_release);
 }
 

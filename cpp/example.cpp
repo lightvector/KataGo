@@ -29,7 +29,8 @@ int main() {
   logger.addFile("tmp.txt");
 
   int maxBatchSize = 8;
-  NNEvaluator* nnEval = new NNEvaluator("/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb", maxBatchSize);
+  int nnCacheSizePowerOfTwo = 16;
+  NNEvaluator* nnEval = new NNEvaluator("/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb", maxBatchSize, nnCacheSizePowerOfTwo);
 
   int numNNServerThreads = 1;
   bool doRandomize = true;
@@ -92,6 +93,7 @@ int main() {
   cout << "sizeof(uint64_t) " << sizeof(uint64_t) << endl;
   cout << "sizeof(std::atomic_flag) " << sizeof(std::atomic_flag) << endl;;
   cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
+  cout << "sizeof(std::shared_ptr<NNOutput>) " << sizeof(std::shared_ptr<NNOutput>) << endl;;
 
   nnEval->killServers();
   for(size_t i = 0; i<nnServerThreads.size(); i++)
