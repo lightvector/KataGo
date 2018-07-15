@@ -27,8 +27,6 @@ int main() {
   Logger logger;
   logger.setLogToStdout(true);
   logger.addFile("tmp.txt");
-  ostream* logout = logger.createOStream();
-  if(logout != NULL) (*logout) << "AA" << endl;
 
   int maxBatchSize = 8;
   NNEvaluator* nnEval = new NNEvaluator("/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb", maxBatchSize);

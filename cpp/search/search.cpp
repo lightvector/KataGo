@@ -604,11 +604,11 @@ void Search::printTreeHelper(
     out << ": ";
 
     if(visits > 0) {
-      sprintf(buf,"T %6.2f%% ",(winLossValueSum + scoreValueSum) / visits * 100.0);
+      sprintf(buf,"T %6.2fc ",(winLossValueSum + scoreValueSum) / visits * 100.0);
       out << buf;
-      sprintf(buf,"W %6.2f%% ",winLossValueSum / visits * 100.0);
+      sprintf(buf,"W %6.2fc ",winLossValueSum / visits * 100.0);
       out << buf;
-      sprintf(buf,"S %6.2f%% ",scoreValueSum / visits * 100.0);
+      sprintf(buf,"S %6.2fc ",scoreValueSum / visits * 100.0);
       out << buf;
     }
 
@@ -622,11 +622,11 @@ void Search::printTreeHelper(
     lock.unlock();
 
     if(hasNNValue) {
-      sprintf(buf,"V %6.2f%% ", nnValue * 100.0);
+      sprintf(buf,"V %6.2fc ", nnValue * 100.0);
       out << buf;
     }
     else {
-      sprintf(buf,"V --.--%% ");
+      sprintf(buf,"V --.--c ");
       out << buf;
     }
 
