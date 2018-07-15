@@ -64,14 +64,16 @@ struct BoardHistory {
   BoardHistory& operator=(BoardHistory&& other) noexcept;
 
   void clear(const Board& board, Player pla, const Rules& rules);
-
-  //For all of the below, rootKoHashTable is optional and if provided will slightly speedup superko searches
+  //Set only the komi field of the rules, does not clear history, but does clear game-over conditions,
+  void setKomi(float newKomi);
 
   bool isGameOver() const;
   float currentSelfKomi(Player pla) const;
 
   //Check if a move on the board is legal, taking into account the full game state and superko
   bool isLegal(const Board& board, Loc moveLoc, Player movePla) const;
+
+  //For all of the below, rootKoHashTable is optional and if provided will slightly speedup superko searches
 
   //Make a move on the board assuming it's legal and update all history and game state information as well.
   //In the main phase, should still do reasonable things if the move is still board.isLegal but violates superko, or moves

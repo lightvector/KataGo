@@ -8,7 +8,10 @@ SearchParams::SearchParams()
    fpuReductionMax(0.5),
    rootNoiseEnabled(false),
    rootDirichletNoiseTotalConcentration(10.0),
-   rootDirichletNoiseWeight(0.25)
+   rootDirichletNoiseWeight(0.25),
+   randSeed(""), //Empty string is still a random seed
+   mutexPoolSize(8192),
+   numThreads(1)
 {}
 
 SearchParams::~SearchParams()

@@ -75,7 +75,7 @@ struct SearchThread {
   Rand rand;
 
   NNResultBuf nnResultBuf;
-  ostream* logout;
+  ostream* logStream;
 
   SearchThread(int threadIdx, const Search& search, Logger* logger);
   ~SearchThread();
@@ -104,9 +104,8 @@ struct Search {
   //Services--------------------------------------------------------------
   MutexPool* mutexPool;
   NNEvaluator* nnEvaluator; //externally owned
-  ostream* logout;
 
-  Search(Rules rules, SearchParams params, uint32_t mutexPoolSize);
+  Search(SearchParams params, NNEvaluator* nnEval);
   ~Search();
 
   Search(const Search&) = delete;
@@ -116,11 +115,12 @@ struct Search {
 
   //Clear all results of search and sets a new position or something else
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
+
   void setPlayerAndClearHistory(Player pla);
   void setRulesAndClearHistory(Rules rules);
+  void setKomi(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootPassLegal(bool b);
   void setParams(SearchParams params);
-  void setLog(ostream* logout);
 
   //Just directly clear search without changing anything
   void clearSearch();
@@ -130,7 +130,7 @@ struct Search {
   bool makeMove(Loc moveLoc);
 
   //Call once at the start of each search
-  void beginSearch(const string& randSeed, NNEvaluator* nnEval);
+  void beginSearch();
 
   //Within-search functions, threadsafe-------------------------------------------
   void runSinglePlayout(SearchThread& thread);

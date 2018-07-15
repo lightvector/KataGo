@@ -72,31 +72,32 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
   :threadIdx(tIdx),
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
-   rand(search.randSeed + string("$$") + Global::intToString(threadIdx)),
+   rand(search.searchParams.randSeed + string("$$") + Global::intToString(threadIdx)),
    nnResultBuf(),
-   logout(NULL)
+   logStream(NULL)
 {
   if(logger != NULL)
-    logout = logger->createOStream();
+    logStream = logger->createOStream();
 }
 SearchThread::~SearchThread() {
-  if(logout != NULL)
-    delete logout;
-  logout = NULL;
+  if(logStream != NULL)
+    delete logStream;
+  logStream = NULL;
 }
 
 //-----------------------------------------------------------------------------------------
 
 
-Search::Search(Rules rules, SearchParams params, uint32_t mutexPoolSize)
-  :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),searchParams(params)
+Search::Search(SearchParams params, NNEvaluator* nnEval)
+  :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),searchParams(params),
+   nnEvaluator(nnEval)
 {
   rootKoHashTable = new KoHashTable();
 
   rootNode = NULL;
-  mutexPool = new MutexPool(mutexPoolSize);
+  mutexPool = new MutexPool(params.mutexPoolSize);
 
-  rootHistory.clear(rootBoard,rootPla,rules);
+  rootHistory.clear(rootBoard,rootPla,Rules());
   rootKoHashTable->recompute(rootHistory);
 }
 
@@ -130,6 +131,13 @@ void Search::setRulesAndClearHistory(Rules rules) {
   rootKoHashTable->recompute(rootHistory);
 }
 
+void Search::setKomi(float newKomi) {
+  if(rootHistory.rules.komi != newKomi) {
+    clearSearch();
+    rootHistory.setKomi(newKomi);
+  }
+}
+
 void Search::setRootPassLegal(bool b) {
   clearSearch();
   rootPassLegal = b;
@@ -138,10 +146,6 @@ void Search::setRootPassLegal(bool b) {
 void Search::setParams(SearchParams params) {
   clearSearch();
   searchParams = params;
-}
-
-void Search::setLog(ostream* o) {
-  logout = o;
 }
 
 void Search::clearSearch() {
@@ -175,10 +179,7 @@ bool Search::makeMove(Loc moveLoc) {
   return true;
 }
 
-void Search::beginSearch(const string& seed, NNEvaluator* nnEval) {
-  randSeed = seed;
-  nnEvaluator = nnEval;
-
+void Search::beginSearch() {
   if(rootNode == NULL) {
     SearchThread dummyThread(-1, *this, NULL);
     rootNode = new SearchNode(*this, dummyThread, Board::NULL_LOC);
@@ -448,7 +449,7 @@ void Search::playoutDescend(
 
   //Hit leaf node, finish
   if(node.nnOutput == nullptr) {
-    nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logout);
+    nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logStream);
     node.nnOutput = std::move(thread.nnResultBuf.result);
     maybeAddPolicyNoise(thread,node,isRoot);
     lock.unlock();

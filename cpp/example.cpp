@@ -70,12 +70,11 @@ int main() {
 
   BoardHistory hist(board,pla,rules);
   SearchParams params;
-  int mutexPoolSize = 4096;
 
-  Search* search = new Search(rules, params, mutexPoolSize);
+  Search* search = new Search(params, nnEval);
   search->setPosition(pla,board,hist);
 
-  search->beginSearch("randseed",nnEval);
+  search->beginSearch();
   SearchThread* searchThread = new SearchThread(0,*search,&logger);
 
   ClockTimer timer;

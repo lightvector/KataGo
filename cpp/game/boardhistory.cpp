@@ -185,6 +185,13 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
   koHashHistory.push_back(getKoHash(rules,board,pla,encorePhase,koProhibitHash));
 }
 
+void BoardHistory::setKomi(float newKomi) {
+  rules.komi = newKomi;
+  winner = C_EMPTY;
+  finalWhiteMinusBlackScore = 0.0f;
+  isNoResult = false;
+}
+
 //If rootKoHashTable is provided, will take advantage of rootKoHashTable rather than search within the first
 //rootKoHashTable->size() moves of koHashHistory.
 //ALSO counts the most recent ko hash!
@@ -341,7 +348,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
         setKoProhibited(getOpp(movePla),board.ko_loc,true);
         koCapturesInEncore.push_back(std::make_pair(posHashBeforeMove,moveLoc));
       }
-      //Unmark for the opponent all points that aren't ko moves      
+      //Unmark for the opponent all points that aren't ko moves
       for(int y = 0; y<board.y_size; y++) {
         for(int x = 0; x<board.x_size; x++) {
           Loc loc = Location::getLoc(x,y,board.x_size);

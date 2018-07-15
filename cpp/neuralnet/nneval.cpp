@@ -191,20 +191,20 @@ static void serveEvals(int threadIdx, bool doRandomize, string randSeed, int def
   Rand* rand = NULL;
   if(doRandomize)
     rand = new Rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
-  ostream* logout = logger->createOStream();
+  ostream* logStream = logger->createOStream();
   try {
     nnEval->serve(*buf,rand,defaultSymmetry);
   }
   catch(const exception& e) {
-    (*logout) << "ERROR: NNEval Server Thread " << threadIdx << " failed: " << e.what() << endl;
+    (*logStream) << "ERROR: NNEval Server Thread " << threadIdx << " failed: " << e.what() << endl;
   }
   catch(const string& e) {
-    (*logout) << "ERROR: NNEval Server Thread " << threadIdx << " failed: " << e << endl;
+    (*logStream) << "ERROR: NNEval Server Thread " << threadIdx << " failed: " << e << endl;
   }
   catch(...) {
-    (*logout) << "ERROR: NNEval Server Thread " << threadIdx << " failed with unexpected throw" << endl;
+    (*logStream) << "ERROR: NNEval Server Thread " << threadIdx << " failed with unexpected throw" << endl;
   }
-  delete logout;
+  delete logStream;
   delete rand;
   delete buf;
 }
@@ -319,7 +319,7 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand* rand, int defaultSymmetry) {
 
 }
 
-void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logout) {
+void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream) {
   assert(!isKilled);
   buf.hasResult = false;
 
@@ -394,9 +394,9 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
 
   //Somehow all legal moves rounded to 0 probability
   if(policySum <= 0.0) {
-    if(!buf.errorLogLockout && logout != NULL) {
+    if(!buf.errorLogLockout && logStream != NULL) {
       buf.errorLogLockout = true;
-      (*logout) << "Warning: all legal moves rounded to 0 probability for " << modelFileName << " in position " << board << endl;
+      (*logStream) << "Warning: all legal moves rounded to 0 probability for " << modelFileName << " in position " << board << endl;
     }
     float uniform = 1.0f / legalCount;
     for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {

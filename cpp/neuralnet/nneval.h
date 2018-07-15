@@ -116,8 +116,8 @@ class NNEvaluator {
 
   //Queue a position for the next neural net batch evaluation and wait for it. Upon evaluation, result
   //will be supplied in NNResultBuf& buf, the shared_ptr there can grabbed via std::move if desired.
-  //logout is for some rror logging, can be NULL.
-  void evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logout);
+  //logStream is for some rror logging, can be NULL.
+  void evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream);
 
   //Actually spawn threads and return the results. The caller is responsible for joining and freeing them.
   //If doRandomize, uses randSeed as a seed, further randomized per-thread
