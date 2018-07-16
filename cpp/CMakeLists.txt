@@ -131,8 +131,10 @@ add_executable(example
   search/searchparams.h
   search/mutexpool.cpp
   search/mutexpool.h
-  search/search.h
   search/search.cpp
+  search/search.h
+  search/asyncbot.cpp
+  search/asyncbot.h
   example.cpp
   )
 

@@ -155,11 +155,25 @@ void Search::clearSearch() {
   rootNode = NULL;
 }
 
-bool Search::makeMove(Loc moveLoc) {
+bool Search::makeMove(Loc moveLoc, Player movePla) {
   //Don't require that the move is legal for the history, merely the board, so that
   //we're robust to the outside saying that a move was made that violates superko or things like that.
-  if(!rootBoard.isLegal(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal))
+  //Also handle simple ko correctly in case somehow we find out the same player making multiple moves
+  //in a row (which is possible in GTP)
+  bool isLegal;
+  if(movePla != rootPla) {
+    Board copy = rootBoard;
+    copy.clearSimpleKoLoc();
+    isLegal = copy.isLegal(moveLoc,movePla,rootHistory.rules.multiStoneSuicideLegal);
+  }
+  else
+    isLegal = rootBoard.isLegal(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+
+  if(!isLegal)
     return false;
+
+  if(movePla != rootPla)
+    setPlayerAndClearHistory(movePla);
 
   if(rootNode != NULL) {
     for(int i = 0; i<rootNode->numChildren; i++) {

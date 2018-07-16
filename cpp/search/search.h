@@ -127,8 +127,9 @@ struct Search {
   void clearSearch();
 
   //Updates position and preserves the relevant subtree of search
-  //If the move is not legal for the current player, returns false and does nothing, else returns true
-  bool makeMove(Loc moveLoc);
+  //If the move is not legal for the specified player, returns false and does nothing, else returns true
+  //In the case where the player was not the expected one moving next, also clears history.
+  bool makeMove(Loc moveLoc, Player movePla);
 
   //Choose a move at the root of the tree, with randomization, if possible.
   //Might return Board::NULL_LOC if there is no root.

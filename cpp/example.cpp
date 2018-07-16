@@ -9,6 +9,7 @@
 #include "neuralnet/nneval.h"
 #include "search/searchparams.h"
 #include "search/search.h"
+#include "search/asyncbot.h"
 
 // #include <tensorflow/c/c_api.h>
 #include <tensorflow/cc/client/client_session.h>
@@ -20,6 +21,7 @@
 #include <iostream>
 using namespace std;
 using namespace tensorflow;
+
 
 int main() {
   Board::initHash();
@@ -70,21 +72,19 @@ int main() {
 
   BoardHistory hist(board,pla,rules);
   SearchParams params;
+  params.maxPlayouts = 300;
 
-  Search* search = new Search(params, nnEval);
-  search->setPosition(pla,board,hist);
-
-  search->beginSearch();
-  SearchThread* searchThread = new SearchThread(0,*search,&logger);
+  AsyncBot* bot = new AsyncBot(params, nnEval, &logger);
+  bot->setPosition(pla,board,hist);
 
   ClockTimer timer;
-  for(int i = 0; i<300; i++)
-    search->runSinglePlayout(*searchThread);
+  Loc moveLoc = bot->genMoveSynchronous(pla);
 
   double seconds = timer.getSeconds();
   cout << board << endl;
+  cout << "MoveLoc: " << Location::toString(moveLoc,board) << endl;
   cout << "Seconds: " << seconds << endl;
-  search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1));
+  bot->search->printTree(cout, bot->search->rootNode, PrintTreeOptions().maxDepth(1));
 
   cout << "sizeof(uint8_t) " << sizeof(uint8_t) << endl;
   cout << "sizeof(uint16_t) " << sizeof(uint16_t) << endl;
@@ -111,13 +111,113 @@ int main() {
   for(size_t i = 0; i<nnServerThreads.size(); i++)
     delete nnServerThreads[i];
 
-  delete searchThread;
-  delete search;
+  delete bot;
   delete nnEval;
 
   cout << "Done" << endl;
   return 0;
 }
+
+
+
+
+// int main() {
+//   Board::initHash();
+
+//   Logger logger;
+//   logger.setLogToStdout(true);
+//   logger.addFile("tmp.txt");
+
+//   int maxBatchSize = 8;
+//   int nnCacheSizePowerOfTwo = 16;
+//   NNEvaluator* nnEval = new NNEvaluator("/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb", maxBatchSize, nnCacheSizePowerOfTwo);
+
+//   int numNNServerThreads = 1;
+//   bool doRandomize = true;
+//   string randSeed = "abc";
+//   int defaultSymmetry = 0;
+//   vector<std::thread*> nnServerThreads = nnEval->spawnServerThreads(numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger);
+
+//   Rules rules;
+//   rules.koRule = Rules::KO_POSITIONAL;
+//   rules.scoringRule = Rules::SCORING_AREA;
+//   rules.multiStoneSuicideLegal = true;
+//   rules.komi = 7.5f;
+
+//   Player pla = P_WHITE;
+//   Board board = Board::parseBoard(19,19,R"(
+//    A B C D E F G H J K L M N O P Q R S T
+// 19 . . . . . . . . . . . . . . . . x . .
+// 18 . . x o . . . . . . x o . . o . o x .
+// 17 . . x o . . o x . . . . o . . o x . .
+// 16 . . x o . . o x x o . x . . . o x . .
+// 15 . x o o x . x . x x x . x . . o x . .
+// 14 . x o . . . x x o o o o x . x o o x .
+// 13 . x o . . . . . o x x x x . . . o x .
+// 12 . . o . . x x x . o . o o o o . o . .
+// 11 . . . . o x o o o o . o . x . o . . .
+// 10 . o o o o o x . . o x x x . o x x . .
+//  9 . x . x o o x x x x o o x . x o x . .
+//  8 . . . x x x x . . x . o o.x . o x . .
+//  7 . . . o o . x x . x . . . . . x . x .
+//  6 . . o x x x . x x o o . o . . x . x .
+//  5 . . o o o o x x . . . o . o . o x . .
+//  4 . o o x x o o . x o o x . o . o x . .
+//  3 . o x x . o o x x x . x . o x x o x .
+//  2 o x . x x o . o . . . . . o . . o x .
+//  1 . o x x o . . o . . . . . . . . . . .
+// )");
+
+//   BoardHistory hist(board,pla,rules);
+//   SearchParams params;
+
+//   Search* search = new Search(params, nnEval);
+//   search->setPosition(pla,board,hist);
+
+//   search->beginSearch();
+//   SearchThread* searchThread = new SearchThread(0,*search,&logger);
+
+//   ClockTimer timer;
+//   for(int i = 0; i<300; i++)
+//     search->runSinglePlayout(*searchThread);
+
+//   double seconds = timer.getSeconds();
+//   cout << board << endl;
+//   cout << "Seconds: " << seconds << endl;
+//   search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1));
+
+//   cout << "sizeof(uint8_t) " << sizeof(uint8_t) << endl;
+//   cout << "sizeof(uint16_t) " << sizeof(uint16_t) << endl;
+//   cout << "sizeof(uint32_t) " << sizeof(uint32_t) << endl;
+//   cout << "sizeof(uint64_t) " << sizeof(uint64_t) << endl;
+//   cout << "sizeof(std::atomic_flag) " << sizeof(std::atomic_flag) << endl;;
+//   cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
+//   cout << "sizeof(std::shared_ptr<NNOutput>) " << sizeof(std::shared_ptr<NNOutput>) << endl;;
+
+//   {
+//     atomic<bool>* b = new atomic<bool>(false);
+//     cout << "atomic<bool> lock free " << std::atomic_is_lock_free(b) << endl;
+//     delete b;
+//   }
+//   {
+//     atomic<uint64_t>* b = new atomic<uint64_t>(0);
+//     cout << "atomic<uint64_t> lock free " << std::atomic_is_lock_free(b) << endl;
+//     delete b;
+//   }
+
+//   nnEval->killServers();
+//   for(size_t i = 0; i<nnServerThreads.size(); i++)
+//     nnServerThreads[i]->join();
+//   for(size_t i = 0; i<nnServerThreads.size(); i++)
+//     delete nnServerThreads[i];
+
+//   delete searchThread;
+//   delete search;
+//   delete nnEval;
+
+//   cout << "Done" << endl;
+//   return 0;
+// }
 
 
 
