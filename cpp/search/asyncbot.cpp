@@ -2,8 +2,19 @@
 #include "../core/timer.h"
 #include "../search/asyncbot.h"
 
-static void searchThreadLoop(AsyncBot* asyncBot) {
-  asyncBot->internalSearchThreadLoop();
+static void searchThreadLoop(AsyncBot* asyncBot, Logger* logger) {
+  try {
+    asyncBot->internalSearchThreadLoop();
+  }
+  catch(const exception& e) {
+    logger->write(string("ERROR: Async bot thread failed: ") + e.what() + "\n");
+  }
+  catch(const string& e) {
+    logger->write("ERROR: Async bot thread failed: " + e + "\n");
+  }
+  catch(...) {
+    logger->write("ERROR: Async bot thread failed with unexpected throw\n");
+  }
 }
 
 AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l)
@@ -13,7 +24,7 @@ AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l)
    queuedSearchId(0),queuedOnMove()
 {
   search = new Search(params,nnEval);
-  searchThread = std::thread(searchThreadLoop,this);
+  searchThread = std::thread(searchThreadLoop,this,l);
 }
 
 AsyncBot::~AsyncBot() {
@@ -123,28 +134,39 @@ void AsyncBot::internalSearchThreadLoop() {
     atomic<uint64_t> numPlayouts(0);
 
     if(!std::atomic_is_lock_free(&numPlayouts))
-      logger->write("Warning: uint64_t atomic numPlayouts is not lock free");
+      logger->write("Warning: uint64_t atomic numPlayouts is not lock free\n");
     if(!std::atomic_is_lock_free(&shouldStopNow))
-      logger->write("Warning: bool atomic shouldStopNow is not lock free");
+      logger->write("Warning: bool atomic shouldStopNow is not lock free\n");
 
     search->beginSearch();
 
     auto searchLoop = [this,&timer,&numPlayouts](int threadIdx) {
       SearchThread* stbuf = new SearchThread(threadIdx,*search,logger);
-      while(!shouldStopNow.load(std::memory_order_relaxed)) {
-        search->runSinglePlayout(*stbuf);
+      try {
+        while(!shouldStopNow.load(std::memory_order_relaxed)) {
+          search->runSinglePlayout(*stbuf);
 
-        uint64_t oldNumPlayouts = numPlayouts.fetch_add((uint64_t)1, std::memory_order_relaxed);
-        uint64_t newNumPlayouts = oldNumPlayouts + 1;
+          uint64_t oldNumPlayouts = numPlayouts.fetch_add((uint64_t)1, std::memory_order_relaxed);
+          uint64_t newNumPlayouts = oldNumPlayouts + 1;
 
-        bool shouldStop =
-          (searchParams.maxTime < 1.0e12 && timer.getSeconds() >= searchParams.maxTime) ||
-          (newNumPlayouts >= searchParams.maxPlayouts);
+          bool shouldStop =
+            (searchParams.maxTime < 1.0e12 && timer.getSeconds() >= searchParams.maxTime) ||
+            (newNumPlayouts >= searchParams.maxPlayouts);
 
-        if(shouldStop) {
-          shouldStopNow.store(true,std::memory_order_relaxed);
-          break;
+          if(shouldStop) {
+            shouldStopNow.store(true,std::memory_order_relaxed);
+            break;
+          }
         }
+      }
+      catch(const exception& e) {
+        logger->write(string("ERROR: Search thread failed: ") + e.what() + "\n");
+      }
+      catch(const string& e) {
+        logger->write("ERROR: Search thread failed: " + e + "\n");
+      }
+      catch(...) {
+        logger->write("ERROR: Search thread failed with unexpected throw\n");
       }
       delete stbuf;
     };
