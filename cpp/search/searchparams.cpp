@@ -10,8 +10,12 @@ SearchParams::SearchParams()
    rootDirichletNoiseTotalConcentration(10.0),
    rootDirichletNoiseWeight(0.25),
    randSeed(""), //Empty string is still a random seed
+   chosenMoveTemperature(0.0),
+   chosenMoveSubtract(2.0),
    mutexPoolSize(8192),
-   numThreads(1)
+   numThreads(1),
+   maxPlayouts(((uint64_t)1) << 63),
+   maxTime(1.0e20)
 {}
 
 SearchParams::~SearchParams()

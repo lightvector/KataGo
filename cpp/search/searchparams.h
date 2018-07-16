@@ -21,10 +21,16 @@ struct SearchParams {
   //Randomization. Note - this controls a few things in the search, but a lot of the randomness actually comes from
   //random symmetries of the neural net evaluations, which is separate from the search's rng, see nneval.h
   string randSeed;
+  double chosenMoveTemperature; //Make move roughly proportional to visit count ** (1/chosenMoveTemperature)
+  double chosenMoveSubtract; //Try to subtract this many playouts from every move prior to applying temperature
 
-  //Thread-related parameters
+  //Misc
   uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes
+
+  //Asyncbot
   int numThreads; //Number of threads, used in asyncbot layer which spawns threads
+  uint64_t maxPlayouts; //Max number of playouts from the root to think for
+  double maxTime; //Max number of seconds to think for if not pondering
 
   SearchParams();
   ~SearchParams();

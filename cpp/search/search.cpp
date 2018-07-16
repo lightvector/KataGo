@@ -72,7 +72,7 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
   :threadIdx(tIdx),
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
-   rand(search.searchParams.randSeed + string("$$") + Global::intToString(threadIdx)),
+   rand(search.searchParams.randSeed + string("$searchThread$") + Global::intToString(threadIdx)),
    nnResultBuf(),
    logStream(NULL)
 {
@@ -90,7 +90,9 @@ SearchThread::~SearchThread() {
 
 Search::Search(SearchParams params, NNEvaluator* nnEval)
   :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),searchParams(params),
-   nnEvaluator(nnEval)
+   nnEvaluator(nnEval),
+   nonSearchRand(params.randSeed + string("$nonSearchRand"))
+
 {
   rootKoHashTable = new KoHashTable();
 
@@ -179,6 +181,101 @@ bool Search::makeMove(Loc moveLoc) {
   return true;
 }
 
+static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
+
+Loc Search::getChosenMoveLoc() {
+  if(rootNode == NULL)
+    return Board::NULL_LOC;
+
+  const SearchNode& node = *rootNode;
+  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
+  unique_lock<std::mutex> lock(mutex);
+
+  int numChildren = node.numChildren;
+  vector<Loc> locs;
+  vector<double> playSelectionValues;
+
+  for(int i = 0; i<numChildren; i++) {
+    SearchNode* child = node.children[i];
+    Loc moveLoc = child->prevMoveLoc;
+    double selectionValue = getPlaySelectionValue(node,child);
+    assert(selectionValue >= 0.0);
+    locs.push_back(moveLoc);
+    playSelectionValues.push_back(selectionValue);
+  }
+  shared_ptr<NNOutput> nnOutput = node.nnOutput;
+  lock.unlock();
+
+  //If we have no children, then use the policy net directly
+  if(numChildren == 0) {
+    if(nnOutput == nullptr)
+      return Board::NULL_LOC;
+    for(int movePos = 0; movePos<NNPos::NN_POLICY_SIZE; movePos++) {
+      assert(rootBoard.x_size == rootBoard.y_size);
+      int offset = NNPos::getOffset(rootBoard.x_size);
+      Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,offset);
+      double policyProb = nnOutput->policyProbs[movePos];
+      if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb <= 0)
+        continue;
+      locs.push_back(moveLoc);
+      playSelectionValues.push_back(policyProb);
+      numChildren++;
+    }
+  }
+
+  //Might happen absurdly rarely if we have a hash collision or something on the nnOutput
+  if(numChildren == 0)
+    return Board::NULL_LOC;
+
+  double maxValue = 0.0;
+  for(int i = 0; i<numChildren; i++) {
+    if(playSelectionValues[i] > maxValue)
+      maxValue = playSelectionValues[i];
+  }
+
+  if(maxValue <= 1e-50)
+    return Board::NULL_LOC;
+
+  double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/2.0);
+  for(int i = 0; i<numChildren; i++) {
+    playSelectionValues[i] -= amountToSubtract;
+    if(playSelectionValues[i] <= 0.0)
+      playSelectionValues[i] = 0.0;
+  }
+  maxValue -= amountToSubtract;
+
+  //Temperature so close to 0 that we just calculate the max directly
+  if(searchParams.chosenMoveTemperature <= 1.0e-4) {
+    double bestSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
+    Loc bestChildMoveLoc = Board::NULL_LOC;
+    for(int i = 0; i<numChildren; i++) {
+      if(playSelectionValues[i] > bestSelectionValue) {
+        bestSelectionValue = playSelectionValues[i];
+        bestChildMoveLoc = locs[i];
+      }
+    }
+    return bestChildMoveLoc;
+  }
+  //Actual temperature
+  else {
+    double sum = 0.0;
+    for(int i = 0; i<numChildren; i++) {
+      //Numerically stable way to raise to power and normalize
+      playSelectionValues[i] = exp((log(playSelectionValues[i]) - log(maxValue)) * searchParams.chosenMoveTemperature);
+      sum += playSelectionValues[i];
+    }
+    assert(sum > 0.0);
+    double d = nonSearchRand.nextDouble(sum);
+    sum = 0.0;
+    for(int i = 0; i<numChildren; i++) {
+      sum += playSelectionValues[i];
+      if(sum > d)
+        return locs[i];
+    }
+    return locs[numChildren-1];
+  }
+}
+
 void Search::beginSearch() {
   if(rootNode == NULL) {
     SearchThread dummyThread(-1, *this, NULL);
@@ -230,7 +327,6 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   }
 }
 
-static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
 
 double Search::getPlaySelectionValue(
   double nnPolicyProb, uint64_t childVisits,
@@ -545,6 +641,8 @@ void Search::playoutDescend(
 }
 
 void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
+  if(n == NULL)
+    return;
   for(int depth = 0; depth < maxDepth; depth++) {
     const SearchNode& node = *n;
     std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
@@ -584,6 +682,8 @@ void Search::printTreeHelper(
   ostream& out, const SearchNode* n, const PrintTreeOptions& options,
   string& prefix, uint64_t origVisits, int depth, double policyProb
 ) {
+  if(n == NULL)
+    return;
   const SearchNode& node = *n;
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex,std::defer_lock);

@@ -94,6 +94,17 @@ int main() {
   cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
   cout << "sizeof(std::shared_ptr<NNOutput>) " << sizeof(std::shared_ptr<NNOutput>) << endl;;
 
+  {
+    atomic<bool>* b = new atomic<bool>(false);
+    cout << "atomic<bool> lock free " << std::atomic_is_lock_free(b) << endl;
+    delete b;
+  }
+  {
+    atomic<uint64_t>* b = new atomic<uint64_t>(0);
+    cout << "atomic<uint64_t> lock free " << std::atomic_is_lock_free(b) << endl;
+    delete b;
+  }
+
   nnEval->killServers();
   for(size_t i = 0; i<nnServerThreads.size(); i++)
     nnServerThreads[i]->join();

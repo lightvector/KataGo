@@ -104,6 +104,7 @@ struct Search {
   //Services--------------------------------------------------------------
   MutexPool* mutexPool;
   NNEvaluator* nnEvaluator; //externally owned
+  Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
 
   Search(SearchParams params, NNEvaluator* nnEval);
   ~Search();
@@ -128,6 +129,10 @@ struct Search {
   //Updates position and preserves the relevant subtree of search
   //If the move is not legal for the current player, returns false and does nothing, else returns true
   bool makeMove(Loc moveLoc);
+
+  //Choose a move at the root of the tree, with randomization, if possible.
+  //Might return Board::NULL_LOC if there is no root.
+  Loc getChosenMoveLoc();
 
   //Call once at the start of each search
   void beginSearch();
