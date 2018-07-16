@@ -32,13 +32,19 @@ int main() {
 
   int maxBatchSize = 8;
   int nnCacheSizePowerOfTwo = 16;
-  NNEvaluator* nnEval = new NNEvaluator("/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb", maxBatchSize, nnCacheSizePowerOfTwo);
+  bool debugSkipNeuralNet = false;
+  NNEvaluator* nnEval = new NNEvaluator(
+    "/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb",
+    maxBatchSize,
+    nnCacheSizePowerOfTwo,
+    debugSkipNeuralNet
+  );
 
   int numNNServerThreads = 1;
   bool doRandomize = true;
   string randSeed = "abc";
   int defaultSymmetry = 0;
-  vector<std::thread*> nnServerThreads = nnEval->spawnServerThreads(numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger);
+  nnEval->spawnServerThreads(numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger);
 
   Rules rules;
   rules.koRule = Rules::KO_POSITIONAL;
@@ -73,12 +79,14 @@ int main() {
   BoardHistory hist(board,pla,rules);
   SearchParams params;
   params.maxPlayouts = 1000;
-  params.numThreads = 3;
+  params.numThreads = 1;
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger);
   bot->setPosition(pla,board,hist);
 
   Loc moveLoc = bot->genMoveSynchronous(pla);
+  bot->clearSearch();
+  nnEval->clearCache();
   ClockTimer timer;
   moveLoc = bot->genMoveSynchronous(pla);
 
@@ -107,12 +115,7 @@ int main() {
     delete b;
   }
 
-  nnEval->killServers();
-  for(size_t i = 0; i<nnServerThreads.size(); i++)
-    nnServerThreads[i]->join();
-  for(size_t i = 0; i<nnServerThreads.size(); i++)
-    delete nnServerThreads[i];
-
+  nnEval->killServerThreads();
   delete bot;
   delete nnEval;
 

@@ -146,9 +146,11 @@ NNServerBuf::~NNServerBuf() {
 
 //-------------------------------------------------------------------------------------
 
-NNEvaluator::NNEvaluator(const string& pbModelFile, int maxBatchSize, int nnCacheSizePowerOfTwo)
+NNEvaluator::NNEvaluator(const string& pbModelFile, int maxBatchSize, int nnCacheSizePowerOfTwo, bool skipNeuralNet)
   :modelFileName(pbModelFile),
    nnCacheTable(NULL),
+   debugSkipNeuralNet(skipNeuralNet),
+   serverThreads(),
    clientWaitingForRow(),serverWaitingForBatchStart(),serverWaitingForBatchFinish(),
    bufferMutex(),
    isKilled(false),
@@ -175,7 +177,7 @@ NNEvaluator::NNEvaluator(const string& pbModelFile, int maxBatchSize, int nnCach
 
 NNEvaluator::~NNEvaluator()
 {
-  assert(isKilled);
+  killServerThreads();
   assert(!serverTryingToGrabBatch);
   freeTensorInputBufs(m_inputsBuffer, m_symmetriesBuffer, m_inputsList, m_resultBufs);
   delete nnCacheTable;
@@ -186,14 +188,17 @@ int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
 }
 
+void NNEvaluator::clearCache() {
+  if(nnCacheTable != NULL)
+    nnCacheTable->clear();
+}
+
 static void serveEvals(int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger, NNEvaluator* nnEval) {
   NNServerBuf* buf = new NNServerBuf(*nnEval);
-  Rand* rand = NULL;
-  if(doRandomize)
-    rand = new Rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
+  Rand rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
   ostream* logStream = logger->createOStream();
   try {
-    nnEval->serve(*buf,rand,defaultSymmetry);
+    nnEval->serve(*buf,rand,doRandomize,defaultSymmetry);
   }
   catch(const exception& e) {
     (*logStream) << "ERROR: NNEval Server Thread " << threadIdx << " failed: " << e.what() << endl;
@@ -205,26 +210,35 @@ static void serveEvals(int threadIdx, bool doRandomize, string randSeed, int def
     (*logStream) << "ERROR: NNEval Server Thread " << threadIdx << " failed with unexpected throw" << endl;
   }
   delete logStream;
-  delete rand;
   delete buf;
 }
 
-vector<thread*> NNEvaluator::spawnServerThreads(int numThreads, bool doRandomize, string randSeed, int defaultSymmetry, Logger& logger) {
-  vector<thread*> vec;
+void NNEvaluator::spawnServerThreads(int numThreads, bool doRandomize, string randSeed, int defaultSymmetry, Logger& logger) {
+  if(serverThreads.size() != 0)
+    throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
+
   for(int i = 0; i<numThreads; i++)
-    vec.push_back(new std::thread(&serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this));
-  return vec;
+    serverThreads.push_back(new std::thread(&serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this));
 }
 
-void NNEvaluator::killServers() {
+void NNEvaluator::killServerThreads() {
   unique_lock<std::mutex> lock(bufferMutex);
   isKilled = true;
   lock.unlock();
   serverWaitingForBatchStart.notify_all();
   serverWaitingForBatchFinish.notify_all();
+
+  for(size_t i = 0; i<serverThreads.size(); i++)
+    serverThreads[i]->join();
+  for(size_t i = 0; i<serverThreads.size(); i++)
+    delete serverThreads[i];
+  serverThreads.clear();
+
+  //Can unset now that threads are dead
+  isKilled = false;
 }
 
-void NNEvaluator::serve(NNServerBuf& buf, Rand* rand, int defaultSymmetry) {
+void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry) {
   Status status;
   //Add graph to session
   status = buf.session->Create(*graphDef);
@@ -268,11 +282,31 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand* rand, int defaultSymmetry) {
     slicedInputsList[0].second = (*buf.inputsList)[0].second.Slice(0,numRows);
 
     int symmetry = defaultSymmetry;
-    if(rand != NULL)
-      symmetry = rand->nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
+    if(doRandomize)
+      symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
     buf.symmetriesBuffer[0] = (symmetry & 0x1) != 0;
     buf.symmetriesBuffer[1] = (symmetry & 0x2) != 0;
     buf.symmetriesBuffer[2] = (symmetry & 0x4) != 0;
+
+    if(debugSkipNeuralNet) {
+      for(int row = 0; row < numRows; row++) {
+        assert(buf.resultBufs[row] != NULL);
+        NNResultBuf* resultBuf = buf.resultBufs[row];
+        buf.resultBufs[row] = NULL;
+
+        unique_lock<std::mutex> resultLock(resultBuf->resultMutex);
+        assert(resultBuf->hasResult == false);
+        resultBuf->result = std::make_shared<NNOutput>();
+        float* policyProbs = resultBuf->result->policyProbs;
+        for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++)
+          policyProbs[i] = rand.nextGaussian();
+        resultBuf->result->whiteValue = rand.nextGaussian() * 0.1;
+        resultBuf->hasResult = true;
+        resultBuf->clientWaitingForResult.notify_all();
+        resultLock.unlock();
+      }
+      continue;
+    }
 
     status = buf.session->Run(slicedInputsList, buf.outputNames, buf.targetNames, &(buf.outputsBuf));
     checkStatus(status,"running inference");
@@ -459,5 +493,14 @@ void NNCacheTable::set(const shared_ptr<NNOutput>& p) {
   while(entry.spinLock.test_and_set(std::memory_order_acquire));
   entry.ptr = p;
   entry.spinLock.clear(std::memory_order_release);
+}
+
+void NNCacheTable::clear() {
+  for(size_t idx = 0; idx<tableSize; idx++) {
+    Entry& entry = entries[idx];
+    while(entry.spinLock.test_and_set(std::memory_order_acquire));
+    entry.ptr = nullptr;
+    entry.spinLock.clear(std::memory_order_release);
+  }
 }
 

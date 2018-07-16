@@ -67,6 +67,7 @@ class NNCacheTable {
   //These are thread-safe
   bool get(Hash128 nnHash, shared_ptr<NNOutput>& ret);
   void set(const shared_ptr<NNOutput>& p);
+  void clear();
 };
 
 //Each thread should allocate and re-use one of these
@@ -107,27 +108,37 @@ struct NNServerBuf {
 
 class NNEvaluator {
  public:
-  NNEvaluator(const string& pbModelFile, int maxBatchSize, int nnCacheSizePowerOfTwo);
+  NNEvaluator(const string& pbModelFile, int maxBatchSize, int nnCacheSizePowerOfTwo, bool debugSkipNeuralNet);
   ~NNEvaluator();
 
   int getMaxBatchSize() const;
-  void killServers();
-  void serve(NNServerBuf& buf, Rand* rand, int defaultSymmetry);
+
+  //Clear all entires cached in the table
+  void clearCache();
 
   //Queue a position for the next neural net batch evaluation and wait for it. Upon evaluation, result
   //will be supplied in NNResultBuf& buf, the shared_ptr there can grabbed via std::move if desired.
   //logStream is for some rror logging, can be NULL.
+  //This function is threadsafe.
   void evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream);
 
-  //Actually spawn threads and return the results. The caller is responsible for joining and freeing them.
+  //Actually spawn threads and return the results.
   //If doRandomize, uses randSeed as a seed, further randomized per-thread
   //If not doRandomize, uses defaultSymmetry for all nn evaluations.
-  vector<thread*> spawnServerThreads(int numThreads, bool doRandomize, string randSeed, int defaultSymmetry, Logger& logger);
+  //This function itself is not threadsafe.
+  void spawnServerThreads(int numThreads, bool doRandomize, string randSeed, int defaultSymmetry, Logger& logger);
+
+  //Kill spawned server threads and join and free them. This function is not threadsafe, and along with spawnServerThreads
+  //should have calls to it and spawnServerThreads singlethreaded.
+  void killServerThreads();
 
  private:
   string modelFileName;
   GraphDef* graphDef;
   NNCacheTable* nnCacheTable;
+  bool debugSkipNeuralNet;
+
+  vector<thread*> serverThreads;
 
   condition_variable clientWaitingForRow;
   condition_variable serverWaitingForBatchStart;
@@ -144,6 +155,10 @@ class NNEvaluator {
   bool* m_symmetriesBuffer;
   vector<pair<string,Tensor>>* m_inputsList;
   NNResultBuf** m_resultBufs;
+
+ public:
+  //Helper, for internal use only
+  void serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry);
 };
 
 #endif
