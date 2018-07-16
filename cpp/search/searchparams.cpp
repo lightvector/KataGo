@@ -13,6 +13,7 @@ SearchParams::SearchParams()
    chosenMoveTemperature(0.0),
    chosenMoveSubtract(2.0),
    mutexPoolSize(8192),
+   numVirtualLossesPerThread(3),
    numThreads(1),
    maxPlayouts(((uint64_t)1) << 63),
    maxTime(1.0e20)

@@ -22,6 +22,7 @@ struct NodeStats {
   uint64_t visits;
   double winLossValueSum;
   double scoreValueSum;
+  int32_t virtualLosses;
 
   NodeStats();
   ~NodeStats();

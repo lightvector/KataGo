@@ -26,6 +26,7 @@ struct SearchParams {
 
   //Misc
   uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes
+  int32_t numVirtualLossesPerThread; //Number of virtual losses for one thread to add
 
   //Asyncbot
   int numThreads; //Number of threads, used in asyncbot layer which spawns threads

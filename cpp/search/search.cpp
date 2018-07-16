@@ -4,18 +4,19 @@
 #include "../search/search.h"
 
 NodeStats::NodeStats()
-  :visits(0),winLossValueSum(0.0),scoreValueSum(0.0)
+  :visits(0),winLossValueSum(0.0),scoreValueSum(0.0),virtualLosses(0)
 {}
 NodeStats::~NodeStats()
 {}
 
 NodeStats::NodeStats(const NodeStats& other)
-  :visits(other.visits),winLossValueSum(other.winLossValueSum),scoreValueSum(other.scoreValueSum)
+  :visits(other.visits),winLossValueSum(other.winLossValueSum),scoreValueSum(other.scoreValueSum),virtualLosses(other.virtualLosses)
 {}
 NodeStats& NodeStats::operator=(const NodeStats& other) {
   visits = other.visits;
   winLossValueSum = other.winLossValueSum;
   scoreValueSum = other.scoreValueSum;
+  virtualLosses = other.virtualLosses;
   return *this;
 }
 
@@ -405,11 +406,18 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   uint64_t childVisits = child->stats.visits;
   double childValueSum = child->stats.getCombinedValueSum(searchParams);
+  int32_t childVirtualLosses = child->stats.virtualLosses;
   child->statsLock.clear(std::memory_order_release);
 
   //When multithreading, totalChildVisits could be out of sync with childVisits, so if they provably are, then fix that up
   if(totalChildVisits < childVisits)
     totalChildVisits = childVisits;
+
+  //Virtual losses to direct threads down different paths
+  totalChildVisits += childVirtualLosses;
+  childVisits += childVirtualLosses;
+  childValueSum += (parent.nextPla == P_WHITE ? -childVirtualLosses : childVirtualLosses) *
+    (searchParams.winLossUtilityFactor + searchParams.scoreUtilityFactor);
 
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,fpuValue,parent.nextPla);
 }
@@ -508,6 +516,14 @@ void Search::runSinglePlayout(SearchThread& thread) {
   double retScoreValue;
   int posesWithChildBuf[NNPos::NN_POLICY_SIZE];
   playoutDescend(thread,*rootNode,retWinLossValue,retScoreValue,posesWithChildBuf,true);
+
+  //Update stats coming back up
+  while(rootNode->statsLock.test_and_set(std::memory_order_acquire));
+  rootNode->stats.visits += 1;
+  rootNode->stats.winLossValueSum += retWinLossValue;
+  rootNode->stats.scoreValueSum += retScoreValue;
+  rootNode->statsLock.clear(std::memory_order_release);
+
   //Restore thread state back to the root state
   thread.pla = rootPla;
   thread.board = rootBoard;
@@ -526,13 +542,6 @@ void Search::playoutDescend(
     //TODO what to do here? Is this reasonable? Probably actually want a separate output?
     //weird that this also gets scaled later by winLossUtilityFactor
     if(thread.history.isNoResult) {
-
-      while(node.statsLock.test_and_set(std::memory_order_acquire));
-      node.stats.visits += 1;
-      node.stats.winLossValueSum += searchParams.noResultUtilityForWhite;
-      node.stats.scoreValueSum += 0.0;
-      node.statsLock.clear(std::memory_order_release);
-
       retWinLossValue = searchParams.noResultUtilityForWhite;
       retScoreValue = 0.0;
       return;
@@ -541,12 +550,6 @@ void Search::playoutDescend(
       double winLossValue = NNOutput::whiteValueOfWinner(thread.history.winner);
       assert(thread.board.x_size == thread.board.y_size);
       double scoreValue = NNOutput::whiteValueOfScore(thread.history.finalWhiteMinusBlackScore, thread.board.x_size);
-
-      while(node.statsLock.test_and_set(std::memory_order_acquire));
-      node.stats.visits += 1;
-      node.stats.winLossValueSum += winLossValue;
-      node.stats.scoreValueSum += scoreValue;
-      node.statsLock.clear(std::memory_order_release);
 
       retWinLossValue = winLossValue;
       retScoreValue = scoreValue;
@@ -564,17 +567,9 @@ void Search::playoutDescend(
     maybeAddPolicyNoise(thread,node,isRoot);
     lock.unlock();
 
+    //TODO update this and other places when we have a score prediction on the net
     //Values in the search are from the perspective of white positive always
     double value = (double)node.nnOutput->whiteValue;
-
-    //Update node stats
-    while(node.statsLock.test_and_set(std::memory_order_acquire));
-    node.stats.visits += 1;
-    //TODO update this when we have a score prediction on the net
-    node.stats.winLossValueSum += value;
-    node.stats.scoreValueSum += 0.0;
-    node.statsLock.clear(std::memory_order_release);
-
     retWinLossValue = value;
     retScoreValue = 0.0;
     return;
@@ -600,8 +595,6 @@ void Search::playoutDescend(
     lock.unlock();
     throw StringError("Search error: No move with sane selection value - can't even pass?");
   }
-
-  //TODO virtual losses
 
   //Reallocate the children array to increase capacity if necessary
   if(bestChildIdx >= node.childrenCapacity) {
@@ -629,13 +622,19 @@ void Search::playoutDescend(
 
     node.numChildren++;
     child = new SearchNode(*this,thread,moveLoc);
+    child->stats.virtualLosses += searchParams.numVirtualLossesPerThread; //no lock needed since just created
     node.children[bestChildIdx] = child;
+
     lock.unlock();
   }
   else {
     child = node.children[bestChildIdx];
 
-    //Unlock first if the child already exists since we don't depend on it at this point
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
+    child->stats.virtualLosses += searchParams.numVirtualLossesPerThread;
+    child->statsLock.clear(std::memory_order_release);
+
+    //Unlock before making moves if the child already exists since we don't depend on it at this point
     lock.unlock();
 
     assert(thread.history.isLegal(thread.board,moveLoc,thread.pla));
@@ -646,12 +645,13 @@ void Search::playoutDescend(
   //Recurse!
   playoutDescend(thread,*child,retWinLossValue,retScoreValue,posesWithChildBuf,false);
 
-  //Update stats coming back up
-  while(node.statsLock.test_and_set(std::memory_order_acquire));
-  node.stats.visits += 1;
-  node.stats.winLossValueSum += retWinLossValue;
-  node.stats.scoreValueSum += retScoreValue;
-  node.statsLock.clear(std::memory_order_release);
+  //Update child stats
+  while(child->statsLock.test_and_set(std::memory_order_acquire));
+  child->stats.visits += 1;
+  child->stats.winLossValueSum += retWinLossValue;
+  child->stats.scoreValueSum += retScoreValue;
+  child->stats.virtualLosses -= searchParams.numVirtualLossesPerThread;
+  child->statsLock.clear(std::memory_order_release);
 }
 
 void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
@@ -830,6 +830,8 @@ void Search::printTreeHelper(
       size_t oldLen = prefix.length();
       prefix += Location::toString(moveLoc,rootBoard);
       prefix += " ";
+      if(prefix.length() < oldLen+4)
+        prefix += " ";
       printTreeHelper(out,child,options,prefix,origVisits,depth+1,childPolicyProb);
       prefix.erase(oldLen);
     }

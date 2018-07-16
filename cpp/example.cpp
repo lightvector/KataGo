@@ -72,13 +72,15 @@ int main() {
 
   BoardHistory hist(board,pla,rules);
   SearchParams params;
-  params.maxPlayouts = 300;
+  params.maxPlayouts = 1000;
+  params.numThreads = 3;
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger);
   bot->setPosition(pla,board,hist);
 
-  ClockTimer timer;
   Loc moveLoc = bot->genMoveSynchronous(pla);
+  ClockTimer timer;
+  moveLoc = bot->genMoveSynchronous(pla);
 
   double seconds = timer.getSeconds();
   cout << board << endl;
