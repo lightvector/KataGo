@@ -132,6 +132,11 @@ class NNEvaluator {
   //should have calls to it and spawnServerThreads singlethreaded.
   void killServerThreads();
 
+  //Some stats
+  uint64_t numRowsProcessed();
+  uint64_t numBatchesProcessed();
+  double averageProcessedBatchSize();
+
  private:
   string modelFileName;
   GraphDef* graphDef;
@@ -150,6 +155,9 @@ class NNEvaluator {
   int maxNumRows;
   int m_numRowsStarted;
   int m_numRowsFinished;
+
+  atomic<uint64_t> m_numRowsProcessed;
+  atomic<uint64_t> m_numBatchesProcessed;
 
   float* m_inputsBuffer;
   bool* m_symmetriesBuffer;

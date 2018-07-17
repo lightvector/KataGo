@@ -96,6 +96,10 @@ int main() {
   cout << "Seconds: " << seconds << endl;
   bot->search->printTree(cout, bot->search->rootNode, PrintTreeOptions().maxDepth(1));
 
+  cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
+  cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
+  cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
+
   cout << "sizeof(uint8_t) " << sizeof(uint8_t) << endl;
   cout << "sizeof(uint16_t) " << sizeof(uint16_t) << endl;
   cout << "sizeof(uint32_t) " << sizeof(uint32_t) << endl;

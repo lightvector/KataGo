@@ -158,6 +158,8 @@ NNEvaluator::NNEvaluator(const string& pbModelFile, int maxBatchSize, int nnCach
    maxNumRows(maxBatchSize),
    m_numRowsStarted(0),
    m_numRowsFinished(0),
+   m_numRowsProcessed(0),
+   m_numBatchesProcessed(0),
    m_inputsBuffer(NULL),
    m_symmetriesBuffer(NULL),
    m_inputsList(NULL)
@@ -186,6 +188,16 @@ NNEvaluator::~NNEvaluator()
 
 int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
+}
+
+uint64_t NNEvaluator::numRowsProcessed() {
+  return m_numRowsProcessed.load(std::memory_order_relaxed);
+}
+uint64_t NNEvaluator::numBatchesProcessed() {
+  return m_numBatchesProcessed.load(std::memory_order_relaxed);
+}
+double NNEvaluator::averageProcessedBatchSize() {
+  return (double)numRowsProcessed() / (double)numBatchesProcessed();
 }
 
 void NNEvaluator::clearCache() {
@@ -348,6 +360,9 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defa
       resultLock.unlock();
     }
     buf.outputsBuf.clear();
+
+    m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);
+    m_numBatchesProcessed.fetch_add(1, std::memory_order_relaxed);
     continue;
   }
 
