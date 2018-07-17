@@ -879,6 +879,11 @@ class Model:
 
       value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
 
+      self.add_lr_factor("v2/w:0",0.25)
+      self.add_lr_factor("v2/b:0",0.25)
+      self.add_lr_factor("v3/w:0",0.25)
+      self.add_lr_factor("v3/b:0",0.25)
+
       self.value_output = value_output
     else:
       self.value_output = tf.zeros_like(inputs[:,0,0], name="value_output")
