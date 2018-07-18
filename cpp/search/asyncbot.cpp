@@ -37,6 +37,21 @@ AsyncBot::~AsyncBot() {
   delete search;
 }
 
+
+const Board& AsyncBot::getRootBoard() const {
+  return search->rootBoard;
+}
+const BoardHistory& AsyncBot::getRootHist() const {
+  return search->rootHistory;
+}
+Player AsyncBot::getRootPla() const {
+  return search->rootPla;
+}
+
+Search* AsyncBot::getSearch() {
+  return search;
+}
+
 void AsyncBot::setPosition(Player pla, const Board& board, const BoardHistory& history) {
   stopAndWait();
   search->setPosition(pla,board,history);

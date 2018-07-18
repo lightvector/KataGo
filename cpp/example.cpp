@@ -94,7 +94,7 @@ int main() {
   cout << board << endl;
   cout << "MoveLoc: " << Location::toString(moveLoc,board) << endl;
   cout << "Seconds: " << seconds << endl;
-  bot->search->printTree(cout, bot->search->rootNode, PrintTreeOptions().maxDepth(1));
+  bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
 
   cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
   cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;

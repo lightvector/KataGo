@@ -16,6 +16,12 @@ class AsyncBot {
   //Unless otherwise specified, functions in this class are NOT threadsafe, although they may spawn off asynchronous events.
   //Usage of this API should be single-threaded!
 
+  const Board& getRootBoard() const;
+  const BoardHistory& getRootHist() const;
+  Player getRootPla() const;
+
+  Search* getSearch();
+
   //Setup, same as in search.h
   //Calling any of these will stop any ongoing search, waiting for a full stop.
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
@@ -46,7 +52,8 @@ class AsyncBot {
   //Safe to call even if nothing is running.
   void stopAndWait();
 
-  //private:
+
+ private:
   Search* search;
   Logger* logger;
   SearchParams searchParams;
@@ -64,7 +71,7 @@ class AsyncBot {
 
   void waitForSearchToEnd();
 
-  // public:
+ public:
   //Only for internal use
   void internalSearchThreadLoop();
 };

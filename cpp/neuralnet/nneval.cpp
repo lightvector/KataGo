@@ -190,14 +190,19 @@ int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
 }
 
-uint64_t NNEvaluator::numRowsProcessed() {
+uint64_t NNEvaluator::numRowsProcessed() const {
   return m_numRowsProcessed.load(std::memory_order_relaxed);
 }
-uint64_t NNEvaluator::numBatchesProcessed() {
+uint64_t NNEvaluator::numBatchesProcessed() const {
   return m_numBatchesProcessed.load(std::memory_order_relaxed);
 }
-double NNEvaluator::averageProcessedBatchSize() {
+double NNEvaluator::averageProcessedBatchSize() const {
   return (double)numRowsProcessed() / (double)numBatchesProcessed();
+}
+
+void NNEvaluator::clearStats() {
+  m_numRowsProcessed.store(0);
+  m_numBatchesProcessed.store(0);
 }
 
 void NNEvaluator::clearCache() {

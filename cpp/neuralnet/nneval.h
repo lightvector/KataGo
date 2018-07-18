@@ -133,9 +133,11 @@ class NNEvaluator {
   void killServerThreads();
 
   //Some stats
-  uint64_t numRowsProcessed();
-  uint64_t numBatchesProcessed();
-  double averageProcessedBatchSize();
+  uint64_t numRowsProcessed() const;
+  uint64_t numBatchesProcessed() const;
+  double averageProcessedBatchSize() const;
+
+  void clearStats();
 
  private:
   string modelFileName;
