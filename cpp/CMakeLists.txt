@@ -103,6 +103,8 @@ add_executable(example
   core/config.h
   core/global.cpp
   core/global.h
+  core/config_parser.cpp
+  core/config_parser.h
   core/hash.cpp
   core/hash.h
   core/logger.h
