@@ -7,13 +7,13 @@ static void searchThreadLoop(AsyncBot* asyncBot, Logger* logger) {
     asyncBot->internalSearchThreadLoop();
   }
   catch(const exception& e) {
-    logger->write(string("ERROR: Async bot thread failed: ") + e.what() + "\n");
+    logger->write(string("ERROR: Async bot thread failed: ") + e.what());
   }
   catch(const string& e) {
-    logger->write("ERROR: Async bot thread failed: " + e + "\n");
+    logger->write("ERROR: Async bot thread failed: " + e);
   }
   catch(...) {
-    logger->write("ERROR: Async bot thread failed with unexpected throw\n");
+    logger->write("ERROR: Async bot thread failed with unexpected throw");
   }
 }
 
@@ -134,9 +134,9 @@ void AsyncBot::internalSearchThreadLoop() {
     atomic<uint64_t> numPlayouts(0);
 
     if(!std::atomic_is_lock_free(&numPlayouts))
-      logger->write("Warning: uint64_t atomic numPlayouts is not lock free\n");
+      logger->write("Warning: uint64_t atomic numPlayouts is not lock free");
     if(!std::atomic_is_lock_free(&shouldStopNow))
-      logger->write("Warning: bool atomic shouldStopNow is not lock free\n");
+      logger->write("Warning: bool atomic shouldStopNow is not lock free");
 
     search->beginSearch();
 
@@ -160,13 +160,13 @@ void AsyncBot::internalSearchThreadLoop() {
         }
       }
       catch(const exception& e) {
-        logger->write(string("ERROR: Search thread failed: ") + e.what() + "\n");
+        logger->write(string("ERROR: Search thread failed: ") + e.what());
       }
       catch(const string& e) {
-        logger->write("ERROR: Search thread failed: " + e + "\n");
+        logger->write("ERROR: Search thread failed: " + e);
       }
       catch(...) {
-        logger->write("ERROR: Search thread failed with unexpected throw\n");
+        logger->write("ERROR: Search thread failed with unexpected throw");
       }
       delete stbuf;
     };

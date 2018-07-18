@@ -26,6 +26,7 @@ class Logger {
   //The lifetime of the Logger must exceed the lifetimes of any of the ostreams created from it.
   //The caller is responsible for freeing the ostreams
   void write(const string& str);
+  void writeNoEndline(const string& str);
   ostream* createOStream();
 
  private:
@@ -34,6 +35,8 @@ class Logger {
   vector<ofstream*> files;
   vector<LogBuf*> logBufs;
   std::mutex mutex;
+
+  void write(const string& str, bool endLine);
 };
 
 class LogBuf : public std::stringbuf {
