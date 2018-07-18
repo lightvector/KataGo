@@ -298,6 +298,15 @@ void Search::beginSearch() {
   }
 }
 
+uint64_t Search::numRootVisits() {
+  if(rootNode == NULL)
+    return 0;
+  while(rootNode->statsLock.test_and_set(std::memory_order_acquire));
+  uint64_t n = rootNode->stats.visits;
+  rootNode->statsLock.clear(std::memory_order_release);
+  return n;
+}
+
 //Assumes node is locked
 void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const {
   if(!isRoot || !searchParams.rootNoiseEnabled)

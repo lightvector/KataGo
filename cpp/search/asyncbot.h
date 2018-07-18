@@ -64,12 +64,15 @@ class AsyncBot {
   thread searchThread;
 
   bool isRunning;
+  bool isPondering;
   bool isKilled;
   atomic<bool> shouldStopNow;
   int queuedSearchId;
   std::function<void(Loc,int)> queuedOnMove;
 
+  void stopAndWaitAlreadyLocked(unique_lock<std::mutex>& lock);
   void waitForSearchToEnd();
+  void waitForSearchToEndAlreadyLocked(unique_lock<std::mutex>& lock);
 
  public:
   //Only for internal use

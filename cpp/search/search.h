@@ -142,9 +142,10 @@ struct Search {
   //Within-search functions, threadsafe-------------------------------------------
   void runSinglePlayout(SearchThread& thread);
 
-  //Debug functions---------------------------------------------------------------
+  //Tree-inspection functions---------------------------------------------------------------
   void printPV(ostream& out, const SearchNode* node, int maxDepth);
   void printTree(ostream& out, const SearchNode* node, PrintTreeOptions options);
+  uint64_t numRootVisits();
 
   //Helpers-----------------------------------------------------------------------
 private:

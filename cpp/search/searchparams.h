@@ -30,7 +30,8 @@ struct SearchParams {
 
   //Asyncbot
   int numThreads; //Number of threads, used in asyncbot layer which spawns threads
-  uint64_t maxPlayouts; //Max number of playouts from the root to think for
+  uint64_t maxVisits; //Max number of playouts from the root to think for, counting earlier playouts from tree reuse
+  uint64_t maxPlayouts; //Max number of playouts from the root to think for, not counting earlier playouts from tree reuse
   double maxTime; //Max number of seconds to think for if not pondering
 
   SearchParams();
