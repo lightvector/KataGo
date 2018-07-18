@@ -43,8 +43,11 @@ namespace Global
   string boolToString(bool b);
   string charToString(char c);
   string intToString(int x);
+  string floatToString(float x);
   string doubleToString(double x);
   string int64ToString(int64_t x);
+  string uint32ToString(uint32_t x);
+  string uint64ToString(uint64_t x);
   string uint32ToHexString(uint32_t x);
   string uint64ToHexString(uint64_t x);
 
@@ -52,11 +55,13 @@ namespace Global
   int stringToInt(const string& str);
   int64_t stringToInt64(const string& str);
   uint64_t stringToUInt64(const string& str);
+  float stringToFloat(const string& str);
   double stringToDouble(const string& str);
   bool stringToBool(const string& str);
   bool tryStringToInt(const string& str, int& x);
   bool tryStringToInt64(const string& str, int64_t& x);
   bool tryStringToUInt64(const string& str, uint64_t& x);
+  bool tryStringToFloat(const string& str, float& x);
   bool tryStringToDouble(const string& str, double& x);
   bool tryStringToBool(const string& str, bool& x);
 
@@ -75,6 +80,7 @@ namespace Global
   string concat(const char* const* strs, size_t len, const char* delim);
   string concat(const vector<string>& strs, const char* delim);
   string concat(const vector<string>& strs, const char* delim, size_t start, size_t end);
+  string concat(const set<string>& strs, const char* delim);
 
   //Split string into tokens, trimming off whitespace
   vector<string> split(const string& s);
@@ -84,6 +90,8 @@ namespace Global
   //Convert to upper or lower case
   string toUpper(const string& s);
   string toLower(const string& s);
+
+  bool isEqualCaseInsensitive(const string& s0, const string& s1);
 
   //Like sprintf, but returns a string
   string strprintf(const char* fmt, ...);
