@@ -44,7 +44,13 @@ int main() {
   bool doRandomize = true;
   string randSeed = "abc";
   int defaultSymmetry = 0;
-  nnEval->spawnServerThreads(numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger);
+  vector<string> gpuVisibleDeviceListByThread = {}; //use default
+  double perProcessGPUMemoryFraction = -1; //use default
+  nnEval->spawnServerThreads(
+    numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,
+    gpuVisibleDeviceListByThread,
+    perProcessGPUMemoryFraction
+  );
 
   Rules rules;
   rules.koRule = Rules::KO_POSITIONAL;

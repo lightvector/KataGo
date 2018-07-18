@@ -72,6 +72,13 @@ int main(int argc, const char* argv[]) {
       nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
     logger.write("nnRandSeed = " + nnRandSeed);
 
+    vector<string> gpuVisibleDeviceListByThread;
+    if(cfg.contains("gpuVisibleDeviceList"))
+      gpuVisibleDeviceListByThread.push_back(cfg.getString("gpuVisibleDeviceList"));
+    double perProcessGPUMemoryFraction = -1;
+    if(cfg.contains("perProcessGPUMemoryFraction"))
+       perProcessGPUMemoryFraction = cfg.getDouble("perProcessGPUMemoryFraction",0.0,1.0);
+
     int numNNServerThreads = 1;
     int defaultSymmetry = 0;
     nnEval->spawnServerThreads(
@@ -79,7 +86,9 @@ int main(int argc, const char* argv[]) {
       nnRandomize,
       nnRandSeed,
       defaultSymmetry,
-      logger
+      logger,
+      gpuVisibleDeviceListByThread,
+      perProcessGPUMemoryFraction
     );
   }
 
@@ -98,7 +107,7 @@ int main(int argc, const char* argv[]) {
     else assert(false);
 
     if(scoringRule == "AREA") initialRules.scoringRule = Rules::SCORING_AREA;
-    if(scoringRule == "TERRITORY") initialRules.scoringRule = Rules::SCORING_TERRITORY;
+    else if(scoringRule == "TERRITORY") initialRules.scoringRule = Rules::SCORING_TERRITORY;
     else assert(false);
 
     initialRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
@@ -112,7 +121,8 @@ int main(int argc, const char* argv[]) {
       params.maxPlayouts = cfg.getUInt64("maxPlayouts", (uint64_t)1, (uint64_t)1 << 62);
     if(cfg.contains("maxVisits"))
       params.maxVisits = cfg.getUInt64("maxVisits", (uint64_t)1, (uint64_t)1 << 62);
-    params.maxTime = cfg.getDouble("maxTime", 0.0, 1.0e20);
+    if(cfg.contains("maxTime"))
+      params.maxTime = cfg.getDouble("maxTime", 0.0, 1.0e20);
     params.numThreads = cfg.getInt("numSearchThreads", 1, 1024);
 
     params.winLossUtilityFactor = cfg.getDouble("winLossUtilityFactor", 0.0, 1.0);
@@ -198,7 +208,7 @@ int main(int argc, const char* argv[]) {
     bool hasId = false;
     int id = 0;
     {
-      size_t digitPrefixLen;
+      size_t digitPrefixLen = 0;
       while(digitPrefixLen < line.length() && Global::isDigit(line[digitPrefixLen]))
         digitPrefixLen++;
       if(digitPrefixLen > 0) {

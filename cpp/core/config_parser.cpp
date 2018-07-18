@@ -50,9 +50,10 @@ string ConfigParser::getString(const string& key, const set<string>& possibles) 
   auto iter = keyValues.find(key);
   if(iter == keyValues.end())
     throw IOError("Could not find key '" + key + "' in config file " + fileName);
-  if(possibles.find(key) == possibles.end())
+  string value = iter->second;
+  if(possibles.find(value) == possibles.end())
     throw IOError("Key '" + key + "' must be one of (" + Global::concat(possibles,"|") + ") in config file " + fileName);
-  return iter->second;
+  return value;
 }
 
 bool ConfigParser::getBool(const string& key) const {

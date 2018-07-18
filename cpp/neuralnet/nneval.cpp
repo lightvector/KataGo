@@ -110,7 +110,7 @@ static void freeTensorInputBufs(
 }
 
 
-NNServerBuf::NNServerBuf(const NNEvaluator& nnEval)
+NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const string* gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet)
   :session(NULL),
    outputNames(),
    targetNames(),
@@ -122,9 +122,16 @@ NNServerBuf::NNServerBuf(const NNEvaluator& nnEval)
 {
   Status status;
 
-  //Create session
-  status = NewSession(SessionOptions(), &session);
-  checkStatus(status,"creating session");
+  //Create tensorflow session
+  if(!debugSkipNeuralNet) {
+    SessionOptions sessionOptions = SessionOptions();
+    if(gpuVisibleDevices != NULL)
+      sessionOptions.config.mutable_gpu_options()->set_visible_device_list(*gpuVisibleDevices);
+    if(perProcessGPUMemoryFraction >= 0.0)
+      sessionOptions.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(perProcessGPUMemoryFraction);
+    status = NewSession(sessionOptions, &session);
+    checkStatus(status,"creating session");
+  }
 
   outputNames = {
     string("policy_output"),
@@ -140,13 +147,20 @@ NNServerBuf::~NNServerBuf() {
   outputsBuf.clear();
   freeTensorInputBufs(inputsBuffer, symmetriesBuffer, inputsList, resultBufs);
 
-  session->Close();
+  if(session != NULL)
+    session->Close();
   session = NULL;
 }
 
+
 //-------------------------------------------------------------------------------------
 
-NNEvaluator::NNEvaluator(const string& pbModelFile, int maxBatchSize, int nnCacheSizePowerOfTwo, bool skipNeuralNet)
+NNEvaluator::NNEvaluator(
+  const string& pbModelFile,
+  int maxBatchSize,
+  int nnCacheSizePowerOfTwo,
+  bool skipNeuralNet
+)
   :modelFileName(pbModelFile),
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
@@ -210,8 +224,11 @@ void NNEvaluator::clearCache() {
     nnCacheTable->clear();
 }
 
-static void serveEvals(int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger, NNEvaluator* nnEval) {
-  NNServerBuf* buf = new NNServerBuf(*nnEval);
+static void serveEvals(
+  int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger, NNEvaluator* nnEval,
+  const string* gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet
+) {
+  NNServerBuf* buf = new NNServerBuf(*nnEval, gpuVisibleDevices, perProcessGPUMemoryFraction, debugSkipNeuralNet);
   Rand rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
   ostream* logStream = logger->createOStream();
   try {
@@ -230,12 +247,31 @@ static void serveEvals(int threadIdx, bool doRandomize, string randSeed, int def
   delete buf;
 }
 
-void NNEvaluator::spawnServerThreads(int numThreads, bool doRandomize, string randSeed, int defaultSymmetry, Logger& logger) {
+void NNEvaluator::spawnServerThreads(
+  int numThreads,
+  bool doRandomize,
+  string randSeed,
+  int defaultSymmetry,
+  Logger& logger,
+  const vector<string>& gpuVisibleDeviceListByThread,
+  double perProcessGPUMemoryFraction
+) {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
 
-  for(int i = 0; i<numThreads; i++)
-    serverThreads.push_back(new std::thread(&serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this));
+  if(gpuVisibleDeviceListByThread.size() > 0 && gpuVisibleDeviceListByThread.size() != numThreads)
+    throw StringError("NNEvaluator::spawnServerThreads gpuVisibleDeviceListByThread is not the same size as the number of threads!");
+
+  for(int i = 0; i<numThreads; i++) {
+    const string* gpuVisibleDevices = NULL;
+    if(gpuVisibleDeviceListByThread.size() > 0)
+      gpuVisibleDevices = &(gpuVisibleDeviceListByThread[i]);
+    std::thread* thread = new std::thread(
+      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,
+      gpuVisibleDevices,perProcessGPUMemoryFraction,debugSkipNeuralNet
+    );
+    serverThreads.push_back(thread);
+  }
 }
 
 void NNEvaluator::killServerThreads() {

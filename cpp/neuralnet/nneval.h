@@ -98,7 +98,7 @@ struct NNServerBuf {
   vector<pair<string,Tensor>>* inputsList;
   NNResultBuf** resultBufs;
 
-  NNServerBuf(const NNEvaluator& nneval);
+  NNServerBuf(const NNEvaluator& nneval, const string* gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet);
   ~NNServerBuf();
   NNServerBuf(const NNServerBuf& other) = delete;
   NNServerBuf& operator=(const NNServerBuf& other) = delete;
@@ -108,7 +108,12 @@ struct NNServerBuf {
 
 class NNEvaluator {
  public:
-  NNEvaluator(const string& pbModelFile, int maxBatchSize, int nnCacheSizePowerOfTwo, bool debugSkipNeuralNet);
+  NNEvaluator(
+    const string& pbModelFile,
+    int maxBatchSize,
+    int nnCacheSizePowerOfTwo,
+    bool debugSkipNeuralNet
+  );
   ~NNEvaluator();
 
   int getMaxBatchSize() const;
@@ -126,7 +131,15 @@ class NNEvaluator {
   //If doRandomize, uses randSeed as a seed, further randomized per-thread
   //If not doRandomize, uses defaultSymmetry for all nn evaluations.
   //This function itself is not threadsafe.
-  void spawnServerThreads(int numThreads, bool doRandomize, string randSeed, int defaultSymmetry, Logger& logger);
+  void spawnServerThreads(
+    int numThreads,
+    bool doRandomize,
+    string randSeed,
+    int defaultSymmetry,
+    Logger& logger,
+    const vector<string>& gpuVisibleDeviceListByThread,  //can be the empty vector if using tensorflow defaults
+    double perProcessGPUMemoryFraction //can be -1 to use tensorflow defaults
+  );
 
   //Kill spawned server threads and join and free them. This function is not threadsafe, and along with spawnServerThreads
   //should have calls to it and spawnServerThreads singlethreaded.
