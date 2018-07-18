@@ -37,8 +37,10 @@ SearchNode::SearchNode(Search& search, SearchThread& thread, Loc moveLoc)
   lockIdx = thread.rand.nextUInt(search.mutexPool->getNumMutexes());
 }
 SearchNode::~SearchNode() {
-  for(int i = 0; i<numChildren; i++)
-    delete children[i];
+  if(children != NULL) {
+    for(int i = 0; i<numChildren; i++)
+      delete children[i];
+  }
   delete[] children;
 }
 
@@ -156,27 +158,29 @@ void Search::clearSearch() {
   rootNode = NULL;
 }
 
-bool Search::makeMove(Loc moveLoc, Player movePla) {
+bool Search::isLegal(Loc moveLoc, Player movePla) const {
   //Don't require that the move is legal for the history, merely the board, so that
   //we're robust to the outside saying that a move was made that violates superko or things like that.
   //Also handle simple ko correctly in case somehow we find out the same player making multiple moves
   //in a row (which is possible in GTP)
-  bool isLegal;
   if(movePla != rootPla) {
     Board copy = rootBoard;
     copy.clearSimpleKoLoc();
-    isLegal = copy.isLegal(moveLoc,movePla,rootHistory.rules.multiStoneSuicideLegal);
+    return copy.isLegal(moveLoc,movePla,rootHistory.rules.multiStoneSuicideLegal);
   }
   else
-    isLegal = rootBoard.isLegal(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+    return rootBoard.isLegal(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+}
 
-  if(!isLegal)
+bool Search::makeMove(Loc moveLoc, Player movePla) {
+  if(!isLegal(moveLoc,movePla))
     return false;
 
   if(movePla != rootPla)
     setPlayerAndClearHistory(movePla);
 
   if(rootNode != NULL) {
+    bool foundChild = false;
     for(int i = 0; i<rootNode->numChildren; i++) {
       SearchNode* child = rootNode->children[i];
       if(child->prevMoveLoc == moveLoc) {
@@ -186,8 +190,12 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
         delete rootNode;
         rootNode = node;
         rootNode->prevMoveLoc = Board::NULL_LOC;
+        foundChild = true;
         break;
       }
+    }
+    if(!foundChild) {
+      clearSearch();
     }
   }
   rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable);

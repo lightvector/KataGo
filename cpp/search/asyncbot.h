@@ -34,6 +34,7 @@ class AsyncBot {
   //Will stop any ongoing search, waiting for a full stop.
   //If the move is not legal for the current player, returns false and does nothing, else returns true
   bool makeMove(Loc moveLoc, Player movePla);
+  bool isLegal(Loc moveLoc, Player movePla) const;
 
   //Begin searching and produce a move.
   //Will stop any ongoing search, waiting for a full stop.

@@ -53,6 +53,8 @@ int main(int argc, const char* argv[]) {
   bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   bool logSearchInfo = cfg.getBool("logSearchInfo");
 
+  logger.write("GTP Engine starting...");
+
   NNEvaluator* nnEval;
   {
     bool debugSkipNeuralNet = false;
@@ -91,7 +93,7 @@ int main(int argc, const char* argv[]) {
       perProcessGPUMemoryFraction
     );
   }
-
+  logger.write("Loaded neural net");
 
   Rules initialRules;
   {
@@ -172,6 +174,8 @@ int main(int argc, const char* argv[]) {
     "genmove",
   };
 
+  logger.write("Beginning main protocol loop");
+
   string line;
   while(cin) {
     getline(cin,line);
@@ -202,7 +206,7 @@ int main(int argc, const char* argv[]) {
 
     string strippedLine = line;
     if(logAllGTPCommunication)
-      logger.write(strippedLine);
+      logger.write("Controller: " + strippedLine);
 
     //Parse id number of command, if present
     bool hasId = false;
@@ -366,8 +370,8 @@ int main(int argc, const char* argv[]) {
         ClockTimer timer;
         nnEval->clearStats();
         Loc loc = bot->genMoveSynchronous(pla);
-        bool suc = bot->makeMove(loc,pla);
-        if(loc == Board::NULL_LOC || !suc) {
+        bool isLegal = bot->isLegal(loc,pla);
+        if(loc == Board::NULL_LOC || !isLegal) {
           responseIsError = true;
           response = "genmove returned null location or illegal move";
           ostringstream sout;
@@ -389,12 +393,15 @@ int main(int argc, const char* argv[]) {
           sout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
           sout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
           sout << "PV: ";
-          search->printPV(cout, search->rootNode, 25);
+          search->printPV(sout, search->rootNode, 25);
           sout << "\n";
           sout << "Tree:\n";
-          search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1));
+          search->printTree(sout, search->rootNode, PrintTreeOptions().maxDepth(1));
           logger.write(sout.str());
         }
+
+        bool suc = bot->makeMove(loc,pla);
+        assert(suc);
 
         maybeStartPondering = true;
       }

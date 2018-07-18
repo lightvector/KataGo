@@ -79,6 +79,10 @@ bool AsyncBot::makeMove(Loc moveLoc, Player movePla) {
   return search->makeMove(moveLoc,movePla);
 }
 
+bool AsyncBot::isLegal(Loc moveLoc, Player movePla) const {
+  return search->isLegal(moveLoc,movePla);
+}
+
 void AsyncBot::genMove(Player movePla, int searchId, std::function<void(Loc,int)> onMove) {
   unique_lock<std::mutex> lock(controlMutex);
   if(isRunning && isPondering && movePla == search->rootPla) {

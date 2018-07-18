@@ -131,6 +131,7 @@ struct Search {
   //If the move is not legal for the specified player, returns false and does nothing, else returns true
   //In the case where the player was not the expected one moving next, also clears history.
   bool makeMove(Loc moveLoc, Player movePla);
+  bool isLegal(Loc moveLoc, Player movePla) const;
 
   //Choose a move at the root of the tree, with randomization, if possible.
   //Might return Board::NULL_LOC if there is no root.

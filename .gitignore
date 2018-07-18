@@ -8,6 +8,7 @@ cpp/write
 cpp/runtests
 cpp/example
 cpp/gtp
+cpp/gtp.log
 
 # For clion IDE
 .idea
