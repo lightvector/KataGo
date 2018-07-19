@@ -1788,8 +1788,10 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
   string s = Global::trim(str);
   if(s.length() < 2)
     return false;
-  if(Global::isEqualCaseInsensitive(s,string("pass")))
-    return Board::PASS_LOC;
+  if(Global::isEqualCaseInsensitive(s,string("pass"))) {
+    result = Board::PASS_LOC;
+    return true;
+  }
   if(s[0] == '(') {
     if(s[s.length()-1] != ')')
       return false;
@@ -1843,8 +1845,7 @@ Loc Location::ofString(const string& str, const Board& b) {
   return ofString(str,b.x_size,b.y_size);
 }
 
-ostream& operator<<(ostream& out, const Board& board)
-{
+void Board::printBoard(ostream& out, const Board& board, Loc markLoc) {
   out << "HASH: " << board.pos_hash << "\n";
   bool showCoords = board.x_size <= 25 && board.y_size <= 25;
   if(showCoords) {
@@ -1869,13 +1870,21 @@ ostream& operator<<(ostream& out, const Board& board)
     {
       Loc loc = Location::getLoc(x,y,board.x_size);
       char s = colorToChar(board.colors[loc]);
-      out << s;
+      if(board.colors[loc] == C_EMPTY && markLoc == loc)
+        out << '@';
+      else
+        out << s;
+
       if(x < board.x_size-1)
         out << ' ';
     }
     out << "\n";
   }
   out << "\n";
+}
+
+ostream& operator<<(ostream& out, const Board& board) {
+  Board::printBoard(out,board,Board::NULL_LOC);
   return out;
 }
 

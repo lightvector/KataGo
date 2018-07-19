@@ -386,7 +386,8 @@ int main(int argc, const char* argv[]) {
         if(logSearchInfo) {
           Search* search = bot->getSearch();
           ostringstream sout;
-          sout << bot->getRootBoard() << "\n";
+          Board::printBoard(sout, bot->getRootBoard(), loc);
+          sout << "\n";
           sout << "Time taken: " << timer.getSeconds() << "\n";
           sout << "Root visits: " << search->numRootVisits() << "\n";
           sout << "NN rows: " << nnEval->numRowsProcessed() << endl;
@@ -396,7 +397,7 @@ int main(int argc, const char* argv[]) {
           search->printPV(sout, search->rootNode, 25);
           sout << "\n";
           sout << "Tree:\n";
-          search->printTree(sout, search->rootNode, PrintTreeOptions().maxDepth(1));
+          search->printTree(sout, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
           logger.write(sout.str());
         }
 

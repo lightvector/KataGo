@@ -196,7 +196,8 @@ struct Board
   void checkConsistency() const;
 
   static Board parseBoard(int xSize, int ySize, const string& s);
-  
+  static void printBoard(ostream& out, const Board& board, Loc markLoc);
+
   //Data--------------------------------------------
 
   int x_size;                  //Horizontal size of board
