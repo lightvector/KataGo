@@ -1336,14 +1336,13 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
 }
 
-void Board::calculateArea(Color* result, bool requirePassAlive, bool isMultiStoneSuicideLegal) const {
+void Board::calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal) const {
   for(int i = 0; i<MAX_ARR_SIZE; i++)
     result[i] = C_EMPTY;
-  calculateAreaForPla(P_BLACK,!requirePassAlive,isMultiStoneSuicideLegal,result);
-  calculateAreaForPla(P_WHITE,!requirePassAlive,isMultiStoneSuicideLegal,result);
+  calculateAreaForPla(P_BLACK,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
+  calculateAreaForPla(P_WHITE,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
 
-  if(!requirePassAlive) {
-     //Also include non-pass-alive stones
+  if(nonPassAliveStones) {
     for(int y = 0; y < y_size; y++) {
       for(int x = 0; x < x_size; x++) {
         Loc loc = Location::getLoc(x,y,x_size);
@@ -1354,9 +1353,10 @@ void Board::calculateArea(Color* result, bool requirePassAlive, bool isMultiSton
   }
 }
 
-//This marks pass-alive stones, pass-alive territory, AND non-pass-alive territory bordered only pass-alive groups
-//If includeNonPassAliveTerritory, also marks non-pass-alive territory but NOT non-pass-alive stones!
-void Board::calculateAreaForPla(Player pla, bool includeNonPassAliveTerritory, bool isMultiStoneSuicideLegal, Color* result) const {
+//This marks pass-alive stones, pass-alive territory always.
+//If safeBorderedBigTerritories, marks empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
+//If unsafeBigTerritories, marks empty regions bordered by pla stones and no opp stones, regardless.
+void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal, Color* result) const {
   Color opp = getOpp(pla);
 
   //First compute all empty-or-opp regions
@@ -1611,9 +1611,11 @@ void Board::calculateAreaForPla(Player pla, bool includeNonPassAliveTerritory, b
   //Mark result with territory
   for(int i = 0; i<numRegions; i++) {
     Loc head = regionHeads[i];
-    if(((numInternalSpacesMax2[i] <= 1 || !containsOpp[i]) && bordersPla[i] && !bordersNonPassAlivePlaByHead[head])
-       || (includeNonPassAliveTerritory && bordersPla[i] && !containsOpp[i])) {
+    bool shouldMark = numInternalSpacesMax2[i] <= 1 && bordersPla[i] && !bordersNonPassAlivePlaByHead[head];
+    shouldMark = shouldMark || (safeBigTerritories && bordersPla[i] && !containsOpp[i] && !bordersNonPassAlivePlaByHead[head]);
+    shouldMark = shouldMark || (unsafeBigTerritories && bordersPla[i] && !containsOpp[i]);
 
+    if(shouldMark) {
       Loc cur = head;
       do {
         result[cur] = pla;

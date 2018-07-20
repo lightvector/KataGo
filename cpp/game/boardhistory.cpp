@@ -249,9 +249,11 @@ float BoardHistory::currentSelfKomi(Player pla) const {
 
 int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
   int score = 0;
-  bool requirePassAlive = false;
+  bool nonPassAliveStones = true;
+  bool safeBigTerritories = true;
+  bool unsafeBigTerritories = true;
   Color area[Board::MAX_ARR_SIZE];
-  board.calculateArea(area,requirePassAlive,rules.multiStoneSuicideLegal);
+  board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
@@ -266,9 +268,11 @@ int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
 
 int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board) const {
   int score = 0;
-  bool requirePassAlive = true;
+  bool nonPassAliveStones = false;
+  bool safeBigTerritories = true;
+  bool unsafeBigTerritories = false;
   Color area[Board::MAX_ARR_SIZE];
-  board.calculateArea(area,requirePassAlive,rules.multiStoneSuicideLegal);
+  board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);

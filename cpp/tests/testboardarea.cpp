@@ -8,11 +8,14 @@ void Tests::runBoardAreaTests() {
   //============================================================================
   auto printAreas = [&out](const Board& board, Color result[Board::MAX_ARR_SIZE]) {
     for(int mode = 0; mode < 4; mode++) {
+      //TODO test other modes!
       bool multiStoneSuicideLegal = (mode % 2 == 1);
-      bool requirePassAlive = (mode <= 1);
+      bool nonPassAliveStones = (mode >= 2);
+      bool safeBigTerritories = true;
+      bool unsafeBigTerritories = (mode >= 2);
       Board copy(board);
-      copy.calculateArea(result,requirePassAlive,multiStoneSuicideLegal);
-      out << "Require pass alive " << requirePassAlive << " Suicide " << multiStoneSuicideLegal << endl;
+      copy.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
+      out << "Require pass alive " << !(mode >= 2) << " Suicide " << multiStoneSuicideLegal << endl;
       for(int y = 0; y<copy.y_size; y++) {
         for(int x = 0; x<copy.x_size; x++) {
           Loc loc = Location::getLoc(x,y,copy.x_size);
