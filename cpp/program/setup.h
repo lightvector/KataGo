@@ -15,6 +15,11 @@ namespace Setup {
     Rand& seedRand
   );
 
+  vector<SearchParams> loadParams(
+    ConfigParser& cfg,
+    Rand& seedRand
+  );
+
 }
 
 

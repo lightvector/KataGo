@@ -67,21 +67,13 @@ int main(int argc, const char* argv[]) {
 
   Rules initialRules;
   {
-    string koRule = cfg.getString("koRule", {"SIMPLE","POSITIONAL","SITUATIONAL","SPIGHT"});
-    string scoringRule = cfg.getString("scoringRule", {"AREA","TERRITORY"});
+    string koRule = cfg.getString("koRule", Rules::koRuleStrings());
+    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
     bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
     float komi = 7.5f; //Default komi, gtp will generally override this
 
-    if(koRule == "SIMPLE") initialRules.koRule = Rules::KO_SIMPLE;
-    else if(koRule == "POSITIONAL") initialRules.koRule = Rules::KO_POSITIONAL;
-    else if(koRule == "SITUATIONAL") initialRules.koRule = Rules::KO_SITUATIONAL;
-    else if(koRule == "SPIGHT") initialRules.koRule = Rules::KO_SPIGHT;
-    else assert(false);
-
-    if(scoringRule == "AREA") initialRules.scoringRule = Rules::SCORING_AREA;
-    else if(scoringRule == "TERRITORY") initialRules.scoringRule = Rules::SCORING_TERRITORY;
-    else assert(false);
-
+    initialRules.koRule = Rules::parseKoRule(koRule);
+    initialRules.scoringRule = Rules::parseScoringRule(scoringRule);
     initialRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
     initialRules.komi = komi;
   }
@@ -89,35 +81,10 @@ int main(int argc, const char* argv[]) {
 
   SearchParams params;
   {
-    if(cfg.contains("maxPlayouts"))
-      params.maxPlayouts = cfg.getUInt64("maxPlayouts", (uint64_t)1, (uint64_t)1 << 62);
-    if(cfg.contains("maxVisits"))
-      params.maxVisits = cfg.getUInt64("maxVisits", (uint64_t)1, (uint64_t)1 << 62);
-    if(cfg.contains("maxTime"))
-      params.maxTime = cfg.getDouble("maxTime", 0.0, 1.0e20);
-    params.numThreads = cfg.getInt("numSearchThreads", 1, 1024);
-
-    params.winLossUtilityFactor = cfg.getDouble("winLossUtilityFactor", 0.0, 1.0);
-    params.scoreUtilityFactor = cfg.getDouble("scoreUtilityFactor", 0.0, 1.0);
-    params.noResultUtilityForWhite = cfg.getDouble("noResultUtilityForWhite", -2.0, 2.0);
-
-    params.cpuctExploration = cfg.getDouble("cpuctExploration", 0.0, 10.0);
-    params.fpuReductionMax = cfg.getDouble("fpuReductionMax", 0.0, 2.0);
-
-    params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled");
-    params.rootDirichletNoiseTotalConcentration = cfg.getDouble("rootDirichletNoiseTotalConcentration", 0.001, 10000.0);
-    params.rootDirichletNoiseWeight = cfg.getDouble("rootDirichletNoiseWeight", 0.0, 1.0);
-
-    if(cfg.contains("searchRandSeed"))
-      params.randSeed = cfg.getString("searchRandSeed");
-    else
-      params.randSeed = Global::uint64ToString(seedRand.nextUInt64());
-
-    params.chosenMoveTemperature = cfg.getDouble("chosenMoveTemperature", 0.0, 5.0);
-    params.chosenMoveSubtract = cfg.getDouble("chosenMoveSubtract", 0.0, 1.0e10);
-
-    params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize", 1, 1 << 24);
-    params.numVirtualLossesPerThread = (int32_t)cfg.getInt("numVirtualLossesPerThread", 1, 1000);
+    vector<SearchParams> paramss = Setup::loadParams(cfg,seedRand);
+    if(paramss.size() != 1)
+      throw new StringError("Can only specify examply one search bot in gtp mode");
+    params = paramss[0];
   }
 
   bool ponderingEnabled = cfg.getBool("ponderingEnabled");

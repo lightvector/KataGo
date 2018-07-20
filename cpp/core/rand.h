@@ -73,7 +73,7 @@ class Rand
   //Returns a random integer according to the given frequency distribution
   uint32_t nextUInt(const int* freq, size_t n);
   //Returns a random integer according to the given unnormalized probability distribution
-  uint32_t nextUInt(const double* probs, size_t n);
+  uint32_t nextUInt(const double* relProbs, size_t n);
 
   //SIGNED INTEGER---------------------------------------
 
@@ -190,22 +190,22 @@ inline uint32_t Rand::nextUInt(const int* freq, size_t n)
   return 0;
 }
 
-inline uint32_t Rand::nextUInt(const double* probs, size_t n)
+inline uint32_t Rand::nextUInt(const double* relProbs, size_t n)
 {
   assert(n > 0);
   assert(n < 0xFFFFFFFF);
   double_t sum = 0;
   for(uint32_t i = 0; i<n; i++)
   {
-    assert(probs[i] >= 0);
-    sum += probs[i];
+    assert(relProbs[i] >= 0);
+    sum += relProbs[i];
   }
 
   double d = nextDouble(sum);
   sum = 0.0;
   for(uint32_t i = 0; i<n; i++)
   {
-    sum += probs[i];
+    sum += relProbs[i];
     if(sum > d)
       return i;
   }
