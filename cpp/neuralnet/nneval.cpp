@@ -514,7 +514,7 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
 
 
 NNCacheTable::Entry::Entry()
-  :ptr(nullptr),spinLock()
+  :ptr(nullptr),spinLock(ATOMIC_FLAG_INIT)
 {}
 NNCacheTable::Entry::~Entry()
 {}

@@ -239,10 +239,11 @@ void NNInputs::fillRowV0(
 
 //===========================================================================================
 
-
+//Currently does NOT depend on history (except for marking ko-illegal spots)
 Hash128 NNInputs::getHashV1(
     const Board& board, const BoardHistory& hist, Player nextPlayer
 ) {
+  assert(board.x_size <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size == board.y_size);
   int bSize = board.x_size;
 
@@ -290,6 +291,7 @@ Hash128 NNInputs::getHashV1(
 void NNInputs::fillRowV1(
   const Board& board, const BoardHistory& hist, Player nextPlayer, float* row
 ) {
+  assert(board.x_size <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size == board.y_size);
 
   Player pla = nextPlayer;

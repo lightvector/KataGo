@@ -29,7 +29,7 @@ double NodeStats::getCombinedValueSum(const SearchParams& searchParams) const {
 //-----------------------------------------------------------------------------------------
 
 SearchNode::SearchNode(Search& search, SearchThread& thread, Loc moveLoc)
-  :lockIdx(),statsLock(),nextPla(thread.pla),prevMoveLoc(moveLoc),
+  :lockIdx(),statsLock(ATOMIC_FLAG_INIT),nextPla(thread.pla),prevMoveLoc(moveLoc),
    nnOutput(),
    children(NULL),numChildren(0),childrenCapacity(0),
    stats()
