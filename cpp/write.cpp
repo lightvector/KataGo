@@ -1085,7 +1085,7 @@ int main(int argc, const char* argv[]) {
       throw IOError("Must specify target nextmove or... actually no other options right now");
   }
   catch (TCLAP::ArgException &e) {
-    cerr << "Error: " << e.error() << " for argument " << e.argId() << std::endl;
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
   }
 

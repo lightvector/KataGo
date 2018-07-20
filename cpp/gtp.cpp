@@ -2,6 +2,7 @@
 #include "core/config_parser.h"
 #include "core/timer.h"
 #include "search/asyncbot.h"
+#include "program/setup.h"
 
 using namespace std;
 
@@ -42,7 +43,7 @@ int main(int argc, const char* argv[]) {
     nnModelFile = nnModelFileArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
-    cerr << "Error: " << e.error() << " for argument " << e.argId() << std::endl;
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
   }
 
@@ -57,43 +58,12 @@ int main(int argc, const char* argv[]) {
 
   NNEvaluator* nnEval;
   {
-    bool debugSkipNeuralNet = false;
-    nnEval = new NNEvaluator(
-      nnModelFile,
-      cfg.getInt("nnMaxBatchSize", 1, 65536),
-      cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
-      debugSkipNeuralNet
-    );
-
-
-    bool nnRandomize = cfg.getBool("nnRandomize");
-    string nnRandSeed;
-    if(cfg.contains("nnRandSeed"))
-      nnRandSeed = cfg.getString("nnRandSeed");
-    else
-      nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
-    logger.write("nnRandSeed = " + nnRandSeed);
-
-    vector<string> gpuVisibleDeviceListByThread;
-    if(cfg.contains("gpuVisibleDeviceList"))
-      gpuVisibleDeviceListByThread.push_back(cfg.getString("gpuVisibleDeviceList"));
-    double perProcessGPUMemoryFraction = -1;
-    if(cfg.contains("perProcessGPUMemoryFraction"))
-       perProcessGPUMemoryFraction = cfg.getDouble("perProcessGPUMemoryFraction",0.0,1.0);
-
-    int numNNServerThreads = 1;
-    int defaultSymmetry = 0;
-    nnEval->spawnServerThreads(
-      numNNServerThreads,
-      nnRandomize,
-      nnRandSeed,
-      defaultSymmetry,
-      logger,
-      gpuVisibleDeviceListByThread,
-      perProcessGPUMemoryFraction
-    );
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},cfg,logger,seedRand);
+    assert(nnEvals.size() == 1);
+    nnEval = nnEvals[0];
   }
   logger.write("Loaded neural net");
+
 
   Rules initialRules;
   {
@@ -159,6 +129,17 @@ int main(int argc, const char* argv[]) {
     BoardHistory hist(board,pla,initialRules);
     bot->setPosition(pla,board,hist);
   }
+
+
+  {
+    vector<string> unusedKeys = cfg.unusedKeys();
+    for(size_t i = 0; i<unusedKeys.size(); i++) {
+      string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in " + configFile;
+      logger.write(msg);
+      cerr << msg << endl;
+    }
+  }
+
 
   vector<string> knownCommands = {
     "protocol_version",

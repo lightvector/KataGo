@@ -72,6 +72,8 @@ class Rand
   uint32_t nextUInt(uint32_t n);
   //Returns a random integer according to the given frequency distribution
   uint32_t nextUInt(const int* freq, size_t n);
+  //Returns a random integer according to the given unnormalized probability distribution
+  uint32_t nextUInt(const double* probs, size_t n);
 
   //SIGNED INTEGER---------------------------------------
 
@@ -102,7 +104,7 @@ class Rand
   double nextLogistic();
   //Returns a gamma distributed double with shape a and scale 1
   double nextGamma(double a);
-  
+
   //TESTING----------------------------------------------
   static void test();
 };
@@ -166,6 +168,8 @@ inline uint64_t Rand::nextUInt64(uint64_t n)
 
 inline uint32_t Rand::nextUInt(const int* freq, size_t n)
 {
+  assert(n > 0);
+  assert(n < 0xFFFFFFFF);
   int64_t sum = 0;
   for(uint32_t i = 0; i<n; i++)
   {
@@ -185,6 +189,29 @@ inline uint32_t Rand::nextUInt(const int* freq, size_t n)
   assert(false);
   return 0;
 }
+
+inline uint32_t Rand::nextUInt(const double* probs, size_t n)
+{
+  assert(n > 0);
+  assert(n < 0xFFFFFFFF);
+  double_t sum = 0;
+  for(uint32_t i = 0; i<n; i++)
+  {
+    assert(probs[i] >= 0);
+    sum += probs[i];
+  }
+
+  double d = nextDouble(sum);
+  sum = 0.0;
+  for(uint32_t i = 0; i<n; i++)
+  {
+    sum += probs[i];
+    if(sum > d)
+      return i;
+  }
+  return (uint32_t)(n-1);
+}
+
 
 inline double Rand::nextDouble()
 {

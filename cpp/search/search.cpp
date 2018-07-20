@@ -288,14 +288,8 @@ Loc Search::getChosenMoveLoc() {
       sum += playSelectionValues[i];
     }
     assert(sum > 0.0);
-    double d = nonSearchRand.nextDouble(sum);
-    sum = 0.0;
-    for(int i = 0; i<numChildren; i++) {
-      sum += playSelectionValues[i];
-      if(sum > d)
-        return locs[i];
-    }
-    return locs[numChildren-1];
+    uint32_t idxChosen = nonSearchRand.nextUInt(playSelectionValues.data(),playSelectionValues.size());
+    return locs[idxChosen];
   }
 }
 

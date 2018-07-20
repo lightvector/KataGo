@@ -80,6 +80,7 @@ add_executable(gtp
   search/mutexpool.cpp
   search/search.cpp
   search/asyncbot.cpp
+  program/setup.cpp
   gtp.cpp
   )
 
