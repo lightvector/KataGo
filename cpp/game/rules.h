@@ -25,6 +25,8 @@ struct Rules {
   static set<string> scoringRuleStrings();
   static int parseKoRule(const string& s);
   static int parseScoringRule(const string& s);
+  static string writeKoRule(int koRule);
+  static string writeScoringRule(int scoringRule);
 };
 
 #endif

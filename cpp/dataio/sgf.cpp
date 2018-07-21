@@ -42,6 +42,17 @@ static Loc parseSgfLocOrPass(const string& s, int bSize) {
   return parseSgfLoc(s,bSize);
 }
 
+static void writeSgfLoc(ostream& out, Loc loc, int bSize) {
+  assert(bSize < 26);
+  if(loc == Board::PASS_LOC || loc == Board::NULL_LOC)
+    return;
+  int x = Location::getX(loc,bSize);
+  int y = Location::getY(loc,bSize);
+  const char* chars = "abcdefghijklmnopqrstuvwxyz";
+  out << chars[x];
+  out << chars[y];
+}
+
 bool SgfNode::hasProperty(const char* key) const {
   if(props == NULL)
     return false;
@@ -444,5 +455,81 @@ vector<CompactSgf*> CompactSgf::loadFiles(const vector<string>& files) {
     throw;
   }
   return sgfs;
+}
+
+
+void WriteSgf::writeSgf(
+  ostream& out, const string& bName, const string& wName, const Rules& rules,
+  const Board& initialBoard, const BoardHistory& hist
+) {
+  assert(initialBoard.x_size == initialBoard.y_size);
+  int bSize = initialBoard.x_size;
+  out << "(;FF[4]GM[1]";
+  out << "SZ[" << bSize << "]";
+  out << "PB[" << bName << "]";
+  out << "PW[" << wName << "]";
+
+  int handicap = 0;
+  bool hasWhite = false;
+  for(int y = 0; y<bSize; y++) {
+    for(int x = 0; x<bSize; x++) {
+      Loc loc = Location::getLoc(x,y,bSize);
+      if(initialBoard.colors[loc] == C_BLACK)
+        handicap += 1;
+      if(initialBoard.colors[loc] == C_WHITE)
+        hasWhite = true;
+    }
+  }
+  if(hasWhite)
+    handicap = 0;
+
+  out << "HA[" << handicap << "]";
+  out << "KM[" << rules.komi << "]";
+  out << "RU[ko" << Rules::writeKoRule(rules.koRule)
+      << "score" << Rules::writeScoringRule(rules.scoringRule)
+      << "sui" << rules.multiStoneSuicideLegal << "]";
+  if(hist.winner != C_EMPTY) {
+    out << "RE[";
+    if(hist.winner == C_BLACK)
+      out << "B+" << (-hist.finalWhiteMinusBlackScore);
+    else if(hist.winner == C_WHITE)
+      out << "W+" << hist.finalWhiteMinusBlackScore;
+    else
+      assert(false);
+    out << "]";
+  }
+
+  for(int y = 0; y<bSize; y++) {
+    for(int x = 0; x<bSize; x++) {
+      Loc loc = Location::getLoc(x,y,bSize);
+      if(initialBoard.colors[loc] == C_BLACK) {
+        out << "AB[";
+        writeSgfLoc(out,loc,bSize);
+        out << "]";
+      }
+    }
+  }
+
+  for(int y = 0; y<bSize; y++) {
+    for(int x = 0; x<bSize; x++) {
+      Loc loc = Location::getLoc(x,y,bSize);
+      if(initialBoard.colors[loc] == C_WHITE) {
+        out << "AW[";
+        writeSgfLoc(out,loc,bSize);
+        out << "]";
+      }
+    }
+  }
+
+  for(size_t i = 0; i<hist.moveHistory.size(); i++) {
+    if(hist.moveHistory[i].pla == P_BLACK)
+      out << "B[";
+    else
+      out << "W[";
+    writeSgfLoc(out,hist.moveHistory[i].loc,bSize);
+    out << "]";
+  }
+  out << ")";
+
 }
 

@@ -31,3 +31,16 @@ int Rules::parseScoringRule(const string& s) {
   else if(s == "TERRITORY") return Rules::SCORING_TERRITORY;
   else throw StringError("Rules::parseScoringRule: Invalid scoring rule: " + s);
 }
+string Rules::writeKoRule(int koRule) {
+  if(koRule == Rules::KO_SIMPLE) return string("SIMPLE");
+  if(koRule == Rules::KO_POSITIONAL) return string("POSITIONAL");
+  if(koRule == Rules::KO_SITUATIONAL) return string("SITUATIONAL");
+  if(koRule == Rules::KO_SPIGHT) return string("SPIGHT");
+  return string("UNKNOWN");
+}
+string Rules::writeScoringRule(int scoringRule) {
+  if(scoringRule == Rules::SCORING_AREA) return string("AREA");
+  if(scoringRule == Rules::SCORING_TERRITORY) return string("TERRITORY");
+  return string("UNKNOWN");
+}
+

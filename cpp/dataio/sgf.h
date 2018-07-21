@@ -4,6 +4,7 @@
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../game/board.h"
+#include "../game/boardhistory.h"
 
 STRUCT_NAMED_TRIPLE(uint8_t,x,uint8_t,y,Player,pla,MoveNoBSize);
 
@@ -70,5 +71,11 @@ struct CompactSgf {
   static vector<CompactSgf*> loadFiles(const vector<string>& files);
 };
 
+namespace WriteSgf {
+  void writeSgf(
+    ostream& out, const string& bName, const string& wName, const Rules& rules,
+    const Board& initialBoard, const BoardHistory& hist
+  );
+}
 
 #endif
