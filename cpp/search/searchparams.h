@@ -19,9 +19,6 @@ struct SearchParams {
   double rootDirichletNoiseTotalConcentration; //Same as alpha * board size, to match alphazero this might be 0.03 * 361, total number of balls in the urn
   double rootDirichletNoiseWeight; //Policy at root is this weight * noise + (1 - this weight) * nn policy
 
-  //Randomization. Note - this controls a few things in the search, but a lot of the randomness actually comes from
-  //random symmetries of the neural net evaluations, which is separate from the search's rng, see nneval.h
-  string randSeed;
   double chosenMoveTemperature; //Make move roughly proportional to visit count ** (1/chosenMoveTemperature)
   double chosenMoveSubtract; //Try to subtract this many playouts from every move prior to applying temperature
 

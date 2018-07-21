@@ -107,7 +107,9 @@ struct Search {
   NNEvaluator* nnEvaluator; //externally owned
   Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
 
-  Search(SearchParams params, NNEvaluator* nnEval);
+  //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
+  //random symmetries of the neural net evaluations, see nneval.h
+  Search(SearchParams params, NNEvaluator* nnEval, const string& randSeed);
   ~Search();
 
   Search(const Search&) = delete;

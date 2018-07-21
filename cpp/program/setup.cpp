@@ -69,7 +69,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
 vector<SearchParams> Setup::loadParams(
   ConfigParser& cfg,
-  Rand& seedRand
 ) {
 
   SearchParams baseParams;
@@ -108,11 +107,6 @@ vector<SearchParams> Setup::loadParams(
 
   for(int i = 0; i<numBots; i++) {
     SearchParams params = baseParams;
-
-    if(cfg.contains("searchRandSeed"))
-      params.randSeed = cfg.getString("searchRandSeed");
-    else
-      params.randSeed = Global::uint64ToString(seedRand.nextUInt64());
 
     string idxStr = Global::intToString(i);
 
@@ -156,3 +150,70 @@ vector<SearchParams> Setup::loadParams(
 
   return paramss;
 }
+
+static double nextGaussianTruncated(Rand& rand) {
+  double d = rand.nextGaussian();
+  if(d < -2.0)
+    return -2.0;
+  if(d > 2.0)
+    return 2.0;
+  return d;
+}
+
+static const int getMaxExtraBlack(int bSize) {
+  if(bSize <= 10)
+    return 0;
+  if(bSize <= 14)
+    return 1;
+  if(bSize <= 18)
+    return 2;
+  return 3;
+}
+
+pair<int,float> Setup::chooseExtraBlackAndKomi(
+  float base, float stdev, double allowIntegerProb, double handicapProb, float handicapStoneValue, double bigStdevProb, float bigStdev, int bSize, Rand& rand
+) {
+  int extraBlack = 0;
+  float komi = base;
+
+  if(stdev > 0.0f) 
+    komi += stdev * (float)nextGaussianTruncated(rand);
+  if(bigStdev > 0.0f && rand.nextDouble() < bigStdevProb)
+    komi += bigStdev * (float)nextGaussianTruncated(rand);
+
+  //Adjust for bSize, so that we don't give the same massive komis on smaller boards
+  komi = base + (komi - base) * (float)bSize / 19.0f;
+
+  //Add handicap stones compensated with komi
+  int maxExtraBlack = getMaxExtraBlack(bSize);
+  if(maxExtraBlack > 0 && rand.nextDouble() < handicapProb) {
+    extraBlack += 1+rand.nextUInt(maxExtraBlack);
+    komi += extraBlack * handicapStoneValue;
+  }
+
+  //Discretize komi
+  float lower;
+  float upper;
+  if(rand.nextDouble() < allowIntegerProb) {
+    lower = floor(komi*2.0f) / 2.0f;
+    upper = ceil(komi*2.0f) / 2.0f;
+  }
+  else {
+    lower = floor(komi+ 0.5f)-0.5f;
+    upper = ceil(komi+0.5f)-0.5f;
+  }
+
+  if(lower == upper)
+    komi = lower;
+  else {
+    assert(upper > lower);
+    if(rand.nextDouble() < (komi - lower) / (upper - lower))
+      komi = upper;
+    else
+      komi = lower;
+  }
+
+  assert((float)((int)(komi * 2)) == komi * 2);
+  return make_pair(extraBlack,komi);
+}
+ 

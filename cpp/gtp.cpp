@@ -81,15 +81,21 @@ int main(int argc, const char* argv[]) {
 
   SearchParams params;
   {
-    vector<SearchParams> paramss = Setup::loadParams(cfg,seedRand);
+    vector<SearchParams> paramss = Setup::loadParams(cfg);
     if(paramss.size() != 1)
       throw new StringError("Can only specify examply one search bot in gtp mode");
     params = paramss[0];
   }
 
+  string searchRandSeed;
+  if(cfg.contains("searchRandSeed"))
+    searchRandSeed = cfg.getString("searchRandSeed");
+  else
+    searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+
   bool ponderingEnabled = cfg.getBool("ponderingEnabled");
 
-  AsyncBot* bot = new AsyncBot(params, nnEval, &logger);
+  AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
   {
     Board board(19,19);
     Player pla = P_BLACK;

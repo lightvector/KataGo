@@ -17,13 +17,13 @@ static void searchThreadLoop(AsyncBot* asyncBot, Logger* logger) {
   }
 }
 
-AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l)
+AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const string& randSeed)
   :search(NULL),logger(l),searchParams(params),
    controlMutex(),threadWaitingToSearch(),userWaitingForStop(),searchThread(),
    isRunning(false),isPondering(false),isKilled(false),shouldStopNow(false),
    queuedSearchId(0),queuedOnMove()
 {
-  search = new Search(params,nnEval);
+  search = new Search(params,nnEval,randSeed);
   searchThread = std::thread(searchThreadLoop,this,l);
 }
 

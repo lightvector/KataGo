@@ -91,11 +91,11 @@ SearchThread::~SearchThread() {
 //-----------------------------------------------------------------------------------------
 
 
-Search::Search(SearchParams params, NNEvaluator* nnEval)
-  :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),searchParams(params),
+Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
+  :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
+   searchParams(params),randSeed(rSeed),
    nnEvaluator(nnEval),
-   nonSearchRand(params.randSeed + string("$nonSearchRand"))
-
+   nonSearchRand(rSeed + string("$nonSearchRand"))
 {
   rootKoHashTable = new KoHashTable();
 
