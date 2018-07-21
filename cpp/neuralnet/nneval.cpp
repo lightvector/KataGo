@@ -110,7 +110,7 @@ static void freeTensorInputBufs(
 }
 
 
-NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const string* gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet)
+NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const string& gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet)
   :session(NULL),
    outputNames(),
    targetNames(),
@@ -125,8 +125,8 @@ NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const string* gpuVisibleDevi
   //Create tensorflow session
   if(!debugSkipNeuralNet) {
     SessionOptions sessionOptions = SessionOptions();
-    if(gpuVisibleDevices != NULL)
-      sessionOptions.config.mutable_gpu_options()->set_visible_device_list(*gpuVisibleDevices);
+    if(gpuVisibleDevices.length() > 0)
+      sessionOptions.config.mutable_gpu_options()->set_visible_device_list(gpuVisibleDevices);
     if(perProcessGPUMemoryFraction >= 0.0)
       sessionOptions.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(perProcessGPUMemoryFraction);
     status = NewSession(sessionOptions, &session);
@@ -226,7 +226,7 @@ void NNEvaluator::clearCache() {
 
 static void serveEvals(
   int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger, NNEvaluator* nnEval,
-  const string* gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet
+  string gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet
 ) {
   NNServerBuf* buf = new NNServerBuf(*nnEval, gpuVisibleDevices, perProcessGPUMemoryFraction, debugSkipNeuralNet);
   Rand rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
@@ -263,9 +263,9 @@ void NNEvaluator::spawnServerThreads(
     throw StringError("NNEvaluator::spawnServerThreads gpuVisibleDeviceListByThread is not the same size as the number of threads!");
 
   for(int i = 0; i<numThreads; i++) {
-    const string* gpuVisibleDevices = NULL;
+    string gpuVisibleDevices;
     if(gpuVisibleDeviceListByThread.size() > 0)
-      gpuVisibleDevices = &(gpuVisibleDeviceListByThread[i]);
+      gpuVisibleDevices = gpuVisibleDeviceListByThread[i];
     std::thread* thread = new std::thread(
       &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,
       gpuVisibleDevices,perProcessGPUMemoryFraction,debugSkipNeuralNet

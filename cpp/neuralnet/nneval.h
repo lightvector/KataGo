@@ -98,7 +98,7 @@ struct NNServerBuf {
   vector<pair<string,Tensor>>* inputsList;
   NNResultBuf** resultBufs;
 
-  NNServerBuf(const NNEvaluator& nneval, const string* gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet);
+  NNServerBuf(const NNEvaluator& nneval, const string& gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet);
   ~NNServerBuf();
   NNServerBuf(const NNServerBuf& other) = delete;
   NNServerBuf& operator=(const NNServerBuf& other) = delete;

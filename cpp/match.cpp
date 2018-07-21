@@ -52,6 +52,10 @@ int main(int argc, const char* argv[]) {
     cerr << "Must specify at least one -nn-model-file" << endl;
     return 1;
   }
+  if(nnModelFiles.size() >= 100) {
+    cerr << "Too many model files" << endl;
+    return 1;
+  }
 
   ConfigParser cfg(configFile);
 
@@ -127,6 +131,24 @@ int main(int argc, const char* argv[]) {
       whichNNModel.push_back(0);
   }
 
+  {
+    int numModels = nnEvals.size();
+    bool nnModelUsed[numModels];
+    for(int i = 0; i<numModels; i++)
+      nnModelUsed[i] = false;
+    for(size_t i = 0; i<numBots; i++) {
+      if(whichNNModel[i] >= numModels)
+        throw IOError("whichNNModel specified using model " + Global::intToString(whichNNModel[i])
+                      + " but only " + Global::intToString(numModels) + " were provided");
+      nnModelUsed[whichNNModel[i]] = true;
+    }
+    for(int i = 0; i<numModels; i++) {
+      if(!nnModelUsed[i])
+        throw IOError("whichNNModel does not use model #" + Global::intToString(i)
+                      + " from the command line: " + nnModelFiles[i]);
+    }
+  }
+
   int numMatchThreads = cfg.getInt("numMatchThreads",1,16384);
   int64_t numMatchGamesTotal = cfg.getInt64("numMatchGamesTotal",1,((int64_t)1) << 62);
   int maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
@@ -195,10 +217,10 @@ int main(int argc, const char* argv[]) {
     logger.write(sout.str());
   };
 
-  auto runSelfPlayGame = [&failIllegalMove,&logSearch,&paramss,&nnEvals,&logger,logSearchInfo,maxMovesPerGame] (
+  auto runSelfPlayGame = [&failIllegalMove,&logSearch,&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,maxMovesPerGame] (
     int botIdx, Board& board, Player pla, BoardHistory& hist
   ) {
-    AsyncBot* bot = new AsyncBot(paramss[botIdx], nnEvals[botIdx], &logger);
+    AsyncBot* bot = new AsyncBot(paramss[botIdx], nnEvals[whichNNModel[botIdx]], &logger);
     bot->setPosition(pla,board,hist);
 
     for(int i = 0; i<maxMovesPerGame; i++) {
@@ -225,11 +247,11 @@ int main(int argc, const char* argv[]) {
     delete bot;
   };
 
-  auto runMatchGame = [&failIllegalMove,&logSearch,&paramss,&nnEvals,&logger,logSearchInfo,maxMovesPerGame](
+  auto runMatchGame = [&failIllegalMove,&logSearch,&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,maxMovesPerGame](
     int botIdxB, int botIdxW, Board& board, Player pla, BoardHistory& hist
   ) {
-    AsyncBot* botB = new AsyncBot(paramss[botIdxB], nnEvals[botIdxB], &logger);
-    AsyncBot* botW = new AsyncBot(paramss[botIdxW], nnEvals[botIdxW], &logger);
+    AsyncBot* botB = new AsyncBot(paramss[botIdxB], nnEvals[whichNNModel[botIdxB]], &logger);
+    AsyncBot* botW = new AsyncBot(paramss[botIdxW], nnEvals[whichNNModel[botIdxW]], &logger);
     botB->setPosition(pla,board,hist);
     botW->setPosition(pla,board,hist);
 
