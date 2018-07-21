@@ -46,6 +46,7 @@ add_executable(example
   core/config_parser.cpp
   core/hash.cpp
   core/logger.cpp
+  core/makedir.cpp
   core/md5.cpp
   core/rand.cpp
   core/sha2.cpp
