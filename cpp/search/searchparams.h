@@ -8,6 +8,7 @@ struct SearchParams {
   double winLossUtilityFactor;    //Scaling for [-1,1] value for winning/losing
   double scoreUtilityFactor;      //Scaling for the [-1,1] value for having many/fewer points.
   double noResultUtilityForWhite; //Utility of having a no-result game (simple ko rules or nonterminating territory encore)
+  double drawUtilityForWhite;     //Utility of having a jigo
 
   //Search tree exploration parameters
   double cpuctExploration;  //Constant factor on exploration, should also scale up linearly with magnitude of utility

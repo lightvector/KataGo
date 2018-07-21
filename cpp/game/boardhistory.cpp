@@ -23,7 +23,7 @@ BoardHistory::BoardHistory()
    encorePhase(0),koProhibitHash(),
    koCapturesInEncore(),
    whiteBonusScore(0),
-   winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),isNoResult(false)
+   isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),isNoResult(false)
 {
   std::fill(wasEverOccupiedOrPlayed, wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, false);
   std::fill(superKoBanned, superKoBanned+Board::MAX_ARR_SIZE, false);
@@ -43,7 +43,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r)
    encorePhase(0),koProhibitHash(),
    koCapturesInEncore(),
    whiteBonusScore(0),
-   winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),isNoResult(false)
+   isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),isNoResult(false)
 {
   std::fill(wasEverOccupiedOrPlayed, wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, false);
   std::fill(superKoBanned, superKoBanned+Board::MAX_ARR_SIZE, false);
@@ -62,7 +62,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    encorePhase(other.encorePhase),koProhibitHash(other.koProhibitHash),
    koCapturesInEncore(other.koCapturesInEncore),
    whiteBonusScore(other.whiteBonusScore),
-   winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),isNoResult(other.isNoResult)
+   isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),isNoResult(other.isNoResult)
 {
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   std::copy(other.superKoBanned, other.superKoBanned+Board::MAX_ARR_SIZE, superKoBanned);
@@ -89,6 +89,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   koCapturesInEncore = other.koCapturesInEncore;
   std::copy(other.secondEncoreStartColors, other.secondEncoreStartColors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
   whiteBonusScore = other.whiteBonusScore;
+  isGameFinished = other.isGameFinished;
   winner = other.winner;
   finalWhiteMinusBlackScore = other.finalWhiteMinusBlackScore;
   isNoResult = other.isNoResult;
@@ -104,7 +105,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   encorePhase(other.encorePhase),koProhibitHash(other.koProhibitHash),
   koCapturesInEncore(std::move(other.koCapturesInEncore)),
   whiteBonusScore(other.whiteBonusScore),
-  winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),isNoResult(other.isNoResult)
+  isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),isNoResult(other.isNoResult)
 {
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   std::copy(other.superKoBanned, other.superKoBanned+Board::MAX_ARR_SIZE, superKoBanned);
@@ -130,6 +131,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   koCapturesInEncore = std::move(other.koCapturesInEncore);
   std::copy(other.secondEncoreStartColors, other.secondEncoreStartColors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
   whiteBonusScore = other.whiteBonusScore;
+  isGameFinished = other.isGameFinished;
   winner = other.winner;
   finalWhiteMinusBlackScore = other.finalWhiteMinusBlackScore;
   isNoResult = other.isNoResult;
@@ -160,6 +162,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
   koCapturesInEncore.clear();
   std::fill(secondEncoreStartColors, secondEncoreStartColors+Board::MAX_ARR_SIZE, C_EMPTY);
   whiteBonusScore = 0;
+  isGameFinished = false;
   winner = C_EMPTY;
   finalWhiteMinusBlackScore = 0.0f;
   isNoResult = false;
@@ -187,6 +190,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
 
 void BoardHistory::setKomi(float newKomi) {
   rules.komi = newKomi;
+  isGameFinished = false;
   winner = C_EMPTY;
   finalWhiteMinusBlackScore = 0.0f;
   isNoResult = false;
@@ -229,10 +233,6 @@ int BoardHistory::numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHas
     if(koHashHistory[i] == koHash)
       count++;
   return count;
-}
-
-bool BoardHistory::isGameOver() const {
-  return isNoResult || winner != C_EMPTY;
 }
 
 float BoardHistory::currentSelfKomi(Player pla) const {
@@ -330,6 +330,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   Hash128 posHashBeforeMove = board.pos_hash;
 
   //If somehow we're making a move after the game was ended, just clear those values and continue
+  isGameFinished = false;
   winner = C_EMPTY;
   finalWhiteMinusBlackScore = 0.0f;
   isNoResult = false;
@@ -473,6 +474,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
       else if(finalWhiteMinusBlackScore < 0.0f)
         winner = C_BLACK;
       isNoResult = false;
+      isGameFinished = true;
     }
     else if(rules.scoringRule == Rules::SCORING_TERRITORY) {
       if(encorePhase >= 2) {
@@ -483,6 +485,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
         else if(finalWhiteMinusBlackScore < 0.0f)
           winner = C_BLACK;
         isNoResult = false;
+        isGameFinished = true;
       }
       else {
         encorePhase += 1;
@@ -506,6 +509,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   if(moveLoc != Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE)) {
     if(numberOfKoHashOccurrencesInHistory(koHashHistory[koHashHistory.size()-1], rootKoHashTable) >= 3) {
       isNoResult = true;
+      isGameFinished = true;
     }
   }
 

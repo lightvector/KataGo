@@ -45,7 +45,9 @@ struct BoardHistory {
   //Amount that should be added to komi
   int whiteBonusScore;
 
-  //Winner of the game if the game is supposed to have ended now, C_EMPTY otherwise or if isNoResult.
+  //Is the game supposed to be ended now?
+  bool isGameFinished;
+  //Winner of the game if the game is supposed to have ended now, C_EMPTY if it is a draw or isNoResult.
   Player winner;
   //Score difference of the game if the game is supposed to have ended now
   float finalWhiteMinusBlackScore;
@@ -67,7 +69,6 @@ struct BoardHistory {
   //Set only the komi field of the rules, does not clear history, but does clear game-over conditions,
   void setKomi(float newKomi);
 
-  bool isGameOver() const;
   float currentSelfKomi(Player pla) const;
 
   //Check if a move on the board is legal, taking into account the full game state and superko

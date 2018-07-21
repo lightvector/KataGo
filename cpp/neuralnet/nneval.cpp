@@ -10,12 +10,12 @@ NNOutput::NNOutput(const NNOutput& other) {
   std::copy(other.policyProbs, other.policyProbs+NNPos::NN_POLICY_SIZE, policyProbs);
 }
 
-double NNOutput::whiteValueOfWinner(Player winner) {
+double NNOutput::whiteValueOfWinner(Player winner, double drawValue) {
   if(winner == P_WHITE)
     return 1.0;
   else if(winner == P_BLACK)
     return -1.0;
-  return 0.0;
+  return drawValue;
 }
 
 double NNOutput::whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize) {

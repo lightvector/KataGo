@@ -85,6 +85,7 @@ int main(int argc, const char* argv[]) {
     throw IOError("multiStoneSuicideLegals must have at least one value in " + configFile);
 
 
+  //TODO we need a mechanism to make the komi range shrink for smaller boards!
   vector<int> allowedBSizes = cfg.getInts("bSizes", 9, 19);
   vector<double> allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1.0);
   vector<float> allowedKomis = cfg.getFloats("komis", 9, 19);
@@ -201,7 +202,7 @@ int main(int argc, const char* argv[]) {
     bot->setPosition(pla,board,hist);
 
     for(int i = 0; i<maxMovesPerGame; i++) {
-      if(hist.isGameOver())
+      if(hist.isGameFinished)
         break;
       if(sigTermReceived.load())
         break;
@@ -233,7 +234,7 @@ int main(int argc, const char* argv[]) {
     botW->setPosition(pla,board,hist);
 
     for(int i = 0; i<maxMovesPerGame; i++) {
-      if(hist.isGameOver())
+      if(hist.isGameFinished)
         break;
       if(sigTermReceived.load())
         break;

@@ -488,12 +488,14 @@ void WriteSgf::writeSgf(
   out << "RU[ko" << Rules::writeKoRule(rules.koRule)
       << "score" << Rules::writeScoringRule(rules.scoringRule)
       << "sui" << rules.multiStoneSuicideLegal << "]";
-  if(hist.winner != C_EMPTY) {
+  if(hist.isGameFinished) {
     out << "RE[";
     if(hist.winner == C_BLACK)
       out << "B+" << (-hist.finalWhiteMinusBlackScore);
     else if(hist.winner == C_WHITE)
       out << "W+" << hist.finalWhiteMinusBlackScore;
+    else if(hist.winner == C_EMPTY)
+      out << "0";
     else
       assert(false);
     out << "]";

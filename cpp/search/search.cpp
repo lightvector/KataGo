@@ -549,7 +549,7 @@ void Search::playoutDescend(
 ) {
   //Hit terminal node, finish
   //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
-  if(!isRoot && thread.history.isGameOver()) {
+  if(!isRoot && thread.history.isGameFinished) {
     //TODO what to do here? Is this reasonable? Probably actually want a separate output?
     //weird that this also gets scaled later by winLossUtilityFactor
     if(thread.history.isNoResult) {
@@ -558,7 +558,7 @@ void Search::playoutDescend(
       return;
     }
     else {
-      double winLossValue = NNOutput::whiteValueOfWinner(thread.history.winner);
+      double winLossValue = NNOutput::whiteValueOfWinner(thread.history.winner, searchParams.drawUtilityForWhite);
       assert(thread.board.x_size == thread.board.y_size);
       double scoreValue = NNOutput::whiteValueOfScore(thread.history.finalWhiteMinusBlackScore, thread.board.x_size);
 

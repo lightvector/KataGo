@@ -38,7 +38,7 @@ struct NNOutput {
 
   //Utility --------------------------------------------------------------------
   //The utility of having a particular winner
-  static double whiteValueOfWinner(Player winner);
+  static double whiteValueOfWinner(Player winner, double drawValue);
   //The utility of achieving a certain score difference
   static double whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize);
 };

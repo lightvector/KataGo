@@ -85,6 +85,7 @@ vector<SearchParams> Setup::loadParams(
     baseParams.winLossUtilityFactor = cfg.getDouble("winLossUtilityFactor", 0.0, 1.0);
     baseParams.scoreUtilityFactor = cfg.getDouble("scoreUtilityFactor", 0.0, 1.0);
     baseParams.noResultUtilityForWhite = cfg.getDouble("noResultUtilityForWhite", -2.0, 2.0);
+    baseParams.drawUtilityForWhite = cfg.getDouble("drawUtilityForWhite", -2.0, 2.0);
 
     baseParams.cpuctExploration = cfg.getDouble("cpuctExploration", 0.0, 10.0);
     baseParams.fpuReductionMax = cfg.getDouble("fpuReductionMax", 0.0, 2.0);
@@ -129,6 +130,8 @@ vector<SearchParams> Setup::loadParams(
       params.scoreUtilityFactor = cfg.getDouble("scoreUtilityFactor"+idxStr, 0.0, 1.0);
     if(cfg.contains("noResultUtilityForWhite"+idxStr))
       params.noResultUtilityForWhite = cfg.getDouble("noResultUtilityForWhite"+idxStr, -2.0, 2.0);
+    if(cfg.contains("drawUtilityForWhite"+idxStr))
+      params.drawUtilityForWhite = cfg.getDouble("drawUtilityForWhite"+idxStr, -2.0, 2.0);
     if(cfg.contains("cpuctExploration"+idxStr))
       params.cpuctExploration = cfg.getDouble("cpuctExploration"+idxStr, 0.0, 10.0);
     if(cfg.contains("fpuReductionMax"+idxStr))
