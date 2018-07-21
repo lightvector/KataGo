@@ -74,6 +74,8 @@ BoardHistory::BoardHistory(const BoardHistory& other)
 
 BoardHistory& BoardHistory::operator=(const BoardHistory& other)
 {
+  if(this == &other)
+    return;
   rules = other.rules;
   moveHistory = other.moveHistory;
   koHashHistory = other.koHashHistory;

@@ -934,6 +934,8 @@ Board::PointList::PointList(const Board::PointList& other)
 
 void Board::PointList::operator=(const Board::PointList& other)
 {
+  if(this == &other)
+    return;
   std::memcpy(list_, other.list_, sizeof(list_));
   std::memcpy(indices_, other.indices_, sizeof(indices_));
   size_ = other.size_;
