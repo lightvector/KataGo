@@ -9,6 +9,8 @@ cpp/runtests
 cpp/example
 cpp/gtp
 cpp/gtp.log
+cpp/match
+cpp/match.log
 
 # For clion IDE
 .idea

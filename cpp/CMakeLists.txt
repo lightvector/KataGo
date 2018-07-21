@@ -85,13 +85,39 @@ add_executable(gtp
   gtp.cpp
   )
 
+add_executable(match
+  core/global.cpp
+  core/config_parser.cpp
+  core/hash.cpp
+  core/logger.cpp
+  core/makedir.cpp
+  core/md5.cpp
+  core/rand.cpp
+  core/sha2.cpp
+  core/timer.cpp
+  game/board.cpp
+  game/rules.cpp
+  game/boardhistory.cpp
+  dataio/sgf.cpp
+  neuralnet/nninputs.cpp
+  neuralnet/nneval.cpp
+  search/searchparams.cpp
+  search/mutexpool.cpp
+  search/search.cpp
+  search/asyncbot.cpp
+  program/setup.cpp
+  match.cpp
+  )
+
 find_package(TensorflowCC REQUIRED)
 target_link_libraries(example TensorflowCC::Shared)
 target_link_libraries(gtp TensorflowCC::Shared)
+target_link_libraries(match TensorflowCC::Shared)
 find_package(CUDA)
 if(CUDA_FOUND)
   target_link_libraries(example ${CUDA_LIBRARIES})
   target_link_libraries(gtp ${CUDA_LIBRARIES})
+  target_link_libraries(match ${CUDA_LIBRARIES})
 endif()
 
 find_package(HDF5 REQUIRED COMPONENTS C CXX)
