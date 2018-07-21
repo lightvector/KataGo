@@ -13,8 +13,7 @@ using namespace std;
 
 #include <csignal>
 static std::atomic<bool> sigTermReceived(false);
-void signalHandler(int signal);
-void signalHandler(int signal)
+static void signalHandler(int signal)
 {
   if(signal == SIGTERM)
     sigTermReceived.store(true);
