@@ -954,8 +954,8 @@ class Board:
           #This is not complete - there are situations where the defender's connections increase liberties, or where
           #the attacker has stones in atari, but where the defender is still in inescapable atari even if they have
           #a large finite number of ko threats. But it's better than nothing.
-          if libs0 == 0 and libs1 == 0 and self.wouldBeKoCapture(move0,opp) && self.wouldBeKoCapture(move1,opp) :
-            if self.get_liberties_after_play(pla,move0,3) <= 2 && self.get_liberties_after_play(pla,move1,3) <= 2:
+          if libs0 == 0 and libs1 == 0 and self.wouldBeKoCapture(move0,opp) and self.wouldBeKoCapture(move1,opp) :
+            if self.get_liberties_after_play(pla,move0,3) <= 2 and self.get_liberties_after_play(pla,move1,3) <= 2:
               if self.hasLibertyGainingCaptures(loc):
                 returnValue = True
                 returnedFromDeeper = True
