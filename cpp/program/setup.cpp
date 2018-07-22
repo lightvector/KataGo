@@ -68,7 +68,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
 
 vector<SearchParams> Setup::loadParams(
-  ConfigParser& cfg,
+  ConfigParser& cfg
 ) {
 
   SearchParams baseParams;
@@ -160,7 +160,7 @@ static double nextGaussianTruncated(Rand& rand) {
   return d;
 }
 
-static const int getMaxExtraBlack(int bSize) {
+static int getMaxExtraBlack(int bSize) {
   if(bSize <= 10)
     return 0;
   if(bSize <= 14)

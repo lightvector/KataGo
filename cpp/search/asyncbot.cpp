@@ -64,6 +64,10 @@ void AsyncBot::setKomi(float newKomi) {
   stopAndWait();
   search->setKomi(newKomi);
 }
+void AsyncBot::setRootPassLegal(bool b) {
+  stopAndWait();
+  search->setRootPassLegal(b);
+}
 void AsyncBot::setParams(SearchParams params) {
   stopAndWait();
   searchParams = params;

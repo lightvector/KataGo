@@ -16,7 +16,7 @@ namespace Setup {
   );
 
   vector<SearchParams> loadParams(
-    ConfigParser& cfg,
+    ConfigParser& cfg
   );
 
   pair<int,float> chooseExtraBlackAndKomi(

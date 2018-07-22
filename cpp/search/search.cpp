@@ -75,7 +75,7 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
   :threadIdx(tIdx),
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
-   rand(search.searchParams.randSeed + string("$searchThread$") + Global::intToString(threadIdx)),
+   rand(search.randSeed + string("$searchThread$") + Global::intToString(threadIdx)),
    nnResultBuf(),
    logStream(NULL)
 {

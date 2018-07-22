@@ -27,6 +27,7 @@ class AsyncBot {
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
   void setRulesAndClearHistory(Rules rules);
   void setKomi(float newKomi);
+  void setRootPassLegal(bool b);
   void setParams(SearchParams params);
   void clearSearch();
 

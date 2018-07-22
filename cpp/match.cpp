@@ -92,7 +92,7 @@ int main(int argc, const char* argv[]) {
   vector<int> allowedBSizes = cfg.getInts("bSizes", 9, 19);
   vector<double> allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1.0);
 
-  float baseKomi = cfg.getFloat("komiMean",-60.0f,60.0f);
+  float komiMean = cfg.getFloat("komiMean",-60.0f,60.0f);
   float komiStdev = cfg.getFloat("komiStdev",-60.0f,60.0f);
   double komiAllowIntegerProb = cfg.getDouble("komiAllowIntegerProb",0.0,1.0);
   double handicapProb = cfg.getDouble("handicapProb",0.0,1.0);
@@ -102,15 +102,13 @@ int main(int argc, const char* argv[]) {
   
   if(allowedBSizes.size() <= 0)
     throw IOError("bSizes must have at least one value in " + configFile);
-  if(allowedKomis.size() <= 0)
-    throw IOError("komis must have at least one value in " + configFile);
   if(allowedBSizes.size() != allowedBSizeRelProbs.size())
     throw IOError("bSizes and bSizeRelProbs must have same number of values in " + configFile);
 
   vector<SearchParams> paramss = Setup::loadParams(cfg);
   assert(paramss.size() > 0);
 
-  string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64);
+  string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   vector<string> botNames;
   if(cfg.contains("botNames"))
@@ -186,10 +184,10 @@ int main(int argc, const char* argv[]) {
     rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[seedRand.nextUInt(allowedMultiStoneSuicideLegals.size())];
   
     pair<int,float> extraBlackAndKomi = Setup::chooseExtraBlackAndKomi(
-      komiBase, komiStdev, komiAllowIntegerProb, handicapProb, handicapStoneValue,
+      komiMean, komiStdev, komiAllowIntegerProb, handicapProb, handicapStoneValue,
       komiBigStdevProb, komiBigStdev, bSize, seedRand
     );
-    rules.komi = extraBlackAndKomi.second();
+    rules.komi = extraBlackAndKomi.second;
   
     pla = P_BLACK;
     hist.clear(board,pla,rules);
@@ -229,7 +227,7 @@ int main(int argc, const char* argv[]) {
   };
 
   auto playExtraBlack = [&failIllegalMove](AsyncBot* bot, int numExtraBlack, Board& board, BoardHistory& hist) {
-    SearchParams oldParams = bot->getSearcher()->searchParams;
+    SearchParams oldParams = bot->getSearch()->searchParams;
     SearchParams tempParams = oldParams;
     tempParams.rootNoiseEnabled = false;
     tempParams.chosenMoveSubtract = 0.0;
