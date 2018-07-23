@@ -525,9 +525,9 @@ void WriteSgf::writeSgf(
 
   for(size_t i = 0; i<hist.moveHistory.size(); i++) {
     if(hist.moveHistory[i].pla == P_BLACK)
-      out << "B[";
+      out << ";B[";
     else
-      out << "W[";
+      out << ";W[";
     writeSgfLoc(out,hist.moveHistory[i].loc,bSize);
     out << "]";
   }
