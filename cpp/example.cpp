@@ -23,6 +23,12 @@ using namespace std;
 using namespace tensorflow;
 
 
+static void checkStatus(const Status& status, const char* subLabel) {
+  if(!status.ok())
+    throw StringError("NN Eval Error: " + string(subLabel) + status.ToString());
+}
+
+
 int main() {
   Board::initHash();
 
@@ -30,26 +36,40 @@ int main() {
   logger.setLogToStdout(true);
   logger.addFile("tmp.txt");
 
+  Session* session;
+  Status status;
+
+  string gpuVisibleDeviceList = ""; //use default
+  double perProcessGPUMemoryFraction = -1; //use default
+  SessionOptions sessionOptions = SessionOptions();
+  if(gpuVisibleDeviceList.length() > 0)
+    sessionOptions.config.mutable_gpu_options()->set_visible_device_list(gpuVisibleDeviceList);
+  if(perProcessGPUMemoryFraction >= 0.0)
+    sessionOptions.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(perProcessGPUMemoryFraction);
+
+  status = NewSession(sessionOptions, &session);
+
+  checkStatus(status, "creating session");
+
+  int modelFileIdx = 0;
   int maxBatchSize = 8;
   int nnCacheSizePowerOfTwo = 16;
   bool debugSkipNeuralNet = false;
   NNEvaluator* nnEval = new NNEvaluator(
+    session,
     "/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb",
+    modelFileIdx,
     maxBatchSize,
     nnCacheSizePowerOfTwo,
     debugSkipNeuralNet
   );
 
-  int numNNServerThreads = 1;
+  int numNNServerThreads = 2;
   bool doRandomize = true;
   string randSeed = "abc";
   int defaultSymmetry = 0;
-  vector<string> gpuVisibleDeviceListByThread = {}; //use default
-  double perProcessGPUMemoryFraction = -1; //use default
   nnEval->spawnServerThreads(
-    numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,
-    gpuVisibleDeviceListByThread,
-    perProcessGPUMemoryFraction
+    numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger
   );
 
   Rules rules;
@@ -85,9 +105,9 @@ int main() {
   BoardHistory hist(board,pla,rules);
   SearchParams params;
   params.maxPlayouts = 1000;
-  params.numThreads = 1;
+  params.numThreads = 2;
 
-  AsyncBot* bot = new AsyncBot(params, nnEval, &logger);
+  AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "def");
   bot->setPosition(pla,board,hist);
 
   Loc moveLoc = bot->genMoveSynchronous(pla);
@@ -308,6 +328,244 @@ int main() {
 
 
 
+// int main() {
+//   Board::initHash();
+
+//   auto checkStatus = [](Status status, const char* subLabel) {
+//     if(!status.ok())
+//       throw StringError("NNEvaluator initialization failed: " + string(subLabel) + ": " + status.ToString());
+//   };
+
+//   Session* session;
+//   Status status;
+//   GraphDef graphDef1;
+//   GraphDef graphDef2;
+
+//   //Create session
+//   status = NewSession(SessionOptions(), &session);
+//   checkStatus(status,"creating session");
+
+//   //Read graph from file
+//   status = ReadBinaryProto(Env::Default(), string("/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb"), &graphDef1);
+//   checkStatus(status,"reading graph1");
+//   status = ReadBinaryProto(Env::Default(), string("/efs/data/GoNN/exportedmodels/value18-140/model.graph_optimized.pb"), &graphDef2);
+//   checkStatus(status,"reading graph2");
+
+//   auto addPrefixToGraph = [](GraphDef& graphDef, const string& prefix) {
+//     //string device = "/gpu:0";
+//     for(int i = 0; i < graphDef.node_size(); ++i)
+//     {
+//       auto node = graphDef.mutable_node(i);
+//       //node->set_device(device);
+//       string* name = node->mutable_name();
+//       *name = prefix + *name;
+//       int inputSize = node->input_size();
+//       for(int j = 0; j<inputSize; j++) {
+//         string* inputName = node->mutable_input(j);
+//         if(inputName->size() > 0 && (*inputName)[0] == '^')
+//           *inputName = "^" + prefix + inputName->substr(1);
+//         else
+//           *inputName = prefix + *inputName;
+//       }
+//     }
+//   };
+//   addPrefixToGraph(graphDef1,"g1/");
+//   addPrefixToGraph(graphDef2,"g2/");
+
+//   //Add graph to session
+//   status = session->Create(graphDef1);
+//   checkStatus(status,"adding graph1 to session");
+//   status = session->Extend(graphDef2);
+//   checkStatus(status,"adding graph2 to session");
+
+//   int outputBatchSize = 4;
+
+//   //Set up inputs
+//   TensorShape inputsShape;
+//   TensorShape symmetriesShape;
+//   TensorShape isTrainingShape;
+//   int inputsShapeArr[3] = {outputBatchSize,NNPos::MAX_BOARD_AREA,NNInputs::NUM_FEATURES_V1};
+//   status = TensorShapeUtils::MakeShape(inputsShapeArr,3,&inputsShape);
+//   checkStatus(status,"making inputs shape");
+//   int symmetriesShapeArr[1] = {NNInputs::NUM_SYMMETRY_BOOLS};
+//   status = TensorShapeUtils::MakeShape(symmetriesShapeArr,1,&symmetriesShape);
+//   checkStatus(status,"making symmetries shape");
+//   int isTrainingShapeArr[0] = {};
+//   status = TensorShapeUtils::MakeShape(isTrainingShapeArr,0,&isTrainingShape);
+//   checkStatus(status,"making isTraining shape");
+
+//   Rules rules;
+//   rules.koRule = Rules::KO_POSITIONAL;
+//   rules.scoringRule = Rules::SCORING_AREA;
+//   rules.multiStoneSuicideLegal = true;
+//   rules.komi = 7.5f;
+
+//   Board board1 = Board::parseBoard(19,19,R"(
+//    A B C D E F G H J K L M N O P Q R S T
+// 19 . . . . . . . . . . . . . . . . . . .
+// 18 . . x o . . . . . . x o . . o . o x .
+// 17 . . x o . . o x . . . . o . . o x . .
+// 16 . . x o . . o x x o . x . . . o x . .
+// 15 . x o o x . x . x x x . x . . o x . .
+// 14 . x o . . . x x o o o o x . x o o x .
+// 13 . x o . . . . . o x x x x . . . o x .
+// 12 . . o . . x x x . o . o o o o . o . .
+// 11 . . . . o x o o o o . o . x . o . . .
+// 10 . o o o o o x . . o x x x . o x x . .
+//  9 . x . x o o x x x x o o x . x o x . .
+//  8 . . . x x x x . . x . o o x . o x . .
+//  7 . . . o o . x x . x . . . . . x . x .
+//  6 . . o x x x . x x o o . o . . x . x .
+//  5 . . o o o o x x . . . o . o . o x . .
+//  4 . o o x x o o . x o o x . o . o x . .
+//  3 . o x x . o o x x x . x . o x x o x .
+//  2 o x . x x o . o . . . . . o . . o x .
+//  1 . o x x o . . o . . . . . . . . . . .
+// )");
+//   Board board2 = Board::parseBoard(19,19,R"(
+//    A B C D E F G H J K L M N O P Q R S T
+// 19 . . . . . . . . . . . . . . . . . . .
+// 18 . . . . . . . . . . . . . . . . . . .
+// 17 . . . . . . . . . . . . . . o x . . .
+// 16 . . . o . . . . . . . . . . . . . . .
+// 15 . . . . . . . . . . . . . . . . x . .
+// 14 . . . . . . . . . . . . . . . . . . .
+// 13 . . . . . . . . . . . . . . . . . . .
+// 12 . . . . . . . . . . . . . . . . . . .
+// 11 . . . . . . . . . . . . . . . . . . .
+// 10 . . . . . . . . . . . . . . . . . . .
+//  9 . . . . . . . . . . . . . . . . . . .
+//  8 . . . . . . . . . . . . . . . . . . .
+//  7 . . . . . . . . . . . . . . . . . . .
+//  6 . . . . . . . . . . . . . . . . . . .
+//  5 . . . . . . . . . . . . . . . . . . .
+//  4 . . . . . . . . . . . . . . . x . . .
+//  3 . . . o . . . . . . . . . . . . . . .
+//  2 . . . . . . . . . . . . . . . . . . .
+//  1 . . . . . . . . . . . . . . . . . . .
+// )");
+
+//   Player nextPlayer = P_BLACK;
+//   BoardHistory hist1(board1,nextPlayer,rules);
+//   BoardHistory hist2(board2,nextPlayer,rules);
+
+//   auto runInputsInLoop = [&](vector<float>* res, int which) {
+//     vector<float>& results = *res;
+
+//     Tensor inputs(DT_FLOAT,inputsShape);
+//     Tensor symmetries(DT_BOOL,symmetriesShape);
+//     Tensor isTraining(DT_BOOL,isTrainingShape);
+
+//     auto symmetriesMap = symmetries.tensor<bool, 1>();
+//     symmetriesMap(0) = false;
+//     symmetriesMap(1) = false;
+//     symmetriesMap(2) = false;
+
+//     auto isTrainingMap = isTraining.tensor<bool, 0>();
+//     isTrainingMap(0) = false;
+
+//     // Tensor sliced = inputs.Slice(0,1);
+
+//     vector<pair<string,Tensor>> inputsList1 = {
+//       {"g1/inputs",inputs},
+//       {"g1/symmetries",symmetries},
+//       {"g1/is_training",isTraining},
+//     };
+//     vector<pair<string,Tensor>> inputsList2 = {
+//       {"g2/inputs",inputs},
+//       {"g2/symmetries",symmetries},
+//       {"g2/is_training",isTraining},
+//     };
+
+//     for(int i = 0; i<500; i++) {
+//       float* row = inputs.flat<float>().data();
+//       for(int j = 0; j<outputBatchSize * NNInputs::ROW_SIZE_V1; j++)
+//         row[j] = 0.0f;
+
+//       NNInputs::fillRowV1(board1, hist1, nextPlayer, row);
+//       NNInputs::fillRowV1(board2, hist2, nextPlayer, row + NNInputs::ROW_SIZE_V1);
+//       NNInputs::fillRowV1(board1, hist1, nextPlayer, row + NNInputs::ROW_SIZE_V1*2);
+//       NNInputs::fillRowV1(board2, hist2, nextPlayer, row + NNInputs::ROW_SIZE_V1*3);
+
+//       vector<Tensor> outputs;
+//       // cout << "Running" << endl;
+//       if(which == 1)
+//         status = session->Run(inputsList1, {"g1/policy_output","g1/value_output"}, {}, &outputs);
+//       else
+//         status = session->Run(inputsList2, {"g2/policy_output","g2/value_output"}, {}, &outputs);
+
+//       checkStatus(status,"running inference");
+//       assert(outputs.size() == 2);
+
+//       assert(outputs[0].dims() == 2);
+//       assert(outputs[1].dims() == 1);
+//       assert(outputs[0].dim_size(0) == outputBatchSize); //batch
+//       assert(outputs[0].dim_size(1) == NNPos::NN_POLICY_SIZE);
+//       assert(outputs[1].dim_size(0) == outputBatchSize); //batch
+
+//       // auto policyMap = outputs[0].matrix<float>();
+//       auto valueMap = outputs[1].vec<float>();
+
+//       for(int batch = 0; batch < outputBatchSize; batch++) {
+//         // float policy[NNPos::NN_POLICY_SIZE];
+//         // float maxPolicy = -1e10f;
+//         // for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+//         //   policy[i] = policyMap(batch,i);
+//         //   if(policy[i] > maxPolicy)
+//         //     maxPolicy = policy[i];
+//         // }
+//         // float policySum = 0.0f;
+//         // for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+//         //   policy[i] = exp(policy[i] - maxPolicy);
+//         //   policySum += policy[i];
+//         // }
+//         // for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+//         //   policy[i] /= policySum;
+//         // }
+
+//         float value = valueMap(batch);
+
+//         // for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
+//         //   for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
+//         //     printf("%4.1f%%", policy[x+y*NNPos::MAX_BOARD_LEN] * 100.0);
+//         //   }
+//         //   cout << endl;
+//         // }
+//         // printf("%4.1f%%", policy[NNPos::NN_POLICY_SIZE-1] * 100.0);
+//         // cout << endl;
+//         // cout << value << endl;
+//         results.push_back(value);
+//       }
+//     }
+//   };
+
+//   int numThreads = 4;
+
+//   vector<std::thread> threads;
+//   vector<float> results[numThreads];
+//   for(int i = 0; i<numThreads; i++)
+//     results[i] = vector<float>();
+
+//   for(int i = 0; i<numThreads; i++) {
+//     if(i % 2 == 0)
+//       threads.push_back(std::thread(runInputsInLoop,&(results[i]),1));
+//     else
+//       threads.push_back(std::thread(runInputsInLoop,&(results[i]),2));
+//   }
+//   for(int i = 0; i<numThreads; i++) {
+//     threads[i].join();
+//   }
+//   for(int i = 0; i<numThreads; i++) {
+//     for(int j = 0; j<results[i].size(); j++) {
+//       printf("%.9f", results[i][j]);
+//       cout << endl;
+//     }
+//   }
+
+//   cout << "Done" << endl;
+
+//   return 0;
+// }
 
 
 // int main() {

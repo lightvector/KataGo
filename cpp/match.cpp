@@ -65,7 +65,8 @@ int main(int argc, const char* argv[]) {
 
   logger.write("Match Engine starting...");
 
-  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelFiles,cfg,logger,seedRand);
+  Session* session = Setup::initializeSession(cfg);
+  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(session,nnModelFiles,cfg,logger,seedRand);
   logger.write("Loaded neural net");
 
 
@@ -411,6 +412,12 @@ int main(int argc, const char* argv[]) {
   for(int i = 0; i<numMatchThreads; i++)
     threads[i].join();
 
+  for(int i = 0; i<nnEvals.size(); i++) {
+    delete nnEvals[i];
+  }
+  session->Close();
+
+  
   logger.write("All cleaned up, quitting");
   return 0;
 }

@@ -38,10 +38,30 @@ static void checkStatus(const Status& status, const char* subLabel) {
     throw StringError("NN Eval Error: " + string(subLabel) + status.ToString());
 }
 
+static void addPrefixToGraph(GraphDef& graphDef, const string& prefix) {
+  //string device = "/gpu:0";
+  for(int i = 0; i < graphDef.node_size(); ++i)
+  {
+    auto node = graphDef.mutable_node(i);
+    //node->set_device(device);
+    string* name = node->mutable_name();
+    *name = prefix + *name;
+    int inputSize = node->input_size();
+    for(int j = 0; j<inputSize; j++) {
+      string* inputName = node->mutable_input(j);
+      if(inputName->size() > 0 && (*inputName)[0] == '^')
+        *inputName = "^" + prefix + inputName->substr(1);
+      else
+        *inputName = prefix + *inputName;
+    }
+  }
+};
+
 //-------------------------------------------------------------------------------------
 
 static void initTensorIOBufs(
   int maxNumRows,
+  const string& graphPrefix,
   float*& inputsBuffer,
   bool*& symmetriesBuffer,
   vector<pair<string,Tensor>>*& inputsList,
@@ -76,9 +96,9 @@ static void initTensorIOBufs(
 
   inputsList = new vector<pair<string,Tensor>>();
   *inputsList = {
-    {"inputs",inputs},
-    {"symmetries",symmetries},
-    {"is_training",isTraining},
+    {graphPrefix+"inputs",inputs},
+    {graphPrefix+"symmetries",symmetries},
+    {graphPrefix+"is_training",isTraining},
   };
 
   resultBufs = new NNResultBuf*[maxNumRows];
@@ -110,8 +130,8 @@ static void freeTensorInputBufs(
 }
 
 
-NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const string& gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet)
-  :session(NULL),
+NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, Session* sess, const string& graphPrefix)
+  :session(sess),
    outputNames(),
    targetNames(),
    outputsBuf(),
@@ -120,35 +140,20 @@ NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const string& gpuVisibleDevi
    inputsList(NULL),
    resultBufs(NULL)
 {
-  Status status;
-
-  //Create tensorflow session
-  if(!debugSkipNeuralNet) {
-    SessionOptions sessionOptions = SessionOptions();
-    if(gpuVisibleDevices.length() > 0)
-      sessionOptions.config.mutable_gpu_options()->set_visible_device_list(gpuVisibleDevices);
-    if(perProcessGPUMemoryFraction >= 0.0)
-      sessionOptions.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(perProcessGPUMemoryFraction);
-    status = NewSession(sessionOptions, &session);
-    checkStatus(status,"creating session");
-  }
-
   outputNames = {
-    string("policy_output"),
-    string("value_output")
+    graphPrefix + "policy_output",
+    graphPrefix + "value_output"
   };
   targetNames = {};
 
-  initTensorIOBufs(nnEval.getMaxBatchSize(), inputsBuffer, symmetriesBuffer, inputsList, resultBufs);
+  initTensorIOBufs(nnEval.getMaxBatchSize(), graphPrefix, inputsBuffer, symmetriesBuffer, inputsList, resultBufs);
 }
 
 NNServerBuf::~NNServerBuf() {
   //Explictly clean up tensors - their destructors should get called.
   outputsBuf.clear();
   freeTensorInputBufs(inputsBuffer, symmetriesBuffer, inputsList, resultBufs);
-
-  if(session != NULL)
-    session->Close();
+  //Session belongs to external, don't clean it up
   session = NULL;
 }
 
@@ -156,12 +161,17 @@ NNServerBuf::~NNServerBuf() {
 //-------------------------------------------------------------------------------------
 
 NNEvaluator::NNEvaluator(
+  Session* sess,
   const string& pbModelFile,
+  int modelFileIdx,
   int maxBatchSize,
   int nnCacheSizePowerOfTwo,
   bool skipNeuralNet
 )
   :modelFileName(pbModelFile),
+   graphDef(NULL),
+   graphPrefix("m" + Global::intToString(modelFileIdx)),
+   session(sess),
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
    serverThreads(),
@@ -187,8 +197,13 @@ NNEvaluator::NNEvaluator(
   //Read graph from file
   status = ReadBinaryProto(Env::Default(), pbModelFile, graphDef);
   checkStatus(status,"reading graph");
+  addPrefixToGraph(*graphDef,graphPrefix);
 
-  initTensorIOBufs(maxNumRows, m_inputsBuffer, m_symmetriesBuffer, m_inputsList, m_resultBufs);
+  //Add graph to session
+  status = session->Create(*graphDef);
+  checkStatus(status,"adding graph to session");
+  
+  initTensorIOBufs(maxNumRows, graphPrefix, m_inputsBuffer, m_symmetriesBuffer, m_inputsList, m_resultBufs);
 }
 
 NNEvaluator::~NNEvaluator()
@@ -197,6 +212,7 @@ NNEvaluator::~NNEvaluator()
   assert(!serverTryingToGrabBatch);
   freeTensorInputBufs(m_inputsBuffer, m_symmetriesBuffer, m_inputsList, m_resultBufs);
   delete nnCacheTable;
+  session = NULL; //Don't clean up, owned externally
   delete graphDef;
 }
 
@@ -225,10 +241,9 @@ void NNEvaluator::clearCache() {
 }
 
 static void serveEvals(
-  int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger, NNEvaluator* nnEval,
-  string gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet
+  int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger, NNEvaluator* nnEval, Session* session, string graphPrefix
 ) {
-  NNServerBuf* buf = new NNServerBuf(*nnEval, gpuVisibleDevices, perProcessGPUMemoryFraction, debugSkipNeuralNet);
+  NNServerBuf* buf = new NNServerBuf(*nnEval,session,graphPrefix);
   Rand rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
   ostream* logStream = logger->createOStream();
   try {
@@ -252,23 +267,14 @@ void NNEvaluator::spawnServerThreads(
   bool doRandomize,
   string randSeed,
   int defaultSymmetry,
-  Logger& logger,
-  const vector<string>& gpuVisibleDeviceListByThread,
-  double perProcessGPUMemoryFraction
+  Logger& logger
 ) {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
 
-  if(gpuVisibleDeviceListByThread.size() > 0 && gpuVisibleDeviceListByThread.size() != numThreads)
-    throw StringError("NNEvaluator::spawnServerThreads gpuVisibleDeviceListByThread is not the same size as the number of threads!");
-
   for(int i = 0; i<numThreads; i++) {
-    string gpuVisibleDevices;
-    if(gpuVisibleDeviceListByThread.size() > 0)
-      gpuVisibleDevices = gpuVisibleDeviceListByThread[i];
     std::thread* thread = new std::thread(
-      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,
-      gpuVisibleDevices,perProcessGPUMemoryFraction,debugSkipNeuralNet
+      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,session,graphPrefix
     );
     serverThreads.push_back(thread);
   }
@@ -293,9 +299,6 @@ void NNEvaluator::killServerThreads() {
 
 void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry) {
   Status status;
-  //Add graph to session
-  status = buf.session->Create(*graphDef);
-  checkStatus(status,"adding graph to session");
 
   vector<pair<string,Tensor>> slicedInputsList;
 

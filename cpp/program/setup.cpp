@@ -1,6 +1,37 @@
 #include "../program/setup.h"
 
+using tensorflow::Status;
+using tensorflow::SessionOptions;
+
+static void checkStatus(const Status& status, const char* subLabel) {
+  if(!status.ok())
+    throw StringError("NN Setup Error: " + string(subLabel) + status.ToString());
+}
+
+Session* Setup::initializeSession(ConfigParser& cfg) {
+
+  string gpuVisibleDeviceList;
+  if(cfg.contains("gpuVisibleDeviceList"))
+    gpuVisibleDeviceList = cfg.getString("gpuVisibleDeviceList");
+    
+  double perProcessGPUMemoryFraction = -1;
+  if(cfg.contains("perProcessGPUMemoryFraction"))
+    perProcessGPUMemoryFraction = cfg.getDouble("perProcessGPUMemoryFraction",0.0,1.0);
+  
+  Status status;
+  SessionOptions sessionOptions = SessionOptions();
+  if(gpuVisibleDeviceList.length() > 0)
+    sessionOptions.config.mutable_gpu_options()->set_visible_device_list(gpuVisibleDeviceList);
+  if(perProcessGPUMemoryFraction >= 0.0)
+    sessionOptions.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(perProcessGPUMemoryFraction);
+  Session* session;
+  status = NewSession(sessionOptions, &session);
+  checkStatus(status,"creating session");
+  return session;
+}
+
 vector<NNEvaluator*> Setup::initializeNNEvaluators(
+  Session* session,
   const vector<string>& nnModelFiles,
   ConfigParser& cfg,
   Logger& logger,
@@ -12,8 +43,11 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     const string& nnModelFile = nnModelFiles[i];
 
     bool debugSkipNeuralNet = false;
+    int modelFileIdx = i;
     NNEvaluator* nnEval = new NNEvaluator(
+      session,
       nnModelFile,
+      modelFileIdx,
       cfg.getInt("nnMaxBatchSize", 1, 65536),
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
       debugSkipNeuralNet
@@ -29,35 +63,14 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
     logger.write("nnRandSeed" + idxStr + " = " + nnRandSeed);
 
-    vector<string> gpuVisibleDeviceListByThread;
-    string gpuVisibleDeviceListByThreadStr;
-    if(cfg.contains("gpuVisibleDeviceListByThread" + idxStr))
-      gpuVisibleDeviceListByThreadStr = cfg.getString("gpuVisibleDeviceListByThread" + idxStr);
-    else if(cfg.contains("gpuVisibleDeviceListByThread"))
-      gpuVisibleDeviceListByThreadStr = cfg.getString("gpuVisibleDeviceListByThread");
-
-    if(gpuVisibleDeviceListByThreadStr.length() > 0) {
-      vector<string> pieces = Global::split(gpuVisibleDeviceListByThreadStr,';');
-      for(size_t j = 0; j < pieces.size(); j++)
-        gpuVisibleDeviceListByThread.push_back(Global::trim(pieces[j]));
-    }
-    if(gpuVisibleDeviceListByThread.size() > 1024)
-      throw IOError("Too many values for gpuVisibleDeviceListByThread");
-
-    double perProcessGPUMemoryFraction = -1;
-    if(cfg.contains("perProcessGPUMemoryFraction"))
-      perProcessGPUMemoryFraction = cfg.getDouble("perProcessGPUMemoryFraction",0.0,1.0);
-
-    int numNNServerThreads = gpuVisibleDeviceListByThreadStr.length() == 0 ? 1 : gpuVisibleDeviceListByThread.size();
+    int numNNServerThreadsPerModel = cfg.getInt("numNNServerThreadsPerModel",1,1024);
     int defaultSymmetry = 0;
     nnEval->spawnServerThreads(
-      numNNServerThreads,
+      numNNServerThreadsPerModel,
       nnRandomize,
       nnRandSeed,
       defaultSymmetry,
-      logger,
-      gpuVisibleDeviceListByThread,
-      perProcessGPUMemoryFraction
+      logger
     );
 
     nnEvals.push_back(nnEval);

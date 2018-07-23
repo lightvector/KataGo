@@ -98,7 +98,7 @@ struct NNServerBuf {
   vector<pair<string,Tensor>>* inputsList;
   NNResultBuf** resultBufs;
 
-  NNServerBuf(const NNEvaluator& nneval, const string& gpuVisibleDevices, double perProcessGPUMemoryFraction, bool debugSkipNeuralNet);
+  NNServerBuf(const NNEvaluator& nneval, Session* session, const string& graphPrefix);
   ~NNServerBuf();
   NNServerBuf(const NNServerBuf& other) = delete;
   NNServerBuf& operator=(const NNServerBuf& other) = delete;
@@ -109,7 +109,9 @@ struct NNServerBuf {
 class NNEvaluator {
  public:
   NNEvaluator(
+    Session* session,
     const string& pbModelFile,
+    int modelFileIdx,
     int maxBatchSize,
     int nnCacheSizePowerOfTwo,
     bool debugSkipNeuralNet
@@ -136,9 +138,7 @@ class NNEvaluator {
     bool doRandomize,
     string randSeed,
     int defaultSymmetry,
-    Logger& logger,
-    const vector<string>& gpuVisibleDeviceListByThread,  //can be the empty vector if using tensorflow defaults
-    double perProcessGPUMemoryFraction //can be -1 to use tensorflow defaults
+    Logger& logger
   );
 
   //Kill spawned server threads and join and free them. This function is not threadsafe, and along with spawnServerThreads
@@ -155,6 +155,8 @@ class NNEvaluator {
  private:
   string modelFileName;
   GraphDef* graphDef;
+  string graphPrefix;
+  Session* session;
   NNCacheTable* nnCacheTable;
   bool debugSkipNeuralNet;
 
