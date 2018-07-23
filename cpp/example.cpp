@@ -105,7 +105,7 @@ int main() {
   BoardHistory hist(board,pla,rules);
   SearchParams params;
   params.maxPlayouts = 1000;
-  params.numThreads = 2;
+  params.numThreads = 6;
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "def");
   bot->setPosition(pla,board,hist);

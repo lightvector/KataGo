@@ -24,38 +24,20 @@ int main(int argc, const char* argv[]) {
   Rand seedRand;
 
   string configFile;
-  vector<string> nnModelFiles;
-  vector<string> nnModelNames;
   string sgfOutputDir;
   try {
     TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/match_example.cfg)",true,string(),"FILE");
-    TCLAP::MultiArg<string> nnModelFileArg("","nn-model-file","Neural net model .pb graph file to use",true,"FILE");
-    TCLAP::MultiArg<string> nnModelNameArg("","nn-model-name","Neural net model name for logs and data",true,"STR");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",false,string(),"DIR");
     cmd.add(configFileArg);
-    cmd.add(nnModelFileArg);
-    cmd.add(nnModelNameArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
-    nnModelFiles = nnModelFileArg.getValue();
-    nnModelNames = nnModelNameArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
   }
-
-  if(nnModelFiles.size() <= 0) {
-    cerr << "Must specify at least one -nn-model-file" << endl;
-    return 1;
-  }
-  if(nnModelFiles.size() >= 100) {
-    cerr << "Too many model files" << endl;
-    return 1;
-  }
-
   ConfigParser cfg(configFile);
 
   Logger logger;
@@ -65,11 +47,55 @@ int main(int argc, const char* argv[]) {
 
   logger.write("Match Engine starting...");
 
+  
+  //Load per-bot search config, first, which also tells us how many bots we're running
+  vector<SearchParams> paramss = Setup::loadParams(cfg);
+  assert(paramss.size() > 0);
+  int numBots = paramss.size();
+
+  //Load the names of the bots and which model each bot is using
+  vector<string> nnModelFilesByBot;
+  vector<string> botNames;
+  for(int i = 0; i<numBots; i++) {
+    string idxStr = Global::intToString(i);
+
+    if(cfg.contains("botName"+idxStr))
+      botNames.push_back(cfg.getString("botName"+idxStr));
+    else
+      botNames.push_back(cfg.getString("botName"));
+    
+    if(cfg.contains("nnModelFile"+idxStr))
+      nnModelFilesByBot.push_back(cfg.getString("nnModelFile"+idxStr));
+    else
+      nnModelFilesByBot.push_back(cfg.getString("nnModelFile"));
+  }
+    
+  //Dedup and load each necessary model exactly once
+  vector<string> nnModelFiles;
+  vector<int> whichNNModel;
+  for(int i = 0; i<numBots; i++) {
+    const string& desiredFile = nnModelFilesByBot[i];
+    int alreadyFoundIdx = -1;
+    for(int j = 0; j<nnModelFiles.size(); j++) {
+      if(nnModelFiles[j] == desiredFile) {
+        alreadyFoundIdx = j;
+        break;
+      }
+    }
+    if(alreadyFoundIdx != -1)
+      whichNNModel.push_back(alreadyFoundIdx);
+    else {
+      whichNNModel.push_back(nnModelFiles.size());
+      nnModelFiles.push_back(desiredFile);
+    }
+  }
+
+  //Initialize tensorflow and the models  
   Session* session = Setup::initializeSession(cfg);
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(session,nnModelFiles,cfg,logger,seedRand);
   logger.write("Loaded neural net");
 
-
+  //Get the configuration for rules
   vector<string> allowedKoRuleStrs = cfg.getStrings("koRules", Rules::koRuleStrings());
   vector<string> allowedScoringRuleStrs = cfg.getStrings("scoringRules", Rules::scoringRuleStrings());
   vector<bool> allowedMultiStoneSuicideLegals = cfg.getBools("multiStoneSuicideLegals");
@@ -88,8 +114,6 @@ int main(int argc, const char* argv[]) {
   if(allowedMultiStoneSuicideLegals.size() <= 0)
     throw IOError("multiStoneSuicideLegals must have at least one value in " + configFile);
 
-
-  //TODO we need a mechanism to make the komi range shrink for smaller boards!
   vector<int> allowedBSizes = cfg.getInts("bSizes", 9, 19);
   vector<double> allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1.0);
 
@@ -106,57 +130,14 @@ int main(int argc, const char* argv[]) {
   if(allowedBSizes.size() != allowedBSizeRelProbs.size())
     throw IOError("bSizes and bSizeRelProbs must have same number of values in " + configFile);
 
-  vector<SearchParams> paramss = Setup::loadParams(cfg);
-  assert(paramss.size() > 0);
-
-  string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
-
-  vector<string> botNames;
-  if(cfg.contains("botNames"))
-    botNames = cfg.getStrings("botNames");
-  if(paramss.size() > 1 && botNames.size() != paramss.size())
-    throw IOError("botNames must be specified and have a name for each bot if numBots > 1");
-  if(paramss.size() == 1 && botNames.size() != paramss.size())
-    botNames.push_back("bot");
-  if(botNames.size() > 1000)
-    throw IOError("botNames has too many values");
-  size_t numBots = botNames.size();
-
-  vector<int> whichNNModel;
-  if(cfg.contains("whichNNModel")) {
-    whichNNModel = cfg.getInts("whichNNModel", 0, 1000);
-    if(whichNNModel.size() != numBots)
-      throw IOError("whichNNModel must have exactly one entry for each bot");
-  }
-  else {
-    if(nnEvals.size() > 1)
-      throw IOError("whichNNModel must be specified in config if cmdline gives more than one model");
-    for(size_t i = 0; i<numBots; i++)
-      whichNNModel.push_back(0);
-  }
-
-  {
-    int numModels = nnEvals.size();
-    bool nnModelUsed[numModels];
-    for(int i = 0; i<numModels; i++)
-      nnModelUsed[i] = false;
-    for(size_t i = 0; i<numBots; i++) {
-      if(whichNNModel[i] >= numModels)
-        throw IOError("whichNNModel specified using model " + Global::intToString(whichNNModel[i])
-                      + " but only " + Global::intToString(numModels) + " were provided");
-      nnModelUsed[whichNNModel[i]] = true;
-    }
-    for(int i = 0; i<numModels; i++) {
-      if(!nnModelUsed[i])
-        throw IOError("whichNNModel does not use model #" + Global::intToString(i)
-                      + " from the command line: " + nnModelFiles[i]);
-    }
-  }
-
+  //Load match runner settings
   int numMatchThreads = cfg.getInt("numMatchThreads",1,16384);
   int64_t numMatchGamesTotal = cfg.getInt64("numMatchGamesTotal",1,((int64_t)1) << 62);
   int maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
 
+  string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+
+  //Check for unused config keys
   {
     vector<string> unusedKeys = cfg.unusedKeys();
     for(size_t i = 0; i<unusedKeys.size(); i++) {
@@ -166,6 +147,9 @@ int main(int argc, const char* argv[]) {
     }
   }
 
+  //Done loading!
+  //------------------------------------------------------------------------------------
+  
   if(sgfOutputDir != string())
     MakeDir::make(sgfOutputDir);
 
