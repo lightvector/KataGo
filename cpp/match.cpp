@@ -61,8 +61,10 @@ int main(int argc, const char* argv[]) {
 
     if(cfg.contains("botName"+idxStr))
       botNames.push_back(cfg.getString("botName"+idxStr));
-    else
+    else if(numBots == 1)
       botNames.push_back(cfg.getString("botName"));
+    else
+      throw StringError("If more than one bot, must specify botName0, botName1,... individually");
     
     if(cfg.contains("nnModelFile"+idxStr))
       nnModelFilesByBot.push_back(cfg.getString("nnModelFile"+idxStr));

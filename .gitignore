@@ -11,6 +11,7 @@ cpp/gtp
 cpp/gtp.log
 cpp/match
 cpp/match.log
+cpp/configs
 
 # For clion IDE
 .idea
