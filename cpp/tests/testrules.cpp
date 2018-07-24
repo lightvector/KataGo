@@ -1,10 +1,32 @@
 #include "../tests/tests.h"
 using namespace TestCommon;
 
+static void checkKoHashConsistency(BoardHistory& hist, Board& board, Player nextPla) {
+  testAssert(hist.koHashHistory.size() > 0);
+  Hash128 expected = board.pos_hash;
+  if(hist.encorePhase > 0) {
+    expected ^= Board::ZOBRIST_PLAYER_HASH[nextPla];
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(hist.blackKoProhibited[loc])
+          expected ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK];
+        if(hist.whiteKoProhibited[loc])
+          expected ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
+      }
+    }
+  }
+  else if(hist.rules.koRule == Rules::KO_SITUATIONAL) {
+    expected ^= Board::ZOBRIST_PLAYER_HASH[nextPla];
+  }
+  testAssert(expected == hist.koHashHistory[hist.koHashHistory.size()-1]);
+}
+
 static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Player pla, int line) {
   if(!hist.isLegal(board, loc, pla))
     throw StringError("Illegal move on line " + Global::intToString(line));
   hist.makeBoardMoveAssumeLegal(board, loc, pla, NULL);
+  checkKoHashConsistency(hist,board,getOpp(pla));
 }
 
 static double finalScoreIfGameEndedNow(const BoardHistory& baseHist, const Board& baseBoard) {
@@ -35,6 +57,18 @@ void Tests::runRulesTests() {
         if((pla == P_BLACK && hist.blackKoProhibited[loc]) || (pla == P_WHITE && hist.whiteKoProhibited[loc])) {
           o << "Ko-prohibited: " << Location::toStringMach(loc,board.x_size) << " " << colorToChar(pla) << endl;
         }
+      }
+    }
+  };
+
+  auto printEncoreKoProhibition = [](ostream& o, const Board& board, const BoardHistory& hist) {
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(hist.blackKoProhibited[loc])
+          o << "Ko prohibited black at " << Location::toString(loc,board) << endl;
+        if(hist.whiteKoProhibited[loc])
+          o << "Ko prohibited white at " << Location::toString(loc,board) << endl;
       }
     }
   };
@@ -775,6 +809,313 @@ ooooooo
     string expected = R"%%(
 Illegal: (1,2) O
 Illegal: (5,2) O
+)%%";
+    expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
+
+  {
+    const char* name = "Triple ko encore";
+    Board board = Board::parseBoard(7,6,R"%%(
+ooooooo
+oxo.o.o
+x.xoxox
+xxxxxxx
+ooooooo
+.......
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    BoardHistory hist(board,P_BLACK,rules);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(3,1,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(1,2,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(5,1,board.x_size), P_BLACK, __LINE__);
+    //Pass for ko
+    makeMoveAssertLegal(hist, board, Location::getLoc(3,2,board.x_size), P_WHITE, __LINE__);
+    //Should be a complete capture
+    makeMoveAssertLegal(hist, board, Location::getLoc(1,1,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    //There should be no ko marks on the board at this point.
+    printEncoreKoProhibition(out,board,hist);
+
+    string expected = R"%%(
+HASH: EA1DB3D0A1A4D729AFE423A3B6425B29
+   A B C D E F G
+ 6 . . . . . . .
+ 5 . X . X . X .
+ 4 X . X . X . X
+ 3 X X X X X X X
+ 2 O O O O O O O
+ 1 . . . . . . .
+)%%";
+    expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
+
+  {
+    const char* name = "Encore - own throwin that temporarily breaks the ko shape should not clear the ko prohibition";
+    Board board = Board::parseBoard(7,6,R"%%(
+..o....
+...o...
+.xoxo..
+..x.x..
+...x...
+.......
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    BoardHistory hist(board,P_WHITE,rules);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(3,3,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(2,1,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(1,1,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+
+    string expected = R"%%(
+HASH: 211F4559FB155DA94DC2C5CB753077E7
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . . O . . .
+ 4 . X O . O . .
+ 3 . . X O X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+
+Ko prohibited black at D4
+HASH: EE414000D22F0F8E999B58DDA897C6BD
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . X O . . .
+ 4 . X O . O . .
+ 3 . . X O X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+
+Ko prohibited black at D4
+HASH: 26526703BA88855735804E2D4B6CE3C7
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . O . O . . .
+ 4 . X O . O . .
+ 3 . . X O X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+
+Ko prohibited black at D4
+)%%";
+    expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
+  
+  {
+    const char* name = "Encore - ko prohibition clears if opponent moves without restoring the ko shape";
+    Board board = Board::parseBoard(7,6,R"%%(
+..o....
+...o...
+.xoxo..
+..x.x..
+...x...
+.......
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    BoardHistory hist(board,P_WHITE,rules);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(3,3,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(2,1,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(0,0,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(3,2,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+
+    string expected = R"%%(
+HASH: 211F4559FB155DA94DC2C5CB753077E7
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . . O . . .
+ 4 . X O . O . .
+ 3 . . X O X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+
+Ko prohibited black at D4
+HASH: EE414000D22F0F8E999B58DDA897C6BD
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . X O . . .
+ 4 . X O . O . .
+ 3 . . X O X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+
+Ko prohibited black at D4
+HASH: 1CD632B0C14F8233EEF065D2BF0BCA6C
+   A B C D E F G
+ 6 O . O . . . .
+ 5 . . X O . . .
+ 4 . X O . O . .
+ 3 . . X O X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+
+HASH: 1FD443E8C77DDC9908A5E4EC94AD28F3
+   A B C D E F G
+ 6 O . O . . . .
+ 5 . . X O . . .
+ 4 . X . X O . .
+ 3 . . X . X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+)%%";
+    expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
+
+
+  {
+    const char* name = "Encore - once only rule doesn't prevent the opponent moving there (filling ko)";
+    Board board = Board::parseBoard(7,6,R"%%(
+..o....
+...o...
+.xoxo..
+..x.x..
+...x...
+.......
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    BoardHistory hist(board,P_WHITE,rules);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(3,3,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+    //Pass for ko
+    makeMoveAssertLegal(hist, board, Location::getLoc(3,2,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+    //Pass
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+    //Take ko
+    makeMoveAssertLegal(hist, board, Location::getLoc(3,2,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+    //Pass
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+    //Fill ko
+    makeMoveAssertLegal(hist, board, Location::getLoc(3,3,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoProhibition(out,board,hist);
+
+    string expected = R"%%(
+HASH: 211F4559FB155DA94DC2C5CB753077E7
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . . O . . .
+ 4 . X O . O . .
+ 3 . . X O X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+
+Ko prohibited black at D4
+HASH: 211F4559FB155DA94DC2C5CB753077E7
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . . O . . .
+ 4 . X O . O . .
+ 3 . . X O X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+
+HASH: 211F4559FB155DA94DC2C5CB753077E7
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . . O . . .
+ 4 . X O . O . .
+ 3 . . X O X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+
+HASH: 1565EDCF73D8956419E2D5E305F15BEC
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . . O . . .
+ 4 . X O X O . .
+ 3 . . X . X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+
+Ko prohibited white at D3
+HASH: 1565EDCF73D8956419E2D5E305F15BEC
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . . O . . .
+ 4 . X O X O . .
+ 3 . . X . X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
+
+Ko prohibited white at D3
+HASH: C1B32AE0968F96F2D47DA5E16C8C1C82
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . . O . . .
+ 4 . X O X O . .
+ 3 . . X X X . .
+ 2 . . . X . . .
+ 1 . . . . . . .
+
 )%%";
     expect(name,out,expected);
     out.str("");

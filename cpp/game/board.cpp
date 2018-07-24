@@ -1771,7 +1771,7 @@ string Location::toString(Loc loc, int x_size, int y_size)
     return string("null");
   const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
   int x = getX(loc,x_size);
-  int y = getY(loc,y_size);
+  int y = getY(loc,x_size);
   if(x >= x_size || x < 0 || y < 0)
     return toStringMach(loc,x_size);
 

@@ -17,6 +17,7 @@ struct BoardHistory {
   //Chronological history of hashes, including the latest board's hash.
   //Cleared on a pass if passes clear ko bans
   vector<Hash128> koHashHistory;
+  int koHistoryLastClearedBeginningMoveIdx;
 
   //Did this board location ever have a stone there before, or was it ever played?
   //(Also includes locations of suicides)
@@ -36,8 +37,10 @@ struct BoardHistory {
   bool blackKoProhibited[Board::MAX_ARR_SIZE];
   bool whiteKoProhibited[Board::MAX_ARR_SIZE];
   Hash128 koProhibitHash;
+
   //Used to implement once-only rules for ko captures in encore
-  vector<pair<Hash128,Loc>> koCapturesInEncore;
+  STRUCT_NAMED_TRIPLE(Hash128,posHashBeforeMove,Loc,moveLoc,Player,movePla,EncoreKoCapture);
+  vector<EncoreKoCapture> koCapturesInEncore;
 
   //State of the grid as of the start of encore phase 2 for territory scoring
   Color secondEncoreStartColors[Board::MAX_ARR_SIZE];
@@ -93,6 +96,7 @@ private:
 struct KoHashTable {
   uint16_t* idxTable;
   vector<Hash128> koHashHistorySortedByLowBits;
+  int koHistoryLastClearedBeginningMoveIdx;
 
   static const int TABLE_SIZE = 1 << 10;
   static const uint64_t TABLE_MASK = TABLE_SIZE-1;

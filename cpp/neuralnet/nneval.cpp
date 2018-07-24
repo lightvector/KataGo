@@ -200,7 +200,7 @@ NNEvaluator::NNEvaluator(
   addPrefixToGraph(*graphDef,graphPrefix);
 
   //Add graph to session
-  status = session->Create(*graphDef);
+  status = session->Extend(*graphDef);
   checkStatus(status,"adding graph to session");
   
   initTensorIOBufs(maxNumRows, graphPrefix, m_inputsBuffer, m_symmetriesBuffer, m_inputsList, m_resultBufs);
