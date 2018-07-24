@@ -412,12 +412,12 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defa
 
 }
 
-void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream) {
+void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream, bool skipCache) {
   assert(!isKilled);
   buf.hasResult = false;
 
   Hash128 nnHash = NNInputs::getHashV1(board, history, nextPlayer);
-  if(nnCacheTable != NULL && nnCacheTable->get(nnHash,buf.result)) {
+  if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
     buf.hasResult = true;
     return;
   }

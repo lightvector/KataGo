@@ -125,9 +125,9 @@ class NNEvaluator {
 
   //Queue a position for the next neural net batch evaluation and wait for it. Upon evaluation, result
   //will be supplied in NNResultBuf& buf, the shared_ptr there can grabbed via std::move if desired.
-  //logStream is for some rror logging, can be NULL.
+  //logStream is for some error logging, can be NULL.
   //This function is threadsafe.
-  void evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream);
+  void evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream, bool skipCache);
 
   //Actually spawn threads and return the results.
   //If doRandomize, uses randSeed as a seed, further randomized per-thread

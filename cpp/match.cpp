@@ -30,6 +30,7 @@ int main(int argc, const char* argv[]) {
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/match_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",false,string(),"DIR");
     cmd.add(configFileArg);
+    cmd.add(sgfOutputDirArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();

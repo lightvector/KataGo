@@ -170,8 +170,14 @@ private:
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
     int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
-    bool isRoot, bool checkLegalityOfNewMoves
+    bool isRoot
   ) const;
+
+  void initNodeNNOutput(
+    SearchThread& thread, SearchNode& node,
+    double& retWinLossValue, double& retScoreValue,
+    bool isRoot, bool skipCache
+  );
 
   void playoutDescend(
     SearchThread& thread, SearchNode& node,

@@ -444,7 +444,7 @@ double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos
 void Search::selectBestChildToDescend(
   const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
   int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
-  bool isRoot, bool checkLegalityOfNewMoves) const
+  bool isRoot) const
 {
   assert(thread.pla == node.nextPla);
 
@@ -509,8 +509,6 @@ void Search::selectBestChildToDescend(
       continue;
     int offset = NNPos::getOffset(thread.board.x_size);
     Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,offset);
-    if(checkLegalityOfNewMoves && !thread.history.isLegal(thread.board,moveLoc,thread.pla))
-      continue;
 
     double selectionValue = getNewExploreSelectionValue(node,movePos,totalChildVisits,fpuValue);
     if(selectionValue > maxSelectionValue) {
@@ -539,6 +537,22 @@ void Search::runSinglePlayout(SearchThread& thread) {
   thread.pla = rootPla;
   thread.board = rootBoard;
   thread.history = rootHistory;
+}
+
+void Search::initNodeNNOutput(
+  SearchThread& thread, SearchNode& node,
+  double& retWinLossValue, double& retScoreValue,
+  bool isRoot, bool skipCache
+) {
+  nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logStream, skipCache);
+  node.nnOutput = std::move(thread.nnResultBuf.result);
+  maybeAddPolicyNoise(thread,node,isRoot);
+
+  //TODO update this and other places when we have a score prediction on the net
+  //Values in the search are from the perspective of white positive always
+  double value = (double)node.nnOutput->whiteValue;
+  retWinLossValue = value;
+  retScoreValue = 0.0;  
 }
 
 void Search::playoutDescend(
@@ -573,16 +587,7 @@ void Search::playoutDescend(
 
   //Hit leaf node, finish
   if(node.nnOutput == nullptr) {
-    nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logStream);
-    node.nnOutput = std::move(thread.nnResultBuf.result);
-    maybeAddPolicyNoise(thread,node,isRoot);
-    lock.unlock();
-
-    //TODO update this and other places when we have a score prediction on the net
-    //Values in the search are from the perspective of white positive always
-    double value = (double)node.nnOutput->whiteValue;
-    retWinLossValue = value;
-    retScoreValue = 0.0;
+    initNodeNNOutput(thread,node,retWinLossValue,retScoreValue,isRoot,false);
     return;
   }
 
@@ -591,15 +596,17 @@ void Search::playoutDescend(
   //Find the best child to descend down
   int bestChildIdx;
   Loc bestChildMoveLoc;
-  selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot,false);
+  selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
 
-  //In the absurdly rare case that the move chosen is not legal, try again with legality checking
+  //The absurdly rare case that the move chosen is not legal
   //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
-  //We can do this by reducing the hash size and forcing collisions in the nnEval cache
-  //TODO test this code branch and remove this assert
+  //Regenerate the neural net call and continue
   if(!(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla))) {
-    assert(false); //In testing, actually fail if this ever happens
-    selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot,true);
+    initNodeNNOutput(thread,node,retWinLossValue,retScoreValue,isRoot,true);
+    lock.unlock();
+    if(thread.logStream != NULL)
+      (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
+    return;
   }
 
   if(bestChildIdx < -1) {

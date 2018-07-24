@@ -70,5 +70,6 @@ LogBuf::~LogBuf()
 int LogBuf::sync() {
   const string& str = this->str();
   logger->writeNoEndline(str);
+  this->str("");
   return 0;
 }
