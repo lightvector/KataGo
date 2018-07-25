@@ -1814,10 +1814,14 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
   }
   else {
     int x;
-    if(s[0] >= 'A' && s[0] <= 'Z')
+    if(s[0] >= 'A' && s[0] <= 'H')
       x = s[0]-'A';
-    else if(s[0] >= 'a' && s[0] <= 'z')
+    else if(s[0] >= 'a' && s[0] <= 'h')
       x = s[0]-'a';
+    else if(s[0] >= 'J' && s[0] <= 'Z')
+      x = s[0]-'A'-1;
+    else if(s[0] >= 'j' && s[0] <= 'z')
+      x = s[0]-'a'-1;
     else
       return false;
 
@@ -1849,7 +1853,7 @@ Loc Location::ofString(const string& str, const Board& b) {
   return ofString(str,b.x_size,b.y_size);
 }
 
-void Board::printBoard(ostream& out, const Board& board, Loc markLoc) {
+void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vector<Move>* hist) {
   out << "HASH: " << board.pos_hash << "\n";
   bool showCoords = board.x_size <= 25 && board.y_size <= 25;
   if(showCoords) {
@@ -1879,7 +1883,18 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc) {
       else
         out << s;
 
-      if(x < board.x_size-1)
+      bool histMarked = false;
+      if(hist != NULL) {
+        for(int i = hist->size()-3; i<hist->size(); i++) {
+          if((*hist)[i].loc == loc) {
+            out << i - (hist->size()-3) + 1;
+            histMarked = true;
+            break;
+          }
+        }
+      }
+      
+      if(x < board.x_size-1 && !histMarked)
         out << ' ';
     }
     out << "\n";
@@ -1888,7 +1903,7 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc) {
 }
 
 ostream& operator<<(ostream& out, const Board& board) {
-  Board::printBoard(out,board,Board::NULL_LOC);
+  Board::printBoard(out,board,Board::NULL_LOC,NULL);
   return out;
 }
 

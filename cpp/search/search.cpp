@@ -781,13 +781,15 @@ void Search::printTreeHelper(
   }
 
   if(depth >= options.branch_.size()) {
-    if(depth >= options.maxDepth_)
+    if(depth >= options.maxDepth_ + options.branch_.size())
       return;
     if(visits < options.minVisitsToExpand_)
       return;
     if((double)visits < origVisits * options.minVisitsPropToExpand_)
       return;
   }
+  if(depth == options.branch_.size())
+    out << "----" << endl;
 
   lock.lock();
 

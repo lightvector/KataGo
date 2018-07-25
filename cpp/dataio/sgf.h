@@ -41,6 +41,7 @@ struct Sgf {
   static vector<Sgf*> loadFiles(const vector<string>& files);
 
   int getBSize() const;
+  float getKomi() const;
 
   void getPlacements(vector<Move>& moves, int bSize) const;
   void getMoves(vector<Move>& moves, int bSize) const;
@@ -59,6 +60,7 @@ struct CompactSgf {
   vector<Move> moves;
   int bSize;
   int depth;
+  float komi;
   Hash128 hash;
 
   CompactSgf(const Sgf* sgf);

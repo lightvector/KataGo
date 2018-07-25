@@ -197,7 +197,7 @@ struct Board
   void checkConsistency() const;
 
   static Board parseBoard(int xSize, int ySize, const string& s);
-  static void printBoard(ostream& out, const Board& board, Loc markLoc);
+  static void printBoard(ostream& out, const Board& board, Loc markLoc, const vector<Move>* hist);
 
   //Data--------------------------------------------
 

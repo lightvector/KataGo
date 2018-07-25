@@ -214,7 +214,7 @@ int main(int argc, const char* argv[]) {
   auto logSearch = [&logger](AsyncBot* bot, Loc loc) {
     Search* search = bot->getSearch();
     ostringstream sout;
-    Board::printBoard(sout, bot->getRootBoard(), loc);
+    Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
     sout << "\n";
     sout << "Root visits: " << search->numRootVisits() << "\n";
     sout << "PV: ";

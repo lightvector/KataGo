@@ -167,6 +167,15 @@ int Sgf::getBSize() const {
   return bSize;
 }
 
+float Sgf::getKomi() const {
+  assert(nodes.size() > 0);
+  float komi;
+  bool suc = Global::tryStringToFloat(nodes[0]->getSingleProperty("KM"), komi);
+  if(!suc)
+    propertyFail("Could not parse komi in sgf");
+  return komi;
+}
+
 void Sgf::getPlacements(vector<Move>& moves, int bSize) const {
   moves.clear();
   assert(nodes.size() > 0);
@@ -417,6 +426,7 @@ CompactSgf::CompactSgf(const Sgf* sgf)
 {
   bSize = sgf->getBSize();
   depth = sgf->depth();
+  komi = sgf->getKomi();
   hash = sgf->hash;
 
   sgf->getPlacements(placements, bSize);

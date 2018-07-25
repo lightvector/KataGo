@@ -342,7 +342,7 @@ int main(int argc, const char* argv[]) {
         if(logSearchInfo) {
           Search* search = bot->getSearch();
           ostringstream sout;
-          Board::printBoard(sout, bot->getRootBoard(), loc);
+          Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
           sout << "\n";
           sout << "Time taken: " << timer.getSeconds() << "\n";
           sout << "Root visits: " << search->numRootVisits() << "\n";
