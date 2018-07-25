@@ -12,11 +12,11 @@ using namespace std;
 #include <tclap/CmdLine.h>
 
 #include <csignal>
-static std::atomic<bool> sigTermReceived(false);
+static std::atomic<bool> sigReceived(false);
 static void signalHandler(int signal)
 {
-  if(signal == SIGTERM)
-    sigTermReceived.store(true);
+  if(signal == SIGINT || signal == SIGTERM)
+    sigReceived.store(true);
 }
 
 int main(int argc, const char* argv[]) {
@@ -186,8 +186,9 @@ int main(int argc, const char* argv[]) {
     return true;
   };
 
-  if(!std::atomic_is_lock_free(&sigTermReceived))
-    throw StringError("sigTermReceived is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
+  if(!std::atomic_is_lock_free(&sigReceived))
+    throw StringError("sigReceived is not lock free, signal-quitting mechanism for intinating matches will NOT work!");
+  std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
   auto failIllegalMove = [&logger](AsyncBot* bot, Board board, Loc loc) {
@@ -256,7 +257,7 @@ int main(int argc, const char* argv[]) {
     for(int i = 0; i<maxMovesPerGame; i++) {
       if(hist.isGameFinished)
         break;
-      if(sigTermReceived.load())
+      if(sigReceived.load())
         break;
 
       Loc loc = bot->genMoveSynchronous(pla);
@@ -293,7 +294,7 @@ int main(int argc, const char* argv[]) {
     for(int i = 0; i<maxMovesPerGame; i++) {
       if(hist.isGameFinished)
         break;
-      if(sigTermReceived.load())
+      if(sigReceived.load())
         break;
 
       AsyncBot* toMoveBot = pla == P_BLACK ? botB : botW;
@@ -363,7 +364,7 @@ int main(int argc, const char* argv[]) {
       lock.lock();
       if(numMatchGamesStartedSoFar >= numMatchGamesTotal)
         break;
-      if(sigTermReceived.load())
+      if(sigReceived.load())
         break;
       int64_t gameIdx = numMatchGamesStartedSoFar;
       numMatchGamesStartedSoFar += 1;
@@ -387,7 +388,7 @@ int main(int argc, const char* argv[]) {
       else
         runMatchGame(gameIdx,botIdxB,botIdxW,board,pla,hist,numExtraBlack);
 
-      if(sigTermReceived.load())
+      if(sigReceived.load())
         break;
 
       string bName = botNames[botIdxB];
@@ -414,7 +415,8 @@ int main(int argc, const char* argv[]) {
   }
   session->Close();
 
-  
+  if(sigReceived.load())
+    logger.write("Exited cleanly after signal");
   logger.write("All cleaned up, quitting");
   return 0;
 }
