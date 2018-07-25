@@ -11,6 +11,8 @@ SearchParams::SearchParams()
    rootDirichletNoiseTotalConcentration(10.0),
    rootDirichletNoiseWeight(0.25),
    chosenMoveTemperature(0.0),
+   chosenMoveTemperatureEarly(0.0),
+   chosenMoveTemperatureHalflife(20),
    chosenMoveSubtract(2.0),
    mutexPoolSize(8192),
    numVirtualLossesPerThread(3),

@@ -267,8 +267,13 @@ Loc Search::getChosenMoveLoc() {
   }
   maxValue -= amountToSubtract;
 
+  double temperature = searchParams.chosenMoveTemperature;
+  temperature +=
+    (searchParams.chosenMoveTemperatureEarly - searchParams.chosenMoveTemperature) *
+    pow(0.5,rootHistory.moveHistory.size() / searchParams.chosenMoveTemperatureHalflife);
+  
   //Temperature so close to 0 that we just calculate the max directly
-  if(searchParams.chosenMoveTemperature <= 1.0e-4) {
+  if(temperature <= 1.0e-4) {
     double bestSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
     Loc bestChildMoveLoc = Board::NULL_LOC;
     for(int i = 0; i<numChildren; i++) {

@@ -20,6 +20,8 @@ struct SearchParams {
   double rootDirichletNoiseWeight; //Policy at root is this weight * noise + (1 - this weight) * nn policy
 
   double chosenMoveTemperature; //Make move roughly proportional to visit count ** (1/chosenMoveTemperature)
+  double chosenMoveTemperatureEarly; //Temperature at start of game
+  double chosenMoveTemperatureHalflife; //Halflife of decay from early temperatue to temperature for the rest of the game
   double chosenMoveSubtract; //Try to subtract this many playouts from every move prior to applying temperature
 
   //Misc

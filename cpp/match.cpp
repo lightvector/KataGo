@@ -45,6 +45,8 @@ int main(int argc, const char* argv[]) {
   logger.addFile(cfg.getString("logFile"));
   logger.setLogToStdout(true);
   bool logSearchInfo = cfg.getBool("logSearchInfo");
+  bool logMoves = cfg.getBool("logMoves");
+  int64_t logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 
   logger.write("Match Engine starting...");
 
@@ -242,7 +244,7 @@ int main(int argc, const char* argv[]) {
     bot->setRootPassLegal(true);
   };
   
-  auto runSelfPlayGame = [&failIllegalMove,&playExtraBlack,&logSearch,&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,maxMovesPerGame,&searchRandSeedBase] (
+  auto runSelfPlayGame = [&failIllegalMove,&playExtraBlack,&logSearch,&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,logMoves,maxMovesPerGame,&searchRandSeedBase] (
     int gameIdx, int botIdx, Board& board, Player pla, BoardHistory& hist, int numExtraBlack
   ) {
     string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
@@ -264,6 +266,8 @@ int main(int argc, const char* argv[]) {
         failIllegalMove(bot,board,loc);
       if(logSearchInfo)
         logSearch(bot,loc);
+      if(logMoves)
+        logger.write("Move " + Global::intToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
 
       bool suc = bot->makeMove(loc,pla);
       assert(suc);
@@ -275,7 +279,7 @@ int main(int argc, const char* argv[]) {
     delete bot;
   };
 
-  auto runMatchGame = [&failIllegalMove,&playExtraBlack,&logSearch,&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,maxMovesPerGame,&searchRandSeedBase](
+  auto runMatchGame = [&failIllegalMove,&playExtraBlack,&logSearch,&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,logMoves,maxMovesPerGame,&searchRandSeedBase](
     int64_t gameIdx, int botIdxB, int botIdxW, Board& board, Player pla, BoardHistory& hist, int numExtraBlack
   ) {
     string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
@@ -299,6 +303,8 @@ int main(int argc, const char* argv[]) {
         failIllegalMove(toMoveBot,board,loc);
       if(logSearchInfo)
         logSearch(toMoveBot,loc);
+      if(logMoves)
+        logger.write("Move " + Global::intToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
 
       bool suc;
       suc = botB->makeMove(loc,pla);
@@ -346,7 +352,7 @@ int main(int argc, const char* argv[]) {
 
   auto runMatchLoop = [
     &botNames,&initNewGame,&runSelfPlayGame,&runMatchGame,&matchSetupMutex,
-    numMatchGamesTotal,&numMatchGamesStartedSoFar,&getMatchup,&sgfOutputDir,&logger
+    numMatchGamesTotal,&numMatchGamesStartedSoFar,&getMatchup,&sgfOutputDir,&logger,logGamesEvery
   ](
     uint64_t threadHash
   ) {
@@ -362,8 +368,8 @@ int main(int argc, const char* argv[]) {
       int64_t gameIdx = numMatchGamesStartedSoFar;
       numMatchGamesStartedSoFar += 1;
 
-      if(numMatchGamesStartedSoFar % 500 == 0)
-        logger.write("Started " + Global::int64ToString(numMatchGamesStartedSoFar) + "games");
+      if(numMatchGamesStartedSoFar % logGamesEvery == 0)
+        logger.write("Started " + Global::int64ToString(numMatchGamesStartedSoFar) + " games");
 
       pair<int,int> matchup = getMatchup();
       int botIdxB = matchup.first;
@@ -386,9 +392,13 @@ int main(int argc, const char* argv[]) {
 
       string bName = botNames[botIdxB];
       string wName = botNames[botIdxW];
-      if(sgfOut != NULL)
+      if(sgfOut != NULL) {
         WriteSgf::writeSgf(*sgfOut,bName,wName,initialRules,initialBoard,hist);
+        (*sgfOut) << endl;
+      }
     }
+    if(sgfOut != NULL)
+      sgfOut->close();
   };
 
   Rand hashRand;
