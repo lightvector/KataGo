@@ -24,15 +24,19 @@ int main(int argc, const char* argv[]) {
   Rand seedRand;
 
   string configFile;
+  string logFile;
   string sgfOutputDir;
   try {
     TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/match_example.cfg)",true,string(),"FILE");
+    TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",false,string(),"DIR");
     cmd.add(configFileArg);
+    cmd.add(logFileArg);
     cmd.add(sgfOutputDirArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
+    logFile = logFileArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
@@ -42,8 +46,9 @@ int main(int argc, const char* argv[]) {
   ConfigParser cfg(configFile);
 
   Logger logger;
-  logger.addFile(cfg.getString("logFile"));
-  logger.setLogToStdout(true);
+  logger.addFile(logFile);
+  bool logToStdout = cfg.getBool("logToStdout");
+  logger.setLogToStdout(logToStdout);
   bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool logMoves = cfg.getBool("logMoves");
   int64_t logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
@@ -154,6 +159,9 @@ int main(int argc, const char* argv[]) {
 
   //Done loading!
   //------------------------------------------------------------------------------------
+  logger.write("Loaded all config stuff, starting matches");
+  if(!logToStdout)
+    cout << "Loaded all config stuff, starting matches" << endl;
   
   if(sgfOutputDir != string())
     MakeDir::make(sgfOutputDir);
