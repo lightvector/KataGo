@@ -1,27 +1,6 @@
 
 #include "../neuralnet/nneval.h"
 
-using namespace tensorflow;
-
-NNOutput::NNOutput() {}
-NNOutput::NNOutput(const NNOutput& other) {
-  nnHash = other.nnHash;
-  whiteValue = other.whiteValue;
-  std::copy(other.policyProbs, other.policyProbs+NNPos::NN_POLICY_SIZE, policyProbs);
-}
-
-double NNOutput::whiteValueOfWinner(Player winner, double drawValue) {
-  if(winner == P_WHITE)
-    return 1.0;
-  else if(winner == P_BLACK)
-    return -1.0;
-  return drawValue;
-}
-
-double NNOutput::whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize) {
-  return tanh(finalWhiteMinusBlackScore / (bSize*2));
-}
-
 //-------------------------------------------------------------------------------------
 
 NNResultBuf::NNResultBuf()
@@ -33,145 +12,36 @@ NNResultBuf::~NNResultBuf()
 
 //-------------------------------------------------------------------------------------
 
-static void checkStatus(const Status& status, const char* subLabel) {
-  if(!status.ok())
-    throw StringError("NN Eval Error: " + string(subLabel) + status.ToString());
-}
-
-static void addPrefixToGraph(GraphDef& graphDef, const string& prefix) {
-  //string device = "/gpu:0";
-  for(int i = 0; i < graphDef.node_size(); ++i)
-  {
-    auto node = graphDef.mutable_node(i);
-    //node->set_device(device);
-    string* name = node->mutable_name();
-    *name = prefix + *name;
-    int inputSize = node->input_size();
-    for(int j = 0; j<inputSize; j++) {
-      string* inputName = node->mutable_input(j);
-      if(inputName->size() > 0 && (*inputName)[0] == '^')
-        *inputName = "^" + prefix + inputName->substr(1);
-      else
-        *inputName = prefix + *inputName;
-    }
-  }
-};
-
-//-------------------------------------------------------------------------------------
-
-static void initTensorIOBufs(
-  int maxNumRows,
-  const string& graphPrefix,
-  float*& inputsBuffer,
-  bool*& symmetriesBuffer,
-  vector<pair<string,Tensor>>*& inputsList,
-  NNResultBuf**& resultBufs
-) {
-  Status status;
-  //Set up inputs
-  TensorShape inputsShape;
-  TensorShape symmetriesShape;
-  TensorShape isTrainingShape;
-  int inputsShapeArr[3] = {maxNumRows,NNPos::MAX_BOARD_AREA,NNInputs::NUM_FEATURES_V1};
-  status = TensorShapeUtils::MakeShape(inputsShapeArr,3,&inputsShape);
-  checkStatus(status,"making inputs shape");
-  int symmetriesShapeArr[1] = {NNInputs::NUM_SYMMETRY_BOOLS};
-  status = TensorShapeUtils::MakeShape(symmetriesShapeArr,1,&symmetriesShape);
-  checkStatus(status,"making symmetries shape");
-  int isTrainingShapeArr[0] = {};
-  status = TensorShapeUtils::MakeShape(isTrainingShapeArr,0,&isTrainingShape);
-  checkStatus(status,"making isTraining shape");
-
-  Tensor inputs(DT_FLOAT,inputsShape);
-  Tensor symmetries(DT_BOOL,symmetriesShape);
-  Tensor isTraining(DT_BOOL,isTrainingShape);
-
-  assert(inputs.IsAligned());
-  assert(symmetries.IsAligned());
-
-  inputsBuffer = inputs.flat<float>().data();
-  symmetriesBuffer = symmetries.flat<bool>().data();
-  auto isTrainingMap = isTraining.tensor<bool, 0>();
-  isTrainingMap(0) = false;
-
-  inputsList = new vector<pair<string,Tensor>>();
-  *inputsList = {
-    {graphPrefix+"inputs",inputs},
-    {graphPrefix+"symmetries",symmetries},
-    {graphPrefix+"is_training",isTraining},
-  };
-
+NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model)
+  :inputBuffers(NULL),
+   resultBufs(NULL)
+{
+  int maxNumRows = nnEval.getMaxBatchSize();
+  inputBuffers = NeuralNet::createInputBuffers(model,maxNumRows);
   resultBufs = new NNResultBuf*[maxNumRows];
   for(int i = 0; i < maxNumRows; i++)
     resultBufs[i] = NULL;
 }
 
-static void freeTensorInputBufs(
-  float*& inputsBuffer,
-  bool*& symmetriesBuffer,
-  vector<pair<string,Tensor>>*& inputsList,
-  NNResultBuf**& resultBufs
-) {
-  //Clear these out - these are direct pointers into the inputs and symmetries tensor
-  //and are invalid once inputList is cleared and those are freed
-  inputsBuffer = NULL;
-  symmetriesBuffer = NULL;
-
-  //Explictly clean up tensors - their destructors should get called.
-  if(inputsList != NULL)
-    inputsList->clear();
-
-  delete inputsList;
-  inputsList = NULL;
-
+NNServerBuf::~NNServerBuf() {
+  NeuralNet::freeInputBuffers(inputBuffers);
+  inputBuffers = NULL;
   //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
   delete[] resultBufs;
   resultBufs = NULL;
 }
 
-
-NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, Session* sess, const string& graphPrefix)
-  :session(sess),
-   outputNames(),
-   targetNames(),
-   outputsBuf(),
-   inputsBuffer(NULL),
-   symmetriesBuffer(NULL),
-   inputsList(NULL),
-   resultBufs(NULL)
-{
-  outputNames = {
-    graphPrefix + "policy_output",
-    graphPrefix + "value_output"
-  };
-  targetNames = {};
-
-  initTensorIOBufs(nnEval.getMaxBatchSize(), graphPrefix, inputsBuffer, symmetriesBuffer, inputsList, resultBufs);
-}
-
-NNServerBuf::~NNServerBuf() {
-  //Explictly clean up tensors - their destructors should get called.
-  outputsBuf.clear();
-  freeTensorInputBufs(inputsBuffer, symmetriesBuffer, inputsList, resultBufs);
-  //Session belongs to external, don't clean it up
-  session = NULL;
-}
-
-
 //-------------------------------------------------------------------------------------
 
 NNEvaluator::NNEvaluator(
-  Session* sess,
   const string& pbModelFile,
   int modelFileIdx,
   int maxBatchSize,
   int nnCacheSizePowerOfTwo,
   bool skipNeuralNet
 )
-  :modelFileName(pbModelFile),
-   graphDef(NULL),
-   graphPrefix("m" + Global::intToString(modelFileIdx)),
-   session(sess),
+  :modelFileName(pbModelFile),   
+   loadedModel(NULL),
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
    serverThreads(),
@@ -184,36 +54,36 @@ NNEvaluator::NNEvaluator(
    m_numRowsFinished(0),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
-   m_inputsBuffer(NULL),
-   m_symmetriesBuffer(NULL),
-   m_inputsList(NULL)
+   m_inputBuffers(NULL),
+   m_resultBufs(NULL)
 {
-  Status status;
-  graphDef = new GraphDef();
-
   if(nnCacheSizePowerOfTwo >= 0)
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo);
 
-  //Read graph from file
-  status = ReadBinaryProto(Env::Default(), pbModelFile, graphDef);
-  checkStatus(status,"reading graph");
-  addPrefixToGraph(*graphDef,graphPrefix);
-
-  //Add graph to session
-  status = session->Extend(*graphDef);
-  checkStatus(status,"adding graph to session");
+  loadedModel = NeuralNet::loadModelFile(pbModelFile, modelFileIdx);
+  m_inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize);
   
-  initTensorIOBufs(maxNumRows, graphPrefix, m_inputsBuffer, m_symmetriesBuffer, m_inputsList, m_resultBufs);
+  m_resultBufs = new NNResultBuf*[maxBatchSize];
+  for(int i = 0; i < maxBatchSize; i++)
+    m_resultBufs[i] = NULL;
 }
 
 NNEvaluator::~NNEvaluator()
 {
   killServerThreads();
   assert(!serverTryingToGrabBatch);
-  freeTensorInputBufs(m_inputsBuffer, m_symmetriesBuffer, m_inputsList, m_resultBufs);
+
+  NeuralNet::freeInputBuffers(m_inputBuffers);
+  m_inputBuffers = NULL;
+  
+  //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
+  delete[] m_resultBufs;
+  m_resultBufs = NULL;
+
+  NeuralNet::freeLoadedModel(loadedModel);
+  loadedModel = NULL;
+
   delete nnCacheTable;
-  session = NULL; //Don't clean up, owned externally
-  delete graphDef;
 }
 
 int NNEvaluator::getMaxBatchSize() const {
@@ -241,9 +111,9 @@ void NNEvaluator::clearCache() {
 }
 
 static void serveEvals(
-  int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger, NNEvaluator* nnEval, Session* session, string graphPrefix
+  int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger, NNEvaluator* nnEval, const LoadedModel* loadedModel
 ) {
-  NNServerBuf* buf = new NNServerBuf(*nnEval,session,graphPrefix);
+  NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
   Rand rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
   ostream* logStream = logger->createOStream();
   try {
@@ -274,7 +144,7 @@ void NNEvaluator::spawnServerThreads(
 
   for(int i = 0; i<numThreads; i++) {
     std::thread* thread = new std::thread(
-      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,session,graphPrefix
+      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,loadedModel
     );
     serverThreads.push_back(thread);
   }
@@ -298,10 +168,10 @@ void NNEvaluator::killServerThreads() {
 }
 
 void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry) {
-  Status status;
 
-  vector<pair<string,Tensor>> slicedInputsList;
-
+  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle();
+  vector<NNOutput*> outputBuf;
+  
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
   while(true) {
     lock.lock();
@@ -323,9 +193,7 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defa
     assert(m_numRowsFinished > 0);
 
     int numRows = m_numRowsFinished;
-    std::swap(m_inputsBuffer, buf.inputsBuffer);
-    std::swap(m_symmetriesBuffer, buf.symmetriesBuffer);
-    std::swap(m_inputsList,buf.inputsList);
+    std::swap(m_inputBuffers,buf.inputBuffers);
     std::swap(m_resultBufs,buf.resultBufs);
 
     m_numRowsStarted = 0;
@@ -333,16 +201,6 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defa
     serverTryingToGrabBatch = false;
     clientWaitingForRow.notify_all();
     lock.unlock();
-
-    slicedInputsList = *buf.inputsList;
-    slicedInputsList[0].second = (*buf.inputsList)[0].second.Slice(0,numRows);
-
-    int symmetry = defaultSymmetry;
-    if(doRandomize)
-      symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
-    buf.symmetriesBuffer[0] = (symmetry & 0x1) != 0;
-    buf.symmetriesBuffer[1] = (symmetry & 0x2) != 0;
-    buf.symmetriesBuffer[2] = (symmetry & 0x4) != 0;
 
     if(debugSkipNeuralNet) {
       for(int row = 0; row < numRows; row++) {
@@ -364,21 +222,16 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defa
       continue;
     }
 
-    status = buf.session->Run(slicedInputsList, buf.outputNames, buf.targetNames, &(buf.outputsBuf));
-    checkStatus(status,"running inference");
+    int symmetry = defaultSymmetry;
+    if(doRandomize)
+      symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
+    bool* symmetriesBuffer = NeuralNet::getSymmetriesInplace(buf.inputBuffers);
+    symmetriesBuffer[0] = (symmetry & 0x1) != 0;
+    symmetriesBuffer[1] = (symmetry & 0x2) != 0;
+    symmetriesBuffer[2] = (symmetry & 0x4) != 0;
 
-    assert(buf.outputsBuf.size() == 2);
-    assert(buf.outputsBuf[0].dims() == 2);
-    assert(buf.outputsBuf[1].dims() == 1);
-    assert(buf.outputsBuf[0].dim_size(0) == numRows);
-    assert(buf.outputsBuf[0].dim_size(1) == NNPos::NN_POLICY_SIZE);
-    assert(buf.outputsBuf[1].dim_size(0) == numRows);
-
-    assert(buf.outputsBuf[0].IsAligned());
-    assert(buf.outputsBuf[1].IsAligned());
-
-    float* policyData = buf.outputsBuf[0].flat<float>().data();
-    float* valueData = buf.outputsBuf[1].flat<float>().data();
+    NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, outputBuf);
+    assert(outputBuf.size() == numRows);
 
     for(int row = 0; row < numRows; row++) {
       assert(buf.resultBufs[row] != NULL);
@@ -387,29 +240,18 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defa
 
       unique_lock<std::mutex> resultLock(resultBuf->resultMutex);
       assert(resultBuf->hasResult == false);
-      resultBuf->result = std::make_shared<NNOutput>();
-      float* policyProbs = resultBuf->result->policyProbs;
-
-      //These are not actually correct, the client does the postprocessing to turn them into
-      //probabilities and white value
-      //Also we don't fill in the nnHash here either
-      std::copy(
-        policyData + row * NNPos::NN_POLICY_SIZE,
-        policyData + (row+1) * NNPos::NN_POLICY_SIZE,
-        policyProbs
-      );
-      resultBuf->result->whiteValue = valueData[row];
+      resultBuf->result = std::shared_ptr<NNOutput>(outputBuf[row]);
       resultBuf->hasResult = true;
       resultBuf->clientWaitingForResult.notify_all();
       resultLock.unlock();
     }
-    buf.outputsBuf.clear();
 
     m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);
     m_numBatchesProcessed.fetch_add(1, std::memory_order_relaxed);
     continue;
   }
-
+  
+  NeuralNet::freeLocalGpuHandle(gpuHandle);
 }
 
 void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream, bool skipCache) {
@@ -428,7 +270,7 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
 
   int rowIdx = m_numRowsStarted;
   m_numRowsStarted += 1;
-  float* rowInput = m_inputsBuffer + rowIdx * NNInputs::ROW_SIZE_V1;
+  float* rowInput = NeuralNet::getRowInplace(m_inputBuffers,rowIdx);
 
   if(m_numRowsStarted == 1)
     serverWaitingForBatchStart.notify_one();

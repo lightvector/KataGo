@@ -3,45 +3,15 @@
 
 #include <memory>
 
-#include <tensorflow/cc/client/client_session.h>
-#include <tensorflow/cc/ops/standard_ops.h>
-#include <tensorflow/core/framework/tensor.h>
-#include <tensorflow/core/framework/tensor_shape.h>
-#include <tensorflow/core/platform/env.h>
-#include <tensorflow/core/public/session.h>
-
-using tensorflow::Tensor;
-using tensorflow::Session;
-using tensorflow::GraphDef;
-
 #include "../core/global.h"
 #include "../core/logger.h"
 #include "../core/multithread.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/nninterface.h"
 
 class NNEvaluator;
-
-struct NNOutput {
-  Hash128 nnHash; //NNInputs - getHashV0 or getHashV1
-
-  //From the perspective of the player to move at the time of the eval
-  float whiteValue;
-
-  //Indexed by pos rather than loc
-  //Values in here will be set to negative for illegal moves, including superko
-  float policyProbs[NNPos::NN_POLICY_SIZE];
-
-  NNOutput(); //Does NOT initialize values
-  NNOutput(const NNOutput& other);
-
-  //Utility --------------------------------------------------------------------
-  //The utility of having a particular winner
-  static double whiteValueOfWinner(Player winner, double drawValue);
-  //The utility of achieving a certain score difference
-  static double whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize);
-};
 
 class NNCacheTable {
   struct Entry {
@@ -88,17 +58,10 @@ struct NNResultBuf {
 
 //Each server thread should allocate and re-use one of these
 struct NNServerBuf {
-  Session* session;
-  vector<string> outputNames;
-  vector<string> targetNames;
-  vector<Tensor> outputsBuf;
-
-  float* inputsBuffer;
-  bool* symmetriesBuffer;
-  vector<pair<string,Tensor>>* inputsList;
+  InputBuffers* inputBuffers;
   NNResultBuf** resultBufs;
 
-  NNServerBuf(const NNEvaluator& nneval, Session* session, const string& graphPrefix);
+  NNServerBuf(const NNEvaluator& nneval, const LoadedModel* model);
   ~NNServerBuf();
   NNServerBuf(const NNServerBuf& other) = delete;
   NNServerBuf& operator=(const NNServerBuf& other) = delete;
@@ -109,7 +72,6 @@ struct NNServerBuf {
 class NNEvaluator {
  public:
   NNEvaluator(
-    Session* session,
     const string& pbModelFile,
     int modelFileIdx,
     int maxBatchSize,
@@ -154,9 +116,7 @@ class NNEvaluator {
 
  private:
   string modelFileName;
-  GraphDef* graphDef;
-  string graphPrefix;
-  Session* session;
+  LoadedModel* loadedModel;
   NNCacheTable* nnCacheTable;
   bool debugSkipNeuralNet;
 
@@ -176,9 +136,7 @@ class NNEvaluator {
   atomic<uint64_t> m_numRowsProcessed;
   atomic<uint64_t> m_numBatchesProcessed;
 
-  float* m_inputsBuffer;
-  bool* m_symmetriesBuffer;
-  vector<pair<string,Tensor>>* m_inputsList;
+  InputBuffers* m_inputBuffers;
   NNResultBuf** m_resultBufs;
 
  public:

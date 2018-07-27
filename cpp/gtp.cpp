@@ -56,11 +56,10 @@ int main(int argc, const char* argv[]) {
 
   logger.write("GTP Engine starting...");
 
-  Session* session;
   NNEvaluator* nnEval;
   {
-    session = Setup::initializeSession(cfg);
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(session,{nnModelFile},cfg,logger,seedRand);
+    Setup::initializeSession(cfg);
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},cfg,logger,seedRand);
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
   }
@@ -394,7 +393,7 @@ int main(int argc, const char* argv[]) {
 
   delete bot;
   delete nnEval;
-  session->Close();
+  NeuralNet::globalCleanup();
 
   logger.write("All cleaned up, quitting");
   return 0;

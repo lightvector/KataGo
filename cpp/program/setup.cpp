@@ -1,14 +1,7 @@
 #include "../program/setup.h"
+#include "../neuralnet/nninterface.h"
 
-using tensorflow::Status;
-using tensorflow::SessionOptions;
-
-static void checkStatus(const Status& status, const char* subLabel) {
-  if(!status.ok())
-    throw StringError("NN Setup Error: " + string(subLabel) + status.ToString());
-}
-
-Session* Setup::initializeSession(ConfigParser& cfg) {
+void Setup::initializeSession(ConfigParser& cfg) {
 
   string gpuVisibleDeviceList;
   if(cfg.contains("gpuVisibleDeviceList"))
@@ -18,20 +11,10 @@ Session* Setup::initializeSession(ConfigParser& cfg) {
   if(cfg.contains("perProcessGPUMemoryFraction"))
     perProcessGPUMemoryFraction = cfg.getDouble("perProcessGPUMemoryFraction",0.0,1.0);
 
-  Status status;
-  SessionOptions sessionOptions = SessionOptions();
-  if(gpuVisibleDeviceList.length() > 0)
-    sessionOptions.config.mutable_gpu_options()->set_visible_device_list(gpuVisibleDeviceList);
-  if(perProcessGPUMemoryFraction >= 0.0)
-    sessionOptions.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(perProcessGPUMemoryFraction);
-  Session* session;
-  status = NewSession(sessionOptions, &session);
-  checkStatus(status,"creating session");
-  return session;
+  NeuralNet::globalInitialize(gpuVisibleDeviceList,perProcessGPUMemoryFraction);  
 }
 
 vector<NNEvaluator*> Setup::initializeNNEvaluators(
-  Session* session,
   const vector<string>& nnModelFiles,
   ConfigParser& cfg,
   Logger& logger,
@@ -45,7 +28,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     bool debugSkipNeuralNet = false;
     int modelFileIdx = i;
     NNEvaluator* nnEval = new NNEvaluator(
-      session,
       nnModelFile,
       modelFileIdx,
       cfg.getInt("nnMaxBatchSize", 1, 65536),

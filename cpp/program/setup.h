@@ -8,10 +8,9 @@
 //Some bits of initialization and main function logic shared between various programs
 namespace Setup {
 
-  Session* initializeSession(ConfigParser& cfg);
-
+  void initializeSession(ConfigParser& cfg);
+  
   vector<NNEvaluator*> initializeNNEvaluators(
-    Session* session,
     const vector<string>& nnModelFiles,
     ConfigParser& cfg,
     Logger& logger,

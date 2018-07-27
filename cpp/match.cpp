@@ -101,8 +101,9 @@ int main(int argc, const char* argv[]) {
   }
 
   //Initialize tensorflow and the models  
-  Session* session = Setup::initializeSession(cfg);
-  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(session,nnModelFiles,cfg,logger,seedRand);
+  Setup::initializeSession(cfg);
+  
+  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelFiles,cfg,logger,seedRand);
   logger.write("Loaded neural net");
 
   //Get the configuration for rules
@@ -421,7 +422,7 @@ int main(int argc, const char* argv[]) {
   for(int i = 0; i<nnEvals.size(); i++) {
     delete nnEvals[i];
   }
-  session->Close();
+  NeuralNet::globalCleanup();
 
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");

@@ -56,6 +56,7 @@ add_executable(example
   game/boardhistory.cpp
   neuralnet/nninputs.cpp
   neuralnet/nneval.cpp
+  neuralnet/tensorflowbackend.cpp
   search/searchparams.cpp
   search/mutexpool.cpp
   search/search.cpp
@@ -77,6 +78,7 @@ add_executable(gtp
   game/boardhistory.cpp
   neuralnet/nninputs.cpp
   neuralnet/nneval.cpp
+  neuralnet/tensorflowbackend.cpp
   search/searchparams.cpp
   search/mutexpool.cpp
   search/search.cpp
@@ -100,6 +102,7 @@ add_executable(evalsgf
   dataio/sgf.cpp
   neuralnet/nninputs.cpp
   neuralnet/nneval.cpp
+  neuralnet/tensorflowbackend.cpp
   search/searchparams.cpp
   search/mutexpool.cpp
   search/search.cpp
@@ -124,6 +127,7 @@ add_executable(match
   dataio/sgf.cpp
   neuralnet/nninputs.cpp
   neuralnet/nneval.cpp
+  neuralnet/tensorflowbackend.cpp
   search/searchparams.cpp
   search/mutexpool.cpp
   search/search.cpp
