@@ -78,7 +78,7 @@ int main(int argc, const char* argv[]) {
   {
     vector<SearchParams> paramss = Setup::loadParams(cfg);
     if(paramss.size() != 1)
-      throw new StringError("Can only specify examply one search bot in sgf mode");
+      throw StringError("Can only specify examply one search bot in sgf mode");
     params = paramss[0];
   }
 
@@ -89,7 +89,7 @@ int main(int argc, const char* argv[]) {
     searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
-  
+
   Sgf* sgf = Sgf::loadFile(sgfFile);
   int bSize = sgf->getBSize();
   float komi = sgf->getKomi();
@@ -116,12 +116,12 @@ int main(int argc, const char* argv[]) {
     throw StringError("Move num " + Global::intToString(moveNum) + " requested but sgf has only " + Global::intToString(moves.size()));
   for(int i = 0; i<moveNum; i++)
     bot->makeMove(moves[i].loc,moves[i].pla);
-  
+
   ClockTimer timer;
   nnEval->clearStats();
   Loc loc = bot->genMoveSynchronous(bot->getSearch()->rootPla);
   (void)loc;
-  
+
 
   Search* search = bot->getSearch();
   ostringstream sout;
@@ -141,7 +141,7 @@ int main(int argc, const char* argv[]) {
     }
     Board::printBoard(sout, board,Board::NULL_LOC,NULL);
   }
-  
+
   sout << "\n";
   sout << "Time taken: " << timer.getSeconds() << "\n";
   sout << "Root visits: " << search->numRootVisits() << "\n";

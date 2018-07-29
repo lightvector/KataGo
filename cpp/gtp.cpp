@@ -84,7 +84,7 @@ int main(int argc, const char* argv[]) {
   {
     vector<SearchParams> paramss = Setup::loadParams(cfg);
     if(paramss.size() != 1)
-      throw new StringError("Can only specify examply one search bot in gtp mode");
+      throw StringError("Can only specify examply one search bot in gtp mode");
     params = paramss[0];
   }
 
