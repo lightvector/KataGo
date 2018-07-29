@@ -54,7 +54,7 @@ def volume(variable):
   return variable_parameters
 
 total_parameters = 0
-for variable in tf.trainable_variables():
+for variable in tf.global_variables():
   variable_parameters = volume(variable)
   total_parameters += variable_parameters
   log("Model variable %s, %d parameters" % (variable.name,variable_parameters))
