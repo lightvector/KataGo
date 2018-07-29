@@ -111,13 +111,15 @@ void NNEvaluator::clearCache() {
 }
 
 static void serveEvals(
-  int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger, NNEvaluator* nnEval, const LoadedModel* loadedModel
+  int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger,
+  NNEvaluator* nnEval, const LoadedModel* loadedModel,
+  int cudaGpuIdxForThisThread
 ) {
   NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
   Rand rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
   ostream* logStream = logger->createOStream();
   try {
-    nnEval->serve(*buf,rand,doRandomize,defaultSymmetry);
+    nnEval->serve(*buf,rand,doRandomize,defaultSymmetry,cudaGpuIdxForThisThread);
   }
   catch(const exception& e) {
     (*logStream) << "ERROR: NNEval Server Thread " << threadIdx << " failed: " << e.what() << endl;
@@ -137,14 +139,18 @@ void NNEvaluator::spawnServerThreads(
   bool doRandomize,
   string randSeed,
   int defaultSymmetry,
-  Logger& logger
+  Logger& logger,
+  vector<int> cudaGpuIdxByServerThread
 ) {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
+  if(cudaGpuIdxByServerThread.size() != numThreads)
+    throw StringError("cudaGpuIdxByServerThread.size() != numThreads");
 
   for(int i = 0; i<numThreads; i++) {
+    int cudaGpuIdxForThisThread = cudaGpuIdxByServerThread[i];
     std::thread* thread = new std::thread(
-      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,loadedModel
+      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,loadedModel,cudaGpuIdxForThisThread
     );
     serverThreads.push_back(thread);
   }
@@ -167,9 +173,9 @@ void NNEvaluator::killServerThreads() {
   isKilled = false;
 }
 
-void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry) {
+void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry, int cudaGpuIdxForThisThread) {
 
-  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle();
+  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(cudaGpuIdxForThisThread);
   vector<NNOutput*> outputBuf;
   
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);

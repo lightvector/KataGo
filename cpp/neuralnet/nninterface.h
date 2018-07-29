@@ -9,14 +9,20 @@ struct LocalGpuHandle; //Not thread-safe, each handle should only be used by one
 struct LoadedModel;
 struct InputBuffers;
 
+//Generic interface to neural net inference.
+//There are two backends - a Tensorflow backend, and a CUDA backend.
+//Some parameters to these functions only apply for one backend or another.
+
 namespace NeuralNet {
   void globalInitialize(
-    const string& tensorflowGpuVisibleDeviceList,
+    const string& tensorflowGpuVisibleGpuList,
     double tensorflowPerProcessGpuMemoryFraction
   );
   void globalCleanup();
-  
-  LocalGpuHandle* createLocalGpuHandle();
+
+  //Any given thread should only ever create one of these at a time.
+  //When using the CUDA backend, will mutably set the GPU that this thread is associated with to the specified index.
+  LocalGpuHandle* createLocalGpuHandle(int cudaGpuIdxForThisThread);
   void freeLocalGpuHandle(LocalGpuHandle* gpuHandle);
 
   LoadedModel* loadModelFile(const string& file, int modelFileIdx);
@@ -29,7 +35,6 @@ namespace NeuralNet {
   bool* getSymmetriesInplace(InputBuffers* buffers);
   
   void getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int numFilledRows, vector<NNOutput*>& outputs);
-
 }
 
 

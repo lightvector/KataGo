@@ -100,9 +100,8 @@ int main(int argc, const char* argv[]) {
     }
   }
 
-  //Initialize tensorflow and the models  
+  //Initialize neural net inference engine globals, and load models
   Setup::initializeSession(cfg);
-  
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelFiles,cfg,logger,seedRand);
   logger.write("Loaded neural net");
 

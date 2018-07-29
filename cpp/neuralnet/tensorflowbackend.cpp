@@ -1,4 +1,8 @@
 
+//TODO remove this define
+#define USE_TENSORFLOW_BACKEND
+#ifdef USE_TENSORFLOW_BACKEND
+
 #include <tensorflow/cc/client/client_session.h>
 #include <tensorflow/cc/ops/standard_ops.h>
 #include <tensorflow/core/framework/tensor.h>
@@ -102,8 +106,9 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
-LocalGpuHandle* NeuralNet::createLocalGpuHandle() {
+LocalGpuHandle* NeuralNet::createLocalGpuHandle(int cudaGpuIdxForThisThread) {
   assert(globalSession != NULL);
+  (void)cudaGpuIdxForThisThread;
   return NULL;
 }
 
@@ -223,5 +228,5 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int 
   buffers->outputsBuf.clear();
 }
 
-
+#endif
 

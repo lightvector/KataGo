@@ -3,15 +3,15 @@
 
 void Setup::initializeSession(ConfigParser& cfg) {
 
-  string gpuVisibleDeviceList;
-  if(cfg.contains("gpuVisibleDeviceList"))
-    gpuVisibleDeviceList = cfg.getString("gpuVisibleDeviceList");
+  string tensorflowGpuVisibleDeviceList;
+  if(cfg.contains("tensorflowGpuVisibleDeviceList"))
+    tensorflowGpuVisibleDeviceList = cfg.getString("tensorflowGpuVisibleDeviceList");
 
-  double perProcessGPUMemoryFraction = -1;
-  if(cfg.contains("perProcessGPUMemoryFraction"))
-    perProcessGPUMemoryFraction = cfg.getDouble("perProcessGPUMemoryFraction",0.0,1.0);
+  double tensorflowPerProcessGpuMemoryFraction = -1;
+  if(cfg.contains("tensorflowPerProcessGpuMemoryFraction"))
+    tensorflowPerProcessGpuMemoryFraction = cfg.getDouble("tensorflowPerProcessGpuMemoryFraction",0.0,1.0);
 
-  NeuralNet::globalInitialize(gpuVisibleDeviceList,perProcessGPUMemoryFraction);  
+  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);  
 }
 
 vector<NNEvaluator*> Setup::initializeNNEvaluators(
@@ -46,13 +46,27 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     logger.write("nnRandSeed" + idxStr + " = " + nnRandSeed);
 
     int numNNServerThreadsPerModel = cfg.getInt("numNNServerThreadsPerModel",1,1024);
+    vector<int> cudaGpuIdxByServerThread;
+    for(int j = 0; j<numNNServerThreadsPerModel; j++) {
+      string threadIdxStr = Global::intToString(j);
+      if(cfg.contains("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr))
+        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains("cudaGpuToUseModel"+idxStr))
+        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr,0,1023));
+      else if(cfg.contains("cudaGpuToUse"))
+        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUse",0,1023));
+      else
+        cudaGpuIdxByServerThread.push_back(0);
+    }
+    
     int defaultSymmetry = 0;
     nnEval->spawnServerThreads(
       numNNServerThreadsPerModel,
       nnRandomize,
       nnRandSeed,
       defaultSymmetry,
-      logger
+      logger,
+      cudaGpuIdxByServerThread
     );
 
     nnEvals.push_back(nnEval);
