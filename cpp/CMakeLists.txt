@@ -1,7 +1,9 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8.2)
 project(writedata)
 
 set(CMAKE_CXX_STANDARD 14)
+set(CUDA_STANDARD 11)
+enable_language(CUDA)
 
 include_directories(.)
 include_directories(tclap-1.2.1/include)
@@ -57,6 +59,8 @@ add_executable(example
   neuralnet/nninputs.cpp
   neuralnet/nneval.cpp
   neuralnet/tensorflowbackend.cpp
+  neuralnet/cudabackend.cpp
+  neuralnet/cudahelpers.cu
   search/searchparams.cpp
   search/mutexpool.cpp
   search/search.cpp
@@ -143,7 +147,9 @@ target_link_libraries(evalsgf TensorflowCC::Shared)
 target_link_libraries(match TensorflowCC::Shared)
 find_package(CUDA)
 if(CUDA_FOUND)
-  target_link_libraries(example ${CUDA_LIBRARIES})
+  find_library(CUDNN_LIBRARY libcudnn.so)
+  include_directories(SYSTEM ${CUDA_INCLUDE_DIRS}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
+  target_link_libraries(example ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
   target_link_libraries(gtp ${CUDA_LIBRARIES})
   target_link_libraries(evalsgf ${CUDA_LIBRARIES})
   target_link_libraries(match ${CUDA_LIBRARIES})

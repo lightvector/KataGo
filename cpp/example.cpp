@@ -22,136 +22,635 @@
 using namespace std;
 using namespace tensorflow;
 
+#include <cuda.h>
+#include <cublas_v2.h>
+#include <cudnn.h>
 
-static void checkStatus(const Status& status, const char* subLabel) {
-  if(!status.ok())
-    throw StringError("NN Eval Error: " + string(subLabel) + status.ToString());
-}
-
+#include "neuralnet/cudaerrorcheck.h"
+#include "neuralnet/cudahelpers.h"
 
 int main() {
   Board::initHash();
 
   Logger logger;
   logger.setLogToStdout(true);
-  logger.addFile("tmp.txt");
 
-  Session* session;
-  Status status;
+  CUDA_ERR(cudaSetDevice(0));
 
-  string gpuVisibleDeviceList = ""; //use default
-  double perProcessGPUMemoryFraction = -1; //use default
-  SessionOptions sessionOptions = SessionOptions();
-  if(gpuVisibleDeviceList.length() > 0)
-    sessionOptions.config.mutable_gpu_options()->set_visible_device_list(gpuVisibleDeviceList);
-  if(perProcessGPUMemoryFraction >= 0.0)
-    sessionOptions.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(perProcessGPUMemoryFraction);
+  cublasHandle_t cublasHandle;
+  CUBLAS_ERR(cublasCreate(&cublasHandle));
 
-  status = NewSession(sessionOptions, &session);
 
-  checkStatus(status, "creating session");
+  int n = 2;
+  int ic = 4;
+  int oc = 3;
 
-  int modelFileIdx = 0;
-  int maxBatchSize = 8;
-  int nnCacheSizePowerOfTwo = 16;
-  bool debugSkipNeuralNet = false;
-  NNEvaluator* nnEval = new NNEvaluator(
-    session,
-    "/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb",
-    modelFileIdx,
-    maxBatchSize,
-    nnCacheSizePowerOfTwo,
-    debugSkipNeuralNet
-  );
+  float* in;
+  float* mat;
+  float* out;
+  CUDA_ERR(cudaMalloc(&in, n*ic*sizeof(float)));
+  CUDA_ERR(cudaMalloc(&mat, ic*oc*sizeof(float)));
+  CUDA_ERR(cudaMallocManaged(&out, n*oc*sizeof(float)));
 
-  int numNNServerThreads = 2;
-  bool doRandomize = true;
-  string randSeed = "abc";
-  int defaultSymmetry = 0;
-  nnEval->spawnServerThreads(
-    numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger
-  );
+  float invals[n][ic] = {
+    {0,1,2,3},
+    {5,6,2,1},
+  };
 
-  Rules rules;
-  rules.koRule = Rules::KO_POSITIONAL;
-  rules.scoringRule = Rules::SCORING_AREA;
-  rules.multiStoneSuicideLegal = true;
-  rules.komi = 7.5f;
+  float matvals[ic][oc] = {
+    {1,-1,2},
+    {1,0,3},
+    {1,0,4},
+    {1,0,5},
+  };
 
-  Player pla = P_WHITE;
-  Board board = Board::parseBoard(19,19,R"(
-   A B C D E F G H J K L M N O P Q R S T
-19 . . . . . . . . . . . . . . . . x . .
-18 . . x o . . . . . . x o . . o . o x .
-17 . . x o . . o x . . . . o . . o x . .
-16 . . x o . . o x x o . x . . . o x . .
-15 . x o o x . x . x x x . x . . o x . .
-14 . x o . . . x x o o o o x . x o o x .
-13 . x o . . . . . o x x x x . . . o x .
-12 . . o . . x x x . o . o o o o . o . .
-11 . . . . o x o o o o . o . x . o . . .
-10 . o o o o o x . . o x x x . o x x . .
- 9 . x . x o o x x x x o o x . x o x . .
- 8 . . . x x x x . . x . o o.x . o x . .
- 7 . . . o o . x x . x . . . . . x . x .
- 6 . . o x x x . x x o o . o . . x . x .
- 5 . . o o o o x x . . . o . o . o x . .
- 4 . o o x x o o . x o o x . o . o x . .
- 3 . o x x . o o x x x . x . o x x o x .
- 2 o x . x x o . o . . . . . o . . o x .
- 1 . o x x o . . o . . . . . . . . . . .
-)");
+  CUDA_ERR(cudaMemcpy(in,invals,n*ic*sizeof(float),cudaMemcpyHostToDevice));
+  CUDA_ERR(cudaMemcpy(mat,matvals,ic*oc*sizeof(float),cudaMemcpyHostToDevice));
 
-  BoardHistory hist(board,pla,rules);
-  SearchParams params;
-  params.maxPlayouts = 1000;
-  params.numThreads = 6;
-
-  AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "def");
-  bot->setPosition(pla,board,hist);
-
-  Loc moveLoc = bot->genMoveSynchronous(pla);
-  bot->clearSearch();
-  nnEval->clearCache();
+  float alpha = 1.0;
+  float beta = 0.0;
   ClockTimer timer;
-  moveLoc = bot->genMoveSynchronous(pla);
+  CUBLAS_ERR(cublasSgemm(
+    cublasHandle,
+    CUBLAS_OP_T,
+    CUBLAS_OP_T,
+    n,oc,ic,
+    &alpha,
+    in,ic,
+    mat,oc,
+    &beta,
+    out,n
+  ));
 
-  double seconds = timer.getSeconds();
-  cout << board << endl;
-  cout << "MoveLoc: " << Location::toString(moveLoc,board) << endl;
-  cout << "Seconds: " << seconds << endl;
-  bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
+  cudaDeviceSynchronize();
 
-  cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
-  cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
-  cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
+  double timeTaken = timer.getSeconds();
+  cout << "timeTaken " << timeTaken << endl;
 
-  cout << "sizeof(uint8_t) " << sizeof(uint8_t) << endl;
-  cout << "sizeof(uint16_t) " << sizeof(uint16_t) << endl;
-  cout << "sizeof(uint32_t) " << sizeof(uint32_t) << endl;
-  cout << "sizeof(uint64_t) " << sizeof(uint64_t) << endl;
-  cout << "sizeof(std::atomic_flag) " << sizeof(std::atomic_flag) << endl;;
-  cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
-  cout << "sizeof(std::shared_ptr<NNOutput>) " << sizeof(std::shared_ptr<NNOutput>) << endl;;
+  // float result[n];
+  // cudaMemcpy(result, cc, n*sizeof(float), cudaMemcpyDeviceToHost);
 
-  {
-    atomic<bool>* b = new atomic<bool>(false);
-    cout << "atomic<bool> lock free " << std::atomic_is_lock_free(b) << endl;
-    delete b;
+  for(int i = 0; i<n*oc; i++) {
+    cout << out[i] << " ";
   }
-  {
-    atomic<uint64_t>* b = new atomic<uint64_t>(0);
-    cout << "atomic<uint64_t> lock free " << std::atomic_is_lock_free(b) << endl;
-    delete b;
-  }
+  // for(int i = 0; i<n; i++) {
+  //   cout << result[i] << " ";
+  // }
+  cout << "Yay" << endl;
+  cudaFree(in);
+  cudaFree(mat);
+  cudaFree(out);
 
-  nnEval->killServerThreads();
-  delete bot;
-  delete nnEval;
+  cublasDestroy(cublasHandle);
 
-  cout << "Done" << endl;
   return 0;
 }
+
+
+// int main() {
+//   Board::initHash();
+
+//   Logger logger;
+//   logger.setLogToStdout(true);
+
+//   checkCudaErrors(cudaSetDevice(0));
+
+//   cublasHandle_t cublasHandle;
+//   checkCudaErrors(cublasCreate(&cublasHandle));
+
+
+//   int n = 23;
+//   int c = 13;
+
+//   float* aa;
+//   float* cc;
+//   cudaMallocManaged(&aa, n*c*sizeof(float));
+//   cudaMallocManaged(&cc, n*sizeof(float));
+
+//   for(int i = 0; i < n*c; i++) {
+//     aa[i] = i;
+//   }
+
+//   ClockTimer timer;
+//   cudaPoolRowsSum(aa,cc,n,c);
+//   float scale = 1.0f / c;
+//   checkCudaErrors(cublasSscal(cublasHandle, n, &scale, cc, 1));
+//   cudaDeviceSynchronize();
+
+//   double timeTaken = timer.getSeconds();
+//   cout << "timeTaken " << timeTaken << endl;
+
+//   // float result[n];
+//   // cudaMemcpy(result, cc, n*sizeof(float), cudaMemcpyDeviceToHost);
+
+//   for(int i = 0; i<n; i++) {
+//     cout << cc[i] << " ";
+//   }
+//   // for(int i = 0; i<n; i++) {
+//   //   cout << result[i] << " ";
+//   // }
+//   cout << "Yay" << endl;
+//   cudaFree(aa);
+//   cudaFree(cc);
+
+//   cublasDestroy(cublasHandle);
+
+//   return 0;
+// }
+
+
+
+// int main() {
+//   Board::initHash();
+
+//   Logger logger;
+//   logger.setLogToStdout(true);
+
+//   checkCudaErrors(cudaSetDevice(0));
+
+//   int n = 23;
+//   int ca = 13;
+//   int cb = 3;
+//   int hw = 101;
+
+//   float* aa;
+//   float* bb;
+//   float* cc;
+//   cudaMallocManaged(&aa, n*ca*hw*sizeof(float));
+//   cudaMallocManaged(&bb, n*cb*hw*sizeof(float));
+//   cudaMallocManaged(&cc, n*(ca+cb)*hw*sizeof(float));
+
+//   for(int i = 0; i < n*ca*hw; i++) {
+//     aa[i] = 100000 + i*1.0f;
+//   }
+//   for(int i = 0; i < n*cb*hw; i++) {
+//     bb[i] = i*1.0f;
+//   }
+
+//   ClockTimer timer;
+//   cudaChannelConcat(aa,bb,cc,ca*hw,cb*hw,n);
+//   double result = timer.getSeconds();
+//   cout << "result " << result << endl;
+
+//   for(int i = 0; i<n; i++) {
+//     for(int j = 0; j<(ca+cb)*hw; j++) {
+//       cout << cc[i*(ca+cb)*hw+j] << " ";
+//     }
+//     cout << endl;
+//   }
+//   cout << "Yay" << endl;
+//   cudaFree(aa);
+//   cudaFree(bb);
+//   cudaFree(cc);
+
+//   return 0;
+// }
+
+
+
+// static void checkCudnnStatus(const cudnnStatus_t& status, const char* subLabel) {
+//   if(status != CUDNN_STATUS_SUCCESS)
+//     throw StringError("CUDNN Error: " + string(subLabel) + ": " + cudnnGetErrorString(status));
+// }
+
+// int main() {
+//   Board::initHash();
+
+//   Logger logger;
+//   logger.setLogToStdout(true);
+
+//   checkCudaErrors(cudaSetDevice(0));
+
+//   cudnnStatus_t status;
+//   cudnnHandle_t cudnn;
+//   status = cudnnCreate(&cudnn);
+//   checkCudnnStatus(status,"cudnnCreate");
+
+//   int ySize = 5;
+//   int xSize = 5;
+//   int inChannels = 2;
+//   int outChannels = 2;
+//   int convYSize = 3;
+//   int convXSize = 3;
+//   int batchSize = 1;
+
+//   cudnnTensorDescriptor_t inputDescriptor;
+//   status = cudnnCreateTensorDescriptor(&inputDescriptor);
+//   checkCudnnStatus(status,"cudnnCreateTensorDescriptor");
+//   status = cudnnSetTensor4dDescriptor(
+//     inputDescriptor,
+//     CUDNN_TENSOR_NHWC,
+//     CUDNN_DATA_FLOAT,
+//     batchSize,
+//     inChannels,
+//     ySize,
+//     xSize
+//   );
+//   checkCudnnStatus(status,"cudnnSetTensor4dDescriptor");
+
+//   // cudnnTensorDescriptor_t inputDescriptor;
+//   // status = cudnnCreateTensorDescriptor(&inputDescriptor);
+//   // checkCudnnStatus(status,"cudnnCreateTensorDescriptor");
+//   // status = cudnnSetTensor4dDescriptor(
+//   //   inputDescriptor,
+//   //   CUDNN_TENSOR_NCHW,
+//   //   CUDNN_DATA_FLOAT,
+//   //   batchSize,
+//   //   inChannels,
+//   //   ySize,
+//   //   xSize
+//   // );
+//   // checkCudnnStatus(status,"cudnnSetTensor4dDescriptor");
+
+//   cudnnTensorDescriptor_t outputDescriptor;
+//   status = cudnnCreateTensorDescriptor(&outputDescriptor);
+//   checkCudnnStatus(status,"cudnnCreateTensorDescriptor");
+//   status = cudnnSetTensor4dDescriptor(
+//     outputDescriptor,
+//     CUDNN_TENSOR_NHWC,
+//     CUDNN_DATA_FLOAT,
+//     batchSize,
+//     outChannels,
+//     ySize,
+//     xSize
+//   );
+//   checkCudnnStatus(status,"cudnnSetTensor4dDescriptor");
+
+//   cudnnFilterDescriptor_t kernelDescriptor;
+//   status = cudnnCreateFilterDescriptor(&kernelDescriptor);
+//   checkCudnnStatus(status,"cudnnCreateFilterDescriptor");
+//   status = cudnnSetFilter4dDescriptor(
+//     kernelDescriptor,
+//     CUDNN_DATA_FLOAT,
+//     CUDNN_TENSOR_NCHW,
+//     outChannels,
+//     inChannels,
+//     convYSize,
+//     convXSize
+//   );
+//   checkCudnnStatus(status,"cudnnSetFilter4dDescriptor");
+
+//   int paddingY = 1;
+//   int paddingX = 1;
+//   int yStride = 1;
+//   int xStride = 1;
+//   int dilationY = 1;
+//   int dilationX = 1;
+
+//   cudnnConvolutionDescriptor_t convolutionDescriptor;
+//   status = cudnnCreateConvolutionDescriptor(&convolutionDescriptor);
+//   checkCudnnStatus(status,"cudnnCreateConvolutionDescriptor");
+//   status = cudnnSetConvolution2dDescriptor(
+//     convolutionDescriptor,
+//     paddingY,
+//     paddingX,
+//     yStride,
+//     xStride,
+//     dilationY,
+//     dilationX,
+//     CUDNN_CROSS_CORRELATION,
+//     CUDNN_DATA_FLOAT
+//   );
+//   checkCudnnStatus(status,"cudnnSetConvolution2dDescriptor");
+
+//   size_t bytesMemoryLimit = 0;
+//   cudnnConvolutionFwdAlgo_t convolutionAlgorithm;
+//   status = cudnnGetConvolutionForwardAlgorithm(
+//     cudnn,
+//     inputDescriptor,
+//     kernelDescriptor,
+//     convolutionDescriptor,
+//     outputDescriptor,
+//     CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
+//     bytesMemoryLimit,
+//     &convolutionAlgorithm
+//   );
+//   checkCudnnStatus(status,"cudnnGetConvolutionForwardAlgorithm");
+
+//   size_t workspaceBytes = 0;
+//   status = cudnnGetConvolutionForwardWorkspaceSize(
+//     cudnn,
+//     inputDescriptor,
+//     kernelDescriptor,
+//     convolutionDescriptor,
+//     outputDescriptor,
+//     convolutionAlgorithm,
+//     &workspaceBytes
+//   );
+//   checkCudnnStatus(status,"cudnnGetConvolutionForwardWorkspaceSize");
+//   cout << "Workspace size: " << workspaceBytes << endl;
+
+//   float inputArr[batchSize][ySize][xSize][inChannels] = {
+//     {
+//       {{1,1},{1,0},{1,1},{1,0},{1,1}},
+//       {{1,0},{2,2},{3,0},{4,2},{5},0},
+//       {{1,3},{4,0},{9,3},{16,0},{25,3}},
+//       {{1,0},{8,4},{27,0},{81,4},{125,0}},
+//       {{1,5},{16,0},{81,5},{243,0},{625,5}},
+//     },
+//   };
+
+//   // float inputArr[batchSize][inChannels][ySize][xSize] = {{
+//   //   {
+//   //     {1,1,1,1,1},
+//   //     {1,2,3,4,5},
+//   //     {1,4,9,16,25},
+//   //     {1,8,27,81,125},
+//   //     {1,16,81,243,625},
+//   //   },
+//   //   {
+//   //     {1,0,1,0,1},
+//   //     {0,2,0,2,0},
+//   //     {3,0,3,0,3},
+//   //     {0,4,0,4,0},
+//   //     {5,0,5,0,5},
+//   //   }
+//   // }};
+
+//   float kernelArr[outChannels][inChannels][convYSize][convXSize] = {
+//     {
+//       {
+//         {0,0,0},
+//         {0,1,0},
+//         {0,0,0},
+//       },
+//       {
+//         {0,0,0},
+//         {0,1,0},
+//         {0,0,0},
+//       },
+//     },
+//     {
+//       {
+//         {0,0,0},
+//         {0,0,1},
+//         {0,0,0},
+//       },
+//       {
+//         {0,0,0},
+//         {0,0,-1},
+//         {0,0,0},
+//       },
+//     },
+//   };
+
+//   void* gpuWorkspace = NULL;
+//   cudaMalloc(&gpuWorkspace,workspaceBytes);
+
+//   size_t inputBytes = sizeof(inputArr);
+//   float* inputBuf = NULL;
+//   cudaMalloc(&inputBuf, inputBytes);
+//   cudaMemcpy(inputBuf, inputArr, inputBytes, cudaMemcpyHostToDevice);
+
+//   size_t outputBytes = batchSize * outChannels * ySize * xSize * sizeof(float);
+//   float* outputBuf = NULL;
+//   cudaMalloc(&outputBuf, outputBytes);
+//   cudaMemset(outputBuf, 0.0f, outputBytes);
+
+//   size_t kernelBytes = sizeof(kernelArr);
+//   float* kernelBuf = NULL;
+//   cudaMalloc(&kernelBuf, kernelBytes);
+//   cudaMemcpy(kernelBuf, kernelArr, kernelBytes, cudaMemcpyHostToDevice);
+
+//   const float alpha = 1;
+//   const float beta = 0;
+//   status = cudnnConvolutionForward(
+//     cudnn,
+//     &alpha,
+//     inputDescriptor,
+//     inputBuf,
+//     kernelDescriptor,
+//     kernelBuf,
+//     convolutionDescriptor,
+//     convolutionAlgorithm,
+//     gpuWorkspace,
+//     workspaceBytes,
+//     &beta,
+//     outputDescriptor,
+//     outputBuf
+//   );
+//   checkCudnnStatus(status,"cudnnConvolutionForward");
+
+//   float outputArr[batchSize][ySize][xSize][outChannels];
+//   cudaMemcpy(outputArr, outputBuf, outputBytes, cudaMemcpyDeviceToHost);
+
+//   for(int b = 0; b<batchSize; b++) {
+//     for(int c = 0; c<outChannels; c++) {
+//       for(int y = 0; y<ySize; y++) {
+//         for(int x = 0; x<xSize; x++) {
+//           cout << outputArr[b][y][x][c] << " ";
+//         }
+//         cout << endl;
+//       }
+//       cout << endl;
+//     }
+//   }
+
+//   // for(int b = 0; b<batchSize; b++) {
+//   //   for(int c = 0; c<inChannels; c++) {
+//   //     for(int y = 0; y<ySize; y++) {
+//   //       for(int x = 0; x<xSize; x++) {
+//   //         inputArr[b][c][y][x] *= -1;
+//   //       }
+//   //     }
+//   //   }
+//   // }
+//   for(int b = 0; b<batchSize; b++) {
+//     for(int y = 0; y<ySize; y++) {
+//       for(int x = 0; x<xSize; x++) {
+//         for(int c = 0; c<inChannels; c++) {
+//           inputArr[b][y][x][c] *= -1;
+//         }
+//       }
+//     }
+//   }
+
+
+//   cudaMemcpy(inputBuf, inputArr, inputBytes, cudaMemcpyHostToDevice);
+
+//   status = cudnnConvolutionForward(
+//     cudnn,
+//     &alpha,
+//     inputDescriptor,
+//     inputBuf,
+//     kernelDescriptor,
+//     kernelBuf,
+//     convolutionDescriptor,
+//     convolutionAlgorithm,
+//     gpuWorkspace,
+//     workspaceBytes,
+//     &beta,
+//     outputDescriptor,
+//     outputBuf
+//   );
+//   checkCudnnStatus(status,"cudnnConvolutionForward");
+
+//   cudaMemcpy(outputArr, outputBuf, outputBytes, cudaMemcpyDeviceToHost);
+
+//   cout << "-----------" << endl;
+//   for(int b = 0; b<batchSize; b++) {
+//     for(int c = 0; c<outChannels; c++) {
+//       for(int y = 0; y<ySize; y++) {
+//         for(int x = 0; x<xSize; x++) {
+//           cout << outputArr[b][y][x][c] << " ";
+//         }
+//         cout << endl;
+//       }
+//       cout << endl;
+//     }
+//   }
+
+//   cudaFree(inputBuf);
+//   cudaFree(outputBuf);
+//   cudaFree(kernelBuf);
+//   cudaFree(gpuWorkspace);
+
+//   cudnnDestroyTensorDescriptor(inputDescriptor);
+//   cudnnDestroyTensorDescriptor(outputDescriptor);
+//   cudnnDestroyFilterDescriptor(kernelDescriptor);
+//   cudnnDestroyConvolutionDescriptor(convolutionDescriptor);
+
+//   cudnnDestroy(cudnn);
+
+//   cout << "Done" << endl;
+//   return 0;
+// }
+
+
+
+
+
+
+
+// static void checkStatus(const Status& status, const char* subLabel) {
+//   if(!status.ok())
+//     throw StringError("NN Eval Error: " + string(subLabel) + status.ToString());
+// }
+
+
+// int main() {
+//   Board::initHash();
+
+//   Logger logger;
+//   logger.setLogToStdout(true);
+//   logger.addFile("tmp.txt");
+
+//   Session* session;
+//   Status status;
+
+//   string gpuVisibleDeviceList = ""; //use default
+//   double perProcessGPUMemoryFraction = -1; //use default
+//   SessionOptions sessionOptions = SessionOptions();
+//   if(gpuVisibleDeviceList.length() > 0)
+//     sessionOptions.config.mutable_gpu_options()->set_visible_device_list(gpuVisibleDeviceList);
+//   if(perProcessGPUMemoryFraction >= 0.0)
+//     sessionOptions.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(perProcessGPUMemoryFraction);
+
+//   status = NewSession(sessionOptions, &session);
+
+//   checkStatus(status, "creating session");
+
+//   int modelFileIdx = 0;
+//   int maxBatchSize = 8;
+//   int nnCacheSizePowerOfTwo = 16;
+//   bool debugSkipNeuralNet = false;
+//   NNEvaluator* nnEval = new NNEvaluator(
+//     session,
+//     "/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb",
+//     modelFileIdx,
+//     maxBatchSize,
+//     nnCacheSizePowerOfTwo,
+//     debugSkipNeuralNet
+//   );
+
+//   int numNNServerThreads = 2;
+//   bool doRandomize = true;
+//   string randSeed = "abc";
+//   int defaultSymmetry = 0;
+//   nnEval->spawnServerThreads(
+//     numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger
+//   );
+
+//   Rules rules;
+//   rules.koRule = Rules::KO_POSITIONAL;
+//   rules.scoringRule = Rules::SCORING_AREA;
+//   rules.multiStoneSuicideLegal = true;
+//   rules.komi = 7.5f;
+
+//   Player pla = P_WHITE;
+//   Board board = Board::parseBoard(19,19,R"(
+//    A B C D E F G H J K L M N O P Q R S T
+// 19 . . . . . . . . . . . . . . . . x . .
+// 18 . . x o . . . . . . x o . . o . o x .
+// 17 . . x o . . o x . . . . o . . o x . .
+// 16 . . x o . . o x x o . x . . . o x . .
+// 15 . x o o x . x . x x x . x . . o x . .
+// 14 . x o . . . x x o o o o x . x o o x .
+// 13 . x o . . . . . o x x x x . . . o x .
+// 12 . . o . . x x x . o . o o o o . o . .
+// 11 . . . . o x o o o o . o . x . o . . .
+// 10 . o o o o o x . . o x x x . o x x . .
+//  9 . x . x o o x x x x o o x . x o x . .
+//  8 . . . x x x x . . x . o o.x . o x . .
+//  7 . . . o o . x x . x . . . . . x . x .
+//  6 . . o x x x . x x o o . o . . x . x .
+//  5 . . o o o o x x . . . o . o . o x . .
+//  4 . o o x x o o . x o o x . o . o x . .
+//  3 . o x x . o o x x x . x . o x x o x .
+//  2 o x . x x o . o . . . . . o . . o x .
+//  1 . o x x o . . o . . . . . . . . . . .
+// )");
+
+//   BoardHistory hist(board,pla,rules);
+//   SearchParams params;
+//   params.maxPlayouts = 1000;
+//   params.numThreads = 6;
+
+//   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "def");
+//   bot->setPosition(pla,board,hist);
+
+//   Loc moveLoc = bot->genMoveSynchronous(pla);
+//   bot->clearSearch();
+//   nnEval->clearCache();
+//   ClockTimer timer;
+//   moveLoc = bot->genMoveSynchronous(pla);
+
+//   double seconds = timer.getSeconds();
+//   cout << board << endl;
+//   cout << "MoveLoc: " << Location::toString(moveLoc,board) << endl;
+//   cout << "Seconds: " << seconds << endl;
+//   bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
+
+//   cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
+//   cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
+//   cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
+
+//   cout << "sizeof(uint8_t) " << sizeof(uint8_t) << endl;
+//   cout << "sizeof(uint16_t) " << sizeof(uint16_t) << endl;
+//   cout << "sizeof(uint32_t) " << sizeof(uint32_t) << endl;
+//   cout << "sizeof(uint64_t) " << sizeof(uint64_t) << endl;
+//   cout << "sizeof(std::atomic_flag) " << sizeof(std::atomic_flag) << endl;;
+//   cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
+//   cout << "sizeof(std::shared_ptr<NNOutput>) " << sizeof(std::shared_ptr<NNOutput>) << endl;;
+
+//   {
+//     atomic<bool>* b = new atomic<bool>(false);
+//     cout << "atomic<bool> lock free " << std::atomic_is_lock_free(b) << endl;
+//     delete b;
+//   }
+//   {
+//     atomic<uint64_t>* b = new atomic<uint64_t>(0);
+//     cout << "atomic<uint64_t> lock free " << std::atomic_is_lock_free(b) << endl;
+//     delete b;
+//   }
+
+//   nnEval->killServerThreads();
+//   delete bot;
+//   delete nnEval;
+
+//   cout << "Done" << endl;
+//   return 0;
+// }
 
 
 
