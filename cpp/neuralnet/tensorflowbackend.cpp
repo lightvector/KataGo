@@ -106,7 +106,7 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
-LocalGpuHandle* NeuralNet::createLocalGpuHandle(LoadedModel* loadedModel, int maxBatchSize, int cudaGpuIdxForThisThread) {
+LocalGpuHandle* NeuralNet::createLocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int cudaGpuIdxForThisThread) {
   assert(globalSession != NULL);
   (void)loadedModel;
   (void)maxBatchSize;
@@ -187,6 +187,7 @@ bool* NeuralNet::getSymmetriesInplace(InputBuffers* buffers) {
 }
 
 void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int numFilledRows, vector<NNOutput*>& outputs) {
+  assert(globalSession != NULL);
   (void)gpuHandle;
   tensorflow::Status status;
 

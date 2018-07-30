@@ -25,7 +25,7 @@ namespace NeuralNet {
 
   //Any given thread should only ever create one of these at a time.
   //When using the CUDA backend, will mutably set the GPU that this thread is associated with to the specified index.
-  LocalGpuHandle* createLocalGpuHandle(LoadedModel* loadedModel, int maxBatchSize, int cudaGpuIdxForThisThread);
+  LocalGpuHandle* createLocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int cudaGpuIdxForThisThread);
   void freeLocalGpuHandle(LocalGpuHandle* gpuHandle);
 
   InputBuffers* createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize);
