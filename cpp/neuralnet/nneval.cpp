@@ -40,7 +40,7 @@ NNEvaluator::NNEvaluator(
   int nnCacheSizePowerOfTwo,
   bool skipNeuralNet
 )
-  :modelFileName(pbModelFile),   
+  :modelFileName(pbModelFile),
    loadedModel(NULL),
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
@@ -62,7 +62,7 @@ NNEvaluator::NNEvaluator(
 
   loadedModel = NeuralNet::loadModelFile(pbModelFile, modelFileIdx);
   m_inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize);
-  
+
   m_resultBufs = new NNResultBuf*[maxBatchSize];
   for(int i = 0; i < maxBatchSize; i++)
     m_resultBufs[i] = NULL;
@@ -75,7 +75,7 @@ NNEvaluator::~NNEvaluator()
 
   NeuralNet::freeInputBuffers(m_inputBuffers);
   m_inputBuffers = NULL;
-  
+
   //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
   delete[] m_resultBufs;
   m_resultBufs = NULL;
@@ -175,9 +175,9 @@ void NNEvaluator::killServerThreads() {
 
 void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry, int cudaGpuIdxForThisThread) {
 
-  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(cudaGpuIdxForThisThread);
+  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, maxNumRows, cudaGpuIdxForThisThread);
   vector<NNOutput*> outputBuf;
-  
+
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
   while(true) {
     lock.lock();
@@ -256,7 +256,7 @@ void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defa
     m_numBatchesProcessed.fetch_add(1, std::memory_order_relaxed);
     continue;
   }
-  
+
   NeuralNet::freeLocalGpuHandle(gpuHandle);
 }
 

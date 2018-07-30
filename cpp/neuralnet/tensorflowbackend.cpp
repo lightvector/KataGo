@@ -37,7 +37,7 @@ void NeuralNet::globalInitialize(
 void NeuralNet::globalCleanup() {
   if(globalSession != NULL)
     globalSession->Close();
-  globalSession = NULL;    
+  globalSession = NULL;
 }
 
 
@@ -106,8 +106,10 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
-LocalGpuHandle* NeuralNet::createLocalGpuHandle(int cudaGpuIdxForThisThread) {
+LocalGpuHandle* NeuralNet::createLocalGpuHandle(LoadedModel* loadedModel, int maxBatchSize, int cudaGpuIdxForThisThread) {
   assert(globalSession != NULL);
+  (void)loadedModel;
+  (void)maxBatchSize;
   (void)cudaGpuIdxForThisThread;
   return NULL;
 }
@@ -115,7 +117,7 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(int cudaGpuIdxForThisThread) {
 void NeuralNet::freeLocalGpuHandle(LocalGpuHandle* gpuHandle) {
   (void)gpuHandle;
 }
-  
+
 InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize) {
   assert(globalSession != NULL);
   tensorflow::Status status;
@@ -176,7 +178,7 @@ void NeuralNet::freeInputBuffers(InputBuffers* buffers) {
   buffers->outputsBuf.clear();
   delete buffers;
 }
-  
+
 float* NeuralNet::getRowInplace(InputBuffers* buffers, int rowIdx) {
   return buffers->inputsBuffer + rowIdx * NNInputs::ROW_SIZE_V1;
 }
@@ -208,7 +210,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int 
   float* valueData = buffers->outputsBuf[1].flat<float>().data();
 
   outputs.clear();
-  
+
   for(int row = 0; row < numFilledRows; row++) {
     NNOutput* output = new NNOutput();
     float* policyProbs = output->policyProbs;

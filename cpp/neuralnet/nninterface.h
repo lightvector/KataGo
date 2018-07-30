@@ -20,20 +20,20 @@ namespace NeuralNet {
   );
   void globalCleanup();
 
-  //Any given thread should only ever create one of these at a time.
-  //When using the CUDA backend, will mutably set the GPU that this thread is associated with to the specified index.
-  LocalGpuHandle* createLocalGpuHandle(int cudaGpuIdxForThisThread);
-  void freeLocalGpuHandle(LocalGpuHandle* gpuHandle);
-
   LoadedModel* loadModelFile(const string& file, int modelFileIdx);
   void freeLoadedModel(LoadedModel* loadedModel);
-  
+
+  //Any given thread should only ever create one of these at a time.
+  //When using the CUDA backend, will mutably set the GPU that this thread is associated with to the specified index.
+  LocalGpuHandle* createLocalGpuHandle(LoadedModel* loadedModel, int maxBatchSize, int cudaGpuIdxForThisThread);
+  void freeLocalGpuHandle(LocalGpuHandle* gpuHandle);
+
   InputBuffers* createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize);
   void freeInputBuffers(InputBuffers* buffers);
-  
+
   float* getRowInplace(InputBuffers* buffers, int rowIdx);
   bool* getSymmetriesInplace(InputBuffers* buffers);
-  
+
   void getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int numFilledRows, vector<NNOutput*>& outputs);
 }
 
