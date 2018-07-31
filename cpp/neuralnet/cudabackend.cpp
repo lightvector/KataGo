@@ -1,6 +1,4 @@
 
-//TODO
-#define USE_CUDA_BACKEND
 #ifdef USE_CUDA_BACKEND
 
 #include <cuda.h>
@@ -995,8 +993,8 @@ struct GlobalPoolingResidualBlock {
     CUBLAS_ERR(cublasSscal(cudaHandles->cublas, batchSize*gpoolChannels, &meanScale, gpoolMeanBuf, 1));
     customCudaChannelConcat(
       gpoolMeanBuf,gpoolMaxBuf,gpoolConcatBuf,
-      xSize*ySize*gpoolChannels,
-      xSize*ySize*gpoolChannels,
+      gpoolChannels,
+      gpoolChannels,
       batchSize
     );
     gpoolToBiasMul.apply(cudaHandles,batchSize,gpoolConcatBuf,gpoolBiasBuf,workspaceBuf,workspaceBytes);
@@ -1520,9 +1518,9 @@ struct PolicyHeadDesc {
       throw StringError(name+Global::strprintf(
         ": gpoolToBiasMul.outChannels (%d) != p1BN.numChannels (%d)", gpoolToBiasMul.outChannels, p1BN.numChannels
       ));
-    if(p2Conv.inChannels != p1BN.numChannels)
+    if(p2Conv.inChannels != p1BN.numChannels*2)
       throw StringError(name+Global::strprintf(
-        ": p2Conv.inChannels (%d) != p1BN.numChannels (%d)", p2Conv.inChannels, p1BN.numChannels
+        ": p2Conv.inChannels (%d) != p1BN.numChannels*2 (%d)", p2Conv.inChannels, p1BN.numChannels*2
       ));
     if(p2Conv.outChannels != 1)
       throw StringError(name+Global::strprintf(
@@ -1553,6 +1551,7 @@ struct PolicyHead {
   cudnnTensorDescriptor_t* p1OutDescriptors;
   cudnnTensorDescriptor_t* g1OutDescriptors;
   cudnnTensorDescriptor_t* g1BiasDescriptors;
+  cudnnTensorDescriptor_t* p2InDescriptors;
   cudnnTensorDescriptor_t* p2OutDescriptors;
 
   ConvLayer* p1Conv;
@@ -1587,12 +1586,14 @@ struct PolicyHead {
     p1OutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     g1OutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     g1BiasDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+    p2InDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     p2OutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       cudnnTensorDescriptor_t& p1OutDescriptor = p1OutDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& g1OutDescriptor = g1OutDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& g1BiasDescriptor = g1BiasDescriptors[batchSize-1];
+      cudnnTensorDescriptor_t& p2InDescriptor = p2InDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& p2OutDescriptor = p2OutDescriptors[batchSize-1];
 
       CUDNN_ERR(cudnnCreateTensorDescriptor(&p1OutDescriptor));
@@ -1628,6 +1629,17 @@ struct PolicyHead {
         1
       ));
 
+      CUDNN_ERR(cudnnCreateTensorDescriptor(&p2InDescriptor));
+      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+        p2InDescriptor,
+        CUDNN_TENSOR_NCHW,
+        CUDNN_DATA_FLOAT,
+        batchSize,
+        desc->p2Conv.inChannels,
+        ySize,
+        xSize
+      ));
+
       CUDNN_ERR(cudnnCreateTensorDescriptor(&p2OutDescriptor));
       CUDNN_ERR(cudnnSetTensor4dDescriptor(
         p2OutDescriptor,
@@ -1647,7 +1659,7 @@ struct PolicyHead {
     gpoolToBiasMul = new MatMulLayer(cudaHandles,&desc->gpoolToBiasMul);
     p1BN = new BNLayer(cudaHandles,&desc->p1BN);
     p1Activation = new ActivationLayer(cudaHandles,&desc->p1Activation);
-    p2Conv = new ConvLayer(cudaHandles,&desc->p2Conv,maxBatchSize,p1OutDescriptors,p2OutDescriptors);
+    p2Conv = new ConvLayer(cudaHandles,&desc->p2Conv,maxBatchSize,p2InDescriptors,p2OutDescriptors);
     gpoolToPassMul = new MatMulLayer(cudaHandles,&desc->gpoolToPassMul);
   }
 
@@ -1667,12 +1679,14 @@ struct PolicyHead {
       cudnnDestroyTensorDescriptor(p1OutDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(g1OutDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(g1BiasDescriptors[batchSize-1]);
+      cudnnDestroyTensorDescriptor(p2InDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(p2OutDescriptors[batchSize-1]);
     }
 
     delete[] p1OutDescriptors;
     delete[] g1OutDescriptors;
     delete[] g1BiasDescriptors;
+    delete[] p2InDescriptors;
     delete[] p2OutDescriptors;
   }
 
@@ -1686,6 +1700,7 @@ struct PolicyHead {
 
     const cudnnTensorDescriptor_t& p1OutDescriptor = p1OutDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& g1OutDescriptor = g1OutDescriptors[batchSize-1];
+    const cudnnTensorDescriptor_t& p2InDescriptor = p2InDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& p2OutDescriptor = p2OutDescriptors[batchSize-1];
 
     b = p1Conv->requiredWorkspaceBytes(cudaHandles,trunkDescriptor,p1OutDescriptor,batchSize);
@@ -1694,7 +1709,7 @@ struct PolicyHead {
     bytes = std::max(bytes,b);
     b = gpoolToBiasMul->requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
-    b = p2Conv->requiredWorkspaceBytes(cudaHandles,p1OutDescriptor,p2OutDescriptor,batchSize);
+    b = p2Conv->requiredWorkspaceBytes(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize);
     bytes = std::max(bytes,b);
     b = gpoolToPassMul->requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
@@ -1715,6 +1730,7 @@ struct PolicyHead {
     float* g1MaxBuf,
     float* g1ConcatBuf,
     float* g1BiasBuf,
+    float* p2InBuf,
     float* p2OutBuf,
     float* g1PassBuf,
     float* policyBuf,
@@ -1724,6 +1740,7 @@ struct PolicyHead {
     const cudnnTensorDescriptor_t& p1OutDescriptor = p1OutDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& g1OutDescriptor = g1OutDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& g1BiasDescriptor = g1BiasDescriptors[batchSize-1];
+    const cudnnTensorDescriptor_t& p2InDescriptor = p2InDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& p2OutDescriptor = p2OutDescriptors[batchSize-1];
 
     p1Conv->apply(cudaHandles,trunkDescriptor,p1OutDescriptor,batchSize,trunkOutBuf,p1OutBuf,workspaceBuf,workspaceBytes);
@@ -1737,8 +1754,8 @@ struct PolicyHead {
     CUBLAS_ERR(cublasSscal(cudaHandles->cublas, batchSize*g1Channels, &meanScale, g1MeanBuf, 1));
     customCudaChannelConcat(
       g1MeanBuf,g1MaxBuf,g1ConcatBuf,
-      xSize*ySize*g1Channels,
-      xSize*ySize*g1Channels,
+      g1Channels,
+      g1Channels,
       batchSize
     );
     gpoolToBiasMul->apply(cudaHandles,batchSize,g1ConcatBuf,g1BiasBuf,workspaceBuf,workspaceBytes);
@@ -1748,10 +1765,20 @@ struct PolicyHead {
     cudnnAddTensor(cudaHandles->cudnn,&alpha,g1BiasDescriptor,g1BiasBuf,&beta,p1OutDescriptor,p1OutBuf);
 
     p1BN->apply(cudaHandles,p1OutDescriptor,p1OutDescriptor,p1OutBuf,p1OutBuf2);
-    //TODO CRELU
-    p1Activation->apply(cudaHandles,p1OutDescriptor,p1OutDescriptor,p1OutBuf2,p1OutBuf2);
 
-    p2Conv->apply(cudaHandles,p1OutDescriptor,p2OutDescriptor,batchSize,p1OutBuf2,p2OutBuf,workspaceBuf,workspaceBytes);
+    //Negate and concat for crelu
+    CUDA_ERR(cudaMemcpy(p1OutBuf,p1OutBuf2,batchSize*p1Channels*xSize*ySize*sizeof(float),cudaMemcpyDeviceToDevice));
+    const float invScale = -1.0f;
+    CUBLAS_ERR(cublasSscal(cudaHandles->cublas, batchSize*p1Channels*xSize*ySize, &invScale, p1OutBuf, 1));
+    customCudaChannelConcat(
+      p1OutBuf2,p1OutBuf,p2InBuf,
+      p1Channels*xSize*ySize,
+      p1Channels*xSize*ySize,
+      batchSize
+    );
+
+    p1Activation->apply(cudaHandles,p2InDescriptor,p2InDescriptor,p2InBuf,p2InBuf);
+    p2Conv->apply(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize,p2InBuf,p2OutBuf,workspaceBuf,workspaceBytes);
 
     gpoolToPassMul->apply(cudaHandles,batchSize,g1ConcatBuf,g1PassBuf,workspaceBuf,workspaceBytes);
 
@@ -1843,7 +1870,7 @@ struct ValueHead {
   int valueChannels;
 
   cudnnTensorDescriptor_t* v1OutDescriptors;
-  cudnnTensorDescriptor_t* v2OutDescriptors;
+  cudnnTensorDescriptor_t* v3InDescriptors;
 
   ConvLayer* v1Conv;
   BNLayer* v1BN;
@@ -1874,11 +1901,11 @@ struct ValueHead {
     valueChannels = desc->v3Mul.outChannels;
 
     v1OutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
-    v2OutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+    v3InDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
-      cudnnTensorDescriptor_t& v2OutDescriptor = v2OutDescriptors[batchSize-1];
+      cudnnTensorDescriptor_t& v3InDescriptor = v3InDescriptors[batchSize-1];
 
       CUDNN_ERR(cudnnCreateTensorDescriptor(&v1OutDescriptor));
       CUDNN_ERR(cudnnSetTensor4dDescriptor(
@@ -1891,13 +1918,13 @@ struct ValueHead {
         xSize
       ));
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&v2OutDescriptor));
+      CUDNN_ERR(cudnnCreateTensorDescriptor(&v3InDescriptor));
       CUDNN_ERR(cudnnSetTensor4dDescriptor(
-        v2OutDescriptor,
+        v3InDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
         batchSize,
-        desc->v2Mul.outChannels,
+        desc->v2Mul.outChannels*2,
         1,
         1
       ));
@@ -1926,11 +1953,11 @@ struct ValueHead {
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       cudnnDestroyTensorDescriptor(v1OutDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(v2OutDescriptors[batchSize-1]);
+      cudnnDestroyTensorDescriptor(v3InDescriptors[batchSize-1]);
     }
 
     delete[] v1OutDescriptors;
-    delete[] v2OutDescriptors;
+    delete[] v3InDescriptors;
   }
 
   size_t requiredWorkspaceBytes(
@@ -1961,13 +1988,15 @@ struct ValueHead {
     float* v1OutBuf,
     float* v1OutBuf2,
     float* v1MeanBuf,
-    float* v2Buf,
+    float* v2OutBuf,
+    float* v2OutBuf2,
+    float* v3InBuf,
     float* valueBuf,
     float* workspaceBuf,
     size_t workspaceBytes
   ) const {
     const cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& v2OutDescriptor = v2OutDescriptors[batchSize-1];
+    const cudnnTensorDescriptor_t& v3InDescriptor = v3InDescriptors[batchSize-1];
 
     v1Conv->apply(cudaHandles,trunkDescriptor,v1OutDescriptor,batchSize,trunkOutBuf,v1OutBuf,workspaceBuf,workspaceBytes);
     v1BN->apply(cudaHandles,v1OutDescriptor,v1OutDescriptor,v1OutBuf,v1OutBuf2);
@@ -1977,12 +2006,23 @@ struct ValueHead {
     const float meanScale = 1.0f / (xSize*ySize);
     CUBLAS_ERR(cublasSscal(cudaHandles->cublas, batchSize*v1Channels, &meanScale, v1MeanBuf, 1));
 
-    v2Mul->apply(cudaHandles,batchSize,v1MeanBuf,v2Buf,workspaceBuf,workspaceBytes);
-    v2Bias->apply(cudaHandles,batchSize,v2Buf);
-    v2Activation->apply(cudaHandles,v2OutDescriptor,v2OutDescriptor,v2Buf,v2Buf);
-    //TODO CRELU
+    v2Mul->apply(cudaHandles,batchSize,v1MeanBuf,v2OutBuf,workspaceBuf,workspaceBytes);
+    v2Bias->apply(cudaHandles,batchSize,v2OutBuf);
 
-    v3Mul->apply(cudaHandles,batchSize,v2Buf,valueBuf,workspaceBuf,workspaceBytes);
+    //Negate and concat for crelu
+    CUDA_ERR(cudaMemcpy(v2OutBuf2,v2OutBuf,batchSize*v2Channels*sizeof(float),cudaMemcpyDeviceToDevice));
+    const float invScale = -1.0f;
+    CUBLAS_ERR(cublasSscal(cudaHandles->cublas, batchSize*v2Channels, &invScale, v2OutBuf2, 1));
+    customCudaChannelConcat(
+      v2OutBuf,v2OutBuf2,v3InBuf,
+      v2Channels,
+      v2Channels,
+      batchSize
+    );
+
+    v2Activation->apply(cudaHandles,v3InDescriptor,v3InDescriptor,v3InBuf,v3InBuf);
+
+    v3Mul->apply(cudaHandles,batchSize,v3InBuf,valueBuf,workspaceBuf,workspaceBytes);
     v3Bias->apply(cudaHandles,batchSize,valueBuf);
   }
 
@@ -2160,6 +2200,7 @@ struct Model {
     float* g1MaxBuf,
     float* g1ConcatBuf,
     float* g1BiasBuf,
+    float* p2InBuf,
     float* p2OutBuf,
     float* g1PassBuf,
     float* policyBuf,
@@ -2167,7 +2208,9 @@ struct Model {
     float* v1OutBuf,
     float* v1OutBuf2,
     float* v1MeanBuf,
-    float* v2Buf,
+    float* v2OutBuf,
+    float* v2OutBuf2,
+    float* v3InBuf,
     float* valueBuf,
 
     float* workspaceBuf,
@@ -2210,6 +2253,7 @@ struct Model {
       g1MaxBuf,
       g1ConcatBuf,
       g1BiasBuf,
+      p2InBuf,
       p2OutBuf,
       g1PassBuf,
       policyBuf,
@@ -2224,7 +2268,9 @@ struct Model {
       v1OutBuf,
       v1OutBuf2,
       v1MeanBuf,
-      v2Buf,
+      v2OutBuf,
+      v2OutBuf2,
+      v3InBuf,
       valueBuf,
       workspaceBuf,
       workspaceBytes
@@ -2292,6 +2338,7 @@ struct Buffers {
   float* g1MaxBuf;
   float* g1ConcatBuf;
   float* g1BiasBuf;
+  float* p2InBuf;
   float* p2OutBuf;
   float* g1PassBuf;
   float* policyBuf;
@@ -2300,7 +2347,9 @@ struct Buffers {
   float* v1OutBuf;
   float* v1OutBuf2;
   float* v1MeanBuf;
-  float* v2Buf;
+  float* v2OutBuf;
+  float* v2OutBuf2;
+  float* v3InBuf;
   float* valueBuf;
   size_t valueBufBytes;
 
@@ -2340,6 +2389,7 @@ struct Buffers {
     CUDA_ERR(cudaMalloc(&g1MaxBuf, m.policyHead->g1Channels * batchFloat));
     CUDA_ERR(cudaMalloc(&g1ConcatBuf, m.policyHead->g1Channels * batchFloat * 2));
     CUDA_ERR(cudaMalloc(&g1BiasBuf, m.policyHead->p1Channels * batchFloat));
+    CUDA_ERR(cudaMalloc(&p2InBuf, m.policyHead->p1Channels * 2 * batchXYFloat));
     CUDA_ERR(cudaMalloc(&p2OutBuf, m.policyHead->p2Channels * batchXYFloat));
     CUDA_ERR(cudaMalloc(&g1PassBuf, m.policyHead->p2Channels * batchFloat));
     CUDA_ERR(cudaMalloc(&policyBuf, m.policyHead->p2Channels * (batchXYFloat + batchFloat)));
@@ -2348,7 +2398,9 @@ struct Buffers {
     CUDA_ERR(cudaMalloc(&v1OutBuf, m.valueHead->v1Channels * batchXYFloat));
     CUDA_ERR(cudaMalloc(&v1OutBuf2, m.valueHead->v1Channels * batchXYFloat));
     CUDA_ERR(cudaMalloc(&v1MeanBuf, m.valueHead->v1Channels * batchFloat));
-    CUDA_ERR(cudaMalloc(&v2Buf, m.valueHead->v2Channels * batchFloat));
+    CUDA_ERR(cudaMalloc(&v2OutBuf, m.valueHead->v2Channels * batchFloat));
+    CUDA_ERR(cudaMalloc(&v2OutBuf2, m.valueHead->v2Channels * batchFloat));
+    CUDA_ERR(cudaMalloc(&v3InBuf, m.valueHead->v2Channels * 2 * batchFloat));
     CUDA_ERR(cudaMalloc(&valueBuf, m.valueHead->valueChannels * batchFloat));
 
     //In theory the requiredWorkspaceBytes calls could give us values non-monotone in batch size
@@ -2389,6 +2441,7 @@ struct Buffers {
     cudaFree(g1MaxBuf);
     cudaFree(g1ConcatBuf);
     cudaFree(g1BiasBuf);
+    cudaFree(p2InBuf);
     cudaFree(p2OutBuf);
     cudaFree(g1PassBuf);
     cudaFree(policyBuf);
@@ -2396,7 +2449,9 @@ struct Buffers {
     cudaFree(v1OutBuf);
     cudaFree(v1OutBuf2);
     cudaFree(v1MeanBuf);
-    cudaFree(v2Buf);
+    cudaFree(v2OutBuf);
+    cudaFree(v2OutBuf2);
+    cudaFree(v3InBuf);
     cudaFree(valueBuf);
 
     cudaFree(workspaceBuf);
@@ -2552,6 +2607,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     buffers->g1MaxBuf,
     buffers->g1ConcatBuf,
     buffers->g1BiasBuf,
+    buffers->p2InBuf,
     buffers->p2OutBuf,
     buffers->g1PassBuf,
     buffers->policyBuf,
@@ -2559,7 +2615,9 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     buffers->v1OutBuf,
     buffers->v1OutBuf2,
     buffers->v1MeanBuf,
-    buffers->v2Buf,
+    buffers->v2OutBuf,
+    buffers->v2OutBuf2,
+    buffers->v3InBuf,
     buffers->valueBuf,
 
     buffers->workspaceBuf,

@@ -1,6 +1,4 @@
 
-//TODO remove this define
-#define USE_TENSORFLOW_BACKEND
 #ifdef USE_TENSORFLOW_BACKEND
 
 #include <tensorflow/cc/client/client_session.h>

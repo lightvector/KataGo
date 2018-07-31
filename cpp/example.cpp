@@ -11,100 +11,214 @@
 #include "search/search.h"
 #include "search/asyncbot.h"
 
-// #include <tensorflow/c/c_api.h>
-#include <tensorflow/cc/client/client_session.h>
-#include <tensorflow/cc/ops/standard_ops.h>
-#include <tensorflow/core/framework/tensor.h>
-#include <tensorflow/core/framework/tensor_shape.h>
-#include <tensorflow/core/platform/env.h>
-#include <tensorflow/core/public/session.h>
-#include <iostream>
-using namespace std;
-using namespace tensorflow;
-
-#include <cuda.h>
-#include <cublas_v2.h>
-#include <cudnn.h>
-
-#include "neuralnet/cudaerrorcheck.h"
-#include "neuralnet/cudahelpers.h"
-
 int main() {
   Board::initHash();
 
   Logger logger;
   logger.setLogToStdout(true);
+  logger.addFile("tmp.txt");
 
-  CUDA_ERR(cudaSetDevice(0));
+  string tensorflowGpuVisibleDeviceList = ""; //use default
+  double tensorflowPerProcessGpuMemoryFraction = -1; //use default
+  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);  
 
-  cublasHandle_t cublasHandle;
-  CUBLAS_ERR(cublasCreate(&cublasHandle));
+  int modelFileIdx = 0;
+  int maxBatchSize = 1;
+  int nnCacheSizePowerOfTwo = 16;
+  bool debugSkipNeuralNet = false;
+  NNEvaluator* nnEval = new NNEvaluator(
+    "/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb",
+    modelFileIdx,
+    maxBatchSize,
+    nnCacheSizePowerOfTwo,
+    debugSkipNeuralNet
+  );
 
+  int numNNServerThreads = 1;
+  bool doRandomize = false;
+  string randSeed = "abc";
+  int defaultSymmetry = 0;
+  vector<int> cudaGpuIdxByServerThread = {0}; 
+  nnEval->spawnServerThreads(
+    numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,cudaGpuIdxByServerThread
+  );
 
-  int n = 2;
-  int ic = 4;
-  int oc = 3;
+  Rules rules;
+  rules.koRule = Rules::KO_POSITIONAL;
+  rules.scoringRule = Rules::SCORING_AREA;
+  rules.multiStoneSuicideLegal = true;
+  rules.komi = 7.5f;
 
-  float* in;
-  float* mat;
-  float* out;
-  CUDA_ERR(cudaMalloc(&in, n*ic*sizeof(float)));
-  CUDA_ERR(cudaMalloc(&mat, ic*oc*sizeof(float)));
-  CUDA_ERR(cudaMallocManaged(&out, n*oc*sizeof(float)));
+  Player pla = P_WHITE;
+  Board board = Board::parseBoard(19,19,R"(
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . x . .
+18 . . x o . . . . . . x o . . o . o x .
+17 . . x o . . o x . . . . o . . o x . .
+16 . . x o . . o x x o . x . . . o x . .
+15 . x o o x . x . x x x . x . . o x . .
+14 . x o . . . x x o o o o x . x o o x .
+13 . x o . . . . . o x x x x . . . o x .
+12 . . o . . x x x . o . o o o o . o . .
+11 . . . . o x o o o o . o . x . o . . .
+10 . o o o o o x . . o x x x . o x x . .
+ 9 . x . x o o x x x x o o x . x o x . .
+ 8 . . . x x x x . . x . o o.x . o x . .
+ 7 . . . o o . x x . x . . . . . x . x .
+ 6 . . o x x x . x x o o . o . . x . x .
+ 5 . . o o o o x x . . . o . o . o x . .
+ 4 . o o x x o o . x o o x . o . o x . .
+ 3 . o x x . o o x x x . x . o x x o x .
+ 2 o x . x x o . o . . . . . o . . o x .
+ 1 . o x x o . . o . . . . . . . . . . .
+)");
 
-  float invals[n][ic] = {
-    {0,1,2,3},
-    {5,6,2,1},
-  };
+  BoardHistory hist(board,pla,rules);
+  SearchParams params;
+  params.maxPlayouts = 1000;
+  params.numThreads = 1;
 
-  float matvals[ic][oc] = {
-    {1,-1,2},
-    {1,0,3},
-    {1,0,4},
-    {1,0,5},
-  };
+  AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "def");
+  bot->setPosition(pla,board,hist);
 
-  CUDA_ERR(cudaMemcpy(in,invals,n*ic*sizeof(float),cudaMemcpyHostToDevice));
-  CUDA_ERR(cudaMemcpy(mat,matvals,ic*oc*sizeof(float),cudaMemcpyHostToDevice));
-
-  float alpha = 1.0;
-  float beta = 0.0;
+  Loc moveLoc = bot->genMoveSynchronous(pla);
+  bot->clearSearch();
+  nnEval->clearCache();
   ClockTimer timer;
-  CUBLAS_ERR(cublasSgemm(
-    cublasHandle,
-    CUBLAS_OP_T,
-    CUBLAS_OP_T,
-    n,oc,ic,
-    &alpha,
-    in,ic,
-    mat,oc,
-    &beta,
-    out,n
-  ));
+  moveLoc = bot->genMoveSynchronous(pla);
 
-  cudaDeviceSynchronize();
+  double seconds = timer.getSeconds();
+  cout << board << endl;
+  cout << "MoveLoc: " << Location::toString(moveLoc,board) << endl;
+  cout << "Seconds: " << seconds << endl;
+  bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
 
-  double timeTaken = timer.getSeconds();
-  cout << "timeTaken " << timeTaken << endl;
+  cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
+  cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
+  cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
 
-  // float result[n];
-  // cudaMemcpy(result, cc, n*sizeof(float), cudaMemcpyDeviceToHost);
+  cout << "sizeof(uint8_t) " << sizeof(uint8_t) << endl;
+  cout << "sizeof(uint16_t) " << sizeof(uint16_t) << endl;
+  cout << "sizeof(uint32_t) " << sizeof(uint32_t) << endl;
+  cout << "sizeof(uint64_t) " << sizeof(uint64_t) << endl;
+  cout << "sizeof(std::atomic_flag) " << sizeof(std::atomic_flag) << endl;;
+  cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
+  cout << "sizeof(std::shared_ptr<NNOutput>) " << sizeof(std::shared_ptr<NNOutput>) << endl;;
 
-  for(int i = 0; i<n*oc; i++) {
-    cout << out[i] << " ";
+  {
+    atomic<bool>* b = new atomic<bool>(false);
+    cout << "atomic<bool> lock free " << std::atomic_is_lock_free(b) << endl;
+    delete b;
   }
-  // for(int i = 0; i<n; i++) {
-  //   cout << result[i] << " ";
-  // }
-  cout << "Yay" << endl;
-  cudaFree(in);
-  cudaFree(mat);
-  cudaFree(out);
+  {
+    atomic<uint64_t>* b = new atomic<uint64_t>(0);
+    cout << "atomic<uint64_t> lock free " << std::atomic_is_lock_free(b) << endl;
+    delete b;
+  }
 
-  cublasDestroy(cublasHandle);
+  nnEval->killServerThreads();
+  delete bot;
+  delete nnEval;
 
+  cout << "Done" << endl;
   return 0;
 }
+
+
+// #include <tensorflow/c/c_api.h>
+// #include <tensorflow/cc/client/client_session.h>
+// #include <tensorflow/cc/ops/standard_ops.h>
+// #include <tensorflow/core/framework/tensor.h>
+// #include <tensorflow/core/framework/tensor_shape.h>
+// #include <tensorflow/core/platform/env.h>
+// #include <tensorflow/core/public/session.h>
+// #include <iostream>
+// using namespace std;
+// using namespace tensorflow;
+
+// #include <cuda.h>
+// #include <cublas_v2.h>
+// #include <cudnn.h>
+
+// #include "neuralnet/cudaerrorcheck.h"
+// #include "neuralnet/cudahelpers.h"
+
+// int main() {
+//   Board::initHash();
+
+//   Logger logger;
+//   logger.setLogToStdout(true);
+
+//   CUDA_ERR(cudaSetDevice(0));
+
+//   cublasHandle_t cublasHandle;
+//   CUBLAS_ERR(cublasCreate(&cublasHandle));
+
+
+//   int n = 2;
+//   int ic = 4;
+//   int oc = 3;
+
+//   float* in;
+//   float* mat;
+//   float* out;
+//   CUDA_ERR(cudaMalloc(&in, n*ic*sizeof(float)));
+//   CUDA_ERR(cudaMalloc(&mat, ic*oc*sizeof(float)));
+//   CUDA_ERR(cudaMallocManaged(&out, n*oc*sizeof(float)));
+
+//   float invals[n][ic] = {
+//     {0,1,2,3},
+//     {5,6,2,1},
+//   };
+
+//   float matvals[ic][oc] = {
+//     {1,-1,2},
+//     {1,0,3},
+//     {1,0,4},
+//     {1,0,5},
+//   };
+
+//   CUDA_ERR(cudaMemcpy(in,invals,n*ic*sizeof(float),cudaMemcpyHostToDevice));
+//   CUDA_ERR(cudaMemcpy(mat,matvals,ic*oc*sizeof(float),cudaMemcpyHostToDevice));
+
+//   float alpha = 1.0;
+//   float beta = 0.0;
+//   ClockTimer timer;
+//   CUBLAS_ERR(cublasSgemm(
+//     cublasHandle,
+//     CUBLAS_OP_T,
+//     CUBLAS_OP_T,
+//     n,oc,ic,
+//     &alpha,
+//     in,ic,
+//     mat,oc,
+//     &beta,
+//     out,n
+//   ));
+
+//   cudaDeviceSynchronize();
+
+//   double timeTaken = timer.getSeconds();
+//   cout << "timeTaken " << timeTaken << endl;
+
+//   // float result[n];
+//   // cudaMemcpy(result, cc, n*sizeof(float), cudaMemcpyDeviceToHost);
+
+//   for(int i = 0; i<n*oc; i++) {
+//     cout << out[i] << " ";
+//   }
+//   // for(int i = 0; i<n; i++) {
+//   //   cout << result[i] << " ";
+//   // }
+//   cout << "Yay" << endl;
+//   cudaFree(in);
+//   cudaFree(mat);
+//   cudaFree(out);
+
+//   cublasDestroy(cublasHandle);
+
+//   return 0;
+// }
 
 
 // int main() {
