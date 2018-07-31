@@ -30,6 +30,8 @@ class Model:
 
     #Accumulates outputs for printing stats about their activations
     self.outputs_by_layer = []
+    #Accumulates info about batch norm laywers
+    self.batch_norms = {}
 
     use_ranks = config["use_ranks"]
     include_policy = config["include_policy"]
@@ -208,13 +210,17 @@ class Model:
       self.lr_adjusted_variables[name] = factor
 
   def batchnorm(self,name,tensor):
+    epsilon = 0.001
+    has_bias = True
+    has_scale = False
+    self.batch_norms[name] = (tensor.shape[-1].value,epsilon,has_bias,has_scale)
     return tf.layers.batch_normalization(
       tensor,
       axis=-1, #Because channels are our last axis, -1 refers to that via wacky python indexing
       momentum=0.99,
-      epsilon=0.001,
-      center=True,
-      scale=False,
+      epsilon=epsilon,
+      center=has_bias,
+      scale=has_scale,
       training=self.is_training,
       name=name,
     )
@@ -694,10 +700,6 @@ class Model:
     #Disable various features
     cur_layer = cur_layer * tf.reshape(features_active,[1,1,1,-1])
 
-    # nonempty = cur_layer[:,:,:,1] + cur_layer[:,:,:,2]
-    # empty = 1.0 - nonempty
-    # near_nonempty = tf.minimum(1.0,self.conv2d(tf.expand_dims(nonempty,axis=3),manhattan_radius_3_kernel))
-
     #Transform and append ranks
     if use_ranks:
       rank_embedding_weights = self.weight_variable("rankembedding/w",[self.rank_shape[0],self.rank_embedding_dim],self.rank_shape[0],self.rank_embedding_dim)
@@ -706,77 +708,67 @@ class Model:
       cur_layer = tf.concat([cur_layer,rank_embedding_layer], axis=3)
       input_num_channels += self.rank_embedding_dim
 
+    #Channel counts---------------------------------------------------------------------------------------
+    trunk_num_channels = 224
+    mid_num_channels = 224
+    regular_num_channels = 160
+    dilated_num_channels = 64
+    gpool_num_channels = 64
+
+    assert(regular_num_channels + dilated_num_channels == mid_num_channels)
+
+    self.trunk_num_channels = trunk_num_channels
+    self.mid_num_channels = mid_num_channels
+    self.regular_num_channels = regular_num_channels
+    self.dilated_num_channels = dilated_num_channels
+    self.gpool_num_channels = gpool_num_channels
+
     #Convolutional RELU layer 1-------------------------------------------------------------------------------------
-    trunk = self.conv_only_extra_center_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=224)
+    trunk = self.conv_only_extra_center_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels)
+    self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
 
-    #Residual Convolutional Block 1---------------------------------------------------------------------------------
-    residual = self.res_conv_block("rconv1",trunk,diam=3,main_channels=224,mid_channels=224, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+    self.blocks = []
+
+    #Residual Block 1---------------------------------------------------------------------------------
+    residual = self.res_conv_block("rconv1",trunk,diam=3,main_channels=trunk_num_channels,mid_channels=mid_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
     trunk = self.merge_residual("rconv1",trunk,residual)
+    self.blocks.append(("ordinary_block","rconv1",3,trunk_num_channels,mid_num_channels))
 
-    #Residual Convolutional Block 2---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv2",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv2",trunk,residual)
+    #Residual Block 2-5---------------------------------------------------------------------------------
+    for i in range(2,6):
+      name = "rconv"+str(i)
+      residual = self.dilated_res_conv_block(name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
+                                             emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+      trunk = self.merge_residual(name,trunk,residual)
+      self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,2))
 
-    #Residual Convolutional Block 3---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv3",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv3",trunk,residual)
-
-    #Residual Convolutional Block 4---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv4",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv4",trunk,residual)
-
-    #Residual Convolutional Block 5---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv5",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv5",trunk,residual)
-
-    # #Residual Convolutional Block 6---------------------------------------------------------------------------------
-    # residual = self.dilated_res_conv_block("rconv6",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-    #                                        emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    # trunk = self.merge_residual("rconv6",trunk,residual)
-
-    #Residual Convolutional Block 7---------------------------------------------------------------------------------
-    residual = self.global_res_conv_block("rconv7",trunk,diam=3,main_channels=224,mid_channels=160, global_mid_channels=64,
+    #Global Pooling Residual Block 6---------------------------------------------------------------------------------
+    residual = self.global_res_conv_block("rconv7",trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
     trunk = self.merge_residual("rconv7",trunk,residual)
+    self.blocks.append(("gpool_block","rconv7",3,trunk_num_channels,regular_num_channels,gpool_num_channels))
 
-    #Residual Convolutional Block 8---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv8",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv8",trunk,residual)
+    #Residual Block 7-9---------------------------------------------------------------------------------
+    for i in range(8,11):
+      name = "rconv"+str(i)
+      residual = self.dilated_res_conv_block(name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
+                                             emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+      trunk = self.merge_residual(name,trunk,residual)
+      self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,2))
 
-    #Residual Convolutional Block 9---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv9",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv9",trunk,residual)
-
-    #Residual Convolutional Block 10---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv10",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv10",trunk,residual)
-
-    #Residual Convolutional Block 11---------------------------------------------------------------------------------
-    residual = self.global_res_conv_block("rconv11",trunk,diam=3,main_channels=224,mid_channels=160, global_mid_channels=64,
+    #Global Pooling Residual Block 10---------------------------------------------------------------------------------
+    residual = self.global_res_conv_block("rconv11",trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
     trunk = self.merge_residual("rconv11",trunk,residual)
+    self.blocks.append(("gpool_block","rconv11",3,trunk_num_channels,regular_num_channels,gpool_num_channels))
 
-    # #Residual Convolutional Block 12---------------------------------------------------------------------------------
-    # residual = self.dilated_res_conv_block("rconv12",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-    #                                        emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    # trunk = self.merge_residual("rconv12",trunk,residual)
-
-    #Residual Convolutional Block 13---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv13",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv13",trunk,residual)
-
-    #Residual Convolutional Block 14---------------------------------------------------------------------------------
-    residual = self.dilated_res_conv_block("rconv14",trunk,diam=3,main_channels=224,mid_channels=160, dilated_mid_channels=64, dilation=2,
-                                           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv14",trunk,residual)
+    #Residual Block 11-12---------------------------------------------------------------------------------
+    for i in range(13,15):
+      name = "rconv"+str(i)
+      residual = self.dilated_res_conv_block(name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
+                                             emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+      trunk = self.merge_residual(name,trunk,residual)
+      self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,2))
 
     #Postprocessing residual trunk----------------------------------------------------------------------------------
 
@@ -791,12 +783,12 @@ class Model:
 
       #This is the main path for policy information
       p1_num_channels = 48
-      p1_intermediate_conv = self.conv_only_block("p1/intermediate_conv",p0_layer,diam=3,in_channels=224,out_channels=p1_num_channels)
+      p1_intermediate_conv = self.conv_only_block("p1/intermediate_conv",p0_layer,diam=3,in_channels=trunk_num_channels,out_channels=p1_num_channels)
 
       #But in parallel convolve to compute some features about the global state of the board
       #Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
       g1_num_channels = 32
-      g1_layer = self.conv_block("g1",p0_layer,diam=3,in_channels=224,out_channels=g1_num_channels)
+      g1_layer = self.conv_block("g1",p0_layer,diam=3,in_channels=trunk_num_channels,out_channels=g1_num_channels)
 
       #Fold g1 down to single values for the board.
       #For stdev, add a tiny constant to ensure numeric stability
@@ -860,7 +852,7 @@ class Model:
       v0_layer = trunk
 
       v1_num_channels = 8
-      v1_layer = self.conv_block("v1",v0_layer,diam=3,in_channels=224,out_channels=v1_num_channels)
+      v1_layer = self.conv_block("v1",v0_layer,diam=3,in_channels=trunk_num_channels,out_channels=v1_num_channels)
       self.outputs_by_layer.append(("v1",v1_layer))
 
       v1_layer_pooled = tf.reduce_mean(v1_layer,axis=[1,2],keepdims=False)

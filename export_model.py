@@ -22,12 +22,16 @@ Export neural net weights and graph to file.
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-model-file', help='model file prefix to load', required=True)
 parser.add_argument('-export-dir', help='model file dir to save to', required=True)
+parser.add_argument('-model-name', help='name to record in model file', required=True)
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
+parser.add_argument('-for-cuda', help='dump model file for cuda backend', action='store_true', required=False)
 args = vars(parser.parse_args())
 
 model_file = args["model_file"]
 export_dir = args["export_dir"]
+model_name = args["model_name"]
 filename_prefix = args["filename_prefix"]
+for_cuda = args["for_cuda"]
 
 loglines = []
 def log(s):
@@ -80,18 +84,134 @@ with tf.Session(config=tfconfig) as session:
   sys.stdout.flush()
   sys.stderr.flush()
 
-  tf.train.write_graph(session.graph_def,export_dir,filename_prefix + ".graph.pb")
-  savepath = export_dir + "/" + filename_prefix
-  saver.save(session, savepath + ".weights")
-  with open(savepath + ".config.json","w") as f:
-    json.dump(model_config,f)
+  if not for_cuda:
+    tf.train.write_graph(session.graph_def,export_dir,filename_prefix + ".graph.pb")
+    savepath = export_dir + "/" + filename_prefix
+    saver.save(session, savepath + ".weights")
+    with open(savepath + ".config.json","w") as f:
+      json.dump(model_config,f)
 
-  log("Exported at: ")
-  log(str(datetime.datetime.utcnow()) + " UTC")
+    log("Exported at: ")
+    log(str(datetime.datetime.utcnow()) + " UTC")
 
-  with open(savepath + ".log.txt","w") as f:
-    for line in loglines:
-      f.write(line + "\n")
+    with open(savepath + ".log.txt","w") as f:
+      for line in loglines:
+        f.write(line + "\n")
+
+  else:
+    def writeln(s):
+      f.write(str(s)+"\n")
+
+    writeln(model_name)
+    writeln(model.max_board_size) #x
+    writeln(model.max_board_size) #y
+    writeln(model.num_input_features)
+
+    variables = dict((variable.name,variable) for variable in tf.global_variables())
+    def get_weights(name):
+      return np.array(variables[name+":0"].eval())
+
+    def write_weights(weights):
+      if len(weights.shape) == 0:
+        f.write(weights)
+      elif len(weights.shape) == 1:
+        f.write(" ".join(str(weights[x0]) for x0 in range(weights.shape[0])))
+      elif len(weights.shape) == 2:
+        f.write("\n".join(" ".join(str(weights[x0,x1])
+                                   for x1 in range(weights.shape[1]))
+                          for x0 in range(weights.shape[0])))
+      elif len(weights.shape) == 3:
+        f.write("\n".join("   ".join(" ".join(str(weights[x0,x1,x2])
+                                              for x2 in range(weights.shape[2]))
+                                     for x1 in range(weights.shape[1]))
+                          for x0 in range(weights.shape[0])))
+      elif len(weights.shape) == 4:
+        f.write("\n".join("       ".join("   ".join(" ".join(str(weights[x0,x1,x2,x3])
+                                                             for x3 in range(weights.shape[3]))
+                                                    for x2 in range(weights.shape[2]))
+                                         for x1 in range(weights.shape[1]))
+                          for x0 in range(weights.shape[0])))
+      else:
+        assert(False)
+      f.write("\n")
+
+    def write_conv(name,diam,in_channels,out_channels,dilation,weights):
+      writeln(name)
+      writeln(diam) #x
+      writeln(diam) #y
+      writeln(in_channels)
+      writeln(out_channels)
+      writeln(dilation) #x
+      writeln(dilation) #y
+      write_weights(weights)
+
+    def write_bn(name,num_channels):
+      writeln(name)
+      (nc,epsilon,has_bias,has_scale) = model.batch_norms[name]
+      assert(nc == num_channels)
+
+      writeln(num_channels)
+      writeln(epsilon)
+      writeln(1 if has_scale else 0)
+      writeln(1 if has_bias else 0)
+
+      write_weights(get_weights(name+"/moving_mean"))
+      write_weights(get_weights(name+"/moving_variance"))
+      if has_scale:
+        write_weights(get_weights(name+"/gamma"))
+      if has_bias:
+        write_weights(get_weights(name+"/beta"))
+
+    def write_initial_conv():
+      (name,diam,in_channels,out_channels) = model.initial_conv
+      #Fold in the special wcenter weights
+      w = get_weights(name+"/w")
+      wc = get_weights(name+"/wcenter")
+      assert(len(w.shape) == 4)
+      assert(len(wc.shape) == 4)
+      assert(wc.shape[0) == 1)
+      assert(wc.shape[1] == 1)
+      wc = np.pad(wc,((w.shape[0]/2,w.shape[0]/2),(w.shape[1]/2,w.shape[1]/2),(0,0),(0,0)),mode="constant")
+      assert(wc.shape[0) == w.shape[0])
+      assert(wc.shape[1] == w.shape[1])
+      write_conv(name,diam,in_channels,out_channels,1,w+wc)
+
+    def write_block(block):
+      if block[0] == "ordinary_block":
+        (kind,name,diam,trunk_num_channels,mid_num_channels) = block
+        writeln(name)
+        write_bn(name+"/norm1")
+        write_conv(name,diam,trunk_num_channels,mid_num_channels,1,get_weights(name+"/w1"))
+        write_bn(name+"/norm2")
+        write_conv(name,diam,mid_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
+
+      elif block[0] == "dilated_block":
+        (kind,name,diam,trunk_num_channels,regular_num_channels,dilated_num_channels,dilation) = block
+        writeln(name)
+        write_bn(name+"/norm1")
+        write_conv(name,diam,trunk_num_channels,regular_num_channels,1,get_weights(name+"/w1a"))
+        write_conv(name,diam,trunk_num_channels,dilated_num_channels,dilation,get_weights(name+"/w1b"))
+        write_bn(name+"/norm2")
+        write_conv(name,diam,regular_num_channels+dilated_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
+
+      elif block[0] == "gpool_block":
+        #TODO continue from here
+
+      else:
+        assert(False)
+
+    writeln("trunk")
+    writeln(len(model.blocks))
+    writeln(len(model.trunk_num_channels))
+    writeln(len(model.mid_num_channels))
+    writeln(len(model.regular_num_channels))
+    writeln(len(model.dilated_num_channels))
+    writeln(len(model.gpool_num_channels))
+
+    write_initial_conv()
+
+    for block in model.blocks:
+
 
   sys.stdout.flush()
   sys.stderr.flush()
