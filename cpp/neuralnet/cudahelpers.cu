@@ -1,4 +1,6 @@
 
+#define CUDA_API_PER_THREAD_DEFAULT_STREAM
+
 #include <cublas_v2.h>
 
 #include <thrust/host_vector.h>
@@ -60,8 +62,6 @@ void customCudaChannelConcat(float* inA, float* inB, float* out, int chwA, int c
   int numBlocksB = (chwB + blockSize-1) / blockSize;
   int numBlocks = numBlocksA + numBlocksB;
   cudaChannelConcatKernel<<<numBlocks, blockSize>>>(inA,inB,out,chwA,chwB,numBlocksA,numBlocksB,n);
-  //TODO is this needed?
-  cudaDeviceSynchronize();
 }
 
 

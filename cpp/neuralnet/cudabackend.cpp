@@ -1,6 +1,8 @@
 
 #ifdef USE_CUDA_BACKEND
 
+#define CUDA_API_PER_THREAD_DEFAULT_STREAM
+
 #include <cuda.h>
 #include <cublas_v2.h>
 #include <cudnn.h>
@@ -669,7 +671,132 @@ struct MatBiasLayer {
 };
 
 
+
 //---------------------------------------------------------------------------------
+
+struct ResidualBlockDesc {
+  string name;
+  BNLayerDesc preBN;
+  ActivationLayerDesc preActivation;
+  ConvLayerDesc regularConv;
+  BNLayerDesc midBN;
+  ActivationLayerDesc midActivation;
+  ConvLayerDesc finalConv;
+
+  ResidualBlockDesc() {}
+
+  ResidualBlockDesc(istream& in) {
+    in >> name;
+    if(in.fail())
+      throw StringError(name + ": res block failed to parse name");
+
+    preBN = BNLayerDesc(in);
+    preActivation = ActivationLayerDesc(in);
+    regularConv = ConvLayerDesc(in);
+    midBN = BNLayerDesc(in);
+    midActivation = ActivationLayerDesc(in);
+    finalConv = ConvLayerDesc(in);
+
+    if(preBN.numChannels != regularConv.inChannels)
+      throw StringError(name+Global::strprintf(
+        ": preBN.numChannels (%d) != regularConv.inChannels (%d)", preBN.numChannels, regularConv.inChannels
+      ));
+    if(midBN.numChannels != regularConv.outChannels)
+      throw StringError(name+Global::strprintf(
+        ": midBN.numChannels (%d) != regularConv.outChannels (%d)", midBN.numChannels, regularConv.outChannels
+      ));
+    if(midBN.numChannels != finalConv.inChannels)
+      throw StringError(name+Global::strprintf(
+        ": midBN.numChannels (%d) != finalConv.inChannels (%d)", midBN.numChannels, finalConv.inChannels
+      ));
+
+    if(in.fail())
+      throw StringError(name + ": res block parse failure (istream fail() return true)");
+  }
+};
+
+struct ResidualBlock {
+  BNLayer preBN;
+  ActivationLayer preActivation;
+  ConvLayer regularConv;
+  BNLayer midBN;
+  ActivationLayer midActivation;
+  ConvLayer finalConv;
+
+  int xSize;
+  int ySize;
+  int regularChannels;
+
+  ResidualBlock() = delete;
+  ResidualBlock(const ResidualBlock&) = delete;
+  ResidualBlock& operator=(const ResidualBlock&) = delete;
+
+  ResidualBlock(
+    CudaHandles* cudaHandles,
+    const ResidualBlockDesc* desc,
+    int maxBatchSize,
+    int xS,
+    int yS,
+    const cudnnTensorDescriptor_t* trunkDescriptors, //array of one for each batch size
+    const cudnnTensorDescriptor_t* midInDescriptors //array of one for each batch size
+  ): preBN(cudaHandles,&desc->preBN),
+     preActivation(cudaHandles,&desc->preActivation),
+     regularConv(cudaHandles,&desc->regularConv,maxBatchSize,trunkDescriptors,midInDescriptors),
+     midBN(cudaHandles,&desc->midBN),
+     midActivation(cudaHandles,&desc->midActivation),
+     finalConv(cudaHandles,&desc->finalConv,maxBatchSize,midInDescriptors,trunkDescriptors),
+     xSize(xS),
+     ySize(yS),
+     regularChannels(desc->regularConv.outChannels)
+  {
+  }
+
+  ~ResidualBlock()
+  {}
+
+  size_t requiredWorkspaceBytes(
+    CudaHandles* cudaHandles,
+    const cudnnTensorDescriptor_t& trunkDescriptor,
+    const cudnnTensorDescriptor_t& midInDescriptor,
+    int batchSize
+  ) const {
+    size_t bytes = 0;
+    size_t b;
+    b = regularConv.requiredWorkspaceBytes(cudaHandles,trunkDescriptor,midInDescriptor,batchSize);
+    bytes = std::max(bytes,b);
+    b = finalConv.requiredWorkspaceBytes(cudaHandles,midInDescriptor,trunkDescriptor,batchSize);
+    bytes = std::max(bytes,b);
+    return bytes;
+  }
+
+  void apply(
+    CudaHandles* cudaHandles,
+    const cudnnTensorDescriptor_t& trunkDescriptor,
+    const cudnnTensorDescriptor_t& midInDescriptor,
+    int batchSize,
+    int trunkBufSize,
+    float* trunkInBuf,
+    float* trunkOutBuf,
+    float* midInBuf,
+    float* midScratchBuf,
+    float* workspaceBuf,
+    size_t workspaceBytes
+  ) const {
+    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkInBuf,trunkOutBuf);
+    preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkOutBuf,trunkOutBuf);
+    regularConv.apply(cudaHandles,trunkDescriptor,midInDescriptor,batchSize,trunkOutBuf,midInBuf,workspaceBuf,workspaceBytes);
+    midBN.apply(cudaHandles,midInDescriptor,midInDescriptor,midInBuf,midScratchBuf);
+    midActivation.apply(cudaHandles,midInDescriptor,midInDescriptor,midScratchBuf,midScratchBuf);
+    finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,midScratchBuf,trunkOutBuf,workspaceBuf,workspaceBytes);
+
+    const float alpha = 1.0f;
+    CUBLAS_ERR(cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,trunkInBuf,1,trunkOutBuf,1));
+  }
+
+};
+
+
+//-----------------------------------------------------------------------------
 
 struct DilatedResidualBlockDesc {
   string name;
@@ -1014,14 +1141,16 @@ struct GlobalPoolingResidualBlock {
 
 //------------------------------------------------------------------------------
 
-static const int DILATED_BLOCK_KIND = 0;
-static const int GLOBAL_POOLING_BLOCK_KIND = 1;
+static const int ORDINARY_BLOCK_KIND = 0;
+static const int DILATED_BLOCK_KIND = 1;
+static const int GLOBAL_POOLING_BLOCK_KIND = 2;
 
 struct TrunkDesc {
   string name;
   int numBlocks;
   int trunkNumChannels;
-  int regularNumChannels; //Currently every residual block must have the same number of regular conv channels
+  int midNumChannels;     //Currently every plain residual block must have the same number of mid conv channels
+  int regularNumChannels; //Currently every dilated or gpool residual block must have the same number of regular conv channels
   int dilatedNumChannels; //Currently every dilated residual block must have the same number of dilated conv channels
   int gpoolNumChannels;   //Currently every gpooling residual block must have the same number of gpooling conv channels
   ConvLayerDesc initialConv;
@@ -1035,6 +1164,7 @@ struct TrunkDesc {
     in >> name;
     in >> numBlocks;
     in >> trunkNumChannels;
+    in >> midNumChannels;
     in >> regularNumChannels;
     in >> dilatedNumChannels;
     in >> gpoolNumChannels;
@@ -1043,8 +1173,10 @@ struct TrunkDesc {
       throw StringError(name + ": trunk failed to parse num blocks or various channel parameters");
     if(numBlocks < 1)
       throw StringError(name + ": trunk num blocks must be positive");
-    if(trunkNumChannels <= 0 || regularNumChannels <= 0 || dilatedNumChannels <= 0 || gpoolNumChannels <= 0)
+    if(trunkNumChannels <= 0 || midNumChannels <= 0 || regularNumChannels <= 0 || dilatedNumChannels <= 0 || gpoolNumChannels <= 0)
       throw StringError(name + ": all numbers of channels must be positive");
+    if(midNumChannels != regularNumChannels + dilatedNumChannels)
+      throw StringError(name + ": midNumChannels != regularNumChannels + dilatedNumChannels");
 
     initialConv = ConvLayerDesc(in);
 
@@ -1058,7 +1190,30 @@ struct TrunkDesc {
       in >> kind;
       if(in.fail())
         throw StringError(name + ": failed to parse block kind");
-      if(kind == "dilated_block") {
+      if(kind == "ordinary_block") {
+        ResidualBlockDesc* desc = new ResidualBlockDesc(in);
+
+        if(desc->preBN.numChannels != trunkNumChannels)
+          throw StringError(name+Global::strprintf(
+            ": %s preBN.numChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->preBN.numChannels, trunkNumChannels
+          ));
+        if(desc->regularConv.outChannels != midNumChannels)
+          throw StringError(name+Global::strprintf(
+            ": %s regularConv.outChannels (%d) != regularNumChannels+dilatedNumChannels (%d)",
+            desc->name.c_str(), desc->regularConv.outChannels, regularNumChannels+dilatedNumChannels
+          ));
+        if(desc->regularConv.outChannels != midNumChannels)
+          throw StringError(name+Global::strprintf(
+            ": %s regularConv.outChannels (%d) != midNumChannels (%d)", desc->name.c_str(), desc->regularConv.outChannels, midNumChannels
+          ));
+        if(desc->finalConv.outChannels != trunkNumChannels)
+          throw StringError(name+Global::strprintf(
+            ": %s finalConv.outChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->finalConv.outChannels, trunkNumChannels
+          ));
+
+        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,(void*)desc));
+      }
+      else if(kind == "dilated_block") {
         DilatedResidualBlockDesc* desc = new DilatedResidualBlockDesc(in);
 
         if(desc->preBN.numChannels != trunkNumChannels)
@@ -1123,7 +1278,11 @@ struct TrunkDesc {
 
   ~TrunkDesc() {
     for(int i = 0; i<blocks.size(); i++) {
-      if(blocks[i].first == DILATED_BLOCK_KIND) {
+      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+        ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second;
+        delete desc;
+      }
+      else if(blocks[i].first == DILATED_BLOCK_KIND) {
         DilatedResidualBlockDesc* desc = (DilatedResidualBlockDesc*)blocks[i].second;
         delete desc;
       }
@@ -1139,6 +1298,7 @@ struct TrunkDesc {
 struct Trunk {
   int numBlocks;
   int trunkNumChannels;
+  int midNumChannels;
   int regularNumChannels;
   int dilatedNumChannels;
   int gpoolNumChannels;
@@ -1173,6 +1333,7 @@ struct Trunk {
   ) {
     numBlocks = desc->numBlocks;
     trunkNumChannels = desc->trunkNumChannels;
+    midNumChannels = desc->midNumChannels;
     regularNumChannels = desc->regularNumChannels;
     dilatedNumChannels = desc->dilatedNumChannels;
     gpoolNumChannels = desc->gpoolNumChannels;
@@ -1269,7 +1430,20 @@ struct Trunk {
 
     assert(desc->blocks.size() == numBlocks);
     for(int i = 0; i<numBlocks; i++) {
-      if(desc->blocks[i].first == DILATED_BLOCK_KIND) {
+      if(desc->blocks[i].first == ORDINARY_BLOCK_KIND) {
+        ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc->blocks[i].second;
+        ResidualBlock* block = new ResidualBlock(
+          cudaHandles,
+          blockDesc,
+          maxBatchSize,
+          xSize,
+          ySize,
+          trunkDescriptors,
+          midInDescriptors
+        );
+        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,(void*)block));
+      }
+      else if(desc->blocks[i].first == DILATED_BLOCK_KIND) {
         DilatedResidualBlockDesc* blockDesc = (DilatedResidualBlockDesc*)desc->blocks[i].second;
         DilatedResidualBlock* block = new DilatedResidualBlock(
           cudaHandles,
@@ -1307,7 +1481,11 @@ struct Trunk {
   ~Trunk()
   {
     for(int i = 0; i<blocks.size(); i++) {
-      if(blocks[i].first == DILATED_BLOCK_KIND) {
+      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+        ResidualBlock* block = (ResidualBlock*)blocks[i].second;
+        delete block;
+      }
+      else if(blocks[i].first == DILATED_BLOCK_KIND) {
         DilatedResidualBlock* block = (DilatedResidualBlock*)blocks[i].second;
         delete block;
       }
@@ -1356,7 +1534,12 @@ struct Trunk {
     bytes = std::max(bytes,b);
 
     for(int i = 0; i<blocks.size(); i++) {
-      if(blocks[i].first == DILATED_BLOCK_KIND) {
+      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+        ResidualBlock* block = (ResidualBlock*)blocks[i].second;
+        b = block->requiredWorkspaceBytes(cudaHandles,trunkDescriptor,midInDescriptor,batchSize);
+        bytes = std::max(bytes,b);
+      }
+      else if(blocks[i].first == DILATED_BLOCK_KIND) {
         DilatedResidualBlock* block = (DilatedResidualBlock*)blocks[i].second;
         b = block->requiredWorkspaceBytes(cudaHandles,trunkDescriptor,regularOutDescriptor,dilatedOutDescriptor,midInDescriptor,batchSize);
         bytes = std::max(bytes,b);
@@ -1409,7 +1592,24 @@ struct Trunk {
     initialConv->apply(cudaHandles,inputDescriptor,trunkDescriptor,batchSize,inputBuf,currentTrunkBuf,workspaceBuf,workspaceBytes);
 
     for(int i = 0; i<blocks.size(); i++) {
-      if(blocks[i].first == DILATED_BLOCK_KIND) {
+      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+        ResidualBlock* block = (ResidualBlock*)blocks[i].second;
+        block->apply(
+          cudaHandles,
+          trunkDescriptor,
+          midInDescriptor,
+          batchSize,
+          trunkBufSize,
+          currentTrunkBuf,
+          nextTrunkBuf,
+          midInBuf,
+          midScratchBuf,
+          workspaceBuf,
+          workspaceBytes
+        );
+        std::swap(currentTrunkBuf,nextTrunkBuf);
+      }
+      else if(blocks[i].first == DILATED_BLOCK_KIND) {
         DilatedResidualBlock* block = (DilatedResidualBlock*)blocks[i].second;
         block->apply(
           cudaHandles,
