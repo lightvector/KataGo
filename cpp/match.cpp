@@ -79,6 +79,11 @@ int main(int argc, const char* argv[]) {
     else
       nnModelFilesByBot.push_back(cfg.getString("nnModelFile"));
   }
+
+  //Load bots that should not play one another
+  vector<int> secondaryBots;
+  if(cfg.contains("secondaryBots"))
+    secondaryBots = cfg.getInts("secondaryBots",0,4096);
     
   //Dedup and load each necessary model exactly once
   vector<string> nnModelFiles;
@@ -335,13 +340,13 @@ int main(int argc, const char* argv[]) {
   Rand matchRand;
 
   //Only call this if matchSetupMutex is already locked
-  auto getMatchup = [numBots,&nextMatchups,&matchRand]() {
+  auto getMatchup = [numBots,&nextMatchups,&secondaryBots,&matchRand]() {
     if(nextMatchups.size() <= 0) {
       if(numBots == 1)
         return make_pair(0,0);
       for(int i = 0; i<numBots; i++) {
         for(int j = 0; j<numBots; j++) {
-          if(i != j) {
+          if(i != j && !(contains(secondaryBots,i) && contains(secondaryBots,j))) {
             nextMatchups.push_back(make_pair(i,j));
           }
         }
