@@ -143,6 +143,8 @@ with tf.Session(config=tfconfig) as session:
       writeln(out_channels)
       writeln(dilation) #x
       writeln(dilation) #y
+
+      assert(len(weights.shape) == 4 and list(weights.shape) == [diam,diam,in_channels,out_channels])
       write_weights(weights)
 
     def write_bn(name,num_channels):
@@ -155,12 +157,36 @@ with tf.Session(config=tfconfig) as session:
       writeln(1 if has_scale else 0)
       writeln(1 if has_bias else 0)
 
-      write_weights(get_weights(name+"/moving_mean"))
-      write_weights(get_weights(name+"/moving_variance"))
+      weights = get_weights(name+"/moving_mean")
+      assert(len(weights.shape) == 1 and weights.shape[0] == num_channels)
+      write_weights(weights)
+
+      weights = get_weights(name+"/moving_variance")
+      assert(len(weights.shape) == 1 and weights.shape[0] == num_channels)
+      write_weights(weights)
+
       if has_scale:
-        write_weights(get_weights(name+"/gamma"))
+        weights = get_weights(name+"/gamma")
+        assert(len(weights.shape) == 1 and weights.shape[0] == num_channels)
+        write_weights(weights)
+
       if has_bias:
-        write_weights(get_weights(name+"/beta"))
+        weights = get_weights(name+"/beta")
+        assert(len(weights.shape) == 1 and weights.shape[0] == num_channels)
+        write_weights(weights)
+
+    def write_matmul(name,in_channels,out_channels,weights):
+      writeln(name)
+      writeln(in_channels)
+      writeln(out_channels)
+      assert(len(weights.shape) == 2 and weights.shape[0] == in_channels and weights.shape[1] == out_channels)
+      write_weights(weights)
+
+    def write_matbias(name,num_channels,weights):
+      writeln(name)
+      writeln(num_channels)
+      assert(len(weights.shape) == 1 and weights.shape[0] == num_channels)
+      write_weights(weights)
 
     def write_initial_conv():
       (name,diam,in_channels,out_channels) = model.initial_conv
@@ -195,23 +221,58 @@ with tf.Session(config=tfconfig) as session:
         write_conv(name,diam,regular_num_channels+dilated_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
 
       elif block[0] == "gpool_block":
-        #TODO continue from here
+        (kind,name,diam,trunk_num_channels,regular_num_channels,gpool_num_channels) = block
+        writeln(name)
+        write_bn(name+"/norm1")
+        write_conv(name,diam,trunk_num_channels,regular_num_channels,1,get_weights(name+"/w1a"))
+        write_conv(name,diam,trunk_num_channels,gpool_num_channels,1,get_weights(name+"/w1b"))
+        write_matmul(name,gpool_num_channels*2,regular_num_channels,get_weights(name+"/w1r"))
+        write_bn(name+"/norm2")
+        write_conv(name,diam,regular_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
 
       else:
         assert(False)
 
-    writeln("trunk")
-    writeln(len(model.blocks))
-    writeln(len(model.trunk_num_channels))
-    writeln(len(model.mid_num_channels))
-    writeln(len(model.regular_num_channels))
-    writeln(len(model.dilated_num_channels))
-    writeln(len(model.gpool_num_channels))
+    def write_trunk():
+      writeln("trunk")
+      writeln(len(model.blocks))
+      writeln(len(model.trunk_num_channels))
+      writeln(len(model.mid_num_channels))
+      writeln(len(model.regular_num_channels))
+      writeln(len(model.dilated_num_channels))
+      writeln(len(model.gpool_num_channels))
 
-    write_initial_conv()
+      write_initial_conv()
+      for block in model.blocks:
+        write_block(block)
+      write_bn("trunk/norm")
 
-    for block in model.blocks:
+    def write_model_conv(model_conv):
+      (name,diam,in_channels,out_channels) = model_conv
+      write_conv(name+"/w",diam,in_channels,out_channels,1,get_weights(name+"/w"))
 
+    def write_policy_head():
+      writeln("policyhead")
+      write_model_conv(model.p1_conv)
+      write_model_conv(model.g1_conv)
+      write_bn("g1/norm")
+      write_matmul("matmulg2w",model.g2_num_channels,model.p1_num_channels,get_weights("matmulg2w"))
+      write_bn("p1/norm")
+      write_model_conv(model.p2_conv)
+      write_matmul("matmulpass",model.g2_num_channels,1,get_weights("matmulpass"))
+
+    def write_value_head():
+      writeln("valuehead")
+      write_model_conv(model.v1_conv)
+      write_bn("v1/norm")
+      write_matmul("v2/w",model.v1_num_channels,model.v2_size,get_weights("v2/w"))
+      write_matbias("v2/b",model.v2_size,get_weights("v2/b"))
+      write_matmul("v3/w",model.v2_size*2,model.v3_size,get_weights("v3/w"))
+      write_matbias("v3/b",model.v3_size,get_weights("v3/b"))
+
+    write_trunk()
+    write_policy_head()
+    write_value_head()
 
   sys.stdout.flush()
   sys.stderr.flush()

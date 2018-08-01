@@ -784,11 +784,13 @@ class Model:
       #This is the main path for policy information
       p1_num_channels = 48
       p1_intermediate_conv = self.conv_only_block("p1/intermediate_conv",p0_layer,diam=3,in_channels=trunk_num_channels,out_channels=p1_num_channels)
+      self.p1_conv = ("p1/intermediate_conv",3,trunk_num_channels,p1_num_channels)
 
       #But in parallel convolve to compute some features about the global state of the board
       #Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
       g1_num_channels = 32
       g1_layer = self.conv_block("g1",p0_layer,diam=3,in_channels=trunk_num_channels,out_channels=g1_num_channels)
+      self.g1_conv = ("g1",3,trunk_num_channels,g1_num_channels)
 
       #Fold g1 down to single values for the board.
       #For stdev, add a tiny constant to ensure numeric stability
@@ -804,6 +806,8 @@ class Model:
       matmulg2w = self.weight_variable("matmulg2w",[g2_num_channels,p1_num_channels],g2_num_channels*4,p1_num_channels)
       g3_layer = tf.tensordot(g2_layer,matmulg2w,axes=[[3],[0]])
       self.outputs_by_layer.append(("g3",g3_layer))
+      self.g2_num_channels = g2_num_channels
+      self.p1_num_channels = p1_num_channels
 
       #Add! This adds shapes [b,19,19,convp1_num_channels] + [b,1,1,convp1_num_channels]
       #so the second one should get broadcast up to the size of the first one.
@@ -820,6 +824,7 @@ class Model:
       #Finally, apply linear convolution to produce final output
       #2x in_channels due to crelu
       p2_layer = self.conv_only_block("p2",p1_layer,diam=5,in_channels=p1_num_channels*2,out_channels=1,scale_initial_weights=0.5,reg=False)
+      self.p2_conv = ("p2",5,p1_num_channels*2,1)
 
       self.add_lr_factor("p1/norm/beta:0",0.25)
       self.add_lr_factor("p2/w:0",0.25)
@@ -854,6 +859,8 @@ class Model:
       v1_num_channels = 8
       v1_layer = self.conv_block("v1",v0_layer,diam=3,in_channels=trunk_num_channels,out_channels=v1_num_channels)
       self.outputs_by_layer.append(("v1",v1_layer))
+      self.v1_conv = ("v1",3,trunk_num_channels,v1_num_channels)
+      self.v1_num_channels = v1_num_channels
 
       v1_layer_pooled = tf.reduce_mean(v1_layer,axis=[1,2],keepdims=False)
       v1_size = v1_num_channels
@@ -862,12 +869,13 @@ class Model:
       v2w = self.weight_variable("v2/w",[v1_size,v2_size],v1_size,v2_size)
       v2b = self.weight_variable("v2/b",[v2_size],v1_size,v2_size,scale_initial_weights=0.2,reg=False)
       v2_layer = tf.nn.crelu(tf.matmul(v1_layer_pooled, v2w) + v2b)
-      v2_size *= 2 #for crelu
+      self.v2_size = v2_size
 
       v3_size = 1
-      v3w = self.weight_variable("v3/w",[v2_size,v3_size],v2_size,v3_size)
-      v3b = self.weight_variable("v3/b",[v3_size],v2_size,v3_size,scale_initial_weights=0.2,reg=False)
+      v3w = self.weight_variable("v3/w",[v2_size*2,v3_size],v2_size*2,v3_size)
+      v3b = self.weight_variable("v3/b",[v3_size],v2_size*2,v3_size,scale_initial_weights=0.2,reg=False)
       v3_layer = tf.matmul(v2_layer, v3w) + v3b
+      self.v3_size = v3_size
 
       value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
 
