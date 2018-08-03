@@ -20,14 +20,14 @@ int main() {
 
   string tensorflowGpuVisibleDeviceList = ""; //use default
   double tensorflowPerProcessGpuMemoryFraction = -1; //use default
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);  
+  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
 
   int modelFileIdx = 0;
   int maxBatchSize = 1;
   int nnCacheSizePowerOfTwo = 16;
   bool debugSkipNeuralNet = false;
   NNEvaluator* nnEval = new NNEvaluator(
-    "/efs/data/GoNN/exportedmodels/value10-84/model.graph_optimized.pb",
+    "/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt",
     modelFileIdx,
     maxBatchSize,
     nnCacheSizePowerOfTwo,
@@ -38,7 +38,7 @@ int main() {
   bool doRandomize = false;
   string randSeed = "abc";
   int defaultSymmetry = 0;
-  vector<int> cudaGpuIdxByServerThread = {0}; 
+  vector<int> cudaGpuIdxByServerThread = {0};
   nnEval->spawnServerThreads(
     numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,cudaGpuIdxByServerThread
   );
@@ -74,50 +74,70 @@ int main() {
 )");
 
   BoardHistory hist(board,pla,rules);
-  SearchParams params;
-  params.maxPlayouts = 1000;
-  params.numThreads = 1;
 
-  AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "def");
-  bot->setPosition(pla,board,hist);
+  ostream* logStream = logger.createOStream();
+  NNResultBuf buf;
+  nnEval->evaluate(board, hist, pla, buf, logStream, false);
 
-  Loc moveLoc = bot->genMoveSynchronous(pla);
-  bot->clearSearch();
-  nnEval->clearCache();
-  ClockTimer timer;
-  moveLoc = bot->genMoveSynchronous(pla);
-
-  double seconds = timer.getSeconds();
-  cout << board << endl;
-  cout << "MoveLoc: " << Location::toString(moveLoc,board) << endl;
-  cout << "Seconds: " << seconds << endl;
-  bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
-
-  cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
-  cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
-  cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
-
-  cout << "sizeof(uint8_t) " << sizeof(uint8_t) << endl;
-  cout << "sizeof(uint16_t) " << sizeof(uint16_t) << endl;
-  cout << "sizeof(uint32_t) " << sizeof(uint32_t) << endl;
-  cout << "sizeof(uint64_t) " << sizeof(uint64_t) << endl;
-  cout << "sizeof(std::atomic_flag) " << sizeof(std::atomic_flag) << endl;;
-  cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
-  cout << "sizeof(std::shared_ptr<NNOutput>) " << sizeof(std::shared_ptr<NNOutput>) << endl;;
-
-  {
-    atomic<bool>* b = new atomic<bool>(false);
-    cout << "atomic<bool> lock free " << std::atomic_is_lock_free(b) << endl;
-    delete b;
+  for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
+    for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
+      if(buf.result->policyProbs[x+y*NNPos::MAX_BOARD_LEN] >= 0)
+        printf("%6.2f%%", buf.result->policyProbs[x+y*NNPos::MAX_BOARD_LEN] * 100.0);
+      else
+        printf("   .   ");
+    }
+    cout << endl;
   }
-  {
-    atomic<uint64_t>* b = new atomic<uint64_t>(0);
-    cout << "atomic<uint64_t> lock free " << std::atomic_is_lock_free(b) << endl;
-    delete b;
-  }
+  printf("%4.1f%%", buf.result->policyProbs[NNPos::NN_POLICY_SIZE-1] * 100.0);
+  cout << endl;
+  cout << buf.result->whiteValue << endl;
+
+  delete logStream;
+
+  // SearchParams params;
+  // params.maxPlayouts = 1000;
+  // params.numThreads = 1;
+
+  // AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "def");
+  // bot->setPosition(pla,board,hist);
+
+  // Loc moveLoc = bot->genMoveSynchronous(pla);
+  // bot->clearSearch();
+  // nnEval->clearCache();
+  // ClockTimer timer;
+  // moveLoc = bot->genMoveSynchronous(pla);
+
+  // double seconds = timer.getSeconds();
+  // cout << board << endl;
+  // cout << "MoveLoc: " << Location::toString(moveLoc,board) << endl;
+  // cout << "Seconds: " << seconds << endl;
+  // bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
+
+  // cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
+  // cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
+  // cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
+
+  // cout << "sizeof(uint8_t) " << sizeof(uint8_t) << endl;
+  // cout << "sizeof(uint16_t) " << sizeof(uint16_t) << endl;
+  // cout << "sizeof(uint32_t) " << sizeof(uint32_t) << endl;
+  // cout << "sizeof(uint64_t) " << sizeof(uint64_t) << endl;
+  // cout << "sizeof(std::atomic_flag) " << sizeof(std::atomic_flag) << endl;;
+  // cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
+  // cout << "sizeof(std::shared_ptr<NNOutput>) " << sizeof(std::shared_ptr<NNOutput>) << endl;;
+
+  // {
+  //   atomic<bool>* b = new atomic<bool>(false);
+  //   cout << "atomic<bool> lock free " << std::atomic_is_lock_free(b) << endl;
+  //   delete b;
+  // }
+  // {
+  //   atomic<uint64_t>* b = new atomic<uint64_t>(0);
+  //   cout << "atomic<uint64_t> lock free " << std::atomic_is_lock_free(b) << endl;
+  //   delete b;
+  // }
 
   nnEval->killServerThreads();
-  delete bot;
+  // delete bot;
   delete nnEval;
 
   cout << "Done" << endl;

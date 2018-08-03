@@ -99,6 +99,7 @@ with tf.Session(config=tfconfig) as session:
         f.write(line + "\n")
 
   else:
+    f = open(export_dir + "/" + filename_prefix + ".txt", "w")
     def writeln(s):
       f.write(str(s)+"\n")
 
@@ -137,12 +138,12 @@ with tf.Session(config=tfconfig) as session:
 
     def write_conv(name,diam,in_channels,out_channels,dilation,weights):
       writeln(name)
-      writeln(diam) #x
       writeln(diam) #y
+      writeln(diam) #x
       writeln(in_channels)
       writeln(out_channels)
-      writeln(dilation) #x
       writeln(dilation) #y
+      writeln(dilation) #x
 
       assert(len(weights.shape) == 4 and list(weights.shape) == [diam,diam,in_channels,out_channels])
       write_weights(weights)
@@ -175,6 +176,9 @@ with tf.Session(config=tfconfig) as session:
         assert(len(weights.shape) == 1 and weights.shape[0] == num_channels)
         write_weights(weights)
 
+    def write_activation(name):
+      writeln(name)
+
     def write_matmul(name,in_channels,out_channels,weights):
       writeln(name)
       writeln(in_channels)
@@ -195,40 +199,54 @@ with tf.Session(config=tfconfig) as session:
       wc = get_weights(name+"/wcenter")
       assert(len(w.shape) == 4)
       assert(len(wc.shape) == 4)
-      assert(wc.shape[0) == 1)
+      assert(wc.shape[0] == 1)
       assert(wc.shape[1] == 1)
-      wc = np.pad(wc,((w.shape[0]/2,w.shape[0]/2),(w.shape[1]/2,w.shape[1]/2),(0,0),(0,0)),mode="constant")
-      assert(wc.shape[0) == w.shape[0])
+      wc = np.pad(wc,((w.shape[0]//2,w.shape[0]//2),(w.shape[1]//2,w.shape[1]//2),(0,0),(0,0)),mode="constant")
+      assert(wc.shape[0] == w.shape[0])
       assert(wc.shape[1] == w.shape[1])
       write_conv(name,diam,in_channels,out_channels,1,w+wc)
 
-    def write_block(block):
+    def write_block(model,block):
+      trunk_num_channels = model.trunk_num_channels
+      mid_num_channels = model.mid_num_channels
+      regular_num_channels = model.regular_num_channels
+      dilated_num_channels = model.dilated_num_channels
+      gpool_num_channels = model.gpool_num_channels
+      writeln(block[0])
       if block[0] == "ordinary_block":
         (kind,name,diam,trunk_num_channels,mid_num_channels) = block
         writeln(name)
-        write_bn(name+"/norm1")
-        write_conv(name,diam,trunk_num_channels,mid_num_channels,1,get_weights(name+"/w1"))
-        write_bn(name+"/norm2")
-        write_conv(name,diam,mid_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
+        write_bn(name+"/norm1",trunk_num_channels)
+        write_activation(name+"/actv1")
+        write_conv(name+"/w1",diam,trunk_num_channels,mid_num_channels,1,get_weights(name+"/w1"))
+        write_bn(name+"/norm2",mid_num_channels)
+        write_activation(name+"/actv2")
+        write_conv(name+"/w2",diam,mid_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
 
       elif block[0] == "dilated_block":
         (kind,name,diam,trunk_num_channels,regular_num_channels,dilated_num_channels,dilation) = block
         writeln(name)
-        write_bn(name+"/norm1")
-        write_conv(name,diam,trunk_num_channels,regular_num_channels,1,get_weights(name+"/w1a"))
-        write_conv(name,diam,trunk_num_channels,dilated_num_channels,dilation,get_weights(name+"/w1b"))
-        write_bn(name+"/norm2")
-        write_conv(name,diam,regular_num_channels+dilated_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
+        write_bn(name+"/norm1",trunk_num_channels)
+        write_activation(name+"/actv1")
+        write_conv(name+"/w1a",diam,trunk_num_channels,regular_num_channels,1,get_weights(name+"/w1a"))
+        write_conv(name+"/w1b",diam,trunk_num_channels,dilated_num_channels,dilation,get_weights(name+"/w1b"))
+        write_bn(name+"/norm2",regular_num_channels+dilated_num_channels)
+        write_activation(name+"/actv2")
+        write_conv(name+"/w2",diam,regular_num_channels+dilated_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
 
       elif block[0] == "gpool_block":
         (kind,name,diam,trunk_num_channels,regular_num_channels,gpool_num_channels) = block
         writeln(name)
-        write_bn(name+"/norm1")
-        write_conv(name,diam,trunk_num_channels,regular_num_channels,1,get_weights(name+"/w1a"))
-        write_conv(name,diam,trunk_num_channels,gpool_num_channels,1,get_weights(name+"/w1b"))
-        write_matmul(name,gpool_num_channels*2,regular_num_channels,get_weights(name+"/w1r"))
-        write_bn(name+"/norm2")
-        write_conv(name,diam,regular_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
+        write_bn(name+"/norm1",trunk_num_channels)
+        write_activation(name+"/actv1")
+        write_conv(name+"/w1a",diam,trunk_num_channels,regular_num_channels,1,get_weights(name+"/w1a"))
+        write_conv(name+"/w1b",diam,trunk_num_channels,gpool_num_channels,1,get_weights(name+"/w1b"))
+        write_bn(name+"/norm1b",gpool_num_channels)
+        write_activation(name+"/actv1b")
+        write_matmul(name+"/w1r",gpool_num_channels*2,regular_num_channels,get_weights(name+"/w1r"))
+        write_bn(name+"/norm2",regular_num_channels)
+        write_activation(name+"/actv2")
+        write_conv(name+"/w2",diam,regular_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
 
       else:
         assert(False)
@@ -236,16 +254,17 @@ with tf.Session(config=tfconfig) as session:
     def write_trunk():
       writeln("trunk")
       writeln(len(model.blocks))
-      writeln(len(model.trunk_num_channels))
-      writeln(len(model.mid_num_channels))
-      writeln(len(model.regular_num_channels))
-      writeln(len(model.dilated_num_channels))
-      writeln(len(model.gpool_num_channels))
+      writeln(model.trunk_num_channels)
+      writeln(model.mid_num_channels)
+      writeln(model.regular_num_channels)
+      writeln(model.dilated_num_channels)
+      writeln(model.gpool_num_channels)
 
       write_initial_conv()
       for block in model.blocks:
-        write_block(block)
-      write_bn("trunk/norm")
+        write_block(model,block)
+      write_bn("trunk/norm",model.trunk_num_channels)
+      write_activation("trunk/actv")
 
     def write_model_conv(model_conv):
       (name,diam,in_channels,out_channels) = model_conv
@@ -255,24 +274,29 @@ with tf.Session(config=tfconfig) as session:
       writeln("policyhead")
       write_model_conv(model.p1_conv)
       write_model_conv(model.g1_conv)
-      write_bn("g1/norm")
+      write_bn("g1/norm",model.g1_num_channels)
+      write_activation("g1/actv")
       write_matmul("matmulg2w",model.g2_num_channels,model.p1_num_channels,get_weights("matmulg2w"))
-      write_bn("p1/norm")
+      write_bn("p1/norm",model.p1_num_channels)
+      write_activation("p1/actv")
       write_model_conv(model.p2_conv)
       write_matmul("matmulpass",model.g2_num_channels,1,get_weights("matmulpass"))
 
     def write_value_head():
       writeln("valuehead")
       write_model_conv(model.v1_conv)
-      write_bn("v1/norm")
+      write_bn("v1/norm",model.v1_num_channels)
+      write_activation("v1/actv")
       write_matmul("v2/w",model.v1_num_channels,model.v2_size,get_weights("v2/w"))
       write_matbias("v2/b",model.v2_size,get_weights("v2/b"))
+      write_activation("v2/actv")
       write_matmul("v3/w",model.v2_size*2,model.v3_size,get_weights("v3/w"))
       write_matbias("v3/b",model.v3_size,get_weights("v3/b"))
 
     write_trunk()
     write_policy_head()
     write_value_head()
+    f.close()
 
   sys.stdout.flush()
   sys.stderr.flush()

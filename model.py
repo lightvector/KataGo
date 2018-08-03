@@ -806,6 +806,7 @@ class Model:
       matmulg2w = self.weight_variable("matmulg2w",[g2_num_channels,p1_num_channels],g2_num_channels*4,p1_num_channels)
       g3_layer = tf.tensordot(g2_layer,matmulg2w,axes=[[3],[0]])
       self.outputs_by_layer.append(("g3",g3_layer))
+      self.g1_num_channels = g1_num_channels
       self.g2_num_channels = g2_num_channels
       self.p1_num_channels = p1_num_channels
 

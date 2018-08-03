@@ -45,8 +45,8 @@ struct CudaHandles {
   cudnnHandle_t cudnn;
 
   CudaHandles() {
-    CUBLAS_ERR(cublasCreate(&cublas));
-    CUDNN_ERR(cudnnCreate(&cudnn));
+    CUBLAS_ERR("CudaHandles",cublasCreate(&cublas));
+    CUDNN_ERR("CudaHandles",cudnnCreate(&cudnn));
   }
 
   ~CudaHandles() {
@@ -119,9 +119,30 @@ struct ConvLayerDesc {
     if(in.fail())
       throw StringError(name + ": convlayer failed to expected number of float weights");
   }
+
+  ConvLayerDesc(const ConvLayerDesc&) = delete;
+  ConvLayerDesc& operator=(const ConvLayerDesc&) = delete;
+
+  ConvLayerDesc(ConvLayerDesc&& other) {
+    *this = std::move(other);
+  }
+
+  ConvLayerDesc& operator=(ConvLayerDesc&& other) {
+    name = std::move(other.name);
+    convYSize = other.convYSize;
+    convXSize = other.convXSize;
+    inChannels = other.inChannels;
+    outChannels = other.outChannels;
+    dilationY = other.dilationY;
+    dilationX = other.dilationX;
+    weights = std::move(other.weights);
+    return *this;
+  }
+
 };
 
 struct ConvLayer {
+  string name;
   cudnnFilterDescriptor_t filterDescriptor;
   cudnnConvolutionDescriptor_t convolutionDescriptor;
   cudnnConvolutionFwdAlgo_t* convolutionAlgorithms; //array of one for each batch size
@@ -138,20 +159,21 @@ struct ConvLayer {
     const cudnnTensorDescriptor_t* inputDescriptors, //array of one for each batch size
     const cudnnTensorDescriptor_t* outputDescriptors //array of one for each batch size
   ) {
+    name = desc->name;
     int convYSize = desc->convYSize;
     int convXSize = desc->convXSize;
     int inChannels = desc->inChannels;
     int outChannels = desc->outChannels;
     int dilationY = desc->dilationY;
     int dilationX = desc->dilationX;
-    int paddingX = convXSize / 2 + dilationX;
-    int paddingY = convYSize / 2 + dilationY;
+    int paddingX = (convXSize / 2) * dilationX;
+    int paddingY = (convYSize / 2) * dilationY;
 
-    assert(convXSize % 2 == 0);
-    assert(convYSize % 2 == 0);
+    assert(convXSize % 2 == 1);
+    assert(convYSize % 2 == 1);
 
-    CUDNN_ERR(cudnnCreateFilterDescriptor(&filterDescriptor));
-    CUDNN_ERR(cudnnSetFilter4dDescriptor(
+    CUDNN_ERR(name.c_str(),cudnnCreateFilterDescriptor(&filterDescriptor));
+    CUDNN_ERR(name.c_str(),cudnnSetFilter4dDescriptor(
       filterDescriptor,
       CUDNN_DATA_FLOAT,
       CUDNN_TENSOR_NCHW,
@@ -164,8 +186,8 @@ struct ConvLayer {
     int yStride = 1;
     int xStride = 1;
 
-    CUDNN_ERR(cudnnCreateConvolutionDescriptor(&convolutionDescriptor));
-    CUDNN_ERR(cudnnSetConvolution2dDescriptor(
+    CUDNN_ERR(name.c_str(),cudnnCreateConvolutionDescriptor(&convolutionDescriptor));
+    CUDNN_ERR(name.c_str(),cudnnSetConvolution2dDescriptor(
       convolutionDescriptor,
       paddingY,
       paddingX,
@@ -184,7 +206,7 @@ struct ConvLayer {
       const cudnnTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize-1];
 
       size_t bytesMemoryLimit = 0;
-      CUDNN_ERR(cudnnGetConvolutionForwardAlgorithm(
+      CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardAlgorithm(
         cudaHandles->cudnn,
         inputDescriptor,
         filterDescriptor,
@@ -199,8 +221,8 @@ struct ConvLayer {
     assert(desc->weights.size() == convYSize * convXSize * inChannels * outChannels);
     size_t filterBytes = sizeof(float) * convYSize * convXSize * inChannels * outChannels;
 
-    CUDA_ERR(cudaMalloc(&filterBuf, filterBytes));
-    CUDA_ERR(cudaMemcpy(filterBuf, desc->weights.data(), filterBytes, cudaMemcpyHostToDevice));
+    CUDA_ERR(name.c_str(),cudaMalloc(&filterBuf, filterBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(filterBuf, desc->weights.data(), filterBytes, cudaMemcpyHostToDevice));
 
   }
 
@@ -218,7 +240,7 @@ struct ConvLayer {
     int batchSize
   ) const {
     size_t workspaceBytes = 0;
-    CUDNN_ERR(cudnnGetConvolutionForwardWorkspaceSize(
+    CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardWorkspaceSize(
       cudaHandles->cudnn,
       inputDescriptor,
       filterDescriptor,
@@ -243,7 +265,7 @@ struct ConvLayer {
   ) const {
     const float alpha = 1.0f;
     const float beta = 0.0f;
-    CUDNN_ERR(cudnnConvolutionForward(
+    CUDNN_ERR(name.c_str(),cudnnConvolutionForward(
       cudaHandles->cudnn,
       &alpha,
       inputDescriptor,
@@ -322,9 +344,31 @@ struct BNLayerDesc {
     if(in.fail())
       throw StringError(name + ": bnlayer failed to parse expected number of batch norm mean, variance, bias, scale values");
   }
+
+  BNLayerDesc(const BNLayerDesc&) = delete;
+  BNLayerDesc& operator=(const BNLayerDesc&) = delete;
+
+  BNLayerDesc(BNLayerDesc&& other) {
+    *this = std::move(other);
+  }
+
+  BNLayerDesc& operator=(BNLayerDesc&& other) {
+    name = std::move(other.name);
+    numChannels = other.numChannels;
+    epsilon = other.epsilon;
+    hasScale = other.hasScale;
+    hasBias = other.hasBias;
+    mean = std::move(other.mean);
+    variance = std::move(other.variance);
+    scale = std::move(other.scale);
+    bias = std::move(other.bias);
+    return *this;
+  }
+
 };
 
 struct BNLayer {
+  string name;
   int numChannels;
   float epsilon;
   cudnnTensorDescriptor_t bufDescriptor;
@@ -343,11 +387,12 @@ struct BNLayer {
   ) {
     (void)cudaHandles;
 
+    name = desc->name;
     numChannels = desc->numChannels;
     epsilon = desc->epsilon;
 
-    CUDNN_ERR(cudnnCreateTensorDescriptor(&bufDescriptor));
-    CUDNN_ERR(cudnnSetTensor4dDescriptor(
+    CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&bufDescriptor));
+    CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
       bufDescriptor,
       CUDNN_TENSOR_NCHW,
       CUDNN_DATA_FLOAT,
@@ -360,20 +405,20 @@ struct BNLayer {
     size_t bufBytes = sizeof(float) * numChannels;
 
     assert(desc->mean.size() == numChannels);
-    CUDA_ERR(cudaMalloc(&meanBuf, bufBytes));
-    CUDA_ERR(cudaMemcpy(meanBuf, desc->mean.data(), bufBytes, cudaMemcpyHostToDevice));
+    CUDA_ERR(name.c_str(),cudaMalloc(&meanBuf, bufBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(meanBuf, desc->mean.data(), bufBytes, cudaMemcpyHostToDevice));
 
     assert(desc->variance.size() == numChannels);
-    CUDA_ERR(cudaMalloc(&varianceBuf, bufBytes));
-    CUDA_ERR(cudaMemcpy(varianceBuf, desc->variance.data(), bufBytes, cudaMemcpyHostToDevice));
+    CUDA_ERR(name.c_str(),cudaMalloc(&varianceBuf, bufBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(varianceBuf, desc->variance.data(), bufBytes, cudaMemcpyHostToDevice));
 
     assert(desc->scale.size() == numChannels);
-    CUDA_ERR(cudaMalloc(&scaleBuf, bufBytes));
-    CUDA_ERR(cudaMemcpy(scaleBuf, desc->scale.data(), bufBytes, cudaMemcpyHostToDevice));
+    CUDA_ERR(name.c_str(),cudaMalloc(&scaleBuf, bufBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(scaleBuf, desc->scale.data(), bufBytes, cudaMemcpyHostToDevice));
 
     assert(desc->bias.size() == numChannels);
-    CUDA_ERR(cudaMalloc(&biasBuf, bufBytes));
-    CUDA_ERR(cudaMemcpy(biasBuf, desc->bias.data(), bufBytes, cudaMemcpyHostToDevice));
+    CUDA_ERR(name.c_str(),cudaMalloc(&biasBuf, bufBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(biasBuf, desc->bias.data(), bufBytes, cudaMemcpyHostToDevice));
   }
 
   ~BNLayer() {
@@ -393,7 +438,7 @@ struct BNLayer {
   ) const {
     const float alpha = 1.0f;
     const float beta = 0.0f;
-    CUDNN_ERR(cudnnBatchNormalizationForwardInference(
+    CUDNN_ERR(name.c_str(),cudnnBatchNormalizationForwardInference(
       cudaHandles->cudnn,
       CUDNN_BATCHNORM_SPATIAL,
       &alpha,
@@ -417,15 +462,30 @@ struct BNLayer {
 //---------------------------------------------------------------------------------
 
 struct ActivationLayerDesc {
+  string name;
 
   ActivationLayerDesc() {}
 
   ActivationLayerDesc(istream& in) {
-    (void)in;
+    in >> name;
   }
+
+  ActivationLayerDesc(const ActivationLayerDesc&) = delete;
+  ActivationLayerDesc& operator=(const ActivationLayerDesc&) = delete;
+
+  ActivationLayerDesc(ActivationLayerDesc&& other) {
+    *this = std::move(other);
+  }
+
+  ActivationLayerDesc& operator=(ActivationLayerDesc&& other) {
+    name = std::move(other.name);
+    return *this;
+  }
+
 };
 
 struct ActivationLayer {
+  string name;
   cudnnActivationDescriptor_t activationDescriptor;
 
   ActivationLayer() = delete;
@@ -437,10 +497,10 @@ struct ActivationLayer {
     const ActivationLayerDesc* desc
   ) {
     (void)cudaHandles;
-    (void)desc;
+    name = desc->name;
 
-    CUDNN_ERR(cudnnCreateActivationDescriptor(&activationDescriptor));
-    CUDNN_ERR(cudnnSetActivationDescriptor(
+    CUDNN_ERR(name.c_str(),cudnnCreateActivationDescriptor(&activationDescriptor));
+    CUDNN_ERR(name.c_str(),cudnnSetActivationDescriptor(
       activationDescriptor,
       CUDNN_ACTIVATION_RELU,
       CUDNN_PROPAGATE_NAN,
@@ -462,7 +522,7 @@ struct ActivationLayer {
     const float alpha = 1.0f;
     const float beta = 0.0f;
 
-    CUDNN_ERR(cudnnActivationForward(
+    CUDNN_ERR(name.c_str(),cudnnActivationForward(
       cudaHandles->cudnn,
       activationDescriptor,
       &alpha,
@@ -515,9 +575,26 @@ struct MatMulLayerDesc {
     if(in.fail())
       throw StringError(name + ": matmullayer failed to parse expected number of matmul weights");
   }
+
+  MatMulLayerDesc(const MatMulLayerDesc&) = delete;
+  MatMulLayerDesc& operator=(const MatMulLayerDesc&) = delete;
+
+  MatMulLayerDesc(MatMulLayerDesc&& other) {
+    *this = std::move(other);
+  }
+
+  MatMulLayerDesc& operator=(MatMulLayerDesc&& other) {
+    name = std::move(other.name);
+    inChannels = other.inChannels;
+    outChannels = other.outChannels;
+    weights = std::move(other.weights);
+    return *this;
+  }
+
 };
 
 struct MatMulLayer {
+  string name;
   int inChannels;
   int outChannels;
   float* matBuf;
@@ -531,14 +608,15 @@ struct MatMulLayer {
     const MatMulLayerDesc* desc
   ) {
     (void)cudaHandles;
+    name = desc->name;
     inChannels = desc->inChannels;
     outChannels = desc->outChannels;
 
     assert(desc->weights.size() == inChannels * outChannels);
     size_t matBytes = sizeof(float) * inChannels * outChannels;
 
-    CUDA_ERR(cudaMalloc(&matBuf, matBytes));
-    CUDA_ERR(cudaMemcpy(matBuf, desc->weights.data(), matBytes, cudaMemcpyHostToDevice));
+    CUDA_ERR(name.c_str(),cudaMalloc(&matBuf, matBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(matBuf, desc->weights.data(), matBytes, cudaMemcpyHostToDevice));
   }
 
   ~MatMulLayer() {
@@ -566,7 +644,7 @@ struct MatMulLayer {
 
     const float alpha = 1.0f;
     const float beta = 0.0f;
-    CUBLAS_ERR(cublasSgemm(
+    CUBLAS_ERR(name.c_str(),cublasSgemm(
       cudaHandles->cublas,
       CUBLAS_OP_T,
       CUBLAS_OP_T,
@@ -610,9 +688,24 @@ struct MatBiasLayerDesc {
     if(in.fail())
       throw StringError(name + ": matbiaslayer failed to parse expected number of matbias weights");
   }
+
+  MatBiasLayerDesc(const MatBiasLayerDesc&) = delete;
+  MatBiasLayerDesc& operator=(const MatBiasLayerDesc&) = delete;
+
+  MatBiasLayerDesc(MatBiasLayerDesc&& other) {
+    *this = std::move(other);
+  }
+
+  MatBiasLayerDesc& operator=(MatBiasLayerDesc&& other) {
+    name = std::move(other.name);
+    numChannels = other.numChannels;
+    weights = std::move(other.weights);
+    return *this;
+  }
 };
 
 struct MatBiasLayer {
+  string name;
   int numChannels;
   float* biasBuf;
   float* maxBatchSizeOnesBuf;
@@ -627,6 +720,7 @@ struct MatBiasLayer {
     int maxBatchSize
   ) {
     (void)cudaHandles;
+    name = desc->name;
     numChannels = desc->numChannels;
 
     assert(desc->weights.size() == numChannels);
@@ -637,10 +731,10 @@ struct MatBiasLayer {
     for(int i = 0; i<maxBatchSize; i++)
       maxBatchSizeOnesArr[i] = 1.0f;
 
-    CUDA_ERR(cudaMalloc(&biasBuf, biasBytes));
-    CUDA_ERR(cudaMemcpy(biasBuf, desc->weights.data(), biasBytes, cudaMemcpyHostToDevice));
-    CUDA_ERR(cudaMalloc(&maxBatchSizeOnesBuf, maxBatchSizeOnesBytes));
-    CUDA_ERR(cudaMemcpy(maxBatchSizeOnesBuf, maxBatchSizeOnesArr, maxBatchSizeOnesBytes, cudaMemcpyHostToDevice));
+    CUDA_ERR(name.c_str(),cudaMalloc(&biasBuf, biasBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(biasBuf, desc->weights.data(), biasBytes, cudaMemcpyHostToDevice));
+    CUDA_ERR(name.c_str(),cudaMalloc(&maxBatchSizeOnesBuf, maxBatchSizeOnesBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(maxBatchSizeOnesBuf, maxBatchSizeOnesArr, maxBatchSizeOnesBytes, cudaMemcpyHostToDevice));
   }
 
   ~MatBiasLayer() {
@@ -654,7 +748,7 @@ struct MatBiasLayer {
     float* matBuf
   ) const {
     const float alpha = 1.0f;
-    CUBLAS_ERR(cublasSger(
+    CUBLAS_ERR(name.c_str(),cublasSger(
       cudaHandles->cublas,
       numChannels,
       batchSize,
@@ -713,9 +807,29 @@ struct ResidualBlockDesc {
     if(in.fail())
       throw StringError(name + ": res block parse failure (istream fail() return true)");
   }
+
+  ResidualBlockDesc(const ResidualBlockDesc&) = delete;
+  ResidualBlockDesc& operator=(const ResidualBlockDesc&) = delete;
+
+  ResidualBlockDesc(ResidualBlockDesc&& other) {
+    *this = std::move(other);
+  }
+
+  ResidualBlockDesc& operator=(ResidualBlockDesc&& other) {
+    name = std::move(other.name);
+    preBN = std::move(other.preBN);
+    preActivation = std::move(other.preActivation);
+    regularConv = std::move(other.regularConv);
+    midBN = std::move(other.midBN);
+    midActivation = std::move(other.midActivation);
+    finalConv = std::move(other.finalConv);
+    return *this;
+  }
+
 };
 
 struct ResidualBlock {
+  string name;
   BNLayer preBN;
   ActivationLayer preActivation;
   ConvLayer regularConv;
@@ -739,7 +853,8 @@ struct ResidualBlock {
     int yS,
     const cudnnTensorDescriptor_t* trunkDescriptors, //array of one for each batch size
     const cudnnTensorDescriptor_t* midInDescriptors //array of one for each batch size
-  ): preBN(cudaHandles,&desc->preBN),
+  ): name(desc->name),
+     preBN(cudaHandles,&desc->preBN),
      preActivation(cudaHandles,&desc->preActivation),
      regularConv(cudaHandles,&desc->regularConv,maxBatchSize,trunkDescriptors,midInDescriptors),
      midBN(cudaHandles,&desc->midBN),
@@ -790,7 +905,7 @@ struct ResidualBlock {
     finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,midScratchBuf,trunkOutBuf,workspaceBuf,workspaceBytes);
 
     const float alpha = 1.0f;
-    CUBLAS_ERR(cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,trunkInBuf,1,trunkOutBuf,1));
+    CUBLAS_ERR(name.c_str(),cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,trunkInBuf,1,trunkOutBuf,1));
   }
 
 };
@@ -843,9 +958,30 @@ struct DilatedResidualBlockDesc {
     if(in.fail())
       throw StringError(name + ": dilated res block parse failure (istream fail() return true)");
   }
+
+  DilatedResidualBlockDesc(const DilatedResidualBlockDesc&) = delete;
+  DilatedResidualBlockDesc& operator=(const DilatedResidualBlockDesc&) = delete;
+
+  DilatedResidualBlockDesc(DilatedResidualBlockDesc&& other) {
+    *this = std::move(other);
+  }
+
+  DilatedResidualBlockDesc& operator=(DilatedResidualBlockDesc&& other) {
+    name = std::move(other.name);
+    preBN = std::move(other.preBN);
+    preActivation = std::move(other.preActivation);
+    regularConv = std::move(other.regularConv);
+    dilatedConv = std::move(other.dilatedConv);
+    midBN = std::move(other.midBN);
+    midActivation = std::move(other.midActivation);
+    finalConv = std::move(other.finalConv);
+    return *this;
+  }
+
 };
 
 struct DilatedResidualBlock {
+  string name;
   BNLayer preBN;
   ActivationLayer preActivation;
   ConvLayer regularConv;
@@ -873,7 +1009,8 @@ struct DilatedResidualBlock {
     const cudnnTensorDescriptor_t* regularOutDescriptors, //array of one for each batch size
     const cudnnTensorDescriptor_t* dilatedOutDescriptors, //array of one for each batch size
     const cudnnTensorDescriptor_t* midInDescriptors //array of one for each batch size
-  ): preBN(cudaHandles,&desc->preBN),
+  ): name(desc->name),
+     preBN(cudaHandles,&desc->preBN),
      preActivation(cudaHandles,&desc->preActivation),
      regularConv(cudaHandles,&desc->regularConv,maxBatchSize,trunkDescriptors,regularOutDescriptors),
      dilatedConv(cudaHandles,&desc->dilatedConv,maxBatchSize,trunkDescriptors,dilatedOutDescriptors),
@@ -941,7 +1078,7 @@ struct DilatedResidualBlock {
     finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,midScratchBuf,trunkOutBuf,workspaceBuf,workspaceBytes);
 
     const float alpha = 1.0f;
-    CUBLAS_ERR(cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,trunkInBuf,1,trunkOutBuf,1));
+    CUBLAS_ERR(name.c_str(),cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,trunkInBuf,1,trunkOutBuf,1));
   }
 
 };
@@ -1014,9 +1151,34 @@ struct GlobalPoolingResidualBlockDesc {
       throw StringError(name + ": gpool res block parse failure (istream fail() return true)");
 
   }
+
+
+  GlobalPoolingResidualBlockDesc(const GlobalPoolingResidualBlockDesc&) = delete;
+  GlobalPoolingResidualBlockDesc& operator=(const GlobalPoolingResidualBlockDesc&) = delete;
+
+  GlobalPoolingResidualBlockDesc(GlobalPoolingResidualBlockDesc&& other) {
+    *this = std::move(other);
+  }
+
+  GlobalPoolingResidualBlockDesc& operator=(GlobalPoolingResidualBlockDesc&& other) {
+    name = std::move(other.name);
+    preBN = std::move(other.preBN);
+    preActivation = std::move(other.preActivation);
+    regularConv = std::move(other.regularConv);
+    gpoolConv = std::move(other.gpoolConv);
+    gpoolBN = std::move(other.gpoolBN);
+    gpoolActivation = std::move(other.gpoolActivation);
+    gpoolToBiasMul = std::move(other.gpoolToBiasMul);
+    midBN = std::move(other.midBN);
+    midActivation = std::move(other.midActivation);
+    finalConv = std::move(other.finalConv);
+    return *this;
+  }
+
 };
 
 struct GlobalPoolingResidualBlock {
+  string name;
   BNLayer preBN;
   ActivationLayer preActivation;
   ConvLayer regularConv;
@@ -1046,7 +1208,8 @@ struct GlobalPoolingResidualBlock {
     const cudnnTensorDescriptor_t* trunkDescriptors, //array of one for each batch size
     const cudnnTensorDescriptor_t* regularOutDescriptors, //array of one for each batch size
     const cudnnTensorDescriptor_t* gpoolOutDescriptors //array of one for each batch size
-  ): preBN(cudaHandles,&desc->preBN),
+  ): name(desc->name),
+     preBN(cudaHandles,&desc->preBN),
      preActivation(cudaHandles,&desc->preActivation),
      regularConv(cudaHandles,&desc->regularConv,maxBatchSize,trunkDescriptors,regularOutDescriptors),
      gpoolConv(cudaHandles,&desc->gpoolConv,maxBatchSize,trunkDescriptors,gpoolOutDescriptors),
@@ -1117,7 +1280,7 @@ struct GlobalPoolingResidualBlock {
     customCudaPoolRowsSum(gpoolOutBuf2,gpoolMeanBuf,batchSize*gpoolChannels,xSize*ySize);
     customCudaPoolRowsMax(gpoolOutBuf2,gpoolMaxBuf,batchSize*gpoolChannels,xSize*ySize);
     const float meanScale = 1.0f / (xSize*ySize);
-    CUBLAS_ERR(cublasSscal(cudaHandles->cublas, batchSize*gpoolChannels, &meanScale, gpoolMeanBuf, 1));
+    CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*gpoolChannels, &meanScale, gpoolMeanBuf, 1));
     customCudaChannelConcat(
       gpoolMeanBuf,gpoolMaxBuf,gpoolConcatBuf,
       gpoolChannels,
@@ -1134,7 +1297,7 @@ struct GlobalPoolingResidualBlock {
     midActivation.apply(cudaHandles,regularOutDescriptor,regularOutDescriptor,regularScratchBuf,regularScratchBuf);
     finalConv.apply(cudaHandles,regularOutDescriptor,trunkDescriptor,batchSize,regularScratchBuf,trunkOutBuf,workspaceBuf,workspaceBytes);
 
-    CUBLAS_ERR(cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,trunkInBuf,1,trunkOutBuf,1));
+    CUBLAS_ERR(name.c_str(),cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,trunkInBuf,1,trunkOutBuf,1));
   }
 
 };
@@ -1292,10 +1455,44 @@ struct TrunkDesc {
       }
     }
   }
+
+  TrunkDesc(const TrunkDesc&) = delete;
+  TrunkDesc& operator=(const TrunkDesc&) = delete;
+
+  TrunkDesc(TrunkDesc&& other) {
+    name = std::move(other.name);
+    numBlocks = other.numBlocks;
+    trunkNumChannels = other.trunkNumChannels;
+    midNumChannels = other.midNumChannels;
+    regularNumChannels = other.regularNumChannels;
+    dilatedNumChannels = other.dilatedNumChannels;
+    gpoolNumChannels = other.gpoolNumChannels;
+    initialConv = std::move(other.initialConv);
+    blocks = std::move(other.blocks);
+    trunkTipBN = std::move(other.trunkTipBN);
+    trunkTipActivation = std::move(other.trunkTipActivation);
+  }
+
+  TrunkDesc& operator=(TrunkDesc&& other) {
+    name = std::move(other.name);
+    numBlocks = other.numBlocks;
+    trunkNumChannels = other.trunkNumChannels;
+    midNumChannels = other.midNumChannels;
+    regularNumChannels = other.regularNumChannels;
+    dilatedNumChannels = other.dilatedNumChannels;
+    gpoolNumChannels = other.gpoolNumChannels;
+    initialConv = std::move(other.initialConv);
+    blocks = std::move(other.blocks);
+    trunkTipBN = std::move(other.trunkTipBN);
+    trunkTipActivation = std::move(other.trunkTipActivation);
+    return *this;
+  }
+
 };
 
 
 struct Trunk {
+  string name;
   int numBlocks;
   int trunkNumChannels;
   int midNumChannels;
@@ -1331,6 +1528,7 @@ struct Trunk {
     int yS,
     const cudnnTensorDescriptor_t* inputDescriptors
   ) {
+    name = desc->name;
     numBlocks = desc->numBlocks;
     trunkNumChannels = desc->trunkNumChannels;
     midNumChannels = desc->midNumChannels;
@@ -1357,8 +1555,8 @@ struct Trunk {
       cudnnTensorDescriptor_t& dilatedOutDescriptor = dilatedOutDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& midInDescriptor = midInDescriptors[batchSize-1];
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&trunkDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&trunkDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         trunkDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -1368,8 +1566,8 @@ struct Trunk {
         xSize
       ));
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&regularOutDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&regularOutDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         regularOutDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -1379,8 +1577,8 @@ struct Trunk {
         xSize
       ));
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&dilatedOutDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&dilatedOutDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         dilatedOutDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -1390,8 +1588,8 @@ struct Trunk {
         xSize
       ));
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&gpoolOutDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&gpoolOutDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         gpoolOutDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -1401,8 +1599,8 @@ struct Trunk {
         xSize
       ));
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&gpoolBiasDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&gpoolBiasDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         gpoolBiasDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -1412,8 +1610,8 @@ struct Trunk {
         1
       ));
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&midInDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&midInDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         midInDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -1738,9 +1936,32 @@ struct PolicyHeadDesc {
 
   ~PolicyHeadDesc() {
   }
+
+  PolicyHeadDesc(const PolicyHeadDesc&) = delete;
+  PolicyHeadDesc& operator=(const PolicyHeadDesc&) = delete;
+
+  PolicyHeadDesc(PolicyHeadDesc&& other) {
+    *this = std::move(other);
+  }
+
+  PolicyHeadDesc& operator=(PolicyHeadDesc&& other) {
+    name = std::move(other.name);
+    p1Conv = std::move(other.p1Conv);
+    g1Conv = std::move(other.g1Conv);
+    g1BN = std::move(other.g1BN);
+    g1Activation = std::move(other.g1Activation);
+    gpoolToBiasMul = std::move(other.gpoolToBiasMul);
+    p1BN = std::move(other.p1BN);
+    p1Activation = std::move(other.p1Activation);
+    p2Conv = std::move(other.p2Conv);
+    gpoolToPassMul = std::move(other.gpoolToPassMul);
+    return *this;
+  }
+
 };
 
 struct PolicyHead {
+  string name;
   int maxBatchSize;
   int xSize;
   int ySize;
@@ -1776,6 +1997,7 @@ struct PolicyHead {
     int yS,
     const cudnnTensorDescriptor_t* trunkDescriptors
   ) {
+    name = desc->name;
     maxBatchSize = maxBatchSz;
     xSize = xS;
     ySize = yS;
@@ -1796,8 +2018,8 @@ struct PolicyHead {
       cudnnTensorDescriptor_t& p2InDescriptor = p2InDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& p2OutDescriptor = p2OutDescriptors[batchSize-1];
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&p1OutDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&p1OutDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         p1OutDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -1807,8 +2029,8 @@ struct PolicyHead {
         xSize
       ));
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&g1OutDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&g1OutDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         g1OutDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -1818,8 +2040,8 @@ struct PolicyHead {
         xSize
       ));
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&g1BiasDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&g1BiasDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         g1BiasDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -1829,8 +2051,8 @@ struct PolicyHead {
         1
       ));
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&p2InDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&p2InDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         p2InDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -1840,8 +2062,8 @@ struct PolicyHead {
         xSize
       ));
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&p2OutDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&p2OutDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         p2OutDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -1951,7 +2173,7 @@ struct PolicyHead {
     customCudaPoolRowsSum(g1OutBuf2,g1MeanBuf,batchSize*g1Channels,xSize*ySize);
     customCudaPoolRowsMax(g1OutBuf2,g1MaxBuf,batchSize*g1Channels,xSize*ySize);
     const float meanScale = 1.0f / (xSize*ySize);
-    CUBLAS_ERR(cublasSscal(cudaHandles->cublas, batchSize*g1Channels, &meanScale, g1MeanBuf, 1));
+    CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*g1Channels, &meanScale, g1MeanBuf, 1));
     customCudaChannelConcat(
       g1MeanBuf,g1MaxBuf,g1ConcatBuf,
       g1Channels,
@@ -1967,9 +2189,9 @@ struct PolicyHead {
     p1BN->apply(cudaHandles,p1OutDescriptor,p1OutDescriptor,p1OutBuf,p1OutBuf2);
 
     //Negate and concat for crelu
-    CUDA_ERR(cudaMemcpy(p1OutBuf,p1OutBuf2,batchSize*p1Channels*xSize*ySize*sizeof(float),cudaMemcpyDeviceToDevice));
+    CUDA_ERR(name.c_str(),cudaMemcpy(p1OutBuf,p1OutBuf2,batchSize*p1Channels*xSize*ySize*sizeof(float),cudaMemcpyDeviceToDevice));
     const float invScale = -1.0f;
-    CUBLAS_ERR(cublasSscal(cudaHandles->cublas, batchSize*p1Channels*xSize*ySize, &invScale, p1OutBuf, 1));
+    CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*p1Channels*xSize*ySize, &invScale, p1OutBuf, 1));
     customCudaChannelConcat(
       p1OutBuf2,p1OutBuf,p2InBuf,
       p1Channels*xSize*ySize,
@@ -2041,9 +2263,9 @@ struct ValueHeadDesc {
       throw StringError(name+Global::strprintf(
         ": v2Mul.outChannels (%d) != v2Bias.numChannels (%d)", v2Mul.outChannels, v2Bias.numChannels
       ));
-    if(v2Mul.outChannels != v3Mul.inChannels)
+    if(v2Mul.outChannels*2 != v3Mul.inChannels)
       throw StringError(name+Global::strprintf(
-        ": v2Mul.outChannels (%d) != v3Mul.inChannels (%d)", v2Mul.outChannels, v3Mul.inChannels
+        ": v2Mul.outChannels*2 (%d) != v3Mul.inChannels (%d)", v2Mul.outChannels*2, v3Mul.inChannels
       ));
     if(v3Mul.outChannels != 1)
       throw StringError(name+Global::strprintf(
@@ -2057,11 +2279,33 @@ struct ValueHeadDesc {
 
   ~ValueHeadDesc() {
   }
+
+  ValueHeadDesc(const ValueHeadDesc&) = delete;
+  ValueHeadDesc& operator=(const ValueHeadDesc&) = delete;
+
+  ValueHeadDesc(ValueHeadDesc&& other) {
+    *this = std::move(other);
+  }
+
+  ValueHeadDesc& operator=(ValueHeadDesc&& other) {
+    name = std::move(other.name);
+    v1Conv = std::move(other.v1Conv);
+    v1BN = std::move(other.v1BN);
+    v1Activation = std::move(other.v1Activation);
+    v2Mul = std::move(other.v2Mul);
+    v2Bias = std::move(other.v2Bias);
+    v2Activation = std::move(other.v2Activation);
+    v3Mul = std::move(other.v3Mul);
+    v3Bias = std::move(other.v3Bias);
+    return *this;
+  }
+
 };
 
 
 
 struct ValueHead {
+  string name;
   int maxBatchSize;
   int xSize;
   int ySize;
@@ -2093,6 +2337,7 @@ struct ValueHead {
     int yS,
     const cudnnTensorDescriptor_t* trunkDescriptors
   ) {
+    name = desc->name;
     maxBatchSize = maxBatchSz;
     xSize = xS;
     ySize = yS;
@@ -2107,8 +2352,8 @@ struct ValueHead {
       cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& v3InDescriptor = v3InDescriptors[batchSize-1];
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&v1OutDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&v1OutDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         v1OutDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -2118,8 +2363,8 @@ struct ValueHead {
         xSize
       ));
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&v3InDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&v3InDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         v3InDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -2180,6 +2425,7 @@ struct ValueHead {
     return bytes;
   }
 
+
   void apply(
     CudaHandles* cudaHandles,
     const cudnnTensorDescriptor_t& trunkDescriptor,
@@ -2204,15 +2450,15 @@ struct ValueHead {
 
     customCudaPoolRowsSum(v1OutBuf2,v1MeanBuf,batchSize*v1Channels,xSize*ySize);
     const float meanScale = 1.0f / (xSize*ySize);
-    CUBLAS_ERR(cublasSscal(cudaHandles->cublas, batchSize*v1Channels, &meanScale, v1MeanBuf, 1));
+    CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*v1Channels, &meanScale, v1MeanBuf, 1));
 
     v2Mul->apply(cudaHandles,batchSize,v1MeanBuf,v2OutBuf,workspaceBuf,workspaceBytes);
     v2Bias->apply(cudaHandles,batchSize,v2OutBuf);
 
     //Negate and concat for crelu
-    CUDA_ERR(cudaMemcpy(v2OutBuf2,v2OutBuf,batchSize*v2Channels*sizeof(float),cudaMemcpyDeviceToDevice));
+    CUDA_ERR(name.c_str(),cudaMemcpy(v2OutBuf2,v2OutBuf,batchSize*v2Channels*sizeof(float),cudaMemcpyDeviceToDevice));
     const float invScale = -1.0f;
-    CUBLAS_ERR(cublasSscal(cudaHandles->cublas, batchSize*v2Channels, &invScale, v2OutBuf2, 1));
+    CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*v2Channels, &invScale, v2OutBuf2, 1));
     customCudaChannelConcat(
       v2OutBuf,v2OutBuf2,v3InBuf,
       v2Channels,
@@ -2283,10 +2529,28 @@ struct ModelDesc {
 
   ~ModelDesc() {
   }
+
+  ModelDesc(const ModelDesc&) = delete;
+  ModelDesc& operator=(const ModelDesc&) = delete;
+
+  ModelDesc(ModelDesc&& other) {
+    *this = std::move(other);
+  }
+  ModelDesc& operator=(ModelDesc&& other) {
+    name = std::move(other.name);
+    xSize = other.xSize;
+    ySize = other.ySize;
+    numInputChannels = other.numInputChannels;
+    trunk = std::move(other.trunk);
+    policyHead = std::move(other.policyHead);
+    valueHead = std::move(other.valueHead);
+    return *this;
+  }
 };
 
 
 struct Model {
+  string name;
   int maxBatchSize;
   int xSize;
   int ySize;
@@ -2307,25 +2571,32 @@ struct Model {
     const ModelDesc* desc,
     int maxBatchSz
   ) {
+    name = desc->name;
     maxBatchSize = maxBatchSz;
     xSize = desc->xSize;
     ySize = desc->ySize;
     numInputChannels = desc->numInputChannels;
 
     if(xSize != NNPos::MAX_BOARD_LEN)
-      throw StringError("Currently neural net xSize must be NNPos::MAX_BOARD_LEN (" + Global::intToString(NNPos::MAX_BOARD_LEN) + ")");
+      throw StringError(Global::strprintf("Currently neural net xSize (%d) must be NNPos::MAX_BOARD_LEN (%d)",
+        xSize, NNPos::MAX_BOARD_LEN
+      ));
     if(ySize != NNPos::MAX_BOARD_LEN)
-      throw StringError("Currently neural net ySize must be NNPos::MAX_BOARD_LEN (" + Global::intToString(NNPos::MAX_BOARD_LEN) + ")");
+      throw StringError(Global::strprintf("Currently neural net ySize (%d) must be NNPos::MAX_BOARD_LEN (%d)",
+        ySize, NNPos::MAX_BOARD_LEN
+      ));
     if(numInputChannels != NNInputs::NUM_FEATURES_V1)
-      throw StringError("Currently neural net numInputChannels must be NNInputs::NUM_FEATURES_V1 (" + Global::intToString(NNInputs::NUM_FEATURES_V1) + ")");
+      throw StringError(Global::strprintf("Currently neural net numInputChannels (%d) must be NNPos::NUM_FEATURES_V1 (%d)",
+        numInputChannels, NNInputs::NUM_FEATURES_V1
+      ));
 
     inputDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
 
-      CUDNN_ERR(cudnnCreateTensorDescriptor(&inputDescriptor));
-      CUDNN_ERR(cudnnSetTensor4dDescriptor(
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&inputDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         inputDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
@@ -2486,7 +2757,7 @@ struct LoadedModel {
   ModelDesc modelDesc;
 
   LoadedModel(istream& in) {
-    modelDesc = ModelDesc(in);
+    modelDesc = std::move(ModelDesc(in));
   }
 
   LoadedModel() = delete;
@@ -2564,44 +2835,48 @@ struct Buffers {
     size_t batchXYFloat = m.maxBatchSize * m.xSize * m.ySize * sizeof(float);
     size_t batchFloat = m.maxBatchSize * sizeof(float);
 
-    CUDA_ERR(cudaMalloc(&inputBuf, m.numInputChannels * batchXYFloat));
     inputBufBytes = m.numInputChannels * batchXYFloat;
+    CUDA_ERR("Buffers",cudaMalloc(&inputBuf, inputBufBytes));
 
-    CUDA_ERR(cudaMalloc(&trunkScratchBuf, m.trunk->trunkNumChannels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&trunkOutBuf, m.trunk->trunkNumChannels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&regularOutBuf, m.trunk->regularNumChannels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&dilatedOutBuf, m.trunk->dilatedNumChannels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&midInBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&midScratchBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&gpoolOutBuf, m.trunk->gpoolNumChannels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&gpoolOutBuf2, m.trunk->gpoolNumChannels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&gpoolMeanBuf, m.trunk->gpoolNumChannels * batchFloat));
-    CUDA_ERR(cudaMalloc(&gpoolMaxBuf, m.trunk->gpoolNumChannels * batchFloat));
-    CUDA_ERR(cudaMalloc(&gpoolConcatBuf, m.trunk->gpoolNumChannels * batchFloat * 2));
-    CUDA_ERR(cudaMalloc(&gpoolBiasBuf, m.trunk->regularNumChannels * batchFloat));
-    CUDA_ERR(cudaMalloc(&regularScratchBuf, m.trunk->regularNumChannels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&trunkScratchBuf, m.trunk->trunkNumChannels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&trunkOutBuf, m.trunk->trunkNumChannels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&regularOutBuf, m.trunk->regularNumChannels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&dilatedOutBuf, m.trunk->dilatedNumChannels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&midInBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&midScratchBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&gpoolOutBuf, m.trunk->gpoolNumChannels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&gpoolOutBuf2, m.trunk->gpoolNumChannels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&gpoolMeanBuf, m.trunk->gpoolNumChannels * batchFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&gpoolMaxBuf, m.trunk->gpoolNumChannels * batchFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&gpoolConcatBuf, m.trunk->gpoolNumChannels * batchFloat * 2));
+    CUDA_ERR("Buffers",cudaMalloc(&gpoolBiasBuf, m.trunk->regularNumChannels * batchFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&regularScratchBuf, m.trunk->regularNumChannels * batchXYFloat));
 
-    CUDA_ERR(cudaMalloc(&p1OutBuf, m.policyHead->p1Channels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&p1OutBuf2, m.policyHead->p1Channels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&g1OutBuf, m.policyHead->g1Channels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&g1OutBuf2, m.policyHead->g1Channels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&g1MeanBuf, m.policyHead->g1Channels * batchFloat));
-    CUDA_ERR(cudaMalloc(&g1MaxBuf, m.policyHead->g1Channels * batchFloat));
-    CUDA_ERR(cudaMalloc(&g1ConcatBuf, m.policyHead->g1Channels * batchFloat * 2));
-    CUDA_ERR(cudaMalloc(&g1BiasBuf, m.policyHead->p1Channels * batchFloat));
-    CUDA_ERR(cudaMalloc(&p2InBuf, m.policyHead->p1Channels * 2 * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&p2OutBuf, m.policyHead->p2Channels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&g1PassBuf, m.policyHead->p2Channels * batchFloat));
-    CUDA_ERR(cudaMalloc(&policyBuf, m.policyHead->p2Channels * (batchXYFloat + batchFloat)));
+    CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf, m.policyHead->p1Channels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf2, m.policyHead->p1Channels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&g1OutBuf, m.policyHead->g1Channels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&g1OutBuf2, m.policyHead->g1Channels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&g1MeanBuf, m.policyHead->g1Channels * batchFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&g1MaxBuf, m.policyHead->g1Channels * batchFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&g1ConcatBuf, m.policyHead->g1Channels * batchFloat * 2));
+    CUDA_ERR("Buffers",cudaMalloc(&g1BiasBuf, m.policyHead->p1Channels * batchFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&p2InBuf, m.policyHead->p1Channels * 2 * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&p2OutBuf, m.policyHead->p2Channels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&g1PassBuf, m.policyHead->p2Channels * batchFloat));
+
+    policyBufBytes = m.policyHead->p2Channels * (batchXYFloat + batchFloat);
+    CUDA_ERR("Buffers",cudaMalloc(&policyBuf, policyBufBytes));
     assert(m.policyHead->p2Channels == 1);
 
-    CUDA_ERR(cudaMalloc(&v1OutBuf, m.valueHead->v1Channels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&v1OutBuf2, m.valueHead->v1Channels * batchXYFloat));
-    CUDA_ERR(cudaMalloc(&v1MeanBuf, m.valueHead->v1Channels * batchFloat));
-    CUDA_ERR(cudaMalloc(&v2OutBuf, m.valueHead->v2Channels * batchFloat));
-    CUDA_ERR(cudaMalloc(&v2OutBuf2, m.valueHead->v2Channels * batchFloat));
-    CUDA_ERR(cudaMalloc(&v3InBuf, m.valueHead->v2Channels * 2 * batchFloat));
-    CUDA_ERR(cudaMalloc(&valueBuf, m.valueHead->valueChannels * batchFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&v1OutBuf, m.valueHead->v1Channels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&v1OutBuf2, m.valueHead->v1Channels * batchXYFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&v1MeanBuf, m.valueHead->v1Channels * batchFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&v2OutBuf, m.valueHead->v2Channels * batchFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&v2OutBuf2, m.valueHead->v2Channels * batchFloat));
+    CUDA_ERR("Buffers",cudaMalloc(&v3InBuf, m.valueHead->v2Channels * 2 * batchFloat));
+
+    valueBufBytes = m.valueHead->valueChannels * batchFloat;
+    CUDA_ERR("Buffers",cudaMalloc(&valueBuf, valueBufBytes));
 
     //In theory the requiredWorkspaceBytes calls could give us values non-monotone in batch size
     //such as if the convolution algorithm changes between batch size 1 and larger.
@@ -2613,7 +2888,7 @@ struct Buffers {
       bytes = std::max(bytes,b);
     }
 
-    CUDA_ERR(cudaMalloc(&workspaceBuf, bytes));
+    CUDA_ERR("Buffers",cudaMalloc(&workspaceBuf, bytes));
     workspaceBytes = bytes;
   }
 
@@ -2685,7 +2960,7 @@ struct LocalGpuHandle {
 };
 
 LocalGpuHandle* NeuralNet::createLocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int cudaDeviceIdxForThisThread) {
-  CUDA_ERR(cudaSetDevice(cudaDeviceIdxForThisThread));
+  CUDA_ERR("createLocalGpuHandle",cudaSetDevice(cudaDeviceIdxForThisThread));
 
   LocalGpuHandle* gpuHandle = new LocalGpuHandle(loadedModel,maxBatchSize);
   return gpuHandle;
@@ -2778,7 +3053,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
   int batchSize = numFilledRows;
 
   Buffers* buffers = gpuHandle->buffers;
-  CUDA_ERR(cudaMemcpy(buffers->inputBuf, inputBuffers->userInputBuffer, inputBuffers->singleBatchItemBytes*batchSize, cudaMemcpyHostToDevice));
+  CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBuf, inputBuffers->userInputBuffer, inputBuffers->singleBatchItemBytes*batchSize, cudaMemcpyHostToDevice));
 
   gpuHandle->model->apply(
     gpuHandle->cudaHandles,
@@ -2824,8 +3099,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     buffers->workspaceBytes
   );
 
-  CUDA_ERR(cudaMemcpy(inputBuffers->policyResults, buffers->policyBuf, inputBuffers->singlePolicyResultBytes*batchSize, cudaMemcpyDeviceToHost));
-  CUDA_ERR(cudaMemcpy(inputBuffers->valueResults, buffers->valueBuf, inputBuffers->singleValueResultBytes*batchSize, cudaMemcpyDeviceToHost));
+  CUDA_ERR("getOutput",cudaMemcpy(inputBuffers->policyResults, buffers->policyBuf, inputBuffers->singlePolicyResultBytes*batchSize, cudaMemcpyDeviceToHost));
+  CUDA_ERR("getOutput",cudaMemcpy(inputBuffers->valueResults, buffers->valueBuf, inputBuffers->singleValueResultBytes*batchSize, cudaMemcpyDeviceToHost));
 
   outputs.clear();
 
