@@ -11,6 +11,7 @@
 #include "search/search.h"
 #include "search/asyncbot.h"
 
+
 int main() {
   Board::initHash();
 
@@ -22,26 +23,37 @@ int main() {
   double tensorflowPerProcessGpuMemoryFraction = -1; //use default
   NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
 
-  int modelFileIdx = 0;
-  int maxBatchSize = 1;
-  int nnCacheSizePowerOfTwo = 16;
-  bool debugSkipNeuralNet = false;
-  NNEvaluator* nnEval = new NNEvaluator(
-    "/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt",
-    modelFileIdx,
-    maxBatchSize,
-    nnCacheSizePowerOfTwo,
-    debugSkipNeuralNet
-  );
+  // int modelFileIdx = 0;
+  // int maxBatchSize = 1;
+  // int nnCacheSizePowerOfTwo = 16;
+  // bool debugSkipNeuralNet = false;
+  // NNEvaluator* nnEval = new NNEvaluator(
+  //   // "/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb",
+  //   "/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt",
+  //   modelFileIdx,
+  //   maxBatchSize,
+  //   nnCacheSizePowerOfTwo,
+  //   debugSkipNeuralNet
+  // );
 
-  int numNNServerThreads = 1;
-  bool doRandomize = false;
-  string randSeed = "abc";
-  int defaultSymmetry = 0;
-  vector<int> cudaGpuIdxByServerThread = {0};
-  nnEval->spawnServerThreads(
-    numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,cudaGpuIdxByServerThread
-  );
+  // int numNNServerThreads = 1;
+  // bool doRandomize = false;
+  // string randSeed = "abc";
+  // int defaultSymmetry = 0;
+  // vector<int> cudaGpuIdxByServerThread = {0};
+  // nnEval->spawnServerThreads(
+  //   numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,cudaGpuIdxByServerThread
+  // );
+
+  LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
+  // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb", 0);
+  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel,16,0);
+  InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,16);
+
+  bool* syms = NeuralNet::getSymmetriesInplace(inputBuffers);
+  syms[0] = false;
+  syms[1] = false;
+  syms[2] = false;
 
   Rules rules;
   rules.koRule = Rules::KO_POSITIONAL;
@@ -63,7 +75,7 @@ int main() {
 11 . . . . o x o o o o . o . x . o . . .
 10 . o o o o o x . . o x x x . o x x . .
  9 . x . x o o x x x x o o x . x o x . .
- 8 . . . x x x x . . x . o o.x . o x . .
+ 8 . . . x x x x . . x . o o x . o x . .
  7 . . . o o . x x . x . . . . . x . x .
  6 . . o x x x . x x o o . o . . x . x .
  5 . . o o o o x x . . . o . o . o x . .
@@ -73,26 +85,82 @@ int main() {
  1 . o x x o . . o . . . . . . . . . . .
 )");
 
+  Board board2 = Board::parseBoard(19,19,R"(
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . x . . . . . . . . . . . . . . .
+16 . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+)");
+
+
   BoardHistory hist(board,pla,rules);
+  BoardHistory hist2(board2,pla,rules);
 
-  ostream* logStream = logger.createOStream();
-  NNResultBuf buf;
-  nnEval->evaluate(board, hist, pla, buf, logStream, false);
+  float* row0 = NeuralNet::getRowInplace(inputBuffers,0);
+  float* row1 = NeuralNet::getRowInplace(inputBuffers,1);
+  float* row2 = NeuralNet::getRowInplace(inputBuffers,2);
+  float* row3 = NeuralNet::getRowInplace(inputBuffers,3);
+  float* row4 = NeuralNet::getRowInplace(inputBuffers,4);
+  NNInputs::fillRowV1(board, hist, pla, row0);
+  //NNInputs::fillRowV1(board, hist, pla, row1);
+  NNInputs::fillRowV1(board2, hist2, pla, row1);
+  NNInputs::fillRowV1(board, hist, pla, row2);
+  NNInputs::fillRowV1(board, hist, pla, row3);
+  NNInputs::fillRowV1(board2, hist2, pla, row4);
 
-  for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
-    for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
-      if(buf.result->policyProbs[x+y*NNPos::MAX_BOARD_LEN] >= 0)
-        printf("%6.2f%%", buf.result->policyProbs[x+y*NNPos::MAX_BOARD_LEN] * 100.0);
-      else
-        printf("   .   ");
+  vector<NNOutput*> outputs;
+  NeuralNet::getOutput(gpuHandle,inputBuffers,5,outputs);
+
+  for(int i = 0; i<outputs.size(); i++) {
+    NNOutput* result = outputs[i];
+    for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
+      for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
+        printf("%7.4f ", result->policyProbs[x+y*NNPos::MAX_BOARD_LEN]);
+      }
+      cout << endl;
     }
+    printf("%6.4f ", result->policyProbs[NNPos::NN_POLICY_SIZE-1]);
     cout << endl;
+    cout << result->whiteValue << endl;
   }
-  printf("%4.1f%%", buf.result->policyProbs[NNPos::NN_POLICY_SIZE-1] * 100.0);
-  cout << endl;
-  cout << buf.result->whiteValue << endl;
 
-  delete logStream;
+  for(int i = 0; i<outputs.size(); i++)
+    delete outputs[i];
+
+  // ostream* logStream = logger.createOStream();
+  // NNResultBuf buf;
+  // nnEval->evaluate(board, hist, pla, buf, logStream, false);
+
+  // for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
+  //   for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
+  //     if(buf.result->policyProbs[x+y*NNPos::MAX_BOARD_LEN] >= 0)
+  //       printf("%6.2f%%", buf.result->policyProbs[x+y*NNPos::MAX_BOARD_LEN] * 100.0);
+  //     else
+  //       printf("   .   ");
+  //   }
+  //   cout << endl;
+  // }
+  // printf("%4.1f%%", buf.result->policyProbs[NNPos::NN_POLICY_SIZE-1] * 100.0);
+  // cout << endl;
+  // cout << buf.result->whiteValue << endl;
+
+  // delete logStream;
 
   // SearchParams params;
   // params.maxPlayouts = 1000;
@@ -136,13 +204,169 @@ int main() {
   //   delete b;
   // }
 
-  nnEval->killServerThreads();
+  // nnEval->killServerThreads();
   // delete bot;
-  delete nnEval;
+  // delete nnEval;
+
+  NeuralNet::freeInputBuffers(inputBuffers);
+  NeuralNet::freeLocalGpuHandle(gpuHandle);
+  NeuralNet::freeLoadedModel(loadedModel);
 
   cout << "Done" << endl;
   return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// #include <cuda.h>
+// #include <cublas_v2.h>
+// #include <cudnn.h>
+// int main() {
+//   Board::initHash();
+
+//   Logger logger;
+//   logger.setLogToStdout(true);
+
+//   cudaSetDevice(0);
+
+//   cudnnStatus_t status;
+//   cudnnHandle_t cudnn;
+//   status = cudnnCreate(&cudnn);
+//   assert(status == CUDNN_STATUS_SUCCESS);
+
+//   int batchSize = 2;
+//   int numChannels = 3;
+//   int ySize = 3;
+//   int xSize = 3;
+
+//   cudnnTensorDescriptor_t inputDescriptor;
+//   status = cudnnCreateTensorDescriptor(&inputDescriptor);
+//   assert(status == CUDNN_STATUS_SUCCESS);
+//   status = cudnnSetTensor4dDescriptor(
+//     inputDescriptor,
+//     CUDNN_TENSOR_NCHW,
+//     CUDNN_DATA_FLOAT,
+//     1,
+//     batchSize*numChannels,
+//     ySize,
+//     xSize
+//   );
+//   assert(status == CUDNN_STATUS_SUCCESS);
+
+//   cudnnTensorDescriptor_t biasDescriptor;
+//   status = cudnnCreateTensorDescriptor(&biasDescriptor);
+//   assert(status == CUDNN_STATUS_SUCCESS);
+//   status = cudnnSetTensor4dDescriptor(
+//     biasDescriptor,
+//     CUDNN_TENSOR_NCHW,
+//     CUDNN_DATA_FLOAT,
+//     1,
+//     batchSize*numChannels,
+//     1,
+//     1
+//   );
+//   assert(status == CUDNN_STATUS_SUCCESS);
+
+//   float inputArr[batchSize][numChannels][ySize][xSize] = {
+//     {
+//       {
+//         {0,1,2},
+//         {3,4,5},
+//         {6,7,8},
+//       },
+//       {
+//         {0,1,2},
+//         {3,4,5},
+//         {6,7,8},
+//       },
+//       {
+//         {0,1,2},
+//         {3,4,5},
+//         {6,7,8},
+//       },
+//     }, 
+//     {
+//       {
+//         {0,0,0},
+//         {1,1,1},
+//         {2,2,2},
+//       },
+//       {
+//         {3,4,5},
+//         {3,4,5},
+//         {3,4,5},
+//       },
+//       {
+//         {6,7,8},
+//         {8,6,7},
+//         {7,8,6},
+//       },
+//     }, 
+//   };
+
+//   float biasArr[batchSize][numChannels] = {
+//     {10,20,30},{40,50,60}
+//   };
+
+//   size_t inputBytes = sizeof(inputArr);
+//   float* inputBuf = NULL;
+//   cudaMalloc(&inputBuf, inputBytes);
+//   cudaMemcpy(inputBuf, inputArr, inputBytes, cudaMemcpyHostToDevice);
+
+//   size_t biasBytes = sizeof(biasArr);
+//   float* biasBuf = NULL;
+//   cudaMalloc(&biasBuf, biasBytes);
+//   cudaMemcpy(biasBuf, biasArr, biasBytes, cudaMemcpyHostToDevice);
+
+//   const float alpha = 1.0f;
+//   const float beta = 1.0f;
+//   status = cudnnAddTensor(cudnn,&alpha,biasDescriptor,biasBuf,&beta,inputDescriptor,inputBuf);
+//   assert(status == CUDNN_STATUS_SUCCESS);  
+  
+//   cudaMemcpy(inputArr, inputBuf, inputBytes, cudaMemcpyDeviceToHost);
+
+//   for(int b = 0; b<batchSize; b++) {
+//     for(int c = 0; c<numChannels; c++) {
+//       for(int y = 0; y<ySize; y++) {
+//         for(int x = 0; x<xSize; x++) {
+//           cout << inputArr[b][c][y][x] << " ";
+//         }
+//         cout << endl;
+//       }
+//       cout << endl;
+//     }
+//     cout << endl;
+//   }
+
+//   cudaFree(inputBuf);
+//   cudaFree(biasBuf);
+
+//   cudnnDestroyTensorDescriptor(inputDescriptor);
+//   cudnnDestroyTensorDescriptor(biasDescriptor);
+
+//   cudnnDestroy(cudnn);
+
+//   cout << "Done" << endl;
+//   return 0;
+// }
+
+
+
+
+
+
 
 
 // #include <tensorflow/c/c_api.h>

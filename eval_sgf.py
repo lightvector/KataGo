@@ -18,8 +18,7 @@ from board import Board
 from model import Model
 
 description = """
-Play go with a trained neural net!
-Implements a basic GTP engine that uses the neural net directly to play moves..
+Evaluate raw neural net output directly on a position in an sgf
 """
 
 parser = argparse.ArgumentParser(description=description)

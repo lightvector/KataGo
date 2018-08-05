@@ -646,14 +646,16 @@ struct MatMulLayer {
     const float beta = 0.0f;
     CUBLAS_ERR(name.c_str(),cublasSgemm(
       cudaHandles->cublas,
-      CUBLAS_OP_T,
-      CUBLAS_OP_T,
-      batchSize,outChannels,inChannels,
+      CUBLAS_OP_N,
+      CUBLAS_OP_N,
+      outChannels,
+      batchSize,
+      inChannels,
       &alpha,
-      inputBuf,inChannels,
       matBuf,outChannels,
+      inputBuf,inChannels,
       &beta,
-      outputBuf,batchSize
+      outputBuf,outChannels
     ));
   }
 
@@ -1255,6 +1257,7 @@ struct GlobalPoolingResidualBlock {
     const cudnnTensorDescriptor_t& regularOutDescriptor,
     const cudnnTensorDescriptor_t& gpoolOutDescriptor,
     const cudnnTensorDescriptor_t& gpoolBiasDescriptor,
+    const cudnnTensorDescriptor_t& regularOutForBiasDescriptor,
     int batchSize,
     int trunkBufSize,
     float* trunkInBuf,
@@ -1287,11 +1290,11 @@ struct GlobalPoolingResidualBlock {
       gpoolChannels,
       batchSize
     );
-    gpoolToBiasMul.apply(cudaHandles,batchSize,gpoolConcatBuf,gpoolBiasBuf,workspaceBuf,workspaceBytes);
 
+    gpoolToBiasMul.apply(cudaHandles,batchSize,gpoolConcatBuf,gpoolBiasBuf,workspaceBuf,workspaceBytes);
     const float alpha = 1.0f;
-    const float beta = 0.0f;
-    cudnnAddTensor(cudaHandles->cudnn,&alpha,gpoolBiasDescriptor,gpoolBiasBuf,&beta,regularOutDescriptor,regularOutBuf);
+    const float beta = 1.0f;
+    CUDNN_ERR(name.c_str(),cudnnAddTensor(cudaHandles->cudnn,&alpha,gpoolBiasDescriptor,gpoolBiasBuf,&beta,regularOutForBiasDescriptor,regularOutBuf));
 
     midBN.apply(cudaHandles,regularOutDescriptor,regularOutDescriptor,regularOutBuf,regularScratchBuf);
     midActivation.apply(cudaHandles,regularOutDescriptor,regularOutDescriptor,regularScratchBuf,regularScratchBuf);
@@ -1508,6 +1511,7 @@ struct Trunk {
   cudnnTensorDescriptor_t* regularOutDescriptors;
   cudnnTensorDescriptor_t* gpoolOutDescriptors;
   cudnnTensorDescriptor_t* gpoolBiasDescriptors;
+  cudnnTensorDescriptor_t* regularOutForBiasDescriptors;
   cudnnTensorDescriptor_t* dilatedOutDescriptors;
   cudnnTensorDescriptor_t* midInDescriptors;
 
@@ -1544,6 +1548,7 @@ struct Trunk {
     regularOutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     gpoolOutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     gpoolBiasDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+    regularOutForBiasDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     dilatedOutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     midInDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
 
@@ -1552,6 +1557,7 @@ struct Trunk {
       cudnnTensorDescriptor_t& regularOutDescriptor = regularOutDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& gpoolOutDescriptor = gpoolOutDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& gpoolBiasDescriptor = gpoolBiasDescriptors[batchSize-1];
+      cudnnTensorDescriptor_t& regularOutForBiasDescriptor = regularOutForBiasDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& dilatedOutDescriptor = dilatedOutDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& midInDescriptor = midInDescriptors[batchSize-1];
 
@@ -1604,10 +1610,25 @@ struct Trunk {
         gpoolBiasDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
-        batchSize,
-        regularNumChannels,
+        //For some reason cudnnAddTensor doesn't support per-batch biases, so we fold that into the
+        //channel dimension
+        1,
+        batchSize*regularNumChannels,
         1,
         1
+      ));
+
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&regularOutForBiasDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
+        regularOutForBiasDescriptor,
+        CUDNN_TENSOR_NCHW,
+        CUDNN_DATA_FLOAT,
+        //For some reason cudnnAddTensor doesn't support per-batch biases, so we fold that into the
+        //channel dimension
+        1,
+        batchSize*regularNumChannels,
+        ySize,
+        xSize
       ));
 
       CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&midInDescriptor));
@@ -1703,6 +1724,7 @@ struct Trunk {
       cudnnDestroyTensorDescriptor(dilatedOutDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(gpoolOutDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(gpoolBiasDescriptors[batchSize-1]);
+      cudnnDestroyTensorDescriptor(regularOutForBiasDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(midInDescriptors[batchSize-1]);
     }
 
@@ -1711,6 +1733,7 @@ struct Trunk {
     delete[] dilatedOutDescriptors;
     delete[] gpoolOutDescriptors;
     delete[] gpoolBiasDescriptors;
+    delete[] regularOutForBiasDescriptors;
     delete[] midInDescriptors;
   }
 
@@ -1782,6 +1805,7 @@ struct Trunk {
     const cudnnTensorDescriptor_t& regularOutDescriptor = regularOutDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& gpoolOutDescriptor = gpoolOutDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& gpoolBiasDescriptor = gpoolBiasDescriptors[batchSize-1];
+    const cudnnTensorDescriptor_t& regularOutForBiasDescriptor = regularOutForBiasDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& dilatedOutDescriptor = dilatedOutDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& midInDescriptor = midInDescriptors[batchSize-1];
 
@@ -1836,6 +1860,7 @@ struct Trunk {
           regularOutDescriptor,
           gpoolOutDescriptor,
           gpoolBiasDescriptor,
+          regularOutForBiasDescriptor,
           batchSize,
           trunkBufSize,
           currentTrunkBuf,
@@ -1856,10 +1881,11 @@ struct Trunk {
       else {
         assert(false);
       }
+
     }
 
     trunkTipBN->apply(cudaHandles,trunkDescriptor,trunkDescriptor,currentTrunkBuf,nextTrunkBuf);
-    trunkTipActivation->apply(cudaHandles,trunkDescriptor,trunkDescriptor,currentTrunkBuf,trunkOutBuf);
+    trunkTipActivation->apply(cudaHandles,trunkDescriptor,trunkDescriptor,nextTrunkBuf,trunkOutBuf);
   }
 
 };
@@ -1972,6 +1998,7 @@ struct PolicyHead {
   cudnnTensorDescriptor_t* p1OutDescriptors;
   cudnnTensorDescriptor_t* g1OutDescriptors;
   cudnnTensorDescriptor_t* g1BiasDescriptors;
+  cudnnTensorDescriptor_t* p1OutForBiasDescriptors;
   cudnnTensorDescriptor_t* p2InDescriptors;
   cudnnTensorDescriptor_t* p2OutDescriptors;
 
@@ -2008,6 +2035,7 @@ struct PolicyHead {
     p1OutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     g1OutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     g1BiasDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+    p1OutForBiasDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     p2InDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     p2OutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
 
@@ -2015,6 +2043,7 @@ struct PolicyHead {
       cudnnTensorDescriptor_t& p1OutDescriptor = p1OutDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& g1OutDescriptor = g1OutDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& g1BiasDescriptor = g1BiasDescriptors[batchSize-1];
+      cudnnTensorDescriptor_t& p1OutForBiasDescriptor = p1OutForBiasDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& p2InDescriptor = p2InDescriptors[batchSize-1];
       cudnnTensorDescriptor_t& p2OutDescriptor = p2OutDescriptors[batchSize-1];
 
@@ -2045,10 +2074,21 @@ struct PolicyHead {
         g1BiasDescriptor,
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
-        batchSize,
-        desc->p1Conv.outChannels,
+        1,
+        batchSize * desc->p1Conv.outChannels,
         1,
         1
+      ));
+
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&p1OutForBiasDescriptor));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
+        p1OutForBiasDescriptor,
+        CUDNN_TENSOR_NCHW,
+        CUDNN_DATA_FLOAT,
+        1,
+        batchSize * desc->p1Conv.outChannels,
+        ySize,
+        xSize
       ));
 
       CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&p2InDescriptor));
@@ -2101,6 +2141,7 @@ struct PolicyHead {
       cudnnDestroyTensorDescriptor(p1OutDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(g1OutDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(g1BiasDescriptors[batchSize-1]);
+      cudnnDestroyTensorDescriptor(p1OutForBiasDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(p2InDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(p2OutDescriptors[batchSize-1]);
     }
@@ -2108,6 +2149,7 @@ struct PolicyHead {
     delete[] p1OutDescriptors;
     delete[] g1OutDescriptors;
     delete[] g1BiasDescriptors;
+    delete[] p1OutForBiasDescriptors;
     delete[] p2InDescriptors;
     delete[] p2OutDescriptors;
   }
@@ -2162,6 +2204,7 @@ struct PolicyHead {
     const cudnnTensorDescriptor_t& p1OutDescriptor = p1OutDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& g1OutDescriptor = g1OutDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& g1BiasDescriptor = g1BiasDescriptors[batchSize-1];
+    const cudnnTensorDescriptor_t& p1OutForBiasDescriptor = p1OutForBiasDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& p2InDescriptor = p2InDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& p2OutDescriptor = p2OutDescriptors[batchSize-1];
 
@@ -2183,8 +2226,8 @@ struct PolicyHead {
     gpoolToBiasMul->apply(cudaHandles,batchSize,g1ConcatBuf,g1BiasBuf,workspaceBuf,workspaceBytes);
 
     const float alpha = 1.0f;
-    const float beta = 0.0f;
-    cudnnAddTensor(cudaHandles->cudnn,&alpha,g1BiasDescriptor,g1BiasBuf,&beta,p1OutDescriptor,p1OutBuf);
+    const float beta = 1.0f;
+    CUDNN_ERR(name.c_str(),cudnnAddTensor(cudaHandles->cudnn,&alpha,g1BiasDescriptor,g1BiasBuf,&beta,p1OutForBiasDescriptor,p1OutBuf));
 
     p1BN->apply(cudaHandles,p1OutDescriptor,p1OutDescriptor,p1OutBuf,p1OutBuf2);
 
@@ -2598,7 +2641,7 @@ struct Model {
       CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&inputDescriptor));
       CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         inputDescriptor,
-        CUDNN_TENSOR_NCHW,
+        CUDNN_TENSOR_NHWC,
         CUDNN_DATA_FLOAT,
         batchSize,
         numInputChannels,
@@ -2975,6 +3018,7 @@ void NeuralNet::freeLocalGpuHandle(LocalGpuHandle* gpuHandle) {
 struct InputBuffers {
   int maxBatchSize;
 
+  size_t singleBatchItemElts;
   size_t singleBatchItemBytes;
   size_t singlePolicyResultBytes;
   size_t singleValueResultBytes;
@@ -2993,7 +3037,8 @@ struct InputBuffers {
     const ModelDesc& m = loadedModel->modelDesc;
 
     maxBatchSize = maxBatchSz;
-    singleBatchItemBytes = m.numInputChannels * m.xSize * m.ySize;
+    singleBatchItemElts = m.numInputChannels * m.xSize * m.ySize;
+    singleBatchItemBytes = m.numInputChannels * m.xSize * m.ySize * sizeof(float);
     singlePolicyResultBytes = (1 + m.xSize * m.ySize) * sizeof(float);
     singleValueResultBytes = sizeof(float);
 
@@ -3029,7 +3074,7 @@ void NeuralNet::freeInputBuffers(InputBuffers* buffers) {
 
 float* NeuralNet::getRowInplace(InputBuffers* buffers, int rowIdx) {
   assert(rowIdx < buffers->maxBatchSize);
-  return buffers->userInputBuffer + (buffers->singleBatchItemBytes * rowIdx);
+  return buffers->userInputBuffer + (buffers->singleBatchItemElts * rowIdx);
 }
 
 //TODO use symmetries!!
