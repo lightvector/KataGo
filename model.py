@@ -821,13 +821,12 @@ class Model:
       #we multiply separately and add to the output afterward.
       p1_intermediate_sum = p1_intermediate_conv + g3_layer
 
-      #And now apply batchnorm and crelu
-      p1_layer = tf.nn.crelu(self.batchnorm("p1/norm",p1_intermediate_sum))
+      #And now apply batchnorm and relu
+      p1_layer = self.parametric_relu("p1/prelu",self.batchnorm("p1/norm",p1_intermediate_sum))
       self.outputs_by_layer.append(("p1",p1_layer))
 
       #Finally, apply linear convolution to produce final output
-      #2x in_channels due to crelu
-      p2_layer = self.conv_only_block("p2",p1_layer,diam=5,in_channels=p1_num_channels*2,out_channels=1,scale_initial_weights=0.5,reg=False)
+      p2_layer = self.conv_only_block("p2",p1_layer,diam=1,in_channels=p1_num_channels,out_channels=1,scale_initial_weights=0.5,reg=False)
 
       self.add_lr_factor("p1/norm/beta:0",0.25)
       self.add_lr_factor("p2/w:0",0.25)
@@ -859,18 +858,17 @@ class Model:
     if include_value:
       v0_layer = trunk
 
-      v1_num_channels = 8
+      v1_num_channels = 12
       v1_layer = self.conv_block("v1",v0_layer,diam=3,in_channels=224,out_channels=v1_num_channels)
       self.outputs_by_layer.append(("v1",v1_layer))
 
       v1_layer_pooled = tf.reduce_mean(v1_layer,axis=[1,2],keepdims=False)
       v1_size = v1_num_channels
 
-      v2_size = 8
+      v2_size = 12
       v2w = self.weight_variable("v2/w",[v1_size,v2_size],v1_size,v2_size)
       v2b = self.weight_variable("v2/b",[v2_size],v1_size,v2_size,scale_initial_weights=0.2,reg=False)
-      v2_layer = tf.nn.crelu(tf.matmul(v1_layer_pooled, v2w) + v2b)
-      v2_size *= 2 #for crelu
+      v2_layer = self.parametric_relu_non_spatial("v2/prelu",tf.matmul(v1_layer_pooled, v2w) + v2b)
 
       v3_size = 1
       v3w = self.weight_variable("v3/w",[v2_size,v3_size],v2_size,v3_size)
