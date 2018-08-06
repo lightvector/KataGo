@@ -104,6 +104,7 @@ with tf.Session(config=tfconfig) as session:
       f.write(str(s)+"\n")
 
     writeln(model_name)
+    writeln(0) #version
     writeln(model.max_board_size) #x
     writeln(model.max_board_size) #y
     writeln(model.num_input_features)

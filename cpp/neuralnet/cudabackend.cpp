@@ -2576,6 +2576,7 @@ struct ValueHead {
 
 struct ModelDesc {
   string name;
+  int version;
   int xSize;
   int ySize;
   int numInputChannels;
@@ -2588,6 +2589,7 @@ struct ModelDesc {
 
   ModelDesc(istream& in) {
     in >> name;
+    in >> version;
     in >> xSize;
     in >> ySize;
     in >> numInputChannels;
