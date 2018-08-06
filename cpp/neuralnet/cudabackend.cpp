@@ -1890,6 +1890,56 @@ struct Trunk {
 
 };
 
+//------------------------------------------------------------------------------
+
+static void applySymmetriesNCHW(
+  const bool* symmetriesBuffer, bool inverse, int batchSize, int cSize, int xSize, int ySize,
+  float* inputBuf, float* inputScratchBuf
+) {
+  if(!symmetriesBuffer[0] && !symmetriesBuffer[1] && !symmetriesBuffer[2])
+    return;
+
+  if(inverse) {
+    if(symmetriesBuffer[2])
+      customCudaNCHWTranspose(inputBuf,inputScratchBuf,xSize,ySize,batchSize*cSize);
+    else
+      cudaMemcpyAsync(inputScratchBuf,inputBuf,sizeof(float)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
+
+    customCudaMirrorNCHW(inputScratchBuf, inputBuf, batchSize, cSize, ySize, xSize, symmetriesBuffer[0], symmetriesBuffer[1]);
+  }
+  else {
+    customCudaMirrorNCHW(inputBuf, inputScratchBuf, batchSize, cSize, ySize, xSize, symmetriesBuffer[0], symmetriesBuffer[1]);
+    if(symmetriesBuffer[2])
+      customCudaNCHWTranspose(inputScratchBuf,inputBuf,xSize,ySize,batchSize*cSize);
+    else
+      cudaMemcpyAsync(inputBuf,inputScratchBuf,sizeof(float)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
+  }
+}
+
+static void applySymmetriesNHWC(
+  const bool* symmetriesBuffer, bool inverse, int batchSize, int cSize, int xSize, int ySize,
+  float* inputBuf, float* inputScratchBuf
+) {
+  if(!symmetriesBuffer[0] && !symmetriesBuffer[1] && !symmetriesBuffer[2])
+    return;
+
+  if(inverse) {
+    if(symmetriesBuffer[2])
+      customCudaNHWCTranspose(inputBuf,inputScratchBuf,xSize,ySize,cSize,batchSize);
+    else
+      cudaMemcpyAsync(inputScratchBuf,inputBuf,sizeof(float)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
+
+    customCudaMirrorNHWC(inputScratchBuf, inputBuf, batchSize, ySize, xSize, cSize, symmetriesBuffer[0], symmetriesBuffer[1]);
+  }
+  else {
+    customCudaMirrorNHWC(inputBuf, inputScratchBuf, batchSize, ySize, xSize, cSize, symmetriesBuffer[0], symmetriesBuffer[1]);
+    if(symmetriesBuffer[2])
+      customCudaNHWCTranspose(inputScratchBuf,inputBuf,xSize,ySize,cSize,batchSize);
+    else
+      cudaMemcpyAsync(inputBuf,inputScratchBuf,sizeof(float)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
+  }
+}
+
 
 //------------------------------------------------------------------------------
 
@@ -2184,6 +2234,7 @@ struct PolicyHead {
   void apply(
     CudaHandles* cudaHandles,
     const cudnnTensorDescriptor_t& trunkDescriptor,
+    const bool* symmetriesBuffer,
     int batchSize,
     float* trunkOutBuf,
     float* p1OutBuf,
@@ -2244,6 +2295,9 @@ struct PolicyHead {
 
     p1Activation->apply(cudaHandles,p2InDescriptor,p2InDescriptor,p2InBuf,p2InBuf);
     p2Conv->apply(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize,p2InBuf,p2OutBuf,workspaceBuf,workspaceBytes);
+
+    bool inverse = true;
+    applySymmetriesNCHW(symmetriesBuffer, inverse, batchSize, p2Channels, xSize, ySize, p2OutBuf, policyBuf);
 
     gpoolToPassMul->apply(cudaHandles,batchSize,g1ConcatBuf,g1PassBuf,workspaceBuf,workspaceBytes);
 
@@ -2691,7 +2745,10 @@ struct Model {
   void apply(
     CudaHandles* cudaHandles,
     int batchSize,
+    bool* symmetriesBuffer,
+
     float* inputBuf,
+    float* inputScratchBuf,
     float* trunkScratchBuf,
     float* trunkOutBuf,
     float* regularOutBuf,
@@ -2733,6 +2790,9 @@ struct Model {
     const cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& trunkDescriptor = trunk->trunkDescriptors[batchSize-1];
 
+    bool inverse = false;
+    applySymmetriesNHWC(symmetriesBuffer, inverse, batchSize, numInputChannels, xSize, ySize, inputBuf, inputScratchBuf);
+
     trunk->apply(
       cudaHandles,
       inputDescriptor,
@@ -2757,6 +2817,7 @@ struct Model {
     policyHead->apply(
       cudaHandles,
       trunkDescriptor,
+      symmetriesBuffer,
       batchSize,
       trunkOutBuf,
       p1OutBuf,
@@ -2828,6 +2889,7 @@ struct Buffers {
   //All of these are device pointers
 
   float* inputBuf;
+  float* inputScratchBuf;
   size_t inputBufBytes;
 
   float* trunkScratchBuf;
@@ -2880,6 +2942,7 @@ struct Buffers {
 
     inputBufBytes = m.numInputChannels * batchXYFloat;
     CUDA_ERR("Buffers",cudaMalloc(&inputBuf, inputBufBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&inputScratchBuf, inputBufBytes));
 
     CUDA_ERR("Buffers",cudaMalloc(&trunkScratchBuf, m.trunk->trunkNumChannels * batchXYFloat));
     CUDA_ERR("Buffers",cudaMalloc(&trunkOutBuf, m.trunk->trunkNumChannels * batchXYFloat));
@@ -2937,6 +3000,7 @@ struct Buffers {
 
   ~Buffers() {
     cudaFree(inputBuf);
+    cudaFree(inputScratchBuf);
     cudaFree(trunkScratchBuf);
     cudaFree(trunkOutBuf);
     cudaFree(regularOutBuf);
@@ -3077,7 +3141,6 @@ float* NeuralNet::getRowInplace(InputBuffers* buffers, int rowIdx) {
   return buffers->userInputBuffer + (buffers->singleBatchItemElts * rowIdx);
 }
 
-//TODO use symmetries!!
 bool* NeuralNet::getSymmetriesInplace(InputBuffers* buffers) {
   return buffers->symmetriesBuffer;
 }
@@ -3103,8 +3166,10 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
   gpuHandle->model->apply(
     gpuHandle->cudaHandles,
     batchSize,
+    inputBuffers->symmetriesBuffer,
 
     buffers->inputBuf,
+    buffers->inputScratchBuf,
     buffers->trunkScratchBuf,
     buffers->trunkOutBuf,
     buffers->regularOutBuf,

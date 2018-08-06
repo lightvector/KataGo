@@ -130,7 +130,7 @@ void nchwTransposeKernel(const float *in, float* out, int xSize, int ySize, int 
   //Transpose idx
   int outXIdx = blockIdx.y * tileDim + threadIdx.x;
   int outYIdx = blockIdx.x * tileDim + threadIdx.y;
-  
+
   if(outXIdx < ySize) {
     for(int j = 0; j < tileDim && outYIdx+j < xSize; j += tileStride) {
       int outIdx = outXIdx + ySize * (outYIdx+j) + xySize * nc;
@@ -162,7 +162,7 @@ void nhwcTransposeKernel(const float *in, float* out, int xSize, int ySize, int 
   //Transpose idx
   int outXIdx = blockIdx.y * tileDim + threadIdx.x;
   int outYIdx = blockIdx.x * tileDim + threadIdx.y;
-  
+
   if(outXIdx < ySize) {
     for(int j = 0; j < tileDim && outYIdx+j < xSize; j += tileStride) {
       int outIdx = cIdx + cSize * (outXIdx + ySize * (outYIdx+j)) + xycSize * n;
@@ -171,13 +171,13 @@ void nhwcTransposeKernel(const float *in, float* out, int xSize, int ySize, int 
   }
 }
 
-
 void customCudaNCHWTranspose(const float *in, float* out, int xSize, int ySize, int ncSize) {
   //TODO maybe tune these numbers, it varies by GPU
   //The first one should be the warp size, since it's set to what we need to avoid bank conflicts?
   //Or is it better to just make it xSize, to reduce overhead on top of 19x19?
+  int targetNumThreads = 256;
   int tileDim = 32;
-  int tileStride = 8;
+  int tileStride = targetNumThreads/tileDim;
   dim3 grid((xSize+tileDim-1)/tileDim,(ySize+tileDim-1)/tileDim,ncSize);
   dim3 threads(tileDim,tileStride,1);
   int sharedMemSize = sizeof(float)*tileDim*(tileDim+1);
@@ -185,24 +185,91 @@ void customCudaNCHWTranspose(const float *in, float* out, int xSize, int ySize, 
 }
 
 void customCudaNHWCTranspose(const float *in, float* out, int xSize, int ySize, int cSize, int nSize) {
-  if(cSize <= 0)
-    throw std::runtime_error("customCudaNHWCTranspose: cSize nonpositive");
   if(cSize > 64)
     throw std::runtime_error("customCudaNHWCTranspose: cSize too large");
-
   //TODO maybe tune these numbers, it varies by GPU
+  int targetNumThreads = 256;
+
   int tileDim = 1;
-  while(tileDim * 2 * cSize <= 256)
+  while(tileDim * 2 * cSize <= targetNumThreads)
     tileDim *= 2;
 
   int tileStride = 1;
   if(tileDim > 32) {
-    tileStride = tileDim / 32; 
+    tileStride = tileDim / 32;
     tileDim = 32;
   }
   dim3 grid((xSize+tileDim-1)/tileDim,(ySize+tileDim-1)/tileDim,nSize);
   dim3 threads(tileDim,tileStride,cSize);
   int sharedMemSize = sizeof(float)*tileDim*(tileDim+1)*cSize;
   nhwcTransposeKernel<<<grid,threads,sharedMemSize>>>(in,out,xSize,ySize,cSize,tileDim,tileStride,xSize*ySize*cSize);
-  
+}
+
+__global__
+void mirrorKernel(const float *in, float* out, int batchSize, int mSize, int subSize)
+{
+  int subIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int mIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int batchIdx = blockIdx.z;
+  if(subIdx < subSize && mIdx < mSize) {
+    int inIdx = subIdx + subSize * (mIdx + mSize * batchIdx);
+    int outIdx = subIdx + subSize * ((mSize-mIdx-1) + mSize * batchIdx);
+    out[outIdx] = in[inIdx];
+  }
+}
+
+
+void customCudaMirror(const float *in, float* out, int batchSize, int mSize, int subSize) {
+  //TODO maybe tune these numbers, it varies by GPU
+  int targetNumThreads = 256;
+
+  int subThreads;
+  int subBlocks;
+  int mThreads;
+  int mBlocks;
+
+  if(subSize > targetNumThreads) {
+    subThreads = targetNumThreads/2;
+    subBlocks = (subSize + subThreads - 1) / subThreads;
+    mThreads = 1;
+    mBlocks = mSize;
+  }
+  else if(subSize > targetNumThreads/2) {
+    subThreads = subSize;
+    subBlocks = 1;
+    mThreads = 1;
+    mBlocks = mSize;
+  }
+  else {
+    subThreads = subSize;
+    subBlocks = 1;
+    mThreads = targetNumThreads / subSize;
+    mBlocks = (mSize + mThreads - 1) / mThreads;
+  }
+
+  dim3 grid(subBlocks,mBlocks,batchSize);
+  dim3 threads(subThreads,mThreads,1);
+  mirrorKernel<<<grid,threads>>>(in,out,batchSize,mSize,subSize);
+}
+
+void customCudaMirrorNCHW(const float *in, float* out, int batchSize, int cSize, int ySize, int xSize, bool mirrorY, bool mirrorX) {
+  if(mirrorY && mirrorX)
+    customCudaMirror(in,out,batchSize*cSize,ySize*xSize,1);
+  else if(mirrorY)
+    customCudaMirror(in,out,batchSize*cSize,ySize,xSize);
+  else if(mirrorX)
+    customCudaMirror(in,out,batchSize*cSize*ySize,xSize,1);
+  else
+    cudaMemcpyAsync(out,in,sizeof(float)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
+}
+
+void customCudaMirrorNHWC(const float *in, float* out, int batchSize, int ySize, int xSize, int cSize, bool mirrorY, bool mirrorX) {
+  if(mirrorY && mirrorX)
+    customCudaMirror(in,out,batchSize,ySize*xSize,cSize);
+  else if(mirrorY)
+    customCudaMirror(in,out,batchSize,ySize,xSize*cSize);
+  else if(mirrorX)
+    customCudaMirror(in,out,batchSize*ySize,xSize,cSize);
+  else
+    cudaMemcpyAsync(out,in,sizeof(float)*batchSize*ySize*xSize*cSize,cudaMemcpyDeviceToDevice);
 }

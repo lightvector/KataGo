@@ -13,4 +13,8 @@ void customCudaPoolRowsMax(float* in, float* out, int n, int c);
 void customCudaNCHWTranspose(const float *in, float* out, int xSize, int ySize, int ncSize);
 void customCudaNHWCTranspose(const float *in, float* out, int xSize, int ySize, int cSize, int nSize);
 
+void customCudaMirror(const float *in, float* out, int batchSize, int mSize, int subSize);
+void customCudaMirrorNCHW(const float *in, float* out, int batchSize, int cSize, int ySize, int xSize, bool mirrorY, bool mirrorX);
+void customCudaMirrorNHWC(const float *in, float* out, int batchSize, int ySize, int xSize, int cSize, bool mirrorY, bool mirrorX);
+
 #endif
