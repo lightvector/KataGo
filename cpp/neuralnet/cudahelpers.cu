@@ -11,12 +11,14 @@
 #include <thrust/sequence.h>
 #include <thrust/iterator/discard_iterator.h>
 
+#include <stdexcept>
+
 #include "../neuralnet/cudahelpers.h"
 
 __global__
-void cudaChannelConcatKernel(
-  float* inA,
-  float* inB,
+void channelConcatKernel(
+  const float* inA,
+  const float* inB,
   float* out,
   int chwA,
   int chwB,
@@ -56,12 +58,13 @@ void cudaChannelConcatKernel(
   }
 }
 
-void customCudaChannelConcat(float* inA, float* inB, float* out, int chwA, int chwB, int n) {
-  int blockSize = 128;
+void customCudaChannelConcat(const float* inA, const float* inB, float* out, int chwA, int chwB, int n) {
+  //TODO maybe tune this number, it varies by GPU
+  int blockSize = 256;
   int numBlocksA = (chwA + blockSize-1) / blockSize;
   int numBlocksB = (chwB + blockSize-1) / blockSize;
   int numBlocks = numBlocksA + numBlocksB;
-  cudaChannelConcatKernel<<<numBlocks, blockSize>>>(inA,inB,out,chwA,chwB,numBlocksA,numBlocksB,n);
+  channelConcatKernel<<<numBlocks, blockSize>>>(inA,inB,out,chwA,chwB,numBlocksA,numBlocksB,n);
 }
 
 
@@ -103,4 +106,103 @@ void customCudaPoolRowsMax(float* in, float* out, int n, int c) {
     thrust::maximum<float>()
   );
 
+}
+
+__global__
+void nchwTransposeKernel(const float *in, float* out, int xSize, int ySize, int tileDim, int tileStride, int xySize)
+{
+  //+1 avoids bank conflicts
+  extern __shared__ float tile[];
+  int tileDimP1 = tileDim+1;
+
+  int xIdx = blockIdx.x * tileDim + threadIdx.x;
+  int yIdx = blockIdx.y * tileDim + threadIdx.y;
+  int nc = blockIdx.z;
+  if(xIdx < xSize) {
+    for(int j = 0; j < tileDim && yIdx+j < ySize; j += tileStride) {
+      int inIdx = xIdx + xSize * (yIdx+j) + xySize * nc;
+      tile[(threadIdx.y+j)*tileDimP1 + threadIdx.x] = in[inIdx];
+    }
+  }
+
+  __syncthreads();
+
+  //Transpose idx
+  int outXIdx = blockIdx.y * tileDim + threadIdx.x;
+  int outYIdx = blockIdx.x * tileDim + threadIdx.y;
+  
+  if(outXIdx < ySize) {
+    for(int j = 0; j < tileDim && outYIdx+j < xSize; j += tileStride) {
+      int outIdx = outXIdx + ySize * (outYIdx+j) + xySize * nc;
+      out[outIdx] = tile[threadIdx.x*tileDimP1 + threadIdx.y+j];
+    }
+  }
+}
+
+__global__
+void nhwcTransposeKernel(const float *in, float* out, int xSize, int ySize, int cSize, int tileDim, int tileStride, int xycSize)
+{
+  //+1 reduces bank conflicts
+  extern __shared__ float tile[];
+  int tileDimP1 = tileDim+1;
+
+  int xIdx = blockIdx.x * tileDim + threadIdx.x;
+  int yIdx = blockIdx.y * tileDim + threadIdx.y;
+  int cIdx = threadIdx.z;
+  int n = blockIdx.z;
+  if(xIdx < xSize) {
+    for(int j = 0; j < tileDim && yIdx+j < ySize; j += tileStride) {
+      int inIdx = cIdx + cSize * (xIdx + xSize * (yIdx+j)) + xycSize * n;
+      tile[cIdx + cSize * ((threadIdx.y+j)*tileDimP1 + threadIdx.x)] = in[inIdx];
+    }
+  }
+
+  __syncthreads();
+
+  //Transpose idx
+  int outXIdx = blockIdx.y * tileDim + threadIdx.x;
+  int outYIdx = blockIdx.x * tileDim + threadIdx.y;
+  
+  if(outXIdx < ySize) {
+    for(int j = 0; j < tileDim && outYIdx+j < xSize; j += tileStride) {
+      int outIdx = cIdx + cSize * (outXIdx + ySize * (outYIdx+j)) + xycSize * n;
+      out[outIdx] = tile[cIdx + cSize * (threadIdx.x*tileDimP1 + threadIdx.y+j)];
+    }
+  }
+}
+
+
+void customCudaNCHWTranspose(const float *in, float* out, int xSize, int ySize, int ncSize) {
+  //TODO maybe tune these numbers, it varies by GPU
+  //The first one should be the warp size, since it's set to what we need to avoid bank conflicts?
+  //Or is it better to just make it xSize, to reduce overhead on top of 19x19?
+  int tileDim = 32;
+  int tileStride = 8;
+  dim3 grid((xSize+tileDim-1)/tileDim,(ySize+tileDim-1)/tileDim,ncSize);
+  dim3 threads(tileDim,tileStride,1);
+  int sharedMemSize = sizeof(float)*tileDim*(tileDim+1);
+  nchwTransposeKernel<<<grid,threads,sharedMemSize>>>(in,out,xSize,ySize,tileDim,tileStride,xSize*ySize);
+}
+
+void customCudaNHWCTranspose(const float *in, float* out, int xSize, int ySize, int cSize, int nSize) {
+  if(cSize <= 0)
+    throw std::runtime_error("customCudaNHWCTranspose: cSize nonpositive");
+  if(cSize > 64)
+    throw std::runtime_error("customCudaNHWCTranspose: cSize too large");
+
+  //TODO maybe tune these numbers, it varies by GPU
+  int tileDim = 1;
+  while(tileDim * 2 * cSize <= 256)
+    tileDim *= 2;
+
+  int tileStride = 1;
+  if(tileDim > 32) {
+    tileStride = tileDim / 32; 
+    tileDim = 32;
+  }
+  dim3 grid((xSize+tileDim-1)/tileDim,(ySize+tileDim-1)/tileDim,nSize);
+  dim3 threads(tileDim,tileStride,cSize);
+  int sharedMemSize = sizeof(float)*tileDim*(tileDim+1)*cSize;
+  nhwcTransposeKernel<<<grid,threads,sharedMemSize>>>(in,out,xSize,ySize,cSize,tileDim,tileStride,xSize*ySize*cSize);
+  
 }
