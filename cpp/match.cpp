@@ -366,7 +366,8 @@ int main(int argc, const char* argv[]) {
 
   auto runMatchLoop = [
     &botNames,&initNewGame,&runSelfPlayGame,&runMatchGame,&matchSetupMutex,
-    numMatchGamesTotal,&numMatchGamesStartedSoFar,&getMatchup,&sgfOutputDir,&logger,logGamesEvery
+    numMatchGamesTotal,&numMatchGamesStartedSoFar,&getMatchup,&sgfOutputDir,&logger,logGamesEvery,
+    &nnModelFiles,&nnEvals
   ](
     uint64_t threadHash
   ) {
@@ -384,6 +385,15 @@ int main(int argc, const char* argv[]) {
 
       if(numMatchGamesStartedSoFar % logGamesEvery == 0)
         logger.write("Started " + Global::int64ToString(numMatchGamesStartedSoFar) + " games");
+      int logNNEvery = logGamesEvery > 100 ? logGamesEvery : 100;
+      if(numMatchGamesStartedSoFar % logNNEvery == 0) {
+        for(int i = 0; i<nnModelFiles.size(); i++) {
+          logger.write(nnModelFiles[i]);
+          logger.write("NN rows: " + Global::int64ToString(nnEvals[i]->numRowsProcessed()));
+          logger.write("NN batches: " + Global::int64ToString(nnEvals[i]->numBatchesProcessed()));
+          logger.write("NN avg batch size: " + Global::doubleToString(nnEvals[i]->averageProcessedBatchSize()));
+        }
+      }
 
       pair<int,int> matchup = getMatchup();
       int botIdxB = matchup.first;
