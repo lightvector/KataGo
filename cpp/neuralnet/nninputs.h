@@ -52,6 +52,26 @@ namespace NNInputs {
 
 }
 
+struct NNOutput {
+  Hash128 nnHash; //NNInputs - getHashV0 or getHashV1
+
+  //From the perspective of the player to move at the time of the eval
+  float whiteValue;
+
+  //Indexed by pos rather than loc
+  //Values in here will be set to negative for illegal moves, including superko
+  float policyProbs[NNPos::NN_POLICY_SIZE];
+
+  NNOutput(); //Does NOT initialize values
+  NNOutput(const NNOutput& other);
+
+  //Utility --------------------------------------------------------------------
+  //The utility of having a particular winner
+  static double whiteValueOfWinner(Player winner, double drawValue);
+  //The utility of achieving a certain score difference
+  static double whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize);
+};
+
 #endif
 
 

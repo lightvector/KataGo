@@ -4,6 +4,7 @@
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../game/board.h"
+#include "../game/boardhistory.h"
 
 STRUCT_NAMED_TRIPLE(uint8_t,x,uint8_t,y,Player,pla,MoveNoBSize);
 
@@ -40,6 +41,7 @@ struct Sgf {
   static vector<Sgf*> loadFiles(const vector<string>& files);
 
   int getBSize() const;
+  float getKomi() const;
 
   void getPlacements(vector<Move>& moves, int bSize) const;
   void getMoves(vector<Move>& moves, int bSize) const;
@@ -58,6 +60,7 @@ struct CompactSgf {
   vector<Move> moves;
   int bSize;
   int depth;
+  float komi;
   Hash128 hash;
 
   CompactSgf(const Sgf* sgf);
@@ -70,5 +73,11 @@ struct CompactSgf {
   static vector<CompactSgf*> loadFiles(const vector<string>& files);
 };
 
+namespace WriteSgf {
+  void writeSgf(
+    ostream& out, const string& bName, const string& wName, const Rules& rules,
+    const Board& initialBoard, const BoardHistory& hist
+  );
+}
 
 #endif

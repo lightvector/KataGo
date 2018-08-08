@@ -7,23 +7,23 @@ static void searchThreadLoop(AsyncBot* asyncBot, Logger* logger) {
     asyncBot->internalSearchThreadLoop();
   }
   catch(const exception& e) {
-    logger->write(string("ERROR: Async bot thread failed: ") + e.what() + "\n");
+    logger->write(string("ERROR: Async bot thread failed: ") + e.what());
   }
   catch(const string& e) {
-    logger->write("ERROR: Async bot thread failed: " + e + "\n");
+    logger->write("ERROR: Async bot thread failed: " + e);
   }
   catch(...) {
-    logger->write("ERROR: Async bot thread failed with unexpected throw\n");
+    logger->write("ERROR: Async bot thread failed with unexpected throw");
   }
 }
 
-AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l)
+AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const string& randSeed)
   :search(NULL),logger(l),searchParams(params),
    controlMutex(),threadWaitingToSearch(),userWaitingForStop(),searchThread(),
-   isRunning(false),isKilled(false),shouldStopNow(false),
+   isRunning(false),isPondering(false),isKilled(false),shouldStopNow(false),
    queuedSearchId(0),queuedOnMove()
 {
-  search = new Search(params,nnEval);
+  search = new Search(params,nnEval,randSeed);
   searchThread = std::thread(searchThreadLoop,this,l);
 }
 
@@ -37,6 +37,21 @@ AsyncBot::~AsyncBot() {
   delete search;
 }
 
+
+const Board& AsyncBot::getRootBoard() const {
+  return search->rootBoard;
+}
+const BoardHistory& AsyncBot::getRootHist() const {
+  return search->rootHistory;
+}
+Player AsyncBot::getRootPla() const {
+  return search->rootPla;
+}
+
+Search* AsyncBot::getSearch() {
+  return search;
+}
+
 void AsyncBot::setPosition(Player pla, const Board& board, const BoardHistory& history) {
   stopAndWait();
   search->setPosition(pla,board,history);
@@ -48,6 +63,10 @@ void AsyncBot::setRulesAndClearHistory(Rules rules) {
 void AsyncBot::setKomi(float newKomi) {
   stopAndWait();
   search->setKomi(newKomi);
+}
+void AsyncBot::setRootPassLegal(bool b) {
+  stopAndWait();
+  search->setRootPassLegal(b);
 }
 void AsyncBot::setParams(SearchParams params) {
   stopAndWait();
@@ -64,19 +83,30 @@ bool AsyncBot::makeMove(Loc moveLoc, Player movePla) {
   return search->makeMove(moveLoc,movePla);
 }
 
-void AsyncBot::genMove(Player movePla, int searchId, std::function<void(Loc,int)> onMove) {
-  stopAndWait();
-  if(movePla != search->rootPla)
-    search->setPlayerAndClearHistory(movePla);
+bool AsyncBot::isLegal(Loc moveLoc, Player movePla) const {
+  return search->isLegal(moveLoc,movePla);
+}
 
+void AsyncBot::genMove(Player movePla, int searchId, std::function<void(Loc,int)> onMove) {
   unique_lock<std::mutex> lock(controlMutex);
-  assert(!isRunning);
-  queuedSearchId = searchId;
-  queuedOnMove = onMove;
-  isRunning = true;
-  shouldStopNow = false;
-  lock.unlock();
-  threadWaitingToSearch.notify_all();
+  if(isRunning && isPondering && movePla == search->rootPla) {
+    queuedSearchId = searchId;
+    queuedOnMove = onMove;
+  }
+  else {
+    stopAndWaitAlreadyLocked(lock);
+    assert(!isRunning);
+    if(movePla != search->rootPla)
+      search->setPlayerAndClearHistory(movePla);
+
+    queuedSearchId = searchId;
+    queuedOnMove = onMove;
+    isRunning = true;
+    isPondering = false;
+    shouldStopNow = false;
+    lock.unlock();
+    threadWaitingToSearch.notify_all();
+  }
 }
 
 Loc AsyncBot::genMoveSynchronous(Player movePla) {
@@ -103,6 +133,7 @@ void AsyncBot::ponder() {
   queuedSearchId = 0;
   queuedOnMove = std::function<void(Loc,int)>(ignoreMove);
   isRunning = true;
+  isPondering = true;
   shouldStopNow = false;
   lock.unlock();
   threadWaitingToSearch.notify_all();
@@ -113,8 +144,18 @@ void AsyncBot::stopAndWait() {
   waitForSearchToEnd();
 }
 
+void AsyncBot::stopAndWaitAlreadyLocked(unique_lock<std::mutex>& lock) {
+  shouldStopNow.store(true);
+  waitForSearchToEndAlreadyLocked(lock);
+}
+
 void AsyncBot::waitForSearchToEnd() {
   unique_lock<std::mutex> lock(controlMutex);
+  while(isRunning)
+    userWaitingForStop.wait(lock);
+}
+
+void AsyncBot::waitForSearchToEndAlreadyLocked(unique_lock<std::mutex>& lock) {
   while(isRunning)
     userWaitingForStop.wait(lock);
 }
@@ -131,42 +172,45 @@ void AsyncBot::internalSearchThreadLoop() {
 
 
     ClockTimer timer;
-    atomic<uint64_t> numPlayouts(0);
+    atomic<uint64_t> numPlayoutsShared(0);
 
-    if(!std::atomic_is_lock_free(&numPlayouts))
-      logger->write("Warning: uint64_t atomic numPlayouts is not lock free\n");
+    if(!std::atomic_is_lock_free(&numPlayoutsShared))
+      logger->write("Warning: uint64_t atomic numPlayoutsShared is not lock free");
     if(!std::atomic_is_lock_free(&shouldStopNow))
-      logger->write("Warning: bool atomic shouldStopNow is not lock free\n");
+      logger->write("Warning: bool atomic shouldStopNow is not lock free");
 
     search->beginSearch();
+    uint64_t numNonPlayoutVisits = search->numRootVisits();
 
-    auto searchLoop = [this,&timer,&numPlayouts](int threadIdx) {
+    auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits](int threadIdx) {
       SearchThread* stbuf = new SearchThread(threadIdx,*search,logger);
+      uint64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
       try {
-        while(!shouldStopNow.load(std::memory_order_relaxed)) {
-          search->runSinglePlayout(*stbuf);
-
-          uint64_t oldNumPlayouts = numPlayouts.fetch_add((uint64_t)1, std::memory_order_relaxed);
-          uint64_t newNumPlayouts = oldNumPlayouts + 1;
-
+        while(true) {
           bool shouldStop =
-            (searchParams.maxTime < 1.0e12 && timer.getSeconds() >= searchParams.maxTime) ||
-            (newNumPlayouts >= searchParams.maxPlayouts);
+            (numPlayouts >= 1 && searchParams.maxTime < 1.0e12 && timer.getSeconds() >= searchParams.maxTime) ||
+            (numPlayouts >= searchParams.maxPlayouts) ||
+            (numPlayouts + numNonPlayoutVisits >= searchParams.maxVisits);
 
-          if(shouldStop) {
+          if(shouldStop || shouldStopNow.load(std::memory_order_relaxed)) {
             shouldStopNow.store(true,std::memory_order_relaxed);
             break;
           }
+
+          search->runSinglePlayout(*stbuf);
+
+          numPlayouts = numPlayoutsShared.fetch_add((uint64_t)1, std::memory_order_relaxed);
+          numPlayouts += 1;
         }
       }
       catch(const exception& e) {
-        logger->write(string("ERROR: Search thread failed: ") + e.what() + "\n");
+        logger->write(string("ERROR: Search thread failed: ") + e.what());
       }
       catch(const string& e) {
-        logger->write("ERROR: Search thread failed: " + e + "\n");
+        logger->write("ERROR: Search thread failed: " + e);
       }
       catch(...) {
-        logger->write("ERROR: Search thread failed with unexpected throw\n");
+        logger->write("ERROR: Search thread failed with unexpected throw");
       }
       delete stbuf;
     };
@@ -184,10 +228,13 @@ void AsyncBot::internalSearchThreadLoop() {
     }
 
     Loc moveLoc = search->getChosenMoveLoc();
-    queuedOnMove(moveLoc,queuedSearchId);
 
     lock.lock();
+    //Must call queuedOnMove under the lock since during the pondering->normal search
+    //transition it might change out from underneath us
+    queuedOnMove(moveLoc,queuedSearchId);
     isRunning = false;
+    isPondering = false;
     userWaitingForStop.notify_all();
   }
 }

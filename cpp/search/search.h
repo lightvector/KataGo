@@ -107,7 +107,9 @@ struct Search {
   NNEvaluator* nnEvaluator; //externally owned
   Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
 
-  Search(SearchParams params, NNEvaluator* nnEval);
+  //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
+  //random symmetries of the neural net evaluations, see nneval.h
+  Search(SearchParams params, NNEvaluator* nnEval, const string& randSeed);
   ~Search();
 
   Search(const Search&) = delete;
@@ -131,6 +133,7 @@ struct Search {
   //If the move is not legal for the specified player, returns false and does nothing, else returns true
   //In the case where the player was not the expected one moving next, also clears history.
   bool makeMove(Loc moveLoc, Player movePla);
+  bool isLegal(Loc moveLoc, Player movePla) const;
 
   //Choose a move at the root of the tree, with randomization, if possible.
   //Might return Board::NULL_LOC if there is no root.
@@ -142,9 +145,10 @@ struct Search {
   //Within-search functions, threadsafe-------------------------------------------
   void runSinglePlayout(SearchThread& thread);
 
-  //Debug functions---------------------------------------------------------------
+  //Tree-inspection functions---------------------------------------------------------------
   void printPV(ostream& out, const SearchNode* node, int maxDepth);
   void printTree(ostream& out, const SearchNode* node, PrintTreeOptions options);
+  uint64_t numRootVisits();
 
   //Helpers-----------------------------------------------------------------------
 private:
@@ -166,8 +170,14 @@ private:
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
     int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
-    bool isRoot, bool checkLegalityOfNewMoves
+    bool isRoot
   ) const;
+
+  void initNodeNNOutput(
+    SearchThread& thread, SearchNode& node,
+    double& retWinLossValue, double& retScoreValue,
+    bool isRoot, bool skipCache
+  );
 
   void playoutDescend(
     SearchThread& thread, SearchNode& node,

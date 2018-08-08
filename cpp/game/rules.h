@@ -1,6 +1,8 @@
 #ifndef RULES_H
 #define RULES_H
 
+#include "../core/global.h"
+
 struct Rules {
 
   static const int KO_SIMPLE = 0;
@@ -18,6 +20,13 @@ struct Rules {
 
   Rules();
   ~Rules();
+
+  static set<string> koRuleStrings();
+  static set<string> scoringRuleStrings();
+  static int parseKoRule(const string& s);
+  static int parseScoringRule(const string& s);
+  static string writeKoRule(int koRule);
+  static string writeScoringRule(int scoringRule);
 };
 
 #endif

@@ -1,97 +1,52 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8.2)
 project(writedata)
 
 set(CMAKE_CXX_STANDARD 14)
 
 include_directories(.)
-include_directories(core)
-include_directories(tclap-1.2.1)
 include_directories(tclap-1.2.1/include)
-include_directories(tclap-1.2.1/include/tclap)
+
+if(USE_TENSORFLOW_BACKEND)
+  set(NEURALNET_BACKEND_SOURCES neuralnet/tensorflowbackend.cpp)
+
+elseif(USE_CUDA_BACKEND)
+  enable_language(CUDA)
+  set(CUDA_STANDARD 11)
+  set(NEURALNET_BACKEND_SOURCES neuralnet/cudabackend.cpp neuralnet/cudahelpers.cu)
+
+else()
+  message(FATAL_ERROR "Please specify -DUSE_TENSORFLOW_BACKEND=0 -DUSE_CUDA_BACKEND=1  OR  -DUSE_TENSORFLOW_BACKEND=1 -DUSE_CUDA_BACKEND=0")
+endif()
+
 
 add_executable(write
-  core/config.h
   core/global.cpp
-  core/global.h
   core/hash.cpp
-  core/hash.h
   core/md5.cpp
-  core/md5.h
-  core/multithread.h
   core/rand.cpp
-  core/rand.h
-  core/rand_helpers.h
   core/sha2.cpp
-  core/sha2.h
   core/timer.cpp
-  core/timer.h
-  tclap-1.2.1/include/tclap/Arg.h
-  tclap-1.2.1/include/tclap/ArgException.h
-  tclap-1.2.1/include/tclap/ArgTraits.h
-  tclap-1.2.1/include/tclap/CmdLine.h
-  tclap-1.2.1/include/tclap/CmdLineInterface.h
-  tclap-1.2.1/include/tclap/CmdLineOutput.h
-  tclap-1.2.1/include/tclap/Constraint.h
-  tclap-1.2.1/include/tclap/DocBookOutput.h
-  tclap-1.2.1/include/tclap/HelpVisitor.h
-  tclap-1.2.1/include/tclap/IgnoreRestVisitor.h
-  tclap-1.2.1/include/tclap/MultiArg.h
-  tclap-1.2.1/include/tclap/MultiSwitchArg.h
-  tclap-1.2.1/include/tclap/OptionalUnlabeledTracker.h
-  tclap-1.2.1/include/tclap/StandardTraits.h
-  tclap-1.2.1/include/tclap/StdOutput.h
-  tclap-1.2.1/include/tclap/SwitchArg.h
-  tclap-1.2.1/include/tclap/UnlabeledMultiArg.h
-  tclap-1.2.1/include/tclap/UnlabeledValueArg.h
-  tclap-1.2.1/include/tclap/ValueArg.h
-  tclap-1.2.1/include/tclap/ValuesConstraint.h
-  tclap-1.2.1/include/tclap/VersionVisitor.h
-  tclap-1.2.1/include/tclap/Visitor.h
-  tclap-1.2.1/include/tclap/XorHandler.h
-  tclap-1.2.1/include/tclap/ZshCompletionOutput.h
-  zstr/src/strict_fstream.hpp
-  zstr/src/zstr.hpp
   game/board.cpp
-  game/board.h
   game/rules.cpp
-  game/rules.h
   game/boardhistory.cpp
-  game/boardhistory.h
   neuralnet/nninputs.cpp
-  neuralnet/nninputs.h
   dataio/datapool.cpp
-  dataio/datapool.h
   dataio/lzparse.cpp
-  dataio/lzparse.h
   dataio/sgf.cpp
-  dataio/sgf.h
   write.cpp
   )
 
 
 add_executable(runtests
-  core/config.h
   core/global.cpp
-  core/global.h
   core/hash.cpp
-  core/hash.h
   core/md5.cpp
-  core/md5.h
-  core/multithread.h
   core/rand.cpp
-  core/rand.h
-  core/rand_helpers.h
   core/sha2.cpp
-  core/sha2.h
   core/timer.cpp
-  core/timer.h
   game/board.cpp
-  game/board.h
   game/rules.cpp
-  game/rules.h
   game/boardhistory.cpp
-  game/boardhistory.h
-  tests/tests.h
   tests/testboardarea.cpp
   tests/testboardbasic.cpp
   tests/testmisc.cpp
@@ -100,60 +55,136 @@ add_executable(runtests
   )
 
 add_executable(example
-  core/config.h
   core/global.cpp
-  core/global.h
+  core/config_parser.cpp
   core/hash.cpp
-  core/hash.h
-  core/logger.h
   core/logger.cpp
+  core/makedir.cpp
   core/md5.cpp
-  core/md5.h
-  core/multithread.h
   core/rand.cpp
-  core/rand.h
-  core/rand_helpers.h
   core/sha2.cpp
-  core/sha2.h
   core/timer.cpp
-  core/timer.h
   game/board.cpp
-  game/board.h
   game/rules.cpp
-  game/rules.h
   game/boardhistory.cpp
-  game/boardhistory.h
   neuralnet/nninputs.cpp
-  neuralnet/nninputs.h
   neuralnet/nneval.cpp
-  neuralnet/nneval.h
+  ${NEURALNET_BACKEND_SOURCES}
   search/searchparams.cpp
-  search/searchparams.h
   search/mutexpool.cpp
-  search/mutexpool.h
   search/search.cpp
-  search/search.h
   search/asyncbot.cpp
-  search/asyncbot.h
   example.cpp
   )
 
-find_package(TensorflowCC REQUIRED)
-target_link_libraries(example TensorflowCC::Shared)
-find_package(CUDA)
-if(CUDA_FOUND)
-  target_link_libraries(example ${CUDA_LIBRARIES})
+add_executable(gtp
+  core/global.cpp
+  core/config_parser.cpp
+  core/hash.cpp
+  core/logger.cpp
+  core/md5.cpp
+  core/rand.cpp
+  core/sha2.cpp
+  core/timer.cpp
+  game/board.cpp
+  game/rules.cpp
+  game/boardhistory.cpp
+  neuralnet/nninputs.cpp
+  neuralnet/nneval.cpp
+  ${NEURALNET_BACKEND_SOURCES}
+  search/searchparams.cpp
+  search/mutexpool.cpp
+  search/search.cpp
+  search/asyncbot.cpp
+  program/setup.cpp
+  gtp.cpp
+  )
+
+add_executable(evalsgf
+  core/global.cpp
+  core/config_parser.cpp
+  core/hash.cpp
+  core/logger.cpp
+  core/md5.cpp
+  core/rand.cpp
+  core/sha2.cpp
+  core/timer.cpp
+  game/board.cpp
+  game/rules.cpp
+  game/boardhistory.cpp
+  dataio/sgf.cpp
+  neuralnet/nninputs.cpp
+  neuralnet/nneval.cpp
+  ${NEURALNET_BACKEND_SOURCES}
+  search/searchparams.cpp
+  search/mutexpool.cpp
+  search/search.cpp
+  search/asyncbot.cpp
+  program/setup.cpp
+  evalsgf.cpp
+  )
+
+add_executable(match
+  core/global.cpp
+  core/config_parser.cpp
+  core/hash.cpp
+  core/logger.cpp
+  core/makedir.cpp
+  core/md5.cpp
+  core/rand.cpp
+  core/sha2.cpp
+  core/timer.cpp
+  game/board.cpp
+  game/rules.cpp
+  game/boardhistory.cpp
+  dataio/sgf.cpp
+  neuralnet/nninputs.cpp
+  neuralnet/nneval.cpp
+  ${NEURALNET_BACKEND_SOURCES}
+  search/searchparams.cpp
+  search/mutexpool.cpp
+  search/search.cpp
+  search/asyncbot.cpp
+  program/setup.cpp
+  match.cpp
+  )
+
+if(USE_TENSORFLOW_BACKEND)
+  add_definitions(-DUSE_TENSORFLOW_BACKEND)
+  find_package(TensorflowCC REQUIRED)
+  target_link_libraries(example TensorflowCC::Shared)
+  target_link_libraries(gtp TensorflowCC::Shared)
+  target_link_libraries(evalsgf TensorflowCC::Shared)
+  target_link_libraries(match TensorflowCC::Shared)
+  find_package(CUDA)
+  if(CUDA_FOUND)
+    target_link_libraries(example ${CUDA_LIBRARIES})
+    target_link_libraries(gtp ${CUDA_LIBRARIES})
+    target_link_libraries(evalsgf ${CUDA_LIBRARIES})
+    target_link_libraries(match ${CUDA_LIBRARIES})
+  endif()
+endif()
+
+if(USE_CUDA_BACKEND)
+  add_definitions(-DUSE_CUDA_BACKEND)
+  find_package(CUDA REQUIRED)
+  find_library(CUDNN_LIBRARY libcudnn.so /usr/local/cuda/lib64)
+  include_directories(SYSTEM ${CUDA_INCLUDE_DIRS}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
+  target_link_libraries(example ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+  target_link_libraries(gtp ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+  target_link_libraries(evalsgf ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+  target_link_libraries(match ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
 endif()
 
 find_package(HDF5 REQUIRED COMPONENTS C CXX)
 
-if (HDF5_FOUND)
-    include_directories(${HDF5_INCLUDE_DIRS})
-    target_link_libraries (write ${HDF5_LIBRARIES})
+if(HDF5_FOUND)
+  include_directories(${HDF5_INCLUDE_DIRS})
+  target_link_libraries (write ${HDF5_LIBRARIES})
 endif (HDF5_FOUND)
 
-if (CMAKE_COMPILER_IS_GNUCC)
-  set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wnoexcept -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wsuggest-final-types -Wsuggest-final-methods -Wsizeof-pointer-memaccess")
+if(CMAKE_COMPILER_IS_GNUCC)
+  set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wnoexcept -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-null-sentinel -Wstrict-overflow=5 -Wswitch-default -Wsuggest-final-types -Wsuggest-final-methods -Wsizeof-pointer-memaccess -Wuninitialized -Winit-self")
 endif ()
 
 # find_package(ZLIB REQUIRED)

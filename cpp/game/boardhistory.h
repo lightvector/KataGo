@@ -17,6 +17,7 @@ struct BoardHistory {
   //Chronological history of hashes, including the latest board's hash.
   //Cleared on a pass if passes clear ko bans
   vector<Hash128> koHashHistory;
+  int koHistoryLastClearedBeginningMoveIdx;
 
   //Did this board location ever have a stone there before, or was it ever played?
   //(Also includes locations of suicides)
@@ -36,8 +37,10 @@ struct BoardHistory {
   bool blackKoProhibited[Board::MAX_ARR_SIZE];
   bool whiteKoProhibited[Board::MAX_ARR_SIZE];
   Hash128 koProhibitHash;
+
   //Used to implement once-only rules for ko captures in encore
-  vector<pair<Hash128,Loc>> koCapturesInEncore;
+  STRUCT_NAMED_TRIPLE(Hash128,posHashBeforeMove,Loc,moveLoc,Player,movePla,EncoreKoCapture);
+  vector<EncoreKoCapture> koCapturesInEncore;
 
   //State of the grid as of the start of encore phase 2 for territory scoring
   Color secondEncoreStartColors[Board::MAX_ARR_SIZE];
@@ -45,7 +48,9 @@ struct BoardHistory {
   //Amount that should be added to komi
   int whiteBonusScore;
 
-  //Winner of the game if the game is supposed to have ended now, C_EMPTY otherwise or if isNoResult.
+  //Is the game supposed to be ended now?
+  bool isGameFinished;
+  //Winner of the game if the game is supposed to have ended now, C_EMPTY if it is a draw or isNoResult.
   Player winner;
   //Score difference of the game if the game is supposed to have ended now
   float finalWhiteMinusBlackScore;
@@ -67,7 +72,6 @@ struct BoardHistory {
   //Set only the komi field of the rules, does not clear history, but does clear game-over conditions,
   void setKomi(float newKomi);
 
-  bool isGameOver() const;
   float currentSelfKomi(Player pla) const;
 
   //Check if a move on the board is legal, taking into account the full game state and superko
@@ -92,6 +96,7 @@ private:
 struct KoHashTable {
   uint16_t* idxTable;
   vector<Hash128> koHashHistorySortedByLowBits;
+  int koHistoryLastClearedBeginningMoveIdx;
 
   static const int TABLE_SIZE = 1 << 10;
   static const uint64_t TABLE_MASK = TABLE_SIZE-1;

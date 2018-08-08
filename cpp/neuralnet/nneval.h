@@ -3,45 +3,15 @@
 
 #include <memory>
 
-#include <tensorflow/cc/client/client_session.h>
-#include <tensorflow/cc/ops/standard_ops.h>
-#include <tensorflow/core/framework/tensor.h>
-#include <tensorflow/core/framework/tensor_shape.h>
-#include <tensorflow/core/platform/env.h>
-#include <tensorflow/core/public/session.h>
-
-using tensorflow::Tensor;
-using tensorflow::Session;
-using tensorflow::GraphDef;
-
 #include "../core/global.h"
 #include "../core/logger.h"
 #include "../core/multithread.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/nninterface.h"
 
 class NNEvaluator;
-
-struct NNOutput {
-  Hash128 nnHash; //NNInputs - getHashV0 or getHashV1
-
-  //From the perspective of the player to move at the time of the eval
-  float whiteValue;
-
-  //Indexed by pos rather than loc
-  //Values in here will be set to negative for illegal moves, including superko
-  float policyProbs[NNPos::NN_POLICY_SIZE];
-
-  NNOutput(); //Does NOT initialize values
-  NNOutput(const NNOutput& other);
-
-  //Utility --------------------------------------------------------------------
-  //The utility of having a particular winner
-  static double whiteValueOfWinner(Player winner);
-  //The utility of achieving a certain score difference
-  static double whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize);
-};
 
 class NNCacheTable {
   struct Entry {
@@ -88,17 +58,10 @@ struct NNResultBuf {
 
 //Each server thread should allocate and re-use one of these
 struct NNServerBuf {
-  Session* session;
-  vector<string> outputNames;
-  vector<string> targetNames;
-  vector<Tensor> outputsBuf;
-
-  float* inputsBuffer;
-  bool* symmetriesBuffer;
-  vector<pair<string,Tensor>>* inputsList;
+  InputBuffers* inputBuffers;
   NNResultBuf** resultBufs;
 
-  NNServerBuf(const NNEvaluator& nneval);
+  NNServerBuf(const NNEvaluator& nneval, const LoadedModel* model);
   ~NNServerBuf();
   NNServerBuf(const NNServerBuf& other) = delete;
   NNServerBuf& operator=(const NNServerBuf& other) = delete;
@@ -108,7 +71,13 @@ struct NNServerBuf {
 
 class NNEvaluator {
  public:
-  NNEvaluator(const string& pbModelFile, int maxBatchSize, int nnCacheSizePowerOfTwo, bool debugSkipNeuralNet);
+  NNEvaluator(
+    const string& pbModelFile,
+    int modelFileIdx,
+    int maxBatchSize,
+    int nnCacheSizePowerOfTwo,
+    bool debugSkipNeuralNet
+  );
   ~NNEvaluator();
 
   int getMaxBatchSize() const;
@@ -118,28 +87,37 @@ class NNEvaluator {
 
   //Queue a position for the next neural net batch evaluation and wait for it. Upon evaluation, result
   //will be supplied in NNResultBuf& buf, the shared_ptr there can grabbed via std::move if desired.
-  //logStream is for some rror logging, can be NULL.
+  //logStream is for some error logging, can be NULL.
   //This function is threadsafe.
-  void evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream);
+  void evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream, bool skipCache);
 
   //Actually spawn threads and return the results.
   //If doRandomize, uses randSeed as a seed, further randomized per-thread
   //If not doRandomize, uses defaultSymmetry for all nn evaluations.
   //This function itself is not threadsafe.
-  void spawnServerThreads(int numThreads, bool doRandomize, string randSeed, int defaultSymmetry, Logger& logger);
+  void spawnServerThreads(
+    int numThreads,
+    bool doRandomize,
+    string randSeed,
+    int defaultSymmetry,
+    Logger& logger,
+    vector<int> cudaGpuIdxByServerThread
+  );
 
   //Kill spawned server threads and join and free them. This function is not threadsafe, and along with spawnServerThreads
   //should have calls to it and spawnServerThreads singlethreaded.
   void killServerThreads();
 
   //Some stats
-  uint64_t numRowsProcessed();
-  uint64_t numBatchesProcessed();
-  double averageProcessedBatchSize();
+  uint64_t numRowsProcessed() const;
+  uint64_t numBatchesProcessed() const;
+  double averageProcessedBatchSize() const;
+
+  void clearStats();
 
  private:
   string modelFileName;
-  GraphDef* graphDef;
+  LoadedModel* loadedModel;
   NNCacheTable* nnCacheTable;
   bool debugSkipNeuralNet;
 
@@ -159,14 +137,12 @@ class NNEvaluator {
   atomic<uint64_t> m_numRowsProcessed;
   atomic<uint64_t> m_numBatchesProcessed;
 
-  float* m_inputsBuffer;
-  bool* m_symmetriesBuffer;
-  vector<pair<string,Tensor>>* m_inputsList;
+  InputBuffers* m_inputBuffers;
   NNResultBuf** m_resultBufs;
 
  public:
   //Helper, for internal use only
-  void serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry);
+  void serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry, int cudaGpuIdxForThisThread);
 };
 
 #endif

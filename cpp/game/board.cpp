@@ -934,6 +934,8 @@ Board::PointList::PointList(const Board::PointList& other)
 
 void Board::PointList::operator=(const Board::PointList& other)
 {
+  if(this == &other)
+    return;
   std::memcpy(list_, other.list_, sizeof(list_));
   std::memcpy(indices_, other.indices_, sizeof(indices_));
   size_ = other.size_;
@@ -1336,14 +1338,13 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
 }
 
-void Board::calculateArea(Color* result, bool requirePassAlive, bool isMultiStoneSuicideLegal) const {
+void Board::calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal) const {
   for(int i = 0; i<MAX_ARR_SIZE; i++)
     result[i] = C_EMPTY;
-  calculateAreaForPla(P_BLACK,!requirePassAlive,isMultiStoneSuicideLegal,result);
-  calculateAreaForPla(P_WHITE,!requirePassAlive,isMultiStoneSuicideLegal,result);
+  calculateAreaForPla(P_BLACK,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
+  calculateAreaForPla(P_WHITE,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
 
-  if(!requirePassAlive) {
-     //Also include non-pass-alive stones
+  if(nonPassAliveStones) {
     for(int y = 0; y < y_size; y++) {
       for(int x = 0; x < x_size; x++) {
         Loc loc = Location::getLoc(x,y,x_size);
@@ -1354,9 +1355,10 @@ void Board::calculateArea(Color* result, bool requirePassAlive, bool isMultiSton
   }
 }
 
-//This marks pass-alive stones, pass-alive territory, AND non-pass-alive territory bordered only pass-alive groups
-//If includeNonPassAliveTerritory, also marks non-pass-alive territory but NOT non-pass-alive stones!
-void Board::calculateAreaForPla(Player pla, bool includeNonPassAliveTerritory, bool isMultiStoneSuicideLegal, Color* result) const {
+//This marks pass-alive stones, pass-alive territory always.
+//If safeBorderedBigTerritories, marks empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
+//If unsafeBigTerritories, marks empty regions bordered by pla stones and no opp stones, regardless.
+void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal, Color* result) const {
   Color opp = getOpp(pla);
 
   //First compute all empty-or-opp regions
@@ -1611,9 +1613,11 @@ void Board::calculateAreaForPla(Player pla, bool includeNonPassAliveTerritory, b
   //Mark result with territory
   for(int i = 0; i<numRegions; i++) {
     Loc head = regionHeads[i];
-    if(((numInternalSpacesMax2[i] <= 1 || !containsOpp[i]) && bordersPla[i] && !bordersNonPassAlivePlaByHead[head])
-       || (includeNonPassAliveTerritory && bordersPla[i] && !containsOpp[i])) {
+    bool shouldMark = numInternalSpacesMax2[i] <= 1 && bordersPla[i] && !bordersNonPassAlivePlaByHead[head];
+    shouldMark = shouldMark || (safeBigTerritories && bordersPla[i] && !containsOpp[i] && !bordersNonPassAlivePlaByHead[head]);
+    shouldMark = shouldMark || (unsafeBigTerritories && bordersPla[i] && !containsOpp[i]);
 
+    if(shouldMark) {
       Loc cur = head;
       do {
         result[cur] = pla;
@@ -1767,7 +1771,7 @@ string Location::toString(Loc loc, int x_size, int y_size)
     return string("null");
   const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
   int x = getX(loc,x_size);
-  int y = getY(loc,y_size);
+  int y = getY(loc,x_size);
   if(x >= x_size || x < 0 || y < 0)
     return toStringMach(loc,x_size);
 
@@ -1788,6 +1792,10 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
   string s = Global::trim(str);
   if(s.length() < 2)
     return false;
+  if(Global::isEqualCaseInsensitive(s,string("pass"))) {
+    result = Board::PASS_LOC;
+    return true;
+  }
   if(s[0] == '(') {
     if(s[s.length()-1] != ')')
       return false;
@@ -1806,10 +1814,14 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
   }
   else {
     int x;
-    if(s[0] >= 'A' && s[0] <= 'Z')
+    if(s[0] >= 'A' && s[0] <= 'H')
       x = s[0]-'A';
-    else if(s[0] >= 'a' && s[0] <= 'z')
+    else if(s[0] >= 'a' && s[0] <= 'h')
       x = s[0]-'a';
+    else if(s[0] >= 'J' && s[0] <= 'Z')
+      x = s[0]-'A'-1;
+    else if(s[0] >= 'j' && s[0] <= 'z')
+      x = s[0]-'a'-1;
     else
       return false;
 
@@ -1841,8 +1853,7 @@ Loc Location::ofString(const string& str, const Board& b) {
   return ofString(str,b.x_size,b.y_size);
 }
 
-ostream& operator<<(ostream& out, const Board& board)
-{
+void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vector<Move>* hist) {
   out << "HASH: " << board.pos_hash << "\n";
   bool showCoords = board.x_size <= 25 && board.y_size <= 25;
   if(showCoords) {
@@ -1867,13 +1878,32 @@ ostream& operator<<(ostream& out, const Board& board)
     {
       Loc loc = Location::getLoc(x,y,board.x_size);
       char s = colorToChar(board.colors[loc]);
-      out << s;
-      if(x < board.x_size-1)
+      if(board.colors[loc] == C_EMPTY && markLoc == loc)
+        out << '@';
+      else
+        out << s;
+
+      bool histMarked = false;
+      if(hist != NULL) {
+        for(int i = hist->size()-3; i<hist->size(); i++) {
+          if((*hist)[i].loc == loc) {
+            out << i - (hist->size()-3) + 1;
+            histMarked = true;
+            break;
+          }
+        }
+      }
+      
+      if(x < board.x_size-1 && !histMarked)
         out << ' ';
     }
     out << "\n";
   }
   out << "\n";
+}
+
+ostream& operator<<(ostream& out, const Board& board) {
+  Board::printBoard(out,board,Board::NULL_LOC,NULL);
   return out;
 }
 

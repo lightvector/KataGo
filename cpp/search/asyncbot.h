@@ -5,7 +5,7 @@
 
 class AsyncBot {
  public:
-  AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* logger);
+  AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* logger, const string& randSeed);
   ~AsyncBot();
 
   AsyncBot(const AsyncBot& other) = delete;
@@ -16,11 +16,18 @@ class AsyncBot {
   //Unless otherwise specified, functions in this class are NOT threadsafe, although they may spawn off asynchronous events.
   //Usage of this API should be single-threaded!
 
+  const Board& getRootBoard() const;
+  const BoardHistory& getRootHist() const;
+  Player getRootPla() const;
+
+  Search* getSearch();
+
   //Setup, same as in search.h
   //Calling any of these will stop any ongoing search, waiting for a full stop.
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
   void setRulesAndClearHistory(Rules rules);
   void setKomi(float newKomi);
+  void setRootPassLegal(bool b);
   void setParams(SearchParams params);
   void clearSearch();
 
@@ -28,6 +35,7 @@ class AsyncBot {
   //Will stop any ongoing search, waiting for a full stop.
   //If the move is not legal for the current player, returns false and does nothing, else returns true
   bool makeMove(Loc moveLoc, Player movePla);
+  bool isLegal(Loc moveLoc, Player movePla) const;
 
   //Begin searching and produce a move.
   //Will stop any ongoing search, waiting for a full stop.
@@ -46,7 +54,8 @@ class AsyncBot {
   //Safe to call even if nothing is running.
   void stopAndWait();
 
-  //private:
+
+ private:
   Search* search;
   Logger* logger;
   SearchParams searchParams;
@@ -57,14 +66,17 @@ class AsyncBot {
   thread searchThread;
 
   bool isRunning;
+  bool isPondering;
   bool isKilled;
   atomic<bool> shouldStopNow;
   int queuedSearchId;
   std::function<void(Loc,int)> queuedOnMove;
 
+  void stopAndWaitAlreadyLocked(unique_lock<std::mutex>& lock);
   void waitForSearchToEnd();
+  void waitForSearchToEndAlreadyLocked(unique_lock<std::mutex>& lock);
 
-  // public:
+ public:
   //Only for internal use
   void internalSearchThreadLoop();
 };

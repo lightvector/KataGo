@@ -7,6 +7,12 @@ __pycache__
 cpp/write
 cpp/runtests
 cpp/example
+cpp/gtp
+cpp/gtp.log
+cpp/match
+cpp/match.log
+cpp/configs
+cpp/evalsgf
 
 # For clion IDE
 .idea

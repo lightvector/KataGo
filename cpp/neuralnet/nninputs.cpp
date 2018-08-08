@@ -28,6 +28,28 @@ bool NNPos::isPassPos(int pos) {
   return pos == MAX_BOARD_LEN * MAX_BOARD_LEN;
 }
 
+
+NNOutput::NNOutput() {}
+NNOutput::NNOutput(const NNOutput& other) {
+  nnHash = other.nnHash;
+  whiteValue = other.whiteValue;
+  std::copy(other.policyProbs, other.policyProbs+NNPos::NN_POLICY_SIZE, policyProbs);
+}
+
+double NNOutput::whiteValueOfWinner(Player winner, double drawValue) {
+  if(winner == P_WHITE)
+    return 1.0;
+  else if(winner == P_BLACK)
+    return -1.0;
+  return drawValue;
+}
+
+double NNOutput::whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize) {
+  return tanh(finalWhiteMinusBlackScore / (bSize*2));
+}
+
+
+
 static void setRowV0(float* row, int pos, int feature, float value) {
   row[pos * NNInputs::NUM_FEATURES_V0 + feature] = value;
 }
@@ -239,10 +261,11 @@ void NNInputs::fillRowV0(
 
 //===========================================================================================
 
-
+//Currently does NOT depend on history (except for marking ko-illegal spots)
 Hash128 NNInputs::getHashV1(
     const Board& board, const BoardHistory& hist, Player nextPlayer
 ) {
+  assert(board.x_size <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size == board.y_size);
   int bSize = board.x_size;
 
@@ -290,6 +313,7 @@ Hash128 NNInputs::getHashV1(
 void NNInputs::fillRowV1(
   const Board& board, const BoardHistory& hist, Player nextPlayer, float* row
 ) {
+  assert(board.x_size <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size == board.y_size);
 
   Player pla = nextPlayer;

@@ -22,7 +22,7 @@ Implements a basic GTP engine that uses the neural net directly to play moves..
 """
 
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-model', help='Path to model to use', required=True)
+parser.add_argument('-model', help='Path to model weights to use', required=True)
 parser.add_argument('-rank-one-hot', help='Model plays like this rankonehot', required=False)
 args = vars(parser.parse_args())
 

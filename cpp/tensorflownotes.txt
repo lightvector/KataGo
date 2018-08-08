@@ -132,3 +132,16 @@ endif()
 
 Also, this post was helpful as a reference:
 https://medium.com/@TomPJacobs/c-tensorflow-a-journey-bdecbbdd0f65
+
+
+
+-------------------------------------------------------------------------------
+
+Tensorflow tools
+
+Also for exporting graphs, I needed the following tools:
+
+git clone https://github.com/tensorflow/tensorflow.git
+cd tensorflow
+bazel build tensorflow/tools/graph_transforms:transform_graph
+bazel build tensorflow/tools/graph_transforms:summarize_graph

@@ -68,6 +68,13 @@ string Global::intToString(int x)
   return ss.str();
 }
 
+string Global::floatToString(float x)
+{
+  stringstream ss;
+  ss << x;
+  return ss.str();
+}
+
 string Global::doubleToString(double x)
 {
   stringstream ss;
@@ -76,6 +83,20 @@ string Global::doubleToString(double x)
 }
 
 string Global::int64ToString(int64_t x)
+{
+  stringstream ss;
+  ss << x;
+  return ss.str();
+}
+
+string Global::uint32ToString(uint32_t x)
+{
+  stringstream ss;
+  ss << x;
+  return ss.str();
+}
+
+string Global::uint64ToString(uint64_t x)
 {
   stringstream ss;
   ss << x;
@@ -191,6 +212,27 @@ uint64_t Global::stringToUInt64(const string& str)
   in >> val;
   if(in.fail() || in.peek() != EOF)
     throw IOError(string("could not parse uint64: ") + str);
+  return val;
+}
+
+bool Global::tryStringToFloat(const string& str, float& x)
+{
+  float val = 0;
+  istringstream in(trim(str));
+  in >> val;
+  if(in.fail() || in.peek() != EOF)
+    return false;
+  x = val;
+  return true;
+}
+
+float Global::stringToFloat(const string& str)
+{
+  float val = 0;
+  istringstream in(trim(str));
+  in >> val;
+  if(in.fail() || in.peek() != EOF)
+    throw IOError(string("could not parse float: ") + str);
   return val;
 }
 
@@ -314,6 +356,13 @@ string Global::concat(const vector<string>& strs, const char* delim, size_t star
   return s;
 }
 
+string Global::concat(const set<string>& strs, const char* delim)
+{
+  vector<string> v;
+  std::copy(strs.begin(), strs.end(), std::back_inserter(v));
+  return concat(v,delim,0,v.size());
+}
+
 vector<string> Global::split(const string& s, char delim)
 {
   istringstream in(s);
@@ -327,8 +376,8 @@ vector<string> Global::split(const string& s, char delim)
 string Global::toUpper(const string& s)
 {
   string t = s;
-  int len = t.length();
-  for(int i = 0; i<len; i++)
+  size_t len = t.length();
+  for(size_t i = 0; i<len; i++)
     t[i] = toupper(t[i]);
   return t;
 }
@@ -336,11 +385,22 @@ string Global::toUpper(const string& s)
 string Global::toLower(const string& s)
 {
   string t = s;
-  int len = t.length();
-  for(int i = 0; i<len; i++)
+  size_t len = t.length();
+  for(size_t i = 0; i<len; i++)
     t[i] = tolower(t[i]);
   return t;
 }
+
+bool Global::isEqualCaseInsensitive(const string& s0, const string& s1) {
+  size_t len = s0.length();
+  if(len != s1.length())
+    return false;
+  for(size_t i = 0; i<len; i++)
+    if(tolower(s0[i]) != tolower(s1[i]))
+      return false;
+  return true;
+}
+
 
 static string vformat (const char *fmt, va_list ap)
 {

@@ -27,15 +27,29 @@ void Logger::addFile(const string& file) {
   files.push_back(new ofstream(file, ofstream::app));
 }
 
-void Logger::write(const string& str) {
+void Logger::write(const string& str, bool endLine) {
   lock_guard<std::mutex> lock(mutex);
   time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  if(logToStdout)
-    cout << std::put_time(std::localtime(&time), "%F %T%z: ") << str << std::flush;
-  if(logToStderr)
-    cerr << std::put_time(std::localtime(&time), "%F %T%z: ") << str << std::flush;
-  for(size_t i = 0; i<files.size(); i++)
-    (*files[i]) << std::put_time(std::localtime(&time), "%F %T%z: ") << str << std::flush;
+  if(logToStdout) {
+    cout << std::put_time(std::localtime(&time), "%F %T%z: ") << str;
+    if(endLine) cout << std::endl; else cout << std::flush;
+  }
+  if(logToStderr) {
+    cerr << std::put_time(std::localtime(&time), "%F %T%z: ") << str;
+    if(endLine) cerr << std::endl; else cerr << std::flush;
+  }
+  for(size_t i = 0; i<files.size(); i++) {
+    (*files[i]) << std::put_time(std::localtime(&time), "%F %T%z: ") << str;
+    if(endLine) (*files[i]) << std::endl; else (*files[i]) << std::flush;
+  }
+}
+
+void Logger::write(const string& str) {
+  write(str,true);
+}
+
+void Logger::writeNoEndline(const string& str) {
+  write(str,false);
 }
 
 ostream* Logger::createOStream() {
@@ -55,6 +69,7 @@ LogBuf::~LogBuf()
 
 int LogBuf::sync() {
   const string& str = this->str();
-  logger->write(str);
+  logger->writeNoEndline(str);
+  this->str("");
   return 0;
 }

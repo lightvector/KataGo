@@ -29,7 +29,7 @@ double NodeStats::getCombinedValueSum(const SearchParams& searchParams) const {
 //-----------------------------------------------------------------------------------------
 
 SearchNode::SearchNode(Search& search, SearchThread& thread, Loc moveLoc)
-  :lockIdx(),statsLock(),nextPla(thread.pla),prevMoveLoc(moveLoc),
+  :lockIdx(),statsLock(ATOMIC_FLAG_INIT),nextPla(thread.pla),prevMoveLoc(moveLoc),
    nnOutput(),
    children(NULL),numChildren(0),childrenCapacity(0),
    stats()
@@ -37,8 +37,10 @@ SearchNode::SearchNode(Search& search, SearchThread& thread, Loc moveLoc)
   lockIdx = thread.rand.nextUInt(search.mutexPool->getNumMutexes());
 }
 SearchNode::~SearchNode() {
-  for(int i = 0; i<numChildren; i++)
-    delete children[i];
+  if(children != NULL) {
+    for(int i = 0; i<numChildren; i++)
+      delete children[i];
+  }
   delete[] children;
 }
 
@@ -73,7 +75,7 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
   :threadIdx(tIdx),
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
-   rand(search.searchParams.randSeed + string("$searchThread$") + Global::intToString(threadIdx)),
+   rand(search.randSeed + string("$searchThread$") + Global::intToString(threadIdx)),
    nnResultBuf(),
    logStream(NULL)
 {
@@ -89,11 +91,11 @@ SearchThread::~SearchThread() {
 //-----------------------------------------------------------------------------------------
 
 
-Search::Search(SearchParams params, NNEvaluator* nnEval)
-  :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),searchParams(params),
+Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
+  :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
+   searchParams(params),randSeed(rSeed),
    nnEvaluator(nnEval),
-   nonSearchRand(params.randSeed + string("$nonSearchRand"))
-
+   nonSearchRand(rSeed + string("$nonSearchRand"))
 {
   rootKoHashTable = new KoHashTable();
 
@@ -156,27 +158,29 @@ void Search::clearSearch() {
   rootNode = NULL;
 }
 
-bool Search::makeMove(Loc moveLoc, Player movePla) {
+bool Search::isLegal(Loc moveLoc, Player movePla) const {
   //Don't require that the move is legal for the history, merely the board, so that
   //we're robust to the outside saying that a move was made that violates superko or things like that.
   //Also handle simple ko correctly in case somehow we find out the same player making multiple moves
   //in a row (which is possible in GTP)
-  bool isLegal;
   if(movePla != rootPla) {
     Board copy = rootBoard;
     copy.clearSimpleKoLoc();
-    isLegal = copy.isLegal(moveLoc,movePla,rootHistory.rules.multiStoneSuicideLegal);
+    return copy.isLegal(moveLoc,movePla,rootHistory.rules.multiStoneSuicideLegal);
   }
   else
-    isLegal = rootBoard.isLegal(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+    return rootBoard.isLegal(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+}
 
-  if(!isLegal)
+bool Search::makeMove(Loc moveLoc, Player movePla) {
+  if(!isLegal(moveLoc,movePla))
     return false;
 
   if(movePla != rootPla)
     setPlayerAndClearHistory(movePla);
 
   if(rootNode != NULL) {
+    bool foundChild = false;
     for(int i = 0; i<rootNode->numChildren; i++) {
       SearchNode* child = rootNode->children[i];
       if(child->prevMoveLoc == moveLoc) {
@@ -186,8 +190,12 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
         delete rootNode;
         rootNode = node;
         rootNode->prevMoveLoc = Board::NULL_LOC;
+        foundChild = true;
         break;
       }
+    }
+    if(!foundChild) {
+      clearSearch();
     }
   }
   rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable);
@@ -259,8 +267,13 @@ Loc Search::getChosenMoveLoc() {
   }
   maxValue -= amountToSubtract;
 
+  double temperature = searchParams.chosenMoveTemperature;
+  temperature +=
+    (searchParams.chosenMoveTemperatureEarly - searchParams.chosenMoveTemperature) *
+    pow(0.5,rootHistory.moveHistory.size() / searchParams.chosenMoveTemperatureHalflife);
+  
   //Temperature so close to 0 that we just calculate the max directly
-  if(searchParams.chosenMoveTemperature <= 1.0e-4) {
+  if(temperature <= 1.0e-4) {
     double bestSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
     Loc bestChildMoveLoc = Board::NULL_LOC;
     for(int i = 0; i<numChildren; i++) {
@@ -276,18 +289,12 @@ Loc Search::getChosenMoveLoc() {
     double sum = 0.0;
     for(int i = 0; i<numChildren; i++) {
       //Numerically stable way to raise to power and normalize
-      playSelectionValues[i] = exp((log(playSelectionValues[i]) - log(maxValue)) * searchParams.chosenMoveTemperature);
+      playSelectionValues[i] = exp((log(playSelectionValues[i]) - log(maxValue)) / searchParams.chosenMoveTemperature);
       sum += playSelectionValues[i];
     }
     assert(sum > 0.0);
-    double d = nonSearchRand.nextDouble(sum);
-    sum = 0.0;
-    for(int i = 0; i<numChildren; i++) {
-      sum += playSelectionValues[i];
-      if(sum > d)
-        return locs[i];
-    }
-    return locs[numChildren-1];
+    uint32_t idxChosen = nonSearchRand.nextUInt(playSelectionValues.data(),playSelectionValues.size());
+    return locs[idxChosen];
   }
 }
 
@@ -296,6 +303,15 @@ void Search::beginSearch() {
     SearchThread dummyThread(-1, *this, NULL);
     rootNode = new SearchNode(*this, dummyThread, Board::NULL_LOC);
   }
+}
+
+uint64_t Search::numRootVisits() {
+  if(rootNode == NULL)
+    return 0;
+  while(rootNode->statsLock.test_and_set(std::memory_order_acquire));
+  uint64_t n = rootNode->stats.visits;
+  rootNode->statsLock.clear(std::memory_order_release);
+  return n;
 }
 
 //Assumes node is locked
@@ -433,7 +449,7 @@ double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos
 void Search::selectBestChildToDescend(
   const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
   int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
-  bool isRoot, bool checkLegalityOfNewMoves) const
+  bool isRoot) const
 {
   assert(thread.pla == node.nextPla);
 
@@ -498,8 +514,6 @@ void Search::selectBestChildToDescend(
       continue;
     int offset = NNPos::getOffset(thread.board.x_size);
     Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,offset);
-    if(checkLegalityOfNewMoves && !thread.history.isLegal(thread.board,moveLoc,thread.pla))
-      continue;
 
     double selectionValue = getNewExploreSelectionValue(node,movePos,totalChildVisits,fpuValue);
     if(selectionValue > maxSelectionValue) {
@@ -530,6 +544,22 @@ void Search::runSinglePlayout(SearchThread& thread) {
   thread.history = rootHistory;
 }
 
+void Search::initNodeNNOutput(
+  SearchThread& thread, SearchNode& node,
+  double& retWinLossValue, double& retScoreValue,
+  bool isRoot, bool skipCache
+) {
+  nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logStream, skipCache);
+  node.nnOutput = std::move(thread.nnResultBuf.result);
+  maybeAddPolicyNoise(thread,node,isRoot);
+
+  //TODO update this and other places when we have a score prediction on the net
+  //Values in the search are from the perspective of white positive always
+  double value = (double)node.nnOutput->whiteValue;
+  retWinLossValue = value;
+  retScoreValue = 0.0;  
+}
+
 void Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
   double& retWinLossValue, double& retScoreValue,
@@ -538,7 +568,7 @@ void Search::playoutDescend(
 ) {
   //Hit terminal node, finish
   //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
-  if(!isRoot && thread.history.isGameOver()) {
+  if(!isRoot && thread.history.isGameFinished) {
     //TODO what to do here? Is this reasonable? Probably actually want a separate output?
     //weird that this also gets scaled later by winLossUtilityFactor
     if(thread.history.isNoResult) {
@@ -547,7 +577,7 @@ void Search::playoutDescend(
       return;
     }
     else {
-      double winLossValue = NNOutput::whiteValueOfWinner(thread.history.winner);
+      double winLossValue = NNOutput::whiteValueOfWinner(thread.history.winner, searchParams.drawUtilityForWhite);
       assert(thread.board.x_size == thread.board.y_size);
       double scoreValue = NNOutput::whiteValueOfScore(thread.history.finalWhiteMinusBlackScore, thread.board.x_size);
 
@@ -562,16 +592,7 @@ void Search::playoutDescend(
 
   //Hit leaf node, finish
   if(node.nnOutput == nullptr) {
-    nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logStream);
-    node.nnOutput = std::move(thread.nnResultBuf.result);
-    maybeAddPolicyNoise(thread,node,isRoot);
-    lock.unlock();
-
-    //TODO update this and other places when we have a score prediction on the net
-    //Values in the search are from the perspective of white positive always
-    double value = (double)node.nnOutput->whiteValue;
-    retWinLossValue = value;
-    retScoreValue = 0.0;
+    initNodeNNOutput(thread,node,retWinLossValue,retScoreValue,isRoot,false);
     return;
   }
 
@@ -580,15 +601,17 @@ void Search::playoutDescend(
   //Find the best child to descend down
   int bestChildIdx;
   Loc bestChildMoveLoc;
-  selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot,false);
+  selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
 
-  //In the absurdly rare case that the move chosen is not legal, try again with legality checking
+  //The absurdly rare case that the move chosen is not legal
   //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
-  //We can do this by reducing the hash size and forcing collisions in the nnEval cache
-  //TODO test this code branch and remove this assert
+  //Regenerate the neural net call and continue
   if(!(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla))) {
-    assert(false); //In testing, actually fail if this ever happens
-    selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot,true);
+    initNodeNNOutput(thread,node,retWinLossValue,retScoreValue,isRoot,true);
+    lock.unlock();
+    if(thread.logStream != NULL)
+      (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
+    return;
   }
 
   if(bestChildIdx < -1) {
@@ -758,13 +781,15 @@ void Search::printTreeHelper(
   }
 
   if(depth >= options.branch_.size()) {
-    if(depth >= options.maxDepth_)
+    if(depth >= options.maxDepth_ + options.branch_.size())
       return;
     if(visits < options.minVisitsToExpand_)
       return;
     if((double)visits < origVisits * options.minVisitsPropToExpand_)
       return;
   }
+  if(depth == options.branch_.size())
+    out << "----" << endl;
 
   lock.lock();
 
