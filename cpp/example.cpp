@@ -29,7 +29,8 @@ int main() {
   bool debugSkipNeuralNet = false;
   NNEvaluator* nnEval = new NNEvaluator(
     // "/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb",
-    "/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt",
+    "/efs/data/GoNN/exportedmodels/cuda/value31-140/model.txt",
+    // "/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt",
     modelFileIdx,
     maxBatchSize,
     nnCacheSizePowerOfTwo,
@@ -162,7 +163,8 @@ int main() {
 //   double tensorflowPerProcessGpuMemoryFraction = -1; //use default
 //   NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
 
-//   LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
+//   LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value31-140/model.txt", 0);
+//   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
 //   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb", 0);
 //   LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel,16,0);
 //   InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,16);
@@ -242,7 +244,7 @@ int main() {
 //   NNInputs::fillRowV1(board2, hist2, pla, row4);
 
 //   vector<NNOutput*> outputs;
-//   NeuralNet::getOutput(gpuHandle,inputBuffers,2,outputs);
+//   NeuralNet::getOutput(gpuHandle,inputBuffers,7,outputs);
 
 //   for(int i = 0; i<outputs.size(); i++) {
 //     NNOutput* result = outputs[i];

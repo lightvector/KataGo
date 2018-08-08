@@ -1945,6 +1945,7 @@ static void applySymmetriesNHWC(
 
 struct PolicyHeadDesc {
   string name;
+  int version;
   ConvLayerDesc p1Conv;
   ConvLayerDesc g1Conv;
   BNLayerDesc g1BN;
@@ -1957,8 +1958,9 @@ struct PolicyHeadDesc {
 
   PolicyHeadDesc() {}
 
-  PolicyHeadDesc(istream& in) {
+  PolicyHeadDesc(istream& in, int vrsn) {
     in >> name;
+    version = vrsn;
 
     if(in.fail())
       throw StringError(name + ": policy head failed to parse name");
@@ -1992,10 +1994,18 @@ struct PolicyHeadDesc {
       throw StringError(name+Global::strprintf(
         ": gpoolToBiasMul.outChannels (%d) != p1BN.numChannels (%d)", gpoolToBiasMul.outChannels, p1BN.numChannels
       ));
-    if(p2Conv.inChannels != p1BN.numChannels*2)
-      throw StringError(name+Global::strprintf(
-        ": p2Conv.inChannels (%d) != p1BN.numChannels*2 (%d)", p2Conv.inChannels, p1BN.numChannels*2
-      ));
+    if(version >= 1) {
+      if(p2Conv.inChannels != p1BN.numChannels)
+        throw StringError(name+Global::strprintf(
+          ": p2Conv.inChannels (%d) != p1BN.numChannels (%d)", p2Conv.inChannels, p1BN.numChannels
+        ));
+    }
+    else {
+      if(p2Conv.inChannels != p1BN.numChannels*2)
+        throw StringError(name+Global::strprintf(
+          ": p2Conv.inChannels (%d) != p1BN.numChannels*2 (%d)", p2Conv.inChannels, p1BN.numChannels*2
+        ));
+    }
     if(p2Conv.outChannels != 1)
       throw StringError(name+Global::strprintf(
         ": p2Conv.outChannels (%d) != 1", p2Conv.outChannels
@@ -2022,6 +2032,7 @@ struct PolicyHeadDesc {
 
   PolicyHeadDesc& operator=(PolicyHeadDesc&& other) {
     name = std::move(other.name);
+    version = other.version;
     p1Conv = std::move(other.p1Conv);
     g1Conv = std::move(other.g1Conv);
     g1BN = std::move(other.g1BN);
@@ -2038,6 +2049,7 @@ struct PolicyHeadDesc {
 
 struct PolicyHead {
   string name;
+  int version;
   int maxBatchSize;
   int xSize;
   int ySize;
@@ -2075,6 +2087,7 @@ struct PolicyHead {
     const cudnnTensorDescriptor_t* trunkDescriptors
   ) {
     name = desc->name;
+    version = desc->version;
     maxBatchSize = maxBatchSz;
     xSize = xS;
     ySize = yS;
@@ -2282,19 +2295,25 @@ struct PolicyHead {
 
     p1BN->apply(cudaHandles,p1OutDescriptor,p1OutDescriptor,p1OutBuf,p1OutBuf2);
 
-    //Negate and concat for crelu
-    CUDA_ERR(name.c_str(),cudaMemcpy(p1OutBuf,p1OutBuf2,batchSize*p1Channels*xSize*ySize*sizeof(float),cudaMemcpyDeviceToDevice));
-    const float invScale = -1.0f;
-    CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*p1Channels*xSize*ySize, &invScale, p1OutBuf, 1));
-    customCudaChannelConcat(
-      p1OutBuf2,p1OutBuf,p2InBuf,
-      p1Channels*xSize*ySize,
-      p1Channels*xSize*ySize,
-      batchSize
-    );
+    if(version >= 1) {
+      p1Activation->apply(cudaHandles,p1OutDescriptor,p1OutDescriptor,p1OutBuf2,p1OutBuf2);
+      p2Conv->apply(cudaHandles,p1OutDescriptor,p2OutDescriptor,batchSize,p1OutBuf2,p2OutBuf,workspaceBuf,workspaceBytes);
+    }
+    else {
+      //Negate and concat for crelu
+      CUDA_ERR(name.c_str(),cudaMemcpy(p1OutBuf,p1OutBuf2,batchSize*p1Channels*xSize*ySize*sizeof(float),cudaMemcpyDeviceToDevice));
+      const float invScale = -1.0f;
+      CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*p1Channels*xSize*ySize, &invScale, p1OutBuf, 1));
+      customCudaChannelConcat(
+        p1OutBuf2,p1OutBuf,p2InBuf,
+        p1Channels*xSize*ySize,
+        p1Channels*xSize*ySize,
+        batchSize
+      );
 
-    p1Activation->apply(cudaHandles,p2InDescriptor,p2InDescriptor,p2InBuf,p2InBuf);
-    p2Conv->apply(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize,p2InBuf,p2OutBuf,workspaceBuf,workspaceBytes);
+      p1Activation->apply(cudaHandles,p2InDescriptor,p2InDescriptor,p2InBuf,p2InBuf);
+      p2Conv->apply(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize,p2InBuf,p2OutBuf,workspaceBuf,workspaceBytes);
+    }
 
     bool inverse = true;
     applySymmetriesNCHW(symmetriesBuffer, inverse, batchSize, p2Channels, xSize, ySize, p2OutBuf, policyBuf);
@@ -2319,6 +2338,7 @@ struct PolicyHead {
 
 struct ValueHeadDesc {
   string name;
+  int version;
   ConvLayerDesc v1Conv;
   BNLayerDesc v1BN;
   ActivationLayerDesc v1Activation;
@@ -2330,8 +2350,9 @@ struct ValueHeadDesc {
 
   ValueHeadDesc() {}
 
-  ValueHeadDesc(istream& in) {
+  ValueHeadDesc(istream& in, int vrsn) {
     in >> name;
+    version = vrsn;
 
     if(in.fail())
       throw StringError(name + ": value head failed to parse name");
@@ -2360,10 +2381,18 @@ struct ValueHeadDesc {
       throw StringError(name+Global::strprintf(
         ": v2Mul.outChannels (%d) != v2Bias.numChannels (%d)", v2Mul.outChannels, v2Bias.numChannels
       ));
-    if(v2Mul.outChannels*2 != v3Mul.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": v2Mul.outChannels*2 (%d) != v3Mul.inChannels (%d)", v2Mul.outChannels*2, v3Mul.inChannels
-      ));
+    if(version >= 1) {
+      if(v2Mul.outChannels != v3Mul.inChannels)
+        throw StringError(name+Global::strprintf(
+          ": v2Mul.outChannels (%d) != v3Mul.inChannels (%d)", v2Mul.outChannels, v3Mul.inChannels
+        ));
+    }
+    else {
+      if(v2Mul.outChannels*2 != v3Mul.inChannels)
+        throw StringError(name+Global::strprintf(
+          ": v2Mul.outChannels*2 (%d) != v3Mul.inChannels (%d)", v2Mul.outChannels*2, v3Mul.inChannels
+        ));
+    }
     if(v3Mul.outChannels != 1)
       throw StringError(name+Global::strprintf(
         ": v3Mul.outChannels (%d) != 1", v3Mul.outChannels
@@ -2386,6 +2415,7 @@ struct ValueHeadDesc {
 
   ValueHeadDesc& operator=(ValueHeadDesc&& other) {
     name = std::move(other.name);
+    version = other.version;
     v1Conv = std::move(other.v1Conv);
     v1BN = std::move(other.v1BN);
     v1Activation = std::move(other.v1Activation);
@@ -2403,6 +2433,7 @@ struct ValueHeadDesc {
 
 struct ValueHead {
   string name;
+  int version;
   int maxBatchSize;
   int xSize;
   int ySize;
@@ -2435,6 +2466,7 @@ struct ValueHead {
     const cudnnTensorDescriptor_t* trunkDescriptors
   ) {
     name = desc->name;
+    version = desc->version;
     maxBatchSize = maxBatchSz;
     xSize = xS;
     ySize = yS;
@@ -2466,7 +2498,7 @@ struct ValueHead {
         CUDNN_TENSOR_NCHW,
         CUDNN_DATA_FLOAT,
         batchSize,
-        desc->v2Mul.outChannels*2,
+        (version >= 1 ? desc->v2Mul.outChannels : desc->v2Mul.outChannels*2),
         1,
         1
       ));
@@ -2552,20 +2584,25 @@ struct ValueHead {
     v2Mul->apply(cudaHandles,batchSize,v1MeanBuf,v2OutBuf,workspaceBuf,workspaceBytes);
     v2Bias->apply(cudaHandles,batchSize,v2OutBuf);
 
-    //Negate and concat for crelu
-    CUDA_ERR(name.c_str(),cudaMemcpy(v2OutBuf2,v2OutBuf,batchSize*v2Channels*sizeof(float),cudaMemcpyDeviceToDevice));
-    const float invScale = -1.0f;
-    CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*v2Channels, &invScale, v2OutBuf2, 1));
-    customCudaChannelConcat(
-      v2OutBuf,v2OutBuf2,v3InBuf,
-      v2Channels,
-      v2Channels,
-      batchSize
-    );
+    if(version >= 1) {
+      v2Activation->apply(cudaHandles,v3InDescriptor,v3InDescriptor,v2OutBuf,v2OutBuf);
+      v3Mul->apply(cudaHandles,batchSize,v2OutBuf,valueBuf,workspaceBuf,workspaceBytes);
+    }
+    else {
+      //Negate and concat for crelu
+      CUDA_ERR(name.c_str(),cudaMemcpy(v2OutBuf2,v2OutBuf,batchSize*v2Channels*sizeof(float),cudaMemcpyDeviceToDevice));
+      const float invScale = -1.0f;
+      CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*v2Channels, &invScale, v2OutBuf2, 1));
+      customCudaChannelConcat(
+        v2OutBuf,v2OutBuf2,v3InBuf,
+        v2Channels,
+        v2Channels,
+        batchSize
+      );
 
-    v2Activation->apply(cudaHandles,v3InDescriptor,v3InDescriptor,v3InBuf,v3InBuf);
-
-    v3Mul->apply(cudaHandles,batchSize,v3InBuf,valueBuf,workspaceBuf,workspaceBytes);
+      v2Activation->apply(cudaHandles,v3InDescriptor,v3InDescriptor,v3InBuf,v3InBuf);
+      v3Mul->apply(cudaHandles,batchSize,v3InBuf,valueBuf,workspaceBuf,workspaceBytes);
+    }
     v3Bias->apply(cudaHandles,batchSize,valueBuf);
   }
 
@@ -2601,9 +2638,12 @@ struct ModelDesc {
     if(numInputChannels <= 0)
       throw StringError(name + ": model numInputChannels must be positive");
 
+    if(version < 0 || version > 1)
+      throw StringError(name + ": model found unsupported version " + Global::intToString(version));
+
     trunk = TrunkDesc(in);
-    policyHead = PolicyHeadDesc(in);
-    valueHead = ValueHeadDesc(in);
+    policyHead = PolicyHeadDesc(in,version);
+    valueHead = ValueHeadDesc(in,version);
 
     if(in.fail())
       throw StringError(name + ": model desc istream fail after parsing model");
@@ -2637,6 +2677,7 @@ struct ModelDesc {
   }
   ModelDesc& operator=(ModelDesc&& other) {
     name = std::move(other.name);
+    version = other.version;
     xSize = other.xSize;
     ySize = other.ySize;
     numInputChannels = other.numInputChannels;
@@ -2875,9 +2916,14 @@ LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
   (void)modelFileIdx;
 
   ifstream in(file);
-  LoadedModel* loadedModel = new LoadedModel(in);
-  in.close();
-  return loadedModel;
+  try {
+    LoadedModel* loadedModel = new LoadedModel(in);
+    in.close();
+    return loadedModel;
+  }
+  catch(const StringError& e) {
+    throw StringError("Error parsing model file " + file + ": " + e.what());
+  }
 }
 
 void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {

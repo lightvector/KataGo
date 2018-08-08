@@ -104,7 +104,7 @@ with tf.Session(config=tfconfig) as session:
       f.write(str(s)+"\n")
 
     writeln(model_name)
-    writeln(0) #version
+    writeln(1) #version
     writeln(model.max_board_size) #x
     writeln(model.max_board_size) #y
     writeln(model.num_input_features)
@@ -291,7 +291,7 @@ with tf.Session(config=tfconfig) as session:
       write_matmul("v2/w",model.v1_num_channels,model.v2_size,get_weights("v2/w"))
       write_matbias("v2/b",model.v2_size,get_weights("v2/b"))
       write_activation("v2/actv")
-      write_matmul("v3/w",model.v2_size*2,model.v3_size,get_weights("v3/w"))
+      write_matmul("v3/w",model.v2_size,model.v3_size,get_weights("v3/w"))
       write_matbias("v3/b",model.v3_size,get_weights("v3/b"))
 
     write_trunk()
