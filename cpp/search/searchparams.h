@@ -13,6 +13,7 @@ struct SearchParams {
   //Search tree exploration parameters
   double cpuctExploration;  //Constant factor on exploration, should also scale up linearly with magnitude of utility
   double fpuReductionMax;   //Max amount to reduce fpu value for unexplore children
+  bool fpuUseParentAverage; //Use parent average value for fpu rather than parent nn value.
 
   //Root noise parameters
   bool rootNoiseEnabled;

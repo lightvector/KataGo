@@ -7,6 +7,7 @@ SearchParams::SearchParams()
    drawUtilityForWhite(0.0),
    cpuctExploration(1.6),
    fpuReductionMax(0.5),
+   fpuUseParentAverage(false),
    rootNoiseEnabled(false),
    rootDirichletNoiseTotalConcentration(10.0),
    rootDirichletNoiseWeight(0.25),

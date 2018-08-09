@@ -271,7 +271,7 @@ Loc Search::getChosenMoveLoc() {
   temperature +=
     (searchParams.chosenMoveTemperatureEarly - searchParams.chosenMoveTemperature) *
     pow(0.5,rootHistory.moveHistory.size() / searchParams.chosenMoveTemperatureHalflife);
-  
+
   //Temperature so close to 0 that we just calculate the max directly
   if(temperature <= 1.0e-4) {
     double bestSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
@@ -479,7 +479,18 @@ void Search::selectBestChildToDescend(
   assert(policyProbMassVisited <= 1.0001);
 
   //First play urgency
-  double parentValue = node.nnOutput->whiteValue;
+  double parentValue;
+  if(searchParams.fpuUseParentAverage) {
+    while(node.statsLock.test_and_set(std::memory_order_acquire));
+    uint64_t parentVisits = node.stats.visits;
+    double parentValueSum = node.stats.getCombinedValueSum(searchParams);
+    node.statsLock.clear(std::memory_order_release);
+    assert(parentVisits > 0);
+    parentValue = parentValueSum / parentVisits;
+  }
+  else
+    parentValue = node.nnOutput->whiteValue;
+
   double fpuValue;
   if(isRoot && searchParams.rootNoiseEnabled)
     fpuValue = parentValue;
@@ -557,7 +568,7 @@ void Search::initNodeNNOutput(
   //Values in the search are from the perspective of white positive always
   double value = (double)node.nnOutput->whiteValue;
   retWinLossValue = value;
-  retScoreValue = 0.0;  
+  retScoreValue = 0.0;
 }
 
 void Search::playoutDescend(

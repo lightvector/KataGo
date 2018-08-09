@@ -11,7 +11,7 @@ void Setup::initializeSession(ConfigParser& cfg) {
   if(cfg.contains("tensorflowPerProcessGpuMemoryFraction"))
     tensorflowPerProcessGpuMemoryFraction = cfg.getDouble("tensorflowPerProcessGpuMemoryFraction",0.0,1.0);
 
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);  
+  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
 }
 
 vector<NNEvaluator*> Setup::initializeNNEvaluators(
@@ -58,7 +58,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       else
         cudaGpuIdxByServerThread.push_back(0);
     }
-    
+
     int defaultSymmetry = 0;
     nnEval->spawnServerThreads(
       numNNServerThreadsPerModel,
@@ -113,9 +113,11 @@ vector<SearchParams> Setup::loadParams(
     else                                        params.cpuctExploration = cfg.getDouble("cpuctExploration",        0.0, 10.0);
     if(cfg.contains("fpuReductionMax"+idxStr)) params.fpuReductionMax = cfg.getDouble("fpuReductionMax"+idxStr, 0.0, 2.0);
     else                                       params.fpuReductionMax = cfg.getDouble("fpuReductionMax",        0.0, 2.0);
+    if(cfg.contains("fpuUseParentAverage"+idxStr)) params.fpuUseParentAverage = cfg.getBool("fpuUseParentAverage"+idxStr);
+    else if(cfg.contains("fpuUseParentAverage")) params.fpuUseParentAverage = cfg.getBool("fpuUseParentAverage");
+
     if(cfg.contains("rootNoiseEnabled"+idxStr)) params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled"+idxStr);
     else                                        params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled");
-
     if(cfg.contains("rootDirichletNoiseTotalConcentration"+idxStr))
       params.rootDirichletNoiseTotalConcentration = cfg.getDouble("rootDirichletNoiseTotalConcentration"+idxStr, 0.001, 10000.0);
     else
