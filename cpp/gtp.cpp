@@ -3,6 +3,7 @@
 #include "core/timer.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
+#include "main.h"
 
 using namespace std;
 
@@ -26,7 +27,7 @@ static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
 }
 
-int main(int argc, const char* argv[]) {
+int MainCmds::gtp(int argc, const char* const* argv) {
   Board::initHash();
   Rand seedRand;
 

@@ -416,6 +416,55 @@ vector<Sgf*> Sgf::loadFiles(const vector<string>& files) {
   return sgfs;
 }
 
+vector<Sgf*> Sgf::loadSgfsFile(const string& file) {
+  vector<Sgf*> sgfs;
+  vector<string> lines = Global::readFileLines(file,'\n');
+  try {
+    for(size_t i = 0; i<lines.size(); i++) {
+      string line = Global::trim(lines[i]);
+      if(line.length() <= 0)
+        continue;
+      Sgf* sgf = parse(line);
+      sgf->fileName = file;
+      sgfs.push_back(sgf);
+    }
+  }
+  catch(...) {
+    for(int i = 0; i<sgfs.size(); i++) {
+      delete sgfs[i];
+      }
+    throw;
+  }
+  return sgfs;
+}
+
+
+vector<Sgf*> Sgf::loadSgfsFiles(const vector<string>& files) {
+  vector<Sgf*> sgfs;
+  try {
+    for(int i = 0; i<files.size(); i++) {
+      if(i % 500 == 0)
+        cout << "Loaded " << i << "/" << files.size() << " files" << endl;
+      try {
+        vector<Sgf*> s = loadSgfsFile(files[i]);
+        sgfs.insert(sgfs.end(),s.begin(),s.end());
+      }
+      catch(const IOError& e) {
+        cout << "Skipping sgf file: " << files[i] << ": " << e.message << endl;
+      }
+    }
+  }
+  catch(...) {
+    for(int i = 0; i<sgfs.size(); i++) {
+      delete sgfs[i];
+    }
+    throw;
+  }
+  return sgfs;
+}
+
+
+
 CompactSgf::CompactSgf(const Sgf* sgf)
   :fileName(sgf->fileName),
    rootNode(*(sgf->nodes[0])),

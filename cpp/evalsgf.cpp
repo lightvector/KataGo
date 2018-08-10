@@ -4,13 +4,14 @@
 #include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
+#include "main.h"
 
 using namespace std;
 
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
-int main(int argc, const char* argv[]) {
+int MainCmds::evalSgf(int argc, const char* const* argv) {
   Board::initHash();
   Rand seedRand;
 

@@ -6,8 +6,9 @@
 #include "game/rules.h"
 #include "game/boardhistory.h"
 #include "tests/tests.h"
+#include "main.h"
 
-int main(int argc, const char* const* argv) {
+int MainCmds::runTests(int argc, const char* const* argv) {
   (void)argc;
   (void)argv;
   testAssert(sizeof(size_t) == 8);

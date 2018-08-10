@@ -5,6 +5,7 @@
 #include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
+#include "main.h"
 
 using namespace std;
 
@@ -19,7 +20,7 @@ static void signalHandler(int signal)
     sigReceived.store(true);
 }
 
-int main(int argc, const char* argv[]) {
+int MainCmds::match(int argc, const char* const* argv) {
   Board::initHash();
   Rand seedRand;
 
@@ -55,7 +56,7 @@ int main(int argc, const char* argv[]) {
 
   logger.write("Match Engine starting...");
 
-  
+
   //Load per-bot search config, first, which also tells us how many bots we're running
   vector<SearchParams> paramss = Setup::loadParams(cfg);
   assert(paramss.size() > 0);
@@ -73,7 +74,7 @@ int main(int argc, const char* argv[]) {
       botNames.push_back(cfg.getString("botName"));
     else
       throw StringError("If more than one bot, must specify botName0, botName1,... individually");
-    
+
     if(cfg.contains("nnModelFile"+idxStr))
       nnModelFilesByBot.push_back(cfg.getString("nnModelFile"+idxStr));
     else
@@ -84,7 +85,7 @@ int main(int argc, const char* argv[]) {
   vector<int> secondaryBots;
   if(cfg.contains("secondaryBots"))
     secondaryBots = cfg.getInts("secondaryBots",0,4096);
-    
+
   //Dedup and load each necessary model exactly once
   vector<string> nnModelFiles;
   vector<int> whichNNModel;
@@ -139,7 +140,7 @@ int main(int argc, const char* argv[]) {
   float handicapStoneValue = cfg.getFloat("handicapStoneValue",0.0f,30.0f);
   double komiBigStdevProb = cfg.getDouble("komiBigStdevProb",0.0,1.0);
   double komiBigStdev = cfg.getFloat("komiBigStdev",-60.0f,60.0f);
-  
+
   if(allowedBSizes.size() <= 0)
     throw IOError("bSizes must have at least one value in " + configFile);
   if(allowedBSizes.size() != allowedBSizeRelProbs.size())
@@ -167,7 +168,7 @@ int main(int argc, const char* argv[]) {
   logger.write("Loaded all config stuff, starting matches");
   if(!logToStdout)
     cout << "Loaded all config stuff, starting matches" << endl;
-  
+
   if(sgfOutputDir != string())
     MakeDir::make(sgfOutputDir);
 
@@ -185,13 +186,13 @@ int main(int argc, const char* argv[]) {
     rules.koRule = allowedKoRules[seedRand.nextUInt(allowedKoRules.size())];
     rules.scoringRule = allowedScoringRules[seedRand.nextUInt(allowedScoringRules.size())];
     rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[seedRand.nextUInt(allowedMultiStoneSuicideLegals.size())];
-  
+
     pair<int,float> extraBlackAndKomi = Setup::chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb, handicapProb, handicapStoneValue,
       komiBigStdevProb, komiBigStdev, bSize, seedRand
     );
     rules.komi = extraBlackAndKomi.second;
-  
+
     pla = P_BLACK;
     hist.clear(board,pla,rules);
     numExtraBlack = extraBlackAndKomi.first;
@@ -245,7 +246,7 @@ int main(int argc, const char* argv[]) {
     bot->setRootPassLegal(false);
 
     for(int i = 0; i<numExtraBlack; i++) {
-      Loc loc = bot->genMoveSynchronous(pla);      
+      Loc loc = bot->genMoveSynchronous(pla);
       if(loc == Board::NULL_LOC || !bot->isLegal(loc,pla))
         failIllegalMove(bot,board,loc);
       assert(hist.isLegal(board,loc,pla));
@@ -257,7 +258,7 @@ int main(int argc, const char* argv[]) {
     bot->setParams(oldParams);
     bot->setRootPassLegal(true);
   };
-  
+
   auto runSelfPlayGame = [&failIllegalMove,&playExtraBlack,&logSearch,&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,logMoves,maxMovesPerGame,&searchRandSeedBase] (
     int gameIdx, int botIdx, Board& board, Player pla, BoardHistory& hist, int numExtraBlack
   ) {

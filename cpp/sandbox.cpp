@@ -1,4 +1,3 @@
-// example.cpp
 
 #include "core/global.h"
 #include "core/timer.h"
@@ -10,9 +9,9 @@
 #include "search/searchparams.h"
 #include "search/search.h"
 #include "search/asyncbot.h"
+#include "main.h"
 
-
-int main() {
+int MainCmds::sandbox() {
   Board::initHash();
 
   Logger logger;
@@ -152,7 +151,7 @@ int main() {
 
 
 
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -277,7 +276,7 @@ int main() {
 // #include <cublas_v2.h>
 // #include <cudnn.h>
 // #include "neuralnet/cudahelpers.h"
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -363,7 +362,7 @@ int main() {
 // #include <cublas_v2.h>
 // #include <cudnn.h>
 // #include "neuralnet/cudahelpers.h"
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -452,7 +451,7 @@ int main() {
 // #include <cublas_v2.h>
 // #include <cudnn.h>
 // #include "neuralnet/cudahelpers.h"
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -540,7 +539,7 @@ int main() {
 // #include <cublas_v2.h>
 // #include <cudnn.h>
 // #include "neuralnet/cudahelpers.h"
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -626,7 +625,7 @@ int main() {
 // #include <cuda.h>
 // #include <cublas_v2.h>
 // #include <cudnn.h>
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -780,7 +779,7 @@ int main() {
 // #include "neuralnet/cudaerrorcheck.h"
 // #include "neuralnet/cudahelpers.h"
 
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -858,7 +857,7 @@ int main() {
 // }
 
 
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -911,7 +910,7 @@ int main() {
 
 
 
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -964,7 +963,7 @@ int main() {
 //     throw StringError("CUDNN Error: " + string(subLabel) + ": " + cudnnGetErrorString(status));
 // }
 
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -1279,7 +1278,7 @@ int main() {
 // }
 
 
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -1406,7 +1405,7 @@ int main() {
 
 
 
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   Logger logger;
@@ -1508,7 +1507,7 @@ int main() {
 
 
 
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   int maxBatchSize = 8;
@@ -1578,7 +1577,7 @@ int main() {
 
 
 
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   auto checkStatus = [](Status status, const char* subLabel) {
@@ -1818,7 +1817,7 @@ int main() {
 // }
 
 
-// int main() {
+// int MainCmds::sandbox() {
 //   Board::initHash();
 
 //   auto checkStatus = [](Status status, const char* subLabel) {

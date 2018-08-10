@@ -10,7 +10,12 @@ cpp/example
 cpp/gtp
 cpp/gtp.log
 cpp/match
+cpp/matchcuda
+cpp/matchtensorflow
 cpp/match.log
+cpp/main
+cpp/tmp.txt
+cpp/tmp2.txt
 cpp/configs
 cpp/evalsgf
 

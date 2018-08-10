@@ -39,6 +39,8 @@ struct Sgf {
   static Sgf* parse(const string& str);
   static Sgf* loadFile(const string& file);
   static vector<Sgf*> loadFiles(const vector<string>& files);
+  static vector<Sgf*> loadSgfsFile(const string& file);
+  static vector<Sgf*> loadSgfsFiles(const vector<string>& files);
 
   int getBSize() const;
   float getKomi() const;
