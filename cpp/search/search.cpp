@@ -753,11 +753,11 @@ void Search::printTreeHelper(
     out << ": ";
 
     if(visits > 0) {
-      sprintf(buf,"T %6.2fc ",(winLossValueSum + scoreValueSum) / visits * 100.0);
+      sprintf(buf,"T %6.2fc ",(winLossValueSum * searchParams.winLossUtilityFactor + scoreValueSum * searchParams.scoreUtilityFactor) / visits * 100.0);
       out << buf;
-      sprintf(buf,"W %6.2fc ",winLossValueSum / visits * 100.0);
+      sprintf(buf,"W %6.2fc ",(winLossValueSum * searchParams.winLossUtilityFactor) / visits * 100.0);
       out << buf;
-      sprintf(buf,"S %6.2fc ",scoreValueSum / visits * 100.0);
+      sprintf(buf,"S %6.2fc ",(scoreValueSum * searchParams.scoreUtilityFactor) / visits * 100.0);
       out << buf;
     }
 

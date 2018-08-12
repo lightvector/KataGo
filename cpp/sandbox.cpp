@@ -104,6 +104,10 @@ int MainCmds::sandbox() {
   bot->setPosition(pla,board,hist);
 
   Loc moveLoc = bot->genMoveSynchronous(pla);
+  bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
+  cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
+  cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
+  cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
   bot->clearSearch();
   nnEval->clearCache();
   ClockTimer timer;
