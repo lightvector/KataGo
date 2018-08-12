@@ -65,6 +65,7 @@ add_executable(main
   evalsgf.cpp
   gtp.cpp
   match.cpp
+  misc.cpp
   runtests.cpp
   sandbox.cpp
   main.cpp
