@@ -8,6 +8,7 @@ static void printHelp() {
   cout << "gtp" << endl;
   cout << "match" << endl;
   cout << "runTests" << endl;
+  cout << "writeRootValueTimeseries" << endl;
   cout << "sandbox" << endl;
 }
 
