@@ -1,5 +1,23 @@
 
+#ifdef _WIN32
+ #define _RAND_IS_WINDOWS
+#elif _WIN64
+ #define _RAND_IS_WINDOWS
+#elif __unix || __APPLE__
+  #define _RAND_IS_UNIX
+#else
+ #error Unknown OS!
+#endif
+
+#ifdef _RAND_IS_WINDOWS
+  #include <winsock.h>
+#endif
+#ifdef _RAND_IS_UNIX
+  #include <unistd.h>
+#endif
+
 #include <ctime>
+#include <cstdlib>
 #include "../core/timer.h"
 #include "../core/global.h"
 #include "../core/hash.h"
@@ -182,6 +200,30 @@ void Rand::init()
     Global::uint32ToHexString(clock0) +
     Global::int64ToString(precisionTime);
 
+  //Mix the hostname into the seed so that starting two things on different computers almost certainly
+  //pick different seeds.
+  //It turns out in this one case that the windows and unix implementations are the same...
+#ifdef _RAND_IS_WINDOWS
+  {
+    s += "|";
+    int bufSize = 1024;
+    char hostNameBuf[bufSize];
+    int result = gethostname(hostNameBuf,bufSize);
+    if(result == 0)
+      s += string(hostNameBuf);
+  }
+#endif
+#ifdef _RAND_IS_UNIX
+  {
+    s += "|";
+    int bufSize = 1024;
+    char hostNameBuf[bufSize];
+    int result = gethostname(hostNameBuf,bufSize);
+    if(result == 0)
+      s += string(hostNameBuf);
+  }
+#endif
+
   uint64_t hash[4];
   SHA2::get256(s.c_str(), hash);
 
@@ -229,7 +271,7 @@ void Rand::init(const string& seed)
 
 class RandToURNGWrapper {
 public:
-  typedef size_t result_type;  
+  typedef size_t result_type;
   Rand* rand;
   RandToURNGWrapper(Rand* r)
     :rand(r)
@@ -241,7 +283,7 @@ public:
   static size_t max() { return (size_t)0xFFFFFFFF; }
   size_t operator()() {
     return (size_t)rand->nextUInt();
-  }  
+  }
 };
 
 #include <random>

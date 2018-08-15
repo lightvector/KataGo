@@ -11,7 +11,7 @@
 #include <ctime>
 #include <cctype>
 #include <cstring>
-#include <dirent.h>
+#include <dirent.h> //TODO this is not portable to windows, use C++17 filesystem library when C++17 is available
 #include <inttypes.h>
 #include <sys/types.h>
 #include "global.h"
@@ -689,6 +689,8 @@ vector<string> Global::readFileLines(const string& filename, char delimiter)
   return readFileLines(filename.c_str(), delimiter);
 }
 
+
+//TODO this is not portable to windows, reimplement with C++17 filesystem library when C++17 is available
 void Global::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected)
 {
   DIR *dir;

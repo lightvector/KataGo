@@ -4,19 +4,19 @@
  */
 
 #ifdef _WIN32
- #define _IS_WINDOWS
+ #define _TIMER_IS_WINDOWS
 #elif _WIN64
- #define _IS_WINDOWS
+ #define _TIMER_IS_WINDOWS
 #elif __unix || __APPLE__
-  #define _IS_UNIX
+  #define _TIMER_IS_UNIX
 #else
  #error Unknown OS!
 #endif
 
-#ifdef _IS_WINDOWS
+#ifdef _TIMER_IS_WINDOWS
   #include <windows.h>
 #endif
-#ifdef _IS_UNIX
+#ifdef _TIMER_IS_UNIX
   #include <sys/time.h>
 #endif
 
@@ -27,7 +27,7 @@ using namespace std;
 
 //WINDOWS IMPLMENTATIION-------------------------------------------------------------
 
-#ifdef _IS_WINDOWS
+#ifdef _TIMER_IS_WINDOWS
 
 ClockTimer::ClockTimer()
 {
@@ -59,7 +59,7 @@ int64_t ClockTimer::getPrecisionSystemTime()
 
 //UNIX IMPLEMENTATION------------------------------------------------------------------
 
-#ifdef _IS_UNIX
+#ifdef _TIMER_IS_UNIX
 
 ClockTimer::ClockTimer()
 {
