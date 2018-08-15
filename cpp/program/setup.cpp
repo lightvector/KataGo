@@ -151,10 +151,10 @@ vector<SearchParams> Setup::loadParams(
 
 static double nextGaussianTruncated(Rand& rand) {
   double d = rand.nextGaussian();
-  if(d < -2.0)
-    return -2.0;
-  if(d > 2.0)
-    return 2.0;
+  //Truncated refers to the probability distribution, not the sample
+  //So on falling outside the range, we redraw, rather than capping.
+  while(d < -2.0 || d > 2.0)
+    d = rand.nextGaussian();
   return d;
 }
 
