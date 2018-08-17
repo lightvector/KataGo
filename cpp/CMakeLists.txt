@@ -39,6 +39,7 @@ add_executable(write
 add_executable(main
   core/global.cpp
   core/config_parser.cpp
+  core/fancymath.cpp
   core/hash.cpp
   core/logger.cpp
   core/makedir.cpp
@@ -60,7 +61,6 @@ add_executable(main
   program/setup.cpp
   tests/testboardarea.cpp
   tests/testboardbasic.cpp
-  tests/testmisc.cpp
   tests/testrules.cpp
   evalsgf.cpp
   gtp.cpp

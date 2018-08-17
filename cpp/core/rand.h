@@ -106,7 +106,7 @@ class Rand
   double nextGamma(double a);
 
   //TESTING----------------------------------------------
-  static void test();
+  static void runTests();
 };
 
 inline string Rand::getSeed() const

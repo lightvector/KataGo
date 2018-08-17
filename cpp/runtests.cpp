@@ -2,6 +2,7 @@
 #include <sstream>
 #include "core/global.h"
 #include "core/rand.h"
+#include "core/fancymath.h"
 #include "game/board.h"
 #include "game/rules.h"
 #include "game/boardhistory.h"
@@ -14,7 +15,9 @@ int MainCmds::runTests(int argc, const char* const* argv) {
   testAssert(sizeof(size_t) == 8);
   Board::initHash();
 
-  Tests::runRandHashTests();
+  Rand::runTests();
+  FancyMath::runTests();
+
   Tests::runBoardIOTests();
   Tests::runBoardBasicTests();
   Tests::runBoardAreaTests();
