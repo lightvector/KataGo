@@ -155,6 +155,13 @@ private:
   void maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const;
   int getPos(Loc moveLoc) const;
 
+  void getModeledSelectionProbs(
+    const vector<double>& childValuesBuf,
+    const vector<uint64_t>& childVisitsBuf,
+    const vector<double>& policyProbs,
+    vector<double>& resultBuf
+  ) const;
+
   double getPlaySelectionValue(
     double nnPolicyProb, uint64_t childVisits,
     double childValueSum, Player pla
@@ -188,7 +195,7 @@ private:
 
   void printTreeHelper(
     ostream& out, const SearchNode* node, const PrintTreeOptions& options,
-    string& prefix, uint64_t origVisits, int depth, double policyProb
+    string& prefix, uint64_t origVisits, int depth, double policyProb, double modelProb
   );
 
 };
