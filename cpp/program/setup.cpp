@@ -115,6 +115,9 @@ vector<SearchParams> Setup::loadParams(
     else                                       params.fpuReductionMax = cfg.getDouble("fpuReductionMax",        0.0, 2.0);
     if(cfg.contains("fpuUseParentAverage"+idxStr)) params.fpuUseParentAverage = cfg.getBool("fpuUseParentAverage"+idxStr);
     else if(cfg.contains("fpuUseParentAverage")) params.fpuUseParentAverage = cfg.getBool("fpuUseParentAverage");
+    if(cfg.contains("moveProbModelExponent"+idxStr)) params.moveProbModelExponent = cfg.getDouble("moveProbModelExponent"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("moveProbModelExponent")) params.moveProbModelExponent = cfg.getDouble("moveProbModelExponent", 0.0, 1.0);
+    else params.moveProbModelExponent = 0.0;
 
     if(cfg.contains("rootNoiseEnabled"+idxStr)) params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled"+idxStr);
     else                                        params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled");

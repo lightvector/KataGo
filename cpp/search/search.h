@@ -17,6 +17,7 @@
 struct SearchNode;
 struct SearchThread;
 struct Search;
+struct DistributionTable;
 
 struct NodeStats {
   uint64_t visits;
@@ -107,6 +108,9 @@ struct Search {
 
   //Contains all koHashes of positions/situations up to and including the root
   KoHashTable* rootKoHashTable;
+
+  //Precomputed distribution for model about how move values are distributed
+  DistributionTable* moveDistribution;
 
   //Mutable---------------------------------------------------------------
   SearchNode* rootNode;

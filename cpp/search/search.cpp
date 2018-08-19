@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "../search/search.h"
 #include "../core/fancymath.h"
+#include "../search/distributiontable.h"
 
 NodeStats::NodeStats()
   :visits(0),winLossValueSum(0.0),scoreValueSum(0.0),valueSumWeight(0.0)
@@ -109,6 +110,7 @@ SearchThread::~SearchThread() {
 
 //-----------------------------------------------------------------------------------------
 
+static const double MOVE_MODEL_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
@@ -117,6 +119,14 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    nonSearchRand(rSeed + string("$nonSearchRand"))
 {
   rootKoHashTable = new KoHashTable();
+  
+  moveDistribution = new DistributionTable(
+    [](double z) { return FancyMath::tdistpdf(z,MOVE_MODEL_DEGREES_OF_FREEDOM); },
+    [](double z) { return FancyMath::tdistcdf(z,MOVE_MODEL_DEGREES_OF_FREEDOM); },
+    -50.0,
+    50.0,
+    2000
+  );
 
   rootNode = NULL;
   mutexPool = new MutexPool(params.mutexPoolSize);
@@ -127,6 +137,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
 
 Search::~Search() {
   delete rootKoHashTable;
+  delete moveDistribution;
   delete rootNode;
   delete mutexPool;
 }
@@ -383,7 +394,6 @@ static const double precisionScale = 13.0;
 static const double precisionExponent = 0.32;
 static const double linearSlope = precisionScale * precisionExponent / pow((double)linearPrecisionThreshold,1-precisionExponent);
 static const double linearOffset = precisionScale * pow((double)linearPrecisionThreshold,precisionExponent);
-static const double degreesFreedom = 3.0;
 
 void Search::getModeledSelectionProbs(
   int numChildren,
@@ -419,12 +429,11 @@ void Search::getModeledSelectionProbs(
     stdevs[i] = sqrt(1.0 / precision);
   }
 
-  assert(degreesFreedom >= 2.5);
-  double stdevScale = sqrt(degreesFreedom / (degreesFreedom - 2.0)); //t distribution actually has higher than unit variance, so need to scale
+  double stdevScale = sqrt(MOVE_MODEL_DEGREES_OF_FREEDOM / (MOVE_MODEL_DEGREES_OF_FREEDOM - 2.0)); //t distribution actually has higher than unit variance, so need to scale
 
   //For each move, compute the probability density of "the max value == value" AND "this move is best".
   //Also computes the product of all cdfs, which is the probability that "the max value <= value".
-  auto computeProbBest = [&childValuesBuf,&stdevs,numChildren,stdevScale](
+  auto computeProbBest = [this,&childValuesBuf,&stdevs,numChildren,stdevScale](
     double value, double* probBest, double& cdfProd, double mult
   ) {
     cdfProd = 1.0;
@@ -439,10 +448,10 @@ void Search::getModeledSelectionProbs(
       else {
       
         double z = (value-childValuesBuf[i])/stdev*stdevScale;
-        double cdf = FancyMath::tdistcdf(z,degreesFreedom);
+        double cdf = moveDistribution->getCdf(z);
         cdfProd *= cdf;
         cdfBuf[i] = cdf;
-        probBest[i] = FancyMath::tdistpdf(z,degreesFreedom) * stdevScale / stdev; //Fill with pdf first
+        probBest[i] = moveDistribution->getPdf(z) * stdevScale / stdev; //Fill with pdf first
       }
     }
     
@@ -757,15 +766,18 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread) {
     totalChildVisits += childVisits;
   }
   lock.unlock();
+
+  if(searchParams.moveProbModelExponent > 0)
+    getModeledSelectionProbs(numChildren,values,visits,policyProbs,modelProbs);
   
-  getModeledSelectionProbs(numChildren,values,visits,policyProbs,modelProbs);
   double winLossValueSum = 0.0;
   double scoreValueSum = 0.0;
   double valueSumWeight = 0.0;
   for(int i = 0; i<numChildren; i++) {
-    //TODO not used right now!
     double weight = visits[i];
-    //double weight = visits[i] * sqrt(modelProbs[i]); //TODO make this sqrt configurable?
+    if(searchParams.moveProbModelExponent > 0)
+      weight *= pow(modelProbs[i], searchParams.moveProbModelExponent);
+    
     winLossValueSum += weight * winLossValues[i];
     scoreValueSum += weight * scoreValues[i];
     valueSumWeight += weight;
