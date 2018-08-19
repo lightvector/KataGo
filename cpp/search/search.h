@@ -22,6 +22,7 @@ struct NodeStats {
   uint64_t visits;
   double winLossValueSum;
   double scoreValueSum;
+  double valueSumWeight;
   int32_t virtualLosses;
 
   NodeStats();
@@ -30,7 +31,7 @@ struct NodeStats {
   NodeStats(const NodeStats& other);
   NodeStats& operator=(const NodeStats& other);
 
-  double getCombinedValueSum(const SearchParams& searchParams) const;
+  double getCombinedValue(const SearchParams& searchParams) const;
 };
 
 struct SearchNode {
@@ -77,6 +78,13 @@ struct SearchThread {
 
   NNResultBuf nnResultBuf;
   ostream* logStream;
+
+  vector<double> modelProbsBuf;
+  vector<double> winLossValuesBuf;
+  vector<double> scoreValuesBuf;
+  vector<double> valuesBuf;
+  vector<uint64_t> visitsBuf;
+  vector<double> policyProbsBuf;
 
   SearchThread(int threadIdx, const Search& search, Logger* logger);
   ~SearchThread();
@@ -156,6 +164,7 @@ private:
   int getPos(Loc moveLoc) const;
 
   void getModeledSelectionProbs(
+    int numChildren,
     const vector<double>& childValuesBuf,
     const vector<uint64_t>& childVisitsBuf,
     const vector<double>& policyProbs,
@@ -164,15 +173,17 @@ private:
 
   double getPlaySelectionValue(
     double nnPolicyProb, uint64_t childVisits,
-    double childValueSum, Player pla
+    double childValue, Player pla
   ) const;
   double getExploreSelectionValue(
     double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
-    double childValueSum, double fpuValue, Player pla
+    double childValue, Player pla
   ) const;
   double getPlaySelectionValue(const SearchNode& parent, const SearchNode* child) const;
-  double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const;
+  double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits) const;
   double getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const;
+
+  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int numVirtualLossesToRemove);
 
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
@@ -180,15 +191,15 @@ private:
     bool isRoot
   ) const;
 
+  void setTerminalValue(SearchNode& node, double winLossValue, double scoreValue);
+
   void initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
-    double& retWinLossValue, double& retScoreValue,
     bool isRoot, bool skipCache
   );
 
   void playoutDescend(
     SearchThread& thread, SearchNode& node,
-    double& retWinLossValue, double& retScoreValue,
     int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
     bool isRoot
   );

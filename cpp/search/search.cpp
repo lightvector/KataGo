@@ -5,26 +5,32 @@
 #include "../core/fancymath.h"
 
 NodeStats::NodeStats()
-  :visits(0),winLossValueSum(0.0),scoreValueSum(0.0),virtualLosses(0)
+  :visits(0),winLossValueSum(0.0),scoreValueSum(0.0),valueSumWeight(0.0),virtualLosses(0)
 {}
 NodeStats::~NodeStats()
 {}
 
 NodeStats::NodeStats(const NodeStats& other)
-  :visits(other.visits),winLossValueSum(other.winLossValueSum),scoreValueSum(other.scoreValueSum),virtualLosses(other.virtualLosses)
+  :visits(other.visits),
+   winLossValueSum(other.winLossValueSum),
+   scoreValueSum(other.scoreValueSum),
+   valueSumWeight(other.valueSumWeight),
+   virtualLosses(other.virtualLosses)
 {}
 NodeStats& NodeStats::operator=(const NodeStats& other) {
   visits = other.visits;
   winLossValueSum = other.winLossValueSum;
   scoreValueSum = other.scoreValueSum;
+  valueSumWeight = other.valueSumWeight;
   virtualLosses = other.virtualLosses;
   return *this;
 }
 
-double NodeStats::getCombinedValueSum(const SearchParams& searchParams) const {
-  return
+double NodeStats::getCombinedValue(const SearchParams& searchParams) const {
+  return (
     winLossValueSum * searchParams.winLossUtilityFactor +
-    scoreValueSum * searchParams.scoreUtilityFactor;
+    scoreValueSum * searchParams.scoreUtilityFactor
+  ) / valueSumWeight;
 }
 
 //-----------------------------------------------------------------------------------------
@@ -78,10 +84,23 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
    history(search.rootHistory),
    rand(search.randSeed + string("$searchThread$") + Global::intToString(threadIdx)),
    nnResultBuf(),
-   logStream(NULL)
+   logStream(NULL),
+   modelProbsBuf(),
+   winLossValuesBuf(),
+   scoreValuesBuf(),
+   valuesBuf(),
+   visitsBuf(),
+   policyProbsBuf()
 {
   if(logger != NULL)
     logStream = logger->createOStream();
+
+  winLossValuesBuf.resize(NNPos::NN_POLICY_SIZE);
+  scoreValuesBuf.resize(NNPos::NN_POLICY_SIZE);
+  valuesBuf.resize(NNPos::NN_POLICY_SIZE);
+  visitsBuf.resize(NNPos::NN_POLICY_SIZE);
+  policyProbsBuf.resize(NNPos::NN_POLICY_SIZE);
+
 }
 SearchThread::~SearchThread() {
   if(logStream != NULL)
@@ -368,24 +387,30 @@ static const double linearOffset = precisionScale * pow((double)linearPrecisionT
 static const double degreesFreedom = 3.0;
 
 void Search::getModeledSelectionProbs(
+  int numChildren,
   const vector<double>& childValuesBuf,
   const vector<uint64_t>& childVisitsBuf,
   const vector<double>& policyProbs,
   vector<double>& resultBuf
 ) const {
-  assert(childVisitsBuf.size() > 0);
-  assert(childVisitsBuf.size() == childValuesBuf.size());
   resultBuf.clear();
-  if(childVisitsBuf.size() == 1) {
+  if(numChildren <= 0)
+    return;    
+  if(numChildren == 1) {
     resultBuf.push_back(1.0);
     return;
   }
 
-  int numChildren = childValuesBuf.size();
   double stdevs[numChildren];
   for(int i = 0; i<numChildren; i++) {
     uint64_t numVisits = childVisitsBuf[i];
-    assert(numVisits > 0);
+    //If we expand a node but a thread is still in a child and hasn't evaled it yet, we might have numVisits == 0.
+    //Flag it with a negative stdev
+    if(numVisits <= 0) {
+      stdevs[i] = -1.0;
+      continue;
+    }
+    
     double precision;
     if(numVisits < linearPrecisionThreshold)
       precision = precisionScale * pow((double)numVisits,precisionExponent);
@@ -406,13 +431,22 @@ void Search::getModeledSelectionProbs(
     cdfProd = 1.0;
     double cdfBuf[numChildren];
     for(int i = 0; i<numChildren; i++) {
-      double z = (value-childValuesBuf[i])/stdevs[i]*stdevScale;
-      double cdf = FancyMath::tdistcdf(z,degreesFreedom);
-      cdfProd *= cdf;
-      cdfBuf[i] = cdf;
-      probBest[i] = FancyMath::tdistpdf(z,degreesFreedom) * stdevScale / stdevs[i]; //Fill with pdf first
+      //Node with no visits (flagged with a negative stdev from above), treat it as if it were infinitely negative
+      double stdev = stdevs[i];
+      if(stdev < 0.0) {
+        cdfBuf[i] = 1.0;
+        probBest[i] = 0;
+      }
+      else {
+      
+        double z = (value-childValuesBuf[i])/stdev*stdevScale;
+        double cdf = FancyMath::tdistcdf(z,degreesFreedom);
+        cdfProd *= cdf;
+        cdfBuf[i] = cdf;
+        probBest[i] = FancyMath::tdistpdf(z,degreesFreedom) * stdevScale / stdev; //Fill with pdf first
+      }
     }
-
+    
     // cout << value << " ";
     // for(int i = 0; i<numChildren; i++)
     //   cout << probBest[i] << " ";
@@ -504,6 +538,7 @@ void Search::getModeledSelectionProbs(
     totalProbBest += p;
     resultBuf.push_back(p);
   }
+
   assert(totalProbBest > 0);
   for(int i = 0; i<numChildren; i++) {
     resultBuf[i] /= totalProbBest;
@@ -513,19 +548,19 @@ void Search::getModeledSelectionProbs(
 
 double Search::getPlaySelectionValue(
   double nnPolicyProb, uint64_t childVisits,
-  double childValueSum, Player pla
+  double childValue, Player pla
 ) const {
   if(nnPolicyProb < 0)
     return POLICY_ILLEGAL_SELECTION_VALUE;
 
-  (void)(childValueSum);
+  (void)(childValue);
   (void)(pla);
   return (double)childVisits;
 }
 
 double Search::getExploreSelectionValue(
   double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
-  double childValueSum, double fpuValue, Player pla
+  double childValue, Player pla
 ) const {
   if(nnPolicyProb < 0)
     return POLICY_ILLEGAL_SELECTION_VALUE;
@@ -536,16 +571,9 @@ double Search::getExploreSelectionValue(
     * sqrt((double)totalChildVisits + 0.01) //TODO this is weird when totalChildVisits == 0, first exploration
     / (1.0 + childVisits);
 
-  double valueComponent;
-  if(childVisits > 0)
-    valueComponent = childValueSum / childVisits;
-  else
-    valueComponent = fpuValue;
-
-  //Adjust it to be from the player's perspective, so that players prefer values in their favor
+  //Adjust value to be from the player's perspective, so that players prefer values in their favor
   //rather than in white's favor
-  valueComponent = pla == P_WHITE ? valueComponent : -valueComponent;
-
+  double valueComponent = pla == P_WHITE ? childValue : -childValue;
   return exploreComponent + valueComponent;
 }
 
@@ -561,39 +589,44 @@ double Search::getPlaySelectionValue(const SearchNode& parent, const SearchNode*
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   uint64_t childVisits = child->stats.visits;
-  double childValueSum = child->stats.getCombinedValueSum(searchParams);
+  double childValue = child->stats.getCombinedValue(searchParams);
   child->statsLock.clear(std::memory_order_release);
 
-  return getPlaySelectionValue(nnPolicyProb,childVisits,childValueSum,parent.nextPla);
+  return getPlaySelectionValue(nnPolicyProb,childVisits,childValue,parent.nextPla);
 }
-double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const {
+double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits) const {
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   uint64_t childVisits = child->stats.visits;
-  double childValueSum = child->stats.getCombinedValueSum(searchParams);
+  double childValue = child->stats.getCombinedValue(searchParams);
   int32_t childVirtualLosses = child->stats.virtualLosses;
   child->statsLock.clear(std::memory_order_release);
+
+  assert(childVisits > 0);
 
   //When multithreading, totalChildVisits could be out of sync with childVisits, so if they provably are, then fix that up
   if(totalChildVisits < childVisits)
     totalChildVisits = childVisits;
 
   //Virtual losses to direct threads down different paths
-  totalChildVisits += childVirtualLosses;
-  childVisits += childVirtualLosses;
-  childValueSum += (parent.nextPla == P_WHITE ? -childVirtualLosses : childVirtualLosses) *
-    (searchParams.winLossUtilityFactor + searchParams.scoreUtilityFactor);
-
-  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,fpuValue,parent.nextPla);
+  if(childVirtualLosses > 0) {
+    totalChildVisits += childVirtualLosses;
+    childVisits += childVirtualLosses;
+    double virtualLossUtility = (parent.nextPla == P_WHITE ? -1.0 : 1.0) * (searchParams.winLossUtilityFactor + searchParams.scoreUtilityFactor);
+    double virtualLossVisitFrac = childVirtualLosses / childVisits;
+    childValue = childValue + (virtualLossUtility - childValue) * virtualLossVisitFrac;
+  }
+  
+  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValue,parent.nextPla);
 }
 double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const {
   float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
   uint64_t childVisits = 0;
-  double childValueSum = 0.0;
-  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValueSum,fpuValue,parent.nextPla);
+  double childValue = fpuValue;
+  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValue,parent.nextPla);
 }
 
 
@@ -635,10 +668,9 @@ void Search::selectBestChildToDescend(
   if(searchParams.fpuUseParentAverage) {
     while(node.statsLock.test_and_set(std::memory_order_acquire));
     uint64_t parentVisits = node.stats.visits;
-    double parentValueSum = node.stats.getCombinedValueSum(searchParams);
+    parentValue = node.stats.getCombinedValue(searchParams);
     node.statsLock.clear(std::memory_order_release);
     assert(parentVisits > 0);
-    parentValue = parentValueSum / parentVisits;
   }
   else
     parentValue = node.nnOutput->whiteValue;
@@ -657,7 +689,7 @@ void Search::selectBestChildToDescend(
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
-    double selectionValue = getExploreSelectionValue(node,child,totalChildVisits,fpuValue);
+    double selectionValue = getExploreSelectionValue(node,child,totalChildVisits);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = i;
@@ -688,18 +720,83 @@ void Search::selectBestChildToDescend(
 
 }
 
+void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int numVirtualLossesToRemove) {
+  //Find all children and compute experimental model play probabilities
+  vector<double>& modelProbs = thread.modelProbsBuf;
+  vector<double>& winLossValues = thread.winLossValuesBuf;
+  vector<double>& scoreValues = thread.scoreValuesBuf;
+  vector<double>& values = thread.valuesBuf;
+  vector<uint64_t>& visits = thread.visitsBuf;
+  vector<double>& policyProbs = thread.policyProbsBuf;
+
+  uint64_t totalChildVisits = 0;
+  
+  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
+  unique_lock<std::mutex> lock(mutex);
+
+  int numChildren = node.numChildren;
+  for(int i = 0; i<numChildren; i++) {
+    const SearchNode* child = node.children[i];
+
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
+    uint64_t childVisits = child->stats.visits;
+    double winLossValueSum = child->stats.winLossValueSum;
+    double scoreValueSum = child->stats.scoreValueSum;
+    double valueSumWeight = child->stats.valueSumWeight;
+    double childValue = child->stats.getCombinedValue(searchParams);
+    child->statsLock.clear(std::memory_order_release);
+
+    Loc moveLoc = child->prevMoveLoc;
+    int movePos = getPos(moveLoc);
+    double childPolicyProb = node.nnOutput->policyProbs[movePos];
+
+    winLossValues[i] = winLossValueSum / valueSumWeight;
+    scoreValues[i] = scoreValueSum / valueSumWeight;
+    values[i] = node.nextPla == P_WHITE ? childValue : -childValue;
+    visits[i] = childVisits;
+    policyProbs[i] = childPolicyProb;
+    totalChildVisits += childVisits;
+  }
+  lock.unlock();
+  
+  getModeledSelectionProbs(numChildren,values,visits,policyProbs,modelProbs);
+  double winLossValueSum = 0.0;
+  double scoreValueSum = 0.0;
+  double valueSumWeight = 0.0;
+  for(int i = 0; i<numChildren; i++) {
+    //TODO not used right now!
+    double weight = visits[i];
+    //double weight = visits[i] * sqrt(modelProbs[i]); //TODO make this sqrt configurable?
+    winLossValueSum += weight * winLossValues[i];
+    scoreValueSum += weight * scoreValues[i];
+    valueSumWeight += weight;
+  }
+  //Also add in the direct evaluation of this node
+  //TODO update this and other places when we have a score prediction on the net
+  winLossValueSum += (double)node.nnOutput->whiteValue;
+  valueSumWeight += 1.0;
+
+  
+  while(node.statsLock.test_and_set(std::memory_order_acquire));
+  node.stats.visits += 1;
+  //It's possible that these values are a bit wrong if there's a race and two threads each try to update this
+  //each of them only having some of the latest updates for all the children. We just accept this and let the
+  //error persist, it will get fixed the next time a visit comes through here and the values will at least
+  //be consistent with each other within this node, since statsLock at least ensures these three are set atomically.
+  node.stats.winLossValueSum = winLossValueSum;
+  node.stats.scoreValueSum = scoreValueSum;
+  node.stats.valueSumWeight = valueSumWeight;
+  node.stats.virtualLosses -= numVirtualLossesToRemove;
+  node.statsLock.clear(std::memory_order_release);
+}
+
 void Search::runSinglePlayout(SearchThread& thread) {
-  double retWinLossValue;
-  double retScoreValue;
   int posesWithChildBuf[NNPos::NN_POLICY_SIZE];
-  playoutDescend(thread,*rootNode,retWinLossValue,retScoreValue,posesWithChildBuf,true);
+  playoutDescend(thread,*rootNode,posesWithChildBuf,true);
 
   //Update stats coming back up
-  while(rootNode->statsLock.test_and_set(std::memory_order_acquire));
-  rootNode->stats.visits += 1;
-  rootNode->stats.winLossValueSum += retWinLossValue;
-  rootNode->stats.scoreValueSum += retScoreValue;
-  rootNode->statsLock.clear(std::memory_order_release);
+  int numVirtualLossesToRemove = 0;
+  updateStatsAfterPlayout(*rootNode,thread,numVirtualLossesToRemove);
 
   //Restore thread state back to the root state
   thread.pla = rootPla;
@@ -707,9 +804,17 @@ void Search::runSinglePlayout(SearchThread& thread) {
   thread.history = rootHistory;
 }
 
+void Search::setTerminalValue(SearchNode& node, double winLossValue, double scoreValue) {
+  while(node.statsLock.test_and_set(std::memory_order_acquire));
+  node.stats.visits += 1;
+  node.stats.winLossValueSum = winLossValue;
+  node.stats.scoreValueSum = scoreValue;
+  node.stats.valueSumWeight = 1.0;
+  node.statsLock.clear(std::memory_order_release);  
+}
+
 void Search::initNodeNNOutput(
   SearchThread& thread, SearchNode& node,
-  double& retWinLossValue, double& retScoreValue,
   bool isRoot, bool skipCache
 ) {
   nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logStream, skipCache);
@@ -719,13 +824,16 @@ void Search::initNodeNNOutput(
   //TODO update this and other places when we have a score prediction on the net
   //Values in the search are from the perspective of white positive always
   double value = (double)node.nnOutput->whiteValue;
-  retWinLossValue = value;
-  retScoreValue = 0.0;
+  while(node.statsLock.test_and_set(std::memory_order_acquire));
+  node.stats.visits += 1;
+  node.stats.winLossValueSum = value;
+  node.stats.scoreValueSum = 0.0;
+  node.stats.valueSumWeight = 1.0;
+  node.statsLock.clear(std::memory_order_release);
 }
 
 void Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
-  double& retWinLossValue, double& retScoreValue,
   int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
   bool isRoot
 ) {
@@ -735,17 +843,16 @@ void Search::playoutDescend(
     //TODO what to do here? Is this reasonable? Probably actually want a separate output?
     //weird that this also gets scaled later by winLossUtilityFactor
     if(thread.history.isNoResult) {
-      retWinLossValue = searchParams.noResultUtilityForWhite;
-      retScoreValue = 0.0;
+      double winLossValue = searchParams.noResultUtilityForWhite;
+      double scoreValue = 0.0;
+      setTerminalValue(node, winLossValue, scoreValue);
       return;
     }
     else {
       double winLossValue = NNOutput::whiteValueOfWinner(thread.history.winner, searchParams.drawUtilityForWhite);
       assert(thread.board.x_size == thread.board.y_size);
       double scoreValue = NNOutput::whiteValueOfScore(thread.history.finalWhiteMinusBlackScore, thread.board.x_size);
-
-      retWinLossValue = winLossValue;
-      retScoreValue = scoreValue;
+      setTerminalValue(node, winLossValue, scoreValue);
       return;
     }
   }
@@ -755,7 +862,7 @@ void Search::playoutDescend(
 
   //Hit leaf node, finish
   if(node.nnOutput == nullptr) {
-    initNodeNNOutput(thread,node,retWinLossValue,retScoreValue,isRoot,false);
+    initNodeNNOutput(thread,node,isRoot,false);
     return;
   }
 
@@ -770,7 +877,7 @@ void Search::playoutDescend(
   //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
   //Regenerate the neural net call and continue
   if(!(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla))) {
-    initNodeNNOutput(thread,node,retWinLossValue,retScoreValue,isRoot,true);
+    initNodeNNOutput(thread,node,isRoot,true);
     lock.unlock();
     if(thread.logStream != NULL)
       (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
@@ -829,15 +936,10 @@ void Search::playoutDescend(
   }
 
   //Recurse!
-  playoutDescend(thread,*child,retWinLossValue,retScoreValue,posesWithChildBuf,false);
+  playoutDescend(thread,*child,posesWithChildBuf,false);
 
   //Update child stats
-  while(child->statsLock.test_and_set(std::memory_order_acquire));
-  child->stats.visits += 1;
-  child->stats.winLossValueSum += retWinLossValue;
-  child->stats.scoreValueSum += retScoreValue;
-  child->stats.virtualLosses -= searchParams.numVirtualLossesPerThread;
-  child->statsLock.clear(std::memory_order_release);
+  updateStatsAfterPlayout(*child,thread,searchParams.numVirtualLossesPerThread);
 }
 
 void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
@@ -892,6 +994,7 @@ void Search::printTreeHelper(
   uint64_t visits = node.stats.visits;
   double winLossValueSum = node.stats.winLossValueSum;
   double scoreValueSum = node.stats.scoreValueSum;
+  double valueSumWeight = node.stats.valueSumWeight;
   node.statsLock.clear(std::memory_order_release);
 
   if(depth == 0)
@@ -905,11 +1008,11 @@ void Search::printTreeHelper(
     out << ": ";
 
     if(visits > 0) {
-      sprintf(buf,"T %6.2fc ",(winLossValueSum * searchParams.winLossUtilityFactor + scoreValueSum * searchParams.scoreUtilityFactor) / visits * 100.0);
+      sprintf(buf,"T %6.2fc ",(winLossValueSum * searchParams.winLossUtilityFactor + scoreValueSum * searchParams.scoreUtilityFactor) / valueSumWeight * 100.0);
       out << buf;
-      sprintf(buf,"W %6.2fc ",(winLossValueSum * searchParams.winLossUtilityFactor) / visits * 100.0);
+      sprintf(buf,"W %6.2fc ",(winLossValueSum * searchParams.winLossUtilityFactor) / valueSumWeight * 100.0);
       out << buf;
-      sprintf(buf,"S %6.2fc ",(scoreValueSum * searchParams.scoreUtilityFactor) / visits * 100.0);
+      sprintf(buf,"S %6.2fc ",(scoreValueSum * searchParams.scoreUtilityFactor) / valueSumWeight * 100.0);
       out << buf;
     }
 
@@ -974,18 +1077,18 @@ void Search::printTreeHelper(
 
       while(child->statsLock.test_and_set(std::memory_order_acquire));
       uint64_t childVisits = child->stats.visits;
-      double childValueSum = child->stats.getCombinedValueSum(searchParams);
+      double childValue = child->stats.getCombinedValue(searchParams);
       child->statsLock.clear(std::memory_order_release);
       Loc moveLoc = child->prevMoveLoc;
       int movePos = getPos(moveLoc);
       double childPolicyProb = node.nnOutput->policyProbs[movePos];
 
-      valuesBuf.push_back(node.nextPla == P_WHITE ? (childValueSum / childVisits) : -(childValueSum / childVisits));
+      valuesBuf.push_back(node.nextPla == P_WHITE ? childValue : -childValue);
       visitsBuf.push_back(childVisits);
       policyProbs.push_back(childPolicyProb);
     }
 
-    getModeledSelectionProbs(valuesBuf,visitsBuf,policyProbs,modelProbs);
+    getModeledSelectionProbs(numChildren,valuesBuf,visitsBuf,policyProbs,modelProbs);
   }
 
   //Find all children and record their play values
