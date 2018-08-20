@@ -123,9 +123,9 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   moveDistribution = new DistributionTable(
     [](double z) { return FancyMath::tdistpdf(z,MOVE_MODEL_DEGREES_OF_FREEDOM); },
     [](double z) { return FancyMath::tdistcdf(z,MOVE_MODEL_DEGREES_OF_FREEDOM); },
-    -50.0,
-    50.0,
-    2000
+    -30.0,
+    30.0,
+    600
   );
 
   rootNode = NULL;
@@ -395,6 +395,131 @@ static const double precisionExponent = 0.32;
 static const double linearSlope = precisionScale * precisionExponent / pow((double)linearPrecisionThreshold,1-precisionExponent);
 static const double linearOffset = precisionScale * pow((double)linearPrecisionThreshold,precisionExponent);
 
+//t distribution actually has higher than unit variance, so need to scale
+static const double stdevScale = sqrt(MOVE_MODEL_DEGREES_OF_FREEDOM / (MOVE_MODEL_DEGREES_OF_FREEDOM - 2.0)); 
+
+//For each move, compute the probability density of "the max value == value" AND "this move is best".
+//Also computes the product of all cdfs, which is the probability that "the max value <= value".
+static void computeProbBest(
+  const DistributionTable* moveDistribution, const vector<double>& childValuesBuf, const double* stdevs, int numChildren,
+  double value, double* probBest, double& cdfProd, double mult
+) {
+  cdfProd = 1.0;
+  double cdfBuf[numChildren];
+  for(int i = 0; i<numChildren; i++) {
+    //Node with no visits (flagged with a negative stdev from above), treat it as if it were infinitely negative
+    double stdev = stdevs[i];
+    if(stdev < 0.0) {
+      cdfBuf[i] = 1.0;
+      probBest[i] = 0;
+    }
+    else {
+      double z = (value-childValuesBuf[i])/stdev*stdevScale;
+      double pdf,cdf;
+      moveDistribution->getPdfCdf(z,pdf,cdf);
+      cdfProd *= cdf;
+      cdfBuf[i] = cdf;
+      probBest[i] = pdf * stdevScale / stdev; //Fill with pdf first
+    }
+  }
+    
+  // cout << value << " ";
+  // for(int i = 0; i<numChildren; i++)
+  //   cout << probBest[i] << " ";
+  // cout << endl;
+    
+  //Now in a second pass, compute prob density of best:
+  //For each child i, it is pdf_i(value) * prod_{j != i} cdf_j(value) 
+  //Since pdf_i(value) is the prob that child i is value, and prod_{j != i} cdf_j(value) is the
+  //prob that all others are less than value.
+  for(int i = 0; i<numChildren; i++) {
+    if(cdfBuf[i] <= 1e-30) //Avoid divide by 0
+      probBest[i] = 0;
+    else {
+      probBest[i] = probBest[i] / cdfBuf[i] * cdfProd * mult;
+    }
+  };    
+}
+
+//Using transformation int_{-inf to inf} f(x) dx = int_{-1 to 1} f(x/(1-x^2)) (1+x^2)/(1-x^2)^2 dx
+static void computeProbBestTransformed(
+  const DistributionTable* moveDistribution, const vector<double>& childValuesBuf, const double* stdevs, int numChildren,
+  double x, double* probBest, double& cdfProd
+) {
+  double xsq = x*x;
+  double value = x / (1.0-xsq);
+  double mult = (1.0 + xsq) / ((1.0 - xsq) * (1.0 - xsq));
+  computeProbBest(moveDistribution,childValuesBuf,stdevs,numChildren,value,probBest,cdfProd,mult);
+};
+
+
+//Binary subdividing integration
+static void integrateRec(
+  const DistributionTable* moveDistribution, const vector<double>& childValuesBuf, const double* stdevs, int numChildren,
+  double lower, double upper,
+  double lowerCdfProd, double upperCdfProd,
+  const double* lowerProbBest, const double* upperProbBest,
+  double* result
+) {
+  //We binary subdivide as long as we've captured more than this much of the cdf of the best move value
+  //in one single step.
+  const double cdfProdTolerance = 0.08;
+    
+  if(upperCdfProd - lowerCdfProd > cdfProdTolerance) {
+    double mid = (lower + upper)/2.0;
+    double midProbBest[numChildren];
+    double midCdfProd;
+    computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,mid,midProbBest,midCdfProd);
+      
+    integrateRec(moveDistribution,childValuesBuf,stdevs,numChildren,lower,mid,lowerCdfProd,midCdfProd,lowerProbBest,midProbBest,result);
+    integrateRec(moveDistribution,childValuesBuf,stdevs,numChildren,mid,upper,midCdfProd,upperCdfProd,midProbBest,upperProbBest,result);
+  }
+  else {
+    //Clenshaw-Curtis 4-point integration rule
+    double mid1 = lower * 0.8535533905932737 + upper * 0.1464466094067263;
+    double mid2 = (lower + upper)/2.0;
+    double mid3 = upper * 0.8535533905932737 + lower * 0.1464466094067263;
+    double midProbBest1[numChildren];
+    double midProbBest2[numChildren];
+    double midProbBest3[numChildren];
+    double midCdfProd1;
+    double midCdfProd2;
+    double midCdfProd3;
+    
+    computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,mid1,midProbBest1,midCdfProd1);     
+    computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,mid2,midProbBest2,midCdfProd2);     
+    computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,mid3,midProbBest3,midCdfProd3);     
+
+    for(int i = 0; i<numChildren; i++) {
+      result[i] += (upper - lower) * (
+        (lowerProbBest[i] + upperProbBest[i]) * 0.03333333333333333333 +
+        (midProbBest1[i] + midProbBest3[i]) * 0.26666666666666666666 +
+        midProbBest2[i] * 0.40
+      );
+    }
+  }
+}
+
+
+static void integrate(
+  const DistributionTable* moveDistribution, const vector<double>& childValuesBuf, const double* stdevs, int numChildren,
+  double lower, double upper,
+  double* result
+) {
+  double lowerProbBest[numChildren];
+  double lowerCdfProd;
+  computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,lower,lowerProbBest,lowerCdfProd);
+  double upperProbBest[numChildren];
+  double upperCdfProd;
+  computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,upper,upperProbBest,upperCdfProd);
+
+  for(int i = 0; i<numChildren; i++)
+    result[i] = 0.0;
+
+  integrateRec(moveDistribution,childValuesBuf,stdevs,numChildren,lower,upper,lowerCdfProd,upperCdfProd,lowerProbBest,upperProbBest,result);
+}
+
+
 void Search::getModeledSelectionProbs(
   int numChildren,
   const vector<double>& childValuesBuf,
@@ -429,108 +554,9 @@ void Search::getModeledSelectionProbs(
     stdevs[i] = sqrt(1.0 / precision);
   }
 
-  double stdevScale = sqrt(MOVE_MODEL_DEGREES_OF_FREEDOM / (MOVE_MODEL_DEGREES_OF_FREEDOM - 2.0)); //t distribution actually has higher than unit variance, so need to scale
-
-  //For each move, compute the probability density of "the max value == value" AND "this move is best".
-  //Also computes the product of all cdfs, which is the probability that "the max value <= value".
-  auto computeProbBest = [this,&childValuesBuf,&stdevs,numChildren,stdevScale](
-    double value, double* probBest, double& cdfProd, double mult
-  ) {
-    cdfProd = 1.0;
-    double cdfBuf[numChildren];
-    for(int i = 0; i<numChildren; i++) {
-      //Node with no visits (flagged with a negative stdev from above), treat it as if it were infinitely negative
-      double stdev = stdevs[i];
-      if(stdev < 0.0) {
-        cdfBuf[i] = 1.0;
-        probBest[i] = 0;
-      }
-      else {
-      
-        double z = (value-childValuesBuf[i])/stdev*stdevScale;
-        double cdf = moveDistribution->getCdf(z);
-        cdfProd *= cdf;
-        cdfBuf[i] = cdf;
-        probBest[i] = moveDistribution->getPdf(z) * stdevScale / stdev; //Fill with pdf first
-      }
-    }
-    
-    // cout << value << " ";
-    // for(int i = 0; i<numChildren; i++)
-    //   cout << probBest[i] << " ";
-    // cout << endl;
-    
-    //Now in a second pass, compute prob density of best:
-    //For each child i, it is pdf_i(value) * prod_{j != i} cdf_j(value) 
-    //Since pdf_i(value) is the prob that child i is value, and prod_{j != i} cdf_j(value) is the
-    //prob that all others are less than value.
-    for(int i = 0; i<numChildren; i++) {
-      if(cdfBuf[i] <= 1e-30) //Avoid divide by 0
-        probBest[i] = 0;
-      else {
-        probBest[i] = probBest[i] / cdfBuf[i] * cdfProd * mult;
-      }
-    };    
-  };
-
-  //Using transformation int_{-inf to inf} f(x) dx = int_{-1 to 1} f(x/(1-x^2)) (1+x^2)/(1-x^2)^2 dx
-  auto computeProbBestTransformed = [&computeProbBest](double x, double* probBest, double& cdfProd) {
-    double xsq = x*x;
-    double value = x / (1.0-xsq);
-    double mult = (1.0 + xsq) / ((1.0 - xsq) * (1.0 - xsq));
-    computeProbBest(value,probBest,cdfProd,mult);
-  };
-
-  //Binary subdividing integration, using
-  std::function<void(double,double,double,double,const double*,const double*,double*)> integrateRec =
-    [numChildren,&computeProbBestTransformed,&integrateRec] (
-      double lower, double upper,
-      double lowerCdfProd, double upperCdfProd,
-      const double* lowerProbBest, const double* upperProbBest,
-      double* result
-    ) {
-    //We binary subdivide as long as we've captured more than this much of the cdf of the best move value
-    //in one single step.
-    const double cdfProdTolerance = 0.003;
-    
-    if(upperCdfProd - lowerCdfProd > cdfProdTolerance) {
-      double mid = (lower + upper)/2.0;
-      double midProbBest[numChildren];
-      double midCdfProd;
-      computeProbBestTransformed(mid,midProbBest,midCdfProd);
-      
-      integrateRec(lower,mid,lowerCdfProd,midCdfProd,lowerProbBest,midProbBest,result);
-      integrateRec(mid,upper,midCdfProd,upperCdfProd,midProbBest,upperProbBest,result);
-    }
-    else {
-      //Simpson's rule
-      double mid = (lower + upper)/2.0;
-      double midProbBest[numChildren];
-      double midCdfProd;
-      computeProbBestTransformed(mid,midProbBest,midCdfProd);     
-      for(int i = 0; i<numChildren; i++) {
-        result[i] += (upper - lower) * (lowerProbBest[i] + midProbBest[i] * 4.0 + upperProbBest[i]) / 6.0;
-      }
-    }
-  };
-  auto integrate = [numChildren,&computeProbBestTransformed,&integrateRec](
-    double lower, double upper,
-    double* result
-  ) {
-    double lowerProbBest[numChildren];
-    double lowerCdfProd;
-    computeProbBestTransformed(lower,lowerProbBest,lowerCdfProd);
-    double upperProbBest[numChildren];
-    double upperCdfProd;
-    computeProbBestTransformed(upper,upperProbBest,upperCdfProd);
-
-    for(int i = 0; i<numChildren; i++)
-      result[i] = 0.0;
-    integrateRec(lower,upper,lowerCdfProd,upperCdfProd,lowerProbBest,upperProbBest,result);
-  };
   
   double probBest[numChildren];
-  integrate(-0.99,0.99,probBest);
+  integrate(moveDistribution,childValuesBuf,stdevs,numChildren,-0.99,0.99,probBest);
 
   double sum = 0;
   for(int i = 0; i<numChildren; i++) {
