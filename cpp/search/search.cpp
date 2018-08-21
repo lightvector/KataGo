@@ -25,11 +25,11 @@ NodeStats& NodeStats::operator=(const NodeStats& other) {
   return *this;
 }
 
-double NodeStats::getCombinedValue(const SearchParams& searchParams) const {
+double NodeStats::getCombinedValueSum(const SearchParams& searchParams) const {
   return (
     winLossValueSum * searchParams.winLossUtilityFactor +
     scoreValueSum * searchParams.scoreUtilityFactor
-  ) / valueSumWeight;
+  );
 }
 
 //-----------------------------------------------------------------------------------------
@@ -407,20 +407,13 @@ static void computeProbBest(
   cdfProd = 1.0;
   double cdfBuf[numChildren];
   for(int i = 0; i<numChildren; i++) {
-    //Node with no visits (flagged with a negative stdev from above), treat it as if it were infinitely negative
     double stdev = stdevs[i];
-    if(stdev < 0.0) {
-      cdfBuf[i] = 1.0;
-      probBest[i] = 0;
-    }
-    else {
-      double z = (value-childValuesBuf[i])/stdev*stdevScale;
-      double pdf,cdf;
-      moveDistribution->getPdfCdf(z,pdf,cdf);
-      cdfProd *= cdf;
-      cdfBuf[i] = cdf;
-      probBest[i] = pdf * stdevScale / stdev; //Fill with pdf first
-    }
+    double z = (value-childValuesBuf[i])/stdev*stdevScale;
+    double pdf,cdf;
+    moveDistribution->getPdfCdf(z,pdf,cdf);
+    cdfProd *= cdf;
+    cdfBuf[i] = cdf;
+    probBest[i] = pdf * stdevScale / stdev; //Fill with pdf first
   }
     
   // cout << value << " ";
@@ -538,22 +531,17 @@ void Search::getModeledSelectionProbs(
   double stdevs[numChildren];
   for(int i = 0; i<numChildren; i++) {
     uint64_t numVisits = childVisitsBuf[i];
-    //If we expand a node but a thread is still in a child and hasn't evaled it yet, we might have numVisits == 0.
-    //Flag it with a negative stdev
-    if(numVisits <= 0) {
-      stdevs[i] = -1.0;
-      continue;
-    }
-    
+    assert(numVisits > 0);
     double precision;
     if(numVisits < linearPrecisionThreshold)
       precision = precisionScale * pow((double)numVisits,precisionExponent);
     else
       precision = (numVisits - linearPrecisionThreshold) * linearSlope + linearOffset;
 
-    stdevs[i] = sqrt(1.0 / precision);
+    //Ensure some minimum variance for stability regardless of how we change the above formula
+    static const double minVariance = 0.00000001;
+    stdevs[i] = sqrt(minVariance + 1.0 / precision);
   }
-
   
   double probBest[numChildren];
   integrate(moveDistribution,childValuesBuf,stdevs,numChildren,-0.99,0.99,probBest);
@@ -623,23 +611,36 @@ double Search::getPlaySelectionValue(const SearchNode& parent, const SearchNode*
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   uint64_t childVisits = child->stats.visits;
-  double childValue = child->stats.getCombinedValue(searchParams);
+  double childValueSum = child->stats.getCombinedValueSum(searchParams);
+  double valueSumWeight = child->stats.valueSumWeight;
   child->statsLock.clear(std::memory_order_release);
-
+  
+  //valueSumWeight < 0 shouldn't ever happen here, since this is just used to choose the root move,
+  //but just in case, add a filler value
+  double childValue = valueSumWeight <= 0.0 ? parent.nnOutput->whiteValue : childValueSum / valueSumWeight;
   return getPlaySelectionValue(nnPolicyProb,childVisits,childValue,parent.nextPla);
 }
-double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits) const {
+double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const {
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   uint64_t childVisits = child->stats.visits;
-  double childValue = child->stats.getCombinedValue(searchParams);
+  double childValueSum = child->stats.getCombinedValueSum(searchParams);
+  double valueSumWeight = child->stats.valueSumWeight;
   child->statsLock.clear(std::memory_order_release);
 
-  assert(childVisits > 0);
-
+  //It's possible that childVisits is actually 0 here with multithreading because we're visiting this node while a child has
+  //been expanded but its thread not yet finished its first visit
+  double childValue;
+  if(childVisits <= 0)
+    childValue = fpuValue;
+  else {
+    assert(valueSumWeight > 0.0);
+    childValue = childValueSum / valueSumWeight;
+  }
+  
   //When multithreading, totalChildVisits could be out of sync with childVisits, so if they provably are, then fix that up
   if(totalChildVisits < childVisits)
     totalChildVisits = childVisits;
@@ -702,9 +703,12 @@ void Search::selectBestChildToDescend(
   if(searchParams.fpuUseParentAverage) {
     while(node.statsLock.test_and_set(std::memory_order_acquire));
     uint64_t parentVisits = node.stats.visits;
-    parentValue = node.stats.getCombinedValue(searchParams);
+    double valueSumWeight = node.stats.valueSumWeight;
+    parentValue = node.stats.getCombinedValueSum(searchParams);
     node.statsLock.clear(std::memory_order_release);
     assert(parentVisits > 0);
+    assert(valueSumWeight > 0.0);
+    parentValue /= valueSumWeight;
   }
   else
     parentValue = node.nnOutput->whiteValue;
@@ -723,7 +727,7 @@ void Search::selectBestChildToDescend(
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
-    double selectionValue = getExploreSelectionValue(node,child,totalChildVisits);
+    double selectionValue = getExploreSelectionValue(node,child,totalChildVisits,fpuValue);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = i;
@@ -769,6 +773,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread) {
   unique_lock<std::mutex> lock(mutex);
 
   int numChildren = node.numChildren;
+  int numGoodChildren = 0;
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = node.children[i];
 
@@ -777,29 +782,36 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread) {
     double winLossValueSum = child->stats.winLossValueSum;
     double scoreValueSum = child->stats.scoreValueSum;
     double valueSumWeight = child->stats.valueSumWeight;
-    double childValue = child->stats.getCombinedValue(searchParams);
+    double childValueSum = child->stats.getCombinedValueSum(searchParams);
     child->statsLock.clear(std::memory_order_release);
+
+    if(childVisits <= 0)
+      continue;
+    assert(valueSumWeight > 0.0);
 
     Loc moveLoc = child->prevMoveLoc;
     int movePos = getPos(moveLoc);
     double childPolicyProb = node.nnOutput->policyProbs[movePos];
-
-    winLossValues[i] = winLossValueSum / valueSumWeight;
-    scoreValues[i] = scoreValueSum / valueSumWeight;
-    values[i] = node.nextPla == P_WHITE ? childValue : -childValue;
-    visits[i] = childVisits;
-    policyProbs[i] = childPolicyProb;
+    double childValue = childValueSum / valueSumWeight;
+    
+    winLossValues[numGoodChildren] = winLossValueSum / valueSumWeight;
+    scoreValues[numGoodChildren] = scoreValueSum / valueSumWeight;
+    values[numGoodChildren] = node.nextPla == P_WHITE ? childValue : -childValue;
+    visits[numGoodChildren] = childVisits;
+    policyProbs[numGoodChildren] = childPolicyProb;
     totalChildVisits += childVisits;
+
+    numGoodChildren++;
   }
   lock.unlock();
 
   if(searchParams.moveProbModelExponent > 0)
-    getModeledSelectionProbs(numChildren,values,visits,policyProbs,modelProbs);
+    getModeledSelectionProbs(numGoodChildren,values,visits,policyProbs,modelProbs);
   
   double winLossValueSum = 0.0;
   double scoreValueSum = 0.0;
   double valueSumWeight = 0.0;
-  for(int i = 0; i<numChildren; i++) {
+  for(int i = 0; i<numGoodChildren; i++) {
     double weight = visits[i];
     if(searchParams.moveProbModelExponent > 0)
       weight *= pow(modelProbs[i], searchParams.moveProbModelExponent);
@@ -1100,6 +1112,9 @@ void Search::printTreeHelper(
   //Find all children and compute experimental model play probabilities
   vector<double> modelProbs;
   {
+    int numGoodChildren = 0;
+    vector<double> goodModelProbs;
+    vector<double> origMoveIdx;
     vector<double> valuesBuf;
     vector<uint64_t> visitsBuf;
     vector<double> policyProbs;
@@ -1108,18 +1123,31 @@ void Search::printTreeHelper(
 
       while(child->statsLock.test_and_set(std::memory_order_acquire));
       uint64_t childVisits = child->stats.visits;
-      double childValue = child->stats.getCombinedValue(searchParams);
+      double childValueSum = child->stats.getCombinedValueSum(searchParams);
+      double childValueSumWeight = child->stats.valueSumWeight;
       child->statsLock.clear(std::memory_order_release);
+
+      if(childVisits <= 0)
+        continue;
+      assert(childValueSumWeight > 0.0);
+      
       Loc moveLoc = child->prevMoveLoc;
       int movePos = getPos(moveLoc);
       double childPolicyProb = node.nnOutput->policyProbs[movePos];
+      double childValue = childValueSum / childValueSumWeight;
 
+      numGoodChildren++;
       valuesBuf.push_back(node.nextPla == P_WHITE ? childValue : -childValue);
       visitsBuf.push_back(childVisits);
       policyProbs.push_back(childPolicyProb);
+      origMoveIdx.push_back(i);
     }
 
-    getModeledSelectionProbs(numChildren,valuesBuf,visitsBuf,policyProbs,modelProbs);
+    getModeledSelectionProbs(numGoodChildren,valuesBuf,visitsBuf,policyProbs,goodModelProbs);
+    for(int i = 0; i<numChildren; i++)
+      modelProbs.push_back(0.0);
+    for(int i = 0; i<numGoodChildren; i++)
+      modelProbs[origMoveIdx[i]] = goodModelProbs[i];
   }
 
   //Find all children and record their play values

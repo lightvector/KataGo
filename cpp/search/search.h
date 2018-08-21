@@ -31,7 +31,7 @@ struct NodeStats {
   NodeStats(const NodeStats& other);
   NodeStats& operator=(const NodeStats& other);
 
-  double getCombinedValue(const SearchParams& searchParams) const;
+  double getCombinedValueSum(const SearchParams& searchParams) const;
 };
 
 struct SearchNode {
@@ -185,7 +185,7 @@ private:
     double childValue, Player pla
   ) const;
   double getPlaySelectionValue(const SearchNode& parent, const SearchNode* child) const;
-  double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits) const;
+  double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const;
   double getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const;
 
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread);

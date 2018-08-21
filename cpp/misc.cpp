@@ -146,7 +146,7 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
           search->beginSearch();
           for(int i = 0; i<maxVisits; i++) {
             search->runSinglePlayout(*stbuf);
-            values[i] = search->rootNode->stats.getCombinedValue(search->searchParams);
+            values[i] = search->rootNode->stats.getCombinedValueSum(search->searchParams) / search->rootNode->stats.valueSumWeight;
           }
           delete stbuf;
 
