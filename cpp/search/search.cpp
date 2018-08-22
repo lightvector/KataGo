@@ -401,14 +401,14 @@ static const double stdevScale = sqrt(MOVE_MODEL_DEGREES_OF_FREEDOM / (MOVE_MODE
 //For each move, compute the probability density of "the max value == value" AND "this move is best".
 //Also computes the product of all cdfs, which is the probability that "the max value <= value".
 static void computeProbBest(
-  const DistributionTable* moveDistribution, const vector<double>& childValuesBuf, const double* stdevs, int numChildren,
+  const DistributionTable* moveDistribution, const vector<double>& childSelfValuesBuf, const double* stdevs, int numChildren,
   double value, double* probBest, double& cdfProd, double mult
 ) {
   cdfProd = 1.0;
   double cdfBuf[numChildren];
   for(int i = 0; i<numChildren; i++) {
     double stdev = stdevs[i];
-    double z = (value-childValuesBuf[i])/stdev*stdevScale;
+    double z = (value-childSelfValuesBuf[i])/stdev*stdevScale;
     double pdf,cdf;
     moveDistribution->getPdfCdf(z,pdf,cdf);
     cdfProd *= cdf;
@@ -436,19 +436,19 @@ static void computeProbBest(
 
 //Using transformation int_{-inf to inf} f(x) dx = int_{-1 to 1} f(x/(1-x^2)) (1+x^2)/(1-x^2)^2 dx
 static void computeProbBestTransformed(
-  const DistributionTable* moveDistribution, const vector<double>& childValuesBuf, const double* stdevs, int numChildren,
+  const DistributionTable* moveDistribution, const vector<double>& childSelfValuesBuf, const double* stdevs, int numChildren,
   double x, double* probBest, double& cdfProd
 ) {
   double xsq = x*x;
   double value = x / (1.0-xsq);
   double mult = (1.0 + xsq) / ((1.0 - xsq) * (1.0 - xsq));
-  computeProbBest(moveDistribution,childValuesBuf,stdevs,numChildren,value,probBest,cdfProd,mult);
+  computeProbBest(moveDistribution,childSelfValuesBuf,stdevs,numChildren,value,probBest,cdfProd,mult);
 };
 
 
 //Binary subdividing integration
 static void integrateRec(
-  const DistributionTable* moveDistribution, const vector<double>& childValuesBuf, const double* stdevs, int numChildren,
+  const DistributionTable* moveDistribution, const vector<double>& childSelfValuesBuf, const double* stdevs, int numChildren,
   double lower, double upper,
   double lowerCdfProd, double upperCdfProd,
   const double* lowerProbBest, const double* upperProbBest,
@@ -458,14 +458,14 @@ static void integrateRec(
   //in one single step.
   const double cdfProdTolerance = 0.08;
     
-  if(upperCdfProd - lowerCdfProd > cdfProdTolerance) {
+  if(upperCdfProd - lowerCdfProd > cdfProdTolerance && upper-lower > 1e-12) {
     double mid = (lower + upper)/2.0;
     double midProbBest[numChildren];
     double midCdfProd;
-    computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,mid,midProbBest,midCdfProd);
+    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid,midProbBest,midCdfProd);
       
-    integrateRec(moveDistribution,childValuesBuf,stdevs,numChildren,lower,mid,lowerCdfProd,midCdfProd,lowerProbBest,midProbBest,result);
-    integrateRec(moveDistribution,childValuesBuf,stdevs,numChildren,mid,upper,midCdfProd,upperCdfProd,midProbBest,upperProbBest,result);
+    integrateRec(moveDistribution,childSelfValuesBuf,stdevs,numChildren,lower,mid,lowerCdfProd,midCdfProd,lowerProbBest,midProbBest,result);
+    integrateRec(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid,upper,midCdfProd,upperCdfProd,midProbBest,upperProbBest,result);
   }
   else {
     //Clenshaw-Curtis 4-point integration rule
@@ -479,9 +479,9 @@ static void integrateRec(
     double midCdfProd2;
     double midCdfProd3;
     
-    computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,mid1,midProbBest1,midCdfProd1);     
-    computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,mid2,midProbBest2,midCdfProd2);     
-    computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,mid3,midProbBest3,midCdfProd3);     
+    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid1,midProbBest1,midCdfProd1);     
+    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid2,midProbBest2,midCdfProd2);     
+    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid3,midProbBest3,midCdfProd3);     
 
     for(int i = 0; i<numChildren; i++) {
       result[i] += (upper - lower) * (
@@ -495,27 +495,28 @@ static void integrateRec(
 
 
 static void integrate(
-  const DistributionTable* moveDistribution, const vector<double>& childValuesBuf, const double* stdevs, int numChildren,
+  const DistributionTable* moveDistribution, const vector<double>& childSelfValuesBuf, const double* stdevs, int numChildren,
   double lower, double upper,
   double* result
 ) {
   double lowerProbBest[numChildren];
   double lowerCdfProd;
-  computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,lower,lowerProbBest,lowerCdfProd);
+  computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,lower,lowerProbBest,lowerCdfProd);
   double upperProbBest[numChildren];
   double upperCdfProd;
-  computeProbBestTransformed(moveDistribution,childValuesBuf,stdevs,numChildren,upper,upperProbBest,upperCdfProd);
+  computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,upper,upperProbBest,upperCdfProd);
 
   for(int i = 0; i<numChildren; i++)
     result[i] = 0.0;
 
-  integrateRec(moveDistribution,childValuesBuf,stdevs,numChildren,lower,upper,lowerCdfProd,upperCdfProd,lowerProbBest,upperProbBest,result);
+  integrateRec(moveDistribution,childSelfValuesBuf,stdevs,numChildren,lower,upper,lowerCdfProd,upperCdfProd,lowerProbBest,upperProbBest,result);
 }
 
 
 void Search::getModeledSelectionProbs(
   int numChildren,
-  const vector<double>& childValuesBuf,
+  //Unlike everywhere else where values are from white's perspective, values here are from one's own perspective
+  const vector<double>& childSelfValuesBuf, 
   const vector<uint64_t>& childVisitsBuf,
   const vector<double>& policyProbs,
   vector<double>& resultBuf
@@ -544,7 +545,7 @@ void Search::getModeledSelectionProbs(
   }
   
   double probBest[numChildren];
-  integrate(moveDistribution,childValuesBuf,stdevs,numChildren,-0.99,0.99,probBest);
+  integrate(moveDistribution,childSelfValuesBuf,stdevs,numChildren,-0.99,0.99,probBest);
 
   double sum = 0;
   for(int i = 0; i<numChildren; i++) {
@@ -593,7 +594,7 @@ double Search::getExploreSelectionValue(
     * sqrt((double)totalChildVisits + 0.01) //TODO this is weird when totalChildVisits == 0, first exploration
     / (1.0 + childVisits);
 
-  //Adjust value to be from the player's perspective, so that players prefer values in their favor
+  //At the last moment, adjust value to be from the player's perspective, so that players prefer values in their favor
   //rather than in white's favor
   double valueComponent = pla == P_WHITE ? childValue : -childValue;
   return exploreComponent + valueComponent;

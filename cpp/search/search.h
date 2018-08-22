@@ -170,7 +170,7 @@ private:
 
   void getModeledSelectionProbs(
     int numChildren,
-    const vector<double>& childValuesBuf,
+    const vector<double>& childSelfValuesBuf,
     const vector<uint64_t>& childVisitsBuf,
     const vector<double>& policyProbs,
     vector<double>& resultBuf
