@@ -928,10 +928,11 @@ class Target_vars:
     # self.value_loss = 0.5 * (cross_entropy_value_loss + l2_value_loss)
     self.value_loss = l2_value_loss
 
+    self.weight_sum = tf.reduce_sum(self.target_weights_used)
+
     if for_optimization:
       #Prior/Regularization
       self.l2_reg_coeff = tf.placeholder(tf.float32)
-      self.weight_sum = tf.reduce_sum(self.target_weights_used)
       self.reg_loss = self.l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables]) * self.weight_sum
 
       #The loss to optimize
@@ -945,6 +946,7 @@ class Metrics:
     self.top4_prediction = tf.nn.in_top_k(model.policy_output,policy_target_idxs,4)
     self.accuracy1 = tf.reduce_sum(target_vars.target_weights_used * tf.cast(self.top1_prediction, tf.float32))
     self.accuracy4 = tf.reduce_sum(target_vars.target_weights_used * tf.cast(self.top4_prediction, tf.float32))
+    self.valueconf = tf.reduce_sum(tf.square(model.value_output))
 
     #Debugging stats
     if include_debug_stats:
