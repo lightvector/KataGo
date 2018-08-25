@@ -1,7 +1,10 @@
 # Go Neural Net Sandbox
 
-This repo is currently a sandbox for personal experimentation in neural net training in Go. I've only put a little work into making this repo usable by others, since this is foremost a personal sandbox, but if you're interested, here's how to get started:
+This repo is currently a sandbox for personal experimentation in Go neural net training and Go AI. I've only put a little work into making this repo usable by others, since this is foremost a personal sandbox, but if you're interested, see below for how to get started.
 
+See LICENSE for software license. License aside, informally, if do you successfully use any of the code or any wacky ideas about neural net structure explored in this repo in your own neural nets or to run any of your own experiments, I would to love hear about it and/or might also appreciate a casual acknowledgement where appropriate. Yay.
+
+### To experiment with pre-trained neural nets alone:
    * You must have [Python3](https://www.python.org/) and [Tensorflow](https://www.tensorflow.org/install/) installed.
    * Either download a pre-trained model (https://github.com/lightvector/GoNN/releases) or train one yourself (see below).
    * Do things with the trained model
@@ -9,17 +12,14 @@ This repo is currently a sandbox for personal experimentation in neural net trai
       * Dump one of the raw weight matrices: `./visualize.py -model-file <MODELS_DIRECTORY>/model<EPOCH> -dump p2/w:0`
       * Directly run a model on a position from an sgf file: `./eval_sgf.py -model-file <MODELS_DIRECTORY>/model<EPOCH> -sgf SGFFILE -move TURNNUMBER`
 
-See LICENSE for software license. License aside, informally, if do you successfully use any of the code or any wacky ideas about neural net structure explored in this repo in your own neural nets or to run any of your own experiments, I would to love hear about it and/or might also appreciate a casual acknowledgement where appropriate. Yay.
-
-### Training a Model
-
-If you'd like to train your own model and/or experiment with the architectures in this repo, here are the steps.
+### Training a neural net:
+If you'd like to train your own neural net model and/or experiment with the architectures in this repo, here are the steps.
+   * You must have CMake installed with a minimum version of 3.8.2 (https://cmake.org/download/)
    * You must have HDF5 installed for C++ (https://support.hdfgroup.org/HDF5/release/obtainsrc.html).
    * Training consists of converting .sgf files into training rows written in HDF5 format, then reading that HDF5 file in Python to train using numpy and h5py to feed them to Tensorflow.
-   * The utility that converts .sgf to .h5 is written in C++. Compile it using CMake and make in the cpp directory, which expects you to have h5c++
-     available. (on windows you can also use the deprecated compile.sh):
+   * The utility that converts .sgf to .h5 is written in C++. Compile it using CMake and make in the cpp directory, which expects you to have h5c++ available:
       * `cd cpp`
-      * `cmake .`
+      * `cmake . -DBUILD_WRITE=1`
       * `make`
    * Run the compiled `write` executable with appropriate flags on a directory of SGF files to generate an h5 file of preprocessed training data.
       * Example: `./write -pool-size 50000 -train-shards 10 -val-game-prob 0.05 -gamesdir <DIRECTORY WITH SGF FILES> -output <TARGET>.h5` - writes an h5 file making 10 passes over the games with a running buffer of 50000 rows to randomize the order of outputted rows, reserving 5% of games as a validation set.
@@ -29,18 +29,35 @@ If you'd like to train your own model and/or experiment with the architectures i
       * Depending on how much training data you have and how long you're willing to train for, you probably want to edit the `knots` in train.py that determine the learning rate schedule.
       * If you getting errors due to running out of GPU memory, you probably want to also edit train.py to shrink the `batch_size` and/or the `validation_batch_size`.
 
+### Running a full-fledged Go engine:
+There is an implementation of MCTS in this repo along with a GTP engine and an simple SGF command-line analyis tool backed by the MCTS engine. If you'd like to use a model you've trained or a pre-trained model with this MCTS implementation, you can try these steps.
+
+   * You must have CMake installed with a minimum version of 3.8.2 (https://cmake.org/download/)
+   * You must have either ONE of these:
+      * CUDA 9.0 and CUDNN 7.0 installed (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but I have not personally upgraded yet.
+      * Tensorflow compiled and installed as a shared library. Official support for this appears to be a bit lacking, and building against Tensorflow normally requiries installing Bazel and building code jointly with the Tensorflow source with their build system. To build instead as a linkable shared library, I have successfully used https://github.com/FloopCZ/tensorflow_cc at one point, prior to switching to directly using CUDA. But it was not easy, so I recommend CUDA assuming you have an appropriate nvidia GPU.
+   * The code written in C++. Compile it using CMake and make in the cpp directory:
+      * `cd cpp`
+      * `cmake . -DBUILD_MCTS=1 -DUSE_CUDA_BACKEND=1` OR `cmake . -DBUILD_MCTS=1 -DUSE_TENSORFLOW_BACKEND=1` depending on which one you're using
+      * `make`
+   * Run the compiled `main` executable to do various things. Edit the configs to change parameters as desired.
+      * Example: `./main gtp -nn-model-file <FILE> -config-file configs/gtp_example.cfg` - Run a simple GTP engine using a given neural net and example provided config.
+      * Example: `./main evalSgf -nn-model-file <FILE> -sgf-file <SGF>.sgf -move-num <MOVENUM> -config-file configs/eval_sgf.cfg` - Have the bot analyze the specified move of the specified SGF.
+
+
 # Experimental Notes
 You can see the implementations of the relevant neural net structures in "model.py", although I may adapt and change them as time goes on.
 
 ### History
+   * July-Aug 2018 - Implemented a full Go bot from the ground up with [multithreaded MCTS with batched NN evaluations](https://github.com/lightvector/GoNN#mcts-aug-2018), and the groundwork for supporting a variety of rulesets in the future. Began experimenting with search in addition to neural net training. Tested strength of [cross-entropy vs L2 value nets](https://github.com/lightvector/GoNN#cross-entropy-vs-l2-value-head-loss-aug-2018), experimented with [first-play-urgency](https://github.com/lightvector/GoNN#first-play-urgency-aug-2018), and experimented with the [cpuct exploration parameter](https://github.com/lightvector/GoNN#cpuct-exploration-parameter-aug-2018).
    * May-June 2018 - No significant architectural changes, but [added player ranks](https://github.com/lightvector/GoNN#ranks-as-an-input-june-2018) as an input feature to the neural net and included a lot of amateur games in the training set. Filtered pro games with the resulting net to find instructive positions for players of different ranks, producing a neat collection of Go problems: [neuralnetgoproblems.com](https://neuralnetgoproblems.com). Cleaned up a few input features and tried a slightly larger net with more training.
-   * Apr 2018 - Added a row to the [current results](https://github.com/lightvector/GoNN#current-results) reflecting the large improvement from embedding global pooled properties in the [middle of the neural net](https://github.com/lightvector/GoNN#update-mar-2018) rather than only the policy head, along with some minor adjustments to learning rates and other tweaks.
-   * Mar 2018 - Much larger neural nets and updates to [current results](https://github.com/lightvector/GoNN#current-results). Global pooled properties [are good in the main trunk of the resnet as well](https://github.com/lightvector/GoNN#update-mar-2018)! Also, [increasing center-position learning rates](https://github.com/lightvector/GoNN#update-mar-2018-1) everywhere else in the net helps training speed a little. Promising experiments with [dilated convolutions](https://github.com/lightvector/GoNN#dilated-convolutions-mar-2018), and a note about [making neural nets not always need history](https://github.com/lightvector/GoNN#some-thoughts-about-history-as-an-input-mar-2018).
+   * Apr 2018 - Added a row to the [current results](https://github.com/lightvector/GoNN#raw-neural-net-results) reflecting the large improvement from embedding global pooled properties in the [middle of the neural net](https://github.com/lightvector/GoNN#update-mar-2018) rather than only the policy head, along with some minor adjustments to learning rates and other tweaks.
+   * Mar 2018 - Much larger neural nets and updates to [current results](https://github.com/lightvector/GoNN#raw-neural-net-results). Global pooled properties [are good in the main trunk of the resnet as well](https://github.com/lightvector/GoNN#update-mar-2018)! Also, [increasing center-position learning rates](https://github.com/lightvector/GoNN#update-mar-2018-1) everywhere else in the net helps training speed a little. Promising experiments with [dilated convolutions](https://github.com/lightvector/GoNN#dilated-convolutions-mar-2018), and a note about [making neural nets not always need history](https://github.com/lightvector/GoNN#some-thoughts-about-history-as-an-input-mar-2018).
    * Feb 2018 - Tried [special ladder blocks in the policy](https://github.com/lightvector/GoNN#update-feb-2018), tried [ladders as a training target](https://github.com/lightvector/GoNN#using-ladders-as-an-extra-training-target-feb-2018), retested [global pooled properties](https://github.com/lightvector/GoNN#update-feb-2018-1). And ran new experiments with net architecture - [wide low-rank residual blocks](https://github.com/lightvector/GoNN#wide-low-rank-residual-blocks-feb-2018), [parametric ReLUs](https://github.com/lightvector/GoNN#parametric-relus-feb-2018), [chain pooling](https://github.com/lightvector/GoNN#chain-pooling-feb-2018), and some [observations on redundancy in models](https://github.com/lightvector/GoNN#redundant-parameters-and-learning-rates-feb-2018)
    * Dec 2017 - Initial results and experiments - [special ladder residual blocks](https://github.com/lightvector/GoNN#special-ladder-residual-blocks-dec-2017), [global pooled properties](https://github.com/lightvector/GoNN#global-pooled-properties-dec-2017)
 
-## Current Results
-As of the end of April 2018, the best neural nets I've been training from this sandbox have been quite good at matching or exceeding results I've seen published elsewhere, presumably due to the combination of the various enhancements discussed below. See this table for a summary of results (bolded) in comparison with other published results:
+## Raw Neural Net Results
+As of the end of April 2018, the best neural nets I've been training from this sandbox have been quite good at matching or exceeding results I've seen published elsewhere in a head-to-head comparison of the neural nets' raw accuracy stats, presumably due to the combination of the various enhancements discussed below. See this table for a summary of results (bolded) in comparison with other published results:
 
 | Neural Net | Structure | Params | KGS Top1 | GoGoD Top1 | Training Steps | Vs GnuGo | Vs Pachi
 |------|---|---|---|---|---|---|---|
@@ -66,6 +83,7 @@ For the results above, I tried to closely match the choices made by Cazenave (20
    * KGS - I used the "at least 7 dan or both players at least 6 dan" data set from https://u-go.net/gamerecords/ from 2000 to 2014 as the training set, and 2015 as the testing set. I excluded handicap games and filtered only to moves by players 6d or stronger (in rare cases, a 5d or weaker player might play a 7d or stronger player in a non-handicap game).
 
 I also tested the GoGoD-trained neural nets by direct play via GnuGo 3.8 (level 10) and Pachi 11.00 (100k playouts). I generated moves by converting the net's policy prediction into a move choice by sorting the predictions by probability then selecting from a biased distribution that would disproportionately favor the moves with more probability. The distribution depended on the move number of the game, early on favoring diversity and later becoming more deterministic (see play.py for the exact algorithm). The 12 block net won every single time in 500 against GnuGo, while the 5-block net won more than 99% of games. The 12-block net also proved much stronger than Pachi, winning about 90% of games.
+
 
 #### Choice of Loss function
 There is also one further interesting choice that some of the above papers differ on, which is whether to use cross entropy or L2 loss when training the neural net.
@@ -246,7 +264,7 @@ As an aside, all the stats in the "current results" tables earlier were produced
 
 #### Update (Apr 2018):
 
-Just to get a proper comparison, I re-ran a proper training run with global pooling in the trunk rather than only the policy head on the GoGoD data set, along with some improvements to the learning rate schedule and updated the [current results table](https://github.com/lightvector/GoNN#current-results) above. The difference is pretty large! Global pooling is by far the most successful architectural idea I"ve tried so far.
+Just to get a proper comparison, I re-ran a proper training run with global pooling in the trunk rather than only the policy head on the GoGoD data set, along with some improvements to the learning rate schedule and updated the [results table](https://github.com/lightvector/GoNN#raw-neural-net-results) above. The difference is pretty large! Global pooling is by far the most successful architectural idea I"ve tried so far.
 
 
 ## Wide Low-Rank Residual Blocks (Feb 2018)
@@ -436,3 +454,164 @@ And the net thinks a 9 dan player would be likely to do the same, but might also
 <img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/9d.png" width="380" height="380"/>
 
 Using this neural net and a bunch of heuristic filtering criteria, I found a way to generate surprisingly reasonable whole-board open-space fighting and shape problems, which I posted here as a training tool for Go players: [neuralnetgoproblems.com](https://neuralnetgoproblems.com).
+
+### MCTS (Aug 2018):
+
+After a dense couple months of work, I finished an efficient multithreaded MCTS implementation! The implementation supports batching of calls to the GPU both within a single search and across searches. The latter is useful for accelerating data gathering for testing, for example it can run N games in parallel, each one performing a single-threaded search, but where neural net evaluations across all the searches for all the games are batched, noticeably increasing throughput on high-end GPUs.
+
+As a starting point, I began with similar parameters and logic to Leela Zero for handling first play urgency and minor other search details, but have further experimented since then. So far, I've been testing by running many different round-robin tournaments involving a wide range of versions of bots with different parameter settings, different neural nets, and different numbers of visits (most of which are not displayed here), and feeding all the results through [BayesElo](https://www.remi-coulom.fr/Bayesian-Elo/), or rather a customized implementation of it. 
+
+The following test shows that the strength of play scales massively and rapidly with the number of root visits, suggesting that the search is working well and at least does not contain any massive bugs:
+
+    Elo ratings by bot
+    value33-140-1200v :  843.8  75cf ( 830.8, 856.8)  95cf ( 820.8, 866.8)  (607.0 win, 477.0 loss) 
+    value33-140-400v  :  417.7  75cf ( 409.7, 425.7)  95cf ( 402.7, 432.7)  (1397.0 win, 1892.0 loss) 
+    value33-140-100v  :   26.0  75cf (  20.0,  32.0)  95cf (  16.0,  37.0)  (3984.0 win, 2206.0 loss) 
+    value28-140-100v  :   22.3  75cf (  15.3,  30.3)  95cf (   9.3,  35.3)  (1817.0 win, 1439.0 loss) 
+    value28-140-50v   : -186.3  75cf (-212.3,-160.3)  95cf (-235.3,-138.3)  (219.0 win, 151.0 loss) 
+    value28-140-25v   : -337.2  75cf (-359.2,-316.2)  95cf (-378.2,-298.2)  (201.0 win, 446.0 loss) 
+    value28-140-12v   : -525.9  75cf (-552.9,-499.9)  95cf (-576.9,-477.9)  (123.0 win, 528.0 loss) 
+    value28-140-6v    : -745.3  75cf (-780.3,-713.3)  95cf (-810.3,-684.3)  ( 57.0 win, 588.0 loss) 
+    value28-140-3v    : -893.6  75cf (-937.6,-855.6)  95cf (-976.6,-821.6)  ( 25.0 win, 623.0 loss) 
+
+Displayed above are the stats for the bots in those tournaments where primarily I was testing the effect of varying the number of visits. "value28-140" and "value33-140" are neural nets trained on Leela Zero games LZ105-LZ142 and ELF games as of about June 27 for 141 million training samples, differing only in some insignificant simplifications to the head architecture. They have both converged well and appear to be well within statistical noise of each other in strength. You can see in the table above the maximum likelihood Elo ratings of these bots ranging from 3 visits to 1200 visits given the data assuming the standard [Elo rating model](https://en.wikipedia.org/wiki/Elo_rating_system) where the probability of a win given a certain rating difference follows a [logistic curve](https://en.wikipedia.org/wiki/Logistic_function) scaled so that 400 points difference implies to a 10:1 odds.
+
+Also displayed are the symmetric 75% and 95% confidence intervals for each given bot *assuming all other bots' Elo ratings are taken as given* (so it does not account for the joint uncertainty or covariance between the various bot ratings, but is still a good indicator of the error bounds on these ratings). Several of the bots have many more games than the others, this is because those bots also participated in many other round robin tournaments against other bots not shown.
+
+One might worry about the accuracy of the Elo model, or about nontransitivity effects distorting the stats when pooling all test games together into a shared BayesElo, In practice I haven't run into any noticeable problems doing this. So far, the only major caveat is that probably all these ratings differences are very inflated as is typical of self-play relative to what they would be against humans or against other bots trained on data that is sufficiently different.
+
+### Cross Entropy vs L2 Value Head Loss (Aug 2018):
+
+After finishing the implementation of MCTS, like other some people have tried, I tried testing to see what effect if any that cross entropy versus L2 loss has for the value head of the neural net. In practice, I found I needed to multiply the cross entropy loss by 1.4 (treating the problem as a binary classification) to get it to have a roughly similar typical gradient magnitude as the L2 loss (treating the problem as a regression to a target of +1 or -1).
+
+I trained neural nets to use a weighted average of the L2 loss and the 1.4x rescaled cross entropy loss, with 0%, 25%, 50%, and 100% weight on the cross entropy loss for the value head (and correspondingly 100%, 75%, 50%, and 0% on L2 loss). Here are the results:
+
+    Elo ratings by bot
+    value33-140-100v(ce50'')   :  26.0  75cf (  20.0,  32.0)  95cf (  16.0,  37.0)  (3984.0 win, 2206.0 loss) 
+    value35-140-100v(ce100'')  :  23.0  75cf (  15.0,  31.0)  95cf (   9.0,  37.0)  (1445.0 win, 1231.0 loss) 
+    value28-140-100v(ce50')    :  22.3  75cf (  15.3,  30.3)  95cf (   9.3,  35.3)  (1817.0 win, 1439.0 loss) 
+    value21-140-100v(ce50)     :  17.8  75cf (   9.8,  25.8)  95cf (   3.8,  31.8)  (1700.0 win, 1371.0 loss) 
+    value31-140-100v(ce0'')    :   7.6  75cf (  -0.4,  15.6)  95cf (  -7.4,  22.6)  (1295.0 win, 1202.0 loss) 
+    value18-140-100v(ce0)      :  -0.0  75cf (  -9.0,   9.0)  95cf ( -16.0,  16.0)  (1203.0 win, 1352.0 loss) 
+    value30-140-100v(ce25')    :  -1.5  75cf (  -9.5,   6.5)  95cf ( -15.5,  12.5)  (1570.0 win, 1357.0 loss) 
+    value24-140-100v(ce0')     :  -4.8  75cf ( -13.8,   4.2)  95cf ( -20.8,  11.2)  (1261.0 win, 1087.0 loss) 
+    value20-140-100v(ce0)      :  -8.5  75cf ( -17.5,   0.5)  95cf ( -25.5,   8.5)  (1128.0 win, 971.0 loss) 
+    value32-140-100v(ce25'')   :  -8.7  75cf ( -17.7,   0.3)  95cf ( -24.7,   7.3)  (1019.0 win, 1046.0 loss) 
+    value29-140-100v(ce50)     : -16.3  75cf ( -25.3,  -7.3)  95cf ( -33.3,   0.7)  (1071.0 win, 961.0 loss) 
+    value26-140-100v(ce25')    : -46.2  75cf ( -55.2, -37.2)  95cf ( -62.2, -30.2)  (1106.0 win, 1196.0 loss) 
+    value19-140-100v(ce100)    : -47.8  75cf ( -56.8, -38.8)  95cf ( -64.8, -30.8)  (1016.0 win, 1090.0 loss) 
+    value34-140-100v(ce100'')  : -51.1  75cf ( -62.1, -40.1)  95cf ( -71.1, -31.1)  (559.0 win, 728.0 loss)
+
+And a test at 400 visits for a subset of those nets:
+
+    Elo ratings by bot
+    value33-140-400v(ce50'')   : 417.7  75cf ( 409.7, 425.7)  95cf ( 402.7, 432.7)  (1397.0 win, 1892.0 loss) 
+    value31-140-400v(ce0'')    : 381.2  75cf ( 366.2, 396.2)  95cf ( 353.2, 409.2)  (413.0 win, 308.0 loss)
+    value32-140-400v(ce25'')   : 355.3  75cf ( 340.3, 370.3)  95cf ( 327.3, 383.3)  (385.0 win, 337.0 loss) 
+    value34-140-400v(ce100'')  : 271.8  75cf ( 255.8, 287.8)  95cf ( 242.8, 299.8)  (298.0 win, 425.0 loss) 
+
+The various ' and '' marks indicate slight tweaks to the head architecture of the neural net that I made concurrently in order to make the CUDA code implementing that architecture cleaner and more maintainable, they do not appear to affect the strength of the net in a statistically noticeable way.
+
+The results are pretty mixed, but I would say there are a few conclusions that one can tentatively draw:
+   * Neural nets trained under identical conditions can vary noticeably in overall strength.
+       * For example, value29-140-100v and value21-140-100v were trained under exactly identical conditions for for the same number of steps, differing only in the random initialization of their weights and the randomized order of the data batches during training. They ended up about 34 Elo apart, about 4 times the standard deviation of the uncertainty given the number of testing games played.
+       * The biggest difference between two identically-trained nets was value34-140-100v and value35-140-100v, ending up 74 Elo apart.
+       * This means that any strength test regarding architectural differences in a neural net needs to be repeated with many independently-trained versions of that neural net, it is only weak evidence to run such a test once.
+   * Putting some weight on cross entropy loss does not appear to harm the neural net on average. It is perhaps the case (not very certain) that putting a high weight on the cross entropy increases the variability of the neural net's final performance, as the higher cross-entropy-weighted nets seemed to finish near the top and near the bottom of the ratings more often.
+   * More visits appears to exaggerate strength differences between neural nets caused by cross entropy versus L2 training.
+
+It's interesting that there was no overall statistically clear effect on average neural net strength between cross entropy and L2 value head training given that direct inspection of the neural nets' behavior on actual positions suggests that the two losses do cause the neural net behave in different ways. Theoretically, one would expect cross entropy loss to cause the neural net to "care" more about accurate prediction for tail winning probabilities, and in fact this manifests in quite a significant difference in average "confidence" of the neural net on about 10000 test positions from the validation set:
+
+    Neural Net              sqrt(E(value prediction logits^2))
+    value31-140(ce0'')       1.09945
+    value32-140(ce25'')      2.04472
+    value33-140(ce50'')      2.22901
+    value35-140(ce100'')     2.28122
+
+And indeed by manual inspection the cross-entropy neural nets seem to be much more willing to give more "confident" predictions:
+
+<table class="image">
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ce0.png" width="250" height="250"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ce50.png" width="250" height="250"/></td><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/ce100.png" width="250" height="250"/></td></tr>
+<tr><td colspan="3"><sub>White winrate rises from 74% to 81% to 91% between nets trained with 0%, 50%, 100% cross entropy.</sub></td></tr>
+</table>
+
+
+### First Play Urgency (Aug 2018):
+
+At the moment, the search uses much the same square-root-policy-net-based first-play urgency reduction that Leela Zero uses:
+
+    V(unvisited child) = ValueNet(parent) - k * sqrt( sum_{c: visited children} PolicyNet(c) )
+
+I experimented briefly with using the average parent evaluation so far in the search as the base:
+
+    V(unvisited child) = MCTSValue(parent) - k * sqrt( sum_{c: visited children} PolicyNet(c) )
+
+This seems more natural to me, but if anything, it seems to cause a very slight strength loss, at least at the numbers of visits tested:
+
+    Elo ratings by bot
+    value33-140-400v        : 417.7  75cf ( 409.7, 425.7)  95cf ( 402.7, 432.7)  (1397.0 win, 1892.0 loss) 
+    value33-140-400v-pavg   : 403.9  75cf ( 395.9, 412.9)  95cf ( 388.9, 418.9)  (1280.0 win, 1143.0 loss) 
+    value33-140-100v        :  26.0  75cf (  20.0,  32.0)  95cf (  16.0,  37.0)  (3984.0 win, 2206.0 loss) 
+    value33-140-100v-pavg   :   9.8  75cf (   3.8,  15.8)  95cf (  -0.2,  19.8)  (3003.0 win, 3250.0 loss) 
+    value31-140-100v        :   7.6  75cf (  -0.4,  15.6)  95cf (  -7.4,  22.6)  (1295.0 win, 1202.0 loss) 
+    value31-140-100v-pavg   :  -2.2  75cf ( -13.2,   8.8)  95cf ( -22.2,  17.8)  (624.0 win, 616.0 loss) 
+
+And likelihood-of-superiority matrix, the matrix of pairwise probabilities that the Elo rating of one bot is greater than that of another given the data, assuming that the truth lies in the Elo family of models (unlike the confidence intervals above this matrix does take into account the full covariance structure of the data):
+
+                            v33-1 v33-1 v33-1 v33-1 v31-1 v31-1 
+    value33-140-400v      :        91.6 100.0 100.0 100.0 100.0 
+    value33-140-400v-pavg :   8.4       100.0 100.0 100.0 100.0 
+    value33-140-100v      :   0.0   0.0        97.6  97.3  98.9 
+    value33-140-100v-pavg :   0.0   0.0   2.4        58.4  82.9 
+    value31-140-100v      :   0.0   0.0   2.7  41.6        80.3 
+    value31-140-100v-pavg :   0.0   0.0   1.1  17.1  19.7
+
+I haven't dug deeper, but I might revisit this area of tuning later.
+
+### cPUCT Exploration Parameter (Aug 2018):
+
+There is an important constant "cPUCT" in the AlphaGoZero search algorithm that controls the tradeoff between exploration and exploitation in the search: [AGZ paper](https://deepmind.com/documents/119/agz_unformatted_nature.pdf) page 26.
+
+Initially I set this to 1.6 (equivalent to what would be 0.8 for some other bots due to values in the search being represented as -1 to +1 instead of 0 to 1), but apparently it has quite significant effects on playing strength. I imagine the optimal value could differ based on the actual neural net and how strong it is, and things like the relative weighting of the value and policy losses used to train that net. For the neural net I used in testing, here were the results:
+    
+    Elo ratings by bot
+    
+    1200 visits
+    value33-140-1200v-puct13 : 880.0  75cf ( 868.0, 892.0)  95cf ( 858.0, 902.0)  (788.0 win, 469.0 loss) 
+    value33-140-1200v-puct10 : 858.8  75cf ( 846.8, 870.8)  95cf ( 836.8, 880.8)  (738.0 win, 511.0 loss) 
+    value33-140-1200v-puct16 : 843.8  75cf ( 830.8, 856.8)  95cf ( 820.8, 866.8)  (607.0 win, 477.0 loss) 
+    value33-140-1200v-puct19 : 813.4  75cf ( 797.4, 829.4)  95cf ( 783.4, 843.4)  (358.0 win, 291.0 loss) 
+    value33-140-1200v-puct07 : 779.1  75cf ( 762.1, 795.1)  95cf ( 749.1, 809.1)  (321.0 win, 320.0 loss)
+    
+    400 visits
+    value33-140-400v-puct10  : 477.5  75cf ( 468.5, 486.5)  95cf ( 461.5, 493.5)  (1329.0 win, 874.0 loss) 
+    value33-140-400v-puct13  : 449.4  75cf ( 440.4, 458.4)  95cf ( 433.4, 465.4)  (1220.0 win, 980.0 loss) 
+    value33-140-400v-puct16  : 417.7  75cf ( 409.7, 425.7)  95cf ( 402.7, 432.7)  (1397.0 win, 1892.0 loss) 
+    value33-140-400v-puct07  : 416.5  75cf ( 407.5, 425.5)  95cf ( 400.5, 432.5)  (1093.0 win, 1106.0 loss) 
+    value33-140-400v-puct19  : 356.4  75cf ( 341.4, 371.4)  95cf ( 329.4, 383.4)  (356.0 win, 377.0 loss) 
+    value33-140-400v-puct05  : 328.3  75cf ( 313.3, 343.3)  95cf ( 300.3, 355.3)  (326.0 win, 408.0 loss) 
+    value33-140-400v-puct22  : 292.6  75cf ( 277.6, 307.6)  95cf ( 264.6, 320.6)  (288.0 win, 445.0 loss) 
+    value33-140-400v-puct03  :  81.2  75cf (  60.2, 100.2)  95cf (  43.2, 117.2)  (107.0 win, 624.0 loss)
+    
+    100 visits
+    value33-140-100v-puct10  : 133.4  75cf ( 128.4, 138.4)  95cf ( 124.4, 142.4)  (4652.0 win, 3481.0 loss) 
+    value33-140-100v-puct07  : 127.2  75cf ( 118.2, 136.2)  95cf ( 110.2, 144.2)  (1432.0 win, 752.0 loss) 
+    value33-140-100v-puct13  :  93.2  75cf (  85.2, 101.2)  95cf (  80.2, 107.2)  (2028.0 win, 1296.0 loss) 
+    value33-140-100v-puct05  :  66.7  75cf (  57.7,  75.7)  95cf (  50.7,  82.7)  (1236.0 win, 948.0 loss) 
+    value33-140-100v-puct16  :  26.0  75cf (  20.0,  32.0)  95cf (  16.0,  37.0)  (3984.0 win, 2206.0 loss) 
+    value33-140-100v-puct19  : -30.7  75cf ( -38.7, -22.7)  95cf ( -43.7, -17.7)  (1378.0 win, 1947.0 loss) 
+    value33-140-100v-puct22  : -90.8  75cf ( -98.8, -82.8)  95cf (-104.8, -76.8)  (1075.0 win, 2249.0 loss) 
+    value33-140-100v-puct03  :-125.1  75cf (-135.1,-115.1)  95cf (-143.1,-108.1)  (617.0 win, 1566.0 loss) 
+    
+    30 visits
+    value33-140-30v-puct07   :-285.4  75cf (-294.4,-276.4)  95cf (-301.4,-269.4)  (1132.0 win, 1097.0 loss) 
+    value33-140-30v-puct10   :-297.0  75cf (-306.0,-288.0)  95cf (-313.0,-281.0)  (1089.0 win, 1140.0 loss) 
+    value33-140-30v-puct13   :-335.4  75cf (-344.4,-326.4)  95cf (-351.4,-319.4)  (944.0 win, 1287.0 loss) 
+    value33-140-30v-puct05   :-352.9  75cf (-363.9,-341.9)  95cf (-371.9,-333.9)  (649.0 win, 1009.0 loss) 
+    value33-140-30v-puct16   :-391.4  75cf (-402.4,-380.4)  95cf (-411.4,-372.4)  (553.0 win, 1104.0 loss) 
+
+The number of visits also appears to have a effect on the optimal value! This suggests that there is a chance that the functional form of the PUCT exploration formula can be improved by making it scale differently with visits than it currently does. I plan to explore this soon.
+
+
+
+
