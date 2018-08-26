@@ -15,6 +15,8 @@ struct SearchParams {
   double fpuReductionMax;   //Max amount to reduce fpu value for unexplore children
   bool fpuUseParentAverage; //Use parent average value for fpu rather than parent nn value.
   double moveProbModelExponent; //Amount with which to use a move error-based-model for weighting playout values.
+  double moveProbModelPolicyExponent; //Amount with the policy net should multiply into the model
+  double visitsExponent; //Power with which visits should raise the value weight on a child
   
   //Root noise parameters
   bool rootNoiseEnabled;

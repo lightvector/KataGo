@@ -556,8 +556,7 @@ void Search::getModeledSelectionProbs(
   double totalProbBest = 0.0;
   for(int i = 0; i<numChildren; i++) {
     //Also factor in the policy, since the policy was basically a prior about which moves were best.
-    //TODO the power should be a tunable constant!
-    double p = probBest[i] * pow(policyProbs[i],0.35);
+    double p = probBest[i] * pow(policyProbs[i],searchParams.moveProbModelPolicyExponent);
     totalProbBest += p;
     resultBuf.push_back(p);
   }
@@ -814,6 +813,8 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread) {
   double valueSumWeight = 0.0;
   for(int i = 0; i<numGoodChildren; i++) {
     double weight = visits[i];
+    if(searchParams.visitsExponent != 1.0)
+      weight = pow(weight, searchParams.visitsExponent);
     if(searchParams.moveProbModelExponent > 0)
       weight *= pow(modelProbs[i], searchParams.moveProbModelExponent);
     

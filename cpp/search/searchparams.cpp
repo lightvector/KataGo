@@ -9,6 +9,8 @@ SearchParams::SearchParams()
    fpuReductionMax(0.5),
    fpuUseParentAverage(false),
    moveProbModelExponent(0.0),
+   moveProbModelPolicyExponent(0.35),
+   visitsExponent(1.0),
    rootNoiseEnabled(false),
    rootDirichletNoiseTotalConcentration(10.0),
    rootDirichletNoiseWeight(0.25),
