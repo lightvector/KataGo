@@ -119,13 +119,13 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    nonSearchRand(rSeed + string("$nonSearchRand"))
 {
   rootKoHashTable = new KoHashTable();
-  
+
   moveDistribution = new DistributionTable(
     [](double z) { return FancyMath::tdistpdf(z,MOVE_MODEL_DEGREES_OF_FREEDOM); },
     [](double z) { return FancyMath::tdistcdf(z,MOVE_MODEL_DEGREES_OF_FREEDOM); },
-    -30.0,
-    30.0,
-    600
+    -50.0,
+    50.0,
+    2000
   );
 
   rootNode = NULL;
@@ -396,7 +396,7 @@ static const double linearSlope = precisionScale * precisionExponent / pow((doub
 static const double linearOffset = precisionScale * pow((double)linearPrecisionThreshold,precisionExponent);
 
 //t distribution actually has higher than unit variance, so need to scale
-static const double stdevScale = sqrt(MOVE_MODEL_DEGREES_OF_FREEDOM / (MOVE_MODEL_DEGREES_OF_FREEDOM - 2.0)); 
+static const double stdevScale = sqrt(MOVE_MODEL_DEGREES_OF_FREEDOM / (MOVE_MODEL_DEGREES_OF_FREEDOM - 2.0));
 
 //For each move, compute the probability density of "the max value == value" AND "this move is best".
 //Also computes the product of all cdfs, which is the probability that "the max value <= value".
@@ -415,14 +415,14 @@ static void computeProbBest(
     cdfBuf[i] = cdf;
     probBest[i] = pdf * stdevScale / stdev; //Fill with pdf first
   }
-    
+
   // cout << value << " ";
   // for(int i = 0; i<numChildren; i++)
   //   cout << probBest[i] << " ";
   // cout << endl;
-    
+
   //Now in a second pass, compute prob density of best:
-  //For each child i, it is pdf_i(value) * prod_{j != i} cdf_j(value) 
+  //For each child i, it is pdf_i(value) * prod_{j != i} cdf_j(value)
   //Since pdf_i(value) is the prob that child i is value, and prod_{j != i} cdf_j(value) is the
   //prob that all others are less than value.
   for(int i = 0; i<numChildren; i++) {
@@ -431,7 +431,7 @@ static void computeProbBest(
     else {
       probBest[i] = probBest[i] / cdfBuf[i] * cdfProd * mult;
     }
-  };    
+  };
 }
 
 //Using transformation int_{-inf to inf} f(x) dx = int_{-1 to 1} f(x/(1-x^2)) (1+x^2)/(1-x^2)^2 dx
@@ -457,13 +457,13 @@ static void integrateRec(
   //We binary subdivide as long as we've captured more than this much of the cdf of the best move value
   //in one single step.
   const double cdfProdTolerance = 0.08;
-    
+
   if(upperCdfProd - lowerCdfProd > cdfProdTolerance && upper-lower > 1e-12) {
     double mid = (lower + upper)/2.0;
     double midProbBest[numChildren];
     double midCdfProd;
     computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid,midProbBest,midCdfProd);
-      
+
     integrateRec(moveDistribution,childSelfValuesBuf,stdevs,numChildren,lower,mid,lowerCdfProd,midCdfProd,lowerProbBest,midProbBest,result);
     integrateRec(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid,upper,midCdfProd,upperCdfProd,midProbBest,upperProbBest,result);
   }
@@ -478,10 +478,10 @@ static void integrateRec(
     double midCdfProd1;
     double midCdfProd2;
     double midCdfProd3;
-    
-    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid1,midProbBest1,midCdfProd1);     
-    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid2,midProbBest2,midCdfProd2);     
-    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid3,midProbBest3,midCdfProd3);     
+
+    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid1,midProbBest1,midCdfProd1);
+    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid2,midProbBest2,midCdfProd2);
+    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid3,midProbBest3,midCdfProd3);
 
     for(int i = 0; i<numChildren; i++) {
       result[i] += (upper - lower) * (
@@ -516,14 +516,14 @@ static void integrate(
 void Search::getModeledSelectionProbs(
   int numChildren,
   //Unlike everywhere else where values are from white's perspective, values here are from one's own perspective
-  const vector<double>& childSelfValuesBuf, 
+  const vector<double>& childSelfValuesBuf,
   const vector<uint64_t>& childVisitsBuf,
   const vector<double>& policyProbs,
   vector<double>& resultBuf
 ) const {
   resultBuf.clear();
   if(numChildren <= 0)
-    return;    
+    return;
   if(numChildren == 1) {
     resultBuf.push_back(1.0);
     return;
@@ -533,19 +533,32 @@ void Search::getModeledSelectionProbs(
   for(int i = 0; i<numChildren; i++) {
     uint64_t numVisits = childVisitsBuf[i];
     assert(numVisits > 0);
-    double precision;
-    if(numVisits < linearPrecisionThreshold)
-      precision = precisionScale * pow((double)numVisits,precisionExponent);
-    else
-      precision = (numVisits - linearPrecisionThreshold) * linearSlope + linearOffset;
+    double precision = 1.5 * sqrt((double)numVisits);
+    // if(numVisits < linearPrecisionThreshold)
+    //   precision = precisionScale * pow((double)numVisits,precisionExponent);
+    // else
+    //   precision = (numVisits - linearPrecisionThreshold) * linearSlope + linearOffset;
 
     //Ensure some minimum variance for stability regardless of how we change the above formula
     static const double minVariance = 0.00000001;
     stdevs[i] = sqrt(minVariance + 1.0 / precision);
   }
-  
+
+  double simpleValueSum = 0.0;
+  uint64_t numChildVisits = 0;
+  for(int i = 0; i<numChildren; i++) {
+    simpleValueSum += childSelfValuesBuf[i] * childVisitsBuf[i];
+    numChildVisits += childVisitsBuf[i];
+  }
+
+  double simpleValue = simpleValueSum / numChildVisits;
+
   double probBest[numChildren];
-  integrate(moveDistribution,childSelfValuesBuf,stdevs,numChildren,-0.99,0.99,probBest);
+  //integrate(moveDistribution,childSelfValuesBuf,stdevs,numChildren,-0.99,0.99,probBest);
+  for(int i = 0; i<numChildren; i++) {
+    double z = (childSelfValuesBuf[i] - simpleValue) / stdevs[i];
+    probBest[i] = moveDistribution->getCdf(z);
+  }
 
   double sum = 0;
   for(int i = 0; i<numChildren; i++) {
@@ -614,7 +627,7 @@ double Search::getPlaySelectionValue(const SearchNode& parent, const SearchNode*
   double childValueSum = child->stats.getCombinedValueSum(searchParams);
   double valueSumWeight = child->stats.valueSumWeight;
   child->statsLock.clear(std::memory_order_release);
-  
+
   //valueSumWeight < 0 shouldn't ever happen here, since this is just used to choose the root move,
   //but just in case, add a filler value
   double childValue = valueSumWeight <= 0.0 ? parent.nnOutput->whiteValue : childValueSum / valueSumWeight;
@@ -640,7 +653,7 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
     assert(valueSumWeight > 0.0);
     childValue = childValueSum / valueSumWeight;
   }
-  
+
   //When multithreading, totalChildVisits could be out of sync with childVisits, so if they provably are, then fix that up
   if(totalChildVisits < childVisits)
     totalChildVisits = childVisits;
@@ -654,7 +667,7 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
     double virtualLossVisitFrac = childVirtualLosses / childVisits;
     childValue = childValue + (virtualLossUtility - childValue) * virtualLossVisitFrac;
   }
-  
+
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValue,parent.nextPla);
 }
 double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const {
@@ -768,7 +781,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread) {
   vector<double>& policyProbs = thread.policyProbsBuf;
 
   uint64_t totalChildVisits = 0;
-  
+
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
 
@@ -793,7 +806,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread) {
     int movePos = getPos(moveLoc);
     double childPolicyProb = node.nnOutput->policyProbs[movePos];
     double childValue = childValueSum / valueSumWeight;
-    
+
     winLossValues[numGoodChildren] = winLossValueSum / valueSumWeight;
     scoreValues[numGoodChildren] = scoreValueSum / valueSumWeight;
     values[numGoodChildren] = node.nextPla == P_WHITE ? childValue : -childValue;
@@ -807,7 +820,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread) {
 
   if(searchParams.moveProbModelExponent > 0)
     getModeledSelectionProbs(numGoodChildren,values,visits,policyProbs,modelProbs);
-  
+
   double winLossValueSum = 0.0;
   double scoreValueSum = 0.0;
   double valueSumWeight = 0.0;
@@ -817,7 +830,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread) {
       weight = pow(weight, searchParams.visitsExponent);
     if(searchParams.moveProbModelExponent > 0)
       weight *= pow(modelProbs[i], searchParams.moveProbModelExponent);
-    
+
     winLossValueSum += weight * winLossValues[i];
     scoreValueSum += weight * scoreValues[i];
     valueSumWeight += weight;
@@ -827,7 +840,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread) {
   winLossValueSum += (double)node.nnOutput->whiteValue;
   valueSumWeight += 1.0;
 
-  
+
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
   //It's possible that these values are a bit wrong if there's a race and two threads each try to update this
@@ -856,7 +869,7 @@ void Search::setTerminalValue(SearchNode& node, double winLossValue, double scor
   node.stats.winLossValueSum = winLossValue;
   node.stats.scoreValueSum = scoreValue;
   node.stats.valueSumWeight = 1.0;
-  node.statsLock.clear(std::memory_order_release);  
+  node.statsLock.clear(std::memory_order_release);
 }
 
 void Search::initNodeNNOutput(
@@ -1132,7 +1145,7 @@ void Search::printTreeHelper(
       if(childVisits <= 0)
         continue;
       assert(childValueSumWeight > 0.0);
-      
+
       Loc moveLoc = child->prevMoveLoc;
       int movePos = getPos(moveLoc);
       double childPolicyProb = node.nnOutput->policyProbs[movePos];
