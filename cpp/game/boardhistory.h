@@ -19,6 +19,10 @@ struct BoardHistory {
   vector<Hash128> koHashHistory;
   int koHistoryLastClearedBeginningMoveIdx;
 
+  static const int NUM_RECENT_BOARDS = 3;
+  Board recentBoards[NUM_RECENT_BOARDS];
+  int currentRecentBoardIdx;
+
   //Did this board location ever have a stone there before, or was it ever played?
   //(Also includes locations of suicides)
   bool wasEverOccupiedOrPlayed[Board::MAX_ARR_SIZE];
@@ -73,6 +77,10 @@ struct BoardHistory {
   void setKomi(float newKomi);
 
   float currentSelfKomi(Player pla) const;
+
+  //Returns a reference a recent board state, where 0 is the current board, 1 is 1 move ago, etc.
+  //Requires that numMovesAgo < NUM_RECENT_BOARDS
+  const Board& getRecentBoard(int numMovesAgo) const;
 
   //Check if a move on the board is legal, taking into account the full game state and superko
   bool isLegal(const Board& board, Loc moveLoc, Player movePla) const;

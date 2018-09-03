@@ -42,13 +42,13 @@ value_output = tf.tanh(model.value_output)
 
 # Moves ----------------------------------------------------------------
 
-def fetch_output(session, board, moves, use_history_prop, rank_one_hot, fetches):
+def fetch_output(session, board, boards, moves, use_history_prop, rank_one_hot, fetches):
   input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
   self_komi = (7.5 if pla == Board.WHITE else -7.5) #TODO use real komi of the game?
-  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,self_komi,use_history_prop=use_history_prop,idx=0)
+  model.fill_row_features(board,pla,opp,boards,moves,move_idx,input_data,self_komi,use_history_prop=use_history_prop,idx=0)
   row_ranks = np.zeros(shape=[1]+model.rank_shape)
   row_ranks[0,rank_one_hot] = 1.0
   outputs = session.run(fetches, feed_dict={
@@ -59,15 +59,15 @@ def fetch_output(session, board, moves, use_history_prop, rank_one_hot, fetches)
   })
   return [output[0] for output in outputs]
 
-def get_policy_output(session, board, moves, use_history_prop, rank_one_hot):
-  return fetch_output(session,board,moves,use_history_prop,rank_one_hot,[policy_output])
+def get_policy_output(session, board, boards, moves, use_history_prop, rank_one_hot):
+  return fetch_output(session,board,boards,moves,use_history_prop,rank_one_hot,[policy_output])
 
-def get_policy_and_value_output(session, board, moves, use_history_prop, rank_one_hot):
-  return fetch_output(session,board,moves,use_history_prop,rank_one_hot,[policy_output,value_output])
+def get_policy_and_value_output(session, board, boards, moves, use_history_prop, rank_one_hot):
+  return fetch_output(session,board,boards,moves,use_history_prop,rank_one_hot,[policy_output,value_output])
 
-def get_moves_and_probs_and_value(session, board, moves, use_history_prop, rank_one_hot):
+def get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop, rank_one_hot):
   pla = board.pla
-  [policy,value] = get_policy_and_value_output(session, board, moves, use_history_prop, rank_one_hot)
+  [policy,value] = get_policy_and_value_output(session, board, boards, moves, use_history_prop, rank_one_hot)
   moves_and_probs = []
   for i in range(len(policy)):
     move = model.tensor_pos_to_loc(i,board)
@@ -78,8 +78,8 @@ def get_moves_and_probs_and_value(session, board, moves, use_history_prop, rank_
       moves_and_probs.append((move,policy[i]))
   return (moves_and_probs,value)
 
-def genmove_and_value(session, board, moves, use_history_prop):
-  (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, moves, use_history_prop, play_rank_one_hot[0])
+def genmove_and_value(session, board, boards, moves, use_history_prop):
+  (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop, play_rank_one_hot[0])
   moves_and_probs = sorted(moves_and_probs, key=lambda moveandprob: moveandprob[1], reverse=True)
 
   if len(moves_and_probs) <= 0:
@@ -99,8 +99,8 @@ def genmove_and_value(session, board, moves, use_history_prop):
       return (move,value)
     i += 1
 
-def get_layer_values(session, board, moves, layer, channel):
-  [layer] = fetch_output(session,board,moves,use_history_prop=1.0,rank_one_hot=play_rank_one_hot[0],fetches=[layer])
+def get_layer_values(session, board, boards, moves, layer, channel):
+  [layer] = fetch_output(session,board,boards,moves,use_history_prop=1.0,rank_one_hot=play_rank_one_hot[0],fetches=[layer])
   layer = layer.reshape([board.size * board.size,-1])
   locs_and_values = []
   for i in range(board.size * board.size):
@@ -108,13 +108,13 @@ def get_layer_values(session, board, moves, layer, channel):
     locs_and_values.append((loc,layer[i,channel]))
   return locs_and_values
 
-def get_input_feature(board, moves, feature_idx):
+def get_input_feature(board, boards, moves, feature_idx):
   input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
   self_komi = (7.5 if pla == Board.WHITE else -7.5)
-  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,self_komi,use_history_prop=1.0,idx=0)
+  model.fill_row_features(board,pla,opp,boards,moves,move_idx,input_data,self_komi,use_history_prop=1.0,idx=0)
 
   locs_and_values = []
   for i in range(board.size * board.size):
@@ -260,6 +260,7 @@ def run_gtp(session):
   board_size = 19
   board = Board(size=board_size)
   moves = []
+  boards = []
 
   layerdict = dict(model.outputs_by_layer)
   weightdict = dict()
@@ -436,21 +437,25 @@ def run_gtp(session):
       board_size = int(command[1])
       board = Board(size=board_size)
       moves = []
+      boards = [board.copy()]
     elif command[0] == "clear_board":
       board = Board(size=board_size)
       moves = []
+      boards = [board.copy()]
     elif command[0] == "komi":
       pass
     elif command[0] == "play":
       pla = (Board.BLACK if command[1] == "B" or command[1] == "b" else Board.WHITE)
       loc = parse_coord(command[2],board)
-      moves.append((pla,loc))
       board.play(pla,loc)
+      moves.append((pla,loc))
+      boards.append(board.copy())
     elif command[0] == "genmove":
-      (loc,value) = genmove_and_value(session, board, moves, use_history_prop=1.0)
+      (loc,value) = genmove_and_value(session, board, boards, moves, use_history_prop=1.0)
       pla = board.pla
-      moves.append((pla,loc))
       board.play(pla,loc)
+      moves.append((pla,loc))
+      boards.append(board.copy())
       ret = str_coord(loc,board)
 
     # elif command[0] == "final_score":
@@ -473,36 +478,36 @@ def run_gtp(session):
       if parsed is not None:
         play_rank_one_hot[0] = parsed
     elif command[0] == "policy":
-      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, moves, use_history_prop=1.0, rank_one_hot = play_rank_one_hot[0])
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rank_one_hot = play_rank_one_hot[0])
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_head_output=value)
       ret = "\n".join(gfx_commands)
     elif command[0] == "policy-half-history":
-      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, moves, use_history_prop=0.5, rank_one_hot = play_rank_one_hot[0])
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=0.5, rank_one_hot = play_rank_one_hot[0])
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_head_output=value)
       ret = "\n".join(gfx_commands)
     elif command[0] == "policy-no-history":
-      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, moves, use_history_prop=0.0, rank_one_hot = play_rank_one_hot[0])
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=0.0, rank_one_hot = play_rank_one_hot[0])
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_head_output=value)
       ret = "\n".join(gfx_commands)
     elif command[0] in rank_policy_command_lookup:
       rank_one_hot = rank_policy_command_lookup[command[0]]
-      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, moves, use_history_prop=1.0, rank_one_hot = rank_one_hot)
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rank_one_hot = rank_one_hot)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_head_output=value)
       ret = "\n".join(gfx_commands)
     elif command[0] in layer_command_lookup:
       (layer,channel,normalization_div) = layer_command_lookup[command[0]]
-      locs_and_values = get_layer_values(session, board, moves, layer, channel)
+      locs_and_values = get_layer_values(session, board, boards, moves, layer, channel)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent=False)
       ret = "\n".join(gfx_commands)
 
     elif command[0] in input_feature_command_lookup:
       (feature_idx,normalization_div) = input_feature_command_lookup[command[0]]
-      locs_and_values = get_input_feature(board, moves, feature_idx)
+      locs_and_values = get_input_feature(board, boards, moves, feature_idx)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent=False)
       ret = "\n".join(gfx_commands)

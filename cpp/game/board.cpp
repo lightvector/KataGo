@@ -1356,7 +1356,7 @@ void Board::calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTe
 }
 
 //This marks pass-alive stones, pass-alive territory always.
-//If safeBorderedBigTerritories, marks empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
+//If safeBigTerritories, marks empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
 //If unsafeBigTerritories, marks empty regions bordered by pla stones and no opp stones, regardless.
 void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal, Color* result) const {
   Color opp = getOpp(pla);
@@ -1893,7 +1893,7 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
           }
         }
       }
-      
+
       if(x < board.x_size-1 && !histMarked)
         out << ' ';
     }

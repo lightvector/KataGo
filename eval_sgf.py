@@ -45,13 +45,13 @@ policy_output = tf.nn.softmax(model.policy_output)
 
 # Moves ----------------------------------------------------------------
 
-def fetch_output(session, board, moves, use_history_prop, rank_one_hot, fetch):
+def fetch_output(session, board, boards, moves, use_history_prop, rank_one_hot, fetch):
   input_data = np.zeros(shape=[1]+model.input_shape, dtype=np.float32)
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
   self_komi = (7.5 if pla == Board.WHITE else -7.5)
-  model.fill_row_features(board,pla,opp,moves,move_idx,input_data,self_komi,use_history_prop=use_history_prop,idx=0)
+  model.fill_row_features(board,pla,opp,boards,moves,move_idx,input_data,self_komi,use_history_prop=use_history_prop,idx=0)
   row_ranks = np.zeros(shape=[1]+model.rank_shape)
   row_ranks[0,rank_one_hot] = 1.0
   output = session.run(fetches=[fetch], feed_dict={
@@ -62,12 +62,12 @@ def fetch_output(session, board, moves, use_history_prop, rank_one_hot, fetch):
   })
   return output[0][0]
 
-def get_policy_output(session, board, moves, use_history_prop, rank_one_hot):
-  return fetch_output(session,board,moves,use_history_prop,rank_one_hot,policy_output)
+def get_policy_output(session, board, boards, moves, use_history_prop, rank_one_hot):
+  return fetch_output(session,board,boards,moves,use_history_prop,rank_one_hot,policy_output)
 
-def get_moves_and_probs(session, board, moves, use_history_prop, rank_one_hot):
+def get_moves_and_probs(session, board, boards, moves, use_history_prop, rank_one_hot):
   pla = board.pla
-  policy = get_policy_output(session, board, moves, use_history_prop, rank_one_hot)
+  policy = get_policy_output(session, board, boards, moves, use_history_prop, rank_one_hot)
   moves_and_probs = []
   for i in range(len(policy)):
     move = model.tensor_pos_to_loc(i,board)
@@ -89,12 +89,17 @@ def str_coord(loc,board):
 board_size = 19
 board = Board(size=board_size)
 moves = []
+boards = []
 
 def setstone(pla,loc):
   board.play(pla,loc)
+  moves.clear()
+  boards.clear()
+  boards.append(board.copy())
 def play(pla,loc):
-  moves.append((pla,loc))
   board.play(pla,loc)
+  moves.append((pla,loc))
+  boards.append(board.copy())
 
 (metadata,setups,moves) = data.load_sgf_moves_exn(sgf_file)
 assert(metadata.size == 19) #Neural net only works with 19x19 right now
@@ -116,7 +121,7 @@ saver = tf.train.Saver(
 with tf.Session() as session:
   saver.restore(session, modelpath)
 
-  moves_and_probs = get_moves_and_probs(session, board, moves, use_history_prop=1.0, rank_one_hot = play_rank_one_hot)
+  moves_and_probs = get_moves_and_probs(session, board, boards, moves, use_history_prop=1.0, rank_one_hot = play_rank_one_hot)
   moves_and_probs = sorted(moves_and_probs, key=lambda moveandprob: moveandprob[1], reverse=True)
 
   for i in range(len(moves_and_probs)):

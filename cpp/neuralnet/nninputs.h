@@ -32,22 +32,34 @@ namespace NNInputs {
   const int NUM_FEATURES_V1 = 19;
   const int ROW_SIZE_V1 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_V1;
 
+  const int NUM_FEATURES_V2 = 20;
+  const int ROW_SIZE_V2 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_V2;
+
   Hash128 getHashV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
     Player nextPlayer, float selfKomi
   );
   //Neural net input format that was pre-rules-implementation, doesn't handle superko and
-  //doesn't get told about the rules or pass-alive stones
+  //doesn't get told about the rules
   void fillRowV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
     Player nextPlayer, float selfKomi, float* row
   );
 
+  //Handles superko and works for tromp-taylor, but otherwise not all rules implemented
   Hash128 getHashV1(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer
   );
   void fillRowV1(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer, float* row
+  );
+
+  //Ongoing sandbox for full rules support and new ladder and other features, not stable yet
+  Hash128 getHashV2(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer
+  );
+  void fillRowV2(
+    const Board& board, const Board& prevBoard, const BoardHistory& boardHistory, Player nextPlayer, float* row
   );
 
 }

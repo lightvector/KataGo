@@ -16,7 +16,7 @@ using namespace H5;
 
 //Data and feature row parameters
 static const int maxBoardSize = NNPos::MAX_BOARD_LEN;
-static const int numFeatures = NNInputs::NUM_FEATURES_V0;
+static const int numFeatures = NNInputs::NUM_FEATURES_V2;
 static const int numRecentBoards = 6; //For recent captures
 
 //Different segments of the data row
@@ -166,7 +166,7 @@ static void fillRow(const vector<Board>& recentBoards, const vector<Move>& moves
   int bSize = board.x_size;
   int offset = NNPos::getOffset(bSize);
 
-  NNInputs::fillRowV0(board,moves,nextMoveIdx,nextPlayer,selfKomi,row);
+  NNInputs::fillRowV2(board,moves,nextMoveIdx,nextPlayer,selfKomi,row);
 
   //Optionally some stuff we can multiply the history planes by to randomly exclude history from a few training samples
   bool includeHistory[5];

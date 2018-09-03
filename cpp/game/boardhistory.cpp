@@ -19,6 +19,8 @@ BoardHistory::BoardHistory()
   :rules(),
    moveHistory(),koHashHistory(),
    koHistoryLastClearedBeginningMoveIdx(0),
+   recentBoards(),
+   currentRecentBoardIdx(0),
    consecutiveEndingPasses(0),
    hashesAfterBlackPass(),hashesAfterWhitePass(),
    encorePhase(0),koProhibitHash(),
@@ -40,6 +42,8 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r)
   :rules(r),
    moveHistory(),koHashHistory(),
    koHistoryLastClearedBeginningMoveIdx(0),
+   recentBoards(),
+   currentRecentBoardIdx(0),
    consecutiveEndingPasses(0),
    hashesAfterBlackPass(),hashesAfterWhitePass(),
    encorePhase(0),koProhibitHash(),
@@ -60,6 +64,8 @@ BoardHistory::BoardHistory(const BoardHistory& other)
   :rules(other.rules),
    moveHistory(other.moveHistory),koHashHistory(other.koHashHistory),
    koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
+   recentBoards(other.recentBoards),
+   currentRecentBoardIdx(other.currentRecentBoardIdx),
    consecutiveEndingPasses(other.consecutiveEndingPasses),
    hashesAfterBlackPass(other.hashesAfterBlackPass),hashesAfterWhitePass(other.hashesAfterWhitePass),
    encorePhase(other.encorePhase),koProhibitHash(other.koProhibitHash),
@@ -83,6 +89,8 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   moveHistory = other.moveHistory;
   koHashHistory = other.koHashHistory;
   koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
+  std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
+  currentRecentBoardIdx = other.currentRecentBoardIdx;
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   std::copy(other.superKoBanned, other.superKoBanned+Board::MAX_ARR_SIZE, superKoBanned);
   consecutiveEndingPasses = other.consecutiveEndingPasses;
@@ -107,6 +115,8 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
  :rules(other.rules),
   moveHistory(std::move(other.moveHistory)),koHashHistory(std::move(other.koHashHistory)),
   koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
+  recentBoards(other.recentBoards),
+  currentRecentBoardIdx(other.currentRecentBoardIdx),
   consecutiveEndingPasses(other.consecutiveEndingPasses),
   hashesAfterBlackPass(std::move(other.hashesAfterBlackPass)),hashesAfterWhitePass(std::move(other.hashesAfterWhitePass)),
   encorePhase(other.encorePhase),koProhibitHash(other.koProhibitHash),
@@ -127,6 +137,8 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   moveHistory = std::move(other.moveHistory);
   koHashHistory = std::move(other.koHashHistory);
   koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
+  std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
+  currentRecentBoardIdx = other.currentRecentBoardIdx;
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   std::copy(other.superKoBanned, other.superKoBanned+Board::MAX_ARR_SIZE, superKoBanned);
   consecutiveEndingPasses = other.consecutiveEndingPasses;
@@ -152,6 +164,10 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
   moveHistory.clear();
   koHashHistory.clear();
   koHistoryLastClearedBeginningMoveIdx = 0;
+
+  for(int i = 0; i<NUM_RECENT_BOARDS; i++)
+    recentBoards[i] = board;
+  currentRecentBoardIdx = 0;
 
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
@@ -196,6 +212,13 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
   //Push hash for the new board state
   koHashHistory.push_back(getKoHash(rules,board,pla,encorePhase,koProhibitHash));
 }
+
+const Board& BoardHistory::getRecentBoard(int numMovesAgo) const {
+  assert(numMoveAgo >= 0 && numMovesAgo < NUM_RECENT_BOARDS);
+  int idx = (currentRecentBoardIdx + numMovesAgo) % NUM_RECENT_BOARDS;
+  return recentBoards[idx];
+}
+
 
 void BoardHistory::setKomi(float newKomi) {
   rules.komi = newKomi;
@@ -386,6 +409,10 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     }
   }
 
+  //Update recent boards
+  currentRecentBoardIdx = (currentRecentBoardIdx + 1) % NUM_RECENT_BOARDS;
+  recentBoards[currentRecentBoardIdx] = board;
+
   //Passes clear ko history in the main phase with spight ko rules and in the encore
   //This lifts bans in spight ko rules and lifts 3-fold-repetition checking in the encore for no-resultifying infinite cycles
   //They also clear in simple ko rules for the purpose of no-resulting long cycles, long cycles with passes do not no-result.
@@ -524,7 +551,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
         std::fill(whiteKoProhibited, whiteKoProhibited+Board::MAX_ARR_SIZE, false);
         koProhibitHash = Hash128();
         koCapturesInEncore.clear();
-        
+
         koHashHistory.clear();
         koHistoryLastClearedBeginningMoveIdx = moveHistory.size();
         koHashHistory.push_back(getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash));

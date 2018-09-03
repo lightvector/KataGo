@@ -56,6 +56,12 @@ static void setRowV0(float* row, int pos, int feature, float value) {
 static void setRowV1(float* row, int pos, int feature, float value) {
   row[pos * NNInputs::NUM_FEATURES_V1 + feature] = value;
 }
+static float getRowV2(float* row, int pos, int feature) {
+  return row[pos * NNInputs::NUM_FEATURES_V2 + feature];
+}
+static void setRowV2(float* row, int pos, int feature, float value) {
+  row[pos * NNInputs::NUM_FEATURES_V2 + feature] = value;
+}
 
 //Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
 static void iterLadders(const Board& board, std::function<void(Loc,int,const vector<Loc>&)> f) {
@@ -354,7 +360,7 @@ void NNInputs::fillRowV1(
     }
   }
 
-  //Feature 9 - ko-ban locations, or in the encore, no-second-ko-capture locations
+  //Feature 9 - ko-ban locations, including possibly superko
   if(hist.encorePhase == 0) {
     if(board.ko_loc != Board::NULL_LOC) {
       int pos = NNPos::locToPos(board.ko_loc,bSize,offset);
@@ -378,9 +384,6 @@ void NNInputs::fillRowV1(
           int pos = NNPos::locToPos(loc,bSize,offset);
           setRowV1(row,pos,9, 1.0f);
         }
-        //TODO use these
-        // if(hist.blackKoProhibited[loc]) {}
-        // if(hist.whiteKoProhibited[loc]) {}
       }
     }
   }
@@ -439,4 +442,210 @@ void NNInputs::fillRowV1(
     }
   };
   iterLadders(board, addLadderFeature);
+}
+
+
+
+
+//===========================================================================================
+
+//Currently does NOT depend on history (except for marking ko-illegal spots)
+Hash128 NNInputs::getHashV2(
+    const Board& board, const BoardHistory& hist, Player nextPlayer
+) {
+  assert(board.x_size <= NNPos::MAX_BOARD_LEN);
+  assert(board.x_size == board.y_size);
+  int bSize = board.x_size;
+
+  Hash128 hash = board.pos_hash;
+  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
+
+  assert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
+  hash ^= Board::ZOBRIST_ENCORE_HASH[hist.encorePhase];
+
+  if(hist.encorePhase == 0) {
+    if(board.ko_loc != Board::NULL_LOC)
+      hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
+    for(int y = 0; y<bSize; y++) {
+      for(int x = 0; x<bSize; x++) {
+        Loc loc = Location::getLoc(x,y,bSize);
+        if(hist.superKoBanned[loc] && loc != board.ko_loc)
+          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
+      }
+    }
+  }
+  else {
+    for(int y = 0; y<bSize; y++) {
+      for(int x = 0; x<bSize; x++) {
+        Loc loc = Location::getLoc(x,y,bSize);
+        if(hist.superKoBanned[loc])
+          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
+        if(hist.blackKoProhibited[loc])
+          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK];
+        if(hist.whiteKoProhibited[loc])
+          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
+      }
+    }
+  }
+
+  //TODO incorporate other details of the rules into the hash
+  float selfKomi = hist.currentSelfKomi(nextPlayer);
+  int64_t komiX2 = (int64_t)(selfKomi*2.0f);
+  uint64_t komiHash = Hash::murmurMix((uint64_t)komiX2);
+  hash.hash0 ^= komiHash;
+  hash.hash1 ^= Hash::basicLCong(komiHash);
+
+  return hash;
+}
+
+
+void NNInputs::fillRowV2(
+  const Board& board, const BoardHistory& hist, Player nextPlayer, float* row
+) {
+  assert(board.x_size <= NNPos::MAX_BOARD_LEN);
+  assert(board.x_size == board.y_size);
+
+  Player pla = nextPlayer;
+  Player opp = getOpp(pla);
+  int bSize = board.x_size;
+  int offset = NNPos::getOffset(bSize);
+
+  float selfKomi = hist.currentSelfKomi(nextPlayer);
+
+  for(int y = 0; y<bSize; y++) {
+    for(int x = 0; x<bSize; x++) {
+      int pos = NNPos::xyToPos(x,y,offset);
+      Loc loc = Location::getLoc(x,y,bSize);
+
+      //Feature 0 - on board
+      setRowV2(row,pos,0, 1.0f);
+      //Feature 19 - komi/15 from self perspective
+      setRowV2(row,pos,19, selfKomi/15.0f);
+
+      Color stone = board.colors[loc];
+
+      //Features 1,2 - pla,opp stone
+      //Features 3,4,5 and 6,7,8 - pla 1,2,3 libs and opp 1,2,3 libs.
+      if(stone == pla) {
+        setRowV2(row,pos,1, 1.0f);
+        int libs = board.getNumLiberties(loc);
+        if(libs == 1) setRowV2(row,pos,3, 1.0f);
+        else if(libs == 2) setRowV2(row,pos,4, 1.0f);
+        else if(libs == 3) setRowV2(row,pos,5, 1.0f);
+      }
+      else if(stone == opp) {
+        setRowV2(row,pos,2, 1.0f);
+        int libs = board.getNumLiberties(loc);
+        if(libs == 1) setRowV2(row,pos,6, 1.0f);
+        else if(libs == 2) setRowV2(row,pos,7, 1.0f);
+        else if(libs == 3) setRowV2(row,pos,8, 1.0f);
+      }
+    }
+  }
+
+  //Feature 9 - ko-ban locations, including possibly superko. Or in the encore, no-second-ko-capture locations
+  if(hist.encorePhase == 0) {
+    if(board.ko_loc != Board::NULL_LOC) {
+      int pos = NNPos::locToPos(board.ko_loc,bSize,offset);
+      setRowV2(row,pos,9, 1.0f);
+    }
+    for(int y = 0; y<bSize; y++) {
+      for(int x = 0; x<bSize; x++) {
+        Loc loc = Location::getLoc(x,y,bSize);
+        if(hist.superKoBanned[loc] && loc != board.ko_loc) {
+          int pos = NNPos::locToPos(loc,bSize,offset);
+          setRowV2(row,pos,9, 1.0f);
+        }
+      }
+    }
+  }
+  else {
+    for(int y = 0; y<bSize; y++) {
+      for(int x = 0; x<bSize; x++) {
+        Loc loc = Location::getLoc(x,y,bSize);
+        if(hist.superKoBanned[loc]) {
+          int pos = NNPos::locToPos(loc,bSize,offset);
+          setRowV2(row,pos,9, 1.0f);
+        }
+        //TODO use these
+        // if(hist.blackKoProhibited[loc]) {}
+        // if(hist.whiteKoProhibited[loc]) {}
+      }
+    }
+  }
+
+  //Features 10,11,12,13,14
+  const vector<Move>& moveHistory = hist.moveHistory;
+  size_t moveHistoryLen = moveHistory.size();
+  if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
+    Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
+    if(prev1Loc != Board::PASS_LOC && prev1Loc != Board::NULL_LOC) {
+      int pos = NNPos::locToPos(prev1Loc,bSize,offset);
+      setRowV2(row,pos,10, 1.0f);
+    }
+    if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
+      Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
+      if(prev2Loc != Board::PASS_LOC && prev2Loc != Board::NULL_LOC) {
+        int pos = NNPos::locToPos(prev2Loc,bSize,offset);
+        setRowV2(row,pos,11, 1.0f);
+      }
+      if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
+        Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
+        if(prev3Loc != Board::PASS_LOC && prev3Loc != Board::NULL_LOC) {
+          int pos = NNPos::locToPos(prev3Loc,bSize,offset);
+          setRowV2(row,pos,12, 1.0f);
+        }
+        if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
+          Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
+          if(prev4Loc != Board::PASS_LOC && prev4Loc != Board::NULL_LOC) {
+            int pos = NNPos::locToPos(prev4Loc,bSize,offset);
+            setRowV2(row,pos,13, 1.0f);
+          }
+          if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
+            Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
+            if(prev5Loc != Board::PASS_LOC && prev5Loc != Board::NULL_LOC) {
+              int pos = NNPos::locToPos(prev5Loc,bSize,offset);
+              setRowV2(row,pos,14, 1.0f);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  //Ladder features 15,16,17,18
+  auto addLadderFeature = [&board,bSize,offset,row,opp](Loc loc, int pos, const vector<Loc>& workingMoves){
+    assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
+    assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
+    setRowV2(row,pos,15,1.0);
+    if(board.colors[loc] == opp && board.getNumLiberties(loc) > 1) {
+      for(size_t j = 0; j < workingMoves.size(); j++) {
+        int workingPos = NNPos::locToPos(workingMoves[j],bSize,offset);
+        setRowV2(row,workingPos,18,1.0);
+      }
+    }
+  };
+
+  iterLadders(board, addLadderFeature);
+
+  const Board& prevBoard = hist.getRecentBoard(1);
+  auto addPrevLadderFeature = [&prevBoard](Loc loc, int pos, const vector<Loc>& workingMoves){
+    (void)workingMoves;
+    (void)loc;
+    assert(prevBoard.colors[loc] == P_BLACK || prevBoard.colors[loc] == P_WHITE);
+    assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
+    setRowV2(row,pos,16,1.0);
+  };
+  iterLadders(prevBoard, addPrevLadderFeature);
+
+  const Board& prevPrevBoard = hist.getRecentBoard(2);
+  auto addPrevPrevLadderFeature = [&prevPrevBoard](Loc loc, int pos, const vector<Loc>& workingMoves){
+    (void)workingMoves;
+    (void)loc;
+    assert(prevPrevBoard.colors[loc] == P_BLACK || prevPrevBoard.colors[loc] == P_WHITE);
+    assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
+    setRowV2(row,pos,17,1.0);
+  };
+  iterLadders(prevPrevBoard, addPrevPrevLadderFeature);
+
 }

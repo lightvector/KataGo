@@ -12,7 +12,7 @@ class Model:
 
   def __init__(self,config):
     self.max_board_size = 19
-    self.num_input_features = 19
+    self.num_input_features = 20
     self.input_shape = [19*19,self.num_input_features]
     self.post_input_shape = [19,19,self.num_input_features]
     self.policy_target_shape_nopass = [19*19]
@@ -42,6 +42,7 @@ class Model:
   def xy_to_tensor_pos(self,x,y,offset):
     return (y+offset) * self.max_board_size + (x+offset)
   def loc_to_tensor_pos(self,loc,board,offset):
+    assert(loc != Board.PASS_LOC)
     return (board.loc_y(loc) + offset) * self.max_board_size + (board.loc_x(loc) + offset)
 
   def tensor_pos_to_loc(self,pos,board):
@@ -112,15 +113,17 @@ class Model:
 
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
-  def fill_row_features(self, board, pla, opp, moves, move_idx, input_data, self_komi, use_history_prop, idx):
+  def fill_row_features(self, board, pla, opp, boards, moves, move_idx, input_data, self_komi, use_history_prop, idx):
     bsize = board.size
     offset = (self.max_board_size - bsize) // 2
+    assert(len(boards) > 0)
+    assert(board.zobrist == boards[move_idx].zobrist)
 
     for y in range(bsize):
       for x in range(bsize):
         pos = self.xy_to_tensor_pos(x,y,offset)
         input_data[idx,pos,0] = 1.0
-        input_data[idx,pos,18] = self_komi / 15.0;
+        input_data[idx,pos,19] = self_komi / 15.0
         loc = board.loc(x,y)
         stone = board.board[loc]
         if stone == pla:
@@ -150,46 +153,62 @@ class Model:
     if use_history_prop > 0.0:
       if move_idx >= 1 and moves[move_idx-1][0] == opp:
         prev1_loc = moves[move_idx-1][1]
-        if prev1_loc is not None:
+        if prev1_loc is not None and prev1_loc != Board.PASS_LOC:
+          if prev1_loc
           pos = self.loc_to_tensor_pos(prev1_loc,board,offset)
           input_data[idx,pos,10] = use_history_prop
 
         if move_idx >= 2 and moves[move_idx-2][0] == pla:
           prev2_loc = moves[move_idx-2][1]
-          if prev2_loc is not None:
+          if prev2_loc is not None and prev2_loc != Board.PASS_LOC:
             pos = self.loc_to_tensor_pos(prev2_loc,board,offset)
             input_data[idx,pos,11] = use_history_prop
 
           if move_idx >= 3 and moves[move_idx-3][0] == opp:
             prev3_loc = moves[move_idx-3][1]
-            if prev3_loc is not None:
+            if prev3_loc is not None and prev3_loc != Board.PASS_LOC:
               pos = self.loc_to_tensor_pos(prev3_loc,board,offset)
               input_data[idx,pos,12] = use_history_prop
 
             if move_idx >= 4 and moves[move_idx-4][0] == pla:
               prev4_loc = moves[move_idx-4][1]
-              if prev4_loc is not None:
+              if prev4_loc is not None and prev4_loc != Board.PASS_LOC:
                 pos = self.loc_to_tensor_pos(prev4_loc,board,offset)
                 input_data[idx,pos,13] = use_history_prop
 
               if move_idx >= 5 and moves[move_idx-5][0] == opp:
                 prev5_loc = moves[move_idx-5][1]
-                if prev5_loc is not None:
+                if prev5_loc is not None and prev5_loc != Board.PASS_LOC:
                   pos = self.loc_to_tensor_pos(prev5_loc,board,offset)
                   input_data[idx,pos,14] = use_history_prop
 
     def addLadderFeature(loc,pos,workingMoves):
-      assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE);
-      libs = board.num_liberties(loc)
-      if libs == 1:
-        input_data[idx,pos,15] = 1.0
-      else:
-        input_data[idx,pos,16] = 1.0
+      assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE)
+      input_data[idx,pos,15] = 1.0
+      if board.board[loc] == opp and board.num_liberties(loc) > 1:
         for workingMove in workingMoves:
           workingPos = self.loc_to_tensor_pos(workingMove,board,offset)
-          input_data[idx,workingPos,17] = 1.0
+          input_data[idx,workingPos,18] = 1.0
 
     self.iterLadders(board, addLadderFeature)
+
+    if move_idx > 0:
+      prevBoard = boards[move_idx-1]
+    else:
+      prevBoard = board
+    def addPrevLadderFeature(loc,pos,workingMoves):
+      assert(prevBoard.board[loc] == Board.BLACK or prevBoard.board[loc] == Board.WHITE)
+      input_data[idx,pos,16] = 1.0
+    self.iterLadders(prevBoard, addPrevLadderFeature)
+
+    if move_idx > 1:
+      prevPrevBoard = boards[move_idx-2]
+    else:
+      prevPrevBoard = prevBoard
+    def addPrevPrevLadderFeature(loc,pos,workingMoves):
+      assert(prevPrevBoard.board[loc] == Board.BLACK or prevPrevBoard.board[loc] == Board.WHITE)
+      input_data[idx,pos,17] = 1.0
+    self.iterLadders(prevPrevBoard, addPrevPrevLadderFeature)
 
     return idx+1
 
@@ -689,6 +708,7 @@ class Model:
       1.0, #16
       1.0, #17
       1.0, #18
+      1.0, #19
     ])
     assert(features_active.dtype == tf.float32)
 

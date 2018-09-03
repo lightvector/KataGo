@@ -28,7 +28,7 @@ int MainCmds::sandbox() {
   bool debugSkipNeuralNet = false;
   NNEvaluator* nnEval = new NNEvaluator(
     // "/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb",
-    "/efs/data/GoNN/exportedmodels/cuda/value31-140/model.txt",
+    "/efs/data/GoNN/exportedmodels/cuda/value33-140/model.txt",
     // "/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt",
     modelFileIdx,
     maxBatchSize,
@@ -51,29 +51,53 @@ int MainCmds::sandbox() {
   rules.multiStoneSuicideLegal = true;
   rules.komi = 7.5f;
 
-  Player pla = P_WHITE;
+  Player pla = P_BLACK;
+//   Board board = Board::parseBoard(19,19,R"(
+//    A B C D E F G H J K L M N O P Q R S T
+// 19 . . . . . . . . . . . . . . . . x . .
+// 18 . . x o . . . . . . x o . . o . o x .
+// 17 . . x o . . o x . . . . o . . o x . .
+// 16 . . x o . . o x x o . x . . . o x . .
+// 15 . x o o x . x . x x x . x . . o x . .
+// 14 . x o . . . x x o o o o x . x o o x .
+// 13 . x o . . . . . o x x x x . . . o x .
+// 12 . . o . . x x x . o . o o o o . o . .
+// 11 . . . . o x o o o o . o . x . o . . .
+// 10 . o o o o o x . . o x x x . o x x . .
+//  9 . x . x o o x x x x o o x . x o x . .
+//  8 . . . x x x x . . x . o o x . o x . .
+//  7 . . . o o . x x . x . . . . . x . x .
+//  6 . . o x x x . x x o o . o . . x . x .
+//  5 . . o o o o x x . . . o . o . o x . .
+//  4 . o o x x o o . x o o x . o . o x . .
+//  3 . o x x . o o x x x . x . o x x o x .
+//  2 o x . x x o . o . . . . . o . . o x .
+//  1 . o x x o . . o . . . . . . . . . . .
+// )");
+
   Board board = Board::parseBoard(19,19,R"(
    A B C D E F G H J K L M N O P Q R S T
-19 . . . . . . . . . . . . . . . . x . .
-18 . . x o . . . . . . x o . . o . o x .
-17 . . x o . . o x . . . . o . . o x . .
-16 . . x o . . o x x o . x . . . o x . .
-15 . x o o x . x . x x x . x . . o x . .
-14 . x o . . . x x o o o o x . x o o x .
-13 . x o . . . . . o x x x x . . . o x .
-12 . . o . . x x x . o . o o o o . o . .
-11 . . . . o x o o o o . o . x . o . . .
-10 . o o o o o x . . o x x x . o x x . .
- 9 . x . x o o x x x x o o x . x o x . .
- 8 . . . x x x x . . x . o o x . o x . .
- 7 . . . o o . x x . x . . . . . x . x .
- 6 . . o x x x . x x o o . o . . x . x .
- 5 . . o o o o x x . . . o . o . o x . .
- 4 . o o x x o o . x o o x . o . o x . .
- 3 . o x x . o o x x x . x . o x x o x .
- 2 o x . x x o . o . . . . . o . . o x .
- 1 . o x x o . . o . . . . . . . . . . .
+19 . o . . o . . . . . . . . . . . . . .
+18 o x x x x o o . . . . . . . . . . . .
+17 . o o o x x o . . x . . . . . x . . .
+16 . . . o o . o . . . . . . . . . . . .
+15 . . x . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . x . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . x . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . x o .
+ 8 . . . . . . . . . . . . . . . x . o .
+ 7 . . . . . . . . . . . . o x x o o o .
+ 6 . . . . . . . . . . . x o o o x x x .
+ 5 . . . . . . . . . . . . x x x o o x .
+ 4 . . . o . . . . . . . . o . . o o x .
+ 3 . . . . . . . . . . . . . x x x o x .
+ 2 . . . . . . . . . . . x . . . . o o .
+ 1 . . . . . . . . . . . . . . . . . . .
 )");
+
 
   BoardHistory hist(board,pla,rules);
 
@@ -97,26 +121,27 @@ int MainCmds::sandbox() {
   delete logStream;
 
   SearchParams params;
-  params.maxPlayouts = 1000;
+  params.maxPlayouts = 180;
   params.numThreads = 1;
+  params.fpuUseParentAverage = false;
+  // params.moveProbModelExponent = 0.0;
+  // params.moveProbModelPolicyExponent = 0.0;
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "def");
   bot->setPosition(pla,board,hist);
 
-  Loc moveLoc = bot->genMoveSynchronous(pla);
+  cout << bot->getRootBoard() << endl;
+  bot->genMoveSynchronous(pla);
   bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
   cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
   cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
   cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
   bot->clearSearch();
   nnEval->clearCache();
-  ClockTimer timer;
-  moveLoc = bot->genMoveSynchronous(pla);
 
-  double seconds = timer.getSeconds();
-  cout << board << endl;
-  cout << "MoveLoc: " << Location::toString(moveLoc,board) << endl;
-  cout << "Seconds: " << seconds << endl;
+  bot->makeMove(Location::ofString("F15",board),pla);
+  cout << bot->getRootBoard() << endl;
+  bot->genMoveSynchronous(getOpp(pla));
   bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
 
   cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
