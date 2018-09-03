@@ -1,6 +1,7 @@
 #include "core/global.h"
 #include "core/config_parser.h"
 #include "core/timer.h"
+#include "core/test.h"
 #include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
@@ -9,7 +10,7 @@
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
-int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
+int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
   Board::initHash();
   Rand seedRand;
 
@@ -19,6 +20,7 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
   string outputFile;
   int numThreads;
   double usePosProb;
+  string mode;
   try {
     TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
@@ -27,6 +29,7 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> outputFileArg("","output-csv","Output csv file",true,string(),"FILE");
     TCLAP::ValueArg<int> numThreadsArg("","num-threads","Number of threads to use",true,1,"INT");
     TCLAP::ValueArg<double> usePosProbArg("","use-pos-prob","Probability to use a position",true,0.0,"PROB");
+    TCLAP::ValueArg<string> modeArg("","mode","rootValue|policyTargetSurprise",true,string(),"MODE");
 
     cmd.add(configFileArg);
     cmd.add(nnModelFileArg);
@@ -34,6 +37,7 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
     cmd.add(outputFileArg);
     cmd.add(numThreadsArg);
     cmd.add(usePosProbArg);
+    cmd.add(modeArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     nnModelFile = nnModelFileArg.getValue();
@@ -41,9 +45,15 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
     outputFile = outputFileArg.getValue();
     numThreads = numThreadsArg.getValue();
     usePosProb = usePosProbArg.getValue();
+    mode = modeArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  if(mode != "rootValue" && mode != "policyTargetSurprise") {
+    cout << "Error: mode must be rootValue or policyTargetSurprise" << endl;
     return 1;
   }
 
@@ -113,10 +123,53 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
   out.open(outputFile);
   mutex outMutex;
 
+  auto computeSurprise = [&](Search* search) {
+    vector<Loc> locs;
+    vector<double> playSelectionValues;
+    bool suc = search->getPlaySelectionValues(locs,playSelectionValues);
+    testAssert(suc);
+
+    assert(search->rootNode != NULL);
+    assert(search->rootNode->nnOutput != NULL);
+    float* policyProbs = search->rootNode->nnOutput->policyProbs;
+
+    assert(locs.size() == playSelectionValues.size());
+    double sum = 0.0;
+    for(int i = 0; i<locs.size(); i++) {
+      sum += playSelectionValues[i];
+      assert(playSelectionValues[i] >= 0.0);
+    }
+    assert(sum > 0.0);
+
+    for(int i = 0; i<locs.size(); i++) {
+      playSelectionValues[i] /= sum;
+    }
+
+    double surprise = 0.0;
+    for(int i = 0; i<locs.size(); i++) {
+      if(playSelectionValues[i] > 1e-50) {
+        Loc loc = locs[i];
+        int offset = NNPos::getOffset(search->rootBoard.x_size);
+        int pos = NNPos::locToPos(loc,search->rootBoard.x_size,offset);
+        surprise += playSelectionValues[i] * (log(playSelectionValues[i]) - log(policyProbs[pos]));
+      }
+    }
+    return surprise;
+  };
+
   auto runThread = [&](int threadIdx, string randSeed) {
     Search* search = new Search(params,nnEval,randSeed);
-    int maxVisits = 80000;
+
+    int maxVisits;
+    if(mode == "rootValue")
+      maxVisits = 80000;
+    else if(mode == "policyTargetSurprise")
+      maxVisits = 5000;
+    else
+      assert(false);
+
     double* valueSums = new double[maxVisits];
+    double* policySurpriseNats = new double[maxVisits];
     Rand rand("root variance estimate " + Global::intToString(threadIdx));
     for(size_t sgfIdx = threadIdx; sgfIdx<sgfs.size(); sgfIdx += numThreads) {
       const Sgf* sgf = sgfs[sgfIdx];
@@ -147,6 +200,7 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
           for(int i = 0; i<maxVisits; i++) {
             search->runSinglePlayout(*stbuf);
             valueSums[i] = search->rootNode->stats.getCombinedValueSum(search->searchParams);
+            policySurpriseNats[i] = computeSurprise(search);
           }
           delete stbuf;
 
@@ -162,8 +216,18 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
             std::lock_guard<std::mutex> guard(outMutex);
             out << moveNum << ",";
             out << entropy << ",";
-            for(int i = 0; i<maxVisits; i++)
-              out << valueSums[i] << ",";
+            if(mode == "rootValue") {
+              for(int i = 0; i<maxVisits; i++)
+                out << valueSums[i] << ",";
+            }
+            else if(mode == "policyTargetSurprise") {
+              for(int i = 0; i<maxVisits; i++)
+                out << policySurpriseNats[i] << ",";
+            }
+            else {
+              assert(false);
+            }
+
             out << endl;
           }
         }

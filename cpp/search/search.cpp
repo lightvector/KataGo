@@ -206,17 +206,18 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
 
 static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
 
-Loc Search::getChosenMoveLoc() {
+bool Search::getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelectionValues) {
+  locs.clear();
+  playSelectionValues.clear();
+
   if(rootNode == NULL)
-    return Board::NULL_LOC;
+    return false;
 
   const SearchNode& node = *rootNode;
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
 
   int numChildren = node.numChildren;
-  vector<Loc> locs;
-  vector<double> playSelectionValues;
 
   for(int i = 0; i<numChildren; i++) {
     SearchNode* child = node.children[i];
@@ -232,7 +233,7 @@ Loc Search::getChosenMoveLoc() {
   //If we have no children, then use the policy net directly
   if(numChildren == 0) {
     if(nnOutput == nullptr)
-      return Board::NULL_LOC;
+      return false;
     for(int movePos = 0; movePos<NNPos::NN_POLICY_SIZE; movePos++) {
       assert(rootBoard.x_size == rootBoard.y_size);
       int offset = NNPos::getOffset(rootBoard.x_size);
@@ -248,7 +249,7 @@ Loc Search::getChosenMoveLoc() {
 
   //Might happen absurdly rarely if we have a hash collision or something on the nnOutput
   if(numChildren == 0)
-    return Board::NULL_LOC;
+    return false;
 
   double maxValue = 0.0;
   for(int i = 0; i<numChildren; i++) {
@@ -257,7 +258,7 @@ Loc Search::getChosenMoveLoc() {
   }
 
   if(maxValue <= 1e-50)
-    return Board::NULL_LOC;
+    return false;
 
   double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/2.0);
   for(int i = 0; i<numChildren; i++) {
@@ -265,7 +266,29 @@ Loc Search::getChosenMoveLoc() {
     if(playSelectionValues[i] <= 0.0)
       playSelectionValues[i] = 0.0;
   }
-  maxValue -= amountToSubtract;
+
+  return true;
+}
+
+Loc Search::getChosenMoveLoc() {
+  if(rootNode == NULL)
+    return Board::NULL_LOC;
+
+  vector<Loc> locs;
+  vector<double> playSelectionValues;
+  bool suc = getPlaySelectionValues(locs,playSelectionValues);
+  if(!suc)
+    return Board::NULL_LOC;
+
+  assert(locs.size() == playSelectionValues.size());
+  int numChildren = locs.size();
+
+  double maxValue = 0.0;
+  for(int i = 0; i<numChildren; i++) {
+    if(playSelectionValues[i] > maxValue)
+      maxValue = playSelectionValues[i];
+  }
+  assert(maxValue > 0.0);
 
   double temperature = searchParams.chosenMoveTemperature;
   temperature +=

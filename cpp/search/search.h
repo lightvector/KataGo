@@ -138,6 +138,9 @@ struct Search {
   //Choose a move at the root of the tree, with randomization, if possible.
   //Might return Board::NULL_LOC if there is no root.
   Loc getChosenMoveLoc();
+  //Get the vector of values (e.g. modified visit counts) used to select a move.
+  //Does take into account chosenMoveSubtract but does NOT apply temperature.
+  bool getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelectionValues);
 
   //Call once at the start of each search
   void beginSearch();
