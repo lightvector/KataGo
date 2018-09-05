@@ -848,7 +848,7 @@ void Search::printTreeHelper(
   auto compByValue = [](const tuple<const SearchNode*,double,double>& a, const tuple<const SearchNode*,double,double>& b) {
     return (std::get<2>(a)) > (std::get<2>(b));
   };
-  std::sort(valuedChildren.begin(),valuedChildren.end(),compByValue);
+  std::stable_sort(valuedChildren.begin(),valuedChildren.end(),compByValue);
 
   //Apply filtering conditions, but include children that don't match the filtering condition
   //but where there are children afterward that do, in case we ever use something more complex
