@@ -161,7 +161,8 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
         Loc loc = locs[i];
         int offset = NNPos::getOffset(search->rootBoard.x_size);
         int pos = NNPos::locToPos(loc,search->rootBoard.x_size,offset);
-        surprise += playSelectionValues[i] * (log(playSelectionValues[i]) - log(policyProbs[pos]));
+        //surprise += playSelectionValues[i] * (log(playSelectionValues[i]) - log(policyProbs[pos]));
+        surprise += playSelectionValues[i] * log(policyProbs[pos]);
       }
     }
     return surprise;
