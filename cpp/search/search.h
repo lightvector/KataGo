@@ -24,7 +24,7 @@ struct NodeStats {
   double winLossValueSum;
   double scoreValueSum;
   double valueSumWeight;
-  
+
   NodeStats();
   ~NodeStats();
 
@@ -54,8 +54,8 @@ struct SearchNode {
   //Lightweight mutable---------------------------------------------------------------
   //Protected under statsLock
   NodeStats stats;
-  //Not explicitly locked, atomic on its own
-  atomic<int32_t> virtualLosses;
+  //Also protected under statsLock
+  int32_t virtualLosses;
 
   //--------------------------------------------------------------------------------
   SearchNode(Search& search, SearchThread& thread, Loc prevMoveLoc);
@@ -188,7 +188,7 @@ private:
   double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const;
   double getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const;
 
-  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread);
+  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract);
 
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
@@ -196,17 +196,17 @@ private:
     bool isRoot
   ) const;
 
-  void setTerminalValue(SearchNode& node, double winLossValue, double scoreValue);
+  void setTerminalValue(SearchNode& node, double winLossValue, double scoreValue, int32_t virtualLossesToSubtract);
 
   void initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
-    bool isRoot, bool skipCache
+    bool isRoot, bool skipCache, int32_t virtualLossesToSubtract
   );
 
   void playoutDescend(
     SearchThread& thread, SearchNode& node,
     int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
-    bool isRoot
+    bool isRoot, int32_t virtualLossesToSubtract
   );
 
   void printTreeHelper(

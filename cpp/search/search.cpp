@@ -54,7 +54,7 @@ SearchNode::SearchNode(SearchNode&& other) noexcept
 :lockIdx(other.lockIdx),statsLock(),
   nextPla(other.nextPla),prevMoveLoc(other.prevMoveLoc),
   nnOutput(std::move(other.nnOutput)),
-  stats(other.stats),virtualLosses(other.virtualLosses.load())
+  stats(other.stats),virtualLosses(other.virtualLosses)
 {
   children = other.children;
   other.children = NULL;
@@ -71,7 +71,7 @@ SearchNode& SearchNode::operator=(SearchNode&& other) noexcept {
   numChildren = other.numChildren;
   childrenCapacity = other.childrenCapacity;
   stats = other.stats;
-  virtualLosses = other.virtualLosses.load();
+  virtualLosses = other.virtualLosses;
   return *this;
 }
 
@@ -642,6 +642,7 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
   uint64_t childVisits = child->stats.visits;
   double childValueSum = child->stats.getCombinedValueSum(searchParams);
   double valueSumWeight = child->stats.valueSumWeight;
+  int32_t childVirtualLosses = child->virtualLosses;
   child->statsLock.clear(std::memory_order_release);
 
   //It's possible that childVisits is actually 0 here with multithreading because we're visiting this node while a child has
@@ -659,15 +660,13 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
     totalChildVisits = childVisits;
 
   //Virtual losses to direct threads down different paths
-  int32_t childVirtualLosses = child->virtualLosses.load(std::memory_order_relaxed);
   if(childVirtualLosses > 0) {
-    totalChildVisits += childVirtualLosses;
+    //totalChildVisits += childVirtualLosses; //Should get better thread dispersal without this
     childVisits += childVirtualLosses;
     double virtualLossUtility = (parent.nextPla == P_WHITE ? -1.0 : 1.0) * (searchParams.winLossUtilityFactor + searchParams.scoreUtilityFactor);
-    double virtualLossVisitFrac = childVirtualLosses / childVisits;
+    double virtualLossVisitFrac = (double)childVirtualLosses / childVisits;
     childValue = childValue + (virtualLossUtility - childValue) * virtualLossVisitFrac;
   }
-
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValue,parent.nextPla);
 }
 double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const {
@@ -771,7 +770,7 @@ void Search::selectBestChildToDescend(
 
 }
 
-void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread) {
+void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract) {
   //Find all children and compute experimental model play probabilities
   vector<double>& modelProbs = thread.modelProbsBuf;
   vector<double>& winLossValues = thread.winLossValuesBuf;
@@ -850,12 +849,13 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread) {
   node.stats.winLossValueSum = winLossValueSum;
   node.stats.scoreValueSum = scoreValueSum;
   node.stats.valueSumWeight = valueSumWeight;
+  node.virtualLosses -= virtualLossesToSubtract;
   node.statsLock.clear(std::memory_order_release);
 }
 
 void Search::runSinglePlayout(SearchThread& thread) {
   int posesWithChildBuf[NNPos::NN_POLICY_SIZE];
-  playoutDescend(thread,*rootNode,posesWithChildBuf,true);
+  playoutDescend(thread,*rootNode,posesWithChildBuf,true,0);
 
   //Restore thread state back to the root state
   thread.pla = rootPla;
@@ -863,18 +863,19 @@ void Search::runSinglePlayout(SearchThread& thread) {
   thread.history = rootHistory;
 }
 
-void Search::setTerminalValue(SearchNode& node, double winLossValue, double scoreValue) {
+void Search::setTerminalValue(SearchNode& node, double winLossValue, double scoreValue, int32_t virtualLossesToSubtract) {
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
   node.stats.winLossValueSum = winLossValue;
   node.stats.scoreValueSum = scoreValue;
   node.stats.valueSumWeight = 1.0;
+  node.virtualLosses -= virtualLossesToSubtract;
   node.statsLock.clear(std::memory_order_release);
 }
 
 void Search::initNodeNNOutput(
   SearchThread& thread, SearchNode& node,
-  bool isRoot, bool skipCache
+  bool isRoot, bool skipCache, int32_t virtualLossesToSubtract
 ) {
   nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logStream, skipCache);
   node.nnOutput = std::move(thread.nnResultBuf.result);
@@ -888,13 +889,14 @@ void Search::initNodeNNOutput(
   node.stats.winLossValueSum = value;
   node.stats.scoreValueSum = 0.0;
   node.stats.valueSumWeight = 1.0;
+  node.virtualLosses -= virtualLossesToSubtract;
   node.statsLock.clear(std::memory_order_release);
 }
 
 void Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
   int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
-  bool isRoot
+  bool isRoot, int32_t virtualLossesToSubtract
 ) {
   //Hit terminal node, finish
   //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
@@ -904,14 +906,14 @@ void Search::playoutDescend(
     if(thread.history.isNoResult) {
       double winLossValue = searchParams.noResultUtilityForWhite;
       double scoreValue = 0.0;
-      setTerminalValue(node, winLossValue, scoreValue);
+      setTerminalValue(node, winLossValue, scoreValue, virtualLossesToSubtract);
       return;
     }
     else {
       double winLossValue = NNOutput::whiteValueOfWinner(thread.history.winner, searchParams.drawUtilityForWhite);
       assert(thread.board.x_size == thread.board.y_size);
       double scoreValue = NNOutput::whiteValueOfScore(thread.history.finalWhiteMinusBlackScore, thread.board.x_size);
-      setTerminalValue(node, winLossValue, scoreValue);
+      setTerminalValue(node, winLossValue, scoreValue, virtualLossesToSubtract);
       return;
     }
   }
@@ -921,7 +923,7 @@ void Search::playoutDescend(
 
   //Hit leaf node, finish
   if(node.nnOutput == nullptr) {
-    initNodeNNOutput(thread,node,isRoot,false);
+    initNodeNNOutput(thread,node,isRoot,false,virtualLossesToSubtract);
     return;
   }
 
@@ -936,7 +938,7 @@ void Search::playoutDescend(
   //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
   //Regenerate the neural net call and continue
   if(!(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla))) {
-    initNodeNNOutput(thread,node,isRoot,true);
+    initNodeNNOutput(thread,node,isRoot,true,virtualLossesToSubtract);
     lock.unlock();
     if(thread.logStream != NULL)
       (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
@@ -974,14 +976,20 @@ void Search::playoutDescend(
 
     node.numChildren++;
     child = new SearchNode(*this,thread,moveLoc);
-    child->virtualLosses.fetch_add(searchParams.numVirtualLossesPerThread, std::memory_order_relaxed);
     node.children[bestChildIdx] = child;
+
+    while(node.statsLock.test_and_set(std::memory_order_acquire));
+    child->virtualLosses += searchParams.numVirtualLossesPerThread;
+    node.statsLock.clear(std::memory_order_release);
 
     lock.unlock();
   }
   else {
     child = node.children[bestChildIdx];
-    child->virtualLosses.fetch_add(searchParams.numVirtualLossesPerThread, std::memory_order_relaxed);
+
+    while(node.statsLock.test_and_set(std::memory_order_acquire));
+    child->virtualLosses += searchParams.numVirtualLossesPerThread;
+    node.statsLock.clear(std::memory_order_release);
 
     //Unlock before making moves if the child already exists since we don't depend on it at this point
     lock.unlock();
@@ -992,12 +1000,10 @@ void Search::playoutDescend(
   }
 
   //Recurse!
-  playoutDescend(thread,*child,posesWithChildBuf,false);
-
-  child->virtualLosses.fetch_add(-searchParams.numVirtualLossesPerThread, std::memory_order_relaxed);
+  playoutDescend(thread,*child,posesWithChildBuf,false,searchParams.numVirtualLossesPerThread);
 
   //Update this node stats
-  updateStatsAfterPlayout(node,thread);
+  updateStatsAfterPlayout(node,thread,virtualLossesToSubtract);
 }
 
 void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
