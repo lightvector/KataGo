@@ -32,7 +32,7 @@ namespace NNInputs {
   const int NUM_FEATURES_V1 = 19;
   const int ROW_SIZE_V1 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_V1;
 
-  const int NUM_FEATURES_V2 = 20;
+  const int NUM_FEATURES_V2 = 17;
   const int ROW_SIZE_V2 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_V2;
 
   Hash128 getHashV0(
@@ -59,7 +59,7 @@ namespace NNInputs {
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer
   );
   void fillRowV2(
-    const Board& board, const Board& prevBoard, const BoardHistory& boardHistory, Player nextPlayer, float* row
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer, float* row
   );
 
 }

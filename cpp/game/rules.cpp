@@ -11,6 +11,15 @@ Rules::Rules() {
 Rules::~Rules() {
 }
 
+Rules Rules::getTrompTaylorish() {
+  Rules rules;
+  rules.koRule = KO_POSITIONAL;
+  rules.scoringRule = SCORING_AREA;
+  rules.multiStoneSuicideLegal = true;
+  rules.komi = 7.5f;
+  return rules;
+}
+
 
 set<string> Rules::koRuleStrings() {
   return {"SIMPLE","POSITIONAL","SITUATIONAL","SPIGHT"};

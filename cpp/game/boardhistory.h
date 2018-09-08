@@ -19,7 +19,7 @@ struct BoardHistory {
   vector<Hash128> koHashHistory;
   int koHistoryLastClearedBeginningMoveIdx;
 
-  static const int NUM_RECENT_BOARDS = 3;
+  static const int NUM_RECENT_BOARDS = 6;
   Board recentBoards[NUM_RECENT_BOARDS];
   int currentRecentBoardIdx;
 

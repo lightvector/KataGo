@@ -267,6 +267,19 @@ with tf.Session(config=tfconfig) as session:
   target_weights_len = 1
   rank_start = target_weights_start + target_weights_len
   rank_len = model.rank_shape[0]
+  side_start = rank_start + rank_len
+  side_len = 1
+  turn_number_start = side_start + side_len
+  turn_number_len = 2
+  recent_captures_start = turn_number_start + turn_number_len
+  recent_captures_len = model.max_board_size * model.max_board_size
+  next_moves_start = recent_captures_start + recent_captures_len
+  next_moves_len = 12
+  sgf_hash_start = next_moves_start + next_moves_len
+  sgf_hash_len = 8
+  include_history_start = sgf_hash_start + sgf_hash_len
+  include_history_len = 5
+  total_row_len = include_history_start + include_history_len
 
   def run(fetches, rows, training, symmetries, pslr=0.0):
     assert(len(model.input_shape) == 2)
@@ -278,12 +291,15 @@ with tf.Session(config=tfconfig) as session:
     if not isinstance(rows, np.ndarray):
       rows = np.array(rows)
 
+    assert(rows.shape[1] == total_row_len)
+
     row_inputs = rows[:,0:input_len].reshape([-1] + model.input_shape)
     row_policy_targets = rows[:,policy_target_start:policy_target_start+policy_target_len]
     row_value_target = rows[:,value_target_start]
     row_target_weights = rows[:,target_weights_start]
     if use_ranks:
       row_ranks = rows[:,rank_start:rank_start+rank_len]
+    row_include_history = rows[:,include_history_start:include_history_start+include_history_len]
 
     if use_ranks:
       return session.run(fetches, feed_dict={
@@ -293,6 +309,7 @@ with tf.Session(config=tfconfig) as session:
         target_vars.target_weights_from_data: row_target_weights,
         model.ranks: row_ranks,
         model.symmetries: symmetries,
+        model.include_history: row_include_history,
         per_sample_learning_rate: pslr,
         target_vars.l2_reg_coeff: l2_coeff_value,
         model.is_training: training
@@ -304,6 +321,7 @@ with tf.Session(config=tfconfig) as session:
         target_vars.value_target: row_value_target,
         target_vars.target_weights_from_data: row_target_weights,
         model.symmetries: symmetries,
+        model.include_history: row_include_history,
         per_sample_learning_rate: pslr,
         target_vars.l2_reg_coeff: l2_coeff_value,
         model.is_training: training

@@ -21,6 +21,8 @@ struct Rules {
   Rules();
   ~Rules();
 
+  static Rules getTrompTaylorish();
+
   static set<string> koRuleStrings();
   static set<string> scoringRuleStrings();
   static int parseKoRule(const string& s);

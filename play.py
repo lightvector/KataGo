@@ -55,7 +55,8 @@ def fetch_output(session, board, boards, moves, use_history_prop, rank_one_hot, 
     model.inputs: input_data,
     model.ranks: row_ranks,
     model.symmetries: [False,False,False],
-    model.is_training: False
+    model.is_training: False,
+    model.include_history: [[1.0,1.0,1.0,1.0,1.0]]
   })
   return [output[0] for output in outputs]
 
@@ -209,7 +210,7 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
       texts_rev.append("%s %.3f" % (str_coord(loc,board),value))
 
   if value_head_output is not None:
-    texts_value.append("bv %.2f%%" % (50+50*(value_head_output if board.pla == Board.BLACK else -value_head_output)))
+    texts_value.append("wv %.2fc" % (100*(value_head_output if board.pla == Board.WHITE else -value_head_output)))
 
   gfx_commands.append("TEXT " + ", ".join(texts_value + texts_rev + texts))
 

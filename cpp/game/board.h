@@ -54,6 +54,8 @@ namespace Location
   bool tryOfString(const string& str, const Board& b, Loc& result);
   Loc ofString(const string& str, int x_size, int y_size);
   Loc ofString(const string& str, const Board& b);
+
+  vector<Loc> parseSequence(const string& str, const Board& b);
 }
 
 //Simple structure for storing moves. Not used below, but this is a convenient place to define it.

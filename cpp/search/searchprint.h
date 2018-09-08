@@ -2,7 +2,7 @@
 #define SEARCHPRINT_H
 #include "../game/board.h"
 
-struct PrintTreeOptions {  
+struct PrintTreeOptions {
   PrintTreeOptions();
 
   PrintTreeOptions& maxDepth(int);
@@ -39,13 +39,7 @@ inline PrintTreeOptions& PrintTreeOptions::minVisitsToExpand(uint64_t v) { minVi
 inline PrintTreeOptions& PrintTreeOptions::minVisitsPropToShow(double p) { minVisitsPropToShow_ = p; return *this;}
 inline PrintTreeOptions& PrintTreeOptions::minVisitsPropToExpand(double p) { minVisitsPropToExpand_ = p; return *this;}
 inline PrintTreeOptions& PrintTreeOptions::onlyBranch(const Board& board, const string& moves) {
-  vector<string> pieces = Global::split(Global::trim(moves),' ');
-  for(size_t i = 0; i<pieces.size(); i++) {
-    string piece = Global::trim(pieces[i]);
-    if(piece.length() <= 0)
-      continue;
-    branch_.push_back(Location::ofString(piece,board));
-  }
+  branch_ = Location::parseSequence(moves,board);
   return *this;
 }
 

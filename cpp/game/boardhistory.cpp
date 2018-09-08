@@ -214,7 +214,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
 }
 
 const Board& BoardHistory::getRecentBoard(int numMovesAgo) const {
-  assert(numMoveAgo >= 0 && numMovesAgo < NUM_RECENT_BOARDS);
+  assert(numMovesAgo >= 0 && numMovesAgo < NUM_RECENT_BOARDS);
   int idx = (currentRecentBoardIdx + numMovesAgo) % NUM_RECENT_BOARDS;
   return recentBoards[idx];
 }
