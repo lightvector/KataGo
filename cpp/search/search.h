@@ -81,12 +81,11 @@ struct SearchThread {
   NNResultBuf nnResultBuf;
   ostream* logStream;
 
-  vector<double> modelProbsBuf;
+  vector<double> valueChildWeightsBuf;
   vector<double> winLossValuesBuf;
   vector<double> scoreValuesBuf;
   vector<double> valuesBuf;
   vector<uint64_t> visitsBuf;
-  vector<double> policyProbsBuf;
 
   SearchThread(int threadIdx, const Search& search, Logger* logger);
   ~SearchThread();
@@ -109,8 +108,8 @@ struct Search {
   //Contains all koHashes of positions/situations up to and including the root
   KoHashTable* rootKoHashTable;
 
-  //Precomputed distribution for model about how move values are distributed
-  DistributionTable* moveDistribution;
+  //Precomputed distribution for downweighting child values based on their values
+  DistributionTable* valueWeightDistribution;
 
   //Mutable---------------------------------------------------------------
   SearchNode* rootNode;
@@ -171,11 +170,10 @@ private:
   void maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const;
   int getPos(Loc moveLoc) const;
 
-  void getModeledSelectionProbs(
+  void getValueChildWeights(
     int numChildren,
     const vector<double>& childSelfValuesBuf,
     const vector<uint64_t>& childVisitsBuf,
-    const vector<double>& policyProbs,
     vector<double>& resultBuf
   ) const;
 
@@ -214,7 +212,7 @@ private:
 
   void printTreeHelper(
     ostream& out, const SearchNode* node, const PrintTreeOptions& options,
-    string& prefix, uint64_t origVisits, int depth, double policyProb, double modelProb
+    string& prefix, uint64_t origVisits, int depth, double policyProb, double valueWeight
   );
 
 };

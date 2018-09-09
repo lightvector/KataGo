@@ -116,12 +116,10 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("fpuUseParentAverage"+idxStr)) params.fpuUseParentAverage = cfg.getBool("fpuUseParentAverage"+idxStr);
     else if(cfg.contains("fpuUseParentAverage")) params.fpuUseParentAverage = cfg.getBool("fpuUseParentAverage");
     
-    if(cfg.contains("moveProbModelExponent"+idxStr)) params.moveProbModelExponent = cfg.getDouble("moveProbModelExponent"+idxStr, 0.0, 1.0);
-    else if(cfg.contains("moveProbModelExponent")) params.moveProbModelExponent = cfg.getDouble("moveProbModelExponent", 0.0, 1.0);
-    else params.moveProbModelExponent = 0.0;
-    if(cfg.contains("moveProbModelPolicyExponent"+idxStr)) params.moveProbModelPolicyExponent = cfg.getDouble("moveProbModelPolicyExponent"+idxStr, 0.0, 1.0);
-    else if(cfg.contains("moveProbModelPolicyExponent")) params.moveProbModelPolicyExponent = cfg.getDouble("moveProbModelPolicyExponent", 0.0, 1.0);
-    else params.moveProbModelPolicyExponent = 0.35;
+    if(cfg.contains("valueWeightExponent"+idxStr)) params.valueWeightExponent = cfg.getDouble("valueWeightExponent"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
+    else params.valueWeightExponent = 0.0;
+
     if(cfg.contains("visitsExponent"+idxStr)) params.visitsExponent = cfg.getDouble("visitsExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("visitsExponent")) params.visitsExponent = cfg.getDouble("visitsExponent", 0.0, 1.0);
     else params.visitsExponent = 1.0;

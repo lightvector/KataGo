@@ -85,12 +85,11 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
    rand(search.randSeed + string("$searchThread$") + Global::intToString(threadIdx)),
    nnResultBuf(),
    logStream(NULL),
-   modelProbsBuf(),
+   valueChildWeightsBuf(),
    winLossValuesBuf(),
    scoreValuesBuf(),
    valuesBuf(),
-   visitsBuf(),
-   policyProbsBuf()
+   visitsBuf()
 {
   if(logger != NULL)
     logStream = logger->createOStream();
@@ -99,7 +98,6 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
   scoreValuesBuf.resize(NNPos::NN_POLICY_SIZE);
   valuesBuf.resize(NNPos::NN_POLICY_SIZE);
   visitsBuf.resize(NNPos::NN_POLICY_SIZE);
-  policyProbsBuf.resize(NNPos::NN_POLICY_SIZE);
 
 }
 SearchThread::~SearchThread() {
@@ -110,7 +108,7 @@ SearchThread::~SearchThread() {
 
 //-----------------------------------------------------------------------------------------
 
-static const double MOVE_MODEL_DEGREES_OF_FREEDOM = 3.0;
+static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
@@ -120,9 +118,9 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
 {
   rootKoHashTable = new KoHashTable();
 
-  moveDistribution = new DistributionTable(
-    [](double z) { return FancyMath::tdistpdf(z,MOVE_MODEL_DEGREES_OF_FREEDOM); },
-    [](double z) { return FancyMath::tdistcdf(z,MOVE_MODEL_DEGREES_OF_FREEDOM); },
+  valueWeightDistribution = new DistributionTable(
+    [](double z) { return FancyMath::tdistpdf(z,VALUE_WEIGHT_DEGREES_OF_FREEDOM); },
+    [](double z) { return FancyMath::tdistcdf(z,VALUE_WEIGHT_DEGREES_OF_FREEDOM); },
     -50.0,
     50.0,
     2000
@@ -137,7 +135,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
 
 Search::~Search() {
   delete rootKoHashTable;
-  delete moveDistribution;
+  delete valueWeightDistribution;
   delete rootNode;
   delete mutexPool;
 }
@@ -411,137 +409,11 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   }
 }
 
-
-static const uint64_t linearPrecisionThreshold = 1000;
-static const double precisionScale = 13.0;
-static const double precisionExponent = 0.32;
-static const double linearSlope = precisionScale * precisionExponent / pow((double)linearPrecisionThreshold,1-precisionExponent);
-static const double linearOffset = precisionScale * pow((double)linearPrecisionThreshold,precisionExponent);
-
-//t distribution actually has higher than unit variance, so need to scale
-static const double stdevScale = sqrt(MOVE_MODEL_DEGREES_OF_FREEDOM / (MOVE_MODEL_DEGREES_OF_FREEDOM - 2.0));
-
-//For each move, compute the probability density of "the max value == value" AND "this move is best".
-//Also computes the product of all cdfs, which is the probability that "the max value <= value".
-static void computeProbBest(
-  const DistributionTable* moveDistribution, const vector<double>& childSelfValuesBuf, const double* stdevs, int numChildren,
-  double value, double* probBest, double& cdfProd, double mult
-) {
-  cdfProd = 1.0;
-  double cdfBuf[numChildren];
-  for(int i = 0; i<numChildren; i++) {
-    double stdev = stdevs[i];
-    double z = (value-childSelfValuesBuf[i])/stdev*stdevScale;
-    double pdf,cdf;
-    moveDistribution->getPdfCdf(z,pdf,cdf);
-    cdfProd *= cdf;
-    cdfBuf[i] = cdf;
-    probBest[i] = pdf * stdevScale / stdev; //Fill with pdf first
-  }
-
-  // cout << value << " ";
-  // for(int i = 0; i<numChildren; i++)
-  //   cout << probBest[i] << " ";
-  // cout << endl;
-
-  //Now in a second pass, compute prob density of best:
-  //For each child i, it is pdf_i(value) * prod_{j != i} cdf_j(value)
-  //Since pdf_i(value) is the prob that child i is value, and prod_{j != i} cdf_j(value) is the
-  //prob that all others are less than value.
-  for(int i = 0; i<numChildren; i++) {
-    if(cdfBuf[i] <= 1e-30) //Avoid divide by 0
-      probBest[i] = 0;
-    else {
-      probBest[i] = probBest[i] / cdfBuf[i] * cdfProd * mult;
-    }
-  };
-}
-
-//Using transformation int_{-inf to inf} f(x) dx = int_{-1 to 1} f(x/(1-x^2)) (1+x^2)/(1-x^2)^2 dx
-static void computeProbBestTransformed(
-  const DistributionTable* moveDistribution, const vector<double>& childSelfValuesBuf, const double* stdevs, int numChildren,
-  double x, double* probBest, double& cdfProd
-) {
-  double xsq = x*x;
-  double value = x / (1.0-xsq);
-  double mult = (1.0 + xsq) / ((1.0 - xsq) * (1.0 - xsq));
-  computeProbBest(moveDistribution,childSelfValuesBuf,stdevs,numChildren,value,probBest,cdfProd,mult);
-};
-
-
-//Binary subdividing integration
-static void integrateRec(
-  const DistributionTable* moveDistribution, const vector<double>& childSelfValuesBuf, const double* stdevs, int numChildren,
-  double lower, double upper,
-  double lowerCdfProd, double upperCdfProd,
-  const double* lowerProbBest, const double* upperProbBest,
-  double* result
-) {
-  //We binary subdivide as long as we've captured more than this much of the cdf of the best move value
-  //in one single step.
-  const double cdfProdTolerance = 0.08;
-
-  if(upperCdfProd - lowerCdfProd > cdfProdTolerance && upper-lower > 1e-12) {
-    double mid = (lower + upper)/2.0;
-    double midProbBest[numChildren];
-    double midCdfProd;
-    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid,midProbBest,midCdfProd);
-
-    integrateRec(moveDistribution,childSelfValuesBuf,stdevs,numChildren,lower,mid,lowerCdfProd,midCdfProd,lowerProbBest,midProbBest,result);
-    integrateRec(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid,upper,midCdfProd,upperCdfProd,midProbBest,upperProbBest,result);
-  }
-  else {
-    //Clenshaw-Curtis 4-point integration rule
-    double mid1 = lower * 0.8535533905932737 + upper * 0.1464466094067263;
-    double mid2 = (lower + upper)/2.0;
-    double mid3 = upper * 0.8535533905932737 + lower * 0.1464466094067263;
-    double midProbBest1[numChildren];
-    double midProbBest2[numChildren];
-    double midProbBest3[numChildren];
-    double midCdfProd1;
-    double midCdfProd2;
-    double midCdfProd3;
-
-    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid1,midProbBest1,midCdfProd1);
-    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid2,midProbBest2,midCdfProd2);
-    computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,mid3,midProbBest3,midCdfProd3);
-
-    for(int i = 0; i<numChildren; i++) {
-      result[i] += (upper - lower) * (
-        (lowerProbBest[i] + upperProbBest[i]) * 0.03333333333333333333 +
-        (midProbBest1[i] + midProbBest3[i]) * 0.26666666666666666666 +
-        midProbBest2[i] * 0.40
-      );
-    }
-  }
-}
-
-
-static void integrate(
-  const DistributionTable* moveDistribution, const vector<double>& childSelfValuesBuf, const double* stdevs, int numChildren,
-  double lower, double upper,
-  double* result
-) {
-  double lowerProbBest[numChildren];
-  double lowerCdfProd;
-  computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,lower,lowerProbBest,lowerCdfProd);
-  double upperProbBest[numChildren];
-  double upperCdfProd;
-  computeProbBestTransformed(moveDistribution,childSelfValuesBuf,stdevs,numChildren,upper,upperProbBest,upperCdfProd);
-
-  for(int i = 0; i<numChildren; i++)
-    result[i] = 0.0;
-
-  integrateRec(moveDistribution,childSelfValuesBuf,stdevs,numChildren,lower,upper,lowerCdfProd,upperCdfProd,lowerProbBest,upperProbBest,result);
-}
-
-
-void Search::getModeledSelectionProbs(
+void Search::getValueChildWeights(
   int numChildren,
   //Unlike everywhere else where values are from white's perspective, values here are from one's own perspective
   const vector<double>& childSelfValuesBuf,
   const vector<uint64_t>& childVisitsBuf,
-  const vector<double>& policyProbs,
   vector<double>& resultBuf
 ) const {
   resultBuf.clear();
@@ -557,10 +429,6 @@ void Search::getModeledSelectionProbs(
     uint64_t numVisits = childVisitsBuf[i];
     assert(numVisits > 0);
     double precision = 1.5 * sqrt((double)numVisits);
-    // if(numVisits < linearPrecisionThreshold)
-    //   precision = precisionScale * pow((double)numVisits,precisionExponent);
-    // else
-    //   precision = (numVisits - linearPrecisionThreshold) * linearSlope + linearOffset;
 
     //Ensure some minimum variance for stability regardless of how we change the above formula
     static const double minVariance = 0.00000001;
@@ -576,30 +444,28 @@ void Search::getModeledSelectionProbs(
 
   double simpleValue = simpleValueSum / numChildVisits;
 
-  double probBest[numChildren];
-  //integrate(moveDistribution,childSelfValuesBuf,stdevs,numChildren,-0.99,0.99,probBest);
+  double weight[numChildren];
   for(int i = 0; i<numChildren; i++) {
     double z = (childSelfValuesBuf[i] - simpleValue) / stdevs[i];
-    probBest[i] = moveDistribution->getCdf(z);
+    weight[i] = valueWeightDistribution->getCdf(z);
   }
 
   double sum = 0;
   for(int i = 0; i<numChildren; i++) {
-    sum += probBest[i];
+    sum += weight[i];
   }
 
   //Post-process and normalize, to make sure we exactly have a probability distribution and sum exactly to 1.
-  double totalProbBest = 0.0;
+  double totalWeight = 0.0;
   for(int i = 0; i<numChildren; i++) {
-    //Also factor in the policy, since the policy was basically a prior about which moves were best.
-    double p = probBest[i] * pow(policyProbs[i],searchParams.moveProbModelPolicyExponent);
-    totalProbBest += p;
+    double p = weight[i];
+    totalWeight += p;
     resultBuf.push_back(p);
   }
 
-  assert(totalProbBest > 0);
+  assert(totalWeight > 0);
   for(int i = 0; i<numChildren; i++) {
-    resultBuf[i] /= totalProbBest;
+    resultBuf[i] /= totalWeight;
   }
 
 }
@@ -794,13 +660,12 @@ void Search::selectBestChildToDescend(
 }
 
 void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract) {
-  //Find all children and compute experimental model play probabilities
-  vector<double>& modelProbs = thread.modelProbsBuf;
+  //Find all children and compute weighting of the children based on their values
+  vector<double>& valueChildWeights = thread.valueChildWeightsBuf;
   vector<double>& winLossValues = thread.winLossValuesBuf;
   vector<double>& scoreValues = thread.scoreValuesBuf;
   vector<double>& values = thread.valuesBuf;
   vector<uint64_t>& visits = thread.visitsBuf;
-  vector<double>& policyProbs = thread.policyProbsBuf;
 
   uint64_t totalChildVisits = 0;
 
@@ -824,24 +689,20 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
       continue;
     assert(valueSumWeight > 0.0);
 
-    Loc moveLoc = child->prevMoveLoc;
-    int movePos = getPos(moveLoc);
-    double childPolicyProb = node.nnOutput->policyProbs[movePos];
     double childValue = childValueSum / valueSumWeight;
 
     winLossValues[numGoodChildren] = winLossValueSum / valueSumWeight;
     scoreValues[numGoodChildren] = scoreValueSum / valueSumWeight;
     values[numGoodChildren] = node.nextPla == P_WHITE ? childValue : -childValue;
     visits[numGoodChildren] = childVisits;
-    policyProbs[numGoodChildren] = childPolicyProb;
     totalChildVisits += childVisits;
 
     numGoodChildren++;
   }
   lock.unlock();
 
-  if(searchParams.moveProbModelExponent > 0)
-    getModeledSelectionProbs(numGoodChildren,values,visits,policyProbs,modelProbs);
+  if(searchParams.valueWeightExponent > 0)
+    getValueChildWeights(numGoodChildren,values,visits,valueChildWeights);
 
   double winLossValueSum = 0.0;
   double scoreValueSum = 0.0;
@@ -850,8 +711,8 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
     double weight = visits[i];
     if(searchParams.visitsExponent != 1.0)
       weight = pow(weight, searchParams.visitsExponent);
-    if(searchParams.moveProbModelExponent > 0)
-      weight *= pow(modelProbs[i], searchParams.moveProbModelExponent);
+    if(searchParams.valueWeightExponent > 0)
+      weight *= pow(valueChildWeights[i], searchParams.valueWeightExponent);
 
     winLossValueSum += weight * winLossValues[i];
     scoreValueSum += weight * scoreValues[i];
@@ -1069,7 +930,7 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
 
 void Search::printTreeHelper(
   ostream& out, const SearchNode* n, const PrintTreeOptions& options,
-  string& prefix, uint64_t origVisits, int depth, double policyProb, double modelProb
+  string& prefix, uint64_t origVisits, int depth, double policyProb, double valueWeight
 ) {
   if(n == NULL)
     return;
@@ -1125,8 +986,8 @@ void Search::printTreeHelper(
       sprintf(buf,"P %5.2f%% ", policyProb * 100.0);
       out << buf;
     }
-    if(!isnan(modelProb)) {
-      sprintf(buf,"MP %5.2f%% ", modelProb * 100.0);
+    if(!isnan(valueWeight)) {
+      sprintf(buf,"VW %5.2f%% ", valueWeight * 100.0);
       out << buf;
     }
 
@@ -1153,15 +1014,14 @@ void Search::printTreeHelper(
 
   int numChildren = node.numChildren;
 
-  //Find all children and compute experimental model play probabilities
-  vector<double> modelProbs;
+  //Find all children and compute weighting of the children based on their values
+  vector<double> valueChildWeights;
   {
     int numGoodChildren = 0;
-    vector<double> goodModelProbs;
+    vector<double> goodValueChildWeights;
     vector<double> origMoveIdx;
     vector<double> valuesBuf;
     vector<uint64_t> visitsBuf;
-    vector<double> policyProbs;
     for(int i = 0; i<numChildren; i++) {
       const SearchNode* child = node.children[i];
 
@@ -1175,23 +1035,19 @@ void Search::printTreeHelper(
         continue;
       assert(childValueSumWeight > 0.0);
 
-      Loc moveLoc = child->prevMoveLoc;
-      int movePos = getPos(moveLoc);
-      double childPolicyProb = node.nnOutput->policyProbs[movePos];
       double childValue = childValueSum / childValueSumWeight;
 
       numGoodChildren++;
       valuesBuf.push_back(node.nextPla == P_WHITE ? childValue : -childValue);
       visitsBuf.push_back(childVisits);
-      policyProbs.push_back(childPolicyProb);
       origMoveIdx.push_back(i);
     }
 
-    getModeledSelectionProbs(numGoodChildren,valuesBuf,visitsBuf,policyProbs,goodModelProbs);
+    getValueChildWeights(numGoodChildren,valuesBuf,visitsBuf,goodValueChildWeights);
     for(int i = 0; i<numChildren; i++)
-      modelProbs.push_back(0.0);
+      valueChildWeights.push_back(0.0);
     for(int i = 0; i<numGoodChildren; i++)
-      modelProbs[origMoveIdx[i]] = goodModelProbs[i];
+      valueChildWeights[origMoveIdx[i]] = goodValueChildWeights[i];
   }
 
   //Find all children and record their play values
@@ -1206,7 +1062,7 @@ void Search::printTreeHelper(
     int movePos = getPos(moveLoc);
     double childPolicyProb = node.nnOutput->policyProbs[movePos];
     double selectionValue = getPlaySelectionValue(node,child);
-    valuedChildren.push_back(std::make_tuple(child,childPolicyProb,selectionValue,modelProbs[i]));
+    valuedChildren.push_back(std::make_tuple(child,childPolicyProb,selectionValue,valueChildWeights[i]));
   }
 
   lock.unlock();
