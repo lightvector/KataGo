@@ -49,7 +49,7 @@ There is an implementation of MCTS in this repo along with a GTP engine and an s
 You can see the implementations of the relevant neural net structures in "model.py", although I may adapt and change them as time goes on.
 
 ### History
-   * Sept 2018 - (forgot to include in the previous update) update about [parametric relus and the value head](https://github.com/lightvector/GoNN#update-parametric-relu-instability-in-value-head-Jul-2018).
+   * Sept 2018 - (forgot to include in the previous update) update about [parametric relus and the value head](https://github.com/lightvector/GoNN#update---parametric-relu-instability-in-value-head-Jul-2018).
    * July-Aug 2018 - Implemented a full Go bot from the ground up with [multithreaded MCTS with batched NN evaluations](https://github.com/lightvector/GoNN#mcts-aug-2018), and the groundwork for supporting a variety of rulesets in the future. Began experimenting with search in addition to neural net training. Tested strength of [cross-entropy vs L2 value nets](https://github.com/lightvector/GoNN#cross-entropy-vs-l2-value-head-loss-aug-2018), experimented with [first-play-urgency](https://github.com/lightvector/GoNN#first-play-urgency-aug-2018), and experimented with the [cpuct exploration parameter](https://github.com/lightvector/GoNN#cpuct-exploration-parameter-aug-2018).
    * May-June 2018 - No significant architectural changes, but [added player ranks](https://github.com/lightvector/GoNN#ranks-as-an-input-june-2018) as an input feature to the neural net and included a lot of amateur games in the training set. Filtered pro games with the resulting net to find instructive positions for players of different ranks, producing a neat collection of Go problems: [neuralnetgoproblems.com](https://neuralnetgoproblems.com). Cleaned up a few input features and tried a slightly larger net with more training.
    * Apr 2018 - Added a row to the [current results](https://github.com/lightvector/GoNN#raw-neural-net-results) reflecting the large improvement from embedding global pooled properties in the [middle of the neural net](https://github.com/lightvector/GoNN#update-mar-2018) rather than only the policy head, along with some minor adjustments to learning rates and other tweaks.
@@ -297,7 +297,7 @@ For the vast majority of the ReLUs though, as far as I can tell, the neural net 
 
 I'd be very curious to hear whether this reproduces for anyone else. For now, I've been keeping the parametric ReLUs, since they do seem to be an improvement, although I'm quite mystified about why non-monotone functions are good here.
 
-### Update - Parametric ReLU instability in Value Head (Jul 2018):
+#### Update - Parametric ReLU instability in Value Head (Jul 2018):
 More recently once I added a value head to my neural net and began training on Leela Zero data, I found that parametric ReLUs seem to contribute to instability in the training of the value head. Here is a graph of the validation loss of the value head of four 12-block neural nets trained on LZ128-LZ142 + ELF over the first 100 million training data samples. Two of them used PReLU, and two of them did not. (note: among one of the two that did, there is a slight head architecture difference that I was also testing at the time, but it doesn't appear to have much effect, otherwise all architectures and hyperparameters are the same except for use of PReLU vs ReLU).
 
 <img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/valueheadpreluloss.png" width="480" height="350"/>
