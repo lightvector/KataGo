@@ -298,6 +298,8 @@ For the vast majority of the ReLUs though, as far as I can tell, the neural net 
 I'd be very curious to hear whether this reproduces for anyone else. For now, I've been keeping the parametric ReLUs, since they do seem to be an improvement, although I'm quite mystified about why non-monotone functions are good here.
 
 #### Update - Parametric ReLU instability in Value Head (Jul 2018):
+(this section accidentally omitted from an earlier update, only actually added later in September).
+
 More recently once I added a value head to my neural net and began training on Leela Zero data, I found that parametric ReLUs seem to contribute to instability in the training of the value head. Here is a graph of the validation loss of the value head of four 12-block neural nets trained on LZ128-LZ142 + ELF over the first 100 million training data samples. Two of them used PReLU, and two of them did not. (note: among one of the two that did, there is a slight head architecture difference that I was also testing at the time, but it doesn't appear to have much effect, otherwise all architectures and hyperparameters are the same except for use of PReLU vs ReLU).
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/valueheadpreluloss.png" width="480" height="350"/></td></tr>
