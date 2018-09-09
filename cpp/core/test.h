@@ -2,6 +2,7 @@
 #define CORE_TEST_HELPERS_H
 
 #include "../core/global.h"
+#include <sstream>
 
 //A version of assert that's always defined, regardless of NDEBUG
 #define testAssert(EX) (void)((EX) || (TestCommon::testAssertFailed(#EX, __FILE__, __LINE__),0))
