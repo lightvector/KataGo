@@ -299,8 +299,10 @@ I'd be very curious to hear whether this reproduces for anyone else. For now, I'
 
 #### Update - Parametric ReLU instability in Value Head (Jul 2018):
 More recently once I added a value head to my neural net and began training on Leela Zero data, I found that parametric ReLUs seem to contribute to instability in the training of the value head. Here is a graph of the validation loss of the value head of four 12-block neural nets trained on LZ128-LZ142 + ELF over the first 100 million training data samples. Two of them used PReLU, and two of them did not. (note: among one of the two that did, there is a slight head architecture difference that I was also testing at the time, but it doesn't appear to have much effect, otherwise all architectures and hyperparameters are the same except for use of PReLU vs ReLU).
-
-<img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/valueheadpreluloss.png" width="480" height="350"/>
+<table class="image">
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/valueheadpreluloss.png" width="480" height="350"/></td></tr>
+<tr><td><sub>X-Axis: Number of millions of training samples. Y-Axis: Validation loss</sub></tr></td>
+</table>
 
 Looking at the graph, the two training runs that used PReLU have the validation loss of the value head jump around quite a lot more than the two that used plain ReLU. I have no idea why this is the case. Additionally, the gain from PReLU seems to be much smaller and/or hard to distinguish from noise compared to when I first tested it, possibly due to the fact that these neural nets are a much larger 12 blocks than when I initially tested with 5 blocks. So for now, I'm gone back to not using them.
 
