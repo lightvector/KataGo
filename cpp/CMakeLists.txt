@@ -81,6 +81,7 @@ if(BUILD_MCTS)
     search/mutexpool.cpp
     search/search.cpp
     search/asyncbot.cpp
+    search/distributiontable.cpp
     program/setup.cpp
     tests/testboardarea.cpp
     tests/testboardbasic.cpp

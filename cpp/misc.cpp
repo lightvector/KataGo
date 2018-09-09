@@ -116,7 +116,7 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
   auto runThread = [&](int threadIdx, string randSeed) {
     Search* search = new Search(params,nnEval,randSeed);
     int maxVisits = 80000;
-    double* valueSums = new double[maxVisits];
+    double* values = new double[maxVisits];
     Rand rand("root variance estimate " + Global::intToString(threadIdx));
     for(size_t sgfIdx = threadIdx; sgfIdx<sgfs.size(); sgfIdx += numThreads) {
       const Sgf* sgf = sgfs[sgfIdx];
@@ -146,7 +146,7 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
           search->beginSearch();
           for(int i = 0; i<maxVisits; i++) {
             search->runSinglePlayout(*stbuf);
-            valueSums[i] = search->rootNode->stats.getCombinedValueSum(search->searchParams);
+            values[i] = search->rootNode->stats.getCombinedValueSum(search->searchParams) / search->rootNode->stats.valueSumWeight;
           }
           delete stbuf;
 
@@ -163,7 +163,7 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
             out << moveNum << ",";
             out << entropy << ",";
             for(int i = 0; i<maxVisits; i++)
-              out << valueSums[i] << ",";
+              out << values[i] << ",";
             out << endl;
           }
         }
@@ -173,7 +173,7 @@ int MainCmds::writeRootValueTimeseries(int argc, const char* const* argv) {
       }
     }
     delete search;
-    delete valueSums;
+    delete values;
   };
 
   std::thread threads[numThreads];

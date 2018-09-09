@@ -17,12 +17,13 @@
 struct SearchNode;
 struct SearchThread;
 struct Search;
+struct DistributionTable;
 
 struct NodeStats {
   uint64_t visits;
   double winLossValueSum;
   double scoreValueSum;
-  int32_t virtualLosses;
+  double valueSumWeight;
 
   NodeStats();
   ~NodeStats();
@@ -53,6 +54,8 @@ struct SearchNode {
   //Lightweight mutable---------------------------------------------------------------
   //Protected under statsLock
   NodeStats stats;
+  //Also protected under statsLock
+  int32_t virtualLosses;
 
   //--------------------------------------------------------------------------------
   SearchNode(Search& search, SearchThread& thread, Loc prevMoveLoc);
@@ -78,6 +81,13 @@ struct SearchThread {
   NNResultBuf nnResultBuf;
   ostream* logStream;
 
+  vector<double> modelProbsBuf;
+  vector<double> winLossValuesBuf;
+  vector<double> scoreValuesBuf;
+  vector<double> valuesBuf;
+  vector<uint64_t> visitsBuf;
+  vector<double> policyProbsBuf;
+
   SearchThread(int threadIdx, const Search& search, Logger* logger);
   ~SearchThread();
 
@@ -98,6 +108,9 @@ struct Search {
 
   //Contains all koHashes of positions/situations up to and including the root
   KoHashTable* rootKoHashTable;
+
+  //Precomputed distribution for model about how move values are distributed
+  DistributionTable* moveDistribution;
 
   //Mutable---------------------------------------------------------------
   SearchNode* rootNode;
@@ -155,17 +168,27 @@ private:
   void maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const;
   int getPos(Loc moveLoc) const;
 
+  void getModeledSelectionProbs(
+    int numChildren,
+    const vector<double>& childSelfValuesBuf,
+    const vector<uint64_t>& childVisitsBuf,
+    const vector<double>& policyProbs,
+    vector<double>& resultBuf
+  ) const;
+
   double getPlaySelectionValue(
     double nnPolicyProb, uint64_t childVisits,
-    double childValueSum, Player pla
+    double childValue, Player pla
   ) const;
   double getExploreSelectionValue(
     double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
-    double childValueSum, double fpuValue, Player pla
+    double childValue, Player pla
   ) const;
   double getPlaySelectionValue(const SearchNode& parent, const SearchNode* child) const;
   double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const;
   double getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const;
+
+  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract);
 
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
@@ -173,22 +196,22 @@ private:
     bool isRoot
   ) const;
 
+  void setTerminalValue(SearchNode& node, double winLossValue, double scoreValue, int32_t virtualLossesToSubtract);
+
   void initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
-    double& retWinLossValue, double& retScoreValue,
-    bool isRoot, bool skipCache
+    bool isRoot, bool skipCache, int32_t virtualLossesToSubtract
   );
 
   void playoutDescend(
     SearchThread& thread, SearchNode& node,
-    double& retWinLossValue, double& retScoreValue,
     int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
-    bool isRoot
+    bool isRoot, int32_t virtualLossesToSubtract
   );
 
   void printTreeHelper(
     ostream& out, const SearchNode* node, const PrintTreeOptions& options,
-    string& prefix, uint64_t origVisits, int depth, double policyProb
+    string& prefix, uint64_t origVisits, int depth, double policyProb, double modelProb
   );
 
 };

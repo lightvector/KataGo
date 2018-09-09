@@ -159,6 +159,7 @@ int MainCmds::evalSgf(int argc, const char* const* argv) {
   delete bot;
   delete nnEval;
   NeuralNet::globalCleanup();
+  delete sgf;
 
   return 0;
 }
