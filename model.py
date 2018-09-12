@@ -984,21 +984,21 @@ class Target_vars:
       tf.nn.softmax_cross_entropy_with_logits(labels=self.policy_targets, logits=policy_output)
     )
 
-    # cross_entropy_value_loss = 1.4*tf.reduce_sum(
-    #   self.target_weights_used *
-    #   tf.nn.softmax_cross_entropy_with_logits(
-    #     labels=tf.stack([(1+self.value_target)/2,(1-self.value_target)/2],axis=1),
-    #     logits=tf.stack([value_output,tf.zeros_like(value_output)],axis=1)
-    #   )
-    # )
+    cross_entropy_value_loss = 1.4*tf.reduce_sum(
+      self.target_weights_used *
+      tf.nn.softmax_cross_entropy_with_logits(
+        labels=tf.stack([(1+self.value_target)/2,(1-self.value_target)/2],axis=1),
+        logits=tf.stack([value_output,tf.zeros_like(value_output)],axis=1)
+      )
+    )
 
     l2_value_loss = tf.reduce_sum(
       self.target_weights_used *
       tf.square(self.value_target - tf.tanh(value_output))
     )
 
-    # self.value_loss = 0.5 * (cross_entropy_value_loss + l2_value_loss)
-    self.value_loss = l2_value_loss
+    self.value_loss = 0.5 * (cross_entropy_value_loss + l2_value_loss)
+    # self.value_loss = l2_value_loss
 
     if for_optimization:
       #Prior/Regularization
