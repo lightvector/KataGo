@@ -30,6 +30,7 @@ class Model:
 
     #Accumulates outputs for printing stats about their activations
     self.outputs_by_layer = []
+    self.other_internal_outputs = []
     #Accumulates info about batch norm laywers
     self.batch_norms = {}
 
@@ -368,7 +369,9 @@ class Model:
   #Convolutional layer with batch norm and nonlinear activation
   def conv_block(self, name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
     weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
-    out_layer = self.parametric_relu(name+"/prelu",self.batchnorm(name+"/norm",self.conv2d(in_layer, weights)))
+    convolved = self.conv2d(in_layer, weights)
+    self.outputs_by_layer.append((name+"/prenorm",convolved))
+    out_layer = self.parametric_relu(name+"/prelu",self.batchnorm(name+"/norm",convolved))
     self.outputs_by_layer.append((name,out_layer))
     return out_layer
 
@@ -870,12 +873,14 @@ class Model:
       v2b = self.weight_variable("v2/b",[v2_size],v1_size,v2_size,scale_initial_weights=0.2,reg=False)
       v2_layer = self.parametric_relu_non_spatial("v2/prelu",tf.matmul(v1_layer_pooled, v2w) + v2b)
       self.v2_size = v2_size
+      self.other_internal_outputs.append(("v2",v2_layer))
 
       v3_size = 1
       v3w = self.weight_variable("v3/w",[v2_size,v3_size],v2_size,v3_size)
       v3b = self.weight_variable("v3/b",[v3_size],v2_size,v3_size,scale_initial_weights=0.2,reg=False)
       v3_layer = tf.matmul(v2_layer, v3w) + v3b
       self.v3_size = v3_size
+      self.other_internal_outputs.append(("v3",v3_layer))
 
       value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
 
