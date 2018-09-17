@@ -586,7 +586,7 @@ struct BNLayer {
       ));
     }
     else {
-      customCudaApplyScaleBias((const half*)inputBuf,(half*)outputBuf,(const half*)mergedScaleBuf,(const half*)mergedBiasBuf,batchSize,numChannels,xSize*ySize);
+      customCudaApplyCScaleBiasNCHW((const half*)inputBuf,(half*)outputBuf,(const half*)mergedScaleBuf,(const half*)mergedBiasBuf,batchSize,numChannels,xSize*ySize);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
@@ -907,22 +907,11 @@ struct MatBiasLayer {
   ) const {
 
     if(!usingFP16) {
-      const float alpha = 1.0f;
-      CUBLAS_ERR(name.c_str(),cublasSger(
-        cudaHandles->cublas,
-        numChannels,
-        batchSize,
-        &alpha,
-        (const float*)biasBuf,
-        1,
-        (const float*)maxBatchSizeOnesBuf,
-        1,
-        (float*)matBuf,
-        numChannels
-      ));
+      customCudaAddCBiasInplaceNC((float*)matBuf,(const float*)biasBuf,batchSize,numChannels);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
     else {
-      customCudaAddBiasInplace((half*)matBuf,(const half*)biasBuf,batchSize,numChannels);
+      customCudaAddCBiasInplaceNC((half*)matBuf,(const half*)biasBuf,batchSize,numChannels);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
   }
@@ -1077,7 +1066,7 @@ struct ResidualBlock {
       CUBLAS_ERR(name.c_str(),cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,(const float*)trunkInBuf,1,(float*)trunkOutBuf,1));
     }
     else {
-      customCudaAddBiasInplace((half*)trunkOutBuf,(const half*)trunkInBuf,1,trunkBufSize);
+      customCudaAddTensorInplace((half*)trunkOutBuf,(const half*)trunkInBuf,trunkBufSize);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
   }
@@ -1270,7 +1259,7 @@ struct DilatedResidualBlock {
       CUBLAS_ERR(name.c_str(),cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,(const float*)trunkInBuf,1,(float*)trunkOutBuf,1));
     }
     else {
-      customCudaAddBiasInplace((half*)trunkOutBuf,(const half*)trunkInBuf,1,trunkBufSize);
+      customCudaAddTensorInplace((half*)trunkOutBuf,(const half*)trunkInBuf,trunkBufSize);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
   }
@@ -1535,7 +1524,7 @@ struct GlobalPoolingResidualBlock {
       CUBLAS_ERR(name.c_str(),cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,(const float*)trunkInBuf,1,(float*)trunkOutBuf,1));
     }
     else {
-      customCudaAddBiasInplace((half*)trunkOutBuf,(const half*)trunkInBuf,1,trunkBufSize);
+      customCudaAddTensorInplace((half*)trunkOutBuf,(const half*)trunkInBuf,trunkBufSize);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
   }

@@ -23,6 +23,8 @@
 //TODO maybe tune this number, it varies by GPU
 static const int targetNumThreads = 256;
 
+//--------------------------------------------------------------------------------------------------------------
+
 template <typename T>
 __global__
 void channelConcatKernel(
@@ -85,6 +87,7 @@ void customCudaChannelConcat(const half* inA, const half* inB, half* out, int ch
   customCudaChannelConcatTemplate<half>(inA,inB,out,chwA,chwB,n);
 }
 
+//--------------------------------------------------------------------------------------------------------------
 
 template <typename T>
 struct linear_index_to_row_index : public thrust::unary_function<T,T> {
@@ -125,6 +128,7 @@ void customCudaPoolRowsMax(float* in, float* out, int n, int c) {
 
 }
 
+//--------------------------------------------------------------------------------------------------------------
 
 __global__
 void nchwTransposeKernel(const float *in, float* out, int xSize, int ySize, int tileDim, int tileStride, int xySize)
@@ -252,55 +256,34 @@ void nhwcTransposeHalfKernel(const half *in, half* out, int xSize, int ySize, in
   }
 }
 
+static void sharedNCHWTranspose(const void *in, void* out, int xSize, int ySize, int ncSize, bool isHalf) {
+  if(ncSize > 65536)
+    throw std::runtime_error("customCudaNCHWTranspose: ncSize too large");
+
+  //TODO maybe tune these numbers, it varies by GPU
+  //The first one should be the warp size, since it's set to what we need to avoid bank conflicts?
+  //Or is it better to just make it xSize, to reduce overhead on top of 19x19?
+  int tileDim = 32;
+  int tileStride = targetNumThreads/tileDim;
+  dim3 grid((xSize+tileDim-1)/tileDim,(ySize+tileDim-1)/tileDim,ncSize);
+  dim3 threads(tileDim,tileStride,1);
+  if(isHalf) {
+    int sharedMemSize = sizeof(half)*tileDim*(tileDim+1);
+    nchwTransposeHalfKernel<<<grid,threads,sharedMemSize>>>((const half*)in,(half*)out,xSize,ySize,tileDim,tileStride,xSize*ySize);
+  }
+  else {
+    int sharedMemSize = sizeof(float)*tileDim*(tileDim+1);
+    nchwTransposeKernel<<<grid,threads,sharedMemSize>>>((const float*)in,(float*)out,xSize,ySize,tileDim,tileStride,xSize*ySize);
+  }
+}
 void customCudaNCHWTranspose(const float *in, float* out, int xSize, int ySize, int ncSize) {
-  if(ncSize > 65536)
-    throw std::runtime_error("customCudaNCHWTranspose: ncSize too large");
-
-  //TODO maybe tune these numbers, it varies by GPU
-  //The first one should be the warp size, since it's set to what we need to avoid bank conflicts?
-  //Or is it better to just make it xSize, to reduce overhead on top of 19x19?
-  int tileDim = 32;
-  int tileStride = targetNumThreads/tileDim;
-  dim3 grid((xSize+tileDim-1)/tileDim,(ySize+tileDim-1)/tileDim,ncSize);
-  dim3 threads(tileDim,tileStride,1);
-  int sharedMemSize = sizeof(float)*tileDim*(tileDim+1);
-  nchwTransposeKernel<<<grid,threads,sharedMemSize>>>(in,out,xSize,ySize,tileDim,tileStride,xSize*ySize);
+  sharedNCHWTranspose(in,out,xSize,ySize,ncSize,false);
 }
-
-void customCudaNHWCTranspose(const float *in, float* out, int xSize, int ySize, int cSize, int nSize) {
-  if(cSize > 64)
-    throw std::runtime_error("customCudaNHWCTranspose: cSize too large");
-
-  int tileDim = 1;
-  while(tileDim * 2 * cSize <= targetNumThreads)
-    tileDim *= 2;
-
-  int tileStride = 1;
-  if(tileDim > 32) {
-    tileStride = tileDim / 32;
-    tileDim = 32;
-  }
-  dim3 grid((xSize+tileDim-1)/tileDim,(ySize+tileDim-1)/tileDim,nSize);
-  dim3 threads(tileDim,tileStride,cSize);
-  int sharedMemSize = sizeof(float)*tileDim*(tileDim+1)*cSize;
-  nhwcTransposeKernel<<<grid,threads,sharedMemSize>>>(in,out,xSize,ySize,cSize,tileDim,tileStride,xSize*ySize*cSize);
-}
-
 void customCudaNCHWTranspose(const half *in, half* out, int xSize, int ySize, int ncSize) {
-  if(ncSize > 65536)
-    throw std::runtime_error("customCudaNCHWTranspose: ncSize too large");
-  //TODO maybe tune these numbers, it varies by GPU
-  //The first one should be the warp size, since it's set to what we need to avoid bank conflicts?
-  //Or is it better to just make it xSize, to reduce overhead on top of 19x19?
-  int tileDim = 32;
-  int tileStride = targetNumThreads/tileDim;
-  dim3 grid((xSize+tileDim-1)/tileDim,(ySize+tileDim-1)/tileDim,ncSize);
-  dim3 threads(tileDim,tileStride,1);
-  int sharedMemSize = sizeof(half)*tileDim*(tileDim+1);
-  nchwTransposeHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,xSize,ySize,tileDim,tileStride,xSize*ySize);
+  sharedNCHWTranspose(in,out,xSize,ySize,ncSize,true);
 }
 
-void customCudaNHWCTranspose(const half *in, half* out, int xSize, int ySize, int cSize, int nSize) {
+void sharedNHWCTranspose(const void *in, void* out, int xSize, int ySize, int cSize, int nSize, bool isHalf) {
   if(cSize > 64)
     throw std::runtime_error("customCudaNHWCTranspose: cSize too large");
 
@@ -315,9 +298,25 @@ void customCudaNHWCTranspose(const half *in, half* out, int xSize, int ySize, in
   }
   dim3 grid((xSize+tileDim-1)/tileDim,(ySize+tileDim-1)/tileDim,nSize);
   dim3 threads(tileDim,tileStride,cSize);
-  int sharedMemSize = sizeof(half)*tileDim*(tileDim+1)*cSize;
-  nhwcTransposeHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,xSize,ySize,cSize,tileDim,tileStride,xSize*ySize*cSize);
+
+  if(isHalf) {
+    int sharedMemSize = sizeof(half)*tileDim*(tileDim+1)*cSize;
+    nhwcTransposeHalfKernel<<<grid,threads,sharedMemSize>>>((const half*)in,(half*)out,xSize,ySize,cSize,tileDim,tileStride,xSize*ySize*cSize);
+  }
+  else {
+    int sharedMemSize = sizeof(float)*tileDim*(tileDim+1)*cSize;
+    nhwcTransposeKernel<<<grid,threads,sharedMemSize>>>((const float*)in,(float*)out,xSize,ySize,cSize,tileDim,tileStride,xSize*ySize*cSize);
+  }
 }
+void customCudaNHWCTranspose(const float *in, float* out, int xSize, int ySize, int cSize, int nSize) {
+  sharedNHWCTranspose(in,out,xSize,ySize,cSize,nSize,false);
+}
+void customCudaNHWCTranspose(const half *in, half* out, int xSize, int ySize, int cSize, int nSize) {
+  sharedNHWCTranspose(in,out,xSize,ySize,cSize,nSize,true);
+}
+
+//--------------------------------------------------------------------------------------------------------------
+
 
 template <typename T>
 __global__
@@ -414,6 +413,8 @@ void customCudaMirrorNHWC(const half *in, half* out, int batchSize, int ySize, i
 }
 
 
+//--------------------------------------------------------------------------------------------------------------
+
 __global__
 void copyToHalfKernel(const float *in, half* out, int n)
 {
@@ -442,9 +443,47 @@ void customCudaCopyFromHalf(const half* in, float* out, int n) {
   copyFromHalfKernel<<<numBlocks, blockSize>>>(in,out,n);
 }
 
+//--------------------------------------------------------------------------------------------------------------
+
+
 #ifdef CUDA_SUPPORTS_FP16
 __global__
-void addBiasInplaceHalfKernel(half *buf, const half* biases, int nSize, int cSize)
+void addTensorInplaceHalfKernel(half *buf, const half* biases, int nSize)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if(idx < nSize) {
+    buf[idx] = __hadd(buf[idx],biases[idx]);
+  }
+}
+#else
+__global__
+void addTensorInplaceHalfKernel(half *buf, const half* biases, int nSize)
+{
+  //Do nothing, FP16 not supported
+}
+#endif
+void customCudaAddTensorInplace(half* buf, const half* biases, int nSize) {
+  int blockSize = targetNumThreads;
+  int numBlocks = (nSize+blockSize-1)/blockSize;
+  addTensorInplaceHalfKernel<<<numBlocks, blockSize>>>(buf,biases,nSize);
+}
+
+//--------------------------------------------------------------------------------------------------------------
+
+
+__global__
+void addCBiasInplaceNCKernel(float *buf, const float* biases, int nSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int nIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  if(cIdx < cSize && nIdx < nSize) {
+    int idx = nIdx * cSize + cIdx;
+    buf[idx] = buf[idx] + biases[cIdx];
+  }
+}
+#ifdef CUDA_SUPPORTS_FP16
+__global__
+void addCBiasInplaceNCHalfKernel(half *buf, const half* biases, int nSize, int cSize)
 {
   int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int nIdx = blockIdx.y * blockDim.y + threadIdx.y;
@@ -455,15 +494,13 @@ void addBiasInplaceHalfKernel(half *buf, const half* biases, int nSize, int cSiz
 }
 #else
 __global__
-void addBiasInplaceHalfKernel(half *buf, const half* biases, int nSize, int cSize)
+void addCBiasInplaceNCHalfKernel(half *buf, const half* biases, int nSize, int cSize)
 {
   //Do nothing, FP16 not supported
 }
 #endif
 
-
-void customCudaAddBiasInplace(half* buf, const half* biases, int nSize, int cSize) {
-
+void sharedAddCBiasInplaceNC(void* buf, const void* biases, int nSize, int cSize, bool isHalf) {
   int cThreads;
   int cBlocks;
   int nThreads;
@@ -489,39 +526,65 @@ void customCudaAddBiasInplace(half* buf, const half* biases, int nSize, int cSiz
   }
 
   if(nBlocks > 65536)
-    throw std::runtime_error("customCudaAddBiasInplace: nSize too large given cSize");
+    throw std::runtime_error("customCudaAddCBiasInplaceNC: nSize too large given cSize");
 
   dim3 grid(cBlocks,nBlocks,1);
   dim3 threads(cThreads,nThreads,1);
-  addBiasInplaceHalfKernel<<<grid,threads>>>(buf,biases,nSize,cSize);
+
+  if(isHalf)
+    addCBiasInplaceNCHalfKernel<<<grid,threads>>>((half*)buf,(const half*)biases,nSize,cSize);
+  else
+    addCBiasInplaceNCKernel<<<grid,threads>>>((float*)buf,(const float*)biases,nSize,cSize);
 }
 
-#ifdef CUDA_SUPPORTS_FP16
+void customCudaAddCBiasInplaceNC(float* buf, const float* biases, int nSize, int cSize) {
+  sharedAddCBiasInplaceNC(buf,biases,nSize,cSize,false);
+}
+void customCudaAddCBiasInplaceNC(half* buf, const half* biases, int nSize, int cSize) {
+  sharedAddCBiasInplaceNC(buf,biases,nSize,cSize,true);
+}
+
+//--------------------------------------------------------------------------------------------------------------
+
 __global__
-void applyScaleBiasHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
+void addNCBiasInplaceNCHWKernel(float *buf, const float* biases, int cSize, int sSize)
 {
   int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
   int nIdx = blockIdx.z;
   if(cIdx < cSize && sIdx < sSize) {
-    int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
-    out[idx] = __hfma(in[idx],scale[cIdx],biases[cIdx]);
+    int ncIdx = nIdx * cSize + cIdx;
+    int idx = ncIdx * sSize + sIdx;
+    buf[idx] = buf[idx] + biases[ncIdx];
+  }
+}
+#ifdef CUDA_SUPPORTS_FP16
+__global__
+void addNCBiasInplaceNCHWHalfKernel(half *buf, const half* biases, int cSize, int sSize)
+{
+  int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int ncIdx = nIdx * cSize + cIdx;
+    int idx = ncIdx * sSize + sIdx;
+    buf[idx] = __hadd(buf[idx],biases[ncIdx]);
   }
 }
 #else
 __global__
-void applyScaleBiasHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
-{
+void addNCBiasInplaceNCHWHalfKernel(half *buf, const half* biases, int cSize, int sSize) {
   //Do nothing, FP16 not supported
 }
 #endif
 
-void customCudaApplyScaleBias(const half* in, half* out, const half* scale, const half* biases, int nSize, int cSize, int sSize) {
+void sharedAddNCBiasInplaceNCHW(void *buf, const void* biases, int nSize, int cSize, int xySize, bool isHalf) {
   if(nSize > 65536)
-    throw std::runtime_error("customCudaApplyScaleBias: nSize too large");
+    throw std::runtime_error("customCudaAddNCBiasInplaceNCHW: nSize too large");
   if(cSize > 65536)
-    throw std::runtime_error("customCudaApplyScaleBias: cSize too large");
+    throw std::runtime_error("customCudaAddNCBiasInplaceNCHW: cSize too large");
 
+  int sSize = xySize;
   int sThreads;
   int sBlocks;
   int cThreads;
@@ -548,5 +611,73 @@ void customCudaApplyScaleBias(const half* in, half* out, const half* scale, cons
 
   dim3 grid(sBlocks,cBlocks,nSize);
   dim3 threads(sThreads,cThreads,1);
-  applyScaleBiasHalfKernel<<<grid,threads>>>(in,out,scale,biases,cSize,sSize);
+  if(isHalf)
+    addNCBiasInplaceNCHWHalfKernel<<<grid,threads>>>((half*)buf,(const half*)biases,cSize,sSize);
+  else
+    addNCBiasInplaceNCHWKernel<<<grid,threads>>>((float*)buf,(const float*)biases,cSize,sSize);
+}
+
+void customCudaAddNCBiasInplaceNCHW(float *buf, const float* biases, int nSize, int cSize, int xySize) {
+  sharedAddNCBiasInplaceNCHW(buf,biases,nSize,cSize,xySize,false);
+}
+void customCudaAddNCBiasInplaceNCHW(half *buf, const half* biases, int nSize, int cSize, int xySize) {
+  sharedAddNCBiasInplaceNCHW(buf,biases,nSize,cSize,xySize,true);
+}
+
+//--------------------------------------------------------------------------------------------------------------
+
+#ifdef CUDA_SUPPORTS_FP16
+__global__
+void applyCScaleBiasNCHWHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
+{
+  int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
+    out[idx] = __hfma(in[idx],scale[cIdx],biases[cIdx]);
+  }
+}
+#else
+__global__
+void applyCScaleBiasNCHWHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
+{
+  //Do nothing, FP16 not supported
+}
+#endif
+
+void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale, const half* biases, int nSize, int cSize, int xySize) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaApplyCScaleBiasNCHW: nSize too large");
+  if(cSize > 65536)
+    throw std::runtime_error("customCudaApplyCScaleBiasNCHW: cSize too large");
+
+  int sSize = xySize;
+  int sThreads;
+  int sBlocks;
+  int cThreads;
+  int cBlocks;
+
+  if(sSize > targetNumThreads) {
+    sThreads = targetNumThreads/2;
+    sBlocks = (sSize + sThreads - 1) / sThreads;
+    cThreads = 1;
+    cBlocks = cSize;
+  }
+  else if(sSize > targetNumThreads/2) {
+    sThreads = sSize;
+    sBlocks = 1;
+    cThreads = 1;
+    cBlocks = cSize;
+  }
+  else {
+    sThreads = sSize;
+    sBlocks = 1;
+    cThreads = targetNumThreads / sSize;
+    cBlocks = (cSize + cThreads - 1) / cThreads;
+  }
+
+  dim3 grid(sBlocks,cBlocks,nSize);
+  dim3 threads(sThreads,cThreads,1);
+  applyCScaleBiasNCHWHalfKernel<<<grid,threads>>>(in,out,scale,biases,cSize,sSize);
 }

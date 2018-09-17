@@ -26,11 +26,17 @@ void customCudaMirrorNHWC(const half *in, half* out, int batchSize, int ySize, i
 void customCudaCopyToHalf(const float* in, half* out, int n);
 void customCudaCopyFromHalf(const half* in, float* out, int n);
 
-//Given an input in half-precision with shape [n,c] and biases of shape [c], add the biases in-place.
-void customCudaAddBiasInplace(half* buf, const half* biases, int n, int c);
+//Given a tensor, add another tensor to it.
+void customCudaAddTensorInplace(half* buf, const half* biases, int n);
+//Given an input with shape [n,c] and biases of shape [c], add the biases in-place.
+void customCudaAddCBiasInplaceNC(float* buf, const float* biases, int n, int c);
+void customCudaAddCBiasInplaceNC(half* buf, const half* biases, int n, int c);
+//Given an input with shape [n,c,xy] and biases of shape [n,c], add the biases in-place.
+void customCudaAddNCBiasInplaceNCHW(float *buf, const float* biases, int nSize, int cSize, int xySize);
+void customCudaAddNCBiasInplaceNCHW(half *buf, const half* biases, int nSize, int cSize, int xySize);
 
-//Given an input in half-precision with shape [n,c,s] and scale and biases of shape [c], multiply by scale and add the biases
-void customCudaApplyScaleBias(const half* in, half* out, const half* scale, const half* biases, int n, int c, int s);
+//Given an input with shape [n,c,xy] and scale and biases of shape [c], multiply by scale and add the biases
+void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale, const half* biases, int n, int c, int xy);
 
 
 #endif
