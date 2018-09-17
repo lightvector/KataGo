@@ -41,8 +41,9 @@ int MainCmds::sandbox() {
   string randSeed = "abc";
   int defaultSymmetry = 0;
   vector<int> cudaGpuIdxByServerThread = {0};
+  bool cudaUseFP16 = false;
   nnEval->spawnServerThreads(
-    numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,cudaGpuIdxByServerThread
+    numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,cudaGpuIdxByServerThread,cudaUseFP16
   );
 
   Rules rules;

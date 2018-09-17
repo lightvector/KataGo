@@ -161,6 +161,7 @@ void NNInputs::fillRowV0(
 ) {
   assert(board.x_size == board.y_size);
   assert(moveHistoryLen <= moveHistory.size());
+  std::fill(row,row+ROW_SIZE_V0,0.0f);
 
   Player pla = nextPlayer;
   Player opp = getOpp(pla);
@@ -315,6 +316,7 @@ void NNInputs::fillRowV1(
 ) {
   assert(board.x_size <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size == board.y_size);
+  std::fill(row,row+ROW_SIZE_V1,0.0f);
 
   Player pla = nextPlayer;
   Player opp = getOpp(pla);

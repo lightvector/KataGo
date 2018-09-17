@@ -59,6 +59,12 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         cudaGpuIdxByServerThread.push_back(0);
     }
 
+    bool cudaUseFP16 = false;
+    if(cfg.contains("cudaUseFP16-"+idxStr))
+      cudaUseFP16 = true;
+    else if(cfg.contains("cudaUseFP16"))
+      cudaUseFP16 = true;
+
     int defaultSymmetry = 0;
     nnEval->spawnServerThreads(
       numNNServerThreadsPerModel,
@@ -66,7 +72,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed,
       defaultSymmetry,
       logger,
-      cudaGpuIdxByServerThread
+      cudaGpuIdxByServerThread,
+      cudaUseFP16
     );
 
     nnEvals.push_back(nnEval);

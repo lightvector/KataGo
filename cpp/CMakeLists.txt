@@ -19,6 +19,9 @@ if(BUILD_MCTS)
     enable_language(CUDA)
     set(CUDA_STANDARD 11)
     set(NEURALNET_BACKEND_SOURCES neuralnet/cudabackend.cpp neuralnet/cudahelpers.cu)
+    set(CMAKE_CUDA_FLAGS
+      "-gencode arch=compute_30,code=sm_30 -gencode arch=compute_30,code=compute_30 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_53,code=sm_53 -gencode arch=compute_53,code=compute_53 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_70,code=compute_70"
+      )
 
   else()
     message(FATAL_ERROR "Please specify -DUSE_TENSORFLOW_BACKEND=0 -DUSE_CUDA_BACKEND=1  OR  -DUSE_TENSORFLOW_BACKEND=1 -DUSE_CUDA_BACKEND=0")
