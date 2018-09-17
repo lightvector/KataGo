@@ -20,6 +20,8 @@
 #define CUDA_SUPPORTS_FP16
 #endif
 
+//TODO maybe tune this number, it varies by GPU
+static const int targetNumThreads = 256;
 
 template <typename T>
 __global__
@@ -67,8 +69,6 @@ void channelConcatKernel(
 
 template <typename T>
 void customCudaChannelConcatTemplate(const T* inA, const T* inB, T* out, int chwA, int chwB, int n) {
-  //TODO maybe tune this number, it varies by GPU
-  int targetNumThreads = 256;
   int blockSize = targetNumThreads;
   int numBlocksA = (chwA + blockSize-1) / blockSize;
   int numBlocksB = (chwB + blockSize-1) / blockSize;
@@ -259,7 +259,6 @@ void customCudaNCHWTranspose(const float *in, float* out, int xSize, int ySize, 
   //TODO maybe tune these numbers, it varies by GPU
   //The first one should be the warp size, since it's set to what we need to avoid bank conflicts?
   //Or is it better to just make it xSize, to reduce overhead on top of 19x19?
-  int targetNumThreads = 256;
   int tileDim = 32;
   int tileStride = targetNumThreads/tileDim;
   dim3 grid((xSize+tileDim-1)/tileDim,(ySize+tileDim-1)/tileDim,ncSize);
@@ -271,8 +270,6 @@ void customCudaNCHWTranspose(const float *in, float* out, int xSize, int ySize, 
 void customCudaNHWCTranspose(const float *in, float* out, int xSize, int ySize, int cSize, int nSize) {
   if(cSize > 64)
     throw std::runtime_error("customCudaNHWCTranspose: cSize too large");
-  //TODO maybe tune these numbers, it varies by GPU
-  int targetNumThreads = 256;
 
   int tileDim = 1;
   while(tileDim * 2 * cSize <= targetNumThreads)
@@ -295,7 +292,6 @@ void customCudaNCHWTranspose(const half *in, half* out, int xSize, int ySize, in
   //TODO maybe tune these numbers, it varies by GPU
   //The first one should be the warp size, since it's set to what we need to avoid bank conflicts?
   //Or is it better to just make it xSize, to reduce overhead on top of 19x19?
-  int targetNumThreads = 256;
   int tileDim = 32;
   int tileStride = targetNumThreads/tileDim;
   dim3 grid((xSize+tileDim-1)/tileDim,(ySize+tileDim-1)/tileDim,ncSize);
@@ -307,8 +303,6 @@ void customCudaNCHWTranspose(const half *in, half* out, int xSize, int ySize, in
 void customCudaNHWCTranspose(const half *in, half* out, int xSize, int ySize, int cSize, int nSize) {
   if(cSize > 64)
     throw std::runtime_error("customCudaNHWCTranspose: cSize too large");
-  //TODO maybe tune these numbers, it varies by GPU
-  int targetNumThreads = 256;
 
   int tileDim = 1;
   while(tileDim * 2 * cSize <= targetNumThreads)
@@ -345,9 +339,6 @@ void customCudaMirrorTemplate(const T *in, T* out, int batchSize, int mSize, int
     throw std::runtime_error("customCudaMirror: batchSize too large");
   if(mSize > 65536)
     throw std::runtime_error("customCudaMirror: mSize too large");
-
-  //TODO maybe tune these numbers, it varies by GPU
-  int targetNumThreads = 256;
 
   int subThreads;
   int subBlocks;
@@ -441,15 +432,11 @@ void copyFromHalfKernel(const half *in, float* out, int n)
 }
 
 void customCudaCopyToHalf(const float* in, half* out, int n) {
-  //TODO maybe tune these numbers, it varies by GPU
-  int targetNumThreads = 256;
   int blockSize = targetNumThreads;
   int numBlocks = (n+blockSize-1)/blockSize;
   copyToHalfKernel<<<numBlocks, blockSize>>>(in,out,n);
 }
 void customCudaCopyFromHalf(const half* in, float* out, int n) {
-  //TODO maybe tune these numbers, it varies by GPU
-  int targetNumThreads = 256;
   int blockSize = targetNumThreads;
   int numBlocks = (n+blockSize-1)/blockSize;
   copyFromHalfKernel<<<numBlocks, blockSize>>>(in,out,n);
@@ -476,8 +463,6 @@ void addBiasInplaceHalfKernel(half *buf, const half* biases, int nSize, int cSiz
 
 
 void customCudaAddBiasInplace(half* buf, const half* biases, int nSize, int cSize) {
-  //TODO maybe tune these numbers, it varies by GPU
-  int targetNumThreads = 256;
 
   int cThreads;
   int cBlocks;
@@ -536,9 +521,6 @@ void customCudaApplyScaleBias(const half* in, half* out, const half* scale, cons
     throw std::runtime_error("customCudaApplyScaleBias: nSize too large");
   if(cSize > 65536)
     throw std::runtime_error("customCudaApplyScaleBias: cSize too large");
-
-  //TODO maybe tune these numbers, it varies by GPU
-  int targetNumThreads = 256;
 
   int sThreads;
   int sBlocks;
