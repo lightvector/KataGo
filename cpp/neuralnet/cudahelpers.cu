@@ -499,7 +499,7 @@ void customCudaAddBiasInplace(half* buf, const half* biases, int nSize, int cSiz
   else {
     cThreads = cSize;
     cBlocks = 1;
-    nThreads = targetNumThreads / nSize;
+    nThreads = targetNumThreads / cSize;
     nBlocks = (nSize + nThreads - 1) / nThreads;
   }
 

@@ -246,21 +246,25 @@ struct ConvLayer {
 
     convolutionAlgorithms = new cudnnConvolutionFwdAlgo_t[maxBatchSize];
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+      if(useFP16 && dilationX <= 1 && dilationY <= 1) {
+        convolutionAlgorithms[batchSize-1] = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
+      }
+      else {
+        const cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
+        const cudnnTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize-1];
 
-      const cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
-      const cudnnTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize-1];
-
-      size_t bytesMemoryLimit = 0;
-      CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardAlgorithm(
-        cudaHandles->cudnn,
-        inputDescriptor,
-        filterDescriptor,
-        convolutionDescriptor,
-        outputDescriptor,
-        CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
-        bytesMemoryLimit,
-        &(convolutionAlgorithms[batchSize-1])
-      ));
+        size_t bytesMemoryLimit = 0;
+        CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardAlgorithm(
+          cudaHandles->cudnn,
+          inputDescriptor,
+          filterDescriptor,
+          convolutionDescriptor,
+          outputDescriptor,
+          CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
+          bytesMemoryLimit,
+          &(convolutionAlgorithms[batchSize-1])
+        ));
+      }
     }
 
     assert(desc->weights.size() == convYSize * convXSize * inChannels * outChannels);
@@ -1256,6 +1260,7 @@ struct DilatedResidualBlock {
         batchSize
       );
     }
+    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     midBN.apply(cudaHandles,midInDescriptor,midInDescriptor,batchSize,midInBuf,midScratchBuf);
     midActivation.apply(cudaHandles,midInDescriptor,midInDescriptor,midScratchBuf,midScratchBuf);
     finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,midScratchBuf,trunkOutBuf,workspaceBuf,workspaceBytes);
@@ -1478,18 +1483,25 @@ struct GlobalPoolingResidualBlock {
 
     if(!usingFP16) {
       customCudaPoolRowsSum((float*)gpoolOutBuf2,(float*)gpoolMeanBuf,batchSize*gpoolChannels,xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       customCudaPoolRowsMax((float*)gpoolOutBuf2,(float*)gpoolMaxBuf,batchSize*gpoolChannels,xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       const float meanScale = 1.0f / (xSize*ySize);
       CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*gpoolChannels, &meanScale, (float*)gpoolMeanBuf, 1));
     }
     else {
       customCudaCopyFromHalf((const half*)gpoolOutBuf2,(float*)workspaceBuf,batchSize*gpoolChannels*xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       customCudaPoolRowsSum((float*)workspaceBuf,gpoolMeanBufSingle,batchSize*gpoolChannels,xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       customCudaPoolRowsMax((float*)workspaceBuf,gpoolMaxBufSingle,batchSize*gpoolChannels,xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       const float meanScale = 1.0f / (xSize*ySize);
       CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*gpoolChannels, &meanScale, gpoolMeanBufSingle, 1));
       customCudaCopyToHalf((const float*)gpoolMeanBufSingle,(half*)gpoolMeanBuf,batchSize*gpoolChannels);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       customCudaCopyToHalf((const float*)gpoolMaxBufSingle,(half*)gpoolMaxBuf,batchSize*gpoolChannels);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
     if(!usingFP16) {
@@ -1508,6 +1520,7 @@ struct GlobalPoolingResidualBlock {
         batchSize
       );
     }
+    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
     gpoolToBiasMul.apply(cudaHandles,batchSize,gpoolConcatBuf,gpoolBiasBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
     const float one = 1.0f;
@@ -2141,15 +2154,19 @@ static void applySymmetriesNCHW(
       customCudaNCHWTranspose(inputBuf,inputScratchBuf,xSize,ySize,batchSize*cSize);
     else
       cudaMemcpyAsync(inputScratchBuf,inputBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
+    CUDA_ERR("applySymmetriesNCHW",cudaPeekAtLastError());
 
     customCudaMirrorNCHW(inputScratchBuf, inputBuf, batchSize, cSize, ySize, xSize, symmetriesBuffer[0], symmetriesBuffer[1]);
+    CUDA_ERR("applySymmetriesNCHW",cudaPeekAtLastError());
   }
   else {
     customCudaMirrorNCHW(inputBuf, inputScratchBuf, batchSize, cSize, ySize, xSize, symmetriesBuffer[0], symmetriesBuffer[1]);
+    CUDA_ERR("applySymmetriesNCHW",cudaPeekAtLastError());
     if(symmetriesBuffer[2])
       customCudaNCHWTranspose(inputScratchBuf,inputBuf,xSize,ySize,batchSize*cSize);
     else
       cudaMemcpyAsync(inputBuf,inputScratchBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
+    CUDA_ERR("applySymmetriesNCHW",cudaPeekAtLastError());
   }
 }
 
@@ -2166,15 +2183,19 @@ static void applySymmetriesNHWC(
       customCudaNHWCTranspose(inputBuf,inputScratchBuf,xSize,ySize,cSize,batchSize);
     else
       cudaMemcpyAsync(inputScratchBuf,inputBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
+    CUDA_ERR("applySymmetriesNHWC",cudaPeekAtLastError());
 
     customCudaMirrorNHWC(inputScratchBuf, inputBuf, batchSize, ySize, xSize, cSize, symmetriesBuffer[0], symmetriesBuffer[1]);
+    CUDA_ERR("applySymmetriesNHWC",cudaPeekAtLastError());
   }
   else {
     customCudaMirrorNHWC(inputBuf, inputScratchBuf, batchSize, ySize, xSize, cSize, symmetriesBuffer[0], symmetriesBuffer[1]);
+    CUDA_ERR("applySymmetriesNHWC",cudaPeekAtLastError());
     if(symmetriesBuffer[2])
       customCudaNHWCTranspose(inputScratchBuf,inputBuf,xSize,ySize,cSize,batchSize);
     else
       cudaMemcpyAsync(inputBuf,inputScratchBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
+    CUDA_ERR("applySymmetriesNHWC",cudaPeekAtLastError());
   }
 }
 
@@ -2507,18 +2528,25 @@ struct PolicyHead {
 
     if(!usingFP16) {
       customCudaPoolRowsSum((float*)g1OutBuf2,(float*)g1MeanBuf,batchSize*g1Channels,xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       customCudaPoolRowsMax((float*)g1OutBuf2,(float*)g1MaxBuf,batchSize*g1Channels,xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       const float meanScale = 1.0f / (xSize*ySize);
       CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*g1Channels, &meanScale, (float*)g1MeanBuf, 1));
     }
     else {
       customCudaCopyFromHalf((const half*)g1OutBuf2,(float*)workspaceBuf,batchSize*g1Channels*xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       customCudaPoolRowsSum((float*)workspaceBuf,g1MeanBufSingle,batchSize*g1Channels,xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       customCudaPoolRowsMax((float*)workspaceBuf,g1MaxBufSingle,batchSize*g1Channels,xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       const float meanScale = 1.0f / (xSize*ySize);
       CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*g1Channels, &meanScale, g1MeanBufSingle, 1));
       customCudaCopyToHalf((const float*)g1MeanBufSingle,(half*)g1MeanBuf,batchSize*g1Channels);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       customCudaCopyToHalf((const float*)g1MaxBufSingle,(half*)g1MaxBuf,batchSize*g1Channels);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
     if(!usingFP16) {
@@ -2537,6 +2565,7 @@ struct PolicyHead {
         batchSize
       );
     }
+    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     gpoolToBiasMul->apply(cudaHandles,batchSize,g1ConcatBuf,g1BiasBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
     const float one = 1.0f;
     CUDNN_ERR(name.c_str(),cudnnAddTensor(cudaHandles->cudnn,&one,g1BiasDescriptor,g1BiasBuf,&one,p1OutForBiasDescriptor,p1OutBuf));
@@ -2578,6 +2607,7 @@ struct PolicyHead {
         batchSize
       );
     }
+    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
   }
 
@@ -2837,15 +2867,19 @@ struct ValueHead {
 
     if(!usingFP16) {
       customCudaPoolRowsSum((float*)v1OutBuf2,(float*)v1MeanBuf,batchSize*v1Channels,xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       const float meanScale = 1.0f / (xSize*ySize);
       CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*v1Channels, &meanScale, (float*)v1MeanBuf, 1));
     }
     else {
       customCudaCopyFromHalf((const half*)v1OutBuf2,(float*)workspaceBuf,batchSize*v1Channels*xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       customCudaPoolRowsSum((float*)workspaceBuf,v1MeanBufSingle,batchSize*v1Channels,xSize*ySize);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       const float meanScale = 1.0f / (xSize*ySize);
       CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*v1Channels, &meanScale, v1MeanBufSingle, 1));
       customCudaCopyToHalf((const float*)v1MeanBufSingle,(half*)v1MeanBuf,batchSize*v1Channels);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
     v2Mul->apply(cudaHandles,batchSize,v1MeanBuf,v2OutBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
@@ -3583,6 +3617,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
 
     CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBufSingle, inputBuffers->userInputBuffer, inputBuffers->singleBatchItemBytes*batchSize, cudaMemcpyHostToDevice));
     customCudaCopyToHalf((const float*)buffers->inputBufSingle,(half*)buffers->inputBuf,inputBuffers->singleBatchItemElts*batchSize);
+    CUDA_ERR("getOutput",cudaPeekAtLastError());
   }
 
   gpuHandle->model->apply(
@@ -3642,7 +3677,9 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
   }
   else {
     customCudaCopyFromHalf((const half*)buffers->policyBuf,(float*)buffers->policyBufSingle,inputBuffers->singlePolicyResultElts*batchSize);
+    CUDA_ERR("getOutput",cudaPeekAtLastError());
     customCudaCopyFromHalf((const half*)buffers->valueBuf,(float*)buffers->valueBufSingle,inputBuffers->singleValueResultElts*batchSize);
+    CUDA_ERR("getOutput",cudaPeekAtLastError());
     CUDA_ERR("getOutput",cudaMemcpy(inputBuffers->valueResults, buffers->valueBufSingle, inputBuffers->singleValueResultBytes*batchSize, cudaMemcpyDeviceToHost));
     CUDA_ERR("getOutput",cudaMemcpy(inputBuffers->policyResults, buffers->policyBufSingle, inputBuffers->singlePolicyResultBytes*batchSize, cudaMemcpyDeviceToHost));
   }
