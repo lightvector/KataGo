@@ -71,6 +71,12 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("cudaUseNHWC"))
       cudaUseNHWC = cfg.getBool("cudaUseNHWC");
 
+    logger.write(
+      "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
+      + " useFP16 " + Global::boolToString(cudaUseFP16)
+      + " useNHWC " + Global::boolToString(cudaUseNHWC)
+    );
+
     int defaultSymmetry = 0;
     nnEval->spawnServerThreads(
       numNNServerThreadsPerModel,
