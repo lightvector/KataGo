@@ -21,7 +21,7 @@
 #endif
 
 //TODO maybe tune this number, it varies by GPU
-static const int targetNumThreads = 256;
+static const int targetNumThreads = 512;
 
 //--------------------------------------------------------------------------------------------------------------
 
@@ -91,42 +91,152 @@ void customCudaChannelConcat(const half* inA, const half* inB, half* out, int ch
 
 template <typename T>
 struct linear_index_to_row_index : public thrust::unary_function<T,T> {
-  T c;
-  __host__ __device__ linear_index_to_row_index(T c) : c(c) {}
-  __host__ __device__ T operator()(T i) { return i / c; }
+  T len;
+  __host__ __device__ linear_index_to_row_index(T len) : len(len) {}
+  __host__ __device__ T operator()(T i) { return i / len; }
 };
 
-void customCudaPoolRowsSum(float* in, float* out, int n, int c) {
-
+void customCudaPoolRowsSumNCHW(float* in, float* out, int nc, int xy) {
   thrust::device_ptr<float> inThrust = thrust::device_pointer_cast(in);
   thrust::device_ptr<float> outThrust = thrust::device_pointer_cast(out);
 
   thrust::reduce_by_key(
-    thrust::make_transform_iterator(thrust::counting_iterator<int>(0), linear_index_to_row_index<int>(c)),
-    thrust::make_transform_iterator(thrust::counting_iterator<int>(0), linear_index_to_row_index<int>(c)) + (n*c),
+    thrust::make_transform_iterator(thrust::counting_iterator<int>(0), linear_index_to_row_index<int>(xy)),
+    thrust::make_transform_iterator(thrust::counting_iterator<int>(0), linear_index_to_row_index<int>(xy)) + (nc*xy),
     inThrust,
     thrust::make_discard_iterator(),
     outThrust
   );
-
 }
 
-void customCudaPoolRowsMax(float* in, float* out, int n, int c) {
-
+void customCudaPoolRowsMaxNCHW(float* in, float* out, int nc, int xy) {
   thrust::device_ptr<float> inThrust = thrust::device_pointer_cast(in);
   thrust::device_ptr<float> outThrust = thrust::device_pointer_cast(out);
 
   thrust::reduce_by_key(
-    thrust::make_transform_iterator(thrust::counting_iterator<int>(0), linear_index_to_row_index<int>(c)),
-    thrust::make_transform_iterator(thrust::counting_iterator<int>(0), linear_index_to_row_index<int>(c)) + (n*c),
+    thrust::make_transform_iterator(thrust::counting_iterator<int>(0), linear_index_to_row_index<int>(xy)),
+    thrust::make_transform_iterator(thrust::counting_iterator<int>(0), linear_index_to_row_index<int>(xy)) + (nc*xy),
     inThrust,
     thrust::make_discard_iterator(),
     outThrust,
     thrust::equal_to<int>(),
     thrust::maximum<float>()
   );
-
 }
+
+__global__
+void sumChannelsNHWCKernel(const float *in, float* out, int xySize, int cSize)
+{
+  extern __shared__ float sumPoolNHWCShared[];
+  int cId = threadIdx.x;
+  int cBlockDim = blockDim.x;
+  int xyId = threadIdx.y;
+  int xyBlockDim = blockDim.y;
+
+  int cIdx = blockIdx.x * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+  int sharedIdx = cId + cBlockDim * xyId;
+  int xycSize = xySize*cSize;
+
+  sumPoolNHWCShared[sharedIdx] = 0;
+
+  if(cIdx < cSize) {
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      sumPoolNHWCShared[sharedIdx] += in[cIdx + xyIdx * cSize + nIdx * xycSize];
+      xyIdx += xyBlockDim;
+    }
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      sumPoolNHWCShared[sharedIdx] += sumPoolNHWCShared[sharedIdx + cBlockDim * s];
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize)
+    out[cIdx + nIdx * cSize] = sumPoolNHWCShared[sharedIdx];
+}
+__global__
+void maxChannelsNHWCKernel(const float *in, float* out, int xySize, int cSize)
+{
+  extern __shared__ float maxPoolNHWCShared[];
+  int cId = threadIdx.x;
+  int cBlockDim = blockDim.x;
+  int xyId = threadIdx.y;
+  int xyBlockDim = blockDim.y;
+
+  int cIdx = blockIdx.x * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+  int sharedIdx = cId + cBlockDim * xyId;
+  int xycSize = xySize*cSize;
+
+  maxPoolNHWCShared[sharedIdx] = 0;
+
+  if(cIdx < cSize) {
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      maxPoolNHWCShared[sharedIdx] = fmaxf(maxPoolNHWCShared[sharedIdx],in[cIdx + xyIdx * cSize + nIdx * xycSize]);
+      xyIdx += xyBlockDim;
+    }
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      maxPoolNHWCShared[sharedIdx] = fmaxf(maxPoolNHWCShared[sharedIdx],maxPoolNHWCShared[sharedIdx + cBlockDim * s]);
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize)
+    out[cIdx + nIdx * cSize] = maxPoolNHWCShared[sharedIdx];
+}
+
+void customCudaPoolRowsSumNHWC(const float* in, float* out, int nSize, int xySize, int cSize) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsSumNHWC: nSize too large");
+
+  //Use up to two warps worth of threads along the channel dimension, which is the
+  //most compact
+  int cThreads = 1;
+  while(cThreads < 64 && cThreads < cSize/2)
+    cThreads *= 2;
+  int cBlocks = (cSize + cThreads - 1) / cThreads;
+
+  //Distribute the extra threads to perform parallel reduction along the xy dimension.
+  int xyThreads = (targetNumThreads < cThreads) ? 1 : (targetNumThreads / cThreads);
+
+  //We need one shared memory spot per thread
+  int sharedMemSize = sizeof(float) * cThreads * xyThreads;
+
+  dim3 grid(cBlocks,1,nSize);
+  dim3 threads(cThreads,xyThreads,1);
+  sumChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize);
+}
+
+void customCudaPoolRowsMaxNHWC(const float* in, float* out, int nSize, int xySize, int cSize) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMaxNHWC: nSize too large");
+
+  //Use up to two warps worth of threads along the channel dimension, which is the
+  //most compact
+  int cThreads = 1;
+  while(cThreads < 64 && cThreads < cSize/2)
+    cThreads *= 2;
+  int cBlocks = (cSize + cThreads - 1) / cThreads;
+
+  //Distribute the extra threads to perform parallel reduction along the xy dimension.
+  int xyThreads = (targetNumThreads < cThreads) ? 1 : (targetNumThreads / cThreads);
+
+  //We need one shared memory spot per thread
+  int sharedMemSize = sizeof(float) * cThreads * xyThreads;
+
+  dim3 grid(cBlocks,1,nSize);
+  dim3 threads(cThreads,xyThreads,1);
+  maxChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize);
+}
+
 
 //--------------------------------------------------------------------------------------------------------------
 
@@ -626,6 +736,98 @@ void customCudaAddNCBiasInplaceNCHW(half *buf, const half* biases, int nSize, in
 
 //--------------------------------------------------------------------------------------------------------------
 
+__global__
+void addNCBiasInplaceNHWCKernel(float *buf, const float* biases, int sSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int ncIdx = nIdx * cSize + cIdx;
+    int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
+    buf[idx] = buf[idx] + biases[ncIdx];
+  }
+}
+#ifdef CUDA_SUPPORTS_FP16
+__global__
+void addNCBiasInplaceNHWCHalfKernel(half *buf, const half* biases, int sSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int ncIdx = nIdx * cSize + cIdx;
+    int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
+    buf[idx] = __hadd(buf[idx],biases[ncIdx]);
+  }
+}
+#else
+__global__
+void addNCBiasInplaceNHWCHalfKernel(half *buf, const half* biases, int sSize, int cSize)
+{
+  //Do nothing, FP16 not supported
+}
+#endif
+
+void sharedAddNCBiasInplaceNHWC(void *buf, const void* biases, int nSize, int xySize, int cSize, bool isHalf) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaAddNCBiasInplaceNHWC: nSize too large");
+  if(xySize > 65536)
+    throw std::runtime_error("customCudaAddNCBiasInplaceNHWC: xySize too large");
+
+  int sSize = xySize;
+  int cThreads;
+  int cBlocks;
+  int sThreads;
+  int sBlocks;
+
+  if(cSize > targetNumThreads) {
+    cThreads = targetNumThreads/2;
+    cBlocks = (cSize + cThreads - 1) / cThreads;
+    sThreads = 1;
+    sBlocks = sSize;
+  }
+  else if(cSize > targetNumThreads/2) {
+    cThreads = cSize;
+    cBlocks = 1;
+    sThreads = 1;
+    sBlocks = sSize;
+  }
+  else {
+    cThreads = cSize;
+    cBlocks = 1;
+    sThreads = targetNumThreads / cSize;
+    sBlocks = (sSize + sThreads - 1) / sThreads;
+  }
+
+  dim3 grid(cBlocks,sBlocks,nSize);
+  dim3 threads(cThreads,sThreads,1);
+  if(isHalf)
+    addNCBiasInplaceNHWCHalfKernel<<<grid,threads>>>((half*)buf,(const half*)biases,sSize,cSize);
+  else
+    addNCBiasInplaceNHWCKernel<<<grid,threads>>>((float*)buf,(const float*)biases,sSize,cSize);
+}
+
+void customCudaAddNCBiasInplaceNHWC(float *buf, const float* biases, int nSize, int xySize, int cSize) {
+  sharedAddNCBiasInplaceNHWC(buf,biases,nSize,xySize,cSize,false);
+}
+void customCudaAddNCBiasInplaceNHWC(half *buf, const half* biases, int nSize, int xySize, int cSize) {
+  sharedAddNCBiasInplaceNHWC(buf,biases,nSize,xySize,cSize,true);
+}
+
+//--------------------------------------------------------------------------------------------------------------
+
+__global__
+void applyCScaleBiasNCHWKernel(const float *in, float* out, const float* scale, const float* biases, int cSize, int sSize)
+{
+  int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
+    out[idx] = in[idx] * scale[cIdx] + biases[cIdx];
+  }
+}
 #ifdef CUDA_SUPPORTS_FP16
 __global__
 void applyCScaleBiasNCHWHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
@@ -646,7 +848,7 @@ void applyCScaleBiasNCHWHalfKernel(const half *in, half* out, const half* scale,
 }
 #endif
 
-void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale, const half* biases, int nSize, int cSize, int xySize) {
+void sharedApplyCScaleBiasNCHW(const void* in, void* out, const void* scale, const void* biases, int nSize, int cSize, int xySize, bool isHalf) {
   if(nSize > 65536)
     throw std::runtime_error("customCudaApplyCScaleBiasNCHW: nSize too large");
   if(cSize > 65536)
@@ -679,5 +881,95 @@ void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale,
 
   dim3 grid(sBlocks,cBlocks,nSize);
   dim3 threads(sThreads,cThreads,1);
-  applyCScaleBiasNCHWHalfKernel<<<grid,threads>>>(in,out,scale,biases,cSize,sSize);
+  if(isHalf)
+    applyCScaleBiasNCHWHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,cSize,sSize);
+  else
+    applyCScaleBiasNCHWKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,cSize,sSize);
+}
+
+void customCudaApplyCScaleBiasNCHW(const float* in, float* out, const float* scale, const float* biases, int nSize, int cSize, int xySize) {
+  sharedApplyCScaleBiasNCHW(in,out,scale,biases,nSize,cSize,xySize,false);
+}
+void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale, const half* biases, int nSize, int cSize, int xySize) {
+  sharedApplyCScaleBiasNCHW(in,out,scale,biases,nSize,cSize,xySize,true);
+}
+
+
+//--------------------------------------------------------------------------------------------------------------
+
+__global__
+void applyCScaleBiasNHWCKernel(const float* in, float* out, const float* scale, const float* biases, int sSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
+    out[idx] = in[idx] * scale[cIdx] + biases[cIdx];
+  }
+}
+#ifdef CUDA_SUPPORTS_FP16
+__global__
+void applyCScaleBiasNHWCHalfKernel(const half* in, half* out, const half* scale, const half* biases, int sSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
+    out[idx] = __hfma(in[idx],scale[cIdx],biases[cIdx]);
+  }
+}
+#else
+__global__
+void applyCScaleBiasNHWCHalfKernel(const half* in, half* out, const half* scale, const half* biases, int sSize, int cSize)
+{
+  //Do nothing, FP16 not supported
+}
+#endif
+
+void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, const void* biases, int nSize, int xySize, int cSize, bool isHalf) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaApplyCScaleBiasNHWC: nSize too large");
+  if(xySize > 65536)
+    throw std::runtime_error("customCudaApplyCScaleBiasNHWC: xySize too large");
+
+  int sSize = xySize;
+  int cThreads;
+  int cBlocks;
+  int sThreads;
+  int sBlocks;
+
+  if(cSize > targetNumThreads) {
+    cThreads = targetNumThreads/2;
+    cBlocks = (cSize + cThreads - 1) / cThreads;
+    sThreads = 1;
+    sBlocks = sSize;
+  }
+  else if(cSize > targetNumThreads/2) {
+    cThreads = cSize;
+    cBlocks = 1;
+    sThreads = 1;
+    sBlocks = sSize;
+  }
+  else {
+    cThreads = cSize;
+    cBlocks = 1;
+    sThreads = targetNumThreads / cSize;
+    sBlocks = (sSize + sThreads - 1) / sThreads;
+  }
+
+  dim3 grid(cBlocks,sBlocks,nSize);
+  dim3 threads(cThreads,sThreads,1);
+  if(isHalf)
+    applyCScaleBiasNHWCHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,sSize,cSize);
+  else
+    applyCScaleBiasNHWCKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,sSize,cSize);
+}
+
+void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* scale, const float* biases, int nSize, int xySize, int cSize) {
+  sharedApplyCScaleBiasNHWC(in,out,scale,biases,nSize,xySize,cSize,false);
+}
+void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, int nSize, int xySize, int cSize) {
+  sharedApplyCScaleBiasNHWC(in,out,scale,biases,nSize,xySize,cSize,true);
 }

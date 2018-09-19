@@ -8,8 +8,10 @@ void customCudaChannelConcat(const half* inA, const half* inB, half* out, int ch
 
 //Given an input with shape [n,c] and an output buffer of shape [n]
 //fill output buffer with sum or max or mean over c.
-void customCudaPoolRowsSum(float* in, float* out, int n, int c);
-void customCudaPoolRowsMax(float* in, float* out, int n, int c);
+void customCudaPoolRowsSumNCHW(float* in, float* out, int nc, int xy);
+void customCudaPoolRowsMaxNCHW(float* in, float* out, int nc, int xy);
+void customCudaPoolRowsSumNHWC(const float* in, float* out, int n, int xy, int c);
+void customCudaPoolRowsMaxNHWC(const float* in, float* out, int n, int xy, int c);
 
 void customCudaNCHWTranspose(const float *in, float* out, int xSize, int ySize, int ncSize);
 void customCudaNHWCTranspose(const float *in, float* out, int xSize, int ySize, int cSize, int nSize);
@@ -34,9 +36,16 @@ void customCudaAddCBiasInplaceNC(half* buf, const half* biases, int n, int c);
 //Given an input with shape [n,c,xy] and biases of shape [n,c], add the biases in-place.
 void customCudaAddNCBiasInplaceNCHW(float *buf, const float* biases, int nSize, int cSize, int xySize);
 void customCudaAddNCBiasInplaceNCHW(half *buf, const half* biases, int nSize, int cSize, int xySize);
+//Given an input with shape [n,xy,c] and biases of shape [n,c], add the biases in-place.
+void customCudaAddNCBiasInplaceNHWC(float *buf, const float* biases, int nSize, int xySize, int cSize);
+void customCudaAddNCBiasInplaceNHWC(half *buf, const half* biases, int nSize, int xySize, int cSize);
 
 //Given an input with shape [n,c,xy] and scale and biases of shape [c], multiply by scale and add the biases
+void customCudaApplyCScaleBiasNCHW(const float* in, float* out, const float* scale, const float* biases, int n, int c, int xy);
 void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale, const half* biases, int n, int c, int xy);
+//Given an input with shape [n,xy,c] and scale and biases of shape [c], multiply by scale and add the biases
+void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* scale, const float* biases, int n, int xy, int c);
+void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, int n, int xy, int c);
 
 
 #endif
