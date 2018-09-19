@@ -348,18 +348,52 @@ struct ConvLayer {
 
     // cudaDeviceSynchronize();
     // cout << name << endl;
-    // float tmp[12];
-    // CUDA_ERR("DEBUG",cudaMemcpy(tmp, inputBuf, sizeof(float)*12, cudaMemcpyDeviceToHost));
-    // for(int i = 0; i<12; i++)
-    //   cout << tmp[i] << " ";
+    // float* inputsTmp = new float[224*19*19];
+    // CUDA_ERR("DEBUG",cudaMemcpy(inputsTmp, inputBuf, sizeof(float)*224*19*19/5, cudaMemcpyDeviceToHost));
+    // cout << name << " inputs ";
+    // for(int c = 0; c<2; c++)
+    //   for(int y = 0; y<2; y++)
+    //     for(int x = 0; x<2; x++)
+    //       cout << inputsTmp[y*19*224+x*224+c] << " ";
     // cout << endl;
-    // CUDA_ERR("DEBUG",cudaMemcpy(tmp, filterBuf, sizeof(float)*12, cudaMemcpyDeviceToHost));
-    // for(int i = 0; i<12; i++)
-    //   cout << tmp[i] << " ";
+    // float* filterTmp = new float[3*3*3];
+    // CUDA_ERR("DEBUG",cudaMemcpy(filterTmp, filterBuf, sizeof(float)*3*3*3, cudaMemcpyDeviceToHost));
+    // cout << name << " filter ";
+    // for(int i = 0; i<18; i++)
+    //   cout << filterTmp[i] << " ";
     // cout << endl;
-    // CUDA_ERR("DEBUG",cudaMemcpy(tmp, outputBuf, sizeof(float)*12, cudaMemcpyDeviceToHost));
-    // for(int i = 0; i<12; i++)
-    //   cout << tmp[i] << " ";
+    // float* outputsTmp = new float[224*19*19];
+    // CUDA_ERR("DEBUG",cudaMemcpy(outputsTmp, outputBuf, sizeof(float)*224*19*19/5, cudaMemcpyDeviceToHost));
+    // cout << name << " outputs ";
+    // for(int c = 0; c<2; c++)
+    //   for(int y = 0; y<2; y++)
+    //     for(int x = 0; x<2; x++)
+    //       cout << outputsTmp[y*19*224+x*224+c] << " ";
+    // cout << endl;
+
+    // cudaDeviceSynchronize();
+    // cout << name << endl;
+    // float* inputsTmp = new float[224*19*19];
+    // CUDA_ERR("DEBUG",cudaMemcpy(inputsTmp, inputBuf, sizeof(float)*224*19*19/5, cudaMemcpyDeviceToHost));
+    // cout << name << " inputs ";
+    // for(int c = 0; c<2; c++)
+    //   for(int y = 0; y<2; y++)
+    //     for(int x = 0; x<2; x++)
+    //       cout << inputsTmp[c*19*19+y*19+x] << " ";
+    // cout << endl;
+    // float* filterTmp = new float[3*3*3];
+    // CUDA_ERR("DEBUG",cudaMemcpy(filterTmp, filterBuf, sizeof(float)*3*3*3, cudaMemcpyDeviceToHost));
+    // cout << name << " filter ";
+    // for(int i = 0; i<18; i++)
+    //   cout << filterTmp[i] << " ";
+    // cout << endl;
+    // float* outputsTmp = new float[224*19*19];
+    // CUDA_ERR("DEBUG",cudaMemcpy(outputsTmp, outputBuf, sizeof(float)*224*19*19/5, cudaMemcpyDeviceToHost));
+    // cout << name << " outputs ";
+    // for(int c = 0; c<2; c++)
+    //   for(int y = 0; y<2; y++)
+    //     for(int x = 0; x<2; x++)
+    //       cout << outputsTmp[c*19*19+y*19+x] << " ";
     // cout << endl;
 
     // cudaDeviceSynchronize();
@@ -1548,6 +1582,20 @@ struct GlobalPoolingResidualBlock {
       customCudaCopyToHalf((const float*)gpoolMaxBufSingle,(half*)gpoolMaxBuf,batchSize*gpoolChannels);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
+
+    // float* maxTmp = new float[5];
+    // CUDA_ERR("DEBUG",cudaMemcpy(maxTmp, gpoolMaxBuf, sizeof(float)*5, cudaMemcpyDeviceToHost));
+    // cout << name << " MAX ";
+    // for(int i = 0; i<5; i++)
+    //   cout << maxTmp[i] << " ";
+    // cout << endl;
+    // float* meanTmp = new float[5];
+    // CUDA_ERR("DEBUG",cudaMemcpy(meanTmp, gpoolMeanBuf, sizeof(float)*5, cudaMemcpyDeviceToHost));
+    // cout << name << " MEAN ";
+    // for(int i = 0; i<5; i++)
+    //   cout << meanTmp[i] << " ";
+    // cout << endl;
+
 
     if(!usingFP16) {
       customCudaChannelConcat(
