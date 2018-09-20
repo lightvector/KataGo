@@ -914,7 +914,7 @@ class Target_vars:
 
     self.policy_loss = tf.reduce_sum(
       self.target_weights_used *
-      tf.nn.softmax_cross_entropy_with_logits(labels=self.policy_targets, logits=policy_output)
+      tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_targets, logits=policy_output)
     )
 
     # cross_entropy_value_loss = 1.4*tf.reduce_sum(
