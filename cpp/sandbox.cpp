@@ -170,9 +170,9 @@ int MainCmds::sandbox() {
   LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value33-140/model.txt", 0);
   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb", 0);
-  bool cudaUseFP16 = false;
+  bool cudaUseFP16 = true;
   bool cudaUseNHWC = true;
-  int maxBatchSize = 16;
+  int maxBatchSize = 256;
   LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel,&logger,maxBatchSize,0,cudaUseFP16,cudaUseNHWC);
   InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize);
 
@@ -234,24 +234,50 @@ int MainCmds::sandbox() {
  1 . . . . . . . . . . . . . . . . . . .
 )");
 
+  
+  Board board3 = Board::parseBoard(19,19,R"(
+   A B C D E F G H J K L M N O P Q R S T
+19 . x . . x . . x . . . . . . . . . . .
+18 . x . . . . . x . . . . . x . . x . .
+17 . . . x . . . . x . . x . . x . . x .
+16 . x . . x . . . . . x . . x . . x . .
+15 . x . . x . . . . . x . . x . . . . .
+14 . x . . x . . . . . . . . x . . x . .
+13 . . . . x . . . . x . . x o . . . x o
+12 x . . x o x . . x o x . . x o . . . .
+11 x . . x o x . . x o x . . x o . . . .
+10 x . . x o x . . x o x . . x o . . . .
+ 9 x . . x o x . . x o x . . x o . . . .
+ 8 x . . x o x . . x o x . . x o . . . .
+ 7 x . . x o . . . x o . . . x o x x . .
+ 6 x x . . x x . . x x . . x x . . . . .
+ 5 x x . . x x . . x x . . x x . x . . .
+ 4 x x . . x x . . x x . . x x . . . . .
+ 3 x x . . x x . . x x . . x x . . . . .
+ 2 x x . . x x . . x x . . x x . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+)");
+
 
   BoardHistory hist(board,pla,rules);
   BoardHistory hist2(board2,pla,rules);
+  BoardHistory hist3(board3,pla,rules);
 
-  float* row0 = NeuralNet::getRowInplace(inputBuffers,0);
-  float* row1 = NeuralNet::getRowInplace(inputBuffers,1);
-  float* row2 = NeuralNet::getRowInplace(inputBuffers,2);
-  float* row3 = NeuralNet::getRowInplace(inputBuffers,3);
-  float* row4 = NeuralNet::getRowInplace(inputBuffers,4);
-  NNInputs::fillRowV1(board, hist, pla, row0);
-  //NNInputs::fillRowV1(board, hist, pla, row1);
-  NNInputs::fillRowV1(board2, hist2, pla, row1);
-  NNInputs::fillRowV1(board, hist, pla, row2);
-  NNInputs::fillRowV1(board, hist, pla, row3);
-  NNInputs::fillRowV1(board2, hist2, pla, row4);
+  //int batchSize = 5;
+  // int batchSize = maxBatchSize;
+  int batchSize = 32;
+  for(int i = 0; i<batchSize; i++) {
+    float* row = NeuralNet::getRowInplace(inputBuffers,i);
+    if(i % 3 == 0)
+      NNInputs::fillRowV1(board, hist, pla, row);
+    else if(i % 3 == 1)
+      NNInputs::fillRowV1(board2, hist2, pla, row);
+    else
+      NNInputs::fillRowV1(board3, hist3, pla, row);
+  }
 
   vector<NNOutput*> outputs;
-  NeuralNet::getOutput(gpuHandle,inputBuffers,5,outputs);
+  NeuralNet::getOutput(gpuHandle,inputBuffers,batchSize,outputs);
 
   for(int i = 0; i<outputs.size(); i++) {
     NNOutput* result = outputs[i];
