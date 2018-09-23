@@ -19,6 +19,11 @@ cpp/tmp2.txt
 cpp/configs
 cpp/evalsgf
 
+tmp
+cpp/tmp
+tmp.txt
+out.txt
+
 # For clion IDE
 .idea
 

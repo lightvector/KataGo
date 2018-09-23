@@ -8,7 +8,7 @@ static void printHelp() {
   cout << "gtp" << endl;
   cout << "match" << endl;
   cout << "runTests" << endl;
-  cout << "writeRootValueTimeseries" << endl;
+  cout << "writeSearchValueTimeseries" << endl;
   cout << "sandbox" << endl;
 }
 
@@ -31,8 +31,8 @@ int main(int argc, const char* argv[]) {
     return MainCmds::match(argc-1,&argv[1]);
   else if(cmdArg == "runTests")
     return MainCmds::runTests(argc-1,&argv[1]);
-  else if(cmdArg == "writeRootValueTimeseries")
-    return MainCmds::writeRootValueTimeseries(argc-1,&argv[1]);
+  else if(cmdArg == "writeSearchValueTimeseries")
+    return MainCmds::writeSearchValueTimeseries(argc-1,&argv[1]);
   else if(cmdArg == "sandbox")
     return MainCmds::sandbox();
   else {

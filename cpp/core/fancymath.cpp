@@ -64,7 +64,7 @@ static double incompleteBetaContinuedFraction(double x, double a, double b) {
 //https://en.wikipedia.org/wiki/Beta_function#Incomplete_beta_function
 double FancyMath::incompleteBeta(double x, double a, double b) {
   if(x < 0.0 || x > 1.0 || a <= 0.0 || b <= 0.0)
-    return nan("");
+    return NAN;
   double logx = log(x);
   double logy = log(1-x);
   if(x <= (a+1.0)/(a+b+2.0))
@@ -76,7 +76,7 @@ double FancyMath::incompleteBeta(double x, double a, double b) {
 //https://en.wikipedia.org/wiki/Beta_function#Incomplete_beta_function
 double FancyMath::regularizedIncompleteBeta(double x, double a, double b) {
   if(x < 0.0 || x > 1.0 || a <= 0.0 || b <= 0.0)
-    return nan("");
+    return NAN;
   double logx = log(x);
   double logy = log(1-x);
   if(x <= (a+1.0)/(a+b+2.0))

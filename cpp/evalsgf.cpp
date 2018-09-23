@@ -89,6 +89,16 @@ int MainCmds::evalSgf(int argc, const char* const* argv) {
   else
     searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
+  //Check for unused config keys
+  {
+    vector<string> unusedKeys = cfg.unusedKeys();
+    for(size_t i = 0; i<unusedKeys.size(); i++) {
+      string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in " + configFile;
+      logger.write(msg);
+      cerr << msg << endl;
+    }
+  }
+
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
 
   Sgf* sgf = Sgf::loadFile(sgfFile);
@@ -159,6 +169,7 @@ int MainCmds::evalSgf(int argc, const char* const* argv) {
   delete bot;
   delete nnEval;
   NeuralNet::globalCleanup();
+  delete sgf;
 
   return 0;
 }

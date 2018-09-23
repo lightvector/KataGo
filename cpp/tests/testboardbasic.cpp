@@ -545,6 +545,7 @@ void Tests::runBoardUndoTest() {
       assert(boardsSeemEqual(boards[n],board));
       board.checkConsistency();
     }
+    delete[] boards;
   };
 
   run(Board(19,19),true);

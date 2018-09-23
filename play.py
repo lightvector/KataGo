@@ -209,7 +209,7 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
       texts_rev.append("%s %.3f" % (str_coord(loc,board),value))
 
   if value_head_output is not None:
-    texts_value.append("bv %.2f%%" % (50+50*(value_head_output if board.pla == Board.BLACK else -value_head_output)))
+    texts_value.append("wv %.2fc" % (100*(value_head_output if board.pla == Board.WHITE else -value_head_output)))
 
   gfx_commands.append("TEXT " + ", ".join(texts_value + texts_rev + texts))
 

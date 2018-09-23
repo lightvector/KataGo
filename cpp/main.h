@@ -7,7 +7,7 @@ namespace MainCmds {
   int match(int argc, const char* const* argv);
   int runTests(int argc, const char* const* argv);
 
-  int writeRootValueTimeseries(int argc, const char* const* argv);
+  int writeSearchValueTimeseries(int argc, const char* const* argv);
 
   int sandbox();
 }

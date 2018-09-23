@@ -14,7 +14,9 @@ struct SearchParams {
   double cpuctExploration;  //Constant factor on exploration, should also scale up linearly with magnitude of utility
   double fpuReductionMax;   //Max amount to reduce fpu value for unexplore children
   bool fpuUseParentAverage; //Use parent average value for fpu rather than parent nn value.
-
+  double valueWeightExponent; //Amount to apply a downweighting of children with very bad values relative to good ones
+  double visitsExponent; //Power with which visits should raise the value weight on a child
+  
   //Root noise parameters
   bool rootNoiseEnabled;
   double rootDirichletNoiseTotalConcentration; //Same as alpha * board size, to match alphazero this might be 0.03 * 361, total number of balls in the urn

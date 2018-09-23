@@ -21,7 +21,7 @@ from model import Model, Target_vars, Metrics
 
 description = """
 Test neural net on Go positions from an h5 file of preprocessed training positions.
-Computes average loss and accuracy the same as in training.
+Print magnitudes of weights and intermediate activations.
 """
 
 parser = argparse.ArgumentParser(description=description)
@@ -173,42 +173,26 @@ with tf.Session(config=tfconfig) as session:
     keys = dicts[0].keys()
     return dict((key,merge_list([d[key] for d in dicts])) for key in keys)
 
-  def run_validation_in_batches(fetches):
+  def run_validation_in_batches_and_print(fetches):
     #Run validation accuracy in batches to avoid out of memory error from processing one supergiant batch
     validation_batch_size = 128
     num_validation_batches = int(num_h5_val_rows * validation_prop + validation_batch_size-1)//validation_batch_size
-    results = []
     for i in range(num_validation_batches):
-      print(".",end="",flush=True)
       rows = h5val[i*validation_batch_size : min((i+1)*validation_batch_size, num_h5_val_rows)]
       result = run(fetches, rows)
-      results.append(result)
+      for key in result:
+        print("%s,%d,%f" % (key,i,result[key]))
+      sys.stdout.flush()
 
-    print("",flush=True)
-    return results
+  vmetrics = {}
+  for variable in tf.trainable_variables():
+    vmetrics[variable.name + "/maxabsvalue"] = tf.reduce_max(tf.abs(variable))
+  for (layername,tensor) in model.outputs_by_layer:
+    vmetrics[layername + "/maxabsvalue"] = tf.reduce_max(tf.abs(tensor))
+  for (layername,tensor) in model.other_internal_outputs:
+    vmetrics[layername + "/maxabsvalue"] = tf.reduce_max(tf.abs(tensor))
 
-  vmetrics = {
-    "acc1": metrics.accuracy1,
-    "acc4": metrics.accuracy4,
-    "ploss": target_vars.policy_loss,
-    "vloss": target_vars.value_loss,
-    "vconf": metrics.valueconf,
-    "wsum": target_vars.weight_sum,
-  }
-
-  def validation_stats_str(vmetrics_evaled):
-    return "vacc1 %5.2f%% vacc4 %5.2f%% vploss %f vvloss %f vconf %f" % (
-      vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
-      vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
-      vmetrics_evaled["ploss"] / vmetrics_evaled["wsum"],
-      vmetrics_evaled["vloss"] / vmetrics_evaled["wsum"],
-      vmetrics_evaled["vconf"] / vmetrics_evaled["wsum"],
-  )
-
-  vmetrics_evaled = merge_dicts(run_validation_in_batches(vmetrics), np.sum)
-  vstr = validation_stats_str(vmetrics_evaled)
-
-  log(vstr)
+  run_validation_in_batches_and_print(vmetrics)
 
   sys.stdout.flush()
   sys.stderr.flush()

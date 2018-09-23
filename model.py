@@ -30,6 +30,7 @@ class Model:
 
     #Accumulates outputs for printing stats about their activations
     self.outputs_by_layer = []
+    self.other_internal_outputs = []
     #Accumulates info about batch norm laywers
     self.batch_norms = {}
 
@@ -368,7 +369,9 @@ class Model:
   #Convolutional layer with batch norm and nonlinear activation
   def conv_block(self, name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
     weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
-    out_layer = self.parametric_relu(name+"/prelu",self.batchnorm(name+"/norm",self.conv2d(in_layer, weights)))
+    convolved = self.conv2d(in_layer, weights)
+    self.outputs_by_layer.append((name+"/prenorm",convolved))
+    out_layer = self.parametric_relu(name+"/prelu",self.batchnorm(name+"/norm",convolved))
     self.outputs_by_layer.append((name,out_layer))
     return out_layer
 
@@ -870,12 +873,14 @@ class Model:
       v2b = self.weight_variable("v2/b",[v2_size],v1_size,v2_size,scale_initial_weights=0.2,reg=False)
       v2_layer = self.parametric_relu_non_spatial("v2/prelu",tf.matmul(v1_layer_pooled, v2w) + v2b)
       self.v2_size = v2_size
+      self.other_internal_outputs.append(("v2",v2_layer))
 
       v3_size = 1
       v3w = self.weight_variable("v3/w",[v2_size,v3_size],v2_size,v3_size)
       v3b = self.weight_variable("v3/b",[v3_size],v2_size,v3_size,scale_initial_weights=0.2,reg=False)
       v3_layer = tf.matmul(v2_layer, v3w) + v3b
       self.v3_size = v3_size
+      self.other_internal_outputs.append(("v3",v3_layer))
 
       value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
 
@@ -909,7 +914,7 @@ class Target_vars:
 
     self.policy_loss = tf.reduce_sum(
       self.target_weights_used *
-      tf.nn.softmax_cross_entropy_with_logits(labels=self.policy_targets, logits=policy_output)
+      tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_targets, logits=policy_output)
     )
 
     # cross_entropy_value_loss = 1.4*tf.reduce_sum(
@@ -928,10 +933,11 @@ class Target_vars:
     # self.value_loss = 0.5 * (cross_entropy_value_loss + l2_value_loss)
     self.value_loss = l2_value_loss
 
+    self.weight_sum = tf.reduce_sum(self.target_weights_used)
+
     if for_optimization:
       #Prior/Regularization
       self.l2_reg_coeff = tf.placeholder(tf.float32)
-      self.weight_sum = tf.reduce_sum(self.target_weights_used)
       self.reg_loss = self.l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables]) * self.weight_sum
 
       #The loss to optimize
@@ -945,6 +951,7 @@ class Metrics:
     self.top4_prediction = tf.nn.in_top_k(model.policy_output,policy_target_idxs,4)
     self.accuracy1 = tf.reduce_sum(target_vars.target_weights_used * tf.cast(self.top1_prediction, tf.float32))
     self.accuracy4 = tf.reduce_sum(target_vars.target_weights_used * tf.cast(self.top4_prediction, tf.float32))
+    self.valueconf = tf.reduce_sum(tf.square(model.value_output))
 
     #Debugging stats
     if include_debug_stats:
