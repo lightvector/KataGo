@@ -382,6 +382,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       response = "=" + response;
 
     cout << response << endl;
+    cout << endl; //GTP needs extra newline
 
     if(logAllGTPCommunication)
       logger.write(response);
