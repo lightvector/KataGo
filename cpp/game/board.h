@@ -54,6 +54,8 @@ namespace Location
   bool tryOfString(const string& str, const Board& b, Loc& result);
   Loc ofString(const string& str, int x_size, int y_size);
   Loc ofString(const string& str, const Board& b);
+
+  vector<Loc> parseSequence(const string& str, const Board& b);
 }
 
 //Simple structure for storing moves. Not used below, but this is a convenient place to define it.
@@ -125,7 +127,7 @@ struct Board
   };
 
   //Constructors---------------------------------
-  Board();  //Create Board of size (19,19), multi-stone-suicide illegal
+  Board();  //Create Board of size (19,19)
   Board(int x, int y); //Create Fastboard of size (x,y)
   Board(const Board& other);
 
@@ -185,9 +187,9 @@ struct Board
   bool searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf);
   bool searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, vector<Loc>& workingMoves);
 
-  //If a point is a pass-alive stone or pass-alive territory for a color, mark it that color
-  //If nonPassAliveStones, also marks non-pass-alive stones
-  //If safeBorderedBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
+  //If a point is a pass-alive stone or pass-alive territory for a color, mark it that color.
+  //If nonPassAliveStones, also marks non-pass-alive stones that are not part of the opposing pass-alive territory.
+  //If safeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
   //If unsafeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, regardless.
   //All other points are marked as C_EMPTY.
   //[result] must be a buffer of size MAX_ARR_SIZE and will get filled with the result

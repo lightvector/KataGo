@@ -17,8 +17,7 @@ using namespace H5;
 
 //Data and feature row parameters
 static const int maxBoardSize = NNPos::MAX_BOARD_LEN;
-static const int numFeatures = NNInputs::NUM_FEATURES_V0;
-static const int numRecentBoards = 6; //For recent captures
+static const int numFeatures = NNInputs::NUM_FEATURES_V2;
 
 //Different segments of the data row
 static const int inputStart = 0;
@@ -156,10 +155,9 @@ static int computeRankOneHot(int source, int rank) {
 static const int TARGET_NEXT_MOVE = 0;
 
 
-static void fillRow(const vector<Board>& recentBoards, const vector<Move>& moves, int nextMoveIdx, Player nextPlayer,
-                    const float* policyTarget, float valueTarget, float selfKomi,
+static void fillRow(const Board& board, const BoardHistory& hist, const vector<Move>& moves, int nextMoveIdx, Player nextPlayer,
+                    const float* policyTarget, float valueTarget,
                     int target, int rankOneHot, Hash128 sgfHash, float* row, Rand& rand, bool alwaysHistory) {
-  const Board& board = recentBoards[0];
   assert(board.x_size == board.y_size);
   assert(nextMoveIdx < moves.size());
 
@@ -167,7 +165,7 @@ static void fillRow(const vector<Board>& recentBoards, const vector<Move>& moves
   int bSize = board.x_size;
   int offset = NNPos::getOffset(bSize);
 
-  NNInputs::fillRowV0(board,moves,nextMoveIdx,nextPlayer,selfKomi,row);
+  NNInputs::fillRowV2(board,hist,nextPlayer,row);
 
   //Optionally some stuff we can multiply the history planes by to randomly exclude history from a few training samples
   bool includeHistory[5];
@@ -205,9 +203,9 @@ static void fillRow(const vector<Board>& recentBoards, const vector<Move>& moves
   row[turnNumberStart+1] = moves.size();
 
   //Record recent captures, by marking any positions where stones vanished between one board and the next
-  for(int i = (int)recentBoards.size()-1; i >= 0; i--) {
-    const Board& b = recentBoards[i];
-    const Board& bPrev = recentBoards[i+1];
+  for(int i = (int)BoardHistory::NUM_RECENT_BOARDS-2; i >= 0; i--) {
+    const Board& b = hist.getRecentBoard(i);
+    const Board& bPrev = hist.getRecentBoard(i+1);
     for(int y = 0; y<bSize; y++) {
       for(int x = 0; x<bSize; x++) {
         Loc loc = Location::getLoc(x,y,bSize);
@@ -459,12 +457,12 @@ struct Stats {
 };
 
 typedef std::function<void(
-  //board,source,rank,oppRank,user,handicap
-  const vector<Board>&,int,int,int,const string&,int,
+  //board,hist,source,rank,oppRank,user,handicap
+  const Board&,const BoardHistory&,int,int,int,const string&,int,
   //date,moves,index within moves
   const string&,const vector<Move>&,int,
-  //next player, policy target, value target, selfkomi, sgfhash
-  Player,const float*,float,float,Hash128
+  //next player, policy target, value target, sgfhash
+  Player,const float*,float,Hash128
 )> HandleRowFunc;
 
 static void iterSgfMoves(
@@ -579,9 +577,13 @@ static void iterSgfMoves(
     }
   }
 
-  vector<Board> recentBoards;
-  for(int i = 0; i<numRecentBoards; i++)
-    recentBoards.push_back(initialBoard);
+  Board board = initialBoard;
+  Rules rules;
+  rules.koRule = Rules::KO_SIMPLE;
+  rules.scoringRule = Rules::SCORING_AREA;
+  rules.multiStoneSuicideLegal = multiStoneSuicideLegal;
+  rules.komi = Rules::getTrompTaylorish().komi;
+  BoardHistory hist(initialBoard,(moves.size() > 0 ? moves[j].pla : P_BLACK),rules);
 
   Player prevPla = C_EMPTY;
   for(; j<moves.size(); j++) {
@@ -595,7 +597,7 @@ static void iterSgfMoves(
       if(source != SOURCE_FOX) {
         cout << sgf->fileName << endl;
         cout << ("Multiple moves in a row by same player at " + Global::intToString(j)) << endl;
-        cout << recentBoards[0] << endl;
+        cout << board << endl;
       }
       //Terminate reading from the game in this case
       break;
@@ -619,20 +621,17 @@ static void iterSgfMoves(
     }
 
     float valueTarget = 0.0; //value target not implemented for sgf
-    float selfKomi = 0.0; //komi not implemented for sgf
-    f(recentBoards,source,rank,oppRank,user,handicap,date,moves,j,m.pla,policyTarget,valueTarget,selfKomi,sgf->hash);
+    f(board,hist,source,rank,oppRank,user,handicap,date,moves,j,m.pla,policyTarget,valueTarget,sgf->hash);
 
-    //recentBoards[0] is the most recent
-    for(int dj = 0; dj<numRecentBoards && j-dj >= 0; dj++) {
-      Move mv = moves[j-dj];
-      bool suc = recentBoards[dj].playMove(mv.loc,mv.pla,multiStoneSuicideLegal);
-      if(!suc) {
-        cout << sgf->fileName << endl;
-        cout << ("Illegal move! " + Global::intToString(j)) << endl;
-        cout << recentBoards[dj] << endl;
-        break;
-      }
+    Move mv = moves[j];
+    bool suc = board.isLegal(mv.loc,mv.pla,multiStoneSuicideLegal);
+    if(!suc) {
+      cout << sgf->fileName << endl;
+      cout << ("Illegal move! " + Global::intToString(j)) << endl;
+      cout << board << endl;
+      break;
     }
+    hist.makeBoardMoveAssumeLegal(board, moves[j].loc, moves[j].pla, NULL);
 
     prevPla = m.pla;
   }
@@ -656,9 +655,9 @@ static void iterSgfsAndLZMoves(
 
     HandleRowFunc g =
       [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered,&total,keepProb,&keepRand](
-        const vector<Board>& recentBoards, int source, int rank, int oppRank, const string& user, int handicap, const string& date,
+        const Board& board, const BoardHistory& hist, int source, int rank, int oppRank, const string& user, int handicap, const string& date,
         const vector<Move>& moves, int moveIdx,
-        Player nextPlayer, const float* policyTarget, float valueTarget, float selfKomi, Hash128 sgfHash
+        Player nextPlayer, const float* policyTarget, float valueTarget, Hash128 sgfHash
       ) {
       //Only use this move if it's within our shard.
       numMovesIteredOrSkipped++;
@@ -673,7 +672,7 @@ static void iterSgfsAndLZMoves(
         total.countByHandicap[handicap] += 1;
 
         if(keepProb >= 1.0 || (keepRand.nextDouble() < keepProb)) {
-          f(recentBoards,source,rank,oppRank,user,handicap,date,moves,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,sgfHash);
+          f(board,hist,source,rank,oppRank,user,handicap,date,moves,moveIdx,nextPlayer,policyTarget,valueTarget,sgfHash);
         }
       }
     };
@@ -689,12 +688,13 @@ static void iterSgfsAndLZMoves(
       iterSgfMoves(sgfs[i],g);
     }
 
-    vector<Board> boards;
+    Board board;
+    BoardHistory hist;
     vector<Move> moves;
     const string lzname = string("Leela Zero");
     const string lzdate = string("No date");
     std::function<void(const LZSample& sample, const string& fileName, int sampleCount)> h =
-      [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered,&lzname,&lzdate,&boards,&moves,&total,keepProb,&keepRand]
+      [f,shard,numShards,&shardRand,&numMovesIteredOrSkipped,&numMovesItered,&lzname,&lzdate,&board,&hist,&moves,&total,keepProb,&keepRand]
       (const LZSample& sample, const string& fileName, int sampleCount) {
       //Only use this move if it's within our shard.
       numMovesIteredOrSkipped++;
@@ -722,7 +722,7 @@ static void iterSgfsAndLZMoves(
           Player nextPlayer;
           Player winner;
           try {
-            sample.parse(boards,moves,policyTarget,nextPlayer,winner);
+            sample.parse(board,hist,moves,policyTarget,nextPlayer,winner);
           }
           catch(const IOError &e) {
             cout << "Error reading: " << fileName << " sample " << sampleCount << ": " << e.message << endl;
@@ -734,13 +734,6 @@ static void iterSgfsAndLZMoves(
             valueTarget = 1.0;
           else if(winner == getOpp(nextPlayer))
             valueTarget = -1.0;
-          float selfKomi = 0.0;
-          if(nextPlayer == P_BLACK)
-            selfKomi = -7.5;
-          else if(nextPlayer == P_WHITE)
-            selfKomi = 7.5;
-          else
-            assert(false);
 
           //The "next" move is always the end of the sample's reported move history
           int moveIdx = moves.size()-1;
@@ -759,7 +752,7 @@ static void iterSgfsAndLZMoves(
           // cout << "Self komi " << selfKomi << endl;
 
           Hash128 sgfHash = Hash128(0,0);
-          f(boards,source,rank,oppRank,user,handicap,lzdate,moves,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,sgfHash);
+          f(board,hist,source,rank,oppRank,user,handicap,lzdate,moves,moveIdx,nextPlayer,policyTarget,valueTarget,sgfHash);
         }
       }
     };
@@ -782,9 +775,9 @@ static void iterSgfsAndLZMoves(
 }
 
 static void maybeUseRow(
-  const vector<Board>& recentBoards, int source, int rank, int oppRank, const string& user, int handicap,
+  const Board& board, const BoardHistory& hist, int source, int rank, int oppRank, const string& user, int handicap,
   const string& date, const vector<Move>& movesBuf, int moveIdx,
-  Player nextPlayer, const float* policyTarget, float valueTarget, float selfKomi, Hash128 sgfHash,
+  Player nextPlayer, const float* policyTarget, float valueTarget, Hash128 sgfHash,
   DataPool& dataPool,
   Rand& rand, int minRank, int minOppRank, int maxHandicap, int target,
   bool alwaysHistory, bool includePasses,
@@ -844,9 +837,8 @@ static void maybeUseRow(
     if(canUse) {
       float* newRow = dataPool.addNewRow(rand);
 
-      assert(recentBoards.size() > 0);
-      fillRow(recentBoards,movesBuf,moveIdx,nextPlayer,policyTarget,valueTarget,selfKomi,target,rankOneHot,sgfHash,newRow,rand,alwaysHistory);
-      posHashes.insert(recentBoards[0].pos_hash.hash0);
+      fillRow(board,hist,movesBuf,moveIdx,nextPlayer,policyTarget,valueTarget,target,rankOneHot,sgfHash,newRow,rand,alwaysHistory);
+      posHashes.insert(board.pos_hash.hash0);
 
       used.count += 1;
       used.countBySource[source] += 1;
@@ -887,13 +879,13 @@ static void processData(
 
   HandleRowFunc f =
     [&dataPool,&rand,minRank,minOppRank,maxHandicap,target,&excludeUsers,fancyConditions,fancyPosKeepFactor,alwaysHistory,includePasses,&posHashes,&used](
-      const vector<Board>& recentBoards, int source, int rank, int oppRank, const string& user, int handicap, const string& date,
+      const Board& board, const BoardHistory& hist, int source, int rank, int oppRank, const string& user, int handicap, const string& date,
       const vector<Move>& moves, int moveIdx,
-      Player nextPlayer, const float* policyTarget, float valueTarget, float selfKomi, Hash128 sgfHash
+      Player nextPlayer, const float* policyTarget, float valueTarget, Hash128 sgfHash
     ) {
     maybeUseRow(
-      recentBoards,source,rank,oppRank,user,handicap,date,moves,moveIdx,
-      nextPlayer,policyTarget,valueTarget,selfKomi,sgfHash,
+      board,hist,source,rank,oppRank,user,handicap,date,moves,moveIdx,
+      nextPlayer,policyTarget,valueTarget,sgfHash,
       dataPool,rand,minRank,minOppRank,maxHandicap,target,
       alwaysHistory, includePasses,
       excludeUsers,fancyConditions,fancyPosKeepFactor,

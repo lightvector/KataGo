@@ -12,7 +12,7 @@ class Model:
 
   def __init__(self,config):
     self.max_board_size = 19
-    self.num_input_features = 19
+    self.num_input_features = 17
     self.input_shape = [19*19,self.num_input_features]
     self.post_input_shape = [19,19,self.num_input_features]
     self.policy_target_shape_nopass = [19*19]
@@ -43,6 +43,7 @@ class Model:
   def xy_to_tensor_pos(self,x,y,offset):
     return (y+offset) * self.max_board_size + (x+offset)
   def loc_to_tensor_pos(self,loc,board,offset):
+    assert(loc != Board.PASS_LOC)
     return (board.loc_y(loc) + offset) * self.max_board_size + (board.loc_x(loc) + offset)
 
   def tensor_pos_to_loc(self,pos,board):
@@ -113,19 +114,25 @@ class Model:
 
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
-  def fill_row_features(self, board, pla, opp, moves, move_idx, input_data, self_komi, use_history_prop, idx):
+  def fill_row_features(self, board, pla, opp, boards, moves, move_idx, input_data, self_komi, use_history_prop, idx):
     bsize = board.size
     offset = (self.max_board_size - bsize) // 2
+    assert(len(boards) > 0)
+    assert(board.zobrist == boards[move_idx].zobrist)
 
     for y in range(bsize):
       for x in range(bsize):
         pos = self.xy_to_tensor_pos(x,y,offset)
         input_data[idx,pos,0] = 1.0
-        input_data[idx,pos,18] = self_komi / 15.0;
+        input_data[idx,pos,16] = self_komi / 15.0
         loc = board.loc(x,y)
         stone = board.board[loc]
         if stone == pla:
           input_data[idx,pos,1] = 1.0
+        elif stone == opp:
+          input_data[idx,pos,2] = 1.0
+
+        if stone == pla or stone == opp:
           libs = board.num_liberties(loc)
           if libs == 1:
             input_data[idx,pos,3] = 1.0
@@ -134,63 +141,68 @@ class Model:
           elif libs == 3:
             input_data[idx,pos,5] = 1.0
 
-        elif stone == opp:
-          input_data[idx,pos,2] = 1.0
-          libs = board.num_liberties(loc)
-          if libs == 1:
-            input_data[idx,pos,6] = 1.0
-          elif libs == 2:
-            input_data[idx,pos,7] = 1.0
-          elif libs == 3:
-            input_data[idx,pos,8] = 1.0
-
     if board.simple_ko_point is not None:
       pos = self.loc_to_tensor_pos(board.simple_ko_point,board,offset)
-      input_data[idx,pos,9] = 1.0
+      input_data[idx,pos,6] = 1.0
 
     if use_history_prop > 0.0:
       if move_idx >= 1 and moves[move_idx-1][0] == opp:
         prev1_loc = moves[move_idx-1][1]
-        if prev1_loc is not None:
+        if prev1_loc is not None and prev1_loc != Board.PASS_LOC:
           pos = self.loc_to_tensor_pos(prev1_loc,board,offset)
-          input_data[idx,pos,10] = use_history_prop
+          input_data[idx,pos,7] = use_history_prop
 
         if move_idx >= 2 and moves[move_idx-2][0] == pla:
           prev2_loc = moves[move_idx-2][1]
-          if prev2_loc is not None:
+          if prev2_loc is not None and prev2_loc != Board.PASS_LOC:
             pos = self.loc_to_tensor_pos(prev2_loc,board,offset)
-            input_data[idx,pos,11] = use_history_prop
+            input_data[idx,pos,8] = use_history_prop
 
           if move_idx >= 3 and moves[move_idx-3][0] == opp:
             prev3_loc = moves[move_idx-3][1]
-            if prev3_loc is not None:
+            if prev3_loc is not None and prev3_loc != Board.PASS_LOC:
               pos = self.loc_to_tensor_pos(prev3_loc,board,offset)
-              input_data[idx,pos,12] = use_history_prop
+              input_data[idx,pos,9] = use_history_prop
 
             if move_idx >= 4 and moves[move_idx-4][0] == pla:
               prev4_loc = moves[move_idx-4][1]
-              if prev4_loc is not None:
+              if prev4_loc is not None and prev4_loc != Board.PASS_LOC:
                 pos = self.loc_to_tensor_pos(prev4_loc,board,offset)
-                input_data[idx,pos,13] = use_history_prop
+                input_data[idx,pos,10] = use_history_prop
 
               if move_idx >= 5 and moves[move_idx-5][0] == opp:
                 prev5_loc = moves[move_idx-5][1]
-                if prev5_loc is not None:
+                if prev5_loc is not None and prev5_loc != Board.PASS_LOC:
                   pos = self.loc_to_tensor_pos(prev5_loc,board,offset)
-                  input_data[idx,pos,14] = use_history_prop
+                  input_data[idx,pos,11] = use_history_prop
 
     def addLadderFeature(loc,pos,workingMoves):
-      assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE);
-      libs = board.num_liberties(loc)
-      if libs == 1:
-        input_data[idx,pos,15] = 1.0
-      else:
-        input_data[idx,pos,16] = 1.0
+      assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE)
+      input_data[idx,pos,12] = 1.0
+      if board.board[loc] == opp and board.num_liberties(loc) > 1:
         for workingMove in workingMoves:
           workingPos = self.loc_to_tensor_pos(workingMove,board,offset)
-          input_data[idx,workingPos,17] = 1.0
+          input_data[idx,workingPos,15] = 1.0
 
     self.iterLadders(board, addLadderFeature)
+
+    if move_idx > 0 and use_history_prop > 0.0:
+      prevBoard = boards[move_idx-1]
+    else:
+      prevBoard = board
+    def addPrevLadderFeature(loc,pos,workingMoves):
+      assert(prevBoard.board[loc] == Board.BLACK or prevBoard.board[loc] == Board.WHITE)
+      input_data[idx,pos,13] = 1.0
+    self.iterLadders(prevBoard, addPrevLadderFeature)
+
+    if move_idx > 1 and use_history_prop > 0.0:
+      prevPrevBoard = boards[move_idx-2]
+    else:
+      prevPrevBoard = prevBoard
+    def addPrevPrevLadderFeature(loc,pos,workingMoves):
+      assert(prevPrevBoard.board[loc] == Board.BLACK or prevPrevBoard.board[loc] == Board.WHITE)
+      input_data[idx,pos,14] = 1.0
+    self.iterLadders(prevPrevBoard, addPrevPrevLadderFeature)
 
     return idx+1
 
@@ -668,11 +680,44 @@ class Model:
     inputs = tf.placeholder(tf.float32, [None] + self.input_shape, name="inputs")
     ranks = tf.placeholder(tf.float32, [None] + self.rank_shape, name="ranks")
     symmetries = tf.placeholder(tf.bool, [3], name="symmetries")
+    include_history = tf.placeholder(tf.float32, [None] + [5], name="include_history")
     self.inputs = inputs
     self.ranks = ranks
     self.symmetries = symmetries
+    self.include_history = include_history
 
-    features_active = tf.constant([
+    cur_layer = tf.reshape(inputs, [-1] + self.post_input_shape)
+
+    input_num_channels = self.post_input_shape[2]
+
+    #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
+    cur_layer = self.apply_symmetry(cur_layer,symmetries,inverse=False)
+
+    # #Disable various features
+    # features_active = tf.constant([
+    #   1.0, #0
+    #   1.0, #1
+    #   1.0, #2
+    #   1.0, #3
+    #   1.0, #4
+    #   1.0, #5
+    #   1.0, #6
+    #   1.0, #7
+    #   1.0, #8
+    #   1.0, #9
+    #   1.0, #10
+    #   1.0, #11
+    #   1.0, #12
+    #   1.0, #13
+    #   1.0, #14
+    #   1.0, #15
+    #   1.0, #16
+    # ])
+    # assert(features_active.dtype == tf.float32)
+    # cur_layer = cur_layer * tf.reshape(features_active,[1,1,1,-1])
+
+    #Apply history transform
+    hist_matrix_base = np.diag(np.array([
       1.0, #0
       1.0, #1
       1.0, #2
@@ -680,28 +725,53 @@ class Model:
       1.0, #4
       1.0, #5
       1.0, #6
-      1.0, #7
-      1.0, #8
-      1.0, #9
-      1.0, #10
-      1.0, #11
+      0.0, #7
+      0.0, #8
+      0.0, #9
+      0.0, #10
+      0.0, #11
       1.0, #12
-      1.0, #13
-      1.0, #14
+      0.0, #13
+      0.0, #14
       1.0, #15
       1.0, #16
-      1.0, #17
-      1.0, #18
-    ])
-    assert(features_active.dtype == tf.float32)
+    ],dtype=np.float32))
+    #By default, without history, the ladder features 13 and 14 just copy over from 12.
+    hist_matrix_base[12,13] = 1.0
+    hist_matrix_base[12,14] = 1.0
+    #When have the prev move, we enable feature 7 and 13
+    h0 = np.zeros([self.num_input_features,self.num_input_features],dtype=np.float32)
+    h0[7,7] = 1.0
+    h0[12,13] = -1.0
+    h0[12,14] = -1.0
+    h0[13,13] = 1.0
+    h0[13,14] = 1.0
+    #When have the prevprev move, we enable feature 8 and 14
+    h1 = np.zeros([self.num_input_features,self.num_input_features],dtype=np.float32)
+    h1[8,8] = 1.0
+    h1[13,14] = -1.0
+    h1[14,14] = 1.0
+    #Further history moves
+    h2 = np.zeros([self.num_input_features,self.num_input_features],dtype=np.float32)
+    h2[9,9] = 1.0
+    h3 = np.zeros([self.num_input_features,self.num_input_features],dtype=np.float32)
+    h3[10,10] = 1.0
+    h4 = np.zeros([self.num_input_features,self.num_input_features],dtype=np.float32)
+    h4[11,11] = 1.0
 
-    cur_layer = tf.reshape(inputs, [-1] + self.post_input_shape)
+    hist_matrix_base = tf.reshape(tf.constant(hist_matrix_base),[1,self.num_input_features,self.num_input_features])
+    hist_matrix_builder = tf.constant(np.array([h0,h1,h2,h3,h4]))
+    assert(hist_matrix_base.dtype == tf.float32)
+    assert(hist_matrix_builder.dtype == tf.float32)
+    assert(len(hist_matrix_builder.shape) == 3)
+    assert(hist_matrix_builder.shape[0].value == 5)
+    assert(hist_matrix_builder.shape[1].value == self.num_input_features)
+    assert(hist_matrix_builder.shape[2].value == self.num_input_features)
 
-    input_num_channels = self.post_input_shape[2]
-    #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
-    cur_layer = self.apply_symmetry(cur_layer,symmetries,inverse=False)
-    #Disable various features
-    cur_layer = cur_layer * tf.reshape(features_active,[1,1,1,-1])
+    hist_filter_matrix = hist_matrix_base + tf.tensordot(include_history, hist_matrix_builder, axes=[[1],[0]]) #[batch,inc,outc]
+    cur_layer = tf.reshape(cur_layer,[-1,self.max_board_size*self.max_board_size,self.num_input_features]) #[batch,xy,inc]
+    cur_layer = tf.matmul(cur_layer,hist_filter_matrix) #[batch,xy,outc]
+    cur_layer = tf.reshape(cur_layer,[-1,self.max_board_size,self.max_board_size,self.num_input_features])
 
     #Transform and append ranks
     if use_ranks:
@@ -710,6 +780,8 @@ class Model:
       rank_embedding_layer = tf.tile(tf.reshape(rank_embedding_layer, [-1,1,1,self.rank_embedding_dim]), [1,max_board_size,max_board_size,1])
       cur_layer = tf.concat([cur_layer,rank_embedding_layer], axis=3)
       input_num_channels += self.rank_embedding_dim
+
+    self.transformed_input = cur_layer
 
     #Channel counts---------------------------------------------------------------------------------------
     trunk_num_channels = 224
@@ -917,21 +989,21 @@ class Target_vars:
       tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_targets, logits=policy_output)
     )
 
-    # cross_entropy_value_loss = 1.4*tf.reduce_sum(
-    #   self.target_weights_used *
-    #   tf.nn.softmax_cross_entropy_with_logits(
-    #     labels=tf.stack([(1+self.value_target)/2,(1-self.value_target)/2],axis=1),
-    #     logits=tf.stack([value_output,tf.zeros_like(value_output)],axis=1)
-    #   )
-    # )
+    cross_entropy_value_loss = 1.4*tf.reduce_sum(
+      self.target_weights_used *
+      tf.nn.softmax_cross_entropy_with_logits(
+        labels=tf.stack([(1+self.value_target)/2,(1-self.value_target)/2],axis=1),
+        logits=tf.stack([value_output,tf.zeros_like(value_output)],axis=1)
+      )
+    )
 
     l2_value_loss = tf.reduce_sum(
       self.target_weights_used *
       tf.square(self.value_target - tf.tanh(value_output))
     )
 
-    # self.value_loss = 0.5 * (cross_entropy_value_loss + l2_value_loss)
-    self.value_loss = l2_value_loss
+    self.value_loss = 0.5 * (cross_entropy_value_loss + l2_value_loss)
+    # self.value_loss = l2_value_loss
 
     self.weight_sum = tf.reduce_sum(self.target_weights_used)
 

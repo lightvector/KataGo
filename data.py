@@ -60,8 +60,8 @@ def load_sgf_moves_exn(path):
       raise Exception("Invalid move color: " + color)
 
     rc = Sgf_properties.interpret_go_point(raw, size)
-    if rc is None:
-      loc = None
+    if rc is None: #pass
+      loc = Board.PASS_LOC
     else:
       (row,col) = rc
       loc = Board.loc_static(col,size-1-row,size)

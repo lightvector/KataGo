@@ -1356,7 +1356,7 @@ void Board::calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTe
 }
 
 //This marks pass-alive stones, pass-alive territory always.
-//If safeBorderedBigTerritories, marks empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
+//If safeBigTerritories, marks empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
 //If unsafeBigTerritories, marks empty regions bordered by pla stones and no opp stones, regardless.
 void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal, Color* result) const {
   Color opp = getOpp(pla);
@@ -1853,6 +1853,18 @@ Loc Location::ofString(const string& str, const Board& b) {
   return ofString(str,b.x_size,b.y_size);
 }
 
+vector<Loc> Location::parseSequence(const string& str, const Board& board) {
+  vector<string> pieces = Global::split(Global::trim(str),' ');
+  vector<Loc> locs;
+  for(size_t i = 0; i<pieces.size(); i++) {
+    string piece = Global::trim(pieces[i]);
+    if(piece.length() <= 0)
+      continue;
+    locs.push_back(Location::ofString(piece,board));
+  }
+  return locs;
+}
+
 void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vector<Move>* hist) {
   out << "HASH: " << board.pos_hash << "\n";
   bool showCoords = board.x_size <= 25 && board.y_size <= 25;
@@ -1893,7 +1905,7 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
           }
         }
       }
-      
+
       if(x < board.x_size-1 && !histMarked)
         out << ' ';
     }

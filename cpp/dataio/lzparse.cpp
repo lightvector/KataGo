@@ -156,14 +156,13 @@ void LZSample::iterSamples(
 }
 
 void LZSample::parse(
-  vector<Board>& boards,
+  Board& board,
+  BoardHistory& hist,
   vector<Move>& moves,
   float policyTarget[362],
   Player& nextPlayer,
   Player& winner
 ) const {
-  if(boards.size() != 8)
-    boards.resize(8);
   if(moves.size() != 8)
     moves.resize(8);
 
@@ -184,29 +183,31 @@ void LZSample::parse(
   //Infer the moves based on the stones
   for(int i = 0; i<7; i++)
   {
-    Color* board = stones[i];
+    Color* current = stones[i];
     Color* prev = stones[i+1];
     Player whoMoved = (i % 2 == 0) ? opp : pla;
-    Move move = inferMove(board,prev,whoMoved,stones,i,emptyBoard.adj_offsets);
+    Move move = inferMove(current,prev,whoMoved,stones,i,emptyBoard.adj_offsets);
     moves[7-i-1] = move;
   }
 
   //Generate the boards from the stones and the moves
-  boards[7] = emptyBoard;
+  board = emptyBoard;
   for(int y = 0; y<19; y++) {
     for(int x = 0; x<19; x++) {
       Loc loc = Location::getLoc(x,y,19);
-      boards[7].setStone(loc,stones[7][loc]);
+      board.setStone(loc,stones[7][loc]);
     }
   }
+  hist.clear(board,opp,Rules::getTrompTaylorish());
   for(int i = 6; i>=0; i--)
   {
-    boards[i] = boards[i+1];
     Move move = moves[7-i-1];
     bool multiStoneSuicideLegal = true; //True for LZ
-    bool suc = boards[i].playMove(move.loc,move.pla,multiStoneSuicideLegal);
+    bool suc = board.isLegal(move.loc,move.pla,multiStoneSuicideLegal);
     if(!suc)
       throw IOError(string("Leela zero illegal implied move"));
+
+    hist.makeBoardMoveAssumeLegal(board,move.loc,move.pla,NULL);
   }
 
   {
