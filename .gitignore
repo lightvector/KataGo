@@ -22,6 +22,8 @@ cpp/runmatch.sh
 cpp/runstuff.sh
 cpp/runwrite.sh
 
+cpp/program/gitinfo.h
+
 data/
 versions/
 

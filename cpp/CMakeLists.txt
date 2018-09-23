@@ -6,12 +6,14 @@ set(CMAKE_CXX_STANDARD 14)
 include_directories(.)
 include_directories(tclap-1.2.1/include)
 
+#------------------------------------------------------------------------------------
+
 if(BUILD_WRITE)
   message("-DBUILD_WRITE=1 is set, building 'write' executable for writing neural net training data from sgfs or LZ data files")
 endif()
 if(BUILD_MCTS)
   message("-DBUILD_MCTS=1 is set, building 'main' executable for mcts-backed GTP engine and other tools")
-  
+
   if(USE_TENSORFLOW_BACKEND)
     set(NEURALNET_BACKEND_SOURCES neuralnet/tensorflowbackend.cpp)
 
@@ -32,7 +34,27 @@ if((NOT BUILD_WRITE) AND (NOT BUILD_MCTS))
   message(FATAL_ERROR "Please specify one or more of -DBUILD_WRITE=1 or -DBUILD_MCTS=1")
 endif()
 
+#------------------------------------------------------------------------------------
 
+find_package(Git)
+set(GIT_HEADER_FILE_TEMPLATE_BARE program/gitinfotemplate.h)
+set(GIT_HEADER_FILE_ALWAYS_UPDATED_BARE program/gitinfoupdated.h)
+set(GIT_HEADER_FILE_BARE program/gitinfo.h)
+set(GIT_HEADER_FILE_TEMPLATE ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_TEMPLATE_BARE})
+set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
+set(GIT_HEADER_FILE ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_BARE})
+
+add_custom_command(
+  OUTPUT ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+  COMMAND ${CMAKE_COMMAND} -E copy ${GIT_HEADER_FILE_TEMPLATE} ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+  COMMAND ${GIT_EXECUTABLE} describe --match=DummyTagNotExisting --always --abbrev=40 --dirty >> ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${GIT_HEADER_FILE_ALWAYS_UPDATED} ${GIT_HEADER_FILE}
+  COMMAND ${CMAKE_COMMAND} -E remove ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  VERBATIM
+  )
+
+#------------------------------------------------------------------------------------
 
 if(BUILD_WRITE)
   add_executable(write
@@ -49,6 +71,7 @@ if(BUILD_WRITE)
     dataio/datapool.cpp
     dataio/lzparse.cpp
     dataio/sgf.cpp
+    ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     write.cpp
     )
 
@@ -60,6 +83,7 @@ if(BUILD_WRITE)
   endif (HDF5_FOUND)
 endif()
 
+#------------------------------------------------------------------------------------
 
 if(BUILD_MCTS)
   add_executable(main
@@ -86,6 +110,7 @@ if(BUILD_MCTS)
     search/asyncbot.cpp
     search/distributiontable.cpp
     program/setup.cpp
+    ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     tests/testboardarea.cpp
     tests/testboardbasic.cpp
     tests/testrules.cpp
@@ -119,6 +144,7 @@ if(BUILD_MCTS)
 endif()
 
 
+#------------------------------------------------------------------------------------
 
 
 if(CMAKE_COMPILER_IS_GNUCC)

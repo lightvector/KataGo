@@ -1,4 +1,5 @@
 #include "main.h"
+#include "program/gitinfo.h"
 
 using namespace std;
 
@@ -10,6 +11,7 @@ static void printHelp() {
   cout << "runTests" << endl;
   cout << "writeSearchValueTimeseries" << endl;
   cout << "sandbox" << endl;
+  cout << "version" << endl;
 }
 
 int main(int argc, const char* argv[]) {
@@ -35,6 +37,11 @@ int main(int argc, const char* argv[]) {
     return MainCmds::writeSearchValueTimeseries(argc-1,&argv[1]);
   else if(cmdArg == "sandbox")
     return MainCmds::sandbox();
+  else if(cmdArg == "version") {
+    cout << "Git revision: " << GIT_REVISION << endl;
+    cout << "Compile Time: " << __DATE__ << " " << __TIME__ << endl;
+    return 0;
+  }
   else {
     cout << "Unknown subcommand: " << cmdArg << endl;
     printHelp();
