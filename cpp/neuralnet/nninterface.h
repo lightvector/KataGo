@@ -3,6 +3,7 @@
 
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../core/logger.h"
 #include "../neuralnet/nninputs.h"
 
 struct LocalGpuHandle; //Not thread-safe, each handle should only be used by one thread
@@ -25,7 +26,8 @@ namespace NeuralNet {
 
   //Any given thread should only ever create one of these at a time.
   //When using the CUDA backend, will mutably set the GPU that this thread is associated with to the specified index.
-  LocalGpuHandle* createLocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int cudaGpuIdxForThisThread);
+  //If logger is specified, may output some info messages to it.
+  LocalGpuHandle* createLocalGpuHandle(const LoadedModel* loadedModel, Logger* logger, int maxBatchSize, int cudaGpuIdxForThisThread, bool cudaUseFP16, bool cudaUseNHWC);
   void freeLocalGpuHandle(LocalGpuHandle* gpuHandle);
 
   InputBuffers* createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize);

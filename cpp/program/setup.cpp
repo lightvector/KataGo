@@ -59,6 +59,24 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         cudaGpuIdxByServerThread.push_back(0);
     }
 
+    bool cudaUseFP16 = false;
+    if(cfg.contains("cudaUseFP16-"+idxStr))
+      cudaUseFP16 = cfg.getBool("cudaUseFP16-"+idxStr);
+    else if(cfg.contains("cudaUseFP16"))
+      cudaUseFP16 = cfg.getBool("cudaUseFP16");
+
+    bool cudaUseNHWC = false;
+    if(cfg.contains("cudaUseNHWC"+idxStr))
+      cudaUseNHWC = cfg.getBool("cudaUseNHWC"+idxStr);
+    else if(cfg.contains("cudaUseNHWC"))
+      cudaUseNHWC = cfg.getBool("cudaUseNHWC");
+
+    logger.write(
+      "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
+      + " useFP16 " + Global::boolToString(cudaUseFP16)
+      + " useNHWC " + Global::boolToString(cudaUseNHWC)
+    );
+
     int defaultSymmetry = 0;
     nnEval->spawnServerThreads(
       numNNServerThreadsPerModel,
@@ -66,7 +84,9 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed,
       defaultSymmetry,
       logger,
-      cudaGpuIdxByServerThread
+      cudaGpuIdxByServerThread,
+      cudaUseFP16,
+      cudaUseNHWC
     );
 
     nnEvals.push_back(nnEval);
@@ -115,7 +135,7 @@ vector<SearchParams> Setup::loadParams(
     else                                       params.fpuReductionMax = cfg.getDouble("fpuReductionMax",        0.0, 2.0);
     if(cfg.contains("fpuUseParentAverage"+idxStr)) params.fpuUseParentAverage = cfg.getBool("fpuUseParentAverage"+idxStr);
     else if(cfg.contains("fpuUseParentAverage")) params.fpuUseParentAverage = cfg.getBool("fpuUseParentAverage");
-    
+
     if(cfg.contains("valueWeightExponent"+idxStr)) params.valueWeightExponent = cfg.getDouble("valueWeightExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
     else params.valueWeightExponent = 0.0;

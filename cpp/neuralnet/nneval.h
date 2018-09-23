@@ -101,7 +101,9 @@ class NNEvaluator {
     string randSeed,
     int defaultSymmetry,
     Logger& logger,
-    vector<int> cudaGpuIdxByServerThread
+    vector<int> cudaGpuIdxByServerThread,
+    bool cudaUseFP16,
+    bool cudaUseNHWC
   );
 
   //Kill spawned server threads and join and free them. This function is not threadsafe, and along with spawnServerThreads
@@ -142,7 +144,7 @@ class NNEvaluator {
 
  public:
   //Helper, for internal use only
-  void serve(NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry, int cudaGpuIdxForThisThread);
+  void serve(NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry, int cudaGpuIdxForThisThread, bool cudaUseFP16, bool cudaUseNHWC);
 };
 
 #endif

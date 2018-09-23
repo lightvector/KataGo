@@ -104,11 +104,21 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
-LocalGpuHandle* NeuralNet::createLocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int cudaGpuIdxForThisThread) {
+LocalGpuHandle* NeuralNet::createLocalGpuHandle(
+  const LoadedModel* loadedModel,
+  Logger* logger,
+  int maxBatchSize,
+  int cudaGpuIdxForThisThread,
+  bool cudaUseFP16,
+  bool cudaUseNHWC
+) {
   assert(globalSession != NULL);
   (void)loadedModel;
+  (void)logger;
   (void)maxBatchSize;
   (void)cudaGpuIdxForThisThread;
+  (void)cudaUseFP16;
+  (void)cudaUseNHWC;
   return NULL;
 }
 
