@@ -2577,8 +2577,8 @@ struct PolicyHead {
     p1Conv->apply(cudaHandles,trunkDescriptor,p1OutDescriptor,batchSize,trunkOutBuf,p1OutBuf,workspaceBuf,workspaceBytes);
     g1Conv->apply(cudaHandles,trunkDescriptor,g1OutDescriptor,batchSize,trunkOutBuf,g1OutBuf,workspaceBuf,workspaceBytes);
     g1BN->apply(cudaHandles,g1OutDescriptor,g1OutDescriptor,batchSize,g1OutBuf,g1OutBuf2);
-    g1Activation->apply(cudaHandles,g1OutDescriptor,g1OutDescriptor,g1OutBuf2,g1OutBuf2);    
-    
+    g1Activation->apply(cudaHandles,g1OutDescriptor,g1OutDescriptor,g1OutBuf2,g1OutBuf2);
+
     if(!usingFP16) {
       if(!usingNHWC) {
         customCudaPoolRowsSumNCHW((float*)g1OutBuf2,g1MeanBuf,batchSize*g1Channels,xSize*ySize);
@@ -2611,7 +2611,7 @@ struct PolicyHead {
     }
     const float meanScale = 1.0f / (xSize*ySize);
     CUBLAS_ERR(name.c_str(),cublasSscal(cudaHandles->cublas, batchSize*g1Channels, &meanScale, g1MeanBuf, 1));
-    
+
     customCudaChannelConcat(
       g1MeanBuf,g1MaxBuf,g1ConcatBuf,
       g1Channels,
@@ -2636,7 +2636,7 @@ struct PolicyHead {
       p1OutBufA = (float*)p1OutBuf2;
       p1OutBufB = (float*)p1OutBuf;
     }
-    
+
     if(!usingNHWC)
       customCudaAddNCBiasInplaceNCHW(p1OutBufA,g1BiasBuf,batchSize,p1Channels,xSize*ySize);
     else
@@ -3406,7 +3406,6 @@ struct Buffers {
     valueBufBytes = m.valueHead->valueChannels * batchSingleBytes;
     CUDA_ERR("Buffers",cudaMalloc(&valueBuf, valueBufBytes));
 
-    //TODO
     if(!useFP16) {
       zeroBuf = malloc(sizeof(float));
       oneBuf = malloc(sizeof(float));

@@ -9,7 +9,6 @@
 
 #include "../core/global.h"
 
-//TODO continue from here
 static void checkCudaError(const cudaError_t status, const char* opName, const char* file, const char* func, int line) {
   if(status != cudaSuccess)
     throw StringError(string("CUDA Error, for ") + opName + " file " + file + ", func " + func + ", line " + Global::intToString(line) + ", error " + cudaGetErrorString(status));
