@@ -373,6 +373,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     //Postprocessing of response
     if(hasId)
       response = Global::intToString(id) + " " + response;
+    else
+      response = " " + response;
+
     if(responseIsError)
       response = "?" + response;
     else
