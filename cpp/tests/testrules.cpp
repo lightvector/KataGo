@@ -928,7 +928,7 @@ Ko prohibited black at D4
     out.str("");
     out.clear();
   }
-  
+
   {
     const char* name = "Encore - ko prohibition clears if opponent moves without restoring the ko shape";
     Board board = Board::parseBoard(7,6,R"%%(

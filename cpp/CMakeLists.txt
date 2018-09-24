@@ -114,6 +114,7 @@ if(BUILD_MCTS)
     tests/testboardarea.cpp
     tests/testboardbasic.cpp
     tests/testrules.cpp
+    tests/testnninputs.cpp
     evalsgf.cpp
     gtp.cpp
     match.cpp

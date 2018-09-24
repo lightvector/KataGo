@@ -11,11 +11,32 @@ SgfNode::SgfNode(const SgfNode& other)
     props = new map<string,vector<string>>(*(other.props));
   move = other.move;
 }
+SgfNode::SgfNode(SgfNode&& other)
+  :props(NULL),move(0,0,C_EMPTY)
+{
+  props = other.props;
+  other.props = NULL;
+  move = other.move;
+}
 SgfNode::~SgfNode()
 {
   if(props != NULL)
     delete props;
 }
+
+SgfNode& SgfNode::operator=(const SgfNode& other) {
+  if(other.props != NULL)
+    props = new map<string,vector<string>>(*(other.props));
+  move = other.move;
+  return *this;
+}
+SgfNode& SgfNode::operator=(SgfNode&& other) {
+  props = other.props;
+  other.props = NULL;
+  move = other.move;
+  return *this;
+}
+
 
 static void propertyFail(const string& msg) {
   throw IOError(msg);
@@ -161,6 +182,8 @@ int Sgf::depth() const {
 int Sgf::getBSize() const {
   assert(nodes.size() > 0);
   int bSize;
+  if(!nodes[0]->hasProperty("SZ"))
+    return 19; //Some SGF files don't specify, in that case assume 19
   bool suc = Global::tryStringToInt(nodes[0]->getSingleProperty("SZ"), bSize);
   if(!suc)
     propertyFail("Could not parse board size in sgf");
@@ -467,7 +490,7 @@ vector<Sgf*> Sgf::loadSgfsFiles(const vector<string>& files) {
 
 CompactSgf::CompactSgf(const Sgf* sgf)
   :fileName(sgf->fileName),
-   rootNode(*(sgf->nodes[0])),
+   rootNode(),
    placements(),
    moves(),
    bSize(),
@@ -480,14 +503,46 @@ CompactSgf::CompactSgf(const Sgf* sgf)
 
   sgf->getPlacements(placements, bSize);
   sgf->getMoves(moves, bSize);
+
+  assert(sgf->nodes.size() > 0);
+  rootNode = *(sgf->nodes[0]);
+}
+
+CompactSgf::CompactSgf(Sgf&& sgf)
+  :fileName(),
+   rootNode(),
+   placements(),
+   moves(),
+   bSize(),
+   depth()
+{
+  bSize = sgf.getBSize();
+  depth = sgf.depth();
+  komi = sgf.getKomi();
+  hash = sgf.hash;
+
+  sgf.getPlacements(placements, bSize);
+  sgf.getMoves(moves, bSize);
+
+  fileName = std::move(sgf.fileName);
+  assert(sgf.nodes.size() > 0);
+  rootNode = std::move(*sgf.nodes[0]);
 }
 
 CompactSgf::~CompactSgf() {
 }
 
+
+CompactSgf* CompactSgf::parse(const string& str) {
+  Sgf* sgf = Sgf::parse(str);
+  CompactSgf* compact = new CompactSgf(std::move(*sgf));
+  delete sgf;
+  return compact;
+}
+
 CompactSgf* CompactSgf::loadFile(const string& file) {
   Sgf* sgf = Sgf::loadFile(file);
-  CompactSgf* compact = new CompactSgf(sgf);
+  CompactSgf* compact = new CompactSgf(std::move(*sgf));
   delete sgf;
   return compact;
 }
@@ -514,6 +569,29 @@ vector<CompactSgf*> CompactSgf::loadFiles(const vector<string>& files) {
     throw;
   }
   return sgfs;
+}
+
+
+void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) {
+  Rules rules = initialRules;
+  rules.komi = komi;
+
+  board = Board(bSize,bSize);
+  nextPla = P_BLACK;
+  hist = BoardHistory(board,nextPla,rules);
+
+  bool hasBlack = false;
+  bool allBlack = true;
+  for(int i = 0; i<placements.size(); i++) {
+    board.setStone(placements[i].loc,placements[i].pla);
+    if(placements[i].pla == P_BLACK)
+      hasBlack = true;
+    else
+      allBlack = false;
+  }
+
+  if(hasBlack && !allBlack)
+    nextPla = P_WHITE;
 }
 
 

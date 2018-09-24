@@ -86,33 +86,13 @@ int MainCmds::evalSgf(int argc, const char* const* argv) {
 
   //Parse sgf file and board ------------------------------------------------------------------
 
-  Sgf* sgf = Sgf::loadFile(sgfFile);
-  int bSize = sgf->getBSize();
-  float komi = sgf->getKomi();
-  initialRules.komi = komi;
+  CompactSgf* sgf = CompactSgf::loadFile(sgfFile);
 
-  vector<Move> placements;
-  sgf->getPlacements(placements, bSize);
-  vector<Move> moves;
-  sgf->getMoves(moves, bSize);
-
-  Board board(bSize,bSize);
-  Player nextPla = P_BLACK;
-  BoardHistory hist(board,nextPla,initialRules);
-  {
-    bool hasBlack = false;
-    bool allBlack = true;
-    for(int i = 0; i<placements.size(); i++) {
-      board.setStone(placements[i].loc,placements[i].pla);
-      if(placements[i].pla == P_BLACK)
-        hasBlack = true;
-      else
-        allBlack = false;
-    }
-
-    if(hasBlack && !allBlack)
-      nextPla = P_WHITE;
-  }
+  Board board;
+  Player nextPla;
+  BoardHistory hist;
+  sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+  vector<Move>& moves = sgf->moves;
 
   if(moveNum < 0)
     throw StringError("Move num " + Global::intToString(moveNum) + " requested but must be non-negative");

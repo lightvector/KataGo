@@ -21,6 +21,9 @@ namespace Tests {
 
   //testrules.cpp
   void runRulesTests();
+
+  //testnninputs.cpp
+  void runNNInputsTests();
 }
 
 namespace TestCommon {

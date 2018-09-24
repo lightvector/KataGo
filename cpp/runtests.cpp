@@ -25,6 +25,7 @@ int MainCmds::runTests(int argc, const char* const* argv) {
   Tests::runRulesTests();
 
   Tests::runBoardUndoTest();
+  Tests::runNNInputsTests();
   Tests::runBoardStressTest();
 
   cout << "All tests passed" << endl;

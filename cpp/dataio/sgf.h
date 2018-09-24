@@ -13,8 +13,13 @@ struct SgfNode {
   MoveNoBSize move;
 
   SgfNode();
-  SgfNode(const SgfNode& other);
   ~SgfNode();
+
+  SgfNode(const SgfNode& other);
+  SgfNode(SgfNode&& other);
+
+  SgfNode& operator=(const SgfNode&);
+  SgfNode& operator=(SgfNode&&);
 
   bool hasProperty(const char* key) const;
   string getSingleProperty(const char* key) const;
@@ -34,7 +39,9 @@ struct Sgf {
   ~Sgf();
 
   Sgf(const Sgf&) = delete;
+  Sgf(Sgf&&) = delete;
   Sgf& operator=(const Sgf&) = delete;
+  Sgf& operator=(Sgf&&) = delete;
 
   static Sgf* parse(const string& str);
   static Sgf* loadFile(const string& file);
@@ -66,13 +73,19 @@ struct CompactSgf {
   Hash128 hash;
 
   CompactSgf(const Sgf* sgf);
+  CompactSgf(Sgf&& sgf);
   ~CompactSgf();
 
   CompactSgf(const CompactSgf&) = delete;
+  CompactSgf(CompactSgf&&) = delete;
   CompactSgf& operator=(const CompactSgf&) = delete;
+  CompactSgf& operator=(CompactSgf&&) = delete;
 
+  static CompactSgf* parse(const string& str);
   static CompactSgf* loadFile(const string& file);
   static vector<CompactSgf*> loadFiles(const vector<string>& files);
+
+  void setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist);
 };
 
 namespace WriteSgf {
