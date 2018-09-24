@@ -268,6 +268,7 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   assert(!isKilled);
   buf.hasResult = false;
 
+  //TODO add option to use V2 and test!
   Hash128 nnHash = NNInputs::getHashV1(board, history, nextPlayer);
   if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
     buf.hasResult = true;
@@ -286,7 +287,8 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
     serverWaitingForBatchStart.notify_one();
   lock.unlock();
 
-  NNInputs::fillRowV2(board, history, nextPlayer, rowInput);
+  //TODO add option to use V2 and test!
+  NNInputs::fillRowV1(board, history, nextPlayer, rowInput);
 
   lock.lock();
   m_resultBufs[rowIdx] = &buf;
