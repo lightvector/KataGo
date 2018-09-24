@@ -286,7 +286,7 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
     serverWaitingForBatchStart.notify_one();
   lock.unlock();
 
-  NNInputs::fillRowV1(board, history, nextPlayer, rowInput);
+  NNInputs::fillRowV2(board, history, nextPlayer, rowInput);
 
   lock.lock();
   m_resultBufs[rowIdx] = &buf;

@@ -503,6 +503,7 @@ void NNInputs::fillRowV2(
 ) {
   assert(board.x_size <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size == board.y_size);
+  std::fill(row,row+ROW_SIZE_V2,0.0f);
 
   Player pla = nextPlayer;
   Player opp = getOpp(pla);
