@@ -75,12 +75,14 @@ class NNEvaluator {
     const string& pbModelFile,
     int modelFileIdx,
     int maxBatchSize,
+    int posLen,
     int nnCacheSizePowerOfTwo,
     bool debugSkipNeuralNet
   );
   ~NNEvaluator();
 
   int getMaxBatchSize() const;
+  int getPosLen() const;
 
   //Clear all entires cached in the table
   void clearCache();
@@ -119,6 +121,7 @@ class NNEvaluator {
 
  private:
   string modelFileName;
+  int posLen;
   LoadedModel* loadedModel;
   NNCacheTable* nnCacheTable;
   bool debugSkipNeuralNet;

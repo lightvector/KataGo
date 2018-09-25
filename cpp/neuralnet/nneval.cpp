@@ -37,10 +37,12 @@ NNEvaluator::NNEvaluator(
   const string& pbModelFile,
   int modelFileIdx,
   int maxBatchSize,
+  int pLen,
   int nnCacheSizePowerOfTwo,
   bool skipNeuralNet
 )
   :modelFileName(pbModelFile),
+   posLen(pLen),
    loadedModel(NULL),
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
@@ -57,6 +59,9 @@ NNEvaluator::NNEvaluator(
    m_inputBuffers(NULL),
    m_resultBufs(NULL)
 {
+  if(posLen > NNPos::MAX_BOARD_LEN)
+    throw new StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
+
   if(nnCacheSizePowerOfTwo >= 0)
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo);
 
@@ -88,6 +93,9 @@ NNEvaluator::~NNEvaluator()
 
 int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
+}
+int NNEvaluator::getPosLen() const {
+  return posLen;
 }
 
 uint64_t NNEvaluator::numRowsProcessed() const {
@@ -179,7 +187,7 @@ void NNEvaluator::killServerThreads() {
 
 void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry, int cudaGpuIdxForThisThread, bool cudaUseFP16, bool cudaUseNHWC) {
 
-  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
+  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, posLen, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
   vector<NNOutput*> outputBuf;
 
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
@@ -268,6 +276,9 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   assert(!isKilled);
   buf.hasResult = false;
 
+  if(board.x_size > posLen || board.y_size > posLen)
+    throw new StringError("NNEvaluator was configured with posLen = " + Global::intToString(posLen) + " but was asked to evaluate board with larger x or y size");
+
   //TODO add option to use V2 and test!
   Hash128 nnHash = NNInputs::getHashV1(board, history, nextPlayer);
   if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
@@ -288,7 +299,7 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   lock.unlock();
 
   //TODO add option to use V2 and test!
-  NNInputs::fillRowV1(board, history, nextPlayer, rowInput);
+  NNInputs::fillRowV1(board, history, nextPlayer, posLen, rowInput);
 
   lock.lock();
   m_resultBufs[rowIdx] = &buf;
@@ -305,15 +316,14 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   //Perform postprocessing on the result - turn the nn output into probabilities
   float* policy = buf.result->policyProbs;
 
-  assert(board.x_size == board.y_size);
-  int bSize = board.x_size;
-  int offset = NNPos::getOffset(bSize);
+  int xSize = board.x_size;
+  int ySize = board.y_size;
 
   float maxPolicy = -1e25f;
   bool isLegal[NNPos::NN_POLICY_SIZE];
   int legalCount = 0;
   for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
-    Loc loc = NNPos::posToLoc(i,bSize,offset);
+    Loc loc = NNPos::posToLoc(i,xSize,ySize,posLen);
     isLegal[i] = history.isLegal(board,loc,nextPlayer);
 
     float policyValue;

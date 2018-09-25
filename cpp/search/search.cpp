@@ -116,6 +116,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand"))
 {
+  posLen = nnEval->getPosLen();
   rootKoHashTable = new KoHashTable();
 
   valueWeightDistribution = new DistributionTable(
@@ -263,9 +264,7 @@ bool Search::getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelec
     if(nnOutput == nullptr)
       return false;
     for(int movePos = 0; movePos<NNPos::NN_POLICY_SIZE; movePos++) {
-      assert(rootBoard.x_size == rootBoard.y_size);
-      int offset = NNPos::getOffset(rootBoard.x_size);
-      Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,offset);
+      Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,posLen);
       double policyProb = nnOutput->policyProbs[movePos];
       if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb <= 0)
         continue;
@@ -502,8 +501,7 @@ double Search::getExploreSelectionValue(
 }
 
 int Search::getPos(Loc moveLoc) const {
-  int offset = NNPos::getOffset(rootBoard.x_size);
-  return NNPos::locToPos(moveLoc,rootBoard.x_size,offset);
+  return NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
 }
 
 double Search::getPlaySelectionValue(const SearchNode& parent, const SearchNode* child) const {
@@ -644,10 +642,9 @@ void Search::selectBestChildToDescend(
     bool alreadyTried = std::binary_search(posesWithChildBuf, posesWithChildBuf + numChildren, movePos);
     if(alreadyTried)
       continue;
-    if(isRoot && !rootPassLegal && NNPos::isPassPos(movePos))
+    if(isRoot && !rootPassLegal && NNPos::isPassPos(movePos,posLen))
       continue;
-    int offset = NNPos::getOffset(thread.board.x_size);
-    Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,offset);
+    Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,thread.board.y_size,posLen);
 
     double selectionValue = getNewExploreSelectionValue(node,movePos,totalChildVisits,fpuValue);
     if(selectionValue > maxSelectionValue) {
@@ -793,8 +790,7 @@ void Search::playoutDescend(
     }
     else {
       double winLossValue = NNOutput::whiteValueOfWinner(thread.history.winner, searchParams.drawUtilityForWhite);
-      assert(thread.board.x_size == thread.board.y_size);
-      double scoreValue = NNOutput::whiteValueOfScore(thread.history.finalWhiteMinusBlackScore, thread.board.x_size);
+      double scoreValue = NNOutput::whiteValueOfScore(thread.history.finalWhiteMinusBlackScore, thread.board);
       setTerminalValue(node, winLossValue, scoreValue, virtualLossesToSubtract);
       return;
     }

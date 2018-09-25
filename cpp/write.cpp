@@ -158,14 +158,14 @@ static const int TARGET_NEXT_MOVE = 0;
 static void fillRow(const Board& board, const BoardHistory& hist, const vector<Move>& moves, int nextMoveIdx, Player nextPlayer,
                     const float* policyTarget, float valueTarget,
                     int target, int rankOneHot, Hash128 sgfHash, float* row, Rand& rand, bool alwaysHistory) {
-  assert(board.x_size == board.y_size);
   assert(nextMoveIdx < moves.size());
 
   Player pla = nextPlayer;
-  int bSize = board.x_size;
-  int offset = NNPos::getOffset(bSize);
+  int xSize = board.x_size;
+  int ySize = board.y_size;
+  int posLen = NNPos::MAX_BOARD_LEN;
 
-  NNInputs::fillRowV2(board,hist,nextPlayer,row);
+  NNInputs::fillRowV2(board,hist,nextPlayer,posLen,row);
 
   //Optionally some stuff we can multiply the history planes by to randomly exclude history from a few training samples
   bool includeHistory[5];
@@ -206,11 +206,11 @@ static void fillRow(const Board& board, const BoardHistory& hist, const vector<M
   for(int i = (int)BoardHistory::NUM_RECENT_BOARDS-2; i >= 0; i--) {
     const Board& b = hist.getRecentBoard(i);
     const Board& bPrev = hist.getRecentBoard(i+1);
-    for(int y = 0; y<bSize; y++) {
-      for(int x = 0; x<bSize; x++) {
-        Loc loc = Location::getLoc(x,y,bSize);
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
         if(b.colors[loc] == C_EMPTY && bPrev.colors[loc] != C_EMPTY) {
-          int pos = NNPos::xyToPos(x,y,offset);
+          int pos = NNPos::xyToPos(x,y,posLen);
           row[recentCapturesStart+pos] = i+1;
         }
       }
@@ -221,9 +221,9 @@ static void fillRow(const Board& board, const BoardHistory& hist, const vector<M
   for(int i = 0; i<nextMovesLen; i++) {
     int idx = nextMoveIdx + i;
     if(idx >= moves.size())
-      row[nextMovesStart+i] = NNPos::locToPos(Board::NULL_LOC,bSize,offset);
+      row[nextMovesStart+i] = NNPos::locToPos(Board::NULL_LOC,xSize,posLen);
     else {
-      row[nextMovesStart+i] = NNPos::locToPos(moves[idx].loc,bSize,offset);
+      row[nextMovesStart+i] = NNPos::locToPos(moves[idx].loc,xSize,posLen);
     }
   }
 
@@ -609,13 +609,12 @@ static void iterSgfMoves(
 
     float policyTarget[policyTargetLen];
     {
-      int offset = NNPos::getOffset(bSize);
-
+      int posLen = NNPos::MAX_BOARD_LEN;
       for(int k = 0; k<policyTargetLen; k++)
         policyTarget[k] = 0.0;
 
       assert(m.loc != Board::NULL_LOC);
-      int nextMovePos = NNPos::locToPos(m.loc,bSize,offset);
+      int nextMovePos = NNPos::locToPos(m.loc,board.x_size,posLen);
       assert(nextMovePos >= 0 && nextMovePos < policyTargetLen);
       policyTarget[nextMovePos] = 1.0;
     }

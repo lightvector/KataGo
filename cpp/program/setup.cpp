@@ -27,10 +27,20 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     bool debugSkipNeuralNet = false;
     int modelFileIdx = i;
+
+    int posLen;
+    if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
+      posLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr);
+    else if(cfg.contains("maxBoardSizeForNNBuffer"))
+      posLen = cfg.getInt("maxBoardSizeForNNBuffer");
+    else
+      posLen = NNPos::MAX_BOARD_LEN;
+
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelFile,
       modelFileIdx,
       cfg.getInt("nnMaxBatchSize", 1, 65536),
+      posLen,
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
       debugSkipNeuralNet
     );
