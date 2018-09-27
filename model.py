@@ -804,46 +804,43 @@ class Model:
 
     self.blocks = []
 
-    #Residual Block 1---------------------------------------------------------------------------------
-    residual = self.res_conv_block("rconv1",trunk,diam=3,main_channels=trunk_num_channels,mid_channels=mid_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv1",trunk,residual)
-    self.blocks.append(("ordinary_block","rconv1",3,trunk_num_channels,mid_num_channels))
+    block_kind = [
+      ("rconv1","regular"),
+      ("rconv2","regular"),
+      ("rconv3","regular"),
+      ("rconv4","regular"),
+      ("rconv5","regular"),
+      ("rconv6","gpool"),
+      ("rconv7","regular"),
+      ("rconv8","regular"),
+      ("rconv9","regular"),
+      ("rconv10","gpool"),
+      ("rconv11","regular"),
+      ("rconv12","regular")
+    ]
 
-    #Residual Block 2-5---------------------------------------------------------------------------------
-    for i in range(2,6):
-      name = "rconv"+str(i)
-      residual = self.dilated_res_conv_block(name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
-                                             emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-      trunk = self.merge_residual(name,trunk,residual)
-      self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,2))
-
-    #Global Pooling Residual Block 6---------------------------------------------------------------------------------
-    residual = self.global_res_conv_block("rconv7",trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
-                                          emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv7",trunk,residual)
-    self.blocks.append(("gpool_block","rconv7",3,trunk_num_channels,regular_num_channels,gpool_num_channels))
-
-    #Residual Block 7-9---------------------------------------------------------------------------------
-    for i in range(8,11):
-      name = "rconv"+str(i)
-      residual = self.dilated_res_conv_block(name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
-                                             emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-      trunk = self.merge_residual(name,trunk,residual)
-      self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,2))
-
-    #Global Pooling Residual Block 10---------------------------------------------------------------------------------
-    residual = self.global_res_conv_block("rconv11",trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
-                                          emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-    trunk = self.merge_residual("rconv11",trunk,residual)
-    self.blocks.append(("gpool_block","rconv11",3,trunk_num_channels,regular_num_channels,gpool_num_channels))
-
-    #Residual Block 11-12---------------------------------------------------------------------------------
-    for i in range(13,15):
-      name = "rconv"+str(i)
-      residual = self.dilated_res_conv_block(name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
-                                             emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
-      trunk = self.merge_residual(name,trunk,residual)
-      self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,2))
+    for i in range(len(block_kind)):
+      (name,kind) = block_kind[i]
+      if kind == "regular":
+        residual = self.res_conv_block(name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=mid_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+        trunk = self.merge_residual(name,trunk,residual)
+        self.blocks.append(("ordinary_block",name,3,trunk_num_channels,mid_num_channels))
+      elif kind == "dilated":
+        residual = self.dilated_res_conv_block(
+          name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
+          emphasize_center_weight = 0.3, emphasize_center_lr=1.5
+        )
+        trunk = self.merge_residual(name,trunk,residual)
+        self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,3))
+      elif kind == "gpool":
+        residual = self.global_res_conv_block(
+          name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
+          emphasize_center_weight = 0.3, emphasize_center_lr=1.5
+        )
+        trunk = self.merge_residual(name,trunk,residual)
+        self.blocks.append(("gpool_block",name,3,trunk_num_channels,regular_num_channels,gpool_num_channels))
+      else:
+        assert(False)
 
     #Postprocessing residual trunk----------------------------------------------------------------------------------
 
