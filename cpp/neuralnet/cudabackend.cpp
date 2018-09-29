@@ -323,13 +323,14 @@ struct ConvLayer {
     const cudnnTensorDescriptor_t& inputDescriptor,
     const cudnnTensorDescriptor_t& outputDescriptor,
     int batchSize,
+    bool accumulate,
     void* inputBuf,
     void* outputBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
     const float alpha = 1.0f;
-    const float beta = 0.0f;
+    const float beta = accumulate ? 1.0f : 0.0f;
     CUDNN_ERR(name.c_str(),cudnnConvolutionForward(
       cudaHandles->cudnn,
       &alpha,
@@ -1102,32 +1103,22 @@ struct ResidualBlock {
     const cudnnTensorDescriptor_t& trunkDescriptor,
     const cudnnTensorDescriptor_t& midInDescriptor,
     int batchSize,
-    int trunkBufSize,
-    void* trunkInBuf,
-    void* trunkOutBuf,
+    void* trunkBuf,
+    void* trunkScratchBuf,
     void* midInBuf,
     void* midScratchBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
     bool applyBNReluWhenFP16 = true;
-    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,trunkInBuf,trunkOutBuf);
+    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,trunkBuf,trunkScratchBuf);
     if(!(usingFP16 && applyBNReluWhenFP16))
-      preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkOutBuf,trunkOutBuf);
-    regularConv.apply(cudaHandles,trunkDescriptor,midInDescriptor,batchSize,trunkOutBuf,midInBuf,workspaceBuf,workspaceBytes);
+      preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkScratchBuf,trunkScratchBuf);
+    regularConv.apply(cudaHandles,trunkDescriptor,midInDescriptor,batchSize,false,trunkScratchBuf,midInBuf,workspaceBuf,workspaceBytes);
     midBN.apply(cudaHandles,midInDescriptor,midInDescriptor,batchSize,applyBNReluWhenFP16,midInBuf,midScratchBuf);
     if(!(usingFP16 && applyBNReluWhenFP16))
       midActivation.apply(cudaHandles,midInDescriptor,midInDescriptor,midScratchBuf,midScratchBuf);
-    finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,midScratchBuf,trunkOutBuf,workspaceBuf,workspaceBytes);
-
-    if(!usingFP16) {
-      const float alpha = 1.0f;
-      CUBLAS_ERR(name.c_str(),cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,(const float*)trunkInBuf,1,(float*)trunkOutBuf,1));
-    }
-    else {
-      customCudaAddTensorInplace((half*)trunkOutBuf,(const half*)trunkInBuf,trunkBufSize);
-      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-    }
+    finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,true,midScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
   }
 
 };
@@ -1281,9 +1272,8 @@ struct DilatedResidualBlock {
     const cudnnTensorDescriptor_t& dilatedOutDescriptor,
     const cudnnTensorDescriptor_t& midInDescriptor,
     int batchSize,
-    int trunkBufSize,
-    void* trunkInBuf,
-    void* trunkOutBuf,
+    void* trunkBuf,
+    void* trunkScratchBuf,
     void* regularOutBuf,
     void* dilatedOutBuf,
     void* midInBuf,
@@ -1292,11 +1282,11 @@ struct DilatedResidualBlock {
     size_t workspaceBytes
   ) const {
     bool applyBNReluWhenFP16 = true;
-    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,trunkInBuf,trunkOutBuf);
+    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,trunkBuf,trunkScratchBuf);
     if(!(usingFP16 && applyBNReluWhenFP16))
-      preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkOutBuf,trunkOutBuf);
-    regularConv.apply(cudaHandles,trunkDescriptor,regularOutDescriptor,batchSize,trunkOutBuf,regularOutBuf,workspaceBuf,workspaceBytes);
-    dilatedConv.apply(cudaHandles,trunkDescriptor,dilatedOutDescriptor,batchSize,trunkOutBuf,dilatedOutBuf,workspaceBuf,workspaceBytes);
+      preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkScratchBuf,trunkScratchBuf);
+    regularConv.apply(cudaHandles,trunkDescriptor,regularOutDescriptor,batchSize,false,trunkScratchBuf,regularOutBuf,workspaceBuf,workspaceBytes);
+    dilatedConv.apply(cudaHandles,trunkDescriptor,dilatedOutDescriptor,batchSize,false,trunkScratchBuf,dilatedOutBuf,workspaceBuf,workspaceBytes);
     if(!usingFP16) {
       if(!usingNHWC)
         customCudaChannelConcat(
@@ -1333,16 +1323,7 @@ struct DilatedResidualBlock {
     midBN.apply(cudaHandles,midInDescriptor,midInDescriptor,batchSize,applyBNReluWhenFP16,midInBuf,midScratchBuf);
     if(!(usingFP16 && applyBNReluWhenFP16))
       midActivation.apply(cudaHandles,midInDescriptor,midInDescriptor,midScratchBuf,midScratchBuf);
-    finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,midScratchBuf,trunkOutBuf,workspaceBuf,workspaceBytes);
-
-    if(!usingFP16) {
-      const float alpha = 1.0f;
-      CUBLAS_ERR(name.c_str(),cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,(const float*)trunkInBuf,1,(float*)trunkOutBuf,1));
-    }
-    else {
-      customCudaAddTensorInplace((half*)trunkOutBuf,(const half*)trunkInBuf,trunkBufSize);
-      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-    }
+    finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,true,midScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
   }
 
 };
@@ -1527,9 +1508,8 @@ struct GlobalPoolingResidualBlock {
     const cudnnTensorDescriptor_t& regularOutDescriptor,
     const cudnnTensorDescriptor_t& gpoolOutDescriptor,
     int batchSize,
-    int trunkBufSize,
-    void* trunkInBuf,
-    void* trunkOutBuf,
+    void* trunkBuf,
+    void* trunkScratchBuf,
     void* regularOutBuf,
     void* gpoolOutBuf,
     void* gpoolOutBuf2,
@@ -1546,11 +1526,11 @@ struct GlobalPoolingResidualBlock {
     size_t workspaceBytes
   ) const {
     bool applyBNReluWhenFP16 = true;
-    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,trunkInBuf,trunkOutBuf);
+    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,trunkBuf,trunkScratchBuf);
     if(!(usingFP16 && applyBNReluWhenFP16))
-      preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkOutBuf,trunkOutBuf);
-    regularConv.apply(cudaHandles,trunkDescriptor,regularOutDescriptor,batchSize,trunkOutBuf,regularOutBuf,workspaceBuf,workspaceBytes);
-    gpoolConv.apply(cudaHandles,trunkDescriptor,gpoolOutDescriptor,batchSize,trunkOutBuf,gpoolOutBuf,workspaceBuf,workspaceBytes);
+      preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkScratchBuf,trunkScratchBuf);
+    regularConv.apply(cudaHandles,trunkDescriptor,regularOutDescriptor,batchSize,false,trunkScratchBuf,regularOutBuf,workspaceBuf,workspaceBytes);
+    gpoolConv.apply(cudaHandles,trunkDescriptor,gpoolOutDescriptor,batchSize,false,trunkScratchBuf,gpoolOutBuf,workspaceBuf,workspaceBytes);
     gpoolBN.apply(cudaHandles,gpoolOutDescriptor,gpoolOutDescriptor,batchSize,applyBNReluWhenFP16,gpoolOutBuf,gpoolOutBuf2);
     if(!(usingFP16 && applyBNReluWhenFP16))
       gpoolActivation.apply(cudaHandles,gpoolOutDescriptor,gpoolOutDescriptor,gpoolOutBuf2,gpoolOutBuf2);
@@ -1646,16 +1626,7 @@ struct GlobalPoolingResidualBlock {
     midBN.apply(cudaHandles,regularOutDescriptor,regularOutDescriptor,batchSize,applyBNReluWhenFP16,regularOutBuf,regularScratchBuf);
     if(!(usingFP16 && applyBNReluWhenFP16))
       midActivation.apply(cudaHandles,regularOutDescriptor,regularOutDescriptor,regularScratchBuf,regularScratchBuf);
-    finalConv.apply(cudaHandles,regularOutDescriptor,trunkDescriptor,batchSize,regularScratchBuf,trunkOutBuf,workspaceBuf,workspaceBytes);
-
-    if(!usingFP16) {
-      const float alpha = 1.0f;
-      CUBLAS_ERR(name.c_str(),cublasSaxpy(cudaHandles->cublas,trunkBufSize,&alpha,(const float*)trunkInBuf,1,(float*)trunkOutBuf,1));
-    }
-    else {
-      customCudaAddTensorInplace((half*)trunkOutBuf,(const half*)trunkInBuf,trunkBufSize);
-      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-    }
+    finalConv.apply(cudaHandles,regularOutDescriptor,trunkDescriptor,batchSize,true,regularScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
   }
 
 };
@@ -2111,8 +2082,8 @@ struct Trunk {
     const cudnnTensorDescriptor_t& inputDescriptor,
     int batchSize,
     void* inputBuf,
+    void* trunkBuf,
     void* trunkScratchBuf,
-    void* trunkOutBuf,
     void* regularOutBuf,
     void* dilatedOutBuf,
     void* midInBuf,
@@ -2131,8 +2102,6 @@ struct Trunk {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    void* currentTrunkBuf = trunkScratchBuf;
-    void* nextTrunkBuf = trunkOutBuf;
 
     const cudnnTensorDescriptor_t& trunkDescriptor = trunkDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& regularOutDescriptor = regularOutDescriptors[batchSize-1];
@@ -2140,9 +2109,10 @@ struct Trunk {
     const cudnnTensorDescriptor_t& dilatedOutDescriptor = dilatedOutDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& midInDescriptor = midInDescriptors[batchSize-1];
 
-    int trunkBufSize = batchSize * trunkNumChannels * xSize * ySize;
+    //int trunkBufSize = batchSize * trunkNumChannels * xSize * ySize;
 
-    initialConv->apply(cudaHandles,inputDescriptor,trunkDescriptor,batchSize,inputBuf,currentTrunkBuf,workspaceBuf,workspaceBytes);
+    //Feed the conv into trunkScratchBuf, not trunkBuf
+    initialConv->apply(cudaHandles,inputDescriptor,trunkDescriptor,batchSize,false,inputBuf,trunkScratchBuf,workspaceBuf,workspaceBytes);
 
     for(int i = 0; i<blocks.size(); i++) {
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
@@ -2152,15 +2122,13 @@ struct Trunk {
           trunkDescriptor,
           midInDescriptor,
           batchSize,
-          trunkBufSize,
-          currentTrunkBuf,
-          nextTrunkBuf,
+          trunkScratchBuf, //Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
+          trunkBuf,
           midInBuf,
           midScratchBuf,
           workspaceBuf,
           workspaceBytes
         );
-        std::swap(currentTrunkBuf,nextTrunkBuf);
       }
       else if(blocks[i].first == DILATED_BLOCK_KIND) {
         DilatedResidualBlock* block = (DilatedResidualBlock*)blocks[i].second;
@@ -2171,9 +2139,8 @@ struct Trunk {
           dilatedOutDescriptor,
           midInDescriptor,
           batchSize,
-          trunkBufSize,
-          currentTrunkBuf,
-          nextTrunkBuf,
+          trunkScratchBuf, //Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
+          trunkBuf,
           regularOutBuf,
           dilatedOutBuf,
           midInBuf,
@@ -2181,7 +2148,6 @@ struct Trunk {
           workspaceBuf,
           workspaceBytes
         );
-        std::swap(currentTrunkBuf,nextTrunkBuf);
       }
       else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
         GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second;
@@ -2191,9 +2157,8 @@ struct Trunk {
           regularOutDescriptor,
           gpoolOutDescriptor,
           batchSize,
-          trunkBufSize,
-          currentTrunkBuf,
-          nextTrunkBuf,
+          trunkScratchBuf, //Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
+          trunkBuf,
           regularOutBuf,
           gpoolOutBuf,
           gpoolOutBuf2,
@@ -2209,7 +2174,6 @@ struct Trunk {
           workspaceBuf,
           workspaceBytes
         );
-        std::swap(currentTrunkBuf,nextTrunkBuf);
       }
       else {
         assert(false);
@@ -2217,10 +2181,11 @@ struct Trunk {
 
     }
 
+    //And now with the final BN port it from trunkScratchBuf to trunkBuf.
     bool applyBNReluWhenFP16 = true;
-    trunkTipBN->apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,currentTrunkBuf,nextTrunkBuf);
+    trunkTipBN->apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,trunkScratchBuf,trunkBuf);
     if(!(usingFP16 && applyBNReluWhenFP16))
-      trunkTipActivation->apply(cudaHandles,trunkDescriptor,trunkDescriptor,nextTrunkBuf,trunkOutBuf);
+      trunkTipActivation->apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkBuf,trunkBuf);
   }
 
 };
@@ -2571,7 +2536,7 @@ struct PolicyHead {
     const cudnnTensorDescriptor_t& trunkDescriptor,
     const bool* symmetriesBuffer,
     int batchSize,
-    void* trunkOutBuf,
+    void* trunkBuf,
     void* p1OutBuf,
     void* p1OutBuf2,
     void* g1OutBuf,
@@ -2593,8 +2558,8 @@ struct PolicyHead {
 
     bool applyBNReluWhenFP16 = true;
 
-    p1Conv->apply(cudaHandles,trunkDescriptor,p1OutDescriptor,batchSize,trunkOutBuf,p1OutBuf,workspaceBuf,workspaceBytes);
-    g1Conv->apply(cudaHandles,trunkDescriptor,g1OutDescriptor,batchSize,trunkOutBuf,g1OutBuf,workspaceBuf,workspaceBytes);
+    p1Conv->apply(cudaHandles,trunkDescriptor,p1OutDescriptor,batchSize,false,trunkBuf,p1OutBuf,workspaceBuf,workspaceBytes);
+    g1Conv->apply(cudaHandles,trunkDescriptor,g1OutDescriptor,batchSize,false,trunkBuf,g1OutBuf,workspaceBuf,workspaceBytes);
     g1BN->apply(cudaHandles,g1OutDescriptor,g1OutDescriptor,batchSize,applyBNReluWhenFP16,g1OutBuf,g1OutBuf2);
     if(!(usingFP16 && applyBNReluWhenFP16))
       g1Activation->apply(cudaHandles,g1OutDescriptor,g1OutDescriptor,g1OutBuf2,g1OutBuf2);
@@ -2665,7 +2630,7 @@ struct PolicyHead {
 
     p1BN->apply(cudaHandles,p2InDescriptor,p2InDescriptor,batchSize,false,p1OutBufA,p1OutBufB);
     p1Activation->apply(cudaHandles,p2InDescriptor,p2InDescriptor,p1OutBufB,p1OutBufB);
-    p2Conv->apply(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize,p1OutBufB,p2OutBuf,workspaceBuf,workspaceBytes);
+    p2Conv->apply(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize,false,p1OutBufB,p2OutBuf,workspaceBuf,workspaceBytes);
   
     bool inverse = true;
     if(!usingNHWC)
@@ -2923,7 +2888,7 @@ struct ValueHead {
     CudaHandles* cudaHandles,
     const cudnnTensorDescriptor_t& trunkDescriptor,
     int batchSize,
-    void* trunkOutBuf,
+    void* trunkBuf,
     void* v1OutBuf,
     void* v1OutBuf2,
     float* v1MeanBuf,
@@ -2937,7 +2902,7 @@ struct ValueHead {
 
     bool applyBNReluWhenFP16 = true;
     
-    v1Conv->apply(cudaHandles,trunkDescriptor,v1OutDescriptor,batchSize,trunkOutBuf,v1OutBuf,workspaceBuf,workspaceBytes);
+    v1Conv->apply(cudaHandles,trunkDescriptor,v1OutDescriptor,batchSize,false,trunkBuf,v1OutBuf,workspaceBuf,workspaceBytes);
     v1BN->apply(cudaHandles,v1OutDescriptor,v1OutDescriptor,batchSize,applyBNReluWhenFP16,v1OutBuf,v1OutBuf2);
     if(!(usingFP16 && applyBNReluWhenFP16))
       v1Activation->apply(cudaHandles,v1OutDescriptor,v1OutDescriptor,v1OutBuf2,v1OutBuf2);
@@ -3168,8 +3133,8 @@ struct Model {
 
     void* inputBuf,
     void* inputScratchBuf,
+    void* trunkBuf,
     void* trunkScratchBuf,
-    void* trunkOutBuf,
     void* regularOutBuf,
     void* dilatedOutBuf,
     void* midInBuf,
@@ -3225,8 +3190,8 @@ struct Model {
       inputDescriptor,
       batchSize,
       inputBuf,
+      trunkBuf,
       trunkScratchBuf,
-      trunkOutBuf,
       regularOutBuf,
       dilatedOutBuf,
       midInBuf,
@@ -3250,7 +3215,7 @@ struct Model {
       trunkDescriptor,
       symmetriesBuffer,
       batchSize,
-      trunkOutBuf,
+      trunkBuf,
       p1OutBuf,
       p1OutBuf2,
       g1OutBuf,
@@ -3269,7 +3234,7 @@ struct Model {
       cudaHandles,
       trunkDescriptor,
       batchSize,
-      trunkOutBuf,
+      trunkBuf,
       v1OutBuf,
       v1OutBuf2,
       v1MeanBuf,
@@ -3327,8 +3292,8 @@ struct Buffers {
   size_t inputBufBytesSingle;
   size_t inputBufBytes;
 
+  void* trunkBuf;
   void* trunkScratchBuf;
-  void* trunkOutBuf;
   void* regularOutBuf;
   void* dilatedOutBuf;
   void* midInBuf;
@@ -3386,8 +3351,8 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&inputBuf, inputBufBytes));
     CUDA_ERR("Buffers",cudaMalloc(&inputScratchBuf, inputBufBytes));
 
+    CUDA_ERR("Buffers",cudaMalloc(&trunkBuf, m.trunk->trunkNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&trunkScratchBuf, m.trunk->trunkNumChannels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&trunkOutBuf, m.trunk->trunkNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&regularOutBuf, m.trunk->regularNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&dilatedOutBuf, m.trunk->dilatedNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&midInBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYBytes));
@@ -3465,8 +3430,8 @@ struct Buffers {
     cudaFree(inputBufSingle);
     cudaFree(inputBuf);
     cudaFree(inputScratchBuf);
+    cudaFree(trunkBuf);
     cudaFree(trunkScratchBuf);
-    cudaFree(trunkOutBuf);
     cudaFree(regularOutBuf);
     cudaFree(dilatedOutBuf);
     cudaFree(midInBuf);
@@ -3681,8 +3646,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
 
     buffers->inputBuf,
     buffers->inputScratchBuf,
+    buffers->trunkBuf,
     buffers->trunkScratchBuf,
-    buffers->trunkOutBuf,
     buffers->regularOutBuf,
     buffers->dilatedOutBuf,
     buffers->midInBuf,
