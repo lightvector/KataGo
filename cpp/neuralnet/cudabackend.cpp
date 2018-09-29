@@ -619,6 +619,7 @@ struct BNLayer {
     const cudnnTensorDescriptor_t& inputDescriptor,
     const cudnnTensorDescriptor_t& outputDescriptor,
     int batchSize,
+    bool applyReluWhenFP16,
     void* inputBuf,
     void* outputBuf
   ) const {
@@ -644,9 +645,11 @@ struct BNLayer {
     }
     else {
       if(!usingNHWC)
-        customCudaApplyCScaleBiasNCHW((const half*)inputBuf,(half*)outputBuf,(const half*)mergedScaleBuf,(const half*)mergedBiasBuf,batchSize,numChannels,xSize*ySize);
+        customCudaApplyCScaleBiasNCHW((const half*)inputBuf,(half*)outputBuf,(const half*)mergedScaleBuf,(const half*)mergedBiasBuf,
+                                      batchSize,numChannels,xSize*ySize,applyReluWhenFP16);
       else
-        customCudaApplyCScaleBiasNHWC((const half*)inputBuf,(half*)outputBuf,(const half*)mergedScaleBuf,(const half*)mergedBiasBuf,batchSize,xSize*ySize,numChannels);
+        customCudaApplyCScaleBiasNHWC((const half*)inputBuf,(half*)outputBuf,(const half*)mergedScaleBuf,(const half*)mergedBiasBuf,
+                                      batchSize,xSize*ySize,numChannels,applyReluWhenFP16);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
@@ -1107,11 +1110,14 @@ struct ResidualBlock {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,trunkInBuf,trunkOutBuf);
-    preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkOutBuf,trunkOutBuf);
+    bool applyBNReluWhenFP16 = true;
+    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,trunkInBuf,trunkOutBuf);
+    if(!(usingFP16 && applyBNReluWhenFP16))
+      preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkOutBuf,trunkOutBuf);
     regularConv.apply(cudaHandles,trunkDescriptor,midInDescriptor,batchSize,trunkOutBuf,midInBuf,workspaceBuf,workspaceBytes);
-    midBN.apply(cudaHandles,midInDescriptor,midInDescriptor,batchSize,midInBuf,midScratchBuf);
-    midActivation.apply(cudaHandles,midInDescriptor,midInDescriptor,midScratchBuf,midScratchBuf);
+    midBN.apply(cudaHandles,midInDescriptor,midInDescriptor,batchSize,applyBNReluWhenFP16,midInBuf,midScratchBuf);
+    if(!(usingFP16 && applyBNReluWhenFP16))
+      midActivation.apply(cudaHandles,midInDescriptor,midInDescriptor,midScratchBuf,midScratchBuf);
     finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,midScratchBuf,trunkOutBuf,workspaceBuf,workspaceBytes);
 
     if(!usingFP16) {
@@ -1285,8 +1291,10 @@ struct DilatedResidualBlock {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,trunkInBuf,trunkOutBuf);
-    preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkOutBuf,trunkOutBuf);
+    bool applyBNReluWhenFP16 = true;
+    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,trunkInBuf,trunkOutBuf);
+    if(!(usingFP16 && applyBNReluWhenFP16))
+      preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkOutBuf,trunkOutBuf);
     regularConv.apply(cudaHandles,trunkDescriptor,regularOutDescriptor,batchSize,trunkOutBuf,regularOutBuf,workspaceBuf,workspaceBytes);
     dilatedConv.apply(cudaHandles,trunkDescriptor,dilatedOutDescriptor,batchSize,trunkOutBuf,dilatedOutBuf,workspaceBuf,workspaceBytes);
     if(!usingFP16) {
@@ -1322,8 +1330,9 @@ struct DilatedResidualBlock {
         );
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-    midBN.apply(cudaHandles,midInDescriptor,midInDescriptor,batchSize,midInBuf,midScratchBuf);
-    midActivation.apply(cudaHandles,midInDescriptor,midInDescriptor,midScratchBuf,midScratchBuf);
+    midBN.apply(cudaHandles,midInDescriptor,midInDescriptor,batchSize,applyBNReluWhenFP16,midInBuf,midScratchBuf);
+    if(!(usingFP16 && applyBNReluWhenFP16))
+      midActivation.apply(cudaHandles,midInDescriptor,midInDescriptor,midScratchBuf,midScratchBuf);
     finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,midScratchBuf,trunkOutBuf,workspaceBuf,workspaceBytes);
 
     if(!usingFP16) {
@@ -1536,12 +1545,15 @@ struct GlobalPoolingResidualBlock {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,trunkInBuf,trunkOutBuf);
-    preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkOutBuf,trunkOutBuf);
+    bool applyBNReluWhenFP16 = true;
+    preBN.apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,trunkInBuf,trunkOutBuf);
+    if(!(usingFP16 && applyBNReluWhenFP16))
+      preActivation.apply(cudaHandles,trunkDescriptor,trunkDescriptor,trunkOutBuf,trunkOutBuf);
     regularConv.apply(cudaHandles,trunkDescriptor,regularOutDescriptor,batchSize,trunkOutBuf,regularOutBuf,workspaceBuf,workspaceBytes);
     gpoolConv.apply(cudaHandles,trunkDescriptor,gpoolOutDescriptor,batchSize,trunkOutBuf,gpoolOutBuf,workspaceBuf,workspaceBytes);
-    gpoolBN.apply(cudaHandles,gpoolOutDescriptor,gpoolOutDescriptor,batchSize,gpoolOutBuf,gpoolOutBuf2);
-    gpoolActivation.apply(cudaHandles,gpoolOutDescriptor,gpoolOutDescriptor,gpoolOutBuf2,gpoolOutBuf2);
+    gpoolBN.apply(cudaHandles,gpoolOutDescriptor,gpoolOutDescriptor,batchSize,applyBNReluWhenFP16,gpoolOutBuf,gpoolOutBuf2);
+    if(!(usingFP16 && applyBNReluWhenFP16))
+      gpoolActivation.apply(cudaHandles,gpoolOutDescriptor,gpoolOutDescriptor,gpoolOutBuf2,gpoolOutBuf2);
 
     if(!usingFP16) {
       if(!usingNHWC) {
@@ -1631,8 +1643,9 @@ struct GlobalPoolingResidualBlock {
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    midBN.apply(cudaHandles,regularOutDescriptor,regularOutDescriptor,batchSize,regularOutBuf,regularScratchBuf);
-    midActivation.apply(cudaHandles,regularOutDescriptor,regularOutDescriptor,regularScratchBuf,regularScratchBuf);
+    midBN.apply(cudaHandles,regularOutDescriptor,regularOutDescriptor,batchSize,applyBNReluWhenFP16,regularOutBuf,regularScratchBuf);
+    if(!(usingFP16 && applyBNReluWhenFP16))
+      midActivation.apply(cudaHandles,regularOutDescriptor,regularOutDescriptor,regularScratchBuf,regularScratchBuf);
     finalConv.apply(cudaHandles,regularOutDescriptor,trunkDescriptor,batchSize,regularScratchBuf,trunkOutBuf,workspaceBuf,workspaceBytes);
 
     if(!usingFP16) {
@@ -1848,6 +1861,7 @@ struct Trunk {
   int maxBatchSize;
   int xSize;
   int ySize;
+  bool usingFP16;
 
   cudnnTensorDescriptor_t* trunkDescriptors;
   cudnnTensorDescriptor_t* regularOutDescriptors;
@@ -1885,6 +1899,7 @@ struct Trunk {
     maxBatchSize = maxBatchSz;
     xSize = xS;
     ySize = yS;
+    usingFP16 = useFP16;
 
     trunkDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     regularOutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
@@ -2202,8 +2217,10 @@ struct Trunk {
 
     }
 
-    trunkTipBN->apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,currentTrunkBuf,nextTrunkBuf);
-    trunkTipActivation->apply(cudaHandles,trunkDescriptor,trunkDescriptor,nextTrunkBuf,trunkOutBuf);
+    bool applyBNReluWhenFP16 = true;
+    trunkTipBN->apply(cudaHandles,trunkDescriptor,trunkDescriptor,batchSize,applyBNReluWhenFP16,currentTrunkBuf,nextTrunkBuf);
+    if(!(usingFP16 && applyBNReluWhenFP16))
+      trunkTipActivation->apply(cudaHandles,trunkDescriptor,trunkDescriptor,nextTrunkBuf,trunkOutBuf);
   }
 
 };
@@ -2574,10 +2591,13 @@ struct PolicyHead {
     const cudnnTensorDescriptor_t& p2InDescriptor = p2InDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& p2OutDescriptor = p2OutDescriptors[batchSize-1];
 
+    bool applyBNReluWhenFP16 = true;
+
     p1Conv->apply(cudaHandles,trunkDescriptor,p1OutDescriptor,batchSize,trunkOutBuf,p1OutBuf,workspaceBuf,workspaceBytes);
     g1Conv->apply(cudaHandles,trunkDescriptor,g1OutDescriptor,batchSize,trunkOutBuf,g1OutBuf,workspaceBuf,workspaceBytes);
-    g1BN->apply(cudaHandles,g1OutDescriptor,g1OutDescriptor,batchSize,g1OutBuf,g1OutBuf2);
-    g1Activation->apply(cudaHandles,g1OutDescriptor,g1OutDescriptor,g1OutBuf2,g1OutBuf2);
+    g1BN->apply(cudaHandles,g1OutDescriptor,g1OutDescriptor,batchSize,applyBNReluWhenFP16,g1OutBuf,g1OutBuf2);
+    if(!(usingFP16 && applyBNReluWhenFP16))
+      g1Activation->apply(cudaHandles,g1OutDescriptor,g1OutDescriptor,g1OutBuf2,g1OutBuf2);
 
     if(!usingFP16) {
       if(!usingNHWC) {
@@ -2643,16 +2663,10 @@ struct PolicyHead {
       customCudaAddNCBiasInplaceNHWC(p1OutBufA,g1BiasBuf,batchSize,xSize*ySize,p1Channels);
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    p1BN->apply(cudaHandles,p2InDescriptor,p2InDescriptor,batchSize,p1OutBufA,p1OutBufB);
-
-    if(version >= 1) {
-      p1Activation->apply(cudaHandles,p2InDescriptor,p2InDescriptor,p1OutBufB,p1OutBufB);
-      p2Conv->apply(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize,p1OutBufB,p2OutBuf,workspaceBuf,workspaceBytes);
-    }
-    else {
-      throw StringError("Version 0 neural nets no longer supported in cudnn");
-    }
-
+    p1BN->apply(cudaHandles,p2InDescriptor,p2InDescriptor,batchSize,false,p1OutBufA,p1OutBufB);
+    p1Activation->apply(cudaHandles,p2InDescriptor,p2InDescriptor,p1OutBufB,p1OutBufB);
+    p2Conv->apply(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize,p1OutBufB,p2OutBuf,workspaceBuf,workspaceBytes);
+  
     bool inverse = true;
     if(!usingNHWC)
       applySymmetriesNCHW<float>(symmetriesBuffer, inverse, batchSize, p2Channels, xSize, ySize, p2OutBuf, policyBuf);
@@ -2921,9 +2935,12 @@ struct ValueHead {
     const cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& v3InDescriptor = v3InDescriptors[batchSize-1];
 
+    bool applyBNReluWhenFP16 = true;
+    
     v1Conv->apply(cudaHandles,trunkDescriptor,v1OutDescriptor,batchSize,trunkOutBuf,v1OutBuf,workspaceBuf,workspaceBytes);
-    v1BN->apply(cudaHandles,v1OutDescriptor,v1OutDescriptor,batchSize,v1OutBuf,v1OutBuf2);
-    v1Activation->apply(cudaHandles,v1OutDescriptor,v1OutDescriptor,v1OutBuf2,v1OutBuf2);
+    v1BN->apply(cudaHandles,v1OutDescriptor,v1OutDescriptor,batchSize,applyBNReluWhenFP16,v1OutBuf,v1OutBuf2);
+    if(!(usingFP16 && applyBNReluWhenFP16))
+      v1Activation->apply(cudaHandles,v1OutDescriptor,v1OutDescriptor,v1OutBuf2,v1OutBuf2);
 
     if(!usingFP16) {
       if(!usingNHWC)
@@ -2993,6 +3010,8 @@ struct ModelDesc {
 
     if(version < 0 || version > 1)
       throw StringError(name + ": model found unsupported version " + Global::intToString(version));
+    if(version < 1)
+      throw StringError("Version 0 neural nets no longer supported in cuda backend");
 
     trunk = TrunkDesc(in);
     policyHead = PolicyHeadDesc(in,version);

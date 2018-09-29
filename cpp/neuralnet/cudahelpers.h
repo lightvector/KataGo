@@ -41,11 +41,13 @@ void customCudaAddNCBiasInplaceNHWC(float *buf, const float* biases, int nSize, 
 void customCudaAddNCBiasInplaceNHWC(half *buf, const half* biases, int nSize, int xySize, int cSize);
 
 //Given an input with shape [n,c,xy] and scale and biases of shape [c], multiply by scale and add the biases
-void customCudaApplyCScaleBiasNCHW(const float* in, float* out, const float* scale, const float* biases, int n, int c, int xy);
-void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale, const half* biases, int n, int c, int xy);
+//Optionally also apply relu.
+void customCudaApplyCScaleBiasNCHW(const float* in, float* out, const float* scale, const float* biases, int n, int c, int xy, bool applyRelu);
+void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale, const half* biases, int n, int c, int xy, bool applyRelu);
 //Given an input with shape [n,xy,c] and scale and biases of shape [c], multiply by scale and add the biases
-void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* scale, const float* biases, int n, int xy, int c);
-void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, int n, int xy, int c);
+//Optionally also apply relu.
+void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* scale, const float* biases, int n, int xy, int c, bool applyRelu);
+void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, int n, int xy, int c, bool applyRelu);
 
 
 #endif

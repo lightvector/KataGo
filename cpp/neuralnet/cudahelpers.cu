@@ -828,6 +828,17 @@ void applyCScaleBiasNCHWKernel(const float *in, float* out, const float* scale, 
     out[idx] = in[idx] * scale[cIdx] + biases[cIdx];
   }
 }
+__global__
+void applyCScaleBiasNCHWReluKernel(const float *in, float* out, const float* scale, const float* biases, int cSize, int sSize)
+{
+  int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
+    out[idx] = fmaxf(in[idx] * scale[cIdx] + biases[cIdx],0.0f);
+  }
+}
 #ifdef CUDA_SUPPORTS_FP16
 __global__
 void applyCScaleBiasNCHWHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
@@ -840,15 +851,33 @@ void applyCScaleBiasNCHWHalfKernel(const half *in, half* out, const half* scale,
     out[idx] = __hfma(in[idx],scale[cIdx],biases[cIdx]);
   }
 }
+__global__
+void applyCScaleBiasNCHWReluHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
+{
+  int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
+    half a = __hfma(in[idx],scale[cIdx],biases[cIdx]);
+    const half halfzero = __float2half(0.0f);
+    out[idx] = __hgt(a,halfzero) ? a : halfzero;
+  }
+}
 #else
 __global__
 void applyCScaleBiasNCHWHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
 {
   //Do nothing, FP16 not supported
 }
+__global__
+void applyCScaleBiasNCHWReluHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
+{
+  //Do nothing, FP16 not supported
+}
 #endif
 
-void sharedApplyCScaleBiasNCHW(const void* in, void* out, const void* scale, const void* biases, int nSize, int cSize, int xySize, bool isHalf) {
+void sharedApplyCScaleBiasNCHW(const void* in, void* out, const void* scale, const void* biases, int nSize, int cSize, int xySize, bool isHalf, bool applyRelu) {
   if(nSize > 65536)
     throw std::runtime_error("customCudaApplyCScaleBiasNCHW: nSize too large");
   if(cSize > 65536)
@@ -881,17 +910,25 @@ void sharedApplyCScaleBiasNCHW(const void* in, void* out, const void* scale, con
 
   dim3 grid(sBlocks,cBlocks,nSize);
   dim3 threads(sThreads,cThreads,1);
-  if(isHalf)
-    applyCScaleBiasNCHWHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,cSize,sSize);
-  else
-    applyCScaleBiasNCHWKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,cSize,sSize);
+  if(applyRelu) {
+    if(isHalf)
+      applyCScaleBiasNCHWReluHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,cSize,sSize);
+    else
+      applyCScaleBiasNCHWReluKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,cSize,sSize);
+  }
+  else {
+    if(isHalf)
+      applyCScaleBiasNCHWHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,cSize,sSize);
+    else
+      applyCScaleBiasNCHWKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,cSize,sSize);
+  }
 }
 
-void customCudaApplyCScaleBiasNCHW(const float* in, float* out, const float* scale, const float* biases, int nSize, int cSize, int xySize) {
-  sharedApplyCScaleBiasNCHW(in,out,scale,biases,nSize,cSize,xySize,false);
+void customCudaApplyCScaleBiasNCHW(const float* in, float* out, const float* scale, const float* biases, int nSize, int cSize, int xySize, bool applyRelu) {
+  sharedApplyCScaleBiasNCHW(in,out,scale,biases,nSize,cSize,xySize,false,applyRelu);
 }
-void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale, const half* biases, int nSize, int cSize, int xySize) {
-  sharedApplyCScaleBiasNCHW(in,out,scale,biases,nSize,cSize,xySize,true);
+void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale, const half* biases, int nSize, int cSize, int xySize, bool applyRelu) {
+  sharedApplyCScaleBiasNCHW(in,out,scale,biases,nSize,cSize,xySize,true,applyRelu);
 }
 
 
@@ -908,6 +945,17 @@ void applyCScaleBiasNHWCKernel(const float* in, float* out, const float* scale, 
     out[idx] = in[idx] * scale[cIdx] + biases[cIdx];
   }
 }
+__global__
+void applyCScaleBiasNHWCReluKernel(const float* in, float* out, const float* scale, const float* biases, int sSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
+    out[idx] = fmaxf(in[idx] * scale[cIdx] + biases[cIdx],0.0f);
+  }
+}
 #ifdef CUDA_SUPPORTS_FP16
 __global__
 void applyCScaleBiasNHWCHalfKernel(const half* in, half* out, const half* scale, const half* biases, int sSize, int cSize)
@@ -920,15 +968,33 @@ void applyCScaleBiasNHWCHalfKernel(const half* in, half* out, const half* scale,
     out[idx] = __hfma(in[idx],scale[cIdx],biases[cIdx]);
   }
 }
+__global__
+void applyCScaleBiasNHWCReluHalfKernel(const half* in, half* out, const half* scale, const half* biases, int sSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  int nIdx = blockIdx.z;
+  if(cIdx < cSize && sIdx < sSize) {
+    int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
+    half a = __hfma(in[idx],scale[cIdx],biases[cIdx]);
+    const half halfzero = __float2half(0.0f);
+    out[idx] = __hgt(a,halfzero) ? a : halfzero;
+  }
+}
 #else
 __global__
 void applyCScaleBiasNHWCHalfKernel(const half* in, half* out, const half* scale, const half* biases, int sSize, int cSize)
 {
   //Do nothing, FP16 not supported
 }
+__global__
+void applyCScaleBiasNHWCReluHalfKernel(const half* in, half* out, const half* scale, const half* biases, int sSize, int cSize)
+{
+  //Do nothing, FP16 not supported
+}
 #endif
 
-void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, const void* biases, int nSize, int xySize, int cSize, bool isHalf) {
+void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, const void* biases, int nSize, int xySize, int cSize, bool isHalf, bool applyRelu) {
   if(nSize > 65536)
     throw std::runtime_error("customCudaApplyCScaleBiasNHWC: nSize too large");
   if(xySize > 65536)
@@ -961,15 +1027,23 @@ void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, con
 
   dim3 grid(cBlocks,sBlocks,nSize);
   dim3 threads(cThreads,sThreads,1);
-  if(isHalf)
-    applyCScaleBiasNHWCHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,sSize,cSize);
-  else
-    applyCScaleBiasNHWCKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,sSize,cSize);
+  if(applyRelu) {
+    if(isHalf)
+      applyCScaleBiasNHWCReluHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,sSize,cSize);
+    else
+      applyCScaleBiasNHWCReluKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,sSize,cSize);
+  }
+  else {
+    if(isHalf)
+      applyCScaleBiasNHWCHalfKernel<<<grid,threads>>>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,sSize,cSize);
+    else
+      applyCScaleBiasNHWCKernel<<<grid,threads>>>((const float*)in,(float*)out,(const float*)scale,(const float*)biases,sSize,cSize);
+  }
 }
 
-void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* scale, const float* biases, int nSize, int xySize, int cSize) {
-  sharedApplyCScaleBiasNHWC(in,out,scale,biases,nSize,xySize,cSize,false);
+void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* scale, const float* biases, int nSize, int xySize, int cSize, bool applyRelu) {
+  sharedApplyCScaleBiasNHWC(in,out,scale,biases,nSize,xySize,cSize,false,applyRelu);
 }
-void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, int nSize, int xySize, int cSize) {
-  sharedApplyCScaleBiasNHWC(in,out,scale,biases,nSize,xySize,cSize,true);
+void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, int nSize, int xySize, int cSize, bool applyRelu) {
+  sharedApplyCScaleBiasNHWC(in,out,scale,biases,nSize,xySize,cSize,true,applyRelu);
 }
