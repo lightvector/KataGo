@@ -6,13 +6,20 @@
 void customCudaChannelConcat(const float* inA, const float* inB, float* out, int chwA, int chwB, int n);
 void customCudaChannelConcat(const half* inA, const half* inB, half* out, int chwA, int chwB, int n);
 
-//Given an input with shape [n,c] and an output buffer of shape [n]
-//fill output buffer with sum or max or mean over c.
-void customCudaPoolRowsSumNCHW(float* in, float* out, int nc, int xy);
-void customCudaPoolRowsMaxNCHW(float* in, float* out, int nc, int xy);
-void customCudaPoolRowsSumNHWC(const float* in, float* out, int n, int xy, int c);
-void customCudaPoolRowsMaxNHWC(const float* in, float* out, int n, int xy, int c);
+//Given an input tensor and an output buffer of shape [n,c], fill output buffer with sum or max over c.
+//Max is POSITIVE max - only computes the max of positive entries, and if there are none, then evaluates to 0.
+void customCudaPoolRowsSumNCHW(const float* in, float* out, int nSize, int cSize, int xySize, float scaleSum);
+void customCudaPoolRowsMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize);
+void customCudaPoolRowsSumNHWC(const float* in, float* out, int nSize, int xySize, int cSize, float scaleSum);
+void customCudaPoolRowsMaxPositiveNHWC(const float* in, float* out, int nSize, int xySize, int cSize);
 
+//Same, except fills an output buffer of shape [n,c*2] with the sum over c and the max over c, in that order.
+void customCudaPoolRowsSumAndMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize, float scaleSum);
+void customCudaPoolRowsSumAndMaxPositiveNHWC(const float* in, float* out, int nSize, int xySize, int cSize, float scaleSum);
+void customCudaPoolRowsSumAndMaxPositiveNCHW(const half* in, half* out, int nSize, int cSize, int xySize, float scaleSum);
+void customCudaPoolRowsSumAndMaxPositiveNHWC(const half* in, half* out, int nSize, int xySize, int cSize, float scaleSum);
+
+  
 void customCudaNCHWTranspose(const float *in, float* out, int xSize, int ySize, int ncSize);
 void customCudaNHWCTranspose(const float *in, float* out, int xSize, int ySize, int cSize, int nSize);
 void customCudaNCHWTranspose(const half *in, half* out, int xSize, int ySize, int ncSize);
