@@ -1513,10 +1513,6 @@ struct GlobalPoolingResidualBlock {
     void* regularOutBuf,
     void* gpoolOutBuf,
     void* gpoolOutBuf2,
-    float* gpoolMeanBufSingle,
-    float* gpoolMaxBufSingle,
-    void* gpoolMeanBuf,
-    void* gpoolMaxBuf,
     void* gpoolConcatBuf,
     void* gpoolBiasBuf,
     void* regularScratchBuf,
@@ -1557,19 +1553,6 @@ struct GlobalPoolingResidualBlock {
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
     }
-
-    // float* maxTmp = new float[5];
-    // CUDA_ERR("DEBUG",cudaMemcpy(maxTmp, gpoolMaxBuf, sizeof(float)*5, cudaMemcpyDeviceToHost));
-    // cout << name << " MAX ";
-    // for(int i = 0; i<5; i++)
-    //   cout << maxTmp[i] << " ";
-    // cout << endl;
-    // float* meanTmp = new float[5];
-    // CUDA_ERR("DEBUG",cudaMemcpy(meanTmp, gpoolMeanBuf, sizeof(float)*5, cudaMemcpyDeviceToHost));
-    // cout << name << " MEAN ";
-    // for(int i = 0; i<5; i++)
-    //   cout << meanTmp[i] << " ";
-    // cout << endl;
 
     gpoolToBiasMul.apply(cudaHandles,batchSize,gpoolConcatBuf,gpoolBiasBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
 
@@ -2054,10 +2037,6 @@ struct Trunk {
     void* midScratchBuf,
     void* gpoolOutBuf,
     void* gpoolOutBuf2,
-    float* gpoolMeanBufSingle,
-    float* gpoolMaxBufSingle,
-    void* gpoolMeanBuf,
-    void* gpoolMaxBuf,
     void* gpoolConcatBuf,
     void* gpoolBiasBuf,
     void* regularScratchBuf,
@@ -2126,10 +2105,6 @@ struct Trunk {
           regularOutBuf,
           gpoolOutBuf,
           gpoolOutBuf2,
-          gpoolMeanBufSingle,
-          gpoolMaxBufSingle,
-          gpoolMeanBuf,
-          gpoolMaxBuf,
           gpoolConcatBuf,
           gpoolBiasBuf,
           regularScratchBuf,
@@ -2505,8 +2480,6 @@ struct PolicyHead {
     void* p1OutBuf2,
     void* g1OutBuf,
     void* g1OutBuf2,
-    float* g1MeanBuf,
-    float* g1MaxBuf,
     float* g1ConcatBuf,
     float* g1BiasBuf,
     float* p2OutBuf,
@@ -3087,10 +3060,6 @@ struct Model {
     void* midScratchBuf,
     void* gpoolOutBuf,
     void* gpoolOutBuf2,
-    float* gpoolMeanBufSingle,
-    float* gpoolMaxBufSingle,
-    void* gpoolMeanBuf,
-    void* gpoolMaxBuf,
     void* gpoolConcatBuf,
     void* gpoolBiasBuf,
     void* regularScratchBuf,
@@ -3099,8 +3068,6 @@ struct Model {
     void* p1OutBuf2,
     void* g1OutBuf,
     void* g1OutBuf2,
-    float* g1MeanBuf,
-    float* g1MaxBuf,
     float* g1ConcatBuf,
     float* g1BiasBuf,
     float* p2OutBuf,
@@ -3144,10 +3111,6 @@ struct Model {
       midScratchBuf,
       gpoolOutBuf,
       gpoolOutBuf2,
-      gpoolMeanBufSingle,
-      gpoolMaxBufSingle,
-      gpoolMeanBuf,
-      gpoolMaxBuf,
       gpoolConcatBuf,
       gpoolBiasBuf,
       regularScratchBuf,
@@ -3166,8 +3129,6 @@ struct Model {
       p1OutBuf2,
       g1OutBuf,
       g1OutBuf2,
-      g1MeanBuf,
-      g1MaxBuf,
       g1ConcatBuf,
       g1BiasBuf,
       p2OutBuf,
@@ -3246,10 +3207,6 @@ struct Buffers {
   void* midScratchBuf;
   void* gpoolOutBuf;
   void* gpoolOutBuf2;
-  float* gpoolMeanBufSingle;
-  float* gpoolMaxBufSingle;
-  void* gpoolMeanBuf;
-  void* gpoolMaxBuf;
   void* gpoolConcatBuf;
   void* gpoolBiasBuf;
   void* regularScratchBuf;
@@ -3258,8 +3215,6 @@ struct Buffers {
   void* p1OutBuf2;
   void* g1OutBuf;
   void* g1OutBuf2;
-  float* g1MeanBuf;
-  float* g1MaxBuf;
   float* g1ConcatBuf;
   float* g1BiasBuf;
   float* p2OutBuf;
@@ -3305,10 +3260,6 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&midScratchBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&gpoolOutBuf, m.trunk->gpoolNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&gpoolOutBuf2, m.trunk->gpoolNumChannels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&gpoolMeanBufSingle, m.trunk->gpoolNumChannels * batchSingleBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&gpoolMaxBufSingle, m.trunk->gpoolNumChannels * batchSingleBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&gpoolMeanBuf, m.trunk->gpoolNumChannels * batchBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&gpoolMaxBuf, m.trunk->gpoolNumChannels * batchBytes));
     CUDA_ERR("Buffers",cudaMalloc(&gpoolConcatBuf, m.trunk->gpoolNumChannels * batchBytes * 2));
     CUDA_ERR("Buffers",cudaMalloc(&gpoolBiasBuf, m.trunk->regularNumChannels * batchBytes));
     CUDA_ERR("Buffers",cudaMalloc(&regularScratchBuf, m.trunk->regularNumChannels * batchXYBytes));
@@ -3317,8 +3268,6 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf2, m.policyHead->p1Channels * batchXYSingleBytes)); //need to hold floats in addition to halfs
     CUDA_ERR("Buffers",cudaMalloc(&g1OutBuf, m.policyHead->g1Channels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&g1OutBuf2, m.policyHead->g1Channels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&g1MeanBuf, m.policyHead->g1Channels * batchSingleBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&g1MaxBuf, m.policyHead->g1Channels * batchSingleBytes));
     CUDA_ERR("Buffers",cudaMalloc(&g1ConcatBuf, m.policyHead->g1Channels * batchSingleBytes * 2));
     CUDA_ERR("Buffers",cudaMalloc(&g1BiasBuf, m.policyHead->p1Channels * batchSingleBytes));
     CUDA_ERR("Buffers",cudaMalloc(&p2OutBuf, m.policyHead->p2Channels * batchXYSingleBytes));
@@ -3384,10 +3333,6 @@ struct Buffers {
     cudaFree(midScratchBuf);
     cudaFree(gpoolOutBuf);
     cudaFree(gpoolOutBuf2);
-    cudaFree(gpoolMeanBufSingle);
-    cudaFree(gpoolMaxBufSingle);
-    cudaFree(gpoolMeanBuf);
-    cudaFree(gpoolMaxBuf);
     cudaFree(gpoolConcatBuf);
     cudaFree(gpoolBiasBuf);
     cudaFree(regularScratchBuf);
@@ -3396,8 +3341,6 @@ struct Buffers {
     cudaFree(p1OutBuf2);
     cudaFree(g1OutBuf);
     cudaFree(g1OutBuf2);
-    cudaFree(g1MeanBuf);
-    cudaFree(g1MaxBuf);
     cudaFree(g1ConcatBuf);
     cudaFree(g1BiasBuf);
     cudaFree(p2OutBuf);
@@ -3600,10 +3543,6 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     buffers->midScratchBuf,
     buffers->gpoolOutBuf,
     buffers->gpoolOutBuf2,
-    buffers->gpoolMeanBufSingle,
-    buffers->gpoolMaxBufSingle,
-    buffers->gpoolMeanBuf,
-    buffers->gpoolMaxBuf,
     buffers->gpoolConcatBuf,
     buffers->gpoolBiasBuf,
     buffers->regularScratchBuf,
@@ -3612,8 +3551,6 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     buffers->p1OutBuf2,
     buffers->g1OutBuf,
     buffers->g1OutBuf2,
-    buffers->g1MeanBuf,
-    buffers->g1MaxBuf,
     buffers->g1ConcatBuf,
     buffers->g1BiasBuf,
     buffers->p2OutBuf,
