@@ -5,6 +5,7 @@
 #include "dataio/sgf.h"
 #include "dataio/lzparse.h"
 #include "dataio/datapool.h"
+#include "program/gitinfo.h"
 #include <fstream>
 #include <algorithm>
 
@@ -1088,6 +1089,8 @@ int main(int argc, const char* argv[]) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
   }
+
+  cout << "Git revision: " << GIT_REVISION << endl;
 
   set<string> excludeUsers;
   for(size_t i = 0; i < excludeUsersFiles.size(); i++) {

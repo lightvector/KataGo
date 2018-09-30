@@ -18,6 +18,19 @@ cpp/tmp.txt
 cpp/tmp2.txt
 cpp/configs
 cpp/evalsgf
+cpp/runmatch.sh
+cpp/runstuff.sh
+cpp/runwrite.sh
+
+cpp/program/gitinfo.h
+
+data/
+versions/
+
+export_model_cuda.sh
+mixmodels.sh
+runfindposes.sh
+runtraining.sh
 
 tmp
 cpp/tmp
@@ -32,3 +45,4 @@ CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
+
