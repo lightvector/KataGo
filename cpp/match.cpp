@@ -5,6 +5,7 @@
 #include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
+#include "program/gitinfo.h"
 #include "main.h"
 
 using namespace std;
@@ -55,7 +56,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   int64_t logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 
   logger.write("Match Engine starting...");
-
+  logger.write(string("Git revision: ") + GIT_REVISION);
 
   //Load per-bot search config, first, which also tells us how many bots we're running
   vector<SearchParams> paramss = Setup::loadParams(cfg);
