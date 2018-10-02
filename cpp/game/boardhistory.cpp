@@ -324,7 +324,7 @@ void BoardHistory::endAndScoreGameNow(const Board& board) {
 
 
 void BoardHistory::endGameIfAllPassAlive(const Board& board) {
-  int boardScore;
+  int boardScore = 0;
   bool nonPassAliveStones = false;
   bool safeBigTerritories = false;
   bool unsafeBigTerritories = false;
