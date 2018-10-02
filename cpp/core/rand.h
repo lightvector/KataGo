@@ -89,6 +89,10 @@ class Rand
   //Returns a random integer in [0,n)
   uint64_t nextUInt64(uint64_t n);
 
+  //BOOL------------------------------------------------
+  //Returns true with probability prob
+  bool nextBool(double prob);
+
   //DOUBLE----------------------------------------------
 
   //Returns a random double in [0,1)
@@ -237,6 +241,11 @@ inline double Rand::nextDouble(double a, double b)
 {
   assert(b >= a);
   return a+nextDouble(b-a);
+}
+
+inline bool Rand::nextBool(double prob)
+{
+  return nextDouble() < prob;
 }
 
 inline double Rand::nextGaussian()

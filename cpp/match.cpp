@@ -173,8 +173,6 @@ int MainCmds::match(int argc, const char* const* argv) {
   if(sgfOutputDir != string())
     MakeDir::make(sgfOutputDir);
 
-  //TODO terminate a game if ALL territory for both players is strictly pass-alive!
-
   mutex newGameMutex;
   auto initNewGame = [&](Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack) {
     //Multiple threads will be calling this, and seedRand is shared, so we mutex to protect things
@@ -264,6 +262,13 @@ int MainCmds::match(int argc, const char* const* argv) {
     int gameIdx, int botIdx, Board& board, Player pla, BoardHistory& hist, int numExtraBlack
   ) {
     string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
+    Rand gameRand(searchRandSeed + ":" + "forGameRand");
+
+    //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
+    //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
+    //called on positions that occur after the game would have been autoterminated.
+    bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
+
     AsyncBot* bot = new AsyncBot(paramss[botIdx], nnEvals[whichNNModel[botIdx]], &logger, searchRandSeed);
     if(numExtraBlack > 0)
       playExtraBlack(bot,numExtraBlack,board,hist);
@@ -291,6 +296,9 @@ int MainCmds::match(int argc, const char* const* argv) {
       assert(hist.isLegal(board,loc,pla));
       hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
       pla = getOpp(pla);
+
+      if(doEndGameIfAllPassAlive)
+        hist.endGameIfAllPassAlive(board);
     }
     delete bot;
   };
@@ -331,6 +339,7 @@ int MainCmds::match(int argc, const char* const* argv) {
       assert(hist.isLegal(board,loc,pla));
       hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
       pla = getOpp(pla);
+      hist.endGameIfAllPassAlive(board);
     }
     delete botB;
     delete botW;
