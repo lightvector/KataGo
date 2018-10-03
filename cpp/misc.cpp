@@ -248,7 +248,8 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
       }
     }
     delete search;
-    delete values;
+    delete[] values;
+    delete[] policySurpriseNats;
   };
 
   std::thread threads[numThreads];

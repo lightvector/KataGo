@@ -93,12 +93,16 @@ struct BoardHistory {
   //that violates ko stuff.
   void makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable);
 
+  //Slightly expensive, check if the entire game is all pass-alive-territory, and if so, declare the game finished
+  void endGameIfAllPassAlive(const Board& board);
+
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   int numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   void setKoProhibited(Player pla, Loc loc, bool b);
   int countAreaScoreWhiteMinusBlack(const Board& board) const;
   int countTerritoryAreaScoreWhiteMinusBlack(const Board& board) const;
+  void endAndScoreGameNow(const Board& board);
 };
 
 struct KoHashTable {

@@ -327,6 +327,55 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board) con
   return score;
 }
 
+void BoardHistory::endAndScoreGameNow(const Board& board) {
+  int boardScore;
+  if(rules.scoringRule == Rules::SCORING_AREA)
+    boardScore = countAreaScoreWhiteMinusBlack(board);
+  else if(rules.scoringRule == Rules::SCORING_TERRITORY)
+    boardScore = countTerritoryAreaScoreWhiteMinusBlack(board);
+  else
+    assert(false);
+
+  finalWhiteMinusBlackScore = boardScore + whiteBonusScore + rules.komi;
+  if(finalWhiteMinusBlackScore > 0.0f)
+    winner = C_WHITE;
+  else if(finalWhiteMinusBlackScore < 0.0f)
+    winner = C_BLACK;
+  isNoResult = false;
+  isGameFinished = true;
+}
+
+
+void BoardHistory::endGameIfAllPassAlive(const Board& board) {
+  int boardScore = 0;
+  bool nonPassAliveStones = false;
+  bool safeBigTerritories = false;
+  bool unsafeBigTerritories = false;
+  Color area[Board::MAX_ARR_SIZE];
+  board.calculateArea(area, nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, rules.multiStoneSuicideLegal);
+
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(area[loc] == C_WHITE)
+        boardScore += 1;
+      else if(area[loc] == C_BLACK)
+        boardScore -= 1;
+      else
+        return;
+    }
+  }
+
+  finalWhiteMinusBlackScore = boardScore + whiteBonusScore + rules.komi;
+  if(finalWhiteMinusBlackScore > 0.0f)
+    winner = C_WHITE;
+  else if(finalWhiteMinusBlackScore < 0.0f)
+    winner = C_BLACK;
+  isNoResult = false;
+  isGameFinished = true;
+}
+
+
 void BoardHistory::setKoProhibited(Player pla, Loc loc, bool b) {
   if(pla == P_BLACK) {
     if(blackKoProhibited[loc] != b) {
@@ -518,26 +567,11 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   if(consecutiveEndingPasses >= 2 || isSimpleSpightOrEncoreEndingPass) {
     if(rules.scoringRule == Rules::SCORING_AREA) {
       assert(encorePhase <= 0);
-      int boardScore = countAreaScoreWhiteMinusBlack(board);
-      finalWhiteMinusBlackScore = boardScore + whiteBonusScore + rules.komi;
-      if(finalWhiteMinusBlackScore > 0.0f)
-        winner = C_WHITE;
-      else if(finalWhiteMinusBlackScore < 0.0f)
-        winner = C_BLACK;
-      isNoResult = false;
-      isGameFinished = true;
+      endAndScoreGameNow(board);
     }
     else if(rules.scoringRule == Rules::SCORING_TERRITORY) {
-      if(encorePhase >= 2) {
-        int boardScore = countTerritoryAreaScoreWhiteMinusBlack(board);
-        finalWhiteMinusBlackScore = boardScore + whiteBonusScore + rules.komi;
-        if(finalWhiteMinusBlackScore > 0.0f)
-          winner = C_WHITE;
-        else if(finalWhiteMinusBlackScore < 0.0f)
-          winner = C_BLACK;
-        isNoResult = false;
-        isGameFinished = true;
-      }
+      if(encorePhase >= 2)
+        endAndScoreGameNow(board);
       else {
         encorePhase += 1;
         if(encorePhase == 2)
@@ -557,6 +591,8 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
         koHashHistory.push_back(getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash));
       }
     }
+    else
+      assert(false);
   }
 
   //Break long cycles with no-result
@@ -568,7 +604,6 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   }
 
 }
-
 
 
 KoHashTable::KoHashTable()
