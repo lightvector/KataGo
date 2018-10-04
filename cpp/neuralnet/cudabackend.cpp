@@ -2892,7 +2892,7 @@ struct ModelDesc {
     if(numInputChannels <= 0)
       throw StringError(name + ": model numInputChannels must be positive");
 
-    if(version < 0 || version > 1)
+    if(version < 0 || version > 2)
       throw StringError(name + ": model found unsupported version " + Global::intToString(version));
     if(version < 1)
       throw StringError("Version 0 neural nets no longer supported in cuda backend");
@@ -3255,7 +3255,6 @@ struct Buffers {
 
     inputBufBytesSingle = m.numInputChannels * batchXYSingleBytes;
     inputBufBytes = m.numInputChannels * batchXYBytes;
-    assert(NNModelVersion::getRowSize(m.version) * sizeof(float) == inputBufBytesSingle);
 
     CUDA_ERR("Buffers",cudaMalloc(&inputBufSingle, inputBufBytesSingle));
     CUDA_ERR("Buffers",cudaMalloc(&inputBuf, inputBufBytes));
@@ -3419,6 +3418,7 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
       + " compute capability major " + Global::intToString(prop.major)
       + " minor " + Global::intToString(prop.minor)
     );
+    logger->write("Cuda backend: Model version " + Global::intToString(loadedModel->modelDesc.version));
   }
   if(cudaUseFP16 && (prop.major < 5 || (prop.major == 5 && prop.minor < 3)))
     throw new StringError("Cuda device versions below 5.3 do not support cudaUseFP16=true");
@@ -3463,6 +3463,8 @@ struct InputBuffers {
     singlePolicyResultBytes = (1 + m.xSize * m.ySize) * sizeof(float);
     singleValueResultElts = 1;
     singleValueResultBytes = sizeof(float);
+
+    assert(NNModelVersion::getRowSize(m.version) == singleBatchItemElts);
 
     userInputBufferBytes = m.numInputChannels * maxBatchSize * m.xSize * m.ySize * sizeof(float);
     policyResultBufferBytes = maxBatchSize * (1 + m.xSize * m.ySize) * sizeof(float);
