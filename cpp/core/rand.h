@@ -3,7 +3,8 @@
  * Author: David Wu
  *
  * Basic class for random number generation.
- * Not threadsafe!
+ * Individual rand objects are not threadsafe but the seeding logic should ensure that different
+ * instances created simultaneously in different threads or on different machines should all be distinct.
  * Note: Signed integer functions might not be portable to other architectures.
  *
  * Combines:
@@ -38,8 +39,6 @@ class Rand
 
   //Initializes according to system time and some other unique junk, tries
   //to make sure multiple invocations will be different
-  //Note if two *different* threads calling this in rapid succession, the seeds
-  //might *not* be unique.
   Rand();
   //Intializes according to the provided seed
   Rand(const char* seed);

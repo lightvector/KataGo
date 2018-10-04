@@ -23,6 +23,7 @@ class ConfigParser {
   ConfigParser& operator=(ConfigParser&& other) = delete;
 
   vector<string> unusedKeys() const;
+  string getFileName() const;
 
   bool contains(const string& key) const;
 
