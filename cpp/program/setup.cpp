@@ -25,7 +25,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     string idxStr = Global::intToString(i);
     const string& nnModelFile = nnModelFiles[i];
 
-    bool debugSkipNeuralNet = false;
+    bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : false;
     int modelFileIdx = i;
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelFile,
