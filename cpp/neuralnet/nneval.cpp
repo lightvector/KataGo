@@ -63,6 +63,9 @@ NNEvaluator::NNEvaluator(
   loadedModel = NeuralNet::loadModelFile(pbModelFile, modelFileIdx);
   m_inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize);
 
+  modelVersion = NeuralNet::getModelVersion(loadedModel);
+  inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
+
   m_resultBufs = new NNResultBuf*[maxBatchSize];
   for(int i = 0; i < maxBatchSize; i++)
     m_resultBufs[i] = NULL;
@@ -268,8 +271,14 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   assert(!isKilled);
   buf.hasResult = false;
 
-  //TODO add option to use V2 and test!
-  Hash128 nnHash = NNInputs::getHashV1(board, history, nextPlayer);
+  Hash128 nnHash;
+  if(inputsVersion == 1)
+    nnHash = NNInputs::getHashV1(board, history, nextPlayer);
+  else if(inputsVersion == 2)
+    nnHash = NNInputs::getHashV2(board, history, nextPlayer);
+  else
+    assert(false);
+
   if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
     buf.hasResult = true;
     return;
@@ -287,8 +296,12 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
     serverWaitingForBatchStart.notify_one();
   lock.unlock();
 
-  //TODO add option to use V2 and test!
-  NNInputs::fillRowV1(board, history, nextPlayer, rowInput);
+  if(inputsVersion == 1)
+    NNInputs::fillRowV1(board, history, nextPlayer, rowInput);
+  else if(inputsVersion == 2)
+    NNInputs::fillRowV2(board, history, nextPlayer, rowInput);
+  else
+    assert(false);
 
   lock.lock();
   m_resultBufs[rowIdx] = &buf;

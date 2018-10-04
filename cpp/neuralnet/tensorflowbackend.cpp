@@ -9,6 +9,7 @@
 #include <tensorflow/core/public/session.h>
 
 #include "../neuralnet/nninterface.h"
+#include <fstream>
 
 static tensorflow::Session* globalSession = NULL;
 
@@ -44,12 +45,14 @@ struct LocalGpuHandle {
 };
 struct LoadedModel {
   string graphPrefix;
+  int modelVersion;
   tensorflow::GraphDef* graphDef;
 };
 struct InputBuffers {
   vector<string> outputNames;
   vector<string> targetNames;
 
+  int rowSize;
   float* inputsBuffer;
   bool* symmetriesBuffer;
   vector<pair<string,tensorflow::Tensor>> inputsList;
@@ -96,6 +99,15 @@ LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
   status = globalSession->Extend(*(loadedModel->graphDef));
   checkStatus(status,"adding graph to session");
 
+  //Read version
+  std::ifstream versionIn(file + ".modelVersion");
+  int modelVersion = -1;
+  versionIn >> modelVersion;
+  if(modelVersion == -1 || versionIn.bad())
+    throw StringError("Error: could not read model version from " + (file + ".modelVersion"));
+  versionIn.close();
+  loadedModel->modelVersion = modelVersion;
+
   return loadedModel;
 }
 
@@ -103,6 +115,11 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   delete loadedModel->graphDef;
   delete loadedModel;
 }
+
+int Neuralnet::getModelVersion(const LoadedModel* loadedModel) {
+  return loadedModel->modelVersion;
+}
+
 
 LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   const LoadedModel* loadedModel,
@@ -138,11 +155,14 @@ InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int 
   };
   buffers->targetNames = {};
 
+  int numFeatures = NNModelVersion::getNumFeatures(loadedModel->modelVersion);
+  buffers->rowSize = NNModelVersion::getRowSize(loadedModel->modelVersion);
+
   //Set up inputs
   tensorflow::TensorShape inputsShape;
   tensorflow::TensorShape symmetriesShape;
   tensorflow::TensorShape isTrainingShape;
-  int inputsShapeArr[3] = {maxBatchSize,NNPos::MAX_BOARD_AREA,NNInputs::NUM_FEATURES_V1};
+  int inputsShapeArr[3] = {maxBatchSize,NNPos::MAX_BOARD_AREA,numFeatures};
   status = tensorflow::TensorShapeUtils::MakeShape(inputsShapeArr,3,&inputsShape);
   checkStatus(status,"making inputs shape");
   int symmetriesShapeArr[1] = {NNInputs::NUM_SYMMETRY_BOOLS};
@@ -188,7 +208,7 @@ void NeuralNet::freeInputBuffers(InputBuffers* buffers) {
 }
 
 float* NeuralNet::getRowInplace(InputBuffers* buffers, int rowIdx) {
-  return buffers->inputsBuffer + rowIdx * NNInputs::ROW_SIZE_V1;
+  return buffers->inputsBuffer + rowIdx * buffers->rowSize;
 }
 bool* NeuralNet::getSymmetriesInplace(InputBuffers* buffers) {
   return buffers->symmetriesBuffer;

@@ -676,6 +676,12 @@ class Model:
   def build_model(self, use_ranks, include_policy, include_value, predict_pass):
     max_board_size = self.max_board_size
 
+    #Model version-------------------------------------------------------------------------------
+    #This is written out in the model file when it gets built for export
+    #self.version = 0 #V1 features, with old head architecture using crelus (no longer supported)
+    #self.version = 1 #V1 features, with new head architecture, no crelus
+    self.version = 2 #V2 features, no internal architecture change.
+
     #Input layer---------------------------------------------------------------------------------
     inputs = tf.placeholder(tf.float32, [None] + self.input_shape, name="inputs")
     ranks = tf.placeholder(tf.float32, [None] + self.rank_shape, name="ranks")

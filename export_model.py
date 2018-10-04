@@ -91,6 +91,9 @@ with tf.Session(config=tfconfig) as session:
     with open(savepath + ".config.json","w") as f:
       json.dump(model_config,f)
 
+    with open(savepath + ".graph_optimized.pb.modelVersion") as f:
+      f.write(model.version)
+
     log("Exported at: ")
     log(str(datetime.datetime.utcnow()) + " UTC")
 
@@ -104,7 +107,7 @@ with tf.Session(config=tfconfig) as session:
       f.write(str(s)+"\n")
 
     writeln(model_name)
-    writeln(1) #version
+    writeln(model.version) #version
     writeln(model.max_board_size) #x
     writeln(model.max_board_size) #y
     writeln(model.num_input_features)
@@ -298,6 +301,13 @@ with tf.Session(config=tfconfig) as session:
     write_policy_head()
     write_value_head()
     f.close()
+
+    log("Exported at: ")
+    log(str(datetime.datetime.utcnow()) + " UTC")
+
+    with open(export_dir + "/log.txt","w") as f:
+      for line in loglines:
+        f.write(line + "\n")
 
   sys.stdout.flush()
   sys.stderr.flush()

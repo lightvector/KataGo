@@ -102,6 +102,7 @@ if(BUILD_MCTS)
     game/boardhistory.cpp
     dataio/sgf.cpp
     neuralnet/nninputs.cpp
+    neuralnet/modelversion.cpp
     neuralnet/nneval.cpp
     ${NEURALNET_BACKEND_SOURCES}
     search/searchparams.cpp

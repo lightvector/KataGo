@@ -2551,7 +2551,7 @@ struct PolicyHead {
     p1BN->apply(cudaHandles,p2InDescriptor,p2InDescriptor,batchSize,false,p1OutBufA,p1OutBufB);
     p1Activation->apply(cudaHandles,p2InDescriptor,p2InDescriptor,p1OutBufB,p1OutBufB);
     p2Conv->apply(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize,false,p1OutBufB,p2OutBuf,workspaceBuf,workspaceBytes);
-  
+
     bool inverse = true;
     if(!usingNHWC)
       applySymmetriesNCHW<float>(symmetriesBuffer, inverse, batchSize, p2Channels, xSize, ySize, p2OutBuf, policyBuf);
@@ -2821,7 +2821,7 @@ struct ValueHead {
     const cudnnTensorDescriptor_t& v3InDescriptor = v3InDescriptors[batchSize-1];
 
     bool applyBNReluWhenFP16 = true;
-    
+
     v1Conv->apply(cudaHandles,trunkDescriptor,v1OutDescriptor,batchSize,false,trunkBuf,v1OutBuf,workspaceBuf,workspaceBytes);
     v1BN->apply(cudaHandles,v1OutDescriptor,v1OutDescriptor,batchSize,applyBNReluWhenFP16,v1OutBuf,v1OutBuf2);
     if(!(usingFP16 && applyBNReluWhenFP16))
@@ -2947,6 +2947,7 @@ struct ModelDesc {
 
 struct Model {
   string name;
+  int version;
   int maxBatchSize;
   int xSize;
   int ySize;
@@ -2971,6 +2972,7 @@ struct Model {
     bool useNHWC
   ) {
     name = desc->name;
+    version = desc->version;
     maxBatchSize = maxBatchSz;
     xSize = desc->xSize;
     ySize = desc->ySize;
@@ -2985,9 +2987,11 @@ struct Model {
       throw StringError(Global::strprintf("Currently neural net ySize (%d) must be NNPos::MAX_BOARD_LEN (%d)",
         ySize, NNPos::MAX_BOARD_LEN
       ));
-    if(numInputChannels != NNInputs::NUM_FEATURES_V1)
-      throw StringError(Global::strprintf("Currently neural net numInputChannels (%d) must be NNPos::NUM_FEATURES_V1 (%d)",
-        numInputChannels, NNInputs::NUM_FEATURES_V1
+
+    int numFeatures = NNModelVersion::getNumFeatures(version);
+    if(numInputChannels != numFeatures)
+      throw StringError(Global::strprintf("Neural net numInputChannels (%d) was not the expected number based on version (%d)",
+        numInputChannels, numFeatures
       ));
 
     inputDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
@@ -3187,6 +3191,9 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
+int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.version;
+}
 
 //------------------------------------------------------------------------------
 
@@ -3248,6 +3255,8 @@ struct Buffers {
 
     inputBufBytesSingle = m.numInputChannels * batchXYSingleBytes;
     inputBufBytes = m.numInputChannels * batchXYBytes;
+    assert(NNModelVersion::getRowSize(m.version) * sizeof(float) == inputBufBytesSingle);
+
     CUDA_ERR("Buffers",cudaMalloc(&inputBufSingle, inputBufBytesSingle));
     CUDA_ERR("Buffers",cudaMalloc(&inputBuf, inputBufBytes));
     CUDA_ERR("Buffers",cudaMalloc(&inputScratchBuf, inputBufBytes));

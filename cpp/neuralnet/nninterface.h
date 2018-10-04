@@ -24,6 +24,8 @@ namespace NeuralNet {
   LoadedModel* loadModelFile(const string& file, int modelFileIdx);
   void freeLoadedModel(LoadedModel* loadedModel);
 
+  int getModelVersion(const LoadedModel* loadedModel);
+
   //Any given thread should only ever create one of these at a time.
   //When using the CUDA backend, will mutably set the GPU that this thread is associated with to the specified index.
   //If logger is specified, may output some info messages to it.
@@ -39,6 +41,14 @@ namespace NeuralNet {
   void getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int numFilledRows, vector<NNOutput*>& outputs);
 }
 
+//Model versions
+namespace NNModelVersion {
+  //Which V* feature version from NNInputs does a given model version consume?
+  int getInputsVersion(int modelVersion);
+  //Convenience functions, feeds forward the number of features and the size of the row vector that the net takes as input
+  int getNumFeatures(int modelVersion);
+  int getRowSize(int modelVersion);
+}
 
 
 #endif

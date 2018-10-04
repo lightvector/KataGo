@@ -123,6 +123,9 @@ class NNEvaluator {
   NNCacheTable* nnCacheTable;
   bool debugSkipNeuralNet;
 
+  int modelVersion;
+  int inputsVersion;
+
   vector<thread*> serverThreads;
 
   condition_variable clientWaitingForRow;
