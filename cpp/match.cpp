@@ -117,8 +117,8 @@ int MainCmds::match(int argc, const char* const* argv) {
   GameInitializer* gameInit = new GameInitializer(cfg);
 
   //Load match runner settings
-  int numMatchThreads = cfg.getInt("numMatchThreads",1,16384);
-  int64_t numMatchGamesTotal = cfg.getInt64("numMatchGamesTotal",1,((int64_t)1) << 62);
+  int numGameThreads = cfg.getInt("numGameThreads",1,16384);
+  int64_t numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
   int maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
 
   string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
@@ -188,12 +188,12 @@ int MainCmds::match(int argc, const char* const* argv) {
   };
 
   mutex matchSetupMutex;
-  int64_t numMatchGamesStartedSoFar = 0;
+  int64_t numGamesStartedSoFar = 0;
   MatchPairer matchPairer(numBots,secondaryBots);
 
   auto runMatchLoop = [
     &botNames,&gameInit,&runMatchGame,&matchSetupMutex,
-    numMatchGamesTotal,&numMatchGamesStartedSoFar,&matchPairer,&sgfOutputDir,&logger,logGamesEvery,
+    numGamesTotal,&numGamesStartedSoFar,&matchPairer,&sgfOutputDir,&logger,logGamesEvery,
     &nnModelFiles,&nnEvals
   ](
     uint64_t threadHash
@@ -203,17 +203,17 @@ int MainCmds::match(int argc, const char* const* argv) {
 
     while(true) {
       lock.lock();
-      if(numMatchGamesStartedSoFar >= numMatchGamesTotal)
+      if(numGamesStartedSoFar >= numGamesTotal)
         break;
       if(sigReceived.load())
         break;
-      int64_t gameIdx = numMatchGamesStartedSoFar;
-      numMatchGamesStartedSoFar += 1;
+      int64_t gameIdx = numGamesStartedSoFar;
+      numGamesStartedSoFar += 1;
 
-      if(numMatchGamesStartedSoFar % logGamesEvery == 0)
-        logger.write("Started " + Global::int64ToString(numMatchGamesStartedSoFar) + " games");
+      if(numGamesStartedSoFar % logGamesEvery == 0)
+        logger.write("Started " + Global::int64ToString(numGamesStartedSoFar) + " games");
       int logNNEvery = logGamesEvery > 100 ? logGamesEvery : 100;
-      if(numMatchGamesStartedSoFar % logNNEvery == 0) {
+      if(numGamesStartedSoFar % logNNEvery == 0) {
         for(int i = 0; i<nnModelFiles.size(); i++) {
           logger.write(nnModelFiles[i]);
           logger.write("NN rows: " + Global::int64ToString(nnEvals[i]->numRowsProcessed()));
@@ -251,10 +251,10 @@ int MainCmds::match(int argc, const char* const* argv) {
 
   Rand hashRand;
   vector<std::thread> threads;
-  for(int i = 0; i<numMatchThreads; i++) {
+  for(int i = 0; i<numGameThreads; i++) {
     threads.push_back(std::thread(runMatchLoop, hashRand.nextUInt64()));
   }
-  for(int i = 0; i<numMatchThreads; i++)
+  for(int i = 0; i<numGameThreads; i++)
     threads[i].join();
 
   for(int i = 0; i<nnEvals.size(); i++) {
