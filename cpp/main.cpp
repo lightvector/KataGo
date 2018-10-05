@@ -8,6 +8,7 @@ static void printHelp() {
   cout << "evalSgf" << endl;
   cout << "gtp" << endl;
   cout << "match" << endl;
+  cout << "selfPlay" << endl;
   cout << "runTests" << endl;
   cout << "writeSearchValueTimeseries" << endl;
   cout << "sandbox" << endl;
@@ -31,6 +32,8 @@ int main(int argc, const char* argv[]) {
     return MainCmds::gtp(argc-1,&argv[1]);
   else if(cmdArg == "match")
     return MainCmds::match(argc-1,&argv[1]);
+  else if(cmdArg == "selfPlay")
+    return MainCmds::selfPlay(argc-1,&argv[1]);
   else if(cmdArg == "runTests")
     return MainCmds::runTests(argc-1,&argv[1]);
   else if(cmdArg == "writeSearchValueTimeseries")

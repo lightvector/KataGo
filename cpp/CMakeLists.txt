@@ -120,6 +120,7 @@ if(BUILD_MCTS)
     evalsgf.cpp
     gtp.cpp
     match.cpp
+    selfplay.cpp
     misc.cpp
     runtests.cpp
     sandbox.cpp

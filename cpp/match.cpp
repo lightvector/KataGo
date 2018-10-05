@@ -150,14 +150,6 @@ int MainCmds::match(int argc, const char* const* argv) {
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
-  //TODO
-  // Rand gameRand(searchRandSeed + ":" + "forGameRand");
-
-  // //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
-  // //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
-  // //called on positions that occur after the game would have been autoterminated.
-  // bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
-
   auto runMatchGame = [&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,logMoves,maxMovesPerGame,&searchRandSeedBase,clearBotAfterSearch](
     int64_t gameIdx, int botIdxB, int botIdxW, Board& board, Player pla, BoardHistory& hist, int numExtraBlack
   ) {
