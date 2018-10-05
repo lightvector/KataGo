@@ -91,7 +91,7 @@ GameInitializer::GameInitializer(ConfigParser& cfg)
     throw IOError("multiStoneSuicideLegals must have at least one value in " + cfg.getFileName());
 
   allowedBSizes = cfg.getInts("bSizes", 9, 19);
-  allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1.0);
+  allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
   komiMean = cfg.getFloat("komiMean",-60.0f,60.0f);
   komiStdev = cfg.getFloat("komiStdev",-60.0f,60.0f);
@@ -251,10 +251,6 @@ void Play::runGame(
 
     AsyncBot* toMoveBot = pla == P_BLACK ? botB : botW;
     Loc loc = toMoveBot->genMoveSynchronous(pla);
-    //In many cases, we are using root-level noise, so we want to clear the search each time so that we don't
-    //bias the next search with the result of the previous... and also to make each color's search independent of the other's.
-    if(clearBotAfterSearch)
-      toMoveBot->clearSearch();
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegal(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
@@ -262,6 +258,11 @@ void Play::runGame(
       logSearch(toMoveBot,logger,loc);
     if(logMoves)
       logger.write("Move " + Global::intToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
+
+    //In many cases, we are using root-level noise, so we want to clear the search each time so that we don't
+    //bias the next search with the result of the previous... and also to make each color's search independent of the other's.
+    if(clearBotAfterSearch)
+      toMoveBot->clearSearch();
 
     bool suc;
     suc = botB->makeMove(loc,pla);
