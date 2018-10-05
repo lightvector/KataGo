@@ -30,7 +30,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   string logFile;
   string sgfOutputDir;
   try {
-    TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Play different nets against each other with different search settings", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/match_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",false,string(),"DIR");
@@ -191,8 +191,6 @@ int MainCmds::match(int argc, const char* const* argv) {
   int64_t numMatchGamesStartedSoFar = 0;
   MatchPairer matchPairer(numBots,secondaryBots);
 
-  //Only call this if matchSetupMutex is already locked
-
   auto runMatchLoop = [
     &botNames,&gameInit,&runMatchGame,&matchSetupMutex,
     numMatchGamesTotal,&numMatchGamesStartedSoFar,&matchPairer,&sgfOutputDir,&logger,logGamesEvery,
@@ -240,9 +238,9 @@ int MainCmds::match(int argc, const char* const* argv) {
       if(sigReceived.load())
         break;
 
-      string bName = botNames[botIdxB];
-      string wName = botNames[botIdxW];
       if(sgfOut != NULL) {
+        string bName = botNames[botIdxB];
+        string wName = botNames[botIdxW];
         WriteSgf::writeSgf(*sgfOut,bName,wName,initialRules,initialBoard,hist);
         (*sgfOut) << endl;
       }
