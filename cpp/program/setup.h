@@ -21,11 +21,6 @@ namespace Setup {
     ConfigParser& cfg
   );
 
-  pair<int,float> chooseExtraBlackAndKomi(
-    float base, float stdev, double allowIntegerProb, double handicapProb, float handicapStoneValue,
-    double bigStdevProb, float bigStdev, int bSize, Rand& rand
-  );
-
 }
 
 #endif

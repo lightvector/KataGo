@@ -5,6 +5,7 @@
 #include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
+#include "program/play.h"
 #include "program/gitinfo.h"
 #include "main.h"
 
@@ -112,40 +113,8 @@ int MainCmds::match(int argc, const char* const* argv) {
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelFiles,cfg,logger,seedRand);
   logger.write("Loaded neural net");
 
-  //Get the configuration for rules
-  vector<string> allowedKoRuleStrs = cfg.getStrings("koRules", Rules::koRuleStrings());
-  vector<string> allowedScoringRuleStrs = cfg.getStrings("scoringRules", Rules::scoringRuleStrings());
-  vector<bool> allowedMultiStoneSuicideLegals = cfg.getBools("multiStoneSuicideLegals");
-
-  vector<int> allowedKoRules;
-  vector<int> allowedScoringRules;
-  for(size_t i = 0; i < allowedKoRuleStrs.size(); i++)
-    allowedKoRules.push_back(Rules::parseKoRule(allowedKoRuleStrs[i]));
-  for(size_t i = 0; i < allowedScoringRuleStrs.size(); i++)
-    allowedScoringRules.push_back(Rules::parseScoringRule(allowedScoringRuleStrs[i]));
-
-  if(allowedKoRules.size() <= 0)
-    throw IOError("koRules must have at least one value in " + configFile);
-  if(allowedScoringRules.size() <= 0)
-    throw IOError("scoringRules must have at least one value in " + configFile);
-  if(allowedMultiStoneSuicideLegals.size() <= 0)
-    throw IOError("multiStoneSuicideLegals must have at least one value in " + configFile);
-
-  vector<int> allowedBSizes = cfg.getInts("bSizes", 9, 19);
-  vector<double> allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1.0);
-
-  float komiMean = cfg.getFloat("komiMean",-60.0f,60.0f);
-  float komiStdev = cfg.getFloat("komiStdev",-60.0f,60.0f);
-  double komiAllowIntegerProb = cfg.getDouble("komiAllowIntegerProb",0.0,1.0);
-  double handicapProb = cfg.getDouble("handicapProb",0.0,1.0);
-  float handicapStoneValue = cfg.getFloat("handicapStoneValue",0.0f,30.0f);
-  double komiBigStdevProb = cfg.getDouble("komiBigStdevProb",0.0,1.0);
-  double komiBigStdev = cfg.getFloat("komiBigStdev",-60.0f,60.0f);
-
-  if(allowedBSizes.size() <= 0)
-    throw IOError("bSizes must have at least one value in " + configFile);
-  if(allowedBSizes.size() != allowedBSizeRelProbs.size())
-    throw IOError("bSizes and bSizeRelProbs must have same number of values in " + configFile);
+  //Initialize object for randomizing game settings
+  GameInitializer* gameInit = new GameInitializer(cfg);
 
   //Load match runner settings
   int numMatchThreads = cfg.getInt("numMatchThreads",1,16384);
@@ -153,6 +122,9 @@ int MainCmds::match(int argc, const char* const* argv) {
   int maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
 
   string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+
+  //Misc other settings
+  bool clearBotAfterSearch = cfg.contains("clearBotAfterSearch") ? cfg.getBool("clearBotAfterSearch") : false;
 
   //Check for unused config keys
   {
@@ -173,211 +145,57 @@ int MainCmds::match(int argc, const char* const* argv) {
   if(sgfOutputDir != string())
     MakeDir::make(sgfOutputDir);
 
-  mutex newGameMutex;
-  auto initNewGame = [&](Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack) {
-    //Multiple threads will be calling this, and seedRand is shared, so we mutex to protect things
-    unique_lock<std::mutex> lock(newGameMutex);
-
-    int bSize = allowedBSizes[seedRand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size())];
-    board = Board(bSize,bSize);
-
-    Rules rules;
-    rules.koRule = allowedKoRules[seedRand.nextUInt(allowedKoRules.size())];
-    rules.scoringRule = allowedScoringRules[seedRand.nextUInt(allowedScoringRules.size())];
-    rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[seedRand.nextUInt(allowedMultiStoneSuicideLegals.size())];
-
-    pair<int,float> extraBlackAndKomi = Setup::chooseExtraBlackAndKomi(
-      komiMean, komiStdev, komiAllowIntegerProb, handicapProb, handicapStoneValue,
-      komiBigStdevProb, komiBigStdev, bSize, seedRand
-    );
-    rules.komi = extraBlackAndKomi.second;
-
-    pla = P_BLACK;
-    hist.clear(board,pla,rules);
-    numExtraBlack = extraBlackAndKomi.first;
-
-    return true;
-  };
-
   if(!std::atomic_is_lock_free(&sigReceived))
-    throw StringError("sigReceived is not lock free, signal-quitting mechanism for intinating matches will NOT work!");
+    throw StringError("sigReceived is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
-  auto failIllegalMove = [&logger](AsyncBot* bot, Board board, Loc loc) {
-    ostringstream sout;
-    sout << "Bot returned null location or illegal move!?!" << "\n";
-    sout << board << "\n";
-    sout << bot->getRootBoard() << "\n";
-    sout << "Pla: " << playerToString(bot->getRootPla()) << "\n";
-    sout << "Loc: " << Location::toString(loc,bot->getRootBoard()) << "\n";
-    logger.write(sout.str());
-    bot->getRootBoard().checkConsistency();
-    assert(false);
-  };
+  //TODO
+  // Rand gameRand(searchRandSeed + ":" + "forGameRand");
 
-  auto logSearch = [&logger](AsyncBot* bot, Loc loc) {
-    Search* search = bot->getSearch();
-    ostringstream sout;
-    Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
-    sout << "\n";
-    sout << "Root visits: " << search->numRootVisits() << "\n";
-    sout << "PV: ";
-    search->printPV(sout, search->rootNode, 25);
-    sout << "\n";
-    sout << "Tree:\n";
-    search->printTree(sout, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
-    logger.write(sout.str());
-  };
+  // //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
+  // //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
+  // //called on positions that occur after the game would have been autoterminated.
+  // bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
 
-  auto playExtraBlack = [&failIllegalMove](AsyncBot* bot, int numExtraBlack, Board& board, BoardHistory& hist) {
-    SearchParams oldParams = bot->getSearch()->searchParams;
-    SearchParams tempParams = oldParams;
-    tempParams.rootNoiseEnabled = false;
-    tempParams.chosenMoveSubtract = 0.0;
-    tempParams.chosenMoveTemperature = 1.0;
-    tempParams.numThreads = 1;
-    tempParams.maxVisits = 1;
-
-    Player pla = P_BLACK;
-    bot->setPosition(pla,board,hist);
-    bot->setParams(tempParams);
-    bot->setRootPassLegal(false);
-
-    for(int i = 0; i<numExtraBlack; i++) {
-      Loc loc = bot->genMoveSynchronous(pla);
-      if(loc == Board::NULL_LOC || !bot->isLegal(loc,pla))
-        failIllegalMove(bot,board,loc);
-      assert(hist.isLegal(board,loc,pla));
-      hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-      hist.clear(board,pla,hist.rules);
-      bot->setPosition(pla,board,hist);
-    }
-
-    bot->setParams(oldParams);
-    bot->setRootPassLegal(true);
-  };
-
-  auto runSelfPlayGame = [&failIllegalMove,&playExtraBlack,&logSearch,&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,logMoves,maxMovesPerGame,&searchRandSeedBase] (
-    int gameIdx, int botIdx, Board& board, Player pla, BoardHistory& hist, int numExtraBlack
-  ) {
-    string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
-    Rand gameRand(searchRandSeed + ":" + "forGameRand");
-
-    //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
-    //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
-    //called on positions that occur after the game would have been autoterminated.
-    bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
-
-    AsyncBot* bot = new AsyncBot(paramss[botIdx], nnEvals[whichNNModel[botIdx]], &logger, searchRandSeed);
-    if(numExtraBlack > 0)
-      playExtraBlack(bot,numExtraBlack,board,hist);
-    bot->setPosition(pla,board,hist);
-
-    for(int i = 0; i<maxMovesPerGame; i++) {
-      if(hist.isGameFinished)
-        break;
-      if(sigReceived.load())
-        break;
-
-      Loc loc = bot->genMoveSynchronous(pla);
-      bot->clearSearch();
-
-      if(loc == Board::NULL_LOC || !bot->isLegal(loc,pla))
-        failIllegalMove(bot,board,loc);
-      if(logSearchInfo)
-        logSearch(bot,loc);
-      if(logMoves)
-        logger.write("Move " + Global::intToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
-
-      bool suc = bot->makeMove(loc,pla);
-      assert(suc);
-
-      assert(hist.isLegal(board,loc,pla));
-      hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-      pla = getOpp(pla);
-
-      if(doEndGameIfAllPassAlive)
-        hist.endGameIfAllPassAlive(board);
-    }
-    delete bot;
-  };
-
-  auto runMatchGame = [&failIllegalMove,&playExtraBlack,&logSearch,&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,logMoves,maxMovesPerGame,&searchRandSeedBase](
+  auto runMatchGame = [&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,logMoves,maxMovesPerGame,&searchRandSeedBase,clearBotAfterSearch](
     int64_t gameIdx, int botIdxB, int botIdxW, Board& board, Player pla, BoardHistory& hist, int numExtraBlack
   ) {
     string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
-    AsyncBot* botB = new AsyncBot(paramss[botIdxB], nnEvals[whichNNModel[botIdxB]], &logger, searchRandSeed+"B");
-    AsyncBot* botW = new AsyncBot(paramss[botIdxW], nnEvals[whichNNModel[botIdxW]], &logger, searchRandSeed+"W");
-    if(numExtraBlack > 0)
-      playExtraBlack(botB,numExtraBlack,board,hist);
-    botB->setPosition(pla,board,hist);
-    botW->setPosition(pla,board,hist);
-
-    for(int i = 0; i<maxMovesPerGame; i++) {
-      if(hist.isGameFinished)
-        break;
-      if(sigReceived.load())
-        break;
-
-      AsyncBot* toMoveBot = pla == P_BLACK ? botB : botW;
-      Loc loc = toMoveBot->genMoveSynchronous(pla);
-
-      if(loc == Board::NULL_LOC || !toMoveBot->isLegal(loc,pla))
-        failIllegalMove(toMoveBot,board,loc);
-      if(logSearchInfo)
-        logSearch(toMoveBot,loc);
-      if(logMoves)
-        logger.write("Move " + Global::intToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
-
-      bool suc;
-      suc = botB->makeMove(loc,pla);
-      assert(suc);
-      suc = botW->makeMove(loc,pla);
-      assert(suc);
-
-      assert(hist.isLegal(board,loc,pla));
-      hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-      pla = getOpp(pla);
-      hist.endGameIfAllPassAlive(board);
+    AsyncBot* botB;
+    AsyncBot* botW;
+    bool clearBotAfterSearchThisGame = clearBotAfterSearch;
+    if(botIdxB == botIdxW) {
+      AsyncBot* bot = new AsyncBot(paramss[botIdxB], nnEvals[whichNNModel[botIdxB]], &logger, searchRandSeed);
+      botB = bot;
+      botW = bot;
+      //To avoid interactions between the two bots since they're the same
+      clearBotAfterSearchThisGame = true;
     }
+    else {
+      botB = new AsyncBot(paramss[botIdxB], nnEvals[whichNNModel[botIdxB]], &logger, searchRandSeed+"B");
+      botW = new AsyncBot(paramss[botIdxW], nnEvals[whichNNModel[botIdxW]], &logger, searchRandSeed+"W");
+    }
+    bool doEndGameIfAllPassAlive = true;
+    Play::runGame(
+      board,pla,hist,numExtraBlack,botB,botW,
+      doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
+      logger,logSearchInfo,logMoves,
+      maxMovesPerGame,sigReceived
+    );
     delete botB;
     delete botW;
   };
 
   mutex matchSetupMutex;
   int64_t numMatchGamesStartedSoFar = 0;
-  vector<pair<int,int>> nextMatchups;
-  Rand matchRand;
+  MatchPairer matchPairer(numBots,secondaryBots);
 
   //Only call this if matchSetupMutex is already locked
-  auto getMatchup = [numBots,&nextMatchups,&secondaryBots,&matchRand]() {
-    if(nextMatchups.size() <= 0) {
-      if(numBots == 1)
-        return make_pair(0,0);
-      for(int i = 0; i<numBots; i++) {
-        for(int j = 0; j<numBots; j++) {
-          if(i != j && !(contains(secondaryBots,i) && contains(secondaryBots,j))) {
-            nextMatchups.push_back(make_pair(i,j));
-          }
-        }
-      }
-      //Shuffle
-      for(int i = nextMatchups.size()-1; i >= 1; i--) {
-        int j = (int)matchRand.nextUInt(i+1);
-        pair<int,int> tmp = nextMatchups[i];
-        nextMatchups[i] = nextMatchups[j];
-        nextMatchups[j] = tmp;
-      }
-    }
-    pair<int,int> matchup = nextMatchups.back();
-    nextMatchups.pop_back();
-    return matchup;
-  };
 
   auto runMatchLoop = [
-    &botNames,&initNewGame,&runSelfPlayGame,&runMatchGame,&matchSetupMutex,
-    numMatchGamesTotal,&numMatchGamesStartedSoFar,&getMatchup,&sgfOutputDir,&logger,logGamesEvery,
+    &botNames,&gameInit,&runMatchGame,&matchSetupMutex,
+    numMatchGamesTotal,&numMatchGamesStartedSoFar,&matchPairer,&sgfOutputDir,&logger,logGamesEvery,
     &nnModelFiles,&nnEvals
   ](
     uint64_t threadHash
@@ -406,21 +224,18 @@ int MainCmds::match(int argc, const char* const* argv) {
         }
       }
 
-      pair<int,int> matchup = getMatchup();
+      pair<int,int> matchup = matchPairer.getMatchup();
       int botIdxB = matchup.first;
       int botIdxW = matchup.second;
 
       lock.unlock();
 
       Board board; Player pla; BoardHistory hist; int numExtraBlack;
-      initNewGame(board,pla,hist,numExtraBlack);
+      gameInit->createGame(board,pla,hist,numExtraBlack);
       Board initialBoard = board;
       Rules initialRules = hist.rules;
 
-      if(botIdxB == botIdxW)
-        runSelfPlayGame(gameIdx,botIdxB,board,pla,hist,numExtraBlack);
-      else
-        runMatchGame(gameIdx,botIdxB,botIdxW,board,pla,hist,numExtraBlack);
+      runMatchGame(gameIdx,botIdxB,botIdxW,board,pla,hist,numExtraBlack);
 
       if(sigReceived.load())
         break;
