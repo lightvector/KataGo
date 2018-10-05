@@ -10,8 +10,6 @@ class AsyncBot {
 
   AsyncBot(const AsyncBot& other) = delete;
   AsyncBot& operator=(const AsyncBot& other) = delete;
-  AsyncBot(AsyncBot&& other) = delete;
-  AsyncBot& operator=(AsyncBot&& other) = delete;
 
   //Unless otherwise specified, functions in this class are NOT threadsafe, although they may spawn off asynchronous events.
   //Usage of this API should be single-threaded!

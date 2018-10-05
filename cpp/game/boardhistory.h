@@ -118,8 +118,6 @@ struct KoHashTable {
 
   KoHashTable(const KoHashTable& other) = delete;
   KoHashTable& operator=(const KoHashTable& other) = delete;
-  KoHashTable(KoHashTable&& other) = delete;
-  KoHashTable& operator=(KoHashTable&& other) = delete;
 
   size_t size() const;
 

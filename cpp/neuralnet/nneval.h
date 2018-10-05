@@ -31,8 +31,6 @@ class NNCacheTable {
 
   NNCacheTable(const NNCacheTable& other) = delete;
   NNCacheTable& operator=(const NNCacheTable& other) = delete;
-  NNCacheTable(NNCacheTable&& other) = delete;
-  NNCacheTable& operator=(NNCacheTable&& other) = delete;
 
   //These are thread-safe
   bool get(Hash128 nnHash, shared_ptr<NNOutput>& ret);
@@ -52,8 +50,6 @@ struct NNResultBuf {
   ~NNResultBuf();
   NNResultBuf(const NNResultBuf& other) = delete;
   NNResultBuf& operator=(const NNResultBuf& other) = delete;
-  NNResultBuf(NNResultBuf&& other) = delete;
-  NNResultBuf& operator=(NNResultBuf&& other) = delete;
 };
 
 //Each server thread should allocate and re-use one of these
@@ -65,8 +61,6 @@ struct NNServerBuf {
   ~NNServerBuf();
   NNServerBuf(const NNServerBuf& other) = delete;
   NNServerBuf& operator=(const NNServerBuf& other) = delete;
-  NNServerBuf(NNServerBuf&& other) = delete;
-  NNServerBuf& operator=(NNServerBuf&& other) = delete;
 };
 
 class NNEvaluator {

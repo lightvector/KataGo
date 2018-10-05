@@ -19,8 +19,6 @@ class ConfigParser {
 
   ConfigParser(const ConfigParser& other) = delete;
   ConfigParser& operator=(const ConfigParser& other) = delete;
-  ConfigParser(ConfigParser&& other) = delete;
-  ConfigParser& operator=(ConfigParser&& other) = delete;
 
   vector<string> unusedKeys() const;
   string getFileName() const;
