@@ -125,6 +125,7 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   const LoadedModel* loadedModel,
   Logger* logger,
   int maxBatchSize,
+  int posLen,
   int cudaGpuIdxForThisThread,
   bool cudaUseFP16,
   bool cudaUseNHWC
@@ -136,6 +137,10 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   (void)cudaGpuIdxForThisThread;
   (void)cudaUseFP16;
   (void)cudaUseNHWC;
+
+  if(posLen != NNPos::MAX_BOARD_LEN)
+    throw StringError("Tensorflow backend only supports board size " + Global::intToString(NNPos::MAX_BOARD_LEN) + " for neural net buffer");
+
   return NULL;
 }
 

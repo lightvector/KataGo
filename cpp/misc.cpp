@@ -71,6 +71,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
   }
+  int posLen = nnEval->getPosLen();
   logger.write("Loaded neural net");
 
 
@@ -159,8 +160,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
     for(int i = 0; i<locs.size(); i++) {
       if(playSelectionValues[i] > 1e-50) {
         Loc loc = locs[i];
-        int offset = NNPos::getOffset(search->rootBoard.x_size);
-        int pos = NNPos::locToPos(loc,search->rootBoard.x_size,offset);
+        int pos = NNPos::locToPos(loc,search->rootBoard.x_size,posLen);
         //surprise += playSelectionValues[i] * (log(playSelectionValues[i]) - log(policyProbs[pos]));
         surprise += playSelectionValues[i] * log(policyProbs[pos]);
       }

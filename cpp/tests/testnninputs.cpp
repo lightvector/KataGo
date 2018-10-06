@@ -10,31 +10,32 @@ void Tests::runNNInputsTests() {
   ostringstream out;
   out << std::setprecision(3);
 
-  auto printNNInputAndBoard = [&out](const Board& board, const BoardHistory& hist, float* row, int c) {
-    int offset = NNPos::getOffset(board.x_size);
-    for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
-      for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
-        int pos = NNPos::xyToPos(x,y,offset);
+  auto printNNInputAndBoard = [&out](const Board& board, const BoardHistory& hist, int posLen, float* row, int c) {
+    for(int y = 0; y<posLen; y++) {
+      for(int x = 0; x<posLen; x++) {
+        int pos = NNPos::xyToPos(x,y,posLen);
         if(x > 0)
           out << " ";
         out << row[pos * NNInputs::NUM_FEATURES_V2 + c];
       }
-      out << "  ";
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        char s = colorToChar(board.colors[loc]);
-        out << s;
+      if(y < board.y_size) {
+        out << "  ";
+        for(int x = 0; x<board.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,board.x_size);
+          char s = colorToChar(board.colors[loc]);
+          out << s;
 
-        bool histMarked = false;
-        for(int i = (int)hist.moveHistory.size()-5; i<hist.moveHistory.size(); i++) {
-          if(i >= 0 && hist.moveHistory[i].loc == loc) {
-            out << i - (hist.moveHistory.size()-5) + 1;
-            histMarked = true;
-            break;
+          bool histMarked = false;
+          for(int i = (int)hist.moveHistory.size()-5; i<hist.moveHistory.size(); i++) {
+            if(i >= 0 && hist.moveHistory[i].loc == loc) {
+              out << i - (hist.moveHistory.size()-5) + 1;
+              histMarked = true;
+              break;
+            }
           }
+          if(x < board.x_size-1 && !histMarked)
+            out << ' ';
         }
-        if(x < board.x_size-1 && !histMarked)
-          out << ' ';
       }
       out << endl;
     }
@@ -60,14 +61,15 @@ void Tests::runNNInputsTests() {
       nextPla = getOpp(moves[i].pla);
     }
 
+    int posLen = 19;
     Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
     out << hash << endl;
     float* row = new float[NNInputs::ROW_SIZE_V2];
-    NNInputs::fillRowV2(board,hist,nextPla,row);
+    NNInputs::fillRowV2(board,hist,nextPla,posLen,row);
 
     for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
       out << "Channel: " << c << endl;
-      printNNInputAndBoard(board,hist,row,c);
+      printNNInputAndBoard(board,hist,posLen,row,c);
       out << endl;
     }
 
@@ -458,18 +460,19 @@ Channel: 16
       nextPla = getOpp(moves[i].pla);
     }
 
+    int posLen = 19;
     Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
     out << hash << endl;
     float* row = new float[NNInputs::ROW_SIZE_V2];
-    NNInputs::fillRowV2(board,hist,nextPla,row);
+    NNInputs::fillRowV2(board,hist,nextPla,posLen,row);
 
     int c = 6;
     out << "Channel: " << c << endl;
-    printNNInputAndBoard(board,hist,row,c);
+    printNNInputAndBoard(board,hist,posLen,row,c);
     out << endl;
     c = 16;
     out << "Channel: " << c << endl;
-    printNNInputAndBoard(board,hist,row,c);
+    printNNInputAndBoard(board,hist,posLen,row,c);
     out << endl;
 
     delete row;
@@ -518,6 +521,432 @@ Channel: 16
 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333  . . . . . . . . . . . . . . . . . . .
 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333  . . . . . . . . . . . . . . . . . . .
 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333  . . . . . . . . . . . . . . . . . . .
+
+)%%";
+    expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
+
+  {
+    const char* name = "NN Inputs 7x7";
+
+    const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Japanese]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
+
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules = Rules::getTrompTaylorish();
+    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+    vector<Move>& moves = sgf->moves;
+
+    for(size_t i = 0; i<moves.size(); i++) {
+      hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
+      nextPla = getOpp(moves[i].pla);
+    }
+
+    int posLen = 7;
+    Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
+    out << hash << endl;
+    float* row = new float[NNInputs::ROW_SIZE_V2];
+    NNInputs::fillRowV2(board,hist,nextPla,posLen,row);
+
+    for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
+      out << "Channel: " << c << endl;
+      printNNInputAndBoard(board,hist,posLen,row,c);
+      out << endl;
+    }
+
+    delete row;
+    delete sgf;
+
+    string expected = R"%%(
+
+0B50ADBC6ED163777CF0FD0E53647C7D
+Channel: 0
+1 1 1 1 1 1 1  . . . . . . .
+1 1 1 1 1 1 1  . . . . . X .
+1 1 1 1 1 1 1  . . . O1. . .
+1 1 1 1 1 1 1  . . . X O X4.
+1 1 1 1 1 1 1  . . X O5.2O .
+1 1 1 1 1 1 1  . X . X O X .
+1 1 1 1 1 1 1  . . . . O3. .
+
+Channel: 1
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 1 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 1 0 1 0  . . . X O X4.
+0 0 1 0 0 0 0  . . X O5.2O .
+0 1 0 1 0 1 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 2
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 1 0 0 0  . . . O1. . .
+0 0 0 0 1 0 0  . . . X O X4.
+0 0 0 1 0 1 0  . . X O5.2O .
+0 0 0 0 1 0 0  . X . X O X .
+0 0 0 0 1 0 0  . . . . O3. .
+
+Channel: 3
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 1 0 0 0  . . . X O X4.
+0 0 0 1 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 4
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 1 1 0  . . . X O X4.
+0 0 0 0 0 1 0  . . X O5.2O .
+0 0 0 1 0 1 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 5
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 1 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0  . . . X O X4.
+0 0 1 0 0 0 0  . . X O5.2O .
+0 0 0 0 1 0 0  . X . X O X .
+0 0 0 0 1 0 0  . . . . O3. .
+
+Channel: 6
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 1 0 0  . . X O5.2O .
+0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 7
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 1 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 8
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 1 0  . . . X O X4.
+0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 9
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 1 0 0  . . . . O3. .
+
+Channel: 10
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 1 0 0  . . X O5.2O .
+0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 11
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 1 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 12
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 1 0  . . . X O X4.
+0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 1 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 13
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 14
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 1 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 15
+0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0  . . . . O3. .
+
+Channel: 16
+0.3 0.3 0.3 0.3 0.3 0.3 0.3  . . . . . . .
+0.3 0.3 0.3 0.3 0.3 0.3 0.3  . . . . . X .
+0.3 0.3 0.3 0.3 0.3 0.3 0.3  . . . O1. . .
+0.3 0.3 0.3 0.3 0.3 0.3 0.3  . . . X O X4.
+0.3 0.3 0.3 0.3 0.3 0.3 0.3  . . X O5.2O .
+0.3 0.3 0.3 0.3 0.3 0.3 0.3  . X . X O X .
+0.3 0.3 0.3 0.3 0.3 0.3 0.3  . . . . O3. .
+
+)%%";
+    expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
+
+  {
+    const char* name = "NN Inputs 7x7 embedded in 9x9";
+
+    const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Japanese]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
+
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules = Rules::getTrompTaylorish();
+    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+    vector<Move>& moves = sgf->moves;
+
+    for(size_t i = 0; i<moves.size(); i++) {
+      hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
+      nextPla = getOpp(moves[i].pla);
+    }
+
+    int posLen = 9;
+    Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
+    out << hash << endl;
+    float* row = new float[NNInputs::ROW_SIZE_V2];
+    NNInputs::fillRowV2(board,hist,nextPla,posLen,row);
+
+    for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
+      out << "Channel: " << c << endl;
+      printNNInputAndBoard(board,hist,posLen,row,c);
+      out << endl;
+    }
+
+    delete row;
+    delete sgf;
+
+    string expected = R"%%(
+
+0B50ADBC6ED163777CF0FD0E53647C7D
+Channel: 0
+1 1 1 1 1 1 1 0 0  . . . . . . .
+1 1 1 1 1 1 1 0 0  . . . . . X .
+1 1 1 1 1 1 1 0 0  . . . O1. . .
+1 1 1 1 1 1 1 0 0  . . . X O X4.
+1 1 1 1 1 1 1 0 0  . . X O5.2O .
+1 1 1 1 1 1 1 0 0  . X . X O X .
+1 1 1 1 1 1 1 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 1
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 1 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 1 0 1 0 0 0  . . . X O X4.
+0 0 1 0 0 0 0 0 0  . . X O5.2O .
+0 1 0 1 0 1 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 2
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 1 0 0 0 0 0  . . . O1. . .
+0 0 0 0 1 0 0 0 0  . . . X O X4.
+0 0 0 1 0 1 0 0 0  . . X O5.2O .
+0 0 0 0 1 0 0 0 0  . X . X O X .
+0 0 0 0 1 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 3
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 1 0 0 0 0 0  . . . X O X4.
+0 0 0 1 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 4
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 1 1 0 0 0  . . . X O X4.
+0 0 0 0 0 1 0 0 0  . . X O5.2O .
+0 0 0 1 0 1 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 5
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 1 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0 0 0  . . . X O X4.
+0 0 1 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 1 0 0 0 0  . X . X O X .
+0 0 0 0 1 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 6
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 1 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 7
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 1 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 8
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 1 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 9
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 1 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 10
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 1 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 11
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 1 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 12
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 1 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 1 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 13
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 14
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 1 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 15
+0 0 0 0 0 0 0 0 0  . . . . . . .
+0 0 0 0 0 0 0 0 0  . . . . . X .
+0 0 0 0 0 0 0 0 0  . . . O1. . .
+0 0 0 0 0 0 0 0 0  . . . X O X4.
+0 0 0 0 0 0 0 0 0  . . X O5.2O .
+0 0 0 0 0 0 0 0 0  . X . X O X .
+0 0 0 0 0 0 0 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
+
+Channel: 16
+0.3 0.3 0.3 0.3 0.3 0.3 0.3 0 0  . . . . . . .
+0.3 0.3 0.3 0.3 0.3 0.3 0.3 0 0  . . . . . X .
+0.3 0.3 0.3 0.3 0.3 0.3 0.3 0 0  . . . O1. . .
+0.3 0.3 0.3 0.3 0.3 0.3 0.3 0 0  . . . X O X4.
+0.3 0.3 0.3 0.3 0.3 0.3 0.3 0 0  . . X O5.2O .
+0.3 0.3 0.3 0.3 0.3 0.3 0.3 0 0  . X . X O X .
+0.3 0.3 0.3 0.3 0.3 0.3 0.3 0 0  . . . . O3. .
+0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0
 
 )%%";
     expect(name,out,expected);

@@ -1,31 +1,28 @@
 
 #include "../neuralnet/nninputs.h"
 
-int NNPos::getOffset(int bSize) {
-  return (MAX_BOARD_LEN - bSize)/2;
+int NNPos::xyToPos(int x, int y, int posLen) {
+  return y * posLen + x;
 }
-int NNPos::xyToPos(int x, int y, int offset) {
-  return (y + offset) * MAX_BOARD_LEN + (x + offset);
-}
-int NNPos::locToPos(Loc loc, int bSize, int offset) {
+int NNPos::locToPos(Loc loc, int boardXSize, int posLen) {
   if(loc == Board::PASS_LOC)
-    return MAX_BOARD_LEN * MAX_BOARD_LEN;
+    return posLen * posLen;
   else if(loc == Board::NULL_LOC)
-    return MAX_BOARD_LEN * (MAX_BOARD_LEN + 1);
-  return (Location::getY(loc,bSize) + offset) * MAX_BOARD_LEN + (Location::getX(loc,bSize) + offset);
+    return posLen * (posLen + 1);
+  return Location::getY(loc,boardXSize) * posLen + Location::getX(loc,boardXSize);
 }
-Loc NNPos::posToLoc(int pos, int bSize, int offset) {
-  if(pos == MAX_BOARD_LEN * MAX_BOARD_LEN)
+Loc NNPos::posToLoc(int pos, int boardXSize, int boardYSize, int posLen) {
+  if(pos == posLen * posLen)
     return Board::PASS_LOC;
-  int x = pos % MAX_BOARD_LEN - offset;
-  int y = pos / MAX_BOARD_LEN - offset;
-  if(x < 0 || x >= bSize || y < 0 || y >= bSize)
+  int x = pos % posLen;
+  int y = pos / posLen;
+  if(x < 0 || x >= boardXSize || y < 0 || y >= boardYSize)
     return Board::NULL_LOC;
-  return Location::getLoc(x,y,bSize);
+  return Location::getLoc(x,y,boardXSize);
 }
 
-bool NNPos::isPassPos(int pos) {
-  return pos == MAX_BOARD_LEN * MAX_BOARD_LEN;
+bool NNPos::isPassPos(int pos, int posLen) {
+  return pos == posLen * posLen;
 }
 
 
@@ -44,8 +41,11 @@ double NNOutput::whiteValueOfWinner(Player winner, double drawValue) {
   return drawValue;
 }
 
-double NNOutput::whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize) {
-  return tanh(finalWhiteMinusBlackScore / (bSize*2));
+double NNOutput::whiteValueOfScore(double finalWhiteMinusBlackScore, const Board& b) {
+  if(b.x_size == b.y_size)
+    return tanh(finalWhiteMinusBlackScore / (2*b.x_size));
+  else
+    return tanh(finalWhiteMinusBlackScore / (2*sqrt(b.x_size*b.y_size)));
 }
 
 
@@ -61,21 +61,21 @@ static void setRowV2(float* row, int pos, int feature, float value) {
 }
 
 //Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
-static void iterLadders(const Board& board, std::function<void(Loc,int,const vector<Loc>&)> f) {
-  int bSize = board.x_size;
-  int offset = NNPos::getOffset(bSize);
+static void iterLadders(const Board& board, int posLen, std::function<void(Loc,int,const vector<Loc>&)> f) {
+  int xSize = board.x_size;
+  int ySize = board.y_size;
 
-  Loc chainHeadsSolved[bSize*bSize];
-  bool chainHeadsSolvedValue[bSize*bSize];
+  Loc chainHeadsSolved[xSize*ySize];
+  bool chainHeadsSolvedValue[xSize*ySize];
   int numChainHeadsSolved = 0;
   Board copy(board);
   vector<Loc> buf;
   vector<Loc> workingMoves;
 
-  for(int y = 0; y<bSize; y++) {
-    for(int x = 0; x<bSize; x++) {
-      int pos = NNPos::xyToPos(x,y,offset);
-      Loc loc = Location::getLoc(x,y,bSize);
+  for(int y = 0; y<ySize; y++) {
+    for(int x = 0; x<xSize; x++) {
+      int pos = NNPos::xyToPos(x,y,posLen);
+      Loc loc = Location::getLoc(x,y,xSize);
       Color stone = board.colors[loc];
       if(stone == P_BLACK || stone == P_WHITE) {
         int libs = board.getNumLiberties(loc);
@@ -114,27 +114,6 @@ static void iterLadders(const Board& board, std::function<void(Loc,int,const vec
   }
 }
 
-// //Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
-// static void iterWouldBeLadder(const Board& board, Player pla, std::function<void(Loc,int)> f) {
-//   Player opp = getOpp(pla);
-//   int bSize = board.x_size;
-//   int offset = NNPos::getOffset(bSize);
-
-//   Board copy(board);
-//   vector<Loc> buf;
-
-//   for(int y = 0; y<bSize; y++) {
-//     for(int x = 0; x<bSize; x++) {
-//       int pos = NNPos::xyToPos(x,y,offset);
-//       Loc loc = Location::getLoc(x,y,bSize);
-//       Color stone = board.colors[loc];
-//       if(stone == C_EMPTY && board.getNumLibertiesAfterPlay(loc,pla,3) == 2) {
-
-//       }
-//     }
-//   }
-// }
-
 
 Hash128 NNInputs::getHashV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
@@ -160,21 +139,23 @@ Hash128 NNInputs::getHashV0(
 
 void NNInputs::fillRowV0(
   const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
-  Player nextPlayer, float selfKomi, float* row
+  Player nextPlayer, float selfKomi, int posLen, float* row
 ) {
-  assert(board.x_size == board.y_size);
   assert(moveHistoryLen <= moveHistory.size());
   std::fill(row,row+ROW_SIZE_V0,0.0f);
 
   Player pla = nextPlayer;
   Player opp = getOpp(pla);
-  int bSize = board.x_size;
-  int offset = NNPos::getOffset(bSize);
+  int xSize = board.x_size;
+  int ySize = board.y_size;
 
-  for(int y = 0; y<bSize; y++) {
-    for(int x = 0; x<bSize; x++) {
-      int pos = NNPos::xyToPos(x,y,offset);
-      Loc loc = Location::getLoc(x,y,bSize);
+  assert(xSize <= posLen);
+  assert(ySize <= posLen);
+
+  for(int y = 0; y<ySize; y++) {
+    for(int x = 0; x<xSize; x++) {
+      int pos = NNPos::xyToPos(x,y,posLen);
+      Loc loc = Location::getLoc(x,y,xSize);
 
       //Feature 0 - on board
       setRowV0(row,pos,0, 1.0f);
@@ -204,7 +185,7 @@ void NNInputs::fillRowV0(
 
   //Feature 9 - simple ko location
   if(board.ko_loc != Board::NULL_LOC) {
-    int pos = NNPos::locToPos(board.ko_loc,bSize,offset);
+    int pos = NNPos::locToPos(board.ko_loc,xSize,posLen);
     setRowV0(row,pos,9, 1.0f);
   }
 
@@ -212,31 +193,31 @@ void NNInputs::fillRowV0(
   if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
     Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
     if(prev1Loc != Board::PASS_LOC && prev1Loc != Board::NULL_LOC) {
-      int pos = NNPos::locToPos(prev1Loc,bSize,offset);
+      int pos = NNPos::locToPos(prev1Loc,xSize,posLen);
       setRowV0(row,pos,10, 1.0f);
     }
     if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
       Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
       if(prev2Loc != Board::PASS_LOC && prev2Loc != Board::NULL_LOC) {
-        int pos = NNPos::locToPos(prev2Loc,bSize,offset);
+        int pos = NNPos::locToPos(prev2Loc,xSize,posLen);
         setRowV0(row,pos,11, 1.0f);
       }
       if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
         Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
         if(prev3Loc != Board::PASS_LOC && prev3Loc != Board::NULL_LOC) {
-          int pos = NNPos::locToPos(prev3Loc,bSize,offset);
+          int pos = NNPos::locToPos(prev3Loc,xSize,posLen);
           setRowV0(row,pos,12, 1.0f);
         }
         if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
           Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
           if(prev4Loc != Board::PASS_LOC && prev4Loc != Board::NULL_LOC) {
-            int pos = NNPos::locToPos(prev4Loc,bSize,offset);
+            int pos = NNPos::locToPos(prev4Loc,xSize,posLen);
             setRowV0(row,pos,13, 1.0f);
           }
           if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
             Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
             if(prev5Loc != Board::PASS_LOC && prev5Loc != Board::NULL_LOC) {
-              int pos = NNPos::locToPos(prev5Loc,bSize,offset);
+              int pos = NNPos::locToPos(prev5Loc,xSize,posLen);
               setRowV0(row,pos,14, 1.0f);
             }
           }
@@ -246,7 +227,7 @@ void NNInputs::fillRowV0(
   }
 
   //Ladder features 15,16,17
-  auto addLadderFeature = [&board,bSize,offset,row](Loc loc, int pos, const vector<Loc>& workingMoves){
+  auto addLadderFeature = [&board,xSize,posLen,row](Loc loc, int pos, const vector<Loc>& workingMoves){
     assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
     int libs = board.getNumLiberties(loc);
     if(libs == 1)
@@ -254,12 +235,12 @@ void NNInputs::fillRowV0(
     else {
       setRowV0(row,pos,16,1.0);
       for(size_t j = 0; j < workingMoves.size(); j++) {
-        int workingPos = NNPos::locToPos(workingMoves[j],bSize,offset);
+        int workingPos = NNPos::locToPos(workingMoves[j],xSize,posLen);
         setRowV0(row,workingPos,17,1.0);
       }
     }
   };
-  iterLadders(board, addLadderFeature);
+  iterLadders(board, posLen, addLadderFeature);
 }
 
 
@@ -270,8 +251,9 @@ Hash128 NNInputs::getHashV1(
     const Board& board, const BoardHistory& hist, Player nextPlayer
 ) {
   assert(board.x_size <= NNPos::MAX_BOARD_LEN);
-  assert(board.x_size == board.y_size);
-  int bSize = board.x_size;
+  assert(board.y_size <= NNPos::MAX_BOARD_LEN);
+  int xSize = board.x_size;
+  int ySize = board.y_size;
 
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
@@ -282,18 +264,18 @@ Hash128 NNInputs::getHashV1(
   if(hist.encorePhase == 0) {
     if(board.ko_loc != Board::NULL_LOC)
       hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
-    for(int y = 0; y<bSize; y++) {
-      for(int x = 0; x<bSize; x++) {
-        Loc loc = Location::getLoc(x,y,bSize);
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc] && loc != board.ko_loc)
           hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
       }
     }
   }
   else {
-    for(int y = 0; y<bSize; y++) {
-      for(int x = 0; x<bSize; x++) {
-        Loc loc = Location::getLoc(x,y,bSize);
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc])
           hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
         if(hist.blackKoProhibited[loc])
@@ -315,23 +297,26 @@ Hash128 NNInputs::getHashV1(
 
 
 void NNInputs::fillRowV1(
-  const Board& board, const BoardHistory& hist, Player nextPlayer, float* row
+  const Board& board, const BoardHistory& hist, Player nextPlayer, int posLen, float* row
 ) {
   assert(board.x_size <= NNPos::MAX_BOARD_LEN);
-  assert(board.x_size == board.y_size);
+  assert(board.y_size <= NNPos::MAX_BOARD_LEN);
   std::fill(row,row+ROW_SIZE_V1,0.0f);
 
   Player pla = nextPlayer;
   Player opp = getOpp(pla);
-  int bSize = board.x_size;
-  int offset = NNPos::getOffset(bSize);
+  int xSize = board.x_size;
+  int ySize = board.y_size;
+
+  assert(xSize <= posLen);
+  assert(ySize <= posLen);
 
   float selfKomi = hist.currentSelfKomi(nextPlayer);
 
-  for(int y = 0; y<bSize; y++) {
-    for(int x = 0; x<bSize; x++) {
-      int pos = NNPos::xyToPos(x,y,offset);
-      Loc loc = Location::getLoc(x,y,bSize);
+  for(int y = 0; y<ySize; y++) {
+    for(int x = 0; x<xSize; x++) {
+      int pos = NNPos::xyToPos(x,y,posLen);
+      Loc loc = Location::getLoc(x,y,xSize);
 
       //Feature 0 - on board
       setRowV1(row,pos,0, 1.0f);
@@ -362,25 +347,25 @@ void NNInputs::fillRowV1(
   //Feature 9 - ko-ban locations, including possibly superko
   if(hist.encorePhase == 0) {
     if(board.ko_loc != Board::NULL_LOC) {
-      int pos = NNPos::locToPos(board.ko_loc,bSize,offset);
+      int pos = NNPos::locToPos(board.ko_loc,xSize,posLen);
       setRowV1(row,pos,9, 1.0f);
     }
-    for(int y = 0; y<bSize; y++) {
-      for(int x = 0; x<bSize; x++) {
-        Loc loc = Location::getLoc(x,y,bSize);
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc] && loc != board.ko_loc) {
-          int pos = NNPos::locToPos(loc,bSize,offset);
+          int pos = NNPos::locToPos(loc,xSize,posLen);
           setRowV1(row,pos,9, 1.0f);
         }
       }
     }
   }
   else {
-    for(int y = 0; y<bSize; y++) {
-      for(int x = 0; x<bSize; x++) {
-        Loc loc = Location::getLoc(x,y,bSize);
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc]) {
-          int pos = NNPos::locToPos(loc,bSize,offset);
+          int pos = NNPos::locToPos(loc,xSize,posLen);
           setRowV1(row,pos,9, 1.0f);
         }
       }
@@ -393,31 +378,31 @@ void NNInputs::fillRowV1(
   if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
     Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
     if(prev1Loc != Board::PASS_LOC && prev1Loc != Board::NULL_LOC) {
-      int pos = NNPos::locToPos(prev1Loc,bSize,offset);
+      int pos = NNPos::locToPos(prev1Loc,xSize,posLen);
       setRowV1(row,pos,10, 1.0f);
     }
     if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
       Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
       if(prev2Loc != Board::PASS_LOC && prev2Loc != Board::NULL_LOC) {
-        int pos = NNPos::locToPos(prev2Loc,bSize,offset);
+        int pos = NNPos::locToPos(prev2Loc,xSize,posLen);
         setRowV1(row,pos,11, 1.0f);
       }
       if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
         Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
         if(prev3Loc != Board::PASS_LOC && prev3Loc != Board::NULL_LOC) {
-          int pos = NNPos::locToPos(prev3Loc,bSize,offset);
+          int pos = NNPos::locToPos(prev3Loc,xSize,posLen);
           setRowV1(row,pos,12, 1.0f);
         }
         if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
           Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
           if(prev4Loc != Board::PASS_LOC && prev4Loc != Board::NULL_LOC) {
-            int pos = NNPos::locToPos(prev4Loc,bSize,offset);
+            int pos = NNPos::locToPos(prev4Loc,xSize,posLen);
             setRowV1(row,pos,13, 1.0f);
           }
           if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
             Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
             if(prev5Loc != Board::PASS_LOC && prev5Loc != Board::NULL_LOC) {
-              int pos = NNPos::locToPos(prev5Loc,bSize,offset);
+              int pos = NNPos::locToPos(prev5Loc,xSize,posLen);
               setRowV1(row,pos,14, 1.0f);
             }
           }
@@ -427,7 +412,7 @@ void NNInputs::fillRowV1(
   }
 
   //Ladder features 15,16,17
-  auto addLadderFeature = [&board,bSize,offset,row](Loc loc, int pos, const vector<Loc>& workingMoves){
+  auto addLadderFeature = [&board,xSize,posLen,row](Loc loc, int pos, const vector<Loc>& workingMoves){
     assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
     int libs = board.getNumLiberties(loc);
     if(libs == 1)
@@ -435,12 +420,12 @@ void NNInputs::fillRowV1(
     else {
       setRowV1(row,pos,16,1.0);
       for(size_t j = 0; j < workingMoves.size(); j++) {
-        int workingPos = NNPos::locToPos(workingMoves[j],bSize,offset);
+        int workingPos = NNPos::locToPos(workingMoves[j],xSize,posLen);
         setRowV1(row,workingPos,17,1.0);
       }
     }
   };
-  iterLadders(board, addLadderFeature);
+  iterLadders(board, posLen, addLadderFeature);
 }
 
 
@@ -453,8 +438,9 @@ Hash128 NNInputs::getHashV2(
     const Board& board, const BoardHistory& hist, Player nextPlayer
 ) {
   assert(board.x_size <= NNPos::MAX_BOARD_LEN);
-  assert(board.x_size == board.y_size);
-  int bSize = board.x_size;
+  assert(board.y_size <= NNPos::MAX_BOARD_LEN);
+  int xSize = board.x_size;
+  int ySize = board.y_size;
 
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
@@ -465,18 +451,18 @@ Hash128 NNInputs::getHashV2(
   if(hist.encorePhase == 0) {
     if(board.ko_loc != Board::NULL_LOC)
       hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
-    for(int y = 0; y<bSize; y++) {
-      for(int x = 0; x<bSize; x++) {
-        Loc loc = Location::getLoc(x,y,bSize);
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc] && loc != board.ko_loc)
           hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
       }
     }
   }
   else {
-    for(int y = 0; y<bSize; y++) {
-      for(int x = 0; x<bSize; x++) {
-        Loc loc = Location::getLoc(x,y,bSize);
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc])
           hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
         if(hist.blackKoProhibited[loc])
@@ -499,23 +485,26 @@ Hash128 NNInputs::getHashV2(
 
 
 void NNInputs::fillRowV2(
-  const Board& board, const BoardHistory& hist, Player nextPlayer, float* row
+  const Board& board, const BoardHistory& hist, Player nextPlayer, int posLen, float* row
 ) {
   assert(board.x_size <= NNPos::MAX_BOARD_LEN);
-  assert(board.x_size == board.y_size);
+  assert(board.y_size <= NNPos::MAX_BOARD_LEN);
   std::fill(row,row+ROW_SIZE_V2,0.0f);
 
   Player pla = nextPlayer;
   Player opp = getOpp(pla);
-  int bSize = board.x_size;
-  int offset = NNPos::getOffset(bSize);
+  int xSize = board.x_size;
+  int ySize = board.y_size;
+
+  assert(xSize <= posLen);
+  assert(ySize <= posLen);
 
   float selfKomi = hist.currentSelfKomi(nextPlayer);
 
-  for(int y = 0; y<bSize; y++) {
-    for(int x = 0; x<bSize; x++) {
-      int pos = NNPos::xyToPos(x,y,offset);
-      Loc loc = Location::getLoc(x,y,bSize);
+  for(int y = 0; y<ySize; y++) {
+    for(int x = 0; x<xSize; x++) {
+      int pos = NNPos::xyToPos(x,y,posLen);
+      Loc loc = Location::getLoc(x,y,xSize);
 
       //Feature 0 - on board
       setRowV2(row,pos,0, 1.0f);
@@ -543,25 +532,25 @@ void NNInputs::fillRowV2(
   //Feature 6 - ko-ban locations, including possibly superko. Or in the encore, no-second-ko-capture locations
   if(hist.encorePhase == 0) {
     if(board.ko_loc != Board::NULL_LOC) {
-      int pos = NNPos::locToPos(board.ko_loc,bSize,offset);
+      int pos = NNPos::locToPos(board.ko_loc,xSize,posLen);
       setRowV2(row,pos,6, 1.0f);
     }
-    for(int y = 0; y<bSize; y++) {
-      for(int x = 0; x<bSize; x++) {
-        Loc loc = Location::getLoc(x,y,bSize);
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc] && loc != board.ko_loc) {
-          int pos = NNPos::locToPos(loc,bSize,offset);
+          int pos = NNPos::locToPos(loc,xSize,posLen);
           setRowV2(row,pos,6, 1.0f);
         }
       }
     }
   }
   else {
-    for(int y = 0; y<bSize; y++) {
-      for(int x = 0; x<bSize; x++) {
-        Loc loc = Location::getLoc(x,y,bSize);
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc]) {
-          int pos = NNPos::locToPos(loc,bSize,offset);
+          int pos = NNPos::locToPos(loc,xSize,posLen);
           setRowV2(row,pos,6, 1.0f);
         }
         //TODO use these
@@ -577,31 +566,31 @@ void NNInputs::fillRowV2(
   if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
     Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
     if(prev1Loc != Board::PASS_LOC && prev1Loc != Board::NULL_LOC) {
-      int pos = NNPos::locToPos(prev1Loc,bSize,offset);
+      int pos = NNPos::locToPos(prev1Loc,xSize,posLen);
       setRowV2(row,pos,7, 1.0f);
     }
     if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
       Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
       if(prev2Loc != Board::PASS_LOC && prev2Loc != Board::NULL_LOC) {
-        int pos = NNPos::locToPos(prev2Loc,bSize,offset);
+        int pos = NNPos::locToPos(prev2Loc,xSize,posLen);
         setRowV2(row,pos,8, 1.0f);
       }
       if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
         Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
         if(prev3Loc != Board::PASS_LOC && prev3Loc != Board::NULL_LOC) {
-          int pos = NNPos::locToPos(prev3Loc,bSize,offset);
+          int pos = NNPos::locToPos(prev3Loc,xSize,posLen);
           setRowV2(row,pos,9, 1.0f);
         }
         if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
           Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
           if(prev4Loc != Board::PASS_LOC && prev4Loc != Board::NULL_LOC) {
-            int pos = NNPos::locToPos(prev4Loc,bSize,offset);
+            int pos = NNPos::locToPos(prev4Loc,xSize,posLen);
             setRowV2(row,pos,10, 1.0f);
           }
           if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
             Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
             if(prev5Loc != Board::PASS_LOC && prev5Loc != Board::NULL_LOC) {
-              int pos = NNPos::locToPos(prev5Loc,bSize,offset);
+              int pos = NNPos::locToPos(prev5Loc,xSize,posLen);
               setRowV2(row,pos,11, 1.0f);
             }
           }
@@ -611,19 +600,19 @@ void NNInputs::fillRowV2(
   }
 
   //Ladder features 12,13,14,15
-  auto addLadderFeature = [&board,bSize,offset,row,opp](Loc loc, int pos, const vector<Loc>& workingMoves){
+  auto addLadderFeature = [&board,xSize,posLen,row,opp](Loc loc, int pos, const vector<Loc>& workingMoves){
     assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
     setRowV2(row,pos,12,1.0);
     if(board.colors[loc] == opp && board.getNumLiberties(loc) > 1) {
       for(size_t j = 0; j < workingMoves.size(); j++) {
-        int workingPos = NNPos::locToPos(workingMoves[j],bSize,offset);
+        int workingPos = NNPos::locToPos(workingMoves[j],xSize,posLen);
         setRowV2(row,workingPos,15,1.0);
       }
     }
   };
 
-  iterLadders(board, addLadderFeature);
+  iterLadders(board, posLen, addLadderFeature);
 
   const Board& prevBoard = hist.getRecentBoard(1);
   auto addPrevLadderFeature = [&prevBoard,row](Loc loc, int pos, const vector<Loc>& workingMoves){
@@ -633,7 +622,7 @@ void NNInputs::fillRowV2(
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
     setRowV2(row,pos,13,1.0);
   };
-  iterLadders(prevBoard, addPrevLadderFeature);
+  iterLadders(prevBoard, posLen, addPrevLadderFeature);
 
   const Board& prevPrevBoard = hist.getRecentBoard(2);
   auto addPrevPrevLadderFeature = [&prevPrevBoard,row](Loc loc, int pos, const vector<Loc>& workingMoves){
@@ -643,6 +632,6 @@ void NNInputs::fillRowV2(
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
     setRowV2(row,pos,14,1.0);
   };
-  iterLadders(prevPrevBoard, addPrevPrevLadderFeature);
+  iterLadders(prevPrevBoard, posLen, addPrevPrevLadderFeature);
 
 }

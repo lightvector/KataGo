@@ -118,6 +118,7 @@ struct Search {
   //Services--------------------------------------------------------------
   MutexPool* mutexPool;
   NNEvaluator* nnEvaluator; //externally owned
+  int posLen;
   Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
 
   //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
