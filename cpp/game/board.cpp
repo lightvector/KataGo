@@ -474,23 +474,80 @@ void Board::undo(Board::MoveRecord record)
   //Uneat opp liberties
   changeSurroundingLiberties(loc, getOpp(record.pla),+1);
 
-  //If this was not a single stone, we need to recompute the chain from scratch
+  //If this was not a single stone, we may need to recompute the chain from scratch
   if(chain_data[chain_head[loc]].num_locs > 1)
   {
-    //Run through the whole chain and make their heads point to nothing
-    Loc cur = loc;
-    do
-    {
-      chain_head[cur] = NULL_LOC;
-      cur = next_in_chain[cur];
-    } while (cur != loc);
-
-    //Rebuild each chain adjacent now
+    int numNeighbors = 0;
     for(int i = 0; i<4; i++)
     {
       int adj = loc + adj_offsets[i];
-      if(colors[adj] == record.pla && chain_head[adj] == NULL_LOC)
-        rebuildChain(adj, record.pla);
+      if(colors[adj] == record.pla)
+        numNeighbors++;
+    }
+
+    //If the move had exactly one neighbor, we know its undoing didn't disconnect the group,
+    //so don't need to rebuild the whole chain.
+    if(numNeighbors <= 1) {
+      //If the undone move was the location of the head, we need to move the head.
+      Loc head = chain_head[loc];
+      if(head == loc) {
+        Loc newHead = next_in_chain[loc];
+        //Run through the whole chain and make their heads point to the new head
+        Loc cur = loc;
+        do
+        {
+          chain_head[cur] = newHead;
+          cur = next_in_chain[cur];
+        } while (cur != loc);
+
+        //Move over the head data
+        chain_data[newHead] = chain_data[head];
+        head = newHead;
+      }
+      
+      //Extract this move out of the circlar list of stones. Unfortunately we don't have a prev pointer, so we need to walk the loop.
+      {
+        //Starting at the head is likely to need to walk less since whenever we merge a single stone into an existing group
+        //we put it right after the old head.
+        Loc cur = head;
+        while(next_in_chain[cur] != loc)
+          cur = next_in_chain[cur];
+        //Advance the pointer to put loc out of the loop
+        next_in_chain[cur] = next_in_chain[loc];
+      }      
+      
+      //Lastly, fix up liberties. Removing this stone removed all liberties next to this stone
+      //that weren't already liberties of the group.
+      int libertyDelta = 0;
+      for(int i = 0; i<4; i++)
+      {
+        int adj = loc + adj_offsets[i];
+        if(colors[adj] == C_EMPTY && !isLibertyOf(adj,head)) libertyDelta--;
+      }
+      //Removing this stone itself added a liberty to the group though.
+      libertyDelta++;
+      chain_data[head].num_liberties += libertyDelta;
+      //And update the count of stones in the group
+      chain_data[head].num_locs--;
+    }
+    //More than one neighbor. Removing this stone potentially disconnects the group into two, so we just do a complete rebuild
+    //of the resulting group(s).
+    else {
+      //Run through the whole chain and make their heads point to nothing
+      Loc cur = loc;
+      do
+      {
+        chain_head[cur] = NULL_LOC;
+        cur = next_in_chain[cur];
+      } while (cur != loc);
+
+      //Rebuild each chain adjacent now
+      for(int i = 0; i<4; i++)
+      {
+        int adj = loc + adj_offsets[i];
+        if(colors[adj] == record.pla && chain_head[adj] == NULL_LOC)
+          rebuildChain(adj, record.pla);
+      }
     }
   }
 }
@@ -886,12 +943,12 @@ void Board::rebuildChain(Loc loc, Player pla)
 //some invalid location, such as NULL_LOC or a location not of color.
 Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 {
-  //Count new liberties
   Loc adj0 = loc + adj_offsets[0];
   Loc adj1 = loc + adj_offsets[1];
   Loc adj2 = loc + adj_offsets[2];
   Loc adj3 = loc + adj_offsets[3];
 
+  //Count new liberties
   int numHeadLibertiesToAdd = 0;
   if(colors[adj0] == C_EMPTY && !isLibertyOf(adj0,head)) numHeadLibertiesToAdd++;
   if(colors[adj1] == C_EMPTY && !isLibertyOf(adj1,head)) numHeadLibertiesToAdd++;
@@ -916,29 +973,25 @@ Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 //Apply the specified delta to the liberties of all adjacent groups of the specified color
 void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
 {
-  int num_seen = 0;  //How many opp chains we have seen so far
-  Loc heads_seen[4];   //Heads of the opp chains seen so far
-  for(int i = 0; i < 4; i++)
-  {
-    int adj = loc + adj_offsets[i];
-    if(colors[adj] == pla)
-    {
-      Loc head = chain_head[adj];
+  Loc adj0 = loc + adj_offsets[0];
+  Loc adj1 = loc + adj_offsets[1];
+  Loc adj2 = loc + adj_offsets[2];
+  Loc adj3 = loc + adj_offsets[3];
 
-      //Have we seen it already?
-      bool seen = false;
-      for(int j = 0; j<num_seen; j++)
-        if(heads_seen[j] == head)
-        {seen = true; break;}
-
-      if(seen)
-        continue;
-
-      //Not already seen! Eat one liberty from it and mark it as seen
-      chain_data[head].num_liberties += delta;
-      heads_seen[num_seen++] = head;
-    }
-  }
+  if(colors[adj0] == pla)
+    chain_data[chain_head[adj0]].num_liberties += delta;
+  if(colors[adj1] == pla
+     && !(colors[adj0] == pla && chain_head[adj0] == chain_head[adj1])) 
+    chain_data[chain_head[adj1]].num_liberties += delta;
+  if(colors[adj2] == pla
+     && !(colors[adj0] == pla && chain_head[adj0] == chain_head[adj2])
+     && !(colors[adj1] == pla && chain_head[adj1] == chain_head[adj2]))
+    chain_data[chain_head[adj2]].num_liberties += delta;
+  if(colors[adj3] == pla
+     && !(colors[adj0] == pla && chain_head[adj0] == chain_head[adj3])
+     && !(colors[adj1] == pla && chain_head[adj1] == chain_head[adj3])
+     && !(colors[adj2] == pla && chain_head[adj2] == chain_head[adj3]))
+    chain_data[chain_head[adj3]].num_liberties += delta;
 }
 
 
