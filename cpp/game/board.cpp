@@ -186,7 +186,7 @@ bool Board::isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
 }
 
 //Returns a fast lower bound on the number of liberties a new stone placed here would have
-void Board::getBoundNumLibertiesAfterPlay(Loc loc, Player pla, int& lowerBound, int& upperBound) const 
+void Board::getBoundNumLibertiesAfterPlay(Loc loc, Player pla, int& lowerBound, int& upperBound) const
 {
   Player opp = getOpp(pla);
 
@@ -195,7 +195,7 @@ void Board::getBoundNumLibertiesAfterPlay(Loc loc, Player pla, int& lowerBound, 
   int potentialLibsFromCaps = 0; //Total number of stones we're capturing (possibly with multiplicity)
   int numConnectionLibs = 0; //Sum over friendly groups connected to of their libs-1
   int maxConnectionLibs = 0; //Max over friendly groups connected to of their libs-1
-  
+
   for(int i = 0; i < 4; i++) {
     Loc adj = loc + adj_offsets[i];
     if(colors[adj] == C_EMPTY) {
@@ -540,7 +540,7 @@ void Board::undo(Board::MoveRecord record)
         chain_data[newHead] = chain_data[head];
         head = newHead;
       }
-      
+
       //Extract this move out of the circlar list of stones. Unfortunately we don't have a prev pointer, so we need to walk the loop.
       {
         //Starting at the head is likely to need to walk less since whenever we merge a single stone into an existing group
@@ -550,8 +550,8 @@ void Board::undo(Board::MoveRecord record)
           cur = next_in_chain[cur];
         //Advance the pointer to put loc out of the loop
         next_in_chain[cur] = next_in_chain[loc];
-      }      
-      
+      }
+
       //Lastly, fix up liberties. Removing this stone removed all liberties next to this stone
       //that weren't already liberties of the group.
       int libertyDelta = 0;
@@ -1017,7 +1017,7 @@ void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
   if(colors[adj0] == pla)
     chain_data[chain_head[adj0]].num_liberties += delta;
   if(colors[adj1] == pla
-     && !(colors[adj0] == pla && chain_head[adj0] == chain_head[adj1])) 
+     && !(colors[adj0] == pla && chain_head[adj0] == chain_head[adj1]))
     chain_data[chain_head[adj1]].num_liberties += delta;
   if(colors[adj2] == pla
      && !(colors[adj0] == pla && chain_head[adj0] == chain_head[adj2])
@@ -1395,7 +1395,7 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
         }
       }
       moveListLens[stackIdx] = moveListLen;
-      
+
       //And indicate to begin search on the first move generated.
       moveListCur[stackIdx] = 0;
     }
@@ -1496,7 +1496,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   //Does this border a pla group that has been marked as not pass alive?
   bool bordersNonPassAlivePlaByHead[MAX_ARR_SIZE];
 
-  //A list for reach region head, indicating which pla group heads the region is vital for.
+  //A list for each region head, indicating which pla group heads the region is vital for.
   //A region is vital for a pla group if all its spaces are adjacent to that pla group.
   //All lists are concatenated together, the most we can have is bounded by (MAX_LEN * MAX_LEN+1) / 2
   //independent regions, each one vital for at most 4 pla groups, add some extra just in case.
@@ -1511,9 +1511,8 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   //Start indices and list lengths in vitalForPlaHeadsLists
   uint16_t vitalStart[maxRegions];
   uint16_t vitalLen[maxRegions];
-  //For each head of a region, 0, 1, or 2+ spaces of that region not bordering any pla
+  //For each region, are there 0, 1, or 2+ spaces of that region not bordering any pla?
   uint8_t numInternalSpacesMax2[maxRegions];
-  bool bordersPla[maxRegions];
   bool containsOpp[maxRegions];
 
   for(int i = 0; i<MAX_ARR_SIZE; i++) {
@@ -1531,13 +1530,19 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     return false;
   };
 
+  //Recursively trace maximal non-pla regions of the board and record their properties and join them into a
+  //linked list through nextEmptyOrOpp.
+  //Takes as input the location serving as the head, the tip node of the linked list so far, the next loc, and the
+  //numeric index of the region
+  //Returns the loc serving as the current tip node ("tailTarget") of the linked list.
   std::function<Loc(Loc,Loc,Loc,int)> buildRegion;
   buildRegion = [pla,opp,isMultiStoneSuicideLegal,
                  &regionHeadByLoc,
                  &vitalForPlaHeadsLists,
-                 &vitalStart,&vitalLen,&numInternalSpacesMax2,&bordersPla,&containsOpp,
+                 &vitalStart,&vitalLen,&numInternalSpacesMax2,&containsOpp,
                  this,
                  &isAdjacentToPlaHead,&nextEmptyOrOpp,&buildRegion](Loc head, Loc tailTarget, Loc loc, int regionIdx) -> Loc {
+    //Already traced this location, skip
     if(regionHeadByLoc[loc] != NULL_LOC)
       return tailTarget;
     regionHeadByLoc[loc] = head;
@@ -1559,8 +1564,8 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
       }
     }
 
-    //Determine if this point is internal
-    {
+    //Determine if this point is internal, unless we already have many internal points
+    if(numInternalSpacesMax2[regionIdx] < 2) {
       bool isInternal = true;
       for(int i = 0; i<4; i++)
       {
@@ -1570,14 +1575,12 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
           break;
         }
       }
-      if(isInternal && numInternalSpacesMax2[regionIdx] < 2)
+      if(isInternal)
         numInternalSpacesMax2[regionIdx] += 1;
-
-      if(!isInternal)
-        bordersPla[regionIdx] = true;
-      if(colors[loc] == opp)
-        containsOpp[regionIdx] = true;
     }
+
+    if(colors[loc] == opp)
+      containsOpp[regionIdx] = true;
 
     //Next, recurse everywhere
     nextEmptyOrOpp[loc] = tailTarget;
@@ -1591,13 +1594,16 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     return nextTailTarget;
   };
 
+  bool atLeastOnePla = false;
   for(int y = 0; y < y_size; y++) {
     for(int x = 0; x < x_size; x++) {
       Loc loc = Location::getLoc(x,y,x_size);
       if(regionHeadByLoc[loc] != NULL_LOC)
         continue;
-      if(colors[loc] != C_EMPTY)
+      if(colors[loc] != C_EMPTY) {
+        atLeastOnePla |= (colors[loc] == pla);
         continue;
+      }
       int regionIdx = numRegions;
       numRegions++;
       assert(numRegions <= maxRegions);
@@ -1608,7 +1614,6 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
       vitalStart[regionIdx] = vitalForPlaHeadsListsTotal;
       vitalLen[regionIdx] = 0;
       numInternalSpacesMax2[regionIdx] = 0;
-      bordersPla[regionIdx] = false;
       containsOpp[regionIdx] = false;
 
       //Fill in all adjacent pla heads as vital, which will get filtered during buildRegion
@@ -1739,9 +1744,9 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   //Mark result with territory
   for(int i = 0; i<numRegions; i++) {
     Loc head = regionHeads[i];
-    bool shouldMark = numInternalSpacesMax2[i] <= 1 && bordersPla[i] && !bordersNonPassAlivePlaByHead[head];
-    shouldMark = shouldMark || (safeBigTerritories && bordersPla[i] && !containsOpp[i] && !bordersNonPassAlivePlaByHead[head]);
-    shouldMark = shouldMark || (unsafeBigTerritories && bordersPla[i] && !containsOpp[i]);
+    bool shouldMark = numInternalSpacesMax2[i] <= 1 && atLeastOnePla && !bordersNonPassAlivePlaByHead[head];
+    shouldMark = shouldMark || (safeBigTerritories && atLeastOnePla && !containsOpp[i] && !bordersNonPassAlivePlaByHead[head]);
+    shouldMark = shouldMark || (unsafeBigTerritories && atLeastOnePla && !containsOpp[i]);
 
     if(shouldMark) {
       Loc cur = head;
