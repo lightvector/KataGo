@@ -194,7 +194,7 @@ private:
 
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
-    int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+    bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
     bool isRoot
   ) const;
 
@@ -207,7 +207,7 @@ private:
 
   void playoutDescend(
     SearchThread& thread, SearchNode& node,
-    int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+    bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
     bool isRoot, int32_t virtualLossesToSubtract
   );
 

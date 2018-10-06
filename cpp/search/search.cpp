@@ -589,7 +589,7 @@ double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos
 //Assumes node is locked
 void Search::selectBestChildToDescend(
   const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
-  int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+  bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
   bool isRoot) const
 {
   assert(thread.pla == node.nextPla);
@@ -644,6 +644,8 @@ void Search::selectBestChildToDescend(
       fpuValue = parentValue + searchParams.fpuReductionMax * sqrt(policyProbMassVisited);
   }
 
+  std::fill(posesWithChildBuf,posesWithChildBuf+NNPos::NN_POLICY_SIZE,false);
+
   //Try all existing children
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = node.children[i];
@@ -655,13 +657,12 @@ void Search::selectBestChildToDescend(
       bestChildMoveLoc = moveLoc;
     }
 
-    posesWithChildBuf[i] = getPos(moveLoc);
+    posesWithChildBuf[getPos(moveLoc)] = true;
   }
-  std::sort(posesWithChildBuf, posesWithChildBuf + numChildren);
 
   //Try all new children
   for(int movePos = 0; movePos<NNPos::NN_POLICY_SIZE; movePos++) {
-    bool alreadyTried = std::binary_search(posesWithChildBuf, posesWithChildBuf + numChildren, movePos);
+    bool alreadyTried = posesWithChildBuf[movePos];
     if(alreadyTried)
       continue;
     if(isRoot && !rootPassLegal && NNPos::isPassPos(movePos))
@@ -758,7 +759,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
 }
 
 void Search::runSinglePlayout(SearchThread& thread) {
-  int posesWithChildBuf[NNPos::NN_POLICY_SIZE];
+  bool posesWithChildBuf[NNPos::NN_POLICY_SIZE];
   playoutDescend(thread,*rootNode,posesWithChildBuf,true,0);
 
   //Restore thread state back to the root state
@@ -799,7 +800,7 @@ void Search::initNodeNNOutput(
 
 void Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
-  int posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+  bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
   bool isRoot, int32_t virtualLossesToSubtract
 ) {
   //Hit terminal node, finish

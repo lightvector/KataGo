@@ -132,7 +132,6 @@ void Board::clearSimpleKoLoc() {
 //Gets the number of liberties of the chain at loc. Assertion: location must be black or white.
 int Board::getNumLiberties(Loc loc) const
 {
-  assert(colors[loc] == C_BLACK || colors[loc] == C_WHITE);
   return chain_data[chain_head[loc]].num_liberties;
 }
 

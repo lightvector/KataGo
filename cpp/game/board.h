@@ -133,7 +133,7 @@ struct Board
 
   //Functions------------------------------------
 
-  //Gets the number of liberties of the chain at loc. Assertion: location must be black or white.
+  //Gets the number of liberties of the chain at loc. Precondition: location must be black or white.
   int getNumLiberties(Loc loc) const;
   //Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
   int getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const;
