@@ -37,10 +37,10 @@ class Logger {
   void write(const string& str, bool endLine);
 };
 
-class LogBuf : public std::stringbuf {
+class LogBuf final : public std::stringbuf {
  public:
   LogBuf(Logger* logger);
-  ~LogBuf();
+  ~LogBuf() final;
 
   LogBuf(const LogBuf& other) = delete;
   LogBuf& operator=(const LogBuf& other) = delete;
