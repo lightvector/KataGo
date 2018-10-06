@@ -77,12 +77,25 @@ SearchNode& SearchNode::operator=(SearchNode&& other) noexcept {
 
 //-----------------------------------------------------------------------------------------
 
+static string makeSeed(const Search& search, int threadIdx) {
+  stringstream ss;
+  ss << search.randSeed;
+  ss << "$searchThread$";
+  ss << threadIdx;
+  ss << "$";
+  ss << search.rootBoard.pos_hash;
+  ss << "$";
+  ss << search.rootHistory.moveHistory.size();
+  ss << "$";
+  ss << search.numSearchesBegun;
+  return ss.str();
+}
 
 SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
   :threadIdx(tIdx),
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
-   rand(search.randSeed + string("$searchThread$") + Global::intToString(threadIdx)),
+   rand(makeSeed(search,tIdx)),
    nnResultBuf(),
    logStream(NULL),
    valueChildWeightsBuf(),
@@ -112,7 +125,7 @@ static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
-   searchParams(params),randSeed(rSeed),
+   searchParams(params),numSearchesBegun(0),randSeed(rSeed),
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand"))
 {
@@ -356,6 +369,7 @@ Loc Search::getChosenMoveLoc() {
 }
 
 void Search::beginSearch() {
+  numSearchesBegun++;
   if(rootNode == NULL) {
     SearchThread dummyThread(-1, *this, NULL);
     rootNode = new SearchNode(*this, dummyThread, Board::NULL_LOC);

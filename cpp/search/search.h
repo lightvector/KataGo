@@ -102,6 +102,7 @@ struct Search {
   bool rootPassLegal;
 
   SearchParams searchParams;
+  int64_t numSearchesBegun;
 
   string randSeed;
 
