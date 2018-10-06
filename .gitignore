@@ -3,6 +3,7 @@
 *~
 __pycache__
 *.h5
+*.log
 
 cpp/write
 cpp/runtests
