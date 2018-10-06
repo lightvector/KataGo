@@ -137,6 +137,8 @@ struct Board
   int getNumLiberties(Loc loc) const;
   //Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
   int getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const;
+  //Returns a fast lower and upper bound on the number of liberties a new stone placed here would have
+  void getBoundNumLibertiesAfterPlay(Loc loc, Player pla, int& lowerBound, int& upperBound) const;
   //Gets the number of empty spaces directly adjacent to this location
   int getNumImmediateLiberties(Loc loc) const;
 

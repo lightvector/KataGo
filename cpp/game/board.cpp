@@ -185,6 +185,43 @@ bool Board::isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
   return true;
 }
 
+//Returns a fast lower bound on the number of liberties a new stone placed here would have
+void Board::getBoundNumLibertiesAfterPlay(Loc loc, Player pla, int& lowerBound, int& upperBound) const 
+{
+  Player opp = getOpp(pla);
+
+  int numImmediateLibs = 0; //empty spaces adjacent
+  int numCaps = 0; //number of adjacent directions in which we will capture
+  int potentialLibsFromCaps = 0; //Total number of stones we're capturing (possibly with multiplicity)
+  int numConnectionLibs = 0; //Sum over friendly groups connected to of their libs-1
+  int maxConnectionLibs = 0; //Max over friendly groups connected to of their libs-1
+  
+  for(int i = 0; i < 4; i++) {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] == C_EMPTY) {
+      numImmediateLibs++;
+    }
+    else if(colors[adj] == opp) {
+      int libs = chain_data[chain_head[adj]].num_liberties;
+      if(libs == 1) {
+        numCaps++;
+        potentialLibsFromCaps += chain_data[chain_head[adj]].num_locs;
+      }
+    }
+    else if(colors[adj] == pla) {
+      int libs = chain_data[chain_head[adj]].num_liberties;
+      int connLibs = libs-1;
+      numConnectionLibs += connLibs;
+      if(connLibs > maxConnectionLibs)
+        maxConnectionLibs = connLibs;
+    }
+  }
+
+  lowerBound = numCaps + (maxConnectionLibs > numImmediateLibs ? maxConnectionLibs : numImmediateLibs);
+  upperBound = numImmediateLibs + potentialLibsFromCaps + numConnectionLibs;
+}
+
+
 //Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
 int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
 {
@@ -1296,13 +1333,25 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
       //Generate the move list. Attacker and defender generate moves on the group's liberties, but only the defender
       //generates moves on surrounding capturable opposing groups.
       int start = moveListStarts[stackIdx];
+      int moveListLen = 0;
       if(isDefender) {
-        moveListLens[stackIdx] = findLibertyGainingCaptures(loc,buf,start,start);
-        moveListLens[stackIdx] += findLiberties(loc,buf,start,start+moveListLens[stackIdx]);
+        moveListLen = findLibertyGainingCaptures(loc,buf,start,start);
+        moveListLen += findLiberties(loc,buf,start,start+moveListLen);
+
+        int lowerBoundLibs;
+        int upperBoundLibs;
+        //List is always nonempty, and the last element always is the lone liberty of the defender group
+        getBoundNumLibertiesAfterPlay(buf[start+moveListLen-1], pla, lowerBoundLibs, upperBoundLibs);
+        //Defender immediately wins if there are provably enough libs
+        if(lowerBoundLibs >= 3)
+        { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
+        //Attacker immediately wins if defender has not enough libs and there are no alternatives
+        if(moveListLen == 1 && upperBoundLibs <= 1)
+        { returnValue = true; returnedFromDeeper = true; stackIdx--; continue; }
       }
       else {
-        moveListLens[stackIdx] += findLiberties(loc,buf,start,start);
-        assert(moveListLens[stackIdx] == 2);
+        moveListLen += findLiberties(loc,buf,start,start);
+        assert(moveListLen == 2);
 
         int libs0 = getNumImmediateLiberties(buf[start]);
         int libs1 = getNumImmediateLiberties(buf[start+1]);
@@ -1328,14 +1377,14 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
           { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
           //Move 1 is not possible, so shrink the list
           else if(libs0 >= 3)
-          { moveListLens[stackIdx] = 1; }
+          { moveListLen = 1; }
           //Move 0 is not possible, so swap and shrink the list
           else if(libs1 >= 3)
-          { buf[start] = buf[start+1]; moveListLens[stackIdx] = 1; }
+          { buf[start] = buf[start+1]; moveListLen = 1; }
         }
         //Order the two moves based on a simple heuristic - for each neighboring group with any liberties
         //count that the opponent could connect to, count liberties - 1.5.
-        if(moveListLens[stackIdx] > 1) {
+        if(moveListLen > 1) {
           libs0 = libs0 * 2 + countHeuristicConnectionLibertiesX2(buf[start],pla);
           libs1 = libs1 * 2 + countHeuristicConnectionLibertiesX2(buf[start+1],pla);
           if(libs1 > libs0) {
@@ -1345,7 +1394,8 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
           }
         }
       }
-
+      moveListLens[stackIdx] = moveListLen;
+      
       //And indicate to begin search on the first move generated.
       moveListCur[stackIdx] = 0;
     }
