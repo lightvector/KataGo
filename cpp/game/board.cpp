@@ -698,12 +698,20 @@ int Board::countHeuristicConnectionLibertiesX2(Loc loc, Player pla) const
 //Assumes loc is empty
 bool Board::isLibertyOf(Loc loc, Loc head) const
 {
-  for(int i = 0; i<4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == colors[head] && chain_head[adj] == head)
-      return true;
-  }
+  Loc adj;
+  adj = loc + adj_offsets[0];
+  if(colors[adj] == colors[head] && chain_head[adj] == head)
+    return true;
+  adj = loc + adj_offsets[1];
+  if(colors[adj] == colors[head] && chain_head[adj] == head)
+    return true;
+  adj = loc + adj_offsets[2];
+  if(colors[adj] == colors[head] && chain_head[adj] == head)
+    return true;
+  adj = loc + adj_offsets[3];
+  if(colors[adj] == colors[head] && chain_head[adj] == head)
+    return true;
+
   return false;
 }
 
@@ -879,12 +887,17 @@ void Board::rebuildChain(Loc loc, Player pla)
 Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 {
   //Count new liberties
-  for(int i = 0; i<4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == C_EMPTY && !isLibertyOf(adj,head))
-      chain_data[head].num_liberties++;
-  }
+  Loc adj0 = loc + adj_offsets[0];
+  Loc adj1 = loc + adj_offsets[1];
+  Loc adj2 = loc + adj_offsets[2];
+  Loc adj3 = loc + adj_offsets[3];
+
+  int numHeadLibertiesToAdd = 0;
+  if(colors[adj0] == C_EMPTY && !isLibertyOf(adj0,head)) numHeadLibertiesToAdd++;
+  if(colors[adj1] == C_EMPTY && !isLibertyOf(adj1,head)) numHeadLibertiesToAdd++;
+  if(colors[adj2] == C_EMPTY && !isLibertyOf(adj2,head)) numHeadLibertiesToAdd++;
+  if(colors[adj3] == C_EMPTY && !isLibertyOf(adj3,head)) numHeadLibertiesToAdd++;
+  chain_data[head].num_liberties += numHeadLibertiesToAdd;
 
   //Add stone here to the chain by setting its head
   chain_head[loc] = head;
@@ -893,12 +906,10 @@ Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 
   //Recursively add stones around us.
   Loc nextTailTarget = loc;
-  for(int i = 0; i<4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == pla && chain_head[adj] != head)
-      nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj,pla);
-  }
+  if(colors[adj0] == pla && chain_head[adj0] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj0,pla);
+  if(colors[adj1] == pla && chain_head[adj1] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj1,pla);
+  if(colors[adj2] == pla && chain_head[adj2] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj2,pla);
+  if(colors[adj3] == pla && chain_head[adj3] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj3,pla);
   return nextTailTarget;
 }
 
