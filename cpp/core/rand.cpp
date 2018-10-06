@@ -350,53 +350,55 @@ void Rand::runTests() {
   cout << "Running rng and hash tests" << endl;
   simpleTest();
 
-  const char* name = "Rand tests";
   ostringstream out;
-  Rand rand("abc");
 
-  out << "rand.nextUInt()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextUInt() << endl;
+  {
+    const char* name = "Rand tests";
+    Rand rand("abc");
 
-  out << "rand.nextUInt(27)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextUInt(27) << endl;
+    out << "rand.nextUInt()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextUInt() << endl;
 
-  out << "rand.nextInt()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextInt() << endl;
+    out << "rand.nextUInt(27)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextUInt(27) << endl;
 
-  out << "rand.nextInt(-8,8)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextInt(-8,8) << endl;
+    out << "rand.nextInt()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextInt() << endl;
 
-  out << "rand.nextUInt64()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextUInt64() << endl;
+    out << "rand.nextInt(-8,8)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextInt(-8,8) << endl;
 
-  out << "rand.nextUInt64(0xFFffffFFFFULL)" << endl;
-  for(int i = 0; i<16; i++) out << Global::uint64ToHexString(rand.nextUInt64(0xFFffffFFFFULL)) << endl;
+    out << "rand.nextUInt64()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextUInt64() << endl;
 
-  out << "rand.nextDouble()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextDouble() << endl;
+    out << "rand.nextUInt64(0xFFffffFFFFULL)" << endl;
+    for(int i = 0; i<16; i++) out << Global::uint64ToHexString(rand.nextUInt64(0xFFffffFFFFULL)) << endl;
 
-  out << "rand.nextDouble(12)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextDouble(12) << endl;
+    out << "rand.nextDouble()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextDouble() << endl;
 
-  out << "rand.nextDouble(-100,100)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextDouble(-100,100) << endl;
+    out << "rand.nextDouble(12)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextDouble(12) << endl;
 
-  out << "rand.nextGaussian()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextGaussian() << endl;
+    out << "rand.nextDouble(-100,100)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextDouble(-100,100) << endl;
 
-  out << "rand.nextLogistic()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextLogistic() << endl;
+    out << "rand.nextGaussian()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGaussian() << endl;
 
-  out << "rand.nextGamma(1)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextGamma(1) << endl;
+    out << "rand.nextLogistic()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextLogistic() << endl;
 
-  out << "rand.nextGamma(0.1)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextGamma(0.1) << endl;
+    out << "rand.nextGamma(1)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(1) << endl;
 
-  out << "rand.nextGamma(4)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextGamma(4) << endl;
+    out << "rand.nextGamma(0.1)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(0.1) << endl;
 
-  string expected = R"%%(
+    out << "rand.nextGamma(4)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(4) << endl;
+
+    string expected = R"%%(
 rand.nextUInt()
 2368022847
 3900433113
@@ -551,94 +553,175 @@ rand.nextDouble(-100,100)
 68.3438
 -11.1699
 rand.nextGaussian()
--1.6565
-0.884707
-0.51175
--0.980549
--0.484819
--0.168406
--0.890281
--0.106589
--2.02575
--0.65298
--0.41521
-0.217587
-0.667365
--1.53608
-0.32987
-1.28887
+-1.04102
+1.02086
+-2.21387
+1.18239
+0.464025
+0.201022
+0.924891
+-1.77215
+0.783248
+0.43083
+1.22297
+-0.779088
+0.437384
+-0.712373
+0.921093
+-0.690558
 rand.nextLogistic()
-1.28485
-0.14889
--0.462737
--0.306565
-0.403024
-2.37004
--0.371619
--0.543605
--0.113315
--2.76268
-0.554995
--0.739053
--0.0752053
--0.610029
--1.03978
-0.493688
+-0.949963
+-0.309666
+1.25673
+0.0234923
+-4.13501
+1.48687
+-2.68628
+-0.197865
+-2.87159
+-4.15327
+4.69788
+0.164818
+1.87224
+-0.208472
+-1.73322
+-0.607461
 rand.nextGamma(1)
+0.274704
+0.0744126
+0.471163
+0.0774803
+0.963182
+0.165412
+0.213661
+0.730311
+2.24201
+0.468865
+0.0571607
+0.905897
 2.60238
 0.64582
 0.158352
 0.685324
-0.298571
-2.45651
-0.513276
-1.33879
-1.6505
-0.300102
-3.34534
-0.980066
-0.98956
-0.292734
-0.723428
-2.3634
 rand.nextGamma(0.1)
-1.93607e-07
-0.0151875
-0.000548596
-4.78134e-16
-2.27411e-07
-3.339e-07
-3.17695e-07
-0.000372868
-1.05724e-13
-0.0741701
-0.0260639
-0.000823654
-0.00112846
-2.24031
-0.00876745
-0.246055
+0.000316875
+3.15072e-09
+1.08349e-06
+0.108733
+0.00341049
+2.32469e-11
+4.49661e-07
+0.0029474
+0.669966
+1.00563e-08
+0.64905
+7.22175e-13
+1.2857e-07
+0.0177569
+1.85445e-09
+3.17753e-07
 rand.nextGamma(4)
+1.57075
+4.32638
+1.22375
+2.30653
+2.28736
+5.2053
+3.4774
+3.89106
+3.4363
+1.49415
+3.48808
+6.74786
 3.68859
 1.31681
 2.39111
 2.90081
-1.87706
-3.64475
-6.21859
-5.16677
-6.41707
-4.18592
-2.36267
-4.51534
-5.43026
-9.46803
-8.06233
-6.32551
 )%%";
-  TestCommon::expect(name,out,expected);
-  out.str("");
-  out.clear();
+    TestCommon::expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
 
+  {
+    const char* name = "Rand moment tests";
+    
+    int bufLen = 100000;
+    double* buf = new double[bufLen];
+
+    auto printMoments = [&out,&buf,bufLen](const string& distrName, double expectedMean, double expectedVariance, double expectedSkew, double expectedExcessKurt) {
+      double m1 = 0;
+      double m2 = 0;
+      double m3 = 0;
+      double m4 = 0;
+      for(int i = 0; i<bufLen; i++) {
+        double x = buf[i];
+        m1 += x;
+        m2 += x*x;
+        m3 += x*x*x;
+        m4 += x*x*x*x;
+      }
+      m1 /= bufLen;
+      m2 /= bufLen;
+      m3 /= bufLen;
+      m4 /= bufLen;
+
+      double mean = m1;
+      double variance = m2 - m1*m1;
+      double skew = (m3 - 3*m1*variance - m1*m1*m1) / sqrt(variance*variance*variance);
+      double excessKurt = (m4 - 4*m3*m1 + 6*m2*m1*m1 - 3*m1*m1*m1*m1)/(variance*variance) - 3;
+      out << Global::strprintf(
+        "%s sample: Mean %f Variance %f Skew %f ExcessKurt %f",
+        distrName.c_str(), mean, variance, skew, excessKurt
+      ) << endl;
+      out << Global::strprintf(
+        "%s expected: Mean %f Variance %f Skew %f ExcessKurt %f",
+        distrName.c_str(), expectedMean, expectedVariance, expectedSkew, expectedExcessKurt
+      ) << endl;
+
+    };
+
+    Rand rand("test");
+    
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextDouble();
+    printMoments("Uniform", 0.5, 1.0/12.0, 0, -6.0/5.0);
+
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextGaussian();
+    printMoments("Gaussian", 0, 1.0, 0, 0.0);
+
+    double pi = 3.14159265358979323846264;
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextLogistic();
+    printMoments("Logistic", 0, pi*pi/3.0, 0, 1.2);
+
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextGamma(0.5);
+    printMoments("Gamma", 0.5, 0.5, 2.0/sqrt(0.5), 6.0/0.5);
+
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextGamma(4.0);
+    printMoments("Gamma", 4.0, 4.0, 2.0/sqrt(4.0), 6.0/4.0);
+    
+    delete[] buf;
+    string expected = R"%%(
+Uniform sample: Mean 0.499714 Variance 0.083704 Skew 0.003446 ExcessKurt -1.202311
+Uniform expected: Mean 0.500000 Variance 0.083333 Skew 0.000000 ExcessKurt -1.200000
+Gaussian sample: Mean -0.000782 Variance 1.001046 Skew 0.015581 ExcessKurt 0.012558
+Gaussian expected: Mean 0.000000 Variance 1.000000 Skew 0.000000 ExcessKurt 0.000000
+Logistic sample: Mean 0.003819 Variance 3.283142 Skew 0.003153 ExcessKurt 1.149271
+Logistic expected: Mean 0.000000 Variance 3.289868 Skew 0.000000 ExcessKurt 1.200000
+Gamma sample: Mean 0.499243 Variance 0.497366 Skew 2.832579 ExcessKurt 12.005515
+Gamma expected: Mean 0.500000 Variance 0.500000 Skew 2.828427 ExcessKurt 12.000000
+Gamma sample: Mean 3.998701 Variance 3.992548 Skew 0.986482 ExcessKurt 1.410314
+Gamma expected: Mean 4.000000 Variance 4.000000 Skew 1.000000 ExcessKurt 1.500000
+)%%";
+
+    TestCommon::expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
+  
 }
 
