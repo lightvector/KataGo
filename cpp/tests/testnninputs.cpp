@@ -10,13 +10,16 @@ void Tests::runNNInputsTests() {
   ostringstream out;
   out << std::setprecision(3);
 
-  auto printNNInputAndBoard = [&out](const Board& board, const BoardHistory& hist, int posLen, float* row, int c) {
+  auto printNNInputAndBoard = [&out](const Board& board, const BoardHistory& hist, int posLen, bool inputsUseNHWC, float* row, int c) {
     for(int y = 0; y<posLen; y++) {
       for(int x = 0; x<posLen; x++) {
         int pos = NNPos::xyToPos(x,y,posLen);
         if(x > 0)
           out << " ";
-        out << row[pos * NNInputs::NUM_FEATURES_V2 + c];
+        if(inputsUseNHWC)
+          out << row[pos * NNInputs::NUM_FEATURES_V2 + c];
+        else
+          out << row[c * posLen * posLen + pos];
       }
       if(y < board.y_size) {
         out << "  ";
@@ -63,14 +66,36 @@ void Tests::runNNInputsTests() {
 
     int posLen = 19;
     Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
-    out << hash << endl;
     float* row = new float[NNInputs::ROW_SIZE_V2];
-    NNInputs::fillRowV2(board,hist,nextPla,posLen,row);
 
-    for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
-      out << "Channel: " << c << endl;
-      printNNInputAndBoard(board,hist,posLen,row,c);
-      out << endl;
+    string actualNHWC;
+    {
+      bool inputsUseNHWC = true;
+      NNInputs::fillRowV2(board,hist,nextPla,posLen,inputsUseNHWC,row);
+      out << hash << endl;
+      for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
+        out << "Channel: " << c << endl;
+        printNNInputAndBoard(board,hist,posLen,inputsUseNHWC,row,c);
+        out << endl;
+      }
+      actualNHWC = out.str();
+      out.str("");
+      out.clear();
+    }
+
+    string actualNCHW;
+    {
+      bool inputsUseNHWC = false;
+      NNInputs::fillRowV2(board,hist,nextPla,posLen,inputsUseNHWC,row);
+      out << hash << endl;
+      for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
+        out << "Channel: " << c << endl;
+        printNNInputAndBoard(board,hist,posLen,inputsUseNHWC,row,c);
+        out << endl;
+      }
+      actualNCHW = out.str();
+      out.str("");
+      out.clear();
     }
 
     delete row;
@@ -436,9 +461,8 @@ Channel: 16
 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5  . . . . . . . . . . . . . . . . . . .
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,actualNHWC,expected);
+    expect(name,actualNCHW,expected);
   }
 
   {
@@ -462,18 +486,45 @@ Channel: 16
 
     int posLen = 19;
     Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
-    out << hash << endl;
     float* row = new float[NNInputs::ROW_SIZE_V2];
-    NNInputs::fillRowV2(board,hist,nextPla,posLen,row);
 
-    int c = 6;
-    out << "Channel: " << c << endl;
-    printNNInputAndBoard(board,hist,posLen,row,c);
-    out << endl;
-    c = 16;
-    out << "Channel: " << c << endl;
-    printNNInputAndBoard(board,hist,posLen,row,c);
-    out << endl;
+
+    string actualNHWC;
+    {
+      bool inputsUseNHWC = true;
+      NNInputs::fillRowV2(board,hist,nextPla,posLen,inputsUseNHWC,row);
+
+      out << hash << endl;
+      int c = 6;
+      out << "Channel: " << c << endl;
+      printNNInputAndBoard(board,hist,posLen,inputsUseNHWC,row,c);
+      out << endl;
+      c = 16;
+      out << "Channel: " << c << endl;
+      printNNInputAndBoard(board,hist,posLen,inputsUseNHWC,row,c);
+      out << endl;
+      actualNHWC = out.str();
+      out.str("");
+      out.clear();
+    }
+    string actualNCHW;
+    {
+      bool inputsUseNHWC = false;
+      NNInputs::fillRowV2(board,hist,nextPla,posLen,inputsUseNHWC,row);
+
+      out << hash << endl;
+      int c = 6;
+      out << "Channel: " << c << endl;
+      printNNInputAndBoard(board,hist,posLen,inputsUseNHWC,row,c);
+      out << endl;
+      c = 16;
+      out << "Channel: " << c << endl;
+      printNNInputAndBoard(board,hist,posLen,inputsUseNHWC,row,c);
+      out << endl;
+      actualNCHW = out.str();
+      out.str("");
+      out.clear();
+    }
 
     delete row;
     delete sgf;
@@ -523,9 +574,8 @@ Channel: 16
 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333  . . . . . . . . . . . . . . . . . . .
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,actualNHWC,expected);
+    expect(name,actualNCHW,expected);
   }
 
   {
@@ -549,14 +599,36 @@ Channel: 16
 
     int posLen = 7;
     Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
-    out << hash << endl;
     float* row = new float[NNInputs::ROW_SIZE_V2];
-    NNInputs::fillRowV2(board,hist,nextPla,posLen,row);
 
-    for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
-      out << "Channel: " << c << endl;
-      printNNInputAndBoard(board,hist,posLen,row,c);
-      out << endl;
+    string actualNHWC;
+    {
+      bool inputsUseNHWC = true;
+      NNInputs::fillRowV2(board,hist,nextPla,posLen,inputsUseNHWC,row);
+      out << hash << endl;
+      for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
+        out << "Channel: " << c << endl;
+        printNNInputAndBoard(board,hist,posLen,inputsUseNHWC,row,c);
+        out << endl;
+      }
+      actualNHWC = out.str();
+      out.str("");
+      out.clear();
+    }
+
+    string actualNCHW;
+    {
+      bool inputsUseNHWC = false;
+      NNInputs::fillRowV2(board,hist,nextPla,posLen,inputsUseNHWC,row);
+      out << hash << endl;
+      for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
+        out << "Channel: " << c << endl;
+        printNNInputAndBoard(board,hist,posLen,inputsUseNHWC,row,c);
+        out << endl;
+      }
+      actualNCHW = out.str();
+      out.str("");
+      out.clear();
     }
 
     delete row;
@@ -719,9 +791,8 @@ Channel: 16
 0.3 0.3 0.3 0.3 0.3 0.3 0.3  . . . . O3. .
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,actualNHWC,expected);
+    expect(name,actualNCHW,expected);
   }
 
   {
@@ -745,14 +816,36 @@ Channel: 16
 
     int posLen = 9;
     Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
-    out << hash << endl;
     float* row = new float[NNInputs::ROW_SIZE_V2];
-    NNInputs::fillRowV2(board,hist,nextPla,posLen,row);
 
-    for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
-      out << "Channel: " << c << endl;
-      printNNInputAndBoard(board,hist,posLen,row,c);
-      out << endl;
+    string actualNHWC;
+    {
+      bool inputsUseNHWC = true;
+      NNInputs::fillRowV2(board,hist,nextPla,posLen,inputsUseNHWC,row);
+      out << hash << endl;
+      for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
+        out << "Channel: " << c << endl;
+        printNNInputAndBoard(board,hist,posLen,inputsUseNHWC,row,c);
+        out << endl;
+      }
+      actualNHWC = out.str();
+      out.str("");
+      out.clear();
+    }
+
+    string actualNCHW;
+    {
+      bool inputsUseNHWC = false;
+      NNInputs::fillRowV2(board,hist,nextPla,posLen,inputsUseNHWC,row);
+      out << hash << endl;
+      for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++) {
+        out << "Channel: " << c << endl;
+        printNNInputAndBoard(board,hist,posLen,inputsUseNHWC,row,c);
+        out << endl;
+      }
+      actualNCHW = out.str();
+      out.str("");
+      out.clear();
     }
 
     delete row;
@@ -949,9 +1042,9 @@ Channel: 16
 0 0 0 0 0 0 0 0 0
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,actualNHWC,expected);
+    expect(name,actualNCHW,expected);
+
   }
 
 }

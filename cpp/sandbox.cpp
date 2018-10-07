@@ -25,6 +25,7 @@ int MainCmds::sandbox() {
   int modelFileIdx = 0;
   int maxBatchSize = 1;
   int posLen = 19;
+  bool inputsUseNHWC = true;
   int nnCacheSizePowerOfTwo = 16;
   bool debugSkipNeuralNet = false;
   NNEvaluator* nnEval = new NNEvaluator(
@@ -34,6 +35,7 @@ int MainCmds::sandbox() {
     modelFileIdx,
     maxBatchSize,
     posLen,
+    inputsUseNHWC,
     nnCacheSizePowerOfTwo,
     debugSkipNeuralNet
   );

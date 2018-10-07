@@ -42,7 +42,7 @@ namespace NNInputs {
   //doesn't get told about the rules
   void fillRowV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
-    Player nextPlayer, float selfKomi, int posLen, float* row
+    Player nextPlayer, float selfKomi, int posLen, bool useNHWC, float* row
   );
 
   //Handles superko and works for tromp-taylor, but otherwise not all rules implemented
@@ -50,7 +50,8 @@ namespace NNInputs {
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer
   );
   void fillRowV1(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer, int posLen, float* row
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    int posLen, bool useNHWC, float* row
   );
 
   //Ongoing sandbox for full rules support and new ladder and other features, not stable yet
@@ -58,7 +59,8 @@ namespace NNInputs {
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer
   );
   void fillRowV2(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer, int posLen, float* row
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    int posLen, bool useNHWC, float* row
   );
 
 }

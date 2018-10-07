@@ -126,6 +126,7 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   Logger* logger,
   int maxBatchSize,
   int posLen,
+  bool inputsUseNHWC,
   int cudaGpuIdxForThisThread,
   bool cudaUseFP16,
   bool cudaUseNHWC
@@ -140,6 +141,8 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
 
   if(posLen != NNPos::MAX_BOARD_LEN)
     throw StringError("Tensorflow backend only supports board size " + Global::intToString(NNPos::MAX_BOARD_LEN) + " for neural net buffer");
+  if(inputsUseNHWC != true)
+    throw StringError("Tensorflow backend only supports inputsUseNHWC=true right now");
 
   return NULL;
 }

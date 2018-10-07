@@ -60,7 +60,7 @@ static NNEvaluator* startNNEval(
     modelFileIdx,
     maxBatchSize,
     posLen,
-    //inputsUseNHWC,
+    inputsUseNHWC,
     nnCacheSizePowerOfTwo,
     debugSkipNeuralNet
   );

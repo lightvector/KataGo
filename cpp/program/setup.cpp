@@ -36,11 +36,18 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else
       posLen = NNPos::MAX_BOARD_LEN;
 
+    bool inputsUseNHWC = true;
+    if(cfg.contains("inputsUseNHWC"+idxStr))
+      inputsUseNHWC = cfg.getBool("inputsUseNHWC"+idxStr);
+    else if(cfg.contains("inputsUseNHWC"))
+      inputsUseNHWC = cfg.getBool("inputsUseNHWC");
+
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelFile,
       modelFileIdx,
       cfg.getInt("nnMaxBatchSize", 1, 65536),
       posLen,
+      inputsUseNHWC,
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
       debugSkipNeuralNet
     );
