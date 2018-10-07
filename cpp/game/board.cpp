@@ -1287,6 +1287,8 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
   int moveListCur[arrSize]; //Current move list idx searched, equal to -1 if list has not been generated.
   MoveRecord records[arrSize]; //Records so that we can undo moves as we search back up.
   int stackIdx = 0;
+  int searchNodeCount = 0;
+  static const int MAX_LADDER_SEARCH_NODE_BUDGET = 25000;
 
   moveListCur[0] = -1;
   moveListStarts[0] = 0;
@@ -1309,6 +1311,9 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
     if(stackIdx >= arrSize-1) {
       returnValue = true; returnedFromDeeper = true; stackIdx--; continue;
     }
+    //If we hit a total node count limit, then just assume it doesn't work.
+    if(searchNodeCount >= MAX_LADDER_SEARCH_NODE_BUDGET)
+      return false;
 
     bool isDefender = (defenderFirst && (stackIdx % 2) == 0) || (!defenderFirst && (stackIdx % 2) == 1);
 
@@ -1454,6 +1459,7 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
     //Play and record the move!
     records[stackIdx] = playMoveRecorded(move,p);
+    searchNodeCount++;
 
     //And recurse to the next level
     stackIdx++;

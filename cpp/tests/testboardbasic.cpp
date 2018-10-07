@@ -498,6 +498,144 @@ xoox..xo.
     out.str("");
     out.clear();
   }
+
+  //============================================================================
+  {
+    const char* name = "WholeBoardLadder";
+    vector<Loc> buf;
+    vector<Loc> buf2;
+    Board board = Board::parseBoard(19,19,R"%%(
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . O . . . . . . . . . . . . . .
+18 O . . . . . . . . . . . . . . . . . O
+17 . . . . . . . . . . . . . . . . . . O
+16 . . . O O X O . . . . . . . . . . . .
+15 O . . . O X O O O O . O . . . . . O .
+14 O X X X X X X X X X O . . . . . . . .
+13 X O O O . X . . . . X . . . . . . . O
+12 X . O O O X . . . . X O . . . . . . .
+11 X O O O O X . . . . X . . . . . . . .
+10 O X X X X X X X X X O . . . . . . . O
+ 9 O O . . . X O . . O . . . . . . . . .
+ 8 . O . O . X . O . . . . . . . . . . .
+ 7 . . . . . . O . . . . . . . . . . . .
+ 6 . . . . O . . . . X . . . . . . . . .
+ 5 O . . . . X . . . X . . . X O . . . .
+ 4 . . . . . X . . . X . . . X . . . . .
+ 3 . . . . . X . . . X . . . X . . . . .
+ 2 . . . . O . X X X X X X X O . . . O .
+ 1 . O . . . . O O O O O O O . O . . . .
+)%%");
+
+    out << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] != C_EMPTY)
+          out << (int)board.searchIsLadderCapturedAttackerFirst2Libs(loc,buf,buf2);
+        else
+          out << ".";
+      }
+      out << endl;
+    }
+    out << endl;
+    board.checkConsistency();
+
+    string expected = R"%%(
+....0..............
+0.................0
+..................0
+...0000............
+0...000000.0.....0.
+00000000000........
+0000.0....0.......0
+0.0000....00.......
+000000....0........
+00000000000.......0
+00...00..0.........
+.0.0.0.0...........
+......0............
+....0....0.........
+0....0...0...00....
+.....0...0...0.....
+.....0...0...0.....
+....0.00000000...0.
+.0....1111111.0....
+)%%";
+    expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
+
+
+  //============================================================================
+  {
+    const char* name = "CubicLadder not far from max node budget";
+    vector<Loc> buf;
+    vector<Loc> buf2;
+    Board board = Board::parseBoard(19,19,R"%%(
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . O O O O O O O O . . . . . O . O
+18 X X X . X X X X X . . . O O O O O . O
+17 O . . . . . O O . . . . . . . X X X .
+16 . . . . . . . O O O . . . . . . O . .
+15 O . O . . . . . . . . . . . . . . . .
+14 . . O . . . . . . O . . . . . . O . O
+13 . . O . . . . . . . X . . . . . O . .
+12 . . . . . . . . . O X . . . . . . . .
+11 . . . . . . . X . X . O . O . . . . .
+10 O X X . . . . . X . O . . . . . . . .
+ 9 O X . . . . . . X O . . . . . . . . .
+ 8 . . X O . . . . . X . . . . . . . . .
+ 7 O . . . X . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 O . . . . . . . . . . . . . . . O . .
+ 3 . . . . . . . . . X O . . . . . O . .
+ 2 . . . O O . . . . X O X . X . . . X .
+ 1 . . . . . . X . O O O X . X . . O O O
+)%%");
+
+    out << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] != C_EMPTY)
+          out << (int)board.searchIsLadderCapturedAttackerFirst2Libs(loc,buf,buf2);
+        else
+          out << ".";
+      }
+      out << endl;
+    }
+    out << endl;
+    board.checkConsistency();
+
+    string expected = R"%%(
+...00000000.....0.0
+000.00000...00000.0
+0.....00.......000.
+.......000......0..
+0.0................
+..0......0......0.0
+..0.......0.....0..
+.........00........
+.......0.0.0.0.....
+000.....0.0........
+00......01.........
+..00.....0.........
+0...0..............
+...................
+...................
+0...............0..
+.........00.....0..
+...00....000.0...0.
+......0.0000.0..000
+)%%";
+    expect(name,out,expected);
+    out.str("");
+    out.clear();
+  }
+
 }
 
 
