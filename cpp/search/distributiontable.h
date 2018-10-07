@@ -15,8 +15,6 @@ struct DistributionTable {
 
   DistributionTable(const DistributionTable& other) = delete;
   DistributionTable& operator=(const DistributionTable& other) = delete;
-  DistributionTable(DistributionTable&& other) = delete;
-  DistributionTable& operator=(DistributionTable&& other) = delete;
 
   inline void getPdfCdf(double z, double& pdf, double& cdf) const {
     double d = (size-1) * (z-minZ) / (maxZ-minZ);

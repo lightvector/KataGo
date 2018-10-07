@@ -35,6 +35,10 @@ ConfigParser::ConfigParser(const string& fname)
 ConfigParser::~ConfigParser()
 {}
 
+string ConfigParser::getFileName() const {
+  return fileName;
+}
+
 vector<string> ConfigParser::unusedKeys() const {
   vector<string> unused;
   for(auto iter = keyValues.begin(); iter != keyValues.end(); ++iter) {

@@ -22,7 +22,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
   double usePosProb;
   string mode;
   try {
-    TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Write search value timeseries", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> nnModelFileArg("","nn-model-file","Neural net model .pb graph file to use",true,string(),"FILE");
     TCLAP::MultiArg<string> sgfsDirsArg("","sgfs-dir","Directory of sgfs files",true,"DIR");

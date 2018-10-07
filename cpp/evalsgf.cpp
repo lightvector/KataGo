@@ -16,15 +16,15 @@ int MainCmds::evalSgf(int argc, const char* const* argv) {
   Rand seedRand;
 
   string configFile;
-  string nnModelFile;
+  string modelFile;
   string sgfFile;
   int moveNum;
   string printBranch;
   string extraMoves;
   try {
-    TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
-    TCLAP::ValueArg<string> nnModelFileArg("","nn-model-file","Neural net model .pb graph file to use",true,string(),"FILE");
+    TCLAP::ValueArg<string> modelFileArg("","model-file","Neural net model file to use",true,string(),"FILE");
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
     TCLAP::ValueArg<int> moveNumArg("","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");
     TCLAP::ValueArg<string> printBranchArg("","print-branch","Move branch in search tree to print",false,string(),"MOVE MOVE ...");
@@ -32,7 +32,7 @@ int MainCmds::evalSgf(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> extraMovesArg("","extra-moves","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> movesArg("","moves","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
     cmd.add(configFileArg);
-    cmd.add(nnModelFileArg);
+    cmd.add(modelFileArg);
     cmd.add(sgfFileArg);
     cmd.add(moveNumArg);
     cmd.add(printBranchArg);
@@ -41,7 +41,7 @@ int MainCmds::evalSgf(int argc, const char* const* argv) {
     cmd.add(movesArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
-    nnModelFile = nnModelFileArg.getValue();
+    modelFile = modelFileArg.getValue();
     sgfFile = sgfFileArg.getValue();
     moveNum = moveNumArg.getValue();
     printBranch = printBranchArg.getValue();
@@ -137,7 +137,7 @@ int MainCmds::evalSgf(int argc, const char* const* argv) {
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},cfg,logger,seedRand);
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},cfg,logger,seedRand);
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
   }
@@ -147,7 +147,7 @@ int MainCmds::evalSgf(int argc, const char* const* argv) {
   {
     vector<SearchParams> paramss = Setup::loadParams(cfg);
     if(paramss.size() != 1)
-      throw StringError("Can only specify examply one search bot in sgf mode");
+      throw StringError("Can only specify exactly one bot in for searching in an sgf");
     params = paramss[0];
   }
 

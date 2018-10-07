@@ -86,11 +86,9 @@ struct BoardHistory {
   bool isLegal(const Board& board, Loc moveLoc, Player movePla) const;
 
   //For all of the below, rootKoHashTable is optional and if provided will slightly speedup superko searches
-
-  //Make a move on the board assuming it's legal and update all history and game state information as well.
-  //In the main phase, should still do reasonable things if the move is still board.isLegal but violates superko, or moves
-  //past when the game is supposed to be over, to allow for robustness when this code is being used for analysis in a way
-  //that violates ko stuff.
+  //This function should behave gracefully so long as it is pseudolegal (board.isLegal, but also still ok if the move is on board.ko_loc)
+  //even if the move violates superko or encore ko recapture prohibitions, or is past when the game is ended.
+  //This allows for robustness when this code is being used for analysis or with external data sources.
   void makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable);
 
   //Slightly expensive, check if the entire game is all pass-alive-territory, and if so, declare the game finished
@@ -118,8 +116,6 @@ struct KoHashTable {
 
   KoHashTable(const KoHashTable& other) = delete;
   KoHashTable& operator=(const KoHashTable& other) = delete;
-  KoHashTable(KoHashTable&& other) = delete;
-  KoHashTable& operator=(KoHashTable&& other) = delete;
 
   size_t size() const;
 

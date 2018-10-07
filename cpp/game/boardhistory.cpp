@@ -476,17 +476,18 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   moveHistory.push_back(Move(moveLoc,movePla));
   wasEverOccupiedOrPlayed[moveLoc] = true;
 
-  //Mark all locations that are superko-illegal for the next player
+  //Mark all locations that are superko-illegal for the next player, by iterating and testing each point.
   Player nextPla = getOpp(movePla);
   if(encorePhase <= 0 && rules.koRule != Rules::KO_SIMPLE) {
     assert(koProhibitHash == Hash128());
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
-        //Cannot be superko banned if it's not a legal move in the first place, or if there was never a stone there
-        //was never played before, or we would already ban the move under simple ko
+        //Cannot be superko banned if it's not a pseudolegal move in the first place, or we would already ban the move under simple ko.
         if(board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,nextPla,rules.multiStoneSuicideLegal) || loc == board.ko_loc)
           superKoBanned[loc] = false;
+        //Also cannot be superko banned if a stone was never there or played there before AND the move is not suicide, because that means
+        //the move results in a new stone there and if no stone was ever there in the past the it must be a new position.
         else if(!wasEverOccupiedOrPlayed[loc] && !board.isSuicide(loc,nextPla))
           superKoBanned[loc] = false;
         else {

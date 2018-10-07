@@ -19,6 +19,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <sstream>
+#include <atomic>
 #include "../core/timer.h"
 #include "../core/global.h"
 #include "../core/hash.h"
@@ -160,7 +161,6 @@ static const uint64_t zeros[XorShift1024Mult::XORMULT_LEN] = {
 };
 
 
-static int inits = 0;
 Rand::Rand()
   :xorm(zeros),pcg32(0ULL) //Dummy values, overridden by init
 {
@@ -188,9 +188,10 @@ Rand::~Rand()
 
 }
 
+static atomic<int> inits(0);
+
 void Rand::init()
 {
-  //Note that inits++ is not threadsafe
   int x = inits++;
   uint64_t time0 = (uint64_t)time(NULL);
   uint32_t clock0 = (uint32_t)clock();

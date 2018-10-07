@@ -15,8 +15,6 @@ class Logger {
 
   Logger(const Logger& other) = delete;
   Logger& operator=(const Logger& other) = delete;
-  Logger(Logger&& other) = delete;
-  Logger& operator=(Logger&& other) = delete;
 
   void setLogToStdout(bool b);
   void setLogToStderr(bool b);
@@ -48,8 +46,6 @@ class LogBuf : public std::stringbuf {
 
   LogBuf(const LogBuf& other) = delete;
   LogBuf& operator=(const LogBuf& other) = delete;
-  LogBuf(LogBuf&& other) = delete;
-  LogBuf& operator=(LogBuf&& other) = delete;
 
   virtual int sync();
  private:

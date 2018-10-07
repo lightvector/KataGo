@@ -39,9 +39,7 @@ struct Sgf {
   ~Sgf();
 
   Sgf(const Sgf&) = delete;
-  Sgf(Sgf&&) = delete;
   Sgf& operator=(const Sgf&) = delete;
-  Sgf& operator=(Sgf&&) = delete;
 
   static Sgf* parse(const string& str);
   static Sgf* loadFile(const string& file);
@@ -77,9 +75,7 @@ struct CompactSgf {
   ~CompactSgf();
 
   CompactSgf(const CompactSgf&) = delete;
-  CompactSgf(CompactSgf&&) = delete;
   CompactSgf& operator=(const CompactSgf&) = delete;
-  CompactSgf& operator=(CompactSgf&&) = delete;
 
   static CompactSgf* parse(const string& str);
   static CompactSgf* loadFile(const string& file);

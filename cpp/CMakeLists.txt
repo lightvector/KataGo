@@ -111,6 +111,7 @@ if(BUILD_MCTS)
     search/asyncbot.cpp
     search/distributiontable.cpp
     program/setup.cpp
+    program/play.cpp
     ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     tests/testboardarea.cpp
     tests/testboardbasic.cpp
@@ -120,6 +121,7 @@ if(BUILD_MCTS)
     evalsgf.cpp
     gtp.cpp
     match.cpp
+    selfplay.cpp
     misc.cpp
     runtests.cpp
     sandbox.cpp

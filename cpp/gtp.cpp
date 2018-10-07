@@ -34,7 +34,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string configFile;
   string nnModelFile;
   try {
-    TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Run GTP engine", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> nnModelFileArg("","nn-model-file","Neural net model .pb graph file to use",true,string(),"FILE");
     cmd.add(configFileArg);

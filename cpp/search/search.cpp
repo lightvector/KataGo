@@ -77,12 +77,25 @@ SearchNode& SearchNode::operator=(SearchNode&& other) noexcept {
 
 //-----------------------------------------------------------------------------------------
 
+static string makeSeed(const Search& search, int threadIdx) {
+  stringstream ss;
+  ss << search.randSeed;
+  ss << "$searchThread$";
+  ss << threadIdx;
+  ss << "$";
+  ss << search.rootBoard.pos_hash;
+  ss << "$";
+  ss << search.rootHistory.moveHistory.size();
+  ss << "$";
+  ss << search.numSearchesBegun;
+  return ss.str();
+}
 
 SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
   :threadIdx(tIdx),
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
-   rand(search.randSeed + string("$searchThread$") + Global::intToString(threadIdx)),
+   rand(makeSeed(search,tIdx)),
    nnResultBuf(),
    logStream(NULL),
    valueChildWeightsBuf(),
@@ -112,7 +125,7 @@ static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
-   searchParams(params),randSeed(rSeed),
+   searchParams(params),numSearchesBegun(0),randSeed(rSeed),
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand"))
 {
@@ -187,17 +200,23 @@ void Search::clearSearch() {
 }
 
 bool Search::isLegal(Loc moveLoc, Player movePla) const {
-  //Don't require that the move is legal for the history, merely the board, so that
-  //we're robust to the outside saying that a move was made that violates superko or things like that.
-  //Also handle simple ko correctly in case somehow we find out the same player making multiple moves
-  //in a row (which is possible in GTP)
+  //If we somehow have the same player making multiple moves in a row (possible in GTP or an sgf file),
+  //clear the ko loc - the simple ko loc of a player should not prohibit the opponent playing there!
   if(movePla != rootPla) {
     Board copy = rootBoard;
     copy.clearSimpleKoLoc();
     return copy.isLegal(moveLoc,movePla,rootHistory.rules.multiStoneSuicideLegal);
   }
-  else
-    return rootBoard.isLegal(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+  else {
+    //Don't require that the move is legal for the history, merely the board, so that
+    //we're robust to GTP or an sgf file saying that a move was made that violates superko or things like that.
+    //In the encore, we also need to ignore the simple ko loc, since the board itself will report a move as illegal
+    //when actually it is a legal pass-for-ko.
+    if(rootHistory.encorePhase >= 1)
+      return rootBoard.isLegalIgnoringKo(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+    else
+      return rootBoard.isLegal(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+  }
 }
 
 bool Search::makeMove(Loc moveLoc, Player movePla) {
@@ -350,6 +369,7 @@ Loc Search::getChosenMoveLoc() {
 }
 
 void Search::beginSearch() {
+  numSearchesBegun++;
   if(rootNode == NULL) {
     SearchThread dummyThread(-1, *this, NULL);
     rootNode = new SearchNode(*this, dummyThread, Board::NULL_LOC);
