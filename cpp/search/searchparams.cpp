@@ -1,5 +1,9 @@
 #include "../search/searchparams.h"
 
+//Default search params
+//The intent is that the are good default guesses for good values of the parameters,
+//with deterministic behavior (no noise, no randomization) and no bounds (unbounded time and visits).
+//Currently, utility is entirely win-loss.
 SearchParams::SearchParams()
   :winLossUtilityFactor(1.0),
    scoreUtilityFactor(0.0),

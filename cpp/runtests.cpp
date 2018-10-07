@@ -31,3 +31,14 @@ int MainCmds::runTests(int argc, const char* const* argv) {
   cout << "All tests passed" << endl;
   return 0;
 }
+
+int MainCmds::runSearchTests(int argc, const char* const* argv) {
+  Board::initHash();
+
+  if(argc != 2) {
+    cerr << "Must supply exactly one argument - the model file to use" << endl;
+    return 1;
+  }
+  Tests::runSearchTests(string(argv[1]));
+  return 0;
+}

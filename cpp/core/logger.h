@@ -20,6 +20,7 @@ class Logger {
 
   void setLogToStdout(bool b);
   void setLogToStderr(bool b);
+  void setLogTime(bool b);
   void addFile(const string& file);
 
   //write and ostreams returned are synchronized with other calls to write and other ostream calls
@@ -32,6 +33,7 @@ class Logger {
  private:
   bool logToStdout;
   bool logToStderr;
+  bool logTime;
   vector<ofstream*> files;
   vector<LogBuf*> logBufs;
   std::mutex mutex;

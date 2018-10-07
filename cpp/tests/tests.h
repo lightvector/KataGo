@@ -24,6 +24,10 @@ namespace Tests {
 
   //testnninputs.cpp
   void runNNInputsTests();
+
+  //testsearch.cpp
+  void runSearchTests(const string& modelFile);
+
 }
 
 namespace TestCommon {
