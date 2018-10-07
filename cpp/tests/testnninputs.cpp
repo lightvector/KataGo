@@ -436,7 +436,7 @@ Channel: 16
 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5  . . . . . . . . . . . . . . . . . . .
 
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -523,7 +523,7 @@ Channel: 16
 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333 0.0333  . . . . . . . . . . . . . . . . . . .
 
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -719,7 +719,7 @@ Channel: 16
 0.3 0.3 0.3 0.3 0.3 0.3 0.3  . . . . O3. .
 
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -949,7 +949,7 @@ Channel: 16
 0 0 0 0 0 0 0 0 0
 
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }

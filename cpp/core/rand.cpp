@@ -362,7 +362,7 @@ static void simpleTest()
     for(int j = 0; j<37; j++)
       s += (char)('a'+(i % 26));
   }
-  
+
   string expectedOutput = R"%%(
 
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
@@ -407,7 +407,7 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccc
 
 )%%";
 
-  TestCommon::expect("hash test",out,expectedOutput);
+  TestCommon::expect("hash test",out.str(),expectedOutput);
   out.str("");
   out.clear();
 }
@@ -705,14 +705,14 @@ rand.nextGamma(4)
 2.39111
 2.90081
 )%%";
-    TestCommon::expect(name,out,expected);
+    TestCommon::expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
 
   {
     const char* name = "Rand moment tests";
-    
+
     int bufLen = 100000;
     double* buf = new double[bufLen];
 
@@ -749,7 +749,7 @@ rand.nextGamma(4)
     };
 
     Rand rand("test");
-    
+
     for(int i = 0; i<bufLen; i++)
       buf[i] = rand.nextDouble();
     printMoments("Uniform", 0.5, 1.0/12.0, 0, -6.0/5.0);
@@ -770,7 +770,7 @@ rand.nextGamma(4)
     for(int i = 0; i<bufLen; i++)
       buf[i] = rand.nextGamma(4.0);
     printMoments("Gamma", 4.0, 4.0, 2.0/sqrt(4.0), 6.0/4.0);
-    
+
     delete[] buf;
     string expected = R"%%(
 Uniform sample: Mean 0.499714 Variance 0.083704 Skew 0.003446 ExcessKurt -1.202311
@@ -785,10 +785,10 @@ Gamma sample: Mean 3.998701 Variance 3.992548 Skew 0.986482 ExcessKurt 1.410314
 Gamma expected: Mean 4.000000 Variance 4.000000 Skew 1.000000 ExcessKurt 1.500000
 )%%";
 
-    TestCommon::expect(name,out,expected);
+    TestCommon::expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
-  
+
 }
 

@@ -50,7 +50,7 @@ HASH: FEAC8B83FDFD55B47128913D3E68E748
 
 )%%";
 
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -100,7 +100,7 @@ xxoo.o.ox
 .3.....22
 
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -169,7 +169,7 @@ After white
 ----8-4--
 0-56352--
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -215,7 +215,7 @@ xoox..xo.
 0000..00.
 .1100.001
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -263,7 +263,7 @@ xoox..xo.
 .11.0.000
 
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -311,7 +311,7 @@ xoox..xo.
 ..................
 
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -426,7 +426,7 @@ xoox..xo.
 ............0.....
 
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -494,7 +494,7 @@ xoox..xo.
 ...................
 ...................
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -562,7 +562,7 @@ xoox..xo.
 ....0.00000000...0.
 .0....1111111.0....
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -631,7 +631,7 @@ xoox..xo.
 ...00....000.0...0.
 ......0.0000.0..000
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -705,7 +705,7 @@ koCaptureCount 25
 suicideCount 87
 
 )%%";
-  expect("Board undo test move counts",out,expected);
+  expect("Board undo test move counts",out.str(),expected);
 }
 
 
@@ -829,5 +829,5 @@ Caps 4890 5071
 Caps 4364 4393
 
 )%%";
-  expect("Board stress test move counts",out,expected);
+  expect("Board stress test move counts",out.str(),expected);
 }
