@@ -38,11 +38,13 @@ NNEvaluator::NNEvaluator(
   int modelFileIdx,
   int maxBatchSize,
   int pLen,
+  bool iUseNHWC,
   int nnCacheSizePowerOfTwo,
   bool skipNeuralNet
 )
   :modelFileName(pbModelFile),
    posLen(pLen),
+   inputsUseNHWC(iUseNHWC),
    loadedModel(NULL),
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
@@ -188,9 +190,12 @@ void NNEvaluator::killServerThreads() {
   isKilled = false;
 }
 
-void NNEvaluator::serve(NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry, int cudaGpuIdxForThisThread, bool cudaUseFP16, bool cudaUseNHWC) {
+void NNEvaluator::serve(
+  NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry,
+  int cudaGpuIdxForThisThread, bool cudaUseFP16, bool cudaUseNHWC
+) {
 
-  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, posLen, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
+  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, posLen, inputsUseNHWC, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
   vector<NNOutput*> outputBuf;
 
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
@@ -308,9 +313,9 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   lock.unlock();
 
   if(inputsVersion == 1)
-    NNInputs::fillRowV1(board, history, nextPlayer, posLen, rowInput);
+    NNInputs::fillRowV1(board, history, nextPlayer, posLen, inputsUseNHWC, rowInput);
   else if(inputsVersion == 2)
-    NNInputs::fillRowV2(board, history, nextPlayer, posLen, rowInput);
+    NNInputs::fillRowV2(board, history, nextPlayer, posLen, inputsUseNHWC, rowInput);
   else
     assert(false);
 

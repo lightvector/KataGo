@@ -2969,6 +2969,7 @@ struct Model {
     const ModelDesc* desc,
     int maxBatchSz,
     int posLen,
+    bool inputsUseNHWC,
     bool useFP16,
     bool useNHWC
   ) {
@@ -3007,7 +3008,7 @@ struct Model {
       CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&inputDescriptor));
       CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
         inputDescriptor,
-        CUDNN_TENSOR_NHWC, //Always NHWC since this is the tensor that we receive initial user input from
+        inputsUseNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW,
         (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
         batchSize,
         numInputChannels,
@@ -3384,9 +3385,9 @@ struct LocalGpuHandle {
   Buffers* buffers;
   bool usingFP16;
 
-  LocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int posLen, bool useFP16, bool useNHWC) {
+  LocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int posLen, bool inputsUseNHWC, bool useFP16, bool useNHWC) {
     cudaHandles = new CudaHandles();
-    model = new Model(cudaHandles,&(loadedModel->modelDesc),maxBatchSize,posLen,useFP16,useNHWC);
+    model = new Model(cudaHandles,&(loadedModel->modelDesc),maxBatchSize,posLen,inputsUseNHWC,useFP16,useNHWC);
     buffers = new Buffers(cudaHandles,*model,useFP16);
     usingFP16 = useFP16;
 
@@ -3409,6 +3410,7 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   Logger* logger,
   int maxBatchSize,
   int posLen,
+  bool inputsUseNHWC,
   int cudaDeviceIdxForThisThread,
   bool cudaUseFP16,
   bool cudaUseNHWC
@@ -3429,7 +3431,7 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   if(cudaUseFP16 && (prop.major < 5 || (prop.major == 5 && prop.minor < 3)))
     throw new StringError("Cuda device versions below 5.3 do not support cudaUseFP16=true");
 
-  LocalGpuHandle* gpuHandle = new LocalGpuHandle(loadedModel,maxBatchSize,posLen,cudaUseFP16,cudaUseNHWC);
+  LocalGpuHandle* gpuHandle = new LocalGpuHandle(loadedModel,maxBatchSize,posLen,inputsUseNHWC,cudaUseFP16,cudaUseNHWC);
   return gpuHandle;
 }
 

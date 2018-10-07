@@ -70,6 +70,7 @@ class NNEvaluator {
     int modelFileIdx,
     int maxBatchSize,
     int posLen,
+    bool inputsUseNHWC,
     int nnCacheSizePowerOfTwo,
     bool debugSkipNeuralNet
   );
@@ -116,6 +117,8 @@ class NNEvaluator {
  private:
   string modelFileName;
   int posLen;
+  bool inputsUseNHWC;
+
   LoadedModel* loadedModel;
   NNCacheTable* nnCacheTable;
   bool debugSkipNeuralNet;
@@ -144,7 +147,10 @@ class NNEvaluator {
 
  public:
   //Helper, for internal use only
-  void serve(NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry, int cudaGpuIdxForThisThread, bool cudaUseFP16, bool cudaUseNHWC);
+  void serve(
+    NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry,
+    int cudaGpuIdxForThisThread, bool cudaUseFP16, bool cudaUseNHWC
+  );
 };
 
 #endif

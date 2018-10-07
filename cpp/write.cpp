@@ -165,7 +165,8 @@ static void fillRow(const Board& board, const BoardHistory& hist, const vector<M
   int ySize = board.y_size;
   int posLen = NNPos::MAX_BOARD_LEN;
 
-  NNInputs::fillRowV2(board,hist,nextPlayer,posLen,row);
+  bool inputsUseNHWC = true;
+  NNInputs::fillRowV2(board,hist,nextPlayer,posLen,inputsUseNHWC,row);
 
   //Optionally some stuff we can multiply the history planes by to randomly exclude history from a few training samples
   bool includeHistory[5];

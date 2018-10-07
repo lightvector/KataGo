@@ -34,6 +34,7 @@ namespace NeuralNet {
     Logger* logger,
     int maxBatchSize,
     int posLen,
+    bool inputsUseNHWC,
     int cudaGpuIdxForThisThread,
     bool cudaUseFP16,
     bool cudaUseNHWC
