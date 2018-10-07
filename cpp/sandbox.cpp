@@ -24,6 +24,7 @@ int MainCmds::sandbox() {
 
   int modelFileIdx = 0;
   int maxBatchSize = 1;
+  int posLen = 19;
   int nnCacheSizePowerOfTwo = 16;
   bool debugSkipNeuralNet = false;
   NNEvaluator* nnEval = new NNEvaluator(
@@ -32,6 +33,7 @@ int MainCmds::sandbox() {
     // "/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt",
     modelFileIdx,
     maxBatchSize,
+    posLen,
     nnCacheSizePowerOfTwo,
     debugSkipNeuralNet
   );

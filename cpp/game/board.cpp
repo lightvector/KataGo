@@ -132,7 +132,6 @@ void Board::clearSimpleKoLoc() {
 //Gets the number of liberties of the chain at loc. Assertion: location must be black or white.
 int Board::getNumLiberties(Loc loc) const
 {
-  assert(colors[loc] == C_BLACK || colors[loc] == C_WHITE);
   return chain_data[chain_head[loc]].num_liberties;
 }
 
@@ -185,6 +184,43 @@ bool Board::isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
 
   return true;
 }
+
+//Returns a fast lower bound on the number of liberties a new stone placed here would have
+void Board::getBoundNumLibertiesAfterPlay(Loc loc, Player pla, int& lowerBound, int& upperBound) const
+{
+  Player opp = getOpp(pla);
+
+  int numImmediateLibs = 0; //empty spaces adjacent
+  int numCaps = 0; //number of adjacent directions in which we will capture
+  int potentialLibsFromCaps = 0; //Total number of stones we're capturing (possibly with multiplicity)
+  int numConnectionLibs = 0; //Sum over friendly groups connected to of their libs-1
+  int maxConnectionLibs = 0; //Max over friendly groups connected to of their libs-1
+
+  for(int i = 0; i < 4; i++) {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] == C_EMPTY) {
+      numImmediateLibs++;
+    }
+    else if(colors[adj] == opp) {
+      int libs = chain_data[chain_head[adj]].num_liberties;
+      if(libs == 1) {
+        numCaps++;
+        potentialLibsFromCaps += chain_data[chain_head[adj]].num_locs;
+      }
+    }
+    else if(colors[adj] == pla) {
+      int libs = chain_data[chain_head[adj]].num_liberties;
+      int connLibs = libs-1;
+      numConnectionLibs += connLibs;
+      if(connLibs > maxConnectionLibs)
+        maxConnectionLibs = connLibs;
+    }
+  }
+
+  lowerBound = numCaps + (maxConnectionLibs > numImmediateLibs ? maxConnectionLibs : numImmediateLibs);
+  upperBound = numImmediateLibs + potentialLibsFromCaps + numConnectionLibs;
+}
+
 
 //Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
 int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
@@ -474,23 +510,80 @@ void Board::undo(Board::MoveRecord record)
   //Uneat opp liberties
   changeSurroundingLiberties(loc, getOpp(record.pla),+1);
 
-  //If this was not a single stone, we need to recompute the chain from scratch
+  //If this was not a single stone, we may need to recompute the chain from scratch
   if(chain_data[chain_head[loc]].num_locs > 1)
   {
-    //Run through the whole chain and make their heads point to nothing
-    Loc cur = loc;
-    do
-    {
-      chain_head[cur] = NULL_LOC;
-      cur = next_in_chain[cur];
-    } while (cur != loc);
-
-    //Rebuild each chain adjacent now
+    int numNeighbors = 0;
     for(int i = 0; i<4; i++)
     {
       int adj = loc + adj_offsets[i];
-      if(colors[adj] == record.pla && chain_head[adj] == NULL_LOC)
-        rebuildChain(adj, record.pla);
+      if(colors[adj] == record.pla)
+        numNeighbors++;
+    }
+
+    //If the move had exactly one neighbor, we know its undoing didn't disconnect the group,
+    //so don't need to rebuild the whole chain.
+    if(numNeighbors <= 1) {
+      //If the undone move was the location of the head, we need to move the head.
+      Loc head = chain_head[loc];
+      if(head == loc) {
+        Loc newHead = next_in_chain[loc];
+        //Run through the whole chain and make their heads point to the new head
+        Loc cur = loc;
+        do
+        {
+          chain_head[cur] = newHead;
+          cur = next_in_chain[cur];
+        } while (cur != loc);
+
+        //Move over the head data
+        chain_data[newHead] = chain_data[head];
+        head = newHead;
+      }
+
+      //Extract this move out of the circlar list of stones. Unfortunately we don't have a prev pointer, so we need to walk the loop.
+      {
+        //Starting at the head is likely to need to walk less since whenever we merge a single stone into an existing group
+        //we put it right after the old head.
+        Loc cur = head;
+        while(next_in_chain[cur] != loc)
+          cur = next_in_chain[cur];
+        //Advance the pointer to put loc out of the loop
+        next_in_chain[cur] = next_in_chain[loc];
+      }
+
+      //Lastly, fix up liberties. Removing this stone removed all liberties next to this stone
+      //that weren't already liberties of the group.
+      int libertyDelta = 0;
+      for(int i = 0; i<4; i++)
+      {
+        int adj = loc + adj_offsets[i];
+        if(colors[adj] == C_EMPTY && !isLibertyOf(adj,head)) libertyDelta--;
+      }
+      //Removing this stone itself added a liberty to the group though.
+      libertyDelta++;
+      chain_data[head].num_liberties += libertyDelta;
+      //And update the count of stones in the group
+      chain_data[head].num_locs--;
+    }
+    //More than one neighbor. Removing this stone potentially disconnects the group into two, so we just do a complete rebuild
+    //of the resulting group(s).
+    else {
+      //Run through the whole chain and make their heads point to nothing
+      Loc cur = loc;
+      do
+      {
+        chain_head[cur] = NULL_LOC;
+        cur = next_in_chain[cur];
+      } while (cur != loc);
+
+      //Rebuild each chain adjacent now
+      for(int i = 0; i<4; i++)
+      {
+        int adj = loc + adj_offsets[i];
+        if(colors[adj] == record.pla && chain_head[adj] == NULL_LOC)
+          rebuildChain(adj, record.pla);
+      }
     }
   }
 }
@@ -698,12 +791,20 @@ int Board::countHeuristicConnectionLibertiesX2(Loc loc, Player pla) const
 //Assumes loc is empty
 bool Board::isLibertyOf(Loc loc, Loc head) const
 {
-  for(int i = 0; i<4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == colors[head] && chain_head[adj] == head)
-      return true;
-  }
+  Loc adj;
+  adj = loc + adj_offsets[0];
+  if(colors[adj] == colors[head] && chain_head[adj] == head)
+    return true;
+  adj = loc + adj_offsets[1];
+  if(colors[adj] == colors[head] && chain_head[adj] == head)
+    return true;
+  adj = loc + adj_offsets[2];
+  if(colors[adj] == colors[head] && chain_head[adj] == head)
+    return true;
+  adj = loc + adj_offsets[3];
+  if(colors[adj] == colors[head] && chain_head[adj] == head)
+    return true;
+
   return false;
 }
 
@@ -878,13 +979,18 @@ void Board::rebuildChain(Loc loc, Player pla)
 //some invalid location, such as NULL_LOC or a location not of color.
 Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 {
+  Loc adj0 = loc + adj_offsets[0];
+  Loc adj1 = loc + adj_offsets[1];
+  Loc adj2 = loc + adj_offsets[2];
+  Loc adj3 = loc + adj_offsets[3];
+
   //Count new liberties
-  for(int i = 0; i<4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == C_EMPTY && !isLibertyOf(adj,head))
-      chain_data[head].num_liberties++;
-  }
+  int numHeadLibertiesToAdd = 0;
+  if(colors[adj0] == C_EMPTY && !isLibertyOf(adj0,head)) numHeadLibertiesToAdd++;
+  if(colors[adj1] == C_EMPTY && !isLibertyOf(adj1,head)) numHeadLibertiesToAdd++;
+  if(colors[adj2] == C_EMPTY && !isLibertyOf(adj2,head)) numHeadLibertiesToAdd++;
+  if(colors[adj3] == C_EMPTY && !isLibertyOf(adj3,head)) numHeadLibertiesToAdd++;
+  chain_data[head].num_liberties += numHeadLibertiesToAdd;
 
   //Add stone here to the chain by setting its head
   chain_head[loc] = head;
@@ -893,41 +999,35 @@ Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 
   //Recursively add stones around us.
   Loc nextTailTarget = loc;
-  for(int i = 0; i<4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == pla && chain_head[adj] != head)
-      nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj,pla);
-  }
+  if(colors[adj0] == pla && chain_head[adj0] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj0,pla);
+  if(colors[adj1] == pla && chain_head[adj1] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj1,pla);
+  if(colors[adj2] == pla && chain_head[adj2] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj2,pla);
+  if(colors[adj3] == pla && chain_head[adj3] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj3,pla);
   return nextTailTarget;
 }
 
 //Apply the specified delta to the liberties of all adjacent groups of the specified color
 void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
 {
-  int num_seen = 0;  //How many opp chains we have seen so far
-  Loc heads_seen[4];   //Heads of the opp chains seen so far
-  for(int i = 0; i < 4; i++)
-  {
-    int adj = loc + adj_offsets[i];
-    if(colors[adj] == pla)
-    {
-      Loc head = chain_head[adj];
+  Loc adj0 = loc + adj_offsets[0];
+  Loc adj1 = loc + adj_offsets[1];
+  Loc adj2 = loc + adj_offsets[2];
+  Loc adj3 = loc + adj_offsets[3];
 
-      //Have we seen it already?
-      bool seen = false;
-      for(int j = 0; j<num_seen; j++)
-        if(heads_seen[j] == head)
-        {seen = true; break;}
-
-      if(seen)
-        continue;
-
-      //Not already seen! Eat one liberty from it and mark it as seen
-      chain_data[head].num_liberties += delta;
-      heads_seen[num_seen++] = head;
-    }
-  }
+  if(colors[adj0] == pla)
+    chain_data[chain_head[adj0]].num_liberties += delta;
+  if(colors[adj1] == pla
+     && !(colors[adj0] == pla && chain_head[adj0] == chain_head[adj1]))
+    chain_data[chain_head[adj1]].num_liberties += delta;
+  if(colors[adj2] == pla
+     && !(colors[adj0] == pla && chain_head[adj0] == chain_head[adj2])
+     && !(colors[adj1] == pla && chain_head[adj1] == chain_head[adj2]))
+    chain_data[chain_head[adj2]].num_liberties += delta;
+  if(colors[adj3] == pla
+     && !(colors[adj0] == pla && chain_head[adj0] == chain_head[adj3])
+     && !(colors[adj1] == pla && chain_head[adj1] == chain_head[adj3])
+     && !(colors[adj2] == pla && chain_head[adj2] == chain_head[adj3]))
+    chain_data[chain_head[adj3]].num_liberties += delta;
 }
 
 
@@ -1187,6 +1287,8 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
   int moveListCur[arrSize]; //Current move list idx searched, equal to -1 if list has not been generated.
   MoveRecord records[arrSize]; //Records so that we can undo moves as we search back up.
   int stackIdx = 0;
+  int searchNodeCount = 0;
+  static const int MAX_LADDER_SEARCH_NODE_BUDGET = 25000;
 
   moveListCur[0] = -1;
   moveListStarts[0] = 0;
@@ -1209,6 +1311,9 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
     if(stackIdx >= arrSize-1) {
       returnValue = true; returnedFromDeeper = true; stackIdx--; continue;
     }
+    //If we hit a total node count limit, then just assume it doesn't work.
+    if(searchNodeCount >= MAX_LADDER_SEARCH_NODE_BUDGET)
+      return false;
 
     bool isDefender = (defenderFirst && (stackIdx % 2) == 0) || (!defenderFirst && (stackIdx % 2) == 1);
 
@@ -1233,13 +1338,25 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
       //Generate the move list. Attacker and defender generate moves on the group's liberties, but only the defender
       //generates moves on surrounding capturable opposing groups.
       int start = moveListStarts[stackIdx];
+      int moveListLen = 0;
       if(isDefender) {
-        moveListLens[stackIdx] = findLibertyGainingCaptures(loc,buf,start,start);
-        moveListLens[stackIdx] += findLiberties(loc,buf,start,start+moveListLens[stackIdx]);
+        moveListLen = findLibertyGainingCaptures(loc,buf,start,start);
+        moveListLen += findLiberties(loc,buf,start,start+moveListLen);
+
+        int lowerBoundLibs;
+        int upperBoundLibs;
+        //List is always nonempty, and the last element always is the lone liberty of the defender group
+        getBoundNumLibertiesAfterPlay(buf[start+moveListLen-1], pla, lowerBoundLibs, upperBoundLibs);
+        //Defender immediately wins if there are provably enough libs
+        if(lowerBoundLibs >= 3)
+        { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
+        //Attacker immediately wins if defender has not enough libs and there are no alternatives
+        if(moveListLen == 1 && upperBoundLibs <= 1)
+        { returnValue = true; returnedFromDeeper = true; stackIdx--; continue; }
       }
       else {
-        moveListLens[stackIdx] += findLiberties(loc,buf,start,start);
-        assert(moveListLens[stackIdx] == 2);
+        moveListLen += findLiberties(loc,buf,start,start);
+        assert(moveListLen == 2);
 
         int libs0 = getNumImmediateLiberties(buf[start]);
         int libs1 = getNumImmediateLiberties(buf[start+1]);
@@ -1265,14 +1382,14 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
           { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
           //Move 1 is not possible, so shrink the list
           else if(libs0 >= 3)
-          { moveListLens[stackIdx] = 1; }
+          { moveListLen = 1; }
           //Move 0 is not possible, so swap and shrink the list
           else if(libs1 >= 3)
-          { buf[start] = buf[start+1]; moveListLens[stackIdx] = 1; }
+          { buf[start] = buf[start+1]; moveListLen = 1; }
         }
         //Order the two moves based on a simple heuristic - for each neighboring group with any liberties
         //count that the opponent could connect to, count liberties - 1.5.
-        if(moveListLens[stackIdx] > 1) {
+        if(moveListLen > 1) {
           libs0 = libs0 * 2 + countHeuristicConnectionLibertiesX2(buf[start],pla);
           libs1 = libs1 * 2 + countHeuristicConnectionLibertiesX2(buf[start+1],pla);
           if(libs1 > libs0) {
@@ -1282,6 +1399,7 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
           }
         }
       }
+      moveListLens[stackIdx] = moveListLen;
 
       //And indicate to begin search on the first move generated.
       moveListCur[stackIdx] = 0;
@@ -1341,6 +1459,7 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
     //Play and record the move!
     records[stackIdx] = playMoveRecorded(move,p);
+    searchNodeCount++;
 
     //And recurse to the next level
     stackIdx++;
@@ -1383,7 +1502,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   //Does this border a pla group that has been marked as not pass alive?
   bool bordersNonPassAlivePlaByHead[MAX_ARR_SIZE];
 
-  //A list for reach region head, indicating which pla group heads the region is vital for.
+  //A list for each region head, indicating which pla group heads the region is vital for.
   //A region is vital for a pla group if all its spaces are adjacent to that pla group.
   //All lists are concatenated together, the most we can have is bounded by (MAX_LEN * MAX_LEN+1) / 2
   //independent regions, each one vital for at most 4 pla groups, add some extra just in case.
@@ -1398,9 +1517,8 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   //Start indices and list lengths in vitalForPlaHeadsLists
   uint16_t vitalStart[maxRegions];
   uint16_t vitalLen[maxRegions];
-  //For each head of a region, 0, 1, or 2+ spaces of that region not bordering any pla
+  //For each region, are there 0, 1, or 2+ spaces of that region not bordering any pla?
   uint8_t numInternalSpacesMax2[maxRegions];
-  bool bordersPla[maxRegions];
   bool containsOpp[maxRegions];
 
   for(int i = 0; i<MAX_ARR_SIZE; i++) {
@@ -1418,13 +1536,19 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     return false;
   };
 
+  //Recursively trace maximal non-pla regions of the board and record their properties and join them into a
+  //linked list through nextEmptyOrOpp.
+  //Takes as input the location serving as the head, the tip node of the linked list so far, the next loc, and the
+  //numeric index of the region
+  //Returns the loc serving as the current tip node ("tailTarget") of the linked list.
   std::function<Loc(Loc,Loc,Loc,int)> buildRegion;
   buildRegion = [pla,opp,isMultiStoneSuicideLegal,
                  &regionHeadByLoc,
                  &vitalForPlaHeadsLists,
-                 &vitalStart,&vitalLen,&numInternalSpacesMax2,&bordersPla,&containsOpp,
+                 &vitalStart,&vitalLen,&numInternalSpacesMax2,&containsOpp,
                  this,
                  &isAdjacentToPlaHead,&nextEmptyOrOpp,&buildRegion](Loc head, Loc tailTarget, Loc loc, int regionIdx) -> Loc {
+    //Already traced this location, skip
     if(regionHeadByLoc[loc] != NULL_LOC)
       return tailTarget;
     regionHeadByLoc[loc] = head;
@@ -1446,8 +1570,8 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
       }
     }
 
-    //Determine if this point is internal
-    {
+    //Determine if this point is internal, unless we already have many internal points
+    if(numInternalSpacesMax2[regionIdx] < 2) {
       bool isInternal = true;
       for(int i = 0; i<4; i++)
       {
@@ -1457,14 +1581,12 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
           break;
         }
       }
-      if(isInternal && numInternalSpacesMax2[regionIdx] < 2)
+      if(isInternal)
         numInternalSpacesMax2[regionIdx] += 1;
-
-      if(!isInternal)
-        bordersPla[regionIdx] = true;
-      if(colors[loc] == opp)
-        containsOpp[regionIdx] = true;
     }
+
+    if(colors[loc] == opp)
+      containsOpp[regionIdx] = true;
 
     //Next, recurse everywhere
     nextEmptyOrOpp[loc] = tailTarget;
@@ -1478,13 +1600,16 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     return nextTailTarget;
   };
 
+  bool atLeastOnePla = false;
   for(int y = 0; y < y_size; y++) {
     for(int x = 0; x < x_size; x++) {
       Loc loc = Location::getLoc(x,y,x_size);
       if(regionHeadByLoc[loc] != NULL_LOC)
         continue;
-      if(colors[loc] != C_EMPTY)
+      if(colors[loc] != C_EMPTY) {
+        atLeastOnePla |= (colors[loc] == pla);
         continue;
+      }
       int regionIdx = numRegions;
       numRegions++;
       assert(numRegions <= maxRegions);
@@ -1495,7 +1620,6 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
       vitalStart[regionIdx] = vitalForPlaHeadsListsTotal;
       vitalLen[regionIdx] = 0;
       numInternalSpacesMax2[regionIdx] = 0;
-      bordersPla[regionIdx] = false;
       containsOpp[regionIdx] = false;
 
       //Fill in all adjacent pla heads as vital, which will get filtered during buildRegion
@@ -1626,9 +1750,9 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   //Mark result with territory
   for(int i = 0; i<numRegions; i++) {
     Loc head = regionHeads[i];
-    bool shouldMark = numInternalSpacesMax2[i] <= 1 && bordersPla[i] && !bordersNonPassAlivePlaByHead[head];
-    shouldMark = shouldMark || (safeBigTerritories && bordersPla[i] && !containsOpp[i] && !bordersNonPassAlivePlaByHead[head]);
-    shouldMark = shouldMark || (unsafeBigTerritories && bordersPla[i] && !containsOpp[i]);
+    bool shouldMark = numInternalSpacesMax2[i] <= 1 && atLeastOnePla && !bordersNonPassAlivePlaByHead[head];
+    shouldMark = shouldMark || (safeBigTerritories && atLeastOnePla && !containsOpp[i] && !bordersNonPassAlivePlaByHead[head]);
+    shouldMark = shouldMark || (unsafeBigTerritories && atLeastOnePla && !containsOpp[i]);
 
     if(shouldMark) {
       Loc cur = head;

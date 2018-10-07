@@ -152,7 +152,7 @@ pi
 3.14159265859030645
 3.14174973714925665
 )%%";
-    TestCommon::expect(name,out,expected);
+    TestCommon::expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -341,7 +341,7 @@ betacdf(1-1e-12,.5e15,.5e3)0.31645988794179647
 betacdf(1.00,.5e15,.5e3)1.00000000000000000
 
 )%%";
-    TestCommon::expect(name,out,expected);
+    TestCommon::expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -536,7 +536,7 @@ betacdf(1.00,.5e15,.5e3)1.00000000000000000
 0.00004382411579443 0.99997196415964040
 
 )%%";
-    TestCommon::expect(name,out,expected);
+    TestCommon::expect(name,out.str(),expected);
     out.str("");
     out.clear();
 

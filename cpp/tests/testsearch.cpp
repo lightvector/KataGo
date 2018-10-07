@@ -51,7 +51,7 @@ static NNEvaluator* startNNEval(
   int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16, bool debugSkipNeuralNet) {
   int modelFileIdx = 0;
   int maxBatchSize = 16;
-  // int posLen = NNPos::MAX_BOARD_LEN;
+  int posLen = NNPos::MAX_BOARD_LEN;
   //bool inputsUseNHWC = true;
   int nnCacheSizePowerOfTwo = 16;
   //bool debugSkipNeuralNet = false;
@@ -59,7 +59,7 @@ static NNEvaluator* startNNEval(
     modelFile,
     modelFileIdx,
     maxBatchSize,
-    //posLen,
+    posLen,
     //inputsUseNHWC,
     nnCacheSizePowerOfTwo,
     debugSkipNeuralNet

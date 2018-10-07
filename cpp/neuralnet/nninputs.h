@@ -15,11 +15,10 @@ namespace NNPos {
   //Policy output adds +1 for the pass move
   const int NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
 
-  int getOffset(int bSize);
-  int xyToPos(int x, int y, int offset);
-  int locToPos(Loc loc, int bSize, int offset);
-  Loc posToLoc(int pos, int bSize, int offset);
-  bool isPassPos(int pos);
+  int xyToPos(int x, int y, int posLen);
+  int locToPos(Loc loc, int boardXSize, int posLen);
+  Loc posToLoc(int pos, int boardXSize, int boardYSize, int posLen);
+  bool isPassPos(int pos, int posLen);
 }
 
 namespace NNInputs {
@@ -43,7 +42,7 @@ namespace NNInputs {
   //doesn't get told about the rules
   void fillRowV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
-    Player nextPlayer, float selfKomi, float* row
+    Player nextPlayer, float selfKomi, int posLen, float* row
   );
 
   //Handles superko and works for tromp-taylor, but otherwise not all rules implemented
@@ -51,7 +50,7 @@ namespace NNInputs {
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer
   );
   void fillRowV1(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer, float* row
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer, int posLen, float* row
   );
 
   //Ongoing sandbox for full rules support and new ladder and other features, not stable yet
@@ -59,7 +58,7 @@ namespace NNInputs {
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer
   );
   void fillRowV2(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer, float* row
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer, int posLen, float* row
   );
 
 }
@@ -81,7 +80,7 @@ struct NNOutput {
   //The utility of having a particular winner
   static double whiteValueOfWinner(Player winner, double drawValue);
   //The utility of achieving a certain score difference
-  static double whiteValueOfScore(double finalWhiteMinusBlackScore, int bSize);
+  static double whiteValueOfScore(double finalWhiteMinusBlackScore, const Board& b);
 };
 
 #endif

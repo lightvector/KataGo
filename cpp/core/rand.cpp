@@ -337,12 +337,79 @@ static void simpleTest()
     }
   }
 
-  char hash[65];
+  char hash[129];
   SHA2::get256("The quick brown fox jumps over the lazy dog.", hash);
   if(string(hash) != string("ef537f25c895bfa782526529a9b63d97aa631564d5d789c2b765448c8635fb6c")) {
     cout << hash << endl;
     cout << "SHA2 generated unexpected hash" << endl;
   }
+
+  ostringstream out;
+
+  string s;
+  for(int i = 0; i<10; i++) {
+    SHA2::get256(s.c_str(), hash);
+    out << s << endl;
+    out << hash << endl;
+    for(int j = 0; j<37; j++)
+      s += (char)('a'+(i % 26));
+  }
+  s = "";
+  for(int i = 0; i<10; i++) {
+    SHA2::get512(s.c_str(), hash);
+    out << s << endl;
+    out << hash << endl;
+    for(int j = 0; j<37; j++)
+      s += (char)('a'+(i % 26));
+  }
+
+  string expectedOutput = R"%%(
+
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+21ec055b38ce759cd4d0f477e9bdec2c5b8199945db4439bae334a964df6246c
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+530324237c4062cee93afcc3433135c4a4729e6b234ecd83b08992a6032efafb
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccccccccccccccccccccccccccccccccc
+acc0500a6ebb7fc2c7b265db4e22d1ad1d55908dfdc89913520ba9be50a7720d
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddd
+280a8797e00868c757e92d9e13e8e51eaffc4673c53a1d1a8e361cdbf010a328
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+1e01ec99dbb0c2f3fd950046138824070024554faeab5bf1e52207d445de223c
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffff
+e5d833a44b2d96fc759f6fbed2e7f303bb7da4400fedb8b3faf395a2fde67c10
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffggggggggggggggggggggggggggggggggggggg
+d1add41e943cf0a880d20847366b573c9fa5181c83ac0284066186d1838c76e0
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+2bbaf6f3a2feef7c8edd672aad9919ce18db46919ab18844ab07585188de0860
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+d1cb4132d32c95e9146d1f439b1a58c8dcc27c0fc15939cfbe2e1bbad8099c0f
+
+cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ae77859a42c40e3973aa42bc8fbe8713444f65173580507d7c4bcc7c85d7f8c93204f433d506e912504ea37c766af17e649bdf6c8356f6e8e65bf4e9321987cb
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+5e7e8082ac407147815aeb5419db505d456d7d4cdd4f20c62433f4e2bf09a5c8f649f5f032d55e650f7e696408b5aa24226153988dad515eb5338e2c142c7a84
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccccccccccccccccccccccccccccccccc
+714169c309360077960236926fb18c77b5dfa407729b6574105dd1fd8806d04e17f9fff91c99235e1d45a307699039a41753f30cadb2759aed84c4e97d14d382
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddd
+3f427dadf9a6ca0e194236c243f51f37b0be5811ce17abc43c80fea7dd0fc73a76a26416192b68fb2bf49be8c2f07ce365ea041672293c81cf76b9ed8f106bcb
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+52ac4b2cf1588a5804800cb26b9356824c75044a1ed5c0dbf0a088e8de77557dcec5a36f60691392eb4b7ed54243e90dc6d743143b336ce36bd30ba8c4dd787d
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffff
+1c2983945b90a8f520becaa4d7f2ece194116e1e5f2fec15dd2838e97f4df3a7a2133b8a4353339f3952fc9c1c566783e5f8519457d5bbdcc6e5ec168173dba8
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffggggggggggggggggggggggggggggggggggggg
+06d9cf68dca1e30acbf0e4a02896262ef698580da1a531506f791e3189747226be5da53b085aeba40795f20aa2771b1c6ab69cb320e7b6dc3c1adb3bdac475c1
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+a9fda6993a622f9e72076492050cd04625dbd85140bfbba6d08a3fb24eb42143dbc7b1c4f8cd61cf6ccd67eb8b9825f448f8c44b312a6c762c7c1ca5eb5f34b7
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccdddddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffffffggggggggggggggggggggggggggggggggggggghhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+404c54bfd3552a11352a3c70172d706b159506b4cc0d40126a4291b48e3c1e506ab882d8b6a8380442b5fd7cdca1fc4e9e9ff51379447181fe214a2a07b477ff
+
+)%%";
+
+  TestCommon::expect("hash test",out.str(),expectedOutput);
+  out.str("");
+  out.clear();
 }
 
 
@@ -350,53 +417,55 @@ void Rand::runTests() {
   cout << "Running rng and hash tests" << endl;
   simpleTest();
 
-  const char* name = "Rand tests";
   ostringstream out;
-  Rand rand("abc");
 
-  out << "rand.nextUInt()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextUInt() << endl;
+  {
+    const char* name = "Rand tests";
+    Rand rand("abc");
 
-  out << "rand.nextUInt(27)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextUInt(27) << endl;
+    out << "rand.nextUInt()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextUInt() << endl;
 
-  out << "rand.nextInt()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextInt() << endl;
+    out << "rand.nextUInt(27)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextUInt(27) << endl;
 
-  out << "rand.nextInt(-8,8)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextInt(-8,8) << endl;
+    out << "rand.nextInt()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextInt() << endl;
 
-  out << "rand.nextUInt64()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextUInt64() << endl;
+    out << "rand.nextInt(-8,8)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextInt(-8,8) << endl;
 
-  out << "rand.nextUInt64(0xFFffffFFFFULL)" << endl;
-  for(int i = 0; i<16; i++) out << Global::uint64ToHexString(rand.nextUInt64(0xFFffffFFFFULL)) << endl;
+    out << "rand.nextUInt64()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextUInt64() << endl;
 
-  out << "rand.nextDouble()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextDouble() << endl;
+    out << "rand.nextUInt64(0xFFffffFFFFULL)" << endl;
+    for(int i = 0; i<16; i++) out << Global::uint64ToHexString(rand.nextUInt64(0xFFffffFFFFULL)) << endl;
 
-  out << "rand.nextDouble(12)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextDouble(12) << endl;
+    out << "rand.nextDouble()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextDouble() << endl;
 
-  out << "rand.nextDouble(-100,100)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextDouble(-100,100) << endl;
+    out << "rand.nextDouble(12)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextDouble(12) << endl;
 
-  out << "rand.nextGaussian()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextGaussian() << endl;
+    out << "rand.nextDouble(-100,100)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextDouble(-100,100) << endl;
 
-  out << "rand.nextLogistic()" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextLogistic() << endl;
+    out << "rand.nextGaussian()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGaussian() << endl;
 
-  out << "rand.nextGamma(1)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextGamma(1) << endl;
+    out << "rand.nextLogistic()" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextLogistic() << endl;
 
-  out << "rand.nextGamma(0.1)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextGamma(0.1) << endl;
+    out << "rand.nextGamma(1)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(1) << endl;
 
-  out << "rand.nextGamma(4)" << endl;
-  for(int i = 0; i<16; i++) out << rand.nextGamma(4) << endl;
+    out << "rand.nextGamma(0.1)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(0.1) << endl;
 
-  string expected = R"%%(
+    out << "rand.nextGamma(4)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(4) << endl;
+
+    string expected = R"%%(
 rand.nextUInt()
 2368022847
 3900433113
@@ -551,94 +620,175 @@ rand.nextDouble(-100,100)
 68.3438
 -11.1699
 rand.nextGaussian()
--1.6565
-0.884707
-0.51175
--0.980549
--0.484819
--0.168406
--0.890281
--0.106589
--2.02575
--0.65298
--0.41521
-0.217587
-0.667365
--1.53608
-0.32987
-1.28887
+-1.04102
+1.02086
+-2.21387
+1.18239
+0.464025
+0.201022
+0.924891
+-1.77215
+0.783248
+0.43083
+1.22297
+-0.779088
+0.437384
+-0.712373
+0.921093
+-0.690558
 rand.nextLogistic()
-1.28485
-0.14889
--0.462737
--0.306565
-0.403024
-2.37004
--0.371619
--0.543605
--0.113315
--2.76268
-0.554995
--0.739053
--0.0752053
--0.610029
--1.03978
-0.493688
+-0.949963
+-0.309666
+1.25673
+0.0234923
+-4.13501
+1.48687
+-2.68628
+-0.197865
+-2.87159
+-4.15327
+4.69788
+0.164818
+1.87224
+-0.208472
+-1.73322
+-0.607461
 rand.nextGamma(1)
+0.274704
+0.0744126
+0.471163
+0.0774803
+0.963182
+0.165412
+0.213661
+0.730311
+2.24201
+0.468865
+0.0571607
+0.905897
 2.60238
 0.64582
 0.158352
 0.685324
-0.298571
-2.45651
-0.513276
-1.33879
-1.6505
-0.300102
-3.34534
-0.980066
-0.98956
-0.292734
-0.723428
-2.3634
 rand.nextGamma(0.1)
-1.93607e-07
-0.0151875
-0.000548596
-4.78134e-16
-2.27411e-07
-3.339e-07
-3.17695e-07
-0.000372868
-1.05724e-13
-0.0741701
-0.0260639
-0.000823654
-0.00112846
-2.24031
-0.00876745
-0.246055
+0.000316875
+3.15072e-09
+1.08349e-06
+0.108733
+0.00341049
+2.32469e-11
+4.49661e-07
+0.0029474
+0.669966
+1.00563e-08
+0.64905
+7.22175e-13
+1.2857e-07
+0.0177569
+1.85445e-09
+3.17753e-07
 rand.nextGamma(4)
+1.57075
+4.32638
+1.22375
+2.30653
+2.28736
+5.2053
+3.4774
+3.89106
+3.4363
+1.49415
+3.48808
+6.74786
 3.68859
 1.31681
 2.39111
 2.90081
-1.87706
-3.64475
-6.21859
-5.16677
-6.41707
-4.18592
-2.36267
-4.51534
-5.43026
-9.46803
-8.06233
-6.32551
 )%%";
-  TestCommon::expect(name,out,expected);
-  out.str("");
-  out.clear();
+    TestCommon::expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+  }
+
+  {
+    const char* name = "Rand moment tests";
+
+    int bufLen = 100000;
+    double* buf = new double[bufLen];
+
+    auto printMoments = [&out,&buf,bufLen](const string& distrName, double expectedMean, double expectedVariance, double expectedSkew, double expectedExcessKurt) {
+      double m1 = 0;
+      double m2 = 0;
+      double m3 = 0;
+      double m4 = 0;
+      for(int i = 0; i<bufLen; i++) {
+        double x = buf[i];
+        m1 += x;
+        m2 += x*x;
+        m3 += x*x*x;
+        m4 += x*x*x*x;
+      }
+      m1 /= bufLen;
+      m2 /= bufLen;
+      m3 /= bufLen;
+      m4 /= bufLen;
+
+      double mean = m1;
+      double variance = m2 - m1*m1;
+      double skew = (m3 - 3*m1*variance - m1*m1*m1) / sqrt(variance*variance*variance);
+      double excessKurt = (m4 - 4*m3*m1 + 6*m2*m1*m1 - 3*m1*m1*m1*m1)/(variance*variance) - 3;
+      out << Global::strprintf(
+        "%s sample: Mean %f Variance %f Skew %f ExcessKurt %f",
+        distrName.c_str(), mean, variance, skew, excessKurt
+      ) << endl;
+      out << Global::strprintf(
+        "%s expected: Mean %f Variance %f Skew %f ExcessKurt %f",
+        distrName.c_str(), expectedMean, expectedVariance, expectedSkew, expectedExcessKurt
+      ) << endl;
+
+    };
+
+    Rand rand("test");
+
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextDouble();
+    printMoments("Uniform", 0.5, 1.0/12.0, 0, -6.0/5.0);
+
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextGaussian();
+    printMoments("Gaussian", 0, 1.0, 0, 0.0);
+
+    double pi = 3.14159265358979323846264;
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextLogistic();
+    printMoments("Logistic", 0, pi*pi/3.0, 0, 1.2);
+
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextGamma(0.5);
+    printMoments("Gamma", 0.5, 0.5, 2.0/sqrt(0.5), 6.0/0.5);
+
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextGamma(4.0);
+    printMoments("Gamma", 4.0, 4.0, 2.0/sqrt(4.0), 6.0/4.0);
+
+    delete[] buf;
+    string expected = R"%%(
+Uniform sample: Mean 0.499714 Variance 0.083704 Skew 0.003446 ExcessKurt -1.202311
+Uniform expected: Mean 0.500000 Variance 0.083333 Skew 0.000000 ExcessKurt -1.200000
+Gaussian sample: Mean -0.000782 Variance 1.001046 Skew 0.015581 ExcessKurt 0.012558
+Gaussian expected: Mean 0.000000 Variance 1.000000 Skew 0.000000 ExcessKurt 0.000000
+Logistic sample: Mean 0.003819 Variance 3.283142 Skew 0.003153 ExcessKurt 1.149271
+Logistic expected: Mean 0.000000 Variance 3.289868 Skew 0.000000 ExcessKurt 1.200000
+Gamma sample: Mean 0.499243 Variance 0.497366 Skew 2.832579 ExcessKurt 12.005515
+Gamma expected: Mean 0.500000 Variance 0.500000 Skew 2.828427 ExcessKurt 12.000000
+Gamma sample: Mean 3.998701 Variance 3.992548 Skew 0.986482 ExcessKurt 1.410314
+Gamma expected: Mean 4.000000 Variance 4.000000 Skew 1.000000 ExcessKurt 1.500000
+)%%";
+
+    TestCommon::expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+  }
 
 }
 

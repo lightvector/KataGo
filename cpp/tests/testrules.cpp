@@ -136,7 +136,7 @@ HASH: 551911C639136FD87CFD8C126ABC2737
  2 . X O O
  1 . X O .
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -234,7 +234,7 @@ HASH: FAE9F3EAAF790C5CF1EC62AFDD264F77
  2 . X O O
  1 . X O .
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -325,7 +325,7 @@ Winner: White
 W-B Score: 0.5
 isNoResult: 0
 )%%";
-      expect(name,out,expected);
+      expect(name,out.str(),expected);
       out.str("");
       out.clear();
     }
@@ -403,7 +403,7 @@ After white sends 2 again
 Illegal: (0,0) X
 Illegal: (5,1) X
 )%%";
-      expect(name,out,expected);
+      expect(name,out.str(),expected);
       out.str("");
       out.clear();
     }
@@ -479,7 +479,7 @@ After white now returns 1 and black passes
 After white sends 2 again
 Illegal: (0,0) X
 )%%";
-      expect(name,out,expected);
+      expect(name,out.str(),expected);
       out.str("");
       out.clear();
     }
@@ -586,7 +586,7 @@ Winner: Black
 W-B Score: -0.5
 isNoResult: 0
 )%%";
-      expect(name,out,expected);
+      expect(name,out.str(),expected);
       out.str("");
       out.clear();
     }
@@ -697,7 +697,7 @@ HASH: D369FBF88E276F2F6D21FF1A9FA349F4
  1 . . . . . .
 
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -735,7 +735,7 @@ Winner: Empty
 W-B Score: 0
 isNoResult: 1
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -778,7 +778,7 @@ Winner: Empty
 W-B Score: 0
 isNoResult: 1
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -810,7 +810,7 @@ ooooooo
 Illegal: (1,2) O
 Illegal: (5,2) O
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -855,7 +855,7 @@ HASH: EA1DB3D0A1A4D729AFE423A3B6425B29
  2 O O O O O O O
  1 . . . . . . .
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -924,7 +924,7 @@ HASH: 26526703BA88855735804E2D4B6CE3C7
 
 Ko prohibited black at D4
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -1004,7 +1004,7 @@ HASH: 1FD443E8C77DDC9908A5E4EC94AD28F3
  1 . . . . . . .
 
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -1117,7 +1117,7 @@ HASH: C1B32AE0968F96F2D47DA5E16C8C1C82
  1 . . . . . . .
 
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -1165,7 +1165,7 @@ Score: -4.5
 Score: -3.5
 Score: -2.5
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -1214,7 +1214,7 @@ Score: -4.5
 Score: -3.5
 Score: -2.5
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -1265,7 +1265,7 @@ Score: -4.5
 Score: -3.5
 Score: -3.5
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -1420,7 +1420,7 @@ And repeat with white
 And see the only-once for black
 Illegal: (6,0) X
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -1520,7 +1520,7 @@ HASH: 06E53C9488F4A69B52F544FC1C6E1D40
  2 O O O . . . .
  1 . . . . . . .
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -1566,7 +1566,7 @@ HASH: 7549DEF1D74769D79E9729028FF1A1D5
 
 Ko-prohibited: (0,1) O
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -1618,7 +1618,7 @@ Winner: Black
 W-B Score: -0.5
 isNoResult: 0
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }

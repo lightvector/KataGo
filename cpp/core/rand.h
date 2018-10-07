@@ -259,8 +259,8 @@ inline double Rand::nextGaussian()
     double v1, v2, s;
     do
     {
-      v1 = 2 * nextDouble(-1.0,1.0);
-      v2 = 2 * nextDouble(-1.0,1.0);
+      v1 = nextDouble() * 2.0 - 1.0;
+      v2 = nextDouble() * 2.0 - 1.0;
       s = v1 * v1 + v2 * v2;
     } while (s >= 1 || s == 0);
 

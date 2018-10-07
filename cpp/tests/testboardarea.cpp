@@ -138,7 +138,7 @@ XXX...OOO
 XXX..OOOO
 XXXX.OOOO
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -352,7 +352,7 @@ O.XXX...O
 O.XXX...O
 OOOOOOOOO
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -554,7 +554,7 @@ OO.....OO.OO......O
 OOOOO.OOO.OOO.OOOOO
 OOOOOOOOO.OOOOOOOOO
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -756,7 +756,7 @@ OOOOO....OOOOOOOOOO
 OO..OO...OOOOOOOOOO
 OOO.XO...OOOOOOOOOO
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }
@@ -904,7 +904,7 @@ XXXXX...XXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 )%%";
-    expect(name,out,expected);
+    expect(name,out.str(),expected);
     out.str("");
     out.clear();
   }

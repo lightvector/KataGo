@@ -693,7 +693,25 @@ static void SHA256_Final(sha2_byte digest[], SHA256_CTX* context) {
       *context->buffer = 0x80;
     }
     /* Set the bit count: */
-    *(sha2_word64*)&context->buffer[SHA256_SHORT_BLOCK_LENGTH] = context->bitcount;
+#if BYTE_ORDER == LITTLE_ENDIAN
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+0] = (uint8_t)((context->bitcount >>  0) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+1] = (uint8_t)((context->bitcount >>  8) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+2] = (uint8_t)((context->bitcount >> 16) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+3] = (uint8_t)((context->bitcount >> 24) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+4] = (uint8_t)((context->bitcount >> 32) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+5] = (uint8_t)((context->bitcount >> 40) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+6] = (uint8_t)((context->bitcount >> 48) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+7] = (uint8_t)((context->bitcount >> 56) & 0xFF);
+#else
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+7] = (uint8_t)((context->bitcount >>  0) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+6] = (uint8_t)((context->bitcount >>  8) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+5] = (uint8_t)((context->bitcount >> 16) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+4] = (uint8_t)((context->bitcount >> 24) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+3] = (uint8_t)((context->bitcount >> 32) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+2] = (uint8_t)((context->bitcount >> 40) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+1] = (uint8_t)((context->bitcount >> 48) & 0xFF);
+    context->buffer[SHA256_SHORT_BLOCK_LENGTH+0] = (uint8_t)((context->bitcount >> 56) & 0xFF);
+#endif
 
     /* Final transform: */
     SHA256_Transform(context, (sha2_word32*)context->buffer);
@@ -1009,8 +1027,41 @@ static void SHA512_Last(SHA512_CTX* context) {
     *context->buffer = 0x80;
   }
   /* Store the length of input data (in bits): */
-  *(sha2_word64*)&context->buffer[SHA512_SHORT_BLOCK_LENGTH] = context->bitcount[1];
-  *(sha2_word64*)&context->buffer[SHA512_SHORT_BLOCK_LENGTH+8] = context->bitcount[0];
+#if BYTE_ORDER == LITTLE_ENDIAN
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+0] = (uint8_t)((context->bitcount[1] >>  0) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+1] = (uint8_t)((context->bitcount[1] >>  8) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+2] = (uint8_t)((context->bitcount[1] >> 16) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+3] = (uint8_t)((context->bitcount[1] >> 24) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+4] = (uint8_t)((context->bitcount[1] >> 32) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+5] = (uint8_t)((context->bitcount[1] >> 40) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+6] = (uint8_t)((context->bitcount[1] >> 48) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+7] = (uint8_t)((context->bitcount[1] >> 56) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+8] = (uint8_t)((context->bitcount[0] >>  0) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+9] = (uint8_t)((context->bitcount[0] >>  8) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+10] = (uint8_t)((context->bitcount[0] >> 16) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+11] = (uint8_t)((context->bitcount[0] >> 24) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+12] = (uint8_t)((context->bitcount[0] >> 32) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+13] = (uint8_t)((context->bitcount[0] >> 40) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+14] = (uint8_t)((context->bitcount[0] >> 48) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+15] = (uint8_t)((context->bitcount[0] >> 56) & 0xFF);
+#else
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+7] = (uint8_t)((context->bitcount[1] >>  0) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+6] = (uint8_t)((context->bitcount[1] >>  8) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+5] = (uint8_t)((context->bitcount[1] >> 16) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+4] = (uint8_t)((context->bitcount[1] >> 24) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+3] = (uint8_t)((context->bitcount[1] >> 32) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+2] = (uint8_t)((context->bitcount[1] >> 40) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+1] = (uint8_t)((context->bitcount[1] >> 48) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+0] = (uint8_t)((context->bitcount[1] >> 56) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+15] = (uint8_t)((context->bitcount[0] >>  0) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+14] = (uint8_t)((context->bitcount[0] >>  8) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+13] = (uint8_t)((context->bitcount[0] >> 16) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+12] = (uint8_t)((context->bitcount[0] >> 24) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+11] = (uint8_t)((context->bitcount[0] >> 32) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+10] = (uint8_t)((context->bitcount[0] >> 40) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+9] = (uint8_t)((context->bitcount[0] >> 48) & 0xFF);
+    context->buffer[SHA512_SHORT_BLOCK_LENGTH+8] = (uint8_t)((context->bitcount[0] >> 56) & 0xFF);
+#endif
 
   /* Final transform: */
   SHA512_Transform(context, (sha2_word64*)context->buffer);
