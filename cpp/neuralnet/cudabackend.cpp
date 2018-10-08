@@ -3429,7 +3429,7 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
     logger->write("Cuda backend: Model version " + Global::intToString(loadedModel->modelDesc.version));
   }
   if(cudaUseFP16 && (prop.major < 5 || (prop.major == 5 && prop.minor < 3)))
-    throw new StringError("Cuda device versions below 5.3 do not support cudaUseFP16=true");
+    throw StringError("Cuda device versions below 5.3 do not support cudaUseFP16=true");
 
   LocalGpuHandle* gpuHandle = new LocalGpuHandle(loadedModel,maxBatchSize,posLen,inputsUseNHWC,cudaUseFP16,cudaUseNHWC);
   return gpuHandle;

@@ -62,7 +62,7 @@ NNEvaluator::NNEvaluator(
    m_resultBufs(NULL)
 {
   if(posLen > NNPos::MAX_BOARD_LEN)
-    throw new StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
+    throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
 
   if(nnCacheSizePowerOfTwo >= 0)
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo);
@@ -285,7 +285,7 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   buf.hasResult = false;
 
   if(board.x_size > posLen || board.y_size > posLen)
-    throw new StringError("NNEvaluator was configured with posLen = " + Global::intToString(posLen) + " but was asked to evaluate board with larger x or y size");
+    throw StringError("NNEvaluator was configured with posLen = " + Global::intToString(posLen) + " but was asked to evaluate board with larger x or y size");
 
   Hash128 nnHash;
   if(inputsVersion == 1)
