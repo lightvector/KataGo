@@ -1,6 +1,6 @@
-The code in this repository currently relies on three other libraries, sgfmill, tclap-1.2.1, and zstr. For the licenses for those libraries, see the readme and/or license files for those libraries separately within their respective subdirectories.
+The code in this repository currently relies on three other libraries, sgfmill, tclap-1.2.1, and zstr. For the licenses for those libraries, see the readme and/or license files for those libraries separately within their respective subdirectories. Additionally, cpp/core/sha2.cpp derives from another piece of external code and contains its own license.
 
-Except for those libraries, the license for all content in this repo is as follows:
+Aside from the above, the license for all other content in this repo is as follows:
 
 ----------------------------------------
 

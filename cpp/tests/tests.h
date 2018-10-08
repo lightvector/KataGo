@@ -2,12 +2,12 @@
 #define TESTS_H
 
 #include <sstream>
-#include "core/global.h"
-#include "core/rand.h"
-#include "core/test.h"
-#include "game/board.h"
-#include "game/rules.h"
-#include "game/boardhistory.h"
+#include "../core/global.h"
+#include "../core/rand.h"
+#include "../core/test.h"
+#include "../game/board.h"
+#include "../game/rules.h"
+#include "../game/boardhistory.h"
 
 namespace Tests {
   //testboardbasic.cpp

@@ -3,8 +3,8 @@ project(writedata)
 
 set(CMAKE_CXX_STANDARD 14)
 
-include_directories(.)
-include_directories(tclap-1.2.1/include)
+include_directories(external)
+include_directories(external/tclap-1.2.1/include)
 
 #------------------------------------------------------------------------------------
 
@@ -81,6 +81,13 @@ if(BUILD_WRITE)
     include_directories(${HDF5_INCLUDE_DIRS})
     target_link_libraries (write ${HDF5_LIBRARIES})
   endif (HDF5_FOUND)
+
+  # find_package(ZLIB REQUIRED)
+  # if(ZLIB_FOUND)
+  #   include_directories(${ZLIB_INCLUDE_DIRS})
+  #   target_link_libraries(write ${ZLIB_LIBRARIES})
+  # endif(ZLIB_FOUND)
+
 endif()
 
 #------------------------------------------------------------------------------------
@@ -146,6 +153,12 @@ if(BUILD_MCTS)
     target_link_libraries(main ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
   endif()
 
+  # find_package(ZLIB REQUIRED)
+  # if(ZLIB_FOUND)
+  #   include_directories(${ZLIB_INCLUDE_DIRS})
+  #   target_link_libraries(main ${ZLIB_LIBRARIES})
+  # endif(ZLIB_FOUND)
+
 endif()
 
 
@@ -158,13 +171,6 @@ endif ()
 
 
 
-
-
-# find_package(ZLIB REQUIRED)
-# if (ZLIB_FOUND)
-#     include_directories(${ZLIB_INCLUDE_DIRS})
-#     target_link_libraries (write ${ZLIB_LIBRARIES})
-# endif (ZLIB_FOUND)
 
 # find_library(BLOSC_LIB blosc)
 # target_link_libraries(write ${BLOSC_LIB})

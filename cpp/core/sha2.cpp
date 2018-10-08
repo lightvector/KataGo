@@ -1,8 +1,10 @@
 /*
- * FILE:	sha2.c
- * AUTHOR:	Aaron D. Gifford - http://www.aarongifford.com/
+ * FILE:	sha2.cpp
+ * ORIGINAL AUTHOR:	Aaron D. Gifford - http://www.aarongifford.com/
+ * EDITED by David J Wu ("lightvector") with some minor interface modifications,
+ * and to fix a compiler warning about strict aliasing.
  *
- * EDITED by David Wu with some minor interface modifications
+ * The original license under which this file was provided is as follows:
  *
  * Copyright (c) 2000-2001, Aaron D. Gifford
  * All rights reserved.
