@@ -108,6 +108,7 @@ if(BUILD_MCTS)
     game/rules.cpp
     game/boardhistory.cpp
     dataio/sgf.cpp
+    dataio/numpywrite.cpp
     neuralnet/nninputs.cpp
     neuralnet/modelversion.cpp
     neuralnet/nneval.cpp
@@ -153,11 +154,14 @@ if(BUILD_MCTS)
     target_link_libraries(main ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
   endif()
 
-  # find_package(ZLIB REQUIRED)
-  # if(ZLIB_FOUND)
-  #   include_directories(${ZLIB_INCLUDE_DIRS})
-  #   target_link_libraries(main ${ZLIB_LIBRARIES})
-  # endif(ZLIB_FOUND)
+  find_package(ZLIB REQUIRED)
+  if(ZLIB_FOUND)
+    include_directories(${ZLIB_INCLUDE_DIRS})
+    target_link_libraries(main ${ZLIB_LIBRARIES})
+  endif(ZLIB_FOUND)
+
+  find_library(LIBZIP_LIBRARY NAMES zip)
+  target_link_libraries(main ${LIBZIP_LIBRARY})
 
 endif()
 
