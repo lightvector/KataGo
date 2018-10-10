@@ -44,6 +44,7 @@ NNEvaluator::NNEvaluator(
 )
   :modelFileName(pbModelFile),
    posLen(pLen),
+   policySize(NNPos::getPolicySize(pLen)),
    inputsUseNHWC(iUseNHWC),
    loadedModel(NULL),
    nnCacheTable(NULL),
@@ -238,8 +239,12 @@ void NNEvaluator::serve(
         assert(resultBuf->hasResult == false);
         resultBuf->result = std::make_shared<NNOutput>();
         float* policyProbs = resultBuf->result->policyProbs;
-        for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++)
+        //Illegal move filtering happens later
+        for(int i = 0; i<policySize; i++)
           policyProbs[i] = rand.nextGaussian();
+        for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
+          policyProbs[i] = 0;
+
         resultBuf->result->whiteValue = rand.nextGaussian() * 0.1;
         resultBuf->hasResult = true;
         resultBuf->clientWaitingForResult.notify_all();
@@ -338,9 +343,9 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   int ySize = board.y_size;
 
   float maxPolicy = -1e25f;
-  bool isLegal[NNPos::NN_POLICY_SIZE];
+  bool isLegal[policySize];
   int legalCount = 0;
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+  for(int i = 0; i<policySize; i++) {
     Loc loc = NNPos::posToLoc(i,xSize,ySize,posLen);
     isLegal[i] = history.isLegal(board,loc,nextPlayer);
 
@@ -361,7 +366,7 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   assert(legalCount > 0);
 
   float policySum = 0.0f;
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+  for(int i = 0; i<policySize; i++) {
     policy[i] = exp(policy[i] - maxPolicy);
     policySum += policy[i];
   }
@@ -373,14 +378,19 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
       (*logStream) << "Warning: all legal moves rounded to 0 probability for " << modelFileName << " in position " << board << endl;
     }
     float uniform = 1.0f / legalCount;
-    for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+    for(int i = 0; i<policySize; i++) {
       policy[i] = isLegal[i] ? uniform : -1.0f;
     }
   }
+  //Normal case
   else {
-    for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++)
+    for(int i = 0; i<policySize; i++)
       policy[i] = isLegal[i] ? (policy[i] / policySum) : -1.0f;
   }
+
+  //Fill everything out-of-bounds too, for robustness.
+  for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
+    policy[i] = -1.0f;
 
   //Fix up the value as well
   if(nextPlayer == P_WHITE)

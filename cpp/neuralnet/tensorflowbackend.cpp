@@ -237,7 +237,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int 
   assert(buffers->outputsBuf[0].dims() == 2);
   assert(buffers->outputsBuf[1].dims() == 1);
   assert(buffers->outputsBuf[0].dim_size(0) == numFilledRows);
-  assert(buffers->outputsBuf[0].dim_size(1) == NNPos::NN_POLICY_SIZE);
+  assert(buffers->outputsBuf[0].dim_size(1) == NNPos::MAX_NN_POLICY_SIZE);
   assert(buffers->outputsBuf[1].dim_size(0) == numFilledRows);
 
   assert(buffers->outputsBuf[0].IsAligned());
@@ -256,8 +256,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int 
     //probabilities and white value
     //Also we don't fill in the nnHash here either
     std::copy(
-      policyData + row * NNPos::NN_POLICY_SIZE,
-      policyData + (row+1) * NNPos::NN_POLICY_SIZE,
+      policyData + row * NNPos::MAX_NN_POLICY_SIZE,
+      policyData + (row+1) * NNPos::MAX_NN_POLICY_SIZE,
       policyProbs
     );
     output->whiteValue = valueData[row];

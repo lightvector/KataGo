@@ -72,6 +72,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
     nnEval = nnEvals[0];
   }
   int posLen = nnEval->getPosLen();
+  int policySize = NNPos::getPolicySize(posLen);
   logger.write("Loaded neural net");
 
 
@@ -218,7 +219,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
           {
             float* policy = search->rootNode->nnOutput->policyProbs;
             double entropy = 0.0;
-            for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+            for(int i = 0; i<policySize; i++) {
               if(policy[i] < 1e-20)
                 continue;
               entropy -= policy[i] * log(policy[i]);

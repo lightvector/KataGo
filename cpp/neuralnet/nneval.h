@@ -117,6 +117,7 @@ class NNEvaluator {
  private:
   string modelFileName;
   int posLen;
+  int policySize;
   bool inputsUseNHWC;
 
   LoadedModel* loadedModel;

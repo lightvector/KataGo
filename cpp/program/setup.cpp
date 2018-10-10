@@ -30,9 +30,9 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     int posLen;
     if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-      posLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr);
+      posLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 1, NNPos::MAX_BOARD_LEN);
     else if(cfg.contains("maxBoardSizeForNNBuffer"))
-      posLen = cfg.getInt("maxBoardSizeForNNBuffer");
+      posLen = cfg.getInt("maxBoardSizeForNNBuffer", 1, NNPos::MAX_BOARD_LEN);
     else
       posLen = NNPos::MAX_BOARD_LEN;
 

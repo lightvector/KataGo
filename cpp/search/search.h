@@ -119,6 +119,7 @@ struct Search {
   MutexPool* mutexPool;
   NNEvaluator* nnEvaluator; //externally owned
   int posLen;
+  int policySize;
   Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
 
   //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
@@ -195,7 +196,7 @@ private:
 
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
-    bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+    bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot
   ) const;
 
@@ -208,7 +209,7 @@ private:
 
   void playoutDescend(
     SearchThread& thread, SearchNode& node,
-    bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+    bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot, int32_t virtualLossesToSubtract
   );
 

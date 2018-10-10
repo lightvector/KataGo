@@ -120,7 +120,7 @@ int MainCmds::sandbox() {
     }
     cout << endl;
   }
-  printf("%4.1f%%", buf.result->policyProbs[NNPos::NN_POLICY_SIZE-1] * 100.0);
+  printf("%4.1f%%", buf.result->policyProbs[NNPos::MAX_NN_POLICY_SIZE-1] * 100.0);
   cout << endl;
   cout << buf.result->whiteValue << endl;
 

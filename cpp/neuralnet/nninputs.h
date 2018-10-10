@@ -13,12 +13,13 @@ namespace NNPos {
   const int MAX_BOARD_LEN = 19;
   const int MAX_BOARD_AREA = MAX_BOARD_LEN * MAX_BOARD_LEN;
   //Policy output adds +1 for the pass move
-  const int NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
+  const int MAX_NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
 
   int xyToPos(int x, int y, int posLen);
   int locToPos(Loc loc, int boardXSize, int posLen);
   Loc posToLoc(int pos, int boardXSize, int boardYSize, int posLen);
   bool isPassPos(int pos, int posLen);
+  int getPolicySize(int posLen);
 }
 
 namespace NNInputs {
@@ -73,7 +74,7 @@ struct NNOutput {
 
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko
-  float policyProbs[NNPos::NN_POLICY_SIZE];
+  float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
 
   NNOutput(); //Does NOT initialize values
   NNOutput(const NNOutput& other);

@@ -107,10 +107,10 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
   if(logger != NULL)
     logStream = logger->createOStream();
 
-  winLossValuesBuf.resize(NNPos::NN_POLICY_SIZE);
-  scoreValuesBuf.resize(NNPos::NN_POLICY_SIZE);
-  valuesBuf.resize(NNPos::NN_POLICY_SIZE);
-  visitsBuf.resize(NNPos::NN_POLICY_SIZE);
+  winLossValuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  scoreValuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  valuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  visitsBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
 
 }
 SearchThread::~SearchThread() {
@@ -130,6 +130,8 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    nonSearchRand(rSeed + string("$nonSearchRand"))
 {
   posLen = nnEval->getPosLen();
+  assert(posLen > 0 && posLen <= NNPos::MAX_BOARD_LEN);
+  policySize = NNPos::getPolicySize(posLen);
   rootKoHashTable = new KoHashTable();
 
   valueWeightDistribution = new DistributionTable(
@@ -282,7 +284,7 @@ bool Search::getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelec
   if(numChildren == 0) {
     if(nnOutput == nullptr)
       return false;
-    for(int movePos = 0; movePos<NNPos::NN_POLICY_SIZE; movePos++) {
+    for(int movePos = 0; movePos<policySize; movePos++) {
       Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,posLen);
       double policyProb = nnOutput->policyProbs[movePos];
       if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb <= 0)
@@ -368,6 +370,9 @@ Loc Search::getChosenMoveLoc() {
 }
 
 void Search::beginSearch() {
+  if(rootBoard.x_size > posLen || rootBoard.y_size > posLen)
+    throw StringError("Search got from NNEval posLen = " + Global::intToString(posLen) + " but was asked to search board with larger x or y size");
+
   numSearchesBegun++;
   if(rootNode == NULL) {
     SearchThread dummyThread(-1, *this, NULL);
@@ -394,7 +399,7 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   node.nnOutput = newNNOutput;
 
   int legalCount = 0;
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+  for(int i = 0; i<policySize; i++) {
     if(node.nnOutput->policyProbs[i] >= 0)
       legalCount += 1;
   }
@@ -405,8 +410,8 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   //Generate gamma draw on each move
   double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
   double rSum = 0.0;
-  double r[NNPos::NN_POLICY_SIZE];
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+  double r[policySize];
+  for(int i = 0; i<policySize; i++) {
     if(node.nnOutput->policyProbs[i] >= 0) {
       r[i] = thread.rand.nextGamma(alpha);
       rSum += r[i];
@@ -416,11 +421,11 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   }
 
   //Normalized gamma draws -> dirichlet noise
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++)
+  for(int i = 0; i<policySize; i++)
     r[i] /= rSum;
 
   //At this point, r[i] contains a dirichlet distribution draw, so add it into the nnOutput.
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+  for(int i = 0; i<policySize; i++) {
     if(node.nnOutput->policyProbs[i] >= 0) {
       double weight = searchParams.rootDirichletNoiseWeight;
       node.nnOutput->policyProbs[i] = r[i] * weight + node.nnOutput->policyProbs[i] * (1.0-weight);
@@ -587,7 +592,7 @@ double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos
 //Assumes node is locked
 void Search::selectBestChildToDescend(
   const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
-  bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
   bool isRoot) const
 {
   assert(thread.pla == node.nextPla);
@@ -642,7 +647,7 @@ void Search::selectBestChildToDescend(
       fpuValue = parentValue + searchParams.fpuReductionMax * sqrt(policyProbMassVisited);
   }
 
-  std::fill(posesWithChildBuf,posesWithChildBuf+NNPos::NN_POLICY_SIZE,false);
+  std::fill(posesWithChildBuf,posesWithChildBuf+NNPos::MAX_NN_POLICY_SIZE,false);
 
   //Try all existing children
   for(int i = 0; i<numChildren; i++) {
@@ -659,7 +664,7 @@ void Search::selectBestChildToDescend(
   }
 
   //Try all new children
-  for(int movePos = 0; movePos<NNPos::NN_POLICY_SIZE; movePos++) {
+  for(int movePos = 0; movePos<policySize; movePos++) {
     bool alreadyTried = posesWithChildBuf[movePos];
     if(alreadyTried)
       continue;
@@ -756,7 +761,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
 }
 
 void Search::runSinglePlayout(SearchThread& thread) {
-  bool posesWithChildBuf[NNPos::NN_POLICY_SIZE];
+  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE];
   playoutDescend(thread,*rootNode,posesWithChildBuf,true,0);
 
   //Restore thread state back to the root state
@@ -797,7 +802,7 @@ void Search::initNodeNNOutput(
 
 void Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
-  bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
   bool isRoot, int32_t virtualLossesToSubtract
 ) {
   //Hit terminal node, finish

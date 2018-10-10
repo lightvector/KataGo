@@ -25,12 +25,15 @@ bool NNPos::isPassPos(int pos, int posLen) {
   return pos == posLen * posLen;
 }
 
+int NNPos::getPolicySize(int posLen) {
+  return posLen * posLen + 1;
+}
 
 NNOutput::NNOutput() {}
 NNOutput::NNOutput(const NNOutput& other) {
   nnHash = other.nnHash;
   whiteValue = other.whiteValue;
-  std::copy(other.policyProbs, other.policyProbs+NNPos::NN_POLICY_SIZE, policyProbs);
+  std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
 }
 
 double NNOutput::whiteValueOfWinner(Player winner, double drawValue) {
@@ -261,8 +264,6 @@ void NNInputs::fillRowV0(
 Hash128 NNInputs::getHashV1(
     const Board& board, const BoardHistory& hist, Player nextPlayer
 ) {
-  assert(board.x_size <= NNPos::MAX_BOARD_LEN);
-  assert(board.y_size <= NNPos::MAX_BOARD_LEN);
   int xSize = board.x_size;
   int ySize = board.y_size;
 
@@ -311,8 +312,9 @@ void NNInputs::fillRowV1(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   int posLen, bool useNHWC, float* row
 ) {
-  assert(board.x_size <= NNPos::MAX_BOARD_LEN);
-  assert(board.y_size <= NNPos::MAX_BOARD_LEN);
+  assert(posLen <= NNPos::MAX_BOARD_LEN);
+  assert(board.x_size <= posLen);
+  assert(board.y_size <= posLen);
   std::fill(row,row+ROW_SIZE_V1,0.0f);
 
   Player pla = nextPlayer;
@@ -460,8 +462,6 @@ void NNInputs::fillRowV1(
 Hash128 NNInputs::getHashV2(
     const Board& board, const BoardHistory& hist, Player nextPlayer
 ) {
-  assert(board.x_size <= NNPos::MAX_BOARD_LEN);
-  assert(board.y_size <= NNPos::MAX_BOARD_LEN);
   int xSize = board.x_size;
   int ySize = board.y_size;
 
@@ -511,8 +511,9 @@ void NNInputs::fillRowV2(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   int posLen, bool useNHWC, float* row
 ) {
-  assert(board.x_size <= NNPos::MAX_BOARD_LEN);
-  assert(board.y_size <= NNPos::MAX_BOARD_LEN);
+  assert(posLen <= NNPos::MAX_BOARD_LEN);
+  assert(board.x_size <= posLen);
+  assert(board.y_size <= posLen);
   std::fill(row,row+ROW_SIZE_V2,0.0f);
 
   Player pla = nextPlayer;
@@ -544,6 +545,10 @@ void NNInputs::fillRowV2(
       //Feature 0 - on board
       setRowV2(row,pos,0, 1.0f, posStride, featureStride);
       //Feature 16 - komi/15 from self perspective
+      //TODO this should also take into account drawUtility if komi is integer!
+      //E.g. if komi from self perspective is 7 and drawutility from self perspective is 0.5
+      //then komi the komi input should be as if it was 7.25!
+      //Basically we model it as if the final score were jittered by a uniform draw from [-0.5,0.5].
       setRowV2(row,pos,16, selfKomi/15.0f, posStride, featureStride);
 
       Color stone = board.colors[loc];
