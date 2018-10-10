@@ -26,6 +26,9 @@ struct NumpyBuffer {
   NumpyBuffer(const vector<uint64_t>& shp);
   ~NumpyBuffer();
 
+  NumpyBuffer(const NumpyBuffer&) = delete;
+  NumpyBuffer& operator=(const NumpyBuffer&) = delete;
+
   //Writes the header of the buffer and returns the total size of the writeable portion of
   //the buffer, in bytes.
   //Writes the header and computes the size treating the writeable length of the leading dimension

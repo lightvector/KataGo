@@ -76,7 +76,7 @@ struct BoardHistory {
   //Set only the komi field of the rules, does not clear history, but does clear game-over conditions,
   void setKomi(float newKomi);
 
-  float currentSelfKomi(Player pla) const;
+  float currentSelfKomi(Player pla, double drawUtilityForWhite) const;
 
   //Returns a reference a recent board state, where 0 is the current board, 1 is 1 move ago, etc.
   //Requires that numMovesAgo < NUM_RECENT_BOARDS

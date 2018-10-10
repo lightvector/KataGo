@@ -35,6 +35,11 @@ namespace NNInputs {
   const int NUM_FEATURES_V2 = 17;
   const int ROW_SIZE_V2 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_V2;
 
+  const int NUM_FEATURES_BIN_V3 = 20;
+  const int NUM_FEATURES_FLOAT_V3 = 9;
+  const int ROW_SIZE_BIN_V3 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_BIN_V3;
+  const int ROW_SIZE_FLOAT_V3 = NNPos::MAX_BOARD_LEN * NUM_FEATURES_FLOAT_V3;
+
   Hash128 getHashV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
     Player nextPlayer, float selfKomi
@@ -55,7 +60,7 @@ namespace NNInputs {
     int posLen, bool useNHWC, float* row
   );
 
-  //Ongoing sandbox for full rules support and new ladder and other features, not stable yet
+  //Slightly more complete rules support, new ladder features, compressed some features
   Hash128 getHashV2(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer
   );
@@ -63,6 +68,17 @@ namespace NNInputs {
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     int posLen, bool useNHWC, float* row
   );
+
+  //Ongoing sandbox for full rules support for self play, not stable yet
+  Hash128 getHashV3(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    double drawUtilityForWhite
+  );
+  void fillRowV3(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    double drawUtilityForWhite, int posLen, bool useNHWC, bool* rowBin, float* rowFloat
+  );
+
 
 }
 
