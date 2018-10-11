@@ -2,6 +2,7 @@
 #include "core/makedir.h"
 #include "core/config_parser.h"
 #include "core/timer.h"
+#include "core/threadsafequeue.h"
 #include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
