@@ -109,6 +109,7 @@ if(BUILD_MCTS)
     game/boardhistory.cpp
     dataio/sgf.cpp
     dataio/numpywrite.cpp
+    dataio/trainingwrite.cpp
     neuralnet/nninputs.cpp
     neuralnet/modelversion.cpp
     neuralnet/nneval.cpp

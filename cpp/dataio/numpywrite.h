@@ -14,16 +14,16 @@ template <typename T>
 struct NumpyBuffer {
   T* dataIncludingHeader;
   T* data;
-  uint64_t headerLen;
-  uint64_t dataLen;
-  vector<uint64_t> shape;
+  int64_t headerLen;
+  int64_t dataLen;
+  vector<int64_t> shape;
   string dtype;
   int shapeStartByte;
 
   //Numpy specifies that this is must be a multiple of 64
   static const int TOTAL_HEADER_BYTES = 256;
 
-  NumpyBuffer(const vector<uint64_t>& shp);
+  NumpyBuffer(const vector<int64_t>& shp);
   ~NumpyBuffer();
 
   NumpyBuffer(const NumpyBuffer&) = delete;
@@ -35,17 +35,17 @@ struct NumpyBuffer {
   //of the shape to be just numRows rather than the specified size at creation time.
   //This is so that users can preallocate one buffer at the start and still write it
   //if there were not as many rows as expected ("partial batch").
-  uint64_t prepareHeaderWithNumRows(uint64_t numWriteableRows);
+  uint64_t prepareHeaderWithNumRows(int64_t numWriteableRows);
 
 private:
-  NumpyBuffer(const vector<uint64_t>& shp, const char* dt);
+  NumpyBuffer(const vector<int64_t>& shp, const char* dt);
 };
 
 //Simple class for writing zip-compressed data.
 //No current support for reading it.
 class ZipFile {
  public:
-  ZipFile(const string& fName);
+  ZipFile(const string& fileName);
   ~ZipFile();
 
   ZipFile(const ZipFile&) = delete;

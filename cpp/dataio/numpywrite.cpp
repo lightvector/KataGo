@@ -8,94 +8,95 @@
 #endif
 
 template <>
-NumpyBuffer<uint8_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<uint8_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,"|u1")
 {}
 template <>
-NumpyBuffer<int8_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<int8_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,"|i1")
 {}
 template <>
-NumpyBuffer<bool>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<bool>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,"|b1")
 {}
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 template <>
-NumpyBuffer<float>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<float>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,"<f4")
 {}
 template <>
-NumpyBuffer<double>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<double>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,"<f8")
 {}
 template <>
-NumpyBuffer<uint16_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<uint16_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,"<u2")
 {}
 template <>
-NumpyBuffer<int16_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<int16_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,"<i2")
 {}
 template <>
-NumpyBuffer<uint32_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<uint32_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,"<u4")
 {}
 template <>
-NumpyBuffer<int32_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<int32_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,"<i4")
 {}
 template <>
-NumpyBuffer<uint64_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<uint64_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,"<u8")
 {}
 template <>
-NumpyBuffer<int64_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<int64_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,"<i8")
 {}
 #else
 template <>
-NumpyBuffer<float>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<float>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,">f4")
 {}
 template <>
-NumpyBuffer<double>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<double>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,">f8")
 {}
 template <>
-NumpyBuffer<uint16_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<uint16_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,">u2")
 {}
 template <>
-NumpyBuffer<int16_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<int16_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,">i2")
 {}
 template <>
-NumpyBuffer<uint32_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<uint32_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,">u4")
 {}
 template <>
-NumpyBuffer<int32_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<int32_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,">i4")
 {}
 template <>
-NumpyBuffer<uint64_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<uint64_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,">u8")
 {}
 template <>
-NumpyBuffer<int64_t>::NumpyBuffer(const vector<uint64_t>& shp)
+NumpyBuffer<int64_t>::NumpyBuffer(const vector<int64_t>& shp)
   : NumpyBuffer(shp,">i8")
 {}
 #endif
 
 template <typename T>
-NumpyBuffer<T>::NumpyBuffer(const vector<uint64_t>& shp, const char* dt)
+NumpyBuffer<T>::NumpyBuffer(const vector<int64_t>& shp, const char* dt)
   : shape(shp),dtype(dt)
 {
   dataLen = 1;
   assert(shape.size() > 0);
   for(size_t i = 0; i<shape.size(); i++) {
-    if(dataLen * shape[i] < dataLen)
+    assert(shape[i] >= 0);
+    if((uint64_t)dataLen * (uint64_t)shape[i] < (uint64_t)dataLen)
       throw StringError("NumpyBuffer shape overflows");
     dataLen *= shape[i];
   }
@@ -149,13 +150,13 @@ NumpyBuffer<T>::~NumpyBuffer() {
 //This is so that users can preallocate one buffer at the start and still write it
 //if there were not as many rows as expected ("partial batch").
 template <typename T>
-uint64_t NumpyBuffer<T>::prepareHeaderWithNumRows(uint64_t numWriteableRows) {
+uint64_t NumpyBuffer<T>::prepareHeaderWithNumRows(int64_t numWriteableRows) {
   //Continue writing the shape
   int idx = shapeStartByte;
   char* s = (char*)dataIncludingHeader;
 
   //Write each number
-  uint64_t actualDataLen = 1;
+  int64_t actualDataLen = 1;
   for(size_t i = 0; i<shape.size(); i++) {
     if(i > 0) {
       s[idx] = ',';
@@ -164,7 +165,7 @@ uint64_t NumpyBuffer<T>::prepareHeaderWithNumRows(uint64_t numWriteableRows) {
         throw StringError("Numpy header is too long, datatype and shape are too long");
     }
 
-    uint64_t x = (i == 0) ? numWriteableRows : shape[i];
+    int64_t x = (i == 0) ? numWriteableRows : shape[i];
     actualDataLen *= x;
 
     int numDigits = 0;
