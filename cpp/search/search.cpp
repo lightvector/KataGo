@@ -256,7 +256,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
 
 static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
 
-bool Search::getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelectionValues) {
+bool Search::getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast) {
   locs.clear();
   playSelectionValues.clear();
 
@@ -309,10 +309,19 @@ bool Search::getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelec
     return false;
 
   double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/2.0);
+  double newMaxValue = maxValue - amountToSubtract;
   for(int i = 0; i<numChildren; i++) {
     playSelectionValues[i] -= amountToSubtract;
     if(playSelectionValues[i] <= 0.0)
       playSelectionValues[i] = 0.0;
+  }
+
+  assert(newMaxValue > 0.0);
+
+  if(newMaxValue < scaleMaxToAtLeast) {
+    for(int i = 0; i<numChildren; i++) {
+      playSelectionValues[i] *= scaleMaxToAtLeast / newMaxValue;
+    }
   }
 
   return true;
@@ -324,7 +333,7 @@ Loc Search::getChosenMoveLoc() {
 
   vector<Loc> locs;
   vector<double> playSelectionValues;
-  bool suc = getPlaySelectionValues(locs,playSelectionValues);
+  bool suc = getPlaySelectionValues(locs,playSelectionValues,0.0);
   if(!suc)
     return Board::NULL_LOC;
 

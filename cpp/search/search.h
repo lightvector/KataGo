@@ -155,7 +155,8 @@ struct Search {
   Loc getChosenMoveLoc();
   //Get the vector of values (e.g. modified visit counts) used to select a move.
   //Does take into account chosenMoveSubtract but does NOT apply temperature.
-  bool getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelectionValues);
+  //If somehow the max value is less than scaleMaxToAtLeast, scale it to at least that value.
+  bool getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast);
 
   //Call once at the start of each search
   void beginSearch();
