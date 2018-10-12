@@ -97,9 +97,9 @@ struct NNOutput {
 
   //Utility --------------------------------------------------------------------
   //The utility of having a particular winner
-  static double whiteValueOfWinner(Player winner, double drawValue);
+  static double whiteValueOfWinner(Player winner, double drawUtilityForWhite);
   //The utility of achieving a certain score difference
-  static double whiteValueOfScore(double finalWhiteMinusBlackScore, const Board& b);
+  static double whiteValueOfScore(double finalWhiteMinusBlackScore, double drawUtilityForWhite, const Board& b, const BoardHistory& hist);
 };
 
 #endif

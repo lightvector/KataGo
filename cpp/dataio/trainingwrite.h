@@ -5,7 +5,7 @@
 #include "../neuralnet/nninterface.h"
 #include "../dataio/numpywrite.h"
 
-STRUCT_NAMED_PAIR(Loc,loc,int16_t,playouts,PolicyTargetMove);
+STRUCT_NAMED_PAIR(Loc,loc,int16_t,policyTarget,PolicyTargetMove);
 struct ValueTargets {
   float win;
   float loss;
@@ -105,8 +105,9 @@ struct FinishedGameData {
   vector<float*> actionValueTargetByTurn;
   int16_t* finalOwnership;
   double drawUtilityForWhite;
+  int posLen;
 
-  FinishedGameData(Board startBoard, BoardHistory startHist, Player startPla, int posLen, double drawUtilityForWhite);
+  FinishedGameData(int posLen, double drawUtilityForWhite);
   ~FinishedGameData();
 
 };

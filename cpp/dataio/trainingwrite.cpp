@@ -78,14 +78,14 @@ static void zeroPolicyTarget(int policySize, int16_t* target) {
 }
 
 //Copy playouts into target, expanding out the sparse representation into a full plane.
-static void fillPolicyTarget(const vector<PolicyTargetMove>& playouts, int policySize, int posLen, int boardXSize, int16_t* target) {
+static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves, int policySize, int posLen, int boardXSize, int16_t* target) {
   zeroPolicyTarget(policySize,target);
-  size_t size = playouts.size();
+  size_t size = policyTargetMoves.size();
   for(size_t i = 0; i<size; i++) {
-    const PolicyTargetMove& move = playouts[i];
+    const PolicyTargetMove& move = policyTargetMoves[i];
     int pos = NNPos::locToPos(move.loc, boardXSize, posLen);
     assert(pos >= 0 && pos < posLen);
-    target[pos] = move.playouts;
+    target[pos] = move.policyTarget;
   }
 }
 
@@ -261,16 +261,17 @@ void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
 
 
 
-FinishedGameData::FinishedGameData(Board sBoard, BoardHistory sHist, Player sPla, int posLen, double drawUtilForWhite)
-  : startBoard(sBoard),
-    startHist(sHist),
-    startPla(sPla),
+FinishedGameData::FinishedGameData(int pLen, double drawUtilForWhite)
+  : startBoard(),
+    startHist(),
+    startPla(P_BLACK),
     moves(),
     policyTargetsByTurn(),
     whiteValueTargetsByTurn(),
     actionValueTargetByTurn(),
     finalOwnership(NULL),
-    drawUtilityForWhite(drawUtilForWhite)
+    drawUtilityForWhite(drawUtilForWhite),
+    posLen(pLen)
 {
   finalOwnership = new int16_t[posLen*posLen];
   for(int i = 0; i<posLen*posLen; i++)

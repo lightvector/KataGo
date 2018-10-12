@@ -56,7 +56,7 @@ struct BoardHistory {
   bool isGameFinished;
   //Winner of the game if the game is supposed to have ended now, C_EMPTY if it is a draw or isNoResult.
   Player winner;
-  //Score difference of the game if the game is supposed to have ended now
+  //Score difference of the game if the game is supposed to have ended now, does NOT take into account whiteKomiAdjustmentForDrawUtility
   float finalWhiteMinusBlackScore;
   //True this game is supposed to be ended but there is no result
   bool isNoResult;
@@ -76,6 +76,8 @@ struct BoardHistory {
   //Set only the komi field of the rules, does not clear history, but does clear game-over conditions,
   void setKomi(float newKomi);
 
+  //TODO test this!
+  float whiteKomiAdjustmentForDrawUtility(double drawUtilityForWhite) const;
   float currentSelfKomi(Player pla, double drawUtilityForWhite) const;
 
   //Returns a reference a recent board state, where 0 is the current board, 1 is 1 move ago, etc.
@@ -93,14 +95,16 @@ struct BoardHistory {
 
   //Slightly expensive, check if the entire game is all pass-alive-territory, and if so, declare the game finished
   void endGameIfAllPassAlive(const Board& board);
+  //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
+  void endAndScoreGameNow(const Board& board);
+  void endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]);
 
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   int numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   void setKoProhibited(Player pla, Loc loc, bool b);
-  int countAreaScoreWhiteMinusBlack(const Board& board) const;
-  int countTerritoryAreaScoreWhiteMinusBlack(const Board& board) const;
-  void endAndScoreGameNow(const Board& board);
+  int countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
+  int countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
 };
 
 struct KoHashTable {

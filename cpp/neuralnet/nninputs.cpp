@@ -36,19 +36,20 @@ NNOutput::NNOutput(const NNOutput& other) {
   std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
 }
 
-double NNOutput::whiteValueOfWinner(Player winner, double drawValue) {
+double NNOutput::whiteValueOfWinner(Player winner, double drawUtilityForWhite) {
   if(winner == P_WHITE)
     return 1.0;
   else if(winner == P_BLACK)
     return -1.0;
-  return drawValue;
+  return drawUtilityForWhite;
 }
 
-double NNOutput::whiteValueOfScore(double finalWhiteMinusBlackScore, const Board& b) {
+double NNOutput::whiteValueOfScore(double finalWhiteMinusBlackScore, double drawUtilityForWhite, const Board& b, const BoardHistory& hist) {
+  double adjustedScore = finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDrawUtility(drawUtilityForWhite);
   if(b.x_size == b.y_size)
-    return tanh(finalWhiteMinusBlackScore / (2*b.x_size));
+    return tanh(adjustedScore / (2*b.x_size));
   else
-    return tanh(finalWhiteMinusBlackScore / (2*sqrt(b.x_size*b.y_size)));
+    return tanh(adjustedScore / (2*sqrt(b.x_size*b.y_size)));
 }
 
 

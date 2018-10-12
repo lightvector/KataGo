@@ -816,7 +816,7 @@ void Search::playoutDescend(
     }
     else {
       double winLossValue = NNOutput::whiteValueOfWinner(thread.history.winner, searchParams.drawUtilityForWhite);
-      double scoreValue = NNOutput::whiteValueOfScore(thread.history.finalWhiteMinusBlackScore, thread.board);
+      double scoreValue = NNOutput::whiteValueOfScore(thread.history.finalWhiteMinusBlackScore, searchParams.drawUtilityForWhite, thread.board, thread.history);
       setTerminalValue(node, winLossValue, scoreValue, virtualLossesToSubtract);
       return;
     }

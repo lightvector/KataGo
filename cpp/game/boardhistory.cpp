@@ -271,16 +271,18 @@ int BoardHistory::numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHas
   return count;
 }
 
-float BoardHistory::currentSelfKomi(Player pla, double drawUtilityForWhite) const {
-  float whiteKomi = whiteBonusScore + rules.komi;
-  bool komiIsInteger = ((int)rules.komi == rules.komi);
-
+float BoardHistory::whiteKomiAdjustmentForDrawUtility(double drawUtilityForWhite) const {
   //We fold the draw utility into the komi, for input into things like the neural net.
   //Basically we model it as if the final score were jittered by a uniform draw from [-0.5,0.5].
   //E.g. if komi from self perspective is 7 and drawutility from self perspective is +0.5
   //then komi the komi input should be as if it was 7.25, which when jittered by 0.5 gives white an win/loss equity of +0.5.
+  bool komiIsInteger = ((int)rules.komi == rules.komi);
   float drawAdjustment = !komiIsInteger ? 0.0f : (float)(drawUtilityForWhite * 0.5);
-  float whiteKomiAdjusted = whiteKomi + drawAdjustment;
+  return drawAdjustment;
+}
+
+float BoardHistory::currentSelfKomi(Player pla, double drawUtilityForWhite) const {
+  float whiteKomiAdjusted = whiteBonusScore + rules.komi + whiteKomiAdjustmentForDrawUtility(drawUtilityForWhite);
 
   if(pla == P_WHITE)
     return whiteKomiAdjusted;
@@ -292,12 +294,11 @@ float BoardHistory::currentSelfKomi(Player pla, double drawUtilityForWhite) cons
   }
 }
 
-int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
+int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
   int score = 0;
   bool nonPassAliveStones = true;
   bool safeBigTerritories = true;
   bool unsafeBigTerritories = true;
-  Color area[Board::MAX_ARR_SIZE];
   board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
@@ -311,12 +312,11 @@ int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
   return score;
 }
 
-int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board) const {
+int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
   int score = 0;
   bool nonPassAliveStones = false;
   bool safeBigTerritories = true;
   bool unsafeBigTerritories = false;
-  Color area[Board::MAX_ARR_SIZE];
   board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
@@ -336,12 +336,12 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board) con
   return score;
 }
 
-void BoardHistory::endAndScoreGameNow(const Board& board) {
+void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) {
   int boardScore;
   if(rules.scoringRule == Rules::SCORING_AREA)
-    boardScore = countAreaScoreWhiteMinusBlack(board);
+    boardScore = countAreaScoreWhiteMinusBlack(board,area);
   else if(rules.scoringRule == Rules::SCORING_TERRITORY)
-    boardScore = countTerritoryAreaScoreWhiteMinusBlack(board);
+    boardScore = countTerritoryAreaScoreWhiteMinusBlack(board,area);
   else
     assert(false);
 
@@ -352,6 +352,11 @@ void BoardHistory::endAndScoreGameNow(const Board& board) {
     winner = C_BLACK;
   isNoResult = false;
   isGameFinished = true;
+}
+
+void BoardHistory::endAndScoreGameNow(const Board& board) {
+  Color area[Board::MAX_ARR_SIZE];
+  endAndScoreGameNow(board,area);
 }
 
 
