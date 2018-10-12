@@ -125,6 +125,7 @@ if(BUILD_MCTS)
     tests/testboardarea.cpp
     tests/testboardbasic.cpp
     tests/testrules.cpp
+    tests/testscore.cpp
     tests/testnninputs.cpp
     tests/testsearch.cpp
     evalsgf.cpp

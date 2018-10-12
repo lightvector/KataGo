@@ -326,9 +326,12 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Col
       else if(area[loc] == C_BLACK)
         score -= 1;
       else {
-        if(board.colors[loc] == C_WHITE && secondEncoreStartColors[loc] == C_WHITE)
+        //Checking encorePhase < 2 allows us to get the correct score if we directly end the game before the second
+        //encore such that we never actually fill secondEncoreStartColors. This matters for premature termination
+        //of the game like ending due to a move limit and such
+        if(board.colors[loc] == C_WHITE && (encorePhase < 2 || secondEncoreStartColors[loc] == C_WHITE))
           score += 1;
-        if(board.colors[loc] == C_BLACK && secondEncoreStartColors[loc] == C_BLACK)
+        if(board.colors[loc] == C_BLACK && (encorePhase < 2 || secondEncoreStartColors[loc] == C_BLACK))
           score -= 1;
       }
     }
@@ -350,6 +353,9 @@ void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_
     winner = C_WHITE;
   else if(finalWhiteMinusBlackScore < 0.0f)
     winner = C_BLACK;
+  else
+    winner = C_EMPTY;
+
   isNoResult = false;
   isGameFinished = true;
 }
@@ -385,6 +391,8 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
     winner = C_WHITE;
   else if(finalWhiteMinusBlackScore < 0.0f)
     winner = C_BLACK;
+  else
+    winner = C_EMPTY;
   isNoResult = false;
   isGameFinished = true;
 }

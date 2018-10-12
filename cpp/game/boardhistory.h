@@ -76,7 +76,6 @@ struct BoardHistory {
   //Set only the komi field of the rules, does not clear history, but does clear game-over conditions,
   void setKomi(float newKomi);
 
-  //TODO test this!
   float whiteKomiAdjustmentForDrawUtility(double drawUtilityForWhite) const;
   float currentSelfKomi(Player pla, double drawUtilityForWhite) const;
 
