@@ -97,6 +97,9 @@ NNEvaluator::~NNEvaluator()
   delete nnCacheTable;
 }
 
+string NNEvaluator::getModelFileName() const {
+  return modelFileName;
+}
 int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
 }

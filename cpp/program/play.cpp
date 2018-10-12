@@ -137,14 +137,79 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
 
 //----------------------------------------------------------------------------------------------------------
 
-MatchPairer::MatchPairer(int nBots, const vector<int>& secBots)
-  :numBots(nBots),secondaryBots(secBots),nextMatchups(),rand()
-{}
+MatchPairer::MatchPairer(ConfigParser& cfg, bool forSelfPlay)
+  :numBots(),secondaryBots(),nextMatchups(),rand(),numGamesStartedSoFar(0),numGamesTotal(),logGamesEvery(),getMatchupMutex()
+{
+  if(forSelfPlay) {
+    numBots = 1;
+    numGamesTotal = 0x1fffFFFFffffFFFFULL;
+  }
+  else {
+    numBots = cfg.getInt("numBots",1,1024);
+    if(cfg.contains("secondaryBots"))
+      secondaryBots = cfg.getInts("secondaryBots",0,4096);
+    numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
+  }
+
+  logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
+}
 
 MatchPairer::~MatchPairer()
 {}
 
-pair<int,int> MatchPairer::getMatchup() {
+bool MatchPairer::getMatchup(
+  int64_t& gameIdx, Logger& logger,
+  const NNEvaluator* nnEvalToLog, const vector<NNEvaluator*>* nnEvalsToLog
+)
+{
+  int botIdxB;
+  int botIdxW;
+  assert(numBots == 1);
+  return getMatchup(gameIdx,botIdxB,botIdxW,logger,nnEvalToLog,nnEvalsToLog);
+}
+
+bool MatchPairer::getMatchup(
+  int64_t& gameIdx, int& botIdxB, int& botIdxW, Logger& logger,
+  const NNEvaluator* nnEvalToLog, const vector<NNEvaluator*>* nnEvalsToLog
+)
+{
+  std::lock_guard<std::mutex> lock(getMatchupMutex);
+
+  if(numGamesStartedSoFar >= numGamesTotal)
+    return false;
+
+  gameIdx = numGamesStartedSoFar;
+  numGamesStartedSoFar += 1;
+
+  if(numGamesStartedSoFar % logGamesEvery == 0)
+    logger.write("Started " + Global::int64ToString(numGamesStartedSoFar) + " games");
+  int logNNEvery = logGamesEvery*100 > 1000 ? logGamesEvery*100 : 1000;
+  if(numGamesStartedSoFar % logNNEvery == 0) {
+    if(nnEvalsToLog != NULL) {
+      const vector<NNEvaluator*>& nnEvals = *nnEvalsToLog;
+      for(int i = 0; i<nnEvals.size(); i++) {
+        logger.write(nnEvals[i]->getModelFileName());
+        logger.write("NN rows: " + Global::int64ToString(nnEvals[i]->numRowsProcessed()));
+        logger.write("NN batches: " + Global::int64ToString(nnEvals[i]->numBatchesProcessed()));
+        logger.write("NN avg batch size: " + Global::doubleToString(nnEvals[i]->averageProcessedBatchSize()));
+      }
+    }
+    if(nnEvalToLog != NULL) {
+      logger.write(nnEvalToLog->getModelFileName());
+      logger.write("NN rows: " + Global::int64ToString(nnEvalToLog->numRowsProcessed()));
+      logger.write("NN batches: " + Global::int64ToString(nnEvalToLog->numBatchesProcessed()));
+      logger.write("NN avg batch size: " + Global::doubleToString(nnEvalToLog->averageProcessedBatchSize()));
+    }
+  }
+
+  pair<int,int> matchup = getMatchupPair();
+  botIdxB = matchup.first;
+  botIdxW = matchup.second;
+
+  return true;
+}
+
+pair<int,int> MatchPairer::getMatchupPair() {
   if(nextMatchups.size() <= 0) {
     if(numBots == 1)
       return make_pair(0,0);

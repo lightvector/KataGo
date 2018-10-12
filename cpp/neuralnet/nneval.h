@@ -76,6 +76,7 @@ class NNEvaluator {
   );
   ~NNEvaluator();
 
+  string getModelFileName() const;
   int getMaxBatchSize() const;
   int getPosLen() const;
 
