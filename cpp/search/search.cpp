@@ -737,10 +737,23 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
     valueSumWeight += weight;
   }
   //Also add in the direct evaluation of this node
-  //TODO update this and other places when we have a score prediction on the net
-  winLossValueSum += (double)node.nnOutput->whiteValue;
-  valueSumWeight += 1.0;
-
+  {
+    //Since we've scaled all the child weights in some arbitrary way, adjust and make sure
+    //that the direct evaluation of the node still has precisely 1/N weight.
+    //Do some things to carefully avoid divide by 0.
+    double weight;
+    if(searchParams.scaleParentWeight) {
+      weight = (totalChildVisits > 0) ? valueSumWeight / totalChildVisits : valueSumWeight;
+      if(weight < 0.001) //Just in case
+        weight = 0.001;
+    }
+    else {
+      weight = 1.0;
+    }
+    //TODO update this and other places when we have a score prediction on the net
+    winLossValueSum += (double)node.nnOutput->whiteValue * weight;
+    valueSumWeight += weight;
+  }
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
