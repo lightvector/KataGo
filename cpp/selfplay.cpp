@@ -26,6 +26,8 @@ static void signalHandler(int signal)
 
 //-----------------------------------------------------------------------------------------
 
+//Class for running a game and enqueueing the result as training data.
+//Wraps together most of the neural-net-independent parameters to spawn and run a full game.
 class GameRunner {
   SearchParams params;
   bool logSearchInfo;

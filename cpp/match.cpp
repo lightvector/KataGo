@@ -178,7 +178,8 @@ int MainCmds::match(int argc, const char* const* argv) {
       maxMovesPerGame,sigReceived
     );
     delete botB;
-    delete botW;
+    if(botIdxB != botIdxW)
+      delete botW;
   };
 
   auto runMatchLoop = [
@@ -218,8 +219,10 @@ int MainCmds::match(int argc, const char* const* argv) {
       if(sigReceived.load())
         break;
     }
-    if(sgfOut != NULL)
+    if(sgfOut != NULL) {
       sgfOut->close();
+      delete sgfOut;
+    }
   };
 
   Rand hashRand;
@@ -235,6 +238,8 @@ int MainCmds::match(int argc, const char* const* argv) {
   }
   NeuralNet::globalCleanup();
 
+  delete gameInit;
+  
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");
   logger.write("All cleaned up, quitting");

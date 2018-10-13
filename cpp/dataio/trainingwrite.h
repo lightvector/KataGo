@@ -7,10 +7,11 @@
 
 STRUCT_NAMED_PAIR(Loc,loc,int16_t,policyTarget,PolicyTargetMove);
 struct ValueTargets {
+  //As usual, these are from the perspective of white.
   float win;
   float loss;
   float noResult;
-  float scoreUtility;
+  float scoreValue;
   float score;
   float mctsUtility1;
   float mctsUtility4;
@@ -98,7 +99,11 @@ struct TrainingWriteBuffers {
 struct FinishedGameData {
   Board startBoard;
   BoardHistory startHist;
+  BoardHistory endHist;
   Player startPla;
+
+  //This vector MIGHT be shorter than the list of moves in startHist, because there might be moves in
+  //startHist for context that we don't actually want to record as part of this game for training data.
   vector<Move> moves;
   vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
   vector<ValueTargets> whiteValueTargetsByTurn;

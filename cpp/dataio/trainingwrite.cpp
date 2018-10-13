@@ -5,7 +5,7 @@ ValueTargets::ValueTargets()
   :win(0),
    loss(0),
    noResult(0),
-   scoreUtility(0),
+   scoreValue(0),
    score(0),
    mctsUtility1(0),
    mctsUtility4(0),
@@ -104,7 +104,8 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
   double winValue = 0.0;
   double lossValue = 0.0;
   double noResultValue = 0.0;
-  double scoreUtilityValue = 0.0;
+  double scoreValue = 0.0;
+  
   double weightLeft = 1.0;
   for(int i = turnNumber; i<whiteValueTargetsByTurn.size(); i++) {
     double weightNow;
@@ -117,16 +118,17 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
       weightLeft = 0.0;
     }
 
+    //Training rows need things from the perspective of the player to move, so we flip as appropriate.
     const ValueTargets& targets = whiteValueTargetsByTurn[i];
     winValue += weightNow * (nextPlayer == P_WHITE ? targets.win : targets.loss);
     lossValue += weightNow * (nextPlayer == P_WHITE ? targets.loss : targets.win);
     noResultValue = weightNow * targets.noResult;
-    scoreUtilityValue = weightNow * (nextPlayer == P_WHITE ? targets.scoreUtility : -targets.scoreUtility);
+    scoreValue = weightNow * (nextPlayer == P_WHITE ? targets.scoreValue : -targets.scoreValue);
   }
   buf[0] = (float)winValue;
   buf[1] = (float)lossValue;
   buf[2] = (float)noResultValue;
-  buf[3] = (float)scoreUtilityValue;
+  buf[3] = (float)scoreValue;
 }
 
 void TrainingWriteBuffers::addRow(
