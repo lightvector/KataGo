@@ -72,6 +72,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
     nnEval = nnEvals[0];
   }
   int posLen = nnEval->getPosLen();
+  int policySize = NNPos::getPolicySize(posLen);
   logger.write("Loaded neural net");
 
 
@@ -137,7 +138,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
   auto computeSurprise = [&](Search* search) {
     vector<Loc> locs;
     vector<double> playSelectionValues;
-    bool suc = search->getPlaySelectionValues(locs,playSelectionValues);
+    bool suc = search->getPlaySelectionValues(locs,playSelectionValues,0.0);
     testAssert(suc);
 
     assert(search->rootNode != NULL);
@@ -179,7 +180,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
     else
       assert(false);
 
-    double* values = new double[maxVisits];
+    double* utilities = new double[maxVisits];
     double* policySurpriseNats = new double[maxVisits];
     Rand rand("root variance estimate " + Global::intToString(threadIdx));
     for(size_t sgfIdx = threadIdx; sgfIdx<sgfs.size(); sgfIdx += numThreads) {
@@ -210,7 +211,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
           search->beginSearch();
           for(int i = 0; i<maxVisits; i++) {
             search->runSinglePlayout(*stbuf);
-            values[i] = search->rootNode->stats.getCombinedValueSum(search->searchParams) / search->rootNode->stats.valueSumWeight;
+            utilities[i] = search->rootNode->stats.getCombinedUtilitySum(search->searchParams) / search->rootNode->stats.valueSumWeight;
             policySurpriseNats[i] = computeSurprise(search);
           }
           delete stbuf;
@@ -218,7 +219,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
           {
             float* policy = search->rootNode->nnOutput->policyProbs;
             double entropy = 0.0;
-            for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+            for(int i = 0; i<policySize; i++) {
               if(policy[i] < 1e-20)
                 continue;
               entropy -= policy[i] * log(policy[i]);
@@ -229,7 +230,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
             out << entropy << ",";
             if(mode == "rootValue") {
               for(int i = 0; i<maxVisits; i++)
-                out << values[i] << ",";
+                out << utilities[i] << ",";
             }
             else if(mode == "policyTargetSurprise") {
               for(int i = 0; i<maxVisits; i++)
@@ -248,7 +249,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
       }
     }
     delete search;
-    delete[] values;
+    delete[] utilities;
     delete[] policySurpriseNats;
   };
 

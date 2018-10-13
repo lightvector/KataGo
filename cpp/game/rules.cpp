@@ -53,3 +53,18 @@ string Rules::writeScoringRule(int scoringRule) {
   return string("UNKNOWN");
 }
 
+
+const Hash128 Rules::ZOBRIST_KO_RULE_HASH[4] = {
+  Hash128(0x3cc7e0bf846820f6ULL, 0x1fb7fbde5fc6ba4eULL),  //Based on sha256 hash of Rules::KO_SIMPLE
+  Hash128(0xcc18f5d47188554aULL, 0x3a63152c23e4128dULL),  //Based on sha256 hash of Rules::KO_POSITIONAL
+  Hash128(0x3bc55e42b23b35bfULL, 0xc75fa1e615621dcdULL),  //Based on sha256 hash of Rules::KO_SITUATIONAL
+  Hash128(0x5b2096e48241d21bULL, 0x23cc18d4e85cd67fULL),  //Based on sha256 hash of Rules::KO_SPIGHT
+};
+
+const Hash128 Rules::ZOBRIST_SCORING_RULE_HASH[2] = {
+  Hash128(0x8b3ed7598f901494ULL, 0x1dfd47ac77bce5f8ULL),  //Based on sha256 hash of Rules::SCORING_AREA
+  Hash128(0x381345dc357ec982ULL, 0x03ba55c026026b56ULL),  //Based on sha256 hash of Rules::SCORING_TERRITORY
+};
+
+const Hash128 Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH =  //Based on sha256 hash of Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH
+  Hash128(0xf9b475b3bbf35e37ULL, 0xefa19d8b1e5b3e5aULL);

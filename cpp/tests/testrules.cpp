@@ -39,7 +39,17 @@ static double finalScoreIfGameEndedNow(const BoardHistory& baseHist, const Board
     hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, pla, NULL);
     pla = getOpp(pla);
   }
-  return hist.finalWhiteMinusBlackScore;
+
+  double score = hist.finalWhiteMinusBlackScore;
+
+  hist.endAndScoreGameNow(board);
+  assert(hist.finalWhiteMinusBlackScore == score);
+
+  BoardHistory hist2(baseHist);
+  hist2.endAndScoreGameNow(baseBoard);
+  assert(hist2.finalWhiteMinusBlackScore == score);
+
+  return score;
 }
 
 void Tests::runRulesTests() {

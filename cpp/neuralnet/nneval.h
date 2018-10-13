@@ -76,6 +76,7 @@ class NNEvaluator {
   );
   ~NNEvaluator();
 
+  string getModelFileName() const;
   int getMaxBatchSize() const;
   int getPosLen() const;
 
@@ -117,6 +118,7 @@ class NNEvaluator {
  private:
   string modelFileName;
   int posLen;
+  int policySize;
   bool inputsUseNHWC;
 
   LoadedModel* loadedModel;

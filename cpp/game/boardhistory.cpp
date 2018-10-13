@@ -271,24 +271,34 @@ int BoardHistory::numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHas
   return count;
 }
 
-float BoardHistory::currentSelfKomi(Player pla) const {
-  float whiteKomi = whiteBonusScore + rules.komi;
+float BoardHistory::whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhite) const {
+  //We fold the draw utility into the komi, for input into things like the neural net.
+  //Basically we model it as if the final score were jittered by a uniform draw from [-0.5,0.5].
+  //E.g. if komi from self perspective is 7 and a draw counts as 0.75 wins and 0.25 losses,
+  //then komi input should be as if it was 7.25, which in a jigo game when jittered by 0.5 gives white 75% wins and 25% losses.
+  bool komiIsInteger = ((int)rules.komi == rules.komi);
+  float drawAdjustment = !komiIsInteger ? 0.0f : (float)(drawEquivalentWinsForWhite - 0.5);
+  return drawAdjustment;
+}
+
+float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const {
+  float whiteKomiAdjusted = whiteBonusScore + rules.komi + whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
+
   if(pla == P_WHITE)
-    return whiteKomi;
+    return whiteKomiAdjusted;
   else if(pla == P_BLACK)
-    return -whiteKomi;
+    return -whiteKomiAdjusted;
   else {
     assert(false);
     return 0.0f;
   }
 }
 
-int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
+int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
   int score = 0;
   bool nonPassAliveStones = true;
   bool safeBigTerritories = true;
   bool unsafeBigTerritories = true;
-  Color area[Board::MAX_ARR_SIZE];
   board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
@@ -302,12 +312,11 @@ int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
   return score;
 }
 
-int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board) const {
+int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
   int score = 0;
   bool nonPassAliveStones = false;
   bool safeBigTerritories = true;
   bool unsafeBigTerritories = false;
-  Color area[Board::MAX_ARR_SIZE];
   board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
@@ -317,9 +326,12 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board) con
       else if(area[loc] == C_BLACK)
         score -= 1;
       else {
-        if(board.colors[loc] == C_WHITE && secondEncoreStartColors[loc] == C_WHITE)
+        //Checking encorePhase < 2 allows us to get the correct score if we directly end the game before the second
+        //encore such that we never actually fill secondEncoreStartColors. This matters for premature termination
+        //of the game like ending due to a move limit and such
+        if(board.colors[loc] == C_WHITE && (encorePhase < 2 || secondEncoreStartColors[loc] == C_WHITE))
           score += 1;
-        if(board.colors[loc] == C_BLACK && secondEncoreStartColors[loc] == C_BLACK)
+        if(board.colors[loc] == C_BLACK && (encorePhase < 2 || secondEncoreStartColors[loc] == C_BLACK))
           score -= 1;
       }
     }
@@ -327,12 +339,12 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board) con
   return score;
 }
 
-void BoardHistory::endAndScoreGameNow(const Board& board) {
+void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) {
   int boardScore;
   if(rules.scoringRule == Rules::SCORING_AREA)
-    boardScore = countAreaScoreWhiteMinusBlack(board);
+    boardScore = countAreaScoreWhiteMinusBlack(board,area);
   else if(rules.scoringRule == Rules::SCORING_TERRITORY)
-    boardScore = countTerritoryAreaScoreWhiteMinusBlack(board);
+    boardScore = countTerritoryAreaScoreWhiteMinusBlack(board,area);
   else
     assert(false);
 
@@ -341,8 +353,16 @@ void BoardHistory::endAndScoreGameNow(const Board& board) {
     winner = C_WHITE;
   else if(finalWhiteMinusBlackScore < 0.0f)
     winner = C_BLACK;
+  else
+    winner = C_EMPTY;
+
   isNoResult = false;
   isGameFinished = true;
+}
+
+void BoardHistory::endAndScoreGameNow(const Board& board) {
+  Color area[Board::MAX_ARR_SIZE];
+  endAndScoreGameNow(board,area);
 }
 
 
@@ -371,6 +391,8 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
     winner = C_WHITE;
   else if(finalWhiteMinusBlackScore < 0.0f)
     winner = C_BLACK;
+  else
+    winner = C_EMPTY;
   isNoResult = false;
   isGameFinished = true;
 }

@@ -146,7 +146,7 @@ static void runBasicPositions(const string& modelFile, Logger& logger)
 
       cout << "Jigo and drawUtility===================" << endl;
       SearchParams testParams = params;
-      testParams.drawUtilityForWhite = 0.4;
+      testParams.drawEquivalentWinsForWhite = 0.7;
       bot->setParams(testParams);
       runBotOnSgf(bot, sgfStr, rules, 330, 7.5, opts);
       runBotOnSgf(bot, sgfStr, rules, 330, 7.0, opts);

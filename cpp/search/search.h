@@ -21,7 +21,9 @@ struct DistributionTable;
 
 struct NodeStats {
   uint64_t visits;
-  double winLossValueSum;
+  double winValueSum;
+  double lossValueSum;
+  double noResultValueSum;
   double scoreValueSum;
   double valueSumWeight;
 
@@ -31,7 +33,7 @@ struct NodeStats {
   NodeStats(const NodeStats& other);
   NodeStats& operator=(const NodeStats& other);
 
-  double getCombinedValueSum(const SearchParams& searchParams) const;
+  double getCombinedUtilitySum(const SearchParams& searchParams) const;
 };
 
 struct SearchNode {
@@ -82,9 +84,11 @@ struct SearchThread {
   ostream* logStream;
 
   vector<double> valueChildWeightsBuf;
-  vector<double> winLossValuesBuf;
+  vector<double> winValuesBuf;
+  vector<double> lossValuesBuf;
+  vector<double> noResultValuesBuf;
   vector<double> scoreValuesBuf;
-  vector<double> valuesBuf;
+  vector<double> utilityBuf;
   vector<uint64_t> visitsBuf;
 
   SearchThread(int threadIdx, const Search& search, Logger* logger);
@@ -119,6 +123,7 @@ struct Search {
   MutexPool* mutexPool;
   NNEvaluator* nnEvaluator; //externally owned
   int posLen;
+  int policySize;
   Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
 
   //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
@@ -154,7 +159,14 @@ struct Search {
   Loc getChosenMoveLoc();
   //Get the vector of values (e.g. modified visit counts) used to select a move.
   //Does take into account chosenMoveSubtract but does NOT apply temperature.
-  bool getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelectionValues);
+  //If somehow the max value is less than scaleMaxToAtLeast, scale it to at least that value.
+  bool getPlaySelectionValues(
+    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
+  );
+  //Get the values recorded for the root node
+  bool getRootValues(
+    double& winValue, double& lossValue, double& noResultValue, double& scoreValue
+  );
 
   //Call once at the start of each search
   void beginSearch();
@@ -180,26 +192,25 @@ private:
   ) const;
 
   double getPlaySelectionValue(
-    double nnPolicyProb, uint64_t childVisits,
-    double childValue, Player pla
+    double nnPolicyProb, uint64_t childVisits, Player pla
   ) const;
   double getExploreSelectionValue(
     double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
-    double childValue, Player pla
+    double childUtility, Player pla
   ) const;
   double getPlaySelectionValue(const SearchNode& parent, const SearchNode* child) const;
   double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const;
   double getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const;
 
-  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract);
+  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
 
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
-    bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+    bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot
   ) const;
 
-  void setTerminalValue(SearchNode& node, double winLossValue, double scoreValue, int32_t virtualLossesToSubtract);
+  void setTerminalValue(SearchNode& node, double winValue, double lossValue, double noResultValue, double scoreValue, int32_t virtualLossesToSubtract);
 
   void initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
@@ -208,7 +219,7 @@ private:
 
   void playoutDescend(
     SearchThread& thread, SearchNode& node,
-    bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+    bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot, int32_t virtualLossesToSubtract
   );
 

@@ -3384,12 +3384,16 @@ struct LocalGpuHandle {
   Model* model;
   Buffers* buffers;
   bool usingFP16;
+  int posLen;
+  int policySize;
 
-  LocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int posLen, bool inputsUseNHWC, bool useFP16, bool useNHWC) {
+  LocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int pLen, bool inputsUseNHWC, bool useFP16, bool useNHWC) {
     cudaHandles = new CudaHandles();
-    model = new Model(cudaHandles,&(loadedModel->modelDesc),maxBatchSize,posLen,inputsUseNHWC,useFP16,useNHWC);
+    model = new Model(cudaHandles,&(loadedModel->modelDesc),maxBatchSize,pLen,inputsUseNHWC,useFP16,useNHWC);
     buffers = new Buffers(cudaHandles,*model,useFP16);
     usingFP16 = useFP16;
+    posLen = pLen;
+    policySize = NNPos::getPolicySize(posLen);
 
     //Synchronize after creating all the buffers and copying all the weights, just in case
     CUDA_ERR("LocalGpuHandle",cudaDeviceSynchronize());
@@ -3528,8 +3532,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     assert(inputBuffers->policyResultBufferBytes == buffers->policyBufBytes);
     assert(inputBuffers->valueResultBufferBytes == buffers->valueBufBytes);
     assert(inputBuffers->singleBatchItemBytes == inputBuffers->singleBatchItemElts*4);
-    assert(inputBuffers->singlePolicyResultElts == NNPos::NN_POLICY_SIZE);
-    assert(inputBuffers->singlePolicyResultBytes == NNPos::NN_POLICY_SIZE * sizeof(float));
+    assert(inputBuffers->singlePolicyResultElts == gpuHandle->policySize);
+    assert(inputBuffers->singlePolicyResultBytes == gpuHandle->policySize * sizeof(float));
 
     CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBuf, inputBuffers->userInputBuffer, inputBuffers->singleBatchItemBytes*batchSize, cudaMemcpyHostToDevice));
   }
@@ -3539,8 +3543,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     assert(inputBuffers->valueResultBufferBytes == buffers->valueBufBytes);
     assert(inputBuffers->userInputBufferBytes == buffers->inputBufBytes*2);
     assert(inputBuffers->singleBatchItemBytes == inputBuffers->singleBatchItemElts*4);
-    assert(inputBuffers->singlePolicyResultElts == NNPos::NN_POLICY_SIZE);
-    assert(inputBuffers->singlePolicyResultBytes == NNPos::NN_POLICY_SIZE * sizeof(float));
+    assert(inputBuffers->singlePolicyResultElts == gpuHandle->policySize);
+    assert(inputBuffers->singlePolicyResultBytes == gpuHandle->policySize * sizeof(float));
 
     CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBufSingle, inputBuffers->userInputBuffer, inputBuffers->singleBatchItemBytes*batchSize, cudaMemcpyHostToDevice));
     customCudaCopyToHalf((const float*)buffers->inputBufSingle,(half*)buffers->inputBuf,inputBuffers->singleBatchItemElts*batchSize);
@@ -3599,14 +3603,18 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     float* policyProbs = output->policyProbs;
 
     //These are not actually correct, the client does the postprocessing to turn them into
-    //probabilities and white value
+    //policy probabilities and white game outcome probabilities
     //Also we don't fill in the nnHash here either
     std::copy(
-      inputBuffers->policyResults + row * NNPos::NN_POLICY_SIZE,
-      inputBuffers->policyResults + (row+1) * NNPos::NN_POLICY_SIZE,
+      inputBuffers->policyResults + row * gpuHandle->policySize,
+      inputBuffers->policyResults + (row+1) * gpuHandle->policySize,
       policyProbs
     );
-    output->whiteValue = inputBuffers->valueResults[row];
+    output->whiteWinProb = inputBuffers->valueResults[row];
+    output->whiteLossProb = 0.0;
+    output->whiteNoResultProb = 0.0;
+    output->whiteScoreValue = 0.0;
+
     outputs.push_back(output);
   }
 

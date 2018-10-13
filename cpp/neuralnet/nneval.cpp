@@ -44,6 +44,7 @@ NNEvaluator::NNEvaluator(
 )
   :modelFileName(pbModelFile),
    posLen(pLen),
+   policySize(NNPos::getPolicySize(pLen)),
    inputsUseNHWC(iUseNHWC),
    loadedModel(NULL),
    nnCacheTable(NULL),
@@ -96,6 +97,9 @@ NNEvaluator::~NNEvaluator()
   delete nnCacheTable;
 }
 
+string NNEvaluator::getModelFileName() const {
+  return modelFileName;
+}
 int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
 }
@@ -238,9 +242,20 @@ void NNEvaluator::serve(
         assert(resultBuf->hasResult == false);
         resultBuf->result = std::make_shared<NNOutput>();
         float* policyProbs = resultBuf->result->policyProbs;
-        for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++)
+        //Illegal move filtering happens later
+        for(int i = 0; i<policySize; i++)
           policyProbs[i] = rand.nextGaussian();
-        resultBuf->result->whiteValue = rand.nextGaussian() * 0.1;
+        for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
+          policyProbs[i] = 0;
+
+        double whiteWinProb = 0.5 + rand.nextGaussian() * 0.05;
+        double whiteScoreValue = 0.0 + rand.nextGaussian() * 0.10;
+        if(whiteWinProb > 1.0) whiteWinProb = 1.0;
+        if(whiteWinProb < 0.0) whiteWinProb = 0.0;
+        resultBuf->result->whiteWinProb = whiteWinProb;
+        resultBuf->result->whiteLossProb = 1.0 - whiteWinProb;
+        resultBuf->result->whiteNoResultProb = 0.0;
+        resultBuf->result->whiteScoreValue = whiteScoreValue;
         resultBuf->hasResult = true;
         resultBuf->clientWaitingForResult.notify_all();
         resultLock.unlock();
@@ -338,9 +353,9 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   int ySize = board.y_size;
 
   float maxPolicy = -1e25f;
-  bool isLegal[NNPos::NN_POLICY_SIZE];
+  bool isLegal[policySize];
   int legalCount = 0;
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+  for(int i = 0; i<policySize; i++) {
     Loc loc = NNPos::posToLoc(i,xSize,ySize,posLen);
     isLegal[i] = history.isLegal(board,loc,nextPlayer);
 
@@ -361,7 +376,7 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   assert(legalCount > 0);
 
   float policySum = 0.0f;
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+  for(int i = 0; i<policySize; i++) {
     policy[i] = exp(policy[i] - maxPolicy);
     policySum += policy[i];
   }
@@ -373,20 +388,43 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
       (*logStream) << "Warning: all legal moves rounded to 0 probability for " << modelFileName << " in position " << board << endl;
     }
     float uniform = 1.0f / legalCount;
-    for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+    for(int i = 0; i<policySize; i++) {
       policy[i] = isLegal[i] ? uniform : -1.0f;
     }
   }
+  //Normal case
   else {
-    for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++)
+    for(int i = 0; i<policySize; i++)
       policy[i] = isLegal[i] ? (policy[i] / policySum) : -1.0f;
   }
 
-  //Fix up the value as well
-  if(nextPlayer == P_WHITE)
-    buf.result->whiteValue = tanh(buf.result->whiteValue);
-  else
-    buf.result->whiteValue = -tanh(buf.result->whiteValue);
+  //Fill everything out-of-bounds too, for robustness.
+  for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
+    policy[i] = -1.0f;
+
+  //Fix up the value as well. Note that the neural net gives us back the value from the perspective
+  //of the player so we need to negate that to make it the white value.
+  //For model version 2 and less, we only have single value output that returns tanh, stuffed
+  //ad-hocly into the whiteWinProb field.
+
+  if(modelVersion <= 2) {
+    double winProb = 0.5 * tanh(buf.result->whiteWinProb) + 0.5;
+    if(nextPlayer == P_WHITE) {
+      buf.result->whiteWinProb = winProb;
+      buf.result->whiteLossProb = 1.0 - winProb;
+      buf.result->whiteNoResultProb = 0.0;
+      buf.result->whiteScoreValue = 0.0;
+    }
+    else {
+      buf.result->whiteWinProb = 1.0 - winProb;
+      buf.result->whiteLossProb = winProb;
+      buf.result->whiteNoResultProb = 0.0;
+      buf.result->whiteScoreValue = 0.0;
+    }
+  }
+  else {
+    throw StringError("NNEval value postprocessing not implemented for model version");
+  }
 
   //And record the nnHash in the result and put it into the table
   buf.result->nnHash = nnHash;

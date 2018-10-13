@@ -6,29 +6,42 @@
 #include "../search/distributiontable.h"
 
 NodeStats::NodeStats()
-  :visits(0),winLossValueSum(0.0),scoreValueSum(0.0),valueSumWeight(0.0)
+  :visits(0),winValueSum(0.0),lossValueSum(0.0),noResultValueSum(0.0),scoreValueSum(0.0),valueSumWeight(0.0)
 {}
 NodeStats::~NodeStats()
 {}
 
 NodeStats::NodeStats(const NodeStats& other)
   :visits(other.visits),
-   winLossValueSum(other.winLossValueSum),
+   winValueSum(other.winValueSum),
+   lossValueSum(other.lossValueSum),
+   noResultValueSum(other.noResultValueSum),
    scoreValueSum(other.scoreValueSum),
    valueSumWeight(other.valueSumWeight)
 {}
 NodeStats& NodeStats::operator=(const NodeStats& other) {
   visits = other.visits;
-  winLossValueSum = other.winLossValueSum;
+  winValueSum = other.winValueSum;
+  lossValueSum = other.lossValueSum;
+  noResultValueSum = other.noResultValueSum;
   scoreValueSum = other.scoreValueSum;
   valueSumWeight = other.valueSumWeight;
   return *this;
 }
 
-double NodeStats::getCombinedValueSum(const SearchParams& searchParams) const {
+double NodeStats::getCombinedUtilitySum(const SearchParams& searchParams) const {
   return (
-    winLossValueSum * searchParams.winLossUtilityFactor +
+    (winValueSum - lossValueSum) * searchParams.winLossUtilityFactor +
+    noResultValueSum * searchParams.noResultUtilityForWhite +
     scoreValueSum * searchParams.scoreUtilityFactor
+  );
+}
+
+static double getCombinedUtility(const NNOutput& nnOutput, const SearchParams& searchParams) {
+  return (
+    (nnOutput.whiteWinProb - nnOutput.whiteLossProb) * searchParams.winLossUtilityFactor +
+    nnOutput.whiteNoResultProb * searchParams.noResultUtilityForWhite +
+    nnOutput.whiteScoreValue * searchParams.scoreUtilityFactor
   );
 }
 
@@ -99,18 +112,22 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
    nnResultBuf(),
    logStream(NULL),
    valueChildWeightsBuf(),
-   winLossValuesBuf(),
+   winValuesBuf(),
+   lossValuesBuf(),
+   noResultValuesBuf(),
    scoreValuesBuf(),
-   valuesBuf(),
+   utilityBuf(),
    visitsBuf()
 {
   if(logger != NULL)
     logStream = logger->createOStream();
 
-  winLossValuesBuf.resize(NNPos::NN_POLICY_SIZE);
-  scoreValuesBuf.resize(NNPos::NN_POLICY_SIZE);
-  valuesBuf.resize(NNPos::NN_POLICY_SIZE);
-  visitsBuf.resize(NNPos::NN_POLICY_SIZE);
+  winValuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  lossValuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  noResultValuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  scoreValuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  utilityBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  visitsBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
 
 }
 SearchThread::~SearchThread() {
@@ -130,6 +147,8 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    nonSearchRand(rSeed + string("$nonSearchRand"))
 {
   posLen = nnEval->getPosLen();
+  assert(posLen > 0 && posLen <= NNPos::MAX_BOARD_LEN);
+  policySize = NNPos::getPolicySize(posLen);
   rootKoHashTable = new KoHashTable();
 
   valueWeightDistribution = new DistributionTable(
@@ -254,7 +273,9 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
 
 static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
 
-bool Search::getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelectionValues) {
+bool Search::getPlaySelectionValues(
+  vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
+) {
   locs.clear();
   playSelectionValues.clear();
 
@@ -271,7 +292,9 @@ bool Search::getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelec
     SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
     double selectionValue = getPlaySelectionValue(node,child);
+
     assert(selectionValue >= 0.0);
+
     locs.push_back(moveLoc);
     playSelectionValues.push_back(selectionValue);
   }
@@ -282,7 +305,7 @@ bool Search::getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelec
   if(numChildren == 0) {
     if(nnOutput == nullptr)
       return false;
-    for(int movePos = 0; movePos<NNPos::NN_POLICY_SIZE; movePos++) {
+    for(int movePos = 0; movePos<policySize; movePos++) {
       Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,posLen);
       double policyProb = nnOutput->policyProbs[movePos];
       if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb <= 0)
@@ -293,7 +316,8 @@ bool Search::getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelec
     }
   }
 
-  //Might happen absurdly rarely if we have a hash collision or something on the nnOutput
+  //Might happen absurdly rarely if we both have no children and don't properly have an nnOutput
+  //but have a hash collision or something so we "found" an nnOutput anyways.
   if(numChildren == 0)
     return false;
 
@@ -306,13 +330,50 @@ bool Search::getPlaySelectionValues(vector<Loc>& locs, vector<double>& playSelec
   if(maxValue <= 1e-50)
     return false;
 
-  double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/2.0);
+  double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/64.0);
+  double newMaxValue = maxValue - amountToSubtract;
   for(int i = 0; i<numChildren; i++) {
     playSelectionValues[i] -= amountToSubtract;
     if(playSelectionValues[i] <= 0.0)
       playSelectionValues[i] = 0.0;
   }
 
+  assert(newMaxValue > 0.0);
+
+  if(newMaxValue < scaleMaxToAtLeast) {
+    for(int i = 0; i<numChildren; i++) {
+      playSelectionValues[i] *= scaleMaxToAtLeast / newMaxValue;
+    }
+  }
+
+  return true;
+}
+
+bool Search::getRootValues(
+  double& winValue, double& lossValue, double& noResultValue, double& scoreValue
+) {
+  const SearchNode& node = *rootNode;
+  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
+  unique_lock<std::mutex> lock(mutex);
+  shared_ptr<NNOutput> nnOutput = node.nnOutput;
+  lock.unlock();
+  if(nnOutput == nullptr)
+    return false;
+
+  while(node.statsLock.test_and_set(std::memory_order_acquire));
+  double winValueSum = node.stats.winValueSum;
+  double lossValueSum = node.stats.lossValueSum;
+  double noResultValueSum = node.stats.noResultValueSum;
+  double scoreValueSum = node.stats.scoreValueSum;
+  double valueSumWeight = node.stats.valueSumWeight;
+  node.statsLock.clear(std::memory_order_release);
+
+  assert(valueSumWeight > 0.0);
+
+  winValue = winValueSum / valueSumWeight;
+  lossValue = lossValueSum / valueSumWeight;
+  noResultValue = noResultValueSum / valueSumWeight;
+  scoreValue = scoreValueSum / valueSumWeight;
   return true;
 }
 
@@ -322,7 +383,7 @@ Loc Search::getChosenMoveLoc() {
 
   vector<Loc> locs;
   vector<double> playSelectionValues;
-  bool suc = getPlaySelectionValues(locs,playSelectionValues);
+  bool suc = getPlaySelectionValues(locs,playSelectionValues,0.0);
   if(!suc)
     return Board::NULL_LOC;
 
@@ -368,6 +429,9 @@ Loc Search::getChosenMoveLoc() {
 }
 
 void Search::beginSearch() {
+  if(rootBoard.x_size > posLen || rootBoard.y_size > posLen)
+    throw StringError("Search got from NNEval posLen = " + Global::intToString(posLen) + " but was asked to search board with larger x or y size");
+
   numSearchesBegun++;
   if(rootNode == NULL) {
     SearchThread dummyThread(-1, *this, NULL);
@@ -394,7 +458,7 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   node.nnOutput = newNNOutput;
 
   int legalCount = 0;
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+  for(int i = 0; i<policySize; i++) {
     if(node.nnOutput->policyProbs[i] >= 0)
       legalCount += 1;
   }
@@ -405,8 +469,8 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   //Generate gamma draw on each move
   double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
   double rSum = 0.0;
-  double r[NNPos::NN_POLICY_SIZE];
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+  double r[policySize];
+  for(int i = 0; i<policySize; i++) {
     if(node.nnOutput->policyProbs[i] >= 0) {
       r[i] = thread.rand.nextGamma(alpha);
       rSum += r[i];
@@ -416,11 +480,11 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   }
 
   //Normalized gamma draws -> dirichlet noise
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++)
+  for(int i = 0; i<policySize; i++)
     r[i] /= rSum;
 
   //At this point, r[i] contains a dirichlet distribution draw, so add it into the nnOutput.
-  for(int i = 0; i<NNPos::NN_POLICY_SIZE; i++) {
+  for(int i = 0; i<policySize; i++) {
     if(node.nnOutput->policyProbs[i] >= 0) {
       double weight = searchParams.rootDirichletNoiseWeight;
       node.nnOutput->policyProbs[i] = r[i] * weight + node.nnOutput->policyProbs[i] * (1.0-weight);
@@ -466,12 +530,8 @@ void Search::getValueChildWeights(
   double weight[numChildren];
   for(int i = 0; i<numChildren; i++) {
     double z = (childSelfValuesBuf[i] - simpleValue) / stdevs[i];
-    weight[i] = valueWeightDistribution->getCdf(z);
-  }
-
-  double sum = 0;
-  for(int i = 0; i<numChildren; i++) {
-    sum += weight[i];
+    //Also just for numeric sanity, make sure everything has some tiny minimum value.
+    weight[i] = valueWeightDistribution->getCdf(z) + 0.0001;
   }
 
   //Post-process and normalize, to make sure we exactly have a probability distribution and sum exactly to 1.
@@ -490,20 +550,18 @@ void Search::getValueChildWeights(
 }
 
 double Search::getPlaySelectionValue(
-  double nnPolicyProb, uint64_t childVisits,
-  double childValue, Player pla
+  double nnPolicyProb, uint64_t childVisits, Player pla
 ) const {
   if(nnPolicyProb < 0)
     return POLICY_ILLEGAL_SELECTION_VALUE;
 
-  (void)(childValue);
   (void)(pla);
   return (double)childVisits;
 }
 
 double Search::getExploreSelectionValue(
   double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
-  double childValue, Player pla
+  double childUtility, Player pla
 ) const {
   if(nnPolicyProb < 0)
     return POLICY_ILLEGAL_SELECTION_VALUE;
@@ -516,7 +574,7 @@ double Search::getExploreSelectionValue(
 
   //At the last moment, adjust value to be from the player's perspective, so that players prefer values in their favor
   //rather than in white's favor
-  double valueComponent = pla == P_WHITE ? childValue : -childValue;
+  double valueComponent = pla == P_WHITE ? childUtility : -childUtility;
   return exploreComponent + valueComponent;
 }
 
@@ -531,14 +589,9 @@ double Search::getPlaySelectionValue(const SearchNode& parent, const SearchNode*
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   uint64_t childVisits = child->stats.visits;
-  double childValueSum = child->stats.getCombinedValueSum(searchParams);
-  double valueSumWeight = child->stats.valueSumWeight;
   child->statsLock.clear(std::memory_order_release);
 
-  //valueSumWeight < 0 shouldn't ever happen here, since this is just used to choose the root move,
-  //but just in case, add a filler value
-  double childValue = valueSumWeight <= 0.0 ? parent.nnOutput->whiteValue : childValueSum / valueSumWeight;
-  return getPlaySelectionValue(nnPolicyProb,childVisits,childValue,parent.nextPla);
+  return getPlaySelectionValue(nnPolicyProb,childVisits,parent.nextPla);
 }
 double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const {
   Loc moveLoc = child->prevMoveLoc;
@@ -547,19 +600,19 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   uint64_t childVisits = child->stats.visits;
-  double childValueSum = child->stats.getCombinedValueSum(searchParams);
+  double childUtilitySum = child->stats.getCombinedUtilitySum(searchParams);
   double valueSumWeight = child->stats.valueSumWeight;
   int32_t childVirtualLosses = child->virtualLosses;
   child->statsLock.clear(std::memory_order_release);
 
   //It's possible that childVisits is actually 0 here with multithreading because we're visiting this node while a child has
   //been expanded but its thread not yet finished its first visit
-  double childValue;
+  double childUtility;
   if(childVisits <= 0)
-    childValue = fpuValue;
+    childUtility = fpuValue;
   else {
     assert(valueSumWeight > 0.0);
-    childValue = childValueSum / valueSumWeight;
+    childUtility = childUtilitySum / valueSumWeight;
   }
 
   //When multithreading, totalChildVisits could be out of sync with childVisits, so if they provably are, then fix that up
@@ -572,22 +625,22 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
     childVisits += childVirtualLosses;
     double virtualLossUtility = (parent.nextPla == P_WHITE ? -1.0 : 1.0) * (searchParams.winLossUtilityFactor + searchParams.scoreUtilityFactor);
     double virtualLossVisitFrac = (double)childVirtualLosses / childVisits;
-    childValue = childValue + (virtualLossUtility - childValue) * virtualLossVisitFrac;
+    childUtility = childUtility + (virtualLossUtility - childUtility) * virtualLossVisitFrac;
   }
-  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValue,parent.nextPla);
+  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
 double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const {
   float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
   uint64_t childVisits = 0;
-  double childValue = fpuValue;
-  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childValue,parent.nextPla);
+  double childUtility = fpuValue;
+  return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
 
 
 //Assumes node is locked
 void Search::selectBestChildToDescend(
   const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
-  bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
   bool isRoot) const
 {
   assert(thread.pla == node.nextPla);
@@ -618,31 +671,32 @@ void Search::selectBestChildToDescend(
   assert(policyProbMassVisited <= 1.0001);
 
   //First play urgency
-  double parentValue;
+  double parentUtility;
   if(searchParams.fpuUseParentAverage) {
     while(node.statsLock.test_and_set(std::memory_order_acquire));
     uint64_t parentVisits = node.stats.visits;
     double valueSumWeight = node.stats.valueSumWeight;
-    parentValue = node.stats.getCombinedValueSum(searchParams);
+    parentUtility = node.stats.getCombinedUtilitySum(searchParams);
     node.statsLock.clear(std::memory_order_release);
     assert(parentVisits > 0);
     assert(valueSumWeight > 0.0);
-    parentValue /= valueSumWeight;
+    parentUtility /= valueSumWeight;
   }
-  else
-    parentValue = node.nnOutput->whiteValue;
+  else {
+    parentUtility = getCombinedUtility(*node.nnOutput, searchParams);
+  }
 
   double fpuValue;
   if(isRoot && searchParams.rootNoiseEnabled)
-    fpuValue = parentValue;
+    fpuValue = parentUtility;
   else {
     if(thread.pla == P_WHITE)
-      fpuValue = parentValue - searchParams.fpuReductionMax * sqrt(policyProbMassVisited);
+      fpuValue = parentUtility - searchParams.fpuReductionMax * sqrt(policyProbMassVisited);
     else
-      fpuValue = parentValue + searchParams.fpuReductionMax * sqrt(policyProbMassVisited);
+      fpuValue = parentUtility + searchParams.fpuReductionMax * sqrt(policyProbMassVisited);
   }
 
-  std::fill(posesWithChildBuf,posesWithChildBuf+NNPos::NN_POLICY_SIZE,false);
+  std::fill(posesWithChildBuf,posesWithChildBuf+NNPos::MAX_NN_POLICY_SIZE,false);
 
   //Try all existing children
   for(int i = 0; i<numChildren; i++) {
@@ -659,7 +713,7 @@ void Search::selectBestChildToDescend(
   }
 
   //Try all new children
-  for(int movePos = 0; movePos<NNPos::NN_POLICY_SIZE; movePos++) {
+  for(int movePos = 0; movePos<policySize; movePos++) {
     bool alreadyTried = posesWithChildBuf[movePos];
     if(alreadyTried)
       continue;
@@ -677,15 +731,18 @@ void Search::selectBestChildToDescend(
 
 }
 
-void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract) {
+void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot) {
   //Find all children and compute weighting of the children based on their values
   vector<double>& valueChildWeights = thread.valueChildWeightsBuf;
-  vector<double>& winLossValues = thread.winLossValuesBuf;
+  vector<double>& winValues = thread.winValuesBuf;
+  vector<double>& lossValues = thread.lossValuesBuf;
+  vector<double>& noResultValues = thread.noResultValuesBuf;
   vector<double>& scoreValues = thread.scoreValuesBuf;
-  vector<double>& values = thread.valuesBuf;
+  vector<double>& selfUtilities = thread.utilityBuf;
   vector<uint64_t>& visits = thread.visitsBuf;
 
   uint64_t totalChildVisits = 0;
+  uint64_t maxChildVisits = 0;
 
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
@@ -697,50 +754,78 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
     uint64_t childVisits = child->stats.visits;
-    double winLossValueSum = child->stats.winLossValueSum;
+    double winValueSum = child->stats.winValueSum;
+    double lossValueSum = child->stats.lossValueSum;
+    double noResultValueSum = child->stats.noResultValueSum;
     double scoreValueSum = child->stats.scoreValueSum;
     double valueSumWeight = child->stats.valueSumWeight;
-    double childValueSum = child->stats.getCombinedValueSum(searchParams);
+    double childUtilitySum = child->stats.getCombinedUtilitySum(searchParams);
     child->statsLock.clear(std::memory_order_release);
 
     if(childVisits <= 0)
       continue;
     assert(valueSumWeight > 0.0);
 
-    double childValue = childValueSum / valueSumWeight;
+    double childUtility = childUtilitySum / valueSumWeight;
 
-    winLossValues[numGoodChildren] = winLossValueSum / valueSumWeight;
+    winValues[numGoodChildren] = winValueSum / valueSumWeight;
+    lossValues[numGoodChildren] = lossValueSum / valueSumWeight;
+    noResultValues[numGoodChildren] = noResultValueSum / valueSumWeight;
     scoreValues[numGoodChildren] = scoreValueSum / valueSumWeight;
-    values[numGoodChildren] = node.nextPla == P_WHITE ? childValue : -childValue;
+    selfUtilities[numGoodChildren] = node.nextPla == P_WHITE ? childUtility : -childUtility;
     visits[numGoodChildren] = childVisits;
     totalChildVisits += childVisits;
 
+    if(childVisits > maxChildVisits)
+      maxChildVisits = childVisits;
     numGoodChildren++;
   }
   lock.unlock();
 
   if(searchParams.valueWeightExponent > 0)
-    getValueChildWeights(numGoodChildren,values,visits,valueChildWeights);
+    getValueChildWeights(numGoodChildren,selfUtilities,visits,valueChildWeights);
 
-  double winLossValueSum = 0.0;
+  //In the case we're enabling noise at the root node, also apply the slight subtraction
+  //of visits from the root node's children so as to downweight the effect of the few dozen visits
+  //we send towards children that are so bad that we never try them even once again.
+  double amountToSubtract = 0.0;
+  if(isRoot && searchParams.rootNoiseEnabled) {
+    amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxChildVisits/64.0);
+  }
+
+  double winValueSum = 0.0;
+  double lossValueSum = 0.0;
+  double noResultValueSum = 0.0;
   double scoreValueSum = 0.0;
   double valueSumWeight = 0.0;
   for(int i = 0; i<numGoodChildren; i++) {
-    double weight = visits[i];
+    double weight = visits[i] - amountToSubtract;
+    if(weight < 0.0)
+      continue;
+
     if(searchParams.visitsExponent != 1.0)
       weight = pow(weight, searchParams.visitsExponent);
     if(searchParams.valueWeightExponent > 0)
       weight *= pow(valueChildWeights[i], searchParams.valueWeightExponent);
 
-    winLossValueSum += weight * winLossValues[i];
+    winValueSum += weight * winValues[i];
+    lossValueSum += weight * lossValues[i];
+    noResultValueSum += weight * noResultValues[i];
     scoreValueSum += weight * scoreValues[i];
     valueSumWeight += weight;
   }
+  //TODO this 1.0 valueSumWeight is WAAAY too high given that we're multiplying other stuff by valueChildWeights?? Scale it down?
   //Also add in the direct evaluation of this node
-  //TODO update this and other places when we have a score prediction on the net
-  winLossValueSum += (double)node.nnOutput->whiteValue;
-  valueSumWeight += 1.0;
+  double winProb = (double)node.nnOutput->whiteWinProb;
+  double lossProb = (double)node.nnOutput->whiteLossProb;
+  double noResultProb = (double)node.nnOutput->whiteNoResultProb;
+  double scoreValue = (double)node.nnOutput->whiteScoreValue;
 
+  winValueSum += winProb;
+  lossValueSum += lossProb;
+  noResultValueSum += noResultProb;
+  scoreValueSum += scoreValue;
+  valueSumWeight += 1.0;
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
@@ -748,7 +833,9 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
   //each of them only having some of the latest updates for all the children. We just accept this and let the
   //error persist, it will get fixed the next time a visit comes through here and the values will at least
   //be consistent with each other within this node, since statsLock at least ensures these three are set atomically.
-  node.stats.winLossValueSum = winLossValueSum;
+  node.stats.winValueSum = winValueSum;
+  node.stats.lossValueSum = lossValueSum;
+  node.stats.noResultValueSum = noResultValueSum;
   node.stats.scoreValueSum = scoreValueSum;
   node.stats.valueSumWeight = valueSumWeight;
   node.virtualLosses -= virtualLossesToSubtract;
@@ -756,7 +843,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
 }
 
 void Search::runSinglePlayout(SearchThread& thread) {
-  bool posesWithChildBuf[NNPos::NN_POLICY_SIZE];
+  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE];
   playoutDescend(thread,*rootNode,posesWithChildBuf,true,0);
 
   //Restore thread state back to the root state
@@ -765,10 +852,12 @@ void Search::runSinglePlayout(SearchThread& thread) {
   thread.history = rootHistory;
 }
 
-void Search::setTerminalValue(SearchNode& node, double winLossValue, double scoreValue, int32_t virtualLossesToSubtract) {
+void Search::setTerminalValue(SearchNode& node, double winValue, double lossValue, double noResultValue, double scoreValue, int32_t virtualLossesToSubtract) {
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
-  node.stats.winLossValueSum = winLossValue;
+  node.stats.winValueSum = winValue;
+  node.stats.lossValueSum = lossValue;
+  node.stats.noResultValueSum = noResultValue;
   node.stats.scoreValueSum = scoreValue;
   node.stats.valueSumWeight = 1.0;
   node.virtualLosses -= virtualLossesToSubtract;
@@ -783,13 +872,18 @@ void Search::initNodeNNOutput(
   node.nnOutput = std::move(thread.nnResultBuf.result);
   maybeAddPolicyNoise(thread,node,isRoot);
 
-  //TODO update this and other places when we have a score prediction on the net
   //Values in the search are from the perspective of white positive always
-  double value = (double)node.nnOutput->whiteValue;
+  double winProb = (double)node.nnOutput->whiteWinProb;
+  double lossProb = (double)node.nnOutput->whiteLossProb;
+  double noResultProb = (double)node.nnOutput->whiteNoResultProb;
+  double scoreValue = (double)node.nnOutput->whiteScoreValue;
+
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
-  node.stats.winLossValueSum = value;
-  node.stats.scoreValueSum = 0.0;
+  node.stats.winValueSum = winProb;
+  node.stats.lossValueSum = lossProb;
+  node.stats.noResultValueSum = noResultProb;
+  node.stats.scoreValueSum = scoreValue;
   node.stats.valueSumWeight = 1.0;
   node.virtualLosses -= virtualLossesToSubtract;
   node.statsLock.clear(std::memory_order_release);
@@ -797,22 +891,26 @@ void Search::initNodeNNOutput(
 
 void Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
-  bool posesWithChildBuf[NNPos::NN_POLICY_SIZE],
+  bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
   bool isRoot, int32_t virtualLossesToSubtract
 ) {
   //Hit terminal node, finish
   //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
   if(!isRoot && thread.history.isGameFinished) {
     if(thread.history.isNoResult) {
-      double winLossValue = searchParams.noResultUtilityForWhite;
+      double winValue = 0.0;
+      double lossValue = 0.0;
+      double noResultValue = 1.0;
       double scoreValue = 0.0;
-      setTerminalValue(node, winLossValue, scoreValue, virtualLossesToSubtract);
+      setTerminalValue(node, winValue, lossValue, noResultValue, scoreValue, virtualLossesToSubtract);
       return;
     }
     else {
-      double winLossValue = NNOutput::whiteValueOfWinner(thread.history.winner, searchParams.drawUtilityForWhite);
-      double scoreValue = NNOutput::whiteValueOfScore(thread.history.finalWhiteMinusBlackScore, thread.board);
-      setTerminalValue(node, winLossValue, scoreValue, virtualLossesToSubtract);
+      double winValue = NNOutput::whiteWinsOfWinner(thread.history.winner, searchParams.drawEquivalentWinsForWhite);
+      double lossValue = 1.0 - winValue;
+      double noResultValue = 0.0;
+      double scoreValue = NNOutput::whiteScoreValueOfScore(thread.history.finalWhiteMinusBlackScore, searchParams.drawEquivalentWinsForWhite, thread.board, thread.history);
+      setTerminalValue(node, winValue, lossValue, noResultValue, scoreValue, virtualLossesToSubtract);
       return;
     }
   }
@@ -902,7 +1000,7 @@ void Search::playoutDescend(
   playoutDescend(thread,*child,posesWithChildBuf,false,searchParams.numVirtualLossesPerThread);
 
   //Update this node stats
-  updateStatsAfterPlayout(node,thread,virtualLossesToSubtract);
+  updateStatsAfterPlayout(node,thread,virtualLossesToSubtract,isRoot);
 }
 
 void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
@@ -955,7 +1053,9 @@ void Search::printTreeHelper(
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   uint64_t visits = node.stats.visits;
-  double winLossValueSum = node.stats.winLossValueSum;
+  double winValueSum = node.stats.winValueSum;
+  double lossValueSum = node.stats.lossValueSum;
+  double noResultValueSum = node.stats.noResultValueSum;
   double scoreValueSum = node.stats.scoreValueSum;
   double valueSumWeight = node.stats.valueSumWeight;
   node.statsLock.clear(std::memory_order_release);
@@ -971,9 +1071,9 @@ void Search::printTreeHelper(
     out << ": ";
 
     if(visits > 0) {
-      sprintf(buf,"T %6.2fc ",(winLossValueSum * searchParams.winLossUtilityFactor + scoreValueSum * searchParams.scoreUtilityFactor) / valueSumWeight * 100.0);
+      sprintf(buf,"T %6.2fc ",((winValueSum - lossValueSum) * searchParams.winLossUtilityFactor + noResultValueSum * searchParams.noResultUtilityForWhite + scoreValueSum * searchParams.scoreUtilityFactor) / valueSumWeight * 100.0);
       out << buf;
-      sprintf(buf,"W %6.2fc ",(winLossValueSum * searchParams.winLossUtilityFactor) / valueSumWeight * 100.0);
+      sprintf(buf,"W %6.2fc ",((winValueSum - lossValueSum) * searchParams.winLossUtilityFactor + noResultValueSum * searchParams.noResultUtilityForWhite) / valueSumWeight * 100.0);
       out << buf;
       sprintf(buf,"S %6.2fc ",(scoreValueSum * searchParams.scoreUtilityFactor) / valueSumWeight * 100.0);
       out << buf;
@@ -983,7 +1083,7 @@ void Search::printTreeHelper(
     double nnValue;
     lock.lock();
     if(node.nnOutput != nullptr) {
-      nnValue = node.nnOutput->whiteValue;
+      nnValue = getCombinedUtility(*node.nnOutput,searchParams);
       hasNNValue = true;
     }
     lock.unlock();
@@ -1035,14 +1135,14 @@ void Search::printTreeHelper(
     int numGoodChildren = 0;
     vector<double> goodValueChildWeights;
     vector<double> origMoveIdx;
-    vector<double> valuesBuf;
+    vector<double> selfUtilityBuf;
     vector<uint64_t> visitsBuf;
     for(int i = 0; i<numChildren; i++) {
       const SearchNode* child = node.children[i];
 
       while(child->statsLock.test_and_set(std::memory_order_acquire));
       uint64_t childVisits = child->stats.visits;
-      double childValueSum = child->stats.getCombinedValueSum(searchParams);
+      double childUtilitySum = child->stats.getCombinedUtilitySum(searchParams);
       double childValueSumWeight = child->stats.valueSumWeight;
       child->statsLock.clear(std::memory_order_release);
 
@@ -1050,15 +1150,15 @@ void Search::printTreeHelper(
         continue;
       assert(childValueSumWeight > 0.0);
 
-      double childValue = childValueSum / childValueSumWeight;
+      double childUtility = childUtilitySum / childValueSumWeight;
 
       numGoodChildren++;
-      valuesBuf.push_back(node.nextPla == P_WHITE ? childValue : -childValue);
+      selfUtilityBuf.push_back(node.nextPla == P_WHITE ? childUtility : -childUtility);
       visitsBuf.push_back(childVisits);
       origMoveIdx.push_back(i);
     }
 
-    getValueChildWeights(numGoodChildren,valuesBuf,visitsBuf,goodValueChildWeights);
+    getValueChildWeights(numGoodChildren,selfUtilityBuf,visitsBuf,goodValueChildWeights);
     for(int i = 0; i<numChildren; i++)
       valueChildWeights.push_back(0.0);
     for(int i = 0; i<numGoodChildren; i++)

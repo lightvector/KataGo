@@ -2,7 +2,9 @@
 #include "core/makedir.h"
 #include "core/config_parser.h"
 #include "core/timer.h"
+#include "core/threadsafequeue.h"
 #include "dataio/sgf.h"
+#include "dataio/trainingwrite.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
@@ -21,6 +23,90 @@ static void signalHandler(int signal)
   if(signal == SIGINT || signal == SIGTERM)
     sigReceived.store(true);
 }
+
+//-----------------------------------------------------------------------------------------
+
+class GameRunner {
+  SearchParams params;
+  bool logSearchInfo;
+  bool logMoves;
+  int maxMovesPerGame;
+  string searchRandSeedBase;
+  MatchPairer* matchPairer;
+  GameInitializer* gameInit;
+
+public:
+  GameRunner(ConfigParser& cfg, const string& sRandSeedBase)
+    :params(),logSearchInfo(),logMoves(),maxMovesPerGame(),
+     searchRandSeedBase(sRandSeedBase),matchPairer(NULL),gameInit(NULL)
+  {
+    //TODO we should dynamically randomize the no result and draw utilities, and provide them as inputs to the net?
+    vector<SearchParams> paramss = Setup::loadParams(cfg);
+    if(paramss.size() != 1)
+      throw StringError("Can only specify one set of search parameters for self-play");
+    params = paramss[0];
+
+    logSearchInfo = cfg.getBool("logSearchInfo");
+    logMoves = cfg.getBool("logMoves");
+    maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
+
+    //Mostly the matchpairer for the logging and game counting
+    bool forSelfPlay = true;
+    matchPairer = new MatchPairer(cfg,forSelfPlay);
+
+    //Initialize object for randomizing game settings
+    gameInit = new GameInitializer(cfg);
+  }
+
+  ~GameRunner() {
+    delete matchPairer;
+    delete gameInit;
+  }
+
+  bool runGameAndWriteData(const string& playerName, NNEvaluator* nnEval, Logger& logger, ofstream* sgfOut) {
+    int64_t gameIdx;
+    bool shouldContinue = matchPairer->getMatchup(gameIdx, logger, nnEval, NULL);
+    if(!shouldContinue)
+      return false;
+
+    Board board; Player pla; BoardHistory hist; int numExtraBlack;
+    gameInit->createGame(board,pla,hist,numExtraBlack);
+    Board initialBoard = board;
+    Rules initialRules = hist.rules;
+
+    string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
+    Rand gameRand(searchRandSeed + ":" + "forGameRand");
+
+    //Avoid interactions between the two bots and make sure root noise is effective on each new search
+    bool clearBotAfterSearchThisGame = true;
+    //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
+    //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
+    //called on positions that occur after the game would have been autoterminated.
+    bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
+
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+    Play::runGame(
+      board,pla,hist,numExtraBlack,bot,bot,
+      doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
+      logger,logSearchInfo,logMoves,
+      maxMovesPerGame,sigReceived
+    );
+    delete bot;
+
+    if(sgfOut != NULL) {
+      WriteSgf::writeSgf(*sgfOut,playerName,playerName,initialRules,initialBoard,hist);
+      (*sgfOut) << endl;
+    }
+
+    return true;
+  }
+
+};
+
+
+//-----------------------------------------------------------------------------------------
+
+
 
 int MainCmds::selfPlay(int argc, const char* const* argv) {
   Board::initHash();
@@ -63,21 +149,9 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   logger.addFile(logFile);
   bool logToStdout = cfg.getBool("logToStdout");
   logger.setLogToStdout(logToStdout);
-  bool logSearchInfo = cfg.getBool("logSearchInfo");
-  bool logMoves = cfg.getBool("logMoves");
-  int64_t logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 
   logger.write("Self Play Engine starting...");
   logger.write(string("Git revision: ") + GIT_REVISION);
-
-  //TODO we should dynamically randomize the no result and draw utilities, and provide them as inputs to the net?
-  SearchParams params;
-  {
-    vector<SearchParams> paramss = Setup::loadParams(cfg);
-    if(paramss.size() != 1)
-      throw StringError("Can only specify one set of search parameters for self-play");
-    params = paramss[0];
-  }
 
   NNEvaluator* nnEval;
   {
@@ -88,14 +162,11 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   }
   logger.write("Loaded neural net");
 
-  //Initialize object for randomizing game settings
-  GameInitializer* gameInit = new GameInitializer(cfg);
-
   //Load runner settings
-  int numMatchThreads = cfg.getInt("numGameThreads",1,16384);
-  int maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
-
+  int numGameThreads = cfg.getInt("numGameThreads",1,16384);
   string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase);
 
   //Check for unused config keys
   {
@@ -123,80 +194,64 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   std::signal(SIGTERM, signalHandler);
 
 
-  auto runGame = [&params,&nnEval,&logger,logSearchInfo,logMoves,maxMovesPerGame,&searchRandSeedBase](
-    int64_t gameIdx, Board& board, Player pla, BoardHistory& hist, int numExtraBlack
-  ) {
-    string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
-    Rand gameRand(searchRandSeed + ":" + "forGameRand");
-
-    //Avoid interactions between the two bots and make sure root noise is effective on each new search
-    bool clearBotAfterSearchThisGame = true;
-    //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
-    //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
-    //called on positions that occur after the game would have been autoterminated.
-    bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
-
-    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
-    Play::runGame(
-      board,pla,hist,numExtraBlack,bot,bot,
-      doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
-      logger,logSearchInfo,logMoves,
-      maxMovesPerGame,sigReceived
-    );
-    delete bot;
-  };
+  // const int maxDataQueueSize = 5000;
+  // ThreadSafeQueue<FinishedGameData*> dataToWrite(maxDataQueueSize);
+  // auto writeDataLoop = [&dataToWrite]() {
+  //   while(true) {
+  //     FinishedGameData* data = dataToWrite.waitPop();
+  //     if(data == NULL)
+  //       break;
 
 
-  mutex gameSetupMutex;
-  int64_t numGamesStartedSoFar = 0;
+
+  //     delete data;
+  //   }
+  //   logger.write("Data write loop terminating");
+  // };
+
+
+// class TrainingDataWriter {
+//  public:
+//   TrainingDataWriter(const string& outputDir, int inputsVersion, int maxRowsPerFile, int posLen);
+//   ~TrainingDataWriter();
+
+//   void writeGame(const FinishedGameData& data);
+//   void close();
+
+//  private:
+//   string outputDir;
+//   int inputsVersion;
+//   Rand rand;
+//   TrainingWriteBuffers* writeBuffers;
+
+//   void writeAndClearIfFull();
+
+// };
+
 
   auto runMatchLoop = [
-    &gameInit,&runGame,&gameSetupMutex,
-    &numGamesStartedSoFar,&sgfOutputDir,&logger,logGamesEvery,
-    &modelFile,&nnEval
+    &gameRunner,
+    &sgfOutputDir,&logger,
+    &nnEval
   ](
     uint64_t threadHash
   ) {
-    unique_lock<std::mutex> lock(gameSetupMutex,std::defer_lock);
     //TODO once we have polling this needs to go to a subdir, one for each new net
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs")) : NULL;
 
     while(true) {
       if(sigReceived.load())
         break;
-      lock.lock();
-      int64_t gameIdx = numGamesStartedSoFar;
-      numGamesStartedSoFar += 1;
 
-      if(numGamesStartedSoFar % logGamesEvery == 0)
-        logger.write("Started " + Global::int64ToString(numGamesStartedSoFar) + " games");
-      int logNNEvery = logGamesEvery > 1000 ? logGamesEvery : 1000;
+      //TODO this needs to adapt once we have polling for the net
       //TODO this also needs to adapt a bit and make sure to be threadsafe when we dynamcally change the nneval
-      if(numGamesStartedSoFar % logNNEvery == 0) {
-        logger.write(modelFile);
-        logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
-        logger.write("NN batches: " + Global::int64ToString(nnEval->numBatchesProcessed()));
-        logger.write("NN avg batch size: " + Global::doubleToString(nnEval->averageProcessedBatchSize()));
-      }
-
-      lock.unlock();
-
-      Board board; Player pla; BoardHistory hist; int numExtraBlack;
-      gameInit->createGame(board,pla,hist,numExtraBlack);
-      Board initialBoard = board;
-      Rules initialRules = hist.rules;
-
-      runGame(gameIdx,board,pla,hist,numExtraBlack);
+      string playerName = "bot";
+      bool shouldContinue = gameRunner->runGameAndWriteData(playerName, nnEval, logger, sgfOut);
+      if(!shouldContinue)
+        break;
 
       if(sigReceived.load())
         break;
-
-      if(sgfOut != NULL) {
-        //TODO this needs to adapt once we have polling for the net
-        string playerName = "bot";
-        WriteSgf::writeSgf(*sgfOut,playerName,playerName,initialRules,initialBoard,hist);
-        (*sgfOut) << endl;
-      }
     }
     if(sgfOut != NULL)
       sgfOut->close();
@@ -204,10 +259,10 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
 
   Rand hashRand;
   vector<std::thread> threads;
-  for(int i = 0; i<numMatchThreads; i++) {
+  for(int i = 0; i<numGameThreads; i++) {
     threads.push_back(std::thread(runMatchLoop, hashRand.nextUInt64()));
   }
-  for(int i = 0; i<numMatchThreads; i++)
+  for(int i = 0; i<numGameThreads; i++)
     threads[i].join();
 
   delete nnEval;

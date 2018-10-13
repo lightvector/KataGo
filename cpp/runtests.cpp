@@ -23,6 +23,7 @@ int MainCmds::runTests(int argc, const char* const* argv) {
   Tests::runBoardAreaTests();
 
   Tests::runRulesTests();
+  Tests::runScoreTests();
 
   Tests::runBoardUndoTest();
   Tests::runNNInputsTests();

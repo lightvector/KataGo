@@ -22,6 +22,9 @@ namespace Tests {
   //testrules.cpp
   void runRulesTests();
 
+  //testscore.cpp
+  void runScoreTests();
+
   //testnninputs.cpp
   void runNNInputsTests();
 

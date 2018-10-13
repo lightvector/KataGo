@@ -2,6 +2,7 @@
 #define RULES_H
 
 #include "../core/global.h"
+#include "../core/hash.h"
 
 struct Rules {
 
@@ -29,6 +30,11 @@ struct Rules {
   static int parseScoringRule(const string& s);
   static string writeKoRule(int koRule);
   static string writeScoringRule(int scoringRule);
+
+  static const Hash128 ZOBRIST_KO_RULE_HASH[4];
+  static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];
+  static const Hash128 ZOBRIST_MULTI_STONE_SUICIDE_HASH;
+
 };
 
 #endif

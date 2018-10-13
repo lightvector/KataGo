@@ -44,27 +44,43 @@ class GameInitializer {
 };
 
 
-//Object for generating and servering evenly distributed pairings between different bots.
-//NOT threadsafe
+//Object for generating and servering evenly distributed pairings between different bots. Threadsafe.
 class MatchPairer {
  public:
-  MatchPairer(int numBots, const vector<int>& secondaryBots);
+  MatchPairer(ConfigParser& cfg, bool forSelfPlay);
   ~MatchPairer();
 
   MatchPairer(const MatchPairer&) = delete;
   MatchPairer& operator=(const MatchPairer&) = delete;
 
-  pair<int,int> getMatchup();
+  //Get next matchup and log stuff
+  bool getMatchup(
+    int64_t& gameIdx, int& botIdxB, int& botIdxW, Logger& logger,
+    const NNEvaluator* nnEvalToLog, const vector<NNEvaluator*>* nnEvalsToLog
+  );
+  //Convenience usage for self play where there is only one bot.
+  bool getMatchup(
+    int64_t& gameIdx, Logger& logger,
+    const NNEvaluator* nnEvalToLog, const vector<NNEvaluator*>* nnEvalsToLog
+  );
 
  private:
   int numBots;
   vector<int> secondaryBots;
   vector<pair<int,int>> nextMatchups;
   Rand rand;
+
+  int64_t numGamesStartedSoFar;
+  int64_t numGamesTotal;
+  int64_t logGamesEvery;
+
+  std::mutex getMatchupMutex;
+
+  pair<int,int> getMatchupPair();
 };
 
 
-
+//Functions to run a single game
 namespace Play {
   void runGame(
     Board& board, Player pla, BoardHistory& hist, int numExtraBlack, AsyncBot* botB, AsyncBot* botW,
@@ -74,7 +90,5 @@ namespace Play {
   );
 
 }
-
-
 
 #endif

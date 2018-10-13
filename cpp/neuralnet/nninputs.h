@@ -13,12 +13,13 @@ namespace NNPos {
   const int MAX_BOARD_LEN = 19;
   const int MAX_BOARD_AREA = MAX_BOARD_LEN * MAX_BOARD_LEN;
   //Policy output adds +1 for the pass move
-  const int NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
+  const int MAX_NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
 
   int xyToPos(int x, int y, int posLen);
   int locToPos(Loc loc, int boardXSize, int posLen);
   Loc posToLoc(int pos, int boardXSize, int boardYSize, int posLen);
   bool isPassPos(int pos, int posLen);
+  int getPolicySize(int posLen);
 }
 
 namespace NNInputs {
@@ -33,6 +34,11 @@ namespace NNInputs {
 
   const int NUM_FEATURES_V2 = 17;
   const int ROW_SIZE_V2 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_V2;
+
+  const int NUM_FEATURES_BIN_V3 = 20;
+  const int NUM_FEATURES_FLOAT_V3 = 9;
+  const int ROW_SIZE_BIN_V3 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_BIN_V3;
+  const int ROW_SIZE_FLOAT_V3 = NNPos::MAX_BOARD_LEN * NUM_FEATURES_FLOAT_V3;
 
   Hash128 getHashV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
@@ -54,7 +60,7 @@ namespace NNInputs {
     int posLen, bool useNHWC, float* row
   );
 
-  //Ongoing sandbox for full rules support and new ladder and other features, not stable yet
+  //Slightly more complete rules support, new ladder features, compressed some features
   Hash128 getHashV2(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer
   );
@@ -63,26 +69,46 @@ namespace NNInputs {
     int posLen, bool useNHWC, float* row
   );
 
+  //Ongoing sandbox for full rules support for self play, not stable yet
+  Hash128 getHashV3(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    double drawEquivalentWinsForWhite
+  );
+  void fillRowV3(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    double drawEquivalentWinsForWhite, int posLen, bool useNHWC, bool* rowBin, float* rowFloat
+  );
+
+
 }
 
 struct NNOutput {
-  Hash128 nnHash; //NNInputs - getHashV0 or getHashV1
+  Hash128 nnHash; //NNInputs - getHashV0 or getHashV1, etc.
 
-  //From the perspective of the player to move at the time of the eval
-  float whiteValue;
+  //Initially from the perspective of the player to move at the time of the eval, fixed up later in nnEval.cpp
+  //to be the value from white's perspective.
+  //These three are categorial probabilities for each outcome.
+  float whiteWinProb;
+  float whiteLossProb;
+  float whiteNoResultProb;
+
+  //The expected sigmoid-transformed score value.
+  float whiteScoreValue;
 
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko
-  float policyProbs[NNPos::NN_POLICY_SIZE];
+  float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
 
   NNOutput(); //Does NOT initialize values
   NNOutput(const NNOutput& other);
 
+  NNOutput& operator=(const NNOutput&) = delete;
+
   //Utility --------------------------------------------------------------------
-  //The utility of having a particular winner
-  static double whiteValueOfWinner(Player winner, double drawValue);
+  //The number of wins a game result should count as
+  static double whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite);
   //The utility of achieving a certain score difference
-  static double whiteValueOfScore(double finalWhiteMinusBlackScore, const Board& b);
+  static double whiteScoreValueOfScore(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist);
 };
 
 #endif
