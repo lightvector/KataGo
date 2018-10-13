@@ -5,6 +5,7 @@
 #include "../core/hash.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
+#include "../dataio/trainingwrite.h"
 
 STRUCT_NAMED_TRIPLE(uint8_t,x,uint8_t,y,Player,pla,MoveNoBSize);
 
@@ -85,9 +86,14 @@ struct CompactSgf {
 };
 
 namespace WriteSgf {
+  //Write an SGF with no newlines to the given ostream.
+  //If startTurnIdx >= 0, write a comment in the SGF root node indicating startTurnIdx, so as to
+  //indicate the index of the first turn that should be used for training data. (0 means the whole SGF, 1 means skipping black's first move, etc).
+  //If valueTargets is not NULL, also write down after each move the MCTS values following that search move.
   void writeSgf(
     ostream& out, const string& bName, const string& wName, const Rules& rules,
-    const Board& initialBoard, const BoardHistory& hist
+    const Board& initialBoard, const BoardHistory& hist,
+    int startTurnIdx, const vector<ValueTargets>* valueTargets
   );
 }
 

@@ -175,7 +175,8 @@ int MainCmds::match(int argc, const char* const* argv) {
       board,pla,hist,numExtraBlack,botB,botW,
       doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
       logger,logSearchInfo,logMoves,
-      maxMovesPerGame,sigReceived
+      maxMovesPerGame,sigReceived,
+      NULL
     );
     delete botB;
     if(botIdxB != botIdxW)
@@ -212,7 +213,7 @@ int MainCmds::match(int argc, const char* const* argv) {
       if(sgfOut != NULL) {
         string bName = botNames[botIdxB];
         string wName = botNames[botIdxW];
-        WriteSgf::writeSgf(*sgfOut,bName,wName,initialRules,initialBoard,hist);
+        WriteSgf::writeSgf(*sgfOut,bName,wName,initialRules,initialBoard,hist,-1,NULL);
         (*sgfOut) << endl;
       }
 

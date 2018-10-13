@@ -16,12 +16,17 @@ using namespace std;
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
+#include <chrono>
+
 #include <csignal>
 static std::atomic<bool> sigReceived(false);
+static std::atomic<bool> shouldStop(false);
 static void signalHandler(int signal)
 {
-  if(signal == SIGINT || signal == SIGTERM)
+  if(signal == SIGINT || signal == SIGTERM) {
     sigReceived.store(true);
+    shouldStop.store(true);
+  }
 }
 
 //-----------------------------------------------------------------------------------------
@@ -65,7 +70,10 @@ public:
     delete gameInit;
   }
 
-  bool runGameAndWriteData(const string& playerName, NNEvaluator* nnEval, Logger& logger, ofstream* sgfOut) {
+  bool runGameAndWriteData(
+    NNEvaluator* nnEval, Logger& logger,
+    int dataPosLen, ThreadSafeQueue<FinishedGameData*>& finishedGameQueue
+  ) {
     int64_t gameIdx;
     bool shouldContinue = matchPairer->getMatchup(gameIdx, logger, nnEval, NULL);
     if(!shouldContinue)
@@ -73,9 +81,7 @@ public:
 
     Board board; Player pla; BoardHistory hist; int numExtraBlack;
     gameInit->createGame(board,pla,hist,numExtraBlack);
-    Board initialBoard = board;
-    Rules initialRules = hist.rules;
-
+    
     string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
     Rand gameRand(searchRandSeed + ":" + "forGameRand");
 
@@ -87,23 +93,100 @@ public:
     bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
 
     AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+    FinishedGameData* finishedGameData = new FinishedGameData(dataPosLen, params.drawEquivalentWinsForWhite);
     Play::runGame(
       board,pla,hist,numExtraBlack,bot,bot,
       doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
       logger,logSearchInfo,logMoves,
-      maxMovesPerGame,sigReceived
+      maxMovesPerGame,shouldStop,
+      finishedGameData
     );
     delete bot;
 
-    if(sgfOut != NULL) {
-      WriteSgf::writeSgf(*sgfOut,playerName,playerName,initialRules,initialBoard,hist);
-      (*sgfOut) << endl;
-    }
-
+    finishedGameQueue.waitPush(finishedGameData);
     return true;
   }
 
 };
+
+//Wraps together a neural net and handles for outputting training data for it.
+//There should be one of these active per currently-loaded neural net, and one active thread
+//looping and actually performing the data output
+struct NetAndStuff {
+  string nnName;
+  NNEvaluator* nnEval;  
+
+  ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
+  int numGameThreads;
+  bool isDraining;
+
+  TrainingDataWriter* dataWriter;
+  ofstream* sgfOut;
+
+public:
+  NetAndStuff(const string& name, NNEvaluator* neval, int maxDataQueueSize, TrainingDataWriter* dWriter, ofstream* sOut)
+    :nnName(name),nnEval(neval),
+     finishedGameQueue(maxDataQueueSize),
+     numGameThreads(0),isDraining(false),
+     dataWriter(dWriter),sgfOut(sOut)
+  {}
+
+  ~NetAndStuff() {
+    delete nnEval;
+    delete dataWriter;
+    if(sgfOut != NULL)
+      delete sgfOut;
+  }
+  
+  void runWriteDataLoop() {
+    while(true) {
+      FinishedGameData* data = finishedGameQueue.waitPop();
+      if(data == NULL)
+        break;
+      dataWriter->writeGame(*data);
+      if(sgfOut != NULL) {
+        int startTurnIdx = data->startHist.moveHistory.size();
+        assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
+        WriteSgf::writeSgf(*sgfOut,nnName,nnName,data->startHist.rules,data->startBoard,data->endHist,startTurnIdx,&(data->whiteValueTargetsByTurn));
+        (*sgfOut) << endl;
+      }
+      delete data;
+    }
+    
+    dataWriter->close();
+    if(sgfOut != NULL)
+      sgfOut->close();
+  }
+
+  //NOT threadsafe - needs to be externally synchronized
+  //Game threads beginning a game using this net call this
+  void registerGameThread() {
+    assert(!isDraining);
+    numGameThreads++;
+  }
+  
+  //NOT threadsafe - needs to be externally synchronized
+  //Game threads finishing a game using this net call this
+  void unregisterGameThread() {
+    numGameThreads--;
+    if(isDraining && numGameThreads <= 0)
+      finishedGameQueue.forcePush(NULL); //forcePush so as not to block   
+  }
+
+  //NOT threadsafe - needs to be externally synchronized
+  //Mark that we should start draining this net and not starting new games with it
+  void markAsDraining() {
+    if(!isDraining) {
+      isDraining = true;
+      if(numGameThreads <= 0)
+        finishedGameQueue.forcePush(NULL); //forcePush so as not to block   
+    }
+  }
+ 
+};
+
+
+
 
 
 //-----------------------------------------------------------------------------------------
@@ -116,6 +199,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
 
   string configFile;
   string logFile;
+  int inputsVersion;
   string modelFile;
   string sgfOutputDir;
   string trainDataOutputDir;
@@ -125,18 +209,21 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
     //TODO do this instead
     //TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
+    TCLAP::ValueArg<int>    inputsVersionArg("","inputs-version","Version of neural net input features to use",true,0,"INT");
     TCLAP::ValueArg<string> modelFileArg("","model-file","Neural net model file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");
     TCLAP::ValueArg<string> trainDataOutputDirArg("","train-data-output-dir","Dir to output training data",true,string(),"DIR");
     cmd.add(configFileArg);
     cmd.add(logFileArg);
     //cmd.add(modelsDirArg);
+    cmd.add(inputsVersionArg);
     cmd.add(modelFileArg);
     cmd.add(sgfOutputDirArg);
     cmd.add(trainDataOutputDirArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     logFile = logFileArg.getValue();
+    inputsVersion = inputsVersionArg.getValue();
     modelFile = modelFileArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();
     trainDataOutputDir = trainDataOutputDirArg.getValue();
@@ -155,6 +242,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   logger.write("Self Play Engine starting...");
   logger.write(string("Git revision: ") + GIT_REVISION);
 
+  //TODO this will go change a bit once we have a polling loop?
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
@@ -167,6 +255,9 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   //Load runner settings
   int numGameThreads = cfg.getInt("numGameThreads",1,16384);
   string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+
+  //Width of the board to use when writing data, typically 19
+  int dataPosLen = cfg.getInt("dataPosLen",9,37);
 
   GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase);
 
@@ -190,85 +281,155 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   if(sgfOutputDir != string())
     MakeDir::make(sgfOutputDir);
 
-  if(!std::atomic_is_lock_free(&sigReceived))
-    throw StringError("sigReceived is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
+  if(!std::atomic_is_lock_free(&shouldStop))
+    throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
+  const int maxDataQueueSize = 5000;
+  const int maxRowsPerFile = 100000;
 
-  // const int maxDataQueueSize = 5000;
-  // ThreadSafeQueue<FinishedGameData*> dataToWrite(maxDataQueueSize);
-  // auto writeDataLoop = [&dataToWrite]() {
-  //   while(true) {
-  //     FinishedGameData* data = dataToWrite.waitPop();
-  //     if(data == NULL)
-  //       break;
+  std::mutex netAndStuffsMutex;
+  vector<NetAndStuff*> netAndStuffs;
+  std::condition_variable netAndStuffsIsEmpty;
 
+  //Looping thread for writing data for a single net
+  auto dataWriteLoop = [&netAndStuffsMutex,&netAndStuffs,&netAndStuffsIsEmpty,&logger](NetAndStuff* netAndStuff) {
+    netAndStuff->runWriteDataLoop();
+    logger.write("Data write loop finishing for neural net: " + netAndStuff->nnName);
 
+    std::unique_lock<std::mutex> lock(netAndStuffsMutex);
 
-  //     delete data;
-  //   }
-  //   logger.write("Data write loop terminating");
-  // };
+    //Find where our netAndStuff is and remove it
+    bool found = false;
+    for(int i = 0; i<netAndStuffs.size(); i++) {
+      if(netAndStuffs[i] == netAndStuff) {
+        netAndStuffs.erase(netAndStuffs.begin()+i);
+        assert(netAndStuff->numGameThreads == 0);
+        assert(netAndStuff->isDraining);
+        delete netAndStuff;
+        found = true;
+        break;
+      }
+    }
+    assert(found);
+    if(netAndStuffs.size() == 0)
+      netAndStuffsIsEmpty.notify_all();
+    
+    lock.unlock();
+    logger.write("Data write loop terminating");
+  };
 
+  //Initialize the initial neural net
+  {
+    //TODO replace this with a call to the same code that the polling loop would use to find the most recent net
+    Rand sgfsNameRand;
+    string nnName = "bot";
+    TrainingDataWriter* dataWriter = new TrainingDataWriter(trainDataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
+    ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(sgfsNameRand.nextUInt64()) + ".sgfs")) : NULL;
+    NetAndStuff* newNet = new NetAndStuff(nnName, nnEval, maxDataQueueSize, dataWriter, sgfOut);
 
-// class TrainingDataWriter {
-//  public:
-//   TrainingDataWriter(const string& outputDir, int inputsVersion, int maxRowsPerFile, int posLen);
-//   ~TrainingDataWriter();
+    std::unique_lock<std::mutex> lock(netAndStuffsMutex);
+    netAndStuffs.push_back(newNet);
+    std::thread newThread(dataWriteLoop,newNet);
+    newThread.detach();
+  }
 
-//   void writeGame(const FinishedGameData& data);
-//   void close();
-
-//  private:
-//   string outputDir;
-//   int inputsVersion;
-//   Rand rand;
-//   TrainingWriteBuffers* writeBuffers;
-
-//   void writeAndClearIfFull();
-
-// };
-
-
-  auto runMatchLoop = [
+  auto gameLoop = [
     &gameRunner,
     &sgfOutputDir,&logger,
-    &nnEval
-  ](
-    uint64_t threadHash
-  ) {
-    //TODO once we have polling this needs to go to a subdir, one for each new net
-    ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs")) : NULL;
-
+    &netAndStuffsMutex,&netAndStuffs,
+    dataPosLen
+  ]() {
+    std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     while(true) {
-      if(sigReceived.load())
+      if(shouldStop.load())
         break;
 
-      //TODO this needs to adapt once we have polling for the net
-      //TODO this also needs to adapt a bit and make sure to be threadsafe when we dynamcally change the nneval
-      string playerName = "bot";
-      bool shouldContinue = gameRunner->runGameAndWriteData(playerName, nnEval, logger, sgfOut);
+      assert(netAndStuffs.size() > 0);
+      NetAndStuff* netAndStuff = netAndStuffs[netAndStuffs.size()-1];
+      netAndStuff->registerGameThread();
+
+      lock.unlock();
+
+      bool shouldContinue = gameRunner->runGameAndWriteData(
+        netAndStuff->nnEval, logger,
+        dataPosLen, netAndStuff->finishedGameQueue
+      );
       if(!shouldContinue)
         break;
 
-      if(sigReceived.load())
-        break;
+      lock.lock();
+      netAndStuff->unregisterGameThread();
     }
-    if(sgfOut != NULL)
-      sgfOut->close();
+    
+    lock.unlock();
+    logger.write("Game loop terminating");
   };
 
-  Rand hashRand;
+  //Looping thread for polling for new neural nets and loading them in
+  std::condition_variable pollSleepVar;
+  auto pollLoop = [&netAndStuffsMutex,&netAndStuffs,&pollSleepVar,&logger,&dataWriteLoop]() {
+    std::unique_lock<std::mutex> lock(netAndStuffsMutex);
+    while(true) {
+      if(shouldStop.load())
+        break;
+
+      //TODO
+      //Poll to see if there are any new nets to load
+      NetAndStuff* newNet = NULL;
+
+      if(newNet != NULL) {
+        logger.write("Loaded new neural net " + newNet->nnName);
+        netAndStuffs.push_back(newNet);
+        for(int i = 0; i<netAndStuffs.size()-1; i++) {
+          netAndStuffs[i]->markAsDraining();
+        }
+
+        std::thread newThread(dataWriteLoop,newNet);
+        newThread.detach();
+      }
+      pollSleepVar.wait_for(lock, std::chrono::seconds(60));
+    }
+    for(int i = 0; i<netAndStuffs.size(); i++)
+      netAndStuffs[i]->markAsDraining();
+
+    lock.unlock();
+    logger.write("Polling net loading loop terminating");
+  };
+
+  
   vector<std::thread> threads;
   for(int i = 0; i<numGameThreads; i++) {
-    threads.push_back(std::thread(runMatchLoop, hashRand.nextUInt64()));
+    threads.push_back(std::thread(gameLoop));
   }
+  std::thread pollLoopThread(pollLoop);
+
+  //Wait for all game threads to stop
   for(int i = 0; i<numGameThreads; i++)
     threads[i].join();
 
+  //If by now somehow shouldStop is not true, set it to be true since all game threads are toast
+  shouldStop.store(true);
+
+  //Wake up the polling thread rather than waiting up to 60s for it to wake up on its own, and
+  //wait for it to die.
+  pollSleepVar.notify_all();
+  pollLoopThread.join();
+
+  //Wait for netAndStuffs to be empty, which indicates that the detached data writing threads
+  //have all cleaned up and removed their netAndStuff.
+  {
+    std::unique_lock<std::mutex> lock(netAndStuffsMutex);
+    while(netAndStuffs.size() > 0)
+      netAndStuffsIsEmpty.wait(lock);
+  }
+
+  //Delete and clean up everything else
   delete nnEval;
   NeuralNet::globalCleanup();
+
+  delete gameRunner;
 
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");

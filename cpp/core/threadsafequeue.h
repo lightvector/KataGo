@@ -35,7 +35,7 @@ class ThreadSafeQueue
     return sizeUnsynchronized();
   }
 
-  inline void push(T elt)
+  inline void waitPush(T elt)
   {
     std::unique_lock<std::mutex> lock(mutex);
     while(sizeUnsynchronized() >= maxSize)
@@ -46,6 +46,16 @@ class ThreadSafeQueue
       notEmptyCondVar.notify_all();
   }
 
+  //Will not block, but can exceed maxSize
+  inline void forcePush(T elt)
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    elts.push_back(elt);
+    if(sizeUnsynchronized() == 1)
+      notEmptyCondVar.notify_all();
+  }
+
+  
   inline bool tryPop(T& buf)
   {
     std::lock_guard<std::mutex> lock(mutex);

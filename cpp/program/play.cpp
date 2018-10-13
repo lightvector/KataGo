@@ -298,13 +298,24 @@ void Play::runGame(
   Board& board, Player pla, BoardHistory& hist, int numExtraBlack, AsyncBot* botB, AsyncBot* botW,
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
-  int maxMovesPerGame, std::atomic<bool>& stopSignalReceived
+  int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,
+  FinishedGameData* gameData
 ) {
   if(numExtraBlack > 0)
     playExtraBlack(botB,logger,numExtraBlack,board,hist);
   botB->setPosition(pla,board,hist);
   if(botB != botW)
     botW->setPosition(pla,board,hist);
+
+  if(gameData != NULL) {
+    gameData->startBoard = board;
+    gameData->startHist = hist;
+    gameData->startPla = pla;
+    assert(gameData->moves.size() == 0);
+  }
+
+  vector<Loc> locsBuf;
+  vector<double> playSelectionValuesBuf;
 
   for(int i = 0; i<maxMovesPerGame; i++) {
     if(doEndGameIfAllPassAlive)
@@ -324,6 +335,56 @@ void Play::runGame(
     if(logMoves)
       logger.write("Move " + Global::intToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
 
+    if(gameData != NULL) {
+      gameData->moves.push_back(Move(loc,pla));
+
+      vector<PolicyTargetMove>* policyTargets = new vector<PolicyTargetMove>();
+      locsBuf.clear();
+      playSelectionValuesBuf.clear();
+      double scaleMaxToAtLeast = 10.0;
+
+      bool success = toMoveBot->getSearch()->getPlaySelectionValues(
+        locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast
+      );
+      assert(success);
+
+      double winValue;
+      double lossValue;
+      double noResultValue;
+      double scoreValue;
+      success = toMoveBot->getSearch()->getRootValues(
+        winValue,lossValue,noResultValue,scoreValue
+      );
+      assert(success);
+
+      for(int moveIdx = 0; moveIdx<locsBuf.size(); moveIdx++) {
+        double value = playSelectionValuesBuf[moveIdx];
+        assert(value >= 0.0 && value < 30000.0); //Make sure we don't oveflow int16
+        (*policyTargets).push_back(PolicyTargetMove(locsBuf[moveIdx],(int16_t)round(value)));
+      }
+      gameData->policyTargetsByTurn.push_back(policyTargets);
+      //TODO do something otherwise
+      gameData->actionValueTargetByTurn.push_back(NULL);
+
+      ValueTargets valueTargets;
+      valueTargets.win = winValue;
+      valueTargets.loss = lossValue;
+      valueTargets.noResult = noResultValue;
+      valueTargets.scoreValue = scoreValue;
+
+      //Not defined, only matters for the final value targets for the game result
+      valueTargets.score = 0.0f;
+
+      //TODO not implemented yet!
+      valueTargets.mctsUtility1 = 0.0f;
+      valueTargets.mctsUtility4 = 0.0f;
+      valueTargets.mctsUtility16 = 0.0f;
+      valueTargets.mctsUtility64 = 0.0f;
+      valueTargets.mctsUtility256 = 0.0f;
+
+      gameData->whiteValueTargetsByTurn.push_back(valueTargets);
+    }
+
     //In many cases, we are using root-level noise, so we want to clear the search each time so that we don't
     //bias the next search with the result of the previous... and also to make each color's search independent of the other's.
     if(clearBotAfterSearch)
@@ -340,6 +401,58 @@ void Play::runGame(
     assert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
     pla = getOpp(pla);
+
   }
+
+
+  if(gameData != NULL) {
+    gameData->endHist = hist;
+    
+    ValueTargets finalValueTargets;
+    Color area[Board::MAX_ARR_SIZE];
+    if(hist.isGameFinished && hist.isNoResult) {
+      finalValueTargets.win = 0.0f;
+      finalValueTargets.loss = 0.0f;
+      finalValueTargets.noResult = 1.0f;
+      finalValueTargets.scoreValue = 0.0f;
+      finalValueTargets.score = 0.0f;
+      std::fill(area,area+Board::MAX_ARR_SIZE,C_EMPTY);
+    }
+    else {
+      //Relying on this to be idempotent, so that we can get the final territory map
+      hist.endAndScoreGameNow(board,area);
+      finalValueTargets.win = (float)NNOutput::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
+      finalValueTargets.loss = 1.0f - finalValueTargets.win;
+      finalValueTargets.noResult = 0.0f;
+      finalValueTargets.scoreValue = NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, gameData->drawEquivalentWinsForWhite, board, hist);
+      finalValueTargets.score = hist.finalWhiteMinusBlackScore;
+
+      //Dummy values, doesn't matter since we didn't do a search for the final values
+      finalValueTargets.mctsUtility1 = 0.0f;
+      finalValueTargets.mctsUtility4 = 0.0f;
+      finalValueTargets.mctsUtility16 = 0.0f;
+      finalValueTargets.mctsUtility64 = 0.0f;
+      finalValueTargets.mctsUtility256 = 0.0f;
+    }
+    gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
+
+    int posLen = gameData->posLen;
+    std::fill(gameData->finalOwnership, gameData->finalOwnership + posLen*posLen, 0);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,posLen);
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(area[loc] == P_BLACK)
+          gameData->finalOwnership[pos] = -1;
+        else if(area[loc] == P_WHITE)
+          gameData->finalOwnership[pos] = 1;
+        else if(area[loc] == C_EMPTY)
+          gameData->finalOwnership[pos] = 0;
+        else
+          assert(false);
+      }
+    }
+  }
+
 }
 

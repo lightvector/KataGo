@@ -7,6 +7,7 @@
 #include "../core/config_parser.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
+#include "../dataio/trainingwrite.h"
 
 //Object choosing random initial rules and board sizes for games. Threadsafe.
 class GameInitializer {
@@ -86,7 +87,8 @@ namespace Play {
     Board& board, Player pla, BoardHistory& hist, int numExtraBlack, AsyncBot* botB, AsyncBot* botW,
     bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
-    int maxMovesPerGame, std::atomic<bool>& stopSignalReceived
+    int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,
+    FinishedGameData* gameData
   );
 
 }

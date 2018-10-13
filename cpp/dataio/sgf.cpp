@@ -597,7 +597,8 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
 
 void WriteSgf::writeSgf(
   ostream& out, const string& bName, const string& wName, const Rules& rules,
-  const Board& initialBoard, const BoardHistory& hist
+  const Board& initialBoard, const BoardHistory& hist,
+  int startTurnIdx, const vector<ValueTargets>* valueTargets
 ) {
   assert(initialBoard.x_size == initialBoard.y_size);
   int bSize = initialBoard.x_size;
@@ -660,6 +661,14 @@ void WriteSgf::writeSgf(
     }
   }
 
+  if(startTurnIdx >= 0) {
+    out << "C[startTurnIdx=" << startTurnIdx << "]";
+  }
+  if(valueTargets != NULL) {
+    assert(startTurnIdx >= 0);
+    assert(hist.moveHistory.size() - startTurnIdx <= valueTargets->size());
+  }
+
   for(size_t i = 0; i<hist.moveHistory.size(); i++) {
     if(hist.moveHistory[i].pla == P_BLACK)
       out << ";B[";
@@ -667,6 +676,15 @@ void WriteSgf::writeSgf(
       out << ";W[";
     writeSgfLoc(out,hist.moveHistory[i].loc,bSize);
     out << "]";
+
+    if(valueTargets != NULL) {
+      const ValueTargets& targets = (*valueTargets)[i-startTurnIdx];
+      out << "C["
+          << (int)(round(targets.win*10000.0f)) << " "
+          << (int)(round(targets.loss*10000.0f)) << " "
+          << (int)(round(targets.noResult*10000.0f)) << " "
+          << (int)(round(targets.scoreValue*10000.0f)) << "]";
+    }
   }
   out << ")";
 
