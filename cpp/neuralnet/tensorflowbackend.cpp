@@ -260,7 +260,10 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int 
       policyData + (row+1) * NNPos::MAX_NN_POLICY_SIZE,
       policyProbs
     );
-    output->whiteValue = valueData[row];
+    output->whiteWinProb = valueData[row];
+    output->whiteLossProb = 0.0;
+    output->whiteNoResultProb = 0.0;
+    output->whiteScoreValue = 0.0;
     outputs.push_back(output);
   }
 

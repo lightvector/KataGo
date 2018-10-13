@@ -3603,14 +3603,18 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     float* policyProbs = output->policyProbs;
 
     //These are not actually correct, the client does the postprocessing to turn them into
-    //probabilities and white value
+    //policy probabilities and white game outcome probabilities
     //Also we don't fill in the nnHash here either
     std::copy(
       inputBuffers->policyResults + row * gpuHandle->policySize,
       inputBuffers->policyResults + (row+1) * gpuHandle->policySize,
       policyProbs
     );
-    output->whiteValue = inputBuffers->valueResults[row];
+    output->whiteWinProb = inputBuffers->valueResults[row];
+    output->whiteLossProb = 0.0;
+    output->whiteNoResultProb = 0.0;
+    output->whiteScoreValue = 0.0;
+
     outputs.push_back(output);
   }
 

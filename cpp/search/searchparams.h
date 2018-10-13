@@ -6,9 +6,9 @@
 struct SearchParams {
   //Utility function parameters
   double winLossUtilityFactor;    //Scaling for [-1,1] value for winning/losing
-  double scoreUtilityFactor;      //Scaling for the [-1,1] value for having many/fewer points.
+  double scoreUtilityFactor;      //Scaling for the roughly [-1,1] value for having many/fewer points.
   double noResultUtilityForWhite; //Utility of having a no-result game (simple ko rules or nonterminating territory encore)
-  double drawUtilityForWhite;     //Utility of having a jigo
+  double drawEquivalentWinsForWhite; //Consider a draw to be this many wins and one minus this many losses.
 
   //Search tree exploration parameters
   double cpuctExploration;  //Constant factor on exploration, should also scale up linearly with magnitude of utility
@@ -16,7 +16,7 @@ struct SearchParams {
   bool fpuUseParentAverage; //Use parent average value for fpu rather than parent nn value.
   double valueWeightExponent; //Amount to apply a downweighting of children with very bad values relative to good ones
   double visitsExponent; //Power with which visits should raise the value weight on a child
-  
+
   //Root noise parameters
   bool rootNoiseEnabled;
   double rootDirichletNoiseTotalConcentration; //Same as alpha * board size, to match alphazero this might be 0.03 * 361, total number of balls in the urn

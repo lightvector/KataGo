@@ -53,7 +53,7 @@ struct TrainingWriteBuffers {
   NumpyBuffer<float> policyTargetWeightsNC;
 
   //Value-related targets
-  //C0-3: Categorial game result, win,loss,noresult, and also score utility. Draw is encoded as some blend of win and loss based on drawUtilityForWhite.
+  //C0-3: Categorial game result, win,loss,noresult, and also score utility. Draw is encoded as some blend of win and loss based on drawEquivalentWinsForWhite.
   //C4-7: MCTS win-loss-noresult estimate td-like target, lambda = 35/36
   //C8-11: MCTS win-loss-noresult estimate td-like target, lambda = 11/12
   //C12-15: MCTS win-loss-noresult estimate td-like target, lambda = 3/4
@@ -81,7 +81,7 @@ struct TrainingWriteBuffers {
   void clear();
 
   void addRow(
-    const Board& board, const BoardHistory& hist, Player nextPlayer, double drawUtilityForWhite,
+    const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite,
     int turnNumber,
     const vector<PolicyTargetMove>* policyTarget0, //can be null
     const vector<PolicyTargetMove>* policyTarget1, //can be null
@@ -104,10 +104,10 @@ struct FinishedGameData {
   vector<ValueTargets> whiteValueTargetsByTurn;
   vector<float*> actionValueTargetByTurn;
   int16_t* finalOwnership;
-  double drawUtilityForWhite;
+  double drawEquivalentWinsForWhite;
   int posLen;
 
-  FinishedGameData(int posLen, double drawUtilityForWhite);
+  FinishedGameData(int posLen, double drawEquivalentWinsForWhite);
   ~FinishedGameData();
 
 };

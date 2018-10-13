@@ -32,20 +32,25 @@ int NNPos::getPolicySize(int posLen) {
 NNOutput::NNOutput() {}
 NNOutput::NNOutput(const NNOutput& other) {
   nnHash = other.nnHash;
-  whiteValue = other.whiteValue;
+  whiteWinProb = other.whiteWinProb;
+  whiteLossProb = other.whiteLossProb;
+  whiteNoResultProb = other.whiteNoResultProb;
+  whiteScoreValue = other.whiteScoreValue;
   std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
 }
 
-double NNOutput::whiteValueOfWinner(Player winner, double drawUtilityForWhite) {
+double NNOutput::whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite) {
   if(winner == P_WHITE)
     return 1.0;
   else if(winner == P_BLACK)
-    return -1.0;
-  return drawUtilityForWhite;
+    return 0.0;
+  else if(winner == C_EMPTY)
+    return drawEquivalentWinsForWhite;
+  assert(false);
 }
 
-double NNOutput::whiteValueOfScore(double finalWhiteMinusBlackScore, double drawUtilityForWhite, const Board& b, const BoardHistory& hist) {
-  double adjustedScore = finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDrawUtility(drawUtilityForWhite);
+double NNOutput::whiteScoreValueOfScore(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist) {
+  double adjustedScore = finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
   if(b.x_size == b.y_size)
     return tanh(adjustedScore / (2*b.x_size));
   else
@@ -303,7 +308,7 @@ Hash128 NNInputs::getHashV1(
     }
   }
 
-  float selfKomi = hist.currentSelfKomi(nextPlayer,0.0);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,0.5);
   int64_t komiX2 = (int64_t)(selfKomi*2.0f);
   uint64_t komiHash = Hash::murmurMix((uint64_t)komiX2);
   hash.hash0 ^= komiHash;
@@ -338,7 +343,7 @@ void NNInputs::fillRowV1(
     posStride = 1;
   }
 
-  float selfKomi = hist.currentSelfKomi(nextPlayer,0.0);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,0.5);
 
   for(int y = 0; y<ySize; y++) {
     for(int x = 0; x<xSize; x++) {
@@ -498,7 +503,7 @@ Hash128 NNInputs::getHashV2(
     }
   }
 
-  float selfKomi = hist.currentSelfKomi(nextPlayer,0.0);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,0.5);
   int64_t komiX2 = (int64_t)(selfKomi*2.0f);
   uint64_t komiHash = Hash::murmurMix((uint64_t)komiX2);
   hash.hash0 ^= komiHash;
@@ -533,7 +538,7 @@ void NNInputs::fillRowV2(
     posStride = 1;
   }
 
-  float selfKomi = hist.currentSelfKomi(nextPlayer,0.0);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,0.5);
 
   for(int y = 0; y<ySize; y++) {
     for(int x = 0; x<xSize; x++) {
@@ -674,7 +679,7 @@ void NNInputs::fillRowV2(
 //Currently does NOT depend on history (except for marking ko-illegal spots)
 Hash128 NNInputs::getHashV3(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
-  double drawUtilityForWhite
+  double drawEquivalentWinsForWhite
 ) {
   int xSize = board.x_size;
   int ySize = board.y_size;
@@ -711,10 +716,8 @@ Hash128 NNInputs::getHashV3(
   }
 
   //TODO incorporate pass ends phase into hash, if we do end up using pass ends phase.
-
-  //For the purpose of computing the hash, discretize drawUtilityForWhite down to units of 1/16
-  double drawUtilityForWhiteDiscretized = round(drawUtilityForWhite*16.0)/16.0;
-  float selfKomi = hist.currentSelfKomi(nextPlayer,drawUtilityForWhiteDiscretized);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  //Discretize the komi for the purpose of matching hash, so that extremely close effective komi we just reuse nn cache hits
   int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
   uint64_t komiHash = Hash::murmurMix((uint64_t)komiDiscretized);
   hash.hash0 ^= komiHash;
@@ -732,7 +735,7 @@ Hash128 NNInputs::getHashV3(
 
 void NNInputs::fillRowV3(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
-  double drawUtilityForWhite, int posLen, bool useNHWC, bool* rowBin, float* rowFloat
+  double drawEquivalentWinsForWhite, int posLen, bool useNHWC, bool* rowBin, float* rowFloat
 ) {
   assert(posLen <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size <= posLen);
@@ -920,7 +923,7 @@ void NNInputs::fillRowV3(
 
 
   //Floating point features
-  float selfKomi = hist.currentSelfKomi(nextPlayer,drawUtilityForWhite);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
   rowFloat[0] = selfKomi/15.0f;
 
   if(hist.rules.koRule == Rules::KO_SIMPLE) {}

@@ -180,7 +180,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
     else
       assert(false);
 
-    double* values = new double[maxVisits];
+    double* utilities = new double[maxVisits];
     double* policySurpriseNats = new double[maxVisits];
     Rand rand("root variance estimate " + Global::intToString(threadIdx));
     for(size_t sgfIdx = threadIdx; sgfIdx<sgfs.size(); sgfIdx += numThreads) {
@@ -211,7 +211,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
           search->beginSearch();
           for(int i = 0; i<maxVisits; i++) {
             search->runSinglePlayout(*stbuf);
-            values[i] = search->rootNode->stats.getCombinedValueSum(search->searchParams) / search->rootNode->stats.valueSumWeight;
+            utilities[i] = search->rootNode->stats.getCombinedUtilitySum(search->searchParams) / search->rootNode->stats.valueSumWeight;
             policySurpriseNats[i] = computeSurprise(search);
           }
           delete stbuf;
@@ -230,7 +230,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
             out << entropy << ",";
             if(mode == "rootValue") {
               for(int i = 0; i<maxVisits; i++)
-                out << values[i] << ",";
+                out << utilities[i] << ",";
             }
             else if(mode == "policyTargetSurprise") {
               for(int i = 0; i<maxVisits; i++)
@@ -249,7 +249,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
       }
     }
     delete search;
-    delete[] values;
+    delete[] utilities;
     delete[] policySurpriseNats;
   };
 

@@ -8,7 +8,7 @@ SearchParams::SearchParams()
   :winLossUtilityFactor(1.0),
    scoreUtilityFactor(0.0),
    noResultUtilityForWhite(0.0),
-   drawUtilityForWhite(0.0),
+   drawEquivalentWinsForWhite(0.5),
    cpuctExploration(1.0),
    fpuReductionMax(0.2),
    fpuUseParentAverage(true),

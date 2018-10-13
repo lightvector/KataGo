@@ -130,7 +130,7 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
 }
 
 void TrainingWriteBuffers::addRow(
-  const Board& board, const BoardHistory& hist, Player nextPlayer, double drawUtilityForWhite,
+  const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite,
   int turnNumber,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
   const vector<PolicyTargetMove>* policyTarget1, //can be null
@@ -148,7 +148,7 @@ void TrainingWriteBuffers::addRow(
   if(inputsVersion == 3) {
     assert(NNInputs::NUM_FEATURES_BIN_V3 == numBinaryChannels);
     assert(NNInputs::NUM_FEATURES_FLOAT_V3 == numFloatChannels);
-    NNInputs::fillRowV3(board, hist, nextPlayer, drawUtilityForWhite, posLen, inputsUseNHWC, rowBin, rowFloat);
+    NNInputs::fillRowV3(board, hist, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowBin, rowFloat);
   }
   else
     assert(false);
@@ -261,7 +261,7 @@ void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
 
 
 
-FinishedGameData::FinishedGameData(int pLen, double drawUtilForWhite)
+FinishedGameData::FinishedGameData(int pLen, double drawEquivForWhite)
   : startBoard(),
     startHist(),
     startPla(P_BLACK),
@@ -270,7 +270,7 @@ FinishedGameData::FinishedGameData(int pLen, double drawUtilForWhite)
     whiteValueTargetsByTurn(),
     actionValueTargetByTurn(),
     finalOwnership(NULL),
-    drawUtilityForWhite(drawUtilForWhite),
+    drawEquivalentWinsForWhite(drawEquivForWhite),
     posLen(pLen)
 {
   finalOwnership = new int16_t[posLen*posLen];
@@ -341,7 +341,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       (turnNumber >= data.policyTargetsByTurn.size() - 2) ? NULL : data.policyTargetsByTurn[turnNumber+2];
 
     writeBuffers->addRow(
-      board,hist,nextPlayer,data.drawUtilityForWhite,
+      board,hist,nextPlayer,data.drawEquivalentWinsForWhite,
       turnNumber,
       policyTarget0,
       policyTarget1,

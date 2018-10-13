@@ -122,7 +122,7 @@ int MainCmds::sandbox() {
   }
   printf("%4.1f%%", buf.result->policyProbs[NNPos::MAX_NN_POLICY_SIZE-1] * 100.0);
   cout << endl;
-  cout << buf.result->whiteValue << endl;
+  cout << buf.result->whiteWinProb << endl;
 
   delete logStream;
 

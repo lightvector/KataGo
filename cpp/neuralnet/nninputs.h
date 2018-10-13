@@ -72,21 +72,28 @@ namespace NNInputs {
   //Ongoing sandbox for full rules support for self play, not stable yet
   Hash128 getHashV3(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawUtilityForWhite
+    double drawEquivalentWinsForWhite
   );
   void fillRowV3(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawUtilityForWhite, int posLen, bool useNHWC, bool* rowBin, float* rowFloat
+    double drawEquivalentWinsForWhite, int posLen, bool useNHWC, bool* rowBin, float* rowFloat
   );
 
 
 }
 
 struct NNOutput {
-  Hash128 nnHash; //NNInputs - getHashV0 or getHashV1
+  Hash128 nnHash; //NNInputs - getHashV0 or getHashV1, etc.
 
-  //From the perspective of the player to move at the time of the eval
-  float whiteValue;
+  //Initially from the perspective of the player to move at the time of the eval, fixed up later in nnEval.cpp
+  //to be the value from white's perspective.
+  //These three are categorial probabilities for each outcome.
+  float whiteWinProb;
+  float whiteLossProb;
+  float whiteNoResultProb;
+
+  //The expected sigmoid-transformed score value.
+  float whiteScoreValue;
 
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko
@@ -95,11 +102,13 @@ struct NNOutput {
   NNOutput(); //Does NOT initialize values
   NNOutput(const NNOutput& other);
 
+  NNOutput& operator=(const NNOutput&) = delete;
+
   //Utility --------------------------------------------------------------------
-  //The utility of having a particular winner
-  static double whiteValueOfWinner(Player winner, double drawUtilityForWhite);
+  //The number of wins a game result should count as
+  static double whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite);
   //The utility of achieving a certain score difference
-  static double whiteValueOfScore(double finalWhiteMinusBlackScore, double drawUtilityForWhite, const Board& b, const BoardHistory& hist);
+  static double whiteScoreValueOfScore(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist);
 };
 
 #endif

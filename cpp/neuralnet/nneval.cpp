@@ -248,7 +248,14 @@ void NNEvaluator::serve(
         for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
           policyProbs[i] = 0;
 
-        resultBuf->result->whiteValue = rand.nextGaussian() * 0.1;
+        double whiteWinProb = 0.5 + rand.nextGaussian() * 0.05;
+        double whiteScoreValue = 0.0 + rand.nextGaussian() * 0.10;
+        if(whiteWinProb > 1.0) whiteWinProb = 1.0;
+        if(whiteWinProb < 0.0) whiteWinProb = 0.0;
+        resultBuf->result->whiteWinProb = whiteWinProb;
+        resultBuf->result->whiteLossProb = 1.0 - whiteWinProb;
+        resultBuf->result->whiteNoResultProb = 0.0;
+        resultBuf->result->whiteScoreValue = whiteScoreValue;
         resultBuf->hasResult = true;
         resultBuf->clientWaitingForResult.notify_all();
         resultLock.unlock();
@@ -395,11 +402,29 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
   for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
     policy[i] = -1.0f;
 
-  //Fix up the value as well
-  if(nextPlayer == P_WHITE)
-    buf.result->whiteValue = tanh(buf.result->whiteValue);
-  else
-    buf.result->whiteValue = -tanh(buf.result->whiteValue);
+  //Fix up the value as well. Note that the neural net gives us back the value from the perspective
+  //of the player so we need to negate that to make it the white value.
+  //For model version 2 and less, we only have single value output that returns tanh, stuffed
+  //ad-hocly into the whiteWinProb field.
+
+  if(modelVersion <= 2) {
+    double winProb = 0.5 * tanh(buf.result->whiteWinProb) + 0.5;
+    if(nextPlayer == P_WHITE) {
+      buf.result->whiteWinProb = winProb;
+      buf.result->whiteLossProb = 1.0 - winProb;
+      buf.result->whiteNoResultProb = 0.0;
+      buf.result->whiteScoreValue = 0.0;
+    }
+    else {
+      buf.result->whiteWinProb = 1.0 - winProb;
+      buf.result->whiteLossProb = winProb;
+      buf.result->whiteNoResultProb = 0.0;
+      buf.result->whiteScoreValue = 0.0;
+    }
+  }
+  else {
+    throw StringError("NNEval value postprocessing not implemented for model version");
+  }
 
   //And record the nnHash in the result and put it into the table
   buf.result->nnHash = nnHash;
