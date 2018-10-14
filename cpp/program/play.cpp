@@ -2,11 +2,11 @@
 #include "../search/asyncbot.h"
 #include "../program/play.h"
 
-static double nextGaussianTruncated(Rand& rand) {
+static double nextGaussianTruncated(Rand& rand, double bound) {
   double d = rand.nextGaussian();
   //Truncated refers to the probability distribution, not the sample
   //So on falling outside the range, we redraw, rather than capping.
-  while(d < -2.0 || d > 2.0)
+  while(d < -bound || d > bound)
     d = rand.nextGaussian();
   return d;
 }
@@ -28,9 +28,9 @@ static pair<int,float> chooseExtraBlackAndKomi(
   float komi = base;
 
   if(stdev > 0.0f)
-    komi += stdev * (float)nextGaussianTruncated(rand);
+    komi += stdev * (float)nextGaussianTruncated(rand,2.0);
   if(bigStdev > 0.0f && rand.nextDouble() < bigStdevProb)
-    komi += bigStdev * (float)nextGaussianTruncated(rand);
+    komi += bigStdev * (float)nextGaussianTruncated(rand,2.0);
 
   //Adjust for bSize, so that we don't give the same massive komis on smaller boards
   komi = base + (komi - base) * (float)bSize / 19.0f;
@@ -70,10 +70,24 @@ static pair<int,float> chooseExtraBlackAndKomi(
 
 //------------------------------------------------------------------------------------------------
 
-
 GameInitializer::GameInitializer(ConfigParser& cfg)
-  :createGameMutex(),rand()
+  :createGameMutex(),rand(),hasParams(false),baseParams()
 {
+  initShared(cfg);
+  noResultStdev = 0.0;
+  drawStdev = 0.0;
+}
+
+GameInitializer::GameInitializer(ConfigParser& cfg, const SearchParams& params)
+  :createGameMutex(),rand(),hasParams(true),baseParams(params)
+{
+  initShared(cfg);
+  noResultStdev = cfg.getDouble("noResultStdev",0.0,1.0);
+  drawStdev = cfg.getDouble("drawStdev",0.0,1.0);
+}
+
+void GameInitializer::initShared(ConfigParser& cfg) {
+
   allowedKoRuleStrs = cfg.getStrings("koRules", Rules::koRuleStrings());
   allowedScoringRuleStrs = cfg.getStrings("scoringRules", Rules::scoringRuleStrings());
   allowedMultiStoneSuicideLegals = cfg.getBools("multiStoneSuicideLegals");
@@ -94,12 +108,12 @@ GameInitializer::GameInitializer(ConfigParser& cfg)
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
   komiMean = cfg.getFloat("komiMean",-60.0f,60.0f);
-  komiStdev = cfg.getFloat("komiStdev",-60.0f,60.0f);
+  komiStdev = cfg.getFloat("komiStdev",0.0f,60.0f);
   komiAllowIntegerProb = cfg.getDouble("komiAllowIntegerProb",0.0,1.0);
   handicapProb = cfg.getDouble("handicapProb",0.0,1.0);
   handicapStoneValue = cfg.getFloat("handicapStoneValue",0.0f,30.0f);
   komiBigStdevProb = cfg.getDouble("komiBigStdevProb",0.0,1.0);
-  komiBigStdev = cfg.getFloat("komiBigStdev",-60.0f,60.0f);
+  komiBigStdev = cfg.getFloat("komiBigStdev",0.0f,60.0f);
 
   if(allowedBSizes.size() <= 0)
     throw IOError("bSizes must have at least one value in " + cfg.getFileName());
@@ -113,8 +127,31 @@ GameInitializer::~GameInitializer()
 
 void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
-  unique_lock<std::mutex> lock(createGameMutex);
+  lock_guard<std::mutex> lock(createGameMutex);
+  createGameSharedUnsynchronized(board,pla,hist,numExtraBlack);
+  assert(!hasParams);
+}
 
+void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params) {
+  //Multiple threads will be calling this, and we have some mutable state such as rand.
+  lock_guard<std::mutex> lock(createGameMutex);
+  createGameSharedUnsynchronized(board,pla,hist,numExtraBlack);
+  assert(hasParams);
+
+  params = baseParams;
+  if(noResultStdev > 1e-30) {
+    params.noResultUtilityForWhite = baseParams.noResultUtilityForWhite + noResultStdev * nextGaussianTruncated(rand, 2.0);
+    while(params.noResultUtilityForWhite < -1.0 || params.noResultUtilityForWhite > 1.0)
+      params.noResultUtilityForWhite = baseParams.noResultUtilityForWhite + noResultStdev * nextGaussianTruncated(rand, 2.0);
+  }
+  if(drawStdev > 1e-30) {
+    params.drawEquivalentWinsForWhite = baseParams.drawEquivalentWinsForWhite + drawStdev * nextGaussianTruncated(rand, 2.0);
+    while(params.drawEquivalentWinsForWhite < 0.0 || params.drawEquivalentWinsForWhite > 1.0)
+      params.drawEquivalentWinsForWhite = baseParams.drawEquivalentWinsForWhite + drawStdev * nextGaussianTruncated(rand, 2.0);
+  }
+}
+
+void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack) {
   int bSize = allowedBSizes[rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size())];
   board = Board(bSize,bSize);
 
@@ -132,7 +169,6 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
   pla = P_BLACK;
   hist.clear(board,pla,rules);
   numExtraBlack = extraBlackAndKomi.first;
-
 }
 
 //----------------------------------------------------------------------------------------------------------

@@ -34,7 +34,6 @@ static void signalHandler(int signal)
 //Class for running a game and enqueueing the result as training data.
 //Wraps together most of the neural-net-independent parameters to spawn and run a full game.
 class GameRunner {
-  SearchParams params;
   bool logSearchInfo;
   bool logMoves;
   int maxMovesPerGame;
@@ -44,14 +43,13 @@ class GameRunner {
 
 public:
   GameRunner(ConfigParser& cfg, const string& sRandSeedBase)
-    :params(),logSearchInfo(),logMoves(),maxMovesPerGame(),
+    :logSearchInfo(),logMoves(),maxMovesPerGame(),
      searchRandSeedBase(sRandSeedBase),matchPairer(NULL),gameInit(NULL)
   {
-    //TODO we should dynamically randomize the no result and draw utilities, and provide them as inputs to the net?
     vector<SearchParams> paramss = Setup::loadParams(cfg);
     if(paramss.size() != 1)
       throw StringError("Can only specify one set of search parameters for self-play");
-    params = paramss[0];
+    SearchParams baseParams = paramss[0];
 
     logSearchInfo = cfg.getBool("logSearchInfo");
     logMoves = cfg.getBool("logMoves");
@@ -62,7 +60,7 @@ public:
     matchPairer = new MatchPairer(cfg,forSelfPlay);
 
     //Initialize object for randomizing game settings
-    gameInit = new GameInitializer(cfg);
+    gameInit = new GameInitializer(cfg,baseParams);
   }
 
   ~GameRunner() {
@@ -80,7 +78,8 @@ public:
       return false;
 
     Board board; Player pla; BoardHistory hist; int numExtraBlack;
-    gameInit->createGame(board,pla,hist,numExtraBlack);
+    SearchParams params;
+    gameInit->createGame(board,pla,hist,numExtraBlack,params);
 
     string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
     Rand gameRand(searchRandSeed + ":" + "forGameRand");

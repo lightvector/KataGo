@@ -13,17 +13,27 @@
 class GameInitializer {
  public:
   GameInitializer(ConfigParser& cfg);
+  GameInitializer(ConfigParser& cfg, const SearchParams& baseParams);
   ~GameInitializer();
 
   GameInitializer(const GameInitializer&) = delete;
   GameInitializer& operator=(const GameInitializer&) = delete;
 
+  //Initialize everything for a new game with random rules
+  //Also, mutates params to have new rules, but does NOT set all its settings, user
   void createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack);
+  void createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params);
 
 
  private:
+  void initShared(ConfigParser& cfg);
+  void createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack);
+
+
   std::mutex createGameMutex;
   Rand rand;
+
+  bool hasParams;
 
   vector<string> allowedKoRuleStrs;
   vector<string> allowedScoringRuleStrs;
@@ -41,7 +51,12 @@ class GameInitializer {
   double handicapProb;
   float handicapStoneValue;
   double komiBigStdevProb;
-  double komiBigStdev;
+  float komiBigStdev;
+
+  double noResultStdev;
+  double drawStdev;
+
+  SearchParams baseParams;
 };
 
 
