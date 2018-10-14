@@ -172,7 +172,7 @@ void AsyncBot::internalSearchThreadLoop() {
 
     lock.unlock();
 
-    search->runWholeSearch(*logger,shouldStopNow);
+    search->runWholeSearch(*logger,shouldStopNow,NULL);
     Loc moveLoc = search->getChosenMoveLoc();
 
     lock.lock();

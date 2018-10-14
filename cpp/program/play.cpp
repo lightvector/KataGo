@@ -278,7 +278,7 @@ static void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board
   bot->setRootPassLegal(false);
 
   for(int i = 0; i<numExtraBlack; i++) {
-    Loc loc = bot->runWholeSearchAndGetMove(pla,logger);
+    Loc loc = bot->runWholeSearchAndGetMove(pla,logger,NULL);
     if(loc == Board::NULL_LOC || !bot->isLegal(loc,pla))
       failIllegalMove(bot,logger,board,loc);
     assert(hist.isLegal(board,loc,pla));
@@ -306,11 +306,15 @@ void Play::runGame(
   if(botB != botW)
     botW->setPosition(pla,board,hist);
 
+  vector<double>* recordUtilities = NULL;
+
   if(gameData != NULL) {
     gameData->startBoard = board;
     gameData->startHist = hist;
     gameData->startPla = pla;
     assert(gameData->moves.size() == 0);
+
+    recordUtilities = new vector<double>(256);
   }
 
   vector<Loc> locsBuf;
@@ -325,7 +329,7 @@ void Play::runGame(
       break;
 
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
-    Loc loc = toMoveBot->runWholeSearchAndGetMove(pla,logger);
+    Loc loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegal(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
@@ -374,12 +378,13 @@ void Play::runGame(
 
       (void)gameRand; //TODO use this for sampling some conditional positions and forking?
 
-      //TODO not implemented yet!
-      valueTargets.mctsUtility1 = 0.0f;
-      valueTargets.mctsUtility4 = 0.0f;
-      valueTargets.mctsUtility16 = 0.0f;
-      valueTargets.mctsUtility64 = 0.0f;
-      valueTargets.mctsUtility256 = 0.0f;
+      assert(recordUtilities != NULL);
+      assert(recordUtilities->size() > 255);
+      valueTargets.mctsUtility1 = (float)((*recordUtilities)[0]);
+      valueTargets.mctsUtility4 = (float)((*recordUtilities)[3]);
+      valueTargets.mctsUtility16 = (float)((*recordUtilities)[15]);
+      valueTargets.mctsUtility64 = (float)((*recordUtilities)[63]);
+      valueTargets.mctsUtility256 = (float)((*recordUtilities)[255]);
 
       gameData->whiteValueTargetsByTurn.push_back(valueTargets);
     }
@@ -454,6 +459,9 @@ void Play::runGame(
       }
     }
   }
+
+  if(recordUtilities != NULL)
+    delete recordUtilities;
 
 }
 

@@ -286,7 +286,7 @@ static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
 
 bool Search::getPlaySelectionValues(
   vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
-) {
+) const {
   locs.clear();
   playSelectionValues.clear();
 
@@ -362,7 +362,8 @@ bool Search::getPlaySelectionValues(
 
 bool Search::getRootValues(
   double& winValue, double& lossValue, double& noResultValue, double& scoreValue
-) {
+) const {
+  assert(rootNode != NULL);
   const SearchNode& node = *rootNode;
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
@@ -386,6 +387,25 @@ bool Search::getRootValues(
   noResultValue = noResultValueSum / valueSumWeight;
   scoreValue = scoreValueSum / valueSumWeight;
   return true;
+}
+
+double Search::getRootUtility() const {
+  assert(rootNode != NULL);
+  const SearchNode& node = *rootNode;
+  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
+  unique_lock<std::mutex> lock(mutex);
+  shared_ptr<NNOutput> nnOutput = node.nnOutput;
+  lock.unlock();
+  if(nnOutput == nullptr)
+    return false;
+
+  while(node.statsLock.test_and_set(std::memory_order_acquire));
+  double utilitySum = node.stats.getCombinedUtilitySum(searchParams);
+  double valueSumWeight = node.stats.valueSumWeight;
+  node.statsLock.clear(std::memory_order_release);
+
+  assert(valueSumWeight > 0.0);
+  return utilitySum / valueSumWeight;
 }
 
 Loc Search::getChosenMoveLoc() {
@@ -439,19 +459,19 @@ Loc Search::getChosenMoveLoc() {
   }
 }
 
-Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger) {
-  runWholeSearch(movePla,logger);
+Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities) {
+  runWholeSearch(movePla,logger,recordUtilities);
   return getChosenMoveLoc();
 }
 
-void Search::runWholeSearch(Player movePla, Logger& logger) {
+void Search::runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities) {
   if(movePla != rootPla)
     setPlayerAndClearHistory(movePla);
   std::atomic<bool> shouldStopNow(false);
-  runWholeSearch(logger,shouldStopNow);
+  runWholeSearch(logger,shouldStopNow,recordUtilities);
 }
 
-void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow) {
+void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities) {
 
   ClockTimer timer;
   atomic<uint64_t> numPlayoutsShared(0);
@@ -464,7 +484,7 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow) {
   beginSearch();
   uint64_t numNonPlayoutVisits = numRootVisits();
 
-  auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow](int threadIdx) {
+  auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
     uint64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
     try {
@@ -483,6 +503,14 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow) {
 
         numPlayouts = numPlayoutsShared.fetch_add((uint64_t)1, std::memory_order_relaxed);
         numPlayouts += 1;
+
+        if(searchParams.numThreads == 1 && recordUtilities != NULL) {
+          if(numPlayouts <= recordUtilities->size()) {
+            assert(numPlayouts >= 1);
+            (*recordUtilities)[numPlayouts-1] = getRootUtility();
+          }
+        }
+
       }
     }
     catch(const exception& e) {
