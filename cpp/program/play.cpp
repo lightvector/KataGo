@@ -236,7 +236,7 @@ pair<int,int> MatchPairer::getMatchupPair() {
 //----------------------------------------------------------------------------------------------------------
 
 
-static void failIllegalMove(AsyncBot* bot, Logger& logger, Board board, Loc loc) {
+static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
   ostringstream sout;
   sout << "Bot returned null location or illegal move!?!" << "\n";
   sout << board << "\n";
@@ -248,24 +248,23 @@ static void failIllegalMove(AsyncBot* bot, Logger& logger, Board board, Loc loc)
   assert(false);
 }
 
-static void logSearch(AsyncBot* bot, Logger& logger, Loc loc) {
-  Search* search = bot->getSearch();
+static void logSearch(Search* bot, Logger& logger, Loc loc) {
   ostringstream sout;
   Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
   sout << "\n";
-  sout << "Root visits: " << search->numRootVisits() << "\n";
+  sout << "Root visits: " << bot->numRootVisits() << "\n";
   sout << "PV: ";
-  search->printPV(sout, search->rootNode, 25);
+  bot->printPV(sout, bot->rootNode, 25);
   sout << "\n";
   sout << "Tree:\n";
-  search->printTree(sout, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
+  bot->printTree(sout, bot->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
   logger.write(sout.str());
 }
 
 
 //Place black handicap stones, free placement
-static void playExtraBlack(AsyncBot* bot, Logger& logger, int numExtraBlack, Board& board, BoardHistory& hist) {
-  SearchParams oldParams = bot->getSearch()->searchParams;
+static void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board& board, BoardHistory& hist) {
+  SearchParams oldParams = bot->searchParams;
   SearchParams tempParams = oldParams;
   tempParams.rootNoiseEnabled = false;
   tempParams.chosenMoveSubtract = 0.0;
@@ -279,7 +278,7 @@ static void playExtraBlack(AsyncBot* bot, Logger& logger, int numExtraBlack, Boa
   bot->setRootPassLegal(false);
 
   for(int i = 0; i<numExtraBlack; i++) {
-    Loc loc = bot->genMoveSynchronous(pla);
+    Loc loc = bot->runWholeSearchAndGetMove(pla,logger);
     if(loc == Board::NULL_LOC || !bot->isLegal(loc,pla))
       failIllegalMove(bot,logger,board,loc);
     assert(hist.isLegal(board,loc,pla));
@@ -295,7 +294,7 @@ static void playExtraBlack(AsyncBot* bot, Logger& logger, int numExtraBlack, Boa
 //Run a game between two bots. It is OK if both bots are the same bot.
 //Mutates the given board and history
 void Play::runGame(
-  Board& board, Player pla, BoardHistory& hist, int numExtraBlack, AsyncBot* botB, AsyncBot* botW,
+  Board& board, Player pla, BoardHistory& hist, int numExtraBlack, Search* botB, Search* botW,
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,
@@ -325,8 +324,8 @@ void Play::runGame(
     if(stopSignalReceived.load())
       break;
 
-    AsyncBot* toMoveBot = pla == P_BLACK ? botB : botW;
-    Loc loc = toMoveBot->genMoveSynchronous(pla);
+    Search* toMoveBot = pla == P_BLACK ? botB : botW;
+    Loc loc = toMoveBot->runWholeSearchAndGetMove(pla,logger);
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegal(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
@@ -343,7 +342,7 @@ void Play::runGame(
       playSelectionValuesBuf.clear();
       double scaleMaxToAtLeast = 10.0;
 
-      bool success = toMoveBot->getSearch()->getPlaySelectionValues(
+      bool success = toMoveBot->getPlaySelectionValues(
         locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast
       );
       assert(success);
@@ -352,7 +351,7 @@ void Play::runGame(
       double lossValue;
       double noResultValue;
       double scoreValue;
-      success = toMoveBot->getSearch()->getRootValues(
+      success = toMoveBot->getRootValues(
         winValue,lossValue,noResultValue,scoreValue
       );
       assert(success);

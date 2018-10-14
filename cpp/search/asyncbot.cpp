@@ -18,7 +18,7 @@ static void searchThreadLoop(AsyncBot* asyncBot, Logger* logger) {
 }
 
 AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const string& randSeed)
-  :search(NULL),logger(l),searchParams(params),
+  :search(NULL),logger(l),
    controlMutex(),threadWaitingToSearch(),userWaitingForStop(),searchThread(),
    isRunning(false),isPondering(false),isKilled(false),shouldStopNow(false),
    queuedSearchId(0),queuedOnMove()
@@ -51,6 +51,9 @@ Player AsyncBot::getRootPla() const {
 Search* AsyncBot::getSearch() {
   return search;
 }
+SearchParams AsyncBot::getParams() const {
+  return search->searchParams;
+}
 
 void AsyncBot::setPosition(Player pla, const Board& board, const BoardHistory& history) {
   stopAndWait();
@@ -70,7 +73,6 @@ void AsyncBot::setRootPassLegal(bool b) {
 }
 void AsyncBot::setParams(SearchParams params) {
   stopAndWait();
-  searchParams = params;
   search->setParams(params);
 }
 void AsyncBot::clearSearch() {
@@ -170,63 +172,7 @@ void AsyncBot::internalSearchThreadLoop() {
 
     lock.unlock();
 
-
-    ClockTimer timer;
-    atomic<uint64_t> numPlayoutsShared(0);
-
-    if(!std::atomic_is_lock_free(&numPlayoutsShared))
-      logger->write("Warning: uint64_t atomic numPlayoutsShared is not lock free");
-    if(!std::atomic_is_lock_free(&shouldStopNow))
-      logger->write("Warning: bool atomic shouldStopNow is not lock free");
-
-    search->beginSearch();
-    uint64_t numNonPlayoutVisits = search->numRootVisits();
-
-    auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits](int threadIdx) {
-      SearchThread* stbuf = new SearchThread(threadIdx,*search,logger);
-      uint64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
-      try {
-        while(true) {
-          bool shouldStop =
-            (numPlayouts >= 1 && searchParams.maxTime < 1.0e12 && timer.getSeconds() >= searchParams.maxTime) ||
-            (numPlayouts >= searchParams.maxPlayouts) ||
-            (numPlayouts + numNonPlayoutVisits >= searchParams.maxVisits);
-
-          if(shouldStop || shouldStopNow.load(std::memory_order_relaxed)) {
-            shouldStopNow.store(true,std::memory_order_relaxed);
-            break;
-          }
-
-          search->runSinglePlayout(*stbuf);
-
-          numPlayouts = numPlayoutsShared.fetch_add((uint64_t)1, std::memory_order_relaxed);
-          numPlayouts += 1;
-        }
-      }
-      catch(const exception& e) {
-        logger->write(string("ERROR: Search thread failed: ") + e.what());
-      }
-      catch(const string& e) {
-        logger->write("ERROR: Search thread failed: " + e);
-      }
-      catch(...) {
-        logger->write("ERROR: Search thread failed with unexpected throw");
-      }
-      delete stbuf;
-    };
-
-    if(searchParams.numThreads <= 1)
-      searchLoop(0);
-    else {
-      std::thread* threads = new std::thread[searchParams.numThreads-1];
-      for(int i = 0; i<searchParams.numThreads-1; i++)
-        threads[i] = std::thread(searchLoop,i+1);
-      searchLoop(0);
-      for(int i = 0; i<searchParams.numThreads-1; i++)
-        threads[i].join();
-      delete[] threads;
-    }
-
+    search->runWholeSearch(*logger,shouldStopNow);
     Loc moveLoc = search->getChosenMoveLoc();
 
     lock.lock();

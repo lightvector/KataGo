@@ -136,6 +136,10 @@ struct Search {
 
   //Outside-of-search functions-------------------------------------------
 
+  const Board& getRootBoard() const;
+  const BoardHistory& getRootHist() const;
+  Player getRootPla() const;
+
   //Clear all results of search and sets a new position or something else
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
 
@@ -167,6 +171,13 @@ struct Search {
   bool getRootValues(
     double& winValue, double& lossValue, double& noResultValue, double& scoreValue
   );
+
+  //Run an entire search from start to finish
+  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger);
+  void runWholeSearch(Player movePla, Logger& logger);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow);
+
+  //Manual playout-by-playout interface------------------------------------------------
 
   //Call once at the start of each search
   void beginSearch();

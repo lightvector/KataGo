@@ -84,7 +84,7 @@ class MatchPairer {
 //Functions to run a single game
 namespace Play {
   void runGame(
-    Board& board, Player pla, BoardHistory& hist, int numExtraBlack, AsyncBot* botB, AsyncBot* botW,
+    Board& board, Player pla, BoardHistory& hist, int numExtraBlack, Search* botB, Search* botW,
     bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,

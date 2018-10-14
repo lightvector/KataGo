@@ -81,7 +81,7 @@ public:
 
     Board board; Player pla; BoardHistory hist; int numExtraBlack;
     gameInit->createGame(board,pla,hist,numExtraBlack);
-    
+
     string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
     Rand gameRand(searchRandSeed + ":" + "forGameRand");
 
@@ -92,7 +92,7 @@ public:
     //called on positions that occur after the game would have been autoterminated.
     bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
 
-    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+    Search* bot = new Search(params, nnEval, searchRandSeed);
     FinishedGameData* finishedGameData = new FinishedGameData(dataPosLen, params.drawEquivalentWinsForWhite);
     Play::runGame(
       board,pla,hist,numExtraBlack,bot,bot,
@@ -114,7 +114,7 @@ public:
 //looping and actually performing the data output
 struct NetAndStuff {
   string nnName;
-  NNEvaluator* nnEval;  
+  NNEvaluator* nnEval;
 
   ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
   int numGameThreads;
@@ -137,7 +137,7 @@ public:
     if(sgfOut != NULL)
       delete sgfOut;
   }
-  
+
   void runWriteDataLoop() {
     while(true) {
       FinishedGameData* data = finishedGameQueue.waitPop();
@@ -152,7 +152,7 @@ public:
       }
       delete data;
     }
-    
+
     dataWriter->close();
     if(sgfOut != NULL)
       sgfOut->close();
@@ -164,13 +164,13 @@ public:
     assert(!isDraining);
     numGameThreads++;
   }
-  
+
   //NOT threadsafe - needs to be externally synchronized
   //Game threads finishing a game using this net call this
   void unregisterGameThread() {
     numGameThreads--;
     if(isDraining && numGameThreads <= 0)
-      finishedGameQueue.forcePush(NULL); //forcePush so as not to block   
+      finishedGameQueue.forcePush(NULL); //forcePush so as not to block
   }
 
   //NOT threadsafe - needs to be externally synchronized
@@ -179,10 +179,10 @@ public:
     if(!isDraining) {
       isDraining = true;
       if(numGameThreads <= 0)
-        finishedGameQueue.forcePush(NULL); //forcePush so as not to block   
+        finishedGameQueue.forcePush(NULL); //forcePush so as not to block
     }
   }
- 
+
 };
 
 
@@ -315,7 +315,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     assert(found);
     if(netAndStuffs.size() == 0)
       netAndStuffsIsEmpty.notify_all();
-    
+
     lock.unlock();
     logger.write("Data write loop terminating");
   };
@@ -362,7 +362,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
       lock.lock();
       netAndStuff->unregisterGameThread();
     }
-    
+
     lock.unlock();
     logger.write("Game loop terminating");
   };
@@ -398,7 +398,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     logger.write("Polling net loading loop terminating");
   };
 
-  
+
   vector<std::thread> threads;
   for(int i = 0; i<numGameThreads; i++) {
     threads.push_back(std::thread(gameLoop));

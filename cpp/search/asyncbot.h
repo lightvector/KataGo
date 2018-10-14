@@ -17,6 +17,7 @@ class AsyncBot {
   const Board& getRootBoard() const;
   const BoardHistory& getRootHist() const;
   Player getRootPla() const;
+  SearchParams getParams() const;
 
   Search* getSearch();
 
@@ -56,7 +57,6 @@ class AsyncBot {
  private:
   Search* search;
   Logger* logger;
-  SearchParams searchParams;
 
   mutex controlMutex;
   condition_variable threadWaitingToSearch;
