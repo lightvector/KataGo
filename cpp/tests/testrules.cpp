@@ -23,10 +23,19 @@ static void checkKoHashConsistency(BoardHistory& hist, Board& board, Player next
 }
 
 static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Player pla, int line) {
+  bool phaseWouldEnd = hist.passWouldEndPhase(board,pla);
+  int oldPhase = hist.encorePhase;
+  
   if(!hist.isLegal(board, loc, pla))
     throw StringError("Illegal move on line " + Global::intToString(line));
   hist.makeBoardMoveAssumeLegal(board, loc, pla, NULL);
   checkKoHashConsistency(hist,board,getOpp(pla));
+
+  if(loc == Board::PASS_LOC) {
+    int newPhase = hist.encorePhase;
+    if(phaseWouldEnd != (newPhase != oldPhase || hist.isGameFinished))
+      throw StringError("hist.passWouldEndPhase returned different answer than what actually happened after a pass");
+  }
 }
 
 static double finalScoreIfGameEndedNow(const BoardHistory& baseHist, const Board& baseBoard) {

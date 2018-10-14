@@ -715,8 +715,8 @@ Hash128 NNInputs::getHashV3(
     }
   }
 
-  //TODO incorporate pass ends phase into hash, if we do end up using pass ends phase.
   float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+
   //Discretize the komi for the purpose of matching hash, so that extremely close effective komi we just reuse nn cache hits
   int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
   uint64_t komiHash = Hash::murmurMix((uint64_t)komiDiscretized);
@@ -728,6 +728,11 @@ Hash128 NNInputs::getHashV3(
   hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
   if(hist.rules.multiStoneSuicideLegal)
     hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
+
+  //Fold in whether a pass ends this phase
+  bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
+  if(passEndsPhase)
+    hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
 
   return hash;
 }
@@ -817,37 +822,46 @@ void NNInputs::fillRowV3(
     }
   }
 
-  //TODO Pass can be encoded as -1/128 on every spot.
   //Features 9,10,11,12,13
   const vector<Move>& moveHistory = hist.moveHistory;
   size_t moveHistoryLen = moveHistory.size();
   if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
     Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
-    if(prev1Loc != Board::PASS_LOC && prev1Loc != Board::NULL_LOC) {
+    if(prev1Loc == Board::PASS_LOC)
+      rowFloat[0] = 1.0;
+    else if(prev1Loc != Board::NULL_LOC) {
       int pos = NNPos::locToPos(prev1Loc,xSize,posLen);
       setRowBinV3(rowBin,pos,9, true, posStride, featureStride);
     }
     if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
       Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
-      if(prev2Loc != Board::PASS_LOC && prev2Loc != Board::NULL_LOC) {
+      if(prev2Loc == Board::PASS_LOC)
+        rowFloat[1] = 1.0;
+      else if(prev2Loc != Board::NULL_LOC) {
         int pos = NNPos::locToPos(prev2Loc,xSize,posLen);
         setRowBinV3(rowBin,pos,10, true, posStride, featureStride);
       }
       if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
         Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
-        if(prev3Loc != Board::PASS_LOC && prev3Loc != Board::NULL_LOC) {
+        if(prev3Loc == Board::PASS_LOC)
+          rowFloat[2] = 1.0;
+        else if(prev3Loc != Board::NULL_LOC) {
           int pos = NNPos::locToPos(prev3Loc,xSize,posLen);
           setRowBinV3(rowBin,pos,11, true, posStride, featureStride);
         }
         if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
           Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
-          if(prev4Loc != Board::PASS_LOC && prev4Loc != Board::NULL_LOC) {
+          if(prev4Loc == Board::PASS_LOC)
+            rowFloat[3] = 1.0;
+          else if(prev4Loc != Board::NULL_LOC) {
             int pos = NNPos::locToPos(prev4Loc,xSize,posLen);
             setRowBinV3(rowBin,pos,12, true, posStride, featureStride);
           }
           if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
             Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
-            if(prev5Loc != Board::PASS_LOC && prev5Loc != Board::NULL_LOC) {
+            if(prev5Loc == Board::PASS_LOC)
+              rowFloat[4] = 1.0;
+            else if(prev5Loc != Board::NULL_LOC) {
               int pos = NNPos::locToPos(prev5Loc,xSize,posLen);
               setRowBinV3(rowBin,pos,13, true, posStride, featureStride);
             }
@@ -921,46 +935,58 @@ void NNInputs::fillRowV3(
     }
   }
 
+  //Floating point features.
+  //The first 5 of them were set already above to flag which of the past 5 moves were passes.
+  //The next 3 are unused, so we start at 8.
 
-  //Floating point features
+  //Komi and any score adjustments
   float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
-  rowFloat[0] = selfKomi/15.0f;
+  rowFloat[8] = selfKomi/15.0f;
 
+  //Ko rule
   if(hist.rules.koRule == Rules::KO_SIMPLE) {}
   else if(hist.rules.koRule == Rules::KO_POSITIONAL || hist.rules.koRule == Rules::KO_SPIGHT) {
-    rowFloat[1] = 1.0f;
-    rowFloat[2] = 0.5f;
+    rowFloat[9] = 1.0f;
+    rowFloat[10] = 0.5f;
   }
   else if(hist.rules.koRule == Rules::KO_SITUATIONAL) {
-    rowFloat[1] = 1.0f;
-    rowFloat[2] = -0.5f;
+    rowFloat[9] = 1.0f;
+    rowFloat[10] = -0.5f;
   }
   else
     assert(false);
 
+  //Suicide
   if(hist.rules.multiStoneSuicideLegal)
-    rowFloat[3] = 1.0f;
+    rowFloat[11] = 1.0f;
 
+  //Scoring
   if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
   else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY)
-    rowFloat[4] = 1.0f;
+    rowFloat[12] = 1.0f;
   else
     assert(false);
 
+  //Encore phase
   if(hist.encorePhase > 0)
-    rowFloat[5] = 1.0f;
-
+    rowFloat[13] = 1.0f;
   if(hist.encorePhase > 1)
-    rowFloat[6] = 1.0f;
+    rowFloat[14] = 1.0f;
 
-  rowFloat[7] = sqrt((float)(xSize*ySize));
+  //Does a pass end the current phase given the ruleset and history?
+  bool passWouldEndPhase = hist.passWouldEndPhase(board,nextPlayer);
+  rowFloat[15] = passWouldEndPhase ? 1.0f : 0.0f;
 
+  //Direct indication of the board size
+  rowFloat[16] = sqrt((float)(xSize*ySize));
+
+  //Provide parity information about the board size and komi
   bool komiIsInteger = ((int)hist.rules.komi == hist.rules.komi);
   if(!komiIsInteger) {
     bool boardAreaIsEven = (xSize*ySize) % 2 == 0;
     bool komiIsBelowEven = (((int)floor(hist.rules.komi + 1.0f) % 2) + 2) % 2 == 0;
     //TODO think about this and make sure this is right
-    rowFloat[8] = ((boardAreaIsEven == komiIsBelowEven) == (pla == P_WHITE)) ? -0.5f : 0.5f;
+    rowFloat[17] = ((boardAreaIsEven == komiIsBelowEven) == (pla == P_WHITE)) ? -0.5f : 0.5f;
   }
 
 }
