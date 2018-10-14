@@ -88,8 +88,7 @@ struct TrainingWriteBuffers {
     const vector<PolicyTargetMove>* policyTarget1, //can be null
     const vector<PolicyTargetMove>* policyTarget2, //can be null
     const vector<ValueTargets>& whiteValueTargetsByTurn,
-    const int16_t* finalOwnership,
-    const float* actionValueTarget //can be null
+    const int16_t* finalOwnership
   );
 
   void writeToZipFile(const string& fileName);
@@ -107,7 +106,6 @@ struct FinishedGameData {
   vector<Move> moves;
   vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
   vector<ValueTargets> whiteValueTargetsByTurn;
-  vector<float*> actionValueTargetByTurn;
   int16_t* finalOwnership;
   double drawEquivalentWinsForWhite;
   int posLen;

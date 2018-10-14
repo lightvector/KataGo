@@ -99,7 +99,7 @@ public:
       doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
       logger,logSearchInfo,logMoves,
       maxMovesPerGame,shouldStop,
-      finishedGameData
+      finishedGameData,&gameRand
     );
     delete bot;
 

@@ -88,7 +88,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,
-    FinishedGameData* gameData
+    FinishedGameData* gameData, Rand* gameRand
   );
 
 }

@@ -176,7 +176,7 @@ int MainCmds::match(int argc, const char* const* argv) {
       doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
       logger,logSearchInfo,logMoves,
       maxMovesPerGame,sigReceived,
-      NULL
+      NULL,NULL
     );
     delete botB;
     if(botIdxB != botIdxW)

@@ -299,7 +299,7 @@ void Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,
-  FinishedGameData* gameData
+  FinishedGameData* gameData, Rand* gameRand
 ) {
   if(numExtraBlack > 0)
     playExtraBlack(botB,logger,numExtraBlack,board,hist);
@@ -363,8 +363,6 @@ void Play::runGame(
         (*policyTargets).push_back(PolicyTargetMove(locsBuf[moveIdx],(int16_t)round(value)));
       }
       gameData->policyTargetsByTurn.push_back(policyTargets);
-      //TODO do something otherwise
-      gameData->actionValueTargetByTurn.push_back(NULL);
 
       ValueTargets valueTargets;
       valueTargets.win = winValue;
@@ -374,6 +372,8 @@ void Play::runGame(
 
       //Not defined, only matters for the final value targets for the game result
       valueTargets.score = 0.0f;
+
+      (void)gameRand; //TODO use this for sampling some conditional positions and forking?
 
       //TODO not implemented yet!
       valueTargets.mctsUtility1 = 0.0f;
@@ -390,6 +390,7 @@ void Play::runGame(
     if(clearBotAfterSearch)
       toMoveBot->clearSearch();
 
+    //Finally, make the move on the bots
     bool suc;
     suc = botB->makeMove(loc,pla);
     assert(suc);
@@ -398,6 +399,7 @@ void Play::runGame(
       assert(suc);
     }
 
+    //And make the move on our copy of the board
     assert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
     pla = getOpp(pla);
@@ -407,7 +409,7 @@ void Play::runGame(
 
   if(gameData != NULL) {
     gameData->endHist = hist;
-    
+
     ValueTargets finalValueTargets;
     Color area[Board::MAX_ARR_SIZE];
     if(hist.isGameFinished && hist.isNoResult) {
