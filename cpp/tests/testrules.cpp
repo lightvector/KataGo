@@ -1633,4 +1633,539 @@ isNoResult: 0
     out.clear();
   }
 
+  {
+    const char* name = "Stress test on 3x2 board";
+
+    Rand baseRand("Tiny board stress test");
+    auto stressTest = [&](Board board, BoardHistory hist, Player nextPla, bool prolongGame) {
+      Rand rand(baseRand.nextUInt64());
+      for(int i = 0; i<1000; i++) {
+        int numLegal = 0;
+        Loc legalMoves[5];
+        Loc move;
+
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            move = Location::getLoc(x,y,board.x_size);
+            if(hist.isLegal(board, move, nextPla)) legalMoves[numLegal++] = move;
+          }
+        }
+        move = Board::PASS_LOC;
+        if(hist.isLegal(board, move, nextPla)) legalMoves[numLegal++] = move;
+
+        out << numLegal;
+        out << " ";
+        for(int y = 0; y<board.y_size; y++)
+          for(int x = 0; x<board.x_size; x++)
+            out << colorToChar(board.colors[Location::getLoc(x,y,board.x_size)]);
+        out << " NP" << colorToChar(nextPla);
+        out << " PS" << hist.consecutiveEndingPasses;
+        out << " E" << hist.encorePhase;
+        out << " ";
+        for(int y = 0; y<board.y_size; y++)
+          for(int x = 0; x<board.x_size; x++)
+            out << (int)(hist.blackKoProhibited[Location::getLoc(x,y,board.x_size)]);
+        out << " ";
+        for(int y = 0; y<board.y_size; y++)
+          for(int x = 0; x<board.x_size; x++)
+            out << (int)(hist.whiteKoProhibited[Location::getLoc(x,y,board.x_size)]);
+        out << " ";
+        for(int y = 0; y<board.y_size; y++)
+          for(int x = 0; x<board.x_size; x++)
+            out << (int)(hist.secondEncoreStartColors[Location::getLoc(x,y,board.x_size)]);
+
+        out << endl;
+
+        if(hist.isGameFinished)
+          break;
+
+        assert(numLegal > 0);
+        move = legalMoves[rand.nextUInt(numLegal)];
+        if(prolongGame && move == Board::PASS_LOC)
+          move = legalMoves[rand.nextUInt(numLegal)];
+        makeMoveAssertLegal(hist, board, move, nextPla, __LINE__);
+        nextPla = getOpp(nextPla);
+      }
+      printGameResult(out,hist);
+    };
+
+    Board emptyBoard22 = Board::parseBoard(2,2,R"%%(
+..
+..
+)%%");
+
+    Rules rules;
+    string expected;
+
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules),P_BLACK,true);
+    rules.multiStoneSuicideLegal = true;
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules),P_BLACK,true);
+    expected = R"%%(
+5 .... NPX PS0 E0 0000 0000 0000
+4 .X.. NPO PS0 E0 0000 0000 0000
+3 .X.O NPX PS0 E0 0000 0000 0000
+1 .XX. NPO PS0 E0 0000 0000 0000
+3 .XX. NPX PS1 E0 0000 0000 0000
+2 XXX. NPO PS0 E0 0000 0000 0000
+4 ...O NPX PS0 E0 0000 0000 0000
+4 ...O NPO PS1 E0 0000 0000 0000
+1 O..O NPX PS0 E0 0000 0000 0000
+3 O..O NPO PS1 E0 0000 0000 0000
+2 O.OO NPX PS0 E0 0000 0000 0000
+1 O.OO NPO PS1 E0 0000 0000 0000
+2 O.OO NPX PS0 E1 0000 0000 0000
+1 O.OO NPO PS1 E1 0000 0000 0000
+2 O.OO NPX PS0 E2 0000 0000 2022
+1 O.OO NPO PS1 E2 0000 0000 2022
+2 O.OO NPX PS2 E2 0000 0000 2022
+Winner: White
+W-B Score: 2.5
+isNoResult: 0
+5 .... NPX PS0 E0 0000 0000 0000
+4 ..X. NPO PS0 E0 0000 0000 0000
+3 .OX. NPX PS0 E0 0000 0000 0000
+2 XOX. NPO PS0 E0 0000 0000 0000
+2 XOX. NPX PS1 E0 0000 0000 0000
+2 X.XX NPO PS0 E0 0000 0000 0000
+4 .O.. NPX PS0 E0 0000 0000 0000
+3 XO.. NPO PS0 E0 0000 0000 0000
+1 .OO. NPX PS0 E0 0000 0000 0000
+3 .OO. NPO PS1 E0 0000 0000 0000
+2 .OOO NPX PS0 E0 0000 0000 0000
+4 X... NPO PS0 E0 0000 0000 0000
+3 X..O NPX PS0 E0 0000 0000 0000
+2 XX.O NPO PS0 E0 0000 0000 0000
+3 ..OO NPX PS0 E0 0000 0000 0000
+2 .XOO NPO PS0 E0 0000 0000 0000
+2 .XOO NPX PS1 E0 0000 0000 0000
+3 XX.. NPO PS0 E0 0000 0000 0000
+2 XX.O NPX PS0 E0 0000 0000 0000
+2 XXX. NPO PS0 E0 0000 0000 0000
+4 ...O NPX PS0 E0 0000 0000 0000
+3 .X.O NPO PS0 E0 0000 0000 0000
+1 O..O NPX PS0 E0 0000 0000 0000
+3 O..O NPO PS1 E0 0000 0000 0000
+2 OO.O NPX PS0 E0 0000 0000 0000
+4 ..X. NPO PS0 E0 0000 0000 0000
+3 ..XO NPX PS0 E0 0000 0000 0000
+3 ..XO NPO PS1 E0 0000 0000 0000
+2 .OXO NPX PS0 E0 0000 0000 0000
+2 .OXO NPO PS1 E0 0000 0000 0000
+2 OO.O NPX PS0 E0 0000 0000 0000
+4 ..X. NPO PS0 E0 0000 0000 0000
+3 .OX. NPX PS0 E0 0000 0000 0000
+2 .OXX NPO PS0 E0 0000 0000 0000
+3 OO.. NPX PS0 E0 0000 0000 0000
+2 OOX. NPO PS0 E0 0000 0000 0000
+2 OO.O NPX PS0 E0 0000 0000 0000
+4 ..X. NPO PS0 E0 0000 0000 0000
+3 O.X. NPX PS0 E0 0000 0000 0000
+2 O.XX NPO PS0 E0 0000 0000 0000
+3 OO.. NPX PS0 E0 0000 0000 0000
+2 OO.X NPO PS0 E0 0000 0000 0000
+2 OOO. NPX PS0 E0 0000 0000 0000
+4 ...X NPO PS0 E0 0000 0000 0000
+3 O..X NPX PS0 E0 0000 0000 0000
+2 O.XX NPO PS0 E0 0000 0000 0000
+3 OO.. NPX PS0 E0 0000 0000 0000
+Winner: Empty
+W-B Score: 0
+isNoResult: 1
+)%%";
+
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules),P_BLACK,false);
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules),P_BLACK,false);
+    rules.multiStoneSuicideLegal = true;
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules),P_BLACK,false);
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules),P_BLACK,false);
+    expected = R"%%(
+5 .... NPX PS0 E0 0000 0000 0000
+5 .... NPO PS1 E0 0000 0000 0000
+5 .... NPX PS2 E0 0000 0000 0000
+Winner: White
+W-B Score: 0.5
+isNoResult: 0
+5 .... NPX PS0 E0 0000 0000 0000
+5 .... NPO PS1 E0 0000 0000 0000
+4 O... NPX PS0 E0 0000 0000 0000
+3 O.X. NPO PS0 E0 0000 0000 0000
+2 OOX. NPX PS0 E0 0000 0000 0000
+2 OOX. NPO PS1 E0 0000 0000 0000
+2 OOX. NPX PS2 E0 0000 0000 0000
+Winner: White
+W-B Score: 1.5
+isNoResult: 0
+5 .... NPX PS0 E0 0000 0000 0000
+4 .X.. NPO PS0 E0 0000 0000 0000
+3 .XO. NPX PS0 E0 0000 0000 0000
+2 .XOX NPO PS0 E0 0000 0000 0000
+2 .XOX NPX PS1 E0 0000 0000 0000
+2 .XOX NPO PS2 E0 0000 0000 0000
+Winner: Black
+W-B Score: -0.5
+isNoResult: 0
+5 .... NPX PS0 E0 0000 0000 0000
+4 ...X NPO PS0 E0 0000 0000 0000
+3 ..OX NPX PS0 E0 0000 0000 0000
+3 ..OX NPO PS1 E0 0000 0000 0000
+3 ..OX NPX PS2 E0 0000 0000 0000
+Winner: White
+W-B Score: 0.5
+isNoResult: 0
+)%%";
+
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+
+    Board koBoard71 = Board::parseBoard(7,1,R"%%(
+.o.ox.o
+)%%");
+    Board koBoard41 = Board::parseBoard(4,1,R"%%(
+....
+)%%");
+
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    stressTest(koBoard71,BoardHistory(koBoard71,P_BLACK,rules),P_BLACK,true);
+
+    expected = R"%%(
+3 .O.OX.O NPX PS0 E0 0000000 0000000 0000000
+1 .OX.X.O NPO PS0 E0 0000000 0000000 0000000
+4 .OX.X.O NPX PS0 E0 0000000 0000000 0000000
+2 .OXXX.O NPO PS0 E0 0000000 0000000 0000000
+4 .O...OO NPX PS0 E0 0000000 0000000 0000000
+6 .O..X.. NPO PS0 E0 0000000 0000000 0000000
+4 .O..XO. NPX PS0 E0 0000000 0000000 0000000
+3 .O.XXO. NPO PS0 E0 0000000 0000000 0000000
+2 .O.XXO. NPX PS1 E0 0000000 0000000 0000000
+3 .O.XX.X NPO PS0 E0 0000000 0000000 0000000
+3 OO.XX.X NPX PS0 E0 0000000 0000000 0000000
+4 ..XXX.X NPO PS0 E0 0000000 0000000 0000000
+3 ..XXXO. NPX PS0 E0 0000000 0000000 0000000
+2 .XXXXO. NPO PS0 E0 0000000 0000000 0000000
+2 .XXXXO. NPX PS1 E0 0000000 0000000 0000000
+1 .XXXX.X NPO PS0 E0 0000000 0000000 0000000
+3 .XXXX.X NPX PS0 E0 0000000 0000000 0000000
+2 .XXXXXX NPO PS0 E0 0000000 0000000 0000000
+7 O...... NPX PS0 E0 0000000 0000000 0000000
+5 O....X. NPO PS0 E0 0000000 0000000 0000000
+5 O..O.X. NPX PS0 E0 0000000 0000000 0000000
+3 .X.O.X. NPO PS0 E0 0000000 0000000 0000000
+3 .X.OOX. NPX PS0 E0 0000000 0000000 0000000
+3 XX.OOX. NPO PS0 E0 0000000 0000000 0000000
+3 ..OOOX. NPX PS0 E0 0000000 0000000 0000000
+3 X.OOOX. NPO PS0 E0 0000000 0000000 0000000
+1 X.OOO.O NPX PS0 E0 0000000 0000000 0000000
+3 X.OOO.O NPO PS0 E0 0000000 0000000 0000000
+2 X.OOOOO NPX PS0 E0 0000000 0000000 0000000
+2 X.OOOOO NPO PS1 E0 0000000 0000000 0000000
+2 .OOOOOO NPX PS0 E0 0000000 0000000 0000000
+1 .OOOOOO NPO PS1 E0 0000000 0000000 0000000
+2 .OOOOOO NPX PS0 E1 0000000 0000000 0000000
+7 X...... NPO PS0 E1 0000000 0000000 0000000
+6 X..O... NPX PS0 E1 0000000 0000000 0000000
+5 XX.O... NPO PS0 E1 0000000 0000000 0000000
+1 XX.O.O. NPX PS0 E1 0000000 0000000 0000000
+4 XX.O.O. NPO PS1 E1 0000000 0000000 0000000
+3 ..OO.O. NPX PS0 E1 0000000 0000000 0000000
+4 .XOO.O. NPO PS0 E1 0000000 0000000 0000000
+2 O.OO.O. NPX PS0 E1 0100000 0000000 0000000
+3 O.OO.O. NPO PS0 E1 0000000 0000000 0000000
+2 O.OO.O. NPX PS1 E1 0000000 0000000 0000000
+4 .XOO.O. NPO PS0 E1 0000000 1000000 0000000
+2 .XOO.OO NPX PS0 E1 0000000 1000000 0000000
+5 .X..X.. NPO PS0 E1 0000000 0000000 0000000
+5 .X.OX.. NPX PS0 E1 0000000 0000000 0000000
+4 XX.OX.. NPO PS0 E1 0000000 0000000 0000000
+4 XX.OX.. NPX PS1 E1 0000000 0000000 0000000
+3 XX.OXX. NPO PS0 E1 0000000 0000000 0000000
+3 XX.O..O NPX PS0 E1 0000000 0000000 0000000
+4 XX.O..O NPO PS1 E1 0000000 0000000 0000000
+2 XX.OO.O NPX PS0 E1 0000000 0000000 0000000
+3 XX.OOX. NPO PS0 E1 0000000 0000001 0000000
+2 XX.OOX. NPX PS0 E1 0000000 0000000 0000000
+3 XXX..X. NPO PS0 E1 0000000 0000000 0000000
+2 XXX.OX. NPX PS0 E1 0000000 0000000 0000000
+2 XXXX.X. NPO PS0 E1 0000000 0000000 0000000
+5 ....OX. NPX PS0 E1 0000000 0000000 0000000
+4 ..X.OX. NPO PS0 E1 0000000 0000000 0000000
+3 O.X.OX. NPX PS0 E1 0000000 0000000 0000000
+1 O.XX.X. NPO PS0 E1 0000000 0000000 0000000
+4 O.XX.X. NPX PS1 E1 0000000 0000000 0000000
+1 .XXX.X. NPO PS0 E1 0000000 0000000 0000000
+4 .XXX.X. NPX PS1 E1 0000000 0000000 0000000
+2 .XXX.XX NPO PS0 E1 0000000 0000000 0000000
+3 .XXXO.. NPX PS0 E1 0000000 0000000 0000000
+1 .XXX.X. NPO PS0 E1 0000000 0000000 0000000
+4 .XXX.X. NPX PS0 E2 0000000 0000000 0111010
+1 .XXXXX. NPO PS0 E2 0000000 0000000 0111010
+3 .XXXXX. NPX PS1 E2 0000000 0000000 0111010
+2 XXXXXX. NPO PS0 E2 0000000 0000000 0111010
+1 XXXXXX. NPX PS1 E2 0000000 0000000 0111010
+2 XXXXXX. NPO PS2 E2 0000000 0000000 0111010
+Winner: Black
+W-B Score: -0.5
+isNoResult: 0
+
+)%%";
+
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules),P_BLACK,true);
+    expected = R"%%(
+5 .... NPX PS0 E0 0000 0000 0000
+4 X... NPO PS0 E0 0000 0000 0000
+1 X.O. NPX PS0 E0 0000 0000 0000
+3 X.O. NPO PS1 E0 0000 0000 0000
+2 X.OO NPX PS0 E0 0000 0000 0000
+3 XX.. NPO PS0 E0 0000 0000 0000
+3 XX.. NPX PS1 E0 0000 0000 0000
+3 XX.. NPO PS0 E1 0000 0000 0000
+2 XX.O NPX PS0 E1 0000 0000 0000
+2 XXX. NPO PS0 E1 0000 0000 0000
+4 ...O NPX PS0 E1 0000 0000 0000
+3 X..O NPO PS0 E1 0000 0000 0000
+2 X.OO NPX PS0 E1 0000 0000 0000
+3 XX.. NPO PS0 E1 0000 0000 0000
+3 ..O. NPX PS0 E1 0000 0000 0000
+2 .XO. NPO PS0 E1 0000 0000 0000
+2 O.O. NPX PS0 E1 0100 0000 0000
+2 O.O. NPO PS0 E1 0000 0000 0000
+2 O.O. NPX PS1 E1 0000 0000 0000
+2 .XO. NPO PS0 E1 0000 1000 0000
+2 .XO. NPX PS0 E1 0000 0000 0000
+1 .XO. NPO PS1 E1 0000 0000 0000
+2 .XO. NPX PS0 E2 0000 0000 0120
+2 .X.X NPO PS0 E2 0000 0010 0120
+3 .X.X NPX PS1 E2 0000 0010 0120
+2 XX.X NPO PS0 E2 0000 0000 0120
+3 ..O. NPX PS0 E2 0000 0000 0120
+4 ..O. NPO PS1 E2 0000 0000 0120
+1 .OO. NPX PS0 E2 0000 0000 0120
+3 .OO. NPO PS1 E2 0000 0000 0120
+2 OOO. NPX PS0 E2 0000 0000 0120
+4 ...X NPO PS0 E2 0000 0000 0120
+1 .O.X NPX PS0 E2 0000 0000 0120
+3 .O.X NPO PS1 E2 0000 0000 0120
+2 OO.X NPX PS0 E2 0000 0000 0120
+3 ..XX NPO PS0 E2 0000 0000 0120
+3 .O.. NPX PS0 E2 0000 0000 0120
+3 .O.X NPO PS0 E2 0000 0000 0120
+2 OO.X NPX PS0 E2 0000 0000 0120
+2 OO.X NPO PS1 E2 0000 0000 0120
+2 OO.X NPX PS2 E2 0000 0000 0120
+Winner: White
+W-B Score: 0.5
+isNoResult: 0
+
+)%%";
+
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules),P_BLACK,true);
+    expected = R"%%(
+
+5 .... NPX PS0 E0 0000 0000 0000
+4 X... NPO PS0 E0 0000 0000 0000
+3 .O.. NPX PS0 E0 0000 0000 0000
+3 .O.X NPO PS0 E0 0000 0000 0000
+2 OO.X NPX PS0 E0 0000 0000 0000
+2 ..XX NPO PS0 E0 0000 0000 0000
+2 O.XX NPX PS0 E0 0000 0000 0000
+2 O.XX NPO PS1 E0 0000 0000 0000
+3 OO.. NPX PS0 E0 0000 0000 0000
+3 ..X. NPO PS0 E0 0000 0000 0000
+2 O.X. NPX PS0 E0 0000 0000 0000
+1 .XX. NPO PS0 E0 0000 0000 0000
+3 .XX. NPX PS1 E0 0000 0000 0000
+2 .XXX NPO PS0 E0 0000 0000 0000
+4 O... NPX PS0 E0 0000 0000 0000
+2 O..X NPO PS0 E0 0000 0000 0000
+2 O.O. NPX PS0 E0 0000 0000 0000
+1 .XO. NPO PS0 E0 0000 0000 0000
+2 .XO. NPX PS1 E0 0000 0000 0000
+1 .X.X NPO PS0 E0 0000 0000 0000
+2 .X.X NPX PS1 E0 0000 0000 0000
+2 .X.X NPO PS0 E1 0000 0000 0000
+2 .XO. NPX PS0 E1 0001 0000 0000
+2 .XO. NPO PS0 E1 0000 0000 0000
+2 O.O. NPX PS0 E1 0100 0000 0000
+3 O.O. NPO PS1 E1 0100 0000 0000
+2 O.OO NPX PS0 E1 0000 0000 0000
+3 .X.. NPO PS0 E1 0000 0000 0000
+3 .X.O NPX PS0 E1 0000 0000 0000
+2 XX.O NPO PS0 E1 0000 0000 0000
+3 ..OO NPX PS0 E1 0000 0000 0000
+2 X.OO NPO PS0 E1 0000 0000 0000
+2 .OOO NPX PS0 E1 0000 0000 0000
+4 X... NPO PS0 E1 0000 0000 0000
+1 X.O. NPX PS0 E1 0000 0000 0000
+3 X.O. NPO PS1 E1 0000 0000 0000
+1 .OO. NPX PS0 E1 0000 0000 0000
+3 .OO. NPO PS1 E1 0000 0000 0000
+2 .OOO NPX PS0 E1 0000 0000 0000
+4 X... NPO PS0 E1 0000 0000 0000
+3 X..O NPX PS0 E1 0000 0000 0000
+3 X..O NPO PS1 E1 0000 0000 0000
+2 X.OO NPX PS0 E1 0000 0000 0000
+3 XX.. NPO PS0 E1 0000 0000 0000
+3 ..O. NPX PS0 E1 0000 0000 0000
+1 .XO. NPO PS0 E1 0000 0000 0000
+2 .XO. NPX PS1 E1 0000 0000 0000
+2 .X.X NPO PS0 E1 0000 0010 0000
+2 .X.X NPX PS0 E1 0000 0000 0000
+1 .X.X NPO PS1 E1 0000 0000 0000
+3 .X.X NPX PS0 E2 0000 0000 0101
+2 XX.X NPO PS0 E2 0000 0000 0101
+1 XX.X NPX PS1 E2 0000 0000 0101
+2 XX.X NPO PS2 E2 0000 0000 0101
+Winner: Black
+W-B Score: -3.5
+isNoResult: 0
+
+)%%";
+
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+
+
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules),P_BLACK,true);
+
+    expected = R"%%(
+5 .... NPX PS0 E0 0000 0000 0000
+4 ...X NPO PS0 E0 0000 0000 0000
+3 ..O. NPX PS0 E0 0000 0000 0000
+2 .XO. NPO PS0 E0 0000 0000 0000
+1 O.O. NPX PS0 E0 0000 0000 0000
+3 O.O. NPO PS0 E0 0000 0000 0000
+2 O.OO NPX PS0 E0 0000 0000 0000
+3 .X.. NPO PS0 E0 0000 0000 0000
+2 .XO. NPX PS0 E0 0000 0000 0000
+1 .X.X NPO PS0 E0 0000 0000 0000
+3 .X.X NPX PS0 E0 0000 0000 0000
+2 .XXX NPO PS0 E0 0000 0000 0000
+4 O... NPX PS0 E0 0000 0000 0000
+4 O... NPO PS1 E0 0000 0000 0000
+3 OO.. NPX PS0 E0 0000 0000 0000
+3 ..X. NPO PS0 E0 0000 0000 0000
+2 .OX. NPX PS0 E0 0000 0000 0000
+1 X.X. NPO PS0 E0 0000 0000 0000
+3 X.X. NPX PS0 E0 0000 0000 0000
+2 X.XX NPO PS0 E0 0000 0000 0000
+3 .O.. NPX PS0 E0 0000 0000 0000
+3 .O.X NPO PS0 E0 0000 0000 0000
+1 .OO. NPX PS0 E0 0000 0000 0000
+3 .OO. NPO PS1 E0 0000 0000 0000
+2 OOO. NPX PS0 E0 0000 0000 0000
+4 ...X NPO PS0 E0 0000 0000 0000
+3 O..X NPX PS0 E0 0000 0000 0000
+2 O.XX NPO PS0 E0 0000 0000 0000
+3 OO.. NPX PS0 E0 0000 0000 0000
+2 OO.X NPO PS0 E0 0000 0000 0000
+2 OO.X NPX PS1 E0 0000 0000 0000
+3 ..XX NPO PS0 E0 0000 0000 0000
+2 O.XX NPX PS0 E0 0000 0000 0000
+2 O.XX NPO PS1 E0 0000 0000 0000
+3 OO.. NPX PS0 E0 0000 0000 0000
+2 OO.X NPO PS0 E0 0000 0000 0000
+2 OO.X NPX PS1 E0 0000 0000 0000
+Winner: White
+W-B Score: 1.5
+isNoResult: 0
+
+)%%";
+
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules),P_BLACK,true);
+    expected = R"%%(
+5 .... NPX PS0 E0 0000 0000 0000
+4 ...X NPO PS0 E0 0000 0000 0000
+1 .O.X NPX PS0 E0 0000 0000 0000
+3 .O.X NPO PS1 E0 0000 0000 0000
+2 OO.X NPX PS0 E0 0000 0000 0000
+3 ..XX NPO PS0 E0 0000 0000 0000
+2 .O.. NPX PS0 E0 0000 0000 0000
+4 .O.. NPO PS1 E0 0000 0000 0000
+2 OO.. NPX PS0 E0 0000 0000 0000
+3 OO.. NPO PS1 E0 0000 0000 0000
+1 OOO. NPX PS0 E0 0000 0000 0000
+1 OOO. NPO PS1 E0 0000 0000 0000
+1 OOO. NPX PS2 E0 0000 0000 0000
+Winner: White
+W-B Score: 4.5
+isNoResult: 0
+
+)%%";
+
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules),P_BLACK,true);
+    expected = R"%%(
+5 .... NPX PS0 E0 0000 0000 0000
+4 X... NPO PS0 E0 0000 0000 0000
+3 .O.. NPX PS0 E0 0000 0000 0000
+3 .O.X NPO PS0 E0 0000 0000 0000
+1 .OO. NPX PS0 E0 0000 0000 0000
+3 .OO. NPO PS1 E0 0000 0000 0000
+1 .OOO NPX PS0 E0 0000 0000 0000
+1 .OOO NPO PS1 E0 0000 0000 0000
+1 .OOO NPX PS2 E0 0000 0000 0000
+Winner: White
+W-B Score: 4.5
+isNoResult: 0
+
+)%%";
+
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+
+
+  }
+
 }
