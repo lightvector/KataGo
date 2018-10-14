@@ -937,48 +937,47 @@ void NNInputs::fillRowV3(
 
   //Floating point features.
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
-  //The next 3 are unused, so we start at 8.
 
   //Komi and any score adjustments
   float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
-  rowFloat[8] = selfKomi/15.0f;
+  rowFloat[5] = selfKomi/15.0f;
 
   //Ko rule
   if(hist.rules.koRule == Rules::KO_SIMPLE) {}
   else if(hist.rules.koRule == Rules::KO_POSITIONAL || hist.rules.koRule == Rules::KO_SPIGHT) {
-    rowFloat[9] = 1.0f;
-    rowFloat[10] = 0.5f;
+    rowFloat[6] = 1.0f;
+    rowFloat[7] = 0.5f;
   }
   else if(hist.rules.koRule == Rules::KO_SITUATIONAL) {
-    rowFloat[9] = 1.0f;
-    rowFloat[10] = -0.5f;
+    rowFloat[6] = 1.0f;
+    rowFloat[7] = -0.5f;
   }
   else
     assert(false);
 
   //Suicide
   if(hist.rules.multiStoneSuicideLegal)
-    rowFloat[11] = 1.0f;
+    rowFloat[8] = 1.0f;
 
   //Scoring
   if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
   else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY)
-    rowFloat[12] = 1.0f;
+    rowFloat[9] = 1.0f;
   else
     assert(false);
 
   //Encore phase
   if(hist.encorePhase > 0)
-    rowFloat[13] = 1.0f;
+    rowFloat[10] = 1.0f;
   if(hist.encorePhase > 1)
-    rowFloat[14] = 1.0f;
+    rowFloat[11] = 1.0f;
 
   //Does a pass end the current phase given the ruleset and history?
   bool passWouldEndPhase = hist.passWouldEndPhase(board,nextPlayer);
-  rowFloat[15] = passWouldEndPhase ? 1.0f : 0.0f;
+  rowFloat[12] = passWouldEndPhase ? 1.0f : 0.0f;
 
   //Direct indication of the board size
-  rowFloat[16] = sqrt((float)(xSize*ySize));
+  rowFloat[13] = sqrt((float)(xSize*ySize));
 
   //Provide parity information about the board size and komi
   bool komiIsInteger = ((int)hist.rules.komi == hist.rules.komi);
@@ -986,7 +985,7 @@ void NNInputs::fillRowV3(
     bool boardAreaIsEven = (xSize*ySize) % 2 == 0;
     bool komiIsBelowEven = (((int)floor(hist.rules.komi + 1.0f) % 2) + 2) % 2 == 0;
     //TODO think about this and make sure this is right
-    rowFloat[17] = ((boardAreaIsEven == komiIsBelowEven) == (pla == P_WHITE)) ? -0.5f : 0.5f;
+    rowFloat[14] = ((boardAreaIsEven == komiIsBelowEven) == (pla == P_WHITE)) ? -0.5f : 0.5f;
   }
 
 }
