@@ -980,12 +980,65 @@ void NNInputs::fillRowV3(
   rowFloat[13] = sqrt((float)(xSize*ySize));
 
   //Provide parity information about the board size and komi
-  bool komiIsInteger = ((int)hist.rules.komi == hist.rules.komi);
-  if(!komiIsInteger) {
+  //This comes from the following observation:
+  //From white's perspective:
+  //Komi = 0.0 - Draw possible
+  //Komi = 0.5 - Win the games we would have drawn with komi 0.0
+  //Komi = 1.0 - Usually no difference from komi 0.5
+  //Komi = 1.5 - Usually no difference from komi 0.5
+  //Komi = 2.0 - Draw possible
+  //If we were to assign an "effective goodness" to these komis in order it would look like
+  //0 1 1 1 2 3 3 3 4 5 5 5 6 ...
+  //since when away from the right parity, increasing the komi doesn't help us except in cases of seki with odd numbers of dame.
+  //If we were to add 0.5 times a vector like:
+  //0 -1 0 1 0 -1 0 1 0 -1 0 ...
+  //Then this would become a linear function and hopefully easier for a neural net to learn.
+  //We expect that this is hard for a neural net to learn since it depends on the parity of the board size
+  //and is very "xor"like.
+  //So we provide it as an input.
+  //Since we are using a model where games are jittered by 0.5 (see BoardHistory::whiteKomiAdjustmentForDraws)
+  //in theory right thing to first order to provide should be a triangular wave with a period of 2 komi points:
+  //  ../\........
+  //  ./..\.......
+  //  /....\..../.
+  //  ......\../..
+  //  .......\/...
+  //The upsloping part of the wave is centered around the komi value where you could draw
+  //since komi is extra valuable when it turns losses into draws into wins, peaking at the komi value where you could draw + 0.5.
+  //It's downsloping around the komi value where you can't draw, since the marginal komi there is nearly useless, not causing you to win
+  //more games except in case of odd-dame seki.
+  if(hist.rules.scoringRule == Rules::SCORING_AREA) {
     bool boardAreaIsEven = (xSize*ySize) % 2 == 0;
-    bool komiIsBelowEven = (((int)floor(hist.rules.komi + 1.0f) % 2) + 2) % 2 == 0;
-    //TODO think about this and make sure this is right
-    rowFloat[14] = ((boardAreaIsEven == komiIsBelowEven) == (pla == P_WHITE)) ? -0.5f : 0.5f;
+
+    //What is the parity of the komi values that can produce jigos?
+    bool drawableKomisAreEven = boardAreaIsEven;
+
+    //Find the difference between the komi viewed from our perspective and the nearest drawable komi below it.
+    float komiFloor;
+    if(drawableKomisAreEven)
+      komiFloor = floor(selfKomi / 2.0f) * 2.0f;
+    else
+      komiFloor = floor((selfKomi-1.0f) / 2.0f) * 2.0f + 1.0f;
+
+    //Cap just in case we have floating point weirdness
+    float delta = selfKomi - komiFloor;
+    assert(delta >= -0.0001f);
+    assert(delta <= 2.0001f);
+    if(delta < 0.0f)
+      delta = 0.0f;
+    if(delta > 2.0f)
+      delta = 2.0f;
+
+    //Create the triangle wave based on the difference
+    float wave;
+    if(delta < 0.5f)
+      wave = delta;
+    else if(delta < 1.5f)
+      wave = 1.0f-delta;
+    else
+      wave = delta-2.0f;
+
+    rowFloat[14] = wave;
   }
 
 }
