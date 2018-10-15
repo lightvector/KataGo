@@ -5,6 +5,8 @@ __pycache__
 *.h5
 *.log
 
+tmp*.txt
+
 cpp/write
 cpp/runtests
 cpp/example
@@ -15,8 +17,6 @@ cpp/matchcuda
 cpp/matchtensorflow
 cpp/match.log
 cpp/main
-cpp/tmp.txt
-cpp/tmp2.txt
 cpp/configs
 cpp/evalsgf
 cpp/runmatch.sh
@@ -35,7 +35,6 @@ runtraining.sh
 
 tmp
 cpp/tmp
-tmp.txt
 out.txt
 
 # For clion IDE
