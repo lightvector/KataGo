@@ -745,8 +745,8 @@ void NNInputs::fillRowV3(
   assert(posLen <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size <= posLen);
   assert(board.y_size <= posLen);
-  std::fill(rowBin,rowBin+ROW_SIZE_BIN_V3,false);
-  std::fill(rowFloat,rowFloat+ROW_SIZE_FLOAT_V3,0.0f);
+  std::fill(rowBin,rowBin+NUM_FEATURES_BIN_V3*posLen*posLen,false);
+  std::fill(rowFloat,rowFloat+NUM_FEATURES_FLOAT_V3,0.0f);
 
   Player pla = nextPlayer;
   Player opp = getOpp(pla);

@@ -37,8 +37,6 @@ namespace NNInputs {
 
   const int NUM_FEATURES_BIN_V3 = 20;
   const int NUM_FEATURES_FLOAT_V3 = 15;
-  const int ROW_SIZE_BIN_V3 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_BIN_V3;
-  const int ROW_SIZE_FLOAT_V3 = NNPos::MAX_BOARD_LEN * NUM_FEATURES_FLOAT_V3;
 
   Hash128 getHashV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,

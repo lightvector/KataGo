@@ -103,12 +103,12 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
   for(int i = turnNumber; i<whiteValueTargetsByTurn.size(); i++) {
     double weightNow;
     if(i == whiteValueTargetsByTurn.size() - 1) {
-      weightNow = weightLeft * nowFactor;
-      weightLeft *= (1.0 - nowFactor);
-    }
-    else {
       weightNow = weightLeft;
       weightLeft = 0.0;
+    }
+    else {
+      weightNow = weightLeft * nowFactor;
+      weightLeft *= (1.0 - nowFactor);
     }
 
     //Training rows need things from the perspective of the player to move, so we flip as appropriate.
