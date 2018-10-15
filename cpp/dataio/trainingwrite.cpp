@@ -18,7 +18,7 @@ ValueTargets::~ValueTargets()
 
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 static const int POLICY_TARGET_NUM_CHANNELS = 3;
-static const int VALUE_TARGET_NUM_CHANNELS = 26;
+static const int VALUE_TARGET_NUM_CHANNELS = 25;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int pLen)
@@ -37,7 +37,7 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    valueTargetsNC({maxRws, VALUE_TARGET_NUM_CHANNELS}),
    valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, pLen, pLen})
 {
-  binaryInputNCHWUnpacked = new bool[maxRws * numBChannels * pLen * pLen];
+  binaryInputNCHWUnpacked = new bool[numBChannels * pLen * pLen];
 }
 
 TrainingWriteBuffers::~TrainingWriteBuffers()
@@ -84,7 +84,7 @@ static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves, 
   for(size_t i = 0; i<size; i++) {
     const PolicyTargetMove& move = policyTargetMoves[i];
     int pos = NNPos::locToPos(move.loc, boardXSize, posLen);
-    assert(pos >= 0 && pos < posLen);
+    assert(pos >= 0 && pos < policySize);
     target[pos] = move.policyTarget;
   }
 }
@@ -204,6 +204,7 @@ void TrainingWriteBuffers::addRow(
   rowValue[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
   rowValue[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
   rowValue[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
+  assert(25 == VALUE_TARGET_NUM_CHANNELS);
 
   int16_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
   for(int i = 0; i<posArea; i++) {
@@ -290,14 +291,14 @@ TrainingDataWriter::~TrainingDataWriter()
 
 void TrainingDataWriter::writeAndClearIfFull() {
   if(writeBuffers->curRows >= writeBuffers->maxRows) {
-    writeBuffers->writeToZipFile(outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()));
+    writeBuffers->writeToZipFile(outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz");
     writeBuffers->clear();
   }
 }
 
 void TrainingDataWriter::close() {
   if(writeBuffers->curRows > 0) {
-    writeBuffers->writeToZipFile(outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()));
+    writeBuffers->writeToZipFile(outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz");
     writeBuffers->clear();
   }
 }
