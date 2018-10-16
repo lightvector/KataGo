@@ -1634,14 +1634,14 @@ isNoResult: 0
   }
 
   {
-    const char* name = "Stress test on 3x2 board";
+    const char* name = "Stress test on tiny boards";
 
     Rand baseRand("Tiny board stress test");
     auto stressTest = [&](Board board, BoardHistory hist, Player nextPla, bool prolongGame) {
       Rand rand(baseRand.nextUInt64());
       for(int i = 0; i<1000; i++) {
         int numLegal = 0;
-        Loc legalMoves[5];
+        Loc legalMoves[board.x_size*board.y_size + 1];
         Loc move;
 
         for(int y = 0; y<board.y_size; y++) {
