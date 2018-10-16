@@ -722,7 +722,10 @@ class Model:
     # assert(features_active.dtype == tf.float32)
     # cur_layer = cur_layer * tf.reshape(features_active,[1,1,1,-1])
 
-    #Apply history transform
+    #Apply history transform to turn off various features randomly.
+    #We do this by building a matrix for each batch element, mapping input channels to possibly-turned off channels.
+    #This matrix is a sum of hist_matrix_base which always turns off all the channels, and h0, h1, h2,... which perform
+    #the modifications to hist_matrix_base to make it turn on channels based on whether we have move0, move1,...
     hist_matrix_base = np.diag(np.array([
       1.0, #0
       1.0, #1
@@ -742,21 +745,24 @@ class Model:
       1.0, #15
       1.0, #16
     ],dtype=np.float32))
+    #Because we have ladder features that express past states rather than past diffs, the most natural encoding when
+    #we have no history is that they were always the same, rather than that they were all zero. So rather than zeroing
+    #them we have no history, we add entries in the matrix to copy them over.
     #By default, without history, the ladder features 13 and 14 just copy over from 12.
     hist_matrix_base[12,13] = 1.0
     hist_matrix_base[12,14] = 1.0
     #When have the prev move, we enable feature 7 and 13
     h0 = np.zeros([self.num_input_features,self.num_input_features],dtype=np.float32)
-    h0[7,7] = 1.0
-    h0[12,13] = -1.0
-    h0[12,14] = -1.0
-    h0[13,13] = 1.0
-    h0[13,14] = 1.0
+    h0[7,7] = 1.0 #Enable 7 -> 7
+    h0[12,13] = -1.0 #Stop copying 12 -> 13
+    h0[12,14] = -1.0 #Stop copying 12 -> 14
+    h0[13,13] = 1.0 #Enable 13 -> 13
+    h0[13,14] = 1.0 #Start copying 13 -> 14
     #When have the prevprev move, we enable feature 8 and 14
     h1 = np.zeros([self.num_input_features,self.num_input_features],dtype=np.float32)
-    h1[8,8] = 1.0
-    h1[13,14] = -1.0
-    h1[14,14] = 1.0
+    h1[8,8] = 1.0 #Enable 8 -> 8
+    h1[13,14] = -1.0 #Stop copying 13 -> 14
+    h1[14,14] = 1.0 #Enable 14 -> 14
     #Further history moves
     h2 = np.zeros([self.num_input_features,self.num_input_features],dtype=np.float32)
     h2[9,9] = 1.0
@@ -774,9 +780,9 @@ class Model:
     assert(hist_matrix_builder.shape[1].value == self.num_input_features)
     assert(hist_matrix_builder.shape[2].value == self.num_input_features)
 
-    hist_filter_matrix = hist_matrix_base + tf.tensordot(include_history, hist_matrix_builder, axes=[[1],[0]]) #[batch,inc,outc]
+    hist_filter_matrix = hist_matrix_base + tf.tensordot(include_history, hist_matrix_builder, axes=[[1],[0]]) #[batch,move] * [move,inc,outc] = [batch,inc,outc]
     cur_layer = tf.reshape(cur_layer,[-1,self.max_board_size*self.max_board_size,self.num_input_features]) #[batch,xy,inc]
-    cur_layer = tf.matmul(cur_layer,hist_filter_matrix) #[batch,xy,outc]
+    cur_layer = tf.matmul(cur_layer,hist_filter_matrix) #[batch,xy,inc] * [batch,inc,outc] = [batch,xy,outc]
     cur_layer = tf.reshape(cur_layer,[-1,self.max_board_size,self.max_board_size,self.num_input_features])
 
     #Transform and append ranks

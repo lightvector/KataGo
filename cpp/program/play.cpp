@@ -2,11 +2,11 @@
 #include "../search/asyncbot.h"
 #include "../program/play.h"
 
-static double nextGaussianTruncated(Rand& rand) {
+static double nextGaussianTruncated(Rand& rand, double bound) {
   double d = rand.nextGaussian();
   //Truncated refers to the probability distribution, not the sample
   //So on falling outside the range, we redraw, rather than capping.
-  while(d < -2.0 || d > 2.0)
+  while(d < -bound || d > bound)
     d = rand.nextGaussian();
   return d;
 }
@@ -28,9 +28,9 @@ static pair<int,float> chooseExtraBlackAndKomi(
   float komi = base;
 
   if(stdev > 0.0f)
-    komi += stdev * (float)nextGaussianTruncated(rand);
+    komi += stdev * (float)nextGaussianTruncated(rand,2.0);
   if(bigStdev > 0.0f && rand.nextDouble() < bigStdevProb)
-    komi += bigStdev * (float)nextGaussianTruncated(rand);
+    komi += bigStdev * (float)nextGaussianTruncated(rand,2.0);
 
   //Adjust for bSize, so that we don't give the same massive komis on smaller boards
   komi = base + (komi - base) * (float)bSize / 19.0f;
@@ -70,10 +70,24 @@ static pair<int,float> chooseExtraBlackAndKomi(
 
 //------------------------------------------------------------------------------------------------
 
-
 GameInitializer::GameInitializer(ConfigParser& cfg)
-  :createGameMutex(),rand()
+  :createGameMutex(),rand(),hasParams(false),baseParams()
 {
+  initShared(cfg);
+  noResultStdev = 0.0;
+  drawStdev = 0.0;
+}
+
+GameInitializer::GameInitializer(ConfigParser& cfg, const SearchParams& params)
+  :createGameMutex(),rand(),hasParams(true),baseParams(params)
+{
+  initShared(cfg);
+  noResultStdev = cfg.getDouble("noResultStdev",0.0,1.0);
+  drawStdev = cfg.getDouble("drawStdev",0.0,1.0);
+}
+
+void GameInitializer::initShared(ConfigParser& cfg) {
+
   allowedKoRuleStrs = cfg.getStrings("koRules", Rules::koRuleStrings());
   allowedScoringRuleStrs = cfg.getStrings("scoringRules", Rules::scoringRuleStrings());
   allowedMultiStoneSuicideLegals = cfg.getBools("multiStoneSuicideLegals");
@@ -94,12 +108,12 @@ GameInitializer::GameInitializer(ConfigParser& cfg)
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
   komiMean = cfg.getFloat("komiMean",-60.0f,60.0f);
-  komiStdev = cfg.getFloat("komiStdev",-60.0f,60.0f);
+  komiStdev = cfg.getFloat("komiStdev",0.0f,60.0f);
   komiAllowIntegerProb = cfg.getDouble("komiAllowIntegerProb",0.0,1.0);
   handicapProb = cfg.getDouble("handicapProb",0.0,1.0);
   handicapStoneValue = cfg.getFloat("handicapStoneValue",0.0f,30.0f);
   komiBigStdevProb = cfg.getDouble("komiBigStdevProb",0.0,1.0);
-  komiBigStdev = cfg.getFloat("komiBigStdev",-60.0f,60.0f);
+  komiBigStdev = cfg.getFloat("komiBigStdev",0.0f,60.0f);
 
   if(allowedBSizes.size() <= 0)
     throw IOError("bSizes must have at least one value in " + cfg.getFileName());
@@ -113,8 +127,31 @@ GameInitializer::~GameInitializer()
 
 void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
-  unique_lock<std::mutex> lock(createGameMutex);
+  lock_guard<std::mutex> lock(createGameMutex);
+  createGameSharedUnsynchronized(board,pla,hist,numExtraBlack);
+  assert(!hasParams);
+}
 
+void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params) {
+  //Multiple threads will be calling this, and we have some mutable state such as rand.
+  lock_guard<std::mutex> lock(createGameMutex);
+  createGameSharedUnsynchronized(board,pla,hist,numExtraBlack);
+  assert(hasParams);
+
+  params = baseParams;
+  if(noResultStdev > 1e-30) {
+    params.noResultUtilityForWhite = baseParams.noResultUtilityForWhite + noResultStdev * nextGaussianTruncated(rand, 2.0);
+    while(params.noResultUtilityForWhite < -1.0 || params.noResultUtilityForWhite > 1.0)
+      params.noResultUtilityForWhite = baseParams.noResultUtilityForWhite + noResultStdev * nextGaussianTruncated(rand, 2.0);
+  }
+  if(drawStdev > 1e-30) {
+    params.drawEquivalentWinsForWhite = baseParams.drawEquivalentWinsForWhite + drawStdev * nextGaussianTruncated(rand, 2.0);
+    while(params.drawEquivalentWinsForWhite < 0.0 || params.drawEquivalentWinsForWhite > 1.0)
+      params.drawEquivalentWinsForWhite = baseParams.drawEquivalentWinsForWhite + drawStdev * nextGaussianTruncated(rand, 2.0);
+  }
+}
+
+void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack) {
   int bSize = allowedBSizes[rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size())];
   board = Board(bSize,bSize);
 
@@ -132,7 +169,6 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
   pla = P_BLACK;
   hist.clear(board,pla,rules);
   numExtraBlack = extraBlackAndKomi.first;
-
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -236,7 +272,7 @@ pair<int,int> MatchPairer::getMatchupPair() {
 //----------------------------------------------------------------------------------------------------------
 
 
-static void failIllegalMove(AsyncBot* bot, Logger& logger, Board board, Loc loc) {
+static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
   ostringstream sout;
   sout << "Bot returned null location or illegal move!?!" << "\n";
   sout << board << "\n";
@@ -248,24 +284,23 @@ static void failIllegalMove(AsyncBot* bot, Logger& logger, Board board, Loc loc)
   assert(false);
 }
 
-static void logSearch(AsyncBot* bot, Logger& logger, Loc loc) {
-  Search* search = bot->getSearch();
+static void logSearch(Search* bot, Logger& logger, Loc loc) {
   ostringstream sout;
   Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
   sout << "\n";
-  sout << "Root visits: " << search->numRootVisits() << "\n";
+  sout << "Root visits: " << bot->numRootVisits() << "\n";
   sout << "PV: ";
-  search->printPV(sout, search->rootNode, 25);
+  bot->printPV(sout, bot->rootNode, 25);
   sout << "\n";
   sout << "Tree:\n";
-  search->printTree(sout, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
+  bot->printTree(sout, bot->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
   logger.write(sout.str());
 }
 
 
 //Place black handicap stones, free placement
-static void playExtraBlack(AsyncBot* bot, Logger& logger, int numExtraBlack, Board& board, BoardHistory& hist) {
-  SearchParams oldParams = bot->getSearch()->searchParams;
+static void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board& board, BoardHistory& hist) {
+  SearchParams oldParams = bot->searchParams;
   SearchParams tempParams = oldParams;
   tempParams.rootNoiseEnabled = false;
   tempParams.chosenMoveSubtract = 0.0;
@@ -279,7 +314,7 @@ static void playExtraBlack(AsyncBot* bot, Logger& logger, int numExtraBlack, Boa
   bot->setRootPassLegal(false);
 
   for(int i = 0; i<numExtraBlack; i++) {
-    Loc loc = bot->genMoveSynchronous(pla);
+    Loc loc = bot->runWholeSearchAndGetMove(pla,logger,NULL);
     if(loc == Board::NULL_LOC || !bot->isLegal(loc,pla))
       failIllegalMove(bot,logger,board,loc);
     assert(hist.isLegal(board,loc,pla));
@@ -295,11 +330,11 @@ static void playExtraBlack(AsyncBot* bot, Logger& logger, int numExtraBlack, Boa
 //Run a game between two bots. It is OK if both bots are the same bot.
 //Mutates the given board and history
 void Play::runGame(
-  Board& board, Player pla, BoardHistory& hist, int numExtraBlack, AsyncBot* botB, AsyncBot* botW,
+  Board& board, Player pla, BoardHistory& hist, int numExtraBlack, Search* botB, Search* botW,
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,
-  FinishedGameData* gameData
+  FinishedGameData* gameData, Rand* gameRand
 ) {
   if(numExtraBlack > 0)
     playExtraBlack(botB,logger,numExtraBlack,board,hist);
@@ -307,11 +342,15 @@ void Play::runGame(
   if(botB != botW)
     botW->setPosition(pla,board,hist);
 
+  vector<double>* recordUtilities = NULL;
+
   if(gameData != NULL) {
     gameData->startBoard = board;
     gameData->startHist = hist;
     gameData->startPla = pla;
     assert(gameData->moves.size() == 0);
+
+    recordUtilities = new vector<double>(256);
   }
 
   vector<Loc> locsBuf;
@@ -325,8 +364,8 @@ void Play::runGame(
     if(stopSignalReceived.load())
       break;
 
-    AsyncBot* toMoveBot = pla == P_BLACK ? botB : botW;
-    Loc loc = toMoveBot->genMoveSynchronous(pla);
+    Search* toMoveBot = pla == P_BLACK ? botB : botW;
+    Loc loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegal(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
@@ -343,7 +382,7 @@ void Play::runGame(
       playSelectionValuesBuf.clear();
       double scaleMaxToAtLeast = 10.0;
 
-      bool success = toMoveBot->getSearch()->getPlaySelectionValues(
+      bool success = toMoveBot->getPlaySelectionValues(
         locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast
       );
       assert(success);
@@ -352,7 +391,7 @@ void Play::runGame(
       double lossValue;
       double noResultValue;
       double scoreValue;
-      success = toMoveBot->getSearch()->getRootValues(
+      success = toMoveBot->getRootValues(
         winValue,lossValue,noResultValue,scoreValue
       );
       assert(success);
@@ -363,8 +402,6 @@ void Play::runGame(
         (*policyTargets).push_back(PolicyTargetMove(locsBuf[moveIdx],(int16_t)round(value)));
       }
       gameData->policyTargetsByTurn.push_back(policyTargets);
-      //TODO do something otherwise
-      gameData->actionValueTargetByTurn.push_back(NULL);
 
       ValueTargets valueTargets;
       valueTargets.win = winValue;
@@ -375,12 +412,15 @@ void Play::runGame(
       //Not defined, only matters for the final value targets for the game result
       valueTargets.score = 0.0f;
 
-      //TODO not implemented yet!
-      valueTargets.mctsUtility1 = 0.0f;
-      valueTargets.mctsUtility4 = 0.0f;
-      valueTargets.mctsUtility16 = 0.0f;
-      valueTargets.mctsUtility64 = 0.0f;
-      valueTargets.mctsUtility256 = 0.0f;
+      (void)gameRand; //TODO use this for sampling some conditional positions and forking?
+
+      assert(recordUtilities != NULL);
+      assert(recordUtilities->size() > 255);
+      valueTargets.mctsUtility1 = (float)((*recordUtilities)[0]);
+      valueTargets.mctsUtility4 = (float)((*recordUtilities)[3]);
+      valueTargets.mctsUtility16 = (float)((*recordUtilities)[15]);
+      valueTargets.mctsUtility64 = (float)((*recordUtilities)[63]);
+      valueTargets.mctsUtility256 = (float)((*recordUtilities)[255]);
 
       gameData->whiteValueTargetsByTurn.push_back(valueTargets);
     }
@@ -390,6 +430,7 @@ void Play::runGame(
     if(clearBotAfterSearch)
       toMoveBot->clearSearch();
 
+    //Finally, make the move on the bots
     bool suc;
     suc = botB->makeMove(loc,pla);
     assert(suc);
@@ -398,6 +439,7 @@ void Play::runGame(
       assert(suc);
     }
 
+    //And make the move on our copy of the board
     assert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
     pla = getOpp(pla);
@@ -407,7 +449,7 @@ void Play::runGame(
 
   if(gameData != NULL) {
     gameData->endHist = hist;
-    
+
     ValueTargets finalValueTargets;
     Color area[Board::MAX_ARR_SIZE];
     if(hist.isGameFinished && hist.isNoResult) {
@@ -453,6 +495,9 @@ void Play::runGame(
       }
     }
   }
+
+  if(recordUtilities != NULL)
+    delete recordUtilities;
 
 }
 

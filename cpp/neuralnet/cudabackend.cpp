@@ -2953,6 +2953,7 @@ struct Model {
   int ySize;
   int numInputChannels;
   bool usingFP16;
+  bool inputsUsingNHWC;
 
   cudnnTensorDescriptor_t* inputDescriptors;
 
@@ -2980,6 +2981,7 @@ struct Model {
     ySize = desc->ySize;
     numInputChannels = desc->numInputChannels;
     usingFP16 = useFP16;
+    inputsUsingNHWC = inputsUseNHWC;
 
     if(xSize != NNPos::MAX_BOARD_LEN)
       throw StringError(Global::strprintf("Currently neural net xSize (%d) must be NNPos::MAX_BOARD_LEN (%d)",
@@ -3101,11 +3103,17 @@ struct Model {
 
     if(!usingFP16) {
       bool inverse = false;
-      applySymmetriesNHWC<float>(symmetriesBuffer, inverse, batchSize, numInputChannels, xSize, ySize, (float*)inputBuf, (float*)inputScratchBuf);
+      if(inputsUsingNHWC)
+        applySymmetriesNHWC<float>(symmetriesBuffer, inverse, batchSize, numInputChannels, xSize, ySize, (float*)inputBuf, (float*)inputScratchBuf);
+      else
+        applySymmetriesNCHW<float>(symmetriesBuffer, inverse, batchSize, numInputChannels, xSize, ySize, (float*)inputBuf, (float*)inputScratchBuf);
     }
     else {
       bool inverse = false;
-      applySymmetriesNHWC<half>(symmetriesBuffer, inverse, batchSize, numInputChannels, xSize, ySize, (half*)inputBuf, (half*)inputScratchBuf);
+      if(inputsUsingNHWC)
+        applySymmetriesNHWC<half>(symmetriesBuffer, inverse, batchSize, numInputChannels, xSize, ySize, (half*)inputBuf, (half*)inputScratchBuf);
+      else
+        applySymmetriesNCHW<half>(symmetriesBuffer, inverse, batchSize, numInputChannels, xSize, ySize, (half*)inputBuf, (half*)inputScratchBuf);
     }
 
     trunk->apply(

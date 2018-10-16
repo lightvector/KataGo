@@ -34,7 +34,6 @@ static void signalHandler(int signal)
 //Class for running a game and enqueueing the result as training data.
 //Wraps together most of the neural-net-independent parameters to spawn and run a full game.
 class GameRunner {
-  SearchParams params;
   bool logSearchInfo;
   bool logMoves;
   int maxMovesPerGame;
@@ -44,14 +43,13 @@ class GameRunner {
 
 public:
   GameRunner(ConfigParser& cfg, const string& sRandSeedBase)
-    :params(),logSearchInfo(),logMoves(),maxMovesPerGame(),
+    :logSearchInfo(),logMoves(),maxMovesPerGame(),
      searchRandSeedBase(sRandSeedBase),matchPairer(NULL),gameInit(NULL)
   {
-    //TODO we should dynamically randomize the no result and draw utilities, and provide them as inputs to the net?
     vector<SearchParams> paramss = Setup::loadParams(cfg);
     if(paramss.size() != 1)
       throw StringError("Can only specify one set of search parameters for self-play");
-    params = paramss[0];
+    SearchParams baseParams = paramss[0];
 
     logSearchInfo = cfg.getBool("logSearchInfo");
     logMoves = cfg.getBool("logMoves");
@@ -62,7 +60,7 @@ public:
     matchPairer = new MatchPairer(cfg,forSelfPlay);
 
     //Initialize object for randomizing game settings
-    gameInit = new GameInitializer(cfg);
+    gameInit = new GameInitializer(cfg,baseParams);
   }
 
   ~GameRunner() {
@@ -80,8 +78,9 @@ public:
       return false;
 
     Board board; Player pla; BoardHistory hist; int numExtraBlack;
-    gameInit->createGame(board,pla,hist,numExtraBlack);
-    
+    SearchParams params;
+    gameInit->createGame(board,pla,hist,numExtraBlack,params);
+
     string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
     Rand gameRand(searchRandSeed + ":" + "forGameRand");
 
@@ -92,14 +91,14 @@ public:
     //called on positions that occur after the game would have been autoterminated.
     bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
 
-    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+    Search* bot = new Search(params, nnEval, searchRandSeed);
     FinishedGameData* finishedGameData = new FinishedGameData(dataPosLen, params.drawEquivalentWinsForWhite);
     Play::runGame(
       board,pla,hist,numExtraBlack,bot,bot,
       doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
       logger,logSearchInfo,logMoves,
       maxMovesPerGame,shouldStop,
-      finishedGameData
+      finishedGameData,&gameRand
     );
     delete bot;
 
@@ -114,8 +113,9 @@ public:
 //looping and actually performing the data output
 struct NetAndStuff {
   string nnName;
-  NNEvaluator* nnEval;  
+  NNEvaluator* nnEval;
 
+  int maxDataQueueSize;
   ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
   int numGameThreads;
   bool isDraining;
@@ -124,9 +124,10 @@ struct NetAndStuff {
   ofstream* sgfOut;
 
 public:
-  NetAndStuff(const string& name, NNEvaluator* neval, int maxDataQueueSize, TrainingDataWriter* dWriter, ofstream* sOut)
+  NetAndStuff(const string& name, NNEvaluator* neval, int maxDQueueSize, TrainingDataWriter* dWriter, ofstream* sOut)
     :nnName(name),nnEval(neval),
-     finishedGameQueue(maxDataQueueSize),
+     maxDataQueueSize(maxDQueueSize),
+     finishedGameQueue(maxDQueueSize),
      numGameThreads(0),isDraining(false),
      dataWriter(dWriter),sgfOut(sOut)
   {}
@@ -137,9 +138,13 @@ public:
     if(sgfOut != NULL)
       delete sgfOut;
   }
-  
-  void runWriteDataLoop() {
+
+  void runWriteDataLoop(Logger& logger) {
     while(true) {
+      size_t size = finishedGameQueue.size();
+      if(size > maxDataQueueSize / 2)
+        logger.write(Global::strprintf("WARNING: Struggling to keep up writing data, %d games enqueued out of %d max",size,maxDataQueueSize));
+
       FinishedGameData* data = finishedGameQueue.waitPop();
       if(data == NULL)
         break;
@@ -152,7 +157,7 @@ public:
       }
       delete data;
     }
-    
+
     dataWriter->close();
     if(sgfOut != NULL)
       sgfOut->close();
@@ -164,13 +169,13 @@ public:
     assert(!isDraining);
     numGameThreads++;
   }
-  
+
   //NOT threadsafe - needs to be externally synchronized
   //Game threads finishing a game using this net call this
   void unregisterGameThread() {
     numGameThreads--;
     if(isDraining && numGameThreads <= 0)
-      finishedGameQueue.forcePush(NULL); //forcePush so as not to block   
+      finishedGameQueue.forcePush(NULL); //forcePush so as not to block
   }
 
   //NOT threadsafe - needs to be externally synchronized
@@ -179,10 +184,10 @@ public:
     if(!isDraining) {
       isDraining = true;
       if(numGameThreads <= 0)
-        finishedGameQueue.forcePush(NULL); //forcePush so as not to block   
+        finishedGameQueue.forcePush(NULL); //forcePush so as not to block
     }
   }
- 
+
 };
 
 
@@ -253,11 +258,14 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   logger.write("Loaded neural net");
 
   //Load runner settings
-  int numGameThreads = cfg.getInt("numGameThreads",1,16384);
-  string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+  const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
+  const string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   //Width of the board to use when writing data, typically 19
-  int dataPosLen = cfg.getInt("dataPosLen",9,37);
+  const int dataPosLen = cfg.getInt("dataPosLen",9,37);
+  //Max number of games that we will allow to be queued up and not written out
+  const int maxDataQueueSize = cfg.getInt("maxDataQueueSize",1,1000000);
+  const int maxRowsPerFile = cfg.getInt("maxRowsPerFile",1,100000000);
 
   GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase);
 
@@ -286,21 +294,19 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
-  const int maxDataQueueSize = 5000;
-  const int maxRowsPerFile = 100000;
-
   std::mutex netAndStuffsMutex;
   vector<NetAndStuff*> netAndStuffs;
   std::condition_variable netAndStuffsIsEmpty;
 
   //Looping thread for writing data for a single net
   auto dataWriteLoop = [&netAndStuffsMutex,&netAndStuffs,&netAndStuffsIsEmpty,&logger](NetAndStuff* netAndStuff) {
-    netAndStuff->runWriteDataLoop();
+    netAndStuff->runWriteDataLoop(logger);
     logger.write("Data write loop finishing for neural net: " + netAndStuff->nnName);
 
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
 
     //Find where our netAndStuff is and remove it
+    string name = netAndStuff->nnName;
     bool found = false;
     for(int i = 0; i<netAndStuffs.size(); i++) {
       if(netAndStuffs[i] == netAndStuff) {
@@ -315,9 +321,9 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     assert(found);
     if(netAndStuffs.size() == 0)
       netAndStuffsIsEmpty.notify_all();
-    
+
     lock.unlock();
-    logger.write("Data write loop terminating");
+    logger.write("Data write loop cleaned up and terminating for " + name);
   };
 
   //Initialize the initial neural net
@@ -362,7 +368,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
       lock.lock();
       netAndStuff->unregisterGameThread();
     }
-    
+
     lock.unlock();
     logger.write("Game loop terminating");
   };
@@ -375,10 +381,23 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
       if(shouldStop.load())
         break;
 
+      lock.unlock();
+
       //TODO
       //Poll to see if there are any new nets to load
       NetAndStuff* newNet = NULL;
 
+      lock.lock();
+
+      //Check again if we should be stopping, after loading the new net, and quit more quickly.
+      if(shouldStop.load()) {
+        lock.unlock();
+        delete newNet;
+        lock.lock();
+        break;
+      }
+
+      //Otherwise, we're not stopped yet, so stick a new net on to things.
       if(newNet != NULL) {
         logger.write("Loaded new neural net " + newNet->nnName);
         netAndStuffs.push_back(newNet);
@@ -389,8 +408,13 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
         std::thread newThread(dataWriteLoop,newNet);
         newThread.detach();
       }
-      pollSleepVar.wait_for(lock, std::chrono::seconds(60));
+
+      //Sleep for a while and then re-poll
+      pollSleepVar.wait_for(lock, std::chrono::seconds(60), [](){return shouldStop.load();});
     }
+
+    //As part of cleanup, anything remaining, mark them as draining so that if they also have
+    //no more game threads, they all quit out.
     for(int i = 0; i<netAndStuffs.size(); i++)
       netAndStuffs[i]->markAsDraining();
 
@@ -398,7 +422,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     logger.write("Polling net loading loop terminating");
   };
 
-  
+
   vector<std::thread> threads;
   for(int i = 0; i<numGameThreads; i++) {
     threads.push_back(std::thread(gameLoop));
@@ -409,26 +433,29 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   for(int i = 0; i<numGameThreads; i++)
     threads[i].join();
 
-  //If by now somehow shouldStop is not true, set it to be true since all game threads are toast
-  shouldStop.store(true);
-
   //Wake up the polling thread rather than waiting up to 60s for it to wake up on its own, and
   //wait for it to die.
-  pollSleepVar.notify_all();
+  {
+    //Lock so that we don't race where we notify the polling thread to wake when it's still in
+    //its own critical section but not yet slept
+    std::lock_guard<std::mutex> lock(netAndStuffsMutex);
+    //If by now somehow shouldStop is not true, set it to be true since all game threads are toast
+    shouldStop.store(true);
+    pollSleepVar.notify_all();
+  }
   pollLoopThread.join();
 
   //Wait for netAndStuffs to be empty, which indicates that the detached data writing threads
   //have all cleaned up and removed their netAndStuff.
   {
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
-    while(netAndStuffs.size() > 0)
+    while(netAndStuffs.size() > 0) {
       netAndStuffsIsEmpty.wait(lock);
+    }
   }
 
   //Delete and clean up everything else
-  delete nnEval;
   NeuralNet::globalCleanup();
-
   delete gameRunner;
 
   if(sigReceived.load())

@@ -136,6 +136,10 @@ struct Search {
 
   //Outside-of-search functions-------------------------------------------
 
+  const Board& getRootBoard() const;
+  const BoardHistory& getRootHist() const;
+  Player getRootPla() const;
+
   //Clear all results of search and sets a new position or something else
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
 
@@ -162,11 +166,22 @@ struct Search {
   //If somehow the max value is less than scaleMaxToAtLeast, scale it to at least that value.
   bool getPlaySelectionValues(
     vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
-  );
+  ) const;
   //Get the values recorded for the root node
   bool getRootValues(
     double& winValue, double& lossValue, double& noResultValue, double& scoreValue
-  );
+  ) const;
+  //Get the combined utility recorded for the root node
+  double getRootUtility() const;
+
+  //Run an entire search from start to finish
+  //If recordUtilities is provided, and we're doing a singlethreaded search, will fill recordUtilities
+  //with the root utility as of the end of each playout performed, up to the length of recordUtilities.
+  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities);
+  void runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities);
+
+  //Manual playout-by-playout interface------------------------------------------------
 
   //Call once at the start of each search
   void beginSearch();

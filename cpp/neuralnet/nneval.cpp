@@ -242,19 +242,23 @@ void NNEvaluator::serve(
         assert(resultBuf->hasResult == false);
         resultBuf->result = std::make_shared<NNOutput>();
         float* policyProbs = resultBuf->result->policyProbs;
-        //Illegal move filtering happens later
+        //At this point, these aren't probabilities, since this is before the postprocessing
+        //that happens for each result. These just need to be unnormalized log probabilities.
+        //Illegal move filtering happens later.
         for(int i = 0; i<policySize; i++)
           policyProbs[i] = rand.nextGaussian();
         for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
           policyProbs[i] = 0;
 
-        double whiteWinProb = 0.5 + rand.nextGaussian() * 0.05;
-        double whiteScoreValue = 0.0 + rand.nextGaussian() * 0.10;
-        if(whiteWinProb > 1.0) whiteWinProb = 1.0;
-        if(whiteWinProb < 0.0) whiteWinProb = 0.0;
+        //These aren't really probabilities. Win/Loss/NoResult will get softmaxed later
+        //(or in the case of model version 2, it will only just pay attention to the value of whiteWinProb and tanh it)
+        double whiteWinProb = 0.0 + rand.nextGaussian() * 0.20;
+        double whiteLossProb = 0.0 + rand.nextGaussian() * 0.20;
+        double whiteScoreValue = 0.0 + rand.nextGaussian() * 0.20;
+        double whiteNoResultProb = 0.0 + rand.nextGaussian() * 0.20;
         resultBuf->result->whiteWinProb = whiteWinProb;
-        resultBuf->result->whiteLossProb = 1.0 - whiteWinProb;
-        resultBuf->result->whiteNoResultProb = 0.0;
+        resultBuf->result->whiteLossProb = whiteLossProb;
+        resultBuf->result->whiteNoResultProb = whiteNoResultProb;
         resultBuf->result->whiteScoreValue = whiteScoreValue;
         resultBuf->hasResult = true;
         resultBuf->clientWaitingForResult.notify_all();

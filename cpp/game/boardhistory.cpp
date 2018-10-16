@@ -14,6 +14,13 @@ static Hash128 getKoHashAfterMoveNonEncore(const Rules& rules, Hash128 posHashAf
   else
     return posHashAfterMove;
 }
+static Hash128 getKoHashAfterMove(const Rules& rules, Hash128 posHashAfterMove, Player pla, int encorePhase, Hash128 koProhibitHashAfterMove) {
+  if(rules.koRule == Rules::KO_SITUATIONAL || encorePhase > 0)
+    return posHashAfterMove ^ Board::ZOBRIST_PLAYER_HASH[pla] ^ koProhibitHashAfterMove;
+  else
+    return posHashAfterMove ^ koProhibitHashAfterMove;
+}
+
 
 BoardHistory::BoardHistory()
   :rules(),
@@ -165,6 +172,8 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
   koHashHistory.clear();
   koHistoryLastClearedBeginningMoveIdx = 0;
 
+  //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
+  //we simply return copies of the starting board.
   for(int i = 0; i<NUM_RECENT_BOARDS; i++)
     recentBoards[i] = board;
   currentRecentBoardIdx = 0;
@@ -434,6 +443,60 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
   return true;
 }
 
+//Return the number of consecutive game-ending passes there would be if this move was made.
+int BoardHistory::newConsecutiveEndingPasses(Loc moveLoc, Loc koLocBeforeMove) const {
+  int newConsecutiveEndingPasses = consecutiveEndingPasses;
+  if(moveLoc != Board::PASS_LOC)
+    newConsecutiveEndingPasses = 0;
+  else if(encorePhase > 0)
+    newConsecutiveEndingPasses++;
+  else {
+    switch(rules.koRule) {
+    case Rules::KO_SIMPLE:
+      if(koLocBeforeMove == Board::NULL_LOC)
+        newConsecutiveEndingPasses++;
+      else
+        newConsecutiveEndingPasses = 0;
+      break;
+    case Rules::KO_POSITIONAL:
+    case Rules::KO_SITUATIONAL:
+      newConsecutiveEndingPasses++;
+      break;
+    case Rules::KO_SPIGHT:
+      newConsecutiveEndingPasses = 0;
+      break;
+    default:
+      assert(false);
+      break;
+    }
+  }
+  return newConsecutiveEndingPasses;
+}
+
+//Returns true if this move would be a pass that causes spight or simple ko rules to want to end the phase
+//regardless of the number of consecutive ending passes.
+bool BoardHistory::wouldBeSimpleSpightOrEncoreEndingPass(Loc moveLoc, Player movePla, Hash128 koHashAfterMove) const {
+  if(moveLoc == Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT)) {
+    if(movePla == P_BLACK && std::find(hashesAfterBlackPass.begin(), hashesAfterBlackPass.end(), koHashAfterMove) != hashesAfterBlackPass.end())
+      return true;
+    if(movePla == P_WHITE && std::find(hashesAfterWhitePass.begin(), hashesAfterWhitePass.end(), koHashAfterMove) != hashesAfterWhitePass.end())
+      return true;
+  }
+  return false;
+}
+
+bool BoardHistory::passWouldEndPhase(const Board& board, Player movePla) const {
+  Loc koLocBeforeMove = board.ko_loc;
+  Hash128 posHashAfterMove = board.pos_hash; //Pass cannot affect pos hash
+  Hash128 koProhibitHashAfterMove =  koProhibitHash; //Pass never marks or unmarks any ko prohibitions
+  Hash128 koHashAfterMove = getKoHashAfterMove(rules, posHashAfterMove, getOpp(movePla), encorePhase, koProhibitHashAfterMove);
+
+  if(newConsecutiveEndingPasses(Board::PASS_LOC,koLocBeforeMove) >= 2 ||
+     wouldBeSimpleSpightOrEncoreEndingPass(Board::PASS_LOC,movePla,koHashAfterMove))
+    return true;
+  return false;
+}
+
 void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable) {
   Loc koLocBeforeMove = board.ko_loc;
   Hash128 posHashBeforeMove = board.pos_hash;
@@ -446,7 +509,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
   //Handle pass-for-ko moves in the encore. Pass for ko lifts a ko prohibition and does nothing else.
   bool wasPassForKo = false;
-  if(encorePhase > 0) {
+  if(encorePhase > 0 && moveLoc != Board::PASS_LOC) {
     if((movePla == P_BLACK && blackKoProhibited[moveLoc] && board.wouldBeKoCapture(moveLoc,P_BLACK)) ||
        (movePla == P_WHITE && whiteKoProhibited[moveLoc] && board.wouldBeKoCapture(moveLoc,P_WHITE))) {
       setKoProhibited(movePla,moveLoc,false);
@@ -494,7 +557,8 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     //still repeated positions after pass wnd the game or phase, which these arrays are used to check.
   }
 
-  koHashHistory.push_back(getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash));
+  Hash128 koHashAfterThisMove = getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash);
+  koHashHistory.push_back(koHashAfterThisMove);
   moveHistory.push_back(Move(moveLoc,movePla));
   wasEverOccupiedOrPlayed[moveLoc] = true;
 
@@ -531,47 +595,17 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   }
 
   //Update consecutiveEndingPasses
-  if(moveLoc != Board::PASS_LOC)
-    consecutiveEndingPasses = 0;
-  else if(encorePhase > 0)
-    consecutiveEndingPasses++;
-  else {
-    switch(rules.koRule) {
-    case Rules::KO_SIMPLE:
-      if(koLocBeforeMove == Board::NULL_LOC)
-        consecutiveEndingPasses++;
-      else
-        consecutiveEndingPasses = 0;
-      break;
-    case Rules::KO_POSITIONAL:
-    case Rules::KO_SITUATIONAL:
-      consecutiveEndingPasses++;
-      break;
-    case Rules::KO_SPIGHT:
-      consecutiveEndingPasses = 0;
-      break;
-    default:
-      assert(false);
-      break;
-    }
-  }
+  consecutiveEndingPasses = newConsecutiveEndingPasses(moveLoc,koLocBeforeMove);
 
-  //Check if we have a game-ending pass before updating hashesAfterBlackPass and hashesAfterWhitePass
-  bool isSimpleSpightOrEncoreEndingPass = false;
-  if(moveLoc == Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT)) {
-    Hash128 lastHash = koHashHistory[koHashHistory.size()-1];
-    if(movePla == P_BLACK && std::find(hashesAfterBlackPass.begin(), hashesAfterBlackPass.end(), lastHash) != hashesAfterBlackPass.end())
-      isSimpleSpightOrEncoreEndingPass = true;
-    if(movePla == P_WHITE && std::find(hashesAfterWhitePass.begin(), hashesAfterWhitePass.end(), lastHash) != hashesAfterWhitePass.end())
-      isSimpleSpightOrEncoreEndingPass = true;
-  }
+  //Check if we have a game-ending pass BEFORE updating hashesAfterBlackPass and hashesAfterWhitePass
+  bool isSimpleSpightOrEncoreEndingPass = wouldBeSimpleSpightOrEncoreEndingPass(moveLoc,movePla,koHashAfterThisMove);
 
   //Update hashesAfterBlackPass and hashesAfterWhitePass
   if(moveLoc == Board::PASS_LOC) {
     if(movePla == P_BLACK)
-      hashesAfterBlackPass.push_back(koHashHistory[koHashHistory.size()-1]);
+      hashesAfterBlackPass.push_back(koHashAfterThisMove);
     else if(movePla == P_WHITE)
-      hashesAfterWhitePass.push_back(koHashHistory[koHashHistory.size()-1]);
+      hashesAfterWhitePass.push_back(koHashAfterThisMove);
     else
       assert(false);
   }

@@ -18,8 +18,8 @@ ValueTargets::~ValueTargets()
 
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 static const int POLICY_TARGET_NUM_CHANNELS = 3;
-static const int VALUE_TARGET_NUM_CHANNELS = 26;
-static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 2;
+static const int VALUE_TARGET_NUM_CHANNELS = 25;
+static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int pLen)
   :inputsVersion(iVersion),
@@ -37,7 +37,7 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    valueTargetsNC({maxRws, VALUE_TARGET_NUM_CHANNELS}),
    valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, pLen, pLen})
 {
-  binaryInputNCHWUnpacked = new bool[maxRws * numBChannels * pLen * pLen];
+  binaryInputNCHWUnpacked = new bool[numBChannels * pLen * pLen];
 }
 
 TrainingWriteBuffers::~TrainingWriteBuffers()
@@ -84,7 +84,7 @@ static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves, 
   for(size_t i = 0; i<size; i++) {
     const PolicyTargetMove& move = policyTargetMoves[i];
     int pos = NNPos::locToPos(move.loc, boardXSize, posLen);
-    assert(pos >= 0 && pos < posLen);
+    assert(pos >= 0 && pos < policySize);
     target[pos] = move.policyTarget;
   }
 }
@@ -92,30 +92,23 @@ static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves, 
 static float fsq(float x) {
   return x * x;
 }
-static int16_t discretizeFloat(float x) {
-  //Map [-1.0f,1.0f] to a fixed point number from [-10000,10000], round to the nearest +/- 10000.
-  //Note that utilities actually go out of bounds by a little due to score utility, but we have +/- 32K in a 16 bit int, so that's fine.
-  assert(x >= -3.0f && x <= 3.0f);
-  float f = x * 10000.0f;
-  return (int16_t)round(f);
-}
 
 static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTurn, int turnNumber, Player nextPlayer, float nowFactor, float* buf) {
   double winValue = 0.0;
   double lossValue = 0.0;
   double noResultValue = 0.0;
   double scoreValue = 0.0;
-  
+
   double weightLeft = 1.0;
   for(int i = turnNumber; i<whiteValueTargetsByTurn.size(); i++) {
     double weightNow;
     if(i == whiteValueTargetsByTurn.size() - 1) {
-      weightNow = weightLeft * nowFactor;
-      weightLeft *= (1.0 - nowFactor);
-    }
-    else {
       weightNow = weightLeft;
       weightLeft = 0.0;
+    }
+    else {
+      weightNow = weightLeft * nowFactor;
+      weightLeft *= (1.0 - nowFactor);
     }
 
     //Training rows need things from the perspective of the player to move, so we flip as appropriate.
@@ -138,8 +131,7 @@ void TrainingWriteBuffers::addRow(
   const vector<PolicyTargetMove>* policyTarget1, //can be null
   const vector<PolicyTargetMove>* policyTarget2, //can be null
   const vector<ValueTargets>& whiteValueTargetsByTurn,
-  const int16_t* finalOwnership,
-  const float* actionValueTarget //can be null
+  const int16_t* finalOwnership
 ) {
   if(inputsVersion < 3 || inputsVersion > 3)
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
@@ -212,23 +204,12 @@ void TrainingWriteBuffers::addRow(
   rowValue[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
   rowValue[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
   rowValue[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
+  assert(25 == VALUE_TARGET_NUM_CHANNELS);
 
   int16_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
   for(int i = 0; i<posArea; i++) {
     assert(finalOwnership[i] == 0 || finalOwnership[i] == 1 || finalOwnership[i] == -1);
     rowOwnership[i] = finalOwnership[i];
-  }
-
-  int16_t* rowActionValue = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea + posArea;
-  if(actionValueTarget != NULL) {
-    rowValue[25] = 1.0f;
-    for(int i = 0; i<posArea; i++)
-      rowActionValue[i] = discretizeFloat(actionValueTarget[i]);
-  }
-  else {
-    rowValue[25] = 0.0f;
-    for(int i = 0; i<posArea; i++)
-      rowActionValue[i] = 0;
   }
 
   curRows++;
@@ -270,7 +251,6 @@ FinishedGameData::FinishedGameData(int pLen, double drawEquivForWhite)
     moves(),
     policyTargetsByTurn(),
     whiteValueTargetsByTurn(),
-    actionValueTargetByTurn(),
     finalOwnership(NULL),
     drawEquivalentWinsForWhite(drawEquivForWhite),
     posLen(pLen)
@@ -283,8 +263,6 @@ FinishedGameData::FinishedGameData(int pLen, double drawEquivForWhite)
 FinishedGameData::~FinishedGameData() {
   for(int i = 0; i<policyTargetsByTurn.size(); i++)
     delete policyTargetsByTurn[i];
-  for(int i = 0; i<actionValueTargetByTurn.size(); i++)
-    delete actionValueTargetByTurn[i];
 
   delete[] finalOwnership;
 }
@@ -313,14 +291,14 @@ TrainingDataWriter::~TrainingDataWriter()
 
 void TrainingDataWriter::writeAndClearIfFull() {
   if(writeBuffers->curRows >= writeBuffers->maxRows) {
-    writeBuffers->writeToZipFile(outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()));
+    writeBuffers->writeToZipFile(outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz");
     writeBuffers->clear();
   }
 }
 
 void TrainingDataWriter::close() {
   if(writeBuffers->curRows > 0) {
-    writeBuffers->writeToZipFile(outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()));
+    writeBuffers->writeToZipFile(outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz");
     writeBuffers->clear();
   }
 }
@@ -329,7 +307,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   int numMoves = data.moves.size();
   assert(data.policyTargetsByTurn.size() == numMoves);
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
-  assert(data.actionValueTargetByTurn.size() == numMoves);
 
   Board board(data.startBoard);
   BoardHistory hist(data.startHist);
@@ -349,8 +326,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       policyTarget1,
       policyTarget2,
       data.whiteValueTargetsByTurn,
-      data.finalOwnership,
-      data.actionValueTargetByTurn[turnNumber]
+      data.finalOwnership
     );
     writeAndClearIfFull();
 

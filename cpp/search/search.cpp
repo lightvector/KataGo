@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "../search/search.h"
 #include "../core/fancymath.h"
+#include "../core/timer.h"
 #include "../search/distributiontable.h"
 
 NodeStats::NodeStats()
@@ -173,6 +174,16 @@ Search::~Search() {
   delete mutexPool;
 }
 
+const Board& Search::getRootBoard() const {
+  return rootBoard;
+}
+const BoardHistory& Search::getRootHist() const {
+  return rootHistory;
+}
+Player Search::getRootPla() const {
+  return rootPla;
+}
+
 void Search::setPosition(Player pla, const Board& board, const BoardHistory& history) {
   clearSearch();
   rootPla = pla;
@@ -275,7 +286,7 @@ static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
 
 bool Search::getPlaySelectionValues(
   vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
-) {
+) const {
   locs.clear();
   playSelectionValues.clear();
 
@@ -351,7 +362,8 @@ bool Search::getPlaySelectionValues(
 
 bool Search::getRootValues(
   double& winValue, double& lossValue, double& noResultValue, double& scoreValue
-) {
+) const {
+  assert(rootNode != NULL);
   const SearchNode& node = *rootNode;
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
@@ -375,6 +387,25 @@ bool Search::getRootValues(
   noResultValue = noResultValueSum / valueSumWeight;
   scoreValue = scoreValueSum / valueSumWeight;
   return true;
+}
+
+double Search::getRootUtility() const {
+  assert(rootNode != NULL);
+  const SearchNode& node = *rootNode;
+  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
+  unique_lock<std::mutex> lock(mutex);
+  shared_ptr<NNOutput> nnOutput = node.nnOutput;
+  lock.unlock();
+  if(nnOutput == nullptr)
+    return false;
+
+  while(node.statsLock.test_and_set(std::memory_order_acquire));
+  double utilitySum = node.stats.getCombinedUtilitySum(searchParams);
+  double valueSumWeight = node.stats.valueSumWeight;
+  node.statsLock.clear(std::memory_order_release);
+
+  assert(valueSumWeight > 0.0);
+  return utilitySum / valueSumWeight;
 }
 
 Loc Search::getChosenMoveLoc() {
@@ -427,6 +458,86 @@ Loc Search::getChosenMoveLoc() {
     return locs[idxChosen];
   }
 }
+
+Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities) {
+  runWholeSearch(movePla,logger,recordUtilities);
+  return getChosenMoveLoc();
+}
+
+void Search::runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities) {
+  if(movePla != rootPla)
+    setPlayerAndClearHistory(movePla);
+  std::atomic<bool> shouldStopNow(false);
+  runWholeSearch(logger,shouldStopNow,recordUtilities);
+}
+
+void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities) {
+
+  ClockTimer timer;
+  atomic<uint64_t> numPlayoutsShared(0);
+
+  if(!std::atomic_is_lock_free(&numPlayoutsShared))
+    logger.write("Warning: uint64_t atomic numPlayoutsShared is not lock free");
+  if(!std::atomic_is_lock_free(&shouldStopNow))
+    logger.write("Warning: bool atomic shouldStopNow is not lock free");
+
+  beginSearch();
+  uint64_t numNonPlayoutVisits = numRootVisits();
+
+  auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities](int threadIdx) {
+    SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
+    uint64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
+    try {
+      while(true) {
+        bool shouldStop =
+          (numPlayouts >= 1 && searchParams.maxTime < 1.0e12 && timer.getSeconds() >= searchParams.maxTime) ||
+          (numPlayouts >= searchParams.maxPlayouts) ||
+          (numPlayouts + numNonPlayoutVisits >= searchParams.maxVisits);
+
+        if(shouldStop || shouldStopNow.load(std::memory_order_relaxed)) {
+          shouldStopNow.store(true,std::memory_order_relaxed);
+          break;
+        }
+
+        runSinglePlayout(*stbuf);
+
+        numPlayouts = numPlayoutsShared.fetch_add((uint64_t)1, std::memory_order_relaxed);
+        numPlayouts += 1;
+
+        if(searchParams.numThreads == 1 && recordUtilities != NULL) {
+          if(numPlayouts <= recordUtilities->size()) {
+            assert(numPlayouts >= 1);
+            (*recordUtilities)[numPlayouts-1] = getRootUtility();
+          }
+        }
+
+      }
+    }
+    catch(const exception& e) {
+      logger.write(string("ERROR: Search thread failed: ") + e.what());
+    }
+    catch(const string& e) {
+      logger.write("ERROR: Search thread failed: " + e);
+    }
+    catch(...) {
+      logger.write("ERROR: Search thread failed with unexpected throw");
+    }
+    delete stbuf;
+  };
+
+  if(searchParams.numThreads <= 1)
+    searchLoop(0);
+  else {
+    std::thread* threads = new std::thread[searchParams.numThreads-1];
+    for(int i = 0; i<searchParams.numThreads-1; i++)
+      threads[i] = std::thread(searchLoop,i+1);
+    searchLoop(0);
+    for(int i = 0; i<searchParams.numThreads-1; i++)
+      threads[i].join();
+    delete[] threads;
+  }
+}
+
 
 void Search::beginSearch() {
   if(rootBoard.x_size > posLen || rootBoard.y_size > posLen)

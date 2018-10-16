@@ -21,7 +21,9 @@ Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_ENCORE_HASH[3];
-
+const Hash128 Board::ZOBRIST_PASS_ENDS_PHASE = //Based on sha256 hash of Board::ZOBRIST_PASS_ENDS_PHASE
+  Hash128(0x853E097C279EBF4EULL, 0xE3153DEF9E14A62CULL);
+  
 //CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
 
 Board::Board()

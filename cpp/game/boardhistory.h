@@ -85,6 +85,8 @@ struct BoardHistory {
 
   //Check if a move on the board is legal, taking into account the full game state and superko
   bool isLegal(const Board& board, Loc moveLoc, Player movePla) const;
+  //Check if passing right now would end the current phase of play
+  bool passWouldEndPhase(const Board& board, Player movePla) const;
 
   //For all of the below, rootKoHashTable is optional and if provided will slightly speedup superko searches
   //This function should behave gracefully so long as it is pseudolegal (board.isLegal, but also still ok if the move is on board.ko_loc)
@@ -104,6 +106,8 @@ private:
   void setKoProhibited(Player pla, Loc loc, bool b);
   int countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   int countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
+  int newConsecutiveEndingPasses(Loc moveLoc, Loc koLocBeforeMove) const;
+  bool wouldBeSimpleSpightOrEncoreEndingPass(Loc moveLoc, Player movePla, Hash128 koHashAfterMove) const;
 };
 
 struct KoHashTable {

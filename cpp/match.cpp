@@ -156,19 +156,19 @@ int MainCmds::match(int argc, const char* const* argv) {
     int64_t gameIdx, int botIdxB, int botIdxW, Board& board, Player pla, BoardHistory& hist, int numExtraBlack
   ) {
     string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
-    AsyncBot* botB;
-    AsyncBot* botW;
+    Search* botB;
+    Search* botW;
     bool clearBotAfterSearchThisGame = clearBotAfterSearch;
     if(botIdxB == botIdxW) {
-      AsyncBot* bot = new AsyncBot(paramss[botIdxB], nnEvals[whichNNModel[botIdxB]], &logger, searchRandSeed);
+      Search* bot = new Search(paramss[botIdxB], nnEvals[whichNNModel[botIdxB]], searchRandSeed);
       botB = bot;
       botW = bot;
       //To avoid interactions between the two bots since they're the same
       clearBotAfterSearchThisGame = true;
     }
     else {
-      botB = new AsyncBot(paramss[botIdxB], nnEvals[whichNNModel[botIdxB]], &logger, searchRandSeed+"B");
-      botW = new AsyncBot(paramss[botIdxW], nnEvals[whichNNModel[botIdxW]], &logger, searchRandSeed+"W");
+      botB = new Search(paramss[botIdxB], nnEvals[whichNNModel[botIdxB]], searchRandSeed+"B");
+      botW = new Search(paramss[botIdxW], nnEvals[whichNNModel[botIdxW]], searchRandSeed+"W");
     }
     bool doEndGameIfAllPassAlive = true;
     Play::runGame(
@@ -176,7 +176,7 @@ int MainCmds::match(int argc, const char* const* argv) {
       doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
       logger,logSearchInfo,logMoves,
       maxMovesPerGame,sigReceived,
-      NULL
+      NULL,NULL
     );
     delete botB;
     if(botIdxB != botIdxW)
@@ -240,7 +240,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   NeuralNet::globalCleanup();
 
   delete gameInit;
-  
+
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");
   logger.write("All cleaned up, quitting");
