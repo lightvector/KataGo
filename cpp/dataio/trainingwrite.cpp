@@ -131,7 +131,7 @@ void TrainingWriteBuffers::addRow(
   const vector<PolicyTargetMove>* policyTarget1, //can be null
   const vector<PolicyTargetMove>* policyTarget2, //can be null
   const vector<ValueTargets>& whiteValueTargetsByTurn,
-  const int16_t* finalOwnership
+  const int8_t* finalOwnership
 ) {
   if(inputsVersion < 3 || inputsVersion > 3)
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
@@ -206,11 +206,18 @@ void TrainingWriteBuffers::addRow(
   rowValue[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
   assert(25 == VALUE_TARGET_NUM_CHANNELS);
 
-  int16_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
+  int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
   for(int i = 0; i<posArea; i++) {
     assert(finalOwnership[i] == 0 || finalOwnership[i] == 1 || finalOwnership[i] == -1);
     rowOwnership[i] = finalOwnership[i];
   }
+
+  //TODO we need to write a few more things:
+  //* a generated hash to associate with the sgf file (which we should also write the hash in)
+  //* Random choice of mask for the history
+  //* turn number
+  //* starting source (human game? komi branch? etc)
+  //think about also what we need regarding symmtry randomization with a small number of games
 
   curRows++;
 
@@ -255,7 +262,7 @@ FinishedGameData::FinishedGameData(int pLen, double drawEquivForWhite)
     drawEquivalentWinsForWhite(drawEquivForWhite),
     posLen(pLen)
 {
-  finalOwnership = new int16_t[posLen*posLen];
+  finalOwnership = new int8_t[posLen*posLen];
   for(int i = 0; i<posLen*posLen; i++)
     finalOwnership[i] = 0;
 }

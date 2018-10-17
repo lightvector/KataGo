@@ -71,7 +71,7 @@ struct TrainingWriteBuffers {
   //Spatial value-related targets
   //C0 - Final board ownership (-1,0,1). All 0 if no result.
   //C1 - Action-value head.
-  NumpyBuffer<int16_t> valueTargetsNCHW;
+  NumpyBuffer<int8_t> valueTargetsNCHW;
 
   TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numFloatChannels, int posLen);
   ~TrainingWriteBuffers();
@@ -88,7 +88,7 @@ struct TrainingWriteBuffers {
     const vector<PolicyTargetMove>* policyTarget1, //can be null
     const vector<PolicyTargetMove>* policyTarget2, //can be null
     const vector<ValueTargets>& whiteValueTargetsByTurn,
-    const int16_t* finalOwnership
+    const int8_t* finalOwnership
   );
 
   void writeToZipFile(const string& fileName);
@@ -106,7 +106,7 @@ struct FinishedGameData {
   vector<Move> moves;
   vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
   vector<ValueTargets> whiteValueTargetsByTurn;
-  int16_t* finalOwnership;
+  int8_t* finalOwnership;
   double drawEquivalentWinsForWhite;
   int posLen;
 

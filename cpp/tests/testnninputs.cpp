@@ -10,6 +10,7 @@ void Tests::runNNInputsTests() {
   ostringstream out;
   out << std::setprecision(3);
 
+  //TODO switch to V3 and add more tests for more various positions, as well as all the new aux features
   auto printNNInputAndBoard = [&out](const Board& board, const BoardHistory& hist, int posLen, bool inputsUseNHWC, float* row, int c) {
     for(int y = 0; y<posLen; y++) {
       for(int x = 0; x<posLen; x++) {

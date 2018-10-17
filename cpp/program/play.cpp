@@ -178,7 +178,7 @@ MatchPairer::MatchPairer(ConfigParser& cfg, bool forSelfPlay)
 {
   if(forSelfPlay) {
     numBots = 1;
-    numGamesTotal = 0x1fffFFFFffffFFFFULL;
+    numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
   }
   else {
     numBots = cfg.getInt("numBots",1,1024);
@@ -467,6 +467,7 @@ void Play::runGame(
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
       finalValueTargets.scoreValue = NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, gameData->drawEquivalentWinsForWhite, board, hist);
+      //TODO maybe we need to take into account draw equiv wins too if we want this as a training target
       finalValueTargets.score = hist.finalWhiteMinusBlackScore;
 
       //Dummy values, doesn't matter since we didn't do a search for the final values

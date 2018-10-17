@@ -362,11 +362,13 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
         netAndStuff->nnEval, logger,
         dataPosLen, netAndStuff->finishedGameQueue
       );
-      if(!shouldContinue)
-        break;
 
       lock.lock();
+
       netAndStuff->unregisterGameThread();
+
+      if(!shouldContinue)
+        break;
     }
 
     lock.unlock();
