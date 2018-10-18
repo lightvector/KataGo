@@ -143,6 +143,7 @@ static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
+   rootSafeArea(NULL),
    searchParams(params),numSearchesBegun(0),randSeed(rSeed),
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand"))
@@ -151,6 +152,8 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   assert(posLen > 0 && posLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(posLen);
   rootKoHashTable = new KoHashTable();
+
+  rootSafeArea = new Color[Board::MAX_ARR_SIZE];
 
   valueWeightDistribution = new DistributionTable(
     [](double z) { return FancyMath::tdistpdf(z,VALUE_WEIGHT_DEGREES_OF_FREEDOM); },
@@ -168,6 +171,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
 }
 
 Search::~Search() {
+  delete rootSafeArea;
   delete rootKoHashTable;
   delete valueWeightDistribution;
   delete rootNode;
@@ -544,10 +548,27 @@ void Search::beginSearch() {
     throw StringError("Search got from NNEval posLen = " + Global::intToString(posLen) + " but was asked to search board with larger x or y size");
 
   numSearchesBegun++;
+  computeRootValues();
+
   if(rootNode == NULL) {
     SearchThread dummyThread(-1, *this, NULL);
     rootNode = new SearchNode(*this, dummyThread, Board::NULL_LOC);
   }
+}
+
+void Search::computeRootValues() {
+  //rootSafeArea is pass-alive groups and safe territory.
+  bool nonPassAliveStones = false;
+  bool safeBigTerritories = true;
+  bool unsafeBigTerritories = false;
+  bool isMultiStoneSuicideLegal = rootHistory.rules.multiStoneSuicideLegal;
+  rootBoard.calculateArea(
+    rootSafeArea,
+    nonPassAliveStones,
+    safeBigTerritories,
+    unsafeBigTerritories,
+    isMultiStoneSuicideLegal
+  );
 }
 
 uint64_t Search::numRootVisits() {
@@ -689,6 +710,78 @@ double Search::getExploreSelectionValue(
   return exploreComponent + valueComponent;
 }
 
+//TODO needs testing
+double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const {
+  if(&parent != rootNode || child->prevMoveLoc == Board::NULL_LOC)
+    return 0.0;
+  if(parent.nnOutput == nullptr || parent.nnOutput->ownerMap == NULL)
+    return 0.0;
+
+  bool isAreaIsh = rootHistory.rules.scoringRule == Rules::SCORING_AREA
+    || (rootHistory.rules.scoringRule == Rules::SCORING_TERRITORY && rootHistory.encorePhase >= 2);
+  float* ownerMap = parent.nnOutput->ownerMap;
+  Loc moveLoc = child->prevMoveLoc;
+
+  //Extra points from the perspective of the root player
+  double extraRootPoints = 0.0;
+  if(isAreaIsh) {
+    //Areaish scoring - encourage passing slightly to discourage pointless territory-filling at the end
+    //This should help keep the game short.
+    //However, for cosmetics, still encourage dame-filling and completing things (such as avoiding passing early when there are
+    //an even number of dame so that passing wouldn't lose points).
+    //So we equally encourage passing and playing moves in non-pass-safe regions that fill opponent liberties or connect
+    //own groups, unless the opponent almost surely owns those regions.
+    if(moveLoc == Board::PASS_LOC) {
+      extraRootPoints += searchParams.rootEndingBonusPoints;
+    }
+    else if(rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) ||
+            rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
+      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
+      double plaOwnership = rootPla == P_WHITE ? ownerMap[pos] : -ownerMap[pos];
+      if(plaOwnership > -0.98)
+        extraRootPoints += searchParams.rootEndingBonusPoints;
+    }
+  }
+  else {
+    //Territorish scoring - slightly encourage dame-filling by discouraging passing.
+    //The formal japanese rules normally "want" you to fill the dame so this is a cosmetic adjustment to encourage the neural
+    //net to learn to do so in the main phase rather than waiting until the encore.
+    //But again cosmetically, it's not great if we just encourage useless threat moves in the opponent's territory to prolong the game.
+    //So also discourage those moves.
+    if(moveLoc == Board::PASS_LOC) {
+      extraRootPoints -= searchParams.rootEndingBonusPoints * (2.0 / 3.0);
+    }
+    else {
+      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
+      double plaOwnership = rootPla == P_WHITE ? ownerMap[pos] : -ownerMap[pos];
+      if(plaOwnership <= -0.94)
+        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.94 - plaOwnership) / 0.06);
+    }
+  }
+
+  if(extraRootPoints == 0.0)
+    return 0.0;
+
+  //Map back the current score value as if it were a point estimate to find the current "expected score". This isn't quite right since
+  //it isn't linear once there is variance, but it should be a reasonable approximation.
+  double currentScore = NNOutput::approxWhiteScoreOfScoreValue(scoreValue,rootBoard);
+
+  //Apply the extra points and take the different mapping forward again.
+  //NoDrawAdjust in the ones below because we already have the draw adjustment, because we never undid it
+  //when inverting the score->scoreValue mapping via NNOutput::approxWhiteScoreOfScoreValue
+  double adjustment;
+  if(rootPla == P_WHITE)
+    adjustment =
+      NNOutput::whiteScoreValueOfScoreNoDrawAdjust(currentScore+extraRootPoints,rootBoard) -
+      NNOutput::whiteScoreValueOfScoreNoDrawAdjust(currentScore,rootBoard);
+  else
+    adjustment =
+      NNOutput::whiteScoreValueOfScoreNoDrawAdjust(currentScore,rootBoard) -
+      NNOutput::whiteScoreValueOfScoreNoDrawAdjust(currentScore+extraRootPoints,rootBoard);
+
+  return adjustment;
+}
+
 int Search::getPos(Loc moveLoc) const {
   return NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
 }
@@ -712,6 +805,7 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   uint64_t childVisits = child->stats.visits;
   double childUtilitySum = child->stats.getCombinedUtilitySum(searchParams);
+  double scoreValueSum = child->stats.scoreValueSum;
   double valueSumWeight = child->stats.valueSumWeight;
   int32_t childVirtualLosses = child->virtualLosses;
   child->statsLock.clear(std::memory_order_release);
@@ -724,6 +818,10 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
   else {
     assert(valueSumWeight > 0.0);
     childUtility = childUtilitySum / valueSumWeight;
+
+    //Tiny adjustment for passing
+    double endingScoreValueBonus = getEndingScoreValueBonus(parent,child,scoreValueSum/valueSumWeight);
+    childUtility += endingScoreValueBonus * searchParams.scoreUtilityFactor;
   }
 
   //When multithreading, totalChildVisits could be out of sync with childVisits, so if they provably are, then fix that up

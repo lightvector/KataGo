@@ -27,6 +27,8 @@ struct SearchParams {
   double chosenMoveTemperatureHalflife; //Halflife of decay from early temperatue to temperature for the rest of the game
   double chosenMoveSubtract; //Try to subtract this many playouts from every move prior to applying temperature
 
+  double rootEndingBonusPoints; //Extra bonus (or penalty) to encourage good passing behavior at the end of the game.
+
   //Misc
   uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes
   int32_t numVirtualLossesPerThread; //Number of virtual losses for one thread to add

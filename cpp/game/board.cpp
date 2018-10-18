@@ -408,18 +408,42 @@ bool Board::wouldBeKoCapture(Loc loc, Player pla) const {
   return true;
 }
 
-bool Board::isAdjacentToBothColors(Loc loc) const {
-  bool adjBlack = false;
-  bool adjWhite = false;
+bool Board::isAdjacentToPla(Loc loc, Player pla) const {
   for(int i = 0; i < 4; i++)
   {
     Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == C_BLACK)
-      adjBlack = true;
-    else if(colors[adj] == C_WHITE)
-      adjWhite = true;
+    if(colors[adj] == pla)
+      return true;
   }
-  return adjBlack && adjWhite;
+  return false;
+}
+
+//Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
+bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const {
+  if(passAliveArea[loc] == pla)
+    return false;
+
+  Loc nonPassAliveAdjHead = NULL_LOC;
+  for(int i = 0; i < 4; i++)
+  {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] == pla && passAliveArea[adj] == C_EMPTY) {
+      nonPassAliveAdjHead = chain_head[adj];
+      break;
+    }
+  }
+
+  if(nonPassAliveAdjHead == NULL_LOC)
+    return false;
+
+  for(int i = 0; i < 4; i++)
+  {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] == pla && chain_head[adj] != nonPassAliveAdjHead)
+      return true;
+  }
+
+  return false;
 }
 
 bool Board::setStone(Loc loc, Color color)

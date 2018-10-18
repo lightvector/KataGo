@@ -160,8 +160,10 @@ struct Board
   bool isSimpleEye(Loc loc, Player pla) const;
   //Check if a move at this location would be a capture in a simple ko mouth.
   bool wouldBeKoCapture(Loc loc, Player pla) const;
-  //Check if this location is adjacent to stones of both colors
-  bool isAdjacentToBothColors(Loc loc) const;
+  //Check if this location is adjacent to stones of the specified color
+  bool isAdjacentToPla(Loc loc, Player pla) const;
+  //Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
+  bool isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const;
 
   //Configuration the board in various ways
   void clearSimpleKoLoc();

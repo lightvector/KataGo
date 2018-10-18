@@ -105,6 +105,9 @@ struct Search {
   BoardHistory rootHistory;
   bool rootPassLegal;
 
+  //Precomputed values at the root
+  Color* rootSafeArea;
+
   SearchParams searchParams;
   int64_t numSearchesBegun;
 
@@ -199,6 +202,10 @@ private:
   void maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const;
   int getPos(Loc moveLoc) const;
 
+  void computeRootValues();
+
+  double getEndingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
+
   void getValueChildWeights(
     int numChildren,
     const vector<double>& childSelfValuesBuf,
@@ -213,6 +220,8 @@ private:
     double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
     double childUtility, Player pla
   ) const;
+  double getPassingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
+
   double getPlaySelectionValue(const SearchNode& parent, const SearchNode* child) const;
   double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const;
   double getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const;

@@ -74,6 +74,34 @@ double NNOutput::whiteScoreValueOfScore(double finalWhiteMinusBlackScore, double
     return tanh(adjustedScore / (2*sqrt(b.x_size*b.y_size)));
 }
 
+double NNOutput::whiteScoreValueOfScoreNoDrawAdjust(double finalWhiteMinusBlackScore, const Board& b) {
+  double adjustedScore = finalWhiteMinusBlackScore;
+  if(b.x_size == b.y_size)
+    return tanh(adjustedScore / (2*b.x_size));
+  else
+    return tanh(adjustedScore / (2*sqrt(b.x_size*b.y_size)));
+}
+
+static const double exp200 = exp(200.0);
+static const double expn200 = exp(-200.0);
+static double inverse_tanh(double x) {
+  if(x >= 1.0) return 100.0;
+  if(x <= -1.0) return -100.0;
+  double factor = (1.0 + x) / (1.0 - x);
+  if(factor <= expn200)
+    return -100.0;
+  if(factor >= exp200)
+    return 100.0;
+  return 0.5 * log(factor);
+}
+
+double NNOutput::approxWhiteScoreOfScoreValue(double scoreValue, const Board& b) {
+  if(b.x_size == b.y_size)
+    return inverse_tanh(scoreValue) * (2*b.x_size);
+  else
+    return inverse_tanh(scoreValue) * (2*sqrt(b.x_size*b.y_size));
+}
+
 
 
 static void setRowV0(float* row, int pos, int feature, float value, int posStride, int featureStride) {

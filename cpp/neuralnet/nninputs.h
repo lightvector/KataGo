@@ -111,6 +111,11 @@ struct NNOutput {
   static double whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite);
   //The utility of achieving a certain score difference
   static double whiteScoreValueOfScore(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist);
+  static double whiteScoreValueOfScoreNoDrawAdjust(double score, const Board& b);
+
+  //Approximately invert whiteScoreValueOfScore
+  static double approxWhiteScoreOfScoreValue(double scoreValue, const Board& b);
+
 };
 
 #endif
