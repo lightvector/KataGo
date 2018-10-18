@@ -993,8 +993,8 @@ void NNInputs::fillRowV3(
   bool passWouldEndPhase = hist.passWouldEndPhase(board,nextPlayer);
   rowFloat[12] = passWouldEndPhase ? 1.0f : 0.0f;
 
-  //Direct indication of the board size
-  rowFloat[13] = sqrt((float)(xSize*ySize));
+  //Direct indication of the board size, but scaled down to be a more reasonable value.
+  rowFloat[13] = sqrt((float)(xSize*ySize)) / 16.0;
 
   //Provide parity information about the board size and komi
   //This comes from the following observation:
