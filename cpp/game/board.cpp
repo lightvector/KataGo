@@ -23,7 +23,7 @@ Hash128 Board::ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_ENCORE_HASH[3];
 const Hash128 Board::ZOBRIST_PASS_ENDS_PHASE = //Based on sha256 hash of Board::ZOBRIST_PASS_ENDS_PHASE
   Hash128(0x853E097C279EBF4EULL, 0xE3153DEF9E14A62CULL);
-  
+
 //CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
 
 Board::Board()
@@ -406,6 +406,20 @@ bool Board::wouldBeKoCapture(Loc loc, Player pla) const {
   if(chain_data[chain_head[oppCapturableLoc]].num_locs != 1)
     return false;
   return true;
+}
+
+bool Board::isAdjacentToBothColors(Loc loc) const {
+  bool adjBlack = false;
+  bool adjWhite = false;
+  for(int i = 0; i < 4; i++)
+  {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] == C_BLACK)
+      adjBlack = true;
+    else if(colors[adj] == C_WHITE)
+      adjWhite = true;
+  }
+  return adjBlack && adjWhite;
 }
 
 bool Board::setStone(Loc loc, Color color)

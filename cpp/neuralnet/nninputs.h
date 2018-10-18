@@ -97,8 +97,12 @@ struct NNOutput {
   //Values in here will be set to negative for illegal moves, including superko
   float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
 
+  //If not NULL, then this contains a posLen*posLen-sized map of expected ownership on the board.
+  float* ownerMap;
+
   NNOutput(); //Does NOT initialize values
-  NNOutput(const NNOutput& other);
+  NNOutput(const NNOutput& other, int posLen);
+  ~NNOutput();
 
   NNOutput& operator=(const NNOutput&) = delete;
 

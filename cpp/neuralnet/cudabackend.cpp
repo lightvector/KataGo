@@ -3604,10 +3604,9 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
   CUDA_ERR("getOutput",cudaMemcpy(inputBuffers->policyResults, buffers->policyBuf, inputBuffers->singlePolicyResultBytes*batchSize, cudaMemcpyDeviceToHost));
   CUDA_ERR("getOutput",cudaMemcpy(inputBuffers->valueResults, buffers->valueBuf, inputBuffers->singleValueResultBytes*batchSize, cudaMemcpyDeviceToHost));
 
-  outputs.clear();
-
+  assert(outputs.size() == batchSize);
   for(int row = 0; row < batchSize; row++) {
-    NNOutput* output = new NNOutput();
+    NNOutput* output = outputs[row];
     float* policyProbs = output->policyProbs;
 
     //These are not actually correct, the client does the postprocessing to turn them into
@@ -3618,12 +3617,16 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       inputBuffers->policyResults + (row+1) * gpuHandle->policySize,
       policyProbs
     );
+    //TODO add this
+    //For now, we don't have any ownerMap output from the neural net
+    if(output->ownerMap != NULL) {
+      std::fill(output->ownerMap, output->ownerMap + gpuHandle->posLen * gpuHandle->posLen, 0.0f);
+    }
+
     output->whiteWinProb = inputBuffers->valueResults[row];
     output->whiteLossProb = 0.0;
     output->whiteNoResultProb = 0.0;
     output->whiteScoreValue = 0.0;
-
-    outputs.push_back(output);
   }
 
 }

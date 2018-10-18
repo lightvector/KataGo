@@ -109,7 +109,7 @@ int MainCmds::sandbox() {
 
   ostream* logStream = logger.createOStream();
   NNResultBuf buf;
-  nnEval->evaluate(board, hist, pla, buf, logStream, false);
+  nnEval->evaluate(board, hist, pla, buf, logStream, false, false);
 
   for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
     for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {

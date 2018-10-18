@@ -4,7 +4,7 @@
 //-------------------------------------------------------------------------------------
 
 NNResultBuf::NNResultBuf()
-  :clientWaitingForResult(),resultMutex(),hasResult(false),result(nullptr),errorLogLockout(false)
+  :clientWaitingForResult(),resultMutex(),hasResult(false),includeOwnerMap(false),result(nullptr),errorLogLockout(false)
 {}
 
 NNResultBuf::~NNResultBuf()
@@ -250,6 +250,16 @@ void NNEvaluator::serve(
         for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
           policyProbs[i] = 0;
 
+        if(resultBuf->includeOwnerMap) {
+          float* ownerMap = new float[posLen*posLen];
+          for(int i = 0; i<posLen*posLen; i++)
+            ownerMap[i] = rand.nextGaussian() * 0.20;
+          resultBuf->result->ownerMap = ownerMap;
+        }
+        else {
+          resultBuf->result->ownerMap = NULL;
+        }
+
         //These aren't really probabilities. Win/Loss/NoResult will get softmaxed later
         //(or in the case of model version 2, it will only just pay attention to the value of whiteWinProb and tanh it)
         double whiteWinProb = 0.0 + rand.nextGaussian() * 0.20;
@@ -275,6 +285,17 @@ void NNEvaluator::serve(
     symmetriesBuffer[1] = (symmetry & 0x2) != 0;
     symmetriesBuffer[2] = (symmetry & 0x4) != 0;
 
+    outputBuf.clear();
+    for(int row = 0; row<numRows; row++) {
+      NNOutput* emptyOutput = new NNOutput();
+      assert(buf.resultBufs[row] != NULL);
+      if(buf.resultBufs[row]->includeOwnerMap)
+        emptyOutput->ownerMap = new float[posLen*posLen];
+      else
+        emptyOutput->ownerMap = NULL;
+      outputBuf.push_back(emptyOutput);
+    }
+
     NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, outputBuf);
     assert(outputBuf.size() == numRows);
 
@@ -299,7 +320,15 @@ void NNEvaluator::serve(
   NeuralNet::freeLocalGpuHandle(gpuHandle);
 }
 
-void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream, bool skipCache) {
+void NNEvaluator::evaluate(
+  Board& board,
+  const BoardHistory& history,
+  Player nextPlayer,
+  NNResultBuf& buf,
+  ostream* logStream,
+  bool skipCache,
+  bool includeOwnerMap
+) {
   assert(!isKilled);
   buf.hasResult = false;
 
@@ -315,9 +344,13 @@ void NNEvaluator::evaluate(Board& board, const BoardHistory& history, Player nex
     assert(false);
 
   if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
-    buf.hasResult = true;
-    return;
+    if(!(includeOwnerMap && buf.result->ownerMap == NULL))
+    {
+      buf.hasResult = true;
+      return;
+    }
   }
+  buf.includeOwnerMap = includeOwnerMap;
 
   unique_lock<std::mutex> lock(bufferMutex);
   while(m_numRowsStarted >= maxNumRows || serverTryingToGrabBatch)

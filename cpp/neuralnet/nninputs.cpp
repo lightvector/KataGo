@@ -29,14 +29,31 @@ int NNPos::getPolicySize(int posLen) {
   return posLen * posLen + 1;
 }
 
-NNOutput::NNOutput() {}
-NNOutput::NNOutput(const NNOutput& other) {
+NNOutput::NNOutput()
+  :ownerMap(NULL)
+{}
+NNOutput::NNOutput(const NNOutput& other, int posLen) {
   nnHash = other.nnHash;
   whiteWinProb = other.whiteWinProb;
   whiteLossProb = other.whiteLossProb;
   whiteNoResultProb = other.whiteNoResultProb;
   whiteScoreValue = other.whiteScoreValue;
+
+  if(other.ownerMap != NULL) {
+    ownerMap = new float[posLen * posLen];
+    std::copy(other.ownerMap, other.ownerMap + posLen * posLen, ownerMap);
+  }
+  else
+    ownerMap = NULL;
+
   std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+}
+
+NNOutput::~NNOutput() {
+  if(ownerMap != NULL) {
+    delete ownerMap;
+    ownerMap = NULL;
+  }
 }
 
 double NNOutput::whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite) {

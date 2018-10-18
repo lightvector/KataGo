@@ -43,6 +43,7 @@ struct NNResultBuf {
   condition_variable clientWaitingForResult;
   mutex resultMutex;
   bool hasResult;
+  bool includeOwnerMap;
   shared_ptr<NNOutput> result;
   bool errorLogLockout; //error flag to restrict log to 1 error to prevent spam
 
@@ -87,7 +88,15 @@ class NNEvaluator {
   //will be supplied in NNResultBuf& buf, the shared_ptr there can grabbed via std::move if desired.
   //logStream is for some error logging, can be NULL.
   //This function is threadsafe.
-  void evaluate(Board& board, const BoardHistory& history, Player nextPlayer, NNResultBuf& buf, ostream* logStream, bool skipCache);
+  void evaluate(
+    Board& board,
+    const BoardHistory& history,
+    Player nextPlayer,
+    NNResultBuf& buf,
+    ostream* logStream,
+    bool skipCache,
+    bool includeOwnerMap
+  );
 
   //Actually spawn threads and return the results.
   //If doRandomize, uses randSeed as a seed, further randomized per-thread

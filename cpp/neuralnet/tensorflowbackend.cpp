@@ -246,10 +246,9 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int 
   float* policyData = buffers->outputsBuf[0].flat<float>().data();
   float* valueData = buffers->outputsBuf[1].flat<float>().data();
 
-  outputs.clear();
-
+  assert(outputs.size() == batchSize);
   for(int row = 0; row < numFilledRows; row++) {
-    NNOutput* output = new NNOutput();
+    NNOutput* output = outputs[row];
     float* policyProbs = output->policyProbs;
 
     //These are not actually correct, the client does the postprocessing to turn them into
@@ -260,11 +259,15 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int 
       policyData + (row+1) * NNPos::MAX_NN_POLICY_SIZE,
       policyProbs
     );
+    //For now, we don't have any ownerMap output from the neural net
+    if(output->ownerMap != NULL) {
+      std::fill(output->ownerMap, output->ownerMap + gpuHandle->posLen * gpuHandle->posLen, 0.0f);
+    }
+
     output->whiteWinProb = valueData[row];
     output->whiteLossProb = 0.0;
     output->whiteNoResultProb = 0.0;
     output->whiteScoreValue = 0.0;
-    outputs.push_back(output);
   }
 
   buffers->outputsBuf.clear();

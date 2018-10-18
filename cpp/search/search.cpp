@@ -977,11 +977,21 @@ void Search::setTerminalValue(SearchNode& node, double winValue, double lossValu
 
 void Search::initNodeNNOutput(
   SearchThread& thread, SearchNode& node,
-  bool isRoot, bool skipCache, int32_t virtualLossesToSubtract
+  bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
 ) {
-  nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logStream, skipCache);
+  bool includeOwnerMap = isRoot;
+  nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logStream, skipCache, includeOwnerMap);
+
   node.nnOutput = std::move(thread.nnResultBuf.result);
   maybeAddPolicyNoise(thread,node,isRoot);
+
+  //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.
+  //Also don't bother updating any of the stats. Technically we should do so because winValueSum
+  //and such will have changed potentially due to a new orientation of the neural net eval
+  //slightly affecting the evals, but this is annoying to recompute from scratch, and on the next
+  //visit updateStatsAfterPlayout should fix it all up anyways.
+  if(isReInit)
+    return;
 
   //Values in the search are from the perspective of white positive always
   double winProb = (double)node.nnOutput->whiteWinProb;
@@ -991,11 +1001,11 @@ void Search::initNodeNNOutput(
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
-  node.stats.winValueSum = winProb;
-  node.stats.lossValueSum = lossProb;
-  node.stats.noResultValueSum = noResultProb;
-  node.stats.scoreValueSum = scoreValue;
-  node.stats.valueSumWeight = 1.0;
+  node.stats.winValueSum += winProb;
+  node.stats.lossValueSum += lossProb;
+  node.stats.noResultValueSum += noResultProb;
+  node.stats.scoreValueSum += scoreValue;
+  node.stats.valueSumWeight += 1.0;
   node.virtualLosses -= virtualLossesToSubtract;
   node.statsLock.clear(std::memory_order_release);
 }
@@ -1031,8 +1041,15 @@ void Search::playoutDescend(
 
   //Hit leaf node, finish
   if(node.nnOutput == nullptr) {
-    initNodeNNOutput(thread,node,isRoot,false,virtualLossesToSubtract);
+    initNodeNNOutput(thread,node,isRoot,false,virtualLossesToSubtract,false);
     return;
+  }
+  //For the root node, make sure we have an ownerMap
+  if(isRoot && node.nnOutput->ownerMap == NULL) {
+    bool isReInit = true;
+    initNodeNNOutput(thread,node,isRoot,false,0,isReInit);
+    assert(node.nnOutput->ownerMap != NULL);
+    //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
   }
 
   //Not leaf node, so recurse
@@ -1045,12 +1062,18 @@ void Search::playoutDescend(
   //The absurdly rare case that the move chosen is not legal
   //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
   //Regenerate the neural net call and continue
-  if(!(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla))) {
-    initNodeNNOutput(thread,node,isRoot,true,virtualLossesToSubtract);
+  if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
+    bool isReInit = true;
+    initNodeNNOutput(thread,node,isRoot,true,0,isReInit);
     lock.unlock();
     if(thread.logStream != NULL)
       (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
-    return;
+
+    //TODO retest this by artificially simulating a true hash collision?
+    //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
+    selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
+    //We should absolutely be legal this time
+    assert(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla));
   }
 
   if(bestChildIdx < -1) {

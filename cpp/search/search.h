@@ -229,7 +229,7 @@ private:
 
   void initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
-    bool isRoot, bool skipCache, int32_t virtualLossesToSubtract
+    bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
   );
 
   void playoutDescend(

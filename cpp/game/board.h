@@ -94,7 +94,7 @@ struct Board
   static Hash128 ZOBRIST_ENCORE_HASH[3];
   static const Hash128 ZOBRIST_PASS_ENDS_PHASE;
 
-  
+
   //Structs---------------------------------------
 
   //Tracks a chain/string/group of stones
@@ -160,6 +160,8 @@ struct Board
   bool isSimpleEye(Loc loc, Player pla) const;
   //Check if a move at this location would be a capture in a simple ko mouth.
   bool wouldBeKoCapture(Loc loc, Player pla) const;
+  //Check if this location is adjacent to stones of both colors
+  bool isAdjacentToBothColors(Loc loc) const;
 
   //Configuration the board in various ways
   void clearSimpleKoLoc();
