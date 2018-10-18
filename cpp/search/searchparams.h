@@ -17,6 +17,8 @@ struct SearchParams {
   double valueWeightExponent; //Amount to apply a downweighting of children with very bad values relative to good ones
   double visitsExponent; //Power with which visits should raise the value weight on a child
 
+  bool scaleParentWeight; //Also scale parent weight when applying valueWeightExponent?
+
   //Root noise parameters
   bool rootNoiseEnabled;
   double rootDirichletNoiseTotalConcentration; //Same as alpha * board size, to match alphazero this might be 0.03 * 361, total number of balls in the urn
