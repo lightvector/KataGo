@@ -985,6 +985,12 @@ void NNInputs::fillRowV3(
 
   //Komi and any score adjustments
   float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  float bArea = xSize * ySize;
+  //Bound komi just in case
+  if(selfKomi > bArea+1.0f)
+    selfKomi = bArea+1.0f;
+  if(selfKomi < -bArea-1.0f)
+    selfKomi = -bArea-1.0f;
   rowFloat[5] = selfKomi/15.0f;
 
   //Ko rule
