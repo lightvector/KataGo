@@ -93,11 +93,13 @@ public:
 
     Search* bot = new Search(params, nnEval, searchRandSeed);
     FinishedGameData* finishedGameData = new FinishedGameData(dataPosLen, params.drawEquivalentWinsForWhite);
+    bool fancyModes = true;
     Play::runGame(
       board,pla,hist,numExtraBlack,bot,bot,
       doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
       logger,logSearchInfo,logMoves,
       maxMovesPerGame,shouldStop,
+      fancyModes,
       finishedGameData,&gameRand
     );
     delete bot;
@@ -330,11 +332,11 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     logger.write("Data write loop cleaned up and terminating for " + name);
   };
 
+  //TODO replace this with a call to the same code that the polling loop would use to find the most recent net
   //Initialize the initial neural net
   {
-    //TODO replace this with a call to the same code that the polling loop would use to find the most recent net
     Rand sgfsNameRand;
-    string nnName = "bot";
+    string nnName = "bot"; //TODO use a better name based on the polling load
     TrainingDataWriter* dataWriter = new TrainingDataWriter(trainDataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(sgfsNameRand.nextUInt64()) + ".sgfs")) : NULL;
     NetAndStuff* newNet = new NetAndStuff(nnName, nnEval, maxDataQueueSize, dataWriter, sgfOut);
@@ -389,7 +391,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
 
       lock.unlock();
 
-      //TODO
+      //TODO poll
       //Poll to see if there are any new nets to load
       NetAndStuff* newNet = NULL;
 

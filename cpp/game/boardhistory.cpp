@@ -231,11 +231,31 @@ const Board& BoardHistory::getRecentBoard(int numMovesAgo) const {
 
 void BoardHistory::setKomi(float newKomi) {
   rules.komi = newKomi;
+
   isGameFinished = false;
   winner = C_EMPTY;
   finalWhiteMinusBlackScore = 0.0f;
   isNoResult = false;
 }
+
+//TODO test this
+void BoardHistory::clearAndSetEncorePhase(const Board& board, Player pla, int phase) {
+  Rules r = rules;
+  clear(board,pla,r);
+  encorePhase = phase;
+
+  if(encorePhase > 0)
+    assert(rules.scoringRule == Rules::SCORING_TERRITORY);
+
+  //Update the few parameters that depend on encore that shouldn't just be cleared.
+  if(encorePhase == 2)
+    std::copy(board.colors, board.colors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
+
+  koHashHistory.clear();
+  koHistoryLastClearedBeginningMoveIdx = moveHistory.size();
+  koHashHistory.push_back(getKoHash(rules,board,getOpp(pla),encorePhase,koProhibitHash));
+}
+
 
 //If rootKoHashTable is provided, will take advantage of rootKoHashTable rather than search within the first
 //rootKoHashTable->size() moves of koHashHistory.
