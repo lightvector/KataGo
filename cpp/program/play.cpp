@@ -457,6 +457,11 @@ void Play::runGame(
   if(gameData != NULL) {
     gameData->endHist = hist;
 
+    if(hist.isGameFinished)
+      gameData->hitTurnLimit = false;
+    else
+      gameData->hitTurnLimit = true;
+
     ValueTargets finalValueTargets;
     Color area[Board::MAX_ARR_SIZE];
     if(hist.isGameFinished && hist.isNoResult) {
@@ -469,7 +474,9 @@ void Play::runGame(
     }
     else {
       //Relying on this to be idempotent, so that we can get the final territory map
+      //We do want to call this here to force-end the game if we crossed a move limit.
       hist.endAndScoreGameNow(board,area);
+
       finalValueTargets.win = (float)NNOutput::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;

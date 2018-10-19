@@ -102,6 +102,10 @@ public:
     );
     delete bot;
 
+    //Make sure not to write the game if we terminated in the middle of this game!
+    if(shouldStop.load())
+      return false;
+
     finishedGameQueue.waitPush(finishedGameData);
     return true;
   }

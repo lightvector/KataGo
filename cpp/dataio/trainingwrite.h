@@ -22,6 +22,33 @@ struct ValueTargets {
   ~ValueTargets();
 };
 
+struct FinishedGameData {
+  Board startBoard;
+  BoardHistory startHist;
+  BoardHistory endHist;
+  Player startPla;
+  Hash128 gameHash;
+
+  //This vector MIGHT be shorter than the list of moves in startHist, because there might be moves in
+  //startHist for context that we don't actually want to record as part of this game for training data.
+  vector<Move> moves;
+  vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
+  vector<ValueTargets> whiteValueTargetsByTurn;
+  int8_t* finalOwnership;
+  double drawEquivalentWinsForWhite;
+
+  int posLen;
+  bool hitTurnLimit;
+
+  //Metadata about how the game was initialized
+  int mode;
+  int modeMeta1;
+  int modeMeta2;
+
+  FinishedGameData(int posLen, double drawEquivalentWinsForWhite);
+  ~FinishedGameData();
+
+};
 
 struct TrainingWriteBuffers {
   int inputsVersion;
@@ -75,7 +102,8 @@ struct TrainingWriteBuffers {
   //Split into chunks of 22, 22, 20, 22, 22, 20 bits, little-endian style (since floats have > 22 bits of precision).
 
   //C39: Turn number, zero-indexed
-  //C40-42: Game type, game typesource metadata
+  //C40: Did this game end via hitting turn limit?
+  //C41-43: Game type, game typesource metadata
   // 0 = normal self-play game. C41 is the first low-temperature turn number
   // 1 = encore-training game. C41 is the first low-temperature turn number, C42 is the starting encore phase
   NumpyBuffer<float> floatTargetsNC;
@@ -98,40 +126,11 @@ struct TrainingWriteBuffers {
     const vector<PolicyTargetMove>* policyTarget0, //can be null
     const vector<PolicyTargetMove>* policyTarget1, //can be null
     const vector<PolicyTargetMove>* policyTarget2, //can be null
-    const vector<ValueTargets>& whiteValueTargetsByTurn,
-    const int8_t* finalOwnership,
-    Hash128 gameHash,
-    int mode, int modeMeta1, int modeMeta2,
+    const FinishedGameData& data,
     Rand& rand
   );
 
   void writeToZipFile(const string& fileName);
-
-};
-
-struct FinishedGameData {
-  Board startBoard;
-  BoardHistory startHist;
-  BoardHistory endHist;
-  Player startPla;
-  Hash128 gameHash;
-
-  //This vector MIGHT be shorter than the list of moves in startHist, because there might be moves in
-  //startHist for context that we don't actually want to record as part of this game for training data.
-  vector<Move> moves;
-  vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
-  vector<ValueTargets> whiteValueTargetsByTurn;
-  int8_t* finalOwnership;
-  double drawEquivalentWinsForWhite;
-  int posLen;
-
-  //Metadata about how the game was initialized
-  int mode;
-  int modeMeta1;
-  int modeMeta2;
-
-  FinishedGameData(int posLen, double drawEquivalentWinsForWhite);
-  ~FinishedGameData();
 
 };
 
