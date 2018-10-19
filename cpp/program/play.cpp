@@ -348,8 +348,15 @@ void Play::runGame(
     gameData->startBoard = board;
     gameData->startHist = hist;
     gameData->startPla = pla;
-    assert(gameData->moves.size() == 0);
+    gameData->gameHash.hash0 = gameRand->nextUInt64();
+    gameData->gameHash.hash1 = gameRand->nextUInt64();
 
+    //TODO support alternate modes
+    gameData->mode = 0;
+    gameData->modeMeta1 = 0;
+    gameData->modeMeta2 = 0;
+
+    assert(gameData->moves.size() == 0);
     recordUtilities = new vector<double>(256);
   }
 
