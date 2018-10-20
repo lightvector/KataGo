@@ -171,7 +171,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
 }
 
 Search::~Search() {
-  delete rootSafeArea;
+  delete[] rootSafeArea;
   delete rootKoHashTable;
   delete valueWeightDistribution;
   delete rootNode;

@@ -59,6 +59,8 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
 
   search->nnEvaluator->clearCache();
   bot->clearSearch();
+
+  delete sgf;
 }
 
 static NNEvaluator* startNNEval(

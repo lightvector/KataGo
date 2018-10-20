@@ -61,7 +61,7 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
 
   posLen = other.posLen;
   if(ownerMap != NULL) {
-    delete ownerMap;
+    delete[] ownerMap;
   }
   if(other.ownerMap != NULL) {
     ownerMap = new float[posLen * posLen];
@@ -78,7 +78,7 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
 
 NNOutput::~NNOutput() {
   if(ownerMap != NULL) {
-    delete ownerMap;
+    delete[] ownerMap;
     ownerMap = NULL;
   }
 }

@@ -527,6 +527,15 @@ CompactSgf::CompactSgf(Sgf&& sgf)
   fileName = std::move(sgf.fileName);
   assert(sgf.nodes.size() > 0);
   rootNode = std::move(*sgf.nodes[0]);
+  sgf.nodes[0] = NULL;
+  for(int i = 1; i<sgf.nodes.size(); i++) {
+    delete sgf.nodes[i];
+    sgf.nodes[i] = NULL;
+  }
+  for(int i = 0; i<sgf.children.size(); i++) {
+    delete sgf.children[i];
+    sgf.children[i] = NULL;
+  }
 }
 
 CompactSgf::~CompactSgf() {
@@ -535,14 +544,14 @@ CompactSgf::~CompactSgf() {
 
 CompactSgf* CompactSgf::parse(const string& str) {
   Sgf* sgf = Sgf::parse(str);
-  CompactSgf* compact = new CompactSgf(std::move(*sgf));
+  CompactSgf* compact = new CompactSgf(sgf);
   delete sgf;
   return compact;
 }
 
 CompactSgf* CompactSgf::loadFile(const string& file) {
   Sgf* sgf = Sgf::loadFile(file);
-  CompactSgf* compact = new CompactSgf(std::move(*sgf));
+  CompactSgf* compact = new CompactSgf(sgf);
   delete sgf;
   return compact;
 }
