@@ -1024,18 +1024,33 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
     scoreValueSum += weight * scoreValues[i];
     valueSumWeight += weight;
   }
-  //TODO this 1.0 valueSumWeight is WAAAY too high given that we're multiplying other stuff by valueChildWeights?? Scale it down?
-  //Also add in the direct evaluation of this node
-  double winProb = (double)node.nnOutput->whiteWinProb;
-  double lossProb = (double)node.nnOutput->whiteLossProb;
-  double noResultProb = (double)node.nnOutput->whiteNoResultProb;
-  double scoreValue = (double)node.nnOutput->whiteScoreValue;
 
-  winValueSum += winProb;
-  lossValueSum += lossProb;
-  noResultValueSum += noResultProb;
-  scoreValueSum += scoreValue;
-  valueSumWeight += 1.0;
+  //Also add in the direct evaluation of this node.
+  {
+    //Since we've scaled all the child weights in some arbitrary way, adjust and make sure
+    //that the direct evaluation of the node still has precisely 1/N weight.
+    //Do some things to carefully avoid divide by 0.
+    double weight;
+    if(searchParams.scaleParentWeight) {
+      weight = (totalChildVisits > 0) ? valueSumWeight / totalChildVisits : valueSumWeight;
+      if(weight < 0.001) //Just in case
+        weight = 0.001;
+    }
+    else {
+      weight = 1.0;
+    }
+
+    double winProb = (double)node.nnOutput->whiteWinProb;
+    double lossProb = (double)node.nnOutput->whiteLossProb;
+    double noResultProb = (double)node.nnOutput->whiteNoResultProb;
+    double scoreValue = (double)node.nnOutput->whiteScoreValue;
+
+    winValueSum += winProb * weight;
+    lossValueSum += lossProb * weight;
+    noResultValueSum += noResultProb * weight;
+    scoreValueSum += scoreValue * weight;
+    valueSumWeight += weight;
+  }
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
