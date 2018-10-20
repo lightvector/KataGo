@@ -26,7 +26,8 @@ int MainCmds::runTests(int argc, const char* const* argv) {
   Tests::runScoreTests();
 
   Tests::runBoardUndoTest();
-  Tests::runNNInputsTests();
+  Tests::runNNInputsV2Tests();
+  Tests::runNNInputsV3Tests();
   Tests::runAutoSearchTests();
   Tests::runBoardStressTest();
 

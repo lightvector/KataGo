@@ -8,6 +8,10 @@ Rules::Rules() {
   komi = 7.5f;
 }
 
+Rules::Rules(int kRule, int sRule, bool suic, float km)
+  :koRule(kRule),scoringRule(sRule),multiStoneSuicideLegal(suic),komi(km)
+{}
+
 Rules::~Rules() {
 }
 

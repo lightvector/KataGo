@@ -20,6 +20,7 @@ struct Rules {
   float komi;
 
   Rules();
+  Rules(int koRule, int scoringRule, bool multiStoneSuicideLegal, float komi);
   ~Rules();
 
   static Rules getTrompTaylorish();
