@@ -14,6 +14,7 @@ SearchParams::SearchParams()
    fpuUseParentAverage(true),
    valueWeightExponent(0.5),
    visitsExponent(1.0),
+   scaleParentWeight(true),
    rootNoiseEnabled(false),
    rootDirichletNoiseTotalConcentration(10.83),
    rootDirichletNoiseWeight(0.25),
