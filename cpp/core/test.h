@@ -13,13 +13,39 @@ namespace TestCommon {
   }
 
   inline void expect(const char* name, const string& actual, const string& expected) {
-    if(Global::trim(actual) != Global::trim(expected)) {
+    string a = Global::trim(actual);
+    string e = Global::trim(expected);
+    vector<string> alines = Global::split(a,'\n');
+    vector<string> elines = Global::split(e,'\n');
+
+    bool matches = true;
+    int firstLineDiff = 0;
+    for(int i = 0; i<std::max(alines.size(),elines.size()); i++) {
+      if(i >= alines.size() || i >= elines.size()) {
+        firstLineDiff = i;
+        matches = false;
+        break;
+      }
+      if(Global::trim(alines[i]) != Global::trim(elines[i])) {
+        firstLineDiff = i;
+        matches = false;
+        break;
+      }
+    }
+    
+    if(!matches) {
       cout << "Expect test failure!" << endl;
       cout << name << endl;
       cout << "Expected===============================================================" << endl;
       cout << expected << endl;
-      cout << "Got====================================================================:" << endl;
+      cout << "Got====================================================================" << endl;
       cout << actual << endl;
+
+      cout << "=======================================================================" << endl;
+      cout << "First line different (0-indexed) = " << firstLineDiff << endl;
+      cout << "Actual: " << (firstLineDiff >= alines.size() ? string() : alines[firstLineDiff]) << endl; 
+      cout << "Expected: " << (firstLineDiff >= elines.size() ? string() : elines[firstLineDiff]) << endl; 
+
       exit(1);
     }
   }

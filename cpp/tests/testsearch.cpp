@@ -1,6 +1,8 @@
 #include "../tests/tests.h"
 #include "../search/asyncbot.h"
 #include "../dataio/sgf.h"
+#include <algorithm>
+#include <iterator>
 using namespace TestCommon;
 
 static string getSearchRandSeed() {
@@ -65,7 +67,8 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
 
 static NNEvaluator* startNNEval(
   const string& modelFile, Logger& logger,
-  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16, bool debugSkipNeuralNet) {
+  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16, bool debugSkipNeuralNet
+) {
   int modelFileIdx = 0;
   int maxBatchSize = 16;
   int posLen = NNPos::MAX_BOARD_LEN;
@@ -183,6 +186,181 @@ void Tests::runSearchTests(const string& modelFile) {
 
 
   runBasicPositions(modelFile, logger);
+
+  NeuralNet::globalCleanup();
+}
+
+
+
+void Tests::runAutoSearchTests() {
+  cout << "Running automatic search tests" << endl;
+  string tensorflowGpuVisibleDeviceList = "";
+  double tensorflowPerProcessGpuMemoryFraction = 0.3;
+  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+
+  //Placeholder, doesn't actually do anything since we have debugSkipNeuralNet = true
+  string modelFile = "/dev/null";
+
+  ostringstream out;
+
+  Logger logger;
+  logger.setLogToStdout(false);
+  logger.setLogTime(false);
+  logger.addOStream(out);
+
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,0,true,false,false,true);
+  SearchParams params;
+  params.maxVisits = 100;
+  Search* search = new Search(params, nnEval, "autoSearchRandSeed");
+  Rules rules = Rules::getTrompTaylorish();
+  TestSearchOptions opts;
+
+  {
+    const char* name = "Basic search with debugSkipNeuralNet and chosen move randomization";
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+..x..o...
+.........
+..x...o..
+...o.....
+..o.x.x..
+.........
+.........
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules);
+
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla,logger,NULL);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+    search->printTree(out, search->rootNode, options);
+
+    string expected = R"%%(
+: T  -1.62c W  -1.62c S   0.00c V -34.38c N     100  --  J9 J2 J3 E6 F6 B9 H9
+---Black(v)---
+J9  : T  -5.41c W  -5.41c S   0.00c V  -4.26c P  3.92% VW  9.28% N      32  --  J2 J3 E6 F6 B9 H9
+A5  : T  -0.67c W  -0.67c S   0.00c V  33.74c P 17.68% VW  8.42% N      22  --  G2 B2 B5 B6
+H2  : T  -1.56c W  -1.56c S   0.00c V -22.09c P  3.83% VW  8.57% N      17  --  E1 A1 H5 J4
+F8  : T  -2.47c W  -2.47c S   0.00c V -22.88c P  3.01% VW  8.68% N      11  --  A6 D3 B8 C2
+G7  : T  -3.14c W  -3.14c S   0.00c V -19.88c P  2.22% VW  8.75% N       7  --  J1 E7 D1 C8
+H8  : T  17.49c W  17.49c S   0.00c V  -1.26c P  3.34% VW  6.83% N       2  --  D2
+J8  : T   3.44c W   3.44c S   0.00c V  -4.23c P  2.03% VW  8.08% N       2  --  F8
+J7  : T  13.62c W  13.62c S   0.00c V  13.62c P  3.62% VW  7.37% N       1  --
+E8  : T  31.63c W  31.63c S   0.00c V  31.63c P  2.90% VW  6.07% N       1  --
+B1  : T  17.90c W  17.90c S   0.00c V  17.90c P  2.63% VW  7.05% N       1  --
+D2  : T   9.85c W   9.85c S   0.00c V   9.85c P  2.58% VW  7.66% N       1  --
+J3  : T   6.73c W   6.73c S   0.00c V   6.73c P  2.39% VW  7.89% N       1  --
+G9  : T  42.59c W  42.59c S   0.00c V  42.59c P  2.14% VW  5.35% N       1  --
+
+)%%";
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+
+    auto sampleChosenMoves = [&]() {
+      std::map<Loc,int> moveLocsAndCounts;
+      for(int i = 0; i<10000; i++) {
+        Loc loc = search->getChosenMoveLoc();
+        moveLocsAndCounts[loc] += 1;
+      }
+      vector<pair<Loc,int>> moveLocsAndCountsSorted;
+      std::copy(moveLocsAndCounts.begin(),moveLocsAndCounts.end(),std::back_inserter(moveLocsAndCountsSorted));
+      std::sort(moveLocsAndCountsSorted.begin(), moveLocsAndCountsSorted.end(), [](pair<Loc,int> a, pair<Loc,int> b) { return a.second > b.second; });
+
+      for(int i = 0; i<moveLocsAndCountsSorted.size(); i++) {
+        out << Location::toString(moveLocsAndCountsSorted[i].first,board) << " " << moveLocsAndCountsSorted[i].second << endl;
+      }
+    };
+
+    sampleChosenMoves();
+
+    expected = R"%%(
+J9 10000
+)%%";
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+
+    {
+      //Should do nothing, since we're "early" with no moves yet.
+      search->searchParams.chosenMoveTemperature = 1.0;
+      search->searchParams.chosenMoveTemperatureEarly = 0.0;
+
+      sampleChosenMoves();
+
+      expected = R"%%(
+J9 10000
+)%%";
+      expect(name,out.str(),expected);
+      out.str("");
+      out.clear();
+    }
+
+    {
+      //Now should something
+      search->searchParams.chosenMoveTemperature = 1.0;
+      search->searchParams.chosenMoveTemperatureEarly = 1.0;
+
+      sampleChosenMoves();
+
+      expected = R"%%(
+J9 3394
+A5 2331
+H2 1797
+F8 1149
+G7 716
+J8 154
+H8 138
+G9 61
+J3 60
+E8 55
+D2 53
+B1 48
+J7 44
+
+)%%";
+      expect(name,out.str(),expected);
+      out.str("");
+      out.clear();
+    }
+
+    {
+      //Ugly hack to artifically fill history. Breaks all sorts of invariants, but should work to
+      //make the search htink there's some history to choose an intermediate temperature
+      for(int i = 0; i<16; i++)
+        search->rootHistory.moveHistory.push_back(Move(Board::NULL_LOC,P_BLACK));
+
+      search->searchParams.chosenMoveTemperature = 1.0;
+      search->searchParams.chosenMoveTemperatureEarly = 0.0;
+      search->searchParams.chosenMoveTemperatureHalflife = 16.0;
+
+      sampleChosenMoves();
+
+      expected = R"%%(
+J9 5320
+A5 2365
+H2 1436
+F8 608
+G7 234
+H8 17
+J8 9
+J7 3
+J3 2
+D2 2
+B1 2
+G9 1
+E8 1
+)%%";
+      expect(name,out.str(),expected);
+      out.str("");
+      out.clear();
+    }
+
+
+  }
 
   NeuralNet::globalCleanup();
 }

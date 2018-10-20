@@ -176,6 +176,135 @@ After white
 
   //============================================================================
   {
+    const char* name = "IsAdjacentToPla";
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.....x...
+..oo..x..
+..x......
+......xx.
+..x..ox..
+.oxoo.oxx
+xxoo.o.ox
+.x.....oo
+)%%");
+
+    out << endl;
+    out << "Adj black" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << (int)board.isAdjacentToPla(loc,P_BLACK);
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "Adj white" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << (int)board.isAdjacentToPla(loc,P_WHITE);
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+Adj black
+000001000
+000010100
+001001010
+010100110
+001001111
+011101111
+111100111
+111000011
+111000001
+
+Adj white
+000000000
+001100000
+011110000
+001100000
+000001000
+010110100
+101111010
+011110111
+001101111
+
+)%%";
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+  }
+
+  //============================================================================
+  {
+    const char* name = "wouldBeKoCapture";
+    Board board = Board::parseBoard(9,9,R"%%(
+.....oxx.
+..o.o.oox
+.oxo.oxx.
+.o.o..x..
+.xox.x.xo
+..x..oxo.
+....o.oxx
+xo...oxox
+.xo..x.oo
+)%%");
+
+    out << endl;
+    out << "WouldBeKo black" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << (int)board.wouldBeKoCapture(loc,P_BLACK);
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "WouldBeKo white" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << (int)board.wouldBeKoCapture(loc,P_WHITE);
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+WouldBeKo black
+000000000
+000000000
+000000000
+000000000
+000000000
+000000000
+000001000
+000000000
+000000000
+
+WouldBeKo white
+000000000
+000000000
+000000000
+000000000
+000000100
+000000000
+000000000
+000000000
+100000000
+
+)%%";
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+  }
+
+  
+  //============================================================================
+  {
     const char* name = "Ladders 1 Lib";
     vector<Loc> buf;
     Board board = Board::parseBoard(9,9,R"%%(

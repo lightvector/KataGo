@@ -334,6 +334,7 @@ void Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,
+  bool fancyModes,
   FinishedGameData* gameData, Rand* gameRand
 ) {
   if(numExtraBlack > 0)
@@ -348,9 +349,27 @@ void Play::runGame(
     gameData->startBoard = board;
     gameData->startHist = hist;
     gameData->startPla = pla;
-    assert(gameData->moves.size() == 0);
+    gameData->gameHash.hash0 = gameRand->nextUInt64();
+    gameData->gameHash.hash1 = gameRand->nextUInt64();
 
+    gameData->mode = 0;
+    gameData->modeMeta1 = 0;
+    gameData->modeMeta2 = 0;
+
+    assert(gameData->moves.size() == 0);
     recordUtilities = new vector<double>(256);
+  }
+
+  if(fancyModes) {
+    //Make sure there's some minimum tiny amount of data about how the encore phases work
+    if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand->nextBool(0.02)) {
+      int encorePhase = gameRand->nextInt(1,2);
+      hist.clearAndSetEncorePhase(board,pla,encorePhase);
+
+      gameData->mode = 1;
+      gameData->modeMeta1 = 0;
+      gameData->modeMeta2 = encorePhase;
+    }
   }
 
   vector<Loc> locsBuf;
@@ -450,6 +469,11 @@ void Play::runGame(
   if(gameData != NULL) {
     gameData->endHist = hist;
 
+    if(hist.isGameFinished)
+      gameData->hitTurnLimit = false;
+    else
+      gameData->hitTurnLimit = true;
+
     ValueTargets finalValueTargets;
     Color area[Board::MAX_ARR_SIZE];
     if(hist.isGameFinished && hist.isNoResult) {
@@ -462,13 +486,14 @@ void Play::runGame(
     }
     else {
       //Relying on this to be idempotent, so that we can get the final territory map
+      //We do want to call this here to force-end the game if we crossed a move limit.
       hist.endAndScoreGameNow(board,area);
+
       finalValueTargets.win = (float)NNOutput::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
       finalValueTargets.scoreValue = NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, gameData->drawEquivalentWinsForWhite, board, hist);
-      //TODO maybe we need to take into account draw equiv wins too if we want this as a training target
-      finalValueTargets.score = hist.finalWhiteMinusBlackScore;
+      finalValueTargets.score = hist.finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(gameData->drawEquivalentWinsForWhite);
 
       //Dummy values, doesn't matter since we didn't do a search for the final values
       finalValueTargets.mctsUtility1 = 0.0f;

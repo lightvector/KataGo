@@ -420,7 +420,7 @@ bool Board::isAdjacentToPla(Loc loc, Player pla) const {
 
 //Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
 bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const {
-  if(passAliveArea[loc] == pla)
+  if(colors[loc] != C_EMPTY || passAliveArea[loc] == pla)
     return false;
 
   Loc nonPassAliveAdjHead = NULL_LOC;

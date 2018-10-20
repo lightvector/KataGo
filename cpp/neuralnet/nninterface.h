@@ -52,6 +52,8 @@ namespace NeuralNet {
 
 //Model versions
 namespace NNModelVersion {
+  extern const int latestModelVersionImplemented;
+
   //Which V* feature version from NNInputs does a given model version consume?
   int getInputsVersion(int modelVersion);
   //Convenience functions, feeds forward the number of features and the size of the row vector that the net takes as input

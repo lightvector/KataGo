@@ -75,6 +75,8 @@ struct BoardHistory {
   void clear(const Board& board, Player pla, const Rules& rules);
   //Set only the komi field of the rules, does not clear history, but does clear game-over conditions,
   void setKomi(float newKomi);
+  //Clears game over conditions and history and sets encore phase. Full clear, might not preserve whiteBonusScore or anything else.
+  void clearAndSetEncorePhase(const Board& board, Player pla, int phase);
 
   float whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhite) const;
   float currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const;
