@@ -32,13 +32,14 @@ int NNPos::getPolicySize(int posLen) {
 NNOutput::NNOutput()
   :ownerMap(NULL)
 {}
-NNOutput::NNOutput(const NNOutput& other, int posLen) {
+NNOutput::NNOutput(const NNOutput& other) {
   nnHash = other.nnHash;
   whiteWinProb = other.whiteWinProb;
   whiteLossProb = other.whiteLossProb;
   whiteNoResultProb = other.whiteNoResultProb;
   whiteScoreValue = other.whiteScoreValue;
 
+  posLen = other.posLen;
   if(other.ownerMap != NULL) {
     ownerMap = new float[posLen * posLen];
     std::copy(other.ownerMap, other.ownerMap + posLen * posLen, ownerMap);
@@ -48,6 +49,32 @@ NNOutput::NNOutput(const NNOutput& other, int posLen) {
 
   std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
 }
+
+NNOutput& NNOutput::operator=(const NNOutput& other) {
+  if(&other == this)
+    return *this;
+  nnHash = other.nnHash;
+  whiteWinProb = other.whiteWinProb;
+  whiteLossProb = other.whiteLossProb;
+  whiteNoResultProb = other.whiteNoResultProb;
+  whiteScoreValue = other.whiteScoreValue;
+
+  posLen = other.posLen;
+  if(ownerMap != NULL) {
+    delete ownerMap;
+  }
+  if(other.ownerMap != NULL) {
+    ownerMap = new float[posLen * posLen];
+    std::copy(other.ownerMap, other.ownerMap + posLen * posLen, ownerMap);
+  }
+  else
+    ownerMap = NULL;
+
+  std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+
+  return *this;
+}
+
 
 NNOutput::~NNOutput() {
   if(ownerMap != NULL) {

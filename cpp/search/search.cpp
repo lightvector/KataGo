@@ -719,6 +719,7 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
 
   bool isAreaIsh = rootHistory.rules.scoringRule == Rules::SCORING_AREA
     || (rootHistory.rules.scoringRule == Rules::SCORING_TERRITORY && rootHistory.encorePhase >= 2);
+  assert(parent.nnOutput->posLen == posLen);
   float* ownerMap = parent.nnOutput->ownerMap;
   Loc moveLoc = child->prevMoveLoc;
 

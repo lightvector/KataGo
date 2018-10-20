@@ -98,13 +98,14 @@ struct NNOutput {
   float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
 
   //If not NULL, then this contains a posLen*posLen-sized map of expected ownership on the board.
+  int posLen;
   float* ownerMap;
 
   NNOutput(); //Does NOT initialize values
-  NNOutput(const NNOutput& other, int posLen);
+  NNOutput(const NNOutput& other);
   ~NNOutput();
 
-  NNOutput& operator=(const NNOutput&) = delete;
+  NNOutput& operator=(const NNOutput&);
 
   //Utility --------------------------------------------------------------------
   //The number of wins a game result should count as

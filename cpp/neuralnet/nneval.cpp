@@ -250,6 +250,7 @@ void NNEvaluator::serve(
         for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
           policyProbs[i] = 0;
 
+        resultBuf->result->posLen = posLen;
         if(resultBuf->includeOwnerMap) {
           float* ownerMap = new float[posLen*posLen];
           for(int i = 0; i<posLen*posLen; i++)
@@ -289,6 +290,7 @@ void NNEvaluator::serve(
     for(int row = 0; row<numRows; row++) {
       NNOutput* emptyOutput = new NNOutput();
       assert(buf.resultBufs[row] != NULL);
+      emptyOutput->posLen = posLen;
       if(buf.resultBufs[row]->includeOwnerMap)
         emptyOutput->ownerMap = new float[posLen*posLen];
       else

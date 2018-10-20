@@ -261,7 +261,9 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int 
     );
     //For now, we don't have any ownerMap output from the neural net
     if(output->ownerMap != NULL) {
-      std::fill(output->ownerMap, output->ownerMap + gpuHandle->posLen * gpuHandle->posLen, 0.0f);
+      int posLen = gpuHandle->posLen;
+      assert(output->posLen == posLen);
+      std::fill(output->ownerMap, output->ownerMap + posLen * posLen, 0.0f);
     }
 
     output->whiteWinProb = valueData[row];
