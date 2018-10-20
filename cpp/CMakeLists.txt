@@ -14,10 +14,7 @@ endif()
 if(BUILD_MCTS)
   message("-DBUILD_MCTS=1 is set, building 'main' executable for mcts-backed GTP engine and other tools")
 
-  if(USE_TENSORFLOW_BACKEND)
-    set(NEURALNET_BACKEND_SOURCES neuralnet/tensorflowbackend.cpp)
-
-  elseif(USE_CUDA_BACKEND)
+  if(USE_CUDA_BACKEND)
     enable_language(CUDA)
     set(CUDA_STANDARD 11)
     set(NEURALNET_BACKEND_SOURCES neuralnet/cudabackend.cpp neuralnet/cudahelpers.cu)
@@ -26,7 +23,7 @@ if(BUILD_MCTS)
       )
 
   else()
-    message(FATAL_ERROR "Please specify -DUSE_TENSORFLOW_BACKEND=0 -DUSE_CUDA_BACKEND=1  OR  -DUSE_TENSORFLOW_BACKEND=1 -DUSE_CUDA_BACKEND=0")
+    message(FATAL_ERROR "Please specify -DUSE_CUDA_BACKEND=1 (right now CUDA the only option, but in the future there may be others)")
   endif()
 endif()
 
@@ -137,16 +134,6 @@ if(BUILD_MCTS)
     sandbox.cpp
     main.cpp
     )
-
-  if(USE_TENSORFLOW_BACKEND)
-    add_definitions(-DUSE_TENSORFLOW_BACKEND)
-    find_package(TensorflowCC REQUIRED)
-    target_link_libraries(main TensorflowCC::Shared)
-    find_package(CUDA)
-    if(CUDA_FOUND)
-      target_link_libraries(main ${CUDA_LIBRARIES})
-    endif()
-  endif()
 
   if(USE_CUDA_BACKEND)
     add_definitions(-DUSE_CUDA_BACKEND)
