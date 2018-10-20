@@ -313,6 +313,8 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, int iVersion, int m
 {
   int numBinaryChannels;
   int numFloatChannels;
+  //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
+  //to feed into a model during selfplay
   if(inputsVersion < 3 || inputsVersion > 3)
     throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(inputsVersion));
   else if(inputsVersion == 3) {
