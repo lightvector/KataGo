@@ -238,7 +238,6 @@ void BoardHistory::setKomi(float newKomi) {
   isNoResult = false;
 }
 
-//TODO test this
 void BoardHistory::clearAndSetEncorePhase(const Board& board, Player pla, int phase) {
   Rules r = rules;
   clear(board,pla,r);
@@ -253,7 +252,7 @@ void BoardHistory::clearAndSetEncorePhase(const Board& board, Player pla, int ph
 
   koHashHistory.clear();
   koHistoryLastClearedBeginningMoveIdx = moveHistory.size();
-  koHashHistory.push_back(getKoHash(rules,board,getOpp(pla),encorePhase,koProhibitHash));
+  koHashHistory.push_back(getKoHash(rules,board,pla,encorePhase,koProhibitHash));
 }
 
 
@@ -580,7 +579,8 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   Hash128 koHashAfterThisMove = getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash);
   koHashHistory.push_back(koHashAfterThisMove);
   moveHistory.push_back(Move(moveLoc,movePla));
-  wasEverOccupiedOrPlayed[moveLoc] = true;
+  if(moveLoc != Board::PASS_LOC)
+    wasEverOccupiedOrPlayed[moveLoc] = true;
 
   //Mark all locations that are superko-illegal for the next player, by iterating and testing each point.
   Player nextPla = getOpp(movePla);
