@@ -15,6 +15,7 @@
 #include <thrust/functional.h>
 
 #include <fstream>
+#include <zstr/src/zstr.hpp>
 
 #include "../neuralnet/cudaerrorcheck.h"
 #include "../neuralnet/cudahelpers.h"
@@ -3190,10 +3191,9 @@ struct LoadedModel {
 LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
   (void)modelFileIdx;
 
-  ifstream in(file);
+  zstr::ifstream in(file);
   try {
     LoadedModel* loadedModel = new LoadedModel(in);
-    in.close();
     return loadedModel;
   }
   catch(const StringError& e) {
