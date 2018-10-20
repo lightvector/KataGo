@@ -454,7 +454,7 @@ Loc Search::getChosenMoveLoc() {
     double sum = 0.0;
     for(int i = 0; i<numChildren; i++) {
       //Numerically stable way to raise to power and normalize
-      playSelectionValues[i] = exp((log(playSelectionValues[i]) - log(maxValue)) / searchParams.chosenMoveTemperature);
+      playSelectionValues[i] = exp((log(playSelectionValues[i]) - log(maxValue)) / temperature);
       sum += playSelectionValues[i];
     }
     assert(sum > 0.0);
