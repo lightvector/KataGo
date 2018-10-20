@@ -155,9 +155,7 @@ HASH: 551911C639136FD87CFD8C126ABC2737
  2 . X O O
  1 . X O .
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -253,9 +251,7 @@ HASH: FAE9F3EAAF790C5CF1EC62AFDD264F77
  2 . X O O
  1 . X O .
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
 
@@ -344,9 +340,7 @@ Winner: White
 W-B Score: 0.5
 isNoResult: 0
 )%%";
-      expect(name,out.str(),expected);
-      out.str("");
-      out.clear();
+      expect(name,out,expected);
     }
 
     {
@@ -422,9 +416,7 @@ After white sends 2 again
 Illegal: (0,0) X
 Illegal: (5,1) X
 )%%";
-      expect(name,out.str(),expected);
-      out.str("");
-      out.clear();
+      expect(name,out,expected);
     }
 
     {
@@ -498,9 +490,7 @@ After white now returns 1 and black passes
 After white sends 2 again
 Illegal: (0,0) X
 )%%";
-      expect(name,out.str(),expected);
-      out.str("");
-      out.clear();
+      expect(name,out,expected);
     }
 
     {
@@ -605,9 +595,7 @@ Winner: Black
 W-B Score: -0.5
 isNoResult: 0
 )%%";
-      expect(name,out.str(),expected);
-      out.str("");
-      out.clear();
+      expect(name,out,expected);
     }
   }
 
@@ -716,9 +704,7 @@ HASH: D369FBF88E276F2F6D21FF1A9FA349F4
  1 . . . . . .
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -754,9 +740,7 @@ Winner: Empty
 W-B Score: 0
 isNoResult: 1
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -797,9 +781,7 @@ Winner: Empty
 W-B Score: 0
 isNoResult: 1
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -829,9 +811,7 @@ ooooooo
 Illegal: (1,2) O
 Illegal: (5,2) O
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -874,9 +854,7 @@ HASH: EA1DB3D0A1A4D729AFE423A3B6425B29
  2 O O O O O O O
  1 . . . . . . .
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -943,9 +921,7 @@ HASH: 26526703BA88855735804E2D4B6CE3C7
 
 Ko prohibited black at D4
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -1023,9 +999,7 @@ HASH: 1FD443E8C77DDC9908A5E4EC94AD28F3
  1 . . . . . . .
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
 
@@ -1136,9 +1110,7 @@ HASH: C1B32AE0968F96F2D47DA5E16C8C1C82
  1 . . . . . . .
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -1184,9 +1156,7 @@ Score: -4.5
 Score: -3.5
 Score: -2.5
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
   {
     const char* name = "Territory scoring in encore 1";
@@ -1233,9 +1203,7 @@ Score: -4.5
 Score: -3.5
 Score: -2.5
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
   {
     const char* name = "Territory scoring in encore 2";
@@ -1284,9 +1252,7 @@ Score: -4.5
 Score: -3.5
 Score: -3.5
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -1439,9 +1405,7 @@ And repeat with white
 And see the only-once for black
 Illegal: (6,0) X
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -1539,9 +1503,7 @@ HASH: 06E53C9488F4A69B52F544FC1C6E1D40
  2 O O O . . . .
  1 . . . . . . .
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -1585,9 +1547,7 @@ HASH: 7549DEF1D74769D79E9729028FF1A1D5
 
 Ko-prohibited: (0,1) O
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -1637,9 +1597,7 @@ Winner: Black
 W-B Score: -0.5
 isNoResult: 0
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -1786,9 +1744,7 @@ W-B Score: 0
 isNoResult: 1
 )%%";
 
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
 
     rules.koRule = Rules::KO_SIMPLE;
     rules.scoringRule = Rules::SCORING_AREA;
@@ -1835,9 +1791,7 @@ W-B Score: 0.5
 isNoResult: 0
 )%%";
 
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
 
     Board koBoard71 = Board::parseBoard(7,1,R"%%(
 .o.ox.o
@@ -1933,9 +1887,7 @@ isNoResult: 0
 
 )%%";
 
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
 
     rules.koRule = Rules::KO_POSITIONAL;
     rules.scoringRule = Rules::SCORING_TERRITORY;
@@ -1990,9 +1942,7 @@ isNoResult: 0
 
 )%%";
 
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
 
     rules.koRule = Rules::KO_SITUATIONAL;
     rules.scoringRule = Rules::SCORING_TERRITORY;
@@ -2061,9 +2011,7 @@ isNoResult: 0
 
 )%%";
 
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
 
 
     rules.koRule = Rules::KO_SIMPLE;
@@ -2116,9 +2064,7 @@ isNoResult: 0
 
 )%%";
 
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
 
     rules.koRule = Rules::KO_POSITIONAL;
     rules.scoringRule = Rules::SCORING_AREA;
@@ -2145,9 +2091,7 @@ isNoResult: 0
 
 )%%";
 
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
 
     rules.koRule = Rules::KO_SITUATIONAL;
     rules.scoringRule = Rules::SCORING_AREA;
@@ -2170,9 +2114,7 @@ isNoResult: 0
 
 )%%";
 
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
 
 
   }
@@ -2281,9 +2223,7 @@ F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
 0 0
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
 
     makeMoveAssertLegal(hist, copy, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, copy, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -2318,9 +2258,7 @@ F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
 0 0
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
 

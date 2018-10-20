@@ -49,6 +49,13 @@ namespace TestCommon {
       exit(1);
     }
   }
+  
+  inline void expect(const char* name, ostringstream& actual, const string& expected) {
+    expect(name,actual.str(),expected);
+    actual.str("");
+    actual.clear();
+  }
+
 }
 
 #endif

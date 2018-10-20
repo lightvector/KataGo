@@ -59,9 +59,7 @@ Score Util wins/draw=0.3: 0.394119
 WL Wins wins/draw=0.7: 1
 Score Util wins/draw=0.7: 0.394119
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -116,9 +114,7 @@ Score Util wins/draw=0.3: 0.360776
 WL Wins wins/draw=0.7: 1
 Score Util wins/draw=0.7: 0.379949
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   {
@@ -173,9 +169,7 @@ Score Util wins/draw=0.3: -0.0111107
 WL Wins wins/draw=0.7: 0.7
 Score Util wins/draw=0.7: 0.0111107
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
 
@@ -227,9 +221,7 @@ Score Util wins/draw=0.3: 0.591519
 WL Wins wins/draw=0.7: 1
 Score Util wins/draw=0.7: 0.616909
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
 }

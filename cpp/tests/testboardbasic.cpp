@@ -50,9 +50,7 @@ HASH: FEAC8B83FDFD55B47128913D3E68E748
 
 )%%";
 
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 }
 
@@ -100,9 +98,7 @@ xxoo.o.ox
 .3.....22
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -169,9 +165,7 @@ After white
 ----8-4--
 0-56352--
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -233,9 +227,7 @@ Adj white
 001101111
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -297,9 +289,7 @@ WouldBeKo white
 100000000
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   
@@ -344,9 +334,7 @@ xoox..xo.
 0000..00.
 .1100.001
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -392,9 +380,7 @@ xoox..xo.
 .11.0.000
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -440,9 +426,7 @@ xoox..xo.
 ..................
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -555,9 +539,7 @@ xoox..xo.
 ............0.....
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -623,9 +605,7 @@ xoox..xo.
 ...................
 ...................
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -691,9 +671,7 @@ xoox..xo.
 ....0.00000000...0.
 .0....1111111.0....
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
 
@@ -760,9 +738,7 @@ xoox..xo.
 ...00....000.0...0.
 ......0.0000.0..000
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
 }
@@ -834,7 +810,7 @@ koCaptureCount 25
 suicideCount 87
 
 )%%";
-  expect("Board undo test move counts",out.str(),expected);
+  expect("Board undo test move counts",out,expected);
 }
 
 
@@ -958,5 +934,5 @@ Caps 4890 5071
 Caps 4364 4393
 
 )%%";
-  expect("Board stress test move counts",out.str(),expected);
+  expect("Board stress test move counts",out,expected);
 }

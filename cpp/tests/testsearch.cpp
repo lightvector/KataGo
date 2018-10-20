@@ -274,9 +274,7 @@ J3  : T   6.73c W   6.73c S   0.00c V   6.73c P  2.39% VW  7.89% N       1  --
 G9  : T  42.59c W  42.59c S   0.00c V  42.59c P  2.14% VW  5.35% N       1  --
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
 
     auto sampleChosenMoves = [&]() {
       std::map<Loc,int> moveLocsAndCounts;
@@ -298,9 +296,7 @@ G9  : T  42.59c W  42.59c S   0.00c V  42.59c P  2.14% VW  5.35% N       1  --
     expected = R"%%(
 J9 10000
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
 
     {
       //Should do nothing, since we're "early" with no moves yet.
@@ -312,9 +308,7 @@ J9 10000
       expected = R"%%(
 J9 10000
 )%%";
-      expect(name,out.str(),expected);
-      out.str("");
-      out.clear();
+      expect(name,out,expected);
     }
 
     {
@@ -340,9 +334,7 @@ B1 48
 J7 44
 
 )%%";
-      expect(name,out.str(),expected);
-      out.str("");
-      out.clear();
+      expect(name,out,expected);
     }
 
     {
@@ -372,9 +364,7 @@ B1 2
 G9 1
 E8 1
 )%%";
-      expect(name,out.str(),expected);
-      out.str("");
-      out.clear();
+      expect(name,out,expected);
     }
 
 

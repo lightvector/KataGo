@@ -138,9 +138,7 @@ XXX...OOO
 XXX..OOOO
 XXXX.OOOO
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -352,9 +350,7 @@ O.XXX...O
 O.XXX...O
 OOOOOOOOO
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -554,9 +550,7 @@ OO.....OO.OO......O
 OOOOO.OOO.OOO.OOOOO
 OOOOOOOOO.OOOOOOOOO
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -756,9 +750,7 @@ OOOOO....OOOOOOOOOO
 OO..OO...OOOOOOOOOO
 OOO.XO...OOOOOOOOOO
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -904,9 +896,7 @@ XXXXX...XXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 
   //============================================================================
@@ -986,8 +976,6 @@ NonPassAliveSelfConn white
 -0-0-----
 
 )%%";
-    expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    expect(name,out,expected);
   }
 }

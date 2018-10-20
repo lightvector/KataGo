@@ -407,9 +407,7 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccc
 
 )%%";
 
-  TestCommon::expect("hash test",out.str(),expectedOutput);
-  out.str("");
-  out.clear();
+  TestCommon::expect("hash test",out,expectedOutput);
 }
 
 
@@ -705,9 +703,7 @@ rand.nextGamma(4)
 2.39111
 2.90081
 )%%";
-    TestCommon::expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    TestCommon::expect(name,out,expected);
   }
 
   {
@@ -785,9 +781,7 @@ Gamma sample: Mean 3.998701 Variance 3.992548 Skew 0.986482 ExcessKurt 1.410314
 Gamma expected: Mean 4.000000 Variance 4.000000 Skew 1.000000 ExcessKurt 1.500000
 )%%";
 
-    TestCommon::expect(name,out.str(),expected);
-    out.str("");
-    out.clear();
+    TestCommon::expect(name,out,expected);
   }
 
 }
