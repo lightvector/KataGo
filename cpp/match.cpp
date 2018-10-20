@@ -171,11 +171,13 @@ int MainCmds::match(int argc, const char* const* argv) {
       botW = new Search(paramss[botIdxW], nnEvals[whichNNModel[botIdxW]], searchRandSeed+"W");
     }
     bool doEndGameIfAllPassAlive = true;
+    bool fancyModes = false;
     Play::runGame(
       board,pla,hist,numExtraBlack,botB,botW,
       doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
       logger,logSearchInfo,logMoves,
       maxMovesPerGame,sigReceived,
+      fancyModes,
       NULL,NULL
     );
     delete botB;

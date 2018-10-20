@@ -22,6 +22,33 @@ struct ValueTargets {
   ~ValueTargets();
 };
 
+struct FinishedGameData {
+  Board startBoard;
+  BoardHistory startHist;
+  BoardHistory endHist;
+  Player startPla;
+  Hash128 gameHash;
+
+  //This vector MIGHT be shorter than the list of moves in startHist, because there might be moves in
+  //startHist for context that we don't actually want to record as part of this game for training data.
+  vector<Move> moves;
+  vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
+  vector<ValueTargets> whiteValueTargetsByTurn;
+  int8_t* finalOwnership;
+  double drawEquivalentWinsForWhite;
+
+  int posLen;
+  bool hitTurnLimit;
+
+  //Metadata about how the game was initialized
+  int mode;
+  int modeMeta1;
+  int modeMeta2;
+
+  FinishedGameData(int posLen, double drawEquivalentWinsForWhite);
+  ~FinishedGameData();
+
+};
 
 struct TrainingWriteBuffers {
   int inputsVersion;
@@ -38,22 +65,19 @@ struct TrainingWriteBuffers {
   //Packed bitwise, with each (HW) zero-padded to a round byte.
   //Within each byte, bits are packed bigendianwise, since that's what numpy's unpackbits will expect.
   NumpyBuffer<uint8_t> binaryInputNCHWPacked;
+  //Input features that are global.
   NumpyBuffer<float> floatInputNC;
 
+  //Policy targets
   //Shape is [N,C,Pos]. Almost NCHW, except we have a Pos of length, e.g. 362, due to the pass input, instead of 19x19.
   //Contains number of visits, possibly with a subtraction.
   //Channel i Will be a dummy probability distribution (not all zero) if policyTargetWeightsNC[i] == 0
   //C0: Policy target this turn.
   //C1: Policy target next turn.
   //C2: Policy target next next turn.
-  NumpyBuffer<int16_t> policyTargetsNCPos;
-  //Weight assigned to the given policy target.
-  //Generally 1.0, except sometimes the game has ended and therefore there no policy target for C1 or C2,
-  //so we have 0 weight in those cases. It is also conceivable that maybe some training rows will lack a C0 policy target
-  //so users should be robust to that.
-  NumpyBuffer<float> policyTargetWeightsNC;
+  NumpyBuffer<int16_t> policyTargetsNCMove;
 
-  //Value-related targets
+  //Value targets and other metadata
   //C0-3: Categorial game result, win,loss,noresult, and also score utility. Draw is encoded as some blend of win and loss based on drawEquivalentWinsForWhite.
   //C4-7: MCTS win-loss-noresult estimate td-like target, lambda = 35/36
   //C8-11: MCTS win-loss-noresult estimate td-like target, lambda = 11/12
@@ -65,12 +89,27 @@ struct TrainingWriteBuffers {
   //C22: MCTS utility variance, 4->16 visits
   //C23: MCTS utility variance, 16->64 visits
   //C24: MCTS utility variance, 64->256 visits
-  //C25: Action-value weight
-  NumpyBuffer<float> valueTargetsNC;
+
+  //C25-27 Weight assigned to the given policy targets C0, C1, C2.
+  //Generally 1.0, except sometimes the game has ended and therefore there no policy target for C1 or C2,
+  //so we have 0 weight in those cases. It is also conceivable that maybe some training rows will lack a C0 policy target
+  //so users should be robust to that.
+
+  //C28-32: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
+  //1 means use, 0 means don't use.
+
+  //C33-38: 128-bit hash identifying the game which should also be output in the SGF data.
+  //Split into chunks of 22, 22, 20, 22, 22, 20 bits, little-endian style (since floats have > 22 bits of precision).
+
+  //C39: Turn number, zero-indexed
+  //C40: Did this game end via hitting turn limit?
+  //C41-43: Game type, game typesource metadata
+  // 0 = normal self-play game. C41 is the first low-temperature turn number
+  // 1 = encore-training game. C41 is the first low-temperature turn number, C42 is the starting encore phase
+  NumpyBuffer<float> floatTargetsNC;
 
   //Spatial value-related targets
   //C0 - Final board ownership (-1,0,1). All 0 if no result.
-  //C1 - Action-value head.
   NumpyBuffer<int8_t> valueTargetsNCHW;
 
   TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numFloatChannels, int posLen);
@@ -87,31 +126,11 @@ struct TrainingWriteBuffers {
     const vector<PolicyTargetMove>* policyTarget0, //can be null
     const vector<PolicyTargetMove>* policyTarget1, //can be null
     const vector<PolicyTargetMove>* policyTarget2, //can be null
-    const vector<ValueTargets>& whiteValueTargetsByTurn,
-    const int8_t* finalOwnership
+    const FinishedGameData& data,
+    Rand& rand
   );
 
   void writeToZipFile(const string& fileName);
-
-};
-
-struct FinishedGameData {
-  Board startBoard;
-  BoardHistory startHist;
-  BoardHistory endHist;
-  Player startPla;
-
-  //This vector MIGHT be shorter than the list of moves in startHist, because there might be moves in
-  //startHist for context that we don't actually want to record as part of this game for training data.
-  vector<Move> moves;
-  vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
-  vector<ValueTargets> whiteValueTargetsByTurn;
-  int8_t* finalOwnership;
-  double drawEquivalentWinsForWhite;
-  int posLen;
-
-  FinishedGameData(int posLen, double drawEquivalentWinsForWhite);
-  ~FinishedGameData();
 
 };
 

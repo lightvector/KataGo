@@ -17,14 +17,16 @@ NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model)
    resultBufs(NULL)
 {
   int maxNumRows = nnEval.getMaxBatchSize();
-  inputBuffers = NeuralNet::createInputBuffers(model,maxNumRows);
+  if(model != NULL)
+    inputBuffers = NeuralNet::createInputBuffers(model,maxNumRows);
   resultBufs = new NNResultBuf*[maxNumRows];
   for(int i = 0; i < maxNumRows; i++)
     resultBufs[i] = NULL;
 }
 
 NNServerBuf::~NNServerBuf() {
-  NeuralNet::freeInputBuffers(inputBuffers);
+  if(inputBuffers != NULL)
+    NeuralNet::freeInputBuffers(inputBuffers);
   inputBuffers = NULL;
   //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
   delete[] resultBufs;
@@ -68,11 +70,16 @@ NNEvaluator::NNEvaluator(
   if(nnCacheSizePowerOfTwo >= 0)
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo);
 
-  loadedModel = NeuralNet::loadModelFile(pbModelFile, modelFileIdx);
-  m_inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize);
-
-  modelVersion = NeuralNet::getModelVersion(loadedModel);
-  inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
+  if(!debugSkipNeuralNet) {
+    loadedModel = NeuralNet::loadModelFile(pbModelFile, modelFileIdx);
+    m_inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize);
+    modelVersion = NeuralNet::getModelVersion(loadedModel);
+    inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
+  }
+  else {
+    modelVersion = NNModelVersion::latestModelVersionImplemented;
+    inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
+  }
 
   m_resultBufs = new NNResultBuf*[maxBatchSize];
   for(int i = 0; i < maxBatchSize; i++)
@@ -84,14 +91,16 @@ NNEvaluator::~NNEvaluator()
   killServerThreads();
   assert(!serverTryingToGrabBatch);
 
-  NeuralNet::freeInputBuffers(m_inputBuffers);
+  if(m_inputBuffers != NULL)
+    NeuralNet::freeInputBuffers(m_inputBuffers);
   m_inputBuffers = NULL;
 
   //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
   delete[] m_resultBufs;
   m_resultBufs = NULL;
 
-  NeuralNet::freeLoadedModel(loadedModel);
+  if(loadedModel != NULL)
+    NeuralNet::freeLoadedModel(loadedModel);
   loadedModel = NULL;
 
   delete nnCacheTable;
@@ -199,7 +208,10 @@ void NNEvaluator::serve(
   int cudaGpuIdxForThisThread, bool cudaUseFP16, bool cudaUseNHWC
 ) {
 
-  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, posLen, inputsUseNHWC, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
+  LocalGpuHandle* gpuHandle = NULL;
+  if(loadedModel != NULL)
+    gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, posLen, inputsUseNHWC, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
+  
   vector<NNOutput*> outputBuf;
 
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
@@ -223,7 +235,11 @@ void NNEvaluator::serve(
     assert(m_numRowsFinished > 0);
 
     int numRows = m_numRowsFinished;
-    std::swap(m_inputBuffers,buf.inputBuffers);
+    if(m_inputBuffers != NULL)
+      std::swap(m_inputBuffers,buf.inputBuffers);
+    else
+      assert(debugSkipNeuralNet);
+    
     std::swap(m_resultBufs,buf.resultBufs);
 
     m_numRowsStarted = 0;
@@ -360,20 +376,29 @@ void NNEvaluator::evaluate(
 
   int rowIdx = m_numRowsStarted;
   m_numRowsStarted += 1;
-  float* rowInput = NeuralNet::getRowInplace(m_inputBuffers,rowIdx);
 
-  if(m_numRowsStarted == 1)
-    serverWaitingForBatchStart.notify_one();
-  lock.unlock();
+  if(!debugSkipNeuralNet) {
+    assert(m_inputBuffers != NULL);
+    float* rowInput = NeuralNet::getRowInplace(m_inputBuffers,rowIdx);
 
-  if(inputsVersion == 1)
-    NNInputs::fillRowV1(board, history, nextPlayer, posLen, inputsUseNHWC, rowInput);
-  else if(inputsVersion == 2)
-    NNInputs::fillRowV2(board, history, nextPlayer, posLen, inputsUseNHWC, rowInput);
-  else
-    assert(false);
+    if(m_numRowsStarted == 1)
+      serverWaitingForBatchStart.notify_one();
+    lock.unlock();
 
-  lock.lock();
+    if(inputsVersion == 1)
+      NNInputs::fillRowV1(board, history, nextPlayer, posLen, inputsUseNHWC, rowInput);
+    else if(inputsVersion == 2)
+      NNInputs::fillRowV2(board, history, nextPlayer, posLen, inputsUseNHWC, rowInput);
+    else
+      assert(false);
+
+    lock.lock();
+  }
+  else {
+    if(m_numRowsStarted == 1)
+      serverWaitingForBatchStart.notify_one();    
+  }
+  
   m_resultBufs[rowIdx] = &buf;
   m_numRowsFinished += 1;
   if(m_numRowsFinished >= m_numRowsStarted)

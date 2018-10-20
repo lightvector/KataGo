@@ -454,7 +454,7 @@ Loc Search::getChosenMoveLoc() {
     double sum = 0.0;
     for(int i = 0; i<numChildren; i++) {
       //Numerically stable way to raise to power and normalize
-      playSelectionValues[i] = exp((log(playSelectionValues[i]) - log(maxValue)) / searchParams.chosenMoveTemperature);
+      playSelectionValues[i] = exp((log(playSelectionValues[i]) - log(maxValue)) / temperature);
       sum += playSelectionValues[i];
     }
     assert(sum > 0.0);
@@ -1099,6 +1099,7 @@ void Search::initNodeNNOutput(
   node.nnOutput = std::move(thread.nnResultBuf.result);
   maybeAddPolicyNoise(thread,node,isRoot);
 
+  //TODO test this
   //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.
   //Also don't bother updating any of the stats. Technically we should do so because winValueSum
   //and such will have changed potentially due to a new orientation of the neural net eval

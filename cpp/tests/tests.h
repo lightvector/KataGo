@@ -29,6 +29,7 @@ namespace Tests {
   void runNNInputsTests();
 
   //testsearch.cpp
+  void runAutoSearchTests();
   void runSearchTests(const string& modelFile);
 
 }

@@ -908,4 +908,86 @@ XXXXXXXXXXXXXXXXXXX
     out.str("");
     out.clear();
   }
+
+  //============================================================================
+  {
+    const char* name = "isNonPassAliveSelfConnection";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(9,9,R"%%(
+.x.oo.xx.
+xoo.oxox.
+.o.ooooox
+ooo....x.
+..o..x.xx
+oo.o...x.
+...xxxoxx
+xxxx.x.x.
+o.o.xxoxo
+)%%");
+
+    bool multiStoneSuicideLegal = false;
+    bool nonPassAliveStones = false;
+    bool safeBigTerritories = true;
+    bool unsafeBigTerritories = false;
+    board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
+
+    out << endl;
+    out << "NonPassAliveSelfConn black" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_EMPTY)
+          out << board.isNonPassAliveSelfConnection(loc,P_BLACK,result);
+        else {
+          assert(board.isNonPassAliveSelfConnection(loc,P_BLACK,result) == false);
+          out << "-";
+        }
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "NonPassAliveSelfConn white" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_EMPTY)
+          out << board.isNonPassAliveSelfConnection(loc,P_WHITE,result);
+        else {
+          assert(board.isNonPassAliveSelfConnection(loc,P_WHITE,result) == false);
+          out << "-";
+        }
+      }
+      out << endl;
+    }
+    out << endl;
+    
+    string expected = R"%%(
+
+NonPassAliveSelfConn black
+0-0--1--0
+---0----1
+0-0------
+---0000-1
+00-00-1--
+--0-010-0
+000------
+----0-0-0
+-0-0-----
+
+NonPassAliveSelfConn white
+0-0--0--0
+---0----0
+0-0------
+---0000-0
+11-10-0--
+--1-000-0
+000------
+----0-1-0
+-0-0-----
+
+)%%";
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+  }
 }

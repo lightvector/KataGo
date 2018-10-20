@@ -25,7 +25,7 @@ static void checkKoHashConsistency(BoardHistory& hist, Board& board, Player next
 static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Player pla, int line) {
   bool phaseWouldEnd = hist.passWouldEndPhase(board,pla);
   int oldPhase = hist.encorePhase;
-  
+
   if(!hist.isLegal(board, loc, pla))
     throw StringError("Illegal move on line " + Global::intToString(line));
   hist.makeBoardMoveAssumeLegal(board, loc, pla, NULL);
@@ -2176,5 +2176,152 @@ isNoResult: 0
 
 
   }
+
+
+  {
+    const char* name = "Board history clearing directly to the encore";
+    Board board = Board::parseBoard(4,4,R"%%(
+..o.
+.o.o
+.xox
+..xx
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = true;
+    BoardHistory hist(board,P_BLACK,rules);
+    BoardHistory hist2(board,P_BLACK,rules);
+
+    auto compareHists = [&]() {
+      out << hist.moveHistory.size() << " " << hist2.moveHistory.size() << endl;
+      out << hist.koHashHistory.size() << " " << hist2.koHashHistory.size() << endl;
+      out << hist.koHashHistory[0] << " " << hist2.koHashHistory[0] << endl;
+      out << hist.koHistoryLastClearedBeginningMoveIdx << " " << hist2.koHistoryLastClearedBeginningMoveIdx << endl;
+      out << hist.getRecentBoard(0).pos_hash <<  " " << hist2.getRecentBoard(0).pos_hash << endl;
+      out << hist.getRecentBoard(1).pos_hash <<  " " << hist2.getRecentBoard(1).pos_hash << endl;
+      out << hist.getRecentBoard(2).pos_hash <<  " " << hist2.getRecentBoard(2).pos_hash << endl;
+      out << hist.getRecentBoard(3).pos_hash <<  " " << hist2.getRecentBoard(3).pos_hash << endl;
+      out << hist.getRecentBoard(4).pos_hash <<  " " << hist2.getRecentBoard(4).pos_hash << endl;
+      out << hist.getRecentBoard(5).pos_hash <<  " " << hist2.getRecentBoard(5).pos_hash << endl;
+
+      for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
+        assert(hist.wasEverOccupiedOrPlayed[i] == hist2.wasEverOccupiedOrPlayed[i]);
+      for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
+        assert(hist.superKoBanned[i] == false);
+      for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
+        assert(hist2.superKoBanned[i] == false);
+
+      out << hist.consecutiveEndingPasses << " " << hist2.consecutiveEndingPasses << endl;
+      out << hist.hashesAfterBlackPass.size() << " " << hist2.hashesAfterBlackPass.size() << endl;
+      out << hist.hashesAfterWhitePass.size() << " " << hist2.hashesAfterWhitePass.size() << endl;
+      out << hist.encorePhase << " " << hist2.encorePhase << endl;
+
+      for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
+        assert(hist.blackKoProhibited[i] == false);
+      for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
+        assert(hist2.blackKoProhibited[i] == false);
+      for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
+        assert(hist.whiteKoProhibited[i] == false);
+      for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
+        assert(hist2.whiteKoProhibited[i] == false);
+
+      out << hist.koProhibitHash << " " << hist2.koProhibitHash << endl;
+      out << hist.koCapturesInEncore.size() << " " << hist2.koCapturesInEncore.size() << endl;
+
+      for(int y = 0; y<board.y_size; y++)
+        for(int x = 0; x<board.x_size; x++)
+          out << (int)(hist.secondEncoreStartColors[Location::getLoc(x,y,board.x_size)]);
+      out << endl;
+      for(int y = 0; y<board.y_size; y++)
+        for(int x = 0; x<board.x_size; x++)
+          out << (int)(hist2.secondEncoreStartColors[Location::getLoc(x,y,board.x_size)]);
+      out << endl;
+
+      out << hist.whiteBonusScore << " " << hist2.whiteBonusScore << endl;
+      out << hist.isGameFinished << " " << hist2.isGameFinished << endl;
+      out << (int)hist.winner << " " << (int)hist2.winner << endl;
+      out << hist.finalWhiteMinusBlackScore << " " << hist2.finalWhiteMinusBlackScore << endl;
+      out << hist.isNoResult << " " << hist2.isNoResult << endl;
+
+    };
+
+    Board copy = board;
+    makeMoveAssertLegal(hist, copy, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, copy, Board::PASS_LOC, P_WHITE, __LINE__);
+
+    hist2.clearAndSetEncorePhase(board, P_BLACK, 1);
+
+    compareHists();
+    string expected = R"%%(
+
+2 0
+1 1
+0216BD7ECFFDB59867FE7893C4BF4689 0216BD7ECFFDB59867FE7893C4BF4689
+2 0
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+0 0
+0 0
+0 0
+1 1
+00000000000000000000000000000000 00000000000000000000000000000000
+0 0
+0000000000000000
+0000000000000000
+0 0
+0 0
+0 0
+0 0
+0 0
+
+)%%";
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+
+    makeMoveAssertLegal(hist, copy, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, copy, Board::PASS_LOC, P_WHITE, __LINE__);
+
+    hist2.clearAndSetEncorePhase(board, P_BLACK, 2);
+
+    compareHists();
+    expected = R"%%(
+
+4 0
+1 1
+0216BD7ECFFDB59867FE7893C4BF4689 0216BD7ECFFDB59867FE7893C4BF4689
+4 0
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+F132B73BE59DB262B5EC4D8968FBC67A F132B73BE59DB262B5EC4D8968FBC67A
+0 0
+0 0
+0 0
+2 2
+00000000000000000000000000000000 00000000000000000000000000000000
+0 0
+0020020201210011
+0020020201210011
+0 0
+0 0
+0 0
+0 0
+0 0
+
+)%%";
+    expect(name,out.str(),expected);
+    out.str("");
+    out.clear();
+  }
+
 
 }

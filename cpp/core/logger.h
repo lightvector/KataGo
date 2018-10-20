@@ -19,6 +19,7 @@ class Logger {
   void setLogToStdout(bool b);
   void setLogToStderr(bool b);
   void setLogTime(bool b);
+  void addOStream(ostream& out); //User responsible for cleaning up the ostream, logger does not take ownership
   void addFile(const string& file);
 
   //write and ostreams returned are synchronized with other calls to write and other ostream calls
@@ -32,6 +33,7 @@ class Logger {
   bool logToStdout;
   bool logToStderr;
   bool logTime;
+  vector<ostream*> ostreams;
   vector<ofstream*> files;
   vector<LogBuf*> logBufs;
   std::mutex mutex;

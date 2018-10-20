@@ -93,14 +93,20 @@ public:
 
     Search* bot = new Search(params, nnEval, searchRandSeed);
     FinishedGameData* finishedGameData = new FinishedGameData(dataPosLen, params.drawEquivalentWinsForWhite);
+    bool fancyModes = true;
     Play::runGame(
       board,pla,hist,numExtraBlack,bot,bot,
       doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
       logger,logSearchInfo,logMoves,
       maxMovesPerGame,shouldStop,
+      fancyModes,
       finishedGameData,&gameRand
     );
     delete bot;
+
+    //Make sure not to write the game if we terminated in the middle of this game!
+    if(shouldStop.load())
+      return false;
 
     finishedGameQueue.waitPush(finishedGameData);
     return true;
@@ -214,7 +220,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
     //TODO do this instead
     //TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
-    TCLAP::ValueArg<int>    inputsVersionArg("","inputs-version","Version of neural net input features to use",true,0,"INT");
+    TCLAP::ValueArg<int>    inputsVersionArg("","inputs-version","Version of neural net input features to use for data",true,0,"INT");
     TCLAP::ValueArg<string> modelFileArg("","model-file","Neural net model file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");
     TCLAP::ValueArg<string> trainDataOutputDirArg("","train-data-output-dir","Dir to output training data",true,string(),"DIR");
@@ -326,11 +332,14 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     logger.write("Data write loop cleaned up and terminating for " + name);
   };
 
+  //TODO replace this with a call to the same code that the polling loop would use to find the most recent net
   //Initialize the initial neural net
   {
-    //TODO replace this with a call to the same code that the polling loop would use to find the most recent net
     Rand sgfsNameRand;
-    string nnName = "bot";
+    string nnName = "bot"; //TODO use a better name based on the polling load
+
+    //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
+    //simply controls the input feature version for the written data
     TrainingDataWriter* dataWriter = new TrainingDataWriter(trainDataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(sgfsNameRand.nextUInt64()) + ".sgfs")) : NULL;
     NetAndStuff* newNet = new NetAndStuff(nnName, nnEval, maxDataQueueSize, dataWriter, sgfOut);
@@ -385,7 +394,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
 
       lock.unlock();
 
-      //TODO
+      //TODO poll
       //Poll to see if there are any new nets to load
       NetAndStuff* newNet = NULL;
 
