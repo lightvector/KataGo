@@ -886,9 +886,9 @@ void NNInputs::fillRowV3(
         int pos = NNPos::locToPos(loc,xSize,posLen);
         if(hist.superKoBanned[loc])
           setRowBinV3(rowBin,pos,6, true, posStride, featureStride);
-        if(hist.blackKoProhibited[loc])
+        if((pla == P_BLACK && hist.blackKoProhibited[loc]) || (pla == P_WHITE && hist.whiteKoProhibited[loc]))
           setRowBinV3(rowBin,pos,7, true, posStride, featureStride);
-        if(hist.whiteKoProhibited[loc])
+        if((pla == P_BLACK && hist.whiteKoProhibited[loc]) || (pla == P_WHITE && hist.blackKoProhibited[loc]))
           setRowBinV3(rowBin,pos,8, true, posStride, featureStride);
       }
     }
