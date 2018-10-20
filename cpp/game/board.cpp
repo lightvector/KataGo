@@ -2043,6 +2043,8 @@ vector<Loc> Location::parseSequence(const string& str, const Board& board) {
 }
 
 void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vector<Move>* hist) {
+  if(hist != NULL)
+    out << "MoveNum: " << hist->size() << " ";
   out << "HASH: " << board.pos_hash << "\n";
   bool showCoords = board.x_size <= 25 && board.y_size <= 25;
   if(showCoords) {
