@@ -31,7 +31,7 @@ namespace Tests {
 
   //testsearch.cpp
   void runAutoSearchTests();
-  void runSearchTests(const string& modelFile);
+  void runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry);
 
 }
 

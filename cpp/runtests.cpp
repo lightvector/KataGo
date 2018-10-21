@@ -38,10 +38,15 @@ int MainCmds::runTests(int argc, const char* const* argv) {
 int MainCmds::runSearchTests(int argc, const char* const* argv) {
   Board::initHash();
 
-  if(argc != 2) {
-    cerr << "Must supply exactly one argument - the model file to use" << endl;
+  if(argc != 5) {
+    cerr << "Must supply exactly four arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY " << endl;
     return 1;
   }
-  Tests::runSearchTests(string(argv[1]));
+  Tests::runSearchTests(
+    string(argv[1]),
+    Global::stringToBool(argv[2]),
+    Global::stringToBool(argv[3]),
+    Global::stringToInt(argv[4])
+  );
   return 0;
 }

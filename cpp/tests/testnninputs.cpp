@@ -2235,61 +2235,55 @@ Channel: 14: 0.2
   {
     const char* name = "NN Inputs V3 Rules";
 
-    Board board = Board::parseBoard(7,7,R"%%(
-.......
-.......
-.......
-.......
-.......
-.......
-.......
-)%%");
-    Player nextPla = P_BLACK;
+    for(int size = 7; size >= 6; size--) {
+      Board board = Board(size,size);
+      Player nextPla = P_BLACK;
 
-    vector<Rules> rules = {
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, false, 1.0f),
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, true, 1.5f),
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, false, 2.0f),
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, true, 2.5f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, false, 3.0f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, true, 3.5f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, false, 4.0f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, true, 4.5f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, false, 5.0f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, true, 5.5f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, false, 6.0f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, true, 6.5f),
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 1.0f),
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, true, 1.5f),
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 2.0f),
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, true, 2.5f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, false, 3.0f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, true, 3.5f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, false, 4.0f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, true, 4.5f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, false, 5.0f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, true, 5.5f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, false, 6.0f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, true, 6.5f)
-    };
+      vector<Rules> rules = {
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, true, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, false, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, true, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, false, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, true, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, false, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, true, 6.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, true, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, true, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, false, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, true, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, false, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, true, 6.5f)
+      };
 
-    int posLen = 7;
-    double drawEquivalentWinsForWhite = 0.47;
-    bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
-    float* rowFloat = new float[NNInputs::NUM_FEATURES_FLOAT_V3];
+      int posLen = size;
+      double drawEquivalentWinsForWhite = 0.47;
+      bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
+      float* rowFloat = new float[NNInputs::NUM_FEATURES_FLOAT_V3];
 
-    for(int c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++) {
-      for(int i = 0; i<rules.size(); i++) {
-        BoardHistory hist(board,nextPla,rules[i]);
-        NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowFloat);
-        out << rowFloat[c] << " ";
+      for(int c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++) {
+        for(int i = 0; i<rules.size(); i++) {
+          BoardHistory hist(board,nextPla,rules[i]);
+          NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowFloat);
+          out << rowFloat[c] << " ";
+        }
+        out << endl;
       }
-      out << endl;
+
+      delete rowBin;
+      delete rowFloat;
     }
-
-    delete rowBin;
-    delete rowFloat;
-
+    
     string expected = R"%%(
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
@@ -2306,6 +2300,21 @@ Channel: 14: 0.2
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375
 0.03 -0.5 -0.03 0.5 0.03 -0.5 -0.03 0.5 0.03 -0.5 -0.03 0.5 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+-0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 -0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333
+0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0 1 1 1 1 1 1 1 1
+0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5
+0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1
+0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375
+-0.03 0.5 0.03 -0.5 -0.03 0.5 0.03 -0.5 -0.03 0.5 0.03 -0.5 0 0 0 0 0 0 0 0 0 0 0 0
 
 )%%";
     expect(name,out,expected);
@@ -2350,6 +2359,8 @@ Channel: 14: 0.2
           out << rowFloat[c] << " ";
         out << endl;
         out << "Selfkomi channel times 15: " << rowFloat[5]*15 << endl;
+        out << "EncorePhase channel 10,11: " << rowFloat[10] << " " << rowFloat[11] << endl;
+        out << "PassWouldEndPhase channel 12: " << rowFloat[12] << endl;
         printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,7);
         printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,8);
       }
@@ -2363,6 +2374,8 @@ Move 24
 010100 001010 111000 001001 001110 010111
 Pass Hist Channels: 0 0 1 0 0
 Selfkomi channel times 15: -0.5
+EncorePhase channel 10,11: 1 0
+PassWouldEndPhase channel 12: 0
 Channel: 7
 0 0 0 0 0 0  O2. O . X .
 0 0 0 0 0 0  X O . X . X
@@ -2383,6 +2396,8 @@ Move 25
 010101 001000 111010 001000 001110 010111
 Pass Hist Channels: 0 0 0 1 0
 Selfkomi channel times 15: 1.5
+EncorePhase channel 10,11: 1 0
+PassWouldEndPhase channel 12: 0
 Channel: 7
 0 1 0 0 0 0  O1. O . X .
 0 0 0 0 0 0  X O . X O5X
@@ -2403,6 +2418,8 @@ Move 26
 010101 001000 111010 001001 001110 010111
 Pass Hist Channels: 1 0 0 0 1
 Selfkomi channel times 15: -1.5
+EncorePhase channel 10,11: 1 0
+PassWouldEndPhase channel 12: 1
 Channel: 7
 0 0 0 0 0 0  O . O . X .
 0 0 0 0 0 0  X O . X O4X
@@ -2423,6 +2440,8 @@ Move 30
 010100 001010 011000 001001 001110 000111
 Pass Hist Channels: 0 0 0 1 1
 Selfkomi channel times 15: -1.5
+EncorePhase channel 10,11: 1 1
+PassWouldEndPhase channel 12: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
 0 0 0 0 1 0  X O . X . X
@@ -2443,6 +2462,8 @@ Move 31
 010101 001010 011000 001001 001110 100111
 Pass Hist Channels: 0 0 0 0 1
 Selfkomi channel times 15: 1.5
+EncorePhase channel 10,11: 1 1
+PassWouldEndPhase channel 12: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
 0 0 0 0 0 0  X O . X .5X
@@ -2463,6 +2484,8 @@ Move 32
 010100 001010 011000 101001 101110 000111
 Pass Hist Channels: 0 0 0 0 0
 Selfkomi channel times 15: -1.5
+EncorePhase channel 10,11: 1 1
+PassWouldEndPhase channel 12: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
 0 0 0 0 0 0  X O . X .4X
@@ -2483,6 +2506,8 @@ Move 33
 010101 001000 011010 101000 101110 010111
 Pass Hist Channels: 0 0 0 0 0
 Selfkomi channel times 15: 1.5
+EncorePhase channel 10,11: 1 1
+PassWouldEndPhase channel 12: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
 0 0 0 0 0 0  X O . X O3X
