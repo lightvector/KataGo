@@ -25,6 +25,8 @@ SgfNode::~SgfNode()
 }
 
 SgfNode& SgfNode::operator=(const SgfNode& other) {
+  if(this == &other)
+    return *this;
   if(other.props != NULL)
     props = new map<string,vector<string>>(*(other.props));
   move = other.move;
@@ -544,14 +546,14 @@ CompactSgf::~CompactSgf() {
 
 CompactSgf* CompactSgf::parse(const string& str) {
   Sgf* sgf = Sgf::parse(str);
-  CompactSgf* compact = new CompactSgf(sgf);
+  CompactSgf* compact = new CompactSgf(std::move(*sgf));
   delete sgf;
   return compact;
 }
 
 CompactSgf* CompactSgf::loadFile(const string& file) {
   Sgf* sgf = Sgf::loadFile(file);
-  CompactSgf* compact = new CompactSgf(sgf);
+  CompactSgf* compact = new CompactSgf(std::move(*sgf));
   delete sgf;
   return compact;
 }
