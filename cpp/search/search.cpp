@@ -1180,7 +1180,7 @@ void Search::playoutDescend(
   if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
     bool isReInit = true;
     initNodeNNOutput(thread,node,isRoot,true,0,isReInit);
-    lock.unlock();
+
     if(thread.logStream != NULL)
       (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
 

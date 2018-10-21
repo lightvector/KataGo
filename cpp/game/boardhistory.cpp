@@ -533,6 +533,9 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
        (movePla == P_WHITE && whiteKoProhibited[moveLoc] && board.wouldBeKoCapture(moveLoc,P_WHITE))) {
       setKoProhibited(movePla,moveLoc,false);
       wasPassForKo = true;
+      //Clear simple ko loc to stop it from banning the other player from moving there!
+      //Since we aren't otherwise touching the board, from the board's perspective a player will be moving twice in a row.
+      board.clearSimpleKoLoc(); 
     }
   }
   //Otherwise handle regular moves
@@ -544,6 +547,9 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
       if(board.ko_loc != Board::NULL_LOC) {
         setKoProhibited(getOpp(movePla),board.ko_loc,true);
         koCapturesInEncore.push_back(EncoreKoCapture(posHashBeforeMove,moveLoc,movePla));
+        //Clear simple ko loc now that we've absorved the ko loc information into the koprohib array
+        //Once we have that, the simple ko loc plays no further role in game state or legality
+        board.clearSimpleKoLoc(); 
       }
       //Unmark for the opponent all points that aren't ko moves
       for(int y = 0; y<board.y_size; y++) {
