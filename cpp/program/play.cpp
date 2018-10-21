@@ -339,9 +339,6 @@ void Play::runGame(
 ) {
   if(numExtraBlack > 0)
     playExtraBlack(botB,logger,numExtraBlack,board,hist);
-  botB->setPosition(pla,board,hist);
-  if(botB != botW)
-    botW->setPosition(pla,board,hist);
 
   vector<double>* recordUtilities = NULL;
 
@@ -366,11 +363,17 @@ void Play::runGame(
       int encorePhase = gameRand->nextInt(1,2);
       hist.clearAndSetEncorePhase(board,pla,encorePhase);
 
-      gameData->mode = 1;
-      gameData->modeMeta1 = 0;
-      gameData->modeMeta2 = encorePhase;
+      if(gameData != NULL) {
+        gameData->mode = 1;
+        gameData->modeMeta1 = 0;
+        gameData->modeMeta2 = encorePhase;
+      }
     }
   }
+
+  botB->setPosition(pla,board,hist);
+  if(botB != botW)
+    botW->setPosition(pla,board,hist);
 
   vector<Loc> locsBuf;
   vector<double> playSelectionValuesBuf;
