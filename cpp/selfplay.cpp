@@ -294,6 +294,8 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   //TODO write to subdirs once we have proper polling for new nn models
   if(sgfOutputDir != string())
     MakeDir::make(sgfOutputDir);
+  if(trainDataOutputDir != string())
+    MakeDir::make(trainDataOutputDir);
 
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");

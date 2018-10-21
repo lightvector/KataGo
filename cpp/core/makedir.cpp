@@ -18,6 +18,8 @@
   #include <sys/stat.h>
 #endif
 
+#include <cerrno>
+
 //WINDOWS IMPLMENTATIION-------------------------------------------------------------
 
 #ifdef _IS_WINDOWS
@@ -33,7 +35,12 @@ void MakeDir::make(const string& path) {
 #ifdef _IS_UNIX
 
 void MakeDir::make(const string& path) {
-  mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+  int result = mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+  if(result != 0) {
+    if(errno == EEXIST)
+      return;
+    throw new StringError("Error creating directory: " + path);
+  }
 }
 
 #endif
