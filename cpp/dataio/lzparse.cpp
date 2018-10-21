@@ -198,7 +198,7 @@ void LZSample::parse(
       board.setStone(loc,stones[7][loc]);
     }
   }
-  hist.clear(board,opp,Rules::getTrompTaylorish());
+  hist.clear(board,opp,Rules::getTrompTaylorish(),0);
   for(int i = 6; i>=0; i--)
   {
     Move move = moves[7-i-1];

@@ -167,7 +167,7 @@ void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, 
   rules.komi = extraBlackAndKomi.second;
 
   pla = P_BLACK;
-  hist.clear(board,pla,rules);
+  hist.clear(board,pla,rules,0);
   numExtraBlack = extraBlackAndKomi.first;
 }
 
@@ -319,7 +319,7 @@ static void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board
       failIllegalMove(bot,logger,board,loc);
     assert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-    hist.clear(board,pla,hist.rules);
+    hist.clear(board,pla,hist.rules,0);
     bot->setPosition(pla,board,hist);
   }
 
@@ -361,7 +361,7 @@ void Play::runGame(
     //Make sure there's some minimum tiny amount of data about how the encore phases work
     if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand->nextBool(0.02)) {
       int encorePhase = gameRand->nextInt(1,2);
-      hist.clearAndSetEncorePhase(board,pla,encorePhase);
+      hist.clear(board,pla,hist.rules,encorePhase);
 
       if(gameData != NULL) {
         gameData->mode = 1;

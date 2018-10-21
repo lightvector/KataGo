@@ -247,7 +247,7 @@ void Tests::runAutoSearchTests() {
 .........
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules);
+    BoardHistory hist(board,nextPla,rules,0);
 
     search->setPosition(nextPla,board,hist);
     search->runWholeSearch(nextPla,logger,NULL);

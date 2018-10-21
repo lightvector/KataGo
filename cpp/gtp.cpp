@@ -101,7 +101,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   {
     Board board(19,19);
     Player pla = P_BLACK;
-    BoardHistory hist(board,pla,initialRules);
+    BoardHistory hist(board,pla,initialRules,0);
     bot->setPosition(pla,board,hist);
   }
 
@@ -251,7 +251,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       else {
         Board board(newBSize,newBSize);
         Player pla = P_BLACK;
-        BoardHistory hist(board,pla,bot->getRootHist().rules);
+        BoardHistory hist(board,pla,bot->getRootHist().rules,0);
         bot->setPosition(pla,board,hist);
       }
     }
@@ -261,7 +261,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       int newBSize = bot->getRootBoard().x_size;
       Board board(newBSize,newBSize);
       Player pla = P_BLACK;
-      BoardHistory hist(board,pla,bot->getRootHist().rules);
+      BoardHistory hist(board,pla,bot->getRootHist().rules,0);
       bot->setPosition(pla,board,hist);
     }
 

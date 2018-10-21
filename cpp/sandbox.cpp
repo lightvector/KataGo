@@ -105,7 +105,7 @@ int MainCmds::sandbox() {
 )");
 
 
-  BoardHistory hist(board,pla,rules);
+  BoardHistory hist(board,pla,rules,0);
 
   ostream* logStream = logger.createOStream();
   NNResultBuf buf;

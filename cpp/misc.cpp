@@ -200,7 +200,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
         for(int i = 0; i<placements.size(); i++)
           board.setStone(placements[i].loc,placements[i].pla);
 
-        BoardHistory hist(board,pla,initialRules);
+        BoardHistory hist(board,pla,initialRules,0);
         search->setPosition(pla,board,hist);
       }
 

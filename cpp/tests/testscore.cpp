@@ -24,7 +24,7 @@ xxxxxxxxx
 )%%");
 
     Rules rules = Rules::getTrompTaylorish();
-    BoardHistory hist(board,P_BLACK,rules);
+    BoardHistory hist(board,P_BLACK,rules,0);
     hist.endAndScoreGameNow(board);
 
     out << "Black self komi wins/draw=0.5: " << hist.currentSelfKomi(P_BLACK, 0.5) << endl;
@@ -79,7 +79,7 @@ xxxxxxxxx
 
     Rules rules = Rules::getTrompTaylorish();
     rules.komi = 7.0;
-    BoardHistory hist(board,P_BLACK,rules);
+    BoardHistory hist(board,P_BLACK,rules,0);
     hist.endAndScoreGameNow(board);
 
     out << "Black self komi wins/draw=0.5: " << hist.currentSelfKomi(P_BLACK, 0.5) << endl;
@@ -134,7 +134,7 @@ xxxxxxxxx
 
     Rules rules = Rules::getTrompTaylorish();
     rules.komi = 7.0;
-    BoardHistory hist(board,P_BLACK,rules);
+    BoardHistory hist(board,P_BLACK,rules,0);
     hist.endAndScoreGameNow(board);
 
     out << "Black self komi wins/draw=0.5: " << hist.currentSelfKomi(P_BLACK, 0.5) << endl;
@@ -186,7 +186,7 @@ xxxxx
 
     Rules rules = Rules::getTrompTaylorish();
     rules.komi = 7.0;
-    BoardHistory hist(board,P_BLACK,rules);
+    BoardHistory hist(board,P_BLACK,rules,0);
     hist.endAndScoreGameNow(board);
 
     out << "Black self komi wins/draw=0.5: " << hist.currentSelfKomi(P_BLACK, 0.5) << endl;

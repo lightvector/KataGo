@@ -589,7 +589,7 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
 
   board = Board(bSize,bSize);
   nextPla = P_BLACK;
-  hist = BoardHistory(board,nextPla,rules);
+  hist = BoardHistory(board,nextPla,rules,0);
 
   bool hasBlack = false;
   bool allBlack = true;

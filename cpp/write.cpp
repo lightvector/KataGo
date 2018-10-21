@@ -584,7 +584,7 @@ static void iterSgfMoves(
   rules.scoringRule = Rules::SCORING_AREA;
   rules.multiStoneSuicideLegal = multiStoneSuicideLegal;
   rules.komi = Rules::getTrompTaylorish().komi;
-  BoardHistory hist(initialBoard,(moves.size() > 0 ? moves[j].pla : P_BLACK),rules);
+  BoardHistory hist(initialBoard,(moves.size() > 0 ? moves[j].pla : P_BLACK),rules,0);
 
   Player prevPla = C_EMPTY;
   for(; j<moves.size(); j++) {

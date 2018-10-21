@@ -2132,7 +2132,7 @@ xxx..xx
     Player nextPla = P_BLACK;
     Rules initialRules = Rules::getTrompTaylorish();
     initialRules.komi = 2;
-    BoardHistory hist(board,nextPla,initialRules);
+    BoardHistory hist(board,nextPla,initialRules,0);
 
     int posLen = 7;
     double drawEquivalentWinsForWhite = 0.3;
@@ -2148,14 +2148,14 @@ xxx..xx
       printNNInputGlobal(out,3,rowFloat,c);
 
     nextPla = P_WHITE;
-    hist.clear(board,nextPla,initialRules);
+    hist.clear(board,nextPla,initialRules,0);
     NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowFloat);
     for(c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++)
       printNNInputGlobal(out,3,rowFloat,c);
 
     nextPla = P_BLACK;
     initialRules.komi = 1;
-    hist.clear(board,nextPla,initialRules);
+    hist.clear(board,nextPla,initialRules,0);
     NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowFloat);
     for(c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++)
       printNNInputGlobal(out,3,rowFloat,c);
@@ -2273,7 +2273,7 @@ Channel: 14: 0.2
 
       for(int c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++) {
         for(int i = 0; i<rules.size(); i++) {
-          BoardHistory hist(board,nextPla,rules[i]);
+          BoardHistory hist(board,nextPla,rules[i],0);
           NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowFloat);
           out << rowFloat[c] << " ";
         }

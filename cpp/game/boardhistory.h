@@ -64,7 +64,7 @@ struct BoardHistory {
   BoardHistory();
   ~BoardHistory();
 
-  BoardHistory(const Board& board, Player pla, const Rules& rules);
+  BoardHistory(const Board& board, Player pla, const Rules& rules, int encorePhase);
 
   BoardHistory(const BoardHistory& other);
   BoardHistory& operator=(const BoardHistory& other);
@@ -72,11 +72,10 @@ struct BoardHistory {
   BoardHistory(BoardHistory&& other) noexcept;
   BoardHistory& operator=(BoardHistory&& other) noexcept;
 
-  void clear(const Board& board, Player pla, const Rules& rules);
+  //Clears all history and status and bonus points, sets encore phase and rules
+  void clear(const Board& board, Player pla, const Rules& rules, int encorePhase);
   //Set only the komi field of the rules, does not clear history, but does clear game-over conditions,
   void setKomi(float newKomi);
-  //Clears game over conditions and history and sets encore phase. Full clear, might not preserve whiteBonusScore or anything else.
-  void clearAndSetEncorePhase(const Board& board, Player pla, int phase);
 
   float whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhite) const;
   float currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const;

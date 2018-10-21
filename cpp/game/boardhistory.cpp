@@ -45,7 +45,7 @@ BoardHistory::BoardHistory()
 BoardHistory::~BoardHistory()
 {}
 
-BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r)
+BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int ePhase)
   :rules(r),
    moveHistory(),koHashHistory(),
    koHistoryLastClearedBeginningMoveIdx(0),
@@ -64,7 +64,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r)
   std::fill(whiteKoProhibited, whiteKoProhibited+Board::MAX_ARR_SIZE, false);
   std::fill(secondEncoreStartColors, secondEncoreStartColors+Board::MAX_ARR_SIZE, C_EMPTY);
 
-  clear(board,pla,rules);
+  clear(board,pla,rules,ePhase);
 }
 
 BoardHistory::BoardHistory(const BoardHistory& other)
@@ -166,7 +166,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   return *this;
 }
 
-void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
+void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePhase) {
   rules = r;
   moveHistory.clear();
   koHashHistory.clear();
@@ -189,12 +189,10 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
   consecutiveEndingPasses = 0;
   hashesAfterBlackPass.clear();
   hashesAfterWhitePass.clear();
-  encorePhase = 0;
   std::fill(blackKoProhibited, blackKoProhibited+Board::MAX_ARR_SIZE, false);
   std::fill(whiteKoProhibited, whiteKoProhibited+Board::MAX_ARR_SIZE, false);
   koProhibitHash = Hash128();
   koCapturesInEncore.clear();
-  std::fill(secondEncoreStartColors, secondEncoreStartColors+Board::MAX_ARR_SIZE, C_EMPTY);
   whiteBonusScore = 0;
   isGameFinished = false;
   winner = C_EMPTY;
@@ -218,6 +216,17 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
     whiteBonusScore -= netWhiteCaptures;
   }
 
+  //Handle encore phase
+  encorePhase = ePhase;
+  assert(encorePhase >= 0 && encorePhase <= 2);
+  if(encorePhase > 0)
+    assert(rules.scoringRule == Rules::SCORING_TERRITORY);
+  //Update the few parameters that depend on encore
+  if(encorePhase == 2)
+    std::copy(board.colors, board.colors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
+  else
+    std::fill(secondEncoreStartColors, secondEncoreStartColors+Board::MAX_ARR_SIZE, C_EMPTY);
+
   //Push hash for the new board state
   koHashHistory.push_back(getKoHash(rules,board,pla,encorePhase,koProhibitHash));
 }
@@ -236,23 +245,6 @@ void BoardHistory::setKomi(float newKomi) {
   winner = C_EMPTY;
   finalWhiteMinusBlackScore = 0.0f;
   isNoResult = false;
-}
-
-void BoardHistory::clearAndSetEncorePhase(const Board& board, Player pla, int phase) {
-  Rules r = rules;
-  clear(board,pla,r);
-  encorePhase = phase;
-
-  if(encorePhase > 0)
-    assert(rules.scoringRule == Rules::SCORING_TERRITORY);
-
-  //Update the few parameters that depend on encore that shouldn't just be cleared.
-  if(encorePhase == 2)
-    std::copy(board.colors, board.colors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
-
-  koHashHistory.clear();
-  koHistoryLastClearedBeginningMoveIdx = moveHistory.size();
-  koHashHistory.push_back(getKoHash(rules,board,pla,encorePhase,koProhibitHash));
 }
 
 
