@@ -152,6 +152,9 @@ if(BUILD_MCTS)
   find_library(LIBZIP_LIBRARY NAMES zip)
   target_link_libraries(main ${LIBZIP_LIBRARY})
 
+  find_package(Boost COMPONENTS system filesystem REQUIRED)
+  target_link_libraries(main ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
+
 endif()
 
 

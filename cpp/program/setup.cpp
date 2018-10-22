@@ -18,14 +18,15 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   const vector<string>& nnModelFiles,
   ConfigParser& cfg,
   Logger& logger,
-  Rand& seedRand
+  Rand& seedRand,
+  bool debugSkipNeuralNetDefault
 ) {
   vector<NNEvaluator*> nnEvals;
   for(size_t i = 0; i<nnModelFiles.size(); i++) {
     string idxStr = Global::intToString(i);
     const string& nnModelFile = nnModelFiles[i];
 
-    bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : false;
+    bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : debugSkipNeuralNetDefault;
     int modelFileIdx = i;
 
     int posLen;

@@ -14,7 +14,8 @@ namespace Setup {
     const vector<string>& nnModelFiles,
     ConfigParser& cfg,
     Logger& logger,
-    Rand& seedRand
+    Rand& seedRand,
+    bool debugSkipNeuralNetDefault = false
   );
 
   vector<SearchParams> loadParams(

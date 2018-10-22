@@ -16,6 +16,8 @@ using namespace std;
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
+#include <boost/filesystem.hpp>
+
 #include <chrono>
 
 #include <csignal>
@@ -211,33 +213,26 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   string configFile;
   string logFile;
   int inputsVersion;
-  string modelFile;
-  string sgfOutputDir;
-  string trainDataOutputDir;
+  string modelsDir;
+  string outputDir;
   try {
     TCLAP::CmdLine cmd("Generate training data via self play", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
-    //TODO do this instead
-    //TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<int>    inputsVersionArg("","inputs-version","Version of neural net input features to use for data",true,0,"INT");
-    TCLAP::ValueArg<string> modelFileArg("","model-file","Neural net model file to use",true,string(),"FILE");
-    TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");
-    TCLAP::ValueArg<string> trainDataOutputDirArg("","train-data-output-dir","Dir to output training data",true,string(),"DIR");
+    TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
+    TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
     cmd.add(configFileArg);
     cmd.add(logFileArg);
-    //cmd.add(modelsDirArg);
     cmd.add(inputsVersionArg);
-    cmd.add(modelFileArg);
-    cmd.add(sgfOutputDirArg);
-    cmd.add(trainDataOutputDirArg);
+    cmd.add(modelsDirArg);
+    cmd.add(outputDirArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     logFile = logFileArg.getValue();
     inputsVersion = inputsVersionArg.getValue();
-    modelFile = modelFileArg.getValue();
-    sgfOutputDir = sgfOutputDirArg.getValue();
-    trainDataOutputDir = trainDataOutputDirArg.getValue();
+    modelsDir = modelsDirArg.getValue();
+    outputDir = outputDirArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -253,16 +248,6 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   logger.write("Self Play Engine starting...");
   logger.write(string("Git revision: ") + GIT_REVISION);
 
-  //TODO this will go change a bit once we have a polling loop?
-  NNEvaluator* nnEval;
-  {
-    Setup::initializeSession(cfg);
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},cfg,logger,seedRand);
-    assert(nnEvals.size() == 1);
-    nnEval = nnEvals[0];
-  }
-  logger.write("Loaded neural net");
-
   //Load runner settings
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
   const string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
@@ -275,27 +260,13 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
 
   GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase);
 
-  //Check for unused config keys
-  {
-    vector<string> unusedKeys = cfg.unusedKeys();
-    for(size_t i = 0; i<unusedKeys.size(); i++) {
-      string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in " + configFile;
-      logger.write(msg);
-      cerr << msg << endl;
-    }
-  }
-
+  Setup::initializeSession(cfg);
+  
   //Done loading!
   //------------------------------------------------------------------------------------
   logger.write("Loaded all config stuff, starting self play");
   if(!logToStdout)
     cout << "Loaded all config stuff, starting self play" << endl;
-
-  //TODO write to subdirs once we have proper polling for new nn models
-  if(sgfOutputDir != string())
-    MakeDir::make(sgfOutputDir);
-  if(trainDataOutputDir != string())
-    MakeDir::make(trainDataOutputDir);
 
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
@@ -334,27 +305,91 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     logger.write("Data write loop cleaned up and terminating for " + name);
   };
 
-  //TODO replace this with a call to the same code that the polling loop would use to find the most recent net
-  //Initialize the initial neural net
-  {
-    Rand sgfsNameRand;
-    string nnName = "bot"; //TODO use a better name based on the polling load
+  auto loadLatestNeuralNet = [inputsVersion,maxDataQueueSize,maxRowsPerFile,dataPosLen,&modelsDir,&outputDir,&logger,&cfg](const NetAndStuff* lastNet) -> NetAndStuff* {
+    namespace bfs = boost::filesystem;
 
+    bool hasLatestTime = false;
+    std::time_t latestTime = 0;
+    bfs::path latestPath;
+    for(bfs::directory_iterator iter(modelsDir); iter != bfs::directory_iterator(); ++iter) {
+      bfs::path dirPath = iter->path();
+      if(!bfs::is_directory(dirPath))
+        continue;
+
+      time_t thisTime = bfs::last_write_time(dirPath);
+      if(!hasLatestTime || thisTime > latestTime) {
+        hasLatestTime = true;
+        latestTime = thisTime;
+        latestPath = dirPath;
+      }
+    }
+    
+    string modelName = "random";
+    string modelFile = "/dev/null";
+    if(hasLatestTime) {
+      modelName = latestPath.filename().string();
+      modelFile = modelsDir + "/" + modelName + "/model.txt.gz";
+      if(!bfs::exists(bfs::path(modelFile))) {
+        modelFile = modelsDir + "/" + modelName + "/model.txt";
+        if(!bfs::exists(bfs::path(modelFile)))
+          logger.write("Warning: Skipping model " + modelName + " due to not finding model.txt or model.txt.gz");
+      }
+    }
+
+    //No new neural nets yet
+    if(lastNet != NULL && lastNet->nnName == modelName)
+      return NULL;
+    
+    bool debugSkipNeuralNetDefault = (modelFile == "/dev/null");
+
+    Rand rand;
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},cfg,logger,rand,debugSkipNeuralNetDefault);
+    assert(nnEvals.size() == 1);
+    NNEvaluator* nnEval = nnEvals[0];
+    logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
+
+    string modelDir = outputDir + "/" + modelName;
+    string sgfOutputDir = modelDir + "/sgfs";
+    string trainDataOutputDir = modelDir + "/tdata";
+    assert(outputDir != string());
+    
+    MakeDir::make(outputDir);
+    MakeDir::make(modelDir);
+    MakeDir::make(sgfOutputDir);
+    MakeDir::make(trainDataOutputDir);
+    
     //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
     //simply controls the input feature version for the written data
     TrainingDataWriter* dataWriter = new TrainingDataWriter(trainDataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
-    ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(sgfsNameRand.nextUInt64()) + ".sgfs")) : NULL;
-    NetAndStuff* newNet = new NetAndStuff(nnName, nnEval, maxDataQueueSize, dataWriter, sgfOut);
-
+    ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
+    NetAndStuff* newNet = new NetAndStuff(modelName, nnEval, maxDataQueueSize, dataWriter, sgfOut);
+    return newNet;
+  };
+    
+  //Initialize the initial neural net
+  {
+    NetAndStuff* newNet = loadLatestNeuralNet(NULL);
+    assert(newNet != NULL);
+    
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     netAndStuffs.push_back(newNet);
     std::thread newThread(dataWriteLoop,newNet);
     newThread.detach();
   }
 
+  //Check for unused config keys
+  {
+    vector<string> unusedKeys = cfg.unusedKeys();
+    for(size_t i = 0; i<unusedKeys.size(); i++) {
+      string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in " + configFile;
+      logger.write(msg);
+      cerr << msg << endl;
+    }
+  }
+  
   auto gameLoop = [
     &gameRunner,
-    &sgfOutputDir,&logger,
+    &logger,
     &netAndStuffsMutex,&netAndStuffs,
     dataPosLen
   ]() {
@@ -388,7 +423,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
 
   //Looping thread for polling for new neural nets and loading them in
   std::condition_variable pollSleepVar;
-  auto pollLoop = [&netAndStuffsMutex,&netAndStuffs,&pollSleepVar,&logger,&dataWriteLoop]() {
+  auto pollLoop = [&netAndStuffsMutex,&netAndStuffs,&pollSleepVar,&logger,&dataWriteLoop,&loadLatestNeuralNet]() {
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     while(true) {
       if(shouldStop.load())
@@ -396,9 +431,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
 
       lock.unlock();
 
-      //TODO poll
-      //Poll to see if there are any new nets to load
-      NetAndStuff* newNet = NULL;
+      NetAndStuff* newNet = loadLatestNeuralNet(NULL);
 
       lock.lock();
 
