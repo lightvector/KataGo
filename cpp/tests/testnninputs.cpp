@@ -110,7 +110,7 @@ void Tests::runNNInputsV2Tests() {
     string actualNHWC = run(true);
     string actualNCHW = run(false);
 
-    delete row;
+    delete[] row;
     delete sgf;
 
     string expected = R"%%(
@@ -514,7 +514,7 @@ Channel: 16
     string actualNHWC = run(true);
     string actualNCHW = run(false);
 
-    delete row;
+    delete[] row;
     delete sgf;
 
     string expected = R"%%(
@@ -600,7 +600,7 @@ Channel: 16
     string actualNHWC = run(true);
     string actualNCHW = run(false);
 
-    delete row;
+    delete[] row;
     delete sgf;
 
     string expected = R"%%(
@@ -798,7 +798,7 @@ Channel: 16
     string actualNHWC = run(true);
     string actualNCHW = run(false);
 
-    delete row;
+    delete[] row;
     delete sgf;
 
     string expected = R"%%(
@@ -1050,8 +1050,8 @@ void Tests::runNNInputsV3Tests() {
     string actualNHWC = run(true);
     string actualNCHW = run(false);
 
-    delete rowBin;
-    delete rowFloat;
+    delete[] rowBin;
+    delete[] rowFloat;
     delete sgf;
 
     string expected = R"%%(
@@ -1536,8 +1536,8 @@ Channel: 14: 0.5
     string actualNHWC = run(true);
     string actualNCHW = run(true);
 
-    delete rowBin;
-    delete rowFloat;
+    delete[] rowBin;
+    delete[] rowFloat;
     delete sgf;
 
     string expected = R"%%(
@@ -1622,8 +1622,8 @@ Channel: 14: -0.5
     string actualNHWC = run(true);
     string actualNCHW = run(false);
 
-    delete rowBin;
-    delete rowFloat;
+    delete[] rowBin;
+    delete[] rowFloat;
     delete sgf;
 
     string expected = R"%%(
@@ -1868,8 +1868,8 @@ Channel: 14: -0.5
     string actualNHWC = run(true);
     string actualNCHW = run(false);
 
-    delete rowBin;
-    delete rowFloat;
+    delete[] rowBin;
+    delete[] rowFloat;
     delete sgf;
 
     string expected = R"%%(
@@ -2160,8 +2160,8 @@ xxx..xx
     for(c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++)
       printNNInputGlobal(out,3,rowFloat,c);
 
-    delete rowBin;
-    delete rowFloat;
+    delete[] rowBin;
+    delete[] rowFloat;
 
     string expected = R"%%(
 Channel: 18
@@ -2280,8 +2280,8 @@ Channel: 14: 0.2
         out << endl;
       }
 
-      delete rowBin;
-      delete rowFloat;
+      delete[] rowBin;
+      delete[] rowFloat;
     }
     
     string expected = R"%%(
@@ -2366,8 +2366,9 @@ Channel: 14: 0.2
       }
     }
 
-    delete rowBin;
-    delete rowFloat;
+    delete[] rowBin;
+    delete[] rowFloat;
+    delete sgf;
 
     string expected = R"%%(
 Move 24

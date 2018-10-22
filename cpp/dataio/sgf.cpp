@@ -27,12 +27,18 @@ SgfNode::~SgfNode()
 SgfNode& SgfNode::operator=(const SgfNode& other) {
   if(this == &other)
     return *this;
+  if(props != NULL)
+    delete props;
   if(other.props != NULL)
     props = new map<string,vector<string>>(*(other.props));
+  else
+    props = NULL;
   move = other.move;
   return *this;
 }
 SgfNode& SgfNode::operator=(SgfNode&& other) {
+  if(props != NULL)
+    delete props;
   props = other.props;
   other.props = NULL;
   move = other.move;
@@ -529,8 +535,7 @@ CompactSgf::CompactSgf(Sgf&& sgf)
   fileName = std::move(sgf.fileName);
   assert(sgf.nodes.size() > 0);
   rootNode = std::move(*sgf.nodes[0]);
-  sgf.nodes[0] = NULL;
-  for(int i = 1; i<sgf.nodes.size(); i++) {
+  for(int i = 0; i<sgf.nodes.size(); i++) {
     delete sgf.nodes[i];
     sgf.nodes[i] = NULL;
   }

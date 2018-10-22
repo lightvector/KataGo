@@ -370,5 +370,6 @@ E8 1
 
   }
 
+  delete search;
   NeuralNet::globalCleanup();
 }
