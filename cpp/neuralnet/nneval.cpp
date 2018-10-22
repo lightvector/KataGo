@@ -361,11 +361,18 @@ void NNEvaluator::evaluate(
   else
     assert(false);
 
+  bool hadResultWithoutOwnerMap = false;
+  shared_ptr<NNOutput> resultWithoutOwnerMap;
   if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
     if(!(includeOwnerMap && buf.result->ownerMap == NULL))
     {
       buf.hasResult = true;
       return;
+    }
+    else {
+      hadResultWithoutOwnerMap = true;
+      resultWithoutOwnerMap = std::move(buf.result);
+      buf.result = nullptr;
     }
   }
   buf.includeOwnerMap = includeOwnerMap;
@@ -411,85 +418,103 @@ void NNEvaluator::evaluate(
   resultLock.unlock();
 
   //Perform postprocessing on the result - turn the nn output into probabilities
-  float* policy = buf.result->policyProbs;
-
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
-  float maxPolicy = -1e25f;
-  bool isLegal[policySize];
-  int legalCount = 0;
-  for(int i = 0; i<policySize; i++) {
-    Loc loc = NNPos::posToLoc(i,xSize,ySize,posLen);
-    isLegal[i] = history.isLegal(board,loc,nextPlayer);
-
-    float policyValue;
-    if(isLegal[i]) {
-      legalCount += 1;
-      policyValue = policy[i];
-    }
-    else {
-      policyValue = -1e30f;
-      policy[i] = policyValue;
-    }
-
-    if(policyValue > maxPolicy)
-      maxPolicy = policyValue;
+  //As a hack though, if the only thing we were missing was the ownermap, just grab the old policy and values
+  //and use those. This avoids recomputing in a randomly different orientation when we just need the ownermap
+  //and causing policy weights to be different, which would reduce performance of successive searches in a game
+  //by making the successive searches distribute their playouts less coherently and using the cache more poorly.
+  if(hadResultWithoutOwnerMap) {
+    buf.result->whiteWinProb = resultWithoutOwnerMap->whiteWinProb;
+    buf.result->whiteLossProb = resultWithoutOwnerMap->whiteLossProb;
+    buf.result->whiteNoResultProb = resultWithoutOwnerMap->whiteNoResultProb;
+    buf.result->whiteScoreValue = resultWithoutOwnerMap->whiteScoreValue;
+    std::copy(resultWithoutOwnerMap->policyProbs, resultWithoutOwnerMap->policyProbs + NNPos::MAX_NN_POLICY_SIZE, buf.result->policyProbs);
+    buf.result->posLen = resultWithoutOwnerMap->posLen;
+    assert(buf.result->ownerMap != NULL);
   }
+  else {
+    float* policy = buf.result->policyProbs;
 
-  assert(legalCount > 0);
+    int xSize = board.x_size;
+    int ySize = board.y_size;
 
-  float policySum = 0.0f;
-  for(int i = 0; i<policySize; i++) {
-    policy[i] = exp(policy[i] - maxPolicy);
-    policySum += policy[i];
-  }
-
-  //Somehow all legal moves rounded to 0 probability
-  if(policySum <= 0.0) {
-    if(!buf.errorLogLockout && logStream != NULL) {
-      buf.errorLogLockout = true;
-      (*logStream) << "Warning: all legal moves rounded to 0 probability for " << modelFileName << " in position " << board << endl;
-    }
-    float uniform = 1.0f / legalCount;
+    float maxPolicy = -1e25f;
+    bool isLegal[policySize];
+    int legalCount = 0;
     for(int i = 0; i<policySize; i++) {
-      policy[i] = isLegal[i] ? uniform : -1.0f;
+      Loc loc = NNPos::posToLoc(i,xSize,ySize,posLen);
+      isLegal[i] = history.isLegal(board,loc,nextPlayer);
+
+      float policyValue;
+      if(isLegal[i]) {
+        legalCount += 1;
+        policyValue = policy[i];
+      }
+      else {
+        policyValue = -1e30f;
+        policy[i] = policyValue;
+      }
+
+      if(policyValue > maxPolicy)
+        maxPolicy = policyValue;
     }
-  }
-  //Normal case
-  else {
-    for(int i = 0; i<policySize; i++)
-      policy[i] = isLegal[i] ? (policy[i] / policySum) : -1.0f;
-  }
 
-  //Fill everything out-of-bounds too, for robustness.
-  for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
-    policy[i] = -1.0f;
+    assert(legalCount > 0);
 
-  //Fix up the value as well. Note that the neural net gives us back the value from the perspective
-  //of the player so we need to negate that to make it the white value.
-  //For model version 2 and less, we only have single value output that returns tanh, stuffed
-  //ad-hocly into the whiteWinProb field.
+    float policySum = 0.0f;
+    for(int i = 0; i<policySize; i++) {
+      policy[i] = exp(policy[i] - maxPolicy);
+      policySum += policy[i];
+    }
 
-  if(modelVersion <= 2) {
-    double winProb = 0.5 * tanh(buf.result->whiteWinProb) + 0.5;
-    if(nextPlayer == P_WHITE) {
-      buf.result->whiteWinProb = winProb;
-      buf.result->whiteLossProb = 1.0 - winProb;
-      buf.result->whiteNoResultProb = 0.0;
-      buf.result->whiteScoreValue = 0.0;
+    //Somehow all legal moves rounded to 0 probability
+    if(policySum <= 0.0) {
+      if(!buf.errorLogLockout && logStream != NULL) {
+        buf.errorLogLockout = true;
+        (*logStream) << "Warning: all legal moves rounded to 0 probability for " << modelFileName << " in position " << board << endl;
+      }
+      float uniform = 1.0f / legalCount;
+      for(int i = 0; i<policySize; i++) {
+        policy[i] = isLegal[i] ? uniform : -1.0f;
+      }
+    }
+    //Normal case
+    else {
+      for(int i = 0; i<policySize; i++)
+        policy[i] = isLegal[i] ? (policy[i] / policySum) : -1.0f;
+    }
+
+    //Fill everything out-of-bounds too, for robustness.
+    for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
+      policy[i] = -1.0f;
+
+    //Fix up the value as well. Note that the neural net gives us back the value from the perspective
+    //of the player so we need to negate that to make it the white value.
+    //For model version 2 and less, we only have single value output that returns tanh, stuffed
+    //ad-hocly into the whiteWinProb field.
+
+    if(modelVersion <= 2) {
+      double winProb = 0.5 * tanh(buf.result->whiteWinProb) + 0.5;
+      if(nextPlayer == P_WHITE) {
+        buf.result->whiteWinProb = winProb;
+        buf.result->whiteLossProb = 1.0 - winProb;
+        buf.result->whiteNoResultProb = 0.0;
+        buf.result->whiteScoreValue = 0.0;
+      }
+      else {
+        buf.result->whiteWinProb = 1.0 - winProb;
+        buf.result->whiteLossProb = winProb;
+        buf.result->whiteNoResultProb = 0.0;
+        buf.result->whiteScoreValue = 0.0;
+      }
     }
     else {
-      buf.result->whiteWinProb = 1.0 - winProb;
-      buf.result->whiteLossProb = winProb;
-      buf.result->whiteNoResultProb = 0.0;
-      buf.result->whiteScoreValue = 0.0;
+      throw StringError("NNEval value postprocessing not implemented for model version");
     }
   }
-  else {
-    throw StringError("NNEval value postprocessing not implemented for model version");
-  }
 
+  //TODO postprocess ownermap here if available. Make sure it happens for both branches of hadResultWithoutOwnerMap
+
+  
   //And record the nnHash in the result and put it into the table
   buf.result->nnHash = nnHash;
   if(nnCacheTable != NULL)
