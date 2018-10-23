@@ -120,7 +120,7 @@ public:
 //There should be one of these active per currently-loaded neural net, and one active thread
 //looping and actually performing the data output
 struct NetAndStuff {
-  string nnName;
+  string modelName;
   NNEvaluator* nnEval;
 
   int maxDataQueueSize;
@@ -133,7 +133,7 @@ struct NetAndStuff {
 
 public:
   NetAndStuff(const string& name, NNEvaluator* neval, int maxDQueueSize, TrainingDataWriter* dWriter, ofstream* sOut)
-    :nnName(name),nnEval(neval),
+    :modelName(name),nnEval(neval),
      maxDataQueueSize(maxDQueueSize),
      finishedGameQueue(maxDQueueSize),
      numGameThreads(0),isDraining(false),
@@ -160,7 +160,7 @@ public:
       if(sgfOut != NULL) {
         int startTurnIdx = data->startHist.moveHistory.size();
         assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
-        WriteSgf::writeSgf(*sgfOut,nnName,nnName,data->startHist.rules,data->startBoard,data->endHist,startTurnIdx,&(data->whiteValueTargetsByTurn));
+        WriteSgf::writeSgf(*sgfOut,modelName,modelName,data->startHist.rules,data->startBoard,data->endHist,startTurnIdx,&(data->whiteValueTargetsByTurn));
         (*sgfOut) << endl;
       }
       delete data;
@@ -211,25 +211,21 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   Rand seedRand;
 
   string configFile;
-  string logFile;
   int inputsVersion;
   string modelsDir;
   string outputDir;
   try {
     TCLAP::CmdLine cmd("Generate training data via self play", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
-    TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
     TCLAP::ValueArg<int>    inputsVersionArg("","inputs-version","Version of neural net input features to use for data",true,0,"INT");
     TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
     cmd.add(configFileArg);
-    cmd.add(logFileArg);
     cmd.add(inputsVersionArg);
     cmd.add(modelsDirArg);
     cmd.add(outputDirArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
-    logFile = logFileArg.getValue();
     inputsVersion = inputsVersionArg.getValue();
     modelsDir = modelsDirArg.getValue();
     outputDir = outputDirArg.getValue();
@@ -240,8 +236,10 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   }
   ConfigParser cfg(configFile);
 
+  MakeDir::make(outputDir);
+
   Logger logger;
-  logger.addFile(logFile);
+  logger.addFile(outputDir + "/log.log");
   bool logToStdout = cfg.getBool("logToStdout");
   logger.setLogToStdout(logToStdout);
 
@@ -279,13 +277,14 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
 
   //Looping thread for writing data for a single net
   auto dataWriteLoop = [&netAndStuffsMutex,&netAndStuffs,&netAndStuffsIsEmpty,&logger](NetAndStuff* netAndStuff) {
+    logger.write("Data write loop starting for neural net: " + netAndStuff->modelName);
     netAndStuff->runWriteDataLoop(logger);
-    logger.write("Data write loop finishing for neural net: " + netAndStuff->nnName);
+    logger.write("Data write loop finishing for neural net: " + netAndStuff->modelName);
 
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
 
     //Find where our netAndStuff is and remove it
-    string name = netAndStuff->nnName;
+    string name = netAndStuff->modelName;
     bool found = false;
     for(int i = 0; i<netAndStuffs.size(); i++) {
       if(netAndStuffs[i] == netAndStuff) {
@@ -305,7 +304,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     logger.write("Data write loop cleaned up and terminating for " + name);
   };
 
-  auto loadLatestNeuralNet = [inputsVersion,maxDataQueueSize,maxRowsPerFile,dataPosLen,&modelsDir,&outputDir,&logger,&cfg](const NetAndStuff* lastNet) -> NetAndStuff* {
+  auto loadLatestNeuralNet = [inputsVersion,maxDataQueueSize,maxRowsPerFile,dataPosLen,&modelsDir,&outputDir,&logger,&cfg](const string* lastNetName) -> NetAndStuff* {
     namespace bfs = boost::filesystem;
 
     bool hasLatestTime = false;
@@ -337,9 +336,11 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     }
 
     //No new neural nets yet
-    if(lastNet != NULL && lastNet->nnName == modelName)
+    if(lastNetName != NULL && *lastNetName == modelName)
       return NULL;
-    
+
+    logger.write("Found new neural net " + modelName);
+
     bool debugSkipNeuralNetDefault = (modelFile == "/dev/null");
 
     Rand rand;
@@ -353,7 +354,6 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     string trainDataOutputDir = modelDir + "/tdata";
     assert(outputDir != string());
     
-    MakeDir::make(outputDir);
     MakeDir::make(modelDir);
     MakeDir::make(sgfOutputDir);
     MakeDir::make(trainDataOutputDir);
@@ -392,8 +392,9 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     &logger,
     &netAndStuffsMutex,&netAndStuffs,
     dataPosLen
-  ]() {
+  ](int threadIdx) {
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
+    string prevModelName;
     while(true) {
       if(shouldStop.load())
         break;
@@ -403,6 +404,11 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
       netAndStuff->registerGameThread();
 
       lock.unlock();
+
+      if(prevModelName != netAndStuff->modelName) {
+        prevModelName = netAndStuff->modelName;
+        logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game on new neural net: " + prevModelName);
+      }
 
       bool shouldContinue = gameRunner->runGameAndWriteData(
         netAndStuff->nnEval, logger,
@@ -418,20 +424,29 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     }
 
     lock.unlock();
-    logger.write("Game loop terminating");
+    logger.write("Game loop thread " + Global::intToString(threadIdx) + " terminating");
   };
 
   //Looping thread for polling for new neural nets and loading them in
-  std::condition_variable pollSleepVar;
-  auto pollLoop = [&netAndStuffsMutex,&netAndStuffs,&pollSleepVar,&logger,&dataWriteLoop,&loadLatestNeuralNet]() {
+  std::condition_variable modelLoadSleepVar;
+  auto modelLoadLoop = [&netAndStuffsMutex,&netAndStuffs,&modelLoadSleepVar,&logger,&dataWriteLoop,&loadLatestNeuralNet]() {
+    logger.write("Model loading loop thread starting");
+
+    string lastNetName;
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     while(true) {
       if(shouldStop.load())
         break;
+      if(netAndStuffs.size() <= 0) {
+        logger.write("Model loop thread UNEXPECTEDLY found 0 netAndStuffs... terminating now..?");
+        break;
+      }
+      
+      lastNetName = netAndStuffs[netAndStuffs.size()-1]->modelName;
 
       lock.unlock();
 
-      NetAndStuff* newNet = loadLatestNeuralNet(NULL);
+      NetAndStuff* newNet = loadLatestNeuralNet(&lastNetName);
 
       lock.lock();
 
@@ -445,7 +460,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
 
       //Otherwise, we're not stopped yet, so stick a new net on to things.
       if(newNet != NULL) {
-        logger.write("Loaded new neural net " + newNet->nnName);
+        logger.write("Model loading loop thread loaded new neural net " + newNet->modelName);
         netAndStuffs.push_back(newNet);
         for(int i = 0; i<netAndStuffs.size()-1; i++) {
           netAndStuffs[i]->markAsDraining();
@@ -456,7 +471,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
       }
 
       //Sleep for a while and then re-poll
-      pollSleepVar.wait_for(lock, std::chrono::seconds(60), [](){return shouldStop.load();});
+      modelLoadSleepVar.wait_for(lock, std::chrono::seconds(60), [](){return shouldStop.load();});
     }
 
     //As part of cleanup, anything remaining, mark them as draining so that if they also have
@@ -465,31 +480,31 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
       netAndStuffs[i]->markAsDraining();
 
     lock.unlock();
-    logger.write("Polling net loading loop terminating");
+    logger.write("Model loading loop thread terminating");
   };
 
 
   vector<std::thread> threads;
   for(int i = 0; i<numGameThreads; i++) {
-    threads.push_back(std::thread(gameLoop));
+    threads.push_back(std::thread(gameLoop,i));
   }
-  std::thread pollLoopThread(pollLoop);
+  std::thread modelLoadLoopThread(modelLoadLoop);
 
   //Wait for all game threads to stop
   for(int i = 0; i<numGameThreads; i++)
     threads[i].join();
 
-  //Wake up the polling thread rather than waiting up to 60s for it to wake up on its own, and
+  //Wake up the model loading thread rather than waiting up to 60s for it to wake up on its own, and
   //wait for it to die.
   {
-    //Lock so that we don't race where we notify the polling thread to wake when it's still in
+    //Lock so that we don't race where we notify the loading thread to wake when it's still in
     //its own critical section but not yet slept
     std::lock_guard<std::mutex> lock(netAndStuffsMutex);
     //If by now somehow shouldStop is not true, set it to be true since all game threads are toast
     shouldStop.store(true);
-    pollSleepVar.notify_all();
+    modelLoadSleepVar.notify_all();
   }
-  pollLoopThread.join();
+  modelLoadLoopThread.join();
 
   //Wait for netAndStuffs to be empty, which indicates that the detached data writing threads
   //have all cleaned up and removed their netAndStuff.
