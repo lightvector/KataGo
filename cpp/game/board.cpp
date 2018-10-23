@@ -1809,7 +1809,11 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
 void Board::checkConsistency() const {
   const string errLabel = string("Board::checkConsistency(): ");
 
-  auto checkChainConsistency = [errLabel,this](Loc loc) {
+  bool chainLocChecked[MAX_ARR_SIZE];
+  for(int i = 0; i<MAX_ARR_SIZE; i++)
+    chainLocChecked[i] = false;
+  
+  auto checkChainConsistency = [errLabel,&chainLocChecked,this](Loc loc) {
     Player pla = colors[loc];
     Loc head = chain_head[loc];
     Loc cur = loc;
@@ -1817,6 +1821,8 @@ void Board::checkConsistency() const {
     int pseudoLibs = 0;
     bool foundChainHead = false;
     do {
+      chainLocChecked[cur] = true;
+      
       if(colors[cur] != pla)
         throw StringError(errLabel + "Chain is not all the same color");
       if(chain_head[cur] != head)
@@ -1830,6 +1836,10 @@ void Board::checkConsistency() const {
       if(stoneCount > MAX_PLAY_SIZE)
         throw StringError(errLabel + "Chain exceeds size of board - broken circular list?");
       cur = next_in_chain[cur];
+
+      if(cur < 0 || cur >= MAX_ARR_SIZE)
+        throw StringError(errLabel + "Chain location is outside of board bounds, data corruption?");
+
     } while (cur != loc);
 
     if(!foundChainHead)
@@ -1857,7 +1867,8 @@ void Board::checkConsistency() const {
     }
     else {
       if(colors[loc] == C_BLACK || colors[loc] == C_WHITE) {
-        checkChainConsistency(loc);
+        if(!chainLocChecked[loc])
+          checkChainConsistency(loc);
         if(empty_list.contains(loc))
           throw StringError(errLabel + "Empty list contains filled location");
 

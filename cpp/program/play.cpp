@@ -343,9 +343,6 @@ void Play::runGame(
   vector<double>* recordUtilities = NULL;
 
   if(gameData != NULL) {
-    gameData->startBoard = board;
-    gameData->startHist = hist;
-    gameData->startPla = pla;
     gameData->gameHash.hash0 = gameRand->nextUInt64();
     gameData->gameHash.hash1 = gameRand->nextUInt64();
 
@@ -371,6 +368,12 @@ void Play::runGame(
     }
   }
 
+  //Set in the starting board and history to gameData and both bots
+  if(gameData != NULL) {
+    gameData->startBoard = board;
+    gameData->startHist = hist;
+    gameData->startPla = pla;
+  }
   botB->setPosition(pla,board,hist);
   if(botB != botW)
     botW->setPosition(pla,board,hist);
@@ -378,6 +381,7 @@ void Play::runGame(
   vector<Loc> locsBuf;
   vector<double> playSelectionValuesBuf;
 
+  //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
     if(doEndGameIfAllPassAlive)
       hist.endGameIfAllPassAlive(board);

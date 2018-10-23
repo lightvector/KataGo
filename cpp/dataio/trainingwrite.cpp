@@ -373,6 +373,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
 
     Move move = data.moves[turnNumber];
     assert(move.pla == nextPlayer);
+    assert(hist.isLegal(board,move.loc,move.pla));
     hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);
     nextPlayer = getOpp(nextPlayer);
   }

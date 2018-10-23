@@ -519,13 +519,20 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
     }
     catch(const exception& e) {
       logger.write(string("ERROR: Search thread failed: ") + e.what());
+      delete stbuf;
+      throw;
     }
     catch(const string& e) {
       logger.write("ERROR: Search thread failed: " + e);
+      delete stbuf;
+      throw;
     }
     catch(...) {
       logger.write("ERROR: Search thread failed with unexpected throw");
+      delete stbuf;
+      throw;
     }
+    
     delete stbuf;
   };
 
@@ -546,6 +553,7 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
 void Search::beginSearch() {
   if(rootBoard.x_size > posLen || rootBoard.y_size > posLen)
     throw StringError("Search got from NNEval posLen = " + Global::intToString(posLen) + " but was asked to search board with larger x or y size");
+  rootBoard.checkConsistency();
 
   numSearchesBegun++;
   computeRootValues();

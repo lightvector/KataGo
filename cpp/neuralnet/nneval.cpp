@@ -145,20 +145,11 @@ static void serveEvals(
 ) {
   NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
   Rand rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
-  ostream* logStream = logger->createOStream();
-  try {
-    nnEval->serve(*buf,rand,logger,doRandomize,defaultSymmetry,cudaGpuIdxForThisThread,cudaUseFP16,cudaUseNHWC);
-  }
-  catch(const exception& e) {
-    (*logStream) << "ERROR: NNEval Server Thread " << threadIdx << " failed: " << e.what() << endl;
-  }
-  catch(const string& e) {
-    (*logStream) << "ERROR: NNEval Server Thread " << threadIdx << " failed: " << e << endl;
-  }
-  catch(...) {
-    (*logStream) << "ERROR: NNEval Server Thread " << threadIdx << " failed with unexpected throw" << endl;
-  }
-  delete logStream;
+
+  //Used to have a try catch around this but actually we're in big trouble if this raises an exception
+  //and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
+  //toplevel for easier debugging
+  nnEval->serve(*buf,rand,logger,doRandomize,defaultSymmetry,cudaGpuIdxForThisThread,cudaUseFP16,cudaUseNHWC);
   delete buf;
 }
 
