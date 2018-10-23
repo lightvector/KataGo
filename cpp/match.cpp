@@ -215,7 +215,7 @@ int MainCmds::match(int argc, const char* const* argv) {
       if(sgfOut != NULL) {
         string bName = botNames[botIdxB];
         string wName = botNames[botIdxW];
-        WriteSgf::writeSgf(*sgfOut,bName,wName,initialRules,initialBoard,hist,-1,NULL);
+        WriteSgf::writeSgf(*sgfOut,bName,wName,initialRules,initialBoard,hist,NULL);
         (*sgfOut) << endl;
       }
 

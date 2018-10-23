@@ -93,7 +93,7 @@ namespace WriteSgf {
   void writeSgf(
     ostream& out, const string& bName, const string& wName, const Rules& rules,
     const Board& initialBoard, const BoardHistory& hist,
-    int startTurnIdx, const vector<ValueTargets>* valueTargets
+    const FinishedGameData* gameData
   );
 }
 

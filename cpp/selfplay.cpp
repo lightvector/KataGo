@@ -158,9 +158,8 @@ public:
         break;
       dataWriter->writeGame(*data);
       if(sgfOut != NULL) {
-        int startTurnIdx = data->startHist.moveHistory.size();
         assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
-        WriteSgf::writeSgf(*sgfOut,modelName,modelName,data->startHist.rules,data->startBoard,data->endHist,startTurnIdx,&(data->whiteValueTargetsByTurn));
+        WriteSgf::writeSgf(*sgfOut,modelName,modelName,data->startHist.rules,data->startBoard,data->endHist,data);
         (*sgfOut) << endl;
       }
       delete data;
@@ -259,7 +258,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase);
 
   Setup::initializeSession(cfg);
-  
+
   //Done loading!
   //------------------------------------------------------------------------------------
   logger.write("Loaded all config stuff, starting self play");
@@ -322,7 +321,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
         latestPath = dirPath;
       }
     }
-    
+
     string modelName = "random";
     string modelFile = "/dev/null";
     if(hasLatestTime) {
@@ -353,11 +352,11 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     string sgfOutputDir = modelDir + "/sgfs";
     string trainDataOutputDir = modelDir + "/tdata";
     assert(outputDir != string());
-    
+
     MakeDir::make(modelDir);
     MakeDir::make(sgfOutputDir);
     MakeDir::make(trainDataOutputDir);
-    
+
     //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
     //simply controls the input feature version for the written data
     TrainingDataWriter* dataWriter = new TrainingDataWriter(trainDataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
@@ -365,12 +364,12 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     NetAndStuff* newNet = new NetAndStuff(modelName, nnEval, maxDataQueueSize, dataWriter, sgfOut);
     return newNet;
   };
-    
+
   //Initialize the initial neural net
   {
     NetAndStuff* newNet = loadLatestNeuralNet(NULL);
     assert(newNet != NULL);
-    
+
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     netAndStuffs.push_back(newNet);
     std::thread newThread(dataWriteLoop,newNet);
@@ -386,7 +385,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
       cerr << msg << endl;
     }
   }
-  
+
   auto gameLoop = [
     &gameRunner,
     &logger,
@@ -441,7 +440,7 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
         logger.write("Model loop thread UNEXPECTEDLY found 0 netAndStuffs... terminating now..?");
         break;
       }
-      
+
       lastNetName = netAndStuffs[netAndStuffs.size()-1]->modelName;
 
       lock.unlock();
@@ -524,5 +523,3 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   logger.write("All cleaned up, quitting");
   return 0;
 }
-
-
