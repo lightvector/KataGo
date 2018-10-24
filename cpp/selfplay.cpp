@@ -238,7 +238,8 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   MakeDir::make(outputDir);
 
   Logger logger;
-  logger.addFile(outputDir + "/log.log");
+  //Log to random file name to better support starting/stopping as well as multiple parallel runs
+  logger.addFile(outputDir + "/log" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
   bool logToStdout = cfg.getBool("logToStdout");
   logger.setLogToStdout(logToStdout);
 
