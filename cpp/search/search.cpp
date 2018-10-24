@@ -734,37 +734,38 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
   //Extra points from the perspective of the root player
   double extraRootPoints = 0.0;
   if(isAreaIsh) {
-    //Areaish scoring - encourage passing slightly to discourage pointless territory-filling at the end
-    //This should help keep the game short.
-    //However, for cosmetics, still encourage dame-filling and completing things (such as avoiding passing early when there are
-    //an even number of dame so that passing wouldn't lose points).
-    //So we equally encourage passing and playing moves in non-pass-safe regions that fill opponent liberties or connect
-    //own groups, unless the opponent almost surely owns those regions.
-    if(moveLoc == Board::PASS_LOC) {
-      extraRootPoints += searchParams.rootEndingBonusPoints;
-    }
-    else if(rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) ||
-            rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
+    //Areaish scoring - in an effort to keep the game short and slightly discourage pointless territory filling at the end
+    //discourage any move that, except in case of ko, is either:
+    // * On a spot that the opponent almost surely owns
+    // * On a spot that the player almost surely owns and it is not adjacent to opponent stones and is not a connection of non-pass-alive groups.
+    //These conditions should still make it so that "cleanup" and dame-filling moves are not discouraged. 
+    if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
       double plaOwnership = rootPla == P_WHITE ? ownerMap[pos] : -ownerMap[pos];
-      if(plaOwnership > -0.98)
-        extraRootPoints += searchParams.rootEndingBonusPoints;
+      if(plaOwnership <= -0.98)
+        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.98 - plaOwnership) / 0.02);
+      else if(plaOwnership >= 0.98) {
+        if(!rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) &&
+           !rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
+          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - 0.98) / 0.02);
+        }
+      }
     }
   }
   else {
-    //Territorish scoring - slightly encourage dame-filling by discouraging passing.
-    //The formal japanese rules normally "want" you to fill the dame so this is a cosmetic adjustment to encourage the neural
+    //Territorish scoring - slightly encourage dame-filling by discouraging passing, so that the player will try to do everything
+    //non-point-losing first, like filling dame.
+    //Human japanese rules often "want" you to fill the dame so this is a cosmetic adjustment to encourage the neural
     //net to learn to do so in the main phase rather than waiting until the encore.
-    //But again cosmetically, it's not great if we just encourage useless threat moves in the opponent's territory to prolong the game.
-    //So also discourage those moves.
-    if(moveLoc == Board::PASS_LOC) {
-      extraRootPoints -= searchParams.rootEndingBonusPoints * (2.0 / 3.0);
-    }
-    else {
+    //But cosmetically, it's also not great if we just encourage useless threat moves in the opponent's territory to prolong the game.
+    //So also discourage those moves except in cases of ko.
+    if(moveLoc == Board::PASS_LOC)
+      extraRootPoints -= searchParams.rootEndingBonusPoints * (2.0/3.0);
+    else if(rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
       double plaOwnership = rootPla == P_WHITE ? ownerMap[pos] : -ownerMap[pos];
-      if(plaOwnership <= -0.94)
-        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.94 - plaOwnership) / 0.06);
+      if(plaOwnership <= -0.98)
+        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.98 - plaOwnership) / 0.02);
     }
   }
 
