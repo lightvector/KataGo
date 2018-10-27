@@ -810,10 +810,11 @@ class Model:
     self.dilated_num_channels = dilated_num_channels
     self.gpool_num_channels = gpool_num_channels
 
-    #Convolutional RELU layer 1-------------------------------------------------------------------------------------
+    #Initial convolutional layer-------------------------------------------------------------------------------------
     trunk = self.conv_only_extra_center_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels)
     self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
 
+    #Main trunk---------------------------------------------------------------------------------------------------
     self.blocks = []
 
     block_kind = [

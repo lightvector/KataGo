@@ -122,27 +122,36 @@ public:
 struct NetAndStuff {
   string modelName;
   NNEvaluator* nnEval;
+  double validationProp;
 
   int maxDataQueueSize;
   ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
   int numGameThreads;
   bool isDraining;
 
-  TrainingDataWriter* dataWriter;
+  TrainingDataWriter* tdataWriter;
+  TrainingDataWriter* vdataWriter;
   ofstream* sgfOut;
+  Rand rand;
 
 public:
-  NetAndStuff(const string& name, NNEvaluator* neval, int maxDQueueSize, TrainingDataWriter* dWriter, ofstream* sOut)
-    :modelName(name),nnEval(neval),
+  NetAndStuff(const string& name, NNEvaluator* neval, int maxDQueueSize, TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, ofstream* sOut, double vProp)
+    :modelName(name),
+     nnEval(neval),
+     validationProp(vProp),
      maxDataQueueSize(maxDQueueSize),
      finishedGameQueue(maxDQueueSize),
      numGameThreads(0),isDraining(false),
-     dataWriter(dWriter),sgfOut(sOut)
+     tdataWriter(tdWriter),
+     vdataWriter(vdWriter),
+     sgfOut(sOut),
+     rand()
   {}
 
   ~NetAndStuff() {
     delete nnEval;
-    delete dataWriter;
+    delete tdataWriter;
+    delete vdataWriter;
     if(sgfOut != NULL)
       delete sgfOut;
   }
@@ -156,7 +165,12 @@ public:
       FinishedGameData* data = finishedGameQueue.waitPop();
       if(data == NULL)
         break;
-      dataWriter->writeGame(*data);
+
+      if(rand.nextBool(validationProp))
+        tdataWriter->writeGame(*data);
+      else
+        vdataWriter->writeGame(*data);
+
       if(sgfOut != NULL) {
         assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
         WriteSgf::writeSgf(*sgfOut,modelName,modelName,data->startHist.rules,data->startBoard,data->endHist,data);
@@ -165,7 +179,8 @@ public:
       delete data;
     }
 
-    dataWriter->close();
+    tdataWriter->close();
+    vdataWriter->close();
     if(sgfOut != NULL)
       sgfOut->close();
   }
@@ -256,6 +271,8 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
   const int maxDataQueueSize = cfg.getInt("maxDataQueueSize",1,1000000);
   const int maxRowsPerFile = cfg.getInt("maxRowsPerFile",1,100000000);
 
+  const double validationProp = cfg.getDouble("validationProp",0.0,0.5);
+
   GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase);
 
   Setup::initializeSession(cfg);
@@ -304,7 +321,8 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     logger.write("Data write loop cleaned up and terminating for " + name);
   };
 
-  auto loadLatestNeuralNet = [inputsVersion,maxDataQueueSize,maxRowsPerFile,dataPosLen,&modelsDir,&outputDir,&logger,&cfg](const string* lastNetName) -> NetAndStuff* {
+  auto loadLatestNeuralNet =
+    [inputsVersion,maxDataQueueSize,maxRowsPerFile,dataPosLen,&modelsDir,&outputDir,&logger,&cfg,validationProp](const string* lastNetName) -> NetAndStuff* {
     namespace bfs = boost::filesystem;
 
     bool hasLatestTime = false;
@@ -351,18 +369,21 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
 
     string modelDir = outputDir + "/" + modelName;
     string sgfOutputDir = modelDir + "/sgfs";
-    string trainDataOutputDir = modelDir + "/tdata";
+    string tdataOutputDir = modelDir + "/tdata";
+    string vdataOutputDir = modelDir + "/vdata";
     assert(outputDir != string());
 
     MakeDir::make(modelDir);
     MakeDir::make(sgfOutputDir);
-    MakeDir::make(trainDataOutputDir);
+    MakeDir::make(tdataOutputDir);
+    MakeDir::make(vdataOutputDir);
 
     //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
     //simply controls the input feature version for the written data
-    TrainingDataWriter* dataWriter = new TrainingDataWriter(trainDataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
+    TrainingDataWriter* tdataWriter = new TrainingDataWriter(tdataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
+    TrainingDataWriter* vdataWriter = new TrainingDataWriter(vdataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
-    NetAndStuff* newNet = new NetAndStuff(modelName, nnEval, maxDataQueueSize, dataWriter, sgfOut);
+    NetAndStuff* newNet = new NetAndStuff(modelName, nnEval, maxDataQueueSize, tdataWriter, vdataWriter, sgfOut, validationProp);
     return newNet;
   };
 

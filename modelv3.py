@@ -1,0 +1,856 @@
+import logging
+import math
+import traceback
+import tensorflow as tf
+import numpy as np
+
+from board import Board
+
+#Feature extraction functions-------------------------------------------------------------------
+
+class ModelV3:
+
+  def __init__(self,config,placeholders):
+    self.pos_len = config["pos_len"]
+    self.num_bin_input_features = 20
+    self.num_float_input_features = 15
+    self.bin_input_shape = [self.pos_len*self.pos_len,self.num_bin_input_features]
+    self.binp_input_shape = [self.num_bin_input_features,(self.pos_len*self.pos_len+7)//8]
+    self.float_input_shape = [self.num_float_input_features]
+    self.post_input_shape = [self.pos_len,self.pos_len,self.num_bin_input_features]
+    self.policy_target_shape_nopass = [self.pos_len*self.pos_len]
+    self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
+    self.value_target_shape = []
+    self.target_weights_shape = []
+
+    self.pass_pos = self.pos_len * self.pos_len
+
+    self.reg_variables = []
+    self.lr_adjusted_variables = {}
+    self.is_training = (placeholders["is_training"] if "is_training" in placeholders else tf.placeholder(tf.bool,name="is_training"))
+
+    #Accumulates outputs for printing stats about their activations
+    self.outputs_by_layer = []
+    self.other_internal_outputs = []
+    #Accumulates info about batch norm laywers
+    self.batch_norms = {}
+
+    self.build_model(placeholders)
+
+  def assert_batched_shape(self,name,tensor,shape):
+    if (len(tensor.shape) != len(shape)+1 or
+        [int(tensor.shape[i+1].value) for i in range(len(shape))] != [int(x) for x in shape]):
+      raise Exception("%s should have shape %s after a batch dimension but instead it had shape %s" % (
+        name, str(shape), str([str(x.value) for x in tensor.shape])))
+
+  def assert_shape(self,name,tensor,shape):
+    if (len(tensor.shape) != len(shape) or
+        [int(x.value) for x in tensor.shape] != [int(x) for x in shape]):
+      raise Exception("%s should have shape %s but instead it had shape %s" % (
+        name, str(shape), str([str(x.value) for x in tensor.shape])))
+
+  def xy_to_tensor_pos(self,x,y):
+    return y * self.pos_len + x
+  def loc_to_tensor_pos(self,loc,board):
+    assert(loc != Board.PASS_LOC)
+    return board.loc_y(loc) * self.pos_len + board.loc_x(loc)
+
+  def tensor_pos_to_loc(self,pos,board):
+    if pos == self.pass_pos:
+      return None
+    pos_len = self.pos_len
+    bsize = board.size
+    assert(self.pos_len >= bsize)
+    x = pos % pos_len
+    y = pos // pos_len
+    if x < 0 or x >= bsize or y < 0 or y >= bsize:
+      return board.loc(-1,-1) #Return an illegal move since this is offboard
+    return board.loc(x,y)
+
+  def sym_tensor_pos(self,pos,symmetry):
+    if pos == self.pass_pos:
+      return pos
+    pos_len = self.pos_len
+    x = pos % pos_len
+    y = pos // pos_len
+    if symmetry >= 4:
+      symmetry -= 4
+      tmp = x
+      x = y
+      y = tmp
+    if symmetry >= 2:
+      symmetry -= 2
+      x = pos_len-x-1
+    if symmetry >= 1:
+      symmetry -= 1
+      y = pos_len-y-1
+    return y * pos_len + x
+
+  #Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
+  def iterLadders(self, board, f):
+    chainHeadsSolved = {}
+    copy = board.copy()
+
+    bsize = board.size
+    assert(self.pos_len >= bsize)
+
+    for y in range(bsize):
+      for x in range(bsize):
+        pos = self.xy_to_tensor_pos(x,y)
+        loc = board.loc(x,y)
+        stone = board.board[loc]
+
+        if stone == Board.BLACK or stone == Board.WHITE:
+          libs = board.num_liberties(loc)
+          if libs == 1 or libs == 2:
+            head = board.group_head[loc]
+            if head in chainHeadsSolved:
+              laddered = chainHeadsSolved[head]
+              if laddered:
+                f(loc,pos,[])
+            else:
+              #Perform search on copy so as not to mess up tracking of solved heads
+              if libs == 1:
+                workingMoves = []
+                laddered = copy.searchIsLadderCaptured(loc,True)
+              else:
+                workingMoves = copy.searchIsLadderCapturedAttackerFirst2Libs(loc)
+                laddered = len(workingMoves) > 0
+
+              chainHeadsSolved[head] = laddered
+              if laddered:
+                f(loc,pos,workingMoves)
+
+
+  #Returns the new idx, which could be the same as idx if this isn't a good training row
+  #TODO incomplete, need rules
+  def fill_row_features(self, board, pla, opp, boards, moves, move_idx, bin_input_data, float_input_data, self_komi, use_history_prop, idx):
+    bsize = board.size
+    assert(self.pos_len >= bsize)
+    assert(len(boards) > 0)
+    assert(board.zobrist == boards[move_idx].zobrist)
+
+    for y in range(bsize):
+      for x in range(bsize):
+        pos = self.xy_to_tensor_pos(x,y)
+        bin_input_data[idx,pos,0] = 1.0
+        loc = board.loc(x,y)
+        stone = board.board[loc]
+        if stone == pla:
+          bin_input_data[idx,pos,1] = 1.0
+        elif stone == opp:
+          bin_input_data[idx,pos,2] = 1.0
+
+        if stone == pla or stone == opp:
+          libs = board.num_liberties(loc)
+          if libs == 1:
+            bin_input_data[idx,pos,3] = 1.0
+          elif libs == 2:
+            bin_input_data[idx,pos,4] = 1.0
+          elif libs == 3:
+            bin_input_data[idx,pos,5] = 1.0
+
+    #Python code does NOT handle superko
+    if board.simple_ko_point is not None:
+      pos = self.loc_to_tensor_pos(board.simple_ko_point,board)
+      bin_input_data[idx,pos,6] = 1.0
+    #Python code does NOT handle ko-prohibited encore spots or anything relating to the encore
+    #so features 7 and 8 leave that blank
+
+    if use_history_prop > 0.0:
+      if move_idx >= 1 and moves[move_idx-1][0] == opp:
+        prev1_loc = moves[move_idx-1][1]
+        if prev1_loc is not None and prev1_loc != Board.PASS_LOC:
+          pos = self.loc_to_tensor_pos(prev1_loc,board)
+          bin_input_data[idx,pos,9] = use_history_prop
+        elif prev1_loc == Board.PASS_LOC:
+          float_input_data[idx,0] = use_history_prop
+
+        if move_idx >= 2 and moves[move_idx-2][0] == pla:
+          prev2_loc = moves[move_idx-2][1]
+          if prev2_loc is not None and prev2_loc != Board.PASS_LOC:
+            pos = self.loc_to_tensor_pos(prev2_loc,board)
+            bin_input_data[idx,pos,10] = use_history_prop
+          elif prev2_loc == Board.PASS_LOC:
+            float_input_data[idx,1] = use_history_prop
+
+          if move_idx >= 3 and moves[move_idx-3][0] == opp:
+            prev3_loc = moves[move_idx-3][1]
+            if prev3_loc is not None and prev3_loc != Board.PASS_LOC:
+              pos = self.loc_to_tensor_pos(prev3_loc,board)
+              bin_input_data[idx,pos,11] = use_history_prop
+            elif prev3_loc == Board.PASS_LOC:
+              float_input_data[idx,2] = use_history_prop
+
+            if move_idx >= 4 and moves[move_idx-4][0] == pla:
+              prev4_loc = moves[move_idx-4][1]
+              if prev4_loc is not None and prev4_loc != Board.PASS_LOC:
+                pos = self.loc_to_tensor_pos(prev4_loc,board)
+                bin_input_data[idx,pos,12] = use_history_prop
+              elif prev4_loc == Board.PASS_LOC:
+                float_input_data[idx,3] = use_history_prop
+
+              if move_idx >= 5 and moves[move_idx-5][0] == opp:
+                prev5_loc = moves[move_idx-5][1]
+                if prev5_loc is not None and prev5_loc != Board.PASS_LOC:
+                  pos = self.loc_to_tensor_pos(prev5_loc,board)
+                  bin_input_data[idx,pos,13] = use_history_prop
+                elif prev5_loc == Board.PASS_LOC:
+                  float_input_data[idx,4] = use_history_prop
+
+    def addLadderFeature(loc,pos,workingMoves):
+      assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE)
+      bin_input_data[idx,pos,14] = 1.0
+      if board.board[loc] == opp and board.num_liberties(loc) > 1:
+        for workingMove in workingMoves:
+          workingPos = self.loc_to_tensor_pos(workingMove,board)
+          bin_input_data[idx,workingPos,17] = 1.0
+
+    self.iterLadders(board, addLadderFeature)
+
+    if move_idx > 0 and use_history_prop > 0.0:
+      prevBoard = boards[move_idx-1]
+    else:
+      prevBoard = board
+    def addPrevLadderFeature(loc,pos,workingMoves):
+      assert(prevBoard.board[loc] == Board.BLACK or prevBoard.board[loc] == Board.WHITE)
+      bin_input_data[idx,pos,15] = 1.0
+    self.iterLadders(prevBoard, addPrevLadderFeature)
+
+    if move_idx > 1 and use_history_prop > 0.0:
+      prevPrevBoard = boards[move_idx-2]
+    else:
+      prevPrevBoard = prevBoard
+    def addPrevPrevLadderFeature(loc,pos,workingMoves):
+      assert(prevPrevBoard.board[loc] == Board.BLACK or prevPrevBoard.board[loc] == Board.WHITE)
+      bin_input_data[idx,pos,16] = 1.0
+    self.iterLadders(prevPrevBoard, addPrevPrevLadderFeature)
+
+    #TODO need to provide current territory planes!!
+
+    #TODO need to finish out float_input_features for rules
+
+    return idx+1
+
+
+  # Build model -------------------------------------------------------------
+
+  def ensure_variable_exists(self,name):
+    for v in tf.trainable_variables():
+      if v.name == name:
+        return name
+    raise Exception("Could not find variable " + name)
+
+  def add_lr_factor(self,name,factor):
+    self.ensure_variable_exists(name)
+    if name in self.lr_adjusted_variables:
+      self.lr_adjusted_variables[name] = factor * self.lr_adjusted_variables[name]
+    else:
+      self.lr_adjusted_variables[name] = factor
+
+  def batchnorm(self,name,tensor):
+    epsilon = 0.001
+    has_bias = True
+    has_scale = False
+    self.batch_norms[name] = (tensor.shape[-1].value,epsilon,has_bias,has_scale)
+    return tf.layers.batch_normalization(
+      tensor,
+      axis=-1, #Because channels are our last axis, -1 refers to that via wacky python indexing
+      momentum=0.99,
+      epsilon=epsilon,
+      center=has_bias,
+      scale=has_scale,
+      training=self.is_training,
+      name=name,
+    )
+
+  def init_stdev(self,num_inputs,num_outputs):
+    #xavier
+    #return math.sqrt(2.0 / (num_inputs + num_outputs))
+    #herangzhen
+    return math.sqrt(2.0 / (num_inputs))
+
+  def init_weights(self, shape, num_inputs, num_outputs):
+    stdev = self.init_stdev(num_inputs,num_outputs) / 1.0
+    return tf.truncated_normal(shape=shape, stddev=stdev)
+
+  def weight_variable_init_constant(self, name, shape, constant):
+    init = tf.zeros(shape)
+    if constant != 0.0:
+      init = init + constant
+    variable = tf.Variable(init,name=name)
+    self.reg_variables.append(variable)
+    return variable
+
+  def weight_variable(self, name, shape, num_inputs, num_outputs, scale_initial_weights=1.0, extra_initial_weight=None, reg=True):
+    initial = self.init_weights(shape, num_inputs, num_outputs)
+    if extra_initial_weight is not None:
+      initial = initial + extra_initial_weight
+    initial = initial * scale_initial_weights
+
+    variable = tf.Variable(initial,name=name)
+    if reg:
+      self.reg_variables.append(variable)
+    return variable
+
+  def conv2d(self, x, w):
+    return tf.nn.conv2d(x, w, strides=[1,1,1,1], padding='SAME')
+
+  def dilated_conv2d(self, x, w, dilation):
+    return tf.nn.atrous_conv2d(x, w, rate = dilation, padding='SAME')
+
+  def apply_symmetry(self,tensor,symmetries,inverse):
+    ud = symmetries[0]
+    lr = symmetries[1]
+    transp = symmetries[2]
+
+    if not inverse:
+      tensor = tf.cond(
+        ud,
+        lambda: tf.reverse(tensor,[1]),
+        lambda: tensor
+      )
+      tensor = tf.cond(
+        lr,
+        lambda: tf.reverse(tensor,[2]),
+        lambda: tensor
+      )
+
+    tensor = tf.cond(
+      transp,
+      lambda: tf.transpose(tensor, [0,2,1,3]),
+      lambda: tensor)
+
+    if inverse:
+      tensor = tf.cond(
+        ud,
+        lambda: tf.reverse(tensor,[1]),
+        lambda: tensor
+      )
+      tensor = tf.cond(
+        lr,
+        lambda: tf.reverse(tensor,[2]),
+        lambda: tensor
+      )
+
+    return tensor
+
+  #Define useful components --------------------------------------------------------------------------
+
+  def relu(self, name, layer):
+    assert(len(layer.shape) == 4)
+    #num_channels = layer.shape[3].value
+    #alphas = self.weight_variable_init_constant(name+"/relu",[1,1,1,num_channels],constant=0.0)
+    return tf.nn.relu(layer)
+
+  def relu_non_spatial(self, name, layer):
+    assert(len(layer.shape) == 2)
+    #num_channels = layer.shape[1].value
+    #alphas = self.weight_variable_init_constant(name+"/relu",[1,num_channels],constant=0.0)
+    return tf.nn.relu(layer)
+
+  def merge_residual(self,name,trunk,residual):
+    trunk = trunk + residual
+    self.outputs_by_layer.append((name,trunk))
+    return trunk
+
+  def conv_weight_variable(self, name, diam1, diam2, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None, reg=True):
+    radius1 = diam1 // 2
+    radius2 = diam2 // 2
+
+    if emphasize_center_weight is None:
+      weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,reg=reg)
+    else:
+      extra_initial_weight = self.init_weights([1,1,in_channels,out_channels], in_channels, out_channels) * emphasize_center_weight
+      extra_initial_weight = tf.pad(extra_initial_weight, [(radius1,radius1),(radius2,radius2),(0,0),(0,0)])
+      weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,extra_initial_weight,reg=reg)
+
+    if emphasize_center_lr is not None:
+      factor = tf.constant([emphasize_center_lr],dtype=tf.float32)
+      factor = tf.reshape(factor,[1,1,1,1])
+      factor = tf.pad(factor, [(radius1,radius1),(radius2,radius2),(0,0),(0,0)], constant_values=1.0)
+      self.add_lr_factor(weights.name, factor)
+
+    return weights
+
+  #Convolutional layer with batch norm and nonlinear activation
+  def conv_block(self, name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    convolved = self.conv2d(in_layer, weights)
+    self.outputs_by_layer.append((name+"/prenorm",convolved))
+    out_layer = self.relu(name+"/relu",self.batchnorm(name+"/norm",convolved))
+    self.outputs_by_layer.append((name,out_layer))
+    return out_layer
+
+  #Convolution only, no batch norm or nonlinearity
+  def conv_only_block(self, name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None, reg=True):
+    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr, reg=reg)
+    out_layer = self.conv2d(in_layer, weights)
+    self.outputs_by_layer.append((name,out_layer))
+    return out_layer
+
+  #Convolutional residual block with internal batch norm and nonlinear activation
+  def res_conv_block(self, name, in_layer, diam, main_channels, mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+    trans1_layer = self.relu(name+"/relu1",(self.batchnorm(name+"/norm1",in_layer)))
+    self.outputs_by_layer.append((name+"/trans1",trans1_layer))
+
+    weights1 = self.conv_weight_variable(name+"/w1", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    conv1_layer = self.conv2d(trans1_layer, weights1)
+    self.outputs_by_layer.append((name+"/conv1",conv1_layer))
+
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm(name+"/norm2",conv1_layer)))
+    self.outputs_by_layer.append((name+"/trans2",trans2_layer))
+
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    conv2_layer = self.conv2d(trans2_layer, weights2)
+    self.outputs_by_layer.append((name+"/conv2",conv2_layer))
+
+    return conv2_layer
+
+  #Convolutional residual block with internal batch norm and nonlinear activation
+  def global_res_conv_block(self, name, in_layer, diam, main_channels, mid_channels, global_mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+    trans1_layer = self.relu(name+"/relu1",(self.batchnorm(name+"/norm1",in_layer)))
+    self.outputs_by_layer.append((name+"/trans1",trans1_layer))
+
+    weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, global_mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    conv1a_layer = self.conv2d(trans1_layer, weights1a)
+    conv1b_layer = self.conv2d(trans1_layer, weights1b)
+    self.outputs_by_layer.append((name+"/conv1a",conv1a_layer))
+    self.outputs_by_layer.append((name+"/conv1b",conv1b_layer))
+
+    trans1b_layer = self.relu(name+"/trans1b",(self.batchnorm(name+"/norm1b",conv1b_layer)))
+    trans1b_mean = tf.reduce_mean(trans1b_layer,axis=[1,2],keepdims=True)
+    trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keepdims=True)
+    trans1b_pooled = tf.concat([trans1b_mean,trans1b_max],axis=3)
+
+    remix_weights = self.weight_variable(name+"/w1r",[global_mid_channels*2,mid_channels],global_mid_channels*2,mid_channels, scale_initial_weights = 0.5)
+    conv1_layer = conv1a_layer + tf.tensordot(trans1b_pooled,remix_weights,axes=[[3],[0]])
+
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm(name+"/norm2",conv1_layer)))
+    self.outputs_by_layer.append((name+"/trans2",trans2_layer))
+
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    conv2_layer = self.conv2d(trans2_layer, weights2)
+    self.outputs_by_layer.append((name+"/conv2",conv2_layer))
+
+    return conv2_layer
+
+  #Convolutional residual block with internal batch norm and nonlinear activation
+  def dilated_res_conv_block(self, name, in_layer, diam, main_channels, mid_channels, dilated_mid_channels, dilation, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+    trans1_layer = self.relu(name+"/relu1",(self.batchnorm(name+"/norm1",in_layer)))
+    self.outputs_by_layer.append((name+"/trans1",trans1_layer))
+
+    weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, dilated_mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    conv1a_layer = self.conv2d(trans1_layer, weights1a)
+    conv1b_layer = self.dilated_conv2d(trans1_layer, weights1b, dilation=dilation)
+    self.outputs_by_layer.append((name+"/conv1a",conv1a_layer))
+    self.outputs_by_layer.append((name+"/conv1b",conv1b_layer))
+
+    conv1_layer = tf.concat([conv1a_layer,conv1b_layer],axis=3)
+
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm(name+"/norm2",conv1_layer)))
+    self.outputs_by_layer.append((name+"/trans2",trans2_layer))
+
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels+dilated_mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    conv2_layer = self.conv2d(trans2_layer, weights2)
+    self.outputs_by_layer.append((name+"/conv2",conv2_layer))
+
+    return conv2_layer
+
+
+  #Begin Neural net------------------------------------------------------------------------------------
+  #Indexing:
+  #batch, bsize, bsize, channel
+
+  def build_model(self,placeholders):
+    pos_len = self.pos_len
+
+    #Model version-------------------------------------------------------------------------------
+    #This is written out in the model file when it gets built for export
+    #self.version = 0 #V1 features, with old head architecture using crelus (no longer supported)
+    #self.version = 1 #V1 features, with new head architecture, no crelus
+    #self.version = 2 #V2 features, no internal architecture change.
+    self.version = 3 #V3 features, selfplay-planned features with lots of aux targets
+
+    #Input layer---------------------------------------------------------------------------------
+    bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
+                  tf.placeholder(tf.float32, [None] + self.bin_input_shape, name="bin_inputs"))
+    float_inputs = (placeholders["float_inputs"] if "float_inputs" in placeholders else
+                    tf.placeholder(tf.float32, [None] + self.float_input_shape, name="float_inputs"))
+    symmetries = (placeholders["symmetries"] if "symmetries" in placeholders else
+                  tf.placeholder(tf.bool, [3], name="symmetries"))
+    include_history = (placeholders["include_history"] if "include_history" in placeholders else
+                       tf.placeholder(tf.float32, [None] + [5], name="include_history"))
+
+    self.assert_batched_shape("bin_inputs",bin_inputs,self.bin_input_shape)
+    self.assert_batched_shape("float_inputs",float_inputs,self.float_input_shape)
+    self.assert_shape("symmetries",symmetries,[3])
+    self.assert_batched_shape("include_history",include_history,[5])
+
+    self.bin_inputs = bin_inputs
+    self.float_inputs = float_inputs
+    self.symmetries = symmetries
+    self.include_history = include_history
+
+    cur_layer = tf.reshape(bin_inputs, [-1] + self.post_input_shape)
+
+    input_num_channels = self.post_input_shape[2]
+
+    #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
+    cur_layer = self.apply_symmetry(cur_layer,symmetries,inverse=False)
+
+    # #Disable various features
+    # features_active = tf.constant([
+    #   1.0, #0
+    #   1.0, #1
+    #   1.0, #2
+    #   1.0, #3
+    #   1.0, #4
+    #   1.0, #5
+    #   1.0, #6
+    #   1.0, #7
+    #   1.0, #8
+    #   1.0, #9
+    #   1.0, #10
+    #   1.0, #11
+    #   1.0, #12
+    #   1.0, #13
+    #   1.0, #14
+    #   1.0, #15
+    #   1.0, #16
+    # ])
+    # assert(features_active.dtype == tf.float32)
+    # cur_layer = cur_layer * tf.reshape(features_active,[1,1,1,-1])
+
+    #Apply history transform to turn off various features randomly.
+    #We do this by building a matrix for each batch element, mapping input channels to possibly-turned off channels.
+    #This matrix is a sum of hist_matrix_base which always turns off all the channels, and h0, h1, h2,... which perform
+    #the modifications to hist_matrix_base to make it turn on channels based on whether we have move0, move1,...
+    hist_matrix_base = np.diag(np.array([
+      1.0, #0
+      1.0, #1
+      1.0, #2
+      1.0, #3
+      1.0, #4
+      1.0, #5
+      1.0, #6
+      1.0, #7
+      1.0, #8
+      0.0, #9
+      0.0, #10
+      0.0, #11
+      0.0, #12
+      0.0, #13
+      1.0, #14
+      0.0, #15
+      0.0, #16
+      1.0, #17
+      1.0, #18
+      1.0, #19
+    ],dtype=np.float32))
+    #Because we have ladder features that express past states rather than past diffs, the most natural encoding when
+    #we have no history is that they were always the same, rather than that they were all zero. So rather than zeroing
+    #them we have no history, we add entries in the matrix to copy them over.
+    #By default, without history, the ladder features 15 and 16 just copy over from 14.
+    hist_matrix_base[14,15] = 1.0
+    hist_matrix_base[14,16] = 1.0
+    #When have the prev move, we enable feature 9 and 15
+    h0 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h0[9,9] = 1.0 #Enable 9 -> 9
+    h0[14,15] = -1.0 #Stop copying 14 -> 15
+    h0[14,16] = -1.0 #Stop copying 14 -> 16
+    h0[15,15] = 1.0 #Enable 15 -> 15
+    h0[15,16] = 1.0 #Start copying 15 -> 16
+    #When have the prevprev move, we enable feature 10 and 16
+    h1 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h1[10,10] = 1.0 #Enable 10 -> 10
+    h1[15,16] = -1.0 #Stop copying 15 -> 16
+    h1[16,16] = 1.0 #Enable 16 -> 16
+    #Further history moves
+    h2 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h2[11,11] = 1.0
+    h3 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h3[12,12] = 1.0
+    h4 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h4[13,13] = 1.0
+
+    hist_matrix_base = tf.reshape(tf.constant(hist_matrix_base),[1,self.num_bin_input_features,self.num_bin_input_features])
+    hist_matrix_builder = tf.constant(np.array([h0,h1,h2,h3,h4]))
+    assert(hist_matrix_base.dtype == tf.float32)
+    assert(hist_matrix_builder.dtype == tf.float32)
+    assert(len(hist_matrix_builder.shape) == 3)
+    assert(hist_matrix_builder.shape[0].value == 5)
+    assert(hist_matrix_builder.shape[1].value == self.num_bin_input_features)
+    assert(hist_matrix_builder.shape[2].value == self.num_bin_input_features)
+
+    hist_filter_matrix = hist_matrix_base + tf.tensordot(include_history, hist_matrix_builder, axes=[[1],[0]]) #[batch,move] * [move,inc,outc] = [batch,inc,outc]
+    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len*self.pos_len,self.num_bin_input_features]) #[batch,xy,inc]
+    cur_layer = tf.matmul(cur_layer,hist_filter_matrix) #[batch,xy,inc] * [batch,inc,outc] = [batch,xy,outc]
+    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len,self.pos_len,self.num_bin_input_features])
+
+    assert(include_history.shape[1].value == 5)
+    transformed_float_inputs = float_inputs * tf.pad(include_history, [(0,0),(0,self.num_float_input_features - include_history.shape[1].value)], constant_values=1.0)
+
+    self.transformed_bin_inputs = cur_layer
+    self.transformed_float_inputs = transformed_float_inputs
+
+    #Channel counts---------------------------------------------------------------------------------------
+    trunk_num_channels = 128
+    mid_num_channels = 128
+    regular_num_channels = 96
+    dilated_num_channels = 32
+    gpool_num_channels = 32
+
+    assert(regular_num_channels + dilated_num_channels == mid_num_channels)
+
+    self.trunk_num_channels = trunk_num_channels
+    self.mid_num_channels = mid_num_channels
+    self.regular_num_channels = regular_num_channels
+    self.dilated_num_channels = dilated_num_channels
+    self.gpool_num_channels = gpool_num_channels
+
+    #Initial convolutional layer-------------------------------------------------------------------------------------
+    trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+    self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
+
+    #Matrix multiply float inputs and accumulate them
+    ginputw = self.weight_variable("ginputw",[self.num_float_input_features,trunk_num_channels],self.num_float_input_features*2,trunk_num_channels)
+    ginputresult = tf.tensordot(transformed_float_inputs,ginputw,axes=[[1],[0]])
+    trunk = trunk + tf.reshape(ginputresult, [-1,1,1,trunk_num_channels])
+
+    #Main trunk---------------------------------------------------------------------------------------------------
+    self.blocks = []
+
+    block_kind = [
+      ("rconv1","regular"),
+      ("rconv2","regular"),
+      ("rconv3","regular"),
+      ("rconv4","gpool"),
+      ("rconv5","regular"),
+      ("rconv6","regular"),
+      ("rconv7","gpool"),
+      ("rconv8","regular")
+    ]
+
+    for i in range(len(block_kind)):
+      (name,kind) = block_kind[i]
+      if kind == "regular":
+        residual = self.res_conv_block(name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=mid_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+        trunk = self.merge_residual(name,trunk,residual)
+        self.blocks.append(("ordinary_block",name,3,trunk_num_channels,mid_num_channels))
+      elif kind == "dilated":
+        residual = self.dilated_res_conv_block(
+          name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
+          emphasize_center_weight = 0.3, emphasize_center_lr=1.5
+        )
+        trunk = self.merge_residual(name,trunk,residual)
+        self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,3))
+      elif kind == "gpool":
+        residual = self.global_res_conv_block(
+          name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
+          emphasize_center_weight = 0.3, emphasize_center_lr=1.5
+        )
+        trunk = self.merge_residual(name,trunk,residual)
+        self.blocks.append(("gpool_block",name,3,trunk_num_channels,regular_num_channels,gpool_num_channels))
+      else:
+        assert(False)
+
+    #Postprocessing residual trunk----------------------------------------------------------------------------------
+
+    #Normalize and relu just before the policy head
+    trunk = self.relu("trunk/relu",(self.batchnorm("trunk/norm",trunk)))
+    self.outputs_by_layer.append(("trunk",trunk))
+
+
+    #Policy head---------------------------------------------------------------------------------
+    p0_layer = trunk
+
+    #This is the main path for policy information
+    p1_num_channels = 48
+    p1_intermediate_conv = self.conv_only_block("p1/intermediate_conv",p0_layer,diam=3,in_channels=trunk_num_channels,out_channels=p1_num_channels)
+    self.p1_conv = ("p1/intermediate_conv",3,trunk_num_channels,p1_num_channels)
+
+    #But in parallel convolve to compute some features about the global state of the board
+    #Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
+    g1_num_channels = 32
+    g1_layer = self.conv_block("g1",p0_layer,diam=3,in_channels=trunk_num_channels,out_channels=g1_num_channels)
+    self.g1_conv = ("g1",3,trunk_num_channels,g1_num_channels)
+
+    #Fold g1 down to single values for the board.
+    #For stdev, add a tiny constant to ensure numeric stability
+    g1_mean = tf.reduce_mean(g1_layer,axis=[1,2],keepdims=True)
+    g1_max = tf.reduce_max(g1_layer,axis=[1,2],keepdims=True)
+    g2_layer = tf.concat([g1_mean,g1_max],axis=3) #shape [b,1,1,2*convg1num_channels]
+    g2_num_channels = 2*g1_num_channels
+    self.outputs_by_layer.append(("g2",g2_layer))
+
+    #Transform them into the space of the policy features to act as biases for the policy
+    #Also divide the initial weights a bit more because we think these should matter a bit less than local shape stuff,
+    #by multiplying the number of inputs for purposes of weight initialization (currently mult by 4)
+    matmulg2w = self.weight_variable("matmulg2w",[g2_num_channels,p1_num_channels],g2_num_channels*4,p1_num_channels)
+    g3_layer = tf.tensordot(g2_layer,matmulg2w,axes=[[3],[0]])
+    self.outputs_by_layer.append(("g3",g3_layer))
+    self.g1_num_channels = g1_num_channels
+    self.g2_num_channels = g2_num_channels
+    self.p1_num_channels = p1_num_channels
+
+    #Add! This adds shapes [b,19,19,convp1_num_channels] + [b,1,1,convp1_num_channels]
+    #so the second one should get broadcast up to the size of the first one.
+    #We can think of p1 as being an ordinary convolution layer except that for every node of the convolution, the g2 values (g2_num_channels many of them)
+    #have been appended to the p0 incoming values (p0_num_channels * convp1diam * convp1diam many of them).
+    #The matrix matmulg2w is simply the set of weights for that additional part of the matrix. It's just that rather than appending beforehand,
+    #we multiply separately and add to the output afterward.
+    p1_intermediate_sum = p1_intermediate_conv + g3_layer
+
+    #And now apply batchnorm and relu
+    p1_layer = self.relu("p1/relu",self.batchnorm("p1/norm",p1_intermediate_sum))
+    self.outputs_by_layer.append(("p1",p1_layer))
+
+    #Finally, apply linear convolution to produce final output
+    p2_layer = self.conv_only_block("p2",p1_layer,diam=1,in_channels=p1_num_channels,out_channels=1,scale_initial_weights=0.5,reg=False)
+    self.p2_conv = ("p2",1,p1_num_channels,1)
+
+    self.add_lr_factor("p1/norm/beta:0",0.25)
+    self.add_lr_factor("p2/w:0",0.25)
+
+    #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
+    policy_output = self.apply_symmetry(p2_layer,symmetries,inverse=True)
+    policy_output = tf.reshape(policy_output, [-1] + self.policy_target_shape_nopass)
+
+    #Add pass move based on the global g values
+    matmulpass = self.weight_variable("matmulpass",[g2_num_channels,1],g2_num_channels*8,1)
+    self.add_lr_factor("matmulpass:0",0.25)
+    pass_output = tf.tensordot(g2_layer,matmulpass,axes=[[3],[0]])
+    self.outputs_by_layer.append(("pass",pass_output))
+    pass_output = tf.reshape(pass_output, [-1] + [1])
+    policy_output = tf.concat([policy_output,pass_output],axis=1, name="policy_output")
+
+    self.policy_output = policy_output
+
+    #Value head---------------------------------------------------------------------------------
+    v0_layer = trunk
+
+    v1_num_channels = 12
+    v1_layer = self.conv_block("v1",v0_layer,diam=3,in_channels=trunk_num_channels,out_channels=v1_num_channels)
+    self.outputs_by_layer.append(("v1",v1_layer))
+    self.v1_conv = ("v1",3,trunk_num_channels,v1_num_channels)
+    self.v1_num_channels = v1_num_channels
+
+    v1_layer_pooled = tf.reduce_mean(v1_layer,axis=[1,2],keepdims=False)
+    v1_size = v1_num_channels
+
+    v2_size = 12
+    v2w = self.weight_variable("v2/w",[v1_size,v2_size],v1_size,v2_size)
+    v2b = self.weight_variable("v2/b",[v2_size],v1_size,v2_size,scale_initial_weights=0.2,reg=False)
+    v2_layer = self.relu_non_spatial("v2/relu",tf.matmul(v1_layer_pooled, v2w) + v2b)
+    self.v2_size = v2_size
+    self.other_internal_outputs.append(("v2",v2_layer))
+
+    v3_size = 1
+    v3w = self.weight_variable("v3/w",[v2_size,v3_size],v2_size,v3_size)
+    v3b = self.weight_variable("v3/b",[v3_size],v2_size,v3_size,scale_initial_weights=0.2,reg=False)
+    v3_layer = tf.matmul(v2_layer, v3w) + v3b
+    self.v3_size = v3_size
+    self.other_internal_outputs.append(("v3",v3_layer))
+
+    value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
+
+    self.add_lr_factor("v2/w:0",0.25)
+    self.add_lr_factor("v2/b:0",0.25)
+    self.add_lr_factor("v3/w:0",0.25)
+    self.add_lr_factor("v3/b:0",0.25)
+
+    self.value_output = value_output
+
+
+
+class Target_varsV3:
+  def __init__(self,model,for_optimization,require_last_move,placeholders):
+    policy_output = model.policy_output
+    value_output = model.value_output
+
+    #Loss function
+    self.policy_targets = (placeholders["policy_targets"] if "policy_targets" in placeholders else
+                           tf.placeholder(tf.float32, [None] + model.policy_target_shape))
+    self.value_targets = (placeholders["value_targets"] if "value_targets" in placeholders else
+                           tf.placeholder(tf.float32, [None] + model.value_target_shape))
+    self.target_weights_from_data = (placeholders["target_weights_from_data"] if "target_weights_from_data" in placeholders else
+                                    tf.placeholder(tf.float32, [None] + model.target_weights_shape))
+
+    model.assert_batched_shape("policy_targets", self.policy_targets, model.policy_target_shape)
+    model.assert_batched_shape("value_targets", self.value_targets, model.value_target_shape)
+    model.assert_batched_shape("target_weights_from_data", self.target_weights_from_data, model.target_weights_shape)
+
+    if require_last_move == "all":
+      self.target_weights_used = self.target_weights_from_data * tf.reduce_sum(model.inputs[:,:,13],axis=[1])
+    elif require_last_move is True:
+      self.target_weights_used = self.target_weights_from_data * tf.reduce_sum(model.inputs[:,:,9],axis=[1])
+    else:
+      self.target_weights_used = self.target_weights_from_data
+
+    self.policy_loss_unreduced = (
+      tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_targets, logits=policy_output)
+    )
+    self.value_loss_unreduced = 0.5 * (
+      1.4 * tf.nn.softmax_cross_entropy_with_logits(
+        labels=tf.stack([(1+self.value_targets)/2,(1-self.value_targets)/2],axis=1),
+        logits=tf.stack([value_output,tf.zeros_like(value_output)],axis=1)
+      ) +
+      tf.square(self.value_targets - tf.tanh(value_output))
+    )
+
+    self.policy_loss = tf.reduce_sum(self.target_weights_used * self.policy_loss_unreduced)
+    self.value_loss = tf.reduce_sum(self.target_weights_used * self.value_loss_unreduced)
+    self.weight_sum = tf.reduce_sum(self.target_weights_used)
+
+    if for_optimization:
+      #Prior/Regularization
+      self.l2_reg_coeff = (placeholders["l2_reg_coeff"] if "l2_reg_coeff" in placeholders else
+                           tf.placeholder(tf.float32))
+      self.reg_loss_per_weight = self.l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables])
+      self.reg_loss = self.reg_loss_per_weight * self.weight_sum
+
+      #The loss to optimize
+      self.opt_loss = self.policy_loss + self.value_loss + self.reg_loss
+
+class MetricsV3:
+  def __init__(self,model,target_vars,include_debug_stats):
+    #Training results
+    policy_target_idxs = tf.argmax(target_vars.policy_targets, 1)
+    self.top1_prediction = tf.equal(tf.argmax(model.policy_output, 1), policy_target_idxs)
+    self.top4_prediction = tf.nn.in_top_k(model.policy_output,policy_target_idxs,4)
+    self.accuracy1_unreduced = tf.cast(self.top1_prediction, tf.float32)
+    self.accuracy4_unreduced = tf.cast(self.top4_prediction, tf.float32)
+    self.valueconf_unreduced = tf.square(model.value_output)
+    self.accuracy1 = tf.reduce_sum(target_vars.target_weights_used * self.accuracy1_unreduced)
+    self.accuracy4 = tf.reduce_sum(target_vars.target_weights_used * self.accuracy4_unreduced)
+    self.valueconf = tf.reduce_sum(target_vars.target_weights_used * self.valueconf_unreduced)
+
+    #Debugging stats
+    if include_debug_stats:
+
+      def reduce_norm(x, axis=None, keepdims=False):
+        return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keepdims=keepdims))
+
+      def reduce_stdev(x, axis=None, keepdims=False):
+        m = tf.reduce_mean(x, axis=axis, keepdims=True)
+        devs_squared = tf.square(x - m)
+        return tf.sqrt(tf.reduce_mean(devs_squared, axis=axis, keepdims=keepdims))
+
+      self.activated_prop_by_layer = dict([
+        (name,tf.reduce_mean(tf.count_nonzero(layer,axis=[1,2])/layer.shape[1].value/layer.shape[2].value, axis=0)) for (name,layer) in model.outputs_by_layer
+      ])
+      self.mean_output_by_layer = dict([
+        (name,tf.reduce_mean(layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
+      ])
+      self.stdev_output_by_layer = dict([
+        (name,reduce_stdev(layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
+      ])
+      self.mean_weights_by_var = dict([
+        (v.name,tf.reduce_mean(v)) for v in tf.trainable_variables()
+      ])
+      self.norm_weights_by_var = dict([
+        (v.name,reduce_norm(v)) for v in tf.trainable_variables()
+      ])

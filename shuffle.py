@@ -35,7 +35,7 @@ def joint_shuffle(arrs):
 def memusage_mb():
   return psutil.Process(os.getpid()).memory_info().rss // 1048576
 
-def shardify(input_idx, input_file, num_out_files, out_tmp_dirs):
+def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(4)])
 
   print("Reading: " + input_file)
@@ -51,8 +51,11 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs):
   print("Shuffling... (mem usage %dMB)" % memusage_mb())
   joint_shuffle((binaryInputNCHWPacked,floatInputNC,policyTargetsNCMove,floatTargetsNC,valueTargetsNCHW))
 
-  num_rows = binaryInputNCHWPacked.shape[0]
-  rand_assts = np.random.randint(num_out_files,size=[num_rows])
+  num_rows_to_keep = binaryInputNCHWPacked.shape[0]
+  if keep_prob < 1.0:
+    num_rows_to_keep = min(num_rows_to_keep,int(round(num_rows_to_keep * keep_prob)))
+
+  rand_assts = np.random.randint(num_out_files,size=[num_rows_to_keep])
   counts = np.bincount(rand_assts)
   countsums = np.cumsum(counts)
 
@@ -145,6 +148,7 @@ if __name__ == '__main__':
   parser.add_argument('dirs', metavar='DIR', nargs='+', help='Directories of training data files')
   parser.add_argument('-min-rows', type=int, required=True, help='Minimum training rows to use')
   parser.add_argument('-max-rows', type=int, required=True, help='Maximum training rows to use')
+  parser.add_argument('-keep-target-rows', type=int, required=True, help='Target number of rows to actually keep in the final data set')
   parser.add_argument('-window-factor', type=float, required=True, help='Beyond min rows, add 1 more row per this many')
   parser.add_argument('-out-dir', required=True, help='Dir to output training files')
   parser.add_argument('-approx-rows-per-out-file', type=int, required=True, help='Number of rows per output tf records file')
@@ -156,6 +160,7 @@ if __name__ == '__main__':
   dirs = args.dirs
   min_rows = args.min_rows
   max_rows = args.max_rows
+  keep_target_rows = args.keep_target_rows
   window_factor = args.window_factor
   out_dir = args.out_dir
   approx_rows_per_out_file = args.approx_rows_per_out_file
@@ -220,7 +225,13 @@ if __name__ == '__main__':
   np.random.seed()
   np.random.shuffle(desired_input_files)
 
-  num_out_files = int(round(num_rows_total / approx_rows_per_out_file))
+  if num_rows_total <= 0:
+    raise Exception("Found 0 rows in the specified input files")
+
+  approx_rows_to_keep = min(num_rows_total, keep_target_rows)
+  keep_prob = approx_rows_to_keep / num_rows_total
+
+  num_out_files = int(round(approx_rows_to_keep / approx_rows_per_out_file))
   num_out_files = max(num_out_files,1)
   out_files = [os.path.join(out_dir, "data%d.tfrecord" % i) for i in range(num_out_files)]
   out_tmp_dirs = [os.path.join(out_dir, "tmp.shuf%d" % i) for i in range(num_out_files)]
@@ -238,7 +249,7 @@ if __name__ == '__main__':
 
   with multiprocessing.Pool(num_processes) as pool:
     pool.starmap(shardify, [
-      (input_idx, desired_input_files[input_idx], num_out_files, out_tmp_dirs) for input_idx in range(len(desired_input_files))
+      (input_idx, desired_input_files[input_idx], num_out_files, out_tmp_dirs, keep_prob) for input_idx in range(len(desired_input_files))
     ])
 
     num_shards_to_merge = len(desired_input_files)
