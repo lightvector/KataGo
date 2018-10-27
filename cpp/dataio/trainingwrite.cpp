@@ -332,15 +332,21 @@ TrainingDataWriter::~TrainingDataWriter()
 
 void TrainingDataWriter::writeAndClearIfFull() {
   if(writeBuffers->curRows >= writeBuffers->maxRows) {
-    writeBuffers->writeToZipFile(outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz");
+    string filename = outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz";
+    string tmpFilename = filename + ".tmp";
+    writeBuffers->writeToZipFile(tmpFilename);
     writeBuffers->clear();
+    std::rename(tmpFilename.c_str(),filename.c_str());
   }
 }
 
 void TrainingDataWriter::close() {
   if(writeBuffers->curRows > 0) {
-    writeBuffers->writeToZipFile(outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz");
+    string filename = outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz";
+    string tmpFilename = filename + ".tmp";
+    writeBuffers->writeToZipFile(tmpFilename);
     writeBuffers->clear();
+    std::rename(tmpFilename.c_str(),filename.c_str());
   }
 }
 
