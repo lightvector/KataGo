@@ -126,7 +126,7 @@ def model_fn(features,labels,mode,params):
   placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
-    placeholders["is_training"] = False
+    placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
     model = ModelV3(model_config,placeholders)
 
     predictions = {}
@@ -135,7 +135,7 @@ def model_fn(features,labels,mode,params):
     return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
   if mode == tf.estimator.ModeKeys.EVAL:
-    placeholders["is_training"] = False
+    placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
     model = ModelV3(model_config,placeholders)
 
     target_vars = Target_varsV3(model,for_optimization=True,require_last_move=False,placeholders=placeholders)
@@ -157,7 +157,7 @@ def model_fn(features,labels,mode,params):
     )
 
   if mode == tf.estimator.ModeKeys.TRAIN:
-    placeholders["is_training"] = True
+    placeholders["is_training"] = tf.constant(True,dtype=tf.bool)
     model = ModelV3(model_config,placeholders)
 
     target_vars = Target_varsV3(model,for_optimization=True,require_last_move=False,placeholders=placeholders)
@@ -222,7 +222,7 @@ def model_fn(features,labels,mode,params):
     (vconf,vconf_op) = moving_mean(metrics.valueconf_unreduced, weights=target_vars.target_weights_used)
     (wmean,wmean_op) = tf.metrics.mean(target_vars.weight_sum)
 
-    print_train_loss_every_batches = 100
+    print_train_loss_every_batches = 10
     # print_train_loss_every_batches = num_batches_per_epoch
 
     logging_hook = tf.train.LoggingTensorHook({
@@ -233,6 +233,7 @@ def model_fn(features,labels,mode,params):
       "rloss": rloss,
       "pacc1": pacc1,
       "vconf": vconf,
+      "rconv1norm1beta": [var.read_value()[:16] for var in tf.trainable_variables() if var.name == "rconv1/norm1/beta:0"][0],
       "pslr": per_sample_learning_rate,
     }, every_n_iter=print_train_loss_every_batches)
     return tf.estimator.EstimatorSpec(

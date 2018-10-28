@@ -248,21 +248,58 @@ class ModelV3:
     else:
       self.lr_adjusted_variables[name] = factor
 
-  def batchnorm(self,name,tensor):
+  def batchnorm_and_mask(self,name,tensor,mask):
     epsilon = 0.001
     has_bias = True
     has_scale = False
     self.batch_norms[name] = (tensor.shape[-1].value,epsilon,has_bias,has_scale)
-    return tf.layers.batch_normalization(
-      tensor,
-      axis=-1, #Because channels are our last axis, -1 refers to that via wacky python indexing
-      momentum=0.99,
-      epsilon=epsilon,
-      center=has_bias,
-      scale=has_scale,
-      training=self.is_training,
-      name=name,
-    )
+
+    num_channels = tensor.shape[3].value
+    collections = [tf.GraphKeys.GLOBAL_VARIABLES,tf.GraphKeys.MODEL_VARIABLES,tf.GraphKeys.MOVING_AVERAGE_VARIABLES]
+    moving_mean = tf.Variable(tf.zeros([num_channels]),name=(name+"/moving_mean"),trainable=False,collections=collections)
+    moving_var = tf.Variable(tf.ones([num_channels]),name=(name+"/moving_variance"),trainable=False,collections=collections)
+    beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg=False)
+
+    def training_f():
+      mask_sum = tf.reduce_sum(mask)
+      mean = tf.reduce_sum(tensor,axis=[0,1,2]) / mask_sum
+      zmtensor = tensor-mean
+      var = tf.reduce_sum(tf.square(zmtensor),axis=[0,1,2]) / mask_sum
+
+      mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.99)
+      var_op = tf.keras.backend.moving_average_update(moving_var,var,0.99)
+
+      tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, mean_op)
+      tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, var_op)
+
+      normtensor = zmtensor / tf.sqrt(tf.constant(epsilon,dtype=tf.float32) + var) + beta
+      return normtensor
+    def inference_f():
+      normtensor = tensor-moving_mean.read_value()
+      normtensor = normtensor / tf.sqrt(tf.constant(epsilon,dtype=tf.float32) + moving_var.read_value())
+      return normtensor
+
+    return tf.cond(
+      self.is_training,
+      training_f,
+      inference_f
+    ) * mask
+
+  # def batchnorm(self,name,tensor):
+  #   epsilon = 0.001
+  #   has_bias = True
+  #   has_scale = False
+  #   self.batch_norms[name] = (tensor.shape[-1].value,epsilon,has_bias,has_scale)
+  #   return tf.layers.batch_normalization(
+  #     tensor,
+  #     axis=-1, #Because channels are our last axis, -1 refers to that via wacky python indexing
+  #     momentum=0.99,
+  #     epsilon=epsilon,
+  #     center=has_bias,
+  #     scale=has_scale,
+  #     training=self.is_training,
+  #     name=name,
+  #   )
 
   def init_stdev(self,num_inputs,num_outputs):
     #xavier
@@ -274,12 +311,13 @@ class ModelV3:
     stdev = self.init_stdev(num_inputs,num_outputs) / 1.0
     return tf.truncated_normal(shape=shape, stddev=stdev)
 
-  def weight_variable_init_constant(self, name, shape, constant):
+  def weight_variable_init_constant(self, name, shape, constant, reg=True):
     init = tf.zeros(shape)
     if constant != 0.0:
       init = init + constant
     variable = tf.Variable(init,name=name)
-    self.reg_variables.append(variable)
+    if reg:
+      self.reg_variables.append(variable)
     return variable
 
   def weight_variable(self, name, shape, num_inputs, num_outputs, scale_initial_weights=1.0, extra_initial_weight=None, reg=True):
@@ -374,11 +412,11 @@ class ModelV3:
     return weights
 
   #Convolutional layer with batch norm and nonlinear activation
-  def conv_block(self, name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+  def conv_block(self, name, in_layer, mask, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
     weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
     convolved = self.conv2d(in_layer, weights)
     self.outputs_by_layer.append((name+"/prenorm",convolved))
-    out_layer = self.relu(name+"/relu",self.batchnorm(name+"/norm",convolved))
+    out_layer = self.relu(name+"/relu",self.batchnorm_and_mask(name+"/norm",convolved,mask))
     self.outputs_by_layer.append((name,out_layer))
     return out_layer
 
@@ -390,15 +428,15 @@ class ModelV3:
     return out_layer
 
   #Convolutional residual block with internal batch norm and nonlinear activation
-  def res_conv_block(self, name, in_layer, diam, main_channels, mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
-    trans1_layer = self.relu(name+"/relu1",(self.batchnorm(name+"/norm1",in_layer)))
+  def res_conv_block(self, name, in_layer, mask, diam, main_channels, mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+    trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     weights1 = self.conv_weight_variable(name+"/w1", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
     conv1_layer = self.conv2d(trans1_layer, weights1)
     self.outputs_by_layer.append((name+"/conv1",conv1_layer))
 
-    trans2_layer = self.relu(name+"/relu2",(self.batchnorm(name+"/norm2",conv1_layer)))
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask)))
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -408,8 +446,8 @@ class ModelV3:
     return conv2_layer
 
   #Convolutional residual block with internal batch norm and nonlinear activation
-  def global_res_conv_block(self, name, in_layer, diam, main_channels, mid_channels, global_mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
-    trans1_layer = self.relu(name+"/relu1",(self.batchnorm(name+"/norm1",in_layer)))
+  def global_res_conv_block(self, name, in_layer, mask, diam, main_channels, mid_channels, global_mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+    trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -419,7 +457,7 @@ class ModelV3:
     self.outputs_by_layer.append((name+"/conv1a",conv1a_layer))
     self.outputs_by_layer.append((name+"/conv1b",conv1b_layer))
 
-    trans1b_layer = self.relu(name+"/trans1b",(self.batchnorm(name+"/norm1b",conv1b_layer)))
+    trans1b_layer = self.relu(name+"/trans1b",(self.batchnorm_and_mask(name+"/norm1b",conv1b_layer,mask)))
     trans1b_mean = tf.reduce_mean(trans1b_layer,axis=[1,2],keepdims=True)
     trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keepdims=True)
     trans1b_pooled = tf.concat([trans1b_mean,trans1b_max],axis=3)
@@ -427,7 +465,7 @@ class ModelV3:
     remix_weights = self.weight_variable(name+"/w1r",[global_mid_channels*2,mid_channels],global_mid_channels*2,mid_channels, scale_initial_weights = 0.5)
     conv1_layer = conv1a_layer + tf.tensordot(trans1b_pooled,remix_weights,axes=[[3],[0]])
 
-    trans2_layer = self.relu(name+"/relu2",(self.batchnorm(name+"/norm2",conv1_layer)))
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask)))
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -437,8 +475,8 @@ class ModelV3:
     return conv2_layer
 
   #Convolutional residual block with internal batch norm and nonlinear activation
-  def dilated_res_conv_block(self, name, in_layer, diam, main_channels, mid_channels, dilated_mid_channels, dilation, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
-    trans1_layer = self.relu(name+"/relu1",(self.batchnorm(name+"/norm1",in_layer)))
+  def dilated_res_conv_block(self, name, in_layer, mask, diam, main_channels, mid_channels, dilated_mid_channels, dilation, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+    trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -450,7 +488,7 @@ class ModelV3:
 
     conv1_layer = tf.concat([conv1a_layer,conv1b_layer],axis=3)
 
-    trans2_layer = self.relu(name+"/relu2",(self.batchnorm(name+"/norm2",conv1_layer)))
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask)))
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels+dilated_mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -611,6 +649,8 @@ class ModelV3:
     self.dilated_num_channels = dilated_num_channels
     self.gpool_num_channels = gpool_num_channels
 
+    mask = cur_layer[:,:,:,0:1]
+
     #Initial convolutional layer-------------------------------------------------------------------------------------
     trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
     self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
@@ -637,19 +677,21 @@ class ModelV3:
     for i in range(len(block_kind)):
       (name,kind) = block_kind[i]
       if kind == "regular":
-        residual = self.res_conv_block(name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=mid_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+        residual = self.res_conv_block(
+          name,trunk,mask,diam=3,main_channels=trunk_num_channels,mid_channels=mid_num_channels,
+          emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
         trunk = self.merge_residual(name,trunk,residual)
         self.blocks.append(("ordinary_block",name,3,trunk_num_channels,mid_num_channels))
       elif kind == "dilated":
         residual = self.dilated_res_conv_block(
-          name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
+          name,trunk,mask,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
           emphasize_center_weight = 0.3, emphasize_center_lr=1.5
         )
         trunk = self.merge_residual(name,trunk,residual)
         self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,3))
       elif kind == "gpool":
         residual = self.global_res_conv_block(
-          name,trunk,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
+          name,trunk,mask,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
           emphasize_center_weight = 0.3, emphasize_center_lr=1.5
         )
         trunk = self.merge_residual(name,trunk,residual)
@@ -660,7 +702,7 @@ class ModelV3:
     #Postprocessing residual trunk----------------------------------------------------------------------------------
 
     #Normalize and relu just before the policy head
-    trunk = self.relu("trunk/relu",(self.batchnorm("trunk/norm",trunk)))
+    trunk = self.relu("trunk/relu",(self.batchnorm_and_mask("trunk/norm",trunk,mask)))
     self.outputs_by_layer.append(("trunk",trunk))
 
 
@@ -675,7 +717,7 @@ class ModelV3:
     #But in parallel convolve to compute some features about the global state of the board
     #Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
     g1_num_channels = 32
-    g1_layer = self.conv_block("g1",p0_layer,diam=3,in_channels=trunk_num_channels,out_channels=g1_num_channels)
+    g1_layer = self.conv_block("g1",p0_layer,mask,diam=3,in_channels=trunk_num_channels,out_channels=g1_num_channels)
     self.g1_conv = ("g1",3,trunk_num_channels,g1_num_channels)
 
     #Fold g1 down to single values for the board.
@@ -705,7 +747,7 @@ class ModelV3:
     p1_intermediate_sum = p1_intermediate_conv + g3_layer
 
     #And now apply batchnorm and relu
-    p1_layer = self.relu("p1/relu",self.batchnorm("p1/norm",p1_intermediate_sum))
+    p1_layer = self.relu("p1/relu",self.batchnorm_and_mask("p1/norm",p1_intermediate_sum,mask))
     self.outputs_by_layer.append(("p1",p1_layer))
 
     #Finally, apply linear convolution to produce final output
@@ -733,7 +775,7 @@ class ModelV3:
     v0_layer = trunk
 
     v1_num_channels = 12
-    v1_layer = self.conv_block("v1",v0_layer,diam=3,in_channels=trunk_num_channels,out_channels=v1_num_channels)
+    v1_layer = self.conv_block("v1",v0_layer,mask,diam=3,in_channels=trunk_num_channels,out_channels=v1_num_channels)
     self.outputs_by_layer.append(("v1",v1_layer))
     self.v1_conv = ("v1",3,trunk_num_channels,v1_num_channels)
     self.v1_num_channels = v1_num_channels
