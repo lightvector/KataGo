@@ -20,11 +20,12 @@ class ModelV3:
     self.post_input_shape = [self.pos_len,self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES]
     self.policy_target_shape_nopass = [self.pos_len*self.pos_len]
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
+    self.policy_target_weight_shape = []
     self.value_target_shape = [3]
     self.scorevalue_target_shape = []
     self.ownership_target_shape = [self.pos_len,self.pos_len]
-    self.target_weights_shape = []
-    self.ownership_target_weights_shape = []
+    self.target_weight_shape = []
+    self.ownership_target_weight_shape = []
 
     self.pass_pos = self.pos_len * self.pos_len
 
@@ -953,61 +954,65 @@ class Target_varsV3:
     ownership_output = model.ownership_output
 
     #Loss function
-    self.policy_targets = (placeholders["policy_targets"] if "policy_targets" in placeholders else
-                           tf.placeholder(tf.float32, [None] + model.policy_target_shape))
-    self.value_targets = (placeholders["value_targets"] if "value_targets" in placeholders else
-                          tf.placeholder(tf.float32, [None] + model.value_target_shape))
-    self.scorevalue_targets = (placeholders["scorevalue_targets"] if "scorevalue_targets" in placeholders else
-                               tf.placeholder(tf.float32, [None] + model.scorevalue_target_shape))
-    self.ownership_targets = (placeholders["ownership_targets"] if "ownership_targets" in placeholders else
-                              tf.placeholder(tf.float32, [None] + model.ownership_target_shape))
-    self.target_weights_from_data = (placeholders["target_weights_from_data"] if "target_weights_from_data" in placeholders else
-                                     tf.placeholder(tf.float32, [None] + model.target_weights_shape))
-    self.ownership_target_weights = (placeholders["ownership_target_weights"] if "ownership_target_weights" in placeholders else
-                                     tf.placeholder(tf.float32, [None] + model.ownership_target_weights))
+    self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
+                          tf.placeholder(tf.float32, [None] + model.policy_target_shape))
+    self.value_target = (placeholders["value_target"] if "value_target" in placeholders else
+                         tf.placeholder(tf.float32, [None] + model.value_target_shape))
+    self.scorevalue_target = (placeholders["scorevalue_target"] if "scorevalue_target" in placeholders else
+                              tf.placeholder(tf.float32, [None] + model.scorevalue_target_shape))
+    self.ownership_target = (placeholders["ownership_target"] if "ownership_target" in placeholders else
+                             tf.placeholder(tf.float32, [None] + model.ownership_target_shape))
+    self.target_weight_from_data = (placeholders["target_weight_from_data"] if "target_weight_from_data" in placeholders else
+                                    tf.placeholder(tf.float32, [None] + model.target_weight_shape))
+    self.policy_target_weight = (placeholders["policy_target_weight"] if "policy_target_weight" in placeholders else
+                                 tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
+    self.ownership_target_weight = (placeholders["ownership_target_weight"] if "ownership_target_weight" in placeholders else
+                                    tf.placeholder(tf.float32, [None] + model.ownership_target_weight))
 
-    model.assert_batched_shape("policy_targets", self.policy_targets, model.policy_target_shape)
-    model.assert_batched_shape("value_targets", self.value_targets, model.value_target_shape)
-    model.assert_batched_shape("scorevalue_targets", self.scorevalue_targets, model.scorevalue_target_shape)
-    model.assert_batched_shape("ownership_targets", self.ownership_targets, model.ownership_target_shape)
-    model.assert_batched_shape("target_weights_from_data", self.target_weights_from_data, model.target_weights_shape)
-    model.assert_batched_shape("ownership_target_weights", self.ownership_target_weights, model.ownership_target_weights_shape)
+    model.assert_batched_shape("policy_target", self.policy_target, model.policy_target_shape)
+    model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
+    model.assert_batched_shape("value_target", self.value_target, model.value_target_shape)
+    model.assert_batched_shape("scorevalue_target", self.scorevalue_target, model.scorevalue_target_shape)
+    model.assert_batched_shape("ownership_target", self.ownership_target, model.ownership_target_shape)
+    model.assert_batched_shape("target_weight_from_data", self.target_weight_from_data, model.target_weight_shape)
+    model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
+    model.assert_batched_shape("ownership_target_weight", self.ownership_target_weight, model.ownership_target_weight_shape)
 
     if require_last_move == "all":
-      self.target_weights_used = self.target_weights_from_data * tf.reduce_sum(model.inputs[:,:,13],axis=[1])
+      self.target_weight_used = self.target_weight_from_data * tf.reduce_sum(model.inputs[:,:,13],axis=[1])
     elif require_last_move is True:
-      self.target_weights_used = self.target_weights_from_data * tf.reduce_sum(model.inputs[:,:,9],axis=[1])
+      self.target_weight_used = self.target_weight_from_data * tf.reduce_sum(model.inputs[:,:,9],axis=[1])
     else:
-      self.target_weights_used = self.target_weights_from_data
+      self.target_weight_used = self.target_weight_from_data
 
-    self.policy_loss_unreduced = (
-      tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_targets, logits=policy_output)
+    self.policy_loss_unreduced = self.policy_target_weight * (
+      tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target, logits=policy_output)
     )
     self.value_loss_unreduced = 0.5 * (
       1.4 * tf.nn.softmax_cross_entropy_with_logits_v2(
-        labels=self.value_targets,
+        labels=self.value_target,
         logits=value_output
       ) +
-      2.0 * tf.reduce_sum(tf.square(self.value_targets - tf.nn.softmax(value_output,axis=1)),axis=1)
+      2.0 * tf.reduce_sum(tf.square(self.value_target - tf.nn.softmax(value_output,axis=1)),axis=1)
     )
     self.scorevalue_loss_unreduced = 0.5 * (
-      tf.square(self.scorevalue_targets - tf.tanh(scorevalue_output))
+      tf.square(self.scorevalue_target - tf.tanh(scorevalue_output))
     )
-    self.ownership_loss_unreduced = 0.25 * self.ownership_target_weights * (
+    self.ownership_loss_unreduced = 0.25 * self.ownership_target_weight * (
       tf.reduce_sum(
         1.4*tf.nn.softmax_cross_entropy_with_logits_v2(
-          labels=tf.stack([(1+self.ownership_targets)/2,(1-self.ownership_targets)/2],axis=3),
+          labels=tf.stack([(1+self.ownership_target)/2,(1-self.ownership_target)/2],axis=3),
           logits=tf.stack([ownership_output,tf.zeros_like(ownership_output)],axis=3)
         ) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
         axis=[1,2]
       ) / model.mask_sum_hw
     )
 
-    self.policy_loss = tf.reduce_sum(self.target_weights_used * self.policy_loss_unreduced)
-    self.value_loss = tf.reduce_sum(self.target_weights_used * self.value_loss_unreduced)
-    self.scorevalue_loss = tf.reduce_sum(self.target_weights_used * self.scorevalue_loss_unreduced)
-    self.ownership_loss = tf.reduce_sum(self.target_weights_used * self.ownership_loss_unreduced)
-    self.weight_sum = tf.reduce_sum(self.target_weights_used)
+    self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
+    self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced)
+    self.scorevalue_loss = tf.reduce_sum(self.target_weight_used * self.scorevalue_loss_unreduced)
+    self.ownership_loss = tf.reduce_sum(self.target_weight_used * self.ownership_loss_unreduced)
+    self.weight_sum = tf.reduce_sum(self.target_weight_used)
 
     if for_optimization:
       #Prior/Regularization
@@ -1022,15 +1027,15 @@ class Target_varsV3:
 class MetricsV3:
   def __init__(self,model,target_vars,include_debug_stats):
     #Training results
-    policy_target_idxs = tf.argmax(target_vars.policy_targets, 1)
+    policy_target_idxs = tf.argmax(target_vars.policy_target, 1)
     self.top1_prediction = tf.equal(tf.argmax(model.policy_output, 1), policy_target_idxs)
     self.top4_prediction = tf.nn.in_top_k(model.policy_output,policy_target_idxs,4)
     self.accuracy1_unreduced = tf.cast(self.top1_prediction, tf.float32)
     self.accuracy4_unreduced = tf.cast(self.top4_prediction, tf.float32)
     self.value_entropy_unreduced = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.nn.softmax(model.value_output,axis=1), logits=model.value_output)
-    self.accuracy1 = tf.reduce_sum(target_vars.target_weights_used * self.accuracy1_unreduced)
-    self.accuracy4 = tf.reduce_sum(target_vars.target_weights_used * self.accuracy4_unreduced)
-    self.value_entropy = tf.reduce_sum(target_vars.target_weights_used * self.value_entropy_unreduced)
+    self.accuracy1 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy1_unreduced)
+    self.accuracy4 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy4_unreduced)
+    self.value_entropy = tf.reduce_sum(target_vars.target_weight_used * self.value_entropy_unreduced)
 
     #Debugging stats
     if include_debug_stats:

@@ -126,13 +126,14 @@ def model_fn(features,labels,mode,params):
 
   policy_target0 = features["ptncm"][:,0,:]
   policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
-  placeholders["policy_targets"] = policy_target0
+  placeholders["policy_target"] = policy_target0
+  placeholders["policy_target_weight"] = feature["ftnc"][:,25]
 
-  placeholders["value_targets"] = features["ftnc"][:,0:3]
-  placeholders["scorevalue_targets"] = features["ftnc"][:,3]
-  placeholders["ownership_targets"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
-  placeholders["target_weights_from_data"] = features["ftnc"][:,0]*0 + 1
-  placeholders["ownership_target_weights"] = 1.0-features["ftnc"][:,2] #1 if normal game, 0 if no result
+  placeholders["value_target"] = features["ftnc"][:,0:3]
+  placeholders["scorevalue_target"] = features["ftnc"][:,3]
+  placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
+  placeholders["target_weight_from_data"] = features["ftnc"][:,0]*0 + 1
+  placeholders["ownership_target_weight"] = 1.0-features["ftnc"][:,2] #1 if normal game, 0 if no result
   placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
@@ -158,13 +159,13 @@ def model_fn(features,labels,mode,params):
       loss=target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32),
       eval_metric_ops={
         "wsum": (wsum.read_value(),wsum_op),
-        "ploss": tf.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weights_used),
-        "vloss": tf.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weights_used),
-        "svloss": tf.metrics.mean(target_vars.scorevalue_loss_unreduced, weights=target_vars.target_weights_used),
-        "oloss": tf.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weights_used),
+        "ploss": tf.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
+        "vloss": tf.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
+        "svloss": tf.metrics.mean(target_vars.scorevalue_loss_unreduced, weights=target_vars.target_weight_used),
+        "oloss": tf.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
         "rloss": tf.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
-        "pacc1": tf.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weights_used),
-        "ventr": tf.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weights_used)
+        "pacc1": tf.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
+        "ventr": tf.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
       }
     )
 
@@ -227,13 +228,13 @@ def model_fn(features,labels,mode,params):
       avg = ema.average(sumwx) / ema.average(sumw)
       return (avg,op)
 
-    (ploss,ploss_op) = moving_mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weights_used)
-    (vloss,vloss_op) = moving_mean(target_vars.value_loss_unreduced, weights=target_vars.target_weights_used)
-    (svloss,svloss_op) = moving_mean(target_vars.scorevalue_loss_unreduced, weights=target_vars.target_weights_used)
-    (oloss,oloss_op) = moving_mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weights_used)
+    (ploss,ploss_op) = moving_mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used)
+    (vloss,vloss_op) = moving_mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used)
+    (svloss,svloss_op) = moving_mean(target_vars.scorevalue_loss_unreduced, weights=target_vars.target_weight_used)
+    (oloss,oloss_op) = moving_mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used)
     (rloss,rloss_op) = moving_mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum)
-    (pacc1,pacc1_op) = moving_mean(metrics.accuracy1_unreduced, weights=target_vars.target_weights_used)
-    (ventr,ventr_op) = moving_mean(metrics.value_entropy_unreduced, weights=target_vars.target_weights_used)
+    (pacc1,pacc1_op) = moving_mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
+    (ventr,ventr_op) = moving_mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
     (wmean,wmean_op) = tf.metrics.mean(target_vars.weight_sum)
 
     print_train_loss_every_batches = 10
