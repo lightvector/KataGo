@@ -1049,7 +1049,7 @@ class Board:
 
 
   def calculateArea(self, result, nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, isMultiStoneSuicideLegal):
-    for i in range(self.arr_size):
+    for i in range(self.arrsize):
       result[i] = Board.EMPTY
     self.calculateAreaForPla(Board.BLACK,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result)
     self.calculateAreaForPla(Board.WHITE,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result)
@@ -1058,7 +1058,7 @@ class Board:
       for y in range(self.size):
         for x in range(self.size):
           loc = self.loc(x,y)
-          if result[loc] == Board.EMPTY
+          if result[loc] == Board.EMPTY:
             result[loc] = self.board[loc];
 
   def calculateAreaForPla(self, pla, safeBigTerritories, unsafeBigTerritories, isMultiStoneSuicideLegal, result):
@@ -1066,30 +1066,30 @@ class Board:
     #First compute all empty-or-opp regions
 
     #For each loc, if it's empty or opp, the head of the region
-    regionHeadByLoc = [Board.PASS_LOC for i in self.arr_size]
+    regionHeadByLoc = [Board.PASS_LOC for i in range(self.arrsize)]
     #For each loc, if it's empty or opp, the next empty or opp belonging to the same region
-    nextEmptyOrOpp = [Board.PASS_LOC for i in self.arr_size]
+    nextEmptyOrOpp = [Board.PASS_LOC for i in range(self.arrsize)]
     #Does this border a pla group that has been marked as not pass alive?
-    bordersNonPassAlivePlaByHead = [False for i in self.arr_size]
+    bordersNonPassAlivePlaByHead = [False for i in range(self.arrsize)]
 
     #A list for each region head, indicating which pla group heads the region is vital for.
     #A region is vital for a pla group if all its spaces are adjacent to that pla group.
     #All lists are concatenated together, the most we can have is bounded by (MAX_LEN * MAX_LEN+1) / 2
     #independent regions, each one vital for at most 4 pla groups, add some extra just in case.
-    maxRegions = (self.size * self.size + 1)/2 + 1
+    maxRegions = (self.size * self.size + 1)//2 + 1
     vitalForPlaHeadsListsMaxLen = maxRegions * 4
-    vitalForPlaHeadsLists = [-1 for i in vitalForPlaHeadsListsMaxLen]
+    vitalForPlaHeadsLists = [-1 for i in range(vitalForPlaHeadsListsMaxLen)]
     vitalForPlaHeadsListsTotal = 0
 
     #A list of region heads
     numRegions = 0
-    regionHeads = [-1 for i in maxRegions]
+    regionHeads = [-1 for i in range(maxRegions)]
     #Start indices and list lengths in vitalForPlaHeadsLists
-    vitalStart = [-1 for i in maxRegions]
-    vitalLen = [-1 for i in maxRegions]
+    vitalStart = [-1 for i in range(maxRegions)]
+    vitalLen = [-1 for i in range(maxRegions)]
     #For each region, are there 0, 1, or 2+ spaces of that region not bordering any pla?
-    numInternalSpacesMax2 = [-1 for i in maxRegions]
-    containsOpp = [False for i in maxRegions]
+    numInternalSpacesMax2 = [-1 for i in range(maxRegions)]
+    containsOpp = [False for i in range(maxRegions)]
 
     def isAdjacentToPlaHead(loc,plaHead):
       for i in range(4):
@@ -1105,7 +1105,7 @@ class Board:
     #Returns the loc serving as the current tip node ("tailTarget") of the linked list.
     def buildRegion(head, tailTarget, loc, regionIdx):
       #Already traced this location, skip
-      if(regionHeadByLoc[loc] != Board.PASS_LOC)
+      if regionHeadByLoc[loc] != Board.PASS_LOC:
         return tailTarget
       regionHeadByLoc[loc] = head
 
@@ -1209,10 +1209,10 @@ class Board:
     allPlaHeads = list(set(allPlaHeads))
     numPlaHeads = len(allPlaHeads)
 
-    plaHasBeenKilled = [False for i in numPlaHeads]
+    plaHasBeenKilled = [False for i in range(numPlaHeads)]
 
     #Now, we can begin the benson iteration
-    vitalCountByPlaHead = [0 for i in self.arr_size]
+    vitalCountByPlaHead = [0 for i in range(self.arrsize)]
     while(True):
       #Zero out vital liberties by head
       for i in range(numPlaHeads):
@@ -1221,7 +1221,7 @@ class Board:
       #Walk all regions that are still bordered only by pass-alive stuff and accumulate a vital liberty to each pla it is vital for.
       for i in range(numRegions):
         head = regionHeads[i]
-        if(bordersNonPassAlivePlaByHead[head])
+        if bordersNonPassAlivePlaByHead[head]:
           continue
 
         vStart = vitalStart[i]
@@ -1246,7 +1246,7 @@ class Board:
           while(True):
             for j in range(4):
               adj = cur + self.adj[j]
-              if self.board[adj] == Board.EMPTY or self.board[adj] == opp
+              if self.board[adj] == Board.EMPTY or self.board[adj] == opp:
                 bordersNonPassAlivePlaByHead[regionHeadByLoc[adj]] = True
 
             cur = self.group_next[cur]

@@ -29,7 +29,7 @@ modelpath = args["model"]
 
 # Model ----------------------------------------------------------------
 
-with open(modelpath + ".config.json") as f:
+with open(os.path.join(os.path.dirname(modelpath),"model.config.json")) as f:
   model_config = json.load(f)
 model = ModelV3(model_config,{})
 policy_output = tf.nn.softmax(model.policy_output)
@@ -61,11 +61,19 @@ def get_policy_output(session, board, boards, moves, use_history_prop, rules):
 def get_policy_and_value_output(session, board, boards, moves, use_history_prop, rules):
   (policy,value,scorevalue) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output,value_output,scorevalue_output])
   value = list(value)
-  value = value.append(math.arctanh(scorevalue)*board.size*2)
+  value.append(math.atanh(scorevalue)*board.size*2)
   return (policy,value)
 
-def get_ownership_output(session, board, boards, moves, use_history_prop, rules):
-  return fetch_output(session,board,boards,moves,use_history_prop,rules,[ownership_output])
+def get_ownership_values(session, board, boards, moves, use_history_prop, rules):
+  [ownership] = fetch_output(session,board,boards,moves,use_history_prop,rules,[ownership_output])
+  ownership = ownership.reshape([model.pos_len * model.pos_len])
+  locs_and_values = []
+  for y in range(board.size):
+    for x in range(board.size):
+      loc = board.loc(x,y)
+      pos = model.loc_to_tensor_pos(loc,board)
+      locs_and_values.append((loc,ownership[pos]))
+  return locs_and_values
 
 def get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop, rules):
   pla = board.pla
@@ -103,11 +111,13 @@ def genmove_and_value(session, board, boards, moves, use_history_prop, rules):
 
 def get_layer_values(session, board, boards, moves, rules, layer, channel):
   [layer] = fetch_output(session,board,boards,moves,use_history_prop=1.0,rules=rules,fetches=[layer])
-  layer = layer.reshape([board.size * board.size,-1])
+  layer = layer.reshape([model.pos_len * model.pos_len,-1])
   locs_and_values = []
-  for i in range(board.size * board.size):
-    loc = model.tensor_pos_to_loc(i,board)
-    locs_and_values.append((loc,layer[i,channel]))
+  for y in range(board.size):
+    for x in range(board.size):
+      loc = board.loc(x,y)
+      pos = model.loc_to_tensor_pos(loc,board)
+      locs_and_values.append((loc,layer[pos,channel]))
   return locs_and_values
 
 def get_input_feature(board, boards, moves, rules, feature_idx):
@@ -119,9 +129,11 @@ def get_input_feature(board, boards, moves, rules, feature_idx):
   model.fill_row_features(board,pla,opp,boards,moves,move_idx,rules,bin_input_data,float_input_data,use_history_prop=1.0,idx=0)
 
   locs_and_values = []
-  for i in range(board.size * board.size):
-    loc = model.tensor_pos_to_loc(i,board)
-    locs_and_values.append((loc,bin_input_data[0,i,feature_idx]))
+  for y in range(board.size):
+    for x in range(board.size):
+      loc = board.loc(x,y)
+      pos = model.loc_to_tensor_pos(loc,board)
+      locs_and_values.append((loc,bin_input_data[0,pos,feature_idx]))
   return locs_and_values
 
 
@@ -211,10 +223,10 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
       texts_rev.append("%s %.3f" % (str_coord(loc,board),value))
 
   if value_and_score is not None:
-    texts_value.append("wv %.2fc nr %.2f%% s %.1f" % (
+    texts_value.append("wv %.2fc nr %.2f%% ws %.1f" % (
       100*(value_and_score[0]-value_and_score[1] if board.pla == Board.WHITE else value_and_score[1] - value_and_score[0]),
       100*value_and_score[2],
-      value_and_score[3]
+      (value_and_score[3] if board.pla == Board.WHITE else -value_and_score[3])
     ))
 
   gfx_commands.append("TEXT " + ", ".join(texts_value + texts_rev + texts))
@@ -258,6 +270,8 @@ def run_gtp(session):
     'policy-encore1',
     'policy-encore2',
     'policy-no-history',
+    'ownership',
+    'ownership-japanese',
   ]
   known_analyze_commands = [
     'gfx/Policy/policy',
@@ -265,6 +279,8 @@ def run_gtp(session):
     'gfx/PolicyE1/policy-encore1',
     'gfx/PolicyE2/policy-encore2',
     'gfx/PolicyNoHistory/policy-no-history',
+    'gfx/Ownership/ownership',
+    'gfx/OwnershipJP/ownership-japanese',
   ]
 
   board_size = 19
@@ -327,7 +343,7 @@ def run_gtp(session):
     known_analyze_commands.append("gfx/" + command_name + "/" + command_name)
     input_feature_command_lookup[command_name] = (feature_idx,normalization_div)
 
-  for i in range(model.input_shape[1]):
+  for i in range(model.bin_input_shape[1]):
     add_input_feature_visualizations("input-" + str(i),i, normalization_div=1)
 
 
@@ -371,7 +387,7 @@ def run_gtp(session):
 
     ret = ''
     if command[0] == "boardsize":
-      if int(command[1]) > model.max_board_size:
+      if int(command[1]) > model.pos_len:
         print("Warning: Trying to set incompatible boardsize %s (!= %d)" % (command[1], N), file=sys.stderr)
         ret = None
       board_size = int(command[1])
@@ -399,7 +415,7 @@ def run_gtp(session):
         "passWouldEndPhase": False,
         "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
       }
-      (loc,value) = genmove_and_value(session, board, boards, moves, use_history_prop=1.0, rules)
+      (loc,value) = genmove_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       pla = board.pla
       board.play(pla,loc)
       moves.append((pla,loc))
@@ -427,7 +443,7 @@ def run_gtp(session):
         "passWouldEndPhase": False,
         "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
       }
-      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules)
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_and_score=value)
       ret = "\n".join(gfx_commands)
@@ -440,7 +456,7 @@ def run_gtp(session):
         "passWouldEndPhase": False,
         "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
       }
-      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules)
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_and_score=value)
       ret = "\n".join(gfx_commands)
@@ -453,7 +469,7 @@ def run_gtp(session):
         "passWouldEndPhase": False,
         "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
       }
-      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules)
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_and_score=value)
       ret = "\n".join(gfx_commands)
@@ -466,25 +482,75 @@ def run_gtp(session):
         "passWouldEndPhase": False,
         "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
       }
-      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules)
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_and_score=value)
       ret = "\n".join(gfx_commands)
     elif command[0] == "policy-no-history":
-      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=0.0, rules)
+      rules = {
+        "koRule": "KO_POSITIONAL",
+        "scoringRule": "SCORING_AREA",
+        "multiStoneSuicideLegal": True,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+      }
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=0.0, rules=rules)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_and_score=value)
       ret = "\n".join(gfx_commands)
+    elif command[0] == "ownership":
+      rules = {
+        "koRule": "KO_POSITIONAL",
+        "scoringRule": "SCORING_AREA",
+        "multiStoneSuicideLegal": True,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+      }
+      locs_and_values = get_ownership_values(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      gfx_commands = []
+      fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div=None, is_percent=True, value_and_score=None)
+      ret = "\n".join(gfx_commands)
+    elif command[0] == "ownership-japanese":
+      rules = {
+        "koRule": "KO_SIMPLE",
+        "scoringRule": "SCORING_TERRITORY",
+        "multiStoneSuicideLegal": False,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
+      }
+      locs_and_values = get_ownership_values(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      gfx_commands = []
+      fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div=None, is_percent=True, value_and_score=None)
+      ret = "\n".join(gfx_commands)
     elif command[0] in layer_command_lookup:
       (layer,channel,normalization_div) = layer_command_lookup[command[0]]
-      locs_and_values = get_layer_values(session, board, boards, moves, layer, channel)
+      rules = {
+        "koRule": "KO_POSITIONAL",
+        "scoringRule": "SCORING_AREA",
+        "multiStoneSuicideLegal": True,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+      }
+      locs_and_values = get_layer_values(session, board, boards, moves, rules, layer, channel)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent=False)
       ret = "\n".join(gfx_commands)
 
     elif command[0] in input_feature_command_lookup:
       (feature_idx,normalization_div) = input_feature_command_lookup[command[0]]
-      locs_and_values = get_input_feature(board, boards, moves, feature_idx)
+      rules = {
+        "koRule": "KO_POSITIONAL",
+        "scoringRule": "SCORING_AREA",
+        "multiStoneSuicideLegal": True,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+      }
+      locs_and_values = get_input_feature(board, boards, moves, rules, feature_idx)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent=False)
       ret = "\n".join(gfx_commands)

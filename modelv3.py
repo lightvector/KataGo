@@ -230,7 +230,7 @@ class ModelV3:
     self.iterLadders(prevPrevBoard, addPrevPrevLadderFeature)
 
     #Features 18,19 - current territory
-    area = [-1 for i in board.arr_size]
+    area = [-1 for i in range(board.arrsize)]
     if rules["scoringRule"] == "SCORING_AREA":
       nonPassAliveStones = True
       safeBigTerritories = True
@@ -240,7 +240,7 @@ class ModelV3:
       nonPassAliveStones = False
       safeBigTerritories = True
       unsafeBigTerritories = False
-      board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules["multiStoneSuicideLegal"])
+      board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
     else:
       assert(False)
 
@@ -257,11 +257,12 @@ class ModelV3:
 
     #Not quite right, japanese rules aren't really implemented in the python
     bArea = board.size * board.size
+    selfKomi = rules["selfKomi"]
     if selfKomi > bArea+1:
       selfKomi = bArea+1
     if selfKomi < -bArea-1:
       selfKomi = -bArea-1
-    float_input_data[idx,5] = rules["selfKomi"]/15.0
+    float_input_data[idx,5] = selfKomi/15.0
 
     if rules["koRule"] == "KO_SIMPLE":
       pass
@@ -278,6 +279,7 @@ class ModelV3:
       float_input_data[idx,8] = 1.0
 
     if rules["scoringRule"] == "SCORING_AREA":
+      pass
     elif rules["scoringRule"] == "SCORING_TERRITORY":
       float_input_data[idx,9] = 1.0
     else:
@@ -300,7 +302,7 @@ class ModelV3:
 
       if drawableKomisAreEven:
         komiFloor = math.floor(selfKomi / 2.0) * 2.0
-      else
+      else:
         komiFloor = math.floor((selfKomi-1.0) / 2.0) * 2.0 + 1.0
 
       delta = selfKomi - komiFloor
@@ -637,6 +639,8 @@ class ModelV3:
 
     input_num_channels = self.post_input_shape[2]
 
+    mask_before_symmetry = cur_layer[:,:,:,0:1]
+
     #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
     cur_layer = self.apply_symmetry(cur_layer,symmetries,inverse=False)
 
@@ -927,6 +931,7 @@ class ModelV3:
     self.scorevalue_output = scorevalue_output
     self.ownership_output = ownership_output
 
+    self.mask_before_symmetry = mask_before_symmetry
     self.mask = mask
     self.mask_sum = mask_sum
     self.mask_sum_hw = mask_sum_hw
@@ -971,7 +976,7 @@ class Target_varsV3:
       tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_targets, logits=policy_output)
     )
     self.value_loss_unreduced = 0.5 * (
-      1.4 * tf.nn.softmax_cross_entropy_with_logits(
+      1.4 * tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.value_targets,
         logits=value_output
       ) +
@@ -981,7 +986,13 @@ class Target_varsV3:
       tf.square(self.scorevalue_targets - tf.tanh(scorevalue_output))
     )
     self.ownership_loss_unreduced = 0.25 * self.ownership_target_weights * (
-      tf.reduce_sum(tf.square(self.ownership_targets - tf.tanh(ownership_output)),axis=[1,2]) / model.mask_sum_hw
+      tf.reduce_sum(
+        tf.nn.softmax_cross_entropy_with_logits_v2(
+          labels=tf.stack([(1+self.ownership_targets)/2,(1-self.ownership_targets)/2],axis=3),
+          logits=tf.stack([ownership_output,tf.zeros_like(ownership_output)],axis=3)
+        ) * tf.reshape(self.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
+        axis=[1,2]
+      ) / model.mask_sum_hw
     )
 
     self.policy_loss = tf.reduce_sum(self.target_weights_used * self.policy_loss_unreduced)
