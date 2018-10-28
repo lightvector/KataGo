@@ -20,8 +20,11 @@ class ModelV3:
     self.post_input_shape = [self.pos_len,self.pos_len,self.num_bin_input_features]
     self.policy_target_shape_nopass = [self.pos_len*self.pos_len]
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
-    self.value_target_shape = []
+    self.value_target_shape = [3]
+    self.scorevalue_target_shape = []
+    self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.target_weights_shape = []
+    self.ownership_target_weights_shape = []
 
     self.pass_pos = self.pos_len * self.pos_len
 
@@ -248,7 +251,7 @@ class ModelV3:
     else:
       self.lr_adjusted_variables[name] = factor
 
-  def batchnorm_and_mask(self,name,tensor,mask):
+  def batchnorm_and_mask(self,name,tensor,mask,mask_sum):
     epsilon = 0.001
     has_bias = True
     has_scale = False
@@ -261,7 +264,6 @@ class ModelV3:
     beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg=False)
 
     def training_f():
-      mask_sum = tf.reduce_sum(mask)
       mean = tf.reduce_sum(tensor,axis=[0,1,2]) / mask_sum
       zmtensor = tensor-mean
       var = tf.reduce_sum(tf.square(zmtensor),axis=[0,1,2]) / mask_sum
@@ -412,31 +414,40 @@ class ModelV3:
     return weights
 
   #Convolutional layer with batch norm and nonlinear activation
-  def conv_block(self, name, in_layer, mask, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+  def conv_block(
+      self, name, in_layer, mask, mask_sum, diam, in_channels, out_channels,
+      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None
+  ):
     weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
     convolved = self.conv2d(in_layer, weights)
     self.outputs_by_layer.append((name+"/prenorm",convolved))
-    out_layer = self.relu(name+"/relu",self.batchnorm_and_mask(name+"/norm",convolved,mask))
+    out_layer = self.relu(name+"/relu",self.batchnorm_and_mask(name+"/norm",convolved,mask,mask_sum))
     self.outputs_by_layer.append((name,out_layer))
     return out_layer
 
   #Convolution only, no batch norm or nonlinearity
-  def conv_only_block(self, name, in_layer, diam, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None, reg=True):
+  def conv_only_block(
+      self, name, in_layer, diam, in_channels, out_channels,
+      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None, reg=True
+  ):
     weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr, reg=reg)
     out_layer = self.conv2d(in_layer, weights)
     self.outputs_by_layer.append((name,out_layer))
     return out_layer
 
   #Convolutional residual block with internal batch norm and nonlinear activation
-  def res_conv_block(self, name, in_layer, mask, diam, main_channels, mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
-    trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask)))
+  def res_conv_block(
+      self, name, in_layer, mask, mask_sum, diam, main_channels, mid_channels,
+      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None
+  ):
+    trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     weights1 = self.conv_weight_variable(name+"/w1", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
     conv1_layer = self.conv2d(trans1_layer, weights1)
     self.outputs_by_layer.append((name+"/conv1",conv1_layer))
 
-    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask)))
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -446,8 +457,11 @@ class ModelV3:
     return conv2_layer
 
   #Convolutional residual block with internal batch norm and nonlinear activation
-  def global_res_conv_block(self, name, in_layer, mask, diam, main_channels, mid_channels, global_mid_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
-    trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask)))
+  def global_res_conv_block(
+      self, name, in_layer, mask, mask_sum, mask_sum_hw, diam, main_channels, mid_channels, global_mid_channels,
+      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None
+  ):
+    trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -457,15 +471,15 @@ class ModelV3:
     self.outputs_by_layer.append((name+"/conv1a",conv1a_layer))
     self.outputs_by_layer.append((name+"/conv1b",conv1b_layer))
 
-    trans1b_layer = self.relu(name+"/trans1b",(self.batchnorm_and_mask(name+"/norm1b",conv1b_layer,mask)))
-    trans1b_mean = tf.reduce_mean(trans1b_layer,axis=[1,2],keepdims=True)
+    trans1b_layer = self.relu(name+"/trans1b",(self.batchnorm_and_mask(name+"/norm1b",conv1b_layer,mask,mask_sum)))
+    trans1b_mean = tf.reduce_sum(trans1b_layer,axis=[1,2],keepdims=True) / tf.reshape(mask_sum_hw,[-1,1,1,1])
     trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keepdims=True)
     trans1b_pooled = tf.concat([trans1b_mean,trans1b_max],axis=3)
 
     remix_weights = self.weight_variable(name+"/w1r",[global_mid_channels*2,mid_channels],global_mid_channels*2,mid_channels, scale_initial_weights = 0.5)
     conv1_layer = conv1a_layer + tf.tensordot(trans1b_pooled,remix_weights,axes=[[3],[0]])
 
-    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask)))
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -475,8 +489,8 @@ class ModelV3:
     return conv2_layer
 
   #Convolutional residual block with internal batch norm and nonlinear activation
-  def dilated_res_conv_block(self, name, in_layer, mask, diam, main_channels, mid_channels, dilated_mid_channels, dilation, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
-    trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask)))
+  def dilated_res_conv_block(self, name, in_layer, mask, mask_sum, diam, main_channels, mid_channels, dilated_mid_channels, dilation, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+    trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -488,7 +502,7 @@ class ModelV3:
 
     conv1_layer = tf.concat([conv1a_layer,conv1b_layer],axis=3)
 
-    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask)))
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels+dilated_mid_channels, main_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
@@ -650,6 +664,8 @@ class ModelV3:
     self.gpool_num_channels = gpool_num_channels
 
     mask = cur_layer[:,:,:,0:1]
+    mask_sum = tf.reduce_sum(mask)
+    mask_sum_hw = tf.reduce_sum(mask,axis=[1,2,3])
 
     #Initial convolutional layer-------------------------------------------------------------------------------------
     trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
@@ -678,20 +694,20 @@ class ModelV3:
       (name,kind) = block_kind[i]
       if kind == "regular":
         residual = self.res_conv_block(
-          name,trunk,mask,diam=3,main_channels=trunk_num_channels,mid_channels=mid_num_channels,
+          name,trunk,mask,mask_sum,diam=3,main_channels=trunk_num_channels,mid_channels=mid_num_channels,
           emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
         trunk = self.merge_residual(name,trunk,residual)
         self.blocks.append(("ordinary_block",name,3,trunk_num_channels,mid_num_channels))
       elif kind == "dilated":
         residual = self.dilated_res_conv_block(
-          name,trunk,mask,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
+          name,trunk,mask,mask_sum,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
           emphasize_center_weight = 0.3, emphasize_center_lr=1.5
         )
         trunk = self.merge_residual(name,trunk,residual)
         self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,3))
       elif kind == "gpool":
         residual = self.global_res_conv_block(
-          name,trunk,mask,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
+          name,trunk,mask,mask_sum,mask_sum_hw,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
           emphasize_center_weight = 0.3, emphasize_center_lr=1.5
         )
         trunk = self.merge_residual(name,trunk,residual)
@@ -702,7 +718,7 @@ class ModelV3:
     #Postprocessing residual trunk----------------------------------------------------------------------------------
 
     #Normalize and relu just before the policy head
-    trunk = self.relu("trunk/relu",(self.batchnorm_and_mask("trunk/norm",trunk,mask)))
+    trunk = self.relu("trunk/relu",(self.batchnorm_and_mask("trunk/norm",trunk,mask,mask_sum)))
     self.outputs_by_layer.append(("trunk",trunk))
 
 
@@ -717,12 +733,12 @@ class ModelV3:
     #But in parallel convolve to compute some features about the global state of the board
     #Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
     g1_num_channels = 32
-    g1_layer = self.conv_block("g1",p0_layer,mask,diam=3,in_channels=trunk_num_channels,out_channels=g1_num_channels)
+    g1_layer = self.conv_block("g1",p0_layer,mask,mask_sum,diam=3,in_channels=trunk_num_channels,out_channels=g1_num_channels)
     self.g1_conv = ("g1",3,trunk_num_channels,g1_num_channels)
 
     #Fold g1 down to single values for the board.
     #For stdev, add a tiny constant to ensure numeric stability
-    g1_mean = tf.reduce_mean(g1_layer,axis=[1,2],keepdims=True)
+    g1_mean = tf.reduce_sum(g1_layer,axis=[1,2],keepdims=True) / tf.reshape(mask_sum_hw,[-1,1,1,1])
     g1_max = tf.reduce_max(g1_layer,axis=[1,2],keepdims=True)
     g2_layer = tf.concat([g1_mean,g1_max],axis=3) #shape [b,1,1,2*convg1num_channels]
     g2_num_channels = 2*g1_num_channels
@@ -747,11 +763,12 @@ class ModelV3:
     p1_intermediate_sum = p1_intermediate_conv + g3_layer
 
     #And now apply batchnorm and relu
-    p1_layer = self.relu("p1/relu",self.batchnorm_and_mask("p1/norm",p1_intermediate_sum,mask))
+    p1_layer = self.relu("p1/relu",self.batchnorm_and_mask("p1/norm",p1_intermediate_sum,mask,mask_sum))
     self.outputs_by_layer.append(("p1",p1_layer))
 
     #Finally, apply linear convolution to produce final output
     p2_layer = self.conv_only_block("p2",p1_layer,diam=1,in_channels=p1_num_channels,out_channels=1,scale_initial_weights=0.5,reg=False)
+    p2_layer = p2_layer - (1.0-mask) * 1000.0 # mask out parts outside the board
     self.p2_conv = ("p2",1,p1_num_channels,1)
 
     self.add_lr_factor("p1/norm/beta:0",0.25)
@@ -774,56 +791,87 @@ class ModelV3:
     #Value head---------------------------------------------------------------------------------
     v0_layer = trunk
 
-    v1_num_channels = 12
-    v1_layer = self.conv_block("v1",v0_layer,mask,diam=3,in_channels=trunk_num_channels,out_channels=v1_num_channels)
+    v1_num_channels = 32
+    v1_layer = self.conv_block("v1",v0_layer,mask,mask_sum,diam=3,in_channels=trunk_num_channels,out_channels=v1_num_channels)
     self.outputs_by_layer.append(("v1",v1_layer))
     self.v1_conv = ("v1",3,trunk_num_channels,v1_num_channels)
     self.v1_num_channels = v1_num_channels
 
-    v1_layer_pooled = tf.reduce_mean(v1_layer,axis=[1,2],keepdims=False)
+    v1_layer_pooled = tf.reduce_sum(v1_layer,axis=[1,2],keepdims=False) / tf.reshape(mask_sum_hw,[-1,1])
     v1_size = v1_num_channels
 
-    v2_size = 12
+    v2_size = 32
     v2w = self.weight_variable("v2/w",[v1_size,v2_size],v1_size,v2_size)
     v2b = self.weight_variable("v2/b",[v2_size],v1_size,v2_size,scale_initial_weights=0.2,reg=False)
     v2_layer = self.relu_non_spatial("v2/relu",tf.matmul(v1_layer_pooled, v2w) + v2b)
     self.v2_size = v2_size
     self.other_internal_outputs.append(("v2",v2_layer))
 
-    v3_size = 1
+    v3_size = self.value_target_shape[0]
     v3w = self.weight_variable("v3/w",[v2_size,v3_size],v2_size,v3_size)
     v3b = self.weight_variable("v3/b",[v3_size],v2_size,v3_size,scale_initial_weights=0.2,reg=False)
     v3_layer = tf.matmul(v2_layer, v3w) + v3b
     self.v3_size = v3_size
     self.other_internal_outputs.append(("v3",v3_layer))
 
+    sv3_size = 1
+    sv3w = self.weight_variable("sv3/w",[v2_size,sv3_size],v2_size,sv3_size)
+    sv3b = self.weight_variable("sv3/b",[sv3_size],v2_size,sv3_size,scale_initial_weights=0.1,reg=False)
+    sv3_layer = tf.matmul(v2_layer, sv3w) + sv3b
+    self.sv3_size = sv3_size
+    self.other_internal_outputs.append(("sv3",sv3_layer))
+
     value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
+    scorevalue_output = tf.reshape(sv3_layer, [-1] + self.scorevalue_target_shape, name = "scorevalue_output")
+
+    ownership_output = self.conv_only_block("vownership",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2, reg=False) * mask
+    ownership_output = self.apply_symmetry(ownership_output,symmetries,inverse=True)
+    ownership_output = tf.reshape(ownership_output, [-1] + self.ownership_target_shape, name = "ownership_output")
 
     self.add_lr_factor("v2/w:0",0.25)
     self.add_lr_factor("v2/b:0",0.25)
     self.add_lr_factor("v3/w:0",0.25)
     self.add_lr_factor("v3/b:0",0.25)
+    self.add_lr_factor("sv3/w:0",0.25)
+    self.add_lr_factor("sv3/b:0",0.25)
+    self.add_lr_factor("vownership/w:0",0.25)
 
     self.value_output = value_output
+    self.scorevalue_output = scorevalue_output
+    self.ownership_output = ownership_output
 
+    self.mask = mask
+    self.mask_sum = mask_sum
+    self.mask_sum_hw = mask_sum_hw
 
 
 class Target_varsV3:
   def __init__(self,model,for_optimization,require_last_move,placeholders):
     policy_output = model.policy_output
     value_output = model.value_output
+    scorevalue_output = model.scorevalue_output
+    ownership_output = model.ownership_output
 
     #Loss function
     self.policy_targets = (placeholders["policy_targets"] if "policy_targets" in placeholders else
                            tf.placeholder(tf.float32, [None] + model.policy_target_shape))
     self.value_targets = (placeholders["value_targets"] if "value_targets" in placeholders else
-                           tf.placeholder(tf.float32, [None] + model.value_target_shape))
+                          tf.placeholder(tf.float32, [None] + model.value_target_shape))
+    self.scorevalue_targets = (placeholders["scorevalue_targets"] if "scorevalue_targets" in placeholders else
+                               tf.placeholder(tf.float32, [None] + model.scorevalue_target_shape))
+    self.ownership_targets = (placeholders["ownership_targets"] if "ownership_targets" in placeholders else
+                              tf.placeholder(tf.float32, [None] + model.ownership_target_shape))
     self.target_weights_from_data = (placeholders["target_weights_from_data"] if "target_weights_from_data" in placeholders else
-                                    tf.placeholder(tf.float32, [None] + model.target_weights_shape))
+                                     tf.placeholder(tf.float32, [None] + model.target_weights_shape))
+    self.ownership_target_weights = (placeholders["ownership_target_weights"] if "ownership_target_weights" in placeholders else
+                                     tf.placeholder(tf.float32, [None] + model.ownership_target_weights))
 
     model.assert_batched_shape("policy_targets", self.policy_targets, model.policy_target_shape)
     model.assert_batched_shape("value_targets", self.value_targets, model.value_target_shape)
+    model.assert_batched_shape("scorevalue_targets", self.scorevalue_targets, model.scorevalue_target_shape)
+    model.assert_batched_shape("ownership_targets", self.ownership_targets, model.ownership_target_shape)
     model.assert_batched_shape("target_weights_from_data", self.target_weights_from_data, model.target_weights_shape)
+    model.assert_batched_shape("ownership_target_weights", self.ownership_target_weights, model.ownership_target_weights_shape)
 
     if require_last_move == "all":
       self.target_weights_used = self.target_weights_from_data * tf.reduce_sum(model.inputs[:,:,13],axis=[1])
@@ -837,14 +885,22 @@ class Target_varsV3:
     )
     self.value_loss_unreduced = 0.5 * (
       1.4 * tf.nn.softmax_cross_entropy_with_logits(
-        labels=tf.stack([(1+self.value_targets)/2,(1-self.value_targets)/2],axis=1),
-        logits=tf.stack([value_output,tf.zeros_like(value_output)],axis=1)
+        labels=self.value_targets,
+        logits=value_output
       ) +
-      tf.square(self.value_targets - tf.tanh(value_output))
+      2.0 * tf.reduce_sum(tf.square(self.value_targets - tf.nn.softmax(value_output,axis=1)),axis=1)
+    )
+    self.scorevalue_loss_unreduced = 0.5 * (
+      tf.square(self.scorevalue_targets - tf.tanh(scorevalue_output))
+    )
+    self.ownership_loss_unreduced = 0.25 * self.ownership_target_weights * (
+      tf.reduce_sum(tf.square(self.ownership_targets - tf.tanh(ownership_output)),axis=[1,2]) / model.mask_sum_hw
     )
 
     self.policy_loss = tf.reduce_sum(self.target_weights_used * self.policy_loss_unreduced)
     self.value_loss = tf.reduce_sum(self.target_weights_used * self.value_loss_unreduced)
+    self.scorevalue_loss = tf.reduce_sum(self.target_weights_used * self.scorevalue_loss_unreduced)
+    self.ownership_loss = tf.reduce_sum(self.target_weights_used * self.ownership_loss_unreduced)
     self.weight_sum = tf.reduce_sum(self.target_weights_used)
 
     if for_optimization:
@@ -855,7 +911,7 @@ class Target_varsV3:
       self.reg_loss = self.reg_loss_per_weight * self.weight_sum
 
       #The loss to optimize
-      self.opt_loss = self.policy_loss + self.value_loss + self.reg_loss
+      self.opt_loss = self.policy_loss + self.value_loss + self.scorevalue_loss + self.ownership_loss + self.reg_loss
 
 class MetricsV3:
   def __init__(self,model,target_vars,include_debug_stats):
@@ -865,10 +921,10 @@ class MetricsV3:
     self.top4_prediction = tf.nn.in_top_k(model.policy_output,policy_target_idxs,4)
     self.accuracy1_unreduced = tf.cast(self.top1_prediction, tf.float32)
     self.accuracy4_unreduced = tf.cast(self.top4_prediction, tf.float32)
-    self.valueconf_unreduced = tf.square(model.value_output)
+    self.value_entropy_unreduced = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.nn.softmax(model.value_output,axis=1), logits=model.value_output)
     self.accuracy1 = tf.reduce_sum(target_vars.target_weights_used * self.accuracy1_unreduced)
     self.accuracy4 = tf.reduce_sum(target_vars.target_weights_used * self.accuracy4_unreduced)
-    self.valueconf = tf.reduce_sum(target_vars.target_weights_used * self.valueconf_unreduced)
+    self.value_entropy = tf.reduce_sum(target_vars.target_weights_used * self.value_entropy_unreduced)
 
     #Debugging stats
     if include_debug_stats:

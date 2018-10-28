@@ -121,8 +121,11 @@ def model_fn(features,labels,mode,params):
   policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
   placeholders["policy_targets"] = policy_target0
 
-  placeholders["value_targets"] = features["ftnc"][:,0] - features["ftnc"][:,1] - features["ftnc"][:,2]
+  placeholders["value_targets"] = features["ftnc"][:,0:3]
+  placeholders["scorevalue_targets"] = features["ftnc"][:,3]
+  placeholders["ownership_targets"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
   placeholders["target_weights_from_data"] = features["ftnc"][:,0]*0 + 1
+  placeholders["ownership_target_weights"] = 1.0-features["ftnc"][:,2] #1 if normal game, 0 if no result
   placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
@@ -150,9 +153,11 @@ def model_fn(features,labels,mode,params):
         "wsum": (wsum.read_value(),wsum_op),
         "ploss": tf.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weights_used),
         "vloss": tf.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weights_used),
+        "svloss": tf.metrics.mean(target_vars.scorevalue_loss_unreduced, weights=target_vars.target_weights_used),
+        "oloss": tf.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weights_used),
         "rloss": tf.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
         "pacc1": tf.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weights_used),
-        "vconf": tf.metrics.mean(metrics.valueconf_unreduced, weights=target_vars.target_weights_used)
+        "ventr": tf.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weights_used)
       }
     )
 
@@ -217,9 +222,11 @@ def model_fn(features,labels,mode,params):
 
     (ploss,ploss_op) = moving_mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weights_used)
     (vloss,vloss_op) = moving_mean(target_vars.value_loss_unreduced, weights=target_vars.target_weights_used)
+    (svloss,svloss_op) = moving_mean(target_vars.scorevalue_loss_unreduced, weights=target_vars.target_weights_used)
+    (oloss,oloss_op) = moving_mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weights_used)
     (rloss,rloss_op) = moving_mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum)
     (pacc1,pacc1_op) = moving_mean(metrics.accuracy1_unreduced, weights=target_vars.target_weights_used)
-    (vconf,vconf_op) = moving_mean(metrics.valueconf_unreduced, weights=target_vars.target_weights_used)
+    (ventr,ventr_op) = moving_mean(metrics.value_entropy_unreduced, weights=target_vars.target_weights_used)
     (wmean,wmean_op) = tf.metrics.mean(target_vars.weight_sum)
 
     print_train_loss_every_batches = 10
@@ -230,16 +237,17 @@ def model_fn(features,labels,mode,params):
       "wsum": global_step_float * wmean,
       "ploss": ploss,
       "vloss": vloss,
+      "svloss": svloss,
+      "oloss": oloss,
       "rloss": rloss,
       "pacc1": pacc1,
-      "vconf": vconf,
-      "rconv1norm1beta": [var.read_value()[:16] for var in tf.trainable_variables() if var.name == "rconv1/norm1/beta:0"][0],
-      "pslr": per_sample_learning_rate,
+      "ventr": ventr,
+      "pslr": per_sample_learning_rate
     }, every_n_iter=print_train_loss_every_batches)
     return tf.estimator.EstimatorSpec(
       mode,
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
-      train_op=tf.group(train_step,ploss_op,vloss_op,rloss_op,pacc1_op,vconf_op,wmean_op),
+      train_op=tf.group(train_step,ploss_op,vloss_op,svloss_op,oloss_op,rloss_op,pacc1_op,ventr_op,wmean_op),
       training_hooks = [logging_hook]
     )
 
@@ -312,7 +320,8 @@ evaluator = tf.contrib.estimator.InMemoryEvaluatorHook(
 
 estimator.train(
   train_input_fn,
-  hooks=[evaluator]
+  # hooks=[evaluator]
+  hooks=[]
 )
 
 # # Training ------------------------------------------------------------
