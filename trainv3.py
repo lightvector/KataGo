@@ -262,7 +262,7 @@ def model_fn(features,labels,mode,params):
 # INPUTS ------------------------------------------------------------------------
 
 NUM_POLICY_TARGETS = 1
-NUM_FLOAT_TARGETS = 44
+NUM_FLOAT_TARGETS = 45
 NUM_VALUE_SPATIAL_TARGETS = 1
 
 raw_input_features = {

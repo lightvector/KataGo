@@ -32,6 +32,7 @@ FinishedGameData::FinishedGameData(int pLen, double drawEquivForWhite)
     drawEquivalentWinsForWhite(drawEquivForWhite),
     posLen(pLen),
     hitTurnLimit(false),
+    firstTrainingTurn(0),
     mode(0),
     modeMeta1(0),
     modeMeta2(0)
@@ -55,7 +56,7 @@ FinishedGameData::~FinishedGameData() {
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 1;
-static const int FLOAT_TARGET_NUM_CHANNELS = 44;
+static const int FLOAT_TARGET_NUM_CHANNELS = 45;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int pLen)
@@ -255,11 +256,12 @@ void TrainingWriteBuffers::addRow(
   rowFloat[40] = data.hitTurnLimit ? 1.0 : 0.0;
 
   //Metadata about how the game was initialized
-  rowFloat[41] = data.mode;
-  rowFloat[42] = data.modeMeta1;
-  rowFloat[43] = data.modeMeta2;
+  rowFloat[41] = data.firstTrainingTurn;
+  rowFloat[42] = data.mode;
+  rowFloat[43] = data.modeMeta1;
+  rowFloat[44] = data.modeMeta2;
 
-  assert(44 == FLOAT_TARGET_NUM_CHANNELS);
+  assert(45 == FLOAT_TARGET_NUM_CHANNELS);
 
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
   for(int i = 0; i<posArea; i++) {

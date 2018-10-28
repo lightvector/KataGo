@@ -41,6 +41,7 @@ struct FinishedGameData {
   bool hitTurnLimit;
 
   //Metadata about how the game was initialized
+  int firstTrainingTurn;
   int mode;
   int modeMeta1;
   int modeMeta2;
@@ -101,9 +102,10 @@ struct TrainingWriteBuffers {
 
   //C39: Turn number, zero-indexed
   //C40: Did this game end via hitting turn limit?
-  //C41-43: Game type, game typesource metadata
-  // 0 = normal self-play game. C41 is the first low-temperature turn number
-  // 1 = encore-training game. C41 is the first low-temperature turn number, C42 is the starting encore phase
+  //C41: First turn of this game that was proper selfplay for training rather than being initialization
+  //C42-44: Game type, game typesource metadata
+  // 0 = normal self-play game. C43,C44 unused
+  // 1 = encore-training game. C43 is the starting encore phase, C44 unused
   NumpyBuffer<float> floatTargetsNC;
 
   //Spatial value-related targets

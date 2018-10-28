@@ -346,6 +346,7 @@ void Play::runGame(
     gameData->gameHash.hash0 = gameRand->nextUInt64();
     gameData->gameHash.hash1 = gameRand->nextUInt64();
 
+    gameData->firstTrainingTurn = 0;
     gameData->mode = 0;
     gameData->modeMeta1 = 0;
     gameData->modeMeta2 = 0;
@@ -355,6 +356,63 @@ void Play::runGame(
   }
 
   if(fancyModes) {
+    //Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
+    //and add entropy
+    {
+      NNResultBuf buf;
+      NNEvaluator* nnEval = botB->nnEvaluator;
+
+      double r = 0;
+      while(r < 0.00000001)
+        r = gameRand->nextDouble();
+      r = -log(r);
+      //This gives us about 36 moves on average for 19x19.
+      int numInitialMovesToPlay = floor(r * board.x_size * board.y_size / 10.0);
+      assert(numInitialMovesToPlay >= 0);
+      for(int i = 0; i<numInitialMovesToPlay; i++) {
+        nnEval->evaluate(board,hist,pla,buf,NULL,false,false);
+        std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
+
+        //TODO maybe check the win chance after all these policy moves and try again if too lopsided
+        //Or adjust the komi?
+        vector<Loc> locs;
+        vector<double> playSelectionValues;
+        int posLen = nnOutput->posLen;
+        assert(posLen > 0 && posLen < 100);
+        int policySize = NNPos::getPolicySize(posLen);
+        for(int movePos = 0; movePos<policySize; movePos++) {
+          Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,posLen);
+          double policyProb = nnOutput->policyProbs[movePos];
+          if(!hist.isLegal(board,moveLoc,pla) || policyProb <= 0)
+            continue;
+          locs.push_back(moveLoc);
+          playSelectionValues.push_back(policyProb);
+        }
+
+        assert(playSelectionValues.size() > 0);
+
+        //With a tiny probability, choose a uniformly random move instead of a policy move, to also
+        //add a bit more outlierish variety
+        uint32_t idxChosen;
+        if(gameRand->nextBool(0.0002))
+          idxChosen = gameRand->nextUInt(playSelectionValues.size());
+        else
+          idxChosen = gameRand->nextUInt(playSelectionValues.data(),playSelectionValues.size());
+        Loc loc = locs[idxChosen];
+
+        //Make the move!
+        assert(hist.isLegal(board,loc,pla));
+        hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+        pla = getOpp(pla);
+
+        //Rarely, playing the random moves out this way will end the game
+        if(doEndGameIfAllPassAlive)
+          hist.endGameIfAllPassAlive(board);
+        if(hist.isGameFinished)
+          break;
+      }
+    }
+
     //Make sure there's some minimum tiny amount of data about how the encore phases work
     if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand->nextBool(0.02)) {
       int encorePhase = gameRand->nextInt(1,2);
@@ -362,8 +420,8 @@ void Play::runGame(
 
       if(gameData != NULL) {
         gameData->mode = 1;
-        gameData->modeMeta1 = 0;
-        gameData->modeMeta2 = encorePhase;
+        gameData->modeMeta1 = encorePhase;
+        gameData->modeMeta2 = 0;
       }
     }
   }
@@ -373,6 +431,7 @@ void Play::runGame(
     gameData->startBoard = board;
     gameData->startHist = hist;
     gameData->startPla = pla;
+    gameData->firstTrainingTurn = hist.moveHistory.size();
   }
   botB->setPosition(pla,board,hist);
   if(botB != botW)
