@@ -245,11 +245,16 @@ void TrainingWriteBuffers::addRow(
   rowFloat[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
 
   //Fill in whether we should use history or not
-  rowFloat[28] = rand.nextDouble() < 0.95;
-  rowFloat[29] = rowFloat[28] && rand.nextDouble() < 0.95;
-  rowFloat[30] = rowFloat[29] && rand.nextDouble() < 0.95;
-  rowFloat[31] = rowFloat[30] && rand.nextDouble() < 0.95;
-  rowFloat[32] = rowFloat[31] && rand.nextDouble() < 0.95;
+  bool useHist0 = rand.nextDouble() < 0.98;
+  bool useHist1 = useHist0 && rand.nextDouble() < 0.98;
+  bool useHist2 = useHist1 && rand.nextDouble() < 0.98;
+  bool useHist3 = useHist2 && rand.nextDouble() < 0.98;
+  bool useHist4 = useHist3 && rand.nextDouble() < 0.98;
+  rowFloat[28] = useHist0 ? 1.0 : 0.0;
+  rowFloat[29] = useHist1 ? 1.0 : 0.0;
+  rowFloat[30] = useHist2 ? 1.0 : 0.0;
+  rowFloat[31] = useHist3 ? 1.0 : 0.0;
+  rowFloat[32] = useHist4 ? 1.0 : 0.0;
 
   //Fill in hash of game
   Hash128 gameHash = data.gameHash;
