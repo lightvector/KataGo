@@ -71,10 +71,8 @@ struct TrainingWriteBuffers {
   //Policy targets
   //Shape is [N,C,Pos]. Almost NCHW, except we have a Pos of length, e.g. 362, due to the pass input, instead of 19x19.
   //Contains number of visits, possibly with a subtraction.
-  //Channel i Will be a dummy probability distribution (not all zero) if policyTargetWeightsNC[i] == 0
+  //Channel i will still be a dummy probability distribution (not all zero) if weight 0
   //C0: Policy target this turn.
-  //C1: Policy target next turn.
-  //C2: Policy target next next turn.
   NumpyBuffer<int16_t> policyTargetsNCMove;
 
   //Value targets and other metadata
@@ -90,10 +88,10 @@ struct TrainingWriteBuffers {
   //C23: MCTS utility variance, 16->64 visits
   //C24: MCTS utility variance, 64->256 visits
 
-  //C25-27 Weight assigned to the given policy targets C0, C1, C2.
-  //Generally 1.0, except sometimes the game has ended and therefore there no policy target for C1 or C2,
-  //so we have 0 weight in those cases. It is also conceivable that maybe some training rows will lack a C0 policy target
+  //C25 Weight assigned to the policy target
+  //Currently always 1.0, But it is also conceivable that maybe some training rows will lack a policy target
   //so users should be robust to that.
+  //C26,27 Unused
 
   //C28-32: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
   //1 means use, 0 means don't use.
@@ -124,8 +122,6 @@ struct TrainingWriteBuffers {
     const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite,
     int turnNumber,
     const vector<PolicyTargetMove>* policyTarget0, //can be null
-    const vector<PolicyTargetMove>* policyTarget1, //can be null
-    const vector<PolicyTargetMove>* policyTarget2, //can be null
     const FinishedGameData& data,
     Rand& rand
   );

@@ -260,12 +260,16 @@ def model_fn(features,labels,mode,params):
 
 # INPUTS ------------------------------------------------------------------------
 
+NUM_POLICY_TARGETS = 1
+NUM_FLOAT_TARGETS = 44
+NUM_VALUE_SPATIAL_TARGETS = 1
+
 raw_input_features = {
   "binchwp": tf.FixedLenFeature([],tf.string),
   "finc": tf.FixedLenFeature([batch_size*ModelV3.NUM_FLOAT_INPUT_FEATURES],tf.float32),
-  "ptncm": tf.FixedLenFeature([batch_size*3*(pos_len*pos_len+1)],tf.float32),
-  "ftnc": tf.FixedLenFeature([batch_size*44],tf.float32),
-  "vtnchw": tf.FixedLenFeature([batch_size*1*pos_len*pos_len],tf.float32)
+  "ptncm": tf.FixedLenFeature([batch_size*NUM_POLICY_TARGETS(pos_len*pos_len+1)],tf.float32),
+  "ftnc": tf.FixedLenFeature([batch_size*NUM_FLOAT_TARGETS],tf.float32),
+  "vtnchw": tf.FixedLenFeature([batch_size*NUM_VALUE_SPATIAL_TARGETS*pos_len*pos_len],tf.float32)
 }
 def parse_input(serialized_example):
   example = tf.parse_single_example(serialized_example,raw_input_features)
@@ -277,9 +281,9 @@ def parse_input(serialized_example):
   return {
     "binchwp": tf.reshape(binchwp,[batch_size,ModelV3.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
     "finc": tf.reshape(finc,[batch_size,ModelV3.NUM_FLOAT_INPUT_FEATURES]),
-    "ptncm": tf.reshape(ptncm,[batch_size,3,pos_len*pos_len+1]),
-    "ftnc": tf.reshape(ftnc,[batch_size,44]),
-    "vtnchw": tf.reshape(vtnchw,[batch_size,1,pos_len,pos_len])
+    "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
+    "ftnc": tf.reshape(ftnc,[batch_size,NUM_FLOAT_TARGETS]),
+    "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 
 def train_input_fn():

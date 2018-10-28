@@ -39,7 +39,7 @@ void MakeDir::make(const string& path) {
   if(result != 0) {
     if(errno == EEXIST)
       return;
-    throw new StringError("Error creating directory: " + path);
+    throw StringError("Error creating directory: " + path);
   }
 }
 

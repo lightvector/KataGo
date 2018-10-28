@@ -346,11 +346,16 @@ bool Search::getPlaySelectionValues(
     return false;
 
   double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/64.0);
+  double amountToPrune = std::min(searchParams.chosenMovePrune, maxValue/64.0);
   double newMaxValue = maxValue - amountToSubtract;
   for(int i = 0; i<numChildren; i++) {
-    playSelectionValues[i] -= amountToSubtract;
-    if(playSelectionValues[i] <= 0.0)
+    if(playSelectionValues[i] < amountToPrune)
       playSelectionValues[i] = 0.0;
+    else {
+      playSelectionValues[i] -= amountToSubtract;
+      if(playSelectionValues[i] <= 0.0)
+        playSelectionValues[i] = 0.0;
+    }
   }
 
   assert(newMaxValue > 0.0);
@@ -532,7 +537,7 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
       delete stbuf;
       throw;
     }
-    
+
     delete stbuf;
   };
 
@@ -738,7 +743,7 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
     //discourage any move that, except in case of ko, is either:
     // * On a spot that the opponent almost surely owns
     // * On a spot that the player almost surely owns and it is not adjacent to opponent stones and is not a connection of non-pass-alive groups.
-    //These conditions should still make it so that "cleanup" and dame-filling moves are not discouraged. 
+    //These conditions should still make it so that "cleanup" and dame-filling moves are not discouraged.
     if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
       double plaOwnership = rootPla == P_WHITE ? ownerMap[pos] : -ownerMap[pos];
@@ -1008,8 +1013,10 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
   //of visits from the root node's children so as to downweight the effect of the few dozen visits
   //we send towards children that are so bad that we never try them even once again.
   double amountToSubtract = 0.0;
+  double amountToPrune = 0.0;
   if(isRoot && searchParams.rootNoiseEnabled) {
     amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxChildVisits/64.0);
+    amountToPrune = std::min(searchParams.chosenMovePrune, maxChildVisits/64.0);
   }
 
   double winValueSum = 0.0;
@@ -1018,6 +1025,8 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
   double scoreValueSum = 0.0;
   double valueSumWeight = 0.0;
   for(int i = 0; i<numGoodChildren; i++) {
+    if(visits[i] < amountToPrune)
+      continue;
     double weight = visits[i] - amountToSubtract;
     if(weight < 0.0)
       continue;

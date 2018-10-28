@@ -54,7 +54,7 @@ FinishedGameData::~FinishedGameData() {
 
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
-static const int POLICY_TARGET_NUM_CHANNELS = 3;
+static const int POLICY_TARGET_NUM_CHANNELS = 1;
 static const int FLOAT_TARGET_NUM_CHANNELS = 44;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 
@@ -164,8 +164,6 @@ void TrainingWriteBuffers::addRow(
   const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite,
   int turnNumber,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
-  const vector<PolicyTargetMove>* policyTarget1, //can be null
-  const vector<PolicyTargetMove>* policyTarget2, //can be null
   const FinishedGameData& data,
   Rand& rand
 ) {
@@ -208,23 +206,9 @@ void TrainingWriteBuffers::addRow(
     rowFloat[25] = 0.0f;
   }
 
-  if(policyTarget1 != NULL) {
-    fillPolicyTarget(*policyTarget1, policySize, posLen, board.x_size, rowPolicy + 1 * policySize);
-    rowFloat[26] = 1.0f;
-  }
-  else {
-    zeroPolicyTarget(policySize, rowPolicy + 1 * policySize);
-    rowFloat[26] = 0.0f;
-  }
-
-  if(policyTarget2 != NULL) {
-    fillPolicyTarget(*policyTarget2, policySize, posLen, board.x_size, rowPolicy + 2 * policySize);
-    rowFloat[27] = 1.0f;
-  }
-  else {
-    zeroPolicyTarget(policySize, rowPolicy + 2 * policySize);
-    rowFloat[27] = 0.0f;
-  }
+  //Unused
+  rowFloat[26] = 0.0f;
+  rowFloat[27] = 0.0f;
 
   //Fill td-like value targets
   assert(turnNumber >= 0 && turnNumber < data.whiteValueTargetsByTurn.size());
@@ -367,17 +351,11 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
 
   for(int turnNumber = 0; turnNumber<numMoves; turnNumber++) {
     const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumber];
-    const vector<PolicyTargetMove>* policyTarget1 =
-      (turnNumber >= data.policyTargetsByTurn.size() - 1) ? NULL : data.policyTargetsByTurn[turnNumber+1];
-    const vector<PolicyTargetMove>* policyTarget2 =
-      (turnNumber >= data.policyTargetsByTurn.size() - 2) ? NULL : data.policyTargetsByTurn[turnNumber+2];
 
     writeBuffers->addRow(
       board,hist,nextPlayer,data.drawEquivalentWinsForWhite,
       turnNumber,
       policyTarget0,
-      policyTarget1,
-      policyTarget2,
       data,
       rand
     );

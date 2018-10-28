@@ -320,19 +320,20 @@ J9 10000
       sampleChosenMoves();
 
       expected = R"%%(
-J9 3394
-A5 2331
-H2 1797
-F8 1149
-G7 716
-J8 154
-H8 138
-G9 61
-J3 60
-E8 55
-D2 53
-B1 48
-J7 44
+
+J9 3208
+A5 2236
+H2 1741
+F8 1084
+G7 728
+H8 201
+J8 199
+E8 107
+B1 104
+G9 102
+J7 101
+J3 96
+D2 93
 
 )%%";
       expect(name,out,expected);
@@ -351,19 +352,19 @@ J7 44
       sampleChosenMoves();
 
       expected = R"%%(
-J9 5320
-A5 2365
-H2 1436
-F8 608
-G7 234
-H8 17
-J8 9
-J7 3
-J3 2
-D2 2
-B1 2
-G9 1
-E8 1
+J9 5216
+A5 2359
+H2 1478
+F8 610
+G7 262
+H8 19
+J8 17
+B1 13
+J3 9
+E8 7
+D2 5
+G9 4
+J7 1
 )%%";
       expect(name,out,expected);
     }
