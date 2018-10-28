@@ -9,15 +9,15 @@ from board import Board
 #Feature extraction functions-------------------------------------------------------------------
 
 class ModelV3:
+  NUM_BIN_INPUT_FEATURES = 22
+  NUM_FLOAT_INPUT_FEATURES = 15
 
   def __init__(self,config,placeholders):
     self.pos_len = config["pos_len"]
-    self.num_bin_input_features = 20
-    self.num_float_input_features = 15
-    self.bin_input_shape = [self.pos_len*self.pos_len,self.num_bin_input_features]
-    self.binp_input_shape = [self.num_bin_input_features,(self.pos_len*self.pos_len+7)//8]
-    self.float_input_shape = [self.num_float_input_features]
-    self.post_input_shape = [self.pos_len,self.pos_len,self.num_bin_input_features]
+    self.bin_input_shape = [self.pos_len*self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES]
+    self.binp_input_shape = [ModelV3.NUM_BIN_INPUT_FEATURES,(self.pos_len*self.pos_len+7)//8]
+    self.float_input_shape = [ModelV3.NUM_FLOAT_INPUT_FEATURES]
+    self.post_input_shape = [self.pos_len,self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES]
     self.policy_target_shape_nopass = [self.pos_len*self.pos_len]
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
     self.value_target_shape = [3]
@@ -253,6 +253,19 @@ class ModelV3:
           bin_input_data[idx,pos,18] = 1.0
         elif area[loc] == opp:
           bin_input_data[idx,pos,19] = 1.0
+
+    #Features 20,21 - second encore phase starting stones, we just set them to the current stones in pythong
+    #since we don't really have a jp rules impl
+    if rules["encorePhase"] >= 2:
+      for y in range(bsize):
+        for x in range(bsize):
+          pos = self.xy_to_tensor_pos(x,y)
+          loc = board.loc(x,y)
+          stone = board.board[loc]
+          if stone == pla:
+            bin_input_data[idx,pos,20] = 1.0
+          elif stone == opp:
+            bin_input_data[idx,pos,21] = 1.0
 
 
     #Not quite right, japanese rules aren't really implemented in the python
@@ -685,6 +698,8 @@ class ModelV3:
       1.0, #17
       1.0, #18
       1.0, #19
+      1.0, #20
+      1.0, #21
     ],dtype=np.float32))
     #Because we have ladder features that express past states rather than past diffs, the most natural encoding when
     #we have no history is that they were always the same, rather than that they were all zero. So rather than zeroing
@@ -693,41 +708,41 @@ class ModelV3:
     hist_matrix_base[14,15] = 1.0
     hist_matrix_base[14,16] = 1.0
     #When have the prev move, we enable feature 9 and 15
-    h0 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h0 = np.zeros([ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
     h0[9,9] = 1.0 #Enable 9 -> 9
     h0[14,15] = -1.0 #Stop copying 14 -> 15
     h0[14,16] = -1.0 #Stop copying 14 -> 16
     h0[15,15] = 1.0 #Enable 15 -> 15
     h0[15,16] = 1.0 #Start copying 15 -> 16
     #When have the prevprev move, we enable feature 10 and 16
-    h1 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h1 = np.zeros([ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
     h1[10,10] = 1.0 #Enable 10 -> 10
     h1[15,16] = -1.0 #Stop copying 15 -> 16
     h1[16,16] = 1.0 #Enable 16 -> 16
     #Further history moves
-    h2 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h2 = np.zeros([ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
     h2[11,11] = 1.0
-    h3 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h3 = np.zeros([ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
     h3[12,12] = 1.0
-    h4 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h4 = np.zeros([ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
     h4[13,13] = 1.0
 
-    hist_matrix_base = tf.reshape(tf.constant(hist_matrix_base),[1,self.num_bin_input_features,self.num_bin_input_features])
+    hist_matrix_base = tf.reshape(tf.constant(hist_matrix_base),[1,ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES])
     hist_matrix_builder = tf.constant(np.array([h0,h1,h2,h3,h4]))
     assert(hist_matrix_base.dtype == tf.float32)
     assert(hist_matrix_builder.dtype == tf.float32)
     assert(len(hist_matrix_builder.shape) == 3)
     assert(hist_matrix_builder.shape[0].value == 5)
-    assert(hist_matrix_builder.shape[1].value == self.num_bin_input_features)
-    assert(hist_matrix_builder.shape[2].value == self.num_bin_input_features)
+    assert(hist_matrix_builder.shape[1].value == ModelV3.NUM_BIN_INPUT_FEATURES)
+    assert(hist_matrix_builder.shape[2].value == ModelV3.NUM_BIN_INPUT_FEATURES)
 
     hist_filter_matrix = hist_matrix_base + tf.tensordot(include_history, hist_matrix_builder, axes=[[1],[0]]) #[batch,move] * [move,inc,outc] = [batch,inc,outc]
-    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len*self.pos_len,self.num_bin_input_features]) #[batch,xy,inc]
+    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len*self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES]) #[batch,xy,inc]
     cur_layer = tf.matmul(cur_layer,hist_filter_matrix) #[batch,xy,inc] * [batch,inc,outc] = [batch,xy,outc]
-    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len,self.pos_len,self.num_bin_input_features])
+    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len,self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES])
 
     assert(include_history.shape[1].value == 5)
-    transformed_float_inputs = float_inputs * tf.pad(include_history, [(0,0),(0,self.num_float_input_features - include_history.shape[1].value)], constant_values=1.0)
+    transformed_float_inputs = float_inputs * tf.pad(include_history, [(0,0),(0,ModelV3.NUM_FLOAT_INPUT_FEATURES - include_history.shape[1].value)], constant_values=1.0)
 
     self.transformed_bin_inputs = cur_layer
     self.transformed_float_inputs = transformed_float_inputs
@@ -756,7 +771,7 @@ class ModelV3:
     self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
 
     #Matrix multiply float inputs and accumulate them
-    ginputw = self.weight_variable("ginputw",[self.num_float_input_features,trunk_num_channels],self.num_float_input_features*2,trunk_num_channels)
+    ginputw = self.weight_variable("ginputw",[ModelV3.NUM_FLOAT_INPUT_FEATURES,trunk_num_channels],ModelV3.NUM_FLOAT_INPUT_FEATURES*2,trunk_num_channels)
     ginputresult = tf.tensordot(transformed_float_inputs,ginputw,axes=[[1],[0]])
     trunk = trunk + tf.reshape(ginputresult, [-1,1,1,trunk_num_channels])
 

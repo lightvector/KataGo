@@ -1007,6 +1007,21 @@ void NNInputs::fillRowV3(
     }
   }
 
+  //Features 20, 21 - second encore starting stones
+  if(hist.encorePhase >= 2) {
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        int pos = NNPos::locToPos(loc,xSize,posLen);
+        if(hist.secondEncoreStartColors[loc] == pla)
+          setRowBinV3(rowBin,pos,20, true, posStride, featureStride);
+        else if(hist.secondEncoreStartColors[loc] == opp)
+          setRowBinV3(rowBin,pos,21, true, posStride, featureStride);
+      }
+    }
+  }
+
+
   //Floating point features.
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
 

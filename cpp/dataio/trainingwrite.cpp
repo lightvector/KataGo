@@ -53,6 +53,7 @@ FinishedGameData::~FinishedGameData() {
 
 
 //Don't forget to update everything else in the header file and the code below too if changing any of these
+//And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 3;
 static const int FLOAT_TARGET_NUM_CHANNELS = 44;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
