@@ -97,6 +97,8 @@ def model_fn(features,labels,mode,params):
   print("Building model", flush=True)
   model_config = {}
   model_config["pos_len"] = pos_len
+  with open(traindir + ".config.json","w") as f:
+    json.dump(model_config,f)
 
   #L2 regularization coefficient
   l2_coeff_value = 0.00003
@@ -114,7 +116,7 @@ def model_fn(features,labels,mode,params):
   placeholders["bin_inputs"] = binhwc
 
   placeholders["float_inputs"] = features["finc"]
-  placeholders["symmetries"] = tf.constant([False,False,False],dtype=tf.bool) #TODO
+  placeholders["symmetries"] = tf.greater(tf.random_uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
   placeholders["include_history"] = features["ftnc"][:,28:33]
 
   policy_target0 = features["ptncm"][:,0,:]

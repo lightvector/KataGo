@@ -127,7 +127,7 @@ class ModelV3:
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
   #TODO incomplete, need rules
-  def fill_row_features(self, board, pla, opp, boards, moves, move_idx, bin_input_data, float_input_data, self_komi, use_history_prop, idx):
+  def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, float_input_data, use_history_prop, idx):
     bsize = board.size
     assert(self.pos_len >= bsize)
     assert(len(boards) > 0)
@@ -229,9 +229,96 @@ class ModelV3:
       bin_input_data[idx,pos,16] = 1.0
     self.iterLadders(prevPrevBoard, addPrevPrevLadderFeature)
 
-    #TODO need to provide current territory planes!!
+    #Features 18,19 - current territory
+    area = [-1 for i in board.arr_size]
+    if rules["scoringRule"] == "SCORING_AREA":
+      nonPassAliveStones = True
+      safeBigTerritories = True
+      unsafeBigTerritories = True
+      board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
+    elif rules["scoringRule"] == "SCORING_TERRITORY":
+      nonPassAliveStones = False
+      safeBigTerritories = True
+      unsafeBigTerritories = False
+      board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules["multiStoneSuicideLegal"])
+    else:
+      assert(False)
 
-    #TODO need to finish out float_input_features for rules
+    for y in range(bsize):
+      for x in range(bsize):
+        loc = board.loc(x,y)
+        pos = self.xy_to_tensor_pos(x,y)
+
+        if area[loc] == pla:
+          bin_input_data[idx,pos,18] = 1.0
+        elif area[loc] == opp:
+          bin_input_data[idx,pos,19] = 1.0
+
+
+    #Not quite right, japanese rules aren't really implemented in the python
+    bArea = board.size * board.size
+    if selfKomi > bArea+1:
+      selfKomi = bArea+1
+    if selfKomi < -bArea-1:
+      selfKomi = -bArea-1
+    float_input_data[idx,5] = rules["selfKomi"]/15.0
+
+    if rules["koRule"] == "KO_SIMPLE":
+      pass
+    elif rules["koRule"] == "KO_POSITIONAL" or rules["koRule"] == "KO_SPIGHT":
+      float_input_data[idx,6] = 1.0
+      float_input_data[idx,7] = 0.5
+    elif rules["koRule"] == "KO_SITUATIONAL":
+      float_input_data[idx,6] = 1.0
+      float_input_data[idx,7] = -0.5
+    else:
+      assert(False)
+
+    if rules["multiStoneSuicideLegal"]:
+      float_input_data[idx,8] = 1.0
+
+    if rules["scoringRule"] == "SCORING_AREA":
+    elif rules["scoringRule"] == "SCORING_TERRITORY":
+      float_input_data[idx,9] = 1.0
+    else:
+      assert(False)
+
+    if rules["encorePhase"] > 0:
+      float_input_data[idx,10] = 1.0
+    if rules["encorePhase"] > 1:
+      float_input_data[idx,11] = 1.0
+
+    passWouldEndPhase = rules["passWouldEndPhase"]
+    float_input_data[idx,12] = (1.0 if passWouldEndPhase else 0.0)
+
+    float_input_data[idx,13] = board.size / 16.0
+
+    if rules["scoringRule"] == "SCORING_AREA":
+      boardAreaIsEven = (board.size % 2 == 0)
+
+      drawableKomisAreEven = boardAreaIsEven
+
+      if drawableKomisAreEven:
+        komiFloor = math.floor(selfKomi / 2.0) * 2.0
+      else
+        komiFloor = math.floor((selfKomi-1.0) / 2.0) * 2.0 + 1.0
+
+      delta = selfKomi - komiFloor
+      assert(delta >= -0.0001)
+      assert(delta <= 2.0001)
+      if delta < 0.0:
+        delta = 0.0
+      if delta > 2.0:
+        delta = 2.0
+
+      if delta < 0.5:
+        wave = delta
+      elif delta < 1.5:
+        wave = 1.0-delta
+      else:
+        wave = delta-2.0
+
+      float_input_data[idx,14] = wave
 
     return idx+1
 
