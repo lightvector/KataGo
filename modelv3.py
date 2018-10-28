@@ -980,10 +980,10 @@ class Target_varsV3:
     )
     self.ownership_loss_unreduced = 0.25 * self.ownership_target_weights * (
       tf.reduce_sum(
-        tf.nn.softmax_cross_entropy_with_logits_v2(
+        1.4*tf.nn.softmax_cross_entropy_with_logits_v2(
           labels=tf.stack([(1+self.ownership_targets)/2,(1-self.ownership_targets)/2],axis=3),
           logits=tf.stack([ownership_output,tf.zeros_like(ownership_output)],axis=3)
-        ) * tf.reshape(self.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
+        ) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
         axis=[1,2]
       ) / model.mask_sum_hw
     )
