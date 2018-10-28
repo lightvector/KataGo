@@ -91,6 +91,11 @@ tf.logging.set_verbosity(tf.logging.INFO)
 num_samples_per_epoch = 1000000//fast_factor
 num_batches_per_epoch = int(round(num_samples_per_epoch / batch_size))
 
+def find_var(name):
+  for variable in tf.global_variables():
+    if variable.name == name:
+      return variable
+
 # MODEL ----------------------------------------------------------------
 def model_fn(features,labels,mode,params):
 
@@ -322,8 +327,8 @@ evaluator = tf.contrib.estimator.InMemoryEvaluatorHook(
 
 estimator.train(
   train_input_fn,
-  # hooks=[evaluator]
-  hooks=[]
+  hooks=[evaluator]
+  # hooks=[]
 )
 
 # # Training ------------------------------------------------------------

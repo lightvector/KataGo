@@ -352,29 +352,22 @@ class ModelV3:
     moving_var = tf.Variable(tf.ones([num_channels]),name=(name+"/moving_variance"),trainable=False,collections=collections)
     beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg=False)
 
+    mask_sum = tf.reduce_sum(mask)
+    mean = tf.reduce_sum(tensor,axis=[0,1,2]) / mask_sum
+    zmtensor = tensor-mean
+    var = tf.reduce_sum(tf.square(zmtensor),axis=[0,1,2]) / mask_sum
+    mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.99)
+    var_op = tf.keras.backend.moving_average_update(moving_var,var,0.99)
+    tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, mean_op)
+    tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, var_op)
+
     def training_f():
-      mean = tf.reduce_sum(tensor,axis=[0,1,2]) / mask_sum
-      zmtensor = tensor-mean
-      var = tf.reduce_sum(tf.square(zmtensor),axis=[0,1,2]) / mask_sum
-
-      mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.99)
-      var_op = tf.keras.backend.moving_average_update(moving_var,var,0.99)
-
-      tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, mean_op)
-      tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, var_op)
-
-      normtensor = zmtensor / tf.sqrt(tf.constant(epsilon,dtype=tf.float32) + var) + beta
-      return normtensor
+      return (mean,var)
     def inference_f():
-      normtensor = tensor-moving_mean.read_value()
-      normtensor = normtensor / tf.sqrt(tf.constant(epsilon,dtype=tf.float32) + moving_var.read_value())
-      return normtensor
+      return (moving_mean,moving_var)
 
-    return tf.cond(
-      self.is_training,
-      training_f,
-      inference_f
-    ) * mask
+    use_mean,use_var = tf.cond(self.is_training,training_f,inference_f)
+    return tf.nn.batch_normalization(tensor,use_mean,use_var,beta,None,epsilon) * mask
 
   # def batchnorm(self,name,tensor):
   #   epsilon = 0.001
