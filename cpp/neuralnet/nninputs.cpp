@@ -809,7 +809,6 @@ Hash128 NNInputs::getHashV3(
   return hash;
 }
 
-
 void NNInputs::fillRowV3(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   double drawEquivalentWinsForWhite, int posLen, bool useNHWC, float* rowBin, float* rowGlobal

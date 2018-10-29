@@ -77,7 +77,6 @@ namespace NNInputs {
     double drawEquivalentWinsForWhite, int posLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
-
 }
 
 struct NNOutput {

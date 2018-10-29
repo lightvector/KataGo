@@ -2933,25 +2933,37 @@ struct ModelDesc {
   ModelDesc(istream& in) {
     in >> name;
     in >> version;
-    in >> xSize;
-    in >> ySize;
-
     if(in.fail())
-      throw StringError(name + ": model failed to parse name or xSize or ySize");
-    if(xSize <= 0 || ySize <= 0)
-      throw StringError(name + ": model xSize and ySize must be positive");
+      throw StringError(name + ": model failed to parse name or version");
 
-    if(version < 0 || version > 2)
+    if(version < 0 || version > 3)
       throw StringError(name + ": model found unsupported version " + Global::intToString(version));
     if(version < 1)
       throw StringError("Version 0 neural nets no longer supported in cuda backend");
 
+    if(version >= 3) {
+      xSize = -1; //Unused, V3 uses posLen instead
+      ySize = -1; //Unused, V3 uses posLen instead
+    }
+    else {
+      in >> xSize;
+      in >> ySize;
+      if(in.fail())
+        throw StringError(name + ": model failed to parse xSize or ySize");
+      if(xSize <= 0 || ySize <= 0)
+        throw StringError(name + ": model xSize and ySize must be positive");
+    }
+
     in >> numInputChannels;
+    if(in.fail())
+      throw StringError(name + ": model failed to parse numInputChannels");
     if(numInputChannels <= 0)
       throw StringError(name + ": model numInputChannels must be positive");
 
     if(version >= 3) {
       in >> numInputGlobalChannels;
+      if(in.fail())
+        throw StringError(name + ": model failed to parse numInputGlobalChannels");
       if(numInputGlobalChannels <= 0)
         throw StringError(name + ": model numInputGlobalChannels must be positive");
     }
@@ -3047,21 +3059,37 @@ struct Model {
     name = desc->name;
     version = desc->version;
     maxBatchSize = maxBatchSz;
-    xSize = desc->xSize;
-    ySize = desc->ySize;
+
+    if(version >= 3) {
+      xSize = posLen;
+      ySize = posLen;
+      if(posLen > NNPos::MAX_BOARD_LEN)
+        throw StringError(Global::strprintf("posLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
+          posLen, NNPos::MAX_BOARD_LEN
+        ));
+    }
+    else {
+      xSize = desc->xSize;
+      ySize = desc->ySize;
+
+      if(xSize != NNPos::MAX_BOARD_LEN)
+        throw StringError(Global::strprintf("For V2 models and lower xSize (%d) must be NNPos::MAX_BOARD_LEN (%d)",
+          xSize, NNPos::MAX_BOARD_LEN
+        ));
+      if(ySize != NNPos::MAX_BOARD_LEN)
+        throw StringError(Global::strprintf("For V2 models and lower ySize (%d) must be NNPos::MAX_BOARD_LEN (%d)",
+          ySize, NNPos::MAX_BOARD_LEN
+        ));
+      if(posLen != xSize)
+        throw StringError(Global::strprintf("For V2 models and lower posLen (%d) must match xSize (%d)",
+          posLen, xSize
+        ));
+    }
+
     numInputChannels = desc->numInputChannels;
     numInputGlobalChannels = desc->numInputGlobalChannels;
     usingFP16 = useFP16;
     inputsUsingNHWC = inputsUseNHWC;
-
-    if(xSize != NNPos::MAX_BOARD_LEN)
-      throw StringError(Global::strprintf("Currently neural net xSize (%d) must be NNPos::MAX_BOARD_LEN (%d)",
-        xSize, NNPos::MAX_BOARD_LEN
-      ));
-    if(ySize != NNPos::MAX_BOARD_LEN)
-      throw StringError(Global::strprintf("Currently neural net ySize (%d) must be NNPos::MAX_BOARD_LEN (%d)",
-        ySize, NNPos::MAX_BOARD_LEN
-      ));
 
     int numFeatures = NNModelVersion::getNumSpatialFeatures(version);
     if(numInputChannels != numFeatures)
@@ -3072,10 +3100,6 @@ struct Model {
     if(numInputGlobalChannels != numGlobalFeatures)
       throw StringError(Global::strprintf("Neural net numInputGlobalChannels (%d) was not the expected number based on version (%d)",
         numInputGlobalChannels, numGlobalFeatures
-      ));
-    if(posLen != xSize)
-      throw StringError(Global::strprintf("Currently neural net posLen (%d) must match xSize (%d)",
-        posLen, xSize
       ));
 
     inputDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
@@ -3193,6 +3217,22 @@ struct Model {
       else
         applySymmetriesNCHW<half>(symmetriesBuffer, inverse, batchSize, numInputChannels, xSize, ySize, (half*)inputBuf, (half*)inputScratchBuf);
     }
+
+    if(version >= 3) {
+      if(!usingFP16) {
+        if(inputsUsingNHWC)
+          customCudaChannel0ExtractNHWC((float*)inputBuf, (float*)maskBuf, batchSize, xSize*ySize, numInputChannels);
+        else
+          customCudaChannel0ExtractNCHW((float*)inputBuf, (float*)maskBuf, batchSize, numInputChannels, xSize*ySize);
+      }
+      else {
+        if(inputsUsingNHWC)
+          customCudaChannel0ExtractNHWC((half*)inputBuf, (half*)maskBuf, batchSize, xSize*ySize, numInputChannels);
+        else
+          customCudaChannel0ExtractNHWC((half*)inputBuf, (half*)maskBuf, batchSize, numInputChannels, xSize*ySize);
+      }
+    }
+    CUDA_ERR("modelExtractMask",cudaPeekAtLastError());
 
     trunk->apply(
       cudaHandles,
@@ -3693,7 +3733,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     buffers->inputScratchBuf,
     buffers->inputGlobalBuf,
 
-    buffers->maskBuf, //TODO use this
+    buffers->maskBuf,
 
     buffers->trunkBuf,
     buffers->trunkScratchBuf,

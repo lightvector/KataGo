@@ -89,6 +89,82 @@ void customCudaChannelConcat(const half* inA, const half* inB, half* out, int ch
 
 //--------------------------------------------------------------------------------------------------------------
 
+template <typename T>
+__global__
+void extractChannel0KernelNHWC(const T *in, T* out, int nhwSize, int cSize)
+{
+  int nhwIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  if(nhwIdx < nhwSize) {
+    out[nhwIdx] = in[nhwIdx*cSize];
+  }
+}
+template <typename T>
+void customCudaChannel0ExtractNHWCTemplate(const T *in, T* out, int n, int hw, int c) {
+  int nhw = n*hw;
+  int blockSize = targetNumThreads;
+  int numBlocks = (nhw+blockSize-1)/blockSize;
+  extractChannel0KernelNHWC<<<numBlocks,blockSize>>>(in,out,nhw,c);
+}
+
+template <typename T>
+__global__
+void extractChannel0KernelNCHW(const T *in, T* out, int nSize, int cSize, int hwSize)
+{
+  int hwIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int nIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  if(hwIdx < hwSize && nIdx < nSize) {
+    out[nIdx * hwSize + hwIdx] = in[nIdx * cSize * hwSize + hwIdx];
+  }
+}
+template <typename T>
+void customCudaChannel0ExtractNCHWTemplate(const T *in, T* out, int nSize, int cSize, int hwSize) {
+  int hwThreads;
+  int hwBlocks;
+  int nThreads;
+  int nBlocks;
+
+  if(hwSize > targetNumThreads) {
+    hwThreads = targetNumThreads/2;
+    hwBlocks = (hwSize + hwThreads - 1) / hwThreads;
+    nThreads = 1;
+    nBlocks = nSize;
+  }
+  else if(hwSize > targetNumThreads/2) {
+    hwThreads = hwSize;
+    hwBlocks = 1;
+    nThreads = 1;
+    nBlocks = nSize;
+  }
+  else {
+    hwThreads = hwSize;
+    hwBlocks = 1;
+    nThreads = targetNumThreads / hwSize;
+    nBlocks = (nSize + nThreads - 1) / nThreads;
+  }
+
+  if(nBlocks > 65536)
+    throw std::runtime_error("customCudaChannel0ExtractNCHW: nSize too large given hwSize");
+
+  dim3 grid(hwBlocks,nBlocks,1);
+  dim3 threads(hwThreads,nThreads,1);
+  extractChannel0KernelNCHW<<<grid,threads>>>(in,out,nSize,cSize,hwSize);
+}
+
+void customCudaChannel0ExtractNCHW(const float* in, float* out, int n, int c, int hw) {
+  customCudaChannel0ExtractNCHWTemplate<float>(in,out,n,c,hw);
+}
+void customCudaChannel0ExtractNCHW(const half* in, half* out, int n, int c, int hw) {
+  customCudaChannel0ExtractNCHWTemplate<half>(in,out,n,c,hw);
+}
+void customCudaChannel0ExtractNHWC(const float* in, float* out, int n, int hw, int c) {
+  customCudaChannel0ExtractNHWCTemplate<float>(in,out,n,hw,c);
+}
+void customCudaChannel0ExtractNHWC(const half* in, half* out, int n, int hw, int c) {
+  customCudaChannel0ExtractNHWCTemplate<half>(in,out,n,hw,c);
+}
+
+//--------------------------------------------------------------------------------------------------------------
+
 // template <typename T>
 // struct linear_index_to_row_index : public thrust::unary_function<T,T> {
 //   T len;
@@ -257,7 +333,7 @@ void customCudaPoolRowsSumNCHW(const float* in, float* out, int nSize, int cSize
 
   dim3 grid(1,cBlocks,nSize);
   dim3 threads(xyThreads,cThreads,1);
-  sumChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,scaleSum);  
+  sumChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,scaleSum);
 }
 void customCudaPoolRowsMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize) {
   if(nSize > 65536)
@@ -279,7 +355,7 @@ void customCudaPoolRowsMaxPositiveNCHW(const float* in, float* out, int nSize, i
 
   dim3 grid(1,cBlocks,nSize);
   dim3 threads(xyThreads,cThreads,1);
-  maxPositiveChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize);  
+  maxPositiveChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize);
 }
 void customCudaPoolRowsSumAndMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize, float scaleSum) {
   if(nSize > 65536)
@@ -305,7 +381,7 @@ void customCudaPoolRowsSumAndMaxPositiveNCHW(const float* in, float* out, int nS
 
   dim3 grid(1,cBlocks,nSize);
   dim3 threads(xyThreads,cThreads,1);
-  sumAndMaxPositiveChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,scaleSum,sharedMemElts);  
+  sumAndMaxPositiveChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,scaleSum,sharedMemElts);
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -387,7 +463,7 @@ void customCudaPoolRowsSumAndMaxPositiveNCHW(const half* in, half* out, int nSiz
 
   dim3 grid(1,cBlocks,nSize);
   dim3 threads(xyThreads,cThreads,1);
-  sumAndMaxPositiveChannelsNCHWHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,scaleSum,sharedMemElts);  
+  sumAndMaxPositiveChannelsNCHWHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,scaleSum,sharedMemElts);
 }
 
 
@@ -468,7 +544,7 @@ void sumAndMaxPositiveChannelsNHWCKernel(const float* in, float* out, int xySize
   extern __shared__ float poolNHWCShared[];
   float* sumShared = (float*)poolNHWCShared;
   float* maxShared = (float*)poolNHWCShared + sharedMemElts;
-    
+
   int cId = threadIdx.x;
   int cBlockDim = blockDim.x;
   int xyId = threadIdx.y;
@@ -591,7 +667,7 @@ void sumAndMaxPositiveChannelsNHWCHalfKernel(const half* in, half* out, int xySi
   extern __shared__ float poolNHWCShared[];
   float* sumShared = (float*)poolNHWCShared;
   float* maxShared = (float*)poolNHWCShared + sharedMemElts;
-    
+
   int cId = threadIdx.x;
   int cBlockDim = blockDim.x;
   int xyId = threadIdx.y;
