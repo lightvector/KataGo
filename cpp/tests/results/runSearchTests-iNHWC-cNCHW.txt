@@ -65,8 +65,8 @@ MoveNum: 40 HASH: 8D56D36E2B58CA28CC0E6AB03AF5328C
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 391
-NN batches: 391
+NN rows: 198
+NN batches: 198
 NN avg batch size: 1
 PV: D16 C16 E17 C17 E16 D14 G9 J7
 Tree:
@@ -105,8 +105,8 @@ MoveNum: 61 HASH: 98C2B58DA92F54B9DC6096947A9A0155
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 588
-NN batches: 588
+NN rows: 198
+NN batches: 198
 NN avg batch size: 1
 PV: E13 F12 F16 P6 P7 O6 O7 N6
 Tree:
@@ -141,8 +141,8 @@ MoveNum: 82 HASH: 6F2920E550E0478115FF856DC35ADB4C
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 784
-NN batches: 784
+NN rows: 196
+NN batches: 196
 NN avg batch size: 1
 PV: C13 Q16 R15 C12 B11 D10 C13 P17 Q18 C12
 Tree:
@@ -181,8 +181,8 @@ MoveNum: 103 HASH: C0E88FA1A2BCC976F34304AF2C430AC5
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 981
-NN batches: 981
+NN rows: 196
+NN batches: 196
 NN avg batch size: 1
 PV: F17 O18 C12 B11 D10 C13 Q16 P18 C12
 Tree:
@@ -218,8 +218,8 @@ MoveNum: 23 HASH: BC4A4A9B30301681DA536778DFC80294
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 1171
-NN batches: 1171
+NN rows: 190
+NN batches: 190
 NN avg batch size: 1
 PV: Q15 R15 Q14 R13 D7 Q3 Q2 S3 S2 S4 N3 M3 O2
 Tree:
@@ -258,8 +258,8 @@ MoveNum: 38 HASH: 0D47C3033B5B0A522ADD393752BA7B37
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 1370
-NN batches: 1370
+NN rows: 200
+NN batches: 200
 NN avg batch size: 1
 PV: P9 Q10 P10 Q12 P11 R12 O3 P4 O4 P5
 Tree:
@@ -293,8 +293,8 @@ MoveNum: 65 HASH: 390A017FF9CE93328DB74DF35879991A
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 1566
-NN batches: 1566
+NN rows: 195
+NN batches: 195
 NN avg batch size: 1
 PV: S16 S15 Q16 T16 R15 R14 S16 D10 C9 R16 D4 E4 S16 S9 R16
 Tree:
@@ -332,8 +332,8 @@ MoveNum: 80 HASH: 1F4396ECA1B287DB5D4FFB1F4AF6641F
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 1745
-NN batches: 1745
+NN rows: 179
+NN batches: 179
 NN avg batch size: 1
 PV: B16 B17 A17 A18 A16 C18 C13 G8 D4 B3 M14
 Tree:
@@ -371,8 +371,8 @@ MoveNum: 115 HASH: 8DB8C2372F850845E3544CCB8FBE55EC
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 1930
-NN batches: 1930
+NN rows: 186
+NN batches: 186
 NN avg batch size: 1
 PV: S10 S11 R10 B16 B17 A17 A18 A16 C18 B12
 Tree:
@@ -414,8 +414,8 @@ MoveNum: 191 HASH: 7036EB5ECEC0F3F66F93D8728611791E
  1 . . O . . X .2X3. O . . . . . . . X .
 
 Root visits: 200
-NN rows: 2125
-NN batches: 2125
+NN rows: 195
+NN batches: 195
 NN avg batch size: 1
 PV: F2 A15 A17 F3 J1 L1 F2 C17 B18
 Tree:
@@ -449,8 +449,8 @@ MoveNum: 197 HASH: 787388DFE519E62C0E5E75CFAA9D3E21
  1 . . O X . X . X . O . . . . . . . X .
 
 Root visits: 200
-NN rows: 2322
-NN batches: 2322
+NN rows: 197
+NN batches: 197
 NN avg batch size: 1
 PV: A14 B13 F2 D18 D19 F3 E1 L1 F2
 Tree:
@@ -485,8 +485,8 @@ MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
  1 . . O . O . O . O O X . . . . . X X X
 
 Root visits: 200
-NN rows: 2343
-NN batches: 2343
+NN rows: 21
+NN batches: 21
 NN avg batch size: 1
 PV: N4 pass pass
 Tree:
@@ -521,8 +521,8 @@ MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
  1 . . O . O . O . O O X . . . . . X X X
 
 Root visits: 200
-NN rows: 2363
-NN batches: 2363
+NN rows: 19
+NN batches: 19
 NN avg batch size: 1
 PV: N4 pass pass
 Tree:
@@ -557,8 +557,8 @@ MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
  1 . . O . O . O . O O X . . . . . X X X
 
 Root visits: 200
-NN rows: 2384
-NN batches: 2384
+NN rows: 21
+NN batches: 21
 NN avg batch size: 1
 PV: N4 pass pass
 Tree:
@@ -593,8 +593,8 @@ MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
  1 . . O . O . O . O O X . . . . . X X X
 
 Root visits: 200
-NN rows: 2404
-NN batches: 2404
+NN rows: 20
+NN batches: 20
 NN avg batch size: 1
 PV: N4 pass pass
 Tree:
@@ -629,8 +629,8 @@ MoveNum: 85 HASH: B8EE81379249B4294DBB36EA4B7E08F6
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 2604
-NN batches: 2604
+NN rows: 200
+NN batches: 200
 NN avg batch size: 1
 PV: E16 D12 M12 K9 K8 L10 M10 M9 L9 N9
 Tree:
@@ -675,8 +675,8 @@ MoveNum: 86 HASH: A59029EBC370E6DEE3B1E212376C5756
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 2703
-NN batches: 2703
+NN rows: 300
+NN batches: 300
 NN avg batch size: 1
 PV: K9 K8 L10 N8 M10 P7 R11 M17 N17
 Tree:
@@ -716,8 +716,8 @@ MoveNum: 87 HASH: 41B07AFEBF4B3634D92DDDBF678D8BB4
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 2835
-NN batches: 2835
+NN rows: 432
+NN batches: 432
 NN avg batch size: 1
 PV: K8 L10 M10 M9 L9 N9 K10 D2 E2 L10 K6 L6 K10
 Tree:
@@ -748,8 +748,8 @@ MoveNum: 85 HASH: B8EE81379249B4294DBB36EA4B7E08F6
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 3035
-NN batches: 3035
+NN rows: 200
+NN batches: 200
 NN avg batch size: 1
 PV: E16 D12 M12 K9 K8 L10 M10 M9 L9 N9
 Tree:
@@ -794,8 +794,8 @@ MoveNum: 86 HASH: A59029EBC370E6DEE3B1E212376C5756
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 298
-NN rows: 3231
-NN batches: 3231
+NN rows: 395
+NN batches: 395
 NN avg batch size: 1
 PV: K9 K8 L10 M10 M9 L9 N9 K10 D2 E2 L10 K6
 Tree:
@@ -837,8 +837,8 @@ MoveNum: 87 HASH: 41B07AFEBF4B3634D92DDDBF678D8BB4
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 306
-NN rows: 3408
-NN batches: 3408
+NN rows: 573
+NN batches: 573
 NN avg batch size: 1
 PV: K8 L10 M10 M9 L9 N9 K10 D2 E2 L10 K6 L6 K10
 Tree:
@@ -870,8 +870,8 @@ MoveNum: 44 HASH: 45273ADE5CB7C356A1AD60D0C9042620
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 3604
-NN batches: 3604
+NN rows: 195
+NN batches: 195
 NN avg batch size: 1
 PV: R6 Q5 O5 Q6 O7 R8 M4
 Tree:
@@ -910,8 +910,8 @@ MoveNum: 44 HASH: 45273ADE5CB7C356A1AD60D0C9042620
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 3799
-NN batches: 3799
+NN rows: 196
+NN batches: 196
 NN avg batch size: 1
 PV: R6 Q5 O5 Q6 O7 R8 M4
 Tree:

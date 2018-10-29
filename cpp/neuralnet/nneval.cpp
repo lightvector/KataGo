@@ -202,7 +202,7 @@ void NNEvaluator::serve(
   LocalGpuHandle* gpuHandle = NULL;
   if(loadedModel != NULL)
     gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, posLen, inputsUseNHWC, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
-  
+
   vector<NNOutput*> outputBuf;
 
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
@@ -230,7 +230,7 @@ void NNEvaluator::serve(
       std::swap(m_inputBuffers,buf.inputBuffers);
     else
       assert(debugSkipNeuralNet);
-    
+
     std::swap(m_resultBufs,buf.resultBufs);
 
     m_numRowsStarted = 0;
@@ -308,6 +308,9 @@ void NNEvaluator::serve(
     NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, outputBuf);
     assert(outputBuf.size() == numRows);
 
+    m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);
+    m_numBatchesProcessed.fetch_add(1, std::memory_order_relaxed);
+
     for(int row = 0; row < numRows; row++) {
       assert(buf.resultBufs[row] != NULL);
       NNResultBuf* resultBuf = buf.resultBufs[row];
@@ -321,8 +324,6 @@ void NNEvaluator::serve(
       resultLock.unlock();
     }
 
-    m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);
-    m_numBatchesProcessed.fetch_add(1, std::memory_order_relaxed);
     continue;
   }
 
@@ -394,9 +395,9 @@ void NNEvaluator::evaluate(
   }
   else {
     if(m_numRowsStarted == 1)
-      serverWaitingForBatchStart.notify_one();    
+      serverWaitingForBatchStart.notify_one();
   }
-  
+
   m_resultBufs[rowIdx] = &buf;
   m_numRowsFinished += 1;
   if(m_numRowsFinished >= m_numRowsStarted)
@@ -505,7 +506,7 @@ void NNEvaluator::evaluate(
 
   //TODO postprocess ownermap here if available. Make sure it happens for both branches of hadResultWithoutOwnerMap
 
-  
+
   //And record the nnHash in the result and put it into the table
   buf.result->nnHash = nnHash;
   if(nnCacheTable != NULL)
