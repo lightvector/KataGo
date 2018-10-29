@@ -74,7 +74,7 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    globalTargetsNC({maxRws, GLOBAL_TARGET_NUM_CHANNELS}),
    valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, pLen, pLen})
 {
-  binaryInputNCHWUnpacked = new bool[numBChannels * pLen * pLen];
+  binaryInputNCHWUnpacked = new float[numBChannels * pLen * pLen];
 }
 
 TrainingWriteBuffers::~TrainingWriteBuffers()
@@ -86,24 +86,24 @@ void TrainingWriteBuffers::clear() {
   curRows = 0;
 }
 
-//Copy bools into bits, packing 8 bools to a byte, big-endian-style within each byte.
-static void packBits(const bool* bools, int len, uint8_t* bits) {
+//Copy floats that are all 0-1 into bits, packing 8 to a byte, big-endian-style within each byte.
+static void packBits(const float* binaryFloats, int len, uint8_t* bits) {
   for(int i = 0; i < len; i += 8) {
     if(i + 8 <= len) {
       bits[i >> 3] =
-        ((uint8_t)bools[i + 0] << 7) |
-        ((uint8_t)bools[i + 1] << 6) |
-        ((uint8_t)bools[i + 2] << 5) |
-        ((uint8_t)bools[i + 3] << 4) |
-        ((uint8_t)bools[i + 4] << 3) |
-        ((uint8_t)bools[i + 5] << 2) |
-        ((uint8_t)bools[i + 6] << 1) |
-        ((uint8_t)bools[i + 7] << 0);
+        ((uint8_t)binaryFloats[i + 0] << 7) |
+        ((uint8_t)binaryFloats[i + 1] << 6) |
+        ((uint8_t)binaryFloats[i + 2] << 5) |
+        ((uint8_t)binaryFloats[i + 3] << 4) |
+        ((uint8_t)binaryFloats[i + 4] << 3) |
+        ((uint8_t)binaryFloats[i + 5] << 2) |
+        ((uint8_t)binaryFloats[i + 6] << 1) |
+        ((uint8_t)binaryFloats[i + 7] << 0);
     }
     else {
       bits[i >> 3] = 0;
       for(int di = 0; i + di < len; di++) {
-        bits[i >> 3] |= ((uint8_t)bools[i + di] << (7-di));
+        bits[i >> 3] |= ((uint8_t)binaryFloats[i + di] << (7-di));
       }
     }
   }
@@ -175,7 +175,7 @@ void TrainingWriteBuffers::addRow(
 
   {
     bool inputsUseNHWC = false;
-    bool* rowBin = binaryInputNCHWUnpacked;
+    float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
     if(inputsVersion == 3) {
       assert(NNInputs::NUM_FEATURES_BIN_V3 == numBinaryChannels);

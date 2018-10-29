@@ -1034,7 +1034,7 @@ void Tests::runNNInputsV3Tests() {
     int posLen = 19;
     double drawEquivalentWinsForWhite = 0.2;
     Hash128 hash = NNInputs::getHashV3(board,hist,nextPla,drawEquivalentWinsForWhite);
-    bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
+    float* rowBin = new float[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
     float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
     auto run = [&](bool inputsUseNHWC) {
@@ -1561,7 +1561,7 @@ Channel: 14: 0.5
     int posLen = 19;
     double drawEquivalentWinsForWhite = 0.3;
     Hash128 hash = NNInputs::getHashV3(board,hist,nextPla,drawEquivalentWinsForWhite);
-    bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
+    float* rowBin = new float[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
     float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
     auto run = [&](bool inputsUseNHWC) {
@@ -1648,7 +1648,7 @@ Channel: 14: -0.5
     int posLen = 7;
     double drawEquivalentWinsForWhite = 0.5;
     Hash128 hash = NNInputs::getHashV3(board,hist,nextPla,drawEquivalentWinsForWhite);
-    bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
+    float* rowBin = new float[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
     float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
     auto run = [&](bool inputsUseNHWC) {
@@ -1912,7 +1912,7 @@ Channel: 14: -0.5
     int posLen = 9;
     double drawEquivalentWinsForWhite = 0.8;
     Hash128 hash = NNInputs::getHashV3(board,hist,nextPla,drawEquivalentWinsForWhite);
-    bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
+    float* rowBin = new float[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
     float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
     auto run = [&](bool inputsUseNHWC) {
@@ -2218,7 +2218,7 @@ xxx..xx
 
     int posLen = 7;
     double drawEquivalentWinsForWhite = 0.3;
-    bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
+    float* rowBin = new float[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
     float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
     NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowGlobal);
@@ -2350,7 +2350,7 @@ Channel: 14: 0.2
 
       int posLen = size;
       double drawEquivalentWinsForWhite = 0.47;
-      bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
+      float* rowBin = new float[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
       float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
       for(int c = 0; c<NNInputs::NUM_FEATURES_GLOBAL_V3; c++) {
@@ -2418,7 +2418,7 @@ Channel: 14: 0.2
 
     int posLen = 6;
     double drawEquivalentWinsForWhite = 0.0;
-    bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
+    float* rowBin = new float[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
     float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
     for(size_t i = 0; i<moves.size(); i++) {

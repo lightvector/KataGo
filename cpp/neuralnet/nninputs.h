@@ -74,7 +74,7 @@ namespace NNInputs {
   );
   void fillRowV3(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite, int posLen, bool useNHWC, bool* rowBin, float* rowGlobal
+    double drawEquivalentWinsForWhite, int posLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
 

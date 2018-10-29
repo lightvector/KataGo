@@ -370,7 +370,8 @@ void Play::runGame(
       int numInitialMovesToPlay = floor(r * board.x_size * board.y_size / 10.0);
       assert(numInitialMovesToPlay >= 0);
       for(int i = 0; i<numInitialMovesToPlay; i++) {
-        nnEval->evaluate(board,hist,pla,buf,NULL,false,false);
+        double drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
+        nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
         std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
         //TODO maybe check the win chance after all these policy moves and try again if too lopsided

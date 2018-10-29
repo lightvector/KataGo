@@ -334,6 +334,7 @@ void NNEvaluator::evaluate(
   Board& board,
   const BoardHistory& history,
   Player nextPlayer,
+  double drawEquivalentWinsForWhite,
   NNResultBuf& buf,
   ostream* logStream,
   bool skipCache,
@@ -350,6 +351,8 @@ void NNEvaluator::evaluate(
     nnHash = NNInputs::getHashV1(board, history, nextPlayer);
   else if(inputsVersion == 2)
     nnHash = NNInputs::getHashV2(board, history, nextPlayer);
+  else if(inputsVersion == 3)
+    nnHash = NNInputs::getHashV3(board, history, nextPlayer, drawEquivalentWinsForWhite);
   else
     assert(false);
 
@@ -379,6 +382,7 @@ void NNEvaluator::evaluate(
   if(!debugSkipNeuralNet) {
     assert(m_inputBuffers != NULL);
     float* rowInput = NeuralNet::getRowInplace(m_inputBuffers,rowIdx);
+    float* rowGlobalInput = NeuralNet::getRowGlobalInplace(m_inputBuffers,rowIdx);
 
     if(m_numRowsStarted == 1)
       serverWaitingForBatchStart.notify_one();
@@ -388,6 +392,8 @@ void NNEvaluator::evaluate(
       NNInputs::fillRowV1(board, history, nextPlayer, posLen, inputsUseNHWC, rowInput);
     else if(inputsVersion == 2)
       NNInputs::fillRowV2(board, history, nextPlayer, posLen, inputsUseNHWC, rowInput);
+    else if(inputsVersion == 3)
+      NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowInput, rowGlobalInput);
     else
       assert(false);
 

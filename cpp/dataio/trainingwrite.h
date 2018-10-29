@@ -60,7 +60,7 @@ struct TrainingWriteBuffers {
   int packedBoardArea;
 
   int curRows;
-  bool* binaryInputNCHWUnpacked;
+  float* binaryInputNCHWUnpacked;
 
   //Input feature planes that have spatial extent, all of which happen to be binary.
   //Packed bitwise, with each (HW) zero-padded to a round byte.

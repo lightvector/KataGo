@@ -1112,7 +1112,11 @@ void Search::initNodeNNOutput(
   bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
 ) {
   bool includeOwnerMap = isRoot;
-  nnEvaluator->evaluate(thread.board, thread.history, thread.pla, thread.nnResultBuf, thread.logStream, skipCache, includeOwnerMap);
+  nnEvaluator->evaluate(
+    thread.board, thread.history, thread.pla,
+    searchParams.drawEquivalentWinsForWhite,
+    thread.nnResultBuf, thread.logStream, skipCache, includeOwnerMap
+  );
 
   node.nnOutput = std::move(thread.nnResultBuf.result);
   maybeAddPolicyNoise(thread,node,isRoot);

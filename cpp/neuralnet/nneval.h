@@ -92,6 +92,7 @@ class NNEvaluator {
     Board& board,
     const BoardHistory& history,
     Player nextPlayer,
+    double drawEquivalentWinsForWhite,
     NNResultBuf& buf,
     ostream* logStream,
     bool skipCache,

@@ -108,8 +108,9 @@ int MainCmds::sandbox() {
   BoardHistory hist(board,pla,rules,0);
 
   ostream* logStream = logger.createOStream();
+  double drawEquivalentWinsForWhite = 0.5;
   NNResultBuf buf;
-  nnEval->evaluate(board, hist, pla, buf, logStream, false, false);
+  nnEval->evaluate(board, hist, pla, drawEquivalentWinsForWhite, buf, logStream, false, false);
 
   for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
     for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
