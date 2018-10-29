@@ -1,6 +1,6 @@
 #!/bin/bash -eux
 {
-#./main runSearchTests models/v53-140-5x64.txt.gz false false 0 | tee tests/results/runSearchTests-iNCHW-cNCHW.txt
+./main runSearchTests models/v53-140-5x64.txt.gz false false 0 | tee tests/results/runSearchTests-iNCHW-cNCHW.txt
 
 #Cuda not supported
 #./main runSearchTests models/v53-140-5x64.txt.gz false true 0 | tee tests/results/runSearchTests-iNCHW-cNHWC.txt
