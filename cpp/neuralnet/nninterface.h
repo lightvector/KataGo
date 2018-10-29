@@ -45,6 +45,7 @@ namespace NeuralNet {
   void freeInputBuffers(InputBuffers* buffers);
 
   float* getRowInplace(InputBuffers* buffers, int rowIdx);
+  float* getRowGlobalInplace(InputBuffers* buffers, int rowIdx);
   bool* getSymmetriesInplace(InputBuffers* buffers);
 
   void getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int numFilledRows, vector<NNOutput*>& outputs);
@@ -57,7 +58,8 @@ namespace NNModelVersion {
   //Which V* feature version from NNInputs does a given model version consume?
   int getInputsVersion(int modelVersion);
   //Convenience functions, feeds forward the number of features and the size of the row vector that the net takes as input
-  int getNumFeatures(int modelVersion);
+  int getNumSpatialFeatures(int modelVersion);
+  int getNumGlobalFeatures(int modelVersion);
   int getRowSize(int modelVersion);
 }
 

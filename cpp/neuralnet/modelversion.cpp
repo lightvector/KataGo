@@ -16,25 +16,42 @@ int NNModelVersion::getInputsVersion(int modelVersion) {
     return 1;
   else if(modelVersion == 2)
     return 2;
+  else if(modelVersion == 3)
+    return 3;
 
   fail(modelVersion);
   return -1;
 }
 
-int NNModelVersion::getNumFeatures(int modelVersion) {
+int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
   if(modelVersion == 0 || modelVersion == 1)
     return NNInputs::NUM_FEATURES_V1;
   else if(modelVersion == 2)
     return NNInputs::NUM_FEATURES_V2;
+  else if(modelVersion == 3)
+    return NNInputs::NUM_FEATURES_BIN_V3;
 
   fail(modelVersion);
   return -1;
 }
+
+int NNModelVersion::getNumGlobalFeatures(int modelVersion) {
+  if(modelVersion == 0 || modelVersion == 1 || modelVersion == 2)
+    return 0;
+  else if(modelVersion == 3)
+    return NNInputs::NUM_FEATURES_GLOBAL_V3;
+
+  fail(modelVersion);
+  return -1;
+}
+
 int NNModelVersion::getRowSize(int modelVersion) {
   if(modelVersion == 0 || modelVersion == 1)
     return NNInputs::ROW_SIZE_V1;
   else if(modelVersion == 2)
     return NNInputs::ROW_SIZE_V2;
+  else if(modelVersion >= 3)
+    throw StringError("NNModelVersion::getRowSize - row size not meaningful for version >= 3");
 
   fail(modelVersion);
   return -1;

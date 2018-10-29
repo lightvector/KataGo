@@ -36,7 +36,7 @@ namespace NNInputs {
   const int ROW_SIZE_V2 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_V2;
 
   const int NUM_FEATURES_BIN_V3 = 22;
-  const int NUM_FEATURES_FLOAT_V3 = 15;
+  const int NUM_FEATURES_GLOBAL_V3 = 15;
 
   Hash128 getHashV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
@@ -74,7 +74,7 @@ namespace NNInputs {
   );
   void fillRowV3(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite, int posLen, bool useNHWC, bool* rowBin, float* rowFloat
+    double drawEquivalentWinsForWhite, int posLen, bool useNHWC, bool* rowBin, float* rowGlobal
   );
 
 

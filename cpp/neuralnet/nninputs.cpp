@@ -812,13 +812,13 @@ Hash128 NNInputs::getHashV3(
 
 void NNInputs::fillRowV3(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
-  double drawEquivalentWinsForWhite, int posLen, bool useNHWC, bool* rowBin, float* rowFloat
+  double drawEquivalentWinsForWhite, int posLen, bool useNHWC, bool* rowBin, float* rowGlobal
 ) {
   assert(posLen <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size <= posLen);
   assert(board.y_size <= posLen);
   std::fill(rowBin,rowBin+NUM_FEATURES_BIN_V3*posLen*posLen,false);
-  std::fill(rowFloat,rowFloat+NUM_FEATURES_FLOAT_V3,0.0f);
+  std::fill(rowGlobal,rowGlobal+NUM_FEATURES_GLOBAL_V3,0.0f);
 
   Player pla = nextPlayer;
   Player opp = getOpp(pla);
@@ -900,7 +900,7 @@ void NNInputs::fillRowV3(
   if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
     Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
     if(prev1Loc == Board::PASS_LOC)
-      rowFloat[0] = 1.0;
+      rowGlobal[0] = 1.0;
     else if(prev1Loc != Board::NULL_LOC) {
       int pos = NNPos::locToPos(prev1Loc,xSize,posLen);
       setRowBinV3(rowBin,pos,9, true, posStride, featureStride);
@@ -908,7 +908,7 @@ void NNInputs::fillRowV3(
     if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
       Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
       if(prev2Loc == Board::PASS_LOC)
-        rowFloat[1] = 1.0;
+        rowGlobal[1] = 1.0;
       else if(prev2Loc != Board::NULL_LOC) {
         int pos = NNPos::locToPos(prev2Loc,xSize,posLen);
         setRowBinV3(rowBin,pos,10, true, posStride, featureStride);
@@ -916,7 +916,7 @@ void NNInputs::fillRowV3(
       if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
         Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
         if(prev3Loc == Board::PASS_LOC)
-          rowFloat[2] = 1.0;
+          rowGlobal[2] = 1.0;
         else if(prev3Loc != Board::NULL_LOC) {
           int pos = NNPos::locToPos(prev3Loc,xSize,posLen);
           setRowBinV3(rowBin,pos,11, true, posStride, featureStride);
@@ -924,7 +924,7 @@ void NNInputs::fillRowV3(
         if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
           Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
           if(prev4Loc == Board::PASS_LOC)
-            rowFloat[3] = 1.0;
+            rowGlobal[3] = 1.0;
           else if(prev4Loc != Board::NULL_LOC) {
             int pos = NNPos::locToPos(prev4Loc,xSize,posLen);
             setRowBinV3(rowBin,pos,12, true, posStride, featureStride);
@@ -932,7 +932,7 @@ void NNInputs::fillRowV3(
           if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
             Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
             if(prev5Loc == Board::PASS_LOC)
-              rowFloat[4] = 1.0;
+              rowGlobal[4] = 1.0;
             else if(prev5Loc != Board::NULL_LOC) {
               int pos = NNPos::locToPos(prev5Loc,xSize,posLen);
               setRowBinV3(rowBin,pos,13, true, posStride, featureStride);
@@ -1022,7 +1022,7 @@ void NNInputs::fillRowV3(
   }
 
 
-  //Floating point features.
+  //Global features.
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
 
   //Komi and any score adjustments
@@ -1033,44 +1033,44 @@ void NNInputs::fillRowV3(
     selfKomi = bArea+1.0f;
   if(selfKomi < -bArea-1.0f)
     selfKomi = -bArea-1.0f;
-  rowFloat[5] = selfKomi/15.0f;
+  rowGlobal[5] = selfKomi/15.0f;
 
   //Ko rule
   if(hist.rules.koRule == Rules::KO_SIMPLE) {}
   else if(hist.rules.koRule == Rules::KO_POSITIONAL || hist.rules.koRule == Rules::KO_SPIGHT) {
-    rowFloat[6] = 1.0f;
-    rowFloat[7] = 0.5f;
+    rowGlobal[6] = 1.0f;
+    rowGlobal[7] = 0.5f;
   }
   else if(hist.rules.koRule == Rules::KO_SITUATIONAL) {
-    rowFloat[6] = 1.0f;
-    rowFloat[7] = -0.5f;
+    rowGlobal[6] = 1.0f;
+    rowGlobal[7] = -0.5f;
   }
   else
     assert(false);
 
   //Suicide
   if(hist.rules.multiStoneSuicideLegal)
-    rowFloat[8] = 1.0f;
+    rowGlobal[8] = 1.0f;
 
   //Scoring
   if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
   else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY)
-    rowFloat[9] = 1.0f;
+    rowGlobal[9] = 1.0f;
   else
     assert(false);
 
   //Encore phase
   if(hist.encorePhase > 0)
-    rowFloat[10] = 1.0f;
+    rowGlobal[10] = 1.0f;
   if(hist.encorePhase > 1)
-    rowFloat[11] = 1.0f;
+    rowGlobal[11] = 1.0f;
 
   //Does a pass end the current phase given the ruleset and history?
   bool passWouldEndPhase = hist.passWouldEndPhase(board,nextPlayer);
-  rowFloat[12] = passWouldEndPhase ? 1.0f : 0.0f;
+  rowGlobal[12] = passWouldEndPhase ? 1.0f : 0.0f;
 
   //Direct indication of the board size, but scaled down to be a more reasonable value.
-  rowFloat[13] = sqrt((float)(xSize*ySize)) / 16.0;
+  rowGlobal[13] = sqrt((float)(xSize*ySize)) / 16.0;
 
   //Provide parity information about the board size and komi
   //This comes from the following observation:
@@ -1131,7 +1131,7 @@ void NNInputs::fillRowV3(
     else
       wave = delta-2.0f;
 
-    rowFloat[14] = wave;
+    rowGlobal[14] = wave;
   }
 
 }

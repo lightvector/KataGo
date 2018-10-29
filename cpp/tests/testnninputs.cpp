@@ -55,7 +55,7 @@ template <typename T>
 static void printNNInputGlobal(ostream& out, int inputsVersion, T* row, int c) {
   int numFeatures;
   if(inputsVersion == 3)
-    numFeatures = NNInputs::NUM_FEATURES_FLOAT_V3;
+    numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V3;
   else
     testAssert(false);
   (void)numFeatures;
@@ -1035,15 +1035,15 @@ void Tests::runNNInputsV3Tests() {
     double drawEquivalentWinsForWhite = 0.2;
     Hash128 hash = NNInputs::getHashV3(board,hist,nextPla,drawEquivalentWinsForWhite);
     bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
-    float* rowFloat = new float[NNInputs::NUM_FEATURES_FLOAT_V3];
+    float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
     auto run = [&](bool inputsUseNHWC) {
-      NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowFloat);
+      NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowGlobal);
       out << hash << endl;
       for(int c = 0; c<NNInputs::NUM_FEATURES_BIN_V3; c++)
         printNNInputHWAndBoard(out,3,board,hist,posLen,inputsUseNHWC,rowBin,c);
-      for(int c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++)
-        printNNInputGlobal(out,3,rowFloat,c);
+      for(int c = 0; c<NNInputs::NUM_FEATURES_GLOBAL_V3; c++)
+        printNNInputGlobal(out,3,rowGlobal,c);
       return getAndClear(out);
     };
 
@@ -1051,7 +1051,7 @@ void Tests::runNNInputsV3Tests() {
     string actualNCHW = run(false);
 
     delete[] rowBin;
-    delete[] rowFloat;
+    delete[] rowGlobal;
     delete sgf;
 
     string expected = R"%%(
@@ -1562,16 +1562,16 @@ Channel: 14: 0.5
     double drawEquivalentWinsForWhite = 0.3;
     Hash128 hash = NNInputs::getHashV3(board,hist,nextPla,drawEquivalentWinsForWhite);
     bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
-    float* rowFloat = new float[NNInputs::NUM_FEATURES_FLOAT_V3];
+    float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
     auto run = [&](bool inputsUseNHWC) {
-      NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowFloat);
+      NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowGlobal);
 
       out << hash << endl;
       int c = 6;
       printNNInputHWAndBoard(out,3,board,hist,posLen,inputsUseNHWC,rowBin,c);
-      for(c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++)
-        printNNInputGlobal(out,3,rowFloat,c);
+      for(c = 0; c<NNInputs::NUM_FEATURES_GLOBAL_V3; c++)
+        printNNInputGlobal(out,3,rowGlobal,c);
       return getAndClear(out);
     };
 
@@ -1579,7 +1579,7 @@ Channel: 14: 0.5
     string actualNCHW = run(true);
 
     delete[] rowBin;
-    delete[] rowFloat;
+    delete[] rowGlobal;
     delete sgf;
 
     string expected = R"%%(
@@ -1649,15 +1649,15 @@ Channel: 14: -0.5
     double drawEquivalentWinsForWhite = 0.5;
     Hash128 hash = NNInputs::getHashV3(board,hist,nextPla,drawEquivalentWinsForWhite);
     bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
-    float* rowFloat = new float[NNInputs::NUM_FEATURES_FLOAT_V3];
+    float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
     auto run = [&](bool inputsUseNHWC) {
-      NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowFloat);
+      NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowGlobal);
       out << hash << endl;
       for(int c = 0; c<NNInputs::NUM_FEATURES_BIN_V3; c++)
         printNNInputHWAndBoard(out,3,board,hist,posLen,inputsUseNHWC,rowBin,c);
-      for(int c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++)
-        printNNInputGlobal(out,3,rowFloat,c);
+      for(int c = 0; c<NNInputs::NUM_FEATURES_GLOBAL_V3; c++)
+        printNNInputGlobal(out,3,rowGlobal,c);
       return getAndClear(out);
     };
 
@@ -1665,7 +1665,7 @@ Channel: 14: -0.5
     string actualNCHW = run(false);
 
     delete[] rowBin;
-    delete[] rowFloat;
+    delete[] rowGlobal;
     delete sgf;
 
     string expected = R"%%(
@@ -1913,15 +1913,15 @@ Channel: 14: -0.5
     double drawEquivalentWinsForWhite = 0.8;
     Hash128 hash = NNInputs::getHashV3(board,hist,nextPla,drawEquivalentWinsForWhite);
     bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
-    float* rowFloat = new float[NNInputs::NUM_FEATURES_FLOAT_V3];
+    float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
     auto run = [&](bool inputsUseNHWC) {
-      NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowFloat);
+      NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowGlobal);
       out << hash << endl;
       for(int c = 0; c<NNInputs::NUM_FEATURES_BIN_V3; c++)
         printNNInputHWAndBoard(out,3,board,hist,posLen,inputsUseNHWC,rowBin,c);
-      for(int c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++)
-        printNNInputGlobal(out,3,rowFloat,c);
+      for(int c = 0; c<NNInputs::NUM_FEATURES_GLOBAL_V3; c++)
+        printNNInputGlobal(out,3,rowGlobal,c);
       return getAndClear(out);
     };
 
@@ -1929,7 +1929,7 @@ Channel: 14: -0.5
     string actualNCHW = run(false);
 
     delete[] rowBin;
-    delete[] rowFloat;
+    delete[] rowGlobal;
     delete sgf;
 
     string expected = R"%%(
@@ -2219,31 +2219,31 @@ xxx..xx
     int posLen = 7;
     double drawEquivalentWinsForWhite = 0.3;
     bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
-    float* rowFloat = new float[NNInputs::NUM_FEATURES_FLOAT_V3];
+    float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
-    NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowFloat);
+    NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowGlobal);
     int c = 18;
     printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,c);
     c = 19;
     printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,c);
-    for(c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++)
-      printNNInputGlobal(out,3,rowFloat,c);
+    for(c = 0; c<NNInputs::NUM_FEATURES_GLOBAL_V3; c++)
+      printNNInputGlobal(out,3,rowGlobal,c);
 
     nextPla = P_WHITE;
     hist.clear(board,nextPla,initialRules,0);
-    NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowFloat);
-    for(c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++)
-      printNNInputGlobal(out,3,rowFloat,c);
+    NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowGlobal);
+    for(c = 0; c<NNInputs::NUM_FEATURES_GLOBAL_V3; c++)
+      printNNInputGlobal(out,3,rowGlobal,c);
 
     nextPla = P_BLACK;
     initialRules.komi = 1;
     hist.clear(board,nextPla,initialRules,0);
-    NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowFloat);
-    for(c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++)
-      printNNInputGlobal(out,3,rowFloat,c);
+    NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowGlobal);
+    for(c = 0; c<NNInputs::NUM_FEATURES_GLOBAL_V3; c++)
+      printNNInputGlobal(out,3,rowGlobal,c);
 
     delete[] rowBin;
-    delete[] rowFloat;
+    delete[] rowGlobal;
 
     string expected = R"%%(
 Channel: 18
@@ -2351,21 +2351,21 @@ Channel: 14: 0.2
       int posLen = size;
       double drawEquivalentWinsForWhite = 0.47;
       bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
-      float* rowFloat = new float[NNInputs::NUM_FEATURES_FLOAT_V3];
+      float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
-      for(int c = 0; c<NNInputs::NUM_FEATURES_FLOAT_V3; c++) {
+      for(int c = 0; c<NNInputs::NUM_FEATURES_GLOBAL_V3; c++) {
         for(int i = 0; i<rules.size(); i++) {
           BoardHistory hist(board,nextPla,rules[i],0);
-          NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowFloat);
-          out << rowFloat[c] << " ";
+          NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowGlobal);
+          out << rowGlobal[c] << " ";
         }
         out << endl;
       }
 
       delete[] rowBin;
-      delete[] rowFloat;
+      delete[] rowGlobal;
     }
-    
+
     string expected = R"%%(
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
@@ -2419,7 +2419,7 @@ Channel: 14: 0.2
     int posLen = 6;
     double drawEquivalentWinsForWhite = 0.0;
     bool* rowBin = new bool[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
-    float* rowFloat = new float[NNInputs::NUM_FEATURES_FLOAT_V3];
+    float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
 
     for(size_t i = 0; i<moves.size(); i++) {
       assert(hist.isLegal(board,moves[i].loc,moves[i].pla));
@@ -2435,21 +2435,21 @@ Channel: 14: 0.2
           out << " ";
         }
         out << endl;
-        NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowFloat);
+        NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowGlobal);
         out << "Pass Hist Channels: ";
         for(int c = 0; c<5; c++)
-          out << rowFloat[c] << " ";
+          out << rowGlobal[c] << " ";
         out << endl;
-        out << "Selfkomi channel times 15: " << rowFloat[5]*15 << endl;
-        out << "EncorePhase channel 10,11: " << rowFloat[10] << " " << rowFloat[11] << endl;
-        out << "PassWouldEndPhase channel 12: " << rowFloat[12] << endl;
+        out << "Selfkomi channel times 15: " << rowGlobal[5]*15 << endl;
+        out << "EncorePhase channel 10,11: " << rowGlobal[10] << " " << rowGlobal[11] << endl;
+        out << "PassWouldEndPhase channel 12: " << rowGlobal[12] << endl;
         printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,7);
         printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,8);
       }
     }
 
     delete[] rowBin;
-    delete[] rowFloat;
+    delete[] rowGlobal;
     delete sgf;
 
     string expected = R"%%(

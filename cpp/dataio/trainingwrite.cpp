@@ -56,22 +56,22 @@ FinishedGameData::~FinishedGameData() {
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 1;
-static const int FLOAT_TARGET_NUM_CHANNELS = 45;
+static const int GLOBAL_TARGET_NUM_CHANNELS = 45;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int pLen)
   :inputsVersion(iVersion),
    maxRows(maxRws),
    numBinaryChannels(numBChannels),
-   numFloatChannels(numFChannels),
+   numGlobalChannels(numFChannels),
    posLen(pLen),
    packedBoardArea((pLen*pLen + 7)/8),
    curRows(0),
    binaryInputNCHWUnpacked(NULL),
    binaryInputNCHWPacked({maxRws, numBChannels, packedBoardArea}),
-   floatInputNC({maxRws, numFChannels}),
+   globalInputNC({maxRws, numFChannels}),
    policyTargetsNCMove({maxRws, POLICY_TARGET_NUM_CHANNELS, NNPos::getPolicySize(pLen)}),
-   floatTargetsNC({maxRws, FLOAT_TARGET_NUM_CHANNELS}),
+   globalTargetsNC({maxRws, GLOBAL_TARGET_NUM_CHANNELS}),
    valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, pLen, pLen})
 {
   binaryInputNCHWUnpacked = new bool[numBChannels * pLen * pLen];
@@ -176,11 +176,11 @@ void TrainingWriteBuffers::addRow(
   {
     bool inputsUseNHWC = false;
     bool* rowBin = binaryInputNCHWUnpacked;
-    float* rowFloat = floatInputNC.data + curRows * numFloatChannels;
+    float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
     if(inputsVersion == 3) {
       assert(NNInputs::NUM_FEATURES_BIN_V3 == numBinaryChannels);
-      assert(NNInputs::NUM_FEATURES_FLOAT_V3 == numFloatChannels);
-      NNInputs::fillRowV3(board, hist, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowBin, rowFloat);
+      assert(NNInputs::NUM_FEATURES_GLOBAL_V3 == numGlobalChannels);
+      NNInputs::fillRowV3(board, hist, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
       assert(false);
@@ -192,7 +192,7 @@ void TrainingWriteBuffers::addRow(
   }
 
   //Vector for global targets and metadata
-  float* rowFloat = floatTargetsNC.data + curRows * FLOAT_TARGET_NUM_CHANNELS;
+  float* rowGlobal = globalTargetsNC.data + curRows * GLOBAL_TARGET_NUM_CHANNELS;
 
   //Fill policy
   int policySize = NNPos::getPolicySize(posLen);
@@ -200,35 +200,35 @@ void TrainingWriteBuffers::addRow(
 
   if(policyTarget0 != NULL) {
     fillPolicyTarget(*policyTarget0, policySize, posLen, board.x_size, rowPolicy + 0 * policySize);
-    rowFloat[25] = 1.0f;
+    rowGlobal[25] = 1.0f;
   }
   else {
     zeroPolicyTarget(policySize, rowPolicy + 0 * policySize);
-    rowFloat[25] = 0.0f;
+    rowGlobal[25] = 0.0f;
   }
 
   //Unused
-  rowFloat[26] = 0.0f;
-  rowFloat[27] = 0.0f;
+  rowGlobal[26] = 0.0f;
+  rowGlobal[27] = 0.0f;
 
   //Fill td-like value targets
   assert(turnNumber >= 0 && turnNumber < data.whiteValueTargetsByTurn.size());
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 0.0, rowFloat);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0/36.0, rowFloat+4);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0/12.0, rowFloat+8);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0/4.0, rowFloat+12);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0, rowFloat+16);
+  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 0.0, rowGlobal);
+  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0/36.0, rowGlobal+4);
+  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0/12.0, rowGlobal+8);
+  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0/4.0, rowGlobal+12);
+  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0, rowGlobal+16);
 
   //Fill score info
   const ValueTargets& lastTargets = data.whiteValueTargetsByTurn[data.whiteValueTargetsByTurn.size()-1];
-  rowFloat[20] = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
+  rowGlobal[20] = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
 
   //Fill short-term variance info
   const ValueTargets& thisTargets = data.whiteValueTargetsByTurn[turnNumber];
-  rowFloat[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
-  rowFloat[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
-  rowFloat[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
-  rowFloat[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
+  rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
+  rowGlobal[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
+  rowGlobal[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
+  rowGlobal[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
 
   //Fill in whether we should use history or not
   bool useHist0 = rand.nextDouble() < 0.98;
@@ -236,32 +236,32 @@ void TrainingWriteBuffers::addRow(
   bool useHist2 = useHist1 && rand.nextDouble() < 0.98;
   bool useHist3 = useHist2 && rand.nextDouble() < 0.98;
   bool useHist4 = useHist3 && rand.nextDouble() < 0.98;
-  rowFloat[28] = useHist0 ? 1.0 : 0.0;
-  rowFloat[29] = useHist1 ? 1.0 : 0.0;
-  rowFloat[30] = useHist2 ? 1.0 : 0.0;
-  rowFloat[31] = useHist3 ? 1.0 : 0.0;
-  rowFloat[32] = useHist4 ? 1.0 : 0.0;
+  rowGlobal[28] = useHist0 ? 1.0 : 0.0;
+  rowGlobal[29] = useHist1 ? 1.0 : 0.0;
+  rowGlobal[30] = useHist2 ? 1.0 : 0.0;
+  rowGlobal[31] = useHist3 ? 1.0 : 0.0;
+  rowGlobal[32] = useHist4 ? 1.0 : 0.0;
 
   //Fill in hash of game
   Hash128 gameHash = data.gameHash;
-  rowFloat[33] = (float)(gameHash.hash0 & 0x3FFFFF);
-  rowFloat[34] = (float)((gameHash.hash0 >> 22) & 0x3FFFFF);
-  rowFloat[35] = (float)((gameHash.hash0 >> 44) & 0xFFFFF);
-  rowFloat[36] = (float)(gameHash.hash1 & 0x3FFFFF);
-  rowFloat[37] = (float)((gameHash.hash1 >> 22) & 0x3FFFFF);
-  rowFloat[38] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
+  rowGlobal[33] = (float)(gameHash.hash0 & 0x3FFFFF);
+  rowGlobal[34] = (float)((gameHash.hash0 >> 22) & 0x3FFFFF);
+  rowGlobal[35] = (float)((gameHash.hash0 >> 44) & 0xFFFFF);
+  rowGlobal[36] = (float)(gameHash.hash1 & 0x3FFFFF);
+  rowGlobal[37] = (float)((gameHash.hash1 >> 22) & 0x3FFFFF);
+  rowGlobal[38] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
 
   //Some misc metadata
-  rowFloat[39] = turnNumber;
-  rowFloat[40] = data.hitTurnLimit ? 1.0 : 0.0;
+  rowGlobal[39] = turnNumber;
+  rowGlobal[40] = data.hitTurnLimit ? 1.0 : 0.0;
 
   //Metadata about how the game was initialized
-  rowFloat[41] = data.firstTrainingTurn;
-  rowFloat[42] = data.mode;
-  rowFloat[43] = data.modeMeta1;
-  rowFloat[44] = data.modeMeta2;
+  rowGlobal[41] = data.firstTrainingTurn;
+  rowGlobal[42] = data.mode;
+  rowGlobal[43] = data.modeMeta1;
+  rowGlobal[44] = data.modeMeta2;
 
-  assert(45 == FLOAT_TARGET_NUM_CHANNELS);
+  assert(45 == GLOBAL_TARGET_NUM_CHANNELS);
 
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
   for(int i = 0; i<posArea; i++) {
@@ -280,14 +280,14 @@ void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
   numBytes = binaryInputNCHWPacked.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("binaryInputNCHWPacked", binaryInputNCHWPacked.dataIncludingHeader, numBytes);
 
-  numBytes = floatInputNC.prepareHeaderWithNumRows(curRows);
-  zipFile.writeBuffer("floatInputNC", floatInputNC.dataIncludingHeader, numBytes);
+  numBytes = globalInputNC.prepareHeaderWithNumRows(curRows);
+  zipFile.writeBuffer("globalInputNC", globalInputNC.dataIncludingHeader, numBytes);
 
   numBytes = policyTargetsNCMove.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("policyTargetsNCMove", policyTargetsNCMove.dataIncludingHeader, numBytes);
 
-  numBytes = floatTargetsNC.prepareHeaderWithNumRows(curRows);
-  zipFile.writeBuffer("floatTargetsNC", floatTargetsNC.dataIncludingHeader, numBytes);
+  numBytes = globalTargetsNC.prepareHeaderWithNumRows(curRows);
+  zipFile.writeBuffer("globalTargetsNC", globalTargetsNC.dataIncludingHeader, numBytes);
 
   numBytes = valueTargetsNCHW.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("valueTargetsNCHW", valueTargetsNCHW.dataIncludingHeader, numBytes);
@@ -304,17 +304,17 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, int iVersion, int m
   :outputDir(outDir),inputsVersion(iVersion),rand(),writeBuffers(NULL)
 {
   int numBinaryChannels;
-  int numFloatChannels;
+  int numGlobalChannels;
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
   //to feed into a model during selfplay
   if(inputsVersion < 3 || inputsVersion > 3)
     throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(inputsVersion));
   else if(inputsVersion == 3) {
     numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V3;
-    numFloatChannels = NNInputs::NUM_FEATURES_FLOAT_V3;
+    numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V3;
   }
 
-  writeBuffers = new TrainingWriteBuffers(inputsVersion, maxRowsPerFile, numBinaryChannels, numFloatChannels, posLen);
+  writeBuffers = new TrainingWriteBuffers(inputsVersion, maxRowsPerFile, numBinaryChannels, numGlobalChannels, posLen);
 }
 
 TrainingDataWriter::~TrainingDataWriter()

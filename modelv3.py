@@ -10,13 +10,13 @@ from board import Board
 
 class ModelV3:
   NUM_BIN_INPUT_FEATURES = 22
-  NUM_FLOAT_INPUT_FEATURES = 15
+  NUM_GLOBAL_INPUT_FEATURES = 15
 
   def __init__(self,config,placeholders):
     self.pos_len = config["pos_len"]
     self.bin_input_shape = [self.pos_len*self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES]
     self.binp_input_shape = [ModelV3.NUM_BIN_INPUT_FEATURES,(self.pos_len*self.pos_len+7)//8]
-    self.float_input_shape = [ModelV3.NUM_FLOAT_INPUT_FEATURES]
+    self.global_input_shape = [ModelV3.NUM_GLOBAL_INPUT_FEATURES]
     self.post_input_shape = [self.pos_len,self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES]
     self.policy_target_shape_nopass = [self.pos_len*self.pos_len]
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
@@ -128,7 +128,7 @@ class ModelV3:
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
   #TODO incomplete, need rules
-  def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, float_input_data, use_history_prop, idx):
+  def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, use_history_prop, idx):
     bsize = board.size
     assert(self.pos_len >= bsize)
     assert(len(boards) > 0)
@@ -168,7 +168,7 @@ class ModelV3:
           pos = self.loc_to_tensor_pos(prev1_loc,board)
           bin_input_data[idx,pos,9] = use_history_prop
         elif prev1_loc == Board.PASS_LOC:
-          float_input_data[idx,0] = use_history_prop
+          global_input_data[idx,0] = use_history_prop
 
         if move_idx >= 2 and moves[move_idx-2][0] == pla:
           prev2_loc = moves[move_idx-2][1]
@@ -176,7 +176,7 @@ class ModelV3:
             pos = self.loc_to_tensor_pos(prev2_loc,board)
             bin_input_data[idx,pos,10] = use_history_prop
           elif prev2_loc == Board.PASS_LOC:
-            float_input_data[idx,1] = use_history_prop
+            global_input_data[idx,1] = use_history_prop
 
           if move_idx >= 3 and moves[move_idx-3][0] == opp:
             prev3_loc = moves[move_idx-3][1]
@@ -184,7 +184,7 @@ class ModelV3:
               pos = self.loc_to_tensor_pos(prev3_loc,board)
               bin_input_data[idx,pos,11] = use_history_prop
             elif prev3_loc == Board.PASS_LOC:
-              float_input_data[idx,2] = use_history_prop
+              global_input_data[idx,2] = use_history_prop
 
             if move_idx >= 4 and moves[move_idx-4][0] == pla:
               prev4_loc = moves[move_idx-4][1]
@@ -192,7 +192,7 @@ class ModelV3:
                 pos = self.loc_to_tensor_pos(prev4_loc,board)
                 bin_input_data[idx,pos,12] = use_history_prop
               elif prev4_loc == Board.PASS_LOC:
-                float_input_data[idx,3] = use_history_prop
+                global_input_data[idx,3] = use_history_prop
 
               if move_idx >= 5 and moves[move_idx-5][0] == opp:
                 prev5_loc = moves[move_idx-5][1]
@@ -200,7 +200,7 @@ class ModelV3:
                   pos = self.loc_to_tensor_pos(prev5_loc,board)
                   bin_input_data[idx,pos,13] = use_history_prop
                 elif prev5_loc == Board.PASS_LOC:
-                  float_input_data[idx,4] = use_history_prop
+                  global_input_data[idx,4] = use_history_prop
 
     def addLadderFeature(loc,pos,workingMoves):
       assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE)
@@ -276,38 +276,38 @@ class ModelV3:
       selfKomi = bArea+1
     if selfKomi < -bArea-1:
       selfKomi = -bArea-1
-    float_input_data[idx,5] = selfKomi/15.0
+    global_input_data[idx,5] = selfKomi/15.0
 
     if rules["koRule"] == "KO_SIMPLE":
       pass
     elif rules["koRule"] == "KO_POSITIONAL" or rules["koRule"] == "KO_SPIGHT":
-      float_input_data[idx,6] = 1.0
-      float_input_data[idx,7] = 0.5
+      global_input_data[idx,6] = 1.0
+      global_input_data[idx,7] = 0.5
     elif rules["koRule"] == "KO_SITUATIONAL":
-      float_input_data[idx,6] = 1.0
-      float_input_data[idx,7] = -0.5
+      global_input_data[idx,6] = 1.0
+      global_input_data[idx,7] = -0.5
     else:
       assert(False)
 
     if rules["multiStoneSuicideLegal"]:
-      float_input_data[idx,8] = 1.0
+      global_input_data[idx,8] = 1.0
 
     if rules["scoringRule"] == "SCORING_AREA":
       pass
     elif rules["scoringRule"] == "SCORING_TERRITORY":
-      float_input_data[idx,9] = 1.0
+      global_input_data[idx,9] = 1.0
     else:
       assert(False)
 
     if rules["encorePhase"] > 0:
-      float_input_data[idx,10] = 1.0
+      global_input_data[idx,10] = 1.0
     if rules["encorePhase"] > 1:
-      float_input_data[idx,11] = 1.0
+      global_input_data[idx,11] = 1.0
 
     passWouldEndPhase = rules["passWouldEndPhase"]
-    float_input_data[idx,12] = (1.0 if passWouldEndPhase else 0.0)
+    global_input_data[idx,12] = (1.0 if passWouldEndPhase else 0.0)
 
-    float_input_data[idx,13] = board.size / 16.0
+    global_input_data[idx,13] = board.size / 16.0
 
     if rules["scoringRule"] == "SCORING_AREA":
       boardAreaIsEven = (board.size % 2 == 0)
@@ -334,7 +334,7 @@ class ModelV3:
       else:
         wave = delta-2.0
 
-      float_input_data[idx,14] = wave
+      global_input_data[idx,14] = wave
 
     return idx+1
 
@@ -625,20 +625,20 @@ class ModelV3:
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
                   tf.placeholder(tf.float32, [None] + self.bin_input_shape, name="bin_inputs"))
-    float_inputs = (placeholders["float_inputs"] if "float_inputs" in placeholders else
-                    tf.placeholder(tf.float32, [None] + self.float_input_shape, name="float_inputs"))
+    global_inputs = (placeholders["global_inputs"] if "global_inputs" in placeholders else
+                    tf.placeholder(tf.float32, [None] + self.global_input_shape, name="global_inputs"))
     symmetries = (placeholders["symmetries"] if "symmetries" in placeholders else
                   tf.placeholder(tf.bool, [3], name="symmetries"))
     include_history = (placeholders["include_history"] if "include_history" in placeholders else
                        tf.placeholder(tf.float32, [None] + [5], name="include_history"))
 
     self.assert_batched_shape("bin_inputs",bin_inputs,self.bin_input_shape)
-    self.assert_batched_shape("float_inputs",float_inputs,self.float_input_shape)
+    self.assert_batched_shape("global_inputs",global_inputs,self.global_input_shape)
     self.assert_shape("symmetries",symmetries,[3])
     self.assert_batched_shape("include_history",include_history,[5])
 
     self.bin_inputs = bin_inputs
-    self.float_inputs = float_inputs
+    self.global_inputs = global_inputs
     self.symmetries = symmetries
     self.include_history = include_history
 
@@ -743,10 +743,10 @@ class ModelV3:
     cur_layer = tf.reshape(cur_layer,[-1,self.pos_len,self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES])
 
     assert(include_history.shape[1].value == 5)
-    transformed_float_inputs = float_inputs * tf.pad(include_history, [(0,0),(0,ModelV3.NUM_FLOAT_INPUT_FEATURES - include_history.shape[1].value)], constant_values=1.0)
+    transformed_global_inputs = global_inputs * tf.pad(include_history, [(0,0),(0,ModelV3.NUM_GLOBAL_INPUT_FEATURES - include_history.shape[1].value)], constant_values=1.0)
 
     self.transformed_bin_inputs = cur_layer
-    self.transformed_float_inputs = transformed_float_inputs
+    self.transformed_global_inputs = transformed_global_inputs
 
     #Channel counts---------------------------------------------------------------------------------------
     trunk_num_channels = 128
@@ -771,10 +771,12 @@ class ModelV3:
     trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
     self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
 
-    #Matrix multiply float inputs and accumulate them
-    ginputw = self.weight_variable("ginputw",[ModelV3.NUM_FLOAT_INPUT_FEATURES,trunk_num_channels],ModelV3.NUM_FLOAT_INPUT_FEATURES*2,trunk_num_channels)
-    ginputresult = tf.tensordot(transformed_float_inputs,ginputw,axes=[[1],[0]])
+    #Matrix multiply global inputs and accumulate them
+    ginputw = self.weight_variable("ginputw",[ModelV3.NUM_GLOBAL_INPUT_FEATURES,trunk_num_channels],ModelV3.NUM_GLOBAL_INPUT_FEATURES*2,trunk_num_channels)
+    ginputresult = tf.tensordot(transformed_global_inputs,ginputw,axes=[[1],[0]])
     trunk = trunk + tf.reshape(ginputresult, [-1,1,1,trunk_num_channels])
+
+    self.initial_matmul = ("ginputw",ModelV3.NUM_GLOBAL_INPUT_FEATURES,trunk_num_channels)
 
     #Main trunk---------------------------------------------------------------------------------------------------
     self.blocks = []

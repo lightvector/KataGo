@@ -55,7 +55,7 @@ struct TrainingWriteBuffers {
   int inputsVersion;
   int maxRows;
   int numBinaryChannels;
-  int numFloatChannels;
+  int numGlobalChannels;
   int posLen;
   int packedBoardArea;
 
@@ -67,7 +67,7 @@ struct TrainingWriteBuffers {
   //Within each byte, bits are packed bigendianwise, since that's what numpy's unpackbits will expect.
   NumpyBuffer<uint8_t> binaryInputNCHWPacked;
   //Input features that are global.
-  NumpyBuffer<float> floatInputNC;
+  NumpyBuffer<float> globalInputNC;
 
   //Policy targets
   //Shape is [N,C,Pos]. Almost NCHW, except we have a Pos of length, e.g. 362, due to the pass input, instead of 19x19.
@@ -106,13 +106,13 @@ struct TrainingWriteBuffers {
   //C42-44: Game type, game typesource metadata
   // 0 = normal self-play game. C43,C44 unused
   // 1 = encore-training game. C43 is the starting encore phase, C44 unused
-  NumpyBuffer<float> floatTargetsNC;
+  NumpyBuffer<float> globalTargetsNC;
 
   //Spatial value-related targets
   //C0 - Final board ownership (-1,0,1). All 0 if no result.
   NumpyBuffer<int8_t> valueTargetsNCHW;
 
-  TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numFloatChannels, int posLen);
+  TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numGlobalChannels, int posLen);
   ~TrainingWriteBuffers();
 
   TrainingWriteBuffers(const TrainingWriteBuffers&) = delete;

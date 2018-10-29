@@ -120,20 +120,20 @@ def model_fn(features,labels,mode,params):
 
   placeholders["bin_inputs"] = binhwc
 
-  placeholders["float_inputs"] = features["finc"]
+  placeholders["global_inputs"] = features["ginc"]
   placeholders["symmetries"] = tf.greater(tf.random_uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
-  placeholders["include_history"] = features["ftnc"][:,28:33]
+  placeholders["include_history"] = features["gtnc"][:,28:33]
 
   policy_target0 = features["ptncm"][:,0,:]
   policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
   placeholders["policy_target"] = policy_target0
-  placeholders["policy_target_weight"] = feature["ftnc"][:,25]
+  placeholders["policy_target_weight"] = feature["gtnc"][:,25]
 
-  placeholders["value_target"] = features["ftnc"][:,0:3]
-  placeholders["scorevalue_target"] = features["ftnc"][:,3]
+  placeholders["value_target"] = features["gtnc"][:,0:3]
+  placeholders["scorevalue_target"] = features["gtnc"][:,3]
   placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
-  placeholders["target_weight_from_data"] = features["ftnc"][:,0]*0 + 1
-  placeholders["ownership_target_weight"] = 1.0-features["ftnc"][:,2] #1 if normal game, 0 if no result
+  placeholders["target_weight_from_data"] = features["gtnc"][:,0]*0 + 1
+  placeholders["ownership_target_weight"] = 1.0-features["gtnc"][:,2] #1 if normal game, 0 if no result
   placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
@@ -262,28 +262,28 @@ def model_fn(features,labels,mode,params):
 # INPUTS ------------------------------------------------------------------------
 
 NUM_POLICY_TARGETS = 1
-NUM_FLOAT_TARGETS = 45
+NUM_GLOBAL_TARGETS = 45
 NUM_VALUE_SPATIAL_TARGETS = 1
 
 raw_input_features = {
   "binchwp": tf.FixedLenFeature([],tf.string),
-  "finc": tf.FixedLenFeature([batch_size*ModelV3.NUM_FLOAT_INPUT_FEATURES],tf.float32),
+  "ginc": tf.FixedLenFeature([batch_size*ModelV3.NUM_GLOBAL_INPUT_FEATURES],tf.float32),
   "ptncm": tf.FixedLenFeature([batch_size*NUM_POLICY_TARGETS(pos_len*pos_len+1)],tf.float32),
-  "ftnc": tf.FixedLenFeature([batch_size*NUM_FLOAT_TARGETS],tf.float32),
+  "gtnc": tf.FixedLenFeature([batch_size*NUM_GLOBAL_TARGETS],tf.float32),
   "vtnchw": tf.FixedLenFeature([batch_size*NUM_VALUE_SPATIAL_TARGETS*pos_len*pos_len],tf.float32)
 }
 def parse_input(serialized_example):
   example = tf.parse_single_example(serialized_example,raw_input_features)
   binchwp = tf.decode_raw(example["binchwp"],tf.uint8)
-  finc = example["finc"]
+  ginc = example["ginc"]
   ptncm = example["ptncm"]
-  ftnc = example["ftnc"]
+  gtnc = example["gtnc"]
   vtnchw = example["vtnchw"]
   return {
     "binchwp": tf.reshape(binchwp,[batch_size,ModelV3.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
-    "finc": tf.reshape(finc,[batch_size,ModelV3.NUM_FLOAT_INPUT_FEATURES]),
+    "ginc": tf.reshape(ginc,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
     "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
-    "ftnc": tf.reshape(ftnc,[batch_size,NUM_FLOAT_TARGETS]),
+    "gtnc": tf.reshape(gtnc,[batch_size,NUM_GLOBAL_TARGETS]),
     "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 

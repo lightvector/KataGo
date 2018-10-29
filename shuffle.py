@@ -18,9 +18,9 @@ from tensorflow.python_io import *
 
 keys = [
   "binaryInputNCHWPacked",
-  "floatInputNC",
+  "globalInputNC",
   "policyTargetsNCMove",
-  "floatTargetsNC",
+  "globalTargetsNC",
   "valueTargetsNCHW"
 ]
 
@@ -43,13 +43,13 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   assert(set(npz.keys()) == set(keys))
 
   binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
-  floatInputNC = npz["floatInputNC"]
+  globalInputNC = npz["globalInputNC"]
   policyTargetsNCMove = npz["policyTargetsNCMove"]
-  floatTargetsNC = npz["floatTargetsNC"]
+  globalTargetsNC = npz["globalTargetsNC"]
   valueTargetsNCHW = npz["valueTargetsNCHW"]
 
   print("Shuffling... (mem usage %dMB)" % memusage_mb())
-  joint_shuffle((binaryInputNCHWPacked,floatInputNC,policyTargetsNCMove,floatTargetsNC,valueTargetsNCHW))
+  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,valueTargetsNCHW))
 
   num_rows_to_keep = binaryInputNCHWPacked.shape[0]
   if keep_prob < 1.0:
@@ -66,9 +66,9 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
     np.savez_compressed(
       os.path.join(out_tmp_dirs[out_idx], str(input_idx) + ".npz"),
       binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
-      floatInputNC = floatInputNC[start:stop],
+      globalInputNC = globalInputNC[start:stop],
       policyTargetsNCMove = policyTargetsNCMove[start:stop],
-      floatTargetsNC = floatTargetsNC[start:stop],
+      globalTargetsNC = globalTargetsNC[start:stop],
       valueTargetsNCHW = valueTargetsNCHW[start:stop]
     )
 
@@ -78,9 +78,9 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   record_writer = TFRecordWriter(filename,tfoptions)
 
   binaryInputNCHWPackeds = []
-  floatInputNCs = []
+  globalInputNCs = []
   policyTargetsNCMoves = []
-  floatTargetsNCs = []
+  globalTargetsNCs = []
   valueTargetsNCHWs = []
 
   for input_idx in range(num_shards_to_merge):
@@ -91,26 +91,26 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
     assert(set(npz.keys()) == set(keys))
 
     binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
-    floatInputNC = npz["floatInputNC"]
+    globalInputNC = npz["globalInputNC"]
     policyTargetsNCMove = npz["policyTargetsNCMove"].astype(np.float32)
-    floatTargetsNC = npz["floatTargetsNC"]
+    globalTargetsNC = npz["globalTargetsNC"]
     valueTargetsNCHW = npz["valueTargetsNCHW"].astype(np.float32)
 
     binaryInputNCHWPackeds.append(binaryInputNCHWPacked)
-    floatInputNCs.append(floatInputNC)
+    globalInputNCs.append(globalInputNC)
     policyTargetsNCMoves.append(policyTargetsNCMove)
-    floatTargetsNCs.append(floatTargetsNC)
+    globalTargetsNCs.append(globalTargetsNC)
     valueTargetsNCHWs.append(valueTargetsNCHW)
 
   print("Concatenating... (mem usage %dMB)" % memusage_mb())
   binaryInputNCHWPacked = np.concatenate(binaryInputNCHWPackeds)
-  floatInputNC = np.concatenate(floatInputNCs)
+  globalInputNC = np.concatenate(globalInputNCs)
   policyTargetsNCMove = np.concatenate(policyTargetsNCMoves)
-  floatTargetsNC = np.concatenate(floatTargetsNCs)
+  globalTargetsNC = np.concatenate(globalTargetsNCs)
   valueTargetsNCHW = np.concatenate(valueTargetsNCHWs)
 
   print("Shuffling... (mem usage %dMB)" % memusage_mb())
-  joint_shuffle((binaryInputNCHWPacked,floatInputNC,policyTargetsNCMove,floatTargetsNC,valueTargetsNCHW))
+  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,valueTargetsNCHW))
 
   print("Writing in batches...")
   num_rows = binaryInputNCHWPacked.shape[0]
@@ -123,14 +123,14 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
       "binchwp": tf.train.Feature(
         bytes_list=tf.train.BytesList(value=[binaryInputNCHWPacked[start:stop].reshape(-1).tobytes()])
       ),
-      "finc": tf.train.Feature(
-        float_list=tf.train.FloatList(value=floatInputNC[start:stop].reshape(-1))
+      "ginc": tf.train.Feature(
+        float_list=tf.train.FloatList(value=globalInputNC[start:stop].reshape(-1))
       ),
       "ptncm": tf.train.Feature(
         float_list=tf.train.FloatList(value=policyTargetsNCMove[start:stop].reshape(-1))
       ),
-      "ftnc": tf.train.Feature(
-        float_list=tf.train.FloatList(value=floatTargetsNC[start:stop].reshape(-1))
+      "gtnc": tf.train.Feature(
+        float_list=tf.train.FloatList(value=globalTargetsNC[start:stop].reshape(-1))
       ),
       "vtnchw": tf.train.Feature(
         float_list=tf.train.FloatList(value=valueTargetsNCHW[start:stop].reshape(-1))

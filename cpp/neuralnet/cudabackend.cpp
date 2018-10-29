@@ -1587,6 +1587,7 @@ static const int GLOBAL_POOLING_BLOCK_KIND = 2;
 
 struct TrunkDesc {
   string name;
+  int version;
   int numBlocks;
   int trunkNumChannels;
   int midNumChannels;     //Currently every plain residual block must have the same number of mid conv channels
@@ -1594,14 +1595,16 @@ struct TrunkDesc {
   int dilatedNumChannels; //Currently every dilated residual block must have the same number of dilated conv channels
   int gpoolNumChannels;   //Currently every gpooling residual block must have the same number of gpooling conv channels
   ConvLayerDesc initialConv;
+  MatMulLayerDesc initialMatMul;
   vector<pair<int,void*>> blocks;
   BNLayerDesc trunkTipBN;
   ActivationLayerDesc trunkTipActivation;
 
   TrunkDesc() {}
 
-  TrunkDesc(istream& in) {
+  TrunkDesc(istream& in, int vrsn) {
     in >> name;
+    version = vrsn;
     in >> numBlocks;
     in >> trunkNumChannels;
     in >> midNumChannels;
@@ -1619,11 +1622,18 @@ struct TrunkDesc {
       throw StringError(name + ": midNumChannels != regularNumChannels + dilatedNumChannels");
 
     initialConv = ConvLayerDesc(in);
-
     if(initialConv.outChannels != trunkNumChannels)
       throw StringError(name+Global::strprintf(
         ": %s initialConv.outChannels (%d) != trunkNumChannels (%d)", initialConv.name.c_str(), initialConv.outChannels, trunkNumChannels
         ));
+
+    if(version >= 3) {
+      initialMatMul = MatMulLayerDesc(in);
+      if(initialMatMul.outChannels != trunkNumChannels)
+        throw StringError(name+Global::strprintf(
+          ": %s initialMatMul.outChannels (%d) != trunkNumChannels (%d)", initialMatMul.name.c_str(), initialMatMul.outChannels, trunkNumChannels
+          ));
+    }
 
     string kind;
     for(int i = 0; i<numBlocks; i++) {
@@ -1738,6 +1748,7 @@ struct TrunkDesc {
 
   TrunkDesc(TrunkDesc&& other) {
     name = std::move(other.name);
+    version = other.version;
     numBlocks = other.numBlocks;
     trunkNumChannels = other.trunkNumChannels;
     midNumChannels = other.midNumChannels;
@@ -1745,6 +1756,7 @@ struct TrunkDesc {
     dilatedNumChannels = other.dilatedNumChannels;
     gpoolNumChannels = other.gpoolNumChannels;
     initialConv = std::move(other.initialConv);
+    initialMatMul = std::move(other.initialMatMul);
     blocks = std::move(other.blocks);
     trunkTipBN = std::move(other.trunkTipBN);
     trunkTipActivation = std::move(other.trunkTipActivation);
@@ -1752,6 +1764,7 @@ struct TrunkDesc {
 
   TrunkDesc& operator=(TrunkDesc&& other) {
     name = std::move(other.name);
+    version = other.version;
     numBlocks = other.numBlocks;
     trunkNumChannels = other.trunkNumChannels;
     midNumChannels = other.midNumChannels;
@@ -1759,6 +1772,7 @@ struct TrunkDesc {
     dilatedNumChannels = other.dilatedNumChannels;
     gpoolNumChannels = other.gpoolNumChannels;
     initialConv = std::move(other.initialConv);
+    initialMatMul = std::move(other.initialMatMul);
     blocks = std::move(other.blocks);
     trunkTipBN = std::move(other.trunkTipBN);
     trunkTipActivation = std::move(other.trunkTipActivation);
@@ -1770,6 +1784,7 @@ struct TrunkDesc {
 
 struct Trunk {
   string name;
+  int version;
   int numBlocks;
   int trunkNumChannels;
   int midNumChannels;
@@ -1781,6 +1796,7 @@ struct Trunk {
   int xSize;
   int ySize;
   bool usingFP16;
+  bool usingNHWC;
 
   cudnnTensorDescriptor_t* trunkDescriptors;
   cudnnTensorDescriptor_t* regularOutDescriptors;
@@ -1789,6 +1805,7 @@ struct Trunk {
   cudnnTensorDescriptor_t* midInDescriptors;
 
   ConvLayer* initialConv;
+  MatMulLayer* initialMatMul;
   vector<pair<int,void*>> blocks;
   BNLayer* trunkTipBN;
   ActivationLayer* trunkTipActivation;
@@ -1808,6 +1825,7 @@ struct Trunk {
     bool useNHWC
   ) {
     name = desc->name;
+    version = desc->version;
     numBlocks = desc->numBlocks;
     trunkNumChannels = desc->trunkNumChannels;
     midNumChannels = desc->midNumChannels;
@@ -1819,6 +1837,7 @@ struct Trunk {
     xSize = xS;
     ySize = yS;
     usingFP16 = useFP16;
+    usingNHWC = useNHWC;
 
     trunkDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     regularOutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
@@ -1890,6 +1909,10 @@ struct Trunk {
     }
 
     initialConv = new ConvLayer(cudaHandles,&desc->initialConv,maxBatchSize,inputDescriptors,trunkDescriptors,useFP16,useNHWC);
+    initialMatMul = NULL;
+    if(version >= 3)
+      initialMatMul = new MatMulLayer(cudaHandles,&desc->initialMatMul,useFP16);
+
     trunkTipBN = new BNLayer(cudaHandles,&desc->trunkTipBN,xSize,ySize,useFP16,useNHWC);
     trunkTipActivation = new ActivationLayer(cudaHandles,&desc->trunkTipActivation);
 
@@ -1967,6 +1990,7 @@ struct Trunk {
     }
 
     delete initialConv;
+    delete initialMatMul;
     delete trunkTipBN;
     delete trunkTipActivation;
 
@@ -2002,6 +2026,11 @@ struct Trunk {
     b = initialConv->requiredWorkspaceBytes(cudaHandles,inputDescriptor,trunkDescriptor,batchSize);
     bytes = std::max(bytes,b);
 
+    if(initialMatMul != NULL) {
+      b = initialMatMul->requiredWorkspaceBytes(cudaHandles);
+      bytes = std::max(bytes,b);
+    }
+
     for(int i = 0; i<blocks.size(); i++) {
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
         ResidualBlock* block = (ResidualBlock*)blocks[i].second;
@@ -2030,6 +2059,8 @@ struct Trunk {
     const cudnnTensorDescriptor_t& inputDescriptor,
     int batchSize,
     void* inputBuf,
+    void* inputGlobalBuf,
+    void* maskBuf,
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
@@ -2057,6 +2088,25 @@ struct Trunk {
 
     //Feed the conv into trunkScratchBuf, not trunkBuf
     initialConv->apply(cudaHandles,inputDescriptor,trunkDescriptor,batchSize,false,inputBuf,trunkScratchBuf,workspaceBuf,workspaceBytes);
+
+    if(initialMatMul != NULL) {
+      //Feed the matmul into trunkBuf
+      initialMatMul->apply(cudaHandles,batchSize,inputGlobalBuf,trunkBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
+      //Then accumulate it into trunkScratchBuf, broadcasting during the process
+      if(!usingFP16) {
+        if(!usingNHWC)
+          customCudaAddNCBiasInplaceNCHW((float*)trunkScratchBuf,(const float*)trunkBuf,batchSize,trunkNumChannels,xSize*ySize);
+        else
+          customCudaAddNCBiasInplaceNHWC((float*)trunkScratchBuf,(const float*)trunkBuf,batchSize,xSize*ySize,trunkNumChannels);
+      }
+      else {
+        if(!usingNHWC)
+          customCudaAddNCBiasInplaceNCHW((half*)trunkScratchBuf,(const half*)trunkBuf,batchSize,trunkNumChannels,xSize*ySize);
+        else
+          customCudaAddNCBiasInplaceNHWC((half*)trunkScratchBuf,(const half*)trunkBuf,batchSize,xSize*ySize,trunkNumChannels);
+      }
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
+    }
 
     for(int i = 0; i<blocks.size(); i++) {
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
@@ -2872,6 +2922,7 @@ struct ModelDesc {
   int xSize;
   int ySize;
   int numInputChannels;
+  int numInputGlobalChannels;
 
   TrunkDesc trunk;
   PolicyHeadDesc policyHead;
@@ -2884,21 +2935,30 @@ struct ModelDesc {
     in >> version;
     in >> xSize;
     in >> ySize;
-    in >> numInputChannels;
 
     if(in.fail())
       throw StringError(name + ": model failed to parse name or xSize or ySize");
     if(xSize <= 0 || ySize <= 0)
       throw StringError(name + ": model xSize and ySize must be positive");
-    if(numInputChannels <= 0)
-      throw StringError(name + ": model numInputChannels must be positive");
 
     if(version < 0 || version > 2)
       throw StringError(name + ": model found unsupported version " + Global::intToString(version));
     if(version < 1)
       throw StringError("Version 0 neural nets no longer supported in cuda backend");
 
-    trunk = TrunkDesc(in);
+    in >> numInputChannels;
+    if(numInputChannels <= 0)
+      throw StringError(name + ": model numInputChannels must be positive");
+
+    if(version >= 3) {
+      in >> numInputGlobalChannels;
+      if(numInputGlobalChannels <= 0)
+        throw StringError(name + ": model numInputGlobalChannels must be positive");
+    }
+    else
+      numInputGlobalChannels = 0;
+
+    trunk = TrunkDesc(in,version);
     policyHead = PolicyHeadDesc(in,version);
     valueHead = ValueHeadDesc(in,version);
 
@@ -2909,6 +2969,13 @@ struct ModelDesc {
       throw StringError(name+Global::strprintf(
         ": numInputChannels (%d) != trunk.initialConv.inChannels (%d)", numInputChannels, trunk.initialConv.inChannels
       ));
+    if(version >= 3) {
+      if(numInputGlobalChannels != trunk.initialMatMul.inChannels)
+        throw StringError(name+Global::strprintf(
+          ": numInputChannels (%d) != trunk.initialMatMul.inChannels (%d)", numInputGlobalChannels, trunk.initialMatMul.inChannels
+        ));
+    }
+
     if(trunk.trunkNumChannels != policyHead.p1Conv.inChannels)
       throw StringError(name+Global::strprintf(
         ": trunk.trunkNumChannels (%d) != policyHead.p1Conv.inChannels (%d)", trunk.trunkNumChannels, policyHead.p1Conv.inChannels
@@ -2938,6 +3005,7 @@ struct ModelDesc {
     xSize = other.xSize;
     ySize = other.ySize;
     numInputChannels = other.numInputChannels;
+    numInputGlobalChannels = other.numInputGlobalChannels;
     trunk = std::move(other.trunk);
     policyHead = std::move(other.policyHead);
     valueHead = std::move(other.valueHead);
@@ -2953,6 +3021,7 @@ struct Model {
   int xSize;
   int ySize;
   int numInputChannels;
+  int numInputGlobalChannels;
   bool usingFP16;
   bool inputsUsingNHWC;
 
@@ -2981,6 +3050,7 @@ struct Model {
     xSize = desc->xSize;
     ySize = desc->ySize;
     numInputChannels = desc->numInputChannels;
+    numInputGlobalChannels = desc->numInputGlobalChannels;
     usingFP16 = useFP16;
     inputsUsingNHWC = inputsUseNHWC;
 
@@ -2993,10 +3063,15 @@ struct Model {
         ySize, NNPos::MAX_BOARD_LEN
       ));
 
-    int numFeatures = NNModelVersion::getNumFeatures(version);
+    int numFeatures = NNModelVersion::getNumSpatialFeatures(version);
     if(numInputChannels != numFeatures)
       throw StringError(Global::strprintf("Neural net numInputChannels (%d) was not the expected number based on version (%d)",
         numInputChannels, numFeatures
+      ));
+    int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
+    if(numInputGlobalChannels != numGlobalFeatures)
+      throw StringError(Global::strprintf("Neural net numInputGlobalChannels (%d) was not the expected number based on version (%d)",
+        numInputGlobalChannels, numGlobalFeatures
       ));
     if(posLen != xSize)
       throw StringError(Global::strprintf("Currently neural net posLen (%d) must match xSize (%d)",
@@ -3065,6 +3140,8 @@ struct Model {
 
     void* inputBuf,
     void* inputScratchBuf,
+    void* inputGlobalBuf,
+    void* maskBuf,
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
@@ -3122,6 +3199,8 @@ struct Model {
       inputDescriptor,
       batchSize,
       inputBuf,
+      inputGlobalBuf,
+      maskBuf,
       trunkBuf,
       trunkScratchBuf,
       regularOutBuf,
@@ -3217,8 +3296,14 @@ struct Buffers {
   float* inputBufSingle;
   void* inputBuf;
   void* inputScratchBuf;
+  float* inputGlobalBufSingle;
+  void* inputGlobalBuf;
   size_t inputBufBytesSingle;
   size_t inputBufBytes;
+  size_t inputGlobalBufBytesSingle;
+  size_t inputGlobalBufBytes;
+
+  void* maskBuf;
 
   void* trunkBuf;
   void* trunkScratchBuf;
@@ -3269,10 +3354,16 @@ struct Buffers {
 
     inputBufBytesSingle = m.numInputChannels * batchXYSingleBytes;
     inputBufBytes = m.numInputChannels * batchXYBytes;
+    inputGlobalBufBytesSingle = m.numInputGlobalChannels * batchSingleBytes;
+    inputGlobalBufBytes = m.numInputGlobalChannels * batchBytes;
 
     CUDA_ERR("Buffers",cudaMalloc(&inputBufSingle, inputBufBytesSingle));
     CUDA_ERR("Buffers",cudaMalloc(&inputBuf, inputBufBytes));
     CUDA_ERR("Buffers",cudaMalloc(&inputScratchBuf, inputBufBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&inputGlobalBufSingle, inputGlobalBufBytesSingle));
+    CUDA_ERR("Buffers",cudaMalloc(&inputGlobalBuf, inputGlobalBufBytes));
+
+    CUDA_ERR("Buffers",cudaMalloc(&maskBuf, batchXYBytes));
 
     CUDA_ERR("Buffers",cudaMalloc(&trunkBuf, m.trunk->trunkNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&trunkScratchBuf, m.trunk->trunkNumChannels * batchXYBytes));
@@ -3347,6 +3438,11 @@ struct Buffers {
     cudaFree(inputBufSingle);
     cudaFree(inputBuf);
     cudaFree(inputScratchBuf);
+    cudaFree(inputGlobalBufSingle);
+    cudaFree(inputGlobalBuf);
+
+    cudaFree(maskBuf);
+
     cudaFree(trunkBuf);
     cudaFree(trunkScratchBuf);
     cudaFree(regularOutBuf);
@@ -3456,18 +3552,23 @@ void NeuralNet::freeLocalGpuHandle(LocalGpuHandle* gpuHandle) {
 struct InputBuffers {
   int maxBatchSize;
 
+  //TODO rename 'single'
   size_t singleBatchItemElts;
   size_t singleBatchItemBytes;
+  size_t singleBatchItemGlobalElts;
+  size_t singleBatchItemGlobalBytes;
   size_t singlePolicyResultElts;
   size_t singlePolicyResultBytes;
   size_t singleValueResultElts;
   size_t singleValueResultBytes;
 
   size_t userInputBufferBytes;
+  size_t userInputGlobalBufferBytes;
   size_t policyResultBufferBytes;
   size_t valueResultBufferBytes;
 
   float* userInputBuffer; //Host pointer
+  float* userInputGlobalBuffer; //Host pointer
   bool* symmetriesBuffer; //Host pointer
 
   float* policyResults;
@@ -3479,6 +3580,8 @@ struct InputBuffers {
     maxBatchSize = maxBatchSz;
     singleBatchItemElts = m.numInputChannels * m.xSize * m.ySize;
     singleBatchItemBytes = m.numInputChannels * m.xSize * m.ySize * sizeof(float);
+    singleBatchItemGlobalElts = m.numInputGlobalChannels;
+    singleBatchItemGlobalBytes = m.numInputGlobalChannels * sizeof(float);
     singlePolicyResultElts = (1 + m.xSize * m.ySize);
     singlePolicyResultBytes = (1 + m.xSize * m.ySize) * sizeof(float);
     singleValueResultElts = 1;
@@ -3487,10 +3590,12 @@ struct InputBuffers {
     assert(NNModelVersion::getRowSize(m.version) == singleBatchItemElts);
 
     userInputBufferBytes = m.numInputChannels * maxBatchSize * m.xSize * m.ySize * sizeof(float);
+    userInputGlobalBufferBytes = m.numInputGlobalChannels * maxBatchSize * sizeof(float);
     policyResultBufferBytes = maxBatchSize * (1 + m.xSize * m.ySize) * sizeof(float);
     valueResultBufferBytes = maxBatchSize * sizeof(float);
 
     userInputBuffer = new float[m.numInputChannels * maxBatchSize * m.xSize * m.ySize];
+    userInputGlobalBuffer = new float[m.numInputGlobalChannels * maxBatchSize];
     symmetriesBuffer = new bool[NNInputs::NUM_SYMMETRY_BOOLS];
 
     policyResults = new float[maxBatchSize * (1 + m.xSize * m.ySize)];
@@ -3499,6 +3604,7 @@ struct InputBuffers {
 
   ~InputBuffers() {
     delete[] userInputBuffer;
+    delete[] userInputGlobalBuffer;
     delete[] symmetriesBuffer;
     delete[] policyResults;
     delete[] valueResults;
@@ -3521,6 +3627,11 @@ float* NeuralNet::getRowInplace(InputBuffers* buffers, int rowIdx) {
   return buffers->userInputBuffer + (buffers->singleBatchItemElts * rowIdx);
 }
 
+float* NeuralNet::getRowGlobalInplace(InputBuffers* buffers, int rowIdx) {
+  assert(rowIdx < buffers->maxBatchSize);
+  return buffers->userInputGlobalBuffer + (buffers->singleBatchItemGlobalElts * rowIdx);
+}
+
 bool* NeuralNet::getSymmetriesInplace(InputBuffers* buffers) {
   return buffers->symmetriesBuffer;
 }
@@ -3537,26 +3648,40 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
 
   if(!gpuHandle->usingFP16) {
     assert(inputBuffers->userInputBufferBytes == buffers->inputBufBytes);
+    assert(inputBuffers->userInputGlobalBufferBytes == buffers->inputGlobalBufBytes);
     assert(inputBuffers->policyResultBufferBytes == buffers->policyBufBytes);
     assert(inputBuffers->valueResultBufferBytes == buffers->valueBufBytes);
     assert(inputBuffers->singleBatchItemBytes == inputBuffers->singleBatchItemElts*4);
+    assert(inputBuffers->singleBatchItemGlobalBytes == inputBuffers->singleBatchItemGlobalElts*4);
     assert(inputBuffers->singlePolicyResultElts == gpuHandle->policySize);
     assert(inputBuffers->singlePolicyResultBytes == gpuHandle->policySize * sizeof(float));
 
     CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBuf, inputBuffers->userInputBuffer, inputBuffers->singleBatchItemBytes*batchSize, cudaMemcpyHostToDevice));
+    if(gpuHandle->model->version >= 3)
+      CUDA_ERR("getOutput",cudaMemcpy(buffers->inputGlobalBuf, inputBuffers->userInputGlobalBuffer, inputBuffers->singleBatchItemGlobalBytes*batchSize, cudaMemcpyHostToDevice));
   }
   else {
     assert(inputBuffers->userInputBufferBytes == buffers->inputBufBytesSingle);
+    assert(inputBuffers->userInputGlobalBufferBytes == buffers->inputGlobalBufBytesSingle);
     assert(inputBuffers->policyResultBufferBytes == buffers->policyBufBytes);
     assert(inputBuffers->valueResultBufferBytes == buffers->valueBufBytes);
     assert(inputBuffers->userInputBufferBytes == buffers->inputBufBytes*2);
+    assert(inputBuffers->userInputGlobalBufferBytes == buffers->inputGlobalBufBytes*2);
     assert(inputBuffers->singleBatchItemBytes == inputBuffers->singleBatchItemElts*4);
+    assert(inputBuffers->singleBatchItemGlobalBytes == inputBuffers->singleBatchItemGlobalElts*4);
     assert(inputBuffers->singlePolicyResultElts == gpuHandle->policySize);
     assert(inputBuffers->singlePolicyResultBytes == gpuHandle->policySize * sizeof(float));
 
     CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBufSingle, inputBuffers->userInputBuffer, inputBuffers->singleBatchItemBytes*batchSize, cudaMemcpyHostToDevice));
+    if(gpuHandle->model->version >= 3)
+      CUDA_ERR("getOutput",cudaMemcpy(buffers->inputGlobalBufSingle, inputBuffers->userInputGlobalBuffer, inputBuffers->singleBatchItemGlobalBytes*batchSize, cudaMemcpyHostToDevice));
+
     customCudaCopyToHalf((const float*)buffers->inputBufSingle,(half*)buffers->inputBuf,inputBuffers->singleBatchItemElts*batchSize);
     CUDA_ERR("getOutput",cudaPeekAtLastError());
+    if(gpuHandle->model->version >= 3) {
+      customCudaCopyToHalf((const float*)buffers->inputGlobalBufSingle,(half*)buffers->inputGlobalBuf,inputBuffers->singleBatchItemGlobalElts*batchSize);
+      CUDA_ERR("getOutput",cudaPeekAtLastError());
+    }
   }
 
   gpuHandle->model->apply(
@@ -3566,6 +3691,10 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
 
     buffers->inputBuf,
     buffers->inputScratchBuf,
+    buffers->inputGlobalBuf,
+
+    buffers->maskBuf, //TODO use this
+
     buffers->trunkBuf,
     buffers->trunkScratchBuf,
     buffers->regularOutBuf,
