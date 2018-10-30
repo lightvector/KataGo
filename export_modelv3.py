@@ -296,6 +296,9 @@ with tf.Session(config=tfconfig) as session:
       write_activation("v2/actv")
       write_matmul("v3/w",model.v2_size,model.v3_size,get_weights("v3/w"))
       write_matbias("v3/b",model.v3_size,get_weights("v3/b"))
+      write_matmul("sv3/w",model.v2_size,model.sv3_size,get_weights("sv3/w"))
+      write_matbias("sv3/b",model.sv3_size,get_weights("sv3/b"))
+      write_model_conv(model.vownership_conv)
 
     write_trunk()
     write_policy_head()
