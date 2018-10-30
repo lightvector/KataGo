@@ -41,14 +41,14 @@ ownership_output = tf.tanh(model.ownership_output)
 
 def fetch_output(session, board, boards, moves, use_history_prop, rules, fetches):
   bin_input_data = np.zeros(shape=[1]+model.bin_input_shape, dtype=np.float32)
-  float_input_data = np.zeros(shape=[1]+model.float_input_shape, dtype=np.float32)
+  global_input_data = np.zeros(shape=[1]+model.global_input_shape, dtype=np.float32)
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
-  model.fill_row_features(board,pla,opp,boards,moves,move_idx,rules,bin_input_data,float_input_data,use_history_prop=use_history_prop,idx=0)
+  model.fill_row_features(board,pla,opp,boards,moves,move_idx,rules,bin_input_data,global_input_data,use_history_prop=use_history_prop,idx=0)
   outputs = session.run(fetches, feed_dict={
     model.bin_inputs: bin_input_data,
-    model.float_inputs: float_input_data,
+    model.global_inputs: global_input_data,
     model.symmetries: [False,False,False],
     model.is_training: False,
     model.include_history: [[1.0,1.0,1.0,1.0,1.0]]
@@ -122,11 +122,11 @@ def get_layer_values(session, board, boards, moves, rules, layer, channel):
 
 def get_input_feature(board, boards, moves, rules, feature_idx):
   bin_input_data = np.zeros(shape=[1]+model.bin_input_shape, dtype=np.float32)
-  float_input_data = np.zeros(shape=[1]+model.float_input_shape, dtype=np.float32)
+  global_input_data = np.zeros(shape=[1]+model.global_input_shape, dtype=np.float32)
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(moves)
-  model.fill_row_features(board,pla,opp,boards,moves,move_idx,rules,bin_input_data,float_input_data,use_history_prop=1.0,idx=0)
+  model.fill_row_features(board,pla,opp,boards,moves,move_idx,rules,bin_input_data,global_input_data,use_history_prop=1.0,idx=0)
 
   locs_and_values = []
   for y in range(board.size):
