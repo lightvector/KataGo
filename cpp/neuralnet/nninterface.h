@@ -41,7 +41,7 @@ namespace NeuralNet {
   );
   void freeLocalGpuHandle(LocalGpuHandle* gpuHandle);
 
-  InputBuffers* createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize);
+  InputBuffers* createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int posLen);
   void freeInputBuffers(InputBuffers* buffers);
 
   float* getRowInplace(InputBuffers* buffers, int rowIdx);

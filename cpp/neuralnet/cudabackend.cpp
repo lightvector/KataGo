@@ -2697,14 +2697,26 @@ struct ValueHeadDesc {
           ": v2Mul.outChannels*2 (%d) != v3Mul.inChannels (%d)", v2Mul.outChannels*2, v3Mul.inChannels
         ));
     }
-    if(v3Mul.outChannels != 1)
-      throw StringError(name+Global::strprintf(
-        ": v3Mul.outChannels (%d) != 1", v3Mul.outChannels
-      ));
-    if(v3Bias.numChannels != 1)
-      throw StringError(name+Global::strprintf(
-        ": v3Bias.numChannels (%d) != 1", v3Bias.numChannels
-      ));
+    if(version >= 3) {
+      if(v3Mul.outChannels != 3)
+        throw StringError(name+Global::strprintf(
+          ": v3Mul.outChannels (%d) != 3", v3Mul.outChannels
+        ));
+      if(v3Bias.numChannels != 3)
+        throw StringError(name+Global::strprintf(
+          ": v3Bias.numChannels (%d) != 3", v3Bias.numChannels
+        ));
+    }
+    else {
+      if(v3Mul.outChannels != 1)
+        throw StringError(name+Global::strprintf(
+          ": v3Mul.outChannels (%d) != 1", v3Mul.outChannels
+        ));
+      if(v3Bias.numChannels != 1)
+        throw StringError(name+Global::strprintf(
+          ": v3Bias.numChannels (%d) != 1", v3Bias.numChannels
+        ));
+    }
   }
 
   ~ValueHeadDesc() {
@@ -2932,10 +2944,11 @@ struct ValueHead {
 struct ModelDesc {
   string name;
   int version;
-  int xSize;
-  int ySize;
+  int xSizePreV3;
+  int ySizePreV3;
   int numInputChannels;
   int numInputGlobalChannels;
+  int numValueChannels;
 
   TrunkDesc trunk;
   PolicyHeadDesc policyHead;
@@ -2955,15 +2968,15 @@ struct ModelDesc {
       throw StringError("Version 0 neural nets no longer supported in cuda backend");
 
     if(version >= 3) {
-      xSize = -1; //Unused, V3 uses posLen instead
-      ySize = -1; //Unused, V3 uses posLen instead
+      xSizePreV3 = -1; //Unused, V3 uses posLen instead
+      ySizePreV3 = -1; //Unused, V3 uses posLen instead
     }
     else {
-      in >> xSize;
-      in >> ySize;
+      in >> xSizePreV3;
+      in >> ySizePreV3;
       if(in.fail())
         throw StringError(name + ": model failed to parse xSize or ySize");
-      if(xSize <= 0 || ySize <= 0)
+      if(xSizePreV3 <= 0 || ySizePreV3 <= 0)
         throw StringError(name + ": model xSize and ySize must be positive");
     }
 
@@ -2986,6 +2999,8 @@ struct ModelDesc {
     trunk = TrunkDesc(in,version);
     policyHead = PolicyHeadDesc(in,version);
     valueHead = ValueHeadDesc(in,version);
+
+    numValueChannels = valueHead.v3Mul.outChannels;
 
     if(in.fail())
       throw StringError(name + ": model desc istream fail after parsing model");
@@ -3027,10 +3042,11 @@ struct ModelDesc {
   ModelDesc& operator=(ModelDesc&& other) {
     name = std::move(other.name);
     version = other.version;
-    xSize = other.xSize;
-    ySize = other.ySize;
+    xSizePreV3 = other.xSizePreV3;
+    ySizePreV3 = other.ySizePreV3;
     numInputChannels = other.numInputChannels;
     numInputGlobalChannels = other.numInputGlobalChannels;
+    numValueChannels = other.numValueChannels;
     trunk = std::move(other.trunk);
     policyHead = std::move(other.policyHead);
     valueHead = std::move(other.valueHead);
@@ -3047,6 +3063,7 @@ struct Model {
   int ySize;
   int numInputChannels;
   int numInputGlobalChannels;
+  int numValueChannels;
   bool usingFP16;
   bool inputsUsingNHWC;
 
@@ -3082,8 +3099,8 @@ struct Model {
         ));
     }
     else {
-      xSize = desc->xSize;
-      ySize = desc->ySize;
+      xSize = desc->xSizePreV3;
+      ySize = desc->ySizePreV3;
 
       if(xSize != NNPos::MAX_BOARD_LEN)
         throw StringError(Global::strprintf("For V2 models and lower xSize (%d) must be NNPos::MAX_BOARD_LEN (%d)",
@@ -3101,6 +3118,7 @@ struct Model {
 
     numInputChannels = desc->numInputChannels;
     numInputGlobalChannels = desc->numInputGlobalChannels;
+    numValueChannels = desc->numValueChannels;
     usingFP16 = useFP16;
     inputsUsingNHWC = inputsUseNHWC;
 
@@ -3634,32 +3652,38 @@ struct InputBuffers {
   float* policyResults;
   float* valueResults;
 
-  InputBuffers(const LoadedModel* loadedModel, int maxBatchSz) {
+  InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int posLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
+    int xSize = m.version >= 3 ? posLen : m.xSizePreV3;
+    int ySize = m.version >= 3 ? posLen : m.ySizePreV3;
+
     maxBatchSize = maxBatchSz;
-    singleBatchItemElts = m.numInputChannels * m.xSize * m.ySize;
-    singleBatchItemBytes = m.numInputChannels * m.xSize * m.ySize * sizeof(float);
+    singleBatchItemElts = m.numInputChannels * xSize * ySize;
+    singleBatchItemBytes = m.numInputChannels * xSize * ySize * sizeof(float);
     singleBatchItemGlobalElts = m.numInputGlobalChannels;
     singleBatchItemGlobalBytes = m.numInputGlobalChannels * sizeof(float);
-    singlePolicyResultElts = (1 + m.xSize * m.ySize);
-    singlePolicyResultBytes = (1 + m.xSize * m.ySize) * sizeof(float);
-    singleValueResultElts = 1;
-    singleValueResultBytes = sizeof(float);
+    singlePolicyResultElts = (1 + xSize * ySize);
+    singlePolicyResultBytes = (1 + xSize * ySize) * sizeof(float);
+    singleValueResultElts = m.numValueChannels;
+    singleValueResultBytes = m.numValueChannels * sizeof(float);
 
-    assert(NNModelVersion::getRowSize(m.version) == singleBatchItemElts);
+    assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
+    assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
+    if(m.version < 3)
+      assert(NNModelVersion::getRowSize(m.version) == singleBatchItemElts);
 
-    userInputBufferBytes = m.numInputChannels * maxBatchSize * m.xSize * m.ySize * sizeof(float);
+    userInputBufferBytes = m.numInputChannels * maxBatchSize * xSize * ySize * sizeof(float);
     userInputGlobalBufferBytes = m.numInputGlobalChannels * maxBatchSize * sizeof(float);
-    policyResultBufferBytes = maxBatchSize * (1 + m.xSize * m.ySize) * sizeof(float);
-    valueResultBufferBytes = maxBatchSize * sizeof(float);
+    policyResultBufferBytes = maxBatchSize * (1 + xSize * ySize) * sizeof(float);
+    valueResultBufferBytes = maxBatchSize * m.numValueChannels * sizeof(float);
 
-    userInputBuffer = new float[m.numInputChannels * maxBatchSize * m.xSize * m.ySize];
+    userInputBuffer = new float[m.numInputChannels * maxBatchSize * xSize * ySize];
     userInputGlobalBuffer = new float[m.numInputGlobalChannels * maxBatchSize];
     symmetriesBuffer = new bool[NNInputs::NUM_SYMMETRY_BOOLS];
 
-    policyResults = new float[maxBatchSize * (1 + m.xSize * m.ySize)];
-    valueResults = new float[maxBatchSize];
+    policyResults = new float[maxBatchSize * (1 + xSize * ySize)];
+    valueResults = new float[maxBatchSize * m.numValueChannels];
   }
 
   ~InputBuffers() {
@@ -3675,8 +3699,8 @@ struct InputBuffers {
   InputBuffers& operator=(const InputBuffers&) = delete;
 };
 
-InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize) {
-  return new InputBuffers(loadedModel,maxBatchSize);
+InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int posLen) {
+  return new InputBuffers(loadedModel,maxBatchSize,posLen);
 }
 void NeuralNet::freeInputBuffers(InputBuffers* buffers) {
   delete buffers;
@@ -3814,10 +3838,20 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       std::fill(output->ownerMap, output->ownerMap + posLen * posLen, 0.0f);
     }
 
-    output->whiteWinProb = inputBuffers->valueResults[row];
-    output->whiteLossProb = 0.0;
-    output->whiteNoResultProb = 0.0;
-    output->whiteScoreValue = 0.0;
+    if(gpuHandle->model->version >= 3) {
+      int numValueChannels = gpuHandle->model->numValueChannels;
+      assert(numValueChannels == 3);
+      output->whiteWinProb = inputBuffers->valueResults[row * numValueChannels];
+      output->whiteLossProb = inputBuffers->valueResults[row * numValueChannels + 1];
+      output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
+      output->whiteScoreValue = 0.0;
+    }
+    else {
+      output->whiteWinProb = inputBuffers->valueResults[row];
+      output->whiteLossProb = 0.0;
+      output->whiteNoResultProb = 0.0;
+      output->whiteScoreValue = 0.0;
+    }
   }
 
 }

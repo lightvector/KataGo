@@ -18,7 +18,7 @@ NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model)
 {
   int maxNumRows = nnEval.getMaxBatchSize();
   if(model != NULL)
-    inputBuffers = NeuralNet::createInputBuffers(model,maxNumRows);
+    inputBuffers = NeuralNet::createInputBuffers(model,maxNumRows,nnEval.getPosLen());
   resultBufs = new NNResultBuf*[maxNumRows];
   for(int i = 0; i < maxNumRows; i++)
     resultBufs[i] = NULL;
@@ -72,7 +72,7 @@ NNEvaluator::NNEvaluator(
 
   if(!debugSkipNeuralNet) {
     loadedModel = NeuralNet::loadModelFile(pbModelFile, modelFileIdx);
-    m_inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize);
+    m_inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,posLen);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
   }
@@ -504,6 +504,35 @@ void NNEvaluator::evaluate(
         buf.result->whiteNoResultProb = 0.0;
         buf.result->whiteScoreValue = 0.0;
       }
+    }
+    //TODO continue work on this
+    else if(modelVersion == 3) {
+      double winLogits = buf.result->whiteWinProb;
+      double lossLogits = buf.result->whiteLossProb;
+      double noResultLogits = buf.result->whiteNoResultProb;
+
+      //Softmax
+      double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
+      double winProb = exp(winLogits - maxLogits);
+      double lossProb = exp(lossLogits - maxLogits);
+      double noResultProb = exp(noResultLogits - maxLogits);
+
+      double probSum = winProb + lossProb + noResultProb;
+
+      if(nextPlayer == P_WHITE) {
+        buf.result->whiteWinProb = winProb / probSum;
+        buf.result->whiteLossProb = lossProb / probSum;
+        buf.result->whiteNoResultProb = noResultProb / probSum;
+        buf.result->whiteScoreValue = 0.0;
+      }
+      else {
+        buf.result->whiteWinProb = lossProb / probSum;
+        buf.result->whiteLossProb = winProb / probSum;
+        buf.result->whiteNoResultProb = noResultProb / probSum;
+        buf.result->whiteScoreValue = 0.0;
+      }
+
+
     }
     else {
       throw StringError("NNEval value postprocessing not implemented for model version");
