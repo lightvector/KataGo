@@ -167,9 +167,9 @@ public:
         break;
 
       if(rand.nextBool(validationProp))
-        tdataWriter->writeGame(*data);
-      else
         vdataWriter->writeGame(*data);
+      else
+        tdataWriter->writeGame(*data);
 
       if(sgfOut != NULL) {
         assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());

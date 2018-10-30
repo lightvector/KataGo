@@ -100,9 +100,29 @@ def find_var(name):
 def model_fn(features,labels,mode,params):
 
   print("Building model", flush=True)
-  model_config = {}
-  model_config["pos_len"] = pos_len
-  with open(traindir + ".config.json","w") as f:
+  model_config = {
+    "trunk_num_channels":128,
+    "mid_num_channels":128,
+    "regular_num_channels":96,
+    "dilated_num_channels":32,
+    "gpool_num_channels":32,
+    "block_kind": [
+      ["rconv1","regular"],
+      ["rconv2","regular"],
+      ["rconv3","regular"],
+      ["rconv4","gpool"],
+      ["rconv5","regular"],
+      ["rconv6","regular"],
+      ["rconv7","gpool"],
+      ["rconv8","regular"]
+    ],
+    "p1_num_channels":48,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "v2_size":32
+  }
+
+  with open(os.path.join(traindir,"model.config.json"),"w") as f:
     json.dump(model_config,f)
 
   #L2 regularization coefficient
@@ -127,7 +147,7 @@ def model_fn(features,labels,mode,params):
   policy_target0 = features["ptncm"][:,0,:]
   policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
   placeholders["policy_target"] = policy_target0
-  placeholders["policy_target_weight"] = feature["gtnc"][:,25]
+  placeholders["policy_target_weight"] = features["gtnc"][:,25]
 
   placeholders["value_target"] = features["gtnc"][:,0:3]
   placeholders["scorevalue_target"] = features["gtnc"][:,3]
@@ -138,7 +158,7 @@ def model_fn(features,labels,mode,params):
 
   if mode == tf.estimator.ModeKeys.PREDICT:
     placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
-    model = ModelV3(model_config,placeholders)
+    model = ModelV3(model_config,pos_len,placeholders)
 
     predictions = {}
     predictions["policy_output"] = model.policy_output
@@ -147,7 +167,7 @@ def model_fn(features,labels,mode,params):
 
   if mode == tf.estimator.ModeKeys.EVAL:
     placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
-    model = ModelV3(model_config,placeholders)
+    model = ModelV3(model_config,pos_len,placeholders)
 
     target_vars = Target_varsV3(model,for_optimization=True,require_last_move=False,placeholders=placeholders)
     metrics = MetricsV3(model,target_vars,include_debug_stats=False)
@@ -171,7 +191,7 @@ def model_fn(features,labels,mode,params):
 
   if mode == tf.estimator.ModeKeys.TRAIN:
     placeholders["is_training"] = tf.constant(True,dtype=tf.bool)
-    model = ModelV3(model_config,placeholders)
+    model = ModelV3(model_config,pos_len,placeholders)
 
     target_vars = Target_varsV3(model,for_optimization=True,require_last_move=False,placeholders=placeholders)
     metrics = MetricsV3(model,target_vars,include_debug_stats=False)
@@ -268,7 +288,7 @@ NUM_VALUE_SPATIAL_TARGETS = 1
 raw_input_features = {
   "binchwp": tf.FixedLenFeature([],tf.string),
   "ginc": tf.FixedLenFeature([batch_size*ModelV3.NUM_GLOBAL_INPUT_FEATURES],tf.float32),
-  "ptncm": tf.FixedLenFeature([batch_size*NUM_POLICY_TARGETS(pos_len*pos_len+1)],tf.float32),
+  "ptncm": tf.FixedLenFeature([batch_size*NUM_POLICY_TARGETS*(pos_len*pos_len+1)],tf.float32),
   "gtnc": tf.FixedLenFeature([batch_size*NUM_GLOBAL_TARGETS],tf.float32),
   "vtnchw": tf.FixedLenFeature([batch_size*NUM_VALUE_SPATIAL_TARGETS*pos_len*pos_len],tf.float32)
 }
@@ -287,10 +307,10 @@ def parse_input(serialized_example):
     "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 
+train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir)]
 def train_input_fn():
-  files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir)]
-  trainlog("Constructing train input pipe, %d files" % len(files))
-  dataset = tf.data.Dataset.from_tensor_slices(files)
+  trainlog("Constructing train input pipe, %d files" % len(train_files))
+  dataset = tf.data.Dataset.from_tensor_slices(train_files)
   dataset = dataset.shuffle(1048576)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
   dataset = dataset.shuffle(1000)
@@ -298,10 +318,14 @@ def train_input_fn():
   dataset = dataset.repeat()
   return dataset
 
+if not os.path.exists(vdatadir):
+  trainlog("Dir does not exist " + vdatadir + ", skipping any validation")
+  val_files = []
+else:
+  val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir)]
 def val_input_fn():
-  files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir)]
-  trainlog("Constructing validation input pipe, %d files" % len(files))
-  dataset = tf.data.Dataset.from_tensor_slices(files)
+  trainlog("Constructing validation input pipe, %d files" % len(val_files))
+  dataset = tf.data.Dataset.from_tensor_slices(val_files)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
   dataset = dataset.map(parse_input)
   return dataset
@@ -324,15 +348,19 @@ estimator = tf.estimator.Estimator(
 # validate_every_batches = 100
 validate_every_batches = num_batches_per_epoch
 
-evaluator = tf.contrib.estimator.InMemoryEvaluatorHook(
-  estimator,
-  val_input_fn,
-  every_n_iter = validate_every_batches
-)
+hooks = []
+
+if len(val_files) > 0:
+  evaluator = tf.contrib.estimator.InMemoryEvaluatorHook(
+    estimator,
+    val_input_fn,
+    every_n_iter = validate_every_batches
+  )
+  hooks.append(evaluator)
 
 estimator.train(
   train_input_fn,
-  hooks=[evaluator]
+  hooks=hooks
   # hooks=[]
 )
 

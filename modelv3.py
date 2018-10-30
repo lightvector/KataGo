@@ -12,8 +12,8 @@ class ModelV3:
   NUM_BIN_INPUT_FEATURES = 22
   NUM_GLOBAL_INPUT_FEATURES = 15
 
-  def __init__(self,config,placeholders):
-    self.pos_len = config["pos_len"]
+  def __init__(self,config,pos_len,placeholders):
+    self.pos_len = pos_len
     self.bin_input_shape = [self.pos_len*self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES]
     self.binp_input_shape = [ModelV3.NUM_BIN_INPUT_FEATURES,(self.pos_len*self.pos_len+7)//8]
     self.global_input_shape = [ModelV3.NUM_GLOBAL_INPUT_FEATURES]
@@ -39,7 +39,7 @@ class ModelV3:
     #Accumulates info about batch norm laywers
     self.batch_norms = {}
 
-    self.build_model(placeholders)
+    self.build_model(config,placeholders)
 
   def assert_batched_shape(self,name,tensor,shape):
     if (len(tensor.shape) != len(shape)+1 or
@@ -612,7 +612,7 @@ class ModelV3:
   #Indexing:
   #batch, bsize, bsize, channel
 
-  def build_model(self,placeholders):
+  def build_model(self,config,placeholders):
     pos_len = self.pos_len
 
     #Model version-------------------------------------------------------------------------------
@@ -749,11 +749,11 @@ class ModelV3:
     self.transformed_global_inputs = transformed_global_inputs
 
     #Channel counts---------------------------------------------------------------------------------------
-    trunk_num_channels = 128
-    mid_num_channels = 128
-    regular_num_channels = 96
-    dilated_num_channels = 32
-    gpool_num_channels = 32
+    trunk_num_channels = config["trunk_num_channels"]
+    mid_num_channels = config["mid_num_channels"]
+    regular_num_channels = config["regular_num_channels"]
+    dilated_num_channels = config["dilated_num_channels"]
+    gpool_num_channels = config["gpool_num_channels"]
 
     assert(regular_num_channels + dilated_num_channels == mid_num_channels)
 
@@ -781,16 +781,7 @@ class ModelV3:
     #Main trunk---------------------------------------------------------------------------------------------------
     self.blocks = []
 
-    block_kind = [
-      ("rconv1","regular"),
-      ("rconv2","regular"),
-      ("rconv3","regular"),
-      ("rconv4","gpool"),
-      ("rconv5","regular"),
-      ("rconv6","regular"),
-      ("rconv7","gpool"),
-      ("rconv8","regular")
-    ]
+    block_kind = config["block_kind"]
 
     for i in range(len(block_kind)):
       (name,kind) = block_kind[i]
@@ -828,13 +819,13 @@ class ModelV3:
     p0_layer = trunk
 
     #This is the main path for policy information
-    p1_num_channels = 48
+    p1_num_channels = config["p1_num_channels"]
     p1_intermediate_conv = self.conv_only_block("p1/intermediate_conv",p0_layer,diam=3,in_channels=trunk_num_channels,out_channels=p1_num_channels)
     self.p1_conv = ("p1/intermediate_conv",3,trunk_num_channels,p1_num_channels)
 
     #But in parallel convolve to compute some features about the global state of the board
     #Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
-    g1_num_channels = 32
+    g1_num_channels = config["g1_num_channels"]
     g1_layer = self.conv_block("g1",p0_layer,mask,mask_sum,diam=3,in_channels=trunk_num_channels,out_channels=g1_num_channels)
     self.g1_conv = ("g1",3,trunk_num_channels,g1_num_channels)
 
@@ -893,7 +884,7 @@ class ModelV3:
     #Value head---------------------------------------------------------------------------------
     v0_layer = trunk
 
-    v1_num_channels = 32
+    v1_num_channels = config["v1_num_channels"]
     v1_layer = self.conv_block("v1",v0_layer,mask,mask_sum,diam=3,in_channels=trunk_num_channels,out_channels=v1_num_channels)
     self.outputs_by_layer.append(("v1",v1_layer))
     self.v1_conv = ("v1",3,trunk_num_channels,v1_num_channels)
@@ -902,7 +893,7 @@ class ModelV3:
     v1_layer_pooled = tf.reduce_sum(v1_layer,axis=[1,2],keepdims=False) / tf.reshape(mask_sum_hw,[-1,1])
     v1_size = v1_num_channels
 
-    v2_size = 32
+    v2_size = config["v2_size"]
     v2w = self.weight_variable("v2/w",[v1_size,v2_size],v1_size,v2_size)
     v2b = self.weight_variable("v2/b",[v2_size],v1_size,v2_size,scale_initial_weights=0.2,reg=False)
     v2_layer = self.relu_non_spatial("v2/relu",tf.matmul(v1_layer_pooled, v2w) + v2b)

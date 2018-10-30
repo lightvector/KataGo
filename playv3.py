@@ -27,11 +27,14 @@ args = vars(parser.parse_args())
 
 modelpath = args["model"]
 
+#Hardcoded max board size
+pos_len = 19
+
 # Model ----------------------------------------------------------------
 
 with open(os.path.join(os.path.dirname(modelpath),"model.config.json")) as f:
   model_config = json.load(f)
-model = ModelV3(model_config,{})
+model = ModelV3(model_config,pos_len,{})
 policy_output = tf.nn.softmax(model.policy_output)
 value_output = tf.nn.softmax(model.value_output)
 scorevalue_output = tf.tanh(model.scorevalue_output)
