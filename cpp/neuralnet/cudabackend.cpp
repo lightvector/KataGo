@@ -2998,6 +2998,7 @@ struct ValueHead {
     float* valueBuf,
     float* scoreValueBuf,
     void* ownershipBuf,
+    void* ownershipScratchBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
@@ -3043,27 +3044,24 @@ struct ValueHead {
 
       const cudnnTensorDescriptor_t& vOwnershipOutDescriptor = vOwnershipOutDescriptors[batchSize-1];
 
-      vOwnershipConv->apply(cudaHandles,v1OutDescriptor,vOwnershipOutDescriptor,batchSize,false,v1OutBuf2,ownershipBuf,workspaceBuf,workspaceBytes);
-
       bool inverse = true;
       if(!usingFP16) {
+        vOwnershipConv->apply(cudaHandles,v1OutDescriptor,vOwnershipOutDescriptor,batchSize,false,v1OutBuf2,ownershipBuf,workspaceBuf,workspaceBytes);
         if(!usingNHWC)
           applySymmetriesNCHW<float>(symmetriesBuffer, inverse, batchSize, ownershipChannels, xSize, ySize, (float*)ownershipBuf, (float*)workspaceBuf);
         else
           applySymmetriesNHWC<float>(symmetriesBuffer, inverse, batchSize, ownershipChannels, xSize, ySize, (float*)ownershipBuf, (float*)workspaceBuf);
       }
       else {
+        vOwnershipConv->apply(cudaHandles,v1OutDescriptor,vOwnershipOutDescriptor,batchSize,false,v1OutBuf2,ownershipScratchBuf,workspaceBuf,workspaceBytes);
         if(!usingNHWC)
-          applySymmetriesNCHW<half>(symmetriesBuffer, inverse, batchSize, ownershipChannels, xSize, ySize, (half*)ownershipBuf, (half*)workspaceBuf);
+          applySymmetriesNCHW<half>(symmetriesBuffer, inverse, batchSize, ownershipChannels, xSize, ySize, (half*)ownershipScratchBuf, (half*)workspaceBuf);
         else
-          applySymmetriesNHWC<half>(symmetriesBuffer, inverse, batchSize, ownershipChannels, xSize, ySize, (half*)ownershipBuf, (half*)workspaceBuf);
-      }
+          applySymmetriesNHWC<half>(symmetriesBuffer, inverse, batchSize, ownershipChannels, xSize, ySize, (half*)ownershipScratchBuf, (half*)workspaceBuf);
 
-      if(!usingFP16)
-        cudaMemcpyAsync(ownershipBuf,workspaceBuf,sizeof(float)*batchSize*ownershipChannels*ySize*xSize,cudaMemcpyDeviceToDevice);
-      else
-        customCudaCopyFromHalf((const half*)workspaceBuf,(float*)ownershipBuf,batchSize*ownershipChannels*xSize*ySize);
-      CUDA_ERR("vOwnership copy",cudaPeekAtLastError());
+        customCudaCopyFromHalf((const half*)ownershipScratchBuf,(float*)ownershipBuf,batchSize*ownershipChannels*xSize*ySize);
+        CUDA_ERR("vOwnership copy",cudaPeekAtLastError());
+      }
     }
 
   }
@@ -3370,6 +3368,7 @@ struct Model {
     float* valueBuf,
     float* scoreValueBuf,
     void* ownershipBuf,
+    void* ownershipScratchBuf,
 
     const void* zeroBuf,
     const void* oneBuf,
@@ -3472,6 +3471,7 @@ struct Model {
       valueBuf,
       scoreValueBuf,
       ownershipBuf,
+      ownershipScratchBuf,
       workspaceBuf,
       workspaceBytes
     );
@@ -3564,6 +3564,7 @@ struct Buffers {
   float* scoreValueBuf;
   size_t scoreValueBufBytes;
   void* ownershipBuf;
+  void* ownershipScratchBuf;
   size_t ownershipBufBytes;
 
   void* zeroBuf;
@@ -3636,10 +3637,12 @@ struct Buffers {
       //This buf is used for both an intermdiate fp16 result in fp16 mode, and ALSO the final fp32 output, so always must be fp32-sized
       ownershipBufBytes = m.valueHead->ownershipChannels * batchXYSingleBytes;
       CUDA_ERR("Buffers",cudaMalloc(&ownershipBuf, ownershipBufBytes));
+      CUDA_ERR("Buffers",cudaMalloc(&ownershipScratchBuf, ownershipBufBytes));
     }
     else {
       scoreValueBuf = NULL;
       ownershipBuf = NULL;
+      ownershipScratchBuf = NULL;
     }
 
     if(!useFP16) {
@@ -3718,6 +3721,8 @@ struct Buffers {
       cudaFree(scoreValueBuf);
     if(ownershipBuf != NULL)
       cudaFree(ownershipBuf);
+    if(ownershipScratchBuf != NULL)
+      cudaFree(ownershipScratchBuf);
 
     free(zeroBuf);
     free(oneBuf);
@@ -4017,6 +4022,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     buffers->valueBuf,
     buffers->scoreValueBuf,
     buffers->ownershipBuf,
+    buffers->ownershipScratchBuf,
 
     buffers->zeroBuf,
     buffers->oneBuf,

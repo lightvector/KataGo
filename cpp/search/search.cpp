@@ -1274,6 +1274,25 @@ void Search::playoutDescend(
   updateStatsAfterPlayout(node,thread,virtualLossesToSubtract,isRoot);
 }
 
+
+void Search::printRootOwnershipMap(ostream& out) {
+  if(rootNode->nnOutput == nullptr)
+    return;
+  NNOutput& nnOutput = *(rootNode->nnOutput);
+  if(nnOutput.ownerMap == NULL)
+    return;
+
+  for(int y = 0; y<rootBoard.y_size; y++) {
+    for(int x = 0; x<rootBoard.x_size; x++) {
+      int pos = NNPos::xyToPos(x,y,nnOutput.posLen);
+      out << Global::strprintf("%6.1f ", nnOutput.ownerMap[pos]*100);
+    }
+    out << endl;
+  }
+  out << endl;
+}
+
+
 void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
   if(n == NULL)
     return;
