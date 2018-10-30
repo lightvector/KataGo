@@ -918,6 +918,7 @@ class ModelV3:
     scorevalue_output = tf.reshape(sv3_layer, [-1] + self.scorevalue_target_shape, name = "scorevalue_output")
 
     ownership_output = self.conv_only_block("vownership",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2, reg=False) * mask
+    self.vownership_conv = ("vownership",1,v1_num_channels,1)
     ownership_output = self.apply_symmetry(ownership_output,symmetries,inverse=True)
     ownership_output = tf.reshape(ownership_output, [-1] + self.ownership_target_shape, name = "ownership_output")
 
