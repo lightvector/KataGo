@@ -505,33 +505,41 @@ void NNEvaluator::evaluate(
         buf.result->whiteScoreValue = 0.0;
       }
     }
-    //TODO continue work on this
     else if(modelVersion == 3) {
-      double winLogits = buf.result->whiteWinProb;
-      double lossLogits = buf.result->whiteLossProb;
-      double noResultLogits = buf.result->whiteNoResultProb;
+      double winProb;
+      double lossProb;
+      double noResultProb;
+      {
+        double winLogits = buf.result->whiteWinProb;
+        double lossLogits = buf.result->whiteLossProb;
+        double noResultLogits = buf.result->whiteNoResultProb;
 
-      //Softmax
-      double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
-      double winProb = exp(winLogits - maxLogits);
-      double lossProb = exp(lossLogits - maxLogits);
-      double noResultProb = exp(noResultLogits - maxLogits);
+        //Softmax
+        double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
+        winProb = exp(winLogits - maxLogits);
+        lossProb = exp(lossLogits - maxLogits);
+        noResultProb = exp(noResultLogits - maxLogits);
 
-      double probSum = winProb + lossProb + noResultProb;
+        double probSum = winProb + lossProb + noResultProb;
+        winProb /= probSum;
+        lossProb /= probSum;
+        noResultProb /= probSum;
+      }
+
+      double scoreValue = tanh(buf.result->whiteScoreValue);
 
       if(nextPlayer == P_WHITE) {
-        buf.result->whiteWinProb = winProb / probSum;
-        buf.result->whiteLossProb = lossProb / probSum;
-        buf.result->whiteNoResultProb = noResultProb / probSum;
-        buf.result->whiteScoreValue = 0.0;
+        buf.result->whiteWinProb = winProb;
+        buf.result->whiteLossProb = lossProb;
+        buf.result->whiteNoResultProb = noResultProb;
+        buf.result->whiteScoreValue = scoreValue;
       }
       else {
-        buf.result->whiteWinProb = lossProb / probSum;
-        buf.result->whiteLossProb = winProb / probSum;
-        buf.result->whiteNoResultProb = noResultProb / probSum;
-        buf.result->whiteScoreValue = 0.0;
+        buf.result->whiteWinProb = lossProb;
+        buf.result->whiteLossProb = winProb;
+        buf.result->whiteNoResultProb = noResultProb;
+        buf.result->whiteScoreValue = -scoreValue;
       }
-
 
     }
     else {
@@ -539,7 +547,22 @@ void NNEvaluator::evaluate(
     }
   }
 
-  //TODO postprocess ownermap here if available. Make sure it happens for both branches of hadResultWithoutOwnerMap
+  //Postprocess ownermap
+  if(buf.result->ownerMap != NULL) {
+    if(modelVersion <= 2) {
+      //No postprocessing needed, cudabackend fills with zeros, which is exactly fine.
+    }
+    else if(modelVersion == 3) {
+      for(int pos = 0; pos<posLen*posLen; pos++) {
+        int y = pos / posLen;
+        int x = pos % posLen;
+        if(y >= board.y_size || x >= board.x_size)
+          buf.result->ownerMap[pos] = 0.0f;
+        else
+          buf.result->ownerMap[pos] = tanh(buf.result->ownerMap[pos]);
+      }
+    }
+  }
 
 
   //And record the nnHash in the result and put it into the table

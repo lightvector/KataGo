@@ -115,7 +115,9 @@ struct ConvLayerDesc {
   int dilationX;
   vector<float> weights;
 
-  ConvLayerDesc() {}
+  ConvLayerDesc()
+    :convYSize(0),convXSize(0),inChannels(0),outChannels(0),dilationY(1),dilationX(1)
+  {}
 
   ConvLayerDesc(istream& in) {
     in >> name;
@@ -464,7 +466,9 @@ struct BNLayerDesc {
   vector<float> scale;
   vector<float> bias;
 
-  BNLayerDesc() {}
+  BNLayerDesc()
+    :numChannels(0),epsilon(0.001),hasScale(false),hasBias(false)
+  {}
 
   BNLayerDesc(istream& in) {
     in >> name;
@@ -750,7 +754,9 @@ struct MatMulLayerDesc {
   int outChannels;
   vector<float> weights;
 
-  MatMulLayerDesc() {}
+  MatMulLayerDesc()
+    :inChannels(0),outChannels(0)
+  {}
 
   MatMulLayerDesc(istream& in) {
     in >> name;
@@ -895,7 +901,9 @@ struct MatBiasLayerDesc {
   int numChannels;
   vector<float> weights;
 
-  MatBiasLayerDesc() {}
+  MatBiasLayerDesc()
+    :numChannels(0)
+  {}
 
   MatBiasLayerDesc(istream& in) {
     in >> name;
@@ -1608,7 +1616,9 @@ struct TrunkDesc {
   BNLayerDesc trunkTipBN;
   ActivationLayerDesc trunkTipActivation;
 
-  TrunkDesc() {}
+  TrunkDesc()
+    :version(-1),numBlocks(0),trunkNumChannels(0),midNumChannels(0),regularNumChannels(0),dilatedNumChannels(0),gpoolNumChannels(0)
+  {}
 
   TrunkDesc(istream& in, int vrsn) {
     in >> name;
@@ -2267,7 +2277,9 @@ struct PolicyHeadDesc {
   ConvLayerDesc p2Conv;
   MatMulLayerDesc gpoolToPassMul;
 
-  PolicyHeadDesc() {}
+  PolicyHeadDesc()
+    :version(-1)
+  {}
 
   PolicyHeadDesc(istream& in, int vrsn) {
     in >> name;
@@ -2651,8 +2663,13 @@ struct ValueHeadDesc {
   ActivationLayerDesc v2Activation;
   MatMulLayerDesc v3Mul;
   MatBiasLayerDesc v3Bias;
+  MatMulLayerDesc sv3Mul;
+  MatBiasLayerDesc sv3Bias;
+  ConvLayerDesc vOwnershipConv;
 
-  ValueHeadDesc() {}
+  ValueHeadDesc()
+    :version(-1)
+  {}
 
   ValueHeadDesc(istream& in, int vrsn) {
     in >> name;
@@ -2669,6 +2686,12 @@ struct ValueHeadDesc {
     v2Activation = ActivationLayerDesc(in);
     v3Mul = MatMulLayerDesc(in);
     v3Bias = MatBiasLayerDesc(in);
+
+    if(version >= 3) {
+      sv3Mul = MatMulLayerDesc(in);
+      sv3Bias = MatBiasLayerDesc(in);
+      vOwnershipConv = ConvLayerDesc(in);
+    }
 
     if(in.fail())
       throw StringError(name + ": value head istream fail after parsing layers");
@@ -2717,6 +2740,30 @@ struct ValueHeadDesc {
           ": v3Bias.numChannels (%d) != 1", v3Bias.numChannels
         ));
     }
+
+    if(version >= 3) {
+      if(sv3Mul.inChannels != v2Mul.outChannels)
+        throw StringError(name+Global::strprintf(
+          ": sv3Mul.inChannels (%d) != v2Mul.outChannels (%d)", sv3Mul.inChannels, v2Mul.outChannels
+        ));
+      if(sv3Mul.outChannels != 1)
+        throw StringError(name+Global::strprintf(
+          ": sv3Mul.outChannels (%d) != 1", sv3Mul.outChannels
+        ));
+      if(sv3Bias.numChannels != 1)
+        throw StringError(name+Global::strprintf(
+          ": sv3Bias.numChannels (%d) != 1", sv3Bias.numChannels
+        ));
+      if(vOwnershipConv.inChannels != v1Conv.outChannels)
+        throw StringError(name+Global::strprintf(
+          ": vOwnershipConv.outChannels (%d) != v1Conv.outChannels (%d)", vOwnershipConv.inChannels, v1Conv.outChannels
+        ));
+      if(vOwnershipConv.outChannels != 1)
+        throw StringError(name+Global::strprintf(
+          ": vOwnershipConv.outChannels (%d) != 1", vOwnershipConv.outChannels
+        ));
+    }
+
   }
 
   ~ValueHeadDesc() {
@@ -2740,6 +2787,9 @@ struct ValueHeadDesc {
     v2Activation = std::move(other.v2Activation);
     v3Mul = std::move(other.v3Mul);
     v3Bias = std::move(other.v3Bias);
+    sv3Mul = std::move(other.sv3Mul);
+    sv3Bias = std::move(other.sv3Bias);
+    vOwnershipConv = std::move(other.vOwnershipConv);
     return *this;
   }
 
@@ -2756,11 +2806,14 @@ struct ValueHead {
   int v1Channels;
   int v2Channels;
   int valueChannels;
+  int scoreValueChannels;
+  int ownershipChannels;
   bool usingFP16;
   bool usingNHWC;
 
   cudnnTensorDescriptor_t* v1OutDescriptors;
   cudnnTensorDescriptor_t* v3InDescriptors;
+  cudnnTensorDescriptor_t* vOwnershipOutDescriptors;
 
   ConvLayer* v1Conv;
   BNLayer* v1BN;
@@ -2770,6 +2823,9 @@ struct ValueHead {
   ActivationLayer* v2Activation;
   MatMulLayer* v3Mul;
   MatBiasLayer* v3Bias;
+  MatMulLayer* sv3Mul;
+  MatBiasLayer* sv3Bias;
+  ConvLayer* vOwnershipConv;
 
   ValueHead() = delete;
   ValueHead(const ValueHead&) = delete;
@@ -2793,11 +2849,17 @@ struct ValueHead {
     v1Channels = desc->v1Conv.outChannels;
     v2Channels = desc->v2Mul.outChannels;
     valueChannels = desc->v3Mul.outChannels;
+    scoreValueChannels = desc->sv3Mul.outChannels;
+    ownershipChannels = desc->vOwnershipConv.outChannels;
     usingFP16 = useFP16;
     usingNHWC = useNHWC;
 
     v1OutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     v3InDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+    if(version >= 3)
+      vOwnershipOutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+    else
+      vOwnershipOutDescriptors = NULL;
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
@@ -2824,6 +2886,21 @@ struct ValueHead {
         1,
         1
       ));
+
+      if(version >= 3) {
+        cudnnTensorDescriptor_t& vOwnershipOutDescriptor = vOwnershipOutDescriptors[batchSize-1];
+
+        CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&vOwnershipOutDescriptor));
+        CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
+          vOwnershipOutDescriptor,
+          (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
+          (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
+          batchSize,
+          desc->vOwnershipConv.outChannels,
+          ySize,
+          xSize
+        ));
+      }
     }
 
     v1Conv = new ConvLayer(cudaHandles,&desc->v1Conv,maxBatchSize,trunkDescriptors,v1OutDescriptors,useFP16,useNHWC);
@@ -2834,6 +2911,16 @@ struct ValueHead {
     v2Activation = new ActivationLayer(cudaHandles,&desc->v2Activation);
     v3Mul = new MatMulLayer(cudaHandles,&desc->v3Mul,false);
     v3Bias = new MatBiasLayer(cudaHandles,&desc->v3Bias,false);
+    if(version >= 3) {
+      sv3Mul = new MatMulLayer(cudaHandles,&desc->sv3Mul,false);
+      sv3Bias = new MatBiasLayer(cudaHandles,&desc->sv3Bias,false);
+      vOwnershipConv = new ConvLayer(cudaHandles,&desc->vOwnershipConv,maxBatchSize,v1OutDescriptors,vOwnershipOutDescriptors,useFP16,useNHWC);
+    }
+    else {
+      sv3Mul = NULL;
+      sv3Bias = NULL;
+      vOwnershipConv = NULL;
+    }
   }
 
   ~ValueHead()
@@ -2846,14 +2933,20 @@ struct ValueHead {
     delete v2Activation;
     delete v3Mul;
     delete v3Bias;
+    delete sv3Mul;
+    delete sv3Bias;
+    delete vOwnershipConv;
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       cudnnDestroyTensorDescriptor(v1OutDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(v3InDescriptors[batchSize-1]);
+      if(version >= 3)
+        cudnnDestroyTensorDescriptor(vOwnershipOutDescriptors[batchSize-1]);
     }
 
     delete[] v1OutDescriptors;
     delete[] v3InDescriptors;
+    delete[] vOwnershipOutDescriptors;
   }
 
   size_t requiredWorkspaceBytes(
@@ -2875,6 +2968,18 @@ struct ValueHead {
     b = sizeof(float)*batchSize*v1Channels*xSize*ySize;
     bytes = std::max(bytes,b);
 
+
+    if(version >= 3) {
+      const cudnnTensorDescriptor_t& vOwnershipOutDescriptor = vOwnershipOutDescriptors[batchSize-1];
+
+      b = sv3Mul->requiredWorkspaceBytes(cudaHandles);
+      bytes = std::max(bytes,b);
+      b = vOwnershipConv->requiredWorkspaceBytes(cudaHandles,v1OutDescriptor,vOwnershipOutDescriptor,batchSize);
+      bytes = std::max(bytes,b);
+      b = sizeof(float)*batchSize*ownershipChannels*xSize*ySize;
+      bytes = std::max(bytes,b);
+    }
+
     return bytes;
   }
 
@@ -2882,6 +2987,7 @@ struct ValueHead {
   void apply(
     CudaHandles* cudaHandles,
     const cudnnTensorDescriptor_t& trunkDescriptor,
+    const bool* symmetriesBuffer,
     int batchSize,
     void* maskBuf,
     void* trunkBuf,
@@ -2890,6 +2996,8 @@ struct ValueHead {
     float* v1MeanBuf,
     float* v2OutBuf,
     float* valueBuf,
+    float* scoreValueBuf,
+    void* ownershipBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
@@ -2925,15 +3033,39 @@ struct ValueHead {
     float one = 1.0f;
     v2Mul->apply(cudaHandles,batchSize,v1MeanBuf,v2OutBuf,&zero,&one,workspaceBuf,workspaceBytes);
     v2Bias->apply(cudaHandles,batchSize,v2OutBuf);
-
-    if(version >= 1) {
-      v2Activation->apply(cudaHandles,v3InDescriptor,v3InDescriptor,v2OutBuf,v2OutBuf);
-      v3Mul->apply(cudaHandles,batchSize,v2OutBuf,valueBuf,&zero,&one,workspaceBuf,workspaceBytes);
-    }
-    else {
-      throw StringError("Version 0 neural nets no longer supported in cudnn");
-    }
+    v2Activation->apply(cudaHandles,v3InDescriptor,v3InDescriptor,v2OutBuf,v2OutBuf);
+    v3Mul->apply(cudaHandles,batchSize,v2OutBuf,valueBuf,&zero,&one,workspaceBuf,workspaceBytes);
     v3Bias->apply(cudaHandles,batchSize,valueBuf);
+
+    if(version >= 3) {
+      sv3Mul->apply(cudaHandles,batchSize,v2OutBuf,scoreValueBuf,&zero,&one,workspaceBuf,workspaceBytes);
+      sv3Bias->apply(cudaHandles,batchSize,scoreValueBuf);
+
+      const cudnnTensorDescriptor_t& vOwnershipOutDescriptor = vOwnershipOutDescriptors[batchSize-1];
+
+      vOwnershipConv->apply(cudaHandles,v1OutDescriptor,vOwnershipOutDescriptor,batchSize,false,v1OutBuf2,ownershipBuf,workspaceBuf,workspaceBytes);
+
+      bool inverse = true;
+      if(!usingFP16) {
+        if(!usingNHWC)
+          applySymmetriesNCHW<float>(symmetriesBuffer, inverse, batchSize, ownershipChannels, xSize, ySize, (float*)ownershipBuf, (float*)workspaceBuf);
+        else
+          applySymmetriesNHWC<float>(symmetriesBuffer, inverse, batchSize, ownershipChannels, xSize, ySize, (float*)ownershipBuf, (float*)workspaceBuf);
+      }
+      else {
+        if(!usingNHWC)
+          applySymmetriesNCHW<half>(symmetriesBuffer, inverse, batchSize, ownershipChannels, xSize, ySize, (half*)ownershipBuf, (half*)workspaceBuf);
+        else
+          applySymmetriesNHWC<half>(symmetriesBuffer, inverse, batchSize, ownershipChannels, xSize, ySize, (half*)ownershipBuf, (half*)workspaceBuf);
+      }
+
+      if(!usingFP16)
+        cudaMemcpyAsync(ownershipBuf,workspaceBuf,sizeof(float)*batchSize*ownershipChannels*ySize*xSize,cudaMemcpyDeviceToDevice);
+      else
+        customCudaCopyFromHalf((const half*)workspaceBuf,(float*)ownershipBuf,batchSize*ownershipChannels*xSize*ySize);
+      CUDA_ERR("vOwnership copy",cudaPeekAtLastError());
+    }
+
   }
 
 };
@@ -2949,12 +3081,16 @@ struct ModelDesc {
   int numInputChannels;
   int numInputGlobalChannels;
   int numValueChannels;
+  int numScoreValueChannels;
+  int numOwnershipChannels;
 
   TrunkDesc trunk;
   PolicyHeadDesc policyHead;
   ValueHeadDesc valueHead;
 
-  ModelDesc() {}
+  ModelDesc()
+    :version(-1),xSizePreV3(0),ySizePreV3(0),numInputChannels(0),numInputGlobalChannels(0),numValueChannels(0),numScoreValueChannels(0),numOwnershipChannels(0)
+  {}
 
   ModelDesc(istream& in) {
     in >> name;
@@ -2968,8 +3104,8 @@ struct ModelDesc {
       throw StringError("Version 0 neural nets no longer supported in cuda backend");
 
     if(version >= 3) {
-      xSizePreV3 = -1; //Unused, V3 uses posLen instead
-      ySizePreV3 = -1; //Unused, V3 uses posLen instead
+      xSizePreV3 = 0; //Unused, V3 uses posLen instead
+      ySizePreV3 = 0; //Unused, V3 uses posLen instead
     }
     else {
       in >> xSizePreV3;
@@ -3001,6 +3137,8 @@ struct ModelDesc {
     valueHead = ValueHeadDesc(in,version);
 
     numValueChannels = valueHead.v3Mul.outChannels;
+    numScoreValueChannels = valueHead.sv3Mul.outChannels;
+    numOwnershipChannels = valueHead.vOwnershipConv.outChannels;
 
     if(in.fail())
       throw StringError(name + ": model desc istream fail after parsing model");
@@ -3047,6 +3185,8 @@ struct ModelDesc {
     numInputChannels = other.numInputChannels;
     numInputGlobalChannels = other.numInputGlobalChannels;
     numValueChannels = other.numValueChannels;
+    numScoreValueChannels = other.numScoreValueChannels;
+    numOwnershipChannels = other.numOwnershipChannels;
     trunk = std::move(other.trunk);
     policyHead = std::move(other.policyHead);
     valueHead = std::move(other.valueHead);
@@ -3064,6 +3204,8 @@ struct Model {
   int numInputChannels;
   int numInputGlobalChannels;
   int numValueChannels;
+  int numScoreValueChannels;
+  int numOwnershipChannels;
   bool usingFP16;
   bool inputsUsingNHWC;
 
@@ -3119,6 +3261,8 @@ struct Model {
     numInputChannels = desc->numInputChannels;
     numInputGlobalChannels = desc->numInputGlobalChannels;
     numValueChannels = desc->numValueChannels;
+    numScoreValueChannels = desc->numScoreValueChannels;
+    numOwnershipChannels = desc->numOwnershipChannels;
     usingFP16 = useFP16;
     inputsUsingNHWC = inputsUseNHWC;
 
@@ -3224,6 +3368,8 @@ struct Model {
     float* v1MeanBuf,
     float* v2OutBuf,
     float* valueBuf,
+    float* scoreValueBuf,
+    void* ownershipBuf,
 
     const void* zeroBuf,
     const void* oneBuf,
@@ -3315,6 +3461,7 @@ struct Model {
     valueHead->apply(
       cudaHandles,
       trunkDescriptor,
+      symmetriesBuffer,
       batchSize,
       maskBuf,
       trunkBuf,
@@ -3323,6 +3470,8 @@ struct Model {
       v1MeanBuf,
       v2OutBuf,
       valueBuf,
+      scoreValueBuf,
+      ownershipBuf,
       workspaceBuf,
       workspaceBytes
     );
@@ -3412,6 +3561,10 @@ struct Buffers {
   float* v2OutBuf;
   float* valueBuf;
   size_t valueBufBytes;
+  float* scoreValueBuf;
+  size_t scoreValueBufBytes;
+  void* ownershipBuf;
+  size_t ownershipBufBytes;
 
   void* zeroBuf;
   void* oneBuf;
@@ -3475,6 +3628,19 @@ struct Buffers {
 
     valueBufBytes = m.valueHead->valueChannels * batchSingleBytes;
     CUDA_ERR("Buffers",cudaMalloc(&valueBuf, valueBufBytes));
+
+    if(m.version >= 3) {
+      scoreValueBufBytes = m.valueHead->scoreValueChannels * batchSingleBytes;
+      CUDA_ERR("Buffers",cudaMalloc(&scoreValueBuf, scoreValueBufBytes));
+
+      //This buf is used for both an intermdiate fp16 result in fp16 mode, and ALSO the final fp32 output, so always must be fp32-sized
+      ownershipBufBytes = m.valueHead->ownershipChannels * batchXYSingleBytes;
+      CUDA_ERR("Buffers",cudaMalloc(&ownershipBuf, ownershipBufBytes));
+    }
+    else {
+      scoreValueBuf = NULL;
+      ownershipBuf = NULL;
+    }
 
     if(!useFP16) {
       zeroBuf = malloc(sizeof(float));
@@ -3548,6 +3714,10 @@ struct Buffers {
     cudaFree(v1MeanBuf);
     cudaFree(v2OutBuf);
     cudaFree(valueBuf);
+    if(scoreValueBuf != NULL)
+      cudaFree(scoreValueBuf);
+    if(ownershipBuf != NULL)
+      cudaFree(ownershipBuf);
 
     free(zeroBuf);
     free(oneBuf);
@@ -3639,18 +3809,26 @@ struct InputBuffers {
   size_t singlePolicyResultBytes;
   size_t singleValueResultElts;
   size_t singleValueResultBytes;
+  size_t singleScoreValueResultElts;
+  size_t singleScoreValueResultBytes;
+  size_t singleOwnershipResultElts;
+  size_t singleOwnershipResultBytes;
 
   size_t userInputBufferBytes;
   size_t userInputGlobalBufferBytes;
   size_t policyResultBufferBytes;
   size_t valueResultBufferBytes;
+  size_t scoreValueResultBufferBytes;
+  size_t ownershipResultBufferBytes;
 
   float* userInputBuffer; //Host pointer
   float* userInputGlobalBuffer; //Host pointer
   bool* symmetriesBuffer; //Host pointer
 
-  float* policyResults;
-  float* valueResults;
+  float* policyResults; //Host pointer
+  float* valueResults; //Host pointer
+  float* scoreValueResults; //Host pointer
+  float* ownershipResults; //Host pointer
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int posLen) {
     const ModelDesc& m = loadedModel->modelDesc;
@@ -3667,6 +3845,10 @@ struct InputBuffers {
     singlePolicyResultBytes = (1 + xSize * ySize) * sizeof(float);
     singleValueResultElts = m.numValueChannels;
     singleValueResultBytes = m.numValueChannels * sizeof(float);
+    singleScoreValueResultElts = m.numScoreValueChannels;
+    singleScoreValueResultBytes = m.numScoreValueChannels * sizeof(float);
+    singleOwnershipResultElts = m.numOwnershipChannels * xSize * ySize;
+    singleOwnershipResultBytes = m.numOwnershipChannels * xSize * ySize * sizeof(float);
 
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
@@ -3677,6 +3859,8 @@ struct InputBuffers {
     userInputGlobalBufferBytes = m.numInputGlobalChannels * maxBatchSize * sizeof(float);
     policyResultBufferBytes = maxBatchSize * (1 + xSize * ySize) * sizeof(float);
     valueResultBufferBytes = maxBatchSize * m.numValueChannels * sizeof(float);
+    scoreValueResultBufferBytes = maxBatchSize * m.numScoreValueChannels * sizeof(float);
+    ownershipResultBufferBytes = maxBatchSize * xSize * ySize * m.numOwnershipChannels * sizeof(float);
 
     userInputBuffer = new float[m.numInputChannels * maxBatchSize * xSize * ySize];
     userInputGlobalBuffer = new float[m.numInputGlobalChannels * maxBatchSize];
@@ -3684,6 +3868,15 @@ struct InputBuffers {
 
     policyResults = new float[maxBatchSize * (1 + xSize * ySize)];
     valueResults = new float[maxBatchSize * m.numValueChannels];
+
+    if(m.version >= 3) {
+      scoreValueResults = new float[maxBatchSize * m.numScoreValueChannels];
+      ownershipResults = new float[maxBatchSize * xSize * ySize * m.numOwnershipChannels];
+    }
+    else {
+      scoreValueResults = NULL;
+      ownershipResults = NULL;
+    }
   }
 
   ~InputBuffers() {
@@ -3692,6 +3885,8 @@ struct InputBuffers {
     delete[] symmetriesBuffer;
     delete[] policyResults;
     delete[] valueResults;
+    delete[] scoreValueResults;
+    delete[] ownershipResults;
   }
 
   InputBuffers() = delete;
@@ -3728,6 +3923,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
   assert(numFilledRows <= inputBuffers->maxBatchSize);
   assert(numFilledRows > 0);
   int batchSize = numFilledRows;
+  int posLen = gpuHandle->posLen;
+  int version = gpuHandle->model->version;
   Buffers* buffers = gpuHandle->buffers;
 
   if(!gpuHandle->usingFP16) {
@@ -3739,9 +3936,15 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     assert(inputBuffers->singleBatchItemGlobalBytes == inputBuffers->singleBatchItemGlobalElts*4);
     assert(inputBuffers->singlePolicyResultElts == gpuHandle->policySize);
     assert(inputBuffers->singlePolicyResultBytes == gpuHandle->policySize * sizeof(float));
+    if(version >= 3) {
+      assert(inputBuffers->scoreValueResultBufferBytes == buffers->scoreValueBufBytes);
+      assert(inputBuffers->ownershipResultBufferBytes == buffers->ownershipBufBytes);
+      assert(inputBuffers->singleOwnershipResultElts == posLen*posLen);
+      assert(inputBuffers->singleOwnershipResultBytes == posLen*posLen * sizeof(float));
+    }
 
     CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBuf, inputBuffers->userInputBuffer, inputBuffers->singleBatchItemBytes*batchSize, cudaMemcpyHostToDevice));
-    if(gpuHandle->model->version >= 3)
+    if(version >= 3)
       CUDA_ERR("getOutput",cudaMemcpy(buffers->inputGlobalBuf, inputBuffers->userInputGlobalBuffer, inputBuffers->singleBatchItemGlobalBytes*batchSize, cudaMemcpyHostToDevice));
   }
   else {
@@ -3755,14 +3958,20 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     assert(inputBuffers->singleBatchItemGlobalBytes == inputBuffers->singleBatchItemGlobalElts*4);
     assert(inputBuffers->singlePolicyResultElts == gpuHandle->policySize);
     assert(inputBuffers->singlePolicyResultBytes == gpuHandle->policySize * sizeof(float));
+    if(version >= 3) {
+      assert(inputBuffers->scoreValueResultBufferBytes == buffers->scoreValueBufBytes);
+      assert(inputBuffers->ownershipResultBufferBytes == buffers->ownershipBufBytes);
+      assert(inputBuffers->singleOwnershipResultElts == posLen*posLen);
+      assert(inputBuffers->singleOwnershipResultBytes == posLen*posLen * sizeof(float));
+    }
 
     CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBufSingle, inputBuffers->userInputBuffer, inputBuffers->singleBatchItemBytes*batchSize, cudaMemcpyHostToDevice));
-    if(gpuHandle->model->version >= 3)
+    if(version >= 3)
       CUDA_ERR("getOutput",cudaMemcpy(buffers->inputGlobalBufSingle, inputBuffers->userInputGlobalBuffer, inputBuffers->singleBatchItemGlobalBytes*batchSize, cudaMemcpyHostToDevice));
 
     customCudaCopyToHalf((const float*)buffers->inputBufSingle,(half*)buffers->inputBuf,inputBuffers->singleBatchItemElts*batchSize);
     CUDA_ERR("getOutput",cudaPeekAtLastError());
-    if(gpuHandle->model->version >= 3) {
+    if(version >= 3) {
       customCudaCopyToHalf((const float*)buffers->inputGlobalBufSingle,(half*)buffers->inputGlobalBuf,inputBuffers->singleBatchItemGlobalElts*batchSize);
       CUDA_ERR("getOutput",cudaPeekAtLastError());
     }
@@ -3806,6 +4015,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     buffers->v1MeanBuf,
     buffers->v2OutBuf,
     buffers->valueBuf,
+    buffers->scoreValueBuf,
+    buffers->ownershipBuf,
 
     buffers->zeroBuf,
     buffers->oneBuf,
@@ -3816,10 +4027,17 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
 
   CUDA_ERR("getOutput",cudaMemcpy(inputBuffers->policyResults, buffers->policyBuf, inputBuffers->singlePolicyResultBytes*batchSize, cudaMemcpyDeviceToHost));
   CUDA_ERR("getOutput",cudaMemcpy(inputBuffers->valueResults, buffers->valueBuf, inputBuffers->singleValueResultBytes*batchSize, cudaMemcpyDeviceToHost));
+  if(version >= 3) {
+    CUDA_ERR("getOutput",cudaMemcpy(inputBuffers->scoreValueResults, buffers->scoreValueBuf, inputBuffers->singleScoreValueResultBytes*batchSize, cudaMemcpyDeviceToHost));
+    CUDA_ERR("getOutput",cudaMemcpy(inputBuffers->ownershipResults, buffers->ownershipBuf, inputBuffers->singleOwnershipResultBytes*batchSize, cudaMemcpyDeviceToHost));
+  }
 
   assert(outputs.size() == batchSize);
+
   for(int row = 0; row < batchSize; row++) {
     NNOutput* output = outputs[row];
+    assert(output->posLen == posLen);
+
     float* policyProbs = output->policyProbs;
 
     //These are not actually correct, the client does the postprocessing to turn them into
@@ -3830,27 +4048,37 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       inputBuffers->policyResults + (row+1) * gpuHandle->policySize,
       policyProbs
     );
-    //TODO add this
-    //For now, we don't have any ownerMap output from the neural net
-    if(output->ownerMap != NULL) {
-      int posLen = gpuHandle->posLen;
-      assert(output->posLen == posLen);
-      std::fill(output->ownerMap, output->ownerMap + posLen * posLen, 0.0f);
-    }
 
-    if(gpuHandle->model->version >= 3) {
+    if(version >= 3) {
       int numValueChannels = gpuHandle->model->numValueChannels;
+      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
       assert(numValueChannels == 3);
+      assert(numScoreValueChannels == 1);
       output->whiteWinProb = inputBuffers->valueResults[row * numValueChannels];
       output->whiteLossProb = inputBuffers->valueResults[row * numValueChannels + 1];
       output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
-      output->whiteScoreValue = 0.0;
+      output->whiteScoreValue = inputBuffers->scoreValueResults[row];
+
+      if(output->ownerMap != NULL) {
+        assert(gpuHandle->model->numOwnershipChannels == 1);
+        std::copy(
+          inputBuffers->ownershipResults + row * posLen * posLen,
+          inputBuffers->ownershipResults + (row+1) * posLen * posLen,
+          output->ownerMap
+        );
+      }
+
     }
     else {
       output->whiteWinProb = inputBuffers->valueResults[row];
       output->whiteLossProb = 0.0;
       output->whiteNoResultProb = 0.0;
       output->whiteScoreValue = 0.0;
+
+      //Older versions don't have an ownership map, so zero fill
+      if(output->ownerMap != NULL)
+        std::fill(output->ownerMap, output->ownerMap + posLen * posLen, 0.0f);
+
     }
   }
 

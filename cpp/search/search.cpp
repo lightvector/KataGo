@@ -1346,7 +1346,10 @@ void Search::printTreeHelper(
       out << buf;
       sprintf(buf,"W %6.2fc ",((winValueSum - lossValueSum) * searchParams.winLossUtilityFactor + noResultValueSum * searchParams.noResultUtilityForWhite) / valueSumWeight * 100.0);
       out << buf;
-      sprintf(buf,"S %6.2fc ",(scoreValueSum * searchParams.scoreUtilityFactor) / valueSumWeight * 100.0);
+      sprintf(buf,"S %6.2fc (%+5.1f) ",
+              (scoreValueSum * searchParams.scoreUtilityFactor) / valueSumWeight * 100.0,
+              NNOutput::approxWhiteScoreOfScoreValue(scoreValueSum/valueSumWeight,rootBoard)
+      );
       out << buf;
     }
 
