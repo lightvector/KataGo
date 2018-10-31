@@ -1512,7 +1512,7 @@ struct GlobalPoolingResidualBlock {
     void* gpoolBiasBuf,
     void* regularScratchBuf,
     void* maskBuf,
-    void* maskSumBuf, //TODO use this
+    float* maskSumBuf,
     const void* zeroBuf,
     const void* oneBuf,
     void* workspaceBuf,
@@ -1524,26 +1524,37 @@ struct GlobalPoolingResidualBlock {
     gpoolConv.apply(cudaHandles,trunkDescriptor,gpoolOutDescriptor,batchSize,false,trunkScratchBuf,gpoolOutBuf,workspaceBuf,workspaceBytes);
     gpoolBN.apply(cudaHandles,batchSize,applyBNRelu,gpoolOutBuf,maskBuf,gpoolOutBuf2);
 
-    //TODO also need to scale by mask sum, here and in other places where we have mean pooling
     if(!usingFP16) {
       const float meanScale = 1.0f / (xSize*ySize);
       if(!usingNHWC) {
-        customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,meanScale);
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanAndMaxPositiveNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+        else
+          customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
       else {
-        customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,meanScale);
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanAndMaxPositiveNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+        else
+          customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
     }
     else {
       const float meanScale = 1.0f / (xSize*ySize);
       if(!usingNHWC) {
-        customCudaPoolRowsSumAndMaxPositiveNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,meanScale);
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanAndMaxPositiveNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+        else
+          customCudaPoolRowsSumAndMaxPositiveNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
       else {
-        customCudaPoolRowsSumAndMaxPositiveNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,meanScale);
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanAndMaxPositiveNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+        else
+          customCudaPoolRowsSumAndMaxPositiveNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
     }
@@ -2054,7 +2065,7 @@ struct Trunk {
     void* inputBuf,
     void* inputGlobalBuf,
     void* maskBuf,
-    void* maskSumBuf,
+    float* maskSumBuf,
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
@@ -2525,8 +2536,8 @@ struct PolicyHead {
     const bool* symmetriesBuffer,
     int batchSize,
     void* maskBuf,
-    void* maskFloatBuf,
-    void* maskSumBuf, //TODO use this
+    float* maskFloatBuf,
+    float* maskSumBuf, //TODO use this
     void* trunkBuf,
     void* p1OutBuf,
     void* p1OutBuf2,
@@ -2554,11 +2565,17 @@ struct PolicyHead {
     const float meanScale = 1.0f / (xSize*ySize);
     if(!usingFP16) {
       if(!usingNHWC) {
-        customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,meanScale);
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanAndMaxPositiveNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+        else
+          customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
       else {
-        customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,meanScale);
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanAndMaxPositiveNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+        else
+          customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
     }
@@ -2566,11 +2583,17 @@ struct PolicyHead {
       customCudaCopyFromHalf((const half*)g1OutBuf2,(float*)workspaceBuf,batchSize*g1Channels*xSize*ySize);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       if(!usingNHWC) {
-        customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,meanScale);
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanAndMaxPositiveNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+        else
+          customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
       else {
-        customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,meanScale);
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanAndMaxPositiveNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+        else
+          customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
     }
@@ -2964,7 +2987,7 @@ struct ValueHead {
     const bool* symmetriesBuffer,
     int batchSize,
     void* maskBuf,
-    void* maskSumBuf, //TODO use this
+    float* maskSumBuf, //TODO use this
     void* trunkBuf,
     void* v1OutBuf,
     void* v1OutBuf2,
@@ -2987,19 +3010,35 @@ struct ValueHead {
 
     const float meanScale = 1.0f / (xSize*ySize);
     if(!usingFP16) {
-      if(!usingNHWC)
-        customCudaPoolRowsSumNCHW((float*)v1OutBuf2,v1MeanBuf,batchSize,v1Channels,xSize*ySize,meanScale);
-      else
-        customCudaPoolRowsSumNHWC((const float*)v1OutBuf2,v1MeanBuf,batchSize,xSize*ySize,v1Channels,meanScale);
+      if(!usingNHWC) {
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanNCHW((float*)v1OutBuf2,v1MeanBuf,batchSize,v1Channels,xSize*ySize,maskSumBuf);
+        else
+          customCudaPoolRowsSumNCHW((float*)v1OutBuf2,v1MeanBuf,batchSize,v1Channels,xSize*ySize,meanScale);
+      }
+      else {
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanNHWC((const float*)v1OutBuf2,v1MeanBuf,batchSize,xSize*ySize,v1Channels,maskSumBuf);
+        else
+          customCudaPoolRowsSumNHWC((const float*)v1OutBuf2,v1MeanBuf,batchSize,xSize*ySize,v1Channels,meanScale);
+      }
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
     else {
       customCudaCopyFromHalf((const half*)v1OutBuf2,(float*)workspaceBuf,batchSize*v1Channels*xSize*ySize);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      if(!usingNHWC)
-        customCudaPoolRowsSumNCHW((float*)workspaceBuf,v1MeanBuf,batchSize,v1Channels,xSize*ySize,meanScale);
-      else
-        customCudaPoolRowsSumNHWC((const float*)workspaceBuf,v1MeanBuf,batchSize,xSize*ySize,v1Channels,meanScale);
+      if(!usingNHWC) {
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanNCHW((float*)workspaceBuf,v1MeanBuf,batchSize,v1Channels,xSize*ySize,maskSumBuf);
+        else
+          customCudaPoolRowsSumNCHW((float*)workspaceBuf,v1MeanBuf,batchSize,v1Channels,xSize*ySize,meanScale);
+      }
+      else {
+        if(maskSumBuf != NULL)
+          customCudaPoolRowsMeanNHWC((const float*)workspaceBuf,v1MeanBuf,batchSize,xSize*ySize,v1Channels,maskSumBuf);
+        else
+          customCudaPoolRowsSumNHWC((const float*)workspaceBuf,v1MeanBuf,batchSize,xSize*ySize,v1Channels,meanScale);
+      }
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
@@ -3313,8 +3352,8 @@ struct Model {
     void* inputScratchBuf,
     void* inputGlobalBuf,
     void* maskBuf,
-    void* maskFloatBuf,
-    void* maskSumBuf,
+    float* maskFloatBuf,
+    float* maskSumBuf,
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
@@ -3380,7 +3419,7 @@ struct Model {
     }
     else {
       //Older versions don't support different board sizes anyways, don't bother masking
-      needMasking = true;
+      needMasking = false;
     }
 
     if(!needMasking) {
@@ -3396,7 +3435,9 @@ struct Model {
         else
           customCudaChannel0ExtractNCHW((const float*)inputBuf, (float*)maskBuf, batchSize, numInputChannels, xSize*ySize);
         CUDA_ERR("modelExtractMask",cudaPeekAtLastError());
-        maskFloatBuf = maskBuf;
+        maskFloatBuf = (float*)maskBuf;
+        customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,xSize*ySize,1.0);
+        CUDA_ERR("sumMask",cudaPeekAtLastError());
       }
       else {
         if(inputsUsingNHWC)
@@ -3404,9 +3445,10 @@ struct Model {
         else
           customCudaChannel0ExtractNCHW((const half*)inputBuf, (half*)maskBuf, batchSize, numInputChannels, xSize*ySize);
         CUDA_ERR("modelExtractMask",cudaPeekAtLastError());
-        customCudaCopyFromHalf((const half*)maskBuf,(float*)maskFloatBuf,batchSize*xSize*ySize);
-
-        //TODO maskSumBuf
+        customCudaCopyFromHalf((const half*)maskBuf,maskFloatBuf,batchSize*xSize*ySize);
+        CUDA_ERR("copyMaskFromHalf",cudaPeekAtLastError());
+        customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,xSize*ySize,1.0);
+        CUDA_ERR("sumMask",cudaPeekAtLastError());
       }
     }
 
@@ -3530,8 +3572,8 @@ struct Buffers {
   size_t inputGlobalBufBytes;
 
   void* maskBuf;
-  void* maskFloatBuf;
-  void* maskSumBuf;
+  float* maskFloatBuf;
+  float* maskSumBuf;
 
   void* trunkBuf;
   void* trunkScratchBuf;

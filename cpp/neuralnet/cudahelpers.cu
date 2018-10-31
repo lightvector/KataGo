@@ -235,6 +235,40 @@ void sumChannelsNCHWKernel(const float* in, float* out, int cSize, int xySize, f
     out[cIdx + nIdx * cSize] = sumPoolNCHWShared[sharedIdx] * scaleSum;
 }
 __global__
+void meanChannelsNCHWKernel(const float* in, float* out, int cSize, int xySize, const float* maskSum)
+{
+  extern __shared__ float sumPoolNCHWShared[];
+  int xyId = threadIdx.x;
+  int xyBlockDim = blockDim.x;
+  int cId = threadIdx.y;
+  int cBlockDim = blockDim.y;
+  int cIdx = blockIdx.y * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+
+  int xycSize = xySize*cSize;
+  int sharedIdx = xyId + cId * xyBlockDim;
+
+  float acc = 0.0f;
+  if(cIdx < cSize) {
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      acc += in[xyIdx + cIdx * xySize + nIdx * xycSize];
+      xyIdx += xyBlockDim;
+    }
+    sumPoolNCHWShared[sharedIdx] = acc;
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      sumPoolNCHWShared[sharedIdx] += sumPoolNCHWShared[sharedIdx + s];
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize)
+    out[cIdx + nIdx * cSize] = sumPoolNCHWShared[sharedIdx] / maskSum[nIdx];
+}
+__global__
 void maxPositiveChannelsNCHWKernel(const float* in, float* out, int cSize, int xySize)
 {
   extern __shared__ float maxPoolNCHWShared[];
@@ -312,6 +346,50 @@ void sumAndMaxPositiveChannelsNCHWKernel(const float* in, float* out, int cSize,
     out[cIdx + nIdx * (cSize*2) + cSize] = maxShared[sharedIdx];
   }
 }
+__global__
+void meanAndMaxPositiveChannelsNCHWKernel(const float* in, float* out, int cSize, int xySize, const float* maskSum, int sharedMemElts)
+{
+  extern __shared__ float poolNCHWShared[];
+  float* sumShared = (float*)poolNCHWShared;
+  float* maxShared = (float*)poolNCHWShared + sharedMemElts;
+
+  int xyId = threadIdx.x;
+  int xyBlockDim = blockDim.x;
+  int cId = threadIdx.y;
+  int cBlockDim = blockDim.y;
+  int cIdx = blockIdx.y * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+
+  int xycSize = xySize*cSize;
+  int sharedIdx = xyId + cId * xyBlockDim;
+
+  if(cIdx < cSize) {
+    float accSum = 0.0f;
+    float accMax = 0.0f;
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      float a = in[xyIdx + cIdx * xySize + nIdx * xycSize];
+      accSum += a;
+      accMax = fmaxf(accMax, a);
+      xyIdx += xyBlockDim;
+    }
+    sumShared[sharedIdx] = accSum;
+    maxShared[sharedIdx] = accMax;
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      sumShared[sharedIdx] += sumShared[sharedIdx + s];
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx], maxShared[sharedIdx + s]);
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize) {
+    out[cIdx + nIdx * (cSize*2)] = sumShared[sharedIdx] / maskSum[nIdx];
+    out[cIdx + nIdx * (cSize*2) + cSize] = maxShared[sharedIdx];
+  }
+}
 
 void customCudaPoolRowsSumNCHW(const float* in, float* out, int nSize, int cSize, int xySize, float scaleSum) {
   if(nSize > 65536)
@@ -334,6 +412,28 @@ void customCudaPoolRowsSumNCHW(const float* in, float* out, int nSize, int cSize
   dim3 grid(1,cBlocks,nSize);
   dim3 threads(xyThreads,cThreads,1);
   sumChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,scaleSum);
+}
+void customCudaPoolRowsMeanNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanNCHW: nSize too large");
+  if(cSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanNCHW: cSize too large");
+
+  //Use up as many threads as possible along the xy dimension.
+  int xyThreads = 1;
+  while(xyThreads < targetNumThreads && xyThreads < xySize/2)
+    xyThreads *= 2;
+
+  //Distribute the extra threads along the c dimension.
+  int cThreads = (targetNumThreads < xyThreads) ? 1 : (targetNumThreads / xyThreads);
+  int cBlocks = (cSize + cThreads - 1) / cThreads;
+
+  //We need one shared memory spot per thread
+  int sharedMemSize = sizeof(float) * cThreads * xyThreads;
+
+  dim3 grid(1,cBlocks,nSize);
+  dim3 threads(xyThreads,cThreads,1);
+  meanChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,maskSum);
 }
 void customCudaPoolRowsMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize) {
   if(nSize > 65536)
@@ -359,9 +459,9 @@ void customCudaPoolRowsMaxPositiveNCHW(const float* in, float* out, int nSize, i
 }
 void customCudaPoolRowsSumAndMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize, float scaleSum) {
   if(nSize > 65536)
-    throw std::runtime_error("customCudaPoolRowsMaxPositiveNCHW: nSize too large");
+    throw std::runtime_error("customCudaPoolRowsSumAndMaxPositiveNCHW: nSize too large");
   if(cSize > 65536)
-    throw std::runtime_error("customCudaPoolRowsMaxPositiveNCHW: cSize too large");
+    throw std::runtime_error("customCudaPoolRowsSumAndMaxPositiveNCHW: cSize too large");
 
   //Use up as many threads as possible along the xy dimension.
   int xyThreads = 1;
@@ -382,6 +482,32 @@ void customCudaPoolRowsSumAndMaxPositiveNCHW(const float* in, float* out, int nS
   dim3 grid(1,cBlocks,nSize);
   dim3 threads(xyThreads,cThreads,1);
   sumAndMaxPositiveChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,scaleSum,sharedMemElts);
+}
+void customCudaPoolRowsMeanAndMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanAndMaxPositiveNCHW: nSize too large");
+  if(cSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanAndMaxPositiveNCHW: cSize too large");
+
+  //Use up as many threads as possible along the xy dimension.
+  int xyThreads = 1;
+  while(xyThreads < targetNumThreads && xyThreads < xySize/2)
+    xyThreads *= 2;
+
+  //Distribute the extra threads along the c dimension.
+  int cThreads = (targetNumThreads < xyThreads) ? 1 : (targetNumThreads / xyThreads);
+  int cBlocks = (cSize + cThreads - 1) / cThreads;
+
+  //We need one shared memory spot per thread, and then we double it because we need both sum and max.
+  //We also make sure it's a power of two to address any alignment concerns.
+  int sharedMemElts = 128;
+  while(sharedMemElts < cThreads * xyThreads)
+    sharedMemElts *= 2;
+  int sharedMemSize = sizeof(float) * sharedMemElts * 2;
+
+  dim3 grid(1,cBlocks,nSize);
+  dim3 threads(xyThreads,cThreads,1);
+  meanAndMaxPositiveChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,maskSum,sharedMemElts);
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -431,9 +557,58 @@ void sumAndMaxPositiveChannelsNCHWHalfKernel(const half* in, half* out, int cSiz
     out[cIdx + nIdx * (cSize*2) + cSize] = __float2half(maxShared[sharedIdx]);
   }
 }
+__global__
+void meanAndMaxPositiveChannelsNCHWHalfKernel(const half* in, half* out, int cSize, int xySize, const float* maskSum, int sharedMemElts)
+{
+  extern __shared__ float poolNCHWShared[];
+  float* sumShared = (float*)poolNCHWShared;
+  float* maxShared = (float*)poolNCHWShared + sharedMemElts;
+
+  int xyId = threadIdx.x;
+  int xyBlockDim = blockDim.x;
+  int cId = threadIdx.y;
+  int cBlockDim = blockDim.y;
+  int cIdx = blockIdx.y * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+
+  int xycSize = xySize*cSize;
+  int sharedIdx = xyId + cId * xyBlockDim;
+
+  if(cIdx < cSize) {
+    float accSum = 0.0f;
+    float accMax = 0.0f;
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      float a = __half2float(in[xyIdx + cIdx * xySize + nIdx * xycSize]);
+      accSum += a;
+      accMax = fmaxf(accMax, a);
+      xyIdx += xyBlockDim;
+    }
+    sumShared[sharedIdx] = accSum;
+    maxShared[sharedIdx] = accMax;
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      sumShared[sharedIdx] += sumShared[sharedIdx + s];
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx], maxShared[sharedIdx + s]);
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize) {
+    out[cIdx + nIdx * (cSize*2)] = __float2half(sumShared[sharedIdx] / maskSum[nIdx]);
+    out[cIdx + nIdx * (cSize*2) + cSize] = __float2half(maxShared[sharedIdx]);
+  }
+}
 #else
 __global__
 void sumAndMaxPositiveChannelsNCHWHalfKernel(const half* in, half* out, int cSize, int xySize, float scaleSum, int sharedMemElts)
+{
+  //Do nothing, FP16 not supported
+}
+__global__
+void meanAndMaxPositiveChannelsNCHWHalfKernel(const half* in, half* out, int cSize, int xySize, const float* maskSum, int sharedMemElts)
 {
   //Do nothing, FP16 not supported
 }
@@ -441,9 +616,9 @@ void sumAndMaxPositiveChannelsNCHWHalfKernel(const half* in, half* out, int cSiz
 
 void customCudaPoolRowsSumAndMaxPositiveNCHW(const half* in, half* out, int nSize, int cSize, int xySize, float scaleSum) {
   if(nSize > 65536)
-    throw std::runtime_error("customCudaPoolRowsMaxPositiveNCHW: nSize too large");
+    throw std::runtime_error("customCudaPoolRowsSumAndMaxPositiveNCHW: nSize too large");
   if(cSize > 65536)
-    throw std::runtime_error("customCudaPoolRowsMaxPositiveNCHW: cSize too large");
+    throw std::runtime_error("customCudaPoolRowsSumAndMaxPositiveNCHW: cSize too large");
 
   //Use up as many threads as possible along the xy dimension.
   int xyThreads = 1;
@@ -464,6 +639,33 @@ void customCudaPoolRowsSumAndMaxPositiveNCHW(const half* in, half* out, int nSiz
   dim3 grid(1,cBlocks,nSize);
   dim3 threads(xyThreads,cThreads,1);
   sumAndMaxPositiveChannelsNCHWHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,scaleSum,sharedMemElts);
+}
+
+void customCudaPoolRowsMeanAndMaxPositiveNCHW(const half* in, half* out, int nSize, int cSize, int xySize, const float* maskSum) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanAndMaxPositiveNCHW: nSize too large");
+  if(cSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanAndMaxPositiveNCHW: cSize too large");
+
+  //Use up as many threads as possible along the xy dimension.
+  int xyThreads = 1;
+  while(xyThreads < targetNumThreads && xyThreads < xySize/2)
+    xyThreads *= 2;
+
+  //Distribute the extra threads along the c dimension.
+  int cThreads = (targetNumThreads < xyThreads) ? 1 : (targetNumThreads / xyThreads);
+  int cBlocks = (cSize + cThreads - 1) / cThreads;
+
+  //We need one shared memory spot per thread, and then we double it because we need both sum and max.
+  //We also make sure it's a power of two to address any alignment concerns.
+  int sharedMemElts = 128;
+  while(sharedMemElts < cThreads * xyThreads)
+    sharedMemElts *= 2;
+  int sharedMemSize = sizeof(float) * sharedMemElts * 2;
+
+  dim3 grid(1,cBlocks,nSize);
+  dim3 threads(xyThreads,cThreads,1);
+  meanAndMaxPositiveChannelsNCHWHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,maskSum,sharedMemElts);
 }
 
 
@@ -503,6 +705,40 @@ void sumChannelsNHWCKernel(const float* in, float* out, int xySize, int cSize, f
   }
   if(xyId == 0 && cIdx < cSize)
     out[cIdx + nIdx * cSize] = sumPoolNHWCShared[sharedIdx] * scaleSum;
+}
+__global__
+void meanChannelsNHWCKernel(const float* in, float* out, int xySize, int cSize, const float* maskSum)
+{
+  extern __shared__ float sumPoolNHWCShared[];
+  int cId = threadIdx.x;
+  int cBlockDim = blockDim.x;
+  int xyId = threadIdx.y;
+  int xyBlockDim = blockDim.y;
+
+  int cIdx = blockIdx.x * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+  int sharedIdx = cId + cBlockDim * xyId;
+  int xycSize = xySize*cSize;
+
+  sumPoolNHWCShared[sharedIdx] = 0;
+
+  if(cIdx < cSize) {
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      sumPoolNHWCShared[sharedIdx] += in[cIdx + xyIdx * cSize + nIdx * xycSize];
+      xyIdx += xyBlockDim;
+    }
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      sumPoolNHWCShared[sharedIdx] += sumPoolNHWCShared[sharedIdx + cBlockDim * s];
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize)
+    out[cIdx + nIdx * cSize] = sumPoolNHWCShared[sharedIdx] / maskSum[nIdx];
 }
 __global__
 void maxPositiveChannelsNHWCKernel(const float* in, float* out, int xySize, int cSize)
@@ -581,6 +817,50 @@ void sumAndMaxPositiveChannelsNHWCKernel(const float* in, float* out, int xySize
     out[cIdx + nIdx * (cSize*2) + cSize] = maxShared[sharedIdx];
   }
 }
+__global__
+void meanAndMaxPositiveChannelsNHWCKernel(const float* in, float* out, int xySize, int cSize, const float* maskSum, int sharedMemElts)
+{
+  extern __shared__ float poolNHWCShared[];
+  float* sumShared = (float*)poolNHWCShared;
+  float* maxShared = (float*)poolNHWCShared + sharedMemElts;
+
+  int cId = threadIdx.x;
+  int cBlockDim = blockDim.x;
+  int xyId = threadIdx.y;
+  int xyBlockDim = blockDim.y;
+
+  int cIdx = blockIdx.x * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+  int sharedIdx = cId + cBlockDim * xyId;
+  int xycSize = xySize*cSize;
+
+  sumShared[sharedIdx] = 0;
+  maxShared[sharedIdx] = 0;
+
+  if(cIdx < cSize) {
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      float a = in[cIdx + xyIdx * cSize + nIdx * xycSize];
+      sumShared[sharedIdx] += a;
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx],a);
+      xyIdx += xyBlockDim;
+    }
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      sumShared[sharedIdx] += sumShared[sharedIdx + cBlockDim * s];
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx],maxShared[sharedIdx + cBlockDim * s]);
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize) {
+    out[cIdx + nIdx * (cSize*2)] = sumShared[sharedIdx] / maskSum[nIdx];
+    out[cIdx + nIdx * (cSize*2) + cSize] = maxShared[sharedIdx];
+  }
+}
+
 
 void customCudaPoolRowsSumNHWC(const float* in, float* out, int nSize, int xySize, int cSize, float scaleSum) {
   if(nSize > 65536)
@@ -604,6 +884,30 @@ void customCudaPoolRowsSumNHWC(const float* in, float* out, int nSize, int xySiz
   dim3 grid(cBlocks,1,nSize);
   dim3 threads(cThreads,xyThreads,1);
   sumChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,scaleSum);
+}
+
+void customCudaPoolRowsMeanNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanNHWC: nSize too large");
+  if(cSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanNHWC: cSize too large");
+
+  //Use up to two warps worth of threads along the channel dimension, which is the
+  //most compact
+  int cThreads = 1;
+  while(cThreads < 64 && cThreads < cSize/2)
+    cThreads *= 2;
+  int cBlocks = (cSize + cThreads - 1) / cThreads;
+
+  //Distribute the extra threads to perform parallel reduction along the xy dimension.
+  int xyThreads = (targetNumThreads < cThreads) ? 1 : (targetNumThreads / cThreads);
+
+  //We need one shared memory spot per thread
+  int sharedMemSize = sizeof(float) * cThreads * xyThreads;
+
+  dim3 grid(cBlocks,1,nSize);
+  dim3 threads(cThreads,xyThreads,1);
+  meanChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,maskSum);
 }
 
 void customCudaPoolRowsMaxPositiveNHWC(const float* in, float* out, int nSize, int xySize, int cSize) {
@@ -658,6 +962,34 @@ void customCudaPoolRowsSumAndMaxPositiveNHWC(const float* in, float* out, int nS
   sumAndMaxPositiveChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,scaleSum,sharedMemElts);
 }
 
+void customCudaPoolRowsMeanAndMaxPositiveNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanAndMaxPositiveNHWC: nSize too large");
+  if(cSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanAndMaxPositiveNHWC: cSize too large");
+
+  //Use up to two warps worth of threads along the channel dimension, which is the
+  //most compact
+  int cThreads = 1;
+  while(cThreads < 64 && cThreads < cSize/2)
+    cThreads *= 2;
+  int cBlocks = (cSize + cThreads - 1) / cThreads;
+
+  //Distribute the extra threads to perform parallel reduction along the xy dimension.
+  int xyThreads = (targetNumThreads < cThreads) ? 1 : (targetNumThreads / cThreads);
+
+  //We need one shared memory spot per thread, and then we double it because we need both sum and max.
+  //We also make sure it's a power of two to address any alignment concerns.
+  int sharedMemElts = 128;
+  while(sharedMemElts < cThreads * xyThreads)
+    sharedMemElts *= 2;
+  int sharedMemSize = sizeof(float) * sharedMemElts * 2;
+
+  dim3 grid(cBlocks,1,nSize);
+  dim3 threads(cThreads,xyThreads,1);
+  meanAndMaxPositiveChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,maskSum,sharedMemElts);
+}
+
 //--------------------------------------------------------------------------------------------------------------
 
 #ifdef CUDA_SUPPORTS_FP16
@@ -704,9 +1036,57 @@ void sumAndMaxPositiveChannelsNHWCHalfKernel(const half* in, half* out, int xySi
     out[cIdx + nIdx * (cSize*2) + cSize] = __float2half(maxShared[sharedIdx]);
   }
 }
+__global__
+void meanAndMaxPositiveChannelsNHWCHalfKernel(const half* in, half* out, int xySize, int cSize, const float* maskSum, int sharedMemElts)
+{
+  extern __shared__ float poolNHWCShared[];
+  float* sumShared = (float*)poolNHWCShared;
+  float* maxShared = (float*)poolNHWCShared + sharedMemElts;
+
+  int cId = threadIdx.x;
+  int cBlockDim = blockDim.x;
+  int xyId = threadIdx.y;
+  int xyBlockDim = blockDim.y;
+
+  int cIdx = blockIdx.x * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+  int sharedIdx = cId + cBlockDim * xyId;
+  int xycSize = xySize*cSize;
+
+  sumShared[sharedIdx] = 0;
+  maxShared[sharedIdx] = 0;
+
+  if(cIdx < cSize) {
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      float a = __half2float(in[cIdx + xyIdx * cSize + nIdx * xycSize]);
+      sumShared[sharedIdx] += a;
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx],a);
+      xyIdx += xyBlockDim;
+    }
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      sumShared[sharedIdx] += sumShared[sharedIdx + cBlockDim * s];
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx],maxShared[sharedIdx + cBlockDim * s]);
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize) {
+    out[cIdx + nIdx * (cSize*2)] = __float2half(sumShared[sharedIdx] / maskSum[nIdx]);
+    out[cIdx + nIdx * (cSize*2) + cSize] = __float2half(maxShared[sharedIdx]);
+  }
+}
 #else
 __global__
 void sumAndMaxPositiveChannelsNHWCHalfKernel(const half* in, half* out, int xySize, int cSize, float scaleSum, int sharedMemElts)
+{
+  //Do nothing, FP16 not supported
+}
+__global__
+void meanAndMaxPositiveChannelsNHWCHalfKernel(const half* in, half* out, int xySize, int cSize, const float* maskSum, int sharedMemElts)
 {
   //Do nothing, FP16 not supported
 }
@@ -738,6 +1118,34 @@ void customCudaPoolRowsSumAndMaxPositiveNHWC(const half* in, half* out, int nSiz
   dim3 grid(cBlocks,1,nSize);
   dim3 threads(cThreads,xyThreads,1);
   sumAndMaxPositiveChannelsNHWCHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,scaleSum,sharedMemElts);
+}
+
+void customCudaPoolRowsMeanAndMaxPositiveNHWC(const half* in, half* out, int nSize, int xySize, int cSize, const float* maskSum) {
+  if(nSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanAndMaxPositiveNHWC: nSize too large");
+  if(cSize > 65536)
+    throw std::runtime_error("customCudaPoolRowsMeanAndMaxPositiveNHWC: cSize too large");
+
+  //Use up to two warps worth of threads along the channel dimension, which is the
+  //most compact
+  int cThreads = 1;
+  while(cThreads < 64 && cThreads < cSize/2)
+    cThreads *= 2;
+  int cBlocks = (cSize + cThreads - 1) / cThreads;
+
+  //Distribute the extra threads to perform parallel reduction along the xy dimension.
+  int xyThreads = (targetNumThreads < cThreads) ? 1 : (targetNumThreads / cThreads);
+
+  //We need one shared memory spot per thread, and then we double it because we need both sum and max.
+  //We also make sure it's a power of two to address any alignment concerns.
+  int sharedMemElts = 128;
+  while(sharedMemElts < cThreads * xyThreads)
+    sharedMemElts *= 2;
+  int sharedMemSize = sizeof(float) * sharedMemElts * 2;
+
+  dim3 grid(cBlocks,1,nSize);
+  dim3 threads(cThreads,xyThreads,1);
+  meanAndMaxPositiveChannelsNHWCHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,maskSum,sharedMemElts);
 }
 
 
