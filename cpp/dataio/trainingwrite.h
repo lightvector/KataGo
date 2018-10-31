@@ -23,10 +23,11 @@ struct ValueTargets {
 };
 
 struct FinishedGameData {
-  Board startBoard;
-  BoardHistory startHist;
-  BoardHistory endHist;
-  Player startPla;
+  Board preStartBoard;
+  Board startBoard; //Board as of the end of startHist, beginning of training period
+  BoardHistory startHist; //Board history as of start of training period
+  BoardHistory endHist; //Board history as of end of training period
+  Player startPla; //Player to move as of end of startHist.
   Hash128 gameHash;
 
   //This vector MIGHT be shorter than the list of moves in startHist, because there might be moves in

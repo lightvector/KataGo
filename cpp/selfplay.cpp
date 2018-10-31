@@ -173,7 +173,7 @@ public:
 
       if(sgfOut != NULL) {
         assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
-        WriteSgf::writeSgf(*sgfOut,modelName,modelName,data->startHist.rules,data->startBoard,data->endHist,data);
+        WriteSgf::writeSgf(*sgfOut,modelName,modelName,data->startHist.rules,data->preStartBoard,data->endHist,data);
         (*sgfOut) << endl;
       }
       delete data;

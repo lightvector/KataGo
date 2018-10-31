@@ -351,6 +351,8 @@ void Play::runGame(
     gameData->modeMeta1 = 0;
     gameData->modeMeta2 = 0;
 
+    gameData->preStartBoard = board;
+
     assert(gameData->moves.size() == 0);
     recordUtilities = new vector<double>(256);
   }
@@ -420,6 +422,7 @@ void Play::runGame(
       hist.clear(board,pla,hist.rules,encorePhase);
 
       if(gameData != NULL) {
+        gameData->preStartBoard = board;
         gameData->mode = 1;
         gameData->modeMeta1 = encorePhase;
         gameData->modeMeta2 = 0;

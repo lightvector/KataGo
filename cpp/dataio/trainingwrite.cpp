@@ -20,7 +20,8 @@ ValueTargets::~ValueTargets()
 
 
 FinishedGameData::FinishedGameData(int pLen, double drawEquivForWhite)
-  : startBoard(),
+  : preStartBoard(),
+    startBoard(),
     startHist(),
     endHist(),
     startPla(P_BLACK),

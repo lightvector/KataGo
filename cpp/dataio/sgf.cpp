@@ -696,12 +696,14 @@ void WriteSgf::writeSgf(
     out << "]";
 
     if(gameData != NULL) {
-      const ValueTargets& targets = gameData->whiteValueTargetsByTurn[i-startTurnIdx];
-      out << "C["
-          << (int)(round(targets.win*10000.0f)) << " "
-          << (int)(round(targets.loss*10000.0f)) << " "
-          << (int)(round(targets.noResult*10000.0f)) << " "
-          << (int)(round(targets.scoreValue*10000.0f)) << "]";
+      if(i >= startTurnIdx) {
+        const ValueTargets& targets = gameData->whiteValueTargetsByTurn[i-startTurnIdx];
+        out << "C["
+            << (int)(round(targets.win*10000.0f)) << " "
+            << (int)(round(targets.loss*10000.0f)) << " "
+            << (int)(round(targets.noResult*10000.0f)) << " "
+            << (int)(round(targets.scoreValue*10000.0f)) << "]";
+      }
     }
   }
   out << ")";
