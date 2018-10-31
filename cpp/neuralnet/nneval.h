@@ -71,6 +71,7 @@ class NNEvaluator {
     int modelFileIdx,
     int maxBatchSize,
     int posLen,
+    bool requireExactPosLen,
     bool inputsUseNHWC,
     int nnCacheSizePowerOfTwo,
     bool debugSkipNeuralNet
@@ -128,6 +129,7 @@ class NNEvaluator {
  private:
   string modelFileName;
   int posLen;
+  bool requireExactPosLen;
   int policySize;
   bool inputsUseNHWC;
 

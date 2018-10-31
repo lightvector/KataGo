@@ -1512,6 +1512,7 @@ struct GlobalPoolingResidualBlock {
     void* gpoolBiasBuf,
     void* regularScratchBuf,
     void* maskBuf,
+    void* maskSumBuf, //TODO use this
     const void* zeroBuf,
     const void* oneBuf,
     void* workspaceBuf,
@@ -2053,6 +2054,7 @@ struct Trunk {
     void* inputBuf,
     void* inputGlobalBuf,
     void* maskBuf,
+    void* maskSumBuf,
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
@@ -2154,6 +2156,7 @@ struct Trunk {
           gpoolBiasBuf,
           regularScratchBuf,
           maskBuf,
+          maskSumBuf,
           zeroBuf,
           oneBuf,
           workspaceBuf,
@@ -2522,6 +2525,8 @@ struct PolicyHead {
     const bool* symmetriesBuffer,
     int batchSize,
     void* maskBuf,
+    void* maskFloatBuf,
+    void* maskSumBuf, //TODO use this
     void* trunkBuf,
     void* p1OutBuf,
     void* p1OutBuf2,
@@ -2593,7 +2598,7 @@ struct PolicyHead {
       customCudaAddNCBiasInplaceNHWC(p1OutBufA,g1BiasBuf,batchSize,xSize*ySize,p1Channels);
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    p1BN->apply(cudaHandles,batchSize,true,p1OutBufA,maskBuf,p1OutBufB);
+    p1BN->apply(cudaHandles,batchSize,true,p1OutBufA,maskFloatBuf,p1OutBufB);
     p2Conv->apply(cudaHandles,p2InDescriptor,p2OutDescriptor,batchSize,false,p1OutBufB,p2OutBuf,workspaceBuf,workspaceBytes);
 
     bool inverse = true;
@@ -2959,6 +2964,7 @@ struct ValueHead {
     const bool* symmetriesBuffer,
     int batchSize,
     void* maskBuf,
+    void* maskSumBuf, //TODO use this
     void* trunkBuf,
     void* v1OutBuf,
     void* v1OutBuf2,
@@ -3300,12 +3306,15 @@ struct Model {
   void apply(
     CudaHandles* cudaHandles,
     int batchSize,
+    bool requireExactPosLen,
     bool* symmetriesBuffer,
 
     void* inputBuf,
     void* inputScratchBuf,
     void* inputGlobalBuf,
     void* maskBuf,
+    void* maskFloatBuf,
+    void* maskSumBuf,
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
@@ -3361,26 +3370,45 @@ struct Model {
         applySymmetriesNCHW<half>(symmetriesBuffer, inverse, batchSize, numInputChannels, xSize, ySize, (half*)inputBuf, (half*)inputScratchBuf);
     }
 
+    bool needMasking;
     if(version >= 3) {
+      //Don't do any masking if we know the board is exactly the desired size
+      if(requireExactPosLen)
+        needMasking = false;
+      else
+        needMasking = true;
+    }
+    else {
+      //Older versions don't support different board sizes anyways, don't bother masking
+      needMasking = true;
+    }
+
+    if(!needMasking) {
+      //Set to NULL to signal downstream that this buf doesn't need to be used
+      maskBuf = NULL;
+      maskFloatBuf = NULL;
+      maskSumBuf = NULL;
+    }
+    else {
       if(!usingFP16) {
         if(inputsUsingNHWC)
-          customCudaChannel0ExtractNHWC((float*)inputBuf, (float*)maskBuf, batchSize, xSize*ySize, numInputChannels);
+          customCudaChannel0ExtractNHWC((const float*)inputBuf, (float*)maskBuf, batchSize, xSize*ySize, numInputChannels);
         else
-          customCudaChannel0ExtractNCHW((float*)inputBuf, (float*)maskBuf, batchSize, numInputChannels, xSize*ySize);
+          customCudaChannel0ExtractNCHW((const float*)inputBuf, (float*)maskBuf, batchSize, numInputChannels, xSize*ySize);
+        CUDA_ERR("modelExtractMask",cudaPeekAtLastError());
+        maskFloatBuf = maskBuf;
       }
       else {
         if(inputsUsingNHWC)
-          customCudaChannel0ExtractNHWC((half*)inputBuf, (half*)maskBuf, batchSize, xSize*ySize, numInputChannels);
+          customCudaChannel0ExtractNHWC((const half*)inputBuf, (half*)maskBuf, batchSize, xSize*ySize, numInputChannels);
         else
-          customCudaChannel0ExtractNHWC((half*)inputBuf, (half*)maskBuf, batchSize, numInputChannels, xSize*ySize);
+          customCudaChannel0ExtractNCHW((const half*)inputBuf, (half*)maskBuf, batchSize, numInputChannels, xSize*ySize);
+        CUDA_ERR("modelExtractMask",cudaPeekAtLastError());
+        customCudaCopyFromHalf((const half*)maskBuf,(float*)maskFloatBuf,batchSize*xSize*ySize);
+
+        //TODO maskSumBuf
       }
     }
-    CUDA_ERR("modelExtractMask",cudaPeekAtLastError());
-
-    //TODO actually enable this in V2 and check the impact on performance, after hooking it up in FP32 mode also in the bn layer
-    //Oh, and also switch to custom cuda code for the BN layer?
-    //And also V3 should still have it disabled in a special mode where the entire nn eval enforces poslen == board size
-    maskBuf = NULL;
 
     trunk->apply(
       cudaHandles,
@@ -3389,6 +3417,7 @@ struct Model {
       inputBuf,
       inputGlobalBuf,
       maskBuf,
+      maskSumBuf,
       trunkBuf,
       trunkScratchBuf,
       regularOutBuf,
@@ -3411,6 +3440,8 @@ struct Model {
       symmetriesBuffer,
       batchSize,
       maskBuf,
+      maskFloatBuf,
+      maskSumBuf,
       trunkBuf,
       p1OutBuf,
       p1OutBuf2,
@@ -3430,6 +3461,7 @@ struct Model {
       symmetriesBuffer,
       batchSize,
       maskBuf,
+      maskSumBuf,
       trunkBuf,
       v1OutBuf,
       v1OutBuf2,
@@ -3498,6 +3530,8 @@ struct Buffers {
   size_t inputGlobalBufBytes;
 
   void* maskBuf;
+  void* maskFloatBuf;
+  void* maskSumBuf;
 
   void* trunkBuf;
   void* trunkScratchBuf;
@@ -3563,6 +3597,8 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&inputGlobalBuf, inputGlobalBufBytes));
 
     CUDA_ERR("Buffers",cudaMalloc(&maskBuf, batchXYBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&maskFloatBuf, batchXYSingleBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&maskSumBuf, batchSingleBytes));
 
     CUDA_ERR("Buffers",cudaMalloc(&trunkBuf, m.trunk->trunkNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&trunkScratchBuf, m.trunk->trunkNumChannels * batchXYBytes));
@@ -3656,6 +3692,8 @@ struct Buffers {
     cudaFree(inputGlobalBuf);
 
     cudaFree(maskBuf);
+    cudaFree(maskFloatBuf);
+    cudaFree(maskSumBuf);
 
     cudaFree(trunkBuf);
     cudaFree(trunkScratchBuf);
@@ -3709,14 +3747,16 @@ struct LocalGpuHandle {
   Buffers* buffers;
   bool usingFP16;
   int posLen;
+  bool requireExactPosLen;
   int policySize;
 
-  LocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int pLen, bool inputsUseNHWC, bool useFP16, bool useNHWC) {
+  LocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int pLen, bool rExactPosLen, bool inputsUseNHWC, bool useFP16, bool useNHWC) {
     cudaHandles = new CudaHandles();
     model = new Model(cudaHandles,&(loadedModel->modelDesc),maxBatchSize,pLen,inputsUseNHWC,useFP16,useNHWC);
     buffers = new Buffers(cudaHandles,*model,useFP16);
     usingFP16 = useFP16;
     posLen = pLen;
+    requireExactPosLen = rExactPosLen;
     policySize = NNPos::getPolicySize(posLen);
 
     //Synchronize after creating all the buffers and copying all the weights, just in case
@@ -3738,6 +3778,7 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   Logger* logger,
   int maxBatchSize,
   int posLen,
+  bool requireExactPosLen,
   bool inputsUseNHWC,
   int cudaDeviceIdxForThisThread,
   bool cudaUseFP16,
@@ -3759,7 +3800,7 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   if(cudaUseFP16 && (prop.major < 5 || (prop.major == 5 && prop.minor < 3)))
     throw StringError("Cuda device versions below 5.3 do not support cudaUseFP16=true");
 
-  LocalGpuHandle* gpuHandle = new LocalGpuHandle(loadedModel,maxBatchSize,posLen,inputsUseNHWC,cudaUseFP16,cudaUseNHWC);
+  LocalGpuHandle* gpuHandle = new LocalGpuHandle(loadedModel,maxBatchSize,posLen,requireExactPosLen,inputsUseNHWC,cudaUseFP16,cudaUseNHWC);
   return gpuHandle;
 }
 
@@ -3952,6 +3993,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
   gpuHandle->model->apply(
     gpuHandle->cudaHandles,
     batchSize,
+    gpuHandle->requireExactPosLen,
     inputBuffers->symmetriesBuffer,
 
     buffers->inputBuf,
@@ -3959,6 +4001,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     buffers->inputGlobalBuf,
 
     buffers->maskBuf,
+    buffers->maskFloatBuf,
+    buffers->maskSumBuf,
 
     buffers->trunkBuf,
     buffers->trunkScratchBuf,

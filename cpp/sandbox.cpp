@@ -25,6 +25,7 @@ int MainCmds::sandbox() {
   int modelFileIdx = 0;
   int maxBatchSize = 1;
   int posLen = 19;
+  bool requireExactPosLen = false;
   bool inputsUseNHWC = true;
   int nnCacheSizePowerOfTwo = 16;
   bool debugSkipNeuralNet = false;
@@ -35,6 +36,7 @@ int MainCmds::sandbox() {
     modelFileIdx,
     maxBatchSize,
     posLen,
+    requireExactPosLen,
     inputsUseNHWC,
     nnCacheSizePowerOfTwo,
     debugSkipNeuralNet

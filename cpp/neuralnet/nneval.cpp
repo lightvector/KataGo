@@ -40,12 +40,14 @@ NNEvaluator::NNEvaluator(
   int modelFileIdx,
   int maxBatchSize,
   int pLen,
+  bool rExactPosLen,
   bool iUseNHWC,
   int nnCacheSizePowerOfTwo,
   bool skipNeuralNet
 )
   :modelFileName(pbModelFile),
    posLen(pLen),
+   requireExactPosLen(rExactPosLen),
    policySize(NNPos::getPolicySize(pLen)),
    inputsUseNHWC(iUseNHWC),
    loadedModel(NULL),
@@ -201,7 +203,7 @@ void NNEvaluator::serve(
 
   LocalGpuHandle* gpuHandle = NULL;
   if(loadedModel != NULL)
-    gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, posLen, inputsUseNHWC, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
+    gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, posLen, requireExactPosLen, inputsUseNHWC, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
 
   vector<NNOutput*> outputBuf;
 
@@ -344,7 +346,13 @@ void NNEvaluator::evaluate(
   buf.hasResult = false;
 
   if(board.x_size > posLen || board.y_size > posLen)
-    throw StringError("NNEvaluator was configured with posLen = " + Global::intToString(posLen) + " but was asked to evaluate board with larger x or y size");
+    throw StringError("NNEvaluator was configured with posLen = " + Global::intToString(posLen) +
+                      " but was asked to evaluate board with larger x or y size");
+  if(requireExactPosLen) {
+    if(board.x_size != posLen || board.y_size != posLen)
+      throw StringError("NNEvaluator was configured with posLen = " + Global::intToString(posLen) +
+                        " and requireExactPosLen, but was asked to evaluate board with different x or y size");
+  }
 
   Hash128 nnHash;
   if(inputsVersion == 1)

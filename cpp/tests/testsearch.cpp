@@ -73,6 +73,7 @@ static NNEvaluator* startNNEval(
   int modelFileIdx = 0;
   int maxBatchSize = 16;
   int posLen = NNPos::MAX_BOARD_LEN;
+  bool requireExactPosLen = false;
   //bool inputsUseNHWC = true;
   int nnCacheSizePowerOfTwo = 16;
   //bool debugSkipNeuralNet = false;
@@ -81,6 +82,7 @@ static NNEvaluator* startNNEval(
     modelFileIdx,
     maxBatchSize,
     posLen,
+    requireExactPosLen,
     inputsUseNHWC,
     nnCacheSizePowerOfTwo,
     debugSkipNeuralNet

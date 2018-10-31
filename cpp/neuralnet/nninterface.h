@@ -29,11 +29,14 @@ namespace NeuralNet {
   //Any given thread should only ever create one of these at a time.
   //When using the CUDA backend, will mutably set the GPU that this thread is associated with to the specified index.
   //If logger is specified, may output some info messages to it.
+  //If requireExactPosLen is true, the backend is allowed to assume that all boards to evaluate will be of size exactly
+  //equal to posLen rather than smaller, and skip any masking operations.
   LocalGpuHandle* createLocalGpuHandle(
     const LoadedModel* loadedModel,
     Logger* logger,
     int maxBatchSize,
     int posLen,
+    bool requireExactPosLen,
     bool inputsUseNHWC,
     int cudaGpuIdxForThisThread,
     bool cudaUseFP16,

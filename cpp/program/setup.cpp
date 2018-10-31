@@ -29,13 +29,17 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : debugSkipNeuralNetDefault;
     int modelFileIdx = i;
 
-    int posLen;
+    int posLen = NNPos::MAX_BOARD_LEN;
     if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
       posLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 1, NNPos::MAX_BOARD_LEN);
     else if(cfg.contains("maxBoardSizeForNNBuffer"))
       posLen = cfg.getInt("maxBoardSizeForNNBuffer", 1, NNPos::MAX_BOARD_LEN);
-    else
-      posLen = NNPos::MAX_BOARD_LEN;
+
+    bool requireExactPosLen = false;
+    if(cfg.contains("requireMaxBoardSize" + idxStr))
+      requireExactPosLen = cfg.getBool("requireMaxBoardSize" + idxStr);
+    else if(cfg.contains("requireMaxBoardSize"))
+      requireExactPosLen = cfg.getBool("requireMaxBoardSize");
 
     bool inputsUseNHWC = true;
     if(cfg.contains("inputsUseNHWC"+idxStr))
@@ -48,6 +52,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       modelFileIdx,
       cfg.getInt("nnMaxBatchSize", 1, 65536),
       posLen,
+      requireExactPosLen,
       inputsUseNHWC,
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
       debugSkipNeuralNet
