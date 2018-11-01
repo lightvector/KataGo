@@ -418,44 +418,46 @@ static int parseRank(const string& rank, bool isGoGoD) {
   }
 }
 
-struct Stats {
-  size_t count;
-  map<int,int64_t> countBySource;
-  map<int,int64_t> countByRank;
-  map<int,int64_t> countByOppRank;
-  map<string,int64_t> countByUser;
-  map<int,int64_t> countByHandicap;
+namespace {
+  struct Stats {
+    size_t count;
+    map<int,int64_t> countBySource;
+    map<int,int64_t> countByRank;
+    map<int,int64_t> countByOppRank;
+    map<string,int64_t> countByUser;
+    map<int,int64_t> countByHandicap;
 
-  Stats()
-    :count(),countBySource(),countByRank(),countByOppRank(),countByUser(),countByHandicap() {
+    Stats()
+      :count(),countBySource(),countByRank(),countByOppRank(),countByUser(),countByHandicap() {
 
-  }
+    }
 
-  void print() {
-    cout << "Count: " << count << endl;
-    cout << "Sources:" << endl;
-    for(auto const& kv: countBySource) {
-      cout << kv.first << " " << kv.second << endl;
-    }
-    cout << "Ranks:" << endl;
-    for(auto const& kv: countByRank) {
-      cout << kv.first << " " << kv.second << endl;
-    }
-    cout << "OppRanks:" << endl;
-    for(auto const& kv: countByOppRank) {
-      cout << kv.first << " " << kv.second << endl;
-    }
-    cout << "Handicap:" << endl;
-    for(auto const& kv: countByHandicap) {
-      cout << kv.first << " " << kv.second << endl;
-    }
-    cout << "Major Users:" << endl;
-    for(auto const& kv: countByUser) {
-      if(kv.second > count / 2000)
+    void print() {
+      cout << "Count: " << count << endl;
+      cout << "Sources:" << endl;
+      for(auto const& kv: countBySource) {
         cout << kv.first << " " << kv.second << endl;
+      }
+      cout << "Ranks:" << endl;
+      for(auto const& kv: countByRank) {
+        cout << kv.first << " " << kv.second << endl;
+      }
+      cout << "OppRanks:" << endl;
+      for(auto const& kv: countByOppRank) {
+        cout << kv.first << " " << kv.second << endl;
+      }
+      cout << "Handicap:" << endl;
+      for(auto const& kv: countByHandicap) {
+        cout << kv.first << " " << kv.second << endl;
+      }
+      cout << "Major Users:" << endl;
+      for(auto const& kv: countByUser) {
+        if(kv.second > count / 2000)
+          cout << kv.first << " " << kv.second << endl;
+      }
     }
-  }
-};
+  };
+}
 
 typedef std::function<void(
   //board,hist,source,rank,oppRank,user,handicap

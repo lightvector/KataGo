@@ -1,6 +1,7 @@
 #include "../core/global.h"
 #include "../search/asyncbot.h"
 #include "../program/play.h"
+#include "../program/setup.h"
 
 static double nextGaussianTruncated(Rand& rand, double bound) {
   double d = rand.nextGaussian();
@@ -595,5 +596,102 @@ void Play::runGame(
   if(recordUtilities != NULL)
     delete recordUtilities;
 
+}
+
+
+
+GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase)
+  :logSearchInfo(),logMoves(),maxMovesPerGame(),
+   searchRandSeedBase(sRandSeedBase),matchPairer(NULL),gameInit(NULL)
+{
+  vector<SearchParams> paramss = Setup::loadParams(cfg);
+  if(paramss.size() != 1)
+    throw StringError("Can only specify one set of search parameters for self-play");
+  SearchParams baseParams = paramss[0];
+
+  logSearchInfo = cfg.getBool("logSearchInfo");
+  logMoves = cfg.getBool("logMoves");
+  maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
+
+  //Mostly the matchpairer for the logging and game counting
+  bool forSelfPlay = true;
+  matchPairer = new MatchPairer(cfg,forSelfPlay);
+
+  //Initialize object for randomizing game settings
+  gameInit = new GameInitializer(cfg,baseParams);
+}
+
+GameRunner::~GameRunner() {
+  delete matchPairer;
+  delete gameInit;
+}
+
+bool GameRunner::runGameAndEnqueueData(
+  NNEvaluator* nnEval, Logger& logger,
+  int dataPosLen, ThreadSafeQueue<FinishedGameData*>& finishedGameQueue,
+  std::atomic<bool>& stopSignalReceived
+) {
+  return runGameAndEnqueueData(nnEval,nnEval,logger,dataPosLen,finishedGameQueue,stopSignalReceived);
+}
+
+bool GameRunner::runGameAndEnqueueData(
+  NNEvaluator* nnEvalB, NNEvaluator* nnEvalW, Logger& logger,
+  int dataPosLen, ThreadSafeQueue<FinishedGameData*>& finishedGameQueue,
+  std::atomic<bool>& stopSignalReceived
+) {
+  int64_t gameIdx;
+  bool shouldContinue;
+  if(nnEvalB == nnEvalW)
+    shouldContinue = matchPairer->getMatchup(gameIdx, logger, nnEvalB, NULL);
+  else {
+    vector<NNEvaluator*> nnEvalsToLog({nnEvalB,nnEvalW});
+    shouldContinue = matchPairer->getMatchup(gameIdx, logger, NULL, &nnEvalsToLog);
+  }
+
+  if(!shouldContinue)
+    return false;
+
+  Board board; Player pla; BoardHistory hist; int numExtraBlack;
+  SearchParams params;
+  gameInit->createGame(board,pla,hist,numExtraBlack,params);
+
+  string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
+  Rand gameRand(searchRandSeed + ":" + "forGameRand");
+
+  //Avoid interactions between the two bots and make sure root noise is effective on each new search
+  bool clearBotAfterSearchThisGame = true;
+  //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
+  //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
+  //called on positions that occur after the game would have been autoterminated.
+  bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
+
+  Search* botB = new Search(params, nnEvalB, searchRandSeed);
+  Search* botW;
+  if(nnEvalW == nnEvalB)
+    botW = botB;
+  else
+    botW = new Search(params, nnEvalW, searchRandSeed);
+
+  FinishedGameData* finishedGameData = new FinishedGameData(dataPosLen, params.drawEquivalentWinsForWhite);
+  bool fancyModes = true;
+  Play::runGame(
+    board,pla,hist,numExtraBlack,botB,botW,
+    doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
+    logger,logSearchInfo,logMoves,
+    maxMovesPerGame,stopSignalReceived,
+    fancyModes,
+    finishedGameData,&gameRand
+  );
+
+  if(botW != botB)
+    delete botW;
+  delete botB;
+
+  //Make sure not to write the game if we terminated in the middle of this game!
+  if(stopSignalReceived.load())
+    return false;
+
+  finishedGameQueue.waitPush(finishedGameData);
+  return true;
 }
 

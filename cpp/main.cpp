@@ -5,12 +5,13 @@ using namespace std;
 
 static void printHelp() {
   cout << "Available subcommands:" << endl;
-  cout << "evalSgf" << endl;
+  cout << "evalsgf" << endl;
+  cout << "gatekeeper" << endl;
   cout << "gtp" << endl;
   cout << "match" << endl;
-  cout << "selfPlay" << endl;
-  cout << "runTests" << endl;
-  cout << "runSearchTests" << endl;
+  cout << "selfplay" << endl;
+  cout << "runtests" << endl;
+  cout << "runsearchtests" << endl;
   cout << "writeSearchValueTimeseries" << endl;
   cout << "sandbox" << endl;
   cout << "version" << endl;
@@ -27,18 +28,20 @@ int main(int argc, const char* argv[]) {
     return 0;
   }
 
-  if(cmdArg == "evalSgf")
-    return MainCmds::evalSgf(argc-1,&argv[1]);
+  if(cmdArg == "evalsgf")
+    return MainCmds::evalsgf(argc-1,&argv[1]);
+  else if(cmdArg == "gatekeeper")
+    return MainCmds::gatekeeper(argc-1,&argv[1]);
   else if(cmdArg == "gtp")
     return MainCmds::gtp(argc-1,&argv[1]);
   else if(cmdArg == "match")
     return MainCmds::match(argc-1,&argv[1]);
-  else if(cmdArg == "selfPlay")
-    return MainCmds::selfPlay(argc-1,&argv[1]);
-  else if(cmdArg == "runTests")
-    return MainCmds::runTests(argc-1,&argv[1]);
-  else if(cmdArg == "runSearchTests")
-    return MainCmds::runSearchTests(argc-1,&argv[1]);
+  else if(cmdArg == "selfplay")
+    return MainCmds::selfplay(argc-1,&argv[1]);
+  else if(cmdArg == "runtests")
+    return MainCmds::runtests(argc-1,&argv[1]);
+  else if(cmdArg == "runsearchtests")
+    return MainCmds::runsearchtests(argc-1,&argv[1]);
   else if(cmdArg == "writeSearchValueTimeseries")
     return MainCmds::writeSearchValueTimeseries(argc-1,&argv[1]);
   else if(cmdArg == "sandbox")

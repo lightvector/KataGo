@@ -11,7 +11,7 @@ using namespace std;
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
-int MainCmds::evalSgf(int argc, const char* const* argv) {
+int MainCmds::evalsgf(int argc, const char* const* argv) {
   Board::initHash();
   Rand seedRand;
 

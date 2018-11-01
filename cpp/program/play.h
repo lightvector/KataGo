@@ -5,6 +5,7 @@
 #include "../core/multithread.h"
 #include "../core/rand.h"
 #include "../core/config_parser.h"
+#include "../core/threadsafequeue.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../dataio/trainingwrite.h"
@@ -108,5 +109,34 @@ namespace Play {
   );
 
 }
+
+
+//Class for running a game and enqueueing the result as training data.
+//Wraps together most of the neural-net-independent parameters to spawn and run a full game.
+class GameRunner {
+  bool logSearchInfo;
+  bool logMoves;
+  int maxMovesPerGame;
+  string searchRandSeedBase;
+  MatchPairer* matchPairer;
+  GameInitializer* gameInit;
+
+public:
+  GameRunner(ConfigParser& cfg, const string& searchRandSeedBase);
+  ~GameRunner();
+
+  bool runGameAndEnqueueData(
+    NNEvaluator* nnEval, Logger& logger,
+    int dataPosLen, ThreadSafeQueue<FinishedGameData*>& finishedGameQueue,
+    std::atomic<bool>& stopSignalReceived
+  );
+  bool runGameAndEnqueueData(
+    NNEvaluator* nnEvalB, NNEvaluator* nnEvalW, Logger& logger,
+    int dataPosLen, ThreadSafeQueue<FinishedGameData*>& finishedGameQueue,
+    std::atomic<bool>& stopSignalReceived
+  );
+
+};
+
 
 #endif

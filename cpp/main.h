@@ -2,12 +2,13 @@
 using namespace std;
 
 namespace MainCmds {
-  int evalSgf(int argc, const char* const* argv);
+  int evalsgf(int argc, const char* const* argv);
+  int gatekeeper(int argc, const char* const* argv);
   int gtp(int argc, const char* const* argv);
   int match(int argc, const char* const* argv);
-  int selfPlay(int argc, const char* const* argv);
-  int runTests(int argc, const char* const* argv);
-  int runSearchTests(int argc, const char* const* argv);
+  int selfplay(int argc, const char* const* argv);
+  int runtests(int argc, const char* const* argv);
+  int runsearchtests(int argc, const char* const* argv);
 
   int writeSearchValueTimeseries(int argc, const char* const* argv);
 

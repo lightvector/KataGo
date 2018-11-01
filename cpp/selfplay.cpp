@@ -5,6 +5,7 @@
 #include "core/threadsafequeue.h"
 #include "dataio/sgf.h"
 #include "dataio/trainingwrite.h"
+#include "dataio/loadmodel.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
@@ -33,185 +34,104 @@ static void signalHandler(int signal)
 
 //-----------------------------------------------------------------------------------------
 
-//Class for running a game and enqueueing the result as training data.
-//Wraps together most of the neural-net-independent parameters to spawn and run a full game.
-class GameRunner {
-  bool logSearchInfo;
-  bool logMoves;
-  int maxMovesPerGame;
-  string searchRandSeedBase;
-  MatchPairer* matchPairer;
-  GameInitializer* gameInit;
-
-public:
-  GameRunner(ConfigParser& cfg, const string& sRandSeedBase)
-    :logSearchInfo(),logMoves(),maxMovesPerGame(),
-     searchRandSeedBase(sRandSeedBase),matchPairer(NULL),gameInit(NULL)
-  {
-    vector<SearchParams> paramss = Setup::loadParams(cfg);
-    if(paramss.size() != 1)
-      throw StringError("Can only specify one set of search parameters for self-play");
-    SearchParams baseParams = paramss[0];
-
-    logSearchInfo = cfg.getBool("logSearchInfo");
-    logMoves = cfg.getBool("logMoves");
-    maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
-
-    //Mostly the matchpairer for the logging and game counting
-    bool forSelfPlay = true;
-    matchPairer = new MatchPairer(cfg,forSelfPlay);
-
-    //Initialize object for randomizing game settings
-    gameInit = new GameInitializer(cfg,baseParams);
-  }
-
-  ~GameRunner() {
-    delete matchPairer;
-    delete gameInit;
-  }
-
-  bool runGameAndWriteData(
-    NNEvaluator* nnEval, Logger& logger,
-    int dataPosLen, ThreadSafeQueue<FinishedGameData*>& finishedGameQueue
-  ) {
-    int64_t gameIdx;
-    bool shouldContinue = matchPairer->getMatchup(gameIdx, logger, nnEval, NULL);
-    if(!shouldContinue)
-      return false;
-
-    Board board; Player pla; BoardHistory hist; int numExtraBlack;
-    SearchParams params;
-    gameInit->createGame(board,pla,hist,numExtraBlack,params);
-
-    string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
-    Rand gameRand(searchRandSeed + ":" + "forGameRand");
-
-    //Avoid interactions between the two bots and make sure root noise is effective on each new search
-    bool clearBotAfterSearchThisGame = true;
-    //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
-    //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
-    //called on positions that occur after the game would have been autoterminated.
-    bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
-
-    Search* bot = new Search(params, nnEval, searchRandSeed);
-    FinishedGameData* finishedGameData = new FinishedGameData(dataPosLen, params.drawEquivalentWinsForWhite);
-    bool fancyModes = true;
-    Play::runGame(
-      board,pla,hist,numExtraBlack,bot,bot,
-      doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
-      logger,logSearchInfo,logMoves,
-      maxMovesPerGame,shouldStop,
-      fancyModes,
-      finishedGameData,&gameRand
-    );
-    delete bot;
-
-    //Make sure not to write the game if we terminated in the middle of this game!
-    if(shouldStop.load())
-      return false;
-
-    finishedGameQueue.waitPush(finishedGameData);
-    return true;
-  }
-
-};
 
 //Wraps together a neural net and handles for outputting training data for it.
 //There should be one of these active per currently-loaded neural net, and one active thread
 //looping and actually performing the data output
-struct NetAndStuff {
-  string modelName;
-  NNEvaluator* nnEval;
-  double validationProp;
+namespace {
+  struct NetAndStuff {
+    string modelName;
+    NNEvaluator* nnEval;
+    double validationProp;
 
-  int maxDataQueueSize;
-  ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
-  int numGameThreads;
-  bool isDraining;
+    int maxDataQueueSize;
+    ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
+    int numGameThreads;
+    bool isDraining;
 
-  TrainingDataWriter* tdataWriter;
-  TrainingDataWriter* vdataWriter;
-  ofstream* sgfOut;
-  Rand rand;
+    TrainingDataWriter* tdataWriter;
+    TrainingDataWriter* vdataWriter;
+    ofstream* sgfOut;
+    Rand rand;
 
-public:
-  NetAndStuff(const string& name, NNEvaluator* neval, int maxDQueueSize, TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, ofstream* sOut, double vProp)
-    :modelName(name),
-     nnEval(neval),
-     validationProp(vProp),
-     maxDataQueueSize(maxDQueueSize),
-     finishedGameQueue(maxDQueueSize),
-     numGameThreads(0),isDraining(false),
-     tdataWriter(tdWriter),
-     vdataWriter(vdWriter),
-     sgfOut(sOut),
-     rand()
-  {}
+  public:
+    NetAndStuff(const string& name, NNEvaluator* neval, int maxDQueueSize, TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, ofstream* sOut, double vProp)
+      :modelName(name),
+       nnEval(neval),
+       validationProp(vProp),
+       maxDataQueueSize(maxDQueueSize),
+       finishedGameQueue(maxDQueueSize),
+       numGameThreads(0),isDraining(false),
+       tdataWriter(tdWriter),
+       vdataWriter(vdWriter),
+       sgfOut(sOut),
+       rand()
+    {}
 
-  ~NetAndStuff() {
-    delete nnEval;
-    delete tdataWriter;
-    delete vdataWriter;
-    if(sgfOut != NULL)
-      delete sgfOut;
-  }
-
-  void runWriteDataLoop(Logger& logger) {
-    while(true) {
-      size_t size = finishedGameQueue.size();
-      if(size > maxDataQueueSize / 2)
-        logger.write(Global::strprintf("WARNING: Struggling to keep up writing data, %d games enqueued out of %d max",size,maxDataQueueSize));
-
-      FinishedGameData* data = finishedGameQueue.waitPop();
-      if(data == NULL)
-        break;
-
-      if(rand.nextBool(validationProp))
-        vdataWriter->writeGame(*data);
-      else
-        tdataWriter->writeGame(*data);
-
-      if(sgfOut != NULL) {
-        assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
-        WriteSgf::writeSgf(*sgfOut,modelName,modelName,data->startHist.rules,data->preStartBoard,data->endHist,data);
-        (*sgfOut) << endl;
-      }
-      delete data;
+    ~NetAndStuff() {
+      delete nnEval;
+      delete tdataWriter;
+      delete vdataWriter;
+      if(sgfOut != NULL)
+        delete sgfOut;
     }
 
-    tdataWriter->close();
-    vdataWriter->close();
-    if(sgfOut != NULL)
-      sgfOut->close();
-  }
+    void runWriteDataLoop(Logger& logger) {
+      while(true) {
+        size_t size = finishedGameQueue.size();
+        if(size > maxDataQueueSize / 2)
+          logger.write(Global::strprintf("WARNING: Struggling to keep up writing data, %d games enqueued out of %d max",size,maxDataQueueSize));
 
-  //NOT threadsafe - needs to be externally synchronized
-  //Game threads beginning a game using this net call this
-  void registerGameThread() {
-    assert(!isDraining);
-    numGameThreads++;
-  }
+        FinishedGameData* data = finishedGameQueue.waitPop();
+        if(data == NULL)
+          break;
 
-  //NOT threadsafe - needs to be externally synchronized
-  //Game threads finishing a game using this net call this
-  void unregisterGameThread() {
-    numGameThreads--;
-    if(isDraining && numGameThreads <= 0)
-      finishedGameQueue.forcePush(NULL); //forcePush so as not to block
-  }
+        if(rand.nextBool(validationProp))
+          vdataWriter->writeGame(*data);
+        else
+          tdataWriter->writeGame(*data);
 
-  //NOT threadsafe - needs to be externally synchronized
-  //Mark that we should start draining this net and not starting new games with it
-  void markAsDraining() {
-    if(!isDraining) {
-      isDraining = true;
-      if(numGameThreads <= 0)
+        if(sgfOut != NULL) {
+          assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
+          WriteSgf::writeSgf(*sgfOut,modelName,modelName,data->startHist.rules,data->preStartBoard,data->endHist,data);
+          (*sgfOut) << endl;
+        }
+        delete data;
+      }
+
+      tdataWriter->close();
+      vdataWriter->close();
+      if(sgfOut != NULL)
+        sgfOut->close();
+    }
+
+    //NOT threadsafe - needs to be externally synchronized
+    //Game threads beginning a game using this net call this
+    void registerGameThread() {
+      assert(!isDraining);
+      numGameThreads++;
+    }
+
+    //NOT threadsafe - needs to be externally synchronized
+    //Game threads finishing a game using this net call this
+    void unregisterGameThread() {
+      numGameThreads--;
+      if(isDraining && numGameThreads <= 0)
         finishedGameQueue.forcePush(NULL); //forcePush so as not to block
     }
-  }
 
-};
+    //NOT threadsafe - needs to be externally synchronized
+    //Mark that we should start draining this net and not starting new games with it
+    void markAsDraining() {
+      if(!isDraining) {
+        isDraining = true;
+        if(numGameThreads <= 0)
+          finishedGameQueue.forcePush(NULL); //forcePush so as not to block
+      }
+    }
 
+  };
+}
 
 
 
@@ -220,7 +140,7 @@ public:
 
 
 
-int MainCmds::selfPlay(int argc, const char* const* argv) {
+int MainCmds::selfplay(int argc, const char* const* argv) {
   Board::initHash();
   Rand seedRand;
 
@@ -323,38 +243,14 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
 
   auto loadLatestNeuralNet =
     [inputsVersion,maxDataQueueSize,maxRowsPerFile,dataPosLen,&modelsDir,&outputDir,&logger,&cfg,validationProp](const string* lastNetName) -> NetAndStuff* {
-    namespace bfs = boost::filesystem;
 
-    bool hasLatestTime = false;
-    std::time_t latestTime = 0;
-    bfs::path latestPath;
-    for(bfs::directory_iterator iter(modelsDir); iter != bfs::directory_iterator(); ++iter) {
-      bfs::path dirPath = iter->path();
-      if(!bfs::is_directory(dirPath))
-        continue;
-
-      time_t thisTime = bfs::last_write_time(dirPath);
-      if(!hasLatestTime || thisTime > latestTime) {
-        hasLatestTime = true;
-        latestTime = thisTime;
-        latestPath = dirPath;
-      }
-    }
-
-    string modelName = "random";
-    string modelFile = "/dev/null";
-    if(hasLatestTime) {
-      modelName = latestPath.filename().string();
-      modelFile = modelsDir + "/" + modelName + "/model.txt.gz";
-      if(!bfs::exists(bfs::path(modelFile))) {
-        modelFile = modelsDir + "/" + modelName + "/model.txt";
-        if(!bfs::exists(bfs::path(modelFile)))
-          logger.write("Warning: Skipping model " + modelName + " due to not finding model.txt or model.txt.gz");
-      }
-    }
+    string modelName;
+    string modelFile;
+    string modelDir;
+    bool foundModel = LoadModel::findLatestModel(modelsDir, logger, modelName, modelFile, modelDir);
 
     //No new neural nets yet
-    if(lastNetName != NULL && *lastNetName == modelName)
+    if(!foundModel || (lastNetName != NULL && *lastNetName == modelName))
       return NULL;
 
     logger.write("Found new neural net " + modelName);
@@ -367,13 +263,13 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
     NNEvaluator* nnEval = nnEvals[0];
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
 
-    string modelDir = outputDir + "/" + modelName;
-    string sgfOutputDir = modelDir + "/sgfs";
-    string tdataOutputDir = modelDir + "/tdata";
-    string vdataOutputDir = modelDir + "/vdata";
+    string modelOutputDir = outputDir + "/" + modelName;
+    string sgfOutputDir = modelOutputDir + "/sgfs";
+    string tdataOutputDir = modelOutputDir + "/tdata";
+    string vdataOutputDir = modelOutputDir + "/vdata";
     assert(outputDir != string());
 
-    MakeDir::make(modelDir);
+    MakeDir::make(modelOutputDir);
     MakeDir::make(sgfOutputDir);
     MakeDir::make(tdataOutputDir);
     MakeDir::make(vdataOutputDir);
@@ -431,9 +327,10 @@ int MainCmds::selfPlay(int argc, const char* const* argv) {
         logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game on new neural net: " + prevModelName);
       }
 
-      bool shouldContinue = gameRunner->runGameAndWriteData(
+      bool shouldContinue = gameRunner->runGameAndEnqueueData(
         netAndStuff->nnEval, logger,
-        dataPosLen, netAndStuff->finishedGameQueue
+        dataPosLen, netAndStuff->finishedGameQueue,
+        shouldStop
       );
 
       lock.lock();

@@ -9,7 +9,7 @@
 #include "tests/tests.h"
 #include "main.h"
 
-int MainCmds::runTests(int argc, const char* const* argv) {
+int MainCmds::runtests(int argc, const char* const* argv) {
   (void)argc;
   (void)argv;
   testAssert(sizeof(size_t) == 8);
@@ -35,7 +35,7 @@ int MainCmds::runTests(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runSearchTests(int argc, const char* const* argv) {
+int MainCmds::runsearchtests(int argc, const char* const* argv) {
   Board::initHash();
 
   if(argc != 5) {

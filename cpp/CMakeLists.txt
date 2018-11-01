@@ -107,6 +107,7 @@ if(BUILD_MCTS)
     dataio/sgf.cpp
     dataio/numpywrite.cpp
     dataio/trainingwrite.cpp
+    dataio/loadmodel.cpp
     neuralnet/nninputs.cpp
     neuralnet/modelversion.cpp
     neuralnet/nneval.cpp
@@ -126,6 +127,7 @@ if(BUILD_MCTS)
     tests/testnninputs.cpp
     tests/testsearch.cpp
     evalsgf.cpp
+    gatekeeper.cpp
     gtp.cpp
     match.cpp
     selfplay.cpp
