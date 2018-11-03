@@ -14,27 +14,25 @@
 class GameInitializer {
  public:
   GameInitializer(ConfigParser& cfg);
-  GameInitializer(ConfigParser& cfg, const SearchParams& baseParams);
   ~GameInitializer();
 
   GameInitializer(const GameInitializer&) = delete;
   GameInitializer& operator=(const GameInitializer&) = delete;
 
   //Initialize everything for a new game with random rules
-  //Also, mutates params to have new rules, but does NOT set all its settings, user
-  void createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack);
+  //Also, mutates params to randomize appropriate things like utilities, but does NOT fill in all the settings.
+  //User should make sure the initial params provided makes sense as a mean or baseline.
   void createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params);
 
+  //A version that doesn't randomize params
+  void createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack);
 
  private:
   void initShared(ConfigParser& cfg);
   void createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack);
 
-
   std::mutex createGameMutex;
   Rand rand;
-
-  bool hasParams;
 
   vector<string> allowedKoRuleStrs;
   vector<string> allowedScoringRuleStrs;
@@ -56,33 +54,46 @@ class GameInitializer {
 
   double noResultStdev;
   double drawStdev;
-
-  SearchParams baseParams;
 };
 
 
 //Object for generating and servering evenly distributed pairings between different bots. Threadsafe.
 class MatchPairer {
  public:
-  MatchPairer(ConfigParser& cfg, bool forSelfPlay);
+  //Holds pointers to the various nnEvals, but does NOT take ownership for freeing them.
+  MatchPairer(
+    ConfigParser& cfg,
+    int numBots,
+    const vector<string>& botNames,
+    const vector<NNEvaluator*>& nnEvals,
+    const vector<SearchParams>& baseParamss,
+    bool forSelfPlay,
+    bool forGateKeeper
+  );
+
   ~MatchPairer();
+
+  struct BotSpec {
+    int botIdx;
+    string botName;
+    NNEvaluator* nnEval;
+    SearchParams baseParams;
+  };
 
   MatchPairer(const MatchPairer&) = delete;
   MatchPairer& operator=(const MatchPairer&) = delete;
 
   //Get next matchup and log stuff
   bool getMatchup(
-    int64_t& gameIdx, int& botIdxB, int& botIdxW, Logger& logger,
-    const NNEvaluator* nnEvalToLog, const vector<NNEvaluator*>* nnEvalsToLog
-  );
-  //Convenience usage for self play where there is only one bot.
-  bool getMatchup(
-    int64_t& gameIdx, Logger& logger,
-    const NNEvaluator* nnEvalToLog, const vector<NNEvaluator*>* nnEvalsToLog
+    int64_t& gameIdx, BotSpec& botSpecB, BotSpec& botSpecW, Logger& logger
   );
 
  private:
   int numBots;
+  vector<string> botNames;
+  vector<NNEvaluator*> nnEvals;
+  vector<SearchParams> baseParamss;
+
   vector<int> secondaryBots;
   vector<pair<int,int>> nextMatchups;
   Rand rand;
@@ -99,13 +110,15 @@ class MatchPairer {
 
 //Functions to run a single game
 namespace Play {
-  void runGame(
-    Board& board, Player pla, BoardHistory& hist, int numExtraBlack, Search* botB, Search* botW,
+  FinishedGameData* runGame(
+    const Board& initialBoard, Player pla, const BoardHistory& initialHist, int numExtraBlack,
+    MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
+    const string& searchRandSeed,
     bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,
-    bool fancyModes,
-    FinishedGameData* gameData, Rand* gameRand
+    bool fancyModes, bool recordFullData, int dataPosLen,
+    Rand& gameRand
   );
 
 }
@@ -116,23 +129,21 @@ namespace Play {
 class GameRunner {
   bool logSearchInfo;
   bool logMoves;
+  bool forSelfPlay;
   int maxMovesPerGame;
+  bool clearBotAfterSearch;
   string searchRandSeedBase;
-  MatchPairer* matchPairer;
   GameInitializer* gameInit;
 
 public:
-  GameRunner(ConfigParser& cfg, const string& searchRandSeedBase);
+  GameRunner(ConfigParser& cfg, const string& searchRandSeedBase, bool forSelfPlay);
   ~GameRunner();
 
-  bool runGameAndEnqueueData(
-    NNEvaluator* nnEval, Logger& logger,
-    int dataPosLen, ThreadSafeQueue<FinishedGameData*>& finishedGameQueue,
-    std::atomic<bool>& stopSignalReceived
-  );
-  bool runGameAndEnqueueData(
-    NNEvaluator* nnEvalB, NNEvaluator* nnEvalW, Logger& logger,
-    int dataPosLen, ThreadSafeQueue<FinishedGameData*>& finishedGameQueue,
+  bool runGame(
+    MatchPairer* matchPairer, Logger& logger,
+    int dataPosLen,
+    ThreadSafeQueue<FinishedGameData*>* finishedGameQueue,
+    std::function<void(const FinishedGameData&)>* reportGame,
     std::atomic<bool>& stopSignalReceived
   );
 

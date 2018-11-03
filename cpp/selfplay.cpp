@@ -17,8 +17,6 @@ using namespace std;
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
-#include <boost/filesystem.hpp>
-
 #include <chrono>
 
 #include <csignal>
@@ -38,10 +36,12 @@ static void signalHandler(int signal)
 //Wraps together a neural net and handles for outputting training data for it.
 //There should be one of these active per currently-loaded neural net, and one active thread
 //looping and actually performing the data output
+//DOES take ownership of the NNEvaluators
 namespace {
   struct NetAndStuff {
     string modelName;
     NNEvaluator* nnEval;
+    MatchPairer* matchPairer;
     double validationProp;
 
     int maxDataQueueSize;
@@ -55,9 +55,13 @@ namespace {
     Rand rand;
 
   public:
-    NetAndStuff(const string& name, NNEvaluator* neval, int maxDQueueSize, TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, ofstream* sOut, double vProp)
+    NetAndStuff(
+      ConfigParser& cfg, const string& name, NNEvaluator* neval, int maxDQueueSize,
+      TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, ofstream* sOut, double vProp
+    )
       :modelName(name),
        nnEval(neval),
+       matchPairer(NULL),
        validationProp(vProp),
        maxDataQueueSize(maxDQueueSize),
        finishedGameQueue(maxDQueueSize),
@@ -66,9 +70,21 @@ namespace {
        vdataWriter(vdWriter),
        sgfOut(sOut),
        rand()
-    {}
+    {
+      vector<SearchParams> paramss = Setup::loadParams(cfg);
+      if(paramss.size() != 1)
+        throw StringError("Can only specify one set of search parameters for self-play");
+      SearchParams baseParams = paramss[0];
+
+      //Initialize object for randomly pairing bots. Actually since this is only selfplay, this only
+      //ever gives is the trivial self-pairing, but we use it also for keeping the game count and some logging.
+      bool forSelfPlay = true;
+      bool forGateKeeper = false;
+      matchPairer = new MatchPairer(cfg, 1, {modelName}, {nnEval}, {baseParams}, forSelfPlay, forGateKeeper);
+    }
 
     ~NetAndStuff() {
+      delete matchPairer;
       delete nnEval;
       delete tdataWriter;
       delete vdataWriter;
@@ -93,7 +109,7 @@ namespace {
 
         if(sgfOut != NULL) {
           assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
-          WriteSgf::writeSgf(*sgfOut,modelName,modelName,data->startHist.rules,data->preStartBoard,data->endHist,data);
+          WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->startHist.rules,data->preStartBoard,data->endHist,data);
           (*sgfOut) << endl;
         }
         delete data;
@@ -193,7 +209,9 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   const double validationProp = cfg.getDouble("validationProp",0.0,0.5);
 
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase);
+  //Initialize object for randomizing game settings and running games
+  bool forSelfPlay = true;
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay);
 
   Setup::initializeSession(cfg);
 
@@ -279,7 +297,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     TrainingDataWriter* tdataWriter = new TrainingDataWriter(tdataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
     TrainingDataWriter* vdataWriter = new TrainingDataWriter(vdataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
-    NetAndStuff* newNet = new NetAndStuff(modelName, nnEval, maxDataQueueSize, tdataWriter, vdataWriter, sgfOut, validationProp);
+    NetAndStuff* newNet = new NetAndStuff(cfg, modelName, nnEval, maxDataQueueSize, tdataWriter, vdataWriter, sgfOut, validationProp);
     return newNet;
   };
 
@@ -327,9 +345,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
         logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game on new neural net: " + prevModelName);
       }
 
-      bool shouldContinue = gameRunner->runGameAndEnqueueData(
-        netAndStuff->nnEval, logger,
-        dataPosLen, netAndStuff->finishedGameQueue,
+      bool shouldContinue = gameRunner->runGame(
+        netAndStuff->matchPairer, logger,
+        dataPosLen,
+        &(netAndStuff->finishedGameQueue),
+        NULL,
         shouldStop
       );
 

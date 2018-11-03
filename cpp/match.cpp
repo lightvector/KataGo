@@ -52,8 +52,6 @@ int MainCmds::match(int argc, const char* const* argv) {
   logger.addFile(logFile);
   bool logToStdout = cfg.getBool("logToStdout");
   logger.setLogToStdout(logToStdout);
-  bool logSearchInfo = cfg.getBool("logSearchInfo");
-  bool logMoves = cfg.getBool("logMoves");
 
   logger.write("Match Engine starting...");
   logger.write(string("Git revision: ") + GIT_REVISION);
@@ -82,11 +80,6 @@ int MainCmds::match(int argc, const char* const* argv) {
       nnModelFilesByBot.push_back(cfg.getString("nnModelFile"));
   }
 
-  //Load bots that should not play one another
-  vector<int> secondaryBots;
-  if(cfg.contains("secondaryBots"))
-    secondaryBots = cfg.getInts("secondaryBots",0,4096);
-
   //Dedup and load each necessary model exactly once
   vector<string> nnModelFiles;
   vector<int> whichNNModel;
@@ -112,21 +105,22 @@ int MainCmds::match(int argc, const char* const* argv) {
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelFiles,cfg,logger,seedRand);
   logger.write("Loaded neural net");
 
-  //Initialize object for randomizing game settings
-  GameInitializer* gameInit = new GameInitializer(cfg);
+  vector<NNEvaluator*> nnEvalsByBot;
+  for(int i = 0; i<numBots; i++)
+    nnEvalsByBot.push_back(nnEvals[whichNNModel[i]]);
 
   //Load match runner settings
   int numGameThreads = cfg.getInt("numGameThreads",1,16384);
-  int maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
 
   string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
-  //Misc other settings
-  bool clearBotAfterSearch = cfg.contains("clearBotAfterSearch") ? cfg.getBool("clearBotAfterSearch") : false;
-
+  //Initialize object for randomly pairing bots
   bool forSelfPlay = false;
-  MatchPairer matchPairer(cfg,forSelfPlay);
+  bool forGateKeeper = false;
+  MatchPairer* matchPairer = new MatchPairer(cfg,numBots,botNames,nnEvalsByBot,paramss,forSelfPlay,forGateKeeper);
 
+  //Initialize object for randomizing game settings and running games
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay);
 
   //Check for unused config keys
   {
@@ -152,43 +146,8 @@ int MainCmds::match(int argc, const char* const* argv) {
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
-  auto runMatchGame = [&paramss,&nnEvals,&whichNNModel,&logger,logSearchInfo,logMoves,maxMovesPerGame,&searchRandSeedBase,clearBotAfterSearch](
-    int64_t gameIdx, int botIdxB, int botIdxW, Board& board, Player pla, BoardHistory& hist, int numExtraBlack
-  ) {
-    string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
-    Search* botB;
-    Search* botW;
-    bool clearBotAfterSearchThisGame = clearBotAfterSearch;
-    if(botIdxB == botIdxW) {
-      Search* bot = new Search(paramss[botIdxB], nnEvals[whichNNModel[botIdxB]], searchRandSeed);
-      botB = bot;
-      botW = bot;
-      //To avoid interactions between the two bots since they're the same
-      clearBotAfterSearchThisGame = true;
-    }
-    else {
-      botB = new Search(paramss[botIdxB], nnEvals[whichNNModel[botIdxB]], searchRandSeed+"B");
-      botW = new Search(paramss[botIdxW], nnEvals[whichNNModel[botIdxW]], searchRandSeed+"W");
-    }
-    bool doEndGameIfAllPassAlive = true;
-    bool fancyModes = false;
-    Play::runGame(
-      board,pla,hist,numExtraBlack,botB,botW,
-      doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
-      logger,logSearchInfo,logMoves,
-      maxMovesPerGame,sigReceived,
-      fancyModes,
-      NULL,NULL
-    );
-    delete botB;
-    if(botIdxB != botIdxW)
-      delete botW;
-  };
-
   auto runMatchLoop = [
-    &botNames,&gameInit,&runMatchGame,
-    &matchPairer,&sgfOutputDir,&logger,
-    &nnEvals
+    &gameRunner,&matchPairer,&sgfOutputDir,&logger
   ](
     uint64_t threadHash
   ) {
@@ -198,28 +157,20 @@ int MainCmds::match(int argc, const char* const* argv) {
       if(sigReceived.load())
         break;
 
-      int64_t gameIdx;
-      int botIdxB;
-      int botIdxW;
-      bool shouldContinue = matchPairer.getMatchup(gameIdx, botIdxB, botIdxW, logger, NULL, &nnEvals);
-      if(!shouldContinue)
-        break;
+      int dataPosLen = 19; //Doesn't matter, we don't actually write training data
 
-      Board board; Player pla; BoardHistory hist; int numExtraBlack;
-      gameInit->createGame(board,pla,hist,numExtraBlack);
-      Board initialBoard = board;
-      Rules initialRules = hist.rules;
+      std::function<void(const FinishedGameData&)> writeSgf = [&sgfOut](const FinishedGameData& gameData) {
+        if(sgfOut != NULL) {
+          WriteSgf::writeSgf(*sgfOut,gameData.bName,gameData.wName,gameData.startHist.rules,gameData.preStartBoard,gameData.endHist,NULL);
+          (*sgfOut) << endl;
+        }
+      };
 
-      runMatchGame(gameIdx,botIdxB,botIdxW,board,pla,hist,numExtraBlack);
-
-      if(sgfOut != NULL) {
-        string bName = botNames[botIdxB];
-        string wName = botNames[botIdxW];
-        WriteSgf::writeSgf(*sgfOut,bName,wName,initialRules,initialBoard,hist,NULL);
-        (*sgfOut) << endl;
-      }
+      bool shouldContinue = gameRunner->runGame(matchPairer, logger, dataPosLen, NULL, &writeSgf, sigReceived);
 
       if(sigReceived.load())
+        break;
+      if(!shouldContinue)
         break;
     }
     if(sgfOut != NULL) {
@@ -236,12 +187,14 @@ int MainCmds::match(int argc, const char* const* argv) {
   for(int i = 0; i<numGameThreads; i++)
     threads[i].join();
 
+  delete matchPairer;
+  delete gameRunner;
+
+  nnEvalsByBot.clear();
   for(int i = 0; i<nnEvals.size(); i++) {
     delete nnEvals[i];
   }
   NeuralNet::globalCleanup();
-
-  delete gameInit;
 
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");

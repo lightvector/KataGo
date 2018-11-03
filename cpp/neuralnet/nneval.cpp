@@ -36,7 +36,7 @@ NNServerBuf::~NNServerBuf() {
 //-------------------------------------------------------------------------------------
 
 NNEvaluator::NNEvaluator(
-  const string& pbModelFile,
+  const string& mFileName,
   int modelFileIdx,
   int maxBatchSize,
   int pLen,
@@ -45,7 +45,7 @@ NNEvaluator::NNEvaluator(
   int nnCacheSizePowerOfTwo,
   bool skipNeuralNet
 )
-  :modelFileName(pbModelFile),
+  :modelFileName(mFileName),
    posLen(pLen),
    requireExactPosLen(rExactPosLen),
    policySize(NNPos::getPolicySize(pLen)),
@@ -73,7 +73,7 @@ NNEvaluator::NNEvaluator(
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo);
 
   if(!debugSkipNeuralNet) {
-    loadedModel = NeuralNet::loadModelFile(pbModelFile, modelFileIdx);
+    loadedModel = NeuralNet::loadModelFile(modelFileName, modelFileIdx);
     m_inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,posLen);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);

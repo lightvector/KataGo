@@ -72,19 +72,11 @@ static pair<int,float> chooseExtraBlackAndKomi(
 //------------------------------------------------------------------------------------------------
 
 GameInitializer::GameInitializer(ConfigParser& cfg)
-  :createGameMutex(),rand(),hasParams(false),baseParams()
+  :createGameMutex(),rand()
 {
   initShared(cfg);
-  noResultStdev = 0.0;
-  drawStdev = 0.0;
-}
-
-GameInitializer::GameInitializer(ConfigParser& cfg, const SearchParams& params)
-  :createGameMutex(),rand(),hasParams(true),baseParams(params)
-{
-  initShared(cfg);
-  noResultStdev = cfg.getDouble("noResultStdev",0.0,1.0);
-  drawStdev = cfg.getDouble("drawStdev",0.0,1.0);
+  noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
+  drawStdev = cfg.contains("drawStdev") ? cfg.getDouble("drawStdev",0.0,1.0) : 0.0;
 }
 
 void GameInitializer::initShared(ConfigParser& cfg) {
@@ -125,30 +117,30 @@ void GameInitializer::initShared(ConfigParser& cfg) {
 GameInitializer::~GameInitializer()
 {}
 
-
 void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
   createGameSharedUnsynchronized(board,pla,hist,numExtraBlack);
-  assert(!hasParams);
+  if(noResultStdev != 0.0 || drawStdev != 0.0)
+    throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawStdev");
 }
 
 void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
   createGameSharedUnsynchronized(board,pla,hist,numExtraBlack);
-  assert(hasParams);
 
-  params = baseParams;
   if(noResultStdev > 1e-30) {
-    params.noResultUtilityForWhite = baseParams.noResultUtilityForWhite + noResultStdev * nextGaussianTruncated(rand, 2.0);
+    double mean = params.noResultUtilityForWhite;
+    params.noResultUtilityForWhite = mean + noResultStdev * nextGaussianTruncated(rand, 2.0);
     while(params.noResultUtilityForWhite < -1.0 || params.noResultUtilityForWhite > 1.0)
-      params.noResultUtilityForWhite = baseParams.noResultUtilityForWhite + noResultStdev * nextGaussianTruncated(rand, 2.0);
+      params.noResultUtilityForWhite = mean + noResultStdev * nextGaussianTruncated(rand, 2.0);
   }
   if(drawStdev > 1e-30) {
-    params.drawEquivalentWinsForWhite = baseParams.drawEquivalentWinsForWhite + drawStdev * nextGaussianTruncated(rand, 2.0);
+    double mean = params.drawEquivalentWinsForWhite;
+    params.drawEquivalentWinsForWhite = mean + drawStdev * nextGaussianTruncated(rand, 2.0);
     while(params.drawEquivalentWinsForWhite < 0.0 || params.drawEquivalentWinsForWhite > 1.0)
-      params.drawEquivalentWinsForWhite = baseParams.drawEquivalentWinsForWhite + drawStdev * nextGaussianTruncated(rand, 2.0);
+      params.drawEquivalentWinsForWhite = mean + drawStdev * nextGaussianTruncated(rand, 2.0);
   }
 }
 
@@ -174,17 +166,44 @@ void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, 
 
 //----------------------------------------------------------------------------------------------------------
 
-MatchPairer::MatchPairer(ConfigParser& cfg, bool forSelfPlay)
-  :numBots(),secondaryBots(),nextMatchups(),rand(),numGamesStartedSoFar(0),numGamesTotal(),logGamesEvery(),getMatchupMutex()
+MatchPairer::MatchPairer(
+  ConfigParser& cfg,
+  int nBots,
+  const vector<string>& bNames,
+  const vector<NNEvaluator*>& nEvals,
+  const vector<SearchParams>& bParamss,
+  bool forSelfPlay,
+  bool forGateKeeper
+)
+  :numBots(nBots),
+   botNames(bNames),
+   nnEvals(nEvals),
+   baseParamss(bParamss),
+   secondaryBots(),
+   nextMatchups(),
+   rand(),
+   numGamesStartedSoFar(0),
+   numGamesTotal(),
+   logGamesEvery(),
+   getMatchupMutex()
 {
+  assert(!(forSelfPlay && forGateKeeper));
+  assert(botNames.size() == numBots);
+  assert(nnEvals.size() == numBots);
+  assert(baseParamss.size() == numBots);
   if(forSelfPlay) {
-    numBots = 1;
+    assert(numBots == 1);
     numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
   }
+  else if(forGateKeeper) {
+    assert(numBots == 2);
+    numGamesTotal = cfg.getInt64("numGamesPerGating",1,((int64_t)1) << 24);
+  }
   else {
-    numBots = cfg.getInt("numBots",1,1024);
     if(cfg.contains("secondaryBots"))
       secondaryBots = cfg.getInts("secondaryBots",0,4096);
+    for(int i = 0; i<secondaryBots.size(); i++)
+      assert(secondaryBots[i] >= 0 && secondaryBots[i] < numBots);
     numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
   }
 
@@ -195,19 +214,7 @@ MatchPairer::~MatchPairer()
 {}
 
 bool MatchPairer::getMatchup(
-  int64_t& gameIdx, Logger& logger,
-  const NNEvaluator* nnEvalToLog, const vector<NNEvaluator*>* nnEvalsToLog
-)
-{
-  int botIdxB;
-  int botIdxW;
-  assert(numBots == 1);
-  return getMatchup(gameIdx,botIdxB,botIdxW,logger,nnEvalToLog,nnEvalsToLog);
-}
-
-bool MatchPairer::getMatchup(
-  int64_t& gameIdx, int& botIdxB, int& botIdxW, Logger& logger,
-  const NNEvaluator* nnEvalToLog, const vector<NNEvaluator*>* nnEvalsToLog
+  int64_t& gameIdx, BotSpec& botSpecB, BotSpec& botSpecW, Logger& logger
 )
 {
   std::lock_guard<std::mutex> lock(getMatchupMutex);
@@ -222,26 +229,24 @@ bool MatchPairer::getMatchup(
     logger.write("Started " + Global::int64ToString(numGamesStartedSoFar) + " games");
   int logNNEvery = logGamesEvery*100 > 1000 ? logGamesEvery*100 : 1000;
   if(numGamesStartedSoFar % logNNEvery == 0) {
-    if(nnEvalsToLog != NULL) {
-      const vector<NNEvaluator*>& nnEvals = *nnEvalsToLog;
-      for(int i = 0; i<nnEvals.size(); i++) {
-        logger.write(nnEvals[i]->getModelFileName());
-        logger.write("NN rows: " + Global::int64ToString(nnEvals[i]->numRowsProcessed()));
-        logger.write("NN batches: " + Global::int64ToString(nnEvals[i]->numBatchesProcessed()));
-        logger.write("NN avg batch size: " + Global::doubleToString(nnEvals[i]->averageProcessedBatchSize()));
-      }
-    }
-    if(nnEvalToLog != NULL) {
-      logger.write(nnEvalToLog->getModelFileName());
-      logger.write("NN rows: " + Global::int64ToString(nnEvalToLog->numRowsProcessed()));
-      logger.write("NN batches: " + Global::int64ToString(nnEvalToLog->numBatchesProcessed()));
-      logger.write("NN avg batch size: " + Global::doubleToString(nnEvalToLog->averageProcessedBatchSize()));
+    for(int i = 0; i<nnEvals.size(); i++) {
+      logger.write(nnEvals[i]->getModelFileName());
+      logger.write("NN rows: " + Global::int64ToString(nnEvals[i]->numRowsProcessed()));
+      logger.write("NN batches: " + Global::int64ToString(nnEvals[i]->numBatchesProcessed()));
+      logger.write("NN avg batch size: " + Global::doubleToString(nnEvals[i]->averageProcessedBatchSize()));
     }
   }
 
   pair<int,int> matchup = getMatchupPair();
-  botIdxB = matchup.first;
-  botIdxW = matchup.second;
+  botSpecB.botIdx = matchup.first;
+  botSpecB.botName = botNames[matchup.first];
+  botSpecB.nnEval = nnEvals[matchup.first];
+  botSpecB.baseParams = baseParamss[matchup.first];
+
+  botSpecW.botIdx = matchup.second;
+  botSpecW.botName = botNames[matchup.second];
+  botSpecW.nnEval = nnEvals[matchup.second];
+  botSpecW.baseParams = baseParamss[matchup.second];
 
   return true;
 }
@@ -328,35 +333,56 @@ static void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board
   bot->setRootPassLegal(true);
 }
 
+
 //Run a game between two bots. It is OK if both bots are the same bot.
-//Mutates the given board and history
-void Play::runGame(
-  Board& board, Player pla, BoardHistory& hist, int numExtraBlack, Search* botB, Search* botW,
+FinishedGameData* Play::runGame(
+  const Board& initialBoard, Player pla, const BoardHistory& initialHist, int numExtraBlack,
+  MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
+  const string& searchRandSeed,
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,
-  bool fancyModes,
-  FinishedGameData* gameData, Rand* gameRand
+  bool fancyModes, bool recordFullData, int dataPosLen,
+  Rand& gameRand
 ) {
+  FinishedGameData* gameData = new FinishedGameData();
+
+  Search* botB;
+  Search* botW;
+  if(botSpecB.botIdx == botSpecW.botIdx) {
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, searchRandSeed);
+    botW = botB;
+  }
+  else {
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, searchRandSeed + "@B");
+    botW = new Search(botSpecW.baseParams, botSpecW.nnEval, searchRandSeed + "@W");
+  }
+
+  Board board(initialBoard);
+  BoardHistory hist(initialHist);
   if(numExtraBlack > 0)
     playExtraBlack(botB,logger,numExtraBlack,board,hist);
 
   vector<double>* recordUtilities = NULL;
 
-  if(gameData != NULL) {
-    gameData->gameHash.hash0 = gameRand->nextUInt64();
-    gameData->gameHash.hash1 = gameRand->nextUInt64();
+  gameData->bName = botSpecB.botName;
+  gameData->wName = botSpecW.botName;
+  gameData->bIdx = botSpecB.botIdx;
+  gameData->wIdx = botSpecW.botIdx;
 
-    gameData->firstTrainingTurn = 0;
-    gameData->mode = 0;
-    gameData->modeMeta1 = 0;
-    gameData->modeMeta2 = 0;
+  gameData->preStartBoard = board;
+  gameData->gameHash.hash0 = gameRand.nextUInt64();
+  gameData->gameHash.hash1 = gameRand.nextUInt64();
 
-    gameData->preStartBoard = board;
+  gameData->drawEquivalentWinsForWhite = botSpecB.baseParams.drawEquivalentWinsForWhite;
 
-    assert(gameData->moves.size() == 0);
+  gameData->firstTrainingTurn = 0;
+  gameData->mode = 0;
+  gameData->modeMeta1 = 0;
+  gameData->modeMeta2 = 0;
+
+  if(recordFullData)
     recordUtilities = new vector<double>(256);
-  }
 
   if(fancyModes) {
     //Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
@@ -367,7 +393,7 @@ void Play::runGame(
 
       double r = 0;
       while(r < 0.00000001)
-        r = gameRand->nextDouble();
+        r = gameRand.nextDouble();
       r = -log(r);
       //This gives us about 36 moves on average for 19x19.
       int numInitialMovesToPlay = floor(r * board.x_size * board.y_size / 10.0);
@@ -382,6 +408,8 @@ void Play::runGame(
         vector<Loc> locs;
         vector<double> playSelectionValues;
         int posLen = nnOutput->posLen;
+        assert(posLen >= board.x_size);
+        assert(posLen >= board.y_size);
         assert(posLen > 0 && posLen < 100);
         int policySize = NNPos::getPolicySize(posLen);
         for(int movePos = 0; movePos<policySize; movePos++) {
@@ -398,10 +426,10 @@ void Play::runGame(
         //With a tiny probability, choose a uniformly random move instead of a policy move, to also
         //add a bit more outlierish variety
         uint32_t idxChosen;
-        if(gameRand->nextBool(0.0002))
-          idxChosen = gameRand->nextUInt(playSelectionValues.size());
+        if(gameRand.nextBool(0.0002))
+          idxChosen = gameRand.nextUInt(playSelectionValues.size());
         else
-          idxChosen = gameRand->nextUInt(playSelectionValues.data(),playSelectionValues.size());
+          idxChosen = gameRand.nextUInt(playSelectionValues.data(),playSelectionValues.size());
         Loc loc = locs[idxChosen];
 
         //Make the move!
@@ -418,26 +446,23 @@ void Play::runGame(
     }
 
     //Make sure there's some minimum tiny amount of data about how the encore phases work
-    if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand->nextBool(0.02)) {
-      int encorePhase = gameRand->nextInt(1,2);
+    if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.02)) {
+      int encorePhase = gameRand.nextInt(1,2);
       hist.clear(board,pla,hist.rules,encorePhase);
 
-      if(gameData != NULL) {
-        gameData->preStartBoard = board;
-        gameData->mode = 1;
-        gameData->modeMeta1 = encorePhase;
-        gameData->modeMeta2 = 0;
-      }
+      gameData->preStartBoard = board;
+      gameData->mode = 1;
+      gameData->modeMeta1 = encorePhase;
+      gameData->modeMeta2 = 0;
     }
   }
 
   //Set in the starting board and history to gameData and both bots
-  if(gameData != NULL) {
-    gameData->startBoard = board;
-    gameData->startHist = hist;
-    gameData->startPla = pla;
-    gameData->firstTrainingTurn = hist.moveHistory.size();
-  }
+  gameData->startBoard = board;
+  gameData->startHist = hist;
+  gameData->startPla = pla;
+  gameData->firstTrainingTurn = hist.moveHistory.size();
+
   botB->setPosition(pla,board,hist);
   if(botB != botW)
     botW->setPosition(pla,board,hist);
@@ -464,9 +489,7 @@ void Play::runGame(
     if(logMoves)
       logger.write("Move " + Global::intToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
 
-    if(gameData != NULL) {
-      gameData->moves.push_back(Move(loc,pla));
-
+    if(recordFullData) {
       vector<PolicyTargetMove>* policyTargets = new vector<PolicyTargetMove>();
       locsBuf.clear();
       playSelectionValuesBuf.clear();
@@ -536,15 +559,13 @@ void Play::runGame(
 
   }
 
+  gameData->endHist = hist;
+  if(hist.isGameFinished)
+    gameData->hitTurnLimit = false;
+  else
+    gameData->hitTurnLimit = true;
 
-  if(gameData != NULL) {
-    gameData->endHist = hist;
-
-    if(hist.isGameFinished)
-      gameData->hitTurnLimit = false;
-    else
-      gameData->hitTurnLimit = true;
-
+  if(recordFullData) {
     ValueTargets finalValueTargets;
     Color area[Board::MAX_ARR_SIZE];
     if(hist.isGameFinished && hist.isNoResult) {
@@ -575,11 +596,13 @@ void Play::runGame(
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
 
-    int posLen = gameData->posLen;
-    std::fill(gameData->finalOwnership, gameData->finalOwnership + posLen*posLen, 0);
+    assert(dataPosLen > 0);
+    assert(gameData->finalOwnership == NULL);
+    gameData->finalOwnership = new int8_t[dataPosLen*dataPosLen];
+    std::fill(gameData->finalOwnership, gameData->finalOwnership + dataPosLen*dataPosLen, 0);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,posLen);
+        int pos = NNPos::xyToPos(x,y,dataPosLen);
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(area[loc] == P_BLACK)
           gameData->finalOwnership[pos] = -1;
@@ -591,107 +614,114 @@ void Play::runGame(
           assert(false);
       }
     }
+
+    gameData->hasFullData = true;
+    gameData->posLen = dataPosLen;
   }
 
   if(recordUtilities != NULL)
     delete recordUtilities;
 
+  if(botW != botB)
+    delete botW;
+  delete botB;
+
+  return gameData;
 }
 
 
 
-GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase)
-  :logSearchInfo(),logMoves(),maxMovesPerGame(),
-   searchRandSeedBase(sRandSeedBase),matchPairer(NULL),gameInit(NULL)
+GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, bool forSelfP)
+  :logSearchInfo(),logMoves(),forSelfPlay(forSelfP),maxMovesPerGame(),clearBotAfterSearch(),
+   searchRandSeedBase(sRandSeedBase),gameInit(NULL)
 {
-  vector<SearchParams> paramss = Setup::loadParams(cfg);
-  if(paramss.size() != 1)
-    throw StringError("Can only specify one set of search parameters for self-play");
-  SearchParams baseParams = paramss[0];
-
   logSearchInfo = cfg.getBool("logSearchInfo");
   logMoves = cfg.getBool("logMoves");
   maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
-
-  //Mostly the matchpairer for the logging and game counting
-  bool forSelfPlay = true;
-  matchPairer = new MatchPairer(cfg,forSelfPlay);
+  clearBotAfterSearch = cfg.contains("clearBotAfterSearch") ? cfg.getBool("clearBotAfterSearch") : false;
 
   //Initialize object for randomizing game settings
-  gameInit = new GameInitializer(cfg,baseParams);
+  gameInit = new GameInitializer(cfg);
 }
 
 GameRunner::~GameRunner() {
-  delete matchPairer;
   delete gameInit;
 }
 
-bool GameRunner::runGameAndEnqueueData(
-  NNEvaluator* nnEval, Logger& logger,
-  int dataPosLen, ThreadSafeQueue<FinishedGameData*>& finishedGameQueue,
-  std::atomic<bool>& stopSignalReceived
-) {
-  return runGameAndEnqueueData(nnEval,nnEval,logger,dataPosLen,finishedGameQueue,stopSignalReceived);
-}
-
-bool GameRunner::runGameAndEnqueueData(
-  NNEvaluator* nnEvalB, NNEvaluator* nnEvalW, Logger& logger,
-  int dataPosLen, ThreadSafeQueue<FinishedGameData*>& finishedGameQueue,
+bool GameRunner::runGame(
+  MatchPairer* matchPairer, Logger& logger,
+  int dataPosLen,
+  ThreadSafeQueue<FinishedGameData*>* finishedGameQueue,
+  std::function<void(const FinishedGameData&)>* reportGame,
   std::atomic<bool>& stopSignalReceived
 ) {
   int64_t gameIdx;
   bool shouldContinue;
-  if(nnEvalB == nnEvalW)
-    shouldContinue = matchPairer->getMatchup(gameIdx, logger, nnEvalB, NULL);
-  else {
-    vector<NNEvaluator*> nnEvalsToLog({nnEvalB,nnEvalW});
-    shouldContinue = matchPairer->getMatchup(gameIdx, logger, NULL, &nnEvalsToLog);
-  }
+  MatchPairer::BotSpec botSpecB;
+  MatchPairer::BotSpec botSpecW;
+  shouldContinue = matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger);
 
   if(!shouldContinue)
     return false;
 
   Board board; Player pla; BoardHistory hist; int numExtraBlack;
-  SearchParams params;
-  gameInit->createGame(board,pla,hist,numExtraBlack,params);
+  if(forSelfPlay) {
+    assert(botSpecB.botIdx == botSpecW.botIdx);
+    SearchParams params = botSpecB.baseParams;
+    gameInit->createGame(board,pla,hist,numExtraBlack,params);
+    botSpecB.baseParams = params;
+    botSpecW.baseParams = params;
+  }
+  else {
+    gameInit->createGame(board,pla,hist,numExtraBlack);
+  }
+
+  bool clearBotAfterSearchThisGame = clearBotAfterSearch;
+  if(botSpecB.botIdx == botSpecW.botIdx) {
+    //Avoid interactions between the two bots since they're the same.
+    //Also in self-play this makes sure root noise is effective on each new search
+    clearBotAfterSearchThisGame = true;
+  }
 
   string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
   Rand gameRand(searchRandSeed + ":" + "forGameRand");
 
-  //Avoid interactions between the two bots and make sure root noise is effective on each new search
-  bool clearBotAfterSearchThisGame = true;
   //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
   //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
   //called on positions that occur after the game would have been autoterminated.
-  bool doEndGameIfAllPassAlive = gameRand.nextBool(0.98);
-
-  Search* botB = new Search(params, nnEvalB, searchRandSeed);
-  Search* botW;
-  if(nnEvalW == nnEvalB)
-    botW = botB;
-  else
-    botW = new Search(params, nnEvalW, searchRandSeed);
-
-  FinishedGameData* finishedGameData = new FinishedGameData(dataPosLen, params.drawEquivalentWinsForWhite);
-  bool fancyModes = true;
-  Play::runGame(
-    board,pla,hist,numExtraBlack,botB,botW,
+  bool doEndGameIfAllPassAlive = forSelfPlay ? gameRand.nextBool(0.98) : true;
+  //In selfplay, do special entropy-introducing initialization of the game
+  bool fancyModes = forSelfPlay;
+  //In selfplay, record all the policy maps and evals and such as well for training data
+  bool recordFullData = forSelfPlay;
+  FinishedGameData* finishedGameData = Play::runGame(
+    board,pla,hist,numExtraBlack,
+    botSpecB,botSpecW,
+    searchRandSeed,
     doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,stopSignalReceived,
-    fancyModes,
-    finishedGameData,&gameRand
+    fancyModes,recordFullData,dataPosLen,
+    gameRand
   );
-
-  if(botW != botB)
-    delete botW;
-  delete botB;
 
   //Make sure not to write the game if we terminated in the middle of this game!
   if(stopSignalReceived.load())
     return false;
 
-  finishedGameQueue.waitPush(finishedGameData);
+  if(reportGame != NULL) {
+    assert(finishedGameData != NULL);
+    (*reportGame)(*finishedGameData);
+  }
+
+  if(finishedGameQueue != NULL) {
+    assert(finishedGameData != NULL);
+    finishedGameQueue->waitPush(finishedGameData);
+  }
+  else{
+    delete finishedGameData;
+  }
+
   return true;
 }
 

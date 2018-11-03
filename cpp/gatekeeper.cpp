@@ -17,7 +17,7 @@ using namespace std;
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
-#include <boost/filesystem.hpp>
+#include <cstdio>
 
 #include <chrono>
 
@@ -36,47 +36,119 @@ static void signalHandler(int signal)
 
 
 //Wraps together a neural net and handles for outputting training data for it.
-//There should be one of these active per currently-loaded neural net, and one active thread
+//There should be one of these active for each gatekeeping match we run, and one active thread
 //looping and actually performing the data output
+//DOES take ownership of the NNEvaluators
 namespace {
   struct NetAndStuff {
-    string modelName;
-    NNEvaluator* nnEvalCandidate;
+    string modelNameBaseline;
+    string modelNameCandidate;
     NNEvaluator* nnEvalBaseline;
+    NNEvaluator* nnEvalCandidate;
+    MatchPairer* matchPairer;
+
+    string testModelDir;
 
     ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
     int numGameThreads;
     bool isDraining;
 
+    double drawEquivalentWinsForWhite;
+    double noResultUtilityForWhite;
+
+    int numGamesTallied;
+    double numBaselineWinPoints;
+    double numCandidateWinPoints;
+
     ofstream* sgfOut;
 
   public:
-    NetAndStuff(const string& name, NNEvaluator* nevalC, NNEvaluator* nevalB, ofstream* sOut)
-      :modelName(name),
-       nnEvalCandidate(nevalC),
+    NetAndStuff(ConfigParser& cfg, const string& nameB, const string& nameC, const string& tModelDir, NNEvaluator* nevalB, NNEvaluator* nevalC, ofstream* sOut)
+      :modelNameBaseline(nameB),
+       modelNameCandidate(nameC),
        nnEvalBaseline(nevalB),
+       nnEvalCandidate(nevalC),
+       matchPairer(NULL),
+       testModelDir(tModelDir),
        finishedGameQueue(),
        numGameThreads(0),
        isDraining(false),
+       drawEquivalentWinsForWhite(0.5),
+       noResultUtilityForWhite(0.0),
+       numGamesTallied(0),
+       numBaselineWinPoints(0.0),
+       numCandidateWinPoints(0.0),
        sgfOut(sOut)
-    {}
+    {
+      vector<SearchParams> paramss = Setup::loadParams(cfg);
+      if(paramss.size() != 1)
+        throw StringError("Can only specify one set of search parameters for gatekeeper");
+      SearchParams baseParams = paramss[0];
+
+      drawEquivalentWinsForWhite = baseParams.drawEquivalentWinsForWhite;
+      noResultUtilityForWhite = baseParams.noResultUtilityForWhite;
+
+      //Initialize object for randomly pairing bots. Actually since this is only selfplay, this only
+      //ever gives is the trivial self-pairing, but we use it also for keeping the game count and some logging.
+      bool forSelfPlay = false;
+      bool forGateKeeper = true;
+      matchPairer = new MatchPairer(
+        cfg, 2, {modelNameBaseline,modelNameCandidate}, {nnEvalBaseline,nnEvalCandidate}, {baseParams, baseParams}, forSelfPlay, forGateKeeper
+      );
+    }
 
     ~NetAndStuff() {
+      delete matchPairer;
       delete nnEvalCandidate;
       delete nnEvalBaseline;
       if(sgfOut != NULL)
         delete sgfOut;
     }
 
-    void runWriteDataLoop() {
+    void runWriteDataLoop(Logger& logger) {
       while(true) {
         FinishedGameData* data = finishedGameQueue.waitPop();
         if(data == NULL)
           break;
 
+        double whitePoints;
+        double blackPoints;
+        if(data->endHist.isGameFinished && data->endHist.isNoResult) {
+          whitePoints = drawEquivalentWinsForWhite;
+          blackPoints = 1.0 - whitePoints;
+          logger.write("Game " + Global::intToString(numGamesTallied) + ": noresult");
+        }
+        else {
+          BoardHistory hist = data->endHist;
+          Board endBoard = hist.getRecentBoard(0);
+          //Force game end just in caseif we crossed a move limit
+          if(!hist.isGameFinished)
+            hist.endAndScoreGameNow(endBoard);
+
+          if(hist.winner == P_BLACK) {
+            whitePoints = 0.0;
+            blackPoints = 1.0;
+            logger.write("Game " + Global::intToString(numGamesTallied) + ": winner black " + data->bName);
+          }
+          else if(hist.winner == P_WHITE) {
+            whitePoints = 1.0;
+            blackPoints = 0.0;
+            logger.write("Game " + Global::intToString(numGamesTallied) + ": winner white " + data->wName);
+          }
+          else {
+            whitePoints = 0.5 * noResultUtilityForWhite + 0.5;
+            blackPoints = 1.0 - whitePoints;
+            logger.write("Game " + Global::intToString(numGamesTallied) + ": draw");
+          }
+        }
+
+        numGamesTallied++;
+        numBaselineWinPoints += (data->bIdx == 0) ? blackPoints : whitePoints;
+        numCandidateWinPoints += (data->bIdx == 1) ? blackPoints : whitePoints;
+
         if(sgfOut != NULL) {
           assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
-          WriteSgf::writeSgf(*sgfOut,modelName,modelName,data->startHist.rules,data->preStartBoard,data->endHist,data);
+          WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->startHist.rules,data->preStartBoard,data->endHist,NULL);
           (*sgfOut) << endl;
         }
         delete data;
@@ -123,28 +195,24 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   Rand seedRand;
 
   string configFile;
-  int inputsVersion;
   string testModelsDir;
   string acceptedModelsDir;
   string rejectedModelsDir;
   string sgfOutputDir;
   try {
-    TCLAP::CmdLine cmd("Generate training data via self play", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Test neural nets to see if they should be accepted", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
-    TCLAP::ValueArg<int>    inputsVersionArg("","inputs-version","Version of neural net input features to use for data",true,0,"INT");
     TCLAP::ValueArg<string> testModelsDirArg("","test-models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");
     TCLAP::ValueArg<string> acceptedModelsDirArg("","accepted-models-dir","Dir to write good models to",true,string(),"DIR");
     TCLAP::ValueArg<string> rejectedModelsDirArg("","rejected-models-dir","Dir to write bad models to",true,string(),"DIR");
     cmd.add(configFileArg);
-    cmd.add(inputsVersionArg);
     cmd.add(testModelsDirArg);
     cmd.add(sgfOutputDirArg);
     cmd.add(acceptedModelsDirArg);
     cmd.add(rejectedModelsDirArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
-    inputsVersion = inputsVersionArg.getValue();
     testModelsDir = testModelsDirArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();
     acceptedModelsDir = acceptedModelsDirArg.getValue();
@@ -172,60 +240,45 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
   const string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
-  //Shouldn't matter actually, we need it because we're sharing code with selfPlay, but for our purposes
-  //all this needs to be is no smaller than the actual board sizes tested on.
-  const int dataPosLen = cfg.getInt("dataPosLen",9,37);
-
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase);
+  bool forSelfPlay = false;
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay);
 
   Setup::initializeSession(cfg);
 
   //Done loading!
   //------------------------------------------------------------------------------------
-  logger.write("Loaded all config stuff, starting play");
+  logger.write("Loaded all config stuff, watching for new neural nets in " + testModelsDir);
   if(!logToStdout)
-    cout << "Loaded all config stuff, starting play" << endl;
+    cout << "Loaded all config stuff, watching for new neural nets in " + testModelsDir << endl;
 
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
-  std::mutex netAndStuffsMutex;
-  vector<NetAndStuff*> netAndStuffs;
-  std::condition_variable netAndStuffsIsEmpty;
+  std::mutex netAndStuffMutex;
+  NetAndStuff* netAndStuff = NULL;
+  bool netAndStuffDataIsWritten = false;
+  std::condition_variable waitNetAndStuffDataIsWritten;
 
   //Looping thread for writing data for a single net
-  auto dataWriteLoop = [&netAndStuffsMutex,&netAndStuffs,&netAndStuffsIsEmpty,&logger](NetAndStuff* netAndStuff) {
-    logger.write("Data write loop starting for neural net: " + netAndStuff->modelName);
-    netAndStuff->runWriteDataLoop();
-    logger.write("Data write loop finishing for neural net: " + netAndStuff->modelName);
+  auto dataWriteLoop = [&netAndStuffMutex,&netAndStuff,&netAndStuffDataIsWritten,&waitNetAndStuffDataIsWritten,&logger]() {
+    string modelNameBaseline = netAndStuff->modelNameBaseline;
+    string modelNameCandidate = netAndStuff->modelNameCandidate;
+    logger.write("Data write loop starting for neural net: " + modelNameBaseline + " vs " + modelNameCandidate);
+    netAndStuff->runWriteDataLoop(logger);
+    logger.write("Data write loop finishing for neural net: " + modelNameBaseline + " vs " + modelNameCandidate);
 
-    std::unique_lock<std::mutex> lock(netAndStuffsMutex);
-
-    //Find where our netAndStuff is and remove it
-    string name = netAndStuff->modelName;
-    bool found = false;
-    for(int i = 0; i<netAndStuffs.size(); i++) {
-      if(netAndStuffs[i] == netAndStuff) {
-        netAndStuffs.erase(netAndStuffs.begin()+i);
-        assert(netAndStuff->numGameThreads == 0);
-        assert(netAndStuff->isDraining);
-        delete netAndStuff;
-        found = true;
-        break;
-      }
-    }
-    assert(found);
-    if(netAndStuffs.size() == 0)
-      netAndStuffsIsEmpty.notify_all();
+    std::unique_lock<std::mutex> lock(netAndStuffMutex);
+    netAndStuffDataIsWritten = true;
+    waitNetAndStuffDataIsWritten.notify_all();
 
     lock.unlock();
-    logger.write("Data write loop cleaned up and terminating for " + name);
+    logger.write("Data write loop cleaned up and terminating for " + modelNameBaseline + " vs " + modelNameCandidate);
   };
 
   auto loadLatestNeuralNet =
-    [inputsVersion,&testModelsDir,&acceptedModelsDir,&sgfOutputDir,&logger,&cfg](const string* lastNetName) -> NetAndStuff* {
+    [&testModelsDir,&acceptedModelsDir,&sgfOutputDir,&logger,&cfg]() -> NetAndStuff* {
     Rand rand;
 
     string testModelName;
@@ -234,7 +287,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     bool foundModel = LoadModel::findLatestModel(testModelsDir, logger, testModelName, testModelFile, testModelDir);
 
     //No new neural nets yet
-    if(!foundModel || (lastNetName != NULL && *lastNetName == testModelName))
+    if(!foundModel || testModelFile == "/dev/null")
       return NULL;
 
     logger.write("Found new candidate neural net " + testModelName);
@@ -253,8 +306,10 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     string acceptedModelFile;
     string acceptedModelDir;
     foundModel = LoadModel::findLatestModel(acceptedModelsDir, logger, acceptedModelName, acceptedModelFile, acceptedModelDir);
-    if(!foundModel)
+    if(!foundModel) {
       logger.write("Error: No accepted model found in " + acceptedModelsDir);
+      return NULL;
+    }
 
     bool debugSkipNeuralNetDefaultAccepted = (acceptedModelFile == "/dev/null");
 
@@ -271,10 +326,8 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
     MakeDir::make(sgfOutputDirThisModel);
 
-    //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
-    //simply controls the input feature version for the written data
     ofstream* sgfOut = sgfOutputDirThisModel.length() > 0 ? (new ofstream(sgfOutputDirThisModel + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
-    NetAndStuff* newNet = new NetAndStuff(testModelName, testNNEval, acceptedNNEval, sgfOut);
+    NetAndStuff* newNet = new NetAndStuff(cfg, acceptedModelName, testModelName, testModelDir, acceptedNNEval, testNNEval, sgfOut);
 
     //Check for unused config keys
     {
@@ -292,46 +345,138 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   auto gameLoop = [
     &gameRunner,
     &logger,
-    &netAndStuffsMutex,&netAndStuffs,
-    dataPosLen
+    &netAndStuffMutex,&netAndStuff
   ](int threadIdx) {
-    std::unique_lock<std::mutex> lock(netAndStuffsMutex);
-    string prevModelName;
+    std::unique_lock<std::mutex> lock(netAndStuffMutex);
+    netAndStuff->registerGameThread();
+    logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game testing candidate: " + netAndStuff->modelNameCandidate);
+
     while(true) {
       if(shouldStop.load())
         break;
 
-      assert(netAndStuffs.size() > 0);
-      NetAndStuff* netAndStuff = netAndStuffs[netAndStuffs.size()-1];
-      netAndStuff->registerGameThread();
-
       lock.unlock();
 
-      if(prevModelName != netAndStuff->modelName) {
-        prevModelName = netAndStuff->modelName;
-        logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game on new candidate neural net: " + prevModelName);
-      }
-
-      //TODO randomize between who is black and white? Right now it's fixed. Or does the gameinitializer already take care of that? How did we do that for Match?
-      bool shouldContinue = gameRunner->runGameAndEnqueueData(
-        netAndStuff->nnEvalCandidate, netAndStuff->nnEvalBaseline, logger,
-        dataPosLen, netAndStuff->finishedGameQueue,
-        shouldStop
+      int dataPosLen = 19; //Doesn't matter, we don't actually write training data
+      bool shouldContinue = gameRunner->runGame(
+        netAndStuff->matchPairer, logger,
+        dataPosLen, &(netAndStuff->finishedGameQueue),
+        NULL, shouldStop
       );
 
       lock.lock();
-
-      netAndStuff->unregisterGameThread();
 
       if(!shouldContinue)
         break;
     }
 
+    netAndStuff->unregisterGameThread();
+
     lock.unlock();
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " terminating");
   };
 
-  //TODO continue from here
+  //Looping polling for new neural nets and loading them in
+  while(true) {
+    if(shouldStop.load())
+      break;
 
+    assert(netAndStuff == NULL);
+    netAndStuff = loadLatestNeuralNet();
 
+    if(netAndStuff == NULL) {
+      for(int i = 0; i<12; i++) {
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        if(shouldStop.load())
+          break;
+      }
+      continue;
+    }
+
+    //Check again if we should be stopping, after loading the new net, and quit more quickly.
+    if(shouldStop.load()) {
+      delete netAndStuff;
+      netAndStuff = NULL;
+      break;
+    }
+
+    //Otherwise, we're not stopped yet, so let's proceeed. Initialize stuff...
+    netAndStuffDataIsWritten = false;
+
+    //And spawn off all the threads
+    std::thread newThread(dataWriteLoop);
+    newThread.detach();
+    vector<std::thread> threads;
+    for(int i = 0; i<numGameThreads; i++) {
+      threads.push_back(std::thread(gameLoop,i));
+    }
+
+    //Wait for all game threads to stop
+    for(int i = 0; i<numGameThreads; i++)
+      threads[i].join();
+
+    //Mark as draining so the data write thread will quit
+    netAndStuff->markAsDraining();
+
+    //Wait for the data to all be written
+    {
+      std::unique_lock<std::mutex> lock(netAndStuffMutex);
+      while(!netAndStuffDataIsWritten) {
+        waitNetAndStuffDataIsWritten.wait(lock);
+      }
+    }
+
+    //Don't do anything if the reason we quit was due to signal
+    if(shouldStop.load()) {
+      delete netAndStuff;
+      netAndStuff = NULL;
+      break;
+    }
+
+    if(netAndStuff->numBaselineWinPoints > netAndStuff->numCandidateWinPoints + 1e-12) {
+      logger.write(
+        Global::strprintf(
+          "Candidate lost match, score %.3f to %.3f in %d games, rejecting candidate %s",
+          netAndStuff->numCandidateWinPoints,
+          netAndStuff->numBaselineWinPoints,
+          netAndStuff->numGamesTallied,
+          netAndStuff->modelNameCandidate.c_str()
+        )
+      );
+
+      string renameDest = rejectedModelsDir + "/" + netAndStuff->modelNameCandidate;
+      logger.write("Moving " + netAndStuff->testModelDir + " to " + renameDest);
+      std::rename(netAndStuff->testModelDir.c_str(),renameDest.c_str());
+    }
+    else {
+      logger.write(
+        Global::strprintf(
+          "Candidate won match, score %.3f to %.3f in %d games, accepting candidate %s",
+          netAndStuff->numCandidateWinPoints,
+          netAndStuff->numBaselineWinPoints,
+          netAndStuff->numGamesTallied,
+          netAndStuff->modelNameCandidate.c_str()
+        )
+      );
+
+      string renameDest = acceptedModelsDir + "/" + netAndStuff->modelNameCandidate;
+      logger.write("Moving " + netAndStuff->testModelDir + " to " + renameDest);
+      std::rename(netAndStuff->testModelDir.c_str(),renameDest.c_str());
+    }
+
+    //Clean up
+    delete netAndStuff;
+    netAndStuff = NULL;
+    //Loop again after a short while
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+  }
+
+  //Delete and clean up everything else
+  NeuralNet::globalCleanup();
+  delete gameRunner;
+
+  if(sigReceived.load())
+    logger.write("Exited cleanly after signal");
+  logger.write("All cleaned up, quitting");
+  return 0;
 }

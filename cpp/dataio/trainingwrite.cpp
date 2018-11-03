@@ -19,35 +19,41 @@ ValueTargets::~ValueTargets()
 //-------------------------------------------------------------------------------------
 
 
-FinishedGameData::FinishedGameData(int pLen, double drawEquivForWhite)
-  : preStartBoard(),
-    startBoard(),
-    startHist(),
-    endHist(),
-    startPla(P_BLACK),
-    gameHash(),
-    moves(),
-    policyTargetsByTurn(),
-    whiteValueTargetsByTurn(),
-    finalOwnership(NULL),
-    drawEquivalentWinsForWhite(drawEquivForWhite),
-    posLen(pLen),
-    hitTurnLimit(false),
-    firstTrainingTurn(0),
-    mode(0),
-    modeMeta1(0),
-    modeMeta2(0)
+FinishedGameData::FinishedGameData()
+  :bName(),
+   wName(),
+   bIdx(0),
+   wIdx(0),
+
+   preStartBoard(),
+   startBoard(),
+   startHist(),
+   endHist(),
+   startPla(P_BLACK),
+   gameHash(),
+
+   drawEquivalentWinsForWhite(0.0),
+   hitTurnLimit(false),
+
+   firstTrainingTurn(0),
+   mode(0),
+   modeMeta1(0),
+   modeMeta2(0),
+
+   hasFullData(false),
+   posLen(-1),
+   policyTargetsByTurn(),
+   whiteValueTargetsByTurn(),
+   finalOwnership(NULL)
 {
-  finalOwnership = new int8_t[posLen*posLen];
-  for(int i = 0; i<posLen*posLen; i++)
-    finalOwnership[i] = 0;
 }
 
 FinishedGameData::~FinishedGameData() {
   for(int i = 0; i<policyTargetsByTurn.size(); i++)
     delete policyTargetsByTurn[i];
 
-  delete[] finalOwnership;
+  if(finalOwnership != NULL)
+    delete[] finalOwnership;
 }
 
 
@@ -164,7 +170,7 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
 
 void TrainingWriteBuffers::addRow(
   const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite,
-  int turnNumber,
+  int turnNumberAfterStart,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
   const FinishedGameData& data,
   Rand& rand
@@ -173,6 +179,8 @@ void TrainingWriteBuffers::addRow(
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 
   int posArea = posLen*posLen;
+  assert(data.posLen == posLen);
+  assert(data.hasFullData);
 
   {
     bool inputsUseNHWC = false;
@@ -213,19 +221,19 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[27] = 0.0f;
 
   //Fill td-like value targets
-  assert(turnNumber >= 0 && turnNumber < data.whiteValueTargetsByTurn.size());
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 0.0, rowGlobal);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0/36.0, rowGlobal+4);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0/12.0, rowGlobal+8);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0/4.0, rowGlobal+12);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumber, nextPlayer, 1.0, rowGlobal+16);
+  assert(turnNumberAfterStart >= 0 && turnNumberAfterStart < data.whiteValueTargetsByTurn.size());
+  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumberAfterStart, nextPlayer, 0.0, rowGlobal);
+  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumberAfterStart, nextPlayer, 1.0/36.0, rowGlobal+4);
+  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumberAfterStart, nextPlayer, 1.0/12.0, rowGlobal+8);
+  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumberAfterStart, nextPlayer, 1.0/4.0, rowGlobal+12);
+  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumberAfterStart, nextPlayer, 1.0, rowGlobal+16);
 
   //Fill score info
   const ValueTargets& lastTargets = data.whiteValueTargetsByTurn[data.whiteValueTargetsByTurn.size()-1];
   rowGlobal[20] = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
 
   //Fill short-term variance info
-  const ValueTargets& thisTargets = data.whiteValueTargetsByTurn[turnNumber];
+  const ValueTargets& thisTargets = data.whiteValueTargetsByTurn[turnNumberAfterStart];
   rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
   rowGlobal[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
   rowGlobal[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
@@ -253,7 +261,7 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[38] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
 
   //Some misc metadata
-  rowGlobal[39] = turnNumber;
+  rowGlobal[39] = turnNumberAfterStart;
   rowGlobal[40] = data.hitTurnLimit ? 1.0 : 0.0;
 
   //Metadata about how the game was initialized
@@ -265,6 +273,7 @@ void TrainingWriteBuffers::addRow(
   assert(45 == GLOBAL_TARGET_NUM_CHANNELS);
 
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
+  assert(data.finalOwnership != NULL);
   for(int i = 0; i<posArea; i++) {
     assert(data.finalOwnership[i] == 0 || data.finalOwnership[i] == 1 || data.finalOwnership[i] == -1);
     rowOwnership[i] = data.finalOwnership[i];
@@ -344,7 +353,7 @@ void TrainingDataWriter::close() {
 }
 
 void TrainingDataWriter::writeGame(const FinishedGameData& data) {
-  int numMoves = data.moves.size();
+  int numMoves = data.endHist.moveHistory.size() - data.startHist.moveHistory.size();
   assert(data.policyTargetsByTurn.size() == numMoves);
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
 
@@ -352,19 +361,19 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   BoardHistory hist(data.startHist);
   Player nextPlayer = data.startPla;
 
-  for(int turnNumber = 0; turnNumber<numMoves; turnNumber++) {
-    const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumber];
+  for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
+    const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumberAfterStart];
 
     writeBuffers->addRow(
       board,hist,nextPlayer,data.drawEquivalentWinsForWhite,
-      turnNumber,
+      turnNumberAfterStart,
       policyTarget0,
       data,
       rand
     );
     writeAndClearIfFull();
 
-    Move move = data.moves[turnNumber];
+    Move move = data.endHist.moveHistory[turnNumberAfterStart + data.startHist.moveHistory.size()];
     assert(move.pla == nextPlayer);
     assert(hist.isLegal(board,move.loc,move.pla));
     hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);

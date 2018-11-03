@@ -23,22 +23,19 @@ struct ValueTargets {
 };
 
 struct FinishedGameData {
-  Board preStartBoard;
+  string bName;
+  string wName;
+  int bIdx;
+  int wIdx;
+
+  Board preStartBoard; //Board as of the end of things like handicap placement
   Board startBoard; //Board as of the end of startHist, beginning of training period
   BoardHistory startHist; //Board history as of start of training period
   BoardHistory endHist; //Board history as of end of training period
   Player startPla; //Player to move as of end of startHist.
   Hash128 gameHash;
 
-  //This vector MIGHT be shorter than the list of moves in startHist, because there might be moves in
-  //startHist for context that we don't actually want to record as part of this game for training data.
-  vector<Move> moves;
-  vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
-  vector<ValueTargets> whiteValueTargetsByTurn;
-  int8_t* finalOwnership;
   double drawEquivalentWinsForWhite;
-
-  int posLen;
   bool hitTurnLimit;
 
   //Metadata about how the game was initialized
@@ -47,7 +44,15 @@ struct FinishedGameData {
   int modeMeta1;
   int modeMeta2;
 
-  FinishedGameData(int posLen, double drawEquivalentWinsForWhite);
+  //If false, then we don't have these below vectors and ownership information
+  bool hasFullData;
+  int posLen;
+  vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
+  vector<ValueTargets> whiteValueTargetsByTurn;
+  int8_t* finalOwnership;
+
+
+  FinishedGameData();
   ~FinishedGameData();
 
 };
@@ -101,7 +106,7 @@ struct TrainingWriteBuffers {
   //C33-38: 128-bit hash identifying the game which should also be output in the SGF data.
   //Split into chunks of 22, 22, 20, 22, 22, 20 bits, little-endian style (since floats have > 22 bits of precision).
 
-  //C39: Turn number, zero-indexed
+  //C39: Number of moves after start of training period, zero-indexed. (There could have been moves before training, see C41).
   //C40: Did this game end via hitting turn limit?
   //C41: First turn of this game that was proper selfplay for training rather than being initialization
   //C42-44: Game type, game typesource metadata
@@ -123,7 +128,7 @@ struct TrainingWriteBuffers {
 
   void addRow(
     const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite,
-    int turnNumber,
+    int turnNumberAfterStart,
     const vector<PolicyTargetMove>* policyTarget0, //can be null
     const FinishedGameData& data,
     Rand& rand

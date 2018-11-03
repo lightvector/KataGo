@@ -67,7 +67,7 @@ struct NNServerBuf {
 class NNEvaluator {
  public:
   NNEvaluator(
-    const string& pbModelFile,
+    const string& modelFileName,
     int modelFileIdx,
     int maxBatchSize,
     int posLen,
