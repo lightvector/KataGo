@@ -146,7 +146,7 @@ class Board:
       return False
     if self.board[loc] != Board.EMPTY:
       return False
-    if self.would_be_suicide(pla,loc):
+    if self.would_be_single_stone_suicide(pla,loc):
       return False
     if loc == self.simple_ko_point:
       return False
@@ -171,6 +171,28 @@ class Board:
        self.board[adj1] == pla and self.group_liberty_count[self.group_head[adj1]] > 1 or \
        self.board[adj2] == pla and self.group_liberty_count[self.group_head[adj2]] > 1 or \
        self.board[adj3] == pla and self.group_liberty_count[self.group_head[adj3]] > 1:
+      return False
+    return True
+
+  def would_be_single_stone_suicide(self,pla,loc):
+    adj0 = loc + self.adj[0]
+    adj1 = loc + self.adj[1]
+    adj2 = loc + self.adj[2]
+    adj3 = loc + self.adj[3]
+
+    opp = Board.get_opp(pla)
+
+    #If empty or capture, then not suicide
+    if self.board[adj0] == Board.EMPTY or (self.board[adj0] == opp and self.group_liberty_count[self.group_head[adj0]] == 1) or \
+       self.board[adj1] == Board.EMPTY or (self.board[adj1] == opp and self.group_liberty_count[self.group_head[adj1]] == 1) or \
+       self.board[adj2] == Board.EMPTY or (self.board[adj2] == opp and self.group_liberty_count[self.group_head[adj2]] == 1) or \
+       self.board[adj3] == Board.EMPTY or (self.board[adj3] == opp and self.group_liberty_count[self.group_head[adj3]] == 1):
+      return False
+    #If connects to own stone, then not single stone suicide
+    if self.board[adj0] == pla or \
+       self.board[adj1] == pla or \
+       self.board[adj2] == pla or \
+       self.board[adj3] == pla:
       return False
     return True
 
@@ -286,6 +308,7 @@ class Board:
 
 
   #Play a stone at the given location, with non-superko legality checking and updating the pla and simple ko point
+  #Single stone suicide is disallowed but suicide is allowed, to support rule sets and sgfs that have suicide
   def play(self,pla,loc):
     if pla != Board.BLACK and pla != Board.WHITE:
       raise ValueError("Invalid pla for board.play")
@@ -295,8 +318,8 @@ class Board:
         raise ValueError("Invalid loc for board.set")
       if self.board[loc] != Board.EMPTY:
         raise ValueError("Location is nonempty")
-      if self.would_be_suicide(pla,loc):
-        raise ValueError("Move would be illegal suicide")
+      if self.would_be_single_stone_suicide(pla,loc):
+        raise ValueError("Move would be illegal single stone suicide")
       if loc == self.simple_ko_point:
         raise ValueError("Move would be illegal simple ko recapture")
 
@@ -320,10 +343,15 @@ class Board:
         capDirs.append(i)
 
     self.playUnsafe(pla,loc)
-    return (pla,loc,old_simple_ko_point,capDirs)
+
+    #Suicide
+    selfCap = False
+    if self.board[loc] == Board.EMPTY:
+      selfCap = True
+    return (pla,loc,old_simple_ko_point,capDirs,selfCap)
 
   def undo(self,record):
-    (pla,loc,simple_ko_point,capDirs) = record
+    (pla,loc,simple_ko_point,capDirs,selfCap) = record
     opp = Board.get_opp(pla)
 
     self.simple_ko_point = simple_ko_point
@@ -337,6 +365,9 @@ class Board:
       adj = loc + self.adj[capdir]
       if self.board[adj] == Board.EMPTY:
         self.floodFillStones(opp,adj)
+
+    if selfCap:
+      self.floodFillStones(pla,loc)
 
     #Delete the stone played here.
     self.zobrist ^= Board.ZOBRIST_STONE[pla][loc]
@@ -522,6 +553,7 @@ class Board:
       caploc = adj3
       self.remove_unsafe(adj3)
 
+    #Suicide
     if self.group_liberty_count[self.group_head[loc]] == 0:
       self.remove_unsafe(loc)
 
