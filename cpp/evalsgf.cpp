@@ -29,8 +29,8 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::ValueArg<int> moveNumArg("","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");
     TCLAP::ValueArg<string> printBranchArg("","print-branch","Move branch in search tree to print",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> printArg("","print","Alias for -print-branch",false,string(),"MOVE MOVE ...");
-    TCLAP::ValueArg<string> extraMovesArg("","extra-moves","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
-    TCLAP::ValueArg<string> movesArg("","moves","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
+    TCLAP::ValueArg<string> extraMovesArg("","extra-moves","Extra moves to force-play before doing search",false,string(),"MOVE MOVE ...");
+    TCLAP::ValueArg<string> extraArg("","extra","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
     cmd.add(sgfFileArg);
@@ -38,7 +38,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printBranchArg);
     cmd.add(printArg);
     cmd.add(extraMovesArg);
-    cmd.add(movesArg);
+    cmd.add(extraArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     modelFile = modelFileArg.getValue();
@@ -47,7 +47,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printBranch = printBranchArg.getValue();
     string print = printArg.getValue();
     extraMoves = extraMovesArg.getValue();
-    string moves = movesArg.getValue();
+    string extra = extraArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
       cerr << "Error: -print-branch and -print both specified" << endl;
@@ -56,12 +56,12 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     if(printBranch.length() <= 0)
       printBranch = print;
 
-    if(extraMoves.length() > 0 && moves.length() > 0) {
-      cerr << "Error: -extra-moves and -moves both specified" << endl;
+    if(extraMoves.length() > 0 && extra.length() > 0) {
+      cerr << "Error: -extra-moves and -extra both specified" << endl;
       return 1;
     }
     if(extraMoves.length() <= 0)
-      extraMoves = moves;
+      extraMoves = extra;
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -216,6 +216,8 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   sout << "\n";
   sout << "Tree:\n";
   search->printTree(sout, search->rootNode, options);
+  // sout << "Ownership map:\n";
+  // search->printRootOwnershipMap(sout);  
   logger.write(sout.str());
 
   delete bot;
