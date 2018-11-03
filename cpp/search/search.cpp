@@ -570,9 +570,9 @@ void Search::beginSearch() {
 }
 
 void Search::computeRootValues() {
-  //rootSafeArea is pass-alive groups and safe territory.
+  //rootSafeArea is strictly pass-alive groups and strictly safe territory.
   bool nonPassAliveStones = false;
-  bool safeBigTerritories = true;
+  bool safeBigTerritories = false;
   bool unsafeBigTerritories = false;
   bool isMultiStoneSuicideLegal = rootHistory.rules.multiStoneSuicideLegal;
   rootBoard.calculateArea(
@@ -941,9 +941,32 @@ void Search::selectBestChildToDescend(
     bool alreadyTried = posesWithChildBuf[movePos];
     if(alreadyTried)
       continue;
-    if(isRoot && !rootPassLegal && NNPos::isPassPos(movePos,posLen))
-      continue;
+
     Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,thread.board.y_size,posLen);
+
+    //Special logic for the root
+    if(isRoot) {
+      assert(thread.board.pos_hash == rootBoard.pos_hash);
+      assert(thread.pla == rootPla);
+      
+      //For use on some online go servers, we want to be able to support a cleanup mode, where we force
+      //the capture of stones that our training ruleset would consider simply dead by virtue of them
+      //being pass-dead, so we add an option to forbid passing at the root.
+      if(!rootPassLegal && moveLoc == Board::PASS_LOC)
+        continue;
+      //A bad situation that can happen that unnecessarily prolongs training games is where one player
+      //repeatedly passes and the other side repeatedly fills space and then suicides over and over.
+      //To mitigate this and save computation, we make it so that at the root, if the opponent just passed,
+      //we will never play a self-capture move in the opponent's pass-alive area. In theory this could prune
+      //a good move in situations like https://senseis.xmp.net/?1EyeFlaw, but this should be extraordinarly rare.
+      if(searchParams.rootPruneUselessSuicides &&
+         rootHistory.moveHistory.size() > 0 &&
+         rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc == Board::PASS_LOC &&
+         moveLoc != Board::PASS_LOC &&
+         thread.board.isSuicide(moveLoc,thread.pla) &&
+         rootSafeArea[moveLoc] == getOpp(thread.pla))
+          continue;
+    }
 
     double selectionValue = getNewExploreSelectionValue(node,movePos,totalChildVisits,fpuValue);
     if(selectionValue > maxSelectionValue) {

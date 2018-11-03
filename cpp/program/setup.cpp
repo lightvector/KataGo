@@ -198,6 +198,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("rootEndingBonusPoints"+idxStr)) params.rootEndingBonusPoints = cfg.getDouble("rootEndingBonusPoints"+idxStr, -1.0, 1.0);
     else if(cfg.contains("rootEndingBonusPoints"))   params.rootEndingBonusPoints = cfg.getDouble("rootEndingBonusPoints",        -1.0, 1.0);
     else                                             params.rootEndingBonusPoints = 0.0;
+    if(cfg.contains("rootPruneUselessSuicides"+idxStr)) params.rootPruneUselessSuicides = cfg.getBool("rootPruneUselessSuicides"+idxStr);
+    else if(cfg.contains("rootPruneUselessSuicides"))   params.rootPruneUselessSuicides = cfg.getBool("rootPruneUselessSuicides");
+    else                                                params.rootPruneUselessSuicides = false;
 
     if(cfg.contains("mutexPoolSize"+idxStr)) params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize"+idxStr, 1, 1 << 24);
     else                                     params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize",        1, 1 << 24);

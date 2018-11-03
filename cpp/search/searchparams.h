@@ -30,9 +30,11 @@ struct SearchParams {
   double chosenMoveSubtract; //Try to subtract this many visits from every move prior to applying temperature
   double chosenMovePrune; //Outright prune moves that have fewer than this many visits
 
+  //Mild behavior hackery
   double rootEndingBonusPoints; //Extra bonus (or penalty) to encourage good passing behavior at the end of the game.
+  bool rootPruneUselessSuicides; //Prune moves that are entirely useless suicide moves that prolong the game.
 
-  //Misc
+  //Threading-related
   uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes
   int32_t numVirtualLossesPerThread; //Number of virtual losses for one thread to add
 
