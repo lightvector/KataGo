@@ -4118,12 +4118,14 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
       output->whiteScoreValue = inputBuffers->scoreValueResults[row];
 
-      if(output->ownerMap != NULL) {
+      //As above, these are NOT actually from white's perspective, but rather the player to move.
+      //As usual the client does the postprocessing.
+      if(output->whiteOwnerMap != NULL) {
         assert(gpuHandle->model->numOwnershipChannels == 1);
         std::copy(
           inputBuffers->ownershipResults + row * posLen * posLen,
           inputBuffers->ownershipResults + (row+1) * posLen * posLen,
-          output->ownerMap
+          output->whiteOwnerMap
         );
       }
 
@@ -4135,8 +4137,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       output->whiteScoreValue = 0.0;
 
       //Older versions don't have an ownership map, so zero fill
-      if(output->ownerMap != NULL)
-        std::fill(output->ownerMap, output->ownerMap + posLen * posLen, 0.0f);
+      if(output->whiteOwnerMap != NULL)
+        std::fill(output->whiteOwnerMap, output->whiteOwnerMap + posLen * posLen, 0.0f);
 
     }
   }

@@ -49,7 +49,7 @@ struct FinishedGameData {
   int posLen;
   vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
   vector<ValueTargets> whiteValueTargetsByTurn;
-  int8_t* finalOwnership;
+  int8_t* finalWhiteOwnership;
 
 
   FinishedGameData();
@@ -82,14 +82,14 @@ struct TrainingWriteBuffers {
   //C0: Policy target this turn.
   NumpyBuffer<int16_t> policyTargetsNCMove;
 
-  //Value targets and other metadata
+  //Value targets and other metadata, from the perspective of the player to move
   //C0-3: Categorial game result, win,loss,noresult, and also score utility. Draw is encoded as some blend of win and loss based on drawEquivalentWinsForWhite.
-  //C4-7: MCTS win-loss-noresult estimate td-like target, lambda = 35/36
-  //C8-11: MCTS win-loss-noresult estimate td-like target, lambda = 11/12
-  //C12-15: MCTS win-loss-noresult estimate td-like target, lambda = 3/4
-  //C16-19: MCTS win-loss-noresult estimate td-like target, lambda = 0
+  //C4-7: MCTS win-loss-noresult estimate td-like target, lambda = 35/36, nowFactor = 1/36
+  //C8-11: MCTS win-loss-noresult estimate td-like target, lambda = 11/12, nowFactor = 1/12
+  //C12-15: MCTS win-loss-noresult estimate td-like target, lambda = 3/4, nowFactor = 1/4
+  //C16-19: MCTS win-loss-noresult estimate td-like target, lambda = 0, nowFactor = 1 (no-temporal-averaging MCTS search result)
 
-  //C20: Actual score
+  //C20: Actual score, from the perspective of the player to move
   //C21: MCTS utility variance, 1->4 visits
   //C22: MCTS utility variance, 4->16 visits
   //C23: MCTS utility variance, 16->64 visits
@@ -115,7 +115,7 @@ struct TrainingWriteBuffers {
   NumpyBuffer<float> globalTargetsNC;
 
   //Spatial value-related targets
-  //C0 - Final board ownership (-1,0,1). All 0 if no result.
+  //C0 - Final board ownership (-1,0,1), from the perspective of the player to move. All 0 if no result.
   NumpyBuffer<int8_t> valueTargetsNCHW;
 
   TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numGlobalChannels, int posLen);

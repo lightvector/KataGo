@@ -75,7 +75,10 @@ def get_ownership_values(session, board, boards, moves, use_history_prop, rules)
     for x in range(board.size):
       loc = board.loc(x,y)
       pos = model.loc_to_tensor_pos(loc,board)
-      locs_and_values.append((loc,ownership[pos]))
+      if board.pla == Board.WHITE:
+        locs_and_values.append((loc,ownership[pos]))
+      else:
+        locs_and_values.append((loc,-ownership[pos]))
   return locs_and_values
 
 def get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop, rules):

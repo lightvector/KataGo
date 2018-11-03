@@ -30,7 +30,7 @@ int NNPos::getPolicySize(int posLen) {
 }
 
 NNOutput::NNOutput()
-  :ownerMap(NULL)
+  :whiteOwnerMap(NULL)
 {}
 NNOutput::NNOutput(const NNOutput& other) {
   nnHash = other.nnHash;
@@ -40,12 +40,12 @@ NNOutput::NNOutput(const NNOutput& other) {
   whiteScoreValue = other.whiteScoreValue;
 
   posLen = other.posLen;
-  if(other.ownerMap != NULL) {
-    ownerMap = new float[posLen * posLen];
-    std::copy(other.ownerMap, other.ownerMap + posLen * posLen, ownerMap);
+  if(other.whiteOwnerMap != NULL) {
+    whiteOwnerMap = new float[posLen * posLen];
+    std::copy(other.whiteOwnerMap, other.whiteOwnerMap + posLen * posLen, whiteOwnerMap);
   }
   else
-    ownerMap = NULL;
+    whiteOwnerMap = NULL;
 
   std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
 }
@@ -60,15 +60,15 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
   whiteScoreValue = other.whiteScoreValue;
 
   posLen = other.posLen;
-  if(ownerMap != NULL) {
-    delete[] ownerMap;
+  if(whiteOwnerMap != NULL) {
+    delete[] whiteOwnerMap;
   }
-  if(other.ownerMap != NULL) {
-    ownerMap = new float[posLen * posLen];
-    std::copy(other.ownerMap, other.ownerMap + posLen * posLen, ownerMap);
+  if(other.whiteOwnerMap != NULL) {
+    whiteOwnerMap = new float[posLen * posLen];
+    std::copy(other.whiteOwnerMap, other.whiteOwnerMap + posLen * posLen, whiteOwnerMap);
   }
   else
-    ownerMap = NULL;
+    whiteOwnerMap = NULL;
 
   std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
 
@@ -77,9 +77,9 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
 
 
 NNOutput::~NNOutput() {
-  if(ownerMap != NULL) {
-    delete[] ownerMap;
-    ownerMap = NULL;
+  if(whiteOwnerMap != NULL) {
+    delete[] whiteOwnerMap;
+    whiteOwnerMap = NULL;
   }
 }
 

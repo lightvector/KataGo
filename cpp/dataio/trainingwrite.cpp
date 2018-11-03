@@ -44,7 +44,7 @@ FinishedGameData::FinishedGameData()
    posLen(-1),
    policyTargetsByTurn(),
    whiteValueTargetsByTurn(),
-   finalOwnership(NULL)
+   finalWhiteOwnership(NULL)
 {
 }
 
@@ -52,8 +52,8 @@ FinishedGameData::~FinishedGameData() {
   for(int i = 0; i<policyTargetsByTurn.size(); i++)
     delete policyTargetsByTurn[i];
 
-  if(finalOwnership != NULL)
-    delete[] finalOwnership;
+  if(finalWhiteOwnership != NULL)
+    delete[] finalWhiteOwnership;
 }
 
 
@@ -273,10 +273,11 @@ void TrainingWriteBuffers::addRow(
   assert(45 == GLOBAL_TARGET_NUM_CHANNELS);
 
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
-  assert(data.finalOwnership != NULL);
+  assert(data.finalWhiteOwnership != NULL);
   for(int i = 0; i<posArea; i++) {
-    assert(data.finalOwnership[i] == 0 || data.finalOwnership[i] == 1 || data.finalOwnership[i] == -1);
-    rowOwnership[i] = data.finalOwnership[i];
+    assert(data.finalWhiteOwnership[i] == 0 || data.finalWhiteOwnership[i] == 1 || data.finalWhiteOwnership[i] == -1);
+    //Training rows need things from the perspective of the player to move, so we flip as appropriate.
+    rowOwnership[i] = (nextPlayer == P_WHITE ? data.finalWhiteOwnership[i] : -data.finalWhiteOwnership[i]);
   }
 
   curRows++;

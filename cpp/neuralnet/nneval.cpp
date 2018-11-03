@@ -261,13 +261,13 @@ void NNEvaluator::serve(
 
         resultBuf->result->posLen = posLen;
         if(resultBuf->includeOwnerMap) {
-          float* ownerMap = new float[posLen*posLen];
+          float* whiteOwnerMap = new float[posLen*posLen];
           for(int i = 0; i<posLen*posLen; i++)
-            ownerMap[i] = rand.nextGaussian() * 0.20;
-          resultBuf->result->ownerMap = ownerMap;
+            whiteOwnerMap[i] = rand.nextGaussian() * 0.20;
+          resultBuf->result->whiteOwnerMap = whiteOwnerMap;
         }
         else {
-          resultBuf->result->ownerMap = NULL;
+          resultBuf->result->whiteOwnerMap = NULL;
         }
 
         //These aren't really probabilities. Win/Loss/NoResult will get softmaxed later
@@ -301,9 +301,9 @@ void NNEvaluator::serve(
       assert(buf.resultBufs[row] != NULL);
       emptyOutput->posLen = posLen;
       if(buf.resultBufs[row]->includeOwnerMap)
-        emptyOutput->ownerMap = new float[posLen*posLen];
+        emptyOutput->whiteOwnerMap = new float[posLen*posLen];
       else
-        emptyOutput->ownerMap = NULL;
+        emptyOutput->whiteOwnerMap = NULL;
       outputBuf.push_back(emptyOutput);
     }
 
@@ -367,7 +367,7 @@ void NNEvaluator::evaluate(
   bool hadResultWithoutOwnerMap = false;
   shared_ptr<NNOutput> resultWithoutOwnerMap;
   if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
-    if(!(includeOwnerMap && buf.result->ownerMap == NULL))
+    if(!(includeOwnerMap && buf.result->whiteOwnerMap == NULL))
     {
       buf.hasResult = true;
       return;
@@ -435,7 +435,7 @@ void NNEvaluator::evaluate(
     buf.result->whiteScoreValue = resultWithoutOwnerMap->whiteScoreValue;
     std::copy(resultWithoutOwnerMap->policyProbs, resultWithoutOwnerMap->policyProbs + NNPos::MAX_NN_POLICY_SIZE, buf.result->policyProbs);
     buf.result->posLen = resultWithoutOwnerMap->posLen;
-    assert(buf.result->ownerMap != NULL);
+    assert(buf.result->whiteOwnerMap != NULL);
   }
   else {
     float* policy = buf.result->policyProbs;
@@ -556,7 +556,7 @@ void NNEvaluator::evaluate(
   }
 
   //Postprocess ownermap
-  if(buf.result->ownerMap != NULL) {
+  if(buf.result->whiteOwnerMap != NULL) {
     if(modelVersion <= 2) {
       //No postprocessing needed, cudabackend fills with zeros, which is exactly fine.
     }
@@ -565,9 +565,15 @@ void NNEvaluator::evaluate(
         int y = pos / posLen;
         int x = pos % posLen;
         if(y >= board.y_size || x >= board.x_size)
-          buf.result->ownerMap[pos] = 0.0f;
-        else
-          buf.result->ownerMap[pos] = tanh(buf.result->ownerMap[pos]);
+          buf.result->whiteOwnerMap[pos] = 0.0f;
+        else {
+          //Similarly as mentioned above, the result we get back from the net is actually not from white's perspective,
+          //but from the player to move, so we need to flip it to make it white at the same time as we tanh it.
+          if(nextPlayer == P_WHITE)
+            buf.result->whiteOwnerMap[pos] = tanh(buf.result->whiteOwnerMap[pos]);
+          else
+            buf.result->whiteOwnerMap[pos] = -tanh(buf.result->whiteOwnerMap[pos]);
+        }
       }
     }
   }

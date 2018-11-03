@@ -727,13 +727,13 @@ double Search::getExploreSelectionValue(
 double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const {
   if(&parent != rootNode || child->prevMoveLoc == Board::NULL_LOC)
     return 0.0;
-  if(parent.nnOutput == nullptr || parent.nnOutput->ownerMap == NULL)
+  if(parent.nnOutput == nullptr || parent.nnOutput->whiteOwnerMap == NULL)
     return 0.0;
 
   bool isAreaIsh = rootHistory.rules.scoringRule == Rules::SCORING_AREA
     || (rootHistory.rules.scoringRule == Rules::SCORING_TERRITORY && rootHistory.encorePhase >= 2);
   assert(parent.nnOutput->posLen == posLen);
-  float* ownerMap = parent.nnOutput->ownerMap;
+  float* whiteOwnerMap = parent.nnOutput->whiteOwnerMap;
   Loc moveLoc = child->prevMoveLoc;
 
   //Extra points from the perspective of the root player
@@ -746,7 +746,7 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
     //These conditions should still make it so that "cleanup" and dame-filling moves are not discouraged.
     if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
-      double plaOwnership = rootPla == P_WHITE ? ownerMap[pos] : -ownerMap[pos];
+      double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
       if(plaOwnership <= -0.98)
         extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.98 - plaOwnership) / 0.02);
       else if(plaOwnership >= 0.98) {
@@ -768,7 +768,7 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
       extraRootPoints -= searchParams.rootEndingBonusPoints * (2.0/3.0);
     else if(rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
-      double plaOwnership = rootPla == P_WHITE ? ownerMap[pos] : -ownerMap[pos];
+      double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
       if(plaOwnership <= -0.98)
         extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.98 - plaOwnership) / 0.02);
     }
@@ -948,7 +948,7 @@ void Search::selectBestChildToDescend(
     if(isRoot) {
       assert(thread.board.pos_hash == rootBoard.pos_hash);
       assert(thread.pla == rootPla);
-      
+
       //For use on some online go servers, we want to be able to support a cleanup mode, where we force
       //the capture of stones that our training ruleset would consider simply dead by virtue of them
       //being pass-dead, so we add an option to forbid passing at the root.
@@ -1204,11 +1204,11 @@ void Search::playoutDescend(
     initNodeNNOutput(thread,node,isRoot,false,virtualLossesToSubtract,false);
     return;
   }
-  //For the root node, make sure we have an ownerMap
-  if(isRoot && node.nnOutput->ownerMap == NULL) {
+  //For the root node, make sure we have a whiteOwnerMap
+  if(isRoot && node.nnOutput->whiteOwnerMap == NULL) {
     bool isReInit = true;
     initNodeNNOutput(thread,node,isRoot,false,0,isReInit);
-    assert(node.nnOutput->ownerMap != NULL);
+    assert(node.nnOutput->whiteOwnerMap != NULL);
     //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
   }
 
@@ -1302,13 +1302,13 @@ void Search::printRootOwnershipMap(ostream& out) {
   if(rootNode->nnOutput == nullptr)
     return;
   NNOutput& nnOutput = *(rootNode->nnOutput);
-  if(nnOutput.ownerMap == NULL)
+  if(nnOutput.whiteOwnerMap == NULL)
     return;
 
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnOutput.posLen);
-      out << Global::strprintf("%6.1f ", nnOutput.ownerMap[pos]*100);
+      out << Global::strprintf("%6.1f ", nnOutput.whiteOwnerMap[pos]*100);
     }
     out << endl;
   }

@@ -574,6 +574,9 @@ FinishedGameData* Play::runGame(
       finalValueTargets.noResult = 1.0f;
       finalValueTargets.scoreValue = 0.0f;
       finalValueTargets.score = 0.0f;
+
+      //Fill with empty so that we use "nobody owns anything" as the training target.
+      //Although in practice actually the training normally weights by having a result or not.
       std::fill(area,area+Board::MAX_ARR_SIZE,C_EMPTY);
     }
     else {
@@ -597,19 +600,19 @@ FinishedGameData* Play::runGame(
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
 
     assert(dataPosLen > 0);
-    assert(gameData->finalOwnership == NULL);
-    gameData->finalOwnership = new int8_t[dataPosLen*dataPosLen];
-    std::fill(gameData->finalOwnership, gameData->finalOwnership + dataPosLen*dataPosLen, 0);
+    assert(gameData->finalWhiteOwnership == NULL);
+    gameData->finalWhiteOwnership = new int8_t[dataPosLen*dataPosLen];
+    std::fill(gameData->finalWhiteOwnership, gameData->finalWhiteOwnership + dataPosLen*dataPosLen, 0);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         int pos = NNPos::xyToPos(x,y,dataPosLen);
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(area[loc] == P_BLACK)
-          gameData->finalOwnership[pos] = -1;
+          gameData->finalWhiteOwnership[pos] = -1;
         else if(area[loc] == P_WHITE)
-          gameData->finalOwnership[pos] = 1;
+          gameData->finalWhiteOwnership[pos] = 1;
         else if(area[loc] == C_EMPTY)
-          gameData->finalOwnership[pos] = 0;
+          gameData->finalWhiteOwnership[pos] = 0;
         else
           assert(false);
       }
