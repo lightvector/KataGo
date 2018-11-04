@@ -205,7 +205,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   const int dataPosLen = cfg.getInt("dataPosLen",9,37);
   //Max number of games that we will allow to be queued up and not written out
   const int maxDataQueueSize = cfg.getInt("maxDataQueueSize",1,1000000);
-  const int maxRowsPerFile = cfg.getInt("maxRowsPerFile",1,100000000);
+  const int maxRowsPerTrainFile = cfg.getInt("maxRowsPerTrainFile",1,100000000);
+  const int maxRowsPerValFile = cfg.getInt("maxRowsPerValFile",1,100000000);
 
   const double validationProp = cfg.getDouble("validationProp",0.0,0.5);
 
@@ -260,7 +261,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   };
 
   auto loadLatestNeuralNet =
-    [inputsVersion,maxDataQueueSize,maxRowsPerFile,dataPosLen,&modelsDir,&outputDir,&logger,&cfg,validationProp](const string* lastNetName) -> NetAndStuff* {
+    [inputsVersion,maxDataQueueSize,maxRowsPerTrainFile,maxRowsPerValFile,dataPosLen,
+     &modelsDir,&outputDir,&logger,&cfg,validationProp](const string* lastNetName) -> NetAndStuff* {
 
     string modelName;
     string modelFile;
@@ -294,8 +296,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
     //simply controls the input feature version for the written data
-    TrainingDataWriter* tdataWriter = new TrainingDataWriter(tdataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
-    TrainingDataWriter* vdataWriter = new TrainingDataWriter(vdataOutputDir, inputsVersion, maxRowsPerFile, dataPosLen);
+    TrainingDataWriter* tdataWriter = new TrainingDataWriter(tdataOutputDir, inputsVersion, maxRowsPerTrainFile, dataPosLen);
+    TrainingDataWriter* vdataWriter = new TrainingDataWriter(vdataOutputDir, inputsVersion, maxRowsPerValFile, dataPosLen);
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
     NetAndStuff* newNet = new NetAndStuff(cfg, modelName, nnEval, maxDataQueueSize, tdataWriter, vdataWriter, sgfOut, validationProp);
     return newNet;

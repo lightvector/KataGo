@@ -364,16 +364,20 @@ class ModelV3:
 
     num_channels = tensor.shape[3].value
     collections = [tf.GraphKeys.GLOBAL_VARIABLES,tf.GraphKeys.MODEL_VARIABLES,tf.GraphKeys.MOVING_AVERAGE_VARIABLES]
+
+    #Define variables to keep track of the mean and variance
     moving_mean = tf.Variable(tf.zeros([num_channels]),name=(name+"/moving_mean"),trainable=False,collections=collections)
     moving_var = tf.Variable(tf.ones([num_channels]),name=(name+"/moving_variance"),trainable=False,collections=collections)
     beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg=False)
 
-    mask_sum = tf.reduce_sum(mask)
-    mean = tf.reduce_sum(tensor,axis=[0,1,2]) / mask_sum
+    #This is the mean, computed only over exactly the areas of the mask, weighting each spot equally,
+    #even across different elements in the batch that might have different board sizes.
+    mean = tf.reduce_sum(tensor * mask,axis=[0,1,2]) / mask_sum
     zmtensor = tensor-mean
-    var = tf.reduce_sum(tf.square(zmtensor),axis=[0,1,2]) / mask_sum
-    mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.99)
-    var_op = tf.keras.backend.moving_average_update(moving_var,var,0.99)
+    #Similarly, the variance computed exactly only over those spots
+    var = tf.reduce_sum(tf.square(zmtensor * mask),axis=[0,1,2]) / mask_sum
+    mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.998)
+    var_op = tf.keras.backend.moving_average_update(moving_var,var,0.998)
     tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, mean_op)
     tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, var_op)
 
@@ -766,8 +770,8 @@ class ModelV3:
     self.gpool_num_channels = gpool_num_channels
 
     mask = cur_layer[:,:,:,0:1]
-    mask_sum = tf.reduce_sum(mask)
-    mask_sum_hw = tf.reduce_sum(mask,axis=[1,2,3])
+    mask_sum = tf.reduce_sum(mask) # Global sum
+    mask_sum_hw = tf.reduce_sum(mask,axis=[1,2,3]) # Sum per batch element
 
     #Initial convolutional layer-------------------------------------------------------------------------------------
     trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
@@ -863,7 +867,7 @@ class ModelV3:
 
     #Finally, apply linear convolution to produce final output
     p2_layer = self.conv_only_block("p2",p1_layer,diam=1,in_channels=p1_num_channels,out_channels=1,scale_initial_weights=0.5,reg=False)
-    p2_layer = p2_layer - (1.0-mask) * 1000.0 # mask out parts outside the board
+    p2_layer = p2_layer - (1.0-mask) * 5000.0 # mask out parts outside the board by making them a huge neg number, so that they're 0 after softmax
     self.p2_conv = ("p2",1,p1_num_channels,1)
 
     self.add_lr_factor("p1/norm/beta:0",0.25)
@@ -893,14 +897,14 @@ class ModelV3:
     self.v1_num_channels = v1_num_channels
 
     v1_div = tf.reshape(mask_sum_hw,[-1,1])
-    v1_div_sqrt = tf.sqrt(mask_sum)
+    v1_div_sqrt = tf.sqrt(v1_div)
     v1_layer_raw_mean = tf.reduce_sum(v1_layer,axis=[1,2],keepdims=False) / v1_div
 
     # 1, (x-14)/10, and (x-14)^2/100 - 0.1 are three orthogonal functions over [9,19], the range of reasonable board sizes.
     # We have the 14 in there since it's the midpoint of that range. The /10 and /100 are just sort of arbitrary normalization.
     center_bsize = 14.0
     v1_layer_0 = v1_layer_raw_mean
-    v1_layer_1 = v1_layer_raw_mean * (v1_div_sqrt - center_bsize) / 10.0
+    v1_layer_1 = v1_layer_raw_mean * ((v1_div_sqrt - center_bsize) / 10.0)
     v1_layer_2 = v1_layer_raw_mean * (tf.square(v1_div_sqrt - center_bsize) / 100.0 - 0.1)
     v1_layer_pooled = tf.concat([v1_layer_0,v1_layer_1,v1_layer_2],axis=1)
     v1_size = v1_num_channels
@@ -1007,9 +1011,13 @@ class Target_varsV3:
     self.scorevalue_loss_unreduced = 0.5 * (
       tf.square(self.scorevalue_target - tf.tanh(miscvalues_output[:,0]))
     )
-    self.utilityvar_loss_unreduced = 0.5 * (
-      tf.square(self.utilityvar_target - tf.softplus(miscvalues_output[:,1:5]))
+    self.utilityvar_loss_unreduced = (1.0/16.0) * (
+      tf.reduce_sum(tf.square(self.utilityvar_target - tf.math.softplus(miscvalues_output[:,1:5])),axis=1)
     )
+
+    #This uses a formulation where each batch element cares about its average loss.
+    #In particular this means that ownership loss predictions on small boards "count more" per spot.
+    #Not unlike the way that policy and value loss are also equal-weighted by batch element.
     self.ownership_loss_unreduced = 0.25 * self.ownership_target_weight * (
       tf.reduce_sum(
         1.4*tf.nn.softmax_cross_entropy_with_logits_v2(

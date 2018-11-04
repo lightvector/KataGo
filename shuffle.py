@@ -9,6 +9,7 @@ import logging
 import zipfile
 import shutil
 import psutil
+import json
 
 import multiprocessing
 
@@ -148,11 +149,10 @@ if __name__ == '__main__':
   parser.add_argument('dirs', metavar='DIR', nargs='+', help='Directories of training data files')
   parser.add_argument('-min-rows', type=int, required=True, help='Minimum training rows to use')
   parser.add_argument('-max-rows', type=int, required=True, help='Maximum training rows to use')
-  parser.add_argument('-keep-target-rows', type=int, required=True, help='Target number of rows to actually keep in the final data set')
+  parser.add_argument('-keep-target-rows', type=int, required=False, help='Target number of rows to actually keep in the final data set')
   parser.add_argument('-window-factor', type=float, required=True, help='Beyond min rows, add 1 more row per this many')
   parser.add_argument('-out-dir', required=True, help='Dir to output training files')
   parser.add_argument('-approx-rows-per-out-file', type=int, required=True, help='Number of rows per output tf records file')
-  parser.add_argument('-pos-len', type=int, required=True, help='Go spatial length dimension')
   parser.add_argument('-num-processes', type=int, required=True, help='Number of multiprocessing processes')
   parser.add_argument('-batch-size', type=int, required=True, help='Batck size to write training examples in')
 
@@ -164,7 +164,6 @@ if __name__ == '__main__':
   window_factor = args.window_factor
   out_dir = args.out_dir
   approx_rows_per_out_file = args.approx_rows_per_out_file
-  pos_len = args.pos_len
   num_processes = args.num_processes
   batch_size = args.batch_size
 
@@ -176,8 +175,7 @@ if __name__ == '__main__':
       filenames = [(filename,os.path.getmtime(filename)) for filename in filenames]
       all_files.extend(filenames)
 
-  all_files.sort(key=(lambda x: x[1]), reverse=True)
-
+  all_files.sort(key=(lambda x: x[1]), reverse=False)
 
   def get_numpy_npz_headers(filename):
     with zipfile.ZipFile(filename) as z:
@@ -191,7 +189,7 @@ if __name__ == '__main__':
       return npzheaders
 
 
-  files_with_num_rows = []
+  files_with_row_range = []
   num_rows_total = 0
   for (filename,mtime) in all_files:
     npheaders = get_numpy_npz_headers(filename)
@@ -199,40 +197,59 @@ if __name__ == '__main__':
       continue
     (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked"]
     num_rows = shape[0]
+    row_range = (num_rows_total, num_rows_total + num_rows)
     num_rows_total += num_rows
 
     print("Training data file %s: %d rows" % (filename,num_rows))
-    files_with_num_rows.append((filename,num_rows))
+    files_with_row_range.append((filename,row_range))
 
     #If we have more rows than we could possibly need to hit max rows, then just stop
     if num_rows_total >= min_rows + (max_rows - min_rows) * window_factor:
       break
 
+  #If we don't have enough rows, then quit out
+  if num_rows_total < min_rows:
+    print("Not enough rows (fewer than %d)" % min_rows)
+    sys.exit(0)
+
+  print("Total rows found: %d" % num_rows_total)
+
+  #Reverse so that recent files are first
+  files_with_row_range.reverse()
 
   #Now assemble only the files we need to hit our desired window size
   desired_num_rows = int(min_rows + (num_rows_total - min_rows) / window_factor)
   desired_num_rows = max(desired_num_rows,min_rows)
   desired_num_rows = min(desired_num_rows,max_rows)
+  print("Desired num rows: %d" % desired_num_rows)
+
   desired_input_files = []
+  desired_input_files_with_row_range = []
   num_rows_total = 0
-  for (filename,num_rows) in files_with_num_rows:
+  for (filename,(start_row,end_row)) in files_with_row_range:
     desired_input_files.append(filename)
-    num_rows_total += num_rows
-    print("Using: %s (%d/%d rows)" % (filename,num_rows_total,desired_num_rows))
+    desired_input_files_with_row_range.append((filename,(start_row,end_row)))
+
+    num_rows_total += (end_row - start_row)
+    print("Using: %s (%d-%d) (%d/%d desired rows)" % (filename,start_row,end_row,num_rows_total,desired_num_rows))
     if num_rows_total >= desired_num_rows:
       break
 
   np.random.seed()
   np.random.shuffle(desired_input_files)
 
-  if num_rows_total <= 0:
-    raise Exception("Found 0 rows in the specified input files")
-
-  approx_rows_to_keep = min(num_rows_total, keep_target_rows)
+  approx_rows_to_keep = num_rows_total
+  if keep_target_rows is not None:
+    approx_rows_to_keep = min(approx_rows_to_keep, keep_target_rows)
   keep_prob = approx_rows_to_keep / num_rows_total
 
   num_out_files = int(round(approx_rows_to_keep / approx_rows_per_out_file))
   num_out_files = max(num_out_files,1)
+
+  if os.path.exists(out_dir):
+    raise Exception(out_dir + " already exists")
+  os.mkdir(out_dir)
+
   out_files = [os.path.join(out_dir, "data%d.tfrecord" % i) for i in range(num_out_files)]
   out_tmp_dirs = [os.path.join(out_dir, "tmp.shuf%d" % i) for i in range(num_out_files)]
   print("Writing %d output files" % num_out_files)
@@ -257,6 +274,6 @@ if __name__ == '__main__':
       (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size) for idx in range(len(out_files))
     ])
 
-
-
-clean_tmp_dirs()
+  clean_tmp_dirs()
+  with open(out_dir + ".json", 'w') as f:
+    json.dump(desired_input_files_with_row_range, f)

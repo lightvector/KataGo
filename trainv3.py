@@ -10,6 +10,7 @@ import logging
 import h5py
 import contextlib
 import json
+import datetime
 import tensorflow as tf
 import numpy as np
 
@@ -25,70 +26,49 @@ Train neural net on Go positions from tf record files of batches from selfplay.
 
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-traindir', help='Dir to write to for recording training results', required=True)
-parser.add_argument('-tdatadir', help='Directory of tf records data to train on', required=True)
-parser.add_argument('-vdatadir', help='Directory of tf records data to validate on', required=True)
+parser.add_argument('-datadir', help='Directory with a train and val subdir of tf records data', required=True)
+parser.add_argument('-exportdir', help='Directory to export models periodically', required=True)
+parser.add_argument('-exportsuffix', help='Suffix to append to names of models', required=True)
 parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
 parser.add_argument('-batch-size', help='Expected batch size of the input data, must match tfrecords', type=int, required=True)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
-parser.add_argument('-restart-file', help='restart training from file', required=False)
-parser.add_argument('-restart-epoch', help='restart training epoch', required=False)
-parser.add_argument('-restart-time', help='restart training time', required=False)
-parser.add_argument('-fast-factor', help='divide training batches per epoch by this factor', required=False)
-parser.add_argument('-validation-prop', help='only use this proportion of validation set', required=False)
 args = vars(parser.parse_args())
 
 traindir = args["traindir"]
-tdatadir = args["tdatadir"]
-vdatadir = args["vdatadir"]
+datadir = args["datadir"]
+exportdir = args["exportdir"]
+exportsuffix = args["exportsuffix"]
 pos_len = args["pos_len"]
 batch_size = args["batch_size"]
 verbose = args["verbose"]
-restart_file = None
-start_epoch = 0
-start_elapsed = 0
-fast_factor = 1
-validation_prop = 1.0
-logfilemode = "w"
-if "restart_file" in args and args["restart_file"] is not None:
-  restart_file = args["restart_file"]
-  start_epoch = int(args["restart_epoch"])
-  start_elapsed = float(args["restart_time"])
-  logfilemode = "a"
-
-if "fast_factor" in args and args["fast_factor"] is not None:
-  fast_factor = int(args["fast_factor"])
-if "validation_prop" in args and args["validation_prop"] is not None:
-  validation_prop = float(args["validation_prop"])
+logfilemode = "a"
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)
+if not os.path.exists(exportdir):
+  os.makedirs(exportdir)
 
 bareformatter = logging.Formatter("%(message)s")
-trainlogger = logging.getLogger("tensorflow")
-trainlogger.setLevel(logging.INFO)
 fh = logging.FileHandler(traindir+"/train.log", mode=logfilemode)
 fh.setFormatter(bareformatter)
-trainlogger.addHandler(fh)
 
-detaillogger = logging.getLogger("detaillogger")
-detaillogger.setLevel(logging.INFO)
-fh = logging.FileHandler(traindir+"/detail.log", mode=logfilemode)
-fh.setFormatter(bareformatter)
-detaillogger.addHandler(fh)
+tensorflowlogger = logging.getLogger("tensorflow")
+tensorflowlogger.setLevel(logging.INFO)
+tensorflowlogger.addHandler(fh)
+
+trainlogger = logging.getLogger("trainlogger")
+trainlogger.setLevel(logging.INFO)
+trainlogger.addHandler(fh)
 
 np.set_printoptions(linewidth=150)
 
 def trainlog(s):
   print(s,flush=True)
   trainlogger.info(s)
-  detaillogger.info(s)
-
-def detaillog(s):
-  detaillogger.info(s)
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-num_samples_per_epoch = 1000000//fast_factor
+num_samples_per_epoch = 1000000
 num_batches_per_epoch = int(round(num_samples_per_epoch / batch_size))
 
 def find_var(name):
@@ -99,7 +79,7 @@ def find_var(name):
 # MODEL ----------------------------------------------------------------
 def model_fn(features,labels,mode,params):
 
-  print("Building model", flush=True)
+  trainlog("Building model")
   model_config = {
     "trunk_num_channels":128,
     "mid_num_channels":128,
@@ -142,6 +122,16 @@ def model_fn(features,labels,mode,params):
 
   placeholders["global_inputs"] = features["ginc"]
   placeholders["symmetries"] = tf.greater(tf.random_uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
+
+  if mode == tf.estimator.ModeKeys.PREDICT:
+    placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
+    model = ModelV3(model_config,pos_len,placeholders)
+
+    predictions = {}
+    predictions["policy_output"] = model.policy_output
+    predictions["value_output"] = model.value_output
+    return tf.estimator.EstimatorSpec(mode, predictions=predictions)
+
   placeholders["include_history"] = features["gtnc"][:,28:33]
 
   policy_target0 = features["ptncm"][:,0,:]
@@ -157,15 +147,6 @@ def model_fn(features,labels,mode,params):
   placeholders["ownership_target_weight"] = 1.0-features["gtnc"][:,2] #1 if normal game, 0 if no result
   placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
 
-  if mode == tf.estimator.ModeKeys.PREDICT:
-    placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
-    model = ModelV3(model_config,pos_len,placeholders)
-
-    predictions = {}
-    predictions["policy_output"] = model.policy_output
-    predictions["value_output"] = model.value_output
-    return tf.estimator.EstimatorSpec(mode, predictions=predictions)
-
   if mode == tf.estimator.ModeKeys.EVAL:
     placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
     model = ModelV3(model_config,pos_len,placeholders)
@@ -173,7 +154,12 @@ def model_fn(features,labels,mode,params):
     target_vars = Target_varsV3(model,for_optimization=True,require_last_move=False,placeholders=placeholders)
     metrics = MetricsV3(model,target_vars,include_debug_stats=False)
 
-    wsum = tf.Variable(0.0,dtype=tf.float32)
+    wsum = tf.Variable(
+      0.0,dtype=tf.float32,name="wsum",trainable=False,
+      collections=[tf.GraphKeys.LOCAL_VARIABLES, tf.GraphKeys.METRIC_VARIABLES],
+      synchronization=tf.VariableSynchronization.ON_READ,
+      aggregation=tf.VariableAggregation.SUM
+    )
     wsum_op = tf.assign_add(wsum,target_vars.weight_sum)
     return tf.estimator.EstimatorSpec(
       mode,
@@ -201,7 +187,7 @@ def model_fn(features,labels,mode,params):
     global_step_float = tf.cast(global_step, tf.float32)
     global_epoch = global_step_float / tf.constant(num_batches_per_epoch,dtype=tf.float32)
 
-    global_epoch_float_capped = tf.math.minimum(tf.constant(192.0),global_epoch)
+    global_epoch_float_capped = tf.math.minimum(tf.constant(180.0),global_epoch)
     per_sample_learning_rate = (
       tf.constant(0.00020) / tf.pow(global_epoch_float_capped * tf.constant(0.1) + tf.constant(1.0), tf.constant(1.333333))
     )
@@ -222,11 +208,6 @@ def model_fn(features,labels,mode,params):
         adjusted_gradients.append((adjusted_grad,x))
       train_step = optimizer.apply_gradients(adjusted_gradients, global_step=global_step)
 
-    # def reduce_norm(x, axis=None, keepdims=False):
-    #   return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keepdims=keepdims))
-    # relative_update_by_var = dict([
-    #   (v.name,per_sample_learning_rate * reduce_norm(grad) / (1e-10 + reduce_norm(v))) for (grad,v) in adjusted_gradients if grad is not None
-    # ])
 
     total_parameters = 0
     for variable in tf.trainable_variables():
@@ -260,7 +241,7 @@ def model_fn(features,labels,mode,params):
     (ventr,ventr_op) = moving_mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
     (wmean,wmean_op) = tf.metrics.mean(target_vars.weight_sum)
 
-    print_train_loss_every_batches = 10
+    print_train_loss_every_batches = 50
     # print_train_loss_every_batches = num_batches_per_epoch
 
     logging_hook = tf.train.LoggingTensorHook({
@@ -269,6 +250,7 @@ def model_fn(features,labels,mode,params):
       "ploss": ploss,
       "vloss": vloss,
       "svloss": svloss,
+      "uvloss": uvloss,
       "oloss": oloss,
       "rloss": rloss,
       "pacc1": pacc1,
@@ -278,7 +260,7 @@ def model_fn(features,labels,mode,params):
     return tf.estimator.EstimatorSpec(
       mode,
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
-      train_op=tf.group(train_step,ploss_op,vloss_op,svloss_op,oloss_op,rloss_op,pacc1_op,ventr_op,wmean_op),
+      train_op=tf.group(train_step,ploss_op,vloss_op,svloss_op,uvloss_op,oloss_op,rloss_op,pacc1_op,ventr_op,wmean_op),
       training_hooks = [logging_hook]
     )
 
@@ -295,6 +277,14 @@ raw_input_features = {
   "gtnc": tf.FixedLenFeature([batch_size*NUM_GLOBAL_TARGETS],tf.float32),
   "vtnchw": tf.FixedLenFeature([batch_size*NUM_VALUE_SPATIAL_TARGETS*pos_len*pos_len],tf.float32)
 }
+raw_input_feature_placeholders = {
+  "binchwp": tf.placeholder(tf.uint8,[batch_size,ModelV3.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
+  "ginc": tf.placeholder(tf.float32,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
+  "ptncm": tf.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
+  "gtnc": tf.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
+  "vtnchw": tf.placeholder(tf.float32,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
+}
+
 def parse_input(serialized_example):
   example = tf.parse_single_example(serialized_example,raw_input_features)
   binchwp = tf.decode_raw(example["binchwp"],tf.uint8)
@@ -310,8 +300,8 @@ def parse_input(serialized_example):
     "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 
-train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir)]
-def train_input_fn():
+def train_input_fn(tdatadir):
+  train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir)]
   trainlog("Constructing train input pipe, %d files" % len(train_files))
   dataset = tf.data.Dataset.from_tensor_slices(train_files)
   dataset = dataset.shuffle(1048576)
@@ -321,12 +311,8 @@ def train_input_fn():
   dataset = dataset.repeat()
   return dataset
 
-if not os.path.exists(vdatadir):
-  trainlog("Dir does not exist " + vdatadir + ", skipping any validation")
-  val_files = []
-else:
+def val_input_fn(vdatadir):
   val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir)]
-def val_input_fn():
   trainlog("Constructing validation input pipe, %d files" % len(val_files))
   dataset = tf.data.Dataset.from_tensor_slices(val_files)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
@@ -335,7 +321,7 @@ def val_input_fn():
 
 # TRAINING PARAMETERS ------------------------------------------------------------
 
-print("Training", flush=True)
+trainlog("Beginning training")
 
 estimator = tf.estimator.Estimator(
   model_fn=model_fn,
@@ -344,26 +330,103 @@ estimator = tf.estimator.Estimator(
   config=tf.estimator.RunConfig(
     save_checkpoints_steps=num_batches_per_epoch,
     keep_checkpoint_every_n_hours = 1000000,
-    keep_checkpoint_max = 0
+    keep_checkpoint_max = 10
   )
 )
 
-# validate_every_batches = 100
-validate_every_batches = num_batches_per_epoch
+class CheckpointSaverListenerFunction(tf.train.CheckpointSaverListener):
+  def __init__(self,f):
+    self.func_to_call = f
 
-hooks = []
+  def begin(self):
+    pass
+  def before_save(self, session, global_step_value):
+    pass
+  def after_save(self, session, global_step_value):
+    self.func_to_call(global_step_value)
+  def end(self, session, global_step_value):
+    pass
 
-if len(val_files) > 0:
-  evaluator = tf.contrib.estimator.InMemoryEvaluatorHook(
-    estimator,
-    val_input_fn,
-    every_n_iter = validate_every_batches
+def dump_and_flush_json(data,filename):
+  with open(filename,"w") as f:
+    json.dump(data,f)
+    f.flush()
+    os.fsync(f.fileno())
+
+trainhistory = []
+if os.path.isfile(os.path.join(traindir,"trainhistory.json")):
+  trainlog("Loading existing training history: " + str(os.path.join(traindir,"trainhistory.json")))
+  with open(os.path.join(traindir,"trainhistory.json")) as f:
+    trainhistory = json.load(f)
+
+def save_history(global_step_value):
+  trainhistory.append(("nsamp",int(global_step_value * batch_size)))
+  savepath = os.path.join(traindir,"trainhistory.json")
+  savepathtmp = os.path.join(traindir,"trainhistory.json.tmp")
+  dump_and_flush_json(trainhistory,savepathtmp)
+  os.rename(savepathtmp,savepath)
+  trainlog("Wrote " + savepath)
+
+last_curdatadir = ""
+last_datainfo_row = 0
+while True:
+  curdatadir = os.path.realpath(datadir)
+  if curdatadir != last_curdatadir:
+    trainlog("Updated training data: " + curdatadir)
+    with open(os.path.join(curdatadir,"train.json")) as f:
+      datainfo = json.load(f)
+      last_datainfo_row = max(end_row_idx for (fname,(start_row_idx,end_row_idx)) in datainfo)
+    trainhistory.append(("newdata",datainfo))
+
+  trainlog("=========================================================================")
+  trainlog("BEGINNING NEXT EPOCH")
+  trainlog("=========================================================================")
+  trainlog("Current time: " + str(datetime.datetime.now()))
+  globalstep = int(estimator.get_variable_value("global_step:0"))
+  trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
+
+  #Train
+  trainlog("Beginning training epoch!")
+  tdatadir = os.path.join(curdatadir,"train")
+  estimator.train(
+    (lambda: train_input_fn(tdatadir)),
+    steps=num_batches_per_epoch,
+    saving_listeners=[
+      CheckpointSaverListenerFunction(save_history)
+    ]
   )
-  hooks.append(evaluator)
 
-estimator.train(
-  train_input_fn,
-  hooks=hooks
-  # hooks=[]
-)
+  # #Validate
+  trainlog("Beginning validation after epoch!")
+  vdatadir = os.path.join(curdatadir,"val")
+  val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir)]
+  if len(val_files) == 0:
+    trainlog("No validation files, skipping validation step")
+  else:
+    estimator.evaluate(
+      (lambda: val_input_fn(vdatadir))
+    )
+
+  #Export a model for testing, unless somehow it already exists
+  globalstep = int(estimator.get_variable_value("global_step:0"))
+  modelname = "s%d-d%d-%s" % (
+    globalstep*batch_size,
+    last_datainfo_row,
+    exportsuffix
+  )
+  savepath = os.path.join(exportdir,modelname)
+  savepathtmp = os.path.join(exportdir,modelname+".tmp")
+  if os.path.exists(savepath):
+    trainlog("NOT saving model, already exists at: " + savepath)
+  else:
+    trainlog("SAVING MODEL TO: " + savepath)
+    estimator.export_saved_model(
+      os.path.join(savepathtmp,"savedmodel"),
+      tf.estimator.export.build_raw_serving_input_receiver_fn(raw_input_feature_placeholders)
+    )
+    dump_and_flush_json(trainhistory,os.path.join(savepathtmp,"trainhistory.json"))
+    os.rename(savepathtmp,savepath)
+
+
+  time.sleep(1)
 
