@@ -235,7 +235,7 @@ void sumChannelsNCHWKernel(const float* in, float* out, int cSize, int xySize, f
     out[cIdx + nIdx * cSize] = sumPoolNCHWShared[sharedIdx] * scaleSum;
 }
 __global__
-void meanChannelsNCHWKernel(const float* in, float* out, int cSize, int xySize, const float* maskSum)
+void valueHeadPoolChannelsNCHWKernel(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum)
 {
   extern __shared__ float sumPoolNCHWShared[];
   int xyId = threadIdx.x;
@@ -265,8 +265,15 @@ void meanChannelsNCHWKernel(const float* in, float* out, int cSize, int xySize, 
     }
     __syncthreads();
   }
-  if(xyId == 0 && cIdx < cSize)
-    out[cIdx + nIdx * cSize] = sumPoolNCHWShared[sharedIdx] / maskSum[nIdx];
+  if(xyId == 0 && cIdx < cSize) {
+    float sum = sumPoolNCHWShared[sharedIdx];
+    float div = maskSum[nIdx];
+    float sqrtdiv = sqrt(div);
+    float mean = sum/div;
+    out[cIdx + nIdx * cSize*3] = mean;
+    out[cIdx + nIdx * cSize*3 + cSize] = mean * (sqrtdiv - 14.0f) * 0.1f;
+    out[cIdx + nIdx * cSize*3 + cSize*2] = mean * ((sqrtdiv - 14.0f) * (sqrtdiv - 14.0f) * 0.01f - 0.1f);
+  }
 }
 __global__
 void maxPositiveChannelsNCHWKernel(const float* in, float* out, int cSize, int xySize)
@@ -413,11 +420,11 @@ void customCudaPoolRowsSumNCHW(const float* in, float* out, int nSize, int cSize
   dim3 threads(xyThreads,cThreads,1);
   sumChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,scaleSum);
 }
-void customCudaPoolRowsMeanNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum) {
+void customCudaValueHeadPoolNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum) {
   if(nSize > 65536)
-    throw std::runtime_error("customCudaPoolRowsMeanNCHW: nSize too large");
+    throw std::runtime_error("customCudaValueHeadPoolNCHW: nSize too large");
   if(cSize > 65536)
-    throw std::runtime_error("customCudaPoolRowsMeanNCHW: cSize too large");
+    throw std::runtime_error("customCudaValueHeadPoolNCHW: cSize too large");
 
   //Use up as many threads as possible along the xy dimension.
   int xyThreads = 1;
@@ -433,7 +440,7 @@ void customCudaPoolRowsMeanNCHW(const float* in, float* out, int nSize, int cSiz
 
   dim3 grid(1,cBlocks,nSize);
   dim3 threads(xyThreads,cThreads,1);
-  meanChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,maskSum);
+  valueHeadPoolChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,nSize,cSize,xySize,maskSum);
 }
 void customCudaPoolRowsMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize) {
   if(nSize > 65536)
@@ -707,7 +714,7 @@ void sumChannelsNHWCKernel(const float* in, float* out, int xySize, int cSize, f
     out[cIdx + nIdx * cSize] = sumPoolNHWCShared[sharedIdx] * scaleSum;
 }
 __global__
-void meanChannelsNHWCKernel(const float* in, float* out, int xySize, int cSize, const float* maskSum)
+void valueHeadPoolChannelsNHWCKernel(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum)
 {
   extern __shared__ float sumPoolNHWCShared[];
   int cId = threadIdx.x;
@@ -737,8 +744,15 @@ void meanChannelsNHWCKernel(const float* in, float* out, int xySize, int cSize, 
     }
     __syncthreads();
   }
-  if(xyId == 0 && cIdx < cSize)
-    out[cIdx + nIdx * cSize] = sumPoolNHWCShared[sharedIdx] / maskSum[nIdx];
+  if(xyId == 0 && cIdx < cSize) {
+    float sum = sumPoolNHWCShared[sharedIdx];
+    float div = maskSum[nIdx];
+    float sqrtdiv = sqrt(div);
+    float mean = sum/div;
+    out[cIdx + nIdx * cSize*3] = mean;
+    out[cIdx + nIdx * cSize*3 + cSize] = mean * (sqrtdiv - 14.0f) * 0.1f;
+    out[cIdx + nIdx * cSize*3 + cSize*2] = mean * ((sqrtdiv - 14.0f) * (sqrtdiv - 14.0f) * 0.01f - 0.1f);
+  }
 }
 __global__
 void maxPositiveChannelsNHWCKernel(const float* in, float* out, int xySize, int cSize)
@@ -886,11 +900,11 @@ void customCudaPoolRowsSumNHWC(const float* in, float* out, int nSize, int xySiz
   sumChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,scaleSum);
 }
 
-void customCudaPoolRowsMeanNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum) {
+void customCudaValueHeadPoolNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum) {
   if(nSize > 65536)
-    throw std::runtime_error("customCudaPoolRowsMeanNHWC: nSize too large");
+    throw std::runtime_error("customCudaValueHeadPoolNHWC: nSize too large");
   if(cSize > 65536)
-    throw std::runtime_error("customCudaPoolRowsMeanNHWC: cSize too large");
+    throw std::runtime_error("customCudaValueHeadPoolNHWC: cSize too large");
 
   //Use up to two warps worth of threads along the channel dimension, which is the
   //most compact
@@ -907,7 +921,7 @@ void customCudaPoolRowsMeanNHWC(const float* in, float* out, int nSize, int xySi
 
   dim3 grid(cBlocks,1,nSize);
   dim3 threads(cThreads,xyThreads,1);
-  meanChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,maskSum);
+  valueHeadPoolChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,nSize,xySize,cSize,maskSum);
 }
 
 void customCudaPoolRowsMaxPositiveNHWC(const float* in, float* out, int nSize, int xySize, int cSize) {

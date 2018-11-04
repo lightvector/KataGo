@@ -16,10 +16,10 @@ void customCudaChannel0ExtractNHWC(const half* in, half* out, int n, int hw, int
 //Given an input tensor and an output buffer of shape [n,c], fill output buffer with sum or max over c.
 //Max is POSITIVE max - only computes the max of positive entries, and if there are none, then evaluates to 0.
 void customCudaPoolRowsSumNCHW(const float* in, float* out, int nSize, int cSize, int xySize, float scaleSum);
-void customCudaPoolRowsMeanNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum);
+void customCudaValueHeadPoolNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum);
 void customCudaPoolRowsMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize);
 void customCudaPoolRowsSumNHWC(const float* in, float* out, int nSize, int xySize, int cSize, float scaleSum);
-void customCudaPoolRowsMeanNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum);
+void customCudaValueHeadPoolNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum);
 void customCudaPoolRowsMaxPositiveNHWC(const float* in, float* out, int nSize, int xySize, int cSize);
 
 //Same, except fills an output buffer of shape [n,c*2] with the sum over c and the max over c, in that order.

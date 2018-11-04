@@ -2537,7 +2537,7 @@ struct PolicyHead {
     int batchSize,
     void* maskBuf,
     float* maskFloatBuf,
-    float* maskSumBuf, //TODO use this
+    float* maskSumBuf,
     void* trunkBuf,
     void* p1OutBuf,
     void* p1OutBuf2,
@@ -2697,10 +2697,20 @@ struct ValueHeadDesc {
       throw StringError(name+Global::strprintf(
         ": v1Conv.outChannels (%d) != v1BN.numChannels (%d)", v1Conv.outChannels, v1BN.numChannels
       ));
-    if(v2Mul.inChannels != v1BN.numChannels)
-      throw StringError(name+Global::strprintf(
-        ": v2Mul.inChannels (%d) != v1BN.numChannels (%d)", v2Mul.inChannels, v1BN.numChannels
-      ));
+
+    if(version >= 3) {
+      if(v2Mul.inChannels != v1BN.numChannels*3)
+        throw StringError(name+Global::strprintf(
+          ": v2Mul.inChannels (%d) != v1BN.numChannels*3 (%d)", v2Mul.inChannels, v1BN.numChannels*3
+        ));
+    }
+    else {
+      if(v2Mul.inChannels != v1BN.numChannels)
+        throw StringError(name+Global::strprintf(
+          ": v2Mul.inChannels (%d) != v1BN.numChannels (%d)", v2Mul.inChannels, v1BN.numChannels
+        ));
+    }
+
     if(v2Mul.outChannels != v2Bias.numChannels)
       throw StringError(name+Global::strprintf(
         ": v2Mul.outChannels (%d) != v2Bias.numChannels (%d)", v2Mul.outChannels, v2Bias.numChannels
@@ -2987,7 +2997,7 @@ struct ValueHead {
     const bool* symmetriesBuffer,
     int batchSize,
     void* maskBuf,
-    float* maskSumBuf, //TODO use this
+    float* maskSumBuf,
     void* trunkBuf,
     void* v1OutBuf,
     void* v1OutBuf2,
@@ -3009,38 +3019,28 @@ struct ValueHead {
     v1BN->apply(cudaHandles,batchSize,applyBNRelu,v1OutBuf,maskBuf,v1OutBuf2);
 
     const float meanScale = 1.0f / (xSize*ySize);
-    if(!usingFP16) {
-      if(!usingNHWC) {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanNCHW((float*)v1OutBuf2,v1MeanBuf,batchSize,v1Channels,xSize*ySize,maskSumBuf);
-        else
-          customCudaPoolRowsSumNCHW((float*)v1OutBuf2,v1MeanBuf,batchSize,v1Channels,xSize*ySize,meanScale);
-      }
-      else {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanNHWC((const float*)v1OutBuf2,v1MeanBuf,batchSize,xSize*ySize,v1Channels,maskSumBuf);
-        else
-          customCudaPoolRowsSumNHWC((const float*)v1OutBuf2,v1MeanBuf,batchSize,xSize*ySize,v1Channels,meanScale);
-      }
-      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-    }
-    else {
+
+    void* bufToBePooled = v1OutBuf2;
+    if(usingFP16) {
       customCudaCopyFromHalf((const half*)v1OutBuf2,(float*)workspaceBuf,batchSize*v1Channels*xSize*ySize);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      if(!usingNHWC) {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanNCHW((float*)workspaceBuf,v1MeanBuf,batchSize,v1Channels,xSize*ySize,maskSumBuf);
-        else
-          customCudaPoolRowsSumNCHW((float*)workspaceBuf,v1MeanBuf,batchSize,v1Channels,xSize*ySize,meanScale);
-      }
-      else {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanNHWC((const float*)workspaceBuf,v1MeanBuf,batchSize,xSize*ySize,v1Channels,maskSumBuf);
-        else
-          customCudaPoolRowsSumNHWC((const float*)workspaceBuf,v1MeanBuf,batchSize,xSize*ySize,v1Channels,meanScale);
-      }
-      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
+      bufToBePooled = workspaceBuf;
     }
+
+    if(!usingNHWC) {
+      if(maskSumBuf != NULL)
+        customCudaValueHeadPoolNCHW((float*)bufToBePooled,v1MeanBuf,batchSize,v1Channels,xSize*ySize,maskSumBuf);
+      else
+        customCudaPoolRowsSumNCHW((float*)bufToBePooled,v1MeanBuf,batchSize,v1Channels,xSize*ySize,meanScale);
+    }
+    else {
+      if(maskSumBuf != NULL)
+        customCudaValueHeadPoolNCHW((const float*)bufToBePooled,v1MeanBuf,batchSize,xSize*ySize,v1Channels,maskSumBuf);
+      else
+        customCudaPoolRowsSumNHWC((const float*)bufToBePooled,v1MeanBuf,batchSize,xSize*ySize,v1Channels,meanScale);
+    }
+    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
+
 
     float zero = 0.0f;
     float one = 1.0f;
@@ -3422,13 +3422,7 @@ struct Model {
       needMasking = false;
     }
 
-    if(!needMasking) {
-      //Set to NULL to signal downstream that this buf doesn't need to be used
-      maskBuf = NULL;
-      maskFloatBuf = NULL;
-      maskSumBuf = NULL;
-    }
-    else {
+    {
       if(!usingFP16) {
         if(inputsUsingNHWC)
           customCudaChannel0ExtractNHWC((const float*)inputBuf, (float*)maskBuf, batchSize, xSize*ySize, numInputChannels);
@@ -3450,6 +3444,14 @@ struct Model {
         customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,xSize*ySize,1.0);
         CUDA_ERR("sumMask",cudaPeekAtLastError());
       }
+    }
+
+    if(!needMasking) {
+      //Set to NULL to signal downstream that this buf doesn't need to be used
+      maskBuf = NULL;
+      maskFloatBuf = NULL;
+      //The value head needs this one no matter what, since it uses it in customCudaValueHeadPool*
+      //maskSumBuf = NULL;
     }
 
     trunk->apply(
@@ -3669,7 +3671,10 @@ struct Buffers {
 
     CUDA_ERR("Buffers",cudaMalloc(&v1OutBuf, m.valueHead->v1Channels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&v1OutBuf2, m.valueHead->v1Channels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&v1MeanBuf, m.valueHead->v1Channels * batchSingleBytes));
+    if(m.version >= 3)
+    {CUDA_ERR("Buffers",cudaMalloc(&v1MeanBuf, m.valueHead->v1Channels * 3 * batchSingleBytes));}
+    else
+    {CUDA_ERR("Buffers",cudaMalloc(&v1MeanBuf, m.valueHead->v1Channels * batchSingleBytes));}
     CUDA_ERR("Buffers",cudaMalloc(&v2OutBuf, m.valueHead->v2Channels * batchSingleBytes));
 
     valueBufBytes = m.valueHead->valueChannels * batchSingleBytes;

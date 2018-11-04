@@ -291,7 +291,7 @@ with tf.Session(config=tfconfig) as session:
       write_model_conv(model.v1_conv)
       write_bn("v1/norm",model.v1_num_channels)
       write_activation("v1/actv")
-      write_matmul("v2/w",model.v1_num_channels,model.v2_size,get_weights("v2/w"))
+      write_matmul("v2/w",model.v1_num_channels*3,model.v2_size,get_weights("v2/w"))
       write_matbias("v2/b",model.v2_size,get_weights("v2/b"))
       write_activation("v2/actv")
       write_matmul("v3/w",model.v2_size,model.v3_size,get_weights("v3/w"))

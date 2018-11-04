@@ -890,12 +890,22 @@ class ModelV3:
     self.v1_conv = ("v1",3,trunk_num_channels,v1_num_channels)
     self.v1_num_channels = v1_num_channels
 
-    v1_layer_pooled = tf.reduce_sum(v1_layer,axis=[1,2],keepdims=False) / tf.reshape(mask_sum_hw,[-1,1])
+    v1_div = tf.reshape(mask_sum_hw,[-1,1])
+    v1_div_sqrt = tf.sqrt(mask_sum)
+    v1_layer_raw_mean = tf.reduce_sum(v1_layer,axis=[1,2],keepdims=False) / v1_div
+
+    # 1, (x-14)/10, and (x-14)^2/100 - 0.1 are three orthogonal functions over [9,19], the range of reasonable board sizes.
+    # We have the 14 in there since it's the midpoint of that range. The /10 and /100 are just sort of arbitrary normalization.
+    center_bsize = 14.0
+    v1_layer_0 = v1_layer_raw_mean
+    v1_layer_1 = v1_layer_raw_mean * (v1_div_sqrt - center_bsize) / 10.0
+    v1_layer_2 = v1_layer_raw_mean * (tf.square(v1_div_sqrt - center_bsize) / 100.0 - 0.1)
+    v1_layer_pooled = tf.concat([v1_layer_0,v1_layer_1,v1_layer_2],axis=1)
     v1_size = v1_num_channels
 
     v2_size = config["v2_size"]
-    v2w = self.weight_variable("v2/w",[v1_size,v2_size],v1_size,v2_size)
-    v2b = self.weight_variable("v2/b",[v2_size],v1_size,v2_size,scale_initial_weights=0.2,reg=False)
+    v2w = self.weight_variable("v2/w",[v1_size*3,v2_size],v1_size*3,v2_size)
+    v2b = self.weight_variable("v2/b",[v2_size],v1_size*3,v2_size,scale_initial_weights=0.2,reg=False)
     v2_layer = self.relu_non_spatial("v2/relu",tf.matmul(v1_layer_pooled, v2w) + v2b)
     self.v2_size = v2_size
     self.other_internal_outputs.append(("v2",v2_layer))
