@@ -22,7 +22,9 @@ class ModelV3:
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
     self.policy_target_weight_shape = []
     self.value_target_shape = [3]
+    self.miscvalues_target_shape = [5]
     self.scorevalue_target_shape = []
+    self.utilityvar_target_shape = [4]
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
@@ -917,15 +919,15 @@ class ModelV3:
     self.v3_size = v3_size
     self.other_internal_outputs.append(("v3",v3_layer))
 
-    sv3_size = 1
-    sv3w = self.weight_variable("sv3/w",[v2_size,sv3_size],v2_size,sv3_size)
-    sv3b = self.weight_variable("sv3/b",[sv3_size],v2_size,sv3_size,scale_initial_weights=0.1,reg=False)
-    sv3_layer = tf.matmul(v2_layer, sv3w) + sv3b
-    self.sv3_size = sv3_size
-    self.other_internal_outputs.append(("sv3",sv3_layer))
+    mv3_size = self.miscvalues_target_shape[0]
+    mv3w = self.weight_variable("mv3/w",[v2_size,mv3_size],v2_size,mv3_size)
+    mv3b = self.weight_variable("mv3/b",[mv3_size],v2_size,mv3_size,scale_initial_weights=0.1,reg=False)
+    mv3_layer = tf.matmul(v2_layer, mv3w) + mv3b
+    self.mv3_size = mv3_size
+    self.other_internal_outputs.append(("mv3",mv3_layer))
 
     value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
-    scorevalue_output = tf.reshape(sv3_layer, [-1] + self.scorevalue_target_shape, name = "scorevalue_output")
+    miscvalues_output = tf.reshape(mv3_layer, [-1] + self.miscvalues_target_shape, name = "miscvalues_output")
 
     ownership_output = self.conv_only_block("vownership",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2, reg=False) * mask
     self.vownership_conv = ("vownership",1,v1_num_channels,1)
@@ -936,12 +938,12 @@ class ModelV3:
     self.add_lr_factor("v2/b:0",0.25)
     self.add_lr_factor("v3/w:0",0.25)
     self.add_lr_factor("v3/b:0",0.25)
-    self.add_lr_factor("sv3/w:0",0.25)
-    self.add_lr_factor("sv3/b:0",0.25)
+    self.add_lr_factor("mv3/w:0",0.25)
+    self.add_lr_factor("mv3/b:0",0.25)
     self.add_lr_factor("vownership/w:0",0.25)
 
     self.value_output = value_output
-    self.scorevalue_output = scorevalue_output
+    self.miscvalues_output = miscvalues_output
     self.ownership_output = ownership_output
 
     self.mask_before_symmetry = mask_before_symmetry
@@ -954,7 +956,7 @@ class Target_varsV3:
   def __init__(self,model,for_optimization,require_last_move,placeholders):
     policy_output = model.policy_output
     value_output = model.value_output
-    scorevalue_output = model.scorevalue_output
+    miscvalues_output = model.miscvalues_output
     ownership_output = model.ownership_output
 
     #Loss function
@@ -964,6 +966,8 @@ class Target_varsV3:
                          tf.placeholder(tf.float32, [None] + model.value_target_shape))
     self.scorevalue_target = (placeholders["scorevalue_target"] if "scorevalue_target" in placeholders else
                               tf.placeholder(tf.float32, [None] + model.scorevalue_target_shape))
+    self.utilityvar_target = (placeholders["utilityvar_target"] if "utilityvar_target" in placeholders else
+                              tf.placeholder(tf.float32, [None] + model.utilityvar_target_shape))
     self.ownership_target = (placeholders["ownership_target"] if "ownership_target" in placeholders else
                              tf.placeholder(tf.float32, [None] + model.ownership_target_shape))
     self.target_weight_from_data = (placeholders["target_weight_from_data"] if "target_weight_from_data" in placeholders else
@@ -977,6 +981,7 @@ class Target_varsV3:
     model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
     model.assert_batched_shape("value_target", self.value_target, model.value_target_shape)
     model.assert_batched_shape("scorevalue_target", self.scorevalue_target, model.scorevalue_target_shape)
+    model.assert_batched_shape("utilityvar_target", self.utilityvar_target, model.utilityvar_target_shape)
     model.assert_batched_shape("ownership_target", self.ownership_target, model.ownership_target_shape)
     model.assert_batched_shape("target_weight_from_data", self.target_weight_from_data, model.target_weight_shape)
     model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
@@ -1000,7 +1005,10 @@ class Target_varsV3:
       2.0 * tf.reduce_sum(tf.square(self.value_target - tf.nn.softmax(value_output,axis=1)),axis=1)
     )
     self.scorevalue_loss_unreduced = 0.5 * (
-      tf.square(self.scorevalue_target - tf.tanh(scorevalue_output))
+      tf.square(self.scorevalue_target - tf.tanh(miscvalues_output[:,0]))
+    )
+    self.utilityvar_loss_unreduced = 0.5 * (
+      tf.square(self.utilityvar_target - tf.softplus(miscvalues_output[:,1:5]))
     )
     self.ownership_loss_unreduced = 0.25 * self.ownership_target_weight * (
       tf.reduce_sum(
@@ -1015,6 +1023,7 @@ class Target_varsV3:
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced)
     self.scorevalue_loss = tf.reduce_sum(self.target_weight_used * self.scorevalue_loss_unreduced)
+    self.utilityvar_loss = tf.reduce_sum(self.target_weight_used * self.utilityvar_loss_unreduced)
     self.ownership_loss = tf.reduce_sum(self.target_weight_used * self.ownership_loss_unreduced)
     self.weight_sum = tf.reduce_sum(self.target_weight_used)
 
@@ -1026,7 +1035,7 @@ class Target_varsV3:
       self.reg_loss = self.reg_loss_per_weight * self.weight_sum
 
       #The loss to optimize
-      self.opt_loss = self.policy_loss + self.value_loss + self.scorevalue_loss + self.ownership_loss + self.reg_loss
+      self.opt_loss = self.policy_loss + self.value_loss + self.scorevalue_loss + self.utilityvar_loss + self.ownership_loss + self.reg_loss
 
 class MetricsV3:
   def __init__(self,model,target_vars,include_debug_stats):

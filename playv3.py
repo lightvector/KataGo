@@ -37,7 +37,7 @@ with open(os.path.join(os.path.dirname(modelpath),"model.config.json")) as f:
 model = ModelV3(model_config,pos_len,{})
 policy_output = tf.nn.softmax(model.policy_output)
 value_output = tf.nn.softmax(model.value_output)
-scorevalue_output = tf.tanh(model.scorevalue_output)
+scorevalue_output = tf.tanh(model.miscvalues_output[:,0])
 ownership_output = tf.tanh(model.ownership_output)
 
 # Moves ----------------------------------------------------------------

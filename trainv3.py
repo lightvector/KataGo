@@ -151,6 +151,7 @@ def model_fn(features,labels,mode,params):
 
   placeholders["value_target"] = features["gtnc"][:,0:3]
   placeholders["scorevalue_target"] = features["gtnc"][:,3]
+  placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
   placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
   placeholders["target_weight_from_data"] = features["gtnc"][:,0]*0 + 1
   placeholders["ownership_target_weight"] = 1.0-features["gtnc"][:,2] #1 if normal game, 0 if no result
@@ -182,6 +183,7 @@ def model_fn(features,labels,mode,params):
         "ploss": tf.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
         "vloss": tf.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
         "svloss": tf.metrics.mean(target_vars.scorevalue_loss_unreduced, weights=target_vars.target_weight_used),
+        "uvloss": tf.metrics.mean(target_vars.utilityvar_loss_unreduced, weights=target_vars.target_weight_used),
         "oloss": tf.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
         "rloss": tf.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
         "pacc1": tf.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
@@ -251,6 +253,7 @@ def model_fn(features,labels,mode,params):
     (ploss,ploss_op) = moving_mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used)
     (vloss,vloss_op) = moving_mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used)
     (svloss,svloss_op) = moving_mean(target_vars.scorevalue_loss_unreduced, weights=target_vars.target_weight_used)
+    (uvloss,uvloss_op) = moving_mean(target_vars.utilityvar_loss_unreduced, weights=target_vars.target_weight_used)
     (oloss,oloss_op) = moving_mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used)
     (rloss,rloss_op) = moving_mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum)
     (pacc1,pacc1_op) = moving_mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
