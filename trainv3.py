@@ -11,6 +11,7 @@ import h5py
 import contextlib
 import json
 import datetime
+import gc
 import tensorflow as tf
 import numpy as np
 
@@ -76,34 +77,39 @@ def find_var(name):
     if variable.name == name:
       return variable
 
+model_config = {
+  "trunk_num_channels":128,
+  "mid_num_channels":128,
+  "regular_num_channels":96,
+  "dilated_num_channels":32,
+  "gpool_num_channels":32,
+  "block_kind": [
+    ["rconv1","regular"],
+    ["rconv2","regular"],
+    ["rconv3","regular"],
+    ["rconv4","gpool"],
+    ["rconv5","regular"],
+    ["rconv6","regular"],
+    ["rconv7","gpool"],
+    ["rconv8","regular"]
+  ],
+  "p1_num_channels":48,
+  "g1_num_channels":32,
+  "v1_num_channels":32,
+  "v2_size":32
+}
+
+with open(os.path.join(traindir,"model.config.json"),"w") as f:
+  json.dump(model_config,f)
+
+
 # MODEL ----------------------------------------------------------------
+printed_model_yet = False
+
 def model_fn(features,labels,mode,params):
+  global printed_model_yet
 
   trainlog("Building model")
-  model_config = {
-    "trunk_num_channels":128,
-    "mid_num_channels":128,
-    "regular_num_channels":96,
-    "dilated_num_channels":32,
-    "gpool_num_channels":32,
-    "block_kind": [
-      ["rconv1","regular"],
-      ["rconv2","regular"],
-      ["rconv3","regular"],
-      ["rconv4","gpool"],
-      ["rconv5","regular"],
-      ["rconv6","regular"],
-      ["rconv7","gpool"],
-      ["rconv8","regular"]
-    ],
-    "p1_num_channels":48,
-    "g1_num_channels":32,
-    "v1_num_channels":32,
-    "v2_size":32
-  }
-
-  with open(os.path.join(traindir,"model.config.json"),"w") as f:
-    json.dump(model_config,f)
 
   #L2 regularization coefficient
   l2_coeff_value = 0.00003
@@ -203,25 +209,27 @@ def model_fn(features,labels,mode,params):
         if x.name in lr_adjusted_variables and grad is not None:
           adj_factor = lr_adjusted_variables[x.name]
           adjusted_grad = grad * adj_factor
-          trainlog("Adjusting gradient for " + x.name + " by " + str(adj_factor))
+          if not printed_model_yet:
+            trainlog("Adjusting gradient for " + x.name + " by " + str(adj_factor))
 
         adjusted_gradients.append((adjusted_grad,x))
       train_step = optimizer.apply_gradients(adjusted_gradients, global_step=global_step)
 
 
-    total_parameters = 0
-    for variable in tf.trainable_variables():
-      shape = variable.get_shape()
-      variable_parameters = 1
-      for dim in shape:
-        variable_parameters *= dim.value
-      total_parameters += variable_parameters
-      trainlog("Model variable %s, %d parameters" % (variable.name,variable_parameters))
+    if not printed_model_yet:
+      total_parameters = 0
+      for variable in tf.trainable_variables():
+        shape = variable.get_shape()
+        variable_parameters = 1
+        for dim in shape:
+          variable_parameters *= dim.value
+        total_parameters += variable_parameters
+        trainlog("Model variable %s, %d parameters" % (variable.name,variable_parameters))
 
-    trainlog("Built model, %d total parameters" % total_parameters)
+      trainlog("Built model, %d total parameters" % total_parameters)
 
-    for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
-      trainlog("Additional update op on train step: %s" % update_op.name)
+      for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
+        trainlog("Additional update op on train step: %s" % update_op.name)
 
     def moving_mean(x,weights):
       sumwx = tf.reduce_sum(x*weights)
@@ -257,6 +265,9 @@ def model_fn(features,labels,mode,params):
       "ventr": ventr,
       "pslr": per_sample_learning_rate
     }, every_n_iter=print_train_loss_every_batches)
+
+    printed_model_yet = True
+
     return tf.estimator.EstimatorSpec(
       mode,
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
@@ -303,8 +314,18 @@ def parse_input(serialized_example):
 def train_input_fn(tdatadir):
   train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir)]
   trainlog("Constructing train input pipe, %d files" % len(train_files))
-  dataset = tf.data.Dataset.from_tensor_slices(train_files)
-  dataset = dataset.shuffle(1048576)
+  def genfiles():
+    trainlog("Shuffling/reshuffling training files for dataset")
+    train_files_shuffled = train_files.copy()
+    random.shuffle(train_files_shuffled)
+    for filename in train_files_shuffled:
+      trainlog("Yielding training file for dataset: " + filename)
+      yield filename
+  dataset = tf.data.Dataset.from_generator(genfiles,tf.string,output_shapes=tf.TensorShape([]))
+
+  # dataset = tf.data.Dataset.from_tensor_slices(train_files)
+  # dataset = dataset.shuffle(1048576)
+
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
   dataset = dataset.shuffle(1000)
   dataset = dataset.map(parse_input)
@@ -369,6 +390,7 @@ def save_history(global_step_value):
 
 last_curdatadir = ""
 last_datainfo_row = 0
+globalstep = None
 while True:
   curdatadir = os.path.realpath(datadir)
   if curdatadir != last_curdatadir:
@@ -377,17 +399,20 @@ while True:
       datainfo = json.load(f)
       last_datainfo_row = max(end_row_idx for (fname,(start_row_idx,end_row_idx)) in datainfo)
     trainhistory.append(("newdata",datainfo))
+    last_curdatadir = curdatadir
+
+    tdatadir = os.path.join(curdatadir,"train")
+    gc.collect()
 
   trainlog("=========================================================================")
   trainlog("BEGINNING NEXT EPOCH")
   trainlog("=========================================================================")
   trainlog("Current time: " + str(datetime.datetime.now()))
-  globalstep = int(estimator.get_variable_value("global_step:0"))
-  trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
+  if globalstep is not None:
+    trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
 
   #Train
   trainlog("Beginning training epoch!")
-  tdatadir = os.path.join(curdatadir,"train")
   estimator.train(
     (lambda: train_input_fn(tdatadir)),
     steps=num_batches_per_epoch,
@@ -407,8 +432,9 @@ while True:
       (lambda: val_input_fn(vdatadir))
     )
 
-  #Export a model for testing, unless somehow it already exists
   globalstep = int(estimator.get_variable_value("global_step:0"))
+
+  #Export a model for testing, unless somehow it already exists
   modelname = "s%d-d%d-%s" % (
     globalstep*batch_size,
     last_datainfo_row,
@@ -420,11 +446,16 @@ while True:
     trainlog("NOT saving model, already exists at: " + savepath)
   else:
     trainlog("SAVING MODEL TO: " + savepath)
-    estimator.export_saved_model(
-      os.path.join(savepathtmp,"savedmodel"),
+    saved_to = estimator.export_saved_model(
+      savepathtmp,
       tf.estimator.export.build_raw_serving_input_receiver_fn(raw_input_feature_placeholders)
     )
+    os.rename(saved_to, os.path.join(savepathtmp,"saved_model"))
     dump_and_flush_json(trainhistory,os.path.join(savepathtmp,"trainhistory.json"))
+    with open(os.path.join(savepathtmp,"model.config.json"),"w") as f:
+      json.dump(model_config,f)
+
+    time.sleep(1)
     os.rename(savepathtmp,savepath)
 
 

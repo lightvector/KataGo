@@ -20,32 +20,47 @@ Export neural net weights and graph to file.
 """
 
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-model-file', help='model file prefix to load', required=True)
+parser.add_argument('-checkpoint-file-prefix', help='model checkpoint file prefix to load', required=False)
+parser.add_argument('-saved-model-dir', help='tf SavedModel dir to load', required=False)
 parser.add_argument('-export-dir', help='model file dir to save to', required=True)
 parser.add_argument('-model-name', help='name to record in model file', required=True)
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
 parser.add_argument('-for-cuda', help='dump model file for cuda backend', action='store_true', required=False)
 args = vars(parser.parse_args())
 
-model_file = args["model_file"]
+checkpoint_file_prefix = args["checkpoint_file_prefix"]
+saved_model_dir = args["saved_model_dir"]
 export_dir = args["export_dir"]
 model_name = args["model_name"]
 filename_prefix = args["filename_prefix"]
 for_cuda = args["for_cuda"]
+
+if checkpoint_file_prefix is None and saved_model_dir is None:
+  raise Exception("Must specify one of -checkpoint-file-prefix or -saved-model-dir")
+if checkpoint_file_prefix is not None and saved_model_dir is not None:
+  raise Exception("Must specify only one of -checkpoint-file-prefix or -saved-model-dir")
 
 loglines = []
 def log(s):
   loglines.append(s)
   print(s,flush=True)
 
-log("model_file" + ": " + model_file)
+log("checkpoint_file_prefix" + ": " + str(checkpoint_file_prefix))
+log("saved_model_dir" + ": " + str(saved_model_dir))
 log("export_dir" + ": " + export_dir)
 log("filename_prefix" + ": " + filename_prefix)
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
-with open(os.path.join(os.path.dirname(model_file),"model.config.json")) as f:
-  model_config = json.load(f)
+if checkpoint_file_prefix is not None:
+  with open(os.path.join(os.path.dirname(checkpoint_file_prefix),"model.config.json")) as f:
+    model_config = json.load(f)
+elif saved_model_dir is not None:
+  with open(os.path.join(saved_model_dir,"model.config.json")) as f:
+    model_config = json.load(f)
+else:
+  assert(False)
+
 pos_len = 19 # shouldn't matter, all we're doing is exporting weights that don't depend on this
 model = ModelV3(model_config,pos_len,{})
 
@@ -75,7 +90,12 @@ tfconfig = tf.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.allow_growth = True
 #tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
 with tf.Session(config=tfconfig) as session:
-  saver.restore(session, model_file)
+  if checkpoint_file_prefix is not None:
+    saver.restore(session, checkpoint_file_prefix)
+  elif saved_model_dir is not None:
+    saver.restore(session, os.path.join(saved_model_dir,"saved_model","variables","variables"))
+  else:
+    assert(False)
 
   sys.stdout.flush()
   sys.stderr.flush()
@@ -298,8 +318,8 @@ with tf.Session(config=tfconfig) as session:
       write_matbias("v3/b",model.v3_size,get_weights("v3/b"))
 
       #For now, only output the scorevalue channel
-      write_matmul("sv3/w",model.v2_size,1,get_weights("mv3/w")[:,0])
-      write_matbias("sv3/b",1,get_weights("mv3/b")[0])
+      write_matmul("sv3/w",model.v2_size,1,get_weights("mv3/w")[:,0:1])
+      write_matbias("sv3/b",1,get_weights("mv3/b")[0:1])
       #write_matmul("mv3/w",model.v2_size,model.mv3_size,get_weights("mv3/w"))
       #write_matbias("mv3/b",model.mv3_size,get_weights("mv3/b"))
 
