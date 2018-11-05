@@ -249,7 +249,7 @@ def model_fn(features,labels,mode,params):
     (ventr,ventr_op) = moving_mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
     (wmean,wmean_op) = tf.metrics.mean(target_vars.weight_sum)
 
-    print_train_loss_every_batches = 50
+    print_train_loss_every_batches = 100
     # print_train_loss_every_batches = num_batches_per_epoch
 
     logging_hook = tf.train.LoggingTensorHook({
@@ -311,8 +311,7 @@ def parse_input(serialized_example):
     "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 
-def train_input_fn(tdatadir):
-  train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir)]
+def train_input_fn(train_files):
   trainlog("Constructing train input pipe, %d files" % len(train_files))
   def genfiles():
     trainlog("Shuffling/reshuffling training files for dataset")
@@ -388,21 +387,35 @@ def save_history(global_step_value):
   os.rename(savepathtmp,savepath)
   trainlog("Wrote " + savepath)
 
-last_curdatadir = ""
+last_curdatadir = None
 last_datainfo_row = 0
 globalstep = None
 while True:
   curdatadir = os.path.realpath(datadir)
   if curdatadir != last_curdatadir:
+    if not os.path.exists(curdatadir):
+      trainlog("Training data path does not exist, waiting and trying again later: %s" % curdatadir)
+      time.sleep(300)
+      continue
+    trainjsonpath = os.path.join(curdatadir,"train.json")
+    if not os.path.exists(trainjsonpath):
+      trainlog("Training data json file does not exist, waiting and trying again later: %s" % trainjsonpath)
+      time.sleep(300)
+      continue
+
     trainlog("Updated training data: " + curdatadir)
-    with open(os.path.join(curdatadir,"train.json")) as f:
+    last_curdatadir = curdatadir
+
+    with open(trainjsonpath) as f:
       datainfo = json.load(f)
       last_datainfo_row = max(end_row_idx for (fname,(start_row_idx,end_row_idx)) in datainfo)
     trainhistory.append(("newdata",datainfo))
-    last_curdatadir = curdatadir
 
-    tdatadir = os.path.join(curdatadir,"train")
-    gc.collect()
+  trainlog("GC collect")
+  gc.collect()
+
+  tdatadir = os.path.join(curdatadir,"train")
+  train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir)]
 
   trainlog("=========================================================================")
   trainlog("BEGINNING NEXT EPOCH")
@@ -414,7 +427,7 @@ while True:
   #Train
   trainlog("Beginning training epoch!")
   estimator.train(
-    (lambda: train_input_fn(tdatadir)),
+    (lambda: train_input_fn(train_files)),
     steps=num_batches_per_epoch,
     saving_listeners=[
       CheckpointSaverListenerFunction(save_history)
