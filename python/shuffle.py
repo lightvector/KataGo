@@ -207,6 +207,10 @@ if __name__ == '__main__':
     if num_rows_total >= min_rows + (max_rows - min_rows) * window_factor:
       break
 
+  if num_rows_total <= 0:
+    print("No rows found")
+    sys.exit(0)
+
   #If we don't have enough rows, then quit out
   if num_rows_total < min_rows:
     print("Not enough rows (fewer than %d)" % min_rows)

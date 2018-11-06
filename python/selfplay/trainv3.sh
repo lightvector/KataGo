@@ -1,4 +1,4 @@
-#!/bin/bash -eux
+#!/bin/bash -eu
 
 #Runs tensorflow training in train/$TRAININGNAME
 #Should be run once per persistent training process.
@@ -17,6 +17,7 @@ TRAININGNAME=$1
 shift
 
 #------------------------------------------------------------------------------
+set -x
 
 mkdir -p $BASEDIR/train/$TRAININGNAME
 

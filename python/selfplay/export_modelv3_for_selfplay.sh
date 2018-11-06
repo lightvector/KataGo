@@ -18,7 +18,7 @@ shift
 mkdir -p $BASEDIR/tfsavedmodels
 mkdir -p $BASEDIR/modelstobetested
 
-for FILEPATH in $BASEDIR/tfsavedmodels_toexport/*
+for FILEPATH in $(find $BASEDIR/tfsavedmodels_toexport/ -mindepth 1 -maxdepth 1)
 do
     #Make sure to skip tmp directories that are transiently there by the tensorflow training,
     #they are probably in the process of being written
