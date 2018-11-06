@@ -213,6 +213,10 @@ MatchPairer::MatchPairer(
 MatchPairer::~MatchPairer()
 {}
 
+int MatchPairer::getNumGamesTotalToGenerate() const {
+  return numGamesTotal;
+}
+
 bool MatchPairer::getMatchup(
   int64_t& gameIdx, BotSpec& botSpecB, BotSpec& botSpecW, Logger& logger
 )
@@ -333,6 +337,13 @@ static void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board
   bot->setRootPassLegal(true);
 }
 
+static bool shouldStop(vector<std::atomic<bool>*>& stopConditions) {
+  for(int j = 0; j<stopConditions.size(); j++) {
+    if(stopConditions[j]->load())
+      return true;
+  }
+  return false;
+}
 
 //Run a game between two bots. It is OK if both bots are the same bot.
 FinishedGameData* Play::runGame(
@@ -341,7 +352,7 @@ FinishedGameData* Play::runGame(
   const string& searchRandSeed,
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
-  int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,
+  int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
   bool fancyModes, bool recordFullData, int dataPosLen,
   Rand& gameRand
 ) {
@@ -476,7 +487,7 @@ FinishedGameData* Play::runGame(
       hist.endGameIfAllPassAlive(board);
     if(hist.isGameFinished)
       break;
-    if(stopSignalReceived.load())
+    if(shouldStop(stopConditions))
       break;
 
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
@@ -656,7 +667,7 @@ bool GameRunner::runGame(
   int dataPosLen,
   ThreadSafeQueue<FinishedGameData*>* finishedGameQueue,
   std::function<void(const FinishedGameData&)>* reportGame,
-  std::atomic<bool>& stopSignalReceived
+  vector<std::atomic<bool>*>& stopConditions
 ) {
   int64_t gameIdx;
   bool shouldContinue;
@@ -703,13 +714,13 @@ bool GameRunner::runGame(
     searchRandSeed,
     doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
     logger,logSearchInfo,logMoves,
-    maxMovesPerGame,stopSignalReceived,
+    maxMovesPerGame,stopConditions,
     fancyModes,recordFullData,dataPosLen,
     gameRand
   );
 
   //Make sure not to write the game if we terminated in the middle of this game!
-  if(stopSignalReceived.load())
+  if(shouldStop(stopConditions))
     return false;
 
   if(reportGame != NULL) {

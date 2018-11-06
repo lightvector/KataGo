@@ -330,6 +330,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     &netAndStuffsMutex,&netAndStuffs,
     dataPosLen
   ](int threadIdx) {
+    vector<std::atomic<bool>*> stopConditions = {&shouldStop};
+
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     string prevModelName;
     while(true) {
@@ -352,7 +354,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
         dataPosLen,
         &(netAndStuff->finishedGameQueue),
         NULL,
-        shouldStop
+        stopConditions
       );
 
       lock.lock();

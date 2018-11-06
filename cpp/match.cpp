@@ -152,6 +152,7 @@ int MainCmds::match(int argc, const char* const* argv) {
     uint64_t threadHash
   ) {
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs")) : NULL;
+    vector<std::atomic<bool>*> stopConditions = {&sigReceived};
 
     while(true) {
       if(sigReceived.load())
@@ -166,7 +167,7 @@ int MainCmds::match(int argc, const char* const* argv) {
         }
       };
 
-      bool shouldContinue = gameRunner->runGame(matchPairer, logger, dataPosLen, NULL, &writeSgf, sigReceived);
+      bool shouldContinue = gameRunner->runGame(matchPairer, logger, dataPosLen, NULL, &writeSgf, stopConditions);
 
       if(sigReceived.load())
         break;

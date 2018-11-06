@@ -62,6 +62,8 @@ namespace {
 
     ofstream* sgfOut;
 
+    std::atomic<bool> terminated;
+
   public:
     NetAndStuff(ConfigParser& cfg, const string& nameB, const string& nameC, const string& tModelDir, NNEvaluator* nevalB, NNEvaluator* nevalC, ofstream* sOut)
       :modelNameBaseline(nameB),
@@ -78,7 +80,8 @@ namespace {
        numGamesTallied(0),
        numBaselineWinPoints(0.0),
        numCandidateWinPoints(0.0),
-       sgfOut(sOut)
+       sgfOut(sOut),
+       terminated(false)
     {
       vector<SearchParams> paramss = Setup::loadParams(cfg);
       if(paramss.size() != 1)
@@ -152,6 +155,21 @@ namespace {
           (*sgfOut) << endl;
         }
         delete data;
+
+        //Terminate games if one side has won enough to guarantee the victory.
+        int numGamesRemaining = matchPairer->getNumGamesTotalToGenerate() - numGamesTallied;
+        assert(numGamesRemaining >= 0);
+        if(numGamesRemaining > 0) {
+          if(numCandidateWinPoints >= (numBaselineWinPoints + numGamesRemaining)) {
+            logger.write("Candidate has already won enough games, terminating remaning games");
+            terminated.store(true);
+          }
+          else if(numBaselineWinPoints >= numGamesRemaining + numGamesRemaining) {
+            logger.write("Candidate has already lost too many games, terminating remaning games");
+            terminated.store(true);
+          }
+        }
+
       }
 
       if(sgfOut != NULL)
@@ -351,8 +369,10 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     netAndStuff->registerGameThread();
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game testing candidate: " + netAndStuff->modelNameCandidate);
 
+    vector<std::atomic<bool>*> stopConditions = {&shouldStop,&(netAndStuff->terminated)};
+
     while(true) {
-      if(shouldStop.load())
+      if(shouldStop.load() || netAndStuff->terminated.load())
         break;
 
       lock.unlock();
@@ -361,7 +381,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       bool shouldContinue = gameRunner->runGame(
         netAndStuff->matchPairer, logger,
         dataPosLen, &(netAndStuff->finishedGameQueue),
-        NULL, shouldStop
+        NULL, stopConditions
       );
 
       lock.lock();

@@ -83,6 +83,9 @@ class MatchPairer {
   MatchPairer(const MatchPairer&) = delete;
   MatchPairer& operator=(const MatchPairer&) = delete;
 
+  //Get the total number of games that the matchpairer will generate
+  int getNumGamesTotalToGenerate() const;
+
   //Get next matchup and log stuff
   bool getMatchup(
     int64_t& gameIdx, BotSpec& botSpecB, BotSpec& botSpecW, Logger& logger
@@ -116,7 +119,7 @@ namespace Play {
     const string& searchRandSeed,
     bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
-    int maxMovesPerGame, std::atomic<bool>& stopSignalReceived,
+    int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
     bool fancyModes, bool recordFullData, int dataPosLen,
     Rand& gameRand
   );
@@ -144,7 +147,7 @@ public:
     int dataPosLen,
     ThreadSafeQueue<FinishedGameData*>* finishedGameQueue,
     std::function<void(const FinishedGameData&)>* reportGame,
-    std::atomic<bool>& stopSignalReceived
+    vector<std::atomic<bool>*>& stopConditions
   );
 
 };
