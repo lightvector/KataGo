@@ -139,6 +139,10 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
     }))
     record_writer.write(example.SerializeToString())
 
+  jsonfilename = os.path.splitext(filename)[0] + ".json"
+  with open(jsonfilename,"w") as f:
+    json.dump({"num_rows":num_rows,"num_batches":num_batches},f)
+
   print("Done %s (%d rows)" % (filename, num_batches * batch_size))
 
   record_writer.close()

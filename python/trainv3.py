@@ -311,20 +311,19 @@ def parse_input(serialized_example):
     "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 
-def train_input_fn(train_files):
-  trainlog("Constructing train input pipe, %d files" % len(train_files))
-  def genfiles():
-    trainlog("Shuffling/reshuffling training files for dataset")
-    train_files_shuffled = train_files.copy()
-    random.shuffle(train_files_shuffled)
-    for filename in train_files_shuffled:
-      trainlog("Yielding training file for dataset: " + filename)
-      yield filename
-  dataset = tf.data.Dataset.from_generator(genfiles,tf.string,output_shapes=tf.TensorShape([]))
+def train_input_fn(train_files_to_use,total_num_train_files):
+  trainlog("Constructing train input pipe, %d/%d files used" % len(train_files_to_use,total_num_train_files))
+  # def genfiles():
+  #   trainlog("Shuffling/reshuffling training files for dataset")
+  #   train_files_shuffled = train_files.copy()
+  #   random.shuffle(train_files_shuffled)
+  #   for filename in train_files_shuffled:
+  #     trainlog("Yielding training file for dataset: " + filename)
+  #     yield filename
+  # dataset = tf.data.Dataset.from_generator(genfiles,tf.string,output_shapes=tf.TensorShape([]))
 
-  # dataset = tf.data.Dataset.from_tensor_slices(train_files)
-  # dataset = dataset.shuffle(1048576)
-
+  dataset = tf.data.Dataset.from_tensor_slices(train_files_to_use)
+  dataset = dataset.shuffle(65536)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
   dataset = dataset.shuffle(1000)
   dataset = dataset.map(parse_input)
@@ -332,7 +331,7 @@ def train_input_fn(train_files):
   return dataset
 
 def val_input_fn(vdatadir):
-  val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir)]
+  val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".tfrecord")]
   trainlog("Constructing validation input pipe, %d files" % len(val_files))
   dataset = tf.data.Dataset.from_tensor_slices(val_files)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
@@ -414,8 +413,30 @@ while True:
   trainlog("GC collect")
   gc.collect()
 
+  #Load training data files
   tdatadir = os.path.join(curdatadir,"train")
-  train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir)]
+  train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".tfrecord")]
+
+  #Filter down to a random subset that will comprise this epoch
+  def train_files_gen():
+    train_files_shuffled = train_files.copy()
+    while True:
+      random.shuffle(train_files_shuffled)
+      for filename in train_files_shuffled:
+        trainlog("Yielding training file for dataset: " + filename)
+        yield filename
+
+  #Sanity check - load a max of 100000 files.
+  train_files_to_use = []
+  batches_to_use_so_far = 0
+  for filename in train_files_gen():
+    train_files_to_use.append(filename)
+    jsonfilename = os.path.splitext(filename)[0] + ".json"
+    with open(jsonfilename) as f:
+      trainfileinfo = json.load(f)
+    batches_to_use_so_far += trainfileinfo["num_batches"]
+    if batches_to_use_so_far >= num_batches_per_epoch or len(train_files_to_use) > 100000:
+      break
 
   trainlog("=========================================================================")
   trainlog("BEGINNING NEXT EPOCH")
@@ -427,17 +448,16 @@ while True:
   #Train
   trainlog("Beginning training epoch!")
   estimator.train(
-    (lambda: train_input_fn(train_files)),
-    steps=num_batches_per_epoch,
+    (lambda: train_input_fn(train_files_to_use,len(train_files))),
     saving_listeners=[
       CheckpointSaverListenerFunction(save_history)
     ]
   )
 
-  # #Validate
+  #Validate
   trainlog("Beginning validation after epoch!")
   vdatadir = os.path.join(curdatadir,"val")
-  val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir)]
+  val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".tfrecord")]
   if len(val_files) == 0:
     trainlog("No validation files, skipping validation step")
   else:
