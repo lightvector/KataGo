@@ -472,6 +472,12 @@ void NNEvaluator::evaluate(
       policySum += policy[i];
     }
 
+    if(isnan(policySum)) {
+      cout << "Got nan for policy sum" << endl;
+      history.printDebugInfo(cout,board);
+      throw StringError("Got nan for policy sum");
+    }
+
     //Somehow all legal moves rounded to 0 probability
     if(policySum <= 0.0) {
       if(!buf.errorLogLockout && logStream != NULL) {
@@ -517,6 +523,7 @@ void NNEvaluator::evaluate(
       double winProb;
       double lossProb;
       double noResultProb;
+      double scoreValue = tanh(buf.result->whiteScoreValue);
       {
         double winLogits = buf.result->whiteWinProb;
         double lossLogits = buf.result->whiteLossProb;
@@ -532,10 +539,14 @@ void NNEvaluator::evaluate(
         winProb /= probSum;
         lossProb /= probSum;
         noResultProb /= probSum;
+
+        if(isnan(probSum) || isnan(scoreValue)) {
+          cout << "Got nan for nneval value" << endl;
+          cout << winLogits << " " << lossLogits << " " << noResultLogits << " " << scoreValue << endl;
+          throw StringError("Got nan for nneval value");
+        }
       }
-
-      double scoreValue = tanh(buf.result->whiteScoreValue);
-
+      
       if(nextPlayer == P_WHITE) {
         buf.result->whiteWinProb = winProb;
         buf.result->whiteLossProb = lossProb;

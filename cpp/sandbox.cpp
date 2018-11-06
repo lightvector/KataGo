@@ -11,184 +11,6 @@
 #include "search/asyncbot.h"
 #include "main.h"
 
-int MainCmds::sandbox() {
-  Board::initHash();
-
-  Logger logger;
-  logger.setLogToStdout(true);
-  logger.addFile("tmp.txt");
-
-  string tensorflowGpuVisibleDeviceList = ""; //use default
-  double tensorflowPerProcessGpuMemoryFraction = -1; //use default
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
-
-  int modelFileIdx = 0;
-  int maxBatchSize = 1;
-  int posLen = 19;
-  bool requireExactPosLen = false;
-  bool inputsUseNHWC = true;
-  int nnCacheSizePowerOfTwo = 16;
-  bool debugSkipNeuralNet = false;
-  NNEvaluator* nnEval = new NNEvaluator(
-    // "/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb",
-    "/efs/data/GoNN/exportedmodels/cuda/value33-140/model.txt",
-    // "/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt",
-    modelFileIdx,
-    maxBatchSize,
-    posLen,
-    requireExactPosLen,
-    inputsUseNHWC,
-    nnCacheSizePowerOfTwo,
-    debugSkipNeuralNet
-  );
-
-  int numNNServerThreads = 1;
-  bool doRandomize = true;
-  string randSeed = "abc";
-  int defaultSymmetry = 0;
-  vector<int> cudaGpuIdxByServerThread = {0};
-  bool cudaUseFP16 = false;
-  bool cudaUseNHWC = false;
-  nnEval->spawnServerThreads(
-    numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,cudaGpuIdxByServerThread,cudaUseFP16,cudaUseNHWC
-  );
-
-  Rules rules;
-  rules.koRule = Rules::KO_POSITIONAL;
-  rules.scoringRule = Rules::SCORING_AREA;
-  rules.multiStoneSuicideLegal = true;
-  rules.komi = 7.5f;
-
-  Player pla = P_BLACK;
-//   Board board = Board::parseBoard(19,19,R"(
-//    A B C D E F G H J K L M N O P Q R S T
-// 19 . . . . . . . . . . . . . . . . x . .
-// 18 . . x o . . . . . . x o . . o . o x .
-// 17 . . x o . . o x . . . . o . . o x . .
-// 16 . . x o . . o x x o . x . . . o x . .
-// 15 . x o o x . x . x x x . x . . o x . .
-// 14 . x o . . . x x o o o o x . x o o x .
-// 13 . x o . . . . . o x x x x . . . o x .
-// 12 . . o . . x x x . o . o o o o . o . .
-// 11 . . . . o x o o o o . o . x . o . . .
-// 10 . o o o o o x . . o x x x . o x x . .
-//  9 . x . x o o x x x x o o x . x o x . .
-//  8 . . . x x x x . . x . o o x . o x . .
-//  7 . . . o o . x x . x . . . . . x . x .
-//  6 . . o x x x . x x o o . o . . x . x .
-//  5 . . o o o o x x . . . o . o . o x . .
-//  4 . o o x x o o . x o o x . o . o x . .
-//  3 . o x x . o o x x x . x . o x x o x .
-//  2 o x . x x o . o . . . . . o . . o x .
-//  1 . o x x o . . o . . . . . . . . . . .
-// )");
-
-  Board board = Board::parseBoard(19,19,R"(
-   A B C D E F G H J K L M N O P Q R S T
-19 . o . . o . . . . . . . . . . . . . .
-18 o x x x x o o . . . . . . . . . . . .
-17 . o o o x x o . . x . . . . . x . . .
-16 . . . o o . o . . . . . . . . . . . .
-15 . . x . . . . . . . . . . . . . . . .
-14 . . . . . . . . . . . . . . . . . . .
-13 . . x . . . . . . . . . . . . . . . .
-12 . . . . . . . . . . . . . . . . . . .
-11 . . x . . . . . . . . . . . . . . . .
-10 . . . . . . . . . . . . . . . . . . .
- 9 . . . . . . . . . . . . . . . . x o .
- 8 . . . . . . . . . . . . . . . x . o .
- 7 . . . . . . . . . . . . o x x o o o .
- 6 . . . . . . . . . . . x o o o x x x .
- 5 . . . . . . . . . . . . x x x o o x .
- 4 . . . o . . . . . . . . o . . o o x .
- 3 . . . . . . . . . . . . . x x x o x .
- 2 . . . . . . . . . . . x . . . . o o .
- 1 . . . . . . . . . . . . . . . . . . .
-)");
-
-
-  BoardHistory hist(board,pla,rules,0);
-
-  ostream* logStream = logger.createOStream();
-  double drawEquivalentWinsForWhite = 0.5;
-  NNResultBuf buf;
-  nnEval->evaluate(board, hist, pla, drawEquivalentWinsForWhite, buf, logStream, false, false);
-
-  for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
-    for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
-      if(buf.result->policyProbs[x+y*NNPos::MAX_BOARD_LEN] >= 0)
-        printf("%6.2f%%", buf.result->policyProbs[x+y*NNPos::MAX_BOARD_LEN] * 100.0);
-      else
-        printf("   .   ");
-    }
-    cout << endl;
-  }
-  printf("%4.1f%%", buf.result->policyProbs[NNPos::MAX_NN_POLICY_SIZE-1] * 100.0);
-  cout << endl;
-  cout << buf.result->whiteWinProb << endl;
-
-  delete logStream;
-
-  SearchParams params;
-  params.maxPlayouts = 180;
-  params.numThreads = 1;
-  params.fpuUseParentAverage = false;
-  // params.moveProbModelExponent = 0.0;
-  // params.moveProbModelPolicyExponent = 0.0;
-
-  AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "def");
-  bot->setPosition(pla,board,hist);
-
-  cout << bot->getRootBoard() << endl;
-  bot->genMoveSynchronous(pla);
-  bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
-  cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
-  cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
-  cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
-  bot->clearSearch();
-  nnEval->clearCache();
-
-  bot->makeMove(Location::ofString("F15",board),pla);
-  cout << bot->getRootBoard() << endl;
-  bot->genMoveSynchronous(getOpp(pla));
-  bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
-
-  cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
-  cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
-  cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
-
-  // cout << "sizeof(uint8_t) " << sizeof(uint8_t) << endl;
-  // cout << "sizeof(uint16_t) " << sizeof(uint16_t) << endl;
-  // cout << "sizeof(uint32_t) " << sizeof(uint32_t) << endl;
-  // cout << "sizeof(uint64_t) " << sizeof(uint64_t) << endl;
-  // cout << "sizeof(std::atomic_flag) " << sizeof(std::atomic_flag) << endl;;
-  // cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
-  // cout << "sizeof(std::shared_ptr<NNOutput>) " << sizeof(std::shared_ptr<NNOutput>) << endl;;
-
-  // {
-  //   atomic<bool>* b = new atomic<bool>(false);
-  //   cout << "atomic<bool> lock free " << std::atomic_is_lock_free(b) << endl;
-  //   delete b;
-  // }
-  // {
-  //   atomic<uint64_t>* b = new atomic<uint64_t>(0);
-  //   cout << "atomic<uint64_t> lock free " << std::atomic_is_lock_free(b) << endl;
-  //   delete b;
-  // }
-
-  nnEval->killServerThreads();
-  delete bot;
-  delete nnEval;
-
-  cout << "Done" << endl;
-  return 0;
-}
-
-
-
-
-
-
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
@@ -200,19 +22,36 @@ int MainCmds::sandbox() {
 //   double tensorflowPerProcessGpuMemoryFraction = -1; //use default
 //   NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
 
-//   LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value33-140/model.txt", 0);
-//   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
-//   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb", 0);
-//   bool cudaUseFP16 = true;
-//   bool cudaUseNHWC = true;
-//   int maxBatchSize = 256;
-//   LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel,&logger,maxBatchSize,0,cudaUseFP16,cudaUseNHWC);
-//   InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize);
+//   int modelFileIdx = 0;
+//   int maxBatchSize = 1;
+//   int posLen = 19;
+//   bool requireExactPosLen = false;
+//   bool inputsUseNHWC = true;
+//   int nnCacheSizePowerOfTwo = 16;
+//   bool debugSkipNeuralNet = false;
+//   NNEvaluator* nnEval = new NNEvaluator(
+//     // "/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb",
+//     "/efs/data/GoNN/exportedmodels/cuda/value33-140/model.txt",
+//     // "/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt",
+//     modelFileIdx,
+//     maxBatchSize,
+//     posLen,
+//     requireExactPosLen,
+//     inputsUseNHWC,
+//     nnCacheSizePowerOfTwo,
+//     debugSkipNeuralNet
+//   );
 
-//   bool* syms = NeuralNet::getSymmetriesInplace(inputBuffers);
-//   syms[0] = false;
-//   syms[1] = false;
-//   syms[2] = false;
+//   int numNNServerThreads = 1;
+//   bool doRandomize = true;
+//   string randSeed = "abc";
+//   int defaultSymmetry = 0;
+//   vector<int> cudaGpuIdxByServerThread = {0};
+//   bool cudaUseFP16 = false;
+//   bool cudaUseNHWC = false;
+//   nnEval->spawnServerThreads(
+//     numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,cudaGpuIdxByServerThread,cudaUseFP16,cudaUseNHWC
+//   );
 
 //   Rules rules;
 //   rules.koRule = Rules::KO_POSITIONAL;
@@ -220,121 +59,244 @@ int MainCmds::sandbox() {
 //   rules.multiStoneSuicideLegal = true;
 //   rules.komi = 7.5f;
 
-//   Player pla = P_WHITE;
+//   Player pla = P_BLACK;
+// //   Board board = Board::parseBoard(19,19,R"(
+// //    A B C D E F G H J K L M N O P Q R S T
+// // 19 . . . . . . . . . . . . . . . . x . .
+// // 18 . . x o . . . . . . x o . . o . o x .
+// // 17 . . x o . . o x . . . . o . . o x . .
+// // 16 . . x o . . o x x o . x . . . o x . .
+// // 15 . x o o x . x . x x x . x . . o x . .
+// // 14 . x o . . . x x o o o o x . x o o x .
+// // 13 . x o . . . . . o x x x x . . . o x .
+// // 12 . . o . . x x x . o . o o o o . o . .
+// // 11 . . . . o x o o o o . o . x . o . . .
+// // 10 . o o o o o x . . o x x x . o x x . .
+// //  9 . x . x o o x x x x o o x . x o x . .
+// //  8 . . . x x x x . . x . o o x . o x . .
+// //  7 . . . o o . x x . x . . . . . x . x .
+// //  6 . . o x x x . x x o o . o . . x . x .
+// //  5 . . o o o o x x . . . o . o . o x . .
+// //  4 . o o x x o o . x o o x . o . o x . .
+// //  3 . o x x . o o x x x . x . o x x o x .
+// //  2 o x . x x o . o . . . . . o . . o x .
+// //  1 . o x x o . . o . . . . . . . . . . .
+// // )");
+
 //   Board board = Board::parseBoard(19,19,R"(
 //    A B C D E F G H J K L M N O P Q R S T
-// 19 . . . . . . . . . . . . . . . . x . .
-// 18 . . x o . . . . . . x o . . o . o x .
-// 17 . . x o . . o x . . . . o . . o x . .
-// 16 . . x o . . o x x o . x . . . o x . .
-// 15 . x o o x . x . x x x . x . . o x . .
-// 14 . x o . . . x x o o o o x . x o o x .
-// 13 . x o . . . . . o x x x x . . . o x .
-// 12 . . o . . x x x . o . o o o o . o . .
-// 11 . . . . o x o o o o . o . x . o . . .
-// 10 . o o o o o x . . o x x x . o x x . .
-//  9 . x . x o o x x x x o o x . x o x . .
-//  8 . . . x x x x . . x . o o x . o x . .
-//  7 . . . o o . x x . x . . . . . x . x .
-//  6 . . o x x x . x x o o . o . . x . x .
-//  5 . . o o o o x x . . . o . o . o x . .
-//  4 . o o x x o o . x o o x . o . o x . .
-//  3 . o x x . o o x x x . x . o x x o x .
-//  2 o x . x x o . o . . . . . o . . o x .
-//  1 . o x x o . . o . . . . . . . . . . .
-// )");
-
-//   Board board2 = Board::parseBoard(19,19,R"(
-//    A B C D E F G H J K L M N O P Q R S T
-// 19 . . . . . . . . . . . . . . . . . . .
-// 18 . . . . . . . . . . . . . . . . . . .
-// 17 . . . x . . . . . . . . . . . . . . .
-// 16 . . . . . . . . . . . . . . . . . . .
-// 15 . . . . . . . . . . . . . . . . . . .
+// 19 . o . . o . . . . . . . . . . . . . .
+// 18 o x x x x o o . . . . . . . . . . . .
+// 17 . o o o x x o . . x . . . . . x . . .
+// 16 . . . o o . o . . . . . . . . . . . .
+// 15 . . x . . . . . . . . . . . . . . . .
 // 14 . . . . . . . . . . . . . . . . . . .
-// 13 . . . . . . . . . . . . . . . . . . .
+// 13 . . x . . . . . . . . . . . . . . . .
 // 12 . . . . . . . . . . . . . . . . . . .
-// 11 . . . . . . . . . . . . . . . . . . .
+// 11 . . x . . . . . . . . . . . . . . . .
 // 10 . . . . . . . . . . . . . . . . . . .
-//  9 . . . . . . . . . . . . . . . . . . .
-//  8 . . . . . . . . . . . . . . . . . . .
-//  7 . . . . . . . . . . . . . . . . . . .
-//  6 . . . . . . . . . . . . . . . . . . .
-//  5 . . . . . . . . . . . . . . . . . . .
-//  4 . . . . . . . . . . . . . . . . . . .
-//  3 . . . . . . . . . . . . . . . . . . .
-//  2 . . . . . . . . . . . . . . . . . . .
+//  9 . . . . . . . . . . . . . . . . x o .
+//  8 . . . . . . . . . . . . . . . x . o .
+//  7 . . . . . . . . . . . . o x x o o o .
+//  6 . . . . . . . . . . . x o o o x x x .
+//  5 . . . . . . . . . . . . x x x o o x .
+//  4 . . . o . . . . . . . . o . . o o x .
+//  3 . . . . . . . . . . . . . x x x o x .
+//  2 . . . . . . . . . . . x . . . . o o .
 //  1 . . . . . . . . . . . . . . . . . . .
 // )");
 
 
-//   Board board3 = Board::parseBoard(19,19,R"(
-//    A B C D E F G H J K L M N O P Q R S T
-// 19 . x . . x . . x . . . . . . . . . . .
-// 18 . x . . . . . x . . . . . x . . x . .
-// 17 . . . x . . . . x . . x . . x . . x .
-// 16 . x . . x . . . . . x . . x . . x . .
-// 15 . x . . x . . . . . x . . x . . . . .
-// 14 . x . . x . . . . . . . . x . . x . .
-// 13 . . . . x . . . . x . . x o . . . x o
-// 12 x . . x o x . . x o x . . x o . . . .
-// 11 x . . x o x . . x o x . . x o . . . .
-// 10 x . . x o x . . x o x . . x o . . . .
-//  9 x . . x o x . . x o x . . x o . . . .
-//  8 x . . x o x . . x o x . . x o . . . .
-//  7 x . . x o . . . x o . . . x o x x . .
-//  6 x x . . x x . . x x . . x x . . . . .
-//  5 x x . . x x . . x x . . x x . x . . .
-//  4 x x . . x x . . x x . . x x . . . . .
-//  3 x x . . x x . . x x . . x x . . . . .
-//  2 x x . . x x . . x x . . x x . . . . .
-//  1 . . . . . . . . . . . . . . . . . . .
-// )");
+//   BoardHistory hist(board,pla,rules,0);
 
+//   ostream* logStream = logger.createOStream();
+//   double drawEquivalentWinsForWhite = 0.5;
+//   NNResultBuf buf;
+//   nnEval->evaluate(board, hist, pla, drawEquivalentWinsForWhite, buf, logStream, false, false);
 
-//   BoardHistory hist(board,pla,rules);
-//   BoardHistory hist2(board2,pla,rules);
-//   BoardHistory hist3(board3,pla,rules);
-
-//   //int batchSize = 5;
-//   // int batchSize = maxBatchSize;
-//   int batchSize = 32;
-//   for(int i = 0; i<batchSize; i++) {
-//     float* row = NeuralNet::getRowInplace(inputBuffers,i);
-//     if(i % 3 == 0)
-//       NNInputs::fillRowV1(board, hist, pla, row);
-//     else if(i % 3 == 1)
-//       NNInputs::fillRowV1(board2, hist2, pla, row);
-//     else
-//       NNInputs::fillRowV1(board3, hist3, pla, row);
-//   }
-
-//   vector<NNOutput*> outputs;
-//   NeuralNet::getOutput(gpuHandle,inputBuffers,batchSize,outputs);
-
-//   for(int i = 0; i<outputs.size(); i++) {
-//     NNOutput* result = outputs[i];
-//     for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
-//       for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
-//         printf("%7.4f ", result->policyProbs[x+y*NNPos::MAX_BOARD_LEN]);
-//       }
-//       cout << endl;
+//   for(int y = 0; y<NNPos::MAX_BOARD_LEN; y++) {
+//     for(int x = 0; x<NNPos::MAX_BOARD_LEN; x++) {
+//       if(buf.result->policyProbs[x+y*NNPos::MAX_BOARD_LEN] >= 0)
+//         printf("%6.2f%%", buf.result->policyProbs[x+y*NNPos::MAX_BOARD_LEN] * 100.0);
+//       else
+//         printf("   .   ");
 //     }
-//     printf("%6.4f ", result->policyProbs[NNPos::NN_POLICY_SIZE-1]);
 //     cout << endl;
-//     cout << result->whiteValue << endl;
 //   }
+//   printf("%4.1f%%", buf.result->policyProbs[NNPos::MAX_NN_POLICY_SIZE-1] * 100.0);
+//   cout << endl;
+//   cout << buf.result->whiteWinProb << endl;
 
-//   for(int i = 0; i<outputs.size(); i++)
-//     delete outputs[i];
+//   delete logStream;
 
-//   NeuralNet::freeInputBuffers(inputBuffers);
-//   NeuralNet::freeLocalGpuHandle(gpuHandle);
-//   NeuralNet::freeLoadedModel(loadedModel);
+//   SearchParams params;
+//   params.maxPlayouts = 180;
+//   params.numThreads = 1;
+//   params.fpuUseParentAverage = false;
+//   // params.moveProbModelExponent = 0.0;
+//   // params.moveProbModelPolicyExponent = 0.0;
+
+//   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "def");
+//   bot->setPosition(pla,board,hist);
+
+//   cout << bot->getRootBoard() << endl;
+//   bot->genMoveSynchronous(pla);
+//   bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
+//   cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
+//   cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
+//   cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
+//   bot->clearSearch();
+//   nnEval->clearCache();
+
+//   bot->makeMove(Location::ofString("F15",board),pla);
+//   cout << bot->getRootBoard() << endl;
+//   bot->genMoveSynchronous(getOpp(pla));
+//   bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().maxDepth(1));
+
+//   cout << "NN rows: " << nnEval->numRowsProcessed() << endl;
+//   cout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
+//   cout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
+
+//   // cout << "sizeof(uint8_t) " << sizeof(uint8_t) << endl;
+//   // cout << "sizeof(uint16_t) " << sizeof(uint16_t) << endl;
+//   // cout << "sizeof(uint32_t) " << sizeof(uint32_t) << endl;
+//   // cout << "sizeof(uint64_t) " << sizeof(uint64_t) << endl;
+//   // cout << "sizeof(std::atomic_flag) " << sizeof(std::atomic_flag) << endl;;
+//   // cout << "sizeof(std::mutex) " << sizeof(std::mutex) << endl;;
+//   // cout << "sizeof(std::shared_ptr<NNOutput>) " << sizeof(std::shared_ptr<NNOutput>) << endl;;
+
+//   // {
+//   //   atomic<bool>* b = new atomic<bool>(false);
+//   //   cout << "atomic<bool> lock free " << std::atomic_is_lock_free(b) << endl;
+//   //   delete b;
+//   // }
+//   // {
+//   //   atomic<uint64_t>* b = new atomic<uint64_t>(0);
+//   //   cout << "atomic<uint64_t> lock free " << std::atomic_is_lock_free(b) << endl;
+//   //   delete b;
+//   // }
+
+//   nnEval->killServerThreads();
+//   delete bot;
+//   delete nnEval;
 
 //   cout << "Done" << endl;
 //   return 0;
 // }
+
+
+
+
+
+
+int MainCmds::sandbox() {
+  Board::initHash();
+
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.addFile("tmp.txt");
+
+  string tensorflowGpuVisibleDeviceList = ""; //use default
+  double tensorflowPerProcessGpuMemoryFraction = -1; //use default
+  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+
+  LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/selfplay/run0/modelstobetested//s9999360-d1178745-b8c128/model.txt.gz", 0);
+  // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
+  // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb", 0);
+  bool cudaUseFP16 = true;
+  bool cudaUseNHWC = true;
+  int maxBatchSize = 128;
+  int posLen = 14;
+  bool requireExactPosLen = false;
+  bool inputsUseNHWC = true;
+  int cudaGpuIdxForThisThread = 0;
+  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(
+                                                              loadedModel,&logger,maxBatchSize,posLen,requireExactPosLen,inputsUseNHWC,
+                                                              cudaGpuIdxForThisThread,cudaUseFP16,cudaUseNHWC
+                                                              );
+  InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,posLen);
+
+  bool* syms = NeuralNet::getSymmetriesInplace(inputBuffers);
+  syms[0] = false;
+  syms[1] = false;
+  syms[2] = false;
+
+  Rules rules;
+  rules.koRule = Rules::KO_POSITIONAL;
+  rules.scoringRule = Rules::SCORING_AREA;
+  rules.multiStoneSuicideLegal = true;
+  rules.komi = 7.5f;
+
+  Player pla = P_WHITE;
+  Board board = Board::parseBoard(9,9,R"(
+...x.....
+.........
+.........
+.........
+.........
+..o......
+.........
+....x....
+.x.....o.
+)");
+
+  int encorePhase = 0;
+  BoardHistory hist(board,pla,rules,encorePhase);
+  // BoardHistory hist2(board2,pla,rules);
+  // BoardHistory hist3(board3,pla,rules);
+
+  int batchSize = 5;
+  // int batchSize = maxBatchSize;
+  // int batchSize = 32;
+  for(int i = 0; i<batchSize; i++) {
+    float* row = NeuralNet::getRowInplace(inputBuffers,i);
+    float* rowGlobalInput = NeuralNet::getRowGlobalInplace(inputBuffers,i);
+
+    double drawEquivalentWinsForWhite = 0.5;
+    NNInputs::fillRowV3(board, hist, pla, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, row, rowGlobalInput);
+    // if(i % 3 == 0)
+      // NNInputs::fillRowV3(board, hist, pla, row);
+    // else if(i % 3 == 1)
+    //   NNInputs::fillRowV1(board2, hist2, pla, row);
+    // else
+    //   NNInputs::fillRowV1(board3, hist3, pla, row);
+  }
+
+  vector<NNOutput*> outputs;
+  for(int row = 0; row<batchSize; row++) {
+    NNOutput* emptyOutput = new NNOutput();
+    emptyOutput->posLen = posLen;
+    outputs.push_back(emptyOutput);
+  }
+
+  
+  NeuralNet::getOutput(gpuHandle,inputBuffers,batchSize,outputs);
+
+  for(int i = 0; i<outputs.size(); i++) {
+    NNOutput* result = outputs[i];
+    for(int y = 0; y<posLen; y++) {
+      for(int x = 0; x<posLen; x++) {
+        printf("%7.4f ", result->policyProbs[x+y*posLen]);
+      }
+      cout << endl;
+    }
+    printf("%6.4f ", result->policyProbs[posLen*posLen]);
+    cout << endl;
+    cout << result->whiteWinProb << endl;
+    cout << result->whiteLossProb << endl;
+    cout << result->whiteNoResultProb << endl;
+  }
+
+  for(int i = 0; i<outputs.size(); i++)
+    delete outputs[i];
+
+  NeuralNet::freeInputBuffers(inputBuffers);
+  NeuralNet::freeLocalGpuHandle(gpuHandle);
+  NeuralNet::freeLoadedModel(loadedModel);
+
+  cout << "Done" << endl;
+  return 0;
+}
 
 
 

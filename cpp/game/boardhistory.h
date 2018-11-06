@@ -101,6 +101,8 @@ struct BoardHistory {
   void endAndScoreGameNow(const Board& board);
   void endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]);
 
+  void printDebugInfo(ostream& out, const Board& board) const;
+  
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   int numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;

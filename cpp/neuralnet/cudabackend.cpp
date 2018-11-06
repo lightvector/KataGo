@@ -3035,7 +3035,7 @@ struct ValueHead {
     }
     else {
       if(maskSumBuf != NULL)
-        customCudaValueHeadPoolNCHW((const float*)bufToBePooled,v1MeanBuf,batchSize,xSize*ySize,v1Channels,maskSumBuf);
+        customCudaValueHeadPoolNHWC((const float*)bufToBePooled,v1MeanBuf,batchSize,xSize*ySize,v1Channels,maskSumBuf);
       else
         customCudaPoolRowsSumNHWC((const float*)bufToBePooled,v1MeanBuf,batchSize,xSize*ySize,v1Channels,meanScale);
     }

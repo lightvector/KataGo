@@ -756,6 +756,7 @@ Hash128 NNInputs::getHashV3(
   int xSize = board.x_size;
   int ySize = board.y_size;
 
+  //Note that board.pos_hash also incorporates the size of the board.
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
 

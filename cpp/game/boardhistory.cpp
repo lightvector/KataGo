@@ -231,6 +231,21 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   koHashHistory.push_back(getKoHash(rules,board,pla,encorePhase,koProhibitHash));
 }
 
+void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
+  out << board << endl;
+  out << "Encore phase " << encorePhase << endl;
+  out << "Rules " << rules << endl;
+  out << "Ko prohib hash " << koProhibitHash << endl;
+  out << "White bonus score " << whiteBonusScore << endl;
+  out << "Game result " << isGameFinished << " " << playerToString(winner) << " " << finalWhiteMinusBlackScore << " " << isNoResult << endl;
+  out << "Last moves ";
+  int start = moveHistory.size() <= 5 ? 0 : (moveHistory.size() - 5);
+  for(int i = start; i<moveHistory.size(); i++)
+    out << Location::toString(moveHistory[i].loc,board) << " ";
+  out << endl;
+}
+
+
 const Board& BoardHistory::getRecentBoard(int numMovesAgo) const {
   assert(numMovesAgo >= 0 && numMovesAgo < NUM_RECENT_BOARDS);
   int idx = (currentRecentBoardIdx - numMovesAgo + NUM_RECENT_BOARDS) % NUM_RECENT_BOARDS;

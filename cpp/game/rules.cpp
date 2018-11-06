@@ -57,6 +57,13 @@ string Rules::writeScoringRule(int scoringRule) {
   return string("UNKNOWN");
 }
 
+ostream& operator<<(ostream& out, const Rules& rules) {
+  out << "ko" << Rules::writeKoRule(rules.koRule)
+      << "score" << Rules::writeScoringRule(rules.scoringRule)
+      << "sui" << rules.multiStoneSuicideLegal
+      << "komi" << rules.komi;
+  return out;
+}
 
 const Hash128 Rules::ZOBRIST_KO_RULE_HASH[4] = {
   Hash128(0x3cc7e0bf846820f6ULL, 0x1fb7fbde5fc6ba4eULL),  //Based on sha256 hash of Rules::KO_SIMPLE

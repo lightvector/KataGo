@@ -32,6 +32,8 @@ struct Rules {
   static string writeKoRule(int koRule);
   static string writeScoringRule(int scoringRule);
 
+  friend ostream& operator<<(ostream& out, const Rules& rules);
+
   static const Hash128 ZOBRIST_KO_RULE_HASH[4];
   static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];
   static const Hash128 ZOBRIST_MULTI_STONE_SUICIDE_HASH;
