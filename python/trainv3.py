@@ -312,7 +312,7 @@ def parse_input(serialized_example):
   }
 
 def train_input_fn(train_files_to_use,total_num_train_files):
-  trainlog("Constructing train input pipe, %d/%d files used" % len(train_files_to_use,total_num_train_files))
+  trainlog("Constructing train input pipe, %d/%d files used" % (len(train_files_to_use),total_num_train_files))
   # def genfiles():
   #   trainlog("Shuffling/reshuffling training files for dataset")
   #   train_files_shuffled = train_files.copy()
@@ -327,7 +327,7 @@ def train_input_fn(train_files_to_use,total_num_train_files):
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
   dataset = dataset.shuffle(1000)
   dataset = dataset.map(parse_input)
-  dataset = dataset.repeat()
+  # dataset = dataset.repeat()
   return dataset
 
 def val_input_fn(vdatadir):
@@ -413,6 +413,13 @@ while True:
   trainlog("GC collect")
   gc.collect()
 
+  trainlog("=========================================================================")
+  trainlog("BEGINNING NEXT EPOCH")
+  trainlog("=========================================================================")
+  trainlog("Current time: " + str(datetime.datetime.now()))
+  if globalstep is not None:
+    trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
+
   #Load training data files
   tdatadir = os.path.join(curdatadir,"train")
   train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".tfrecord")]
@@ -437,13 +444,6 @@ while True:
     batches_to_use_so_far += trainfileinfo["num_batches"]
     if batches_to_use_so_far >= num_batches_per_epoch or len(train_files_to_use) > 100000:
       break
-
-  trainlog("=========================================================================")
-  trainlog("BEGINNING NEXT EPOCH")
-  trainlog("=========================================================================")
-  trainlog("Current time: " + str(datetime.datetime.now()))
-  if globalstep is not None:
-    trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
 
   #Train
   trainlog("Beginning training epoch!")
