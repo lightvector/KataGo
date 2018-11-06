@@ -260,21 +260,21 @@ void Tests::runAutoSearchTests() {
     search->printTree(out, search->rootNode, options);
 
     string expected = R"%%(
-: T  -1.62c W  -1.62c S   0.00c V -34.38c N     100  --  J9 J2 J3 E6 F6 B9 H9
+: T  -1.62c W  -1.62c S   0.00c ( +0.0) V -34.38c N     100  --  J9 J2 J3 E6 F6 B9 H9
 ---Black(v)---
-J9  : T  -5.41c W  -5.41c S   0.00c V  -4.26c P  3.92% VW  9.28% N      32  --  J2 J3 E6 F6 B9 H9
-A5  : T  -0.67c W  -0.67c S   0.00c V  33.74c P 17.68% VW  8.42% N      22  --  G2 B2 B5 B6
-H2  : T  -1.56c W  -1.56c S   0.00c V -22.09c P  3.83% VW  8.57% N      17  --  E1 A1 H5 J4
-F8  : T  -2.47c W  -2.47c S   0.00c V -22.88c P  3.01% VW  8.68% N      11  --  A6 D3 B8 C2
-G7  : T  -3.14c W  -3.14c S   0.00c V -19.88c P  2.22% VW  8.75% N       7  --  J1 E7 D1 C8
-H8  : T  17.49c W  17.49c S   0.00c V  -1.26c P  3.34% VW  6.83% N       2  --  D2
-J8  : T   3.44c W   3.44c S   0.00c V  -4.23c P  2.03% VW  8.08% N       2  --  F8
-J7  : T  13.62c W  13.62c S   0.00c V  13.62c P  3.62% VW  7.37% N       1  --
-E8  : T  31.63c W  31.63c S   0.00c V  31.63c P  2.90% VW  6.07% N       1  --
-B1  : T  17.90c W  17.90c S   0.00c V  17.90c P  2.63% VW  7.05% N       1  --
-D2  : T   9.85c W   9.85c S   0.00c V   9.85c P  2.58% VW  7.66% N       1  --
-J3  : T   6.73c W   6.73c S   0.00c V   6.73c P  2.39% VW  7.89% N       1  --
-G9  : T  42.59c W  42.59c S   0.00c V  42.59c P  2.14% VW  5.35% N       1  --
+J9  : T  -5.41c W  -5.41c S   0.00c ( +0.0) V  -4.26c P  3.92% VW  9.28% N      32  --  J2 J3 E6 F6 B9 H9
+A5  : T  -0.67c W  -0.67c S   0.00c ( +0.0) V  33.74c P 17.68% VW  8.42% N      22  --  G2 B2 B5 B6
+H2  : T  -1.56c W  -1.56c S   0.00c ( +0.0) V -22.09c P  3.83% VW  8.57% N      17  --  E1 A1 H5 J4
+F8  : T  -2.47c W  -2.47c S   0.00c ( +0.0) V -22.88c P  3.01% VW  8.68% N      11  --  A6 D3 B8 C2
+G7  : T  -3.14c W  -3.14c S   0.00c ( +0.0) V -19.88c P  2.22% VW  8.75% N       7  --  J1 E7 D1 C8
+H8  : T  17.49c W  17.49c S   0.00c ( +0.0) V  -1.26c P  3.34% VW  6.83% N       2  --  D2
+J8  : T   3.44c W   3.44c S   0.00c ( +0.0) V  -4.23c P  2.03% VW  8.08% N       2  --  F8
+J7  : T  13.62c W  13.62c S   0.00c ( +0.0) V  13.62c P  3.62% VW  7.37% N       1  --
+E8  : T  31.63c W  31.63c S   0.00c ( +0.0) V  31.63c P  2.90% VW  6.07% N       1  --
+B1  : T  17.90c W  17.90c S   0.00c ( +0.0) V  17.90c P  2.63% VW  7.05% N       1  --
+D2  : T   9.85c W   9.85c S   0.00c ( +0.0) V   9.85c P  2.58% VW  7.66% N       1  --
+J3  : T   6.73c W   6.73c S   0.00c ( +0.0) V   6.73c P  2.39% VW  7.89% N       1  --
+G9  : T  42.59c W  42.59c S   0.00c ( +0.0) V  42.59c P  2.14% VW  5.35% N       1  --
 
 )%%";
     expect(name,out,expected);
