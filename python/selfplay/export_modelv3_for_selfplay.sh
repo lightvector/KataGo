@@ -53,7 +53,7 @@ do
             cp $SRC/model.config.json $TMPDST/
             cp $SRC/trainhistory.json $TMPDST/
 
-            tar -czvf $SRCTGZ $SRC
+            tar -czvf $SRCTGZ -C $BASEDIR/tfsavedmodels_toexport $NAME
             rm -r $SRC
             gzip $TMPDST/model.txt
 

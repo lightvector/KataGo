@@ -164,7 +164,7 @@ namespace {
             logger.write("Candidate has already won enough games, terminating remaning games");
             terminated.store(true);
           }
-          else if(numBaselineWinPoints >= numGamesRemaining + numGamesRemaining) {
+          else if(numBaselineWinPoints >= numCandidateWinPoints + numGamesRemaining) {
             logger.write("Candidate has already lost too many games, terminating remaning games");
             terminated.store(true);
           }

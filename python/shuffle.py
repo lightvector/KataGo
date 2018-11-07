@@ -211,6 +211,10 @@ if __name__ == '__main__':
     if num_rows_total >= min_rows + (max_rows - min_rows) * window_factor:
       break
 
+  if os.path.exists(out_dir):
+    raise Exception(out_dir + " already exists")
+  os.mkdir(out_dir)
+
   if num_rows_total <= 0:
     print("No rows found")
     sys.exit(0)
@@ -253,10 +257,6 @@ if __name__ == '__main__':
 
   num_out_files = int(round(approx_rows_to_keep / approx_rows_per_out_file))
   num_out_files = max(num_out_files,1)
-
-  if os.path.exists(out_dir):
-    raise Exception(out_dir + " already exists")
-  os.mkdir(out_dir)
 
   out_files = [os.path.join(out_dir, "data%d.tfrecord" % i) for i in range(num_out_files)]
   out_tmp_dirs = [os.path.join(out_dir, "tmp.shuf%d" % i) for i in range(num_out_files)]

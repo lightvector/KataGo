@@ -1054,9 +1054,11 @@ class MetricsV3:
     self.accuracy1_unreduced = tf.cast(self.top1_prediction, tf.float32)
     self.accuracy4_unreduced = tf.cast(self.top4_prediction, tf.float32)
     self.value_entropy_unreduced = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.nn.softmax(model.value_output,axis=1), logits=model.value_output)
+    self.value_conf_unreduced = 4 * tf.square(tf.nn.sigmoid(model.value_output[:,0] - model.value_output[:,1]) - 0.5)
     self.accuracy1 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy1_unreduced)
     self.accuracy4 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy4_unreduced)
     self.value_entropy = tf.reduce_sum(target_vars.target_weight_used * self.value_entropy_unreduced)
+    self.value_conf = tf.reduce_sum(target_vars.target_weight_used * self.value_conf_unreduced)
 
     #Debugging stats
     if include_debug_stats:
