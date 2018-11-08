@@ -167,6 +167,69 @@ void SgfNode::accumMoves(vector<Move>& moves, int bSize) const {
   }
 }
 
+Rules SgfNode::getRules(const Rules& defaultRules) const {
+  Rules rules = defaultRules;
+  if(!hasProperty("RU"))
+    return rules;
+  string s = Global::toLower(getSingleProperty("RU"));
+  if(s == "japansese") {
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.multiStoneSuicideLegal = false;
+  }
+  else if(s == "chinese") {
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.multiStoneSuicideLegal = false;
+  }
+  else if(s == "aga") {
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.multiStoneSuicideLegal = false;
+  }
+  else if(s == "nz") {
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.multiStoneSuicideLegal = true;
+  }
+  else if(s == "tromp-taylor" || s == "tromp taylor" || s == "tromptaylor") {
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.multiStoneSuicideLegal = true;
+  }
+  else {
+    string origS = s;
+    auto startsWithAndStrip = [](string& str, const string& prefix) {
+      bool matches = str.length() >= prefix.length() && str.substr(0,prefix.length()) == prefix;
+      if(matches)
+        str = str.substr(prefix.length());
+      return matches;
+    };
+    if(startsWithAndStrip(s,"ko")) {
+      if(startsWithAndStrip(s,"simple")) rules.koRule = Rules::KO_SIMPLE;
+      else if(startsWithAndStrip(s,"positional")) rules.koRule = Rules::KO_POSITIONAL;
+      else if(startsWithAndStrip(s,"situational")) rules.koRule = Rules::KO_SITUATIONAL;
+      else if(startsWithAndStrip(s,"spight")) rules.koRule = Rules::KO_SPIGHT;
+      else throw StringError("Could not parse rules: " + origS);
+
+      bool b;
+      b = startsWithAndStrip(s,"score");
+      assert(b);
+      if(startsWithAndStrip(s,"area")) rules.scoringRule = Rules::SCORING_AREA;
+      else if(startsWithAndStrip(s,"territory")) rules.scoringRule = Rules::SCORING_TERRITORY;
+      else throw StringError("Could not parse rules: " + origS);
+
+      b = startsWithAndStrip(s,"sui");
+      assert(b);
+      if(startsWithAndStrip(s,"1")) rules.multiStoneSuicideLegal = true;
+      else if(startsWithAndStrip(s,"0")) rules.multiStoneSuicideLegal = false;
+      else throw StringError("Could not parse rules: " + origS);
+    }
+  }
+  return rules;
+}
+
+
 Sgf::Sgf()
 {}
 Sgf::~Sgf() {
@@ -205,6 +268,11 @@ float Sgf::getKomi() const {
   if(!suc)
     propertyFail("Could not parse komi in sgf");
   return komi;
+}
+
+Rules Sgf::getRules(const Rules& defaultRules) const {
+  assert(nodes.size() > 0);
+  return nodes[0]->getRules(defaultRules);
 }
 
 void Sgf::getPlacements(vector<Move>& moves, int bSize) const {
@@ -591,6 +659,7 @@ vector<CompactSgf*> CompactSgf::loadFiles(const vector<string>& files) {
 void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) {
   Rules rules = initialRules;
   rules.komi = komi;
+  rules = rootNode.getRules(rules);
 
   board = Board(bSize,bSize);
   nextPla = P_BLACK;

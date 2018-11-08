@@ -28,6 +28,8 @@ struct SgfNode {
   bool hasPlacements() const;
   void accumPlacements(vector<Move>& moves, int bSize) const;
   void accumMoves(vector<Move>& moves, int bSize) const;
+
+  Rules getRules(const Rules& defaultRules) const;
 };
 
 struct Sgf {
@@ -50,6 +52,7 @@ struct Sgf {
 
   int getBSize() const;
   float getKomi() const;
+  Rules getRules(const Rules& defaultRules) const;
 
   void getPlacements(vector<Move>& moves, int bSize) const;
   void getMoves(vector<Move>& moves, int bSize) const;

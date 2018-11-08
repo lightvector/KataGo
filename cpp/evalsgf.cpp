@@ -21,6 +21,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   int moveNum;
   string printBranch;
   string extraMoves;
+  bool printOwnership;
   try {
     TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
@@ -28,9 +29,10 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
     TCLAP::ValueArg<int> moveNumArg("","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");
     TCLAP::ValueArg<string> printBranchArg("","print-branch","Move branch in search tree to print",false,string(),"MOVE MOVE ...");
-    TCLAP::ValueArg<string> printArg("","print","Alias for -print-branch",false,string(),"MOVE MOVE ...");
+    TCLAP::ValueArg<string> printArg("p","print","Alias for -print-branch",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraMovesArg("","extra-moves","Extra moves to force-play before doing search",false,string(),"MOVE MOVE ...");
-    TCLAP::ValueArg<string> extraArg("","extra","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
+    TCLAP::ValueArg<string> extraArg("e","extra","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
+    TCLAP::SwitchArg printOwnershipArg("o","print-ownership","Print ownership");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
     cmd.add(sgfFileArg);
@@ -39,6 +41,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printArg);
     cmd.add(extraMovesArg);
     cmd.add(extraArg);
+    cmd.add(printOwnershipArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     modelFile = modelFileArg.getValue();
@@ -48,6 +51,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     string print = printArg.getValue();
     extraMoves = extraMovesArg.getValue();
     string extra = extraArg.getValue();
+    printOwnership = printOwnershipArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
       cerr << "Error: -print-branch and -print both specified" << endl;
@@ -73,6 +77,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   ConfigParser cfg(configFile);
   Rules initialRules;
   {
+    //All of these might get overwritten by the sgf
     string koRule = cfg.getString("koRule", Rules::koRuleStrings());
     string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
     bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
@@ -174,6 +179,8 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   //Print initial state----------------------------------------------------------------
   Search* search = bot->getSearch();
   ostringstream sout;
+  sout << "Rules: " << hist.rules << endl;
+  sout << "Encore phase " << hist.encorePhase << endl;
   Board::printBoard(sout, board, Board::NULL_LOC, &(hist.moveHistory));
 
   if(options.branch_.size() > 0) {
@@ -206,6 +213,11 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
 
   //Postprocess------------------------------------------------------------
 
+  if(printOwnership) {
+    sout << "Ownership map (ORIG position):\n";
+    search->printRootOwnershipMap(sout);
+  }
+
   sout << "Time taken: " << timer.getSeconds() << "\n";
   sout << "Root visits: " << search->numRootVisits() << "\n";
   sout << "NN rows: " << nnEval->numRowsProcessed() << endl;
@@ -216,8 +228,6 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   sout << "\n";
   sout << "Tree:\n";
   search->printTree(sout, search->rootNode, options);
-  // sout << "Ownership map:\n";
-  // search->printRootOwnershipMap(sout);  
   logger.write(sout.str());
 
   delete bot;
