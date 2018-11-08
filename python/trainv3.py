@@ -17,6 +17,7 @@ import numpy as np
 
 import data
 from board import Board
+import modelv3
 from modelv3 import ModelV3, Target_varsV3, MetricsV3
 
 #Command and args-------------------------------------------------------------------
@@ -108,58 +109,19 @@ printed_model_yet = False
 
 def model_fn(features,labels,mode,params):
   global printed_model_yet
+  print_model = not printed_model_yet
 
-  trainlog("Building model")
-
-  #L2 regularization coefficient
-  l2_coeff_value = 0.00003
-
-  placeholders = {}
-
-  binchwp = features["binchwp"]
-  #Unpack binary data
-  bitmasks = tf.reshape(tf.constant([128,64,32,16,8,4,2,1],dtype=tf.uint8),[1,1,1,8])
-  binchw = tf.reshape(tf.bitwise.bitwise_and(tf.expand_dims(binchwp,axis=3),bitmasks),[-1,ModelV3.NUM_BIN_INPUT_FEATURES,((pos_len*pos_len+7)//8)*8])
-  binchw = binchw[:,:,:pos_len*pos_len]
-  binhwc = tf.cast(tf.transpose(binchw, [0,2,1]),tf.float32)
-  binhwc = tf.math.minimum(binhwc,tf.constant(1.0))
-
-  placeholders["bin_inputs"] = binhwc
-
-  placeholders["global_inputs"] = features["ginc"]
-  placeholders["symmetries"] = tf.greater(tf.random_uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
+  built = modelv3.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
-    placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
-    model = ModelV3(model_config,pos_len,placeholders)
-
+    model = built
     predictions = {}
     predictions["policy_output"] = model.policy_output
     predictions["value_output"] = model.value_output
     return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
-  placeholders["include_history"] = features["gtnc"][:,28:33]
-
-  policy_target0 = features["ptncm"][:,0,:]
-  policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
-  placeholders["policy_target"] = policy_target0
-  placeholders["policy_target_weight"] = features["gtnc"][:,25]
-
-  placeholders["value_target"] = features["gtnc"][:,0:3]
-  placeholders["scorevalue_target"] = features["gtnc"][:,3]
-  placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
-  placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
-  placeholders["target_weight_from_data"] = features["gtnc"][:,0]*0 + 1
-  placeholders["ownership_target_weight"] = 1.0-features["gtnc"][:,2] #1 if normal game, 0 if no result
-  placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
-
   if mode == tf.estimator.ModeKeys.EVAL:
-    placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
-    model = ModelV3(model_config,pos_len,placeholders)
-
-    target_vars = Target_varsV3(model,for_optimization=True,require_last_move=False,placeholders=placeholders)
-    metrics = MetricsV3(model,target_vars,include_debug_stats=False)
-
+    (model,target_vars,metrics) = built
     wsum = tf.Variable(
       0.0,dtype=tf.float32,name="wsum",trainable=False,
       collections=[tf.GraphKeys.LOCAL_VARIABLES, tf.GraphKeys.METRIC_VARIABLES],
@@ -184,52 +146,8 @@ def model_fn(features,labels,mode,params):
     )
 
   if mode == tf.estimator.ModeKeys.TRAIN:
-    placeholders["is_training"] = tf.constant(True,dtype=tf.bool)
-    model = ModelV3(model_config,pos_len,placeholders)
-
-    target_vars = Target_varsV3(model,for_optimization=True,require_last_move=False,placeholders=placeholders)
-    metrics = MetricsV3(model,target_vars,include_debug_stats=False)
-    global_step = tf.train.get_global_step()
-    global_step_float = tf.cast(global_step, tf.float32)
-    global_epoch = global_step_float / tf.constant(num_batches_per_epoch,dtype=tf.float32)
-
-    global_epoch_float_capped = tf.math.minimum(tf.constant(180.0),global_epoch)
-    per_sample_learning_rate = (
-      tf.constant(0.00020) / tf.pow(global_epoch_float_capped * tf.constant(0.1) + tf.constant(1.0), tf.constant(1.333333))
-    )
-
-    lr_adjusted_variables = model.lr_adjusted_variables
-    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
-    with tf.control_dependencies(update_ops):
-      optimizer = tf.train.MomentumOptimizer(per_sample_learning_rate, momentum=0.9, use_nesterov=True)
-      gradients = optimizer.compute_gradients(target_vars.opt_loss)
-      adjusted_gradients = []
-      for (grad,x) in gradients:
-        adjusted_grad = grad
-        if x.name in lr_adjusted_variables and grad is not None:
-          adj_factor = lr_adjusted_variables[x.name]
-          adjusted_grad = grad * adj_factor
-          if not printed_model_yet:
-            trainlog("Adjusting gradient for " + x.name + " by " + str(adj_factor))
-
-        adjusted_gradients.append((adjusted_grad,x))
-      train_step = optimizer.apply_gradients(adjusted_gradients, global_step=global_step)
-
-
-    if not printed_model_yet:
-      total_parameters = 0
-      for variable in tf.trainable_variables():
-        shape = variable.get_shape()
-        variable_parameters = 1
-        for dim in shape:
-          variable_parameters *= dim.value
-        total_parameters += variable_parameters
-        trainlog("Model variable %s, %d parameters" % (variable.name,variable_parameters))
-
-      trainlog("Built model, %d total parameters" % total_parameters)
-
-      for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
-        trainlog("Additional update op on train step: %s" % update_op.name)
+    (model,target_vars,metrics,global_step,global_step_float,per_sample_learning_rate,train_step) = built
+    printed_model_yet = True
 
     def moving_mean(x,weights):
       sumwx = tf.reduce_sum(x*weights)
@@ -250,7 +168,6 @@ def model_fn(features,labels,mode,params):
     (wmean,wmean_op) = tf.metrics.mean(target_vars.weight_sum)
 
     print_train_loss_every_batches = 100
-    # print_train_loss_every_batches = num_batches_per_epoch
 
     logging_hook = tf.train.LoggingTensorHook({
       "nsamp": global_step * tf.constant(batch_size,dtype=tf.int64),
