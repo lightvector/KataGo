@@ -33,7 +33,7 @@ do
         TMPDST=$BASEDIR/tfsavedmodels_toexport/$NAME.exported
         TARGET=$BASEDIR/modelstobetested/$NAME
 
-        if [ -f $BASEDIR/modelstobetested/$NAME ] || [ -f $BASEDIR/rejectedmodels/$NAME ] || [ -f $BASEDIR/models/$NAME ]
+        if [ -d $BASEDIR/modelstobetested/$NAME ] || [ -d $BASEDIR/rejectedmodels/$NAME ] || [ -d $BASEDIR/models/$NAME ]
         then
             echo "Model with same name aleady exists, so skipping:" $SRC
         else
