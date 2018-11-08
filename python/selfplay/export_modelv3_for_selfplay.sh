@@ -15,7 +15,7 @@ shift
 
 #------------------------------------------------------------------------------
 
-mkdir -p $BASEDIR/tfsavedmodels
+# mkdir -p $BASEDIR/tfsavedmodels
 mkdir -p $BASEDIR/modelstobetested
 
 for FILEPATH in $(find $BASEDIR/tfsavedmodels_toexport/ -mindepth 1 -maxdepth 1)
@@ -30,15 +30,14 @@ do
         NAME=$(basename $FILEPATH)
 
         SRC=$BASEDIR/tfsavedmodels_toexport/$NAME
-        SRCTGZ=$BASEDIR/tfsavedmodels_toexport/$NAME.tgz
         TMPDST=$BASEDIR/tfsavedmodels_toexport/$NAME.exported
-        TARGET1=$BASEDIR/tfsavedmodels/$NAME.tgz
-        TARGET2=$BASEDIR/modelstobetested/$NAME
+        TARGET=$BASEDIR/modelstobetested/$NAME
 
-        if [ -f $TARGET1 ]
+        if [ -f $BASEDIR/modelstobetested/$NAME ] || [ -f $BASEDIR/rejectedmodels/$NAME ] || [ -f $BASEDIR/models/$NAME ]
         then
-            echo "Model with same name aleady exists, so skipping:" $TARGET1
+            echo "Model with same name aleady exists, so skipping:" $SRC
         else
+            rm -rf "$TMPDST"
             mkdir $TMPDST
 
             set -x
@@ -52,14 +51,13 @@ do
 
             cp $SRC/model.config.json $TMPDST/
             cp $SRC/trainhistory.json $TMPDST/
+            mv $SRC/saved_model $TMPDST/
 
-            tar -czvf $SRCTGZ -C $BASEDIR/tfsavedmodels_toexport $NAME
-            rm -r $SRC
+            rm -r "$SRC"
             gzip $TMPDST/model.txt
 
-            mv $SRCTGZ $TARGET1
-            mv $TMPDST $TARGET2
-            echo "Done exporting:" $NAME "to" $TARGET1 "and" $TARGET2
+            mv $TMPDST $TARGET
+            echo "Done exporting:" $NAME "to" $TARGET
         fi
     fi
 done
