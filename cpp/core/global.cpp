@@ -14,6 +14,8 @@
 #include <dirent.h> //TODO this is not portable to windows, use C++17 filesystem library when C++17 is available
 #include <inttypes.h>
 #include <sys/types.h>
+#include <chrono>
+#include <iomanip>
 #include "global.h"
 using namespace std;
 
@@ -604,6 +606,12 @@ string Global::stripComments(const string& str)
   return result;
 }
 
+string Global::getCompactDateTimeString() {
+  time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  ostringstream out;
+  out << std::put_time(std::localtime(&time), "%Y%m%d-%H%M%S");
+  return out.str();
+}
 
 uint64_t Global::readMem(const string& str)
 {

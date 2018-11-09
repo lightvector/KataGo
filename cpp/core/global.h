@@ -112,6 +112,9 @@ namespace Global
   //Strips "#" rest-of-line style comments from a string
   string stripComments(const string& str);
 
+  //Get a compact string representation of the date and time usable in filenames
+  string getCompactDateTimeString();
+
   //Key value pairs are of the form "x=y" or "x = y".
   //Multiple key value pairs are allowed on one line if comma separated.
   //Key value pairs are also broken by newlines.

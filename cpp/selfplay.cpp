@@ -190,7 +190,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   Logger logger;
   //Log to random file name to better support starting/stopping as well as multiple parallel runs
-  logger.addFile(outputDir + "/log" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
+  logger.addFile(outputDir + "/log" + Global::getCompactDateTimeString() + "-" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
   bool logToStdout = cfg.getBool("logToStdout");
   logger.setLogToStdout(logToStdout);
 
