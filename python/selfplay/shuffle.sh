@@ -27,7 +27,7 @@ time python3 ./shuffle.py \
      -max-rows 100000000 \
      -window-factor 2 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
-     -approx-rows-per-out-file 500000 \
+     -approx-rows-per-out-file 200000 \
      -num-processes 4 \
      -batch-size 256 \
     2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outtrain.txt
@@ -38,7 +38,7 @@ time python3 ./shuffle.py \
      -max-rows 5000000 \
      -window-factor 2 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
-     -approx-rows-per-out-file 500000 \
+     -approx-rows-per-out-file 200000 \
      -num-processes 4 \
      -batch-size 256 \
      -keep-target-rows 40000 \
