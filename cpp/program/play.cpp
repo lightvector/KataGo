@@ -720,8 +720,10 @@ bool GameRunner::runGame(
   );
 
   //Make sure not to write the game if we terminated in the middle of this game!
-  if(shouldStop(stopConditions))
+  if(shouldStop(stopConditions)) {
+    delete finishedGameData;
     return false;
+  }
 
   if(reportGame != NULL) {
     assert(finishedGameData != NULL);

@@ -943,11 +943,14 @@ void Search::selectBestChildToDescend(
       continue;
 
     Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,thread.board.y_size,posLen);
+    if(moveLoc == Board::NULL_LOC)
+      continue;
 
     //Special logic for the root
     if(isRoot) {
       assert(thread.board.pos_hash == rootBoard.pos_hash);
       assert(thread.pla == rootPla);
+      assert(moveLoc == Board::PASS_LOC || rootBoard.isOnBoard(moveLoc));
 
       //For use on some online go servers, we want to be able to support a cleanup mode, where we force
       //the capture of stones that our training ruleset would consider simply dead by virtue of them

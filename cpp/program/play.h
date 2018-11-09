@@ -146,6 +146,7 @@ public:
     MatchPairer* matchPairer, Logger& logger,
     int dataPosLen,
     ThreadSafeQueue<FinishedGameData*>* finishedGameQueue,
+    //reportGame should not hold on to a reference to the finished game data.
     std::function<void(const FinishedGameData&)>* reportGame,
     vector<std::atomic<bool>*>& stopConditions
   );
