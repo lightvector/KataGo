@@ -713,7 +713,9 @@ void WriteSgf::writeSgf(
       << "sui" << rules.multiStoneSuicideLegal << "]";
   if(hist.isGameFinished) {
     out << "RE[";
-    if(hist.winner == C_BLACK)
+    if(hist.isNoResult)
+      out << "Void";
+    else if(hist.winner == C_BLACK)
       out << "B+" << (-hist.finalWhiteMinusBlackScore);
     else if(hist.winner == C_WHITE)
       out << "W+" << hist.finalWhiteMinusBlackScore;
