@@ -21,6 +21,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   int moveNum;
   string printBranch;
   string extraMoves;
+  int maxVisits;
   bool printOwnership;
   try {
     TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', "1.0",true);
@@ -32,6 +33,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> printArg("p","print","Alias for -print-branch",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraMovesArg("","extra-moves","Extra moves to force-play before doing search",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraArg("e","extra","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
+    TCLAP::ValueArg<int> visitsArg("v","visits","Set the number of visits",false,0,"VISTIS");
     TCLAP::SwitchArg printOwnershipArg("o","print-ownership","Print ownership");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
@@ -41,6 +43,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printArg);
     cmd.add(extraMovesArg);
     cmd.add(extraArg);
+    cmd.add(visitsArg);
     cmd.add(printOwnershipArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
@@ -51,6 +54,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     string print = printArg.getValue();
     extraMoves = extraMovesArg.getValue();
     string extra = extraArg.getValue();
+    maxVisits = visitsArg.getValue();
     printOwnership = printOwnershipArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
@@ -155,6 +159,8 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       throw StringError("Can only specify exactly one bot in for searching in an sgf");
     params = paramss[0];
   }
+  params.maxVisits = maxVisits;
+  params.maxPlayouts = maxVisits; //Also set this so it doesn't cap us either
 
   string searchRandSeed;
   if(cfg.contains("searchRandSeed"))
