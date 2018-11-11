@@ -2611,5 +2611,75 @@ Channel: 8
     expect(name,out,expected);
   }
 
+  {
+    const char* name = "NN Inputs V3 some other test positions";
 
+    const string sgfStr = "(;FF[4]GM[1]SZ[13]PB[s75411712-d5152283-b8c128]PW[s78621440-d5365731-b8c128]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAsui0]RE[B+11.5];B[ck];W[lb];B[ke];W[ld];B[jd];W[kc];B[jc];W[jb];B[ib];W[kk];B[ki];W[kh];B[ja];W[le];B[ic];W[kf];B[lj];W[li];B[kj];W[lk];B[jk];W[jl];B[ik];W[mj];B[kb];W[jj];B[ji];W[ij];B[ii];W[hj];B[lh];W[mi];B[kg];W[jg];B[jh];W[lg];B[hk];W[hi];B[mh];W[gk];B[mk];W[il];B[jf];W[lf];B[ig];W[cc];B[dc];W[cd];B[ed];W[kd];B[dj];W[el];B[eg];W[de];B[ee];W[ec];B[je];W[db];B[fc];W[eb];B[bj];W[fd];B[gc];W[cl];B[df];W[dd];B[cf];W[dl];B[gh];W[fk];B[la];W[hh];B[hg];W[fi];B[gg];W[mc];B[bk];W[fb];B[gb];W[ei];B[gi];W[fe];B[ef];W[ej];B[gj];W[hl];B[bh];W[mg];B[be];W[bd];B[ad];W[bb];B[ae];W[di];B[me];W[ci];B[bi];W[bl];B[ab];W[ba];B[ac];W[ml];B[ga];W[fa];B[al];W[bc];B[bf];W[mj];B[mi];W[mb];B[ge];W[mk];B[dk];W[md];B[ek];W[fj];B[jb];W[fh];B[ff];W[bm];B[ka];W[ce];B[ak];W[cj];B[ch];W[];B[id];W[fl];B[hc];W[am];B[ik];W[jk];B[ma];W[];B[mm];W[gl];B[aa];W[ca];B[dh];W[fg];B[];W[lm];B[bg];W[];B[hd];W[];B[ag];W[];B[hf];W[];B[gd];W[];B[ih];W[];B[li];W[];B[hb];W[];B[af];W[];B[ia];W[];B[kl];W[];B[])";
+
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules;
+    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+    vector<Move>& moves = sgf->moves;
+
+    int posLen = 13;
+    double drawEquivalentWinsForWhite = 0.0;
+    float* rowBin = new float[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
+    float* rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
+
+    for(size_t i = 0; i<moves.size(); i++) {
+      assert(hist.isLegal(board,moves[i].loc,moves[i].pla));
+      hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
+      nextPla = getOpp(moves[i].pla);
+
+      if(i == 163) {
+        out << "Move " << i << endl;
+        NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,true,rowBin,rowGlobal);
+        printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,18);
+        printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,19);
+      }
+    }
+
+    delete[] rowBin;
+    delete[] rowGlobal;
+    delete sgf;
+
+    string expected = R"%%(
+Move 163
+Channel: 18
+1 0 0 0 0 0 1 1 1 1 1 1 1  X O O . . O X . X2X X X X
+1 0 0 0 0 0 1 1 1 1 1 0 0  X O . O O O X X X X X O O
+1 0 0 0 0 1 1 1 1 1 0 0 0  X O O . O X X X X X O . O
+1 0 0 0 1 1 1 1 1 1 0 0 0  X O O O X . X X X X O O O
+1 1 0 0 1 1 1 1 1 1 1 0 0  X X O O X . X . . X X O X
+1 1 1 1 1 1 1 1 1 1 0 0 0  X X X X X X . X . X O O .
+1 1 1 1 1 0 1 1 1 1 1 0 0  X X . . X O X X X . X O O
+1 1 1 1 0 0 1 0 1 1 1 1 1  . X X X . O X O X X . X X
+1 1 0 0 0 0 1 0 1 1 1 1 1  . X O O O O X O X X X X X
+1 1 0 1 0 0 1 0 0 0 1 1 0  . X O X O O X O O O X X O
+1 1 1 1 1 0 0 0 1 0 0 0 0  X X X X X O O . X O O O O
+1 0 0 0 0 0 0 0 0 0 1 0 0  X O O O O O O O O O X4. O
+0 0 0 0 0 0 0 0 0 0 0 0 0  O O . . . . . . . . . O .
+
+Channel: 19
+0 1 1 1 1 1 0 0 0 0 0 0 0  X O O . . O X . X2X X X X
+0 1 1 1 1 1 0 0 0 0 0 1 1  X O . O O O X X X X X O O
+0 1 1 1 1 0 0 0 0 0 1 1 1  X O O . O X X X X X O . O
+0 1 1 1 0 0 0 0 0 0 1 1 1  X O O O X . X X X X O O O
+0 0 1 1 0 0 0 0 0 0 0 1 1  X X O O X . X . . X X O X
+0 0 0 0 0 0 0 0 0 0 1 1 1  X X X X X X . X . X O O .
+0 0 0 0 0 1 0 0 0 0 0 1 1  X X . . X O X X X . X O O
+0 0 0 0 0 1 0 1 0 0 0 0 0  . X X X . O X O X X . X X
+0 0 1 1 1 1 0 1 0 0 0 0 0  . X O O O O X O X X X X X
+0 0 1 0 1 1 0 1 1 1 0 0 1  . X O X O O X O O O X X O
+0 0 0 0 0 1 1 0 0 1 1 1 1  X X X X X O O . X O O O O
+0 1 1 1 1 1 1 1 1 1 0 0 1  X O O O O O O O O O X4. O
+1 1 0 0 0 0 0 0 0 0 0 1 1  O O . . . . . . . . . O .
+
+)%%";
+    expect(name,out,expected);
+  }
 }
