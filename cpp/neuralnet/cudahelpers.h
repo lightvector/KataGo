@@ -16,21 +16,24 @@ void customCudaChannel0ExtractNHWC(const half* in, half* out, int n, int hw, int
 //Given an input tensor and an output buffer of shape [n,c], fill output buffer with sum or max over c.
 //Max is POSITIVE max - only computes the max of positive entries, and if there are none, then evaluates to 0.
 void customCudaPoolRowsSumNCHW(const float* in, float* out, int nSize, int cSize, int xySize, float scaleSum);
-void customCudaValueHeadPoolNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum);
 void customCudaPoolRowsMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize);
 void customCudaPoolRowsSumNHWC(const float* in, float* out, int nSize, int xySize, int cSize, float scaleSum);
-void customCudaValueHeadPoolNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum);
 void customCudaPoolRowsMaxPositiveNHWC(const float* in, float* out, int nSize, int xySize, int cSize);
 
 //Same, except fills an output buffer of shape [n,c*2] with the sum over c and the max over c, in that order.
 void customCudaPoolRowsSumAndMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize, float scaleSum);
 void customCudaPoolRowsSumAndMaxPositiveNHWC(const float* in, float* out, int nSize, int xySize, int cSize, float scaleSum);
-void customCudaPoolRowsMeanAndMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum);
-void customCudaPoolRowsMeanAndMaxPositiveNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum);
 void customCudaPoolRowsSumAndMaxPositiveNCHW(const half* in, half* out, int nSize, int cSize, int xySize, float scaleSum);
 void customCudaPoolRowsSumAndMaxPositiveNHWC(const half* in, half* out, int nSize, int xySize, int cSize, float scaleSum);
-void customCudaPoolRowsMeanAndMaxPositiveNCHW(const half* in, half* out, int nSize, int cSize, int xySize, const float* maskSum);
-void customCudaPoolRowsMeanAndMaxPositiveNHWC(const half* in, half* out, int nSize, int xySize, int cSize, const float* maskSum);
+
+//Specialized operations for value head and general global pooling. Same as the other pooling, but fusedly fills
+//an output buffer of shape [n,c*3].
+void customCudaValueHeadPoolNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum);
+void customCudaValueHeadPoolNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum);
+void customCudaPoolRowsGPoolNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum);
+void customCudaPoolRowsGPoolNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum);
+void customCudaPoolRowsGPoolNCHW(const half* in, half* out, int nSize, int cSize, int xySize, const float* maskSum);
+void customCudaPoolRowsGPoolNHWC(const half* in, half* out, int nSize, int xySize, int cSize, const float* maskSum);
 
 
 void customCudaNCHWTranspose(const float *in, float* out, int xSize, int ySize, int ncSize);

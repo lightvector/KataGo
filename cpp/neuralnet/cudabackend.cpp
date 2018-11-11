@@ -1370,9 +1370,9 @@ struct GlobalPoolingResidualBlockDesc {
       throw StringError(name+Global::strprintf(
         ": gpoolBN.numChannels (%d) != gpoolConv.outChannels (%d)", gpoolBN.numChannels, gpoolConv.outChannels
       ));
-    if(gpoolBN.numChannels * 2 != gpoolToBiasMul.inChannels)
+    if(gpoolBN.numChannels * 3 != gpoolToBiasMul.inChannels)
       throw StringError(name+Global::strprintf(
-        ": gpoolBN.numChannels * 2 (%d) != gpoolToBiasMul.inChannels (%d)", gpoolBN.numChannels * 2, gpoolToBiasMul.inChannels
+        ": gpoolBN.numChannels * 3 (%d) != gpoolToBiasMul.inChannels (%d)", gpoolBN.numChannels * 3, gpoolToBiasMul.inChannels
       ));
     if(midBN.numChannels != regularConv.outChannels)
       throw StringError(name+Global::strprintf(
@@ -1528,14 +1528,14 @@ struct GlobalPoolingResidualBlock {
       const float meanScale = 1.0f / (xSize*ySize);
       if(!usingNHWC) {
         if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanAndMaxPositiveNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+          customCudaPoolRowsGPoolNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
         else
           customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
       else {
         if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanAndMaxPositiveNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+          customCudaPoolRowsGPoolNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
         else
           customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
@@ -1545,14 +1545,14 @@ struct GlobalPoolingResidualBlock {
       const float meanScale = 1.0f / (xSize*ySize);
       if(!usingNHWC) {
         if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanAndMaxPositiveNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+          customCudaPoolRowsGPoolNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
         else
           customCudaPoolRowsSumAndMaxPositiveNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
       else {
         if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanAndMaxPositiveNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+          customCudaPoolRowsGPoolNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
         else
           customCudaPoolRowsSumAndMaxPositiveNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
@@ -2295,9 +2295,9 @@ struct PolicyHeadDesc {
       throw StringError(name+Global::strprintf(
         ": g1Conv.outChannels (%d) != g1BN.numChannels (%d)", g1Conv.outChannels, g1BN.numChannels
       ));
-    if(gpoolToBiasMul.inChannels != g1BN.numChannels*2)
+    if(gpoolToBiasMul.inChannels != g1BN.numChannels*3)
       throw StringError(name+Global::strprintf(
-        ": gpoolToBiasMul.inChannels (%d) != g1BN.numChannels*2 (%d)", gpoolToBiasMul.inChannels, g1BN.numChannels*2
+        ": gpoolToBiasMul.inChannels (%d) != g1BN.numChannels*3 (%d)", gpoolToBiasMul.inChannels, g1BN.numChannels*3
       ));
     if(gpoolToBiasMul.outChannels != p1BN.numChannels)
       throw StringError(name+Global::strprintf(
@@ -2319,9 +2319,9 @@ struct PolicyHeadDesc {
       throw StringError(name+Global::strprintf(
         ": p2Conv.outChannels (%d) != 1", p2Conv.outChannels
       ));
-    if(gpoolToPassMul.inChannels != g1BN.numChannels*2)
+    if(gpoolToPassMul.inChannels != g1BN.numChannels*3)
       throw StringError(name+Global::strprintf(
-        ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*2 (%d)", gpoolToPassMul.inChannels, g1BN.numChannels*2
+        ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*3 (%d)", gpoolToPassMul.inChannels, g1BN.numChannels*3
       ));
     if(gpoolToPassMul.outChannels != 1)
       throw StringError(name+Global::strprintf(
@@ -2566,14 +2566,14 @@ struct PolicyHead {
     if(!usingFP16) {
       if(!usingNHWC) {
         if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanAndMaxPositiveNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+          customCudaPoolRowsGPoolNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
         else
           customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
       else {
         if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanAndMaxPositiveNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+          customCudaPoolRowsGPoolNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
         else
           customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
@@ -2584,14 +2584,14 @@ struct PolicyHead {
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       if(!usingNHWC) {
         if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanAndMaxPositiveNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+          customCudaPoolRowsGPoolNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
         else
           customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       }
       else {
         if(maskSumBuf != NULL)
-          customCudaPoolRowsMeanAndMaxPositiveNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+          customCudaPoolRowsGPoolNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
         else
           customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,meanScale);
         CUDA_ERR(name.c_str(),cudaPeekAtLastError());
@@ -3450,7 +3450,7 @@ struct Model {
       //Set to NULL to signal downstream that this buf doesn't need to be used
       maskBuf = NULL;
       maskFloatBuf = NULL;
-      //The value head needs this one no matter what, since it uses it in customCudaValueHeadPool*
+      //The global pooling structures need this no matter what, for normalizing based on this and its sqrt.
       //maskSumBuf = NULL;
     }
 

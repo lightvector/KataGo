@@ -266,7 +266,7 @@ with tf.Session(config=tfconfig) as session:
         write_conv(name+"/w1b",diam,trunk_num_channels,gpool_num_channels,1,get_weights(name+"/w1b"))
         write_bn(name+"/norm1b",gpool_num_channels)
         write_activation(name+"/actv1b")
-        write_matmul(name+"/w1r",gpool_num_channels*2,regular_num_channels,get_weights(name+"/w1r"))
+        write_matmul(name+"/w1r",gpool_num_channels*3,regular_num_channels,get_weights(name+"/w1r"))
         write_bn(name+"/norm2",regular_num_channels)
         write_activation(name+"/actv2")
         write_conv(name+"/w2",diam,regular_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))

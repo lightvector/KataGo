@@ -560,7 +560,8 @@ class ModelV3:
 
   #Convolutional residual block with internal batch norm and nonlinear activation
   def global_res_conv_block(
-      self, name, in_layer, mask, mask_sum, mask_sum_hw, diam, main_channels, mid_channels, global_mid_channels,
+      self, name, in_layer, mask, mask_sum, mask_sum_hw, mask_sum_hw_sqrt,
+      diam, main_channels, mid_channels, global_mid_channels,
       scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None
   ):
     trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
@@ -574,11 +575,9 @@ class ModelV3:
     self.outputs_by_layer.append((name+"/conv1b",conv1b_layer))
 
     trans1b_layer = self.relu(name+"/trans1b",(self.batchnorm_and_mask(name+"/norm1b",conv1b_layer,mask,mask_sum)))
-    trans1b_mean = tf.reduce_sum(trans1b_layer,axis=[1,2],keepdims=True) / tf.reshape(mask_sum_hw,[-1,1,1,1])
-    trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keepdims=True)
-    trans1b_pooled = tf.concat([trans1b_mean,trans1b_max],axis=3)
+    trans1b_pooled = self.global_pool(trans1b_layer, mask_sum_hw, mask_sum_hw_sqrt)
 
-    remix_weights = self.weight_variable(name+"/w1r",[global_mid_channels*2,mid_channels],global_mid_channels*2,mid_channels, scale_initial_weights = 0.5)
+    remix_weights = self.weight_variable(name+"/w1r",[global_mid_channels*3,mid_channels],global_mid_channels*3,mid_channels, scale_initial_weights = 0.5)
     conv1_layer = conv1a_layer + tf.tensordot(trans1b_pooled,remix_weights,axes=[[3],[0]])
 
     trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask,mask_sum)))
@@ -612,6 +611,38 @@ class ModelV3:
     self.outputs_by_layer.append((name+"/conv2",conv2_layer))
 
     return conv2_layer
+
+  def global_pool(self, in_layer, mask_sum_hw, mask_sum_hw_sqrt):
+    div = tf.reshape(mask_sum_hw,[-1,1,1,1])
+    div_sqrt = tf.reshape(mask_sum_hw_sqrt,[-1,1,1,1])
+
+    layer_raw_mean = tf.reduce_sum(in_layer,axis=[1,2],keepdims=True) / div
+    layer_raw_max = tf.reduce_max(in_layer,axis=[1,2],keepdims=True)
+
+    # 1, (x-14)/10, and (x-14)^2/100 - 0.1 are three orthogonal functions over [9,19], the range of reasonable board sizes.
+    # We have the 14 in there since it's the midpoint of that range. The /10 is just sort of arbitrary normalization to keep things on the same scale.
+    center_bsize = 14.0
+    layer_0 = layer_raw_mean
+    layer_1 = layer_raw_mean * ((div_sqrt - center_bsize) / 10.0)
+    layer_2 = layer_raw_max
+
+    layer_pooled = tf.concat([layer_0,layer_1,layer_2],axis=3)
+    return layer_pooled
+
+  def value_head_pool(self, in_layer, mask_sum_hw, mask_sum_hw_sqrt):
+    div = tf.reshape(mask_sum_hw,[-1,1])
+    div_sqrt = tf.reshape(mask_sum_hw_sqrt,[-1,1])
+
+    layer_raw_mean = tf.reduce_sum(in_layer,axis=[1,2],keepdims=False) / div
+
+    # 1, (x-14)/10, and (x-14)^2/100 - 0.1 are three orthogonal functions over [9,19], the range of reasonable board sizes.
+    # We have the 14 in there since it's the midpoint of that range. The /10 and /100 are just sort of arbitrary normalization to keep things on the same scale
+    center_bsize = 14.0
+    layer_0 = layer_raw_mean
+    layer_1 = layer_raw_mean * ((div_sqrt - center_bsize) / 10.0)
+    layer_2 = layer_raw_mean * (tf.square(div_sqrt - center_bsize) / 100.0 - 0.1)
+    layer_pooled = tf.concat([layer_0,layer_1,layer_2],axis=1)
+    return layer_pooled
 
 
   #Begin Neural net------------------------------------------------------------------------------------
@@ -772,6 +803,7 @@ class ModelV3:
     mask = cur_layer[:,:,:,0:1]
     mask_sum = tf.reduce_sum(mask) # Global sum
     mask_sum_hw = tf.reduce_sum(mask,axis=[1,2,3]) # Sum per batch element
+    mask_sum_hw_sqrt = tf.sqrt(mask_sum_hw)
 
     #Initial convolutional layer-------------------------------------------------------------------------------------
     trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
@@ -806,7 +838,8 @@ class ModelV3:
         self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,3))
       elif kind == "gpool":
         residual = self.global_res_conv_block(
-          name,trunk,mask,mask_sum,mask_sum_hw,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
+          name,trunk,mask,mask_sum,mask_sum_hw,mask_sum_hw_sqrt,
+          diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
           emphasize_center_weight = 0.3, emphasize_center_lr=1.5
         )
         trunk = self.merge_residual(name,trunk,residual)
@@ -836,11 +869,8 @@ class ModelV3:
     self.g1_conv = ("g1",3,trunk_num_channels,g1_num_channels)
 
     #Fold g1 down to single values for the board.
-    #For stdev, add a tiny constant to ensure numeric stability
-    g1_mean = tf.reduce_sum(g1_layer,axis=[1,2],keepdims=True) / tf.reshape(mask_sum_hw,[-1,1,1,1])
-    g1_max = tf.reduce_max(g1_layer,axis=[1,2],keepdims=True)
-    g2_layer = tf.concat([g1_mean,g1_max],axis=3) #shape [b,1,1,2*convg1num_channels]
-    g2_num_channels = 2*g1_num_channels
+    g2_layer = self.global_pool(g1_layer, mask_sum_hw, mask_sum_hw_sqrt) #shape [b,1,1,3*g1_num_channels]
+    g2_num_channels = 3*g1_num_channels
     self.outputs_by_layer.append(("g2",g2_layer))
 
     #Transform them into the space of the policy features to act as biases for the policy
@@ -896,17 +926,7 @@ class ModelV3:
     self.v1_conv = ("v1",3,trunk_num_channels,v1_num_channels)
     self.v1_num_channels = v1_num_channels
 
-    v1_div = tf.reshape(mask_sum_hw,[-1,1])
-    v1_div_sqrt = tf.sqrt(v1_div)
-    v1_layer_raw_mean = tf.reduce_sum(v1_layer,axis=[1,2],keepdims=False) / v1_div
-
-    # 1, (x-14)/10, and (x-14)^2/100 - 0.1 are three orthogonal functions over [9,19], the range of reasonable board sizes.
-    # We have the 14 in there since it's the midpoint of that range. The /10 and /100 are just sort of arbitrary normalization.
-    center_bsize = 14.0
-    v1_layer_0 = v1_layer_raw_mean
-    v1_layer_1 = v1_layer_raw_mean * ((v1_div_sqrt - center_bsize) / 10.0)
-    v1_layer_2 = v1_layer_raw_mean * (tf.square(v1_div_sqrt - center_bsize) / 100.0 - 0.1)
-    v1_layer_pooled = tf.concat([v1_layer_0,v1_layer_1,v1_layer_2],axis=1)
+    v1_layer_pooled = self.value_head_pool(v1_layer, mask_sum_hw, mask_sum_hw_sqrt)
     v1_size = v1_num_channels
 
     v2_size = config["v2_size"]
