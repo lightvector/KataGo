@@ -53,12 +53,18 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,valueTargetsNCHW))
 
   num_rows_to_keep = binaryInputNCHWPacked.shape[0]
+  assert(globalInputNC.shape[0] == num_rows_to_keep)
+  assert(policyTargetsNCMove.shape[0] == num_rows_to_keep)
+  assert(globalTargetsNC.shape[0] == num_rows_to_keep)
+  assert(valueTargetsNCHW.shape[0] == num_rows_to_keep)
+
   if keep_prob < 1.0:
     num_rows_to_keep = min(num_rows_to_keep,int(round(num_rows_to_keep * keep_prob)))
 
   rand_assts = np.random.randint(num_out_files,size=[num_rows_to_keep])
-  counts = np.bincount(rand_assts)
+  counts = np.bincount(rand_assts,minlength=num_out_files)
   countsums = np.cumsum(counts)
+  assert(countsums[len(countsums)-1] == num_rows_to_keep)
 
   print("Writing shards... (mem usage %dMB)" % memusage_mb())
   for out_idx in range(num_out_files):

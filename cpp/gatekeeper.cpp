@@ -164,7 +164,7 @@ namespace {
             logger.write("Candidate has already won enough games, terminating remaning games");
             terminated.store(true);
           }
-          else if(numBaselineWinPoints >= numCandidateWinPoints + numGamesRemaining) {
+          else if(numBaselineWinPoints > numCandidateWinPoints + numGamesRemaining + 1e-10) {
             logger.write("Candidate has already lost too many games, terminating remaning games");
             terminated.store(true);
           }
@@ -453,7 +453,8 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       break;
     }
 
-    if(netAndStuff->numBaselineWinPoints > netAndStuff->numCandidateWinPoints + 1e-12) {
+    //Candidate wins ties
+    if(netAndStuff->numBaselineWinPoints > netAndStuff->numCandidateWinPoints + 1e-10) {
       logger.write(
         Global::strprintf(
           "Candidate lost match, score %.3f to %.3f in %d games, rejecting candidate %s",
