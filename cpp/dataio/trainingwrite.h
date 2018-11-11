@@ -22,6 +22,18 @@ struct ValueTargets {
   ~ValueTargets();
 };
 
+struct SidePosition {
+  Board board;
+  BoardHistory hist;
+  Player pla;
+  vector<PolicyTargetMove> policyTarget;
+  ValueTargets whiteValueTargets;
+
+  SidePosition();
+  SidePosition(const Board& board, const BoardHistory& hist, Player pla);
+  ~SidePosition();
+};
+
 struct FinishedGameData {
   string bName;
   string wName;
@@ -51,6 +63,7 @@ struct FinishedGameData {
   vector<ValueTargets> whiteValueTargetsByTurn;
   int8_t* finalWhiteOwnership;
 
+  vector<SidePosition*> sidePositions;
 
   FinishedGameData();
   ~FinishedGameData();
@@ -89,7 +102,7 @@ struct TrainingWriteBuffers {
   //C12-15: MCTS win-loss-noresult estimate td-like target, lambda = 3/4, nowFactor = 1/4
   //C16-19: MCTS win-loss-noresult estimate td-like target, lambda = 0, nowFactor = 1 (no-temporal-averaging MCTS search result)
 
-  //C20: Actual score, from the perspective of the player to move
+  //C20: Actual final score, from the perspective of the player to move, zero if C26 is zero.
   //C21: MCTS utility variance, 1->4 visits
   //C22: MCTS utility variance, 4->16 visits
   //C23: MCTS utility variance, 16->64 visits
@@ -98,7 +111,8 @@ struct TrainingWriteBuffers {
   //C25 Weight assigned to the policy target
   //Currently always 1.0, But it is also conceivable that maybe some training rows will lack a policy target
   //so users should be robust to that.
-  //C26,27 Unused
+  //C26 Weight assigned to the final board ownership target and score targets. Most training rows will have this be 1, some will be 0.
+  //C27 Unused
 
   //C28-32: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
   //1 means use, 0 means don't use.
@@ -112,10 +126,11 @@ struct TrainingWriteBuffers {
   //C42-44: Game type, game typesource metadata
   // 0 = normal self-play game. C43,C44 unused
   // 1 = encore-training game. C43 is the starting encore phase, C44 unused
+  //C45: 0 = normal, 1 = training sample was an isolated side position forked off of main game
   NumpyBuffer<float> globalTargetsNC;
 
   //Spatial value-related targets
-  //C0 - Final board ownership (-1,0,1), from the perspective of the player to move. All 0 if no result.
+  //C0 - Final board ownership (-1,0,1), from the perspective of the player to move. All 0 if C26 has weight 0.
   NumpyBuffer<int8_t> valueTargetsNCHW;
 
   TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numGlobalChannels, int posLen);
@@ -127,9 +142,13 @@ struct TrainingWriteBuffers {
   void clear();
 
   void addRow(
-    const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite,
+    const Board& board, const BoardHistory& hist, Player nextPlayer,
     int turnNumberAfterStart,
     const vector<PolicyTargetMove>* policyTarget0, //can be null
+    const vector<ValueTargets>& whiteValueTargets,
+    int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
+    int8_t* finalWhiteOwnership,
+    bool isSidePosition,
     const FinishedGameData& data,
     Rand& rand
   );

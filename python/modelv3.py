@@ -1125,7 +1125,7 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
   placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
   placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
   placeholders["target_weight_from_data"] = features["gtnc"][:,0]*0 + 1
-  placeholders["ownership_target_weight"] = 1.0-features["gtnc"][:,2] #1 if normal game, 0 if no result
+  placeholders["ownership_target_weight"] = features["gtnc"][:,26]
   placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
 
   if mode == tf.estimator.ModeKeys.EVAL:

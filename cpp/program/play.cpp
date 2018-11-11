@@ -345,6 +345,105 @@ static bool shouldStop(vector<std::atomic<bool>*>& stopConditions) {
   return false;
 }
 
+static Loc chooseRandomLegalMove(const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand) {
+  int numLegalMoves = 0;
+  Loc locs[Board::MAX_ARR_SIZE];
+  for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
+    if(hist.isLegal(board,loc,pla)) {
+      locs[numLegalMoves] = loc;
+      numLegalMoves += 1;
+    }
+  }
+  if(numLegalMoves > 0) {
+    int n = gameRand.nextUInt(numLegalMoves);
+    return locs[n];
+  }
+  return Board::NULL_LOC;
+}
+
+static Loc chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, double temperature) {
+  const float* policyProbs = nnOutput->policyProbs;
+  int posLen = nnOutput->posLen;
+  int numLegalMoves = 0;
+  double relProbs[NNPos::MAX_NN_POLICY_SIZE];
+  int locs[NNPos::MAX_NN_POLICY_SIZE];
+  double probSum = 0.0;
+  for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
+    Loc loc = NNPos::posToLoc(pos,board.x_size,board.y_size,posLen);
+    if(policyProbs[pos] > 0.0 && hist.isLegal(board,loc,pla)) {
+      double relProb = (temperature == 1.0) ? policyProbs[pos] : pow(policyProbs[pos],1.0/temperature);
+      relProbs[numLegalMoves] = relProb;
+      locs[numLegalMoves] = loc;
+      numLegalMoves += 1;
+      probSum += relProb;
+    }
+  }
+
+  //Just in case the policy map is somehow not consistent with the board position
+  if(numLegalMoves > 0 && probSum > 0.01) {
+    int n = gameRand.nextUInt(relProbs,numLegalMoves);
+    return locs[n];
+  }
+  return Board::NULL_LOC;
+}
+
+static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand) {
+  double r = gameRand.nextDouble();
+  //80% of the time, do a random temperature 1 policy move
+  if(r < 0.8)
+    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 1.0);
+  //15% of the time, do a random temperature 2 policy move
+  else if(r < 0.95)
+    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 2.0);
+  //5% of the time, do a random legal move
+  else
+    return chooseRandomLegalMove(board, hist, pla, gameRand);
+}
+
+static void extractPolicyTarget(vector<PolicyTargetMove>& buf, const Search* toMoveBot, vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf) {
+  locsBuf.clear();
+  playSelectionValuesBuf.clear();
+  double scaleMaxToAtLeast = 10.0;
+
+  bool success = toMoveBot->getPlaySelectionValues(
+    locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast
+  );
+  assert(success);
+
+  for(int moveIdx = 0; moveIdx<locsBuf.size(); moveIdx++) {
+    double value = playSelectionValuesBuf[moveIdx];
+    assert(value >= 0.0 && value < 30000.0); //Make sure we don't oveflow int16
+    buf.push_back(PolicyTargetMove(locsBuf[moveIdx],(int16_t)round(value)));
+  }
+}
+
+static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, vector<double>* recordUtilities) {
+  double winValue;
+  double lossValue;
+  double noResultValue;
+  double scoreValue;
+  bool success = toMoveBot->getRootValues(
+    winValue,lossValue,noResultValue,scoreValue
+  );
+  assert(success);
+
+  buf.win = winValue;
+  buf.loss = lossValue;
+  buf.noResult = noResultValue;
+  buf.scoreValue = scoreValue;
+
+  //Not defined, only matters for the final value targets for the game result
+  buf.score = 0.0f;
+
+  assert(recordUtilities != NULL);
+  assert(recordUtilities->size() > 255);
+  buf.mctsUtility1 = (float)((*recordUtilities)[0]);
+  buf.mctsUtility4 = (float)((*recordUtilities)[3]);
+  buf.mctsUtility16 = (float)((*recordUtilities)[15]);
+  buf.mctsUtility64 = (float)((*recordUtilities)[63]);
+  buf.mctsUtility256 = (float)((*recordUtilities)[255]);
+}
+
 //Run a game between two bots. It is OK if both bots are the same bot.
 FinishedGameData* Play::runGame(
   const Board& initialBoard, Player pla, const BoardHistory& initialHist, int numExtraBlack,
@@ -501,52 +600,27 @@ FinishedGameData* Play::runGame(
       logger.write("Move " + Global::intToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
 
     if(recordFullData) {
-      vector<PolicyTargetMove>* policyTargets = new vector<PolicyTargetMove>();
-      locsBuf.clear();
-      playSelectionValuesBuf.clear();
-      double scaleMaxToAtLeast = 10.0;
+      vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
+      extractPolicyTarget(*policyTarget, toMoveBot, locsBuf, playSelectionValuesBuf);
+      gameData->policyTargetsByTurn.push_back(policyTarget);
 
-      bool success = toMoveBot->getPlaySelectionValues(
-        locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast
-      );
-      assert(success);
+      ValueTargets whiteValueTargets;
+      extractValueTargets(whiteValueTargets, toMoveBot, recordUtilities);
+      gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
 
-      double winValue;
-      double lossValue;
-      double noResultValue;
-      double scoreValue;
-      success = toMoveBot->getRootValues(
-        winValue,lossValue,noResultValue,scoreValue
-      );
-      assert(success);
-
-      for(int moveIdx = 0; moveIdx<locsBuf.size(); moveIdx++) {
-        double value = playSelectionValuesBuf[moveIdx];
-        assert(value >= 0.0 && value < 30000.0); //Make sure we don't oveflow int16
-        (*policyTargets).push_back(PolicyTargetMove(locsBuf[moveIdx],(int16_t)round(value)));
+      //Occasionally fork off some positions to evaluate
+      if(fancyModes && gameRand.nextBool(0.10)) {
+        assert(toMoveBot->rootNode != NULL);
+        assert(toMoveBot->rootNode->nnOutput != nullptr);
+        Loc forkLoc = chooseRandomForkingMove(toMoveBot->rootNode->nnOutput.get(), board, hist, pla, gameRand);
+        if(forkLoc != Board::NULL_LOC) {
+          SidePosition* sp = new SidePosition(board,hist,pla);
+          sp->hist.makeBoardMoveAssumeLegal(sp->board,forkLoc,sp->pla,NULL);
+          sp->pla = getOpp(sp->pla);
+          if(sp->hist.isGameFinished) delete sp;
+          else gameData->sidePositions.push_back(sp);
+        }
       }
-      gameData->policyTargetsByTurn.push_back(policyTargets);
-
-      ValueTargets valueTargets;
-      valueTargets.win = winValue;
-      valueTargets.loss = lossValue;
-      valueTargets.noResult = noResultValue;
-      valueTargets.scoreValue = scoreValue;
-
-      //Not defined, only matters for the final value targets for the game result
-      valueTargets.score = 0.0f;
-
-      (void)gameRand; //TODO use this for sampling some conditional positions and forking?
-
-      assert(recordUtilities != NULL);
-      assert(recordUtilities->size() > 255);
-      valueTargets.mctsUtility1 = (float)((*recordUtilities)[0]);
-      valueTargets.mctsUtility4 = (float)((*recordUtilities)[3]);
-      valueTargets.mctsUtility16 = (float)((*recordUtilities)[15]);
-      valueTargets.mctsUtility64 = (float)((*recordUtilities)[63]);
-      valueTargets.mctsUtility256 = (float)((*recordUtilities)[255]);
-
-      gameData->whiteValueTargetsByTurn.push_back(valueTargets);
     }
 
     //In many cases, we are using root-level noise, so we want to clear the search each time so that we don't
@@ -587,7 +661,7 @@ FinishedGameData* Play::runGame(
       finalValueTargets.score = 0.0f;
 
       //Fill with empty so that we use "nobody owns anything" as the training target.
-      //Although in practice actually the training normally weights by having a result or not.
+      //Although in practice actually the training normally weights by having a result or not, so it doesn't matter what we fill.
       std::fill(area,area+Board::MAX_ARR_SIZE,C_EMPTY);
     }
     else {
@@ -631,6 +705,45 @@ FinishedGameData* Play::runGame(
 
     gameData->hasFullData = true;
     gameData->posLen = dataPosLen;
+
+    //Also evaluate all the side positions as well that we queued up to be searched
+    int origSize = gameData->sidePositions.size();
+    NNResultBuf nnResultBuf;
+    for(int i = 0; i<gameData->sidePositions.size(); i++) {
+      SidePosition* sp = gameData->sidePositions[i];
+      Search* toMoveBot = sp->pla == P_BLACK ? botB : botW;
+      toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
+      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+
+      extractPolicyTarget(sp->policyTarget, toMoveBot, locsBuf, playSelectionValuesBuf);
+      extractValueTargets(sp->whiteValueTargets, toMoveBot, recordUtilities);
+
+      //Occasionally continue the fork a second move, to provide some situations where the opponent has played "weird" moves not
+      //on the most immediate turn, but rather the turn before.
+      if(i < origSize && gameRand.nextBool(0.25)) {
+        if(responseLoc == Board::NULL_LOC || !sp->hist.isLegal(sp->board,responseLoc,sp->pla))
+          failIllegalMove(toMoveBot,logger,sp->board,responseLoc);
+        SidePosition* sp2 = new SidePosition(sp->board,sp->hist,sp->pla);
+        sp2->hist.makeBoardMoveAssumeLegal(sp2->board,responseLoc,sp2->pla,NULL);
+        sp2->pla = getOpp(sp2->pla);
+        if(sp2->hist.isGameFinished)
+          delete sp2;
+        else {
+          Search* toMoveBot2 = sp2->pla == P_BLACK ? botB : botW;
+          toMoveBot2->nnEvaluator->evaluate(
+            sp2->board,sp2->hist,sp2->pla,toMoveBot2->searchParams.drawEquivalentWinsForWhite,
+            nnResultBuf,NULL,false,false
+          );
+          Loc forkLoc = chooseRandomForkingMove(nnResultBuf.result.get(), sp2->board, sp2->hist, sp2->pla, gameRand);
+          if(forkLoc != Board::NULL_LOC) {
+            sp2->hist.makeBoardMoveAssumeLegal(sp2->board,forkLoc,sp2->pla,NULL);
+            sp2->pla = getOpp(sp2->pla);
+            if(sp2->hist.isGameFinished) delete sp2;
+            else gameData->sidePositions.push_back(sp2);
+          }
+        }
+      }
+    }
   }
 
   if(recordUtilities != NULL)

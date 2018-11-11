@@ -18,6 +18,26 @@ ValueTargets::~ValueTargets()
 
 //-------------------------------------------------------------------------------------
 
+SidePosition::SidePosition()
+  :board(),
+   hist(),
+   pla(P_BLACK),
+   policyTarget(),
+   whiteValueTargets()
+{}
+
+SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p)
+  :board(b),
+   hist(h),
+   pla(p),
+   policyTarget(),
+   whiteValueTargets()
+{}
+
+SidePosition::~SidePosition()
+{}
+
+//-------------------------------------------------------------------------------------
 
 FinishedGameData::FinishedGameData()
   :bName(),
@@ -44,7 +64,9 @@ FinishedGameData::FinishedGameData()
    posLen(-1),
    policyTargetsByTurn(),
    whiteValueTargetsByTurn(),
-   finalWhiteOwnership(NULL)
+   finalWhiteOwnership(NULL),
+
+   sidePositions()
 {
 }
 
@@ -54,6 +76,9 @@ FinishedGameData::~FinishedGameData() {
 
   if(finalWhiteOwnership != NULL)
     delete[] finalWhiteOwnership;
+
+  for(int i = 0; i<sidePositions.size(); i++)
+    delete sidePositions[i];
 }
 
 
@@ -63,7 +88,7 @@ FinishedGameData::~FinishedGameData() {
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 1;
-static const int GLOBAL_TARGET_NUM_CHANNELS = 45;
+static const int GLOBAL_TARGET_NUM_CHANNELS = 46;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int pLen)
@@ -137,14 +162,14 @@ static float fsq(float x) {
   return x * x;
 }
 
-static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTurn, int turnNumber, Player nextPlayer, float nowFactor, float* buf) {
+static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTurn, int idx, Player nextPlayer, float nowFactor, float* buf) {
   double winValue = 0.0;
   double lossValue = 0.0;
   double noResultValue = 0.0;
   double scoreValue = 0.0;
 
   double weightLeft = 1.0;
-  for(int i = turnNumber; i<whiteValueTargetsByTurn.size(); i++) {
+  for(int i = idx; i<whiteValueTargetsByTurn.size(); i++) {
     double weightNow;
     if(i == whiteValueTargetsByTurn.size() - 1) {
       weightNow = weightLeft;
@@ -169,9 +194,13 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
 }
 
 void TrainingWriteBuffers::addRow(
-  const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite,
+  const Board& board, const BoardHistory& hist, Player nextPlayer,
   int turnNumberAfterStart,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
+  const vector<ValueTargets>& whiteValueTargets,
+  int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
+  int8_t* finalWhiteOwnership,
+  bool isSidePosition,
   const FinishedGameData& data,
   Rand& rand
 ) {
@@ -189,7 +218,7 @@ void TrainingWriteBuffers::addRow(
     if(inputsVersion == 3) {
       assert(NNInputs::NUM_FEATURES_BIN_V3 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V3 == numGlobalChannels);
-      NNInputs::fillRowV3(board, hist, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowBin, rowGlobal);
+      NNInputs::fillRowV3(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
       assert(false);
@@ -217,23 +246,18 @@ void TrainingWriteBuffers::addRow(
   }
 
   //Unused
-  rowGlobal[26] = 0.0f;
   rowGlobal[27] = 0.0f;
 
   //Fill td-like value targets
-  assert(turnNumberAfterStart >= 0 && turnNumberAfterStart < data.whiteValueTargetsByTurn.size());
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumberAfterStart, nextPlayer, 0.0, rowGlobal);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumberAfterStart, nextPlayer, 1.0/36.0, rowGlobal+4);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumberAfterStart, nextPlayer, 1.0/12.0, rowGlobal+8);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumberAfterStart, nextPlayer, 1.0/4.0, rowGlobal+12);
-  fillValueTDTargets(data.whiteValueTargetsByTurn, turnNumberAfterStart, nextPlayer, 1.0, rowGlobal+16);
-
-  //Fill score info
-  const ValueTargets& lastTargets = data.whiteValueTargetsByTurn[data.whiteValueTargetsByTurn.size()-1];
-  rowGlobal[20] = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
+  assert(whiteValueTargetsIdx >= 0 && whiteValueTargetsIdx < whiteValueTargets.size());
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 0.0, rowGlobal);
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/36.0, rowGlobal+4);
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/12.0, rowGlobal+8);
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/4.0, rowGlobal+12);
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0, rowGlobal+16);
 
   //Fill short-term variance info
-  const ValueTargets& thisTargets = data.whiteValueTargetsByTurn[turnNumberAfterStart];
+  const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
   rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
   rowGlobal[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
   rowGlobal[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
@@ -245,11 +269,11 @@ void TrainingWriteBuffers::addRow(
   bool useHist2 = useHist1 && rand.nextDouble() < 0.98;
   bool useHist3 = useHist2 && rand.nextDouble() < 0.98;
   bool useHist4 = useHist3 && rand.nextDouble() < 0.98;
-  rowGlobal[28] = useHist0 ? 1.0 : 0.0;
-  rowGlobal[29] = useHist1 ? 1.0 : 0.0;
-  rowGlobal[30] = useHist2 ? 1.0 : 0.0;
-  rowGlobal[31] = useHist3 ? 1.0 : 0.0;
-  rowGlobal[32] = useHist4 ? 1.0 : 0.0;
+  rowGlobal[28] = useHist0 ? 1.0f : 0.0f;
+  rowGlobal[29] = useHist1 ? 1.0f : 0.0f;
+  rowGlobal[30] = useHist2 ? 1.0f : 0.0f;
+  rowGlobal[31] = useHist3 ? 1.0f : 0.0f;
+  rowGlobal[32] = useHist4 ? 1.0f : 0.0f;
 
   //Fill in hash of game
   Hash128 gameHash = data.gameHash;
@@ -262,22 +286,36 @@ void TrainingWriteBuffers::addRow(
 
   //Some misc metadata
   rowGlobal[39] = turnNumberAfterStart;
-  rowGlobal[40] = data.hitTurnLimit ? 1.0 : 0.0;
+  rowGlobal[40] = data.hitTurnLimit ? 1.0f : 0.0f;
 
   //Metadata about how the game was initialized
   rowGlobal[41] = data.firstTrainingTurn;
   rowGlobal[42] = data.mode;
   rowGlobal[43] = data.modeMeta1;
   rowGlobal[44] = data.modeMeta2;
+  rowGlobal[45] = isSidePosition ? 1.0f : 0.0f;
 
-  assert(45 == GLOBAL_TARGET_NUM_CHANNELS);
+  assert(46 == GLOBAL_TARGET_NUM_CHANNELS);
 
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
-  assert(data.finalWhiteOwnership != NULL);
-  for(int i = 0; i<posArea; i++) {
-    assert(data.finalWhiteOwnership[i] == 0 || data.finalWhiteOwnership[i] == 1 || data.finalWhiteOwnership[i] == -1);
-    //Training rows need things from the perspective of the player to move, so we flip as appropriate.
-    rowOwnership[i] = (nextPlayer == P_WHITE ? data.finalWhiteOwnership[i] : -data.finalWhiteOwnership[i]);
+  if(finalWhiteOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
+    rowGlobal[26] = 0.0f;
+    rowGlobal[20] = 0.0f;
+    for(int i = 0; i<posArea; i++)
+      rowOwnership[i] = 0.0f;
+  }
+  else {
+    rowGlobal[26] = 1.0f;
+    //Fill score info
+    const ValueTargets& lastTargets = whiteValueTargets[whiteValueTargets.size()-1];
+    rowGlobal[20] = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
+
+    //Fill ownership info
+    for(int i = 0; i<posArea; i++) {
+      assert(data.finalWhiteOwnership[i] == 0 || data.finalWhiteOwnership[i] == 1 || data.finalWhiteOwnership[i] == -1);
+      //Training rows need things from the perspective of the player to move, so we flip as appropriate.
+      rowOwnership[i] = (nextPlayer == P_WHITE ? data.finalWhiteOwnership[i] : -data.finalWhiteOwnership[i]);
+    }
   }
 
   curRows++;
@@ -355,6 +393,7 @@ void TrainingDataWriter::close() {
 
 void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   int numMoves = data.endHist.moveHistory.size() - data.startHist.moveHistory.size();
+  assert(numMoves >= 0);
   assert(data.policyTargetsByTurn.size() == numMoves);
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
 
@@ -362,13 +401,35 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   BoardHistory hist(data.startHist);
   Player nextPlayer = data.startPla;
 
+  //Some sanity checks
+  {
+    const ValueTargets& lastTargets = data.whiteValueTargetsByTurn[data.whiteValueTargetsByTurn.size()-1];
+    if(!data.endHist.isGameFinished)
+      assert(data.hitTurnLimit);
+    else if(hist.isNoResult)
+      assert(lastTargets.win == 0.0f && lastTargets.loss == 0.0f && lastTargets.noResult == 1.0f);
+    else if(data.endHist.winner == P_BLACK)
+      assert(lastTargets.win == 0.0f && lastTargets.loss == 1.0f && lastTargets.noResult == 0.0f);
+    else if(data.endHist.winner == P_WHITE)
+      assert(lastTargets.win == 1.0f && lastTargets.loss == 0.0f && lastTargets.noResult == 0.0f);
+    else
+      assert(lastTargets.noResult == 0.0f);
+
+    assert(data.finalWhiteOwnership != NULL);
+  }
+
+  //Write main game rows
   for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
     const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumberAfterStart];
-
+    bool isSidePosition = false;
     writeBuffers->addRow(
-      board,hist,nextPlayer,data.drawEquivalentWinsForWhite,
+      board,hist,nextPlayer,
       turnNumberAfterStart,
       policyTarget0,
+      data.whiteValueTargetsByTurn,
+      turnNumberAfterStart,
+      data.finalWhiteOwnership,
+      isSidePosition,
       data,
       rand
     );
@@ -379,6 +440,28 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     assert(hist.isLegal(board,move.loc,move.pla));
     hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);
     nextPlayer = getOpp(nextPlayer);
+  }
+
+  //Write side rows
+  vector<ValueTargets> whiteValueTargetsBuf(1);
+  for(int i = 0; i<data.sidePositions.size(); i++) {
+    SidePosition* sp = data.sidePositions[i];
+    int turnNumberAfterStart = sp->hist.moveHistory.size() - data.startHist.moveHistory.size();
+    assert(turnNumberAfterStart > 0);
+    whiteValueTargetsBuf[0] = sp->whiteValueTargets;
+    bool isSidePosition = true;
+    writeBuffers->addRow(
+      sp->board,sp->hist,sp->pla,
+      turnNumberAfterStart,
+      &(sp->policyTarget),
+      whiteValueTargetsBuf,
+      0,
+      NULL,
+      isSidePosition,
+      data,
+      rand
+    );
+
   }
 
 }
