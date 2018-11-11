@@ -22,6 +22,7 @@ class ConfigParser {
 
   vector<string> unusedKeys() const;
   string getFileName() const;
+  string getContents() const;
 
   bool contains(const string& key) const;
 
@@ -57,6 +58,7 @@ class ConfigParser {
 
  private:
   string fileName;
+  string contents;
   map<string,string> keyValues;
   set<string> usedKeys;
 };
