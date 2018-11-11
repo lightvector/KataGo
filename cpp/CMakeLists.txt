@@ -31,6 +31,13 @@ if((NOT BUILD_WRITE) AND (NOT BUILD_MCTS))
   message(FATAL_ERROR "Please specify one or more of -DBUILD_WRITE=1 or -DBUILD_MCTS=1")
 endif()
 
+if(USE_TCMALLOC)
+  message("-DUSE_TCMALLOC=1 is set, using tcmalloc as the allocator")
+endif()
+
+# set (Gperftools_DIR "${CMAKE_CURRENT_LIST_DIR}/cmake/")
+# find_package(Gperftools REQUIRED)
+
 #------------------------------------------------------------------------------------
 
 find_package(Git)
@@ -50,6 +57,15 @@ add_custom_command(
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   VERBATIM
   )
+
+#------------------------------------------------------------------------------------
+
+if(USE_TCMALLOC)
+  find_library(GooglePerftools REQUIRED)
+  # if(NOT TCMALLOC_FOUND)
+  #   message(FATAL_ERROR "Could not find tcmalloc")
+  # endif()
+endif()
 
 #------------------------------------------------------------------------------------
 
@@ -157,6 +173,8 @@ if(BUILD_MCTS)
   find_package(Boost COMPONENTS system filesystem REQUIRED)
   target_link_libraries(main ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
 
+  target_link_libraries(main ${TCMALLOC_LIB})
+
 endif()
 
 
@@ -164,11 +182,10 @@ endif()
 
 
 if(CMAKE_COMPILER_IS_GNUCC)
-  set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse -O2 -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wnoexcept -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-null-sentinel -Wstrict-overflow=1 -Wswitch-default -Wsizeof-pointer-memaccess -Wuninitialized -Winit-self")
-endif ()
-
-
-
-
-# find_library(BLOSC_LIB blosc)
-# target_link_libraries(write ${BLOSC_LIB})
+  if(USE_TCMALLOC)
+    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse -O2 -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wnoexcept -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-null-sentinel -Wstrict-overflow=1 -Wswitch-default -Wsizeof-pointer-memaccess -Wuninitialized -Winit-self -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
+  else()
+    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse -O2 -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wnoexcept -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-null-sentinel -Wstrict-overflow=1 -Wswitch-default -Wsizeof-pointer-memaccess -Wuninitialized -Winit-self")
+  endif()
+endif()
