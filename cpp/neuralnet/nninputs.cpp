@@ -1069,9 +1069,6 @@ void NNInputs::fillRowV3(
   bool passWouldEndPhase = hist.passWouldEndPhase(board,nextPlayer);
   rowGlobal[12] = passWouldEndPhase ? 1.0f : 0.0f;
 
-  //Direct indication of the board size, but scaled down to be a more reasonable value.
-  rowGlobal[13] = sqrt((float)(xSize*ySize)) / 16.0;
-
   //Provide parity information about the board size and komi
   //This comes from the following observation:
   //From white's perspective:
@@ -1131,7 +1128,7 @@ void NNInputs::fillRowV3(
     else
       wave = delta-2.0f;
 
-    rowGlobal[14] = wave;
+    rowGlobal[13] = wave;
   }
 
 }

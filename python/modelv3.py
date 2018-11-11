@@ -10,7 +10,7 @@ from board import Board
 
 class ModelV3:
   NUM_BIN_INPUT_FEATURES = 22
-  NUM_GLOBAL_INPUT_FEATURES = 15
+  NUM_GLOBAL_INPUT_FEATURES = 14
 
   def __init__(self,config,pos_len,placeholders):
     self.pos_len = pos_len
@@ -309,8 +309,6 @@ class ModelV3:
     passWouldEndPhase = rules["passWouldEndPhase"]
     global_input_data[idx,12] = (1.0 if passWouldEndPhase else 0.0)
 
-    global_input_data[idx,13] = board.size / 16.0
-
     if rules["scoringRule"] == "SCORING_AREA":
       boardAreaIsEven = (board.size % 2 == 0)
 
@@ -336,7 +334,7 @@ class ModelV3:
       else:
         wave = delta-2.0
 
-      global_input_data[idx,14] = wave
+      global_input_data[idx,13] = wave
 
     return idx+1
 
