@@ -129,6 +129,13 @@ struct TrainingWriteBuffers {
   //C45: 0 = normal, 1 = training sample was an isolated side position forked off of main game
   NumpyBuffer<float> globalTargetsNC;
 
+  //Score target
+  //Indices correspond to scores, from -posLen^2-0.5 to posLen^2+0.5, with 2*posLen^2 in total.
+  //Index of the actual score is labeled with 100, the rest labeled with 0, from the perspective of the player to move.
+  //Except in case of integer komi, the value can be split between two adjacent labels based on value of draw.
+  //Arbitrary if C26 has weight 0.
+  NumpyBuffer<int8_t> scoreDistrN;
+
   //Spatial value-related targets
   //C0 - Final board ownership (-1,0,1), from the perspective of the player to move. All 0 if C26 has weight 0.
   NumpyBuffer<int8_t> valueTargetsNCHW;

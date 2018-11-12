@@ -104,6 +104,7 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    globalInputNC({maxRws, numFChannels}),
    policyTargetsNCMove({maxRws, POLICY_TARGET_NUM_CHANNELS, NNPos::getPolicySize(pLen)}),
    globalTargetsNC({maxRws, GLOBAL_TARGET_NUM_CHANNELS}),
+   scoreDistrN({maxRws, pLen*pLen*2}),
    valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, pLen, pLen})
 {
   binaryInputNCHWUnpacked = new float[numBChannels * pLen * pLen];
@@ -297,24 +298,49 @@ void TrainingWriteBuffers::addRow(
 
   assert(46 == GLOBAL_TARGET_NUM_CHANNELS);
 
+  int8_t* rowScoreDistr = scoreDistrN.data + curRows * posArea*2;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
+
   if(finalWhiteOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
     rowGlobal[26] = 0.0f;
     rowGlobal[20] = 0.0f;
     for(int i = 0; i<posArea; i++)
-      rowOwnership[i] = 0.0f;
+      rowOwnership[i] = 0;
+    for(int i = 0; i<posArea*2; i++)
+      rowScoreDistr[i] = 0;
+    //Dummy value, to make sure it still sums to 100
+    rowScoreDistr[posArea-1] = 50;
+    rowScoreDistr[posArea] = 50;
   }
   else {
     rowGlobal[26] = 1.0f;
     //Fill score info
     const ValueTargets& lastTargets = whiteValueTargets[whiteValueTargets.size()-1];
-    rowGlobal[20] = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
+    float score = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
+    rowGlobal[20] = score;
 
     //Fill ownership info
     for(int i = 0; i<posArea; i++) {
       assert(data.finalWhiteOwnership[i] == 0 || data.finalWhiteOwnership[i] == 1 || data.finalWhiteOwnership[i] == -1);
       //Training rows need things from the perspective of the player to move, so we flip as appropriate.
       rowOwnership[i] = (nextPlayer == P_WHITE ? data.finalWhiteOwnership[i] : -data.finalWhiteOwnership[i]);
+    }
+
+    //Fill score vector "onehot"-like
+    for(int i = 0; i<posArea*2; i++)
+      rowScoreDistr[i] = 0;
+    int centerScore = (int)round(score);
+    int lowerIdx = centerScore+posArea-1;
+    int upperIdx = centerScore+posArea;
+    if(upperIdx <= 0)
+      rowScoreDistr[0] = 100;
+    else if(lowerIdx >= posArea*2-1)
+      rowScoreDistr[posArea*2-1] = 100;
+    else {
+      float lambda = score - (centerScore-0.5f);
+      int lowerProp = round(lambda*100.0f);
+      rowScoreDistr[lowerIdx] = lowerProp;
+      rowScoreDistr[upperIdx] = 100-lowerProp;
     }
   }
 
@@ -337,6 +363,9 @@ void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
 
   numBytes = globalTargetsNC.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("globalTargetsNC", globalTargetsNC.dataIncludingHeader, numBytes);
+
+  numBytes = scoreDistrN.prepareHeaderWithNumRows(curRows);
+  zipFile.writeBuffer("scoreDistrN", scoreDistrN.dataIncludingHeader, numBytes);
 
   numBytes = valueTargetsNCHW.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("valueTargetsNCHW", valueTargetsNCHW.dataIncludingHeader, numBytes);

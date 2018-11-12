@@ -22,6 +22,7 @@ keys = [
   "globalInputNC",
   "policyTargetsNCMove",
   "globalTargetsNC",
+  "scoreDistrN",
   "valueTargetsNCHW"
 ]
 
@@ -47,6 +48,7 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   globalInputNC = npz["globalInputNC"]
   policyTargetsNCMove = npz["policyTargetsNCMove"]
   globalTargetsNC = npz["globalTargetsNC"]
+  scoreDistrN = npz["scoreDistrN"]
   valueTargetsNCHW = npz["valueTargetsNCHW"]
 
   print("Shuffling... (mem usage %dMB)" % memusage_mb())
@@ -56,6 +58,7 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   assert(globalInputNC.shape[0] == num_rows_to_keep)
   assert(policyTargetsNCMove.shape[0] == num_rows_to_keep)
   assert(globalTargetsNC.shape[0] == num_rows_to_keep)
+  assert(scoreDistrN.shape[0] == num_rows_to_keep)
   assert(valueTargetsNCHW.shape[0] == num_rows_to_keep)
 
   if keep_prob < 1.0:
@@ -76,6 +79,7 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
       globalInputNC = globalInputNC[start:stop],
       policyTargetsNCMove = policyTargetsNCMove[start:stop],
       globalTargetsNC = globalTargetsNC[start:stop],
+      scoreDistrN = scoreDistrN[start:stop],
       valueTargetsNCHW = valueTargetsNCHW[start:stop]
     )
 
@@ -88,6 +92,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   globalInputNCs = []
   policyTargetsNCMoves = []
   globalTargetsNCs = []
+  scoreDistrNs = []
   valueTargetsNCHWs = []
 
   for input_idx in range(num_shards_to_merge):
@@ -101,12 +106,14 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
     globalInputNC = npz["globalInputNC"]
     policyTargetsNCMove = npz["policyTargetsNCMove"].astype(np.float32)
     globalTargetsNC = npz["globalTargetsNC"]
+    scoreDistrN = npz["scoreDistrN"].astype(np.float32)
     valueTargetsNCHW = npz["valueTargetsNCHW"].astype(np.float32)
 
     binaryInputNCHWPackeds.append(binaryInputNCHWPacked)
     globalInputNCs.append(globalInputNC)
     policyTargetsNCMoves.append(policyTargetsNCMove)
     globalTargetsNCs.append(globalTargetsNC)
+    scoreDistrNs.append(scoreDistrN)
     valueTargetsNCHWs.append(valueTargetsNCHW)
 
   print("Concatenating... (mem usage %dMB)" % memusage_mb())
@@ -114,6 +121,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   globalInputNC = np.concatenate(globalInputNCs)
   policyTargetsNCMove = np.concatenate(policyTargetsNCMoves)
   globalTargetsNC = np.concatenate(globalTargetsNCs)
+  scoreDistrN = np.concatenate(scoreDistrNs)
   valueTargetsNCHW = np.concatenate(valueTargetsNCHWs)
 
   print("Shuffling... (mem usage %dMB)" % memusage_mb())
@@ -138,6 +146,9 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
       ),
       "gtnc": tf.train.Feature(
         float_list=tf.train.FloatList(value=globalTargetsNC[start:stop].reshape(-1))
+      ),
+      "sdn": tf.train.Feature(
+        float_list=tf.train.FloatList(value=scoreDistrN[start:stop].reshape(-1))
       ),
       "vtnchw": tf.train.Feature(
         float_list=tf.train.FloatList(value=valueTargetsNCHW[start:stop].reshape(-1))
