@@ -1030,6 +1030,10 @@ class Target_varsV3:
                                  tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.ownership_target_weight = (placeholders["ownership_target_weight"] if "ownership_target_weight" in placeholders else
                                     tf.placeholder(tf.float32, [None] + model.ownership_target_weight))
+    self.komi = (placeholders["komi"] if "komi" in placeholders else
+                 tf.placeholder(tf.float32, [None]))
+    self.is_areaish = (placeholders["is_areaish"] if "is_areaish" in placeholders else
+                       tf.placeholder(tf.float32, [None]))
 
     model.assert_batched_shape("policy_target", self.policy_target, model.policy_target_shape)
     model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
@@ -1041,6 +1045,8 @@ class Target_varsV3:
     model.assert_batched_shape("target_weight_from_data", self.target_weight_from_data, model.target_weight_shape)
     model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
     model.assert_batched_shape("ownership_target_weight", self.ownership_target_weight, model.ownership_target_weight_shape)
+    model.assert_batched_shape("komi", self.komi, [])
+    model.assert_batched_shape("is_areaish", self.is_areaish, [])
 
     if require_last_move == "all":
       self.target_weight_used = self.target_weight_from_data * tf.reduce_sum(model.inputs[:,:,13],axis=[1])
@@ -1086,9 +1092,12 @@ class Target_varsV3:
       ) / model.mask_sum_hw
     )
 
+    #This only applies for is_areaish, because it's unclear how in japanese rules to turn an ownership map into
+    #a win/loss prediction if the players may make different numbers of moves and therefore have the effective
+    #komi change (under the scoring formulation we're using).
     expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
-    expected_score_from_ownership = tf.reduce_sum(tf.nn.sigmoid(ownership_output),axis=[1,2])
-    self.ownership_reg_loss_unreduced = 0.05 * tf.square(expected_score_from_belief - expected_score_from_ownership)
+    expected_score_from_ownership = tf.reduce_sum(tf.nn.sigmoid(ownership_output),axis=[1,2]) + self.komi
+    self.ownership_reg_loss_unreduced = 0.05 * tf.square(expected_score_from_belief - expected_score_from_ownership) * self.is_areaish
 
     scorevalue_from_belief = tf.reduce_sum(
       scorebelief_probs *
@@ -1219,6 +1228,8 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
   placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
   placeholders["target_weight_from_data"] = features["gtnc"][:,0]*0 + 1
   placeholders["ownership_target_weight"] = features["gtnc"][:,26]
+  placeholders["komi"] = features["gtnc"][:,39]
+  placeholders["is_areaish"] = features["gtnc"][:,40]
   placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
 
   if mode == tf.estimator.ModeKeys.EVAL:
