@@ -546,7 +546,7 @@ void NNEvaluator::evaluate(
           throw StringError("Got nan for nneval value");
         }
       }
-      
+
       if(nextPlayer == P_WHITE) {
         buf.result->whiteWinProb = winProb;
         buf.result->whiteLossProb = lossProb;
