@@ -1329,6 +1329,7 @@ struct DilatedResidualBlock {
 
 struct GlobalPoolingResidualBlockDesc {
   string name;
+  int version;
   BNLayerDesc preBN;
   ActivationLayerDesc preActivation;
   ConvLayerDesc regularConv;
@@ -1342,11 +1343,11 @@ struct GlobalPoolingResidualBlockDesc {
 
   GlobalPoolingResidualBlockDesc() {}
 
-  GlobalPoolingResidualBlockDesc(istream& in) {
+  GlobalPoolingResidualBlockDesc(istream& in, int vrsn) {
     in >> name;
     if(in.fail())
       throw StringError(name + ": gpool res block failed to parse name");
-
+    version = vrsn;
     preBN = BNLayerDesc(in);
     preActivation = ActivationLayerDesc(in);
     regularConv = ConvLayerDesc(in);
@@ -1370,10 +1371,18 @@ struct GlobalPoolingResidualBlockDesc {
       throw StringError(name+Global::strprintf(
         ": gpoolBN.numChannels (%d) != gpoolConv.outChannels (%d)", gpoolBN.numChannels, gpoolConv.outChannels
       ));
-    if(gpoolBN.numChannels * 3 != gpoolToBiasMul.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": gpoolBN.numChannels * 3 (%d) != gpoolToBiasMul.inChannels (%d)", gpoolBN.numChannels * 3, gpoolToBiasMul.inChannels
-      ));
+    if(version >= 3) {
+      if(gpoolBN.numChannels * 3 != gpoolToBiasMul.inChannels)
+        throw StringError(name+Global::strprintf(
+          ": gpoolBN.numChannels * 3 (%d) != gpoolToBiasMul.inChannels (%d)", gpoolBN.numChannels * 3, gpoolToBiasMul.inChannels
+        ));
+    }
+    else {
+      if(gpoolBN.numChannels * 2 != gpoolToBiasMul.inChannels)
+        throw StringError(name+Global::strprintf(
+          ": gpoolBN.numChannels * 2 (%d) != gpoolToBiasMul.inChannels (%d)", gpoolBN.numChannels * 2, gpoolToBiasMul.inChannels
+        ));
+    }
     if(midBN.numChannels != regularConv.outChannels)
       throw StringError(name+Global::strprintf(
         ": midBN.numChannels (%d) != regularConv.outChannels (%d)", midBN.numChannels, regularConv.outChannels
@@ -1690,7 +1699,7 @@ struct TrunkDesc {
         blocks.push_back(make_pair(DILATED_BLOCK_KIND,(void*)desc));
       }
       else if(kind == "gpool_block") {
-        GlobalPoolingResidualBlockDesc* desc = new GlobalPoolingResidualBlockDesc(in);
+        GlobalPoolingResidualBlockDesc* desc = new GlobalPoolingResidualBlockDesc(in,version);
 
         if(desc->preBN.numChannels != trunkNumChannels)
           throw StringError(name+Global::strprintf(
@@ -2295,10 +2304,18 @@ struct PolicyHeadDesc {
       throw StringError(name+Global::strprintf(
         ": g1Conv.outChannels (%d) != g1BN.numChannels (%d)", g1Conv.outChannels, g1BN.numChannels
       ));
-    if(gpoolToBiasMul.inChannels != g1BN.numChannels*3)
-      throw StringError(name+Global::strprintf(
-        ": gpoolToBiasMul.inChannels (%d) != g1BN.numChannels*3 (%d)", gpoolToBiasMul.inChannels, g1BN.numChannels*3
-      ));
+    if(version >= 3) {
+      if(gpoolToBiasMul.inChannels != g1BN.numChannels*3)
+        throw StringError(name+Global::strprintf(
+          ": gpoolToBiasMul.inChannels (%d) != g1BN.numChannels*3 (%d)", gpoolToBiasMul.inChannels, g1BN.numChannels*3
+        ));
+    }
+    else {
+      if(gpoolToBiasMul.inChannels != g1BN.numChannels*2)
+        throw StringError(name+Global::strprintf(
+          ": gpoolToBiasMul.inChannels (%d) != g1BN.numChannels*2 (%d)", gpoolToBiasMul.inChannels, g1BN.numChannels*2
+        ));
+    }
     if(gpoolToBiasMul.outChannels != p1BN.numChannels)
       throw StringError(name+Global::strprintf(
         ": gpoolToBiasMul.outChannels (%d) != p1BN.numChannels (%d)", gpoolToBiasMul.outChannels, p1BN.numChannels
@@ -2319,10 +2336,18 @@ struct PolicyHeadDesc {
       throw StringError(name+Global::strprintf(
         ": p2Conv.outChannels (%d) != 1", p2Conv.outChannels
       ));
-    if(gpoolToPassMul.inChannels != g1BN.numChannels*3)
-      throw StringError(name+Global::strprintf(
-        ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*3 (%d)", gpoolToPassMul.inChannels, g1BN.numChannels*3
-      ));
+    if(version >= 3) {
+      if(gpoolToPassMul.inChannels != g1BN.numChannels*3)
+        throw StringError(name+Global::strprintf(
+          ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*3 (%d)", gpoolToPassMul.inChannels, g1BN.numChannels*3
+        ));
+    }
+    else {
+      if(gpoolToPassMul.inChannels != g1BN.numChannels*2)
+        throw StringError(name+Global::strprintf(
+          ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*2 (%d)", gpoolToPassMul.inChannels, g1BN.numChannels*2
+        ));
+    }
     if(gpoolToPassMul.outChannels != 1)
       throw StringError(name+Global::strprintf(
         ": gpoolToPassMul.outChannels (%d) != 1", gpoolToPassMul.outChannels
@@ -3409,20 +3434,7 @@ struct Model {
         applySymmetriesNCHW<half>(symmetriesBuffer, inverse, batchSize, numInputChannels, xSize, ySize, (half*)inputBuf, (half*)inputScratchBuf);
     }
 
-    bool needMasking;
     if(version >= 3) {
-      //Don't do any masking if we know the board is exactly the desired size
-      if(requireExactPosLen)
-        needMasking = false;
-      else
-        needMasking = true;
-    }
-    else {
-      //Older versions don't support different board sizes anyways, don't bother masking
-      needMasking = false;
-    }
-
-    {
       if(!usingFP16) {
         if(inputsUsingNHWC)
           customCudaChannel0ExtractNHWC((const float*)inputBuf, (float*)maskBuf, batchSize, xSize*ySize, numInputChannels);
@@ -3444,14 +3456,22 @@ struct Model {
         customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,xSize*ySize,1.0);
         CUDA_ERR("sumMask",cudaPeekAtLastError());
       }
-    }
 
-    if(!needMasking) {
-      //Set to NULL to signal downstream that this buf doesn't need to be used
+      //Don't do any masking if we know the board is exactly the desired size
+      if(requireExactPosLen) {
+        //Set to NULL to signal downstream that this buf doesn't need to be used
+        maskBuf = NULL;
+        maskFloatBuf = NULL;
+        //The global pooling structures need this no matter what, for normalizing based on this and its sqrt.
+        //maskSumBuf = NULL;
+      }
+    }
+    //Older versions need to set this to NULL, in particular various parts of the code use maskSumBuf being non-null
+    //as an indicator to perform V3 operations.
+    else {
       maskBuf = NULL;
       maskFloatBuf = NULL;
-      //The global pooling structures need this no matter what, for normalizing based on this and its sqrt.
-      //maskSumBuf = NULL;
+      maskSumBuf = NULL;
     }
 
     trunk->apply(
@@ -3652,7 +3672,7 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&midScratchBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&gpoolOutBuf, m.trunk->gpoolNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&gpoolOutBuf2, m.trunk->gpoolNumChannels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&gpoolConcatBuf, m.trunk->gpoolNumChannels * batchBytes * 2));
+    CUDA_ERR("Buffers",cudaMalloc(&gpoolConcatBuf, m.trunk->gpoolNumChannels * batchBytes * 3));
     CUDA_ERR("Buffers",cudaMalloc(&gpoolBiasBuf, m.trunk->regularNumChannels * batchBytes));
     CUDA_ERR("Buffers",cudaMalloc(&regularScratchBuf, m.trunk->regularNumChannels * batchXYBytes));
 
@@ -3660,7 +3680,7 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf2, m.policyHead->p1Channels * batchXYSingleBytes)); //need to hold floats in addition to halfs
     CUDA_ERR("Buffers",cudaMalloc(&g1OutBuf, m.policyHead->g1Channels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&g1OutBuf2, m.policyHead->g1Channels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&g1ConcatBuf, m.policyHead->g1Channels * batchSingleBytes * 2));
+    CUDA_ERR("Buffers",cudaMalloc(&g1ConcatBuf, m.policyHead->g1Channels * batchSingleBytes * 3));
     CUDA_ERR("Buffers",cudaMalloc(&g1BiasBuf, m.policyHead->p1Channels * batchSingleBytes));
     CUDA_ERR("Buffers",cudaMalloc(&p2OutBuf, m.policyHead->p2Channels * batchXYSingleBytes));
     CUDA_ERR("Buffers",cudaMalloc(&g1PassBuf, m.policyHead->p2Channels * batchSingleBytes));

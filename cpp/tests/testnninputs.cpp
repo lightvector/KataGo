@@ -1531,8 +1531,7 @@ Channel: 9: 0
 Channel: 10: 0
 Channel: 11: 0
 Channel: 12: 0
-Channel: 13: 1.1875
-Channel: 14: 0.5
+Channel: 13: 0.5
 
 )%%";
     expect(name,actualNHWC,expected);
@@ -1618,8 +1617,7 @@ Channel: 9: 0
 Channel: 10: 0
 Channel: 11: 0
 Channel: 12: 0
-Channel: 13: 1.1875
-Channel: 14: -0.5
+Channel: 13: -0.5
 
 )%%";
     expect(name,actualNHWC,expected);
@@ -1882,8 +1880,7 @@ Channel: 9: 0
 Channel: 10: 0
 Channel: 11: 0
 Channel: 12: 0
-Channel: 13: 0.4375
-Channel: 14: -0.5
+Channel: 13: -0.5
 
 )%%";
     expect(name,actualNHWC,expected);
@@ -2190,8 +2187,7 @@ Channel: 9: 0
 Channel: 10: 0
 Channel: 11: 0
 Channel: 12: 0
-Channel: 13: 0.4375
-Channel: 14: -0.5
+Channel: 13: -0.5
 
 )%%";
     expect(name,actualNHWC,expected);
@@ -2277,8 +2273,7 @@ Channel: 9: 0
 Channel: 10: 0
 Channel: 11: 0
 Channel: 12: 0
-Channel: 13: 0.4375
-Channel: 14: -0.2
+Channel: 13: -0.2
 Channel: 0: 0
 Channel: 1: 0
 Channel: 2: 0
@@ -2292,8 +2287,7 @@ Channel: 9: 0
 Channel: 10: 0
 Channel: 11: 0
 Channel: 12: 0
-Channel: 13: 0.4375
-Channel: 14: 0.2
+Channel: 13: 0.2
 Channel: 0: 0
 Channel: 1: 0
 Channel: 2: 0
@@ -2307,8 +2301,7 @@ Channel: 9: 0
 Channel: 10: 0
 Channel: 11: 0
 Channel: 12: 0
-Channel: 13: 0.4375
-Channel: 14: 0.2
+Channel: 13: 0.2
 
 )%%";
     expect(name,out,expected);
@@ -2380,7 +2373,6 @@ Channel: 14: 0.2
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375 0.4375
 0.03 -0.5 -0.03 0.5 0.03 -0.5 -0.03 0.5 0.03 -0.5 -0.03 0.5 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
@@ -2395,7 +2387,6 @@ Channel: 14: 0.2
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375 0.375
 -0.03 0.5 0.03 -0.5 -0.03 0.5 0.03 -0.5 -0.03 0.5 0.03 -0.5 0 0 0 0 0 0 0 0 0 0 0 0
 
 )%%";
