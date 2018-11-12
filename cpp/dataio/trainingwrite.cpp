@@ -434,16 +434,12 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   assert(data.policyTargetsByTurn.size() == numMoves);
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
 
-  Board board(data.startBoard);
-  BoardHistory hist(data.startHist);
-  Player nextPlayer = data.startPla;
-
   //Some sanity checks
   {
     const ValueTargets& lastTargets = data.whiteValueTargetsByTurn[data.whiteValueTargetsByTurn.size()-1];
     if(!data.endHist.isGameFinished)
       assert(data.hitTurnLimit);
-    else if(hist.isNoResult)
+    else if(data.endHist.isNoResult)
       assert(lastTargets.win == 0.0f && lastTargets.loss == 0.0f && lastTargets.noResult == 1.0f);
     else if(data.endHist.winner == P_BLACK)
       assert(lastTargets.win == 0.0f && lastTargets.loss == 1.0f && lastTargets.noResult == 0.0f);
@@ -454,6 +450,10 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
 
     assert(data.finalWhiteOwnership != NULL);
   }
+
+  Board board(data.startBoard);
+  BoardHistory hist(data.startHist);
+  Player nextPlayer = data.startPla;
 
   //Write main game rows
   for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
