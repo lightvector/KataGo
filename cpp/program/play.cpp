@@ -713,7 +713,7 @@ FinishedGameData* Play::runGame(
       SidePosition* sp = gameData->sidePositions[i];
       Search* toMoveBot = sp->pla == P_BLACK ? botB : botW;
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
-      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,recordUtilities);
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, recordUtilities);
