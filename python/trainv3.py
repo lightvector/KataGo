@@ -137,8 +137,12 @@ def model_fn(features,labels,mode,params):
         "ploss": tf.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
         "vloss": tf.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
         "svloss": tf.metrics.mean(target_vars.scorevalue_loss_unreduced, weights=target_vars.target_weight_used),
+        "sbloss": tf.metrics.mean(target_vars.scorebelief_loss_unreduced, weights=target_vars.target_weight_used),
         "uvloss": tf.metrics.mean(target_vars.utilityvar_loss_unreduced, weights=target_vars.target_weight_used),
         "oloss": tf.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
+        "rwlloss": tf.metrics.mean(target_vars.winloss_reg_loss_unreduced, weights=target_vars.target_weight_used),
+        "rsvloss": tf.metrics.mean(target_vars.scorevalue_reg_loss_unreduced, weights=target_vars.target_weight_used),
+        "roloss": tf.metrics.mean(target_vars.ownership_reg_loss_unreduced, weights=target_vars.target_weight_used),
         "rloss": tf.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
         "pacc1": tf.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
         "ventr": tf.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
@@ -160,8 +164,12 @@ def model_fn(features,labels,mode,params):
     (ploss,ploss_op) = moving_mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used)
     (vloss,vloss_op) = moving_mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used)
     (svloss,svloss_op) = moving_mean(target_vars.scorevalue_loss_unreduced, weights=target_vars.target_weight_used)
+    (sbloss,sbloss_op) = moving_mean(target_vars.scorebelief_loss_unreduced, weights=target_vars.target_weight_used)
     (uvloss,uvloss_op) = moving_mean(target_vars.utilityvar_loss_unreduced, weights=target_vars.target_weight_used)
     (oloss,oloss_op) = moving_mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used)
+    (rwlloss,rwlloss_op) = moving_mean(target_vars.winloss_reg_loss_unreduced, weights=target_vars.target_weight_used)
+    (rsvloss,rsvloss_op) = moving_mean(target_vars.scorevalue_reg_loss_unreduced, weights=target_vars.target_weight_used)
+    (roloss,roloss_op) = moving_mean(target_vars.ownership_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (rloss,rloss_op) = moving_mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum)
     (pacc1,pacc1_op) = moving_mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
     (ventr,ventr_op) = moving_mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
@@ -175,8 +183,12 @@ def model_fn(features,labels,mode,params):
       "ploss": ploss,
       "vloss": vloss,
       "svloss": svloss,
+      "sbloss": sbloss,
       "uvloss": uvloss,
       "oloss": oloss,
+      "rwlloss": rwlloss,
+      "rsvloss": rsvloss,
+      "roloss": roloss,
       "rloss": rloss,
       "pacc1": pacc1,
       "ventr": ventr,
@@ -188,7 +200,7 @@ def model_fn(features,labels,mode,params):
     return tf.estimator.EstimatorSpec(
       mode,
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
-      train_op=tf.group(train_step,ploss_op,vloss_op,svloss_op,uvloss_op,oloss_op,rloss_op,pacc1_op,ventr_op,wmean_op),
+      train_op=tf.group(train_step,ploss_op,vloss_op,svloss_op,sbloss_op,uvloss_op,oloss_op,rwlloss_op,rsvloss_op,roloss_op,rloss_op,pacc1_op,ventr_op,wmean_op),
       training_hooks = [logging_hook]
     )
 
@@ -203,6 +215,7 @@ raw_input_features = {
   "ginc": tf.FixedLenFeature([batch_size*ModelV3.NUM_GLOBAL_INPUT_FEATURES],tf.float32),
   "ptncm": tf.FixedLenFeature([batch_size*NUM_POLICY_TARGETS*(pos_len*pos_len+1)],tf.float32),
   "gtnc": tf.FixedLenFeature([batch_size*NUM_GLOBAL_TARGETS],tf.float32),
+  "sdn": tf.FixedLenFeature([batch_size*pos_len*pos_len*2],tf.float32),
   "vtnchw": tf.FixedLenFeature([batch_size*NUM_VALUE_SPATIAL_TARGETS*pos_len*pos_len],tf.float32)
 }
 raw_input_feature_placeholders = {
@@ -210,6 +223,7 @@ raw_input_feature_placeholders = {
   "ginc": tf.placeholder(tf.float32,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
   "ptncm": tf.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
   "gtnc": tf.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
+  "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2]),
   "vtnchw": tf.placeholder(tf.float32,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
 }
 
@@ -219,12 +233,14 @@ def parse_input(serialized_example):
   ginc = example["ginc"]
   ptncm = example["ptncm"]
   gtnc = example["gtnc"]
+  sdn = example["sdn"]
   vtnchw = example["vtnchw"]
   return {
     "binchwp": tf.reshape(binchwp,[batch_size,ModelV3.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
     "ginc": tf.reshape(ginc,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
     "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.reshape(gtnc,[batch_size,NUM_GLOBAL_TARGETS]),
+    "sdn": tf.reshape(sdn,[batch_size,pos_len*pos_len*2]),
     "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 

@@ -1,10 +1,11 @@
 
 #include <cmath>
 #include <fstream>
+#include <sstream>
 #include "../core/config_parser.h"
 
 ConfigParser::ConfigParser(const string& fname)
-  :fileName(fname),keyValues(),usedKeys()
+  :fileName(fname),contents(),keyValues(),usedKeys()
 {
   ifstream in(fileName);
   if(!in.is_open())
@@ -12,7 +13,9 @@ ConfigParser::ConfigParser(const string& fname)
 
   int lineNum = 0;
   string line;
+  ostringstream contentStream;
   while(getline(in,line)) {
+    contentStream << line << "\n";
     lineNum += 1;
     line = Global::trim(line);
     if(line.length() <= 0 || line[0] == '#')
@@ -30,6 +33,7 @@ ConfigParser::ConfigParser(const string& fname)
     string value = Global::trim(line.substr(pos+1));
     keyValues[key] = value;
   }
+  contents = contentStream.str();
 }
 
 ConfigParser::~ConfigParser()
@@ -37,6 +41,10 @@ ConfigParser::~ConfigParser()
 
 string ConfigParser::getFileName() const {
   return fileName;
+}
+
+string ConfigParser::getContents() const {
+  return contents;
 }
 
 vector<string> ConfigParser::unusedKeys() const {

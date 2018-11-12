@@ -293,6 +293,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     MakeDir::make(sgfOutputDir);
     MakeDir::make(tdataOutputDir);
     MakeDir::make(vdataOutputDir);
+    {
+      ofstream out(modelOutputDir + "/" + "selfplay-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");
+      out << cfg.getContents();
+      out.close();
+    }
 
     //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
     //simply controls the input feature version for the written data

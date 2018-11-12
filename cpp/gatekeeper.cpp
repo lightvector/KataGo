@@ -343,6 +343,11 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     assert(sgfOutputDir != string());
 
     MakeDir::make(sgfOutputDirThisModel);
+    {
+      ofstream out(sgfOutputDirThisModel + "/" + "gatekeeper-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");
+      out << cfg.getContents();
+      out.close();
+    }
 
     ofstream* sgfOut = sgfOutputDirThisModel.length() > 0 ? (new ofstream(sgfOutputDirThisModel + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
     NetAndStuff* newNet = new NetAndStuff(cfg, acceptedModelName, testModelName, testModelDir, acceptedNNEval, testNNEval, sgfOut);
