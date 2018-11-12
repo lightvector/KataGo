@@ -528,7 +528,7 @@ PV: N4 pass pass
 Tree:
 : T   4.56c W   4.56c S   0.00c ( +0.0) V  87.85c N     200  --  N4 pass pass
 ---Black(v)---
-N4  : T   2.80c W   2.80c S   0.00c ( +0.0) V  40.16c P 60.36% VW 35.42% N     192  --  pass pass
+N4  : T   2.79c W   2.79c S   0.00c ( +0.0) V  40.16c P 60.36% VW 35.42% N     192  --  pass pass
 O18 : T  54.82c W  54.82c S   0.00c ( +0.0) V  25.35c P  4.97% VW 17.24% N       2  --  pass
 N18 : T  51.56c W  51.56c S   0.00c ( +0.0) V  17.90c P  2.87% VW 18.09% N       2  --  pass
 P18 : T  50.62c W  50.62c S   0.00c ( +0.0) V  15.60c P  2.81% VW 18.35% N       2  --  pass

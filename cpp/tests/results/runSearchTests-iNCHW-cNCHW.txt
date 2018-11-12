@@ -528,8 +528,8 @@ PV: N4 pass pass
 Tree:
 : T   4.56c W   4.56c S   0.00c ( +0.0) V  87.85c N     200  --  N4 pass pass
 ---Black(v)---
-N4  : T   2.80c W   2.80c S   0.00c ( +0.0) V  40.16c P 60.37% VW 35.42% N     192  --  pass pass
-O18 : T  54.82c W  54.82c S   0.00c ( +0.0) V  25.36c P  4.97% VW 17.24% N       2  --  pass
+N4  : T   2.79c W   2.79c S   0.00c ( +0.0) V  40.16c P 60.37% VW 35.42% N     192  --  pass pass
+O18 : T  54.82c W  54.82c S   0.00c ( +0.0) V  25.35c P  4.97% VW 17.24% N       2  --  pass
 N18 : T  51.56c W  51.56c S   0.00c ( +0.0) V  17.90c P  2.87% VW 18.09% N       2  --  pass
 P18 : T  50.62c W  50.62c S   0.00c ( +0.0) V  15.60c P  2.81% VW 18.35% N       2  --  pass
 pass : T 100.00c W 100.00c S   0.00c (+14.0) V --.--c P  5.66% VW 10.90% N       1  --  
@@ -601,7 +601,7 @@ Tree:
 : T  42.24c W  42.24c S   0.00c ( +0.2) V  87.85c N     200  --  N4 pass pass
 ---Black(v)---
 N4  : T  41.30c W  41.30c S   0.00c ( +0.2) V  40.16c P 60.37% VW 24.72% N     190  --  pass pass
-O18 : T  58.77c W  58.77c S   0.00c ( +0.0) V  25.36c P  4.97% VW 19.05% N       4  --  pass N4 pass
+O18 : T  58.77c W  58.77c S   0.00c ( +0.0) V  25.35c P  4.97% VW 19.05% N       4  --  pass N4 pass
 N18 : T  51.56c W  51.56c S   0.00c ( +0.0) V  17.90c P  2.87% VW 21.63% N       2  --  pass
 P18 : T  50.62c W  50.62c S   0.00c ( +0.0) V  15.60c P  2.81% VW 21.87% N       2  --  pass
 pass : T 100.00c W 100.00c S   0.00c (+14.2) V --.--c P  5.66% VW 12.74% N       1  --  
