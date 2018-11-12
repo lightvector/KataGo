@@ -4,12 +4,13 @@
 //0 = V1 features, with old head architecture using crelus (no longer supported)
 //1 = V1 features, with new head architecture, no crelus
 //2 = V2 features, no internal architecture change.
+//3 = V3 features, many architecture changes for new selfplay loop
 
 static void fail(int modelVersion) {
   throw StringError("NNModelVersion: Model version not currently implemented or supported: " + Global::intToString(modelVersion));
 }
 
-const int NNModelVersion::latestModelVersionImplemented = 2;
+const int NNModelVersion::latestModelVersionImplemented = 3;
 
 int NNModelVersion::getInputsVersion(int modelVersion) {
   if(modelVersion == 0 || modelVersion == 1)
