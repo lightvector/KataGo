@@ -53,7 +53,7 @@ class GameInitializer {
   float komiBigStdev;
 
   double noResultStdev;
-  double drawStdev;
+  double drawRandRadius;
 };
 
 

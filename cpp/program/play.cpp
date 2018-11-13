@@ -76,7 +76,7 @@ GameInitializer::GameInitializer(ConfigParser& cfg)
 {
   initShared(cfg);
   noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
-  drawStdev = cfg.contains("drawStdev") ? cfg.getDouble("drawStdev",0.0,1.0) : 0.0;
+  drawRandRadius = cfg.contains("drawRandRadius") ? cfg.getDouble("drawRandRadius",0.0,1.0) : 0.0;
 }
 
 void GameInitializer::initShared(ConfigParser& cfg) {
@@ -121,8 +121,8 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
   createGameSharedUnsynchronized(board,pla,hist,numExtraBlack);
-  if(noResultStdev != 0.0 || drawStdev != 0.0)
-    throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawStdev");
+  if(noResultStdev != 0.0 || drawRandRadius != 0.0)
+    throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
 
 void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params) {
@@ -136,11 +136,13 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
     while(params.noResultUtilityForWhite < -1.0 || params.noResultUtilityForWhite > 1.0)
       params.noResultUtilityForWhite = mean + noResultStdev * nextGaussianTruncated(rand, 2.0);
   }
-  if(drawStdev > 1e-30) {
+  if(drawRandRadius > 1e-30) {
     double mean = params.drawEquivalentWinsForWhite;
-    params.drawEquivalentWinsForWhite = mean + drawStdev * nextGaussianTruncated(rand, 2.0);
+    if(mean < 0.0 || mean > 1.0)
+      throw StringError("GameInitializer: params.drawEquivalentWinsForWhite not within [0,1]: " + Global::doubleToString(mean));
+    params.drawEquivalentWinsForWhite = mean + drawRandRadius * (rand.nextDouble() * 2 - 1);
     while(params.drawEquivalentWinsForWhite < 0.0 || params.drawEquivalentWinsForWhite > 1.0)
-      params.drawEquivalentWinsForWhite = mean + drawStdev * nextGaussianTruncated(rand, 2.0);
+      params.drawEquivalentWinsForWhite = mean + drawRandRadius * (rand.nextDouble() * 2 - 1);
   }
 }
 
