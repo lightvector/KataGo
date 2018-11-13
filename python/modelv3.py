@@ -962,7 +962,6 @@ class ModelV3:
     assert(scorebelief_len == self.pos_len*self.pos_len*2)
     self.score_belief_offset_vector = np.array([float(i-self.pos_len*self.pos_len)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
     self.score_belief_width_vector = np.array([1.0 for i in range(scorebelief_len)],dtype=np.float32)
-
     sbv2_size = config["sbv2_num_channels"]
     sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
     sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
@@ -978,6 +977,7 @@ class ModelV3:
 
     scorebelief_output = tf.reshape(sb3_layer,[-1] + self.scorebelief_target_shape, name = "scorebelief_output")
 
+    #No need for separate mask since v1_layer is already zero outside of mask bounds.
     ownership_output = self.conv_only_block("vownership",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2, reg=False) * mask
     self.vownership_conv = ("vownership",1,v1_num_channels,1)
     ownership_output = self.apply_symmetry(ownership_output,symmetries,inverse=True)
@@ -1076,7 +1076,7 @@ class Target_varsV3:
     self.scorevalue_loss_unreduced = 0.5 * (
       tf.square(self.scorevalue_target - scorevalue_prediction)
     )
-    self.utilityvar_loss_unreduced = (1.0/16.0) * (
+    self.utilityvar_loss_unreduced = 0.05 * (
       tf.reduce_sum(tf.square(self.utilityvar_target - tf.math.softplus(miscvalues_output[:,1:5])),axis=1)
     )
 
@@ -1096,11 +1096,11 @@ class Target_varsV3:
     #This only applies for is_areaish, because it's unclear how in japanese rules to turn an ownership map into
     #a win/loss prediction if the players may make different numbers of moves and therefore have the effective
     #komi change (under the scoring formulation we're using).
-
-    #TODO this reduce sum needs to apply the mask
     expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
-    expected_score_from_ownership = tf.reduce_sum(tf.nn.sigmoid(ownership_output),axis=[1,2]) + self.komi
-    self.ownership_reg_loss_unreduced = 0.05 * tf.square(expected_score_from_belief - expected_score_from_ownership) * self.is_areaish
+    #No masking needed in tf.tanh(ownership_output) since ownership_output is zero outside of mask and tanh(0) = 0.
+    expected_score_from_ownership = tf.reduce_sum(tf.tanh(ownership_output),axis=[1,2]) + self.komi
+    beliefownerdiff = expected_score_from_belief - expected_score_from_ownership
+    self.ownership_reg_loss_unreduced = 0.002 * beliefownerdiff * tf.clip_by_value(beliefownerdiff,-20.0,20.0) * self.is_areaish
 
     scorevalue_from_belief = tf.reduce_sum(
       scorebelief_probs *
