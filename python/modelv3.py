@@ -1066,12 +1066,20 @@ class Target_varsV3:
       ) +
       2.0 * tf.reduce_sum(tf.square(self.value_target - value_probs),axis=1)
     )
-    self.scorebelief_loss_unreduced = 0.05 * self.ownership_target_weight * (
+    self.scorebelief_loss_cdf = 0.005 * self.ownership_target_weight * (
+      tf.reduce_sum(
+        tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
+        axis=1
+      )
+    )
+    self.scorebelief_loss_pdf = 0.05 * self.ownership_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.scorebelief_target,
         logits=scorebelief_output
       )
     )
+    self.scorebelief_loss_unreduced = self.scorebelief_loss_cdf + self.scorebelief_loss_pdf
+
     scorevalue_prediction = tf.tanh(miscvalues_output[:,0])
     self.scorevalue_loss_unreduced = 0.5 * (
       tf.square(self.scorevalue_target - scorevalue_prediction)

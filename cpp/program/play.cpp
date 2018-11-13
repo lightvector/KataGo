@@ -668,7 +668,7 @@ FinishedGameData* Play::runGame(
     }
     else {
       //Relying on this to be idempotent, so that we can get the final territory map
-      //We do want to call this here to force-end the game if we crossed a move limit.
+      //We also do want to call this here to force-end the game if we crossed a move limit.
       hist.endAndScoreGameNow(board,area);
 
       finalValueTargets.win = (float)NNOutput::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
