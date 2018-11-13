@@ -1007,7 +1007,7 @@ class ModelV3:
     self.mask_sum_hw_sqrt = mask_sum_hw_sqrt
 
 class Target_varsV3:
-  def __init__(self,model,for_optimization,require_last_move,placeholders):
+  def __init__(self,model,for_optimization,placeholders):
     policy_output = model.policy_output
     value_output = model.value_output
     miscvalues_output = model.miscvalues_output
@@ -1054,12 +1054,7 @@ class Target_varsV3:
     model.assert_batched_shape("komi", self.komi, [])
     model.assert_batched_shape("is_areaish", self.is_areaish, [])
 
-    if require_last_move == "all":
-      self.target_weight_used = self.target_weight_from_data * tf.reduce_sum(model.inputs[:,:,13],axis=[1])
-    elif require_last_move is True:
-      self.target_weight_used = self.target_weight_from_data * tf.reduce_sum(model.inputs[:,:,9],axis=[1])
-    else:
-      self.target_weight_used = self.target_weight_from_data
+    self.target_weight_used = self.target_weight_from_data
 
     self.policy_loss_unreduced = self.policy_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target, logits=policy_output)
@@ -1105,9 +1100,7 @@ class Target_varsV3:
     #TODO this reduce sum needs to apply the mask
     expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
     expected_score_from_ownership = tf.reduce_sum(tf.nn.sigmoid(ownership_output),axis=[1,2]) + self.komi
-    print("SHAPE " + str(expected_score_from_ownership.shape))
     self.ownership_reg_loss_unreduced = 0.05 * tf.square(expected_score_from_belief - expected_score_from_ownership) * self.is_areaish
-    self.ownership_reg_loss_unreduced = tf.Print(self.ownership_reg_loss_unreduced,[expected_score_from_ownership[0:10]])
 
     scorevalue_from_belief = tf.reduce_sum(
       scorebelief_probs *
@@ -1246,7 +1239,7 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
     placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
     model = ModelV3(model_config,pos_len,placeholders)
 
-    target_vars = Target_varsV3(model,for_optimization=True,require_last_move=False,placeholders=placeholders)
+    target_vars = Target_varsV3(model,for_optimization=True,placeholders=placeholders)
     metrics = MetricsV3(model,target_vars,include_debug_stats=False)
     return (model,target_vars,metrics)
 
@@ -1254,7 +1247,7 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
     placeholders["is_training"] = tf.constant(True,dtype=tf.bool)
     model = ModelV3(model_config,pos_len,placeholders)
 
-    target_vars = Target_varsV3(model,for_optimization=True,require_last_move=False,placeholders=placeholders)
+    target_vars = Target_varsV3(model,for_optimization=True,placeholders=placeholders)
     metrics = MetricsV3(model,target_vars,include_debug_stats=False)
     global_step = tf.train.get_global_step()
     global_step_float = tf.cast(global_step, tf.float32)
