@@ -1,6 +1,6 @@
 Running search tests
 GAME 1 ==========================================================================
-: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16936861696 compute capability major 7 minor 0
+: Cuda backend: Found GPU Tesla K80 memory 11995578368 compute capability major 3 minor 7
 : Cuda backend: Model version 2
 MoveNum: 20 HASH: 9C149A65DD8EAFF46E53149CADCF4436
    A B C D E F G H J K L M N O P Q R S T
@@ -316,12 +316,12 @@ NN batches: 200
 NN avg batch size: 1
 PV: R15 S15 Q16 S16 R14 S14 M10 N10 M11 M12
 Tree:
-: T -34.05c W -34.05c S   0.00c ( +0.0) V -47.20c N     200  --  R15 S15 Q16 S16 R14 S14 M10
+: T -33.95c W -33.95c S   0.00c ( +0.0) V -47.20c N     200  --  R15 S15 Q16 S16 R14 S14 M10
 ---White(^)---
-R15 : T -30.25c W -30.25c S   0.00c ( +0.0) V -23.18c P 17.23% VW 12.03% N     147  --  S15 Q16 S16 R14 S14 M10 N10
+R15 : T -30.12c W -30.12c S   0.00c ( +0.0) V -23.18c P 17.23% VW 12.05% N     147  --  S15 Q16 S16 R14 S14 M10 N10
 M10 : T -41.40c W -41.40c S   0.00c ( +0.0) V -11.37c P 12.72% VW  9.33% N      15  --  N10 M11 M12 N12
-S16 : T -49.15c W -49.15c S   0.00c ( +0.0) V -36.35c P 14.27% VW  8.19% N      10  --  S15 Q16 T16 R15 D10 C9
-S18 : T -53.12c W -53.12c S   0.00c ( +0.0) V -53.78c P  8.82% VW  8.03% N       5  --  S16 K8 D10
+S16 : T -49.15c W -49.15c S   0.00c ( +0.0) V -36.35c P 14.27% VW  8.18% N      10  --  S15 Q16 T16 R15 D10 C9
+S18 : T -53.12c W -53.12c S   0.00c ( +0.0) V -53.78c P  8.82% VW  8.02% N       5  --  S16 K8 D10
 P8  : T -39.29c W -39.29c S   0.00c ( +0.0) V   6.83c P  2.11% VW  9.94% N       5  --  O8 Q8 O7 M6
 Q16 : T -51.68c W -51.68c S   0.00c ( +0.0) V -25.35c P  7.03% VW  8.34% N       4  --  R15 K8 D10
 R14 : T -50.39c W -50.39c S   0.00c ( +0.0) V -31.76c P  5.63% VW  8.51% N       4  --  S14 R15 S15
@@ -517,13 +517,13 @@ NN batches: 16
 NN avg batch size: 1
 PV: N4 pass pass
 Tree:
-: T  93.88c W  93.88c S   0.00c ( +1.0) V  63.17c N     200  --  N4 pass pass
+: T  94.34c W  93.88c S   0.47c ( +0.9) V  63.17c N     200  --  N4 pass pass
 ---Black(v)---
-N4  : T  96.06c W  96.06c S   0.00c ( +0.5) V   0.09c P 70.91% VW 18.46% N     126  --  pass pass
-O18 : T  90.20c W  90.20c S   0.00c ( +1.0) V  24.20c P  3.56% VW 21.11% N      23  --  pass N4 pass pass
-P18 : T  90.26c W  90.26c S   0.00c ( +1.0) V  23.23c P  2.97% VW 21.07% N      22  --  pass N4 pass pass
-N18 : T  89.50c W  89.50c S   0.00c ( +1.0) V  17.41c P  1.86% VW 21.36% N      22  --  pass N4 pass pass
-pass : T 100.00c W 100.00c S   0.00c (+14.5) V --.--c P  5.48% VW 17.98% N       6  --  
+N4  : T  96.36c W  96.12c S   0.24c ( +0.5) V   0.09c P 70.91% VW 18.83% N     128  --  pass pass
+O18 : T  90.70c W  90.20c S   0.50c ( +1.0) V  24.20c P  3.56% VW 21.42% N      23  --  pass N4 pass pass
+P18 : T  90.77c W  90.26c S   0.52c ( +1.0) V  23.23c P  2.97% VW 21.37% N      22  --  pass N4 pass pass
+N18 : T  90.01c W  89.49c S   0.52c ( +1.0) V  17.41c P  1.86% VW 21.67% N      22  --  pass N4 pass pass
+pass : T 107.28c W 100.00c S   7.28c (+14.5) V --.--c P  5.48% VW 16.71% N       4  --  
 MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
    A B C D E F G H J K L M N O P Q R S T
 19 . . . O O X X . . X . . . . . X X X O
@@ -552,13 +552,13 @@ NN batches: 19
 NN avg batch size: 1
 PV: N4 pass pass
 Tree:
-: T   1.86c W   1.86c S   0.00c ( +0.0) V  43.05c N     200  --  N4 pass pass
+: T   1.87c W   1.85c S   0.02c ( +0.0) V  43.05c N     200  --  N4 pass pass
 ---Black(v)---
-N4  : T   0.96c W   0.96c S   0.00c ( +0.0) V -34.78c P 72.05% VW 26.47% N     192  --  pass pass
-O18 : T  15.58c W  15.58c S   0.00c ( +0.0) V -11.54c P  3.52% VW 21.93% N       2  --  pass
-P18 : T  19.58c W  19.58c S   0.00c ( +0.0) V -12.57c P  2.93% VW 20.87% N       2  --  pass
-N18 : T  13.04c W  13.04c S   0.00c ( +0.0) V -18.39c P  1.80% VW 22.62% N       2  --  pass
-pass : T 100.00c W 100.00c S   0.00c (+14.0) V --.--c P  5.47% VW  8.11% N       1  --  
+N4  : T   0.96c W   0.96c S   0.00c ( +0.0) V -34.78c P 72.05% VW 26.67% N     192  --  pass pass
+O18 : T  15.58c W  15.58c S   0.00c ( +0.0) V -11.54c P  3.52% VW 22.09% N       2  --  pass
+P18 : T  19.58c W  19.58c S   0.00c ( +0.0) V -12.57c P  2.93% VW 21.02% N       2  --  pass
+N18 : T  13.04c W  13.04c S   0.00c ( +0.0) V -18.39c P  1.80% VW 22.77% N       2  --  pass
+pass : T 107.05c W 100.00c S   7.05c (+14.0) V --.--c P  5.47% VW  7.45% N       1  --  
 Jigo and drawUtility===================
 MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
    A B C D E F G H J K L M N O P Q R S T
@@ -588,13 +588,13 @@ NN batches: 16
 NN avg batch size: 1
 PV: N4 pass pass
 Tree:
-: T  93.88c W  93.88c S   0.00c ( +1.0) V  63.17c N     200  --  N4 pass pass
+: T  94.34c W  93.88c S   0.47c ( +0.9) V  63.17c N     200  --  N4 pass pass
 ---Black(v)---
-N4  : T  96.06c W  96.06c S   0.00c ( +0.5) V   0.09c P 70.91% VW 18.46% N     126  --  pass pass
-O18 : T  90.20c W  90.20c S   0.00c ( +1.0) V  24.20c P  3.56% VW 21.11% N      23  --  pass N4 pass pass
-P18 : T  90.26c W  90.26c S   0.00c ( +1.0) V  23.23c P  2.97% VW 21.07% N      22  --  pass N4 pass pass
-N18 : T  89.50c W  89.50c S   0.00c ( +1.0) V  17.41c P  1.86% VW 21.36% N      22  --  pass N4 pass pass
-pass : T 100.00c W 100.00c S   0.00c (+14.5) V --.--c P  5.48% VW 17.98% N       6  --  
+N4  : T  96.36c W  96.12c S   0.24c ( +0.5) V   0.09c P 70.91% VW 18.83% N     128  --  pass pass
+O18 : T  90.70c W  90.20c S   0.50c ( +1.0) V  24.20c P  3.56% VW 21.42% N      23  --  pass N4 pass pass
+P18 : T  90.77c W  90.26c S   0.52c ( +1.0) V  23.23c P  2.97% VW 21.37% N      22  --  pass N4 pass pass
+N18 : T  90.01c W  89.49c S   0.52c ( +1.0) V  17.41c P  1.86% VW 21.67% N      22  --  pass N4 pass pass
+pass : T 107.28c W 100.00c S   7.28c (+14.5) V --.--c P  5.48% VW 16.71% N       4  --  
 MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
    A B C D E F G H J K L M N O P Q R S T
 19 . . . O O X X . . X . . . . . X X X O
@@ -623,13 +623,13 @@ NN batches: 19
 NN avg batch size: 1
 PV: N4 pass pass
 Tree:
-: T  37.34c W  37.34c S   0.00c ( +0.2) V  43.05c N     200  --  N4 pass pass
+: T  37.45c W  37.33c S   0.12c ( +0.2) V  43.05c N     200  --  N4 pass pass
 ---Black(v)---
-N4  : T  38.03c W  38.03c S   0.00c ( +0.2) V -34.78c P 72.05% VW 21.09% N     150  --  pass pass
-O18 : T  34.67c W  34.67c S   0.00c ( +0.2) V -11.54c P  3.52% VW 22.59% N      18  --  pass N4 pass pass
-P18 : T  34.71c W  34.71c S   0.00c ( +0.1) V -12.57c P  2.93% VW 22.53% N      15  --  pass N4 pass pass
-N18 : T  33.31c W  33.31c S   0.00c ( +0.1) V -18.39c P  1.80% VW 23.06% N      15  --  pass N4 pass pass
-pass : T 100.00c W 100.00c S   0.00c (+14.2) V --.--c P  5.47% VW 10.74% N       1  --  
+N4  : T  38.13c W  38.03c S   0.10c ( +0.2) V -34.78c P 72.05% VW 21.29% N     150  --  pass pass
+O18 : T  34.75c W  34.67c S   0.08c ( +0.2) V -11.54c P  3.52% VW 22.80% N      18  --  pass N4 pass pass
+P18 : T  34.79c W  34.71c S   0.08c ( +0.1) V -12.57c P  2.93% VW 22.74% N      15  --  pass N4 pass pass
+N18 : T  33.39c W  33.31c S   0.08c ( +0.1) V -18.39c P  1.80% VW 23.27% N      15  --  pass N4 pass pass
+pass : T 107.14c W 100.00c S   7.14c (+14.2) V --.--c P  5.47% VW  9.90% N       1  --  
 Consecutive searches playouts and visits===================
 MoveNum: 85 HASH: B8EE81379249B4294DBB36EA4B7E08F6
    A B C D E F G H J K L M N O P Q R S T

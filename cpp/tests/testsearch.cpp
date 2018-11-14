@@ -260,21 +260,21 @@ void Tests::runAutoSearchTests() {
     search->printTree(out, search->rootNode, options);
 
     string expected = R"%%(
-: T  -1.62c W  -1.62c S   0.00c ( +0.0) V -34.38c N     100  --  J9 J2 J3 E6 F6 B9 H9
+: T  -2.35c W  -2.12c S  -0.23c ( -0.2) V  -9.49c N     100  --  A5 D1 J3 A6 A9 H3
 ---Black(v)---
-J9  : T  -5.41c W  -5.41c S   0.00c ( +0.0) V  -4.26c P  3.92% VW  9.28% N      32  --  J2 J3 E6 F6 B9 H9
-A5  : T  -0.67c W  -0.67c S   0.00c ( +0.0) V  33.74c P 17.68% VW  8.42% N      22  --  G2 B2 B5 B6
-H2  : T  -1.56c W  -1.56c S   0.00c ( +0.0) V -22.09c P  3.83% VW  8.57% N      17  --  E1 A1 H5 J4
-F8  : T  -2.47c W  -2.47c S   0.00c ( +0.0) V -22.88c P  3.01% VW  8.68% N      11  --  A6 D3 B8 C2
-G7  : T  -3.14c W  -3.14c S   0.00c ( +0.0) V -19.88c P  2.22% VW  8.75% N       7  --  J1 E7 D1 C8
-H8  : T  17.49c W  17.49c S   0.00c ( +0.0) V  -1.26c P  3.34% VW  6.83% N       2  --  D2
-J8  : T   3.44c W   3.44c S   0.00c ( +0.0) V  -4.23c P  2.03% VW  8.08% N       2  --  F8
-J7  : T  13.62c W  13.62c S   0.00c ( +0.0) V  13.62c P  3.62% VW  7.37% N       1  --
-E8  : T  31.63c W  31.63c S   0.00c ( +0.0) V  31.63c P  2.90% VW  6.07% N       1  --
-B1  : T  17.90c W  17.90c S   0.00c ( +0.0) V  17.90c P  2.63% VW  7.05% N       1  --
-D2  : T   9.85c W   9.85c S   0.00c ( +0.0) V   9.85c P  2.58% VW  7.66% N       1  --
-J3  : T   6.73c W   6.73c S   0.00c ( +0.0) V   6.73c P  2.39% VW  7.89% N       1  --
-G9  : T  42.59c W  42.59c S   0.00c ( +0.0) V  42.59c P  2.14% VW  5.35% N       1  --
+A5  : T  -1.68c W  -1.57c S  -0.11c ( -0.1) V   7.01c P 17.68% VW  8.00% N      33  --  D1 J3 A6 A9 H3
+J9  : T  -5.30c W  -5.24c S  -0.06c ( -0.1) V  -0.33c P  3.92% VW  8.57% N      22  --  J7 D1 A6 F5
+B1  : T  -4.82c W  -3.07c S  -1.74c ( -1.6) V  -5.40c P  2.63% VW  8.46% N      15  --  G8 D5 H9 H6
+F8  : T  -3.51c W  -3.03c S  -0.48c ( -0.4) V  -1.00c P  3.01% VW  8.25% N       9  --  D3 B9 C2 G7
+G9  : T  -2.64c W  -0.63c S  -2.01c ( -1.8) V  -4.44c P  2.14% VW  8.13% N       4  --  B6 F6
+J8  : T  -0.57c W  -0.77c S   0.19c ( +0.2) V   2.04c P  2.03% VW  7.92% N       4  --  A5 D9
+E8  : T   0.59c W  -1.21c S   1.80c ( +1.6) V  -7.83c P  2.90% VW  7.82% N       3  --  D1 D7
+H8  : T   7.36c W   8.88c S  -1.52c ( -1.4) V   3.93c P  3.34% VW  7.26% N       2  --  G2
+J3  : T   2.20c W   5.67c S  -3.47c ( -3.2) V  -4.85c P  2.39% VW  7.70% N       2  --  E4
+G7  : T   0.02c W  -5.14c S   5.16c ( +4.8) V  -0.47c P  2.22% VW  7.89% N       2  --  D6
+H2  : T  27.33c W  16.68c S  10.65c (+10.7) V  27.33c P  3.83% VW  6.00% N       1  --
+J7  : T  14.09c W  13.73c S   0.36c ( +0.3) V  14.09c P  3.62% VW  6.91% N       1  --
+D2  : T  11.54c W  11.46c S   0.08c ( +0.1) V  11.54c P  2.58% VW  7.09% N       1  --
 
 )%%";
     expect(name,out,expected);
@@ -297,7 +297,7 @@ G9  : T  42.59c W  42.59c S   0.00c ( +0.0) V  42.59c P  2.14% VW  5.35% N      
     sampleChosenMoves();
 
     expected = R"%%(
-J9 10000
+A5 10000
 )%%";
     expect(name,out,expected);
 
@@ -309,7 +309,7 @@ J9 10000
       sampleChosenMoves();
 
       expected = R"%%(
-J9 10000
+A5 10000
 )%%";
       expect(name,out,expected);
     }
@@ -322,20 +322,19 @@ J9 10000
       sampleChosenMoves();
 
       expected = R"%%(
-
-J9 3208
-A5 2236
-H2 1741
-F8 1084
-G7 728
-H8 201
-J8 199
-E8 107
-B1 104
-G9 102
-J7 101
-J3 96
-D2 93
+A5 3322
+J9 2215
+B1 1493
+F8 933
+G9 413
+J8 393
+E8 317
+G7 223
+H8 189
+J3 189
+H2 110
+D2 104
+J7 99
 
 )%%";
       expect(name,out,expected);
@@ -354,19 +353,20 @@ D2 93
       sampleChosenMoves();
 
       expected = R"%%(
-J9 5216
-A5 2359
-H2 1478
-F8 610
-G7 262
-H8 19
-J8 17
-B1 13
-J3 9
-E8 7
-D2 5
-G9 4
-J7 1
+A5 5610
+J9 2504
+B1 1194
+F8 404
+J8 90
+G9 86
+E8 39
+G7 22
+H8 20
+J3 13
+J7 7
+D2 6
+H2 5
+
 )%%";
       expect(name,out,expected);
     }
