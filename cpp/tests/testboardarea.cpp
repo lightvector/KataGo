@@ -901,6 +901,227 @@ XXXXXXXXXXXXXXXXXXX
 
   //============================================================================
   {
+    const char* name = "Pass alive bug-derived test case";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(9,9,R"%%(
+   A B C D E F G H J
+ 9 . O . O O X X O .
+ 8 O . O . O O X X O
+ 7 O O O O O O X . X
+ 6 O X O . O O X X X
+ 5 X X O O O O X X .
+ 4 . X O O O X X X .
+ 3 . X O O O O O O X
+ 2 O X X O X X X X X
+ 1 . X X X . X . . .
+)%%");
+    printAreas(board,result);
+
+    string expected = R"%%(
+Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Suicide 0
+OOOOOXXXX
+OOOOOOXXX
+OOOOOOXXX
+OXOOOOXXX
+XXOOOOXXX
+XXOOOXXXX
+XXOOOOOOX
+XXXOXXXXX
+XXXXXXXXX
+
+Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Suicide 1
+OOOOOXXXX
+OOOOOOXXX
+OOOOOOXXX
+OXOOOOXXX
+XXOOOOXXX
+XXOOOXXXX
+XXOOOOOOX
+XXXOXXXXX
+XXXXXXXXX
+
+Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Suicide 0
+OOOOOXXXX
+OOOOOOXXX
+OOOOOOXXX
+OXOOOOXXX
+XXOOOOXXX
+XXOOOXXXX
+XXOOOOOOX
+XXXOXXXXX
+XXXXXXXXX
+
+Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Suicide 1
+OOOOOXXXX
+OOOOOOXXX
+OOOOOOXXX
+OXOOOOXXX
+XXOOOOXXX
+XXOOOXXXX
+XXOOOOOOX
+XXXOXXXXX
+XXXXXXXXX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Suicide 0
+OOOOOXXXX
+OOOOOOXXX
+OOOOOOXXX
+OXOOOOXXX
+XXOOOOXXX
+XXOOOXXXX
+XXOOOOOOX
+XXXOXXXXX
+XXXXXXXXX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Suicide 1
+OOOOOXXXX
+OOOOOOXXX
+OOOOOOXXX
+OXOOOOXXX
+XXOOOOXXX
+XXOOOXXXX
+XXOOOOOOX
+XXXOXXXXX
+XXXXXXXXX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Suicide 0
+OOOOOXXXX
+OOOOOOXXX
+OOOOOOXXX
+OXOOOOXXX
+XXOOOOXXX
+XXOOOXXXX
+XXOOOOOOX
+XXXOXXXXX
+XXXXXXXXX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Suicide 1
+OOOOOXXXX
+OOOOOOXXX
+OOOOOOXXX
+OXOOOOXXX
+XXOOOOXXX
+XXOOOXXXX
+XXOOOOOOX
+XXXOXXXXX
+XXXXXXXXX
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    const char* name = "Bug-derived test case, in more colors and orientations";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(9,9,R"%%(
+.oxo.oxo.
+ooxoooxxo
+xxxxxxxxx
+.x.x.....
+xxxoooooo
+..o.xo.o.
+ooooooooo
+xooxxxoxx
+.xox.xox.
+)%%");
+    printAreas(board,result);
+
+    string expected = R"%%(
+Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Suicide 0
+XXXXXXXXX
+XXXXXXXXX
+XXXXXXXXX
+XXXX.....
+XXXOOOOOO
+..OOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+
+Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Suicide 1
+XXXXXXXXX
+XXXXXXXXX
+XXXXXXXXX
+XXXX.....
+XXXOOOOOO
+..OOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+
+Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Suicide 0
+XXXXXXXXX
+XXXXXXXXX
+XXXXXXXXX
+XXXX.....
+XXXOOOOOO
+..OOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+
+Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Suicide 1
+XXXXXXXXX
+XXXXXXXXX
+XXXXXXXXX
+XXXX.....
+XXXOOOOOO
+..OOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Suicide 0
+XXXXXXXXX
+XXXXXXXXX
+XXXXXXXXX
+XXXX.....
+XXXOOOOOO
+..OOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Suicide 1
+XXXXXXXXX
+XXXXXXXXX
+XXXXXXXXX
+XXXX.....
+XXXOOOOOO
+..OOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Suicide 0
+XXXXXXXXX
+XXXXXXXXX
+XXXXXXXXX
+XXXX.....
+XXXOOOOOO
+..OOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Suicide 1
+XXXXXXXXX
+XXXXXXXXX
+XXXXXXXXX
+XXXX.....
+XXXOOOOOO
+..OOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+OOOOOOOOO
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
     const char* name = "isNonPassAliveSelfConnection";
     Color result[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(9,9,R"%%(
@@ -950,7 +1171,7 @@ o.o.xxoxo
       out << endl;
     }
     out << endl;
-    
+
     string expected = R"%%(
 
 NonPassAliveSelfConn black

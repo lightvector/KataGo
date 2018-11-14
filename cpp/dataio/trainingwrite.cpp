@@ -88,7 +88,7 @@ FinishedGameData::~FinishedGameData() {
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 1;
-static const int GLOBAL_TARGET_NUM_CHANNELS = 46;
+static const int GLOBAL_TARGET_NUM_CHANNELS = 50;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int pLen)
@@ -285,18 +285,26 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[37] = (float)((gameHash.hash1 >> 22) & 0x3FFFFF);
   rowGlobal[38] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
 
+  //Various other data
+  rowGlobal[39] = hist.currentSelfKomi(nextPlayer,data.drawEquivalentWinsForWhite);
+  rowGlobal[40] = (hist.encorePhase == 2 || hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
+
+  //Unused
+  rowGlobal[41] = 0.0f;
+  rowGlobal[42] = 0.0f;
+
   //Some misc metadata
-  rowGlobal[39] = turnNumberAfterStart;
-  rowGlobal[40] = data.hitTurnLimit ? 1.0f : 0.0f;
+  rowGlobal[43] = turnNumberAfterStart;
+  rowGlobal[44] = data.hitTurnLimit ? 1.0f : 0.0f;
 
   //Metadata about how the game was initialized
-  rowGlobal[41] = data.firstTrainingTurn;
-  rowGlobal[42] = data.mode;
-  rowGlobal[43] = data.modeMeta1;
-  rowGlobal[44] = data.modeMeta2;
-  rowGlobal[45] = isSidePosition ? 1.0f : 0.0f;
+  rowGlobal[45] = data.firstTrainingTurn;
+  rowGlobal[46] = data.mode;
+  rowGlobal[47] = data.modeMeta1;
+  rowGlobal[48] = data.modeMeta2;
+  rowGlobal[49] = isSidePosition ? 1.0f : 0.0f;
 
-  assert(46 == GLOBAL_TARGET_NUM_CHANNELS);
+  assert(50 == GLOBAL_TARGET_NUM_CHANNELS);
 
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * posArea*2;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
@@ -426,16 +434,12 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   assert(data.policyTargetsByTurn.size() == numMoves);
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
 
-  Board board(data.startBoard);
-  BoardHistory hist(data.startHist);
-  Player nextPlayer = data.startPla;
-
   //Some sanity checks
   {
     const ValueTargets& lastTargets = data.whiteValueTargetsByTurn[data.whiteValueTargetsByTurn.size()-1];
     if(!data.endHist.isGameFinished)
       assert(data.hitTurnLimit);
-    else if(hist.isNoResult)
+    else if(data.endHist.isNoResult)
       assert(lastTargets.win == 0.0f && lastTargets.loss == 0.0f && lastTargets.noResult == 1.0f);
     else if(data.endHist.winner == P_BLACK)
       assert(lastTargets.win == 0.0f && lastTargets.loss == 1.0f && lastTargets.noResult == 0.0f);
@@ -446,6 +450,10 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
 
     assert(data.finalWhiteOwnership != NULL);
   }
+
+  Board board(data.startBoard);
+  BoardHistory hist(data.startHist);
+  Player nextPlayer = data.startPla;
 
   //Write main game rows
   for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {

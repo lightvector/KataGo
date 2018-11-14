@@ -739,6 +739,7 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
   //Extra points from the perspective of the root player
   double extraRootPoints = 0.0;
   if(isAreaIsh) {
+    //TODO test and make sure this is working in case of these self-eye-filling selfplay games.
     //Areaish scoring - in an effort to keep the game short and slightly discourage pointless territory filling at the end
     //discourage any move that, except in case of ko, is either:
     // * On a spot that the opponent almost surely owns
@@ -957,6 +958,7 @@ void Search::selectBestChildToDescend(
       //being pass-dead, so we add an option to forbid passing at the root.
       if(!rootPassLegal && moveLoc == Board::PASS_LOC)
         continue;
+      //TODO can we improve on this
       //A bad situation that can happen that unnecessarily prolongs training games is where one player
       //repeatedly passes and the other side repeatedly fills space and then suicides over and over.
       //To mitigate this and save computation, we make it so that at the root, if the opponent just passed,

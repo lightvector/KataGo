@@ -120,13 +120,19 @@ struct TrainingWriteBuffers {
   //C33-38: 128-bit hash identifying the game which should also be output in the SGF data.
   //Split into chunks of 22, 22, 20, 22, 22, 20 bits, little-endian style (since floats have > 22 bits of precision).
 
-  //C39: Number of moves after start of training period, zero-indexed. (There could have been moves before training, see C41).
-  //C40: Did this game end via hitting turn limit?
-  //C41: First turn of this game that was proper selfplay for training rather than being initialization
-  //C42-44: Game type, game typesource metadata
-  // 0 = normal self-play game. C43,C44 unused
-  // 1 = encore-training game. C43 is the starting encore phase, C44 unused
-  //C45: 0 = normal, 1 = training sample was an isolated side position forked off of main game
+  //C39: Komi, adjusted for draw utility and points costed or paid so far, from the perspective of the player to move.
+  //C40: 1 if we're in an area-scoring-like phase of the game (area scoring or second encore territory scoring)
+  //C41-42: Unused
+
+  //C43: Number of moves after start of training period, zero-indexed. (There could have been moves before training, see C45).
+  //C44: Did this game end via hitting turn limit?
+  //C45: First turn of this game that was proper selfplay for training rather than being initialization
+
+  //C46-48: Game type, game typesource metadata
+  // 0 = normal self-play game. C47,C48 unused
+  // 1 = encore-training game. C47 is the starting encore phase, C48 unused
+  //C49: 0 = normal, 1 = training sample was an isolated side position forked off of main game
+
   NumpyBuffer<float> globalTargetsNC;
 
   //Score target

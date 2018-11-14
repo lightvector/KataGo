@@ -76,7 +76,7 @@ GameInitializer::GameInitializer(ConfigParser& cfg)
 {
   initShared(cfg);
   noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
-  drawStdev = cfg.contains("drawStdev") ? cfg.getDouble("drawStdev",0.0,1.0) : 0.0;
+  drawRandRadius = cfg.contains("drawRandRadius") ? cfg.getDouble("drawRandRadius",0.0,1.0) : 0.0;
 }
 
 void GameInitializer::initShared(ConfigParser& cfg) {
@@ -121,8 +121,8 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
   createGameSharedUnsynchronized(board,pla,hist,numExtraBlack);
-  if(noResultStdev != 0.0 || drawStdev != 0.0)
-    throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawStdev");
+  if(noResultStdev != 0.0 || drawRandRadius != 0.0)
+    throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
 
 void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params) {
@@ -136,11 +136,13 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
     while(params.noResultUtilityForWhite < -1.0 || params.noResultUtilityForWhite > 1.0)
       params.noResultUtilityForWhite = mean + noResultStdev * nextGaussianTruncated(rand, 2.0);
   }
-  if(drawStdev > 1e-30) {
+  if(drawRandRadius > 1e-30) {
     double mean = params.drawEquivalentWinsForWhite;
-    params.drawEquivalentWinsForWhite = mean + drawStdev * nextGaussianTruncated(rand, 2.0);
+    if(mean < 0.0 || mean > 1.0)
+      throw StringError("GameInitializer: params.drawEquivalentWinsForWhite not within [0,1]: " + Global::doubleToString(mean));
+    params.drawEquivalentWinsForWhite = mean + drawRandRadius * (rand.nextDouble() * 2 - 1);
     while(params.drawEquivalentWinsForWhite < 0.0 || params.drawEquivalentWinsForWhite > 1.0)
-      params.drawEquivalentWinsForWhite = mean + drawStdev * nextGaussianTruncated(rand, 2.0);
+      params.drawEquivalentWinsForWhite = mean + drawRandRadius * (rand.nextDouble() * 2 - 1);
   }
 }
 
@@ -666,7 +668,7 @@ FinishedGameData* Play::runGame(
     }
     else {
       //Relying on this to be idempotent, so that we can get the final territory map
-      //We do want to call this here to force-end the game if we crossed a move limit.
+      //We also do want to call this here to force-end the game if we crossed a move limit.
       hist.endAndScoreGameNow(board,area);
 
       finalValueTargets.win = (float)NNOutput::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
@@ -713,7 +715,7 @@ FinishedGameData* Play::runGame(
       SidePosition* sp = gameData->sidePositions[i];
       Search* toMoveBot = sp->pla == P_BLACK ? botB : botW;
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
-      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,recordUtilities);
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, recordUtilities);

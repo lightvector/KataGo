@@ -97,6 +97,7 @@ model_config = {
   "p1_num_channels":48,
   "g1_num_channels":32,
   "v1_num_channels":32,
+  "sbv2_num_channels":32,
   "v2_size":32
 }
 
@@ -207,7 +208,7 @@ def model_fn(features,labels,mode,params):
 # INPUTS ------------------------------------------------------------------------
 
 NUM_POLICY_TARGETS = 1
-NUM_GLOBAL_TARGETS = 46
+NUM_GLOBAL_TARGETS = 50
 NUM_VALUE_SPATIAL_TARGETS = 1
 
 raw_input_features = {
