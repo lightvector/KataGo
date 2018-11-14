@@ -111,10 +111,10 @@ static NNEvaluator* startNNEval(
   return nnEval;
 }
 
-static void runBasicPositions(const string& modelFile, Logger& logger, bool inputsNHWC, bool cudaNHWC, int symmetry)
+static void runBasicPositions(const string& modelFile, Logger& logger, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16)
 {
   {
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,symmetry,inputsNHWC,cudaNHWC,false,false);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,symmetry,inputsNHWC,cudaNHWC,useFP16,false);
     SearchParams params;
     params.maxVisits = 200;
     AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
@@ -195,7 +195,7 @@ static void runBasicPositions(const string& modelFile, Logger& logger, bool inpu
   }
 }
 
-void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry) {
+void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
   cout << "Running search tests" << endl;
   string tensorflowGpuVisibleDeviceList = "";
   double tensorflowPerProcessGpuMemoryFraction = 0.3;
@@ -205,8 +205,7 @@ void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNH
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-
-  runBasicPositions(modelFile, logger, inputsNHWC, cudaNHWC, symmetry);
+  runBasicPositions(modelFile, logger, inputsNHWC, cudaNHWC, symmetry, useFP16);
 
   NeuralNet::globalCleanup();
 }
