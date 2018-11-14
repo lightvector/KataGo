@@ -1529,7 +1529,14 @@ void Board::calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTe
 
 //This marks pass-alive stones, pass-alive territory always.
 //If safeBigTerritories, marks empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
-//If unsafeBigTerritories, marks empty regions bordered by pla stones and no opp stones, regardless.
+//If unsafeBigTerritories, marks empty regions bordered by pla stones and no opp stones, but ONLY on locations in result that are C_EMPTY.
+//The reason for this is to avoid overwriting the opponent's pass-alive territory in situations like this:
+// .ox.x.x
+// oxxxxxx
+// xx.....
+//The top left corner is black's pass-alive territory. It's also an empty region bordered only by white, but we should not mark
+//it as white's unsafeBigTerritory because it's already marked as black's pass alive territory.
+
 void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal, Color* result) const {
   Color opp = getOpp(pla);
 
@@ -1790,16 +1797,32 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   //Mark result with territory
   for(int i = 0; i<numRegions; i++) {
     Loc head = regionHeads[i];
+
+    //Mark pass alive territory and pass-alive stones and large empty regions bordered only own pass-alive stones unconditionally
+    //These should be mutually exclusive with these same regions but for the opponent, so this is safe.
+    //We need to mark unconditionally since we WILL sometimes overwrite points of the opponent's color marked earlier, in the
+    //case that the opponent was marking unsafeBigTerritories and marked an empty spot surrounded by a pass-dead group.
     bool shouldMark = numInternalSpacesMax2[i] <= 1 && atLeastOnePla && !bordersNonPassAlivePlaByHead[head];
     shouldMark = shouldMark || (safeBigTerritories && atLeastOnePla && !containsOpp[i] && !bordersNonPassAlivePlaByHead[head]);
-    shouldMark = shouldMark || (unsafeBigTerritories && atLeastOnePla && !containsOpp[i]);
-
     if(shouldMark) {
       Loc cur = head;
       do {
         result[cur] = pla;
         cur = nextEmptyOrOpp[cur];
       } while (cur != head);
+    }
+    else {
+      //Mark unsafeBigTerritories only if the region is empty, to avoid overwriting regions that the opponent identified
+      //as their pass-alive-territory.
+      bool shouldMarkIfEmpty = (unsafeBigTerritories && atLeastOnePla && !containsOpp[i]);
+      if(shouldMarkIfEmpty) {
+        Loc cur = head;
+        do {
+          if(result[cur] == C_EMPTY)
+            result[cur] = pla;
+          cur = nextEmptyOrOpp[cur];
+        } while (cur != head);
+      }
     }
   }
 
@@ -1812,7 +1835,7 @@ void Board::checkConsistency() const {
   bool chainLocChecked[MAX_ARR_SIZE];
   for(int i = 0; i<MAX_ARR_SIZE; i++)
     chainLocChecked[i] = false;
-  
+
   auto checkChainConsistency = [errLabel,&chainLocChecked,this](Loc loc) {
     Player pla = colors[loc];
     Loc head = chain_head[loc];
@@ -1822,7 +1845,7 @@ void Board::checkConsistency() const {
     bool foundChainHead = false;
     do {
       chainLocChecked[cur] = true;
-      
+
       if(colors[cur] != pla)
         throw StringError(errLabel + "Chain is not all the same color");
       if(chain_head[cur] != head)
