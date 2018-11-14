@@ -33,7 +33,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> printArg("p","print","Alias for -print-branch",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraMovesArg("","extra-moves","Extra moves to force-play before doing search",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraArg("e","extra","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
-    TCLAP::ValueArg<int> visitsArg("v","visits","Set the number of visits",false,0,"VISTIS");
+    TCLAP::ValueArg<int> visitsArg("v","visits","Set the number of visits",false,-1,"VISTIS");
     TCLAP::SwitchArg printOwnershipArg("o","print-ownership","Print ownership");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
@@ -159,8 +159,14 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       throw StringError("Can only specify exactly one bot in for searching in an sgf");
     params = paramss[0];
   }
-  params.maxVisits = maxVisits;
-  params.maxPlayouts = maxVisits; //Also set this so it doesn't cap us either
+  if(maxVisits < -1)
+    throw StringError("maxVisits: invalid value");
+  else if(maxVisits == -1)
+    logger.write("No max visits specified on cmdline, using defaults in " + cfg.getFileName());
+  else {
+    params.maxVisits = maxVisits;
+    params.maxPlayouts = maxVisits; //Also set this so it doesn't cap us either
+  }
 
   string searchRandSeed;
   if(cfg.contains("searchRandSeed"))
