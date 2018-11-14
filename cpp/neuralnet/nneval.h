@@ -10,29 +10,31 @@
 #include "../game/boardhistory.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
+#include "../search/mutexpool.h"
 
 class NNEvaluator;
 
 class NNCacheTable {
   struct Entry {
     shared_ptr<NNOutput> ptr;
-    std::atomic_flag spinLock;
     Entry();
     ~Entry();
   };
 
   Entry* entries;
+  MutexPool* mutexPool;
   uint64_t tableSize;
   uint64_t tableMask;
+  uint32_t mutexPoolMask;
 
  public:
-  NNCacheTable(int sizePowerOfTwo);
+  NNCacheTable(int sizePowerOfTwo, int mutexPoolSizePowerOfTwo);
   ~NNCacheTable();
 
   NNCacheTable(const NNCacheTable& other) = delete;
   NNCacheTable& operator=(const NNCacheTable& other) = delete;
 
-  //These are thread-safe
+  //These are thread-safe. For get, ret will be set to nullptr upon a failure to find.
   bool get(Hash128 nnHash, shared_ptr<NNOutput>& ret);
   void set(const shared_ptr<NNOutput>& p);
   void clear();
@@ -74,6 +76,7 @@ class NNEvaluator {
     bool requireExactPosLen,
     bool inputsUseNHWC,
     int nnCacheSizePowerOfTwo,
+    int nnMutexPoolSizePowerofTwo,
     bool debugSkipNeuralNet
   );
   ~NNEvaluator();

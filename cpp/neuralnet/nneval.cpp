@@ -43,6 +43,7 @@ NNEvaluator::NNEvaluator(
   bool rExactPosLen,
   bool iUseNHWC,
   int nnCacheSizePowerOfTwo,
+  int nnMutexPoolSizePowerofTwo,
   bool skipNeuralNet
 )
   :modelFileName(mFileName),
@@ -70,7 +71,7 @@ NNEvaluator::NNEvaluator(
     throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
 
   if(nnCacheSizePowerOfTwo >= 0)
-    nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo);
+    nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo,nnMutexPoolSizePowerofTwo);
 
   if(!debugSkipNeuralNet) {
     loadedModel = NeuralNet::loadModelFile(modelFileName, modelFileIdx);
@@ -600,49 +601,77 @@ void NNEvaluator::evaluate(
 
 
 NNCacheTable::Entry::Entry()
-  :ptr(nullptr),spinLock(ATOMIC_FLAG_INIT)
+  :ptr(nullptr)
 {}
 NNCacheTable::Entry::~Entry()
 {}
 
-NNCacheTable::NNCacheTable(int sizePowerOfTwo) {
+NNCacheTable::NNCacheTable(int sizePowerOfTwo, int mutexPoolSizePowerOfTwo) {
   if(sizePowerOfTwo < 0 || sizePowerOfTwo > 63)
     throw StringError("NNCacheTable: Invalid sizePowerOfTwo: " + Global::intToString(sizePowerOfTwo));
+  if(mutexPoolSizePowerOfTwo < 0 || mutexPoolSizePowerOfTwo > 31)
+    throw StringError("NNCacheTable: Invalid mutexPoolSizePowerOfTwo: " + Global::intToString(mutexPoolSizePowerOfTwo));
   tableSize = ((uint64_t)1) << sizePowerOfTwo;
   tableMask = tableSize-1;
   entries = new Entry[tableSize];
+  uint32_t mutexPoolSize = ((uint32_t)1) << mutexPoolSizePowerOfTwo;
+  mutexPoolMask = mutexPoolSize-1;
+  mutexPool = new MutexPool(mutexPoolSize);
 }
 NNCacheTable::~NNCacheTable() {
   delete[] entries;
+  delete mutexPool;
 }
 
 bool NNCacheTable::get(Hash128 nnHash, shared_ptr<NNOutput>& ret) {
+  //Free ret BEFORE locking, to avoid any expensive operations while locked.
+  if(ret != nullptr)
+    ret.reset();
+
   uint64_t idx = nnHash.hash0 & tableMask;
+  uint32_t mutexIdx = (uint32_t)idx & mutexPoolMask;
   Entry& entry = entries[idx];
-  while(entry.spinLock.test_and_set(std::memory_order_acquire));
+  std::mutex& mutex = mutexPool->getMutex(mutexIdx);
+
+  std::lock_guard<std::mutex> lock(mutex);
+
   bool found = false;
   if(entry.ptr != nullptr && entry.ptr->nnHash == nnHash) {
     ret = entry.ptr;
     found = true;
   }
-  entry.spinLock.clear(std::memory_order_release);
   return found;
 }
 
 void NNCacheTable::set(const shared_ptr<NNOutput>& p) {
+  //Immediately copy p right now, before locking, to avoid any expensive operations while locked.
+  shared_ptr<NNOutput> buf(p);
+
   uint64_t idx = p->nnHash.hash0 & tableMask;
+  uint32_t mutexIdx = (uint32_t)idx & mutexPoolMask;
   Entry& entry = entries[idx];
-  while(entry.spinLock.test_and_set(std::memory_order_acquire));
-  entry.ptr = p;
-  entry.spinLock.clear(std::memory_order_release);
+  std::mutex& mutex = mutexPool->getMutex(mutexIdx);
+
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    //Perform a swap, to avoid any expensive free under the mutex.
+    entry.ptr.swap(buf);
+  }
+
+  //No longer locked, allow buf to fall out of scope now, will free whatever used to be present in the table.
 }
 
 void NNCacheTable::clear() {
+  shared_ptr<NNOutput> buf;
   for(size_t idx = 0; idx<tableSize; idx++) {
     Entry& entry = entries[idx];
-    while(entry.spinLock.test_and_set(std::memory_order_acquire));
-    entry.ptr = nullptr;
-    entry.spinLock.clear(std::memory_order_release);
+    uint32_t mutexIdx = (uint32_t)idx & mutexPoolMask;
+    std::mutex& mutex = mutexPool->getMutex(mutexIdx);
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      entry.ptr.swap(buf);
+    }
+    buf.reset();
   }
 }
 

@@ -55,6 +55,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       requireExactPosLen,
       inputsUseNHWC,
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
+      cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24),
       debugSkipNeuralNet
     );
 

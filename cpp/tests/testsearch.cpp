@@ -76,6 +76,7 @@ static NNEvaluator* startNNEval(
   bool requireExactPosLen = false;
   //bool inputsUseNHWC = true;
   int nnCacheSizePowerOfTwo = 16;
+  int nnMutexPoolSizePowerOfTwo = 12;
   //bool debugSkipNeuralNet = false;
   NNEvaluator* nnEval = new NNEvaluator(
     modelFile,
@@ -85,6 +86,7 @@ static NNEvaluator* startNNEval(
     requireExactPosLen,
     inputsUseNHWC,
     nnCacheSizePowerOfTwo,
+    nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet
   );
   (void)inputsUseNHWC;

@@ -245,9 +245,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     for(int i = 0; i<netAndStuffs.size(); i++) {
       if(netAndStuffs[i] == netAndStuff) {
         netAndStuffs.erase(netAndStuffs.begin()+i);
-        assert(netAndStuff->numGameThreads == 0);
-        assert(netAndStuff->isDraining);
-        delete netAndStuff;
         found = true;
         break;
       }
@@ -257,6 +254,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       netAndStuffsIsEmpty.notify_all();
 
     lock.unlock();
+
+    assert(netAndStuff->numGameThreads == 0);
+    assert(netAndStuff->isDraining);
+    delete netAndStuff;
+
     logger.write("Data write loop cleaned up and terminating for " + name);
   };
 
