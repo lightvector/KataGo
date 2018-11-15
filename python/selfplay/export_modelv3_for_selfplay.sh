@@ -25,6 +25,9 @@ do
     if [ ${FILEPATH: -4} == ".tmp" ]
     then
         echo "Skipping tmp file:" $FILEPATH
+    elif [ ${FILEPATH: -9} == ".exported" ]
+    then
+        echo "Skipping self tmp file:" $FILEPATH
     else
         echo "Found model to export:" $FILEPATH
         NAME=$(basename $FILEPATH)

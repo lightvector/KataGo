@@ -211,6 +211,7 @@ void TrainingWriteBuffers::addRow(
   int posArea = posLen*posLen;
   assert(data.posLen == posLen);
   assert(data.hasFullData);
+  assert(curRows < maxRows);
 
   {
     bool inputsUseNHWC = false;
@@ -498,6 +499,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       data,
       rand
     );
+    writeAndClearIfFull();
 
   }
 

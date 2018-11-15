@@ -200,13 +200,21 @@ if __name__ == '__main__':
 
   def get_numpy_npz_headers(filename):
     with zipfile.ZipFile(filename) as z:
+      wasbad = False
       numrows = 0
       npzheaders = {}
       for subfilename in z.namelist():
         npyfile = z.open(subfilename)
-        version = np.lib.format.read_magic(npyfile)
-        (shape, is_fortran, dtype) = np.lib.format._read_array_header(npyfile,version)
-        npzheaders[subfilename] = (shape, is_fortran, dtype)
+        try:
+          version = np.lib.format.read_magic(npyfile)
+        except ValueError:
+          wasbad = True
+          print("WARNING: bad file, skipping it: %s (bad array %s)" % (filename,subfilename))
+        else:
+          (shape, is_fortran, dtype) = np.lib.format._read_array_header(npyfile,version)
+          npzheaders[subfilename] = (shape, is_fortran, dtype)
+      if wasbad:
+        return None
       return npzheaders
 
 
@@ -214,7 +222,7 @@ if __name__ == '__main__':
   num_rows_total = 0
   for (filename,mtime) in all_files:
     npheaders = get_numpy_npz_headers(filename)
-    if len(npheaders) <= 0:
+    if npheaders is None or len(npheaders) <= 0:
       continue
     (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked"]
     num_rows = shape[0]
