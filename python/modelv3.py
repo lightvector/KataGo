@@ -130,7 +130,6 @@ class ModelV3:
 
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
-  #TODO incomplete, need rules
   def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, use_history_prop, idx):
     bsize = board.size
     assert(self.pos_len >= bsize)
@@ -1149,6 +1148,7 @@ class Target_varsV3:
         self.policy_loss +
         self.value_loss +
         self.scorevalue_loss +
+        self.scorebelief_loss +
         self.utilityvar_loss +
         self.ownership_loss +
         self.ownership_reg_loss +
