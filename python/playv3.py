@@ -43,6 +43,7 @@ policy_output = tf.nn.softmax(model.policy_output)
 value_output = tf.nn.softmax(model.value_output)
 scorevalue_output = tf.tanh(model.miscvalues_output[:,0])
 ownership_output = tf.tanh(model.ownership_output)
+scorebelief_output = tf.nn.softmax(model.scorebelief_output)
 
 # Moves ----------------------------------------------------------------
 
@@ -64,6 +65,9 @@ def fetch_output(session, board, boards, moves, use_history_prop, rules, fetches
 
 def get_policy_output(session, board, boards, moves, use_history_prop, rules):
   return fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output])
+
+def get_scorebelief_output(session, board, boards, moves, use_history_prop, rules):
+  return fetch_output(session,board,boards,moves,use_history_prop,rules,[scorebelief_output])
 
 def get_policy_and_value_output(session, board, boards, moves, use_history_prop, rules):
   (policy,value,scorevalue) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output,value_output,scorevalue_output])
@@ -282,6 +286,8 @@ def run_gtp(session):
     'policy-no-history',
     'ownership',
     'ownership-japanese',
+    'scorebelief',
+    'scorebelief-japanese',
   ]
   known_analyze_commands = [
     'gfx/Policy/policy',
@@ -291,6 +297,8 @@ def run_gtp(session):
     'gfx/PolicyNoHistory/policy-no-history',
     'gfx/Ownership/ownership',
     'gfx/OwnershipJP/ownership-japanese',
+    'gfx/ScoreBelief/scorebelief',
+    'gfx/ScoreBeliefJP/scorebelief-japanese',
   ]
 
   board_size = 19
@@ -564,6 +572,62 @@ def run_gtp(session):
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent=False)
       ret = "\n".join(gfx_commands)
+
+    elif command[0] == "scorebelief":
+      rules = {
+        "koRule": "KO_POSITIONAL",
+        "scoringRule": "SCORING_AREA",
+        "multiStoneSuicideLegal": True,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+      }
+      [scorebelief] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      ret = ""
+      ret += "TEXT "
+      ret += "ScoreBelief: \n"
+      for i in range(17,-1,-1):
+        ret += "TEXT "
+        ret += "%+6.1f" %(-(i*20+0.5))
+        for j in range(20):
+          idx = 360-(i*20+j)
+          ret += " %4.0f" % (scorebelief[idx] * 10000)
+        ret += "\n"
+      for i in range(18):
+        ret += "TEXT "
+        ret += "%+6.1f" %((i*20+0.5))
+        for j in range(20):
+          idx = 361+(i*20+j)
+          ret += " %4.0f" % (scorebelief[idx] * 10000)
+        ret += "\n"
+
+    elif command[0] == "scorebelief-japanese":
+      rules = {
+        "koRule": "KO_SIMPLE",
+        "scoringRule": "SCORING_TERRITORY",
+        "multiStoneSuicideLegal": False,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
+      }
+      [scorebelief] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      ret = ""
+      ret += "TEXT "
+      ret += "ScoreBelief: \n"
+      for i in range(17,-1,-1):
+        ret += "TEXT "
+        ret += "%+6.1f" %(-(i*20+0.5))
+        for j in range(20):
+          idx = 360-(i*20+j)
+          ret += " %4.0f" % (scorebelief[idx] * 10000)
+        ret += "\n"
+      for i in range(18):
+        ret += "TEXT "
+        ret += "%+6.1f" %((i*20+0.5))
+        for j in range(20):
+          idx = 361+(i*20+j)
+          ret += " %4.0f" % (scorebelief[idx] * 10000)
+        ret += "\n"
 
     elif command[0] == "protocol_version":
       ret = '2'
