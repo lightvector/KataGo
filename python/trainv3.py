@@ -33,6 +33,7 @@ parser.add_argument('-exportdir', help='Directory to export models periodically'
 parser.add_argument('-exportsuffix', help='Suffix to append to names of models', required=True)
 parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
 parser.add_argument('-batch-size', help='Expected batch size of the input data, must match tfrecords', type=int, required=True)
+parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 args = vars(parser.parse_args())
 
@@ -42,6 +43,7 @@ exportdir = args["exportdir"]
 exportsuffix = args["exportsuffix"]
 pos_len = args["pos_len"]
 batch_size = args["batch_size"]
+gpu_memory_frac = args["gpu_memory_frac"]
 verbose = args["verbose"]
 logfilemode = "a"
 
@@ -276,6 +278,8 @@ def val_input_fn(vdatadir):
 
 trainlog("Beginning training")
 
+session_config = tf.ConfigProto()
+session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
 estimator = tf.estimator.Estimator(
   model_fn=model_fn,
   model_dir=traindir,
@@ -283,7 +287,8 @@ estimator = tf.estimator.Estimator(
   config=tf.estimator.RunConfig(
     save_checkpoints_steps=num_batches_per_epoch,
     keep_checkpoint_every_n_hours = 1000000,
-    keep_checkpoint_max = 10
+    keep_checkpoint_max = 10,
+    session_config = session_config
   )
 )
 

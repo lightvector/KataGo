@@ -28,4 +28,5 @@ time python3 ./trainv3.py \
      -exportsuffix $TRAININGNAME \
      -pos-len 19 \
      -batch-size 256 \
+     -gpu-memory-frac 0.7 \
      2>&1 | tee $BASEDIR/train/$TRAININGNAME/stdout.txt
