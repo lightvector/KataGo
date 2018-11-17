@@ -245,6 +245,43 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
 
   gfx_commands.append("TEXT " + ", ".join(texts_value + texts_rev + texts))
 
+def print_scorebelief(board,scorebelief):
+  scorebelief = list(scorebelief)
+  if board.pla != Board.WHITE:
+    scorebelief.reverse()
+  ret = ""
+  ret += "TEXT "
+  ret += "ScoreBelief: \n"
+  for i in range(17,-1,-1):
+    ret += "TEXT "
+    ret += "%+6.1f" %(-(i*20+0.5))
+    for j in range(20):
+      idx = 360-(i*20+j)
+      ret += " %4.0f" % (scorebelief[idx] * 10000)
+    ret += "\n"
+  for i in range(18):
+    ret += "TEXT "
+    ret += "%+6.1f" %((i*20+0.5))
+    for j in range(20):
+      idx = 361+(i*20+j)
+      ret += " %4.0f" % (scorebelief[idx] * 10000)
+    ret += "\n"
+
+  beliefscore = 0
+  beliefwin = 0
+  belieftotal = 0
+  for idx in range(722):
+    score = idx-361+0.5
+    if score > 0:
+      beliefwin += scorebelief[idx]
+    else:
+      beliefwin -= scorebelief[idx]
+    belieftotal += scorebelief[idx]
+    beliefscore += score*scorebelief[idx]
+  ret += "TEXT BeliefWin: %.2fc\n" % (100*beliefwin/belieftotal)
+  ret += "TEXT BeliefScore: %.1f\n" % (beliefscore/belieftotal)
+  return ret
+
 
 # Basic parsing --------------------------------------------------------
 colstr = 'ABCDEFGHJKLMNOPQRST'
@@ -583,23 +620,7 @@ def run_gtp(session):
         "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
       }
       [scorebelief] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
-      ret = ""
-      ret += "TEXT "
-      ret += "ScoreBelief: \n"
-      for i in range(17,-1,-1):
-        ret += "TEXT "
-        ret += "%+6.1f" %(-(i*20+0.5))
-        for j in range(20):
-          idx = 360-(i*20+j)
-          ret += " %4.0f" % (scorebelief[idx] * 10000)
-        ret += "\n"
-      for i in range(18):
-        ret += "TEXT "
-        ret += "%+6.1f" %((i*20+0.5))
-        for j in range(20):
-          idx = 361+(i*20+j)
-          ret += " %4.0f" % (scorebelief[idx] * 10000)
-        ret += "\n"
+      ret = print_scorebelief(board,scorebelief)
 
     elif command[0] == "scorebelief-japanese":
       rules = {
@@ -611,23 +632,7 @@ def run_gtp(session):
         "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
       }
       [scorebelief] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
-      ret = ""
-      ret += "TEXT "
-      ret += "ScoreBelief: \n"
-      for i in range(17,-1,-1):
-        ret += "TEXT "
-        ret += "%+6.1f" %(-(i*20+0.5))
-        for j in range(20):
-          idx = 360-(i*20+j)
-          ret += " %4.0f" % (scorebelief[idx] * 10000)
-        ret += "\n"
-      for i in range(18):
-        ret += "TEXT "
-        ret += "%+6.1f" %((i*20+0.5))
-        for j in range(20):
-          idx = 361+(i*20+j)
-          ret += " %4.0f" % (scorebelief[idx] * 10000)
-        ret += "\n"
+      ret = print_scorebelief(board,scorebelief)
 
     elif command[0] == "protocol_version":
       ret = '2'
