@@ -11,6 +11,7 @@ from board import Board
 class ModelV3:
   NUM_BIN_INPUT_FEATURES = 22
   NUM_GLOBAL_INPUT_FEATURES = 14
+  EXTRA_SCORE_DISTR_RADIUS = 15
 
   def __init__(self,config,pos_len,placeholders):
     self.pos_len = pos_len
@@ -25,7 +26,7 @@ class ModelV3:
     self.miscvalues_target_shape = [5] #0:scorevalue, 1-4:utility variance
     self.scorevalue_target_shape = [] #0
     self.utilityvar_target_shape = [4] #1-4
-    self.scorebelief_target_shape = [self.pos_len*self.pos_len*2]
+    self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
@@ -958,8 +959,9 @@ class ModelV3:
     miscvalues_output = tf.reshape(mv3_layer, [-1] + self.miscvalues_target_shape, name = "miscvalues_output")
 
     scorebelief_len = self.scorebelief_target_shape[0]
-    assert(scorebelief_len == self.pos_len*self.pos_len*2)
-    self.score_belief_offset_vector = np.array([float(i-self.pos_len*self.pos_len)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
+    scorebelief_mid = self.pos_len*self.pos_len+ModelV3.EXTRA_SCORE_DISTR_RADIUS
+    assert(scorebelief_len == self.pos_len*self.pos_len*2+ModelV3.EXTRA_SCORE_DISTR_RADIUS*2)
+    self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
     self.score_belief_width_vector = np.array([1.0 for i in range(scorebelief_len)],dtype=np.float32)
     sbv2_size = config["sbv2_num_channels"]
     sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
@@ -968,7 +970,7 @@ class ModelV3:
     sb2_offset_vector = tf.constant(0.02 * self.score_belief_offset_vector, dtype=tf.float32)
     sb2_offset_w = self.weight_variable("sb2_offset/w",[1,sbv2_size],v1_size*3+1,sbv2_size)
     sb2_offset_partial = tf.matmul(tf.reshape(sb2_offset_vector,[-1,1]), sb2_offset_w)
-    sb2_layer = tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) + tf.reshape(sb2_offset_partial,[1,self.pos_len*self.pos_len*2,sbv2_size])
+    sb2_layer = tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) + tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size])
     sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
 
     sb3w = self.weight_variable("sb3/w",[sbv2_size,1],sbv2_size,1)

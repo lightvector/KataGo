@@ -37,6 +37,7 @@ pos_len = 19
 # Model ----------------------------------------------------------------
 
 two_over_pi = 0.63661977236758134308
+EXTRA_SCORE_DISTR_RADIUS = 15
 
 with open(modelconfigpath) as f:
   model_config = json.load(f)
@@ -251,6 +252,7 @@ def print_scorebelief(board,scorebelief):
   scorebelief = list(scorebelief)
   if board.pla != Board.WHITE:
     scorebelief.reverse()
+  scoredistrmid = pos_len * pos_len + EXTRA_SCORE_DISTR_RADIUS
   ret = ""
   ret += "TEXT "
   ret += "ScoreBelief: \n"
@@ -258,22 +260,22 @@ def print_scorebelief(board,scorebelief):
     ret += "TEXT "
     ret += "%+6.1f" %(-(i*20+0.5))
     for j in range(20):
-      idx = 360-(i*20+j)
+      idx = scoredistrmid-(i*20+j)-1
       ret += " %4.0f" % (scorebelief[idx] * 10000)
     ret += "\n"
   for i in range(18):
     ret += "TEXT "
     ret += "%+6.1f" %((i*20+0.5))
     for j in range(20):
-      idx = 361+(i*20+j)
+      idx = scoredistrmid+(i*20+j)
       ret += " %4.0f" % (scorebelief[idx] * 10000)
     ret += "\n"
 
   beliefscore = 0
   beliefwin = 0
   belieftotal = 0
-  for idx in range(722):
-    score = idx-361+0.5
+  for idx in range(scoredistrmid*2):
+    score = idx-scoredistrmid+0.5
     if score > 0:
       beliefwin += scorebelief[idx]
     else:

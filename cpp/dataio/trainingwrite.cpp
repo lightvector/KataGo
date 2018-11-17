@@ -90,6 +90,7 @@ FinishedGameData::~FinishedGameData() {
 static const int POLICY_TARGET_NUM_CHANNELS = 1;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 50;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
+static const int EXTRA_SCORE_DISTR_RADIUS = 15;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int pLen)
   :inputsVersion(iVersion),
@@ -104,7 +105,7 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    globalInputNC({maxRws, numFChannels}),
    policyTargetsNCMove({maxRws, POLICY_TARGET_NUM_CHANNELS, NNPos::getPolicySize(pLen)}),
    globalTargetsNC({maxRws, GLOBAL_TARGET_NUM_CHANNELS}),
-   scoreDistrN({maxRws, pLen*pLen*2}),
+   scoreDistrN({maxRws, pLen*pLen*2+EXTRA_SCORE_DISTR_RADIUS*2}),
    valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, pLen, pLen})
 {
   binaryInputNCHWUnpacked = new float[numBChannels * pLen * pLen];
@@ -307,7 +308,10 @@ void TrainingWriteBuffers::addRow(
 
   assert(50 == GLOBAL_TARGET_NUM_CHANNELS);
 
-  int8_t* rowScoreDistr = scoreDistrN.data + curRows * posArea*2;
+  int scoreDistrLen = posArea*2 + EXTRA_SCORE_DISTR_RADIUS*2;
+  int scoreDistrMid = posArea + EXTRA_SCORE_DISTR_RADIUS;
+
+  int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
   if(finalWhiteOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
@@ -315,11 +319,11 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[20] = 0.0f;
     for(int i = 0; i<posArea; i++)
       rowOwnership[i] = 0;
-    for(int i = 0; i<posArea*2; i++)
+    for(int i = 0; i<scoreDistrLen; i++)
       rowScoreDistr[i] = 0;
     //Dummy value, to make sure it still sums to 100
-    rowScoreDistr[posArea-1] = 50;
-    rowScoreDistr[posArea] = 50;
+    rowScoreDistr[scoreDistrMid-1] = 50;
+    rowScoreDistr[scoreDistrMid] = 50;
   }
   else {
     rowGlobal[26] = 1.0f;
@@ -336,15 +340,15 @@ void TrainingWriteBuffers::addRow(
     }
 
     //Fill score vector "onehot"-like
-    for(int i = 0; i<posArea*2; i++)
+    for(int i = 0; i<scoreDistrLen; i++)
       rowScoreDistr[i] = 0;
     int centerScore = (int)round(score);
-    int lowerIdx = centerScore+posArea-1;
-    int upperIdx = centerScore+posArea;
+    int lowerIdx = centerScore+scoreDistrMid-1;
+    int upperIdx = centerScore+scoreDistrMid;
     if(upperIdx <= 0)
       rowScoreDistr[0] = 100;
-    else if(lowerIdx >= posArea*2-1)
-      rowScoreDistr[posArea*2-1] = 100;
+    else if(lowerIdx >= scoreDistrLen-1)
+      rowScoreDistr[scoreDistrLen] = 100;
     else {
       float lambda = score - (centerScore-0.5f);
       int lowerProp = round(lambda*100.0f);

@@ -45,6 +45,7 @@ def log(s):
 NUM_POLICY_TARGETS = 1
 NUM_GLOBAL_TARGETS = 50
 NUM_VALUE_SPATIAL_TARGETS = 1
+EXTRA_SCORE_DISTR_RADIUS = 15
 
 log("Constructing validation input pipe")
 def parse_tf_records_input(serialized_example):
@@ -60,7 +61,7 @@ def parse_tf_records_input(serialized_example):
     "ginc": tf.reshape(ginc,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
     "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.reshape(gtnc,[batch_size,NUM_GLOBAL_TARGETS]),
-    "sdn": tf.reshape(gtnc,[batch_size,pos_len*pos_len*2]),
+    "sdn": tf.reshape(gtnc,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
     "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 
@@ -76,7 +77,7 @@ elif data_file.endswith(".npz"):
     "ginc": tf.placeholder(tf.float32,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
     "ptncm": tf.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
-    "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2]),
+    "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
     "vtnchw": tf.placeholder(tf.float32,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 else:
