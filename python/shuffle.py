@@ -44,6 +44,9 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   npz = np.load(input_file)
   assert(set(npz.keys()) == set(keys))
 
+  ###
+  #WARNING - if adding anything here, also add it to joint_shuffle below!
+  ###
   binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
   globalInputNC = npz["globalInputNC"]
   policyTargetsNCMove = npz["policyTargetsNCMove"]
@@ -52,7 +55,7 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   valueTargetsNCHW = npz["valueTargetsNCHW"]
 
   print("Shuffling... (mem usage %dMB)" % memusage_mb())
-  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,valueTargetsNCHW))
+  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
 
   num_rows_to_keep = binaryInputNCHWPacked.shape[0]
   assert(globalInputNC.shape[0] == num_rows_to_keep)
@@ -116,6 +119,9 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
     scoreDistrNs.append(scoreDistrN)
     valueTargetsNCHWs.append(valueTargetsNCHW)
 
+  ###
+  #WARNING - if adding anything here, also add it to joint_shuffle below!
+  ###
   print("Concatenating... (mem usage %dMB)" % memusage_mb())
   binaryInputNCHWPacked = np.concatenate(binaryInputNCHWPackeds)
   globalInputNC = np.concatenate(globalInputNCs)
@@ -125,7 +131,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   valueTargetsNCHW = np.concatenate(valueTargetsNCHWs)
 
   print("Shuffling... (mem usage %dMB)" % memusage_mb())
-  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,valueTargetsNCHW))
+  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
 
   print("Writing in batches...")
   num_rows = binaryInputNCHWPacked.shape[0]

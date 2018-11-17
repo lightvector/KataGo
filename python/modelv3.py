@@ -1157,6 +1157,18 @@ class Target_varsV3:
         self.reg_loss
       )
 
+      # self.opt_loss = tf.Print(
+      #   self.opt_loss,
+      #   [self.value_target[0:10],
+      #    self.scorevalue_target[0:10],
+      #    self.scorebelief_target[0] * tf.constant(model.score_belief_offset_vector,dtype=tf.float32),
+      #    self.ownership_target_weight[0:10],
+      #    self.selfkomi[0:10],
+      #    self.is_areaish[0:10]
+      #   ],
+      #   summarize=2000
+      # )
+
 class MetricsV3:
   def __init__(self,model,target_vars,include_debug_stats):
     #Training results
