@@ -521,10 +521,12 @@ void NNEvaluator::evaluate(
       }
     }
     else if(modelVersion == 3) {
+      const double twoOverPi = 0.63661977236758134308;
+
       double winProb;
       double lossProb;
       double noResultProb;
-      double scoreValue = tanh(buf.result->whiteScoreValue);
+      double scoreValue = atan(buf.result->whiteScoreValue) * twoOverPi;
       {
         double winLogits = buf.result->whiteWinProb;
         double lossLogits = buf.result->whiteLossProb;

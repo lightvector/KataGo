@@ -110,11 +110,16 @@ struct NNOutput {
   //The number of wins a game result should count as
   static double whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite);
   //The utility of achieving a certain score difference
-  static double whiteScoreValueOfScore(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist);
-  static double whiteScoreValueOfScoreNoDrawAdjust(double score, const Board& b);
+  static double whiteScoreValueOfScoreSmooth(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist);
+  static double whiteScoreValueOfScoreSmoothNoDrawAdjust(double score, const Board& b);
+  //Approximately invert whiteScoreValueOfScoreSmooth
+  static double approxWhiteScoreOfScoreValueSmooth(double scoreValue, const Board& b);
 
-  //Approximately invert whiteScoreValueOfScore
-  static double approxWhiteScoreOfScoreValue(double scoreValue, const Board& b);
+  //The same as whiteScoreValueOfScoreSmooth except that for draw adjustment, we evaluate at integer+0.5 gridpoints and linearly interpolate.
+  //This makes it so that our scoring is consistent with that of the neural net's which regularizes the scorevalue it outputs against a probability
+  //distribution of the scorevalue evaluated exactly at all the integer+0.5 gridpoints. This probably doesn't matter in practice, but we do it anyways
+  //just to be precisely correct.
+  static double whiteScoreValueOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist);
 
 };
 

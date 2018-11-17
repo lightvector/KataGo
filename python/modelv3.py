@@ -1016,6 +1016,8 @@ class Target_varsV3:
     value_probs = tf.nn.softmax(value_output,axis=1)
     scorebelief_probs = tf.nn.softmax(scorebelief_output,axis=1)
 
+    two_over_pi = 0.63661977236758134308
+
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
                           tf.placeholder(tf.float32, [None] + model.policy_target_shape))
@@ -1079,7 +1081,7 @@ class Target_varsV3:
     )
     self.scorebelief_loss_unreduced = self.scorebelief_loss_cdf + self.scorebelief_loss_pdf
 
-    scorevalue_prediction = tf.tanh(miscvalues_output[:,0])
+    scorevalue_prediction = two_over_pi*tf.atan(miscvalues_output[:,0])
     self.scorevalue_loss_unreduced = 0.5 * (
       tf.square(self.scorevalue_target - scorevalue_prediction)
     )
@@ -1111,7 +1113,7 @@ class Target_varsV3:
 
     scorevalue_from_belief = tf.reduce_sum(
       scorebelief_probs *
-      tf.tanh(0.5 * tf.reshape(model.score_belief_offset_vector,[1,model.scorebelief_target_shape[0]]) / tf.reshape(model.mask_sum_hw_sqrt,[-1,1])) *
+      two_over_pi*tf.atan(0.5 * tf.reshape(model.score_belief_offset_vector,[1,model.scorebelief_target_shape[0]]) / tf.reshape(model.mask_sum_hw_sqrt,[-1,1])) *
       (1.0 - value_probs[:,2:3]),
       axis=1
     )

@@ -36,12 +36,14 @@ pos_len = 19
 
 # Model ----------------------------------------------------------------
 
+two_over_pi = 0.63661977236758134308
+
 with open(modelconfigpath) as f:
   model_config = json.load(f)
 model = ModelV3(model_config,pos_len,{})
 policy_output = tf.nn.softmax(model.policy_output)
 value_output = tf.nn.softmax(model.value_output)
-scorevalue_output = tf.tanh(model.miscvalues_output[:,0])
+scorevalue_output = two_over_pi * tf.atan(model.miscvalues_output[:,0])
 ownership_output = tf.tanh(model.ownership_output)
 scorebelief_output = tf.nn.softmax(model.scorebelief_output)
 
@@ -72,7 +74,7 @@ def get_scorebelief_output(session, board, boards, moves, use_history_prop, rule
 def get_policy_and_value_output(session, board, boards, moves, use_history_prop, rules):
   (policy,value,scorevalue) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output,value_output,scorevalue_output])
   value = list(value)
-  value.append(math.atanh(scorevalue)*board.size*2)
+  value.append(math.tan(scorevalue*math.pi*0.5)*board.size*2)
   return (policy,value)
 
 def get_ownership_values(session, board, boards, moves, use_history_prop, rules):

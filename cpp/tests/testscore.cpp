@@ -8,6 +8,39 @@ void Tests::runScoreTests() {
   cout << "Running score and utility tests" << endl;
   ostringstream out;
 
+  auto printScoreStats = [&out](const Board& board, const BoardHistory& hist) {
+    out << "Black self komi wins/draw=0.5: " << hist.currentSelfKomi(P_BLACK, 0.5) << endl;
+    out << "White self komi wins/draw=0.5: " << hist.currentSelfKomi(P_WHITE, 0.5) << endl;
+    out << "Black self komi wins/draw=0.25: " << hist.currentSelfKomi(P_BLACK, 0.25) << endl;
+    out << "White self komi wins/draw=0.25: " << hist.currentSelfKomi(P_WHITE, 0.25) << endl;
+    out << "Black self komi wins/draw=0.75: " << hist.currentSelfKomi(P_BLACK, 0.75) << endl;
+    out << "White self komi wins/draw=0.75: " << hist.currentSelfKomi(P_WHITE, 0.75) << endl;
+
+    out << "Winner: " << colorToChar(hist.winner) << endl;
+    double score = hist.finalWhiteMinusBlackScore;
+    out << "Final score: " << score << endl;
+    out << "WL Wins wins/draw=0.5: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.5) << endl;
+    out << "Score Util Smooth  wins/draw=0.5: " << NNOutput::whiteScoreValueOfScoreSmooth(score, 0.5, board, hist) << endl;
+    out << "Score Util SmootND wins/draw=0.5: " << NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(score, board) << endl;
+    out << "Score Util Gridded wins/draw=0.5: " << NNOutput::whiteScoreValueOfScoreGridded(score, 0.5, board, hist) << endl;
+    out << "Score Util GridInv wins/draw=0.5: " << NNOutput::approxWhiteScoreOfScoreValueSmooth(NNOutput::whiteScoreValueOfScoreGridded(score, 0.5, board, hist),board) << endl;
+    out << "WL Wins wins/draw=0.3: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.3) << endl;
+    out << "Score Util Smooth  wins/draw=0.3: " << NNOutput::whiteScoreValueOfScoreSmooth(score, 0.3, board, hist) << endl;
+    out << "Score Util SmootND wins/draw=0.3: " << NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(score, board) << endl;
+    out << "Score Util Gridded wins/draw=0.3: " << NNOutput::whiteScoreValueOfScoreGridded(score, 0.3, board, hist) << endl;
+    out << "Score Util GridInv wins/draw=0.3: " << NNOutput::approxWhiteScoreOfScoreValueSmooth(NNOutput::whiteScoreValueOfScoreGridded(score, 0.3, board, hist),board) << endl;
+    out << "WL Wins wins/draw=0.7: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.7) << endl;
+    out << "Score Util Smooth  wins/draw=0.7: " << NNOutput::whiteScoreValueOfScoreSmooth(score, 0.7, board, hist) << endl;
+    out << "Score Util SmootND wins/draw=0.7: " << NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(score, board) << endl;
+    out << "Score Util Gridded wins/draw=0.7: " << NNOutput::whiteScoreValueOfScoreGridded(score, 0.7, board, hist) << endl;
+    out << "Score Util GridInv wins/draw=0.7: " << NNOutput::approxWhiteScoreOfScoreValueSmooth(NNOutput::whiteScoreValueOfScoreGridded(score, 0.7, board, hist),board) << endl;
+    out << "WL Wins wins/draw=1.0: " << NNOutput::whiteWinsOfWinner(hist.winner, 1.0) << endl;
+    out << "Score Util Smooth  wins/draw=1.0: " << NNOutput::whiteScoreValueOfScoreSmooth(score, 1.0, board, hist) << endl;
+    out << "Score Util SmootND wins/draw=1.0: " << NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(score, board) << endl;
+    out << "Score Util Gridded wins/draw=1.0: " << NNOutput::whiteScoreValueOfScoreGridded(score, 1.0, board, hist) << endl;
+    out << "Score Util GridInv wins/draw=1.0: " << NNOutput::approxWhiteScoreOfScoreValueSmooth(NNOutput::whiteScoreValueOfScoreGridded(score, 1.0, board, hist),board) << endl;
+  };
+
   {
     const char* name = "On-board even 9x9, komi 7.5";
 
@@ -27,21 +60,7 @@ xxxxxxxxx
     BoardHistory hist(board,P_BLACK,rules,0);
     hist.endAndScoreGameNow(board);
 
-    out << "Black self komi wins/draw=0.5: " << hist.currentSelfKomi(P_BLACK, 0.5) << endl;
-    out << "White self komi wins/draw=0.5: " << hist.currentSelfKomi(P_WHITE, 0.5) << endl;
-    out << "Black self komi wins/draw=0.25: " << hist.currentSelfKomi(P_BLACK, 0.25) << endl;
-    out << "White self komi wins/draw=0.25: " << hist.currentSelfKomi(P_WHITE, 0.25) << endl;
-    out << "Black self komi wins/draw=0.75: " << hist.currentSelfKomi(P_BLACK, 0.75) << endl;
-    out << "White self komi wins/draw=0.75: " << hist.currentSelfKomi(P_WHITE, 0.75) << endl;
-
-    out << "Winner: " << colorToChar(hist.winner) << endl;
-    out << "Final score: " << hist.finalWhiteMinusBlackScore << endl;
-    out << "WL Wins wins/draw=0.5: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.5) << endl;
-    out << "Score Util wins/draw=0.5: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.5, board, hist) << endl;
-    out << "WL Wins wins/draw=0.3: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.3) << endl;
-    out << "Score Util wins/draw=0.3: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.3, board, hist) << endl;
-    out << "WL Wins wins/draw=0.7: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.7) << endl;
-    out << "Score Util wins/draw=0.7: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.7, board, hist) << endl;
+    printScoreStats(board,hist);
 
     string expected = R"%%(
 Black self komi wins/draw=0.5: -7.5
@@ -53,11 +72,25 @@ White self komi wins/draw=0.75: 7.5
 Winner: O
 Final score: 7.5
 WL Wins wins/draw=0.5: 1
-Score Util wins/draw=0.5: 0.394119
+Score Util Smooth  wins/draw=0.5: 0.251332
+Score Util SmootND wins/draw=0.5: 0.251332
+Score Util Gridded wins/draw=0.5: 0.251332
+Score Util GridInv wins/draw=0.5: 7.5
 WL Wins wins/draw=0.3: 1
-Score Util wins/draw=0.3: 0.394119
+Score Util Smooth  wins/draw=0.3: 0.251332
+Score Util SmootND wins/draw=0.3: 0.251332
+Score Util Gridded wins/draw=0.3: 0.251332
+Score Util GridInv wins/draw=0.3: 7.5
 WL Wins wins/draw=0.7: 1
-Score Util wins/draw=0.7: 0.394119
+Score Util Smooth  wins/draw=0.7: 0.251332
+Score Util SmootND wins/draw=0.7: 0.251332
+Score Util Gridded wins/draw=0.7: 0.251332
+Score Util GridInv wins/draw=0.7: 7.5
+WL Wins wins/draw=1.0: 1
+Score Util Smooth  wins/draw=1.0: 0.251332
+Score Util SmootND wins/draw=1.0: 0.251332
+Score Util Gridded wins/draw=1.0: 0.251332
+Score Util GridInv wins/draw=1.0: 7.5
 )%%";
     expect(name,out,expected);
   }
@@ -82,21 +115,7 @@ xxxxxxxxx
     BoardHistory hist(board,P_BLACK,rules,0);
     hist.endAndScoreGameNow(board);
 
-    out << "Black self komi wins/draw=0.5: " << hist.currentSelfKomi(P_BLACK, 0.5) << endl;
-    out << "White self komi wins/draw=0.5: " << hist.currentSelfKomi(P_WHITE, 0.5) << endl;
-    out << "Black self komi wins/draw=0.25: " << hist.currentSelfKomi(P_BLACK, 0.25) << endl;
-    out << "White self komi wins/draw=0.25: " << hist.currentSelfKomi(P_WHITE, 0.25) << endl;
-    out << "Black self komi wins/draw=0.75: " << hist.currentSelfKomi(P_BLACK, 0.75) << endl;
-    out << "White self komi wins/draw=0.75: " << hist.currentSelfKomi(P_WHITE, 0.75) << endl;
-
-    out << "Winner: " << colorToChar(hist.winner) << endl;
-    out << "Final score: " << hist.finalWhiteMinusBlackScore << endl;
-    out << "WL Wins wins/draw=0.5: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.5) << endl;
-    out << "Score Util wins/draw=0.5: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.5, board, hist) << endl;
-    out << "WL Wins wins/draw=0.3: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.3) << endl;
-    out << "Score Util wins/draw=0.3: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.3, board, hist) << endl;
-    out << "WL Wins wins/draw=0.7: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.7) << endl;
-    out << "Score Util wins/draw=0.7: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.7, board, hist) << endl;
+    printScoreStats(board,hist);
 
     string expected = R"%%(
 Black self komi wins/draw=0.5: -7
@@ -108,11 +127,25 @@ White self komi wins/draw=0.75: 7.25
 Winner: O
 Final score: 7
 WL Wins wins/draw=0.5: 1
-Score Util wins/draw=0.5: 0.370402
+Score Util Smooth  wins/draw=0.5: 0.236117
+Score Util SmootND wins/draw=0.5: 0.236117
+Score Util Gridded wins/draw=0.5: 0.235973
+Score Util GridInv wins/draw=0.5: 6.99531
 WL Wins wins/draw=0.3: 1
-Score Util wins/draw=0.3: 0.360776
+Score Util Smooth  wins/draw=0.3: 0.229949
+Score Util SmootND wins/draw=0.3: 0.236117
+Score Util Gridded wins/draw=0.3: 0.229829
+Score Util GridInv wins/draw=0.3: 6.79611
 WL Wins wins/draw=0.7: 1
-Score Util wins/draw=0.7: 0.379949
+Score Util Smooth  wins/draw=0.7: 0.242238
+Score Util SmootND wins/draw=0.7: 0.236117
+Score Util Gridded wins/draw=0.7: 0.242116
+Score Util GridInv wins/draw=0.7: 7.19601
+WL Wins wins/draw=1.0: 1
+Score Util Smooth  wins/draw=1.0: 0.251332
+Score Util SmootND wins/draw=1.0: 0.236117
+Score Util Gridded wins/draw=1.0: 0.251332
+Score Util GridInv wins/draw=1.0: 7.5
 )%%";
     expect(name,out,expected);
   }
@@ -137,21 +170,7 @@ xxxxxxxxx
     BoardHistory hist(board,P_BLACK,rules,0);
     hist.endAndScoreGameNow(board);
 
-    out << "Black self komi wins/draw=0.5: " << hist.currentSelfKomi(P_BLACK, 0.5) << endl;
-    out << "White self komi wins/draw=0.5: " << hist.currentSelfKomi(P_WHITE, 0.5) << endl;
-    out << "Black self komi wins/draw=0.25: " << hist.currentSelfKomi(P_BLACK, 0.25) << endl;
-    out << "White self komi wins/draw=0.25: " << hist.currentSelfKomi(P_WHITE, 0.25) << endl;
-    out << "Black self komi wins/draw=0.75: " << hist.currentSelfKomi(P_BLACK, 0.75) << endl;
-    out << "White self komi wins/draw=0.75: " << hist.currentSelfKomi(P_WHITE, 0.75) << endl;
-
-    out << "Winner: " << colorToChar(hist.winner) << endl;
-    out << "Final score: " << hist.finalWhiteMinusBlackScore << endl;
-    out << "WL Wins wins/draw=0.5: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.5) << endl;
-    out << "Score Util wins/draw=0.5: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.5, board, hist) << endl;
-    out << "WL Wins wins/draw=0.3: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.3) << endl;
-    out << "Score Util wins/draw=0.3: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.3, board, hist) << endl;
-    out << "WL Wins wins/draw=0.7: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.7) << endl;
-    out << "Score Util wins/draw=0.7: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.7, board, hist) << endl;
+    printScoreStats(board,hist);
 
     string expected = R"%%(
 Black self komi wins/draw=0.5: -7
@@ -163,11 +182,25 @@ White self komi wins/draw=0.75: 7.25
 Winner: .
 Final score: 0
 WL Wins wins/draw=0.5: 0.5
-Score Util wins/draw=0.5: 0
+Score Util Smooth  wins/draw=0.5: 0
+Score Util SmootND wins/draw=0.5: 0
+Score Util Gridded wins/draw=0.5: 0
+Score Util GridInv wins/draw=0.5: 0
 WL Wins wins/draw=0.3: 0.3
-Score Util wins/draw=0.3: -0.0111107
+Score Util Smooth  wins/draw=0.3: -0.00707326
+Score Util SmootND wins/draw=0.3: 0
+Score Util Gridded wins/draw=0.3: -0.00707173
+Score Util GridInv wins/draw=0.3: -0.199957
 WL Wins wins/draw=0.7: 0.7
-Score Util wins/draw=0.7: 0.0111107
+Score Util Smooth  wins/draw=0.7: 0.00707326
+Score Util SmootND wins/draw=0.7: 0
+Score Util Gridded wins/draw=0.7: 0.00707173
+Score Util GridInv wins/draw=0.7: 0.199957
+WL Wins wins/draw=1.0: 1
+Score Util Smooth  wins/draw=1.0: 0.0176793
+Score Util SmootND wins/draw=1.0: 0
+Score Util Gridded wins/draw=1.0: 0.0176793
+Score Util GridInv wins/draw=1.0: 0.5
 )%%";
     expect(name,out,expected);
   }
@@ -189,21 +222,7 @@ xxxxx
     BoardHistory hist(board,P_BLACK,rules,0);
     hist.endAndScoreGameNow(board);
 
-    out << "Black self komi wins/draw=0.5: " << hist.currentSelfKomi(P_BLACK, 0.5) << endl;
-    out << "White self komi wins/draw=0.5: " << hist.currentSelfKomi(P_WHITE, 0.5) << endl;
-    out << "Black self komi wins/draw=0.25: " << hist.currentSelfKomi(P_BLACK, 0.25) << endl;
-    out << "White self komi wins/draw=0.25: " << hist.currentSelfKomi(P_WHITE, 0.25) << endl;
-    out << "Black self komi wins/draw=0.75: " << hist.currentSelfKomi(P_BLACK, 0.75) << endl;
-    out << "White self komi wins/draw=0.75: " << hist.currentSelfKomi(P_WHITE, 0.75) << endl;
-
-    out << "Winner: " << colorToChar(hist.winner) << endl;
-    out << "Final score: " << hist.finalWhiteMinusBlackScore << endl;
-    out << "WL Wins wins/draw=0.5: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.5) << endl;
-    out << "Score Util wins/draw=0.5: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.5, board, hist) << endl;
-    out << "WL Wins wins/draw=0.3: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.3) << endl;
-    out << "Score Util wins/draw=0.3: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.3, board, hist) << endl;
-    out << "WL Wins wins/draw=0.7: " << NNOutput::whiteWinsOfWinner(hist.winner, 0.7) << endl;
-    out << "Score Util wins/draw=0.7: " << NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, 0.7, board, hist) << endl;
+    printScoreStats(board,hist);
 
     string expected = R"%%(
 Black self komi wins/draw=0.5: -7
@@ -215,11 +234,25 @@ White self komi wins/draw=0.75: 7.25
 Winner: O
 Final score: 7
 WL Wins wins/draw=0.5: 1
-Score Util wins/draw=0.5: 0.604368
+Score Util Smooth  wins/draw=0.5: 0.3888
+Score Util SmootND wins/draw=0.5: 0.3888
+Score Util Gridded wins/draw=0.5: 0.388299
+Score Util GridInv wins/draw=0.5: 6.98827
 WL Wins wins/draw=0.3: 1
-Score Util wins/draw=0.3: 0.591519
+Score Util Smooth  wins/draw=0.3: 0.380174
+Score Util SmootND wins/draw=0.3: 0.3888
+Score Util Gridded wins/draw=0.3: 0.379752
+Score Util GridInv wins/draw=0.3: 6.7903
 WL Wins wins/draw=0.7: 1
-Score Util wins/draw=0.7: 0.616909
+Score Util Smooth  wins/draw=0.7: 0.397265
+Score Util SmootND wins/draw=0.7: 0.3888
+Score Util Gridded wins/draw=0.7: 0.396845
+Score Util GridInv wins/draw=0.7: 7.18999
+WL Wins wins/draw=1.0: 1
+Score Util Smooth  wins/draw=1.0: 0.409666
+Score Util SmootND wins/draw=1.0: 0.3888
+Score Util Gridded wins/draw=1.0: 0.409666
+Score Util GridInv wins/draw=1.0: 7.5
 )%%";
     expect(name,out,expected);
   }

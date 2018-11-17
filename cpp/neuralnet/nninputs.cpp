@@ -93,40 +93,53 @@ double NNOutput::whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWh
   assert(false);
 }
 
-double NNOutput::whiteScoreValueOfScore(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist) {
+static const double twoOverPi = 0.63661977236758134308;
+static const double piOverTwo = 1.57079632679489661923;
+
+double NNOutput::whiteScoreValueOfScoreSmooth(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist) {
   double adjustedScore = finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
   if(b.x_size == b.y_size)
-    return tanh(adjustedScore / (2*b.x_size));
+    return atan(adjustedScore / (2*b.x_size)) * twoOverPi;
   else
-    return tanh(adjustedScore / (2*sqrt(b.x_size*b.y_size)));
+    return atan(adjustedScore / (2*sqrt(b.x_size*b.y_size))) * twoOverPi;
 }
 
-double NNOutput::whiteScoreValueOfScoreNoDrawAdjust(double finalWhiteMinusBlackScore, const Board& b) {
+double NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, const Board& b) {
   double adjustedScore = finalWhiteMinusBlackScore;
   if(b.x_size == b.y_size)
-    return tanh(adjustedScore / (2*b.x_size));
+    return atan(adjustedScore / (2*b.x_size)) * twoOverPi;
   else
-    return tanh(adjustedScore / (2*sqrt(b.x_size*b.y_size)));
+    return atan(adjustedScore / (2*sqrt(b.x_size*b.y_size))) * twoOverPi;
 }
 
-static const double exp200 = exp(200.0);
-static const double expn200 = exp(-200.0);
-static double inverse_tanh(double x) {
-  if(x >= 1.0) return 100.0;
-  if(x <= -1.0) return -100.0;
-  double factor = (1.0 + x) / (1.0 - x);
-  if(factor <= expn200)
-    return -100.0;
-  if(factor >= exp200)
-    return 100.0;
-  return 0.5 * log(factor);
+double NNOutput::whiteScoreValueOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist) {
+  bool komiIsInteger = ((int)hist.rules.komi == hist.rules.komi);
+  if(!komiIsInteger)
+    return whiteScoreValueOfScoreSmoothNoDrawAdjust(finalWhiteMinusBlackScore,b);
+
+  assert((int)finalWhiteMinusBlackScore == finalWhiteMinusBlackScore);
+  double lower = finalWhiteMinusBlackScore - 0.5;
+  double upper = finalWhiteMinusBlackScore + 0.5;
+
+  double lowerScore = whiteScoreValueOfScoreSmoothNoDrawAdjust(lower,b);
+  double upperScore = whiteScoreValueOfScoreSmoothNoDrawAdjust(upper,b);
+  return lowerScore + (upperScore-lowerScore) * drawEquivalentWinsForWhite;
 }
 
-double NNOutput::approxWhiteScoreOfScoreValue(double scoreValue, const Board& b) {
+
+static double inverse_atan(double x) {
+  if(x >= piOverTwo - 1e-6) return 1e6;
+  if(x <= -piOverTwo + 1e-6) return -1e6;
+  return tan(x);
+}
+
+double NNOutput::approxWhiteScoreOfScoreValueSmooth(double scoreValue, const Board& b) {
+  assert(scoreValue >= -1 && scoreValue <= 1);
+  double scoreUnscaled = inverse_atan(scoreValue*piOverTwo);
   if(b.x_size == b.y_size)
-    return inverse_tanh(scoreValue) * (2*b.x_size);
+    return scoreUnscaled * (2*b.x_size);
   else
-    return inverse_tanh(scoreValue) * (2*sqrt(b.x_size*b.y_size));
+    return scoreUnscaled * (2*sqrt(b.x_size*b.y_size));
 }
 
 

@@ -780,7 +780,7 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
 
   //Map back the current score value as if it were a point estimate to find the current "expected score". This isn't quite right since
   //it isn't linear once there is variance, but it should be a reasonable approximation.
-  double currentScore = NNOutput::approxWhiteScoreOfScoreValue(scoreValue,rootBoard);
+  double currentScore = NNOutput::approxWhiteScoreOfScoreValueSmooth(scoreValue,rootBoard);
 
   //Apply the extra points and take the different mapping forward again.
   //NoDrawAdjust in the ones below because we already have the draw adjustment, because we never undid it
@@ -788,12 +788,12 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
   double adjustment;
   if(rootPla == P_WHITE)
     adjustment =
-      NNOutput::whiteScoreValueOfScoreNoDrawAdjust(currentScore+extraRootPoints,rootBoard) -
-      NNOutput::whiteScoreValueOfScoreNoDrawAdjust(currentScore,rootBoard);
+      NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(currentScore+extraRootPoints,rootBoard) -
+      NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(currentScore,rootBoard);
   else
     adjustment =
-      NNOutput::whiteScoreValueOfScoreNoDrawAdjust(currentScore,rootBoard) -
-      NNOutput::whiteScoreValueOfScoreNoDrawAdjust(currentScore+extraRootPoints,rootBoard);
+      NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(currentScore,rootBoard) -
+      NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(currentScore+extraRootPoints,rootBoard);
 
   return adjustment;
 }
@@ -1218,7 +1218,7 @@ void Search::playoutDescend(
       double winValue = NNOutput::whiteWinsOfWinner(thread.history.winner, searchParams.drawEquivalentWinsForWhite);
       double lossValue = 1.0 - winValue;
       double noResultValue = 0.0;
-      double scoreValue = NNOutput::whiteScoreValueOfScore(thread.history.finalWhiteMinusBlackScore, searchParams.drawEquivalentWinsForWhite, thread.board, thread.history);
+      double scoreValue = NNOutput::whiteScoreValueOfScoreGridded(thread.history.finalWhiteMinusBlackScore, searchParams.drawEquivalentWinsForWhite, thread.board, thread.history);
       setTerminalValue(node, winValue, lossValue, noResultValue, scoreValue, virtualLossesToSubtract);
       return;
     }
@@ -1418,7 +1418,7 @@ void Search::printTreeHelper(
       out << buf;
       sprintf(buf,"S %6.2fc (%+5.1f) ",
               (scoreValueSum * searchParams.scoreUtilityFactor) / valueSumWeight * 100.0,
-              NNOutput::approxWhiteScoreOfScoreValue(scoreValueSum/valueSumWeight,rootBoard)
+              NNOutput::approxWhiteScoreOfScoreValueSmooth(scoreValueSum/valueSumWeight,rootBoard)
       );
       out << buf;
     }

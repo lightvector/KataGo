@@ -674,7 +674,7 @@ FinishedGameData* Play::runGame(
       finalValueTargets.win = (float)NNOutput::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
-      finalValueTargets.scoreValue = NNOutput::whiteScoreValueOfScore(hist.finalWhiteMinusBlackScore, gameData->drawEquivalentWinsForWhite, board, hist);
+      finalValueTargets.scoreValue = NNOutput::whiteScoreValueOfScoreGridded(hist.finalWhiteMinusBlackScore, gameData->drawEquivalentWinsForWhite, board, hist);
       finalValueTargets.score = hist.finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(gameData->drawEquivalentWinsForWhite);
 
       //Dummy values, doesn't matter since we didn't do a search for the final values
