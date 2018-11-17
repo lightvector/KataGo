@@ -376,5 +376,6 @@ H2 2
   }
 
   delete search;
+  delete nnEval;
   NeuralNet::globalCleanup();
 }

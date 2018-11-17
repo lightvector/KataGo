@@ -143,6 +143,16 @@ NumpyBuffer<T>::~NumpyBuffer() {
   delete[] dataIncludingHeader;
 }
 
+template <typename T>
+int64_t NumpyBuffer<T>::getActualDataLen(int64_t numWriteableRows) {
+  int64_t actualDataLen = 1;
+  for(size_t i = 0; i<shape.size(); i++) {
+    int64_t x = (i == 0) ? numWriteableRows : shape[i];
+    actualDataLen *= x;
+  }
+  return actualDataLen;
+}
+
 //Writes the header of the buffer and returns the total size of the writeable portion of
 //the buffer, in bytes.
 //Writes the header and computes the size treating the writeable length of the leading dimension

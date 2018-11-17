@@ -115,8 +115,8 @@ namespace {
         delete data;
       }
 
-      tdataWriter->close();
-      vdataWriter->close();
+      tdataWriter->flushIfNonempty();
+      vdataWriter->flushIfNonempty();
       if(sgfOut != NULL)
         sgfOut->close();
     }
@@ -303,8 +303,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
     //simply controls the input feature version for the written data
-    TrainingDataWriter* tdataWriter = new TrainingDataWriter(tdataOutputDir, inputsVersion, maxRowsPerTrainFile, dataPosLen);
-    TrainingDataWriter* vdataWriter = new TrainingDataWriter(vdataOutputDir, inputsVersion, maxRowsPerValFile, dataPosLen);
+    TrainingDataWriter* tdataWriter = new TrainingDataWriter(tdataOutputDir, inputsVersion, maxRowsPerTrainFile, dataPosLen, Global::uint64ToHexString(rand.nextUInt64()));
+    TrainingDataWriter* vdataWriter = new TrainingDataWriter(vdataOutputDir, inputsVersion, maxRowsPerValFile, dataPosLen, Global::uint64ToHexString(rand.nextUInt64()));
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
     NetAndStuff* newNet = new NetAndStuff(cfg, modelName, nnEval, maxDataQueueSize, tdataWriter, vdataWriter, sgfOut, validationProp);
     return newNet;

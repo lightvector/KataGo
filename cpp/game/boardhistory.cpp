@@ -239,8 +239,7 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << "White bonus score " << whiteBonusScore << endl;
   out << "Game result " << isGameFinished << " " << playerToString(winner) << " " << finalWhiteMinusBlackScore << " " << isNoResult << endl;
   out << "Last moves ";
-  int start = moveHistory.size() <= 5 ? 0 : (moveHistory.size() - 5);
-  for(int i = start; i<moveHistory.size(); i++)
+  for(int i = 0; i<moveHistory.size(); i++)
     out << Location::toString(moveHistory[i].loc,board) << " ";
   out << endl;
 }

@@ -142,6 +142,7 @@ if(BUILD_MCTS)
     tests/testscore.cpp
     tests/testnninputs.cpp
     tests/testsearch.cpp
+    tests/testtrainingwrite.cpp
     evalsgf.cpp
     gatekeeper.cpp
     gtp.cpp

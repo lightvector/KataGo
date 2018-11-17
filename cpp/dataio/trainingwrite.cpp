@@ -386,13 +386,92 @@ void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
   zipFile.close();
 }
 
+void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
+  int len;
 
+  auto printHeader = [&out](const char* dataIncludingHeader) {
+    //In actuality our headers aren't that long, so we cut it off at half the total header bytes
+    for(int i = 0; i<10; i++)
+      out << (int)dataIncludingHeader[i] << " ";
+    for(int i = 10; i<NumpyBuffer<int>::TOTAL_HEADER_BYTES/2; i++)
+      out << dataIncludingHeader[i];
+    out << endl;
+  };
+
+  out << "binaryInputNCHWPacked" << endl;
+  binaryInputNCHWPacked.prepareHeaderWithNumRows(curRows);
+  char buf[32];
+  printHeader((const char*)binaryInputNCHWPacked.dataIncludingHeader);
+  len = binaryInputNCHWPacked.getActualDataLen(curRows);
+  for(int i = 0; i<len; i++) {
+    sprintf(buf,"%02X",binaryInputNCHWPacked.data[i]);
+    out << buf;
+    if((i+1) % (len/curRows) == 0) out << endl;
+  }
+  out << endl;
+
+  out << "globalTargetsNC" << endl;
+  globalInputNC.prepareHeaderWithNumRows(curRows);
+  printHeader((const char*)globalInputNC.dataIncludingHeader);
+  len = globalInputNC.getActualDataLen(curRows);
+  for(int i = 0; i<len; i++) {
+    out << globalInputNC.data[i] << " ";
+    if((i+1) % (len/curRows) == 0) out << endl;
+  }
+  out << endl;
+
+  out << "policyTargetsNCMove" << endl;
+  policyTargetsNCMove.prepareHeaderWithNumRows(curRows);
+  printHeader((const char*)policyTargetsNCMove.dataIncludingHeader);
+  len = policyTargetsNCMove.getActualDataLen(curRows);
+  for(int i = 0; i<len; i++) {
+    out << policyTargetsNCMove.data[i] << " ";
+    if((i+1) % (len/curRows) == 0) out << endl;
+  }
+  out << endl;
+
+  out << "globalInputNC" << endl;
+  globalTargetsNC.prepareHeaderWithNumRows(curRows);
+  printHeader((const char*)globalTargetsNC.dataIncludingHeader);
+  len = globalTargetsNC.getActualDataLen(curRows);
+  for(int i = 0; i<len; i++) {
+    out << globalTargetsNC.data[i] << " ";
+    if((i+1) % (len/curRows) == 0) out << endl;
+  }
+  out << endl;
+
+  out << "scoreDistrN" << endl;
+  scoreDistrN.prepareHeaderWithNumRows(curRows);
+  printHeader((const char*)scoreDistrN.dataIncludingHeader);
+  len = scoreDistrN.getActualDataLen(curRows);
+  for(int i = 0; i<len; i++) {
+    out << (int)scoreDistrN.data[i] << " ";
+    if((i+1) % (len/curRows) == 0) out << endl;
+  }
+  out << endl;
+
+  out << "valueTargetsNCHW" << endl;
+  valueTargetsNCHW.prepareHeaderWithNumRows(curRows);
+  printHeader((const char*)valueTargetsNCHW.dataIncludingHeader);
+  len = valueTargetsNCHW.getActualDataLen(curRows);
+  for(int i = 0; i<len; i++) {
+    out << (int)valueTargetsNCHW.data[i] << " ";
+    if((i+1) % (len/curRows) == 0) out << endl;
+  }
+  out << endl;
+}
 
 //-------------------------------------------------------------------------------------
 
+TrainingDataWriter::TrainingDataWriter(const string& outDir, int iVersion, int maxRowsPerFile, int posLen, const string& randSeed)
+  : TrainingDataWriter(outDir,NULL,iVersion,maxRowsPerFile,posLen,1,randSeed)
+{}
+TrainingDataWriter::TrainingDataWriter(ostream* dbgOut, int iVersion, int maxRowsPerFile, int posLen, int onlyEvery, const string& randSeed)
+  : TrainingDataWriter(string(),dbgOut,iVersion,maxRowsPerFile,posLen,onlyEvery,randSeed)
+{}
 
-TrainingDataWriter::TrainingDataWriter(const string& outDir, int iVersion, int maxRowsPerFile, int posLen)
-  :outputDir(outDir),inputsVersion(iVersion),rand(),writeBuffers(NULL)
+TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, int iVersion, int maxRowsPerFile, int posLen, int onlyEvery, const string& randSeed)
+  :outputDir(outDir),inputsVersion(iVersion),rand(randSeed),writeBuffers(NULL),debugOut(dbgOut),debugOnlyWriteEvery(onlyEvery),rowCount(0)
 {
   int numBinaryChannels;
   int numGlobalChannels;
@@ -408,6 +487,7 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, int iVersion, int m
   writeBuffers = new TrainingWriteBuffers(inputsVersion, maxRowsPerFile, numBinaryChannels, numGlobalChannels, posLen);
 }
 
+
 TrainingDataWriter::~TrainingDataWriter()
 {
   delete writeBuffers;
@@ -415,21 +495,23 @@ TrainingDataWriter::~TrainingDataWriter()
 
 void TrainingDataWriter::writeAndClearIfFull() {
   if(writeBuffers->curRows >= writeBuffers->maxRows) {
-    string filename = outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz";
-    string tmpFilename = filename + ".tmp";
-    writeBuffers->writeToZipFile(tmpFilename);
-    writeBuffers->clear();
-    std::rename(tmpFilename.c_str(),filename.c_str());
+    flushIfNonempty();
   }
 }
 
-void TrainingDataWriter::close() {
+void TrainingDataWriter::flushIfNonempty() {
   if(writeBuffers->curRows > 0) {
-    string filename = outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz";
-    string tmpFilename = filename + ".tmp";
-    writeBuffers->writeToZipFile(tmpFilename);
-    writeBuffers->clear();
-    std::rename(tmpFilename.c_str(),filename.c_str());
+    if(debugOut != NULL) {
+      writeBuffers->writeToTextOstream(*debugOut);
+      writeBuffers->clear();
+    }
+    else {
+      string filename = outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz";
+      string tmpFilename = filename + ".tmp";
+      writeBuffers->writeToZipFile(tmpFilename);
+      writeBuffers->clear();
+      std::rename(tmpFilename.c_str(),filename.c_str());
+    }
   }
 }
 
@@ -464,18 +546,21 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
     const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumberAfterStart];
     bool isSidePosition = false;
-    writeBuffers->addRow(
-      board,hist,nextPlayer,
-      turnNumberAfterStart,
-      policyTarget0,
-      data.whiteValueTargetsByTurn,
-      turnNumberAfterStart,
-      data.finalWhiteOwnership,
-      isSidePosition,
-      data,
-      rand
-    );
-    writeAndClearIfFull();
+    if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
+      writeBuffers->addRow(
+        board,hist,nextPlayer,
+        turnNumberAfterStart,
+        policyTarget0,
+        data.whiteValueTargetsByTurn,
+        turnNumberAfterStart,
+        data.finalWhiteOwnership,
+        isSidePosition,
+        data,
+        rand
+      );
+      writeAndClearIfFull();
+    }
+    rowCount++;
 
     Move move = data.endHist.moveHistory[turnNumberAfterStart + data.startHist.moveHistory.size()];
     assert(move.pla == nextPlayer);
@@ -492,18 +577,21 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     assert(turnNumberAfterStart > 0);
     whiteValueTargetsBuf[0] = sp->whiteValueTargets;
     bool isSidePosition = true;
-    writeBuffers->addRow(
-      sp->board,sp->hist,sp->pla,
-      turnNumberAfterStart,
-      &(sp->policyTarget),
-      whiteValueTargetsBuf,
-      0,
-      NULL,
-      isSidePosition,
-      data,
-      rand
-    );
-    writeAndClearIfFull();
+    if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
+      writeBuffers->addRow(
+        sp->board,sp->hist,sp->pla,
+        turnNumberAfterStart,
+        &(sp->policyTarget),
+        whiteValueTargetsBuf,
+        0,
+        NULL,
+        isSidePosition,
+        data,
+        rand
+      );
+      writeAndClearIfFull();
+    }
+    rowCount++;
 
   }
 

@@ -33,6 +33,8 @@ namespace Tests {
   void runAutoSearchTests();
   void runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16);
 
+  //testtrainingwrite.cpp
+  void runTrainingWriteTests();
 }
 
 namespace TestCommon {

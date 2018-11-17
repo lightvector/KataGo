@@ -9,6 +9,7 @@
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../dataio/trainingwrite.h"
+#include "../search/searchparams.h"
 
 //Object choosing random initial rules and board sizes for games. Threadsafe.
 class GameInitializer {

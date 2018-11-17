@@ -31,6 +31,8 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Tests::runAutoSearchTests();
   Tests::runBoardStressTest();
 
+  Tests::runTrainingWriteTests();
+
   cout << "All tests passed" << endl;
   return 0;
 }

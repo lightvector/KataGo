@@ -32,7 +32,7 @@ namespace TestCommon {
         break;
       }
     }
-    
+
     if(!matches) {
       cout << "Expect test failure!" << endl;
       cout << name << endl;
@@ -43,13 +43,20 @@ namespace TestCommon {
 
       cout << "=======================================================================" << endl;
       cout << "First line different (0-indexed) = " << firstLineDiff << endl;
-      cout << "Actual: " << (firstLineDiff >= alines.size() ? string() : alines[firstLineDiff]) << endl; 
-      cout << "Expected: " << (firstLineDiff >= elines.size() ? string() : elines[firstLineDiff]) << endl; 
+      string actualLine = firstLineDiff >= alines.size() ? string() : alines[firstLineDiff];
+      string expectedLine = firstLineDiff >= elines.size() ? string() : elines[firstLineDiff];
+      cout << "Actual  : " << actualLine << endl;
+      cout << "Expected: " << expectedLine << endl;
+      int j;
+      for(j = 0; j<actualLine.size() && j < expectedLine.size(); j++)
+        if(actualLine[j] != expectedLine[j])
+          break;
+      cout << "Char " << j << " differs" << endl;
 
       exit(1);
     }
   }
-  
+
   inline void expect(const char* name, ostringstream& actual, const string& expected) {
     expect(name,actual.str(),expected);
     actual.str("");

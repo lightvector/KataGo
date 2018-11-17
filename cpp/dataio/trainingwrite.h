@@ -167,22 +167,29 @@ struct TrainingWriteBuffers {
   );
 
   void writeToZipFile(const string& fileName);
+  void writeToTextOstream(ostream& out);
 
 };
 
 class TrainingDataWriter {
  public:
-  TrainingDataWriter(const string& outputDir, int inputsVersion, int maxRowsPerFile, int posLen);
+  TrainingDataWriter(const string& outputDir, int inputsVersion, int maxRowsPerFile, int posLen, const string& randSeed);
+  TrainingDataWriter(ostream* debugOut, int inputsVersion, int maxRowsPerFile, int posLen, int onlyWriteEvery, const string& randSeed);
+  TrainingDataWriter(const string& outputDir, ostream* debugOut, int inputsVersion, int maxRowsPerFile, int posLen, int onlyWriteEvery, const string& randSeed);
   ~TrainingDataWriter();
 
   void writeGame(const FinishedGameData& data);
-  void close();
+  void flushIfNonempty();
 
  private:
   string outputDir;
   int inputsVersion;
   Rand rand;
   TrainingWriteBuffers* writeBuffers;
+
+  ostream* debugOut;
+  int debugOnlyWriteEvery;
+  int64_t rowCount;
 
   void writeAndClearIfFull();
 

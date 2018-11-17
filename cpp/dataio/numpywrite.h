@@ -29,6 +29,8 @@ struct NumpyBuffer {
   NumpyBuffer(const NumpyBuffer&) = delete;
   NumpyBuffer& operator=(const NumpyBuffer&) = delete;
 
+  int64_t getActualDataLen(int64_t numWriteableRows);
+
   //Writes the header of the buffer and returns the total size of the writeable portion of
   //the buffer, in bytes.
   //Writes the header and computes the size treating the writeable length of the leading dimension
