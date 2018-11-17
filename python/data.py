@@ -88,6 +88,74 @@ def load_sgf_moves_exn(path):
   brank = (root.get("BR") if root.has_property("BR") else None)
   wrank = (root.get("WR") if root.has_property("WR") else None)
   komi = (root.get("KM") if root.has_property("KM") else None)
+  rulesstr = (root.get("RU") if root.has_property("RU") else None)
+
+  rules = None
+  if rulesstr is not None:
+    if rulesstr.lower() == "japanese" or rulesstr.lower() == "jp":
+      rules = {
+        "koRule": "KO_SIMPLE",
+        "scoringRule": "SCORING_TERRITORY",
+        "multiStoneSuicideLegal": False,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (komi if board.pla == Board.WHITE else -komi+1)
+      }
+    elif rulesstr.lower() == "chinese":
+      rules = {
+        "koRule": "KO_SIMPLE",
+        "scoringRule": "SCORING_AREA",
+        "multiStoneSuicideLegal": False,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (komi if board.pla == Board.WHITE else -komi)
+      }
+    elif rulesstr.startswith("ko"):
+      rules = {}
+      origrulesstr = rulesstr
+      rulesstr = rulesstr[2:]
+      if rulesstr.startswith("SIMPLE"):
+        rules["koRule"] = "KO_SIMPLE"
+        rulesstr = rulesstr[6:]
+      elif rulesstr.startswith("POSITIONAL"):
+        rules["koRule"] = "KO_POSITIONAL"
+        rulesstr = rulesstr[10:]
+      elif rulesstr.startswith("SITUATIONAL"):
+        rules["koRule"] = "KO_SITUATIONAL"
+        rulesstr = rulesstr[11:]
+      elif rulesstr.startswith("SPIGHT"):
+        rules["koRule"] = "KO_SPIGHT"
+        rulesstr = rulesstr[6:]
+      else:
+        raise Exception("Could not parse rules: " + origrulesstr)
+
+      if rulesstr.startswith("score"):
+        rulesstr = rulesstr[5:]
+      else:
+        raise Exception("Could not parse rules: " + origrulesstr)
+
+      if rulesstr.startswith("AREA"):
+        rules["scoringRule"] = "SCORING_AREA"
+        rulesstr = rulesstr[4:]
+      elif rulesstr.startswith("TERRITORY"):
+        rules["scoringRule"] = "SCORING_TERRITORY"
+        rulesstr = rulesstr[9:]
+      else:
+        raise Exception("Could not parse rules: " + origrulesstr)
+
+      if rulesstr.startswith("sui"):
+        rulesstr = rulesstr[3:]
+      else:
+        raise Exception("Could not parse rules: " + origrulesstr)
+
+      if rulesstr.startswith("false"):
+        rules["multiStoneSuicideLegal"] = False
+        rulesstr = rulesstr[5:]
+      elif rulesstr.startswith("true"):
+        rules["multiStoneSuicideLegal"] = True
+        rulesstr = rulesstr[4:]
+      else:
+        raise Exception("Could not parse rules: " + origrulesstr)
 
   metadata = Metadata(size, bname, wname, brank, wrank, komi)
-  return metadata, setup, moves
+  return metadata, setup, moves, rules
