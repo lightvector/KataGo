@@ -1172,7 +1172,6 @@ void Search::initNodeNNOutput(
   node.nnOutput = std::move(thread.nnResultBuf.result);
   maybeAddPolicyNoise(thread,node,isRoot);
 
-  //TODO test this
   //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.
   //Also don't bother updating any of the stats. Technically we should do so because winValueSum
   //and such will have changed potentially due to a new orientation of the neural net eval
@@ -1257,7 +1256,6 @@ void Search::playoutDescend(
     if(thread.logStream != NULL)
       (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
 
-    //TODO retest this by artificially simulating a true hash collision?
     //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
     selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
     //We should absolutely be legal this time

@@ -600,7 +600,8 @@ void NNEvaluator::evaluate(
 
 }
 
-
+//Uncomment this to lower the effective hash size down to one where we get true collisions
+//#define SIMULATE_TRUE_HASH_COLLISIONS
 
 NNCacheTable::Entry::Entry()
   :ptr(nullptr)
@@ -613,6 +614,10 @@ NNCacheTable::NNCacheTable(int sizePowerOfTwo, int mutexPoolSizePowerOfTwo) {
     throw StringError("NNCacheTable: Invalid sizePowerOfTwo: " + Global::intToString(sizePowerOfTwo));
   if(mutexPoolSizePowerOfTwo < 0 || mutexPoolSizePowerOfTwo > 31)
     throw StringError("NNCacheTable: Invalid mutexPoolSizePowerOfTwo: " + Global::intToString(mutexPoolSizePowerOfTwo));
+#if defined(SIMULATE_TRUE_HASH_COLLISIONS)
+  sizePowerOfTwo = sizePowerOfTwo > 12 ? 12 : sizePowerOfTwo;
+#endif
+
   tableSize = ((uint64_t)1) << sizePowerOfTwo;
   tableMask = tableSize-1;
   entries = new Entry[tableSize];
@@ -638,10 +643,17 @@ bool NNCacheTable::get(Hash128 nnHash, shared_ptr<NNOutput>& ret) {
   std::lock_guard<std::mutex> lock(mutex);
 
   bool found = false;
+#if defined(SIMULATE_TRUE_HASH_COLLISIONS)
+  if(entry.ptr != nullptr && ((entry.ptr->nnHash.hash0 ^ nnHash.hash0) & 0xFFF) == 0) {
+    ret = entry.ptr;
+    found = true;
+  }
+#else
   if(entry.ptr != nullptr && entry.ptr->nnHash == nnHash) {
     ret = entry.ptr;
     found = true;
   }
+#endif
   return found;
 }
 
