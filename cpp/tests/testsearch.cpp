@@ -67,7 +67,7 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
 }
 
 static NNEvaluator* startNNEval(
-  const string& modelFile, Logger& logger,
+  const string& modelFile, Logger& logger, const string& seed,
   int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16, bool debugSkipNeuralNet
 ) {
   int modelFileIdx = 0;
@@ -93,7 +93,7 @@ static NNEvaluator* startNNEval(
 
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
-  string nnRandSeed = "runSearchTestsRandSeed";
+  string nnRandSeed = "runSearchTestsRandSeed"+seed;
   //int defaultSymmetry = 0;
   vector<int> cudaGpuIdxByServerThread = {0};
   //bool cudaUseFP16 = false;
@@ -116,7 +116,7 @@ static NNEvaluator* startNNEval(
 static void runBasicPositions(const string& modelFile, Logger& logger, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16)
 {
   {
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,symmetry,inputsNHWC,cudaNHWC,useFP16,false);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",symmetry,inputsNHWC,cudaNHWC,useFP16,false);
     SearchParams params;
     params.maxVisits = 200;
     AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
@@ -230,15 +230,16 @@ void Tests::runAutoSearchTests() {
   logger.setLogTime(false);
   logger.addOStream(out);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,0,true,false,false,true);
-  SearchParams params;
-  params.maxVisits = 100;
-  Search* search = new Search(params, nnEval, "autoSearchRandSeed");
-  Rules rules = Rules::getTrompTaylorish();
-  TestSearchOptions opts;
-
   {
     const char* name = "Basic search with debugSkipNeuralNet and chosen move randomization";
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",0,true,false,false,true);
+    SearchParams params;
+    params.maxVisits = 100;
+    Search* search = new Search(params, nnEval, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    TestSearchOptions opts;
+
     Board board = Board::parseBoard(9,9,R"%%(
 .........
 .........
@@ -372,10 +373,433 @@ H2 2
       expect(name,out,expected);
     }
 
+    delete search;
+    delete nnEval;
+  }
+
+  {
+    const char* name = "Testing preservation of search tree across moves";
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",0,true,false,false,true);
+    SearchParams params;
+    params.maxVisits = 50;
+    Search* search = new Search(params, nnEval, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    TestSearchOptions opts;
+
+    Board board = Board::parseBoard(7,7,R"%%(
+..xx...
+xxxxxxx
+.xx..xx
+.xxoooo
+xxxo...
+ooooooo
+...o...
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    {
+      search->setPosition(nextPla,board,hist);
+      search->runWholeSearch(nextPla,logger,NULL);
+
+      //In theory nothing requires this, but it would be kind of crazy if this were false
+      assert(search->rootNode->numChildren > 1);
+      Loc locToDescend = search->rootNode->children[1]->prevMoveLoc;
+
+      PrintTreeOptions options;
+      options = options.maxDepth(1);
+      out << search->rootBoard << endl;
+      search->printTree(out, search->rootNode, options);
+      search->printTree(out, search->rootNode, options.onlyBranch(board,Location::toString(locToDescend,board)));
+
+      string expected = R"%%(
+HASH: 89590E2EB0B10227C6F32CB03B91959F
+   A B C D E F G
+ 7 . . X X . . .
+ 6 X X X X X X X
+ 5 . X X . . X X
+ 4 . X X O O O O
+ 3 X X X O . . .
+ 2 O O O O O O O
+ 1 . . . O . . .
+
+
+: T   0.42c W   0.57c S  -0.14c ( -0.1) V  -9.69c N      50  --  G7 G3 pass E1 D5
+---Black(v)---
+G7  : T  -1.44c W  -0.28c S  -1.16c ( -0.9) V   1.79c P 15.99% VW 10.56% N      13  --  G3 pass E1 D5
+E1  : T   4.71c W   4.76c S  -0.05c ( -0.0) V   7.08c P 17.17% VW  9.57% N       8  --  pass A1
+A7  : T  -1.23c W  -0.56c S  -0.67c ( -0.5) V  -0.41c P  7.39% VW 10.46% N       6  --  E7 D5 E1
+E7  : T   1.21c W  -0.42c S   1.64c ( +1.2) V  -1.30c P  7.16% VW 10.12% N       5  --  F3 A5 B1
+F7  : T  -0.85c W  -2.23c S   1.38c ( +1.0) V  -0.04c P  6.99% VW 10.40% N       5  --  A1 F1
+E3  : T   1.78c W   0.53c S   1.25c ( +0.9) V   0.03c P  7.98% VW 10.05% N       4  --  A7 C1
+A5  : T  -4.74c W   1.01c S  -5.76c ( -4.4) V  -5.22c P  4.20% VW 10.89% N       4  --  pass F7
+D5  : T   3.42c W  -0.33c S   3.75c ( +2.8) V  -0.85c P  5.51% VW  9.89% N       2  --  E7
+B1  : T  14.07c W  13.73c S   0.34c ( +0.3) V  14.07c P  6.27% VW  8.97% N       1  --
+F3  : T  12.51c W   7.81c S   4.70c ( +3.5) V  12.51c P  4.49% VW  9.11% N       1  --
+: T   0.42c W   0.57c S  -0.14c ( -0.1) V  -9.69c N      50  --  G7 G3 pass E1 D5
+G7  : T  -1.44c W  -0.28c S  -1.16c ( -0.9) V   1.79c P 15.99% VW 10.56% N      13  --  G3 pass E1 D5
+---White(^)---
+G7  G3  : T  -0.32c W  -2.91c S   2.59c ( +1.9) V   7.06c P 10.79% VW 25.52% N       4  --  pass E1 D5
+G7  D5  : T  -3.30c W  -0.62c S  -2.67c ( -2.0) V  -7.92c P 11.56% VW 24.60% N       3  --  G1 F7
+G7  E3  : T  -0.40c W   2.59c S  -2.99c ( -2.2) V  -3.00c P  8.36% VW 25.46% N       3  --  C1
+G7  B7  : T  -4.17c W  -0.75c S  -3.42c ( -2.5) V  -5.82c P  9.34% VW 24.41% N       2  --  D5
+
+)%%";
+      expect(name,out,expected);
+
+      search->makeMove(locToDescend,nextPla);
+      nextPla = getOpp(nextPla);
+
+      out << search->rootBoard << endl;
+      search->printTree(out, search->rootNode, options);
+      expected = R"%%(
+HASH: 9108963BA0713EF340BBA9F3E37370F9
+   A B C D E F G
+ 7 . . X X . . X
+ 6 X X X X X X X
+ 5 . X X . . X X
+ 4 . X X O O O O
+ 3 X X X O . . .
+ 2 O O O O O O O
+ 1 . . . O . . .
+
+
+: T  -1.44c W  -0.28c S  -1.16c ( -0.9) V   1.79c N      13  --  G3 pass E1 D5
+---White(^)---
+G3  : T  -0.32c W  -2.91c S   2.59c ( +1.9) V   7.06c P 10.79% VW 25.52% N       4  --  pass E1 D5
+D5  : T  -3.30c W  -0.62c S  -2.67c ( -2.0) V  -7.92c P 11.56% VW 24.60% N       3  --  G1 F7
+E3  : T  -0.40c W   2.59c S  -2.99c ( -2.2) V  -3.00c P  8.36% VW 25.46% N       3  --  C1
+B7  : T  -4.17c W  -0.75c S  -3.42c ( -2.5) V  -5.82c P  9.34% VW 24.41% N       2  --  D5
+
+)%%";
+      expect(name,out,expected);
+
+      search->runWholeSearch(nextPla,logger,NULL);
+      search->printTree(out, search->rootNode, options);
+
+      expected = R"%%(
+: T   0.98c W   1.38c S  -0.40c ( -0.3) V   1.79c N      50  --  E7 B7 G3 B1
+---White(^)---
+E7  : T   6.17c W   6.47c S  -0.30c ( -0.2) V   9.74c P  6.31% VW  9.89% N       8  --  B7 G3 B1
+G3  : T  -0.23c W  -1.67c S   1.44c ( +1.1) V   7.06c P 10.79% VW  9.02% N       6  --  pass E1 D5 A4
+D5  : T  -3.17c W  -2.34c S  -0.83c ( -0.6) V  -7.92c P 11.56% VW  8.66% N       5  --  G1 F7
+E3  : T   2.15c W   4.32c S  -2.17c ( -1.6) V  -3.00c P  8.36% VW  9.32% N       5  --  C1 A1
+F3  : T   4.15c W   5.95c S  -1.80c ( -1.3) V   9.64c P  7.12% VW  9.56% N       5  --  E1 B1 D5
+E1  : T   2.92c W   3.19c S  -0.27c ( -0.2) V  -8.25c P  6.28% VW  9.41% N       5  --  A5 C1
+B7  : T  -1.43c W  -0.11c S  -1.32c ( -1.0) V  -5.82c P  9.34% VW  8.89% N       4  --  D5 F1
+A1  : T  -2.71c W  -1.29c S  -1.42c ( -1.0) V   7.75c P  6.74% VW  8.77% N       3  --  B1 F1
+B1  : T  -1.71c W  -5.27c S   3.55c ( +2.6) V   9.71c P  6.13% VW  8.88% N       3  --  E1 F1
+A4  : T  -5.71c W  -6.04c S   0.32c ( +0.2) V  11.10c P  4.55% VW  8.45% N       3  --  E1 E7
+A7  : T   0.62c W   1.02c S  -0.39c ( -0.3) V   0.05c P  4.61% VW  9.14% N       2  --  E1
+
+)%%";
+      expect(name,out,expected);
+    }
+
+    delete search;
+    delete nnEval;
+  }
+
+
+
+
+  {
+    const char* name = "Testing pruning of search tree across moves due to root restrictions";
+
+    Board board = Board::parseBoard(7,7,R"%%(
+..xx...
+xxxxxxx
+xxxx.xx
+.xxoooo
+xxxo..x
+ooooooo
+o..oo.x
+)%%");
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::getTrompTaylorish();
+    BoardHistory hist(board,nextPla,rules,0);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("G7",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("F3",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+
+    auto hasSuicideRootMoves = [](const Search* search) {
+      for(int i = 0; i<search->rootNode->numChildren; i++) {
+        if(search->rootBoard.isSuicide(search->rootNode->children[i]->prevMoveLoc,search->rootPla))
+          return true;
+      }
+      return false;
+    };
+    auto hasOppPassAliveRootMoves = [](const Search* search) {
+      for(int i = 0; i<search->rootNode->numChildren; i++) {
+        if(search->rootSafeArea[search->rootNode->children[i]->prevMoveLoc] == getOpp(search->rootPla))
+          return true;
+      }
+      return false;
+    };
+
+
+    //First, with no pruning
+    {
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",0,true,false,false,true);
+      SearchParams params;
+      params.maxVisits = 400;
+      Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
+      TestSearchOptions opts;
+
+      search->setPosition(nextPla,board,hist);
+      search->runWholeSearch(nextPla,logger,NULL);
+      PrintTreeOptions options;
+      options = options.maxDepth(1);
+      out << search->rootBoard << endl;
+      search->printTree(out, search->rootNode, options);
+
+      string expected = R"%%(
+HASH: F33AB5338807413FD7B5069884FF9DB9
+   A B C D E F G
+ 7 . . X X . . X
+ 6 X X X X X X X
+ 5 X X X X . X X
+ 4 . X X O O O O
+ 3 X X X O . X X
+ 2 O O O O O O O
+ 1 O . . O O . X
+
+
+: T   1.90c W   1.58c S   0.32c ( +0.2) V  25.65c N     400  --  E5 F1 B1 B7 pass G1
+---Black(v)---
+E5  : T   0.17c W   0.70c S  -0.53c ( -0.4) V   5.89c P 11.25% VW 11.73% N     106  --  F1 B1 B7 pass G1
+E7  : T  -0.43c W  -0.88c S   0.45c ( +0.3) V  10.73c P  9.01% VW 11.91% N     104  --  B7 E3 F1 B1 G3 E3
+F1  : T   1.45c W   0.26c S   1.20c ( +0.9) V   1.73c P  9.26% VW 11.25% N      53  --  C1 A4 F1 A7 E7 B7
+A7  : T   3.86c W   3.85c S   0.01c ( +0.0) V  -7.40c P  9.95% VW 10.64% N      40  --  C1 F7 E5 E3
+C1  : T   2.18c W   0.51c S   1.67c ( +1.2) V -12.82c P  7.02% VW 11.04% N      34  --  E3 B7 E7 F3
+E3  : T   1.02c W   1.81c S  -0.78c ( -0.6) V  -5.42c P  3.34% VW 11.27% N      23  --  F7 E3 pass F1
+F7  : T   1.50c W   1.30c S   0.19c ( +0.1) V  -3.63c P  1.91% VW 11.13% N      15  --  E3 B7 F3
+B7  : T   8.81c W   8.29c S   0.52c ( +0.4) V   4.48c P  5.32% VW  9.75% N      14  --  B1 E5 pass pass
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 39.98% VW  1.48% N       7  --
+B1  : T  11.22c W   9.89c S   1.32c ( +1.0) V  10.87c P  1.82% VW  9.79% N       3  --  pass
+
+)%%";
+      expect(name,out,expected);
+
+      assert(hasSuicideRootMoves(search));
+
+      delete search;
+      delete nnEval;
+    }
+
+    //Next, with rootPruneUselessSuicides
+    {
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",0,true,false,false,true);
+      SearchParams params;
+      params.maxVisits = 400;
+      params.rootPruneUselessSuicides = true;
+      Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
+      TestSearchOptions opts;
+
+      search->setPosition(nextPla,board,hist);
+      search->runWholeSearch(nextPla,logger,NULL);
+      PrintTreeOptions options;
+      options = options.maxDepth(1);
+      out << search->rootBoard << endl;
+      search->printTree(out, search->rootNode, options);
+
+      string expected = R"%%(
+HASH: F33AB5338807413FD7B5069884FF9DB9
+   A B C D E F G
+ 7 . . X X . . X
+ 6 X X X X X X X
+ 5 X X X X . X X
+ 4 . X X O O O O
+ 3 X X X O . X X
+ 2 O O O O O O O
+ 1 O . . O O . X
+
+
+: T   1.58c W   1.65c S  -0.07c ( -0.1) V  25.65c N     400  --  E5 F1 B1 B7 A7 E7 A4
+---Black(v)---
+E5  : T  -0.15c W  -0.20c S   0.04c ( +0.0) V   5.89c P 11.25% VW 13.30% N     138  --  F1 B1 B7 A7 E7 A4
+C1  : T   0.34c W   0.12c S   0.21c ( +0.2) V -16.96c P  7.02% VW 12.97% N      66  --  F1 B7 E7 E3 B1 F3 F7
+F7  : T  -1.42c W  -0.24c S  -1.18c ( -0.9) V   0.12c P  1.91% VW 13.47% N      58  --  A7 F1 F1 B1
+A7  : T   4.18c W   4.23c S  -0.05c ( -0.0) V  -7.40c P  9.95% VW 11.80% N      50  --  C1 F7 B1 F1 E5
+E7  : T   2.26c W   1.98c S   0.28c ( +0.2) V   1.73c P  9.01% VW 12.35% N      45  --  F1 A4 G1 A7
+B7  : T   2.80c W   2.89c S  -0.09c ( -0.1) V  -2.47c P  5.32% VW 12.20% N      32  --  C1 A4 pass pass
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 39.98% VW  1.65% N       7  --
+B1  : T  11.40c W  11.42c S  -0.02c ( -0.0) V  15.86c P  1.82% VW 11.09% N       2  --  E3
+A4  : T  12.48c W  17.42c S  -4.94c ( -3.7) V  12.48c P  1.14% VW 11.15% N       1  --
+
+)%%";
+      expect(name,out,expected);
+
+      assert(!hasSuicideRootMoves(search));
+
+      delete search;
+      delete nnEval;
+    }
+
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("A7",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("E7",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("F7",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+
+    //Searching on the opponent, the move before
+    {
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",0,true,false,false,true);
+      SearchParams params;
+      params.maxVisits = 400;
+      params.rootPruneUselessSuicides = true;
+      Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
+      TestSearchOptions opts;
+
+      search->setPosition(nextPla,board,hist);
+      search->runWholeSearch(nextPla,logger,NULL);
+      PrintTreeOptions options;
+      options = options.maxDepth(1);
+      out << search->rootBoard << endl;
+      search->printTree(out, search->rootNode, options);
+      search->printTree(out, search->rootNode, options.onlyBranch(board,"pass"));
+
+      string expected = R"%%(
+HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
+   A B C D E F G
+ 7 X . X X X X X
+ 6 X X X X X X X
+ 5 X X X X . X X
+ 4 . X X O O O O
+ 3 X X X O . X X
+ 2 O O O O O O O
+ 1 O . . O O . X
+
+
+: T   1.12c W   1.02c S   0.10c ( +0.1) V -25.65c N     400  --  pass A4 B1 E5 F1 E3 F3
+---White(^)---
+pass : T   0.33c W   0.54c S  -0.22c ( -0.2) V  -5.89c P 55.02% VW 16.24% N     211  --  A4 B1 E5 F1 E3 F3
+E5  : T   4.68c W   4.00c S   0.68c ( +0.5) V   3.60c P 15.48% VW 18.30% N      83  --  B1 C1 A4 pass E3 F1
+F1  : T  -0.36c W  -1.17c S   0.81c ( +0.6) V  -1.73c P 12.74% VW 16.13% N      42  --  C1 G1 B7 E5 A4 E3 B1
+C1  : T  -0.28c W  -0.25c S  -0.03c ( -0.0) V  16.96c P  9.67% VW 16.20% N      32  --  A4 E3 G3 E5 B7 D7 F7
+B1  : T   1.61c W   1.28c S   0.33c ( +0.2) V  -5.27c P  2.50% VW 16.85% N      16  --  F1 E3 F1
+E3  : T  -0.26c W  -0.02c S  -0.24c ( -0.2) V -22.42c P  4.59% VW 16.29% N      15  --  A4 F3 F1 C1
+: T   1.12c W   1.02c S   0.10c ( +0.1) V -25.65c N     400  --  pass A4 B1 E5 F1 E3 F3
+pass : T   0.33c W   0.54c S  -0.22c ( -0.2) V  -5.89c P 55.02% VW 16.24% N     211  --  A4 B1 E5 F1 E3 F3
+---Black(v)---
+pass A4  : T  -0.38c W   0.17c S  -0.55c ( -0.4) V  -1.43c P 27.46% VW 14.23% N      70  --  B1 E5 F1 E3 F3
+pass F1  : T   2.46c W   2.22c S   0.24c ( +0.2) V  -3.59c P 28.75% VW 13.26% N      50  --  B1 A4 C1 pass
+pass E5  : T  -1.61c W  -2.13c S   0.52c ( +0.4) V  10.73c P 13.48% VW 14.59% N      47  --  E3 B7 F1 A4 E5
+pass B1  : T  -1.76c W  -0.89c S  -0.87c ( -0.6) V  -2.47c P  7.60% VW 14.54% N      27  --  F1 A4 E3 E5
+pass E3  : T  -2.28c W   0.10c S  -2.38c ( -1.8) V  -4.23c P  1.88% VW 14.45% N       7  --  G3 F3
+pass B7  : T   9.58c W  10.39c S  -0.80c ( -0.6) V -10.55c P  5.08% VW 12.20% N       5  --  B1 A4
+pass C1  : T   7.87c W   9.19c S  -1.32c ( -1.0) V  -9.42c P  2.99% VW 12.68% N       3  --  F1 A4
+pass pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW  4.05% N       1  --
+
+)%%";
+      expect(name,out,expected);
+
+      //Now play forward the pass. The tree should still have useless suicides in it
+      search->makeMove(Board::PASS_LOC,nextPla);
+      assert(hasSuicideRootMoves(search));
+      assert(hasOppPassAliveRootMoves(search));
+
+      out << search->rootBoard << endl;
+      search->printTree(out, search->rootNode, options);
+      expected = R"%%(
+HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
+   A B C D E F G
+ 7 X . X X X X X
+ 6 X X X X X X X
+ 5 X X X X . X X
+ 4 . X X O O O O
+ 3 X X X O . X X
+ 2 O O O O O O O
+ 1 O . . O O . X
+
+
+: T   0.33c W   0.54c S  -0.22c ( -0.2) V  -5.89c N     211  --  A4 B1 E5 F1 E3 F3
+---Black(v)---
+A4  : T  -0.38c W   0.17c S  -0.55c ( -0.4) V  -1.43c P 27.46% VW 14.23% N      70  --  B1 E5 F1 E3 F3
+F1  : T   2.46c W   2.22c S   0.24c ( +0.2) V  -3.59c P 28.75% VW 13.26% N      50  --  B1 A4 C1 pass
+E5  : T  -1.61c W  -2.13c S   0.52c ( +0.4) V  10.73c P 13.48% VW 14.59% N      47  --  E3 B7 F1 A4 E5
+B1  : T  -1.76c W  -0.89c S  -0.87c ( -0.6) V  -2.47c P  7.60% VW 14.54% N      27  --  F1 A4 E3 E5
+E3  : T  -2.28c W   0.10c S  -2.38c ( -1.8) V  -4.23c P  1.88% VW 14.45% N       7  --  G3 F3
+B7  : T   9.58c W  10.39c S  -0.80c ( -0.6) V -10.55c P  5.08% VW 12.20% N       5  --  B1 A4
+C1  : T   7.87c W   9.19c S  -1.32c ( -1.0) V  -9.42c P  2.99% VW 12.68% N       3  --  F1 A4
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW  4.05% N       1  --
+
+)%%";
+      expect(name,out,expected);
+
+      //But the moment we begin a search, it should no longer.
+      search->beginSearch();
+      assert(!hasSuicideRootMoves(search));
+      assert(!hasOppPassAliveRootMoves(search));
+
+      out << search->rootBoard << endl;
+      search->printTree(out, search->rootNode, options);
+      expected = R"%%(
+HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
+   A B C D E F G
+ 7 X . X X X X X
+ 6 X X X X X X X
+ 5 X X X X . X X
+ 4 . X X O O O O
+ 3 X X X O . X X
+ 2 O O O O O O O
+ 1 O . . O O . X
+
+
+: T  -0.07c W   0.04c S  -0.10c ( -0.1) V  -5.89c N     124  --  A4 B1 E5 F1 E3 F3
+---Black(v)---
+A4  : T  -0.38c W   0.17c S  -0.55c ( -0.4) V  -1.43c P 27.46% VW 31.53% N      70  --  B1 E5 F1 E3 F3
+E5  : T  -1.61c W  -2.13c S   0.52c ( +0.4) V  10.73c P 13.48% VW 32.36% N      47  --  E3 B7 F1 A4 E5
+B7  : T   9.58c W  10.39c S  -0.80c ( -0.6) V -10.55c P  5.08% VW 27.10% N       5  --  B1 A4
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW  9.01% N       1  --
+
+)%%";
+      expect(name,out,expected);
+
+      //Continue searching a bit more
+      search->runWholeSearch(getOpp(nextPla),logger,NULL);
+
+      out << search->rootBoard << endl;
+      search->printTree(out, search->rootNode, options);
+      expected = R"%%(
+HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
+   A B C D E F G
+ 7 X . X X X X X
+ 6 X X X X X X X
+ 5 X X X X . X X
+ 4 . X X O O O O
+ 3 X X X O . X X
+ 2 O O O O O O O
+ 1 O . . O O . X
+
+
+: T   2.18c W   1.89c S   0.29c ( +0.2) V  -5.89c N     400  --  A4 E3 B1 G3 C1 E5 C1
+---Black(v)---
+A4  : T   1.28c W   1.21c S   0.06c ( +0.0) V  -1.43c P 27.46% VW 32.67% N     296  --  E3 B1 G3 C1 E5 C1 F1
+E5  : T   3.84c W   2.97c S   0.88c ( +0.6) V  10.73c P 13.48% VW 30.11% N      81  --  pass E3 E3 B7 F1 A4 E5
+B7  : T   4.73c W   3.67c S   1.06c ( +0.8) V -10.55c P  5.08% VW 29.92% N      20  --  B1 E5 A4
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW  7.30% N       2  --
+
+)%%";
+      expect(name,out,expected);
+
+      delete search;
+      delete nnEval;
+    }
+
 
   }
 
-  delete search;
-  delete nnEval;
   NeuralNet::globalCleanup();
 }
