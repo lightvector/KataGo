@@ -272,6 +272,7 @@ def print_scorebelief(board,scorebelief):
     ret += "\n"
 
   beliefscore = 0
+  beliefscorevalue = 0
   beliefwin = 0
   belieftotal = 0
   for idx in range(scoredistrmid*2):
@@ -282,8 +283,10 @@ def print_scorebelief(board,scorebelief):
       beliefwin -= scorebelief[idx]
     belieftotal += scorebelief[idx]
     beliefscore += score*scorebelief[idx]
+    beliefscorevalue += math.atan(score/(2*board.size))*2/math.pi*scorebelief[idx]
   ret += "TEXT BeliefWin: %.2fc\n" % (100*beliefwin/belieftotal)
   ret += "TEXT BeliefScore: %.1f\n" % (beliefscore/belieftotal)
+  ret += "TEXT BeliefScoreValue: %.1fc\n" % (100*beliefscorevalue/belieftotal)
   return ret
 
 
