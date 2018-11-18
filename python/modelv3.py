@@ -1122,8 +1122,8 @@ class Target_varsV3:
     self.scorevalue_reg_loss_unreduced = tf.square(scorevalue_from_belief - scorevalue_prediction)
 
     winlossprob_from_belief = tf.concat([
-      tf.reduce_sum(scorebelief_probs[:,0:(model.scorebelief_target_shape[0]//2)],axis=1,keepdims=True),
-      tf.reduce_sum(scorebelief_probs[:,(model.scorebelief_target_shape[0]//2):],axis=1,keepdims=True)
+      tf.reduce_sum(scorebelief_probs[:,(model.scorebelief_target_shape[0]//2):],axis=1,keepdims=True),
+      tf.reduce_sum(scorebelief_probs[:,0:(model.scorebelief_target_shape[0]//2)],axis=1,keepdims=True)
     ],axis=1) * (1.0 - tf.reshape(value_probs[:,2],[-1,1]))
     winlossprob_from_output = value_probs[:,0:2]
     self.winloss_reg_loss_unreduced = tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
