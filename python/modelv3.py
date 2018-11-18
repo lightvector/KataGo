@@ -26,7 +26,7 @@ class ModelV3:
     self.miscvalues_target_shape = [5] #0:scorevalue, 1-4:utility variance
     self.scorevalue_target_shape = [] #0
     self.utilityvar_target_shape = [4] #1-4
-    self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]
+    self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+ModelV3.EXTRA_SCORE_DISTR_RADIUS*2]
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
