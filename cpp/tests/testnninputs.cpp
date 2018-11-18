@@ -2394,8 +2394,9 @@ Channel: 13: 0.2
   }
 
   {
-    const char* name = "NN Inputs V3 Ko Prohib and pass hist and whitebonus";
+    const char* name = "NN Inputs V3 Ko Prohib and pass hist and whitebonus and encorestart";
 
+    //Immediately enters encore via b0 pass w1 pass. Through w19, sets up various ko shapes. Then starts ko captures. b26 pass b27 pass switches to second encore.
     const string sgfStr = "(;GM[1]FF[4]SZ[6]KM[0.00];B[];W[];B[ab];W[bb];B[ba];W[ca];B[ec];W[ed];B[fd];W[fe];B[fb];W[dc];B[db];W[ae];B[ea];W[bf];B[be];W[ad];B[cf];W[dd];B[af];W[aa];B[];W[fc];B[bd];W[eb];B[];W[];B[ec];W[bf];B[ac];W[eb];B[af];W[eb])";
 
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
@@ -2436,6 +2437,8 @@ Channel: 13: 0.2
         out << "PassWouldEndPhase channel 12: " << rowGlobal[12] << endl;
         printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,7);
         printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,8);
+        printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,20);
+        printNNInputHWAndBoard(out,3,board,hist,posLen,true,rowBin,21);
       }
     }
 
@@ -2466,6 +2469,22 @@ Channel: 8
 0 0 0 0 0 0  O X . . . O
 0 0 0 0 0 0  X1. X . . .
 
+Channel: 20
+0 0 0 0 0 0  O2. O . X .
+0 0 0 0 0 0  X O . X . X
+0 0 0 0 0 0  . . . O X O4
+0 0 0 0 0 0  O X5. O O .
+0 0 0 0 0 0  O X . . . O
+0 0 0 0 0 0  X1. X . . .
+
+Channel: 21
+0 0 0 0 0 0  O2. O . X .
+0 0 0 0 0 0  X O . X . X
+0 0 0 0 0 0  . . . O X O4
+0 0 0 0 0 0  O X5. O O .
+0 0 0 0 0 0  O X . . . O
+0 0 0 0 0 0  X1. X . . .
+
 Move 25
 010101 001000 111010 001000 001110 010111
 Pass Hist Channels: 0 0 0 1 0
@@ -2488,6 +2507,22 @@ Channel: 8
 0 0 0 0 0 0  O X . . . O
 0 1 0 0 0 0  X . X . . .
 
+Channel: 20
+0 0 0 0 0 0  O1. O . X .
+0 0 0 0 0 0  X O . X O5X
+0 0 0 0 0 0  . . . O . O3
+0 0 0 0 0 0  O X4. O O .
+0 0 0 0 0 0  O X . . . O
+0 0 0 0 0 0  X . X . . .
+
+Channel: 21
+0 0 0 0 0 0  O1. O . X .
+0 0 0 0 0 0  X O . X O5X
+0 0 0 0 0 0  . . . O . O3
+0 0 0 0 0 0  O X4. O O .
+0 0 0 0 0 0  O X . . . O
+0 0 0 0 0 0  X . X . . .
+
 Move 26
 010101 001000 111010 001001 001110 010111
 Pass Hist Channels: 1 0 0 0 1
@@ -2506,6 +2541,22 @@ Channel: 8
 0 1 0 0 0 0  O . O . X .
 0 0 0 0 0 0  X O . X O4X
 0 0 0 0 1 0  . . . O . O2
+0 0 0 0 0 0  O X3. O O .
+0 0 0 0 0 0  O X . . . O
+0 0 0 0 0 0  X . X . . .
+
+Channel: 20
+0 0 0 0 0 0  O . O . X .
+0 0 0 0 0 0  X O . X O4X
+0 0 0 0 0 0  . . . O . O2
+0 0 0 0 0 0  O X3. O O .
+0 0 0 0 0 0  O X . . . O
+0 0 0 0 0 0  X . X . . .
+
+Channel: 21
+0 0 0 0 0 0  O . O . X .
+0 0 0 0 0 0  X O . X O4X
+0 0 0 0 0 0  . . . O . O2
 0 0 0 0 0 0  O X3. O O .
 0 0 0 0 0 0  O X . . . O
 0 0 0 0 0 0  X . X . . .
@@ -2532,6 +2583,22 @@ Channel: 8
 0 0 0 0 0 0  O X . . . O
 1 0 0 0 0 0  . O4X . . .
 
+Channel: 20
+1 0 1 0 0 0  O . O . X .
+0 1 0 0 1 0  X O . X . X
+0 0 0 1 0 1  X5. . O X3O
+1 0 0 1 1 0  O X . O O .
+1 0 0 0 0 1  O X . . . O
+0 0 0 0 0 0  . O4X . . .
+
+Channel: 21
+0 0 0 0 1 0  O . O . X .
+1 0 0 1 0 1  X O . X . X
+0 0 0 0 0 0  X5. . O X3O
+0 1 0 0 0 0  O X . O O .
+0 1 0 0 0 0  O X . . . O
+1 0 1 0 0 0  . O4X . . .
+
 Move 31
 010101 001010 011000 001001 001110 100111
 Pass Hist Channels: 0 0 0 0 1
@@ -2552,6 +2619,22 @@ Channel: 8
 0 0 0 0 0 0  X4. . O X2O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
+0 0 0 0 0 0  . O3X . . .
+
+Channel: 20
+0 0 0 0 1 0  O . O . X .
+1 0 0 1 0 1  X O . X .5X
+0 0 0 0 0 0  X4. . O X2O
+0 1 0 0 0 0  O X . O O .
+0 1 0 0 0 0  O X . . . O
+1 0 1 0 0 0  . O3X . . .
+
+Channel: 21
+1 0 1 0 0 0  O . O . X .
+0 1 0 0 1 0  X O . X .5X
+0 0 0 1 0 1  X4. . O X2O
+1 0 0 1 1 0  O X . O O .
+1 0 0 0 0 1  O X . . . O
 0 0 0 0 0 0  . O3X . . .
 
 Move 32
@@ -2576,6 +2659,22 @@ Channel: 8
 0 0 0 0 0 0  . X . . . O
 0 0 0 0 0 0  X5.2X . . .
 
+Channel: 20
+1 0 1 0 0 0  O . O . X .
+0 1 0 0 1 0  X O . X .4X
+0 0 0 1 0 1  X3. . O X1O
+1 0 0 1 1 0  . X . O O .
+1 0 0 0 0 1  . X . . . O
+0 0 0 0 0 0  X5.2X . . .
+
+Channel: 21
+0 0 0 0 1 0  O . O . X .
+1 0 0 1 0 1  X O . X .4X
+0 0 0 0 0 0  X3. . O X1O
+0 1 0 0 0 0  . X . O O .
+0 1 0 0 0 0  . X . . . O
+1 0 1 0 0 0  X5.2X . . .
+
 Move 33
 010101 001000 011010 101000 101110 010111
 Pass Hist Channels: 0 0 0 0 0
@@ -2596,6 +2695,22 @@ Channel: 8
 0 0 0 0 0 0  X2. . O . O
 0 0 0 0 0 0  . X . O O .
 0 0 0 0 0 0  . X . . . O
+0 0 0 0 0 0  X4.1X . . .
+
+Channel: 20
+0 0 0 0 1 0  O . O . X .
+1 0 0 1 0 1  X O . X O3X
+0 0 0 0 0 0  X2. . O . O
+0 1 0 0 0 0  . X . O O .
+0 1 0 0 0 0  . X . . . O
+1 0 1 0 0 0  X4.1X . . .
+
+Channel: 21
+1 0 1 0 0 0  O . O . X .
+0 1 0 0 1 0  X O . X O3X
+0 0 0 1 0 1  X2. . O . O
+1 0 0 1 1 0  . X . O O .
+1 0 0 0 0 1  . X . . . O
 0 0 0 0 0 0  X4.1X . . .
 
 )%%";
