@@ -66,40 +66,40 @@ static void mallocAndCopyToDevice(const string& name, const vector<float>& weigh
   size_t numWeights = weights.size();
   if(useFP16) {
     size_t halfBytes = numWeights * sizeof(half);
-    size_t singleBytes = numWeights * sizeof(float);
+    size_t floatBytes = numWeights * sizeof(float);
     float* buf;
     CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
-    CUDA_ERR(name.c_str(),cudaMalloc(&buf, singleBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(buf, weights.data(), singleBytes, cudaMemcpyHostToDevice));
+    CUDA_ERR(name.c_str(),cudaMalloc(&buf, floatBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(buf, weights.data(), floatBytes, cudaMemcpyHostToDevice));
     customCudaCopyToHalf(buf,(half*)deviceBuf,numWeights);
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     CUDA_ERR(name.c_str(),cudaDeviceSynchronize());
     cudaFree(buf);
   }
   else {
-    size_t singleBytes = numWeights * sizeof(float);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, singleBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weights.data(), singleBytes, cudaMemcpyHostToDevice));
+    size_t floatBytes = numWeights * sizeof(float);
+    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weights.data(), floatBytes, cudaMemcpyHostToDevice));
   }
 }
 
 static void mallocAndCopyToDevice(const string& name, float* weights, int numWeights, void*& deviceBuf, bool useFP16) {
   if(useFP16) {
     size_t halfBytes = numWeights * sizeof(half);
-    size_t singleBytes = numWeights * sizeof(float);
+    size_t floatBytes = numWeights * sizeof(float);
     float* buf;
     CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
-    CUDA_ERR(name.c_str(),cudaMalloc(&buf, singleBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(buf, weights, singleBytes, cudaMemcpyHostToDevice));
+    CUDA_ERR(name.c_str(),cudaMalloc(&buf, floatBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(buf, weights, floatBytes, cudaMemcpyHostToDevice));
     customCudaCopyToHalf(buf,(half*)deviceBuf,numWeights);
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     CUDA_ERR(name.c_str(),cudaDeviceSynchronize());
     cudaFree(buf);
   }
   else {
-    size_t singleBytes = numWeights * sizeof(float);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, singleBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weights, singleBytes, cudaMemcpyHostToDevice));
+    size_t floatBytes = numWeights * sizeof(float);
+    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
+    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weights, floatBytes, cudaMemcpyHostToDevice));
   }
 }
 
@@ -3583,14 +3583,14 @@ int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
 struct Buffers {
   //All of these are device pointers
 
-  float* inputBufSingle;
+  float* inputBufFloat;
   void* inputBuf;
   void* inputScratchBuf;
-  float* inputGlobalBufSingle;
+  float* inputGlobalBufFloat;
   void* inputGlobalBuf;
-  size_t inputBufBytesSingle;
+  size_t inputBufBytesFloat;
   size_t inputBufBytes;
-  size_t inputGlobalBufBytesSingle;
+  size_t inputGlobalBufBytesFloat;
   size_t inputGlobalBufBytes;
 
   void* maskBuf;
@@ -3643,26 +3643,26 @@ struct Buffers {
   Buffers& operator=(const Buffers&) = delete;
 
   Buffers(CudaHandles* cudaHandles, const Model& m, bool useFP16) {
-    size_t batchXYSingleBytes = m.maxBatchSize * m.xSize * m.ySize * sizeof(float);
-    size_t batchSingleBytes = m.maxBatchSize * sizeof(float);
+    size_t batchXYFloatBytes = m.maxBatchSize * m.xSize * m.ySize * sizeof(float);
+    size_t batchFloatBytes = m.maxBatchSize * sizeof(float);
 
     size_t batchXYBytes = m.maxBatchSize * m.xSize * m.ySize * (useFP16 ? sizeof(half) : sizeof(float));
     size_t batchBytes = m.maxBatchSize * (useFP16 ? sizeof(half) : sizeof(float));
 
-    inputBufBytesSingle = m.numInputChannels * batchXYSingleBytes;
+    inputBufBytesFloat = m.numInputChannels * batchXYFloatBytes;
     inputBufBytes = m.numInputChannels * batchXYBytes;
-    inputGlobalBufBytesSingle = m.numInputGlobalChannels * batchSingleBytes;
+    inputGlobalBufBytesFloat = m.numInputGlobalChannels * batchFloatBytes;
     inputGlobalBufBytes = m.numInputGlobalChannels * batchBytes;
 
-    CUDA_ERR("Buffers",cudaMalloc(&inputBufSingle, inputBufBytesSingle));
+    CUDA_ERR("Buffers",cudaMalloc(&inputBufFloat, inputBufBytesFloat));
     CUDA_ERR("Buffers",cudaMalloc(&inputBuf, inputBufBytes));
     CUDA_ERR("Buffers",cudaMalloc(&inputScratchBuf, inputBufBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&inputGlobalBufSingle, inputGlobalBufBytesSingle));
+    CUDA_ERR("Buffers",cudaMalloc(&inputGlobalBufFloat, inputGlobalBufBytesFloat));
     CUDA_ERR("Buffers",cudaMalloc(&inputGlobalBuf, inputGlobalBufBytes));
 
     CUDA_ERR("Buffers",cudaMalloc(&maskBuf, batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&maskFloatBuf, batchXYSingleBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&maskSumBuf, batchSingleBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&maskFloatBuf, batchXYFloatBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&maskSumBuf, batchFloatBytes));
 
     CUDA_ERR("Buffers",cudaMalloc(&trunkBuf, m.trunk->trunkNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&trunkScratchBuf, m.trunk->trunkNumChannels * batchXYBytes));
@@ -3676,36 +3676,36 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&gpoolBiasBuf, m.trunk->regularNumChannels * batchBytes));
     CUDA_ERR("Buffers",cudaMalloc(&regularScratchBuf, m.trunk->regularNumChannels * batchXYBytes));
 
-    CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf, m.policyHead->p1Channels * batchXYSingleBytes)); //need to hold floats in addition to halfs
-    CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf2, m.policyHead->p1Channels * batchXYSingleBytes)); //need to hold floats in addition to halfs
+    CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf, m.policyHead->p1Channels * batchXYFloatBytes)); //need to hold floats in addition to halfs
+    CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf2, m.policyHead->p1Channels * batchXYFloatBytes)); //need to hold floats in addition to halfs
     CUDA_ERR("Buffers",cudaMalloc(&g1OutBuf, m.policyHead->g1Channels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&g1OutBuf2, m.policyHead->g1Channels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&g1ConcatBuf, m.policyHead->g1Channels * batchSingleBytes * 3));
-    CUDA_ERR("Buffers",cudaMalloc(&g1BiasBuf, m.policyHead->p1Channels * batchSingleBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&p2OutBuf, m.policyHead->p2Channels * batchXYSingleBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&g1PassBuf, m.policyHead->p2Channels * batchSingleBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&g1ConcatBuf, m.policyHead->g1Channels * batchFloatBytes * 3));
+    CUDA_ERR("Buffers",cudaMalloc(&g1BiasBuf, m.policyHead->p1Channels * batchFloatBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&p2OutBuf, m.policyHead->p2Channels * batchXYFloatBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&g1PassBuf, m.policyHead->p2Channels * batchFloatBytes));
 
-    policyBufBytes = m.policyHead->p2Channels * (batchXYSingleBytes + batchSingleBytes);
+    policyBufBytes = m.policyHead->p2Channels * (batchXYFloatBytes + batchFloatBytes);
     CUDA_ERR("Buffers",cudaMalloc(&policyBuf, policyBufBytes));
     assert(m.policyHead->p2Channels == 1);
 
     CUDA_ERR("Buffers",cudaMalloc(&v1OutBuf, m.valueHead->v1Channels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&v1OutBuf2, m.valueHead->v1Channels * batchXYBytes));
     if(m.version >= 3)
-    {CUDA_ERR("Buffers",cudaMalloc(&v1MeanBuf, m.valueHead->v1Channels * 3 * batchSingleBytes));}
+    {CUDA_ERR("Buffers",cudaMalloc(&v1MeanBuf, m.valueHead->v1Channels * 3 * batchFloatBytes));}
     else
-    {CUDA_ERR("Buffers",cudaMalloc(&v1MeanBuf, m.valueHead->v1Channels * batchSingleBytes));}
-    CUDA_ERR("Buffers",cudaMalloc(&v2OutBuf, m.valueHead->v2Channels * batchSingleBytes));
+    {CUDA_ERR("Buffers",cudaMalloc(&v1MeanBuf, m.valueHead->v1Channels * batchFloatBytes));}
+    CUDA_ERR("Buffers",cudaMalloc(&v2OutBuf, m.valueHead->v2Channels * batchFloatBytes));
 
-    valueBufBytes = m.valueHead->valueChannels * batchSingleBytes;
+    valueBufBytes = m.valueHead->valueChannels * batchFloatBytes;
     CUDA_ERR("Buffers",cudaMalloc(&valueBuf, valueBufBytes));
 
     if(m.version >= 3) {
-      scoreValueBufBytes = m.valueHead->scoreValueChannels * batchSingleBytes;
+      scoreValueBufBytes = m.valueHead->scoreValueChannels * batchFloatBytes;
       CUDA_ERR("Buffers",cudaMalloc(&scoreValueBuf, scoreValueBufBytes));
 
       //This buf is used for both an intermdiate fp16 result in fp16 mode, and ALSO the final fp32 output, so always must be fp32-sized
-      ownershipBufBytes = m.valueHead->ownershipChannels * batchXYSingleBytes;
+      ownershipBufBytes = m.valueHead->ownershipChannels * batchXYFloatBytes;
       CUDA_ERR("Buffers",cudaMalloc(&ownershipBuf, ownershipBufBytes));
       CUDA_ERR("Buffers",cudaMalloc(&ownershipScratchBuf, ownershipBufBytes));
     }
@@ -3752,10 +3752,10 @@ struct Buffers {
   }
 
   ~Buffers() {
-    cudaFree(inputBufSingle);
+    cudaFree(inputBufFloat);
     cudaFree(inputBuf);
     cudaFree(inputScratchBuf);
-    cudaFree(inputGlobalBufSingle);
+    cudaFree(inputGlobalBufFloat);
     cudaFree(inputGlobalBuf);
 
     cudaFree(maskBuf);
@@ -3880,11 +3880,10 @@ void NeuralNet::freeLocalGpuHandle(LocalGpuHandle* gpuHandle) {
 struct InputBuffers {
   int maxBatchSize;
 
-  //TODO rename 'single'
-  size_t singleBatchItemElts;
-  size_t singleBatchItemBytes;
-  size_t singleBatchItemGlobalElts;
-  size_t singleBatchItemGlobalBytes;
+  size_t singleInputElts;
+  size_t singleInputBytes;
+  size_t singleInputGlobalElts;
+  size_t singleInputGlobalBytes;
   size_t singlePolicyResultElts;
   size_t singlePolicyResultBytes;
   size_t singleValueResultElts;
@@ -3917,10 +3916,10 @@ struct InputBuffers {
     int ySize = m.version >= 3 ? posLen : m.ySizePreV3;
 
     maxBatchSize = maxBatchSz;
-    singleBatchItemElts = m.numInputChannels * xSize * ySize;
-    singleBatchItemBytes = m.numInputChannels * xSize * ySize * sizeof(float);
-    singleBatchItemGlobalElts = m.numInputGlobalChannels;
-    singleBatchItemGlobalBytes = m.numInputGlobalChannels * sizeof(float);
+    singleInputElts = m.numInputChannels * xSize * ySize;
+    singleInputBytes = m.numInputChannels * xSize * ySize * sizeof(float);
+    singleInputGlobalElts = m.numInputGlobalChannels;
+    singleInputGlobalBytes = m.numInputGlobalChannels * sizeof(float);
     singlePolicyResultElts = (1 + xSize * ySize);
     singlePolicyResultBytes = (1 + xSize * ySize) * sizeof(float);
     singleValueResultElts = m.numValueChannels;
@@ -3933,7 +3932,7 @@ struct InputBuffers {
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
     if(m.version < 3)
-      assert(NNModelVersion::getRowSize(m.version) == singleBatchItemElts);
+      assert(NNModelVersion::getRowSize(m.version) == singleInputElts);
 
     userInputBufferBytes = m.numInputChannels * maxBatchSize * xSize * ySize * sizeof(float);
     userInputGlobalBufferBytes = m.numInputGlobalChannels * maxBatchSize * sizeof(float);
@@ -3977,22 +3976,22 @@ struct InputBuffers {
 InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int posLen) {
   return new InputBuffers(loadedModel,maxBatchSize,posLen);
 }
-void NeuralNet::freeInputBuffers(InputBuffers* buffers) {
-  delete buffers;
+void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
+  delete inputBuffers;
 }
 
-float* NeuralNet::getRowInplace(InputBuffers* buffers, int rowIdx) {
-  assert(rowIdx < buffers->maxBatchSize);
-  return buffers->userInputBuffer + (buffers->singleBatchItemElts * rowIdx);
+float* NeuralNet::getRowInplace(InputBuffers* inputBuffers, int rowIdx) {
+  assert(rowIdx < inputBuffers->maxBatchSize);
+  return inputBuffers->userInputBuffer + (inputBuffers->singleInputElts * rowIdx);
 }
 
-float* NeuralNet::getRowGlobalInplace(InputBuffers* buffers, int rowIdx) {
-  assert(rowIdx < buffers->maxBatchSize);
-  return buffers->userInputGlobalBuffer + (buffers->singleBatchItemGlobalElts * rowIdx);
+float* NeuralNet::getRowGlobalInplace(InputBuffers* inputBuffers, int rowIdx) {
+  assert(rowIdx < inputBuffers->maxBatchSize);
+  return inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * rowIdx);
 }
 
-bool* NeuralNet::getSymmetriesInplace(InputBuffers* buffers) {
-  return buffers->symmetriesBuffer;
+bool* NeuralNet::getSymmetriesInplace(InputBuffers* inputBuffers) {
+  return inputBuffers->symmetriesBuffer;
 }
 
 
@@ -4012,8 +4011,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     assert(inputBuffers->userInputGlobalBufferBytes == buffers->inputGlobalBufBytes);
     assert(inputBuffers->policyResultBufferBytes == buffers->policyBufBytes);
     assert(inputBuffers->valueResultBufferBytes == buffers->valueBufBytes);
-    assert(inputBuffers->singleBatchItemBytes == inputBuffers->singleBatchItemElts*4);
-    assert(inputBuffers->singleBatchItemGlobalBytes == inputBuffers->singleBatchItemGlobalElts*4);
+    assert(inputBuffers->singleInputBytes == inputBuffers->singleInputElts*4);
+    assert(inputBuffers->singleInputGlobalBytes == inputBuffers->singleInputGlobalElts*4);
     assert(inputBuffers->singlePolicyResultElts == gpuHandle->policySize);
     assert(inputBuffers->singlePolicyResultBytes == gpuHandle->policySize * sizeof(float));
     if(version >= 3) {
@@ -4023,19 +4022,19 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       assert(inputBuffers->singleOwnershipResultBytes == posLen*posLen * sizeof(float));
     }
 
-    CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBuf, inputBuffers->userInputBuffer, inputBuffers->singleBatchItemBytes*batchSize, cudaMemcpyHostToDevice));
+    CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBuf, inputBuffers->userInputBuffer, inputBuffers->singleInputBytes*batchSize, cudaMemcpyHostToDevice));
     if(version >= 3)
-      CUDA_ERR("getOutput",cudaMemcpy(buffers->inputGlobalBuf, inputBuffers->userInputGlobalBuffer, inputBuffers->singleBatchItemGlobalBytes*batchSize, cudaMemcpyHostToDevice));
+      CUDA_ERR("getOutput",cudaMemcpy(buffers->inputGlobalBuf, inputBuffers->userInputGlobalBuffer, inputBuffers->singleInputGlobalBytes*batchSize, cudaMemcpyHostToDevice));
   }
   else {
-    assert(inputBuffers->userInputBufferBytes == buffers->inputBufBytesSingle);
-    assert(inputBuffers->userInputGlobalBufferBytes == buffers->inputGlobalBufBytesSingle);
+    assert(inputBuffers->userInputBufferBytes == buffers->inputBufBytesFloat);
+    assert(inputBuffers->userInputGlobalBufferBytes == buffers->inputGlobalBufBytesFloat);
     assert(inputBuffers->policyResultBufferBytes == buffers->policyBufBytes);
     assert(inputBuffers->valueResultBufferBytes == buffers->valueBufBytes);
     assert(inputBuffers->userInputBufferBytes == buffers->inputBufBytes*2);
     assert(inputBuffers->userInputGlobalBufferBytes == buffers->inputGlobalBufBytes*2);
-    assert(inputBuffers->singleBatchItemBytes == inputBuffers->singleBatchItemElts*4);
-    assert(inputBuffers->singleBatchItemGlobalBytes == inputBuffers->singleBatchItemGlobalElts*4);
+    assert(inputBuffers->singleInputBytes == inputBuffers->singleInputElts*4);
+    assert(inputBuffers->singleInputGlobalBytes == inputBuffers->singleInputGlobalElts*4);
     assert(inputBuffers->singlePolicyResultElts == gpuHandle->policySize);
     assert(inputBuffers->singlePolicyResultBytes == gpuHandle->policySize * sizeof(float));
     if(version >= 3) {
@@ -4045,14 +4044,14 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       assert(inputBuffers->singleOwnershipResultBytes == posLen*posLen * sizeof(float));
     }
 
-    CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBufSingle, inputBuffers->userInputBuffer, inputBuffers->singleBatchItemBytes*batchSize, cudaMemcpyHostToDevice));
+    CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBufFloat, inputBuffers->userInputBuffer, inputBuffers->singleInputBytes*batchSize, cudaMemcpyHostToDevice));
     if(version >= 3)
-      CUDA_ERR("getOutput",cudaMemcpy(buffers->inputGlobalBufSingle, inputBuffers->userInputGlobalBuffer, inputBuffers->singleBatchItemGlobalBytes*batchSize, cudaMemcpyHostToDevice));
+      CUDA_ERR("getOutput",cudaMemcpy(buffers->inputGlobalBufFloat, inputBuffers->userInputGlobalBuffer, inputBuffers->singleInputGlobalBytes*batchSize, cudaMemcpyHostToDevice));
 
-    customCudaCopyToHalf((const float*)buffers->inputBufSingle,(half*)buffers->inputBuf,inputBuffers->singleBatchItemElts*batchSize);
+    customCudaCopyToHalf((const float*)buffers->inputBufFloat,(half*)buffers->inputBuf,inputBuffers->singleInputElts*batchSize);
     CUDA_ERR("getOutput",cudaPeekAtLastError());
     if(version >= 3) {
-      customCudaCopyToHalf((const float*)buffers->inputGlobalBufSingle,(half*)buffers->inputGlobalBuf,inputBuffers->singleBatchItemGlobalElts*batchSize);
+      customCudaCopyToHalf((const float*)buffers->inputGlobalBufFloat,(half*)buffers->inputGlobalBuf,inputBuffers->singleInputGlobalElts*batchSize);
       CUDA_ERR("getOutput",cudaPeekAtLastError());
     }
   }
