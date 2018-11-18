@@ -1836,7 +1836,8 @@ void Board::checkConsistency() const {
   for(int i = 0; i<MAX_ARR_SIZE; i++)
     chainLocChecked[i] = false;
 
-  auto checkChainConsistency = [errLabel,&chainLocChecked,this](Loc loc) {
+  vector<Loc> buf;
+  auto checkChainConsistency = [&buf,errLabel,&chainLocChecked,this](Loc loc) {
     Player pla = colors[loc];
     Loc head = chain_head[loc];
     Loc cur = loc;
@@ -1877,6 +1878,10 @@ void Board::checkConsistency() const {
       throw StringError(errLabel + "Chain data liberties exceeds pseudoliberties");
     if(data.num_liberties <= 0)
       throw StringError(errLabel + "Chain data liberties is nonpositive");
+
+    int numFoundLibs = findLiberties(loc,buf,0,0);
+    if(numFoundLibs != data.num_liberties)
+      throw StringError(errLabel + "FindLiberties found a different number of libs");
   };
 
   Hash128 tmp_pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];

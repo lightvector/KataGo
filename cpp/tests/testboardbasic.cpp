@@ -170,6 +170,274 @@ After white
 
   //============================================================================
   {
+    const char* name = "Liberties after move capped at 2";
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.....x...
+..oo..x..
+..x......
+......xx.
+..x..ox..
+.oxoo.oxx
+xxoo.o.ox
+.x.....oo
+)%%");
+
+    out << endl;
+    out << "After black" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_EMPTY)
+          out << board.getNumLibertiesAfterPlay(loc,P_BLACK,2);
+        else
+          out << "-";
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "After white" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_EMPTY)
+          out << board.getNumLibertiesAfterPlay(loc,P_WHITE,2);
+        else
+          out << "-";
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+After black
+222222222
+22222-222
+22--22-22
+22-222222
+222222--2
+22-22--22
+2----0---
+----1-1--
+2-22222--
+
+After white
+222222222
+22222-222
+22--22-22
+22-222222
+222222--2
+22-22--12
+2----2---
+----2-2--
+0-22222--
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    const char* name = "Liberties after move capped at 3";
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.....x...
+..oo..x..
+..x......
+......xx.
+..x..ox..
+.oxoo.oxx
+xxoo.o.ox
+.x.....oo
+)%%");
+
+    out << endl;
+    out << "After black" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_EMPTY)
+          out << board.getNumLibertiesAfterPlay(loc,P_BLACK,3);
+        else
+          out << "-";
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "After white" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_EMPTY)
+          out << board.getNumLibertiesAfterPlay(loc,P_WHITE,3);
+        else
+          out << "-";
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+After black
+233333332
+33333-333
+33--33-33
+33-333333
+333333--3
+33-32--32
+3----0---
+----1-1--
+2-32322--
+
+After white
+233332332
+33333-233
+33--32-33
+33-333233
+332333--2
+33-33--12
+2----3---
+----3-3--
+0-33332--
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    const char* name = "Liberties after move 2";
+    Board board = Board::parseBoard(9,9,R"%%(
+x.xx...xx
+oooxo.oxo
+xxxxo.ox.
+ooooo..ox
+..xxx..o.
+........o
+x......xo
+ox....xox
+.ox...xo.
+)%%");
+
+    out << endl;
+    out << "After black" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_EMPTY)
+          out << board.getNumLibertiesAfterPlay(loc,P_BLACK,100);
+        else
+          out << "-";
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "After white" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_EMPTY)
+          out << board.getNumLibertiesAfterPlay(loc,P_WHITE,100);
+        else
+          out << "-";
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+After black
+-4--232--
+-----2---
+-----2--3
+-----32--
+26---73-1
+34656442-
+-444445--
+--4444---
+2--333--2
+
+After white
+-1--634--
+-----8---
+-----7--0
+-----77--
+66---35-3
+24333444-
+-244442--
+--2443---
+0--232--1
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    const char* name = "Liberties after move 2 capped at 3";
+    Board board = Board::parseBoard(9,9,R"%%(
+x.xx...xx
+oooxo.oxo
+xxxxo.ox.
+ooooo..ox
+..xxx..o.
+........o
+x......xo
+ox....xox
+.ox...xo.
+)%%");
+
+    out << endl;
+    out << "After black" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_EMPTY)
+          out << board.getNumLibertiesAfterPlay(loc,P_BLACK,3);
+        else
+          out << "-";
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "After white" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_EMPTY)
+          out << board.getNumLibertiesAfterPlay(loc,P_WHITE,3);
+        else
+          out << "-";
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+After black
+-3--232--
+-----2---
+-----2--3
+-----32--
+23---33-1
+33333332-
+-333333--
+--3333---
+2--333--2
+
+After white
+-1--333--
+-----3---
+-----3--0
+-----33--
+33---33-3
+23333333-
+-233332--
+--2333---
+0--232--1
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
     const char* name = "IsAdjacentToPla";
     Board board = Board::parseBoard(9,9,R"%%(
 .........
@@ -292,7 +560,7 @@ WouldBeKo white
     expect(name,out,expected);
   }
 
-  
+
   //============================================================================
   {
     const char* name = "Ladders 1 Lib";
