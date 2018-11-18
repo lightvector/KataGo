@@ -563,9 +563,59 @@ void Search::beginSearch() {
   numSearchesBegun++;
   computeRootValues();
 
+  //Sanity-check a few things
+  if(!rootPassLegal && searchParams.rootPruneUselessSuicides)
+    throw StringError("Both rootPassLegal=false and searchParams.rootPruneUselessSuicides=true are specified, this could leave the bot without legal moves!");
+
   if(rootNode == NULL) {
     SearchThread dummyThread(-1, *this, NULL);
     rootNode = new SearchNode(*this, dummyThread, Board::NULL_LOC);
+  }
+  else {
+    //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
+    SearchNode& node = *rootNode;
+    int numChildren = node.numChildren;
+    if(node.children != NULL && numChildren > 0) {
+      assert(node.nnOutput != NULL);
+
+      //Perform the filtering
+      int numGoodChildren = 0;
+      for(int i = 0; i<numChildren; i++) {
+        SearchNode* child = node.children[i];
+        node.children[i] = NULL;
+        if(isAllowedRootMove(child->prevMoveLoc))
+          node.children[numGoodChildren++] = child;
+        else {
+          delete child;
+        }
+      }
+      bool anyFiltered = numChildren != numGoodChildren;
+      node.numChildren = numGoodChildren;
+      numChildren = numGoodChildren;
+
+      if(anyFiltered) {
+        //Fix up the number of visits of the root node after doing this filtering
+        uint64_t newNumVisits = 0;
+        for(int i = 0; i<numChildren; i++) {
+          const SearchNode* child = node.children[i];
+          while(child->statsLock.test_and_set(std::memory_order_acquire));
+          uint64_t childVisits = child->stats.visits;
+          child->statsLock.clear(std::memory_order_release);
+          newNumVisits += childVisits;
+        }
+        //For the node's own visit itself
+        newNumVisits += 1;
+
+        //Set the visits in place
+        while(node.statsLock.test_and_set(std::memory_order_acquire));
+        node.stats.visits = newNumVisits;
+        node.statsLock.clear(std::memory_order_release);
+
+        //Update all other stats
+        SearchThread dummyThread(-1, *this, NULL);
+        recomputeNodeStats(node, dummyThread, 0, 0, true);
+      }
+    }
   }
 }
 
@@ -635,6 +685,53 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
       node.nnOutput->policyProbs[i] = r[i] * weight + node.nnOutput->policyProbs[i] * (1.0-weight);
     }
   }
+}
+
+bool Search::isAllowedRootMove(Loc moveLoc) const {
+  assert(moveLoc == Board::PASS_LOC || rootBoard.isOnBoard(moveLoc));
+
+  //For use on some online go servers, we want to be able to support a cleanup mode, where we force
+  //the capture of stones that our training ruleset would consider simply dead by virtue of them
+  //being pass-dead, so we add an option to forbid passing at the root.
+  if(!rootPassLegal && moveLoc == Board::PASS_LOC)
+    return false;
+  //A bad situation that can happen that unnecessarily prolongs training games is where one player
+  //repeatedly passes and the other side repeatedly fills space and then suicides over and over.
+  //To mitigate this and save computation, we make it so that at the root, if the last two moves by the opponent
+  //were passes, we will never play a self-capture move in the opponent's pass-alive area. In theory this could prune
+  //a good move in situations like https://senseis.xmp.net/?1EyeFlaw, but this should be extraordinarly rare,
+  //particularly given the opponent has been passing (e.g. why did we not retake or suicide the previous turns?).
+  if(searchParams.rootPruneUselessSuicides &&
+     rootHistory.moveHistory.size() > 0 &&
+     moveLoc != Board::PASS_LOC
+  ) {
+    int lastIdx = rootHistory.moveHistory.size()-1;
+    Player opp = getOpp(rootPla);
+    if(lastIdx >= 2 &&
+       rootHistory.moveHistory[lastIdx-0].loc == Board::PASS_LOC &&
+       rootHistory.moveHistory[lastIdx-2].loc == Board::PASS_LOC &&
+       rootHistory.moveHistory[lastIdx-0].pla == opp &&
+       rootHistory.moveHistory[lastIdx-2].pla == opp &&
+       (rootSafeArea[moveLoc] == opp && rootBoard.isSuicide(moveLoc,rootPla)))
+      return false;
+
+    //Also if the last 5 opponent moves in a row were passes, we don't even require that the
+    //area is pass-alive-opponent owned, and we also prohibit outright any ordinary moves in the opponent's pass-alive area.
+    if(lastIdx >= 8 &&
+       rootHistory.moveHistory[lastIdx-0].loc == Board::PASS_LOC &&
+       rootHistory.moveHistory[lastIdx-2].loc == Board::PASS_LOC &&
+       rootHistory.moveHistory[lastIdx-4].loc == Board::PASS_LOC &&
+       rootHistory.moveHistory[lastIdx-6].loc == Board::PASS_LOC &&
+       rootHistory.moveHistory[lastIdx-8].loc == Board::PASS_LOC &&
+       rootHistory.moveHistory[lastIdx-0].pla == opp &&
+       rootHistory.moveHistory[lastIdx-2].pla == opp &&
+       rootHistory.moveHistory[lastIdx-4].pla == opp &&
+       rootHistory.moveHistory[lastIdx-6].pla == opp &&
+       rootHistory.moveHistory[lastIdx-8].pla == opp &&
+       (rootSafeArea[moveLoc] == opp || rootBoard.isSuicide(moveLoc,rootPla)))
+      return false;
+  }
+  return true;
 }
 
 void Search::getValueChildWeights(
@@ -951,49 +1048,8 @@ void Search::selectBestChildToDescend(
     if(isRoot) {
       assert(thread.board.pos_hash == rootBoard.pos_hash);
       assert(thread.pla == rootPla);
-      assert(moveLoc == Board::PASS_LOC || rootBoard.isOnBoard(moveLoc));
-
-      //For use on some online go servers, we want to be able to support a cleanup mode, where we force
-      //the capture of stones that our training ruleset would consider simply dead by virtue of them
-      //being pass-dead, so we add an option to forbid passing at the root.
-      if(!rootPassLegal && moveLoc == Board::PASS_LOC)
+      if(!isAllowedRootMove(moveLoc))
         continue;
-      //A bad situation that can happen that unnecessarily prolongs training games is where one player
-      //repeatedly passes and the other side repeatedly fills space and then suicides over and over.
-      //To mitigate this and save computation, we make it so that at the root, if the last two moves by the opponent
-      //were passes, we will never play a self-capture move in the opponent's pass-alive area. In theory this could prune
-      //a good move in situations like https://senseis.xmp.net/?1EyeFlaw, but this should be extraordinarly rare,
-      //particularly given the opponent has been passing (e.g. why did we not retake or suicide the previous turns?).
-      if(searchParams.rootPruneUselessSuicides &&
-         rootHistory.moveHistory.size() > 0 &&
-         moveLoc != Board::PASS_LOC
-      ) {
-        int lastIdx = rootHistory.moveHistory.size()-1;
-        Player opp = getOpp(thread.pla);
-        if(lastIdx >= 2 &&
-           rootHistory.moveHistory[lastIdx-0].loc == Board::PASS_LOC &&
-           rootHistory.moveHistory[lastIdx-2].loc == Board::PASS_LOC &&
-           rootHistory.moveHistory[lastIdx-0].pla == opp &&
-           rootHistory.moveHistory[lastIdx-2].pla == opp &&
-           (rootSafeArea[moveLoc] == opp && thread.board.isSuicide(moveLoc,thread.pla)))
-          continue;
-
-        //Also if the last 5 opponent moves in a row were passes, we don't even require that the
-        //area is pass-alive-opponent owned, and we also prohibit outright any ordinary moves in the opponent's pass-alive area.
-        if(lastIdx >= 8 &&
-           rootHistory.moveHistory[lastIdx-0].loc == Board::PASS_LOC &&
-           rootHistory.moveHistory[lastIdx-2].loc == Board::PASS_LOC &&
-           rootHistory.moveHistory[lastIdx-4].loc == Board::PASS_LOC &&
-           rootHistory.moveHistory[lastIdx-6].loc == Board::PASS_LOC &&
-           rootHistory.moveHistory[lastIdx-8].loc == Board::PASS_LOC &&
-           rootHistory.moveHistory[lastIdx-0].pla == opp &&
-           rootHistory.moveHistory[lastIdx-2].pla == opp &&
-           rootHistory.moveHistory[lastIdx-4].pla == opp &&
-           rootHistory.moveHistory[lastIdx-6].pla == opp &&
-           rootHistory.moveHistory[lastIdx-8].pla == opp &&
-           (rootSafeArea[moveLoc] == opp || thread.board.isSuicide(moveLoc,thread.pla)))
-          continue;
-      }
     }
 
     double selectionValue = getNewExploreSelectionValue(node,movePos,totalChildVisits,fpuValue);
@@ -1005,8 +1061,13 @@ void Search::selectBestChildToDescend(
   }
 
 }
-
 void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot) {
+  recomputeNodeStats(node,thread,1,virtualLossesToSubtract,isRoot);
+}
+
+//Recompute all the stats of this node based on its children, except its visits and virtual losses, which are not child-dependent and
+//are updated in the manner specified.
+void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot) {
   //Find all children and compute weighting of the children based on their values
   vector<double>& valueChildWeights = thread.valueChildWeightsBuf;
   vector<double>& winValues = thread.winValuesBuf;
@@ -1063,6 +1124,11 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
   //In the case we're enabling noise at the root node, also apply the slight subtraction
   //of visits from the root node's children so as to downweight the effect of the few dozen visits
   //we send towards children that are so bad that we never try them even once again.
+
+  //One slightly surprising behavior is that this slight subtraction won't happen in the case where
+  //we have just promoted a child to the root due to preservation of the tree across moves
+  //but we haven't sent any playouts through the root yet. But having rootNoiseEnabled without
+  //clearing the tree every search is a bit weird anyways.
   double amountToSubtract = 0.0;
   double amountToPrune = 0.0;
   if(isRoot && searchParams.rootNoiseEnabled) {
@@ -1122,7 +1188,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
   }
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
-  node.stats.visits += 1;
+  node.stats.visits += numVisitsToAdd;
   //It's possible that these values are a bit wrong if there's a race and two threads each try to update this
   //each of them only having some of the latest updates for all the children. We just accept this and let the
   //error persist, it will get fixed the next time a visit comes through here and the values will at least
