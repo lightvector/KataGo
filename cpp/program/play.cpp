@@ -320,6 +320,9 @@ static void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board
   tempParams.numThreads = 1;
   tempParams.maxVisits = 1;
 
+  //Toggle this since we cant have this set simultaneously with rootRootLegal false.
+  tempParams.rootPruneUselessSuicides = false;
+  
   Player pla = P_BLACK;
   bot->setPosition(pla,board,hist);
   bot->setParams(tempParams);
