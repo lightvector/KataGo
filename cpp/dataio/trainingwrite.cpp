@@ -412,8 +412,7 @@ void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
   }
   out << endl;
 
-  //TODO fix
-  out << "globalTargetsNC" << endl;
+  out << "globalInputNC" << endl;
   globalInputNC.prepareHeaderWithNumRows(curRows);
   printHeader((const char*)globalInputNC.dataIncludingHeader);
   len = globalInputNC.getActualDataLen(curRows);
@@ -433,7 +432,7 @@ void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
   }
   out << endl;
 
-  out << "globalInputNC" << endl;
+  out << "globalTargetsNC" << endl;
   globalTargetsNC.prepareHeaderWithNumRows(curRows);
   printHeader((const char*)globalTargetsNC.dataIncludingHeader);
   len = globalTargetsNC.getActualDataLen(curRows);

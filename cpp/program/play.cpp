@@ -747,7 +747,7 @@ FinishedGameData* Play::runGame(
       extractValueTargets(sp->whiteValueTargets, toMoveBot, recordUtilities);
 
       //Occasionally continue the fork a second move or more, to provide some situations where the opponent has played "weird" moves not
-      //on the most immediate turn, but rather the turn before.
+      //only on the most immediate turn, but rather the turns before.
       if(gameRand.nextBool(0.25)) {
         if(responseLoc == Board::NULL_LOC || !sp->hist.isLegal(sp->board,responseLoc,sp->pla))
           failIllegalMove(toMoveBot,logger,sp->board,responseLoc);
