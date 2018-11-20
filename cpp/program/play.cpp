@@ -283,6 +283,13 @@ pair<int,int> MatchPairer::getMatchupPair() {
 
 //----------------------------------------------------------------------------------------------------------
 
+FancyModes::FancyModes()
+  :initGamesWithPolicy(false),forkSidePositionProb(0.0),cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f)
+{}
+FancyModes::~FancyModes()
+{}
+
+//----------------------------------------------------------------------------------------------------------
 
 static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
   ostringstream sout;
@@ -322,7 +329,7 @@ static void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board
 
   //Toggle this since we cant have this set simultaneously with rootRootLegal false.
   tempParams.rootPruneUselessSuicides = false;
-  
+
   Player pla = P_BLACK;
   bot->setPosition(pla,board,hist);
   bot->setParams(tempParams);
@@ -457,7 +464,7 @@ FinishedGameData* Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-  bool fancyModes, bool recordFullData, int dataPosLen,
+  FancyModes fancyModes, bool recordFullData, int dataPosLen,
   Rand& gameRand
 ) {
   FinishedGameData* gameData = new FinishedGameData();
@@ -499,7 +506,7 @@ FinishedGameData* Play::runGame(
   if(recordFullData)
     recordUtilities = new vector<double>(256);
 
-  if(fancyModes) {
+  if(fancyModes.initGamesWithPolicy) {
     //Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
     //and add entropy
     {
@@ -595,7 +602,22 @@ FinishedGameData* Play::runGame(
       break;
 
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
-    Loc loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+    Loc loc;
+    float targetWeight = 1.0;
+    if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
+      if(fancyModes.cheapSearchVisits <= 0)
+        throw StringError("fancyModes.cheapSearchVisits <= 0");
+      uint64_t oldMaxVisits = toMoveBot->searchParams.maxVisits;
+      uint64_t oldMaxPlayouts = toMoveBot->searchParams.maxPlayouts;
+      toMoveBot->searchParams.maxVisits = std::min(oldMaxVisits, (uint64_t)fancyModes.cheapSearchVisits);
+      toMoveBot->searchParams.maxPlayouts = std::min(oldMaxPlayouts, (uint64_t)fancyModes.cheapSearchVisits);
+      loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+      toMoveBot->searchParams.maxVisits = oldMaxVisits;
+      toMoveBot->searchParams.maxPlayouts = oldMaxPlayouts;
+      targetWeight *= fancyModes.cheapSearchTargetWeight;
+    }
+    else
+      loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegal(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
@@ -608,13 +630,15 @@ FinishedGameData* Play::runGame(
       vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
       extractPolicyTarget(*policyTarget, toMoveBot, locsBuf, playSelectionValuesBuf);
       gameData->policyTargetsByTurn.push_back(policyTarget);
+      gameData->targetWeightByTurn.push_back(targetWeight);
 
       ValueTargets whiteValueTargets;
       extractValueTargets(whiteValueTargets, toMoveBot, recordUtilities);
       gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
 
+
       //Occasionally fork off some positions to evaluate
-      if(fancyModes && gameRand.nextBool(0.10)) {
+      if(fancyModes.forkSidePositionProb > 0.0 && gameRand.nextBool(fancyModes.forkSidePositionProb)) {
         assert(toMoveBot->rootNode != NULL);
         assert(toMoveBot->rootNode->nnOutput != nullptr);
         Loc forkLoc = chooseRandomForkingMove(toMoveBot->rootNode->nnOutput.get(), board, hist, pla, gameRand);
@@ -712,7 +736,6 @@ FinishedGameData* Play::runGame(
     gameData->posLen = dataPosLen;
 
     //Also evaluate all the side positions as well that we queued up to be searched
-    int origSize = gameData->sidePositions.size();
     NNResultBuf nnResultBuf;
     for(int i = 0; i<gameData->sidePositions.size(); i++) {
       SidePosition* sp = gameData->sidePositions[i];
@@ -723,9 +746,9 @@ FinishedGameData* Play::runGame(
       extractPolicyTarget(sp->policyTarget, toMoveBot, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, recordUtilities);
 
-      //Occasionally continue the fork a second move, to provide some situations where the opponent has played "weird" moves not
+      //Occasionally continue the fork a second move or more, to provide some situations where the opponent has played "weird" moves not
       //on the most immediate turn, but rather the turn before.
-      if(i < origSize && gameRand.nextBool(0.25)) {
+      if(gameRand.nextBool(0.25)) {
         if(responseLoc == Board::NULL_LOC || !sp->hist.isLegal(sp->board,responseLoc,sp->pla))
           failIllegalMove(toMoveBot,logger,sp->board,responseLoc);
         SidePosition* sp2 = new SidePosition(sp->board,sp->hist,sp->pla);
@@ -763,9 +786,11 @@ FinishedGameData* Play::runGame(
 
 
 
-GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, bool forSelfP)
+GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, bool forSelfP, FancyModes fModes)
   :logSearchInfo(),logMoves(),forSelfPlay(forSelfP),maxMovesPerGame(),clearBotAfterSearch(),
-   searchRandSeedBase(sRandSeedBase),gameInit(NULL)
+   searchRandSeedBase(sRandSeedBase),
+   fancyModes(fModes),
+   gameInit(NULL)
 {
   logSearchInfo = cfg.getBool("logSearchInfo");
   logMoves = cfg.getBool("logMoves");
@@ -822,8 +847,6 @@ bool GameRunner::runGame(
   //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
   //called on positions that occur after the game would have been autoterminated.
   bool doEndGameIfAllPassAlive = forSelfPlay ? gameRand.nextBool(0.98) : true;
-  //In selfplay, do special entropy-introducing initialization of the game
-  bool fancyModes = forSelfPlay;
   //In selfplay, record all the policy maps and evals and such as well for training data
   bool recordFullData = forSelfPlay;
   FinishedGameData* finishedGameData = Play::runGame(

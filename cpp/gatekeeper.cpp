@@ -259,7 +259,8 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   const string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   bool forSelfPlay = false;
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay);
+  FancyModes fancyModes;
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay, fancyModes);
 
   Setup::initializeSession(cfg);
 

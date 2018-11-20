@@ -59,6 +59,7 @@ struct FinishedGameData {
   //If false, then we don't have these below vectors and ownership information
   bool hasFullData;
   int posLen;
+  vector<float> targetWeightByTurn;
   vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
   vector<ValueTargets> whiteValueTargetsByTurn;
   int8_t* finalWhiteOwnership;
@@ -109,10 +110,8 @@ struct TrainingWriteBuffers {
   //C24: MCTS utility variance, 64->256 visits
 
   //C25 Weight assigned to the policy target
-  //Currently always 1.0, But it is also conceivable that maybe some training rows will lack a policy target
-  //so users should be robust to that.
   //C26 Weight assigned to the final board ownership target and score targets. Most training rows will have this be 1, some will be 0.
-  //C27 Unused
+  //C27 Weight multiplier for row as a whole
 
   //C28-32: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
   //1 means use, 0 means don't use.
@@ -157,6 +156,7 @@ struct TrainingWriteBuffers {
   void addRow(
     const Board& board, const BoardHistory& hist, Player nextPlayer,
     int turnNumberAfterStart,
+    float targetWeight,
     const vector<PolicyTargetMove>* policyTarget0, //can be null
     const vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.

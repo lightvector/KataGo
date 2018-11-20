@@ -62,6 +62,7 @@ FinishedGameData::FinishedGameData()
 
    hasFullData(false),
    posLen(-1),
+   targetWeightByTurn(),
    policyTargetsByTurn(),
    whiteValueTargetsByTurn(),
    finalWhiteOwnership(NULL),
@@ -198,6 +199,7 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
 void TrainingWriteBuffers::addRow(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   int turnNumberAfterStart,
+  float targetWeight,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
@@ -248,8 +250,8 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[25] = 0.0f;
   }
 
-  //Unused
-  rowGlobal[27] = 0.0f;
+  //Target weight
+  rowGlobal[27] = targetWeight;
 
   //Fill td-like value targets
   assert(whiteValueTargetsIdx >= 0 && whiteValueTargetsIdx < whiteValueTargets.size());
@@ -410,6 +412,7 @@ void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
   }
   out << endl;
 
+  //TODO fix
   out << "globalTargetsNC" << endl;
   globalInputNC.prepareHeaderWithNumRows(curRows);
   printHeader((const char*)globalInputNC.dataIncludingHeader);
@@ -488,7 +491,6 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
 
   if(firstFileMinRandProp < 0 || firstFileMinRandProp > 1)
     throw StringError("TrainingDataWriter: firstFileMinRandProp not in [0,1]: " + Global::doubleToString(firstFileMinRandProp));
-
   isFirstFile = true;
   if(firstFileMinRandProp >= 1.0)
     firstFileMaxRows = maxRowsPerFile;
@@ -530,6 +532,7 @@ void TrainingDataWriter::flushIfNonempty() {
 void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   int numMoves = data.endHist.moveHistory.size() - data.startHist.moveHistory.size();
   assert(numMoves >= 0);
+  assert(data.targetWeightByTurn.size() == numMoves);
   assert(data.policyTargetsByTurn.size() == numMoves);
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
 
@@ -556,12 +559,14 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
 
   //Write main game rows
   for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
+    float targetWeight = data.targetWeightByTurn[turnNumberAfterStart];
     const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumberAfterStart];
     bool isSidePosition = false;
     if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
       writeBuffers->addRow(
         board,hist,nextPlayer,
         turnNumberAfterStart,
+        targetWeight,
         policyTarget0,
         data.whiteValueTargetsByTurn,
         turnNumberAfterStart,
@@ -585,6 +590,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   vector<ValueTargets> whiteValueTargetsBuf(1);
   for(int i = 0; i<data.sidePositions.size(); i++) {
     SidePosition* sp = data.sidePositions[i];
+    float targetWeight = 1.0f;
     int turnNumberAfterStart = sp->hist.moveHistory.size() - data.startHist.moveHistory.size();
     assert(turnNumberAfterStart > 0);
     whiteValueTargetsBuf[0] = sp->whiteValueTargets;
@@ -593,6 +599,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       writeBuffers->addRow(
         sp->board,sp->hist,sp->pla,
         turnNumberAfterStart,
+        targetWeight,
         &(sp->policyTarget),
         whiteValueTargetsBuf,
         0,

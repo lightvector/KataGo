@@ -111,6 +111,20 @@ class MatchPairer {
   pair<int,int> getMatchupPair();
 };
 
+struct FancyModes {
+  //Play a bunch of mostly policy-distributed moves at the start to initialize a game.
+  bool initGamesWithPolicy;
+  //Occasionally try some alternative moves and search the responses to them.
+  double forkSidePositionProb;
+
+  //With this probability, use only this many visits for a move, and record it with only this weight
+  double cheapSearchProb;
+  int cheapSearchVisits;
+  float cheapSearchTargetWeight;
+
+  FancyModes();
+  ~FancyModes();
+};
 
 //Functions to run a single game
 namespace Play {
@@ -121,7 +135,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-    bool fancyModes, bool recordFullData, int dataPosLen,
+    FancyModes fancyModes, bool recordFullData, int dataPosLen,
     Rand& gameRand
   );
 
@@ -137,10 +151,11 @@ class GameRunner {
   int maxMovesPerGame;
   bool clearBotAfterSearch;
   string searchRandSeedBase;
+  FancyModes fancyModes;
   GameInitializer* gameInit;
 
 public:
-  GameRunner(ConfigParser& cfg, const string& searchRandSeedBase, bool forSelfPlay);
+  GameRunner(ConfigParser& cfg, const string& searchRandSeedBase, bool forSelfPlay, FancyModes fancyModes);
   ~GameRunner();
 
   bool runGame(

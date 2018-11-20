@@ -213,7 +213,13 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   //Initialize object for randomizing game settings and running games
   bool forSelfPlay = true;
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay);
+  FancyModes fancyModes;
+  fancyModes.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
+  fancyModes.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
+  fancyModes.cheapSearchProb = cfg.getDouble("cheapSearchProb",0.0,1.0);
+  fancyModes.cheapSearchVisits = cfg.getInt("cheapSearchVisits",0,10000000);
+  fancyModes.cheapSearchTargetWeight = cfg.getFloat("cheapSearchTargetWeight",0.0f,1.0f);
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay, fancyModes);
 
   Setup::initializeSession(cfg);
 

@@ -1253,7 +1253,7 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
   placeholders["scorebelief_target"] = features["sdn"] / 100.0
   placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
   placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
-  placeholders["target_weight_from_data"] = features["gtnc"][:,0]*0 + 1
+  placeholders["target_weight_from_data"] = features["gtnc"][:,27]
   placeholders["ownership_target_weight"] = features["gtnc"][:,26]
   placeholders["selfkomi"] = features["gtnc"][:,39]
   placeholders["is_areaish"] = features["gtnc"][:,40]

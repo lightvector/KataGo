@@ -120,7 +120,8 @@ int MainCmds::match(int argc, const char* const* argv) {
   MatchPairer* matchPairer = new MatchPairer(cfg,numBots,botNames,nnEvalsByBot,paramss,forSelfPlay,forGateKeeper);
 
   //Initialize object for randomizing game settings and running games
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay);
+  FancyModes fancyModes;
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay, fancyModes);
 
   //Check for unused config keys
   {
