@@ -173,9 +173,9 @@ struct TrainingWriteBuffers {
 
 class TrainingDataWriter {
  public:
-  TrainingDataWriter(const string& outputDir, int inputsVersion, int maxRowsPerFile, int posLen, const string& randSeed);
-  TrainingDataWriter(ostream* debugOut, int inputsVersion, int maxRowsPerFile, int posLen, int onlyWriteEvery, const string& randSeed);
-  TrainingDataWriter(const string& outputDir, ostream* debugOut, int inputsVersion, int maxRowsPerFile, int posLen, int onlyWriteEvery, const string& randSeed);
+  TrainingDataWriter(const string& outputDir, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int posLen, const string& randSeed);
+  TrainingDataWriter(ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int posLen, int onlyWriteEvery, const string& randSeed);
+  TrainingDataWriter(const string& outputDir, ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int posLen, int onlyWriteEvery, const string& randSeed);
   ~TrainingDataWriter();
 
   void writeGame(const FinishedGameData& data);
@@ -190,6 +190,9 @@ class TrainingDataWriter {
   ostream* debugOut;
   int debugOnlyWriteEvery;
   int64_t rowCount;
+
+  bool isFirstFile;
+  int firstFileMaxRows;
 
   void writeAndClearIfFull();
 

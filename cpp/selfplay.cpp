@@ -207,6 +207,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   const int maxDataQueueSize = cfg.getInt("maxDataQueueSize",1,1000000);
   const int maxRowsPerTrainFile = cfg.getInt("maxRowsPerTrainFile",1,100000000);
   const int maxRowsPerValFile = cfg.getInt("maxRowsPerValFile",1,100000000);
+  const double firstFileRandMinProp = cfg.getDouble("firstFileRandMinProp",0.0,1.0);
 
   const double validationProp = cfg.getDouble("validationProp",0.0,0.5);
 
@@ -263,7 +264,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   };
 
   auto loadLatestNeuralNet =
-    [inputsVersion,maxDataQueueSize,maxRowsPerTrainFile,maxRowsPerValFile,dataPosLen,
+    [inputsVersion,maxDataQueueSize,maxRowsPerTrainFile,maxRowsPerValFile,firstFileRandMinProp,dataPosLen,
      &modelsDir,&outputDir,&logger,&cfg,validationProp](const string* lastNetName) -> NetAndStuff* {
 
     string modelName;
@@ -303,8 +304,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
     //simply controls the input feature version for the written data
-    TrainingDataWriter* tdataWriter = new TrainingDataWriter(tdataOutputDir, inputsVersion, maxRowsPerTrainFile, dataPosLen, Global::uint64ToHexString(rand.nextUInt64()));
-    TrainingDataWriter* vdataWriter = new TrainingDataWriter(vdataOutputDir, inputsVersion, maxRowsPerValFile, dataPosLen, Global::uint64ToHexString(rand.nextUInt64()));
+    TrainingDataWriter* tdataWriter = new TrainingDataWriter(
+      tdataOutputDir, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataPosLen, Global::uint64ToHexString(rand.nextUInt64()));
+    TrainingDataWriter* vdataWriter = new TrainingDataWriter(
+      vdataOutputDir, inputsVersion, maxRowsPerValFile, firstFileRandMinProp, dataPosLen, Global::uint64ToHexString(rand.nextUInt64()));
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
     NetAndStuff* newNet = new NetAndStuff(cfg, modelName, nnEval, maxDataQueueSize, tdataWriter, vdataWriter, sgfOut, validationProp);
     return newNet;

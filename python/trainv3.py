@@ -248,8 +248,8 @@ def parse_input(serialized_example):
     "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 
-def train_input_fn(train_files_to_use,total_num_train_files):
-  trainlog("Constructing train input pipe, %d/%d files used" % (len(train_files_to_use),total_num_train_files))
+def train_input_fn(train_files_to_use,total_num_train_files,batches_to_use):
+  trainlog("Constructing train input pipe, %d/%d files used (%d batches)" % (len(train_files_to_use),total_num_train_files,batches_to_use))
   # def genfiles():
   #   trainlog("Shuffling/reshuffling training files for dataset")
   #   train_files_shuffled = train_files.copy()
@@ -388,7 +388,7 @@ while True:
   #Train
   trainlog("Beginning training epoch!")
   estimator.train(
-    (lambda: train_input_fn(train_files_to_use,len(train_files))),
+    (lambda: train_input_fn(train_files_to_use,len(train_files),batches_to_use_so_far)),
     saving_listeners=[
       CheckpointSaverListenerFunction(save_history)
     ]

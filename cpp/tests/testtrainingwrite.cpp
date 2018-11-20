@@ -58,6 +58,7 @@ void Tests::runTrainingWriteTests() {
   int inputsVersion = 3;
   int maxRows = 256;
   int posLen = 5;
+  double firstFileMinRandProp = 1.0;
   int debugOnlyWriteEvery = 5;
 
   ostringstream out;
@@ -67,7 +68,7 @@ void Tests::runTrainingWriteTests() {
   logger.addOStream(out);
 
   auto run = [&](const string& seedBase, const Rules& rules) {
-    TrainingDataWriter dataWriter(&out,inputsVersion, maxRows, posLen, debugOnlyWriteEvery, seedBase+"dwriter");
+    TrainingDataWriter dataWriter(&out,inputsVersion, maxRows, firstFileMinRandProp, posLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
     NNEvaluator* nnEval = startNNEval(seedBase+"nneval",logger,0,true,false,false);
 

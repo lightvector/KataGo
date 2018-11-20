@@ -463,14 +463,14 @@ void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
 
 //-------------------------------------------------------------------------------------
 
-TrainingDataWriter::TrainingDataWriter(const string& outDir, int iVersion, int maxRowsPerFile, int posLen, const string& randSeed)
-  : TrainingDataWriter(outDir,NULL,iVersion,maxRowsPerFile,posLen,1,randSeed)
+TrainingDataWriter::TrainingDataWriter(const string& outDir, int iVersion, int maxRowsPerFile, double firstFileMinRandProp, int posLen, const string& randSeed)
+  : TrainingDataWriter(outDir,NULL,iVersion,maxRowsPerFile,firstFileMinRandProp,posLen,1,randSeed)
 {}
-TrainingDataWriter::TrainingDataWriter(ostream* dbgOut, int iVersion, int maxRowsPerFile, int posLen, int onlyEvery, const string& randSeed)
-  : TrainingDataWriter(string(),dbgOut,iVersion,maxRowsPerFile,posLen,onlyEvery,randSeed)
+TrainingDataWriter::TrainingDataWriter(ostream* dbgOut, int iVersion, int maxRowsPerFile, double firstFileMinRandProp, int posLen, int onlyEvery, const string& randSeed)
+  : TrainingDataWriter(string(),dbgOut,iVersion,maxRowsPerFile,firstFileMinRandProp,posLen,onlyEvery,randSeed)
 {}
 
-TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, int iVersion, int maxRowsPerFile, int posLen, int onlyEvery, const string& randSeed)
+TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, int iVersion, int maxRowsPerFile, double firstFileMinRandProp, int posLen, int onlyEvery, const string& randSeed)
   :outputDir(outDir),inputsVersion(iVersion),rand(randSeed),writeBuffers(NULL),debugOut(dbgOut),debugOnlyWriteEvery(onlyEvery),rowCount(0)
 {
   int numBinaryChannels;
@@ -485,7 +485,17 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   }
 
   writeBuffers = new TrainingWriteBuffers(inputsVersion, maxRowsPerFile, numBinaryChannels, numGlobalChannels, posLen);
+
+  if(firstFileMinRandProp < 0 || firstFileMinRandProp > 1)
+    throw StringError("TrainingDataWriter: firstFileMinRandProp not in [0,1]: " + Global::doubleToString(firstFileMinRandProp));
+
+  isFirstFile = true;
+  if(firstFileMinRandProp >= 1.0)
+    firstFileMaxRows = maxRowsPerFile;
+  else
+    firstFileMaxRows = maxRowsPerFile - (int)(maxRowsPerFile * (1.0-firstFileMinRandProp) * rand.nextDouble());
 }
+
 
 
 TrainingDataWriter::~TrainingDataWriter()
@@ -494,13 +504,15 @@ TrainingDataWriter::~TrainingDataWriter()
 }
 
 void TrainingDataWriter::writeAndClearIfFull() {
-  if(writeBuffers->curRows >= writeBuffers->maxRows) {
+  if(writeBuffers->curRows >= writeBuffers->maxRows || (isFirstFile && writeBuffers->curRows >= firstFileMaxRows)) {
     flushIfNonempty();
   }
 }
 
 void TrainingDataWriter::flushIfNonempty() {
   if(writeBuffers->curRows > 0) {
+    isFirstFile = false;
+
     if(debugOut != NULL) {
       writeBuffers->writeToTextOstream(*debugOut);
       writeBuffers->clear();
