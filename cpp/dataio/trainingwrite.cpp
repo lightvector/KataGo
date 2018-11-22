@@ -384,7 +384,7 @@ void TrainingWriteBuffers::addRow(
       rowBonusScore[i] = 0;
     int whiteBonusPoints = data.endHist.whiteBonusScore - hist.whiteBonusScore;
     int selfBonusPoints = (nextPlayer == P_WHITE ? whiteBonusPoints : -whiteBonusPoints);
-    int idx = selfBonusPoints - bonusScoreMid;
+    int idx = selfBonusPoints + bonusScoreMid;
     if(idx < 0) idx = 0;
     if(idx >= bonusScoreLen) idx = bonusScoreLen-1;
     rowBonusScore[idx] = 1;
