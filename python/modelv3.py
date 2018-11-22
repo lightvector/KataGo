@@ -1339,7 +1339,7 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
 
     global_epoch_float_capped = tf.math.minimum(tf.constant(180.0),global_epoch)
     per_sample_learning_rate = (
-      tf.constant(0.00020) / tf.pow(global_epoch_float_capped * tf.constant(0.1) + tf.constant(1.0), tf.constant(1.333333))
+      tf.constant(0.00030) / tf.pow(global_epoch_float_capped * tf.constant(0.1) + tf.constant(1.0), tf.constant(1.333333))
     )
 
     lr_adjusted_variables = model.lr_adjusted_variables
