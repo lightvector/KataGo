@@ -95,6 +95,7 @@ static const int POLICY_TARGET_NUM_CHANNELS = 1;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 50;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 static const int EXTRA_SCORE_DISTR_RADIUS = 15;
+static const int BONUS_SCORE_RADIUS = 30;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int pLen)
   :inputsVersion(iVersion),
@@ -110,6 +111,7 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    policyTargetsNCMove({maxRws, POLICY_TARGET_NUM_CHANNELS, NNPos::getPolicySize(pLen)}),
    globalTargetsNC({maxRws, GLOBAL_TARGET_NUM_CHANNELS}),
    scoreDistrN({maxRws, pLen*pLen*2+EXTRA_SCORE_DISTR_RADIUS*2}),
+   selfBonusScoreN({maxRws, BONUS_SCORE_RADIUS*2+1}),
    valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, pLen, pLen})
 {
   binaryInputNCHWUnpacked = new float[numBChannels * pLen * pLen];
@@ -325,8 +327,10 @@ void TrainingWriteBuffers::addRow(
 
   int scoreDistrLen = posArea*2 + EXTRA_SCORE_DISTR_RADIUS*2;
   int scoreDistrMid = posArea + EXTRA_SCORE_DISTR_RADIUS;
-
+  int bonusScoreLen = BONUS_SCORE_RADIUS*2 + 1;
+  int bonusScoreMid = BONUS_SCORE_RADIUS;
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;
+  int8_t* rowBonusScore = selfBonusScoreN.data + curRows * bonusScoreLen;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
   if(finalWhiteOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
@@ -336,9 +340,13 @@ void TrainingWriteBuffers::addRow(
       rowOwnership[i] = 0;
     for(int i = 0; i<scoreDistrLen; i++)
       rowScoreDistr[i] = 0;
+    for(int i = 0; i<bonusScoreLen; i++)
+      rowBonusScore[i] = 0;
     //Dummy value, to make sure it still sums to 100
     rowScoreDistr[scoreDistrMid-1] = 50;
     rowScoreDistr[scoreDistrMid] = 50;
+    //Dummy value, to make sure it still sums to 1.
+    rowBonusScore[bonusScoreMid] = 1;
   }
   else {
     rowGlobal[26] = 1.0f;
@@ -370,6 +378,16 @@ void TrainingWriteBuffers::addRow(
       rowScoreDistr[lowerIdx] = lowerProp;
       rowScoreDistr[upperIdx] = 100-lowerProp;
     }
+
+    //Fill bonus score vector "onehot"-like
+    for(int i = 0; i<bonusScoreLen; i++)
+      rowBonusScore[i] = 0;
+    int whiteBonusPoints = data.endHist.whiteBonusScore - hist.whiteBonusScore;
+    int selfBonusPoints = (nextPlayer == P_WHITE ? whiteBonusPoints : -whiteBonusPoints);
+    int idx = selfBonusPoints - bonusScoreMid;
+    if(idx < 0) idx = 0;
+    if(idx >= bonusScoreLen) idx = bonusScoreLen-1;
+    rowBonusScore[idx] = 1;
   }
 
   curRows++;
@@ -394,6 +412,9 @@ void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
 
   numBytes = scoreDistrN.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("scoreDistrN", scoreDistrN.dataIncludingHeader, numBytes);
+
+  numBytes = selfBonusScoreN.prepareHeaderWithNumRows(curRows);
+  zipFile.writeBuffer("selfBonusScoreN", selfBonusScoreN.dataIncludingHeader, numBytes);
 
   numBytes = valueTargetsNCHW.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("valueTargetsNCHW", valueTargetsNCHW.dataIncludingHeader, numBytes);
@@ -461,6 +482,16 @@ void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
   len = scoreDistrN.getActualDataLen(curRows);
   for(int i = 0; i<len; i++) {
     out << (int)scoreDistrN.data[i] << " ";
+    if((i+1) % (len/curRows) == 0) out << endl;
+  }
+  out << endl;
+
+  out << "selfBonusScoreN" << endl;
+  selfBonusScoreN.prepareHeaderWithNumRows(curRows);
+  printHeader((const char*)selfBonusScoreN.dataIncludingHeader);
+  len = selfBonusScoreN.getActualDataLen(curRows);
+  for(int i = 0; i<len; i++) {
+    out << (int)selfBonusScoreN.data[i] << " ";
     if((i+1) % (len/curRows) == 0) out << endl;
   }
   out << endl;

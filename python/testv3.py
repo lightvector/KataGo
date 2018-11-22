@@ -46,6 +46,7 @@ NUM_POLICY_TARGETS = 1
 NUM_GLOBAL_TARGETS = 50
 NUM_VALUE_SPATIAL_TARGETS = 1
 EXTRA_SCORE_DISTR_RADIUS = 15
+BONUS_SCORE_RADIUS = 30
 
 log("Constructing validation input pipe")
 def parse_tf_records_input(serialized_example):
@@ -55,13 +56,15 @@ def parse_tf_records_input(serialized_example):
   ptncm = example["ptncm"]
   gtnc = example["gtnc"]
   sdn = example["sdn"]
+  sbsn = example["sbsn"]
   vtnchw = example["vtnchw"]
   return {
     "binchwp": tf.reshape(binchwp,[batch_size,ModelV3.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
     "ginc": tf.reshape(ginc,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
     "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.reshape(gtnc,[batch_size,NUM_GLOBAL_TARGETS]),
-    "sdn": tf.reshape(gtnc,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
+    "sdn": tf.reshape(sdn,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
+    "sbsn": tf.reshape(sbsn,[batch_size,BONUS_SCORE_RADIUS*2+1]),
     "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 
@@ -78,6 +81,7 @@ elif data_file.endswith(".npz"):
     "ptncm": tf.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
     "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
+    "sbsn": tf.placeholder(tf.float32,[batch_size,BONUS_SCORE_RADIUS*2+1]),
     "vtnchw": tf.placeholder(tf.float32,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 else:
@@ -148,6 +152,7 @@ with tf.Session(config=tfconfig) as session:
         ptncm = npz["policyTargetsNCMove"].astype(np.float32)
         gtnc = npz["globalTargetsNC"]
         sdn = npz["scoreDistrN"].astype(np.float32)
+        sbsn = npz["selfBonusScoreN"].astype(np.float32)
         vtnchw = npz["valueTargetsNCHW"].astype(np.float32)
         nbatches = len(binchwp)//batch_size
         print("Iterating %d batches" % nbatches)
@@ -161,6 +166,7 @@ with tf.Session(config=tfconfig) as session:
             features["ptncm"]: np.array(ptncm[i*batch_size:(i+1)*batch_size]),
             features["gtnc"]: np.array(gtnc[i*batch_size:(i+1)*batch_size]),
             features["sdn"]: np.array(sdn[i*batch_size:(i+1)*batch_size]),
+            features["sbsn"]: np.array(sbsn[i*batch_size:(i+1)*batch_size]),
             features["vtnchw"]: np.array(vtnchw[i*batch_size:(i+1)*batch_size])
           })
           results.append(result)
@@ -176,6 +182,7 @@ with tf.Session(config=tfconfig) as session:
     "oloss": target_vars.ownership_loss,
     "svloss": target_vars.scorevalue_loss,
     "sbloss": target_vars.scorebelief_loss,
+    "bbloss": target_vars.bonusbelief_loss,
     "uvloss": target_vars.utilityvar_loss,
     "rwlloss": target_vars.winloss_reg_loss,
     "rsvloss": target_vars.scorevalue_reg_loss,
@@ -186,8 +193,8 @@ with tf.Session(config=tfconfig) as session:
   }
 
   def validation_stats_str(vmetrics_evaled):
-    # return "acc1 %5.2f%% acc4 %5.2f%% ploss %f vloss %f oloss %f svloss %f sbloss %f uvloss %f vconf %f ventr %f" % (
-    return "ploss %f vloss %f oloss %f svloss %f sbloss %f uvloss %f rwlloss %f rsvloss %f roloss %f vconf %f ventr %f" % (
+    # return "acc1 %5.2f%% acc4 %5.2f%% ploss %f vloss %f oloss %f svloss %f sbloss %f bbloss %f uvloss %f vconf %f ventr %f" % (
+    return "ploss %f vloss %f oloss %f svloss %f sbloss %f bbloss %f uvloss %f rwlloss %f rsvloss %f roloss %f vconf %f ventr %f" % (
       # vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
       # vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
       vmetrics_evaled["ploss"] / vmetrics_evaled["wsum"],
@@ -195,6 +202,7 @@ with tf.Session(config=tfconfig) as session:
       vmetrics_evaled["oloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["svloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["sbloss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["bbloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["uvloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["rwlloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["rsvloss"] / vmetrics_evaled["wsum"],

@@ -12,6 +12,7 @@ class ModelV3:
   NUM_BIN_INPUT_FEATURES = 22
   NUM_GLOBAL_INPUT_FEATURES = 14
   EXTRA_SCORE_DISTR_RADIUS = 15
+  BONUS_SCORE_RADIUS = 30
 
   def __init__(self,config,pos_len,placeholders):
     self.pos_len = pos_len
@@ -27,6 +28,7 @@ class ModelV3:
     self.scorevalue_target_shape = [] #0
     self.utilityvar_target_shape = [4] #1-4
     self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+ModelV3.EXTRA_SCORE_DISTR_RADIUS*2]
+    self.bonusbelief_target_shape = [ModelV3.BONUS_SCORE_RADIUS*2+1]
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
@@ -963,7 +965,6 @@ class ModelV3:
     scorebelief_mid = self.pos_len*self.pos_len+ModelV3.EXTRA_SCORE_DISTR_RADIUS
     assert(scorebelief_len == self.pos_len*self.pos_len*2+ModelV3.EXTRA_SCORE_DISTR_RADIUS*2)
     self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
-    self.score_belief_width_vector = np.array([1.0 for i in range(scorebelief_len)],dtype=np.float32)
     sbv2_size = config["sbv2_num_channels"]
     sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
     sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
@@ -978,6 +979,27 @@ class ModelV3:
     sb3_layer = tf.tensordot(sb2_layer,sb3w,axes=[[2],[0]])
 
     scorebelief_output = tf.reshape(sb3_layer,[-1] + self.scorebelief_target_shape, name = "scorebelief_output")
+
+
+    bonusbelief_len = self.bonusbelief_target_shape[0]
+    bonusbelief_mid = ModelV3.BONUS_SCORE_RADIUS
+    assert(bonusbelief_len == ModelV3.BONUS_SCORE_RADIUS*2+1)
+    self.bonus_belief_offset_vector = np.array([float(i-bonusbelief_mid) for i in range(bonusbelief_len)],dtype=np.float32)
+    bbv2_size = config["bbv2_num_channels"]
+    bb2w = self.weight_variable("bb2/w",[v1_size*3,bbv2_size],v1_size*3+1,bbv2_size)
+    bb2b = self.weight_variable("bb2/b",[bbv2_size],v1_size*3+1,bbv2_size,scale_initial_weights=0.2,reg=False)
+    bb2_layer_partial = tf.matmul(v1_layer_pooled, bb2w) + bb2b
+    bb2_offset_vector = tf.constant(0.2 * self.bonus_belief_offset_vector, dtype=tf.float32)
+    bb2_offset_w = self.weight_variable("bb2_offset/w",[1,bbv2_size],v1_size*3+1,bbv2_size)
+    bb2_offset_partial = tf.matmul(tf.reshape(bb2_offset_vector,[-1,1]), bb2_offset_w)
+    bb2_layer = tf.reshape(bb2_layer_partial,[-1,1,bbv2_size]) + tf.reshape(bb2_offset_partial,[1,bonubbelief_len,bbv2_size])
+    bb2_layer = self.relu_spatial1d("bb2/relu",bb2_layer)
+
+    bb3w = self.weight_variable("bb3/w",[bbv2_size,1],bbv2_size,1)
+    bb3_layer = tf.tensordot(bb2_layer,bb3w,axes=[[2],[0]])
+
+    bonusbelief_output = tf.reshape(bb3_layer,[-1] + self.bonusbelief_target_shape, name = "bonusbelief_output")
+
 
     #No need for separate mask since v1_layer is already zero outside of mask bounds.
     ownership_output = self.conv_only_block("vownership",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2, reg=False) * mask
@@ -995,11 +1017,16 @@ class ModelV3:
     self.add_lr_factor("sb2/b:0",0.25)
     self.add_lr_factor("sb2_offset/w:0",0.25)
     self.add_lr_factor("sb3/w:0",0.25)
+    self.add_lr_factor("bb2/w:0",0.25)
+    self.add_lr_factor("bb2/b:0",0.25)
+    self.add_lr_factor("bb2_offset/w:0",0.25)
+    self.add_lr_factor("bb3/w:0",0.25)
     self.add_lr_factor("vownership/w:0",0.25)
 
     self.value_output = value_output
     self.miscvalues_output = miscvalues_output
     self.scorebelief_output = scorebelief_output
+    self.bonusbelief_output = bonusbelief_output
     self.ownership_output = ownership_output
 
     self.mask_before_symmetry = mask_before_symmetry
@@ -1014,12 +1041,15 @@ class Target_varsV3:
     value_output = model.value_output
     miscvalues_output = model.miscvalues_output
     scorebelief_output = model.scorebelief_output
+    bonusbelief_output = model.bonusbelief_output
     ownership_output = model.ownership_output
 
     value_probs = tf.nn.softmax(value_output,axis=1)
     scorebelief_probs = tf.nn.softmax(scorebelief_output,axis=1)
+    bonusbelief_probs = tf.nn.softmax(bonusbelief_output,axis=1)
 
     two_over_pi = 0.63661977236758134308
+    scorevalue_prediction = two_over_pi*tf.atan(miscvalues_output[:,0])
 
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
@@ -1030,6 +1060,8 @@ class Target_varsV3:
                               tf.placeholder(tf.float32, [None] + model.scorevalue_target_shape))
     self.scorebelief_target = (placeholders["scorebelief_target"] if "scorebelief_target" in placeholders else
                               tf.placeholder(tf.float32, [None] + model.scorebelief_target_shape))
+    self.bonusbelief_target = (placeholders["bonusbelief_target"] if "bonusbelief_target" in placeholders else
+                              tf.placeholder(tf.float32, [None] + model.bonusbelief_target_shape))
     self.utilityvar_target = (placeholders["utilityvar_target"] if "utilityvar_target" in placeholders else
                               tf.placeholder(tf.float32, [None] + model.utilityvar_target_shape))
     self.ownership_target = (placeholders["ownership_target"] if "ownership_target" in placeholders else
@@ -1044,14 +1076,13 @@ class Target_varsV3:
                                    tf.placeholder(tf.float32, [None] + model.utilityvar_target_weight))
     self.selfkomi = (placeholders["selfkomi"] if "selfkomi" in placeholders else
                      tf.placeholder(tf.float32, [None]))
-    self.is_areaish = (placeholders["is_areaish"] if "is_areaish" in placeholders else
-                       tf.placeholder(tf.float32, [None]))
 
     model.assert_batched_shape("policy_target", self.policy_target, model.policy_target_shape)
     model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
     model.assert_batched_shape("value_target", self.value_target, model.value_target_shape)
     model.assert_batched_shape("scorevalue_target", self.scorevalue_target, model.scorevalue_target_shape)
     model.assert_batched_shape("scorebelief_target", self.scorebelief_target, model.scorebelief_target_shape)
+    model.assert_batched_shape("bonusbelief_target", self.bonusbelief_target, model.bonusbelief_target_shape)
     model.assert_batched_shape("utilityvar_target", self.utilityvar_target, model.utilityvar_target_shape)
     model.assert_batched_shape("ownership_target", self.ownership_target, model.ownership_target_shape)
     model.assert_batched_shape("target_weight_from_data", self.target_weight_from_data, model.target_weight_shape)
@@ -1059,13 +1090,15 @@ class Target_varsV3:
     model.assert_batched_shape("ownership_target_weight", self.ownership_target_weight, model.ownership_target_weight_shape)
     model.assert_batched_shape("utilityvar_target_weight", self.utilityvar_target_weight, model.utilityvar_target_weight_shape)
     model.assert_batched_shape("selfkomi", self.selfkomi, [])
-    model.assert_batched_shape("is_areaish", self.is_areaish, [])
 
     self.target_weight_used = self.target_weight_from_data
+
 
     self.policy_loss_unreduced = self.policy_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target, logits=policy_output)
     )
+
+
     self.value_loss_unreduced = 0.5 * (
       1.4 * tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.value_target,
@@ -1073,6 +1106,11 @@ class Target_varsV3:
       ) +
       2.0 * tf.reduce_sum(tf.square(self.value_target - value_probs),axis=1)
     )
+
+    self.scorevalue_loss_unreduced = 0.5 * (
+      tf.square(self.scorevalue_target - scorevalue_prediction)
+    )
+
     self.scorebelief_loss_cdf = 0.005 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
@@ -1087,10 +1125,23 @@ class Target_varsV3:
     )
     self.scorebelief_loss_unreduced = self.scorebelief_loss_cdf + self.scorebelief_loss_pdf
 
-    scorevalue_prediction = two_over_pi*tf.atan(miscvalues_output[:,0])
-    self.scorevalue_loss_unreduced = 0.5 * (
-      tf.square(self.scorevalue_target - scorevalue_prediction)
+
+    self.bonusbelief_loss_pdf = 0.005 * self.ownership_target_weight * (
+      tf.reduce_sum(
+        tf.square(tf.cumsum(self.bonusbelief_target,axis=1) - tf.cumsum(tf.nn.softmax(bonusbelief_output,axis=1),axis=1)),
+        axis=1
+      )
     )
+    self.bonusbelief_loss_pdf = 0.05 * self.ownership_target_weight * (
+      tf.nn.softmax_cross_entropy_with_logits_v2(
+        labels=self.bonusbelief_target,
+        logits=bonusbelief_output
+      )
+    )
+    self.bonusbelief_loss_unreduced = self.bonusbelief_loss_cdf + self.bonusbelief_loss_pdf
+
+
+
     self.utilityvar_loss_unreduced = 0.05 * self.utilityvar_target_weight * (
       tf.reduce_sum(tf.square(self.utilityvar_target - tf.math.softplus(miscvalues_output[:,1:5])),axis=1)
     )
@@ -1108,14 +1159,15 @@ class Target_varsV3:
       ) / model.mask_sum_hw
     )
 
-    #This only applies for is_areaish, because it's unclear how in japanese rules to turn an ownership map into
-    #a win/loss prediction if the players may make different numbers of moves and therefore have the effective
-    #komi change (under the scoring formulation we're using).
     expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
     #No masking needed in tf.tanh(ownership_output) since ownership_output is zero outside of mask and tanh(0) = 0.
-    expected_score_from_ownership = tf.reduce_sum(tf.tanh(ownership_output),axis=[1,2]) + self.selfkomi
+    expected_score_from_ownership = (
+      tf.reduce_sum(tf.tanh(ownership_output),axis=[1,2]) +
+      tf.reduce_sum(bonusbelief_probs * model.bonus_belief_offset_vector,axis=1) +
+      self.selfkomi
+    )
     beliefownerdiff = expected_score_from_belief - expected_score_from_ownership
-    self.ownership_reg_loss_unreduced = 0.002 * beliefownerdiff * tf.clip_by_value(beliefownerdiff,-20.0,20.0) * self.is_areaish
+    self.ownership_reg_loss_unreduced = 0.002 * beliefownerdiff * tf.clip_by_value(beliefownerdiff,-20.0,20.0)
 
     scorevalue_from_belief = tf.reduce_sum(
       scorebelief_probs *
@@ -1134,8 +1186,9 @@ class Target_varsV3:
 
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced)
-    self.scorebelief_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_loss_unreduced)
     self.scorevalue_loss = tf.reduce_sum(self.target_weight_used * self.scorevalue_loss_unreduced)
+    self.scorebelief_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_loss_unreduced)
+    self.bonusbelief_loss = tf.reduce_sum(self.target_weight_used * self.bonusbelief_loss_unreduced)
     self.utilityvar_loss = tf.reduce_sum(self.target_weight_used * self.utilityvar_loss_unreduced)
     self.ownership_loss = tf.reduce_sum(self.target_weight_used * self.ownership_loss_unreduced)
     self.ownership_reg_loss = tf.reduce_sum(self.target_weight_used * self.ownership_reg_loss_unreduced)
@@ -1157,6 +1210,7 @@ class Target_varsV3:
         self.value_loss +
         self.scorevalue_loss +
         self.scorebelief_loss +
+        self.bonusbelief_loss +
         self.utilityvar_loss +
         self.ownership_loss +
         self.ownership_reg_loss +
@@ -1172,7 +1226,6 @@ class Target_varsV3:
       #    self.scorebelief_target[0] * tf.constant(model.score_belief_offset_vector,dtype=tf.float32),
       #    self.ownership_target_weight[0:10],
       #    self.selfkomi[0:10],
-      #    self.is_areaish[0:10]
       #   ],
       #   summarize=2000
       # )
@@ -1255,6 +1308,7 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
   placeholders["value_target"] = features["gtnc"][:,0:3]
   placeholders["scorevalue_target"] = features["gtnc"][:,3]
   placeholders["scorebelief_target"] = features["sdn"] / 100.0
+  placeholders["bonusbelief_target"] = features["sbsn"]
   placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
   placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
 
@@ -1263,7 +1317,6 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
   placeholders["utilityvar_target_weight"] = features["gtnc"][:,41]
 
   placeholders["selfkomi"] = features["gtnc"][:,39]
-  placeholders["is_areaish"] = features["gtnc"][:,40]
   placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
 
   if mode == tf.estimator.ModeKeys.EVAL:

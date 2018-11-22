@@ -113,7 +113,7 @@ struct TrainingWriteBuffers {
   //C24: MCTS utility variance, 64->256 visits
 
   //C25 Weight assigned to the policy target
-  //C26 Weight assigned to the final board ownership target and score targets. Most training rows will have this be 1, some will be 0.
+  //C26 Weight assigned to the final board ownership target and score distr and bonus score targets. Most training rows will have this be 1, some will be 0.
   //C27 Weight multiplier for row as a whole
 
   //C28-32: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
@@ -144,6 +144,9 @@ struct TrainingWriteBuffers {
   //Except in case of integer komi, the value can be split between two adjacent labels based on value of draw.
   //Arbitrary if C26 has weight 0.
   NumpyBuffer<int8_t> scoreDistrN;
+  //Ranges from -30 to 30, 61 indices in total. Index of the number of bonus points the player to move will get onward from this point in the game
+  //is labeled with 1, the rest labeled with 0, from the perspective of the player to move.
+  NumpyBuffer<int8_t> selfBonusScoreN;
 
   //Spatial value-related targets
   //C0 - Final board ownership (-1,0,1), from the perspective of the player to move. All 0 if C26 has weight 0.

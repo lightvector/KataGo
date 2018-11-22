@@ -23,6 +23,7 @@ keys = [
   "policyTargetsNCMove",
   "globalTargetsNC",
   "scoreDistrN",
+  "selfBonusScoreN",
   "valueTargetsNCHW"
 ]
 
@@ -52,16 +53,18 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   policyTargetsNCMove = npz["policyTargetsNCMove"]
   globalTargetsNC = npz["globalTargetsNC"]
   scoreDistrN = npz["scoreDistrN"]
+  selfBonusScoreN = npz["selfBonusScoreN"]
   valueTargetsNCHW = npz["valueTargetsNCHW"]
 
   print("Shuffling... (mem usage %dMB)" % memusage_mb())
-  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
+  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,selfBonusScoreN,valueTargetsNCHW))
 
   num_rows_to_keep = binaryInputNCHWPacked.shape[0]
   assert(globalInputNC.shape[0] == num_rows_to_keep)
   assert(policyTargetsNCMove.shape[0] == num_rows_to_keep)
   assert(globalTargetsNC.shape[0] == num_rows_to_keep)
   assert(scoreDistrN.shape[0] == num_rows_to_keep)
+  assert(selfBonusScoreN.shape[0] == num_rows_to_keep)
   assert(valueTargetsNCHW.shape[0] == num_rows_to_keep)
 
   if keep_prob < 1.0:
@@ -83,6 +86,7 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
       policyTargetsNCMove = policyTargetsNCMove[start:stop],
       globalTargetsNC = globalTargetsNC[start:stop],
       scoreDistrN = scoreDistrN[start:stop],
+      selfBonusScoreN = selfBonusScoreN[start:stop],
       valueTargetsNCHW = valueTargetsNCHW[start:stop]
     )
 
@@ -96,6 +100,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   policyTargetsNCMoves = []
   globalTargetsNCs = []
   scoreDistrNs = []
+  selfBonusScoreNs = []
   valueTargetsNCHWs = []
 
   for input_idx in range(num_shards_to_merge):
@@ -110,6 +115,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
     policyTargetsNCMove = npz["policyTargetsNCMove"].astype(np.float32)
     globalTargetsNC = npz["globalTargetsNC"]
     scoreDistrN = npz["scoreDistrN"].astype(np.float32)
+    selfBonusScoreN = npz["selfBonusScoreN"].astype(np.float32)
     valueTargetsNCHW = npz["valueTargetsNCHW"].astype(np.float32)
 
     binaryInputNCHWPackeds.append(binaryInputNCHWPacked)
@@ -117,6 +123,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
     policyTargetsNCMoves.append(policyTargetsNCMove)
     globalTargetsNCs.append(globalTargetsNC)
     scoreDistrNs.append(scoreDistrN)
+    selfBonusScoreNs.append(selfBonusScoreN)
     valueTargetsNCHWs.append(valueTargetsNCHW)
 
   ###
@@ -128,10 +135,11 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   policyTargetsNCMove = np.concatenate(policyTargetsNCMoves)
   globalTargetsNC = np.concatenate(globalTargetsNCs)
   scoreDistrN = np.concatenate(scoreDistrNs)
+  selfBonusScoreN = np.concatenate(selfBonusScoreNs)
   valueTargetsNCHW = np.concatenate(valueTargetsNCHWs)
 
   print("Shuffling... (mem usage %dMB)" % memusage_mb())
-  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
+  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,selfBonusScoreN,valueTargetsNCHW))
 
   print("Writing in batches...")
   num_rows = binaryInputNCHWPacked.shape[0]
@@ -155,6 +163,9 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
       ),
       "sdn": tf.train.Feature(
         float_list=tf.train.FloatList(value=scoreDistrN[start:stop].reshape(-1))
+      ),
+      "sbsn": tf.train.Feature(
+        float_list=tf.train.FloatList(value=selfBonusScoreN[start:stop].reshape(-1))
       ),
       "vtnchw": tf.train.Feature(
         float_list=tf.train.FloatList(value=valueTargetsNCHW[start:stop].reshape(-1))
