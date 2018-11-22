@@ -346,6 +346,7 @@ int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[B
   return score;
 }
 
+//ALSO makes area color the points that were not pass alive but were scored for a side.
 int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
   int score = 0;
   bool nonPassAliveStones = false;
@@ -362,11 +363,15 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Col
       else {
         //Checking encorePhase < 2 allows us to get the correct score if we directly end the game before the second
         //encore such that we never actually fill secondEncoreStartColors. This matters for premature termination
-        //of the game like ending due to a move limit and such
-        if(board.colors[loc] == C_WHITE && (encorePhase < 2 || secondEncoreStartColors[loc] == C_WHITE))
+        //of the game like ending due to a move limit and such.
+        if(board.colors[loc] == C_WHITE && (encorePhase < 2 || secondEncoreStartColors[loc] == C_WHITE)) {
           score += 1;
-        if(board.colors[loc] == C_BLACK && (encorePhase < 2 || secondEncoreStartColors[loc] == C_BLACK))
+          area[loc] = C_WHITE;
+        }
+        if(board.colors[loc] == C_BLACK && (encorePhase < 2 || secondEncoreStartColors[loc] == C_BLACK)) {
           score -= 1;
+          area[loc] = C_BLACK;
+        }
       }
     }
   }
