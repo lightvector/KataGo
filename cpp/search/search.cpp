@@ -452,10 +452,11 @@ Loc Search::getChosenMoveLoc() {
   }
   assert(maxValue > 0.0);
 
-  double temperature = searchParams.chosenMoveTemperature;
-  temperature +=
+  double rawHalflives = rootHistory.moveHistory.size() / searchParams.chosenMoveTemperatureHalflife;
+  double halflives = rawHalflives * 19.0 / sqrt(rootBoard.x_size*rootBoard.y_size);
+  double temperature = searchParams.chosenMoveTemperature +
     (searchParams.chosenMoveTemperatureEarly - searchParams.chosenMoveTemperature) *
-    pow(0.5,rootHistory.moveHistory.size() / searchParams.chosenMoveTemperatureHalflife);
+    pow(0.5, halflives);
 
   //Temperature so close to 0 that we just calculate the max directly
   if(temperature <= 1.0e-4) {

@@ -26,7 +26,7 @@ struct SearchParams {
 
   double chosenMoveTemperature; //Make move roughly proportional to visit count ** (1/chosenMoveTemperature)
   double chosenMoveTemperatureEarly; //Temperature at start of game
-  double chosenMoveTemperatureHalflife; //Halflife of decay from early temperature to temperature for the rest of the game
+  double chosenMoveTemperatureHalflife; //Halflife of decay from early temperature to temperature for the rest of the game, scales for board sizes other than 19.
   double chosenMoveSubtract; //Try to subtract this many visits from every move prior to applying temperature
   double chosenMovePrune; //Outright prune moves that have fewer than this many visits
 
