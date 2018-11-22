@@ -627,8 +627,8 @@ FinishedGameData* Play::runGame(
       while(r < 0.00000001)
         r = gameRand.nextDouble();
       r = -log(r);
-      //This gives us about 36 moves on average for 19x19.
-      int numInitialMovesToPlay = floor(r * board.x_size * board.y_size / 10.0);
+      //This gives us about 15 moves on average for 19x19.
+      int numInitialMovesToPlay = floor(r * board.x_size * board.y_size / 24.0);
       assert(numInitialMovesToPlay >= 0);
       for(int i = 0; i<numInitialMovesToPlay; i++) {
         double drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
