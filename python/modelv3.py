@@ -1107,7 +1107,7 @@ class Target_varsV3:
       2.0 * tf.reduce_sum(tf.square(self.value_target - value_probs),axis=1)
     )
 
-    self.scorevalue_loss_unreduced = 0.5 * (
+    self.scorevalue_loss_unreduced = (
       tf.square(self.scorevalue_target - scorevalue_prediction)
     )
 
@@ -1149,7 +1149,7 @@ class Target_varsV3:
     #This uses a formulation where each batch element cares about its average loss.
     #In particular this means that ownership loss predictions on small boards "count more" per spot.
     #Not unlike the way that policy and value loss are also equal-weighted by batch element.
-    self.ownership_loss_unreduced = self.ownership_target_weight * (
+    self.ownership_loss_unreduced = 1.5 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.nn.softmax_cross_entropy_with_logits_v2(
           labels=tf.stack([(1+self.ownership_target)/2,(1-self.ownership_target)/2],axis=3),
