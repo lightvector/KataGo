@@ -350,7 +350,7 @@ H2 90
 
       search->searchParams.chosenMoveTemperature = 1.0;
       search->searchParams.chosenMoveTemperatureEarly = 0.0;
-      search->searchParams.chosenMoveTemperatureHalflife = 16.0;
+      search->searchParams.chosenMoveTemperatureHalflife = 16.0 * 19.0/9.0;
 
       sampleChosenMoves();
 

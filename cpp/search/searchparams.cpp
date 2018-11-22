@@ -20,7 +20,7 @@ SearchParams::SearchParams()
    rootDirichletNoiseWeight(0.25),
    chosenMoveTemperature(0.0),
    chosenMoveTemperatureEarly(0.0),
-   chosenMoveTemperatureHalflife(16),
+   chosenMoveTemperatureHalflife(19),
    chosenMoveSubtract(0.0),
    chosenMovePrune(1.0),
    rootEndingBonusPoints(0.0),
