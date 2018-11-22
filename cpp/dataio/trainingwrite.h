@@ -13,6 +13,8 @@ struct ValueTargets {
   float noResult;
   float scoreValue;
   float score;
+
+  bool hasMctsUtility;
   float mctsUtility1;
   float mctsUtility4;
   float mctsUtility16;
@@ -28,6 +30,7 @@ struct SidePosition {
   Player pla;
   vector<PolicyTargetMove> policyTarget;
   ValueTargets whiteValueTargets;
+  float targetWeight;
 
   SidePosition();
   SidePosition(const Board& board, const BoardHistory& hist, Player pla);
@@ -121,7 +124,8 @@ struct TrainingWriteBuffers {
 
   //C39: Komi, adjusted for draw utility and points costed or paid so far, from the perspective of the player to move.
   //C40: 1 if we're in an area-scoring-like phase of the game (area scoring or second encore territory scoring)
-  //C41-42: Unused
+  //C41: Weight assigned to the utilityvariance target
+  //C42: Unused
 
   //C43: Number of moves after start of training period, zero-indexed. (There could have been moves before training, see C45).
   //C44: Did this game end via hitting turn limit?

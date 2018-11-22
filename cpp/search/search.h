@@ -170,10 +170,23 @@ struct Search {
   bool getPlaySelectionValues(
     vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
   ) const;
+  //Same, but works on a node within the search, not just the root
+  bool getPlaySelectionValues(
+    const SearchNode& node,
+    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
+  ) const;
+
+
   //Get the values recorded for the root node
   bool getRootValues(
     double& winValue, double& lossValue, double& noResultValue, double& scoreValue
   ) const;
+  //Same, but works on a node within the search, not just the root
+  bool getNodeValues(
+    const SearchNode& node,
+    double& winValue, double& lossValue, double& noResultValue, double& scoreValue
+  ) const;
+
   //Get the combined utility recorded for the root node
   double getRootUtility() const;
 

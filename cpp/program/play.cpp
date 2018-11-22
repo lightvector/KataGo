@@ -284,7 +284,9 @@ pair<int,int> MatchPairer::getMatchupPair() {
 //----------------------------------------------------------------------------------------------------------
 
 FancyModes::FancyModes()
-  :initGamesWithPolicy(false),forkSidePositionProb(0.0),cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f)
+  :initGamesWithPolicy(false),forkSidePositionProb(0.0),
+   cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
+   recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f)
 {}
 FancyModes::~FancyModes()
 {}
@@ -412,16 +414,15 @@ static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board,
     return chooseRandomLegalMove(board, hist, pla, gameRand);
 }
 
-static void extractPolicyTarget(vector<PolicyTargetMove>& buf, const Search* toMoveBot, vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf) {
-  locsBuf.clear();
-  playSelectionValuesBuf.clear();
+static void extractPolicyTarget(vector<PolicyTargetMove>& buf, const Search* toMoveBot, const SearchNode* node, vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf) {
   double scaleMaxToAtLeast = 10.0;
 
-  bool success = toMoveBot->getPlaySelectionValues(
-    locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast
-  );
+  assert(node != NULL);
+  bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast);
   assert(success);
 
+  assert(locsBuf.size() == playSelectionValuesBuf.size());
+  assert(locsBuf.size() <= toMoveBot->rootBoard.x_size * toMoveBot->rootBoard.y_size + 1);
   for(int moveIdx = 0; moveIdx<locsBuf.size(); moveIdx++) {
     double value = playSelectionValuesBuf[moveIdx];
     assert(value >= 0.0 && value < 30000.0); //Make sure we don't oveflow int16
@@ -429,14 +430,12 @@ static void extractPolicyTarget(vector<PolicyTargetMove>& buf, const Search* toM
   }
 }
 
-static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, vector<double>* recordUtilities) {
+static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, const SearchNode* node, vector<double>* recordUtilities) {
   double winValue;
   double lossValue;
   double noResultValue;
   double scoreValue;
-  bool success = toMoveBot->getRootValues(
-    winValue,lossValue,noResultValue,scoreValue
-  );
+  bool success = toMoveBot->getNodeValues(*node,winValue,lossValue,noResultValue,scoreValue);
   assert(success);
 
   buf.win = winValue;
@@ -447,13 +446,124 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, vect
   //Not defined, only matters for the final value targets for the game result
   buf.score = 0.0f;
 
-  assert(recordUtilities != NULL);
-  assert(recordUtilities->size() > 255);
-  buf.mctsUtility1 = (float)((*recordUtilities)[0]);
-  buf.mctsUtility4 = (float)((*recordUtilities)[3]);
-  buf.mctsUtility16 = (float)((*recordUtilities)[15]);
-  buf.mctsUtility64 = (float)((*recordUtilities)[63]);
-  buf.mctsUtility256 = (float)((*recordUtilities)[255]);
+  if(recordUtilities != NULL) {
+    buf.hasMctsUtility = true;
+    assert(recordUtilities->size() > 255);
+    buf.mctsUtility1 = (float)((*recordUtilities)[0]);
+    buf.mctsUtility4 = (float)((*recordUtilities)[3]);
+    buf.mctsUtility16 = (float)((*recordUtilities)[15]);
+    buf.mctsUtility64 = (float)((*recordUtilities)[63]);
+    buf.mctsUtility256 = (float)((*recordUtilities)[255]);
+  }
+  else {
+    buf.hasMctsUtility = false;
+    buf.mctsUtility1 = 0.0f;
+    buf.mctsUtility4 = 0.0f;
+    buf.mctsUtility16 = 0.0f;
+    buf.mctsUtility64 = 0.0f;
+    buf.mctsUtility256 = 0.0f;
+  }
+}
+
+//Recursively walk non-root-node subtree under node recording positions that have enough visits
+//We also only record positions where the player to move made best moves along the tree so far.
+//Does NOT walk down branches of excludeLoc0 and excludeLoc1 - these are used to avoid writing
+//subtree positions for branches that we are about to actually play or do a forked sideposition search on.
+static void recordTreePositionsRec(
+  FinishedGameData* gameData,
+  const Board& board, const BoardHistory& hist, Player pla,
+  const Search* toMoveBot,
+  const SearchNode* node, int depth, int maxDepth, bool plaAlwaysBest, bool oppAlwaysBest,
+  int minVisitsAtNode, float recordTreeTargetWeight,
+  vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
+  Loc excludeLoc0, Loc excludeLoc1
+) {
+  if(node->numChildren <= 0)
+    return;
+
+  if(plaAlwaysBest && node != toMoveBot->rootNode) {
+    SidePosition* sp = new SidePosition(board,hist,pla);
+    extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
+    extractValueTargets(sp->whiteValueTargets, toMoveBot, node, NULL);
+    sp->targetWeight = recordTreeTargetWeight;
+    gameData->sidePositions.push_back(sp);
+  }
+
+  if(depth >= maxDepth)
+    return;
+
+  //Best child is the one with the largest number of visits, find it
+  int bestChildIdx = 0;
+  uint64_t bestChildVisits = 0;
+  for(int i = 1; i<node->numChildren; i++) {
+    const SearchNode* child = node->children[i];
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
+    uint64_t numVisits = child->stats.visits;
+    child->statsLock.clear(std::memory_order_release);
+    if(numVisits > bestChildVisits) {
+      bestChildVisits = numVisits;
+      bestChildIdx = i;
+    }
+  }
+
+  for(int i = 0; i<node->numChildren; i++) {
+    bool newPlaAlwaysBest = oppAlwaysBest;
+    bool newOppAlwaysBest = plaAlwaysBest && i == bestChildIdx;
+
+    if(!newPlaAlwaysBest && !newOppAlwaysBest)
+      continue;
+
+    const SearchNode* child = node->children[i];
+    if(child->prevMoveLoc == excludeLoc0 || child->prevMoveLoc == excludeLoc1)
+      continue;
+
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
+    uint64_t numVisits = child->stats.visits;
+    child->statsLock.clear(std::memory_order_release);
+
+    if(numVisits < minVisitsAtNode)
+      continue;
+
+    Board copy = board;
+    BoardHistory histCopy = hist;
+    histCopy.makeBoardMoveAssumeLegal(copy, child->prevMoveLoc, pla, NULL);
+    Player nextPla = getOpp(pla);
+    recordTreePositionsRec(
+      gameData,
+      copy,histCopy,nextPla,
+      toMoveBot,
+      child,depth+1,maxDepth,newPlaAlwaysBest,newOppAlwaysBest,
+      minVisitsAtNode,recordTreeTargetWeight,
+      locsBuf,playSelectionValuesBuf,
+      Board::NULL_LOC,Board::NULL_LOC
+    );
+  }
+}
+
+//Top-level caller for recursive func
+static void recordTreePositions(
+  FinishedGameData* gameData,
+  const Board& board, const BoardHistory& hist, Player pla,
+  const Search* toMoveBot,
+  int minVisitsAtNode, float recordTreeTargetWeight,
+  vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
+  Loc excludeLoc0, Loc excludeLoc1
+) {
+  assert(toMoveBot->rootBoard.pos_hash == board.pos_hash);
+  assert(toMoveBot->rootHistory.moveHistory.size() == hist.moveHistory.size());
+  assert(toMoveBot->rootPla == pla);
+  assert(toMoveBot->rootNode != NULL);
+  //Don't go too deep recording extra positions
+  int maxDepth = 5;
+  recordTreePositionsRec(
+    gameData,
+    board,hist,pla,
+    toMoveBot,
+    toMoveBot->rootNode, 0, maxDepth, true, true,
+    minVisitsAtNode, recordTreeTargetWeight,
+    locsBuf,playSelectionValuesBuf,
+    excludeLoc0,excludeLoc1
+  );
 }
 
 //Run a game between two bots. It is OK if both bots are the same bot.
@@ -592,6 +702,8 @@ FinishedGameData* Play::runGame(
   vector<Loc> locsBuf;
   vector<double> playSelectionValuesBuf;
 
+  vector<SidePosition*> sidePositionsToSearch;
+
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
     if(doEndGameIfAllPassAlive)
@@ -628,27 +740,41 @@ FinishedGameData* Play::runGame(
 
     if(recordFullData) {
       vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
-      extractPolicyTarget(*policyTarget, toMoveBot, locsBuf, playSelectionValuesBuf);
+      extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       gameData->policyTargetsByTurn.push_back(policyTarget);
       gameData->targetWeightByTurn.push_back(targetWeight);
 
       ValueTargets whiteValueTargets;
-      extractValueTargets(whiteValueTargets, toMoveBot, recordUtilities);
+      extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode, recordUtilities);
       gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
 
 
       //Occasionally fork off some positions to evaluate
+      Loc sidePositionForkLoc = Board::NULL_LOC;
       if(fancyModes.forkSidePositionProb > 0.0 && gameRand.nextBool(fancyModes.forkSidePositionProb)) {
         assert(toMoveBot->rootNode != NULL);
         assert(toMoveBot->rootNode->nnOutput != nullptr);
-        Loc forkLoc = chooseRandomForkingMove(toMoveBot->rootNode->nnOutput.get(), board, hist, pla, gameRand);
-        if(forkLoc != Board::NULL_LOC) {
+        sidePositionForkLoc = chooseRandomForkingMove(toMoveBot->rootNode->nnOutput.get(), board, hist, pla, gameRand);
+        if(sidePositionForkLoc != Board::NULL_LOC) {
           SidePosition* sp = new SidePosition(board,hist,pla);
-          sp->hist.makeBoardMoveAssumeLegal(sp->board,forkLoc,sp->pla,NULL);
+          sp->hist.makeBoardMoveAssumeLegal(sp->board,sidePositionForkLoc,sp->pla,NULL);
           sp->pla = getOpp(sp->pla);
           if(sp->hist.isGameFinished) delete sp;
-          else gameData->sidePositions.push_back(sp);
+          else sidePositionsToSearch.push_back(sp);
         }
+      }
+
+      //If enabled, also record subtree positions from the search as training positions
+      if(fancyModes.recordTreePositions && fancyModes.recordTreeTargetWeight > 0.0f) {
+        assert(fancyModes.recordTreeTargetWeight <= 1.0f);
+        recordTreePositions(
+          gameData,
+          board,hist,pla,
+          toMoveBot,
+          fancyModes.recordTreeThreshold,fancyModes.recordTreeTargetWeight,
+          locsBuf,playSelectionValuesBuf,
+          loc,sidePositionForkLoc
+        );
       }
     }
 
@@ -737,20 +863,37 @@ FinishedGameData* Play::runGame(
 
     //Also evaluate all the side positions as well that we queued up to be searched
     NNResultBuf nnResultBuf;
-    for(int i = 0; i<gameData->sidePositions.size(); i++) {
-      SidePosition* sp = gameData->sidePositions[i];
+    for(int i = 0; i<sidePositionsToSearch.size(); i++) {
+      SidePosition* sp = sidePositionsToSearch[i];
       Search* toMoveBot = sp->pla == P_BLACK ? botB : botW;
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
       Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,recordUtilities);
 
-      extractPolicyTarget(sp->policyTarget, toMoveBot, locsBuf, playSelectionValuesBuf);
-      extractValueTargets(sp->whiteValueTargets, toMoveBot, recordUtilities);
+      extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
+      extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode, recordUtilities);
+      sp->targetWeight = 1.0;
+
+      gameData->sidePositions.push_back(sp);
+
+      //If enabled, also record subtree positions from the search as training positions
+      if(fancyModes.recordTreePositions && fancyModes.recordTreeTargetWeight > 0.0f) {
+        assert(fancyModes.recordTreeTargetWeight <= 1.0f);
+        recordTreePositions(
+          gameData,
+          sp->board,sp->hist,sp->pla,
+          toMoveBot,
+          fancyModes.recordTreeThreshold,fancyModes.recordTreeTargetWeight,
+          locsBuf,playSelectionValuesBuf,
+          Board::NULL_LOC, Board::NULL_LOC
+        );
+      }
 
       //Occasionally continue the fork a second move or more, to provide some situations where the opponent has played "weird" moves not
       //only on the most immediate turn, but rather the turns before.
       if(gameRand.nextBool(0.25)) {
         if(responseLoc == Board::NULL_LOC || !sp->hist.isLegal(sp->board,responseLoc,sp->pla))
           failIllegalMove(toMoveBot,logger,sp->board,responseLoc);
+
         SidePosition* sp2 = new SidePosition(sp->board,sp->hist,sp->pla);
         sp2->hist.makeBoardMoveAssumeLegal(sp2->board,responseLoc,sp2->pla,NULL);
         sp2->pla = getOpp(sp2->pla);
@@ -767,10 +910,11 @@ FinishedGameData* Play::runGame(
             sp2->hist.makeBoardMoveAssumeLegal(sp2->board,forkLoc,sp2->pla,NULL);
             sp2->pla = getOpp(sp2->pla);
             if(sp2->hist.isGameFinished) delete sp2;
-            else gameData->sidePositions.push_back(sp2);
+            else sidePositionsToSearch.push_back(sp2);
           }
         }
       }
+
     }
   }
 

@@ -291,13 +291,21 @@ static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
 bool Search::getPlaySelectionValues(
   vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
 ) const {
+  if(rootNode == NULL) {
+    locs.clear();
+    playSelectionValues.clear();
+    return false;
+  }
+  return getPlaySelectionValues(*rootNode, locs, playSelectionValues, scaleMaxToAtLeast);
+}
+
+bool Search::getPlaySelectionValues(
+  const SearchNode& node,
+  vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
+) const {
   locs.clear();
   playSelectionValues.clear();
 
-  if(rootNode == NULL)
-    return false;
-
-  const SearchNode& node = *rootNode;
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
 
@@ -316,9 +324,10 @@ bool Search::getPlaySelectionValues(
   shared_ptr<NNOutput> nnOutput = node.nnOutput;
   lock.unlock();
 
-  //If we have no children, then use the policy net directly
+  //If we have no children, then use the policy net directly. Only for the root, though, if calling this on any subtree
+  //then just require that we have children, for implementation simplicity (since it requires that we have a board and a boardhistory too)
   if(numChildren == 0) {
-    if(nnOutput == nullptr)
+    if(nnOutput == nullptr || &node != rootNode)
       return false;
     for(int movePos = 0; movePos<policySize; movePos++) {
       Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,posLen);
@@ -373,7 +382,13 @@ bool Search::getRootValues(
   double& winValue, double& lossValue, double& noResultValue, double& scoreValue
 ) const {
   assert(rootNode != NULL);
-  const SearchNode& node = *rootNode;
+  return getNodeValues(*rootNode,winValue,lossValue,noResultValue,scoreValue);
+}
+
+bool Search::getNodeValues(
+  const SearchNode& node,
+  double& winValue, double& lossValue, double& noResultValue, double& scoreValue
+) const {
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
   shared_ptr<NNOutput> nnOutput = node.nnOutput;

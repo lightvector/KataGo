@@ -122,6 +122,11 @@ struct FancyModes {
   int cheapSearchVisits;
   float cheapSearchTargetWeight;
 
+  //Record positions from within the search tree that had at least this many visits, recording only with this weight.
+  bool recordTreePositions;
+  int recordTreeThreshold;
+  float recordTreeTargetWeight;
+
   FancyModes();
   ~FancyModes();
 };

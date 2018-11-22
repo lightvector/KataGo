@@ -7,6 +7,7 @@ ValueTargets::ValueTargets()
    noResult(0),
    scoreValue(0),
    score(0),
+   hasMctsUtility(false),
    mctsUtility1(0),
    mctsUtility4(0),
    mctsUtility16(0),
@@ -23,7 +24,8 @@ SidePosition::SidePosition()
    hist(),
    pla(P_BLACK),
    policyTarget(),
-   whiteValueTargets()
+   whiteValueTargets(),
+   targetWeight()
 {}
 
 SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p)
@@ -31,7 +33,8 @@ SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p)
    hist(h),
    pla(p),
    policyTarget(),
-   whiteValueTargets()
+   whiteValueTargets(),
+   targetWeight(1.0f)
 {}
 
 SidePosition::~SidePosition()
@@ -263,10 +266,20 @@ void TrainingWriteBuffers::addRow(
 
   //Fill short-term variance info
   const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
-  rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
-  rowGlobal[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
-  rowGlobal[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
-  rowGlobal[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
+  if(thisTargets.hasMctsUtility) {
+    rowGlobal[41] = 1.0f;
+    rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
+    rowGlobal[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
+    rowGlobal[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
+    rowGlobal[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
+  }
+  else {
+    rowGlobal[41] = 0.0f;
+    rowGlobal[21] = 0.0f;
+    rowGlobal[22] = 0.0f;
+    rowGlobal[23] = 0.0f;
+    rowGlobal[24] = 0.0f;
+  }
 
   //Fill in whether we should use history or not
   bool useHist0 = rand.nextDouble() < 0.98;
@@ -589,7 +602,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   vector<ValueTargets> whiteValueTargetsBuf(1);
   for(int i = 0; i<data.sidePositions.size(); i++) {
     SidePosition* sp = data.sidePositions[i];
-    float targetWeight = 1.0f;
     int turnNumberAfterStart = sp->hist.moveHistory.size() - data.startHist.moveHistory.size();
     assert(turnNumberAfterStart > 0);
     whiteValueTargetsBuf[0] = sp->whiteValueTargets;
@@ -598,7 +610,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       writeBuffers->addRow(
         sp->board,sp->hist,sp->pla,
         turnNumberAfterStart,
-        targetWeight,
+        sp->targetWeight,
         &(sp->policyTarget),
         whiteValueTargetsBuf,
         0,
