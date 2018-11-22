@@ -81,20 +81,18 @@ def find_var(name):
       return variable
 
 model_config = {
-  "trunk_num_channels":128,
-  "mid_num_channels":128,
-  "regular_num_channels":96,
+  "trunk_num_channels":96,
+  "mid_num_channels":96,
+  "regular_num_channels":64,
   "dilated_num_channels":32,
   "gpool_num_channels":32,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
-    ["rconv3","regular"],
-    ["rconv4","gpool"],
-    ["rconv5","regular"],
-    ["rconv6","regular"],
-    ["rconv7","gpool"],
-    ["rconv8","regular"]
+    ["rconv3","gpool"],
+    ["rconv4","regular"],
+    ["rconv5","gpool"],
+    ["rconv6","regular"]
   ],
   "p1_num_channels":48,
   "g1_num_channels":32,

@@ -847,7 +847,7 @@ class ModelV3:
       elif kind == "gpool":
         residual = self.global_res_conv_block(
           name,trunk,mask,mask_sum,mask_sum_hw,mask_sum_hw_sqrt,
-          diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=dilated_num_channels,
+          diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=gpool_num_channels,
           emphasize_center_weight = 0.3, emphasize_center_lr=1.5
         )
         trunk = self.merge_residual(name,trunk,residual)
