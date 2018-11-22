@@ -992,7 +992,7 @@ class ModelV3:
     bb2_offset_vector = tf.constant(0.2 * self.bonus_belief_offset_vector, dtype=tf.float32)
     bb2_offset_w = self.weight_variable("bb2_offset/w",[1,bbv2_size],v1_size*3+1,bbv2_size)
     bb2_offset_partial = tf.matmul(tf.reshape(bb2_offset_vector,[-1,1]), bb2_offset_w)
-    bb2_layer = tf.reshape(bb2_layer_partial,[-1,1,bbv2_size]) + tf.reshape(bb2_offset_partial,[1,bonubbelief_len,bbv2_size])
+    bb2_layer = tf.reshape(bb2_layer_partial,[-1,1,bbv2_size]) + tf.reshape(bb2_offset_partial,[1,bonusbelief_len,bbv2_size])
     bb2_layer = self.relu_spatial1d("bb2/relu",bb2_layer)
 
     bb3w = self.weight_variable("bb3/w",[bbv2_size,1],bbv2_size,1)
@@ -1126,7 +1126,7 @@ class Target_varsV3:
     self.scorebelief_loss_unreduced = self.scorebelief_loss_cdf + self.scorebelief_loss_pdf
 
 
-    self.bonusbelief_loss_pdf = 0.005 * self.ownership_target_weight * (
+    self.bonusbelief_loss_cdf = 0.005 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.bonusbelief_target,axis=1) - tf.cumsum(tf.nn.softmax(bonusbelief_output,axis=1),axis=1)),
         axis=1

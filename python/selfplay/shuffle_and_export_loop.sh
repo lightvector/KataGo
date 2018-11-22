@@ -12,7 +12,7 @@ cp ./*.py ./selfplay/*.sh $basedir/scripts
         ./shuffle.sh $basedir
         sleep 400
     done
-) &
+) 2>&1 | tee outshuffle.txt &
 
 (
     cd $basedir/scripts
@@ -21,4 +21,4 @@ cp ./*.py ./selfplay/*.sh $basedir/scripts
         ./export_modelv3_for_selfplay.sh $basedir
         sleep 120
     done
-) &
+) 2>&1 | tee outexport.txt &

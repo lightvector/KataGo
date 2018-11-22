@@ -23,7 +23,7 @@ mkdir -p $BASEDIR/shuffleddata/$OUTDIR
 set -x
 time python3 ./shuffle.py \
      $BASEDIR/selfplay/*/tdata/ \
-     -min-rows 500000 \
+     -min-rows 1000000 \
      -max-rows 1000000000 \
      -window-factor 2 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
@@ -35,13 +35,13 @@ time python3 ./shuffle.py \
 time python3 ./shuffle.py \
      $BASEDIR/selfplay/*/vdata/ \
      -min-rows 0 \
-     -max-rows 5000000 \
+     -max-rows 10000000 \
      -window-factor 2 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
      -approx-rows-per-out-file 200000 \
      -num-processes 4 \
      -batch-size 256 \
-     -keep-target-rows 40000 \
+     -keep-target-rows 60000 \
     2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outval.txt
 set +x
 

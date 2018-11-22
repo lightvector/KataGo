@@ -15,7 +15,7 @@ shift
 
 #------------------------------------------------------------------------------
 
-# mkdir -p $BASEDIR/tfsavedmodels
+mkdir -p $BASEDIR/tfsavedmodels_toexport
 mkdir -p $BASEDIR/modelstobetested
 
 for FILEPATH in $(find $BASEDIR/tfsavedmodels_toexport/ -mindepth 1 -maxdepth 1)
