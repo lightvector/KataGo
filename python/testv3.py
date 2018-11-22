@@ -117,7 +117,7 @@ saver = tf.train.Saver(
 #tfconfig = tf.ConfigProto(log_device_placement=False,device_count={'GPU': 0})
 tfconfig = tf.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.allow_growth = True
-#tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
+tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.2
 with tf.Session(config=tfconfig) as session:
   saver.restore(session, model_file)
 

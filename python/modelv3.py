@@ -30,6 +30,7 @@ class ModelV3:
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
+    self.utilityvar_target_weight_shape = []
 
     self.pass_pos = self.pos_len * self.pos_len
 
@@ -1039,6 +1040,8 @@ class Target_varsV3:
                                  tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.ownership_target_weight = (placeholders["ownership_target_weight"] if "ownership_target_weight" in placeholders else
                                     tf.placeholder(tf.float32, [None] + model.ownership_target_weight))
+    self.utilityvar_target_weight = (placeholders["utilityvar_target_weight"] if "utilityvar_target_weight" in placeholders else
+                                   tf.placeholder(tf.float32, [None] + model.utilityvar_target_weight))
     self.selfkomi = (placeholders["selfkomi"] if "selfkomi" in placeholders else
                      tf.placeholder(tf.float32, [None]))
     self.is_areaish = (placeholders["is_areaish"] if "is_areaish" in placeholders else
@@ -1054,6 +1057,7 @@ class Target_varsV3:
     model.assert_batched_shape("target_weight_from_data", self.target_weight_from_data, model.target_weight_shape)
     model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
     model.assert_batched_shape("ownership_target_weight", self.ownership_target_weight, model.ownership_target_weight_shape)
+    model.assert_batched_shape("utilityvar_target_weight", self.utilityvar_target_weight, model.utilityvar_target_weight_shape)
     model.assert_batched_shape("selfkomi", self.selfkomi, [])
     model.assert_batched_shape("is_areaish", self.is_areaish, [])
 
@@ -1087,7 +1091,7 @@ class Target_varsV3:
     self.scorevalue_loss_unreduced = 0.5 * (
       tf.square(self.scorevalue_target - scorevalue_prediction)
     )
-    self.utilityvar_loss_unreduced = 0.05 * (
+    self.utilityvar_loss_unreduced = 0.05 * self.utilityvar_target_weight * (
       tf.reduce_sum(tf.square(self.utilityvar_target - tf.math.softplus(miscvalues_output[:,1:5])),axis=1)
     )
 
@@ -1253,8 +1257,11 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
   placeholders["scorebelief_target"] = features["sdn"] / 100.0
   placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
   placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
+
   placeholders["target_weight_from_data"] = features["gtnc"][:,27]
   placeholders["ownership_target_weight"] = features["gtnc"][:,26]
+  placeholders["utilityvar_target_weight"] = features["gtnc"][:,41]
+
   placeholders["selfkomi"] = features["gtnc"][:,39]
   placeholders["is_areaish"] = features["gtnc"][:,40]
   placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
