@@ -37,7 +37,6 @@ pos_len = 19
 # Model ----------------------------------------------------------------
 
 two_over_pi = 0.63661977236758134308
-EXTRA_SCORE_DISTR_RADIUS = 15
 
 with open(modelconfigpath) as f:
   model_config = json.load(f)
@@ -47,6 +46,7 @@ value_output = tf.nn.softmax(model.value_output)
 scorevalue_output = two_over_pi * tf.atan(model.miscvalues_output[:,0])
 ownership_output = tf.tanh(model.ownership_output)
 scorebelief_output = tf.nn.softmax(model.scorebelief_output)
+bonusbelief_output = tf.nn.softmax(model.bonusbelief_output)
 
 # Moves ----------------------------------------------------------------
 
@@ -71,6 +71,8 @@ def get_policy_output(session, board, boards, moves, use_history_prop, rules):
 
 def get_scorebelief_output(session, board, boards, moves, use_history_prop, rules):
   return fetch_output(session,board,boards,moves,use_history_prop,rules,[scorebelief_output])
+def get_bonusbelief_output(session, board, boards, moves, use_history_prop, rules):
+  return fetch_output(session,board,boards,moves,use_history_prop,rules,[bonusbelief_output])
 
 def get_policy_and_value_output(session, board, boards, moves, use_history_prop, rules):
   (policy,value,scorevalue) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output,value_output,scorevalue_output])
@@ -252,7 +254,7 @@ def print_scorebelief(board,scorebelief):
   scorebelief = list(scorebelief)
   if board.pla != Board.WHITE:
     scorebelief.reverse()
-  scoredistrmid = pos_len * pos_len + EXTRA_SCORE_DISTR_RADIUS
+  scoredistrmid = pos_len * pos_len + ModelV3.EXTRA_SCORE_DISTR_RADIUS
   ret = ""
   ret += "TEXT "
   ret += "ScoreBelief: \n"
@@ -287,6 +289,37 @@ def print_scorebelief(board,scorebelief):
   ret += "TEXT BeliefWin: %.2fc\n" % (100*beliefwin/belieftotal)
   ret += "TEXT BeliefScore: %.1f\n" % (beliefscore/belieftotal)
   ret += "TEXT BeliefScoreValue: %.1fc\n" % (100*beliefscorevalue/belieftotal)
+  return ret
+
+def print_bonusbelief(board,bonusbelief):
+  bonusbelief = list(bonusbelief)
+  if board.pla != Board.WHITE:
+    bonusbelief.reverse()
+  bonusdistrmid = ModelV3.BONUS_SCORE_RADIUS
+  ret = ""
+  ret += "TEXT "
+  ret += "BonusBelief: \n"
+  for i in range(5,-1,-1):
+    ret += "TEXT "
+    ret += "%+6.1f" %(-(i*5)-1)
+    for j in range(5):
+      idx = bonusdistrmid-(i*5+j)-1
+      ret += " %4.0f" % (bonusbelief[idx] * 10000)
+    ret += "\n"
+
+  ret += "TEXT "
+  ret += "%+6.1f" %(0)
+  ret += " %4.0f" % (bonusbelief[bonusdistrmid] * 10000)
+  ret += "\n"
+
+  for i in range(6):
+    ret += "TEXT "
+    ret += "%+6.1f" %((i*5+1))
+    for j in range(5):
+      idx = bonusdistrmid+(i*5+j)+1
+      ret += " %4.0f" % (bonusbelief[idx] * 10000)
+    ret += "\n"
+
   return ret
 
 
@@ -332,6 +365,8 @@ def run_gtp(session):
     'ownership-japanese',
     'scorebelief',
     'scorebelief-japanese',
+    'bonusbelief',
+    'bonusbelief-japanese',
   ]
   known_analyze_commands = [
     'gfx/Policy/policy',
@@ -343,6 +378,8 @@ def run_gtp(session):
     'gfx/OwnershipJP/ownership-japanese',
     'gfx/ScoreBelief/scorebelief',
     'gfx/ScoreBeliefJP/scorebelief-japanese',
+    'gfx/BonusBelief/bonusbelief',
+    'gfx/BonusBeliefJP/bonusbelief-japanese',
   ]
 
   board_size = 19
@@ -640,6 +677,30 @@ def run_gtp(session):
       }
       [scorebelief] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       ret = print_scorebelief(board,scorebelief)
+
+    elif command[0] == "bonusbelief":
+      rules = {
+        "koRule": "KO_POSITIONAL",
+        "scoringRule": "SCORING_AREA",
+        "multiStoneSuicideLegal": True,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+      }
+      [bonusbelief] = get_bonusbelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      ret = print_bonusbelief(board,bonusbelief)
+
+    elif command[0] == "bonusbelief-japanese":
+      rules = {
+        "koRule": "KO_SIMPLE",
+        "scoringRule": "SCORING_TERRITORY",
+        "multiStoneSuicideLegal": False,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
+      }
+      [bonusbelief] = get_bonusbelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      ret = print_bonusbelief(board,bonusbelief)
 
     elif command[0] == "protocol_version":
       ret = '2'
