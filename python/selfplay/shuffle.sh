@@ -25,7 +25,7 @@ time python3 ./shuffle.py \
      $BASEDIR/selfplay/*/tdata/ \
      -min-rows 500000 \
      -max-rows 1000000000 \
-     -window-factor 2 \
+     -window-factor 3 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
      -approx-rows-per-out-file 200000 \
      -num-processes 4 \
@@ -36,7 +36,7 @@ time python3 ./shuffle.py \
      $BASEDIR/selfplay/*/vdata/ \
      -min-rows 0 \
      -max-rows 10000000 \
-     -window-factor 2 \
+     -window-factor 3 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
      -approx-rows-per-out-file 200000 \
      -num-processes 4 \
