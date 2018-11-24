@@ -27,17 +27,22 @@ Computes average loss and accuracy the same as in training.
 
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-data-file', help='tfrecords or npz file', required=True)
-parser.add_argument('-model-file', help='model file prefix to load', required=True)
-parser.add_argument('-model-config-file', help='model config json to load', required=True)
+parser.add_argument('-checkpoint-file-prefix', help='model checkpoint file prefix to load', required=False)
+parser.add_argument('-saved-model-dir', help='tf SavedModel dir to load', required=False)
 parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
 parser.add_argument('-batch-size', help='Expected batch size of the input data, must match tfrecords', type=int, required=True)
 args = vars(parser.parse_args())
 
 data_file = args["data_file"]
-model_file = args["model_file"]
-model_config_file = args["model_config_file"]
+checkpoint_file_prefix = args["checkpoint_file_prefix"]
+saved_model_dir = args["saved_model_dir"]
 pos_len = args["pos_len"]
 batch_size = args["batch_size"]
+
+if checkpoint_file_prefix is None and saved_model_dir is None:
+  raise Exception("Must specify one of -checkpoint-file-prefix or -saved-model-dir")
+if checkpoint_file_prefix is not None and saved_model_dir is not None:
+  raise Exception("Must specify only one of -checkpoint-file-prefix or -saved-model-dir")
 
 def log(s):
   print(s,flush=True)
@@ -89,8 +94,14 @@ else:
 
 
 # Model ----------------------------------------------------------------
-with open(model_config_file) as f:
-  model_config = json.load(f)
+if checkpoint_file_prefix is not None:
+  with open(os.path.join(os.path.dirname(checkpoint_file_prefix),"model.config.json")) as f:
+    model_config = json.load(f)
+elif saved_model_dir is not None:
+  with open(os.path.join(saved_model_dir,"model.config.json")) as f:
+    model_config = json.load(f)
+else:
+  assert(False)
 
 mode = tf.estimator.ModeKeys.EVAL
 print_model = False
@@ -123,7 +134,12 @@ tfconfig = tf.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.allow_growth = True
 tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.2
 with tf.Session(config=tfconfig) as session:
-  saver.restore(session, model_file)
+  if checkpoint_file_prefix is not None:
+    saver.restore(session, checkpoint_file_prefix)
+  elif saved_model_dir is not None:
+    saver.restore(session, os.path.join(saved_model_dir,"saved_model","variables","variables"))
+  else:
+    assert(False)
 
   log("Began session")
 
