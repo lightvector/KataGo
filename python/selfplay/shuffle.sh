@@ -23,7 +23,7 @@ mkdir -p $BASEDIR/shuffleddata/$OUTDIR
 set -x
 time python3 ./shuffle.py \
      $BASEDIR/selfplay/*/tdata/ \
-     -min-rows 500000 \
+     -min-rows 400000 \
      -max-rows 1000000000 \
      -window-factor 3 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
