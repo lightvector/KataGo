@@ -969,7 +969,7 @@ class ModelV3:
     sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
     sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
     sb2_layer_partial = tf.matmul(v1_layer_pooled, sb2w) + sb2b
-    sb2_offset_vector = tf.constant(0.02 * self.score_belief_offset_vector, dtype=tf.float32)
+    sb2_offset_vector = tf.constant(0.04 * self.score_belief_offset_vector, dtype=tf.float32)
     sb2_offset_w = self.weight_variable("sb2_offset/w",[1,sbv2_size],v1_size*3+1,sbv2_size)
     sb2_offset_partial = tf.matmul(tf.reshape(sb2_offset_vector,[-1,1]), sb2_offset_w)
     sb2_layer = tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) + tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size])
@@ -989,7 +989,7 @@ class ModelV3:
     bb2w = self.weight_variable("bb2/w",[v1_size*3,bbv2_size],v1_size*3+1,bbv2_size)
     bb2b = self.weight_variable("bb2/b",[bbv2_size],v1_size*3+1,bbv2_size,scale_initial_weights=0.2,reg=False)
     bb2_layer_partial = tf.matmul(v1_layer_pooled, bb2w) + bb2b
-    bb2_offset_vector = tf.constant(0.2 * self.bonus_belief_offset_vector, dtype=tf.float32)
+    bb2_offset_vector = tf.constant(0.4 * self.bonus_belief_offset_vector, dtype=tf.float32)
     bb2_offset_w = self.weight_variable("bb2_offset/w",[1,bbv2_size],v1_size*3+1,bbv2_size)
     bb2_offset_partial = tf.matmul(tf.reshape(bb2_offset_vector,[-1,1]), bb2_offset_w)
     bb2_layer = tf.reshape(bb2_layer_partial,[-1,1,bbv2_size]) + tf.reshape(bb2_offset_partial,[1,bonusbelief_len,bbv2_size])
@@ -1111,7 +1111,7 @@ class Target_varsV3:
       tf.square(self.scorevalue_target - scorevalue_prediction)
     )
 
-    self.scorebelief_cdf_loss_unreduced = 0.005 * self.ownership_target_weight * (
+    self.scorebelief_cdf_loss_unreduced = 0.01 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
         axis=1
@@ -1124,7 +1124,7 @@ class Target_varsV3:
       )
     )
 
-    self.bonusbelief_cdf_loss_unreduced = 0.005 * self.ownership_target_weight * (
+    self.bonusbelief_cdf_loss_unreduced = 0.01 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.bonusbelief_target,axis=1) - tf.cumsum(tf.nn.softmax(bonusbelief_output,axis=1),axis=1)),
         axis=1
@@ -1338,7 +1338,7 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
 
     global_epoch_float_capped = tf.math.minimum(tf.constant(180.0),global_epoch)
     per_sample_learning_rate = (
-      tf.constant(0.00030) / tf.pow(global_epoch_float_capped * tf.constant(0.1) + tf.constant(1.0), tf.constant(1.333333))
+      tf.constant(0.00040) / tf.pow(global_epoch_float_capped * tf.constant(0.1) + tf.constant(1.0), tf.constant(1.333333))
     )
 
     lr_adjusted_variables = model.lr_adjusted_variables
