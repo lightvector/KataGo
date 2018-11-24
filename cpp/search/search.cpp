@@ -731,20 +731,22 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
        (rootSafeArea[moveLoc] == opp && rootBoard.isSuicide(moveLoc,rootPla)))
       return false;
 
-    //Also if the last 5 opponent moves in a row were passes, we don't even require that the
-    //area is pass-alive-opponent owned, and we also prohibit outright any ordinary moves in the opponent's pass-alive area.
-    if(lastIdx >= 8 &&
+    //Also if the last 6 opponent moves in a row were passes, we don't even require that the
+    //area is pass-alive-opponent owned, and we also prohibit outright any ordinary moves in the opponent's pass-alive area or the player's own pass-alive area.
+    if(lastIdx >= 10 &&
        rootHistory.moveHistory[lastIdx-0].loc == Board::PASS_LOC &&
        rootHistory.moveHistory[lastIdx-2].loc == Board::PASS_LOC &&
        rootHistory.moveHistory[lastIdx-4].loc == Board::PASS_LOC &&
        rootHistory.moveHistory[lastIdx-6].loc == Board::PASS_LOC &&
        rootHistory.moveHistory[lastIdx-8].loc == Board::PASS_LOC &&
+       rootHistory.moveHistory[lastIdx-10].loc == Board::PASS_LOC &&
        rootHistory.moveHistory[lastIdx-0].pla == opp &&
        rootHistory.moveHistory[lastIdx-2].pla == opp &&
        rootHistory.moveHistory[lastIdx-4].pla == opp &&
        rootHistory.moveHistory[lastIdx-6].pla == opp &&
        rootHistory.moveHistory[lastIdx-8].pla == opp &&
-       (rootSafeArea[moveLoc] == opp || rootBoard.isSuicide(moveLoc,rootPla)))
+       rootHistory.moveHistory[lastIdx-10].pla == opp &&
+       (rootSafeArea[moveLoc] == opp || rootSafeArea[moveLoc] == rootPla || rootBoard.isSuicide(moveLoc,rootPla)))
       return false;
   }
   return true;

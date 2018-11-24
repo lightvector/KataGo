@@ -509,7 +509,7 @@ A7  : T   0.62c W   1.02c S  -0.39c ( -0.3) V   0.05c P  4.61% VW  9.14% N      
 
     Board board = Board::parseBoard(7,7,R"%%(
 ..xx...
-xxxxxxx
+xx.xxxx
 xxxx.xx
 .xxoooo
 xxxo..x
@@ -519,6 +519,10 @@ o..oo.x
     Player nextPla = P_BLACK;
     Rules rules = Rules::getTrompTaylorish();
     BoardHistory hist(board,nextPla,rules,0);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("C6",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("G7",board),nextPla,NULL);
     nextPla = getOpp(nextPla);
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
@@ -535,9 +539,9 @@ o..oo.x
       }
       return false;
     };
-    auto hasOppPassAliveRootMoves = [](const Search* search) {
+    auto hasPassAliveRootMoves = [](const Search* search) {
       for(int i = 0; i<search->rootNode->numChildren; i++) {
-        if(search->rootSafeArea[search->rootNode->children[i]->prevMoveLoc] == getOpp(search->rootPla))
+        if(search->rootSafeArea[search->rootNode->children[i]->prevMoveLoc] != C_EMPTY)
           return true;
       }
       return false;
@@ -708,7 +712,7 @@ pass pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW  4.05% N 
       //Now play forward the pass. The tree should still have useless suicides in it
       search->makeMove(Board::PASS_LOC,nextPla);
       assert(hasSuicideRootMoves(search));
-      assert(hasOppPassAliveRootMoves(search));
+      assert(hasPassAliveRootMoves(search));
 
       out << search->rootBoard << endl;
       search->printTree(out, search->rootNode, options);
@@ -741,7 +745,7 @@ pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW  4.05% N      
       //But the moment we begin a search, it should no longer.
       search->beginSearch();
       assert(!hasSuicideRootMoves(search));
-      assert(!hasOppPassAliveRootMoves(search));
+      assert(!hasPassAliveRootMoves(search));
 
       out << search->rootBoard << endl;
       search->printTree(out, search->rootNode, options);
@@ -757,12 +761,10 @@ HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
  1 O . . O O . X
 
 
-: T  -0.07c W   0.04c S  -0.10c ( -0.1) V  -5.89c N     124  --  A4 B1 E5 F1 E3 F3
+: T  -0.54c W  -1.14c S   0.60c ( +0.4) V  -5.89c N      49  --  E5 E3 B7 F1 A4 E5
 ---Black(v)---
-A4  : T  -0.38c W   0.17c S  -0.55c ( -0.4) V  -1.43c P 27.46% VW 31.53% N      70  --  B1 E5 F1 E3 F3
-E5  : T  -1.61c W  -2.13c S   0.52c ( +0.4) V  10.73c P 13.48% VW 32.36% N      47  --  E3 B7 F1 A4 E5
-B7  : T   9.58c W  10.39c S  -0.80c ( -0.6) V -10.55c P  5.08% VW 27.10% N       5  --  B1 A4
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW  9.01% N       1  --
+E5  : T  -1.61c W  -2.13c S   0.52c ( +0.4) V  10.73c P 13.48% VW 78.26% N      47  --  E3 B7 F1 A4 E5
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW 21.74% N       1  --
 
 )%%";
       expect(name,out,expected);
@@ -784,12 +786,10 @@ HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
  1 O . . O O . X
 
 
-: T   2.18c W   1.89c S   0.29c ( +0.2) V  -5.89c N     400  --  A4 E3 B1 G3 C1 E5 C1
+: T   2.57c W   2.42c S   0.15c ( +0.1) V  -5.89c N     400  --  E5 C1 A4 B7 D7 A4 A7
 ---Black(v)---
-A4  : T   1.28c W   1.21c S   0.06c ( +0.0) V  -1.43c P 27.46% VW 32.67% N     296  --  E3 B1 G3 C1 E5 C1 F1
-E5  : T   3.84c W   2.97c S   0.88c ( +0.6) V  10.73c P 13.48% VW 30.11% N      81  --  pass E3 E3 B7 F1 A4 E5
-B7  : T   4.73c W   3.67c S   1.06c ( +0.8) V -10.55c P  5.08% VW 29.92% N      20  --  B1 E5 A4
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW  7.30% N       2  --
+E5  : T   2.35c W   2.21c S   0.13c ( +0.1) V  10.73c P 13.48% VW 81.29% N     397  --  C1 A4 B7 D7 A4 A7
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW 18.71% N       2  --
 
 )%%";
       expect(name,out,expected);
