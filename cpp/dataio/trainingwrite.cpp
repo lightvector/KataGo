@@ -309,7 +309,6 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[40] = (hist.encorePhase == 2 || hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
 
   //Unused
-  rowGlobal[41] = 0.0f;
   rowGlobal[42] = 0.0f;
 
   //Some misc metadata
