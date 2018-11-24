@@ -1,5 +1,7 @@
 Running search tests
 GAME 1 ==========================================================================
+(An ordinary pro game)
+
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16936861696 compute capability major 7 minor 0
 : Cuda backend: Model version 2
 MoveNum: 20 HASH: 9C149A65DD8EAFF46E53149CADCF4436
@@ -211,7 +213,11 @@ O5  : T -86.01c W -86.01c S   0.00c ( +0.0) V -86.01c P  2.32% VW  7.19% N      
 N3  : T -80.24c W -80.24c S   0.00c ( +0.0) V -80.24c P  2.23% VW  7.68% N       1  --  
 N8  : T -78.83c W -78.83c S   0.00c ( +0.0) V -78.83c P  1.90% VW  7.80% N       1  --  
 K16 : T -73.21c W -73.21c S   0.00c ( +0.0) V -73.21c P  1.85% VW  8.30% N       1  --  
+
+
 GAME 2 ==========================================================================
+(Another ordinary pro game)
+
 MoveNum: 23 HASH: BC4A4A9B30301681DA536778DFC80294
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -417,7 +423,11 @@ M9  : T  14.40c W  14.40c S   0.00c ( +0.0) V  25.04c P  2.06% VW  6.88% N      
 J17 : T   0.95c W   0.95c S   0.00c ( +0.0) V  15.46c P  1.88% VW  5.84% N       2  --  K17
 S9  : T   7.60c W   7.60c S   0.00c ( +0.0) V  32.30c P  1.65% VW  6.35% N       2  --  B16
 B2  : T   4.62c W   4.62c S   0.00c ( +0.0) V   4.62c P  2.06% VW  6.33% N       1  --  
+
+
 GAME 3 ==========================================================================
+Extremely close botvbot game
+
 MoveNum: 191 HASH: 7036EB5ECEC0F3F66F93D8728611791E
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -559,7 +569,12 @@ O18 : T  15.58c W  15.58c S   0.00c ( +0.0) V -11.54c P  3.52% VW 22.08% N      
 P18 : T  19.58c W  19.58c S   0.00c ( +0.0) V -12.57c P  2.93% VW 21.01% N       2  --  pass
 N18 : T  13.04c W  13.04c S   0.00c ( +0.0) V -18.39c P  1.80% VW 22.77% N       2  --  pass
 pass : T 106.74c W 100.00c S   6.74c (+14.0) V --.--c P  5.47% VW  7.48% N       1  --  
+
 Jigo and drawUtility===================
+(Game almost over, just a little cleanup)
+testParams.drawEquivalentWinsForWhite = 0.7
+
+Komi 7.5 (white wins by 0.5)
 MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
    A B C D E F G H J K L M N O P Q R S T
 19 . . . O O X X . . X . . . . . X X X O
@@ -595,6 +610,8 @@ O18 : T  90.68c W  90.20c S   0.48c ( +1.0) V  24.20c P  3.56% VW 21.40% N      
 P18 : T  90.75c W  90.26c S   0.49c ( +1.0) V  23.23c P  2.97% VW 21.36% N      22  --  pass N4 pass pass
 N18 : T  89.99c W  89.49c S   0.49c ( +1.0) V  17.41c P  1.86% VW 21.65% N      22  --  pass N4 pass pass
 pass : T 106.96c W 100.00c S   6.96c (+14.5) V --.--c P  5.48% VW 16.78% N       4  --  
+
+Komi 7.0 (draw)
 MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
    A B C D E F G H J K L M N O P Q R S T
 19 . . . O O X X . . X . . . . . X X X O
@@ -630,7 +647,10 @@ O18 : T  34.75c W  34.67c S   0.08c ( +0.2) V -11.54c P  3.52% VW 22.79% N      
 P18 : T  34.79c W  34.71c S   0.07c ( +0.1) V -12.57c P  2.93% VW 22.73% N      15  --  pass N4 pass pass
 N18 : T  33.39c W  33.31c S   0.07c ( +0.1) V -18.39c P  1.80% VW 23.26% N      15  --  pass N4 pass pass
 pass : T 106.83c W 100.00c S   6.83c (+14.2) V --.--c P  5.47% VW  9.94% N       1  --  
+
 Consecutive searches playouts and visits===================
+Doing three consecutive searches by visits
+
 MoveNum: 85 HASH: B8EE81379249B4294DBB36EA4B7E08F6
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -746,6 +766,9 @@ Tree:
 ---White(^)---
 K8  : T   2.05c W   2.05c S   0.00c ( +0.0) V  -1.08c P 84.24% VW 53.93% N     196  --  M9 L9 L10 M10 N9 K10 D2
 J7  : T -10.09c W -10.09c S   0.00c ( +0.0) V -12.11c P  4.20% VW 46.07% N       3  --  M9 K6
+
+Doing three consecutive searches by playouts (limit 200)
+
 MoveNum: 85 HASH: B8EE81379249B4294DBB36EA4B7E08F6
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -863,7 +886,11 @@ Tree:
 K8  : T   1.85c W   1.85c S   0.00c ( +0.0) V  -1.08c P 84.24% VW 37.50% N     352  --  M9 L9 L10 M10 N9 K10 D2
 J7  : T  -9.98c W  -9.98c S   0.00c ( +0.0) V -12.11c P  4.20% VW 31.75% N       4  --  M9 K6
 L9  : T -17.91c W -17.91c S   0.00c ( +0.0) V -17.91c P  1.46% VW 30.75% N       1  --  
+
+
 GAME 4 ==========================================================================
+(A pro game)
+
 MoveNum: 44 HASH: 45273ADE5CB7C356A1AD60D0C9042620
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -905,6 +932,8 @@ O6  : T  39.32c W  39.32c S   0.00c ( +0.0) V  22.69c P  3.40% VW 10.13% N      
 C3  : T  43.37c W  43.37c S   0.00c ( +0.0) V  27.55c P  1.96% VW  9.76% N       2  --  F2
 S18 : T  48.71c W  48.71c S   0.00c ( +0.0) V  48.71c P  2.13% VW  9.39% N       1  --  
 With noise===================
+Adding root noise to the search
+
 MoveNum: 44 HASH: 45273ADE5CB7C356A1AD60D0C9042620
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -965,3 +994,5 @@ O9  : T  41.23c W  41.23c S   0.00c ( +0.0) V  41.23c P  0.70% VW  3.67% N      
 D13 : T  39.78c W  39.78c S   0.00c ( +0.0) V  39.78c P  0.67% VW  3.72% N       1  --  
 C8  : T  34.68c W  34.68c S   0.00c ( +0.0) V  34.68c P  0.64% VW  3.89% N       1  --  
 P1  : T  86.41c W  86.41c S   0.00c ( +0.0) V  86.41c P  0.58% VW  2.25% N       1  --  
+
+
