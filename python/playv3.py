@@ -155,6 +155,22 @@ def get_input_feature(board, boards, moves, rules, feature_idx):
       locs_and_values.append((loc,bin_input_data[0,pos,feature_idx]))
   return locs_and_values
 
+def get_pass_alive(board, rules):
+  pla = board.pla
+  opp = Board.get_opp(pla)
+  area = [-1 for i in range(board.arrsize)]
+  nonPassAliveStones = False
+  safeBigTerritories = True
+  unsafeBigTerritories = False
+  board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
+
+  locs_and_values = []
+  for y in range(board.size):
+    for x in range(board.size):
+      loc = board.loc(x,y)
+      locs_and_values.append((loc,area[loc]))
+  return locs_and_values
+
 
 def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent, value_and_score=None):
   divisor = 1.0
@@ -367,6 +383,7 @@ def run_gtp(session):
     'scorebelief-japanese',
     'bonusbelief',
     'bonusbelief-japanese',
+    'passalive',
   ]
   known_analyze_commands = [
     'gfx/Policy/policy',
@@ -380,6 +397,7 @@ def run_gtp(session):
     'gfx/ScoreBeliefJP/scorebelief-japanese',
     'gfx/BonusBelief/bonusbelief',
     'gfx/BonusBeliefJP/bonusbelief-japanese',
+    'gfx/PassAlive/passalive',
   ]
 
   board_size = 19
@@ -652,6 +670,20 @@ def run_gtp(session):
       locs_and_values = get_input_feature(board, boards, moves, rules, feature_idx)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div, is_percent=False)
+      ret = "\n".join(gfx_commands)
+
+    elif command[0] == "passalive":
+      rules = {
+        "koRule": "KO_POSITIONAL",
+        "scoringRule": "SCORING_TERRITORY",
+        "multiStoneSuicideLegal": False,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+      }
+      locs_and_values = get_pass_alive(board, rules)
+      gfx_commands = []
+      fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normalization_div=None, is_percent=False)
       ret = "\n".join(gfx_commands)
 
     elif command[0] == "scorebelief":
