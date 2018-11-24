@@ -181,8 +181,10 @@ with tf.Session(config=tfconfig) as session:
     "vloss": target_vars.value_loss,
     "oloss": target_vars.ownership_loss,
     "svloss": target_vars.scorevalue_loss,
-    "sbloss": target_vars.scorebelief_loss,
-    "bbloss": target_vars.bonusbelief_loss,
+    "sbpdfloss": target_vars.scorebelief_pdf_loss,
+    "sbcdfloss": target_vars.scorebelief_cdf_loss,
+    "bbpdfloss": target_vars.bonusbelief_pdf_loss,
+    "bbcdfloss": target_vars.bonusbelief_cdf_loss,
     "uvloss": target_vars.utilityvar_loss,
     "rwlloss": target_vars.winloss_reg_loss,
     "rsvloss": target_vars.scorevalue_reg_loss,
@@ -194,15 +196,17 @@ with tf.Session(config=tfconfig) as session:
 
   def validation_stats_str(vmetrics_evaled):
     # return "acc1 %5.2f%% acc4 %5.2f%% ploss %f vloss %f oloss %f svloss %f sbloss %f bbloss %f uvloss %f vconf %f ventr %f" % (
-    return "ploss %f vloss %f oloss %f svloss %f sbloss %f bbloss %f uvloss %f rwlloss %f rsvloss %f roloss %f vconf %f ventr %f" % (
+    return "ploss %f vloss %f oloss %f svloss %f sbpdfloss %f sbcdfloss %f bbpdfloss %f bbcdfloss %f uvloss %f rwlloss %f rsvloss %f roloss %f vconf %f ventr %f" % (
       # vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
       # vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
       vmetrics_evaled["ploss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["vloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["oloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["svloss"] / vmetrics_evaled["wsum"],
-      vmetrics_evaled["sbloss"] / vmetrics_evaled["wsum"],
-      vmetrics_evaled["bbloss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["sbpdfloss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["sbcdfloss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["bbpdfloss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["bbcdfloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["uvloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["rwlloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["rsvloss"] / vmetrics_evaled["wsum"],

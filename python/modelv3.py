@@ -1111,36 +1111,31 @@ class Target_varsV3:
       tf.square(self.scorevalue_target - scorevalue_prediction)
     )
 
-    self.scorebelief_loss_cdf = 0.005 * self.ownership_target_weight * (
+    self.scorebelief_cdf_loss_unreduced = 0.005 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
         axis=1
       )
     )
-    self.scorebelief_loss_pdf = 0.05 * self.ownership_target_weight * (
+    self.scorebelief_pdf_loss_unreduced = 0.05 * self.ownership_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.scorebelief_target,
         logits=scorebelief_output
       )
     )
-    self.scorebelief_loss_unreduced = self.scorebelief_loss_cdf + self.scorebelief_loss_pdf
 
-
-    self.bonusbelief_loss_cdf = 0.005 * self.ownership_target_weight * (
+    self.bonusbelief_cdf_loss_unreduced = 0.005 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.bonusbelief_target,axis=1) - tf.cumsum(tf.nn.softmax(bonusbelief_output,axis=1),axis=1)),
         axis=1
       )
     )
-    self.bonusbelief_loss_pdf = 0.05 * self.ownership_target_weight * (
+    self.bonusbelief_pdf_loss_unreduced = 0.05 * self.ownership_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.bonusbelief_target,
         logits=bonusbelief_output
       )
     )
-    self.bonusbelief_loss_unreduced = self.bonusbelief_loss_cdf + self.bonusbelief_loss_pdf
-
-
 
     self.utilityvar_loss_unreduced = 0.05 * self.utilityvar_target_weight * (
       tf.reduce_sum(tf.square(self.utilityvar_target - tf.math.softplus(miscvalues_output[:,1:5])),axis=1)
@@ -1187,8 +1182,10 @@ class Target_varsV3:
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced)
     self.scorevalue_loss = tf.reduce_sum(self.target_weight_used * self.scorevalue_loss_unreduced)
-    self.scorebelief_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_loss_unreduced)
-    self.bonusbelief_loss = tf.reduce_sum(self.target_weight_used * self.bonusbelief_loss_unreduced)
+    self.scorebelief_pdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_pdf_loss_unreduced)
+    self.scorebelief_cdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_cdf_loss_unreduced)
+    self.bonusbelief_pdf_loss = tf.reduce_sum(self.target_weight_used * self.bonusbelief_pdf_loss_unreduced)
+    self.bonusbelief_cdf_loss = tf.reduce_sum(self.target_weight_used * self.bonusbelief_cdf_loss_unreduced)
     self.utilityvar_loss = tf.reduce_sum(self.target_weight_used * self.utilityvar_loss_unreduced)
     self.ownership_loss = tf.reduce_sum(self.target_weight_used * self.ownership_loss_unreduced)
     self.ownership_reg_loss = tf.reduce_sum(self.target_weight_used * self.ownership_reg_loss_unreduced)
@@ -1209,8 +1206,10 @@ class Target_varsV3:
         self.policy_loss +
         self.value_loss +
         self.scorevalue_loss +
-        self.scorebelief_loss +
-        self.bonusbelief_loss +
+        self.scorebelief_pdf_loss +
+        self.scorebelief_cdf_loss +
+        self.bonusbelief_pdf_loss +
+        self.bonusbelief_cdf_loss +
         self.utilityvar_loss +
         self.ownership_loss +
         self.ownership_reg_loss +
