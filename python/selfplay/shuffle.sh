@@ -3,13 +3,16 @@
 #Shuffles and copies selfplay training from selfplay/ to shuffleddata/current/
 #Should be run periodically.
 
-if [[ $# -ne 1 ]]
+if [[ $# -ne 2 ]]
 then
-    echo "Usage: $0 BASEDIR"
+    echo "Usage: $0 BASEDIR NTHREADS"
     echo "BASEDIR containing selfplay data and models and related directories"
+    echo "NTHREADS number of parallel threads/processes to use in shuffle"
     exit 0
 fi
 BASEDIR=$1
+shift
+NTHREADS=$1
 shift
 
 #------------------------------------------------------------------------------
@@ -28,7 +31,7 @@ time python3 ./shuffle.py \
      -window-factor 3 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
      -approx-rows-per-out-file 200000 \
-     -num-processes 4 \
+     -num-processes $NTHREADS \
      -batch-size 256 \
     2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outtrain.txt
 
@@ -39,7 +42,7 @@ time python3 ./shuffle.py \
      -window-factor 3 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
      -approx-rows-per-out-file 200000 \
-     -num-processes 4 \
+     -num-processes $NTHREADS \
      -batch-size 256 \
      -keep-target-rows 60000 \
     2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outval.txt
