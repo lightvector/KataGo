@@ -61,10 +61,10 @@ add_custom_command(
 #------------------------------------------------------------------------------------
 
 if(USE_TCMALLOC)
-  find_library(GooglePerftools REQUIRED)
-  # if(NOT TCMALLOC_FOUND)
-  #   message(FATAL_ERROR "Could not find tcmalloc")
-  # endif()
+  find_library(TCMALLOC_LIB NAMES tcmalloc_minimal HINTS /usr)
+  if(NOT TCMALLOC_LIB)
+    message(FATAL_ERROR "Could not find tcmalloc")
+  endif()
 endif()
 
 #------------------------------------------------------------------------------------
