@@ -96,6 +96,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
   bool ponderingEnabled = cfg.getBool("ponderingEnabled");
+  bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
   {
@@ -128,6 +129,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     "komi",
     "play",
     "genmove",
+    "showboard",
   };
 
   logger.write("Beginning main protocol loop");
@@ -325,24 +327,47 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       else {
         ClockTimer timer;
         nnEval->clearStats();
-        Loc loc = bot->genMoveSynchronous(pla);
-        bool isLegal = bot->isLegal(loc,pla);
-        if(loc == Board::NULL_LOC || !isLegal) {
+        Loc moveLoc = bot->genMoveSynchronous(pla);
+        bool isLegal = bot->isLegal(moveLoc,pla);
+        if(moveLoc == Board::NULL_LOC || !isLegal) {
           responseIsError = true;
           response = "genmove returned null location or illegal move";
           ostringstream sout;
           sout << "genmove null location or illegal move!?!" << "\n";
           sout << bot->getRootBoard() << "\n";
           sout << "Pla: " << playerToString(pla) << "\n";
-          sout << "Loc: " << Location::toString(loc,bot->getRootBoard()) << "\n";
+          sout << "MoveLoc: " << Location::toString(moveLoc,bot->getRootBoard()) << "\n";
           logger.write(sout.str());
         }
-        response = Location::toString(loc,bot->getRootBoard());
+
+        //Implement cleanupBeforePass hack - the bot wants to pass, so instead cleanup if there is something to clean
+        if(cleanupBeforePass && moveLoc == Board::PASS_LOC) {
+          Board board = bot->getRootBoard();
+          BoardHistory hist = bot->getRootHist();
+          Color* safeArea = bot->getSearch()->rootSafeArea;
+          assert(safeArea != NULL);
+          //Scan the board for any spot that is adjacent to an opponent group that is part of our pass-alive territory.
+          for(int y = 0; y<board.y_size; y++) {
+            for(int x = 0; x<board.x_size; x++) {
+              Loc otherLoc = Location::getLoc(x,y,board.x_size);
+              if(moveLoc == Board::PASS_LOC &&
+                 board.colors[otherLoc] == C_EMPTY &&
+                 safeArea[otherLoc] == pla &&
+                 board.isAdjacentToPla(otherLoc,getOpp(pla)) &&
+                 hist.isLegal(board,otherLoc,pla)
+              ) {
+                moveLoc = otherLoc;
+              }
+            }
+          }
+        }
+        
+        response = Location::toString(moveLoc,bot->getRootBoard());
 
         if(logSearchInfo) {
           Search* search = bot->getSearch();
           ostringstream sout;
-          Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
+          Board::printBoard(sout, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
           sout << "\n";
           sout << "Time taken: " << timer.getSeconds() << "\n";
           sout << "Root visits: " << search->numRootVisits() << "\n";
@@ -357,13 +382,19 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           logger.write(sout.str());
         }
 
-        bool suc = bot->makeMove(loc,pla);
+        bool suc = bot->makeMove(moveLoc,pla);
         assert(suc);
 
         maybeStartPondering = true;
       }
     }
 
+    else if(command == "showboard") {
+      ostringstream sout;
+      Board::printBoard(sout, bot->getRootBoard(), Board::NULL_LOC, &(bot->getRootHist().moveHistory));
+      response = Global::trim(sout.str());
+    }
+      
     else {
       responseIsError = true;
       response = "unknown command";
