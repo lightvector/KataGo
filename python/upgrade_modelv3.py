@@ -58,6 +58,10 @@ saver = tf.train.Saver(
   save_relative_paths = True,
 )
 
+log("Loading old model training history: " + str(os.path.join(src_dir,"trainhistory.json")))
+with open(os.path.join(src_dir,"trainhistory.json")) as f:
+  trainhistory = json.load(f)
+
 tfconfig = tf.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
 with tf.Session(config=tfconfig) as session:
@@ -116,7 +120,11 @@ with tf.Session(config=tfconfig) as session:
   log("Saving weights")
   saver.save(session, os.path.join(target_dir,"initial_weights","model"), write_state=False, write_meta_graph=False)
 
+  trainhistory.append(("upgraded",newmodelconfig))
   with open(os.path.join(target_dir,"initial_weights","model.config.json"),"w") as f:
     json.dump(newmodelconfig,f)
+  with open(os.path.join(target_dir,"initial_weights","trainhistory.json"),"w") as f:
+    json.dump(trainhistory,f)
+
 
 log("Done")

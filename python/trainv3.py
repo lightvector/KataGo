@@ -332,6 +332,13 @@ if os.path.isfile(os.path.join(traindir,"trainhistory.json")):
   trainlog("Loading existing training history: " + str(os.path.join(traindir,"trainhistory.json")))
   with open(os.path.join(traindir,"trainhistory.json")) as f:
     trainhistory = json.load(f)
+elif os.path.isfile(os.path.join(traindir,"initial_weights","trainhistory.json")):
+  trainlog("Loading previous model's training history: " + str(os.path.join(traindir,"initial_weights","trainhistory.json")))
+  with open(os.path.join(traindir,"initial_weights","trainhistory.json")) as f:
+    trainhistory = json.load(f)
+else:
+  trainhistory.append(("initialized",model_config))
+
 
 def save_history(global_step_value):
   trainhistory.append(("nsamp",int(global_step_value * batch_size)))
