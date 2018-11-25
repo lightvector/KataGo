@@ -10,6 +10,7 @@
 #include "../game/boardhistory.h"
 #include "../dataio/trainingwrite.h"
 #include "../search/searchparams.h"
+#include "../search/search.h"
 
 //Object choosing random initial rules and board sizes for games. Threadsafe.
 class GameInitializer {
@@ -131,8 +132,11 @@ struct FancyModes {
   ~FancyModes();
 };
 
-//Functions to run a single game
+//Functions to run a single game or other things
 namespace Play {
+  //Use the given bot to play free handicap stones, modifying the board and hist in the process and setting the bot's position to it.
+  void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board& board, BoardHistory& hist, double temperature);
+
   FinishedGameData* runGame(
     const Board& initialBoard, Player pla, const BoardHistory& initialHist, int numExtraBlack,
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,

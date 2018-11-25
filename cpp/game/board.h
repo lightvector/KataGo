@@ -164,6 +164,8 @@ struct Board
   bool isAdjacentToPla(Loc loc, Player pla) const;
   //Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
   bool isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const;
+  //Is this board empty?
+  bool isEmpty() const;
 
   //Configuration the board in various ways
   void clearSimpleKoLoc();

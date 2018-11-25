@@ -320,12 +320,13 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
 
 
 //Place black handicap stones, free placement
-static void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board& board, BoardHistory& hist) {
+void Play::playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board& board, BoardHistory& hist, double temperature) {
   SearchParams oldParams = bot->searchParams;
+  bool oldRootPassLegal = bot->rootPassLegal;
   SearchParams tempParams = oldParams;
   tempParams.rootNoiseEnabled = false;
   tempParams.chosenMoveSubtract = 0.0;
-  tempParams.chosenMoveTemperature = 1.0;
+  tempParams.chosenMoveTemperature = temperature;
   tempParams.numThreads = 1;
   tempParams.maxVisits = 1;
 
@@ -348,7 +349,7 @@ static void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board
   }
 
   bot->setParams(oldParams);
-  bot->setRootPassLegal(true);
+  bot->setRootPassLegal(oldRootPassLegal);
 }
 
 static bool shouldStop(vector<std::atomic<bool>*>& stopConditions) {
@@ -592,8 +593,10 @@ FinishedGameData* Play::runGame(
 
   Board board(initialBoard);
   BoardHistory hist(initialHist);
-  if(numExtraBlack > 0)
-    playExtraBlack(botB,logger,numExtraBlack,board,hist);
+  if(numExtraBlack > 0) {
+    double extraBlackTemperature = 1.0;
+    playExtraBlack(botB,logger,numExtraBlack,board,hist,extraBlackTemperature);
+  }
 
   vector<double>* recordUtilities = NULL;
 
