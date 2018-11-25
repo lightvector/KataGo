@@ -1271,7 +1271,19 @@ class MetricsV3:
         (v.name,reduce_norm(v)) for v in tf.trainable_variables()
       ])
 
-def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch):
+def print_trainable_variables(logf):
+  total_parameters = 0
+  for variable in tf.trainable_variables():
+    shape = variable.get_shape()
+    variable_parameters = 1
+    for dim in shape:
+      variable_parameters *= dim.value
+    total_parameters += variable_parameters
+    logf("Model variable: %s, %d parameters" % (variable.name,variable_parameters))
+
+  logf("Model: %d total parameters" % total_parameters)
+
+def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_epoch_offset=None):
   trainlog("Building model")
 
   #L2 regularization coefficient
@@ -1336,7 +1348,8 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
     global_step_float = tf.cast(global_step, tf.float32)
     global_epoch = global_step_float / tf.constant(num_batches_per_epoch,dtype=tf.float32)
 
-    global_epoch_float_capped = tf.math.minimum(tf.constant(180.0),global_epoch)
+    lr_epoch_offset = 0.0 if lr_epoch_offset is None else float(lr_epoch_offset)
+    global_epoch_float_capped = tf.math.minimum(tf.constant(180.0),global_epoch + tf.constant(lr_epoch_offset,dtype=tf.float32))
     per_sample_learning_rate = (
       tf.constant(0.00030) / tf.pow(global_epoch_float_capped * tf.constant(0.1) + tf.constant(1.0), tf.constant(1.333333))
     )
@@ -1360,17 +1373,7 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
 
 
     if print_model:
-      total_parameters = 0
-      for variable in tf.trainable_variables():
-        shape = variable.get_shape()
-        variable_parameters = 1
-        for dim in shape:
-          variable_parameters *= dim.value
-        total_parameters += variable_parameters
-        trainlog("Model variable %s, %d parameters" % (variable.name,variable_parameters))
-
-      trainlog("Built model, %d total parameters" % total_parameters)
-
+      print_trainable_variables(trainlog)
       for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
         trainlog("Additional update op on train step: %s" % update_op.name)
 

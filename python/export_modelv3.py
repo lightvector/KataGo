@@ -11,6 +11,7 @@ import datetime
 import tensorflow as tf
 import numpy as np
 
+import modelv3
 from modelv3 import ModelV3
 
 #Command and args-------------------------------------------------------------------
@@ -63,17 +64,7 @@ else:
 
 pos_len = 19 # shouldn't matter, all we're doing is exporting weights that don't depend on this
 model = ModelV3(model_config,pos_len,{})
-
-total_parameters = 0
-for variable in tf.trainable_variables():
-  shape = variable.get_shape()
-  variable_parameters = 1
-  for dim in shape:
-    variable_parameters *= dim.value
-  total_parameters += variable_parameters
-  log("Model variable %s, %d parameters" % (variable.name,variable_parameters))
-
-log("Built model, %d total parameters" % total_parameters)
+modelv3.print_trainable_variables(log)
 
 # Testing ------------------------------------------------------------
 
