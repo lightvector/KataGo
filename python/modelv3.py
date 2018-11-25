@@ -1309,12 +1309,12 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
     model = ModelV3(model_config,pos_len,placeholders)
     return model
 
-  placeholders["include_history"] = features["gtnc"][:,28:33]
+  placeholders["include_history"] = features["gtnc"][:,31:36]
 
   policy_target0 = features["ptncm"][:,0,:]
   policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
   placeholders["policy_target"] = policy_target0
-  placeholders["policy_target_weight"] = features["gtnc"][:,25]
+  placeholders["policy_target_weight"] = features["gtnc"][:,26]
 
   placeholders["value_target"] = features["gtnc"][:,0:3]
   placeholders["scorevalue_target"] = features["gtnc"][:,3]
@@ -1323,11 +1323,11 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
   placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
   placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
 
-  placeholders["target_weight_from_data"] = features["gtnc"][:,27]
-  placeholders["ownership_target_weight"] = features["gtnc"][:,26]
-  placeholders["utilityvar_target_weight"] = features["gtnc"][:,41]
+  placeholders["target_weight_from_data"] = features["gtnc"][:,25]
+  placeholders["ownership_target_weight"] = features["gtnc"][:,27]
+  placeholders["utilityvar_target_weight"] = features["gtnc"][:,28]
 
-  placeholders["selfkomi"] = features["gtnc"][:,39]
+  placeholders["selfkomi"] = features["gtnc"][:,42]
   placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
 
   if mode == tf.estimator.ModeKeys.EVAL:

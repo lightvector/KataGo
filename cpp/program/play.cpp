@@ -608,6 +608,7 @@ FinishedGameData* Play::runGame(
 
   gameData->drawEquivalentWinsForWhite = botSpecB.baseParams.drawEquivalentWinsForWhite;
 
+  gameData->numExtraBlack = numExtraBlack;
   gameData->firstTrainingTurn = 0;
   gameData->mode = 0;
   gameData->modeMeta1 = 0;

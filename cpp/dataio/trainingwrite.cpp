@@ -58,6 +58,7 @@ FinishedGameData::FinishedGameData()
    drawEquivalentWinsForWhite(0.0),
    hitTurnLimit(false),
 
+   numExtraBlack(0),
    firstTrainingTurn(0),
    mode(0),
    modeMeta1(0),
@@ -92,7 +93,7 @@ FinishedGameData::~FinishedGameData() {
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 1;
-static const int GLOBAL_TARGET_NUM_CHANNELS = 50;
+static const int GLOBAL_TARGET_NUM_CHANNELS = 54;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 static const int EXTRA_SCORE_DISTR_RADIUS = 15;
 static const int BONUS_SCORE_RADIUS = 30;
@@ -242,21 +243,21 @@ void TrainingWriteBuffers::addRow(
   //Vector for global targets and metadata
   float* rowGlobal = globalTargetsNC.data + curRows * GLOBAL_TARGET_NUM_CHANNELS;
 
+  //Target weight for the whole row
+  rowGlobal[25] = targetWeight;
+
   //Fill policy
   int policySize = NNPos::getPolicySize(posLen);
   int16_t* rowPolicy = policyTargetsNCMove.data + curRows * POLICY_TARGET_NUM_CHANNELS * policySize;
 
   if(policyTarget0 != NULL) {
     fillPolicyTarget(*policyTarget0, policySize, posLen, board.x_size, rowPolicy + 0 * policySize);
-    rowGlobal[25] = 1.0f;
+    rowGlobal[26] = 1.0f;
   }
   else {
     zeroPolicyTarget(policySize, rowPolicy + 0 * policySize);
-    rowGlobal[25] = 0.0f;
+    rowGlobal[26] = 0.0f;
   }
-
-  //Target weight
-  rowGlobal[27] = targetWeight;
 
   //Fill td-like value targets
   assert(whiteValueTargetsIdx >= 0 && whiteValueTargetsIdx < whiteValueTargets.size());
@@ -269,19 +270,23 @@ void TrainingWriteBuffers::addRow(
   //Fill short-term variance info
   const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
   if(thisTargets.hasMctsUtility) {
-    rowGlobal[41] = 1.0f;
+    rowGlobal[28] = 1.0f;
     rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
     rowGlobal[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
     rowGlobal[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
     rowGlobal[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
   }
   else {
-    rowGlobal[41] = 0.0f;
+    rowGlobal[28] = 0.0f;
     rowGlobal[21] = 0.0f;
     rowGlobal[22] = 0.0f;
     rowGlobal[23] = 0.0f;
     rowGlobal[24] = 0.0f;
   }
+
+  //Unused
+  rowGlobal[29] = 0.0f;
+  rowGlobal[30] = 0.0f;
 
   //Fill in whether we should use history or not
   bool useHist0 = rand.nextDouble() < 0.98;
@@ -289,40 +294,42 @@ void TrainingWriteBuffers::addRow(
   bool useHist2 = useHist1 && rand.nextDouble() < 0.98;
   bool useHist3 = useHist2 && rand.nextDouble() < 0.98;
   bool useHist4 = useHist3 && rand.nextDouble() < 0.98;
-  rowGlobal[28] = useHist0 ? 1.0f : 0.0f;
-  rowGlobal[29] = useHist1 ? 1.0f : 0.0f;
-  rowGlobal[30] = useHist2 ? 1.0f : 0.0f;
-  rowGlobal[31] = useHist3 ? 1.0f : 0.0f;
-  rowGlobal[32] = useHist4 ? 1.0f : 0.0f;
+  rowGlobal[31] = useHist0 ? 1.0f : 0.0f;
+  rowGlobal[32] = useHist1 ? 1.0f : 0.0f;
+  rowGlobal[33] = useHist2 ? 1.0f : 0.0f;
+  rowGlobal[34] = useHist3 ? 1.0f : 0.0f;
+  rowGlobal[35] = useHist4 ? 1.0f : 0.0f;
 
   //Fill in hash of game
   Hash128 gameHash = data.gameHash;
-  rowGlobal[33] = (float)(gameHash.hash0 & 0x3FFFFF);
-  rowGlobal[34] = (float)((gameHash.hash0 >> 22) & 0x3FFFFF);
-  rowGlobal[35] = (float)((gameHash.hash0 >> 44) & 0xFFFFF);
-  rowGlobal[36] = (float)(gameHash.hash1 & 0x3FFFFF);
-  rowGlobal[37] = (float)((gameHash.hash1 >> 22) & 0x3FFFFF);
-  rowGlobal[38] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
+  rowGlobal[36] = (float)(gameHash.hash0 & 0x3FFFFF);
+  rowGlobal[37] = (float)((gameHash.hash0 >> 22) & 0x3FFFFF);
+  rowGlobal[38] = (float)((gameHash.hash0 >> 44) & 0xFFFFF);
+  rowGlobal[39] = (float)(gameHash.hash1 & 0x3FFFFF);
+  rowGlobal[40] = (float)((gameHash.hash1 >> 22) & 0x3FFFFF);
+  rowGlobal[41] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
 
   //Various other data
-  rowGlobal[39] = hist.currentSelfKomi(nextPlayer,data.drawEquivalentWinsForWhite);
-  rowGlobal[40] = (hist.encorePhase == 2 || hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
+  rowGlobal[42] = hist.currentSelfKomi(nextPlayer,data.drawEquivalentWinsForWhite);
+  rowGlobal[43] = (hist.encorePhase == 2 || hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
 
   //Unused
-  rowGlobal[42] = 0.0f;
+  rowGlobal[44] = 0.0f;
+  rowGlobal[45] = 0.0f;
 
   //Some misc metadata
-  rowGlobal[43] = turnNumberAfterStart;
-  rowGlobal[44] = data.hitTurnLimit ? 1.0f : 0.0f;
+  rowGlobal[46] = turnNumberAfterStart;
+  rowGlobal[47] = data.hitTurnLimit ? 1.0f : 0.0f;
+  rowGlobal[48] = data.firstTrainingTurn;
+  rowGlobal[49] = data.numExtraBlack;
 
   //Metadata about how the game was initialized
-  rowGlobal[45] = data.firstTrainingTurn;
-  rowGlobal[46] = data.mode;
-  rowGlobal[47] = data.modeMeta1;
-  rowGlobal[48] = data.modeMeta2;
-  rowGlobal[49] = isSidePosition ? 1.0f : 0.0f;
+  rowGlobal[50] = data.mode;
+  rowGlobal[51] = data.modeMeta1;
+  rowGlobal[52] = data.modeMeta2;
+  rowGlobal[53] = isSidePosition ? 1.0f : 0.0f;
 
-  assert(50 == GLOBAL_TARGET_NUM_CHANNELS);
+  assert(54 == GLOBAL_TARGET_NUM_CHANNELS);
 
   int scoreDistrLen = posArea*2 + EXTRA_SCORE_DISTR_RADIUS*2;
   int scoreDistrMid = posArea + EXTRA_SCORE_DISTR_RADIUS;
@@ -333,7 +340,7 @@ void TrainingWriteBuffers::addRow(
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
   if(finalWhiteOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
-    rowGlobal[26] = 0.0f;
+    rowGlobal[27] = 0.0f;
     rowGlobal[20] = 0.0f;
     for(int i = 0; i<posArea; i++)
       rowOwnership[i] = 0;
@@ -348,7 +355,7 @@ void TrainingWriteBuffers::addRow(
     rowBonusScore[bonusScoreMid] = 1;
   }
   else {
-    rowGlobal[26] = 1.0f;
+    rowGlobal[27] = 1.0f;
     //Fill score info
     const ValueTargets& lastTargets = whiteValueTargets[whiteValueTargets.size()-1];
     float score = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
