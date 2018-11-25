@@ -1272,6 +1272,18 @@ class MetricsV3:
         (v.name,reduce_norm(v)) for v in tf.trainable_variables()
       ])
 
+def print_trainable_variables(logf):
+  total_parameters = 0
+  for variable in tf.trainable_variables():
+    shape = variable.get_shape()
+    variable_parameters = 1
+    for dim in shape:
+      variable_parameters *= dim.value
+    total_parameters += variable_parameters
+    logf("Model variable: %s, %d parameters" % (variable.name,variable_parameters))
+
+  logf("Model: %d total parameters" % total_parameters)
+
 def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch):
   trainlog("Building model")
 
@@ -1361,17 +1373,7 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
 
 
     if print_model:
-      total_parameters = 0
-      for variable in tf.trainable_variables():
-        shape = variable.get_shape()
-        variable_parameters = 1
-        for dim in shape:
-          variable_parameters *= dim.value
-        total_parameters += variable_parameters
-        trainlog("Model variable %s, %d parameters" % (variable.name,variable_parameters))
-
-      trainlog("Built model, %d total parameters" % total_parameters)
-
+      print_trainable_variables(trainlog)
       for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
         trainlog("Additional update op on train step: %s" % update_op.name)
 

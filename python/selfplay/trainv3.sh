@@ -4,16 +4,19 @@
 #Should be run once per persistent training process.
 #Outputs results in tfsavedmodels_toexport/ in an ongoing basis.
 
-if [[ $# -ne 2 ]]
+if [[ $# -ne 3 ]]
 then
-    echo "Usage: $0 BASEDIR TRAININGNAME"
+    echo "Usage: $0 BASEDIR TRAININGNAME MODELKIND"
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "TRANINGNAME name to suffix models with, specific to this training daemon"
+    echo "MODELKIND what size model to train"
     exit 0
 fi
 BASEDIR=$1
 shift
 TRAININGNAME=$1
+shift
+MODELKIND=$1
 shift
 
 #------------------------------------------------------------------------------
@@ -28,5 +31,6 @@ time python3 ./trainv3.py \
      -exportsuffix $TRAININGNAME \
      -pos-len 19 \
      -batch-size 256 \
-     -gpu-memory-frac 0.7 \
+     -gpu-memory-frac 0.6 \
+     -model-kind $MODELKIND
      2>&1 | tee $BASEDIR/train/$TRAININGNAME/stdout.txt

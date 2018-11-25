@@ -12,6 +12,7 @@ import contextlib
 import json
 import datetime
 import gc
+import shutil
 import tensorflow as tf
 import numpy as np
 
@@ -19,6 +20,7 @@ import data
 from board import Board
 import modelv3
 from modelv3 import ModelV3, Target_varsV3, MetricsV3
+import modelconfigs
 
 #Command and args-------------------------------------------------------------------
 
@@ -34,6 +36,7 @@ parser.add_argument('-exportsuffix', help='Suffix to append to names of models',
 parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
 parser.add_argument('-batch-size', help='Expected batch size of the input data, must match tfrecords', type=int, required=True)
 parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
+parser.add_argument('-model-kind', help='String name for what model to use', required=True)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 args = vars(parser.parse_args())
 
@@ -44,6 +47,7 @@ exportsuffix = args["exportsuffix"]
 pos_len = args["pos_len"]
 batch_size = args["batch_size"]
 gpu_memory_frac = args["gpu_memory_frac"]
+model_kind = args["model_kind"]
 verbose = args["verbose"]
 logfilemode = "a"
 
@@ -80,27 +84,7 @@ def find_var(name):
     if variable.name == name:
       return variable
 
-model_config = {
-  "trunk_num_channels":96,
-  "mid_num_channels":96,
-  "regular_num_channels":64,
-  "dilated_num_channels":32,
-  "gpool_num_channels":32,
-  "block_kind": [
-    ["rconv1","regular"],
-    ["rconv2","regular"],
-    ["rconv3","gpool"],
-    ["rconv4","regular"],
-    ["rconv5","gpool"],
-    ["rconv6","regular"]
-  ],
-  "p1_num_channels":48,
-  "g1_num_channels":32,
-  "v1_num_channels":32,
-  "sbv2_num_channels":32,
-  "bbv2_num_channels":16,
-  "v2_size":32
-}
+model_config = modelconfigs.config_of_name[model_kind]
 
 with open(os.path.join(traindir,"model.config.json"),"w") as f:
   json.dump(model_config,f)
@@ -108,9 +92,12 @@ with open(os.path.join(traindir,"model.config.json"),"w") as f:
 
 # MODEL ----------------------------------------------------------------
 printed_model_yet = False
+initial_weights_already_loaded = False
 
 def model_fn(features,labels,mode,params):
   global printed_model_yet
+  global initial_weights_already_loaded
+
   print_model = not printed_model_yet
 
   built = modelv3.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch)
@@ -201,6 +188,27 @@ def model_fn(features,labels,mode,params):
     }, every_n_iter=print_train_loss_every_batches)
 
     printed_model_yet = True
+
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    initial_weights_dir = os.path.join(traindir,"initial_weights")
+    if os.path.exists(initial_weights_dir) and not initial_weights_already_loaded:
+      print("Initial weights found at: " + initial_weights_dir)
+      checkpoint_path = os.path.join(initial_weights_dir,"model")
+      vars_in_checkpoint = tf.contrib.framework.list_variables(checkpoint_path)
+      print("Checkpoint contains:")
+      for var in vars_in_checkpoint:
+        print(var)
+
+      print("Modifying graph to load weights from checkpoint upon init...")
+      sys.stdout.flush()
+      sys.stderr.flush()
+
+      variables_to_restore = tf.trainable_variables()
+      assignment_mapping = { v.name.split(":")[0] : v for v in variables_to_restore }
+      tf.train.init_from_checkpoint(checkpoint_path, assignment_mapping)
+      initial_weights_already_loaded = True
 
     return tf.estimator.EstimatorSpec(
       mode,
