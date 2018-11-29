@@ -3,6 +3,7 @@
 #include "core/timer.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
+#include "program/play.h"
 #include "main.h"
 
 using namespace std;
@@ -96,6 +97,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
   bool ponderingEnabled = cfg.getBool("ponderingEnabled");
+  bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
   {
@@ -128,6 +130,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     "komi",
     "play",
     "genmove",
+    "showboard",
+    "place_free_handicap",
+    "set_free_handicap",
   };
 
   logger.write("Beginning main protocol loop");
@@ -325,24 +330,47 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       else {
         ClockTimer timer;
         nnEval->clearStats();
-        Loc loc = bot->genMoveSynchronous(pla);
-        bool isLegal = bot->isLegal(loc,pla);
-        if(loc == Board::NULL_LOC || !isLegal) {
+        Loc moveLoc = bot->genMoveSynchronous(pla);
+        bool isLegal = bot->isLegal(moveLoc,pla);
+        if(moveLoc == Board::NULL_LOC || !isLegal) {
           responseIsError = true;
           response = "genmove returned null location or illegal move";
           ostringstream sout;
           sout << "genmove null location or illegal move!?!" << "\n";
           sout << bot->getRootBoard() << "\n";
           sout << "Pla: " << playerToString(pla) << "\n";
-          sout << "Loc: " << Location::toString(loc,bot->getRootBoard()) << "\n";
+          sout << "MoveLoc: " << Location::toString(moveLoc,bot->getRootBoard()) << "\n";
           logger.write(sout.str());
         }
-        response = Location::toString(loc,bot->getRootBoard());
+
+        //Implement cleanupBeforePass hack - the bot wants to pass, so instead cleanup if there is something to clean
+        if(cleanupBeforePass && moveLoc == Board::PASS_LOC) {
+          Board board = bot->getRootBoard();
+          BoardHistory hist = bot->getRootHist();
+          Color* safeArea = bot->getSearch()->rootSafeArea;
+          assert(safeArea != NULL);
+          //Scan the board for any spot that is adjacent to an opponent group that is part of our pass-alive territory.
+          for(int y = 0; y<board.y_size; y++) {
+            for(int x = 0; x<board.x_size; x++) {
+              Loc otherLoc = Location::getLoc(x,y,board.x_size);
+              if(moveLoc == Board::PASS_LOC &&
+                 board.colors[otherLoc] == C_EMPTY &&
+                 safeArea[otherLoc] == pla &&
+                 board.isAdjacentToPla(otherLoc,getOpp(pla)) &&
+                 hist.isLegal(board,otherLoc,pla)
+              ) {
+                moveLoc = otherLoc;
+              }
+            }
+          }
+        }
+        
+        response = Location::toString(moveLoc,bot->getRootBoard());
 
         if(logSearchInfo) {
           Search* search = bot->getSearch();
           ostringstream sout;
-          Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
+          Board::printBoard(sout, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
           sout << "\n";
           sout << "Time taken: " << timer.getSeconds() << "\n";
           sout << "Root visits: " << search->numRootVisits() << "\n";
@@ -357,13 +385,96 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           logger.write(sout.str());
         }
 
-        bool suc = bot->makeMove(loc,pla);
+        bool suc = bot->makeMove(moveLoc,pla);
         assert(suc);
 
         maybeStartPondering = true;
       }
     }
 
+    else if(command == "showboard") {
+      ostringstream sout;
+      Board::printBoard(sout, bot->getRootBoard(), Board::NULL_LOC, &(bot->getRootHist().moveHistory));
+      response = Global::trim(sout.str());
+    }
+
+    else if(command == "place_free_handicap") {
+      int n;
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one argument for genmove but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(!Global::tryStringToInt(pieces[0],n)) {
+        responseIsError = true;
+        response = "Could not parse number of handicap stones: '" + pieces[0] + "'";
+      }
+      else if(n < 2) {
+        responseIsError = true;
+        response = "Number of handicap stones less than 2: '" + pieces[0] + "'";
+      }
+      else if(!bot->getRootBoard().isEmpty()) {
+        responseIsError = true;
+        response = "Board is not empty";
+      }
+      else {
+        //If asked to place more, we just go ahead and only place up to 30, or a quarter of the board
+        int xSize = bot->getRootBoard().x_size;
+        int ySize = bot->getRootBoard().y_size;
+        int maxHandicap = xSize*ySize / 4;
+        if(maxHandicap > 30)
+          maxHandicap = 30;
+        if(n > maxHandicap)
+          n = maxHandicap;
+        
+        Board board(xSize,ySize);
+        Player pla = P_BLACK;
+        BoardHistory hist(board,pla,bot->getRootHist().rules,0);
+        double extraBlackTemperature = 0.5;
+        Play::playExtraBlack(bot->getSearch(), logger, n, board, hist, extraBlackTemperature);
+
+        response = "";
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            Loc loc = Location::getLoc(x,y,board.x_size);
+            if(board.colors[loc] != C_EMPTY) {
+              response += " " + Location::toString(loc,board);
+            }
+          }
+        }
+        response = Global::trim(response);
+
+        bot->setPosition(pla,board,hist);
+      }
+    }
+
+    else if(command == "set_free_handicap") {
+      if(!bot->getRootBoard().isEmpty()) {
+        responseIsError = true;
+        response = "Board is not empty";
+      }
+      else {
+        vector<Loc> locs;
+        int xSize = bot->getRootBoard().x_size;
+        int ySize = bot->getRootBoard().y_size;
+        Board board(xSize,ySize);
+        for(int i = 0; i<pieces.size(); i++) {
+          Loc loc;
+          bool suc = tryParseLoc(pieces[i],board,loc);
+          if(!suc || loc == Board::PASS_LOC) {
+            responseIsError = true;            
+            response = "Invalid handicap location: " + pieces[i];
+          }
+          locs.push_back(loc);
+        }
+        for(int i = 0; i<locs.size(); i++)
+          board.setStone(locs[i],P_BLACK);
+        Player pla = P_BLACK;
+        BoardHistory hist(board,pla,bot->getRootHist().rules,0);
+        
+        bot->setPosition(pla,board,hist);                
+      }
+    }
+      
     else {
       responseIsError = true;
       response = "unknown command";
