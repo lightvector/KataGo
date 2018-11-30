@@ -8,7 +8,7 @@ if [[ $# -ne 4 ]]
 then
     echo "Usage: $0 BASEDIR TRAININGNAME MODELKIND LR_EPOCH_OFFSET"
     echo "BASEDIR containing selfplay data and models and related directories"
-    echo "TRANINGNAME name to suffix models with, specific to this training daemon"
+    echo "TRANINGNAME name to prefix models with, specific to this training daemon"
     echo "MODELKIND what size model to train"
     echo "LR_EPOCH_OFFSET epoch offset for learning rate"
     exit 0
@@ -34,7 +34,7 @@ time python3 ./trainv3.py \
      -traindir $BASEDIR/train/$TRAININGNAME \
      -datadir $BASEDIR/shuffleddata/current/ \
      -exportdir $BASEDIR/tfsavedmodels_toexport \
-     -exportsuffix $TRAININGNAME \
+     -exportprefix $TRAININGNAME \
      -pos-len 19 \
      -batch-size 256 \
      -gpu-memory-frac 0.6 \

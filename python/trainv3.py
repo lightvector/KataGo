@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-traindir', help='Dir to write to for recording training results', required=True)
 parser.add_argument('-datadir', help='Directory with a train and val subdir of tf records data', required=True)
 parser.add_argument('-exportdir', help='Directory to export models periodically', required=True)
-parser.add_argument('-exportsuffix', help='Suffix to append to names of models', required=True)
+parser.add_argument('-exportprefix', help='Prefix to append to names of models', required=True)
 parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
 parser.add_argument('-batch-size', help='Expected batch size of the input data, must match tfrecords', type=int, required=True)
 parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
@@ -44,7 +44,7 @@ args = vars(parser.parse_args())
 traindir = args["traindir"]
 datadir = args["datadir"]
 exportdir = args["exportdir"]
-exportsuffix = args["exportsuffix"]
+exportprefix = args["exportprefix"]
 pos_len = args["pos_len"]
 batch_size = args["batch_size"]
 gpu_memory_frac = args["gpu_memory_frac"]
@@ -429,10 +429,10 @@ while True:
 
   #Export a model for testing, unless somehow it already exists
   globalstep = int(estimator.get_variable_value("global_step:0"))
-  modelname = "s%d-d%d-%s" % (
+  modelname = "%s-s%d-d%d" % (
+    exportprefix,
     globalstep*batch_size,
     last_datainfo_row,
-    exportsuffix
   )
   savepath = os.path.join(exportdir,modelname)
   savepathtmp = os.path.join(exportdir,modelname+".tmp")
