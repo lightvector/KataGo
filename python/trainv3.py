@@ -427,20 +427,8 @@ while True:
     ]
   )
 
-  #Validate
-  trainlog("Beginning validation after epoch!")
-  vdatadir = os.path.join(curdatadir,"val")
-  val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".tfrecord")]
-  if len(val_files) == 0:
-    trainlog("No validation files, skipping validation step")
-  else:
-    estimator.evaluate(
-      (lambda: val_input_fn(vdatadir))
-    )
-
-  globalstep = int(estimator.get_variable_value("global_step:0"))
-
   #Export a model for testing, unless somehow it already exists
+  globalstep = int(estimator.get_variable_value("global_step:0"))
   modelname = "s%d-d%d-%s" % (
     globalstep*batch_size,
     last_datainfo_row,
@@ -464,6 +452,16 @@ while True:
     time.sleep(1)
     os.rename(savepathtmp,savepath)
 
+  #Validate
+  trainlog("Beginning validation after epoch!")
+  vdatadir = os.path.join(curdatadir,"val")
+  val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".tfrecord")]
+  if len(val_files) == 0:
+    trainlog("No validation files, skipping validation step")
+  else:
+    estimator.evaluate(
+      (lambda: val_input_fn(vdatadir))
+    )
 
   time.sleep(1)
 
