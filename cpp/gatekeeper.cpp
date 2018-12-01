@@ -242,6 +242,8 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   }
   ConfigParser cfg(configFile);
 
+  MakeDir::make(testModelsDir);
+  MakeDir::make(acceptedModelsDir);
   MakeDir::make(rejectedModelsDir);
   MakeDir::make(sgfOutputDir);
 
