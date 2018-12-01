@@ -5,12 +5,15 @@
 
 if [[ $# -ne 2 ]]
 then
-    echo "Usage: $0 BASEDIR NTHREADS"
+    echo "Usage: $0 BASEDIR TMPDIR NTHREADS"
     echo "BASEDIR containing selfplay data and models and related directories"
+    echo "TMPDIR scratch space, ideally on fast local disk, unique to this loop"
     echo "NTHREADS number of parallel threads/processes to use in shuffle"
     exit 0
 fi
 BASEDIR=$1
+shift
+TMPDIR=$1
 shift
 NTHREADS=$1
 shift
@@ -30,6 +33,7 @@ time python3 ./shuffle.py \
      -max-rows 1000000000 \
      -window-factor 3 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
+     -out-tmp-dir $TMPDIR \
      -approx-rows-per-out-file 200000 \
      -num-processes $NTHREADS \
      -batch-size 256 \
@@ -41,6 +45,7 @@ time python3 ./shuffle.py \
      -max-rows 10000000 \
      -window-factor 3 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
+     -out-tmp-dir $TMPDIR \
      -approx-rows-per-out-file 200000 \
      -num-processes $NTHREADS \
      -batch-size 256 \

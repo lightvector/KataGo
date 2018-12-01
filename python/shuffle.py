@@ -190,6 +190,7 @@ if __name__ == '__main__':
   parser.add_argument('-keep-target-rows', type=int, required=False, help='Target number of rows to actually keep in the final data set')
   parser.add_argument('-window-factor', type=float, required=True, help='Beyond min rows, add 1 more row per this many')
   parser.add_argument('-out-dir', required=True, help='Dir to output training files')
+  parser.add_argument('-out-tmp-dir', required=True, help='Dir to use as scratch space')
   parser.add_argument('-approx-rows-per-out-file', type=int, required=True, help='Number of rows per output tf records file')
   parser.add_argument('-num-processes', type=int, required=True, help='Number of multiprocessing processes')
   parser.add_argument('-batch-size', type=int, required=True, help='Batck size to write training examples in')
@@ -201,6 +202,7 @@ if __name__ == '__main__':
   keep_target_rows = args.keep_target_rows
   window_factor = args.window_factor
   out_dir = args.out_dir
+  out_tmp_dir = args.out_tmp_dir
   approx_rows_per_out_file = args.approx_rows_per_out_file
   num_processes = args.num_processes
   batch_size = args.batch_size
@@ -301,7 +303,7 @@ if __name__ == '__main__':
   num_out_files = max(num_out_files,1)
 
   out_files = [os.path.join(out_dir, "data%d.tfrecord" % i) for i in range(num_out_files)]
-  out_tmp_dirs = [os.path.join(out_dir, "tmp.shuf%d" % i) for i in range(num_out_files)]
+  out_tmp_dirs = [os.path.join(out_tmp_dir, "tmp.shuf%d" % i) for i in range(num_out_files)]
   print("Writing %d output files" % num_out_files)
 
   def clean_tmp_dirs():
