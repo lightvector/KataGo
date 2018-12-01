@@ -25,6 +25,7 @@ OUTDIRTRAIN=$OUTDIR/train
 OUTDIRVAL=$OUTDIR/val
 
 mkdir -p $BASEDIR/shuffleddata/$OUTDIR
+mkdir -p $TMPDIR
 
 set -x
 time python3 ./shuffle.py \

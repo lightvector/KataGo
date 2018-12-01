@@ -20,8 +20,6 @@ basedir=$(realpath $BASEDIRRAW)
 mkdir -p $basedir/scripts
 cp ./*.py ./selfplay/*.sh $basedir/scripts
 
-mkdir -p $TMPDIR
-
 (
     cd $basedir/scripts
     while true
