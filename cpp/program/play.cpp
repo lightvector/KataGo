@@ -869,6 +869,12 @@ FinishedGameData* Play::runGame(
     NNResultBuf nnResultBuf;
     for(int i = 0; i<sidePositionsToSearch.size(); i++) {
       SidePosition* sp = sidePositionsToSearch[i];
+
+      if(shouldStop(stopConditions)) {
+        delete sp;
+        continue;
+      }
+
       Search* toMoveBot = sp->pla == P_BLACK ? botB : botW;
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
       Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,recordUtilities);
