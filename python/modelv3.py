@@ -963,7 +963,13 @@ class ModelV3:
 
     #Transform a real-valued output into a positive value suitable for multiplying to other inputs as a scaling factor
     def scaletransform(tensor):
-      return tf.where(tensor > 0, tf.sqrt(tensor + 1.0), 1.0 / tf.sqrt(-tensor + 1.0))
+      #This is what we want, but actually gives rise to bad gradients due to bug in tensorflow where nan values on the
+      #non-executed side will still propagate nans back.
+      #return tf.where(tensor > 0, tf.sqrt(tensor + 1.0), 1.0 / tf.sqrt(-tensor + 1.0))
+
+      #So we also abs the tensor, so that we never get a sqrt of a negative value
+      abstensor = tf.abs(tensor)
+      return tf.where(tensor > 0, tf.sqrt(abstensor + 1.0), 1.0 / tf.sqrt(abstensor + 1.0))
 
     scorebelief_len = self.scorebelief_target_shape[0]
     scorebelief_mid = self.pos_len*self.pos_len+ModelV3.EXTRA_SCORE_DISTR_RADIUS

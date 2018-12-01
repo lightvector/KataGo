@@ -55,8 +55,6 @@ logfilemode = "a"
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)
-if not os.path.exists(datadir):
-  os.makedirs(datadir)
 if not os.path.exists(exportdir):
   os.makedirs(exportdir)
 

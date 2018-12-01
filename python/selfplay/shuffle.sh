@@ -56,6 +56,9 @@ set +x
 #Just in case, give a little time for nfs
 sleep 30
 
+#rm if it already exists
+rm -f $BASEDIR/shuffleddata/current_tmp
+
 ln -s $OUTDIR $BASEDIR/shuffleddata/current_tmp
 mv -Tf $BASEDIR/shuffleddata/current_tmp $BASEDIR/shuffleddata/current
 
