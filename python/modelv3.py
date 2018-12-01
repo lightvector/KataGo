@@ -975,8 +975,17 @@ class ModelV3:
     sb2_layer = tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) + tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size])
     sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
 
+    sbscale2w = self.weight_variable("sbscale2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
+    sbscale2b = self.weight_variable("sbscale2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
+    sbscale2_layer = self.relu_non_spatial("sbscale2/relu",tf.matmul(v1_layer_pooled, sbscale2w) + sbscale2b)
+
     sb3w = self.weight_variable("sb3/w",[sbv2_size,1],sbv2_size,1)
     sb3_layer = tf.tensordot(sb2_layer,sb3w,axes=[[2],[0]])
+
+    sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1)
+    sbscale3_layer = tf.math.softplus(tf.matmul(sbscale2_layer,sb3w))
+
+    sb3_layer = sb3_layer * tf.reshape(sbscale3_layer,[-1,1])
 
     scorebelief_output = tf.reshape(sb3_layer,[-1] + self.scorebelief_target_shape, name = "scorebelief_output")
 
@@ -995,8 +1004,17 @@ class ModelV3:
     bb2_layer = tf.reshape(bb2_layer_partial,[-1,1,bbv2_size]) + tf.reshape(bb2_offset_partial,[1,bonusbelief_len,bbv2_size])
     bb2_layer = self.relu_spatial1d("bb2/relu",bb2_layer)
 
+    bbscale2w = self.weight_variable("bbscale2/w",[v1_size*3,bbv2_size],v1_size*3+1,bbv2_size)
+    bbscale2b = self.weight_variable("bbscale2/b",[bbv2_size],v1_size*3+1,bbv2_size,scale_initial_weights=0.2,reg=False)
+    bbscale2_layer = self.relu_non_spatial("bbscale2/relu",tf.matmul(v1_layer_pooled, bbscale2w) + bbscale2b)
+
     bb3w = self.weight_variable("bb3/w",[bbv2_size,1],bbv2_size,1)
     bb3_layer = tf.tensordot(bb2_layer,bb3w,axes=[[2],[0]])
+
+    bbscale3w = self.weight_variable("bbscale3/w",[bbv2_size,1],bbv2_size,1)
+    bbscale3_layer = tf.math.softplus(tf.matmul(bbscale2_layer,bb3w))
+
+    bb3_layer = bb3_layer * tf.reshape(bbscale3_layer,[-1,1])
 
     bonusbelief_output = tf.reshape(bb3_layer,[-1] + self.bonusbelief_target_shape, name = "bonusbelief_output")
 
@@ -1016,11 +1034,17 @@ class ModelV3:
     self.add_lr_factor("sb2/w:0",0.25)
     self.add_lr_factor("sb2/b:0",0.25)
     self.add_lr_factor("sb2_offset/w:0",0.25)
+    self.add_lr_factor("sbscale2/w:0",0.25)
+    self.add_lr_factor("sbscale2/b:0",0.25)
     self.add_lr_factor("sb3/w:0",0.25)
+    self.add_lr_factor("sbscale3/w:0",0.25)
     self.add_lr_factor("bb2/w:0",0.25)
     self.add_lr_factor("bb2/b:0",0.25)
     self.add_lr_factor("bb2_offset/w:0",0.25)
+    self.add_lr_factor("bbscale2/w:0",0.25)
+    self.add_lr_factor("bbscale2/b:0",0.25)
     self.add_lr_factor("bb3/w:0",0.25)
+    self.add_lr_factor("bbscale3/w:0",0.25)
     self.add_lr_factor("vownership/w:0",0.25)
 
     self.value_output = value_output
