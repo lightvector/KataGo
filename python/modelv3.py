@@ -961,6 +961,10 @@ class ModelV3:
     value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
     miscvalues_output = tf.reshape(mv3_layer, [-1] + self.miscvalues_target_shape, name = "miscvalues_output")
 
+    #Transform a real-valued output into a positive value suitable for multiplying to other inputs as a scaling factor
+    def scaletransform(tensor):
+      return tf.where(tensor > 0, tf.sqrt(tensor + 1.0), 1.0 / tf.sqrt(-tensor + 1.0))
+
     scorebelief_len = self.scorebelief_target_shape[0]
     scorebelief_mid = self.pos_len*self.pos_len+ModelV3.EXTRA_SCORE_DISTR_RADIUS
     assert(scorebelief_len == self.pos_len*self.pos_len*2+ModelV3.EXTRA_SCORE_DISTR_RADIUS*2)
@@ -982,8 +986,9 @@ class ModelV3:
     sb3w = self.weight_variable("sb3/w",[sbv2_size,1],sbv2_size,1)
     sb3_layer = tf.tensordot(sb2_layer,sb3w,axes=[[2],[0]])
 
-    sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1)
-    sbscale3_layer = tf.math.softplus(tf.matmul(sbscale2_layer,sb3w))
+    sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1,scale_initial_weights=0.1) #Scale weights to be small, that we don't get wild swings in scaling
+    sbscale3_layer = scaletransform(tf.matmul(sbscale2_layer,sb3w))
+    self.sbscale3_layer = sbscale3_layer
 
     sb3_layer = sb3_layer * tf.reshape(sbscale3_layer,[-1,1,1])
 
@@ -1011,8 +1016,9 @@ class ModelV3:
     bb3w = self.weight_variable("bb3/w",[bbv2_size,1],bbv2_size,1)
     bb3_layer = tf.tensordot(bb2_layer,bb3w,axes=[[2],[0]])
 
-    bbscale3w = self.weight_variable("bbscale3/w",[bbv2_size,1],bbv2_size,1)
-    bbscale3_layer = tf.math.softplus(tf.matmul(bbscale2_layer,bb3w))
+    bbscale3w = self.weight_variable("bbscale3/w",[bbv2_size,1],bbv2_size,1,scale_initial_weights=0.1) #Scale weights to be small, that we don't get wild swings in scaling
+    bbscale3_layer = scaletransform(tf.matmul(bbscale2_layer,bb3w))
+    self.bbscale3_layer = bbscale3_layer
 
     bb3_layer = bb3_layer * tf.reshape(bbscale3_layer,[-1,1,1])
 
@@ -1037,14 +1043,14 @@ class ModelV3:
     self.add_lr_factor("sbscale2/w:0",0.25)
     self.add_lr_factor("sbscale2/b:0",0.25)
     self.add_lr_factor("sb3/w:0",0.25)
-    self.add_lr_factor("sbscale3/w:0",0.25)
+    self.add_lr_factor("sbscale3/w:0",0.025) #Make sure the scaling weights learn especially slowly, so things are stable
     self.add_lr_factor("bb2/w:0",0.25)
     self.add_lr_factor("bb2/b:0",0.25)
     self.add_lr_factor("bb2_offset/w:0",0.25)
     self.add_lr_factor("bbscale2/w:0",0.25)
     self.add_lr_factor("bbscale2/b:0",0.25)
     self.add_lr_factor("bb3/w:0",0.25)
-    self.add_lr_factor("bbscale3/w:0",0.25)
+    self.add_lr_factor("bbscale3/w:0",0.025) #Make sure the scaling weights learn especially slowly, so things are stable
     self.add_lr_factor("vownership/w:0",0.25)
 
     self.value_output = value_output
