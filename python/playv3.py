@@ -47,6 +47,8 @@ scorevalue_output = two_over_pi * tf.atan(model.miscvalues_output[:,0])
 ownership_output = tf.tanh(model.ownership_output)
 scorebelief_output = tf.nn.softmax(model.scorebelief_output)
 bonusbelief_output = tf.nn.softmax(model.bonusbelief_output)
+sbscale = model.sbscale3_layer
+bbscale = model.bbscale3_layer
 
 # Moves ----------------------------------------------------------------
 
@@ -70,9 +72,9 @@ def get_policy_output(session, board, boards, moves, use_history_prop, rules):
   return fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output])
 
 def get_scorebelief_output(session, board, boards, moves, use_history_prop, rules):
-  return fetch_output(session,board,boards,moves,use_history_prop,rules,[scorebelief_output])
+  return fetch_output(session,board,boards,moves,use_history_prop,rules,[scorebelief_output,sbscale])
 def get_bonusbelief_output(session, board, boards, moves, use_history_prop, rules):
-  return fetch_output(session,board,boards,moves,use_history_prop,rules,[bonusbelief_output])
+  return fetch_output(session,board,boards,moves,use_history_prop,rules,[bonusbelief_output,bbscale])
 
 def get_policy_and_value_output(session, board, boards, moves, use_history_prop, rules):
   (policy,value,scorevalue) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output,value_output,scorevalue_output])
@@ -266,13 +268,14 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
 
   gfx_commands.append("TEXT " + ", ".join(texts_value + texts_rev + texts))
 
-def print_scorebelief(board,scorebelief):
+def print_scorebelief(board,scorebelief,sbscale):
   scorebelief = list(scorebelief)
   if board.pla != Board.WHITE:
     scorebelief.reverse()
   scoredistrmid = pos_len * pos_len + ModelV3.EXTRA_SCORE_DISTR_RADIUS
   ret = ""
   ret += "TEXT "
+  ret += "SBScale: " + str(sbscale) + "\n"
   ret += "ScoreBelief: \n"
   for i in range(17,-1,-1):
     ret += "TEXT "
@@ -307,13 +310,14 @@ def print_scorebelief(board,scorebelief):
   ret += "TEXT BeliefScoreValue: %.1fc\n" % (100*beliefscorevalue/belieftotal)
   return ret
 
-def print_bonusbelief(board,bonusbelief):
+def print_bonusbelief(board,bonusbelief,bbscale):
   bonusbelief = list(bonusbelief)
   if board.pla != Board.WHITE:
     bonusbelief.reverse()
   bonusdistrmid = ModelV3.BONUS_SCORE_RADIUS
   ret = ""
   ret += "TEXT "
+  ret += "BBScale: " + str(bbscale) + "\n"
   ret += "BonusBelief: \n"
   for i in range(5,-1,-1):
     ret += "TEXT "
@@ -695,8 +699,8 @@ def run_gtp(session):
         "passWouldEndPhase": False,
         "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
       }
-      [scorebelief] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
-      ret = print_scorebelief(board,scorebelief)
+      [scorebelief,sbscale] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      ret = print_scorebelief(board,scorebelief,sbscale)
 
     elif command[0] == "scorebelief-japanese":
       rules = {
@@ -707,8 +711,8 @@ def run_gtp(session):
         "passWouldEndPhase": False,
         "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
       }
-      [scorebelief] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
-      ret = print_scorebelief(board,scorebelief)
+      [scorebelief,sbscale] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      ret = print_scorebelief(board,scorebelief,sbscale)
 
     elif command[0] == "bonusbelief":
       rules = {
@@ -719,8 +723,8 @@ def run_gtp(session):
         "passWouldEndPhase": False,
         "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
       }
-      [bonusbelief] = get_bonusbelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
-      ret = print_bonusbelief(board,bonusbelief)
+      [bonusbelief,bbscale] = get_bonusbelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      ret = print_bonusbelief(board,bonusbelief,bbscale)
 
     elif command[0] == "bonusbelief-japanese":
       rules = {
@@ -731,8 +735,8 @@ def run_gtp(session):
         "passWouldEndPhase": False,
         "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
       }
-      [bonusbelief] = get_bonusbelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
-      ret = print_bonusbelief(board,bonusbelief)
+      [bonusbelief,bbscale] = get_bonusbelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      ret = print_bonusbelief(board,bonusbelief,bbscale)
 
     elif command[0] == "protocol_version":
       ret = '2'
