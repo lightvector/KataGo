@@ -3,7 +3,7 @@
 #Shuffles and copies selfplay training from selfplay/ to shuffleddata/current/
 #Should be run periodically.
 
-if [[ $# -ne 2 ]]
+if [[ $# -ne 3 ]]
 then
     echo "Usage: $0 BASEDIR TMPDIR NTHREADS"
     echo "BASEDIR containing selfplay data and models and related directories"

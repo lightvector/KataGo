@@ -985,7 +985,7 @@ class ModelV3:
     sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1)
     sbscale3_layer = tf.math.softplus(tf.matmul(sbscale2_layer,sb3w))
 
-    sb3_layer = sb3_layer * tf.reshape(sbscale3_layer,[-1,1])
+    sb3_layer = sb3_layer * tf.reshape(sbscale3_layer,[-1,1,1])
 
     scorebelief_output = tf.reshape(sb3_layer,[-1] + self.scorebelief_target_shape, name = "scorebelief_output")
 
@@ -1014,7 +1014,7 @@ class ModelV3:
     bbscale3w = self.weight_variable("bbscale3/w",[bbv2_size,1],bbv2_size,1)
     bbscale3_layer = tf.math.softplus(tf.matmul(bbscale2_layer,bb3w))
 
-    bb3_layer = bb3_layer * tf.reshape(bbscale3_layer,[-1,1])
+    bb3_layer = bb3_layer * tf.reshape(bbscale3_layer,[-1,1,1])
 
     bonusbelief_output = tf.reshape(bb3_layer,[-1] + self.bonusbelief_target_shape, name = "bonusbelief_output")
 

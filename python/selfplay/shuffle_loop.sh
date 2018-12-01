@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-if [[ $# -ne 2 ]]
+if [[ $# -ne 3 ]]
 then
     echo "Usage: $0 BASEDIR TMPDIR NTHREADS"
     echo "BASEDIR containing selfplay data and models and related directories"
