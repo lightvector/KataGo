@@ -1107,11 +1107,11 @@ class Target_varsV3:
       2.0 * tf.reduce_sum(tf.square(self.value_target - value_probs),axis=1)
     )
 
-    self.scorevalue_loss_unreduced = (
+    self.scorevalue_loss_unreduced = 2.0 * (
       tf.square(self.scorevalue_target - scorevalue_prediction)
     )
 
-    self.scorebelief_cdf_loss_unreduced = 0.01 * self.ownership_target_weight * (
+    self.scorebelief_cdf_loss_unreduced = 0.02 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
         axis=1
@@ -1124,7 +1124,7 @@ class Target_varsV3:
       )
     )
 
-    self.bonusbelief_cdf_loss_unreduced = 0.01 * self.ownership_target_weight * (
+    self.bonusbelief_cdf_loss_unreduced = 0.02 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.bonusbelief_target,axis=1) - tf.cumsum(tf.nn.softmax(bonusbelief_output,axis=1),axis=1)),
         axis=1
@@ -1137,7 +1137,7 @@ class Target_varsV3:
       )
     )
 
-    self.utilityvar_loss_unreduced = 0.05 * self.utilityvar_target_weight * (
+    self.utilityvar_loss_unreduced = 0.1 * self.utilityvar_target_weight * (
       tf.reduce_sum(tf.square(self.utilityvar_target - tf.math.softplus(miscvalues_output[:,1:5])),axis=1)
     )
 
