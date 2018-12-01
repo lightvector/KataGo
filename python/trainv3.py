@@ -405,15 +405,28 @@ while True:
         trainlog("Yielding training file for dataset: " + filename)
         yield filename
 
-  #Sanity check - load a max of 100000 files.
+  #Pick enough files to get the number of batches we want
   train_files_to_use = []
   batches_to_use_so_far = 0
   for filename in train_files_gen():
-    train_files_to_use.append(filename)
     jsonfilename = os.path.splitext(filename)[0] + ".json"
     with open(jsonfilename) as f:
       trainfileinfo = json.load(f)
-    batches_to_use_so_far += trainfileinfo["num_batches"]
+
+    num_batches_this_file = trainfileinfo["num_batches"]
+    if num_batches_this_file <= 0:
+      continue
+
+    if batches_to_use_so_far + num_batches_this_file > num_batches_per_epoch:
+      #If we're going over the desired amount, randomly skop the file with probability equal to the
+      #proportion of batches over - this makes it so that in expectation, we have the desired number of batches
+      if batches_to_use_so_far > 0 and random.random() >= (batches_to_use_so_far + num_batches_this_file - num_batches_per_epoch) / num_batches_this_file:
+        break
+
+    train_files_to_use.append(filename)
+    batches_to_use_so_far += num_batches_this_file
+
+    #Sanity check - load a max of 100000 files.
     if batches_to_use_so_far >= num_batches_per_epoch or len(train_files_to_use) > 100000:
       break
 
