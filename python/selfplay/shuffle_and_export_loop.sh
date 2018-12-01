@@ -29,7 +29,7 @@ mkdir -p $TMPDIR
         ./shuffle.sh $basedir $TMPDIR $NTHREADS
         sleep 300
     done
-) 2>&1 | tee outshuffle.txt &
+) >> outshuffle.txt 2>&1 &
 
 (
     cd $basedir/scripts
@@ -38,4 +38,4 @@ mkdir -p $TMPDIR
         ./export_modelv3_for_selfplay.sh $basedir
         sleep 30
     done
-) 2>&1 | tee outexport.txt &
+) >> outexport.txt 2>&1 &
