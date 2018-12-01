@@ -187,6 +187,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   ConfigParser cfg(configFile);
 
   MakeDir::make(outputDir);
+  MakeDir::make(modelsDir);
 
   Logger logger;
   //Log to random file name to better support starting/stopping as well as multiple parallel runs
