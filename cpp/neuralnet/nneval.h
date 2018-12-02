@@ -46,6 +46,8 @@ struct NNResultBuf {
   mutex resultMutex;
   bool hasResult;
   bool includeOwnerMap;
+  float* rowBin;
+  float* rowGlobal;
   shared_ptr<NNOutput> result;
   bool errorLogLockout; //error flag to restrict log to 1 error to prevent spam
 
@@ -147,19 +149,15 @@ class NNEvaluator {
 
   condition_variable clientWaitingForRow;
   condition_variable serverWaitingForBatchStart;
-  condition_variable serverWaitingForBatchFinish;
   mutex bufferMutex;
   bool isKilled;
-  bool serverTryingToGrabBatch;
 
   int maxNumRows;
   int m_numRowsStarted;
-  int m_numRowsFinished;
 
   atomic<uint64_t> m_numRowsProcessed;
   atomic<uint64_t> m_numBatchesProcessed;
 
-  InputBuffers* m_inputBuffers;
   NNResultBuf** m_resultBufs;
 
  public:

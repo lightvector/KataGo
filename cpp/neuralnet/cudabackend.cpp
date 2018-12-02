@@ -3990,6 +3990,13 @@ float* NeuralNet::getRowGlobalInplace(InputBuffers* inputBuffers, int rowIdx) {
   return inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * rowIdx);
 }
 
+int NeuralNet::getRowLen(const InputBuffers* inputBuffers) {
+  return inputBuffers->singleInputElts;
+}
+int NeuralNet::getRowGlobalLen(const InputBuffers* inputBuffers) {
+  return inputBuffers->singleInputGlobalElts;
+}
+
 bool* NeuralNet::getSymmetriesInplace(InputBuffers* inputBuffers) {
   return inputBuffers->symmetriesBuffer;
 }

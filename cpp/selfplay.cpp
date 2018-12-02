@@ -270,6 +270,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     assert(netAndStuff->isDraining);
     delete netAndStuff;
 
+    logger.write(netAndStuff->nnEval->getModelFileName());
+    logger.write("NN rows: " + Global::int64ToString(netAndStuff->nnEval->numRowsProcessed()));
+    logger.write("NN batches: " + Global::int64ToString(netAndStuff->nnEval->numBatchesProcessed()));
+    logger.write("NN avg batch size: " + Global::doubleToString(netAndStuff->nnEval->averageProcessedBatchSize()));
+    
     logger.write("Data write loop cleaned up and terminating for " + name);
   };
 

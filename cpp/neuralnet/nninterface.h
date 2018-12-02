@@ -51,6 +51,9 @@ namespace NeuralNet {
   float* getRowGlobalInplace(InputBuffers* buffers, int rowIdx);
   bool* getSymmetriesInplace(InputBuffers* buffers);
 
+  int getRowLen(const InputBuffers* buffers);
+  int getRowGlobalLen(const InputBuffers* buffers);
+
   void getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int numFilledRows, vector<NNOutput*>& outputs);
 }
 

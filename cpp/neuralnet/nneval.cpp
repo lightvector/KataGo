@@ -4,11 +4,18 @@
 //-------------------------------------------------------------------------------------
 
 NNResultBuf::NNResultBuf()
-  :clientWaitingForResult(),resultMutex(),hasResult(false),includeOwnerMap(false),result(nullptr),errorLogLockout(false)
+  :clientWaitingForResult(),resultMutex(),hasResult(false),includeOwnerMap(false),
+   rowBin(NULL),rowGlobal(NULL),
+   result(nullptr),errorLogLockout(false)
 {}
 
 NNResultBuf::~NNResultBuf()
-{}
+{
+  if(rowBin != NULL)
+    delete[] rowBin;
+  if(rowGlobal != NULL)
+    delete[] rowGlobal;
+}
 
 //-------------------------------------------------------------------------------------
 
@@ -55,16 +62,13 @@ NNEvaluator::NNEvaluator(
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
    serverThreads(),
-   clientWaitingForRow(),serverWaitingForBatchStart(),serverWaitingForBatchFinish(),
+   clientWaitingForRow(),serverWaitingForBatchStart(),
    bufferMutex(),
    isKilled(false),
-   serverTryingToGrabBatch(false),
    maxNumRows(maxBatchSize),
    m_numRowsStarted(0),
-   m_numRowsFinished(0),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
-   m_inputBuffers(NULL),
    m_resultBufs(NULL)
 {
   if(posLen > NNPos::MAX_BOARD_LEN)
@@ -75,7 +79,6 @@ NNEvaluator::NNEvaluator(
 
   if(!debugSkipNeuralNet) {
     loadedModel = NeuralNet::loadModelFile(modelFileName, modelFileIdx);
-    m_inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,posLen);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
   }
@@ -92,11 +95,6 @@ NNEvaluator::NNEvaluator(
 NNEvaluator::~NNEvaluator()
 {
   killServerThreads();
-  assert(!serverTryingToGrabBatch);
-
-  if(m_inputBuffers != NULL)
-    NeuralNet::freeInputBuffers(m_inputBuffers);
-  m_inputBuffers = NULL;
 
   //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
   delete[] m_resultBufs;
@@ -185,7 +183,6 @@ void NNEvaluator::killServerThreads() {
   isKilled = true;
   lock.unlock();
   serverWaitingForBatchStart.notify_all();
-  serverWaitingForBatchFinish.notify_all();
 
   for(size_t i = 0; i<serverThreads.size(); i++)
     serverThreads[i]->join();
@@ -211,34 +208,16 @@ void NNEvaluator::serve(
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
   while(true) {
     lock.lock();
-    while((m_numRowsStarted <= 0 || serverTryingToGrabBatch) && !isKilled)
+    while(m_numRowsStarted <= 0 && !isKilled)
       serverWaitingForBatchStart.wait(lock);
 
     if(isKilled)
       break;
 
-    serverTryingToGrabBatch = true;
-    while(m_numRowsFinished < m_numRowsStarted && !isKilled)
-      serverWaitingForBatchFinish.wait(lock);
-
-    if(isKilled)
-      break;
-
-    //It should only be possible for one thread to make it through to here
-    assert(serverTryingToGrabBatch);
-    assert(m_numRowsFinished > 0);
-
-    int numRows = m_numRowsFinished;
-    if(m_inputBuffers != NULL)
-      std::swap(m_inputBuffers,buf.inputBuffers);
-    else
-      assert(debugSkipNeuralNet);
-
+    int numRows = m_numRowsStarted;
     std::swap(m_resultBufs,buf.resultBufs);
 
     m_numRowsStarted = 0;
-    m_numRowsFinished = 0;
-    serverTryingToGrabBatch = false;
     clientWaitingForRow.notify_all();
     lock.unlock();
 
@@ -308,6 +287,23 @@ void NNEvaluator::serve(
       outputBuf.push_back(emptyOutput);
     }
 
+    int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
+    int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
+    int rowBinLen = numSpatialFeatures * posLen * posLen;
+    int rowGlobalLen = numGlobalFeatures;
+    assert(rowBinLen == NeuralNet::getRowLen(buf.inputBuffers));
+    assert(rowGlobalLen == NeuralNet::getRowGlobalLen(buf.inputBuffers));
+    
+    for(int row = 0; row<numRows; row++) {
+      float* rowInput = NeuralNet::getRowInplace(buf.inputBuffers,row);
+      float* rowGlobalInput = NeuralNet::getRowGlobalInplace(buf.inputBuffers,row);
+
+      const float* rowBin = buf.resultBufs[row]->rowBin;
+      const float* rowGlobal = buf.resultBufs[row]->rowGlobal;
+      std::copy(rowBin,rowBin+rowBinLen,rowInput);
+      std::copy(rowGlobal,rowGlobal+rowGlobalLen,rowGlobalInput);
+    }
+    
     NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, outputBuf);
     assert(outputBuf.size() == numRows);
 
@@ -381,42 +377,33 @@ void NNEvaluator::evaluate(
   }
   buf.includeOwnerMap = includeOwnerMap;
 
+  if(!debugSkipNeuralNet) {
+    if(buf.rowBin == NULL)
+      buf.rowBin = new float[NNModelVersion::getNumSpatialFeatures(modelVersion) * posLen * posLen];
+      
+    if(inputsVersion == 1)
+      NNInputs::fillRowV1(board, history, nextPlayer, posLen, inputsUseNHWC, buf.rowBin);
+    else if(inputsVersion == 2)
+      NNInputs::fillRowV2(board, history, nextPlayer, posLen, inputsUseNHWC, buf.rowBin);
+    else if(inputsVersion == 3) {
+      if(buf.rowGlobal == NULL)
+        buf.rowGlobal = new float[NNModelVersion::getNumGlobalFeatures(modelVersion)];
+      NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
+    }
+    else
+      assert(false);
+  }
+  
   unique_lock<std::mutex> lock(bufferMutex);
-  while(m_numRowsStarted >= maxNumRows || serverTryingToGrabBatch)
+  while(m_numRowsStarted >= maxNumRows)
     clientWaitingForRow.wait(lock);
 
   int rowIdx = m_numRowsStarted;
   m_numRowsStarted += 1;
-
-  if(!debugSkipNeuralNet) {
-    assert(m_inputBuffers != NULL);
-    float* rowInput = NeuralNet::getRowInplace(m_inputBuffers,rowIdx);
-    float* rowGlobalInput = NeuralNet::getRowGlobalInplace(m_inputBuffers,rowIdx);
-
-    if(m_numRowsStarted == 1)
-      serverWaitingForBatchStart.notify_one();
-    lock.unlock();
-
-    if(inputsVersion == 1)
-      NNInputs::fillRowV1(board, history, nextPlayer, posLen, inputsUseNHWC, rowInput);
-    else if(inputsVersion == 2)
-      NNInputs::fillRowV2(board, history, nextPlayer, posLen, inputsUseNHWC, rowInput);
-    else if(inputsVersion == 3)
-      NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowInput, rowGlobalInput);
-    else
-      assert(false);
-
-    lock.lock();
-  }
-  else {
-    if(m_numRowsStarted == 1)
-      serverWaitingForBatchStart.notify_one();
-  }
+  if(m_numRowsStarted == 1)
+    serverWaitingForBatchStart.notify_one();
 
   m_resultBufs[rowIdx] = &buf;
-  m_numRowsFinished += 1;
-  if(m_numRowsFinished >= m_numRowsStarted)
-    serverWaitingForBatchFinish.notify_all();
   lock.unlock();
 
   unique_lock<std::mutex> resultLock(buf.resultMutex);
