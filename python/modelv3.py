@@ -37,6 +37,7 @@ class ModelV3:
     self.pass_pos = self.pos_len * self.pos_len
 
     self.reg_variables = []
+    self.prescale_variables = []
     self.lr_adjusted_variables = {}
     self.is_training = (placeholders["is_training"] if "is_training" in placeholders else tf.placeholder(tf.bool,name="is_training"))
 
@@ -963,13 +964,13 @@ class ModelV3:
 
     #Transform a real-valued output into a positive value suitable for multiplying to other inputs as a scaling factor
     def scaletransform(tensor):
-      #This is what we want, but actually gives rise to bad gradients due to bug in tensorflow where nan values on the
-      #non-executed side will still propagate nans back.
-      #return tf.where(tensor > 0, tf.sqrt(tensor + 1.0), 1.0 / tf.sqrt(-tensor + 1.0))
+      self.prescale_variables.append(tensor)
 
-      #So we also abs the tensor, so that we never get a sqrt of a negative value
+      #tf.where has a bug where nan values on the non-chosen side will still propagate nans back in gradients.
+      #So we also abs the tensor, so that we never get a log of a negative value
       abstensor = tf.abs(tensor)
-      return tf.where(tensor > 0, tf.sqrt(abstensor + 1.0), 1.0 / tf.sqrt(abstensor + 1.0))
+      econst = 2.71828182845904523536
+      return tf.where(tensor > 0, tf.log(abstensor + econst), 1.0 / tf.log(abstensor + econst))
 
     scorebelief_len = self.scorebelief_target_shape[0]
     scorebelief_mid = self.pos_len*self.pos_len+ModelV3.EXTRA_SCORE_DISTR_RADIUS
@@ -992,7 +993,7 @@ class ModelV3:
     sb3w = self.weight_variable("sb3/w",[sbv2_size,1],sbv2_size,1)
     sb3_layer = tf.tensordot(sb2_layer,sb3w,axes=[[2],[0]])
 
-    sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1,scale_initial_weights=0.1) #Scale weights to be small, that we don't get wild swings in scaling
+    sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1,scale_initial_weights=0.2) #Scale weights to be small, that we don't get wild swings in scaling
     sbscale3_layer = scaletransform(tf.matmul(sbscale2_layer,sb3w))
     self.sbscale3_layer = sbscale3_layer
 
@@ -1022,7 +1023,7 @@ class ModelV3:
     bb3w = self.weight_variable("bb3/w",[bbv2_size,1],bbv2_size,1)
     bb3_layer = tf.tensordot(bb2_layer,bb3w,axes=[[2],[0]])
 
-    bbscale3w = self.weight_variable("bbscale3/w",[bbv2_size,1],bbv2_size,1,scale_initial_weights=0.1) #Scale weights to be small, that we don't get wild swings in scaling
+    bbscale3w = self.weight_variable("bbscale3/w",[bbv2_size,1],bbv2_size,1,scale_initial_weights=0.2) #Scale weights to be small, that we don't get wild swings in scaling
     bbscale3_layer = scaletransform(tf.matmul(bbscale2_layer,bb3w))
     self.bbscale3_layer = bbscale3_layer
 
@@ -1049,14 +1050,14 @@ class ModelV3:
     self.add_lr_factor("sbscale2/w:0",0.25)
     self.add_lr_factor("sbscale2/b:0",0.25)
     self.add_lr_factor("sb3/w:0",0.25)
-    self.add_lr_factor("sbscale3/w:0",0.025) #Make sure the scaling weights learn especially slowly, so things are stable
+    self.add_lr_factor("sbscale3/w:0",0.05) #Make sure the scaling weights learn especially slowly, so things are stable
     self.add_lr_factor("bb2/w:0",0.25)
     self.add_lr_factor("bb2/b:0",0.25)
     self.add_lr_factor("bb2_offset/w:0",0.25)
     self.add_lr_factor("bbscale2/w:0",0.25)
     self.add_lr_factor("bbscale2/b:0",0.25)
     self.add_lr_factor("bb3/w:0",0.25)
-    self.add_lr_factor("bbscale3/w:0",0.025) #Make sure the scaling weights learn especially slowly, so things are stable
+    self.add_lr_factor("bbscale3/w:0",0.05) #Make sure the scaling weights learn especially slowly, so things are stable
     self.add_lr_factor("vownership/w:0",0.25)
 
     self.value_output = value_output
@@ -1215,6 +1216,8 @@ class Target_varsV3:
     winlossprob_from_output = value_probs[:,0:2]
     self.winloss_reg_loss_unreduced = tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 
+    self.scale_reg_loss_unreduced = tf.reshape(0.0001 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
+
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced)
     self.scorevalue_loss = tf.reduce_sum(self.target_weight_used * self.scorevalue_loss_unreduced)
@@ -1227,6 +1230,7 @@ class Target_varsV3:
     self.ownership_reg_loss = tf.reduce_sum(self.target_weight_used * self.ownership_reg_loss_unreduced)
     self.scorevalue_reg_loss = tf.reduce_sum(self.target_weight_used * self.scorevalue_reg_loss_unreduced)
     self.winloss_reg_loss = tf.reduce_sum(self.target_weight_used * self.winloss_reg_loss_unreduced)
+    self.scale_reg_loss = tf.reduce_sum(self.target_weight_used * self.scale_reg_loss_unreduced)
 
     self.weight_sum = tf.reduce_sum(self.target_weight_used)
 
@@ -1251,7 +1255,8 @@ class Target_varsV3:
         self.ownership_reg_loss +
         self.scorevalue_reg_loss +
         self.winloss_reg_loss +
-        self.reg_loss
+        self.reg_loss +
+        self.scale_reg_loss
       )
 
       # self.opt_loss = tf.Print(

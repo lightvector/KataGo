@@ -205,6 +205,7 @@ with tf.Session(config=tfconfig) as session:
     "rwlloss": target_vars.winloss_reg_loss,
     "rsvloss": target_vars.scorevalue_reg_loss,
     "roloss": target_vars.ownership_reg_loss,
+    "rscloss": target_vars.scale_reg_loss,
     "vconf": metrics.value_conf,
     "ventr": metrics.value_entropy,
     "wsum": target_vars.weight_sum,
@@ -212,7 +213,7 @@ with tf.Session(config=tfconfig) as session:
 
   def validation_stats_str(vmetrics_evaled):
     # return "acc1 %5.2f%% acc4 %5.2f%% ploss %f vloss %f oloss %f svloss %f sbloss %f bbloss %f uvloss %f vconf %f ventr %f" % (
-    return "ploss %f vloss %f oloss %f svloss %f sbpdfloss %f sbcdfloss %f bbpdfloss %f bbcdfloss %f uvloss %f rwlloss %f rsvloss %f roloss %f vconf %f ventr %f" % (
+    return "ploss %f vloss %f oloss %f svloss %f sbpdfloss %f sbcdfloss %f bbpdfloss %f bbcdfloss %f uvloss %f rwlloss %f rsvloss %f roloss %f rscloss %f vconf %f ventr %f" % (
       # vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
       # vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
       vmetrics_evaled["ploss"] / vmetrics_evaled["wsum"],
@@ -227,6 +228,7 @@ with tf.Session(config=tfconfig) as session:
       vmetrics_evaled["rwlloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["rsvloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["roloss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["rscloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["vconf"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["ventr"] / vmetrics_evaled["wsum"],
   )

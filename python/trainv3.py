@@ -139,6 +139,7 @@ def model_fn(features,labels,mode,params):
         "rsvloss": tf.metrics.mean(target_vars.scorevalue_reg_loss_unreduced, weights=target_vars.target_weight_used),
         "roloss": tf.metrics.mean(target_vars.ownership_reg_loss_unreduced, weights=target_vars.target_weight_used),
         "rloss": tf.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
+        "rscloss": tf.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
         "pacc1": tf.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
         "ventr": tf.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
       }
@@ -169,6 +170,7 @@ def model_fn(features,labels,mode,params):
     (rsvloss,rsvloss_op) = moving_mean(target_vars.scorevalue_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (roloss,roloss_op) = moving_mean(target_vars.ownership_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (rloss,rloss_op) = moving_mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum)
+    (rscloss,rscloss_op) = moving_mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (pacc1,pacc1_op) = moving_mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
     (ventr,ventr_op) = moving_mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
     (wmean,wmean_op) = tf.metrics.mean(target_vars.weight_sum)
@@ -191,6 +193,7 @@ def model_fn(features,labels,mode,params):
       "rsvloss": rsvloss,
       "roloss": roloss,
       "rloss": rloss,
+      "rscloss": rscloss,
       "pacc1": pacc1,
       "ventr": ventr,
       "pslr": per_sample_learning_rate
@@ -223,7 +226,7 @@ def model_fn(features,labels,mode,params):
       mode,
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
       train_op=tf.group(train_step,ploss_op,vloss_op,svloss_op,sbpdfloss_op,sbcdfloss_op,bbpdfloss_op,bbcdfloss_op,
-                        uvloss_op,oloss_op,rwlloss_op,rsvloss_op,roloss_op,rloss_op,pacc1_op,ventr_op,wmean_op),
+                        uvloss_op,oloss_op,rwlloss_op,rsvloss_op,roloss_op,rloss_op,rscloss_op,pacc1_op,ventr_op,wmean_op),
       training_hooks = [logging_hook]
     )
 
