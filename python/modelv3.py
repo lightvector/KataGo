@@ -993,7 +993,7 @@ class ModelV3:
     sb3w = self.weight_variable("sb3/w",[sbv2_size,1],sbv2_size,1)
     sb3_layer = tf.tensordot(sb2_layer,sb3w,axes=[[2],[0]])
 
-    sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1,scale_initial_weights=0.2) #Scale weights to be small, that we don't get wild swings in scaling
+    sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1)
     sbscale3_layer = scaletransform(tf.matmul(sbscale2_layer,sb3w))
     self.sbscale3_layer = sbscale3_layer
 
@@ -1023,7 +1023,7 @@ class ModelV3:
     bb3w = self.weight_variable("bb3/w",[bbv2_size,1],bbv2_size,1)
     bb3_layer = tf.tensordot(bb2_layer,bb3w,axes=[[2],[0]])
 
-    bbscale3w = self.weight_variable("bbscale3/w",[bbv2_size,1],bbv2_size,1,scale_initial_weights=0.2) #Scale weights to be small, that we don't get wild swings in scaling
+    bbscale3w = self.weight_variable("bbscale3/w",[bbv2_size,1],bbv2_size,1)
     bbscale3_layer = scaletransform(tf.matmul(bbscale2_layer,bb3w))
     self.bbscale3_layer = bbscale3_layer
 
@@ -1050,14 +1050,14 @@ class ModelV3:
     self.add_lr_factor("sbscale2/w:0",0.25)
     self.add_lr_factor("sbscale2/b:0",0.25)
     self.add_lr_factor("sb3/w:0",0.25)
-    self.add_lr_factor("sbscale3/w:0",0.05) #Make sure the scaling weights learn especially slowly, so things are stable
+    self.add_lr_factor("sbscale3/w:0",0.25)
     self.add_lr_factor("bb2/w:0",0.25)
     self.add_lr_factor("bb2/b:0",0.25)
     self.add_lr_factor("bb2_offset/w:0",0.25)
     self.add_lr_factor("bbscale2/w:0",0.25)
     self.add_lr_factor("bbscale2/b:0",0.25)
     self.add_lr_factor("bb3/w:0",0.25)
-    self.add_lr_factor("bbscale3/w:0",0.05) #Make sure the scaling weights learn especially slowly, so things are stable
+    self.add_lr_factor("bbscale3/w:0",0.25)
     self.add_lr_factor("vownership/w:0",0.25)
 
     self.value_output = value_output
@@ -1216,7 +1216,7 @@ class Target_varsV3:
     winlossprob_from_output = value_probs[:,0:2]
     self.winloss_reg_loss_unreduced = tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 
-    self.scale_reg_loss_unreduced = tf.reshape(0.0001 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
+    self.scale_reg_loss_unreduced = tf.reshape(0.01 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
 
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced)
