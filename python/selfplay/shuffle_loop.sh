@@ -18,5 +18,5 @@ shift
 while true
 do
     ./selfplay/shuffle.sh $BASEDIR $TMPDIR $NTHREADS
-    sleep 300
+    sleep 120
 done
