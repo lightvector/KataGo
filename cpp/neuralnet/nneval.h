@@ -46,6 +46,8 @@ struct NNResultBuf {
   mutex resultMutex;
   bool hasResult;
   bool includeOwnerMap;
+  int rowBinSize;
+  int rowGlobalSize;
   float* rowBin;
   float* rowGlobal;
   shared_ptr<NNOutput> result;

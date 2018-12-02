@@ -174,7 +174,9 @@ if(BUILD_MCTS)
   find_package(Boost COMPONENTS system filesystem REQUIRED)
   target_link_libraries(main ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
 
-  target_link_libraries(main ${TCMALLOC_LIB})
+  if(USE_TCMALLOC) 
+    target_link_libraries(main ${TCMALLOC_LIB})
+  endif(USE_TCMALLOC)
 
 endif()
 

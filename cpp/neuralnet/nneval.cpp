@@ -5,7 +5,7 @@
 
 NNResultBuf::NNResultBuf()
   :clientWaitingForResult(),resultMutex(),hasResult(false),includeOwnerMap(false),
-   rowBin(NULL),rowGlobal(NULL),
+   rowBinSize(0),rowGlobalSize(0),rowBin(NULL),rowGlobal(NULL),
    result(nullptr),errorLogLockout(false)
 {}
 
@@ -378,16 +378,30 @@ void NNEvaluator::evaluate(
   buf.includeOwnerMap = includeOwnerMap;
 
   if(!debugSkipNeuralNet) {
-    if(buf.rowBin == NULL)
-      buf.rowBin = new float[NNModelVersion::getNumSpatialFeatures(modelVersion) * posLen * posLen];
-      
+    int rowBinLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * posLen * posLen;
+    if(buf.rowBin == NULL) {
+      buf.rowBin = new float[rowBinLen];
+      buf.rowBinSize = rowBinLen;
+    }
+    else {
+      if(buf.rowBinSize != rowBinLen)
+        throw StringError("Cannot reuse an nnResultBuf with a different posLen or model version");
+    }
+    
     if(inputsVersion == 1)
       NNInputs::fillRowV1(board, history, nextPlayer, posLen, inputsUseNHWC, buf.rowBin);
     else if(inputsVersion == 2)
       NNInputs::fillRowV2(board, history, nextPlayer, posLen, inputsUseNHWC, buf.rowBin);
     else if(inputsVersion == 3) {
-      if(buf.rowGlobal == NULL)
-        buf.rowGlobal = new float[NNModelVersion::getNumGlobalFeatures(modelVersion)];
+      int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
+      if(buf.rowGlobal == NULL) {
+        buf.rowGlobal = new float[rowGlobalLen];
+        buf.rowGlobalSize = rowGlobalLen;
+      }
+      else {
+        if(buf.rowGlobalSize != rowGlobalLen)
+          throw StringError("Cannot reuse an nnResultBuf with a different posLen or model version");
+      }
       NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
     }
     else
