@@ -25,7 +25,7 @@ cp ./*.py ./selfplay/*.sh $basedir/scripts
     while true
     do
         ./shuffle.sh $basedir $TMPDIR $NTHREADS
-        sleep 300
+        sleep 120
     done
 ) >> outshuffle.txt 2>&1 &
 
