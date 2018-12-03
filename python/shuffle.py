@@ -89,6 +89,7 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
       selfBonusScoreN = selfBonusScoreN[start:stop],
       valueTargetsNCHW = valueTargetsNCHW[start:stop]
     )
+  return num_out_files
 
 def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   print("Merging shards for output file: %s (%d shards to merge)" % (filename,num_shards_to_merge))
@@ -180,6 +181,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   print("Done %s (%d rows)" % (filename, num_batches * batch_size))
 
   record_writer.close()
+  return num_batches * batch_size
 
 
 if __name__ == '__main__':
@@ -317,14 +319,23 @@ if __name__ == '__main__':
     os.mkdir(tmp_dir)
 
   with multiprocessing.Pool(num_processes) as pool:
-    pool.starmap(shardify, [
+    print("Beginning sharding",flush=True)
+    shard_results = pool.starmap(shardify, [
       (input_idx, desired_input_files[input_idx], num_out_files, out_tmp_dirs, keep_prob) for input_idx in range(len(desired_input_files))
     ])
+    print("Done sharding, number of shards by input file:",flush=True)
+    print(list(zip(desired_input_files,shard_results)),flush=True)
+    sys.stdout.flush()
 
+    print("Beginning merging",flush=True)
     num_shards_to_merge = len(desired_input_files)
-    pool.starmap(merge_shards, [
+    merge_results = pool.starmap(merge_shards, [
       (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size) for idx in range(len(out_files))
     ])
+    print("Done merging, number of rows by output file:",flush=True)
+    print(list(zip(out_files,merge_results)),flush=True)
+    sys.stdout.flush()
+
 
   clean_tmp_dirs()
   with open(out_dir + ".json", 'w') as f:

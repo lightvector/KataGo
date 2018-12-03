@@ -70,3 +70,6 @@ echo "Cleaning up any old dirs"
 find $BASEDIR/shuffleddata/ -mindepth 1 -maxdepth 1 -type d -mmin +480 | sort | head -n -5 | xargs --no-run-if-empty rm -r
 
 echo "Finished shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
+#Make a little space between shuffles
+echo ""
+echo ""
