@@ -278,21 +278,12 @@ def parse_input(serialized_example):
 
 def train_input_fn(train_files_to_use,total_num_train_files,batches_to_use):
   trainlog("Constructing train input pipe, %d/%d files used (%d batches)" % (len(train_files_to_use),total_num_train_files,batches_to_use))
-  # def genfiles():
-  #   trainlog("Shuffling/reshuffling training files for dataset")
-  #   train_files_shuffled = train_files.copy()
-  #   random.shuffle(train_files_shuffled)
-  #   for filename in train_files_shuffled:
-  #     trainlog("Yielding training file for dataset: " + filename)
-  #     yield filename
-  # dataset = tf.data.Dataset.from_generator(genfiles,tf.string,output_shapes=tf.TensorShape([]))
-
   dataset = tf.data.Dataset.from_tensor_slices(train_files_to_use)
   dataset = dataset.shuffle(65536)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
   dataset = dataset.shuffle(1000)
   dataset = dataset.map(parse_input)
-  # dataset = dataset.repeat()
+  dataset = dataset.prefetch(2)
   return dataset
 
 def val_input_fn(vdatadir):
@@ -301,6 +292,7 @@ def val_input_fn(vdatadir):
   dataset = tf.data.Dataset.from_tensor_slices(val_files)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
   dataset = dataset.map(parse_input)
+  dataset = dataset.prefetch(2)
   return dataset
 
 # TRAINING PARAMETERS ------------------------------------------------------------
