@@ -143,15 +143,6 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   logger.setLogToStdout(true);
   logger.write("Engine starting...");
 
-  NNEvaluator* nnEval;
-  {
-    Setup::initializeSession(cfg);
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},cfg,logger,seedRand);
-    assert(nnEvals.size() == 1);
-    nnEval = nnEvals[0];
-  }
-  logger.write("Loaded neural net");
-
   SearchParams params;
   {
     vector<SearchParams> paramss = Setup::loadParams(cfg);
@@ -173,6 +164,16 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     searchRandSeed = cfg.getString("searchRandSeed");
   else
     searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+
+  NNEvaluator* nnEval;
+  {
+    Setup::initializeSession(cfg);
+    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},cfg,logger,seedRand,maxConcurrentEvals,false);
+    assert(nnEvals.size() == 1);
+    nnEval = nnEvals[0];
+  }
+  logger.write("Loaded neural net");
 
   //Check for unused config keys
   {

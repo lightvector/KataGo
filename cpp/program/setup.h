@@ -15,7 +15,8 @@ namespace Setup {
     ConfigParser& cfg,
     Logger& logger,
     Rand& seedRand,
-    bool debugSkipNeuralNetDefault = false
+    int maxConcurrentEvals,
+    bool debugSkipNeuralNetDefault
   );
 
   vector<SearchParams> loadParams(

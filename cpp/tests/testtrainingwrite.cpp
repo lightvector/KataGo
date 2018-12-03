@@ -13,6 +13,7 @@ static NNEvaluator* startNNEval(
   string modelFile = "/dev/null";
   int modelFileIdx = 0;
   int maxBatchSize = 16;
+  int maxConcurrentEvals = 1024;
   int posLen = NNPos::MAX_BOARD_LEN;
   bool requireExactPosLen = false;
   int nnCacheSizePowerOfTwo = 16;
@@ -22,6 +23,7 @@ static NNEvaluator* startNNEval(
     modelFile,
     modelFileIdx,
     maxBatchSize,
+    maxConcurrentEvals,
     posLen,
     requireExactPosLen,
     inputsUseNHWC,

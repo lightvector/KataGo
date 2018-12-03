@@ -19,6 +19,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   ConfigParser& cfg,
   Logger& logger,
   Rand& seedRand,
+  int maxConcurrentEvals,
   bool debugSkipNeuralNetDefault
 ) {
   vector<NNEvaluator*> nnEvals;
@@ -51,6 +52,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnModelFile,
       modelFileIdx,
       cfg.getInt("nnMaxBatchSize", 1, 65536),
+      maxConcurrentEvals,
       posLen,
       requireExactPosLen,
       inputsUseNHWC,

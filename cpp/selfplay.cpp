@@ -274,13 +274,13 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     assert(netAndStuff->numGameThreads == 0);
     assert(netAndStuff->isDraining);
     delete netAndStuff;
-    
+
     logger.write("Data write loop cleaned up and terminating for " + name);
   };
 
   auto loadLatestNeuralNet =
     [inputsVersion,maxDataQueueSize,maxRowsPerTrainFile,maxRowsPerValFile,firstFileRandMinProp,dataPosLen,
-     &modelsDir,&outputDir,&logger,&cfg,validationProp](const string* lastNetName) -> NetAndStuff* {
+     &modelsDir,&outputDir,&logger,&cfg,validationProp,numGameThreads](const string* lastNetName) -> NetAndStuff* {
 
     string modelName;
     string modelFile;
@@ -294,9 +294,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     logger.write("Found new neural net " + modelName);
 
     bool debugSkipNeuralNetDefault = (modelFile == "/dev/null");
+    // * 2 + 16 just in case to have plenty of room
+    int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
 
     Rand rand;
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},cfg,logger,rand,debugSkipNeuralNetDefault);
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefault);
     assert(nnEvals.size() == 1);
     NNEvaluator* nnEval = nnEvals[0];
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
