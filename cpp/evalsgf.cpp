@@ -22,6 +22,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   string printBranch;
   string extraMoves;
   int maxVisits;
+  int numThreads;
   bool printOwnership;
   try {
     TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', "1.0",true);
@@ -34,6 +35,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> extraMovesArg("","extra-moves","Extra moves to force-play before doing search",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraArg("e","extra","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<int> visitsArg("v","visits","Set the number of visits",false,-1,"VISTIS");
+    TCLAP::ValueArg<int> threadsArg("t","threads","Set the number of threads",false,-1,"THREADS");
     TCLAP::SwitchArg printOwnershipArg("o","print-ownership","Print ownership");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
@@ -44,6 +46,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(extraMovesArg);
     cmd.add(extraArg);
     cmd.add(visitsArg);
+    cmd.add(threadsArg);
     cmd.add(printOwnershipArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
@@ -55,6 +58,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     extraMoves = extraMovesArg.getValue();
     string extra = extraArg.getValue();
     maxVisits = visitsArg.getValue();
+    numThreads = threadsArg.getValue();
     printOwnership = printOwnershipArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
@@ -150,7 +154,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       throw StringError("Can only specify exactly one bot in for searching in an sgf");
     params = paramss[0];
   }
-  if(maxVisits < -1)
+  if(maxVisits < -1 || maxVisits == 0)
     throw StringError("maxVisits: invalid value");
   else if(maxVisits == -1)
     logger.write("No max visits specified on cmdline, using defaults in " + cfg.getFileName());
@@ -158,7 +162,14 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     params.maxVisits = maxVisits;
     params.maxPlayouts = maxVisits; //Also set this so it doesn't cap us either
   }
-
+  if(numThreads < -1 || numThreads == 0)
+    throw StringError("numThreads: invalid value");
+  else if(numThreads == -1)
+    logger.write("No num threads specified on cmdline, using defaults in " + cfg.getFileName());
+  else {
+    params.numThreads = numThreads;
+  }
+  
   string searchRandSeed;
   if(cfg.contains("searchRandSeed"))
     searchRandSeed = cfg.getString("searchRandSeed");
