@@ -1216,7 +1216,7 @@ class Target_varsV3:
     winlossprob_from_output = value_probs[:,0:2]
     self.winloss_reg_loss_unreduced = tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 
-    self.scale_reg_loss_unreduced = tf.reshape(0.02 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
+    self.scale_reg_loss_unreduced = tf.reshape(0.005 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
 
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced)
