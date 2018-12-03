@@ -100,19 +100,34 @@ int MainCmds::match(int argc, const char* const* argv) {
     }
   }
 
+  //Load match runner settings
+  int numGameThreads = cfg.getInt("numGameThreads",1,16384);
+
+  string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+
+  //Work out an upper bound on how many concurrent nneval requests we could end up making.
+  int maxConcurrentEvals;
+  {
+    //Work out the max threads any one bot uses
+    int maxBotThreads = 0;
+    for(int i = 0; i<numBots; i++)
+      if(paramss[i].numThreads > maxBotThreads)
+        maxBotThreads = paramss[i].numThreads;
+    //Mutiply by the number of concurrent games we could have
+    maxConcurrentEvals = maxBotThreads * numGameThreads;
+    //Multiply by 2 and add some buffer, just so we have plenty of headroom.
+    maxConcurrentEvals = maxConcurrentEvals * 2 + 16;
+  }
+
   //Initialize neural net inference engine globals, and load models
   Setup::initializeSession(cfg);
-  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelFiles,cfg,logger,seedRand);
+  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,false);
   logger.write("Loaded neural net");
 
   vector<NNEvaluator*> nnEvalsByBot;
   for(int i = 0; i<numBots; i++)
     nnEvalsByBot.push_back(nnEvals[whichNNModel[i]]);
 
-  //Load match runner settings
-  int numGameThreads = cfg.getInt("numGameThreads",1,16384);
-
-  string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   //Initialize object for randomly pairing bots
   bool forSelfPlay = false;

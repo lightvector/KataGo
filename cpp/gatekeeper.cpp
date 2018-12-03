@@ -299,7 +299,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   };
 
   auto loadLatestNeuralNet =
-    [&testModelsDir,&acceptedModelsDir,&sgfOutputDir,&logger,&cfg]() -> NetAndStuff* {
+    [&testModelsDir,&acceptedModelsDir,&sgfOutputDir,&logger,&cfg,numGameThreads]() -> NetAndStuff* {
     Rand rand;
 
     string testModelName;
@@ -314,10 +314,12 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     logger.write("Found new candidate neural net " + testModelName);
 
     bool debugSkipNeuralNetDefaultTest = (testModelFile == "/dev/null");
+    // * 2 + 16 just in case to have plenty of room
+    int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
 
     NNEvaluator* testNNEval;
     {
-      vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({testModelFile},cfg,logger,rand,debugSkipNeuralNetDefaultTest);
+      vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({testModelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefaultTest);
       assert(nnEvals.size() == 1);
       logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
       testNNEval = nnEvals[0];
@@ -336,7 +338,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
     NNEvaluator* acceptedNNEval;
     {
-      vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({acceptedModelFile},cfg,logger,rand,debugSkipNeuralNetDefaultAccepted);
+      vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({acceptedModelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefaultAccepted);
       assert(nnEvals.size() == 1);
       logger.write("Loaded accepted neural net " + acceptedModelName + " from: " + acceptedModelFile);
       acceptedNNEval = nnEvals[0];

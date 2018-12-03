@@ -64,18 +64,6 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
 
   logger.write("Engine starting...");
 
-  NNEvaluator* nnEval;
-  {
-    Setup::initializeSession(cfg);
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},cfg,logger,seedRand);
-    assert(nnEvals.size() == 1);
-    nnEval = nnEvals[0];
-  }
-  int posLen = nnEval->getPosLen();
-  int policySize = NNPos::getPolicySize(posLen);
-  logger.write("Loaded neural net");
-
-
   Rules initialRules;
   {
     string koRule = cfg.getString("koRule", Rules::koRuleStrings());
@@ -96,6 +84,19 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
       throw StringError("Can only specify examply one search bot in sgf mode");
     params = paramss[0];
   }
+
+
+  NNEvaluator* nnEval;
+  {
+    Setup::initializeSession(cfg);
+    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false);
+    assert(nnEvals.size() == 1);
+    nnEval = nnEvals[0];
+  }
+  int posLen = nnEval->getPosLen();
+  int policySize = NNPos::getPolicySize(posLen);
+  logger.write("Loaded neural net");
 
   //Check for unused config keys
   {

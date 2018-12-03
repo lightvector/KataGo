@@ -58,16 +58,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   logger.write("GTP Engine starting...");
 
-  NNEvaluator* nnEval;
-  {
-    Setup::initializeSession(cfg);
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},cfg,logger,seedRand);
-    assert(nnEvals.size() == 1);
-    nnEval = nnEvals[0];
-  }
-  logger.write("Loaded neural net");
-
-
   Rules initialRules;
   {
     string koRule = cfg.getString("koRule", Rules::koRuleStrings());
@@ -80,7 +70,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     initialRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
     initialRules.komi = komi;
   }
-
 
   SearchParams params;
   {
@@ -98,6 +87,17 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   bool ponderingEnabled = cfg.getBool("ponderingEnabled");
   bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
+
+  NNEvaluator* nnEval;
+  {
+    Setup::initializeSession(cfg);
+    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false);
+    assert(nnEvals.size() == 1);
+    nnEval = nnEvals[0];
+  }
+  logger.write("Loaded neural net");
+
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
   {
@@ -364,7 +364,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             }
           }
         }
-        
+
         response = Location::toString(moveLoc,bot->getRootBoard());
 
         if(logSearchInfo) {
@@ -425,7 +425,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           maxHandicap = 30;
         if(n > maxHandicap)
           n = maxHandicap;
-        
+
         Board board(xSize,ySize);
         Player pla = P_BLACK;
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
@@ -461,7 +461,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           Loc loc;
           bool suc = tryParseLoc(pieces[i],board,loc);
           if(!suc || loc == Board::PASS_LOC) {
-            responseIsError = true;            
+            responseIsError = true;
             response = "Invalid handicap location: " + pieces[i];
           }
           locs.push_back(loc);
@@ -470,11 +470,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           board.setStone(locs[i],P_BLACK);
         Player pla = P_BLACK;
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
-        
-        bot->setPosition(pla,board,hist);                
+
+        bot->setPosition(pla,board,hist);
       }
     }
-      
+
     else {
       responseIsError = true;
       response = "unknown command";

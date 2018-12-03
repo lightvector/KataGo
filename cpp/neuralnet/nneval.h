@@ -76,6 +76,7 @@ class NNEvaluator {
     const string& modelFileName,
     int modelFileIdx,
     int maxBatchSize,
+    int maxConcurrentEvals,
     int posLen,
     bool requireExactPosLen,
     bool inputsUseNHWC,
@@ -149,18 +150,24 @@ class NNEvaluator {
 
   vector<thread*> serverThreads;
 
-  condition_variable clientWaitingForRow;
   condition_variable serverWaitingForBatchStart;
   mutex bufferMutex;
   bool isKilled;
 
   int maxNumRows;
-  int m_numRowsStarted;
+  int numResultBufss;
+  int numResultBufssMask;
 
   atomic<uint64_t> m_numRowsProcessed;
   atomic<uint64_t> m_numBatchesProcessed;
 
-  NNResultBuf** m_resultBufs;
+  //An array of NNResultBuf** of length numResultBufss, each NNResultBuf** is an array of NNResultBuf* of length maxNumRows.
+  //If a full resultBufs array fills up, client threads can move on to fill up more without waiting. Implemented basically
+  //as a circular buffer.
+  NNResultBuf*** m_resultBufss;
+  int m_currentResultBufsLen; //Number of rows used in in the latest (not yet full) resultBufss.
+  int m_currentResultBufsIdx; //Index of the current resultBufs being filled.
+  int m_oldestResultBufsIdx; //Index of the oldest resultBufs that still needs to be processed by a server thread
 
  public:
   //Helper, for internal use only

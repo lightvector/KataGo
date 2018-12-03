@@ -46,6 +46,7 @@ NNEvaluator::NNEvaluator(
   const string& mFileName,
   int modelFileIdx,
   int maxBatchSize,
+  int maxConcurrentEvals,
   int pLen,
   bool rExactPosLen,
   bool iUseNHWC,
@@ -62,17 +63,34 @@ NNEvaluator::NNEvaluator(
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
    serverThreads(),
-   clientWaitingForRow(),serverWaitingForBatchStart(),
+   serverWaitingForBatchStart(),
    bufferMutex(),
    isKilled(false),
    maxNumRows(maxBatchSize),
-   m_numRowsStarted(0),
+   numResultBufss(),
+   numResultBufssMask(),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
-   m_resultBufs(NULL)
+   m_resultBufss(NULL),
+   m_currentResultBufsLen(0),
+   m_currentResultBufsIdx(0),
+   m_oldestResultBufsIdx(0)
 {
   if(posLen > NNPos::MAX_BOARD_LEN)
     throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
+  if(maxConcurrentEvals <= 0)
+    throw StringError("maxConcurrentEvals is negative: " + Global::intToString(maxConcurrentEvals));
+  if(maxBatchSize <= 0)
+    throw StringError("maxBatchSize is negative: " + Global::intToString(maxBatchSize));
+
+  //Add three, just to give a bit of extra headroom, and make it a power of two
+  numResultBufss = maxConcurrentEvals / maxBatchSize + 3;
+  {
+    int x = 1;
+    while(x < numResultBufss) x *= 2;
+    numResultBufss = x;
+  }
+  numResultBufssMask = numResultBufss-1;
 
   if(nnCacheSizePowerOfTwo >= 0)
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo,nnMutexPoolSizePowerofTwo);
@@ -87,18 +105,26 @@ NNEvaluator::NNEvaluator(
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
   }
 
-  m_resultBufs = new NNResultBuf*[maxBatchSize];
-  for(int i = 0; i < maxBatchSize; i++)
-    m_resultBufs[i] = NULL;
+  m_resultBufss = new NNResultBuf**[numResultBufss];
+  for(int i = 0; i<numResultBufss; i++) {
+    m_resultBufss[i] = new NNResultBuf*[maxBatchSize];
+    for(int j = 0; j < maxBatchSize; j++)
+      m_resultBufss[i][j] = NULL;
+  }
 }
 
 NNEvaluator::~NNEvaluator()
 {
   killServerThreads();
 
-  //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
-  delete[] m_resultBufs;
-  m_resultBufs = NULL;
+  for(int i = 0; i<numResultBufss; i++) {
+    NNResultBuf** resultBufs = m_resultBufss[i];
+    //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
+    delete[] resultBufs;
+    m_resultBufss[i] = NULL;
+  }
+  delete[] m_resultBufss;
+  m_resultBufss = NULL;
 
   if(loadedModel != NULL)
     NeuralNet::freeLoadedModel(loadedModel);
@@ -208,17 +234,28 @@ void NNEvaluator::serve(
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
   while(true) {
     lock.lock();
-    while(m_numRowsStarted <= 0 && !isKilled)
+    while(m_currentResultBufsLen <= 0 && m_currentResultBufsIdx == m_oldestResultBufsIdx && !isKilled)
       serverWaitingForBatchStart.wait(lock);
 
     if(isKilled)
       break;
 
-    int numRows = m_numRowsStarted;
-    std::swap(m_resultBufs,buf.resultBufs);
+    std::swap(m_resultBufss[m_oldestResultBufsIdx],buf.resultBufs);
 
-    m_numRowsStarted = 0;
-    clientWaitingForRow.notify_all();
+    int numRows;
+    //We grabbed everything in the latest buffer, so clients should move on to an entirely new buffer
+    if(m_currentResultBufsIdx == m_oldestResultBufsIdx) {
+      m_oldestResultBufsIdx = (m_oldestResultBufsIdx + 1) & numResultBufssMask;
+      m_currentResultBufsIdx = m_oldestResultBufsIdx;
+      numRows = m_currentResultBufsLen;
+      m_currentResultBufsLen = 0;
+    }
+    //We grabbed a buffer that clients have already entirely moved onward from.
+    else {
+      m_oldestResultBufsIdx = (m_oldestResultBufsIdx + 1) & numResultBufssMask;
+      numRows = maxNumRows;
+    }
+
     lock.unlock();
 
     if(debugSkipNeuralNet) {
@@ -293,7 +330,7 @@ void NNEvaluator::serve(
     int rowGlobalLen = numGlobalFeatures;
     assert(rowBinLen == NeuralNet::getRowLen(buf.inputBuffers));
     assert(rowGlobalLen == NeuralNet::getRowGlobalLen(buf.inputBuffers));
-    
+
     for(int row = 0; row<numRows; row++) {
       float* rowInput = NeuralNet::getRowInplace(buf.inputBuffers,row);
       float* rowGlobalInput = NeuralNet::getRowGlobalInplace(buf.inputBuffers,row);
@@ -303,7 +340,7 @@ void NNEvaluator::serve(
       std::copy(rowBin,rowBin+rowBinLen,rowInput);
       std::copy(rowGlobal,rowGlobal+rowGlobalLen,rowGlobalInput);
     }
-    
+
     NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, outputBuf);
     assert(outputBuf.size() == numRows);
 
@@ -387,7 +424,7 @@ void NNEvaluator::evaluate(
       if(buf.rowBinSize != rowBinLen)
         throw StringError("Cannot reuse an nnResultBuf with a different posLen or model version");
     }
-    
+
     if(inputsVersion == 1)
       NNInputs::fillRowV1(board, history, nextPlayer, posLen, inputsUseNHWC, buf.rowBin);
     else if(inputsVersion == 2)
@@ -407,18 +444,25 @@ void NNEvaluator::evaluate(
     else
       assert(false);
   }
-  
-  unique_lock<std::mutex> lock(bufferMutex);
-  while(m_numRowsStarted >= maxNumRows)
-    clientWaitingForRow.wait(lock);
 
-  int rowIdx = m_numRowsStarted;
-  m_numRowsStarted += 1;
-  if(m_numRowsStarted == 1)
+  unique_lock<std::mutex> lock(bufferMutex);
+
+  m_resultBufss[m_currentResultBufsIdx][m_currentResultBufsLen] = &buf;
+  m_currentResultBufsLen += 1;
+  if(m_currentResultBufsLen == 1 && m_currentResultBufsIdx == m_oldestResultBufsIdx)
     serverWaitingForBatchStart.notify_one();
 
-  m_resultBufs[rowIdx] = &buf;
+  bool overlooped = false;
+  if(m_currentResultBufsLen >= maxNumRows) {
+    m_currentResultBufsLen = 0;
+    m_currentResultBufsIdx = (m_currentResultBufsIdx + 1) & numResultBufssMask;
+    overlooped = m_currentResultBufsIdx == m_oldestResultBufsIdx;
+  }
   lock.unlock();
+
+  //This should only fire if we have more than maxConcurrentEvals evaluating, such that they wrap the
+  //circular buffer.
+  assert(!overlooped);
 
   unique_lock<std::mutex> resultLock(buf.resultMutex);
   while(!buf.hasResult)
