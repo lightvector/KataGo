@@ -101,15 +101,19 @@ class MatchPairer {
 
   vector<int> secondaryBots;
   vector<pair<int,int>> nextMatchups;
+  vector<pair<int,int>> nextMatchupsBuf;
   Rand rand;
 
+  int matchRepFactor;
+  int repsOfLastMatchup;
+  
   int64_t numGamesStartedSoFar;
   int64_t numGamesTotal;
   int64_t logGamesEvery;
 
   std::mutex getMatchupMutex;
 
-  pair<int,int> getMatchupPair();
+  pair<int,int> getMatchupPairUnsynchronized();
 };
 
 struct FancyModes {

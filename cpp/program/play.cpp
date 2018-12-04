@@ -183,7 +183,10 @@ MatchPairer::MatchPairer(
    baseParamss(bParamss),
    secondaryBots(),
    nextMatchups(),
+   nextMatchupsBuf(),
    rand(),
+   matchRepFactor(1),
+   repsOfLastMatchup(0),
    numGamesStartedSoFar(0),
    numGamesTotal(),
    logGamesEvery(),
@@ -208,6 +211,9 @@ MatchPairer::MatchPairer(
       assert(secondaryBots[i] >= 0 && secondaryBots[i] < numBots);
     numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
   }
+
+  if(cfg.contains("matchRepFactor"))
+    matchRepFactor = cfg.getInt("matchRepFactor",1,100000);
 
   logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 }
@@ -243,7 +249,7 @@ bool MatchPairer::getMatchup(
     }
   }
 
-  pair<int,int> matchup = getMatchupPair();
+  pair<int,int> matchup = getMatchupPairUnsynchronized();
   botSpecB.botIdx = matchup.first;
   botSpecB.botName = botNames[matchup.first];
   botSpecB.nnEval = nnEvals[matchup.first];
@@ -257,27 +263,59 @@ bool MatchPairer::getMatchup(
   return true;
 }
 
-pair<int,int> MatchPairer::getMatchupPair() {
+pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
   if(nextMatchups.size() <= 0) {
     if(numBots == 1)
       return make_pair(0,0);
+
+    nextMatchupsBuf.clear();
+    //First generate the pairs only in a one-sided manner
     for(int i = 0; i<numBots; i++) {
       for(int j = 0; j<numBots; j++) {
-        if(i != j && !(contains(secondaryBots,i) && contains(secondaryBots,j))) {
-          nextMatchups.push_back(make_pair(i,j));
+        if(i < j && !(contains(secondaryBots,i) && contains(secondaryBots,j))) {
+          nextMatchupsBuf.push_back(make_pair(i,j));
         }
       }
     }
     //Shuffle
-    for(int i = nextMatchups.size()-1; i >= 1; i--) {
+    for(int i = nextMatchupsBuf.size()-1; i >= 1; i--) {
       int j = (int)rand.nextUInt(i+1);
-      pair<int,int> tmp = nextMatchups[i];
-      nextMatchups[i] = nextMatchups[j];
-      nextMatchups[j] = tmp;
+      pair<int,int> tmp = nextMatchupsBuf[i];
+      nextMatchupsBuf[i] = nextMatchupsBuf[j];
+      nextMatchupsBuf[j] = tmp;
+    }
+
+    //Then expand each pair into each player starting first
+    for(int i = 0; i<nextMatchupsBuf.size(); i++) {
+      pair<int,int> p = nextMatchupsBuf[i];
+      pair<int,int> swapped = make_pair(p.second,p.first);
+      if(rand.nextBool(0.5)) {
+        nextMatchups.push_back(p);
+        nextMatchups.push_back(swapped);
+      }
+      else {
+        nextMatchups.push_back(swapped);
+        nextMatchups.push_back(p);
+      }
     }
   }
+
   pair<int,int> matchup = nextMatchups.back();
-  nextMatchups.pop_back();
+
+  //Swap pair every other matchup if doing more than one rep
+  if(repsOfLastMatchup % 2 == 1) {
+    pair<int,int> tmp = make_pair(matchup.second,matchup.first);
+    matchup = tmp;
+  }
+
+  if(repsOfLastMatchup >= matchRepFactor-1) {
+    nextMatchups.pop_back();
+    repsOfLastMatchup = 0;
+  }
+  else {
+    repsOfLastMatchup++;
+  }
+
   return matchup;
 }
 
