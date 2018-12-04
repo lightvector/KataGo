@@ -47,8 +47,10 @@ scorevalue_output = two_over_pi * tf.atan(model.miscvalues_output[:,0])
 ownership_output = tf.tanh(model.ownership_output)
 scorebelief_output = tf.nn.softmax(model.scorebelief_output)
 bonusbelief_output = tf.nn.softmax(model.bonusbelief_output)
-sbscale = model.sbscale3_layer
-bbscale = model.bbscale3_layer
+# sbscale = model.sbscale3_layer
+# bbscale = model.bbscale3_layer
+sbscale = tf.zeros([1],dtype=tf.float32)
+bbscale = tf.zeros([1],dtype=tf.float32)
 
 # Moves ----------------------------------------------------------------
 

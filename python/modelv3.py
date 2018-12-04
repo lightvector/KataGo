@@ -37,7 +37,7 @@ class ModelV3:
     self.pass_pos = self.pos_len * self.pos_len
 
     self.reg_variables = []
-    self.prescale_variables = []
+    # self.prescale_variables = []
     self.lr_adjusted_variables = {}
     self.is_training = (placeholders["is_training"] if "is_training" in placeholders else tf.placeholder(tf.bool,name="is_training"))
 
@@ -963,14 +963,14 @@ class ModelV3:
     miscvalues_output = tf.reshape(mv3_layer, [-1] + self.miscvalues_target_shape, name = "miscvalues_output")
 
     #Transform a real-valued output into a positive value suitable for multiplying to other inputs as a scaling factor
-    def scaletransform(tensor):
-      self.prescale_variables.append(tensor)
+    # def scaletransform(tensor):
+    #   self.prescale_variables.append(tensor)
 
-      #tf.where has a bug where nan values on the non-chosen side will still propagate nans back in gradients.
-      #So we also abs the tensor, so that we never get a log of a negative value
-      abstensor = tf.abs(tensor)
-      econst = 2.71828182845904523536
-      return tf.where(tensor > 0, tf.log(abstensor + econst), 1.0 / tf.log(abstensor + econst))
+    #   #tf.where has a bug where nan values on the non-chosen side will still propagate nans back in gradients.
+    #   #So we also abs the tensor, so that we never get a log of a negative value
+    #   abstensor = tf.abs(tensor)
+    #   econst = 2.71828182845904523536
+    #   return tf.where(tensor > 0, tf.log(abstensor + econst), 1.0 / tf.log(abstensor + econst))
 
     scorebelief_len = self.scorebelief_target_shape[0]
     scorebelief_mid = self.pos_len*self.pos_len+ModelV3.EXTRA_SCORE_DISTR_RADIUS
@@ -986,18 +986,18 @@ class ModelV3:
     sb2_layer = tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) + tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size])
     sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
 
-    sbscale2w = self.weight_variable("sbscale2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
-    sbscale2b = self.weight_variable("sbscale2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
-    sbscale2_layer = self.relu_non_spatial("sbscale2/relu",tf.matmul(v1_layer_pooled, sbscale2w) + sbscale2b)
+    # sbscale2w = self.weight_variable("sbscale2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
+    # sbscale2b = self.weight_variable("sbscale2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
+    # sbscale2_layer = self.relu_non_spatial("sbscale2/relu",tf.matmul(v1_layer_pooled, sbscale2w) + sbscale2b)
 
     sb3w = self.weight_variable("sb3/w",[sbv2_size,1],sbv2_size,1)
     sb3_layer = tf.tensordot(sb2_layer,sb3w,axes=[[2],[0]])
 
-    sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1)
-    sbscale3_layer = scaletransform(tf.matmul(sbscale2_layer,sb3w))
-    self.sbscale3_layer = sbscale3_layer
+    # sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1)
+    # sbscale3_layer = scaletransform(tf.matmul(sbscale2_layer,sb3w))
+    # self.sbscale3_layer = sbscale3_layer
 
-    sb3_layer = sb3_layer * tf.reshape(sbscale3_layer,[-1,1,1])
+    sb3_layer = sb3_layer # * tf.reshape(sbscale3_layer,[-1,1,1])
 
     scorebelief_output = tf.reshape(sb3_layer,[-1] + self.scorebelief_target_shape, name = "scorebelief_output")
 
@@ -1016,18 +1016,18 @@ class ModelV3:
     bb2_layer = tf.reshape(bb2_layer_partial,[-1,1,bbv2_size]) + tf.reshape(bb2_offset_partial,[1,bonusbelief_len,bbv2_size])
     bb2_layer = self.relu_spatial1d("bb2/relu",bb2_layer)
 
-    bbscale2w = self.weight_variable("bbscale2/w",[v1_size*3,bbv2_size],v1_size*3+1,bbv2_size)
-    bbscale2b = self.weight_variable("bbscale2/b",[bbv2_size],v1_size*3+1,bbv2_size,scale_initial_weights=0.2,reg=False)
-    bbscale2_layer = self.relu_non_spatial("bbscale2/relu",tf.matmul(v1_layer_pooled, bbscale2w) + bbscale2b)
+    # bbscale2w = self.weight_variable("bbscale2/w",[v1_size*3,bbv2_size],v1_size*3+1,bbv2_size)
+    # bbscale2b = self.weight_variable("bbscale2/b",[bbv2_size],v1_size*3+1,bbv2_size,scale_initial_weights=0.2,reg=False)
+    # bbscale2_layer = self.relu_non_spatial("bbscale2/relu",tf.matmul(v1_layer_pooled, bbscale2w) + bbscale2b)
 
     bb3w = self.weight_variable("bb3/w",[bbv2_size,1],bbv2_size,1)
     bb3_layer = tf.tensordot(bb2_layer,bb3w,axes=[[2],[0]])
 
-    bbscale3w = self.weight_variable("bbscale3/w",[bbv2_size,1],bbv2_size,1)
-    bbscale3_layer = scaletransform(tf.matmul(bbscale2_layer,bb3w))
-    self.bbscale3_layer = bbscale3_layer
+    # bbscale3w = self.weight_variable("bbscale3/w",[bbv2_size,1],bbv2_size,1)
+    # bbscale3_layer = scaletransform(tf.matmul(bbscale2_layer,bb3w))
+    # self.bbscale3_layer = bbscale3_layer
 
-    bb3_layer = bb3_layer * tf.reshape(bbscale3_layer,[-1,1,1])
+    bb3_layer = bb3_layer # * tf.reshape(bbscale3_layer,[-1,1,1])
 
     bonusbelief_output = tf.reshape(bb3_layer,[-1] + self.bonusbelief_target_shape, name = "bonusbelief_output")
 
@@ -1047,17 +1047,17 @@ class ModelV3:
     self.add_lr_factor("sb2/w:0",0.25)
     self.add_lr_factor("sb2/b:0",0.25)
     self.add_lr_factor("sb2_offset/w:0",0.25)
-    self.add_lr_factor("sbscale2/w:0",0.25)
-    self.add_lr_factor("sbscale2/b:0",0.25)
+    # self.add_lr_factor("sbscale2/w:0",0.25)
+    # self.add_lr_factor("sbscale2/b:0",0.25)
     self.add_lr_factor("sb3/w:0",0.25)
-    self.add_lr_factor("sbscale3/w:0",0.25)
+    # self.add_lr_factor("sbscale3/w:0",0.25)
     self.add_lr_factor("bb2/w:0",0.25)
     self.add_lr_factor("bb2/b:0",0.25)
     self.add_lr_factor("bb2_offset/w:0",0.25)
-    self.add_lr_factor("bbscale2/w:0",0.25)
-    self.add_lr_factor("bbscale2/b:0",0.25)
+    # self.add_lr_factor("bbscale2/w:0",0.25)
+    # self.add_lr_factor("bbscale2/b:0",0.25)
     self.add_lr_factor("bb3/w:0",0.25)
-    self.add_lr_factor("bbscale3/w:0",0.25)
+    # self.add_lr_factor("bbscale3/w:0",0.25)
     self.add_lr_factor("vownership/w:0",0.25)
 
     self.value_output = value_output
@@ -1148,7 +1148,7 @@ class Target_varsV3:
       tf.square(self.scorevalue_target - scorevalue_prediction)
     )
 
-    self.scorebelief_cdf_loss_unreduced = 0.02 * self.ownership_target_weight * (
+    self.scorebelief_cdf_loss_unreduced = 0.01 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
         axis=1
@@ -1161,7 +1161,7 @@ class Target_varsV3:
       )
     )
 
-    self.bonusbelief_cdf_loss_unreduced = 0.02 * self.ownership_target_weight * (
+    self.bonusbelief_cdf_loss_unreduced = 0.01 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.bonusbelief_target,axis=1) - tf.cumsum(tf.nn.softmax(bonusbelief_output,axis=1),axis=1)),
         axis=1
@@ -1216,7 +1216,8 @@ class Target_varsV3:
     winlossprob_from_output = value_probs[:,0:2]
     self.winloss_reg_loss_unreduced = tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 
-    self.scale_reg_loss_unreduced = tf.reshape(0.005 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
+    # self.scale_reg_loss_unreduced = tf.reshape(0.005 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
+    self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
 
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced)
@@ -1392,7 +1393,7 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
     lr_epoch_offset = 0.0 if lr_epoch_offset is None else float(lr_epoch_offset)
     global_epoch_float_capped = tf.math.minimum(tf.constant(180.0),global_epoch + tf.constant(lr_epoch_offset,dtype=tf.float32))
     per_sample_learning_rate = (
-      tf.constant(0.00025) / tf.pow(global_epoch_float_capped * tf.constant(0.1) + tf.constant(1.0), tf.constant(1.333333))
+      tf.constant(0.00020) / tf.pow(global_epoch_float_capped * tf.constant(0.1) + tf.constant(1.0), tf.constant(1.333333))
     )
 
     lr_adjusted_variables = model.lr_adjusted_variables
