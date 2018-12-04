@@ -41,7 +41,7 @@ def memusage_mb():
 def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(4)])
 
-  print("Reading: " + input_file)
+  print("Shardify reading: " + input_file)
   npz = np.load(input_file)
   assert(set(npz.keys()) == set(keys))
 
@@ -56,7 +56,7 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   selfBonusScoreN = npz["selfBonusScoreN"]
   valueTargetsNCHW = npz["valueTargetsNCHW"]
 
-  print("Shuffling... (mem usage %dMB)" % memusage_mb())
+  print("Shardify shuffling... (mem usage %dMB)" % memusage_mb())
   joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,selfBonusScoreN,valueTargetsNCHW))
 
   num_rows_to_keep = binaryInputNCHWPacked.shape[0]
@@ -75,7 +75,7 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   countsums = np.cumsum(counts)
   assert(countsums[len(countsums)-1] == num_rows_to_keep)
 
-  print("Writing shards... (mem usage %dMB)" % memusage_mb())
+  print("Shardify writing... (mem usage %dMB)" % memusage_mb())
   for out_idx in range(num_out_files):
     start = countsums[out_idx]-counts[out_idx]
     stop = countsums[out_idx]
@@ -106,7 +106,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
 
   for input_idx in range(num_shards_to_merge):
     shard_filename = os.path.join(out_tmp_dir, str(input_idx) + ".npz")
-    print("Loading shard: %d (mem usage %dMB)" % (input_idx,memusage_mb()))
+    #print("Merge loading shard: %d (mem usage %dMB)" % (input_idx,memusage_mb()))
 
     npz = np.load(shard_filename)
     assert(set(npz.keys()) == set(keys))
@@ -130,7 +130,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   ###
   #WARNING - if adding anything here, also add it to joint_shuffle below!
   ###
-  print("Concatenating... (mem usage %dMB)" % memusage_mb())
+  print("Merge concatenating... (mem usage %dMB)" % memusage_mb())
   binaryInputNCHWPacked = np.concatenate(binaryInputNCHWPackeds)
   globalInputNC = np.concatenate(globalInputNCs)
   policyTargetsNCMove = np.concatenate(policyTargetsNCMoves)
@@ -139,10 +139,10 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   selfBonusScoreN = np.concatenate(selfBonusScoreNs)
   valueTargetsNCHW = np.concatenate(valueTargetsNCHWs)
 
-  print("Shuffling... (mem usage %dMB)" % memusage_mb())
+  print("Merge shuffling... (mem usage %dMB)" % memusage_mb())
   joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,selfBonusScoreN,valueTargetsNCHW))
 
-  print("Writing in batches...")
+  print("Merge writing in batches...")
   num_rows = binaryInputNCHWPacked.shape[0]
   #Just truncate and lose the batch at the end, it's fine
   num_batches = num_rows // batch_size
@@ -178,7 +178,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   with open(jsonfilename,"w") as f:
     json.dump({"num_rows":num_rows,"num_batches":num_batches},f)
 
-  print("Done %s (%d rows)" % (filename, num_batches * batch_size))
+  print("Merge done %s (%d rows)" % (filename, num_batches * batch_size))
 
   record_writer.close()
   return num_batches * batch_size
@@ -320,20 +320,26 @@ if __name__ == '__main__':
 
   with multiprocessing.Pool(num_processes) as pool:
     print("Beginning sharding",flush=True)
+    t0 = time.time()
     shard_results = pool.starmap(shardify, [
       (input_idx, desired_input_files[input_idx], num_out_files, out_tmp_dirs, keep_prob) for input_idx in range(len(desired_input_files))
     ])
+    t1 = time.time()
     print("Done sharding, number of shards by input file:",flush=True)
     print(list(zip(desired_input_files,shard_results)),flush=True)
+    print("Time taken: " + str(t1-t0),flush=True)
     sys.stdout.flush()
 
     print("Beginning merging",flush=True)
+    t0 = time.time()
     num_shards_to_merge = len(desired_input_files)
     merge_results = pool.starmap(merge_shards, [
       (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size) for idx in range(len(out_files))
     ])
+    t1 = time.time()
     print("Done merging, number of rows by output file:",flush=True)
     print(list(zip(out_files,merge_results)),flush=True)
+    print("Time taken: " + str(t1-t0),flush=True)
     sys.stdout.flush()
 
 
