@@ -361,12 +361,12 @@ while True:
   if curdatadir != last_curdatadir:
     if not os.path.exists(curdatadir):
       trainlog("Training data path does not exist, waiting and trying again later: %s" % curdatadir)
-      time.sleep(120)
+      time.sleep(60)
       continue
     trainjsonpath = os.path.join(curdatadir,"train.json")
     if not os.path.exists(trainjsonpath):
       trainlog("Training data json file does not exist, waiting and trying again later: %s" % trainjsonpath)
-      time.sleep(120)
+      time.sleep(60)
       continue
 
     trainlog("Updated training data: " + curdatadir)
@@ -471,5 +471,5 @@ while True:
       (lambda: val_input_fn(vdatadir))
     )
 
-  time.sleep(1)
+  time.sleep(460)
 
