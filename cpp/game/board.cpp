@@ -1407,6 +1407,16 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
       }
       else {
         moveListLen += findLiberties(loc,buf,start,start);
+        if(moveListLen != 2) {
+          cout << *this << endl;
+          cout << stackIdx << endl;
+          for(int i = 0; i<stackIdx; i++) {
+            cout << moveListCur[stackIdx] << " " << moveListStarts[stackIdx] << " " << moveListLens[stackIdx] << " "
+                 << Location::toString(buf[moveListStarts[stackIdx] + moveListCur[stackIdx]],*this) << endl;
+          }
+          cout << "===" << endl;
+          checkConsistency();
+        }
         assert(moveListLen == 2);
 
         int libs0 = getNumImmediateLiberties(buf[start]);
