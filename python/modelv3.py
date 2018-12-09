@@ -815,7 +815,7 @@ class ModelV3:
     mask_sum_hw_sqrt = tf.sqrt(mask_sum_hw)
 
     #Initial convolutional layer-------------------------------------------------------------------------------------
-    trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels, emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+    trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels)
     self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
 
     #Matrix multiply global inputs and accumulate them
@@ -834,22 +834,19 @@ class ModelV3:
       (name,kind) = block_kind[i]
       if kind == "regular":
         residual = self.res_conv_block(
-          name,trunk,mask,mask_sum,diam=3,main_channels=trunk_num_channels,mid_channels=mid_num_channels,
-          emphasize_center_weight = 0.3, emphasize_center_lr=1.5)
+          name,trunk,mask,mask_sum,diam=3,main_channels=trunk_num_channels,mid_channels=mid_num_channels)
         trunk = self.merge_residual(name,trunk,residual)
         self.blocks.append(("ordinary_block",name,3,trunk_num_channels,mid_num_channels))
       elif kind == "dilated":
         residual = self.dilated_res_conv_block(
-          name,trunk,mask,mask_sum,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2,
-          emphasize_center_weight = 0.3, emphasize_center_lr=1.5
+          name,trunk,mask,mask_sum,diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, dilated_mid_channels=dilated_num_channels, dilation=2
         )
         trunk = self.merge_residual(name,trunk,residual)
         self.blocks.append(("dilated_block",name,3,trunk_num_channels,regular_num_channels,dilated_num_channels,3))
       elif kind == "gpool":
         residual = self.global_res_conv_block(
           name,trunk,mask,mask_sum,mask_sum_hw,mask_sum_hw_sqrt,
-          diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=gpool_num_channels,
-          emphasize_center_weight = 0.3, emphasize_center_lr=1.5
+          diam=3,main_channels=trunk_num_channels,mid_channels=regular_num_channels, global_mid_channels=gpool_num_channels
         )
         trunk = self.merge_residual(name,trunk,residual)
         self.blocks.append(("gpool_block",name,3,trunk_num_channels,regular_num_channels,gpool_num_channels))
@@ -868,14 +865,14 @@ class ModelV3:
 
     #This is the main path for policy information
     p1_num_channels = config["p1_num_channels"]
-    p1_intermediate_conv = self.conv_only_block("p1/intermediate_conv",p0_layer,diam=3,in_channels=trunk_num_channels,out_channels=p1_num_channels)
-    self.p1_conv = ("p1/intermediate_conv",3,trunk_num_channels,p1_num_channels)
+    p1_intermediate_conv = self.conv_only_block("p1/intermediate_conv",p0_layer,diam=1,in_channels=trunk_num_channels,out_channels=p1_num_channels)
+    self.p1_conv = ("p1/intermediate_conv",1,trunk_num_channels,p1_num_channels)
 
     #But in parallel convolve to compute some features about the global state of the board
     #Hopefully the neural net uses this for stuff like ko situation, overall temperature/threatyness, who is leading, etc.
     g1_num_channels = config["g1_num_channels"]
-    g1_layer = self.conv_block("g1",p0_layer,mask,mask_sum,diam=3,in_channels=trunk_num_channels,out_channels=g1_num_channels)
-    self.g1_conv = ("g1",3,trunk_num_channels,g1_num_channels)
+    g1_layer = self.conv_block("g1",p0_layer,mask,mask_sum,diam=1,in_channels=trunk_num_channels,out_channels=g1_num_channels)
+    self.g1_conv = ("g1",1,trunk_num_channels,g1_num_channels)
 
     #Fold g1 down to single values for the board.
     g2_layer = self.global_pool(g1_layer, mask_sum_hw, mask_sum_hw_sqrt) #shape [b,1,1,3*g1_num_channels]
@@ -909,8 +906,8 @@ class ModelV3:
     p2_layer = p2_layer - (1.0-mask) * 5000.0 # mask out parts outside the board by making them a huge neg number, so that they're 0 after softmax
     self.p2_conv = ("p2",1,p1_num_channels,1)
 
-    self.add_lr_factor("p1/norm/beta:0",0.25)
-    self.add_lr_factor("p2/w:0",0.25)
+    # self.add_lr_factor("p1/norm/beta:0",0.25)
+    # self.add_lr_factor("p2/w:0",0.25)
 
     #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
     policy_output = self.apply_symmetry(p2_layer,symmetries,inverse=True)
@@ -918,7 +915,7 @@ class ModelV3:
 
     #Add pass move based on the global g values
     matmulpass = self.weight_variable("matmulpass",[g2_num_channels,1],g2_num_channels*8,1)
-    self.add_lr_factor("matmulpass:0",0.25)
+    # self.add_lr_factor("matmulpass:0",0.25)
     pass_output = tf.tensordot(g2_layer,matmulpass,axes=[[3],[0]])
     self.outputs_by_layer.append(("pass",pass_output))
     pass_output = tf.reshape(pass_output, [-1] + [1])
@@ -930,9 +927,9 @@ class ModelV3:
     v0_layer = trunk
 
     v1_num_channels = config["v1_num_channels"]
-    v1_layer = self.conv_block("v1",v0_layer,mask,mask_sum,diam=3,in_channels=trunk_num_channels,out_channels=v1_num_channels)
+    v1_layer = self.conv_block("v1",v0_layer,mask,mask_sum,diam=1,in_channels=trunk_num_channels,out_channels=v1_num_channels)
     self.outputs_by_layer.append(("v1",v1_layer))
-    self.v1_conv = ("v1",3,trunk_num_channels,v1_num_channels)
+    self.v1_conv = ("v1",1,trunk_num_channels,v1_num_channels)
     self.v1_num_channels = v1_num_channels
 
     v1_layer_pooled = self.value_head_pool(v1_layer, mask_sum_hw, mask_sum_hw_sqrt)
@@ -1038,27 +1035,27 @@ class ModelV3:
     ownership_output = self.apply_symmetry(ownership_output,symmetries,inverse=True)
     ownership_output = tf.reshape(ownership_output, [-1] + self.ownership_target_shape, name = "ownership_output")
 
-    self.add_lr_factor("v2/w:0",0.25)
-    self.add_lr_factor("v2/b:0",0.25)
-    self.add_lr_factor("v3/w:0",0.25)
-    self.add_lr_factor("v3/b:0",0.25)
-    self.add_lr_factor("mv3/w:0",0.25)
-    self.add_lr_factor("mv3/b:0",0.25)
-    self.add_lr_factor("sb2/w:0",0.25)
-    self.add_lr_factor("sb2/b:0",0.25)
-    self.add_lr_factor("sb2_offset/w:0",0.25)
-    # self.add_lr_factor("sbscale2/w:0",0.25)
-    # self.add_lr_factor("sbscale2/b:0",0.25)
-    self.add_lr_factor("sb3/w:0",0.25)
-    # self.add_lr_factor("sbscale3/w:0",0.25)
-    self.add_lr_factor("bb2/w:0",0.25)
-    self.add_lr_factor("bb2/b:0",0.25)
-    self.add_lr_factor("bb2_offset/w:0",0.25)
-    # self.add_lr_factor("bbscale2/w:0",0.25)
-    # self.add_lr_factor("bbscale2/b:0",0.25)
-    self.add_lr_factor("bb3/w:0",0.25)
-    # self.add_lr_factor("bbscale3/w:0",0.25)
-    self.add_lr_factor("vownership/w:0",0.25)
+    # self.add_lr_factor("v2/w:0",0.25)
+    # self.add_lr_factor("v2/b:0",0.25)
+    # self.add_lr_factor("v3/w:0",0.25)
+    # self.add_lr_factor("v3/b:0",0.25)
+    # self.add_lr_factor("mv3/w:0",0.25)
+    # self.add_lr_factor("mv3/b:0",0.25)
+    # self.add_lr_factor("sb2/w:0",0.25)
+    # self.add_lr_factor("sb2/b:0",0.25)
+    # self.add_lr_factor("sb2_offset/w:0",0.25)
+    # # self.add_lr_factor("sbscale2/w:0",0.25)
+    # # self.add_lr_factor("sbscale2/b:0",0.25)
+    # self.add_lr_factor("sb3/w:0",0.25)
+    # # self.add_lr_factor("sbscale3/w:0",0.25)
+    # self.add_lr_factor("bb2/w:0",0.25)
+    # self.add_lr_factor("bb2/b:0",0.25)
+    # self.add_lr_factor("bb2_offset/w:0",0.25)
+    # # self.add_lr_factor("bbscale2/w:0",0.25)
+    # # self.add_lr_factor("bbscale2/b:0",0.25)
+    # self.add_lr_factor("bb3/w:0",0.25)
+    # # self.add_lr_factor("bbscale3/w:0",0.25)
+    # self.add_lr_factor("vownership/w:0",0.25)
 
     self.value_output = value_output
     self.miscvalues_output = miscvalues_output
