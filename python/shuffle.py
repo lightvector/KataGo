@@ -241,7 +241,14 @@ if __name__ == '__main__':
 
   files_with_row_range = []
   num_rows_total = 0
+  num_random_rows_capped = 0
   num_desirable_rows_total = 0
+
+  def num_usable_rows():
+    global num_random_rows_capped
+    global num_desirable_rows_total
+    return num_random_rows_capped + num_desirable_rows_total
+
   for (filename,mtime) in all_files:
     npheaders = get_numpy_npz_headers(filename)
     if npheaders is None or len(npheaders) <= 0:
@@ -252,12 +259,14 @@ if __name__ == '__main__':
     num_rows_total += num_rows
     if "random" not in filename:
       num_desirable_rows_total += num_rows
+    else:
+      num_random_rows_capped = min(num_random_rows_capped + num_rows, min_rows)
 
     print("Training data file %s: %d rows" % (filename,num_rows))
     files_with_row_range.append((filename,row_range))
 
-    #If we have more desirable rows than we could possibly need to hit max rows, then just stop
-    if num_desirable_rows_total >= min_rows + (max_rows - min_rows) * window_factor:
+    #If we have more usable rows than we could possibly need to hit max rows, then just stop
+    if num_usable_rows() >= min_rows + (max_rows - min_rows) * window_factor:
       break
 
   if os.path.exists(out_dir):
@@ -273,13 +282,13 @@ if __name__ == '__main__':
     print("Not enough rows (fewer than %d)" % min_rows)
     sys.exit(0)
 
-  print("Total rows found: %d (%d desirable)" % (num_rows_total,num_desirable_rows_total))
+  print("Total rows found: %d (%d usable)" % (num_rows_total,num_usable_rows()))
 
   #Reverse so that recent files are first
   files_with_row_range.reverse()
 
   #Now assemble only the files we need to hit our desired window size
-  desired_num_rows = int(min_rows + (num_desirable_rows_total - min_rows) / window_factor)
+  desired_num_rows = int(min_rows + (num_usable_rows() - min_rows) / window_factor)
   desired_num_rows = max(desired_num_rows,min_rows)
   desired_num_rows = min(desired_num_rows,max_rows)
   print("Desired num rows: %d" % desired_num_rows)
