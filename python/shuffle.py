@@ -354,7 +354,13 @@ if __name__ == '__main__':
     print("Time taken: " + str(t1-t0),flush=True)
     sys.stdout.flush()
 
-
   clean_tmp_dirs()
+
+  dump_value = {
+    "files": files_with_row_range,
+    "range": (min(start_row for (filename,(start_row,end_row)) in desired_input_files_with_row_range),
+              max(end_row for (filename,(start_row,end_row)) in desired_input_files_with_row_range))
+  }
+
   with open(out_dir + ".json", 'w') as f:
-    json.dump(desired_input_files_with_row_range, f)
+    json.dump(dump_value, f)

@@ -332,7 +332,10 @@ def dump_and_flush_json(data,filename):
     f.flush()
     os.fsync(f.fileno())
 
-trainhistory = []
+trainhistory = {
+  "files":[],
+  "history":[]
+}
 if os.path.isfile(os.path.join(traindir,"trainhistory.json")):
   trainlog("Loading existing training history: " + str(os.path.join(traindir,"trainhistory.json")))
   with open(os.path.join(traindir,"trainhistory.json")) as f:
@@ -342,11 +345,11 @@ elif os.path.isfile(os.path.join(traindir,"initial_weights","trainhistory.json")
   with open(os.path.join(traindir,"initial_weights","trainhistory.json")) as f:
     trainhistory = json.load(f)
 else:
-  trainhistory.append(("initialized",model_config))
+  trainhistory["history"].append(("initialized",model_config))
 
 
 def save_history(global_step_value):
-  trainhistory.append(("nsamp",int(global_step_value * batch_size)))
+  trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
   savepath = os.path.join(traindir,"trainhistory.json")
   savepathtmp = os.path.join(traindir,"trainhistory.json.tmp")
   dump_and_flush_json(trainhistory,savepathtmp)
@@ -375,7 +378,8 @@ while True:
     with open(trainjsonpath) as f:
       datainfo = json.load(f)
       last_datainfo_row = max(end_row_idx for (fname,(start_row_idx,end_row_idx)) in datainfo)
-    trainhistory.append(("newdata",datainfo))
+    trainhistory["files"] = datainfo["files"]
+    trainhistory["history"].append(("newdata",datainfo["range"]))
 
   trainlog("GC collect")
   gc.collect()
