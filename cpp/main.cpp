@@ -12,6 +12,7 @@ static void printHelp() {
   cout << "selfplay" << endl;
   cout << "runtests" << endl;
   cout << "runsearchtests" << endl;
+  cout << "runsearchtestsv3" << endl;
   cout << "writeSearchValueTimeseries" << endl;
   cout << "sandbox" << endl;
   cout << "version" << endl;
@@ -42,6 +43,8 @@ int main(int argc, const char* argv[]) {
     return MainCmds::runtests(argc-1,&argv[1]);
   else if(cmdArg == "runsearchtests")
     return MainCmds::runsearchtests(argc-1,&argv[1]);
+  else if(cmdArg == "runsearchtestsv3")
+    return MainCmds::runsearchtestsv3(argc-1,&argv[1]);
   else if(cmdArg == "writeSearchValueTimeseries")
     return MainCmds::writeSearchValueTimeseries(argc-1,&argv[1]);
   else if(cmdArg == "sandbox")

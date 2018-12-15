@@ -86,6 +86,7 @@ struct CompactSgf {
   static vector<CompactSgf*> loadFiles(const vector<string>& files);
 
   void setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist);
+  void setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber);
 };
 
 namespace WriteSgf {

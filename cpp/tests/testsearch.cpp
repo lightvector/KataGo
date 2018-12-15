@@ -23,15 +23,8 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
   Board board;
   Player nextPla;
   BoardHistory hist;
-  sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
-  hist.rules.komi = overrideKomi;
-  vector<Move>& moves = sgf->moves;
-
-  assert(turnNumber < moves.size());
-  for(size_t i = 0; i<turnNumber; i++) {
-    hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
-    nextPla = getOpp(moves[i].pla);
-  }
+  sgf->setupBoardAndHist(rules, board, nextPla, hist, turnNumber);
+  hist.setKomi(overrideKomi);
   bot->setPosition(nextPla,board,hist);
 
   Search* search = bot->getSearch();
@@ -115,10 +108,9 @@ static NNEvaluator* startNNEval(
   return nnEval;
 }
 
-static void runBasicPositions(const string& modelFile, Logger& logger, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16)
+static void runBasicPositions(NNEvaluator* nnEval, Logger& logger)
 {
   {
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",symmetry,inputsNHWC,cudaNHWC,useFP16,false);
     SearchParams params;
     params.maxVisits = 200;
     AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
@@ -227,9 +219,43 @@ static void runBasicPositions(const string& modelFile, Logger& logger, bool inpu
     }
 
     delete bot;
-    delete nnEval;
   }
 }
+
+static void runOwnership(NNEvaluator* nnEval)
+{
+  {
+    cout << "GAME 5 ==========================================================================" << endl;
+    cout << "(A simple opening to test ownership map)" << endl;
+
+    string sgfStr = "(;FF[4]CA[UTF-8]KM[7.5];B[pp];W[pc];B[cd];W[dq];B[ed];W[pe];B[co];W[cp];B[do];W[fq];B[ck];W[qn];B[qo];W[pn];B[np];W[qj];B[jc];W[lc];B[je];W[lq];B[mq];W[lp];B[ek];W[qq];B[pq];W[ro];B[rp];W[qp];B[po];W[rq];B[rn];W[sp];B[rm];W[ql];B[on];W[om];B[nn];W[nm];B[mn];W[ip];B[mm])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    sgf->setupBoardAndHist(Rules::getTrompTaylorish(), board, nextPla, hist, 40);
+
+    double drawEquivalentWinsForWhite = 0.5;
+    NNResultBuf buf;
+    bool skipCache = true;
+    bool includeOwnerMap = true;
+    nnEval->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
+
+    cout << board << endl;
+    cout << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,buf.result->posLen);
+        float whiteOwn = buf.result->whiteOwnerMap[pos];
+        cout << Global::strprintf("%4d ", (int)round(whiteOwn * 1000));
+      }
+      cout << endl;
+    }    
+    cout << endl;
+  }
+}
+
 
 void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
   cout << "Running search tests" << endl;
@@ -241,7 +267,26 @@ void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNH
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  runBasicPositions(modelFile, logger, inputsNHWC, cudaNHWC, symmetry, useFP16);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",symmetry,inputsNHWC,cudaNHWC,useFP16,false);
+  runBasicPositions(nnEval, logger);
+  delete nnEval;
+
+  NeuralNet::globalCleanup();
+}
+
+void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
+  cout << "Running search tests specifically for v3 or later nets" << endl;
+  string tensorflowGpuVisibleDeviceList = "";
+  double tensorflowPerProcessGpuMemoryFraction = 0.3;
+  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.setLogTime(false);
+
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",symmetry,inputsNHWC,cudaNHWC,useFP16,false);
+  runOwnership(nnEval);
+  delete nnEval;
 
   NeuralNet::globalCleanup();
 }

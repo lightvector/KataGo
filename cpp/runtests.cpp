@@ -53,3 +53,20 @@ int MainCmds::runsearchtests(int argc, const char* const* argv) {
   );
   return 0;
 }
+
+int MainCmds::runsearchtestsv3(int argc, const char* const* argv) {
+  Board::initHash();
+
+  if(argc != 6) {
+    cerr << "Must supply exactly five arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16" << endl;
+    return 1;
+  }
+  Tests::runSearchTestsV3(
+    string(argv[1]),
+    Global::stringToBool(argv[2]),
+    Global::stringToBool(argv[3]),
+    Global::stringToInt(argv[4]),
+    Global::stringToBool(argv[5])
+  );
+  return 0;
+}

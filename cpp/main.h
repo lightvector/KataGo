@@ -9,6 +9,7 @@ namespace MainCmds {
   int selfplay(int argc, const char* const* argv);
   int runtests(int argc, const char* const* argv);
   int runsearchtests(int argc, const char* const* argv);
+  int runsearchtestsv3(int argc, const char* const* argv);
 
   int writeSearchValueTimeseries(int argc, const char* const* argv);
 
