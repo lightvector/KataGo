@@ -3,5 +3,5 @@
 while true
 do
     ./selfplay/export_modelv3_for_selfplay.sh $1
-    sleep 30
+    sleep 10
 done

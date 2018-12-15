@@ -440,7 +440,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       }
 
       //Sleep for a while and then re-poll
-      modelLoadSleepVar.wait_for(lock, std::chrono::seconds(60), [](){return shouldStop.load();});
+      modelLoadSleepVar.wait_for(lock, std::chrono::seconds(20), [](){return shouldStop.load();});
     }
 
     //As part of cleanup, anything remaining, mark them as draining so that if they also have
