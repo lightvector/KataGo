@@ -377,7 +377,7 @@ while True:
 
     with open(trainjsonpath) as f:
       datainfo = json.load(f)
-      last_datainfo_row = max(end_row_idx for (fname,(start_row_idx,end_row_idx)) in datainfo)
+      last_datainfo_row = datainfo["range"][1]
     trainhistory["files"] = datainfo["files"]
     trainhistory["history"].append(("newdata",datainfo["range"]))
 
