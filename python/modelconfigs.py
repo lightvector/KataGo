@@ -31,9 +31,9 @@ b6c96 = {
   "p1_num_channels":48,
   "g1_num_channels":32,
   "v1_num_channels":32,
-  "sbv2_num_channels":32,
-  "bbv2_num_channels":16,
-  "v2_size":32
+  "sbv2_num_channels":48,
+  "bbv2_num_channels":32,
+  "v2_size":48
 }
 
 b10c128 = {
@@ -59,7 +59,7 @@ b10c128 = {
   "v1_num_channels":32,
   "sbv2_num_channels":48,
   "bbv2_num_channels":32,
-  "v2_size":32
+  "v2_size":48
 }
 
 b14c192 = {
