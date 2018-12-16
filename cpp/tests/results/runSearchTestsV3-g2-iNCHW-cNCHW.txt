@@ -1,9 +1,9 @@
 Running search tests specifically for v3 or later nets
-: Cuda backend: Found GPU Tesla K80 memory 11995578368 compute capability major 3 minor 7
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16936861696 compute capability major 7 minor 0
 : Cuda backend: Model version 3
 GAME 5 ==========================================================================
 (A simple opening to test neural net outputs including ownership map)
-: Cuda backend: Found GPU Tesla K80 memory 11995578368 compute capability major 3 minor 7
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16936861696 compute capability major 7 minor 0
 : Cuda backend: Model version 3
 HASH: ADB4BE123347442207BF5B34A046995B
    A B C D E F G H J K L M N O P Q R S T
@@ -198,7 +198,7 @@ J7  : T   1.08c W   0.92c S   0.15c ( +0.2) V  -6.88c P 45.91% VW  5.61% N     3
 A1  : T   4.67c W   4.35c S   0.33c ( +0.4) V  11.24c P 17.73% VW  4.92% N      65  --  J7 D1 F1 H5 E5 K4 D5
 D6  : T  14.29c W  13.89c S   0.40c ( +0.5) V -53.90c P 19.26% VW  3.96% N      27  --  E5 J7 H5 G6 F1 A1 D1
 H5  : T   2.35c W   2.05c S   0.30c ( +0.3) V  21.03c P  3.24% VW  5.13% N      17  --  J7 A1 D6 D1 F1
-E5  : T  14.26c W  13.87c S   0.39c ( +0.4) V -23.14c P  1.79% VW  4.29% N       5  --  D5 J7 H5
+E5  : T  14.26c W  13.88c S   0.39c ( +0.4) V -23.14c P  1.79% VW  4.29% N       5  --  D5 J7 H5
 L5  : T  18.03c W  17.71c S   0.32c ( +0.4) V  18.03c P  1.15% VW  4.33% N       1  --  
 K4  : T  12.52c W  12.29c S   0.23c ( +0.3) V  12.52c P  0.92% VW  4.57% N       1  --  
 G6  : T  27.65c W  27.27c S   0.38c ( +0.4) V  27.65c P  0.68% VW  3.92% N       1  --  
@@ -220,7 +220,7 @@ E9  : T  47.37c W  46.64c S   0.73c ( +0.8) V  47.37c P  0.37% VW  3.13% N      
 A8  : T  64.46c W  63.30c S   1.16c ( +1.3) V  64.46c P  0.34% VW  2.54% N       1  --  
 D5  : T  49.08c W  48.17c S   0.91c ( +1.1) V  49.08c P  0.32% VW  3.07% N       1  --  
 B8  : T  56.34c W  55.47c S   0.87c ( +1.0) V  56.34c P  0.31% VW  2.81% N       1  --  
-D10 : T  44.34c W  43.61c S   0.74c ( +0.8) V  44.34c P  0.30% VW  3.25% N       1  --  
+D10 : T  44.35c W  43.61c S   0.74c ( +0.8) V  44.35c P  0.30% VW  3.25% N       1  --  
 B7  : T  58.59c W  57.65c S   0.94c ( +1.1) V  58.59c P  0.30% VW  2.74% N       1  --  
 B6  : T  56.31c W  55.40c S   0.91c ( +1.0) V  56.31c P  0.28% VW  2.81% N       1  --  
  -99.0  -99.5  -99.8  -99.8  -99.6  -99.7   98.5   98.5   99.2   99.7   99.7 
@@ -261,7 +261,7 @@ E9 visits 1 utility 47.37c scoreValue 2.43c endingScoreValueBonus 1.29c
 A8 visits 1 utility 64.46c scoreValue 3.87c endingScoreValueBonus 0.64c
 D5 visits 1 utility 49.08c scoreValue 3.04c endingScoreValueBonus 0.13c
 B8 visits 1 utility 56.34c scoreValue 2.89c endingScoreValueBonus 0.28c
-D10 visits 1 utility 44.34c scoreValue 2.45c endingScoreValueBonus 1.30c
+D10 visits 1 utility 44.35c scoreValue 2.45c endingScoreValueBonus 1.30c
 B7 visits 1 utility 58.59c scoreValue 3.13c endingScoreValueBonus 0.39c
 B6 visits 1 utility 56.31c scoreValue 3.03c endingScoreValueBonus 0.00c
 
@@ -399,7 +399,7 @@ D6  : T  58.25c W  56.76c S   1.48c ( +1.7) V  51.81c P  2.38% VW  3.88% N      
 A6  : T  66.07c W  64.61c S   1.46c ( +1.7) V  66.07c P  1.33% VW  3.68% N       1  --  
 B8  : T  59.08c W  57.83c S   1.25c ( +1.4) V  59.08c P  1.23% VW  3.94% N       1  --  
 B6  : T  72.05c W  70.34c S   1.70c ( +2.0) V  72.05c P  1.14% VW  3.45% N       1  --  
-A7  : T  68.03c W  66.54c S   1.50c ( +1.7) V  68.03c P  1.13% VW  3.60% N       1  --  
+A7  : T  68.04c W  66.54c S   1.50c ( +1.7) V  68.04c P  1.13% VW  3.60% N       1  --  
 A3  : T 116.68c W  99.97c S  16.71c (+26.3) V 116.68c P  1.06% VW  2.04% N       1  --  
 B7  : T  71.38c W  69.78c S   1.60c ( +1.8) V  71.38c P  0.95% VW  3.48% N       1  --  
 C6  : T  68.18c W  66.59c S   1.59c ( +1.8) V  68.18c P  0.80% VW  3.60% N       1  --  
@@ -436,7 +436,7 @@ D6 visits 3 utility 58.25c scoreValue 4.94c endingScoreValueBonus 0.00c
 A6 visits 1 utility 66.07c scoreValue 4.86c endingScoreValueBonus 0.00c
 B8 visits 1 utility 59.08c scoreValue 4.18c endingScoreValueBonus 0.00c
 B6 visits 1 utility 72.05c scoreValue 5.67c endingScoreValueBonus 0.00c
-A7 visits 1 utility 68.03c scoreValue 5.00c endingScoreValueBonus 0.00c
+A7 visits 1 utility 68.04c scoreValue 5.00c endingScoreValueBonus 0.00c
 A3 visits 1 utility 116.68c scoreValue 55.69c endingScoreValueBonus 0.00c
 B7 visits 1 utility 71.38c scoreValue 5.34c endingScoreValueBonus 0.00c
 C6 visits 1 utility 68.18c scoreValue 5.31c endingScoreValueBonus 0.00c
@@ -485,7 +485,7 @@ D6  : T  58.25c W  56.76c S   1.48c ( +1.7) V  51.81c P  2.38% VW  3.88% N      
 A6  : T  66.07c W  64.61c S   1.46c ( +1.7) V  66.07c P  1.33% VW  3.68% N       1  --  
 B8  : T  59.08c W  57.83c S   1.25c ( +1.4) V  59.08c P  1.23% VW  3.95% N       1  --  
 B6  : T  72.05c W  70.34c S   1.70c ( +2.0) V  72.05c P  1.14% VW  3.46% N       1  --  
-A7  : T  68.03c W  66.54c S   1.50c ( +1.7) V  68.03c P  1.13% VW  3.61% N       1  --  
+A7  : T  68.04c W  66.54c S   1.50c ( +1.7) V  68.04c P  1.13% VW  3.61% N       1  --  
 A3  : T 116.68c W  99.97c S  16.71c (+26.3) V 116.68c P  1.06% VW  2.04% N       1  --  
 B7  : T  71.38c W  69.78c S   1.60c ( +1.8) V  71.38c P  0.95% VW  3.48% N       1  --  
 C6  : T  68.18c W  66.59c S   1.59c ( +1.8) V  68.18c P  0.80% VW  3.60% N       1  --  
@@ -522,7 +522,7 @@ D6 visits 3 utility 58.25c scoreValue 4.94c endingScoreValueBonus 1.10c
 A6 visits 1 utility 66.07c scoreValue 4.86c endingScoreValueBonus 0.65c
 B8 visits 1 utility 59.08c scoreValue 4.18c endingScoreValueBonus 0.59c
 B6 visits 1 utility 72.05c scoreValue 5.67c endingScoreValueBonus 0.37c
-A7 visits 1 utility 68.03c scoreValue 5.00c endingScoreValueBonus 0.87c
+A7 visits 1 utility 68.04c scoreValue 5.00c endingScoreValueBonus 0.87c
 A3 visits 1 utility 116.68c scoreValue 55.69c endingScoreValueBonus 0.55c
 B7 visits 1 utility 71.38c scoreValue 5.34c endingScoreValueBonus 0.76c
 C6 visits 1 utility 68.18c scoreValue 5.31c endingScoreValueBonus 0.52c

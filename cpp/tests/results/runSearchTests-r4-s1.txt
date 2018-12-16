@@ -2,7 +2,7 @@ Running search tests
 GAME 1 ==========================================================================
 (An ordinary pro game)
 
-: Cuda backend: Found GPU Tesla K80 memory 11995578368 compute capability major 3 minor 7
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16936861696 compute capability major 7 minor 0
 : Cuda backend: Model version 3
 MoveNum: 20 HASH: 9C149A65DD8EAFF46E53149CADCF4436
    A B C D E F G H J K L M N O P Q R S T
@@ -433,7 +433,7 @@ PV: F2 D18 D19 C17 B18 F3 J1 A15 A17 O10 N10
 Tree:
 : T  20.97c W  18.99c S   1.98c ( +4.0) V  12.57c N     200  --  F2 D18 D19 C17 B18 F3 J1
 ---White(^)---
-F2  : T  21.16c W  19.19c S   1.97c ( +3.9) V  46.39c P 54.39% VW 39.07% N     117  --  D18 D19 C17 B18 F3 J1 A15
+F2  : T  21.16c W  19.19c S   1.97c ( +3.9) V  46.39c P 54.38% VW 39.07% N     117  --  D18 D19 C17 B18 F3 J1 A15
 J1  : T  21.64c W  19.56c S   2.08c ( +4.2) V  55.01c P 32.50% VW 39.54% N      80  --  L1 F2 D18 D19 C17 B18 F3
 R5  : T -24.99c W -22.83c S  -2.15c ( -4.3) V  29.70c P  2.46% VW 21.39% N       2  --  F2
 MoveNum: 197 HASH: 787388DFE519E62C0E5E75CFAA9D3E21
@@ -468,7 +468,7 @@ Tree:
 ---White(^)---
 J1  : T  22.48c W  20.35c S   2.13c ( +4.3) V  61.63c P 30.49% VW 46.03% N     161  --  L1 F2 O10 N10 F3 G1 D18
 E1  : T   5.22c W   4.31c S   0.90c ( +1.8) V  35.49c P 52.37% VW 29.30% N      36  --  D18 D19 C19 B19 A15 A17 O10
-R5  : T -21.61c W -19.87c S  -1.74c ( -3.5) V  33.41c P  4.72% VW 24.67% N       2  --  F2
+R5  : T -21.61c W -19.87c S  -1.74c ( -3.5) V  33.40c P  4.72% VW 24.67% N       2  --  F2
 MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
    A B C D E F G H J K L M N O P Q R S T
 19 . . . O O X X . . X . . . . . X X X O
@@ -640,7 +640,7 @@ N4  : T  38.22c W  37.80c S   0.43c ( +0.8) V  39.35c P 25.09% VW  6.85% N      
 N2  : T  34.36c W  33.55c S   0.80c ( +1.6) V  27.56c P  3.34% VW  7.75% N       6  --  pass N4 pass
 O3  : T  32.31c W  31.55c S   0.77c ( +1.5) V  27.68c P  2.57% VW  7.99% N       6  --  pass N4 pass
 H10 : T  31.58c W  30.92c S   0.66c ( +1.3) V  32.19c P  2.22% VW  8.07% N       6  --  pass N4 pass pass
-N3  : T  31.73c W  31.02c S   0.70c ( +1.4) V  27.40c P  2.07% VW  8.05% N       6  --  pass N4
+N3  : T  31.72c W  31.02c S   0.70c ( +1.4) V  27.40c P  2.07% VW  8.05% N       6  --  pass N4
 G10 : T  29.50c W  28.88c S   0.62c ( +1.2) V  31.56c P  1.46% VW  8.32% N       6  --  pass N4 pass pass
 K12 : T  32.42c W  31.54c S   0.88c ( +1.8) V  32.16c P  1.96% VW  8.01% N       4  --  pass N4 pass
 C19 : T  39.39c W  38.55c S   0.83c ( +1.7) V  22.93c P  3.03% VW  7.35% N       3  --  B19 N4
@@ -984,7 +984,7 @@ J17 : T  29.84c W  26.79c S   3.05c ( +6.1) V  25.50c P  3.36% VW  3.03% N      
 D3  : T  27.15c W  24.33c S   2.82c ( +5.7) V  17.40c P  2.34% VW  3.13% N       2  --  C3
 K2  : T  22.13c W  19.83c S   2.30c ( +4.6) V  14.89c P  1.55% VW  3.32% N       2  --  P14
 D15 : T  18.82c W  16.74c S   2.09c ( +4.2) V  10.14c P  1.43% VW  3.44% N       2  --  C15
-B5  : T  17.56c W  15.57c S   1.99c ( +4.0) V  10.57c P  1.04% VW  3.49% N       2  --  P14
+B5  : T  17.55c W  15.57c S   1.99c ( +4.0) V  10.57c P  1.04% VW  3.49% N       2  --  P14
 O5  : T  20.67c W  18.39c S   2.28c ( +4.5) V   6.30c P  0.99% VW  3.37% N       2  --  R8
 O4  : T  19.00c W  16.93c S   2.07c ( +4.1) V  10.04c P  0.97% VW  3.44% N       2  --  P14
 R7  : T  14.92c W  13.25c S   1.67c ( +3.3) V   0.16c P  0.96% VW  3.59% N       2  --  Q6

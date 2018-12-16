@@ -1,0 +1,976 @@
+Running search tests
+GAME 1 ==========================================================================
+(An ordinary pro game)
+
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16936861696 compute capability major 7 minor 0
+: Cuda backend: Model version 2
+MoveNum: 20 HASH: 9C149A65DD8EAFF46E53149CADCF4436
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . O . . . . . . . . . X . . . . .
+16 . . . . . . . . . . . . . . . . X . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . X . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . O . O . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . O . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . O . . .
+ 6 . . X X2. . . . . . . . . . . . O . .
+ 5 . . O1. O3. . . . . . . . . . O X . .
+ 4 . . . O . X . . . . . . . . . . X . .
+ 3 . . . . . . . . . . . . . X . X . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 190
+NN batches: 190
+NN avg batch size: 1
+PV: C3 D3 B5 C4 B4 B3 C2 B2 F2 E2
+Tree:
+: T  13.16c W  13.16c S   0.00c ( +0.0) V  17.49c N     200  --  C3 D3 B5 C4 B4 B3 C2
+---Black(v)---
+C3  : T  11.54c W  11.54c S   0.00c ( +0.0) V  -9.82c P 20.42% VW 10.50% N      54  --  D3 B5 C4 B4 B3 C2 B2
+D8  : T  14.10c W  14.10c S   0.00c ( +0.0) V  -4.45c P 20.44% VW  9.89% N      43  --  D9 F8 E9 G6 F5 G5 G4
+F7  : T  15.75c W  15.75c S   0.00c ( +0.0) V  -2.23c P 18.80% VW  9.55% N      31  --  F5 H4 G5 C3 D3 B5 C4
+C15 : T  10.60c W  10.60c S   0.00c ( +0.0) V  -5.70c P  5.58% VW 10.64% N      28  --  F5 H4 C12 E16 E17
+D16 : T  11.37c W  11.37c S   0.00c ( +0.0) V  -8.97c P  1.96% VW 10.42% N      14  --  C16 E17 C17 E16 D14 J16 F5
+D5  : T  16.21c W  16.21c S   0.00c ( +0.0) V   7.25c P  6.98% VW  9.60% N      11  --  E4 C4 C3 B5 B3 F3 F5
+B5  : T  14.92c W  14.92c S   0.00c ( +0.0) V  -2.69c P  3.01% VW  9.85% N       6  --  B4 D5 C4
+G6  : T  16.22c W  16.22c S   0.00c ( +0.0) V   4.12c P  3.12% VW  9.71% N       4  --  F5 G5 G4
+D9  : T  16.23c W  16.23c S   0.00c ( +0.0) V  -7.56c P  2.00% VW  9.71% N       4  --  D10 D8 C11
+H4  : T  12.90c W  12.90c S   0.00c ( +0.0) V   0.60c P  1.84% VW 10.14% N       4  --  F5 F7 G5
+MoveNum: 40 HASH: 8D56D36E2B58CA28CC0E6AB03AF5328C
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . O . . . . . . . . . X . . . . .
+16 . . . . . . . . . . . . . . . . X . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . X . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . O3. . . . . . . . . . O . O . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . O . X2. . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . O . . . . O . . . . . . . . O . . .
+ 6 . X X X X X O . . . . . . . . . O . .
+ 5 . X O . O O X X . . . . . . . O X . .
+ 4 . X O O . X . . . . . . . . . . X . .
+ 3 . O . O . . . . . . . . . X . X . . .
+ 2 . . O O1X . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 198
+NN batches: 198
+NN avg batch size: 1
+PV: D16 C16 E17 C17 E16 D14 G9 J7
+Tree:
+: T   0.27c W   0.27c S   0.00c ( +0.0) V   4.65c N     200  --  D16 C16 E17 C17 E16 D14 G9
+---Black(v)---
+D16 : T  -4.16c W  -4.16c S   0.00c ( +0.0) V  -4.36c P  6.52% VW 11.63% N      60  --  C16 E17 C17 E16 D14 G9 J7
+F10 : T   1.54c W   1.54c S   0.00c ( +0.0) V  -8.83c P 23.66% VW 10.16% N      48  --  D14 J7 G9 G10 H9 H10
+G9  : T   3.04c W   3.04c S   0.00c ( +0.0) V  -4.39c P 24.92% VW  9.82% N      41  --  J7 K5 D14 L7
+C13 : T  -1.84c W  -1.84c S   0.00c ( +0.0) V  -4.22c P  3.84% VW 10.90% N      22  --  C15 F10 E12 D14 B12
+E11 : T   3.03c W   3.03c S   0.00c ( +0.0) V  -8.34c P  5.97% VW 10.00% N      10  --  E12 F11 D12 J7 G9
+J7  : T   7.23c W   7.23c S   0.00c ( +0.0) V  -0.66c P  4.92% VW  9.44% N       6  --  G9 E11 E12
+G8  : T   7.31c W   7.31c S   0.00c ( +0.0) V   1.65c P  4.81% VW  9.48% N       5  --  J6 J5 K6 K5
+J6  : T   7.67c W   7.67c S   0.00c ( +0.0) V   2.08c P  3.66% VW  9.48% N       4  --  G9 E11 E12
+F8  : T   8.70c W   8.70c S   0.00c ( +0.0) V   6.41c P  2.42% VW  9.52% N       2  --  D14
+G2  : T   9.78c W   9.78c S   0.00c ( +0.0) V   9.78c P  1.81% VW  9.57% N       1  --  
+MoveNum: 61 HASH: 98C2B58DA92F54B9DC6096947A9A0155
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . O . . . . . . . . . X . . . . .
+16 . . . . . . . . . . . . . . . . X . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . O . X3. . . . . . . . . . . . .
+13 . . . . . O2. . . . X1. . . . . X . .
+12 . . O . X . X X X . . . . . . . . . .
+11 . . . O . X O O O O . . . . O . O . .
+10 . . . . X . . . . . . . . . . . . . .
+ 9 . . O O X . O . . . . . . . . . . . .
+ 8 . . X O X . . . . . . . . . . . . . .
+ 7 . O . . . . O . . . . . . . . O . . .
+ 6 . X X X X X O . X . . . . . . . O . .
+ 5 . X O . O O X X . . . . . . . O X . .
+ 4 . X O O . X . . . . . . . . . . X . .
+ 3 . O . O . . . . . . . . . X . X . . .
+ 2 . . O O X . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 198
+NN batches: 198
+NN avg batch size: 1
+PV: E13 F12 F16 P6 P7 O6 O7
+Tree:
+: T  16.99c W  16.99c S   0.00c ( +0.0) V  15.20c N     200  --  E13 F12 F16 P6 P7 O6 O7
+---White(^)---
+E13 : T  18.34c W  18.34c S   0.00c ( +0.0) V  42.85c P 47.28% VW 18.67% N     147  --  F12 F16 P6 P7 O6 O7
+G14 : T  13.70c W  13.70c S   0.00c ( +0.0) V  28.54c P 17.23% VW 16.71% N      26  --  E13 F15 E14 E15 G15 G16 H15
+E14 : T  18.12c W  18.12c S   0.00c ( +0.0) V  21.48c P  3.87% VW 18.23% N      12  --  F15 G13 F12 H14
+G13 : T   7.57c W   7.57c S   0.00c ( +0.0) V  17.91c P 10.01% VW 15.22% N      10  --  E13 E14 G14 H13
+F12 : T  -4.12c W  -4.12c S   0.00c ( +0.0) V   9.36c P  3.40% VW 13.93% N       2  --  E13
+F15 : T  13.61c W  13.61c S   0.00c ( +0.0) V  18.15c P  1.74% VW 17.24% N       2  --  G14
+MoveNum: 82 HASH: 6F2920E550E0478115FF856DC35ADB4C
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . O . . . . . . . . . X . X O . .
+16 . . . . . X O . . . . . . . . . X . .
+15 . . . . . X O . . . . . . . . . . . .
+14 . . O O O X O . . . . . . . . . . . .
+13 . O . O X O O . . . X . . . . . X . .
+12 . X O X X X X X X . . . . . . . . . .
+11 . . X O . X O O O O . . . . O . O . .
+10 . . . . X . . . . . . . . . . . . . .
+ 9 . . O O X . O . . . . . . . . . . . .
+ 8 . . X O X . . . . . . . . . . . . . .
+ 7 . O . . . . O . . . . . . . . O . . .
+ 6 . X X X X X O . X . . . O3. X2. O . .
+ 5 . X O . O O X X . . . . . . . O X . .
+ 4 . X O O . X . . . . . . O1. . . X . .
+ 3 . O . O . . . . . . . . . X . X . . .
+ 2 . . O O X . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 196
+NN batches: 196
+NN avg batch size: 1
+PV: C13 Q16 R15 C12 B11 D10 C13 P17 Q18 C12
+Tree:
+: T -36.85c W -36.85c S   0.00c ( +0.0) V -27.32c N     200  --  C13 Q16 R15 C12 B11 D10 C13
+---Black(v)---
+C13 : T -40.67c W -40.67c S   0.00c ( +0.0) V -65.12c P 12.47% VW 13.79% N     134  --  Q16 R15 C12 B11 D10 C13 P17
+P7  : T -30.43c W -30.43c S   0.00c ( +0.0) V -22.56c P 20.11% VW 10.75% N      25  --  Q6 P5 P8 O8 P9 N7
+Q6  : T -21.53c W -21.53c S   0.00c ( +0.0) V -33.19c P 25.25% VW  8.94% N      18  --  P7 R7 S6 S7 P5
+G17 : T -33.94c W -33.94c S   0.00c ( +0.0) V -31.84c P  3.89% VW 11.77% N       7  --  H17 F18 H18 D18
+P5  : T -27.84c W -27.84c S   0.00c ( +0.0) V -28.51c P  4.31% VW 10.89% N       4  --  P7 C13
+L7  : T -25.17c W -25.17c S   0.00c ( +0.0) V -34.13c P  3.45% VW 10.48% N       4  --  M8 Q6 P7
+F17 : T -31.47c W -31.47c S   0.00c ( +0.0) V -33.34c P  3.24% VW 11.45% N       4  --  G17 G18 H18
+K8  : T -27.71c W -27.71c S   0.00c ( +0.0) V -28.21c P  2.32% VW 11.08% N       2  --  M11
+O4  : T -23.98c W -23.98c S   0.00c ( +0.0) V -23.98c P  1.76% VW 10.86% N       1  --  
+MoveNum: 103 HASH: C0E88FA1A2BCC976F34304AF2C430AC5
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . O X1. .
+17 . . . O . . . . . . . . . X O X . X .
+16 . . . . . X O . . . . . . . O2. X . .
+15 . . . . . X O . . . . . . . . . . . .
+14 . . O O O X O . . . . . . . . . . . .
+13 . O X3O X O O . . . X . . . . . X . .
+12 . X . X X X X X X . . . . . . . . . .
+11 . . X O . X O O O O . O . . O . O . .
+10 . . . . X . . . . . . . . . . . . . .
+ 9 . . O O X . O . . . . . . . . . . . .
+ 8 . . X O X . . . . . . . . . O O . . .
+ 7 . O . . . . O . . . . . . . X O X . .
+ 6 . X X X X X O . X X X . O . X X . X .
+ 5 . X O . O O X X . O X . X . . O X . .
+ 4 . X O O . X . . . O . . O . . . X . .
+ 3 . O . O . . O . O . . . . X . X . . .
+ 2 . . O O X . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 196
+NN batches: 196
+NN avg batch size: 1
+PV: F17 O18 C12 B11 D10 C13 Q16 P18 C12 B9
+Tree:
+: T -47.64c W -47.64c S   0.00c ( +0.0) V -83.19c N     200  --  F17 O18 C12 B11 D10 C13 Q16
+---White(^)---
+F17 : T -43.47c W -43.47c S   0.00c ( +0.0) V -80.10c P 13.65% VW 22.13% N     118  --  O18 C12 B11 D10 C13 Q16 P18
+Q16 : T -53.75c W -53.75c S   0.00c ( +0.0) V -81.60c P 54.25% VW 16.67% N      65  --  D16 C16 E17 D18 G17 H17
+O18 : T -50.69c W -50.69c S   0.00c ( +0.0) V -77.21c P  6.50% VW 18.65% N      13  --  D16 C16 E17 D18
+G17 : T -81.45c W -81.45c S   0.00c ( +0.0) V -81.45c P  4.43% VW 13.89% N       1  --  
+M5  : T -72.98c W -72.98c S   0.00c ( +0.0) V -72.98c P  2.15% VW 15.26% N       1  --  
+L16 : T -84.49c W -84.49c S   0.00c ( +0.0) V -84.49c P  1.71% VW 13.41% N       1  --  
+
+
+GAME 2 ==========================================================================
+(Another ordinary pro game)
+
+MoveNum: 23 HASH: BC4A4A9B30301681DA536778DFC80294
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . O . . O . . . . . . . O . . . .
+16 . . . . . . . . . . . . . . . . X . .
+15 . . X . . X . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . O . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . O . . . . . . . . . . . . O . . .
+ 6 . . . X . . . . . . . . . . X X O . .
+ 5 . . O X . . . . . . . . . . . . X1. .
+ 4 . . O . . . . . . . . . . . . X . . .
+ 3 . . . . X . . . . X . . . . . . O . .
+ 2 . . . . . . . . . . . . X3. O2. . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 190
+NN batches: 190
+NN avg batch size: 1
+PV: Q15 R15 Q14 R13 D7 Q3 Q2 S3 S2 S4 N3 M3 O2
+Tree:
+: T -30.41c W -30.41c S   0.00c ( +0.0) V -38.51c N     200  --  Q15 R15 Q14 R13 D7 Q3 Q2
+---White(^)---
+Q15 : T -28.62c W -28.62c S   0.00c ( +0.0) V -14.08c P 29.00% VW 11.01% N     101  --  R15 Q14 R13 D7 Q3 Q2 S3
+C16 : T -27.21c W -27.21c S   0.00c ( +0.0) V -16.51c P  3.05% VW 11.18% N      30  --  D15 Q15 R15 Q14 R13 D7 E7
+D7  : T -34.30c W -34.30c S   0.00c ( +0.0) V  -9.95c P  9.02% VW  9.73% N      17  --  Q3 Q2 S3 S2 S4 N3 M3
+S4  : T -30.94c W -30.94c S   0.00c ( +0.0) V -11.50c P  5.62% VW 10.37% N      12  --  R7 S6 S5 S7
+R7  : T -40.74c W -40.74c S   0.00c ( +0.0) V -19.80c P 11.84% VW  8.76% N      10  --  S4 S3 P7 Q9 R11
+Q3  : T -30.89c W -30.89c S   0.00c ( +0.0) V -11.77c P  2.93% VW 10.39% N       7  --  R7 Q15 R15
+S5  : T -36.82c W -36.82c S   0.00c ( +0.0) V   6.09c P  5.01% VW  9.53% N       6  --  S6 R7 S4 R4 T5
+S7  : T -34.08c W -34.08c S   0.00c ( +0.0) V -17.76c P  4.24% VW  9.93% N       6  --  S6 R7 S4 S3
+P7  : T -30.50c W -30.50c S   0.00c ( +0.0) V -11.69c P  2.35% VW 10.45% N       6  --  R7 S6 S5
+O3  : T -44.19c W -44.19c S   0.00c ( +0.0) V -11.27c P  6.91% VW  8.65% N       4  --  Q3 Q2 S3
+MoveNum: 38 HASH: 0D47C3033B5B0A522ADD393752BA7B37
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . O . . O . . . . . . . O . . . .
+16 . . . . . . . . . . . . . . . . X . .
+15 . . X . . X . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . X . .
+12 . . . O . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . O1. . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . O . . . . . . . . . O3. X O O . .
+ 6 . . . X . . . . . . X2. . . X X O . .
+ 5 . . O X . . . . . . . . O . . . X . .
+ 4 . . O . . . . . . . . X O . . X . X .
+ 3 . . . . X . . . . X . X O . O . O O .
+ 2 . . . . . . . . . . . . X X O . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 200
+NN batches: 200
+NN avg batch size: 1
+PV: P9 Q10 P10 Q12 P11 R12 O3 P4 O4 P5
+Tree:
+: T -39.52c W -39.52c S   0.00c ( +0.0) V -22.18c N     200  --  P9 Q10 P10 Q12 P11 R12 O3
+---Black(v)---
+P9  : T -40.60c W -40.60c S   0.00c ( +0.0) V -78.43c P 43.61% VW 21.87% N     114  --  Q10 P10 Q12 P11 R12 O3 P4
+O8  : T -39.67c W -39.67c S   0.00c ( +0.0) V -52.68c P 23.22% VW 21.27% N      53  --  R11 S6 S7 P9 Q10
+P8  : T -37.92c W -37.92c S   0.00c ( +0.0) V -66.14c P 12.87% VW 20.52% N      25  --  R11 P9 Q10 O11 P4 S6
+O3  : T -27.91c W -27.91c S   0.00c ( +0.0) V -39.67c P  7.51% VW 17.93% N       5  --  P4 O4 O5 P5
+S6  : T -27.07c W -27.07c S   0.00c ( +0.0) V -39.57c P  2.74% VW 18.41% N       2  --  S7
+MoveNum: 65 HASH: 390A017FF9CE93328DB74DF35879991A
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . O . . O . . . . . . . O . O2X3.
+16 . . . . . . . . . . . . . . . . X . .
+15 . . X . . X . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . O . . . .
+13 . . . . . . . . . . . . . . . . X . .
+12 . . . O . . . . . . . . . . . O X . .
+11 . . . . . . . . . . X1. X . O O X . .
+10 . . . . . . . . . . . . . . X O . . .
+ 9 . . . O X . . . . . . . X . X O . . .
+ 8 . . O X . . . . . . . O . . . . . . .
+ 7 . O O X . . . . . . . . O . X O O . .
+ 6 . O X X . . . . . . X . . . X X O . .
+ 5 . X O X . . . . . . . . O . . . X . .
+ 4 . O O . . . . . . . . X O . O X . X .
+ 3 . . X . X . . . . X . X O . O . O O .
+ 2 . . . . . . . . . . . . X X O . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 194
+NN batches: 194
+NN avg batch size: 1
+PV: S16 S15 Q16 T16 R15 R14 S16 D10 C9 R16 D4 E4 S16 S9 R16
+Tree:
+: T -34.09c W -34.09c S   0.00c ( +0.0) V -51.12c N     200  --  S16 S15 Q16 T16 R15 R14 S16
+---White(^)---
+S16 : T -30.14c W -30.14c S   0.00c ( +0.0) V   2.02c P 16.49% VW 14.17% N     146  --  S15 Q16 T16 R15 R14 S16 D10
+S18 : T -56.26c W -56.26c S   0.00c ( +0.0) V -32.48c P 37.65% VW  7.65% N      20  --  Q17 R18 Q16 Q18 P16 O17 O16
+M10 : T -36.53c W -36.53c S   0.00c ( +0.0) V   8.21c P  4.00% VW 12.06% N       8  --  M9 L10 L9 K10
+Q17 : T -57.34c W -57.34c S   0.00c ( +0.0) V -26.58c P 13.26% VW  8.47% N       7  --  D10 C9 E10
+D4  : T -35.88c W -35.88c S   0.00c ( +0.0) V  -4.52c P  2.65% VW 12.19% N       6  --  E4 D3 D2
+Q16 : T -43.81c W -43.81c S   0.00c ( +0.0) V  -7.77c P  4.27% VW 10.97% N       4  --  R15 K8 D10
+R14 : T -38.72c W -38.72c S   0.00c ( +0.0) V  -6.71c P  1.96% VW 11.76% N       4  --  S14 R15 S15
+E10 : T -42.96c W -42.96c S   0.00c ( +0.0) V -24.43c P  2.41% VW 11.30% N       2  --  F9
+K8  : T -41.92c W -41.92c S   0.00c ( +0.0) V -22.45c P  2.02% VW 11.44% N       2  --  D10
+MoveNum: 80 HASH: 1F4396ECA1B287DB5D4FFB1F4AF6641F
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . O . . O . . . . . . . O . O X .
+16 . . O O . . . O . . . . . . . O X X .
+15 . . X O X X . . . . . . . . . . O X .
+14 . X2. X . . . . . . . . . . O . . . .
+13 . . . . . X . . . . . . . . . . X . .
+12 . . . O . . . . . . . . . . . O X . .
+11 . . . . . . . . . . X . X . O O X . .
+10 . . . O1. O3. . . . . . . . X O . . .
+ 9 . . . O X . . . . . . . X . X O . . .
+ 8 . . O X . . . . . X . O . . . . . . .
+ 7 . O O X . . . . . . . . O . X O O . .
+ 6 . O X X . . . . . . X . . . X X O . .
+ 5 . X O X . . . . . . . . O . . . X . .
+ 4 . O O . . . . . . . . X O . O X . X .
+ 3 . . X . X . . . . X . X O . O . O O .
+ 2 . . . . . . . . . . . . X X O . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 179
+NN batches: 179
+NN avg batch size: 1
+PV: B16 B17 A17 A18 A16 C18 C13 G8 D4 B3 M14
+Tree:
+: T -17.20c W -17.20c S   0.00c ( +0.0) V  -9.60c N     200  --  B16 B17 A17 A18 A16 C18 C13
+---Black(v)---
+B16 : T -13.53c W -13.53c S   0.00c ( +0.0) V -41.09c P 41.41% VW 10.40% N      63  --  B17 A17 A18 A16 C18 C13 G8
+F9  : T -19.70c W -19.70c S   0.00c ( +0.0) V -41.91c P  8.89% VW 12.07% N      34  --  G9 G8 H8 H9 G10
+M14 : T -21.75c W -21.75c S   0.00c ( +0.0) V -37.22c P  1.87% VW 12.57% N      34  --  G8 B16 B17 A17 A18 A16 C18
+F17 : T -18.83c W -18.83c S   0.00c ( +0.0) V -38.56c P  8.99% VW 11.85% N      33  --  F18 G16 H17 B16 B17 H15 J15
+C11 : T -18.99c W -18.99c S   0.00c ( +0.0) V -30.60c P  3.87% VW 11.80% N      14  --  D11 B16 B17 A17 A18
+J15 : T -16.99c W -16.99c S   0.00c ( +0.0) V -37.23c P  3.78% VW 11.41% N       9  --  H15 H14 J14 H13
+G8  : T -13.32c W -13.32c S   0.00c ( +0.0) V -37.16c P  2.37% VW 10.82% N       6  --  K9 L9 L8 K7 M9
+E10 : T  -4.43c W  -4.43c S   0.00c ( +0.0) V -21.92c P  4.45% VW  9.60% N       4  --  E11 F11 F12
+B12 : T  -0.97c W  -0.97c S   0.00c ( +0.0) V -28.81c P  3.09% VW  9.48% N       2  --  C13
+MoveNum: 115 HASH: 8DB8C2372F850845E3544CCB8FBE55EC
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . O2X1. . . . . . . O . .
+17 . . . O . . O . . . . . . . O . O X .
+16 . . O O . . . O X . . . . . . O X X .
+15 . . X O X X . O X . X . . . . . O X .
+14 . X . X . . . X . . . . . . O . O X .
+13 . . . . . X . X . . . . . . . . X . .
+12 . . . O . . . . . . . . . . . O X . .
+11 . . . . . . . . . . X . X . O O X . .
+10 . . . O . O . . . . . . . . X O . . .
+ 9 . . . O X O . . X O . . X . X O . . .
+ 8 . . O X . . . . X X . O . . . . . . .
+ 7 . O O X . . O . . . . . O . X O O . .
+ 6 . O X X . X O O O . X . . . X X O . .
+ 5 . X O X X O X X O . . . O . . . X . .
+ 4 . O O O X . . . X O . X O . O X . X .
+ 3 . O X . X . . X . X . X O . O . O O .
+ 2 . . X3. . . . . . X O O X X O . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 186
+NN batches: 186
+NN avg batch size: 1
+PV: S10 S11 R10 B16 B17 A17 A18 A16 C18 B12
+Tree:
+: T  24.72c W  24.72c S   0.00c ( +0.0) V  14.01c N     200  --  S10 S11 R10 B16 B17 A17 A18
+---White(^)---
+S10 : T  24.94c W  24.94c S   0.00c ( +0.0) V  73.72c P 21.25% VW  8.71% N      61  --  S11 R10 B16 B17 A17 A18 A16
+C13 : T  29.56c W  29.56c S   0.00c ( +0.0) V  51.31c P  4.74% VW  9.61% N      40  --  C14 B16 S9 S10 R10 R9 S8
+M17 : T  23.04c W  23.04c S   0.00c ( +0.0) V  34.60c P 10.90% VW  8.37% N      25  --  B16 B17 A17 A18 A16 C18 B12
+B16 : T  23.78c W  23.78c S   0.00c ( +0.0) V  47.21c P  6.05% VW  8.51% N      20  --  L3 S10 S11 R10 N17
+M9  : T  26.28c W  26.28c S   0.00c ( +0.0) V  52.93c P  3.69% VW  8.90% N      14  --  M10 O10 O9 O11 N10
+B15 : T  18.19c W  18.19c S   0.00c ( +0.0) V  49.91c P  8.35% VW  7.72% N      12  --  C14 B16 C11 D11 C12 B10
+Q13 : T  24.82c W  24.82c S   0.00c ( +0.0) V  40.60c P  2.10% VW  8.68% N       9  --  S9 S10 R10 R9 S8
+F7  : T  21.27c W  21.27c S   0.00c ( +0.0) V  42.56c P  5.47% VW  8.21% N       8  --  B16 B17 A17 A18 A16
+N17 : T  24.72c W  24.72c S   0.00c ( +0.0) V  28.40c P  1.76% VW  8.66% N       4  --  S9 S10
+J17 : T   8.76c W   8.76c S   0.00c ( +0.0) V  38.17c P  3.34% VW  7.20% N       2  --  K17
+M5  : T  17.46c W  17.46c S   0.00c ( +0.0) V  48.45c P  2.66% VW  7.99% N       2  --  L3
+L5  : T  11.34c W  11.34c S   0.00c ( +0.0) V  39.39c P  1.94% VW  7.43% N       2  --  L3
+
+
+GAME 3 ==========================================================================
+Extremely close botvbot game
+
+MoveNum: 191 HASH: 7036EB5ECEC0F3F66F93D8728611791E
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . O . O . . X X . . . . . . . X O .
+17 . O . X O . O O . X . X . . . . X X O
+16 O X X . O X X O . . . . . X . X X O .
+15 . . . . X O O O X . . . . X . . . O .
+14 . . X X X O . O . . . . O X O X X O .
+13 . . . . X X O O . . . . O . O O O O .
+12 . . O . O O X . . . X . . O . O X . .
+11 X X X . . X X . X X O O . O X . X . .
+10 O O X . X . . . X O . . . . X . . . .
+ 9 O X . X . . . . . O . X . O O X . X .
+ 8 O O O O O O O . O . O X . . O X X O .
+ 7 . X . . . X O . . . O O O . . X O O .
+ 6 X . X X . X X . X . . O X X X . X O .
+ 5 . X O O X X X X . . O X O . . X . . .
+ 4 . O . O X O O O X X X X . . X . O O .
+ 3 . O . O O X O O O O . X . . X O O X .
+ 2 . O . O X . X O O X1X . . . . X X O O
+ 1 . . O . . X .2X3. O . . . . . . . X .
+
+Root visits: 200
+NN rows: 195
+NN batches: 195
+NN avg batch size: 1
+PV: F2 A15 A17 F3 J1 L1 F2 C17 B18
+Tree:
+: T  11.87c W  11.87c S   0.00c ( +0.0) V  30.92c N     200  --  F2 A15 A17 F3 J1 L1 F2
+---White(^)---
+F2  : T   8.12c W   8.12c S   0.00c ( +0.0) V  28.58c P 50.83% VW 18.72% N      71  --  A15 A17 F3 J1 L1 F2 C17
+B15 : T  17.04c W  17.04c S   0.00c ( +0.0) V  28.76c P  4.83% VW 23.34% N      60  --  B14 C15 D16 D18 D15 A15
+A14 : T  15.15c W  15.15c S   0.00c ( +0.0) V   6.07c P  7.15% VW 22.20% N      39  --  L1 F2 O10 N10 F3 P2 O2
+J1  : T   2.75c W   2.75c S   0.00c ( +0.0) V  52.14c P 23.67% VW 17.02% N      23  --  L1 F2 A15 A17 F3 G1 C17
+E1  : T   5.26c W   5.26c S   0.00c ( +0.0) V   1.10c P  5.63% VW 18.72% N       6  --  L1 F2
+MoveNum: 197 HASH: 787388DFE519E62C0E5E75CFAA9D3E21
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . O2O . O . . X X . . . . . . . X O .
+17 . O X1X O . O O . X . X . . . . X X O
+16 O X X . O X X O . . . . . X . X X O .
+15 . . . . X O O O X . . . . X . . . O .
+14 . . X X X O . O . . . . O X O X X O .
+13 . . . . X X O O . . . . O . O O O O .
+12 . . O . O O X . . . X . . O . O X . .
+11 X X X . . X X . X X O O . O X . X . .
+10 O O X . X . . . X O . . . . X . . . .
+ 9 O X . X . . . . . O . X . O O X . X .
+ 8 O O O O O O O . O . O X . . O X X O .
+ 7 . X . . . X O . . . O O O . . X O O .
+ 6 X . X X . X X . X . . O X X X . X O .
+ 5 . X O O X X X X . . O X O . . X . . .
+ 4 . O . O X O O O X X X X . . X . O O .
+ 3 . O . O O X3O O O O . X . . X O O X .
+ 2 . O . O X . X O O X X . . . . X X O O
+ 1 . . O X . X . X . O . . . . . . . X .
+
+Root visits: 200
+NN rows: 197
+NN batches: 197
+NN avg batch size: 1
+PV: A14 B13 F2 D18 D19 F3 E1 L1 F2
+Tree:
+: T  17.74c W  17.74c S   0.00c ( +0.0) V  16.69c N     200  --  A14 B13 F2 D18 D19 F3 E1
+---White(^)---
+A14 : T  23.52c W  23.52c S   0.00c ( +0.0) V  27.56c P  4.78% VW 18.16% N     105  --  B13 F2 D18 D19 F3 E1 L1
+E1  : T   6.93c W   6.93c S   0.00c ( +0.0) V   3.32c P 49.17% VW 11.86% N      42  --  A15 A17 D1 F2 O10 N10 F3
+J1  : T  12.00c W  12.00c S   0.00c ( +0.0) V  65.48c P 12.48% VW 13.87% N      20  --  L1 F2 A15 A17 F3 G1
+B15 : T  15.96c W  15.96c S   0.00c ( +0.0) V  50.07c P  8.04% VW 15.05% N      16  --  B14 F2 O10 N10 F3 E1 L1
+P2  : T   4.79c W   4.79c S   0.00c ( +0.0) V  22.68c P  6.78% VW 12.63% N       7  --  O2 F2 D18 D19 F3
+E7  : T  15.31c W  15.31c S   0.00c ( +0.0) V  42.28c P  2.24% VW 14.96% N       7  --  E6 F2 D18 D19 F3
+K5  : T   5.58c W   5.58c S   0.00c ( +0.0) V  14.64c P  1.75% VW 13.48% N       2  --  J5
+MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . O O X X . . X . . . . . X X X O
+18 . O O X O O X X X . X . . . . . X O O
+17 O O X X O O O O O X . X . . . . X X O
+16 O X X O O . . O X . . . X X X X X O O
+15 X X O O X O O O X X . X O X O X O O O
+14 . X X X X O . O O X . X O X O X X O .
+13 . . X . X X O O O X X O O X O O O O .
+12 . X . X . . X X X . X X O O O O X O .
+11 X X X . X X X . X X O O O O X O X O .
+10 O O X X X X . . X O . O O X X X X O .
+ 9 O . O X O O X X O O O . O O O X O O O
+ 8 O O O O O O O X O O O . . O O X X O .
+ 7 O X X O O X O O O X O O O X O X O O .
+ 6 X X X X X X X X X X O O X X X X X O .
+ 5 X X O O X X X X X O O X O X2. X X O .
+ 4 X O . O X O O O X X X X . . X O O O .
+ 3 O O . O O . O O O O X X . . X O O . O
+ 2 . O . O . O . O O X X . . . X X X O O
+ 1 . . O . O . O . O O X . . . . . X X X
+
+Root visits: 200
+NN rows: 21
+NN batches: 21
+NN avg batch size: 1
+PV: N4 pass pass
+Tree:
+: T  96.75c W  96.29c S   0.47c ( +0.9) V  92.83c N     200  --  N4 pass pass
+---Black(v)---
+N4  : T  98.07c W  97.84c S   0.23c ( +0.5) V  64.34c P 58.76% VW 15.71% N     133  --  pass pass
+O18 : T  95.46c W  94.92c S   0.54c ( +1.1) V  55.12c P  5.03% VW 16.74% N      19  --  pass N4 pass pass
+N18 : T  94.38c W  93.81c S   0.57c ( +1.1) V  50.51c P  2.92% VW 17.05% N      17  --  pass N4 pass pass
+P18 : T  94.25c W  93.68c S   0.57c ( +1.1) V  47.03c P  2.87% VW 17.09% N      17  --  pass N4 pass pass
+H10 : T  84.66c W  84.54c S   0.13c ( +0.2) V  40.83c P  1.64% VW 19.28% N       8  --  pass N4 pass pass
+pass : T 106.96c W 100.00c S   6.96c (+14.5) V --.--c P  5.63% VW 14.11% N       5  --  
+MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . O O X X . . X . . . . . X X X O
+18 . O O X O O X X X . X . . . . . X O O
+17 O O X X O O O O O X . X . . . . X X O
+16 O X X O O . . O X . . . X X X X X O O
+15 X X O O X O O O X X . X O X O X O O O
+14 . X X X X O . O O X . X O X O X X O .
+13 . . X . X X O O O X X O O X O O O O .
+12 . X . X . . X X X . X X O O O O X O .
+11 X X X . X X X . X X O O O O X O X O .
+10 O O X X X X . . X O . O O X X X X O .
+ 9 O . O X O O X X O O O . O O O X O O O
+ 8 O O O O O O O X O O O . . O O X X O .
+ 7 O X X O O X O O O X O O O X O X O O .
+ 6 X X X X X X X X X X O O X X X X X O .
+ 5 X X O O X X X X X O O X O X2. X X O .
+ 4 X O . O X O O O X X X X . . X O O O .
+ 3 O O . O O . O O O O X X . . X O O . O
+ 2 . O . O . O . O O X X . . . X X X O O
+ 1 . . O . O . O . O O X . . . . . X X X
+
+Root visits: 200
+NN rows: 17
+NN batches: 17
+NN avg batch size: 1
+PV: N4 pass pass
+Tree:
+: T   4.08c W   4.07c S   0.02c ( +0.0) V  87.86c N     200  --  N4 pass pass
+---Black(v)---
+N4  : T   2.59c W   2.59c S   0.00c ( +0.0) V  39.85c P 60.15% VW 32.03% N     193  --  pass pass
+O18 : T  53.57c W  53.57c S   0.00c ( +0.0) V  23.15c P  4.99% VW 15.93% N       2  --  pass
+N18 : T  51.38c W  51.38c S   0.00c ( +0.0) V  18.23c P  2.89% VW 16.46% N       2  --  pass
+pass : T 106.74c W 100.00c S   6.74c (+14.0) V --.--c P  5.67% VW  9.07% N       1  --  
+P18 : T  18.49c W  18.49c S   0.00c ( +0.0) V  18.49c P  2.83% VW 26.51% N       1  --  
+
+Jigo and drawUtility===================
+(Game almost over, just a little cleanup)
+testParams.drawEquivalentWinsForWhite = 0.7
+
+Komi 7.5 (white wins by 0.5)
+MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . O O X X . . X . . . . . X X X O
+18 . O O X O O X X X . X . . . . . X O O
+17 O O X X O O O O O X . X . . . . X X O
+16 O X X O O . . O X . . . X X X X X O O
+15 X X O O X O O O X X . X O X O X O O O
+14 . X X X X O . O O X . X O X O X X O .
+13 . . X . X X O O O X X O O X O O O O .
+12 . X . X . . X X X . X X O O O O X O .
+11 X X X . X X X . X X O O O O X O X O .
+10 O O X X X X . . X O . O O X X X X O .
+ 9 O . O X O O X X O O O . O O O X O O O
+ 8 O O O O O O O X O O O . . O O X X O .
+ 7 O X X O O X O O O X O O O X O X O O .
+ 6 X X X X X X X X X X O O X X X X X O .
+ 5 X X O O X X X X X O O X O X2. X X O .
+ 4 X O . O X O O O X X X X . . X O O O .
+ 3 O O . O O . O O O O X X . . X O O . O
+ 2 . O . O . O . O O X X . . . X X X O O
+ 1 . . O . O . O . O O X . . . . . X X X
+
+Root visits: 200
+NN rows: 21
+NN batches: 21
+NN avg batch size: 1
+PV: N4 pass pass
+Tree:
+: T  96.75c W  96.29c S   0.47c ( +0.9) V  92.83c N     200  --  N4 pass pass
+---Black(v)---
+N4  : T  98.07c W  97.84c S   0.23c ( +0.5) V  64.34c P 58.76% VW 15.71% N     133  --  pass pass
+O18 : T  95.46c W  94.92c S   0.54c ( +1.1) V  55.12c P  5.03% VW 16.74% N      19  --  pass N4 pass pass
+N18 : T  94.38c W  93.81c S   0.57c ( +1.1) V  50.51c P  2.92% VW 17.05% N      17  --  pass N4 pass pass
+P18 : T  94.25c W  93.68c S   0.57c ( +1.1) V  47.03c P  2.87% VW 17.09% N      17  --  pass N4 pass pass
+H10 : T  84.66c W  84.54c S   0.13c ( +0.2) V  40.83c P  1.64% VW 19.28% N       8  --  pass N4 pass pass
+pass : T 106.96c W 100.00c S   6.96c (+14.5) V --.--c P  5.63% VW 14.11% N       5  --  
+
+Komi 7.0 (draw)
+MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . O O X X . . X . . . . . X X X O
+18 . O O X O O X X X . X . . . . . X O O
+17 O O X X O O O O O X . X . . . . X X O
+16 O X X O O . . O X . . . X X X X X O O
+15 X X O O X O O O X X . X O X O X O O O
+14 . X X X X O . O O X . X O X O X X O .
+13 . . X . X X O O O X X O O X O O O O .
+12 . X . X . . X X X . X X O O O O X O .
+11 X X X . X X X . X X O O O O X O X O .
+10 O O X X X X . . X O . O O X X X X O .
+ 9 O . O X O O X X O O O . O O O X O O O
+ 8 O O O O O O O X O O O . . O O X X O .
+ 7 O X X O O X O O O X O O O X O X O O .
+ 6 X X X X X X X X X X O O X X X X X O .
+ 5 X X O O X X X X X O O X O X2. X X O .
+ 4 X O . O X O O O X X X X . . X O O O .
+ 3 O O . O O . O O O O X X . . X O O . O
+ 2 . O . O . O . O O X X . . . X X X O O
+ 1 . . O . O . O . O O X . . . . . X X X
+
+Root visits: 200
+NN rows: 20
+NN batches: 20
+NN avg batch size: 1
+PV: N4 pass pass
+Tree:
+: T  42.33c W  42.22c S   0.11c ( +0.2) V  87.86c N     200  --  N4 pass pass
+---Black(v)---
+N4  : T  41.39c W  41.30c S   0.09c ( +0.2) V  39.85c P 60.15% VW 24.94% N     190  --  pass pass
+O18 : T  57.30c W  57.30c S   0.00c ( +0.0) V  23.15c P  4.99% VW 19.68% N       4  --  pass N4 pass
+N18 : T  51.38c W  51.38c S   0.00c ( +0.0) V  18.23c P  2.89% VW 21.89% N       2  --  pass
+P18 : T  52.20c W  52.20c S   0.00c ( +0.0) V  18.49c P  2.83% VW 21.68% N       2  --  pass
+pass : T 106.83c W 100.00c S   6.83c (+14.2) V --.--c P  5.67% VW 11.81% N       1  --  
+
+Consecutive searches playouts and visits===================
+Doing three consecutive searches by visits
+
+MoveNum: 85 HASH: B8EE81379249B4294DBB36EA4B7E08F6
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . O . O2. . . . . . . . . . . . . .
+17 . . . X1O . O O . X . . . . . . . . .
+16 . . X . . X X O . . . . . X . . X . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . X . . X O . . . . . . . . . . .
+13 . . . . X X O O . . . . . . . . . . .
+12 . . O . O O X . . . X . . . . . . . .
+11 . . . . . X X . X X O O . . . . . . .
+10 . . X . X . . . X O . . . . . . . . .
+ 9 . X . X . . . . . . . . . . . . . . .
+ 8 O O O O O O O . O . O . . . . . X . .
+ 7 . X . . . X O . . . . . . . . . . O .
+ 6 X . X X . X3X . X . . . . . . O . . .
+ 5 . X O O X . . X . . . X . . . . . . .
+ 4 . O X O . O O O X X . . . . X . O . .
+ 3 . O X O . . . . O O . X . . X O . . .
+ 2 . O X . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 200
+NN batches: 200
+NN avg batch size: 1
+PV: E16 K9 K8 L10 N8 M10 P7 R11 M17 N17
+Tree:
+: T  -3.69c W  -3.69c S   0.00c ( +0.0) V -22.92c N     200  --  E16 K9 K8 L10 N8 M10 P7
+---White(^)---
+E16 : T  -0.31c W  -0.31c S   0.00c ( +0.0) V   2.93c P 12.20% VW  7.78% N     132  --  K9 K8 L10 N8 M10 P7 R11
+M12 : T  -8.50c W  -8.50c S   0.00c ( +0.0) V -16.45c P 15.92% VW  6.38% N      23  --  K9 K8 L10 M10 L13 N8 Q12
+K9  : T  -5.06c W  -5.06c S   0.00c ( +0.0) V  -0.33c P  6.85% VW  6.87% N      16  --  M12 N11 N12 O11 Q12
+L3  : T -16.26c W -16.26c S   0.00c ( +0.0) V -10.68c P  5.18% VW  5.92% N       4  --  L4 M2 K9
+N7  : T -14.99c W -14.99c S   0.00c ( +0.0) V -10.37c P  5.05% VW  6.03% N       4  --  K9 K8 L10
+L4  : T  -7.17c W  -7.17c S   0.00c ( +0.0) V  -5.53c P  2.28% VW  6.75% N       3  --  L5 L3
+D12 : T -26.93c W -26.93c S   0.00c ( +0.0) V -21.81c P  4.17% VW  5.33% N       2  --  B13
+M17 : T -15.60c W -15.60c S   0.00c ( +0.0) V -12.89c P  3.46% VW  6.14% N       2  --  M16
+H7  : T -15.19c W -15.19c S   0.00c ( +0.0) V   8.60c P  3.14% VW  6.17% N       2  --  K9
+Q11 : T -18.96c W -18.96c S   0.00c ( +0.0) V -10.20c P  2.71% VW  5.90% N       2  --  K9
+J9  : T -19.21c W -19.21c S   0.00c ( +0.0) V  -6.78c P  2.22% VW  5.88% N       2  --  M12
+K6  : T -12.00c W -12.00c S   0.00c ( +0.0) V   3.48c P  1.97% VW  6.41% N       2  --  L3
+K7  : T -19.84c W -19.84c S   0.00c ( +0.0) V -10.81c P  1.90% VW  5.83% N       2  --  K9
+B11 : T -23.18c W -23.18c S   0.00c ( +0.0) V -23.18c P  2.46% VW  5.81% N       1  --  
+M7  : T -14.59c W -14.59c S   0.00c ( +0.0) V -14.59c P  2.03% VW  6.35% N       1  --  
+L6  : T -13.15c W -13.15c S   0.00c ( +0.0) V -13.15c P  1.94% VW  6.44% N       1  --  
+MoveNum: 86 HASH: A59029EBC370E6DEE3B1E212376C5756
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . O . O1. . . . . . . . . . . . . .
+17 . . . X O . O O . X . . . . . . . . .
+16 . . X . O3X X O . . . . . X . . X . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . X . . X O . . . . . . . . . . .
+13 . . . . X X O O . . . . . . . . . . .
+12 . . O . O O X . . . X . . . . . . . .
+11 . . . . . X X . X X O O . . . . . . .
+10 . . X . X . . . X O . . . . . . . . .
+ 9 . X . X . . . . . . . . . . . . . . .
+ 8 O O O O O O O . O . O . . . . . X . .
+ 7 . X . . . X O . . . . . . . . . . O .
+ 6 X . X X . X2X . X . . . . . . O . . .
+ 5 . X O O X . . X . . . X . . . . . . .
+ 4 . O X O . O O O X X . . . . X . O . .
+ 3 . O X O . . . . O O . X . . X O . . .
+ 2 . O X . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 269
+NN batches: 269
+NN avg batch size: 1
+PV: K9 K8 L10 N8 M10 P7 R11 M17 N17
+Tree:
+: T   0.32c W   0.32c S   0.00c ( +0.0) V   2.93c N     200  --  K9 K8 L10 N8 M10 P7 R11
+---Black(v)---
+K9  : T  -0.81c W  -0.81c S   0.00c ( +0.0) V -10.84c P 16.31% VW  9.48% N      45  --  K8 L10 N8 M10 P7 R11 M17
+C14 : T   3.78c W   3.78c S   0.00c ( +0.0) V   2.13c P 24.58% VW  8.52% N      38  --  M12 K9 K8 L10 M10 M9 L9
+D12 : T  -3.43c W  -3.43c S   0.00c ( +0.0) V   0.60c P  4.43% VW  9.96% N      31  --  M12 K9 K8 L10 M10 M9 L9
+C13 : T   2.24c W   2.24c S   0.00c ( +0.0) V   5.92c P  9.66% VW  8.90% N      18  --  M12 K9 K8 L10 M10 M9 L9
+E15 : T   0.36c W   0.36c S   0.00c ( +0.0) V   0.63c P  7.55% VW  9.22% N      18  --  D16 C15 M12 K9 K8 L10 M10
+D18 : T  -1.55c W  -1.55c S   0.00c ( +0.0) V   1.32c P  4.70% VW  9.55% N      18  --  D19 B18 C17 D16 B17 B16 A17
+C15 : T   2.09c W   2.09c S   0.00c ( +0.0) V  -1.23c P  6.03% VW  8.96% N      11  --  M12 K9 K8 L10 M10
+D15 : T  -0.87c W  -0.87c S   0.00c ( +0.0) V  -8.61c P  3.11% VW  9.41% N      11  --  M12 K9 K8 L10 M10
+B14 : T   5.51c W   5.51c S   0.00c ( +0.0) V  10.03c P  3.32% VW  8.62% N       4  --  M12 K9 K8
+B17 : T   2.42c W   2.42c S   0.00c ( +0.0) V  -1.84c P  2.25% VW  8.98% N       4  --  M12 K9 K8
+B13 : T  10.49c W  10.49c S   0.00c ( +0.0) V  10.49c P  1.98% VW  8.38% N       1  --  
+MoveNum: 87 HASH: 41B07AFEBF4B3634D92DDDBF678D8BB4
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . O . O . . . . . . . . . . . . . .
+17 . . . X O . O O . X . . . . . . . . .
+16 . . X . O2X X O . . . . . X . . X . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . X . . X O . . . . . . . . . . .
+13 . . . . X X O O . . . . . . . . . . .
+12 . . O . O O X . . . X . . . . . . . .
+11 . . . . . X X . X X O O . . . . . . .
+10 . . X . X . . . X O . . . . . . . . .
+ 9 . X . X . . . . . X3. . . . . . . . .
+ 8 O O O O O O O . O . O . . . . . X . .
+ 7 . X . . . X O . . . . . . . . . . O .
+ 6 X . X X . X1X . X . . . . . . O . . .
+ 5 . X O O X . . X . . . X . . . . . . .
+ 4 . O X O . O O O X X . . . . X . O . .
+ 3 . O X O . . . . O O . X . . X O . . .
+ 2 . O X . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 406
+NN batches: 406
+NN avg batch size: 1
+PV: K8 L10 M10 M9 L9 N9 K10 D2 E2 L10 K6 L6 K10
+Tree:
+: T  -2.52c W  -2.52c S   0.00c ( +0.0) V -10.84c N     200  --  K8 L10 M10 M9 L9 N9 K10
+---White(^)---
+K8  : T  -2.22c W  -2.22c S   0.00c ( +0.0) V  -2.91c P 82.23% VW 53.49% N     193  --  L10 M10 M9 L9 N9 K10 D2
+J7  : T -11.24c W -11.24c S   0.00c ( +0.0) V   3.85c P  5.54% VW 46.51% N       6  --  L10 M7 P7
+
+Doing three consecutive searches by playouts (limit 200)
+
+MoveNum: 85 HASH: B8EE81379249B4294DBB36EA4B7E08F6
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . O . O2. . . . . . . . . . . . . .
+17 . . . X1O . O O . X . . . . . . . . .
+16 . . X . . X X O . . . . . X . . X . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . X . . X O . . . . . . . . . . .
+13 . . . . X X O O . . . . . . . . . . .
+12 . . O . O O X . . . X . . . . . . . .
+11 . . . . . X X . X X O O . . . . . . .
+10 . . X . X . . . X O . . . . . . . . .
+ 9 . X . X . . . . . . . . . . . . . . .
+ 8 O O O O O O O . O . O . . . . . X . .
+ 7 . X . . . X O . . . . . . . . . . O .
+ 6 X . X X . X3X . X . . . . . . O . . .
+ 5 . X O O X . . X . . . X . . . . . . .
+ 4 . O X O . O O O X X . . . . X . O . .
+ 3 . O X O . . . . O O . X . . X O . . .
+ 2 . O X . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 200
+NN batches: 200
+NN avg batch size: 1
+PV: E16 K9 K8 L10 N8 M10 P7 R11 M17 N17
+Tree:
+: T  -3.69c W  -3.69c S   0.00c ( +0.0) V -22.92c N     200  --  E16 K9 K8 L10 N8 M10 P7
+---White(^)---
+E16 : T  -0.31c W  -0.31c S   0.00c ( +0.0) V   2.93c P 12.20% VW  7.78% N     132  --  K9 K8 L10 N8 M10 P7 R11
+M12 : T  -8.50c W  -8.50c S   0.00c ( +0.0) V -16.45c P 15.92% VW  6.38% N      23  --  K9 K8 L10 M10 L13 N8 Q12
+K9  : T  -5.06c W  -5.06c S   0.00c ( +0.0) V  -0.33c P  6.85% VW  6.87% N      16  --  M12 N11 N12 O11 Q12
+L3  : T -16.26c W -16.26c S   0.00c ( +0.0) V -10.68c P  5.18% VW  5.92% N       4  --  L4 M2 K9
+N7  : T -14.99c W -14.99c S   0.00c ( +0.0) V -10.37c P  5.05% VW  6.03% N       4  --  K9 K8 L10
+L4  : T  -7.17c W  -7.17c S   0.00c ( +0.0) V  -5.53c P  2.28% VW  6.75% N       3  --  L5 L3
+D12 : T -26.93c W -26.93c S   0.00c ( +0.0) V -21.81c P  4.17% VW  5.33% N       2  --  B13
+M17 : T -15.60c W -15.60c S   0.00c ( +0.0) V -12.89c P  3.46% VW  6.14% N       2  --  M16
+H7  : T -15.19c W -15.19c S   0.00c ( +0.0) V   8.60c P  3.14% VW  6.17% N       2  --  K9
+Q11 : T -18.96c W -18.96c S   0.00c ( +0.0) V -10.20c P  2.71% VW  5.90% N       2  --  K9
+J9  : T -19.21c W -19.21c S   0.00c ( +0.0) V  -6.78c P  2.22% VW  5.88% N       2  --  M12
+K6  : T -12.00c W -12.00c S   0.00c ( +0.0) V   3.48c P  1.97% VW  6.41% N       2  --  L3
+K7  : T -19.84c W -19.84c S   0.00c ( +0.0) V -10.81c P  1.90% VW  5.83% N       2  --  K9
+B11 : T -23.18c W -23.18c S   0.00c ( +0.0) V -23.18c P  2.46% VW  5.81% N       1  --  
+M7  : T -14.59c W -14.59c S   0.00c ( +0.0) V -14.59c P  2.03% VW  6.35% N       1  --  
+L6  : T -13.15c W -13.15c S   0.00c ( +0.0) V -13.15c P  1.94% VW  6.44% N       1  --  
+MoveNum: 86 HASH: A59029EBC370E6DEE3B1E212376C5756
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . O . O1. . . . . . . . . . . . . .
+17 . . . X O . O O . X . . . . . . . . .
+16 . . X . O3X X O . . . . . X . . X . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . X . . X O . . . . . . . . . . .
+13 . . . . X X O O . . . . . . . . . . .
+12 . . O . O O X . . . X . . . . . . . .
+11 . . . . . X X . X X O O . . . . . . .
+10 . . X . X . . . X O . . . . . . . . .
+ 9 . X . X . . . . . . . . . . . . . . .
+ 8 O O O O O O O . O . O . . . . . X . .
+ 7 . X . . . X O . . . . . . . . . . O .
+ 6 X . X X . X2X . X . . . . . . O . . .
+ 5 . X O O X . . X . . . X . . . . . . .
+ 4 . O X O . O O O X X . . . . X . O . .
+ 3 . O X O . . . . O O . X . . X O . . .
+ 2 . O X . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 332
+NN rows: 393
+NN batches: 393
+NN avg batch size: 1
+PV: K9 K8 L10 M10 M9 L9 N9 K10 D2 E2 L10 K6
+Tree:
+: T  -0.04c W  -0.04c S   0.00c ( +0.0) V   2.93c N     332  --  K9 K8 L10 M10 M9 L9 N9
+---Black(v)---
+K9  : T  -2.03c W  -2.03c S   0.00c ( +0.0) V -10.84c P 16.31% VW  8.41% N     111  --  K8 L10 M10 M9 L9 N9 K10
+D12 : T  -3.40c W  -3.40c S   0.00c ( +0.0) V   0.60c P  4.43% VW  8.58% N      52  --  M12 K9 K8 L10 M10 M9 L9
+C14 : T   4.35c W   4.35c S   0.00c ( +0.0) V   2.13c P 24.58% VW  7.12% N      49  --  M12 K9 K8 L10 M10 M9 L9
+E15 : T   0.65c W   0.65c S   0.00c ( +0.0) V   0.63c P  7.55% VW  7.83% N      26  --  D16 C15 M12 K9 K8 L10 M10
+D18 : T  -1.14c W  -1.14c S   0.00c ( +0.0) V   1.32c P  4.70% VW  8.11% N      23  --  D19 B18 C17 D16 B17 B16 A17
+C13 : T   3.62c W   3.62c S   0.00c ( +0.0) V   5.92c P  9.66% VW  7.38% N      22  --  M12 K9 K8 L10 M10 M9 L9
+C15 : T   2.96c W   2.96c S   0.00c ( +0.0) V  -1.23c P  6.03% VW  7.52% N      14  --  M12 K9 K8 L10 M10 L13
+D15 : T   0.18c W   0.18c S   0.00c ( +0.0) V  -8.61c P  3.11% VW  7.91% N      12  --  M12 K9 K8 L10 M10 L13
+F14 : T   1.02c W   1.02c S   0.00c ( +0.0) V  -0.32c P  1.62% VW  7.82% N       6  --  M12 K9 K8
+B14 : T   7.30c W   7.30c S   0.00c ( +0.0) V  10.03c P  3.32% VW  7.16% N       5  --  M12 K9 K8
+B17 : T   4.18c W   4.18c S   0.00c ( +0.0) V  -1.84c P  2.25% VW  7.49% N       5  --  M12 K9 K8
+M12 : T   1.47c W   1.47c S   0.00c ( +0.0) V  -8.34c P  1.58% VW  7.78% N       4  --  N11 K9 K8
+B13 : T  12.20c W  12.20c S   0.00c ( +0.0) V  10.49c P  1.98% VW  6.90% N       2  --  M12
+MoveNum: 87 HASH: 41B07AFEBF4B3634D92DDDBF678D8BB4
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . O . O . . . . . . . . . . . . . .
+17 . . . X O . O O . X . . . . . . . . .
+16 . . X . O2X X O . . . . . X . . X . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . X . . X O . . . . . . . . . . .
+13 . . . . X X O O . . . . . . . . . . .
+12 . . O . O O X . . . X . . . . . . . .
+11 . . . . . X X . X X O O . . . . . . .
+10 . . X . X . . . X O . . . . . . . . .
+ 9 . X . X . . . . . X3. . . . . . . . .
+ 8 O O O O O O O . O . O . . . . . X . .
+ 7 . X . . . X O . . . . . . . . . . O .
+ 6 X . X X . X1X . X . . . . . . O . . .
+ 5 . X O O X . . X . . . X . . . . . . .
+ 4 . O X O . O O O X X . . . . X . O . .
+ 3 . O X O . . . . O O . X . . X O . . .
+ 2 . O X . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 311
+NN rows: 572
+NN batches: 572
+NN avg batch size: 1
+PV: K8 L10 M10 M9 L9 N9 K10 D2 E2 L10 K6 L6 K10
+Tree:
+: T  -3.02c W  -3.02c S   0.00c ( +0.0) V -10.84c N     311  --  K8 L10 M10 M9 L9 N9 K10
+---White(^)---
+K8  : T  -2.84c W  -2.84c S   0.00c ( +0.0) V  -2.91c P 82.23% VW 52.28% N     300  --  L10 M10 M9 L9 N9 K10 D2
+J7  : T  -8.10c W  -8.10c S   0.00c ( +0.0) V   3.85c P  5.54% VW 47.72% N      10  --  L10 M7 P7
+
+
+GAME 4 ==========================================================================
+(A pro game)
+
+MoveNum: 44 HASH: 45273ADE5CB7C356A1AD60D0C9042620
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . X X . . . O X . .
+17 . . . . . X . . . . O O X X X O O O .
+16 . . . O . . . . . X . X O O . . O X .
+15 . . . . . . . . . . . X . . O O X X .
+14 . . O . . . . . . . . . . . . X . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . X . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . O . . . . . . . . . . . . . . .
+ 5 . . . . . . . . X2. O1. . . . . . O .
+ 4 . . . O . X . . . . . . . . X . O . .
+ 3 . . . . O X . . X . O . O3. . X X O .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 195
+NN batches: 195
+NN avg batch size: 1
+PV: R6 Q5 O5 Q6 O7 R8 M4 L4
+Tree:
+: T  44.00c W  44.00c S   0.00c ( +0.0) V  51.40c N     200  --  R6 Q5 O5 Q6 O7 R8 M4
+---Black(v)---
+R6  : T  40.14c W  40.14c S   0.00c ( +0.0) V  37.30c P 12.95% VW 12.58% N      77  --  Q5 O5 Q6 O7 R8 M4 L4
+P6  : T  45.76c W  45.76c S   0.00c ( +0.0) V  38.48c P 28.13% VW 10.94% N      50  --  R8 R6 S6 R7 S7 Q8 R9
+O5  : T  47.56c W  47.56c S   0.00c ( +0.0) V  41.19c P 22.05% VW 10.54% N      33  --  R8 R6 S6 R7 S7 Q8 R9
+S2  : T  44.75c W  44.75c S   0.00c ( +0.0) V  35.27c P  5.88% VW 11.26% N      12  --  T2 R6 S6 R7
+M4  : T  51.08c W  51.08c S   0.00c ( +0.0) V  57.42c P  9.21% VW 10.12% N      10  --  L4 O5 R8 R6 S6
+O6  : T  46.01c W  46.01c S   0.00c ( +0.0) V  43.55c P  3.97% VW 11.08% N       6  --  R8 R6 S6
+N5  : T  47.70c W  47.70c S   0.00c ( +0.0) V  44.82c P  2.50% VW 10.87% N       4  --  R8 P6
+P16 : T  44.43c W  44.43c S   0.00c ( +0.0) V  39.67c P  2.01% VW 11.34% N       4  --  Q16 P6 R8
+C3  : T  44.94c W  44.94c S   0.00c ( +0.0) V  44.40c P  1.95% VW 11.27% N       3  --  F2
+With noise===================
+Adding root noise to the search
+
+MoveNum: 44 HASH: 45273ADE5CB7C356A1AD60D0C9042620
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . X X . . . O X . .
+17 . . . . . X . . . . O O X X X O O O .
+16 . . . O . . . . . X . X O O . . O X .
+15 . . . . . . . . . . . X . . O O X X .
+14 . . O . . . . . . . . . . . . X . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . X . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . O . . . . . . . . . . . . . . .
+ 5 . . . . . . . . X2. O1. . . . . . O .
+ 4 . . . O . X . . . . . . . . X . O . .
+ 3 . . . . O X . . X . O . O3. . X X O .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 196
+NN batches: 196
+NN avg batch size: 1
+PV: R6 Q5 O5 Q6 O7 R8 M4 L4
+Tree:
+: T  45.60c W  45.60c S   0.00c ( +0.0) V  51.40c N     200  --  R6 Q5 O5 Q6 O7 R8 M4
+---Black(v)---
+R6  : T  40.32c W  40.32c S   0.00c ( +0.0) V  37.30c P  9.71% VW  5.08% N      78  --  Q5 O5 Q6 O7 R8 M4 L4
+P6  : T  45.98c W  45.98c S   0.00c ( +0.0) V  38.48c P 21.11% VW  4.42% N      40  --  R8 R6 S6 R7 S7 Q8 R9
+O5  : T  47.34c W  47.34c S   0.00c ( +0.0) V  41.19c P 16.54% VW  4.30% N      27  --  R8 R6 S6 R7 S7 Q8 R9
+S2  : T  43.88c W  43.88c S   0.00c ( +0.0) V  35.27c P  4.41% VW  4.57% N      11  --  T2 R6 S6 R7
+M4  : T  51.09c W  51.09c S   0.00c ( +0.0) V  57.42c P  6.91% VW  4.09% N       7  --  L4 O5 R8 R6
+P16 : T  44.09c W  44.09c S   0.00c ( +0.0) V  39.67c P  2.28% VW  4.53% N       6  --  Q16 P6 R8
+O6  : T  46.78c W  46.78c S   0.00c ( +0.0) V  43.55c P  2.98% VW  4.37% N       5  --  R8 R6 S6
+C3  : T  44.94c W  44.94c S   0.00c ( +0.0) V  44.40c P  1.46% VW  4.47% N       3  --  F2
+C5  : T  52.70c W  52.70c S   0.00c ( +0.0) V  44.47c P  2.97% VW  4.10% N       2  --  D5
+D3  : T  62.32c W  62.32c S   0.00c ( +0.0) V  52.94c P  2.32% VW  3.65% N       2  --  C3
+N5  : T  48.31c W  48.31c S   0.00c ( +0.0) V  44.82c P  1.88% VW  4.30% N       2  --  R8
+D15 : T  48.26c W  48.26c S   0.00c ( +0.0) V  42.29c P  1.42% VW  4.31% N       2  --  C15
+J17 : T  90.65c W  90.65c S   0.00c ( +0.0) V  90.65c P  3.35% VW  2.75% N       1  --  
+M19 : T  97.51c W  97.51c S   0.00c ( +0.0) V  97.51c P  2.35% VW  2.53% N       1  --  
+K1  : T  94.36c W  94.36c S   0.00c ( +0.0) V  94.36c P  1.76% VW  2.63% N       1  --  
+K2  : T  70.27c W  70.27c S   0.00c ( +0.0) V  70.27c P  1.53% VW  3.47% N       1  --  
+B5  : T  61.35c W  61.35c S   0.00c ( +0.0) V  61.35c P  1.38% VW  3.81% N       1  --  
+P14 : T  50.44c W  50.44c S   0.00c ( +0.0) V  50.44c P  1.24% VW  4.24% N       1  --  
+T12 : T  96.84c W  96.84c S   0.00c ( +0.0) V  96.84c P  1.01% VW  2.55% N       1  --  
+M12 : T  75.44c W  75.44c S   0.00c ( +0.0) V  75.44c P  0.94% VW  3.28% N       1  --  
+O4  : T  54.49c W  54.49c S   0.00c ( +0.0) V  54.49c P  0.92% VW  4.08% N       1  --  
+N14 : T  66.17c W  66.17c S   0.00c ( +0.0) V  66.17c P  0.72% VW  3.62% N       1  --  
+O9  : T  60.69c W  60.69c S   0.00c ( +0.0) V  60.69c P  0.70% VW  3.83% N       1  --  
+D13 : T  60.23c W  60.23c S   0.00c ( +0.0) V  60.23c P  0.66% VW  3.85% N       1  --  
+P1  : T  94.53c W  94.53c S   0.00c ( +0.0) V  94.53c P  0.58% VW  2.62% N       1  --  
+O3  : T  42.11c W  42.11c S   0.00c ( +0.0) V  42.11c P  0.50% VW  4.57% N       1  --  
+
+
