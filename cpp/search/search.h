@@ -209,6 +209,7 @@ struct Search {
   void printPV(ostream& out, const SearchNode* node, int maxDepth);
   void printTree(ostream& out, const SearchNode* node, PrintTreeOptions options);
   void printRootOwnershipMap(ostream& out);
+  void printRootEndingScoreValueBonus(ostream& out);
 
   uint64_t numRootVisits();
 

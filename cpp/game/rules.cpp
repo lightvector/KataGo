@@ -24,6 +24,15 @@ Rules Rules::getTrompTaylorish() {
   return rules;
 }
 
+Rules Rules::getSimpleTerritory() {
+  Rules rules;
+  rules.koRule = KO_SIMPLE;
+  rules.scoringRule = SCORING_TERRITORY;
+  rules.multiStoneSuicideLegal = false;
+  rules.komi = 7.5f;
+  return rules;
+}
+
 
 set<string> Rules::koRuleStrings() {
   return {"SIMPLE","POSITIONAL","SITUATIONAL","SPIGHT"};

@@ -839,7 +839,6 @@ double Search::getExploreSelectionValue(
   return exploreComponent + valueComponent;
 }
 
-//TODO needs testing
 double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const {
   if(&parent != rootNode || child->prevMoveLoc == Board::NULL_LOC)
     return 0.0;
@@ -855,7 +854,6 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
   //Extra points from the perspective of the root player
   double extraRootPoints = 0.0;
   if(isAreaIsh) {
-    //TODO test and make sure this is working in case of these self-eye-filling selfplay games.
     //Areaish scoring - in an effort to keep the game short and slightly discourage pointless territory filling at the end
     //discourage any move that, except in case of ko, is either:
     // * On a spot that the opponent almost surely owns
@@ -1426,6 +1424,33 @@ void Search::printRootOwnershipMap(ostream& out) {
   out << endl;
 }
 
+void Search::printRootEndingScoreValueBonus(ostream& out) {
+  if(rootNode->nnOutput == nullptr)
+    return;
+  NNOutput& nnOutput = *(rootNode->nnOutput);
+  if(nnOutput.whiteOwnerMap == NULL)
+    return;
+
+  for(int i = 0; i<rootNode->numChildren; i++) {
+    const SearchNode* child = rootNode->children[i];
+
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
+    uint64_t childVisits = child->stats.visits;
+    double childUtilitySum = child->stats.getCombinedUtilitySum(searchParams);
+    double scoreValueSum = child->stats.scoreValueSum;
+    double childValueSumWeight = child->stats.valueSumWeight;
+    child->statsLock.clear(std::memory_order_release);
+
+    double utility = childUtilitySum / childValueSumWeight;
+    double scoreValue = scoreValueSum / childValueSumWeight;
+    double endingScoreValueBonus = getEndingScoreValueBonus(*rootNode, child, scoreValue);
+    out << Location::toString(child->prevMoveLoc,rootBoard) << " " << Global::strprintf(
+      "visits %d utility %.2fc scoreValue %.2fc endingScoreValueBonus %.2fc",
+      childVisits, utility*100, scoreValue*100, endingScoreValueBonus*100
+    );
+    out << endl;
+  }
+}
 
 void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
   if(n == NULL)

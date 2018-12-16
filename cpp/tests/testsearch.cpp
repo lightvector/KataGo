@@ -12,8 +12,10 @@ static string getSearchRandSeed() {
 
 struct TestSearchOptions {
   int numMovesInARow;
+  bool printEndingScoreValueBonus;
   TestSearchOptions()
-    :numMovesInARow(1)
+    :numMovesInARow(1),
+     printEndingScoreValueBonus(false)
   {}
 };
 
@@ -78,6 +80,11 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
     PrintTreeOptions options;
     options = options.maxDepth(1);
     search->printTree(cout, search->rootNode, options);
+
+    if(opts.printEndingScoreValueBonus) {
+      search->printRootOwnershipMap(cout);
+      search->printRootEndingScoreValueBonus(cout);
+    }
 
     bot->makeMove(move, nextPla);
     hist.makeBoardMoveAssumeLegal(board,move,nextPla,NULL);
@@ -253,7 +260,7 @@ static void runBasicPositions(NNEvaluator* nnEval, Logger& logger)
   }
 }
 
-static void runOwnership(NNEvaluator* nnEval, NNEvaluator* nnEval11)
+static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, Logger& logger)
 {
   {
     cout << "GAME 5 ==========================================================================" << endl;
@@ -274,6 +281,11 @@ static void runOwnership(NNEvaluator* nnEval, NNEvaluator* nnEval11)
     nnEval->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
 
     printPolicyValueOwnership(board,buf);
+
+    nnEval->clearCache();
+    nnEval->clearStats();
+    delete sgf;
+    cout << endl << endl;
   }
 
   {
@@ -300,7 +312,85 @@ static void runOwnership(NNEvaluator* nnEval, NNEvaluator* nnEval11)
     nnEval11->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf11,NULL,skipCache,includeOwnerMap);
     testAssert(buf11.result->posLen == 11);
     printPolicyValueOwnership(board,buf11);
+
+    nnEval->clearCache();
+    nnEval->clearStats();
+    nnEval11->clearCache();
+    nnEval11->clearStats();
+    delete sgf;
+    cout << endl << endl;
   }
+
+  {
+    cout << "GAME 7 ==========================================================================" << endl;
+    cout << "(Simple extension of game 6 to test root ending bonus points)" << endl;
+
+    SearchParams params;
+    params.maxVisits = 500;
+    params.fpuReductionMax = 0.0;
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+    Rules rules = Rules::getTrompTaylorish();
+    TestSearchOptions opts;
+    opts.printEndingScoreValueBonus = true;
+
+    string sgfStr = "(;FF[4]CA[UTF-8]SZ[11]KM[7.5];B[ci];W[ic];B[ih];W[hi];B[ii];W[ij];B[jj];W[gj];B[ik];W[di];B[hh];W[ch];B[dc];W[cc];B[cb];W[cd];B[eb];W[dd];B[ed];W[ee];B[fd];W[bb];B[ba];W[ab];B[gb];W[je];B[ib];W[jb];B[jc];W[jd];B[hc];W[id];B[dh];W[cg];B[dj];W[ei];B[bi];W[ia];B[hb];W[fg];B[hj];W[eh];B[ej];W[fj];B[bh];W[bg];B[fe];W[ef];B[jf];W[kc];B[ke];W[ja];B[if];W[fi];B[gg];W[ek];B[ck];W[bj];B[aj];W[bk];B[ah];W[ag];B[cj];W[he];B[hf];W[hd];B[ff];W[kd];B[kf];W[ha];B[gd];W[ga];B[fa];W[gi];B[hk];W[gh];B[ca];W[gk];B[aa];W[bc];B[ge];W[ig];B[fc];W[ka];B[da];W[jg];B[de];W[ce];B[ak];W[ie];B[dk];W[fk];B[hg];W[dg];B[jh];W[ad])";
+
+    cout << "With root ending bonus pts===================" << endl;
+    cout << endl;
+    SearchParams params2 = params;
+    params2.rootEndingBonusPoints = 0.5;
+    bot->setParams(params2);
+    runBotOnSgf(bot, sgfStr, rules, 88, 7.5, opts);
+    cout << endl << endl;
+
+    cout << "With root ending bonus pts one step later===================" << endl;
+    cout << endl;
+    bot->setParams(params2);
+    runBotOnSgf(bot, sgfStr, rules, 89, 7.5, opts);
+
+    cout << "Without root ending bonus pts later later===================" << endl;
+    cout << endl;
+    bot->setParams(params);
+    runBotOnSgf(bot, sgfStr, rules, 96, 7.5, opts);
+
+    cout << "With root ending bonus pts later later===================" << endl;
+    cout << endl;
+    bot->setParams(params2);
+    runBotOnSgf(bot, sgfStr, rules, 96, 7.5, opts);
+
+    delete bot;
+  }
+
+  {
+    cout << "GAME 8 ==========================================================================" << endl;
+    cout << "(Alternate variation of game 7 to test root ending bonus points in territory scoring)" << endl;
+
+    SearchParams params;
+    params.maxVisits = 500;
+    params.fpuReductionMax = 0.0;
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+    Rules rules = Rules::getSimpleTerritory();
+    TestSearchOptions opts;
+    opts.printEndingScoreValueBonus = true;
+
+    string sgfStr = "(;FF[4]CA[UTF-8]SZ[11]KM[7.5];B[ci];W[ic];B[ih];W[hi];B[ii];W[ij];B[jj];W[gj];B[ik];W[di];B[hh];W[ch];B[dc];W[cc];B[cb];W[cd];B[eb];W[dd];B[ed];W[ee];B[fd];W[bb];B[ba];W[ab];B[gb];W[je];B[ib];W[jb];B[jc];W[jd];B[hc];W[id];B[dh];W[cg];B[dj];W[ei];B[bi];W[ia];B[hb];W[fg];B[hj];W[eh];B[ej];W[fj];B[bh];W[bg];B[fe];W[ef];B[jf];W[kc];B[ke];W[ja];B[if];W[fi];B[gg];W[ek];B[ck];W[bj];B[aj];W[bk];B[ah];W[ag];B[cj];W[he];B[hf];W[hd];B[ff];W[kd];B[kf];W[ha];B[gd];W[ga];B[fa];W[gi];B[hk];W[gh];B[ca];W[gk];B[aa];W[bc];B[ge];W[ig];B[fc];W[ka];B[da];W[jg];B[de];W[ce];B[ak];W[hg];B[gf])";
+
+    cout << "Without root ending bonus pts===================" << endl;
+    cout << endl;
+    bot->setParams(params);
+    runBotOnSgf(bot, sgfStr, rules, 91, 7.5, opts);
+
+    cout << "With root ending bonus pts===================" << endl;
+    cout << endl;
+    SearchParams params2 = params;
+    params2.rootEndingBonusPoints = 0.5;
+    bot->setParams(params2);
+    runBotOnSgf(bot, sgfStr, rules, 91, 7.5, opts);
+    cout << endl << endl;
+
+    delete bot;
+  }
+
 }
 
 
@@ -333,7 +423,7 @@ void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool cuda
 
   NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false);
   NNEvaluator* nnEval11 = startNNEval(modelFile,logger,"",11,symmetry,inputsNHWC,cudaNHWC,useFP16,false);
-  runOwnership(nnEval,nnEval11);
+  runOwnershipAndMisc(nnEval,nnEval11,logger);
   delete nnEval;
 
   NeuralNet::globalCleanup();

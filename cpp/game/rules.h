@@ -24,6 +24,7 @@ struct Rules {
   ~Rules();
 
   static Rules getTrompTaylorish();
+  static Rules getSimpleTerritory();
 
   static set<string> koRuleStrings();
   static set<string> scoringRuleStrings();
