@@ -12,9 +12,11 @@ static string getSearchRandSeed() {
 
 struct TestSearchOptions {
   int numMovesInARow;
+  bool printRootPolicy;
   bool printEndingScoreValueBonus;
   TestSearchOptions()
     :numMovesInARow(1),
+     printRootPolicy(false),
      printEndingScoreValueBonus(false)
   {}
 };
@@ -81,6 +83,9 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
     options = options.maxDepth(1);
     search->printTree(cout, search->rootNode, options);
 
+    if(opts.printRootPolicy) {
+      search->printRootPolicyMap(cout);
+    }
     if(opts.printEndingScoreValueBonus) {
       search->printRootOwnershipMap(cout);
       search->printRootEndingScoreValueBonus(cout);
@@ -389,6 +394,34 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, Logg
     cout << endl << endl;
 
     delete bot;
+  }
+
+  {
+    cout << "GAME 9 ==========================================================================" << endl;
+    cout << "(A game to visualize root noise)" << endl;
+    cout << endl;
+
+    SearchParams params;
+    params.maxVisits = 1;
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+    Rules rules = Rules::getSimpleTerritory();
+    TestSearchOptions opts;
+    opts.printRootPolicy = true;
+
+    string sgfStr = "(;FF[4]CA[UTF-8]SZ[15]KM[7.5];B[lm];W[lc];B[dm];W[dc];B[me];W[md];B[le];W[jc];B[lk];W[ck];B[cl];W[dk];B[fm];W[de];B[dg];W[fk];B[fg];W[hk];B[hm];W[hg];B[ci];W[cf];B[cg];W[mh];B[kh];W[mj];B[lj];W[mk];B[ml];W[nl];B[nm];W[nk];B[hi];W[gh];B[gi];W[fh];B[fi];W[eh];B[ei];W[dh];B[di];W[ch];B[bh];W[eg];B[bg];W[kg];B[jg];W[kf];B[lh];W[mg];B[lg];W[lf];B[mf];W[ke];B[kd];W[je];B[ld];W[jd];B[mc];W[nd];B[kc];W[lb];B[kb];W[mb];B[ne];W[nc];B[ng];W[nh];B[if];W[jh];B[ih];W[ji];B[li];W[ig];B[ij];W[og];B[ef];W[ff];B[ee];W[df];B[fe];W[gf];B[ec];W[db];B[dd];W[cd];B[ed];W[bf];B[eb];W[he];B[gd];W[hc];B[gc];W[hd];B[gb];W[hb];B[fc];W[fa];B[ea];W[bc];B[ga];W[jj];B[ik];W[jk];B[il];W[jl];B[jm];W[gg];B[ge];W[kl];B[km];W[bl];B[ll];W[cn])";
+
+    runBotOnSgf(bot, sgfStr, rules, 114, 6.5, opts);
+
+    cout << "With noise===================" << endl;
+    cout << "Adding root noise to the search" << endl;
+    cout << endl;
+
+    SearchParams testParams = params;
+    testParams.rootNoiseEnabled = true;
+    bot->setParams(testParams);
+    runBotOnSgf(bot, sgfStr, rules, 114, 6.5, opts);
+    bot->setParams(params);
+    cout << endl << endl;
   }
 
 }

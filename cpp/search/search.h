@@ -208,6 +208,7 @@ struct Search {
   //Tree-inspection functions---------------------------------------------------------------
   void printPV(ostream& out, const SearchNode* node, int maxDepth);
   void printTree(ostream& out, const SearchNode* node, PrintTreeOptions options);
+  void printRootPolicyMap(ostream& out);
   void printRootOwnershipMap(ostream& out);
   void printRootEndingScoreValueBonus(ostream& out);
 
