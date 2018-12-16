@@ -1150,7 +1150,7 @@ o.o.xxoxo
         if(board.colors[loc] == C_EMPTY)
           out << board.isNonPassAliveSelfConnection(loc,P_BLACK,result);
         else {
-          assert(board.isNonPassAliveSelfConnection(loc,P_BLACK,result) == false);
+          testAssert(board.isNonPassAliveSelfConnection(loc,P_BLACK,result) == false);
           out << "-";
         }
       }
@@ -1164,7 +1164,7 @@ o.o.xxoxo
         if(board.colors[loc] == C_EMPTY)
           out << board.isNonPassAliveSelfConnection(loc,P_WHITE,result);
         else {
-          assert(board.isNonPassAliveSelfConnection(loc,P_WHITE,result) == false);
+          testAssert(board.isNonPassAliveSelfConnection(loc,P_WHITE,result) == false);
           out << "-";
         }
       }

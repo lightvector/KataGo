@@ -682,7 +682,7 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
 void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
 
-  assert(turnNumber < moves.size());
+  assert(turnNumber <= moves.size());
   for(size_t i = 0; i<turnNumber; i++) {
     hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
     nextPla = getOpp(moves[i].pla);
