@@ -190,7 +190,8 @@ if __name__ == '__main__':
   parser.add_argument('-min-rows', type=int, required=True, help='Minimum training rows to use')
   parser.add_argument('-max-rows', type=int, required=True, help='Maximum training rows to use')
   parser.add_argument('-keep-target-rows', type=int, required=False, help='Target number of rows to actually keep in the final data set')
-  parser.add_argument('-window-factor', type=float, required=True, help='Beyond min rows, add 1 more row per this many')
+  parser.add_argument('-expand-window-per-row', type=float, required=True, help='Beyond min rows, initially expand the window by this much every post-random data row')
+  parser.add_argument('-taper-window-exponent', type=float, required=True, help='Make the window size asymtotically grow as this power of the data rows')
   parser.add_argument('-out-dir', required=True, help='Dir to output training files')
   parser.add_argument('-out-tmp-dir', required=True, help='Dir to use as scratch space')
   parser.add_argument('-approx-rows-per-out-file', type=int, required=True, help='Number of rows per output tf records file')
@@ -202,7 +203,8 @@ if __name__ == '__main__':
   min_rows = args.min_rows
   max_rows = args.max_rows
   keep_target_rows = args.keep_target_rows
-  window_factor = args.window_factor
+  expand_window_per_row = args.expand_window_per_row
+  taper_window_exponent = args.taper_window_exponent
   out_dir = args.out_dir
   out_tmp_dir = args.out_tmp_dir
   approx_rows_per_out_file = args.approx_rows_per_out_file
@@ -240,14 +242,27 @@ if __name__ == '__main__':
 
 
   files_with_row_range = []
-  num_rows_total = 0
-  num_random_rows_capped = 0
-  num_desirable_rows_total = 0
+  num_rows_total = 0 #Number of data rows
+  num_random_rows_capped = 0 #Number of random data rows, capped at min_rows - we never keep more than min_rows many data rows if they're from random.
+  num_postrandom_rows = 0 #Number of NON-random rows
+
+  #How far offset do we start on the power-law window tail? E.g. what number of postrandom rows do we need before the window size grows by a factor
+  #of 2^(taper_window_exponent)? For now, we set it equal to the min rows
+  window_taper_offset = min_rows
 
   def num_usable_rows():
     global num_random_rows_capped
-    global num_desirable_rows_total
-    return num_random_rows_capped + num_desirable_rows_total
+    global num_postrandom_rows
+    return num_random_rows_capped + num_postrandom_rows
+  def num_desired_rows():
+    #Every post-random row moves one row beyond window_taper_offset
+    power_law_x = num_usable_rows() - min_rows + window_taper_offset
+    #Apply power law and correct for window_taper_offset so we're still anchored at 0
+    unscaled_power_law = (power_law_x ** taper_window_exponent) - (window_taper_offset ** taper_window_exponent)
+    #Scale so that we have an initial derivative of 1
+    scaled_power_law = unscaled_power_law / (taper_window_exponent * (window_taper_offset ** (taper_window_exponent-1)))
+    #Scale so that we have the desired initial slope, and add back the minimum random rows
+    return int(scaled_power_law * expand_window_per_row + min_rows)
 
   for (filename,mtime) in all_files:
     npheaders = get_numpy_npz_headers(filename)
@@ -258,15 +273,15 @@ if __name__ == '__main__':
     row_range = (num_rows_total, num_rows_total + num_rows)
     num_rows_total += num_rows
     if "random" not in filename:
-      num_desirable_rows_total += num_rows
+      num_postrandom_rows += num_rows
     else:
       num_random_rows_capped = min(num_random_rows_capped + num_rows, min_rows)
 
     print("Training data file %s: %d rows" % (filename,num_rows))
     files_with_row_range.append((filename,row_range))
 
-    #If we have more usable rows than we could possibly need to hit max rows, then just stop
-    if num_usable_rows() >= min_rows + (max_rows - min_rows) * window_factor:
+    #If we already have a window size bigger than max, then just stop
+    if num_desired_rows() >= max_rows:
       break
 
   if os.path.exists(out_dir):
@@ -288,10 +303,10 @@ if __name__ == '__main__':
   files_with_row_range.reverse()
 
   #Now assemble only the files we need to hit our desired window size
-  desired_num_rows = int(min_rows + (num_usable_rows() - min_rows) / window_factor)
+  desired_num_rows = num_desired_rows()
   desired_num_rows = max(desired_num_rows,min_rows)
   desired_num_rows = min(desired_num_rows,max_rows)
-  print("Desired num rows: %d" % desired_num_rows)
+  print("Desired num rows: %d / %d" % (desired_num_rows / num_rows_total))
 
   desired_input_files = []
   desired_input_files_with_row_range = []

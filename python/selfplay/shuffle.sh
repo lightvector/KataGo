@@ -32,7 +32,8 @@ time python3 ./shuffle.py \
      $BASEDIR/selfplay/*/tdata/ \
      -min-rows 600000 \
      -max-rows 1000000000 \
-     -window-factor 4 \
+     -expand-window-per-row 0.25 \
+     -taper-window-exponent 0.75 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
      -out-tmp-dir $TMPDIR \
      -approx-rows-per-out-file 200000 \
@@ -42,9 +43,10 @@ time python3 ./shuffle.py \
 
 time python3 ./shuffle.py \
      $BASEDIR/selfplay/*/vdata/ \
-     -min-rows 0 \
+     -min-rows 30000 \
      -max-rows 10000000 \
-     -window-factor 4 \
+     -expand-window-per-row 0.25 \
+     -taper-window-exponent 0.75 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
      -out-tmp-dir $TMPDIR \
      -approx-rows-per-out-file 200000 \
