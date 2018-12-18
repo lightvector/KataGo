@@ -30,9 +30,9 @@ mkdir -p $TMPDIR
 set -x
 time python3 ./shuffle.py \
      $BASEDIR/selfplay/*/tdata/ \
-     -min-rows 600000 \
+     -min-rows 800000 \
      -max-rows 1000000000 \
-     -expand-window-per-row 0.25 \
+     -expand-window-per-row 0.333333333 \
      -taper-window-exponent 0.75 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
      -out-tmp-dir $TMPDIR \
@@ -43,9 +43,9 @@ time python3 ./shuffle.py \
 
 time python3 ./shuffle.py \
      $BASEDIR/selfplay/*/vdata/ \
-     -min-rows 30000 \
+     -min-rows 40000 \
      -max-rows 10000000 \
-     -expand-window-per-row 0.25 \
+     -expand-window-per-row 0.333333333 \
      -taper-window-exponent 0.75 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
      -out-tmp-dir $TMPDIR \

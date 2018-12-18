@@ -475,5 +475,5 @@ while True:
       (lambda: val_input_fn(vdatadir))
     )
 
-  time.sleep(60)
+  time.sleep(1)
 
