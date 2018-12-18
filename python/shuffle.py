@@ -306,7 +306,7 @@ if __name__ == '__main__':
   desired_num_rows = num_desired_rows()
   desired_num_rows = max(desired_num_rows,min_rows)
   desired_num_rows = min(desired_num_rows,max_rows)
-  print("Desired num rows: %d / %d" % (desired_num_rows / num_rows_total))
+  print("Desired num rows: %d / %d" % (desired_num_rows,num_rows_total))
 
   desired_input_files = []
   desired_input_files_with_row_range = []
