@@ -578,6 +578,7 @@ xoox..xo.
 )%%");
 
     out << endl;
+    Board startBoard = board;
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -590,6 +591,7 @@ xoox..xo.
     }
     out << endl;
     board.checkConsistency();
+    assert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 01.0..010
@@ -623,6 +625,7 @@ xoox..xo.
 )%%");
 
     out << endl;
+    Board startBoard = board;
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -635,6 +638,7 @@ xoox..xo.
     }
     out << endl;
     board.checkConsistency();
+    assert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 11.1..000
@@ -669,6 +673,7 @@ xoox..xo.
 )%%");
 
     out << endl;
+    Board startBoard = board;
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -681,6 +686,7 @@ xoox..xo.
     }
     out << endl;
     board.checkConsistency();
+    assert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 ..................
@@ -812,6 +818,51 @@ xoox..xo.
 
   //============================================================================
   {
+    const char* name = "LaddersMultiKo";
+    vector<Loc> buf;
+    vector<Loc> buf2;
+    Board board = Board::parseBoard(9,9,R"%%(
+.xxxxxxo.
+xoxox.xo.
+ooo.oxoo.
+..oooo...
+.xxxx....
+xx.x.xx..
+xoxoxox..
+xoooooxx.
+o.ooo.ox.
+)%%");
+
+    out << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] != C_EMPTY)
+          out << (int)board.searchIsLadderCapturedAttackerFirst2Libs(loc,buf,buf2);
+        else
+          out << ".";
+      }
+      out << endl;
+    }
+    out << endl;
+    board.checkConsistency();
+
+    string expected = R"%%(
+.0000000.
+00000.00.
+000.0000.
+..0000...
+.0000....
+00.0.00..
+0000000..
+00000000.
+0.000.00.
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
     const char* name = "LaddersBigBoard";
     vector<Loc> buf;
     vector<Loc> buf2;
@@ -839,6 +890,7 @@ xoox..xo.
 )%%");
 
     out << endl;
+    Board startBoard = board;
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -851,6 +903,7 @@ xoox..xo.
     }
     out << endl;
     board.checkConsistency();
+    assert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 ...................
@@ -905,6 +958,7 @@ xoox..xo.
 )%%");
 
     out << endl;
+    Board startBoard = board;
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -917,6 +971,7 @@ xoox..xo.
     }
     out << endl;
     board.checkConsistency();
+    assert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 ....0..............
@@ -972,6 +1027,7 @@ xoox..xo.
 )%%");
 
     out << endl;
+    Board startBoard = board;
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -984,6 +1040,7 @@ xoox..xo.
     }
     out << endl;
     board.checkConsistency();
+    assert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 ...00000000.....0.0
@@ -1005,6 +1062,75 @@ xoox..xo.
 .........00.....0..
 ...00....000.0...0.
 ......0.0000.0..000
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    //Requires a node budget of somewhere between 2.5M and 25M nodes
+    const char* name = "Failing polynomial ladder due to max node budget";
+    vector<Loc> buf;
+    vector<Loc> buf2;
+    Board board = Board::parseBoard(19,19,R"%%(
+   A B C D E F G H J K L M N O P Q R S T
+19 X . O O O O X . O O O O X . O O O O O
+18 O X X X X O O X X X X O O X X X X X O
+17 O X . . X X O X . . X X O X . . . X O
+16 O . . . . X O X . . . X O X . . . X O
+15 . . . . . . O X . . . . O X . . . X O
+14 . . . . . . . . . . . . . . . . . X O
+13 . . . . . . . . . . . . . . . X X O O
+12 . . . . . . . . . . . . . . . O O O X
+11 . . . . . . . . . . . . . . . . X X .
+10 . . . . . . . . . . . . . . . . . X O
+ 9 . . . . . . . . . . . . . . . . . X O
+ 8 . . . . . . . . . . . . . . . . . X O
+ 7 . . . . . . . . . . . . . . . X X O O
+ 6 . . . . . . . . . . . . . . . O O O X
+ 5 . . . . . . . . . . . . . . . . X X .
+ 4 . . . . . . . . . . . . . . . . . X O
+ 3 . . . . . . . . . . . . . . . . . X O
+ 2 . X . . . X . . . . . . . . . . X . O
+ 1 . . . . . . . . . . . . . . . O O O .
+)%%");
+
+    out << endl;
+    Board startBoard = board;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] != C_EMPTY)
+          out << (int)board.searchIsLadderCapturedAttackerFirst2Libs(loc,buf,buf2);
+        else
+          out << ".";
+      }
+      out << endl;
+    }
+    out << endl;
+    board.checkConsistency();
+    assert(boardsSeemEqual(board,startBoard));
+
+    string expected = R"%%(
+0.00000.00000.00000
+0000000000000000000
+00..0000..0000...00
+0....000...000...00
+......00....00...00
+.................00
+...............0000
+...............0000
+................00.
+.................00
+.................00
+.................00
+...............0000
+...............0000
+................00.
+.................00
+.................00
+.0...0..........0.0
+...............000.
 )%%";
     expect(name,out,expected);
   }

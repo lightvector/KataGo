@@ -1363,8 +1363,14 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
       returnValue = true; returnedFromDeeper = true; stackIdx--; continue;
     }
     //If we hit a total node count limit, then just assume it doesn't work.
-    if(searchNodeCount >= MAX_LADDER_SEARCH_NODE_BUDGET)
+    if(searchNodeCount >= MAX_LADDER_SEARCH_NODE_BUDGET) {
+      stackIdx -= 1;
+      while(stackIdx >= 0) {
+        undo(records[stackIdx]);
+        stackIdx -= 1;
+      }
       return false;
+    }
 
     bool isDefender = (defenderFirst && (stackIdx % 2) == 0) || (!defenderFirst && (stackIdx % 2) == 1);
 
