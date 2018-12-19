@@ -7,7 +7,6 @@ import random
 import math
 import time
 import logging
-import h5py
 import contextlib
 import json
 import datetime

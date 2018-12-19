@@ -7,7 +7,6 @@ import random
 import math
 import time
 import logging
-import h5py
 import contextlib
 import json
 import tensorflow as tf
@@ -21,7 +20,7 @@ from modelv3 import ModelV3, Target_varsV3, MetricsV3
 #Command and args-------------------------------------------------------------------
 
 description = """
-Test neural net on Go positions from an h5 file of preprocessed training positions.
+Test neural net on Go positions from a file of preprocessed training positions.
 Computes average loss and accuracy the same as in training.
 """
 
