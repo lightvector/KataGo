@@ -11,7 +11,7 @@ from board import Board
 class ModelV3:
   NUM_BIN_INPUT_FEATURES = 22
   NUM_GLOBAL_INPUT_FEATURES = 14
-  EXTRA_SCORE_DISTR_RADIUS = 15
+  EXTRA_SCORE_DISTR_RADIUS = 60
   BONUS_SCORE_RADIUS = 30
 
   def __init__(self,config,pos_len,placeholders):

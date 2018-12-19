@@ -95,7 +95,7 @@ FinishedGameData::~FinishedGameData() {
 static const int POLICY_TARGET_NUM_CHANNELS = 1;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 54;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
-static const int EXTRA_SCORE_DISTR_RADIUS = 15;
+static const int EXTRA_SCORE_DISTR_RADIUS = 60;
 static const int BONUS_SCORE_RADIUS = 30;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int pLen)

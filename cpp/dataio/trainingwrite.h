@@ -145,7 +145,8 @@ struct TrainingWriteBuffers {
   NumpyBuffer<float> globalTargetsNC;
 
   //Score target
-  //Indices correspond to scores, from (-posLen^2-EXTRA_SCORE_DISTR_RADIUS)-0.5 to (posLen^2+EXTRA_SCORE_DISTR_RADIUS)+0.5, with 2*posLen^2+30 indices in total.
+  //Indices correspond to scores, from (-posLen^2-EXTRA_SCORE_DISTR_RADIUS)-0.5 to (posLen^2+EXTRA_SCORE_DISTR_RADIUS)+0.5,
+  //making 2*posLen^2+2*EXTRA_SCORE_DISTR_RADIUS indices in total.
   //Index of the actual score is labeled with 100, the rest labeled with 0, from the perspective of the player to move.
   //Except in case of integer komi, the value can be split between two adjacent labels based on value of draw.
   //Arbitrary if C26 has weight 0.

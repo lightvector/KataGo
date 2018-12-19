@@ -736,22 +736,32 @@ void WriteSgf::writeSgf(
     out << "]";
   }
 
+  bool hasAB = false;
   for(int y = 0; y<bSize; y++) {
     for(int x = 0; x<bSize; x++) {
       Loc loc = Location::getLoc(x,y,bSize);
       if(initialBoard.colors[loc] == C_BLACK) {
-        out << "AB[";
+        if(!hasAB) {
+          out << "AB";
+          hasAB = true;
+        }
+        out << "[";
         writeSgfLoc(out,loc,bSize);
         out << "]";
       }
     }
   }
 
+  bool hasAW = false;
   for(int y = 0; y<bSize; y++) {
     for(int x = 0; x<bSize; x++) {
       Loc loc = Location::getLoc(x,y,bSize);
       if(initialBoard.colors[loc] == C_WHITE) {
-        out << "AW[";
+        if(!hasAW) {
+          out << "AW";
+          hasAW = true;
+        }
+        out << "[";
         writeSgfLoc(out,loc,bSize);
         out << "]";
       }
