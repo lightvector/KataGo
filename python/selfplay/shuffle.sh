@@ -39,6 +39,7 @@ time python3 ./shuffle.py \
      -approx-rows-per-out-file 200000 \
      -num-processes $NTHREADS \
      -batch-size 256 \
+     -keep-target-rows 4000000 \
     2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outtrain.txt
 
 time python3 ./shuffle.py \

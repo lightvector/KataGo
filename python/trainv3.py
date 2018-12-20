@@ -37,6 +37,7 @@ parser.add_argument('-batch-size', help='Expected batch size of the input data, 
 parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
 parser.add_argument('-model-kind', help='String name for what model to use', required=True)
 parser.add_argument('-lr-epoch-offset', help='Start at effectively this epoch for LR purposes', type=float, required=True)
+parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 args = vars(parser.parse_args())
 
@@ -49,6 +50,7 @@ batch_size = args["batch_size"]
 gpu_memory_frac = args["gpu_memory_frac"]
 model_kind = args["model_kind"]
 lr_epoch_offset = args["lr_epoch_offset"]
+sub_epochs = args["sub_epochs"]
 verbose = args["verbose"]
 logfilemode = "a"
 
@@ -60,10 +62,6 @@ if not os.path.exists(exportdir):
 bareformatter = logging.Formatter("%(message)s")
 fh = logging.FileHandler(traindir+"/train.log", mode=logfilemode)
 fh.setFormatter(bareformatter)
-
-tensorflowlogger = logging.getLogger("tensorflow")
-tensorflowlogger.setLevel(logging.INFO)
-tensorflowlogger.addHandler(fh)
 
 trainlogger = logging.getLogger("trainlogger")
 trainlogger.setLevel(logging.INFO)
@@ -79,11 +77,6 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 num_samples_per_epoch = 1000000
 num_batches_per_epoch = int(round(num_samples_per_epoch / batch_size))
-
-def find_var(name):
-  for variable in tf.global_variables():
-    if variable.name == name:
-      return variable
 
 model_config = modelconfigs.config_of_name[model_kind]
 
@@ -355,30 +348,60 @@ def save_history(global_step_value):
   os.rename(savepathtmp,savepath)
   trainlog("Wrote " + savepath)
 
+# DATA RELOADING GENERATOR ------------------------------------------------------------
+
 last_curdatadir = None
 last_datainfo_row = 0
-globalstep = None
-while True:
+trainfilegenerator = None
+def maybe_reload_training_data():
+  global last_curdatadir
+  global last_datainfo_row
+  global trainfilegenerator
+  global trainhistory
+
   curdatadir = os.path.realpath(datadir)
   if curdatadir != last_curdatadir:
-    if not os.path.exists(curdatadir):
-      trainlog("Training data path does not exist, waiting and trying again later: %s" % curdatadir)
-      time.sleep(30)
-      continue
-    trainjsonpath = os.path.join(curdatadir,"train.json")
-    if not os.path.exists(trainjsonpath):
-      trainlog("Training data json file does not exist, waiting and trying again later: %s" % trainjsonpath)
-      time.sleep(30)
-      continue
+    while True:
+      if not os.path.exists(curdatadir):
+        trainlog("Training data path does not exist, waiting and trying again later: %s" % curdatadir)
+        time.sleep(30)
+        continue
 
-    trainlog("Updated training data: " + curdatadir)
-    last_curdatadir = curdatadir
+      trainjsonpath = os.path.join(curdatadir,"train.json")
+      while not os.path.exists(trainjsonpath):
+        trainlog("Training data json file does not exist, waiting and trying again later: %s" % trainjsonpath)
+        time.sleep(30)
+        continue
 
-    with open(trainjsonpath) as f:
-      datainfo = json.load(f)
-      last_datainfo_row = datainfo["range"][1]
-    trainhistory["files"] = datainfo["files"]
-    trainhistory["history"].append(("newdata",datainfo["range"]))
+      trainlog("Updated training data: " + curdatadir)
+      last_curdatadir = curdatadir
+
+      with open(trainjsonpath) as f:
+        datainfo = json.load(f)
+        last_datainfo_row = datainfo["range"][1]
+      trainhistory["files"] = datainfo["files"]
+      trainhistory["history"].append(("newdata",datainfo["range"]))
+
+      #Load training data files
+      tdatadir = os.path.join(curdatadir,"train")
+      train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".tfrecord")]
+
+      #Filter down to a random subset that will comprise this epoch
+      def train_files_gen():
+        train_files_shuffled = train_files.copy()
+        while True:
+          random.shuffle(train_files_shuffled)
+          for filename in train_files_shuffled:
+            trainlog("Yielding training file for dataset: " + filename)
+            yield filename
+      trainfilegenerator = train_files_gen()
+      break
+
+# TRAIN! -----------------------------------------------------------------------------------
+
+globalstep = None
+while True:
+  maybe_reload_training_data()
 
   trainlog("GC collect")
   gc.collect()
@@ -390,53 +413,42 @@ while True:
   if globalstep is not None:
     trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
 
-  #Load training data files
-  tdatadir = os.path.join(curdatadir,"train")
-  train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".tfrecord")]
+  num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
+  for i in range(sub_epochs):
+    #Pick enough files to get the number of batches we want
+    train_files_to_use = []
+    batches_to_use_so_far = 0
+    for filename in trainfilegenerator:
+      jsonfilename = os.path.splitext(filename)[0] + ".json"
+      with open(jsonfilename) as f:
+        trainfileinfo = json.load(f)
 
-  #Filter down to a random subset that will comprise this epoch
-  def train_files_gen():
-    train_files_shuffled = train_files.copy()
-    while True:
-      random.shuffle(train_files_shuffled)
-      for filename in train_files_shuffled:
-        trainlog("Yielding training file for dataset: " + filename)
-        yield filename
+      num_batches_this_file = trainfileinfo["num_batches"]
+      if num_batches_this_file <= 0:
+        continue
 
-  #Pick enough files to get the number of batches we want
-  train_files_to_use = []
-  batches_to_use_so_far = 0
-  for filename in train_files_gen():
-    jsonfilename = os.path.splitext(filename)[0] + ".json"
-    with open(jsonfilename) as f:
-      trainfileinfo = json.load(f)
+      if batches_to_use_so_far + num_batches_this_file > num_batches_per_subepoch:
+        #If we're going over the desired amount, randomly skip the file with probability equal to the
+        #proportion of batches over - this makes it so that in expectation, we have the desired number of batches
+        if batches_to_use_so_far > 0 and random.random() >= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
+          break
 
-    num_batches_this_file = trainfileinfo["num_batches"]
-    if num_batches_this_file <= 0:
-      continue
+      train_files_to_use.append(filename)
+      batches_to_use_so_far += num_batches_this_file
 
-    if batches_to_use_so_far + num_batches_this_file > num_batches_per_epoch:
-      #If we're going over the desired amount, randomly skop the file with probability equal to the
-      #proportion of batches over - this makes it so that in expectation, we have the desired number of batches
-      if batches_to_use_so_far > 0 and random.random() >= (batches_to_use_so_far + num_batches_this_file - num_batches_per_epoch) / num_batches_this_file:
+      #Sanity check - load a max of 100000 files.
+      if batches_to_use_so_far >= num_batches_per_subepoch or len(train_files_to_use) > 100000:
         break
 
-    train_files_to_use.append(filename)
-    batches_to_use_so_far += num_batches_this_file
-
-    #Sanity check - load a max of 100000 files.
-    if batches_to_use_so_far >= num_batches_per_epoch or len(train_files_to_use) > 100000:
-      break
-
-  #Train
-  trainlog("Beginning training epoch!")
-  trainlog("Currently up to training row " + str(last_datainfo_row))
-  estimator.train(
-    (lambda: train_input_fn(train_files_to_use,len(train_files),batches_to_use_so_far)),
-    saving_listeners=[
-      CheckpointSaverListenerFunction(save_history)
-    ]
-  )
+    #Train
+    trainlog("Beginning training epoch!")
+    trainlog("Currently up to training row " + str(last_datainfo_row))
+    estimator.train(
+      (lambda: train_input_fn(train_files_to_use,len(train_files),batches_to_use_so_far)),
+      saving_listeners=[
+        CheckpointSaverListenerFunction(save_history)
+      ]
+    )
 
   #Export a model for testing, unless somehow it already exists
   globalstep = int(estimator.get_variable_value("global_step:0"))

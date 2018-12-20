@@ -40,4 +40,5 @@ time python3 ./trainv3.py \
      -gpu-memory-frac 0.6 \
      -model-kind $MODELKIND \
      -lr-epoch-offset $LR_EPOCH_OFFSET \
+     -sub-epochs 2 \
      2>&1 | tee $BASEDIR/train/$TRAININGNAME/stdout.txt
