@@ -1145,26 +1145,26 @@ class Target_varsV3:
       tf.square(self.scorevalue_target - scorevalue_prediction)
     )
 
-    self.scorebelief_cdf_loss_unreduced = 0.01 * self.ownership_target_weight * (
+    self.scorebelief_cdf_loss_unreduced = 0.02 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
         axis=1
       )
     )
-    self.scorebelief_pdf_loss_unreduced = 0.05 * self.ownership_target_weight * (
+    self.scorebelief_pdf_loss_unreduced = 0.02 * self.ownership_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.scorebelief_target,
         logits=scorebelief_output
       )
     )
 
-    self.bonusbelief_cdf_loss_unreduced = 0.01 * self.ownership_target_weight * (
+    self.bonusbelief_cdf_loss_unreduced = 0.04 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.bonusbelief_target,axis=1) - tf.cumsum(tf.nn.softmax(bonusbelief_output,axis=1),axis=1)),
         axis=1
       )
     )
-    self.bonusbelief_pdf_loss_unreduced = 0.05 * self.ownership_target_weight * (
+    self.bonusbelief_pdf_loss_unreduced = 0.04 * self.ownership_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.bonusbelief_target,
         logits=bonusbelief_output
@@ -1204,14 +1204,14 @@ class Target_varsV3:
       (1.0 - value_probs[:,2:3]),
       axis=1
     )
-    self.scorevalue_reg_loss_unreduced = tf.square(scorevalue_from_belief - scorevalue_prediction)
+    self.scorevalue_reg_loss_unreduced = 2.0 * tf.square(scorevalue_from_belief - scorevalue_prediction)
 
     winlossprob_from_belief = tf.concat([
       tf.reduce_sum(scorebelief_probs[:,(model.scorebelief_target_shape[0]//2):],axis=1,keepdims=True),
       tf.reduce_sum(scorebelief_probs[:,0:(model.scorebelief_target_shape[0]//2)],axis=1,keepdims=True)
     ],axis=1) * (1.0 - tf.reshape(value_probs[:,2],[-1,1]))
     winlossprob_from_output = value_probs[:,0:2]
-    self.winloss_reg_loss_unreduced = tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
+    self.winloss_reg_loss_unreduced = 2.0 * tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 
     # self.scale_reg_loss_unreduced = tf.reshape(0.005 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
     self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
