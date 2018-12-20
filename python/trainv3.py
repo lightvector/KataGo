@@ -422,6 +422,9 @@ while True:
 
   num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
   for i in range(sub_epochs):
+    if i != 0:
+      maybe_reload_training_data()
+
     #Pick enough files to get the number of batches we want
     train_files_to_use = []
     batches_to_use_so_far = 0
