@@ -836,9 +836,9 @@ FinishedGameData* Play::runGame(
       double winLossValue = winValue - lossValue;
       Player resignPlayerThisTurn = C_EMPTY;
       if(winLossValue < fancyModes.resignThreshold)
-        resignPlayerThisTurn = pla;
+        resignPlayerThisTurn = P_WHITE;
       else if(winLossValue > -fancyModes.resignThreshold)
-        resignPlayerThisTurn = getOpp(pla);
+        resignPlayerThisTurn = P_BLACK;
 
       if(resignPlayerThisTurn == C_EMPTY) {
         resignPlayer = C_EMPTY;
