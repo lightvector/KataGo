@@ -354,23 +354,25 @@ last_curdatadir = None
 last_datainfo_row = 0
 trainfilegenerator = None
 num_train_files = 0
+vdatadir = None
 def maybe_reload_training_data():
   global last_curdatadir
   global last_datainfo_row
   global trainfilegenerator
   global trainhistory
   global num_train_files
+  global vdatadir
 
-  curdatadir = os.path.realpath(datadir)
-  if curdatadir != last_curdatadir:
-    while True:
+  while True:
+    curdatadir = os.path.realpath(datadir)
+    if curdatadir != last_curdatadir:
       if not os.path.exists(curdatadir):
         trainlog("Training data path does not exist, waiting and trying again later: %s" % curdatadir)
         time.sleep(30)
         continue
 
       trainjsonpath = os.path.join(curdatadir,"train.json")
-      while not os.path.exists(trainjsonpath):
+      if not os.path.exists(trainjsonpath):
         trainlog("Training data json file does not exist, waiting and trying again later: %s" % trainjsonpath)
         time.sleep(30)
         continue
@@ -398,7 +400,9 @@ def maybe_reload_training_data():
             trainlog("Yielding training file for dataset: " + filename)
             yield filename
       trainfilegenerator = train_files_gen()
-      break
+
+      vdatadir = os.path.join(curdatadir,"val")
+    break
 
 # TRAIN! -----------------------------------------------------------------------------------
 
@@ -480,7 +484,6 @@ while True:
 
   #Validate
   trainlog("Beginning validation after epoch!")
-  vdatadir = os.path.join(curdatadir,"val")
   val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".tfrecord")]
   if len(val_files) == 0:
     trainlog("No validation files, skipping validation step")
