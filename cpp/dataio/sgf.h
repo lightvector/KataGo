@@ -99,6 +99,9 @@ namespace WriteSgf {
     const Board& initialBoard, const BoardHistory& hist,
     const FinishedGameData* gameData
   );
+
+  //If hist is a finished game, print the result to out, else do nothing
+  void printGameResult(ostream& out, const BoardHistory& hist);
 }
 
 #endif

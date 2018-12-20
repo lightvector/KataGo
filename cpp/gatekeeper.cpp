@@ -12,6 +12,8 @@
 #include "program/gitinfo.h"
 #include "main.h"
 
+#include <sstream>
+
 using namespace std;
 
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
@@ -128,20 +130,22 @@ namespace {
           if(!hist.isGameFinished)
             hist.endAndScoreGameNow(endBoard);
 
+          ostringstream oresult;
+          WriteSgf::printGameResult(oresult,hist);
           if(hist.winner == P_BLACK) {
             whitePoints = 0.0;
             blackPoints = 1.0;
-            logger.write("Game " + Global::intToString(numGamesTallied) + ": winner black " + data->bName);
+            logger.write("Game " + Global::intToString(numGamesTallied) + ": winner black " + data->bName + " " + oresult.str());
           }
           else if(hist.winner == P_WHITE) {
             whitePoints = 1.0;
             blackPoints = 0.0;
-            logger.write("Game " + Global::intToString(numGamesTallied) + ": winner white " + data->wName);
+            logger.write("Game " + Global::intToString(numGamesTallied) + ": winner white " + data->wName + " " + oresult.str());
           }
           else {
             whitePoints = 0.5 * noResultUtilityForWhite + 0.5;
             blackPoints = 1.0 - whitePoints;
-            logger.write("Game " + Global::intToString(numGamesTallied) + ": draw");
+            logger.write("Game " + Global::intToString(numGamesTallied) + ": draw " + oresult.str());
           }
         }
 

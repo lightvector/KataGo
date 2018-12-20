@@ -689,6 +689,26 @@ void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Play
   }
 }
 
+void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
+  if(hist.isGameFinished) {
+    out << "RE[";
+    if(hist.isNoResult)
+      out << "Void";
+    else if(hist.isResignation && hist.winner == C_BLACK)
+      out << "B+R";
+    else if(hist.isResignation && hist.winner == C_WHITE)
+      out << "W+R";
+    else if(hist.winner == C_BLACK)
+      out << "B+" << (-hist.finalWhiteMinusBlackScore);
+    else if(hist.winner == C_WHITE)
+      out << "W+" << hist.finalWhiteMinusBlackScore;
+    else if(hist.winner == C_EMPTY)
+      out << "0";
+    else
+      assert(false);
+    out << "]";
+  }
+}
 
 void WriteSgf::writeSgf(
   ostream& out, const string& bName, const string& wName, const Rules& rules,
@@ -721,24 +741,7 @@ void WriteSgf::writeSgf(
   out << "RU[ko" << Rules::writeKoRule(rules.koRule)
       << "score" << Rules::writeScoringRule(rules.scoringRule)
       << "sui" << rules.multiStoneSuicideLegal << "]";
-  if(hist.isGameFinished) {
-    out << "RE[";
-    if(hist.isNoResult)
-      out << "Void";
-    else if(hist.isResignation && hist.winner == C_BLACK)
-      out << "B+R";
-    else if(hist.isResignation && hist.winner == C_WHITE)
-      out << "W+R";
-    else if(hist.winner == C_BLACK)
-      out << "B+" << (-hist.finalWhiteMinusBlackScore);
-    else if(hist.winner == C_WHITE)
-      out << "W+" << hist.finalWhiteMinusBlackScore;
-    else if(hist.winner == C_EMPTY)
-      out << "0";
-    else
-      assert(false);
-    out << "]";
-  }
+  printGameResult(out,hist);
 
   bool hasAB = false;
   for(int y = 0; y<bSize; y++) {
