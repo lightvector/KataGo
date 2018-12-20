@@ -423,8 +423,8 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     netAndStuff = loadLatestNeuralNet();
 
     if(netAndStuff == NULL) {
-      for(int i = 0; i<12; i++) {
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+      for(int i = 0; i<5; i++) {
+        std::this_thread::sleep_for(std::chrono::seconds(2));
         if(shouldStop.load())
           break;
       }
