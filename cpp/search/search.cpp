@@ -862,12 +862,12 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
     if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-      if(plaOwnership <= -0.98)
-        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.98 - plaOwnership) / 0.02);
-      else if(plaOwnership >= 0.98) {
+      if(plaOwnership <= -0.95)
+        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.95 - plaOwnership) / 0.05);
+      else if(plaOwnership >= 0.95) {
         if(!rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) &&
            !rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
-          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - 0.98) / 0.02);
+          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - 0.95) / 0.05);
         }
       }
     }
@@ -884,8 +884,8 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
     else if(rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-      if(plaOwnership <= -0.98)
-        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.98 - plaOwnership) / 0.02);
+      if(plaOwnership <= -0.95)
+        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.95 - plaOwnership) / 0.05);
     }
   }
 

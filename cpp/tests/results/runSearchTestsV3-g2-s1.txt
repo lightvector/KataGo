@@ -235,31 +235,31 @@ B7  : T  72.86c W  71.42c S   1.43c ( +1.7) V  72.86c P  0.27% VW  3.27% N      
 
 J7 visits 360 utility 33.55c scoreValue 2.28c endingScoreValueBonus 0.00c
 A1 visits 53 utility 35.84c scoreValue 2.76c endingScoreValueBonus 0.00c
-D6 visits 30 utility 39.53c scoreValue 2.86c endingScoreValueBonus 0.00c
+D6 visits 30 utility 39.53c scoreValue 2.86c endingScoreValueBonus 0.83c
 H5 visits 29 utility 35.18c scoreValue 2.44c endingScoreValueBonus 0.00c
-E5 visits 5 utility 46.33c scoreValue 3.94c endingScoreValueBonus 0.00c
+E5 visits 5 utility 46.33c scoreValue 3.94c endingScoreValueBonus 0.72c
 K4 visits 1 utility 50.65c scoreValue 2.81c endingScoreValueBonus 0.00c
 L5 visits 1 utility 48.92c scoreValue 2.34c endingScoreValueBonus 0.00c
 G6 visits 1 utility 53.42c scoreValue 2.17c endingScoreValueBonus 0.00c
 K1 visits 1 utility 66.26c scoreValue 3.79c endingScoreValueBonus 0.00c
-L1 visits 1 utility 64.52c scoreValue 3.53c endingScoreValueBonus 0.15c
+L1 visits 1 utility 64.52c scoreValue 3.53c endingScoreValueBonus 0.93c
 pass visits 1 utility 82.61c scoreValue 8.00c endingScoreValueBonus 0.00c
-L4 visits 1 utility 72.26c scoreValue 4.14c endingScoreValueBonus 0.81c
-L2 visits 1 utility 57.66c scoreValue 3.19c endingScoreValueBonus 0.43c
+L4 visits 1 utility 72.26c scoreValue 4.14c endingScoreValueBonus 1.19c
+L2 visits 1 utility 57.66c scoreValue 3.19c endingScoreValueBonus 1.04c
 K3 visits 1 utility 58.12c scoreValue 3.15c endingScoreValueBonus 0.00c
-E9 visits 1 utility 68.60c scoreValue 3.84c endingScoreValueBonus 1.08c
-F10 visits 1 utility 76.12c scoreValue 4.33c endingScoreValueBonus 1.24c
-E11 visits 1 utility 68.59c scoreValue 3.61c endingScoreValueBonus 1.16c
-L3 visits 1 utility 61.18c scoreValue 3.49c endingScoreValueBonus 0.62c
+E9 visits 1 utility 68.60c scoreValue 3.84c endingScoreValueBonus 1.30c
+F10 visits 1 utility 76.12c scoreValue 4.33c endingScoreValueBonus 1.36c
+E11 visits 1 utility 68.59c scoreValue 3.61c endingScoreValueBonus 1.33c
+L3 visits 1 utility 61.18c scoreValue 3.49c endingScoreValueBonus 1.11c
 J2 visits 1 utility 66.12c scoreValue 3.65c endingScoreValueBonus 0.00c
-A9 visits 1 utility 77.42c scoreValue 5.48c endingScoreValueBonus 0.83c
-D10 visits 1 utility 71.04c scoreValue 4.10c endingScoreValueBonus 1.20c
-A8 visits 1 utility 78.10c scoreValue 5.69c endingScoreValueBonus 0.49c
-G9 visits 1 utility 70.18c scoreValue 3.57c endingScoreValueBonus 0.95c
-D5 visits 1 utility 65.22c scoreValue 3.78c endingScoreValueBonus 0.34c
-A6 visits 1 utility 78.92c scoreValue 5.83c endingScoreValueBonus 0.36c
-B6 visits 1 utility 78.55c scoreValue 5.69c endingScoreValueBonus 0.00c
-B7 visits 1 utility 72.86c scoreValue 4.78c endingScoreValueBonus 0.00c
+A9 visits 1 utility 77.42c scoreValue 5.48c endingScoreValueBonus 1.19c
+D10 visits 1 utility 71.04c scoreValue 4.10c endingScoreValueBonus 1.34c
+A8 visits 1 utility 78.10c scoreValue 5.69c endingScoreValueBonus 1.06c
+G9 visits 1 utility 70.18c scoreValue 3.57c endingScoreValueBonus 1.25c
+D5 visits 1 utility 65.22c scoreValue 3.78c endingScoreValueBonus 1.00c
+A6 visits 1 utility 78.92c scoreValue 5.83c endingScoreValueBonus 1.01c
+B6 visits 1 utility 78.55c scoreValue 5.69c endingScoreValueBonus 0.71c
+B7 visits 1 utility 72.86c scoreValue 4.78c endingScoreValueBonus 0.83c
 
 
 With root ending bonus pts one step later===================
@@ -329,21 +329,21 @@ E5 visits 1 utility 6.59c scoreValue 0.77c endingScoreValueBonus 0.00c
 D5 visits 1 utility 3.07c scoreValue 0.88c endingScoreValueBonus 0.00c
 C6 visits 1 utility -5.33c scoreValue 0.20c endingScoreValueBonus 0.00c
 pass visits 1 utility -90.46c scoreValue -10.15c endingScoreValueBonus 0.00c
-K1 visits 1 utility -1.11c scoreValue 0.17c endingScoreValueBonus -0.67c
-B7 visits 1 utility -23.16c scoreValue -1.07c endingScoreValueBonus -0.47c
-A8 visits 1 utility -31.90c scoreValue -1.52c endingScoreValueBonus -0.68c
-B6 visits 1 utility -34.09c scoreValue -1.55c endingScoreValueBonus -0.70c
+K1 visits 1 utility -1.11c scoreValue 0.17c endingScoreValueBonus -1.13c
+B7 visits 1 utility -23.16c scoreValue -1.07c endingScoreValueBonus -1.06c
+A8 visits 1 utility -31.90c scoreValue -1.52c endingScoreValueBonus -1.14c
+B6 visits 1 utility -34.09c scoreValue -1.55c endingScoreValueBonus -1.15c
 F4 visits 1 utility -51.61c scoreValue -3.48c endingScoreValueBonus 0.00c
 D1 visits 1 utility -55.01c scoreValue -4.28c endingScoreValueBonus 0.00c
-B2 visits 1 utility -41.77c scoreValue -2.55c endingScoreValueBonus -0.91c
-B8 visits 1 utility -22.93c scoreValue -0.99c endingScoreValueBonus -0.33c
-B1 visits 1 utility -43.26c scoreValue -2.55c endingScoreValueBonus -0.52c
-A7 visits 1 utility -35.08c scoreValue -1.53c endingScoreValueBonus -0.41c
-K3 visits 1 utility -46.70c scoreValue -2.52c endingScoreValueBonus -0.83c
-A6 visits 1 utility -32.34c scoreValue -1.46c endingScoreValueBonus -0.28c
-L5 visits 1 utility -48.88c scoreValue -2.59c endingScoreValueBonus 0.00c
-A9 visits 1 utility -34.24c scoreValue -1.59c endingScoreValueBonus -0.94c
-K4 visits 1 utility -62.68c scoreValue -3.68c endingScoreValueBonus -0.63c
+B2 visits 1 utility -41.77c scoreValue -2.55c endingScoreValueBonus -1.23c
+B8 visits 1 utility -22.93c scoreValue -0.99c endingScoreValueBonus -1.00c
+B1 visits 1 utility -43.26c scoreValue -2.55c endingScoreValueBonus -1.07c
+A7 visits 1 utility -35.08c scoreValue -1.53c endingScoreValueBonus -1.03c
+K3 visits 1 utility -46.70c scoreValue -2.52c endingScoreValueBonus -1.20c
+A6 visits 1 utility -32.34c scoreValue -1.46c endingScoreValueBonus -0.98c
+L5 visits 1 utility -48.88c scoreValue -2.59c endingScoreValueBonus -0.86c
+A9 visits 1 utility -34.24c scoreValue -1.59c endingScoreValueBonus -1.24c
+K4 visits 1 utility -62.68c scoreValue -3.68c endingScoreValueBonus -1.11c
 Without root ending bonus pts later later===================
 
 MoveNum: 96 HASH: 848133B78DFF9C87B65A28BD710654D4
@@ -493,29 +493,29 @@ C6  : T  86.24c W  84.29c S   1.96c ( +2.3) V  86.24c P  0.68% VW  3.44% N      
 
 L5 visits 26 utility 71.45c scoreValue 4.28c endingScoreValueBonus 0.00c
 K1 visits 62 utility 61.30c scoreValue 3.83c endingScoreValueBonus 0.00c
-L4 visits 40 utility 61.78c scoreValue 2.83c endingScoreValueBonus 1.09c
+L4 visits 40 utility 61.78c scoreValue 2.83c endingScoreValueBonus 1.30c
 pass visits 3 utility 95.58c scoreValue 6.62c endingScoreValueBonus 0.00c
-B1 visits 49 utility 59.34c scoreValue 4.21c endingScoreValueBonus 1.03c
-L3 visits 48 utility 59.54c scoreValue 3.66c endingScoreValueBonus 1.05c
+B1 visits 49 utility 59.34c scoreValue 4.21c endingScoreValueBonus 1.28c
+L3 visits 48 utility 59.54c scoreValue 3.66c endingScoreValueBonus 1.29c
 G6 visits 17 utility 64.49c scoreValue 4.31c endingScoreValueBonus 0.00c
-L2 visits 56 utility 59.21c scoreValue 3.46c endingScoreValueBonus 0.99c
+L2 visits 56 utility 59.21c scoreValue 3.46c endingScoreValueBonus 1.26c
 J2 visits 27 utility 60.96c scoreValue 3.84c endingScoreValueBonus 0.00c
 K3 visits 44 utility 59.17c scoreValue 3.51c endingScoreValueBonus 0.00c
-F10 visits 13 utility 63.50c scoreValue 4.40c endingScoreValueBonus 1.35c
-L1 visits 40 utility 58.75c scoreValue 3.61c endingScoreValueBonus 0.75c
-B2 visits 19 utility 60.09c scoreValue 4.20c endingScoreValueBonus 1.32c
-D10 visits 7 utility 65.26c scoreValue 4.50c endingScoreValueBonus 1.34c
-E9 visits 6 utility 66.00c scoreValue 4.77c endingScoreValueBonus 1.32c
-E11 visits 23 utility 59.01c scoreValue 3.90c endingScoreValueBonus 1.29c
-D6 visits 3 utility 68.22c scoreValue 5.60c endingScoreValueBonus 1.03c
-G9 visits 9 utility 61.18c scoreValue 4.18c endingScoreValueBonus 1.26c
-A6 visits 1 utility 85.30c scoreValue 6.14c endingScoreValueBonus 0.51c
-B8 visits 1 utility 84.65c scoreValue 5.90c endingScoreValueBonus 0.84c
-B7 visits 1 utility 86.76c scoreValue 6.37c endingScoreValueBonus 0.36c
-B6 visits 1 utility 86.56c scoreValue 6.49c endingScoreValueBonus 0.00c
-A7 visits 1 utility 89.72c scoreValue 6.66c endingScoreValueBonus 0.64c
-A3 visits 1 utility 116.40c scoreValue 54.79c endingScoreValueBonus 0.59c
-C6 visits 1 utility 86.24c scoreValue 6.52c endingScoreValueBonus 0.70c
+F10 visits 13 utility 63.50c scoreValue 4.40c endingScoreValueBonus 1.41c
+L1 visits 40 utility 58.75c scoreValue 3.61c endingScoreValueBonus 1.17c
+B2 visits 19 utility 60.09c scoreValue 4.20c endingScoreValueBonus 1.39c
+D10 visits 7 utility 65.26c scoreValue 4.50c endingScoreValueBonus 1.40c
+E9 visits 6 utility 66.00c scoreValue 4.77c endingScoreValueBonus 1.39c
+E11 visits 23 utility 59.01c scoreValue 3.90c endingScoreValueBonus 1.38c
+D6 visits 3 utility 68.22c scoreValue 5.60c endingScoreValueBonus 1.28c
+G9 visits 9 utility 61.18c scoreValue 4.18c endingScoreValueBonus 1.37c
+A6 visits 1 utility 85.30c scoreValue 6.14c endingScoreValueBonus 1.07c
+B8 visits 1 utility 84.65c scoreValue 5.90c endingScoreValueBonus 1.20c
+B7 visits 1 utility 86.76c scoreValue 6.37c endingScoreValueBonus 1.00c
+B6 visits 1 utility 86.56c scoreValue 6.49c endingScoreValueBonus 0.85c
+A7 visits 1 utility 89.72c scoreValue 6.66c endingScoreValueBonus 1.12c
+A3 visits 1 utility 116.40c scoreValue 54.79c endingScoreValueBonus 0.61c
+C6 visits 1 utility 86.24c scoreValue 6.52c endingScoreValueBonus 1.14c
 GAME 8 ==========================================================================
 (Alternate variation of game 7 to test root ending bonus points in territory scoring)
 Without root ending bonus pts===================
@@ -660,24 +660,24 @@ J7 visits 449 utility 25.59c scoreValue 1.93c endingScoreValueBonus 0.00c
 pass visits 22 utility 4.99c scoreValue 0.34c endingScoreValueBonus -0.96c
 E5 visits 4 utility -17.31c scoreValue -0.87c endingScoreValueBonus 0.00c
 D6 visits 4 utility -18.74c scoreValue -1.03c endingScoreValueBonus 0.00c
-K4 visits 1 utility -54.81c scoreValue -5.78c endingScoreValueBonus -0.93c
+K4 visits 1 utility -54.81c scoreValue -5.78c endingScoreValueBonus -1.23c
 F1 visits 2 utility -14.14c scoreValue -0.65c endingScoreValueBonus 0.00c
 D5 visits 1 utility -3.63c scoreValue 0.44c endingScoreValueBonus 0.00c
-K1 visits 2 utility -17.46c scoreValue -1.50c endingScoreValueBonus -0.84c
-K3 visits 1 utility -14.87c scoreValue -1.95c endingScoreValueBonus -0.92c
+K1 visits 2 utility -17.46c scoreValue -1.50c endingScoreValueBonus -1.20c
+K3 visits 1 utility -14.87c scoreValue -1.95c endingScoreValueBonus -1.24c
 C6 visits 1 utility 6.84c scoreValue 0.53c endingScoreValueBonus 0.00c
-L5 visits 1 utility -51.40c scoreValue -3.60c endingScoreValueBonus -0.63c
+L5 visits 1 utility -51.40c scoreValue -3.60c endingScoreValueBonus -1.11c
 A8 visits 1 utility -27.73c scoreValue -2.08c endingScoreValueBonus 0.00c
 F4 visits 1 utility -56.37c scoreValue -4.04c endingScoreValueBonus 0.00c
 A6 visits 1 utility -20.18c scoreValue -1.58c endingScoreValueBonus 0.00c
-B2 visits 1 utility -45.56c scoreValue -3.26c endingScoreValueBonus -1.10c
+B2 visits 1 utility -45.56c scoreValue -3.26c endingScoreValueBonus -1.31c
 B6 visits 1 utility -27.83c scoreValue -1.97c endingScoreValueBonus 0.00c
 B7 visits 1 utility -12.89c scoreValue -1.24c endingScoreValueBonus 0.00c
-L4 visits 1 utility -48.01c scoreValue -3.37c endingScoreValueBonus -0.67c
-B1 visits 1 utility -47.82c scoreValue -3.34c endingScoreValueBonus -0.86c
+L4 visits 1 utility -48.01c scoreValue -3.37c endingScoreValueBonus -1.13c
+B1 visits 1 utility -47.82c scoreValue -3.34c endingScoreValueBonus -1.21c
 D1 visits 1 utility -64.92c scoreValue -5.34c endingScoreValueBonus 0.00c
 A7 visits 1 utility -28.62c scoreValue -1.94c endingScoreValueBonus 0.00c
-L2 visits 1 utility -44.41c scoreValue -3.59c endingScoreValueBonus -0.61c
+L2 visits 1 utility -44.41c scoreValue -3.59c endingScoreValueBonus -1.11c
 
 
 GAME 9 ==========================================================================
