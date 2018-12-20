@@ -132,6 +132,11 @@ struct FancyModes {
   int recordTreeThreshold;
   float recordTreeTargetWeight;
 
+  //Resign conditions
+  bool allowResignation;
+  double resignThreshold; //Require that mcts win value is less than this
+  double resignConsecTurns; //Require that both players have agreed on it continuously for this many turns
+
   FancyModes();
   ~FancyModes();
 };

@@ -324,7 +324,8 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
-   recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f)
+   recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
+   allowResignation(false),resignThreshold(0.0),resignConsecTurns(1)
 {}
 FancyModes::~FancyModes()
 {}
@@ -746,6 +747,9 @@ FinishedGameData* Play::runGame(
 
   vector<SidePosition*> sidePositionsToSearch;
 
+  int resignConsecTurnsCount = 0;
+  Player resignPlayer = C_EMPTY;
+
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
     if(doEndGameIfAllPassAlive)
@@ -820,6 +824,35 @@ FinishedGameData* Play::runGame(
       }
     }
 
+    if(fancyModes.allowResignation) {
+      double winValue;
+      double lossValue;
+      double noResultValue;
+      double scoreValue;
+      bool success = toMoveBot->getRootValues(winValue,lossValue,noResultValue,scoreValue);
+      assert(success);
+      assert(fancyModes.resignThreshold <= 0);
+
+      Player resignPlayerThisTurn = C_EMPTY;
+      if(winValue < fancyModes.resignThreshold)
+        resignPlayerThisTurn = pla;
+      else if(winValue > -fancyModes.resignThreshold)
+        resignPlayerThisTurn = getOpp(pla);
+
+      if(resignPlayerThisTurn == C_EMPTY) {
+        resignPlayer = C_EMPTY;
+        resignConsecTurnsCount = 0;
+      }
+      else {
+        if(resignPlayerThisTurn == resignPlayer)
+          resignConsecTurnsCount += 1;
+        else {
+          resignPlayer = resignPlayerThisTurn;
+          resignConsecTurnsCount = 1;
+        }
+      }
+    }
+
     //In many cases, we are using root-level noise, so we want to clear the search each time so that we don't
     //bias the next search with the result of the previous... and also to make each color's search independent of the other's.
     if(clearBotAfterSearch)
@@ -837,8 +870,12 @@ FinishedGameData* Play::runGame(
     //And make the move on our copy of the board
     assert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-    pla = getOpp(pla);
 
+    if(fancyModes.allowResignation && resignPlayer == pla && resignConsecTurnsCount >= fancyModes.resignConsecTurns) {
+      hist.setWinnerByResignation(getOpp(pla));
+    }
+    
+    pla = getOpp(pla);
   }
 
   gameData->endHist = hist;
@@ -848,6 +885,8 @@ FinishedGameData* Play::runGame(
     gameData->hitTurnLimit = true;
 
   if(recordFullData) {
+    assert(!hist.isResignation); //Recording full data currently incompatible with resignation
+    
     ValueTargets finalValueTargets;
     Color area[Board::MAX_ARR_SIZE];
     if(hist.isGameFinished && hist.isNoResult) {

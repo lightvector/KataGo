@@ -99,6 +99,7 @@ void Tests::runRulesTests() {
       o << "Winner: " << playerToString(hist.winner) << endl;
       o << "W-B Score: " << hist.finalWhiteMinusBlackScore << endl;
       o << "isNoResult: " << hist.isNoResult << endl;
+      o << "isResignation: " << hist.isResignation << endl;
     }
   };
 
@@ -339,6 +340,7 @@ Beginning sending two returning one cycle
 Winner: White
 W-B Score: 0.5
 isNoResult: 0
+isResignation: 0
 )%%";
       expect(name,out,expected);
     }
@@ -594,6 +596,7 @@ After pass
 Winner: Black
 W-B Score: -0.5
 isNoResult: 0
+isResignation: 0
 )%%";
       expect(name,out,expected);
     }
@@ -739,6 +742,7 @@ xoooxxoo
 Winner: Empty
 W-B Score: 0
 isNoResult: 1
+isResignation: 0
 )%%";
     expect(name,out,expected);
   }
@@ -780,6 +784,7 @@ ooooooo
 Winner: Empty
 W-B Score: 0
 isNoResult: 1
+isResignation: 0
 )%%";
     expect(name,out,expected);
   }
@@ -1589,12 +1594,15 @@ xxxxxxx
 Winner: White
 W-B Score: 0.5
 isNoResult: 0
+isResignation: 0
 Winner: Empty
 W-B Score: 0
 isNoResult: 0
+isResignation: 0
 Winner: Black
 W-B Score: -0.5
 isNoResult: 0
+isResignation: 0
 )%%";
     expect(name,out,expected);
   }
@@ -1691,6 +1699,7 @@ isNoResult: 0
 Winner: White
 W-B Score: 2.5
 isNoResult: 0
+isResignation: 0
 5 .... NPX PS0 E0 0000 0000 0000
 4 ..X. NPO PS0 E0 0000 0000 0000
 3 .OX. NPX PS0 E0 0000 0000 0000
@@ -1741,6 +1750,7 @@ isNoResult: 0
 Winner: Empty
 W-B Score: 0
 isNoResult: 1
+isResignation: 0
 )%%";
 
     expect(name,out,expected);
@@ -1761,6 +1771,7 @@ isNoResult: 1
 Winner: White
 W-B Score: 0.5
 isNoResult: 0
+isResignation: 0
 5 .... NPX PS0 E0 0000 0000 0000
 5 .... NPO PS1 E0 0000 0000 0000
 4 O... NPX PS0 E0 0000 0000 0000
@@ -1771,6 +1782,7 @@ isNoResult: 0
 Winner: White
 W-B Score: 1.5
 isNoResult: 0
+isResignation: 0
 5 .... NPX PS0 E0 0000 0000 0000
 4 .X.. NPO PS0 E0 0000 0000 0000
 3 .XO. NPX PS0 E0 0000 0000 0000
@@ -1780,6 +1792,7 @@ isNoResult: 0
 Winner: Black
 W-B Score: -0.5
 isNoResult: 0
+isResignation: 0
 5 .... NPX PS0 E0 0000 0000 0000
 4 ...X NPO PS0 E0 0000 0000 0000
 3 ..OX NPX PS0 E0 0000 0000 0000
@@ -1788,6 +1801,7 @@ isNoResult: 0
 Winner: White
 W-B Score: 0.5
 isNoResult: 0
+isResignation: 0
 )%%";
 
     expect(name,out,expected);
@@ -1914,6 +1928,7 @@ isNoResult: 0
 Winner: White
 W-B Score: 1.5
 isNoResult: 0
+isResignation: 0
 
 )%%";
 
@@ -1957,6 +1972,7 @@ isNoResult: 0
 Winner: White
 W-B Score: 0.5
 isNoResult: 0
+isResignation: 0
 
 )%%";
 
@@ -2026,6 +2042,7 @@ isNoResult: 0
 Winner: Black
 W-B Score: -3.5
 isNoResult: 0
+isResignation: 0
 
 )%%";
 
@@ -2079,6 +2096,7 @@ isNoResult: 0
 Winner: White
 W-B Score: 1.5
 isNoResult: 0
+isResignation: 0
 
 )%%";
 
@@ -2106,6 +2124,7 @@ isNoResult: 0
 Winner: White
 W-B Score: 4.5
 isNoResult: 0
+isResignation: 0
 
 )%%";
 
@@ -2129,6 +2148,7 @@ isNoResult: 0
 Winner: White
 W-B Score: 4.5
 isNoResult: 0
+isResignation: 0
 
 )%%";
 

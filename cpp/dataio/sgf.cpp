@@ -725,6 +725,10 @@ void WriteSgf::writeSgf(
     out << "RE[";
     if(hist.isNoResult)
       out << "Void";
+    else if(hist.isResignation && hist.winner == C_BLACK)
+      out << "B+R";
+    else if(hist.isResignation && hist.winner == C_WHITE)
+      out << "W+R";
     else if(hist.winner == C_BLACK)
       out << "B+" << (-hist.finalWhiteMinusBlackScore);
     else if(hist.winner == C_WHITE)

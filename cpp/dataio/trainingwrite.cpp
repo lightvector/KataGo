@@ -600,6 +600,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       assert(lastTargets.noResult == 0.0f);
 
     assert(data.finalWhiteOwnership != NULL);
+    assert(!data.endHist.isResignation);
   }
 
   Board board(data.startBoard);

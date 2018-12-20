@@ -33,7 +33,8 @@ BoardHistory::BoardHistory()
    encorePhase(0),koProhibitHash(),
    koCapturesInEncore(),
    whiteBonusScore(0),
-   isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),isNoResult(false)
+   isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
+   isNoResult(false),isResignation(false)
 {
   std::fill(wasEverOccupiedOrPlayed, wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, false);
   std::fill(superKoBanned, superKoBanned+Board::MAX_ARR_SIZE, false);
@@ -56,7 +57,8 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    encorePhase(0),koProhibitHash(),
    koCapturesInEncore(),
    whiteBonusScore(0),
-   isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),isNoResult(false)
+   isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
+   isNoResult(false),isResignation(false)
 {
   std::fill(wasEverOccupiedOrPlayed, wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, false);
   std::fill(superKoBanned, superKoBanned+Board::MAX_ARR_SIZE, false);
@@ -78,7 +80,8 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    encorePhase(other.encorePhase),koProhibitHash(other.koProhibitHash),
    koCapturesInEncore(other.koCapturesInEncore),
    whiteBonusScore(other.whiteBonusScore),
-   isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),isNoResult(other.isNoResult)
+   isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
+   isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   std::copy(other.superKoBanned, other.superKoBanned+Board::MAX_ARR_SIZE, superKoBanned);
@@ -114,6 +117,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   winner = other.winner;
   finalWhiteMinusBlackScore = other.finalWhiteMinusBlackScore;
   isNoResult = other.isNoResult;
+  isResignation = other.isResignation;
 
   return *this;
 }
@@ -129,7 +133,8 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   encorePhase(other.encorePhase),koProhibitHash(other.koProhibitHash),
   koCapturesInEncore(std::move(other.koCapturesInEncore)),
   whiteBonusScore(other.whiteBonusScore),
-  isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),isNoResult(other.isNoResult)
+  isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
+  isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   std::copy(other.superKoBanned, other.superKoBanned+Board::MAX_ARR_SIZE, superKoBanned);
@@ -162,6 +167,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   winner = other.winner;
   finalWhiteMinusBlackScore = other.finalWhiteMinusBlackScore;
   isNoResult = other.isNoResult;
+  isResignation = other.isResignation;
 
   return *this;
 }
@@ -198,6 +204,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   winner = C_EMPTY;
   finalWhiteMinusBlackScore = 0.0f;
   isNoResult = false;
+  isResignation = false;
 
   if(rules.scoringRule == Rules::SCORING_TERRITORY) {
     //Chill 1 point for every move played
@@ -237,7 +244,7 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << "Rules " << rules << endl;
   out << "Ko prohib hash " << koProhibitHash << endl;
   out << "White bonus score " << whiteBonusScore << endl;
-  out << "Game result " << isGameFinished << " " << playerToString(winner) << " " << finalWhiteMinusBlackScore << " " << isNoResult << endl;
+  out << "Game result " << isGameFinished << " " << playerToString(winner) << " " << finalWhiteMinusBlackScore << " " << isNoResult << " " << isResignation << endl;
   out << "Last moves ";
   for(int i = 0; i<moveHistory.size(); i++)
     out << Location::toString(moveHistory[i].loc,board) << " ";
@@ -259,6 +266,7 @@ void BoardHistory::setKomi(float newKomi) {
   winner = C_EMPTY;
   finalWhiteMinusBlackScore = 0.0f;
   isNoResult = false;
+  isResignation = false;
 }
 
 
@@ -396,6 +404,7 @@ void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_
     winner = C_EMPTY;
 
   isNoResult = false;
+  isResignation = false;
   isGameFinished = true;
 }
 
@@ -433,7 +442,16 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
   else
     winner = C_EMPTY;
   isNoResult = false;
+  isResignation = false;
   isGameFinished = true;
+}
+
+void BoardHistory::setWinnerByResignation(Player pla) {
+  isGameFinished = true;
+  isNoResult = false;
+  isResignation = true;
+  winner = pla;
+  finalWhiteMinusBlackScore = 0.0f;
 }
 
 
@@ -536,6 +554,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   winner = C_EMPTY;
   finalWhiteMinusBlackScore = 0.0f;
   isNoResult = false;
+  isResignation = false;
 
   //Handle pass-for-ko moves in the encore. Pass for ko lifts a ko prohibition and does nothing else.
   bool wasPassForKo = false;

@@ -262,6 +262,10 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
   bool forSelfPlay = false;
   FancyModes fancyModes;
+  fancyModes.allowResignation = cfg.getBool("allowResignation");
+  fancyModes.resignThreshold = cfg.getDouble("resignThreshold",-10.0,0.0);
+  fancyModes.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
+
   GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay, fancyModes);
 
   Setup::initializeSession(cfg);

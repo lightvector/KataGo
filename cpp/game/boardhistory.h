@@ -58,8 +58,10 @@ struct BoardHistory {
   Player winner;
   //Score difference of the game if the game is supposed to have ended now, does NOT take into account whiteKomiAdjustmentForDrawUtility
   float finalWhiteMinusBlackScore;
-  //True this game is supposed to be ended but there is no result
+  //True if this game is supposed to be ended but there is no result
   bool isNoResult;
+  //True if this game is supposed to be ended but it was by resignation rather than an actual end position
+  bool isResignation;
 
   BoardHistory();
   ~BoardHistory();
@@ -100,6 +102,8 @@ struct BoardHistory {
   //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
   void endAndScoreGameNow(const Board& board);
   void endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]);
+
+  void setWinnerByResignation(Player pla);
 
   void printDebugInfo(ostream& out, const Board& board) const;
   

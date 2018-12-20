@@ -152,7 +152,7 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 1 Black -17.5 0
+Game result 1 Black -17.5 0 0
 Last moves D1 B3 pass B2 C2 B5 D5 E2 C5 A5 D2 A4 A1 E3 B1 C4 A2 pass A3 B4 D3 E1 C1 pass E4 D4 E1 E3 C3 A4 E2 D4 B5 B3 C4
 binaryInputNCHWPacked
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(8,22,4)}
@@ -253,7 +253,7 @@ Encore phase 0
 Rules koSIMPLEscoreTERRITORYsui0komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
-Game result 1 Black -19 0
+Game result 1 Black -19 0 0
 Last moves E5 B4 C4 E4 D1 C1 A2 E3 B2 A4 D3 pass D4 C5 B1 D5 B5 pass A3 E2 C3 E5 pass B3 pass E1 D2 E2 C2 C5 D5
 binaryInputNCHWPacked
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(8,22,4)}
