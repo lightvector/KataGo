@@ -353,11 +353,13 @@ def save_history(global_step_value):
 last_curdatadir = None
 last_datainfo_row = 0
 trainfilegenerator = None
+num_train_files = 0
 def maybe_reload_training_data():
   global last_curdatadir
   global last_datainfo_row
   global trainfilegenerator
   global trainhistory
+  global num_train_files
 
   curdatadir = os.path.realpath(datadir)
   if curdatadir != last_curdatadir:
@@ -385,6 +387,7 @@ def maybe_reload_training_data():
       #Load training data files
       tdatadir = os.path.join(curdatadir,"train")
       train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".tfrecord")]
+      num_train_files = len(train_files)
 
       #Filter down to a random subset that will comprise this epoch
       def train_files_gen():
@@ -444,7 +447,7 @@ while True:
     trainlog("Beginning training epoch!")
     trainlog("Currently up to training row " + str(last_datainfo_row))
     estimator.train(
-      (lambda: train_input_fn(train_files_to_use,len(train_files),batches_to_use_so_far)),
+      (lambda: train_input_fn(train_files_to_use,num_train_files,batches_to_use_so_far)),
       saving_listeners=[
         CheckpointSaverListenerFunction(save_history)
       ]
