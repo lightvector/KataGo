@@ -24,6 +24,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   int maxVisits;
   int numThreads;
   bool printOwnership;
+  bool printScoreNow;
   try {
     TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
@@ -37,6 +38,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::ValueArg<int> visitsArg("v","visits","Set the number of visits",false,-1,"VISTIS");
     TCLAP::ValueArg<int> threadsArg("t","threads","Set the number of threads",false,-1,"THREADS");
     TCLAP::SwitchArg printOwnershipArg("o","print-ownership","Print ownership");
+    TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
     cmd.add(sgfFileArg);
@@ -48,6 +50,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(visitsArg);
     cmd.add(threadsArg);
     cmd.add(printOwnershipArg);
+    cmd.add(printScoreNowArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     modelFile = modelFileArg.getValue();
@@ -60,6 +63,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     maxVisits = visitsArg.getValue();
     numThreads = threadsArg.getValue();
     printOwnership = printOwnershipArg.getValue();
+    printScoreNow = printScoreNowArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
       cerr << "Error: -print-branch and -print both specified" << endl;
@@ -238,8 +242,29 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   //Postprocess------------------------------------------------------------
 
   if(printOwnership) {
-    sout << "Ownership map (ORIG position):\n";
+    sout << "Ownership map (ROOT position):\n";
     search->printRootOwnershipMap(sout);
+  }
+
+  if(printScoreNow) {
+    sout << "Score now (ROOT) position):\n";
+    Board copy(board);
+    BoardHistory copyHist(hist);
+    Color area[Board::MAX_ARR_SIZE];
+    copyHist.endAndScoreGameNow(copy,area);
+
+    for(int y = 0; y<copy.y_size; y++) {
+      for(int x = 0; x<copy.x_size; x++) {
+        Loc l = Location::getLoc(x,y,copy.x_size);
+        sout << colorToChar(area[l]);
+      }
+      sout << endl;
+    }
+    sout << endl;
+
+    sout << "Komi: " << copyHist.rules.komi << endl;
+    sout << "WBonus: " << copyHist.whiteBonusScore << endl;
+    sout << "Final: " << copyHist.finalWhiteMinusBlackScore << endl;
   }
 
   sout << "Time taken: " << timer.getSeconds() << "\n";
