@@ -202,7 +202,7 @@ MatchPairer::MatchPairer(
   }
   else if(forGateKeeper) {
     assert(numBots == 2);
-    numGamesTotal = cfg.getInt64("numGamesPerGating",1,((int64_t)1) << 24);
+    numGamesTotal = cfg.getInt64("numGamesPerGating",0,((int64_t)1) << 24);
   }
   else {
     if(cfg.contains("secondaryBots"))
