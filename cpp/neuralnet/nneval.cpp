@@ -52,7 +52,8 @@ NNEvaluator::NNEvaluator(
   bool iUseNHWC,
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerofTwo,
-  bool skipNeuralNet
+  bool skipNeuralNet,
+  float nnPolicyTemp
 )
   :modelFileName(mFileName),
    posLen(pLen),
@@ -62,6 +63,7 @@ NNEvaluator::NNEvaluator(
    loadedModel(NULL),
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
+   nnPolicyInvTemperature(1.0/nnPolicyTemp),
    serverThreads(),
    serverWaitingForBatchStart(),
    bufferMutex(),
@@ -499,13 +501,12 @@ void NNEvaluator::evaluate(
       float policyValue;
       if(isLegal[i]) {
         legalCount += 1;
-        policyValue = policy[i];
+        policyValue = policy[i] * nnPolicyInvTemperature;
       }
-      else {
+      else
         policyValue = -1e30f;
-        policy[i] = policyValue;
-      }
-
+      
+      policy[i] = policyValue;
       if(policyValue > maxPolicy)
         maxPolicy = policyValue;
     }

@@ -689,7 +689,7 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
     for(int i = 0; i<policySize; i++) {
       if(node.nnOutput->policyProbs[i] > 0) {
         //Numerically stable way to raise to power and normalize
-        double p = exp((log(node.nnOutput->policyProbs[i]) - logMaxValue) * invTemp);
+        double p = exp((log((double)node.nnOutput->policyProbs[i]) - logMaxValue) * invTemp);
         node.nnOutput->policyProbs[i] = p;
         sum += p;
       }
@@ -697,7 +697,7 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
     assert(sum > 0.0);
     for(int i = 0; i<policySize; i++) {
       if(node.nnOutput->policyProbs[i] >= 0) {
-        node.nnOutput->policyProbs[i] = node.nnOutput->policyProbs[i] / sum;
+        node.nnOutput->policyProbs[i] = (double)node.nnOutput->policyProbs[i] / sum;
       }
     }
   }

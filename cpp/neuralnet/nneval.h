@@ -82,7 +82,8 @@ class NNEvaluator {
     bool inputsUseNHWC,
     int nnCacheSizePowerOfTwo,
     int nnMutexPoolSizePowerofTwo,
-    bool debugSkipNeuralNet
+    bool debugSkipNeuralNet,
+    float nnPolicyTemperature
   );
   ~NNEvaluator();
 
@@ -143,7 +144,9 @@ class NNEvaluator {
 
   LoadedModel* loadedModel;
   NNCacheTable* nnCacheTable;
+
   bool debugSkipNeuralNet;
+  float nnPolicyInvTemperature;
 
   int modelVersion;
   int inputsVersion;
