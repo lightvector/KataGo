@@ -210,7 +210,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
 
         if(rand.nextDouble() < usePosProb) {
           SearchThread* stbuf = new SearchThread(0,*search,&logger);
-          search->beginSearch();
+          search->beginSearch(logger);
           for(int i = 0; i<maxVisits; i++) {
             search->runSinglePlayout(*stbuf);
             utilities[i] = search->getRootUtility();

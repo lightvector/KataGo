@@ -82,6 +82,7 @@ struct SearchThread {
 
   NNResultBuf nnResultBuf;
   ostream* logStream;
+  Logger* logger;
 
   vector<double> valueChildWeightsBuf;
   vector<double> winValuesBuf;
@@ -107,6 +108,8 @@ struct Search {
 
   //Precomputed values at the root
   Color* rootSafeArea;
+  //Used to center for dynamic scorevalue
+  double recentScoreCenter;
 
   SearchParams searchParams;
   int64_t numSearchesBegun;
@@ -200,7 +203,7 @@ struct Search {
   //Manual playout-by-playout interface------------------------------------------------
 
   //Call once at the start of each search
-  void beginSearch();
+  void beginSearch(Logger& logger);
 
   //Within-search functions, threadsafe-------------------------------------------
   void runSinglePlayout(SearchThread& thread);
@@ -221,7 +224,7 @@ private:
 
   bool isAllowedRootMove(Loc moveLoc) const;
 
-  void computeRootValues();
+  void computeRootValues(Logger& logger);
 
   double getUtility(double resultUtilitySum, double scoreMeanSum, double scoreMeanSqSum, double valueSumWeight) const;
   double getUtilityFromNN(const NNOutput& nnOutput) const;

@@ -376,7 +376,7 @@ void NNEvaluator::evaluate(
   Player nextPlayer,
   double drawEquivalentWinsForWhite,
   NNResultBuf& buf,
-  ostream* logStream,
+  Logger* logger,
   bool skipCache,
   bool includeOwnerMap
 ) {
@@ -530,9 +530,9 @@ void NNEvaluator::evaluate(
 
     //Somehow all legal moves rounded to 0 probability
     if(policySum <= 0.0) {
-      if(!buf.errorLogLockout && logStream != NULL) {
+      if(!buf.errorLogLockout && logger != NULL) {
         buf.errorLogLockout = true;
-        (*logStream) << "Warning: all legal moves rounded to 0 probability for " << modelFileName << " in position " << board << endl;
+        logger->write("Warning: all legal moves rounded to 0 probability for " + string(modelFileName));
       }
       float uniform = 1.0f / legalCount;
       for(int i = 0; i<policySize; i++) {

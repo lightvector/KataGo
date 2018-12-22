@@ -110,13 +110,14 @@ static string makeSeed(const Search& search, int threadIdx) {
   return ss.str();
 }
 
-SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
+SearchThread::SearchThread(int tIdx, const Search& search, Logger* lg)
   :threadIdx(tIdx),
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
    rand(makeSeed(search,tIdx)),
    nnResultBuf(),
    logStream(NULL),
+   logger(lg),
    valueChildWeightsBuf(),
    winValuesBuf(),
    noResultValuesBuf(),
@@ -140,6 +141,7 @@ SearchThread::~SearchThread() {
   if(logStream != NULL)
     delete logStream;
   logStream = NULL;
+  logger = NULL;
 }
 
 //-----------------------------------------------------------------------------------------
@@ -149,6 +151,7 @@ static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
    rootSafeArea(NULL),
+   recentScoreCenter(0.0),
    searchParams(params),numSearchesBegun(0),randSeed(rSeed),
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand"))
@@ -419,7 +422,7 @@ bool Search::getNodeValues(
   double scoreMeanSq = scoreMeanSqSum / valueSumWeight;
   double scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
   staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,rootBoard);
-  dynamicScoreValue = 0.0; //TODO
+  dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,rootBoard);
   expectedScore = scoreMean;
   return true;
 }
@@ -430,7 +433,7 @@ double Search::getUtility(double resultUtilitySum, double scoreMeanSum, double s
   double scoreMeanSq = scoreMeanSqSum / valueSumWeight;
   double scoreStdev = getScoreStdev(scoreMean, scoreMeanSq);
   double staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,rootBoard);
-  double dynamicScoreValue = 0.0; //TODO
+  double dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,rootBoard);
   return resultUtility + staticScoreValue * searchParams.staticScoreUtilityFactor + dynamicScoreValue * searchParams.dynamicScoreUtilityFactor;
 }
 
@@ -535,7 +538,7 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
   if(!std::atomic_is_lock_free(&shouldStopNow))
     logger.write("Warning: bool atomic shouldStopNow is not lock free");
 
-  beginSearch();
+  beginSearch(logger);
   uint64_t numNonPlayoutVisits = numRootVisits();
 
   auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities](int threadIdx) {
@@ -600,13 +603,13 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
 }
 
 
-void Search::beginSearch() {
+void Search::beginSearch(Logger& logger) {
   if(rootBoard.x_size > posLen || rootBoard.y_size > posLen)
     throw StringError("Search got from NNEval posLen = " + Global::intToString(posLen) + " but was asked to search board with larger x or y size");
   rootBoard.checkConsistency();
 
   numSearchesBegun++;
-  computeRootValues();
+  computeRootValues(logger);
 
   //Sanity-check a few things
   if(!rootPassLegal && searchParams.rootPruneUselessSuicides)
@@ -664,7 +667,7 @@ void Search::beginSearch() {
   }
 }
 
-void Search::computeRootValues() {
+void Search::computeRootValues(Logger& logger) {
   //rootSafeArea is strictly pass-alive groups and strictly safe territory.
   bool nonPassAliveStones = false;
   bool safeBigTerritories = false;
@@ -677,6 +680,20 @@ void Search::computeRootValues() {
     unsafeBigTerritories,
     isMultiStoneSuicideLegal
   );
+
+  //Grab a neural net evaluation for the current position and use that as the center
+  Board board = rootBoard;
+  const BoardHistory& hist = rootHistory;
+  NNResultBuf nnResultBuf;
+  bool skipCache = false;
+  bool includeOwnerMap = true;
+  nnEvaluator->evaluate(
+    board, hist, rootPla,
+    searchParams.drawEquivalentWinsForWhite,
+    nnResultBuf, &logger, skipCache, includeOwnerMap
+  );
+  double expectedScore = nnResultBuf.result->whiteScoreMean;
+  recentScoreCenter = expectedScore;
 }
 
 uint64_t Search::numRootVisits() {
@@ -1301,7 +1318,7 @@ void Search::initNodeNNOutput(
   nnEvaluator->evaluate(
     thread.board, thread.history, thread.pla,
     searchParams.drawEquivalentWinsForWhite,
-    thread.nnResultBuf, thread.logStream, skipCache, includeOwnerMap
+    thread.nnResultBuf, thread.logger, skipCache, includeOwnerMap
   );
 
   node.nnOutput = std::move(thread.nnResultBuf.result);

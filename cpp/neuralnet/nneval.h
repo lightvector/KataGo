@@ -104,7 +104,7 @@ class NNEvaluator {
     Player nextPlayer,
     double drawEquivalentWinsForWhite,
     NNResultBuf& buf,
-    ostream* logStream,
+    Logger* logger,
     bool skipCache,
     bool includeOwnerMap
   );

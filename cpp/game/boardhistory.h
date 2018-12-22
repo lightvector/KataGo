@@ -106,7 +106,7 @@ struct BoardHistory {
   void setWinnerByResignation(Player pla);
 
   void printDebugInfo(ostream& out, const Board& board) const;
-  
+
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   int numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;

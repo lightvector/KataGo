@@ -1026,7 +1026,7 @@ pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW  4.84% N      
       expect(name,out,expected);
 
       //But the moment we begin a search, it should no longer.
-      search->beginSearch();
+      search->beginSearch(logger);
       testAssert(!hasSuicideRootMoves(search));
       testAssert(!hasPassAliveRootMoves(search));
 
