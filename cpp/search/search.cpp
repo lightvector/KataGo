@@ -473,10 +473,11 @@ Loc Search::getChosenMoveLoc() {
   }
   //Actual temperature
   else {
+    double logMaxValue = log(maxValue);
     double sum = 0.0;
     for(int i = 0; i<numChildren; i++) {
       //Numerically stable way to raise to power and normalize
-      playSelectionValues[i] = exp((log(playSelectionValues[i]) - log(maxValue)) / temperature);
+      playSelectionValues[i] = exp((log(playSelectionValues[i]) - logMaxValue) / temperature);
       sum += playSelectionValues[i];
     }
     assert(sum > 0.0);
@@ -662,46 +663,81 @@ uint64_t Search::numRootVisits() {
 
 //Assumes node is locked
 void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const {
-  if(!isRoot || !searchParams.rootNoiseEnabled)
+  if(!isRoot)
     return;
-  //Copy nnOutput as we're about to modify its policy to add noise
+  if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0)
+    return;
+  
+  //Copy nnOutput as we're about to modify its policy to add noise or temperature
   shared_ptr<NNOutput> newNNOutput = std::make_shared<NNOutput>(*(node.nnOutput));
   //Replace the old pointer
   node.nnOutput = newNNOutput;
 
-  int legalCount = 0;
-  for(int i = 0; i<policySize; i++) {
-    if(node.nnOutput->policyProbs[i] >= 0)
-      legalCount += 1;
-  }
-
-  if(legalCount <= 0)
-    throw StringError("maybeAddPolicyNoise: No move with nonnegative policy value - can't even pass?");
-
-  //Generate gamma draw on each move
-  double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
-  double rSum = 0.0;
-  double r[policySize];
-  for(int i = 0; i<policySize; i++) {
-    if(node.nnOutput->policyProbs[i] >= 0) {
-      r[i] = thread.rand.nextGamma(alpha);
-      rSum += r[i];
+  if(searchParams.rootPolicyTemperature != 1.0) {
+    double maxValue = 0.0;
+    for(int i = 0; i<policySize; i++) {
+      double prob = node.nnOutput->policyProbs[i];
+      if(prob > maxValue)
+        maxValue = prob;
     }
-    else
-      r[i] = 0.0;
-  }
+    assert(maxValue > 0.0);
 
-  //Normalized gamma draws -> dirichlet noise
-  for(int i = 0; i<policySize; i++)
-    r[i] /= rSum;
-
-  //At this point, r[i] contains a dirichlet distribution draw, so add it into the nnOutput.
-  for(int i = 0; i<policySize; i++) {
-    if(node.nnOutput->policyProbs[i] >= 0) {
-      double weight = searchParams.rootDirichletNoiseWeight;
-      node.nnOutput->policyProbs[i] = r[i] * weight + node.nnOutput->policyProbs[i] * (1.0-weight);
+    double logMaxValue = log(maxValue);
+    double invTemp = 1.0 / searchParams.rootPolicyTemperature;
+    double sum = 0.0;
+    
+    for(int i = 0; i<policySize; i++) {
+      if(node.nnOutput->policyProbs[i] > 0) {
+        //Numerically stable way to raise to power and normalize
+        double p = exp((log(node.nnOutput->policyProbs[i]) - logMaxValue) * invTemp);
+        node.nnOutput->policyProbs[i] = p;
+        sum += p;
+      }
+    }
+    assert(sum > 0.0);
+    for(int i = 0; i<policySize; i++) {
+      if(node.nnOutput->policyProbs[i] >= 0) {
+        node.nnOutput->policyProbs[i] = node.nnOutput->policyProbs[i] / sum;
+      }
     }
   }
+
+  if(searchParams.rootNoiseEnabled) {  
+    int legalCount = 0;
+    for(int i = 0; i<policySize; i++) {
+      if(node.nnOutput->policyProbs[i] >= 0)
+        legalCount += 1;
+    }
+
+    if(legalCount <= 0)
+      throw StringError("maybeAddPolicyNoise: No move with nonnegative policy value - can't even pass?");
+
+    //Generate gamma draw on each move
+    double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
+    double rSum = 0.0;
+    double r[policySize];
+    for(int i = 0; i<policySize; i++) {
+      if(node.nnOutput->policyProbs[i] >= 0) {
+        r[i] = thread.rand.nextGamma(alpha);
+        rSum += r[i];
+      }
+      else
+        r[i] = 0.0;
+    }
+
+    //Normalized gamma draws -> dirichlet noise
+    for(int i = 0; i<policySize; i++)
+      r[i] /= rSum;
+
+    //At this point, r[i] contains a dirichlet distribution draw, so add it into the nnOutput.
+    for(int i = 0; i<policySize; i++) {
+      if(node.nnOutput->policyProbs[i] >= 0) {
+        double weight = searchParams.rootDirichletNoiseWeight;
+        node.nnOutput->policyProbs[i] = r[i] * weight + node.nnOutput->policyProbs[i] * (1.0-weight);
+      }
+    }
+  }
+  
 }
 
 bool Search::isAllowedRootMove(Loc moveLoc) const {

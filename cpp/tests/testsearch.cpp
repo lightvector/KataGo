@@ -259,6 +259,17 @@ static void runBasicPositions(NNEvaluator* nnEval, Logger& logger)
       runBotOnSgf(bot, sgfStr, rules, 44, 7.5, opts);
       bot->setParams(params);
       cout << endl << endl;
+
+      cout << "With root temperature===================" << endl;
+      cout << "Adding root policy temperature 1.5 to the search" << endl;
+      cout << endl;
+
+      SearchParams testParams2 = params;
+      testParams2.rootPolicyTemperature = 1.5;
+      bot->setParams(testParams2);
+      runBotOnSgf(bot, sgfStr, rules, 44, 7.5, opts);
+      bot->setParams(params);
+      cout << endl << endl;
     }
 
     delete bot;

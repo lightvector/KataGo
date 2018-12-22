@@ -24,6 +24,8 @@ struct SearchParams {
   double rootDirichletNoiseTotalConcentration; //Same as alpha * board size, to match alphazero this might be 0.03 * 361, total number of balls in the urn
   double rootDirichletNoiseWeight; //Policy at root is this weight * noise + (1 - this weight) * nn policy
 
+  double rootPolicyTemperature; //At the root node, scale policy probs by this power
+
   double chosenMoveTemperature; //Make move roughly proportional to visit count ** (1/chosenMoveTemperature)
   double chosenMoveTemperatureEarly; //Temperature at start of game
   double chosenMoveTemperatureHalflife; //Halflife of decay from early temperature to temperature for the rest of the game, scales for board sizes other than 19.

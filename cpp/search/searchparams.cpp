@@ -18,6 +18,7 @@ SearchParams::SearchParams()
    rootNoiseEnabled(false),
    rootDirichletNoiseTotalConcentration(10.83),
    rootDirichletNoiseWeight(0.25),
+   rootPolicyTemperature(1.0),
    chosenMoveTemperature(0.0),
    chosenMoveTemperatureEarly(0.0),
    chosenMoveTemperatureHalflife(19),
