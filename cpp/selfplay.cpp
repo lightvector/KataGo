@@ -309,10 +309,37 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     string vdataOutputDir = modelOutputDir + "/vdata";
     assert(outputDir != string());
 
-    MakeDir::make(modelOutputDir);
-    MakeDir::make(sgfOutputDir);
-    MakeDir::make(tdataOutputDir);
-    MakeDir::make(vdataOutputDir);
+    //Try repeatedly to make directories, in case the filesystem is unhappy with us as we try to make the same dirs as another process.
+    //Wait a random amount of time in between each failure.
+    int maxTries = 5;
+    for(int i = 0; i<maxTries; i++) {
+      bool success = false;
+      try {
+        MakeDir::make(modelOutputDir);
+        MakeDir::make(sgfOutputDir);
+        MakeDir::make(tdataOutputDir);
+        MakeDir::make(vdataOutputDir);
+        success = true;
+      }
+      catch(const StringError& e) {
+        logger.write(string("WARNING, error making directories, trying again shortly: ") + e.what());
+        success = false;
+      }
+
+      if(success)
+        break;
+      else {
+        if(i == maxTries-1) {
+          logger.write("ERROR: Could not make selfplay model directories, is something wrong with the filesystem?");
+          //Just give up and wait for the next model.
+          return NULL;
+        }
+        double sleepTime = 10.0 + rand.nextDouble() * 30.0;
+        std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+        continue;
+      }
+    }
+
     {
       ofstream out(modelOutputDir + "/" + "selfplay-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");
       out << cfg.getContents();

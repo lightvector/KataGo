@@ -12,6 +12,7 @@ import json
 import datetime
 import gc
 import shutil
+import glob
 import tensorflow as tf
 import numpy as np
 
@@ -58,6 +59,10 @@ if not os.path.exists(traindir):
   os.makedirs(traindir)
 if not os.path.exists(exportdir):
   os.makedirs(exportdir)
+
+longterm_checkpoints_dir = os.path.join(traindir,"longterm_checkpoints")
+if not os.path.exists(longterm_checkpoints_dir):
+  os.makedirs(longterm_checkpoints_dir)
 
 bareformatter = logging.Formatter("%(message)s")
 fh = logging.FileHandler(traindir+"/train.log", mode=logfilemode)
@@ -339,7 +344,6 @@ elif os.path.isfile(os.path.join(traindir,"initial_weights","trainhistory.json")
 else:
   trainhistory["history"].append(("initialized",model_config))
 
-
 def save_history(global_step_value):
   trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
   savepath = os.path.join(traindir,"trainhistory.json")
@@ -347,6 +351,7 @@ def save_history(global_step_value):
   dump_and_flush_json(trainhistory,savepathtmp)
   os.rename(savepathtmp,savepath)
   trainlog("Wrote " + savepath)
+
 
 # DATA RELOADING GENERATOR ------------------------------------------------------------
 
@@ -405,6 +410,9 @@ def maybe_reload_training_data():
     break
 
 # TRAIN! -----------------------------------------------------------------------------------
+
+#Tensorflow doesn't offer a good way to save checkpoints more sparsely, so we have to manually do it.
+last_longterm_checkpoint_save_time = datetime.datetime.now()
 
 globalstep = None
 while True:
@@ -496,4 +504,15 @@ while True:
     )
 
   time.sleep(1)
+
+  now = datetime.datetime.now()
+  if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=3):
+    last_longterm_checkpoint_save_time = now
+    ckpt_path = estimator.latest_checkpoint()
+    #Tensorflow checkpoints have multiple pieces
+    for ckpt_part in glob.glob(ckpt_path + "*"):
+      print("Copying checkpoint longterm: " + ckpt_part)
+      shutil.copy(ckpt_part, longterm_checkpoints_dir)
+
+
 
