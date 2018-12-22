@@ -105,7 +105,7 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
 
 static NNEvaluator* startNNEval(
   const string& modelFile, Logger& logger, const string& seed, int posLen,
-  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16, bool debugSkipNeuralNet, double nnPolicyTemp
+  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16, bool debugSkipNeuralNet, double nnPolicyTemperature
 ) {
   int modelFileIdx = 0;
   int maxBatchSize = 16;
@@ -126,7 +126,7 @@ static NNEvaluator* startNNEval(
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
-    nnPolicyTemp
+    nnPolicyTemperature
   );
   (void)inputsUseNHWC;
 

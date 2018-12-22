@@ -19,7 +19,7 @@ static NNEvaluator* startNNEval(
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
   bool debugSkipNeuralNet = true;
-  double nnPolicyTemp = 1.0;
+  double nnPolicyTemperature = 1.0;
   NNEvaluator* nnEval = new NNEvaluator(
     modelFile,
     modelFileIdx,
@@ -31,7 +31,7 @@ static NNEvaluator* startNNEval(
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
-    nnPolicyTemp
+    nnPolicyTemperature
   );
   (void)inputsUseNHWC;
 

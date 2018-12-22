@@ -48,11 +48,11 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("inputsUseNHWC"))
       inputsUseNHWC = cfg.getBool("inputsUseNHWC");
 
-    float nnPolicyTemp = 1.0f;
-    if(cfg.contains("nnPolicyTemp"+idxStr))
-      nnPolicyTemp = cfg.getFloat("nnPolicyTemp"+idxStr,0.01f,5.0f);
-    else if(cfg.contains("nnPolicyTemp"))
-      nnPolicyTemp = cfg.getFloat("nnPolicyTemp",0.01f,5.0f);
+    float nnPolicyTemperature = 1.0f;
+    if(cfg.contains("nnPolicyTemperature"+idxStr))
+      nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature"+idxStr,0.01f,5.0f);
+    else if(cfg.contains("nnPolicyTemperature"))
+      nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature",0.01f,5.0f);
       
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelFile,
@@ -65,7 +65,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24),
       debugSkipNeuralNet,
-      nnPolicyTemp
+      nnPolicyTemperature
     );
 
     bool nnRandomize = cfg.getBool("nnRandomize");
