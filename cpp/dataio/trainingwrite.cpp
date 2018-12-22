@@ -5,7 +5,6 @@ ValueTargets::ValueTargets()
   :win(0),
    loss(0),
    noResult(0),
-   scoreValue(0),
    score(0),
    hasMctsUtility(false),
    mctsUtility1(0),
@@ -95,7 +94,6 @@ FinishedGameData::~FinishedGameData() {
 static const int POLICY_TARGET_NUM_CHANNELS = 1;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 54;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
-static const int EXTRA_SCORE_DISTR_RADIUS = 60;
 static const int BONUS_SCORE_RADIUS = 30;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int pLen)
@@ -111,7 +109,7 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    globalInputNC({maxRws, numFChannels}),
    policyTargetsNCMove({maxRws, POLICY_TARGET_NUM_CHANNELS, NNPos::getPolicySize(pLen)}),
    globalTargetsNC({maxRws, GLOBAL_TARGET_NUM_CHANNELS}),
-   scoreDistrN({maxRws, pLen*pLen*2+EXTRA_SCORE_DISTR_RADIUS*2}),
+   scoreDistrN({maxRws, pLen*pLen*2+NNPos::EXTRA_SCORE_DISTR_RADIUS*2}),
    selfBonusScoreN({maxRws, BONUS_SCORE_RADIUS*2+1}),
    valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, pLen, pLen})
 {
@@ -175,7 +173,7 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
   double winValue = 0.0;
   double lossValue = 0.0;
   double noResultValue = 0.0;
-  double scoreValue = 0.0;
+  double score = 0.0;
 
   double weightLeft = 1.0;
   for(int i = idx; i<whiteValueTargetsByTurn.size(); i++) {
@@ -194,12 +192,12 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
     winValue += weightNow * (nextPlayer == P_WHITE ? targets.win : targets.loss);
     lossValue += weightNow * (nextPlayer == P_WHITE ? targets.loss : targets.win);
     noResultValue = weightNow * targets.noResult;
-    scoreValue = weightNow * (nextPlayer == P_WHITE ? targets.scoreValue : -targets.scoreValue);
+    score = weightNow * (nextPlayer == P_WHITE ? targets.score : -targets.score);
   }
   buf[0] = (float)winValue;
   buf[1] = (float)lossValue;
   buf[2] = (float)noResultValue;
-  buf[3] = (float)scoreValue;
+  buf[3] = (float)score;
 }
 
 void TrainingWriteBuffers::addRow(
@@ -331,8 +329,8 @@ void TrainingWriteBuffers::addRow(
 
   assert(54 == GLOBAL_TARGET_NUM_CHANNELS);
 
-  int scoreDistrLen = posArea*2 + EXTRA_SCORE_DISTR_RADIUS*2;
-  int scoreDistrMid = posArea + EXTRA_SCORE_DISTR_RADIUS;
+  int scoreDistrLen = posArea*2 + NNPos::EXTRA_SCORE_DISTR_RADIUS*2;
+  int scoreDistrMid = posArea + NNPos::EXTRA_SCORE_DISTR_RADIUS;
   int bonusScoreLen = BONUS_SCORE_RADIUS*2 + 1;
   int bonusScoreMid = BONUS_SCORE_RADIUS;
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;

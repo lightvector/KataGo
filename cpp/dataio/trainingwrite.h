@@ -11,7 +11,6 @@ struct ValueTargets {
   float win;
   float loss;
   float noResult;
-  float scoreValue;
   float score;
 
   bool hasMctsUtility;
@@ -101,7 +100,7 @@ struct TrainingWriteBuffers {
   NumpyBuffer<int16_t> policyTargetsNCMove;
 
   //Value targets and other metadata, from the perspective of the player to move
-  //C0-3: Categorial game result, win,loss,noresult, and also score utility. Draw is encoded as some blend of win and loss based on drawEquivalentWinsForWhite.
+  //C0-3: Categorial game result, win,loss,noresult, and also score. Draw is encoded as some blend of win and loss based on drawEquivalentWinsForWhite.
   //C4-7: MCTS win-loss-noresult estimate td-like target, lambda = 35/36, nowFactor = 1/36
   //C8-11: MCTS win-loss-noresult estimate td-like target, lambda = 11/12, nowFactor = 1/12
   //C12-15: MCTS win-loss-noresult estimate td-like target, lambda = 3/4, nowFactor = 1/4

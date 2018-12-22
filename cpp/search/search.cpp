@@ -7,7 +7,7 @@
 #include "../search/distributiontable.h"
 
 NodeStats::NodeStats()
-  :visits(0),winValueSum(0.0),lossValueSum(0.0),noResultValueSum(0.0),scoreValueSum(0.0),valueSumWeight(0.0)
+  :visits(0),winValueSum(0.0),noResultValueSum(0.0),scoreMeanSum(0.0),scoreMeanSqSum(0.0),valueSumWeight(0.0)
 {}
 NodeStats::~NodeStats()
 {}
@@ -15,35 +15,40 @@ NodeStats::~NodeStats()
 NodeStats::NodeStats(const NodeStats& other)
   :visits(other.visits),
    winValueSum(other.winValueSum),
-   lossValueSum(other.lossValueSum),
    noResultValueSum(other.noResultValueSum),
-   scoreValueSum(other.scoreValueSum),
+   scoreMeanSum(other.scoreMeanSum),
+   scoreMeanSqSum(other.scoreMeanSqSum),
    valueSumWeight(other.valueSumWeight)
 {}
 NodeStats& NodeStats::operator=(const NodeStats& other) {
   visits = other.visits;
   winValueSum = other.winValueSum;
-  lossValueSum = other.lossValueSum;
   noResultValueSum = other.noResultValueSum;
-  scoreValueSum = other.scoreValueSum;
+  scoreMeanSum = other.scoreMeanSum;
+  scoreMeanSqSum = other.scoreMeanSqSum;
   valueSumWeight = other.valueSumWeight;
   return *this;
 }
 
-double NodeStats::getCombinedUtilitySum(const SearchParams& searchParams) const {
+double NodeStats::getResultUtilitySum(const SearchParams& searchParams) const {
   return (
-    (winValueSum - lossValueSum) * searchParams.winLossUtilityFactor +
-    noResultValueSum * searchParams.noResultUtilityForWhite +
-    scoreValueSum * searchParams.scoreUtilityFactor
+    (2.0*winValueSum - valueSumWeight + noResultValueSum) * searchParams.winLossUtilityFactor +
+    noResultValueSum * searchParams.noResultUtilityForWhite
   );
 }
 
-static double getCombinedUtility(const NNOutput& nnOutput, const SearchParams& searchParams) {
+static double getResultUtilityFromNN(const NNOutput& nnOutput, const SearchParams& searchParams) {
   return (
     (nnOutput.whiteWinProb - nnOutput.whiteLossProb) * searchParams.winLossUtilityFactor +
-    nnOutput.whiteNoResultProb * searchParams.noResultUtilityForWhite +
-    nnOutput.whiteScoreValue * searchParams.scoreUtilityFactor
+    nnOutput.whiteNoResultProb * searchParams.noResultUtilityForWhite
   );
+}
+
+static double getScoreStdev(double scoreMean, double scoreMeanSq) {
+  double variance = scoreMeanSq - scoreMean * scoreMean;
+  if(variance <= 0.0)
+    return 0.0;
+  return sqrt(variance);
 }
 
 //-----------------------------------------------------------------------------------------
@@ -114,9 +119,9 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
    logStream(NULL),
    valueChildWeightsBuf(),
    winValuesBuf(),
-   lossValuesBuf(),
    noResultValuesBuf(),
-   scoreValuesBuf(),
+   scoreMeansBuf(),
+   scoreMeanSqsBuf(),
    utilityBuf(),
    visitsBuf()
 {
@@ -124,9 +129,9 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* logger)
     logStream = logger->createOStream();
 
   winValuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
-  lossValuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
   noResultValuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
-  scoreValuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  scoreMeansBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  scoreMeanSqsBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
   utilityBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
   visitsBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
 
@@ -380,15 +385,15 @@ bool Search::getPlaySelectionValues(
 }
 
 bool Search::getRootValues(
-  double& winValue, double& lossValue, double& noResultValue, double& scoreValue
+  double& winValue, double& lossValue, double& noResultValue, double& staticScoreValue, double& dynamicScoreValue, double& expectedScore
 ) const {
   assert(rootNode != NULL);
-  return getNodeValues(*rootNode,winValue,lossValue,noResultValue,scoreValue);
+  return getNodeValues(*rootNode,winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
 }
 
 bool Search::getNodeValues(
   const SearchNode& node,
-  double& winValue, double& lossValue, double& noResultValue, double& scoreValue
+  double& winValue, double& lossValue, double& noResultValue, double& staticScoreValue, double& dynamicScoreValue, double& expectedScore
 ) const {
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
@@ -399,19 +404,39 @@ bool Search::getNodeValues(
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   double winValueSum = node.stats.winValueSum;
-  double lossValueSum = node.stats.lossValueSum;
   double noResultValueSum = node.stats.noResultValueSum;
-  double scoreValueSum = node.stats.scoreValueSum;
+  double scoreMeanSum = node.stats.scoreMeanSum;
+  double scoreMeanSqSum = node.stats.scoreMeanSqSum;
   double valueSumWeight = node.stats.valueSumWeight;
   node.statsLock.clear(std::memory_order_release);
 
   assert(valueSumWeight > 0.0);
 
   winValue = winValueSum / valueSumWeight;
-  lossValue = lossValueSum / valueSumWeight;
+  lossValue = (valueSumWeight - winValueSum - noResultValueSum) / valueSumWeight;
   noResultValue = noResultValueSum / valueSumWeight;
-  scoreValue = scoreValueSum / valueSumWeight;
+  double scoreMean = scoreMeanSum / valueSumWeight;
+  double scoreMeanSq = scoreMeanSqSum / valueSumWeight;
+  double scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
+  staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,rootBoard);
+  dynamicScoreValue = 0.0; //TODO
+  expectedScore = scoreMean;
   return true;
+}
+
+double Search::getUtility(double resultUtilitySum, double scoreMeanSum, double scoreMeanSqSum, double valueSumWeight) const {
+  double resultUtility = resultUtilitySum / valueSumWeight;
+  double scoreMean = scoreMeanSum / valueSumWeight;
+  double scoreMeanSq = scoreMeanSqSum / valueSumWeight;
+  double scoreStdev = getScoreStdev(scoreMean, scoreMeanSq);
+  double staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,rootBoard);
+  double dynamicScoreValue = 0.0; //TODO
+  return resultUtility + staticScoreValue * searchParams.staticScoreUtilityFactor + dynamicScoreValue * searchParams.dynamicScoreUtilityFactor;
+}
+
+double Search::getUtilityFromNN(const NNOutput& nnOutput) const {
+  double resultUtility = getResultUtilityFromNN(nnOutput, searchParams);
+  return getUtility(resultUtility, nnOutput.whiteScoreMean, nnOutput.whiteScoreMeanSq, 1.0);
 }
 
 double Search::getRootUtility() const {
@@ -425,12 +450,14 @@ double Search::getRootUtility() const {
     return false;
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
-  double utilitySum = node.stats.getCombinedUtilitySum(searchParams);
+  double resultUtilitySum = node.stats.getResultUtilitySum(searchParams);
+  double scoreMeanSum = node.stats.scoreMeanSum;
+  double scoreMeanSqSum = node.stats.scoreMeanSqSum;
   double valueSumWeight = node.stats.valueSumWeight;
   node.statsLock.clear(std::memory_order_release);
 
   assert(valueSumWeight > 0.0);
-  return utilitySum / valueSumWeight;
+  return getUtility(resultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
 }
 
 Loc Search::getChosenMoveLoc() {
@@ -667,7 +694,7 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
     return;
   if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0)
     return;
-  
+
   //Copy nnOutput as we're about to modify its policy to add noise or temperature
   shared_ptr<NNOutput> newNNOutput = std::make_shared<NNOutput>(*(node.nnOutput));
   //Replace the old pointer
@@ -685,7 +712,7 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
     double logMaxValue = log(maxValue);
     double invTemp = 1.0 / searchParams.rootPolicyTemperature;
     double sum = 0.0;
-    
+
     for(int i = 0; i<policySize; i++) {
       if(node.nnOutput->policyProbs[i] > 0) {
         //Numerically stable way to raise to power and normalize
@@ -702,7 +729,7 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
     }
   }
 
-  if(searchParams.rootNoiseEnabled) {  
+  if(searchParams.rootNoiseEnabled) {
     int legalCount = 0;
     for(int i = 0; i<policySize; i++) {
       if(node.nnOutput->policyProbs[i] >= 0)
@@ -737,7 +764,7 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
       }
     }
   }
-  
+
 }
 
 bool Search::isAllowedRootMove(Loc moveLoc) const {
@@ -875,7 +902,7 @@ double Search::getExploreSelectionValue(
   return exploreComponent + valueComponent;
 }
 
-double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const {
+double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const {
   if(&parent != rootNode || child->prevMoveLoc == Board::NULL_LOC)
     return 0.0;
   if(parent.nnOutput == nullptr || parent.nnOutput->whiteOwnerMap == NULL)
@@ -925,27 +952,10 @@ double Search::getEndingScoreValueBonus(const SearchNode& parent, const SearchNo
     }
   }
 
-  if(extraRootPoints == 0.0)
-    return 0.0;
-
-  //Map back the current score value as if it were a point estimate to find the current "expected score". This isn't quite right since
-  //it isn't linear once there is variance, but it should be a reasonable approximation.
-  double currentScore = NNOutput::approxWhiteScoreOfScoreValueSmooth(scoreValue,rootBoard);
-
-  //Apply the extra points and take the different mapping forward again.
-  //NoDrawAdjust in the ones below because we already have the draw adjustment, because we never undid it
-  //when inverting the score->scoreValue mapping via NNOutput::approxWhiteScoreOfScoreValue
-  double adjustment;
   if(rootPla == P_WHITE)
-    adjustment =
-      NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(currentScore+extraRootPoints,rootBoard) -
-      NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(currentScore,rootBoard);
+    return extraRootPoints;
   else
-    adjustment =
-      NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(currentScore,rootBoard) -
-      NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(currentScore+extraRootPoints,rootBoard);
-
-  return adjustment;
+    return -extraRootPoints;
 }
 
 int Search::getPos(Loc moveLoc) const {
@@ -970,8 +980,9 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   uint64_t childVisits = child->stats.visits;
-  double childUtilitySum = child->stats.getCombinedUtilitySum(searchParams);
-  double scoreValueSum = child->stats.scoreValueSum;
+  double childResultUtilitySum = child->stats.getResultUtilitySum(searchParams);
+  double scoreMeanSum = child->stats.scoreMeanSum;
+  double scoreMeanSqSum = child->stats.scoreMeanSqSum;
   double valueSumWeight = child->stats.valueSumWeight;
   int32_t childVirtualLosses = child->virtualLosses;
   child->statsLock.clear(std::memory_order_release);
@@ -983,11 +994,12 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
     childUtility = fpuValue;
   else {
     assert(valueSumWeight > 0.0);
-    childUtility = childUtilitySum / valueSumWeight;
-
     //Tiny adjustment for passing
-    double endingScoreValueBonus = getEndingScoreValueBonus(parent,child,scoreValueSum/valueSumWeight);
-    childUtility += endingScoreValueBonus * searchParams.scoreUtilityFactor;
+    double endingScoreBonus = getEndingWhiteScoreBonus(parent,child);
+    double oldScoreMeanSum = scoreMeanSum;
+    scoreMeanSum += endingScoreBonus * valueSumWeight;
+    scoreMeanSqSum = scoreMeanSqSum + (oldScoreMeanSum + scoreMeanSum) * endingScoreBonus;
+    childUtility = getUtility(childResultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
   }
 
   //When multithreading, totalChildVisits could be out of sync with childVisits, so if they provably are, then fix that up
@@ -998,7 +1010,8 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
   if(childVirtualLosses > 0) {
     //totalChildVisits += childVirtualLosses; //Should get better thread dispersal without this
     childVisits += childVirtualLosses;
-    double virtualLossUtility = (parent.nextPla == P_WHITE ? -1.0 : 1.0) * (searchParams.winLossUtilityFactor + searchParams.scoreUtilityFactor);
+    double utilityRadius = searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor;
+    double virtualLossUtility = (parent.nextPla == P_WHITE ? -utilityRadius : utilityRadius);
     double virtualLossVisitFrac = (double)childVirtualLosses / childVisits;
     childUtility = childUtility + (virtualLossUtility - childUtility) * virtualLossVisitFrac;
   }
@@ -1050,15 +1063,18 @@ void Search::selectBestChildToDescend(
   if(searchParams.fpuUseParentAverage) {
     while(node.statsLock.test_and_set(std::memory_order_acquire));
     uint64_t parentVisits = node.stats.visits;
+    double resultUtilitySum = node.stats.getResultUtilitySum(searchParams);
+    double scoreMeanSum = node.stats.scoreMeanSum;
+    double scoreMeanSqSum = node.stats.scoreMeanSqSum;
     double valueSumWeight = node.stats.valueSumWeight;
-    parentUtility = node.stats.getCombinedUtilitySum(searchParams);
     node.statsLock.clear(std::memory_order_release);
+
     assert(parentVisits > 0);
     assert(valueSumWeight > 0.0);
-    parentUtility /= valueSumWeight;
+    parentUtility = getUtility(resultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
   }
   else {
-    parentUtility = getCombinedUtility(*node.nnOutput, searchParams);
+    parentUtility = getUtilityFromNN(*node.nnOutput);
   }
 
   double fpuValue;
@@ -1124,9 +1140,9 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   //Find all children and compute weighting of the children based on their values
   vector<double>& valueChildWeights = thread.valueChildWeightsBuf;
   vector<double>& winValues = thread.winValuesBuf;
-  vector<double>& lossValues = thread.lossValuesBuf;
   vector<double>& noResultValues = thread.noResultValuesBuf;
-  vector<double>& scoreValues = thread.scoreValuesBuf;
+  vector<double>& scoreMeans = thread.scoreMeansBuf;
+  vector<double>& scoreMeanSqs = thread.scoreMeanSqsBuf;
   vector<double>& selfUtilities = thread.utilityBuf;
   vector<uint64_t>& visits = thread.visitsBuf;
 
@@ -1144,23 +1160,23 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     while(child->statsLock.test_and_set(std::memory_order_acquire));
     uint64_t childVisits = child->stats.visits;
     double winValueSum = child->stats.winValueSum;
-    double lossValueSum = child->stats.lossValueSum;
     double noResultValueSum = child->stats.noResultValueSum;
-    double scoreValueSum = child->stats.scoreValueSum;
+    double scoreMeanSum = child->stats.scoreMeanSum;
+    double scoreMeanSqSum = child->stats.scoreMeanSqSum;
     double valueSumWeight = child->stats.valueSumWeight;
-    double childUtilitySum = child->stats.getCombinedUtilitySum(searchParams);
+    double childResultUtilitySum = child->stats.getResultUtilitySum(searchParams);
     child->statsLock.clear(std::memory_order_release);
 
     if(childVisits <= 0)
       continue;
     assert(valueSumWeight > 0.0);
 
-    double childUtility = childUtilitySum / valueSumWeight;
+    double childUtility = getUtility(childResultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
 
     winValues[numGoodChildren] = winValueSum / valueSumWeight;
-    lossValues[numGoodChildren] = lossValueSum / valueSumWeight;
     noResultValues[numGoodChildren] = noResultValueSum / valueSumWeight;
-    scoreValues[numGoodChildren] = scoreValueSum / valueSumWeight;
+    scoreMeans[numGoodChildren] = scoreMeanSum / valueSumWeight;
+    scoreMeanSqs[numGoodChildren] = scoreMeanSqSum / valueSumWeight;
     selfUtilities[numGoodChildren] = node.nextPla == P_WHITE ? childUtility : -childUtility;
     visits[numGoodChildren] = childVisits;
     totalChildVisits += childVisits;
@@ -1190,9 +1206,9 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   }
 
   double winValueSum = 0.0;
-  double lossValueSum = 0.0;
   double noResultValueSum = 0.0;
-  double scoreValueSum = 0.0;
+  double scoreMeanSum = 0.0;
+  double scoreMeanSqSum = 0.0;
   double valueSumWeight = 0.0;
   for(int i = 0; i<numGoodChildren; i++) {
     if(visits[i] < amountToPrune)
@@ -1207,9 +1223,9 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
       weight *= pow(valueChildWeights[i], searchParams.valueWeightExponent);
 
     winValueSum += weight * winValues[i];
-    lossValueSum += weight * lossValues[i];
     noResultValueSum += weight * noResultValues[i];
-    scoreValueSum += weight * scoreValues[i];
+    scoreMeanSum += weight * scoreMeans[i];
+    scoreMeanSqSum += weight * scoreMeanSqs[i];
     valueSumWeight += weight;
   }
 
@@ -1229,14 +1245,14 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     }
 
     double winProb = (double)node.nnOutput->whiteWinProb;
-    double lossProb = (double)node.nnOutput->whiteLossProb;
     double noResultProb = (double)node.nnOutput->whiteNoResultProb;
-    double scoreValue = (double)node.nnOutput->whiteScoreValue;
+    double scoreMean = (double)node.nnOutput->whiteScoreMean;
+    double scoreMeanSq = (double)node.nnOutput->whiteScoreMeanSq;
 
     winValueSum += winProb * weight;
-    lossValueSum += lossProb * weight;
     noResultValueSum += noResultProb * weight;
-    scoreValueSum += scoreValue * weight;
+    scoreMeanSum += scoreMean * weight;
+    scoreMeanSqSum += scoreMeanSq * weight;
     valueSumWeight += weight;
   }
 
@@ -1247,9 +1263,9 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   //error persist, it will get fixed the next time a visit comes through here and the values will at least
   //be consistent with each other within this node, since statsLock at least ensures these three are set atomically.
   node.stats.winValueSum = winValueSum;
-  node.stats.lossValueSum = lossValueSum;
   node.stats.noResultValueSum = noResultValueSum;
-  node.stats.scoreValueSum = scoreValueSum;
+  node.stats.scoreMeanSum = scoreMeanSum;
+  node.stats.scoreMeanSqSum = scoreMeanSqSum;
   node.stats.valueSumWeight = valueSumWeight;
   node.virtualLosses -= virtualLossesToSubtract;
   node.statsLock.clear(std::memory_order_release);
@@ -1265,13 +1281,13 @@ void Search::runSinglePlayout(SearchThread& thread) {
   thread.history = rootHistory;
 }
 
-void Search::setTerminalValue(SearchNode& node, double winValue, double lossValue, double noResultValue, double scoreValue, int32_t virtualLossesToSubtract) {
+void Search::setTerminalValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, int32_t virtualLossesToSubtract) {
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
   node.stats.winValueSum = winValue;
-  node.stats.lossValueSum = lossValue;
   node.stats.noResultValueSum = noResultValue;
-  node.stats.scoreValueSum = scoreValue;
+  node.stats.scoreMeanSum = scoreMean;
+  node.stats.scoreMeanSqSum = scoreMeanSq;
   node.stats.valueSumWeight = 1.0;
   node.virtualLosses -= virtualLossesToSubtract;
   node.statsLock.clear(std::memory_order_release);
@@ -1301,16 +1317,16 @@ void Search::initNodeNNOutput(
 
   //Values in the search are from the perspective of white positive always
   double winProb = (double)node.nnOutput->whiteWinProb;
-  double lossProb = (double)node.nnOutput->whiteLossProb;
   double noResultProb = (double)node.nnOutput->whiteNoResultProb;
-  double scoreValue = (double)node.nnOutput->whiteScoreValue;
+  double scoreMean = (double)node.nnOutput->whiteScoreMean;
+  double scoreMeanSq = (double)node.nnOutput->whiteScoreMeanSq;
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
   node.stats.winValueSum += winProb;
-  node.stats.lossValueSum += lossProb;
   node.stats.noResultValueSum += noResultProb;
-  node.stats.scoreValueSum += scoreValue;
+  node.stats.scoreMeanSum += scoreMean;
+  node.stats.scoreMeanSqSum += scoreMeanSq;
   node.stats.valueSumWeight += 1.0;
   node.virtualLosses -= virtualLossesToSubtract;
   node.statsLock.clear(std::memory_order_release);
@@ -1326,18 +1342,18 @@ void Search::playoutDescend(
   if(!isRoot && thread.history.isGameFinished) {
     if(thread.history.isNoResult) {
       double winValue = 0.0;
-      double lossValue = 0.0;
       double noResultValue = 1.0;
-      double scoreValue = 0.0;
-      setTerminalValue(node, winValue, lossValue, noResultValue, scoreValue, virtualLossesToSubtract);
+      double scoreMean = 0.0;
+      double scoreMeanSq = 0.0;
+      setTerminalValue(node, winValue, noResultValue, scoreMean, scoreMeanSq, virtualLossesToSubtract);
       return;
     }
     else {
-      double winValue = NNOutput::whiteWinsOfWinner(thread.history.winner, searchParams.drawEquivalentWinsForWhite);
-      double lossValue = 1.0 - winValue;
+      double winValue = ScoreValue::whiteWinsOfWinner(thread.history.winner, searchParams.drawEquivalentWinsForWhite);
       double noResultValue = 0.0;
-      double scoreValue = NNOutput::whiteScoreValueOfScoreGridded(thread.history.finalWhiteMinusBlackScore, searchParams.drawEquivalentWinsForWhite, thread.board, thread.history);
-      setTerminalValue(node, winValue, lossValue, noResultValue, scoreValue, virtualLossesToSubtract);
+      double scoreMean = ScoreValue::whiteScoreDrawAdjust(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite,thread.history);
+      double scoreMeanSq = ScoreValue::whiteScoreMeanSqOfScoreGridded(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite,thread.history);
+      setTerminalValue(node, winValue, noResultValue, scoreMean, scoreMeanSq, virtualLossesToSubtract);
       return;
     }
   }
@@ -1487,17 +1503,23 @@ void Search::printRootEndingScoreValueBonus(ostream& out) {
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
     uint64_t childVisits = child->stats.visits;
-    double childUtilitySum = child->stats.getCombinedUtilitySum(searchParams);
-    double scoreValueSum = child->stats.scoreValueSum;
-    double childValueSumWeight = child->stats.valueSumWeight;
+    double childResultUtilitySum = child->stats.getResultUtilitySum(searchParams);
+    double scoreMeanSum = child->stats.scoreMeanSum;
+    double scoreMeanSqSum = child->stats.scoreMeanSqSum;
+    double valueSumWeight = child->stats.valueSumWeight;
     child->statsLock.clear(std::memory_order_release);
 
-    double utility = childUtilitySum / childValueSumWeight;
-    double scoreValue = scoreValueSum / childValueSumWeight;
-    double endingScoreValueBonus = getEndingScoreValueBonus(*rootNode, child, scoreValue);
+    double utilityNoBonus = getUtility(childResultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
+
+    double endingScoreBonus = getEndingWhiteScoreBonus(*rootNode,child);
+    double oldScoreMeanSum = scoreMeanSum;
+    scoreMeanSum += endingScoreBonus * valueSumWeight;
+    scoreMeanSqSum = scoreMeanSqSum + (oldScoreMeanSum + scoreMeanSum) * endingScoreBonus;
+    double utilityWithBonus = getUtility(childResultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
+
     out << Location::toString(child->prevMoveLoc,rootBoard) << " " << Global::strprintf(
-      "visits %d utility %.2fc scoreValue %.2fc endingScoreValueBonus %.2fc",
-      childVisits, utility*100, scoreValue*100, endingScoreValueBonus*100
+      "visits %d utilityNoBonus %.2fc utilityWithBonus %.2fc endingScoreBonus %.2f",
+      childVisits, utilityNoBonus*100, utilityWithBonus*100, endingScoreBonus
     );
     out << endl;
   }
@@ -1553,12 +1575,13 @@ void Search::printTreeHelper(
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   uint64_t visits = node.stats.visits;
-  double winValueSum = node.stats.winValueSum;
-  double lossValueSum = node.stats.lossValueSum;
-  double noResultValueSum = node.stats.noResultValueSum;
-  double scoreValueSum = node.stats.scoreValueSum;
+  double resultUtilitySum = node.stats.getResultUtilitySum(searchParams);
+  double scoreMeanSum = node.stats.scoreMeanSum;
+  double scoreMeanSqSum = node.stats.scoreMeanSqSum;
   double valueSumWeight = node.stats.valueSumWeight;
   node.statsLock.clear(std::memory_order_release);
+
+  double utility = getUtility(resultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
 
   if(depth == 0)
     origVisits = visits;
@@ -1571,28 +1594,39 @@ void Search::printTreeHelper(
     out << ": ";
 
     if(visits > 0) {
-      sprintf(buf,"T %6.2fc ",((winValueSum - lossValueSum) * searchParams.winLossUtilityFactor + noResultValueSum * searchParams.noResultUtilityForWhite + scoreValueSum * searchParams.scoreUtilityFactor) / valueSumWeight * 100.0);
+      sprintf(buf,"T %6.2fc ",(utility * 100.0));
       out << buf;
-      sprintf(buf,"W %6.2fc ",((winValueSum - lossValueSum) * searchParams.winLossUtilityFactor + noResultValueSum * searchParams.noResultUtilityForWhite) / valueSumWeight * 100.0);
+      sprintf(buf,"W %6.2fc ",(resultUtilitySum / valueSumWeight * 100.0));
       out << buf;
       sprintf(buf,"S %6.2fc (%+5.1f) ",
-              (scoreValueSum * searchParams.scoreUtilityFactor) / valueSumWeight * 100.0,
-              NNOutput::approxWhiteScoreOfScoreValueSmooth(scoreValueSum/valueSumWeight,rootBoard)
+              (utility - resultUtilitySum / valueSumWeight) * 100.0,
+              scoreMeanSum / valueSumWeight
       );
       out << buf;
     }
 
     bool hasNNValue = false;
-    double nnValue;
+    //double nnResultValue;
+    double nnTotalValue;
     lock.lock();
     if(node.nnOutput != nullptr) {
-      nnValue = getCombinedUtility(*node.nnOutput,searchParams);
+      //nnResultValue = getResultUtilityFromNN(*node.nnOutput,searchParams);
+      nnTotalValue = getUtilityFromNN(*node.nnOutput);
       hasNNValue = true;
     }
     lock.unlock();
 
+    //TODO
+    // if(hasNNValue) {
+    //   sprintf(buf,"VW %6.2fc VS %6.2fc ", nnResultValue * 100.0, (nnTotalValue - nnResultValue) * 100.0);
+    //   out << buf;
+    // }
+    // else {
+    //   sprintf(buf,"VW --.--c VS --.--c ");
+    //   out << buf;
+    // }
     if(hasNNValue) {
-      sprintf(buf,"V %6.2fc ", nnValue * 100.0);
+      sprintf(buf,"V %6.2fc ", nnTotalValue * 100.0);
       out << buf;
     }
     else {
@@ -1645,7 +1679,9 @@ void Search::printTreeHelper(
 
       while(child->statsLock.test_and_set(std::memory_order_acquire));
       uint64_t childVisits = child->stats.visits;
-      double childUtilitySum = child->stats.getCombinedUtilitySum(searchParams);
+      double childResultUtilitySum = child->stats.getResultUtilitySum(searchParams);
+      double childScoreMeanSum = child->stats.scoreMeanSum;
+      double childScoreMeanSqSum = child->stats.scoreMeanSqSum;
       double childValueSumWeight = child->stats.valueSumWeight;
       child->statsLock.clear(std::memory_order_release);
 
@@ -1653,7 +1689,7 @@ void Search::printTreeHelper(
         continue;
       assert(childValueSumWeight > 0.0);
 
-      double childUtility = childUtilitySum / childValueSumWeight;
+      double childUtility = getUtility(childResultUtilitySum, childScoreMeanSum, childScoreMeanSqSum, childValueSumWeight);
 
       numGoodChildren++;
       selfUtilityBuf.push_back(node.nextPla == P_WHITE ? childUtility : -childUtility);

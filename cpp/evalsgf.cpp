@@ -13,6 +13,7 @@ using namespace std;
 
 int MainCmds::evalsgf(int argc, const char* const* argv) {
   Board::initHash();
+  ScoreValue::initTables();
   Rand seedRand;
 
   string configFile;

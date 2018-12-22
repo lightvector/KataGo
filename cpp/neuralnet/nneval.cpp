@@ -293,12 +293,14 @@ void NNEvaluator::serve(
         //(or in the case of model version 2, it will only just pay attention to the value of whiteWinProb and tanh it)
         double whiteWinProb = 0.0 + rand.nextGaussian() * 0.20;
         double whiteLossProb = 0.0 + rand.nextGaussian() * 0.20;
-        double whiteScoreValue = 0.0 + rand.nextGaussian() * 0.20;
+        double whiteScoreMean = 0.0 + rand.nextGaussian() * 4.00;
+        double whiteScoreMeanSq = whiteScoreMean * whiteScoreMean + 4.00;
         double whiteNoResultProb = 0.0 + rand.nextGaussian() * 0.20;
         resultBuf->result->whiteWinProb = whiteWinProb;
         resultBuf->result->whiteLossProb = whiteLossProb;
         resultBuf->result->whiteNoResultProb = whiteNoResultProb;
-        resultBuf->result->whiteScoreValue = whiteScoreValue;
+        resultBuf->result->whiteScoreMean = whiteScoreMean;
+        resultBuf->result->whiteScoreMeanSq = whiteScoreMeanSq;
         resultBuf->hasResult = true;
         resultBuf->clientWaitingForResult.notify_all();
         resultLock.unlock();
@@ -480,7 +482,8 @@ void NNEvaluator::evaluate(
     buf.result->whiteWinProb = resultWithoutOwnerMap->whiteWinProb;
     buf.result->whiteLossProb = resultWithoutOwnerMap->whiteLossProb;
     buf.result->whiteNoResultProb = resultWithoutOwnerMap->whiteNoResultProb;
-    buf.result->whiteScoreValue = resultWithoutOwnerMap->whiteScoreValue;
+    buf.result->whiteScoreMean = resultWithoutOwnerMap->whiteScoreMean;
+    buf.result->whiteScoreMeanSq = resultWithoutOwnerMap->whiteScoreMeanSq;
     std::copy(resultWithoutOwnerMap->policyProbs, resultWithoutOwnerMap->policyProbs + NNPos::MAX_NN_POLICY_SIZE, buf.result->policyProbs);
     buf.result->posLen = resultWithoutOwnerMap->posLen;
     assert(buf.result->whiteOwnerMap != NULL);
@@ -505,7 +508,7 @@ void NNEvaluator::evaluate(
       }
       else
         policyValue = -1e30f;
-      
+
       policy[i] = policyValue;
       if(policyValue > maxPolicy)
         maxPolicy = policyValue;
@@ -557,13 +560,15 @@ void NNEvaluator::evaluate(
         buf.result->whiteWinProb = winProb;
         buf.result->whiteLossProb = 1.0 - winProb;
         buf.result->whiteNoResultProb = 0.0;
-        buf.result->whiteScoreValue = 0.0;
+        buf.result->whiteScoreMean = 0.0;
+        buf.result->whiteScoreMeanSq = 0.0;
       }
       else {
         buf.result->whiteWinProb = 1.0 - winProb;
         buf.result->whiteLossProb = winProb;
         buf.result->whiteNoResultProb = 0.0;
-        buf.result->whiteScoreValue = 0.0;
+        buf.result->whiteScoreMean = 0.0;
+        buf.result->whiteScoreMeanSq = 0.0;
       }
     }
     else if(modelVersion == 3) {
@@ -572,7 +577,8 @@ void NNEvaluator::evaluate(
       double winProb;
       double lossProb;
       double noResultProb;
-      double scoreValue = atan(buf.result->whiteScoreValue) * twoOverPi;
+      //Version 3 neural nets just pack the pre-arctanned scoreValue into the whiteScoreMean field
+      double scoreValue = atan(buf.result->whiteScoreMean) * twoOverPi;
       {
         double winLogits = buf.result->whiteWinProb;
         double lossLogits = buf.result->whiteLossProb;
@@ -600,13 +606,60 @@ void NNEvaluator::evaluate(
         buf.result->whiteWinProb = winProb;
         buf.result->whiteLossProb = lossProb;
         buf.result->whiteNoResultProb = noResultProb;
-        buf.result->whiteScoreValue = scoreValue;
+        buf.result->whiteScoreMean = ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,board);
+        buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
       }
       else {
         buf.result->whiteWinProb = lossProb;
         buf.result->whiteLossProb = winProb;
         buf.result->whiteNoResultProb = noResultProb;
-        buf.result->whiteScoreValue = -scoreValue;
+        buf.result->whiteScoreMean = -ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,board);
+        buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
+      }
+
+    }
+    else if(modelVersion == 4) {
+      double winProb;
+      double lossProb;
+      double noResultProb;
+      double scoreMean = buf.result->whiteScoreMean;
+      double scoreMeanSq = buf.result->whiteScoreMeanSq;
+      {
+        double winLogits = buf.result->whiteWinProb;
+        double lossLogits = buf.result->whiteLossProb;
+        double noResultLogits = buf.result->whiteNoResultProb;
+
+        //Softmax
+        double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
+        winProb = exp(winLogits - maxLogits);
+        lossProb = exp(lossLogits - maxLogits);
+        noResultProb = exp(noResultLogits - maxLogits);
+
+        double probSum = winProb + lossProb + noResultProb;
+        winProb /= probSum;
+        lossProb /= probSum;
+        noResultProb /= probSum;
+
+        if(isnan(probSum) || isnan(scoreMean) || isnan(scoreMeanSq)) {
+          cout << "Got nan for nneval value" << endl;
+          cout << winLogits << " " << lossLogits << " " << noResultLogits << " " << scoreMean << " " << scoreMeanSq << endl;
+          throw StringError("Got nan for nneval value");
+        }
+      }
+
+      if(nextPlayer == P_WHITE) {
+        buf.result->whiteWinProb = winProb;
+        buf.result->whiteLossProb = lossProb;
+        buf.result->whiteNoResultProb = noResultProb;
+        buf.result->whiteScoreMean = scoreMean;
+        buf.result->whiteScoreMeanSq = scoreMeanSq;
+      }
+      else {
+        buf.result->whiteWinProb = lossProb;
+        buf.result->whiteLossProb = winProb;
+        buf.result->whiteNoResultProb = noResultProb;
+        buf.result->whiteScoreMean = -scoreMean;
+        buf.result->whiteScoreMeanSq = scoreMeanSq;
       }
 
     }

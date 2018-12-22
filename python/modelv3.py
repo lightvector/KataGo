@@ -1088,16 +1088,21 @@ class Target_varsV3:
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
                           tf.placeholder(tf.float32, [None] + model.policy_target_shape))
+    #Unconditional game result prediction
     self.value_target = (placeholders["value_target"] if "value_target" in placeholders else
                          tf.placeholder(tf.float32, [None] + model.value_target_shape))
+    #Unconditional expected score prediction, treating noResult as 0 #TODO
     self.scorevalue_target = (placeholders["scorevalue_target"] if "scorevalue_target" in placeholders else
                               tf.placeholder(tf.float32, [None] + model.scorevalue_target_shape))
+    #Score belief distributions CONDITIONAL on result
     self.scorebelief_target = (placeholders["scorebelief_target"] if "scorebelief_target" in placeholders else
                               tf.placeholder(tf.float32, [None] + model.scorebelief_target_shape))
     self.bonusbelief_target = (placeholders["bonusbelief_target"] if "bonusbelief_target" in placeholders else
                               tf.placeholder(tf.float32, [None] + model.bonusbelief_target_shape))
+    #MCTS utility variance out to different marks
     self.utilityvar_target = (placeholders["utilityvar_target"] if "utilityvar_target" in placeholders else
                               tf.placeholder(tf.float32, [None] + model.utilityvar_target_shape))
+    #Ownership of board, CONDITIONAL on result
     self.ownership_target = (placeholders["ownership_target"] if "ownership_target" in placeholders else
                              tf.placeholder(tf.float32, [None] + model.ownership_target_shape))
     self.target_weight_from_data = (placeholders["target_weight_from_data"] if "target_weight_from_data" in placeholders else
@@ -1201,7 +1206,7 @@ class Target_varsV3:
     scorevalue_from_belief = tf.reduce_sum(
       scorebelief_probs *
       two_over_pi*tf.atan(0.5 * tf.reshape(model.score_belief_offset_vector,[1,model.scorebelief_target_shape[0]]) / tf.reshape(model.mask_sum_hw_sqrt,[-1,1])) *
-      (1.0 - value_probs[:,2:3]),
+      (1.0 - value_probs[:,2:3]), #Need to multiply by here to convert conditional score belief into unconditional, since noResult = 0
       axis=1
     )
     self.scorevalue_reg_loss_unreduced = 2.0 * tf.square(scorevalue_from_belief - scorevalue_prediction)
@@ -1209,7 +1214,7 @@ class Target_varsV3:
     winlossprob_from_belief = tf.concat([
       tf.reduce_sum(scorebelief_probs[:,(model.scorebelief_target_shape[0]//2):],axis=1,keepdims=True),
       tf.reduce_sum(scorebelief_probs[:,0:(model.scorebelief_target_shape[0]//2)],axis=1,keepdims=True)
-    ],axis=1) * (1.0 - tf.reshape(value_probs[:,2],[-1,1]))
+    ],axis=1) * (1.0 - tf.reshape(value_probs[:,2],[-1,1])) #Need to multiply here to convert conditional WL belief into unconditional, since noResult = 0
     winlossprob_from_output = value_probs[:,0:2]
     self.winloss_reg_loss_unreduced = 2.0 * tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 

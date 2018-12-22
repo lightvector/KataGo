@@ -6,7 +6,8 @@
 //Currently, utility is entirely win-loss.
 SearchParams::SearchParams()
   :winLossUtilityFactor(1.0),
-   scoreUtilityFactor(0.3),
+   staticScoreUtilityFactor(0.3),
+   dynamicScoreUtilityFactor(0.0),
    noResultUtilityForWhite(0.0),
    drawEquivalentWinsForWhite(0.5),
    cpuctExploration(1.0),

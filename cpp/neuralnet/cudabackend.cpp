@@ -3133,7 +3133,7 @@ struct ModelDesc {
     if(in.fail())
       throw StringError(name + ": model failed to parse name or version");
 
-    if(version < 0 || version > 3)
+    if(version < 0 || version > 4)
       throw StringError(name + ": model found unsupported version " + Global::intToString(version));
     if(version < 1)
       throw StringError("Version 0 neural nets no longer supported in cuda backend");
@@ -4139,6 +4139,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       policyProbs
     );
 
+    //TODO version 4
     if(version >= 3) {
       int numValueChannels = gpuHandle->model->numValueChannels;
       int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
@@ -4147,7 +4148,9 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       output->whiteWinProb = inputBuffers->valueResults[row * numValueChannels];
       output->whiteLossProb = inputBuffers->valueResults[row * numValueChannels + 1];
       output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
-      output->whiteScoreValue = inputBuffers->scoreValueResults[row];
+      output->whiteScoreMean = inputBuffers->scoreValueResults[row];
+      //Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the mean squared
+      output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
 
       //As above, these are NOT actually from white's perspective, but rather the player to move.
       //As usual the client does the postprocessing.
@@ -4165,7 +4168,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       output->whiteWinProb = inputBuffers->valueResults[row];
       output->whiteLossProb = 0.0;
       output->whiteNoResultProb = 0.0;
-      output->whiteScoreValue = 0.0;
+      output->whiteScoreMean = 0.0;
+      output->whiteScoreMeanSq = 0.0;
 
       //Older versions don't have an ownership map, so zero fill
       if(output->whiteOwnerMap != NULL)

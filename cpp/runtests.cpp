@@ -6,6 +6,7 @@
 #include "game/board.h"
 #include "game/rules.h"
 #include "game/boardhistory.h"
+#include "neuralnet/nninputs.h"
 #include "tests/tests.h"
 #include "main.h"
 
@@ -14,6 +15,7 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   (void)argv;
   testAssert(sizeof(size_t) == 8);
   Board::initHash();
+  ScoreValue::initTables();
 
   Rand::runTests();
   FancyMath::runTests();
@@ -39,6 +41,7 @@ int MainCmds::runtests(int argc, const char* const* argv) {
 
 int MainCmds::runsearchtests(int argc, const char* const* argv) {
   Board::initHash();
+  ScoreValue::initTables();
 
   if(argc != 6) {
     cerr << "Must supply exactly five arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16" << endl;
@@ -56,6 +59,7 @@ int MainCmds::runsearchtests(int argc, const char* const* argv) {
 
 int MainCmds::runsearchtestsv3(int argc, const char* const* argv) {
   Board::initHash();
+  ScoreValue::initTables();
 
   if(argc != 6) {
     cerr << "Must supply exactly five arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16" << endl;

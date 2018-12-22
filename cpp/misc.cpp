@@ -12,6 +12,7 @@
 
 int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
   Board::initHash();
+  ScoreValue::initTables();
   Rand seedRand;
 
   string configFile;
@@ -212,7 +213,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
           search->beginSearch();
           for(int i = 0; i<maxVisits; i++) {
             search->runSinglePlayout(*stbuf);
-            utilities[i] = search->rootNode->stats.getCombinedUtilitySum(search->searchParams) / search->rootNode->stats.valueSumWeight;
+            utilities[i] = search->getRootUtility();
             policySurpriseNats[i] = computeSurprise(search);
           }
           delete stbuf;

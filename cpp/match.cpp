@@ -24,6 +24,7 @@ static void signalHandler(int signal)
 
 int MainCmds::match(int argc, const char* const* argv) {
   Board::initHash();
+  ScoreValue::initTables();
   Rand seedRand;
 
   string configFile;
