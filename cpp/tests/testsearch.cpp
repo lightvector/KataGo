@@ -490,8 +490,8 @@ void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool cuda
 
 
 
-void Tests::runAutoSearchTests() {
-  cout << "Running automatic search tests" << endl;
+void Tests::runNNLessSearchTests() {
+  cout << "Running neuralnetless search tests" << endl;
   string tensorflowGpuVisibleDeviceList = "";
   double tensorflowPerProcessGpuMemoryFraction = 0.3;
   NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
@@ -499,15 +499,15 @@ void Tests::runAutoSearchTests() {
   //Placeholder, doesn't actually do anything since we have debugSkipNeuralNet = true
   string modelFile = "/dev/null";
 
-  ostringstream out;
-
   Logger logger;
   logger.setLogToStdout(false);
   logger.setLogTime(false);
-  logger.addOStream(out);
+  logger.addOStream(cout);
 
   {
-    const char* name = "Basic search with debugSkipNeuralNet and chosen move randomization";
+    cout << "===================================================================" << endl;
+    cout << "Basic search with debugSkipNeuralNet and chosen move randomization" << endl;
+    cout << "===================================================================" << endl;
 
     NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
     SearchParams params;
@@ -535,27 +535,7 @@ void Tests::runAutoSearchTests() {
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
-    search->printTree(out, search->rootNode, options);
-
-    string expected = R"%%(
-: T  -0.31c W  -0.37c S   0.06c ( +0.1) V  -9.33c N     100  --  A5 G7 A1 H5 F4 B1
----Black(v)---
-A5  : T   0.36c W   1.05c S  -0.69c ( -0.9) V   3.07c P 17.68% VW  7.79% N      30  --  G7 A1 H5 F4 B1
-E8  : T  -3.51c W  -5.06c S   1.55c ( +2.1) V -13.17c P  2.90% VW  8.36% N      17  --  A4 F1 B5 D6 C4
-F8  : T  -3.16c W  -1.73c S  -1.43c ( -1.9) V  -6.05c P  3.01% VW  8.29% N      14  --  A7 G8 G4 J4
-H8  : T   1.18c W   0.92c S   0.25c ( +0.3) V   5.69c P  3.34% VW  7.72% N       8  --  pass E2 F6 B1
-B1  : T  -0.64c W  -2.62c S   1.99c ( +2.6) V  -5.06c P  2.63% VW  7.93% N       6  --  G7 E4 A3
-J9  : T   2.79c W   3.77c S  -0.98c ( -1.3) V  -1.33c P  3.92% VW  7.57% N       5  --  B6 F2 J5
-J3  : T  -1.68c W  -1.88c S   0.20c ( +0.3) V  -8.90c P  2.39% VW  8.04% N       5  --  H5 J6 F9
-H2  : T   2.80c W   2.22c S   0.58c ( +0.7) V  13.23c P  3.83% VW  7.58% N       4  --  E8
-J7  : T   4.36c W   4.52c S  -0.16c ( -0.2) V   1.39c P  3.62% VW  7.43% N       4  --  B4 D8
-G9  : T   2.89c W   3.79c S  -0.90c ( -1.1) V  -5.39c P  2.14% VW  7.62% N       2  --  G4
-J8  : T   4.78c W   4.46c S   0.33c ( +0.4) V   2.16c P  2.03% VW  7.46% N       2  --  F5
-D2  : T  13.00c W  10.67c S   2.34c ( +2.9) V  13.00c P  2.58% VW  6.95% N       1  --
-G7  : T   8.93c W   4.82c S   4.11c ( +5.4) V   8.93c P  2.22% VW  7.24% N       1  --
-
-)%%";
-    expect(name,out,expected);
+    search->printTree(cout, search->rootNode, options);
 
     auto sampleChosenMoves = [&]() {
       std::map<Loc,int> moveLocsAndCounts;
@@ -568,57 +548,29 @@ G7  : T   8.93c W   4.82c S   4.11c ( +5.4) V   8.93c P  2.22% VW  7.24% N      
       std::sort(moveLocsAndCountsSorted.begin(), moveLocsAndCountsSorted.end(), [](pair<Loc,int> a, pair<Loc,int> b) { return a.second > b.second; });
 
       for(int i = 0; i<moveLocsAndCountsSorted.size(); i++) {
-        out << Location::toString(moveLocsAndCountsSorted[i].first,board) << " " << moveLocsAndCountsSorted[i].second << endl;
+        cout << Location::toString(moveLocsAndCountsSorted[i].first,board) << " " << moveLocsAndCountsSorted[i].second << endl;
       }
     };
 
+    cout << "Chosen moves at temperature 0" << endl;
     sampleChosenMoves();
 
-    expected = R"%%(
-A5 10000
-)%%";
-    expect(name,out,expected);
-
     {
-      //Should do nothing, since we're "early" with no moves yet.
+      cout << "Chosen moves at temperature 1 but early temperature 0, when it's perfectly early" << endl;
       search->searchParams.chosenMoveTemperature = 1.0;
       search->searchParams.chosenMoveTemperatureEarly = 0.0;
-
       sampleChosenMoves();
-
-      expected = R"%%(
-A5 10000
-)%%";
-      expect(name,out,expected);
     }
 
     {
-      //Now should something
+      cout << "Chosen moves at temperature 1" << endl;
       search->searchParams.chosenMoveTemperature = 1.0;
       search->searchParams.chosenMoveTemperatureEarly = 1.0;
-
       sampleChosenMoves();
-
-      expected = R"%%(
-A5 3028
-E8 1701
-F8 1398
-H8 814
-B1 629
-J3 537
-J9 500
-J7 411
-H2 394
-J8 199
-G9 194
-G7 99
-D2 96
-
-)%%";
-      expect(name,out,expected);
     }
 
     {
+      cout << "Chosen moves at some intermediate temperature" << endl;
       //Ugly hack to artifically fill history. Breaks all sorts of invariants, but should work to
       //make the search htink there's some history to choose an intermediate temperature
       for(int i = 0; i<16; i++)
@@ -627,34 +579,18 @@ D2 96
       search->searchParams.chosenMoveTemperature = 1.0;
       search->searchParams.chosenMoveTemperatureEarly = 0.0;
       search->searchParams.chosenMoveTemperatureHalflife = 16.0 * 19.0/9.0;
-
       sampleChosenMoves();
-
-      expected = R"%%(
-A5 5688
-E8 1846
-F8 1218
-H8 406
-B1 239
-J3 160
-J9 159
-H2 114
-J7 103
-G9 34
-J8 21
-D2 7
-G7 5
-
-)%%";
-      expect(name,out,expected);
     }
 
     delete search;
     delete nnEval;
+    cout << endl;
   }
 
   {
-    const char* name = "Testing preservation of search tree across moves";
+    cout << "===================================================================" << endl;
+    cout << "Testing preservation of search tree across moves" << endl;
+    cout << "===================================================================" << endl;
 
     NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
     SearchParams params;
@@ -677,7 +613,7 @@ ooooooo
 
     {
       //--------------------------------------
-      //First perform a basic search.
+      cout << "First perform a basic search." << endl;
 
       search->setPosition(nextPla,board,hist);
       search->runWholeSearch(nextPla,logger,NULL);
@@ -688,106 +624,40 @@ ooooooo
 
       PrintTreeOptions options;
       options = options.maxDepth(1);
-      out << search->rootBoard << endl;
-      search->printTree(out, search->rootNode, options);
-      search->printTree(out, search->rootNode, options.onlyBranch(board,Location::toString(locToDescend,board)));
+      cout << search->rootBoard << endl;
+      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options.onlyBranch(board,Location::toString(locToDescend,board)));
 
-      string expected = R"%%(
-HASH: 89590E2EB0B10227C6F32CB03B91959F
-   A B C D E F G
- 7 . . X X . . .
- 6 X X X X X X X
- 5 . X X . . X X
- 4 . X X O O O O
- 3 X X X O . . .
- 2 O O O O O O O
- 1 . . . O . . .
-
-
-: T  -1.75c W  -2.37c S   0.61c ( +0.7) V  -8.80c N      50  --  G7 C1 D5 A4
----Black(v)---
-G7  : T  -2.78c W  -3.77c S   0.99c ( +1.1) V  -1.20c P 15.99% VW 10.21% N      11  --  C1 D5 A4
-E1  : T   0.37c W   2.57c S  -2.20c ( -2.4) V   2.59c P 17.17% VW  9.72% N       8  --  pass E7 G3
-E3  : T  -3.79c W  -4.55c S   0.76c ( +0.9) V  -6.24c P  7.98% VW 10.33% N       6  --  pass A7
-B1  : T  -2.81c W  -2.19c S  -0.62c ( -0.7) V  -4.59c P  6.27% VW 10.18% N       5  --  pass A7
-A7  : T  -0.50c W  -0.58c S   0.08c ( +0.1) V  -1.58c P  7.39% VW  9.88% N       4  --  F3 C1 E3
-E7  : T  -1.59c W  -5.87c S   4.28c ( +4.9) V  -5.10c P  7.16% VW 10.02% N       4  --  E1 F3
-F7  : T  -0.28c W   0.71c S  -1.00c ( -1.1) V  -6.15c P  6.99% VW  9.86% N       3  --  E1 B7
-D5  : T  -1.36c W  -2.89c S   1.53c ( +1.7) V  -1.38c P  5.51% VW  9.99% N       3  --  pass E1
-F3  : T   1.60c W  -0.69c S   2.29c ( +2.5) V  -3.19c P  4.49% VW  9.64% N       3  --  E1 G1
-A5  : T  -2.94c W  -5.36c S   2.41c ( +2.7) V  -4.97c P  4.20% VW 10.16% N       2  --  G1
-: T  -1.75c W  -2.37c S   0.61c ( +0.7) V  -8.80c N      50  --  G7 C1 D5 A4
-G7  : T  -2.78c W  -3.77c S   0.99c ( +1.1) V  -1.20c P 15.99% VW 10.21% N      11  --  C1 D5 A4
----White(^)---
-G7  C1  : T   3.60c W   1.97c S   1.62c ( +1.8) V   3.42c P  9.13% VW 36.42% N       4  --  D5 A4
-G7  E7  : T  -8.16c W  -8.63c S   0.48c ( +0.5) V  -6.05c P 16.83% VW 31.56% N       3  --  F1 A5
-G7  E3  : T  -7.03c W  -7.04c S   0.01c ( +0.0) V  -8.25c P 15.69% VW 32.01% N       3  --  G1 A7
-
-)%%";
-      expect(name,out,expected);
+      cout << endl;
 
       //--------------------------------------
-      //Next, make a move, and with no search, print the tree.
+      cout << "Next, make a move, and with no search, print the tree." << endl;
 
       search->makeMove(locToDescend,nextPla);
       nextPla = getOpp(nextPla);
 
-      out << search->rootBoard << endl;
-      search->printTree(out, search->rootNode, options);
-      expected = R"%%(
-HASH: 9108963BA0713EF340BBA9F3E37370F9
-   A B C D E F G
- 7 . . X X . . X
- 6 X X X X X X X
- 5 . X X . . X X
- 4 . X X O O O O
- 3 X X X O . . .
- 2 O O O O O O O
- 1 . . . O . . .
-
-
-: T  -2.78c W  -3.77c S   0.99c ( +1.1) V  -1.20c N      11  --  C1 D5 A4
----White(^)---
-C1  : T   3.60c W   1.97c S   1.62c ( +1.8) V   3.42c P  9.13% VW 36.42% N       4  --  D5 A4
-E7  : T  -8.16c W  -8.63c S   0.48c ( +0.5) V  -6.05c P 16.83% VW 31.56% N       3  --  F1 A5
-E3  : T  -7.03c W  -7.04c S   0.01c ( +0.0) V  -8.25c P 15.69% VW 32.01% N       3  --  G1 A7
-
-)%%";
-      expect(name,out,expected);
+      cout << search->rootBoard << endl;
+      search->printTree(cout, search->rootNode, options);
+      cout << endl;
 
       //--------------------------------------
-      //Then continue the search to complete 50 visits.
+      cout << "Then continue the search to complete 50 visits." << endl;
 
       search->runWholeSearch(nextPla,logger,NULL);
-      search->printTree(out, search->rootNode, options);
-
-      expected = R"%%(
-: T   0.59c W   0.03c S   0.56c ( +0.6) V  -1.20c N      50  --  C1 A1 F1 E7 E1 B7
----White(^)---
-C1  : T   5.75c W   4.93c S   0.82c ( +0.9) V   3.42c P  9.13% VW 11.22% N      15  --  A1 F1 E7 E1 B7
-E7  : T  -4.30c W  -3.96c S  -0.34c ( -0.4) V  -6.05c P 16.83% VW  9.55% N       7  --  F1 pass E1
-B1  : T   3.51c W   2.99c S   0.52c ( +0.6) V   1.56c P  6.65% VW 10.72% N       7  --  A4 F1
-E3  : T  -4.79c W  -5.74c S   0.95c ( +1.1) V  -8.25c P 15.69% VW  9.50% N       6  --  G1 A7 F1
-G3  : T  -5.27c W  -4.11c S  -1.16c ( -1.3) V   5.22c P  8.20% VW  9.51% N       4  --  E3 B1
-E1  : T   4.90c W   1.88c S   3.02c ( +3.4) V  -0.36c P  4.47% VW 10.84% N       4  --  E7 G3 F7
-A5  : T  -5.48c W  -1.85c S  -3.63c ( -4.1) V  -7.79c P  6.20% VW  9.61% N       2  --  E5
-B7  : T  -1.15c W  -4.05c S   2.90c ( +3.2) V  -0.27c P  4.50% VW 10.08% N       2  --  B1
-F3  : T  -8.37c W  -6.65c S  -1.72c ( -1.9) V  -8.37c P  4.70% VW  9.44% N       1  --
-E5  : T  -7.38c W  -7.42c S   0.05c ( +0.1) V  -7.38c P  4.41% VW  9.54% N       1  --
-
-)%%";
-      expect(name,out,expected);
+      search->printTree(cout, search->rootNode, options);
+      cout << endl;
     }
 
     delete search;
     delete nnEval;
+
+    cout << endl;
   }
 
-
-
-
   {
-    const char* name = "Testing pruning of search tree across moves due to root restrictions";
+    cout << "===================================================================" << endl;
+    cout << "Testing pruning of search tree across moves due to root restrictions" << endl;
+    cout << "===================================================================" << endl;
 
     Board board = Board::parseBoard(7,7,R"%%(
 ..xx...
@@ -830,8 +700,8 @@ o..oo.x
     };
 
 
-    //First, with no pruning
     {
+      cout << "First with no pruning" << endl;
       NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
       SearchParams params;
       params.maxVisits = 400;
@@ -842,45 +712,19 @@ o..oo.x
       search->runWholeSearch(nextPla,logger,NULL);
       PrintTreeOptions options;
       options = options.maxDepth(1);
-      out << search->rootBoard << endl;
-      search->printTree(out, search->rootNode, options);
-
-      string expected = R"%%(
-HASH: F33AB5338807413FD7B5069884FF9DB9
-   A B C D E F G
- 7 . . X X . . X
- 6 X X X X X X X
- 5 X X X X . X X
- 4 . X X O O O O
- 3 X X X O . X X
- 2 O O O O O O O
- 1 O . . O O . X
-
-
-: T   2.01c W   1.66c S   0.36c ( +0.4) V  24.58c N     400  --  E3 E7 E3 F1 F7 G1
----Black(v)---
-E3  : T  -1.43c W  -1.53c S   0.10c ( +0.1) V   8.05c P  3.34% VW 12.37% N     111  --  E7 E3 F1 F7 G1
-F1  : T   0.99c W   0.83c S   0.15c ( +0.2) V  -3.73c P  9.26% VW 11.53% N      68  --  E7 B1 pass G1 F1 A7 E3
-C1  : T   0.94c W   0.39c S   0.56c ( +0.6) V   5.10c P  7.02% VW 11.50% N      55  --  E3 A4 F7 F1 B1
-E5  : T   3.34c W   2.70c S   0.64c ( +0.7) V  -0.83c P 11.25% VW 10.87% N      44  --  F7 E7 B1 F7 B7 E3
-B7  : T   2.68c W   2.31c S   0.36c ( +0.4) V -12.51c P  5.32% VW 11.03% N      43  --  E3 pass F3 B1
-A7  : T   4.43c W   4.54c S  -0.11c ( -0.1) V -10.36c P  9.95% VW 10.62% N      32  --  pass E3 pass E7 F3
-E7  : T   5.13c W   4.35c S   0.78c ( +0.9) V  10.42c P  9.01% VW 10.48% N      25  --  B1 F7 B7 A4 F1
-F7  : T   1.73c W   1.18c S   0.55c ( +0.6) V  -2.60c P  1.91% VW 11.18% N      13  --  B1 A4 E3 pass
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 39.98% VW  1.49% N       7  --
-B1  : T  23.51c W  14.76c S   8.75c ( +9.5) V  23.51c P  1.82% VW  8.94% N       1  --
-
-)%%";
-      expect(name,out,expected);
+      cout << search->rootBoard << endl;
+      search->printTree(cout, search->rootNode, options);
 
       testAssert(hasSuicideRootMoves(search));
 
       delete search;
       delete nnEval;
+
+      cout << endl;
     }
 
-    //Next, with rootPruneUselessSuicides
     {
+      cout << "Next, with rootPruneUselessSuicides" << endl;
       NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
       SearchParams params;
       params.maxVisits = 400;
@@ -892,44 +736,18 @@ B1  : T  23.51c W  14.76c S   8.75c ( +9.5) V  23.51c P  1.82% VW  8.94% N      
       search->runWholeSearch(nextPla,logger,NULL);
       PrintTreeOptions options;
       options = options.maxDepth(1);
-      out << search->rootBoard << endl;
-      search->printTree(out, search->rootNode, options);
-
-      //Should NOT contain E3 or F1, unlike the previous.
-      string expected = R"%%(
-HASH: F33AB5338807413FD7B5069884FF9DB9
-   A B C D E F G
- 7 . . X X . . X
- 6 X X X X X X X
- 5 X X X X . X X
- 4 . X X O O O O
- 3 X X X O . X X
- 2 O O O O O O O
- 1 O . . O O . X
-
-
-: T   1.53c W   1.49c S   0.03c ( +0.0) V  24.58c N     400  --  E5 F7 E7 F1 F7 pass pass
----Black(v)---
-E5  : T   1.00c W   0.88c S   0.12c ( +0.1) V  -0.83c P 11.25% VW 12.75% N     102  --  F7 E7 F1 F7 pass pass
-E7  : T   0.48c W  -0.00c S   0.48c ( +0.5) V  -3.73c P  9.01% VW 12.88% N      81  --  B1 F1 E5 pass B7
-C1  : T   0.36c W   0.92c S  -0.56c ( -0.6) V  -3.97c P  7.02% VW 12.89% N      69  --  B7 B1 F1 A7
-A7  : T   1.19c W   1.61c S  -0.43c ( -0.5) V -10.36c P  9.95% VW 12.63% N      68  --  F1 C1 E5 pass F7
-B1  : T  -0.73c W  -0.67c S  -0.06c ( -0.1) V   4.46c P  1.82% VW 13.12% N      44  --  F1 E3 G1 F3 E7
-B7  : T   2.65c W   2.19c S   0.46c ( +0.5) V -10.37c P  5.32% VW 12.17% N      24  --  F1 B1 C1 E7
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 39.98% VW  1.65% N       7  --
-F7  : T  14.39c W  13.26c S   1.13c ( +1.2) V  16.81c P  1.91% VW 10.65% N       2  --  E3
-A4  : T   9.63c W   7.44c S   2.19c ( +2.4) V   9.04c P  1.14% VW 11.26% N       2  --  E3
-
-)%%";
-      expect(name,out,expected);
+      cout << search->rootBoard << endl;
+      search->printTree(cout, search->rootNode, options);
 
       testAssert(!hasSuicideRootMoves(search));
 
       delete search;
       delete nnEval;
+
+      cout << endl;
     }
 
-    //Progress the game, having black fill space while white passes.
+    cout << "Progress the game, having black fill space while white passes..." << endl;
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("A7",board),nextPla,NULL);
     nextPla = getOpp(nextPla);
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
@@ -941,8 +759,8 @@ A4  : T   9.63c W   7.44c S   2.19c ( +2.4) V   9.04c P  1.14% VW 11.26% N      
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("F7",board),nextPla,NULL);
     nextPla = getOpp(nextPla);
 
-    //Searching on the opponent, the move before
     {
+      cout << "Searching on the opponent, the move before" << endl;
       NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
       SearchParams params;
       params.maxVisits = 400;
@@ -954,132 +772,41 @@ A4  : T   9.63c W   7.44c S   2.19c ( +2.4) V   9.04c P  1.14% VW 11.26% N      
       search->runWholeSearch(nextPla,logger,NULL);
       PrintTreeOptions options;
       options = options.maxDepth(1);
-      out << search->rootBoard << endl;
-      search->printTree(out, search->rootNode, options);
-      search->printTree(out, search->rootNode, options.onlyBranch(board,"pass"));
+      cout << search->rootBoard << endl;
+      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options.onlyBranch(board,"pass"));
 
-      string expected = R"%%(
-HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
-   A B C D E F G
- 7 X . X X X X X
- 6 X X X X X X X
- 5 X X X X . X X
- 4 . X X O O O O
- 3 X X X O . X X
- 2 O O O O O O O
- 1 O . . O O . X
-
-
-: T   1.44c W   1.44c S   0.00c ( +0.0) V -24.58c N     400  --  pass E3 pass B1 E5 E3 G3
----White(^)---
-pass : T   1.68c W   1.56c S   0.12c ( +0.1) V   0.83c P 55.02% VW 17.27% N     226  --  E3 pass B1 E5 E3 G3 C1
-E5  : T   1.86c W   1.60c S   0.26c ( +0.3) V  -2.59c P 15.48% VW 17.32% N      64  --  F1 B1 E3 F1 E3
-F1  : T   1.88c W   2.20c S  -0.32c ( -0.4) V   7.83c P 12.74% VW 17.32% N      59  --  E3 E3 B7 C1 F3
-C1  : T   1.01c W   1.15c S  -0.14c ( -0.2) V  -5.63c P  9.67% VW 16.97% N      37  --  E3 G3 pass F3 E5 E3
-E3  : T  -2.15c W  -1.63c S  -0.52c ( -0.6) V  -6.91c P  4.59% VW 16.16% N      10  --  C1 B1 G3
-B1  : T  -9.40c W  -7.28c S  -2.12c ( -2.4) V  -7.21c P  2.50% VW 14.96% N       3  --  pass F1
-: T   1.44c W   1.44c S   0.00c ( +0.0) V -24.58c N     400  --  pass E3 pass B1 E5 E3 G3
-pass : T   1.68c W   1.56c S   0.12c ( +0.1) V   0.83c P 55.02% VW 17.27% N     226  --  E3 pass B1 E5 E3 G3 C1
----Black(v)---
-pass E3  : T  -0.94c W  -0.83c S  -0.11c ( -0.1) V   5.51c P 26.44% VW 15.29% N     104  --  pass B1 E5 E3 G3 C1 F1
-pass E5  : T   0.18c W   0.34c S  -0.16c ( -0.2) V  -5.64c P 10.84% VW 14.65% N      38  --  B1 F1 pass E3 C1
-pass F1  : T   2.13c W   1.83c S   0.30c ( +0.3) V  -7.20c P 10.92% VW 14.04% N      26  --  G1 C1 pass E5
-pass A4  : T   7.85c W   7.66c S   0.19c ( +0.2) V -10.36c P 14.19% VW 12.50% N      21  --  C1 B7 F1 E5
-pass C1  : T   8.39c W   7.57c S   0.82c ( +0.9) V  -4.22c P 11.73% VW 12.51% N      14  --  pass E5 F1 A4 B1
-pass B7  : T   4.23c W   3.35c S   0.89c ( +1.0) V   5.74c P  6.19% VW 13.55% N      11  --  pass B1 C1
-pass B1  : T   1.31c W  -0.00c S   1.31c ( +1.5) V  -7.93c P  3.89% VW 14.21% N       9  --  C1 A4 B1
-pass pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW  3.26% N       2  --
-
-)%%";
-      expect(name,out,expected);
-
-      //Now play forward the pass. The tree should still have useless suicides in it
+      cout << endl;
+      
+      cout << "Now play forward the pass. The tree should still have useless suicides in it" << endl;
       search->makeMove(Board::PASS_LOC,nextPla);
       testAssert(hasSuicideRootMoves(search));
       testAssert(hasPassAliveRootMoves(search));
 
-      out << search->rootBoard << endl;
-      search->printTree(out, search->rootNode, options);
-      expected = R"%%(
-HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
-   A B C D E F G
- 7 X . X X X X X
- 6 X X X X X X X
- 5 X X X X . X X
- 4 . X X O O O O
- 3 X X X O . X X
- 2 O O O O O O O
- 1 O . . O O . X
+      cout << search->rootBoard << endl;
+      search->printTree(cout, search->rootNode, options);
 
-
-: T   1.68c W   1.56c S   0.12c ( +0.1) V   0.83c N     226  --  E3 pass B1 E5 E3 G3 C1
----Black(v)---
-E3  : T  -0.94c W  -0.83c S  -0.11c ( -0.1) V   5.51c P 26.44% VW 15.29% N     104  --  pass B1 E5 E3 G3 C1 F1
-E5  : T   0.18c W   0.34c S  -0.16c ( -0.2) V  -5.64c P 10.84% VW 14.65% N      38  --  B1 F1 pass E3 C1
-F1  : T   2.13c W   1.83c S   0.30c ( +0.3) V  -7.20c P 10.92% VW 14.04% N      26  --  G1 C1 pass E5
-A4  : T   7.85c W   7.66c S   0.19c ( +0.2) V -10.36c P 14.19% VW 12.50% N      21  --  C1 B7 F1 E5
-C1  : T   8.39c W   7.57c S   0.82c ( +0.9) V  -4.22c P 11.73% VW 12.51% N      14  --  pass E5 F1 A4 B1
-B7  : T   4.23c W   3.35c S   0.89c ( +1.0) V   5.74c P  6.19% VW 13.55% N      11  --  pass B1 C1
-B1  : T   1.31c W  -0.00c S   1.31c ( +1.5) V  -7.93c P  3.89% VW 14.21% N       9  --  C1 A4 B1
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW  3.26% N       2  --
-
-)%%";
-      expect(name,out,expected);
-
-      //But the moment we begin a search, it should no longer.
+      cout << endl;
+      
+      cout << "But the moment we begin a search, it should no longer." << endl;
       search->beginSearch(logger);
       testAssert(!hasSuicideRootMoves(search));
       testAssert(!hasPassAliveRootMoves(search));
 
-      out << search->rootBoard << endl;
-      search->printTree(out, search->rootNode, options);
-      expected = R"%%(
-HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
-   A B C D E F G
- 7 X . X X X X X
- 6 X X X X X X X
- 5 X X X X . X X
- 4 . X X O O O O
- 3 X X X O . X X
- 2 O O O O O O O
- 1 O . . O O . X
+      cout << search->rootBoard << endl;
+      search->printTree(cout, search->rootNode, options);
 
-
-: T   2.61c W   2.71c S  -0.11c ( -0.1) V   0.83c N      41  --  E5 B1 F1 pass E3 C1
----Black(v)---
-E5  : T   0.18c W   0.34c S  -0.16c ( -0.2) V  -5.64c P 10.84% VW 82.05% N      38  --  B1 F1 pass E3 C1
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW 17.95% N       2  --
-
-)%%";
-      expect(name,out,expected);
-
-      //Continue searching a bit more
+      cout << endl;
+      
+      cout << "Continue searching a bit more" << endl;
       search->runWholeSearch(getOpp(nextPla),logger,NULL);
 
-      out << search->rootBoard << endl;
-      search->printTree(out, search->rootNode, options);
-      expected = R"%%(
-HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
-   A B C D E F G
- 7 X . X X X X X
- 6 X X X X X X X
- 5 X X X X . X X
- 4 . X X O O O O
- 3 X X X O . X X
- 2 O O O O O O O
- 1 O . . O O . X
-
-
-: T   1.89c W   1.64c S   0.25c ( +0.3) V   0.83c N     400  --  E5 B1 F1 pass E3 C1 E3
----Black(v)---
-E5  : T   1.55c W   1.31c S   0.24c ( +0.3) V  -5.64c P 10.84% VW 83.90% N     396  --  B1 F1 pass E3 C1 E3 F3
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW 16.10% N       3  --
-
-)%%";
-      expect(name,out,expected);
+      cout << search->rootBoard << endl;
+      search->printTree(cout, search->rootNode, options);
 
       delete search;
       delete nnEval;
+      cout << endl;
     }
 
 

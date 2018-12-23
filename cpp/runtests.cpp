@@ -30,12 +30,20 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Tests::runBoardUndoTest();
   Tests::runNNInputsV2Tests();
   Tests::runNNInputsV3Tests();
-  Tests::runAutoSearchTests();
   Tests::runBoardStressTest();
 
-  Tests::runTrainingWriteTests();
-
   cout << "All tests passed" << endl;
+  return 0;
+}
+
+int MainCmds::runoutputtests(int argc, const char* const* argv) {
+  (void)argc;
+  (void)argv;
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Tests::runNNLessSearchTests();
+  Tests::runTrainingWriteTests();
   return 0;
 }
 
