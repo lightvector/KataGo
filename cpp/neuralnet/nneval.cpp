@@ -691,7 +691,7 @@ void NNEvaluator::evaluate(
     if(modelVersion <= 2) {
       //No postprocessing needed, cudabackend fills with zeros, which is exactly fine.
     }
-    else if(modelVersion == 3) {
+    else if(modelVersion == 3 || modelVersion == 4) {
       for(int pos = 0; pos<posLen*posLen; pos++) {
         int y = pos / posLen;
         int x = pos % posLen;
@@ -706,6 +706,9 @@ void NNEvaluator::evaluate(
             buf.result->whiteOwnerMap[pos] = -tanh(buf.result->whiteOwnerMap[pos]);
         }
       }
+    }
+    else {
+      throw StringError("NNEval value postprocessing not implemented for model version");
     }
   }
 

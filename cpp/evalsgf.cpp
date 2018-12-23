@@ -26,20 +26,22 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   int numThreads;
   bool printOwnership;
   bool printScoreNow;
+  bool printRootEndingBonus;
   try {
     TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', "1.0",true);
-    TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
-    TCLAP::ValueArg<string> modelFileArg("","model-file","Neural net model file to use",true,string(),"FILE");
+    TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
+    TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
-    TCLAP::ValueArg<int> moveNumArg("","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");
+    TCLAP::ValueArg<int> moveNumArg("m","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");
     TCLAP::ValueArg<string> printBranchArg("","print-branch","Move branch in search tree to print",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> printArg("p","print","Alias for -print-branch",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraMovesArg("","extra-moves","Extra moves to force-play before doing search",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraArg("e","extra","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
-    TCLAP::ValueArg<int> visitsArg("v","visits","Set the number of visits",false,-1,"VISTIS");
+    TCLAP::ValueArg<int> visitsArg("v","visits","Set the number of visits",false,-1,"VISITS");
     TCLAP::ValueArg<int> threadsArg("t","threads","Set the number of threads",false,-1,"THREADS");
-    TCLAP::SwitchArg printOwnershipArg("o","print-ownership","Print ownership");
+    TCLAP::SwitchArg printOwnershipArg("","print-ownership","Print ownership");
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
+    TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
     cmd.add(sgfFileArg);
@@ -52,6 +54,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(threadsArg);
     cmd.add(printOwnershipArg);
     cmd.add(printScoreNowArg);
+    cmd.add(printRootEndingBonusArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     modelFile = modelFileArg.getValue();
@@ -65,6 +68,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     numThreads = threadsArg.getValue();
     printOwnership = printOwnershipArg.getValue();
     printScoreNow = printScoreNowArg.getValue();
+    printRootEndingBonus = printRootEndingBonusArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
       cerr << "Error: -print-branch and -print both specified" << endl;
@@ -248,7 +252,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   }
 
   if(printScoreNow) {
-    sout << "Score now (ROOT) position):\n";
+    sout << "Score now (ROOT position):\n";
     Board copy(board);
     BoardHistory copyHist(hist);
     Color area[Board::MAX_ARR_SIZE];
@@ -266,6 +270,11 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     sout << "Komi: " << copyHist.rules.komi << endl;
     sout << "WBonus: " << copyHist.whiteBonusScore << endl;
     sout << "Final: " << copyHist.finalWhiteMinusBlackScore << endl;
+  }
+
+  if(printRootEndingBonus) {
+    sout << "Ending bonus (ROOT position)\n";
+    search->printRootEndingScoreValueBonus(sout);
   }
 
   sout << "Time taken: " << timer.getSeconds() << "\n";

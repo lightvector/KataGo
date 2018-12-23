@@ -75,14 +75,14 @@ def get_policy_output(session, board, boards, moves, use_history_prop, rules):
   return fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output])
 
 def get_scorebelief_output(session, board, boards, moves, use_history_prop, rules):
-  return fetch_output(session,board,boards,moves,use_history_prop,rules,[scorebelief_output,sbscale])
+  return fetch_output(session,board,boards,moves,use_history_prop,rules,[scorebelief_output,scoremean_output,scorestdev_output,sbscale])
 def get_bonusbelief_output(session, board, boards, moves, use_history_prop, rules):
   return fetch_output(session,board,boards,moves,use_history_prop,rules,[bonusbelief_output,bbscale])
 
 def get_policy_and_value_output(session, board, boards, moves, use_history_prop, rules):
   (policy,value,scoremean) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output,value_output,scoremean_output])
   value = list(value)
-  value.append(math.tan(scoremean*math.pi*0.5)*board.size*2)
+  value.append(scoremean)
   return (policy,value)
 
 def get_ownership_values(session, board, boards, moves, use_history_prop, rules):
@@ -271,10 +271,12 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
 
   gfx_commands.append("TEXT " + ", ".join(texts_value + texts_rev + texts))
 
-def print_scorebelief(board,scorebelief,sbscale):
+def print_scorebelief(board,scorebelief,scoremean,scorestdev,sbscale):
   scorebelief = list(scorebelief)
   if board.pla != Board.WHITE:
     scorebelief.reverse()
+    scoremean = -scoremean
+
   scoredistrmid = pos_len * pos_len + ModelV3.EXTRA_SCORE_DISTR_RADIUS
   ret = ""
   ret += "TEXT "
@@ -296,6 +298,7 @@ def print_scorebelief(board,scorebelief,sbscale):
     ret += "\n"
 
   beliefscore = 0
+  beliefscoresq = 0
   beliefwin = 0
   belieftotal = 0
   for idx in range(scoredistrmid*2):
@@ -306,8 +309,18 @@ def print_scorebelief(board,scorebelief,sbscale):
       beliefwin -= scorebelief[idx]
     belieftotal += scorebelief[idx]
     beliefscore += score*scorebelief[idx]
+    beliefscoresq += score*score*scorebelief[idx]
+
+  beliefscoremean = beliefscore/belieftotal
+  beliefscoremeansq = beliefscoresq/belieftotal
+  beliefscorevar = max(0,beliefscoremeansq-beliefscoremean*beliefscoremean)
+  beliefscorestdev = math.sqrt(beliefscorevar)
+
   ret += "TEXT BeliefWin: %.2fc\n" % (100*beliefwin/belieftotal)
-  ret += "TEXT BeliefScoreMean: %.1f\n" % (beliefscore/belieftotal)
+  ret += "TEXT BeliefScoreMean: %.1f\n" % (beliefscoremean)
+  ret += "TEXT BeliefScoreStdev: %.1f\n" % (beliefscorestdev)
+  ret += "TEXT ScoreMean: %.1f\n" % (scoremean)
+  ret += "TEXT ScoreStdev: %.1f\n" % (scorestdev)
   return ret
 
 def print_bonusbelief(board,bonusbelief,bbscale):
@@ -699,8 +712,8 @@ def run_gtp(session):
         "passWouldEndPhase": False,
         "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
       }
-      [scorebelief,sbscale] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
-      ret = print_scorebelief(board,scorebelief,sbscale)
+      [scorebelief,scoremean,scorestdev,sbscale] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      ret = print_scorebelief(board,scorebelief,scoremean,scorestdev,sbscale)
 
     elif command[0] == "scorebelief-japanese":
       rules = {
@@ -711,8 +724,8 @@ def run_gtp(session):
         "passWouldEndPhase": False,
         "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
       }
-      [scorebelief,sbscale] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
-      ret = print_scorebelief(board,scorebelief,sbscale)
+      [scorebelief,scoremean,scorestdev,sbscale] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      ret = print_scorebelief(board,scorebelief,scoremean,scorestdev,sbscale)
 
     elif command[0] == "bonusbelief":
       rules = {

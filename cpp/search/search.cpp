@@ -958,7 +958,8 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     //Human japanese rules often "want" you to fill the dame so this is a cosmetic adjustment to encourage the neural
     //net to learn to do so in the main phase rather than waiting until the encore.
     //But cosmetically, it's also not great if we just encourage useless threat moves in the opponent's territory to prolong the game.
-    //So also discourage those moves except in cases of ko.
+    //So also discourage those moves except in cases of ko. Also similar to area scoring just to be symmetrical, discourage moves on spots
+    //that the player almost surely owns that are not adjacent to opponent stones and are not a connection of non-pass-alive groups.
     if(moveLoc == Board::PASS_LOC)
       extraRootPoints -= searchParams.rootEndingBonusPoints * (2.0/3.0);
     else if(rootBoard.ko_loc == Board::NULL_LOC) {
@@ -966,6 +967,12 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
       if(plaOwnership <= -0.95)
         extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.95 - plaOwnership) / 0.05);
+      else if(plaOwnership >= 0.95) {
+        if(!rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) &&
+           !rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
+          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - 0.95) / 0.05);
+        }
+      }
     }
   }
 
