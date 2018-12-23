@@ -70,13 +70,14 @@ void Tests::runTrainingWriteTests() {
   logger.setLogTime(false);
   logger.addOStream(cout);
 
-  auto run = [&](const string& seedBase, const Rules& rules) {
+  auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite) {
     TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, posLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
     NNEvaluator* nnEval = startNNEval(seedBase+"nneval",logger,0,true,false,false);
 
     SearchParams params;
     params.maxVisits = 100;
+    params.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
 
     MatchPairer::BotSpec botSpec;
     botSpec.botIdx = 0;
@@ -110,6 +111,7 @@ void Tests::runTrainingWriteTests() {
       rand
     );
 
+    cout << "seedBase: " << seedBase << endl;
     cout << gameData->startHist.getRecentBoard(0) << endl;
     gameData->endHist.printDebugInfo(cout,gameData->endHist.getRecentBoard(0));
 
@@ -119,16 +121,21 @@ void Tests::runTrainingWriteTests() {
     dataWriter.flushIfNonempty();
 
     delete nnEval;
+    cout << endl;
   };
 
-  run("testtrainingwrite-tt",Rules::getTrompTaylorish());
+  run("testtrainingwrite-tt",Rules::getTrompTaylorish(),0.5);
 
   Rules rules;
   rules.koRule = Rules::KO_SIMPLE;
   rules.scoringRule = Rules::SCORING_TERRITORY;
   rules.multiStoneSuicideLegal = false;
   rules.komi = 5;
-  run("testtrainingwrite-jp",rules);
+  run("testtrainingwrite-jp",rules,0.5);
+
+  rules = Rules::getTrompTaylorish();
+  rules.komi = 7;
+  run("testtrainingwrite-gooddraws",rules,0.7);
 
   NeuralNet::globalCleanup();
 }

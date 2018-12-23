@@ -106,7 +106,7 @@ struct TrainingWriteBuffers {
   //C12-15: MCTS win-loss-noresult estimate td-like target, lambda = 3/4, nowFactor = 1/4
   //C16-19: MCTS win-loss-noresult estimate td-like target, lambda = 0, nowFactor = 1 (no-temporal-averaging MCTS search result)
 
-  //C20: Actual final score, from the perspective of the player to move, zero if C27 is zero.
+  //C20: Actual final score, from the perspective of the player to move, adjusted for draw utility, zero if C27 is zero.
   //C21: MCTS utility variance, 1->4 visits
   //C22: MCTS utility variance, 4->16 visits
   //C23: MCTS utility variance, 16->64 visits

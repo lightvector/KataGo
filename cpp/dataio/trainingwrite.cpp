@@ -378,9 +378,9 @@ void TrainingWriteBuffers::addRow(
       rowScoreDistr[scoreDistrLen] = 100;
     else {
       float lambda = score - (centerScore-0.5f);
-      int lowerProp = round(lambda*100.0f);
-      rowScoreDistr[lowerIdx] = lowerProp;
-      rowScoreDistr[upperIdx] = 100-lowerProp;
+      int upperProp = round(lambda*100.0f);
+      rowScoreDistr[lowerIdx] = 100-upperProp;
+      rowScoreDistr[upperIdx] = upperProp;
     }
 
     //Fill bonus score vector "onehot"-like
