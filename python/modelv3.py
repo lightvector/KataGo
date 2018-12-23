@@ -1156,7 +1156,7 @@ class Target_varsV3:
       2.0 * tf.reduce_sum(tf.square(self.value_target - value_probs),axis=1)
     )
 
-    self.scoremean_loss_unreduced = 0.00005 * (
+    self.scoremean_loss_unreduced = 0.00003 * (
       tf.square(self.scoremean_target - scoremean_prediction * value_probs[:,2]) #Multiply by value_probs[:,2] (the no-result prob) to make it an unconditional prediction
     )
 
