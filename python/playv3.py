@@ -43,7 +43,8 @@ with open(modelconfigpath) as f:
 model = ModelV3(model_config,pos_len,{})
 policy_output = tf.nn.softmax(model.policy_output)
 value_output = tf.nn.softmax(model.value_output)
-scorevalue_output = two_over_pi * tf.atan(model.miscvalues_output[:,0])
+scoremean_output = 20.0 * model.miscvalues_output[:,0]
+scorestdev_output = 20.0 * tf.math.softplus(model.miscvalues_output[:,1])
 ownership_output = tf.tanh(model.ownership_output)
 scorebelief_output = tf.nn.softmax(model.scorebelief_output)
 bonusbelief_output = tf.nn.softmax(model.bonusbelief_output)
@@ -79,9 +80,9 @@ def get_bonusbelief_output(session, board, boards, moves, use_history_prop, rule
   return fetch_output(session,board,boards,moves,use_history_prop,rules,[bonusbelief_output,bbscale])
 
 def get_policy_and_value_output(session, board, boards, moves, use_history_prop, rules):
-  (policy,value,scorevalue) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output,value_output,scorevalue_output])
+  (policy,value,scoremean) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output,value_output,scoremean_output])
   value = list(value)
-  value.append(math.tan(scorevalue*math.pi*0.5)*board.size*2)
+  value.append(math.tan(scoremean*math.pi*0.5)*board.size*2)
   return (policy,value)
 
 def get_ownership_values(session, board, boards, moves, use_history_prop, rules):
@@ -295,7 +296,6 @@ def print_scorebelief(board,scorebelief,sbscale):
     ret += "\n"
 
   beliefscore = 0
-  beliefscorevalue = 0
   beliefwin = 0
   belieftotal = 0
   for idx in range(scoredistrmid*2):
@@ -306,10 +306,8 @@ def print_scorebelief(board,scorebelief,sbscale):
       beliefwin -= scorebelief[idx]
     belieftotal += scorebelief[idx]
     beliefscore += score*scorebelief[idx]
-    beliefscorevalue += math.atan(score/(2*board.size))*2/math.pi*scorebelief[idx]
   ret += "TEXT BeliefWin: %.2fc\n" % (100*beliefwin/belieftotal)
-  ret += "TEXT BeliefScore: %.1f\n" % (beliefscore/belieftotal)
-  ret += "TEXT BeliefScoreValue: %.1fc\n" % (100*beliefscorevalue/belieftotal)
+  ret += "TEXT BeliefScoreMean: %.1f\n" % (beliefscore/belieftotal)
   return ret
 
 def print_bonusbelief(board,bonusbelief,bbscale):

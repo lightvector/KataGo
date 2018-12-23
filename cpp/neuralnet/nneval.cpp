@@ -293,8 +293,8 @@ void NNEvaluator::serve(
         //(or in the case of model version 2, it will only just pay attention to the value of whiteWinProb and tanh it)
         double whiteWinProb = 0.0 + rand.nextGaussian() * 0.20;
         double whiteLossProb = 0.0 + rand.nextGaussian() * 0.20;
-        double whiteScoreMean = 0.0 + rand.nextGaussian() * 4.00;
-        double whiteScoreMeanSq = whiteScoreMean * whiteScoreMean + 4.00;
+        double whiteScoreMean = 0.0 + rand.nextGaussian() * 0.20;
+        double whiteScoreMeanSq = 0.0 + rand.nextGaussian() * 0.20;
         double whiteNoResultProb = 0.0 + rand.nextGaussian() * 0.20;
         resultBuf->result->whiteWinProb = whiteWinProb;
         resultBuf->result->whiteLossProb = whiteLossProb;
@@ -622,12 +622,14 @@ void NNEvaluator::evaluate(
       double winProb;
       double lossProb;
       double noResultProb;
-      double scoreMean = buf.result->whiteScoreMean;
-      double scoreMeanSq = buf.result->whiteScoreMeanSq;
+      double scoreMean;
+      double scoreMeanSq;
       {
         double winLogits = buf.result->whiteWinProb;
         double lossLogits = buf.result->whiteLossProb;
         double noResultLogits = buf.result->whiteNoResultProb;
+        double scoreMeanPreScaled = buf.result->whiteScoreMean;
+        double scoreStdevPreSoftplus = buf.result->whiteScoreMeanSq;
 
         //Softmax
         double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
@@ -639,6 +641,17 @@ void NNEvaluator::evaluate(
         winProb /= probSum;
         lossProb /= probSum;
         noResultProb /= probSum;
+
+        scoreMean = scoreMeanPreScaled * 20.0;
+
+        double scoreStdev;
+        //Avoid blowup
+        if(scoreStdevPreSoftplus > 40.0)
+          scoreStdev = scoreStdevPreSoftplus;
+        else
+          scoreStdev = log(1.0 + exp(scoreStdevPreSoftplus)) * 20.0;
+
+        scoreMeanSq = scoreMean * scoreMean + scoreStdev * scoreStdev;
 
         if(isnan(probSum) || isnan(scoreMean) || isnan(scoreMeanSq)) {
           cout << "Got nan for nneval value" << endl;

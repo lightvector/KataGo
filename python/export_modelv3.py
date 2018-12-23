@@ -308,9 +308,9 @@ with tf.Session(config=tfconfig) as session:
       write_matmul("v3/w",model.v2_size,model.v3_size,get_weights("v3/w"))
       write_matbias("v3/b",model.v3_size,get_weights("v3/b"))
 
-      #For now, only output the scorevalue channel
-      write_matmul("sv3/w",model.v2_size,1,get_weights("mv3/w")[:,0:1])
-      write_matbias("sv3/b",1,get_weights("mv3/b")[0:1])
+      #For now, only output the scoremean and scorestdev channels
+      write_matmul("sv3/w",model.v2_size,2,get_weights("mv3/w")[:,0:2])
+      write_matbias("sv3/b",2,get_weights("mv3/b")[0:2])
       #write_matmul("mv3/w",model.v2_size,model.mv3_size,get_weights("mv3/w"))
       #write_matbias("mv3/b",model.mv3_size,get_weights("mv3/b"))
 
