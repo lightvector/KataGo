@@ -715,7 +715,7 @@ E7  : T  -1.59c W  -5.87c S   4.28c ( +4.9) V  -5.10c P  7.16% VW 10.02% N      
 F7  : T  -0.28c W   0.71c S  -1.00c ( -1.1) V  -6.15c P  6.99% VW  9.86% N       3  --  E1 B7
 D5  : T  -1.36c W  -2.89c S   1.53c ( +1.7) V  -1.38c P  5.51% VW  9.99% N       3  --  pass E1
 F3  : T   1.60c W  -0.69c S   2.29c ( +2.5) V  -3.19c P  4.49% VW  9.64% N       3  --  E1 G1
-A5  : T  -2.94c W  -5.36c S   2.42c ( +2.7) V  -4.97c P  4.20% VW 10.16% N       2  --  G1
+A5  : T  -2.94c W  -5.36c S   2.41c ( +2.7) V  -4.97c P  4.20% VW 10.16% N       2  --  G1
 : T  -1.75c W  -2.37c S   0.61c ( +0.7) V  -8.80c N      50  --  G7 C1 D5 A4
 G7  : T  -2.78c W  -3.77c S   0.99c ( +1.1) V  -1.20c P 15.99% VW 10.21% N      11  --  C1 D5 A4
 ---White(^)---
@@ -970,25 +970,25 @@ HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
  1 O . . O O . X
 
 
-: T   0.74c W   0.92c S  -0.17c ( -0.2) V -24.58c N     400  --  pass E3 pass B1 E5 E3 G3
+: T   1.44c W   1.44c S   0.00c ( +0.0) V -24.58c N     400  --  pass E3 pass B1 E5 E3 G3
 ---White(^)---
-pass : T   1.00c W   0.85c S   0.15c ( +0.2) V   0.83c P 55.02% VW 17.28% N     234  --  E3 pass B1 E5 E3 G3
-E5  : T   0.99c W   1.49c S  -0.50c ( -0.6) V  -2.59c P 15.48% VW 17.24% N      64  --  C1 E3 A4 G3 B7 C6
-F1  : T   1.42c W   2.45c S  -1.03c ( -1.2) V   7.83c P 12.74% VW 17.41% N      58  --  E3 E3 B7 C1 F3
-C1  : T  -0.28c W  -0.32c S   0.03c ( +0.0) V  -5.63c P  9.67% VW 16.76% N      30  --  E3 G3 pass F3 E5 E3
-E3  : T  -2.61c W  -2.61c S   0.00c ( +0.0) V  -6.91c P  4.59% VW 16.22% N      10  --  C1 B1 G3
-B1  : T  -9.40c W  -7.28c S  -2.12c ( -2.4) V  -7.21c P  2.50% VW 15.09% N       3  --  pass F1
-: T   0.74c W   0.92c S  -0.17c ( -0.2) V -24.58c N     400  --  pass E3 pass B1 E5 E3 G3
-pass : T   1.00c W   0.85c S   0.15c ( +0.2) V   0.83c P 55.02% VW 17.28% N     234  --  E3 pass B1 E5 E3 G3
+pass : T   1.68c W   1.56c S   0.12c ( +0.1) V   0.83c P 55.02% VW 17.27% N     226  --  E3 pass B1 E5 E3 G3 C1
+E5  : T   1.86c W   1.60c S   0.26c ( +0.3) V  -2.59c P 15.48% VW 17.32% N      64  --  F1 B1 E3 F1 E3
+F1  : T   1.88c W   2.20c S  -0.32c ( -0.4) V   7.83c P 12.74% VW 17.32% N      59  --  E3 E3 B7 C1 F3
+C1  : T   1.01c W   1.15c S  -0.14c ( -0.2) V  -5.63c P  9.67% VW 16.97% N      37  --  E3 G3 pass F3 E5 E3
+E3  : T  -2.15c W  -1.63c S  -0.52c ( -0.6) V  -6.91c P  4.59% VW 16.16% N      10  --  C1 B1 G3
+B1  : T  -9.40c W  -7.28c S  -2.12c ( -2.4) V  -7.21c P  2.50% VW 14.96% N       3  --  pass F1
+: T   1.44c W   1.44c S   0.00c ( +0.0) V -24.58c N     400  --  pass E3 pass B1 E5 E3 G3
+pass : T   1.68c W   1.56c S   0.12c ( +0.1) V   0.83c P 55.02% VW 17.27% N     226  --  E3 pass B1 E5 E3 G3 C1
 ---Black(v)---
-pass E3  : T  -0.53c W  -0.49c S  -0.04c ( -0.0) V   5.51c P 26.44% VW 14.54% N      87  --  pass B1 E5 E3 G3
-pass F1  : T   0.67c W   0.81c S  -0.14c ( -0.2) V  -7.20c P 10.92% VW 14.02% N      34  --  G1 C1 pass E5
-pass E5  : T   0.15c W   0.59c S  -0.45c ( -0.5) V  -5.64c P 10.84% VW 14.17% N      32  --  B1 F1 pass E3 C1
-pass A4  : T   2.19c W   1.66c S   0.52c ( +0.6) V -10.36c P 14.19% VW 13.57% N      30  --  F1 C1 B1 E5
-pass B7  : T  -0.93c W  -1.16c S   0.23c ( +0.3) V   5.74c P  6.19% VW 14.45% N      25  --  B1 F1 pass A4
-pass C1  : T   7.77c W   6.08c S   1.68c ( +1.9) V  -4.22c P 11.73% VW 12.28% N      14  --  pass A4 pass pass
-pass B1  : T   1.42c W   0.06c S   1.36c ( +1.6) V  -7.93c P  3.89% VW 13.79% N       9  --  C1 A4 B1
-pass pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW  3.17% N       2  --
+pass E3  : T  -0.94c W  -0.83c S  -0.11c ( -0.1) V   5.51c P 26.44% VW 15.29% N     104  --  pass B1 E5 E3 G3 C1 F1
+pass E5  : T   0.18c W   0.34c S  -0.16c ( -0.2) V  -5.64c P 10.84% VW 14.65% N      38  --  B1 F1 pass E3 C1
+pass F1  : T   2.13c W   1.83c S   0.30c ( +0.3) V  -7.20c P 10.92% VW 14.04% N      26  --  G1 C1 pass E5
+pass A4  : T   7.85c W   7.66c S   0.19c ( +0.2) V -10.36c P 14.19% VW 12.50% N      21  --  C1 B7 F1 E5
+pass C1  : T   8.39c W   7.57c S   0.82c ( +0.9) V  -4.22c P 11.73% VW 12.51% N      14  --  pass E5 F1 A4 B1
+pass B7  : T   4.23c W   3.35c S   0.89c ( +1.0) V   5.74c P  6.19% VW 13.55% N      11  --  pass B1 C1
+pass B1  : T   1.31c W  -0.00c S   1.31c ( +1.5) V  -7.93c P  3.89% VW 14.21% N       9  --  C1 A4 B1
+pass pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW  3.26% N       2  --
 
 )%%";
       expect(name,out,expected);
@@ -1012,16 +1012,16 @@ HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
  1 O . . O O . X
 
 
-: T   1.00c W   0.85c S   0.15c ( +0.2) V   0.83c N     234  --  E3 pass B1 E5 E3 G3
+: T   1.68c W   1.56c S   0.12c ( +0.1) V   0.83c N     226  --  E3 pass B1 E5 E3 G3 C1
 ---Black(v)---
-E3  : T  -0.53c W  -0.49c S  -0.04c ( -0.0) V   5.51c P 26.44% VW 14.54% N      87  --  pass B1 E5 E3 G3
-F1  : T   0.67c W   0.81c S  -0.14c ( -0.2) V  -7.20c P 10.92% VW 14.02% N      34  --  G1 C1 pass E5
-E5  : T   0.15c W   0.59c S  -0.45c ( -0.5) V  -5.64c P 10.84% VW 14.17% N      32  --  B1 F1 pass E3 C1
-A4  : T   2.19c W   1.66c S   0.52c ( +0.6) V -10.36c P 14.19% VW 13.57% N      30  --  F1 C1 B1 E5
-B7  : T  -0.93c W  -1.16c S   0.23c ( +0.3) V   5.74c P  6.19% VW 14.45% N      25  --  B1 F1 pass A4
-C1  : T   7.77c W   6.08c S   1.68c ( +1.9) V  -4.22c P 11.73% VW 12.28% N      14  --  pass A4 pass pass
-B1  : T   1.42c W   0.06c S   1.36c ( +1.6) V  -7.93c P  3.89% VW 13.79% N       9  --  C1 A4 B1
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW  3.17% N       2  --
+E3  : T  -0.94c W  -0.83c S  -0.11c ( -0.1) V   5.51c P 26.44% VW 15.29% N     104  --  pass B1 E5 E3 G3 C1 F1
+E5  : T   0.18c W   0.34c S  -0.16c ( -0.2) V  -5.64c P 10.84% VW 14.65% N      38  --  B1 F1 pass E3 C1
+F1  : T   2.13c W   1.83c S   0.30c ( +0.3) V  -7.20c P 10.92% VW 14.04% N      26  --  G1 C1 pass E5
+A4  : T   7.85c W   7.66c S   0.19c ( +0.2) V -10.36c P 14.19% VW 12.50% N      21  --  C1 B7 F1 E5
+C1  : T   8.39c W   7.57c S   0.82c ( +0.9) V  -4.22c P 11.73% VW 12.51% N      14  --  pass E5 F1 A4 B1
+B7  : T   4.23c W   3.35c S   0.89c ( +1.0) V   5.74c P  6.19% VW 13.55% N      11  --  pass B1 C1
+B1  : T   1.31c W  -0.00c S   1.31c ( +1.5) V  -7.93c P  3.89% VW 14.21% N       9  --  C1 A4 B1
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW  3.26% N       2  --
 
 )%%";
       expect(name,out,expected);
@@ -1045,10 +1045,10 @@ HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
  1 O . . O O . X
 
 
-: T   3.00c W   3.37c S  -0.36c ( -0.4) V   0.83c N      35  --  E5 B1 F1 pass E3 C1
+: T   2.61c W   2.71c S  -0.11c ( -0.1) V   0.83c N      41  --  E5 B1 F1 pass E3 C1
 ---Black(v)---
-E5  : T   0.15c W   0.59c S  -0.45c ( -0.5) V  -5.64c P 10.84% VW 82.04% N      32  --  B1 F1 pass E3 C1
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW 17.96% N       2  --
+E5  : T   0.18c W   0.34c S  -0.16c ( -0.2) V  -5.64c P 10.84% VW 82.05% N      38  --  B1 F1 pass E3 C1
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW 17.95% N       2  --
 
 )%%";
       expect(name,out,expected);
@@ -1070,10 +1070,10 @@ HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
  1 O . . O O . X
 
 
-: T   1.57c W   1.77c S  -0.20c ( -0.2) V   0.83c N     400  --  E5 B1 E3 G3 F1 pass F1
+: T   1.89c W   1.64c S   0.25c ( +0.3) V   0.83c N     400  --  E5 B1 F1 pass E3 C1 E3
 ---Black(v)---
-E5  : T   1.23c W   1.45c S  -0.21c ( -0.2) V  -5.64c P 10.84% VW 83.98% N     396  --  B1 E3 G3 F1 pass F1 C1
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW 16.02% N       3  --
+E5  : T   1.55c W   1.31c S   0.24c ( +0.3) V  -5.64c P 10.84% VW 83.90% N     396  --  B1 F1 pass E3 C1 E3 F3
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW 16.10% N       3  --
 
 )%%";
       expect(name,out,expected);

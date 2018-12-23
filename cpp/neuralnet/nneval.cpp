@@ -606,14 +606,14 @@ void NNEvaluator::evaluate(
         buf.result->whiteWinProb = winProb;
         buf.result->whiteLossProb = lossProb;
         buf.result->whiteNoResultProb = noResultProb;
-        buf.result->whiteScoreMean = ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,board);
+        buf.result->whiteScoreMean = ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board);
         buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
       }
       else {
         buf.result->whiteWinProb = lossProb;
         buf.result->whiteLossProb = winProb;
         buf.result->whiteNoResultProb = noResultProb;
-        buf.result->whiteScoreMean = -ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,board);
+        buf.result->whiteScoreMean = -ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board);
         buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
       }
 

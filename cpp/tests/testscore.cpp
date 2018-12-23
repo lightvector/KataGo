@@ -26,14 +26,14 @@ void Tests::runScoreTests() {
       string s = Global::strprintf("%.1f", drawEquiv);
       double scoreAdjusted = ScoreValue::whiteScoreDrawAdjust(score, drawEquiv, hist);
       double stdev = sqrt(std::max(0.0,ScoreValue::whiteScoreMeanSqOfScoreGridded(score,drawEquiv,hist) - scoreAdjusted * scoreAdjusted));
-      double expectedScoreValue = ScoreValue::expectedWhiteScoreValue(scoreAdjusted, stdev, 0.0, board);
+      double expectedScoreValue = ScoreValue::expectedWhiteScoreValue(scoreAdjusted, stdev, 0.0, 2.0, board);
       out << "WL Wins wins/draw=" << s << ": " << ScoreValue::whiteWinsOfWinner(hist.winner, drawEquiv) << endl;
       out << "Score wins/draw=" << s << ": " << scoreAdjusted << endl;
       out << "Score Stdev wins/draw=" << s << ": " << stdev << endl;
-      out << "Score Util Smooth  wins/draw=" << s << ": " << ScoreValue::whiteScoreValueOfScoreSmooth(score, 0.0, drawEquiv, board, hist) << endl;
-      out << "Score Util SmootND wins/draw=" << s << ": " << ScoreValue::whiteScoreValueOfScoreSmoothNoDrawAdjust(score, 0.0, board) << endl;
+      out << "Score Util Smooth  wins/draw=" << s << ": " << ScoreValue::whiteScoreValueOfScoreSmooth(score, 0.0, 2.0, drawEquiv, board, hist) << endl;
+      out << "Score Util SmootND wins/draw=" << s << ": " << ScoreValue::whiteScoreValueOfScoreSmoothNoDrawAdjust(score, 0.0, 2.0, board) << endl;
       out << "Score Util Gridded wins/draw=" << s << ": " << expectedScoreValue << endl;
-      out << "Score Util GridInv wins/draw=" << s << ": " << ScoreValue::approxWhiteScoreOfScoreValueSmooth(expectedScoreValue,0.0,board) << endl;
+      out << "Score Util GridInv wins/draw=" << s << ": " << ScoreValue::approxWhiteScoreOfScoreValueSmooth(expectedScoreValue,0.0,2.0,board) << endl;
     }
   };
 
@@ -72,29 +72,29 @@ Score wins/draw=0.5: 7.5
 Score Stdev wins/draw=0.5: 0
 Score Util Smooth  wins/draw=0.5: 0.251332
 Score Util SmootND wins/draw=0.5: 0.251332
-Score Util Gridded wins/draw=0.5: 0.251302
-Score Util GridInv wins/draw=0.5: 7.49901
+Score Util Gridded wins/draw=0.5: 0.251202
+Score Util GridInv wins/draw=0.5: 7.49569
 WL Wins wins/draw=0.3: 1
 Score wins/draw=0.3: 7.5
 Score Stdev wins/draw=0.3: 0
 Score Util Smooth  wins/draw=0.3: 0.251332
 Score Util SmootND wins/draw=0.3: 0.251332
-Score Util Gridded wins/draw=0.3: 0.251302
-Score Util GridInv wins/draw=0.3: 7.49901
+Score Util Gridded wins/draw=0.3: 0.251202
+Score Util GridInv wins/draw=0.3: 7.49569
 WL Wins wins/draw=0.7: 1
 Score wins/draw=0.7: 7.5
 Score Stdev wins/draw=0.7: 0
 Score Util Smooth  wins/draw=0.7: 0.251332
 Score Util SmootND wins/draw=0.7: 0.251332
-Score Util Gridded wins/draw=0.7: 0.251302
-Score Util GridInv wins/draw=0.7: 7.49901
+Score Util Gridded wins/draw=0.7: 0.251202
+Score Util GridInv wins/draw=0.7: 7.49569
 WL Wins wins/draw=1.0: 1
 Score wins/draw=1.0: 7.5
 Score Stdev wins/draw=1.0: 0
 Score Util Smooth  wins/draw=1.0: 0.251332
 Score Util SmootND wins/draw=1.0: 0.251332
-Score Util Gridded wins/draw=1.0: 0.251302
-Score Util GridInv wins/draw=1.0: 7.49901
+Score Util Gridded wins/draw=1.0: 0.251202
+Score Util GridInv wins/draw=1.0: 7.49569
 )%%";
     expect(name,out,expected);
   }
@@ -135,29 +135,29 @@ Score wins/draw=0.5: 7
 Score Stdev wins/draw=0.5: 0.5
 Score Util Smooth  wins/draw=0.5: 0.236117
 Score Util SmootND wins/draw=0.5: 0.236117
-Score Util Gridded wins/draw=0.5: 0.23594
-Score Util GridInv wins/draw=0.5: 6.99425
+Score Util Gridded wins/draw=0.5: 0.235795
+Score Util GridInv wins/draw=0.5: 6.98954
 WL Wins wins/draw=0.3: 1
 Score wins/draw=0.3: 6.8
 Score Stdev wins/draw=0.3: 0.458258
 Score Util Smooth  wins/draw=0.3: 0.229949
 Score Util SmootND wins/draw=0.3: 0.236117
-Score Util Gridded wins/draw=0.3: 0.229811
-Score Util GridInv wins/draw=0.3: 6.79552
+Score Util Gridded wins/draw=0.3: 0.229594
+Score Util GridInv wins/draw=0.3: 6.78852
 WL Wins wins/draw=0.7: 1
 Score wins/draw=0.7: 7.2
 Score Stdev wins/draw=0.7: 0.458258
 Score Util Smooth  wins/draw=0.7: 0.242238
 Score Util SmootND wins/draw=0.7: 0.236117
-Score Util Gridded wins/draw=0.7: 0.242084
-Score Util GridInv wins/draw=0.7: 7.19495
+Score Util Gridded wins/draw=0.7: 0.241938
+Score Util GridInv wins/draw=0.7: 7.19017
 WL Wins wins/draw=1.0: 1
 Score wins/draw=1.0: 7.5
 Score Stdev wins/draw=1.0: 0
 Score Util Smooth  wins/draw=1.0: 0.251332
 Score Util SmootND wins/draw=1.0: 0.236117
-Score Util Gridded wins/draw=1.0: 0.251302
-Score Util GridInv wins/draw=1.0: 7.49901
+Score Util Gridded wins/draw=1.0: 0.251202
+Score Util GridInv wins/draw=1.0: 7.49569
 )%%";
     expect(name,out,expected);
   }
@@ -198,29 +198,30 @@ Score wins/draw=0.5: 0
 Score Stdev wins/draw=0.5: 0.5
 Score Util Smooth  wins/draw=0.5: 0
 Score Util SmootND wins/draw=0.5: 0
-Score Util Gridded wins/draw=0.5: 0
-Score Util GridInv wins/draw=0.5: 0
+Score Util Gridded wins/draw=0.5: 3.46945e-18
+Score Util GridInv wins/draw=0.5: 9.80963e-17
 WL Wins wins/draw=0.3: 0.3
 Score wins/draw=0.3: -0.2
 Score Stdev wins/draw=0.3: 0.458258
 Score Util Smooth  wins/draw=0.3: -0.00707326
 Score Util SmootND wins/draw=0.3: 0
-Score Util Gridded wins/draw=0.3: -0.00706842
-Score Util GridInv wins/draw=0.3: -0.199863
+Score Util Gridded wins/draw=0.3: -0.00706253
+Score Util GridInv wins/draw=0.3: -0.199697
 WL Wins wins/draw=0.7: 0.7
 Score wins/draw=0.7: 0.2
 Score Stdev wins/draw=0.7: 0.458258
 Score Util Smooth  wins/draw=0.7: 0.00707326
 Score Util SmootND wins/draw=0.7: 0
-Score Util Gridded wins/draw=0.7: 0.00706842
-Score Util GridInv wins/draw=0.7: 0.199863
+Score Util Gridded wins/draw=0.7: 0.00706253
+Score Util GridInv wins/draw=0.7: 0.199697
 WL Wins wins/draw=1.0: 1
 Score wins/draw=1.0: 0.5
 Score Stdev wins/draw=1.0: 0
 Score Util Smooth  wins/draw=1.0: 0.0176793
 Score Util SmootND wins/draw=1.0: 0
-Score Util Gridded wins/draw=1.0: 0.0176764
-Score Util GridInv wins/draw=1.0: 0.499918
+Score Util Gridded wins/draw=1.0: 0.0176772
+Score Util GridInv wins/draw=1.0: 0.499941
+
 )%%";
     expect(name,out,expected);
   }
@@ -258,29 +259,30 @@ Score wins/draw=0.5: 7
 Score Stdev wins/draw=0.5: 0.5
 Score Util Smooth  wins/draw=0.5: 0.3888
 Score Util SmootND wins/draw=0.5: 0.3888
-Score Util Gridded wins/draw=0.5: 0.388274
-Score Util GridInv wins/draw=0.5: 6.9877
+Score Util Gridded wins/draw=0.5: 0.388184
+Score Util GridInv wins/draw=0.5: 6.98559
 WL Wins wins/draw=0.3: 1
 Score wins/draw=0.3: 6.8
 Score Stdev wins/draw=0.3: 0.458258
 Score Util Smooth  wins/draw=0.3: 0.380174
 Score Util SmootND wins/draw=0.3: 0.3888
-Score Util Gridded wins/draw=0.3: 0.379692
-Score Util GridInv wins/draw=0.3: 6.78892
+Score Util Gridded wins/draw=0.3: 0.379551
+Score Util GridInv wins/draw=0.3: 6.7857
 WL Wins wins/draw=0.7: 1
 Score wins/draw=0.7: 7.2
 Score Stdev wins/draw=0.7: 0.458258
 Score Util Smooth  wins/draw=0.7: 0.397265
 Score Util SmootND wins/draw=0.7: 0.3888
-Score Util Gridded wins/draw=0.7: 0.396806
-Score Util GridInv wins/draw=0.7: 7.18904
+Score Util Gridded wins/draw=0.7: 0.396706
+Score Util GridInv wins/draw=0.7: 7.18667
 WL Wins wins/draw=1.0: 1
 Score wins/draw=1.0: 7.5
 Score Stdev wins/draw=1.0: 0
 Score Util Smooth  wins/draw=1.0: 0.409666
 Score Util SmootND wins/draw=1.0: 0.3888
-Score Util Gridded wins/draw=1.0: 0.409666
-Score Util GridInv wins/draw=1.0: 7.5
+Score Util Gridded wins/draw=1.0: 0.409563
+Score Util GridInv wins/draw=1.0: 7.49749
+
 )%%";
     expect(name,out,expected);
   }

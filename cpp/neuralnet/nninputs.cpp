@@ -49,20 +49,20 @@ double ScoreValue::whiteScoreDrawAdjust(double finalWhiteMinusBlackScore, double
   return finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
 }
 
-double ScoreValue::whiteScoreValueOfScoreSmooth(double finalWhiteMinusBlackScore, double center, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist) {
+double ScoreValue::whiteScoreValueOfScoreSmooth(double finalWhiteMinusBlackScore, double center, double scale, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist) {
   double adjustedScore = finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite) - center;
   if(b.x_size == b.y_size)
-    return atan(adjustedScore / (2*b.x_size)) * twoOverPi;
+    return atan(adjustedScore / (scale*b.x_size)) * twoOverPi;
   else
-    return atan(adjustedScore / (2*sqrt(b.x_size*b.y_size))) * twoOverPi;
+    return atan(adjustedScore / (scale*sqrt(b.x_size*b.y_size))) * twoOverPi;
 }
 
-double ScoreValue::whiteScoreValueOfScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, const Board& b) {
+double ScoreValue::whiteScoreValueOfScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, const Board& b) {
   double adjustedScore = finalWhiteMinusBlackScore - center;
   if(b.x_size == b.y_size)
-    return atan(adjustedScore / (2*b.x_size)) * twoOverPi;
+    return atan(adjustedScore / (scale*b.x_size)) * twoOverPi;
   else
-    return atan(adjustedScore / (2*sqrt(b.x_size*b.y_size))) * twoOverPi;
+    return atan(adjustedScore / (scale*sqrt(b.x_size*b.y_size))) * twoOverPi;
 }
 
 static double inverse_atan(double x) {
@@ -71,13 +71,13 @@ static double inverse_atan(double x) {
   return tan(x);
 }
 
-double ScoreValue::approxWhiteScoreOfScoreValueSmooth(double scoreValue, double center, const Board& b) {
+double ScoreValue::approxWhiteScoreOfScoreValueSmooth(double scoreValue, double center, double scale, const Board& b) {
   assert(scoreValue >= -1 && scoreValue <= 1);
   double scoreUnscaled = inverse_atan(scoreValue*piOverTwo);
   if(b.x_size == b.y_size)
-    return scoreUnscaled * (2*b.x_size) + center;
+    return scoreUnscaled * (scale*b.x_size) + center;
   else
-    return scoreUnscaled * (2*sqrt(b.x_size*b.y_size)) + center;
+    return scoreUnscaled * (scale*sqrt(b.x_size*b.y_size)) + center;
 }
 
 double ScoreValue::whiteScoreMeanSqOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const BoardHistory& hist) {
@@ -124,7 +124,7 @@ void ScoreValue::initTables() {
   double* svPrecomp = new double[(maxSVSteps-minSVSteps)+1];
   for(int i = minSVSteps; i <= maxSVSteps; i++) {
     double mean = (double)i / stepsPerUnit;
-    double sv = whiteScoreValueOfScoreSmoothNoDrawAdjust(mean, 0.0, board);
+    double sv = whiteScoreValueOfScoreSmoothNoDrawAdjust(mean, 0.0, 1.0, board);
     svPrecomp[i-minSVSteps] = sv;
   }
 
@@ -151,14 +151,14 @@ void ScoreValue::initTables() {
   scoreValueTablesInitialized = true;
 }
 
-double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteScoreStdev, double center, const Board& b) {
+double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteScoreStdev, double center, double scale, const Board& b) {
   assert(scoreValueTablesInitialized);
 
   double scaleFactor;
   if(b.x_size == b.y_size)
-    scaleFactor = (double)svTableAssumedBSize / b.x_size;
+    scaleFactor = (double)svTableAssumedBSize / (scale * b.x_size);
   else
-    scaleFactor = (double)svTableAssumedBSize / sqrt(b.x_size*b.y_size);
+    scaleFactor = (double)svTableAssumedBSize / (scale * sqrt(b.x_size*b.y_size));
 
   double meanScaled = (whiteScoreMean - center) * scaleFactor;
   double stdevScaled = whiteScoreStdev * scaleFactor;

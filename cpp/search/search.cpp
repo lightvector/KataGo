@@ -421,8 +421,8 @@ bool Search::getNodeValues(
   double scoreMean = scoreMeanSum / valueSumWeight;
   double scoreMeanSq = scoreMeanSqSum / valueSumWeight;
   double scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
-  staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,rootBoard);
-  dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,rootBoard);
+  staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
+  dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,1.0,rootBoard);
   expectedScore = scoreMean;
   return true;
 }
@@ -432,8 +432,8 @@ double Search::getUtility(double resultUtilitySum, double scoreMeanSum, double s
   double scoreMean = scoreMeanSum / valueSumWeight;
   double scoreMeanSq = scoreMeanSqSum / valueSumWeight;
   double scoreStdev = getScoreStdev(scoreMean, scoreMeanSq);
-  double staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,rootBoard);
-  double dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,rootBoard);
+  double staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
+  double dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,1.0,rootBoard);
   return resultUtility + staticScoreValue * searchParams.staticScoreUtilityFactor + dynamicScoreValue * searchParams.dynamicScoreUtilityFactor;
 }
 

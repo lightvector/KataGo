@@ -568,7 +568,7 @@ N4  : T   0.96c W   0.96c S   0.00c ( +0.0) V -34.78c P 72.05% VW 26.66% N     1
 O18 : T  15.58c W  15.58c S   0.00c ( +0.0) V -11.54c P  3.52% VW 22.08% N       2  --  pass
 P18 : T  19.58c W  19.58c S   0.00c ( +0.0) V -12.57c P  2.93% VW 21.01% N       2  --  pass
 N18 : T  13.04c W  13.04c S   0.00c ( +0.0) V -18.39c P  1.80% VW 22.77% N       2  --  pass
-pass : T 106.74c W 100.00c S   6.74c (+14.0) V --.--c P  5.47% VW  7.48% N       1  --  
+pass : T 106.73c W 100.00c S   6.73c (+14.0) V --.--c P  5.47% VW  7.48% N       1  --  
 
 Jigo and drawUtility===================
 (Game almost over, just a little cleanup)
@@ -646,7 +646,7 @@ N4  : T  38.12c W  38.03c S   0.09c ( +0.2) V -34.78c P 72.05% VW 21.28% N     1
 O18 : T  34.75c W  34.67c S   0.08c ( +0.2) V -11.54c P  3.52% VW 22.79% N      18  --  pass N4 pass pass
 P18 : T  34.79c W  34.71c S   0.07c ( +0.1) V -12.57c P  2.93% VW 22.73% N      15  --  pass N4 pass pass
 N18 : T  33.39c W  33.31c S   0.07c ( +0.1) V -18.39c P  1.80% VW 23.26% N      15  --  pass N4 pass pass
-pass : T 106.83c W 100.00c S   6.83c (+14.2) V --.--c P  5.47% VW  9.94% N       1  --  
+pass : T 106.82c W 100.00c S   6.82c (+14.2) V --.--c P  5.47% VW  9.94% N       1  --  
 
 Consecutive searches playouts and visits===================
 Doing three consecutive searches by visits
