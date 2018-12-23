@@ -29,6 +29,169 @@ int NNPos::getPolicySize(int posLen) {
   return posLen * posLen + 1;
 }
 
+//-----------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------
+
+double ScoreValue::whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite) {
+  if(winner == P_WHITE)
+    return 1.0;
+  else if(winner == P_BLACK)
+    return 0.0;
+  else if(winner == C_EMPTY)
+    return drawEquivalentWinsForWhite;
+  assert(false);
+}
+
+static const double twoOverPi = 0.63661977236758134308;
+static const double piOverTwo = 1.57079632679489661923;
+
+double ScoreValue::whiteScoreDrawAdjust(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const BoardHistory& hist) {
+  return finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
+}
+
+double ScoreValue::whiteScoreValueOfScoreSmooth(double finalWhiteMinusBlackScore, double center, double scale, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist) {
+  double adjustedScore = finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite) - center;
+  if(b.x_size == b.y_size)
+    return atan(adjustedScore / (scale*b.x_size)) * twoOverPi;
+  else
+    return atan(adjustedScore / (scale*sqrt(b.x_size*b.y_size))) * twoOverPi;
+}
+
+double ScoreValue::whiteScoreValueOfScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, const Board& b) {
+  double adjustedScore = finalWhiteMinusBlackScore - center;
+  if(b.x_size == b.y_size)
+    return atan(adjustedScore / (scale*b.x_size)) * twoOverPi;
+  else
+    return atan(adjustedScore / (scale*sqrt(b.x_size*b.y_size))) * twoOverPi;
+}
+
+static double inverse_atan(double x) {
+  if(x >= piOverTwo - 1e-6) return 1e6;
+  if(x <= -piOverTwo + 1e-6) return -1e6;
+  return tan(x);
+}
+
+double ScoreValue::approxWhiteScoreOfScoreValueSmooth(double scoreValue, double center, double scale, const Board& b) {
+  assert(scoreValue >= -1 && scoreValue <= 1);
+  double scoreUnscaled = inverse_atan(scoreValue*piOverTwo);
+  if(b.x_size == b.y_size)
+    return scoreUnscaled * (scale*b.x_size) + center;
+  else
+    return scoreUnscaled * (scale*sqrt(b.x_size*b.y_size)) + center;
+}
+
+double ScoreValue::whiteScoreMeanSqOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const BoardHistory& hist) {
+  bool komiIsInteger = ((int)hist.rules.komi == hist.rules.komi);
+  if(!komiIsInteger)
+    return finalWhiteMinusBlackScore * finalWhiteMinusBlackScore;
+
+  assert((int)finalWhiteMinusBlackScore == finalWhiteMinusBlackScore);
+  double lower = finalWhiteMinusBlackScore - 0.5;
+  double upper = finalWhiteMinusBlackScore + 0.5;
+  double lowerSq = lower * lower;
+  double upperSq = upper * upper;
+
+  return lowerSq + (upperSq - lowerSq) * drawEquivalentWinsForWhite;
+}
+
+
+static bool scoreValueTablesInitialized = false;
+static double* expectedSVTable = NULL;
+static const int svTableAssumedBSize = NNPos::MAX_BOARD_LEN;
+static const int svTableMeanRadius = svTableAssumedBSize*svTableAssumedBSize + NNPos::EXTRA_SCORE_DISTR_RADIUS;
+static const int svTableMeanLen = svTableMeanRadius*2;
+static const int svTableStdevLen = svTableAssumedBSize*svTableAssumedBSize + NNPos::EXTRA_SCORE_DISTR_RADIUS;
+
+void ScoreValue::initTables() {
+  assert(!scoreValueTablesInitialized);
+  expectedSVTable = new double[svTableMeanLen*svTableStdevLen];
+
+  //Precompute normal PDF
+  const int stepsPerUnit = 10; //Must be divisible by 2. This is both the number of segments that we divide points into, and that we divide stdevs into
+  const int boundStdevs = 5;
+  int minStdevSteps = -boundStdevs*stepsPerUnit;
+  int maxStdevSteps = boundStdevs*stepsPerUnit;
+  double* normalPDF = new double[(maxStdevSteps-minStdevSteps)+1];
+  for(int i = minStdevSteps; i <= maxStdevSteps; i++) {
+    double xInStdevs = (double)i / stepsPerUnit;
+    double w = exp(-0.5 * xInStdevs * xInStdevs);
+    normalPDF[i-minStdevSteps] = w;
+  }
+  //Precompute scorevalue at increments of 1/stepsPerUnit points
+  Board board(svTableAssumedBSize,svTableAssumedBSize);
+  int minSVSteps = - (svTableMeanRadius*stepsPerUnit + stepsPerUnit/2 + boundStdevs * svTableStdevLen * stepsPerUnit);
+  int maxSVSteps = -minSVSteps;
+  double* svPrecomp = new double[(maxSVSteps-minSVSteps)+1];
+  for(int i = minSVSteps; i <= maxSVSteps; i++) {
+    double mean = (double)i / stepsPerUnit;
+    double sv = whiteScoreValueOfScoreSmoothNoDrawAdjust(mean, 0.0, 1.0, board);
+    svPrecomp[i-minSVSteps] = sv;
+  }
+
+  //Perform numeric integration
+  for(int meanIdx = 0; meanIdx < svTableMeanLen; meanIdx++) {
+    int meanSteps = (meanIdx - svTableMeanRadius) * stepsPerUnit - stepsPerUnit/2;
+    for(int stdevIdx = 0; stdevIdx < svTableStdevLen; stdevIdx++) {
+      double wSum = 0.0;
+      double wsvSum = 0.0;
+      for(int i = minStdevSteps; i <= maxStdevSteps; i++) {
+        int xSteps = meanSteps + stdevIdx * i;
+        double w = normalPDF[i-minStdevSteps];
+        assert(xSteps >= minSVSteps && xSteps <= maxSVSteps);
+        double sv = svPrecomp[xSteps-minSVSteps];
+        wSum += w;
+        wsvSum += w*sv;
+      }
+      expectedSVTable[meanIdx*svTableStdevLen + stdevIdx] = wsvSum / wSum;
+    }
+  }
+
+  delete[] normalPDF;
+  delete[] svPrecomp;
+  scoreValueTablesInitialized = true;
+}
+
+double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteScoreStdev, double center, double scale, const Board& b) {
+  assert(scoreValueTablesInitialized);
+
+  double scaleFactor;
+  if(b.x_size == b.y_size)
+    scaleFactor = (double)svTableAssumedBSize / (scale * b.x_size);
+  else
+    scaleFactor = (double)svTableAssumedBSize / (scale * sqrt(b.x_size*b.y_size));
+
+  double meanScaled = (whiteScoreMean - center) * scaleFactor;
+  double stdevScaled = whiteScoreStdev * scaleFactor;
+
+  double meanRounded = round(meanScaled);
+  double stdevFloored = floor(stdevScaled);
+  int meanIdx0 = (int)meanRounded + svTableMeanRadius;
+  int stdevIdx0 = (int)stdevFloored;
+  int meanIdx1 = meanIdx0+1;
+  int stdevIdx1 = stdevIdx0+1;
+
+  if(meanIdx0 < 0) { meanIdx0 = 0; meanIdx1 = 0; }
+  if(meanIdx1 >= svTableMeanLen) { meanIdx0 = svTableMeanLen-1; meanIdx1 = svTableMeanLen-1; }
+  assert(stdevIdx0 >= 0);
+  if(stdevIdx1 >= svTableStdevLen) { stdevIdx0 = svTableStdevLen-1; stdevIdx1 = svTableStdevLen-1; }
+
+  double lambdaMean = meanScaled - meanRounded + 0.5;
+  double lambdaStdev = stdevScaled - stdevFloored;
+
+  double a00 = expectedSVTable[meanIdx0*svTableStdevLen + stdevIdx0];
+  double a01 = expectedSVTable[meanIdx0*svTableStdevLen + stdevIdx1];
+  double a10 = expectedSVTable[meanIdx1*svTableStdevLen + stdevIdx0];
+  double a11 = expectedSVTable[meanIdx1*svTableStdevLen + stdevIdx1];
+
+  double b0 = a00 + lambdaStdev*(a01-a00);
+  double b1 = a10 + lambdaStdev*(a11-a10);
+  return b0 + lambdaMean*(b1-b0);
+}
+
+//-----------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------
+
+
 NNOutput::NNOutput()
   :whiteOwnerMap(NULL)
 {}
@@ -37,7 +200,8 @@ NNOutput::NNOutput(const NNOutput& other) {
   whiteWinProb = other.whiteWinProb;
   whiteLossProb = other.whiteLossProb;
   whiteNoResultProb = other.whiteNoResultProb;
-  whiteScoreValue = other.whiteScoreValue;
+  whiteScoreMean = other.whiteScoreMean;
+  whiteScoreMeanSq = other.whiteScoreMeanSq;
 
   posLen = other.posLen;
   if(other.whiteOwnerMap != NULL) {
@@ -57,7 +221,8 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
   whiteWinProb = other.whiteWinProb;
   whiteLossProb = other.whiteLossProb;
   whiteNoResultProb = other.whiteNoResultProb;
-  whiteScoreValue = other.whiteScoreValue;
+  whiteScoreMean = other.whiteScoreMean;
+  whiteScoreMeanSq = other.whiteScoreMeanSq;
 
   posLen = other.posLen;
   if(whiteOwnerMap != NULL) {
@@ -82,67 +247,6 @@ NNOutput::~NNOutput() {
     whiteOwnerMap = NULL;
   }
 }
-
-double NNOutput::whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite) {
-  if(winner == P_WHITE)
-    return 1.0;
-  else if(winner == P_BLACK)
-    return 0.0;
-  else if(winner == C_EMPTY)
-    return drawEquivalentWinsForWhite;
-  assert(false);
-}
-
-static const double twoOverPi = 0.63661977236758134308;
-static const double piOverTwo = 1.57079632679489661923;
-
-double NNOutput::whiteScoreValueOfScoreSmooth(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist) {
-  double adjustedScore = finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
-  if(b.x_size == b.y_size)
-    return atan(adjustedScore / (2*b.x_size)) * twoOverPi;
-  else
-    return atan(adjustedScore / (2*sqrt(b.x_size*b.y_size))) * twoOverPi;
-}
-
-double NNOutput::whiteScoreValueOfScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, const Board& b) {
-  double adjustedScore = finalWhiteMinusBlackScore;
-  if(b.x_size == b.y_size)
-    return atan(adjustedScore / (2*b.x_size)) * twoOverPi;
-  else
-    return atan(adjustedScore / (2*sqrt(b.x_size*b.y_size))) * twoOverPi;
-}
-
-double NNOutput::whiteScoreValueOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist) {
-  bool komiIsInteger = ((int)hist.rules.komi == hist.rules.komi);
-  if(!komiIsInteger)
-    return whiteScoreValueOfScoreSmoothNoDrawAdjust(finalWhiteMinusBlackScore,b);
-
-  assert((int)finalWhiteMinusBlackScore == finalWhiteMinusBlackScore);
-  double lower = finalWhiteMinusBlackScore - 0.5;
-  double upper = finalWhiteMinusBlackScore + 0.5;
-
-  double lowerScore = whiteScoreValueOfScoreSmoothNoDrawAdjust(lower,b);
-  double upperScore = whiteScoreValueOfScoreSmoothNoDrawAdjust(upper,b);
-  return lowerScore + (upperScore-lowerScore) * drawEquivalentWinsForWhite;
-}
-
-
-static double inverse_atan(double x) {
-  if(x >= piOverTwo - 1e-6) return 1e6;
-  if(x <= -piOverTwo + 1e-6) return -1e6;
-  return tan(x);
-}
-
-double NNOutput::approxWhiteScoreOfScoreValueSmooth(double scoreValue, const Board& b) {
-  assert(scoreValue >= -1 && scoreValue <= 1);
-  double scoreUnscaled = inverse_atan(scoreValue*piOverTwo);
-  if(b.x_size == b.y_size)
-    return scoreUnscaled * (2*b.x_size);
-  else
-    return scoreUnscaled * (2*sqrt(b.x_size*b.y_size));
-}
-
-
 
 static void setRowV0(float* row, int pos, int feature, float value, int posStride, int featureStride) {
   row[pos * posStride + feature * featureStride] = value;

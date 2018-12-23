@@ -2,7 +2,7 @@ Running search tests
 GAME 1 ==========================================================================
 (An ordinary pro game)
 
-: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16936861696 compute capability major 7 minor 0
+: Cuda backend: Found GPU Tesla K80 memory 11995578368 compute capability major 3 minor 7
 : Cuda backend: Model version 2
 MoveNum: 20 HASH: 9C149A65DD8EAFF46E53149CADCF4436
    A B C D E F G H J K L M N O P Q R S T
@@ -500,13 +500,13 @@ NN batches: 21
 NN avg batch size: 1
 PV: N4 pass pass
 Tree:
-: T  96.70c W  96.23c S   0.47c ( +0.9) V  92.68c N     200  --  N4 pass pass
+: T  96.70c W  96.23c S   0.48c ( +1.0) V  92.68c N     200  --  N4 pass pass
 ---Black(v)---
 N4  : T  98.04c W  97.81c S   0.23c ( +0.5) V  64.68c P 58.93% VW 15.64% N     133  --  pass pass
-O18 : T  95.57c W  95.05c S   0.52c ( +1.0) V  54.48c P  5.02% VW 16.63% N      20  --  pass N4 pass pass
-N18 : T  94.31c W  93.74c S   0.57c ( +1.1) V  49.05c P  2.91% VW 16.99% N      17  --  pass N4 pass pass
-P18 : T  94.21c W  93.64c S   0.57c ( +1.1) V  46.46c P  2.86% VW 17.02% N      17  --  pass N4 pass pass
-H10 : T  82.14c W  82.03c S   0.11c ( +0.2) V  40.71c P  1.64% VW 19.67% N       7  --  pass N4 pass pass
+O18 : T  95.58c W  95.05c S   0.53c ( +1.1) V  54.48c P  5.02% VW 16.63% N      20  --  pass N4 pass pass
+N18 : T  94.33c W  93.74c S   0.58c ( +1.2) V  49.05c P  2.91% VW 16.99% N      17  --  pass N4 pass pass
+P18 : T  94.22c W  93.64c S   0.58c ( +1.2) V  46.46c P  2.86% VW 17.02% N      17  --  pass N4 pass pass
+H10 : T  82.14c W  82.03c S   0.11c ( +0.2) V  40.71c P  1.64% VW 19.68% N       7  --  pass N4 pass pass
 pass : T 106.96c W 100.00c S   6.96c (+14.5) V --.--c P  5.63% VW 14.05% N       5  --  
 MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
    A B C D E F G H J K L M N O P Q R S T
@@ -542,7 +542,7 @@ N4  : T   2.79c W   2.79c S   0.00c ( +0.0) V  40.16c P 60.36% VW 35.76% N     1
 O18 : T  54.82c W  54.82c S   0.00c ( +0.0) V  25.35c P  4.97% VW 17.40% N       2  --  pass
 N18 : T  51.56c W  51.56c S   0.00c ( +0.0) V  17.90c P  2.87% VW 18.26% N       2  --  pass
 P18 : T  50.62c W  50.62c S   0.00c ( +0.0) V  15.60c P  2.81% VW 18.51% N       2  --  pass
-pass : T 106.74c W 100.00c S   6.74c (+14.0) V --.--c P  5.66% VW 10.07% N       1  --  
+pass : T 106.73c W 100.00c S   6.73c (+14.0) V --.--c P  5.66% VW 10.08% N       1  --  
 
 Jigo and drawUtility===================
 (Game almost over, just a little cleanup)
@@ -577,13 +577,13 @@ NN batches: 21
 NN avg batch size: 1
 PV: N4 pass pass
 Tree:
-: T  96.70c W  96.23c S   0.47c ( +0.9) V  92.68c N     200  --  N4 pass pass
+: T  96.70c W  96.23c S   0.48c ( +1.0) V  92.68c N     200  --  N4 pass pass
 ---Black(v)---
 N4  : T  98.04c W  97.81c S   0.23c ( +0.5) V  64.68c P 58.93% VW 15.64% N     133  --  pass pass
-O18 : T  95.57c W  95.05c S   0.52c ( +1.0) V  54.48c P  5.02% VW 16.63% N      20  --  pass N4 pass pass
-N18 : T  94.31c W  93.74c S   0.57c ( +1.1) V  49.05c P  2.91% VW 16.99% N      17  --  pass N4 pass pass
-P18 : T  94.21c W  93.64c S   0.57c ( +1.1) V  46.46c P  2.86% VW 17.02% N      17  --  pass N4 pass pass
-H10 : T  82.14c W  82.03c S   0.11c ( +0.2) V  40.71c P  1.64% VW 19.67% N       7  --  pass N4 pass pass
+O18 : T  95.58c W  95.05c S   0.53c ( +1.1) V  54.48c P  5.02% VW 16.63% N      20  --  pass N4 pass pass
+N18 : T  94.33c W  93.74c S   0.58c ( +1.2) V  49.05c P  2.91% VW 16.99% N      17  --  pass N4 pass pass
+P18 : T  94.22c W  93.64c S   0.58c ( +1.2) V  46.46c P  2.86% VW 17.02% N      17  --  pass N4 pass pass
+H10 : T  82.14c W  82.03c S   0.11c ( +0.2) V  40.71c P  1.64% VW 19.68% N       7  --  pass N4 pass pass
 pass : T 106.96c W 100.00c S   6.96c (+14.5) V --.--c P  5.63% VW 14.05% N       5  --  
 
 Komi 7.0 (draw)
@@ -621,7 +621,7 @@ N4  : T  41.40c W  41.30c S   0.09c ( +0.2) V  40.16c P 60.36% VW 24.97% N     1
 O18 : T  58.77c W  58.77c S   0.00c ( +0.0) V  25.35c P  4.97% VW 19.26% N       4  --  pass N4 pass
 N18 : T  51.56c W  51.56c S   0.00c ( +0.0) V  17.90c P  2.87% VW 21.86% N       2  --  pass
 P18 : T  50.62c W  50.62c S   0.00c ( +0.0) V  15.60c P  2.81% VW 22.10% N       2  --  pass
-pass : T 106.83c W 100.00c S   6.83c (+14.2) V --.--c P  5.66% VW 11.82% N       1  --  
+pass : T 106.82c W 100.00c S   6.82c (+14.2) V --.--c P  5.66% VW 11.82% N       1  --  
 
 Consecutive searches playouts and visits===================
 Doing three consecutive searches by visits

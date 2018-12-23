@@ -30,6 +30,7 @@ static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
 
 int MainCmds::gtp(int argc, const char* const* argv) {
   Board::initHash();
+  ScoreValue::initTables();
   Rand seedRand;
 
   string configFile;

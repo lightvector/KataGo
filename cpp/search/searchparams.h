@@ -5,8 +5,9 @@
 
 struct SearchParams {
   //Utility function parameters
-  double winLossUtilityFactor;    //Scaling for [-1,1] value for winning/losing
-  double scoreUtilityFactor;      //Scaling for the roughly [-1,1] value for having many/fewer points.
+  double winLossUtilityFactor;     //Scaling for [-1,1] value for winning/losing
+  double staticScoreUtilityFactor; //Scaling for a [-1,1] "scoreValue" for having more/fewer points, centered at 0.
+  double dynamicScoreUtilityFactor; //Scaling for a [-1,1] "scoreValue" for having more/fewer points, centered at recent estimated expected score.
   double noResultUtilityForWhite; //Utility of having a no-result game (simple ko rules or nonterminating territory encore)
   double drawEquivalentWinsForWhite; //Consider a draw to be this many wins and one minus this many losses.
 

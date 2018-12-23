@@ -2778,14 +2778,28 @@ struct ValueHeadDesc {
         throw StringError(name+Global::strprintf(
           ": sv3Mul.inChannels (%d) != v2Mul.outChannels (%d)", sv3Mul.inChannels, v2Mul.outChannels
         ));
-      if(sv3Mul.outChannels != 1)
-        throw StringError(name+Global::strprintf(
-          ": sv3Mul.outChannels (%d) != 1", sv3Mul.outChannels
-        ));
-      if(sv3Bias.numChannels != 1)
-        throw StringError(name+Global::strprintf(
-          ": sv3Bias.numChannels (%d) != 1", sv3Bias.numChannels
-        ));
+
+      if(version >= 4) {
+        if(sv3Mul.outChannels != 2)
+          throw StringError(name+Global::strprintf(
+            ": sv3Mul.outChannels (%d) != 2", sv3Mul.outChannels
+          ));
+        if(sv3Bias.numChannels != 2)
+          throw StringError(name+Global::strprintf(
+            ": sv3Bias.numChannels (%d) != 2", sv3Bias.numChannels
+          ));
+      }
+      else {
+        if(sv3Mul.outChannels != 1)
+          throw StringError(name+Global::strprintf(
+            ": sv3Mul.outChannels (%d) != 1", sv3Mul.outChannels
+          ));
+        if(sv3Bias.numChannels != 1)
+          throw StringError(name+Global::strprintf(
+            ": sv3Bias.numChannels (%d) != 1", sv3Bias.numChannels
+          ));
+      }
+
       if(vOwnershipConv.inChannels != v1Conv.outChannels)
         throw StringError(name+Global::strprintf(
           ": vOwnershipConv.outChannels (%d) != v1Conv.outChannels (%d)", vOwnershipConv.inChannels, v1Conv.outChannels
@@ -3133,7 +3147,7 @@ struct ModelDesc {
     if(in.fail())
       throw StringError(name + ": model failed to parse name or version");
 
-    if(version < 0 || version > 3)
+    if(version < 0 || version > 4)
       throw StringError(name + ": model found unsupported version " + Global::intToString(version));
     if(version < 1)
       throw StringError("Version 0 neural nets no longer supported in cuda backend");
@@ -4139,7 +4153,30 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       policyProbs
     );
 
-    if(version >= 3) {
+    if(version >= 4) {
+      int numValueChannels = gpuHandle->model->numValueChannels;
+      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
+      assert(numValueChannels == 3);
+      assert(numScoreValueChannels == 2);
+      output->whiteWinProb = inputBuffers->valueResults[row * numValueChannels];
+      output->whiteLossProb = inputBuffers->valueResults[row * numValueChannels + 1];
+      output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
+      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
+
+      //As above, these are NOT actually from white's perspective, but rather the player to move.
+      //As usual the client does the postprocessing.
+      if(output->whiteOwnerMap != NULL) {
+        assert(gpuHandle->model->numOwnershipChannels == 1);
+        std::copy(
+          inputBuffers->ownershipResults + row * posLen * posLen,
+          inputBuffers->ownershipResults + (row+1) * posLen * posLen,
+          output->whiteOwnerMap
+        );
+      }
+
+    }
+    else if(version >= 3) {
       int numValueChannels = gpuHandle->model->numValueChannels;
       int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
       assert(numValueChannels == 3);
@@ -4147,7 +4184,9 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       output->whiteWinProb = inputBuffers->valueResults[row * numValueChannels];
       output->whiteLossProb = inputBuffers->valueResults[row * numValueChannels + 1];
       output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
-      output->whiteScoreValue = inputBuffers->scoreValueResults[row];
+      output->whiteScoreMean = inputBuffers->scoreValueResults[row];
+      //Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the mean squared
+      output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
 
       //As above, these are NOT actually from white's perspective, but rather the player to move.
       //As usual the client does the postprocessing.
@@ -4165,7 +4204,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       output->whiteWinProb = inputBuffers->valueResults[row];
       output->whiteLossProb = 0.0;
       output->whiteNoResultProb = 0.0;
-      output->whiteScoreValue = 0.0;
+      output->whiteScoreMean = 0.0;
+      output->whiteScoreMeanSq = 0.0;
 
       //Older versions don't have an ownership map, so zero fill
       if(output->whiteOwnerMap != NULL)

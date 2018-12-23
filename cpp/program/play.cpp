@@ -474,17 +474,16 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
   double winValue;
   double lossValue;
   double noResultValue;
-  double scoreValue;
-  bool success = toMoveBot->getNodeValues(*node,winValue,lossValue,noResultValue,scoreValue);
+  double staticScoreValue;
+  double dynamicScoreValue;
+  double expectedScore;
+  bool success = toMoveBot->getNodeValues(*node,winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
   assert(success);
 
   buf.win = winValue;
   buf.loss = lossValue;
   buf.noResult = noResultValue;
-  buf.scoreValue = scoreValue;
-
-  //Not defined, only matters for the final value targets for the game result
-  buf.score = 0.0f;
+  buf.score = expectedScore;
 
   if(recordUtilities != NULL) {
     buf.hasMctsUtility = true;
@@ -828,8 +827,10 @@ FinishedGameData* Play::runGame(
       double winValue;
       double lossValue;
       double noResultValue;
-      double scoreValue;
-      bool success = toMoveBot->getRootValues(winValue,lossValue,noResultValue,scoreValue);
+      double staticScoreValue;
+      double dynamicScoreValue;
+      double expectedScore;
+      bool success = toMoveBot->getRootValues(winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
       assert(success);
       assert(fancyModes.resignThreshold <= 0);
 
@@ -875,7 +876,7 @@ FinishedGameData* Play::runGame(
     if(fancyModes.allowResignation && resignPlayer == pla && resignConsecTurnsCount >= fancyModes.resignConsecTurns) {
       hist.setWinnerByResignation(getOpp(pla));
     }
-    
+
     pla = getOpp(pla);
   }
 
@@ -887,14 +888,13 @@ FinishedGameData* Play::runGame(
 
   if(recordFullData) {
     assert(!hist.isResignation); //Recording full data currently incompatible with resignation
-    
+
     ValueTargets finalValueTargets;
     Color area[Board::MAX_ARR_SIZE];
     if(hist.isGameFinished && hist.isNoResult) {
       finalValueTargets.win = 0.0f;
       finalValueTargets.loss = 0.0f;
       finalValueTargets.noResult = 1.0f;
-      finalValueTargets.scoreValue = 0.0f;
       finalValueTargets.score = 0.0f;
 
       //Fill with empty so that we use "nobody owns anything" as the training target.
@@ -906,11 +906,10 @@ FinishedGameData* Play::runGame(
       //We also do want to call this here to force-end the game if we crossed a move limit.
       hist.endAndScoreGameNow(board,area);
 
-      finalValueTargets.win = (float)NNOutput::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
+      finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
-      finalValueTargets.scoreValue = NNOutput::whiteScoreValueOfScoreGridded(hist.finalWhiteMinusBlackScore, gameData->drawEquivalentWinsForWhite, board, hist);
-      finalValueTargets.score = hist.finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(gameData->drawEquivalentWinsForWhite);
+      finalValueTargets.score = ScoreValue::whiteScoreDrawAdjust(hist.finalWhiteMinusBlackScore,gameData->drawEquivalentWinsForWhite,hist);
 
       //Dummy values, doesn't matter since we didn't do a search for the final values
       finalValueTargets.mctsUtility1 = 0.0f;

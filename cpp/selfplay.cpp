@@ -158,6 +158,7 @@ namespace {
 
 int MainCmds::selfplay(int argc, const char* const* argv) {
   Board::initHash();
+  ScoreValue::initTables();
   Rand seedRand;
 
   string configFile;

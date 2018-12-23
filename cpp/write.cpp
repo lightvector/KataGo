@@ -912,6 +912,7 @@ static void processData(
 int main(int argc, const char* argv[]) {
   assert(sizeof(size_t) == 8);
   Board::initHash();
+  ScoreValue::initTables();
 
   // auto f = [](const LZSample& sample) {
   //   cout << sample.boards[0];

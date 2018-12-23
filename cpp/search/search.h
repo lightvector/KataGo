@@ -22,9 +22,9 @@ struct DistributionTable;
 struct NodeStats {
   uint64_t visits;
   double winValueSum;
-  double lossValueSum;
   double noResultValueSum;
-  double scoreValueSum;
+  double scoreMeanSum;
+  double scoreMeanSqSum;
   double valueSumWeight;
 
   NodeStats();
@@ -33,7 +33,7 @@ struct NodeStats {
   NodeStats(const NodeStats& other);
   NodeStats& operator=(const NodeStats& other);
 
-  double getCombinedUtilitySum(const SearchParams& searchParams) const;
+  double getResultUtilitySum(const SearchParams& searchParams) const;
 };
 
 struct SearchNode {
@@ -82,12 +82,13 @@ struct SearchThread {
 
   NNResultBuf nnResultBuf;
   ostream* logStream;
+  Logger* logger;
 
   vector<double> valueChildWeightsBuf;
   vector<double> winValuesBuf;
-  vector<double> lossValuesBuf;
   vector<double> noResultValuesBuf;
-  vector<double> scoreValuesBuf;
+  vector<double> scoreMeansBuf;
+  vector<double> scoreMeanSqsBuf;
   vector<double> utilityBuf;
   vector<uint64_t> visitsBuf;
 
@@ -107,6 +108,8 @@ struct Search {
 
   //Precomputed values at the root
   Color* rootSafeArea;
+  //Used to center for dynamic scorevalue
+  double recentScoreCenter;
 
   SearchParams searchParams;
   int64_t numSearchesBegun;
@@ -179,12 +182,12 @@ struct Search {
 
   //Get the values recorded for the root node
   bool getRootValues(
-    double& winValue, double& lossValue, double& noResultValue, double& scoreValue
+    double& winValue, double& lossValue, double& noResultValue, double& staticScoreValue, double& dynamicScoreValue, double& expectedScore
   ) const;
   //Same, but works on a node within the search, not just the root
   bool getNodeValues(
     const SearchNode& node,
-    double& winValue, double& lossValue, double& noResultValue, double& scoreValue
+    double& winValue, double& lossValue, double& noResultValue, double& staticScoreValue, double& dynamicScoreValue, double& expectedScore
   ) const;
 
   //Get the combined utility recorded for the root node
@@ -200,7 +203,7 @@ struct Search {
   //Manual playout-by-playout interface------------------------------------------------
 
   //Call once at the start of each search
-  void beginSearch();
+  void beginSearch(Logger& logger);
 
   //Within-search functions, threadsafe-------------------------------------------
   void runSinglePlayout(SearchThread& thread);
@@ -221,9 +224,12 @@ private:
 
   bool isAllowedRootMove(Loc moveLoc) const;
 
-  void computeRootValues();
+  void computeRootValues(Logger& logger);
 
-  double getEndingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
+  double getUtility(double resultUtilitySum, double scoreMeanSum, double scoreMeanSqSum, double valueSumWeight) const;
+  double getUtilityFromNN(const NNOutput& nnOutput) const;
+
+  double getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const;
 
   void getValueChildWeights(
     int numChildren,
@@ -254,7 +260,7 @@ private:
     bool isRoot
   ) const;
 
-  void setTerminalValue(SearchNode& node, double winValue, double lossValue, double noResultValue, double scoreValue, int32_t virtualLossesToSubtract);
+  void setTerminalValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, int32_t virtualLossesToSubtract);
 
   void initNodeNNOutput(
     SearchThread& thread, SearchNode& node,

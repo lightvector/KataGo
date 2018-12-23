@@ -214,6 +214,7 @@ namespace {
 
 int MainCmds::gatekeeper(int argc, const char* const* argv) {
   Board::initHash();
+  ScoreValue::initTables();
   Rand seedRand;
 
   string configFile;

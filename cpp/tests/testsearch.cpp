@@ -27,7 +27,8 @@ static void printPolicyValueOwnership(const Board& board, const NNResultBuf& buf
   cout << "Win " << Global::strprintf("%.2fc",buf.result->whiteWinProb*100) << endl;
   cout << "Loss " << Global::strprintf("%.2fc",buf.result->whiteLossProb*100) << endl;
   cout << "NoResult " << Global::strprintf("%.2fc",buf.result->whiteNoResultProb*100) << endl;
-  cout << "ScoreValue " << Global::strprintf("%.1fc",buf.result->whiteScoreValue*100) << endl;
+  cout << "ScoreMean " << Global::strprintf("%.1f",buf.result->whiteScoreMean) << endl;
+  cout << "ScoreMeanSq " << Global::strprintf("%.1f",buf.result->whiteScoreMeanSq) << endl;
 
   cout << "Policy" << endl;
   for(int y = 0; y<board.y_size; y++) {
@@ -537,21 +538,21 @@ void Tests::runAutoSearchTests() {
     search->printTree(out, search->rootNode, options);
 
     string expected = R"%%(
-: T   0.53c W   0.02c S   0.51c ( +0.5) V  -9.69c N     100  --  A5 G2 B7 A6 D5 C2 F2
+: T  -0.31c W  -0.37c S   0.06c ( +0.1) V  -9.33c N     100  --  A5 G7 A1 H5 F4 B1
 ---Black(v)---
-A5  : T  -0.55c W  -0.99c S   0.44c ( +0.4) V   7.08c P 17.68% VW  8.27% N      41  --  G2 B7 A6 D5 C2 F2
-J9  : T  -0.90c W  -1.69c S   0.79c ( +0.7) V  -0.41c P  3.92% VW  8.25% N      12  --  D7 H1 C1 J5
-J3  : T  -2.52c W  -1.95c S  -0.57c ( -0.5) V -12.30c P  2.39% VW  8.46% N      11  --  B9 H9 E4
-H8  : T   0.13c W   0.17c S  -0.04c ( -0.0) V  -5.39c P  3.34% VW  8.11% N       8  --  A6 A9 E9 H3
-F8  : T   4.44c W   5.75c S  -1.31c ( -1.2) V   8.22c P  3.01% VW  7.62% N       6  --  D8 G8 H5
-E8  : T   2.25c W   2.49c S  -0.25c ( -0.2) V  -9.43c P  2.90% VW  7.87% N       5  --  G7 D1 D7 F5
-B1  : T   0.48c W  -1.02c S   1.50c ( +1.4) V   7.51c P  2.63% VW  8.06% N       5  --  B3 F5
-G7  : T   9.56c W   3.77c S   5.79c ( +5.6) V  -0.68c P  2.22% VW  7.20% N       3  --  D6 E6
-G9  : T   5.47c W   5.79c S  -0.31c ( -0.3) V  -4.62c P  2.14% VW  7.58% N       3  --  D1 C8
-J8  : T  -6.40c W  -6.72c S   0.32c ( +0.3) V  -8.27c P  2.03% VW  8.65% N       2  --  D9
-H2  : T  26.91c W  16.68c S  10.23c (+10.7) V  26.91c P  3.83% VW  6.18% N       1  --
-J7  : T  14.07c W  13.73c S   0.34c ( +0.3) V  14.07c P  3.62% VW  7.08% N       1  --
-D2  : T  19.80c W  17.89c S   1.92c ( +1.8) V  19.80c P  2.58% VW  6.67% N       1  --
+A5  : T   0.36c W   1.05c S  -0.69c ( -0.9) V   3.07c P 17.68% VW  7.79% N      30  --  G7 A1 H5 F4 B1
+E8  : T  -3.51c W  -5.06c S   1.55c ( +2.1) V -13.17c P  2.90% VW  8.36% N      17  --  A4 F1 B5 D6 C4
+F8  : T  -3.16c W  -1.73c S  -1.43c ( -1.9) V  -6.05c P  3.01% VW  8.29% N      14  --  A7 G8 G4 J4
+H8  : T   1.18c W   0.92c S   0.25c ( +0.3) V   5.69c P  3.34% VW  7.72% N       8  --  pass E2 F6 B1
+B1  : T  -0.64c W  -2.62c S   1.99c ( +2.6) V  -5.06c P  2.63% VW  7.93% N       6  --  G7 E4 A3
+J9  : T   2.79c W   3.77c S  -0.98c ( -1.3) V  -1.33c P  3.92% VW  7.57% N       5  --  B6 F2 J5
+J3  : T  -1.68c W  -1.88c S   0.20c ( +0.3) V  -8.90c P  2.39% VW  8.04% N       5  --  H5 J6 F9
+H2  : T   2.80c W   2.22c S   0.58c ( +0.7) V  13.23c P  3.83% VW  7.58% N       4  --  E8
+J7  : T   4.36c W   4.52c S  -0.16c ( -0.2) V   1.39c P  3.62% VW  7.43% N       4  --  B4 D8
+G9  : T   2.89c W   3.79c S  -0.90c ( -1.1) V  -5.39c P  2.14% VW  7.62% N       2  --  G4
+J8  : T   4.78c W   4.46c S   0.33c ( +0.4) V   2.16c P  2.03% VW  7.46% N       2  --  F5
+D2  : T  13.00c W  10.67c S   2.34c ( +2.9) V  13.00c P  2.58% VW  6.95% N       1  --
+G7  : T   8.93c W   4.82c S   4.11c ( +5.4) V   8.93c P  2.22% VW  7.24% N       1  --
 
 )%%";
     expect(name,out,expected);
@@ -599,19 +600,19 @@ A5 10000
       sampleChosenMoves();
 
       expected = R"%%(
-A5 4135
-J9 1219
-J3 1157
-H8 818
-F8 633
-E8 499
-B1 456
-G7 314
-G9 293
+A5 3028
+E8 1701
+F8 1398
+H8 814
+B1 629
+J3 537
+J9 500
+J7 411
+H2 394
 J8 199
-D2 94
-J7 93
-H2 90
+G9 194
+G7 99
+D2 96
 
 )%%";
       expect(name,out,expected);
@@ -630,19 +631,19 @@ H2 90
       sampleChosenMoves();
 
       expected = R"%%(
-A5 7908
-J9 664
-J3 588
-H8 320
-F8 161
-B1 121
-E8 111
-G9 51
-G7 49
-J8 17
-J7 5
-D2 3
-H2 2
+A5 5688
+E8 1846
+F8 1218
+H8 406
+B1 239
+J3 160
+J9 159
+H2 114
+J7 103
+G9 34
+J8 21
+D2 7
+G7 5
 
 )%%";
       expect(name,out,expected);
@@ -675,6 +676,9 @@ ooooooo
     BoardHistory hist(board,nextPla,rules,0);
 
     {
+      //--------------------------------------
+      //First perform a basic search.
+
       search->setPosition(nextPla,board,hist);
       search->runWholeSearch(nextPla,logger,NULL);
 
@@ -700,28 +704,30 @@ HASH: 89590E2EB0B10227C6F32CB03B91959F
  1 . . . O . . .
 
 
-: T   0.42c W   0.57c S  -0.14c ( -0.1) V  -9.69c N      50  --  G7 G3 pass E1 D5
+: T  -1.75c W  -2.37c S   0.61c ( +0.7) V  -8.80c N      50  --  G7 C1 D5 A4
 ---Black(v)---
-G7  : T  -1.44c W  -0.28c S  -1.16c ( -0.9) V   1.79c P 15.99% VW 10.56% N      13  --  G3 pass E1 D5
-E1  : T   4.71c W   4.76c S  -0.05c ( -0.0) V   7.08c P 17.17% VW  9.57% N       8  --  pass A1
-A7  : T  -1.23c W  -0.56c S  -0.67c ( -0.5) V  -0.41c P  7.39% VW 10.46% N       6  --  E7 D5 E1
-E7  : T   1.21c W  -0.42c S   1.64c ( +1.2) V  -1.30c P  7.16% VW 10.12% N       5  --  F3 A5 B1
-F7  : T  -0.85c W  -2.23c S   1.38c ( +1.0) V  -0.04c P  6.99% VW 10.40% N       5  --  A1 F1
-E3  : T   1.78c W   0.53c S   1.25c ( +0.9) V   0.03c P  7.98% VW 10.05% N       4  --  A7 C1
-A5  : T  -4.74c W   1.01c S  -5.76c ( -4.4) V  -5.22c P  4.20% VW 10.89% N       4  --  pass F7
-D5  : T   3.42c W  -0.33c S   3.75c ( +2.8) V  -0.85c P  5.51% VW  9.89% N       2  --  E7
-B1  : T  14.07c W  13.73c S   0.34c ( +0.3) V  14.07c P  6.27% VW  8.97% N       1  --
-F3  : T  12.51c W   7.81c S   4.70c ( +3.5) V  12.51c P  4.49% VW  9.11% N       1  --
-: T   0.42c W   0.57c S  -0.14c ( -0.1) V  -9.69c N      50  --  G7 G3 pass E1 D5
-G7  : T  -1.44c W  -0.28c S  -1.16c ( -0.9) V   1.79c P 15.99% VW 10.56% N      13  --  G3 pass E1 D5
+G7  : T  -2.78c W  -3.77c S   0.99c ( +1.1) V  -1.20c P 15.99% VW 10.21% N      11  --  C1 D5 A4
+E1  : T   0.37c W   2.57c S  -2.20c ( -2.4) V   2.59c P 17.17% VW  9.72% N       8  --  pass E7 G3
+E3  : T  -3.79c W  -4.55c S   0.76c ( +0.9) V  -6.24c P  7.98% VW 10.33% N       6  --  pass A7
+B1  : T  -2.81c W  -2.19c S  -0.62c ( -0.7) V  -4.59c P  6.27% VW 10.18% N       5  --  pass A7
+A7  : T  -0.50c W  -0.58c S   0.08c ( +0.1) V  -1.58c P  7.39% VW  9.88% N       4  --  F3 C1 E3
+E7  : T  -1.59c W  -5.87c S   4.28c ( +4.9) V  -5.10c P  7.16% VW 10.02% N       4  --  E1 F3
+F7  : T  -0.28c W   0.71c S  -1.00c ( -1.1) V  -6.15c P  6.99% VW  9.86% N       3  --  E1 B7
+D5  : T  -1.36c W  -2.89c S   1.53c ( +1.7) V  -1.38c P  5.51% VW  9.99% N       3  --  pass E1
+F3  : T   1.60c W  -0.69c S   2.29c ( +2.5) V  -3.19c P  4.49% VW  9.64% N       3  --  E1 G1
+A5  : T  -2.94c W  -5.36c S   2.41c ( +2.7) V  -4.97c P  4.20% VW 10.16% N       2  --  G1
+: T  -1.75c W  -2.37c S   0.61c ( +0.7) V  -8.80c N      50  --  G7 C1 D5 A4
+G7  : T  -2.78c W  -3.77c S   0.99c ( +1.1) V  -1.20c P 15.99% VW 10.21% N      11  --  C1 D5 A4
 ---White(^)---
-G7  G3  : T  -0.32c W  -2.91c S   2.59c ( +1.9) V   7.06c P 10.79% VW 25.52% N       4  --  pass E1 D5
-G7  D5  : T  -3.30c W  -0.62c S  -2.67c ( -2.0) V  -7.92c P 11.56% VW 24.60% N       3  --  G1 F7
-G7  E3  : T  -0.40c W   2.59c S  -2.99c ( -2.2) V  -3.00c P  8.36% VW 25.46% N       3  --  C1
-G7  B7  : T  -4.17c W  -0.75c S  -3.42c ( -2.5) V  -5.82c P  9.34% VW 24.41% N       2  --  D5
+G7  C1  : T   3.60c W   1.97c S   1.62c ( +1.8) V   3.42c P  9.13% VW 36.42% N       4  --  D5 A4
+G7  E7  : T  -8.16c W  -8.63c S   0.48c ( +0.5) V  -6.05c P 16.83% VW 31.56% N       3  --  F1 A5
+G7  E3  : T  -7.03c W  -7.04c S   0.01c ( +0.0) V  -8.25c P 15.69% VW 32.01% N       3  --  G1 A7
 
 )%%";
       expect(name,out,expected);
+
+      //--------------------------------------
+      //Next, make a move, and with no search, print the tree.
 
       search->makeMove(locToDescend,nextPla);
       nextPla = getOpp(nextPla);
@@ -740,33 +746,34 @@ HASH: 9108963BA0713EF340BBA9F3E37370F9
  1 . . . O . . .
 
 
-: T  -1.44c W  -0.28c S  -1.16c ( -0.9) V   1.79c N      13  --  G3 pass E1 D5
+: T  -2.78c W  -3.77c S   0.99c ( +1.1) V  -1.20c N      11  --  C1 D5 A4
 ---White(^)---
-G3  : T  -0.32c W  -2.91c S   2.59c ( +1.9) V   7.06c P 10.79% VW 25.52% N       4  --  pass E1 D5
-D5  : T  -3.30c W  -0.62c S  -2.67c ( -2.0) V  -7.92c P 11.56% VW 24.60% N       3  --  G1 F7
-E3  : T  -0.40c W   2.59c S  -2.99c ( -2.2) V  -3.00c P  8.36% VW 25.46% N       3  --  C1
-B7  : T  -4.17c W  -0.75c S  -3.42c ( -2.5) V  -5.82c P  9.34% VW 24.41% N       2  --  D5
+C1  : T   3.60c W   1.97c S   1.62c ( +1.8) V   3.42c P  9.13% VW 36.42% N       4  --  D5 A4
+E7  : T  -8.16c W  -8.63c S   0.48c ( +0.5) V  -6.05c P 16.83% VW 31.56% N       3  --  F1 A5
+E3  : T  -7.03c W  -7.04c S   0.01c ( +0.0) V  -8.25c P 15.69% VW 32.01% N       3  --  G1 A7
 
 )%%";
       expect(name,out,expected);
+
+      //--------------------------------------
+      //Then continue the search to complete 50 visits.
 
       search->runWholeSearch(nextPla,logger,NULL);
       search->printTree(out, search->rootNode, options);
 
       expected = R"%%(
-: T   0.98c W   1.38c S  -0.40c ( -0.3) V   1.79c N      50  --  E7 B7 G3 B1
+: T   0.59c W   0.03c S   0.56c ( +0.6) V  -1.20c N      50  --  C1 A1 F1 E7 E1 B7
 ---White(^)---
-E7  : T   6.17c W   6.47c S  -0.30c ( -0.2) V   9.74c P  6.31% VW  9.89% N       8  --  B7 G3 B1
-G3  : T  -0.23c W  -1.67c S   1.44c ( +1.1) V   7.06c P 10.79% VW  9.02% N       6  --  pass E1 D5 A4
-D5  : T  -3.17c W  -2.34c S  -0.83c ( -0.6) V  -7.92c P 11.56% VW  8.66% N       5  --  G1 F7
-E3  : T   2.15c W   4.32c S  -2.17c ( -1.6) V  -3.00c P  8.36% VW  9.32% N       5  --  C1 A1
-F3  : T   4.15c W   5.95c S  -1.80c ( -1.3) V   9.64c P  7.12% VW  9.56% N       5  --  E1 B1 D5
-E1  : T   2.92c W   3.19c S  -0.27c ( -0.2) V  -8.25c P  6.28% VW  9.41% N       5  --  A5 C1
-B7  : T  -1.43c W  -0.11c S  -1.32c ( -1.0) V  -5.82c P  9.34% VW  8.89% N       4  --  D5 F1
-A1  : T  -2.71c W  -1.29c S  -1.42c ( -1.0) V   7.75c P  6.74% VW  8.77% N       3  --  B1 F1
-B1  : T  -1.71c W  -5.27c S   3.55c ( +2.6) V   9.71c P  6.13% VW  8.88% N       3  --  E1 F1
-A4  : T  -5.71c W  -6.04c S   0.32c ( +0.2) V  11.10c P  4.55% VW  8.45% N       3  --  E1 E7
-A7  : T   0.62c W   1.02c S  -0.39c ( -0.3) V   0.05c P  4.61% VW  9.14% N       2  --  E1
+C1  : T   5.75c W   4.93c S   0.82c ( +0.9) V   3.42c P  9.13% VW 11.22% N      15  --  A1 F1 E7 E1 B7
+E7  : T  -4.30c W  -3.96c S  -0.34c ( -0.4) V  -6.05c P 16.83% VW  9.55% N       7  --  F1 pass E1
+B1  : T   3.51c W   2.99c S   0.52c ( +0.6) V   1.56c P  6.65% VW 10.72% N       7  --  A4 F1
+E3  : T  -4.79c W  -5.74c S   0.95c ( +1.1) V  -8.25c P 15.69% VW  9.50% N       6  --  G1 A7 F1
+G3  : T  -5.27c W  -4.11c S  -1.16c ( -1.3) V   5.22c P  8.20% VW  9.51% N       4  --  E3 B1
+E1  : T   4.90c W   1.88c S   3.02c ( +3.4) V  -0.36c P  4.47% VW 10.84% N       4  --  E7 G3 F7
+A5  : T  -5.48c W  -1.85c S  -3.63c ( -4.1) V  -7.79c P  6.20% VW  9.61% N       2  --  E5
+B7  : T  -1.15c W  -4.05c S   2.90c ( +3.2) V  -0.27c P  4.50% VW 10.08% N       2  --  B1
+F3  : T  -8.37c W  -6.65c S  -1.72c ( -1.9) V  -8.37c P  4.70% VW  9.44% N       1  --
+E5  : T  -7.38c W  -7.42c S   0.05c ( +0.1) V  -7.38c P  4.41% VW  9.54% N       1  --
 
 )%%";
       expect(name,out,expected);
@@ -850,18 +857,18 @@ HASH: F33AB5338807413FD7B5069884FF9DB9
  1 O . . O O . X
 
 
-: T   1.90c W   1.58c S   0.32c ( +0.2) V  25.65c N     400  --  E5 F1 B1 B7 pass G1
+: T   2.01c W   1.66c S   0.36c ( +0.4) V  24.58c N     400  --  E3 E7 E3 F1 F7 G1
 ---Black(v)---
-E5  : T   0.17c W   0.70c S  -0.53c ( -0.4) V   5.89c P 11.25% VW 11.73% N     106  --  F1 B1 B7 pass G1
-E7  : T  -0.43c W  -0.88c S   0.45c ( +0.3) V  10.73c P  9.01% VW 11.91% N     104  --  B7 E3 F1 B1 G3 E3
-F1  : T   1.45c W   0.26c S   1.20c ( +0.9) V   1.73c P  9.26% VW 11.25% N      53  --  C1 A4 F1 A7 E7 B7
-A7  : T   3.86c W   3.85c S   0.01c ( +0.0) V  -7.40c P  9.95% VW 10.64% N      40  --  C1 F7 E5 E3
-C1  : T   2.18c W   0.51c S   1.67c ( +1.2) V -12.82c P  7.02% VW 11.04% N      34  --  E3 B7 E7 F3
-E3  : T   1.02c W   1.81c S  -0.78c ( -0.6) V  -5.42c P  3.34% VW 11.27% N      23  --  F7 E3 pass F1
-F7  : T   1.50c W   1.30c S   0.19c ( +0.1) V  -3.63c P  1.91% VW 11.13% N      15  --  E3 B7 F3
-B7  : T   8.81c W   8.29c S   0.52c ( +0.4) V   4.48c P  5.32% VW  9.75% N      14  --  B1 E5 pass pass
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 39.98% VW  1.48% N       7  --
-B1  : T  11.22c W   9.89c S   1.32c ( +1.0) V  10.87c P  1.82% VW  9.79% N       3  --  pass
+E3  : T  -1.43c W  -1.53c S   0.10c ( +0.1) V   8.05c P  3.34% VW 12.37% N     111  --  E7 E3 F1 F7 G1
+F1  : T   0.99c W   0.83c S   0.15c ( +0.2) V  -3.73c P  9.26% VW 11.53% N      68  --  E7 B1 pass G1 F1 A7 E3
+C1  : T   0.94c W   0.39c S   0.56c ( +0.6) V   5.10c P  7.02% VW 11.50% N      55  --  E3 A4 F7 F1 B1
+E5  : T   3.34c W   2.70c S   0.64c ( +0.7) V  -0.83c P 11.25% VW 10.87% N      44  --  F7 E7 B1 F7 B7 E3
+B7  : T   2.68c W   2.31c S   0.36c ( +0.4) V -12.51c P  5.32% VW 11.03% N      43  --  E3 pass F3 B1
+A7  : T   4.43c W   4.54c S  -0.11c ( -0.1) V -10.36c P  9.95% VW 10.62% N      32  --  pass E3 pass E7 F3
+E7  : T   5.13c W   4.35c S   0.78c ( +0.9) V  10.42c P  9.01% VW 10.48% N      25  --  B1 F7 B7 A4 F1
+F7  : T   1.73c W   1.18c S   0.55c ( +0.6) V  -2.60c P  1.91% VW 11.18% N      13  --  B1 A4 E3 pass
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 39.98% VW  1.49% N       7  --
+B1  : T  23.51c W  14.76c S   8.75c ( +9.5) V  23.51c P  1.82% VW  8.94% N       1  --
 
 )%%";
       expect(name,out,expected);
@@ -888,6 +895,7 @@ B1  : T  11.22c W   9.89c S   1.32c ( +1.0) V  10.87c P  1.82% VW  9.79% N      
       out << search->rootBoard << endl;
       search->printTree(out, search->rootNode, options);
 
+      //Should NOT contain E3 or F1, unlike the previous.
       string expected = R"%%(
 HASH: F33AB5338807413FD7B5069884FF9DB9
    A B C D E F G
@@ -900,17 +908,17 @@ HASH: F33AB5338807413FD7B5069884FF9DB9
  1 O . . O O . X
 
 
-: T   1.58c W   1.65c S  -0.07c ( -0.1) V  25.65c N     400  --  E5 F1 B1 B7 A7 E7 A4
+: T   1.53c W   1.49c S   0.03c ( +0.0) V  24.58c N     400  --  E5 F7 E7 F1 F7 pass pass
 ---Black(v)---
-E5  : T  -0.15c W  -0.20c S   0.04c ( +0.0) V   5.89c P 11.25% VW 13.30% N     138  --  F1 B1 B7 A7 E7 A4
-C1  : T   0.34c W   0.12c S   0.21c ( +0.2) V -16.96c P  7.02% VW 12.97% N      66  --  F1 B7 E7 E3 B1 F3 F7
-F7  : T  -1.42c W  -0.24c S  -1.18c ( -0.9) V   0.12c P  1.91% VW 13.47% N      58  --  A7 F1 F1 B1
-A7  : T   4.18c W   4.23c S  -0.05c ( -0.0) V  -7.40c P  9.95% VW 11.80% N      50  --  C1 F7 B1 F1 E5
-E7  : T   2.26c W   1.98c S   0.28c ( +0.2) V   1.73c P  9.01% VW 12.35% N      45  --  F1 A4 G1 A7
-B7  : T   2.80c W   2.89c S  -0.09c ( -0.1) V  -2.47c P  5.32% VW 12.20% N      32  --  C1 A4 pass pass
+E5  : T   1.00c W   0.88c S   0.12c ( +0.1) V  -0.83c P 11.25% VW 12.75% N     102  --  F7 E7 F1 F7 pass pass
+E7  : T   0.48c W  -0.00c S   0.48c ( +0.5) V  -3.73c P  9.01% VW 12.88% N      81  --  B1 F1 E5 pass B7
+C1  : T   0.36c W   0.92c S  -0.56c ( -0.6) V  -3.97c P  7.02% VW 12.89% N      69  --  B7 B1 F1 A7
+A7  : T   1.19c W   1.61c S  -0.43c ( -0.5) V -10.36c P  9.95% VW 12.63% N      68  --  F1 C1 E5 pass F7
+B1  : T  -0.73c W  -0.67c S  -0.06c ( -0.1) V   4.46c P  1.82% VW 13.12% N      44  --  F1 E3 G1 F3 E7
+B7  : T   2.65c W   2.19c S   0.46c ( +0.5) V -10.37c P  5.32% VW 12.17% N      24  --  F1 B1 C1 E7
 pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 39.98% VW  1.65% N       7  --
-B1  : T  11.40c W  11.42c S  -0.02c ( -0.0) V  15.86c P  1.82% VW 11.09% N       2  --  E3
-A4  : T  12.48c W  17.42c S  -4.94c ( -3.7) V  12.48c P  1.14% VW 11.15% N       1  --
+F7  : T  14.39c W  13.26c S   1.13c ( +1.2) V  16.81c P  1.91% VW 10.65% N       2  --  E3
+A4  : T   9.63c W   7.44c S   2.19c ( +2.4) V   9.04c P  1.14% VW 11.26% N       2  --  E3
 
 )%%";
       expect(name,out,expected);
@@ -921,6 +929,7 @@ A4  : T  12.48c W  17.42c S  -4.94c ( -3.7) V  12.48c P  1.14% VW 11.15% N      
       delete nnEval;
     }
 
+    //Progress the game, having black fill space while white passes.
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("A7",board),nextPla,NULL);
     nextPla = getOpp(nextPla);
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
@@ -961,25 +970,25 @@ HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
  1 O . . O O . X
 
 
-: T   1.12c W   1.02c S   0.10c ( +0.1) V -25.65c N     400  --  pass A4 B1 E5 F1 E3 F3
+: T   1.44c W   1.44c S   0.00c ( +0.0) V -24.58c N     400  --  pass E3 pass B1 E5 E3 G3
 ---White(^)---
-pass : T   0.33c W   0.54c S  -0.22c ( -0.2) V  -5.89c P 55.02% VW 16.24% N     211  --  A4 B1 E5 F1 E3 F3
-E5  : T   4.68c W   4.00c S   0.68c ( +0.5) V   3.60c P 15.48% VW 18.30% N      83  --  B1 C1 A4 pass E3 F1
-F1  : T  -0.36c W  -1.17c S   0.81c ( +0.6) V  -1.73c P 12.74% VW 16.13% N      42  --  C1 G1 B7 E5 A4 E3 B1
-C1  : T  -0.28c W  -0.25c S  -0.03c ( -0.0) V  16.96c P  9.67% VW 16.20% N      32  --  A4 E3 G3 E5 B7 D7 F7
-B1  : T   1.61c W   1.28c S   0.33c ( +0.2) V  -5.27c P  2.50% VW 16.85% N      16  --  F1 E3 F1
-E3  : T  -0.26c W  -0.02c S  -0.24c ( -0.2) V -22.42c P  4.59% VW 16.29% N      15  --  A4 F3 F1 C1
-: T   1.12c W   1.02c S   0.10c ( +0.1) V -25.65c N     400  --  pass A4 B1 E5 F1 E3 F3
-pass : T   0.33c W   0.54c S  -0.22c ( -0.2) V  -5.89c P 55.02% VW 16.24% N     211  --  A4 B1 E5 F1 E3 F3
+pass : T   1.68c W   1.56c S   0.12c ( +0.1) V   0.83c P 55.02% VW 17.27% N     226  --  E3 pass B1 E5 E3 G3 C1
+E5  : T   1.86c W   1.60c S   0.26c ( +0.3) V  -2.59c P 15.48% VW 17.32% N      64  --  F1 B1 E3 F1 E3
+F1  : T   1.88c W   2.20c S  -0.32c ( -0.4) V   7.83c P 12.74% VW 17.32% N      59  --  E3 E3 B7 C1 F3
+C1  : T   1.01c W   1.15c S  -0.14c ( -0.2) V  -5.63c P  9.67% VW 16.97% N      37  --  E3 G3 pass F3 E5 E3
+E3  : T  -2.15c W  -1.63c S  -0.52c ( -0.6) V  -6.91c P  4.59% VW 16.16% N      10  --  C1 B1 G3
+B1  : T  -9.40c W  -7.28c S  -2.12c ( -2.4) V  -7.21c P  2.50% VW 14.96% N       3  --  pass F1
+: T   1.44c W   1.44c S   0.00c ( +0.0) V -24.58c N     400  --  pass E3 pass B1 E5 E3 G3
+pass : T   1.68c W   1.56c S   0.12c ( +0.1) V   0.83c P 55.02% VW 17.27% N     226  --  E3 pass B1 E5 E3 G3 C1
 ---Black(v)---
-pass A4  : T  -0.38c W   0.17c S  -0.55c ( -0.4) V  -1.43c P 27.46% VW 14.23% N      70  --  B1 E5 F1 E3 F3
-pass F1  : T   2.46c W   2.22c S   0.24c ( +0.2) V  -3.59c P 28.75% VW 13.26% N      50  --  B1 A4 C1 pass
-pass E5  : T  -1.61c W  -2.13c S   0.52c ( +0.4) V  10.73c P 13.48% VW 14.59% N      47  --  E3 B7 F1 A4 E5
-pass B1  : T  -1.76c W  -0.89c S  -0.87c ( -0.6) V  -2.47c P  7.60% VW 14.54% N      27  --  F1 A4 E3 E5
-pass E3  : T  -2.28c W   0.10c S  -2.38c ( -1.8) V  -4.23c P  1.88% VW 14.45% N       7  --  G3 F3
-pass B7  : T   9.58c W  10.39c S  -0.80c ( -0.6) V -10.55c P  5.08% VW 12.20% N       5  --  B1 A4
-pass C1  : T   7.87c W   9.19c S  -1.32c ( -1.0) V  -9.42c P  2.99% VW 12.68% N       3  --  F1 A4
-pass pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW  4.05% N       1  --
+pass E3  : T  -0.94c W  -0.83c S  -0.11c ( -0.1) V   5.51c P 26.44% VW 15.29% N     104  --  pass B1 E5 E3 G3 C1 F1
+pass E5  : T   0.18c W   0.34c S  -0.16c ( -0.2) V  -5.64c P 10.84% VW 14.65% N      38  --  B1 F1 pass E3 C1
+pass F1  : T   2.13c W   1.83c S   0.30c ( +0.3) V  -7.20c P 10.92% VW 14.04% N      26  --  G1 C1 pass E5
+pass A4  : T   7.85c W   7.66c S   0.19c ( +0.2) V -10.36c P 14.19% VW 12.50% N      21  --  C1 B7 F1 E5
+pass C1  : T   8.39c W   7.57c S   0.82c ( +0.9) V  -4.22c P 11.73% VW 12.51% N      14  --  pass E5 F1 A4 B1
+pass B7  : T   4.23c W   3.35c S   0.89c ( +1.0) V   5.74c P  6.19% VW 13.55% N      11  --  pass B1 C1
+pass B1  : T   1.31c W  -0.00c S   1.31c ( +1.5) V  -7.93c P  3.89% VW 14.21% N       9  --  C1 A4 B1
+pass pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW  3.26% N       2  --
 
 )%%";
       expect(name,out,expected);
@@ -1003,22 +1012,22 @@ HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
  1 O . . O O . X
 
 
-: T   0.33c W   0.54c S  -0.22c ( -0.2) V  -5.89c N     211  --  A4 B1 E5 F1 E3 F3
+: T   1.68c W   1.56c S   0.12c ( +0.1) V   0.83c N     226  --  E3 pass B1 E5 E3 G3 C1
 ---Black(v)---
-A4  : T  -0.38c W   0.17c S  -0.55c ( -0.4) V  -1.43c P 27.46% VW 14.23% N      70  --  B1 E5 F1 E3 F3
-F1  : T   2.46c W   2.22c S   0.24c ( +0.2) V  -3.59c P 28.75% VW 13.26% N      50  --  B1 A4 C1 pass
-E5  : T  -1.61c W  -2.13c S   0.52c ( +0.4) V  10.73c P 13.48% VW 14.59% N      47  --  E3 B7 F1 A4 E5
-B1  : T  -1.76c W  -0.89c S  -0.87c ( -0.6) V  -2.47c P  7.60% VW 14.54% N      27  --  F1 A4 E3 E5
-E3  : T  -2.28c W   0.10c S  -2.38c ( -1.8) V  -4.23c P  1.88% VW 14.45% N       7  --  G3 F3
-B7  : T   9.58c W  10.39c S  -0.80c ( -0.6) V -10.55c P  5.08% VW 12.20% N       5  --  B1 A4
-C1  : T   7.87c W   9.19c S  -1.32c ( -1.0) V  -9.42c P  2.99% VW 12.68% N       3  --  F1 A4
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW  4.05% N       1  --
+E3  : T  -0.94c W  -0.83c S  -0.11c ( -0.1) V   5.51c P 26.44% VW 15.29% N     104  --  pass B1 E5 E3 G3 C1 F1
+E5  : T   0.18c W   0.34c S  -0.16c ( -0.2) V  -5.64c P 10.84% VW 14.65% N      38  --  B1 F1 pass E3 C1
+F1  : T   2.13c W   1.83c S   0.30c ( +0.3) V  -7.20c P 10.92% VW 14.04% N      26  --  G1 C1 pass E5
+A4  : T   7.85c W   7.66c S   0.19c ( +0.2) V -10.36c P 14.19% VW 12.50% N      21  --  C1 B7 F1 E5
+C1  : T   8.39c W   7.57c S   0.82c ( +0.9) V  -4.22c P 11.73% VW 12.51% N      14  --  pass E5 F1 A4 B1
+B7  : T   4.23c W   3.35c S   0.89c ( +1.0) V   5.74c P  6.19% VW 13.55% N      11  --  pass B1 C1
+B1  : T   1.31c W  -0.00c S   1.31c ( +1.5) V  -7.93c P  3.89% VW 14.21% N       9  --  C1 A4 B1
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW  3.26% N       2  --
 
 )%%";
       expect(name,out,expected);
 
       //But the moment we begin a search, it should no longer.
-      search->beginSearch();
+      search->beginSearch(logger);
       testAssert(!hasSuicideRootMoves(search));
       testAssert(!hasPassAliveRootMoves(search));
 
@@ -1036,10 +1045,10 @@ HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
  1 O . . O O . X
 
 
-: T  -0.54c W  -1.14c S   0.60c ( +0.4) V  -5.89c N      49  --  E5 E3 B7 F1 A4 E5
+: T   2.61c W   2.71c S  -0.11c ( -0.1) V   0.83c N      41  --  E5 B1 F1 pass E3 C1
 ---Black(v)---
-E5  : T  -1.61c W  -2.13c S   0.52c ( +0.4) V  10.73c P 13.48% VW 78.26% N      47  --  E3 B7 F1 A4 E5
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW 21.74% N       1  --
+E5  : T   0.18c W   0.34c S  -0.16c ( -0.2) V  -5.64c P 10.84% VW 82.05% N      38  --  B1 F1 pass E3 C1
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW 17.95% N       2  --
 
 )%%";
       expect(name,out,expected);
@@ -1061,10 +1070,10 @@ HASH: EEB7B98C150CB37CBB6DB4CE74D17E4A
  1 O . . O O . X
 
 
-: T   2.57c W   2.42c S   0.15c ( +0.1) V  -5.89c N     400  --  E5 C1 A4 B7 D7 A4 A7
+: T   1.89c W   1.64c S   0.25c ( +0.3) V   0.83c N     400  --  E5 B1 F1 pass E3 C1 E3
 ---Black(v)---
-E5  : T   2.35c W   2.21c S   0.13c ( +0.1) V  10.73c P 13.48% VW 81.29% N     397  --  C1 A4 B7 D7 A4 A7
-pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 12.76% VW 18.71% N       2  --
+E5  : T   1.55c W   1.31c S   0.24c ( +0.3) V  -5.64c P 10.84% VW 83.90% N     396  --  B1 F1 pass E3 C1 E3 F3
+pass : T 104.68c W 100.00c S   4.68c ( +3.5) V --.--c P 15.80% VW 16.10% N       3  --
 
 )%%";
       expect(name,out,expected);
