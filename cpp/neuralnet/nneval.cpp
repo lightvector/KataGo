@@ -653,6 +653,11 @@ void NNEvaluator::evaluate(
 
         scoreMeanSq = scoreMean * scoreMean + scoreStdev * scoreStdev;
 
+        //scoreMean and scoreMeanSq are still conditional on having a result, we need to make them unconditional now
+        //noResult counts as 0 score for scorevalue purposes.
+        scoreMean = scoreMean * (1.0-noResultProb);
+        scoreMeanSq = scoreMeanSq * (1.0-noResultProb); 
+
         if(isnan(probSum) || isnan(scoreMean) || isnan(scoreMeanSq)) {
           cout << "Got nan for nneval value" << endl;
           cout << winLogits << " " << lossLogits << " " << noResultLogits << " " << scoreMean << " " << scoreMeanSq << endl;
