@@ -1,11 +1,11 @@
 Running search tests specifically for v3 or later nets
-: Cuda backend: Found GPU Tesla K80 memory 11995578368 compute capability major 3 minor 7
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 3
-: Cuda backend: Found GPU Tesla K80 memory 11995578368 compute capability major 3 minor 7
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 3
 GAME 5 ==========================================================================
 (A simple opening to test neural net outputs including ownership map)
-: Cuda backend: Found GPU Tesla K80 memory 11995578368 compute capability major 3 minor 7
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 3
 HASH: ADB4BE123347442207BF5B34A046995B
    A B C D E F G H J K L M N O P Q R S T
@@ -377,7 +377,7 @@ D1  : T -82.03c W -80.01c S  -2.02c ( -2.3) V -82.03c P  1.28% VW  2.75% N      
 K1  : T -30.54c W -30.14c S  -0.40c ( -0.5) V -30.54c P  1.28% VW  5.30% N       1  --  
 C6  : T -39.67c W -39.25c S  -0.42c ( -0.5) V -39.67c P  1.06% VW  4.73% N       1  --  
 A8  : T -66.33c W -65.20c S  -1.13c ( -1.3) V -66.33c P  0.77% VW  3.37% N       1  --  
-B1  : T -70.41c W -69.04c S  -1.37c ( -1.6) V -70.41c P  0.67% VW  3.19% N       1  --  
+B1  : T -70.41c W -69.04c S  -1.37c ( -1.6) V -70.41c P  0.67% VW  3.20% N       1  --  
 K3  : T -73.97c W -72.50c S  -1.47c ( -1.7) V -73.97c P  0.62% VW  3.05% N       1  --  
 B7  : T -62.54c W -61.49c S  -1.04c ( -1.2) V -62.54c P  0.56% VW  3.54% N       1  --  
 pass : T -96.11c W -92.02c S  -4.08c ( -4.8) V -96.11c P  0.55% VW  2.29% N       1  --  

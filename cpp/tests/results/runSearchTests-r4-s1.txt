@@ -2,7 +2,7 @@ Running search tests
 GAME 1 ==========================================================================
 (An ordinary pro game)
 
-: Cuda backend: Found GPU Tesla K80 memory 11995578368 compute capability major 3 minor 7
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 3
 MoveNum: 20 HASH: 9C149A65DD8EAFF46E53149CADCF4436
    A B C D E F G H J K L M N O P Q R S T
@@ -468,7 +468,7 @@ Tree:
 ---White(^)---
 J1  : T  22.27c W  20.17c S   2.11c ( +4.3) V  61.63c P 30.49% VW 45.59% N     160  --  L1 F2 O10 N10 F3 G1 D18
 E1  : T   6.13c W   5.18c S   0.95c ( +1.9) V  35.49c P 52.37% VW 29.87% N      37  --  D18 D19 C19 B19 A15 A17 O10
-R5  : T -21.61c W -19.87c S  -1.74c ( -3.7) V  33.40c P  4.72% VW 24.54% N       2  --  F2
+R5  : T -21.62c W -19.87c S  -1.74c ( -3.7) V  33.40c P  4.72% VW 24.54% N       2  --  F2
 MoveNum: 330 HASH: C1FF01B174B3137109AA778E630DC606
    A B C D E F G H J K L M N O P Q R S T
 19 . . . O O X X . . X . . . . . X X X O
