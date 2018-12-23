@@ -759,19 +759,19 @@ K4 visits 1 utilityNoBonus -63.10c utilityWithBonus -63.47c endingScoreBonus -0.
 D1 visits 1 utilityNoBonus -81.42c utilityWithBonus -81.42c endingScoreBonus 0.00
 K1 visits 1 utilityNoBonus -36.87c utilityWithBonus -37.22c endingScoreBonus -0.40
 K3 visits 1 utilityNoBonus -57.10c utilityWithBonus -57.45c endingScoreBonus -0.41
-A8 visits 1 utilityNoBonus -60.15c utilityWithBonus -60.15c endingScoreBonus 0.00
+A8 visits 1 utilityNoBonus -60.15c utilityWithBonus -60.49c endingScoreBonus -0.39
 L5 visits 1 utilityNoBonus -73.06c utilityWithBonus -73.37c endingScoreBonus -0.36
 C6 visits 1 utilityNoBonus -24.12c utilityWithBonus -24.12c endingScoreBonus 0.00
 B1 visits 1 utilityNoBonus -65.44c utilityWithBonus -65.84c endingScoreBonus -0.46
 B2 visits 1 utilityNoBonus -66.42c utilityWithBonus -66.83c endingScoreBonus -0.47
-A7 visits 1 utilityNoBonus -61.98c utilityWithBonus -61.98c endingScoreBonus 0.00
+A7 visits 1 utilityNoBonus -61.98c utilityWithBonus -62.31c endingScoreBonus -0.38
 L2 visits 1 utilityNoBonus -76.38c utilityWithBonus -76.74c endingScoreBonus -0.42
-A6 visits 1 utilityNoBonus -60.36c utilityWithBonus -60.36c endingScoreBonus 0.00
-A9 visits 1 utilityNoBonus -64.16c utilityWithBonus -64.16c endingScoreBonus 0.00
+A6 visits 1 utilityNoBonus -60.36c utilityWithBonus -60.68c endingScoreBonus -0.37
+A9 visits 1 utilityNoBonus -64.16c utilityWithBonus -64.51c endingScoreBonus -0.40
 L4 visits 1 utilityNoBonus -79.62c utilityWithBonus -79.96c endingScoreBonus -0.40
-B7 visits 1 utilityNoBonus -50.43c utilityWithBonus -50.43c endingScoreBonus 0.00
+B7 visits 1 utilityNoBonus -50.43c utilityWithBonus -50.77c endingScoreBonus -0.38
 F4 visits 1 utilityNoBonus -79.88c utilityWithBonus -79.88c endingScoreBonus 0.00
-B8 visits 1 utilityNoBonus -51.75c utilityWithBonus -51.75c endingScoreBonus 0.00
+B8 visits 1 utilityNoBonus -51.75c utilityWithBonus -52.11c endingScoreBonus -0.42
 L3 visits 1 utilityNoBonus -78.81c utilityWithBonus -79.09c endingScoreBonus -0.33
 
 
