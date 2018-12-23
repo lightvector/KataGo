@@ -2035,7 +2035,7 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
   string s = Global::trim(str);
   if(s.length() < 2)
     return false;
-  if(Global::isEqualCaseInsensitive(s,string("pass"))) {
+  if(Global::isEqualCaseInsensitive(s,string("pass")) || Global::isEqualCaseInsensitive(s,string("pss"))) {
     result = Board::PASS_LOC;
     return true;
   }

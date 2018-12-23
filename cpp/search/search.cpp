@@ -1630,31 +1630,22 @@ void Search::printTreeHelper(
     }
 
     bool hasNNValue = false;
-    //double nnResultValue;
+    double nnResultValue;
     double nnTotalValue;
     lock.lock();
     if(node.nnOutput != nullptr) {
-      //nnResultValue = getResultUtilityFromNN(*node.nnOutput,searchParams);
+      nnResultValue = getResultUtilityFromNN(*node.nnOutput,searchParams);
       nnTotalValue = getUtilityFromNN(*node.nnOutput);
       hasNNValue = true;
     }
     lock.unlock();
 
-    //TODO
-    // if(hasNNValue) {
-    //   sprintf(buf,"VW %6.2fc VS %6.2fc ", nnResultValue * 100.0, (nnTotalValue - nnResultValue) * 100.0);
-    //   out << buf;
-    // }
-    // else {
-    //   sprintf(buf,"VW --.--c VS --.--c ");
-    //   out << buf;
-    // }
     if(hasNNValue) {
-      sprintf(buf,"V %6.2fc ", nnTotalValue * 100.0);
+      sprintf(buf,"VW %6.2fc VS %6.2fc ", nnResultValue * 100.0, (nnTotalValue - nnResultValue) * 100.0);
       out << buf;
     }
     else {
-      sprintf(buf,"V --.--c ");
+      sprintf(buf,"VW ---.--c VS ---.--c ");
       out << buf;
     }
 
@@ -1789,9 +1780,13 @@ void Search::printTreeHelper(
        (depth < options.branch_.size() && moveLoc == options.branch_[depth]))
     {
       size_t oldLen = prefix.length();
-      prefix += Location::toString(moveLoc,rootBoard);
+      string locStr = Location::toString(moveLoc,rootBoard);
+      if(locStr == "pass")
+        prefix += "pss";
+      else
+        prefix += locStr;
       prefix += " ";
-      if(prefix.length() < oldLen+4)
+      while(prefix.length() < oldLen+4)
         prefix += " ";
       printTreeHelper(out,child,options,prefix,origVisits,depth+1,childPolicyProb,childModelProb);
       prefix.erase(oldLen);
