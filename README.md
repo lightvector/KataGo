@@ -282,7 +282,9 @@ Got around to testing the actual effect of global pooling on the strength of neu
     value52-140-100p-fpu20(nogpool): 107.2  75cf (  97.2, 117.2)  95cf (  89.2, 125.2)  (673.0 win, 913.0 loss) 
     value45-140-100p-fpu20(nogpool):  88.3  75cf (  77.3,  99.3)  95cf (  67.3, 108.3)  (512.0 win, 774.0 loss) 
 
-The "value45" and "value52" nets are two identical independent training runs, trained for 140M samples on LZ105-LZ142 and ELF games. Both are identical to "value33" except that the residual blocks that contain global pooling and the global pooling structure in the policy net have been removed, and in the case of the residual blocks, replaced with normal residual blocks. As expected, global pooling appears to provide a modest but clear strength gain compared to not having it. On the side, as before, separate performance testing indicated that there was essentially no performance to including the global pooling (the cost of pooling is minimal compared to convolution, and in this implementation the pooling channels actually replace some of the regular channels rather than being an addition to them). So this seems to be just a pure strength gain for the neural net.
+The "value45" and "value52" nets are two identical independent training runs, trained for 140M samples on LZ105-LZ142 and ELF games. Both are identical to "value33" except that the residual blocks that contain global pooling and the global pooling structure in the policy net have been removed, and in the case of the residual blocks, replaced with normal residual blocks.
+
+As expected, global pooling appears to provide a modest but clear strength gain compared to not having it. Also as expected, separate performance testing indicated that there was very little performance cost to including the global pooling (the cost of pooling is minimal compared to convolution, and in this implementation the pooling channels actually replace some of the regular channels rather than being an addition to them). So this seems to be just a pure strength gain for the neural net.
 
 
 ## Wide Low-Rank Residual Blocks (Feb 2018)
@@ -688,13 +690,14 @@ Additionally, the variance of the error distribution appeared to sharply decreas
 <tr><td><sub> The same plot, showing only the points for less than 1000 visits, on a log-log scale.</sub></tr></td>
 </table>
 
-It seems like the variance decreases very rapidly at the start, more than one might expect treating the visits as i.i.d observations of a noisy value (in such a case, the precision should increase linearly, here the first few visits reduce the error variance or increase the precision much more than the later ones).
+It seems like the variance decreases very rapidly at the start, more than one might expect treating the visits as i.i.d observations of a noisy value (in such a case, the precision should increase linearly, here the first few visits reduce the error variance or increase the precision much more than the later ones). It does appear to become linear for larger numbers of visits, but initially scales more like a power law.
 
 Inspired by these observations, I implemented a simple model where rather than equal-weighting all playouts within a subtree and averaging their values to produce the parent value, the playouts of each child were instead weighted by a very rough approximation of the likelihood that the given child had the best value, modelling the error distribution of a child as a t-distribution with 3 degrees of freedom with precision that scaled as a function of the number of visits in that child (using a much simpler and more conservative scaling than the one observed). And so on, recursively through the whole search.
 
 For example, this causes a new child with with a good value that has received enough visits to make it likely to be better, even taking into account the heavy tail distribution of errors, than an old child with many more visits, to be significantly upweighted relative to the old child. This causes the parent node's value to react more quickly to thew new child's value. Reversewise, if a few visits are put into a child and get extremely bad results (perhaps due to the NN policy being mistaken about a particular tactic), that child will be downweighted, causing those visits to influence the parent slightly less than equal-weighting would. In this manner, the MCTS becomes slightly more minimax-like and quicker to react to new refutations.
 
 I tried integrating various powers of the weighting factor into the actual MCTS search, to see the effect of applying different amounts of this weighting on the strength of the bot:
+
     Elo ratings by bot, 800 visits:
     v49-140-800v-m50%-fp16: 548.9  75cf ( 545.9, 551.9)  95cf ( 543.9, 553.9)  (16389.0 win, 15191.0 loss) 
     v49-140-800v-m70%-fp16: 544.4  75cf ( 540.4, 548.4)  95cf ( 538.4, 550.4)  (7793.0 win, 7704.0 loss) 
