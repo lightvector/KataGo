@@ -1148,17 +1148,15 @@ class Target_varsV3:
       tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target, logits=policy_output)
     )
 
-    self.value_loss_unreduced = 0.5 * (
-      1.4 * tf.nn.softmax_cross_entropy_with_logits_v2(
-        labels=self.value_target,
-        logits=value_output
-      ) +
-      2.0 * tf.reduce_sum(tf.square(self.value_target - value_probs),axis=1)
+    self.value_loss_unreduced = 1.5 * tf.nn.softmax_cross_entropy_with_logits_v2(
+      labels=self.value_target,
+      logits=value_output
     )
 
-    self.scoremean_loss_unreduced = 0.00003 * (
-      tf.square(self.scoremean_target - scoremean_prediction * value_probs[:,2]) #Multiply by value_probs[:,2] (the no-result prob) to make it an unconditional prediction
-    )
+    self.scoremean_loss_unreduced = tf.zeros_like(scoremean_prediction)
+    #self.scoremean_loss_unreduced = 0.00003 * (
+    #  tf.square(self.scoremean_target - scoremean_prediction * value_probs[:,2]) #Multiply by value_probs[:,2] (the no-result prob) to make it an unconditional prediction
+    #)
 
     self.scorebelief_cdf_loss_unreduced = 0.02 * self.ownership_target_weight * (
       tf.reduce_sum(
@@ -1173,20 +1171,20 @@ class Target_varsV3:
       )
     )
 
-    self.bonusbelief_cdf_loss_unreduced = 0.04 * self.ownership_target_weight * (
+    self.bonusbelief_cdf_loss_unreduced = 0.02 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.bonusbelief_target,axis=1) - tf.cumsum(tf.nn.softmax(bonusbelief_output,axis=1),axis=1)),
         axis=1
       )
     )
-    self.bonusbelief_pdf_loss_unreduced = 0.04 * self.ownership_target_weight * (
+    self.bonusbelief_pdf_loss_unreduced = 0.02 * self.ownership_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.bonusbelief_target,
         logits=bonusbelief_output
       )
     )
 
-    self.utilityvar_loss_unreduced = 0.1 * self.utilityvar_target_weight * (
+    self.utilityvar_loss_unreduced = 0.2 * self.utilityvar_target_weight * (
       tf.reduce_sum(tf.square(self.utilityvar_target - tf.math.softplus(miscvalues_output[:,2:6])),axis=1)
     )
 
