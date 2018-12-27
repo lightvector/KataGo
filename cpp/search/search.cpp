@@ -1102,13 +1102,15 @@ void Search::selectBestChildToDescend(
   }
 
   double fpuValue;
-  if(isRoot && searchParams.rootNoiseEnabled)
-    fpuValue = parentUtility;
-  else {
-    if(thread.pla == P_WHITE)
-      fpuValue = parentUtility - searchParams.fpuReductionMax * sqrt(policyProbMassVisited);
-    else
-      fpuValue = parentUtility + searchParams.fpuReductionMax * sqrt(policyProbMassVisited);
+  {
+    double fpuReductionMax = isRoot ? searchParams.rootFpuReductionMax : searchParams.fpuReductionMax;
+    double fpuLossProp = isRoot ? searchParams.rootFpuLossProp : searchParams.fpuLossProp;
+    double utilityRadius = searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor;
+
+    double reduction = fpuReductionMax * sqrt(policyProbMassVisited);
+    fpuValue = thread.pla == P_WHITE ? parentUtility - reduction : parentUtility + reduction;
+    double lossValue = thread.pla == P_WHITE ? -utilityRadius : utilityRadius;
+    fpuValue = fpuValue + (lossValue - fpuValue) * fpuLossProp;
   }
 
   std::fill(posesWithChildBuf,posesWithChildBuf+NNPos::MAX_NN_POLICY_SIZE,false);

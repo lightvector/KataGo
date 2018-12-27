@@ -257,6 +257,7 @@ static void runBasicPositions(NNEvaluator* nnEval, Logger& logger)
 
       SearchParams testParams = params;
       testParams.rootNoiseEnabled = true;
+      testParams.rootFpuReductionMax = 0.0;
       bot->setParams(testParams);
       runBotOnSgf(bot, sgfStr, rules, 44, 7.5, opts);
       bot->setParams(params);
@@ -356,6 +357,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     SearchParams params;
     params.maxVisits = 500;
     params.fpuReductionMax = 0.0;
+    params.rootFpuReductionMax = 0.0;
     AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
     Rules rules = Rules::getTrompTaylorish();
     TestSearchOptions opts;
@@ -396,6 +398,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     SearchParams params;
     params.maxVisits = 500;
     params.fpuReductionMax = 0.0;
+    params.rootFpuReductionMax = 0.0;
     AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
     Rules rules = Rules::getSimpleTerritory();
     TestSearchOptions opts;
