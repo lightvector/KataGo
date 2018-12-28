@@ -200,10 +200,10 @@ vector<SearchParams> Setup::loadParams(
     else                                             params.rootPolicyTemperature = 1.0;
     if(cfg.contains("rootFpuReductionMax"+idxStr)) params.rootFpuReductionMax = cfg.getDouble("rootFpuReductionMax"+idxStr, 0.0, 2.0);
     else if(cfg.contains("rootFpuReductionMax"))   params.rootFpuReductionMax = cfg.getDouble("rootFpuReductionMax",        0.0, 2.0);
-    else                                           params.rootFpuReductionMax = params.fpuReductionMax;
+    else                                           params.rootFpuReductionMax = params.rootNoiseEnabled ? 0.0 : params.fpuReductionMax;
     if(cfg.contains("rootFpuLossProp"+idxStr)) params.rootFpuLossProp = cfg.getDouble("rootFpuLossProp"+idxStr, 0.0, 1.0);
     else if(cfg.contains("rootFpuLossProp"))   params.rootFpuLossProp = cfg.getDouble("rootFpuLossProp",        0.0, 1.0);
-    else                                       params.rootFpuLossProp = params.rootNoiseEnabled ? 0.0 : params.fpuLossProp;
+    else                                       params.rootFpuLossProp = params.fpuLossProp;
     
     if(cfg.contains("chosenMoveTemperature"+idxStr)) params.chosenMoveTemperature = cfg.getDouble("chosenMoveTemperature"+idxStr, 0.0, 5.0);
     else                                             params.chosenMoveTemperature = cfg.getDouble("chosenMoveTemperature",        0.0, 5.0);
