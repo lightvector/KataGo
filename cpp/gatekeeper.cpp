@@ -397,12 +397,15 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       lock.unlock();
 
       int dataPosLen = 19; //Doesn't matter, we don't actually write training data
-      bool shouldContinue = gameRunner->runGame(
+      FinishedGameData* gameData = gameRunner->runGame(
         netAndStuff->matchPairer, logger,
-        dataPosLen, &(netAndStuff->finishedGameQueue),
-        NULL, stopConditions
+        dataPosLen, stopConditions
       );
 
+      bool shouldContinue = gameData != NULL;
+      if(gameData != NULL)
+        netAndStuff->finishedGameQueue.waitPush(gameData);
+      
       lock.lock();
 
       if(!shouldContinue)

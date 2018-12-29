@@ -177,14 +177,16 @@ int MainCmds::match(int argc, const char* const* argv) {
 
       int dataPosLen = 19; //Doesn't matter, we don't actually write training data
 
-      std::function<void(const FinishedGameData&)> writeSgf = [&sgfOut](const FinishedGameData& gameData) {
+      FinishedGameData* gameData = gameRunner->runGame(matchPairer, logger, dataPosLen, stopConditions);
+
+      bool shouldContinue = gameData != NULL;
+      if(gameData != NULL) {
         if(sgfOut != NULL) {
-          WriteSgf::writeSgf(*sgfOut,gameData.bName,gameData.wName,gameData.startHist.rules,gameData.preStartBoard,gameData.endHist,NULL);
+          WriteSgf::writeSgf(*sgfOut,gameData->bName,gameData->wName,gameData->startHist.rules,gameData->preStartBoard,gameData->endHist,NULL);
           (*sgfOut) << endl;
         }
-      };
-
-      bool shouldContinue = gameRunner->runGame(matchPairer, logger, dataPosLen, NULL, &writeSgf, stopConditions);
+        delete gameData;
+      }
 
       if(sigReceived.load())
         break;

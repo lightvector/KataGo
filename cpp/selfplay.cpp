@@ -409,13 +409,15 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
         logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game on new neural net: " + prevModelName);
       }
 
-      bool shouldContinue = gameRunner->runGame(
+      FinishedGameData* gameData = gameRunner->runGame(
         netAndStuff->matchPairer, logger,
         dataPosLen,
-        &(netAndStuff->finishedGameQueue),
-        NULL,
         stopConditions
       );
+
+      bool shouldContinue = gameData != NULL;
+      if(gameData != NULL)
+        netAndStuff->finishedGameQueue.waitPush(gameData);
 
       lock.lock();
 

@@ -609,7 +609,7 @@ static void recordTreePositions(
 //Run a game between two bots. It is OK if both bots are the same bot.
 FinishedGameData* Play::runGame(
   const Board& initialBoard, Player pla, const BoardHistory& initialHist, int numExtraBlack,
-  MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
+  const MatchPairer::BotSpec& botSpecB, const MatchPairer::BotSpec& botSpecW,
   const string& searchRandSeed,
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
@@ -1072,11 +1072,9 @@ GameRunner::~GameRunner() {
   delete gameInit;
 }
 
-bool GameRunner::runGame(
+FinishedGameData* GameRunner::runGame(
   MatchPairer* matchPairer, Logger& logger,
   int dataPosLen,
-  ThreadSafeQueue<FinishedGameData*>* finishedGameQueue,
-  std::function<void(const FinishedGameData&)>* reportGame,
   vector<std::atomic<bool>*>& stopConditions
 ) {
   int64_t gameIdx;
@@ -1086,7 +1084,7 @@ bool GameRunner::runGame(
   shouldContinue = matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger);
 
   if(!shouldContinue)
-    return false;
+    return NULL;
 
   Board board; Player pla; BoardHistory hist; int numExtraBlack;
   if(forSelfPlay) {
@@ -1130,22 +1128,10 @@ bool GameRunner::runGame(
   //Make sure not to write the game if we terminated in the middle of this game!
   if(shouldStop(stopConditions)) {
     delete finishedGameData;
-    return false;
+    return NULL;
   }
 
-  if(reportGame != NULL) {
-    assert(finishedGameData != NULL);
-    (*reportGame)(*finishedGameData);
-  }
-
-  if(finishedGameQueue != NULL) {
-    assert(finishedGameData != NULL);
-    finishedGameQueue->waitPush(finishedGameData);
-  }
-  else{
-    delete finishedGameData;
-  }
-
-  return true;
+  assert(finishedGameData != NULL);
+  return finishedGameData;
 }
 

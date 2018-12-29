@@ -155,7 +155,7 @@ namespace Play {
 
   FinishedGameData* runGame(
     const Board& initialBoard, Player pla, const BoardHistory& initialHist, int numExtraBlack,
-    MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
+    const MatchPairer::BotSpec& botSpecB, const MatchPairer::BotSpec& botSpecW,
     const string& searchRandSeed,
     bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
@@ -183,12 +183,11 @@ public:
   GameRunner(ConfigParser& cfg, const string& searchRandSeedBase, bool forSelfPlay, FancyModes fancyModes);
   ~GameRunner();
 
-  bool runGame(
+  //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data
+  //if it isn't NULL.
+  FinishedGameData* runGame(
     MatchPairer* matchPairer, Logger& logger,
     int dataPosLen,
-    ThreadSafeQueue<FinishedGameData*>* finishedGameQueue,
-    //reportGame should not hold on to a reference to the finished game data.
-    std::function<void(const FinishedGameData&)>* reportGame,
     vector<std::atomic<bool>*>& stopConditions
   );
 
