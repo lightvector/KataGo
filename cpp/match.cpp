@@ -137,6 +137,9 @@ int MainCmds::match(int argc, const char* const* argv) {
 
   //Initialize object for randomizing game settings and running games
   FancyModes fancyModes;
+  fancyModes.allowResignation = cfg.getBool("allowResignation");
+  fancyModes.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
+  fancyModes.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
   GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay, fancyModes);
 
   //Check for unused config keys
