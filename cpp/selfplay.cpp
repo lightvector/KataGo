@@ -221,6 +221,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.cheapSearchProb = cfg.getDouble("cheapSearchProb",0.0,1.0);
   fancyModes.cheapSearchVisits = cfg.getInt("cheapSearchVisits",0,10000000);
   fancyModes.cheapSearchTargetWeight = cfg.getFloat("cheapSearchTargetWeight",0.0f,1.0f);
+  fancyModes.reduceVisits = cfg.getBool("reduceVisits");
+  fancyModes.reduceVisitsThreshold = cfg.getDouble("reduceVisitsThreshold",0.0,1.0);
+  fancyModes.reduceVisitsThresholdLookback = cfg.getInt("reduceVisitsThresholdLookback",0,1000);
+  fancyModes.reducedVisitsMin = cfg.getInt("reducedVisitsMin",0,10000000);
+  fancyModes.reducedVisitsWeight = cfg.getFloat("reducedVisitsWeight",0.0f,1.0f);
   fancyModes.recordTreePositions = cfg.getBool("recordTreePositions");
   fancyModes.recordTreeThreshold = cfg.getInt("recordTreeThreshold",1,100000000);
   fancyModes.recordTreeTargetWeight = cfg.getFloat("recordTreeTargetWeight",0.0f,1.0f);

@@ -324,6 +324,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
+   reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
    allowResignation(false),resignThreshold(0.0),resignConsecTurns(1)
 {}
@@ -746,8 +747,7 @@ FinishedGameData* Play::runGame(
 
   vector<SidePosition*> sidePositionsToSearch;
 
-  int resignConsecTurnsCount = 0;
-  Player resignPlayer = C_EMPTY;
+  vector<double> historicalMctsWinValues;
 
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
@@ -759,19 +759,56 @@ FinishedGameData* Play::runGame(
       break;
 
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
-    Loc loc;
     float targetWeight = 1.0;
+
+    bool doCapVisitsPlayouts = false;
+    int numCapVisits = toMoveBot->searchParams.maxVisits;
+    int numCapPlayouts = toMoveBot->searchParams.maxPlayouts;
     if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
       if(fancyModes.cheapSearchVisits <= 0)
         throw StringError("fancyModes.cheapSearchVisits <= 0");
+      doCapVisitsPlayouts = true;
+      numCapVisits = fancyModes.cheapSearchVisits;
+      numCapPlayouts = fancyModes.cheapSearchVisits;
+      targetWeight *= fancyModes.cheapSearchTargetWeight;
+    }
+    else if(fancyModes.reduceVisits) {
+      if(historicalMctsWinValues.size() >= fancyModes.reduceVisitsThresholdLookback) {
+        double minWinValue = 1e20;
+        double maxWinValue = -1e20;
+        for(int j = 0; j<fancyModes.reduceVisitsThresholdLookback; j++) {
+          double winValue = historicalMctsWinValues[historicalMctsWinValues.size()-1-j];
+          if(winValue < minWinValue)
+            minWinValue = winValue;
+          if(winValue > maxWinValue)
+            maxWinValue = winValue;
+        }
+        assert(fancyModes.reduceVisitsThreshold >= 0.0);
+        double signedMostExtreme = std::max(minWinValue,-maxWinValue);
+        assert(signedMostExtreme <= 1.0);
+        double amountThrough = signedMostExtreme - fancyModes.reduceVisitsThreshold;
+        if(amountThrough > 0) {
+          double proportionThrough = amountThrough / (1.0 - fancyModes.reduceVisitsThreshold);
+          assert(proportionThrough >= 0.0 && proportionThrough <= 1.0);
+          double visitReductionProp = proportionThrough * proportionThrough;
+          doCapVisitsPlayouts = true;
+          numCapVisits = (int)round(numCapVisits + visitReductionProp * (fancyModes.reducedVisitsMin - numCapVisits));
+          numCapPlayouts = (int)round(numCapPlayouts + visitReductionProp * (fancyModes.reducedVisitsMin - numCapPlayouts));
+          targetWeight = (float)(targetWeight + visitReductionProp * (fancyModes.reducedVisitsWeight - targetWeight));
+        }
+      }
+    }
+
+    Loc loc;
+
+    if(doCapVisitsPlayouts) {
       uint64_t oldMaxVisits = toMoveBot->searchParams.maxVisits;
       uint64_t oldMaxPlayouts = toMoveBot->searchParams.maxPlayouts;
-      toMoveBot->searchParams.maxVisits = std::min(oldMaxVisits, (uint64_t)fancyModes.cheapSearchVisits);
-      toMoveBot->searchParams.maxPlayouts = std::min(oldMaxPlayouts, (uint64_t)fancyModes.cheapSearchVisits);
+      toMoveBot->searchParams.maxVisits = std::min(oldMaxVisits, (uint64_t)numCapVisits);
+      toMoveBot->searchParams.maxPlayouts = std::min(oldMaxPlayouts, (uint64_t)numCapPlayouts);
       loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
       toMoveBot->searchParams.maxVisits = oldMaxVisits;
       toMoveBot->searchParams.maxPlayouts = oldMaxPlayouts;
-      targetWeight *= fancyModes.cheapSearchTargetWeight;
     }
     else
       loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
@@ -823,7 +860,7 @@ FinishedGameData* Play::runGame(
       }
     }
 
-    if(fancyModes.allowResignation) {
+    if(fancyModes.allowResignation || fancyModes.reduceVisits) {
       double winValue;
       double lossValue;
       double noResultValue;
@@ -832,27 +869,8 @@ FinishedGameData* Play::runGame(
       double expectedScore;
       bool success = toMoveBot->getRootValues(winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
       assert(success);
-      assert(fancyModes.resignThreshold <= 0);
 
-      double winLossValue = winValue - lossValue;
-      Player resignPlayerThisTurn = C_EMPTY;
-      if(winLossValue < fancyModes.resignThreshold)
-        resignPlayerThisTurn = P_WHITE;
-      else if(winLossValue > -fancyModes.resignThreshold)
-        resignPlayerThisTurn = P_BLACK;
-
-      if(resignPlayerThisTurn == C_EMPTY) {
-        resignPlayer = C_EMPTY;
-        resignConsecTurnsCount = 0;
-      }
-      else {
-        if(resignPlayerThisTurn == resignPlayer)
-          resignConsecTurnsCount += 1;
-        else {
-          resignPlayer = resignPlayerThisTurn;
-          resignConsecTurnsCount = 1;
-        }
-      }
+      historicalMctsWinValues.push_back(winValue - lossValue);
     }
 
     //In many cases, we are using root-level noise, so we want to clear the search each time so that we don't
@@ -873,8 +891,26 @@ FinishedGameData* Play::runGame(
     assert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
 
-    if(fancyModes.allowResignation && resignPlayer == pla && resignConsecTurnsCount >= fancyModes.resignConsecTurns) {
-      hist.setWinnerByResignation(getOpp(pla));
+    //Check for resignation
+    if(fancyModes.allowResignation && historicalMctsWinValues.size() >= fancyModes.resignConsecTurns) {
+      assert(fancyModes.resignThreshold <= 0);
+      bool shouldResign = true;
+      for(int j = 0; j<fancyModes.resignConsecTurns; j++) {
+        double winLossValue = historicalMctsWinValues[historicalMctsWinValues.size()-j-1];
+        Player resignPlayerThisTurn = C_EMPTY;
+        if(winLossValue < fancyModes.resignThreshold)
+          resignPlayerThisTurn = P_WHITE;
+        else if(winLossValue > -fancyModes.resignThreshold)
+          resignPlayerThisTurn = P_BLACK;
+
+        if(resignPlayerThisTurn != pla) {
+          shouldResign = false;
+          break;
+        }
+      }
+
+      if(shouldResign)
+        hist.setWinnerByResignation(getOpp(pla));
     }
 
     pla = getOpp(pla);

@@ -127,6 +127,13 @@ struct FancyModes {
   int cheapSearchVisits;
   float cheapSearchTargetWeight;
 
+  //Attenuate the number of visits used in positions where one player or the other is extremely winning
+  bool reduceVisits;
+  double reduceVisitsThreshold; //When mcts value is more extreme than this
+  int reduceVisitsThresholdLookback; //Value must be more extreme over the last this many turns
+  int reducedVisitsMin; //Number of visits at the most extreme winrate
+  float reducedVisitsWeight; //Amount of weight to put on the training sample at minimum visits winrate.
+  
   //Record positions from within the search tree that had at least this many visits, recording only with this weight.
   bool recordTreePositions;
   int recordTreeThreshold;
