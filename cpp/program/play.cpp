@@ -663,7 +663,7 @@ FinishedGameData* Play::runGame(
   //NOTE: that checkForNewNNEval might also cause the old nnEval to be invalidated and freed. This is okay since the only
   //references we both hold on to and use are the ones inside the bots here.
   //We should NOT ever refer to botSpecB.nnEval or botSpecW.nnEval past this point, or store an nnEval separately from the bot.
-  auto maybeCheckForNewNNEval = [&botB,&botW,&checkForNewNNEval,&gameRand]() {
+  auto maybeCheckForNewNNEval = [&botB,&botW,&checkForNewNNEval,&gameRand,&gameData](int nextTurnNumber) {
     //Check if we got a new nnEval, with some probability.
     //Randomized and low-probability so as to reduce contention in checking, while still probably happening in a timely manner.
     if(checkForNewNNEval != NULL && gameRand.nextBool(0.1)) {
@@ -672,6 +672,7 @@ FinishedGameData* Play::runGame(
         botB->setNNEval(newNNEval);
         if(botW != botB)
           botW->setNNEval(newNNEval);
+        gameData->changedNeuralNets.push_back(new ChangedNeuralNet(newNNEval->getModelName(),nextTurnNumber));
       }
     }
   };
@@ -930,7 +931,8 @@ FinishedGameData* Play::runGame(
         hist.setWinnerByResignation(getOpp(pla));
     }
 
-    maybeCheckForNewNNEval();
+    int nextTurnNumber = hist.moveHistory.size();
+    maybeCheckForNewNNEval(nextTurnNumber);
 
     pla = getOpp(pla);
   }
@@ -1057,7 +1059,7 @@ FinishedGameData* Play::runGame(
         }
       }
 
-      maybeCheckForNewNNEval();
+      maybeCheckForNewNNEval(gameData->endHist.moveHistory.size());
     }
   }
 

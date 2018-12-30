@@ -122,7 +122,8 @@ int MainCmds::match(int argc, const char* const* argv) {
 
   //Initialize neural net inference engine globals, and load models
   Setup::initializeSession(cfg);
-  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,false);
+  const vector<string>& nnModelNames = nnModelFiles;
+  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,false);
   logger.write("Loaded neural net");
 
   vector<NNEvaluator*> nnEvalsByBot;

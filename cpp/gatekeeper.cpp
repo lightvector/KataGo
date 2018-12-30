@@ -328,7 +328,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
     NNEvaluator* testNNEval;
     {
-      vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({testModelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefaultTest);
+      vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({testModelName},{testModelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefaultTest);
       assert(nnEvals.size() == 1);
       logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
       testNNEval = nnEvals[0];
@@ -347,7 +347,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
     NNEvaluator* acceptedNNEval;
     {
-      vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({acceptedModelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefaultAccepted);
+      vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({acceptedModelName},{acceptedModelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefaultAccepted);
       assert(nnEvals.size() == 1);
       logger.write("Loaded accepted neural net " + acceptedModelName + " from: " + acceptedModelFile);
       acceptedNNEval = nnEvals[0];

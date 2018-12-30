@@ -73,6 +73,7 @@ struct NNServerBuf {
 class NNEvaluator {
  public:
   NNEvaluator(
+    const string& modelName,
     const string& modelFileName,
     int modelFileIdx,
     int maxBatchSize,
@@ -87,6 +88,7 @@ class NNEvaluator {
   );
   ~NNEvaluator();
 
+  string getModelName() const;
   string getModelFileName() const;
   int getMaxBatchSize() const;
   int getPosLen() const;
@@ -136,6 +138,7 @@ class NNEvaluator {
   void clearStats();
 
  private:
+  string modelName;
   string modelFileName;
   int posLen;
   bool requireExactPosLen;

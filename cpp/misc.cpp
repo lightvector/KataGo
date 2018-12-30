@@ -91,7 +91,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false);
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false);
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
   }

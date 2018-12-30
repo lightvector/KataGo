@@ -11,6 +11,7 @@ namespace Setup {
   void initializeSession(ConfigParser& cfg);
 
   vector<NNEvaluator*> initializeNNEvaluators(
+    const vector<string>& nnModelNames,
     const vector<string>& nnModelFiles,
     ConfigParser& cfg,
     Logger& logger,

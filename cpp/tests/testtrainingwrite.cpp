@@ -10,6 +10,7 @@ static NNEvaluator* startNNEval(
   int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16
 ) {
   //Placeholder, doesn't actually do anything since we have debugSkipNeuralNet = true
+  string modelName = "testModel";
   string modelFile = "/dev/null";
   int modelFileIdx = 0;
   int maxBatchSize = 16;
@@ -21,6 +22,7 @@ static NNEvaluator* startNNEval(
   bool debugSkipNeuralNet = true;
   double nnPolicyTemperature = 1.0;
   NNEvaluator* nnEval = new NNEvaluator(
+    modelName,
     modelFile,
     modelFileIdx,
     maxBatchSize,

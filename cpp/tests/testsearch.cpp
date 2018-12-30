@@ -116,7 +116,9 @@ static NNEvaluator* startNNEval(
   int nnMutexPoolSizePowerOfTwo = 12;
   int maxConcurrentEvals = 1024;
   //bool debugSkipNeuralNet = false;
+  const string& modelName = modelFile;
   NNEvaluator* nnEval = new NNEvaluator(
+    modelName,
     modelFile,
     modelFileIdx,
     maxBatchSize,

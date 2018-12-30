@@ -36,6 +36,8 @@ struct SidePosition {
   ~SidePosition();
 };
 
+STRUCT_NAMED_PAIR(string,name,int,turnNumber,ChangedNeuralNet);
+
 struct FinishedGameData {
   string bName;
   string wName;
@@ -68,6 +70,7 @@ struct FinishedGameData {
   int8_t* finalWhiteOwnership;
 
   vector<SidePosition*> sidePositions;
+  vector<ChangedNeuralNet*> changedNeuralNets;
 
   FinishedGameData();
   ~FinishedGameData();

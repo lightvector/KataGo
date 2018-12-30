@@ -70,7 +70,8 @@ FinishedGameData::FinishedGameData()
    whiteValueTargetsByTurn(),
    finalWhiteOwnership(NULL),
 
-   sidePositions()
+   sidePositions(),
+   changedNeuralNets()
 {
 }
 
@@ -83,6 +84,9 @@ FinishedGameData::~FinishedGameData() {
 
   for(int i = 0; i<sidePositions.size(); i++)
     delete sidePositions[i];
+
+  for(int i = 0; i<changedNeuralNets.size(); i++)
+    delete changedNeuralNets[i];  
 }
 
 

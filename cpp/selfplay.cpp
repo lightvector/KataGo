@@ -306,7 +306,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
 
     Rand rand;
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefault);
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelName},{modelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefault);
     assert(nnEvals.size() == 1);
     NNEvaluator* nnEval = nnEvals[0];
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
@@ -444,6 +444,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       }
 
       bool shouldContinue = gameData != NULL;
+      //Note that if we've gotten a newNNEval, we're actually pushing the game on to the new one's queue, rather than the old one!
       if(gameData != NULL)
         netAndStuff->finishedGameQueue.waitPush(gameData);
 

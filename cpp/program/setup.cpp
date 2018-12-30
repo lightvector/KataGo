@@ -15,6 +15,7 @@ void Setup::initializeSession(ConfigParser& cfg) {
 }
 
 vector<NNEvaluator*> Setup::initializeNNEvaluators(
+  const vector<string>& nnModelNames,
   const vector<string>& nnModelFiles,
   ConfigParser& cfg,
   Logger& logger,
@@ -23,8 +24,10 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   bool debugSkipNeuralNetDefault
 ) {
   vector<NNEvaluator*> nnEvals;
+  assert(nnModelNames.size() == nnModelFiles.size());
   for(size_t i = 0; i<nnModelFiles.size(); i++) {
     string idxStr = Global::intToString(i);
+    const string& nnModelName = nnModelNames[i];
     const string& nnModelFile = nnModelFiles[i];
 
     bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : debugSkipNeuralNetDefault;
@@ -55,6 +58,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature",0.01f,5.0f);
       
     NNEvaluator* nnEval = new NNEvaluator(
+      nnModelName,
       nnModelFile,
       modelFileIdx,
       cfg.getInt("nnMaxBatchSize", 1, 65536),

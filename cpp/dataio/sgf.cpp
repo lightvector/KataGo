@@ -778,10 +778,15 @@ void WriteSgf::writeSgf(
   int startTurnIdx = 0;
   if(gameData != NULL) {
     startTurnIdx = gameData->startHist.moveHistory.size();
-    out << "C[startTurnIdx=" << startTurnIdx << ","
-        << "mode=" << gameData->mode << ","
-        << "modeM1=" << gameData->modeMeta1 << ","
-        << "modeM2=" << gameData->modeMeta2 << "]";
+    out << "C[startTurnIdx=" << startTurnIdx
+        << "," << "mode=" << gameData->mode
+        << "," << "modeM1=" << gameData->modeMeta1
+        << "," << "modeM2=" << gameData->modeMeta2;
+    for(int j = 0; j<gameData->changedNeuralNets.size(); j++) {
+      out << ",newNeuralNetTurn" << gameData->changedNeuralNets[j]->turnNumber
+          << "=" << gameData->changedNeuralNets[j]->name;
+    }
+    out << "]";
     assert(hist.moveHistory.size() - startTurnIdx <= gameData->whiteValueTargetsByTurn.size());
   }
 

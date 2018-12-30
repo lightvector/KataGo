@@ -43,6 +43,7 @@ NNServerBuf::~NNServerBuf() {
 //-------------------------------------------------------------------------------------
 
 NNEvaluator::NNEvaluator(
+  const string& mName,
   const string& mFileName,
   int modelFileIdx,
   int maxBatchSize,
@@ -55,7 +56,8 @@ NNEvaluator::NNEvaluator(
   bool skipNeuralNet,
   float nnPolicyTemp
 )
-  :modelFileName(mFileName),
+  :modelName(mName),
+   modelFileName(mFileName),
    posLen(pLen),
    requireExactPosLen(rExactPosLen),
    policySize(NNPos::getPolicySize(pLen)),
@@ -135,6 +137,9 @@ NNEvaluator::~NNEvaluator()
   delete nnCacheTable;
 }
 
+string NNEvaluator::getModelName() const {
+  return modelName;
+}
 string NNEvaluator::getModelFileName() const {
   return modelFileName;
 }
