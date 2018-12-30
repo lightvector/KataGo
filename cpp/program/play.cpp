@@ -762,8 +762,8 @@ FinishedGameData* Play::runGame(
     float targetWeight = 1.0;
 
     bool doCapVisitsPlayouts = false;
-    int numCapVisits = toMoveBot->searchParams.maxVisits;
-    int numCapPlayouts = toMoveBot->searchParams.maxPlayouts;
+    uint64_t numCapVisits = toMoveBot->searchParams.maxVisits;
+    uint64_t numCapPlayouts = toMoveBot->searchParams.maxPlayouts;
     if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
       if(fancyModes.cheapSearchVisits <= 0)
         throw StringError("fancyModes.cheapSearchVisits <= 0");
@@ -792,9 +792,11 @@ FinishedGameData* Play::runGame(
           assert(proportionThrough >= 0.0 && proportionThrough <= 1.0);
           double visitReductionProp = proportionThrough * proportionThrough;
           doCapVisitsPlayouts = true;
-          numCapVisits = (int)round(numCapVisits + visitReductionProp * (fancyModes.reducedVisitsMin - numCapVisits));
-          numCapPlayouts = (int)round(numCapPlayouts + visitReductionProp * (fancyModes.reducedVisitsMin - numCapPlayouts));
+          numCapVisits = (uint64_t)round(numCapVisits + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapVisits));
+          numCapPlayouts = (uint64_t)round(numCapPlayouts + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapPlayouts));
           targetWeight = (float)(targetWeight + visitReductionProp * (fancyModes.reducedVisitsWeight - targetWeight));
+          numCapVisits = std::max(numCapVisits,(uint64_t)fancyModes.reducedVisitsMin);
+          numCapPlayouts = std::max(numCapPlayouts,(uint64_t)fancyModes.reducedVisitsMin);
         }
       }
     }
@@ -802,10 +804,12 @@ FinishedGameData* Play::runGame(
     Loc loc;
 
     if(doCapVisitsPlayouts) {
+      assert(numCapVisits > 0);
+      assert(numCapPlayouts > 0);
       uint64_t oldMaxVisits = toMoveBot->searchParams.maxVisits;
       uint64_t oldMaxPlayouts = toMoveBot->searchParams.maxPlayouts;
-      toMoveBot->searchParams.maxVisits = std::min(oldMaxVisits, (uint64_t)numCapVisits);
-      toMoveBot->searchParams.maxPlayouts = std::min(oldMaxPlayouts, (uint64_t)numCapPlayouts);
+      toMoveBot->searchParams.maxVisits = std::min(oldMaxVisits, numCapVisits);
+      toMoveBot->searchParams.maxPlayouts = std::min(oldMaxPlayouts, numCapPlayouts);
       loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
       toMoveBot->searchParams.maxVisits = oldMaxVisits;
       toMoveBot->searchParams.maxPlayouts = oldMaxPlayouts;

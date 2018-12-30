@@ -33,8 +33,8 @@ SearchParams::SearchParams()
    mutexPoolSize(8192),
    numVirtualLossesPerThread(3),
    numThreads(1),
-   maxVisits(((uint64_t)1) << 63),
-   maxPlayouts(((uint64_t)1) << 63),
+   maxVisits(((uint64_t)1) << 50),
+   maxPlayouts(((uint64_t)1) << 50),
    maxTime(1.0e20)
 {}
 
