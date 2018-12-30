@@ -773,6 +773,8 @@ FinishedGameData* Play::runGame(
       targetWeight *= fancyModes.cheapSearchTargetWeight;
     }
     else if(fancyModes.reduceVisits) {
+      if(fancyModes.reducedVisitsMin <= 0)
+        throw StringError("fancyModes.reducedVisitsMin <= 0");
       if(historicalMctsWinValues.size() >= fancyModes.reduceVisitsThresholdLookback) {
         double minWinValue = 1e20;
         double maxWinValue = -1e20;
