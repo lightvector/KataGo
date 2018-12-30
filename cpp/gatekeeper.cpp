@@ -397,10 +397,17 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       lock.unlock();
 
       int dataPosLen = 19; //Doesn't matter, we don't actually write training data
-      FinishedGameData* gameData = gameRunner->runGame(
-        netAndStuff->matchPairer, logger,
-        dataPosLen, stopConditions
-      );
+      FinishedGameData* gameData = NULL;
+
+      int64_t gameIdx;
+      MatchPairer::BotSpec botSpecB;
+      MatchPairer::BotSpec botSpecW;
+      if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
+        gameData = gameRunner->runGame(
+          gameIdx, botSpecB, botSpecW, logger,
+          dataPosLen, stopConditions, NULL
+        );
+      }
 
       bool shouldContinue = gameData != NULL;
       if(gameData != NULL)

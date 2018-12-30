@@ -108,7 +108,8 @@ void Tests::runTrainingWriteTests() {
       logger, false, false,
       maxMovesPerGame, stopConditions,
       fancyModes, recordFullData, posLen,
-      rand
+      rand,
+      NULL
     );
 
     cout << "seedBase: " << seedBase << endl;

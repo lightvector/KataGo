@@ -176,8 +176,17 @@ int MainCmds::match(int argc, const char* const* argv) {
         break;
 
       int dataPosLen = 19; //Doesn't matter, we don't actually write training data
+      FinishedGameData* gameData = NULL;
 
-      FinishedGameData* gameData = gameRunner->runGame(matchPairer, logger, dataPosLen, stopConditions);
+      int64_t gameIdx;
+      MatchPairer::BotSpec botSpecB;
+      MatchPairer::BotSpec botSpecW;
+      if(matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
+        gameData = gameRunner->runGame(
+          gameIdx, botSpecB, botSpecW, logger,
+          dataPosLen, stopConditions, NULL
+        );
+      }
 
       bool shouldContinue = gameData != NULL;
       if(gameData != NULL) {

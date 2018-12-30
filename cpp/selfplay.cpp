@@ -213,6 +213,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   const double validationProp = cfg.getDouble("validationProp",0.0,0.5);
 
+  const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
+  
   //Initialize object for randomizing game settings and running games
   bool forSelfPlay = true;
   FancyModes fancyModes;
@@ -388,7 +390,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     &gameRunner,
     &logger,
     &netAndStuffsMutex,&netAndStuffs,
-    dataPosLen
+    dataPosLen,
+    switchNetsMidGame
   ](int threadIdx) {
     vector<std::atomic<bool>*> stopConditions = {&shouldStop};
 
@@ -409,11 +412,36 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
         logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game on new neural net: " + prevModelName);
       }
 
-      FinishedGameData* gameData = gameRunner->runGame(
-        netAndStuff->matchPairer, logger,
-        dataPosLen,
-        stopConditions
-      );
+      //Callback that runGame will call periodically to ask us if we have a new neural net
+      std::function<NNEvaluator*()> checkForNewNNEval = [&netAndStuff,&netAndStuffs,&lock,&prevModelName,&logger,&threadIdx]() -> NNEvaluator* {
+        lock.lock();
+        NetAndStuff* newNetAndStuff = netAndStuffs[netAndStuffs.size()-1];
+        if(newNetAndStuff == netAndStuff) {
+          lock.unlock();
+          return NULL;
+        }
+        netAndStuff->unregisterGameThread();
+        newNetAndStuff->registerGameThread();
+        lock.unlock();
+
+        netAndStuff = newNetAndStuff;
+        prevModelName = netAndStuff->modelName;
+        logger.write("Game loop thread " + Global::intToString(threadIdx) + " changing midgame to new neural net: " + prevModelName);
+        return netAndStuff->nnEval;
+      };
+      
+      FinishedGameData* gameData = NULL;
+
+      int64_t gameIdx;
+      MatchPairer::BotSpec botSpecB;
+      MatchPairer::BotSpec botSpecW;
+      if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
+        gameData = gameRunner->runGame(
+          gameIdx, botSpecB, botSpecW, logger,
+          dataPosLen, stopConditions,
+          (switchNetsMidGame ? &checkForNewNNEval : NULL)
+        );
+      }
 
       bool shouldContinue = gameData != NULL;
       if(gameData != NULL)

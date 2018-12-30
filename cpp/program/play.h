@@ -161,7 +161,8 @@ namespace Play {
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
     FancyModes fancyModes, bool recordFullData, int dataPosLen,
-    Rand& gameRand
+    Rand& gameRand,
+    std::function<NNEvaluator*()>* checkForNewNNEval
   );
 
 }
@@ -186,9 +187,13 @@ public:
   //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data
   //if it isn't NULL.
   FinishedGameData* runGame(
-    MatchPairer* matchPairer, Logger& logger,
+    int64_t gameIdx,
+    const MatchPairer::BotSpec& botSpecB,
+    const MatchPairer::BotSpec& botSpecW,
+    Logger& logger,
     int dataPosLen,
-    vector<std::atomic<bool>*>& stopConditions
+    vector<std::atomic<bool>*>& stopConditions,
+    std::function<NNEvaluator*()>* checkForNewNNEval
   );
 
 };

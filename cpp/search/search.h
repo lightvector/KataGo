@@ -154,6 +154,7 @@ struct Search {
   void setKomi(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootPassLegal(bool b);
   void setParams(SearchParams params);
+  void setNNEval(NNEvaluator* nnEval);
 
   //Just directly clear search without changing anything
   void clearSearch();

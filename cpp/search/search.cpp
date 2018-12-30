@@ -237,6 +237,13 @@ void Search::setParams(SearchParams params) {
   searchParams = params;
 }
 
+void Search::setNNEval(NNEvaluator* nnEval) {
+  clearSearch();
+  posLen = nnEval->getPosLen();
+  assert(posLen > 0 && posLen <= NNPos::MAX_BOARD_LEN);
+  policySize = NNPos::getPolicySize(posLen);
+}
+
 void Search::clearSearch() {
   delete rootNode;
   rootNode = NULL;

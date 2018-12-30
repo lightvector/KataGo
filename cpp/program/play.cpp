@@ -615,7 +615,8 @@ FinishedGameData* Play::runGame(
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
   FancyModes fancyModes, bool recordFullData, int dataPosLen,
-  Rand& gameRand
+  Rand& gameRand,
+  std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
   FinishedGameData* gameData = new FinishedGameData();
 
@@ -659,6 +660,22 @@ FinishedGameData* Play::runGame(
   if(recordFullData)
     recordUtilities = new vector<double>(256);
 
+  //NOTE: that checkForNewNNEval might also cause the old nnEval to be invalidated and freed. This is okay since the only
+  //references we both hold on to and use are the ones inside the bots here.
+  //We should NOT ever refer to botSpecB.nnEval or botSpecW.nnEval past this point, or store an nnEval separately from the bot.
+  auto maybeCheckForNewNNEval = [&botB,&botW,&checkForNewNNEval,&gameRand]() {
+    //Check if we got a new nnEval, with some probability.
+    //Randomized and low-probability so as to reduce contention in checking, while still probably happening in a timely manner.
+    if(checkForNewNNEval != NULL && gameRand.nextBool(0.1)) {
+      NNEvaluator* newNNEval = (*checkForNewNNEval)();
+      if(newNNEval != NULL) {
+        botB->setNNEval(newNNEval);
+        if(botW != botB)
+          botW->setNNEval(newNNEval);
+      }
+    }
+  };
+  
   if(fancyModes.initGamesWithPolicy) {
     //Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
     //and add entropy
@@ -913,6 +930,8 @@ FinishedGameData* Play::runGame(
         hist.setWinnerByResignation(getOpp(pla));
     }
 
+    maybeCheckForNewNNEval();
+
     pla = getOpp(pla);
   }
 
@@ -1038,6 +1057,7 @@ FinishedGameData* Play::runGame(
         }
       }
 
+      maybeCheckForNewNNEval();
     }
   }
 
@@ -1073,19 +1093,17 @@ GameRunner::~GameRunner() {
 }
 
 FinishedGameData* GameRunner::runGame(
-  MatchPairer* matchPairer, Logger& logger,
+  int64_t gameIdx,
+  const MatchPairer::BotSpec& bSpecB,
+  const MatchPairer::BotSpec& bSpecW,
+  Logger& logger,
   int dataPosLen,
-  vector<std::atomic<bool>*>& stopConditions
+  vector<std::atomic<bool>*>& stopConditions,
+  std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
-  int64_t gameIdx;
-  bool shouldContinue;
-  MatchPairer::BotSpec botSpecB;
-  MatchPairer::BotSpec botSpecW;
-  shouldContinue = matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger);
-
-  if(!shouldContinue)
-    return NULL;
-
+  MatchPairer::BotSpec botSpecB = bSpecB;
+  MatchPairer::BotSpec botSpecW = bSpecW;
+  
   Board board; Player pla; BoardHistory hist; int numExtraBlack;
   if(forSelfPlay) {
     assert(botSpecB.botIdx == botSpecW.botIdx);
@@ -1122,7 +1140,8 @@ FinishedGameData* GameRunner::runGame(
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,stopConditions,
     fancyModes,recordFullData,dataPosLen,
-    gameRand
+    gameRand,
+    checkForNewNNEval
   );
 
   //Make sure not to write the game if we terminated in the middle of this game!
