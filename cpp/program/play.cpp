@@ -444,10 +444,10 @@ static Loc chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, 
 
 static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand) {
   double r = gameRand.nextDouble();
-  //80% of the time, do a random temperature 1 policy move
-  if(r < 0.8)
+  //70% of the time, do a random temperature 1 policy move
+  if(r < 0.70)
     return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 1.0);
-  //15% of the time, do a random temperature 2 policy move
+  //25% of the time, do a random temperature 2 policy move
   else if(r < 0.95)
     return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 2.0);
   //5% of the time, do a random legal move
