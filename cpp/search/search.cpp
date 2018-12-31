@@ -431,6 +431,18 @@ bool Search::getNodeValues(
   staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
   dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,1.0,rootBoard);
   expectedScore = scoreMean;
+
+  //Perform a little normalization - due to tiny floating point errors, winValue and lossValue could be outside [0,1].
+  //(particularly lossValue, as it was produced by subtractions from valueSumWeight that could have lost precision).
+  if(winValue < 0.0) winValue = 0.0;
+  if(lossValue < 0.0) lossValue = 0.0;
+  if(noResultValue < 0.0) noResultValue = 0.0;
+  double sum = winValue + lossValue + noResultValue;
+  assert(sum > 0.9 && sum < 1.1); //If it's wrong by more than this, we have a bigger bug somewhere
+  winValue /= sum;
+  lossValue /= sum;
+  noResultValue /= sum;
+  
   return true;
 }
 

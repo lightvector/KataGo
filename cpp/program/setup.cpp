@@ -147,10 +147,10 @@ vector<SearchParams> Setup::loadParams(
 
     string idxStr = Global::intToString(i);
 
-    if(cfg.contains("maxPlayouts"+idxStr)) params.maxPlayouts = cfg.getUInt64("maxPlayouts"+idxStr, (uint64_t)1, (uint64_t)1 << 62);
-    else if(cfg.contains("maxPlayouts"))   params.maxPlayouts = cfg.getUInt64("maxPlayouts",        (uint64_t)1, (uint64_t)1 << 62);
-    if(cfg.contains("maxVisits"+idxStr)) params.maxVisits = cfg.getUInt64("maxVisits"+idxStr, (uint64_t)1, (uint64_t)1 << 62);
-    else if(cfg.contains("maxVisits"))   params.maxVisits = cfg.getUInt64("maxVisits",        (uint64_t)1, (uint64_t)1 << 62);
+    if(cfg.contains("maxPlayouts"+idxStr)) params.maxPlayouts = cfg.getUInt64("maxPlayouts"+idxStr, (uint64_t)1, (uint64_t)1 << 50);
+    else if(cfg.contains("maxPlayouts"))   params.maxPlayouts = cfg.getUInt64("maxPlayouts",        (uint64_t)1, (uint64_t)1 << 50);
+    if(cfg.contains("maxVisits"+idxStr)) params.maxVisits = cfg.getUInt64("maxVisits"+idxStr, (uint64_t)1, (uint64_t)1 << 50);
+    else if(cfg.contains("maxVisits"))   params.maxVisits = cfg.getUInt64("maxVisits",        (uint64_t)1, (uint64_t)1 << 50);
     if(cfg.contains("maxTime"+idxStr)) params.maxTime = cfg.getDouble("maxTime"+idxStr, 0.0, 1.0e20);
     else if(cfg.contains("maxTime"))   params.maxTime = cfg.getDouble("maxTime",        0.0, 1.0e20);
 

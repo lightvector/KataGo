@@ -221,12 +221,12 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   fancyModes.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
   fancyModes.cheapSearchProb = cfg.getDouble("cheapSearchProb",0.0,1.0);
-  fancyModes.cheapSearchVisits = cfg.getInt("cheapSearchVisits",0,10000000);
+  fancyModes.cheapSearchVisits = cfg.getInt("cheapSearchVisits",1,10000000);
   fancyModes.cheapSearchTargetWeight = cfg.getFloat("cheapSearchTargetWeight",0.0f,1.0f);
   fancyModes.reduceVisits = cfg.getBool("reduceVisits");
-  fancyModes.reduceVisitsThreshold = cfg.getDouble("reduceVisitsThreshold",0.0,1.0);
+  fancyModes.reduceVisitsThreshold = cfg.getDouble("reduceVisitsThreshold",0.0,0.999999);
   fancyModes.reduceVisitsThresholdLookback = cfg.getInt("reduceVisitsThresholdLookback",0,1000);
-  fancyModes.reducedVisitsMin = cfg.getInt("reducedVisitsMin",0,10000000);
+  fancyModes.reducedVisitsMin = cfg.getInt("reducedVisitsMin",1,10000000);
   fancyModes.reducedVisitsWeight = cfg.getFloat("reducedVisitsWeight",0.0f,1.0f);
   fancyModes.recordTreePositions = cfg.getBool("recordTreePositions");
   fancyModes.recordTreeThreshold = cfg.getInt("recordTreeThreshold",1,100000000);
@@ -248,10 +248,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   std::mutex netAndStuffsMutex;
   vector<NetAndStuff*> netAndStuffs;
-  std::condition_variable netAndStuffsIsEmpty;
+  int numDataWriteLoopsActive = 0;
+  std::condition_variable dataWriteLoopsAreDone;
 
   //Looping thread for writing data for a single net
-  auto dataWriteLoop = [&netAndStuffsMutex,&netAndStuffs,&netAndStuffsIsEmpty,&logger](NetAndStuff* netAndStuff) {
+  auto dataWriteLoop = [&netAndStuffsMutex,&netAndStuffs,&numDataWriteLoopsActive,&dataWriteLoopsAreDone,&logger](NetAndStuff* netAndStuff) {
     logger.write("Data write loop starting for neural net: " + netAndStuff->modelName);
     netAndStuff->runWriteDataLoop(logger);
     logger.write("Data write loop finishing for neural net: " + netAndStuff->modelName);
@@ -269,11 +270,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       }
     }
     assert(found);
-    if(netAndStuffs.size() == 0)
-      netAndStuffsIsEmpty.notify_all();
-
     lock.unlock();
 
+    //Do logging and cleanup while unlocked, so that our freeing and stopping of this neural net doesn't
+    //block anyone else
     logger.write(netAndStuff->nnEval->getModelFileName());
     logger.write("NN rows: " + Global::int64ToString(netAndStuff->nnEval->numRowsProcessed()));
     logger.write("NN batches: " + Global::int64ToString(netAndStuff->nnEval->numBatchesProcessed()));
@@ -284,6 +284,16 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     delete netAndStuff;
 
     logger.write("Data write loop cleaned up and terminating for " + name);
+
+    //Check back in and notify that we're done once done cleaning up.
+    lock.lock();
+    numDataWriteLoopsActive--;
+    assert(numDataWriteLoopsActive >= 0);
+    if(numDataWriteLoopsActive == 0) {
+      assert(netAndStuffs.size() == 0);
+      dataWriteLoopsAreDone.notify_all();
+    }
+    lock.unlock();
   };
 
   auto loadLatestNeuralNet =
@@ -372,6 +382,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     netAndStuffs.push_back(newNet);
+    numDataWriteLoopsActive++;
     std::thread newThread(dataWriteLoop,newNet);
     newThread.detach();
   }
@@ -462,7 +473,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   //Looping thread for polling for new neural nets and loading them in
   std::condition_variable modelLoadSleepVar;
-  auto modelLoadLoop = [&netAndStuffsMutex,&netAndStuffs,&modelLoadSleepVar,&logger,&dataWriteLoop,&loadLatestNeuralNet]() {
+  auto modelLoadLoop = [&netAndStuffsMutex,&netAndStuffs,&numDataWriteLoopsActive,&modelLoadSleepVar,&logger,&dataWriteLoop,&loadLatestNeuralNet]() {
     logger.write("Model loading loop thread starting");
 
     string lastNetName;
@@ -498,7 +509,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
         for(int i = 0; i<netAndStuffs.size()-1; i++) {
           netAndStuffs[i]->markAsDraining();
         }
-
+        numDataWriteLoopsActive++;
         std::thread newThread(dataWriteLoop,newNet);
         newThread.detach();
       }
@@ -539,12 +550,14 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   }
   modelLoadLoopThread.join();
 
-  //Wait for netAndStuffs to be empty, which indicates that the detached data writing threads
-  //have all cleaned up and removed their netAndStuff.
+  //At this point, nothing else except possibly data write loops are running, so there can't
+  //be anything that will spawn any *more* data writing loops.
+
+  //Wait for all data write loops to finish cleaning up.
   {
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
-    while(netAndStuffs.size() > 0) {
-      netAndStuffsIsEmpty.wait(lock);
+    while(numDataWriteLoopsActive > 0) {
+      dataWriteLoopsAreDone.wait(lock);
     }
   }
 
