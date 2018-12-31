@@ -24,16 +24,18 @@ SidePosition::SidePosition()
    pla(P_BLACK),
    policyTarget(),
    whiteValueTargets(),
-   targetWeight()
+   targetWeight(),
+   numNeuralNetChangesSoFar()
 {}
 
-SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p)
+SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p, int numNNChangesSoFar)
   :board(b),
    hist(h),
    pla(p),
    policyTarget(),
    whiteValueTargets(),
-   targetWeight(1.0f)
+   targetWeight(1.0f),
+   numNeuralNetChangesSoFar(numNNChangesSoFar)
 {}
 
 SidePosition::~SidePosition()
@@ -58,7 +60,6 @@ FinishedGameData::FinishedGameData()
    hitTurnLimit(false),
 
    numExtraBlack(0),
-   firstTrainingTurn(0),
    mode(0),
    modeMeta1(0),
    modeMeta2(0),
@@ -86,7 +87,7 @@ FinishedGameData::~FinishedGameData() {
     delete sidePositions[i];
 
   for(int i = 0; i<changedNeuralNets.size(); i++)
-    delete changedNeuralNets[i];  
+    delete changedNeuralNets[i];
 }
 
 
@@ -206,13 +207,14 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
 
 void TrainingWriteBuffers::addRow(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
-  int turnNumberAfterStart,
+  int absoluteTurnNumber,
   float targetWeight,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
   int8_t* finalWhiteOwnership,
   bool isSidePosition,
+  int numNeuralNetsBehindLatest,
   const FinishedGameData& data,
   Rand& rand
 ) {
@@ -315,14 +317,14 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[42] = hist.currentSelfKomi(nextPlayer,data.drawEquivalentWinsForWhite);
   rowGlobal[43] = (hist.encorePhase == 2 || hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
 
-  //Unused
-  rowGlobal[44] = 0.0f;
-  rowGlobal[45] = 0.0f;
+  //Earlier neural net metadata
+  rowGlobal[44] = data.changedNeuralNets.size() > 0 ? 1.0f : 0.0f;
+  rowGlobal[45] = (float)numNeuralNetsBehindLatest;
 
   //Some misc metadata
-  rowGlobal[46] = turnNumberAfterStart;
+  rowGlobal[46] = absoluteTurnNumber;
   rowGlobal[47] = data.hitTurnLimit ? 1.0f : 0.0f;
-  rowGlobal[48] = data.firstTrainingTurn;
+  rowGlobal[48] = data.startHist.moveHistory.size();
   rowGlobal[49] = data.numExtraBlack;
 
   //Metadata about how the game was initialized
@@ -610,20 +612,32 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   Player nextPlayer = data.startPla;
 
   //Write main game rows
+  int startTurnNumber = data.startHist.moveHistory.size();
   for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
+    int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
     float targetWeight = data.targetWeightByTurn[turnNumberAfterStart];
     const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumberAfterStart];
     bool isSidePosition = false;
+
+    int numNeuralNetsBehindLatest = 0;
+    for(int i = 0; i<data.changedNeuralNets.size(); i++) {
+      if(data.changedNeuralNets[i]->turnNumber > absoluteTurnNumber) {
+        numNeuralNetsBehindLatest = data.changedNeuralNets.size()-i;
+        break;
+      }
+    }
+
     if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
       writeBuffers->addRow(
         board,hist,nextPlayer,
-        turnNumberAfterStart,
+        absoluteTurnNumber,
         targetWeight,
         policyTarget0,
         data.whiteValueTargetsByTurn,
         turnNumberAfterStart,
         data.finalWhiteOwnership,
         isSidePosition,
+        numNeuralNetsBehindLatest,
         data,
         rand
       );
@@ -631,7 +645,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     }
     rowCount++;
 
-    Move move = data.endHist.moveHistory[turnNumberAfterStart + data.startHist.moveHistory.size()];
+    Move move = data.endHist.moveHistory[absoluteTurnNumber];
     assert(move.pla == nextPlayer);
     assert(hist.isLegal(board,move.loc,move.pla));
     hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);
@@ -642,20 +656,22 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   vector<ValueTargets> whiteValueTargetsBuf(1);
   for(int i = 0; i<data.sidePositions.size(); i++) {
     SidePosition* sp = data.sidePositions[i];
-    int turnNumberAfterStart = sp->hist.moveHistory.size() - data.startHist.moveHistory.size();
-    assert(turnNumberAfterStart > 0);
+    int absoluteTurnNumber = sp->hist.moveHistory.size();
+    assert(absoluteTurnNumber >= data.startHist.moveHistory.size());
     whiteValueTargetsBuf[0] = sp->whiteValueTargets;
     bool isSidePosition = true;
+    int numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size() - sp->numNeuralNetChangesSoFar;
     if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
       writeBuffers->addRow(
         sp->board,sp->hist,sp->pla,
-        turnNumberAfterStart,
+        absoluteTurnNumber,
         sp->targetWeight,
         &(sp->policyTarget),
         whiteValueTargetsBuf,
         0,
         NULL,
         isSidePosition,
+        numNeuralNetsBehindLatest,
         data,
         rand
       );

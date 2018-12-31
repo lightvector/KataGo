@@ -30,9 +30,10 @@ struct SidePosition {
   vector<PolicyTargetMove> policyTarget;
   ValueTargets whiteValueTargets;
   float targetWeight;
+  int numNeuralNetChangesSoFar; //Number of neural net changes this game before the creation of this side position
 
   SidePosition();
-  SidePosition(const Board& board, const BoardHistory& hist, Player pla);
+  SidePosition(const Board& board, const BoardHistory& hist, Player pla, int numNeuralNetChangesSoFar);
   ~SidePosition();
 };
 
@@ -56,7 +57,6 @@ struct FinishedGameData {
 
   //Metadata about how the game was initialized
   int numExtraBlack;
-  int firstTrainingTurn;
   int mode;
   int modeMeta1;
   int modeMeta2;
@@ -131,12 +131,13 @@ struct TrainingWriteBuffers {
 
   //C42: Komi, adjusted for draw utility and points costed or paid so far, from the perspective of the player to move.
   //C43: 1 if we're in an area-scoring-like phase of the game (area scoring or second encore territory scoring)
-  //C44: Unused
-  //C45: Unused
 
-  //C46: Number of moves after start of training period, zero-indexed. (There could have been moves before training, see C48).
+  //C44: 1 if an earlier neural net started this game, compared to the latest in this data file.
+  //C45: If positive, an earlier neural net was playing this specific move, compared to the latest in this data file.
+
+  //C46: Turn number of the game, zero-indexed.
   //C47: Did this game end via hitting turn limit?
-  //C48: First turn of this game that was proper selfplay for training rather than being initialization
+  //C48: First turn of this game that was selfplay for training rather than initialization (e.g. handicap stones, random init of the starting board pos)
   //C49: Number of extra moves black got at the start (i.e. handicap games)
 
   //C50-52: Game type, game typesource metadata
@@ -178,6 +179,7 @@ struct TrainingWriteBuffers {
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
     int8_t* finalWhiteOwnership,
     bool isSidePosition,
+    int numNeuralNetsBehindLatest,
     const FinishedGameData& data,
     Rand& rand
   );

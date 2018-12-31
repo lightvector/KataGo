@@ -515,6 +515,7 @@ static void recordTreePositionsRec(
   const Search* toMoveBot,
   const SearchNode* node, int depth, int maxDepth, bool plaAlwaysBest, bool oppAlwaysBest,
   int minVisitsAtNode, float recordTreeTargetWeight,
+  int numNeuralNetChangesSoFar,
   vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
   Loc excludeLoc0, Loc excludeLoc1
 ) {
@@ -522,7 +523,7 @@ static void recordTreePositionsRec(
     return;
 
   if(plaAlwaysBest && node != toMoveBot->rootNode) {
-    SidePosition* sp = new SidePosition(board,hist,pla);
+    SidePosition* sp = new SidePosition(board,hist,pla,numNeuralNetChangesSoFar);
     extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
     extractValueTargets(sp->whiteValueTargets, toMoveBot, node, NULL);
     sp->targetWeight = recordTreeTargetWeight;
@@ -574,6 +575,7 @@ static void recordTreePositionsRec(
       toMoveBot,
       child,depth+1,maxDepth,newPlaAlwaysBest,newOppAlwaysBest,
       minVisitsAtNode,recordTreeTargetWeight,
+      numNeuralNetChangesSoFar,
       locsBuf,playSelectionValuesBuf,
       Board::NULL_LOC,Board::NULL_LOC
     );
@@ -586,6 +588,7 @@ static void recordTreePositions(
   const Board& board, const BoardHistory& hist, Player pla,
   const Search* toMoveBot,
   int minVisitsAtNode, float recordTreeTargetWeight,
+  int numNeuralNetChangesSoFar,
   vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
   Loc excludeLoc0, Loc excludeLoc1
 ) {
@@ -601,6 +604,7 @@ static void recordTreePositions(
     toMoveBot,
     toMoveBot->rootNode, 0, maxDepth, true, true,
     minVisitsAtNode, recordTreeTargetWeight,
+    numNeuralNetChangesSoFar,
     locsBuf,playSelectionValuesBuf,
     excludeLoc0,excludeLoc1
   );
@@ -652,7 +656,6 @@ FinishedGameData* Play::runGame(
   gameData->drawEquivalentWinsForWhite = botSpecB.baseParams.drawEquivalentWinsForWhite;
 
   gameData->numExtraBlack = numExtraBlack;
-  gameData->firstTrainingTurn = 0;
   gameData->mode = 0;
   gameData->modeMeta1 = 0;
   gameData->modeMeta2 = 0;
@@ -676,7 +679,7 @@ FinishedGameData* Play::runGame(
       }
     }
   };
-  
+
   if(fancyModes.initGamesWithPolicy) {
     //Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
     //and add entropy
@@ -754,7 +757,6 @@ FinishedGameData* Play::runGame(
   gameData->startBoard = board;
   gameData->startHist = hist;
   gameData->startPla = pla;
-  gameData->firstTrainingTurn = hist.moveHistory.size();
 
   botB->setPosition(pla,board,hist);
   if(botB != botW)
@@ -864,7 +866,7 @@ FinishedGameData* Play::runGame(
         assert(toMoveBot->rootNode->nnOutput != nullptr);
         sidePositionForkLoc = chooseRandomForkingMove(toMoveBot->rootNode->nnOutput.get(), board, hist, pla, gameRand);
         if(sidePositionForkLoc != Board::NULL_LOC) {
-          SidePosition* sp = new SidePosition(board,hist,pla);
+          SidePosition* sp = new SidePosition(board,hist,pla,gameData->changedNeuralNets.size());
           sp->hist.makeBoardMoveAssumeLegal(sp->board,sidePositionForkLoc,sp->pla,NULL);
           sp->pla = getOpp(sp->pla);
           if(sp->hist.isGameFinished) delete sp;
@@ -880,6 +882,7 @@ FinishedGameData* Play::runGame(
           board,hist,pla,
           toMoveBot,
           fancyModes.recordTreeThreshold,fancyModes.recordTreeTargetWeight,
+          gameData->changedNeuralNets.size(),
           locsBuf,playSelectionValuesBuf,
           loc,sidePositionForkLoc
         );
@@ -1028,6 +1031,7 @@ FinishedGameData* Play::runGame(
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode, recordUtilities);
       sp->targetWeight = 1.0;
+      sp->numNeuralNetChangesSoFar = gameData->changedNeuralNets.size();
 
       gameData->sidePositions.push_back(sp);
 
@@ -1039,6 +1043,7 @@ FinishedGameData* Play::runGame(
           sp->board,sp->hist,sp->pla,
           toMoveBot,
           fancyModes.recordTreeThreshold,fancyModes.recordTreeTargetWeight,
+          gameData->changedNeuralNets.size(),
           locsBuf,playSelectionValuesBuf,
           Board::NULL_LOC, Board::NULL_LOC
         );
@@ -1050,7 +1055,7 @@ FinishedGameData* Play::runGame(
         if(responseLoc == Board::NULL_LOC || !sp->hist.isLegal(sp->board,responseLoc,sp->pla))
           failIllegalMove(toMoveBot,logger,sp->board,responseLoc);
 
-        SidePosition* sp2 = new SidePosition(sp->board,sp->hist,sp->pla);
+        SidePosition* sp2 = new SidePosition(sp->board,sp->hist,sp->pla,gameData->changedNeuralNets.size());
         sp2->hist.makeBoardMoveAssumeLegal(sp2->board,responseLoc,sp2->pla,NULL);
         sp2->pla = getOpp(sp2->pla);
         if(sp2->hist.isGameFinished)
@@ -1117,7 +1122,7 @@ FinishedGameData* GameRunner::runGame(
 ) {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
-  
+
   Board board; Player pla; BoardHistory hist; int numExtraBlack;
   if(forSelfPlay) {
     assert(botSpecB.botIdx == botSpecW.botIdx);
