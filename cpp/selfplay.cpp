@@ -222,7 +222,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.cheapSearchVisits = cfg.getInt("cheapSearchVisits",1,10000000);
   fancyModes.cheapSearchTargetWeight = cfg.getFloat("cheapSearchTargetWeight",0.0f,1.0f);
   fancyModes.reduceVisits = cfg.getBool("reduceVisits");
-  fancyModes.reduceVisitsThreshold = cfg.getDouble("reduceVisitsThreshold",0.0,1.0);
+  fancyModes.reduceVisitsThreshold = cfg.getDouble("reduceVisitsThreshold",0.0,0.999999);
   fancyModes.reduceVisitsThresholdLookback = cfg.getInt("reduceVisitsThresholdLookback",0,1000);
   fancyModes.reducedVisitsMin = cfg.getInt("reducedVisitsMin",1,10000000);
   fancyModes.reducedVisitsWeight = cfg.getFloat("reducedVisitsWeight",0.0f,1.0f);

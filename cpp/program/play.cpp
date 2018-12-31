@@ -747,7 +747,7 @@ FinishedGameData* Play::runGame(
 
   vector<SidePosition*> sidePositionsToSearch;
 
-  vector<double> historicalMctsWinValues;
+  vector<double> historicalMctsWinLossValues;
 
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
@@ -775,19 +775,21 @@ FinishedGameData* Play::runGame(
     else if(fancyModes.reduceVisits) {
       if(fancyModes.reducedVisitsMin <= 0)
         throw StringError("fancyModes.reducedVisitsMin <= 0");
-      if(historicalMctsWinValues.size() >= fancyModes.reduceVisitsThresholdLookback) {
-        double minWinValue = 1e20;
-        double maxWinValue = -1e20;
+      if(historicalMctsWinLossValues.size() >= fancyModes.reduceVisitsThresholdLookback) {
+        double minWinLossValue = 1e20;
+        double maxWinLossValue = -1e20;
         for(int j = 0; j<fancyModes.reduceVisitsThresholdLookback; j++) {
-          double winValue = historicalMctsWinValues[historicalMctsWinValues.size()-1-j];
-          if(winValue < minWinValue)
-            minWinValue = winValue;
-          if(winValue > maxWinValue)
-            maxWinValue = winValue;
+          double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-1-j];
+          if(winLossValue < minWinLossValue)
+            minWinLossValue = winLossValue;
+          if(winLossValue > maxWinLossValue)
+            maxWinLossValue = winLossValue;
         }
         assert(fancyModes.reduceVisitsThreshold >= 0.0);
-        double signedMostExtreme = std::max(minWinValue,-maxWinValue);
-        assert(signedMostExtreme <= 1.0);
+        double signedMostExtreme = std::max(minWinLossValue,-maxWinLossValue);
+        assert(signedMostExtreme <= 1.000001);
+        if(signedMostExtreme > 1.0)
+          signedMostExtreme = 1.0;
         double amountThrough = signedMostExtreme - fancyModes.reduceVisitsThreshold;
         if(amountThrough > 0) {
           double proportionThrough = amountThrough / (1.0 - fancyModes.reduceVisitsThreshold);
@@ -876,7 +878,11 @@ FinishedGameData* Play::runGame(
       bool success = toMoveBot->getRootValues(winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
       assert(success);
 
-      historicalMctsWinValues.push_back(winValue - lossValue);
+      double winLossValue = winValue - lossValue;
+      assert(winLossValue > -1.01 && winLossValue < 1.01); //Sanity check, but allow generously for float imprecision
+      if(winLossValue > 1.0) winLossValue = 1.0;
+      if(winLossValue < -1.0) winLossValue = -1.0;
+      historicalMctsWinLossValues.push_back(winLossValue);
     }
 
     //In many cases, we are using root-level noise, so we want to clear the search each time so that we don't
@@ -898,11 +904,11 @@ FinishedGameData* Play::runGame(
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
 
     //Check for resignation
-    if(fancyModes.allowResignation && historicalMctsWinValues.size() >= fancyModes.resignConsecTurns) {
+    if(fancyModes.allowResignation && historicalMctsWinLossValues.size() >= fancyModes.resignConsecTurns) {
       assert(fancyModes.resignThreshold <= 0);
       bool shouldResign = true;
       for(int j = 0; j<fancyModes.resignConsecTurns; j++) {
-        double winLossValue = historicalMctsWinValues[historicalMctsWinValues.size()-j-1];
+        double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-j-1];
         Player resignPlayerThisTurn = C_EMPTY;
         if(winLossValue < fancyModes.resignThreshold)
           resignPlayerThisTurn = P_WHITE;
