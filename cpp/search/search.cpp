@@ -239,6 +239,7 @@ void Search::setParams(SearchParams params) {
 
 void Search::setNNEval(NNEvaluator* nnEval) {
   clearSearch();
+  nnEvaluator = nnEval;
   posLen = nnEval->getPosLen();
   assert(posLen > 0 && posLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(posLen);
