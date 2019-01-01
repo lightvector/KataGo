@@ -1214,7 +1214,7 @@ void NNInputs::fillRowV3(
   //since komi is extra valuable when it turns losses into draws into wins, peaking at the komi value where you could draw + 0.5.
   //It's downsloping around the komi value where you can't draw, since the marginal komi there is nearly useless, not causing you to win
   //more games except in case of odd-dame seki.
-  if(hist.rules.scoringRule == Rules::SCORING_AREA) {
+  if(hist.rules.scoringRule == Rules::SCORING_AREA || hist.encorePhase >= 2) {
     bool boardAreaIsEven = (xSize*ySize) % 2 == 0;
 
     //What is the parity of the komi values that can produce jigos?
@@ -1245,6 +1245,7 @@ void NNInputs::fillRowV3(
     else
       wave = delta-2.0f;
 
+    //NOTE: If ever changing which feature this is, must also update index in modelv3.py where we multiply it into the scorebelief parity vector
     rowGlobal[13] = wave;
   }
 
