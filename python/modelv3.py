@@ -24,7 +24,7 @@ class ModelV3:
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
     self.policy_target_weight_shape = []
     self.value_target_shape = [3]
-    self.miscvalues_target_shape = [6] #0:scoremean, #1 scorestdev 2-5:utility variance
+    self.miscvalues_target_shape = [6] #0:scoremean, #1 scorestdev, 2-5:utility variance
     self.scoremean_target_shape = [] #0
     self.scorestdev_target_shape = [] #1
     self.utilityvar_target_shape = [4] #2-5
