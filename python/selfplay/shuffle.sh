@@ -58,7 +58,7 @@ time python3 ./shuffle.py \
 set +x
 
 #Just in case, give a little time for nfs
-sleep 20
+sleep 15
 
 #rm if it already exists
 rm -f $BASEDIR/shuffleddata/current_tmp
