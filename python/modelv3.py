@@ -38,7 +38,7 @@ class ModelV3:
     self.pass_pos = self.pos_len * self.pos_len
 
     self.reg_variables = []
-    # self.prescale_variables = []
+    self.prescale_variables = []
     self.lr_adjusted_variables = {}
     self.is_training = (placeholders["is_training"] if "is_training" in placeholders else tf.placeholder(tf.bool,name="is_training"))
 
@@ -962,14 +962,13 @@ class ModelV3:
     miscvalues_output = tf.reshape(mv3_layer, [-1] + self.miscvalues_target_shape, name = "miscvalues_output")
 
     #Transform a real-valued output into a positive value suitable for multiplying to other inputs as a scaling factor
-    # def scaletransform(tensor):
-    #   self.prescale_variables.append(tensor)
+    def scaletransform(tensor):
+      self.prescale_variables.append(tensor)
 
-    #   #tf.where has a bug where nan values on the non-chosen side will still propagate nans back in gradients.
-    #   #So we also abs the tensor, so that we never get a log of a negative value
-    #   abstensor = tf.abs(tensor)
-    #   econst = 2.71828182845904523536
-    #   return tf.where(tensor > 0, tf.log(abstensor + econst), 1.0 / tf.log(abstensor + econst))
+      #tf.where has a bug where nan values on the non-chosen side will still propagate nans back in gradients.
+      #So we also abs the tensor, so that we never get a log of a negative value
+      abstensor = tf.abs(tensor)
+      return tf.where(tensor > 0, 1.0 + tf.log(abstensor + 1.0), 1.0 / (1.0 + tf.log(abstensor + 1.0)))
 
     scorebelief_len = self.scorebelief_target_shape[0]
     scorebelief_mid = self.pos_len*self.pos_len+ModelV3.EXTRA_SCORE_DISTR_RADIUS
@@ -993,18 +992,18 @@ class ModelV3:
     )
     sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
 
-    # sbscale2w = self.weight_variable("sbscale2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
-    # sbscale2b = self.weight_variable("sbscale2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
-    # sbscale2_layer = self.relu_non_spatial("sbscale2/relu",tf.matmul(v1_layer_pooled, sbscale2w) + sbscale2b)
+    sbscale2w = self.weight_variable("sbscale2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
+    sbscale2b = self.weight_variable("sbscale2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
+    sbscale2_layer = self.relu_non_spatial("sbscale2/relu",tf.matmul(v1_layer_pooled, sbscale2w) + sbscale2b)
 
     sb3w = self.weight_variable("sb3/w",[sbv2_size,1],sbv2_size,1,scale_initial_weights=0.5)
     sb3_layer = tf.tensordot(sb2_layer,sb3w,axes=[[2],[0]])
 
-    # sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1)
-    # sbscale3_layer = scaletransform(tf.matmul(sbscale2_layer,sb3w))
-    # self.sbscale3_layer = sbscale3_layer
+    sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1,scale_initial_weights=0.5)
+    sbscale3_layer = scaletransform(tf.matmul(sbscale2_layer,sb3w))
+    self.sbscale3_layer = sbscale3_layer
 
-    sb3_layer = sb3_layer # * tf.reshape(sbscale3_layer,[-1,1,1])
+    sb3_layer = sb3_layer * tf.reshape(sbscale3_layer,[-1,1,1])
 
     scorebelief_output = tf.reshape(sb3_layer,[-1] + self.scorebelief_target_shape, name = "scorebelief_output")
 
@@ -1230,8 +1229,8 @@ class Target_varsV3:
     winlossprob_from_output = value_probs[:,0:2]
     self.winloss_reg_loss_unreduced = 2.0 * tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 
-    # self.scale_reg_loss_unreduced = tf.reshape(0.005 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
-    self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
+    self.scale_reg_loss_unreduced = tf.reshape(0.002 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
+    #self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
 
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced)

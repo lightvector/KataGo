@@ -28,7 +28,7 @@ b6c96 = {
     ["rconv5","gpool"],
     ["rconv6","regular"]
   ],
-  "p1_num_channels":48,
+  "p1_num_channels":32,
   "g1_num_channels":32,
   "v1_num_channels":32,
   "sbv2_num_channels":48,
@@ -54,12 +54,12 @@ b10c128 = {
     ["rconv9","regular"],
     ["rconv10","regular"]
   ],
-  "p1_num_channels":48,
+  "p1_num_channels":32,
   "g1_num_channels":32,
   "v1_num_channels":32,
-  "sbv2_num_channels":48,
+  "sbv2_num_channels":64,
   "bbv2_num_channels":32,
-  "v2_size":48
+  "v2_size":64
 }
 
 b14c192 = {
@@ -84,18 +84,55 @@ b14c192 = {
     ["rconv13","regular"],
     ["rconv14","regular"]
   ],
-  "p1_num_channels":48,
+  "p1_num_channels":32,
   "g1_num_channels":32,
   "v1_num_channels":32,
-  "sbv2_num_channels":48,
+  "sbv2_num_channels":80,
   "bbv2_num_channels":32,
-  "v2_size":48
+  "v2_size":80
+}
+
+b20c256 = {
+  "trunk_num_channels":256,
+  "mid_num_channels":256,
+  "regular_num_channels":192,
+  "dilated_num_channels":64,
+  "gpool_num_channels":64,
+  "block_kind": [
+    ["rconv1","regular"],
+    ["rconv2","regular"],
+    ["rconv3","regular"],
+    ["rconv4","regular"],
+    ["rconv5","regular"],
+    ["rconv6","regular"],
+    ["rconv7","gpool"],
+    ["rconv8","regular"],
+    ["rconv9","regular"],
+    ["rconv10","regular"],
+    ["rconv11","regular"],
+    ["rconv12","gpool"],
+    ["rconv13","regular"],
+    ["rconv14","regular"],
+    ["rconv15","regular"],
+    ["rconv16","regular"],
+    ["rconv17","gpool"],
+    ["rconv18","regular"],
+    ["rconv19","regular"],
+    ["rconv20","regular"]
+  ],
+  "p1_num_channels":48,
+  "g1_num_channels":48,
+  "v1_num_channels":48,
+  "sbv2_num_channels":96,
+  "bbv2_num_channels":48,
+  "v2_size":96
 }
 
 config_of_name = {
   "b6c96": b6c96,
   "b10c128": b10c128,
-  "b14c192": b14c192
+  "b14c192": b14c192,
+  "b20c256": b20c256
 }
 
 b6_to_b10_map = {
