@@ -988,7 +988,7 @@ class ModelV3:
     sb2_layer = (
       tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) +
       tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size]) +
-      tf.reshape(sb2_parity_partial,[1,scorebelief_len,sbv2_size])
+      tf.reshape(sb2_parity_partial,[-1,scorebelief_len,sbv2_size])
     )
     sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
 

@@ -4,9 +4,9 @@
 #Should be run once per persistent training process.
 #Outputs results in tfsavedmodels_toexport/ in an ongoing basis.
 
-if [[ $# -ne 4 ]]
+if [[ $# -lt 4 ]]
 then
-    echo "Usage: $0 BASEDIR TRAININGNAME MODELKIND LR_EPOCH_OFFSET"
+    echo "Usage: $0 BASEDIR TRAININGNAME MODELKIND LR_EPOCH_OFFSET OTHERARGS"
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "TRANINGNAME name to prefix models with, specific to this training daemon"
     echo "MODELKIND what size model to train"
@@ -41,4 +41,5 @@ time python3 ./trainv3.py \
      -model-kind $MODELKIND \
      -lr-epoch-offset $LR_EPOCH_OFFSET \
      -sub-epochs 2 \
+     "$@" \
      2>&1 | tee $BASEDIR/train/$TRAININGNAME/stdout.txt

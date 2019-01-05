@@ -40,6 +40,7 @@ parser.add_argument('-model-kind', help='String name for what model to use', req
 parser.add_argument('-lr-epoch-offset', help='Start at effectively this epoch for LR purposes', type=float, required=True)
 parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
+parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 args = vars(parser.parse_args())
 
 traindir = args["traindir"]
@@ -53,6 +54,7 @@ model_kind = args["model_kind"]
 lr_epoch_offset = args["lr_epoch_offset"]
 sub_epochs = args["sub_epochs"]
 verbose = args["verbose"]
+no_export = args["no_export"]
 logfilemode = "a"
 
 if not os.path.exists(traindir):
@@ -471,30 +473,32 @@ while True:
       ]
     )
 
-  #Export a model for testing, unless somehow it already exists
   globalstep = int(estimator.get_variable_value("global_step:0"))
-  modelname = "%s-s%d-d%d" % (
-    exportprefix,
-    globalstep*batch_size,
-    last_datainfo_row,
-  )
-  savepath = os.path.join(exportdir,modelname)
-  savepathtmp = os.path.join(exportdir,modelname+".tmp")
-  if os.path.exists(savepath):
-    trainlog("NOT saving model, already exists at: " + savepath)
-  else:
-    trainlog("SAVING MODEL TO: " + savepath)
-    saved_to = estimator.export_saved_model(
-      savepathtmp,
-      tf.estimator.export.build_raw_serving_input_receiver_fn(raw_input_feature_placeholders)
-    )
-    os.rename(saved_to, os.path.join(savepathtmp,"saved_model"))
-    dump_and_flush_json(trainhistory,os.path.join(savepathtmp,"trainhistory.json"))
-    with open(os.path.join(savepathtmp,"model.config.json"),"w") as f:
-      json.dump(model_config,f)
 
-    time.sleep(1)
-    os.rename(savepathtmp,savepath)
+  if not no_export:
+    #Export a model for testing, unless somehow it already exists
+    modelname = "%s-s%d-d%d" % (
+      exportprefix,
+      globalstep*batch_size,
+      last_datainfo_row,
+    )
+    savepath = os.path.join(exportdir,modelname)
+    savepathtmp = os.path.join(exportdir,modelname+".tmp")
+    if os.path.exists(savepath):
+      trainlog("NOT saving model, already exists at: " + savepath)
+    else:
+      trainlog("SAVING MODEL TO: " + savepath)
+      saved_to = estimator.export_saved_model(
+        savepathtmp,
+        tf.estimator.export.build_raw_serving_input_receiver_fn(raw_input_feature_placeholders)
+      )
+      os.rename(saved_to, os.path.join(savepathtmp,"saved_model"))
+      dump_and_flush_json(trainhistory,os.path.join(savepathtmp,"trainhistory.json"))
+      with open(os.path.join(savepathtmp,"model.config.json"),"w") as f:
+        json.dump(model_config,f)
+
+      time.sleep(1)
+      os.rename(savepathtmp,savepath)
 
   #Validate
   trainlog("Beginning validation after epoch!")
