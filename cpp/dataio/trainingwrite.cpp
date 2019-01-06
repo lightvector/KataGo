@@ -96,7 +96,7 @@ FinishedGameData::~FinishedGameData() {
 
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
-static const int POLICY_TARGET_NUM_CHANNELS = 1;
+static const int POLICY_TARGET_NUM_CHANNELS = 2;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 54;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 static const int BONUS_SCORE_RADIUS = 30;
@@ -210,6 +210,7 @@ void TrainingWriteBuffers::addRow(
   int absoluteTurnNumber,
   float targetWeight,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
+  const vector<PolicyTargetMove>* policyTarget1, //can be null
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
   int8_t* finalWhiteOwnership,
@@ -261,6 +262,15 @@ void TrainingWriteBuffers::addRow(
   else {
     zeroPolicyTarget(policySize, rowPolicy + 0 * policySize);
     rowGlobal[26] = 0.0f;
+  }
+  
+  if(policyTarget1 != NULL) {
+    fillPolicyTarget(*policyTarget1, policySize, posLen, board.x_size, rowPolicy + 1 * policySize);
+    rowGlobal[29] = 1.0f;
+  }
+  else {
+    zeroPolicyTarget(policySize, rowPolicy + 1 * policySize);
+    rowGlobal[29] = 0.0f;
   }
 
   //Fill td-like value targets
@@ -617,6 +627,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
     float targetWeight = data.targetWeightByTurn[turnNumberAfterStart];
     const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumberAfterStart];
+    const vector<PolicyTargetMove>* policyTarget1 = (turnNumberAfterStart + 1 < numMoves) ? data.policyTargetsByTurn[turnNumberAfterStart+1] : NULL;
     bool isSidePosition = false;
 
     int numNeuralNetsBehindLatest = 0;
@@ -633,6 +644,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         absoluteTurnNumber,
         targetWeight,
         policyTarget0,
+        policyTarget1,
         data.whiteValueTargetsByTurn,
         turnNumberAfterStart,
         data.finalWhiteOwnership,
@@ -667,6 +679,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         absoluteTurnNumber,
         sp->targetWeight,
         &(sp->policyTarget),
+        NULL,
         whiteValueTargetsBuf,
         0,
         NULL,

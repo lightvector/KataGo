@@ -46,7 +46,7 @@ if checkpoint_file_prefix is not None and saved_model_dir is not None:
 def log(s):
   print(s,flush=True)
 
-NUM_POLICY_TARGETS = 1
+NUM_POLICY_TARGETS = 2
 NUM_GLOBAL_TARGETS = 54
 NUM_VALUE_SPATIAL_TARGETS = 1
 EXTRA_SCORE_DISTR_RADIUS = 60
@@ -192,7 +192,8 @@ with tf.Session(config=tfconfig) as session:
   vmetrics = {
     # "acc1": metrics.accuracy1,
     # "acc4": metrics.accuracy4,
-    "ploss": target_vars.policy_loss,
+    "p0loss": target_vars.policy_loss,
+    "p1loss": target_vars.policy1_loss,
     "vloss": target_vars.value_loss,
     "smloss": target_vars.scoremean_loss,
     "sbpdfloss": target_vars.scorebelief_pdf_loss,
@@ -212,10 +213,11 @@ with tf.Session(config=tfconfig) as session:
   }
 
   def validation_stats_str(vmetrics_evaled):
-    return "ploss %f vloss %f smloss %f sbpdfloss %f sbcdfloss %f bbpdfloss %f bbcdfloss %f uvloss %f oloss %f rwlloss %f rsmloss %f rsdloss %f roloss %f rscloss %f vconf %f ventr %f" % (
+    return "p0loss %f p1loss %f vloss %f smloss %f sbpdfloss %f sbcdfloss %f bbpdfloss %f bbcdfloss %f uvloss %f oloss %f rwlloss %f rsmloss %f rsdloss %f roloss %f rscloss %f vconf %f ventr %f" % (
       # vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
       # vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
-      vmetrics_evaled["ploss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["p0loss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["p1loss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["vloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["smloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["sbpdfloss"] / vmetrics_evaled["wsum"],

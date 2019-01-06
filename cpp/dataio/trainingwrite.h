@@ -100,6 +100,7 @@ struct TrainingWriteBuffers {
   //Contains number of visits, possibly with a subtraction.
   //Channel i will still be a dummy probability distribution (not all zero) if weight 0
   //C0: Policy target this turn.
+  //C1: Policy target next turn.
   NumpyBuffer<int16_t> policyTargetsNCMove;
 
   //Value targets and other metadata, from the perspective of the player to move
@@ -120,7 +121,7 @@ struct TrainingWriteBuffers {
   //C26 Weight assigned to the policy target
   //C27 Weight assigned to the final board ownership target and score distr and bonus score targets. Most training rows will have this be 1, some will be 0.
   //C28: Weight assigned to the utilityvariance target
-  //C29: Unused
+  //C29: Weight assigned to the next move policy target
   //C30: Unused
 
   //C31-35: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
@@ -175,6 +176,7 @@ struct TrainingWriteBuffers {
     int turnNumberAfterStart,
     float targetWeight,
     const vector<PolicyTargetMove>* policyTarget0, //can be null
+    const vector<PolicyTargetMove>* policyTarget1, //can be null
     const vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
     int8_t* finalWhiteOwnership,

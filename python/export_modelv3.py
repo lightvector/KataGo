@@ -294,8 +294,13 @@ with tf.Session(config=tfconfig) as session:
       write_matmul("matmulg2w",model.g2_num_channels,model.p1_num_channels,get_weights("matmulg2w"))
       write_bn("p1/norm",model.p1_num_channels)
       write_activation("p1/actv")
+
+      #Write only the this-move prediction, not the next-move prediction
+      (p2name,p2diam,p2in_channels,p2out_channels) = model.p2_conv
+      assert(p2out_channels == 2)
+      write_conv(p2name+"/w",p2diam,p2in_channels,p2out_channels,1,get_weights(name+"/w")[:,:,:,0:1])
       write_model_conv(model.p2_conv)
-      write_matmul("matmulpass",model.g2_num_channels,1,get_weights("matmulpass"))
+      write_matmul("matmulpass",model.g2_num_channels,1,get_weights("matmulpass")[:,0:1])
 
     def write_value_head():
       writeln("valuehead")
