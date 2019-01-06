@@ -304,7 +304,6 @@ void TrainingWriteBuffers::addRow(
   }
 
   //Unused
-  rowGlobal[29] = 0.0f;
   rowGlobal[30] = 0.0f;
 
   //Fill in whether we should use history or not
