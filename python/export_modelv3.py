@@ -298,7 +298,7 @@ with tf.Session(config=tfconfig) as session:
       #Write only the this-move prediction, not the next-move prediction
       (p2name,p2diam,p2in_channels,p2out_channels) = model.p2_conv
       assert(p2out_channels == 2)
-      write_conv(p2name+"/w",p2diam,p2in_channels,p2out_channels,1,get_weights(name+"/w")[:,:,:,0:1])
+      write_conv(p2name+"/w",p2diam,p2in_channels,1,1,get_weights(name+"/w")[:,:,:,0:1])
       write_model_conv(model.p2_conv)
       write_matmul("matmulpass",model.g2_num_channels,1,get_weights("matmulpass")[:,0:1])
 

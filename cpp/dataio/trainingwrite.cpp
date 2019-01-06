@@ -158,6 +158,11 @@ static void zeroPolicyTarget(int policySize, int16_t* target) {
     target[pos] = 0;
 }
 
+static void uniformPolicyTarget(int policySize, int16_t* target) {
+  for(int pos = 0; pos<policySize; pos++)
+    target[pos] = 1;
+}
+
 //Copy playouts into target, expanding out the sparse representation into a full plane.
 static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves, int policySize, int posLen, int boardXSize, int16_t* target) {
   zeroPolicyTarget(policySize,target);
@@ -260,16 +265,16 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[26] = 1.0f;
   }
   else {
-    zeroPolicyTarget(policySize, rowPolicy + 0 * policySize);
+    uniformPolicyTarget(policySize, rowPolicy + 0 * policySize);
     rowGlobal[26] = 0.0f;
   }
-  
+
   if(policyTarget1 != NULL) {
     fillPolicyTarget(*policyTarget1, policySize, posLen, board.x_size, rowPolicy + 1 * policySize);
     rowGlobal[29] = 1.0f;
   }
   else {
-    zeroPolicyTarget(policySize, rowPolicy + 1 * policySize);
+    uniformPolicyTarget(policySize, rowPolicy + 1 * policySize);
     rowGlobal[29] = 0.0f;
   }
 
