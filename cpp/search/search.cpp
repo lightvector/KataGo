@@ -337,6 +337,39 @@ bool Search::getPlaySelectionValues(
     locs.push_back(moveLoc);
     playSelectionValues.push_back(selectionValue);
   }
+
+  //Possibly reduce visits on children that we spend too many visits on in retrospect
+  if(&node == rootNode && searchParams.rootDesiredPerChildVisits > 0 && searchParams.rootDesiredPerChildVisitsProp > 0 && numChildren > 0) {
+    double bestValue = -1e30;
+    int bestIdx = 0;
+    for(int i = 0; i<numChildren; i++) {
+      double value = playSelectionValues[i];
+      if(value > bestValue) {
+        bestValue = value;
+        bestIdx = i;
+      }
+    }
+
+    uint64_t totalChildVisits = 0;
+    for(int i = 0; i<numChildren; i++) {
+      const SearchNode* child = node.children[i];
+      while(child->statsLock.test_and_set(std::memory_order_acquire));
+      uint64_t childVisits = child->stats.visits;
+      child->statsLock.clear(std::memory_order_release);
+      totalChildVisits += childVisits;
+    }
+
+    const SearchNode* bestChild = node.children[bestIdx];
+    double fpuValue = -10.0; //dummy, not actually used since these childs all should actually have visits
+    bool isRootDuringSearch = false;
+    double bestChildExploreSelectionValue = getExploreSelectionValue(node,bestChild,totalChildVisits,fpuValue,isRootDuringSearch);
+
+    for(int i = 0; i<numChildren; i++) {
+      if(i != bestIdx)
+        playSelectionValues[i] = getReducedPlaySelectionValue(node, node.children[i], totalChildVisits, bestChildExploreSelectionValue);
+    }
+  }
+  
   shared_ptr<NNOutput> nnOutput = node.nnOutput;
   lock.unlock();
 
@@ -1017,7 +1050,7 @@ double Search::getPlaySelectionValue(const SearchNode& parent, const SearchNode*
 
   return getPlaySelectionValue(nnPolicyProb,childVisits,parent.nextPla);
 }
-double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const {
+double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const {
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
@@ -1059,6 +1092,15 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
     double virtualLossVisitFrac = (double)childVirtualLosses / childVisits;
     childUtility = childUtility + (virtualLossUtility - childUtility) * virtualLossVisitFrac;
   }
+
+  //Hack to get the root to funnel more visits down child branches
+  if(isRootDuringSearch) {
+    int desiredVisits = (int)round(std::min(searchParams.rootDesiredPerChildVisits,searchParams.rootDesiredPerChildVisitsProp * totalChildVisits));
+    if(childVisits < desiredVisits) {
+      return 1e20;
+    }
+  }
+  
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
 double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const {
@@ -1066,6 +1108,47 @@ double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos
   uint64_t childVisits = 0;
   double childUtility = fpuValue;
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
+}
+
+double Search::getReducedPlaySelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double bestChildExploreSelectionValue) const {
+  assert(&parent == rootNode);
+  Loc moveLoc = child->prevMoveLoc;
+  int movePos = getPos(moveLoc);
+  float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
+
+  while(child->statsLock.test_and_set(std::memory_order_acquire));
+  uint64_t childVisits = child->stats.visits;
+  double childResultUtilitySum = child->stats.getResultUtilitySum(searchParams);
+  double scoreMeanSum = child->stats.scoreMeanSum;
+  double scoreMeanSqSum = child->stats.scoreMeanSqSum;
+  double valueSumWeight = child->stats.valueSumWeight;
+  child->statsLock.clear(std::memory_order_release);
+
+  //getReducedPlaySelectionValue only happens after the search, so there should be no multithreading shenanigans that give us a 0-visit child.
+  assert(childVisits > 0);
+  assert(valueSumWeight > 0.0);
+
+  //Tiny adjustment for passing
+  double endingScoreBonus = getEndingWhiteScoreBonus(parent,child);
+  double oldScoreMeanSum = scoreMeanSum;
+  scoreMeanSum += endingScoreBonus * valueSumWeight;
+  scoreMeanSqSum = scoreMeanSqSum + (oldScoreMeanSum + scoreMeanSum) * endingScoreBonus;
+  double childUtility = getUtility(childResultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
+  
+  int desiredVisits = (int)round(std::min(searchParams.rootDesiredPerChildVisits,searchParams.rootDesiredPerChildVisitsProp * totalChildVisits));
+  for(int i = 0; i<desiredVisits; i++) {
+    if(childVisits <= 0)
+      break;
+    double exploreSelectionValue = getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits-1,childUtility,parent.nextPla);
+    if(exploreSelectionValue < bestChildExploreSelectionValue) {
+      childVisits -= 1;
+      continue;
+    }
+    else
+      break;
+  }
+
+  return getPlaySelectionValue(nnPolicyProb,childVisits,parent.nextPla);
 }
 
 
@@ -1139,7 +1222,8 @@ void Search::selectBestChildToDescend(
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
-    double selectionValue = getExploreSelectionValue(node,child,totalChildVisits,fpuValue);
+    bool isRootDuringSearch = isRoot;
+    double selectionValue = getExploreSelectionValue(node,child,totalChildVisits,fpuValue,isRootDuringSearch);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = i;

@@ -208,7 +208,14 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("rootFpuLossProp"+idxStr)) params.rootFpuLossProp = cfg.getDouble("rootFpuLossProp"+idxStr, 0.0, 1.0);
     else if(cfg.contains("rootFpuLossProp"))   params.rootFpuLossProp = cfg.getDouble("rootFpuLossProp",        0.0, 1.0);
     else                                       params.rootFpuLossProp = params.fpuLossProp;
-    
+
+    if(cfg.contains("rootDesiredPerChildVisits"+idxStr)) params.rootDesiredPerChildVisits = cfg.getDouble("rootDesiredPerChildVisits"+idxStr, 0.0, 1e10);
+    else if(cfg.contains("rootDesiredPerChildVisits"))   params.rootDesiredPerChildVisits = cfg.getDouble("rootDesiredPerChildVisits",        0.0, 1e10);
+    else                                                 params.rootDesiredPerChildVisits = 0.0;
+    if(cfg.contains("rootDesiredPerChildVisitsProp"+idxStr)) params.rootDesiredPerChildVisitsProp = cfg.getDouble("rootDesiredPerChildVisitsProp"+idxStr, 0.0, 0.5);
+    else if(cfg.contains("rootDesiredPerChildVisitsProp"))   params.rootDesiredPerChildVisitsProp = cfg.getDouble("rootDesiredPerChildVisitsProp",        0.0, 0.5);
+    else                                                     params.rootDesiredPerChildVisitsProp = 0.0;
+
     if(cfg.contains("chosenMoveTemperature"+idxStr)) params.chosenMoveTemperature = cfg.getDouble("chosenMoveTemperature"+idxStr, 0.0, 5.0);
     else                                             params.chosenMoveTemperature = cfg.getDouble("chosenMoveTemperature",        0.0, 5.0);
     if(cfg.contains("chosenMoveTemperatureEarly"+idxStr))

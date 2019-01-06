@@ -30,6 +30,10 @@ struct SearchParams {
   double rootFpuReductionMax; //Same as fpuReductionMax, but at root
   double rootFpuLossProp; //Same as fpuLossProp, but at root
 
+  //We use the min of these two together, and also excess visits get pruned if the value turns out bad.
+  double rootDesiredPerChildVisits; //Desired number of visits to funnel down any given child that receives any visits at all
+  double rootDesiredPerChildVisitsProp; //Desired proportion of visits to funnel down any given child that receives any visits at all
+
   //Parameters for choosing the move to play
   double chosenMoveTemperature; //Make move roughly proportional to visit count ** (1/chosenMoveTemperature)
   double chosenMoveTemperatureEarly; //Temperature at start of game

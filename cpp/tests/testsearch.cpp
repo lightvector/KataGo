@@ -14,10 +14,12 @@ struct TestSearchOptions {
   int numMovesInARow;
   bool printRootPolicy;
   bool printEndingScoreValueBonus;
+  bool printPlaySelectionValues;
   TestSearchOptions()
     :numMovesInARow(1),
      printRootPolicy(false),
-     printEndingScoreValueBonus(false)
+     printEndingScoreValueBonus(false),
+     printPlaySelectionValues(false)
   {}
 };
 
@@ -90,6 +92,17 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
     if(opts.printEndingScoreValueBonus) {
       search->printRootOwnershipMap(cout);
       search->printRootEndingScoreValueBonus(cout);
+    }
+    if(opts.printPlaySelectionValues) {
+      cout << "Play selection values" << endl;
+      double scaleMaxToAtLeast = 10.0;
+      vector<Loc> locsBuf;
+      vector<double> playSelectionValuesBuf;
+      bool success = search->getPlaySelectionValues(locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast);
+      assert(success);
+      for(int j = 0; j<locsBuf.size(); j++) {
+        cout << Location::toString(locsBuf[j],board) << " " << playSelectionValuesBuf[j] << endl;
+      }
     }
 
     bot->makeMove(move, nextPla);
@@ -273,6 +286,39 @@ static void runBasicPositions(NNEvaluator* nnEval, Logger& logger)
       testParams2.rootPolicyTemperature = 1.5;
       bot->setParams(testParams2);
       runBotOnSgf(bot, sgfStr, rules, 44, 7.5, opts);
+      bot->setParams(params);
+      cout << endl << endl;
+
+      cout << "With noise and rootDesiredPerChildVisits===================" << endl;
+      cout << "Root desired child visits 100v 2%" << endl;
+      cout << endl;
+
+      TestSearchOptions opts2 = opts;
+      opts2.printPlaySelectionValues = true;
+
+      SearchParams testParams3 = params;
+      testParams3.rootNoiseEnabled = true;
+      testParams3.maxVisits = 400;
+      testParams3.rootFpuReductionMax = 0.0;
+      testParams3.rootDesiredPerChildVisits = 100;
+      testParams3.rootDesiredPerChildVisitsProp = 0.02;
+      bot->setParams(testParams3);
+      runBotOnSgf(bot, sgfStr, rules, 44, 7.5, opts2);
+      bot->setParams(params);
+      cout << endl << endl;
+
+      cout << "With noise and rootDesiredPerChildVisits===================" << endl;
+      cout << "Root desired child visits 3v 5%" << endl;
+      cout << endl;
+
+      SearchParams testParams4 = params;
+      testParams4.rootNoiseEnabled = true;
+      testParams4.maxVisits = 400;
+      testParams4.rootFpuReductionMax = 0.0;
+      testParams4.rootDesiredPerChildVisits = 3;
+      testParams4.rootDesiredPerChildVisitsProp = 0.05;
+      bot->setParams(testParams4);
+      runBotOnSgf(bot, sgfStr, rules, 44, 7.5, opts2);
       bot->setParams(params);
       cout << endl << endl;
     }

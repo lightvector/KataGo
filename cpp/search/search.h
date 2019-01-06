@@ -249,8 +249,10 @@ private:
   double getPassingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
 
   double getPlaySelectionValue(const SearchNode& parent, const SearchNode* child) const;
-  double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue) const;
+  double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const;
   double getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const;
+
+  double getReducedPlaySelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double bestChildExploreSelectionValue) const;
 
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);

@@ -23,6 +23,8 @@ SearchParams::SearchParams()
    rootPolicyTemperature(1.0),
    rootFpuReductionMax(0.2),
    rootFpuLossProp(0.0),
+   rootDesiredPerChildVisits(0.0),
+   rootDesiredPerChildVisitsProp(0.0),
    chosenMoveTemperature(0.0),
    chosenMoveTemperatureEarly(0.0),
    chosenMoveTemperatureHalflife(19),
