@@ -622,35 +622,38 @@ MoveNum: 91 HASH: 558AE67659AC22A0DA8EEEBA4702558A
  1 X1. X . O . O X X . .
 
 Root visits: 500
-NN rows: 280
-NN batches: 280
+NN rows: 292
+NN batches: 292
 NN avg batch size: 1
-PV: J7 pass pass pass pass D1 F1 K1 E5 K4 D6 L5
+PV: J7 D1 F1 pass pass pass pass K4 E5 L5 D6 K1
 Tree:
-: T  21.40c W  20.82c S   0.58c ( +0.7) VW   5.11c VS   0.24c N     500  --  J7 pass pass pass pass D1 F1
+: T  35.05c W  34.23c S   0.82c ( +0.9) VW   5.11c VS   0.24c N     500  --  J7 D1 F1 pass pass pass pass
 ---White(^)---
-J7  : T  25.95c W  25.28c S   0.67c ( +0.8) VW  -7.15c VS  -0.15c P 28.44% VW 12.75% N     426  --  pass pass pass pass D1 F1 K1
-pss : T -10.41c W -10.33c S  -0.08c ( -0.1) VW -23.15c VS  -0.67c P 28.14% VW  4.28% N      42  --  D1 F1 pass pass pass J7 pass
-E5  : T -17.06c W -16.93c S  -0.13c ( -0.2) VW -24.94c VS  -0.29c P 12.53% VW  4.88% N      10  --  D1 F1 pass pass
-D6  : T -38.63c W -38.17c S  -0.47c ( -0.5) VW -23.62c VS  -0.21c P 10.06% VW  4.19% N       3  --  D1 F1
-F1  : T -36.21c W -35.44c S  -0.77c ( -0.9) VW -35.44c VS  -0.77c P  4.15% VW  5.43% N       1  --  
-D5  : T -33.72c W -33.35c S  -0.38c ( -0.4) VW -33.35c VS  -0.38c P  3.80% VW  5.60% N       1  --  
-K4  : T -63.29c W -61.42c S  -1.86c ( -2.2) VW -61.42c VS  -1.86c P  2.65% VW  3.85% N       1  --  
-D1  : T -81.51c W -79.33c S  -2.19c ( -2.5) VW -79.33c VS  -2.19c P  1.85% VW  3.04% N       1  --  
-K1  : T -37.46c W -36.54c S  -0.92c ( -1.1) VW -36.54c VS  -0.92c P  1.38% VW  5.35% N       1  --  
-K3  : T -58.20c W -56.69c S  -1.52c ( -1.7) VW -56.69c VS  -1.52c P  1.25% VW  4.11% N       1  --  
-A8  : T -60.85c W -59.65c S  -1.19c ( -1.4) VW -59.65c VS  -1.19c P  0.54% VW  3.97% N       1  --  
-L5  : T -73.47c W -71.87c S  -1.60c ( -1.9) VW -71.87c VS  -1.60c P  0.50% VW  3.37% N       1  --  
-C6  : T -25.89c W -25.61c S  -0.28c ( -0.3) VW -25.61c VS  -0.28c P  0.50% VW  6.16% N       1  --  
-B1  : T -66.20c W -64.74c S  -1.46c ( -1.7) VW -64.74c VS  -1.46c P  0.40% VW  3.71% N       1  --  
-B2  : T -66.86c W -65.44c S  -1.41c ( -1.6) VW -65.44c VS  -1.41c P  0.36% VW  3.68% N       1  --  
-A7  : T -62.09c W -60.88c S  -1.22c ( -1.4) VW -60.88c VS  -1.22c P  0.35% VW  3.91% N       1  --  
-L2  : T -76.53c W -74.69c S  -1.85c ( -2.1) VW -74.69c VS  -1.85c P  0.31% VW  3.24% N       1  --  
-A6  : T -61.07c W -59.78c S  -1.30c ( -1.5) VW -59.78c VS  -1.30c P  0.31% VW  3.96% N       1  --  
-A9  : T -64.75c W -63.35c S  -1.39c ( -1.6) VW -63.35c VS  -1.39c P  0.30% VW  3.78% N       1  --  
-L4  : T -79.89c W -77.97c S  -1.92c ( -2.2) VW -77.97c VS  -1.92c P  0.29% VW  3.11% N       1  --  
-B7  : T -51.30c W -50.35c S  -0.96c ( -1.1) VW -50.35c VS  -0.96c P  0.28% VW  4.49% N       1  --  
-F4  : T -79.90c W -78.00c S  -1.90c ( -2.2) VW -78.00c VS  -1.90c P  0.27% VW  3.10% N       1  --  
+J7  : T  39.11c W  38.21c S   0.91c ( +1.0) VW  -7.15c VS  -0.15c P 28.44% VW 13.15% N     447  --  D1 F1 pass pass pass pass K4
+pss : T  -7.91c W  -7.86c S  -0.05c ( -0.1) VW -23.15c VS  -0.67c P 28.14% VW  3.63% N      25  --  D1 F1 pass pass pass pass
+E5  : T -18.56c W -18.44c S  -0.12c ( -0.1) VW -24.94c VS  -0.29c P 12.53% VW  4.55% N       4  --  D1 F1
+D6  : T -41.03c W -40.47c S  -0.56c ( -0.6) VW -23.62c VS  -0.21c P 10.06% VW  3.73% N       2  --  D1
+F1  : T -36.21c W -35.44c S  -0.77c ( -0.9) VW -35.44c VS  -0.77c P  4.15% VW  4.74% N       1  --  
+D5  : T -33.72c W -33.35c S  -0.38c ( -0.4) VW -33.35c VS  -0.38c P  3.80% VW  4.90% N       1  --  
+K4  : T -63.29c W -61.42c S  -1.86c ( -2.2) VW -61.42c VS  -1.86c P  2.65% VW  3.34% N       1  --  
+D1  : T -81.51c W -79.33c S  -2.19c ( -2.5) VW -79.33c VS  -2.19c P  1.85% VW  2.64% N       1  --  
+K1  : T -37.46c W -36.54c S  -0.92c ( -1.1) VW -36.54c VS  -0.92c P  1.38% VW  4.67% N       1  --  
+K3  : T -58.20c W -56.69c S  -1.52c ( -1.7) VW -56.69c VS  -1.52c P  1.25% VW  3.57% N       1  --  
+A8  : T -60.85c W -59.65c S  -1.19c ( -1.4) VW -59.65c VS  -1.19c P  0.54% VW  3.45% N       1  --  
+L5  : T -73.47c W -71.87c S  -1.60c ( -1.9) VW -71.87c VS  -1.60c P  0.50% VW  2.93% N       1  --  
+C6  : T -25.89c W -25.61c S  -0.28c ( -0.3) VW -25.61c VS  -0.28c P  0.50% VW  5.40% N       1  --  
+B1  : T -66.20c W -64.74c S  -1.46c ( -1.7) VW -64.74c VS  -1.46c P  0.40% VW  3.22% N       1  --  
+B2  : T -66.86c W -65.44c S  -1.41c ( -1.6) VW -65.44c VS  -1.41c P  0.36% VW  3.19% N       1  --  
+A7  : T -62.09c W -60.88c S  -1.22c ( -1.4) VW -60.88c VS  -1.22c P  0.35% VW  3.40% N       1  --  
+L2  : T -76.53c W -74.69c S  -1.85c ( -2.1) VW -74.69c VS  -1.85c P  0.31% VW  2.82% N       1  --  
+A6  : T -61.07c W -59.78c S  -1.30c ( -1.5) VW -59.78c VS  -1.30c P  0.31% VW  3.44% N       1  --  
+A9  : T -64.75c W -63.35c S  -1.39c ( -1.6) VW -63.35c VS  -1.39c P  0.30% VW  3.28% N       1  --  
+L4  : T -79.89c W -77.97c S  -1.92c ( -2.2) VW -77.97c VS  -1.92c P  0.29% VW  2.70% N       1  --  
+B7  : T -51.30c W -50.35c S  -0.96c ( -1.1) VW -50.35c VS  -0.96c P  0.28% VW  3.91% N       1  --  
+F4  : T -79.90c W -78.00c S  -1.90c ( -2.2) VW -78.00c VS  -1.90c P  0.27% VW  2.70% N       1  --  
+B8  : T -51.75c W -50.75c S  -1.00c ( -1.2) VW -50.75c VS  -1.00c P  0.27% VW  3.88% N       1  --  
+L3  : T -78.92c W -77.04c S  -1.87c ( -2.2) VW -77.04c VS  -1.87c P  0.27% VW  2.73% N       1  --  
+B6  : T -49.35c W -48.41c S  -0.94c ( -1.1) VW -48.41c VS  -0.94c P  0.26% VW  4.01% N       1  --  
  -99.0  -99.5  -99.7  -99.9  -99.7  -99.8   99.3   99.8   99.9   99.8   99.5 
   99.7   99.7  -99.8  -99.7  -99.9  -99.8  -99.8  -99.9  -99.6   99.9   99.7 
   99.0   99.8   99.8  -99.7  -99.8  -99.9  -99.7  -99.9   99.8   99.8   99.8 
@@ -663,10 +666,10 @@ F4  : T -79.90c W -78.00c S  -1.90c ( -2.2) VW -78.00c VS  -1.90c P  0.27% VW  3
  -99.9  -99.7  -99.8  -99.8  -99.5   99.5   99.7  -99.2  -99.1  -99.8  -99.2 
  -99.9  -99.6  -99.9  -69.5   97.2   88.9   99.7  -99.6  -99.8  -99.0  -98.7 
 
-J7 visits 426 utilityNoBonus 25.95c utilityWithBonus 25.95c endingScoreBonus 0.00
-pass visits 42 utilityNoBonus -10.41c utilityWithBonus -10.41c endingScoreBonus 0.00
-E5 visits 10 utilityNoBonus -17.06c utilityWithBonus -17.06c endingScoreBonus 0.00
-D6 visits 3 utilityNoBonus -38.63c utilityWithBonus -38.63c endingScoreBonus 0.00
+J7 visits 447 utilityNoBonus 39.11c utilityWithBonus 39.11c endingScoreBonus 0.00
+pass visits 25 utilityNoBonus -7.91c utilityWithBonus -7.91c endingScoreBonus 0.00
+E5 visits 4 utilityNoBonus -18.56c utilityWithBonus -18.56c endingScoreBonus 0.00
+D6 visits 2 utilityNoBonus -41.03c utilityWithBonus -41.03c endingScoreBonus 0.00
 F1 visits 1 utilityNoBonus -36.21c utilityWithBonus -36.21c endingScoreBonus 0.00
 D5 visits 1 utilityNoBonus -33.72c utilityWithBonus -33.72c endingScoreBonus 0.00
 K4 visits 1 utilityNoBonus -63.29c utilityWithBonus -63.29c endingScoreBonus 0.00
@@ -685,6 +688,9 @@ A9 visits 1 utilityNoBonus -64.75c utilityWithBonus -64.75c endingScoreBonus 0.0
 L4 visits 1 utilityNoBonus -79.89c utilityWithBonus -79.89c endingScoreBonus 0.00
 B7 visits 1 utilityNoBonus -51.30c utilityWithBonus -51.30c endingScoreBonus 0.00
 F4 visits 1 utilityNoBonus -79.90c utilityWithBonus -79.90c endingScoreBonus 0.00
+B8 visits 1 utilityNoBonus -51.75c utilityWithBonus -51.75c endingScoreBonus 0.00
+L3 visits 1 utilityNoBonus -78.92c utilityWithBonus -78.92c endingScoreBonus 0.00
+B6 visits 1 utilityNoBonus -49.35c utilityWithBonus -49.35c endingScoreBonus 0.00
 With root ending bonus pts===================
 
 MoveNum: 91 HASH: 558AE67659AC22A0DA8EEEBA4702558A
@@ -702,35 +708,38 @@ MoveNum: 91 HASH: 558AE67659AC22A0DA8EEEBA4702558A
  1 X1. X . O . O X X . .
 
 Root visits: 500
-NN rows: 280
-NN batches: 280
+NN rows: 292
+NN batches: 292
 NN avg batch size: 1
-PV: J7 pass pass pass pass D1 F1 K1 E5 K4 D6 L5
+PV: J7 D1 F1 pass pass pass pass K4 E5 L5 D6 K1
 Tree:
-: T  21.40c W  20.82c S   0.58c ( +0.7) VW   5.11c VS   0.24c N     500  --  J7 pass pass pass pass D1 F1
+: T  35.05c W  34.23c S   0.82c ( +0.9) VW   5.11c VS   0.24c N     500  --  J7 D1 F1 pass pass pass pass
 ---White(^)---
-J7  : T  25.95c W  25.28c S   0.67c ( +0.8) VW  -7.15c VS  -0.15c P 28.44% VW 12.75% N     426  --  pass pass pass pass D1 F1 K1
-pss : T -10.41c W -10.33c S  -0.08c ( -0.1) VW -23.15c VS  -0.67c P 28.14% VW  4.28% N      42  --  D1 F1 pass pass pass J7 pass
-E5  : T -17.06c W -16.93c S  -0.13c ( -0.2) VW -24.94c VS  -0.29c P 12.53% VW  4.88% N      10  --  D1 F1 pass pass
-D6  : T -38.63c W -38.17c S  -0.47c ( -0.5) VW -23.62c VS  -0.21c P 10.06% VW  4.19% N       3  --  D1 F1
-F1  : T -36.21c W -35.44c S  -0.77c ( -0.9) VW -35.44c VS  -0.77c P  4.15% VW  5.43% N       1  --  
-D5  : T -33.72c W -33.35c S  -0.38c ( -0.4) VW -33.35c VS  -0.38c P  3.80% VW  5.60% N       1  --  
-K4  : T -63.29c W -61.42c S  -1.86c ( -2.2) VW -61.42c VS  -1.86c P  2.65% VW  3.85% N       1  --  
-D1  : T -81.51c W -79.33c S  -2.19c ( -2.5) VW -79.33c VS  -2.19c P  1.85% VW  3.04% N       1  --  
-K1  : T -37.46c W -36.54c S  -0.92c ( -1.1) VW -36.54c VS  -0.92c P  1.38% VW  5.35% N       1  --  
-K3  : T -58.20c W -56.69c S  -1.52c ( -1.7) VW -56.69c VS  -1.52c P  1.25% VW  4.11% N       1  --  
-A8  : T -60.85c W -59.65c S  -1.19c ( -1.4) VW -59.65c VS  -1.19c P  0.54% VW  3.97% N       1  --  
-L5  : T -73.47c W -71.87c S  -1.60c ( -1.9) VW -71.87c VS  -1.60c P  0.50% VW  3.37% N       1  --  
-C6  : T -25.89c W -25.61c S  -0.28c ( -0.3) VW -25.61c VS  -0.28c P  0.50% VW  6.16% N       1  --  
-B1  : T -66.20c W -64.74c S  -1.46c ( -1.7) VW -64.74c VS  -1.46c P  0.40% VW  3.71% N       1  --  
-B2  : T -66.86c W -65.44c S  -1.41c ( -1.6) VW -65.44c VS  -1.41c P  0.36% VW  3.68% N       1  --  
-A7  : T -62.09c W -60.88c S  -1.22c ( -1.4) VW -60.88c VS  -1.22c P  0.35% VW  3.91% N       1  --  
-L2  : T -76.53c W -74.69c S  -1.85c ( -2.1) VW -74.69c VS  -1.85c P  0.31% VW  3.24% N       1  --  
-A6  : T -61.07c W -59.78c S  -1.30c ( -1.5) VW -59.78c VS  -1.30c P  0.31% VW  3.96% N       1  --  
-A9  : T -64.75c W -63.35c S  -1.39c ( -1.6) VW -63.35c VS  -1.39c P  0.30% VW  3.78% N       1  --  
-L4  : T -79.89c W -77.97c S  -1.92c ( -2.2) VW -77.97c VS  -1.92c P  0.29% VW  3.11% N       1  --  
-B7  : T -51.30c W -50.35c S  -0.96c ( -1.1) VW -50.35c VS  -0.96c P  0.28% VW  4.49% N       1  --  
-F4  : T -79.90c W -78.00c S  -1.90c ( -2.2) VW -78.00c VS  -1.90c P  0.27% VW  3.10% N       1  --  
+J7  : T  39.11c W  38.21c S   0.91c ( +1.0) VW  -7.15c VS  -0.15c P 28.44% VW 13.15% N     447  --  D1 F1 pass pass pass pass K4
+pss : T  -7.91c W  -7.86c S  -0.05c ( -0.1) VW -23.15c VS  -0.67c P 28.14% VW  3.63% N      25  --  D1 F1 pass pass pass pass
+E5  : T -18.56c W -18.44c S  -0.12c ( -0.1) VW -24.94c VS  -0.29c P 12.53% VW  4.55% N       4  --  D1 F1
+D6  : T -41.03c W -40.47c S  -0.56c ( -0.6) VW -23.62c VS  -0.21c P 10.06% VW  3.73% N       2  --  D1
+F1  : T -36.21c W -35.44c S  -0.77c ( -0.9) VW -35.44c VS  -0.77c P  4.15% VW  4.74% N       1  --  
+D5  : T -33.72c W -33.35c S  -0.38c ( -0.4) VW -33.35c VS  -0.38c P  3.80% VW  4.90% N       1  --  
+K4  : T -63.29c W -61.42c S  -1.86c ( -2.2) VW -61.42c VS  -1.86c P  2.65% VW  3.34% N       1  --  
+D1  : T -81.51c W -79.33c S  -2.19c ( -2.5) VW -79.33c VS  -2.19c P  1.85% VW  2.64% N       1  --  
+K1  : T -37.46c W -36.54c S  -0.92c ( -1.1) VW -36.54c VS  -0.92c P  1.38% VW  4.67% N       1  --  
+K3  : T -58.20c W -56.69c S  -1.52c ( -1.7) VW -56.69c VS  -1.52c P  1.25% VW  3.57% N       1  --  
+A8  : T -60.85c W -59.65c S  -1.19c ( -1.4) VW -59.65c VS  -1.19c P  0.54% VW  3.45% N       1  --  
+L5  : T -73.47c W -71.87c S  -1.60c ( -1.9) VW -71.87c VS  -1.60c P  0.50% VW  2.93% N       1  --  
+C6  : T -25.89c W -25.61c S  -0.28c ( -0.3) VW -25.61c VS  -0.28c P  0.50% VW  5.40% N       1  --  
+B1  : T -66.20c W -64.74c S  -1.46c ( -1.7) VW -64.74c VS  -1.46c P  0.40% VW  3.22% N       1  --  
+B2  : T -66.86c W -65.44c S  -1.41c ( -1.6) VW -65.44c VS  -1.41c P  0.36% VW  3.19% N       1  --  
+A7  : T -62.09c W -60.88c S  -1.22c ( -1.4) VW -60.88c VS  -1.22c P  0.35% VW  3.40% N       1  --  
+L2  : T -76.53c W -74.69c S  -1.85c ( -2.1) VW -74.69c VS  -1.85c P  0.31% VW  2.82% N       1  --  
+A6  : T -61.07c W -59.78c S  -1.30c ( -1.5) VW -59.78c VS  -1.30c P  0.31% VW  3.44% N       1  --  
+A9  : T -64.75c W -63.35c S  -1.39c ( -1.6) VW -63.35c VS  -1.39c P  0.30% VW  3.28% N       1  --  
+L4  : T -79.89c W -77.97c S  -1.92c ( -2.2) VW -77.97c VS  -1.92c P  0.29% VW  2.70% N       1  --  
+B7  : T -51.30c W -50.35c S  -0.96c ( -1.1) VW -50.35c VS  -0.96c P  0.28% VW  3.91% N       1  --  
+F4  : T -79.90c W -78.00c S  -1.90c ( -2.2) VW -78.00c VS  -1.90c P  0.27% VW  2.70% N       1  --  
+B8  : T -51.75c W -50.75c S  -1.00c ( -1.2) VW -50.75c VS  -1.00c P  0.27% VW  3.88% N       1  --  
+L3  : T -78.92c W -77.04c S  -1.87c ( -2.2) VW -77.04c VS  -1.87c P  0.27% VW  2.73% N       1  --  
+B6  : T -49.35c W -48.41c S  -0.94c ( -1.1) VW -48.41c VS  -0.94c P  0.26% VW  4.01% N       1  --  
  -99.0  -99.5  -99.7  -99.9  -99.7  -99.8   99.3   99.8   99.9   99.8   99.5 
   99.7   99.7  -99.8  -99.7  -99.9  -99.8  -99.8  -99.9  -99.6   99.9   99.7 
   99.0   99.8   99.8  -99.7  -99.8  -99.9  -99.7  -99.9   99.8   99.8   99.8 
@@ -743,10 +752,10 @@ F4  : T -79.90c W -78.00c S  -1.90c ( -2.2) VW -78.00c VS  -1.90c P  0.27% VW  3
  -99.9  -99.7  -99.8  -99.8  -99.5   99.5   99.7  -99.2  -99.1  -99.8  -99.2 
  -99.9  -99.6  -99.9  -69.5   97.2   88.9   99.7  -99.6  -99.8  -99.0  -98.7 
 
-J7 visits 426 utilityNoBonus 25.95c utilityWithBonus 25.95c endingScoreBonus 0.00
-pass visits 42 utilityNoBonus -10.41c utilityWithBonus -10.70c endingScoreBonus -0.33
-E5 visits 10 utilityNoBonus -17.06c utilityWithBonus -17.06c endingScoreBonus 0.00
-D6 visits 3 utilityNoBonus -38.63c utilityWithBonus -38.63c endingScoreBonus 0.00
+J7 visits 447 utilityNoBonus 39.11c utilityWithBonus 39.11c endingScoreBonus 0.00
+pass visits 25 utilityNoBonus -7.91c utilityWithBonus -8.20c endingScoreBonus -0.33
+E5 visits 4 utilityNoBonus -18.56c utilityWithBonus -18.56c endingScoreBonus 0.00
+D6 visits 2 utilityNoBonus -41.03c utilityWithBonus -41.03c endingScoreBonus 0.00
 F1 visits 1 utilityNoBonus -36.21c utilityWithBonus -36.21c endingScoreBonus 0.00
 D5 visits 1 utilityNoBonus -33.72c utilityWithBonus -33.72c endingScoreBonus 0.00
 K4 visits 1 utilityNoBonus -63.29c utilityWithBonus -63.65c endingScoreBonus -0.42
@@ -765,6 +774,9 @@ A9 visits 1 utilityNoBonus -64.75c utilityWithBonus -65.09c endingScoreBonus -0.
 L4 visits 1 utilityNoBonus -79.89c utilityWithBonus -80.23c endingScoreBonus -0.40
 B7 visits 1 utilityNoBonus -51.30c utilityWithBonus -51.64c endingScoreBonus -0.39
 F4 visits 1 utilityNoBonus -79.90c utilityWithBonus -79.90c endingScoreBonus 0.00
+B8 visits 1 utilityNoBonus -51.75c utilityWithBonus -52.11c endingScoreBonus -0.42
+L3 visits 1 utilityNoBonus -78.92c utilityWithBonus -79.20c endingScoreBonus -0.33
+B6 visits 1 utilityNoBonus -49.35c utilityWithBonus -49.68c endingScoreBonus -0.38
 
 
 GAME 9 ==========================================================================
