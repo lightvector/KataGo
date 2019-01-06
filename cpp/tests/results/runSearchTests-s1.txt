@@ -1044,7 +1044,7 @@ S18 : T  48.71c W  48.71c S   0.00c ( +0.0) VW  48.71c VS   0.00c P  2.39% VW  7
 
 
 With noise and rootDesiredPerChildVisits===================
-Root desired child visits 100v 2%, reduce 2
+Root desired child visits 100v 2%
 
 MoveNum: 44 HASH: 45273ADE5CB7C356A1AD60D0C9042620
    A B C D E F G H J K L M N O P Q R S T
@@ -1100,34 +1100,35 @@ K15 : T  76.94c W  76.94c S   0.00c ( +0.0) VW  77.48c VS   0.00c P  0.74% VW  2
 Q6  : T  51.13c W  51.13c S   0.00c ( +0.0) VW  26.05c VS   0.00c P  0.71% VW  4.35% N       8  --  R7 Q7 R8 Q8 R9
 P16 : T  39.07c W  39.07c S   0.00c ( +0.0) VW  17.40c VS   0.00c P  0.66% VW  5.23% N       8  --  Q16 O5 R8 R6 S6
 C8  : T  44.82c W  44.82c S   0.00c ( +0.0) VW  34.68c VS   0.00c P  0.62% VW  4.81% N       8  --  C7 D8 F6 E5
+Play selection values
 O5 59
-P6 27
+P6 26
 R6 137
 S2 11
-F16 6
-N5 6
-M4 6
-P14 6
+F16 2
+N5 5
+M4 4
+P14 5
 O6 6
-N2 6
-T1 6
-H2 6
-S18 6
-C3 6
-M9 6
-F13 6
-N18 6
-G4 6
-H6 6
-N4 6
-K15 6
-Q6 6
-P16 6
-C8 6
+N2 1
+T1 0
+H2 0
+S18 0
+C3 2
+M9 1
+F13 0
+N18 0
+G4 0
+H6 0
+N4 1
+K15 0
+Q6 0
+P16 1
+C8 0
 
 
 With noise and rootDesiredPerChildVisits===================
-Root desired child visits 3v 5%, reduce 5
+Root desired child visits 3v 5%
 
 MoveNum: 44 HASH: 45273ADE5CB7C356A1AD60D0C9042620
    A B C D E F G H J K L M N O P Q R S T
@@ -1187,6 +1188,7 @@ E14 : T  53.49c W  53.49c S   0.00c ( +0.0) VW  42.80c VS   0.00c P  0.62% VW  3
 Q5  : T  42.86c W  42.86c S   0.00c ( +0.0) VW  26.67c VS   0.00c P  0.54% VW  3.86% N       3  --  R7 Q7
 B5  : T  42.98c W  42.98c S   0.00c ( +0.0) VW  32.24c VS   0.00c P  0.48% VW  3.86% N       3  --  C7 C3
 T17 : T  43.85c W  43.85c S   0.00c ( +0.0) VW  39.52c VS   0.00c P  0.44% VW  3.82% N       3  --  T18 T16
+Play selection values
 O5 69
 P6 27
 M4 12
