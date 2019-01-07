@@ -27,7 +27,7 @@ cp ./*.py ./selfplay/*.sh $basedir/scripts
         ./shuffle.sh $basedir $TMPDIR $NTHREADS
         sleep 30
     done
-) >> outshuffle.txt 2>&1 &
+) >> outshuffle.txt 2>&1 & disown
 
 (
     cd $basedir/scripts
@@ -36,4 +36,4 @@ cp ./*.py ./selfplay/*.sh $basedir/scripts
         ./export_modelv3_for_selfplay.sh $basedir
         sleep 10
     done
-) >> outexport.txt 2>&1 &
+) >> outexport.txt 2>&1 & disown
