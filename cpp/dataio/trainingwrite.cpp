@@ -96,7 +96,7 @@ FinishedGameData::~FinishedGameData() {
 
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
-static const int POLICY_TARGET_NUM_CHANNELS = 1;
+static const int POLICY_TARGET_NUM_CHANNELS = 2;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 54;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 static const int BONUS_SCORE_RADIUS = 30;
@@ -158,6 +158,11 @@ static void zeroPolicyTarget(int policySize, int16_t* target) {
     target[pos] = 0;
 }
 
+static void uniformPolicyTarget(int policySize, int16_t* target) {
+  for(int pos = 0; pos<policySize; pos++)
+    target[pos] = 1;
+}
+
 //Copy playouts into target, expanding out the sparse representation into a full plane.
 static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves, int policySize, int posLen, int boardXSize, int16_t* target) {
   zeroPolicyTarget(policySize,target);
@@ -210,6 +215,7 @@ void TrainingWriteBuffers::addRow(
   int absoluteTurnNumber,
   float targetWeight,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
+  const vector<PolicyTargetMove>* policyTarget1, //can be null
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
   int8_t* finalWhiteOwnership,
@@ -259,8 +265,17 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[26] = 1.0f;
   }
   else {
-    zeroPolicyTarget(policySize, rowPolicy + 0 * policySize);
+    uniformPolicyTarget(policySize, rowPolicy + 0 * policySize);
     rowGlobal[26] = 0.0f;
+  }
+
+  if(policyTarget1 != NULL) {
+    fillPolicyTarget(*policyTarget1, policySize, posLen, board.x_size, rowPolicy + 1 * policySize);
+    rowGlobal[29] = 1.0f;
+  }
+  else {
+    uniformPolicyTarget(policySize, rowPolicy + 1 * policySize);
+    rowGlobal[29] = 0.0f;
   }
 
   //Fill td-like value targets
@@ -289,7 +304,6 @@ void TrainingWriteBuffers::addRow(
   }
 
   //Unused
-  rowGlobal[29] = 0.0f;
   rowGlobal[30] = 0.0f;
 
   //Fill in whether we should use history or not
@@ -617,6 +631,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
     float targetWeight = data.targetWeightByTurn[turnNumberAfterStart];
     const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumberAfterStart];
+    const vector<PolicyTargetMove>* policyTarget1 = (turnNumberAfterStart + 1 < numMoves) ? data.policyTargetsByTurn[turnNumberAfterStart+1] : NULL;
     bool isSidePosition = false;
 
     int numNeuralNetsBehindLatest = 0;
@@ -633,6 +648,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         absoluteTurnNumber,
         targetWeight,
         policyTarget0,
+        policyTarget1,
         data.whiteValueTargetsByTurn,
         turnNumberAfterStart,
         data.finalWhiteOwnership,
@@ -667,6 +683,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         absoluteTurnNumber,
         sp->targetWeight,
         &(sp->policyTarget),
+        NULL,
         whiteValueTargetsBuf,
         0,
         NULL,

@@ -20,7 +20,8 @@ class ModelV3:
     self.binp_input_shape = [ModelV3.NUM_BIN_INPUT_FEATURES,(self.pos_len*self.pos_len+7)//8]
     self.global_input_shape = [ModelV3.NUM_GLOBAL_INPUT_FEATURES]
     self.post_input_shape = [self.pos_len,self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES]
-    self.policy_target_shape_nopass = [self.pos_len*self.pos_len]
+    self.policy_output_shape_nopass = [self.pos_len*self.pos_len,2]
+    self.policy_output_shape = [self.pos_len*self.pos_len+1,2] #+1 for pass move
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
     self.policy_target_weight_shape = []
     self.value_target_shape = [3]
@@ -904,23 +905,23 @@ class ModelV3:
     self.outputs_by_layer.append(("p1",p1_layer))
 
     #Finally, apply linear convolution to produce final output
-    p2_layer = self.conv_only_block("p2",p1_layer,diam=1,in_channels=p1_num_channels,out_channels=1,scale_initial_weights=0.5,reg=False)
+    p2_layer = self.conv_only_block("p2",p1_layer,diam=1,in_channels=p1_num_channels,out_channels=2,scale_initial_weights=0.5,reg=False)
     p2_layer = p2_layer - (1.0-mask) * 5000.0 # mask out parts outside the board by making them a huge neg number, so that they're 0 after softmax
-    self.p2_conv = ("p2",1,p1_num_channels,1)
+    self.p2_conv = ("p2",1,p1_num_channels,2)
 
     # self.add_lr_factor("p1/norm/beta:0",0.25)
     # self.add_lr_factor("p2/w:0",0.25)
 
     #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
     policy_output = self.apply_symmetry(p2_layer,symmetries,inverse=True)
-    policy_output = tf.reshape(policy_output, [-1] + self.policy_target_shape_nopass)
+    policy_output = tf.reshape(policy_output, [-1] + self.policy_output_shape_nopass)
 
     #Add pass move based on the global g values
-    matmulpass = self.weight_variable("matmulpass",[g2_num_channels,1],g2_num_channels*8,1)
+    matmulpass = self.weight_variable("matmulpass",[g2_num_channels,2],g2_num_channels*8,2)
     # self.add_lr_factor("matmulpass:0",0.25)
     pass_output = tf.tensordot(g2_layer,matmulpass,axes=[[3],[0]])
     self.outputs_by_layer.append(("pass",pass_output))
-    pass_output = tf.reshape(pass_output, [-1] + [1])
+    pass_output = tf.reshape(pass_output, [-1] + [1,2])
     policy_output = tf.concat([policy_output,pass_output],axis=1, name="policy_output")
 
     self.policy_output = policy_output
@@ -1098,6 +1099,8 @@ class Target_varsV3:
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
                           tf.placeholder(tf.float32, [None] + model.policy_target_shape))
+    self.policy_target1 = (placeholders["policy_target1"] if "policy_target1" in placeholders else
+                          tf.placeholder(tf.float32, [None] + model.policy_target_shape))
     #Unconditional game result prediction
     self.value_target = (placeholders["value_target"] if "value_target" in placeholders else
                          tf.placeholder(tf.float32, [None] + model.value_target_shape))
@@ -1119,6 +1122,8 @@ class Target_varsV3:
                                     tf.placeholder(tf.float32, [None] + model.target_weight_shape))
     self.policy_target_weight = (placeholders["policy_target_weight"] if "policy_target_weight" in placeholders else
                                  tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
+    self.policy_target_weight1 = (placeholders["policy_target_weight1"] if "policy_target_weight1" in placeholders else
+                                 tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.ownership_target_weight = (placeholders["ownership_target_weight"] if "ownership_target_weight" in placeholders else
                                     tf.placeholder(tf.float32, [None] + model.ownership_target_weight))
     self.utilityvar_target_weight = (placeholders["utilityvar_target_weight"] if "utilityvar_target_weight" in placeholders else
@@ -1128,6 +1133,8 @@ class Target_varsV3:
 
     model.assert_batched_shape("policy_target", self.policy_target, model.policy_target_shape)
     model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
+    model.assert_batched_shape("policy_target1", self.policy_target1, model.policy_target_shape)
+    model.assert_batched_shape("policy_target_weight1", self.policy_target_weight1, model.policy_target_weight_shape)
     model.assert_batched_shape("value_target", self.value_target, model.value_target_shape)
     model.assert_batched_shape("scoremean_target", self.scoremean_target, model.scoremean_target_shape)
     model.assert_batched_shape("scorebelief_target", self.scorebelief_target, model.scorebelief_target_shape)
@@ -1135,7 +1142,6 @@ class Target_varsV3:
     model.assert_batched_shape("utilityvar_target", self.utilityvar_target, model.utilityvar_target_shape)
     model.assert_batched_shape("ownership_target", self.ownership_target, model.ownership_target_shape)
     model.assert_batched_shape("target_weight_from_data", self.target_weight_from_data, model.target_weight_shape)
-    model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
     model.assert_batched_shape("ownership_target_weight", self.ownership_target_weight, model.ownership_target_weight_shape)
     model.assert_batched_shape("utilityvar_target_weight", self.utilityvar_target_weight, model.utilityvar_target_weight_shape)
     model.assert_batched_shape("selfkomi", self.selfkomi, [])
@@ -1144,7 +1150,10 @@ class Target_varsV3:
 
 
     self.policy_loss_unreduced = self.policy_target_weight * (
-      tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target, logits=policy_output)
+      tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target, logits=policy_output[:,:,0])
+    )
+    self.policy1_loss_unreduced = self.policy_target_weight1 * 0.2 * (
+      tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target1, logits=policy_output[:,:,1])
     )
 
     self.value_loss_unreduced = 1.5 * tf.nn.softmax_cross_entropy_with_logits_v2(
@@ -1233,6 +1242,7 @@ class Target_varsV3:
     #self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
 
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
+    self.policy1_loss = tf.reduce_sum(self.target_weight_used * self.policy1_loss_unreduced)
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced)
     self.scoremean_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_loss_unreduced)
     self.scorebelief_pdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_pdf_loss_unreduced)
@@ -1259,6 +1269,7 @@ class Target_varsV3:
       #The loss to optimize
       self.opt_loss = (
         self.policy_loss +
+        self.policy1_loss +
         self.value_loss +
         self.scoremean_loss +
         self.scorebelief_pdf_loss +
@@ -1290,8 +1301,8 @@ class MetricsV3:
   def __init__(self,model,target_vars,include_debug_stats):
     #Training results
     policy_target_idxs = tf.argmax(target_vars.policy_target, 1)
-    self.top1_prediction = tf.equal(tf.argmax(model.policy_output, 1), policy_target_idxs)
-    self.top4_prediction = tf.nn.in_top_k(model.policy_output,policy_target_idxs,4)
+    self.top1_prediction = tf.equal(tf.argmax(model.policy_output[:,:,0], 1), policy_target_idxs)
+    self.top4_prediction = tf.nn.in_top_k(model.policy_output[:,:,0],policy_target_idxs,4)
     self.accuracy1_unreduced = tf.cast(self.top1_prediction, tf.float32)
     self.accuracy4_unreduced = tf.cast(self.top4_prediction, tf.float32)
     self.value_entropy_unreduced = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.nn.softmax(model.value_output,axis=1), logits=model.value_output)
@@ -1372,6 +1383,10 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
   policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
   placeholders["policy_target"] = policy_target0
   placeholders["policy_target_weight"] = features["gtnc"][:,26]
+  policy_target1 = features["ptncm"][:,1,:]
+  policy_target1 = policy_target1 / tf.reduce_sum(policy_target1,axis=1,keepdims=True)
+  placeholders["policy_target1"] = policy_target1
+  placeholders["policy_target_weight1"] = features["gtnc"][:,29]
 
   placeholders["value_target"] = features["gtnc"][:,0:3]
   placeholders["scoremean_target"] = features["gtnc"][:,3]
