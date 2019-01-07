@@ -1152,7 +1152,7 @@ class Target_varsV3:
     self.policy_loss_unreduced = self.policy_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target, logits=policy_output[:,:,0])
     )
-    self.policy1_loss_unreduced = self.policy_target_weight1 * 0.2 * (
+    self.policy1_loss_unreduced = self.policy_target_weight1 * 0.15 * (
       tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target1, logits=policy_output[:,:,1])
     )
 
