@@ -1095,9 +1095,9 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
 
   //Hack to get the root to funnel more visits down child branches
   if(isRootDuringSearch) {
-    int desiredVisits = (int)round(std::min(searchParams.rootDesiredPerChildVisits,searchParams.rootDesiredPerChildVisitsProp * totalChildVisits));
-    if(childVisits < desiredVisits) {
-      return 1e20;
+    if(childVisits < searchParams.rootDesiredPerChildVisits) {
+      if(childVisits < (uint64_t)round(searchParams.rootDesiredPerChildVisitsProp * totalChildVisits))
+        return 1e20;
     }
   }
   
@@ -1135,7 +1135,10 @@ double Search::getReducedPlaySelectionValue(const SearchNode& parent, const Sear
   scoreMeanSqSum = scoreMeanSqSum + (oldScoreMeanSum + scoreMeanSum) * endingScoreBonus;
   double childUtility = getUtility(childResultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
   
-  int desiredVisits = (int)round(std::min(searchParams.rootDesiredPerChildVisits,searchParams.rootDesiredPerChildVisitsProp * totalChildVisits));
+  uint64_t desiredVisits = std::min(
+    searchParams.rootDesiredPerChildVisits,
+    (uint64_t)round(searchParams.rootDesiredPerChildVisitsProp * totalChildVisits)
+  );
   for(int i = 0; i<desiredVisits; i++) {
     if(childVisits <= 0)
       break;

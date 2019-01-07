@@ -31,7 +31,7 @@ struct SearchParams {
   double rootFpuLossProp; //Same as fpuLossProp, but at root
 
   //We use the min of these two together, and also excess visits get pruned if the value turns out bad.
-  double rootDesiredPerChildVisits; //Desired number of visits to funnel down any given child that receives any visits at all
+  uint64_t rootDesiredPerChildVisits; //Desired number of visits to funnel down any given child that receives any visits at all
   double rootDesiredPerChildVisitsProp; //Desired proportion of visits to funnel down any given child that receives any visits at all
 
   //Parameters for choosing the move to play
