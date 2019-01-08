@@ -1157,10 +1157,13 @@ static void maybeForkGame(
   *nextInitialPosition = NULL;
   if(!gameRand.nextBool(fancyModes.earlyForkGameProb))
     return;
+  //Just for conceptual simplicity, don't fork games that started in the encore
+  if(finishedGameData->startHist.encorePhase != 0)
+    return;
 
   Board board = finishedGameData->preStartBoard;
   Player pla = finishedGameData->preStartPla;
-  BoardHistory hist(board,pla,finishedGameData->startHist.rules,0);
+  BoardHistory hist(board,pla,finishedGameData->startHist.rules,finishedGameData->startHist.encorePhase);
 
   //Pick a random move to fork from near the start
   int moveIdx = nextExponential(gameRand, fancyModes.earlyForkGameExpectedMoveProp * board.x_size * board.y_size);
@@ -1169,13 +1172,22 @@ static void maybeForkGame(
   //Replay all those moves
   for(int i = 0; i<moveIdx; i++) {
     Loc loc = finishedGameData->endHist.moveHistory[i].loc;
-    assert(hist.isLegal(board,loc,pla));
+    if(!hist.isLegal(board,loc,pla)) {
+      cout << board << endl;
+      cout << colorToChar(pla) << endl;
+      cout << Location::toString(loc,board) << endl;
+      hist.printDebugInfo(cout,board);
+      cout << endl;
+      throw StringError("Illegal move when replaying to fork game?");
+    }
+    assert(finishedGameData->endHist.moveHistory[i].pla == pla);
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
     pla = getOpp(pla);
+
+    //Just in case if somehow the game is over now, don't actually do anything
+    if(hist.isGameFinished)
+      return;
   }
-  //Just in case if somehow the game is over now, don't actually do anything
-  if(hist.isGameFinished)
-    return;
   
   //Pick a move!
   NNResultBuf buf;
