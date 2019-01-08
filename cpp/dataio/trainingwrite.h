@@ -49,6 +49,7 @@ struct FinishedGameData {
   Board startBoard; //Board as of the end of startHist, beginning of training period
   BoardHistory startHist; //Board history as of start of training period
   BoardHistory endHist; //Board history as of end of training period
+  Player preStartPla; //Player to move as of preStartBoard.
   Player startPla; //Player to move as of end of startHist.
   Hash128 gameHash;
 
@@ -141,9 +142,10 @@ struct TrainingWriteBuffers {
   //C48: First turn of this game that was selfplay for training rather than initialization (e.g. handicap stones, random init of the starting board pos)
   //C49: Number of extra moves black got at the start (i.e. handicap games)
 
-  //C50-52: Game type, game typesource metadata
-  // 0 = normal self-play game. C51,C52 unused
-  // 1 = encore-training game. C51 is the starting encore phase, C52 unused
+  //C50-51: Game type, game typesource metadata
+  // 0 = normal self-play game. C51 unused
+  // 1 = encore-training game. C51 is the starting encore phase
+  //C52: 0 = normal, 1 = whole game was forked with an experimental move in the opening
   //C53: 0 = normal, 1 = training sample was an isolated side position forked off of main game
 
   NumpyBuffer<float> globalTargetsNC;

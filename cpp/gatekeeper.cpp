@@ -404,7 +404,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       MatchPairer::BotSpec botSpecW;
       if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, logger,
+          gameIdx, botSpecB, botSpecW, NULL, NULL, logger,
           dataPosLen, stopConditions, NULL
         );
       }

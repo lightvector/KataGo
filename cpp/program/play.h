@@ -12,6 +12,16 @@
 #include "../search/searchparams.h"
 #include "../search/search.h"
 
+struct InitialPosition {
+  Board board;
+  BoardHistory hist;
+  Player pla;
+
+  InitialPosition();
+  InitialPosition(const Board& board, const BoardHistory& hist, Player pla);
+  ~InitialPosition();
+};
+
 //Object choosing random initial rules and board sizes for games. Threadsafe.
 class GameInitializer {
  public:
@@ -21,17 +31,18 @@ class GameInitializer {
   GameInitializer(const GameInitializer&) = delete;
   GameInitializer& operator=(const GameInitializer&) = delete;
 
-  //Initialize everything for a new game with random rules
+  //Initialize everything for a new game with random rules, unless initialPosition is provided, in which case it uses
+  //those rules (possibly with noise to the komi given in that position)
   //Also, mutates params to randomize appropriate things like utilities, but does NOT fill in all the settings.
   //User should make sure the initial params provided makes sense as a mean or baseline.
-  void createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params);
+  void createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params, const InitialPosition* initialPosition);
 
   //A version that doesn't randomize params
-  void createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack);
+  void createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, const InitialPosition* initialPosition);
 
  private:
   void initShared(ConfigParser& cfg);
-  void createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack);
+  void createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, const InitialPosition* initialPosition);
 
   std::mutex createGameMutex;
   Rand rand;
@@ -122,6 +133,12 @@ struct FancyModes {
   //Occasionally try some alternative moves and search the responses to them.
   double forkSidePositionProb;
 
+  //Occasionally fork an entire new game to try out an experimental move in the opening
+  double earlyForkGameProb; //Expected number of forked games per game
+  double earlyForkGameExpectedMoveProp; //Fork on average within the first board area * this prop moves
+  int earlyForkGameMinChoices; //Fork between the favorite of this many random legal moves, at minimum
+  int earlyForkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
+  
   //With this probability, use only this many visits for a move, and record it with only this weight
   double cheapSearchProb;
   int cheapSearchVisits;
@@ -153,14 +170,16 @@ namespace Play {
   //Use the given bot to play free handicap stones, modifying the board and hist in the process and setting the bot's position to it.
   void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board& board, BoardHistory& hist, double temperature);
 
+  //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
     const Board& initialBoard, Player pla, const BoardHistory& initialHist, int numExtraBlack,
-    const MatchPairer::BotSpec& botSpecB, const MatchPairer::BotSpec& botSpecW,
+    MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     const string& searchRandSeed,
     bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
     FancyModes fancyModes, bool recordFullData, int dataPosLen,
+    bool allowPolicyInit,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -190,6 +209,8 @@ public:
     int64_t gameIdx,
     const MatchPairer::BotSpec& botSpecB,
     const MatchPairer::BotSpec& botSpecW,
+    const InitialPosition* initialPosition,
+    const InitialPosition** nextInitialPosition,
     Logger& logger,
     int dataPosLen,
     vector<std::atomic<bool>*>& stopConditions,

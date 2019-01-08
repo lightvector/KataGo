@@ -69,6 +69,17 @@ static pair<int,float> chooseExtraBlackAndKomi(
   return make_pair(extraBlack,komi);
 }
 
+//----------------------------------------------------------------------------------------------------------
+
+InitialPosition::InitialPosition()
+  :board(),hist(),pla(C_EMPTY)
+{}
+InitialPosition::InitialPosition(const Board& b, const BoardHistory& h, Player p)
+  :board(b),hist(h),pla(p)
+{}
+InitialPosition::~InitialPosition()
+{}
+
 //------------------------------------------------------------------------------------------------
 
 GameInitializer::GameInitializer(ConfigParser& cfg)
@@ -117,18 +128,18 @@ void GameInitializer::initShared(ConfigParser& cfg) {
 GameInitializer::~GameInitializer()
 {}
 
-void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack) {
+void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, const InitialPosition* initialPosition) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,numExtraBlack);
+  createGameSharedUnsynchronized(board,pla,hist,numExtraBlack,initialPosition);
   if(noResultStdev != 0.0 || drawRandRadius != 0.0)
     throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
 
-void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params) {
+void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params, const InitialPosition* initialPosition) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,numExtraBlack);
+  createGameSharedUnsynchronized(board,pla,hist,numExtraBlack,initialPosition);
 
   if(noResultStdev > 1e-30) {
     double mean = params.noResultUtilityForWhite;
@@ -146,7 +157,22 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
   }
 }
 
-void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack) {
+void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, const InitialPosition* initialPosition) {
+  if(initialPosition != NULL) {
+    board = initialPosition->board;
+    hist = initialPosition->hist;
+    pla = initialPosition->pla;
+
+    pair<int,float> extraBlackAndKomi = chooseExtraBlackAndKomi(
+      hist.rules.komi, komiStdev, komiAllowIntegerProb, 0.0, handicapStoneValue,
+      komiBigStdevProb, komiBigStdev, std::min(board.x_size,board.y_size), rand
+    );
+    assert(extraBlackAndKomi.first == 0);
+    numExtraBlack = extraBlackAndKomi.first;
+    hist.setKomi(extraBlackAndKomi.second);
+    return;
+  }
+  
   int bSize = allowedBSizes[rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size())];
   board = Board(bSize,bSize);
 
@@ -323,6 +349,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
+   earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),earlyForkGameMinChoices(1),earlyForkGameMaxChoices(1),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
@@ -414,6 +441,25 @@ static Loc chooseRandomLegalMove(const Board& board, const BoardHistory& hist, P
     return locs[n];
   }
   return Board::NULL_LOC;
+}
+
+static int chooseRandomLegalMoves(const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc* buf, int len) {
+  int numLegalMoves = 0;
+  Loc locs[Board::MAX_ARR_SIZE];
+  for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
+    if(hist.isLegal(board,loc,pla)) {
+      locs[numLegalMoves] = loc;
+      numLegalMoves += 1;
+    }
+  }
+  if(numLegalMoves > 0) {
+    for(int i = 0; i<len; i++) {
+      int n = gameRand.nextUInt(numLegalMoves);
+      buf[i] = locs[n];
+    }
+    return len;
+  }
+  return 0;
 }
 
 static Loc chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, double temperature) {
@@ -610,15 +656,26 @@ static void recordTreePositions(
   );
 }
 
+static int nextExponential(Rand& gameRand, double mean) {
+  double r = 0;
+  while(r < 0.00000001)
+    r = gameRand.nextDouble();
+  r = -log(r);
+  //This gives us about 15 moves on average for 19x19.
+  return (int)floor(r * mean);
+}
+
+
 //Run a game between two bots. It is OK if both bots are the same bot.
 FinishedGameData* Play::runGame(
   const Board& initialBoard, Player pla, const BoardHistory& initialHist, int numExtraBlack,
-  const MatchPairer::BotSpec& botSpecB, const MatchPairer::BotSpec& botSpecW,
+  MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
   const string& searchRandSeed,
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
   FancyModes fancyModes, bool recordFullData, int dataPosLen,
+  bool allowPolicyInit,
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
@@ -650,6 +707,7 @@ FinishedGameData* Play::runGame(
   gameData->wIdx = botSpecW.botIdx;
 
   gameData->preStartBoard = board;
+  gameData->preStartPla = pla;
   gameData->gameHash.hash0 = gameRand.nextUInt64();
   gameData->gameHash.hash1 = gameRand.nextUInt64();
 
@@ -664,9 +722,9 @@ FinishedGameData* Play::runGame(
     recordUtilities = new vector<double>(256);
 
   //NOTE: that checkForNewNNEval might also cause the old nnEval to be invalidated and freed. This is okay since the only
-  //references we both hold on to and use are the ones inside the bots here.
-  //We should NOT ever refer to botSpecB.nnEval or botSpecW.nnEval past this point, or store an nnEval separately from the bot.
-  auto maybeCheckForNewNNEval = [&botB,&botW,&checkForNewNNEval,&gameRand,&gameData](int nextTurnNumber) {
+  //references we both hold on to and use are the ones inside the bots here, and we replace the ones in the botSpecs.
+  //We should NOT ever store an nnEval separately from these.
+  auto maybeCheckForNewNNEval = [&botB,&botW,&botSpecB,&botSpecW,&checkForNewNNEval,&gameRand,&gameData](int nextTurnNumber) {
     //Check if we got a new nnEval, with some probability.
     //Randomized and low-probability so as to reduce contention in checking, while still probably happening in a timely manner.
     if(checkForNewNNEval != NULL && gameRand.nextBool(0.1)) {
@@ -675,32 +733,28 @@ FinishedGameData* Play::runGame(
         botB->setNNEval(newNNEval);
         if(botW != botB)
           botW->setNNEval(newNNEval);
+        botSpecB.nnEval = newNNEval;
+        botSpecW.nnEval = newNNEval;
         gameData->changedNeuralNets.push_back(new ChangedNeuralNet(newNNEval->getModelName(),nextTurnNumber));
       }
     }
   };
 
-  if(fancyModes.initGamesWithPolicy) {
+  if(fancyModes.initGamesWithPolicy && allowPolicyInit) {
     //Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
     //and add entropy
     {
       NNResultBuf buf;
       NNEvaluator* nnEval = botB->nnEvaluator;
 
-      double r = 0;
-      while(r < 0.00000001)
-        r = gameRand.nextDouble();
-      r = -log(r);
       //This gives us about 15 moves on average for 19x19.
-      int numInitialMovesToPlay = floor(r * board.x_size * board.y_size / 24.0);
+      int numInitialMovesToPlay = nextExponential(gameRand, board.x_size * board.y_size / 25.0);
       assert(numInitialMovesToPlay >= 0);
       for(int i = 0; i<numInitialMovesToPlay; i++) {
         double drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
         nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
         std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
-        //TODO maybe check the win chance after all these policy moves and try again if too lopsided
-        //Or adjust the komi?
         vector<Loc> locs;
         vector<double> playSelectionValues;
         int posLen = nnOutput->posLen;
@@ -747,6 +801,7 @@ FinishedGameData* Play::runGame(
       hist.clear(board,pla,hist.rules,encorePhase);
 
       gameData->preStartBoard = board;
+      gameData->preStartPla = pla;
       gameData->mode = 1;
       gameData->modeMeta1 = encorePhase;
       gameData->modeMeta2 = 0;
@@ -1090,6 +1145,80 @@ FinishedGameData* Play::runGame(
   return gameData;
 }
 
+static void maybeForkGame(
+  const FinishedGameData* finishedGameData,
+  const InitialPosition** nextInitialPosition,
+  const FancyModes& fancyModes,
+  Rand& gameRand,
+  NNEvaluator* nnEval
+) {
+  if(nextInitialPosition == NULL)
+    return;
+  *nextInitialPosition = NULL;
+  if(!gameRand.nextBool(fancyModes.earlyForkGameProb))
+    return;
+
+  Board board = finishedGameData->preStartBoard;
+  Player pla = finishedGameData->preStartPla;
+  BoardHistory hist(board,pla,finishedGameData->startHist.rules,0);
+
+  //Pick a random move to fork from near the start
+  int moveIdx = nextExponential(gameRand, fancyModes.earlyForkGameExpectedMoveProp * board.x_size * board.y_size);
+  //Make sure it's prior to the last move, so we have a real place to fork from
+  moveIdx = std::min(moveIdx,(int)(finishedGameData->endHist.moveHistory.size()-1));
+  //Replay all those moves
+  for(int i = 0; i<moveIdx; i++) {
+    Loc loc = finishedGameData->endHist.moveHistory[i].loc;
+    assert(hist.isLegal(board,loc,pla));
+    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+    pla = getOpp(pla);
+  }
+  //Just in case if somehow the game is over now, don't actually do anything
+  if(hist.isGameFinished)
+    return;
+  
+  //Pick a move!
+  NNResultBuf buf;
+  double drawEquivalentWinsForWhite = 0.5;
+
+  //Generate a selection of a small random number of choices
+  int numChoices = gameRand.nextInt(fancyModes.earlyForkGameMinChoices,fancyModes.earlyForkGameMaxChoices);
+  Loc possibleMoves[numChoices];
+  int numPossible = chooseRandomLegalMoves(board,hist,pla,gameRand,possibleMoves,numChoices);
+  if(numPossible <= 0)
+    return;
+
+  //Try the one the value net thinks is best
+  Loc bestMove = Board::NULL_LOC;
+  double bestScore = 0.0;
+  
+  for(int i = 0; i<numChoices; i++) {
+    Loc loc = possibleMoves[i];
+    Board copy = board;
+    BoardHistory copyHist = hist;
+    copyHist.makeBoardMoveAssumeLegal(copy,loc,pla,NULL);
+    nnEval->evaluate(copy,copyHist,getOpp(pla),drawEquivalentWinsForWhite,buf,NULL,false,false);
+    std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
+    double whiteScore = nnOutput->whiteScoreMean;
+    if(bestMove == Board::NULL_LOC || (pla == P_WHITE && whiteScore > bestScore) || (pla == P_BLACK && whiteScore < bestScore)) {
+      bestMove = loc;
+      bestScore = whiteScore;
+    }
+  }
+
+  //Make that move
+  assert(hist.isLegal(board,bestMove,pla));
+  hist.makeBoardMoveAssumeLegal(board,bestMove,pla,NULL);
+  pla = getOpp(pla);
+
+  //If the game is over now, don't actually do anything
+  if(hist.isGameFinished)
+    return;
+
+  //Adjust komi to be fair for the new unusual move according to what the net thinks
+  hist.setKomi((float)(0.5 * round(2.0 * (hist.rules.komi - bestScore))));
+  *nextInitialPosition = new InitialPosition(board,hist,pla);
+}
 
 
 GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, bool forSelfP, FancyModes fModes)
@@ -1115,6 +1244,8 @@ FinishedGameData* GameRunner::runGame(
   int64_t gameIdx,
   const MatchPairer::BotSpec& bSpecB,
   const MatchPairer::BotSpec& bSpecW,
+  const InitialPosition* initialPosition,
+  const InitialPosition** nextInitialPosition,
   Logger& logger,
   int dataPosLen,
   vector<std::atomic<bool>*>& stopConditions,
@@ -1122,17 +1253,20 @@ FinishedGameData* GameRunner::runGame(
 ) {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
+  
+  if(nextInitialPosition != NULL)
+    *nextInitialPosition = NULL;
 
   Board board; Player pla; BoardHistory hist; int numExtraBlack;
   if(forSelfPlay) {
     assert(botSpecB.botIdx == botSpecW.botIdx);
     SearchParams params = botSpecB.baseParams;
-    gameInit->createGame(board,pla,hist,numExtraBlack,params);
+    gameInit->createGame(board,pla,hist,numExtraBlack,params,initialPosition);
     botSpecB.baseParams = params;
     botSpecW.baseParams = params;
   }
   else {
-    gameInit->createGame(board,pla,hist,numExtraBlack);
+    gameInit->createGame(board,pla,hist,numExtraBlack,initialPosition);
   }
 
   bool clearBotAfterSearchThisGame = clearBotAfterSearch;
@@ -1151,6 +1285,8 @@ FinishedGameData* GameRunner::runGame(
   bool doEndGameIfAllPassAlive = forSelfPlay ? gameRand.nextBool(0.98) : true;
   //In selfplay, record all the policy maps and evals and such as well for training data
   bool recordFullData = forSelfPlay;
+  //Allow initial moves via direct policy if we're not specially specifying the initial position for this game
+  bool allowPolicyInit = initialPosition == NULL;
   FinishedGameData* finishedGameData = Play::runGame(
     board,pla,hist,numExtraBlack,
     botSpecB,botSpecW,
@@ -1159,10 +1295,14 @@ FinishedGameData* GameRunner::runGame(
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,stopConditions,
     fancyModes,recordFullData,dataPosLen,
+    allowPolicyInit,
     gameRand,
-    checkForNewNNEval
+    checkForNewNNEval //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame
   );
 
+  if(initialPosition != NULL)
+    finishedGameData->modeMeta2 = 1;
+  
   //Make sure not to write the game if we terminated in the middle of this game!
   if(shouldStop(stopConditions)) {
     delete finishedGameData;
@@ -1170,6 +1310,9 @@ FinishedGameData* GameRunner::runGame(
   }
 
   assert(finishedGameData != NULL);
+
+  maybeForkGame(finishedGameData, nextInitialPosition, fancyModes, gameRand, botSpecB.nnEval);
+  
   return finishedGameData;
 }
 

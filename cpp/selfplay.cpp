@@ -220,6 +220,12 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   FancyModes fancyModes;
   fancyModes.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   fancyModes.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
+
+  fancyModes.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
+  fancyModes.earlyForkGameProb = cfg.getDouble("earlyForkGameProb",0.0,0.5);
+  fancyModes.earlyForkGameExpectedMoveProp = cfg.getDouble("earlyForkGameExpectedMoveProp",0.0,1.0);
+  fancyModes.earlyForkGameMinChoices = cfg.getInt("earlyForkGameMinChoices",1,30);
+  fancyModes.earlyForkGameMaxChoices = cfg.getInt("earlyForkGameMaxChoices",1,30);
   fancyModes.cheapSearchProb = cfg.getDouble("cheapSearchProb",0.0,1.0);
   fancyModes.cheapSearchVisits = cfg.getInt("cheapSearchVisits",1,10000000);
   fancyModes.cheapSearchTargetWeight = cfg.getFloat("cheapSearchTargetWeight",0.0f,1.0f);
@@ -402,12 +408,14 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     &logger,
     &netAndStuffsMutex,&netAndStuffs,
     dataPosLen,
-    switchNetsMidGame
+    switchNetsMidGame,
+    &fancyModes
   ](int threadIdx) {
     vector<std::atomic<bool>*> stopConditions = {&shouldStop};
 
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     string prevModelName;
+    const InitialPosition* nextInitialPosition = NULL;
     while(true) {
       if(shouldStop.load())
         break;
@@ -443,16 +451,22 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       
       FinishedGameData* gameData = NULL;
 
+      const InitialPosition* initialPosition = nextInitialPosition;
+      nextInitialPosition = NULL;
+
       int64_t gameIdx;
       MatchPairer::BotSpec botSpecB;
       MatchPairer::BotSpec botSpecW;
       if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, logger,
+          gameIdx, botSpecB, botSpecW, initialPosition, &nextInitialPosition, logger,
           dataPosLen, stopConditions,
           (switchNetsMidGame ? &checkForNewNNEval : NULL)
         );
       }
+
+      if(initialPosition != NULL)
+        delete initialPosition;
 
       bool shouldContinue = gameData != NULL;
       //Note that if we've gotten a newNNEval, we're actually pushing the game on to the new one's queue, rather than the old one!
@@ -468,6 +482,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     }
 
     lock.unlock();
+
+    if(nextInitialPosition != NULL)
+      delete nextInitialPosition;
+
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " terminating");
   };
 

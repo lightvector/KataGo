@@ -110,6 +110,7 @@ void Tests::runTrainingWriteTests() {
       logger, false, false,
       maxMovesPerGame, stopConditions,
       fancyModes, recordFullData, posLen,
+      true,
       rand,
       NULL
     );
