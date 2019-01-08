@@ -49,11 +49,9 @@ FinishedGameData::FinishedGameData()
    bIdx(0),
    wIdx(0),
 
-   preStartBoard(),
    startBoard(),
    startHist(),
    endHist(),
-   preStartPla(P_BLACK),
    startPla(P_BLACK),
    gameHash(),
 

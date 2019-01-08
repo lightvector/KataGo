@@ -45,11 +45,9 @@ struct FinishedGameData {
   int bIdx;
   int wIdx;
 
-  Board preStartBoard; //Board as of the end of things like handicap placement
   Board startBoard; //Board as of the end of startHist, beginning of training period
   BoardHistory startHist; //Board history as of start of training period
   BoardHistory endHist; //Board history as of end of training period
-  Player preStartPla; //Player to move as of preStartBoard.
   Player startPla; //Player to move as of end of startHist.
   Hash128 gameHash;
 

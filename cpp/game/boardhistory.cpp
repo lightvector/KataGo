@@ -26,6 +26,8 @@ BoardHistory::BoardHistory()
   :rules(),
    moveHistory(),koHashHistory(),
    koHistoryLastClearedBeginningMoveIdx(0),
+   initialBoard(),
+   initialPla(P_BLACK),
    recentBoards(),
    currentRecentBoardIdx(0),
    consecutiveEndingPasses(0),
@@ -50,6 +52,8 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
   :rules(r),
    moveHistory(),koHashHistory(),
    koHistoryLastClearedBeginningMoveIdx(0),
+   initialBoard(),
+   initialPla(),
    recentBoards(),
    currentRecentBoardIdx(0),
    consecutiveEndingPasses(0),
@@ -73,6 +77,8 @@ BoardHistory::BoardHistory(const BoardHistory& other)
   :rules(other.rules),
    moveHistory(other.moveHistory),koHashHistory(other.koHashHistory),
    koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
+   initialBoard(other.initialBoard),
+   initialPla(other.initialPla),
    recentBoards(other.recentBoards),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
    consecutiveEndingPasses(other.consecutiveEndingPasses),
@@ -99,6 +105,8 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   moveHistory = other.moveHistory;
   koHashHistory = other.koHashHistory;
   koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
+  initialBoard = other.initialBoard;
+  initialPla = other.initialPla;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
@@ -126,6 +134,8 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
  :rules(other.rules),
   moveHistory(std::move(other.moveHistory)),koHashHistory(std::move(other.koHashHistory)),
   koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
+  initialBoard(other.initialBoard),
+  initialPla(other.initialPla),
   recentBoards(other.recentBoards),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
   consecutiveEndingPasses(other.consecutiveEndingPasses),
@@ -149,6 +159,8 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   moveHistory = std::move(other.moveHistory);
   koHashHistory = std::move(other.koHashHistory);
   koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
+  initialBoard = other.initialBoard;
+  initialPla = other.initialPla;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
@@ -178,6 +190,9 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   koHashHistory.clear();
   koHistoryLastClearedBeginningMoveIdx = 0;
 
+  initialBoard = board;
+  initialPla = pla;
+  
   //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
   //we simply return copies of the starting board.
   for(int i = 0; i<NUM_RECENT_BOARDS; i++)

@@ -172,7 +172,7 @@ namespace Play {
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
-    const Board& initialBoard, Player pla, const BoardHistory& initialHist, int numExtraBlack,
+    const Board& startBoard, Player pla, const BoardHistory& startHist, int numExtraBlack,
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     const string& searchRandSeed,
     bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,

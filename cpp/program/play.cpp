@@ -668,7 +668,7 @@ static int nextExponential(Rand& gameRand, double mean) {
 
 //Run a game between two bots. It is OK if both bots are the same bot.
 FinishedGameData* Play::runGame(
-  const Board& initialBoard, Player pla, const BoardHistory& initialHist, int numExtraBlack,
+  const Board& startBoard, Player pla, const BoardHistory& startHist, int numExtraBlack,
   MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
   const string& searchRandSeed,
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
@@ -692,11 +692,12 @@ FinishedGameData* Play::runGame(
     botW = new Search(botSpecW.baseParams, botSpecW.nnEval, searchRandSeed + "@W");
   }
 
-  Board board(initialBoard);
-  BoardHistory hist(initialHist);
+  Board board(startBoard);
+  BoardHistory hist(startHist);
   if(numExtraBlack > 0) {
     double extraBlackTemperature = 1.0;
     playExtraBlack(botB,logger,numExtraBlack,board,hist,extraBlackTemperature);
+    assert(hist.moveHistory.size() == 0);
   }
 
   vector<double>* recordUtilities = NULL;
@@ -706,8 +707,6 @@ FinishedGameData* Play::runGame(
   gameData->bIdx = botSpecB.botIdx;
   gameData->wIdx = botSpecW.botIdx;
 
-  gameData->preStartBoard = board;
-  gameData->preStartPla = pla;
   gameData->gameHash.hash0 = gameRand.nextUInt64();
   gameData->gameHash.hash1 = gameRand.nextUInt64();
 
@@ -800,8 +799,6 @@ FinishedGameData* Play::runGame(
       int encorePhase = gameRand.nextInt(1,2);
       hist.clear(board,pla,hist.rules,encorePhase);
 
-      gameData->preStartBoard = board;
-      gameData->preStartPla = pla;
       gameData->mode = 1;
       gameData->modeMeta1 = encorePhase;
       gameData->modeMeta2 = 0;
@@ -1161,8 +1158,11 @@ static void maybeForkGame(
   if(finishedGameData->startHist.encorePhase != 0)
     return;
 
-  Board board = finishedGameData->preStartBoard;
-  Player pla = finishedGameData->preStartPla;
+  assert(finishedGameData->startHist.initialBoard.pos_hash == finishedGameData->endHist.initialBoard.pos_hash);
+  assert(finishedGameData->startHist.initialPla == finishedGameData->endHist.initialPla);
+  
+  Board board = finishedGameData->startHist.initialBoard;
+  Player pla = finishedGameData->startHist.initialPla;
   BoardHistory hist(board,pla,finishedGameData->startHist.rules,finishedGameData->startHist.encorePhase);
 
   //Pick a random move to fork from near the start

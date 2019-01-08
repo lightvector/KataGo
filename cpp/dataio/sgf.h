@@ -96,7 +96,7 @@ namespace WriteSgf {
   //If valueTargets is not NULL, also write down after each move the MCTS values following that search move.
   void writeSgf(
     ostream& out, const string& bName, const string& wName, const Rules& rules,
-    const Board& initialBoard, const BoardHistory& hist,
+    const BoardHistory& hist,
     const FinishedGameData* gameData
   );
 

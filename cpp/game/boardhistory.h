@@ -19,6 +19,10 @@ struct BoardHistory {
   vector<Hash128> koHashHistory;
   int koHistoryLastClearedBeginningMoveIdx;
 
+  //The board and player to move as of the very start, before moveHistory.
+  Board initialBoard;
+  Player initialPla;
+
   static const int NUM_RECENT_BOARDS = 6;
   Board recentBoards[NUM_RECENT_BOARDS];
   int currentRecentBoardIdx;

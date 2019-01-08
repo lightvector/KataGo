@@ -712,9 +712,10 @@ void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
 
 void WriteSgf::writeSgf(
   ostream& out, const string& bName, const string& wName, const Rules& rules,
-  const Board& initialBoard, const BoardHistory& hist,
+  const BoardHistory& hist,
   const FinishedGameData* gameData
 ) {
+  const Board& initialBoard = hist.initialBoard;
   assert(initialBoard.x_size == initialBoard.y_size);
   int bSize = initialBoard.x_size;
   out << "(;FF[4]GM[1]";
