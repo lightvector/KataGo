@@ -518,7 +518,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     delete netAndStuff;
     netAndStuff = NULL;
     //Loop again after a short while
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::this_thread::sleep_for(std::chrono::seconds(2));
   }
 
   //Delete and clean up everything else
