@@ -209,12 +209,9 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("rootFpuLossProp"))   params.rootFpuLossProp = cfg.getDouble("rootFpuLossProp",        0.0, 1.0);
     else                                       params.rootFpuLossProp = params.fpuLossProp;
 
-    if(cfg.contains("rootDesiredPerChildVisits"+idxStr)) params.rootDesiredPerChildVisits = cfg.getInt("rootDesiredPerChildVisits"+idxStr, 0, 1000000);
-    else if(cfg.contains("rootDesiredPerChildVisits"))   params.rootDesiredPerChildVisits = cfg.getInt("rootDesiredPerChildVisits",        0, 1000000);
-    else                                                 params.rootDesiredPerChildVisits = 0;
-    if(cfg.contains("rootDesiredPerChildVisitsProp"+idxStr)) params.rootDesiredPerChildVisitsProp = cfg.getDouble("rootDesiredPerChildVisitsProp"+idxStr, 0.0, 0.5);
-    else if(cfg.contains("rootDesiredPerChildVisitsProp"))   params.rootDesiredPerChildVisitsProp = cfg.getDouble("rootDesiredPerChildVisitsProp",        0.0, 0.5);
-    else                                                     params.rootDesiredPerChildVisitsProp = 0.0;
+    if(cfg.contains("rootDesiredPerChildVisitsCoeff"+idxStr)) params.rootDesiredPerChildVisitsCoeff = cfg.getDouble("rootDesiredPerChildVisitsCoeff"+idxStr, 0.0, 100.0);
+    else if(cfg.contains("rootDesiredPerChildVisitsCoeff"))   params.rootDesiredPerChildVisitsCoeff = cfg.getDouble("rootDesiredPerChildVisitsCoeff",        0.0, 100.0);
+    else                                                      params.rootDesiredPerChildVisitsCoeff = 0.0;
 
     if(cfg.contains("chosenMoveTemperature"+idxStr)) params.chosenMoveTemperature = cfg.getDouble("chosenMoveTemperature"+idxStr, 0.0, 5.0);
     else                                             params.chosenMoveTemperature = cfg.getDouble("chosenMoveTemperature",        0.0, 5.0);
