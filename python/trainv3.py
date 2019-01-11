@@ -38,6 +38,8 @@ parser.add_argument('-batch-size', help='Expected batch size of the input data, 
 parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
 parser.add_argument('-model-kind', help='String name for what model to use', required=True)
 parser.add_argument('-lr-epoch-offset', help='Start at effectively this epoch for LR purposes', type=float, required=True)
+parser.add_argument('-lr-epoch-scale', help='Scale epochs by this for LR purposes', type=float, required=True)
+parser.add_argument('-lr-scale', help='Scale base LR by this', type=float, required=True)
 parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
@@ -52,6 +54,8 @@ batch_size = args["batch_size"]
 gpu_memory_frac = args["gpu_memory_frac"]
 model_kind = args["model_kind"]
 lr_epoch_offset = args["lr_epoch_offset"]
+lr_epoch_scale = args["lr_epoch_scale"]
+lr_scale = args["lr_scale"]
 sub_epochs = args["sub_epochs"]
 verbose = args["verbose"]
 no_export = args["no_export"]
@@ -102,7 +106,7 @@ def model_fn(features,labels,mode,params):
 
   print_model = not printed_model_yet
 
-  built = modelv3.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_epoch_offset)
+  built = modelv3.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_epoch_offset,lr_epoch_scale,lr_scale)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
     model = built
