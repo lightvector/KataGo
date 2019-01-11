@@ -1351,7 +1351,7 @@ def print_trainable_variables(logf):
 
   logf("Model: %d total parameters" % total_parameters)
 
-def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_epoch_offset=None,lr_epoch_scale=None,lr_scale=None):
+def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_epoch_offset=None,lr_epoch_scale=None,lr_epoch_cap=None,lr_scale=None):
   trainlog("Building model")
 
   #L2 regularization coefficient
@@ -1422,8 +1422,9 @@ def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model
 
     lr_epoch_offset = 0.0 if lr_epoch_offset is None else float(lr_epoch_offset)
     lr_epoch_scale = 0.1 if lr_epoch_scale is None else float(lr_epoch_scale)
+    lr_epoch_cap = 150.0 if lr_epoch_cap is None else float(lr_epoch_cap)
     lr_scale = 0.00020 if lr_scale is None else  float(lr_scale)
-    global_epoch_float_capped = tf.math.minimum(tf.constant(180.0),global_epoch + tf.constant(lr_epoch_offset,dtype=tf.float32))
+    global_epoch_float_capped = tf.math.minimum(tf.constant(lr_epoch_cap),global_epoch + tf.constant(lr_epoch_offset,dtype=tf.float32))
     per_sample_learning_rate = (
       tf.constant(lr_scale) / tf.pow(global_epoch_float_capped * tf.constant(lr_epoch_scale) + tf.constant(1.0), tf.constant(1.333333))
     )
