@@ -221,7 +221,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   fancyModes.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
 
-  fancyModes.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
+  fancyModes.noCompensateKomiProb = cfg.getDouble("noCompensateKomiProb",0.0,1.0);
+
   fancyModes.earlyForkGameProb = cfg.getDouble("earlyForkGameProb",0.0,0.5);
   fancyModes.earlyForkGameExpectedMoveProp = cfg.getDouble("earlyForkGameExpectedMoveProp",0.0,1.0);
   fancyModes.earlyForkGameMinChoices = cfg.getInt("earlyForkGameMinChoices",1,30);

@@ -133,6 +133,9 @@ struct FancyModes {
   //Occasionally try some alternative moves and search the responses to them.
   double forkSidePositionProb;
 
+  //In handicap games and when forking a whole game - with this probability do NOT adjust the komi to be fair.
+  double noCompensateKomiProb;
+  
   //Occasionally fork an entire new game to try out an experimental move in the opening
   double earlyForkGameProb; //Expected number of forked games per game
   double earlyForkGameExpectedMoveProp; //Fork on average within the first board area * this prop moves

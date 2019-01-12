@@ -347,6 +347,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
+   noCompensateKomiProb(0.0),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),earlyForkGameMinChoices(1),earlyForkGameMaxChoices(1),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
@@ -728,7 +729,7 @@ FinishedGameData* Play::runGame(
   BoardHistory hist(startHist);
   if(numExtraBlack > 0) {
     double extraBlackTemperature = 1.0;
-    bool adjustKomi = true;
+    bool adjustKomi = !gameRand.nextBool(fancyModes.noCompensateKomiProb);
     playExtraBlack(botB,numExtraBlack,board,hist,extraBlackTemperature,gameRand,adjustKomi);
     assert(hist.moveHistory.size() == 0);
   }
@@ -1231,7 +1232,8 @@ static void maybeForkGame(
     return;
 
   //Adjust komi to be fair for the new unusual move according to what the net thinks
-  hist.setKomi((float)(0.5 * round(2.0 * (hist.rules.komi - bestScore))));
+  if(!gameRand.nextBool(fancyModes.noCompensateKomiProb))
+    hist.setKomi((float)(0.5 * round(2.0 * (hist.rules.komi - bestScore))));
   *nextInitialPosition = new InitialPosition(board,hist,pla);
 }
 
