@@ -516,6 +516,45 @@ double Search::getRootUtility() const {
   return getUtility(resultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
 }
 
+uint32_t Search::chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature) {
+  assert(numRelativeProbs > 0);
+  assert(numRelativeProbs < 1024); //We're just doing this on the stack
+  double processedRelProbs[numRelativeProbs];
+
+  double maxValue = 0.0;
+  for(int i = 0; i<numRelativeProbs; i++) {
+    if(relativeProbs[i] > maxValue)
+      maxValue = relativeProbs[i];
+  }
+  assert(maxValue > 0.0);
+  
+  //Temperature so close to 0 that we just calculate the max directly
+  if(temperature <= 1.0e-4) {
+    double bestProb = relativeProbs[0];
+    int bestIdx = 0;
+    for(int i = 1; i<numRelativeProbs; i++) {
+      if(relativeProbs[i] > bestProb) {
+        bestProb = relativeProbs[i];
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }
+  //Actual temperature
+  else {
+    double logMaxValue = log(maxValue);
+    double sum = 0.0;
+    for(int i = 0; i<numRelativeProbs; i++) {
+      //Numerically stable way to raise to power and normalize
+      processedRelProbs[i] = exp((log(relativeProbs[i]) - logMaxValue) / temperature);
+      sum += processedRelProbs[i];
+    }
+    assert(sum > 0.0);
+    uint32_t idxChosen = rand.nextUInt(processedRelProbs,numRelativeProbs);
+    return idxChosen;
+  }
+}
+
 Loc Search::getChosenMoveLoc() {
   if(rootNode == NULL)
     return Board::NULL_LOC;
@@ -527,14 +566,6 @@ Loc Search::getChosenMoveLoc() {
     return Board::NULL_LOC;
 
   assert(locs.size() == playSelectionValues.size());
-  int numChildren = locs.size();
-
-  double maxValue = 0.0;
-  for(int i = 0; i<numChildren; i++) {
-    if(playSelectionValues[i] > maxValue)
-      maxValue = playSelectionValues[i];
-  }
-  assert(maxValue > 0.0);
 
   double rawHalflives = rootHistory.moveHistory.size() / searchParams.chosenMoveTemperatureHalflife;
   double halflives = rawHalflives * 19.0 / sqrt(rootBoard.x_size*rootBoard.y_size);
@@ -542,31 +573,8 @@ Loc Search::getChosenMoveLoc() {
     (searchParams.chosenMoveTemperatureEarly - searchParams.chosenMoveTemperature) *
     pow(0.5, halflives);
 
-  //Temperature so close to 0 that we just calculate the max directly
-  if(temperature <= 1.0e-4) {
-    double bestSelectionValue = POLICY_ILLEGAL_SELECTION_VALUE;
-    Loc bestChildMoveLoc = Board::NULL_LOC;
-    for(int i = 0; i<numChildren; i++) {
-      if(playSelectionValues[i] > bestSelectionValue) {
-        bestSelectionValue = playSelectionValues[i];
-        bestChildMoveLoc = locs[i];
-      }
-    }
-    return bestChildMoveLoc;
-  }
-  //Actual temperature
-  else {
-    double logMaxValue = log(maxValue);
-    double sum = 0.0;
-    for(int i = 0; i<numChildren; i++) {
-      //Numerically stable way to raise to power and normalize
-      playSelectionValues[i] = exp((log(playSelectionValues[i]) - logMaxValue) / temperature);
-      sum += playSelectionValues[i];
-    }
-    assert(sum > 0.0);
-    uint32_t idxChosen = nonSearchRand.nextUInt(playSelectionValues.data(),playSelectionValues.size());
-    return locs[idxChosen];
-  }
+  uint32_t idxChosen = chooseIndexWithTemperature(nonSearchRand, playSelectionValues.data(), playSelectionValues.size(), temperature);
+  return locs[idxChosen];
 }
 
 Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities) {

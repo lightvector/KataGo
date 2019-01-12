@@ -180,6 +180,8 @@ struct Search {
     vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
   ) const;
 
+  //Useful utility function exposed for outside use
+  static uint32_t chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature);
 
   //Get the values recorded for the root node
   bool getRootValues(

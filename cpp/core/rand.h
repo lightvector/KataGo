@@ -103,6 +103,8 @@ class Rand
 
   //Returns a normally distributed double with mean 0 stdev 1
   double nextGaussian();
+  //Returns an exponentially distributed double with mean 1.
+  double nextExponential();
   //Returns a logistically distributed double with mean 0 and scale 1 (cdf = 1/(1+exp(-x)))
   double nextLogistic();
   //Returns a gamma distributed double with shape a and scale 1
@@ -269,6 +271,14 @@ inline double Rand::nextGaussian()
     hasGaussian = true;
     return v1 * multiplier;
   }
+}
+
+inline double Rand::nextExponential()
+{
+  double r = 0.0;
+  while(r <= 1e-16)
+    r = nextDouble();
+  return -log(r);
 }
 
 inline double Rand::nextLogistic()

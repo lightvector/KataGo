@@ -430,8 +430,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         Board board(xSize,ySize);
         Player pla = P_BLACK;
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
-        double extraBlackTemperature = 0.5;
-        Play::playExtraBlack(bot->getSearch(), logger, n, board, hist, extraBlackTemperature);
+        double extraBlackTemperature = 0.25;
+        bool adjustKomi = false;
+        Rand rand;
+        Play::playExtraBlack(bot->getSearch(), n, board, hist, extraBlackTemperature, rand, adjustKomi);
 
         response = "";
         for(int y = 0; y<board.y_size; y++) {

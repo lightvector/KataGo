@@ -23,7 +23,7 @@ static int getMaxExtraBlack(int bSize) {
 }
 
 static pair<int,float> chooseExtraBlackAndKomi(
-  float base, float stdev, double allowIntegerProb, double handicapProb, float handicapStoneValue, double bigStdevProb, float bigStdev, int bSize, Rand& rand
+  float base, float stdev, double allowIntegerProb, double handicapProb, double bigStdevProb, float bigStdev, int bSize, Rand& rand
 ) {
   int extraBlack = 0;
   float komi = base;
@@ -40,7 +40,6 @@ static pair<int,float> chooseExtraBlackAndKomi(
   int maxExtraBlack = getMaxExtraBlack(bSize);
   if(maxExtraBlack > 0 && rand.nextDouble() < handicapProb) {
     extraBlack += 1+rand.nextUInt(maxExtraBlack);
-    komi += extraBlack * handicapStoneValue;
   }
 
   //Discretize komi
@@ -115,7 +114,6 @@ void GameInitializer::initShared(ConfigParser& cfg) {
   komiStdev = cfg.getFloat("komiStdev",0.0f,60.0f);
   komiAllowIntegerProb = cfg.getDouble("komiAllowIntegerProb",0.0,1.0);
   handicapProb = cfg.getDouble("handicapProb",0.0,1.0);
-  handicapStoneValue = cfg.getFloat("handicapStoneValue",0.0f,30.0f);
   komiBigStdevProb = cfg.getDouble("komiBigStdevProb",0.0,1.0);
   komiBigStdev = cfg.getFloat("komiBigStdev",0.0f,60.0f);
 
@@ -164,7 +162,7 @@ void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, 
     pla = initialPosition->pla;
 
     pair<int,float> extraBlackAndKomi = chooseExtraBlackAndKomi(
-      hist.rules.komi, komiStdev, komiAllowIntegerProb, 0.0, handicapStoneValue,
+      hist.rules.komi, komiStdev, komiAllowIntegerProb, 0.0,
       komiBigStdevProb, komiBigStdev, std::min(board.x_size,board.y_size), rand
     );
     assert(extraBlackAndKomi.first == 0);
@@ -182,7 +180,7 @@ void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, 
   rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt(allowedMultiStoneSuicideLegals.size())];
 
   pair<int,float> extraBlackAndKomi = chooseExtraBlackAndKomi(
-    komiMean, komiStdev, komiAllowIntegerProb, handicapProb, handicapStoneValue,
+    komiMean, komiStdev, komiAllowIntegerProb, handicapProb,
     komiBigStdevProb, komiBigStdev, bSize, rand
   );
   rules.komi = extraBlackAndKomi.second;
@@ -386,37 +384,69 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
 }
 
 
+static Loc chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, double temperature, bool allowPass) {
+  const float* policyProbs = nnOutput->policyProbs;
+  int posLen = nnOutput->posLen;
+  int numLegalMoves = 0;
+  double relProbs[NNPos::MAX_NN_POLICY_SIZE];
+  int locs[NNPos::MAX_NN_POLICY_SIZE];
+  for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
+    Loc loc = NNPos::posToLoc(pos,board.x_size,board.y_size,posLen);
+    if(loc == Board::PASS_LOC && !allowPass)
+      continue;
+    if(policyProbs[pos] > 0.0 && hist.isLegal(board,loc,pla)) {
+      double relProb = policyProbs[pos];
+      relProbs[numLegalMoves] = relProb;
+      locs[numLegalMoves] = loc;
+      numLegalMoves += 1;
+    }
+  }
+  
+  //Just in case the policy map is somehow not consistent with the board position
+  if(numLegalMoves > 0) {
+    uint32_t n = Search::chooseIndexWithTemperature(gameRand, relProbs, numLegalMoves, temperature);
+    return locs[n];
+  }
+  return Board::NULL_LOC;
+}
+
+
 //Place black handicap stones, free placement
-void Play::playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board& board, BoardHistory& hist, double temperature) {
-  SearchParams oldParams = bot->searchParams;
-  bool oldRootPassLegal = bot->rootPassLegal;
-  SearchParams tempParams = oldParams;
-  tempParams.rootNoiseEnabled = false;
-  tempParams.chosenMoveSubtract = 0.0;
-  tempParams.chosenMoveTemperature = temperature;
-  tempParams.numThreads = 1;
-  tempParams.maxVisits = 1;
-
-  //Toggle this since we cant have this set simultaneously with rootRootLegal false.
-  tempParams.rootPruneUselessSuicides = false;
-
+void Play::playExtraBlack(Search* bot, int numExtraBlack, Board& board, BoardHistory& hist, double temperature, Rand& gameRand, bool adjustKomi) {
   Player pla = P_BLACK;
-  bot->setPosition(pla,board,hist);
-  bot->setParams(tempParams);
-  bot->setRootPassLegal(false);
+
+  NNEvaluator* nnEval = bot->nnEvaluator;
+  NNResultBuf buf;
+  double drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
+  
+  //Get initial estimate of the score
+  nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
+  std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
+  double initialWhiteScore = nnOutput->whiteScoreMean;
 
   for(int i = 0; i<numExtraBlack; i++) {
-    Loc loc = bot->runWholeSearchAndGetMove(pla,logger,NULL);
-    if(loc == Board::NULL_LOC || !bot->isLegal(loc,pla))
-      failIllegalMove(bot,logger,board,loc);
+    bool allowPass = false;
+    Loc loc = chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, gameRand, temperature, allowPass);
+    if(loc == Board::NULL_LOC)
+      break;
+    
     assert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
     hist.clear(board,pla,hist.rules,0);
-    bot->setPosition(pla,board,hist);
+    
+    nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
+    nnOutput = std::move(buf.result);      
   }
 
-  bot->setParams(oldParams);
-  bot->setRootPassLegal(oldRootPassLegal);
+  double finalWhiteScore = nnOutput->whiteScoreMean;
+
+  //Adjust komi to be fair for the handicap according to what the net thinks
+  if(adjustKomi) {
+    double fairKomi = hist.rules.komi - (finalWhiteScore - initialWhiteScore);
+    hist.setKomi((float)(0.5 * round(2.0 * fairKomi)));
+  }
+  
+  bot->setPosition(pla,board,hist);
 }
 
 static bool shouldStop(vector<std::atomic<bool>*>& stopConditions) {
@@ -462,40 +492,15 @@ static int chooseRandomLegalMoves(const Board& board, const BoardHistory& hist, 
   return 0;
 }
 
-static Loc chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, double temperature) {
-  const float* policyProbs = nnOutput->policyProbs;
-  int posLen = nnOutput->posLen;
-  int numLegalMoves = 0;
-  double relProbs[NNPos::MAX_NN_POLICY_SIZE];
-  int locs[NNPos::MAX_NN_POLICY_SIZE];
-  double probSum = 0.0;
-  for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
-    Loc loc = NNPos::posToLoc(pos,board.x_size,board.y_size,posLen);
-    if(policyProbs[pos] > 0.0 && hist.isLegal(board,loc,pla)) {
-      double relProb = (temperature == 1.0) ? policyProbs[pos] : pow(policyProbs[pos],1.0/temperature);
-      relProbs[numLegalMoves] = relProb;
-      locs[numLegalMoves] = loc;
-      numLegalMoves += 1;
-      probSum += relProb;
-    }
-  }
-
-  //Just in case the policy map is somehow not consistent with the board position
-  if(numLegalMoves > 0 && probSum > 0.01) {
-    int n = gameRand.nextUInt(relProbs,numLegalMoves);
-    return locs[n];
-  }
-  return Board::NULL_LOC;
-}
-
 static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand) {
   double r = gameRand.nextDouble();
+  bool allowPass = true;
   //70% of the time, do a random temperature 1 policy move
   if(r < 0.70)
-    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 1.0);
+    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 1.0, allowPass);
   //25% of the time, do a random temperature 2 policy move
   else if(r < 0.95)
-    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 2.0);
+    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 2.0, allowPass);
   //5% of the time, do a random legal move
   else
     return chooseRandomLegalMove(board, hist, pla, gameRand);
@@ -656,13 +661,40 @@ static void recordTreePositions(
   );
 }
 
-static int nextExponential(Rand& gameRand, double mean) {
-  double r = 0;
-  while(r < 0.00000001)
-    r = gameRand.nextDouble();
-  r = -log(r);
-  //This gives us about 15 moves on average for 19x19.
-  return (int)floor(r * mean);
+
+static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf, Rand& gameRand) {
+  NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
+  double drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
+  nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
+  std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
+  
+  vector<Loc> locs;
+  vector<double> playSelectionValues;
+  int posLen = nnOutput->posLen;
+  assert(posLen >= board.x_size);
+  assert(posLen >= board.y_size);
+  assert(posLen > 0 && posLen < 100);
+  int policySize = NNPos::getPolicySize(posLen);
+  for(int movePos = 0; movePos<policySize; movePos++) {
+    Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,posLen);
+    double policyProb = nnOutput->policyProbs[movePos];
+    if(!hist.isLegal(board,moveLoc,pla) || policyProb <= 0)
+      continue;
+    locs.push_back(moveLoc);
+    playSelectionValues.push_back(policyProb);
+  }
+
+  assert(playSelectionValues.size() > 0);
+
+  //With a tiny probability, choose a uniformly random move instead of a policy move, to also
+  //add a bit more outlierish variety
+  uint32_t idxChosen;
+  if(gameRand.nextBool(0.0002))
+    idxChosen = gameRand.nextUInt(playSelectionValues.size());
+  else
+    idxChosen = gameRand.nextUInt(playSelectionValues.data(),playSelectionValues.size());
+  Loc loc = locs[idxChosen];
+  return loc;
 }
 
 
@@ -696,7 +728,8 @@ FinishedGameData* Play::runGame(
   BoardHistory hist(startHist);
   if(numExtraBlack > 0) {
     double extraBlackTemperature = 1.0;
-    playExtraBlack(botB,logger,numExtraBlack,board,hist,extraBlackTemperature);
+    bool adjustKomi = true;
+    playExtraBlack(botB,numExtraBlack,board,hist,extraBlackTemperature,gameRand,adjustKomi);
     assert(hist.moveHistory.size() == 0);
   }
 
@@ -744,43 +777,13 @@ FinishedGameData* Play::runGame(
     //and add entropy
     {
       NNResultBuf buf;
-      NNEvaluator* nnEval = botB->nnEvaluator;
 
       //This gives us about 15 moves on average for 19x19.
-      int numInitialMovesToPlay = nextExponential(gameRand, board.x_size * board.y_size / 25.0);
+      int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size / 25.0));
       assert(numInitialMovesToPlay >= 0);
       for(int i = 0; i<numInitialMovesToPlay; i++) {
-        double drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
-        nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
-        std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
-
-        vector<Loc> locs;
-        vector<double> playSelectionValues;
-        int posLen = nnOutput->posLen;
-        assert(posLen >= board.x_size);
-        assert(posLen >= board.y_size);
-        assert(posLen > 0 && posLen < 100);
-        int policySize = NNPos::getPolicySize(posLen);
-        for(int movePos = 0; movePos<policySize; movePos++) {
-          Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,posLen);
-          double policyProb = nnOutput->policyProbs[movePos];
-          if(!hist.isLegal(board,moveLoc,pla) || policyProb <= 0)
-            continue;
-          locs.push_back(moveLoc);
-          playSelectionValues.push_back(policyProb);
-        }
-
-        assert(playSelectionValues.size() > 0);
-
-        //With a tiny probability, choose a uniformly random move instead of a policy move, to also
-        //add a bit more outlierish variety
-        uint32_t idxChosen;
-        if(gameRand.nextBool(0.0002))
-          idxChosen = gameRand.nextUInt(playSelectionValues.size());
-        else
-          idxChosen = gameRand.nextUInt(playSelectionValues.data(),playSelectionValues.size());
-        Loc loc = locs[idxChosen];
-
+        Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand);
+        
         //Make the move!
         assert(hist.isLegal(board,loc,pla));
         hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
@@ -1166,7 +1169,7 @@ static void maybeForkGame(
   BoardHistory hist(board,pla,finishedGameData->startHist.rules,finishedGameData->startHist.encorePhase);
 
   //Pick a random move to fork from near the start
-  int moveIdx = nextExponential(gameRand, fancyModes.earlyForkGameExpectedMoveProp * board.x_size * board.y_size);
+  int moveIdx = (int)floor(gameRand.nextExponential() * (fancyModes.earlyForkGameExpectedMoveProp * board.x_size * board.y_size));
   //Make sure it's prior to the last move, so we have a real place to fork from
   moveIdx = std::min(moveIdx,(int)(finishedGameData->endHist.moveHistory.size()-1));
   //Replay all those moves
@@ -1190,8 +1193,6 @@ static void maybeForkGame(
   }
   
   //Pick a move!
-  NNResultBuf buf;
-  double drawEquivalentWinsForWhite = 0.5;
 
   //Generate a selection of a small random number of choices
   int numChoices = gameRand.nextInt(fancyModes.earlyForkGameMinChoices,fancyModes.earlyForkGameMaxChoices);
@@ -1204,6 +1205,8 @@ static void maybeForkGame(
   Loc bestMove = Board::NULL_LOC;
   double bestScore = 0.0;
   
+  NNResultBuf buf;
+  double drawEquivalentWinsForWhite = 0.5;
   for(int i = 0; i<numChoices; i++) {
     Loc loc = possibleMoves[i];
     Board copy = board;

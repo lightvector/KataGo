@@ -767,6 +767,10 @@ rand.nextGamma(4)
       buf[i] = rand.nextGamma(4.0);
     printMoments("Gamma", 4.0, 4.0, 2.0/sqrt(4.0), 6.0/4.0);
 
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextExponential();
+    printMoments("Exponential", 1.0, 1.0, 2.0, 6.0);
+    
     delete[] buf;
     string expected = R"%%(
 Uniform sample: Mean 0.499714 Variance 0.083704 Skew 0.003446 ExcessKurt -1.202311
@@ -779,6 +783,8 @@ Gamma sample: Mean 0.499243 Variance 0.497366 Skew 2.832579 ExcessKurt 12.005515
 Gamma expected: Mean 0.500000 Variance 0.500000 Skew 2.828427 ExcessKurt 12.000000
 Gamma sample: Mean 3.998701 Variance 3.992548 Skew 0.986482 ExcessKurt 1.410314
 Gamma expected: Mean 4.000000 Variance 4.000000 Skew 1.000000 ExcessKurt 1.500000
+Exponential sample: Mean 0.993535 Variance 0.978654 Skew 1.999058 ExcessKurt 5.925246
+Exponential expected: Mean 1.000000 Variance 1.000000 Skew 2.000000 ExcessKurt 6.000000
 )%%";
 
     TestCommon::expect(name,out,expected);

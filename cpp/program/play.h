@@ -168,7 +168,7 @@ struct FancyModes {
 //Functions to run a single game or other things
 namespace Play {
   //Use the given bot to play free handicap stones, modifying the board and hist in the process and setting the bot's position to it.
-  void playExtraBlack(Search* bot, Logger& logger, int numExtraBlack, Board& board, BoardHistory& hist, double temperature);
+  void playExtraBlack(Search* bot, int numExtraBlack, Board& board, BoardHistory& hist, double temperature, Rand& gameRand, bool adjustKomi);
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
