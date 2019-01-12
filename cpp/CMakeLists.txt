@@ -124,6 +124,7 @@ if(BUILD_MCTS)
     dataio/numpywrite.cpp
     dataio/trainingwrite.cpp
     dataio/loadmodel.cpp
+    dataio/lzparse.cpp
     neuralnet/nninputs.cpp
     neuralnet/modelversion.cpp
     neuralnet/nneval.cpp
@@ -150,6 +151,7 @@ if(BUILD_MCTS)
     selfplay.cpp
     misc.cpp
     runtests.cpp
+    lzcost.cpp
     sandbox.cpp
     main.cpp
     )

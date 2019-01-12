@@ -14,6 +14,7 @@ static void printHelp() {
   cout << "runoutputtests" << endl;
   cout << "runsearchtests" << endl;
   cout << "runsearchtestsv3" << endl;
+  cout << "lzcost" << endl;
   cout << "writeSearchValueTimeseries" << endl;
   cout << "sandbox" << endl;
   cout << "version" << endl;
@@ -48,6 +49,8 @@ int main(int argc, const char* argv[]) {
     return MainCmds::runsearchtests(argc-1,&argv[1]);
   else if(cmdArg == "runsearchtestsv3")
     return MainCmds::runsearchtestsv3(argc-1,&argv[1]);
+  else if(cmdArg == "lzcost")
+    return MainCmds::lzcost(argc-1,&argv[1]);
   else if(cmdArg == "writeSearchValueTimeseries")
     return MainCmds::writeSearchValueTimeseries(argc-1,&argv[1]);
   else if(cmdArg == "sandbox")
