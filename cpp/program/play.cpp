@@ -29,9 +29,9 @@ static pair<int,float> chooseExtraBlackAndKomi(
   float komi = base;
 
   if(stdev > 0.0f)
-    komi += stdev * (float)nextGaussianTruncated(rand,2.0);
+    komi += stdev * (float)nextGaussianTruncated(rand,3.0);
   if(bigStdev > 0.0f && rand.nextDouble() < bigStdevProb)
-    komi += bigStdev * (float)nextGaussianTruncated(rand,2.0);
+    komi += bigStdev * (float)nextGaussianTruncated(rand,3.0);
 
   //Adjust for bSize, so that we don't give the same massive komis on smaller boards
   komi = base + (komi - base) * (float)bSize / 19.0f;
