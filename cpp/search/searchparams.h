@@ -54,6 +54,10 @@ struct SearchParams {
   uint64_t maxPlayouts; //Max number of playouts from the root to think for, not counting earlier playouts from tree reuse
   double maxTime; //Max number of seconds to think for if not pondering
 
+  //Human-friendliness
+  double searchFactorAfterOnePass; //Multiply playouts and visits and time by this much after a pass by the opponent
+  double searchFactorAfterTwoPass; //Multiply playouts and visits and time by this after two passes by the opponent
+
   SearchParams();
   ~SearchParams();
 };

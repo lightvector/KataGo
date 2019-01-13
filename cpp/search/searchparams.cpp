@@ -36,7 +36,9 @@ SearchParams::SearchParams()
    numThreads(1),
    maxVisits(((uint64_t)1) << 50),
    maxPlayouts(((uint64_t)1) << 50),
-   maxTime(1.0e20)
+   maxTime(1.0e20),
+   searchFactorAfterOnePass(1.0),
+   searchFactorAfterTwoPass(1.0)
 {}
 
 SearchParams::~SearchParams()

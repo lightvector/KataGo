@@ -604,13 +604,34 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
 
   auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
+
+    uint64_t maxVisits = searchParams.maxVisits;
+    uint64_t maxPlayouts = searchParams.maxPlayouts;
+    double_t maxTime = searchParams.maxTime;
+
+    //Possibly reduce computation time, for human friendliness
+    {
+      double searchFactor = 1.0;
+      if(rootHistory.moveHistory.size() >= 1 && rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc == Board::PASS_LOC) {
+        if(rootHistory.moveHistory.size() >= 3 && rootHistory.moveHistory[rootHistory.moveHistory.size()-3].loc == Board::PASS_LOC)
+          searchFactor = searchParams.searchFactorAfterTwoPass;
+        else
+          searchFactor = searchParams.searchFactorAfterOnePass;
+      }
+      if(searchFactor != 1.0) {
+        maxVisits = (uint64_t)ceil(maxVisits * searchFactor);
+        maxPlayouts = (uint64_t)ceil(maxPlayouts * searchFactor);
+        maxTime = maxTime * searchFactor;
+      }
+    }
+    
     uint64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
     try {
       while(true) {
         bool shouldStop =
-          (numPlayouts >= 1 && searchParams.maxTime < 1.0e12 && timer.getSeconds() >= searchParams.maxTime) ||
-          (numPlayouts >= searchParams.maxPlayouts) ||
-          (numPlayouts + numNonPlayoutVisits >= searchParams.maxVisits);
+          (numPlayouts >= 1 && maxTime < 1.0e12 && timer.getSeconds() >= maxTime) ||
+          (numPlayouts >= maxPlayouts) ||
+          (numPlayouts + numNonPlayoutVisits >= maxVisits);
 
         if(shouldStop || shouldStopNow.load(std::memory_order_relaxed)) {
           shouldStopNow.store(true,std::memory_order_relaxed);
