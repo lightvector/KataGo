@@ -62,7 +62,7 @@ b10c128 = {
   "v2_size":64
 }
 
-b14c192 = {
+b15c192 = {
   "trunk_num_channels":192,
   "mid_num_channels":192,
   "regular_num_channels":128,
@@ -79,10 +79,11 @@ b14c192 = {
     ["rconv8","regular"],
     ["rconv9","regular"],
     ["rconv10","regular"],
-    ["rconv11","gpool"],
-    ["rconv12","regular"],
+    ["rconv11","regular"],
+    ["rconv12","gpool"],
     ["rconv13","regular"],
-    ["rconv14","regular"]
+    ["rconv14","regular"],
+    ["rconv15","regular"]
   ],
   "p1_num_channels":32,
   "g1_num_channels":32,
@@ -131,7 +132,7 @@ b20c256 = {
 config_of_name = {
   "b6c96": b6c96,
   "b10c128": b10c128,
-  "b14c192": b14c192,
+  "b15c192": b15c192,
   "b20c256": b20c256
 }
 
