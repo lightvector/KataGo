@@ -88,6 +88,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   bool ponderingEnabled = cfg.getBool("ponderingEnabled");
   bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
+  bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
+  double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
 
   NNEvaluator* nnEval;
   {
@@ -368,7 +370,36 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           }
         }
 
-        response = Location::toString(moveLoc,bot->getRootBoard());
+        bool resigned = false;
+        if(allowResignation) {
+          double winValue;
+          double lossValue;
+          double noResultValue;
+          double staticScoreValue;
+          double dynamicScoreValue;
+          double expectedScore;
+          bool success = bot->getSearch()->getRootValues(winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
+          assert(success);
+
+          double winLossValue = winValue - lossValue;
+          assert(winLossValue > -1.01 && winLossValue < 1.01); //Sanity check, but allow generously for float imprecision
+          if(winLossValue > 1.0) winLossValue = 1.0;
+          if(winLossValue < -1.0) winLossValue = -1.0;
+
+          Player resignPlayerThisTurn = C_EMPTY;
+          if(winLossValue < resignThreshold)
+            resignPlayerThisTurn = P_WHITE;
+          else if(winLossValue > -resignThreshold)
+            resignPlayerThisTurn = P_BLACK;
+          
+          if(resignPlayerThisTurn == pla)
+            resigned = true;
+        }
+
+        if(resigned)
+          response = "resign";
+        else
+          response = Location::toString(moveLoc,bot->getRootBoard());
 
         if(logSearchInfo) {
           Search* search = bot->getSearch();
@@ -388,10 +419,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           logger.write(sout.str());
         }
 
-        bool suc = bot->makeMove(moveLoc,pla);
-        assert(suc);
+        if(!resigned) {
+          bool suc = bot->makeMove(moveLoc,pla);
+          assert(suc);
+          maybeStartPondering = true;
+        }
 
-        maybeStartPondering = true;
       }
     }
 
