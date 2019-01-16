@@ -15,6 +15,7 @@ import shutil
 import glob
 import tensorflow as tf
 import numpy as np
+import itertools
 
 import data
 from board import Board
@@ -42,6 +43,7 @@ parser.add_argument('-lr-epoch-scale', help='Scale epochs by this for LR purpose
 parser.add_argument('-lr-epoch-cap', help='Stop decreasing LR at this epoch', type=float, required=False)
 parser.add_argument('-lr-scale', help='LR at epoch 0', type=float, required=False)
 parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
+parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 args = vars(parser.parse_args())
@@ -59,6 +61,7 @@ lr_epoch_scale = args["lr_epoch_scale"]
 lr_epoch_cap = args["lr_epoch_cap"]
 lr_scale = args["lr_scale"]
 sub_epochs = args["sub_epochs"]
+swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
 verbose = args["verbose"]
 no_export = args["no_export"]
 logfilemode = "a"
@@ -73,7 +76,7 @@ if not os.path.exists(longterm_checkpoints_dir):
   os.makedirs(longterm_checkpoints_dir)
 
 bareformatter = logging.Formatter("%(message)s")
-fh = logging.FileHandler(traindir+"/train.log", mode=logfilemode)
+fh = logging.FileHandler(os.path.join(traindir,"train.log"), mode=logfilemode)
 fh.setFormatter(bareformatter)
 
 trainlogger = logging.getLogger("trainlogger")
@@ -101,6 +104,60 @@ trainlog(str(sys.argv))
 # MODEL ----------------------------------------------------------------
 printed_model_yet = False
 initial_weights_already_loaded = False
+
+if swa_sub_epoch_scale is not None:
+  with tf.device("/cpu:0"):
+    with tf.name_scope("swa_model"):
+      swa_model = ModelV3(model_config,pos_len,placeholders={})
+      swa_saver = tf.train.Saver(
+        max_to_keep = 10000000,
+        save_relative_paths = True,
+      )
+    swa_assign_placeholders = {}
+    swa_wvalues = {}
+    swa_weight = 0.0
+    assign_ops = []
+    for variable in itertools.chain(tf.model_variables(), tf.trainable_variables()):
+      placeholder = tf.placeholder(variable.dtype,variable.shape)
+      assign_ops.append(tf.assign(variable,placeholder))
+      swa_assign_placeholders[variable.name] = placeholder
+      swa_wvalues[variable.name] = np.zeros([elt.value for elt in variable.shape])
+    swa_assign_op = tf.group(*assign_ops)
+
+def accumulate_swa(estimator):
+  global swa_weight
+  assert(swa_sub_epoch_scale is not None)
+
+  old_factor = 1.0 - 1.0 / swa_sub_epoch_scale
+  new_factor = 1.0 / swa_sub_epoch_scale
+
+  new_swa_weight = swa_weight * old_factor + new_factor
+
+  for swa_variable_name in swa_assign_placeholders:
+    assert(swa_variable_name.startswith("swa_model/"))
+    variable_name = swa_variable_name[len("swa_model/"):]
+    swa_wvalues[swa_variable_name] *= old_factor
+    swa_wvalues[swa_variable_name] += new_factor * estimator.get_variable_value(variable_name)
+
+  swa_weight = new_swa_weight
+
+def save_swa(savedir):
+  global swa_weight
+  assert(swa_sub_epoch_scale is not None)
+  assignments = {}
+
+  for swa_variable_name in swa_assign_placeholders:
+    assert(swa_variable_name.startswith("swa_model/"))
+    assignments[swa_assign_placeholders[swa_variable_name]] = swa_wvalues[swa_variable_name] / swa_weight
+
+  with tf.Session(config=tf.ConfigProto(device_count={'GPU':0})) as sess:
+    sess.run(tf.global_variables_initializer())
+    sess.run(swa_assign_op, assignments)
+    if not os.path.exists(savedir):
+      os.mkdir(savedir)
+    os.mkdir(os.path.join(savedir,"saved_model"))
+    os.mkdir(os.path.join(savedir,"saved_model","variables"))
+    swa_saver.save(sess,os.path.join(savedir,"saved_model","variables","variables"), write_meta_graph=False, write_state=False)
 
 def model_fn(features,labels,mode,params):
   global printed_model_yet
@@ -442,6 +499,7 @@ while True:
   if globalstep is not None:
     trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
 
+  #SUB EPOCH LOOP -----------
   num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
   for i in range(sub_epochs):
     if i != 0:
@@ -482,6 +540,11 @@ while True:
       ]
     )
 
+    if swa_sub_epoch_scale is not None:
+      accumulate_swa(estimator)
+
+  #END SUB EPOCH LOOP ------------
+
   globalstep = int(estimator.get_variable_value("global_step:0"))
 
   if not no_export:
@@ -497,11 +560,23 @@ while True:
       trainlog("NOT saving model, already exists at: " + savepath)
     else:
       trainlog("SAVING MODEL TO: " + savepath)
-      saved_to = estimator.export_saved_model(
-        savepathtmp,
-        tf.estimator.export.build_raw_serving_input_receiver_fn(raw_input_feature_placeholders)
-      )
-      os.rename(saved_to, os.path.join(savepathtmp,"saved_model"))
+      if swa_sub_epoch_scale is not None:
+        #Also save non-swa model
+        saved_to = estimator.export_saved_model(
+          savepathtmp,
+          tf.estimator.export.build_raw_serving_input_receiver_fn(raw_input_feature_placeholders)
+        )
+        if saved_to != os.path.join(savepathtmp,"non_swa_saved_model"):
+          os.rename(saved_to, os.path.join(savepathtmp,"non_swa_saved_model"))
+        save_swa(savepathtmp)
+      else:
+        saved_to = estimator.export_saved_model(
+          savepathtmp,
+          tf.estimator.export.build_raw_serving_input_receiver_fn(raw_input_feature_placeholders)
+        )
+        if saved_to != os.path.join(savepathtmp,"saved_model"):
+          os.rename(saved_to, os.path.join(savepathtmp,"saved_model"))
+
       dump_and_flush_json(trainhistory,os.path.join(savepathtmp,"trainhistory.json"))
       with open(os.path.join(savepathtmp,"model.config.json"),"w") as f:
         json.dump(model_config,f)

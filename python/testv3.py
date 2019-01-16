@@ -25,16 +25,20 @@ Computes average loss and accuracy the same as in training.
 """
 
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-data-file', help='tfrecords or npz file', required=True)
+parser.add_argument('-data-files', help='tfrecords or npz file', required=True, nargs='+')
 parser.add_argument('-checkpoint-file-prefix', help='model checkpoint file prefix to load', required=False)
 parser.add_argument('-saved-model-dir', help='tf SavedModel dir to load', required=False)
+parser.add_argument('-model-config-json', help='Explicitly specify model.config.json', required=False)
+parser.add_argument('-name-scope', help='Name scope for model variables', required=False)
 parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
 parser.add_argument('-batch-size', help='Expected batch size of the input data, must match tfrecords', type=int, required=True)
 args = vars(parser.parse_args())
 
-data_file = args["data_file"]
+data_files = args["data_files"]
 checkpoint_file_prefix = args["checkpoint_file_prefix"]
 saved_model_dir = args["saved_model_dir"]
+model_config_json = args["model_config_json"]
+name_scope = args["name_scope"]
 pos_len = args["pos_len"]
 batch_size = args["batch_size"]
 
@@ -72,13 +76,26 @@ def parse_tf_records_input(serialized_example):
     "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 
-if data_file.endswith(".tfrecord"):
-  dataset = tf.data.Dataset.from_tensor_slices([data_file])
+using_tfrecords = False
+using_npz = False
+for data_file in data_files:
+  if data_file.endswith(".tfrecord"):
+    using_tfrecords = True
+  elif data_file.endswith(".npz"):
+    using_npz = True
+  else:
+    raise Exception("Data files must be .tfrecord or .npz")
+
+if using_tfrecords and using_npz:
+  raise Exception("Cannot have both .tfrecord and .npz in the same call to testv3")
+
+if using_tfrecords:
+  dataset = tf.data.Dataset.from_tensor_slices(data_files)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
   dataset = dataset.map(parse_tf_records_input)
   iterator = dataset.make_one_shot_iterator()
   features = iterator.get_next()
-elif data_file.endswith(".npz"):
+elif using_npz:
   features = {
     "binchwp": tf.placeholder(tf.uint8,[batch_size,ModelV3.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
     "ginc": tf.placeholder(tf.float32,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
@@ -88,12 +105,13 @@ elif data_file.endswith(".npz"):
     "sbsn": tf.placeholder(tf.float32,[batch_size,BONUS_SCORE_RADIUS*2+1]),
     "vtnchw": tf.placeholder(tf.float32,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
-else:
-  raise Exception("Data file must be .tfrecord or .npz")
 
 
 # Model ----------------------------------------------------------------
-if checkpoint_file_prefix is not None:
+if model_config_json is not None:
+  with open(model_config_json) as f:
+    model_config = json.load(f)
+elif checkpoint_file_prefix is not None:
   with open(os.path.join(os.path.dirname(checkpoint_file_prefix),"model.config.json")) as f:
     model_config = json.load(f)
 elif saved_model_dir is not None:
@@ -105,7 +123,11 @@ else:
 mode = tf.estimator.ModeKeys.EVAL
 print_model = False
 num_batches_per_epoch = 1 #doesn't matter
-(model,target_vars,metrics) = modelv3.build_model_from_tfrecords_features(features,mode,print_model,log,model_config,pos_len,num_batches_per_epoch)
+if name_scope is not None:
+  with tf.name_scope(name_scope):
+    (model,target_vars,metrics) = modelv3.build_model_from_tfrecords_features(features,mode,print_model,log,model_config,pos_len,num_batches_per_epoch)
+else:
+  (model,target_vars,metrics) = modelv3.build_model_from_tfrecords_features(features,mode,print_model,log,model_config,pos_len,num_batches_per_epoch)
 
 total_parameters = 0
 for variable in tf.trainable_variables():
@@ -153,45 +175,46 @@ with tf.Session(config=tfconfig) as session:
 
   def run_validation_in_batches(fetches):
     results = []
-    if data_file.endswith(".tfrecord"):
+    if using_tfrecords:
       try:
         while True:
           results = session.run(fetches)
           results.append(result)
       except tf.errors.OutOfRangeError:
         pass
-    elif data_file.endswith(".npz"):
-      with np.load(data_file) as npz:
-        binchwp = npz["binaryInputNCHWPacked"]
-        ginc = npz["globalInputNC"]
-        ptncm = npz["policyTargetsNCMove"].astype(np.float32)
-        gtnc = npz["globalTargetsNC"]
-        sdn = npz["scoreDistrN"].astype(np.float32)
-        sbsn = npz["selfBonusScoreN"].astype(np.float32)
-        vtnchw = npz["valueTargetsNCHW"].astype(np.float32)
-        nbatches = len(binchwp)//batch_size
-        print("Iterating %d batches" % nbatches)
-        for i in range(nbatches):
-          if i % 50 == 0:
-            print(".",end="")
-            sys.stdout.flush()
-          result = session.run(fetches,feed_dict={
-            features["binchwp"]: np.array(binchwp[i*batch_size:(i+1)*batch_size]),
-            features["ginc"]: np.array(ginc[i*batch_size:(i+1)*batch_size]),
-            features["ptncm"]: np.array(ptncm[i*batch_size:(i+1)*batch_size]),
-            features["gtnc"]: np.array(gtnc[i*batch_size:(i+1)*batch_size]),
-            features["sdn"]: np.array(sdn[i*batch_size:(i+1)*batch_size]),
-            features["sbsn"]: np.array(sbsn[i*batch_size:(i+1)*batch_size]),
-            features["vtnchw"]: np.array(vtnchw[i*batch_size:(i+1)*batch_size])
-          })
-          results.append(result)
-        print("")
+    elif using_npz:
+      for data_file in data_files:
+        with np.load(data_file) as npz:
+          binchwp = npz["binaryInputNCHWPacked"]
+          ginc = npz["globalInputNC"]
+          ptncm = npz["policyTargetsNCMove"].astype(np.float32)
+          gtnc = npz["globalTargetsNC"]
+          sdn = npz["scoreDistrN"].astype(np.float32)
+          sbsn = npz["selfBonusScoreN"].astype(np.float32)
+          vtnchw = npz["valueTargetsNCHW"].astype(np.float32)
+          nbatches = len(binchwp)//batch_size
+          print("Iterating %d batches from %s" % (nbatches,data_file))
+          for i in range(nbatches):
+            if i % 50 == 0:
+              print(".",end="")
+              sys.stdout.flush()
+            result = session.run(fetches,feed_dict={
+              features["binchwp"]: np.array(binchwp[i*batch_size:(i+1)*batch_size]),
+              features["ginc"]: np.array(ginc[i*batch_size:(i+1)*batch_size]),
+              features["ptncm"]: np.array(ptncm[i*batch_size:(i+1)*batch_size]),
+              features["gtnc"]: np.array(gtnc[i*batch_size:(i+1)*batch_size]),
+              features["sdn"]: np.array(sdn[i*batch_size:(i+1)*batch_size]),
+              features["sbsn"]: np.array(sbsn[i*batch_size:(i+1)*batch_size]),
+              features["vtnchw"]: np.array(vtnchw[i*batch_size:(i+1)*batch_size])
+            })
+            results.append(result)
+          print("")
 
     return results
 
   vmetrics = {
-    # "acc1": metrics.accuracy1,
-    # "acc4": metrics.accuracy4,
+    "acc1": metrics.accuracy1,
+    "acc4": metrics.accuracy4,
     "p0loss": target_vars.policy_loss,
     "p1loss": target_vars.policy1_loss,
     "vloss": target_vars.value_loss,
@@ -213,9 +236,9 @@ with tf.Session(config=tfconfig) as session:
   }
 
   def validation_stats_str(vmetrics_evaled):
-    return "p0loss %f p1loss %f vloss %f smloss %f sbpdfloss %f sbcdfloss %f bbpdfloss %f bbcdfloss %f uvloss %f oloss %f rwlloss %f rsmloss %f rsdloss %f roloss %f rscloss %f vconf %f ventr %f" % (
-      # vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
-      # vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
+    return "acc1 %f acc4 %f p0loss %f p1loss %f vloss %f smloss %f sbpdfloss %f sbcdfloss %f bbpdfloss %f bbcdfloss %f uvloss %f oloss %f rwlloss %f rsmloss %f rsdloss %f roloss %f rscloss %f vconf %f ventr %f" % (
+      vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
+      vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
       vmetrics_evaled["p0loss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["p1loss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["vloss"] / vmetrics_evaled["wsum"],

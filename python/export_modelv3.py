@@ -23,6 +23,8 @@ Export neural net weights and graph to file.
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-checkpoint-file-prefix', help='model checkpoint file prefix to load', required=False)
 parser.add_argument('-saved-model-dir', help='tf SavedModel dir to load', required=False)
+parser.add_argument('-model-config-json', help='Explicitly specify model.config.json', required=False)
+parser.add_argument('-name-scope', help='Name scope for model variables', required=False)
 parser.add_argument('-export-dir', help='model file dir to save to', required=True)
 parser.add_argument('-model-name', help='name to record in model file', required=True)
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
@@ -31,6 +33,8 @@ args = vars(parser.parse_args())
 
 checkpoint_file_prefix = args["checkpoint_file_prefix"]
 saved_model_dir = args["saved_model_dir"]
+model_config_json = args["model_config_json"]
+name_scope = args["name_scope"]
 export_dir = args["export_dir"]
 model_name = args["model_name"]
 filename_prefix = args["filename_prefix"]
@@ -48,12 +52,17 @@ def log(s):
 
 log("checkpoint_file_prefix" + ": " + str(checkpoint_file_prefix))
 log("saved_model_dir" + ": " + str(saved_model_dir))
+log("model_config_json" + ": " + str(model_config_json))
+log("name_scope" + ": " + str(name_scope))
 log("export_dir" + ": " + export_dir)
 log("filename_prefix" + ": " + filename_prefix)
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
-if checkpoint_file_prefix is not None:
+if model_config_json is not None:
+  with open(model_config_json) as f:
+    model_config = json.load(f)
+elif checkpoint_file_prefix is not None:
   with open(os.path.join(os.path.dirname(checkpoint_file_prefix),"model.config.json")) as f:
     model_config = json.load(f)
 elif saved_model_dir is not None:
@@ -63,7 +72,11 @@ else:
   assert(False)
 
 pos_len = 19 # shouldn't matter, all we're doing is exporting weights that don't depend on this
-model = ModelV3(model_config,pos_len,{})
+if name_scope is not None:
+  with tf.name_scope(name_scope):
+    model = ModelV3(model_config,pos_len,{})
+else:
+  model = ModelV3(model_config,pos_len,{})
 modelv3.print_trainable_variables(log)
 
 # Testing ------------------------------------------------------------
@@ -125,7 +138,10 @@ with tf.Session(config=tfconfig) as session:
 
     variables = dict((variable.name,variable) for variable in tf.global_variables())
     def get_weights(name):
-      return np.array(variables[name+":0"].eval())
+      if name_scope is not None:
+        return np.array(variables[name_scope+"/"+name+":0"].eval())
+      else:
+        return np.array(variables[name+":0"].eval())
 
     def write_weights(weights):
       if len(weights.shape) == 0:
