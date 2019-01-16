@@ -48,6 +48,7 @@ do
                     -saved-model-dir $SRC \
                     -export-dir $TMPDST \
                     -model-name $NAME \
+                    -name-scope "swa_model" \
                     -filename-prefix model \
                     -for-cuda
             set +x
@@ -68,8 +69,8 @@ do
             mkdir -p $BASEDIR/selfplay/$NAME/vdata
 
             #Sleep a little to allow some tolerance on the filesystem
-            sleep 5 
-            
+            sleep 5
+
             mv $TMPDST $TARGET
             echo "Done exporting:" $NAME "to" $TARGET
         fi
