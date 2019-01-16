@@ -88,6 +88,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   bool ponderingEnabled = cfg.getBool("ponderingEnabled");
   bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
+  bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
+  double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
 
   NNEvaluator* nnEval;
   {
@@ -134,6 +136,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     "showboard",
     "place_free_handicap",
     "set_free_handicap",
+    "final_score",
+    "final_status_list",
   };
 
   logger.write("Beginning main protocol loop");
@@ -366,7 +370,36 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           }
         }
 
-        response = Location::toString(moveLoc,bot->getRootBoard());
+        bool resigned = false;
+        if(allowResignation) {
+          double winValue;
+          double lossValue;
+          double noResultValue;
+          double staticScoreValue;
+          double dynamicScoreValue;
+          double expectedScore;
+          bool success = bot->getSearch()->getRootValues(winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
+          assert(success);
+
+          double winLossValue = winValue - lossValue;
+          assert(winLossValue > -1.01 && winLossValue < 1.01); //Sanity check, but allow generously for float imprecision
+          if(winLossValue > 1.0) winLossValue = 1.0;
+          if(winLossValue < -1.0) winLossValue = -1.0;
+
+          Player resignPlayerThisTurn = C_EMPTY;
+          if(winLossValue < resignThreshold)
+            resignPlayerThisTurn = P_WHITE;
+          else if(winLossValue > -resignThreshold)
+            resignPlayerThisTurn = P_BLACK;
+          
+          if(resignPlayerThisTurn == pla)
+            resigned = true;
+        }
+
+        if(resigned)
+          response = "resign";
+        else
+          response = Location::toString(moveLoc,bot->getRootBoard());
 
         if(logSearchInfo) {
           Search* search = bot->getSearch();
@@ -386,10 +419,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           logger.write(sout.str());
         }
 
-        bool suc = bot->makeMove(moveLoc,pla);
-        assert(suc);
+        if(!resigned) {
+          bool suc = bot->makeMove(moveLoc,pla);
+          assert(suc);
+          maybeStartPondering = true;
+        }
 
-        maybeStartPondering = true;
       }
     }
 
@@ -475,6 +510,89 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
 
         bot->setPosition(pla,board,hist);
+      }
+    }
+
+    else if(command == "final_score") {
+      //Returns the resulting score if this position were scored AS-IS (players repeatedly passing until the game ends),
+      //rather than attempting to estimate what the score would be with further playouts
+      Board board = bot->getRootBoard();
+      BoardHistory hist = bot->getRootHist();
+
+      //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
+      if(!hist.isGameFinished)
+        hist.endAndScoreGameNow(board);
+
+      if(hist.winner == C_EMPTY)
+        response = "0";
+      else if(hist.winner == C_BLACK)
+        response = "B+" + Global::strprintf("%.1f",-hist.finalWhiteMinusBlackScore);
+      else if(hist.winner == C_WHITE)
+        response = "W+" + Global::strprintf("%.1f",hist.finalWhiteMinusBlackScore);
+      else
+        assert(false);
+    }
+
+    else if(command == "final_status_list") {
+      int statusMode = 0;
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one argument for final_status_list but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        if(pieces[0] == "alive")
+          statusMode = 0;
+        else if(pieces[0] == "seki")
+          statusMode = 1;
+        else if(pieces[0] == "dead")
+          statusMode = 2;
+        else {
+          responseIsError = true;
+          response = "Argument to final_status_list must be 'alive' or 'seki' or 'dead'";
+          statusMode = 3;
+        }
+        
+        if(statusMode < 3) {
+          vector<Loc> locsToReport;
+          Board board = bot->getRootBoard();
+          BoardHistory hist = bot->getRootHist();
+      
+          if(hist.isGameFinished && hist.isNoResult) {
+            //Treat all stones as alive under a no result
+            if(statusMode == 0) {
+              for(int y = 0; y<board.y_size; y++) {
+                for(int x = 0; x<board.x_size; x++) {
+                  Loc loc = Location::getLoc(x,y,board.x_size);
+                  if(board.colors[loc] != C_EMPTY)
+                    locsToReport.push_back(loc);
+                }
+              }
+            }
+          }
+          else {
+            Color area[Board::MAX_ARR_SIZE];
+            hist.endAndScoreGameNow(board,area);
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++) {
+                Loc loc = Location::getLoc(x,y,board.x_size);
+                if(board.colors[loc] != C_EMPTY) {
+                  if(statusMode == 0 && board.colors[loc] == area[loc])
+                    locsToReport.push_back(loc);
+                  else if(statusMode == 2 && board.colors[loc] != area[loc])
+                    locsToReport.push_back(loc);
+                }
+              }
+            }
+          }
+
+          response = "";
+          for(int i = 0; i<locsToReport.size(); i++) {
+            Loc loc = locsToReport[i];
+            if(i > 0)
+              response += " ";
+            response += Location::toString(loc,board);
+          }
+        }
       }
     }
 
