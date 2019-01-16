@@ -38,4 +38,4 @@ time python3 ./trainv3.py \
      -model-kind $MODELKIND \
      -sub-epochs 2 \
      "$@" \
-     2>&1 | tee $BASEDIR/train/$TRAININGNAME/stdout.txt
+     2>&1 | tee -a $BASEDIR/train/$TRAININGNAME/stdout.txt
