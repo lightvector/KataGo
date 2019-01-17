@@ -41,7 +41,8 @@ two_over_pi = 0.63661977236758134308
 with open(modelconfigpath) as f:
   model_config = json.load(f)
 model = ModelV3(model_config,pos_len,{})
-policy_output = tf.nn.softmax(model.policy_output)
+policy0_output = tf.nn.softmax(model.policy_output[:,:,0])
+policy1_output = tf.nn.softmax(model.policy_output[:,:,1])
 value_output = tf.nn.softmax(model.value_output)
 scoremean_output = 20.0 * model.miscvalues_output[:,0]
 scorestdev_output = 20.0 * tf.math.softplus(model.miscvalues_output[:,1])
@@ -72,7 +73,9 @@ def fetch_output(session, board, boards, moves, use_history_prop, rules, fetches
   return [output[0] for output in outputs]
 
 def get_policy_output(session, board, boards, moves, use_history_prop, rules):
-  return fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output])
+  return fetch_output(session,board,boards,moves,use_history_prop,rules,[policy0_output])
+def get_policy1_output(session, board, boards, moves, use_history_prop, rules):
+  return fetch_output(session,board,boards,moves,use_history_prop,rules,[policy1_output])
 
 def get_scorebelief_output(session, board, boards, moves, use_history_prop, rules):
   return fetch_output(session,board,boards,moves,use_history_prop,rules,[scorebelief_output,scoremean_output,scorestdev_output,sbscale])
@@ -80,7 +83,13 @@ def get_bonusbelief_output(session, board, boards, moves, use_history_prop, rule
   return fetch_output(session,board,boards,moves,use_history_prop,rules,[bonusbelief_output,bbscale])
 
 def get_policy_and_value_output(session, board, boards, moves, use_history_prop, rules):
-  (policy,value,scoremean) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy_output,value_output,scoremean_output])
+  (policy,value,scoremean) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy0_output,value_output,scoremean_output])
+  value = list(value)
+  value.append(scoremean)
+  return (policy,value)
+
+def get_policy1_and_value_output(session, board, boards, moves, use_history_prop, rules):
+  (policy,value,scoremean) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy1_output,value_output,scoremean_output])
   value = list(value)
   value.append(scoremean)
   return (policy,value)
@@ -107,8 +116,19 @@ def get_moves_and_probs_and_value(session, board, boards, moves, use_history_pro
     move = model.tensor_pos_to_loc(i,board)
     if i == len(policy)-1:
       moves_and_probs.append((Board.PASS_LOC,policy[i]))
-    #elif board.would_be_legal(pla,move) and not board.is_simple_eye(pla,move):
     elif board.would_be_legal(pla,move):
+      moves_and_probs.append((move,policy[i]))
+  return (moves_and_probs,value)
+
+def get_moves_and_probs1_and_value(session, board, boards, moves, use_history_prop, rules):
+  pla = board.pla
+  [policy,value] = get_policy1_and_value_output(session, board, boards, moves, use_history_prop, rules)
+  moves_and_probs = []
+  for i in range(len(policy)):
+    move = model.tensor_pos_to_loc(i,board)
+    if i == len(policy)-1:
+      moves_and_probs.append((Board.PASS_LOC,policy[i]))
+    else:
       moves_and_probs.append((move,policy[i]))
   return (moves_and_probs,value)
 
@@ -390,6 +410,7 @@ def run_gtp(session):
     'protocol_version',
     'gogui-analyze_commands',
     'policy',
+    'policy1',
     'policy-japanese',
     'policy-encore1',
     'policy-encore2',
@@ -404,6 +425,7 @@ def run_gtp(session):
   ]
   known_analyze_commands = [
     'gfx/Policy/policy',
+    'gfx/Policy1/policy1',
     'gfx/PolicyJP/policy-japanese',
     'gfx/PolicyE1/policy-encore1',
     'gfx/PolicyE2/policy-encore2',
@@ -578,6 +600,19 @@ def run_gtp(session):
         "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
       }
       (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      gfx_commands = []
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_and_score=value)
+      ret = "\n".join(gfx_commands)
+    elif command[0] == "policy1":
+      rules = {
+        "koRule": "KO_POSITIONAL",
+        "scoringRule": "SCORING_AREA",
+        "multiStoneSuicideLegal": True,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+      }
+      (moves_and_probs,value) = get_moves_and_probs1_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_and_score=value)
       ret = "\n".join(gfx_commands)
