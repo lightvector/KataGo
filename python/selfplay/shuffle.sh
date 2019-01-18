@@ -33,7 +33,7 @@ time python3 ./shuffle.py \
      -min-rows 1000000 \
      -max-rows 1000000000 \
      -expand-window-per-row 0.4 \
-     -taper-window-exponent 0.75 \
+     -taper-window-exponent 0.70 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
      -out-tmp-dir $TMPDIR \
      -approx-rows-per-out-file 200000 \
@@ -47,7 +47,7 @@ time python3 ./shuffle.py \
      -min-rows 50000 \
      -max-rows 10000000 \
      -expand-window-per-row 0.4 \
-     -taper-window-exponent 0.75 \
+     -taper-window-exponent 0.70 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
      -out-tmp-dir $TMPDIR \
      -approx-rows-per-out-file 200000 \
