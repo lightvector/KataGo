@@ -587,11 +587,11 @@ static void recordTreePositionsRec(
 
   //Best child is the one with the largest number of visits, find it
   int bestChildIdx = 0;
-  uint64_t bestChildVisits = 0;
+  int64_t bestChildVisits = 0;
   for(int i = 1; i<node->numChildren; i++) {
     const SearchNode* child = node->children[i];
     while(child->statsLock.test_and_set(std::memory_order_acquire));
-    uint64_t numVisits = child->stats.visits;
+    int64_t numVisits = child->stats.visits;
     child->statsLock.clear(std::memory_order_release);
     if(numVisits > bestChildVisits) {
       bestChildVisits = numVisits;
@@ -611,7 +611,7 @@ static void recordTreePositionsRec(
       continue;
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
-    uint64_t numVisits = child->stats.visits;
+    int64_t numVisits = child->stats.visits;
     child->statsLock.clear(std::memory_order_release);
 
     if(numVisits < minVisitsAtNode)
@@ -838,8 +838,8 @@ FinishedGameData* Play::runGame(
     float targetWeight = 1.0;
 
     bool doCapVisitsPlayouts = false;
-    uint64_t numCapVisits = toMoveBot->searchParams.maxVisits;
-    uint64_t numCapPlayouts = toMoveBot->searchParams.maxPlayouts;
+    int64_t numCapVisits = toMoveBot->searchParams.maxVisits;
+    int64_t numCapPlayouts = toMoveBot->searchParams.maxPlayouts;
     if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
       if(fancyModes.cheapSearchVisits <= 0)
         throw StringError("fancyModes.cheapSearchVisits <= 0");
@@ -872,11 +872,11 @@ FinishedGameData* Play::runGame(
           assert(proportionThrough >= 0.0 && proportionThrough <= 1.0);
           double visitReductionProp = proportionThrough * proportionThrough;
           doCapVisitsPlayouts = true;
-          numCapVisits = (uint64_t)round(numCapVisits + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapVisits));
-          numCapPlayouts = (uint64_t)round(numCapPlayouts + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapPlayouts));
+          numCapVisits = (int64_t)round(numCapVisits + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapVisits));
+          numCapPlayouts = (int64_t)round(numCapPlayouts + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapPlayouts));
           targetWeight = (float)(targetWeight + visitReductionProp * (fancyModes.reducedVisitsWeight - targetWeight));
-          numCapVisits = std::max(numCapVisits,(uint64_t)fancyModes.reducedVisitsMin);
-          numCapPlayouts = std::max(numCapPlayouts,(uint64_t)fancyModes.reducedVisitsMin);
+          numCapVisits = std::max(numCapVisits,(int64_t)fancyModes.reducedVisitsMin);
+          numCapPlayouts = std::max(numCapPlayouts,(int64_t)fancyModes.reducedVisitsMin);
         }
       }
     }
@@ -886,8 +886,8 @@ FinishedGameData* Play::runGame(
     if(doCapVisitsPlayouts) {
       assert(numCapVisits > 0);
       assert(numCapPlayouts > 0);
-      uint64_t oldMaxVisits = toMoveBot->searchParams.maxVisits;
-      uint64_t oldMaxPlayouts = toMoveBot->searchParams.maxPlayouts;
+      int64_t oldMaxVisits = toMoveBot->searchParams.maxVisits;
+      int64_t oldMaxPlayouts = toMoveBot->searchParams.maxPlayouts;
       toMoveBot->searchParams.maxVisits = std::min(oldMaxVisits, numCapVisits);
       toMoveBot->searchParams.maxPlayouts = std::min(oldMaxPlayouts, numCapPlayouts);
       loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);

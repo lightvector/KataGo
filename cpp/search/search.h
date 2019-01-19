@@ -20,7 +20,7 @@ struct Search;
 struct DistributionTable;
 
 struct NodeStats {
-  uint64_t visits;
+  int64_t visits;
   double winValueSum;
   double noResultValueSum;
   double scoreMeanSum;
@@ -90,7 +90,7 @@ struct SearchThread {
   vector<double> scoreMeansBuf;
   vector<double> scoreMeanSqsBuf;
   vector<double> utilityBuf;
-  vector<uint64_t> visitsBuf;
+  vector<int64_t> visitsBuf;
 
   SearchThread(int threadIdx, const Search& search, Logger* logger);
   ~SearchThread();
@@ -218,7 +218,7 @@ struct Search {
   void printRootOwnershipMap(ostream& out);
   void printRootEndingScoreValueBonus(ostream& out);
 
-  uint64_t numRootVisits();
+  int64_t numRootVisits();
 
   //Helpers-----------------------------------------------------------------------
 private:
@@ -237,24 +237,24 @@ private:
   void getValueChildWeights(
     int numChildren,
     const vector<double>& childSelfValuesBuf,
-    const vector<uint64_t>& childVisitsBuf,
+    const vector<int64_t>& childVisitsBuf,
     vector<double>& resultBuf
   ) const;
 
   double getPlaySelectionValue(
-    double nnPolicyProb, uint64_t childVisits, Player pla
+    double nnPolicyProb, int64_t childVisits, Player pla
   ) const;
   double getExploreSelectionValue(
-    double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
+    double nnPolicyProb, int64_t totalChildVisits, int64_t childVisits,
     double childUtility, Player pla
   ) const;
   double getPassingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
 
   double getPlaySelectionValue(const SearchNode& parent, const SearchNode* child) const;
-  double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const;
-  double getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const;
+  double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const;
+  double getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const;
 
-  double getReducedPlaySelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double bestChildExploreSelectionValue) const;
+  double getReducedPlaySelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const;
 
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);
@@ -280,7 +280,7 @@ private:
 
   void printTreeHelper(
     ostream& out, const SearchNode* node, const PrintTreeOptions& options,
-    string& prefix, uint64_t origVisits, int depth, double policyProb, double valueWeight
+    string& prefix, int64_t origVisits, int depth, double policyProb, double valueWeight
   );
 
 };

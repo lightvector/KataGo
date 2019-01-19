@@ -350,11 +350,11 @@ bool Search::getPlaySelectionValues(
       }
     }
 
-    uint64_t totalChildVisits = 0;
+    int64_t totalChildVisits = 0;
     for(int i = 0; i<numChildren; i++) {
       const SearchNode* child = node.children[i];
       while(child->statsLock.test_and_set(std::memory_order_acquire));
-      uint64_t childVisits = child->stats.visits;
+      int64_t childVisits = child->stats.visits;
       child->statsLock.clear(std::memory_order_release);
       totalChildVisits += childVisits;
     }
@@ -403,6 +403,9 @@ bool Search::getPlaySelectionValues(
 
   if(maxValue <= 1e-50)
     return false;
+
+  //Sanity check - if somehow we had more than this, something must have overflowed or gone wrong
+  assert(maxValue < 1e16);
 
   double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/64.0);
   double amountToPrune = std::min(searchParams.chosenMovePrune, maxValue/64.0);
@@ -592,21 +595,21 @@ void Search::runWholeSearch(Player movePla, Logger& logger, vector<double>* reco
 void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities) {
 
   ClockTimer timer;
-  atomic<uint64_t> numPlayoutsShared(0);
+  atomic<int64_t> numPlayoutsShared(0);
 
   if(!std::atomic_is_lock_free(&numPlayoutsShared))
-    logger.write("Warning: uint64_t atomic numPlayoutsShared is not lock free");
+    logger.write("Warning: int64_t atomic numPlayoutsShared is not lock free");
   if(!std::atomic_is_lock_free(&shouldStopNow))
     logger.write("Warning: bool atomic shouldStopNow is not lock free");
 
   beginSearch(logger);
-  uint64_t numNonPlayoutVisits = numRootVisits();
+  int64_t numNonPlayoutVisits = numRootVisits();
 
   auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
 
-    uint64_t maxVisits = searchParams.maxVisits;
-    uint64_t maxPlayouts = searchParams.maxPlayouts;
+    int64_t maxVisits = searchParams.maxVisits;
+    int64_t maxPlayouts = searchParams.maxPlayouts;
     double_t maxTime = searchParams.maxTime;
 
     //Possibly reduce computation time, for human friendliness
@@ -619,13 +622,13 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
           searchFactor = searchParams.searchFactorAfterOnePass;
       }
       if(searchFactor != 1.0) {
-        maxVisits = (uint64_t)ceil(maxVisits * searchFactor);
-        maxPlayouts = (uint64_t)ceil(maxPlayouts * searchFactor);
+        maxVisits = (int64_t)ceil(maxVisits * searchFactor);
+        maxPlayouts = (int64_t)ceil(maxPlayouts * searchFactor);
         maxTime = maxTime * searchFactor;
       }
     }
     
-    uint64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
+    int64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
     try {
       while(true) {
         bool shouldStop =
@@ -640,7 +643,7 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
 
         runSinglePlayout(*stbuf);
 
-        numPlayouts = numPlayoutsShared.fetch_add((uint64_t)1, std::memory_order_relaxed);
+        numPlayouts = numPlayoutsShared.fetch_add((int64_t)1, std::memory_order_relaxed);
         numPlayouts += 1;
 
         if(searchParams.numThreads == 1 && recordUtilities != NULL) {
@@ -725,11 +728,11 @@ void Search::beginSearch(Logger& logger) {
 
       if(anyFiltered) {
         //Fix up the number of visits of the root node after doing this filtering
-        uint64_t newNumVisits = 0;
+        int64_t newNumVisits = 0;
         for(int i = 0; i<numChildren; i++) {
           const SearchNode* child = node.children[i];
           while(child->statsLock.test_and_set(std::memory_order_acquire));
-          uint64_t childVisits = child->stats.visits;
+          int64_t childVisits = child->stats.visits;
           child->statsLock.clear(std::memory_order_release);
           newNumVisits += childVisits;
         }
@@ -778,11 +781,11 @@ void Search::computeRootValues(Logger& logger) {
   recentScoreCenter = expectedScore;
 }
 
-uint64_t Search::numRootVisits() {
+int64_t Search::numRootVisits() {
   if(rootNode == NULL)
     return 0;
   while(rootNode->statsLock.test_and_set(std::memory_order_acquire));
-  uint64_t n = rootNode->stats.visits;
+  int64_t n = rootNode->stats.visits;
   rootNode->statsLock.clear(std::memory_order_release);
   return n;
 }
@@ -919,7 +922,7 @@ void Search::getValueChildWeights(
   int numChildren,
   //Unlike everywhere else where values are from white's perspective, values here are from one's own perspective
   const vector<double>& childSelfValuesBuf,
-  const vector<uint64_t>& childVisitsBuf,
+  const vector<int64_t>& childVisitsBuf,
   vector<double>& resultBuf
 ) const {
   resultBuf.clear();
@@ -932,7 +935,7 @@ void Search::getValueChildWeights(
 
   double stdevs[numChildren];
   for(int i = 0; i<numChildren; i++) {
-    uint64_t numVisits = childVisitsBuf[i];
+    int64_t numVisits = childVisitsBuf[i];
     assert(numVisits > 0);
     double precision = 1.5 * sqrt((double)numVisits);
 
@@ -942,7 +945,7 @@ void Search::getValueChildWeights(
   }
 
   double simpleValueSum = 0.0;
-  uint64_t numChildVisits = 0;
+  int64_t numChildVisits = 0;
   for(int i = 0; i<numChildren; i++) {
     simpleValueSum += childSelfValuesBuf[i] * childVisitsBuf[i];
     numChildVisits += childVisitsBuf[i];
@@ -973,7 +976,7 @@ void Search::getValueChildWeights(
 }
 
 double Search::getPlaySelectionValue(
-  double nnPolicyProb, uint64_t childVisits, Player pla
+  double nnPolicyProb, int64_t childVisits, Player pla
 ) const {
   if(nnPolicyProb < 0)
     return POLICY_ILLEGAL_SELECTION_VALUE;
@@ -983,7 +986,7 @@ double Search::getPlaySelectionValue(
 }
 
 double Search::getExploreSelectionValue(
-  double nnPolicyProb, uint64_t totalChildVisits, uint64_t childVisits,
+  double nnPolicyProb, int64_t totalChildVisits, int64_t childVisits,
   double childUtility, Player pla
 ) const {
   if(nnPolicyProb < 0)
@@ -1074,18 +1077,18 @@ double Search::getPlaySelectionValue(const SearchNode& parent, const SearchNode*
   float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
-  uint64_t childVisits = child->stats.visits;
+  int64_t childVisits = child->stats.visits;
   child->statsLock.clear(std::memory_order_release);
 
   return getPlaySelectionValue(nnPolicyProb,childVisits,parent.nextPla);
 }
-double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const {
+double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const {
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
-  uint64_t childVisits = child->stats.visits;
+  int64_t childVisits = child->stats.visits;
   double childResultUtilitySum = child->stats.getResultUtilitySum(searchParams);
   double scoreMeanSum = child->stats.scoreMeanSum;
   double scoreMeanSqSum = child->stats.scoreMeanSqSum;
@@ -1131,21 +1134,21 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
   
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
-double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, uint64_t totalChildVisits, double fpuValue) const {
+double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const {
   float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
-  uint64_t childVisits = 0;
+  int64_t childVisits = 0;
   double childUtility = fpuValue;
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
 
-double Search::getReducedPlaySelectionValue(const SearchNode& parent, const SearchNode* child, uint64_t totalChildVisits, double bestChildExploreSelectionValue) const {
+double Search::getReducedPlaySelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const {
   assert(&parent == rootNode);
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
-  uint64_t childVisits = child->stats.visits;
+  int64_t childVisits = child->stats.visits;
   double childResultUtilitySum = child->stats.getResultUtilitySum(searchParams);
   double scoreMeanSum = child->stats.scoreMeanSum;
   double scoreMeanSqSum = child->stats.scoreMeanSqSum;
@@ -1163,7 +1166,7 @@ double Search::getReducedPlaySelectionValue(const SearchNode& parent, const Sear
   scoreMeanSqSum = scoreMeanSqSum + (oldScoreMeanSum + scoreMeanSum) * endingScoreBonus;
   double childUtility = getUtility(childResultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
   
-  uint64_t desiredVisits = (uint64_t)ceil(sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff));
+  int64_t desiredVisits = (int64_t)ceil(sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff));
   for(int i = 0; i<desiredVisits; i++) {
     if(childVisits <= 0)
       break;
@@ -1195,7 +1198,7 @@ void Search::selectBestChildToDescend(
   int numChildren = node.numChildren;
 
   double policyProbMassVisited = 0.0;
-  uint64_t totalChildVisits = 0;
+  int64_t totalChildVisits = 0;
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
@@ -1204,7 +1207,7 @@ void Search::selectBestChildToDescend(
     policyProbMassVisited += nnPolicyProb;
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
-    uint64_t childVisits = child->stats.visits;
+    int64_t childVisits = child->stats.visits;
     child->statsLock.clear(std::memory_order_release);
 
     totalChildVisits += childVisits;
@@ -1217,7 +1220,7 @@ void Search::selectBestChildToDescend(
   double parentUtility;
   if(searchParams.fpuUseParentAverage) {
     while(node.statsLock.test_and_set(std::memory_order_acquire));
-    uint64_t parentVisits = node.stats.visits;
+    int64_t parentVisits = node.stats.visits;
     double resultUtilitySum = node.stats.getResultUtilitySum(searchParams);
     double scoreMeanSum = node.stats.scoreMeanSum;
     double scoreMeanSqSum = node.stats.scoreMeanSqSum;
@@ -1302,10 +1305,10 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   vector<double>& scoreMeans = thread.scoreMeansBuf;
   vector<double>& scoreMeanSqs = thread.scoreMeanSqsBuf;
   vector<double>& selfUtilities = thread.utilityBuf;
-  vector<uint64_t>& visits = thread.visitsBuf;
+  vector<int64_t>& visits = thread.visitsBuf;
 
-  uint64_t totalChildVisits = 0;
-  uint64_t maxChildVisits = 0;
+  int64_t totalChildVisits = 0;
+  int64_t maxChildVisits = 0;
 
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
@@ -1316,7 +1319,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     const SearchNode* child = node.children[i];
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
-    uint64_t childVisits = child->stats.visits;
+    int64_t childVisits = child->stats.visits;
     double winValueSum = child->stats.winValueSum;
     double noResultValueSum = child->stats.noResultValueSum;
     double scoreMeanSum = child->stats.scoreMeanSum;
@@ -1371,7 +1374,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   for(int i = 0; i<numGoodChildren; i++) {
     if(visits[i] < amountToPrune)
       continue;
-    double weight = visits[i] - amountToSubtract;
+    double weight = (double)visits[i] - amountToSubtract;
     if(weight < 0.0)
       continue;
 
@@ -1660,7 +1663,7 @@ void Search::printRootEndingScoreValueBonus(ostream& out) {
     const SearchNode* child = rootNode->children[i];
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
-    uint64_t childVisits = child->stats.visits;
+    int64_t childVisits = child->stats.visits;
     double childResultUtilitySum = child->stats.getResultUtilitySum(searchParams);
     double scoreMeanSum = child->stats.scoreMeanSum;
     double scoreMeanSqSum = child->stats.scoreMeanSqSum;
@@ -1723,7 +1726,7 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
 
 void Search::printTreeHelper(
   ostream& out, const SearchNode* n, const PrintTreeOptions& options,
-  string& prefix, uint64_t origVisits, int depth, double policyProb, double valueWeight
+  string& prefix, int64_t origVisits, int depth, double policyProb, double valueWeight
 ) {
   if(n == NULL)
     return;
@@ -1732,7 +1735,7 @@ void Search::printTreeHelper(
   unique_lock<std::mutex> lock(mutex,std::defer_lock);
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
-  uint64_t visits = node.stats.visits;
+  int64_t visits = node.stats.visits;
   double resultUtilitySum = node.stats.getResultUtilitySum(searchParams);
   double scoreMeanSum = node.stats.scoreMeanSum;
   double scoreMeanSqSum = node.stats.scoreMeanSqSum;
@@ -1822,12 +1825,12 @@ void Search::printTreeHelper(
     vector<double> goodValueChildWeights;
     vector<double> origMoveIdx;
     vector<double> selfUtilityBuf;
-    vector<uint64_t> visitsBuf;
+    vector<int64_t> visitsBuf;
     for(int i = 0; i<numChildren; i++) {
       const SearchNode* child = node.children[i];
 
       while(child->statsLock.test_and_set(std::memory_order_acquire));
-      uint64_t childVisits = child->stats.visits;
+      int64_t childVisits = child->stats.visits;
       double childResultUtilitySum = child->stats.getResultUtilitySum(searchParams);
       double childScoreMeanSum = child->stats.scoreMeanSum;
       double childScoreMeanSqSum = child->stats.scoreMeanSqSum;
@@ -1886,7 +1889,7 @@ void Search::printTreeHelper(
     const SearchNode* child = std::get<0>(valuedChildren[lastIdxWithEnoughVisits]);
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
-    uint64_t childVisits = child->stats.visits;
+    int64_t childVisits = child->stats.visits;
     child->statsLock.clear(std::memory_order_release);
 
     bool hasEnoughVisits = childVisits >= options.minVisitsToShow_
