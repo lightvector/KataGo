@@ -15,5 +15,7 @@
 ./main runsearchtestsv3 models/grun2-b6c96-s128700160-d49811312.txt.gz true true 0 false | tee tests/results/runSearchTestsV3-g2-iNHWC-cNHWC.txt
 ./main runsearchtestsv3 models/grun2-b6c96-s128700160-d49811312.txt.gz true false 1 false | tee tests/results/runSearchTestsV3-g2-s1.txt
 
+./main runselfplayinittests models/grun50-b6c96-s156348160-d118286860.txt.gz | tee tests/results/runSelfplayInitTests.txt
+
 exit 0
 }

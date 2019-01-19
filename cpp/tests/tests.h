@@ -36,6 +36,7 @@ namespace Tests {
 
   //testtrainingwrite.cpp
   void runTrainingWriteTests();
+  void runSelfplayInitTestsWithNN(const string& modelFile);
 }
 
 namespace TestCommon {

@@ -1146,7 +1146,7 @@ FinishedGameData* Play::runGame(
   return gameData;
 }
 
-static void maybeForkGame(
+void Play::maybeForkGame(
   const FinishedGameData* finishedGameData,
   const InitialPosition** nextInitialPosition,
   const FancyModes& fancyModes,
@@ -1328,7 +1328,7 @@ FinishedGameData* GameRunner::runGame(
 
   assert(finishedGameData != NULL);
 
-  maybeForkGame(finishedGameData, nextInitialPosition, fancyModes, gameRand, botSpecB.nnEval);
+  Play::maybeForkGame(finishedGameData, nextInitialPosition, fancyModes, gameRand, botSpecB.nnEval);
   
   return finishedGameData;
 }

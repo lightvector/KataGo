@@ -187,6 +187,13 @@ namespace Play {
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
 
+  void maybeForkGame(
+    const FinishedGameData* finishedGameData,
+    const InitialPosition** nextInitialPosition,
+    const FancyModes& fancyModes,
+    Rand& gameRand,
+    NNEvaluator* nnEval
+  );
 }
 
 

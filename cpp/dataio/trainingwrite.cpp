@@ -89,6 +89,56 @@ FinishedGameData::~FinishedGameData() {
     delete changedNeuralNets[i];
 }
 
+void FinishedGameData::printDebug(ostream& out) const {
+  out << "bName " << bName << endl;
+  out << "wName " << wName << endl;
+  out << "bIdx " << bIdx << endl;
+  out << "wIdx " << wIdx << endl;
+  out << "startPla " << colorToChar(startPla) << endl;
+  out << "start" << endl;
+  startHist.printDebugInfo(out,startBoard);
+  out << "end" << endl;
+  endHist.printDebugInfo(out,endHist.getRecentBoard(0));
+  out << "gameHash " << gameHash << endl;
+  out << "hitTurnLimit " << hitTurnLimit << endl;
+  out << "numExtraBlack " << numExtraBlack << endl;
+  out << "mode " << mode << endl;
+  out << "modeMeta1 " << modeMeta1 << endl;
+  out << "modeMeta2 " << modeMeta2 << endl;
+  out << "hasFullData " << hasFullData << endl;
+  out << "posLen " << posLen << endl;
+  for(int i = 0; i<targetWeightByTurn.size(); i++)
+    out << "targetWeightByTurn " << i << " " << targetWeightByTurn[i];
+  out << endl;
+  for(int i = 0; i<policyTargetsByTurn.size(); i++) {
+    out << "policyTargetsByTurn " << i << " ";
+    vector<PolicyTargetMove>& target = *(policyTargetsByTurn[i]);
+    for(int j = 0; j<target.size(); j++) 
+      out << Location::toString(target[j].loc,startBoard) << " " << target[j].policyTarget << " ";
+    out << endl;
+  }
+  for(int i = 0; i<whiteValueTargetsByTurn.size(); i++) {
+    out << "whiteValueTargetsByTurn " << i << " ";
+    out << whiteValueTargetsByTurn[i].win << " ";
+    out << whiteValueTargetsByTurn[i].loss << " ";
+    out << whiteValueTargetsByTurn[i].noResult << " ";
+    out << whiteValueTargetsByTurn[i].score << " ";
+    out << endl;
+  }
+  for(int y = 0; y<startBoard.y_size; y++) {
+    for(int x = 0; x<startBoard.x_size; x++) {
+      int pos = NNPos::xyToPos(x,y,posLen);
+      out << Global::strprintf("%5d",finalWhiteOwnership[pos]);
+    }
+    out << endl;
+  }
+
+  for(int i = 0; i<sidePositions.size(); i++) {
+    SidePosition* sp = sidePositions[i];
+    out << "Side position " << i << endl;
+    sp->hist.printDebugInfo(out,sp->board);
+  }
+}
 
 //-------------------------------------------------------------------------------------
 

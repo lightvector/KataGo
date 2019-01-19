@@ -82,3 +82,17 @@ int MainCmds::runsearchtestsv3(int argc, const char* const* argv) {
   );
   return 0;
 }
+
+int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  if(argc != 2) {
+    cerr << "Must supply exactly one argument: MODEL_FILE" << endl;
+    return 1;
+  }
+  Tests::runSelfplayInitTestsWithNN(
+    string(argv[1])
+  );
+  return 0;
+}

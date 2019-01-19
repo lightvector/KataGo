@@ -6,12 +6,10 @@ using namespace TestCommon;
 #include "../program/play.h"
 
 static NNEvaluator* startNNEval(
-  const string& seed, Logger& logger,
+  const string& modelFile, const string& seed, Logger& logger,
   int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16
 ) {
-  //Placeholder, doesn't actually do anything since we have debugSkipNeuralNet = true
-  string modelName = "testModel";
-  string modelFile = "/dev/null";
+  const string& modelName = modelFile;
   int modelFileIdx = 0;
   int maxBatchSize = 16;
   int maxConcurrentEvals = 1024;
@@ -19,7 +17,7 @@ static NNEvaluator* startNNEval(
   bool requireExactPosLen = false;
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
-  bool debugSkipNeuralNet = true;
+  bool debugSkipNeuralNet = modelFile == "/dev/null";
   double nnPolicyTemperature = 1.0;
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
@@ -75,7 +73,7 @@ void Tests::runTrainingWriteTests() {
   auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite) {
     TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, posLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
-    NNEvaluator* nnEval = startNNEval(seedBase+"nneval",logger,0,true,false,false);
+    NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,true,false,false);
 
     SearchParams params;
     params.maxVisits = 100;
@@ -140,6 +138,124 @@ void Tests::runTrainingWriteTests() {
   rules = Rules::getTrompTaylorish();
   rules.komi = 7;
   run("testtrainingwrite-gooddraws",rules,0.7);
+
+  NeuralNet::globalCleanup();
+}
+
+
+void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
+  cout << "Running test for selfplay initialization with NN" << endl;
+  string tensorflowGpuVisibleDeviceList = "";
+  double tensorflowPerProcessGpuMemoryFraction = 0.3;
+  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+
+  int posLen = 11;
+
+  Logger logger;
+  logger.setLogToStdout(false);
+  logger.setLogTime(false);
+  logger.addOStream(cout);
+
+  auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite, int numExtraBlack) {
+    NNEvaluator* nnEval = startNNEval(modelFile,seedBase+"nneval",logger,0,true,false,false);
+
+    SearchParams params;
+    params.maxVisits = 100;
+    params.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = string("test");
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = params;
+
+    Board initialBoard(11,11);
+    Player initialPla = P_BLACK;
+    int initialEncorePhase = 0;
+    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
+
+    bool doEndGameIfAllPassAlive = true;
+    bool clearBotAfterSearch = true;
+    int maxMovesPerGame = 1;
+    vector<std::atomic<bool>*> stopConditions;
+    FancyModes fancyModes;
+    fancyModes.initGamesWithPolicy = true;
+    fancyModes.forkSidePositionProb = 0.40;
+    fancyModes.cheapSearchProb = 0.5;
+    fancyModes.cheapSearchVisits = 20;
+    fancyModes.cheapSearchTargetWeight = 0.123;
+    fancyModes.earlyForkGameProb = 0.5;
+    fancyModes.earlyForkGameExpectedMoveProp = 0.05;
+    fancyModes.earlyForkGameMinChoices = 2;
+    fancyModes.earlyForkGameMaxChoices = 2;
+    fancyModes.noCompensateKomiProb = 0.25;
+
+    bool recordFullData = true;
+    Rand rand(seedBase+"play");
+    FinishedGameData* gameData = Play::runGame(
+      initialBoard,initialPla,initialHist,numExtraBlack,
+      botSpec,botSpec,
+      seedBase+"search",
+      doEndGameIfAllPassAlive, clearBotAfterSearch,
+      logger, false, false,
+      maxMovesPerGame, stopConditions,
+      fancyModes, recordFullData, posLen,
+      true,
+      rand,
+      NULL
+    );
+
+    const InitialPosition* nextInitialPosition = NULL;
+    Play::maybeForkGame(gameData,&nextInitialPosition,fancyModes,rand,nnEval);
+
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "seedBase: " << seedBase << endl;
+    gameData->printDebug(cout);
+    if(nextInitialPosition != NULL) {
+      cout << "Forking to initial position " << colorToChar(nextInitialPosition->pla) << endl;
+      nextInitialPosition->hist.printDebugInfo(cout,nextInitialPosition->board);
+    }
+    delete gameData;
+
+    delete nnEval;
+    cout << endl;
+  };
+
+
+  run("testselfplayinit0",Rules::getTrompTaylorish(),0.5,0);
+  run("testselfplayinit1",Rules::getTrompTaylorish(),0.5,0);
+  run("testselfplayinit2",Rules::getTrompTaylorish(),0.5,0);
+  run("testselfplayinit3",Rules::getTrompTaylorish(),0.5,0);
+  run("testselfplayinit4",Rules::getTrompTaylorish(),0.5,0);
+  run("testselfplayinit5",Rules::getTrompTaylorish(),0.5,0);
+  run("testselfplayinit6",Rules::getTrompTaylorish(),0.5,0);
+  run("testselfplayinit7",Rules::getTrompTaylorish(),0.5,0);
+  run("testselfplayinit8",Rules::getTrompTaylorish(),0.5,0);
+  run("testselfplayinit9",Rules::getTrompTaylorish(),0.5,0);
+ 
+  run("testselfplayinith1-0",Rules::getTrompTaylorish(),0.5,1);
+  run("testselfplayinith1-1",Rules::getTrompTaylorish(),0.5,1);
+  run("testselfplayinith1-2",Rules::getTrompTaylorish(),0.5,1);
+  run("testselfplayinith1-3",Rules::getTrompTaylorish(),0.5,1);
+  run("testselfplayinith1-4",Rules::getTrompTaylorish(),0.5,1);
+  run("testselfplayinith1-5",Rules::getTrompTaylorish(),0.5,1);
+  run("testselfplayinith1-6",Rules::getTrompTaylorish(),0.5,1);
+  run("testselfplayinith1-7",Rules::getTrompTaylorish(),0.5,1);
+  run("testselfplayinith1-8",Rules::getTrompTaylorish(),0.5,1);
+  run("testselfplayinith1-9",Rules::getTrompTaylorish(),0.5,1);
+
+  run("testselfplayinith2-0",Rules::getTrompTaylorish(),0.5,2);
+  run("testselfplayinith2-1",Rules::getTrompTaylorish(),0.5,2);
+  run("testselfplayinith2-2",Rules::getTrompTaylorish(),0.5,2);
+  run("testselfplayinith2-3",Rules::getTrompTaylorish(),0.5,2);
+  run("testselfplayinith2-4",Rules::getTrompTaylorish(),0.5,2);
+  run("testselfplayinith2-5",Rules::getTrompTaylorish(),0.5,2);
+  run("testselfplayinith2-6",Rules::getTrompTaylorish(),0.5,2);
+  run("testselfplayinith2-7",Rules::getTrompTaylorish(),0.5,2);
+  run("testselfplayinith2-8",Rules::getTrompTaylorish(),0.5,2);
+  run("testselfplayinith2-9",Rules::getTrompTaylorish(),0.5,2);
 
   NeuralNet::globalCleanup();
 }

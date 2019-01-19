@@ -11,6 +11,7 @@ namespace MainCmds {
   int runoutputtests(int argc, const char* const* argv);
   int runsearchtests(int argc, const char* const* argv);
   int runsearchtestsv3(int argc, const char* const* argv);
+  int runselfplayinittests(int argc, const char* const* argv);
 
   int lzcost(int argc, const char* const* argv);
   int writeSearchValueTimeseries(int argc, const char* const* argv);

@@ -74,6 +74,7 @@ struct FinishedGameData {
   FinishedGameData();
   ~FinishedGameData();
 
+  void printDebug(ostream& out) const;
 };
 
 struct TrainingWriteBuffers {
