@@ -205,7 +205,7 @@ def model_fn(features,labels,mode,params):
         "rloss": tf.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
         "rscloss": tf.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
         "pacc1": tf.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
-        "ventr": tf.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
+        "ventr": tf.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used),
         "ptentr": tf.metrics.mean(metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
       }
     )
