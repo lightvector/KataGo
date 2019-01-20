@@ -36,7 +36,7 @@ time python3 ./shuffle.py \
      -taper-window-exponent 0.70 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
      -out-tmp-dir $TMPDIR \
-     -approx-rows-per-out-file 200000 \
+     -approx-rows-per-out-file 100000 \
      -num-processes $NTHREADS \
      -batch-size 256 \
      -keep-target-rows 4000000 \
@@ -50,7 +50,7 @@ time python3 ./shuffle.py \
      -taper-window-exponent 0.70 \
      -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
      -out-tmp-dir $TMPDIR \
-     -approx-rows-per-out-file 200000 \
+     -approx-rows-per-out-file 100000 \
      -num-processes $NTHREADS \
      -batch-size 256 \
      -keep-target-rows 60000 \

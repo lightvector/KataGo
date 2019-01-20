@@ -36,7 +36,7 @@ time python3 ./trainv3.py \
      -batch-size 256 \
      -gpu-memory-frac 0.6 \
      -model-kind $MODELKIND \
-     -sub-epochs 2 \
-     -swa-sub-epoch-scale 4 \
+     -sub-epochs 3 \
+     -swa-sub-epoch-scale 6 \
      "$@" \
      2>&1 | tee -a $BASEDIR/train/$TRAININGNAME/stdout.txt
