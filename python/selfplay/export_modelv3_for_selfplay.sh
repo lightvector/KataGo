@@ -55,7 +55,7 @@ do
 
             cp $SRC/model.config.json $TMPDST/
             cp $SRC/trainhistory.json $TMPDST/
-            mv $SRC/saved_model $TMPDST/
+            mv $SRC/*saved_model* $TMPDST/
 
             rm -r "$SRC"
             gzip $TMPDST/model.txt
