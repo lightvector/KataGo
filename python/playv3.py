@@ -24,12 +24,14 @@ Implements a basic GTP engine that uses the neural net directly to play moves..
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-model', help='Path to model weights to use', required=True)
 parser.add_argument('-model-config', help='Path to model config json to use', required=False)
+parser.add_argument('-name-scope', help='Name scope for model variables', required=False)
 args = vars(parser.parse_args())
 
 modelpath = args["model"]
 modelconfigpath = args["model_config"]
 if modelconfigpath is None:
   modelconfigpath = os.path.join(os.path.dirname(modelpath),"model.config.json")
+name_scope = args["name_scope"]
 
 #Hardcoded max board size
 pos_len = 19
@@ -40,7 +42,12 @@ two_over_pi = 0.63661977236758134308
 
 with open(modelconfigpath) as f:
   model_config = json.load(f)
-model = ModelV3(model_config,pos_len,{})
+
+if name_scope is not None:
+  with tf.name_scope(name_scope):
+    model = ModelV3(model_config,pos_len,{})
+else:
+  model = ModelV3(model_config,pos_len,{})
 policy0_output = tf.nn.softmax(model.policy_output[:,:,0])
 policy1_output = tf.nn.softmax(model.policy_output[:,:,1])
 value_output = tf.nn.softmax(model.value_output)
