@@ -22,6 +22,7 @@ SidePosition::SidePosition()
   :board(),
    hist(),
    pla(P_BLACK),
+   unreducedNumVisits(),
    policyTarget(),
    whiteValueTargets(),
    targetWeight(),
@@ -32,6 +33,7 @@ SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p, int 
   :board(b),
    hist(h),
    pla(p),
+   unreducedNumVisits(),
    policyTarget(),
    whiteValueTargets(),
    targetWeight(1.0f),
@@ -77,7 +79,7 @@ FinishedGameData::FinishedGameData()
 
 FinishedGameData::~FinishedGameData() {
   for(int i = 0; i<policyTargetsByTurn.size(); i++)
-    delete policyTargetsByTurn[i];
+    delete policyTargetsByTurn[i].policyTargets;
 
   if(finalWhiteOwnership != NULL)
     delete[] finalWhiteOwnership;
@@ -112,7 +114,8 @@ void FinishedGameData::printDebug(ostream& out) const {
   out << endl;
   for(int i = 0; i<policyTargetsByTurn.size(); i++) {
     out << "policyTargetsByTurn " << i << " ";
-    vector<PolicyTargetMove>& target = *(policyTargetsByTurn[i]);
+    out << "unreducedNumVisits " << policyTargetsByTurn[i].unreducedNumVisits << " ";
+    vector<PolicyTargetMove>& target = *(policyTargetsByTurn[i].policyTargets);
     for(int j = 0; j<target.size(); j++) 
       out << Location::toString(target[j].loc,startBoard) << " " << target[j].policyTarget << " ";
     out << endl;
@@ -146,7 +149,7 @@ void FinishedGameData::printDebug(ostream& out) const {
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 2;
-static const int GLOBAL_TARGET_NUM_CHANNELS = 54;
+static const int GLOBAL_TARGET_NUM_CHANNELS = 56;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 static const int BONUS_SCORE_RADIUS = 30;
 
@@ -263,6 +266,7 @@ void TrainingWriteBuffers::addRow(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   int absoluteTurnNumber,
   float targetWeight,
+  int64_t unreducedNumVisits,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
   const vector<PolicyTargetMove>* policyTarget1, //can be null
   const vector<ValueTargets>& whiteValueTargets,
@@ -396,7 +400,13 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[52] = data.modeMeta2;
   rowGlobal[53] = isSidePosition ? 1.0f : 0.0f;
 
-  assert(54 == GLOBAL_TARGET_NUM_CHANNELS);
+  //Unused
+  rowGlobal[54] = 0.0f;
+
+  //Original number of visits
+  rowGlobal[55] = (float)unreducedNumVisits;
+  
+  assert(56 == GLOBAL_TARGET_NUM_CHANNELS);
 
   int scoreDistrLen = posArea*2 + NNPos::EXTRA_SCORE_DISTR_RADIUS*2;
   int scoreDistrMid = posArea + NNPos::EXTRA_SCORE_DISTR_RADIUS;
@@ -679,8 +689,9 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
     int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
     float targetWeight = data.targetWeightByTurn[turnNumberAfterStart];
-    const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumberAfterStart];
-    const vector<PolicyTargetMove>* policyTarget1 = (turnNumberAfterStart + 1 < numMoves) ? data.policyTargetsByTurn[turnNumberAfterStart+1] : NULL;
+    int64_t unreducedNumVisits = data.policyTargetsByTurn[turnNumberAfterStart].unreducedNumVisits;
+    const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumberAfterStart].policyTargets;
+    const vector<PolicyTargetMove>* policyTarget1 = (turnNumberAfterStart + 1 < numMoves) ? data.policyTargetsByTurn[turnNumberAfterStart+1].policyTargets : NULL;
     bool isSidePosition = false;
 
     int numNeuralNetsBehindLatest = 0;
@@ -696,6 +707,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         board,hist,nextPlayer,
         absoluteTurnNumber,
         targetWeight,
+        unreducedNumVisits,
         policyTarget0,
         policyTarget1,
         data.whiteValueTargetsByTurn,
@@ -731,6 +743,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         sp->board,sp->hist,sp->pla,
         absoluteTurnNumber,
         sp->targetWeight,
+        sp->unreducedNumVisits,
         &(sp->policyTarget),
         NULL,
         whiteValueTargetsBuf,

@@ -6,6 +6,8 @@
 #include "../dataio/numpywrite.h"
 
 STRUCT_NAMED_PAIR(Loc,loc,int16_t,policyTarget,PolicyTargetMove);
+STRUCT_NAMED_PAIR(vector<PolicyTargetMove>*,policyTargets,int64_t,unreducedNumVisits,PolicyTarget);
+
 struct ValueTargets {
   //As usual, these are from the perspective of white.
   float win;
@@ -27,6 +29,7 @@ struct SidePosition {
   Board board;
   BoardHistory hist;
   Player pla;
+  int64_t unreducedNumVisits;
   vector<PolicyTargetMove> policyTarget;
   ValueTargets whiteValueTargets;
   float targetWeight;
@@ -64,7 +67,7 @@ struct FinishedGameData {
   bool hasFullData;
   int posLen;
   vector<float> targetWeightByTurn;
-  vector<vector<PolicyTargetMove>*> policyTargetsByTurn;
+  vector<PolicyTarget> policyTargetsByTurn;
   vector<ValueTargets> whiteValueTargetsByTurn;
   int8_t* finalWhiteOwnership;
 
@@ -146,6 +149,8 @@ struct TrainingWriteBuffers {
   // 1 = encore-training game. C51 is the starting encore phase
   //C52: 0 = normal, 1 = whole game was forked with an experimental move in the opening
   //C53: 0 = normal, 1 = training sample was an isolated side position forked off of main game
+  //C54: Unused
+  //C55: Number of visits in the search generating this row, prior to any reduction.
 
   NumpyBuffer<float> globalTargetsNC;
 
@@ -176,6 +181,7 @@ struct TrainingWriteBuffers {
     const Board& board, const BoardHistory& hist, Player nextPlayer,
     int turnNumberAfterStart,
     float targetWeight,
+    int64_t unreducedNumVisits,
     const vector<PolicyTargetMove>* policyTarget0, //can be null
     const vector<PolicyTargetMove>* policyTarget1, //can be null
     const vector<ValueTargets>& whiteValueTargets,

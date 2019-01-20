@@ -305,38 +305,50 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
 static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
 
 bool Search::getPlaySelectionValues(
-  vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
+  vector<Loc>& locs, vector<double>& playSelectionValues, int64_t& unreducedNumVisitsBuf, double scaleMaxToAtLeast
 ) const {
   if(rootNode == NULL) {
     locs.clear();
     playSelectionValues.clear();
+    unreducedNumVisitsBuf = 0;
     return false;
   }
-  return getPlaySelectionValues(*rootNode, locs, playSelectionValues, scaleMaxToAtLeast);
+  return getPlaySelectionValues(*rootNode, locs, playSelectionValues, unreducedNumVisitsBuf, scaleMaxToAtLeast);
 }
 
 bool Search::getPlaySelectionValues(
   const SearchNode& node,
-  vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
+  vector<Loc>& locs, vector<double>& playSelectionValues, int64_t& unreducedNumVisitsBuf, double scaleMaxToAtLeast
 ) const {
   locs.clear();
   playSelectionValues.clear();
+  unreducedNumVisitsBuf = 0;
 
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
 
   int numChildren = node.numChildren;
 
+  int64_t totalChildVisits = 0;
   for(int i = 0; i<numChildren; i++) {
     SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
-    double selectionValue = getPlaySelectionValue(node,child);
-
-    assert(selectionValue >= 0.0);
+    int movePos = getPos(moveLoc);
+    float nnPolicyProb = node.nnOutput->policyProbs[movePos];
+    
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
+    int64_t childVisits = child->stats.visits;
+    child->statsLock.clear(std::memory_order_release);
+    
+    double selectionValue = getPlaySelectionValue(nnPolicyProb,childVisits,node.nextPla);
+    assert(selectionValue >= 0.0);    
 
     locs.push_back(moveLoc);
     playSelectionValues.push_back(selectionValue);
+    totalChildVisits += childVisits;
   }
+  //Go ahead and immediately record the raw number of visits, before doing any sort of reductions
+  unreducedNumVisitsBuf = 1 + totalChildVisits;
 
   //Possibly reduce visits on children that we spend too many visits on in retrospect
   if(&node == rootNode && searchParams.rootDesiredPerChildVisitsCoeff > 0 && numChildren > 0) {
@@ -348,15 +360,6 @@ bool Search::getPlaySelectionValues(
         bestValue = value;
         bestIdx = i;
       }
-    }
-
-    int64_t totalChildVisits = 0;
-    for(int i = 0; i<numChildren; i++) {
-      const SearchNode* child = node.children[i];
-      while(child->statsLock.test_and_set(std::memory_order_acquire));
-      int64_t childVisits = child->stats.visits;
-      child->statsLock.clear(std::memory_order_release);
-      totalChildVisits += childVisits;
     }
 
     const SearchNode* bestChild = node.children[bestIdx];
@@ -564,7 +567,8 @@ Loc Search::getChosenMoveLoc() {
 
   vector<Loc> locs;
   vector<double> playSelectionValues;
-  bool suc = getPlaySelectionValues(locs,playSelectionValues,0.0);
+  int64_t unreducedNumVisitsBuf;
+  bool suc = getPlaySelectionValues(locs,playSelectionValues,unreducedNumVisitsBuf,0.0);
   if(!suc)
     return Board::NULL_LOC;
 

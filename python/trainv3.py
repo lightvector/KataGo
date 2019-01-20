@@ -301,7 +301,7 @@ def model_fn(features,labels,mode,params):
 # INPUTS ------------------------------------------------------------------------
 
 NUM_POLICY_TARGETS = 2
-NUM_GLOBAL_TARGETS = 54
+NUM_GLOBAL_TARGETS = 56
 NUM_VALUE_SPATIAL_TARGETS = 1
 EXTRA_SCORE_DISTR_RADIUS = 60
 BONUS_SCORE_RADIUS = 30

@@ -140,7 +140,8 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
   auto computeSurprise = [&](Search* search) {
     vector<Loc> locs;
     vector<double> playSelectionValues;
-    bool suc = search->getPlaySelectionValues(locs,playSelectionValues,0.0);
+    int64_t unreducedNumVisitsBuf;
+    bool suc = search->getPlaySelectionValues(locs,playSelectionValues,unreducedNumVisitsBuf,0.0);
     testAssert(suc);
 
     assert(search->rootNode != NULL);

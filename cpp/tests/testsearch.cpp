@@ -98,7 +98,8 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
       double scaleMaxToAtLeast = 10.0;
       vector<Loc> locsBuf;
       vector<double> playSelectionValuesBuf;
-      bool success = search->getPlaySelectionValues(locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast);
+      int64_t unreducedNumVisitsBuf;
+      bool success = search->getPlaySelectionValues(locsBuf,playSelectionValuesBuf,unreducedNumVisitsBuf,scaleMaxToAtLeast);
       assert(success);
       for(int j = 0; j<locsBuf.size(); j++) {
         cout << Location::toString(locsBuf[j],board) << " " << playSelectionValuesBuf[j] << endl;

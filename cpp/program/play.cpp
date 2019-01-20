@@ -507,11 +507,18 @@ static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board,
     return chooseRandomLegalMove(board, hist, pla, gameRand);
 }
 
-static void extractPolicyTarget(vector<PolicyTargetMove>& buf, const Search* toMoveBot, const SearchNode* node, vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf) {
+static void extractPolicyTarget(
+  int64_t& unreducedNumVisitsBuf,
+  vector<PolicyTargetMove>& buf,
+  const Search* toMoveBot,
+  const SearchNode* node,
+  vector<Loc>& locsBuf,
+  vector<double>& playSelectionValuesBuf
+) {
   double scaleMaxToAtLeast = 10.0;
 
   assert(node != NULL);
-  bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast);
+  bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,unreducedNumVisitsBuf,scaleMaxToAtLeast);
   assert(success);
 
   assert(locsBuf.size() == playSelectionValuesBuf.size());
@@ -576,9 +583,11 @@ static void recordTreePositionsRec(
 
   if(plaAlwaysBest && node != toMoveBot->rootNode) {
     SidePosition* sp = new SidePosition(board,hist,pla,numNeuralNetChangesSoFar);
-    extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
+    int64_t unreducedNumVisitsBuf;
+    extractPolicyTarget(unreducedNumVisitsBuf, sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
     extractValueTargets(sp->whiteValueTargets, toMoveBot, node, NULL);
     sp->targetWeight = recordTreeTargetWeight;
+    sp->unreducedNumVisits = unreducedNumVisitsBuf;
     gameData->sidePositions.push_back(sp);
   }
 
@@ -906,8 +915,9 @@ FinishedGameData* Play::runGame(
 
     if(recordFullData) {
       vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
-      extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
-      gameData->policyTargetsByTurn.push_back(policyTarget);
+      int64_t unreducedNumVisitsBuf;
+      extractPolicyTarget(unreducedNumVisitsBuf, *policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
+      gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisitsBuf));
       gameData->targetWeightByTurn.push_back(targetWeight);
 
       ValueTargets whiteValueTargets;
@@ -1084,9 +1094,11 @@ FinishedGameData* Play::runGame(
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
       Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,recordUtilities);
 
-      extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
+      int64_t unreducedNumVisitsBuf;
+      extractPolicyTarget(unreducedNumVisitsBuf, sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode, recordUtilities);
       sp->targetWeight = 1.0;
+      sp->unreducedNumVisits = unreducedNumVisitsBuf;
       sp->numNeuralNetChangesSoFar = gameData->changedNeuralNets.size();
 
       gameData->sidePositions.push_back(sp);

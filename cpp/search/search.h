@@ -172,12 +172,12 @@ struct Search {
   //Does take into account chosenMoveSubtract but does NOT apply temperature.
   //If somehow the max value is less than scaleMaxToAtLeast, scale it to at least that value.
   bool getPlaySelectionValues(
-    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
+    vector<Loc>& locs, vector<double>& playSelectionValues, int64_t& unreducedNumVisitsBuf, double scaleMaxToAtLeast
   ) const;
   //Same, but works on a node within the search, not just the root
   bool getPlaySelectionValues(
     const SearchNode& node,
-    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
+    vector<Loc>& locs, vector<double>& playSelectionValues, int64_t& unreducedNumVisitsBuf, double scaleMaxToAtLeast
   ) const;
 
   //Useful utility function exposed for outside use

@@ -63,7 +63,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 B3 77 J7 10 D3 3 J4 8 D4 1 
+policyTargetsByTurn 0 unreducedNumVisits 100 B3 77 J7 10 D3 3 J4 8 D4 1 
 whiteValueTargetsByTurn 0 0.555176 0.444757 6.69113e-05 2.28365 
 whiteValueTargetsByTurn 1 1 0 0 7.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -164,7 +164,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 J8 6 H9 10 H8 6 J4 4 H4 1 
+policyTargetsByTurn 0 unreducedNumVisits 20 J8 6 H9 10 H8 6 J4 4 H4 1 
 whiteValueTargetsByTurn 0 0.533744 0.466188 6.79298e-05 1.80442 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -287,7 +287,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 E4 37 C4 58 E2 4 
+policyTargetsByTurn 0 unreducedNumVisits 100 E4 37 C4 58 E2 4 
 whiteValueTargetsByTurn 0 0.524582 0.475349 6.89833e-05 1.06706 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -410,7 +410,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 C8 13 D4 12 C4 7 D3 5 D9 6 D8 12 H8 9 H9 9 J8 8 H3 8 J4 5 H4 5 
+policyTargetsByTurn 0 unreducedNumVisits 100 C8 13 D4 12 C4 7 D3 5 D9 6 D8 12 H8 9 H9 9 J8 8 H3 8 J4 5 H4 5 
 whiteValueTargetsByTurn 0 0.511818 0.488112 6.99704e-05 0.875456 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 
    -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
@@ -489,7 +489,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 C8 10 D4 2 C4 2 D3 2 D9 2 D8 10 H8 2 H9 2 J8 2 
+policyTargetsByTurn 0 unreducedNumVisits 20 C8 10 D4 2 C4 2 D3 2 D9 2 D8 10 H8 2 H9 2 J8 2 
 whiteValueTargetsByTurn 0 0.523672 0.476249 7.87906e-05 1.28107 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 
    -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
@@ -590,7 +590,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 H8 19 
+policyTargetsByTurn 0 unreducedNumVisits 20 H8 19 
 whiteValueTargetsByTurn 0 0.421784 0.578148 6.80113e-05 -2.89857 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -669,7 +669,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 G9 10 G8 10 J6 1 
+policyTargetsByTurn 0 unreducedNumVisits 20 G9 10 G8 10 J6 1 
 whiteValueTargetsByTurn 0 0.489202 0.51073 6.79243e-05 -0.0560901 
 whiteValueTargetsByTurn 1 1 0 0 7.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -748,7 +748,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 C4 21 H3 29 H4 15 D3 14 D4 15 J4 5 
+policyTargetsByTurn 0 unreducedNumVisits 100 C4 21 H3 29 H4 15 D3 14 D4 15 J4 5 
 whiteValueTargetsByTurn 0 0.525803 0.47413 6.73377e-05 1.36808 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -827,7 +827,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 D3 30 C4 34 D4 34 C3 1 
+policyTargetsByTurn 0 unreducedNumVisits 100 D3 30 C4 34 D4 34 C3 1 
 whiteValueTargetsByTurn 0 0.523065 0.476866 6.83262e-05 1.14986 
 whiteValueTargetsByTurn 1 1 0 0 7.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -906,7 +906,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 G4 10 G9 6 G2 3 C8 1 H2 1 
+policyTargetsByTurn 0 unreducedNumVisits 20 G4 10 G9 6 G2 3 C8 1 H2 1 
 whiteValueTargetsByTurn 0 0.56452 0.435413 6.70918e-05 2.39077 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -1007,7 +1007,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 D8 84 E7 6 C9 5 E3 1 F3 1 D4 1 E9 1 
+policyTargetsByTurn 0 unreducedNumVisits 100 D8 84 E7 6 C9 5 E3 1 F3 1 D4 1 E9 1 
 whiteValueTargetsByTurn 0 0.740696 0.259244 5.97855e-05 10.6482 
 whiteValueTargetsByTurn 1 1 0 0 32 
     0    0    0    0    0    0    0    0    0    0    0
@@ -1130,7 +1130,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 D3 14 D4 5 
+policyTargetsByTurn 0 unreducedNumVisits 20 D3 14 D4 5 
 whiteValueTargetsByTurn 0 0.938951 0.0610119 3.73023e-05 25.3981 
 whiteValueTargetsByTurn 1 1 0 0 34.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -1253,7 +1253,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 G3 27 C8 15 F3 28 D4 15 C5 8 G4 3 E8 3 
+policyTargetsByTurn 0 unreducedNumVisits 100 G3 27 C8 15 F3 28 D4 15 C5 8 G4 3 E8 3 
 whiteValueTargetsByTurn 0 0.20811 0.791828 6.22926e-05 -10.8802 
 whiteValueTargetsByTurn 1 1 0 0 5.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -1354,7 +1354,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 D3 10 C4 6 H4 6 J4 6 D4 6 H3 4 
+policyTargetsByTurn 0 unreducedNumVisits 20 D3 10 C4 6 H4 6 J4 6 D4 6 H3 4 
 whiteValueTargetsByTurn 0 0.218044 0.781892 6.40969e-05 -10.846 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -1455,7 +1455,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 E8 10 E9 6 F9 3 
+policyTargetsByTurn 0 unreducedNumVisits 20 E8 10 E9 6 F9 3 
 whiteValueTargetsByTurn 0 0.202171 0.797768 6.14575e-05 -11.3998 
 whiteValueTargetsByTurn 1 1 0 0 5.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -1578,7 +1578,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 G3 81 F4 6 F3 12 
+policyTargetsByTurn 0 unreducedNumVisits 100 G3 81 F4 6 F3 12 
 whiteValueTargetsByTurn 0 0.775394 0.224549 5.74613e-05 12.1599 
 whiteValueTargetsByTurn 1 1 0 0 31.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -1679,7 +1679,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 J5 44 J4 27 C4 11 C5 13 H3 4 
+policyTargetsByTurn 0 unreducedNumVisits 100 J5 44 J4 27 C4 11 C5 13 H3 4 
 whiteValueTargetsByTurn 0 0.783942 0.216003 5.54179e-05 13.0207 
 whiteValueTargetsByTurn 1 1 0 0 33 
     0    0    0    0    0    0    0    0    0    0    0
@@ -1802,7 +1802,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 G3 18 J3 1 
+policyTargetsByTurn 0 unreducedNumVisits 20 G3 18 J3 1 
 whiteValueTargetsByTurn 0 0.783348 0.216598 5.38079e-05 12.268 
 whiteValueTargetsByTurn 1 1 0 0 31.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -1925,7 +1925,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 C5 71 C6 26 D5 1 H8 1 
+policyTargetsByTurn 0 unreducedNumVisits 100 C5 71 C6 26 D5 1 H8 1 
 whiteValueTargetsByTurn 0 0.734068 0.265874 5.83307e-05 10.7291 
 whiteValueTargetsByTurn 1 1 0 0 33 
     0    0    0    0    0    0    0    0    0    0    0
@@ -2004,7 +2004,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 E3 12 F2 7 
+policyTargetsByTurn 0 unreducedNumVisits 20 E3 12 F2 7 
 whiteValueTargetsByTurn 0 0.828319 0.171624 5.70929e-05 16.5439 
 whiteValueTargetsByTurn 1 1 0 0 35 
     0    0    0    0    0    0    0    0    0    0    0
@@ -2105,7 +2105,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 J5 65 H5 21 J3 13 
+policyTargetsByTurn 0 unreducedNumVisits 100 J5 65 H5 21 J3 13 
 whiteValueTargetsByTurn 0 0.636789 0.363148 6.32184e-05 7.13688 
 whiteValueTargetsByTurn 1 1 0 0 37.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -2184,7 +2184,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 C7 42 C4 31 J6 26 
+policyTargetsByTurn 0 unreducedNumVisits 100 C7 42 C4 31 J6 26 
 whiteValueTargetsByTurn 0 0.718614 0.281326 5.96784e-05 11.1186 
 whiteValueTargetsByTurn 1 1 0 0 46.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -2285,7 +2285,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 D3 17 D4 1 C4 1 
+policyTargetsByTurn 0 unreducedNumVisits 20 D3 17 D4 1 C4 1 
 whiteValueTargetsByTurn 0 0.697314 0.302624 6.19696e-05 10.0024 
 whiteValueTargetsByTurn 1 1 0 0 41.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -2386,7 +2386,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 H9 90 J8 9 
+policyTargetsByTurn 0 unreducedNumVisits 100 H9 90 J8 9 
 whiteValueTargetsByTurn 0 0.738082 0.261861 5.71282e-05 10.0192 
 whiteValueTargetsByTurn 1 1 0 0 43 
     0    0    0    0    0    0    0    0    0    0    0
@@ -2465,7 +2465,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 D3 35 D4 24 C4 24 C3 16 
+policyTargetsByTurn 0 unreducedNumVisits 100 D3 35 D4 24 C4 24 C3 16 
 whiteValueTargetsByTurn 0 0.653129 0.346807 6.44804e-05 8.64869 
 whiteValueTargetsByTurn 1 1 0 0 44 
     0    0    0    0    0    0    0    0    0    0    0
@@ -2566,7 +2566,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 H8 66 D7 13 E6 19 E3 1 
+policyTargetsByTurn 0 unreducedNumVisits 100 H8 66 D7 13 E6 19 E3 1 
 whiteValueTargetsByTurn 0 0.604435 0.3955 6.55699e-05 5.19401 
 whiteValueTargetsByTurn 1 1 0 0 43 
     0    0    0    0    0    0    0    0    0    0    0
@@ -2711,7 +2711,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 J4 16 C9 19 C8 14 J8 9 E5 8 J5 16 E8 16 D4 1 
+policyTargetsByTurn 0 unreducedNumVisits 100 J4 16 C9 19 C8 14 J8 9 E5 8 J5 16 E8 16 D4 1 
 whiteValueTargetsByTurn 0 0.580436 0.419499 6.423e-05 4.56848 
 whiteValueTargetsByTurn 1 1 0 0 42.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -2812,7 +2812,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 F3 81 G3 10 E3 7 J7 1 
+policyTargetsByTurn 0 unreducedNumVisits 100 F3 81 G3 10 E3 7 J7 1 
 whiteValueTargetsByTurn 0 0.647967 0.351972 6.08792e-05 7.6193 
 whiteValueTargetsByTurn 1 1 0 0 41.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -2935,7 +2935,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 D6 96 E3 1 D3 1 H6 1 
+policyTargetsByTurn 0 unreducedNumVisits 100 D6 96 E3 1 D3 1 H6 1 
 whiteValueTargetsByTurn 0 0.558453 0.441484 6.31049e-05 1.94867 
 whiteValueTargetsByTurn 1 1 0 0 42.5 
     0    0    0    0    0    0    0    0    0    0    0
@@ -3014,7 +3014,7 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 G9 39 E7 43 F8 11 D8 3 E6 1 F7 1 F9 1 
+policyTargetsByTurn 0 unreducedNumVisits 100 G9 39 E7 43 F8 11 D8 3 E6 1 F7 1 F9 1 
 whiteValueTargetsByTurn 0 0.649604 0.350332 6.32769e-05 8.08869 
 whiteValueTargetsByTurn 1 1 0 0 41 
     0    0    0    0    0    0    0    0    0    0    0
