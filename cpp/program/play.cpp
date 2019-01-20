@@ -423,7 +423,7 @@ static double getWhiteScoreEstimate(Search* bot, const Board& board, const Board
 
   bot->setParams(newParams);
   bot->setPosition(pla,board,hist);
-  bot->runWholeSearchAndGetMove(pla,logger,NULL);
+  bot->runWholeSearch(pla,logger,NULL);
 
   double winValue;
   double lossValue;

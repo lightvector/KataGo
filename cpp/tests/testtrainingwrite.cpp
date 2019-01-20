@@ -189,6 +189,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     fancyModes.earlyForkGameMinChoices = 2;
     fancyModes.earlyForkGameMaxChoices = 2;
     fancyModes.noCompensateKomiProb = 0.25;
+    fancyModes.compensateKomiVisits = 5;
 
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
