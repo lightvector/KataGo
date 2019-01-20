@@ -24,7 +24,9 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   string extraMoves;
   int maxVisits;
   int numThreads;
+  float overrideKomi;
   bool printOwnership;
+  bool printRootNNValues;
   bool printScoreNow;
   bool printRootEndingBonus;
   try {
@@ -39,7 +41,9 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> extraArg("e","extra","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<int> visitsArg("v","visits","Set the number of visits",false,-1,"VISITS");
     TCLAP::ValueArg<int> threadsArg("t","threads","Set the number of threads",false,-1,"THREADS");
+    TCLAP::ValueArg<float> overrideKomiArg("","override-komi","Artificially set komi",false,std::numeric_limits<float>::quiet_NaN(),"KOMI");
     TCLAP::SwitchArg printOwnershipArg("","print-ownership","Print ownership");
+    TCLAP::SwitchArg printRootNNValuesArg("","print-root-nn-values","Print root nn values");
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     cmd.add(configFileArg);
@@ -52,7 +56,9 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(extraArg);
     cmd.add(visitsArg);
     cmd.add(threadsArg);
+    cmd.add(overrideKomiArg);
     cmd.add(printOwnershipArg);
+    cmd.add(printRootNNValuesArg);
     cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
     cmd.parse(argc,argv);
@@ -66,7 +72,9 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     string extra = extraArg.getValue();
     maxVisits = visitsArg.getValue();
     numThreads = threadsArg.getValue();
+    overrideKomi = overrideKomiArg.getValue();
     printOwnership = printOwnershipArg.getValue();
+    printRootNNValues = printRootNNValuesArg.getValue();
     printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
 
@@ -115,6 +123,12 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   BoardHistory hist;
   sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
   vector<Move>& moves = sgf->moves;
+
+  if(!isnan(overrideKomi)) {
+    if(overrideKomi > board.x_size * board.y_size || overrideKomi < -board.x_size * board.y_size)
+      throw StringError("Invalid komi, greater than the area of the board");
+    hist.setKomi(overrideKomi);
+  }
 
   if(moveNum < 0)
     throw StringError("Move num " + Global::intToString(moveNum) + " requested but must be non-negative");
@@ -249,6 +263,17 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   if(printOwnership) {
     sout << "Ownership map (ROOT position):\n";
     search->printRootOwnershipMap(sout);
+  }
+
+  if(printRootNNValues) {
+    if(search->rootNode->nnOutput != nullptr) {
+      NNOutput* nnOutput = search->rootNode->nnOutput.get();
+      cout << "White win: " << nnOutput->whiteWinProb << endl;
+      cout << "White loss: " << nnOutput->whiteLossProb << endl;
+      cout << "White noresult: " << nnOutput->whiteNoResultProb << endl;
+      cout << "White score mean " << nnOutput->whiteScoreMean << endl;
+      cout << "White score stdev " << sqrt(max(0.0,(double)nnOutput->whiteScoreMeanSq - nnOutput->whiteScoreMean*nnOutput->whiteScoreMean)) << endl;
+    }
   }
 
   if(printScoreNow) {
