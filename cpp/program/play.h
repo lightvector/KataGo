@@ -135,6 +135,8 @@ struct FancyModes {
 
   //In handicap games and when forking a whole game - with this probability do NOT adjust the komi to be fair.
   double noCompensateKomiProb;
+  //Use this many visits in a short search to estimate the score, for adjusting komi
+  int compensateKomiVisits;
   
   //Occasionally fork an entire new game to try out an experimental move in the opening
   double earlyForkGameProb; //Expected number of forked games per game
@@ -171,7 +173,17 @@ struct FancyModes {
 //Functions to run a single game or other things
 namespace Play {
   //Use the given bot to play free handicap stones, modifying the board and hist in the process and setting the bot's position to it.
-  void playExtraBlack(Search* bot, int numExtraBlack, Board& board, BoardHistory& hist, double temperature, Rand& gameRand, bool adjustKomi);
+  void playExtraBlack(
+    Search* bot,
+    Logger& logger,
+    int numExtraBlack,
+    Board& board,
+    BoardHistory& hist,
+    double temperature,
+    Rand& gameRand,
+    bool adjustKomi,
+    int numVisitsForKomi
+  );
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
@@ -187,12 +199,27 @@ namespace Play {
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
 
+  //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
+  FinishedGameData* runGame(
+    const Board& startBoard, Player pla, const BoardHistory& startHist, int numExtraBlack,
+    MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
+    Search* botB, Search* botW,
+    bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
+    Logger& logger, bool logSearchInfo, bool logMoves,
+    int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
+    FancyModes fancyModes, bool recordFullData, int dataPosLen,
+    bool allowPolicyInit,
+    Rand& gameRand,
+    std::function<NNEvaluator*()>* checkForNewNNEval
+  );
+  
   void maybeForkGame(
     const FinishedGameData* finishedGameData,
     const InitialPosition** nextInitialPosition,
     const FancyModes& fancyModes,
     Rand& gameRand,
-    NNEvaluator* nnEval
+    Search* bot,
+    Logger& logger
   );
 }
 

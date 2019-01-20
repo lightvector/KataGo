@@ -190,12 +190,15 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     fancyModes.earlyForkGameMaxChoices = 2;
     fancyModes.noCompensateKomiProb = 0.25;
 
+    string searchRandSeed = seedBase+"search";
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+    
     bool recordFullData = true;
     Rand rand(seedBase+"play");
     FinishedGameData* gameData = Play::runGame(
       initialBoard,initialPla,initialHist,numExtraBlack,
       botSpec,botSpec,
-      seedBase+"search",
+      bot,bot,
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
@@ -206,7 +209,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     );
 
     const InitialPosition* nextInitialPosition = NULL;
-    Play::maybeForkGame(gameData,&nextInitialPosition,fancyModes,rand,nnEval);
+    Play::maybeForkGame(gameData,&nextInitialPosition,fancyModes,rand,bot,logger);
 
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;

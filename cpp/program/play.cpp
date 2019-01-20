@@ -347,7 +347,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
-   noCompensateKomiProb(0.0),
+   noCompensateKomiProb(0.0),compensateKomiVisits(1),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),earlyForkGameMinChoices(1),earlyForkGameMaxChoices(1),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
@@ -411,21 +411,58 @@ static Loc chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, 
   return Board::NULL_LOC;
 }
 
+static double getWhiteScoreEstimate(Search* bot, const Board& board, const BoardHistory& hist, Player pla, int numVisits, Logger& logger) {
+  assert(numVisits > 0);
+  SearchParams oldParams = bot->searchParams;
+  SearchParams newParams = oldParams;
+  newParams.maxVisits = numVisits;
+  newParams.maxPlayouts = numVisits;
+  newParams.rootNoiseEnabled = false;
+  newParams.rootFpuReductionMax = newParams.fpuReductionMax;
+  newParams.rootFpuLossProp = newParams.fpuLossProp;
+
+  bot->setParams(newParams);
+  bot->setPosition(pla,board,hist);
+  bot->runWholeSearchAndGetMove(pla,logger,NULL);
+
+  double winValue;
+  double lossValue;
+  double noResultValue;
+  double staticScoreValue;
+  double dynamicScoreValue;
+  double expectedScore;
+
+  bool suc = bot->getRootValues(winValue, lossValue, noResultValue, staticScoreValue, dynamicScoreValue, expectedScore);
+  assert(suc);
+  bot->setParams(oldParams);
+  return expectedScore;
+}
 
 //Place black handicap stones, free placement
-void Play::playExtraBlack(Search* bot, int numExtraBlack, Board& board, BoardHistory& hist, double temperature, Rand& gameRand, bool adjustKomi) {
+void Play::playExtraBlack(
+  Search* bot,
+  Logger& logger,
+  int numExtraBlack,
+  Board& board,
+  BoardHistory& hist,
+  double temperature,
+  Rand& gameRand,
+  bool adjustKomi,
+  int numVisitsForKomi
+) {
   Player pla = P_BLACK;
 
-  NNEvaluator* nnEval = bot->nnEvaluator;
-  NNResultBuf buf;
-  double drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
-  
   //Get initial estimate of the score
-  nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
-  std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
-  double initialWhiteScore = nnOutput->whiteScoreMean;
+  double initialWhiteScore = 0.0;
+  if(adjustKomi)
+    initialWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, numVisitsForKomi, logger);
 
+  NNResultBuf buf;  
   for(int i = 0; i<numExtraBlack; i++) {
+    double drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
+    bot->nnEvaluator->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
+    std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
+
     bool allowPass = false;
     Loc loc = chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, gameRand, temperature, allowPass);
     if(loc == Board::NULL_LOC)
@@ -434,15 +471,11 @@ void Play::playExtraBlack(Search* bot, int numExtraBlack, Board& board, BoardHis
     assert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
     hist.clear(board,pla,hist.rules,0);
-    
-    nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
-    nnOutput = std::move(buf.result);      
   }
 
-  double finalWhiteScore = nnOutput->whiteScoreMean;
-
-  //Adjust komi to be fair for the handicap according to what the net thinks
   if(adjustKomi) {
+    //Adjust komi to be fair for the handicap according to what the bot thinks
+    double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, numVisitsForKomi, logger);
     double fairKomi = hist.rules.komi - (finalWhiteScore - initialWhiteScore);
     hist.setKomi((float)(0.5 * round(2.0 * fairKomi)));
   }
@@ -721,8 +754,6 @@ FinishedGameData* Play::runGame(
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
-  FinishedGameData* gameData = new FinishedGameData();
-
   Search* botB;
   Search* botW;
   if(botSpecB.botIdx == botSpecW.botIdx) {
@@ -734,12 +765,46 @@ FinishedGameData* Play::runGame(
     botW = new Search(botSpecW.baseParams, botSpecW.nnEval, searchRandSeed + "@W");
   }
 
+  FinishedGameData* gameData = runGame(
+    startBoard, pla, startHist, numExtraBlack,
+    botSpecB, botSpecW,
+    botB, botW,
+    doEndGameIfAllPassAlive, clearBotAfterSearch,
+    logger, logSearchInfo, logMoves,
+    maxMovesPerGame, stopConditions,
+    fancyModes, recordFullData, dataPosLen,
+    allowPolicyInit,
+    gameRand,
+    checkForNewNNEval
+  );
+  
+  if(botW != botB)
+    delete botW;
+  delete botB;
+  
+  return gameData;
+}
+  
+FinishedGameData* Play::runGame(
+  const Board& startBoard, Player pla, const BoardHistory& startHist, int numExtraBlack,
+  MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
+  Search* botB, Search* botW,
+  bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
+  Logger& logger, bool logSearchInfo, bool logMoves,
+  int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
+  FancyModes fancyModes, bool recordFullData, int dataPosLen,
+  bool allowPolicyInit,
+  Rand& gameRand,
+  std::function<NNEvaluator*()>* checkForNewNNEval
+) {
+  FinishedGameData* gameData = new FinishedGameData();
+  
   Board board(startBoard);
   BoardHistory hist(startHist);
   if(numExtraBlack > 0) {
     double extraBlackTemperature = 1.0;
     bool adjustKomi = !gameRand.nextBool(fancyModes.noCompensateKomiProb);
-    playExtraBlack(botB,numExtraBlack,board,hist,extraBlackTemperature,gameRand,adjustKomi);
+    playExtraBlack(botB,logger,numExtraBlack,board,hist,extraBlackTemperature,gameRand,adjustKomi,fancyModes.compensateKomiVisits);
     assert(hist.moveHistory.size() == 0);
   }
 
@@ -1151,10 +1216,6 @@ FinishedGameData* Play::runGame(
   if(recordUtilities != NULL)
     delete recordUtilities;
 
-  if(botW != botB)
-    delete botW;
-  delete botB;
-
   return gameData;
 }
 
@@ -1163,7 +1224,8 @@ void Play::maybeForkGame(
   const InitialPosition** nextInitialPosition,
   const FancyModes& fancyModes,
   Rand& gameRand,
-  NNEvaluator* nnEval
+  Search* bot,
+  Logger& logger
 ) {
   if(nextInitialPosition == NULL)
     return;
@@ -1225,7 +1287,7 @@ void Play::maybeForkGame(
     Board copy = board;
     BoardHistory copyHist = hist;
     copyHist.makeBoardMoveAssumeLegal(copy,loc,pla,NULL);
-    nnEval->evaluate(copy,copyHist,getOpp(pla),drawEquivalentWinsForWhite,buf,NULL,false,false);
+    bot->nnEvaluator->evaluate(copy,copyHist,getOpp(pla),drawEquivalentWinsForWhite,buf,NULL,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
     double whiteScore = nnOutput->whiteScoreMean;
     if(bestMove == Board::NULL_LOC || (pla == P_WHITE && whiteScore > bestScore) || (pla == P_BLACK && whiteScore < bestScore)) {
@@ -1244,8 +1306,10 @@ void Play::maybeForkGame(
     return;
 
   //Adjust komi to be fair for the new unusual move according to what the net thinks
-  if(!gameRand.nextBool(fancyModes.noCompensateKomiProb))
-    hist.setKomi((float)(0.5 * round(2.0 * (hist.rules.komi - bestScore))));
+  if(!gameRand.nextBool(fancyModes.noCompensateKomiProb)) {
+    double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
+    hist.setKomi((float)(0.5 * round(2.0 * (hist.rules.komi - finalWhiteScore))));
+  }
   *nextInitialPosition = new InitialPosition(board,hist,pla);
 }
 
@@ -1316,10 +1380,22 @@ FinishedGameData* GameRunner::runGame(
   bool recordFullData = forSelfPlay;
   //Allow initial moves via direct policy if we're not specially specifying the initial position for this game
   bool allowPolicyInit = initialPosition == NULL;
+
+  Search* botB;
+  Search* botW;
+  if(botSpecB.botIdx == botSpecW.botIdx) {
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, searchRandSeed);
+    botW = botB;
+  }
+  else {
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, searchRandSeed + "@B");
+    botW = new Search(botSpecW.baseParams, botSpecW.nnEval, searchRandSeed + "@W");
+  }
+  
   FinishedGameData* finishedGameData = Play::runGame(
     board,pla,hist,numExtraBlack,
     botSpecB,botSpecW,
-    searchRandSeed,
+    botB,botW,
     doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,stopConditions,
@@ -1333,15 +1409,22 @@ FinishedGameData* GameRunner::runGame(
     finishedGameData->modeMeta2 = 1;
   
   //Make sure not to write the game if we terminated in the middle of this game!
-  if(shouldStop(stopConditions)) {
+  if(shouldStop(stopConditions)) {    
+    if(botW != botB)
+      delete botW;
+    delete botB;
     delete finishedGameData;
     return NULL;
   }
 
   assert(finishedGameData != NULL);
 
-  Play::maybeForkGame(finishedGameData, nextInitialPosition, fancyModes, gameRand, botSpecB.nnEval);
-  
+  Play::maybeForkGame(finishedGameData, nextInitialPosition, fancyModes, gameRand, botB, logger);
+
+  if(botW != botB)
+    delete botW;
+  delete botB;
+
   return finishedGameData;
 }
 
