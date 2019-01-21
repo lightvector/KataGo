@@ -469,7 +469,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         bool adjustKomi = false;
         int numVisitsForKomi = 0;
         Rand rand;
-        Play::playExtraBlack(bot->getSearch(), logger, n, board, hist, extraBlackTemperature, rand, adjustKomi, numVisitsForKomi);
+        ExtraBlackAndKomi extraBlackAndKomi(n,hist.rules.komi,hist.rules.komi);
+        Play::playExtraBlack(bot->getSearch(), logger, extraBlackAndKomi, board, hist, extraBlackTemperature, rand, adjustKomi, numVisitsForKomi);
 
         response = "";
         for(int y = 0; y<board.y_size; y++) {

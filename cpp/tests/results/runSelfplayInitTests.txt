@@ -937,7 +937,7 @@ HASH: 168D2A6A7F24A47CE4555574CCB74BB1
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi10
+Rules koPOSITIONALscoreAREAsui1komi11
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -955,49 +955,49 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 3298B88235CD1665B2BCB240FD81905C
+HASH: 0C650A10065D704083A5FF5D5BFBF982
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . . . . . . .
- 8 . . . . . . . . X . .
- 7 . . . . . . . . . . .
- 6 . . . . . . . . . . .
- 5 . . X . . . . . . . .
- 4 . . . . X . . O . . .
- 3 . . . O O . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . . . . . X . .
+ 7 . . . . . . . . X O .
+ 6 . . . . . . . . X . .
+ 5 . . . . . . . . . . .
+ 4 . . . O . . . . . . .
+ 3 . . . . . . . O . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C5 H4 D9 D3 E4 E3 
+Last moves J6 K7 J7 D4 C8 H3 
 end
-HASH: 6E1ABC113CC31CBBD803B3BAE2B7CC4D
+HASH: 3FAA5DBBB7EEEAE10F9D895F91B94945
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . . . . . . .
- 8 . . . . . . . . X . .
- 7 . . . . . . . . . . .
- 6 . . . . . . . . . . .
- 5 . . X . . . . . . . .
- 4 . . . . X X . O . . .
- 3 . . . O O . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . X . . . X . .
+ 7 . . . . . . . . X O .
+ 6 . . . . . . . . X . .
+ 5 . . . . . . . . . . .
+ 4 . . . O . . . . . . .
+ 3 . . . . . . . O . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C5 H4 D9 D3 E4 E3 F4 
+Last moves J6 K7 J7 D4 C8 H3 E8 
 gameHash D95FC0973336CC48E6972AF3116C5676
 hitTurnLimit 1
 numExtraBlack 1
@@ -1007,32 +1007,54 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 F4 95 F3 3 G4 1 
-whiteValueTargetsByTurn 0 0.456539 0.543392 6.89214e-05 -1.18233 
-whiteValueTargetsByTurn 1 1 0 0 18 
+policyTargetsByTurn 0 unreducedNumVisits 100 E8 85 F3 8 E9 4 F4 1 C3 1 
+whiteValueTargetsByTurn 0 0.388736 0.611196 6.83038e-05 -3.89128 
+whiteValueTargetsByTurn 1 1 0 0 18.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0    0    0    0    0
+    0    0    0    0    0    0    0    0    0    0    0
+    0    0   -1    0   -1    0    0    0   -1    0    0
+    0    0    0    0    0    0    0    0   -1    1    0
     0    0    0    0    0    0    0    0   -1    0    0
     0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    0    0    0    0    0    0    0    0
-    0    0    0    0   -1   -1    0    1    0    0    0
-    0    0    0    1    1    0    0    0    0    0    0
+    0    0    0    1    0    0    0    0    0    0    0
+    0    0    0    0    0    0    0    1    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 6E1ABC113CC31CBBD803B3BAE2B7CC4D
+HASH: 3FAA5DBBB7EEEAE10F9D895F91B94945
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . X . . . X . .
+ 7 . . . . . . . . X O .
+ 6 . . . . . . . . X . .
+ 5 . . . . . . . . . . .
+ 4 . . . O . . . . . . .
+ 3 . . . . . . . O . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Encore phase 0
+Rules koPOSITIONALscoreAREAsui1komi20.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 0
+Game result 0 Empty 0 0 0
+Last moves J6 K7 J7 D4 C8 H3 E8 
+Forking to initial position O
+HASH: D6F90F197C182585D228A469B2DFF696
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
  8 . . . . . . . . X . .
- 7 . . . . . . . . . . .
- 6 . . . . . . . . . . .
- 5 . . X . . . . . . . .
- 4 . . . . X X . O . . .
- 3 . . . O O . . . . . .
+ 7 . . . X . . . . . O .
+ 6 . . . . . . . . X . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . . . . . . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
@@ -1042,29 +1064,7 @@ Rules koPOSITIONALscoreAREAsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C5 H4 D9 D3 E4 E3 F4 
-Forking to initial position O
-HASH: 1512D331B7F5719E4402882D5EEA4A41
-   A B C D E F G H J K L
-11 . . . . . . . . . . .
-10 . . . . . . . . . . .
- 9 . . . . . . . . . . .
- 8 . . . . . . . . X . .
- 7 . . . X . . . . . . .
- 6 . . . . . . . . . . .
- 5 . . X . . . . . . . .
- 4 . . . . . . . O . . .
- 3 . . . . . . . . . . .
- 2 . . . . . . . . . . .
- 1 . . . . . . . . . . .
-
-
-Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi17.5
-Ko prohib hash 00000000000000000000000000000000
-White bonus score 0
-Game result 0 Empty 0 0 0
-Last moves C5 H4 D7 
+Last moves J6 K7 D7 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -1094,18 +1094,18 @@ HASH: 18AC830D9CD2181819D19E0476AE2A48
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves B1 
 end
-HASH: 7FD90D7756B02324421EBD08AA55CAFE
+HASH: A6335AD2A1A716646375CEB53BF57A53
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . . . . . . . . .
- 8 . . O . . . . . . . .
+ 9 . . . O . . . . . . .
+ 8 . . . . . . . . . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
@@ -1116,11 +1116,11 @@ HASH: 7FD90D7756B02324421EBD08AA55CAFE
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves B1 C8 
+Last moves B1 D9 
 gameHash C955C93B23BDC7F989693877BB05C707
 hitTurnLimit 1
 numExtraBlack 1
@@ -1130,13 +1130,13 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 unreducedNumVisits 20 C8 10 D9 8 H9 6 J8 8 D8 6 
-whiteValueTargetsByTurn 0 0.698978 0.300956 6.62989e-05 9.42496 
-whiteValueTargetsByTurn 1 1 0 0 19 
+policyTargetsByTurn 0 unreducedNumVisits 20 C8 8 D9 10 H9 6 D8 6 J8 8 
+whiteValueTargetsByTurn 0 0.683971 0.315965 6.43592e-05 8.57851 
+whiteValueTargetsByTurn 1 1 0 0 19.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
+    0    0    0    1    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
-    0    0    1    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
@@ -1161,7 +1161,7 @@ HASH: BB2BC8C56A3783B6F0A1697B9ECFAEEC
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1183,7 +1183,7 @@ HASH: 815FB3F467507B796E3A6A6292FEA1C1
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1385,7 +1385,7 @@ HASH: 1CFE014DA8AA575722DF17F1B1272085
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi19.5
+Rules koPOSITIONALscoreAREAsui1komi21
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1508,7 +1508,7 @@ HASH: 36EE31CCD7C4D54DC7B1E3762623F614
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi18
+Rules koPOSITIONALscoreAREAsui1komi19
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1542,7 +1542,7 @@ HASH: 74DFE540D2CFDE085723B31287A17F49
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi19.5
+Rules koPOSITIONALscoreAREAsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1564,7 +1564,7 @@ HASH: 15F4173C81A56506369F6A1937D416F6
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi19.5
+Rules koPOSITIONALscoreAREAsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1578,9 +1578,9 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 G3 76 F3 12 J6 8 G4 1 H4 2 
-whiteValueTargetsByTurn 0 0.514188 0.485741 7.06747e-05 1.34109 
-whiteValueTargetsByTurn 1 1 0 0 17.5 
+policyTargetsByTurn 0 unreducedNumVisits 100 G3 77 F3 12 J6 8 G4 1 H4 1 
+whiteValueTargetsByTurn 0 0.513042 0.486887 7.07567e-05 1.34899 
+whiteValueTargetsByTurn 1 1 0 0 18 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0   -1   -1    0    0
@@ -1609,7 +1609,7 @@ HASH: 99D6B533F46A7FD6FB6C4A2E9EF84803
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi16
+Rules koPOSITIONALscoreAREAsui1komi15.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1627,7 +1627,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 6E9B7BBFDDBF78524B1BD34F7DB467FA
+HASH: FFDE53E44D13173F02DA6700C2572A7E
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1636,20 +1636,20 @@ HASH: 6E9B7BBFDDBF78524B1BD34F7DB467FA
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . . O . . . . . X .
- 3 . . . . . . . O . . .
+ 4 . . O . . . . . X . .
+ 3 . . . . . . O . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves K4 D4 H9 H3 
+Last moves J4 C4 H9 G3 
 end
-HASH: 1C199D495DD1C711260ED5C1A74F79D0
+HASH: 2B8199C1F5C2A2CB706660950B2219E8
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1657,19 +1657,19 @@ HASH: 1C199D495DD1C711260ED5C1A74F79D0
  8 . . X . . . . . . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
- 5 . . . . . . . X . . .
- 4 . . . O . . . . . X .
- 3 . . . . . . . O . . .
+ 5 . . . . . . . . . . .
+ 4 . . O X . . . . X . .
+ 3 . . . . . . O . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves K4 D4 H9 H3 H5 
+Last moves J4 C4 H9 G3 D4 
 gameHash A67FA30DCD5DB1C7C2D4E51F52D68606
 hitTurnLimit 1
 numExtraBlack 1
@@ -1679,22 +1679,22 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 H5 51 H4 22 J5 13 F3 5 J6 6 H6 1 H7 1 
-whiteValueTargetsByTurn 0 0.522934 0.476998 6.81145e-05 1.85605 
-whiteValueTargetsByTurn 1 1 0 0 18 
+policyTargetsByTurn 0 unreducedNumVisits 100 E3 32 D4 40 E4 18 H3 7 H7 1 H5 1 
+whiteValueTargetsByTurn 0 0.493951 0.505979 6.98182e-05 0.632223 
+whiteValueTargetsByTurn 1 1 0 0 20 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0   -1    0    0    0
     0    0   -1    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1    0    0    0
-    0    0    0    1    0    0    0    0    0   -1    0
-    0    0    0    0    0    0    0    1    0    0    0
+    0    0    0    0    0    0    0    0    0    0    0
+    0    0    1   -1    0    0    0    0   -1    0    0
+    0    0    0    0    0    0    1    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 77708EE7530DD06C0F8A9761409B56E5
+HASH: E635A6BCC3A1BF01464B232EFF781B61
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1703,20 +1703,20 @@ HASH: 77708EE7530DD06C0F8A9761409B56E5
  7 . . . . . . . X . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . . O . . . . . X .
- 3 . . . . . . . O . . .
+ 4 . . O . . . . . X . .
+ 3 . . . . . . O . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves K4 D4 H9 H3 H7 
+Last moves J4 C4 H9 G3 H7 
 Forking to initial position O
-HASH: 1F97FAB53C14F1CF147D59208EDD2794
+HASH: 8ED2D2EEACB89EA25DBCED6F313E6A10
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1725,18 +1725,18 @@ HASH: 1F97FAB53C14F1CF147D59208EDD2794
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . . O X . . . . X .
- 3 . . . . . . . O . . .
+ 4 . . O . X . . . X . .
+ 3 . . . . . . O . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi18
+Rules koPOSITIONALscoreAREAsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves K4 D4 H9 H3 E4 
+Last moves J4 C4 H9 G3 E4 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -1766,7 +1766,7 @@ HASH: A20A8F37D7D50DF3BEB9696910109D93
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi19.5
+Rules koPOSITIONALscoreAREAsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1788,7 +1788,7 @@ HASH: C3217D4B84BFB6FDDF05B062A065F42C
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi19.5
+Rules koPOSITIONALscoreAREAsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1803,8 +1803,8 @@ hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 G3 19 
-whiteValueTargetsByTurn 0 0.453285 0.546648 6.62563e-05 -0.962587 
-whiteValueTargetsByTurn 1 1 0 0 17.5 
+whiteValueTargetsByTurn 0 0.449098 0.550836 6.60809e-05 -1.00475 
+whiteValueTargetsByTurn 1 1 0 0 18 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0   -1    0    0    0    0   -1    0    0
@@ -1833,7 +1833,7 @@ HASH: C3217D4B84BFB6FDDF05B062A065F42C
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi19.5
+Rules koPOSITIONALscoreAREAsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1855,7 +1855,7 @@ HASH: 0FC2E80436EBC2E948956F892147501B
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi19.5
+Rules koPOSITIONALscoreAREAsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1889,7 +1889,7 @@ HASH: 91A1699B8847E79F01DB74949C805943
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1911,7 +1911,7 @@ HASH: 6C5207C0EB6A29D6B2007E1D3A5C48B2
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -1925,9 +1925,9 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 C5 51 C6 41 E9 5 G9 1 H8 1 
-whiteValueTargetsByTurn 0 0.436062 0.563869 6.89254e-05 -2.00773 
-whiteValueTargetsByTurn 1 1 0 0 19 
+policyTargetsByTurn 0 unreducedNumVisits 100 C5 54 C6 38 E9 5 G9 1 H8 1 
+whiteValueTargetsByTurn 0 0.443576 0.556355 6.89925e-05 -1.61826 
+whiteValueTargetsByTurn 1 1 0 0 19.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
@@ -1952,49 +1952,49 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 34B5CB572DB859A2DAECCAD2972FED55
+HASH: 9BDEEDFEA9FCCE90502A53D2504BF9E8
    A B C D E F G H J K L
 11 . . . . . . . . . . .
-10 . . . . X . . . . . .
- 9 . . . X O O . . . . .
- 8 . . . . X . . O . . .
- 7 . . . . . . . . . . .
- 6 . . . . . . . . . . .
- 5 . . X . . . . X X . .
- 4 . . . . . . . O X . .
- 3 . . X . O . . O O . .
+10 . . . . . . . . . . .
+ 9 . . . X . O . X O . .
+ 8 . . . . . . . X O . .
+ 7 . . . . . . . X O . .
+ 6 . . . . . . . O . . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . . . X
+ 3 . . . O . . . X . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAsui1komi23.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C3 H3 J4 H4 J5 H8 H5 E3 C5 E9 E10 J3 E8 F9 
+Last moves L4 D3 H3 J8 H9 J9 C5 C4 D5 F9 H8 J7 H7 H6 
 end
-HASH: F989E494CC8FBBCDF505E22175847845
+HASH: 2DF1CAB3B4B9C479F100DDED947B36E8
    A B C D E F G H J K L
 11 . . . . . . . . . . .
-10 . . . . X X . . . . .
- 9 . . . X O O . . . . .
- 8 . . . . X . . O . . .
- 7 . . . . . . . . . . .
- 6 . . . . . . . . . . .
- 5 . . X . . . . X X . .
- 4 . . . . . . . O X . .
- 3 . . X . O . . O O . .
+10 . . . . . . . . . . .
+ 9 . . . X . O . X O . .
+ 8 . . . . . . . X O . .
+ 7 . . . . . . . X O . .
+ 6 . . . . . . X O . . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . . . X
+ 3 . . . O . . . X . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAsui1komi23.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C3 H3 J4 H4 J5 H8 H5 E3 C5 E9 E10 J3 E8 F9 F10 
+Last moves L4 D3 H3 J8 H9 J9 C5 C4 D5 F9 H8 J7 H7 H6 G6 
 gameHash 19008B1DB1B6459D38E62D5875FCBCC6
 hitTurnLimit 1
 numExtraBlack 1
@@ -2004,42 +2004,42 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 unreducedNumVisits 20 F10 13 F8 6 
-whiteValueTargetsByTurn 0 0.609418 0.390514 6.77453e-05 5.2592 
-whiteValueTargetsByTurn 1 1 0 0 18.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0   -1   -1    0    0    0    0    0
-    0    0    0   -1    1    1    0    0    0    0    0
-    0    0    0    0   -1    0    0    1    0    0    0
+policyTargetsByTurn 0 unreducedNumVisits 20 G6 12 J10 6 J6 1 
+whiteValueTargetsByTurn 0 0.708031 0.291907 6.21567e-05 9.1192 
+whiteValueTargetsByTurn 1 1 0 0 21.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    0    0    0    0   -1   -1    0    0
-    0    0    0    0    0    0    0    1   -1    0    0
-    0    0   -1    0    1    0    0    1    1    0    0
+    0    0    0   -1    0    1    0   -1    1    0    0
+    0    0    0    0    0    0    0   -1    1    0    0
+    0    0    0    0    0    0    0   -1    1    0    0
+    0    0    0    0    0    0   -1    1    0    0    0
+    0    0   -1   -1    0    0    0    0    0    0    0
+    0    0    1    0    0    0    0    0    0    0   -1
+    0    0    0    1    0    0    0   -1    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: F989E494CC8FBBCDF505E22175847845
+HASH: 448875B4DA7953199E1E9A548BA31EDF
    A B C D E F G H J K L
 11 . . . . . . . . . . .
-10 . . . . X X . . . . .
- 9 . . . X O O . . . . .
- 8 . . . . X . . O . . .
- 7 . . . . . . . . . . .
- 6 . . . . . . . . . . .
- 5 . . X . . . . X X . .
- 4 . . . . . . . O X . .
- 3 . . X . O . . O O . .
+10 . . . . . . . X . . .
+ 9 . . . X . O . X O . .
+ 8 . . . . . . . X O . .
+ 7 . . . . . . . X O . .
+ 6 . . . . . . . O . . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . . . X
+ 3 . . . O . . . X . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAsui1komi23.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C3 H3 J4 H4 J5 H8 H5 E3 C5 E9 E10 J3 E8 F9 F10 
+Last moves L4 D3 H3 J8 H9 J9 C5 C4 D5 F9 H8 J7 H7 H6 H10 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -2069,7 +2069,7 @@ HASH: 41C930B85009878D66EF3807EF7B1E1F
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi29.5
+Rules koPOSITIONALscoreAREAsui1komi33.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -2091,7 +2091,7 @@ HASH: 5578F589EA41781A36C8CC5163AFDAD7
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi29.5
+Rules koPOSITIONALscoreAREAsui1komi33.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -2105,9 +2105,9 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 D9 42 C9 26 C7 27 D7 4 
-whiteValueTargetsByTurn 0 0.440016 0.559916 6.8497e-05 -1.59452 
-whiteValueTargetsByTurn 1 1 0 0 26.5 
+policyTargetsByTurn 0 unreducedNumVisits 100 D9 55 C9 21 C7 17 D7 6 
+whiteValueTargetsByTurn 0 0.514452 0.485481 6.72391e-05 1.74337 
+whiteValueTargetsByTurn 1 1 0 0 30.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0   -1    0    0    0    0    0    0    0
@@ -2132,7 +2132,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: E34D1FFBCB4C4EC95BB8D8D3A17C61D8
+HASH: 623E8AA477976DEEF904B58F8C87E7E4
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2140,21 +2140,21 @@ HASH: E34D1FFBCB4C4EC95BB8D8D3A17C61D8
  8 . . . . . . . X . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
- 5 . . . . . . . . . . .
- 4 . . O . . . . . O . .
- 3 . . X . . X . X O . .
+ 5 . . . . . . . O . . .
+ 4 . . . . . . . X O . .
+ 3 . . X . . . . X O . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi33.5
+Rules koPOSITIONALscoreAREAsui1komi40.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C3 J3 H3 J4 F3 C4 
+Last moves C3 J3 H3 J4 H4 H5 
 end
-HASH: 8271771D98995FC00547B09D1328410D
+HASH: 9E1459A9E0A6169B9180A7F974DB57F5
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2162,19 +2162,19 @@ HASH: 8271771D98995FC00547B09D1328410D
  8 . . . . . . . X . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
- 5 . . . . . . . . . . .
- 4 . . O . . . . . O . .
- 3 . . X X . X . X O . .
+ 5 . . . . . . X O . . .
+ 4 . . . . . . . X O . .
+ 3 . . X . . . . X O . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi33.5
+Rules koPOSITIONALscoreAREAsui1komi40.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C3 J3 H3 J4 F3 C4 D3 
+Last moves C3 J3 H3 J4 H4 H5 G5 
 gameHash 6A9CEB8D996D7BAB79906B4049E78B1F
 hitTurnLimit 1
 numExtraBlack 2
@@ -2184,22 +2184,22 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 D3 70 D4 28 B4 1 
-whiteValueTargetsByTurn 0 0.431742 0.568189 6.84425e-05 -2.08191 
-whiteValueTargetsByTurn 1 1 0 0 30.5 
+policyTargetsByTurn 0 unreducedNumVisits 100 G5 83 J5 9 J2 7 
+whiteValueTargetsByTurn 0 0.604354 0.395579 6.70541e-05 5.74272 
+whiteValueTargetsByTurn 1 1 0 0 37.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0   -1    0    0    0    0    0    0    0
     0    0    0    0    0    0    0   -1    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    1    0    0    0    0    0    1    0    0
-    0    0   -1   -1    0   -1    0   -1    1    0    0
+    0    0    0    0    0    0   -1    1    0    0    0
+    0    0    0    0    0    0    0   -1    1    0    0
+    0    0   -1    0    0    0    0   -1    1    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 8271771D98995FC00547B09D1328410D
+HASH: 9E1459A9E0A6169B9180A7F974DB57F5
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2207,19 +2207,19 @@ HASH: 8271771D98995FC00547B09D1328410D
  8 . . . . . . . X . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
- 5 . . . . . . . . . . .
- 4 . . O . . . . . O . .
- 3 . . X X . X . X O . .
+ 5 . . . . . . X O . . .
+ 4 . . . . . . . X O . .
+ 3 . . X . . . . X O . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi33.5
+Rules koPOSITIONALscoreAREAsui1komi40.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C3 J3 H3 J4 F3 C4 D3 
+Last moves C3 J3 H3 J4 H4 H5 G5 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -2249,7 +2249,7 @@ HASH: 135959A8654F1EB3BF288A98EBCD4D22
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi29
+Rules koPOSITIONALscoreAREAsui1komi34
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -2271,7 +2271,7 @@ HASH: 6FEBAE6E16E8635C509520C73AF859C2
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi29
+Rules koPOSITIONALscoreAREAsui1komi34
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -2285,9 +2285,9 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 0.123
-policyTargetsByTurn 0 unreducedNumVisits 20 D3 15 C4 3 D4 1 
-whiteValueTargetsByTurn 0 0.440459 0.55947 7.06556e-05 -2.17299 
-whiteValueTargetsByTurn 1 1 0 0 27 
+policyTargetsByTurn 0 unreducedNumVisits 20 D3 14 C4 3 D4 2 
+whiteValueTargetsByTurn 0 0.506099 0.493832 6.93597e-05 1.3897 
+whiteValueTargetsByTurn 1 1 0 0 32 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
@@ -2316,7 +2316,7 @@ HASH: 6FEBAE6E16E8635C509520C73AF859C2
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi29
+Rules koPOSITIONALscoreAREAsui1komi34
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -2334,49 +2334,49 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 0880945244D869884B4F921E71F8159E
+HASH: 958B65EC84E83F37232748173662FF32
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . . . . O . .
+ 9 . . . . . . . . O . .
  8 . . . X . . . X . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
- 5 . . X X . . . . X . .
- 4 . . O . O . . . . . .
+ 5 . . X X . . X . . . .
+ 4 . . O . . . O X . . .
  3 . . . O . . O . X . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31
+Rules koPOSITIONALscoreAREAsui1komi36
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 D3 C5 C4 D5 G3 J5 E4 D9 J9 
+Last moves D8 D3 C5 C4 D5 G3 H4 G4 G5 J9 
 end
-HASH: 443599D4CE0ACFE44B1AA97F7A86FC6D
+HASH: D93E686A0E3A995B237273763D1C16C1
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . . . X O . .
+ 9 . . . . . . . X O . .
  8 . . . X . . . X . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
- 5 . . X X . . . . X . .
- 4 . . O . O . . . . . .
+ 5 . . X X . . X . . . .
+ 4 . . O . . . O X . . .
  3 . . . O . . O . X . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31
+Rules koPOSITIONALscoreAREAsui1komi36
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 D3 C5 C4 D5 G3 J5 E4 D9 J9 H9 
+Last moves D8 D3 C5 C4 D5 G3 H4 G4 G5 J9 H9 
 gameHash DAD52EDB23D1D37CED8AAC10B7DDECB4
 hitTurnLimit 1
 numExtraBlack 2
@@ -2386,17 +2386,17 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 H9 80 J8 19 
-whiteValueTargetsByTurn 0 0.523602 0.476333 6.43381e-05 1.07465 
-whiteValueTargetsByTurn 1 1 0 0 28 
+policyTargetsByTurn 0 unreducedNumVisits 100 H9 90 J8 8 E3 1 
+whiteValueTargetsByTurn 0 0.585718 0.414218 6.41001e-05 4.12723 
+whiteValueTargetsByTurn 1 1 0 0 33 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0   -1    1    0    0
+    0    0    0    0    0    0    0   -1    1    0    0
     0    0    0   -1    0    0    0   -1    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1   -1    0    0    0    0   -1    0    0
-    0    0    1    0    1    0    0    0    0    0    0
+    0    0   -1   -1    0    0   -1    0    0    0    0
+    0    0    1    0    0    0    1   -1    0    0    0
     0    0    0    1    0    0    1    0   -1    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
@@ -2429,7 +2429,7 @@ HASH: 8CA57610F0B27A8D57A1D9DB5960A1D8
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi32.5
+Rules koPOSITIONALscoreAREAsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -2451,7 +2451,7 @@ HASH: F01781D683150762B81C73848855B538
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi32.5
+Rules koPOSITIONALscoreAREAsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -2465,9 +2465,9 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 D3 48 D4 20 C4 22 C3 9 
-whiteValueTargetsByTurn 0 0.411562 0.588367 7.10235e-05 -3.28782 
-whiteValueTargetsByTurn 1 1 0 0 30.5 
+policyTargetsByTurn 0 unreducedNumVisits 100 D3 47 D4 19 C4 23 C3 10 
+whiteValueTargetsByTurn 0 0.478711 0.521219 6.97204e-05 -0.0490919 
+whiteValueTargetsByTurn 1 1 0 0 34.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0   -1    0    0    0
@@ -2496,7 +2496,7 @@ HASH: 11792AC991FA17F3B36B0DF94BA5EB9A
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi38.5
+Rules koPOSITIONALscoreAREAsui1komi41.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -2514,49 +2514,49 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 8FE660AA219E0622FFC9D4D2D1955DB3
+HASH: 8B6C34CC36D54CDD9818E9A03BFC854B
    A B C D E F G H J K L
 11 . . . . . . . . . . .
-10 . . X O . . . . . . .
- 9 . . X . . O . O X . .
- 8 . . . X . . . . X . .
+10 . . . . . . . . X O .
+ 9 . . . . X . O . O X .
+ 8 . . X . . . . . X . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . O . . . . X . . .
- 3 . . . . . X . . . . .
+ 4 . . . O . . . X . . .
+ 3 . . . . . . X . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31
+Rules koPOSITIONALscoreAREAsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 C4 F3 H9 J9 D10 C9 F9 C10 
+Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 
 end
-HASH: 49182BCEC819799D4A627B54EFF058A0
+HASH: 4347DF03BC6CA65E9D23DEC4C78F8C0A
    A B C D E F G H J K L
 11 . . . . . . . . . . .
-10 . . X O . . . . . . .
- 9 . . X . . O . O X . .
- 8 . . . X . . . O X . .
+10 . . . . . . . . X O .
+ 9 . . . . X . O O O X .
+ 8 . . X . . . . . X . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . O . . . . X . . .
- 3 . . . . . X . . . . .
+ 4 . . . O . . . X . . .
+ 3 . . . . . . X . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31
+Rules koPOSITIONALscoreAREAsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 C4 F3 H9 J9 D10 C9 F9 C10 H8 
+Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 H9 
 gameHash B9DE6E77FD2D5F504DF3846C64D1E504
 hitTurnLimit 1
 numExtraBlack 2
@@ -2566,86 +2566,86 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 H8 53 J10 21 F7 7 E7 3 C6 5 G7 4 J4 6 
-whiteValueTargetsByTurn 0 0.388709 0.61122 7.05443e-05 -4.33794 
-whiteValueTargetsByTurn 1 1 0 0 29 
+policyTargetsByTurn 0 unreducedNumVisits 100 H9 99 
+whiteValueTargetsByTurn 0 0.487382 0.512547 7.02214e-05 -0.0541545 
+whiteValueTargetsByTurn 1 1 0 0 34.5 
     0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    1    0    0    0    0    0    0    0
-    0    0   -1    0    0    1    0    1   -1    0    0
-    0    0    0   -1    0    0    0    1   -1    0    0
+    0    0    0    0    0    0    0    0   -1    1    0
+    0    0    0    0   -1    0    1    1    1   -1    0
+    0    0   -1    0    0    0    0    0   -1    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
-    0    0    1    0    0    0    0   -1    0    0    0
-    0    0    0    0    0   -1    0    0    0    0    0
+    0    0    0    1    0    0    0   -1    0    0    0
+    0    0    0    0    0    0   -1    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 8799B916576C563CBEE60BD2A5389F47
+HASH: 4347DF03BC6CA65E9D23DEC4C78F8C0A
    A B C D E F G H J K L
 11 . . . . . . . . . . .
-10 . . X O . . . . O . .
- 9 . . X . . O . O X . .
- 8 . . . X . . . . X . .
+10 . . . . . . . . X O .
+ 9 . . . . X . O O O X .
+ 8 . . X . . . . . X . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . O . . . . X . . .
- 3 . . . . . X . . . . .
+ 4 . . . O . . . X . . .
+ 3 . . . . . . X . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31
+Rules koPOSITIONALscoreAREAsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 C4 F3 H9 J9 D10 C9 F9 C10 J10 
+Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 H9 
 Side position 1
-HASH: 618D16AA479E85D566FEC1C9E7C6E0DB
+HASH: 4F9C4159ECA62F04D7247BDB5A313804
    A B C D E F G H J K L
 11 . . . . . . . . . . .
-10 . . X O . . . O O X .
- 9 . . X . . O . O X . .
- 8 . . . X . . . . X . .
+10 . . . . . . . . X O X
+ 9 . . . . X . O O O X .
+ 8 . . X O . . . . X . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . O . . . . X . . .
- 3 . . . . . X . . . . .
+ 4 . . . O . . . X . . .
+ 3 . . . . . . X . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31
+Rules koPOSITIONALscoreAREAsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 C4 F3 H9 J9 D10 C9 F9 C10 J10 K10 H10 
+Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 H9 L10 D8 
 Forking to initial position X
-HASH: 3179B9751CEB085E856D84639CCE0DA8
+HASH: CF9449FDA7B989CEB2447E4E43008289
    A B C D E F G H J K L
 11 . . . . . . . . . . .
-10 . . X O . . . . . . .
- 9 . . X O . O . O X . .
- 8 . . . X . . . . X . .
+10 . . . . . . . . X O .
+ 9 . . O . X . O . O X .
+ 8 . . X . . . . . X . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . O . . . . X . . .
- 3 . . . . . X . . . . .
+ 4 . . . O . . . X . . .
+ 3 . . . . . . X . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi37
+Rules koPOSITIONALscoreAREAsui1komi44.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 C4 F3 H9 J9 D10 C9 F9 C10 D9 
+Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 C9 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -2659,49 +2659,49 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: BAB9EB471298BB47AC6464B154F30856
+HASH: 5C6A6D263560669534D3A60A0E117B35
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . . . . . . .
+ 9 . . . X . . . X O . .
  8 . . . . . . . X . . .
- 7 . . . . . . . . X . .
- 6 . . . . . . . O O . .
- 5 . X . . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . X . . . . X . . .
  4 . . . . . . . . . . .
- 3 . . X . . . X O . . .
+ 3 . . X . O . . O . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi33.5
+Rules koPOSITIONALscoreAREAsui1komi39.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves H8 H3 B5 J6 J7 H6 G3 
+Last moves H8 H3 H5 E3 C5 J9 H9 
 end
-HASH: 493BBD98143D57AAD8452F3B7AFBEF8B
+HASH: 7D7322A7A4FC69E3C8BD6A6408E7ECBA
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . . . . . . .
- 8 . . . . . . . X . . .
- 7 . . . . . . . . X . .
- 6 . . . . . . . O O . .
- 5 . X . . . . . . . . .
- 4 . . . . . . . O . . .
- 3 . . X . . . X O . . .
+ 9 . . . X . . . X O . .
+ 8 . . . . . . . X O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . X . . . . X . . .
+ 4 . . . . . . . . . . .
+ 3 . . X . O . . O . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi33.5
+Rules koPOSITIONALscoreAREAsui1komi39.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves H8 H3 B5 J6 J7 H6 G3 H4 
+Last moves H8 H3 H5 E3 C5 J9 H9 J8 
 gameHash B635C197BBEACDDAB2C6E69F14460906
 hitTurnLimit 1
 numExtraBlack 2
@@ -2711,42 +2711,42 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 H4 65 G2 19 G4 13 J9 1 H2 1 
-whiteValueTargetsByTurn 0 0.551188 0.448748 6.32595e-05 3.34921 
-whiteValueTargetsByTurn 1 1 0 0 31.5 
+policyTargetsByTurn 0 unreducedNumVisits 100 J8 99 
+whiteValueTargetsByTurn 0 0.579732 0.420203 6.5125e-05 4.22102 
+whiteValueTargetsByTurn 1 1 0 0 37.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    1    1    0    0
-    0   -1    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    1    0    0    0
-    0    0   -1    0    0    0   -1    1    0    0    0
+    0    0    0   -1    0    0    0   -1    1    0    0
+    0    0    0    0    0    0    0   -1    1    0    0
+    0    0    0    0    0    0    0    0    0    0    0
+    0    0    0    0    0    0    0    0    0    0    0
+    0    0   -1    0    0    0    0   -1    0    0    0
+    0    0    0    0    0    0    0    0    0    0    0
+    0    0   -1    0    1    0    0    1    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Forking to initial position X
-HASH: 8A38F4C180534E8FD9355F21DC3A730B
+HASH: 6CEB72A0A7AB935D41829D9A86D80068
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . . . . . . .
+ 9 . . . X . . . X O . .
  8 . . . . . . . X . . .
- 7 . . . . . . . . X . .
- 6 . . . . . . . O O . .
- 5 . X . . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . X . . . . X . . .
  4 . . . . . . . . O . .
- 3 . . X . . . X O . . .
+ 3 . . X . O . . O . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31
+Rules koPOSITIONALscoreAREAsui1komi38
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves H8 H3 B5 J6 J7 H6 G3 J4 
+Last moves H8 H3 H5 E3 C5 J9 H9 J4 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -2776,7 +2776,7 @@ HASH: 1E11E4420AE15C0E8A170D77594DE45E
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31.5
+Rules koPOSITIONALscoreAREAsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -2798,7 +2798,7 @@ HASH: 7F2D8CA459344D07D4E86539EB19C48B
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31.5
+Rules koPOSITIONALscoreAREAsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -2812,9 +2812,9 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 D3 78 J3 20 G4 1 
-whiteValueTargetsByTurn 0 0.434238 0.565693 6.85229e-05 -2.68333 
-whiteValueTargetsByTurn 1 1 0 0 28.5 
+policyTargetsByTurn 0 unreducedNumVisits 100 D3 74 J3 24 G4 1 
+whiteValueTargetsByTurn 0 0.490909 0.509023 6.73341e-05 0.104492 
+whiteValueTargetsByTurn 1 1 0 0 32 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0   -1    0    0    0
@@ -2827,7 +2827,7 @@ whiteValueTargetsByTurn 1 1 0 0 28.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 12878D7944569C1D1D63E81F4FA9657D
+HASH: CA4F36F5D393B3B6850084744538B496
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2838,18 +2838,18 @@ HASH: 12878D7944569C1D1D63E81F4FA9657D
  5 . . . . . . . . X . .
  4 . . X . . . . . . . .
  3 . . . . O . . O . . .
- 2 . . . . . . . X . . .
+ 2 . . . . . . . . X . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31.5
+Rules koPOSITIONALscoreAREAsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 H3 J5 E3 H2 
+Last moves D8 H3 J5 E3 J2 
 Side position 1
-HASH: 66BC3B29521DF0225C9334D0DBE3FAEE
+HASH: 23623B4E013CB5F5F28B22839B7ABBC1
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2857,19 +2857,19 @@ HASH: 66BC3B29521DF0225C9334D0DBE3FAEE
  8 . . . X . . . . . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
- 5 . . . . . . . . X . .
+ 5 . . . . . . X . X . .
  4 . . X . . . . . . . .
- 3 . . . X O . . O O . .
- 2 . . . . . . . X . . .
+ 3 . . . . O . . O O . .
+ 2 . . . . . . . . X . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31.5
+Rules koPOSITIONALscoreAREAsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 H3 J5 E3 H2 J3 D3 
+Last moves D8 H3 J5 E3 J2 J3 G5 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -2883,49 +2883,49 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 9C597EA989DECE1B158C36347E7D0ECE
+HASH: A416C122386DF72E6429FF03F7AD22B1
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . . X . . O . . .
- 8 . . X . . . . . . . .
- 7 . . . . . . . O . X .
- 6 . X X . . . . . . . .
- 5 . O X O . . . . . . .
- 4 . . O X . . . O X . .
- 3 . . O X . . O X X . .
- 2 . . . O X . . . . . .
+ 9 . . . O . X . X X . .
+ 8 . . . . . X O O . . .
+ 7 . . O . . . . . . . .
+ 6 . . . . . . . . . X .
+ 5 . . X . . . . O O X .
+ 4 . . . X . . O . X . .
+ 3 . . . . X . O X . . .
+ 2 . . . X O . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31.5
+Rules koPOSITIONALscoreAREAsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C8 H9 E9 H7 K7 C3 D3 C4 C5 B5 B6 D5 C6 H4 H3 G3 J3 D2 E2 
+Last moves J9 D9 F9 C7 C5 G3 H3 G4 E3 J5 K5 H5 K6 H8 H9 G8 F8 E2 D2 
 end
-HASH: 86C470B71177D9D5747EB998323F6BAE
+HASH: 850F8EA3A9F1F8589847336DF15BB53E
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . . X . . O . . .
- 8 . . X . . . . . . . .
- 7 . . . . . . . O . X .
- 6 . X X . . . . . . . .
- 5 . O X O . . . . . . .
- 4 . . O X . . . O X . .
- 3 . . O X . . O X X . .
- 2 . . O O X . . . . . .
+ 9 . . . O . X . X X . .
+ 8 . . . . . X O O O . .
+ 7 . . O . . . . . . . .
+ 6 . . . . . . . . . X .
+ 5 . . X . . . . O O X .
+ 4 . . . X . . O . X . .
+ 3 . . . . X . O X . . .
+ 2 . . . X O . . . . . .
  1 . . . . . . . . . . .
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31.5
+Rules koPOSITIONALscoreAREAsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C8 H9 E9 H7 K7 C3 D3 C4 C5 B5 B6 D5 C6 H4 H3 G3 J3 D2 E2 C2 
+Last moves J9 D9 F9 C7 C5 G3 H3 G4 E3 J5 K5 H5 K6 H8 H9 G8 F8 E2 D2 J8 
 gameHash 575B57E7CCA7198399B9823D4159B648
 hitTurnLimit 1
 numExtraBlack 2
@@ -2935,19 +2935,19 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 C2 84 E3 13 B2 2 
-whiteValueTargetsByTurn 0 0.290876 0.709056 6.74508e-05 -8.78279 
-whiteValueTargetsByTurn 1 1 0 0 29.5 
+policyTargetsByTurn 0 unreducedNumVisits 100 F2 24 J8 26 F7 14 G9 7 E7 3 E6 4 D6 6 H2 9 J7 6 
+whiteValueTargetsByTurn 0 0.328958 0.670969 7.30141e-05 -8.43519 
+whiteValueTargetsByTurn 1 1 0 0 34.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0   -1    0    0    1    0    0    0
-    0    0   -1    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    1    0   -1    0
-    0   -1   -1    0    0    0    0    0    0    0    0
-    0    1   -1    1    0    0    0    0    0    0    0
-    0    0    1   -1    0    0    0    1   -1    0    0
-    0    0    1   -1    0    0    1   -1   -1    0    0
-    0    0    1    1   -1    0    0    0    0    0    0
+    0    0    0    1    0   -1    0   -1   -1    0    0
+    0    0    0    0    0   -1    1    1    1    0    0
+    0    0    1    0    0    0    0    0    0    0    0
+    0    0    0    0    0    0    0    0    0   -1    0
+    0    0   -1    0    0    0    0    1    1   -1    0
+    0    0    0   -1    0    0    1    0   -1    0    0
+    0    0    0    0   -1    0    1   -1    0    0    0
+    0    0    0   -1    1    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -2978,7 +2978,7 @@ HASH: 1895662B08BCE1BAF3CAE4B6FEFEF715
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31.5
+Rules koPOSITIONALscoreAREAsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -3000,7 +3000,7 @@ HASH: 4682DCC4FC64F739E37D2A2319CF08EC
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi31.5
+Rules koPOSITIONALscoreAREAsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
@@ -3014,9 +3014,9 @@ modeMeta2 0
 hasFullData 1
 posLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 G9 36 E7 25 H6 32 E6 4 F8 1 D8 1 
-whiteValueTargetsByTurn 0 0.443129 0.556802 6.87716e-05 -2.06327 
-whiteValueTargetsByTurn 1 1 0 0 28.5 
+policyTargetsByTurn 0 unreducedNumVisits 100 G9 45 E7 28 H6 16 E6 4 F8 5 D8 1 
+whiteValueTargetsByTurn 0 0.495851 0.504081 6.82409e-05 0.707021 
+whiteValueTargetsByTurn 1 1 0 0 32 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    1    0   -1    0    0    0    0
@@ -3045,7 +3045,7 @@ HASH: 5B94E6F7D36D5347E71B18BE5F6D6ED6
 
 
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi30
+Rules koPOSITIONALscoreAREAsui1komi29.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0

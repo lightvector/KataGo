@@ -22,7 +22,7 @@ static int getMaxExtraBlack(int bSize) {
   return 3;
 }
 
-static pair<int,float> chooseExtraBlackAndKomi(
+static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   float base, float stdev, double allowIntegerProb, double handicapProb, double bigStdevProb, float bigStdev, int bSize, Rand& rand
 ) {
   int extraBlack = 0;
@@ -65,7 +65,7 @@ static pair<int,float> chooseExtraBlackAndKomi(
   }
 
   assert((float)((int)(komi * 2)) == komi * 2);
-  return make_pair(extraBlack,komi);
+  return ExtraBlackAndKomi(extraBlack,komi,base);
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -126,18 +126,18 @@ void GameInitializer::initShared(ConfigParser& cfg) {
 GameInitializer::~GameInitializer()
 {}
 
-void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, const InitialPosition* initialPosition) {
+void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,numExtraBlack,initialPosition);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition);
   if(noResultStdev != 0.0 || drawRandRadius != 0.0)
     throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
 
-void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params, const InitialPosition* initialPosition) {
+void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, SearchParams& params, const InitialPosition* initialPosition) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,numExtraBlack,initialPosition);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition);
 
   if(noResultStdev > 1e-30) {
     double mean = params.noResultUtilityForWhite;
@@ -155,19 +155,18 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
   }
 }
 
-void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, const InitialPosition* initialPosition) {
+void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition) {
   if(initialPosition != NULL) {
     board = initialPosition->board;
     hist = initialPosition->hist;
     pla = initialPosition->pla;
 
-    pair<int,float> extraBlackAndKomi = chooseExtraBlackAndKomi(
+    extraBlackAndKomi = chooseExtraBlackAndKomi(
       hist.rules.komi, komiStdev, komiAllowIntegerProb, 0.0,
       komiBigStdevProb, komiBigStdev, std::min(board.x_size,board.y_size), rand
     );
-    assert(extraBlackAndKomi.first == 0);
-    numExtraBlack = extraBlackAndKomi.first;
-    hist.setKomi(extraBlackAndKomi.second);
+    assert(extraBlackAndKomi.extraBlack == 0);
+    hist.setKomi(extraBlackAndKomi.komi);
     return;
   }
   
@@ -179,15 +178,14 @@ void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, 
   rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
   rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt(allowedMultiStoneSuicideLegals.size())];
 
-  pair<int,float> extraBlackAndKomi = chooseExtraBlackAndKomi(
+  extraBlackAndKomi = chooseExtraBlackAndKomi(
     komiMean, komiStdev, komiAllowIntegerProb, handicapProb,
     komiBigStdevProb, komiBigStdev, bSize, rand
   );
-  rules.komi = extraBlackAndKomi.second;
+  rules.komi = extraBlackAndKomi.komi;
 
   pla = P_BLACK;
   hist.clear(board,pla,rules,0);
-  numExtraBlack = extraBlackAndKomi.first;
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -411,6 +409,16 @@ static Loc chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, 
   return Board::NULL_LOC;
 }
 
+static float roundAndClipKomi(double unrounded, const Board& board) {
+  //Just in case, make sure komi is reasonable
+  float range = board.x_size * board.y_size; 
+  if(unrounded < -range)
+    unrounded = -range;
+  if(unrounded > range)
+    unrounded = range;  
+  return (float)(0.5 * round(2.0 * unrounded));
+}
+
 static double getWhiteScoreEstimate(Search* bot, const Board& board, const BoardHistory& hist, Player pla, int numVisits, Logger& logger) {
   assert(numVisits > 0);
   SearchParams oldParams = bot->searchParams;
@@ -442,7 +450,7 @@ static double getWhiteScoreEstimate(Search* bot, const Board& board, const Board
 void Play::playExtraBlack(
   Search* bot,
   Logger& logger,
-  int numExtraBlack,
+  ExtraBlackAndKomi extraBlackAndKomi,
   Board& board,
   BoardHistory& hist,
   double temperature,
@@ -452,13 +460,11 @@ void Play::playExtraBlack(
 ) {
   Player pla = P_BLACK;
 
-  //Get initial estimate of the score
-  double initialWhiteScore = 0.0;
-  if(adjustKomi)
-    initialWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, numVisitsForKomi, logger);
+  //First, restore back to baseline komi
+  hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
 
   NNResultBuf buf;  
-  for(int i = 0; i<numExtraBlack; i++) {
+  for(int i = 0; i<extraBlackAndKomi.extraBlack; i++) {
     double drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
     bot->nnEvaluator->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
@@ -474,10 +480,15 @@ void Play::playExtraBlack(
   }
 
   if(adjustKomi) {
-    //Adjust komi to be fair for the handicap according to what the bot thinks
-    double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, numVisitsForKomi, logger);
-    double fairKomi = hist.rules.komi - (finalWhiteScore - initialWhiteScore);
-    hist.setKomi((float)(0.5 * round(2.0 * fairKomi)));
+    //Adjust komi to be fair for the handicap according to what the bot thinks. Iterate a few times in case
+    //the neural net knows the bot isn't perfectly score maximizing.
+    for(int i = 0; i<3; i++) {
+      double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, numVisitsForKomi, logger);
+      double fairKomi = hist.rules.komi - finalWhiteScore;
+      hist.setKomi(roundAndClipKomi(fairKomi,board));
+    }
+    //Then, reapply the komi offset from base that we should have had
+    hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
   }
   
   bot->setPosition(pla,board,hist);
@@ -743,7 +754,7 @@ static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, c
 
 //Run a game between two bots. It is OK if both bots are the same bot.
 FinishedGameData* Play::runGame(
-  const Board& startBoard, Player pla, const BoardHistory& startHist, int numExtraBlack,
+  const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
   MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
   const string& searchRandSeed,
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
@@ -766,7 +777,7 @@ FinishedGameData* Play::runGame(
   }
 
   FinishedGameData* gameData = runGame(
-    startBoard, pla, startHist, numExtraBlack,
+    startBoard, pla, startHist, extraBlackAndKomi,
     botSpecB, botSpecW,
     botB, botW,
     doEndGameIfAllPassAlive, clearBotAfterSearch,
@@ -786,7 +797,7 @@ FinishedGameData* Play::runGame(
 }
   
 FinishedGameData* Play::runGame(
-  const Board& startBoard, Player pla, const BoardHistory& startHist, int numExtraBlack,
+  const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
   MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
   Search* botB, Search* botW,
   bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
@@ -801,10 +812,10 @@ FinishedGameData* Play::runGame(
   
   Board board(startBoard);
   BoardHistory hist(startHist);
-  if(numExtraBlack > 0) {
+  if(extraBlackAndKomi.extraBlack > 0) {
     double extraBlackTemperature = 1.0;
     bool adjustKomi = !gameRand.nextBool(fancyModes.noCompensateKomiProb);
-    playExtraBlack(botB,logger,numExtraBlack,board,hist,extraBlackTemperature,gameRand,adjustKomi,fancyModes.compensateKomiVisits);
+    playExtraBlack(botB,logger,extraBlackAndKomi,board,hist,extraBlackTemperature,gameRand,adjustKomi,fancyModes.compensateKomiVisits);
     assert(hist.moveHistory.size() == 0);
   }
 
@@ -820,7 +831,7 @@ FinishedGameData* Play::runGame(
 
   gameData->drawEquivalentWinsForWhite = botSpecB.baseParams.drawEquivalentWinsForWhite;
 
-  gameData->numExtraBlack = numExtraBlack;
+  gameData->numExtraBlack = extraBlackAndKomi.extraBlack;
   gameData->mode = 0;
   gameData->modeMeta1 = 0;
   gameData->modeMeta2 = 0;
@@ -1307,8 +1318,13 @@ void Play::maybeForkGame(
 
   //Adjust komi to be fair for the new unusual move according to what the net thinks
   if(!gameRand.nextBool(fancyModes.noCompensateKomiProb)) {
-    double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
-    hist.setKomi((float)(0.5 * round(2.0 * (hist.rules.komi - finalWhiteScore))));
+    //Adjust komi to be fair for the handicap according to what the bot thinks. Iterate a few times in case
+    //the neural net knows the bot isn't perfectly score maximizing.
+    for(int i = 0; i<3; i++) {
+      double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
+      double fairKomi = hist.rules.komi - finalWhiteScore;
+      hist.setKomi(roundAndClipKomi(fairKomi,board));
+    }
   }
   *nextInitialPosition = new InitialPosition(board,hist,pla);
 }
@@ -1350,16 +1366,16 @@ FinishedGameData* GameRunner::runGame(
   if(nextInitialPosition != NULL)
     *nextInitialPosition = NULL;
 
-  Board board; Player pla; BoardHistory hist; int numExtraBlack;
+  Board board; Player pla; BoardHistory hist; ExtraBlackAndKomi extraBlackAndKomi;
   if(forSelfPlay) {
     assert(botSpecB.botIdx == botSpecW.botIdx);
     SearchParams params = botSpecB.baseParams;
-    gameInit->createGame(board,pla,hist,numExtraBlack,params,initialPosition);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition);
     botSpecB.baseParams = params;
     botSpecW.baseParams = params;
   }
   else {
-    gameInit->createGame(board,pla,hist,numExtraBlack,initialPosition);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition);
   }
 
   bool clearBotAfterSearchThisGame = clearBotAfterSearch;
@@ -1393,7 +1409,7 @@ FinishedGameData* GameRunner::runGame(
   }
   
   FinishedGameData* finishedGameData = Play::runGame(
-    board,pla,hist,numExtraBlack,
+    board,pla,hist,extraBlackAndKomi,
     botSpecB,botSpecW,
     botB,botW,
     doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,

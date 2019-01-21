@@ -22,6 +22,8 @@ struct InitialPosition {
   ~InitialPosition();
 };
 
+STRUCT_NAMED_TRIPLE(int, extraBlack, float, komi, float, komiBase, ExtraBlackAndKomi);
+
 //Object choosing random initial rules and board sizes for games. Threadsafe.
 class GameInitializer {
  public:
@@ -35,14 +37,15 @@ class GameInitializer {
   //those rules (possibly with noise to the komi given in that position)
   //Also, mutates params to randomize appropriate things like utilities, but does NOT fill in all the settings.
   //User should make sure the initial params provided makes sense as a mean or baseline.
-  void createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, SearchParams& params, const InitialPosition* initialPosition);
+  //Does NOT place handicap stones, users of this function need to place them manually
+  void createGame(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, SearchParams& params, const InitialPosition* initialPosition);
 
   //A version that doesn't randomize params
-  void createGame(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, const InitialPosition* initialPosition);
+  void createGame(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition);
 
  private:
   void initShared(ConfigParser& cfg);
-  void createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, int& numExtraBlack, const InitialPosition* initialPosition);
+  void createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition);
 
   std::mutex createGameMutex;
   Rand rand;
@@ -176,7 +179,7 @@ namespace Play {
   void playExtraBlack(
     Search* bot,
     Logger& logger,
-    int numExtraBlack,
+    ExtraBlackAndKomi extraBlackAndKomi,
     Board& board,
     BoardHistory& hist,
     double temperature,
@@ -187,7 +190,7 @@ namespace Play {
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
-    const Board& startBoard, Player pla, const BoardHistory& startHist, int numExtraBlack,
+    const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     const string& searchRandSeed,
     bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
@@ -201,7 +204,7 @@ namespace Play {
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
-    const Board& startBoard, Player pla, const BoardHistory& startHist, int numExtraBlack,
+    const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     Search* botB, Search* botW,
     bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,

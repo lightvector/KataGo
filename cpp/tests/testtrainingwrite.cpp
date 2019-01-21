@@ -90,7 +90,7 @@ void Tests::runTrainingWriteTests() {
     int initialEncorePhase = 0;
     BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
 
-    int numExtraBlack = 0;
+    ExtraBlackAndKomi extraBlackAndKomi = ExtraBlackAndKomi(0,rules.komi,rules.komi);
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 40;
@@ -101,7 +101,7 @@ void Tests::runTrainingWriteTests() {
     bool recordFullData = true;
     Rand rand(seedBase+"play");
     FinishedGameData* gameData = Play::runGame(
-      initialBoard,initialPla,initialHist,numExtraBlack,
+      initialBoard,initialPla,initialHist,extraBlackAndKomi,
       botSpec,botSpec,
       seedBase+"search",
       doEndGameIfAllPassAlive, clearBotAfterSearch,
@@ -174,6 +174,8 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     int initialEncorePhase = 0;
     BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
 
+    ExtraBlackAndKomi extraBlackAndKomi(numExtraBlack,rules.komi,rules.komi);
+    
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
@@ -197,7 +199,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     bool recordFullData = true;
     Rand rand(seedBase+"play");
     FinishedGameData* gameData = Play::runGame(
-      initialBoard,initialPla,initialHist,numExtraBlack,
+      initialBoard,initialPla,initialHist,extraBlackAndKomi,
       botSpec,botSpec,
       bot,bot,
       doEndGameIfAllPassAlive, clearBotAfterSearch,
