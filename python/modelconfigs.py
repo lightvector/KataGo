@@ -12,7 +12,7 @@ import math
 import tensorflow as tf
 import numpy as np
 
-from modelv3 import ModelV3
+from model import Model
 
 b6c96 = {
   "trunk_num_channels":96,

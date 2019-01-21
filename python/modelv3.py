@@ -8,7 +8,7 @@ from board import Board
 
 #Feature extraction functions-------------------------------------------------------------------
 
-class ModelV3:
+class Model:
   NUM_BIN_INPUT_FEATURES = 22
   NUM_GLOBAL_INPUT_FEATURES = 14
   EXTRA_SCORE_DISTR_RADIUS = 60
@@ -16,10 +16,10 @@ class ModelV3:
 
   def __init__(self,config,pos_len,placeholders):
     self.pos_len = pos_len
-    self.bin_input_shape = [self.pos_len*self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES]
-    self.binp_input_shape = [ModelV3.NUM_BIN_INPUT_FEATURES,(self.pos_len*self.pos_len+7)//8]
-    self.global_input_shape = [ModelV3.NUM_GLOBAL_INPUT_FEATURES]
-    self.post_input_shape = [self.pos_len,self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES]
+    self.bin_input_shape = [self.pos_len*self.pos_len,Model.NUM_BIN_INPUT_FEATURES]
+    self.binp_input_shape = [Model.NUM_BIN_INPUT_FEATURES,(self.pos_len*self.pos_len+7)//8]
+    self.global_input_shape = [Model.NUM_GLOBAL_INPUT_FEATURES]
+    self.post_input_shape = [self.pos_len,self.pos_len,Model.NUM_BIN_INPUT_FEATURES]
     self.policy_output_shape_nopass = [self.pos_len*self.pos_len,2]
     self.policy_output_shape = [self.pos_len*self.pos_len+1,2] #+1 for pass move
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
@@ -29,8 +29,8 @@ class ModelV3:
     self.scoremean_target_shape = [] #0
     self.scorestdev_target_shape = [] #1
     self.utilityvar_target_shape = [4] #2-5
-    self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+ModelV3.EXTRA_SCORE_DISTR_RADIUS*2]
-    self.bonusbelief_target_shape = [ModelV3.BONUS_SCORE_RADIUS*2+1]
+    self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2]
+    self.bonusbelief_target_shape = [Model.BONUS_SCORE_RADIUS*2+1]
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
@@ -669,7 +669,8 @@ class ModelV3:
     #self.version = 1 #V1 features, with new head architecture, no crelus
     #self.version = 2 #V2 features, no internal architecture change.
     #self.version = 3 #V3 features, selfplay-planned features with lots of aux targets
-    self.version = 4 #V3 features, but supporting belief stdev and dynamic scorevalue
+    #self.version = 4 #V3 features, but supporting belief stdev and dynamic scorevalue
+    self.version = 5 #V4 features,  slightly different pass-alive stones feature
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
@@ -758,41 +759,41 @@ class ModelV3:
     hist_matrix_base[14,15] = 1.0
     hist_matrix_base[14,16] = 1.0
     #When have the prev move, we enable feature 9 and 15
-    h0 = np.zeros([ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
+    h0 = np.zeros([Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
     h0[9,9] = 1.0 #Enable 9 -> 9
     h0[14,15] = -1.0 #Stop copying 14 -> 15
     h0[14,16] = -1.0 #Stop copying 14 -> 16
     h0[15,15] = 1.0 #Enable 15 -> 15
     h0[15,16] = 1.0 #Start copying 15 -> 16
     #When have the prevprev move, we enable feature 10 and 16
-    h1 = np.zeros([ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
+    h1 = np.zeros([Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
     h1[10,10] = 1.0 #Enable 10 -> 10
     h1[15,16] = -1.0 #Stop copying 15 -> 16
     h1[16,16] = 1.0 #Enable 16 -> 16
     #Further history moves
-    h2 = np.zeros([ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
+    h2 = np.zeros([Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
     h2[11,11] = 1.0
-    h3 = np.zeros([ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
+    h3 = np.zeros([Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
     h3[12,12] = 1.0
-    h4 = np.zeros([ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
+    h4 = np.zeros([Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
     h4[13,13] = 1.0
 
-    hist_matrix_base = tf.reshape(tf.constant(hist_matrix_base),[1,ModelV3.NUM_BIN_INPUT_FEATURES,ModelV3.NUM_BIN_INPUT_FEATURES])
+    hist_matrix_base = tf.reshape(tf.constant(hist_matrix_base),[1,Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES])
     hist_matrix_builder = tf.constant(np.array([h0,h1,h2,h3,h4]))
     assert(hist_matrix_base.dtype == tf.float32)
     assert(hist_matrix_builder.dtype == tf.float32)
     assert(len(hist_matrix_builder.shape) == 3)
     assert(hist_matrix_builder.shape[0].value == 5)
-    assert(hist_matrix_builder.shape[1].value == ModelV3.NUM_BIN_INPUT_FEATURES)
-    assert(hist_matrix_builder.shape[2].value == ModelV3.NUM_BIN_INPUT_FEATURES)
+    assert(hist_matrix_builder.shape[1].value == Model.NUM_BIN_INPUT_FEATURES)
+    assert(hist_matrix_builder.shape[2].value == Model.NUM_BIN_INPUT_FEATURES)
 
     hist_filter_matrix = hist_matrix_base + tf.tensordot(include_history, hist_matrix_builder, axes=[[1],[0]]) #[batch,move] * [move,inc,outc] = [batch,inc,outc]
-    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len*self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES]) #[batch,xy,inc]
+    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len*self.pos_len,Model.NUM_BIN_INPUT_FEATURES]) #[batch,xy,inc]
     cur_layer = tf.matmul(cur_layer,hist_filter_matrix) #[batch,xy,inc] * [batch,inc,outc] = [batch,xy,outc]
-    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len,self.pos_len,ModelV3.NUM_BIN_INPUT_FEATURES])
+    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len,self.pos_len,Model.NUM_BIN_INPUT_FEATURES])
 
     assert(include_history.shape[1].value == 5)
-    transformed_global_inputs = global_inputs * tf.pad(include_history, [(0,0),(0,ModelV3.NUM_GLOBAL_INPUT_FEATURES - include_history.shape[1].value)], constant_values=1.0)
+    transformed_global_inputs = global_inputs * tf.pad(include_history, [(0,0),(0,Model.NUM_GLOBAL_INPUT_FEATURES - include_history.shape[1].value)], constant_values=1.0)
 
     self.transformed_bin_inputs = cur_layer
     self.transformed_global_inputs = transformed_global_inputs
@@ -822,11 +823,11 @@ class ModelV3:
     self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
 
     #Matrix multiply global inputs and accumulate them
-    ginputw = self.weight_variable("ginputw",[ModelV3.NUM_GLOBAL_INPUT_FEATURES,trunk_num_channels],ModelV3.NUM_GLOBAL_INPUT_FEATURES*2,trunk_num_channels)
+    ginputw = self.weight_variable("ginputw",[Model.NUM_GLOBAL_INPUT_FEATURES,trunk_num_channels],Model.NUM_GLOBAL_INPUT_FEATURES*2,trunk_num_channels)
     ginputresult = tf.tensordot(transformed_global_inputs,ginputw,axes=[[1],[0]])
     trunk = trunk + tf.reshape(ginputresult, [-1,1,1,trunk_num_channels])
 
-    self.initial_matmul = ("ginputw",ModelV3.NUM_GLOBAL_INPUT_FEATURES,trunk_num_channels)
+    self.initial_matmul = ("ginputw",Model.NUM_GLOBAL_INPUT_FEATURES,trunk_num_channels)
 
     #Main trunk---------------------------------------------------------------------------------------------------
     self.blocks = []
@@ -972,8 +973,8 @@ class ModelV3:
       return tf.where(tensor > 0, 1.0 + tf.log(abstensor + 1.0), 1.0 / (1.0 + tf.log(abstensor + 1.0)))
 
     scorebelief_len = self.scorebelief_target_shape[0]
-    scorebelief_mid = self.pos_len*self.pos_len+ModelV3.EXTRA_SCORE_DISTR_RADIUS
-    assert(scorebelief_len == self.pos_len*self.pos_len*2+ModelV3.EXTRA_SCORE_DISTR_RADIUS*2)
+    scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
+    assert(scorebelief_len == self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2)
     self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
     self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
     sbv2_size = config["sbv2_num_channels"]
@@ -1010,8 +1011,8 @@ class ModelV3:
 
 
     bonusbelief_len = self.bonusbelief_target_shape[0]
-    bonusbelief_mid = ModelV3.BONUS_SCORE_RADIUS
-    assert(bonusbelief_len == ModelV3.BONUS_SCORE_RADIUS*2+1)
+    bonusbelief_mid = Model.BONUS_SCORE_RADIUS
+    assert(bonusbelief_len == Model.BONUS_SCORE_RADIUS*2+1)
     self.bonus_belief_offset_vector = np.array([float(i-bonusbelief_mid) for i in range(bonusbelief_len)],dtype=np.float32)
     bbv2_size = config["bbv2_num_channels"]
     bb2w = self.weight_variable("bb2/w",[v1_size*3,bbv2_size],v1_size*3+1,bbv2_size)
@@ -1079,7 +1080,7 @@ class ModelV3:
     self.mask_sum_hw = mask_sum_hw
     self.mask_sum_hw_sqrt = mask_sum_hw_sqrt
 
-class Target_varsV3:
+class Target_vars:
   def __init__(self,model,for_optimization,placeholders):
     policy_output = model.policy_output
     value_output = model.value_output
@@ -1297,7 +1298,7 @@ class Target_varsV3:
       #   summarize=2000
       # )
 
-class MetricsV3:
+class Metrics:
   def __init__(self,model,target_vars,include_debug_stats):
     #Training results
     policy_target_idxs = tf.argmax(target_vars.policy_target, 1)
@@ -1343,119 +1344,122 @@ class MetricsV3:
         (v.name,reduce_norm(v)) for v in tf.trainable_variables()
       ])
 
-def print_trainable_variables(logf):
-  total_parameters = 0
-  for variable in tf.trainable_variables():
-    shape = variable.get_shape()
-    variable_parameters = 1
-    for dim in shape:
-      variable_parameters *= dim.value
-    total_parameters += variable_parameters
-    logf("Model variable: %s, %d parameters" % (variable.name,variable_parameters))
+class ModelUtils:
+  @staticmethod
+  def print_trainable_variables(logf):
+    total_parameters = 0
+    for variable in tf.trainable_variables():
+      shape = variable.get_shape()
+      variable_parameters = 1
+      for dim in shape:
+        variable_parameters *= dim.value
+      total_parameters += variable_parameters
+      logf("Model variable: %s, %d parameters" % (variable.name,variable_parameters))
 
-  logf("Model: %d total parameters" % total_parameters)
+    logf("Model: %d total parameters" % total_parameters)
 
-def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_epoch_offset=None,lr_epoch_scale=None,lr_epoch_cap=None,lr_scale=None):
-  trainlog("Building model")
+  @staticmethod
+  def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_epoch_offset=None,lr_epoch_scale=None,lr_epoch_cap=None,lr_scale=None):
+    trainlog("Building model")
 
-  #L2 regularization coefficient
-  l2_coeff_value = 0.00003
+    #L2 regularization coefficient
+    l2_coeff_value = 0.00003
 
-  placeholders = {}
+    placeholders = {}
 
-  binchwp = features["binchwp"]
-  #Unpack binary data
-  bitmasks = tf.reshape(tf.constant([128,64,32,16,8,4,2,1],dtype=tf.uint8),[1,1,1,8])
-  binchw = tf.reshape(tf.bitwise.bitwise_and(tf.expand_dims(binchwp,axis=3),bitmasks),[-1,ModelV3.NUM_BIN_INPUT_FEATURES,((pos_len*pos_len+7)//8)*8])
-  binchw = binchw[:,:,:pos_len*pos_len]
-  binhwc = tf.cast(tf.transpose(binchw, [0,2,1]),tf.float32)
-  binhwc = tf.math.minimum(binhwc,tf.constant(1.0))
+    binchwp = features["binchwp"]
+    #Unpack binary data
+    bitmasks = tf.reshape(tf.constant([128,64,32,16,8,4,2,1],dtype=tf.uint8),[1,1,1,8])
+    binchw = tf.reshape(tf.bitwise.bitwise_and(tf.expand_dims(binchwp,axis=3),bitmasks),[-1,Model.NUM_BIN_INPUT_FEATURES,((pos_len*pos_len+7)//8)*8])
+    binchw = binchw[:,:,:pos_len*pos_len]
+    binhwc = tf.cast(tf.transpose(binchw, [0,2,1]),tf.float32)
+    binhwc = tf.math.minimum(binhwc,tf.constant(1.0))
 
-  placeholders["bin_inputs"] = binhwc
+    placeholders["bin_inputs"] = binhwc
 
-  placeholders["global_inputs"] = features["ginc"]
-  placeholders["symmetries"] = tf.greater(tf.random_uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
+    placeholders["global_inputs"] = features["ginc"]
+    placeholders["symmetries"] = tf.greater(tf.random_uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
 
-  if mode == tf.estimator.ModeKeys.PREDICT:
-    placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
-    model = ModelV3(model_config,pos_len,placeholders)
-    return model
+    if mode == tf.estimator.ModeKeys.PREDICT:
+      placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
+      model = Model(model_config,pos_len,placeholders)
+      return model
 
-  placeholders["include_history"] = features["gtnc"][:,31:36]
+    placeholders["include_history"] = features["gtnc"][:,31:36]
 
-  policy_target0 = features["ptncm"][:,0,:]
-  policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
-  placeholders["policy_target"] = policy_target0
-  placeholders["policy_target_weight"] = features["gtnc"][:,26]
-  policy_target1 = features["ptncm"][:,1,:]
-  policy_target1 = policy_target1 / tf.reduce_sum(policy_target1,axis=1,keepdims=True)
-  placeholders["policy_target1"] = policy_target1
-  placeholders["policy_target_weight1"] = features["gtnc"][:,29]
+    policy_target0 = features["ptncm"][:,0,:]
+    policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
+    placeholders["policy_target"] = policy_target0
+    placeholders["policy_target_weight"] = features["gtnc"][:,26]
+    policy_target1 = features["ptncm"][:,1,:]
+    policy_target1 = policy_target1 / tf.reduce_sum(policy_target1,axis=1,keepdims=True)
+    placeholders["policy_target1"] = policy_target1
+    placeholders["policy_target_weight1"] = features["gtnc"][:,29]
 
-  placeholders["value_target"] = features["gtnc"][:,0:3]
-  placeholders["scoremean_target"] = features["gtnc"][:,3]
-  placeholders["scorebelief_target"] = features["sdn"] / 100.0
-  placeholders["bonusbelief_target"] = features["sbsn"]
-  placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
-  placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
+    placeholders["value_target"] = features["gtnc"][:,0:3]
+    placeholders["scoremean_target"] = features["gtnc"][:,3]
+    placeholders["scorebelief_target"] = features["sdn"] / 100.0
+    placeholders["bonusbelief_target"] = features["sbsn"]
+    placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
+    placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
 
-  placeholders["target_weight_from_data"] = features["gtnc"][:,25]
-  placeholders["ownership_target_weight"] = features["gtnc"][:,27]
-  placeholders["utilityvar_target_weight"] = features["gtnc"][:,28]
+    placeholders["target_weight_from_data"] = features["gtnc"][:,25]
+    placeholders["ownership_target_weight"] = features["gtnc"][:,27]
+    placeholders["utilityvar_target_weight"] = features["gtnc"][:,28]
 
-  placeholders["selfkomi"] = features["gtnc"][:,42]
-  placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
+    placeholders["selfkomi"] = features["gtnc"][:,42]
+    placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
 
-  if mode == tf.estimator.ModeKeys.EVAL:
-    placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
-    model = ModelV3(model_config,pos_len,placeholders)
+    if mode == tf.estimator.ModeKeys.EVAL:
+      placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
+      model = Model(model_config,pos_len,placeholders)
 
-    target_vars = Target_varsV3(model,for_optimization=True,placeholders=placeholders)
-    metrics = MetricsV3(model,target_vars,include_debug_stats=False)
-    return (model,target_vars,metrics)
+      target_vars = Target_vars(model,for_optimization=True,placeholders=placeholders)
+      metrics = Metrics(model,target_vars,include_debug_stats=False)
+      return (model,target_vars,metrics)
 
-  if mode == tf.estimator.ModeKeys.TRAIN:
-    placeholders["is_training"] = tf.constant(True,dtype=tf.bool)
-    model = ModelV3(model_config,pos_len,placeholders)
+    if mode == tf.estimator.ModeKeys.TRAIN:
+      placeholders["is_training"] = tf.constant(True,dtype=tf.bool)
+      model = Model(model_config,pos_len,placeholders)
 
-    target_vars = Target_varsV3(model,for_optimization=True,placeholders=placeholders)
-    metrics = MetricsV3(model,target_vars,include_debug_stats=False)
-    global_step = tf.train.get_global_step()
-    global_step_float = tf.cast(global_step, tf.float32)
-    global_epoch = global_step_float / tf.constant(num_batches_per_epoch,dtype=tf.float32)
+      target_vars = Target_vars(model,for_optimization=True,placeholders=placeholders)
+      metrics = Metrics(model,target_vars,include_debug_stats=False)
+      global_step = tf.train.get_global_step()
+      global_step_float = tf.cast(global_step, tf.float32)
+      global_epoch = global_step_float / tf.constant(num_batches_per_epoch,dtype=tf.float32)
 
-    lr_epoch_offset = 0.0 if lr_epoch_offset is None else float(lr_epoch_offset)
-    lr_epoch_scale = 0.1 if lr_epoch_scale is None else float(lr_epoch_scale)
-    lr_epoch_cap = 150.0 if lr_epoch_cap is None else float(lr_epoch_cap)
-    lr_scale = 0.00020 if lr_scale is None else  float(lr_scale)
-    global_epoch_float_capped = tf.math.minimum(tf.constant(lr_epoch_cap),global_epoch + tf.constant(lr_epoch_offset,dtype=tf.float32))
-    per_sample_learning_rate = (
-      tf.constant(lr_scale) / tf.pow(global_epoch_float_capped * tf.constant(lr_epoch_scale) + tf.constant(1.0), tf.constant(1.333333))
-    )
+      lr_epoch_offset = 0.0 if lr_epoch_offset is None else float(lr_epoch_offset)
+      lr_epoch_scale = 0.1 if lr_epoch_scale is None else float(lr_epoch_scale)
+      lr_epoch_cap = 150.0 if lr_epoch_cap is None else float(lr_epoch_cap)
+      lr_scale = 0.00020 if lr_scale is None else  float(lr_scale)
+      global_epoch_float_capped = tf.math.minimum(tf.constant(lr_epoch_cap),global_epoch + tf.constant(lr_epoch_offset,dtype=tf.float32))
+      per_sample_learning_rate = (
+        tf.constant(lr_scale) / tf.pow(global_epoch_float_capped * tf.constant(lr_epoch_scale) + tf.constant(1.0), tf.constant(1.333333))
+      )
 
-    lr_adjusted_variables = model.lr_adjusted_variables
-    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
-    with tf.control_dependencies(update_ops):
-      optimizer = tf.train.MomentumOptimizer(per_sample_learning_rate, momentum=0.9, use_nesterov=True)
-      gradients = optimizer.compute_gradients(target_vars.opt_loss)
-      adjusted_gradients = []
-      for (grad,x) in gradients:
-        adjusted_grad = grad
-        if x.name in lr_adjusted_variables and grad is not None:
-          adj_factor = lr_adjusted_variables[x.name]
-          adjusted_grad = grad * adj_factor
-          if print_model:
-            trainlog("Adjusting gradient for " + x.name + " by " + str(adj_factor))
+      lr_adjusted_variables = model.lr_adjusted_variables
+      update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
+      with tf.control_dependencies(update_ops):
+        optimizer = tf.train.MomentumOptimizer(per_sample_learning_rate, momentum=0.9, use_nesterov=True)
+        gradients = optimizer.compute_gradients(target_vars.opt_loss)
+        adjusted_gradients = []
+        for (grad,x) in gradients:
+          adjusted_grad = grad
+          if x.name in lr_adjusted_variables and grad is not None:
+            adj_factor = lr_adjusted_variables[x.name]
+            adjusted_grad = grad * adj_factor
+            if print_model:
+              trainlog("Adjusting gradient for " + x.name + " by " + str(adj_factor))
 
-        adjusted_gradients.append((adjusted_grad,x))
-      train_step = optimizer.apply_gradients(adjusted_gradients, global_step=global_step)
+          adjusted_gradients.append((adjusted_grad,x))
+        train_step = optimizer.apply_gradients(adjusted_gradients, global_step=global_step)
 
 
-    if print_model:
-      print_trainable_variables(trainlog)
-      for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
-        trainlog("Additional update op on train step: %s" % update_op.name)
+      if print_model:
+        ModelUtils.print_trainable_variables(trainlog)
+        for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
+          trainlog("Additional update op on train step: %s" % update_op.name)
 
-    return (model,target_vars,metrics,global_step,global_step_float,per_sample_learning_rate,train_step)
+      return (model,target_vars,metrics,global_step,global_step_float,per_sample_learning_rate,train_step)
 
 

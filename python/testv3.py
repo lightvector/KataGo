@@ -14,8 +14,7 @@ import numpy as np
 
 import data
 from board import Board
-import modelv3
-from modelv3 import ModelV3, Target_varsV3, MetricsV3
+from model import Model, Target_vars, Metrics, ModelUtils
 
 #Command and args-------------------------------------------------------------------
 
@@ -67,8 +66,8 @@ def parse_tf_records_input(serialized_example):
   sbsn = example["sbsn"]
   vtnchw = example["vtnchw"]
   return {
-    "binchwp": tf.reshape(binchwp,[batch_size,ModelV3.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
-    "ginc": tf.reshape(ginc,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
+    "binchwp": tf.reshape(binchwp,[batch_size,Model.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
+    "ginc": tf.reshape(ginc,[batch_size,Model.NUM_GLOBAL_INPUT_FEATURES]),
     "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.reshape(gtnc,[batch_size,NUM_GLOBAL_TARGETS]),
     "sdn": tf.reshape(sdn,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
@@ -87,7 +86,7 @@ for data_file in data_files:
     raise Exception("Data files must be .tfrecord or .npz")
 
 if using_tfrecords and using_npz:
-  raise Exception("Cannot have both .tfrecord and .npz in the same call to testv3")
+  raise Exception("Cannot have both .tfrecord and .npz in the same call to test")
 
 if using_tfrecords:
   dataset = tf.data.Dataset.from_tensor_slices(data_files)
@@ -97,8 +96,8 @@ if using_tfrecords:
   features = iterator.get_next()
 elif using_npz:
   features = {
-    "binchwp": tf.placeholder(tf.uint8,[batch_size,ModelV3.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
-    "ginc": tf.placeholder(tf.float32,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
+    "binchwp": tf.placeholder(tf.uint8,[batch_size,Model.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
+    "ginc": tf.placeholder(tf.float32,[batch_size,Model.NUM_GLOBAL_INPUT_FEATURES]),
     "ptncm": tf.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
     "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
@@ -125,9 +124,9 @@ print_model = False
 num_batches_per_epoch = 1 #doesn't matter
 if name_scope is not None:
   with tf.name_scope(name_scope):
-    (model,target_vars,metrics) = modelv3.build_model_from_tfrecords_features(features,mode,print_model,log,model_config,pos_len,num_batches_per_epoch)
+    (model,target_vars,metrics) = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,log,model_config,pos_len,num_batches_per_epoch)
 else:
-  (model,target_vars,metrics) = modelv3.build_model_from_tfrecords_features(features,mode,print_model,log,model_config,pos_len,num_batches_per_epoch)
+  (model,target_vars,metrics) = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,log,model_config,pos_len,num_batches_per_epoch)
 
 total_parameters = 0
 for variable in tf.trainable_variables():

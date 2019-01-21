@@ -116,7 +116,7 @@ void FinishedGameData::printDebug(ostream& out) const {
     out << "policyTargetsByTurn " << i << " ";
     out << "unreducedNumVisits " << policyTargetsByTurn[i].unreducedNumVisits << " ";
     vector<PolicyTargetMove>& target = *(policyTargetsByTurn[i].policyTargets);
-    for(int j = 0; j<target.size(); j++) 
+    for(int j = 0; j<target.size(); j++)
       out << Location::toString(target[j].loc,startBoard) << " " << target[j].policyTarget << " ";
     out << endl;
   }
@@ -277,7 +277,7 @@ void TrainingWriteBuffers::addRow(
   const FinishedGameData& data,
   Rand& rand
 ) {
-  if(inputsVersion < 3 || inputsVersion > 3)
+  if(inputsVersion < 3 || inputsVersion > 4)
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 
   int posArea = posLen*posLen;
@@ -293,6 +293,11 @@ void TrainingWriteBuffers::addRow(
       assert(NNInputs::NUM_FEATURES_BIN_V3 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V3 == numGlobalChannels);
       NNInputs::fillRowV3(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowBin, rowGlobal);
+    }
+    else if(inputsVersion == 4) {
+      assert(NNInputs::NUM_FEATURES_BIN_V4 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_GLOBAL_V4 == numGlobalChannels);
+      NNInputs::fillRowV4(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
       assert(false);
@@ -405,7 +410,7 @@ void TrainingWriteBuffers::addRow(
 
   //Original number of visits
   rowGlobal[55] = (float)unreducedNumVisits;
-  
+
   assert(56 == GLOBAL_TARGET_NUM_CHANNELS);
 
   int scoreDistrLen = posArea*2 + NNPos::EXTRA_SCORE_DISTR_RADIUS*2;
@@ -606,11 +611,15 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   int numGlobalChannels;
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
   //to feed into a model during selfplay
-  if(inputsVersion < 3 || inputsVersion > 3)
+  if(inputsVersion < 3 || inputsVersion > 4)
     throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(inputsVersion));
   else if(inputsVersion == 3) {
     numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V3;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V3;
+  }
+  else if(inputsVersion == 4) {
+    numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V4;
+    numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V4;
   }
 
   writeBuffers = new TrainingWriteBuffers(inputsVersion, maxRowsPerFile, numBinaryChannels, numGlobalChannels, posLen);

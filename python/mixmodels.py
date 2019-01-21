@@ -35,7 +35,6 @@ def log(s):
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
-import model
 
 def volume(variable):
   shape = variable.get_shape()

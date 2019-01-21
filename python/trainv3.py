@@ -19,8 +19,7 @@ import itertools
 
 import data
 from board import Board
-import modelv3
-from modelv3 import ModelV3, Target_varsV3, MetricsV3
+from model import Model, Target_vars, Metrics, ModelUtils
 import modelconfigs
 
 #Command and args-------------------------------------------------------------------
@@ -108,7 +107,7 @@ initial_weights_already_loaded = False
 if swa_sub_epoch_scale is not None:
   with tf.device("/cpu:0"):
     with tf.name_scope("swa_model"):
-      swa_model = ModelV3(model_config,pos_len,placeholders={})
+      swa_model = Model(model_config,pos_len,placeholders={})
       swa_saver = tf.train.Saver(
         max_to_keep = 10000000,
         save_relative_paths = True,
@@ -165,7 +164,7 @@ def model_fn(features,labels,mode,params):
 
   print_model = not printed_model_yet
 
-  built = modelv3.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_epoch_offset,lr_epoch_scale,lr_epoch_cap,lr_scale)
+  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_epoch_offset,lr_epoch_scale,lr_epoch_cap,lr_scale)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
     model = built
@@ -311,7 +310,7 @@ BONUS_SCORE_RADIUS = 30
 
 raw_input_features = {
   "binchwp": tf.FixedLenFeature([],tf.string),
-  "ginc": tf.FixedLenFeature([batch_size*ModelV3.NUM_GLOBAL_INPUT_FEATURES],tf.float32),
+  "ginc": tf.FixedLenFeature([batch_size*Model.NUM_GLOBAL_INPUT_FEATURES],tf.float32),
   "ptncm": tf.FixedLenFeature([batch_size*NUM_POLICY_TARGETS*(pos_len*pos_len+1)],tf.float32),
   "gtnc": tf.FixedLenFeature([batch_size*NUM_GLOBAL_TARGETS],tf.float32),
   "sdn": tf.FixedLenFeature([batch_size*(pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2)],tf.float32),
@@ -319,8 +318,8 @@ raw_input_features = {
   "vtnchw": tf.FixedLenFeature([batch_size*NUM_VALUE_SPATIAL_TARGETS*pos_len*pos_len],tf.float32)
 }
 raw_input_feature_placeholders = {
-  "binchwp": tf.placeholder(tf.uint8,[batch_size,ModelV3.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
-  "ginc": tf.placeholder(tf.float32,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
+  "binchwp": tf.placeholder(tf.uint8,[batch_size,Model.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
+  "ginc": tf.placeholder(tf.float32,[batch_size,Model.NUM_GLOBAL_INPUT_FEATURES]),
   "ptncm": tf.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
   "gtnc": tf.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
   "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
@@ -338,8 +337,8 @@ def parse_input(serialized_example):
   sbsn = example["sbsn"]
   vtnchw = example["vtnchw"]
   return {
-    "binchwp": tf.reshape(binchwp,[batch_size,ModelV3.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
-    "ginc": tf.reshape(ginc,[batch_size,ModelV3.NUM_GLOBAL_INPUT_FEATURES]),
+    "binchwp": tf.reshape(binchwp,[batch_size,Model.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
+    "ginc": tf.reshape(ginc,[batch_size,Model.NUM_GLOBAL_INPUT_FEATURES]),
     "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.reshape(gtnc,[batch_size,NUM_GLOBAL_TARGETS]),
     "sdn": tf.reshape(sdn,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),

@@ -15,8 +15,7 @@ import numpy as np
 
 import data
 from board import Board
-import modelv3
-from modelv3 import ModelV3, Target_varsV3, MetricsV3
+from model import Model, Target_vars, Metrics
 
 description = """
 Evaluate raw neural net output directly on a position in an sgf
@@ -47,7 +46,7 @@ two_over_pi = 0.63661977236758134308
 pos_len = 19
 with open(modelconfigpath) as f:
   model_config = json.load(f)
-model = ModelV3(model_config,pos_len,{})
+model = Model(model_config,pos_len,{})
 policy_output = tf.nn.softmax(model.policy_output)
 value_output = tf.nn.softmax(model.value_output)
 scorevalue_output = two_over_pi*tf.atan(model.miscvalues_output[:,0])

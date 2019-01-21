@@ -40,6 +40,9 @@ namespace NNInputs {
   const int NUM_FEATURES_BIN_V3 = 22;
   const int NUM_FEATURES_GLOBAL_V3 = 14;
 
+  const int NUM_FEATURES_BIN_V4 = 22;
+  const int NUM_FEATURES_GLOBAL_V4 = 14;
+
   Hash128 getHashV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
     Player nextPlayer, float selfKomi
@@ -69,12 +72,21 @@ namespace NNInputs {
     int posLen, bool useNHWC, float* row
   );
 
-  //Ongoing sandbox for full rules support for self play, not stable yet
+  //Ongoing sandbox for full rules support for self play
   Hash128 getHashV3(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     double drawEquivalentWinsForWhite
   );
   void fillRowV3(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    double drawEquivalentWinsForWhite, int posLen, bool useNHWC, float* rowBin, float* rowGlobal
+  );
+
+  Hash128 getHashV4(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    double drawEquivalentWinsForWhite
+  );
+  void fillRowV4(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     double drawEquivalentWinsForWhite, int posLen, bool useNHWC, float* rowBin, float* rowGlobal
   );

@@ -404,6 +404,8 @@ void NNEvaluator::evaluate(
     nnHash = NNInputs::getHashV2(board, history, nextPlayer);
   else if(inputsVersion == 3)
     nnHash = NNInputs::getHashV3(board, history, nextPlayer, drawEquivalentWinsForWhite);
+  else if(inputsVersion == 4)
+    nnHash = NNInputs::getHashV4(board, history, nextPlayer, drawEquivalentWinsForWhite);
   else
     assert(false);
 
@@ -449,6 +451,18 @@ void NNEvaluator::evaluate(
           throw StringError("Cannot reuse an nnResultBuf with a different posLen or model version");
       }
       NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
+    }
+    else if(inputsVersion == 4) {
+      int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
+      if(buf.rowGlobal == NULL) {
+        buf.rowGlobal = new float[rowGlobalLen];
+        buf.rowGlobalSize = rowGlobalLen;
+      }
+      else {
+        if(buf.rowGlobalSize != rowGlobalLen)
+          throw StringError("Cannot reuse an nnResultBuf with a different posLen or model version");
+      }
+      NNInputs::fillRowV4(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
     }
     else
       assert(false);
@@ -623,7 +637,7 @@ void NNEvaluator::evaluate(
       }
 
     }
-    else if(modelVersion == 4) {
+    else if(modelVersion == 4 || modelVersion == 5) {
       double winProb;
       double lossProb;
       double noResultProb;
@@ -696,7 +710,7 @@ void NNEvaluator::evaluate(
     if(modelVersion <= 2) {
       //No postprocessing needed, cudabackend fills with zeros, which is exactly fine.
     }
-    else if(modelVersion == 3 || modelVersion == 4) {
+    else if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5) {
       for(int pos = 0; pos<posLen*posLen; pos++) {
         int y = pos / posLen;
         int x = pos % posLen;

@@ -14,8 +14,7 @@ import numpy as np
 
 import data
 from board import Board
-import modelv3
-from modelv3 import ModelV3
+from model import Model
 
 #Command and args-------------------------------------------------------------------
 
@@ -56,7 +55,7 @@ else:
   assert(False)
 
 pos_len = 19 # shouldn't matter, all we're doing is exporting weights that don't depend on this
-model = ModelV3(model_config,pos_len,{})
+model = Model(model_config,pos_len,{})
 
 def volume(variable):
   shape = variable.get_shape()

@@ -11,8 +11,7 @@ import datetime
 import tensorflow as tf
 import numpy as np
 
-import modelv3
-from modelv3 import ModelV3
+from model import Model, ModelUtils
 
 #Command and args-------------------------------------------------------------------
 
@@ -74,10 +73,10 @@ else:
 pos_len = 19 # shouldn't matter, all we're doing is exporting weights that don't depend on this
 if name_scope is not None:
   with tf.name_scope(name_scope):
-    model = ModelV3(model_config,pos_len,{})
+    model = Model(model_config,pos_len,{})
 else:
-  model = ModelV3(model_config,pos_len,{})
-modelv3.print_trainable_variables(log)
+  model = Model(model_config,pos_len,{})
+ModelUtils.print_trainable_variables(log)
 
 # Testing ------------------------------------------------------------
 

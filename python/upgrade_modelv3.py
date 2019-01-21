@@ -12,8 +12,7 @@ import shutil
 import tensorflow as tf
 import numpy as np
 
-import modelv3
-from modelv3 import ModelV3
+from model import Model, ModelUtils
 import modelconfigs
 
 #Command and args-------------------------------------------------------------------
@@ -50,8 +49,8 @@ noise_mag = 0.1
 pos_len = 19 # shouldn't matter, all we're doing is handling weights that don't depend on this
 
 log("SOURCE MODEL================================")
-model = ModelV3(oldmodelconfig,pos_len,{})
-modelv3.print_trainable_variables(log)
+model = Model(oldmodelconfig,pos_len,{})
+ModelUtils.print_trainable_variables(log)
 
 saver = tf.train.Saver(
   max_to_keep = 10000,
@@ -84,8 +83,8 @@ newweights = {}
 modelconfigs.upgrade_net(oldweights,newweights,oldmodelconfig,newmodelconfig,blockmap,noise_mag)
 
 log("TARGET MODEL================================")
-model = ModelV3(newmodelconfig,pos_len,{})
-modelv3.print_trainable_variables(log)
+model = Model(newmodelconfig,pos_len,{})
+ModelUtils.print_trainable_variables(log)
 
 # for variable in tf.global_variables():
 #   print(variable.name)

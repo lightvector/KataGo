@@ -14,7 +14,7 @@ import tensorflow as tf
 import numpy as np
 
 from board import Board
-from modelv3 import ModelV3
+from model import Model
 
 description = """
 Play go with a trained neural net!
@@ -45,9 +45,9 @@ with open(modelconfigpath) as f:
 
 if name_scope is not None:
   with tf.name_scope(name_scope):
-    model = ModelV3(model_config,pos_len,{})
+    model = Model(model_config,pos_len,{})
 else:
-  model = ModelV3(model_config,pos_len,{})
+  model = Model(model_config,pos_len,{})
 policy0_output = tf.nn.softmax(model.policy_output[:,:,0])
 policy1_output = tf.nn.softmax(model.policy_output[:,:,1])
 value_output = tf.nn.softmax(model.value_output)
@@ -304,7 +304,7 @@ def print_scorebelief(board,scorebelief,scoremean,scorestdev,sbscale):
     scorebelief.reverse()
     scoremean = -scoremean
 
-  scoredistrmid = pos_len * pos_len + ModelV3.EXTRA_SCORE_DISTR_RADIUS
+  scoredistrmid = pos_len * pos_len + Model.EXTRA_SCORE_DISTR_RADIUS
   ret = ""
   ret += "TEXT "
   ret += "SBScale: " + str(sbscale) + "\n"
@@ -354,7 +354,7 @@ def print_bonusbelief(board,bonusbelief,bbscale):
   bonusbelief = list(bonusbelief)
   if board.pla != Board.WHITE:
     bonusbelief.reverse()
-  bonusdistrmid = ModelV3.BONUS_SCORE_RADIUS
+  bonusdistrmid = Model.BONUS_SCORE_RADIUS
   ret = ""
   ret += "TEXT "
   ret += "BBScale: " + str(bbscale) + "\n"

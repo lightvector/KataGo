@@ -3147,7 +3147,7 @@ struct ModelDesc {
     if(in.fail())
       throw StringError(name + ": model failed to parse name or version");
 
-    if(version < 0 || version > 4)
+    if(version < 0 || version > 5)
       throw StringError(name + ": model found unsupported version " + Global::intToString(version));
     if(version < 1)
       throw StringError("Version 0 neural nets no longer supported in cuda backend");
