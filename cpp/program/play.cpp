@@ -141,9 +141,9 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
 
   if(noResultStdev > 1e-30) {
     double mean = params.noResultUtilityForWhite;
-    params.noResultUtilityForWhite = mean + noResultStdev * nextGaussianTruncated(rand, 2.0);
+    params.noResultUtilityForWhite = mean + noResultStdev * nextGaussianTruncated(rand, 3.0);
     while(params.noResultUtilityForWhite < -1.0 || params.noResultUtilityForWhite > 1.0)
-      params.noResultUtilityForWhite = mean + noResultStdev * nextGaussianTruncated(rand, 2.0);
+      params.noResultUtilityForWhite = mean + noResultStdev * nextGaussianTruncated(rand, 3.0);
   }
   if(drawRandRadius > 1e-30) {
     double mean = params.drawEquivalentWinsForWhite;
