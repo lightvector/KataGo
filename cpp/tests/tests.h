@@ -27,7 +27,7 @@ namespace Tests {
 
   //testnninputs.cpp
   void runNNInputsV2Tests();
-  void runNNInputsV3Tests();
+  void runNNInputsV3V4Tests();
 
   //testsearch.cpp
   void runNNLessSearchTests();

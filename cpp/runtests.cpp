@@ -28,8 +28,6 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Tests::runScoreTests();
 
   Tests::runBoardUndoTest();
-  Tests::runNNInputsV2Tests();
-  Tests::runNNInputsV3Tests();
   Tests::runBoardStressTest();
 
   cout << "All tests passed" << endl;
@@ -42,6 +40,8 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
 
+  Tests::runNNInputsV2Tests();
+  Tests::runNNInputsV3V4Tests();
   Tests::runNNLessSearchTests();
   Tests::runTrainingWriteTests();
   return 0;
