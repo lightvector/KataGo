@@ -263,13 +263,13 @@ void Tests::runNNInputsV3V4Tests() {
   auto allocateRows = [](int version, int posLen, int& numFeaturesBin, int& numFeaturesGlobal, float*& rowBin, float*& rowGlobal) {
     if(version == 3) {
       numFeaturesBin = NNInputs::NUM_FEATURES_BIN_V3;
-      numFeaturesGlobal = NNInputs::NUM_FEATURES_BIN_V3;
+      numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V3;
       rowBin = new float[NNInputs::NUM_FEATURES_BIN_V3 * posLen * posLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
     }
     else if(version == 4) {
       numFeaturesBin = NNInputs::NUM_FEATURES_BIN_V4;
-      numFeaturesGlobal = NNInputs::NUM_FEATURES_BIN_V4;
+      numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V4;
       rowBin = new float[NNInputs::NUM_FEATURES_BIN_V4 * posLen * posLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V4];
     }
@@ -294,6 +294,9 @@ void Tests::runNNInputsV3V4Tests() {
 
   {
     const char* name = "NN Inputs V3V4 Basic";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
 
     const string sgfStr = "(;FF[4]KM[7.5];B[pd];W[pq];B[dq];W[dd];B[qo];W[pl];B[qq];W[qr];B[pp];W[rq];B[oq];W[qp];B[pr];W[qq];B[oo];W[ro];B[qn];W[do];B[dl];W[gp];B[eo];W[en];B[fo];W[dp];B[eq];W[cq];B[cr];W[br];B[dn];W[bp];B[cn];W[ep];B[fp];W[fq];B[gq];W[fr];B[gr];W[er];B[hp];W[go];B[fn];W[ho];B[ip];W[io];B[jp];W[jo];B[lp];W[kp];B[kq];W[ko];B[lq];W[ir];B[hq];W[jq];B[jr];W[em];B[gm];W[el];B[hl];W[kl];B[ek];W[fk];B[ej];W[fl];B[fj];W[gk];B[ik];W[gj];B[jj];W[dm];B[lk];W[mm];B[nl];W[nm];B[om];W[ol];B[nk];W[ll];B[kk];W[jl];B[im];W[jk];B[ij];W[kj];B[mk];W[ki];B[ih];W[jh];B[ig];W[jg];B[if];W[oi];B[mi];W[mh];B[lh];W[li];B[nh];W[mj];B[ni];W[nj];B[oj];W[lj];B[ok];W[oh];B[ng];W[pj];B[ji];W[kh];B[jf];W[lg];B[cm];W[cl];B[dk];W[bl];B[bk];W[bn];B[ck];W[bm];B[cc];W[cd];B[dc];W[ec];B[eb];W[fb];B[fc];W[ed];B[gb];W[bc];B[cb];W[cg];B[be];W[bd];B[bg];W[bh];B[cf];W[df];B[ch];W[dg];B[bi];W[qd];B[qc];W[rc];B[rd];W[qe];B[re];W[rb];B[pc];W[qb];B[qf];W[ff];B[sc];W[pb];B[bo];W[ob];B[nc];W[nb];B[mb];W[mc];B[lb])";
 
@@ -348,6 +351,9 @@ void Tests::runNNInputsV3V4Tests() {
 
   {
     const char* name = "NN Inputs V3V4 Ko";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
 
     const string sgfStr = "(;FF[4]KM[0.5];B[rj];W[ri];B[si];W[rh];B[sh];W[sg];B[rk];W[sk];B[sl];W[sj];B[eg];W[fg];B[ff];W[gf];B[fh];W[gh];B[gg];W[hg];B[si];W[fg];B[sh];W[sk];B[gg])";
 
@@ -403,6 +409,9 @@ void Tests::runNNInputsV3V4Tests() {
 
   {
     const char* name = "NN Inputs V3 7x7";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
 
     const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Japanese]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
 
@@ -457,6 +466,9 @@ void Tests::runNNInputsV3V4Tests() {
 
   {
     const char* name = "NN Inputs V3 7x7 embedded in 9x9";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
 
     const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Japanese]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
 
@@ -510,7 +522,10 @@ void Tests::runNNInputsV3V4Tests() {
   }
 
   {
-    //const char* name = "NN Inputs V3 Area Komi";
+    const char* name = "NN Inputs V3 Area Komi";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
 
     for(int version = 3; version <= 4; version++) {
       cout << "VERSION " << version << endl;
@@ -570,7 +585,10 @@ xxx..xx
   }
 
   {
-    //const char* name = "NN Inputs V3 Rules";
+    const char* name = "NN Inputs V3 Rules";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
 
     for(int size = 7; size >= 6; size--) {
       Board board = Board(size,size);
@@ -636,7 +654,10 @@ xxx..xx
   }
 
   {
-    //const char* name = "NN Inputs V3 Ko Prohib and pass hist and whitebonus and encorestart";
+    const char* name = "NN Inputs V3 Ko Prohib and pass hist and whitebonus and encorestart";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
 
     //Immediately enters encore via b0 pass w1 pass. Through w19, sets up various ko shapes. Then starts ko captures. b26 pass b27 pass switches to second encore.
     const string sgfStr = "(;GM[1]FF[4]SZ[6]KM[0.00];B[];W[];B[ab];W[bb];B[ba];W[ca];B[ec];W[ed];B[fd];W[fe];B[fb];W[dc];B[db];W[ae];B[ea];W[bf];B[be];W[ad];B[cf];W[dd];B[af];W[aa];B[];W[fc];B[bd];W[eb];B[];W[];B[ec];W[bf];B[ac];W[eb];B[af];W[eb])";
@@ -702,7 +723,10 @@ xxx..xx
   }
 
   {
-    //const char* name = "NN Inputs V3 some other test positions";
+    const char* name = "NN Inputs V3 some other test positions";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
 
     const string sgfStr = "(;FF[4]GM[1]SZ[13]PB[s75411712-d5152283-b8c128]PW[s78621440-d5365731-b8c128]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAsui0]RE[B+11.5];B[ck];W[lb];B[ke];W[ld];B[jd];W[kc];B[jc];W[jb];B[ib];W[kk];B[ki];W[kh];B[ja];W[le];B[ic];W[kf];B[lj];W[li];B[kj];W[lk];B[jk];W[jl];B[ik];W[mj];B[kb];W[jj];B[ji];W[ij];B[ii];W[hj];B[lh];W[mi];B[kg];W[jg];B[jh];W[lg];B[hk];W[hi];B[mh];W[gk];B[mk];W[il];B[jf];W[lf];B[ig];W[cc];B[dc];W[cd];B[ed];W[kd];B[dj];W[el];B[eg];W[de];B[ee];W[ec];B[je];W[db];B[fc];W[eb];B[bj];W[fd];B[gc];W[cl];B[df];W[dd];B[cf];W[dl];B[gh];W[fk];B[la];W[hh];B[hg];W[fi];B[gg];W[mc];B[bk];W[fb];B[gb];W[ei];B[gi];W[fe];B[ef];W[ej];B[gj];W[hl];B[bh];W[mg];B[be];W[bd];B[ad];W[bb];B[ae];W[di];B[me];W[ci];B[bi];W[bl];B[ab];W[ba];B[ac];W[ml];B[ga];W[fa];B[al];W[bc];B[bf];W[mj];B[mi];W[mb];B[ge];W[mk];B[dk];W[md];B[ek];W[fj];B[jb];W[fh];B[ff];W[bm];B[ka];W[ce];B[ak];W[cj];B[ch];W[];B[id];W[fl];B[hc];W[am];B[ik];W[jk];B[ma];W[];B[mm];W[gl];B[aa];W[ca];B[dh];W[fg];B[];W[lm];B[bg];W[];B[hd];W[];B[ag];W[];B[hf];W[];B[gd];W[];B[ih];W[];B[li];W[];B[hb];W[];B[af];W[];B[ia];W[];B[kl];W[];B[])";
 
