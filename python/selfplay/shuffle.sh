@@ -25,7 +25,8 @@ OUTDIRTRAIN=$OUTDIR/train
 OUTDIRVAL=$OUTDIR/val
 
 mkdir -p $BASEDIR/shuffleddata/$OUTDIR
-mkdir -p $TMPDIR
+mkdir -p $TMPDIR/train
+mkdir -p $TMPDIR/val
 
 echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 
@@ -38,7 +39,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -expand-window-per-row 0.4 \
          -taper-window-exponent 0.70 \
          -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
-         -out-tmp-dir $TMPDIR \
+         -out-tmp-dir $TMPDIR/train \
          -approx-rows-per-out-file 100000 \
          -num-processes $NTHREADS \
          -batch-size 256 \
@@ -52,7 +53,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -expand-window-per-row 0.4 \
          -taper-window-exponent 0.70 \
          -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
-         -out-tmp-dir $TMPDIR \
+         -out-tmp-dir $TMPDIR/val \
          -approx-rows-per-out-file 100000 \
          -num-processes $NTHREADS \
          -batch-size 256 \

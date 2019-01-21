@@ -534,7 +534,7 @@ while True:
 
     #Train
     trainlog("Beginning training epoch!")
-    trainlog("Currently up to training row " + str(last_datainfo_row))
+    trainlog("Currently up to data row " + str(last_datainfo_row))
     estimator.train(
       (lambda: train_input_fn(train_files_to_use,num_train_files,batches_to_use_so_far)),
       saving_listeners=[
