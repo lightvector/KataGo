@@ -27,7 +27,7 @@ git show --no-patch --no-color > $BASEDIR/train/$TRAININGNAME/version.txt
 git diff --no-color > $BASEDIR/train/$TRAININGNAME/diff.txt
 git diff --staged --no-color > $BASEDIR/train/$TRAININGNAME/diffstaged.txt
 
-time python3 ./trainv3.py \
+time python3 ./train.py \
      -traindir $BASEDIR/train/$TRAININGNAME \
      -datadir $BASEDIR/shuffleddata/current/ \
      -exportdir $BASEDIR/tfsavedmodels_toexport \

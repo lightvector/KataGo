@@ -44,7 +44,7 @@ do
             mkdir $TMPDST
 
             set -x
-            python3 ./export_modelv3.py \
+            python3 ./export_model.py \
                     -saved-model-dir $SRC \
                     -export-dir $TMPDST \
                     -model-name $NAME \

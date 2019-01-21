@@ -33,7 +33,7 @@ cp ./*.py ./selfplay/*.sh $basedir/scripts
     cd $basedir/scripts
     while true
     do
-        ./export_modelv3_for_selfplay.sh $basedir
+        ./export_model_for_selfplay.sh $basedir
         sleep 10
     done
 ) >> outexport.txt 2>&1 & disown
