@@ -27,35 +27,41 @@ OUTDIRVAL=$OUTDIR/val
 mkdir -p $BASEDIR/shuffleddata/$OUTDIR
 mkdir -p $TMPDIR
 
-set -x
-time python3 ./shuffle.py \
-     $BASEDIR/selfplay/*/tdata/ \
-     -min-rows 1000000 \
-     -max-rows 1000000000 \
-     -expand-window-per-row 0.4 \
-     -taper-window-exponent 0.70 \
-     -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
-     -out-tmp-dir $TMPDIR \
-     -approx-rows-per-out-file 100000 \
-     -num-processes $NTHREADS \
-     -batch-size 256 \
-     -keep-target-rows 4000000 \
-    2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outtrain.txt
+echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 
-time python3 ./shuffle.py \
-     $BASEDIR/selfplay/*/vdata/ \
-     -min-rows 50000 \
-     -max-rows 10000000 \
-     -expand-window-per-row 0.4 \
-     -taper-window-exponent 0.70 \
-     -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
-     -out-tmp-dir $TMPDIR \
-     -approx-rows-per-out-file 100000 \
-     -num-processes $NTHREADS \
-     -batch-size 256 \
-     -keep-target-rows 60000 \
-    2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outval.txt
-set +x
+#set -x
+(
+    time python3 ./shuffle.py \
+         $BASEDIR/selfplay/*/tdata/ \
+         -min-rows 1000000 \
+         -max-rows 1000000000 \
+         -expand-window-per-row 0.4 \
+         -taper-window-exponent 0.70 \
+         -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
+         -out-tmp-dir $TMPDIR \
+         -approx-rows-per-out-file 100000 \
+         -num-processes $NTHREADS \
+         -batch-size 256 \
+         -keep-target-rows 3000000 \
+         2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outtrain.txt &
+
+    time python3 ./shuffle.py \
+         $BASEDIR/selfplay/*/vdata/ \
+         -min-rows 50000 \
+         -max-rows 10000000 \
+         -expand-window-per-row 0.4 \
+         -taper-window-exponent 0.70 \
+         -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
+         -out-tmp-dir $TMPDIR \
+         -approx-rows-per-out-file 100000 \
+         -num-processes $NTHREADS \
+         -batch-size 256 \
+         -keep-target-rows 60000 \
+         2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outval.txt &
+
+    wait
+)
+#set +x
 
 #Just in case, give a little time for nfs
 sleep 10
