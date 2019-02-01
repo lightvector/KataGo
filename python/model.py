@@ -1441,7 +1441,7 @@ class ModelUtils:
       lr_epoch_offset = 0.0 if lr_epoch_offset is None else float(lr_epoch_offset)
       lr_epoch_scale = 0.1 if lr_epoch_scale is None else float(lr_epoch_scale)
       lr_epoch_cap = 150.0 if lr_epoch_cap is None else float(lr_epoch_cap)
-      lr_scale = 0.00020 if lr_scale is None else  float(lr_scale)
+      lr_scale = 0.00006 if lr_scale is None else float(lr_scale)
       global_epoch_float_capped = tf.math.minimum(tf.constant(lr_epoch_cap),global_epoch + tf.constant(lr_epoch_offset,dtype=tf.float32))
       per_sample_learning_rate = (
         tf.constant(lr_scale) / tf.pow(global_epoch_float_capped * tf.constant(lr_epoch_scale) + tf.constant(1.0), tf.constant(1.333333))
