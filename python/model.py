@@ -989,7 +989,7 @@ class Model:
     sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
     sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
     sb2_layer_partial = tf.matmul(v1_layer_pooled, sb2w) + sb2b
-    sb2_offset_vector = tf.constant(0.04 * self.score_belief_offset_vector, dtype=tf.float32)
+    sb2_offset_vector = tf.constant(0.05 * self.score_belief_offset_vector, dtype=tf.float32)
     sb2_parity_vector = tf.reshape(self.score_belief_parity_vector,[1,-1]) * transformed_global_inputs[:,13:14]
     sb2_offset_w = self.weight_variable("sb2_offset/w",[1,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
     sb2_offset_partial = tf.matmul(tf.reshape(sb2_offset_vector,[-1,1]), sb2_offset_w)
@@ -1026,7 +1026,7 @@ class Model:
     bb2w = self.weight_variable("bb2/w",[v1_size*3,bbv2_size],v1_size*3+1,bbv2_size)
     bb2b = self.weight_variable("bb2/b",[bbv2_size],v1_size*3+1,bbv2_size,scale_initial_weights=0.2,reg=False)
     bb2_layer_partial = tf.matmul(v1_layer_pooled, bb2w) + bb2b
-    bb2_offset_vector = tf.constant(0.4 * self.bonus_belief_offset_vector, dtype=tf.float32)
+    bb2_offset_vector = tf.constant(0.5 * self.bonus_belief_offset_vector, dtype=tf.float32)
     bb2_offset_w = self.weight_variable("bb2_offset/w",[1,bbv2_size],v1_size*3+1,bbv2_size)
     bb2_offset_partial = tf.matmul(tf.reshape(bb2_offset_vector,[-1,1]), bb2_offset_w)
     bb2_layer = tf.reshape(bb2_layer_partial,[-1,1,bbv2_size]) + tf.reshape(bb2_offset_partial,[1,bonusbelief_len,bbv2_size])
@@ -1249,7 +1249,7 @@ class Target_vars:
     winlossprob_from_output = value_probs[:,0:2]
     self.winloss_reg_loss_unreduced = 2.0 * tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 
-    self.scale_reg_loss_unreduced = tf.reshape(0.001 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
+    self.scale_reg_loss_unreduced = tf.reshape(0.0005 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
     #self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
 
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
