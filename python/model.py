@@ -1232,15 +1232,15 @@ class Target_vars:
       tf.reduce_sum(bonusbelief_probs * model.bonus_belief_offset_vector,axis=1) +
       self.selfkomi
     )
-    self.ownership_reg_loss_unreduced = 0.004 * huber_loss(expected_score_from_belief, expected_score_from_ownership, delta = 15.0)
-    self.scoremean_reg_loss_unreduced = 0.004 * huber_loss(expected_score_from_belief, scoremean_prediction, delta = 15.0)
+    self.ownership_reg_loss_unreduced = 0.004 * huber_loss(expected_score_from_belief, expected_score_from_ownership, delta = 10.0)
+    self.scoremean_reg_loss_unreduced = 0.004 * huber_loss(expected_score_from_belief, scoremean_prediction, delta = 10.0)
 
     stdev_of_belief = tf.sqrt(0.001 + tf.reduce_sum(
       scorebelief_probs * tf.square(
         tf.reshape(model.score_belief_offset_vector,[1,-1]) - tf.reshape(expected_score_from_belief,[-1,1])
       ),axis=1))
     beliefstdevdiff = stdev_of_belief - scorestdev_prediction
-    self.scorestdev_reg_loss_unreduced = 0.004 * huber_loss(stdev_of_belief, scorestdev_prediction, delta = 15.0)
+    self.scorestdev_reg_loss_unreduced = 0.004 * huber_loss(stdev_of_belief, scorestdev_prediction, delta = 10.0)
 
     winlossprob_from_belief = tf.concat([
       tf.reduce_sum(scorebelief_probs[:,(model.scorebelief_target_shape[0]//2):],axis=1,keepdims=True),
