@@ -193,7 +193,7 @@ namespace Play {
     const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     const string& searchRandSeed,
-    bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
+    bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
     FancyModes fancyModes, bool recordFullData, int dataPosLen,
@@ -207,7 +207,7 @@ namespace Play {
     const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     Search* botB, Search* botW,
-    bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
+    bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
     FancyModes fancyModes, bool recordFullData, int dataPosLen,
@@ -234,7 +234,7 @@ class GameRunner {
   bool logMoves;
   bool forSelfPlay;
   int maxMovesPerGame;
-  bool clearBotAfterSearch;
+  bool clearBotBeforeSearch;
   string searchRandSeedBase;
   FancyModes fancyModes;
   GameInitializer* gameInit;
