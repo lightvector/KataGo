@@ -383,7 +383,7 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
 }
 
 
-static Loc chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, double temperature, bool allowPass) {
+static Loc chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, double temperature, bool allowPass, Loc banMove) {
   const float* policyProbs = nnOutput->policyProbs;
   int posLen = nnOutput->posLen;
   int numLegalMoves = 0;
@@ -391,7 +391,7 @@ static Loc chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, 
   int locs[NNPos::MAX_NN_POLICY_SIZE];
   for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
     Loc loc = NNPos::posToLoc(pos,board.x_size,board.y_size,posLen);
-    if(loc == Board::PASS_LOC && !allowPass)
+    if((loc == Board::PASS_LOC && !allowPass) || loc == banMove)
       continue;
     if(policyProbs[pos] > 0.0 && hist.isLegal(board,loc,pla)) {
       double relProb = policyProbs[pos];
@@ -470,7 +470,8 @@ void Play::playExtraBlack(
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
     bool allowPass = false;
-    Loc loc = chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, gameRand, temperature, allowPass);
+    Loc banMove = Board::NULL_LOC;
+    Loc loc = chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, gameRand, temperature, allowPass, banMove);
     if(loc == Board::NULL_LOC)
       break;
     
@@ -502,11 +503,11 @@ static bool shouldStop(vector<std::atomic<bool>*>& stopConditions) {
   return false;
 }
 
-static Loc chooseRandomLegalMove(const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand) {
+static Loc chooseRandomLegalMove(const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc banMove) {
   int numLegalMoves = 0;
   Loc locs[Board::MAX_ARR_SIZE];
   for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
-    if(hist.isLegal(board,loc,pla)) {
+    if(hist.isLegal(board,loc,pla) && loc != banMove) {
       locs[numLegalMoves] = loc;
       numLegalMoves += 1;
     }
@@ -537,18 +538,18 @@ static int chooseRandomLegalMoves(const Board& board, const BoardHistory& hist, 
   return 0;
 }
 
-static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand) {
+static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc banMove) {
   double r = gameRand.nextDouble();
   bool allowPass = true;
   //70% of the time, do a random temperature 1 policy move
   if(r < 0.70)
-    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 1.0, allowPass);
+    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 1.0, allowPass, banMove);
   //25% of the time, do a random temperature 2 policy move
   else if(r < 0.95)
-    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 2.0, allowPass);
+    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 2.0, allowPass, banMove);
   //5% of the time, do a random legal move
   else
-    return chooseRandomLegalMove(board, hist, pla, gameRand);
+    return chooseRandomLegalMove(board, hist, pla, gameRand, banMove);
 }
 
 static void extractPolicyTarget(
@@ -1029,7 +1030,8 @@ FinishedGameData* Play::runGame(
       if(fancyModes.forkSidePositionProb > 0.0 && gameRand.nextBool(fancyModes.forkSidePositionProb)) {
         assert(toMoveBot->rootNode != NULL);
         assert(toMoveBot->rootNode->nnOutput != nullptr);
-        sidePositionForkLoc = chooseRandomForkingMove(toMoveBot->rootNode->nnOutput.get(), board, hist, pla, gameRand);
+        Loc banMove = loc;
+        sidePositionForkLoc = chooseRandomForkingMove(toMoveBot->rootNode->nnOutput.get(), board, hist, pla, gameRand, banMove);
         if(sidePositionForkLoc != Board::NULL_LOC) {
           SidePosition* sp = new SidePosition(board,hist,pla,gameData->changedNeuralNets.size());
           sp->hist.makeBoardMoveAssumeLegal(sp->board,sidePositionForkLoc,sp->pla,NULL);
@@ -1228,7 +1230,8 @@ FinishedGameData* Play::runGame(
             sp2->board,sp2->hist,sp2->pla,toMoveBot2->searchParams.drawEquivalentWinsForWhite,
             nnResultBuf,NULL,false,false
           );
-          Loc forkLoc = chooseRandomForkingMove(nnResultBuf.result.get(), sp2->board, sp2->hist, sp2->pla, gameRand);
+          Loc banMove = Board::NULL_LOC;
+          Loc forkLoc = chooseRandomForkingMove(nnResultBuf.result.get(), sp2->board, sp2->hist, sp2->pla, gameRand, banMove);
           if(forkLoc != Board::NULL_LOC) {
             sp2->hist.makeBoardMoveAssumeLegal(sp2->board,forkLoc,sp2->pla,NULL);
             sp2->pla = getOpp(sp2->pla);
