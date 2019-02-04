@@ -3701,17 +3701,10 @@ HASH: F33AB5338807413FD7B5069884FF9DB9
  1 O . . O O . X
 
 
-: T   1.86c W   1.64c S   0.22c ( +0.3) VW  25.02c VS   8.30c N     400  --  C1 B7 E3 F1 F3 F7 B1
+: T   1.29c W   1.30c S  -0.01c ( -0.0) VW  25.02c VS   8.30c N     400  --  E5 F7 E7 B1 F7 E3 A7
 ---Black(v)---
-C1  : T   0.09c W   0.22c S  -0.12c ( -0.1) VW  -9.93c VS   3.19c P  7.02% VW 13.14% N      92  --  B7 E3 F1 F3 F7 B1
-B7  : T  -0.51c W  -0.88c S   0.38c ( +0.4) VW  15.05c VS  -0.47c P  5.32% VW 13.34% N      92  --  F1 E5 pass A7 pass
-F7  : T   0.09c W  -0.10c S   0.19c ( +0.2) VW  -5.69c VS  -1.05c P  1.91% VW 13.05% N      62  --  A7 C1 E5 pass B1
-E5  : T   2.45c W   2.16c S   0.29c ( +0.3) VW  -2.60c VS   0.89c P 11.25% VW 12.32% N      57  --  E3 C1 F3 F1 F7 B1
-E7  : T   1.85c W   2.20c S  -0.35c ( -0.4) VW   2.74c VS  -3.76c P  9.01% VW 12.50% N      57  --  F1 A4 B1 E5 B7 E3
-A7  : T   9.00c W   8.47c S   0.53c ( +0.6) VW  -0.57c VS  -0.22c P  9.95% VW 10.72% N      23  --  C1 E5 B1 A4 F1
-pss : T 104.68c W 100.00c S   4.68c ( +3.5) VW ---.--c VS ---.--c P 39.98% VW  1.65% N       7  --  
-A4  : T   3.07c W   0.82c S   2.25c ( +2.5) VW  -2.04c VS   5.37c P  1.14% VW 12.14% N       6  --  E3 E5 F1
-B1  : T  10.05c W   4.28c S   5.77c ( +6.8) VW -16.47c VS   1.78c P  1.82% VW 11.14% N       3  --  F7 B7
+E5  : T   0.57c W   0.62c S  -0.05c ( -0.1) VW  -2.60c VS   0.89c P 11.25% VW 88.86% N     392  --  F7 E7 B1 F7 E3 A7 G3
+pss : T 104.68c W 100.00c S   4.68c ( +3.5) VW ---.--c VS ---.--c P 39.98% VW 11.14% N       7  --  
 
 Progress the game, having black fill space while white passes...
 Searching on the opponent, the move before

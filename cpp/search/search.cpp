@@ -882,9 +882,9 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
   if(!rootPassLegal && moveLoc == Board::PASS_LOC)
     return false;
   //A bad situation that can happen that unnecessarily prolongs training games is where one player
-  //repeatedly passes and the other side repeatedly fills space and then suicides over and over.
-  //To mitigate this and save computation, we make it so that at the root, if the last two moves by the opponent
-  //were passes, we will never play a self-capture move in the opponent's pass-alive area. In theory this could prune
+  //repeatedly passes and the other side repeatedly fills space and/or suicides over and over.
+  //To mitigate this and save computation, we make it so that at the root, if the last four moves by the opponent
+  //were passes, we will never play a self-capture, or a move in either player's pass-alive area. In theory this could prune
   //a good move in situations like https://senseis.xmp.net/?1EyeFlaw, but this should be extraordinarly rare,
   //particularly given the opponent has been passing (e.g. why did we not retake or suicide the previous turns?).
   if(searchParams.rootPruneUselessSuicides &&
@@ -893,29 +893,15 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
   ) {
     int lastIdx = rootHistory.moveHistory.size()-1;
     Player opp = getOpp(rootPla);
-    if(lastIdx >= 2 &&
-       rootHistory.moveHistory[lastIdx-0].loc == Board::PASS_LOC &&
-       rootHistory.moveHistory[lastIdx-2].loc == Board::PASS_LOC &&
-       rootHistory.moveHistory[lastIdx-0].pla == opp &&
-       rootHistory.moveHistory[lastIdx-2].pla == opp &&
-       (rootSafeArea[moveLoc] == opp && rootBoard.isSuicide(moveLoc,rootPla)))
-      return false;
-
-    //Also if the last 6 opponent moves in a row were passes, we don't even require that the
-    //area is pass-alive-opponent owned, and we also prohibit outright any ordinary moves in the opponent's pass-alive area or the player's own pass-alive area.
-    if(lastIdx >= 10 &&
+    if(lastIdx >= 6 &&
        rootHistory.moveHistory[lastIdx-0].loc == Board::PASS_LOC &&
        rootHistory.moveHistory[lastIdx-2].loc == Board::PASS_LOC &&
        rootHistory.moveHistory[lastIdx-4].loc == Board::PASS_LOC &&
        rootHistory.moveHistory[lastIdx-6].loc == Board::PASS_LOC &&
-       rootHistory.moveHistory[lastIdx-8].loc == Board::PASS_LOC &&
-       rootHistory.moveHistory[lastIdx-10].loc == Board::PASS_LOC &&
        rootHistory.moveHistory[lastIdx-0].pla == opp &&
        rootHistory.moveHistory[lastIdx-2].pla == opp &&
        rootHistory.moveHistory[lastIdx-4].pla == opp &&
        rootHistory.moveHistory[lastIdx-6].pla == opp &&
-       rootHistory.moveHistory[lastIdx-8].pla == opp &&
-       rootHistory.moveHistory[lastIdx-10].pla == opp &&
        (rootSafeArea[moveLoc] == opp || rootSafeArea[moveLoc] == rootPla || rootBoard.isSuicide(moveLoc,rootPla)))
       return false;
   }

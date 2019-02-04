@@ -712,7 +712,7 @@ ooooooo
     Board board = Board::parseBoard(7,7,R"%%(
 ..xx...
 xx.xxxx
-xxxx.xx
+x.xx.xx
 .xxoooo
 xxxo..x
 ooooooo
@@ -721,6 +721,10 @@ o..oo.x
     Player nextPla = P_BLACK;
     Rules rules = Rules::getTrompTaylorish();
     BoardHistory hist(board,nextPla,rules,0);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("B5",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("C6",board),nextPla,NULL);
     nextPla = getOpp(nextPla);
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
