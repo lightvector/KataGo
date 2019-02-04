@@ -308,19 +308,38 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   };
 
   auto loadLatestNeuralNet =
-    [&testModelsDir,&acceptedModelsDir,&sgfOutputDir,&logger,&cfg,numGameThreads]() -> NetAndStuff* {
+    [&testModelsDir,&rejectedModelsDir,&acceptedModelsDir,&sgfOutputDir,&logger,&cfg,numGameThreads]() -> NetAndStuff* {
     Rand rand;
 
     string testModelName;
     string testModelFile;
     string testModelDir;
-    bool foundModel = LoadModel::findLatestModel(testModelsDir, logger, testModelName, testModelFile, testModelDir);
+    time_t testModelTime;
+    bool foundModel = LoadModel::findLatestModel(testModelsDir, logger, testModelName, testModelFile, testModelDir, testModelTime);
 
     //No new neural nets yet
     if(!foundModel || testModelFile == "/dev/null")
       return NULL;
 
     logger.write("Found new candidate neural net " + testModelName);
+
+    string acceptedModelName;
+    string acceptedModelFile;
+    string acceptedModelDir;
+    time_t acceptedModelTime;
+    foundModel = LoadModel::findLatestModel(acceptedModelsDir, logger, acceptedModelName, acceptedModelFile, acceptedModelDir, acceptedModelTime);
+    if(!foundModel) {
+      logger.write("Error: No accepted model found in " + acceptedModelsDir);
+      return NULL;
+    }
+
+    if(acceptedModelTime > testModelTime) {
+      string renameDest = rejectedModelsDir + "/" + testModelName;
+      logger.write("Rejecting " + testModelDir + " automatically since older than best accepted model");
+      logger.write("Moving " + testModelDir + " to " + renameDest);
+      std::rename(testModelDir.c_str(),renameDest.c_str());
+      return NULL;
+    }
 
     bool debugSkipNeuralNetDefaultTest = (testModelFile == "/dev/null");
     // * 2 + 16 just in case to have plenty of room
@@ -332,15 +351,6 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       assert(nnEvals.size() == 1);
       logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
       testNNEval = nnEvals[0];
-    }
-
-    string acceptedModelName;
-    string acceptedModelFile;
-    string acceptedModelDir;
-    foundModel = LoadModel::findLatestModel(acceptedModelsDir, logger, acceptedModelName, acceptedModelFile, acceptedModelDir);
-    if(!foundModel) {
-      logger.write("Error: No accepted model found in " + acceptedModelsDir);
-      return NULL;
     }
 
     bool debugSkipNeuralNetDefaultAccepted = (acceptedModelFile == "/dev/null");
@@ -412,7 +422,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       bool shouldContinue = gameData != NULL;
       if(gameData != NULL)
         netAndStuff->finishedGameQueue.waitPush(gameData);
-      
+
       lock.lock();
 
       if(!shouldContinue)

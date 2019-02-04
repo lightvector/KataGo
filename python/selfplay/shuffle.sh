@@ -57,7 +57,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -approx-rows-per-out-file 70000 \
          -num-processes $NTHREADS \
          -batch-size 256 \
-         -keep-target-rows 40000 \
+         -keep-target-rows 20000 \
          2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outval.txt &
 
     wait

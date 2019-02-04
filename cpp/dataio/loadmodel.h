@@ -6,7 +6,7 @@
 
 namespace LoadModel {
 
-  bool findLatestModel(const string& modelsDir, Logger& logger, string& modelName, string& modelFile, string& modelDir);
+  bool findLatestModel(const string& modelsDir, Logger& logger, string& modelName, string& modelFile, string& modelDir, time_t& modelTime);
 
 }
 

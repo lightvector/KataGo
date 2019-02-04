@@ -2,7 +2,7 @@
 #include "../dataio/loadmodel.h"
 #include <boost/filesystem.hpp>
 
-bool LoadModel::findLatestModel(const string& modelsDir, Logger& logger, string& modelName, string& modelFile, string& modelDir) {
+bool LoadModel::findLatestModel(const string& modelsDir, Logger& logger, string& modelName, string& modelFile, string& modelDir, time_t& modelTime) {
   namespace bfs = boost::filesystem;
 
   bool hasLatestTime = false;
@@ -36,5 +36,7 @@ bool LoadModel::findLatestModel(const string& modelsDir, Logger& logger, string&
       }
     }
   }
+  modelTime = latestTime;
+
   return true;
 }

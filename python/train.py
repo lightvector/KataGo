@@ -35,6 +35,7 @@ parser.add_argument('-exportdir', help='Directory to export models periodically'
 parser.add_argument('-exportprefix', help='Prefix to append to names of models', required=True)
 parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
 parser.add_argument('-batch-size', help='Expected batch size of the input data, must match tfrecords', type=int, required=True)
+parser.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=True)
 parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
 parser.add_argument('-model-kind', help='String name for what model to use', required=True)
 parser.add_argument('-lr-epoch-offset', help='Start at effectively this epoch for LR purposes', type=float, required=False)
@@ -53,6 +54,7 @@ exportdir = args["exportdir"]
 exportprefix = args["exportprefix"]
 pos_len = args["pos_len"]
 batch_size = args["batch_size"]
+samples_per_epoch = args["samples_per_epoch"]
 gpu_memory_frac = args["gpu_memory_frac"]
 model_kind = args["model_kind"]
 lr_epoch_offset = args["lr_epoch_offset"]
@@ -90,8 +92,7 @@ def trainlog(s):
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-num_samples_per_epoch = 1000000
-num_batches_per_epoch = int(round(num_samples_per_epoch / batch_size))
+num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
 
 model_config = modelconfigs.config_of_name[model_kind]
 

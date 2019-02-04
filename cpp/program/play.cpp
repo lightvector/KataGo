@@ -757,7 +757,7 @@ FinishedGameData* Play::runGame(
   const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
   MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
   const string& searchRandSeed,
-  bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
+  bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
   FancyModes fancyModes, bool recordFullData, int dataPosLen,
@@ -780,7 +780,7 @@ FinishedGameData* Play::runGame(
     startBoard, pla, startHist, extraBlackAndKomi,
     botSpecB, botSpecW,
     botB, botW,
-    doEndGameIfAllPassAlive, clearBotAfterSearch,
+    doEndGameIfAllPassAlive, clearBotBeforeSearch,
     logger, logSearchInfo, logMoves,
     maxMovesPerGame, stopConditions,
     fancyModes, recordFullData, dataPosLen,
@@ -800,7 +800,7 @@ FinishedGameData* Play::runGame(
   const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
   MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
   Search* botB, Search* botW,
-  bool doEndGameIfAllPassAlive, bool clearBotAfterSearch,
+  bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
   FancyModes fancyModes, bool recordFullData, int dataPosLen,
@@ -925,6 +925,8 @@ FinishedGameData* Play::runGame(
     bool doCapVisitsPlayouts = false;
     int64_t numCapVisits = toMoveBot->searchParams.maxVisits;
     int64_t numCapPlayouts = toMoveBot->searchParams.maxPlayouts;
+    bool clearBotBeforeSearchThisMove = clearBotBeforeSearch;
+    bool removeRootNoise = false;
     if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
       if(fancyModes.cheapSearchVisits <= 0)
         throw StringError("fancyModes.cheapSearchVisits <= 0");
@@ -932,6 +934,12 @@ FinishedGameData* Play::runGame(
       numCapVisits = fancyModes.cheapSearchVisits;
       numCapPlayouts = fancyModes.cheapSearchVisits;
       targetWeight *= fancyModes.cheapSearchTargetWeight;
+
+      //If not recording cheap searches, do a few more things
+      if(fancyModes.cheapSearchTargetWeight <= 0.0) {
+        clearBotBeforeSearchThisMove = false;
+        removeRootNoise = true;
+      }
     }
     else if(fancyModes.reduceVisits) {
       if(fancyModes.reducedVisitsMin <= 0)
@@ -966,21 +974,36 @@ FinishedGameData* Play::runGame(
       }
     }
 
+    //In many cases, we are using root-level noise, so we want to clear the search each time so that we don't
+    //bias the search with the result of the previous...
+    if(clearBotBeforeSearchThisMove)
+      toMoveBot->clearSearch();
+    
     Loc loc;
 
     if(doCapVisitsPlayouts) {
       assert(numCapVisits > 0);
       assert(numCapPlayouts > 0);
-      int64_t oldMaxVisits = toMoveBot->searchParams.maxVisits;
-      int64_t oldMaxPlayouts = toMoveBot->searchParams.maxPlayouts;
-      toMoveBot->searchParams.maxVisits = std::min(oldMaxVisits, numCapVisits);
-      toMoveBot->searchParams.maxPlayouts = std::min(oldMaxPlayouts, numCapPlayouts);
+      SearchParams oldParams = toMoveBot->searchParams;
+      
+      toMoveBot->searchParams.maxVisits = std::min(toMoveBot->searchParams.maxVisits, numCapVisits);
+      toMoveBot->searchParams.maxPlayouts = std::min(toMoveBot->searchParams.maxPlayouts, numCapPlayouts);
+      if(removeRootNoise) {
+        toMoveBot->searchParams.rootNoiseEnabled = false;
+        toMoveBot->searchParams.rootPolicyTemperature = 1.0;
+        toMoveBot->searchParams.rootFpuLossProp = toMoveBot->searchParams.fpuLossProp;
+        toMoveBot->searchParams.rootFpuReductionMax = toMoveBot->searchParams.fpuReductionMax;
+        toMoveBot->searchParams.rootDesiredPerChildVisitsCoeff = 0.0;
+      }
+
       loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
-      toMoveBot->searchParams.maxVisits = oldMaxVisits;
-      toMoveBot->searchParams.maxPlayouts = oldMaxPlayouts;
+
+      toMoveBot->searchParams = oldParams;
     }
-    else
+    else {
+      assert(!removeRootNoise);
       loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+    }
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegal(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
@@ -1047,11 +1070,6 @@ FinishedGameData* Play::runGame(
       if(winLossValue < -1.0) winLossValue = -1.0;
       historicalMctsWinLossValues.push_back(winLossValue);
     }
-
-    //In many cases, we are using root-level noise, so we want to clear the search each time so that we don't
-    //bias the next search with the result of the previous... and also to make each color's search independent of the other's.
-    if(clearBotAfterSearch)
-      toMoveBot->clearSearch();
 
     //Finally, make the move on the bots
     bool suc;
@@ -1331,7 +1349,7 @@ void Play::maybeForkGame(
 
 
 GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, bool forSelfP, FancyModes fModes)
-  :logSearchInfo(),logMoves(),forSelfPlay(forSelfP),maxMovesPerGame(),clearBotAfterSearch(),
+  :logSearchInfo(),logMoves(),forSelfPlay(forSelfP),maxMovesPerGame(),clearBotBeforeSearch(),
    searchRandSeedBase(sRandSeedBase),
    fancyModes(fModes),
    gameInit(NULL)
@@ -1339,7 +1357,7 @@ GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, bool forS
   logSearchInfo = cfg.getBool("logSearchInfo");
   logMoves = cfg.getBool("logMoves");
   maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
-  clearBotAfterSearch = cfg.contains("clearBotAfterSearch") ? cfg.getBool("clearBotAfterSearch") : false;
+  clearBotBeforeSearch = cfg.contains("clearBotBeforeSearch") ? cfg.getBool("clearBotBeforeSearch") : false;
 
   //Initialize object for randomizing game settings
   gameInit = new GameInitializer(cfg);
@@ -1378,11 +1396,11 @@ FinishedGameData* GameRunner::runGame(
     gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition);
   }
 
-  bool clearBotAfterSearchThisGame = clearBotAfterSearch;
+  bool clearBotBeforeSearchThisGame = clearBotBeforeSearch;
   if(botSpecB.botIdx == botSpecW.botIdx) {
     //Avoid interactions between the two bots since they're the same.
     //Also in self-play this makes sure root noise is effective on each new search
-    clearBotAfterSearchThisGame = true;
+    clearBotBeforeSearchThisGame = true;
   }
 
   string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
@@ -1412,7 +1430,7 @@ FinishedGameData* GameRunner::runGame(
     board,pla,hist,extraBlackAndKomi,
     botSpecB,botSpecW,
     botB,botW,
-    doEndGameIfAllPassAlive,clearBotAfterSearchThisGame,
+    doEndGameIfAllPassAlive,clearBotBeforeSearchThisGame,
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,stopConditions,
     fancyModes,recordFullData,dataPosLen,

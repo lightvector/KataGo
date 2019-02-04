@@ -34,6 +34,7 @@ time python3 ./train.py \
      -exportprefix $TRAININGNAME \
      -pos-len 19 \
      -batch-size 256 \
+     -samples-per-epoch 1000000 \
      -gpu-memory-frac 0.6 \
      -model-kind $MODELKIND \
      -sub-epochs 4 \

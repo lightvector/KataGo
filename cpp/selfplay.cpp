@@ -214,7 +214,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   const double validationProp = cfg.getDouble("validationProp",0.0,0.5);
 
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
-  
+
   //Initialize object for randomizing game settings and running games
   bool forSelfPlay = true;
   FancyModes fancyModes;
@@ -311,7 +311,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     string modelName;
     string modelFile;
     string modelDir;
-    bool foundModel = LoadModel::findLatestModel(modelsDir, logger, modelName, modelFile, modelDir);
+    time_t modelTime;
+    bool foundModel = LoadModel::findLatestModel(modelsDir, logger, modelName, modelFile, modelDir, modelTime);
 
     //No new neural nets yet
     if(!foundModel || (lastNetName != NULL && *lastNetName == modelName))
@@ -450,7 +451,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
         logger.write("Game loop thread " + Global::intToString(threadIdx) + " changing midgame to new neural net: " + prevModelName);
         return netAndStuff->nnEval;
       };
-      
+
       FinishedGameData* gameData = NULL;
 
       const InitialPosition* initialPosition = nextInitialPosition;
