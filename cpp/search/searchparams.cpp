@@ -30,7 +30,7 @@ SearchParams::SearchParams()
    chosenMoveSubtract(0.0),
    chosenMovePrune(1.0),
    rootEndingBonusPoints(0.0),
-   rootPruneUselessSuicides(false),
+   rootPruneUselessMoves(false),
    mutexPoolSize(8192),
    numVirtualLossesPerThread(3),
    numThreads(1),

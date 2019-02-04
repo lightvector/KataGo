@@ -778,11 +778,11 @@ o..oo.x
     }
 
     {
-      cout << "Next, with rootPruneUselessSuicides" << endl;
+      cout << "Next, with rootPruneUselessMoves" << endl;
       NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
       SearchParams params;
       params.maxVisits = 400;
-      params.rootPruneUselessSuicides = true;
+      params.rootPruneUselessMoves = true;
       Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
       TestSearchOptions opts;
 
@@ -818,7 +818,7 @@ o..oo.x
       NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
       SearchParams params;
       params.maxVisits = 400;
-      params.rootPruneUselessSuicides = true;
+      params.rootPruneUselessMoves = true;
       Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
       TestSearchOptions opts;
 

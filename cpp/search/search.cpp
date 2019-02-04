@@ -701,8 +701,8 @@ void Search::beginSearch(Logger& logger) {
   computeRootValues(logger);
 
   //Sanity-check a few things
-  if(!rootPassLegal && searchParams.rootPruneUselessSuicides)
-    throw StringError("Both rootPassLegal=false and searchParams.rootPruneUselessSuicides=true are specified, this could leave the bot without legal moves!");
+  if(!rootPassLegal && searchParams.rootPruneUselessMoves)
+    throw StringError("Both rootPassLegal=false and searchParams.rootPruneUselessMoves=true are specified, this could leave the bot without legal moves!");
 
   if(rootNode == NULL) {
     SearchThread dummyThread(-1, *this, NULL);
@@ -886,7 +886,7 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
   //To mitigate some of this and save computation, we make it so that at the root, if the last four moves by the opponent
   //were passes, we will never play a move in either player's pass-alive area. In theory this could prune
   //a good move in situations like https://senseis.xmp.net/?1EyeFlaw, but this should be extraordinarly rare,
-  if(searchParams.rootPruneUselessSuicides &&
+  if(searchParams.rootPruneUselessMoves &&
      rootHistory.moveHistory.size() > 0 &&
      moveLoc != Board::PASS_LOC
   ) {
