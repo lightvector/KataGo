@@ -325,7 +325,14 @@ with tf.Session(config=tfconfig) as session:
       write_matbias("v2/b",model.v2_size,get_weights("v2/b"))
       write_activation("v2/actv")
       write_matmul("v3/w",model.v2_size,model.v3_size,get_weights("v3/w"))
-      write_matbias("v3/b",model.v3_size,get_weights("v3/b"))
+
+      if model.support_japanese_rules:
+        write_matbias("v3/b",model.v3_size,get_weights("v3/b"))
+      else:
+        w = get_weights("v3/b")
+        assert(len(w.shape) == 1 and w.shape[0] == 3)
+        w[2] = w[2] - 5000.0
+        write_matbias("v3/b",model.v3_size,w)
 
       #For now, only output the scoremean and scorestdev channels
       write_matmul("sv3/w",model.v2_size,2,get_weights("mv3/w")[:,0:2])

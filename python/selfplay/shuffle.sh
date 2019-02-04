@@ -34,30 +34,30 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 (
     time python3 ./shuffle.py \
          $BASEDIR/selfplay/*/tdata/ \
-         -min-rows 1000000 \
+         -min-rows 250000 \
          -max-rows 1000000000 \
          -expand-window-per-row 0.4 \
-         -taper-window-exponent 0.70 \
+         -taper-window-exponent 0.75 \
          -out-dir $BASEDIR/shuffleddata/$OUTDIRTRAIN \
          -out-tmp-dir $TMPDIR/train \
-         -approx-rows-per-out-file 100000 \
+         -approx-rows-per-out-file 70000 \
          -num-processes $NTHREADS \
          -batch-size 256 \
-         -keep-target-rows 3000000 \
+         -keep-target-rows 2000000 \
          2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outtrain.txt &
 
     time python3 ./shuffle.py \
          $BASEDIR/selfplay/*/vdata/ \
-         -min-rows 50000 \
+         -min-rows 12500 \
          -max-rows 10000000 \
          -expand-window-per-row 0.4 \
-         -taper-window-exponent 0.70 \
+         -taper-window-exponent 0.75 \
          -out-dir $BASEDIR/shuffleddata/$OUTDIRVAL \
          -out-tmp-dir $TMPDIR/val \
-         -approx-rows-per-out-file 100000 \
+         -approx-rows-per-out-file 70000 \
          -num-processes $NTHREADS \
          -batch-size 256 \
-         -keep-target-rows 60000 \
+         -keep-target-rows 40000 \
          2>&1 | tee $BASEDIR/shuffleddata/$OUTDIR/outval.txt &
 
     wait

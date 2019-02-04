@@ -49,6 +49,10 @@ class Model:
     #Accumulates info about batch norm laywers
     self.batch_norms = {}
 
+    self.support_japanese_rules = True #by default
+    if "support_japanese_rules" in config and config["support_japanese_rules"] == False:
+      self.support_japanese_rules = False
+
     self.build_model(config,placeholders)
 
   def assert_batched_shape(self,name,tensor,shape):
@@ -239,12 +243,12 @@ class Model:
       bin_input_data[idx,pos,16] = 1.0
     self.iterLadders(prevPrevBoard, addPrevPrevLadderFeature)
 
-    #Features 18,19 - current territory
+    #Features 18,19 - pass-alive stones
     area = [-1 for i in range(board.arrsize)]
     if rules["scoringRule"] == "SCORING_AREA":
-      nonPassAliveStones = True
+      nonPassAliveStones = False
       safeBigTerritories = True
-      unsafeBigTerritories = True
+      unsafeBigTerritories = False
       board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
     elif rules["scoringRule"] == "SCORING_TERRITORY":
       nonPassAliveStones = False
@@ -960,7 +964,11 @@ class Model:
     self.mv3_size = mv3_size
     self.other_internal_outputs.append(("mv3",mv3_layer))
 
+    if not self.support_japanese_rules:
+      # Force no-result prediction to 0 after softmax
+      v3_layer = v3_layer + tf.constant([0,0,-5000.0],dtype=tf.float32)
     value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
+
     miscvalues_output = tf.reshape(mv3_layer, [-1] + self.miscvalues_target_shape, name = "miscvalues_output")
 
     #Transform a real-valued output into a positive value suitable for multiplying to other inputs as a scaling factor
@@ -1037,8 +1045,10 @@ class Model:
 
     bb3_layer = bb3_layer # * tf.reshape(bbscale3_layer,[-1,1,1])
 
-    bonusbelief_output = tf.reshape(bb3_layer,[-1] + self.bonusbelief_target_shape, name = "bonusbelief_output")
+    if not self.support_japanese_rules:
+      bb3_layer = bb3_layer + tf.constant([(-5000.0 if i == bonusbelief_mid else 0.0) for i in range(bonusbelief_len)],dtype=tf.float32)
 
+    bonusbelief_output = tf.reshape(bb3_layer,[-1] + self.bonusbelief_target_shape, name = "bonusbelief_output")
 
     #No need for separate mask since v1_layer is already zero outside of mask bounds.
     ownership_output = self.conv_only_block("vownership",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2, reg=False) * mask
@@ -1431,7 +1441,7 @@ class ModelUtils:
       lr_epoch_offset = 0.0 if lr_epoch_offset is None else float(lr_epoch_offset)
       lr_epoch_scale = 0.1 if lr_epoch_scale is None else float(lr_epoch_scale)
       lr_epoch_cap = 150.0 if lr_epoch_cap is None else float(lr_epoch_cap)
-      lr_scale = 0.00020 if lr_scale is None else  float(lr_scale)
+      lr_scale = 0.00006 if lr_scale is None else float(lr_scale)
       global_epoch_float_capped = tf.math.minimum(tf.constant(lr_epoch_cap),global_epoch + tf.constant(lr_epoch_offset,dtype=tf.float32))
       per_sample_learning_rate = (
         tf.constant(lr_scale) / tf.pow(global_epoch_float_capped * tf.constant(lr_epoch_scale) + tf.constant(1.0), tf.constant(1.333333))

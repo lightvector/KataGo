@@ -696,8 +696,9 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   //Write main game rows
   int startTurnNumber = data.startHist.moveHistory.size();
   for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
-    int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
     float targetWeight = data.targetWeightByTurn[turnNumberAfterStart];
+    int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
+
     int64_t unreducedNumVisits = data.policyTargetsByTurn[turnNumberAfterStart].unreducedNumVisits;
     const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnNumberAfterStart].policyTargets;
     const vector<PolicyTargetMove>* policyTarget1 = (turnNumberAfterStart + 1 < numMoves) ? data.policyTargetsByTurn[turnNumberAfterStart+1].policyTargets : NULL;
@@ -711,26 +712,28 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       }
     }
 
-    if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
-      writeBuffers->addRow(
-        board,hist,nextPlayer,
-        absoluteTurnNumber,
-        targetWeight,
-        unreducedNumVisits,
-        policyTarget0,
-        policyTarget1,
-        data.whiteValueTargetsByTurn,
-        turnNumberAfterStart,
-        data.finalWhiteOwnership,
-        isSidePosition,
-        numNeuralNetsBehindLatest,
-        data,
-        rand
-      );
-      writeAndClearIfFull();
+    if(targetWeight != 0.0) {
+      if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
+        writeBuffers->addRow(
+          board,hist,nextPlayer,
+          absoluteTurnNumber,
+          targetWeight,
+          unreducedNumVisits,
+          policyTarget0,
+          policyTarget1,
+          data.whiteValueTargetsByTurn,
+          turnNumberAfterStart,
+          data.finalWhiteOwnership,
+          isSidePosition,
+          numNeuralNetsBehindLatest,
+          data,
+          rand
+        );
+        writeAndClearIfFull();
+      }
+      rowCount++;
     }
-    rowCount++;
-
+    
     Move move = data.endHist.moveHistory[absoluteTurnNumber];
     assert(move.pla == nextPlayer);
     assert(hist.isLegal(board,move.loc,move.pla));
@@ -742,6 +745,10 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   vector<ValueTargets> whiteValueTargetsBuf(1);
   for(int i = 0; i<data.sidePositions.size(); i++) {
     SidePosition* sp = data.sidePositions[i];
+
+    if(sp->targetWeight == 0.0)
+      continue;
+
     int absoluteTurnNumber = sp->hist.moveHistory.size();
     assert(absoluteTurnNumber >= data.startHist.moveHistory.size());
     whiteValueTargetsBuf[0] = sp->whiteValueTargets;
