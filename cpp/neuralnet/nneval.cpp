@@ -650,12 +650,18 @@ void NNEvaluator::evaluate(
         double scoreMeanPreScaled = buf.result->whiteScoreMean;
         double scoreStdevPreSoftplus = buf.result->whiteScoreMeanSq;
 
+        if(history.rules.koRule != Rules::KO_SIMPLE && history.rules.scoringRule != Rules::SCORING_TERRITORY)
+          noResultLogits -= 100000.0;
+        
         //Softmax
         double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
         winProb = exp(winLogits - maxLogits);
         lossProb = exp(lossLogits - maxLogits);
         noResultProb = exp(noResultLogits - maxLogits);
 
+        if(history.rules.koRule != Rules::KO_SIMPLE && history.rules.scoringRule != Rules::SCORING_TERRITORY)
+          noResultProb = 0.0;
+        
         double probSum = winProb + lossProb + noResultProb;
         winProb /= probSum;
         lossProb /= probSum;

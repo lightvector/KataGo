@@ -1046,7 +1046,7 @@ class Model:
     bb3_layer = bb3_layer # * tf.reshape(bbscale3_layer,[-1,1,1])
 
     if not self.support_japanese_rules:
-      bb3_layer = bb3_layer + tf.constant([(-5000.0 if i == bonusbelief_mid else 0.0) for i in range(bonusbelief_len)],dtype=tf.float32)
+      bb3_layer = tf.reshape(bb3_layer,[-1] + self.bonusbelief_target_shape) + tf.constant([(5000.0 if i == bonusbelief_mid else 0.0) for i in range(bonusbelief_len)],dtype=tf.float32)
 
     bonusbelief_output = tf.reshape(bb3_layer,[-1] + self.bonusbelief_target_shape, name = "bonusbelief_output")
 
@@ -1469,6 +1469,7 @@ class ModelUtils:
         ModelUtils.print_trainable_variables(trainlog)
         for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
           trainlog("Additional update op on train step: %s" % update_op.name)
+        trainlog("Supporting japanese rules: " + str(model.support_japanese_rules))
 
       return (model,target_vars,metrics,global_step,global_step_float,per_sample_learning_rate,train_step)
 
