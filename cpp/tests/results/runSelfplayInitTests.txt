@@ -179,11 +179,11 @@ whiteValueTargetsByTurn 1 1 0 0 6.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 21F864FF75843A882B448700E1E26220
+HASH: 0083D2617917CA9FBAB13B04B00E78F5
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . O . . . X . . .
+ 9 . . . O . . . . X . .
  8 . . . . . . . . . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
@@ -199,19 +199,19 @@ Rules koPOSITIONALscoreAREAsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D3 D9 H9 
+Last moves D3 D9 J9 
 Side position 1
-HASH: 597D858C5B3684E56BA4193F237C75C3
+HASH: 51293F9BB8B68459AE5CD99F88B26A17
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . O . . . X . . .
+ 9 . . . O . . . . X . .
  8 . . . . . . . . . . .
  7 . . . . . . . . . . .
- 6 . . . . . . . . X . .
+ 6 . . . . . . . . . . .
  5 . . . . . . . . . . .
  4 . . . . . . . . O . .
- 3 . . . X . . . . . . .
+ 3 . . . X . . X . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
@@ -221,7 +221,7 @@ Rules koPOSITIONALscoreAREAsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D3 D9 H9 J4 J6 
+Last moves D3 D9 J9 J4 G3 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -504,7 +504,7 @@ whiteValueTargetsByTurn 1 0 1 0 -113.5
    -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
    -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
 Side position 0
-HASH: D5E3F7C6193AA6C333ACB167F6751D41
+HASH: C367B877E94B162C3542C3EAD7577B32
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -513,7 +513,7 @@ HASH: D5E3F7C6193AA6C333ACB167F6751D41
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . . . . . X . . . .
+ 4 . . . . . . . X . . .
  3 . . . . . . . . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
@@ -524,7 +524,7 @@ Rules koPOSITIONALscoreAREAsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves G4 
+Last moves H4 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -1022,16 +1022,16 @@ whiteValueTargetsByTurn 1 1 0 0 18.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 3FAA5DBBB7EEEAE10F9D895F91B94945
+HASH: 7D698B1AE7F6F9DDDCC37532A892B9EC
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
  9 . . . . . . . . . . .
- 8 . . X . X . . . X . .
+ 8 . . X . . . . . X . .
  7 . . . . . . . . X O .
  6 . . . . . . . . X . .
  5 . . . . . . . . . . .
- 4 . . . O . . . . . . .
+ 4 . . . O X . . . . . .
  3 . . . . . . . O . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
@@ -1042,7 +1042,7 @@ Rules koPOSITIONALscoreAREAsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves J6 K7 J7 D4 C8 H3 E8 
+Last moves J6 K7 J7 D4 C8 H3 E4 
 Forking to initial position O
 HASH: D6F90F197C182585D228A469B2DFF696
    A B C D E F G H J K L
@@ -1470,7 +1470,7 @@ whiteValueTargetsByTurn 1 1 0 0 5.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 3376BA4691C924A150FE5E3915CD1493
+HASH: 36EE31CCD7C4D54DC7B1E3762623F614
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1479,8 +1479,8 @@ HASH: 3376BA4691C924A150FE5E3915CD1493
  7 . . . . . . . . . . .
  6 . . O . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . . . . . . . X X .
- 3 . . . O . . . . . . .
+ 4 . . . . . . . . X . .
+ 3 . . . O X . . . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
@@ -1490,7 +1490,7 @@ Rules koPOSITIONALscoreAREAsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves J8 D3 J4 C6 K4 
+Last moves J8 D3 J4 C6 E3 
 Forking to initial position O
 HASH: 36EE31CCD7C4D54DC7B1E3762623F614
    A B C D E F G H J K L
@@ -1817,7 +1817,7 @@ whiteValueTargetsByTurn 1 1 0 0 18
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: C3217D4B84BFB6FDDF05B062A065F42C
+HASH: 6A6EAC76051E3B6C8336D35F42B35B47
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1827,7 +1827,7 @@ HASH: C3217D4B84BFB6FDDF05B062A065F42C
  6 . . . . . . . . O . .
  5 . . . . . . . . . . .
  4 . . X . . . . X O . .
- 3 . . . . . . X O . . .
+ 3 . . . . . . . O X . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
@@ -1837,9 +1837,9 @@ Rules koPOSITIONALscoreAREAsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves J9 H3 D9 J6 H4 J4 G3 
+Last moves J9 H3 D9 J6 H4 J4 J3 
 Side position 1
-HASH: 0FC2E80436EBC2E948956F892147501B
+HASH: 6CEBF6D7ADC0F67E13633090A23CDEDA
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1847,10 +1847,10 @@ HASH: 0FC2E80436EBC2E948956F892147501B
  8 . . . . . . . . . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . O . .
- 5 . . . . . . . X . . .
+ 5 . . . . . . . . X . .
  4 . . X . . . . X O . .
- 3 . . . . . . X O . . .
- 2 . . . . . . . O . . .
+ 3 . . . . . . O O X . .
+ 2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
@@ -1859,7 +1859,7 @@ Rules koPOSITIONALscoreAREAsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves J9 H3 D9 J6 H4 J4 G3 H2 H5 
+Last moves J9 H3 D9 J6 H4 J4 J3 G3 J5 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -2199,7 +2199,7 @@ whiteValueTargetsByTurn 1 1 0 0 37.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 9E1459A9E0A6169B9180A7F974DB57F5
+HASH: FA0B6448112B1ADC9D640846292F890B
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2207,7 +2207,7 @@ HASH: 9E1459A9E0A6169B9180A7F974DB57F5
  8 . . . . . . . X . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
- 5 . . . . . . X O . . .
+ 5 . . . . . . . O X . .
  4 . . . . . . . X O . .
  3 . . X . . . . X O . .
  2 . . . . . . . . . . .
@@ -2219,7 +2219,7 @@ Rules koPOSITIONALscoreAREAsui1komi40.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C3 J3 H3 J4 H4 H5 G5 
+Last moves C3 J3 H3 J4 H4 H5 J5 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -2300,7 +2300,7 @@ whiteValueTargetsByTurn 1 1 0 0 32
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 6FEBAE6E16E8635C509520C73AF859C2
+HASH: B0DE126093AA851D56587DE703ACC986
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2309,8 +2309,8 @@ HASH: 6FEBAE6E16E8635C509520C73AF859C2
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . . . . . . . . X .
- 3 . . . O . . . . . . .
+ 4 . . . O . . . . . X .
+ 3 . . . . . . . . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
@@ -2320,7 +2320,7 @@ Rules koPOSITIONALscoreAREAsui1komi34
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 D3 
+Last moves D8 D4 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -2581,33 +2581,11 @@ whiteValueTargetsByTurn 1 1 0 0 34.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 4347DF03BC6CA65E9D23DEC4C78F8C0A
+HASH: DD6512A9C85F5D69C784FAA946C0764E
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . X O .
- 9 . . . . X . O O O X .
- 8 . . X . . . . . X . .
- 7 . . . . . . . . . . .
- 6 . . . . . . . . . . .
- 5 . . . . . . . . . . .
- 4 . . . O . . . X . . .
- 3 . . . . . . X . . . .
- 2 . . . . . . . . . . .
- 1 . . . . . . . . . . .
-
-
-Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi36.5
-Ko prohib hash 00000000000000000000000000000000
-White bonus score 0
-Game result 0 Empty 0 0 0
-Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 H9 
-Side position 1
-HASH: 4F9C4159ECA62F04D7247BDB5A313804
-   A B C D E F G H J K L
-11 . . . . . . . . . . .
-10 . . . . . . . . X O X
- 9 . . . . X . O O O X .
+ 9 . . . . X . O . O X .
  8 . . X O . . . . X . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
@@ -2623,7 +2601,29 @@ Rules koPOSITIONALscoreAREAsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 H9 L10 D8 
+Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 D8 
+Side position 1
+HASH: B4D90B3B33E5C03CD1756665ADF3DAC3
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . X O .
+ 9 . . . O X . O X . X .
+ 8 . . X O . . . . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . O . . . X . . .
+ 3 . . . . . . X . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Encore phase 0
+Rules koPOSITIONALscoreAREAsui1komi36.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 0
+Game result 0 Empty 0 0 0
+Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 D8 H9 D9 
 Forking to initial position X
 HASH: CF9449FDA7B989CEB2447E4E43008289
    A B C D E F G H J K L
@@ -2827,7 +2827,7 @@ whiteValueTargetsByTurn 1 1 0 0 32
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: CA4F36F5D393B3B6850084744538B496
+HASH: 33530F8E4355883DA55D1536E33B214C
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2838,7 +2838,7 @@ HASH: CA4F36F5D393B3B6850084744538B496
  5 . . . . . . . . X . .
  4 . . X . . . . . . . .
  3 . . . . O . . O . . .
- 2 . . . . . . . . X . .
+ 2 . . . . . . . . . . X
  1 . . . . . . . . . . .
 
 
@@ -2847,9 +2847,9 @@ Rules koPOSITIONALscoreAREAsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 H3 J5 E3 J2 
+Last moves D8 H3 J5 E3 L2 
 Side position 1
-HASH: 23623B4E013CB5F5F28B22839B7ABBC1
+HASH: D3FA7F83AF919B0AD9433FCD9D2346F8
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2859,8 +2859,8 @@ HASH: 23623B4E013CB5F5F28B22839B7ABBC1
  6 . . . . . . . . . . .
  5 . . . . . . X . X . .
  4 . . X . . . . . . . .
- 3 . . . . O . . O O . .
- 2 . . . . . . . . X . .
+ 3 . . . . O . . O . O .
+ 2 . . . . . . . . . . X
  1 . . . . . . . . . . .
 
 
@@ -2869,7 +2869,7 @@ Rules koPOSITIONALscoreAREAsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
-Last moves D8 H3 J5 E3 J2 J3 G5 
+Last moves D8 H3 J5 E3 L2 K3 G5 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
