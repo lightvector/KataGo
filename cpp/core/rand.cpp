@@ -203,11 +203,13 @@ void Rand::init()
     Global::uint32ToHexString(clock0) +
     Global::int64ToString(precisionTime);
 
-  //Mix the hostname into the seed so that starting two things on different computers almost certainly
+  //Mix the hostname and pid into the seed so that starting two things on different computers almost certainly
   //pick different seeds.
-  //It turns out in this one case that the windows and unix implementations are the same...
 #ifdef _RAND_IS_WINDOWS
   {
+    s += "|";
+    DWORD processId = GetCurrentProcessId();
+    s += Global::int64ToString((int64_t)processId);
     s += "|";
     int bufSize = 1024;
     char hostNameBuf[bufSize];
@@ -218,6 +220,9 @@ void Rand::init()
 #endif
 #ifdef _RAND_IS_UNIX
   {
+    s += "|";
+    pid_t processId = getpid();
+    s += Global::int64ToString((int64_t)processId);
     s += "|";
     int bufSize = 1024;
     char hostNameBuf[bufSize];
