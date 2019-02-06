@@ -1289,10 +1289,8 @@ class Target_vars:
         self.bonusbelief_cdf_loss +
         self.utilityvar_loss +
         self.ownership_loss +
-        self.ownership_reg_loss +
         self.scoremean_reg_loss +
         self.scorestdev_reg_loss +
-        self.winloss_reg_loss +
         self.reg_loss +
         self.scale_reg_loss
       )
