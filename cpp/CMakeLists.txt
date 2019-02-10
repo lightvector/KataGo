@@ -109,6 +109,7 @@ if(BUILD_MCTS)
   add_executable(main
     core/global.cpp
     core/config_parser.cpp
+    core/elo.cpp
     core/fancymath.cpp
     core/hash.cpp
     core/logger.cpp

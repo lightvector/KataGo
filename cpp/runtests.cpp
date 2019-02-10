@@ -2,6 +2,7 @@
 #include <sstream>
 #include "core/global.h"
 #include "core/rand.h"
+#include "core/elo.h"
 #include "core/fancymath.h"
 #include "game/board.h"
 #include "game/rules.h"
@@ -19,6 +20,8 @@ int MainCmds::runtests(int argc, const char* const* argv) {
 
   Rand::runTests();
   FancyMath::runTests();
+  ComputeElos::runTests();
+  
 
   Tests::runBoardIOTests();
   Tests::runBoardBasicTests();
