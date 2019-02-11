@@ -86,17 +86,37 @@ static double computeLocalLogLikelihoodSecondDerivative(
 
 //Approximately compute the standard deviation of all players' Elos, assuming each time that all other
 //player Elos are completely confident.
-//Uses a local normal approximation at the final optimal point.
 vector<double> ComputeElos::computeApproxEloStdevs(
   const vector<double>& elos,
   const ComputeElos::WLRecord* winMatrix,
   int numPlayers,
   double priorWL
 ) {
+  //Very crude - just discretely model the distribution and look at what its stdev is
   vector<double> eloStdevs(numPlayers,0.0);
+
+  const int radius = 1500;
+  vector<double> relProbs(radius*2+1,0.0);
+  const double step = 1.0; //one-elo increments
+  
   for(int player = 0; player < numPlayers; player++) {
-    double logLikelihoodSecondDerivative = computeLocalLogLikelihoodSecondDerivative(player,elos,winMatrix,numPlayers,priorWL);
-    eloStdevs[player] = 1.0 / sqrt(-logLikelihoodSecondDerivative);
+    double logLikelihood = computeLocalLogLikelihood(player,elos,winMatrix,numPlayers,priorWL);
+    double sumRelProbs = 0.0;
+    vector<double> tempElos = elos;
+    for(int i = 0; i < radius*2+1; i++) {
+      double elo = elos[player] + (i - radius) * step;
+      tempElos[player] = elo;
+      double newLogLikelihood = computeLocalLogLikelihood(player,tempElos,winMatrix,numPlayers,priorWL);
+      relProbs[i] = exp(newLogLikelihood-logLikelihood);
+      sumRelProbs += relProbs[i];
+    }
+
+    double secondMomentAroundElo = 0.0;
+    for(int i = 0; i < radius*2+1; i++) {
+      double elo = elos[player] + (i - radius) * step;
+      secondMomentAroundElo += relProbs[i] / sumRelProbs * (elo - elos[player]) * (elo - elos[player]);
+    }
+    eloStdevs[player] = sqrt(secondMomentAroundElo);
   }
   return eloStdevs;
 }
@@ -279,7 +299,7 @@ void ComputeElos::runTests() {
     
     string expected = R"%%(
 Iteration 0 maxEloDiff = 40
-Elo 0 = 0 stdev 776.89 2nd der -1.65684e-06 approx -1.65684e-06
+Elo 0 = 0 stdev 780.104 2nd der -1.65684e-06 approx -1.65684e-06
 )%%";
 
     printEloStuff(elos,winMatrix,numPlayers,priorWL);
@@ -319,9 +339,9 @@ Iteration 250 maxEloDiff = 0.00779085
 Iteration 300 maxEloDiff = 0.00211458
 Iteration 350 maxEloDiff = 0.00157832
 Iteration 400 maxEloDiff = 0.000428383
-Elo 0 = 4.39805e-07 stdev 245.674 2nd der -1.65684e-05 approx -1.65684e-05
-Elo 1 = 59.9906 stdev 21.19 2nd der -0.00222709 approx -0.00222709
-Elo 2 = -59.9762 stdev 21.19 2nd der -0.00222709 approx -0.00222709
+Elo 0 = 4.39805e-07 stdev 313.547 2nd der -1.65684e-05 approx -1.65684e-05
+Elo 1 = 59.9906 stdev 21.2381 2nd der -0.00222709 approx -0.00222709
+Elo 2 = -59.9762 stdev 21.2381 2nd der -0.00222709 approx -0.00222709
 )%%";
 
     printEloStuff(elos,winMatrix,numPlayers,priorWL);
@@ -353,9 +373,9 @@ Elo 2 = -59.9762 stdev 21.19 2nd der -0.00222709 approx -0.00222709
     
     string expected = R"%%(
 Iteration 0 maxEloDiff = 110
-Elo 0 = 76.5227 stdev 144.438 2nd der -4.7933e-05 approx -4.7933e-05
-Elo 1 = 76.5227 stdev 144.438 2nd der -4.7933e-05 approx -4.7933e-05
-Elo 2 = -161.285 stdev 113.416 2nd der -7.77407e-05 approx -7.77407e-05
+Elo 0 = 76.5227 stdev 162.965 2nd der -4.7933e-05 approx -4.7933e-05
+Elo 1 = 76.5227 stdev 162.965 2nd der -4.7933e-05 approx -4.7933e-05
+Elo 2 = -161.285 stdev 123.894 2nd der -7.77407e-05 approx -7.77407e-05
 )%%";
 
     printEloStuff(elos,winMatrix,numPlayers,priorWL);
@@ -387,9 +407,9 @@ Elo 2 = -161.285 stdev 113.416 2nd der -7.77407e-05 approx -7.77407e-05
     
     string expected = R"%%(
 Iteration 0 maxEloDiff = 110
-Elo 0 = -190.848 stdev 141.84 2nd der -4.97053e-05 approx -4.97053e-05
-Elo 1 = 190.848 stdev 141.84 2nd der -4.97053e-05 approx -4.97053e-05
-Elo 2 = 0 stdev 104.756 2nd der -9.11264e-05 approx -9.11263e-05
+Elo 0 = -190.848 stdev 161.134 2nd der -4.97053e-05 approx -4.97053e-05
+Elo 1 = 190.848 stdev 161.134 2nd der -4.97053e-05 approx -4.97053e-05
+Elo 2 = 0 stdev 106.849 2nd der -9.11264e-05 approx -9.11263e-05
 )%%";
 
     printEloStuff(elos,winMatrix,numPlayers,priorWL);
@@ -421,9 +441,9 @@ Elo 2 = 0 stdev 104.756 2nd der -9.11264e-05 approx -9.11263e-05
     
     string expected = R"%%(
 Iteration 0 maxEloDiff = 110
-Elo 0 = -266.471 stdev 182.624 2nd der -2.99835e-05 approx -2.99835e-05
-Elo 1 = 266.471 stdev 182.624 2nd der -2.99835e-05 approx -2.99835e-05
-Elo 2 = -7.72341e-07 stdev 129.435 2nd der -5.96895e-05 approx -5.96895e-05
+Elo 0 = -266.471 stdev 234.178 2nd der -2.99835e-05 approx -2.99835e-05
+Elo 1 = 266.471 stdev 234.178 2nd der -2.99835e-05 approx -2.99835e-05
+Elo 2 = -7.72341e-07 stdev 128.942 2nd der -5.96895e-05 approx -5.96895e-05
 )%%";
 
     printEloStuff(elos,winMatrix,numPlayers,priorWL);
@@ -491,9 +511,9 @@ Iteration 1650 maxEloDiff = 0.000339962
 Iteration 1700 maxEloDiff = 0.000253747
 Iteration 1750 maxEloDiff = 0.000189397
 Iteration 1800 maxEloDiff = 0.000141365
-Elo 0 = -322.047 stdev 184.89 2nd der -2.92533e-05 approx -2.92534e-05
-Elo 1 = 292.708 stdev 189.48 2nd der -2.78531e-05 approx -2.78531e-05
-Elo 2 = 14.549 stdev 132.329 2nd der -5.71067e-05 approx -5.71068e-05
+Elo 0 = -322.047 stdev 246.125 2nd der -2.92533e-05 approx -2.92534e-05
+Elo 1 = 292.708 stdev 248.472 2nd der -2.78531e-05 approx -2.78531e-05
+Elo 2 = 14.549 stdev 129.788 2nd der -5.71067e-05 approx -5.71068e-05
 )%%";
 
     printEloStuff(elos,winMatrix,numPlayers,priorWL);

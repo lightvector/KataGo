@@ -318,14 +318,16 @@ namespace {
       
       //Several times in a row, find the bot with the least games played, and chooose a random other bot with probability proportional
       //to the variance of the game result based on a random sample of the predicted elo difference
+      //We use the average of games "for" this bot in conjunction with games played
       for(int i = 0; i<10; i++) {
         int bestBot = -1;
-        int64_t minGamesPlayed = 1LL << 62;
+        int64_t minVal = 1LL << 62;
         for(int j = 0; j<numBots; j++) {
           int b = botIdxsShuffled[j];
-          if(numGamesForBot[b] < minGamesPlayed) {
+          int64_t val = numGamesForBot[b] * 2 + numGamesByBot[b];
+          if(val < minVal) {
             bestBot = b;
-            minGamesPlayed = numGamesForBot[b];
+            minVal = val;
           }
         }
         assert(bestBot >= 0);
@@ -336,10 +338,12 @@ namespace {
           if(b == bestBot)
             relProbs[b] = 0.0;
           else {
+            //Vary elo a bit based on stdev so that bots that are more uncertain get more variety
+            //Not as much as the whole stdev though, to make sure matches are still informative.
             double g = rand.nextGaussian();
             g = std::min(g,10.0);
             g = std::max(g,-10.0);
-            double eloDiff = elos[b] - elos[bestBot] + eloStdevs[bestBot] * g;
+            double eloDiff = elos[b] - elos[bestBot] + 0.5 * eloStdevs[bestBot] * g;
             double p = ComputeElos::probWin(eloDiff);
             relProbs[b] = p * (1.0-p) + 1e-30; //Add a tiny bit just in case to avoid zero
           }
