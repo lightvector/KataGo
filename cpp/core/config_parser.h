@@ -2,6 +2,7 @@
 #define CONFIG_PARSER_H
 
 #include "../core/global.h"
+#include <mutex>
 
 /* Parses simple configs like:
 
@@ -60,6 +61,8 @@ class ConfigParser {
   string fileName;
   string contents;
   map<string,string> keyValues;
+
+  mutable std::mutex usedKeysMutex;
   set<string> usedKeys;
 };
 

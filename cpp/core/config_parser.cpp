@@ -5,7 +5,7 @@
 #include "../core/config_parser.h"
 
 ConfigParser::ConfigParser(const string& fname)
-  :fileName(fname),contents(),keyValues(),usedKeys()
+  :fileName(fname),contents(),keyValues(),usedKeysMutex(),usedKeys()
 {
   ifstream in(fileName);
   if(!in.is_open())
@@ -48,6 +48,7 @@ string ConfigParser::getContents() const {
 }
 
 vector<string> ConfigParser::unusedKeys() const {
+  std::lock_guard<std::mutex> lock(usedKeysMutex);
   vector<string> unused;
   for(auto iter = keyValues.begin(); iter != keyValues.end(); ++iter) {
     const string& key = iter->first;
@@ -65,7 +66,12 @@ string ConfigParser::getString(const string& key) {
   auto iter = keyValues.find(key);
   if(iter == keyValues.end())
     throw IOError("Could not find key '" + key + "' in config file " + fileName);
-  usedKeys.insert(key);
+
+  {
+    std::lock_guard<std::mutex> lock(usedKeysMutex);
+    usedKeys.insert(key);
+  }
+  
   return iter->second;
 }
 
