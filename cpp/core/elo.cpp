@@ -3,7 +3,7 @@
 
 #include <cmath>
 
-static const double ELO_PER_LOG_GAMMA = 173.717793;
+static const double ELO_PER_LOG_GAMMA = 173.717792761;
 
 static double logOnePlusExpX(double x) {
   if(x >= 50)
@@ -15,6 +15,11 @@ static double logOnePlusExpXSecondDerivative(double x) {
   double halfX = 0.5 * x;
   double denom = exp(halfX) + exp(-halfX);
   return 1 / (denom * denom);
+}
+
+double ComputeElos::probWin(double eloDiff) {
+  double logGammaDiff = eloDiff / ELO_PER_LOG_GAMMA;
+  return 1.0 / (1.0 + exp(-logGammaDiff));
 }
 
 static double logLikelihoodOfWL(
@@ -418,7 +423,7 @@ Elo 2 = 0 stdev 104.756 2nd der -9.11264e-05 approx -9.11263e-05
 Iteration 0 maxEloDiff = 110
 Elo 0 = -266.471 stdev 182.624 2nd der -2.99835e-05 approx -2.99835e-05
 Elo 1 = 266.471 stdev 182.624 2nd der -2.99835e-05 approx -2.99835e-05
-Elo 2 = -1.75922e-07 stdev 129.435 2nd der -5.96894e-05 approx -5.96895e-05
+Elo 2 = -7.72341e-07 stdev 129.435 2nd der -5.96895e-05 approx -5.96895e-05
 )%%";
 
     printEloStuff(elos,winMatrix,numPlayers,priorWL);
@@ -486,9 +491,9 @@ Iteration 1650 maxEloDiff = 0.000339962
 Iteration 1700 maxEloDiff = 0.000253747
 Iteration 1750 maxEloDiff = 0.000189397
 Iteration 1800 maxEloDiff = 0.000141365
-Elo 0 = -322.057 stdev 184.89 2nd der -2.92533e-05 approx -2.92534e-05
-Elo 1 = 292.698 stdev 189.48 2nd der -2.78531e-05 approx -2.78531e-05
-Elo 2 = 14.5388 stdev 132.329 2nd der -5.71067e-05 approx -5.71068e-05
+Elo 0 = -322.047 stdev 184.89 2nd der -2.92533e-05 approx -2.92534e-05
+Elo 1 = 292.708 stdev 189.48 2nd der -2.78531e-05 approx -2.78531e-05
+Elo 2 = 14.549 stdev 132.329 2nd der -5.71067e-05 approx -5.71068e-05
 )%%";
 
     printEloStuff(elos,winMatrix,numPlayers,priorWL);

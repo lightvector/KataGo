@@ -26,7 +26,9 @@ namespace ComputeElos {
     int numPlayers,
     double priorWL
   );
-  
+
+  //What's the probability of winning correspnding to this elo difference?
+  double probWin(double eloDiff);
 
   void runTests();
 }
