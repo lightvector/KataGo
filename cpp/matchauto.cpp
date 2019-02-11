@@ -99,7 +99,7 @@ namespace {
       NetAndStuff* netAndStuff;
       if(iter == loadedNets.end()) {
         vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},*cfg,logger,seedRand,maxConcurrentEvals,false);
-        assert(nnEvals.size() == 0);
+        assert(nnEvals.size() == 1);
         netAndStuff = new NetAndStuff(nnEvals[0]);
         loadedNets[nnModelFile] = netAndStuff;
 
@@ -148,6 +148,8 @@ namespace {
   };
 
 
+  STRUCT_NAMED_TRIPLE(int,forBot,int,b0,int,b1,NextMatchup);
+  
   struct AutoMatchPairer {
     string resultsDir;
     
@@ -156,7 +158,7 @@ namespace {
     vector<string> nnModelFiles;
     vector<SearchParams> baseParamss;
 
-    vector<pair<int,int>> nextMatchups;
+    vector<NextMatchup> nextMatchups;
     Rand rand;
 
     int matchRepFactor;
@@ -202,7 +204,7 @@ namespace {
     {}
   
     bool getMatchup(
-      NetManager* manager, int64_t& gameIdx, MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW, Logger& logger
+      NetManager* manager, int64_t& gameIdx, string& forBot, MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW, Logger& logger
     )
     {
       std::lock_guard<std::mutex> lock(getMatchupMutex);
@@ -212,16 +214,18 @@ namespace {
       if(numGamesStartedSoFar % logGamesEvery == 0)
         logger.write("Started " + Global::int64ToString(numGamesStartedSoFar) + " games");
 
-      pair<int,int> matchup = getMatchupPairUnsynchronized(manager,logger);
-      botSpecB.botIdx = matchup.first;
-      botSpecB.botName = botNames[matchup.first];
-      botSpecB.nnEval = manager->registerStarting(nnModelFiles[matchup.first]);
-      botSpecB.baseParams = baseParamss[matchup.first];
+      NextMatchup matchup = getMatchupPairUnsynchronized(manager,logger);
+      forBot = botNames[matchup.forBot];
+        
+      botSpecB.botIdx = matchup.b0;
+      botSpecB.botName = botNames[matchup.b0];
+      botSpecB.nnEval = manager->registerStarting(nnModelFiles[matchup.b0]);
+      botSpecB.baseParams = baseParamss[matchup.b0];
 
-      botSpecW.botIdx = matchup.second;
-      botSpecW.botName = botNames[matchup.second];
-      botSpecW.nnEval = manager->registerStarting(nnModelFiles[matchup.second]);
-      botSpecW.baseParams = baseParamss[matchup.second];
+      botSpecW.botIdx = matchup.b1;
+      botSpecW.botName = botNames[matchup.b1];
+      botSpecW.nnEval = manager->registerStarting(nnModelFiles[matchup.b1]);
+      botSpecW.baseParams = baseParamss[matchup.b1];
 
       return true;
     }
@@ -234,8 +238,10 @@ namespace {
         idxOfBotName[botNames[b0]] = b0;
       }
           
+      int64_t* numGamesForBot = new int64_t[numBots];
       int64_t* numGamesByBot = new int64_t[numBots];
       for(int b0 = 0; b0<numBots; b0++) {
+        numGamesForBot[b0] = 0;
         numGamesByBot[b0] = 0;
       }
           
@@ -250,7 +256,7 @@ namespace {
 
       for(bfs::directory_iterator iter(resultsDir); iter != bfs::directory_iterator(); ++iter) {
         bfs::path dirPath = iter->path();
-        if(!bfs::is_directory(dirPath))
+        if(bfs::is_directory(dirPath))
           continue;
         string file = dirPath.string();
         if(Global::isSuffix(file,".results.csv")) {
@@ -260,25 +266,27 @@ namespace {
             if(s.length() == 0)
               continue;
             vector<string> pieces = Global::split(s,',');
-            if(pieces.size() <= 3)
+            if(pieces.size() != 4)
               continue;
 
-            if(!contains(idxOfBotName,pieces[0]) || !contains(idxOfBotName,pieces[1]))
+            if(!contains(idxOfBotName,pieces[0]) || !contains(idxOfBotName,pieces[1]) || !contains(idxOfBotName,pieces[2]))
               continue;
-            if(pieces[2] != "0" && pieces[2] != "1" && pieces[2] != "=")
+            if(pieces[3] != "0" && pieces[3] != "1" && pieces[3] != "=")
               continue;
 
             int b0 = map_get(idxOfBotName,pieces[0]);
             int b1 = map_get(idxOfBotName,pieces[1]);
-            numGamesByBot[b0]++;
+            int b2 = map_get(idxOfBotName,pieces[2]);
+            numGamesForBot[b0]++;
             numGamesByBot[b1]++;
-            if(pieces[2] == "0")
-              winMatrix[b0*numBots+b1].secondWins += 1.0;
-            else if(pieces[2] == "=")
-              winMatrix[b0*numBots+b1].firstWins += 1.0;
+            numGamesByBot[b2]++;
+            if(pieces[3] == "0")
+              winMatrix[b1*numBots+b2].firstWins += 1.0;
+            else if(pieces[3] == "1")
+              winMatrix[b1*numBots+b2].secondWins += 1.0;
             else {
-              winMatrix[b0*numBots+b1].firstWins += 0.5;
-              winMatrix[b0*numBots+b1].secondWins += 0.5;
+              winMatrix[b1*numBots+b2].firstWins += 0.5;
+              winMatrix[b1*numBots+b2].secondWins += 0.5;
             }
           }
         }
@@ -291,11 +299,11 @@ namespace {
       vector<double> elos = ComputeElos::computeElos(winMatrix,numBots,priorWL,maxIters,tolerance,NULL);
       vector<double> eloStdevs = ComputeElos::computeApproxEloStdevs(elos,winMatrix,numBots,priorWL);
 
-      logger.write("Computed elos!");
       {
         ostringstream out;
+        out << "Computed elos!" << endl;
         for(int i = 0; i<numBots; i++) {
-          out << botNames[i] << " elo " << elos[i] << " stdev " << eloStdevs[i] << " ngames " << numGamesByBot[i];;
+          out << botNames[i] << " elo " << elos[i] << " stdev " << eloStdevs[i] << " ngames " << numGamesByBot[i] << endl;
         }
         logger.write(out.str());
       }
@@ -315,11 +323,12 @@ namespace {
         int64_t minGamesPlayed = 1LL << 62;
         for(int j = 0; j<numBots; j++) {
           int b = botIdxsShuffled[j];
-          if(numGamesByBot[b] < minGamesPlayed) {
+          if(numGamesForBot[b] < minGamesPlayed) {
             bestBot = b;
-            minGamesPlayed = numGamesByBot[b];
+            minGamesPlayed = numGamesForBot[b];
           }
         }
+        assert(bestBot >= 0);
 
         double relProbs[numBots];
         double probSum = 0.0;
@@ -337,38 +346,42 @@ namespace {
           probSum += relProbs[b];
         }
         assert(numBots > 1);
-        assert(probSum <= 0);
+        assert(probSum > 0);
 
         int otherBot = rand.nextUInt(relProbs,numBots);
         if(otherBot == bestBot) //Just in case
           continue;
+
+        logger.write("Scheduling game " + botNames[bestBot] + " vs " + botNames[otherBot]);
         
         //And schedule the games!
         manager->preregisterGames(nnModelFiles[bestBot],logger,matchRepFactor);
         manager->preregisterGames(nnModelFiles[otherBot],logger,matchRepFactor);
 
+        numGamesForBot[bestBot] += matchRepFactor;
         numGamesByBot[bestBot] += matchRepFactor;
         numGamesByBot[otherBot] += matchRepFactor;
  
         for(int j = 0; j < matchRepFactor; j++) {
           if(rand.nextBool(0.5))
-            nextMatchups.push_back(make_pair(bestBot,otherBot));
+            nextMatchups.push_back(NextMatchup(bestBot,bestBot,otherBot));
           else
-            nextMatchups.push_back(make_pair(otherBot,bestBot));
+            nextMatchups.push_back(NextMatchup(bestBot,otherBot,bestBot));
         }
       }
 
       delete[] winMatrix;
+      delete[] numGamesForBot;
       delete[] numGamesByBot;
     }
       
-    pair<int,int> getMatchupPairUnsynchronized(NetManager* manager, Logger& logger) {
+    NextMatchup getMatchupPairUnsynchronized(NetManager* manager, Logger& logger) {
       if(nextMatchups.size() <= 0) {
         generateNewMatchups(manager,logger);
       }
       assert(nextMatchups.size() > 0);
     
-      pair<int,int> matchup = nextMatchups.back();
+      NextMatchup matchup = nextMatchups.back();
       nextMatchups.pop_back();
       return matchup;
     }
@@ -483,8 +496,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
 
   if(sgfOutputDir != string())
     MakeDir::make(sgfOutputDir);
-  if(resultsDir != string())
-    MakeDir::make(sgfOutputDir);
+  MakeDir::make(resultsDir);
 
   if(!std::atomic_is_lock_free(&sigReceived))
     throw StringError("sigReceived is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
@@ -510,9 +522,10 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
       FinishedGameData* gameData = NULL;
 
       int64_t gameIdx;
+      string forBot;
       MatchPairer::BotSpec botSpecB;
       MatchPairer::BotSpec botSpecW;
-      if(autoMatchPairer->getMatchup(manager, gameIdx, botSpecB, botSpecW, logger)) {
+      if(autoMatchPairer->getMatchup(manager, gameIdx, forBot, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
           gameIdx, botSpecB, botSpecW, NULL, NULL, logger,
           dataPosLen, stopConditions, NULL
@@ -531,7 +544,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
 
         {
           ostringstream out;
-          out << botSpecB.nnEval->getModelFileName() << "," << botSpecW.nnEval->getModelFileName() << ",";
+          out << forBot << "," << botSpecB.botName << "," << botSpecW.botName << ",";
           if(gameData->endHist.winner == P_BLACK)
             out << "0";
           else if(gameData->endHist.winner == P_WHITE)
