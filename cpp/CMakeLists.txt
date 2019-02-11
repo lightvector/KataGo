@@ -149,6 +149,7 @@ if(BUILD_MCTS)
     gatekeeper.cpp
     gtp.cpp
     match.cpp
+    matchauto.cpp
     selfplay.cpp
     misc.cpp
     runtests.cpp

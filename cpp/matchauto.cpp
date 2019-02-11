@@ -1,0 +1,579 @@
+#include "core/global.h"
+#include "core/makedir.h"
+#include "core/config_parser.h"
+#include "core/timer.h"
+#include "core/elo.h"
+#include "dataio/sgf.h"
+#include "search/asyncbot.h"
+#include "program/setup.h"
+#include "program/play.h"
+#include "program/gitinfo.h"
+#include "main.h"
+
+using namespace std;
+
+#include <boost/filesystem.hpp>
+
+#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
+#include <tclap/CmdLine.h>
+
+#include <csignal>
+static std::atomic<bool> sigReceived(false);
+static void signalHandler(int signal)
+{
+  if(signal == SIGINT || signal == SIGTERM)
+    sigReceived.store(true);
+}
+
+namespace {
+  struct NetAndStuff {
+    NNEvaluator* nnEval;
+
+    int gamesTotal;
+    int gamesCompleted;
+    int gamesActive;
+
+  public:
+    NetAndStuff(
+      NNEvaluator* neval
+    )
+      :nnEval(neval),
+       gamesTotal(0),
+       gamesCompleted(0),
+       gamesActive(0)
+    {
+    }
+
+    ~NetAndStuff() {
+      delete nnEval;
+    }
+
+    //NOT threadsafe - needs to be externally synchronized
+    void addGamesTotal(int n) {
+      gamesTotal += n;
+    }
+
+    //NOT threadsafe - needs to be externally synchronized
+    void addGamesActive(int n) {
+      gamesActive += n;
+    }
+
+    //NOT threadsafe - needs to be externally synchronized
+    void addGamesCompleted(int n) {
+      gamesCompleted += n;
+    }
+  };
+
+  struct NetManager {
+    ConfigParser* cfg;
+    Rand seedRand;
+    int maxConcurrentEvals;
+    
+    map<string, NetAndStuff*> loadedNets;
+
+    std::mutex managerLock;
+
+  public:
+    NetManager(
+      ConfigParser* c,
+      int maxConcurrentEvs
+    )
+      :cfg(c),
+       seedRand(),
+       maxConcurrentEvals(maxConcurrentEvs),
+       loadedNets()
+    {
+    }
+
+    ~NetManager() {
+      auto iter = loadedNets.begin();
+      for(; iter != loadedNets.end(); ++iter) {
+        delete iter->second;
+      }
+    }
+
+    void preregisterGames(const string& nnModelFile, Logger& logger, int n) {
+      std::lock_guard<std::mutex> lock(managerLock);
+      
+      auto iter = loadedNets.find(nnModelFile);
+      NetAndStuff* netAndStuff;
+      if(iter == loadedNets.end()) {
+        vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},*cfg,logger,seedRand,maxConcurrentEvals,false);
+        assert(nnEvals.size() == 0);
+        netAndStuff = new NetAndStuff(nnEvals[0]);
+        loadedNets[nnModelFile] = netAndStuff;
+
+        //Check for unused config keys
+        {
+          vector<string> unusedKeys = cfg->unusedKeys();
+          for(size_t i = 0; i<unusedKeys.size(); i++) {
+            string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in config file";
+            logger.write(msg);
+            cerr << msg << endl;
+          }
+        }
+
+      }
+      else {
+        netAndStuff = iter->second;
+      }
+
+      assert(n > 0);
+      netAndStuff->addGamesTotal(n);
+    }
+
+    NNEvaluator* registerStarting(const string& nnModelFile) {
+      std::lock_guard<std::mutex> lock(managerLock);
+      auto iter = loadedNets.find(nnModelFile);
+      assert(iter != loadedNets.end());
+      NetAndStuff* netAndStuff = iter->second;
+      netAndStuff->addGamesActive(1);
+      return netAndStuff->nnEval;
+    }
+
+    void registerFinishing(const string& nnModelFile) {
+      std::lock_guard<std::mutex> lock(managerLock);
+      auto iter = loadedNets.find(nnModelFile);
+      assert(iter != loadedNets.end());
+      NetAndStuff* netAndStuff = iter->second;
+      netAndStuff->addGamesActive(-1);
+      netAndStuff->addGamesCompleted(1);
+      if(netAndStuff->gamesCompleted == netAndStuff->gamesTotal) {
+        assert(netAndStuff->gamesActive == 0);
+        loadedNets.erase(iter);
+        delete netAndStuff;
+      }
+    }
+    
+  };
+
+
+  struct AutoMatchPairer {
+    string resultsDir;
+    
+    int numBots;
+    vector<string> botNames;
+    vector<string> nnModelFiles;
+    vector<SearchParams> baseParamss;
+
+    vector<pair<int,int>> nextMatchups;
+    Rand rand;
+
+    int matchRepFactor;
+
+    int64_t numGamesStartedSoFar;
+    int64_t numGamesTotal;
+    int64_t logGamesEvery;
+
+    std::mutex getMatchupMutex;
+    
+    AutoMatchPairer(
+      ConfigParser& cfg,
+      const string& resDir,
+      int nBots,
+      const vector<string>& bNames,
+      const vector<string>& nFiles,
+      const vector<SearchParams>& bParamss
+    )
+      :resultsDir(resDir),
+       numBots(nBots),
+       botNames(bNames),
+       nnModelFiles(nFiles),
+       baseParamss(bParamss),
+       nextMatchups(),
+       rand(),
+       matchRepFactor(1),
+       numGamesStartedSoFar(0),
+       numGamesTotal(),
+       logGamesEvery(),
+       getMatchupMutex()
+    {
+      assert(botNames.size() == numBots);
+      assert(nnModelFiles.size() == numBots);
+      assert(baseParamss.size() == numBots);
+      numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
+      logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
+      
+      if(cfg.contains("matchRepFactor"))
+        matchRepFactor = cfg.getInt("matchRepFactor",1,100000);
+    }
+
+    ~AutoMatchPairer()
+    {}
+  
+    bool getMatchup(
+      NetManager* manager, int64_t& gameIdx, MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW, Logger& logger
+    )
+    {
+      std::lock_guard<std::mutex> lock(getMatchupMutex);
+
+      gameIdx = numGamesStartedSoFar;
+      numGamesStartedSoFar += 1;
+      if(numGamesStartedSoFar % logGamesEvery == 0)
+        logger.write("Started " + Global::int64ToString(numGamesStartedSoFar) + " games");
+
+      pair<int,int> matchup = getMatchupPairUnsynchronized(manager,logger);
+      botSpecB.botIdx = matchup.first;
+      botSpecB.botName = botNames[matchup.first];
+      botSpecB.nnEval = manager->registerStarting(nnModelFiles[matchup.first]);
+      botSpecB.baseParams = baseParamss[matchup.first];
+
+      botSpecW.botIdx = matchup.second;
+      botSpecW.botName = botNames[matchup.second];
+      botSpecW.nnEval = manager->registerStarting(nnModelFiles[matchup.second]);
+      botSpecW.baseParams = baseParamss[matchup.second];
+
+      return true;
+    }
+
+    void generateNewMatchups(NetManager* manager, Logger& logger) {
+      //Load all results so far for all players
+
+      map<string,int> idxOfBotName;
+      for(int b0 = 0; b0<numBots; b0++) {
+        idxOfBotName[botNames[b0]] = b0;
+      }
+          
+      int64_t* numGamesByBot = new int64_t[numBots];
+      for(int b0 = 0; b0<numBots; b0++) {
+        numGamesByBot[b0] = 0;
+      }
+          
+      ComputeElos::WLRecord* winMatrix = new ComputeElos::WLRecord[numBots*numBots];
+      for(int b0 = 0; b0<numBots; b0++) {
+        for(int b1 = 0; b1<numBots; b1++) {
+          winMatrix[b0*numBots+b1] = ComputeElos::WLRecord(0.0,0.0);
+        }
+      }
+
+      namespace bfs = boost::filesystem;
+
+      for(bfs::directory_iterator iter(resultsDir); iter != bfs::directory_iterator(); ++iter) {
+        bfs::path dirPath = iter->path();
+        if(!bfs::is_directory(dirPath))
+          continue;
+        string file = dirPath.string();
+        if(Global::isSuffix(file,".results.csv")) {
+          vector<string> lines = Global::readFileLines(file,'\n');
+          for(int i = 0; i<lines.size(); i++) {
+            string s = Global::trim(lines[i]);
+            if(s.length() == 0)
+              continue;
+            vector<string> pieces = Global::split(s,',');
+            if(pieces.size() <= 3)
+              continue;
+
+            if(!contains(idxOfBotName,pieces[0]) || !contains(idxOfBotName,pieces[1]))
+              continue;
+            if(pieces[2] != "0" && pieces[2] != "1" && pieces[2] != "=")
+              continue;
+
+            int b0 = map_get(idxOfBotName,pieces[0]);
+            int b1 = map_get(idxOfBotName,pieces[1]);
+            numGamesByBot[b0]++;
+            numGamesByBot[b1]++;
+            if(pieces[2] == "0")
+              winMatrix[b0*numBots+b1].secondWins += 1.0;
+            else if(pieces[2] == "=")
+              winMatrix[b0*numBots+b1].firstWins += 1.0;
+            else {
+              winMatrix[b0*numBots+b1].firstWins += 0.5;
+              winMatrix[b0*numBots+b1].secondWins += 0.5;
+            }
+          }
+        }
+      }
+        
+      double priorWL = 0.01;
+      int maxIters = 20000;
+      double tolerance = 0.000001;
+        
+      vector<double> elos = ComputeElos::computeElos(winMatrix,numBots,priorWL,maxIters,tolerance,NULL);
+      vector<double> eloStdevs = ComputeElos::computeApproxEloStdevs(elos,winMatrix,numBots,priorWL);
+
+      logger.write("Computed elos!");
+      {
+        ostringstream out;
+        for(int i = 0; i<numBots; i++) {
+          out << botNames[i] << " elo " << elos[i] << " stdev " << eloStdevs[i] << " ngames " << numGamesByBot[i];;
+        }
+        logger.write(out.str());
+      }
+
+      int botIdxsShuffled[numBots];
+      for(int i = 0; i<numBots; i++)
+        botIdxsShuffled[i] = i;
+      for(int i = numBots-1; i>0; i--) {
+        int r = rand.nextUInt(i+1);
+        std::swap(botIdxsShuffled[r],botIdxsShuffled[i]);
+      }
+      
+      //Several times in a row, find the bot with the least games played, and chooose a random other bot with probability proportional
+      //to the variance of the game result based on a random sample of the predicted elo difference
+      for(int i = 0; i<10; i++) {
+        int bestBot = -1;
+        int64_t minGamesPlayed = 1LL << 62;
+        for(int j = 0; j<numBots; j++) {
+          int b = botIdxsShuffled[j];
+          if(numGamesByBot[b] < minGamesPlayed) {
+            bestBot = b;
+            minGamesPlayed = numGamesByBot[b];
+          }
+        }
+
+        double relProbs[numBots];
+        double probSum = 0.0;
+        for(int b = 0; b<numBots; b++) {
+          if(b == bestBot)
+            relProbs[b] = 0.0;
+          else {
+            double g = rand.nextGaussian();
+            g = std::min(g,10.0);
+            g = std::max(g,-10.0);
+            double eloDiff = elos[b] - elos[bestBot] + eloStdevs[bestBot] * g;
+            double p = ComputeElos::probWin(eloDiff);
+            relProbs[b] = p * (1.0-p) + 1e-30; //Add a tiny bit just in case to avoid zero
+          }
+          probSum += relProbs[b];
+        }
+        assert(numBots > 1);
+        assert(probSum <= 0);
+
+        int otherBot = rand.nextUInt(relProbs,numBots);
+        if(otherBot == bestBot) //Just in case
+          continue;
+        
+        //And schedule the games!
+        manager->preregisterGames(nnModelFiles[bestBot],logger,matchRepFactor);
+        manager->preregisterGames(nnModelFiles[otherBot],logger,matchRepFactor);
+
+        numGamesByBot[bestBot] += matchRepFactor;
+        numGamesByBot[otherBot] += matchRepFactor;
+ 
+        for(int j = 0; j < matchRepFactor; j++) {
+          if(rand.nextBool(0.5))
+            nextMatchups.push_back(make_pair(bestBot,otherBot));
+          else
+            nextMatchups.push_back(make_pair(otherBot,bestBot));
+        }
+      }
+
+      delete[] winMatrix;
+      delete[] numGamesByBot;
+    }
+      
+    pair<int,int> getMatchupPairUnsynchronized(NetManager* manager, Logger& logger) {
+      if(nextMatchups.size() <= 0) {
+        generateNewMatchups(manager,logger);
+      }
+      assert(nextMatchups.size() > 0);
+    
+      pair<int,int> matchup = nextMatchups.back();
+      nextMatchups.pop_back();
+      return matchup;
+    }
+  };
+  
+}
+
+    
+int MainCmds::matchauto(int argc, const char* const* argv) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  string configFile;
+  string logFile;
+  string sgfOutputDir;
+  string resultsDir;
+  try {
+    TCLAP::CmdLine cmd("Play different nets against each other with different search settings", ' ', "1.0",true);
+    TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/match_example.cfg)",true,string(),"FILE");
+    TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
+    TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",false,string(),"DIR");
+    TCLAP::ValueArg<string> resultsDirArg("","results-dir","Dir to read/write win loss result files",true,string(),"DIR");
+    cmd.add(configFileArg);
+    cmd.add(logFileArg);
+    cmd.add(sgfOutputDirArg);
+    cmd.add(resultsDirArg);
+    cmd.parse(argc,argv);
+    configFile = configFileArg.getValue();
+    logFile = logFileArg.getValue();
+    sgfOutputDir = sgfOutputDirArg.getValue();
+    resultsDir = resultsDirArg.getValue();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+  ConfigParser cfg(configFile);
+
+  Logger logger;
+  logger.addFile(logFile);
+  bool logToStdout = cfg.getBool("logToStdout");
+  logger.setLogToStdout(logToStdout);
+
+  logger.write("Auto Match Engine starting...");
+  logger.write(string("Git revision: ") + GIT_REVISION);
+
+  //Load per-bot search config, first, which also tells us how many bots we're running
+  vector<SearchParams> paramss = Setup::loadParams(cfg);
+  assert(paramss.size() > 0);
+  int numBots = paramss.size();
+
+  //Load the names of the bots and which model each bot is using
+  vector<string> nnModelFilesByBot;
+  vector<string> botNames;
+  for(int i = 0; i<numBots; i++) {
+    string idxStr = Global::intToString(i);
+
+    if(cfg.contains("botName"+idxStr))
+      botNames.push_back(cfg.getString("botName"+idxStr));
+    else if(numBots == 1)
+      botNames.push_back(cfg.getString("botName"));
+    else
+      throw StringError("If more than one bot, must specify botName0, botName1,... individually");
+
+    if(cfg.contains("nnModelFile"+idxStr))
+      nnModelFilesByBot.push_back(cfg.getString("nnModelFile"+idxStr));
+    else
+      nnModelFilesByBot.push_back(cfg.getString("nnModelFile"));
+  }
+
+  //Load match runner settings
+  int numGameThreads = cfg.getInt("numGameThreads",1,16384);
+
+  string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+
+  //Work out an upper bound on how many concurrent nneval requests we could end up making.
+  int maxConcurrentEvals;
+  {
+    //Work out the max threads any one bot uses
+    int maxBotThreads = 0;
+    for(int i = 0; i<numBots; i++)
+      if(paramss[i].numThreads > maxBotThreads)
+        maxBotThreads = paramss[i].numThreads;
+    //Mutiply by the number of concurrent games we could have
+    maxConcurrentEvals = maxBotThreads * numGameThreads;
+    //Multiply by 2 and add some buffer, just so we have plenty of headroom.
+    maxConcurrentEvals = maxConcurrentEvals * 2 + 16;
+  }
+
+  //Initialize neural net inference engine globals, and set up model manager
+  Setup::initializeSession(cfg);
+
+  NetManager* manager = new NetManager(&cfg,maxConcurrentEvals);
+
+  //Initialize object for randomly pairing bots
+  AutoMatchPairer * autoMatchPairer = new AutoMatchPairer(cfg,resultsDir,numBots,botNames,nnModelFilesByBot,paramss);
+
+  //Initialize object for randomizing game settings and running games
+  FancyModes fancyModes;
+  fancyModes.allowResignation = cfg.getBool("allowResignation");
+  fancyModes.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
+  fancyModes.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, false, fancyModes);
+
+
+  //Done loading!
+  //------------------------------------------------------------------------------------
+  logger.write("Loaded all config stuff, starting matches");
+  if(!logToStdout)
+    cout << "Loaded all config stuff, starting matches" << endl;
+
+  if(sgfOutputDir != string())
+    MakeDir::make(sgfOutputDir);
+  if(resultsDir != string())
+    MakeDir::make(sgfOutputDir);
+
+  if(!std::atomic_is_lock_free(&sigReceived))
+    throw StringError("sigReceived is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
+  std::signal(SIGINT, signalHandler);
+  std::signal(SIGTERM, signalHandler);
+
+  std::mutex resultLock;
+  ofstream* resultOut = new ofstream(resultsDir + "/" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".results.csv");
+
+  auto runMatchLoop = [
+    &gameRunner,&autoMatchPairer,&sgfOutputDir,&logger,&resultLock,&resultOut,&manager
+  ](
+    uint64_t threadHash
+  ) {
+    ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs")) : NULL;
+    vector<std::atomic<bool>*> stopConditions = {&sigReceived};
+
+    while(true) {
+      if(sigReceived.load())
+        break;
+
+      int dataPosLen = 19; //Doesn't matter, we don't actually write training data
+      FinishedGameData* gameData = NULL;
+
+      int64_t gameIdx;
+      MatchPairer::BotSpec botSpecB;
+      MatchPairer::BotSpec botSpecW;
+      if(autoMatchPairer->getMatchup(manager, gameIdx, botSpecB, botSpecW, logger)) {
+        gameData = gameRunner->runGame(
+          gameIdx, botSpecB, botSpecW, NULL, NULL, logger,
+          dataPosLen, stopConditions, NULL
+        );
+      }
+
+      manager->registerFinishing(botSpecB.nnEval->getModelFileName());
+      manager->registerFinishing(botSpecW.nnEval->getModelFileName());
+
+      bool shouldContinue = gameData != NULL;
+      if(gameData != NULL) {
+        if(sgfOut != NULL) {
+          WriteSgf::writeSgf(*sgfOut,gameData->bName,gameData->wName,gameData->startHist.rules,gameData->endHist,NULL);
+          (*sgfOut) << endl;
+        }
+
+        {
+          ostringstream out;
+          out << botSpecB.nnEval->getModelFileName() << "," << botSpecW.nnEval->getModelFileName() << ",";
+          if(gameData->endHist.winner == P_BLACK)
+            out << "0";
+          else if(gameData->endHist.winner == P_WHITE)
+            out << "1";
+          else
+            out << "=";
+
+          std::lock_guard<std::mutex> lock(resultLock);
+          (*resultOut) << out.str() << endl;
+        }
+        
+        delete gameData;
+      }
+
+      if(sigReceived.load())
+        break;
+      if(!shouldContinue)
+        break;
+    }
+    if(sgfOut != NULL) {
+      sgfOut->close();
+      delete sgfOut;
+    }
+  };
+
+  Rand hashRand;
+  vector<std::thread> threads;
+  for(int i = 0; i<numGameThreads; i++) {
+    threads.push_back(std::thread(runMatchLoop, hashRand.nextUInt64()));
+  }
+  for(int i = 0; i<numGameThreads; i++)
+    threads[i].join();
+
+  delete autoMatchPairer;
+  delete gameRunner;
+  delete manager;
+
+  NeuralNet::globalCleanup();
+
+  if(sigReceived.load())
+    logger.write("Exited cleanly after signal");
+  logger.write("All cleaned up, quitting");
+  return 0;
+}
+

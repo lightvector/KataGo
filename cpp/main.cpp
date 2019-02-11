@@ -9,6 +9,7 @@ static void printHelp() {
   cout << "gatekeeper" << endl;
   cout << "gtp" << endl;
   cout << "match" << endl;
+  cout << "matchauto" << endl;
   cout << "selfplay" << endl;
   cout << "runtests" << endl;
   cout << "runoutputtests" << endl;
@@ -40,6 +41,8 @@ int main(int argc, const char* argv[]) {
     return MainCmds::gtp(argc-1,&argv[1]);
   else if(cmdArg == "match")
     return MainCmds::match(argc-1,&argv[1]);
+  else if(cmdArg == "matchauto")
+    return MainCmds::matchauto(argc-1,&argv[1]);
   else if(cmdArg == "selfplay")
     return MainCmds::selfplay(argc-1,&argv[1]);
   else if(cmdArg == "runtests")
