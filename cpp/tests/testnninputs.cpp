@@ -14,6 +14,8 @@ static void printNNInputHWAndBoard(ostream& out, int inputsVersion, const Board&
     numFeatures = NNInputs::NUM_FEATURES_BIN_V3;
   else if(inputsVersion == 4)
     numFeatures = NNInputs::NUM_FEATURES_BIN_V4;
+  else if(inputsVersion == 5)
+    numFeatures = NNInputs::NUM_FEATURES_BIN_V5;
   else
     testAssert(false);
 
@@ -60,6 +62,8 @@ static void printNNInputGlobal(ostream& out, int inputsVersion, T* row, int c) {
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V3;
   else if(inputsVersion == 4)
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V4;
+  else if(inputsVersion == 5)
+    numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V5;
   else
     testAssert(false);
   (void)numFeatures;
@@ -256,7 +260,7 @@ void Tests::runNNInputsV2Tests() {
 
 
 void Tests::runNNInputsV3V4Tests() {
-  cout << "Running NN inputs V3V4 tests" << endl;
+  cout << "Running NN inputs V3V4V5 tests" << endl;
   ostringstream out;
   out << std::setprecision(5);
 
@@ -273,6 +277,12 @@ void Tests::runNNInputsV3V4Tests() {
       rowBin = new float[NNInputs::NUM_FEATURES_BIN_V4 * posLen * posLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V4];
     }
+    else if(version == 5) {
+      numFeaturesBin = NNInputs::NUM_FEATURES_BIN_V5;
+      numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V5;
+      rowBin = new float[NNInputs::NUM_FEATURES_BIN_V5 * posLen * posLen];
+      rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V5];
+    }
     else
       assert(false);
   };
@@ -288,12 +298,19 @@ void Tests::runNNInputsV3V4Tests() {
       hash = NNInputs::getHashV4(board,hist,nextPla,drawEquivalentWinsForWhite);
       NNInputs::fillRowV4(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowGlobal);
     }
+    else if(version == 5) {
+      hash = NNInputs::getHashV5(board,hist,nextPla,drawEquivalentWinsForWhite);
+      NNInputs::fillRowV5(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowGlobal);
+    }
     else
       assert(false);
   };
 
+  int minVersion = 3;
+  int maxVersion = 5;
+
   {
-    const char* name = "NN Inputs V3V4 Basic";
+    const char* name = "NN Inputs V3V4V5 Basic";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -302,7 +319,7 @@ void Tests::runNNInputsV3V4Tests() {
 
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
-    for(int version = 3; version <= 4; version++) {
+    for(int version = minVersion; version <= maxVersion; version++) {
       cout << "VERSION " << version << endl;
       Board board;
       Player nextPla;
@@ -350,7 +367,7 @@ void Tests::runNNInputsV3V4Tests() {
   }
 
   {
-    const char* name = "NN Inputs V3V4 Ko";
+    const char* name = "NN Inputs V3V4V5 Ko";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -359,7 +376,7 @@ void Tests::runNNInputsV3V4Tests() {
 
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
-    for(int version = 3; version <= 4; version++) {
+    for(int version = minVersion; version <= maxVersion; version++) {
       cout << "VERSION " << version << endl;
       Board board;
       Player nextPla;
@@ -386,7 +403,7 @@ void Tests::runNNInputsV3V4Tests() {
         Hash128 hash;
         fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowGlobal);
         out << hash << endl;
-        int c = 6;
+        int c = version <= 5 ? 6 : 3;
         printNNInputHWAndBoard(out,version,board,hist,posLen,inputsUseNHWC,rowBin,c);
         for(c = 0; c<numFeaturesGlobal; c++)
           printNNInputGlobal(out,version,rowGlobal,c);
@@ -417,7 +434,7 @@ void Tests::runNNInputsV3V4Tests() {
 
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
-    for(int version = 3; version <= 4; version++) {
+    for(int version = minVersion; version <= maxVersion; version++) {
       cout << "VERSION " << version << endl;
       Board board;
       Player nextPla;
@@ -474,7 +491,7 @@ void Tests::runNNInputsV3V4Tests() {
 
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
-    for(int version = 3; version <= 4; version++) {
+    for(int version = minVersion; version <= maxVersion; version++) {
       cout << "VERSION " << version << endl;
       Board board;
       Player nextPla;
@@ -527,7 +544,7 @@ void Tests::runNNInputsV3V4Tests() {
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
 
-    for(int version = 3; version <= 4; version++) {
+    for(int version = minVersion; version <= 4; version++) {
       cout << "VERSION " << version << endl;
       Board board = Board::parseBoard(7,7,R"%%(
 .xo.oo.
@@ -624,7 +641,7 @@ xxx..xx
       int posLen = size;
       double drawEquivalentWinsForWhite = 0.47;
 
-      for(int version = 3; version <= 4; version++) {
+      for(int version = minVersion; version <= maxVersion; version++) {
         cout << "VERSION " << version << endl;
 
         int numFeaturesBin;
@@ -665,7 +682,7 @@ xxx..xx
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
     vector<Move>& moves = sgf->moves;
 
-    for(int version = 3; version <= 4; version++) {
+    for(int version = minVersion; version <= 4; version++) {
       cout << "VERSION " << version << endl;
       Board board;
       Player nextPla;
@@ -732,7 +749,7 @@ xxx..xx
 
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
-    for(int version = 3; version <= 4; version++) {
+    for(int version = minVersion; version <= 4; version++) {
       cout << "VERSION " << version << endl;
       Board board;
       Player nextPla;

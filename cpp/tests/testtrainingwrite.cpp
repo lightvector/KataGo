@@ -59,7 +59,6 @@ void Tests::runTrainingWriteTests() {
   double tensorflowPerProcessGpuMemoryFraction = 0.3;
   NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
 
-  int inputsVersion = 3;
   int maxRows = 256;
   int posLen = 5;
   double firstFileMinRandProp = 1.0;
@@ -70,7 +69,7 @@ void Tests::runTrainingWriteTests() {
   logger.setLogTime(false);
   logger.addOStream(cout);
 
-  auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite) {
+  auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite, int inputsVersion) {
     TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, posLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
     NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,true,false,false);
@@ -126,18 +125,23 @@ void Tests::runTrainingWriteTests() {
     cout << endl;
   };
 
-  run("testtrainingwrite-tt",Rules::getTrompTaylorish(),0.5);
+  int inputsVersion = 3;
+
+  run("testtrainingwrite-tt",Rules::getTrompTaylorish(),0.5,inputsVersion);
 
   Rules rules;
   rules.koRule = Rules::KO_SIMPLE;
   rules.scoringRule = Rules::SCORING_TERRITORY;
   rules.multiStoneSuicideLegal = false;
   rules.komi = 5;
-  run("testtrainingwrite-jp",rules,0.5);
+  run("testtrainingwrite-jp",rules,0.5,inputsVersion);
 
   rules = Rules::getTrompTaylorish();
   rules.komi = 7;
-  run("testtrainingwrite-gooddraws",rules,0.7);
+  run("testtrainingwrite-gooddraws",rules,0.7,inputsVersion);
+
+  inputsVersion = 5;
+  run("testtrainingwrite-tt-v5",Rules::getTrompTaylorish(),0.5,inputsVersion);
 
   NeuralNet::globalCleanup();
 }
@@ -175,7 +179,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
 
     ExtraBlackAndKomi extraBlackAndKomi(numExtraBlack,rules.komi,rules.komi);
-    
+
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
@@ -195,7 +199,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
 
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
-    
+
     bool recordFullData = true;
     Rand rand(seedBase+"play");
     FinishedGameData* gameData = Play::runGame(
@@ -240,7 +244,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   run("testselfplayinit7",Rules::getTrompTaylorish(),0.5,0);
   run("testselfplayinit8",Rules::getTrompTaylorish(),0.5,0);
   run("testselfplayinit9",Rules::getTrompTaylorish(),0.5,0);
- 
+
   run("testselfplayinith1-0",Rules::getTrompTaylorish(),0.5,1);
   run("testselfplayinith1-1",Rules::getTrompTaylorish(),0.5,1);
   run("testselfplayinith1-2",Rules::getTrompTaylorish(),0.5,1);
