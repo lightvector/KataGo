@@ -810,7 +810,7 @@ class Model:
       h3[12,12] = 1.0
       h4 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
       h4[13,13] = 1.0
-    elif self.version == 5:
+    elif self.version == 6:
       hist_matrix_base = np.diag(np.array([
         1.0, #0
         1.0, #1
@@ -1038,24 +1038,42 @@ class Model:
     scorebelief_len = self.scorebelief_target_shape[0]
     scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
     assert(scorebelief_len == self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2)
-    self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
-    self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
-    sbv2_size = config["sbv2_num_channels"]
-    sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
-    sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
-    sb2_layer_partial = tf.matmul(v1_layer_pooled, sb2w) + sb2b
-    sb2_offset_vector = tf.constant(0.05 * self.score_belief_offset_vector, dtype=tf.float32)
-    sb2_parity_vector = tf.reshape(self.score_belief_parity_vector,[1,-1]) * transformed_global_inputs[:,13:14]
-    sb2_offset_w = self.weight_variable("sb2_offset/w",[1,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
-    sb2_offset_partial = tf.matmul(tf.reshape(sb2_offset_vector,[-1,1]), sb2_offset_w)
-    sb2_parity_w = self.weight_variable("sb2_parity/w",[1,sbv2_size],v1_size*3+1,sbv2_size)
-    sb2_parity_partial = tf.matmul(tf.reshape(sb2_parity_vector,[-1,1]), sb2_parity_w)
-    sb2_layer = (
-      tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) +
-      tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size]) +
-      tf.reshape(sb2_parity_partial,[-1,scorebelief_len,sbv2_size])
-    )
-    sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
+
+    if self.version == 5:
+      self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
+      self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
+      sbv2_size = config["sbv2_num_channels"]
+      sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
+      sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
+      sb2_layer_partial = tf.matmul(v1_layer_pooled, sb2w) + sb2b
+      sb2_offset_vector = tf.constant(0.05 * self.score_belief_offset_vector, dtype=tf.float32)
+      sb2_parity_vector = tf.reshape(self.score_belief_parity_vector,[1,-1]) * transformed_global_inputs[:,13:14]
+      sb2_offset_w = self.weight_variable("sb2_offset/w",[1,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
+      sb2_offset_partial = tf.matmul(tf.reshape(sb2_offset_vector,[-1,1]), sb2_offset_w)
+      sb2_parity_w = self.weight_variable("sb2_parity/w",[1,sbv2_size],v1_size*3+1,sbv2_size)
+      sb2_parity_partial = tf.matmul(tf.reshape(sb2_parity_vector,[-1,1]), sb2_parity_w)
+      sb2_layer = (
+        tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) +
+        tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size]) +
+        tf.reshape(sb2_parity_partial,[-1,scorebelief_len,sbv2_size])
+      )
+      sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
+    elif self.version == 6:
+      self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
+      sbv2_size = config["sbv2_num_channels"]
+      sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
+      sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
+      sb2_layer_partial = tf.matmul(v1_layer_pooled, sb2w) + sb2b
+      sb2_offset_vector = tf.constant(0.05 * self.score_belief_offset_vector, dtype=tf.float32)
+      sb2_offset_w = self.weight_variable("sb2_offset/w",[1,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
+      sb2_offset_partial = tf.matmul(tf.reshape(sb2_offset_vector,[-1,1]), sb2_offset_w)
+      sb2_layer = (
+        tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) +
+        tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size])
+      )
+      sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
+    else:
+      assert(False)
 
     sbscale2w = self.weight_variable("sbscale2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
     sbscale2b = self.weight_variable("sbscale2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
