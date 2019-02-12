@@ -49,6 +49,21 @@ if checkpoint_file_prefix is not None and saved_model_dir is not None:
 def log(s):
   print(s,flush=True)
 
+if model_config_json is not None:
+  with open(model_config_json) as f:
+    model_config = json.load(f)
+elif checkpoint_file_prefix is not None:
+  with open(os.path.join(os.path.dirname(checkpoint_file_prefix),"model.config.json")) as f:
+    model_config = json.load(f)
+elif saved_model_dir is not None:
+  with open(os.path.join(saved_model_dir,"model.config.json")) as f:
+    model_config = json.load(f)
+else:
+  assert(False)
+
+num_bin_input_features = Model.get_num_bin_input_features(model_config)
+num_global_input_features = Model.get_num_global_input_features(model_config)
+
 NUM_POLICY_TARGETS = 2
 NUM_GLOBAL_TARGETS = 56
 NUM_VALUE_SPATIAL_TARGETS = 1
@@ -66,8 +81,8 @@ def parse_tf_records_input(serialized_example):
   sbsn = example["sbsn"]
   vtnchw = example["vtnchw"]
   return {
-    "binchwp": tf.reshape(binchwp,[batch_size,Model.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
-    "ginc": tf.reshape(ginc,[batch_size,Model.NUM_GLOBAL_INPUT_FEATURES]),
+    "binchwp": tf.reshape(binchwp,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
+    "ginc": tf.reshape(ginc,[batch_size,num_global_input_features]),
     "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.reshape(gtnc,[batch_size,NUM_GLOBAL_TARGETS]),
     "sdn": tf.reshape(sdn,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
@@ -96,8 +111,8 @@ if using_tfrecords:
   features = iterator.get_next()
 elif using_npz:
   features = {
-    "binchwp": tf.placeholder(tf.uint8,[batch_size,Model.NUM_BIN_INPUT_FEATURES,(pos_len*pos_len+7)//8]),
-    "ginc": tf.placeholder(tf.float32,[batch_size,Model.NUM_GLOBAL_INPUT_FEATURES]),
+    "binchwp": tf.placeholder(tf.uint8,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
+    "ginc": tf.placeholder(tf.float32,[batch_size,num_global_input_features]),
     "ptncm": tf.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
     "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
@@ -107,17 +122,6 @@ elif using_npz:
 
 
 # Model ----------------------------------------------------------------
-if model_config_json is not None:
-  with open(model_config_json) as f:
-    model_config = json.load(f)
-elif checkpoint_file_prefix is not None:
-  with open(os.path.join(os.path.dirname(checkpoint_file_prefix),"model.config.json")) as f:
-    model_config = json.load(f)
-elif saved_model_dir is not None:
-  with open(os.path.join(saved_model_dir,"model.config.json")) as f:
-    model_config = json.load(f)
-else:
-  assert(False)
 
 mode = tf.estimator.ModeKeys.EVAL
 print_model = False

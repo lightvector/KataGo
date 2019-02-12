@@ -132,8 +132,8 @@ with tf.Session(config=tfconfig) as session:
 
     writeln(model_name)
     writeln(model.version) #version
-    writeln(model.NUM_BIN_INPUT_FEATURES)
-    writeln(model.NUM_GLOBAL_INPUT_FEATURES)
+    writeln(model.get_num_bin_input_features(model_config))
+    writeln(model.get_num_global_input_features(model_config))
 
     variables = dict((variable.name,variable) for variable in tf.global_variables())
     def get_weights(name):

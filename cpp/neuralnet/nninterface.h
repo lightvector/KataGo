@@ -60,6 +60,7 @@ namespace NeuralNet {
 //Model versions
 namespace NNModelVersion {
   extern const int latestModelVersionImplemented;
+  extern const int defaultModelVersion;
 
   //Which V* feature version from NNInputs does a given model version consume?
   int getInputsVersion(int modelVersion);

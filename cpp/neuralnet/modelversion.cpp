@@ -7,12 +7,14 @@
 //3 = V3 features, many architecture changes for new selfplay loop
 //4 = V3 features, scorebelief head
 //5 = V4 features, changed current territory feature to just indicate pass-alive
+//6 = V5 features, disable fancy features
 
 static void fail(int modelVersion) {
   throw StringError("NNModelVersion: Model version not currently implemented or supported: " + Global::intToString(modelVersion));
 }
 
-const int NNModelVersion::latestModelVersionImplemented = 5;
+const int NNModelVersion::latestModelVersionImplemented = 6;
+const int NNModelVersion::defaultModelVersion = 5;
 
 int NNModelVersion::getInputsVersion(int modelVersion) {
   if(modelVersion == 0 || modelVersion == 1)
@@ -23,6 +25,8 @@ int NNModelVersion::getInputsVersion(int modelVersion) {
     return 3;
   else if(modelVersion == 5)
     return 4;
+  else if(modelVersion == 6)
+    return 5;
 
   fail(modelVersion);
   return -1;
@@ -37,6 +41,8 @@ int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
     return NNInputs::NUM_FEATURES_BIN_V3;
   else if(modelVersion == 5)
     return NNInputs::NUM_FEATURES_BIN_V4;
+  else if(modelVersion == 6)
+    return NNInputs::NUM_FEATURES_BIN_V5;
 
   fail(modelVersion);
   return -1;
@@ -49,6 +55,8 @@ int NNModelVersion::getNumGlobalFeatures(int modelVersion) {
     return NNInputs::NUM_FEATURES_GLOBAL_V3;
   else if(modelVersion == 5)
     return NNInputs::NUM_FEATURES_GLOBAL_V4;
+  else if(modelVersion == 6)
+    return NNInputs::NUM_FEATURES_GLOBAL_V5;
 
   fail(modelVersion);
   return -1;

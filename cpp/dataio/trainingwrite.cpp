@@ -277,7 +277,7 @@ void TrainingWriteBuffers::addRow(
   const FinishedGameData& data,
   Rand& rand
 ) {
-  if(inputsVersion < 3 || inputsVersion > 4)
+  if(inputsVersion < 3 || inputsVersion > 5)
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 
   int posArea = posLen*posLen;
@@ -298,6 +298,11 @@ void TrainingWriteBuffers::addRow(
       assert(NNInputs::NUM_FEATURES_BIN_V4 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V4 == numGlobalChannels);
       NNInputs::fillRowV4(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowBin, rowGlobal);
+    }
+    else if(inputsVersion == 5) {
+      assert(NNInputs::NUM_FEATURES_BIN_V5 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_GLOBAL_V5 == numGlobalChannels);
+      NNInputs::fillRowV5(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
       assert(false);
@@ -611,7 +616,7 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   int numGlobalChannels;
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
   //to feed into a model during selfplay
-  if(inputsVersion < 3 || inputsVersion > 4)
+  if(inputsVersion < 3 || inputsVersion > 5)
     throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(inputsVersion));
   else if(inputsVersion == 3) {
     numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V3;
@@ -620,6 +625,10 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   else if(inputsVersion == 4) {
     numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V4;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V4;
+  }
+  else if(inputsVersion == 5) {
+    numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V5;
+    numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V5;
   }
 
   writeBuffers = new TrainingWriteBuffers(inputsVersion, maxRowsPerFile, numBinaryChannels, numGlobalChannels, posLen);
@@ -733,7 +742,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       }
       rowCount++;
     }
-    
+
     Move move = data.endHist.moveHistory[absoluteTurnNumber];
     assert(move.pla == nextPlayer);
     assert(hist.isLegal(board,move.loc,move.pla));

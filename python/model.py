@@ -9,17 +9,37 @@ from board import Board
 #Feature extraction functions-------------------------------------------------------------------
 
 class Model:
-  NUM_BIN_INPUT_FEATURES = 22
-  NUM_GLOBAL_INPUT_FEATURES = 14
   EXTRA_SCORE_DISTR_RADIUS = 60
   BONUS_SCORE_RADIUS = 30
 
+  @staticmethod
+  def get_num_bin_input_features(config):
+    if config["version"] == 5:
+      return 22
+    elif config["version"] == 6:
+      return 13
+    else:
+      assert(False)
+
+  @staticmethod
+  def get_num_global_input_features(config):
+    if config["version"] == 5:
+      return 14
+    elif config["version"] == 6:
+      return 12
+    else:
+      assert(False)
+
+
   def __init__(self,config,pos_len,placeholders):
     self.pos_len = pos_len
-    self.bin_input_shape = [self.pos_len*self.pos_len,Model.NUM_BIN_INPUT_FEATURES]
-    self.binp_input_shape = [Model.NUM_BIN_INPUT_FEATURES,(self.pos_len*self.pos_len+7)//8]
-    self.global_input_shape = [Model.NUM_GLOBAL_INPUT_FEATURES]
-    self.post_input_shape = [self.pos_len,self.pos_len,Model.NUM_BIN_INPUT_FEATURES]
+    self.num_bin_input_features = Model.get_num_bin_input_features(config)
+    self.num_global_input_features = Model.get_num_global_input_features(config)
+
+    self.bin_input_shape = [self.pos_len*self.pos_len,self.num_bin_input_features]
+    self.binp_input_shape = [self.num_bin_input_features,(self.pos_len*self.pos_len+7)//8]
+    self.global_input_shape = [self.num_global_input_features]
+    self.post_input_shape = [self.pos_len,self.pos_len,self.num_bin_input_features]
     self.policy_output_shape_nopass = [self.pos_len*self.pos_len,2]
     self.policy_output_shape = [self.pos_len*self.pos_len+1,2] #+1 for pass move
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
@@ -142,6 +162,9 @@ class Model:
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
   def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, use_history_prop, idx):
+    #Currently only support v5 features
+    assert(self.version == 5)
+
     bsize = board.size
     assert(self.pos_len >= bsize)
     assert(len(boards) > 0)
@@ -674,7 +697,12 @@ class Model:
     #self.version = 2 #V2 features, no internal architecture change.
     #self.version = 3 #V3 features, selfplay-planned features with lots of aux targets
     #self.version = 4 #V3 features, but supporting belief stdev and dynamic scorevalue
-    self.version = 5 #V4 features,  slightly different pass-alive stones feature
+    #self.version = 5 #V4 features, slightly different pass-alive stones feature
+    #self.version = 6 #V5 features, most higher-level go features removed
+
+    self.version = config["version"]
+    #These are the only two supported versions
+    assert(self.version == 5 or self.version == 6)
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
@@ -732,72 +760,99 @@ class Model:
     #We do this by building a matrix for each batch element, mapping input channels to possibly-turned off channels.
     #This matrix is a sum of hist_matrix_base which always turns off all the channels, and h0, h1, h2,... which perform
     #the modifications to hist_matrix_base to make it turn on channels based on whether we have move0, move1,...
-    hist_matrix_base = np.diag(np.array([
-      1.0, #0
-      1.0, #1
-      1.0, #2
-      1.0, #3
-      1.0, #4
-      1.0, #5
-      1.0, #6
-      1.0, #7
-      1.0, #8
-      0.0, #9
-      0.0, #10
-      0.0, #11
-      0.0, #12
-      0.0, #13
-      1.0, #14
-      0.0, #15
-      0.0, #16
-      1.0, #17
-      1.0, #18
-      1.0, #19
-      1.0, #20
-      1.0, #21
-    ],dtype=np.float32))
-    #Because we have ladder features that express past states rather than past diffs, the most natural encoding when
-    #we have no history is that they were always the same, rather than that they were all zero. So rather than zeroing
-    #them we have no history, we add entries in the matrix to copy them over.
-    #By default, without history, the ladder features 15 and 16 just copy over from 14.
-    hist_matrix_base[14,15] = 1.0
-    hist_matrix_base[14,16] = 1.0
-    #When have the prev move, we enable feature 9 and 15
-    h0 = np.zeros([Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
-    h0[9,9] = 1.0 #Enable 9 -> 9
-    h0[14,15] = -1.0 #Stop copying 14 -> 15
-    h0[14,16] = -1.0 #Stop copying 14 -> 16
-    h0[15,15] = 1.0 #Enable 15 -> 15
-    h0[15,16] = 1.0 #Start copying 15 -> 16
-    #When have the prevprev move, we enable feature 10 and 16
-    h1 = np.zeros([Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
-    h1[10,10] = 1.0 #Enable 10 -> 10
-    h1[15,16] = -1.0 #Stop copying 15 -> 16
-    h1[16,16] = 1.0 #Enable 16 -> 16
-    #Further history moves
-    h2 = np.zeros([Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
-    h2[11,11] = 1.0
-    h3 = np.zeros([Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
-    h3[12,12] = 1.0
-    h4 = np.zeros([Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES],dtype=np.float32)
-    h4[13,13] = 1.0
+    if self.version == 5:
+      hist_matrix_base = np.diag(np.array([
+        1.0, #0
+        1.0, #1
+        1.0, #2
+        1.0, #3
+        1.0, #4
+        1.0, #5
+        1.0, #6
+        1.0, #7
+        1.0, #8
+        0.0, #9
+        0.0, #10
+        0.0, #11
+        0.0, #12
+        0.0, #13
+        1.0, #14
+        0.0, #15
+        0.0, #16
+        1.0, #17
+        1.0, #18
+        1.0, #19
+        1.0, #20
+        1.0, #21
+      ],dtype=np.float32))
+      #Because we have ladder features that express past states rather than past diffs, the most natural encoding when
+      #we have no history is that they were always the same, rather than that they were all zero. So rather than zeroing
+      #them we have no history, we add entries in the matrix to copy them over.
+      #By default, without history, the ladder features 15 and 16 just copy over from 14.
+      hist_matrix_base[14,15] = 1.0
+      hist_matrix_base[14,16] = 1.0
+      #When have the prev move, we enable feature 9 and 15
+      h0 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+      h0[9,9] = 1.0 #Enable 9 -> 9
+      h0[14,15] = -1.0 #Stop copying 14 -> 15
+      h0[14,16] = -1.0 #Stop copying 14 -> 16
+      h0[15,15] = 1.0 #Enable 15 -> 15
+      h0[15,16] = 1.0 #Start copying 15 -> 16
+      #When have the prevprev move, we enable feature 10 and 16
+      h1 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+      h1[10,10] = 1.0 #Enable 10 -> 10
+      h1[15,16] = -1.0 #Stop copying 15 -> 16
+      h1[16,16] = 1.0 #Enable 16 -> 16
+      #Further history moves
+      h2 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+      h2[11,11] = 1.0
+      h3 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+      h3[12,12] = 1.0
+      h4 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+      h4[13,13] = 1.0
+    elif self.version == 5:
+      hist_matrix_base = np.diag(np.array([
+        1.0, #0
+        1.0, #1
+        1.0, #2
+        1.0, #3
+        1.0, #4
+        1.0, #5
+        0.0, #6
+        0.0, #7
+        0.0, #8
+        0.0, #9
+        0.0, #10
+        1.0, #11
+        1.0, #12
+      ],dtype=np.float32))
+      h0 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+      h0[6,6] = 1.0
+      h1 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+      h1[7,7] = 1.0
+      h2 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+      h2[8,8] = 1.0
+      h3 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+      h3[9,9] = 1.0
+      h4 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+      h4[10,10] = 1.0
 
-    hist_matrix_base = tf.reshape(tf.constant(hist_matrix_base),[1,Model.NUM_BIN_INPUT_FEATURES,Model.NUM_BIN_INPUT_FEATURES])
+    hist_matrix_base = tf.reshape(tf.constant(hist_matrix_base),[1,self.num_bin_input_features,self.num_bin_input_features])
     hist_matrix_builder = tf.constant(np.array([h0,h1,h2,h3,h4]))
     assert(hist_matrix_base.dtype == tf.float32)
     assert(hist_matrix_builder.dtype == tf.float32)
     assert(len(hist_matrix_builder.shape) == 3)
     assert(hist_matrix_builder.shape[0].value == 5)
-    assert(hist_matrix_builder.shape[1].value == Model.NUM_BIN_INPUT_FEATURES)
-    assert(hist_matrix_builder.shape[2].value == Model.NUM_BIN_INPUT_FEATURES)
+    assert(hist_matrix_builder.shape[1].value == self.num_bin_input_features)
+    assert(hist_matrix_builder.shape[2].value == self.num_bin_input_features)
 
     hist_filter_matrix = hist_matrix_base + tf.tensordot(include_history, hist_matrix_builder, axes=[[1],[0]]) #[batch,move] * [move,inc,outc] = [batch,inc,outc]
-    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len*self.pos_len,Model.NUM_BIN_INPUT_FEATURES]) #[batch,xy,inc]
+    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len*self.pos_len,self.num_bin_input_features]) #[batch,xy,inc]
     cur_layer = tf.matmul(cur_layer,hist_filter_matrix) #[batch,xy,inc] * [batch,inc,outc] = [batch,xy,outc]
-    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len,self.pos_len,Model.NUM_BIN_INPUT_FEATURES])
+    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len,self.pos_len,self.num_bin_input_features])
 
     assert(include_history.shape[1].value == 5)
-    transformed_global_inputs = global_inputs * tf.pad(include_history, [(0,0),(0,Model.NUM_GLOBAL_INPUT_FEATURES - include_history.shape[1].value)], constant_values=1.0)
+    transformed_global_inputs = global_inputs * tf.pad(include_history, [(0,0),(0,self.num_global_input_features - include_history.shape[1].value)], constant_values=1.0)
 
     self.transformed_bin_inputs = cur_layer
     self.transformed_global_inputs = transformed_global_inputs
@@ -827,11 +882,11 @@ class Model:
     self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
 
     #Matrix multiply global inputs and accumulate them
-    ginputw = self.weight_variable("ginputw",[Model.NUM_GLOBAL_INPUT_FEATURES,trunk_num_channels],Model.NUM_GLOBAL_INPUT_FEATURES*2,trunk_num_channels)
+    ginputw = self.weight_variable("ginputw",[self.num_global_input_features,trunk_num_channels],self.num_global_input_features*2,trunk_num_channels)
     ginputresult = tf.tensordot(transformed_global_inputs,ginputw,axes=[[1],[0]])
     trunk = trunk + tf.reshape(ginputresult, [-1,1,1,trunk_num_channels])
 
-    self.initial_matmul = ("ginputw",Model.NUM_GLOBAL_INPUT_FEATURES,trunk_num_channels)
+    self.initial_matmul = ("ginputw",self.num_global_input_features,trunk_num_channels)
 
     #Main trunk---------------------------------------------------------------------------------------------------
     self.blocks = []
@@ -1370,6 +1425,9 @@ class ModelUtils:
   def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_epoch_offset=None,lr_epoch_scale=None,lr_epoch_cap=None,lr_scale=None):
     trainlog("Building model")
 
+    num_bin_input_features = Model.get_num_bin_input_features(model_config)
+    num_global_input_features = Model.get_num_global_input_features(model_config)
+
     #L2 regularization coefficient
     l2_coeff_value = 0.00003
 
@@ -1378,7 +1436,7 @@ class ModelUtils:
     binchwp = features["binchwp"]
     #Unpack binary data
     bitmasks = tf.reshape(tf.constant([128,64,32,16,8,4,2,1],dtype=tf.uint8),[1,1,1,8])
-    binchw = tf.reshape(tf.bitwise.bitwise_and(tf.expand_dims(binchwp,axis=3),bitmasks),[-1,Model.NUM_BIN_INPUT_FEATURES,((pos_len*pos_len+7)//8)*8])
+    binchw = tf.reshape(tf.bitwise.bitwise_and(tf.expand_dims(binchwp,axis=3),bitmasks),[-1,num_bin_input_features,((pos_len*pos_len+7)//8)*8])
     binchw = binchw[:,:,:pos_len*pos_len]
     binhwc = tf.cast(tf.transpose(binchw, [0,2,1]),tf.float32)
     binhwc = tf.math.minimum(binhwc,tf.constant(1.0))

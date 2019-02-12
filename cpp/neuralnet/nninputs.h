@@ -43,6 +43,9 @@ namespace NNInputs {
   const int NUM_FEATURES_BIN_V4 = 22;
   const int NUM_FEATURES_GLOBAL_V4 = 14;
 
+  const int NUM_FEATURES_BIN_V5 = 13;
+  const int NUM_FEATURES_GLOBAL_V5 = 12;
+
   Hash128 getHashV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
     Player nextPlayer, float selfKomi
@@ -87,6 +90,15 @@ namespace NNInputs {
     double drawEquivalentWinsForWhite
   );
   void fillRowV4(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    double drawEquivalentWinsForWhite, int posLen, bool useNHWC, float* rowBin, float* rowGlobal
+  );
+
+  Hash128 getHashV5(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    double drawEquivalentWinsForWhite
+  );
+  void fillRowV5(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     double drawEquivalentWinsForWhite, int posLen, bool useNHWC, float* rowBin, float* rowGlobal
   );

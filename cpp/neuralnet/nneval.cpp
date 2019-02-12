@@ -105,7 +105,7 @@ NNEvaluator::NNEvaluator(
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
   }
   else {
-    modelVersion = NNModelVersion::latestModelVersionImplemented;
+    modelVersion = NNModelVersion::defaultModelVersion;
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
   }
 
@@ -406,6 +406,8 @@ void NNEvaluator::evaluate(
     nnHash = NNInputs::getHashV3(board, history, nextPlayer, drawEquivalentWinsForWhite);
   else if(inputsVersion == 4)
     nnHash = NNInputs::getHashV4(board, history, nextPlayer, drawEquivalentWinsForWhite);
+  else if(inputsVersion == 5)
+    nnHash = NNInputs::getHashV5(board, history, nextPlayer, drawEquivalentWinsForWhite);
   else
     assert(false);
 
@@ -463,6 +465,18 @@ void NNEvaluator::evaluate(
           throw StringError("Cannot reuse an nnResultBuf with a different posLen or model version");
       }
       NNInputs::fillRowV4(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
+    }
+    else if(inputsVersion == 5) {
+      int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
+      if(buf.rowGlobal == NULL) {
+        buf.rowGlobal = new float[rowGlobalLen];
+        buf.rowGlobalSize = rowGlobalLen;
+      }
+      else {
+        if(buf.rowGlobalSize != rowGlobalLen)
+          throw StringError("Cannot reuse an nnResultBuf with a different posLen or model version");
+      }
+      NNInputs::fillRowV5(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
     }
     else
       assert(false);
@@ -637,7 +651,7 @@ void NNEvaluator::evaluate(
       }
 
     }
-    else if(modelVersion == 4 || modelVersion == 5) {
+    else if(modelVersion == 4 || modelVersion == 5 || modelVersion == 6) {
       double winProb;
       double lossProb;
       double noResultProb;
@@ -652,7 +666,7 @@ void NNEvaluator::evaluate(
 
         if(history.rules.koRule != Rules::KO_SIMPLE && history.rules.scoringRule != Rules::SCORING_TERRITORY)
           noResultLogits -= 100000.0;
-        
+
         //Softmax
         double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
         winProb = exp(winLogits - maxLogits);
@@ -661,7 +675,7 @@ void NNEvaluator::evaluate(
 
         if(history.rules.koRule != Rules::KO_SIMPLE && history.rules.scoringRule != Rules::SCORING_TERRITORY)
           noResultProb = 0.0;
-        
+
         double probSum = winProb + lossProb + noResultProb;
         winProb /= probSum;
         lossProb /= probSum;
@@ -681,7 +695,7 @@ void NNEvaluator::evaluate(
         //scoreMean and scoreMeanSq are still conditional on having a result, we need to make them unconditional now
         //noResult counts as 0 score for scorevalue purposes.
         scoreMean = scoreMean * (1.0-noResultProb);
-        scoreMeanSq = scoreMeanSq * (1.0-noResultProb); 
+        scoreMeanSq = scoreMeanSq * (1.0-noResultProb);
 
         if(isnan(probSum) || isnan(scoreMean) || isnan(scoreMeanSq)) {
           cout << "Got nan for nneval value" << endl;
@@ -716,7 +730,7 @@ void NNEvaluator::evaluate(
     if(modelVersion <= 2) {
       //No postprocessing needed, cudabackend fills with zeros, which is exactly fine.
     }
-    else if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5) {
+    else if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5 || modelVersion == 6) {
       for(int pos = 0; pos<posLen*posLen; pos++) {
         int y = pos / posLen;
         int x = pos % posLen;

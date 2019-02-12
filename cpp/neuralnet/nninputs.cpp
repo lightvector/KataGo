@@ -263,6 +263,9 @@ static void setRowBinV3(float* rowBin, int pos, int feature, float value, int po
 static void setRowBinV4(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
   rowBin[pos * posStride + feature * featureStride] = value;
 }
+static void setRowBinV5(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
+  rowBin[pos * posStride + feature * featureStride] = value;
+}
 
 
 //Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
@@ -319,6 +322,10 @@ static void iterLadders(const Board& board, int posLen, std::function<void(Loc,i
   }
 }
 
+
+//===========================================================================================
+//INPUTSVERSION 0
+//===========================================================================================
 
 Hash128 NNInputs::getHashV0(
   const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
@@ -461,6 +468,9 @@ void NNInputs::fillRowV0(
 
 
 //===========================================================================================
+//INPUTSVERSION 1
+//===========================================================================================
+
 
 //Currently does NOT depend on history (except for marking ko-illegal spots)
 Hash128 NNInputs::getHashV1(
@@ -656,6 +666,9 @@ void NNInputs::fillRowV1(
 
 
 //===========================================================================================
+//INPUTSVERSION 2
+//===========================================================================================
+
 
 //Currently does NOT depend on history (except for marking ko-illegal spots)
 Hash128 NNInputs::getHashV2(
@@ -866,6 +879,8 @@ void NNInputs::fillRowV2(
 
 
 
+//===========================================================================================
+//INPUTSVERSION 3
 //===========================================================================================
 
 //Currently does NOT depend on history (except for marking ko-illegal spots)
@@ -1256,6 +1271,8 @@ void NNInputs::fillRowV3(
 
 
 //===========================================================================================
+//INPUTSVERSION 4
+//===========================================================================================
 
 //Currently does NOT depend on history (except for marking ko-illegal spots)
 Hash128 NNInputs::getHashV4(
@@ -1631,5 +1648,258 @@ void NNInputs::fillRowV4(
     //NOTE: If ever changing which feature this is, must also update index in model.py where we multiply it into the scorebelief parity vector
     rowGlobal[13] = wave;
   }
+
+}
+
+
+
+//===========================================================================================
+//INPUTSVERSION 5
+//===========================================================================================
+
+//Currently does NOT depend on history (except for marking ko-illegal spots)
+Hash128 NNInputs::getHashV5(
+  const Board& board, const BoardHistory& hist, Player nextPlayer,
+  double drawEquivalentWinsForWhite
+) {
+  int xSize = board.x_size;
+  int ySize = board.y_size;
+
+  //Note that board.pos_hash also incorporates the size of the board.
+  Hash128 hash = board.pos_hash;
+  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
+
+  assert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
+  hash ^= Board::ZOBRIST_ENCORE_HASH[hist.encorePhase];
+
+  if(hist.encorePhase == 0) {
+    if(board.ko_loc != Board::NULL_LOC)
+      hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        if(hist.superKoBanned[loc] && loc != board.ko_loc)
+          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
+      }
+    }
+  }
+  else {
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        if(hist.superKoBanned[loc])
+          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
+        if(hist.blackKoProhibited[loc])
+          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK];
+        if(hist.whiteKoProhibited[loc])
+          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
+      }
+    }
+  }
+
+  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+
+  //Discretize the komi for the purpose of matching hash, so that extremely close effective komi we just reuse nn cache hits
+  int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
+  uint64_t komiHash = Hash::murmurMix((uint64_t)komiDiscretized);
+  hash.hash0 ^= komiHash;
+  hash.hash1 ^= Hash::basicLCong(komiHash);
+
+  //Fold in the ko, scoring, and suicide rules
+  hash ^= Rules::ZOBRIST_KO_RULE_HASH[hist.rules.koRule];
+  hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
+  if(hist.rules.multiStoneSuicideLegal)
+    hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
+
+  //Fold in whether a pass ends this phase
+  bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
+  if(passEndsPhase)
+    hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
+
+  return hash;
+}
+
+void NNInputs::fillRowV5(
+  const Board& board, const BoardHistory& hist, Player nextPlayer,
+  double drawEquivalentWinsForWhite, int posLen, bool useNHWC, float* rowBin, float* rowGlobal
+) {
+  assert(posLen <= NNPos::MAX_BOARD_LEN);
+  assert(board.x_size <= posLen);
+  assert(board.y_size <= posLen);
+  std::fill(rowBin,rowBin+NUM_FEATURES_BIN_V5*posLen*posLen,false);
+  std::fill(rowGlobal,rowGlobal+NUM_FEATURES_GLOBAL_V5,0.0f);
+
+  Player pla = nextPlayer;
+  Player opp = getOpp(pla);
+  int xSize = board.x_size;
+  int ySize = board.y_size;
+
+  int featureStride;
+  int posStride;
+  if(useNHWC) {
+    featureStride = 1;
+    posStride = NNInputs::NUM_FEATURES_BIN_V5;
+  }
+  else {
+    featureStride = posLen * posLen;
+    posStride = 1;
+  }
+
+  for(int y = 0; y<ySize; y++) {
+    for(int x = 0; x<xSize; x++) {
+      int pos = NNPos::xyToPos(x,y,posLen);
+      Loc loc = Location::getLoc(x,y,xSize);
+
+      //Feature 0 - on board
+      setRowBinV5(rowBin,pos,0, 1.0f, posStride, featureStride);
+
+      Color stone = board.colors[loc];
+
+      //Features 1,2 - pla,opp stone
+      if(stone == pla)
+        setRowBinV5(rowBin,pos,1, 1.0f, posStride, featureStride);
+      else if(stone == opp)
+        setRowBinV5(rowBin,pos,2, 1.0f, posStride, featureStride);
+    }
+  }
+
+  //Feature 3 - ko-ban locations, including possibly superko.
+  if(hist.encorePhase == 0) {
+    if(board.ko_loc != Board::NULL_LOC) {
+      int pos = NNPos::locToPos(board.ko_loc,xSize,posLen);
+      setRowBinV5(rowBin,pos,3, 1.0f, posStride, featureStride);
+    }
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        if(hist.superKoBanned[loc] && loc != board.ko_loc) {
+          int pos = NNPos::locToPos(loc,xSize,posLen);
+          setRowBinV5(rowBin,pos,3, 1.0f, posStride, featureStride);
+        }
+      }
+    }
+  }
+  else {
+    //Feature 3,4,5 - in the encore, no-second-ko-capture locations, encore ko prohibitions where we have to pass for ko
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        int pos = NNPos::locToPos(loc,xSize,posLen);
+        if(hist.superKoBanned[loc])
+          setRowBinV5(rowBin,pos,3, 1.0f, posStride, featureStride);
+        if((pla == P_BLACK && hist.blackKoProhibited[loc]) || (pla == P_WHITE && hist.whiteKoProhibited[loc]))
+          setRowBinV5(rowBin,pos,4, 1.0f, posStride, featureStride);
+        if((pla == P_BLACK && hist.whiteKoProhibited[loc]) || (pla == P_WHITE && hist.blackKoProhibited[loc]))
+          setRowBinV5(rowBin,pos,5, 1.0f, posStride, featureStride);
+      }
+    }
+  }
+
+  //Features 6,7,8,9,10
+  const vector<Move>& moveHistory = hist.moveHistory;
+  size_t moveHistoryLen = moveHistory.size();
+  if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
+    Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
+    if(prev1Loc == Board::PASS_LOC)
+      rowGlobal[0] = 1.0;
+    else if(prev1Loc != Board::NULL_LOC) {
+      int pos = NNPos::locToPos(prev1Loc,xSize,posLen);
+      setRowBinV5(rowBin,pos,6, 1.0f, posStride, featureStride);
+    }
+    if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
+      Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
+      if(prev2Loc == Board::PASS_LOC)
+        rowGlobal[1] = 1.0;
+      else if(prev2Loc != Board::NULL_LOC) {
+        int pos = NNPos::locToPos(prev2Loc,xSize,posLen);
+        setRowBinV5(rowBin,pos,7, 1.0f, posStride, featureStride);
+      }
+      if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
+        Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
+        if(prev3Loc == Board::PASS_LOC)
+          rowGlobal[2] = 1.0;
+        else if(prev3Loc != Board::NULL_LOC) {
+          int pos = NNPos::locToPos(prev3Loc,xSize,posLen);
+          setRowBinV5(rowBin,pos,8, 1.0f, posStride, featureStride);
+        }
+        if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
+          Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
+          if(prev4Loc == Board::PASS_LOC)
+            rowGlobal[3] = 1.0;
+          else if(prev4Loc != Board::NULL_LOC) {
+            int pos = NNPos::locToPos(prev4Loc,xSize,posLen);
+            setRowBinV5(rowBin,pos,9, 1.0f, posStride, featureStride);
+          }
+          if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
+            Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
+            if(prev5Loc == Board::PASS_LOC)
+              rowGlobal[4] = 1.0;
+            else if(prev5Loc != Board::NULL_LOC) {
+              int pos = NNPos::locToPos(prev5Loc,xSize,posLen);
+              setRowBinV5(rowBin,pos,10, 1.0f, posStride, featureStride);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  //Features 11, 12 - second encore starting stones
+  if(hist.encorePhase >= 2) {
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        int pos = NNPos::locToPos(loc,xSize,posLen);
+        if(hist.secondEncoreStartColors[loc] == pla)
+          setRowBinV5(rowBin,pos,11, 1.0f, posStride, featureStride);
+        else if(hist.secondEncoreStartColors[loc] == opp)
+          setRowBinV5(rowBin,pos,12, 1.0f, posStride, featureStride);
+      }
+    }
+  }
+
+
+  //Global features.
+  //The first 5 of them were set already above to flag which of the past 5 moves were passes.
+
+  //Komi and any score adjustments
+  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  float bArea = xSize * ySize;
+  //Bound komi just in case
+  if(selfKomi > bArea+1.0f)
+    selfKomi = bArea+1.0f;
+  if(selfKomi < -bArea-1.0f)
+    selfKomi = -bArea-1.0f;
+  rowGlobal[5] = selfKomi/15.0f;
+
+  //Ko rule
+  if(hist.rules.koRule == Rules::KO_SIMPLE) {}
+  else if(hist.rules.koRule == Rules::KO_POSITIONAL || hist.rules.koRule == Rules::KO_SPIGHT) {
+    rowGlobal[6] = 1.0f;
+    rowGlobal[7] = 0.5f;
+  }
+  else if(hist.rules.koRule == Rules::KO_SITUATIONAL) {
+    rowGlobal[6] = 1.0f;
+    rowGlobal[7] = -0.5f;
+  }
+  else
+    assert(false);
+
+  //Suicide
+  if(hist.rules.multiStoneSuicideLegal)
+    rowGlobal[8] = 1.0f;
+
+  //Scoring
+  if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
+  else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY)
+    rowGlobal[9] = 1.0f;
+  else
+    assert(false);
+
+  //Encore phase
+  if(hist.encorePhase > 0)
+    rowGlobal[10] = 1.0f;
+  if(hist.encorePhase > 1)
+    rowGlobal[11] = 1.0f;
 
 }
