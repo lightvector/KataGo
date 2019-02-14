@@ -13,19 +13,27 @@ class Model:
   BONUS_SCORE_RADIUS = 30
 
   @staticmethod
+  def get_version(config):
+    if "version" in config:
+      return config["version"]
+    return 5 #by default, since this was the version before we put it in the config
+
+  @staticmethod
   def get_num_bin_input_features(config):
-    if config["version"] == 5:
+    version = Model.get_version(config)
+    if version == 5:
       return 22
-    elif config["version"] == 6:
+    elif version == 6:
       return 13
     else:
       assert(False)
 
   @staticmethod
   def get_num_global_input_features(config):
-    if config["version"] == 5:
+    version = Model.get_version(config)
+    if version == 5:
       return 14
-    elif config["version"] == 6:
+    elif version == 6:
       return 12
     else:
       assert(False)
@@ -700,7 +708,7 @@ class Model:
     #self.version = 5 #V4 features, slightly different pass-alive stones feature
     #self.version = 6 #V5 features, most higher-level go features removed
 
-    self.version = config["version"]
+    self.version = Model.get_version(config)
     #These are the only two supported versions
     assert(self.version == 5 or self.version == 6)
 
