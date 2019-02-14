@@ -417,6 +417,7 @@ def run_gtp(session):
     'protocol_version',
     'gogui-analyze_commands',
     'policy',
+    'logpolicy',
     'policy1',
     'policy-japanese',
     'policy-encore1',
@@ -432,6 +433,7 @@ def run_gtp(session):
   ]
   known_analyze_commands = [
     'gfx/Policy/policy',
+    'gfx/LogPolicy/logpolicy',
     'gfx/Policy1/policy1',
     'gfx/PolicyJP/policy-japanese',
     'gfx/PolicyE1/policy-encore1',
@@ -609,6 +611,20 @@ def run_gtp(session):
       (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
       fill_gfx_commands_for_heatmap(gfx_commands, moves_and_probs, board, normalization_div=None, is_percent=True, value_and_score=value)
+      ret = "\n".join(gfx_commands)
+    elif command[0] == "logpolicy":
+      rules = {
+        "koRule": "KO_POSITIONAL",
+        "scoringRule": "SCORING_AREA",
+        "multiStoneSuicideLegal": True,
+        "encorePhase": 0,
+        "passWouldEndPhase": False,
+        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+      }
+      (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
+      gfx_commands = []
+      moves_and_logprobs = [(move,2.0+math.log10(prob)) for (move,prob) in moves_and_probs]
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_logprobs, board, normalization_div=4, is_percent=False, value_and_score=value)
       ret = "\n".join(gfx_commands)
     elif command[0] == "policy1":
       rules = {

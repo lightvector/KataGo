@@ -6,6 +6,7 @@ namespace MainCmds {
   int gatekeeper(int argc, const char* const* argv);
   int gtp(int argc, const char* const* argv);
   int match(int argc, const char* const* argv);
+  int matchauto(int argc, const char* const* argv);
   int selfplay(int argc, const char* const* argv);
   int runtests(int argc, const char* const* argv);
   int runoutputtests(int argc, const char* const* argv);
