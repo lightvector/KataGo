@@ -1012,6 +1012,98 @@ XXXXXXXXX
 
   //============================================================================
   {
+    const char* name = "One more simple test case";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(7,7,R"%%(
+..ooo..
+..xxx..
+xxxxxxx
+.....x.
+ooooox.
+.o..oxx
+.x..ox.
+)%%");
+    printAreas(board,result);
+
+    string expected = R"%%(
+Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Suicide 0
+.......
+..XXX..
+XXXXXXX
+.....XX
+.....XX
+.....XX
+.....XX
+
+Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Suicide 1
+.......
+..XXX..
+XXXXXXX
+.....XX
+.....XX
+.....XX
+.....XX
+
+Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Suicide 0
+.......
+..XXX..
+XXXXXXX
+.....XX
+.....XX
+.....XX
+.....XX
+
+Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Suicide 1
+.......
+..XXX..
+XXXXXXX
+.....XX
+.....XX
+.....XX
+.....XX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Suicide 0
+.......
+..XXX..
+XXXXXXX
+.....XX
+.....XX
+.....XX
+.....XX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Suicide 1
+.......
+..XXX..
+XXXXXXX
+.....XX
+.....XX
+.....XX
+.....XX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Suicide 0
+..OOO..
+..XXX..
+XXXXXXX
+.....XX
+OOOOOXX
+.O..OXX
+.X..OXX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Suicide 1
+..OOO..
+..XXX..
+XXXXXXX
+.....XX
+OOOOOXX
+.O..OXX
+.X..OXX
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
     const char* name = "Bug-derived test case, in more colors and orientations";
     Color result[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(9,9,R"%%(
@@ -1120,6 +1212,7 @@ OOOOOOOOO
     expect(name,out,expected);
   }
 
+  
   //============================================================================
   {
     const char* name = "isNonPassAliveSelfConnection";
