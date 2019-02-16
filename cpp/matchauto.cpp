@@ -356,7 +356,8 @@ namespace {
         if(otherBot == bestBot) //Just in case
           continue;
 
-        logger.write("Scheduling game " + botNames[bestBot] + " vs " + botNames[otherBot]);
+        logger.write("Scheduling game " + botNames[bestBot] + " vs " + botNames[otherBot] + "elos " +
+                     Global::doubleToString(elos[bestBot]) + " " + Global::doubleToString(elos[otherBot]));
         
         //And schedule the games!
         manager->preregisterGames(nnModelFiles[bestBot],logger,matchRepFactor);
