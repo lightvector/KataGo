@@ -37,8 +37,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string nnModelFile;
   try {
     TCLAP::CmdLine cmd("Run GTP engine", ' ', "1.0",true);
-    TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
-    TCLAP::ValueArg<string> nnModelFileArg("","nn-model-file","Neural net model .pb graph file to use",true,string(),"FILE");
+    TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
+    TCLAP::ValueArg<string> nnModelFileArg("","model","Neural net model file",true,string(),"FILE");
     cmd.add(configFileArg);
     cmd.add(nnModelFileArg);
     cmd.parse(argc,argv);
@@ -391,7 +391,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             resignPlayerThisTurn = P_WHITE;
           else if(winLossValue > -resignThreshold)
             resignPlayerThisTurn = P_BLACK;
-          
+
           if(resignPlayerThisTurn == pla)
             resigned = true;
         }
@@ -553,12 +553,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           response = "Argument to final_status_list must be 'alive' or 'seki' or 'dead'";
           statusMode = 3;
         }
-        
+
         if(statusMode < 3) {
           vector<Loc> locsToReport;
           Board board = bot->getRootBoard();
           BoardHistory hist = bot->getRootHist();
-      
+
           if(hist.isGameFinished && hist.isNoResult) {
             //Treat all stones as alive under a no result
             if(statusMode == 0) {
