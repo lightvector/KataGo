@@ -69,7 +69,7 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
   Search* search = bot->getSearch();
 
   for(int i = 0; i<opts.numMovesInARow; i++) {
-    Loc move = bot->genMoveSynchronous(nextPla);
+    Loc move = bot->genMoveSynchronous(nextPla,TimeControls());
 
     Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
 

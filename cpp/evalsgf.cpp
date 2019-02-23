@@ -255,7 +255,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
 
   ClockTimer timer;
   nnEval->clearStats();
-  Loc loc = bot->genMoveSynchronous(bot->getSearch()->rootPla);
+  Loc loc = bot->genMoveSynchronous(bot->getSearch()->rootPla,TimeControls());
   (void)loc;
 
   //Postprocess------------------------------------------------------------

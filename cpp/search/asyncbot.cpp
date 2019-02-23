@@ -21,7 +21,7 @@ AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const st
   :search(NULL),logger(l),
    controlMutex(),threadWaitingToSearch(),userWaitingForStop(),searchThread(),
    isRunning(false),isPondering(false),isKilled(false),shouldStopNow(false),
-   queuedSearchId(0),queuedOnMove()
+   queuedSearchId(0),queuedOnMove(),timeControls()
 {
   search = new Search(params,nnEval,randSeed);
   searchThread = std::thread(searchThreadLoop,this,l);
@@ -89,7 +89,7 @@ bool AsyncBot::isLegal(Loc moveLoc, Player movePla) const {
   return search->isLegal(moveLoc,movePla);
 }
 
-void AsyncBot::genMove(Player movePla, int searchId, std::function<void(Loc,int)> onMove) {
+void AsyncBot::genMove(Player movePla, int searchId, const TimeControls& tc, std::function<void(Loc,int)> onMove) {
   unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
   assert(!isRunning);
@@ -101,17 +101,18 @@ void AsyncBot::genMove(Player movePla, int searchId, std::function<void(Loc,int)
   isRunning = true;
   isPondering = false;
   shouldStopNow = false;
+  timeControls = tc;
   lock.unlock();
   threadWaitingToSearch.notify_all();
 }
 
-Loc AsyncBot::genMoveSynchronous(Player movePla) {
+Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc) {
   Loc moveLoc = Board::NULL_LOC;
   std::function<void(Loc,int)> onMove = [&moveLoc](Loc loc, int searchId) {
     assert(searchId == 0);
     moveLoc = loc;
   };
-  genMove(movePla,0,onMove);
+  genMove(movePla,0,tc,onMove);
   waitForSearchToEnd();
   return moveLoc;
 }
@@ -131,6 +132,7 @@ void AsyncBot::ponder() {
   isRunning = true;
   isPondering = true;
   shouldStopNow = false;
+  timeControls = TimeControls();
   lock.unlock();
   threadWaitingToSearch.notify_all();
 }
@@ -165,9 +167,10 @@ void AsyncBot::internalSearchThreadLoop() {
       break;
 
     bool pondering = isPondering;
+    TimeControls tc = timeControls;
     lock.unlock();
 
-    search->runWholeSearch(*logger,shouldStopNow,NULL,pondering);
+    search->runWholeSearch(*logger,shouldStopNow,NULL,pondering,tc);
     Loc moveLoc = search->getChosenMoveLoc();
 
     lock.lock();

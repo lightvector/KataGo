@@ -40,10 +40,10 @@ class AsyncBot {
   //Will stop any ongoing search, waiting for a full stop.
   //Asynchronously calls the provided function upon success, passing back the move and provided searchId.
   //The provided callback is expected to terminate quickly and should NOT call back into this API.
-  void genMove(Player movePla, int searchId, std::function<void(Loc,int)> onMove);
+  void genMove(Player movePla, int searchId, const TimeControls& tc, std::function<void(Loc,int)> onMove);
 
   //Same as genMove, but waits directly for the move and returns it here.
-  Loc genMoveSynchronous(Player movePla);
+  Loc genMoveSynchronous(Player movePla, const TimeControls& tc);
 
   //Begin pondering, returning immediately. Future genMoves may be faster if this is called.
   //Will not stop any ongoing searches.
@@ -69,6 +69,7 @@ class AsyncBot {
   atomic<bool> shouldStopNow;
   int queuedSearchId;
   std::function<void(Loc,int)> queuedOnMove;
+  TimeControls timeControls;
 
   void stopAndWaitAlreadyLocked(unique_lock<std::mutex>& lock);
   void waitForSearchToEnd();

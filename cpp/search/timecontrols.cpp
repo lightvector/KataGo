@@ -115,5 +115,10 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
   minTime = applyLagBuffer(minTime,lagBuffer);
   recommendedTime = applyLagBuffer(recommendedTime,lagBuffer);
   maxTime = applyLagBuffer(maxTime,lagBuffer);
-  
+
+  //Just in case
+  if(minTime > maxTime)
+    minTime = maxTime;
+  if(recommendedTime > maxTime)
+    recommendedTime = maxTime;
 }

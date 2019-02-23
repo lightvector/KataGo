@@ -113,6 +113,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     bot->setPosition(pla,board,hist);
   }
 
+  TimeControls bTimeControls;
+  TimeControls wTimeControls;  
 
   {
     vector<string> unusedKeys = cfg.unusedKeys();
@@ -139,6 +141,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     "showboard",
     "place_free_handicap",
     "set_free_handicap",
+    "time_settings",
+    "time_left",
     "final_score",
     "final_status_list",
   };
@@ -300,6 +304,112 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
+    else if(command == "time_settings") {
+      double mainTime;
+      double byoYomiTime;
+      int byoYomiStones;
+      if(pieces.size() != 3
+         || !Global::tryStringToDouble(pieces[0],mainTime)
+         || !Global::tryStringToDouble(pieces[1],byoYomiTime)
+         || !Global::tryStringToInt(pieces[2],byoYomiStones)
+         ) {
+        responseIsError = true;
+        response = "Expected 2 floats and an int for time_settings but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(isnan(mainTime) || mainTime < 0.0 || mainTime > 1e50) {
+        responseIsError = true;
+        response = "invalid main_time";
+      }
+      else if(isnan(byoYomiTime) || byoYomiTime < 0.0 || byoYomiTime > 1e50) {
+        responseIsError = true;
+        response = "invalid byo_yomi_time";
+      }
+      else if(byoYomiStones < 0 || byoYomiStones > 100000) {
+        responseIsError = true;
+        response = "invalid byo_yomi_stones";
+      }
+      else {
+        TimeControls tc;
+        //This means no time limits, according to gtp spec
+        if(byoYomiStones == 0 && byoYomiTime > 0.0) {
+          //do nothing, tc already no limits by default
+        }
+        //Absolute time
+        else if(byoYomiStones == 0) {
+          tc.originalMainTime = mainTime;
+          tc.increment = 0.0;
+          tc.originalNumPeriods = 0;
+          tc.numStonesPerPeriod = 0;
+          tc.perPeriodTime = 0.0;
+          tc.mainTimeLeft = mainTime;
+          tc.inOvertime = false;
+          tc.numPeriodsLeftIncludingCurrent = 0;
+          tc.numStonesLeftInPeriod = 0;
+          tc.timeLeftInPeriod = 0;
+        }
+        else {
+          tc.originalMainTime = mainTime;
+          tc.increment = 0.0;
+          tc.originalNumPeriods = 1;
+          tc.numStonesPerPeriod = byoYomiStones;
+          tc.perPeriodTime = byoYomiTime;
+          tc.mainTimeLeft = mainTime;
+          tc.inOvertime = false;
+          tc.numPeriodsLeftIncludingCurrent = 1;
+          tc.numStonesLeftInPeriod = 0;
+          tc.timeLeftInPeriod = 0;
+        }
+
+        bTimeControls = tc;
+        wTimeControls = tc;
+      }
+    }
+    
+    else if(command == "time_left") {
+      Player pla;
+      double time;
+      int stones;
+      if(pieces.size() != 3
+         || !tryParsePlayer(pieces[0],pla)
+         || !Global::tryStringToDouble(pieces[1],time)
+         || !Global::tryStringToInt(pieces[2],stones)
+         ) {
+        responseIsError = true;
+        response = "Expected player and float time and int stones for time_left but got '" + Global::concat(pieces," ") + "'";
+      }
+      //Be slightly tolerant of negative time left
+      else if(isnan(time) || time < -10.0 || time > 1e50) {
+        responseIsError = true;
+        response = "invalid time";
+      }
+      else if(stones < 0 || stones > 100000) {
+        responseIsError = true;
+        response = "invalid stones";
+      }
+      else {
+        TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
+        //Main time
+        if(stones == 0) {
+          tc.mainTimeLeft = time;
+          tc.inOvertime = false;
+          tc.numPeriodsLeftIncludingCurrent = tc.originalNumPeriods;
+          tc.numStonesLeftInPeriod = 0;
+          tc.timeLeftInPeriod = 0;
+        }
+        else {
+          tc.mainTimeLeft = 0.9;
+          tc.inOvertime = true;
+          tc.numPeriodsLeftIncludingCurrent = 1;
+          tc.numStonesLeftInPeriod = stones;
+          tc.timeLeftInPeriod = time;
+        }
+        if(pla == P_BLACK)
+          bTimeControls = tc;
+        else
+          wTimeControls = tc;
+      }
+    }
+
     else if(command == "play") {
       Player pla;
       Loc loc;
@@ -338,7 +448,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       else {
         ClockTimer timer;
         nnEval->clearStats();
-        Loc moveLoc = bot->genMoveSynchronous(pla);
+        TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
+        Loc moveLoc = bot->genMoveSynchronous(pla,tc);
         bool isLegal = bot->isLegal(moveLoc,pla);
         if(moveLoc == Board::NULL_LOC || !isLegal) {
           responseIsError = true;

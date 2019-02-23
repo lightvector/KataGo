@@ -613,6 +613,10 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
 }
 
 void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering) {
+  runWholeSearch(logger,shouldStopNow,recordUtilities,pondering,TimeControls());
+}
+
+void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering, const TimeControls& tc) {
 
   ClockTimer timer;
   atomic<int64_t> numPlayoutsShared(0);
@@ -622,31 +626,42 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
   if(!std::atomic_is_lock_free(&shouldStopNow))
     logger.write("Warning: bool atomic shouldStopNow is not lock free");
 
+  //Compute caps on search
+  int64_t maxVisits = pondering ? searchParams.maxVisitsPondering : searchParams.maxVisits;
+  int64_t maxPlayouts = pondering ? searchParams.maxPlayoutsPondering : searchParams.maxPlayouts;
+  double_t maxTime = pondering ? searchParams.maxTimePondering : searchParams.maxTime;
+
+  //Apply time controls
+  {
+    double tcMin;
+    double tcRec;
+    double tcMax;
+    tc.getTime(rootBoard,rootHistory,searchParams.lagBuffer,tcMin,tcRec,tcMax);
+    //Right now, just always use the recommended time.
+    maxTime = std::min(tcRec,maxTime);
+  }
+  
+  //Possibly reduce computation time, for human friendliness
+  {
+    double searchFactor = 1.0;
+    if(rootHistory.moveHistory.size() >= 1 && rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc == Board::PASS_LOC) {
+      if(rootHistory.moveHistory.size() >= 3 && rootHistory.moveHistory[rootHistory.moveHistory.size()-3].loc == Board::PASS_LOC)
+        searchFactor = searchParams.searchFactorAfterTwoPass;
+      else
+        searchFactor = searchParams.searchFactorAfterOnePass;
+    }
+    if(searchFactor != 1.0) {
+      maxVisits = (int64_t)ceil(maxVisits * searchFactor);
+      maxPlayouts = (int64_t)ceil(maxPlayouts * searchFactor);
+      maxTime = maxTime * searchFactor;
+    }
+  }
+  
   beginSearch(logger);
   int64_t numNonPlayoutVisits = numRootVisits();
 
-  auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities,pondering](int threadIdx) {
+  auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities,maxVisits,maxPlayouts,maxTime](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
-
-    int64_t maxVisits = pondering ? searchParams.maxVisitsPondering : searchParams.maxVisits;
-    int64_t maxPlayouts = pondering ? searchParams.maxPlayoutsPondering : searchParams.maxPlayouts;
-    double_t maxTime = pondering ? searchParams.maxTimePondering : searchParams.maxTime;
-
-    //Possibly reduce computation time, for human friendliness
-    {
-      double searchFactor = 1.0;
-      if(rootHistory.moveHistory.size() >= 1 && rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc == Board::PASS_LOC) {
-        if(rootHistory.moveHistory.size() >= 3 && rootHistory.moveHistory[rootHistory.moveHistory.size()-3].loc == Board::PASS_LOC)
-          searchFactor = searchParams.searchFactorAfterTwoPass;
-        else
-          searchFactor = searchParams.searchFactorAfterOnePass;
-      }
-      if(searchFactor != 1.0) {
-        maxVisits = (int64_t)ceil(maxVisits * searchFactor);
-        maxPlayouts = (int64_t)ceil(maxPlayouts * searchFactor);
-        maxTime = maxTime * searchFactor;
-      }
-    }
     
     int64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
     try {

@@ -57,7 +57,10 @@ struct SearchParams {
   //Same caps but when pondering
   int64_t maxVisitsPondering; 
   int64_t maxPlayoutsPondering; 
-  double maxTimePondering; 
+  double maxTimePondering;
+
+  //Amount of time to reserve for lag when using a time control
+  double lagBuffer;
 
   //Human-friendliness
   double searchFactorAfterOnePass; //Multiply playouts and visits and time by this much after a pass by the opponent

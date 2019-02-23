@@ -13,6 +13,7 @@
 #include "../search/mutexpool.h"
 #include "../search/searchparams.h"
 #include "../search/searchprint.h"
+#include "../search/timecontrols.h"
 
 struct SearchNode;
 struct SearchThread;
@@ -207,6 +208,8 @@ struct Search {
   Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities, bool pondering);
   void runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities, bool pondering);
   void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering);
+
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering, const TimeControls& tc);
 
   //Manual playout-by-playout interface------------------------------------------------
 
