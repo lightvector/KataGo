@@ -130,6 +130,7 @@ if(BUILD_MCTS)
     neuralnet/modelversion.cpp
     neuralnet/nneval.cpp
     ${NEURALNET_BACKEND_SOURCES}
+    search/timecontrols.cpp
     search/searchparams.cpp
     search/mutexpool.cpp
     search/search.cpp
@@ -144,6 +145,7 @@ if(BUILD_MCTS)
     tests/testscore.cpp
     tests/testnninputs.cpp
     tests/testsearch.cpp
+    tests/testtime.cpp
     tests/testtrainingwrite.cpp
     evalsgf.cpp
     gatekeeper.cpp

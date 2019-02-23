@@ -47,6 +47,7 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   Tests::runNNInputsV3V4Tests();
   Tests::runNNLessSearchTests();
   Tests::runTrainingWriteTests();
+  Tests::runTimeControlsTests();
   return 0;
 }
 
