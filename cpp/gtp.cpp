@@ -57,6 +57,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   bool logSearchInfo = cfg.getBool("logSearchInfo");
 
+  if(cfg.contains("logToStderr") && cfg.getBool("logToStderr"))
+    logger.setLogToStderr(true);
+
   logger.write("GTP Engine starting...");
 
   Rules initialRules;
@@ -291,7 +294,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "komi must be an integer or half-integer";
       }
       else {
-        bot->setKomi(newKomi);
+        bot->setKomiIfNew(newKomi);
         //In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = bot->getRootHist().moveHistory.size() > 0;
       }

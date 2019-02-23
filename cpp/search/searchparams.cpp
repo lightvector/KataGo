@@ -37,6 +37,9 @@ SearchParams::SearchParams()
    maxVisits(((int64_t)1) << 50),
    maxPlayouts(((int64_t)1) << 50),
    maxTime(1.0e20),
+   maxVisitsPondering(((int64_t)1) << 50),
+   maxPlayoutsPondering(((int64_t)1) << 50),
+   maxTimePondering(1.0e20),
    searchFactorAfterOnePass(1.0),
    searchFactorAfterTwoPass(1.0)
 {}

@@ -49,10 +49,15 @@ struct SearchParams {
   int32_t numVirtualLossesPerThread; //Number of virtual losses for one thread to add
 
   //Asyncbot
-  int numThreads; //Number of threads, used in asyncbot layer which spawns threads
+  int numThreads; //Number of threads
   int64_t maxVisits; //Max number of playouts from the root to think for, counting earlier playouts from tree reuse
   int64_t maxPlayouts; //Max number of playouts from the root to think for, not counting earlier playouts from tree reuse
-  double maxTime; //Max number of seconds to think for if not pondering
+  double maxTime; //Max number of seconds to think for
+
+  //Same caps but when pondering
+  int64_t maxVisitsPondering; 
+  int64_t maxPlayoutsPondering; 
+  double maxTimePondering; 
 
   //Human-friendliness
   double searchFactorAfterOnePass; //Multiply playouts and visits and time by this much after a pass by the opponent

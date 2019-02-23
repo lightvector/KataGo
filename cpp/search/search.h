@@ -151,9 +151,10 @@ struct Search {
 
   void setPlayerAndClearHistory(Player pla);
   void setRulesAndClearHistory(Rules rules, int encorePhase);
-  void setKomi(float newKomi); //Does not clear history, does clear search unless komi is equal.
+  void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootPassLegal(bool b);
   void setParams(SearchParams params);
+  void setParamsNoClearing(SearchParams params); //Does not clear search
   void setNNEval(NNEvaluator* nnEval);
 
   //Just directly clear search without changing anything
@@ -202,6 +203,10 @@ struct Search {
   Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities);
   void runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities);
   void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities);
+
+  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities, bool pondering);
+  void runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities, bool pondering);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering);
 
   //Manual playout-by-playout interface------------------------------------------------
 

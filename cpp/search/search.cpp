@@ -220,7 +220,7 @@ void Search::setRulesAndClearHistory(Rules rules, int encorePhase) {
   rootKoHashTable->recompute(rootHistory);
 }
 
-void Search::setKomi(float newKomi) {
+void Search::setKomiIfNew(float newKomi) {
   if(rootHistory.rules.komi != newKomi) {
     clearSearch();
     rootHistory.setKomi(newKomi);
@@ -234,6 +234,10 @@ void Search::setRootPassLegal(bool b) {
 
 void Search::setParams(SearchParams params) {
   clearSearch();
+  searchParams = params;
+}
+
+void Search::setParamsNoClearing(SearchParams params) {
   searchParams = params;
 }
 
@@ -585,18 +589,30 @@ Loc Search::getChosenMoveLoc() {
 }
 
 Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities) {
-  runWholeSearch(movePla,logger,recordUtilities);
+  return runWholeSearchAndGetMove(movePla,logger,recordUtilities,false);
+}
+
+Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities, bool pondering) {
+  runWholeSearch(movePla,logger,recordUtilities,pondering);
   return getChosenMoveLoc();
 }
 
 void Search::runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities) {
+  runWholeSearch(movePla,logger,recordUtilities,false);
+}
+
+void Search::runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities, bool pondering) {
   if(movePla != rootPla)
     setPlayerAndClearHistory(movePla);
   std::atomic<bool> shouldStopNow(false);
-  runWholeSearch(logger,shouldStopNow,recordUtilities);
+  runWholeSearch(logger,shouldStopNow,recordUtilities,pondering);
 }
 
 void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities) {
+  runWholeSearch(logger,shouldStopNow,recordUtilities, false);
+}
+
+void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering) {
 
   ClockTimer timer;
   atomic<int64_t> numPlayoutsShared(0);
@@ -609,12 +625,12 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
   beginSearch(logger);
   int64_t numNonPlayoutVisits = numRootVisits();
 
-  auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities](int threadIdx) {
+  auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities,pondering](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
 
-    int64_t maxVisits = searchParams.maxVisits;
-    int64_t maxPlayouts = searchParams.maxPlayouts;
-    double_t maxTime = searchParams.maxTime;
+    int64_t maxVisits = pondering ? searchParams.maxVisitsPondering : searchParams.maxVisits;
+    int64_t maxPlayouts = pondering ? searchParams.maxPlayoutsPondering : searchParams.maxPlayouts;
+    double_t maxTime = pondering ? searchParams.maxTimePondering : searchParams.maxTime;
 
     //Possibly reduce computation time, for human friendliness
     {
@@ -636,7 +652,7 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
     try {
       while(true) {
         bool shouldStop =
-          (numPlayouts >= 1 && maxTime < 1.0e12 && timer.getSeconds() >= maxTime) ||
+          (numPlayouts >= 2 && maxTime < 1.0e12 && timer.getSeconds() >= maxTime) ||
           (numPlayouts >= maxPlayouts) ||
           (numPlayouts + numNonPlayoutVisits >= maxVisits);
 

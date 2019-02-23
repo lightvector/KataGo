@@ -63,9 +63,9 @@ void AsyncBot::setRulesAndClearHistory(Rules rules, int encorePhase) {
   stopAndWait();
   search->setRulesAndClearHistory(rules,encorePhase);
 }
-void AsyncBot::setKomi(float newKomi) {
+void AsyncBot::setKomiIfNew(float newKomi) {
   stopAndWait();
-  search->setKomi(newKomi);
+  search->setKomiIfNew(newKomi);
 }
 void AsyncBot::setRootPassLegal(bool b) {
   stopAndWait();
@@ -91,24 +91,18 @@ bool AsyncBot::isLegal(Loc moveLoc, Player movePla) const {
 
 void AsyncBot::genMove(Player movePla, int searchId, std::function<void(Loc,int)> onMove) {
   unique_lock<std::mutex> lock(controlMutex);
-  if(isRunning && isPondering && movePla == search->rootPla) {
-    queuedSearchId = searchId;
-    queuedOnMove = onMove;
-  }
-  else {
-    stopAndWaitAlreadyLocked(lock);
-    assert(!isRunning);
-    if(movePla != search->rootPla)
-      search->setPlayerAndClearHistory(movePla);
+  stopAndWaitAlreadyLocked(lock);
+  assert(!isRunning);
+  if(movePla != search->rootPla)
+    search->setPlayerAndClearHistory(movePla);
 
-    queuedSearchId = searchId;
-    queuedOnMove = onMove;
-    isRunning = true;
-    isPondering = false;
-    shouldStopNow = false;
-    lock.unlock();
-    threadWaitingToSearch.notify_all();
-  }
+  queuedSearchId = searchId;
+  queuedOnMove = onMove;
+  isRunning = true;
+  isPondering = false;
+  shouldStopNow = false;
+  lock.unlock();
+  threadWaitingToSearch.notify_all();
 }
 
 Loc AsyncBot::genMoveSynchronous(Player movePla) {
@@ -170,9 +164,10 @@ void AsyncBot::internalSearchThreadLoop() {
     if(isKilled)
       break;
 
+    bool pondering = isPondering;
     lock.unlock();
 
-    search->runWholeSearch(*logger,shouldStopNow,NULL);
+    search->runWholeSearch(*logger,shouldStopNow,NULL,pondering);
     Loc moveLoc = search->getChosenMoveLoc();
 
     lock.lock();
