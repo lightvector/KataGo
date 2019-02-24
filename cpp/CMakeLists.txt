@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8.2)
+cmake_minimum_required(VERSION 3.12.3)
 project(writedata)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -180,7 +180,7 @@ if(BUILD_MCTS)
   find_package(Boost COMPONENTS system filesystem REQUIRED)
   target_link_libraries(main ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
 
-  if(USE_TCMALLOC) 
+  if(USE_TCMALLOC)
     target_link_libraries(main ${TCMALLOC_LIB})
   endif(USE_TCMALLOC)
 
