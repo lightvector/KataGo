@@ -13,18 +13,19 @@ There is an implementation of MCTS in this repo along with a GTP engine and an s
       * CMake with a minimum version of 3.12.3 (https://cmake.org/download/)
       * CUDA 10.0 and CUDNN 7.4.1 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
       * zlib (zlib1g-dev), libzip (libzip-dev), boost filesystem (libboost-filesystem-dev).
-      * If you want to do self-play, probably Google perftools (google-perftools, libgoogle-perftools-dev) for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc.
+      * If you want to do self-play, probably Google perftools (google-perftools, libgoogle-perftools-dev) for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc, but better mallocs handle it fine.
       * Some version of g++ that supports at least C++14.
    * Compile using CMake and make in the cpp directory:
       * `cd cpp`
-      * `cmake . -DBUILD_MCTS=1 -DUSE_CUDA_BACKEND=1` OR `cmake . -DBUILD_MCTS=1 -DUSE_CUDA_BACKEND=1 -DUSE_TCMALLOC=1`
+      * `cmake . -DBUILD_MCTS=1 -DUSE_CUDA_BACKEND=1` OR if you're using TCMalloc then `cmake . -DBUILD_MCTS=1 -DUSE_CUDA_BACKEND=1 -DUSE_TCMALLOC=1`
       * `make`
    * You can now run the compiled `main` executable to do various things. Edit the configs to change parameters as desired.
       * Example: `./main gtp -model <NEURALNET>.txt.gz -config configs/gtp_example.cfg` - Run a simple GTP engine using a given neural net and example provided config.
       * Example: `./main evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/eval_sgf.cfg` - Have the bot analyze the specified move of the specified SGF.
+   * Neural nets from KataGo's main 1-week run are available on the releases page.
 
 ### Selfplay training:
-If you'd also like to run the full self-play loop and train your own neural nets you must have [Python3](https://www.python.org/) and [Tensorflow](https://www.tensorflow.org/install/) installed. The version of Tensorflow known to work with the current code and with which KataGo's main run was trained is 1.12.0. Possibly later earlier versions could work too, but they have not been tested. You'll also probably need a decent amount of GPU power.
+If you'd also like to run the full self-play loop and train your own neural nets you must have [Python3](https://www.python.org/) and [Tensorflow](https://www.tensorflow.org/install/) installed. The version of Tensorflow known to work with the current code and with which KataGo's main run was trained is 1.12.0. Possibly later or earlier versions could work too, but they have not been tested. You'll also probably need a decent amount of GPU power.
 
 There are 5 things that need to all run concurrently.
    * Selfplay engine (C++ - `cpp/main selfplay`) - continously plays games using the latest neural net in some directory, writing the data to somewhere.
@@ -40,7 +41,7 @@ On the cloud, a reasonable small-scale setup for all these things might be:
    * A machine with a modest GPU to run the training.
    * A well-performing shared filesystem accessible by all four of these machines.
 
-You may need to play with learning rates, batch sizes, and the balance between training and self-play. If the training GPU is too strong, you may overfit more since it will be on the same data over and over because self-play won't be generating new data fast enough. Overshooting the other way and having too much GPU power on self-play is harder since generally you need at least an order of magnitude more power on self-play than training. If you do though maybe you'll start seeing diminishing returns as the training becomes the limiting factor in improvement.
+You may need to play with learning rates, batch sizes, and the balance between training and self-play. If the training GPU is too strong, you may overfit more since it will be on the same data over and over because self-play won't be generating new data fast enough, and it's possible you will want to adjust hyperparmeters or even add an artifical delay for each loop of training. Overshooting the other way and having too much GPU power on self-play is harder since generally you need at least an order of magnitude more power on self-play than training. If you do though maybe you'll start seeing diminishing returns as the training becomes the limiting factor in improvement.
 
 Example instructions to start up these things (assuming you have appropriate machines set up), with some base directory $BASEDIR to hold the all the models and training data generated with a few hundred GB of disk space. The below commands assume you're running from the root of the repo and that you can run bash scripts.
    * `cpp/main selfplay -output-dir $BASEDIR/selfplay -models-dir $BASEDIR/models -config-file cpp/configs/SELFPLAYCONFIG.cfg -inputs-version 4 >> log.txt 2>&1 & disown`
@@ -48,7 +49,7 @@ Example instructions to start up these things (assuming you have appropriate mac
      * Inputs version 4 is the version of input features KataGo currently uses, to be written down for training.
    * `cd python; ./selfplay/shuffle_and_export_loop.sh $BASEDIR/ $SCRATCH_DIRECTORY $NUM_THREADS`
      * This starts both the shuffler and exporter. The shuffler will use the scratch directory specified number of threads to shuffle in parallel.
-     * Also, if you're low on disk space, take a look also at the ./selfplay/shuffle.sh script (which is called by shuffle_and_export_loop.sh). Right now it's *very* conservative about cleaning up old shuffles in the middle of when the training might still be reading from them, you could tweak it to be a bit more aggressive.
+     * Also, if you're low on disk space, take a look also at the `./selfplay/shuffle.sh` script (which is called by `shuffle_and_export_loop.sh`). Right now it's *very* conservative about cleaning up old shuffles but you could tweak it to be a bit more aggressive.
    * `cd python; ./selfplay/train.sh $BASEDIR/ $TRAININGNAME b6c96 >> log.txt 2>&1 & disown`
      * This starts the training. You may want to look at or edit the train.sh script, it also snapshots the state of the repo for logging, as well as contains some training parameters that can be tweaked.
    * `cpp/main gatekeeper -rejected-models-dir $BASEDIR/rejectedmodels -accepted-models-dir $BASEDIR/models/ -sgf-output-dir $BASEDIR/gatekeepersgf/ -test-models-dir $BASED\
