@@ -225,7 +225,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
 
     else if(command == "name") {
-      response = "lightvector/GoNN GTP Bot";
+      response = "KataBot";
     }
 
     else if(command == "version") {
@@ -486,6 +486,46 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
         bool resigned = false;
         if(allowResignation) {
+          const Board board = bot->getRootHist().initialBoard;
+          const BoardHistory hist = bot->getRootHist();
+          int startBoardNumStones = 0;
+          {
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++) {
+                Loc loc = Location::getLoc(x,y,board.x_size);
+                if(board.colors[loc] != C_EMPTY)
+                  startBoardNumStones += 1;
+              }
+            }
+          }
+
+          //Assume an advantage of 15 * number of handicap stones and komi
+          double handicapBlackAdvantage = 15.0 * startBoardNumStones + (7.5 - hist.rules.komi);
+
+          int minTurnForResignation = 0; 
+          double noResignationWhenWhiteScoreAbove = board.x_size * board.y_size;
+          if(handicapBlackAdvantage > 2.0 && pla == P_WHITE) {
+            //Play at least some moves no matter what
+            minTurnForResignation = 1 + board.x_size * board.y_size / 6;
+            
+            //In a handicap game, also only resign if the expected score difference is well behind schedule assuming
+            //that we're supposed to catch up over many moves.
+            double numTurnsToCatchUp = 0.60 * board.x_size * board.y_size - minTurnForResignation;
+            double numTurnsSpent = (double)(hist.moveHistory.size()) - minTurnForResignation;
+            if(numTurnsToCatchUp <= 1.0)
+              numTurnsToCatchUp = 1.0;
+            if(numTurnsSpent <= 0.0)
+              numTurnsSpent = 0.0;
+            if(numTurnsSpent > numTurnsToCatchUp)
+              numTurnsSpent = numTurnsToCatchUp;
+            
+            double resignScore = -handicapBlackAdvantage * ((numTurnsToCatchUp - numTurnsSpent) / numTurnsToCatchUp);
+            resignScore -= 5.0; //Always require at least a 5 point buffer 
+            resignScore -= handicapBlackAdvantage * 0.15; //And also require a 15% of the initial handicap
+
+            noResignationWhenWhiteScoreAbove = resignScore;
+          }
+          
           double winValue;
           double lossValue;
           double noResultValue;
@@ -506,7 +546,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           else if(winLossValue > -resignThreshold)
             resignPlayerThisTurn = P_BLACK;
 
-          if(resignPlayerThisTurn == pla)
+          if(resignPlayerThisTurn == pla &&
+             bot->getRootHist().moveHistory.size() >= minTurnForResignation &&
+             !(pla == P_WHITE && expectedScore > noResignationWhenWhiteScoreAbove))
             resigned = true;
         }
 
