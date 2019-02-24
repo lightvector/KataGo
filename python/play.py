@@ -236,7 +236,7 @@ def fill_gfx_commands_for_heatmap(gfx_commands, locs_and_values, board, normaliz
         huestop = 0.86
       else:
         huestart = -0.02
-        huestop = 0.45
+        huestop = 0.38
 
       value = loose_cap(value)
 
@@ -623,8 +623,8 @@ def run_gtp(session):
       }
       (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
-      moves_and_logprobs = [(move,2.0+math.log10(prob)) for (move,prob) in moves_and_probs]
-      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_logprobs, board, normalization_div=4, is_percent=False, value_and_score=value)
+      moves_and_logprobs = [(move,max(0.0,4.9+math.log10(prob))) for (move,prob) in moves_and_probs]
+      fill_gfx_commands_for_heatmap(gfx_commands, moves_and_logprobs, board, normalization_div=6, is_percent=False, value_and_score=value)
       ret = "\n".join(gfx_commands)
     elif command[0] == "policy1":
       rules = {
