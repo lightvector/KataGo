@@ -1,6 +1,6 @@
 # KataGo
 
-Research and experimentation with self-play training in Go. Contains a working implementation of AlphaZero-like training with a lot of modifications and enhancements, as well as a GTP engine that can run using neural nets trained via that process. Due to these enhancements, early training is immensely faster - self-play with a only few GPUs for between one day and several days (depending on your GPUs) should already be sufficient to reach somewhere in the range of strong-kyu up to mid-dan strength on the full 19x19 board.
+Research and experimentation with self-play training in Go. Contains a working implementation of AlphaZero-like training with a lot of modifications and enhancements, as well as a GTP engine that can run using neural nets trained via that process. Due to these enhancements, early training is immensely faster - self-play with a only few strong GPUs for between one day and several days (depending on your GPUs) should already be sufficient to reach somewhere in the range of strong-kyu up to mid-dan strength on the full 19x19 board.
 
 I'll be releasing a paper shortly describing the major techniques used in KataGo. Many thanks to [Jane Street](https://www.janestreet.com/) for providing the computation power necessary to do a real run (as well as numerous many smaller testing runs). As described in the paper, although it was nowhere near as long as a "full" run, it still achieved close to LZ130 strength before it was halted. Models and training data from the run should also be available for download soon.
 
@@ -27,7 +27,7 @@ There is an implementation of MCTS in this repo along with a GTP engine and an s
    * You can now run the compiled `main` executable to do various things. Edit the configs to change parameters as desired.
       * Example: `./main gtp -model <NEURALNET>.txt.gz -config configs/gtp_example.cfg` - Run a simple GTP engine using a given neural net and example provided config.
       * Example: `./main evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/eval_sgf.cfg` - Have the bot analyze the specified move of the specified SGF.
-   * Neural nets from KataGo's run up to LZ130 will be available soon on the releases page.
+   * Neural nets from KataGo's run up to LZ130ish strength will be available soon on the releases page.
 
 ### Selfplay training:
 If you'd also like to run the full self-play loop and train your own neural nets you must have [Python3](https://www.python.org/) and [Tensorflow](https://www.tensorflow.org/install/) installed. The version of Tensorflow known to work with the current code and with which KataGo's main run was trained is 1.12.0. Possibly later or earlier versions could work too, but they have not been tested. You'll also probably need a decent amount of GPU power.
