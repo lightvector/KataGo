@@ -2,16 +2,17 @@
 
 Research and experimentation with self-play training in Go. Contains a working implementation of AlphaZero-like training with a lot of modifications and enhancements, as well as a GTP engine that can run using neural nets trained via that process. Due to these enhancements, early training is immensely faster - self-play with a only few GPUs for between one day and several days (depending on your GPUs) should already be sufficient to reach somewhere in the range of strong-kyu up to mid-dan strength on the full 19x19 board.
 
-I'll be releasing a paper shortly describing the major techniques used in KataGo. Many thanks to [Jane Street](https://www.janestreet.com/) for providing the computation power necessary to do a real run (as well as numerous many smaller testing runs). As described in the paper, although it was nowhere near as long as a "full" run, it still achieved close to LZ130 strength before it was halted. Models and training data from the run should also be available for download soon. I hope to do more experiments at some point in the future and maybe some longer and even better runs testing out many more of the new ideas from LC0 and others that have surfaced in the last few months.
+I'll be releasing a paper shortly describing the major techniques used in KataGo. Many thanks to [Jane Street](https://www.janestreet.com/) for providing the computation power necessary to do a real run (as well as numerous many smaller testing runs). As described in the paper, although it was nowhere near as long as a "full" run, it still achieved close to LZ130 strength before it was halted. Models and training data from the run should also be available for download soon.
 
-KataGo also supports Japanese rules self-play training, including the sharper granularity of scoring, and *including* details like "no points in seki" and "bent-four-in-the-corner is dead even if there are unremovable ko threats". At least in theory, under KataGo's formalization of Japanese-like self-play rules, a neural net should learn all of these things. Many short internal test runs successfully trained neural nets did observe them behaving consistent with Japanese rules, but it was not fully tested, since Japanese rules training was turned off in later and longer runs to reduce the complexity of moving parts for the paper. I hope to revisit this in the future.
+I hope to do more experiments at some point in the future and maybe some longer and even better runs testing out many more of the new ideas from LC0 and others that have surfaced in the last few months. KataGo also in theory supports Japanese rules self-play training, *including* details like "no points in seki" and "bent-four-in-the-corner is dead even if there are unremovable ko threats". Many short internal test runs did observe neural nets trained with these rules behaving consistent with learning Japanese rules, but it was not fully tested, since Japanese rules training was turned off in later and longer runs to reduce the complexity of moving parts for the paper. I hope to revisit this in the future.
 
+### Notes and License
 This repo is essentially a continuation of https://github.com/lightvector/GoNN but has a lot of changes that in all likelihood break backwards compatibility, so it's being uploaded here as a separate repo. This also leaves the old repo intact to continue as a showcase of the many earlier experiments performed there and described in the readme for its main page.
 
 See LICENSE for the software license for this repo. License aside, informally, if do you successfully use any of the code or any wacky ideas explored in this repo in your own neural nets or to run any of your own experiments, I (lightvector) would to love hear about it and/or might also appreciate a casual acknowledgement where appropriate. Yay.
 
 ### Compiling the GTP engine and/or most of the self-play framework:
-There is an implementation of MCTS in this repo along with a GTP engine and an simple SGF command-line analyis tool backed by the MCTS engine. Once compiled, they should work with any of the neural nets from KataGo that you can download from TODO. Along with most of the self-play framework, all of this is written in C++.
+There is an implementation of MCTS in this repo along with a GTP engine and an simple SGF command-line analysis tool backed by the MCTS engine. Once compiled, they should work with any of the neural nets from KataGo that you can download from the releases page (TODO these will be uploaded shortly). Along with most of the self-play framework, all of this is written in C++.
 
    * Requirements
       * CMake with a minimum version of 3.12.3 (https://cmake.org/download/)
@@ -26,12 +27,12 @@ There is an implementation of MCTS in this repo along with a GTP engine and an s
    * You can now run the compiled `main` executable to do various things. Edit the configs to change parameters as desired.
       * Example: `./main gtp -model <NEURALNET>.txt.gz -config configs/gtp_example.cfg` - Run a simple GTP engine using a given neural net and example provided config.
       * Example: `./main evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/eval_sgf.cfg` - Have the bot analyze the specified move of the specified SGF.
-   * Neural nets from KataGo's main 1-week run are available on the releases page.
+   * Neural nets from KataGo's run up to LZ130 will be available soon on the releases page.
 
 ### Selfplay training:
 If you'd also like to run the full self-play loop and train your own neural nets you must have [Python3](https://www.python.org/) and [Tensorflow](https://www.tensorflow.org/install/) installed. The version of Tensorflow known to work with the current code and with which KataGo's main run was trained is 1.12.0. Possibly later or earlier versions could work too, but they have not been tested. You'll also probably need a decent amount of GPU power.
 
-There are 5 things that need to all run concurrently.
+There are 5 things that need to all run concurrently to form a closed self-play training loop.
    * Selfplay engine (C++ - `cpp/main selfplay`) - continously plays games using the latest neural net in some directory, writing the data to somewhere.
    * Shuffler (python - `python/shuffle.py`) - scans a directories of data from selfplay and shuffles it to produce TFRecord files to write to some directory.
    * Training (python - `python/train.py`) - continuously trains a neural net using TFRecord files from some directory, saving models periodically to some directory.
@@ -56,8 +57,7 @@ Example instructions to start up these things (assuming you have appropriate mac
      * Also, if you're low on disk space, take a look also at the `./selfplay/shuffle.sh` script (which is called by `shuffle_and_export_loop.sh`). Right now it's *very* conservative about cleaning up old shuffles but you could tweak it to be a bit more aggressive.
    * `cd python; ./selfplay/train.sh $BASEDIR/ $TRAININGNAME b6c96 >> log.txt 2>&1 & disown`
      * This starts the training. You may want to look at or edit the train.sh script, it also snapshots the state of the repo for logging, as well as contains some training parameters that can be tweaked.
-   * `cpp/main gatekeeper -rejected-models-dir $BASEDIR/rejectedmodels -accepted-models-dir $BASEDIR/models/ -sgf-output-dir $BASEDIR/gatekeepersgf/ -test-models-dir $BASED\
-IR/modelstobetested/ -config-file cpp/configs/GATEKEEPERCONFIG.cfg >> log.txt 2>&1 & disown`
+   * `cpp/main gatekeeper -rejected-models-dir $BASEDIR/rejectedmodels -accepted-models-dir $BASEDIR/models/ -sgf-output-dir $BASEDIR/gatekeepersgf/ -test-models-dir $BASEDIR/modelstobetested/ -config-file cpp/configs/GATEKEEPERCONFIG.cfg >> log.txt 2>&1 & disown`
      * This starts the gatekeeper. Some example configs for different numbers of GPUs are: configs/gatekeeper{1,2a,2b,2c}.cfg. Again, you may want to edit these. The number of simultaneous game threads here is also large for the same reasons as for selfplay.
 
 
