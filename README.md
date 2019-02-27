@@ -33,11 +33,11 @@ There is an implementation of MCTS in this repo along with a GTP engine and an s
 If you'd also like to run the full self-play loop and train your own neural nets you must have [Python3](https://www.python.org/) and [Tensorflow](https://www.tensorflow.org/install/) installed. The version of Tensorflow known to work with the current code and with which KataGo's main run was trained is 1.12.0. Possibly later or earlier versions could work too, but they have not been tested. You'll also probably need a decent amount of GPU power.
 
 There are 5 things that need to all run concurrently to form a closed self-play training loop.
-   * Selfplay engine (C++ - `cpp/main selfplay`) - continously plays games using the latest neural net in some directory, writing the data to somewhere.
-   * Shuffler (python - `python/shuffle.py`) - scans a directories of data from selfplay and shuffles it to produce TFRecord files to write to some directory.
+   * Selfplay engine (C++ - `cpp/main selfplay`) - continously plays games using the latest neural net in some directory of accepted models, writing the data to some directory.
+   * Shuffler (python - `python/shuffle.py`) - scans directories of data from selfplay and shuffles it to produce TFRecord files to write to some directory.
    * Training (python - `python/train.py`) - continuously trains a neural net using TFRecord files from some directory, saving models periodically to some directory.
-   * Exporter (python - `python/export_model.py`) - scans a directory of saved models and converts from Tensorflow's format to the format that all the C++ uses, saving to some directory.
-   * Gatekeeper (C++ - `cpp/main gatekeeper`) - polls a directory of exported models from some candidate models directory, plays games against the latest model in an accepted models directory, and if the new model passes, moves it to the accepted models directory.
+   * Exporter (python - `python/export_model.py`) - scans a directory of saved models and converts from Tensorflow's format to the format that all the C++ uses, exporting to some directory.
+   * Gatekeeper (C++ - `cpp/main gatekeeper`) - polls a directory of newly exported models, plays games against the latest model in an accepted models directory, and if the new model passes, moves it to the accepted models directory.
 
 On the cloud, a reasonable small-scale setup for all these things might be:
    * A machine with a decent amount of cores and memory to run the shuffler and exporter.
