@@ -613,10 +613,10 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
 }
 
 void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering) {
-  runWholeSearch(logger,shouldStopNow,recordUtilities,pondering,TimeControls());
+  runWholeSearch(logger,shouldStopNow,recordUtilities,pondering,TimeControls(),1.0);
 }
 
-void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering, const TimeControls& tc) {
+void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering, const TimeControls& tc, double searchFactor) {
 
   ClockTimer timer;
   atomic<int64_t> numPlayoutsShared(0);
@@ -643,12 +643,11 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
   
   //Possibly reduce computation time, for human friendliness
   {
-    double searchFactor = 1.0;
     if(rootHistory.moveHistory.size() >= 1 && rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc == Board::PASS_LOC) {
       if(rootHistory.moveHistory.size() >= 3 && rootHistory.moveHistory[rootHistory.moveHistory.size()-3].loc == Board::PASS_LOC)
-        searchFactor = searchParams.searchFactorAfterTwoPass;
+        searchFactor *= searchParams.searchFactorAfterTwoPass;
       else
-        searchFactor = searchParams.searchFactorAfterOnePass;
+        searchFactor *= searchParams.searchFactorAfterOnePass;
     }
     if(searchFactor != 1.0) {
       maxVisits = (int64_t)ceil(maxVisits * searchFactor);

@@ -89,10 +89,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   else
     searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-  bool ponderingEnabled = cfg.getBool("ponderingEnabled");
-  bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
-  bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
-  double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
+  const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
+  const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
+  const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
+  const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
 
   NNEvaluator* nnEval;
   {
@@ -116,6 +116,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   TimeControls bTimeControls;
   TimeControls wTimeControls;  
 
+  vector<double> recentWinValues;
+  const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
+  const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
+  double lastSearchFactor = 1.0; 
+  
   {
     vector<string> unusedKeys = cfg.unusedKeys();
     for(size_t i = 0; i<unusedKeys.size(); i++) {
@@ -270,6 +275,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         Player pla = P_BLACK;
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
         bot->setPosition(pla,board,hist);
+        recentWinValues.clear();
       }
     }
 
@@ -280,6 +286,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       Player pla = P_BLACK;
       BoardHistory hist(board,pla,bot->getRootHist().rules,0);
       bot->setPosition(pla,board,hist);
+      recentWinValues.clear();
     }
 
     else if(command == "komi") {
@@ -298,6 +305,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "komi must be an integer or half-integer";
       }
       else {
+        if(newKomi != bot->getRootHist().rules.komi)
+          recentWinValues.clear();
         bot->setKomiIfNew(newKomi);
         //In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = bot->getRootHist().moveHistory.size() > 0;
@@ -449,7 +458,25 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         ClockTimer timer;
         nnEval->clearStats();
         TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
-        Loc moveLoc = bot->genMoveSynchronous(pla,tc);
+
+        double searchFactor = 1.0;
+        if(recentWinValues.size() >= 3 && params.winLossUtilityFactor - searchFactorWhenWinningThreshold > 1e-10) {
+          double recentLeastWinning = pla == P_BLACK ? -params.winLossUtilityFactor : params.winLossUtilityFactor;
+          for(int i = recentWinValues.size()-3; i < recentWinValues.size(); i++) {
+            if(pla == P_BLACK && recentWinValues[i] > recentLeastWinning)
+              recentLeastWinning = recentWinValues[i];
+            if(pla == P_WHITE && recentWinValues[i] < recentLeastWinning)
+              recentLeastWinning = recentWinValues[i];
+          }
+          double excessWinning = pla == P_BLACK ? -searchFactorWhenWinningThreshold - recentLeastWinning : recentLeastWinning - searchFactorWhenWinningThreshold;
+          if(excessWinning > 0) {
+            double lambda = excessWinning / (params.winLossUtilityFactor - searchFactorWhenWinningThreshold);
+            searchFactor = 1.0 + lambda * (searchFactorWhenWinning - 1.0); 
+          }
+        }
+        lastSearchFactor = searchFactor;
+        
+        Loc moveLoc = bot->genMoveSynchronous(pla,tc,searchFactor);
         bool isLegal = bot->isLegal(moveLoc,pla);
         if(moveLoc == Board::NULL_LOC || !isLegal) {
           responseIsError = true;
@@ -484,6 +511,26 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           }
         }
 
+
+        double winLossValue;
+        double expectedScore;
+        {
+          double winValue;
+          double lossValue;
+          double noResultValue;
+          double staticScoreValue;
+          double dynamicScoreValue;
+          bool success = bot->getSearch()->getRootValues(winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
+          assert(success);
+
+          winLossValue = winValue - lossValue;
+          assert(winLossValue > -1.01 && winLossValue < 1.01); //Sanity check, but allow generously for float imprecision
+          if(winLossValue > 1.0) winLossValue = 1.0;
+          if(winLossValue < -1.0) winLossValue = -1.0;
+        }
+
+        recentWinValues.push_back(winLossValue);
+        
         bool resigned = false;
         if(allowResignation) {
           const Board board = bot->getRootHist().initialBoard;
@@ -526,20 +573,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             noResignationWhenWhiteScoreAbove = resignScore;
           }
           
-          double winValue;
-          double lossValue;
-          double noResultValue;
-          double staticScoreValue;
-          double dynamicScoreValue;
-          double expectedScore;
-          bool success = bot->getSearch()->getRootValues(winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
-          assert(success);
-
-          double winLossValue = winValue - lossValue;
-          assert(winLossValue > -1.01 && winLossValue < 1.01); //Sanity check, but allow generously for float imprecision
-          if(winLossValue > 1.0) winLossValue = 1.0;
-          if(winLossValue < -1.0) winLossValue = -1.0;
-
           Player resignPlayerThisTurn = C_EMPTY;
           if(winLossValue < resignThreshold)
             resignPlayerThisTurn = P_WHITE;
@@ -781,7 +814,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       break;
 
     if(maybeStartPondering && ponderingEnabled)
-      bot->ponder();
+      bot->ponder(lastSearchFactor);
 
   } //Close read loop
 
