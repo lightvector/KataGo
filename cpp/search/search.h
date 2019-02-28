@@ -209,7 +209,7 @@ struct Search {
   void runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities, bool pondering);
   void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering);
 
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering, const TimeControls& tc);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering, const TimeControls& tc, double searchFactor);
 
   //Manual playout-by-playout interface------------------------------------------------
 

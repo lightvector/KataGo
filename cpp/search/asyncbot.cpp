@@ -21,7 +21,7 @@ AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const st
   :search(NULL),logger(l),
    controlMutex(),threadWaitingToSearch(),userWaitingForStop(),searchThread(),
    isRunning(false),isPondering(false),isKilled(false),shouldStopNow(false),
-   queuedSearchId(0),queuedOnMove(),timeControls()
+   queuedSearchId(0),queuedOnMove(),timeControls(),searchFactor(1.0)
 {
   search = new Search(params,nnEval,randSeed);
   searchThread = std::thread(searchThreadLoop,this,l);
@@ -90,6 +90,10 @@ bool AsyncBot::isLegal(Loc moveLoc, Player movePla) const {
 }
 
 void AsyncBot::genMove(Player movePla, int searchId, const TimeControls& tc, std::function<void(Loc,int)> onMove) {
+  genMove(movePla,searchId,tc,1.0,onMove);
+}
+
+void AsyncBot::genMove(Player movePla, int searchId, const TimeControls& tc, double sf, std::function<void(Loc,int)> onMove) {
   unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
   assert(!isRunning);
@@ -102,17 +106,22 @@ void AsyncBot::genMove(Player movePla, int searchId, const TimeControls& tc, std
   isPondering = false;
   shouldStopNow = false;
   timeControls = tc;
+  searchFactor = sf;
   lock.unlock();
   threadWaitingToSearch.notify_all();
 }
 
 Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc) {
+  return genMoveSynchronous(movePla,tc,1.0);
+}
+
+Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc, double sf) {
   Loc moveLoc = Board::NULL_LOC;
   std::function<void(Loc,int)> onMove = [&moveLoc](Loc loc, int searchId) {
     assert(searchId == 0);
     moveLoc = loc;
   };
-  genMove(movePla,0,tc,onMove);
+  genMove(movePla,0,tc,sf,onMove);
   waitForSearchToEnd();
   return moveLoc;
 }
@@ -123,6 +132,10 @@ static void ignoreMove(Loc loc, int searchId) {
 }
 
 void AsyncBot::ponder() {
+  ponder(1.0);
+}
+
+void AsyncBot::ponder(double sf) {
   unique_lock<std::mutex> lock(controlMutex);
   if(isRunning)
     return;
@@ -133,6 +146,7 @@ void AsyncBot::ponder() {
   isPondering = true;
   shouldStopNow = false;
   timeControls = TimeControls();
+  searchFactor = sf;
   lock.unlock();
   threadWaitingToSearch.notify_all();
 }
@@ -170,7 +184,7 @@ void AsyncBot::internalSearchThreadLoop() {
     TimeControls tc = timeControls;
     lock.unlock();
 
-    search->runWholeSearch(*logger,shouldStopNow,NULL,pondering,tc);
+    search->runWholeSearch(*logger,shouldStopNow,NULL,pondering,tc,searchFactor);
     Loc moveLoc = search->getChosenMoveLoc();
 
     lock.lock();
