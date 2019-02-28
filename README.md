@@ -2,7 +2,9 @@
 
 Research and experimentation with self-play training in Go. Contains a working implementation of AlphaZero-like training with a lot of modifications and enhancements, as well as a GTP engine that can run using neural nets trained via that process. Due to these enhancements, early training is immensely faster - self-play with a only few strong GPUs for between one day and several days (depending on your GPUs) should already be sufficient to reach somewhere in the range of strong-kyu up to mid-dan strength on the full 19x19 board.
 
-See the following paper for details about the major techniques used in KataGo: [Accelerating Self-Play Learning in Go (arXiv)](https://arxiv.org/abs/1902.10565).
+Blog post here about the initial release: [Accelerating Self-Play Learning in Go (Jane Street Tech Blog)](https://blog.janestreet.com/accelerating-self-play-learning-in-go/).
+
+Paper about the major new ideas and techniques used in KataGo: [Accelerating Self-Play Learning in Go (arXiv)](https://arxiv.org/abs/1902.10565).
 
 Many thanks to [Jane Street](https://www.janestreet.com/) for providing the computation power necessary to do a real run (as well as numerous many smaller testing runs). As described in the paper, although it was nowhere near as long as a "full" run, it still achieved close to LZ130 strength before it was halted. See the [releases page](https://github.com/lightvector/KataGo/releases) for the final trained models. The self-play training data from the run has not yet been uploaded but should be available soon as well.
 
