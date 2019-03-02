@@ -211,7 +211,7 @@ void Rand::init()
     DWORD processId = GetCurrentProcessId();
     s += Global::int64ToString((int64_t)processId);
     s += "|";
-    int bufSize = 1024;
+    static const int bufSize = 1024;
     char hostNameBuf[bufSize];
     int result = gethostname(hostNameBuf,bufSize);
     if(result == 0)
@@ -224,7 +224,7 @@ void Rand::init()
     pid_t processId = getpid();
     s += Global::int64ToString((int64_t)processId);
     s += "|";
-    int bufSize = 1024;
+    static const int bufSize = 1024;
     char hostNameBuf[bufSize];
     int result = gethostname(hostNameBuf,bufSize);
     if(result == 0)

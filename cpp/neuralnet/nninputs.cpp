@@ -273,8 +273,8 @@ static void iterLadders(const Board& board, int posLen, std::function<void(Loc,i
   int xSize = board.x_size;
   int ySize = board.y_size;
 
-  Loc chainHeadsSolved[xSize*ySize];
-  bool chainHeadsSolvedValue[xSize*ySize];
+  Loc chainHeadsSolved[Board::MAX_PLAY_SIZE];
+  bool chainHeadsSolvedValue[Board::MAX_PLAY_SIZE];
   int numChainHeadsSolved = 0;
   Board copy(board);
   vector<Loc> buf;

@@ -1147,7 +1147,7 @@ void Tests::runBoardUndoTest() {
   int passCount = 0;
   int regularMoveCount = 0;
   auto run = [&](const Board& startBoard, bool multiStoneSuicideLegal) {
-    int steps = 1000;
+    static const int steps = 1000;
     Board* boards = new Board[steps+1];
     Board::MoveRecord records[steps];
 
@@ -1212,7 +1212,7 @@ void Tests::runBoardStressTest() {
   cout << "Running board stress test" << endl;
   Rand rand("runBoardStressTests");
 
-  int numBoards = 4;
+  static const int numBoards = 4;
   Board boards[numBoards];
   boards[0] = Board();
   boards[1] = Board(9,16);

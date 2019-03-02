@@ -409,7 +409,7 @@ static string vformat (const char *fmt, va_list ap)
   // Allocate a buffer on the stack that's big enough for us almost
   // all the time.  Be prepared to allocate dynamically if it doesn't fit.
   size_t size = 4096;
-  char stackbuf[size];
+  char stackbuf[4096];
   std::vector<char> dynamicbuf;
   char *buf = &stackbuf[0];
 

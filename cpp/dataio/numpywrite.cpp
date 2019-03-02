@@ -113,7 +113,7 @@ NumpyBuffer<T>::NumpyBuffer(const vector<int64_t>& shp, const char* dt)
 
   //Go ahead and write all the magic bytes and such
   char* s = (char*)dataIncludingHeader;
-  s[0] = 0x93;
+  s[0] = (char)0x93;
   s[1] = 'N';
   s[2] = 'U';
   s[3] = 'M';

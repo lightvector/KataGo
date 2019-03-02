@@ -1615,7 +1615,8 @@ isResignation: 0
       Rand rand(baseRand.nextUInt64());
       for(int i = 0; i<1000; i++) {
         int numLegal = 0;
-        Loc legalMoves[board.x_size*board.y_size + 1];
+        static constexpr int MAX_LEGAL_MOVES = Board::MAX_PLAY_SIZE + 1;
+        Loc legalMoves[MAX_LEGAL_MOVES];
         Loc move;
 
         for(int y = 0; y<board.y_size; y++) {
