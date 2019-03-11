@@ -3574,8 +3574,16 @@ struct LoadedModel {
 LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
   (void)modelFileIdx;
 
-  zstr::ifstream in(file);
   try {
+    //zstr has a bad property of simply aborting if the file doesn't exist
+    //So we try to catch this common error by explicitly testing first if the file exists by trying to open it normally
+    //to turn it into a regular C++ exception.
+    {
+      ifstream testIn(file);
+      if(!testIn.good())
+        throw StringError("File does not exist or could not be opened");
+    }
+    zstr::ifstream in(file);
     LoadedModel* loadedModel = new LoadedModel(in);
     return loadedModel;
   }
