@@ -616,9 +616,7 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   int numGlobalChannels;
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
   //to feed into a model during selfplay
-  if(inputsVersion < 3 || inputsVersion > 5)
-    throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(inputsVersion));
-  else if(inputsVersion == 3) {
+  if(inputsVersion == 3) {
     numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V3;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V3;
   }
@@ -629,6 +627,9 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   else if(inputsVersion == 5) {
     numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V5;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V5;
+  }
+  else {
+    throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(inputsVersion));
   }
 
   writeBuffers = new TrainingWriteBuffers(inputsVersion, maxRowsPerFile, numBinaryChannels, numGlobalChannels, posLen);
