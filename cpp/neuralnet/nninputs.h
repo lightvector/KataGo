@@ -9,8 +9,7 @@
 #include "../game/boardhistory.h"
 
 namespace NNPos {
-  //Currently, neural net policy output can handle a max of 19x19 boards.
-  const int MAX_BOARD_LEN = 19;
+  const int MAX_BOARD_LEN = Board::MAX_LEN;
   const int MAX_BOARD_AREA = MAX_BOARD_LEN * MAX_BOARD_LEN;
   //Policy output adds +1 for the pass move
   const int MAX_NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
