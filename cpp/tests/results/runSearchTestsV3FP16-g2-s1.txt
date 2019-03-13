@@ -7,7 +7,7 @@ GAME 5 =========================================================================
 (A simple opening to test neural net outputs including ownership map)
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 3
-HASH: ADB4BE123347442207BF5B34A046995B
+HASH: 3773EEE6C3458BE993E7323E0D6C3E1E
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -79,7 +79,7 @@ Policy
 
 
 With root temperature===================
-HASH: ADB4BE123347442207BF5B34A046995B
+HASH: 3773EEE6C3458BE993E7323E0D6C3E1E
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -152,7 +152,7 @@ Policy
 
 GAME 6 ==========================================================================
 (A simple smaller game, also testing invariance under poslen)
-HASH: 5DB70148EFFD84DF9AF31E6A1A46444F
+HASH: 4C9FC5A01FEE957760D54502B286F0C1
    A B C D E F G H J K L
 11 . X . . . . . . O . .
 10 O O X . X . X X X O .
@@ -198,7 +198,7 @@ Policy
  -753  -749  -719  -606  -262   -91   -53  -600  -972  -952  -938 
 
 PosLen 11
-HASH: 5DB70148EFFD84DF9AF31E6A1A46444F
+HASH: 4C9FC5A01FEE957760D54502B286F0C1
    A B C D E F G H J K L
 11 . X . . . . . . O . .
 10 O O X . X . X X X O .
@@ -249,7 +249,7 @@ GAME 7 =========================================================================
 (Simple extension of game 6 to test root ending bonus points)
 With root ending bonus pts===================
 
-MoveNum: 88 HASH: 89E36337BA92BF32B5E34283535AC705
+MoveNum: 88 HASH: 7F4B3AD706F43F68113969ED1FD5DBBA
    A B C D E F G H J K L
 11 X X X X . X O O O O O
 10 O O X . X . X X X O .
@@ -343,7 +343,7 @@ B8 visits 1 utilityNoBonus 76.07c utilityWithBonus 76.33c endingScoreBonus 0.31
 
 With root ending bonus pts one step later===================
 
-MoveNum: 89 HASH: 729AC18E0F46BD887634CE10EE014BBE
+MoveNum: 89 HASH: 7202B142A7E12DC42036DD6D64E9125A
    A B C D E F G H J K L
 11 X X X X . X O O O O O
 10 O O X . X . X X X O .
@@ -425,7 +425,7 @@ A9 visits 1 utilityNoBonus -33.29c utilityWithBonus -33.66c endingScoreBonus -0.
 K4 visits 1 utilityNoBonus -62.13c utilityWithBonus -62.46c endingScoreBonus -0.39
 Without root ending bonus pts later later===================
 
-MoveNum: 96 HASH: 848133B78DFF9C87B65A28BD710654D4
+MoveNum: 96 HASH: F98FAA38B9A8CE9723A63B026B513719
    A B C D E F G H J K L
 11 X X X X . X O O O O O
 10 O O X . X . X X X O .
@@ -511,7 +511,7 @@ A3 visits 1 utilityNoBonus 116.39c utilityWithBonus 116.39c endingScoreBonus -0.
 C6 visits 1 utilityNoBonus 85.69c utilityWithBonus 85.69c endingScoreBonus -0.00
 With root ending bonus pts later later===================
 
-MoveNum: 96 HASH: 848133B78DFF9C87B65A28BD710654D4
+MoveNum: 96 HASH: F98FAA38B9A8CE9723A63B026B513719
    A B C D E F G H J K L
 11 X X X X . X O O O O O
 10 O O X . X . X X X O .
@@ -599,7 +599,7 @@ GAME 8 =========================================================================
 (Alternate variation of game 7 to test root ending bonus points in territory scoring)
 Without root ending bonus pts===================
 
-MoveNum: 91 HASH: 558AE67659AC22A0DA8EEEBA4702558A
+MoveNum: 91 HASH: 51638568D7DFEEFAEA8451827FA88CB9
    A B C D E F G H J K L
 11 X X X X . X O O O O O
 10 O O X . X . X X X O .
@@ -614,17 +614,17 @@ MoveNum: 91 HASH: 558AE67659AC22A0DA8EEEBA4702558A
  1 X1. X . O . O X X . .
 
 Root visits: 500
-NN rows: 347
-NN batches: 347
+NN rows: 349
+NN batches: 349
 NN avg batch size: 1
 PV: J7 D1 F1 pass pass pass pass K4 E5 L5 D5 K1
 Tree:
-: T  40.43c W  39.55c S   0.87c ( +1.0) VW  -1.26c VS   0.10c N     500  --  J7 D1 F1 pass pass pass pass
+: T  40.68c W  39.80c S   0.88c ( +1.0) VW  -1.26c VS   0.10c N     500  --  J7 D1 F1 pass pass pass pass
 ---White(^)---
-J7  : T  43.08c W  42.15c S   0.93c ( +1.1) VW  19.13c VS   0.45c P 46.87% VW 10.29% N     463  --  D1 F1 pass pass pass pass K4
-pss : T  11.67c W  11.46c S   0.21c ( +0.2) VW  28.51c VS   0.31c P 22.27% VW  4.97% N      14  --  D1 F1 J7 pass
+J7  : T  43.34c W  42.40c S   0.94c ( +1.1) VW  19.13c VS   0.45c P 46.87% VW 10.33% N     463  --  D1 F1 pass pass pass pass K4
+pss : T  11.67c W  11.46c S   0.21c ( +0.2) VW  28.51c VS   0.31c P 22.27% VW  4.96% N      14  --  D1 F1 J7 pass
 E5  : T -29.86c W -29.37c S  -0.48c ( -0.6) VW   3.77c VS   0.14c P  8.39% VW  3.44% N       2  --  D1
-D6  : T -24.14c W -23.65c S  -0.49c ( -0.6) VW  24.48c VS   0.46c P  7.35% VW  3.76% N       2  --  D1
+D6  : T -24.14c W -23.65c S  -0.49c ( -0.6) VW  24.48c VS   0.46c P  7.35% VW  3.75% N       2  --  D1
 K4  : T -54.47c W -52.75c S  -1.72c ( -2.0) VW -52.75c VS  -1.72c P  3.09% VW  2.96% N       1  --  
 F1  : T   2.57c W   2.61c S  -0.04c ( -0.0) VW   2.61c VS  -0.04c P  2.86% VW  6.05% N       1  --  
 D5  : T  -3.33c W  -3.47c S   0.14c ( +0.2) VW  -3.47c VS   0.14c P  2.57% VW  5.65% N       1  --  
@@ -655,7 +655,7 @@ L2  : T -44.01c W -42.95c S  -1.07c ( -1.2) VW -42.95c VS  -1.07c P  0.23% VW  3
  -99.9  -99.5  -99.9  -99.8  -99.6   98.6   98.4  -99.4  -99.4  -99.8  -98.8 
  -99.8  -99.2  -99.9  -67.4   96.2   71.9   99.4  -99.5  -99.7  -99.2  -98.4 
 
-J7 visits 463 utilityNoBonus 43.08c utilityWithBonus 43.08c endingScoreBonus 0.00
+J7 visits 463 utilityNoBonus 43.34c utilityWithBonus 43.34c endingScoreBonus 0.00
 pass visits 14 utilityNoBonus 11.67c utilityWithBonus 11.67c endingScoreBonus 0.00
 E5 visits 2 utilityNoBonus -29.86c utilityWithBonus -29.86c endingScoreBonus 0.00
 D6 visits 2 utilityNoBonus -24.14c utilityWithBonus -24.14c endingScoreBonus 0.00
@@ -679,7 +679,7 @@ A7 visits 1 utilityNoBonus -29.01c utilityWithBonus -29.01c endingScoreBonus 0.0
 L2 visits 1 utilityNoBonus -44.01c utilityWithBonus -44.01c endingScoreBonus 0.00
 With root ending bonus pts===================
 
-MoveNum: 91 HASH: 558AE67659AC22A0DA8EEEBA4702558A
+MoveNum: 91 HASH: 51638568D7DFEEFAEA8451827FA88CB9
    A B C D E F G H J K L
 11 X X X X . X O O O O O
 10 O O X . X . X X X O .
@@ -694,17 +694,17 @@ MoveNum: 91 HASH: 558AE67659AC22A0DA8EEEBA4702558A
  1 X1. X . O . O X X . .
 
 Root visits: 500
-NN rows: 347
-NN batches: 347
+NN rows: 349
+NN batches: 349
 NN avg batch size: 1
 PV: J7 D1 F1 pass pass pass pass K4 E5 L5 D5 K1
 Tree:
-: T  40.43c W  39.55c S   0.87c ( +1.0) VW  -1.26c VS   0.10c N     500  --  J7 D1 F1 pass pass pass pass
+: T  40.68c W  39.80c S   0.88c ( +1.0) VW  -1.26c VS   0.10c N     500  --  J7 D1 F1 pass pass pass pass
 ---White(^)---
-J7  : T  43.08c W  42.15c S   0.93c ( +1.1) VW  19.13c VS   0.45c P 46.87% VW 10.29% N     463  --  D1 F1 pass pass pass pass K4
-pss : T  11.67c W  11.46c S   0.21c ( +0.2) VW  28.51c VS   0.31c P 22.27% VW  4.97% N      14  --  D1 F1 J7 pass
+J7  : T  43.34c W  42.40c S   0.94c ( +1.1) VW  19.13c VS   0.45c P 46.87% VW 10.33% N     463  --  D1 F1 pass pass pass pass K4
+pss : T  11.67c W  11.46c S   0.21c ( +0.2) VW  28.51c VS   0.31c P 22.27% VW  4.96% N      14  --  D1 F1 J7 pass
 E5  : T -29.86c W -29.37c S  -0.48c ( -0.6) VW   3.77c VS   0.14c P  8.39% VW  3.44% N       2  --  D1
-D6  : T -24.14c W -23.65c S  -0.49c ( -0.6) VW  24.48c VS   0.46c P  7.35% VW  3.76% N       2  --  D1
+D6  : T -24.14c W -23.65c S  -0.49c ( -0.6) VW  24.48c VS   0.46c P  7.35% VW  3.75% N       2  --  D1
 K4  : T -54.47c W -52.75c S  -1.72c ( -2.0) VW -52.75c VS  -1.72c P  3.09% VW  2.96% N       1  --  
 F1  : T   2.57c W   2.61c S  -0.04c ( -0.0) VW   2.61c VS  -0.04c P  2.86% VW  6.05% N       1  --  
 D5  : T  -3.33c W  -3.47c S   0.14c ( +0.2) VW  -3.47c VS   0.14c P  2.57% VW  5.65% N       1  --  
@@ -735,7 +735,7 @@ L2  : T -44.01c W -42.95c S  -1.07c ( -1.2) VW -42.95c VS  -1.07c P  0.23% VW  3
  -99.9  -99.5  -99.9  -99.8  -99.6   98.6   98.4  -99.4  -99.4  -99.8  -98.8 
  -99.8  -99.2  -99.9  -67.4   96.2   71.9   99.4  -99.5  -99.7  -99.2  -98.4 
 
-J7 visits 463 utilityNoBonus 43.08c utilityWithBonus 43.08c endingScoreBonus 0.00
+J7 visits 463 utilityNoBonus 43.34c utilityWithBonus 43.34c endingScoreBonus 0.00
 pass visits 14 utilityNoBonus 11.67c utilityWithBonus 11.38c endingScoreBonus -0.33
 E5 visits 2 utilityNoBonus -29.86c utilityWithBonus -29.86c endingScoreBonus 0.00
 D6 visits 2 utilityNoBonus -24.14c utilityWithBonus -24.14c endingScoreBonus 0.00
@@ -762,7 +762,7 @@ L2 visits 1 utilityNoBonus -44.01c utilityWithBonus -44.35c endingScoreBonus -0.
 GAME 9 ==========================================================================
 (A game to visualize root noise)
 
-MoveNum: 114 HASH: DF6B90D69BDF508907D5EE53BF2E18B0
+MoveNum: 114 HASH: 9062A4E959B4C1EF491A7709C002C22D
    A B C D E F G H J K L M N O P
 15 . . . . X O X . . . . . . . .
 14 . . . O X . X O . . X O O . .
@@ -807,7 +807,7 @@ Tree:
 With noise===================
 Adding root noise to the search
 
-MoveNum: 114 HASH: DF6B90D69BDF508907D5EE53BF2E18B0
+MoveNum: 114 HASH: 9062A4E959B4C1EF491A7709C002C22D
    A B C D E F G H J K L M N O P
 15 . . . . X O X . . . . . . . .
 14 . . . O X . X O . . X O O . .
@@ -833,21 +833,21 @@ PV:
 Tree:
 : T  27.91c W  24.75c S   3.16c ( +5.0) VW  24.75c VS   3.16c N       1  --  
 ---Black(v)---
-   0.1    0.1    0.1    0.1 -100.0 -100.0 -100.0    0.1    0.1    0.1    0.1    0.1    0.7    0.1    0.1 
-   0.1    1.1    1.0 -100.0 -100.0    0.0 -100.0 -100.0    0.2    2.8 -100.0 -100.0 -100.0    0.8    0.1 
-   0.0 -100.0    0.1 -100.0 -100.0 -100.0 -100.0 -100.0    0.6 -100.0 -100.0 -100.0 -100.0 -100.0    0.1 
-   0.1    0.4 -100.0 -100.0 -100.0    0.0 -100.0 -100.0    0.4 -100.0 -100.0 -100.0 -100.0 -100.0    0.1 
-   0.1    1.8    0.1 -100.0 -100.0 -100.0 -100.0 -100.0    1.2 -100.0 -100.0 -100.0 -100.0 -100.0    1.7 
-   0.1 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0    0.5 -100.0    0.1 -100.0 -100.0 -100.0    2.9    1.9 
-   0.8 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 
-   1.2 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0    1.3 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0    0.0 
-   0.1    0.2 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0    0.1 -100.0    0.1 -100.0    1.6    0.8    0.2 
-   0.1    2.3    0.1    0.0    0.5    0.0    0.1    0.0 -100.0 -100.0    0.1 -100.0 -100.0    1.7    0.6 
-   0.0    2.8 -100.0 -100.0    0.1 -100.0    0.1 -100.0 -100.0 -100.0    0.1 -100.0 -100.0 -100.0    0.0 
-   0.0 -100.0 -100.0    0.4    0.1    0.7    0.1    0.7 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0    0.1 
-   0.0   27.4   22.5 -100.0    0.1 -100.0    0.1 -100.0    0.1 -100.0 -100.0 -100.0    0.0 -100.0    0.1 
-   0.0    0.2 -100.0    4.9    0.1    0.1    0.0    0.0    0.4    0.3    0.1    0.2    0.1    0.0    1.5 
-   0.0    0.4    0.0    0.5    0.1    0.1    0.1    0.1    3.3    0.2    0.0    0.1    0.0    0.0    0.0 
+   0.1    0.1    0.1    0.1 -100.0 -100.0 -100.0    0.1    0.2    0.0    1.2    0.1    0.0    0.1    0.0 
+   0.1    1.1    1.1 -100.0 -100.0    0.0 -100.0 -100.0    0.1    1.3 -100.0 -100.0 -100.0    0.3    0.1 
+   0.0 -100.0    0.1 -100.0 -100.0 -100.0 -100.0 -100.0    0.1 -100.0 -100.0 -100.0 -100.0 -100.0    0.0 
+   0.2    0.1 -100.0 -100.0 -100.0    0.0 -100.0 -100.0    0.1 -100.0 -100.0 -100.0 -100.0 -100.0    0.2 
+   0.1    4.8    0.2 -100.0 -100.0 -100.0 -100.0 -100.0    0.2 -100.0 -100.0 -100.0 -100.0 -100.0    4.0 
+   0.2 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0    0.3 -100.0    0.1 -100.0 -100.0 -100.0    2.9    1.9 
+   0.1 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0 
+   0.1 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0    0.2 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0    0.0 
+   0.1    0.2 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0    0.2 -100.0    0.1 -100.0    1.6    0.8    0.6 
+   0.1    5.2    1.8    0.0    0.0    0.0    0.1    0.0 -100.0 -100.0    0.1 -100.0 -100.0    0.0    0.1 
+   0.0    2.7 -100.0 -100.0    2.0 -100.0    1.3 -100.0 -100.0 -100.0    0.1 -100.0 -100.0 -100.0    0.0 
+   0.0 -100.0 -100.0    0.4    0.1    0.1    0.1    0.1 -100.0 -100.0 -100.0 -100.0 -100.0 -100.0    0.1 
+   0.0   27.0   21.1 -100.0    0.1 -100.0    0.1 -100.0    1.5 -100.0 -100.0 -100.0    0.0 -100.0    1.9 
+   0.0    0.2 -100.0    4.9    0.1    0.1    0.0    0.0    0.4    0.0    0.0    0.4    0.1    0.1    0.0 
+   0.0    0.1    0.1    0.1    0.5    0.1    0.1    0.1    0.0    0.2    0.0    0.1    0.0    0.1    0.1 
 
 
 

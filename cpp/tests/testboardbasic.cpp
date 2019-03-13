@@ -31,7 +31,7 @@ void Tests::runBoardIOTests() {
     out << board2 << endl;
 
     string expected = R"%%(
-HASH: B9AF12139C31CE252E00CFACD7466195
+HASH: FF41A6A8C248603FA60347F93F085846
    A B C D E F
  5 . . . . . .
  4 . . . . . .
@@ -40,7 +40,7 @@ HASH: B9AF12139C31CE252E00CFACD7466195
  1 . . . . . .
 
 
-HASH: FEAC8B83FDFD55B47128913D3E68E748
+HASH: 6B93B11D3BA70C1DF1D07EE065566210
    A B C D E F
  5 . . . . . .
  4 . . . . . .
@@ -1158,7 +1158,9 @@ void Tests::runBoardUndoTest() {
       Player pla;
       while(true) {
         pla = rand.nextUInt(2) == 0 ? P_BLACK : P_WHITE;
-        loc = (Loc)rand.nextUInt(Board::MAX_ARR_SIZE);
+        //Maximum range of board location values when 19x19:
+        int numLocs = (19+1)*(19+2)+1;
+        loc = (Loc)rand.nextUInt(numLocs);
         if(boards[n].isLegal(loc,pla,multiStoneSuicideLegal))
           break;
       }
