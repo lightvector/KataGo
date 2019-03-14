@@ -54,15 +54,19 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   string configFile;
   string nnModelFile;
+  string overrideVersion;
   try {
     TCLAP::CmdLine cmd("Run GTP engine", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> nnModelFileArg("","model","Neural net model file",true,string(),"FILE");
+    TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",true,string(),"VERSION");
     cmd.add(configFileArg);
     cmd.add(nnModelFileArg);
+    cmd.add(overrideVersionArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     nnModelFile = nnModelFileArg.getValue();
+    overrideVersion = overrideVersionArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -273,11 +277,14 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
 
     else if(command == "name") {
-      response = "KataBot";
+      response = "KataGo";
     }
 
     else if(command == "version") {
-      response = nnModelFile;
+      if(overrideVersion.size() > 0)
+        response = overrideVersion;
+      else
+        response = "1.1";
     }
 
     else if(command == "known_command") {
