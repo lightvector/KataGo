@@ -75,6 +75,11 @@ void AsyncBot::setParams(SearchParams params) {
   stopAndWait();
   search->setParams(params);
 }
+void AsyncBot::setPlayerIfNew(Player movePla) {
+  stopAndWait();
+  if(movePla != search->rootPla)
+    search->setPlayerAndClearHistory(movePla);
+}
 void AsyncBot::clearSearch() {
   stopAndWait();
   search->clearSearch();

@@ -187,39 +187,43 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string line;
   while(cin) {
     getline(cin,line);
-    //Filter down to only "normal" ascii characters. Also excludes carrage returns.
-    //Newlines are already handled by getline
-    size_t newLen = 0;
-    for(size_t i = 0; i < line.length(); i++)
-      if(((int)line[i] >= 32 && (int)line[i] <= 126) || line[i] == '\t')
-        line[newLen++] = line[i];
 
-    line.erase(line.begin()+newLen, line.end());
-
-    //Remove comments
-    size_t commentPos = line.find("#");
-    if(commentPos != string::npos)
-      line = line.substr(0, commentPos);
-
-    //Convert tabs to spaces
-    for(size_t i = 0; i < line.length(); i++)
-      if(line[i] == '\t')
-        line[i] = ' ';
-
-    line = Global::trim(line);
-    if(line.length() == 0)
-      continue;
-
-    assert(line.length() > 0);
-
-    string strippedLine = line;
-    if(logAllGTPCommunication)
-      logger.write("Controller: " + strippedLine);
-
-    //Parse id number of command, if present
+    //Parse command, extracting out the command itself, the arguments, and any GTP id number for the command.
+    string command;
+    vector<string> pieces;
     bool hasId = false;
     int id = 0;
     {
+
+      //Filter down to only "normal" ascii characters. Also excludes carrage returns.
+      //Newlines are already handled by getline
+      size_t newLen = 0;
+      for(size_t i = 0; i < line.length(); i++)
+        if(((int)line[i] >= 32 && (int)line[i] <= 126) || line[i] == '\t')
+          line[newLen++] = line[i];
+
+      line.erase(line.begin()+newLen, line.end());
+
+      //Remove comments
+      size_t commentPos = line.find("#");
+      if(commentPos != string::npos)
+        line = line.substr(0, commentPos);
+
+      //Convert tabs to spaces
+      for(size_t i = 0; i < line.length(); i++)
+        if(line[i] == '\t')
+          line[i] = ' ';
+
+      line = Global::trim(line);
+      if(line.length() == 0)
+        continue;
+
+      assert(line.length() > 0);
+
+      if(logAllGTPCommunication)
+        logger.write("Controller: " + line);
+
+      //Parse id number of command, if present
       size_t digitPrefixLen = 0;
       while(digitPrefixLen < line.length() && Global::isDigit(line[digitPrefixLen]))
         digitPrefixLen++;
@@ -234,22 +238,23 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         }
         line = line.substr(digitPrefixLen);
       }
+
+      line = Global::trim(line);
+      if(line.length() <= 0) {
+        cout << "? empty command" << endl;
+        continue;
+      }
+
+      pieces = Global::split(line,' ');
+      for(size_t i = 0; i<pieces.size(); i++)
+        pieces[i] = Global::trim(pieces[i]);
+      assert(pieces.size() > 0);
+
+      command = pieces[0];
+      pieces.erase(pieces.begin());
     }
 
-    line = Global::trim(line);
-    if(line.length() <= 0) {
-      cout << "? empty command" << endl;
-      continue;
-    }
-
-    vector<string> pieces = Global::split(line,' ');
-    for(size_t i = 0; i<pieces.size(); i++)
-      pieces[i] = Global::trim(pieces[i]);
-    assert(pieces.size() > 0);
-
-    string command = pieces[0];
-    pieces.erase(pieces.begin());
-
+    
     bool responseIsError = false;
     bool shouldQuitAfterResponse = false;
     bool maybeStartPondering = false;
@@ -490,6 +495,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         nnEval->clearStats();
         TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
+        //Play faster when winning
         double searchFactor = 1.0;
         if(recentWinValues.size() >= 3 && params.winLossUtilityFactor - searchFactorWhenWinningThreshold > 1e-10) {
           double recentLeastWinning = pla == P_BLACK ? -params.winLossUtilityFactor : params.winLossUtilityFactor;
@@ -564,31 +570,24 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         
         bool resigned = false;
         if(allowResignation) {
-          const Board board = bot->getRootHist().initialBoard;
           const BoardHistory hist = bot->getRootHist();
-          int startBoardNumStones = 0;
-          {
-            for(int y = 0; y<board.y_size; y++) {
-              for(int x = 0; x<board.x_size; x++) {
-                Loc loc = Location::getLoc(x,y,board.x_size);
-                if(board.colors[loc] != C_EMPTY)
-                  startBoardNumStones += 1;
-              }
-            }
-          }
+          const Board initialBoard = hist.initialBoard; 
 
-          //Assume an advantage of 15 * number of handicap stones and komi
-          double handicapBlackAdvantage = 15.0 * startBoardNumStones + (7.5 - hist.rules.komi);
+          //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
+          int extraBlackStones = numHandicapStones(hist);
+          if(hist.initialPla == P_WHITE && extraBlackStones > 0)
+            extraBlackStones -= 1;
+          double handicapBlackAdvantage = 15.0 * extraBlackStones + (7.5 - hist.rules.komi);
 
           int minTurnForResignation = 0; 
-          double noResignationWhenWhiteScoreAbove = board.x_size * board.y_size;
+          double noResignationWhenWhiteScoreAbove = initialBoard.x_size * initialBoard.y_size;
           if(handicapBlackAdvantage > 2.0 && pla == P_WHITE) {
             //Play at least some moves no matter what
-            minTurnForResignation = 1 + board.x_size * board.y_size / 6;
+            minTurnForResignation = 1 + initialBoard.x_size * initialBoard.y_size / 6;
             
             //In a handicap game, also only resign if the expected score difference is well behind schedule assuming
             //that we're supposed to catch up over many moves.
-            double numTurnsToCatchUp = 0.60 * board.x_size * board.y_size - minTurnForResignation;
+            double numTurnsToCatchUp = 0.60 * initialBoard.x_size * initialBoard.y_size - minTurnForResignation;
             double numTurnsSpent = (double)(hist.moveHistory.size()) - minTurnForResignation;
             if(numTurnsToCatchUp <= 1.0)
               numTurnsToCatchUp = 1.0;

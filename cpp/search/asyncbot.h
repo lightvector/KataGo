@@ -28,6 +28,7 @@ class AsyncBot {
   void setKomiIfNew(float newKomi);
   void setRootPassLegal(bool b);
   void setParams(SearchParams params);
+  void setPlayerIfNew(Player movePla);
   void clearSearch();
 
   //Updates position and preserves the relevant subtree of search
