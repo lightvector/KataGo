@@ -321,7 +321,7 @@ namespace {
       //We use the average of games "for" this bot in conjunction with games played
       for(int i = 0; i<10; i++) {
         int bestBot = -1;
-        int64_t minVal = 1LL << 62;
+        int64_t minVal = (int64_t)1 << 62;
         for(int j = 0; j<numBots; j++) {
           int b = botIdxsShuffled[j];
           int64_t val = numGamesForBot[b] * 2 + numGamesByBot[b];

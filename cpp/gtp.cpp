@@ -180,6 +180,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     "time_left",
     "final_score",
     "final_status_list",
+    "lz-analyze",
+    "kata-analyze",
+    "stop",
   };
 
   logger.write("Beginning main protocol loop");
@@ -657,7 +660,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       int n;
       if(pieces.size() != 1) {
         responseIsError = true;
-        response = "Expected one argument for genmove but got '" + Global::concat(pieces," ") + "'";
+        response = "Expected one argument for place_free_handicap but got '" + Global::concat(pieces," ") + "'";
       }
       else if(!Global::tryStringToInt(pieces[0],n)) {
         responseIsError = true;
@@ -817,6 +820,138 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           }
         }
       }
+    }
+
+    else if(command == "lz-analyze" || command == "kata-analyze") {
+      int numArgsParsed = 0;
+    
+      Player pla = bot->getRootPla();
+      double lzAnalyzeInterval = 1e30;
+      int minMoves = 0;
+      bool parseFailed = false;
+      
+      if(pieces.size() > numArgsParsed && tryParsePlayer(pieces[numArgsParsed],pla))
+        numArgsParsed += 1;
+      
+      if(pieces.size() > numArgsParsed &&
+         Global::tryStringToDouble(pieces[numArgsParsed],lzAnalyzeInterval) &&
+         !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20)
+        numArgsParsed += 1;
+
+      while(pieces.size() > numArgsParsed) {
+        if(pieces[numArgsParsed] == "interval") {
+          numArgsParsed += 1;
+          if(pieces.size() > numArgsParsed &&
+             Global::tryStringToDouble(pieces[numArgsParsed],lzAnalyzeInterval) &&
+             !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20) {
+            numArgsParsed += 1;
+            continue;
+          }
+          else {
+            parseFailed = true;
+            break;
+          }
+        }
+        
+        //Parse it but ignore it since we don't support excluding moves right now
+        else if(pieces[numArgsParsed] == "avoid" || pieces[numArgsParsed] == "allow") {
+          numArgsParsed += 1;
+          for(int r = 0; r<3; r++) {
+            if(pieces.size() > numArgsParsed) 
+              numArgsParsed += 1;
+            else
+              parseFailed = true;
+          }
+          if(parseFailed)
+            break;
+          continue;
+        }
+
+        else if(pieces[numArgsParsed] == "minmoves") {
+          numArgsParsed += 1;
+          if(pieces.size() > numArgsParsed &&
+             Global::tryStringToInt(pieces[numArgsParsed],minMoves) &&
+             minMoves >= 0 && minMoves < 1000000000) {
+            numArgsParsed += 1;
+            continue;
+          }
+          else {
+            parseFailed = true;
+            break;
+          }
+        }
+
+        parseFailed = true;
+        break;
+      }
+      
+      if(parseFailed) {
+        responseIsError = true;
+        response = "Could not parse lz-analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        lzAnalyzeInterval = lzAnalyzeInterval * 0.01; //Convert from centiseconds to seconds
+
+        std::function<void(Search* search)> callback;
+        if(command == "lz-analyze") {
+          callback = [minMoves](Search* search) {            
+            vector<AnalysisData> buf;
+            search->getAnalysisData(buf,minMoves);
+            const Board board = search->getRootBoard();
+            for(int i = 0; i<buf.size(); i++) {
+              if(i > 0)
+                cout << " ";
+              const AnalysisData& data = buf[i];
+              cout << "info";
+              cout << " move " << Location::toString(data.move,board);
+              cout << " visits " << data.numVisits;
+              cout << " winrate " << round(data.winLossValue * 10000.0);
+              cout << " prior " << round(data.policyPrior * 10000.0);
+              cout << " order " << data.order;
+              cout << " pv";
+              for(int j = 0; j<data.pv.size(); j++)
+                cout << " " << Location::toString(data.pv[j],board);
+            }
+            cout << endl;
+          };
+        }
+        else if(command == "kata-analyze") {
+          callback = [minMoves](Search* search) {            
+            vector<AnalysisData> buf;
+            search->getAnalysisData(buf,minMoves);
+            const Board board = search->getRootBoard();
+            for(int i = 0; i<buf.size(); i++) {
+              if(i > 0)
+                cout << " ";
+              const AnalysisData& data = buf[i];
+              cout << "info";
+              cout << " move " << Location::toString(data.move,board);
+              cout << " visits " << data.numVisits;
+              cout << " utility " << data.utility;
+              cout << " winrate " << data.winLossValue;
+              cout << " scoreMean " << data.scoreMean;
+              cout << " scoreStdev " << data.scoreStdev;
+              cout << " prior " << data.policyPrior;
+              cout << " order " << data.order;
+              cout << " pv";
+              for(int j = 0; j<data.pv.size(); j++)
+                cout << " " << Location::toString(data.pv[j],board);
+            }
+            cout << endl;
+          };
+                 
+        }
+        else
+          assert(false);
+          
+        double searchFactor = 1e40; //go basically forever
+        bot->analyze(pla, searchFactor, lzAnalyzeInterval, callback);
+      }
+    }
+    
+    else if(command == "stop") {
+      //Stop any ongoing ponder or analysis
+      bot->stopAndWait();
     }
 
     else {

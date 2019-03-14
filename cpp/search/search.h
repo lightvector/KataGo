@@ -13,6 +13,7 @@
 #include "../search/mutexpool.h"
 #include "../search/searchparams.h"
 #include "../search/searchprint.h"
+#include "../search/analysisdata.h"
 #include "../search/timecontrols.h"
 
 struct SearchNode;
@@ -226,7 +227,12 @@ struct Search {
   void printRootOwnershipMap(ostream& out);
   void printRootEndingScoreValueBonus(ostream& out);
 
-  int64_t numRootVisits();
+  //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
+  //or changing parameters or clearing search.
+  void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet);
+  void fillPV(vector<Loc>& buf, const SearchNode* n, int maxDepth);
+  
+  int64_t numRootVisits() const;
 
   //Helpers-----------------------------------------------------------------------
 private:
@@ -264,6 +270,8 @@ private:
 
   double getReducedPlaySelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const;
 
+  double getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const;
+  
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);
 

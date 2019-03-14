@@ -53,6 +53,10 @@ class AsyncBot {
   void ponder();
   void ponder(double searchFactor);
 
+  //Terminate any existing searches, and then begin pondering while periodically calling the specified callback
+  void analyze(Player movePla, double searchFactor, double callbackPeriod, std::function<void(Search* search)> callback);
+
+  
   //Signal an ongoing genMove or ponder to stop as soon as possible, and wait for the stop to happen.
   //Safe to call even if nothing is running.
   void stopAndWait();
@@ -75,6 +79,8 @@ class AsyncBot {
   std::function<void(Loc,int)> queuedOnMove;
   TimeControls timeControls;
   double searchFactor;
+  double analyzeCallbackPeriod;
+  std::function<void(Search* search)> analyzeCallback;
 
   void stopAndWaitAlreadyLocked(unique_lock<std::mutex>& lock);
   void waitForSearchToEnd();
