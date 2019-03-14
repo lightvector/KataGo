@@ -1717,6 +1717,7 @@ void Search::fillPV(vector<Loc>& buf, const SearchNode* n, int maxDepth) {
   buf.clear();
   if(n == NULL)
     return;
+  buf.push_back(n->prevMoveLoc);
   for(int depth = 0; depth < maxDepth; depth++) {
     const SearchNode& node = *n;
     std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
@@ -1763,6 +1764,9 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
 
 void Search::getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet) {
   buf.clear();
+  if(rootNode == NULL)
+    return;
+  
   vector<SearchNode*> children;
   children.reserve(rootBoard.x_size * rootBoard.y_size + 1);
   const SearchNode& node = *rootNode;
@@ -1899,6 +1903,7 @@ void Search::getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet) 
       data.policyPrior = bestPolicy;
       data.order = 0;
       data.pv.clear();
+      data.pv.push_back(bestPos);
       buf.push_back(data);
     }
   }

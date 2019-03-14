@@ -159,7 +159,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       recentWinValues.clear();
     bot->setKomiIfNew(newKomi);
   };
-  
+
+  bool currentlyAnalyzing = false;
 
   vector<string> knownCommands = {
     "protocol_version",
@@ -197,7 +198,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     bool hasId = false;
     int id = 0;
     {
-
       //Filter down to only "normal" ascii characters. Also excludes carrage returns.
       //Newlines are already handled by getline
       size_t newLen = 0;
@@ -257,6 +257,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       pieces.erase(pieces.begin());
     }
 
+    //Upon any command, stop any analysis and output a newline
+    if(currentlyAnalyzing) {
+      bot->stopAndWait();
+      cout << endl;
+    }
     
     bool responseIsError = false;
     bool shouldQuitAfterResponse = false;
@@ -897,6 +902,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           callback = [minMoves](Search* search) {            
             vector<AnalysisData> buf;
             search->getAnalysisData(buf,minMoves);
+            if(buf.size() <= 0)
+              return;
+
             const Board board = search->getRootBoard();
             for(int i = 0; i<buf.size(); i++) {
               if(i > 0)
@@ -905,7 +913,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
               cout << "info";
               cout << " move " << Location::toString(data.move,board);
               cout << " visits " << data.numVisits;
-              cout << " winrate " << round(data.winLossValue * 10000.0);
+              cout << " winrate " << round((0.5 * (1.0 + data.winLossValue)) * 10000.0);
               cout << " prior " << round(data.policyPrior * 10000.0);
               cout << " order " << data.order;
               cout << " pv";
@@ -919,6 +927,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           callback = [minMoves](Search* search) {            
             vector<AnalysisData> buf;
             search->getAnalysisData(buf,minMoves);
+            if(buf.size() <= 0)
+              return;
+            
             const Board board = search->getRootBoard();
             for(int i = 0; i<buf.size(); i++) {
               if(i > 0)
@@ -928,7 +939,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
               cout << " move " << Location::toString(data.move,board);
               cout << " visits " << data.numVisits;
               cout << " utility " << data.utility;
-              cout << " winrate " << data.winLossValue;
+              cout << " winrate " << (0.5 * (1.0 + data.winLossValue));
               cout << " scoreMean " << data.scoreMean;
               cout << " scoreStdev " << data.scoreStdev;
               cout << " prior " << data.policyPrior;
@@ -946,6 +957,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           
         double searchFactor = 1e40; //go basically forever
         bot->analyze(pla, searchFactor, lzAnalyzeInterval, callback);
+        currentlyAnalyzing = true;
       }
     }
     
@@ -972,7 +984,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       response = "=" + response;
 
     cout << response << endl;
-    cout << endl; //GTP needs extra newline
+
+    //GTP needs extra newline, except if currently analyzing, defer the newline until we actually stop analysis
+    if(!currentlyAnalyzing)
+      cout << endl; 
 
     if(logAllGTPCommunication)
       logger.write(response);
