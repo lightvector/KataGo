@@ -28,6 +28,25 @@ static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
 }
 
+static int numHandicapStones(const BoardHistory& hist) {
+  const Board board = hist.initialBoard;
+  int startBoardNumBlackStones = 0;
+  int startBoardNumWhiteStones = 0;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(board.colors[loc] == C_BLACK)
+        startBoardNumBlackStones += 1;
+      else if(board.colors[loc] == C_WHITE)
+        startBoardNumWhiteStones += 1;
+    }
+  }
+  if(startBoardNumWhiteStones == 0)
+    return startBoardNumBlackStones;
+  return 0;
+}
+
+
 int MainCmds::gtp(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
@@ -93,7 +112,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
   const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
-
+  const int whiteBonusPerHandicapStone = cfg.contains("whiteBonusPerHandicapStone") ? cfg.getInt("whiteBonusPerHandicapStone",0,1) : 0;
+  
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
@@ -130,6 +150,16 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
   }
 
+  //Komi without whiteBonusPerHandicapStone hack
+  float unhackedKomi = bot->getRootHist().rules.komi;
+  auto updateKomiIfNew = [&bot,&unhackedKomi,&whiteBonusPerHandicapStone,&recentWinValues]() {
+    float newKomi = unhackedKomi;
+    newKomi += numHandicapStones(bot->getRootHist()) * whiteBonusPerHandicapStone;
+    if(newKomi != bot->getRootHist().rules.komi)
+      recentWinValues.clear();
+    bot->setKomiIfNew(newKomi);
+  };
+  
 
   vector<string> knownCommands = {
     "protocol_version",
@@ -224,7 +254,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     bool shouldQuitAfterResponse = false;
     bool maybeStartPondering = false;
     string response;
-
+    
     if(command == "protocol_version") {
       response = "2";
     }
@@ -275,6 +305,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         Player pla = P_BLACK;
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
         bot->setPosition(pla,board,hist);
+        updateKomiIfNew();
         recentWinValues.clear();
       }
     }
@@ -286,6 +317,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       Player pla = P_BLACK;
       BoardHistory hist(board,pla,bot->getRootHist().rules,0);
       bot->setPosition(pla,board,hist);
+      updateKomiIfNew();
       recentWinValues.clear();
     }
 
@@ -305,9 +337,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "komi must be an integer or half-integer";
       }
       else {
-        if(newKomi != bot->getRootHist().rules.komi)
-          recentWinValues.clear();
-        bot->setKomiIfNew(newKomi);
+        unhackedKomi = newKomi;
+        updateKomiIfNew();
         //In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = bot->getRootHist().moveHistory.size() > 0;
       }
@@ -673,6 +704,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = Global::trim(response);
 
         bot->setPosition(pla,board,hist);
+        updateKomiIfNew();
       }
     }
 
@@ -701,6 +733,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
 
         bot->setPosition(pla,board,hist);
+        updateKomiIfNew();
       }
     }
 

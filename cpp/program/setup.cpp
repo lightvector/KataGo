@@ -33,6 +33,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : debugSkipNeuralNetDefault;
     int modelFileIdx = i;
 
+    //TODO make GTP auto specify these based on gtp board size
     int posLen = NNPos::MAX_BOARD_LEN;
     if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
       posLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 1, NNPos::MAX_BOARD_LEN);
