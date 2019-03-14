@@ -266,7 +266,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         responseIsError = true;
         response = "Expected single int argument for boardsize but got '" + Global::concat(pieces," ") + "'";
       }
-      else if(newBSize < 9 || newBSize > 19) {
+      else if(newBSize < 3 || newBSize > Board::MAX_LEN) {
         responseIsError = true;
         response = "unacceptable size";
       }

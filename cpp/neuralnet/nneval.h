@@ -46,6 +46,8 @@ struct NNResultBuf {
   mutex resultMutex;
   bool hasResult;
   bool includeOwnerMap;
+  int boardXSizeForServer;
+  int boardYSizeForServer;
   int rowBinSize;
   int rowGlobalSize;
   float* rowBin;

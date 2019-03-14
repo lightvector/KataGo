@@ -11,7 +11,7 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: C7774A7DF74526F3CE014E072CB7CD1D
+HASH: B3D09C479D371C090E1505F915330A65
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -33,7 +33,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves H9 C4 H4 D8 E4 F9 C3 
 end
-HASH: 4A1B8D47E82F57F7BA4A12D26AE01D8E
+HASH: DBE4B0B86D5543D6BB70CF35C9F210DC
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -78,7 +78,7 @@ whiteValueTargetsByTurn 1 1 0 0 7.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Forking to initial position X
-HASH: C0E476CFA67B499CCE46D23C5EFE1DDA
+HASH: 98AC72F929CDB30838039BD9BB71C6A0
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -112,7 +112,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 6D4D6979FF569CE42B11BC61EA9C8BD3
+HASH: E080F7CD4E60C00BD549B8DF9C3D0093
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -134,7 +134,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves D3 D9 
 end
-HASH: 21F864FF75843A882B448700E1E26220
+HASH: 7B163A06027DF54EB9494FC3312B15F6
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -179,7 +179,7 @@ whiteValueTargetsByTurn 1 1 0 0 6.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 0083D2617917CA9FBAB13B04B00E78F5
+HASH: B1CB79A8B90B066EBC4AB04D1B31E1FB
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -201,7 +201,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves D3 D9 J9 
 Side position 1
-HASH: 51293F9BB8B68459AE5CD99F88B26A17
+HASH: 49A8335373F3F979009F9958899A0308
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -235,7 +235,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 77C26DB095502079CC95995F6C30A6BB
+HASH: FBBBF08E301863A5BCB64B483BDA3519
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -257,7 +257,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves D4 D9 H8 J4 C7 D3 E3 C3 
 end
-HASH: 034742FBFE558945DCBD7F2340987725
+HASH: 583CBB46C6FDF80B55C6BC37D3BBB1BD
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -302,7 +302,7 @@ whiteValueTargetsByTurn 1 1 0 0 6.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 06CEECBA74FBA9E493F313309F59E6D5
+HASH: 3BA35A175DE65F89F3FDACC963220A9A
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -324,7 +324,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves D4 D9 H8 J4 C7 D3 E3 C3 E4 
 Forking to initial position O
-HASH: F0CDA9991FF4F4B384C029EE7CA4BE05
+HASH: 8D4B1F1362037AC4D029FB86DE915C8A
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -358,7 +358,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: B2EED84091F683910F4A849E1593FB1D
+HASH: 417C0B108173B405E67BD22571E6ACD6
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -380,7 +380,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves 
 end
-HASH: B1991BA102DD495C6DFCA5CE90DAC804
+HASH: 17752D757FF9A5B1B9E7C12C0CDA5FD3
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -437,7 +437,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: B2EED84091F683910F4A849E1593FB1D
+HASH: 417C0B108173B405E67BD22571E6ACD6
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -459,7 +459,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves 
 end
-HASH: B1991BA102DD495C6DFCA5CE90DAC804
+HASH: 17752D757FF9A5B1B9E7C12C0CDA5FD3
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -504,7 +504,7 @@ whiteValueTargetsByTurn 1 0 1 0 -113.5
    -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
    -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
 Side position 0
-HASH: C367B877E94B162C3542C3EAD7577B32
+HASH: 71FD149613B841CD932AE9B5F92FD78B
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -538,7 +538,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 2EBA9F0E63196DD15A9F8B7B33E8846E
+HASH: 814CFC8ED11EC05AC3CD790844BBC6F9
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . O . .
@@ -560,7 +560,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves D8 J10 D4 H4 H9 J9 
 end
-HASH: 136582670185D8724D98CFEB56685A94
+HASH: A055B30F4082CF2C3FA3B566424D5176
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . O . .
@@ -617,7 +617,7 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 6F1B60551208602C03AC8632B6208AD3
+HASH: 7CD7959CAB7E48284C7EF687EABC6C0D
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -639,7 +639,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves D8 J4 D4 F4 J8 
 end
-HASH: 2584249FDD1684C70E0DC4ECAF6326C3
+HASH: A7FE54DE0CDB266EA5EB0559D8B6CBD8
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -696,7 +696,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: E8444B5339080D0E4382E302ACE8C551
+HASH: 0F6D8930999CB452CE6E6C4B1B298959
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -718,7 +718,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves H8 C8 
 end
-HASH: 2928CBC5F88935E1FA6A11A8D8B3D32A
+HASH: 1A6A5786DC02C964D161D8CA3D37361F
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -775,7 +775,7 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 614C3156FC6A1DFDFEDB3CEBFAF1EB7B
+HASH: 5547DCCC0F1228A38817F29C775EA684
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -797,7 +797,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves D8 H8 H4 
 end
-HASH: 8252F96AFEEC8A52FD599964E10B1FBD
+HASH: 8849743371D2B5FA65D3A41E9EC0AA47
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -854,7 +854,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 598265E7BDEE06A2639FB3C3211D4D67
+HASH: 12F75CB76455CF8568796D3E01062367
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -876,7 +876,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves H8 H4 D4 D8 J6 J5 G3 H3 H6 F9 
 end
-HASH: 3E8F4A61352223F05F79863AC2FBAB3B
+HASH: E1750A6862F023681C5826B42F0EC4BA
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -921,7 +921,7 @@ whiteValueTargetsByTurn 1 1 0 0 6.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Forking to initial position X
-HASH: 168D2A6A7F24A47CE4555574CCB74BB1
+HASH: 04286592208F122B016DB39DFE7E9FD0
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -955,7 +955,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 0C650A10065D704083A5FF5D5BFBF982
+HASH: 103BCD5FCA3BCCD3C4D008BB9DD733AB
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -977,7 +977,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J6 K7 J7 D4 C8 H3 
 end
-HASH: 3FAA5DBBB7EEEAE10F9D895F91B94945
+HASH: 0F258A266C3021E83C65CC26F980520D
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1022,7 +1022,7 @@ whiteValueTargetsByTurn 1 1 0 0 18.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 7D698B1AE7F6F9DDDCC37532A892B9EC
+HASH: D02367C6A7C5F0FF8B9BEF3AC52F0C28
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1044,7 +1044,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J6 K7 J7 D4 C8 H3 E4 
 Forking to initial position O
-HASH: D6F90F197C182585D228A469B2DFF696
+HASH: BE93A1DDCBFBF5A59B043A7BE8D0FDD5
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1078,7 +1078,7 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 18AC830D9CD2181819D19E0476AE2A48
+HASH: 628DF1D511F51B6DD325ED5008E3FD9F
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1100,7 +1100,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves B1 
 end
-HASH: A6335AD2A1A716646375CEB53BF57A53
+HASH: C3EA5FF9ADCAB2B3548553A17283FF51
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1145,7 +1145,7 @@ whiteValueTargetsByTurn 1 1 0 0 19.5
     0    0    0    0    0    0    0    0    0    0    0
     0   -1    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: BB2BC8C56A3783B6F0A1697B9ECFAEEC
+HASH: 4DFF9195BCBD87859F800E767B1BB75C
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1167,7 +1167,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves B1 D4 
 Forking to initial position X
-HASH: 815FB3F467507B796E3A6A6292FEA1C1
+HASH: E2FBEDC15CA64B9790CCAE213523F7E6
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1201,7 +1201,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 58B76B4D2F610271F645DBF6524960ED
+HASH: D7632EA551A25193A420A1939450E216
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1223,7 +1223,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J4 D3 H8 C7 
 end
-HASH: DA6C56ACA22EB68560E3FAC4CBBF430C
+HASH: 49D39AE89FC0EBB35015FF95D1770964
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1268,7 +1268,7 @@ whiteValueTargetsByTurn 1 1 0 0 5.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 5BC0A8ACBC4AC8BC94F3FAA6D70053F4
+HASH: 816A08C0AF284027FBBCB29AE96C1113
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1302,7 +1302,7 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 2C7F1ECB3A61A29F578E2C6139EE5BD8
+HASH: EE8522619481D97017DDC4EF88BCE3F2
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1324,7 +1324,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J8 
 end
-HASH: 50CDE90D49C6DF70B833863EE8DB4F38
+HASH: D7224CC473EF11C176324B6A33113647
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1369,7 +1369,7 @@ whiteValueTargetsByTurn 1 1 0 0 6.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Forking to initial position X
-HASH: 1CFE014DA8AA575722DF17F1B1272085
+HASH: 7E52080DCD8F282490E8804B50CF7311
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1403,7 +1403,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 6BF2FC81A16A262EA4DC89175164A42A
+HASH: 573E45F38DC1742C0C85C2E8A7F5D325
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1425,7 +1425,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J8 D3 J4 C6 
 end
-HASH: 583DAB2A10D9BC8F28E4FF159B2614ED
+HASH: 4820028A2BCA9917F4300675C3A2B283
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1470,7 +1470,7 @@ whiteValueTargetsByTurn 1 1 0 0 5.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 36EE31CCD7C4D54DC7B1E3762623F614
+HASH: 45918362AEC1BDC13A103067F6576AD3
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1492,7 +1492,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J8 D3 J4 C6 E3 
 Forking to initial position O
-HASH: 36EE31CCD7C4D54DC7B1E3762623F614
+HASH: 45918362AEC1BDC13A103067F6576AD3
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1526,7 +1526,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 74DFE540D2CFDE085723B31287A17F49
+HASH: D48D45C67C5530A7B4E7EFD486CB5448
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1548,7 +1548,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J2 D8 H9 J8 J9 J4 
 end
-HASH: 15F4173C81A56506369F6A1937D416F6
+HASH: BC392551EFA33EE48F078265CC132658
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1593,7 +1593,7 @@ whiteValueTargetsByTurn 1 1 0 0 18
     0    0    0    0    0    0    0    0   -1    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Forking to initial position O
-HASH: 99D6B533F46A7FD6FB6C4A2E9EF84803
+HASH: FD9E1EEDEE6C5459D858AD5A9CB8FFB8
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1627,7 +1627,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: FFDE53E44D13173F02DA6700C2572A7E
+HASH: FDACC5AD55F57B0E83D30B3CDE39722A
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1649,7 +1649,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J4 C4 H9 G3 
 end
-HASH: 2B8199C1F5C2A2CB706660950B2219E8
+HASH: 683FDCD3143FB0799FAA44F8BA38F767
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1694,7 +1694,7 @@ whiteValueTargetsByTurn 1 1 0 0 20
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: E635A6BCC3A1BF01464B232EFF781B61
+HASH: C44E9CD5AA39A043D8F2E2C427991A54
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1716,7 +1716,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J4 C4 H9 G3 H7 
 Forking to initial position O
-HASH: 8ED2D2EEACB89EA25DBCED6F313E6A10
+HASH: 3DB46F34380B4722CC98ECBD86C14DA9
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1750,7 +1750,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: A20A8F37D7D50DF3BEB9696910109D93
+HASH: 706183A8D04E20D86A9552EA40B55D5A
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1772,7 +1772,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J9 H3 D9 J6 H4 J4 
 end
-HASH: C3217D4B84BFB6FDDF05B062A065F42C
+HASH: 18D5E33F43B82E9B51753F5B0A6D2F4A
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1817,7 +1817,7 @@ whiteValueTargetsByTurn 1 1 0 0 18
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 6A6EAC76051E3B6C8336D35F42B35B47
+HASH: 6CE220A8ABBB489A7E0F6A67C6F18AFF
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1839,7 +1839,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J9 H3 D9 J6 H4 J4 J3 
 Side position 1
-HASH: 6CEBF6D7ADC0F67E13633090A23CDEDA
+HASH: 27FC336FBD29F908C35D0D653B0112AF
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1873,7 +1873,7 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 91A1699B8847E79F01DB74949C805943
+HASH: C225927236716CF7693DFFEB150F8901
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1895,7 +1895,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves C8 D3 H3 
 end
-HASH: 6C5207C0EB6A29D6B2007E1D3A5C48B2
+HASH: 17285421F12C36943AF27DBED7A8316F
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1952,7 +1952,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 9BDEEDFEA9FCCE90502A53D2504BF9E8
+HASH: 810A94121094586BCE6844EC2BE4A6B0
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -1974,7 +1974,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves L4 D3 H3 J8 H9 J9 C5 C4 D5 F9 H8 J7 H7 H6 
 end
-HASH: 2DF1CAB3B4B9C479F100DDED947B36E8
+HASH: 69E245B7BF3A2838B8C79007A33964E8
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2019,7 +2019,7 @@ whiteValueTargetsByTurn 1 1 0 0 21.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 448875B4DA7953199E1E9A548BA31EDF
+HASH: 89754DAE666608758F479BEC5F496444
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . X . . .
@@ -2053,7 +2053,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 41C930B85009878D66EF3807EF7B1E1F
+HASH: D74A8B6E5B7915AF2D09DBABD621E5F5
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2075,7 +2075,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves H8 H3 J5 D8 
 end
-HASH: 5578F589EA41781A36C8CC5163AFDAD7
+HASH: 904912FE3AB58E3E7221853A3F0F6328
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2132,7 +2132,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 623E8AA477976DEEF904B58F8C87E7E4
+HASH: 229A3BFEC6722488AD067B5709822486
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2154,7 +2154,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves C3 J3 H3 J4 H4 H5 
 end
-HASH: 9E1459A9E0A6169B9180A7F974DB57F5
+HASH: B3A53B4B8DDDB149A096D5C264B1F5B2
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2199,7 +2199,7 @@ whiteValueTargetsByTurn 1 1 0 0 37.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: FA0B6448112B1ADC9D640846292F890B
+HASH: 687C46EC7C39EE537A0F5EC8CCB3DEF1
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2233,7 +2233,7 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 135959A8654F1EB3BF288A98EBCD4D22
+HASH: 1DA3C3FE5779B3696F6FD479DA0AED35
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2255,7 +2255,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves D8 
 end
-HASH: 6FEBAE6E16E8635C509520C73AF859C2
+HASH: 2404AD5BB0177BD80E805BFC61A73880
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2300,7 +2300,7 @@ whiteValueTargetsByTurn 1 1 0 0 32
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: B0DE126093AA851D56587DE703ACC986
+HASH: 32D1A3BEFA312F8123CA375FA9F2A7F6
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2334,7 +2334,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 958B65EC84E83F37232748173662FF32
+HASH: 667EED05C05B191886C483D741A2F01E
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2356,7 +2356,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves D8 D3 C5 C4 D5 G3 H4 G4 G5 J9 
 end
-HASH: D93E686A0E3A995B237273763D1C16C1
+HASH: FDE820CE8C462C5DEAC474CBECB4E57B
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2413,7 +2413,7 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 8CA57610F0B27A8D57A1D9DB5960A1D8
+HASH: BC62FF38A12F653CA0B60DA0290531EB
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2435,7 +2435,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves H9 
 end
-HASH: F01781D683150762B81C73848855B538
+HASH: 85C5919D4641AD8DC159822592A8E45E
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2480,7 +2480,7 @@ whiteValueTargetsByTurn 1 1 0 0 34.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Forking to initial position X
-HASH: 11792AC991FA17F3B36B0DF94BA5EB9A
+HASH: 96A36D2E9A80CF95EE0AA2347013EC8B
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2514,7 +2514,7 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 8B6C34CC36D54CDD9818E9A03BFC854B
+HASH: 01021E4933FE401A0B56C18BB53D14AA
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . X O .
@@ -2536,7 +2536,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 
 end
-HASH: 4347DF03BC6CA65E9D23DEC4C78F8C0A
+HASH: 2B570462386C33D703E049D5C7B9A7B7
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . X O .
@@ -2581,7 +2581,7 @@ whiteValueTargetsByTurn 1 1 0 0 34.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: DD6512A9C85F5D69C784FAA946C0764E
+HASH: 894ABD8DB372B6F645DBEE7CC2671F7D
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . X O .
@@ -2603,7 +2603,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 D8 
 Side position 1
-HASH: B4D90B3B33E5C03CD1756665ADF3DAC3
+HASH: 4E7208F7669016150EB04A1702DD797E
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . X O .
@@ -2625,7 +2625,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 D8 H9 D9 
 Forking to initial position X
-HASH: CF9449FDA7B989CEB2447E4E43008289
+HASH: DAD9DB66650CD7CB33BDFB5BBD2898C3
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . X O .
@@ -2659,7 +2659,7 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 5C6A6D263560669534D3A60A0E117B35
+HASH: DA8428A86CC6F5F2FFFBCD803B243DF0
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2681,7 +2681,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves H8 H3 H5 E3 C5 J9 H9 
 end
-HASH: 7D7322A7A4FC69E3C8BD6A6408E7ECBA
+HASH: 5180D8E78FD7030BA3B17FDB0BF211B6
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2726,7 +2726,7 @@ whiteValueTargetsByTurn 1 1 0 0 37.5
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Forking to initial position X
-HASH: 6CEB72A0A7AB935D41829D9A86D80068
+HASH: 4A5302C435C804A678CE8924E357AD13
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2760,7 +2760,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 1E11E4420AE15C0E8A170D77594DE45E
+HASH: 395ED5EEB4D862BD996CE362208115EA
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2782,7 +2782,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves D8 H3 J5 E3 
 end
-HASH: 7F2D8CA459344D07D4E86539EB19C48B
+HASH: 39C5871FC7F4BF6D2DFE3769B73ABB61
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2827,7 +2827,7 @@ whiteValueTargetsByTurn 1 1 0 0 32
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Side position 0
-HASH: 33530F8E4355883DA55D1536E33B214C
+HASH: 76BF009E6C0CD1D4245F4321E2EF9933
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2849,7 +2849,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves D8 H3 J5 E3 L2 
 Side position 1
-HASH: D3FA7F83AF919B0AD9433FCD9D2346F8
+HASH: 95F7FB0D1E73D731B652D9D7C5BF6DD7
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2883,7 +2883,7 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: A416C122386DF72E6429FF03F7AD22B1
+HASH: ACB86650AB2D37B9F54F9698FCE73FB6
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2905,7 +2905,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves J9 D9 F9 C7 C5 G3 H3 G4 E3 J5 K5 H5 K6 H8 H9 G8 F8 E2 D2 
 end
-HASH: 850F8EA3A9F1F8589847336DF15BB53E
+HASH: 27BC961F483CC140A90524C3CC3113F0
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2962,7 +2962,7 @@ bIdx 0
 wIdx 0
 startPla X
 start
-HASH: 1895662B08BCE1BAF3CAE4B6FEFEF715
+HASH: B05B6B29EE82F2C35D150DFB41F331B1
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2984,7 +2984,7 @@ White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves H8 C8 C6 E9 
 end
-HASH: 4682DCC4FC64F739E37D2A2319CF08EC
+HASH: 787080E6643B1840582E3A9FBD8038F0
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -3029,7 +3029,7 @@ whiteValueTargetsByTurn 1 1 0 0 32
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
 Forking to initial position O
-HASH: 5B94E6F7D36D5347E71B18BE5F6D6ED6
+HASH: 4C6DFE64053205B80D6DE45E261EEB87
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .

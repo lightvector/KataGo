@@ -97,6 +97,13 @@ void Board::initHash()
     return Hash128(h0,h1);
   };
 
+  for(int i = 0; i<4; i++)
+    ZOBRIST_PLAYER_HASH[i] = nextHash();
+  for(int i = 0; i<3; i++)
+    ZOBRIST_ENCORE_HASH[i] = nextHash();
+
+  //Do this second so that the player and encore hashes are not
+  //afffected by the size of the board we compile with.
   for(int i = 0; i<MAX_ARR_SIZE; i++)
   {
     for(Color j = 0; j<4; j++)
@@ -113,15 +120,14 @@ void Board::initHash()
     }
     ZOBRIST_KO_LOC_HASH[i] = nextHash();
   }
-  for(int i = 0; i<4; i++)
-    ZOBRIST_PLAYER_HASH[i] = nextHash();
-  for(int i = 0; i<MAX_LEN+1; i++)
-    ZOBRIST_SIZE_X_HASH[i] = nextHash();
-  for(int i = 0; i<MAX_LEN+1; i++)
-    ZOBRIST_SIZE_Y_HASH[i] = nextHash();
 
-  for(int i = 0; i<3; i++)
-    ZOBRIST_ENCORE_HASH[i] = nextHash();
+  //Reseed the random number generator so that these size hashes are also
+  //not affected by the size of the board we compile with
+  rand.init("Board::initHash() for ZOBRIST_SIZE hashes");
+  for(int i = 0; i<MAX_LEN+1; i++) {
+    ZOBRIST_SIZE_X_HASH[i] = nextHash();
+    ZOBRIST_SIZE_Y_HASH[i] = nextHash();
+  }
 
   IS_ZOBRIST_INITALIZED = true;
 }

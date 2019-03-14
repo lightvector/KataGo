@@ -815,7 +815,7 @@ o..oo.x
 
     {
       cout << "Searching on the opponent, the move before" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1b",NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
       SearchParams params;
       params.maxVisits = 400;
       params.rootPruneUselessMoves = true;
@@ -832,7 +832,7 @@ o..oo.x
 
       cout << endl;
       
-      cout << "Now play forward the pass. The tree should still have useless suicides in it" << endl;
+      cout << "Now play forward the pass. The tree should still have useless suicides and also other moves in it" << endl;
       search->makeMove(Board::PASS_LOC,nextPla);
       testAssert(hasSuicideRootMoves(search));
       testAssert(hasPassAliveRootMoves(search));

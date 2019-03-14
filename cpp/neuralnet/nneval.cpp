@@ -5,7 +5,7 @@
 
 NNResultBuf::NNResultBuf()
   :clientWaitingForResult(),resultMutex(),hasResult(false),includeOwnerMap(false),
-   rowBinSize(0),rowGlobalSize(0),rowBin(NULL),rowGlobal(NULL),
+   boardXSizeForServer(0),boardYSizeForServer(0),rowBinSize(0),rowGlobalSize(0),rowBin(NULL),rowGlobal(NULL),
    result(nullptr),errorLogLockout(false)
 {}
 
@@ -271,23 +271,39 @@ void NNEvaluator::serve(
         NNResultBuf* resultBuf = buf.resultBufs[row];
         buf.resultBufs[row] = NULL;
 
+        int boardXSize = resultBuf->boardXSizeForServer;
+        int boardYSize = resultBuf->boardYSizeForServer;
+        
         unique_lock<std::mutex> resultLock(resultBuf->resultMutex);
         assert(resultBuf->hasResult == false);
         resultBuf->result = std::make_shared<NNOutput>();
+
         float* policyProbs = resultBuf->result->policyProbs;
+        for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
+          policyProbs[i] = 0;
+        
         //At this point, these aren't probabilities, since this is before the postprocessing
         //that happens for each result. These just need to be unnormalized log probabilities.
         //Illegal move filtering happens later.
-        for(int i = 0; i<policySize; i++)
-          policyProbs[i] = rand.nextGaussian();
-        for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
-          policyProbs[i] = 0;
+        for(int y = 0; y<boardYSize; y++) {
+          for(int x = 0; x<boardXSize; x++) {
+            int pos = NNPos::xyToPos(x,y,posLen);
+            policyProbs[pos] = rand.nextGaussian();
+          }
+        }
+        policyProbs[NNPos::locToPos(Board::PASS_LOC,boardXSize,posLen)] = rand.nextGaussian();
 
         resultBuf->result->posLen = posLen;
         if(resultBuf->includeOwnerMap) {
           float* whiteOwnerMap = new float[posLen*posLen];
           for(int i = 0; i<posLen*posLen; i++)
-            whiteOwnerMap[i] = rand.nextGaussian() * 0.20;
+            whiteOwnerMap[i] = 0.0;
+          for(int y = 0; y<boardYSize; y++) {
+            for(int x = 0; x<boardXSize; x++) {
+              int pos = NNPos::xyToPos(x,y,posLen);
+              whiteOwnerMap[pos] = rand.nextGaussian() * 0.20;
+            }
+          }
           resultBuf->result->whiteOwnerMap = whiteOwnerMap;
         }
         else {
@@ -427,6 +443,9 @@ void NNEvaluator::evaluate(
   }
   buf.includeOwnerMap = includeOwnerMap;
 
+  buf.boardXSizeForServer = board.x_size;
+  buf.boardYSizeForServer = board.y_size;
+  
   if(!debugSkipNeuralNet) {
     int rowBinLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * posLen * posLen;
     if(buf.rowBin == NULL) {

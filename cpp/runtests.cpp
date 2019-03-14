@@ -28,7 +28,6 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Tests::runBoardAreaTests();
 
   Tests::runRulesTests();
-  Tests::runScoreTests();
 
   Tests::runBoardUndoTest();
   Tests::runBoardStressTest();
@@ -48,6 +47,7 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   Tests::runNNLessSearchTests();
   Tests::runTrainingWriteTests();
   Tests::runTimeControlsTests();
+  Tests::runScoreTests();
   return 0;
 }
 
