@@ -230,7 +230,7 @@ struct Search {
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
   void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet);
-  void fillPV(vector<Loc>& buf, const SearchNode* n, int maxDepth);
+  void appendPV(vector<Loc>& buf, const SearchNode* n, int maxDepth); //Append PV from position at node n onward to buf
   
   int64_t numRootVisits() const;
 

@@ -59,7 +59,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     TCLAP::CmdLine cmd("Run GTP engine", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> nnModelFileArg("","model","Neural net model file",true,string(),"FILE");
-    TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",true,string(),"VERSION");
+    TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
     cmd.add(configFileArg);
     cmd.add(nnModelFileArg);
     cmd.add(overrideVersionArg);
@@ -639,7 +639,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           Search* search = bot->getSearch();
           ostringstream sout;
           Board::printBoard(sout, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
-          sout << "\n";
+          sout << bot->getRootHist().rules << "\n";
           sout << "Time taken: " << timer.getSeconds() << "\n";
           sout << "Root visits: " << search->numRootVisits() << "\n";
           sout << "NN rows: " << nnEval->numRowsProcessed() << endl;

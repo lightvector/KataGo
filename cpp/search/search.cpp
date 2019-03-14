@@ -1713,11 +1713,9 @@ void Search::printRootEndingScoreValueBonus(ostream& out) {
   }
 }
 
-void Search::fillPV(vector<Loc>& buf, const SearchNode* n, int maxDepth) {
-  buf.clear();
+void Search::appendPV(vector<Loc>& buf, const SearchNode* n, int maxDepth) {
   if(n == NULL)
     return;
-  buf.push_back(n->prevMoveLoc);
   for(int depth = 0; depth < maxDepth; depth++) {
     const SearchNode& node = *n;
     std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
@@ -1749,7 +1747,7 @@ void Search::fillPV(vector<Loc>& buf, const SearchNode* n, int maxDepth) {
 
 void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
   vector<Loc> buf;
-  fillPV(buf,n,maxDepth);
+  appendPV(buf,n,maxDepth);
   for(int i = 0; i<buf.size(); i++) {
     if(i > 0)
       out << " ";
@@ -1862,7 +1860,9 @@ void Search::getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet) 
     data.order = 0;
 
     int maxDepth = 9;
-    fillPV(data.pv, child, maxDepth);
+    data.pv.clear();
+    data.pv.push_back(child->prevMoveLoc);
+    appendPV(data.pv, child, maxDepth);
 
     buf.push_back(data);
   }
