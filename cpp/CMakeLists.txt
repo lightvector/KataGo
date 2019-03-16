@@ -136,6 +136,7 @@ if(BUILD_MCTS)
     search/search.cpp
     search/asyncbot.cpp
     search/distributiontable.cpp
+    search/analysisdata.cpp
     program/setup.cpp
     program/play.cpp
     ${GIT_HEADER_FILE_ALWAYS_UPDATED}

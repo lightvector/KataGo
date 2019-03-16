@@ -28,6 +28,25 @@ static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
 }
 
+static int numHandicapStones(const BoardHistory& hist) {
+  const Board board = hist.initialBoard;
+  int startBoardNumBlackStones = 0;
+  int startBoardNumWhiteStones = 0;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(board.colors[loc] == C_BLACK)
+        startBoardNumBlackStones += 1;
+      else if(board.colors[loc] == C_WHITE)
+        startBoardNumWhiteStones += 1;
+    }
+  }
+  if(startBoardNumWhiteStones == 0)
+    return startBoardNumBlackStones;
+  return 0;
+}
+
+
 int MainCmds::gtp(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
@@ -35,15 +54,19 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   string configFile;
   string nnModelFile;
+  string overrideVersion;
   try {
     TCLAP::CmdLine cmd("Run GTP engine", ' ', "1.0",true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> nnModelFileArg("","model","Neural net model file",true,string(),"FILE");
+    TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
     cmd.add(configFileArg);
     cmd.add(nnModelFileArg);
+    cmd.add(overrideVersionArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     nnModelFile = nnModelFileArg.getValue();
+    overrideVersion = overrideVersionArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -93,7 +116,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
   const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
-
+  const int whiteBonusPerHandicapStone = cfg.contains("whiteBonusPerHandicapStone") ? cfg.getInt("whiteBonusPerHandicapStone",0,1) : 0;
+  
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
@@ -130,6 +154,17 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
   }
 
+  //Komi without whiteBonusPerHandicapStone hack
+  float unhackedKomi = bot->getRootHist().rules.komi;
+  auto updateKomiIfNew = [&bot,&unhackedKomi,&whiteBonusPerHandicapStone,&recentWinValues]() {
+    float newKomi = unhackedKomi;
+    newKomi += numHandicapStones(bot->getRootHist()) * whiteBonusPerHandicapStone;
+    if(newKomi != bot->getRootHist().rules.komi)
+      recentWinValues.clear();
+    bot->setKomiIfNew(newKomi);
+  };
+
+  bool currentlyAnalyzing = false;
 
   vector<string> knownCommands = {
     "protocol_version",
@@ -150,6 +185,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     "time_left",
     "final_score",
     "final_status_list",
+    "lz-analyze",
+    "kata-analyze",
+    "stop",
   };
 
   logger.write("Beginning main protocol loop");
@@ -157,39 +195,42 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string line;
   while(cin) {
     getline(cin,line);
-    //Filter down to only "normal" ascii characters. Also excludes carrage returns.
-    //Newlines are already handled by getline
-    size_t newLen = 0;
-    for(size_t i = 0; i < line.length(); i++)
-      if(((int)line[i] >= 32 && (int)line[i] <= 126) || line[i] == '\t')
-        line[newLen++] = line[i];
 
-    line.erase(line.begin()+newLen, line.end());
-
-    //Remove comments
-    size_t commentPos = line.find("#");
-    if(commentPos != string::npos)
-      line = line.substr(0, commentPos);
-
-    //Convert tabs to spaces
-    for(size_t i = 0; i < line.length(); i++)
-      if(line[i] == '\t')
-        line[i] = ' ';
-
-    line = Global::trim(line);
-    if(line.length() == 0)
-      continue;
-
-    assert(line.length() > 0);
-
-    string strippedLine = line;
-    if(logAllGTPCommunication)
-      logger.write("Controller: " + strippedLine);
-
-    //Parse id number of command, if present
+    //Parse command, extracting out the command itself, the arguments, and any GTP id number for the command.
+    string command;
+    vector<string> pieces;
     bool hasId = false;
     int id = 0;
     {
+      //Filter down to only "normal" ascii characters. Also excludes carrage returns.
+      //Newlines are already handled by getline
+      size_t newLen = 0;
+      for(size_t i = 0; i < line.length(); i++)
+        if(((int)line[i] >= 32 && (int)line[i] <= 126) || line[i] == '\t')
+          line[newLen++] = line[i];
+
+      line.erase(line.begin()+newLen, line.end());
+
+      //Remove comments
+      size_t commentPos = line.find("#");
+      if(commentPos != string::npos)
+        line = line.substr(0, commentPos);
+
+      //Convert tabs to spaces
+      for(size_t i = 0; i < line.length(); i++)
+        if(line[i] == '\t')
+          line[i] = ' ';
+
+      line = Global::trim(line);
+      if(line.length() == 0)
+        continue;
+
+      assert(line.length() > 0);
+
+      if(logAllGTPCommunication)
+        logger.write("Controller: " + line);
+
+      //Parse id number of command, if present
       size_t digitPrefixLen = 0;
       while(digitPrefixLen < line.length() && Global::isDigit(line[digitPrefixLen]))
         digitPrefixLen++;
@@ -204,37 +245,46 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         }
         line = line.substr(digitPrefixLen);
       }
+
+      line = Global::trim(line);
+      if(line.length() <= 0) {
+        cout << "? empty command" << endl;
+        continue;
+      }
+
+      pieces = Global::split(line,' ');
+      for(size_t i = 0; i<pieces.size(); i++)
+        pieces[i] = Global::trim(pieces[i]);
+      assert(pieces.size() > 0);
+
+      command = pieces[0];
+      pieces.erase(pieces.begin());
     }
 
-    line = Global::trim(line);
-    if(line.length() <= 0) {
-      cout << "? empty command" << endl;
-      continue;
+    //Upon any command, stop any analysis and output a newline
+    if(currentlyAnalyzing) {
+      bot->stopAndWait();
+      cout << endl;
     }
-
-    vector<string> pieces = Global::split(line,' ');
-    for(size_t i = 0; i<pieces.size(); i++)
-      pieces[i] = Global::trim(pieces[i]);
-    assert(pieces.size() > 0);
-
-    string command = pieces[0];
-    pieces.erase(pieces.begin());
-
+    
     bool responseIsError = false;
     bool shouldQuitAfterResponse = false;
     bool maybeStartPondering = false;
     string response;
-
+    
     if(command == "protocol_version") {
       response = "2";
     }
 
     else if(command == "name") {
-      response = "KataBot";
+      response = "KataGo";
     }
 
     else if(command == "version") {
-      response = nnModelFile;
+      if(overrideVersion.size() > 0)
+        response = overrideVersion;
+      else
+        response = "1.1";
     }
 
     else if(command == "known_command") {
@@ -275,6 +325,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         Player pla = P_BLACK;
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
         bot->setPosition(pla,board,hist);
+        updateKomiIfNew();
         recentWinValues.clear();
       }
     }
@@ -286,6 +337,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       Player pla = P_BLACK;
       BoardHistory hist(board,pla,bot->getRootHist().rules,0);
       bot->setPosition(pla,board,hist);
+      updateKomiIfNew();
       recentWinValues.clear();
     }
 
@@ -305,9 +357,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "komi must be an integer or half-integer";
       }
       else {
-        if(newKomi != bot->getRootHist().rules.komi)
-          recentWinValues.clear();
-        bot->setKomiIfNew(newKomi);
+        unhackedKomi = newKomi;
+        updateKomiIfNew();
         //In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = bot->getRootHist().moveHistory.size() > 0;
       }
@@ -459,6 +510,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         nnEval->clearStats();
         TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
+        //Play faster when winning
         double searchFactor = 1.0;
         if(recentWinValues.size() >= 3 && params.winLossUtilityFactor - searchFactorWhenWinningThreshold > 1e-10) {
           double recentLeastWinning = pla == P_BLACK ? -params.winLossUtilityFactor : params.winLossUtilityFactor;
@@ -533,31 +585,24 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         
         bool resigned = false;
         if(allowResignation) {
-          const Board board = bot->getRootHist().initialBoard;
           const BoardHistory hist = bot->getRootHist();
-          int startBoardNumStones = 0;
-          {
-            for(int y = 0; y<board.y_size; y++) {
-              for(int x = 0; x<board.x_size; x++) {
-                Loc loc = Location::getLoc(x,y,board.x_size);
-                if(board.colors[loc] != C_EMPTY)
-                  startBoardNumStones += 1;
-              }
-            }
-          }
+          const Board initialBoard = hist.initialBoard; 
 
-          //Assume an advantage of 15 * number of handicap stones and komi
-          double handicapBlackAdvantage = 15.0 * startBoardNumStones + (7.5 - hist.rules.komi);
+          //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
+          int extraBlackStones = numHandicapStones(hist);
+          if(hist.initialPla == P_WHITE && extraBlackStones > 0)
+            extraBlackStones -= 1;
+          double handicapBlackAdvantage = 15.0 * extraBlackStones + (7.5 - hist.rules.komi);
 
           int minTurnForResignation = 0; 
-          double noResignationWhenWhiteScoreAbove = board.x_size * board.y_size;
+          double noResignationWhenWhiteScoreAbove = initialBoard.x_size * initialBoard.y_size;
           if(handicapBlackAdvantage > 2.0 && pla == P_WHITE) {
             //Play at least some moves no matter what
-            minTurnForResignation = 1 + board.x_size * board.y_size / 6;
+            minTurnForResignation = 1 + initialBoard.x_size * initialBoard.y_size / 6;
             
             //In a handicap game, also only resign if the expected score difference is well behind schedule assuming
             //that we're supposed to catch up over many moves.
-            double numTurnsToCatchUp = 0.60 * board.x_size * board.y_size - minTurnForResignation;
+            double numTurnsToCatchUp = 0.60 * initialBoard.x_size * initialBoard.y_size - minTurnForResignation;
             double numTurnsSpent = (double)(hist.moveHistory.size()) - minTurnForResignation;
             if(numTurnsToCatchUp <= 1.0)
               numTurnsToCatchUp = 1.0;
@@ -594,7 +639,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           Search* search = bot->getSearch();
           ostringstream sout;
           Board::printBoard(sout, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
-          sout << "\n";
+          sout << bot->getRootHist().rules << "\n";
           sout << "Time taken: " << timer.getSeconds() << "\n";
           sout << "Root visits: " << search->numRootVisits() << "\n";
           sout << "NN rows: " << nnEval->numRowsProcessed() << endl;
@@ -627,7 +672,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       int n;
       if(pieces.size() != 1) {
         responseIsError = true;
-        response = "Expected one argument for genmove but got '" + Global::concat(pieces," ") + "'";
+        response = "Expected one argument for place_free_handicap but got '" + Global::concat(pieces," ") + "'";
       }
       else if(!Global::tryStringToInt(pieces[0],n)) {
         responseIsError = true;
@@ -673,6 +718,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = Global::trim(response);
 
         bot->setPosition(pla,board,hist);
+        updateKomiIfNew();
       }
     }
 
@@ -701,6 +747,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
 
         bot->setPosition(pla,board,hist);
+        updateKomiIfNew();
       }
     }
 
@@ -787,6 +834,145 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
+    else if(command == "lz-analyze" || command == "kata-analyze") {
+      int numArgsParsed = 0;
+    
+      Player pla = bot->getRootPla();
+      double lzAnalyzeInterval = 1e30;
+      int minMoves = 0;
+      bool parseFailed = false;
+      
+      if(pieces.size() > numArgsParsed && tryParsePlayer(pieces[numArgsParsed],pla))
+        numArgsParsed += 1;
+      
+      if(pieces.size() > numArgsParsed &&
+         Global::tryStringToDouble(pieces[numArgsParsed],lzAnalyzeInterval) &&
+         !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20)
+        numArgsParsed += 1;
+
+      while(pieces.size() > numArgsParsed) {
+        if(pieces[numArgsParsed] == "interval") {
+          numArgsParsed += 1;
+          if(pieces.size() > numArgsParsed &&
+             Global::tryStringToDouble(pieces[numArgsParsed],lzAnalyzeInterval) &&
+             !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20) {
+            numArgsParsed += 1;
+            continue;
+          }
+          else {
+            parseFailed = true;
+            break;
+          }
+        }
+        
+        //Parse it but ignore it since we don't support excluding moves right now
+        else if(pieces[numArgsParsed] == "avoid" || pieces[numArgsParsed] == "allow") {
+          numArgsParsed += 1;
+          for(int r = 0; r<3; r++) {
+            if(pieces.size() > numArgsParsed) 
+              numArgsParsed += 1;
+            else
+              parseFailed = true;
+          }
+          if(parseFailed)
+            break;
+          continue;
+        }
+
+        else if(pieces[numArgsParsed] == "minmoves") {
+          numArgsParsed += 1;
+          if(pieces.size() > numArgsParsed &&
+             Global::tryStringToInt(pieces[numArgsParsed],minMoves) &&
+             minMoves >= 0 && minMoves < 1000000000) {
+            numArgsParsed += 1;
+            continue;
+          }
+          else {
+            parseFailed = true;
+            break;
+          }
+        }
+
+        parseFailed = true;
+        break;
+      }
+      
+      if(parseFailed) {
+        responseIsError = true;
+        response = "Could not parse lz-analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        lzAnalyzeInterval = lzAnalyzeInterval * 0.01; //Convert from centiseconds to seconds
+
+        std::function<void(Search* search)> callback;
+        if(command == "lz-analyze") {
+          callback = [minMoves](Search* search) {            
+            vector<AnalysisData> buf;
+            search->getAnalysisData(buf,minMoves);
+            if(buf.size() <= 0)
+              return;
+
+            const Board board = search->getRootBoard();
+            for(int i = 0; i<buf.size(); i++) {
+              if(i > 0)
+                cout << " ";
+              const AnalysisData& data = buf[i];
+              cout << "info";
+              cout << " move " << Location::toString(data.move,board);
+              cout << " visits " << data.numVisits;
+              cout << " winrate " << round((0.5 * (1.0 + data.winLossValue)) * 10000.0);
+              cout << " prior " << round(data.policyPrior * 10000.0);
+              cout << " order " << data.order;
+              cout << " pv";
+              for(int j = 0; j<data.pv.size(); j++)
+                cout << " " << Location::toString(data.pv[j],board);
+            }
+            cout << endl;
+          };
+        }
+        else if(command == "kata-analyze") {
+          callback = [minMoves](Search* search) {            
+            vector<AnalysisData> buf;
+            search->getAnalysisData(buf,minMoves);
+            if(buf.size() <= 0)
+              return;
+            
+            const Board board = search->getRootBoard();
+            for(int i = 0; i<buf.size(); i++) {
+              if(i > 0)
+                cout << " ";
+              const AnalysisData& data = buf[i];
+              cout << "info";
+              cout << " move " << Location::toString(data.move,board);
+              cout << " visits " << data.numVisits;
+              cout << " utility " << data.utility;
+              cout << " winrate " << (0.5 * (1.0 + data.winLossValue));
+              cout << " scoreMean " << data.scoreMean;
+              cout << " scoreStdev " << data.scoreStdev;
+              cout << " prior " << data.policyPrior;
+              cout << " order " << data.order;
+              cout << " pv";
+              for(int j = 0; j<data.pv.size(); j++)
+                cout << " " << Location::toString(data.pv[j],board);
+            }
+            cout << endl;
+          };
+                 
+        }
+        else
+          assert(false);
+          
+        double searchFactor = 1e40; //go basically forever
+        bot->analyze(pla, searchFactor, lzAnalyzeInterval, callback);
+        currentlyAnalyzing = true;
+      }
+    }
+    
+    else if(command == "stop") {
+      //Stop any ongoing ponder or analysis
+      bot->stopAndWait();
+    }
+
     else {
       responseIsError = true;
       response = "unknown command";
@@ -805,7 +991,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       response = "=" + response;
 
     cout << response << endl;
-    cout << endl; //GTP needs extra newline
+
+    //GTP needs extra newline, except if currently analyzing, defer the newline until we actually stop analysis
+    if(!currentlyAnalyzing)
+      cout << endl; 
 
     if(logAllGTPCommunication)
       logger.write(response);

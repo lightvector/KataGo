@@ -21,7 +21,8 @@ AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const st
   :search(NULL),logger(l),
    controlMutex(),threadWaitingToSearch(),userWaitingForStop(),searchThread(),
    isRunning(false),isPondering(false),isKilled(false),shouldStopNow(false),
-   queuedSearchId(0),queuedOnMove(),timeControls(),searchFactor(1.0)
+   queuedSearchId(0),queuedOnMove(),timeControls(),searchFactor(1.0),
+   analyzeCallbackPeriod(-1),analyzeCallback()
 {
   search = new Search(params,nnEval,randSeed);
   searchThread = std::thread(searchThreadLoop,this,l);
@@ -75,6 +76,11 @@ void AsyncBot::setParams(SearchParams params) {
   stopAndWait();
   search->setParams(params);
 }
+void AsyncBot::setPlayerIfNew(Player movePla) {
+  stopAndWait();
+  if(movePla != search->rootPla)
+    search->setPlayerAndClearHistory(movePla);
+}
 void AsyncBot::clearSearch() {
   stopAndWait();
   search->clearSearch();
@@ -107,6 +113,8 @@ void AsyncBot::genMove(Player movePla, int searchId, const TimeControls& tc, dou
   shouldStopNow = false;
   timeControls = tc;
   searchFactor = sf;
+  analyzeCallbackPeriod = -1;
+  analyzeCallback = std::function<void(Search*)>();
   lock.unlock();
   threadWaitingToSearch.notify_all();
 }
@@ -147,6 +155,28 @@ void AsyncBot::ponder(double sf) {
   shouldStopNow = false;
   timeControls = TimeControls();
   searchFactor = sf;
+  analyzeCallbackPeriod = -1;
+  analyzeCallback = std::function<void(Search*)>();
+  lock.unlock();
+  threadWaitingToSearch.notify_all();
+}
+
+void AsyncBot::analyze(Player movePla, double sf, double callbackPeriod, std::function<void(Search* search)> callback) {
+  unique_lock<std::mutex> lock(controlMutex);
+  stopAndWaitAlreadyLocked(lock);
+  assert(!isRunning);
+  if(movePla != search->rootPla)
+    search->setPlayerAndClearHistory(movePla);
+
+  queuedSearchId = 0;
+  queuedOnMove = std::function<void(Loc,int)>(ignoreMove);
+  isRunning = true;
+  isPondering = true;
+  shouldStopNow = false;
+  timeControls = TimeControls();
+  searchFactor = sf;
+  analyzeCallbackPeriod = callbackPeriod;
+  analyzeCallback = callback;
   lock.unlock();
   threadWaitingToSearch.notify_all();
 }
@@ -182,14 +212,53 @@ void AsyncBot::internalSearchThreadLoop() {
 
     bool pondering = isPondering;
     TimeControls tc = timeControls;
+    double callbackPeriod = analyzeCallbackPeriod;
+    std::function<void(Search*)> callback = analyzeCallback;
     lock.unlock();
+
+    //Make sure we don't feed in absurdly large numbers, this seems to cause wait_for to hang.
+    //For a long period, just don't do callbacks.
+    if(callbackPeriod >= 10000000)
+      callbackPeriod = -1;
+
+    //Kick off analysis callback loop if desired
+    condition_variable callbackLoopWaiting;
+    atomic<bool> callbackLoopShouldStop(false);
+    auto callbackLoop = [this,callbackPeriod,&callback,&callbackLoopWaiting,&callbackLoopShouldStop]() {
+      unique_lock<std::mutex> callbackLock(controlMutex);
+      while(true) {
+        callbackLoopWaiting.wait_for(
+          callbackLock,
+          std::chrono::duration<double>(callbackPeriod),
+          [&callbackLoopShouldStop](){return callbackLoopShouldStop.load();}
+        );
+        if(callbackLoopShouldStop.load())
+          break;
+        callbackLock.unlock();
+        callback(search);        
+        callbackLock.lock();
+      }
+      callbackLock.unlock();
+    };
+
+    std::thread callbackLoopThread;
+    if(callbackPeriod >= 0) {
+      callbackLoopThread = std::thread(callbackLoop);
+    }
 
     search->runWholeSearch(*logger,shouldStopNow,NULL,pondering,tc,searchFactor);
     Loc moveLoc = search->getChosenMoveLoc();
 
+    if(callbackPeriod >= 0) {
+      lock.lock();      
+      callbackLoopShouldStop.store(true);
+      callbackLoopWaiting.notify_all();
+      lock.unlock();
+      callbackLoopThread.join();
+    }
+      
     lock.lock();
-    //Must call queuedOnMove under the lock since during the pondering->normal search
-    //transition it might change out from underneath us
+    //Call queuedOnMove under the lock just in case
     queuedOnMove(moveLoc,queuedSearchId);
     isRunning = false;
     isPondering = false;
