@@ -91,6 +91,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
       else if(cfg.contains("cudaGpuToUseModel"+idxStr))
         cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr,0,1023));
+      else if(cfg.contains("cudaGpuToUseThread"+threadIdxStr))
+        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseThread"+threadIdxStr,0,1023));
       else if(cfg.contains("cudaGpuToUse"))
         cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUse",0,1023));
       else
