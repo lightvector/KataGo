@@ -17,7 +17,8 @@ namespace Setup {
     Logger& logger,
     Rand& seedRand,
     int maxConcurrentEvals,
-    bool debugSkipNeuralNetDefault
+    bool debugSkipNeuralNetDefault,
+    bool alwaysIncludeOwnerMap
   );
 
   vector<SearchParams> loadParams(

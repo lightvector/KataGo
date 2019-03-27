@@ -21,7 +21,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   Logger& logger,
   Rand& seedRand,
   int maxConcurrentEvals,
-  bool debugSkipNeuralNetDefault
+  bool debugSkipNeuralNetDefault,
+  bool alwaysIncludeOwnerMap
 ) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
@@ -70,6 +71,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24),
       debugSkipNeuralNet,
+      alwaysIncludeOwnerMap,
       nnPolicyTemperature
     );
 
