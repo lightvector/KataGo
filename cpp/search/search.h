@@ -21,6 +21,20 @@ struct SearchThread;
 struct Search;
 struct DistributionTable;
 
+struct ReportedSearchValues {
+  double winValue;
+  double lossValue;
+  double noResultValue;
+  double staticScoreValue;
+  double dynamicScoreValue;
+  double expectedScore;
+  double expectedScoreStdev;
+  double winLossValue;
+  
+  ReportedSearchValues();
+  ~ReportedSearchValues();
+};
+
 struct NodeStats {
   int64_t visits;
   double winValueSum;
@@ -187,14 +201,9 @@ struct Search {
   static uint32_t chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature);
 
   //Get the values recorded for the root node
-  bool getRootValues(
-    double& winValue, double& lossValue, double& noResultValue, double& staticScoreValue, double& dynamicScoreValue, double& expectedScore
-  ) const;
+  bool getRootValues(ReportedSearchValues& values) const;
   //Same, but works on a node within the search, not just the root
-  bool getNodeValues(
-    const SearchNode& node,
-    double& winValue, double& lossValue, double& noResultValue, double& staticScoreValue, double& dynamicScoreValue, double& expectedScore
-  ) const;
+  bool getNodeValues(const SearchNode& node, ReportedSearchValues& values) const;
 
   //Get the combined utility recorded for the root node
   double getRootUtility() const;

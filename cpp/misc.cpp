@@ -100,14 +100,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
   logger.write("Loaded neural net");
 
   //Check for unused config keys
-  {
-    vector<string> unusedKeys = cfg.unusedKeys();
-    for(size_t i = 0; i<unusedKeys.size(); i++) {
-      string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in " + configFile;
-      logger.write(msg);
-      cerr << msg << endl;
-    }
-  }
+  cfg.warnUnusedKeys(cerr,&logger);
 
   const string sgfsSuffix = ".sgfs";
   auto sgfsFilter = [&](const string& name) {

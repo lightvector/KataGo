@@ -47,6 +47,16 @@ string ConfigParser::getContents() const {
   return contents;
 }
 
+void ConfigParser::warnUnusedKeys(ostream& out, Logger* logger) const {
+  vector<string> unused = unusedKeys();
+  for(size_t i = 0; i<unused.size(); i++) {
+    string msg = "WARNING: Unused key '" + unused[i] + "' in " + fileName;
+    if(logger != NULL)
+      logger->write(msg);
+    out << msg << endl;
+  }
+}
+
 vector<string> ConfigParser::unusedKeys() const {
   std::lock_guard<std::mutex> lock(usedKeysMutex);
   vector<string> unused;

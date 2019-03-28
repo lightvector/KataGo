@@ -145,14 +145,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   double lastSearchFactor = 1.0; 
   
-  {
-    vector<string> unusedKeys = cfg.unusedKeys();
-    for(size_t i = 0; i<unusedKeys.size(); i++) {
-      string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in " + configFile;
-      logger.write(msg);
-      cerr << msg << endl;
-    }
-  }
+  //Check for unused config keys
+  cfg.warnUnusedKeys(cerr,&logger);
 
   //Komi without whiteBonusPerHandicapStone hack
   float unhackedKomi = bot->getRootHist().rules.komi;
@@ -567,18 +561,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         double winLossValue;
         double expectedScore;
         {
-          double winValue;
-          double lossValue;
-          double noResultValue;
-          double staticScoreValue;
-          double dynamicScoreValue;
-          bool success = bot->getSearch()->getRootValues(winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
+          ReportedSearchValues values;
+          bool success = bot->getSearch()->getRootValues(values);
           assert(success);
-
-          winLossValue = winValue - lossValue;
-          assert(winLossValue > -1.01 && winLossValue < 1.01); //Sanity check, but allow generously for float imprecision
-          if(winLossValue > 1.0) winLossValue = 1.0;
-          if(winLossValue < -1.0) winLossValue = -1.0;
+          winLossValue = values.winLossValue;
+          expectedScore = values.expectedScore;
         }
 
         recentWinValues.push_back(winLossValue);

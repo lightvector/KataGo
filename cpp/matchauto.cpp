@@ -104,14 +104,7 @@ namespace {
         loadedNets[nnModelFile] = netAndStuff;
 
         //Check for unused config keys
-        {
-          vector<string> unusedKeys = cfg->unusedKeys();
-          for(size_t i = 0; i<unusedKeys.size(); i++) {
-            string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in config file";
-            logger.write(msg);
-            cerr << msg << endl;
-          }
-        }
+        cfg->warnUnusedKeys(cerr,&logger);
 
       }
       else {

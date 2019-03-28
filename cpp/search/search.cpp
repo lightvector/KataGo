@@ -6,6 +6,11 @@
 #include "../core/timer.h"
 #include "../search/distributiontable.h"
 
+ReportedSearchValues::ReportedSearchValues()
+{}
+ReportedSearchValues::~ReportedSearchValues()
+{}
+
 NodeStats::NodeStats()
   :visits(0),winValueSum(0.0),noResultValueSum(0.0),scoreMeanSum(0.0),scoreMeanSqSum(0.0),valueSumWeight(0.0)
 {}
@@ -438,17 +443,12 @@ bool Search::getPlaySelectionValues(
   return true;
 }
 
-bool Search::getRootValues(
-  double& winValue, double& lossValue, double& noResultValue, double& staticScoreValue, double& dynamicScoreValue, double& expectedScore
-) const {
+bool Search::getRootValues(ReportedSearchValues& values) const {
   assert(rootNode != NULL);
-  return getNodeValues(*rootNode,winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
+  return getNodeValues(*rootNode,values);
 }
 
-bool Search::getNodeValues(
-  const SearchNode& node,
-  double& winValue, double& lossValue, double& noResultValue, double& staticScoreValue, double& dynamicScoreValue, double& expectedScore
-) const {
+bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values) const {
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
   shared_ptr<NNOutput> nnOutput = node.nnOutput;
@@ -466,26 +466,33 @@ bool Search::getNodeValues(
 
   assert(valueSumWeight > 0.0);
 
-  winValue = winValueSum / valueSumWeight;
-  lossValue = (valueSumWeight - winValueSum - noResultValueSum) / valueSumWeight;
-  noResultValue = noResultValueSum / valueSumWeight;
+  values.winValue = winValueSum / valueSumWeight;
+  values.lossValue = (valueSumWeight - winValueSum - noResultValueSum) / valueSumWeight;
+  values.noResultValue = noResultValueSum / valueSumWeight;
   double scoreMean = scoreMeanSum / valueSumWeight;
   double scoreMeanSq = scoreMeanSqSum / valueSumWeight;
   double scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
-  staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
-  dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,1.0,rootBoard);
-  expectedScore = scoreMean;
+  values.staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
+  values.dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,1.0,rootBoard);
+  values.expectedScore = scoreMean;
+  values.expectedScoreStdev = scoreStdev;
 
   //Perform a little normalization - due to tiny floating point errors, winValue and lossValue could be outside [0,1].
   //(particularly lossValue, as it was produced by subtractions from valueSumWeight that could have lost precision).
-  if(winValue < 0.0) winValue = 0.0;
-  if(lossValue < 0.0) lossValue = 0.0;
-  if(noResultValue < 0.0) noResultValue = 0.0;
-  double sum = winValue + lossValue + noResultValue;
+  if(values.winValue < 0.0) values.winValue = 0.0;
+  if(values.lossValue < 0.0) values.lossValue = 0.0;
+  if(values.noResultValue < 0.0) values.noResultValue = 0.0;
+  double sum = values.winValue + values.lossValue + values.noResultValue;
   assert(sum > 0.9 && sum < 1.1); //If it's wrong by more than this, we have a bigger bug somewhere
-  winValue /= sum;
-  lossValue /= sum;
-  noResultValue /= sum;
+  values.winValue /= sum;
+  values.lossValue /= sum;
+  values.noResultValue /= sum;
+
+  double winLossValue = values.winValue - values.lossValue;
+  assert(winLossValue > -1.01 && winLossValue < 1.01); //Sanity check, but allow generously for float imprecision
+  if(winLossValue > 1.0) winLossValue = 1.0;
+  if(winLossValue < -1.0) winLossValue = -1.0;
+  values.winLossValue = winLossValue;
   
   return true;
 }

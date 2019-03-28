@@ -379,14 +379,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     NetAndStuff* newNet = new NetAndStuff(cfg, acceptedModelName, testModelName, testModelDir, acceptedNNEval, testNNEval, sgfOut);
 
     //Check for unused config keys
-    {
-      vector<string> unusedKeys = cfg.unusedKeys();
-      for(size_t i = 0; i<unusedKeys.size(); i++) {
-        string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in " + cfg.getFileName();
-        logger.write(msg);
-        cerr << msg << endl;
-      }
-    }
+    cfg.warnUnusedKeys(cerr,&logger);
 
     return newNet;
   };

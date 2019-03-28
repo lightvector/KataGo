@@ -2,6 +2,7 @@
 #define CONFIG_PARSER_H
 
 #include "../core/global.h"
+#include "../core/logger.h"
 #include <mutex>
 
 /* Parses simple configs like:
@@ -21,6 +22,8 @@ class ConfigParser {
   ConfigParser(const ConfigParser& other) = delete;
   ConfigParser& operator=(const ConfigParser& other) = delete;
 
+  void warnUnusedKeys(ostream& out, Logger* logger) const;
+  
   vector<string> unusedKeys() const;
   string getFileName() const;
   string getContents() const;

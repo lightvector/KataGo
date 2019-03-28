@@ -433,17 +433,11 @@ static double getWhiteScoreEstimate(Search* bot, const Board& board, const Board
   bot->setPosition(pla,board,hist);
   bot->runWholeSearch(pla,logger,NULL);
 
-  double winValue;
-  double lossValue;
-  double noResultValue;
-  double staticScoreValue;
-  double dynamicScoreValue;
-  double expectedScore;
-
-  bool suc = bot->getRootValues(winValue, lossValue, noResultValue, staticScoreValue, dynamicScoreValue, expectedScore);
+  ReportedSearchValues values;
+  bool suc = bot->getRootValues(values);
   assert(suc);
   bot->setParams(oldParams);
-  return expectedScore;
+  return values.expectedScore;
 }
 
 //Place black handicap stones, free placement
@@ -576,19 +570,14 @@ static void extractPolicyTarget(
 }
 
 static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, const SearchNode* node, vector<double>* recordUtilities) {
-  double winValue;
-  double lossValue;
-  double noResultValue;
-  double staticScoreValue;
-  double dynamicScoreValue;
-  double expectedScore;
-  bool success = toMoveBot->getNodeValues(*node,winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
+  ReportedSearchValues values;
+  bool success = toMoveBot->getNodeValues(*node,values);
   assert(success);
 
-  buf.win = winValue;
-  buf.loss = lossValue;
-  buf.noResult = noResultValue;
-  buf.score = expectedScore;
+  buf.win = values.winValue;
+  buf.loss = values.lossValue;
+  buf.noResult = values.noResultValue;
+  buf.score = values.expectedScore;
 
   if(recordUtilities != NULL) {
     buf.hasMctsUtility = true;
@@ -1057,20 +1046,10 @@ FinishedGameData* Play::runGame(
     }
 
     if(fancyModes.allowResignation || fancyModes.reduceVisits) {
-      double winValue;
-      double lossValue;
-      double noResultValue;
-      double staticScoreValue;
-      double dynamicScoreValue;
-      double expectedScore;
-      bool success = toMoveBot->getRootValues(winValue,lossValue,noResultValue,staticScoreValue,dynamicScoreValue,expectedScore);
+      ReportedSearchValues values;
+      bool success = toMoveBot->getRootValues(values);
       assert(success);
-
-      double winLossValue = winValue - lossValue;
-      assert(winLossValue > -1.01 && winLossValue < 1.01); //Sanity check, but allow generously for float imprecision
-      if(winLossValue > 1.0) winLossValue = 1.0;
-      if(winLossValue < -1.0) winLossValue = -1.0;
-      historicalMctsWinLossValues.push_back(winLossValue);
+      historicalMctsWinLossValues.push_back(values.winLossValue);
     }
 
     //Finally, make the move on the bots
