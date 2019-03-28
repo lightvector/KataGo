@@ -2121,4 +2121,54 @@ void Search::printTreeHelper(
 }
 
 
+vector<double> Search::getAverageTreeOwnership(int64_t minVisits) {
+  vector<double> vec(posLen*posLen,0.0);
+  int64_t count = 0;
 
+  getAverageTreeOwnershipHelper(count,vec,minVisits,rootNode);
+  if(count > 0) {
+    for(int pos = 0; pos<posLen*posLen; pos++) {
+      vec[pos] = vec[pos] / count;
+    }
+  }
+  return vec;
+}
+
+void Search::getAverageTreeOwnershipHelper(int64_t& count, vector<double>& accum, int64_t minVisits, const SearchNode* node) {
+  if(node == NULL)
+    return;
+
+  if(node != rootNode) {
+    while(node->statsLock.test_and_set(std::memory_order_acquire));
+    int64_t nodeVisits = node->stats.visits;
+    node->statsLock.clear(std::memory_order_release);
+    if(nodeVisits < minVisits)
+      return;
+  }
+
+  std::mutex& mutex = mutexPool->getMutex(node->lockIdx);
+  unique_lock<std::mutex> lock(mutex);
+  if(node->nnOutput == nullptr)
+    return;
+
+  shared_ptr<NNOutput> nnOutput = node->nnOutput;
+
+  int numChildren = node->numChildren;
+  vector<const SearchNode*> children(numChildren);
+  for(int i = 0; i<numChildren; i++)
+    children[i] = node->children[i];
+
+  //We can unlock now - during a search, children are never deallocated
+  lock.unlock();
+
+  count++;
+  float* ownerMap = nnOutput->whiteOwnerMap;
+  for(int pos = 0; pos<posLen*posLen; pos++) {
+    accum[pos] += ownerMap[pos];
+  }
+
+  //Recurse
+  for(int i = 0; i<numChildren; i++)
+    getAverageTreeOwnershipHelper(count,accum,minVisits,children[i]);
+
+}

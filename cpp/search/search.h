@@ -231,6 +231,12 @@ struct Search {
   //or changing parameters or clearing search.
   void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet);
   void appendPV(vector<Loc>& buf, const SearchNode* n, int maxDepth); //Append PV from position at node n onward to buf
+
+  //Get the ownership map averaged throughout the search tree.
+  //Must have ownership present on all neural net evals.
+  //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
+  //or changing parameters or clearing search.
+  vector<double> getAverageTreeOwnership(int64_t minVisits);
   
   int64_t numRootVisits() const;
 
@@ -298,6 +304,8 @@ private:
     ostream& out, const SearchNode* node, const PrintTreeOptions& options,
     string& prefix, int64_t origVisits, int depth, double policyProb, double valueWeight
   );
+
+  void getAverageTreeOwnershipHelper(int64_t& count, vector<double>& accum, int64_t minVisits, const SearchNode* node);
 
 };
 
