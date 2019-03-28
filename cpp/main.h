@@ -16,6 +16,7 @@ namespace MainCmds {
 
   int lzcost(int argc, const char* const* argv);
   int writeSearchValueTimeseries(int argc, const char* const* argv);
+  int demoplay(int argc, const char* const* argv);
 
   int sandbox();
 }
