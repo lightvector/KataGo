@@ -383,7 +383,7 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
 }
 
 
-static Loc chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, double temperature, bool allowPass, Loc banMove) {
+Loc Play::chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, double temperature, bool allowPass, Loc banMove) {
   const float* policyProbs = nnOutput->policyProbs;
   int posLen = nnOutput->posLen;
   int numLegalMoves = 0;
@@ -440,6 +440,23 @@ static double getWhiteScoreEstimate(Search* bot, const Board& board, const Board
   return values.expectedScore;
 }
 
+void Play::adjustKomiToEven(
+  Search* bot,
+  const Board& board,
+  BoardHistory& hist,
+  Player pla,
+  int64_t numVisits,
+  Logger& logger
+) {  
+  //Iterate a few times in case the neural net knows the bot isn't perfectly score maximizing.
+  for(int i = 0; i<3; i++) {
+    double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, numVisits, logger);
+    double fairKomi = hist.rules.komi - finalWhiteScore;
+    hist.setKomi(roundAndClipKomi(fairKomi,board));
+  }
+}
+
+
 //Place black handicap stones, free placement
 void Play::playExtraBlack(
   Search* bot,
@@ -475,13 +492,8 @@ void Play::playExtraBlack(
   }
 
   if(adjustKomi) {
-    //Adjust komi to be fair for the handicap according to what the bot thinks. Iterate a few times in case
-    //the neural net knows the bot isn't perfectly score maximizing.
-    for(int i = 0; i<3; i++) {
-      double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, numVisitsForKomi, logger);
-      double fairKomi = hist.rules.komi - finalWhiteScore;
-      hist.setKomi(roundAndClipKomi(fairKomi,board));
-    }
+    //Adjust komi to be fair for the handicap according to what the bot thinks. 
+    adjustKomiToEven(bot,board,hist,pla,numVisitsForKomi,logger);
     //Then, reapply the komi offset from base that we should have had
     hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
   }
@@ -537,10 +549,10 @@ static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board,
   bool allowPass = true;
   //70% of the time, do a random temperature 1 policy move
   if(r < 0.70)
-    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 1.0, allowPass, banMove);
+    return Play::chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 1.0, allowPass, banMove);
   //25% of the time, do a random temperature 2 policy move
   else if(r < 0.95)
-    return chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 2.0, allowPass, banMove);
+    return Play::chooseRandomPolicyMove(nnOutput, board, hist, pla, gameRand, 2.0, allowPass, banMove);
   //5% of the time, do a random legal move
   else
     return chooseRandomLegalMove(board, hist, pla, gameRand, banMove);
