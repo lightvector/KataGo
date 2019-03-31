@@ -4,10 +4,13 @@ AnalysisData::AnalysisData()
   :move(Board::NULL_LOC),
    numVisits(0),
    utility(0.0),
+   resultUtility(0.0),
+   scoreUtility(0.0),
    winLossValue(0.0),
    policyPrior(0.0),
    scoreMean(0.0),
    scoreStdev(0.0),
+   ess(0.0),
    order(0),
    pv()
 {}
@@ -16,10 +19,13 @@ AnalysisData::AnalysisData(const AnalysisData& other)
   :move(other.move),
    numVisits(other.numVisits),
    utility(other.utility),
+   resultUtility(other.resultUtility),
+   scoreUtility(other.scoreUtility),
    winLossValue(other.winLossValue),
    policyPrior(other.policyPrior),
    scoreMean(other.scoreMean),
    scoreStdev(other.scoreStdev),
+   ess(other.ess),
    order(other.order),
    pv(other.pv)
 {}
@@ -28,10 +34,13 @@ AnalysisData::AnalysisData(AnalysisData&& other)
   :move(other.move),
    numVisits(other.numVisits),
    utility(other.utility),
+   resultUtility(other.resultUtility),
+   scoreUtility(other.scoreUtility),
    winLossValue(other.winLossValue),
    policyPrior(other.policyPrior),
    scoreMean(other.scoreMean),
    scoreStdev(other.scoreStdev),
+   ess(other.ess),
    order(other.order),
    pv(std::move(other.pv))
 {}
@@ -45,10 +54,13 @@ AnalysisData& AnalysisData::operator=(const AnalysisData& other) {
   move = other.move;
   numVisits = other.numVisits;
   utility = other.utility;
+  resultUtility = other.resultUtility;
+  scoreUtility = other.scoreUtility;
   winLossValue = other.winLossValue;
   policyPrior = other.policyPrior;
   scoreMean = other.scoreMean;
   scoreStdev = other.scoreStdev;
+  ess = other.ess;
   order = other.order;
   pv = other.pv;
   return *this;
@@ -60,10 +72,13 @@ AnalysisData& AnalysisData::operator=(AnalysisData&& other) {
   move = other.move;
   numVisits = other.numVisits;
   utility = other.utility;
+  resultUtility = other.resultUtility;
+  scoreUtility = other.scoreUtility;
   winLossValue = other.winLossValue;
   policyPrior = other.policyPrior;
   scoreMean = other.scoreMean;
   scoreStdev = other.scoreStdev;
+  ess = other.ess;
   order = other.order;
   pv = std::move(other.pv);
   return *this;

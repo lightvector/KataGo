@@ -38,7 +38,7 @@ B5  : T  11.57c W  10.31c S   1.26c ( +2.5) VW   6.92c VS   0.85c P 12.95% VW 12
 F6  : T  12.97c W  11.60c S   1.37c ( +2.7) VW   9.99c VS   0.98c P 14.14% VW 11.69% N      49  --  F5 G5 E6 E7 F7 G6 D7
 E6  : T  22.30c W  19.99c S   2.30c ( +4.6) VW  18.75c VS   1.85c P 16.65% VW  9.70% N      17  --  F5 G4 G5 H4 H5 J4
 D5  : T  18.60c W  16.65c S   1.94c ( +3.9) VW  16.53c VS   1.72c P 10.54% VW 10.49% N      15  --  E4 C4 C3 B5 B4 E6 F5
-D3  : T  11.95c W  10.69c S   1.26c ( +2.5) VW  14.83c VS   1.60c P  2.98% VW 11.81% N      13  --  C3 E3 F5 G4 G5 H4
+D3  : T  11.95c W  10.69c S   1.27c ( +2.5) VW  14.83c VS   1.60c P  2.98% VW 11.81% N      13  --  C3 E3 F5 G4 G5 H4
 F7  : T  14.25c W  12.73c S   1.52c ( +3.0) VW   8.00c VS   0.90c P  4.79% VW 11.37% N      12  --  F5 G5 G4 H4
 D16 : T  12.51c W  11.11c S   1.40c ( +2.8) VW  11.72c VS   1.36c P  2.76% VW 11.68% N      10  --  C16 C17 C15 E17
 F5  : T  24.69c W  22.18c S   2.51c ( +5.0) VW  17.55c VS   1.76c P  4.93% VW  9.79% N       5  --  E6 E7 F6 F7
@@ -154,10 +154,10 @@ PV: F17 G17 F18 G18 C13 L17 Q6 P7 R7
 Tree:
 : T -24.46c W -22.37c S  -2.09c ( -4.2) VW -31.13c VS  -2.85c N     200  --  F17 G17 F18 G18 C13 L17 Q6
 ---Black(v)---
-F17 : T -24.67c W -22.54c S  -2.12c ( -4.3) VW -17.15c VS  -1.78c P 31.72% VW 17.19% N      88  --  G17 F18 G18 C13 L17 Q6 P7
-Q6  : T -20.05c W -18.40c S  -1.65c ( -3.3) VW -21.16c VS  -2.06c P 38.53% VW 15.27% N      53  --  P7 R7 S6 P5 R8 F17 G17
-P7  : T -30.99c W -28.26c S  -2.74c ( -5.5) VW -15.52c VS  -1.49c P  2.53% VW 19.55% N      39  --  Q6 P5 Q4 P4 R3
-C13 : T -21.04c W -19.41c S  -1.62c ( -3.2) VW -21.96c VS  -1.95c P  5.16% VW 16.17% N       8  --  F17 Q6 P7 R7 S6 S7
+F17 : T -24.67c W -22.54c S  -2.13c ( -4.3) VW -17.15c VS  -1.78c P 31.72% VW 17.19% N      88  --  G17 F18 G18 C13 L17 Q6 P7
+Q6  : T -20.06c W -18.40c S  -1.65c ( -3.3) VW -21.16c VS  -2.06c P 38.53% VW 15.27% N      53  --  P7 R7 S6 P5 R8 F17 G17
+P7  : T -31.00c W -28.26c S  -2.74c ( -5.5) VW -15.52c VS  -1.49c P  2.53% VW 19.55% N      39  --  Q6 P5 Q4 P4 R3
+C13 : T -21.04c W -19.41c S  -1.63c ( -3.2) VW -21.96c VS  -1.95c P  5.16% VW 16.17% N       8  --  F17 Q6 P7 R7 S6 S7
 G17 : T -17.34c W -15.94c S  -1.39c ( -2.8) VW  -5.07c VS  -0.21c P  5.27% VW 15.34% N       6  --  F17 E17 F18
 P5  : T -22.03c W -20.14c S  -1.89c ( -3.8) VW -14.80c VS  -1.30c P  2.98% VW 16.48% N       5  --  F17 P7
 MoveNum: 103 HASH: C9A66C9A07E546C41843B5CC53BA184E
@@ -192,7 +192,7 @@ Tree:
 ---White(^)---
 F17 : T -15.37c W -14.25c S  -1.12c ( -2.2) VW  -7.94c VS  -0.78c P 64.84% VW 22.75% N     183  --  G4 F3 L17 O18 N17 P14 O8
 P18 : T -25.23c W -22.95c S  -2.27c ( -4.5) VW -18.36c VS  -1.55c P  6.84% VW 19.33% N       6  --  F17 G17 F18 G18
-G17 : T -23.56c W -21.67c S  -1.90c ( -3.8) VW -11.73c VS  -1.10c P  4.59% VW 20.06% N       4  --  G4 F3
+G17 : T -23.57c W -21.67c S  -1.90c ( -3.8) VW -11.73c VS  -1.10c P  4.59% VW 20.06% N       4  --  G4 F3
 G4  : T -33.54c W -30.64c S  -2.90c ( -5.8) VW -21.48c VS  -1.83c P  6.59% VW 17.66% N       3  --  F17 G17
 O18 : T -23.58c W -21.58c S  -2.01c ( -4.0) VW -16.32c VS  -1.38c P  3.28% VW 20.20% N       3  --  F17 G17
 
@@ -232,14 +232,14 @@ Tree:
 ---White(^)---
 D7  : T  -4.05c W  -3.55c S  -0.50c ( -1.0) VW  -5.76c VS  -0.56c P  6.98% VW  9.93% N      45  --  C6 B6 E7 E8 F7 F8 G7
 R17 : T  -5.87c W  -5.17c S  -0.69c ( -1.4) VW  -3.45c VS  -0.27c P 11.72% VW  9.54% N      42  --  S17 Q16 R15 S18 R18 Q17 T18
-O3  : T -10.41c W  -9.22c S  -1.18c ( -2.4) VW  -7.70c VS  -0.75c P 15.66% VW  8.66% N      25  --  R7 R8 S6 C6 C17
+O3  : T -10.41c W  -9.22c S  -1.19c ( -2.4) VW  -7.70c VS  -0.75c P 15.66% VW  8.66% N      25  --  R7 R8 S6 C6 C17
 C6  : T -12.67c W -11.35c S  -1.33c ( -2.6) VW -12.79c VS  -1.16c P 16.86% VW  8.27% N      22  --  R7 R8 S6 R17 S17 Q16
 Q15 : T  -3.67c W  -3.20c S  -0.47c ( -0.9) VW  -3.63c VS  -0.34c P  2.11% VW  9.85% N      18  --  R15 Q14 R14 R13
 S5  : T  -9.55c W  -8.54c S  -1.01c ( -2.0) VW  -2.37c VS  -0.09c P  9.39% VW  8.86% N      16  --  S6 R7 S4 S7 T5 P7 O6
-Q3  : T -10.49c W  -9.31c S  -1.18c ( -2.4) VW  -4.74c VS  -0.33c P  5.14% VW  8.77% N       9  --  R7 R8 S6
+Q3  : T -10.50c W  -9.31c S  -1.18c ( -2.4) VW  -4.74c VS  -0.33c P  5.14% VW  8.77% N       9  --  R7 R8 S6
 P7  : T  -6.91c W  -6.08c S  -0.83c ( -1.6) VW  -0.73c VS   0.11c P  3.21% VW  9.29% N       8  --  R7 R8 S6 O7
 N3  : T  -8.84c W  -7.78c S  -1.06c ( -2.1) VW  -8.92c VS  -0.91c P  3.39% VW  9.02% N       7  --  M3 O3 R7 M4
-D15 : T  -8.73c W  -7.79c S  -0.93c ( -1.9) VW  -9.69c VS  -0.83c P  2.35% VW  9.06% N       4  --  D14 C16 C14
+D15 : T  -8.73c W  -7.79c S  -0.94c ( -1.9) VW  -9.69c VS  -0.83c P  2.35% VW  9.06% N       4  --  D14 C16 C14
 C16 : T -11.88c W -10.71c S  -1.17c ( -2.3) VW -10.34c VS  -0.94c P  2.27% VW  8.73% N       3  --  D15 C6
 MoveNum: 38 HASH: 173E3F82B379E2D2430B26CAC23E6C57
    A B C D E F G H J K L M N O P Q R S T
@@ -395,7 +395,7 @@ L5  : T  32.85c W  30.32c S   2.53c ( +5.1) VW  43.58c VS   3.54c P  4.71% VW 13
 F7  : T  33.59c W  31.02c S   2.58c ( +5.2) VW  42.93c VS   3.29c P  2.85% VW 13.20% N      17  --  L3 Q13 F4 J17
 P8  : T  29.40c W  27.20c S   2.19c ( +4.4) VW  55.59c VS   4.79c P  6.30% VW 12.25% N      14  --  O8 Q8 O7 M5 L3 L5 N17
 M5  : T  30.93c W  28.56c S   2.38c ( +4.8) VW  43.97c VS   3.62c P  4.80% VW 12.59% N      14  --  L3 L5 P8 Q13 S9
-L3  : T  13.54c W  12.77c S   0.77c ( +1.5) VW  45.72c VS   3.84c P 18.34% VW  9.18% N      10  --  L4 K5 L5 P8 O8 Q8
+L3  : T  13.54c W  12.77c S   0.77c ( +1.5) VW  45.72c VS   3.84c P 18.34% VW  9.17% N      10  --  L4 K5 L5 P8 O8 Q8
 
 
 GAME 3 ==========================================================================
@@ -429,11 +429,11 @@ NN batches: 123
 NN avg batch size: 1
 PV: F2 C17 B18 D18 D19 F3 J1 A15 A17 O10 N10 N9
 Tree:
-: T  31.70c W  28.96c S   2.74c ( +5.6) VW  21.07c VS   1.47c N     200  --  F2 C17 B18 D18 D19 F3 J1
+: T  31.71c W  28.96c S   2.74c ( +5.6) VW  21.07c VS   1.47c N     200  --  F2 C17 B18 D18 D19 F3 J1
 ---White(^)---
-F2  : T  32.07c W  29.35c S   2.72c ( +5.5) VW  46.79c VS   4.20c P 66.87% VW 37.31% N     138  --  C17 B18 D18 D19 F3 J1 A15
-J1  : T  32.16c W  29.25c S   2.91c ( +5.9) VW  51.85c VS   4.75c P 20.92% VW 37.30% N      58  --  D18 D19 C17 B18 A15 A17 O10
-R5  : T   4.28c W   3.88c S   0.40c ( +0.8) VW  37.63c VS   3.06c P  1.97% VW 25.39% N       3  --  J1
+F2  : T  32.07c W  29.35c S   2.72c ( +5.5) VW  46.79c VS   4.20c P 66.87% VW 37.30% N     138  --  C17 B18 D18 D19 F3 J1 A15
+J1  : T  32.16c W  29.25c S   2.92c ( +5.9) VW  51.85c VS   4.75c P 20.92% VW 37.30% N      58  --  D18 D19 C17 B18 A15 A17 O10
+R5  : T   4.29c W   3.88c S   0.41c ( +0.8) VW  37.63c VS   3.06c P  1.97% VW 25.39% N       3  --  J1
 MoveNum: 197 HASH: 331F0BB2FDF2777E647B5896D4BB14EB
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -462,10 +462,10 @@ NN batches: 166
 NN avg batch size: 1
 PV: J1 L1 F2 D18 D19 F3 G1 O10 N10 N9 N8 A15
 Tree:
-: T  35.37c W  32.31c S   3.06c ( +6.2) VW  17.51c VS   1.25c N     200  --  J1 L1 F2 D18 D19 F3 G1
+: T  35.37c W  32.31c S   3.07c ( +6.2) VW  17.51c VS   1.25c N     200  --  J1 L1 F2 D18 D19 F3 G1
 ---White(^)---
 J1  : T  38.96c W  35.61c S   3.35c ( +6.8) VW  55.44c VS   5.25c P 22.63% VW 36.60% N     160  --  L1 F2 D18 D19 F3 G1 O10
-E1  : T  18.35c W  16.61c S   1.75c ( +3.5) VW  37.66c VS   3.12c P 57.73% VW 21.27% N      35  --  D18 D19 A15 A17 J1 G1 O10
+E1  : T  18.36c W  16.61c S   1.75c ( +3.5) VW  37.66c VS   3.12c P 57.73% VW 21.27% N      35  --  D18 D19 A15 A17 J1 G1 O10
 D18 : T  -9.79c W  -9.06c S  -0.73c ( -1.5) VW  35.01c VS   2.68c P  3.76% VW 18.13% N       2  --  F2
 R5  : T  10.29c W   8.99c S   1.30c ( +2.6) VW  42.12c VS   3.38c P  2.79% VW 24.00% N       2  --  D18
 MoveNum: 330 HASH: 281627648FE3899F71BFE7E88DE69A36
@@ -496,11 +496,11 @@ NN batches: 151
 NN avg batch size: 1
 PV: O4 pass O2 pass H10 pass N4 pass
 Tree:
-: T  30.51c W  30.03c S   0.48c ( +1.0) VW   9.41c VS   0.72c N     200  --  O4 pass O2 pass H10 pass N4
+: T  30.50c W  30.03c S   0.48c ( +1.0) VW   9.41c VS   0.72c N     200  --  O4 pass O2 pass H10 pass N4
 ---Black(v)---
 O4  : T  26.16c W  25.76c S   0.40c ( +0.8) VW  15.14c VS   0.27c P  4.92% VW  8.17% N      71  --  pass O2 pass H10 pass N4 pass
 N2  : T  27.36c W  26.86c S   0.50c ( +1.0) VW  16.73c VS   0.22c P  2.01% VW  7.82% N      31  --  pass O2 pass H10 pass N4 pass
-P5  : T  28.34c W  27.93c S   0.40c ( +0.8) VW  16.49c VS   0.28c P  1.71% VW  7.60% N      15  --  pass N4 pass H10 pass
+P5  : T  28.34c W  27.93c S   0.41c ( +0.8) VW  16.49c VS   0.28c P  1.71% VW  7.60% N      15  --  pass N4 pass H10 pass
 O2  : T  34.77c W  34.30c S   0.47c ( +0.9) VW  19.34c VS   0.25c P  2.93% VW  6.80% N      12  --  pass H10 pass N4 pass pass
 N4  : T  47.97c W  47.45c S   0.52c ( +1.0) VW  27.44c VS   0.39c P 17.01% VW  5.30% N      11  --  pass H10 pass K12 pass pass
 H10 : T  32.67c W  32.25c S   0.42c ( +0.8) VW  16.59c VS   0.15c P  5.27% VW  7.06% N      11  --  pass O4 pass N4 pass pass
@@ -592,11 +592,11 @@ NN batches: 151
 NN avg batch size: 1
 PV: O4 pass O2 pass H10 pass N4 pass
 Tree:
-: T  30.51c W  30.03c S   0.48c ( +1.0) VW   9.41c VS   0.72c N     200  --  O4 pass O2 pass H10 pass N4
+: T  30.50c W  30.03c S   0.48c ( +1.0) VW   9.41c VS   0.72c N     200  --  O4 pass O2 pass H10 pass N4
 ---Black(v)---
 O4  : T  26.16c W  25.76c S   0.40c ( +0.8) VW  15.14c VS   0.27c P  4.92% VW  8.17% N      71  --  pass O2 pass H10 pass N4 pass
 N2  : T  27.36c W  26.86c S   0.50c ( +1.0) VW  16.73c VS   0.22c P  2.01% VW  7.82% N      31  --  pass O2 pass H10 pass N4 pass
-P5  : T  28.34c W  27.93c S   0.40c ( +0.8) VW  16.49c VS   0.28c P  1.71% VW  7.60% N      15  --  pass N4 pass H10 pass
+P5  : T  28.34c W  27.93c S   0.41c ( +0.8) VW  16.49c VS   0.28c P  1.71% VW  7.60% N      15  --  pass N4 pass H10 pass
 O2  : T  34.77c W  34.30c S   0.47c ( +0.9) VW  19.34c VS   0.25c P  2.93% VW  6.80% N      12  --  pass H10 pass N4 pass pass
 N4  : T  47.97c W  47.45c S   0.52c ( +1.0) VW  27.44c VS   0.39c P 17.01% VW  5.30% N      11  --  pass H10 pass K12 pass pass
 H10 : T  32.67c W  32.25c S   0.42c ( +0.8) VW  16.59c VS   0.15c P  5.27% VW  7.06% N      11  --  pass O4 pass N4 pass pass
@@ -691,7 +691,7 @@ Tree:
 : T   4.31c W   3.67c S   0.64c ( +1.3) VW  -0.06c VS   0.35c N     200  --  D12 E16 D18 K9 K8 L10 M10
 ---White(^)---
 D12 : T   6.45c W   5.54c S   0.91c ( +1.8) VW  11.82c VS   1.69c P 20.26% VW 14.08% N     111  --  E16 D18 K9 K8 L10 M10 M9
-E16 : T   2.70c W   2.27c S   0.42c ( +0.8) VW   7.96c VS   0.83c P 29.43% VW 12.71% N      63  --  K9 K8 L10 M10 M9 L9 N9
+E16 : T   2.70c W   2.27c S   0.43c ( +0.8) VW   7.96c VS   0.83c P 29.43% VW 12.71% N      63  --  K9 K8 L10 M10 M9 L9 N9
 M12 : T  -0.96c W  -0.95c S  -0.02c ( -0.0) VW   5.92c VS   0.61c P  3.90% VW 12.26% N       6  --  K9 K8 L10
 M17 : T   0.89c W   0.70c S   0.19c ( +0.4) VW   3.20c VS   0.39c P  2.92% VW 12.60% N       6  --  K9 K8 L10
 Q11 : T  -0.67c W  -0.68c S   0.01c ( +0.0) VW   5.98c VS   0.58c P  3.00% VW 12.35% N       5  --  D18 E16 E15
@@ -728,11 +728,11 @@ PV: E16 B11 B10 G15 F14 C14 C15
 Tree:
 : T   6.39c W   5.50c S   0.89c ( +1.8) VW  11.82c VS   1.69c N     200  --  E16 B11 B10 G15 F14 C14 C15
 ---Black(v)---
-E16 : T   4.62c W   3.94c S   0.68c ( +1.4) VW   4.62c VS   0.95c P 23.19% VW 13.92% N      75  --  B11 B10 G15 F14 C14 C15
-K9  : T   5.97c W   5.09c S   0.88c ( +1.8) VW   1.02c VS   0.25c P 17.03% VW 13.42% N      43  --  K8 L10 M10 M9 L9 N9 K10
+E16 : T   4.63c W   3.94c S   0.69c ( +1.4) VW   4.62c VS   0.95c P 23.19% VW 13.92% N      75  --  B11 B10 G15 F14 C14 C15
+K9  : T   5.97c W   5.09c S   0.89c ( +1.8) VW   1.02c VS   0.25c P 17.03% VW 13.42% N      43  --  K8 L10 M10 M9 L9 N9 K10
 B11 : T   5.64c W   4.79c S   0.85c ( +1.7) VW   4.20c VS   0.87c P 11.19% VW 13.50% N      31  --  E16 E15 G15 F15 F14 E14 B12
 D2  : T   3.95c W   3.36c S   0.59c ( +1.2) VW  12.39c VS   1.29c P  3.72% VW 13.88% N      17  --  E2 K9 K8 L10 M10
-D18 : T  16.90c W  14.86c S   2.03c ( +4.1) VW  15.55c VS   1.83c P 17.43% VW 10.81% N      16  --  E16 E15 D16 C17 C15 C14 B15
+D18 : T  16.90c W  14.86c S   2.04c ( +4.1) VW  15.55c VS   1.83c P 17.43% VW 10.81% N      16  --  E16 E15 D16 C17 C15 C14 B15
 H15 : T   7.41c W   6.42c S   0.99c ( +2.0) VW  15.65c VS   1.63c P  5.73% VW 13.06% N      12  --  J15 G15 J16 J14 J13
 M12 : T  11.08c W   9.66c S   1.41c ( +2.8) VW   9.94c VS   1.23c P  3.77% VW 12.49% N       4  --  N11 E16
 E4  : T  44.65c W  40.27c S   4.38c ( +8.9) VW  40.27c VS   4.38c P  2.27% VW  8.91% N       1  --  
@@ -775,7 +775,7 @@ C14 : T   0.83c W   0.49c S   0.34c ( +0.7) VW   9.80c VS   1.78c P  3.83% VW  8
 L15 : T   2.39c W   1.96c S   0.43c ( +0.9) VW  10.08c VS   1.51c P  2.30% VW  9.19% N       6  --  K9 K8 L10
 C17 : T  -0.34c W  -0.35c S   0.01c ( +0.0) VW  14.00c VS   1.87c P  2.12% VW  8.85% N       5  --  D18 D19 D16
 M17 : T   0.51c W   0.27c S   0.24c ( +0.5) VW   8.48c VS   1.27c P  2.02% VW  8.97% N       4  --  D18 D19
-B14 : T  -1.12c W  -1.23c S   0.10c ( +0.2) VW   5.86c VS   1.35c P  1.72% VW  8.78% N       4  --  D18 D19 B11
+B14 : T  -1.12c W  -1.23c S   0.11c ( +0.2) VW   5.86c VS   1.35c P  1.72% VW  8.78% N       4  --  D18 D19 B11
 J9  : T   0.55c W   0.32c S   0.23c ( +0.5) VW   5.10c VS   0.84c P  1.72% VW  8.99% N       3  --  D18 D19
 
 Doing three consecutive searches by playouts (limit 200)
@@ -811,7 +811,7 @@ Tree:
 : T   4.31c W   3.67c S   0.64c ( +1.3) VW  -0.06c VS   0.35c N     200  --  D12 E16 D18 K9 K8 L10 M10
 ---White(^)---
 D12 : T   6.45c W   5.54c S   0.91c ( +1.8) VW  11.82c VS   1.69c P 20.26% VW 14.08% N     111  --  E16 D18 K9 K8 L10 M10 M9
-E16 : T   2.70c W   2.27c S   0.42c ( +0.8) VW   7.96c VS   0.83c P 29.43% VW 12.71% N      63  --  K9 K8 L10 M10 M9 L9 N9
+E16 : T   2.70c W   2.27c S   0.43c ( +0.8) VW   7.96c VS   0.83c P 29.43% VW 12.71% N      63  --  K9 K8 L10 M10 M9 L9 N9
 M12 : T  -0.96c W  -0.95c S  -0.02c ( -0.0) VW   5.92c VS   0.61c P  3.90% VW 12.26% N       6  --  K9 K8 L10
 M17 : T   0.89c W   0.70c S   0.19c ( +0.4) VW   3.20c VS   0.39c P  2.92% VW 12.60% N       6  --  K9 K8 L10
 Q11 : T  -0.67c W  -0.68c S   0.01c ( +0.0) VW   5.98c VS   0.58c P  3.00% VW 12.35% N       5  --  D18 E16 E15
@@ -846,17 +846,17 @@ NN batches: 371
 NN avg batch size: 1
 PV: E16 D18 B11 B12 K9 K8 L10 M10 M9 L9
 Tree:
-: T   5.06c W   4.32c S   0.74c ( +1.5) VW  11.82c VS   1.69c N     311  --  E16 D18 B11 B12 K9 K8 L10
+: T   4.94c W   4.22c S   0.72c ( +1.4) VW  11.82c VS   1.69c N     311  --  E16 D18 B11 B12 K9 K8 L10
 ---Black(v)---
-E16 : T   3.06c W   2.57c S   0.49c ( +1.0) VW   4.62c VS   0.95c P 23.19% VW 12.77% N     150  --  D18 B11 B12 K9 K8 L10 M10
-K9  : T   5.65c W   4.80c S   0.85c ( +1.7) VW   1.02c VS   0.25c P 17.03% VW 11.83% N      56  --  K8 L10 M10 M9 L9 N9 K10
-B11 : T   6.29c W   5.36c S   0.94c ( +1.9) VW   4.20c VS   0.87c P 11.19% VW 11.68% N      35  --  E16 E15 G15 F15 F14 E14 B12
-H15 : T   4.48c W   3.80c S   0.68c ( +1.4) VW  15.65c VS   1.63c P  5.73% VW 12.14% N      23  --  J15 G15 J14 J16 E16 E15 D16
-D2  : T   3.54c W   2.99c S   0.55c ( +1.1) VW  12.39c VS   1.29c P  3.72% VW 12.34% N      20  --  E2 K9 K8 L10 M10
-D18 : T  17.58c W  15.49c S   2.09c ( +4.2) VW  15.55c VS   1.83c P 17.43% VW  9.31% N      17  --  E16 E15 D16 C17 C15 C14 B15
-M12 : T  11.23c W   9.84c S   1.40c ( +2.8) VW   9.94c VS   1.23c P  3.77% VW 10.95% N       6  --  N11 E16 D18
-B13 : T  12.37c W  10.74c S   1.63c ( +3.3) VW   5.30c VS   1.04c P  1.54% VW 11.05% N       2  --  B12
-E4  : T  44.65c W  40.27c S   4.38c ( +8.9) VW  40.27c VS   4.38c P  2.27% VW  7.92% N       1  --  
+E16 : T   2.76c W   2.31c S   0.45c ( +0.9) VW   4.62c VS   0.95c P 23.19% VW 12.89% N     154  --  D18 B11 B12 K9 K8 L10 M10
+K9  : T   5.65c W   4.80c S   0.85c ( +1.7) VW   1.02c VS   0.25c P 17.03% VW 11.84% N      56  --  K8 L10 M10 M9 L9 N9 K10
+B11 : T   6.29c W   5.36c S   0.94c ( +1.9) VW   4.20c VS   0.87c P 11.19% VW 11.69% N      35  --  E16 E15 G15 F15 F14 E14 B12
+D2  : T   3.55c W   2.99c S   0.55c ( +1.1) VW  12.39c VS   1.29c P  3.72% VW 12.36% N      20  --  E2 K9 K8 L10 M10
+H15 : T   5.39c W   4.63c S   0.75c ( +1.5) VW  15.65c VS   1.63c P  5.73% VW 11.94% N      19  --  J15 G15 J14 J16 E16 E15 D16
+D18 : T  17.59c W  15.49c S   2.10c ( +4.2) VW  15.55c VS   1.83c P 17.43% VW  9.32% N      17  --  E16 E15 D16 C17 C15 C14 B15
+M12 : T  11.23c W   9.84c S   1.40c ( +2.8) VW   9.94c VS   1.23c P  3.77% VW 10.97% N       6  --  N11 E16 D18
+B13 : T  12.37c W  10.74c S   1.63c ( +3.3) VW   5.30c VS   1.04c P  1.54% VW 11.07% N       2  --  B12
+E4  : T  44.65c W  40.27c S   4.38c ( +8.9) VW  40.27c VS   4.38c P  2.27% VW  7.94% N       1  --  
 MoveNum: 87 HASH: F67341FA864B8A42EEB5604CB8883445
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -879,27 +879,27 @@ MoveNum: 87 HASH: F67341FA864B8A42EEB5604CB8883445
  2 . O X . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
-Root visits: 350
+Root visits: 354
 NN rows: 556
 NN batches: 556
 NN avg batch size: 1
 PV: D18 K9 K8 L10 M10 M9 L9 N9 K10 M12 J9
 Tree:
-: T   2.09c W   1.72c S   0.37c ( +0.7) VW   4.62c VS   0.95c N     350  --  D18 K9 K8 L10 M10 M9 L9
+: T   2.08c W   1.71c S   0.37c ( +0.7) VW   4.62c VS   0.95c N     354  --  D18 K9 K8 L10 M10 M9 L9
 ---White(^)---
-D18 : T   2.23c W   1.92c S   0.31c ( +0.6) VW  13.74c VS   1.79c P 22.96% VW  6.83% N     103  --  K9 K8 L10 M10 M9 L9 N9
+D18 : T   2.18c W   1.87c S   0.31c ( +0.6) VW  13.74c VS   1.79c P 22.96% VW  6.82% N     107  --  K9 K8 L10 M10 M9 L9 N9
 B11 : T   3.29c W   2.71c S   0.57c ( +1.1) VW  11.55c VS   1.88c P 13.44% VW  7.03% N      85  --  D18 D19 B10 G15 F14 F15
 G15 : T   2.16c W   1.77c S   0.39c ( +0.8) VW   9.95c VS   1.60c P 15.50% VW  6.82% N      70  --  F14 B11 B10 C14 C15 B14
 M12 : T   2.16c W   1.77c S   0.39c ( +0.8) VW  12.28c VS   1.83c P  5.48% VW  6.81% N      24  --  D18 L13 B11 M17 M16
 C14 : T  -1.44c W  -1.50c S   0.06c ( +0.1) VW   9.80c VS   1.78c P  3.83% VW  6.43% N       9  --  D18 D19 C15 B14 B11
-K16 : T   2.58c W   2.18c S   0.41c ( +0.8) VW  10.07c VS   1.38c P  1.90% VW  6.85% N       9  --  L16 L17 M17 L18
+K16 : T   2.59c W   2.18c S   0.41c ( +0.8) VW  10.07c VS   1.38c P  1.90% VW  6.86% N       9  --  L16 L17 M17 L18
 L15 : T   1.23c W   0.94c S   0.29c ( +0.6) VW  10.08c VS   1.51c P  2.30% VW  6.71% N       8  --  K9 K8 L10 M10 M9
 L16 : T   3.55c W   3.01c S   0.54c ( +1.1) VW   9.88c VS   1.42c P  1.33% VW  6.95% N       8  --  K9 K8 L10
 M17 : T  -0.87c W  -0.88c S   0.02c ( +0.0) VW   8.48c VS   1.27c P  2.02% VW  6.52% N       6  --  D18 D19 K15
-Q11 : T  -2.68c W  -2.42c S  -0.27c ( -0.5) VW   8.72c VS   1.21c P  1.45% VW  6.35% N       6  --  D18 D19 F17 F18
+Q11 : T  -2.68c W  -2.42c S  -0.26c ( -0.5) VW   8.72c VS   1.21c P  1.45% VW  6.35% N       6  --  D18 D19 F17 F18
 C17 : T  -0.34c W  -0.35c S   0.01c ( +0.0) VW  14.00c VS   1.87c P  2.12% VW  6.58% N       5  --  D18 D19 D16
 J9  : T  -0.34c W  -0.44c S   0.09c ( +0.2) VW   5.10c VS   0.84c P  1.72% VW  6.59% N       4  --  D18 D19 F17
-B14 : T  -1.12c W  -1.23c S   0.10c ( +0.2) VW   5.86c VS   1.35c P  1.72% VW  6.52% N       4  --  D18 D19 B11
+B14 : T  -1.12c W  -1.23c S   0.11c ( +0.2) VW   5.86c VS   1.35c P  1.72% VW  6.52% N       4  --  D18 D19 B11
 K12 : T  -3.29c W  -3.08c S  -0.21c ( -0.4) VW   8.96c VS   1.44c P  1.54% VW  6.34% N       4  --  K9 K8 L10
 M16 : T   0.55c W   0.29c S   0.27c ( +0.5) VW   9.19c VS   1.38c P  1.48% VW  6.67% N       4  --  D18 D19
 
@@ -984,7 +984,7 @@ L8  : T  18.53c W  16.63c S   1.89c ( +3.8) VW  16.61c VS   1.66c P  2.30% VW  3
 Q6  : T  23.35c W  20.90c S   2.45c ( +4.9) VW  10.31c VS   0.99c P  4.51% VW  3.52% N       8  --  R7 Q7 R8 Q8 R9
 O6  : T  18.60c W  16.67c S   1.93c ( +3.9) VW  11.92c VS   1.16c P  1.78% VW  3.78% N       7  --  R8 P14 O14 O13
 Q7  : T  18.38c W  16.46c S   1.92c ( +3.8) VW  11.07c VS   1.08c P  1.37% VW  3.79% N       7  --  R7 R8 Q6 P6 P7
-D8  : T  17.85c W  15.86c S   2.00c ( +4.0) VW  12.56c VS   1.39c P  0.64% VW  3.80% N       5  --  P14 Q13 P13
+D8  : T  17.86c W  15.86c S   2.00c ( +4.0) VW  12.56c VS   1.39c P  0.64% VW  3.80% N       5  --  P14 Q13 P13
 R7  : T  23.32c W  20.89c S   2.43c ( +4.9) VW  14.16c VS   1.46c P  2.05% VW  3.54% N       4  --  Q6 S2 Q7
 O3  : T  21.15c W  18.94c S   2.21c ( +4.4) VW  15.01c VS   1.58c P  1.96% VW  3.64% N       4  --  O2 N4
 M10 : T  18.82c W  16.94c S   1.88c ( +3.8) VW  19.94c VS   1.97c P  1.31% VW  3.75% N       4  --  P14 Q13 P13
@@ -1101,18 +1101,18 @@ A16 : T  33.53c W  29.93c S   3.60c ( +7.3) VW  31.17c VS   3.49c P  2.53% VW  2
 C3  : T  21.68c W  19.35c S   2.32c ( +4.7) VW  13.18c VS   1.48c P  0.83% VW  2.64% N       4  --  C4 S2 R8
 P7  : T  22.90c W  20.51c S   2.39c ( +4.8) VW  11.21c VS   1.07c P  0.59% VW  2.60% N       4  --  R7 S2 R9
 A3  : T  33.40c W  29.87c S   3.54c ( +7.1) VW  32.35c VS   3.69c P  2.24% VW  2.28% N       3  --  P14 Q13
-K15 : T  28.70c W  25.78c S   2.92c ( +5.9) VW  28.98c VS   3.12c P  1.90% VW  2.43% N       3  --  P14 Q13
+K15 : T  28.70c W  25.78c S   2.93c ( +5.9) VW  28.98c VS   3.12c P  1.90% VW  2.43% N       3  --  P14 Q13
 T6  : T  38.41c W  34.43c S   3.98c ( +8.1) VW  27.79c VS   3.02c P  1.78% VW  2.13% N       3  --  R7 S2
 R6  : T  25.76c W  23.23c S   2.52c ( +5.1) VW  16.08c VS   1.68c P  1.64% VW  2.52% N       3  --  Q5 P5
 D17 : T  24.60c W  22.10c S   2.50c ( +5.0) VW  20.43c VS   2.13c P  1.34% VW  2.55% N       3  --  C17 C18
 D15 : T  22.78c W  20.41c S   2.37c ( +4.7) VW  20.47c VS   2.18c P  1.05% VW  2.61% N       3  --  C15 S2
 O5  : T  24.03c W  21.48c S   2.55c ( +5.1) VW  14.62c VS   1.48c P  0.99% VW  2.58% N       2  --  R8
 L14 : T  28.37c W  25.40c S   2.96c ( +5.9) VW  26.57c VS   2.87c P  0.86% VW  2.46% N       2  --  P14
-S19 : T  37.18c W  33.34c S   3.84c ( +7.8) VW  32.53c VS   3.48c P  0.78% VW  2.21% N       2  --  P14
+S19 : T  37.19c W  33.34c S   3.84c ( +7.8) VW  32.53c VS   3.48c P  0.78% VW  2.21% N       2  --  P14
 L7  : T  23.39c W  21.04c S   2.35c ( +4.7) VW  16.29c VS   1.59c P  0.78% VW  2.60% N       2  --  O5
 C7  : T  21.55c W  19.18c S   2.37c ( +4.7) VW  15.22c VS   1.72c P  0.65% VW  2.65% N       2  --  D7
 H6  : T  25.82c W  23.18c S   2.64c ( +5.3) VW  24.70c VS   2.54c P  0.64% VW  2.53% N       2  --  P14
-N14 : T  27.19c W  24.39c S   2.79c ( +5.6) VW  21.43c VS   2.16c P  0.60% VW  2.49% N       2  --  P14
+N14 : T  27.19c W  24.39c S   2.80c ( +5.6) VW  21.43c VS   2.16c P  0.60% VW  2.49% N       2  --  P14
 H7  : T  21.53c W  19.36c S   2.17c ( +4.3) VW  21.03c VS   2.11c P  0.59% VW  2.65% N       2  --  P14
 Q5  : T  23.76c W  21.23c S   2.53c ( +5.1) VW  14.59c VS   1.54c P  0.52% VW  2.59% N       2  --  R7
 M5  : T  26.75c W  23.92c S   2.83c ( +5.7) VW  16.86c VS   1.77c P  0.46% VW  2.50% N       2  --  L6
@@ -1122,8 +1122,8 @@ N4  : T  24.70c W  22.12c S   2.58c ( +5.2) VW  17.20c VS   1.79c P  0.41% VW  2
 P13 : T  20.47c W  18.38c S   2.10c ( +4.2) VW  10.94c VS   1.10c P  0.39% VW  2.68% N       2  --  R8
 Q13 : T  21.96c W  19.71c S   2.24c ( +4.5) VW  12.89c VS   1.32c P  0.31% VW  2.64% N       2  --  R8
 A8  : T  34.26c W  30.53c S   3.72c ( +7.5) VW  31.79c VS   3.60c P  0.30% VW  2.29% N       2  --  P14
-L19 : T  42.92c W  38.43c S   4.49c ( +9.1) VW  39.45c VS   4.54c P  0.28% VW  2.06% N       2  --  P14
-P16 : T  29.82c W  26.75c S   3.06c ( +6.2) VW  24.53c VS   2.58c P  0.26% VW  2.42% N       2  --  Q16
+L19 : T  42.93c W  38.43c S   4.49c ( +9.1) VW  39.45c VS   4.54c P  0.28% VW  2.06% N       2  --  P14
+P16 : T  29.82c W  26.75c S   3.07c ( +6.2) VW  24.53c VS   2.58c P  0.26% VW  2.42% N       2  --  Q16
 Play selection values
 S2 93
 P14 51
@@ -1204,18 +1204,18 @@ P6  : T  20.24c W  18.12c S   2.12c ( +4.3) VW   9.85c VS   0.98c P 12.92% VW  3
 P14 : T  21.30c W  19.08c S   2.21c ( +4.4) VW   3.05c VS   0.49c P 13.00% VW  3.11% N      48  --  O14 O13 N14 S2 R8 N13 M14
 H12 : T  22.44c W  20.10c S   2.34c ( +4.7) VW  19.80c VS   2.05c P  6.55% VW  3.03% N      19  --  R8 P14 O14 O13 N14
 Q6  : T  22.92c W  20.54c S   2.38c ( +4.8) VW  10.31c VS   0.99c P  4.78% VW  3.01% N      14  --  R7 Q7 R8 Q8 R9 Q9
-Q4  : T  27.69c W  24.75c S   2.95c ( +5.9) VW  19.16c VS   2.10c P  4.28% VW  2.76% N      13  --  R6 S2 P6 P14
+Q4  : T  27.70c W  24.75c S   2.95c ( +5.9) VW  19.16c VS   2.10c P  4.28% VW  2.76% N      13  --  R6 S2 P6 P14
 L10 : T  20.31c W  18.23c S   2.08c ( +4.2) VW  19.67c VS   1.96c P  2.56% VW  3.14% N      11  --  P14 Q13 P13 Q12 P12
 O3  : T  20.61c W  18.42c S   2.19c ( +4.4) VW  15.01c VS   1.58c P  1.98% VW  3.13% N      10  --  N4 P6 R8
 O6  : T  19.65c W  17.56c S   2.08c ( +4.2) VW  11.92c VS   1.16c P  1.78% VW  3.17% N       9  --  R8 P14 O14 O13
-C8  : T  18.18c W  16.15c S   2.04c ( +4.1) VW  12.61c VS   1.41c P  0.72% VW  3.24% N       9  --  R8 P14 O14
+C8  : T  18.19c W  16.15c S   2.04c ( +4.1) VW  12.61c VS   1.41c P  0.72% VW  3.24% N       9  --  R8 P14 O14
 Q7  : T  19.20c W  17.18c S   2.02c ( +4.0) VW  11.07c VS   1.08c P  1.17% VW  3.19% N       8  --  R7 R8 Q6 P6 P7
-R6  : T  22.31c W  20.06c S   2.25c ( +4.5) VW  16.08c VS   1.68c P  1.36% VW  3.04% N       7  --  Q5 S2 P5
+R6  : T  22.32c W  20.06c S   2.26c ( +4.5) VW  16.08c VS   1.68c P  1.36% VW  3.04% N       7  --  Q5 S2 P5
 C5  : T  22.74c W  20.31c S   2.43c ( +4.9) VW  27.14c VS   2.82c P  1.33% VW  3.02% N       7  --  D5 S2 R8 P14
 D17 : T  25.13c W  22.52c S   2.61c ( +5.2) VW  20.43c VS   2.13c P  1.27% VW  2.92% N       7  --  C17 C18 E17 D18
 O5  : T  21.42c W  19.16c S   2.26c ( +4.5) VW  14.62c VS   1.48c P  0.99% VW  3.08% N       6  --  R8 P14 O14 O13
 P11 : T  22.55c W  20.30c S   2.25c ( +4.5) VW  20.28c VS   2.06c P  0.96% VW  3.03% N       6  --  P14 Q13 R8
-K4  : T  27.76c W  24.83c S   2.92c ( +5.9) VW  20.88c VS   2.13c P  0.91% VW  2.81% N       6  --  L4 S2 R8 P14
+K4  : T  27.76c W  24.83c S   2.93c ( +5.9) VW  20.88c VS   2.13c P  0.91% VW  2.81% N       6  --  L4 S2 R8 P14
 H9  : T  18.96c W  17.02c S   1.94c ( +3.9) VW  18.07c VS   1.82c P  0.80% VW  3.19% N       6  --  P14 Q13 P13 Q12
 H7  : T  22.49c W  20.23c S   2.26c ( +4.5) VW  21.03c VS   2.11c P  0.76% VW  3.04% N       6  --  P14 Q13 P13
 N5  : T  17.34c W  15.48c S   1.86c ( +3.7) VW  12.67c VS   1.30c P  0.49% VW  3.26% N       6  --  R8 P14 O14
@@ -1223,7 +1223,7 @@ B11 : T  22.64c W  20.26c S   2.38c ( +4.8) VW  24.42c VS   2.64c P  0.69% VW  3
 N15 : T  28.26c W  25.38c S   2.88c ( +5.8) VW  28.14c VS   3.00c P  0.59% VW  2.80% N       5  --  P14 Q13 P13 Q12
 K14 : T  24.01c W  21.58c S   2.43c ( +4.9) VW  25.64c VS   2.71c P  0.55% VW  2.98% N       5  --  P14 Q13 P13 Q12
 Q5  : T  22.73c W  20.30c S   2.43c ( +4.9) VW  14.59c VS   1.54c P  0.52% VW  3.03% N       5  --  R7 S2 P7 P14
-R7  : T  22.96c W  20.60c S   2.36c ( +4.7) VW  14.16c VS   1.46c P  0.47% VW  3.02% N       5  --  Q6 S2 Q7 R8
+R7  : T  22.96c W  20.60c S   2.37c ( +4.7) VW  14.16c VS   1.46c P  0.47% VW  3.02% N       5  --  Q6 S2 Q7 R8
 D10 : T  17.92c W  15.94c S   1.99c ( +4.0) VW  13.79c VS   1.47c P  0.43% VW  3.23% N       5  --  P14 Q13 P13
 G12 : T  18.72c W  16.79c S   1.93c ( +3.9) VW  19.64c VS   2.03c P  0.43% VW  3.19% N       4  --  P14 Q13 P13
 N4  : T  24.04c W  21.51c S   2.53c ( +5.1) VW  17.20c VS   1.79c P  0.41% VW  2.98% N       4  --  O3 O4 M4

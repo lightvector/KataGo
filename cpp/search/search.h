@@ -41,7 +41,10 @@ struct NodeStats {
   double noResultValueSum;
   double scoreMeanSum;
   double scoreMeanSqSum;
-  double valueSumWeight;
+  double utilitySum;
+  double utilitySqSum;
+  double weightSum;
+  double weightSqSum;
 
   NodeStats();
   ~NodeStats();
@@ -100,12 +103,16 @@ struct SearchThread {
   ostream* logStream;
   Logger* logger;
 
-  vector<double> valueChildWeightsBuf;
+  vector<double> weightFactorBuf;
+  vector<double> weightBuf;
+  vector<double> weightSqBuf;
   vector<double> winValuesBuf;
   vector<double> noResultValuesBuf;
   vector<double> scoreMeansBuf;
   vector<double> scoreMeanSqsBuf;
   vector<double> utilityBuf;
+  vector<double> utilitySqBuf;
+  vector<double> selfUtilityBuf;
   vector<int64_t> visitsBuf;
 
   SearchThread(int threadIdx, const Search& search, Logger* logger);
@@ -260,7 +267,8 @@ private:
 
   void computeRootValues(Logger& logger);
 
-  double getUtility(double resultUtilitySum, double scoreMeanSum, double scoreMeanSqSum, double valueSumWeight) const;
+  double getScoreUtility(double scoreMeanSum, double scoreMeanSqSum, double weightSum) const;
+  double getScoreUtilityDiff(double scoreMeanSum, double scoreMeanSqSum, double weightSum, double delta) const;
   double getUtilityFromNN(const NNOutput& nnOutput) const;
 
   double getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const;
@@ -291,6 +299,7 @@ private:
 
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);
+  void recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot);
 
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
@@ -298,7 +307,7 @@ private:
     bool isRoot
   ) const;
 
-  void setTerminalValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, int32_t virtualLossesToSubtract);
+  void addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, int32_t virtualLossesToSubtract, bool isCertain);
 
   void initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
@@ -310,6 +319,13 @@ private:
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot, int32_t virtualLossesToSubtract
   );
+
+  AnalysisData getAnalysisDataOfSingleChild(
+    const SearchNode* child, Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
+    double parentScoreMean, double parentScoreStdev, int maxPVDepth
+  );
+
+  void printPV(ostream& out, const vector<Loc>& buf);
 
   void printTreeHelper(
     ostream& out, const SearchNode* node, const PrintTreeOptions& options,
