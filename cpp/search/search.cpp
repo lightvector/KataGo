@@ -2110,18 +2110,16 @@ void Search::printTreeHelper(
       out << buf;
     }
     if(!isnan(valueWeight)) {
-      sprintf(buf,"VW %5.2f%% ", valueWeight * 100.0);
+      sprintf(buf,"WF %5.2f%% ", valueWeight * 100.0);
       out << buf;
     }
-    //sprintf(buf,"ESS %7.0f ", data.ess);
-    //out << buf;
+    sprintf(buf,"ESS %7.0f ", data.ess);
+    out << buf;
 
     sprintf(buf,"N %7" PRIu64 "  --  ", data.numVisits);
     out << buf;
 
-    //TODO
-    printPV(out, &node, 7);
-    //printPV(out, data.pv);
+    printPV(out, data.pv);
     out << endl;
   }
 
