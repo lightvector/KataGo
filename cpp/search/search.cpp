@@ -176,6 +176,8 @@ SearchThread::~SearchThread() {
 
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
+static const int64_t MIN_VISITS_FOR_LCB = 3;
+
 Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
    rootSafeArea(NULL),
@@ -354,11 +356,19 @@ bool Search::getPlaySelectionValues(
   vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
   bool allowDirectPolicyMoves
 ) const {
+  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
+  lock_guard<std::mutex> lock(mutex);
+  bool result = getPlaySelectionValuesAlreadyLocked(node,locs,playSelectionValues,scaleMaxToAtLeast,allowDirectPolicyMoves);
+  return result;
+}
+
+bool Search::getPlaySelectionValuesAlreadyLocked(
+  const SearchNode& node,
+  vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+  bool allowDirectPolicyMoves
+) const {
   locs.clear();
   playSelectionValues.clear();
-
-  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
-  unique_lock<std::mutex> lock(mutex);
 
   int numChildren = node.numChildren;
   int64_t totalChildVisits = 0;
@@ -404,15 +414,48 @@ bool Search::getPlaySelectionValues(
 
   //Now compute play selection values taking into account LCB
   if(searchParams.useLcbForSelection && numChildren > 0) {
-    double mostVisitedChildLCB;
-    double radius;
-    getSelfUtilityLCBAndRadius(node,node.children[mostVisitedIdx],mostVisitedChildLCB,radius);
-    for(int i = 0; i<numChildren; i++)
-      playSelectionValues[i] = getPlaySelectionValue(node, node.children[i], mostVisitedChildVisits, mostVisitedChildLCB);
+    assert(NNPos::MAX_NN_POLICY_SIZE > numChildren);
+    double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
+    double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
+    double bestLcb = -1e10;
+    int bestLcbIndex = -1;
+    for(int i = 0; i<numChildren; i++) {
+      getSelfUtilityLCBAndRadius(node,node.children[i],lcbBuf[i],radiusBuf[i]);
+      //Check if this node is eligible to be considered for best LCB
+      double visits = playSelectionValues[i];
+      if(visits >= MIN_VISITS_FOR_LCB && visits >= searchParams.minVisitPropForLCB * mostVisitedChildVisits) {
+        if(lcbBuf[i] > bestLcb) {
+          bestLcb = lcbBuf[i];
+          bestLcbIndex = i;
+        }
+      }
+    }
+
+    if(bestLcbIndex > 0) {
+      //Best LCB move gets a bonus that ensures it is large enough relative to every other child
+      double adjustedVisits = playSelectionValues[bestLcbIndex];
+      for(int i = 0; i<numChildren; i++) {
+        if(i != bestLcbIndex) {
+          double excessValue = bestLcb - lcbBuf[i];
+          double radius = radiusBuf[i];
+          //TODO test this factor
+          //How many times wider would the radius have to be before the lcb would be worse?
+          //Add adjust the denom so that we cannot possibly gain more than a factor of 5.
+          double radiusFactor = (radius + excessValue) / (radius + 0.20 * excessValue);
+
+          //TODO test this squaring or not
+          //That factor, squared, is the number of "visits" more that we should pretend we have, for
+          //the purpose of selection. But actually, we be a little conservative and don't square it.
+          double lbound = radiusFactor * playSelectionValues[i];
+          if(lbound > adjustedVisits)
+            adjustedVisits = lbound;
+        }
+      }
+      playSelectionValues[bestLcbIndex] = adjustedVisits;
+    }
   }
 
   shared_ptr<NNOutput> nnOutput = node.nnOutput;
-  lock.unlock();
 
   //If we have no children, then use the policy net directly. Only for the root, though, if calling this on any subtree
   //then just require that we have children, for implementation simplicity (since it requires that we have a board and a boardhistory too)
@@ -859,12 +902,12 @@ void Search::maybeRecomputeNormToTApproxTable() {
     normToTApproxZ = searchParams.lcbStdevs;
     normToTApproxTable.clear();
     for(int i = 0; i < 512; i++)
-      normToTApproxTable.push_back(FancyMath::normToTApprox(normToTApproxZ,i+3));
+      normToTApproxTable.push_back(FancyMath::normToTApprox(normToTApproxZ,i+MIN_VISITS_FOR_LCB));
   }
 }
 
 double Search::getNormToTApproxForLCB(int64_t numVisits) const {
-  int64_t idx = numVisits-3;
+  int64_t idx = numVisits-MIN_VISITS_FOR_LCB;
   assert(idx >= 0);
   if(idx >= normToTApproxTable.size())
     idx = normToTApproxTable.size()-1;
@@ -1126,15 +1169,15 @@ void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNo
   double weightSqSum = child->stats.weightSqSum;
   child->statsLock.clear(std::memory_order_release);
 
-  lcbBuf = -1e10;
-  radiusBuf = -1e10;
+  radiusBuf = 2.0 * (searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor);
+  lcbBuf = -radiusBuf;
   if(weightSum <= 0.0)
     return;
 
   assert(weightSqSum > 0.0);
   double ess = weightSum * weightSum / weightSqSum;
   int64_t essInt = (int64_t)round(ess);
-  if(essInt < 3)
+  if(essInt < MIN_VISITS_FOR_LCB)
     return;
 
   double utilityNoBonus = utilitySum / weightSum;
@@ -1148,7 +1191,7 @@ void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNo
   double radius = estimateStdev * getNormToTApproxForLCB(essInt);
 
   lcbBuf = selfUtility - radius;
-  radiusBuf = radiusBuf;
+  radiusBuf = radius;
 }
 
 double Search::getExploreSelectionValue(
@@ -1238,36 +1281,6 @@ int Search::getPos(Loc moveLoc) const {
   return NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
 }
 
-//Parent must be locked
-double Search::getPlaySelectionValue(
-  const SearchNode& parent, const SearchNode* child,
-  double mostVisitedChildVisits, double mostVisitedChildLCB
-) const {
-
-  while(child->statsLock.test_and_set(std::memory_order_acquire));
-  int64_t childVisits = child->stats.visits;
-  child->statsLock.clear(std::memory_order_release);
-
-  if(!searchParams.useLcbForSelection || childVisits < 2 || childVisits < searchParams.minVisitPropForLCB * mostVisitedChildVisits) {
-    return (double)childVisits;
-  }
-
-  double lcb;
-  double radius;
-  getSelfUtilityLCBAndRadius(parent,child,lcb,radius);
-
-  if(lcb <= mostVisitedChildLCB)
-    return (double)childVisits;
-
-  double excessValue = lcb - mostVisitedChildLCB;
-  //How many times wider would the radius have to be before the lcb would be worse?
-  //Add a tiny bit to the denom to ensure no div by 0
-  double radiusFactor = (radius + excessValue) / (radius + 0.05 * excessValue);
-
-  //That factor, squared, is the number of "visits" more that we should pretend we have, for
-  //the purpose of selection.
-  return std::max((double)childVisits, mostVisitedChildVisits * radiusFactor * radiusFactor);
-}
 
 double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const {
   Loc moveLoc = child->prevMoveLoc;
@@ -1951,10 +1964,14 @@ void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
 }
 
 void Search::printPV(ostream& out, const vector<Loc>& buf) {
+  bool printedAnything = false;
   for(int i = 0; i<buf.size(); i++) {
-    if(i > 0)
+    if(printedAnything)
       out << " ";
+    if(buf[i] == Board::NULL_LOC)
+      continue;
     out << Location::toString(buf[i],rootBoard);
+    printedAnything = true;
   }
 }
 
@@ -2047,16 +2064,25 @@ void Search::getAnalysisData(
   children.reserve(rootBoard.x_size * rootBoard.y_size + 1);
 
   int numChildren;
+  vector<Loc> scratchLocs;
+  vector<double> scratchValues;
   {
     std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
     lock_guard<std::mutex> lock(mutex);
     numChildren = node.numChildren;
     for(int i = 0; i<numChildren; i++)
       children.push_back(node.children[i]);
+
+    if(numChildren <= 0)
+      return;
+
+    bool success = getPlaySelectionValuesAlreadyLocked(node, scratchLocs, scratchValues, 1.0, false);
+    if(!success)
+      return;
   }
 
-  if(numChildren <= 0)
-    return;
+  //Copy to make sure we keep these values so we can reuse scratch later for PV
+  vector<double> playSelectionValues = scratchValues;
 
   float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
   double policyProbMassVisited = 0.0;
@@ -2101,8 +2127,6 @@ void Search::getAnalysisData(
   double parentUtility;
   double fpuValue = getFpuValueForChildrenAssumeVisited(node, rootPla, true, policyProbMassVisited, parentUtility);
 
-  vector<Loc> scratchLocs;
-  vector<double> scratchValues;
   for(int i = 0; i<numChildren; i++) {
     SearchNode* child = children[i];
     double policyProb = policyProbs[getPos(child->prevMoveLoc)];
@@ -2110,6 +2134,7 @@ void Search::getAnalysisData(
       child, scratchLocs, scratchValues, child->prevMoveLoc, policyProb, fpuValue, parentUtility, parentWinLossValue,
       parentScoreMean, parentScoreStdev, maxPVDepth
     );
+    data.playSelectionValue = playSelectionValues[i];
     buf.push_back(data);
   }
 

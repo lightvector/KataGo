@@ -269,7 +269,7 @@ NN batches: 384
 NN avg batch size: 1
 PV: J7 H5 G6 F1 A1 D1 B1 D5 K4 D6
 Tree:
-: T   4.00c W   3.76c S   0.24c ( +0.3) VW -36.57c VS  -0.22c ESS     474 N     500  --  null J7 H5 G6 F1 A1 D1 B1
+: T   4.00c W   3.76c S   0.24c ( +0.3) VW -36.57c VS  -0.22c ESS     474 N     500  --  J7 H5 G6 F1 A1 D1 B1
 ---Black(v)---
 J7  : T   1.23c W   1.07c S   0.16c ( +0.2) VW  -7.79c VS  -0.29c P 45.91% WF  5.56% ESS     340 N     360  --  J7 H5 G6 F1 A1 D1 B1 D5
 A1  : T   4.73c W   4.40c S   0.33c ( +0.4) VW  10.20c VS   0.15c P 17.69% WF  4.89% ESS      63 N      65  --  A1 J7 D1 F1 H5 E5 K4 D5
@@ -365,7 +365,7 @@ NN batches: 409
 NN avg batch size: 1
 PV: J7 D1 F1 H5 E5 K4 D5 L5
 Tree:
-: T  19.64c W  19.02c S   0.62c ( +0.7) VW  10.20c VS   0.15c ESS     485 N     500  --  null J7 D1 F1 H5 E5 K4 D5
+: T  19.64c W  19.02c S   0.62c ( +0.7) VW  10.20c VS   0.15c ESS     485 N     500  --  J7 D1 F1 H5 E5 K4 D5
 ---White(^)---
 J7  : T  23.45c W  22.74c S   0.71c ( +0.8) VW -42.64c VS  -0.48c P 27.24% WF 10.97% ESS     436 N     443  --  J7 D1 F1 H5 E5 K4 D5 L5
 H5  : T  -4.74c W  -4.85c S   0.11c ( +0.1) VW  -5.18c VS   0.10c P 38.28% WF  5.09% ESS      27 N      28  --  H5 G6 J7 D1 F1 K4 D6
@@ -453,7 +453,7 @@ NN batches: 441
 NN avg batch size: 1
 PV: D10 D6 L4 pass pass
 Tree:
-: T  49.20c W  48.14c S   1.06c ( +1.2) VW  25.58c VS   0.88c ESS     520 N     500  --  null D10 D6 L4 pass pass
+: T  49.20c W  48.14c S   1.06c ( +1.2) VW  25.58c VS   0.88c ESS     520 N     500  --  D10 D6 L4 pass pass
 ---Black(v)---
 D10 : T  46.41c W  45.44c S   0.97c ( +1.1) VW  33.72c VS   0.84c P  2.80% WF  4.61% ESS      50 N      48  --  D10 D6 L4 pass pass
 K1  : T  50.12c W  49.15c S   0.97c ( +1.1) VW  38.13c VS   0.80c P  8.86% WF  4.23% ESS      50 N      46  --  K1 D6 L5 pass pass
@@ -539,7 +539,7 @@ NN batches: 440
 NN avg batch size: 1
 PV: D10 D6 L4 pass pass
 Tree:
-: T  49.40c W  48.34c S   1.06c ( +1.2) VW  25.58c VS   0.88c ESS     522 N     500  --  null D10 D6 L4 pass pass
+: T  49.40c W  48.34c S   1.06c ( +1.2) VW  25.58c VS   0.88c ESS     522 N     500  --  D10 D6 L4 pass pass
 ---Black(v)---
 D10 : T  46.41c W  45.44c S   0.97c ( +1.1) VW  33.72c VS   0.84c P  2.80% WF  4.63% ESS      50 N      48  --  D10 D6 L4 pass pass
 K1  : T  50.12c W  49.15c S   0.97c ( +1.1) VW  38.13c VS   0.80c P  8.86% WF  4.25% ESS      50 N      46  --  K1 D6 L5 pass pass
@@ -627,7 +627,7 @@ NN batches: 296
 NN avg batch size: 1
 PV: J7 D1 F1 pass pass pass pass K4 E5 L5 D6 K1
 Tree:
-: T  35.33c W  34.49c S   0.84c ( +1.0) VW   5.17c VS   0.24c ESS     471 N     500  --  null J7 D1 F1 pass pass pass pass
+: T  35.33c W  34.49c S   0.84c ( +1.0) VW   5.17c VS   0.24c ESS     471 N     500  --  J7 D1 F1 pass pass pass pass
 ---White(^)---
 J7  : T  39.20c W  38.28c S   0.92c ( +1.1) VW  -7.08c VS  -0.15c P 28.41% WF 13.02% ESS     433 N     451  --  J7 D1 F1 pass pass pass pass K4
 pss : T  -9.31c W  -9.24c S  -0.07c ( -0.1) VW -22.82c VS  -0.66c P 28.22% WF  3.62% ESS      21 N      21  --  pass D1 F1 pass pass pass pass
@@ -713,7 +713,7 @@ NN batches: 296
 NN avg batch size: 1
 PV: J7 D1 F1 pass pass pass pass K4 E5 L5 D6 K1
 Tree:
-: T  35.33c W  34.49c S   0.84c ( +1.0) VW   5.17c VS   0.24c ESS     471 N     500  --  null J7 D1 F1 pass pass pass pass
+: T  35.33c W  34.49c S   0.84c ( +1.0) VW   5.17c VS   0.24c ESS     471 N     500  --  J7 D1 F1 pass pass pass pass
 ---White(^)---
 J7  : T  39.20c W  38.28c S   0.92c ( +1.1) VW  -7.08c VS  -0.15c P 28.41% WF 13.02% ESS     433 N     451  --  J7 D1 F1 pass pass pass pass K4
 pss : T  -9.31c W  -9.24c S  -0.07c ( -0.1) VW -22.82c VS  -0.66c P 28.22% WF  3.62% ESS      21 N      21  --  pass D1 F1 pass pass pass pass
@@ -806,7 +806,7 @@ NN batches: 1
 NN avg batch size: 1
 PV: 
 Tree:
-: T  28.31c W  25.05c S   3.26c ( +5.2) VW  25.05c VS   3.26c ESS       1 N       1  --  null
+: T  28.31c W  25.05c S   3.26c ( +5.2) VW  25.05c VS   3.26c ESS       1 N       1  --  
 ---Black(v)---
    0.1    0.1    0.1    0.1 -100.0 -100.0 -100.0    0.2    0.1    0.0    0.1    0.1    0.1    0.1    0.1 
    0.1    0.1    0.8 -100.0 -100.0    0.1 -100.0 -100.0    0.1    0.1 -100.0 -100.0 -100.0    0.1    0.1 
@@ -851,7 +851,7 @@ NN batches: 1
 NN avg batch size: 1
 PV: 
 Tree:
-: T  28.31c W  25.05c S   3.26c ( +5.2) VW  25.05c VS   3.26c ESS       1 N       1  --  null
+: T  28.31c W  25.05c S   3.26c ( +5.2) VW  25.05c VS   3.26c ESS       1 N       1  --  
 ---Black(v)---
    0.1    0.0    0.1    0.1 -100.0 -100.0 -100.0    0.2    0.2    0.0    1.2    0.1    0.0    0.1    0.0 
    0.0    1.0    0.8 -100.0 -100.0    0.0 -100.0 -100.0    0.1    1.3 -100.0 -100.0 -100.0    0.3    0.0 

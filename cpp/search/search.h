@@ -295,11 +295,11 @@ private:
   ) const;
   double getPassingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
 
-  double getPlaySelectionValue(
-    const SearchNode& parent, const SearchNode* child,
-    double mostVisitedChildVisits, double mostVisitedChildLCB
+  bool getPlaySelectionValuesAlreadyLocked(
+    const SearchNode& node,
+    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+    bool allowDirectPolicyMoves
   ) const;
-
 
 
   double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const;

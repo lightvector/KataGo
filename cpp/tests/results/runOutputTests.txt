@@ -4189,7 +4189,7 @@ Running neuralnetless search tests
 ===================================================================
 Basic search with debugSkipNeuralNet and chosen move randomization
 ===================================================================
-: T  -1.54c W  -1.55c S   0.01c ( +0.0) VW  21.35c VS  -1.66c ESS     100 N     100  --  null E1 D5 H4 G7 C4 B7
+: T  -1.54c W  -1.55c S   0.01c ( +0.0) VW  21.35c VS  -1.66c ESS     100 N     100  --  E1 D5 H4 G7 C4 B7
 ---Black(v)---
 E1  : T  -2.34c W  -3.08c S   0.74c ( +1.0) VW  -0.28c VS  -3.38c P 15.48% WF  8.01% ESS      34 N      34  --  E1 D5 H4 G7 C4 B7
 H2  : T  -4.93c W  -6.03c S   1.11c ( +1.5) VW  -9.34c VS  -1.85c P  2.49% WF  8.35% ESS      15 N      15  --  H2 J5 E6 D8 A3
@@ -4252,7 +4252,7 @@ HASH: 88210F226B2C694D57E10865D068E76C
  1 . . . O . . .
 
 
-: T   2.08c W   2.36c S  -0.29c ( -0.4) VW   5.40c VS   5.87c ESS      50 N      50  --  null G7 F1 A7 E5
+: T   2.08c W   2.36c S  -0.29c ( -0.4) VW   5.40c VS   5.87c ESS      50 N      50  --  G7 F1 A7 E5
 ---Black(v)---
 G7  : T  -2.98c W  -3.44c S   0.46c ( +0.4) VW  -9.08c VS  -2.72c P  7.29% WF 16.12% ESS      14 N      14  --  G7 F1 A7 E5
 pss : T   3.56c W   5.95c S  -2.38c ( -2.7) VW   4.18c VS  -2.40c P 19.53% WF 14.47% ESS      10 N      10  --  pass A1 G1 G7 F3
@@ -4261,7 +4261,7 @@ C1  : T  -1.89c W  -3.16c S   1.27c ( +1.4) VW  12.59c VS   3.35c P  7.58% WF 15
 F3  : T  10.34c W  13.05c S  -2.71c ( -3.1) VW  -7.52c VS  -2.98c P 15.69% WF 13.18% ESS       5 N       5  --  F3 G1 A7
 D5  : T   5.09c W   3.49c S   1.60c ( +2.0) VW  -4.06c VS   6.08c P  8.10% WF 14.25% ESS       4 N       4  --  D5 B1 F1
 B1  : T  26.24c W  26.66c S  -0.42c ( -0.5) VW  26.66c VS  -0.42c P  5.36% WF 11.66% ESS       1 N       1  --  B1
-: T   2.08c W   2.36c S  -0.29c ( -0.4) VW   5.40c VS   5.87c ESS      50 N      50  --  null G7 F1 A7 E5
+: T   2.08c W   2.36c S  -0.29c ( -0.4) VW   5.40c VS   5.87c ESS      50 N      50  --  G7 F1 A7 E5
 F3  : T  10.34c W  13.05c S  -2.71c ( -3.1) VW  -7.52c VS  -2.98c P 15.69% WF 13.18% ESS       5 N       5  --  F3 G1 A7
 ---White(^)---
 F3  G1  : T  16.37c W  18.56c S  -2.18c ( -2.6) VW   8.14c VS  -0.01c P 12.92% WF 50.81% ESS       3 N       3  --  G1 A7
@@ -4279,13 +4279,13 @@ HASH: D7398987FF5B6D3534EA6CF6FCA0FC9C
  1 . . . O . . .
 
 
-: T  10.34c W  13.05c S  -2.71c ( -3.1) VW  -7.52c VS  -2.98c ESS       5 N       5  --  null G1 A7
+: T  10.34c W  13.05c S  -2.71c ( -3.1) VW  -7.52c VS  -2.98c ESS       5 N       5  --  G1 A7
 ---White(^)---
 G1  : T  16.37c W  18.56c S  -2.18c ( -2.6) VW   8.14c VS  -0.01c P 12.92% WF 50.81% ESS       3 N       3  --  G1 A7
 E5  : T  13.06c W  17.09c S  -4.03c ( -4.5) VW  17.09c VS  -4.03c P 11.90% WF 49.19% ESS       1 N       1  --  E5
 
 Then continue the search to complete 50 visits.
-: T   4.30c W   4.53c S  -0.23c ( -0.4) VW  -7.52c VS  -2.98c ESS      51 N      50  --  null C1 F7 A1 G3 F1 A5
+: T   4.30c W   4.53c S  -0.23c ( -0.4) VW  -7.52c VS  -2.98c ESS      51 N      50  --  C1 F7 A1 G3 F1 A5
 ---White(^)---
 C1  : T   8.85c W   9.00c S  -0.16c ( -0.2) VW  15.85c VS  -0.90c P 11.74% WF 12.63% ESS      13 N      13  --  C1 F7 A1 G3 F1 A5
 pss : T   9.04c W   8.89c S   0.16c ( -0.2) VW  11.61c VS  -2.38c P  7.82% WF 12.63% ESS      12 N      11  --  pass B7 E1 pass pass
@@ -4313,7 +4313,7 @@ HASH: 949A0985413C9A8ACB79BEC467CEA6DD
  1 O . . O O . X
 
 
-: T  -0.35c W  -0.38c S   0.03c ( +0.0) VW  26.51c VS   0.53c ESS     402 N     400  --  null A7 F1 E3 G1 E7 F3 A4
+: T  -0.35c W  -0.38c S   0.03c ( +0.0) VW  26.51c VS   0.53c ESS     402 N     400  --  A7 F1 E3 G1 E7 F3 A4
 ---Black(v)---
 A7  : T  -1.44c W  -1.67c S   0.23c ( +0.2) VW   9.38c VS  -2.93c P 15.33% WF 10.32% ESS      85 N      85  --  A7 F1 E3 G1 E7 F3 A4
 E5  : T  -1.64c W  -1.43c S  -0.21c ( -0.2) VW  19.27c VS   0.58c P 13.30% WF 10.36% ESS      76 N      76  --  E5 pass F1 F1 A4 pass E3 pass
@@ -4339,7 +4339,7 @@ HASH: 949A0985413C9A8ACB79BEC467CEA6DD
  1 O . . O O . X
 
 
-: T   2.58c W   2.37c S   0.22c ( +0.2) VW  26.51c VS   0.53c ESS     402 N     400  --  null E5 B1 B7 E7 F7 C1 E3
+: T   2.58c W   2.37c S   0.22c ( +0.2) VW  26.51c VS   0.53c ESS     402 N     400  --  E5 B1 B7 E7 F7 C1 E3
 ---Black(v)---
 E5  : T   2.38c W   2.17c S   0.21c ( +0.2) VW   9.38c VS  -2.93c P 13.30% WF 77.09% ESS     400 N     398  --  E5 B1 B7 E7 F7 C1 E3 G3
 pss : T 104.68c W 100.00c S   4.68c ( +3.5) VW ---.--c VS ---.--c P  9.24% WF 22.91% ESS    1000 N       1  --  pass
@@ -4357,7 +4357,7 @@ HASH: 6AA0C7C43BAC1D9881FC1F5BAAFF4608
  1 O . . O O . X
 
 
-: T   3.35c W   3.07c S   0.28c ( +0.3) VW  -0.93c VS   2.19c ESS     404 N     400  --  null C1 E3 E3 E5 pass G3 B1
+: T   3.35c W   3.07c S   0.28c ( +0.3) VW  -0.93c VS   2.19c ESS     404 N     400  --  C1 E3 E3 E5 pass G3 B1
 ---White(^)---
 C1  : T   5.04c W   5.03c S   0.01c ( -0.1) VW -21.34c VS  -1.41c P 29.57% WF 18.27% ESS     187 N     185  --  C1 E3 E3 E5 pass G3 B1 A4
 pss : T   0.82c W   0.61c S   0.20c ( +0.2) VW  23.20c VS  -5.62c P 37.76% WF 16.05% ESS     101 N     101  --  pass F1 F1 B7 E5 B1 A4
@@ -4365,7 +4365,7 @@ E5  : T   5.34c W   3.59c S   1.75c ( +1.9) VW -11.09c VS   3.79c P 10.54% WF 18
 B1  : T  -1.37c W  -0.72c S  -0.65c ( -0.7) VW  -5.48c VS   1.95c P 13.77% WF 15.61% ESS      28 N      28  --  B1 pass E3 B7 F1 pass G1 pass
 E3  : T  -1.84c W  -1.26c S  -0.58c ( -0.6) VW   3.15c VS  -5.43c P  6.66% WF 15.73% ESS      14 N      14  --  E3 F3 B1 E5 C1 F1
 F1  : T  -2.11c W   0.65c S  -2.75c ( -3.3) VW  14.47c VS  -3.35c P  1.70% WF 16.16% ESS       3 N       3  --  F1 B7 G1
-: T   3.35c W   3.07c S   0.28c ( +0.3) VW  -0.93c VS   2.19c ESS     404 N     400  --  null C1 E3 E3 E5 pass G3 B1
+: T   3.35c W   3.07c S   0.28c ( +0.3) VW  -0.93c VS   2.19c ESS     404 N     400  --  C1 E3 E3 E5 pass G3 B1
 pss : T   0.82c W   0.61c S   0.20c ( +0.2) VW  23.20c VS  -5.62c P 37.76% WF 16.05% ESS     101 N     101  --  pass F1 F1 B7 E5 B1 A4
 ---Black(v)---
 pss F1  : T   0.29c W   0.13c S   0.16c ( +0.2) VW   7.60c VS   4.60c P 32.64% WF 15.94% ESS      34 N      34  --  F1 F1 B7 E5 B1 A4
@@ -4388,7 +4388,7 @@ HASH: 6AA0C7C43BAC1D9881FC1F5BAAFF4608
  1 O . . O O . X
 
 
-: T   0.82c W   0.61c S   0.20c ( +0.2) VW  23.20c VS  -5.62c ESS     101 N     101  --  null F1 F1 B7 E5 B1 A4
+: T   0.82c W   0.61c S   0.20c ( +0.2) VW  23.20c VS  -5.62c ESS     101 N     101  --  F1 F1 B7 E5 B1 A4
 ---Black(v)---
 F1  : T   0.29c W   0.13c S   0.16c ( +0.2) VW   7.60c VS   4.60c P 32.64% WF 15.94% ESS      34 N      34  --  F1 F1 B7 E5 B1 A4
 C1  : T   0.37c W  -1.30c S   1.67c ( +1.9) VW  -5.88c VS   1.30c P 22.16% WF 15.89% ESS      24 N      24  --  C1 E3 B7 F3 F1
@@ -4410,7 +4410,7 @@ HASH: 6AA0C7C43BAC1D9881FC1F5BAAFF4608
  1 O . . O O . X
 
 
-: T  61.13c W  61.60c S  -0.47c ( -1.5) VW  23.20c VS  -5.62c ESS       4 N       2  --  null pass
+: T  61.13c W  61.60c S  -0.47c ( -1.5) VW  23.20c VS  -5.62c ESS       4 N       2  --  pass
 ---Black(v)---
 pss : T 104.68c W 100.00c S   4.68c ( +3.5) VW ---.--c VS ---.--c P  3.21% WF 100.00% ESS    1000 N       1  --  pass
 
@@ -4426,7 +4426,7 @@ HASH: 6AA0C7C43BAC1D9881FC1F5BAAFF4608
  1 O . . O O . X
 
 
-: T   1.82c W   1.57c S   0.25c ( +0.2) VW  23.20c VS  -5.62c ESS     404 N     400  --  null E5 pass B7 C1 A4 B4 F1
+: T   1.82c W   1.57c S   0.25c ( +0.2) VW  23.20c VS  -5.62c ESS     404 N     400  --  E5 pass B7 C1 A4 B4 F1
 ---Black(v)---
 E5  : T   1.64c W   1.38c S   0.26c ( +0.2) VW  30.00c VS   4.70c P  1.80% WF 77.26% ESS     402 N     398  --  E5 pass B7 C1 A4 B4 F1 E7
 pss : T 104.68c W 100.00c S   4.68c ( +3.5) VW ---.--c VS ---.--c P  3.21% WF 22.74% ESS    1000 N       1  --  pass
