@@ -147,7 +147,7 @@ struct Search {
 
   //Precomputed Fancymath::normToTApprox values, for a fixed Z
   double normToTApproxZ;
-  vector<double> normToTApproxTable; //by degrees of freedom minus 2
+  vector<double> normToTApproxTable;
 
   //Mutable---------------------------------------------------------------
   SearchNode* rootNode;
@@ -205,7 +205,8 @@ struct Search {
   //Same, but works on a node within the search, not just the root
   bool getPlaySelectionValues(
     const SearchNode& node,
-    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
+    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+    bool allowDirectPolicyMoves
   ) const;
 
   //Useful utility function exposed for outside use
@@ -251,8 +252,9 @@ struct Search {
 
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
-  void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet);
-  void appendPV(vector<Loc>& buf, const SearchNode* n, int maxDepth); //Append PV from position at node n onward to buf
+  void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors);
+  void getAnalysisData(const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors);
+  void appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth); //Append PV from position at node n onward to buf
 
   //Get the ownership map averaged throughout the search tree.
   //Must have ownership present on all neural net evals.
@@ -284,20 +286,27 @@ private:
     vector<double>& resultBuf
   ) const;
 
-  double getPlaySelectionValue(
-    double nnPolicyProb, int64_t childVisits, Player pla
-  ) const;
+  //Parent must be locked
+  void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, double& lcbBuf, double& radiusBuf) const;
+
   double getExploreSelectionValue(
     double nnPolicyProb, int64_t totalChildVisits, int64_t childVisits,
     double childUtility, Player pla
   ) const;
   double getPassingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
 
-  double getPlaySelectionValue(const SearchNode& parent, const SearchNode* child) const;
+  double getPlaySelectionValue(
+    const SearchNode& parent, const SearchNode* child,
+    double mostVisitedChildVisits, double mostVisitedChildLCB
+  ) const;
+
+
+
   double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const;
   double getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const;
 
-  double getReducedPlaySelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const;
+  //Parent must be locked
+  int64_t getReducedPlaySelectionVisits(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const;
 
   double getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const;
 
@@ -328,7 +337,8 @@ private:
   );
 
   AnalysisData getAnalysisDataOfSingleChild(
-    const SearchNode* child, Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
+    const SearchNode* child, vector<Loc>& scratchLocs, vector<double>& scratchValues,
+    Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
     double parentScoreMean, double parentScoreStdev, int maxPVDepth
   );
 

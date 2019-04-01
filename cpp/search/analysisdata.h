@@ -3,9 +3,12 @@
 
 #include "../game/board.h"
 
+struct SearchNode;
+
 struct AnalysisData {
   Loc move;
   int64_t numVisits;
+  double playSelectionValue;
   double utility;
   double resultUtility;
   double scoreUtility;
@@ -14,8 +17,11 @@ struct AnalysisData {
   double scoreMean;
   double scoreStdev;
   double ess;
+  double weightFactor;
   int order;
   vector<Loc> pv;
+
+  const SearchNode* node; //ONLY valid so long as search is not cleared
 
   AnalysisData();
   AnalysisData(const AnalysisData& other);

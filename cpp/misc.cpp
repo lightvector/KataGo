@@ -72,7 +72,7 @@ static void writeLine(
   vector<AnalysisData> buf;
   if(!baseHist.isGameFinished) {
     int minMovesToTryToGet = 0; //just get the default number
-    search->getAnalysisData(buf,minMovesToTryToGet);
+    search->getAnalysisData(buf,minMovesToTryToGet,false);
   }
   cout << buf.size() << " ";
   for(int i = 0; i<buf.size(); i++) {

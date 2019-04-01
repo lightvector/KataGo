@@ -568,14 +568,28 @@ static void extractPolicyTarget(
   double scaleMaxToAtLeast = 10.0;
 
   assert(node != NULL);
-  bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast);
+  bool allowDirectPolicyMoves = false;
+  bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast,allowDirectPolicyMoves);
   assert(success);
 
   assert(locsBuf.size() == playSelectionValuesBuf.size());
   assert(locsBuf.size() <= toMoveBot->rootBoard.x_size * toMoveBot->rootBoard.y_size + 1);
+
+  //Make sure we don't overflow int16
+  double maxValue = 0.0;
   for(int moveIdx = 0; moveIdx<locsBuf.size(); moveIdx++) {
     double value = playSelectionValuesBuf[moveIdx];
-    assert(value >= 0.0 && value < 30000.0); //Make sure we don't oveflow int16
+    assert(value >= 0.0);
+    if(value > maxValue)
+      maxValue = value;
+  }
+  double factor = 1.0;
+  if(maxValue > 30000.0)
+    factor = 30000.0 / maxValue;
+
+  for(int moveIdx = 0; moveIdx<locsBuf.size(); moveIdx++) {
+    double value = playSelectionValuesBuf[moveIdx] * factor;
+    assert(value <= 30001.0);
     buf.push_back(PolicyTargetMove(locsBuf[moveIdx],(int16_t)round(value)));
   }
 }
