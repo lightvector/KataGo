@@ -314,24 +314,22 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
 static const double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
 
 bool Search::getPlaySelectionValues(
-  vector<Loc>& locs, vector<double>& playSelectionValues, int64_t& unreducedNumVisitsBuf, double scaleMaxToAtLeast
+  vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
 ) const {
   if(rootNode == NULL) {
     locs.clear();
     playSelectionValues.clear();
-    unreducedNumVisitsBuf = 0;
     return false;
   }
-  return getPlaySelectionValues(*rootNode, locs, playSelectionValues, unreducedNumVisitsBuf, scaleMaxToAtLeast);
+  return getPlaySelectionValues(*rootNode, locs, playSelectionValues, scaleMaxToAtLeast);
 }
 
 bool Search::getPlaySelectionValues(
   const SearchNode& node,
-  vector<Loc>& locs, vector<double>& playSelectionValues, int64_t& unreducedNumVisitsBuf, double scaleMaxToAtLeast
+  vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
 ) const {
   locs.clear();
   playSelectionValues.clear();
-  unreducedNumVisitsBuf = 0;
 
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
@@ -344,20 +342,19 @@ bool Search::getPlaySelectionValues(
     Loc moveLoc = child->prevMoveLoc;
     int movePos = getPos(moveLoc);
     float nnPolicyProb = node.nnOutput->policyProbs[movePos];
-    
+
     while(child->statsLock.test_and_set(std::memory_order_acquire));
     int64_t childVisits = child->stats.visits;
     child->statsLock.clear(std::memory_order_release);
-    
+
     double selectionValue = getPlaySelectionValue(nnPolicyProb,childVisits,node.nextPla);
-    assert(selectionValue >= 0.0);    
+    assert(selectionValue >= 0.0);
 
     locs.push_back(moveLoc);
     playSelectionValues.push_back(selectionValue);
     totalChildVisits += childVisits;
   }
-  //Go ahead and immediately record the raw number of visits, before doing any sort of reductions
-  unreducedNumVisitsBuf = 1 + totalChildVisits;
+
 
   //Possibly reduce visits on children that we spend too many visits on in retrospect
   if(&node == rootNode && searchParams.rootDesiredPerChildVisitsCoeff > 0 && numChildren > 0) {
@@ -381,7 +378,7 @@ bool Search::getPlaySelectionValues(
         playSelectionValues[i] = getReducedPlaySelectionValue(node, node.children[i], totalChildVisits, bestChildExploreSelectionValue);
     }
   }
-  
+
   shared_ptr<NNOutput> nnOutput = node.nnOutput;
   lock.unlock();
 
@@ -493,7 +490,7 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
   if(winLossValue > 1.0) winLossValue = 1.0;
   if(winLossValue < -1.0) winLossValue = -1.0;
   values.winLossValue = winLossValue;
-  
+
   return true;
 }
 
@@ -533,6 +530,18 @@ double Search::getRootUtility() const {
   return getUtility(resultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
 }
 
+int64_t Search::getRootVisits() const {
+  assert(rootNode != NULL);
+  const SearchNode& node = *rootNode;
+
+  while(node.statsLock.test_and_set(std::memory_order_acquire));
+  int64_t numVisits = node.stats.visits;
+  node.statsLock.clear(std::memory_order_release);
+
+  return numVisits;
+}
+
+
 uint32_t Search::chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature) {
   assert(numRelativeProbs > 0);
   assert(numRelativeProbs < 1024); //We're just doing this on the stack
@@ -544,7 +553,7 @@ uint32_t Search::chooseIndexWithTemperature(Rand& rand, const double* relativePr
       maxValue = relativeProbs[i];
   }
   assert(maxValue > 0.0);
-  
+
   //Temperature so close to 0 that we just calculate the max directly
   if(temperature <= 1.0e-4) {
     double bestProb = relativeProbs[0];
@@ -578,8 +587,7 @@ Loc Search::getChosenMoveLoc() {
 
   vector<Loc> locs;
   vector<double> playSelectionValues;
-  int64_t unreducedNumVisitsBuf;
-  bool suc = getPlaySelectionValues(locs,playSelectionValues,unreducedNumVisitsBuf,0.0);
+  bool suc = getPlaySelectionValues(locs,playSelectionValues,0.0);
   if(!suc)
     return Board::NULL_LOC;
 
@@ -647,7 +655,7 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
     //Right now, just always use the recommended time.
     maxTime = std::min(tcRec,maxTime);
   }
-  
+
   {
     //Possibly reduce computation time, for human friendliness
     if(rootHistory.moveHistory.size() >= 1 && rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc == Board::PASS_LOC) {
@@ -656,7 +664,7 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
       else
         searchFactor *= searchParams.searchFactorAfterOnePass;
     }
-    
+
     if(searchFactor != 1.0) {
       double cap = (double)((int64_t)1L << 62);
       maxVisits = (int64_t)ceil(std::min(cap, maxVisits * searchFactor));
@@ -664,13 +672,13 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
       maxTime = maxTime * searchFactor;
     }
   }
-  
+
   beginSearch(logger);
   int64_t numNonPlayoutVisits = numRootVisits();
 
   auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities,maxVisits,maxPlayouts,maxTime](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
-    
+
     int64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
     try {
       while(true) {
@@ -1159,7 +1167,7 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
       return 1e20;
     }
   }
-  
+
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
 double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const {
@@ -1193,7 +1201,7 @@ double Search::getReducedPlaySelectionValue(const SearchNode& parent, const Sear
   scoreMeanSum += endingScoreBonus * valueSumWeight;
   scoreMeanSqSum = scoreMeanSqSum + (oldScoreMeanSum + scoreMeanSum) * endingScoreBonus;
   double childUtility = getUtility(childResultUtilitySum, scoreMeanSum, scoreMeanSqSum, valueSumWeight);
-  
+
   int64_t desiredVisits = (int64_t)ceil(sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff));
   for(int i = 0; i<desiredVisits; i++) {
     if(childVisits <= 0)
@@ -1771,11 +1779,11 @@ void Search::getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet) 
   buf.clear();
   if(rootNode == NULL)
     return;
-  
+
   vector<SearchNode*> children;
   children.reserve(rootBoard.x_size * rootBoard.y_size + 1);
   const SearchNode& node = *rootNode;
-  
+
   int numChildren;
   {
     std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
@@ -1803,7 +1811,7 @@ void Search::getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet) 
     //for floating point error.
     assert(policyProbMassVisited <= 1.0001);
   }
-  
+
   double parentWinLossValue;
   double parentScoreMean;
   double parentScoreStdev;
@@ -1819,16 +1827,16 @@ void Search::getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet) 
 
     double winValue = winValueSum / valueSumWeight;
     double lossValue = (valueSumWeight - winValueSum - noResultValueSum) / valueSumWeight;
-    
+
     parentWinLossValue = winValue - lossValue;
     parentScoreMean = scoreMeanSum / valueSumWeight;
     double scoreMeanSq = scoreMeanSqSum / valueSumWeight;
     parentScoreStdev = getScoreStdev(parentScoreMean,scoreMeanSq);
   }
-  
+
   double parentUtility;
   double fpuValue = getFpuValueForChildrenAssumeVisited(node, rootPla, true, policyProbMassVisited, parentUtility);
-  
+
   for(int i = 0; i<numChildren; i++) {
     SearchNode* child = children[i];
 
@@ -1841,7 +1849,7 @@ void Search::getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet) 
     double valueSumWeight = child->stats.valueSumWeight;
     double resultUtilitySum = child->stats.getResultUtilitySum(searchParams);
     child->statsLock.clear(std::memory_order_release);
-    
+
     AnalysisData data;
     data.move = child->prevMoveLoc;
     data.numVisits = numVisits;
@@ -1883,7 +1891,7 @@ void Search::getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet) 
       for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
         if(policyProbs[pos] < bestPolicy)
           continue;
-        
+
         bool alreadyUsed = false;
         for(int j = 0; j<buf.size(); j++) {
           if(getPos(buf[j].move) == pos) {
@@ -1915,7 +1923,7 @@ void Search::getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet) 
     }
   }
   std::stable_sort(buf.begin(),buf.end());
-  
+
   for(int i = 0; i<buf.size(); i++)
     buf[i].order = i;
 }

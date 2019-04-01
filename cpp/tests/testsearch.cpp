@@ -98,8 +98,7 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
       double scaleMaxToAtLeast = 10.0;
       vector<Loc> locsBuf;
       vector<double> playSelectionValuesBuf;
-      int64_t unreducedNumVisitsBuf;
-      bool success = search->getPlaySelectionValues(locsBuf,playSelectionValuesBuf,unreducedNumVisitsBuf,scaleMaxToAtLeast);
+      bool success = search->getPlaySelectionValues(locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast);
       assert(success);
       for(int j = 0; j<locsBuf.size(); j++) {
         cout << Location::toString(locsBuf[j],board) << " " << playSelectionValuesBuf[j] << endl;
@@ -833,7 +832,7 @@ o..oo.x
       search->printTree(cout, search->rootNode, options.onlyBranch(board,"pass"));
 
       cout << endl;
-      
+
       cout << "Now play forward the pass. The tree should still have useless suicides and also other moves in it" << endl;
       search->makeMove(Board::PASS_LOC,nextPla);
       testAssert(hasSuicideRootMoves(search));
@@ -843,7 +842,7 @@ o..oo.x
       search->printTree(cout, search->rootNode, options);
 
       cout << endl;
-      
+
       cout << "But the moment we begin a search, it should no longer." << endl;
       search->beginSearch(logger);
       testAssert(!hasSuicideRootMoves(search));
@@ -853,7 +852,7 @@ o..oo.x
       search->printTree(cout, search->rootNode, options);
 
       cout << endl;
-      
+
       cout << "Continue searching a bit more" << endl;
       search->runWholeSearch(getOpp(nextPla),logger,NULL);
 

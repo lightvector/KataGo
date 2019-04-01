@@ -30,7 +30,7 @@ struct ReportedSearchValues {
   double expectedScore;
   double expectedScoreStdev;
   double winLossValue;
-  
+
   ReportedSearchValues();
   ~ReportedSearchValues();
 };
@@ -189,12 +189,12 @@ struct Search {
   //Does take into account chosenMoveSubtract but does NOT apply temperature.
   //If somehow the max value is less than scaleMaxToAtLeast, scale it to at least that value.
   bool getPlaySelectionValues(
-    vector<Loc>& locs, vector<double>& playSelectionValues, int64_t& unreducedNumVisitsBuf, double scaleMaxToAtLeast
+    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
   ) const;
   //Same, but works on a node within the search, not just the root
   bool getPlaySelectionValues(
     const SearchNode& node,
-    vector<Loc>& locs, vector<double>& playSelectionValues, int64_t& unreducedNumVisitsBuf, double scaleMaxToAtLeast
+    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
   ) const;
 
   //Useful utility function exposed for outside use
@@ -207,6 +207,8 @@ struct Search {
 
   //Get the combined utility recorded for the root node
   double getRootUtility() const;
+  //Get the number of visits recorded for the root node
+  int64_t getRootVisits() const;
 
   //Run an entire search from start to finish
   //If recordUtilities is provided, and we're doing a singlethreaded search, will fill recordUtilities
@@ -286,7 +288,7 @@ private:
   double getReducedPlaySelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const;
 
   double getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const;
-  
+
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);
 

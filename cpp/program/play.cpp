@@ -169,7 +169,7 @@ void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, 
     hist.setKomi(extraBlackAndKomi.komi);
     return;
   }
-  
+
   int bSize = allowedBSizes[rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size())];
   board = Board(bSize,bSize);
 
@@ -400,7 +400,7 @@ Loc Play::chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, c
       numLegalMoves += 1;
     }
   }
-  
+
   //Just in case the policy map is somehow not consistent with the board position
   if(numLegalMoves > 0) {
     uint32_t n = Search::chooseIndexWithTemperature(gameRand, relProbs, numLegalMoves, temperature);
@@ -411,11 +411,11 @@ Loc Play::chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, c
 
 static float roundAndClipKomi(double unrounded, const Board& board) {
   //Just in case, make sure komi is reasonable
-  float range = board.x_size * board.y_size; 
+  float range = board.x_size * board.y_size;
   if(unrounded < -range)
     unrounded = -range;
   if(unrounded > range)
-    unrounded = range;  
+    unrounded = range;
   return (float)(0.5 * round(2.0 * unrounded));
 }
 
@@ -447,7 +447,7 @@ void Play::adjustKomiToEven(
   Player pla,
   int64_t numVisits,
   Logger& logger
-) {  
+) {
   //Iterate a few times in case the neural net knows the bot isn't perfectly score maximizing.
   for(int i = 0; i<3; i++) {
     double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, numVisits, logger);
@@ -474,7 +474,7 @@ void Play::playExtraBlack(
   //First, restore back to baseline komi
   hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
 
-  NNResultBuf buf;  
+  NNResultBuf buf;
   for(int i = 0; i<extraBlackAndKomi.extraBlack; i++) {
     double drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
     bot->nnEvaluator->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
@@ -485,19 +485,19 @@ void Play::playExtraBlack(
     Loc loc = chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, gameRand, temperature, allowPass, banMove);
     if(loc == Board::NULL_LOC)
       break;
-    
+
     assert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
     hist.clear(board,pla,hist.rules,0);
   }
 
   if(adjustKomi) {
-    //Adjust komi to be fair for the handicap according to what the bot thinks. 
+    //Adjust komi to be fair for the handicap according to what the bot thinks.
     adjustKomiToEven(bot,board,hist,pla,numVisitsForKomi,logger);
     //Then, reapply the komi offset from base that we should have had
     hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
   }
-  
+
   bot->setPosition(pla,board,hist);
 }
 
@@ -559,7 +559,6 @@ static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board,
 }
 
 static void extractPolicyTarget(
-  int64_t& unreducedNumVisitsBuf,
   vector<PolicyTargetMove>& buf,
   const Search* toMoveBot,
   const SearchNode* node,
@@ -569,7 +568,7 @@ static void extractPolicyTarget(
   double scaleMaxToAtLeast = 10.0;
 
   assert(node != NULL);
-  bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,unreducedNumVisitsBuf,scaleMaxToAtLeast);
+  bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast);
   assert(success);
 
   assert(locsBuf.size() == playSelectionValuesBuf.size());
@@ -629,11 +628,10 @@ static void recordTreePositionsRec(
 
   if(plaAlwaysBest && node != toMoveBot->rootNode) {
     SidePosition* sp = new SidePosition(board,hist,pla,numNeuralNetChangesSoFar);
-    int64_t unreducedNumVisitsBuf;
-    extractPolicyTarget(unreducedNumVisitsBuf, sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
+    extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
     extractValueTargets(sp->whiteValueTargets, toMoveBot, node, NULL);
     sp->targetWeight = recordTreeTargetWeight;
-    sp->unreducedNumVisits = unreducedNumVisitsBuf;
+    sp->unreducedNumVisits = toMoveBot->getRootVisits();
     gameData->sidePositions.push_back(sp);
   }
 
@@ -723,7 +721,7 @@ static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, c
   double drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
   nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
   std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
-  
+
   vector<Loc> locs;
   vector<double> playSelectionValues;
   int posLen = nnOutput->posLen;
@@ -790,14 +788,14 @@ FinishedGameData* Play::runGame(
     gameRand,
     checkForNewNNEval
   );
-  
+
   if(botW != botB)
     delete botW;
   delete botB;
-  
+
   return gameData;
 }
-  
+
 FinishedGameData* Play::runGame(
   const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
   MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
@@ -811,7 +809,7 @@ FinishedGameData* Play::runGame(
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
   FinishedGameData* gameData = new FinishedGameData();
-  
+
   Board board(startBoard);
   BoardHistory hist(startHist);
   if(extraBlackAndKomi.extraBlack > 0) {
@@ -871,7 +869,7 @@ FinishedGameData* Play::runGame(
       assert(numInitialMovesToPlay >= 0);
       for(int i = 0; i<numInitialMovesToPlay; i++) {
         Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand);
-        
+
         //Make the move!
         assert(hist.isLegal(board,loc,pla));
         hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
@@ -980,14 +978,14 @@ FinishedGameData* Play::runGame(
     //bias the search with the result of the previous...
     if(clearBotBeforeSearchThisMove)
       toMoveBot->clearSearch();
-    
+
     Loc loc;
 
     if(doCapVisitsPlayouts) {
       assert(numCapVisits > 0);
       assert(numCapPlayouts > 0);
       SearchParams oldParams = toMoveBot->searchParams;
-      
+
       toMoveBot->searchParams.maxVisits = std::min(toMoveBot->searchParams.maxVisits, numCapVisits);
       toMoveBot->searchParams.maxPlayouts = std::min(toMoveBot->searchParams.maxPlayouts, numCapPlayouts);
       if(removeRootNoise) {
@@ -1016,9 +1014,9 @@ FinishedGameData* Play::runGame(
 
     if(recordFullData) {
       vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
-      int64_t unreducedNumVisitsBuf;
-      extractPolicyTarget(unreducedNumVisitsBuf, *policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
-      gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisitsBuf));
+      int64_t unreducedNumVisits = toMoveBot->getRootVisits();
+      extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
+      gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisits));
       gameData->targetWeightByTurn.push_back(targetWeight);
 
       ValueTargets whiteValueTargets;
@@ -1181,11 +1179,10 @@ FinishedGameData* Play::runGame(
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
       Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,recordUtilities);
 
-      int64_t unreducedNumVisitsBuf;
-      extractPolicyTarget(unreducedNumVisitsBuf, sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
+      extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode, recordUtilities);
       sp->targetWeight = 1.0;
-      sp->unreducedNumVisits = unreducedNumVisitsBuf;
+      sp->unreducedNumVisits = toMoveBot->getRootVisits();
       sp->numNeuralNetChangesSoFar = gameData->changedNeuralNets.size();
 
       gameData->sidePositions.push_back(sp);
@@ -1261,7 +1258,7 @@ void Play::maybeForkGame(
 
   assert(finishedGameData->startHist.initialBoard.pos_hash == finishedGameData->endHist.initialBoard.pos_hash);
   assert(finishedGameData->startHist.initialPla == finishedGameData->endHist.initialPla);
-  
+
   Board board = finishedGameData->startHist.initialBoard;
   Player pla = finishedGameData->startHist.initialPla;
   BoardHistory hist(board,pla,finishedGameData->startHist.rules,finishedGameData->startHist.encorePhase);
@@ -1289,7 +1286,7 @@ void Play::maybeForkGame(
     if(hist.isGameFinished)
       return;
   }
-  
+
   //Pick a move!
 
   //Generate a selection of a small random number of choices
@@ -1302,7 +1299,7 @@ void Play::maybeForkGame(
   //Try the one the value net thinks is best
   Loc bestMove = Board::NULL_LOC;
   double bestScore = 0.0;
-  
+
   NNResultBuf buf;
   double drawEquivalentWinsForWhite = 0.5;
   for(int i = 0; i<numChoices; i++) {
@@ -1374,7 +1371,7 @@ FinishedGameData* GameRunner::runGame(
 ) {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
-  
+
   if(nextInitialPosition != NULL)
     *nextInitialPosition = NULL;
 
@@ -1419,7 +1416,7 @@ FinishedGameData* GameRunner::runGame(
     botB = new Search(botSpecB.baseParams, botSpecB.nnEval, searchRandSeed + "@B");
     botW = new Search(botSpecW.baseParams, botSpecW.nnEval, searchRandSeed + "@W");
   }
-  
+
   FinishedGameData* finishedGameData = Play::runGame(
     board,pla,hist,extraBlackAndKomi,
     botSpecB,botSpecW,
@@ -1435,9 +1432,9 @@ FinishedGameData* GameRunner::runGame(
 
   if(initialPosition != NULL)
     finishedGameData->modeMeta2 = 1;
-  
+
   //Make sure not to write the game if we terminated in the middle of this game!
-  if(shouldStop(stopConditions)) {    
+  if(shouldStop(stopConditions)) {
     if(botW != botB)
       delete botW;
     delete botB;

@@ -28,8 +28,8 @@ static void writeLine(
   //   cout << scoreStdevHistory[scoreStdevHistory.size()-1] << " ";
   // }
   // cout << endl;
-  
-  
+
+
   cout << board.x_size << " ";
   cout << board.y_size << " ";
   cout << posLen << " "; //in the future we may have posLenX
@@ -51,11 +51,11 @@ static void writeLine(
   if(baseHist.moveHistory.size() > 0)
     moveLoc = baseHist.moveHistory[baseHist.moveHistory.size()-1].loc;
   cout << NNPos::locToPos(moveLoc,board.x_size,posLen) << " ";
-  
+
   cout << baseHist.moveHistory.size() << " ";
   cout << board.numBlackCaptures << " ";
   cout << board.numWhiteCaptures << " ";
-  
+
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
@@ -84,7 +84,7 @@ static void writeLine(
     cout << data.scoreStdev << " ";
     cout << data.policyPrior << " ";
   }
-  
+
   int minVisits = 3;
   vector<double> ownership = search->getAverageTreeOwnership(minVisits);
   for(int y = 0; y<board.y_size; y++) {
@@ -101,7 +101,7 @@ static void writeLine(
   assert(scoreStdevHistory.size() == scoreHistory.size());
   for(int i = 0; i<scoreHistory.size(); i++)
     cout << scoreHistory[i] << " " << scoreStdevHistory[i] << " ";
-  
+
   cout << endl;
 }
 
@@ -109,14 +109,14 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
   static const int numSizes = 9;
   int sizes[numSizes] = {19,13,9,15,11,10,12,14,16};
   int sizeFreqs[numSizes] = {240,18,12,6,2,1,1,1,1};
-  
+
   const int size = sizes[rand.nextUInt(sizeFreqs,numSizes)];
 
   board = Board(size,size);
   pla = P_BLACK;
   hist.clear(board,pla,Rules::getTrompTaylorish(),0);
   bot->setPosition(pla,board,hist);
-  
+
   if(size == 19) {
     //Many games use a special opening
     if(rand.nextBool(0.6)) {
@@ -218,7 +218,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 
       vector<Move> chosenOpening = specialOpenings[rand.nextUInt(specialOpenings.size())];
       vector<vector<Move>> chosenOpenings;
-      
+
       for(int j = 0; j<8; j++) {
         vector<Move> symmetric;
         for(int k = 0; k<chosenOpening.size(); k++) {
@@ -281,7 +281,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
                 return false;
             }
           }
-          
+
           return true;
         };
 
@@ -304,7 +304,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
         if(nextMove.loc == Board::NULL_LOC) {
           wasSpecified = false;
           Search* search = bot->getSearch();
-          NNResultBuf buf;  
+          NNResultBuf buf;
           double drawEquivalentWinsForWhite = search->searchParams.drawEquivalentWinsForWhite;
           search->nnEvaluator->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
           std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
@@ -323,7 +323,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
         //Make the move!
         hist.makeBoardMoveAssumeLegal(board,nextMove.loc,nextMove.pla,NULL);
         pla = getOpp(pla);
-        
+
         hist.clear(board,pla,hist.rules,0);
         bot->setPosition(pla,board,hist);
 
@@ -336,7 +336,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
         bot->clearSearch();
         writeLine(bot->getSearch(),hist,vector<double>(),vector<double>(),vector<double>());
         std::this_thread::sleep_for(std::chrono::duration<double>(1.0));
-        
+
       } //Close while(true)
 
       int numVisits = 20;
@@ -351,7 +351,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
   bot->clearSearch();
   writeLine(bot->getSearch(),hist,vector<double>(),vector<double>(),vector<double>());
   std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
-    
+
 }
 
 
@@ -397,7 +397,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
       throw StringError("Config specifies more than one bot but demoplay supports only one");
     params = paramss[0];
   }
-  
+
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
@@ -418,7 +418,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
   Rand gameRand;
-  
+
   //Done loading!
   //------------------------------------------------------------------------------------
   logger.write("Loaded all config stuff, starting demo");
@@ -430,11 +430,11 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
     Board baseBoard;
     BoardHistory baseHist(baseBoard,pla,Rules::getTrompTaylorish(),0);
     TimeControls tc;
-    
+
     initializeDemoGame(baseBoard, baseHist, pla, gameRand, bot, logger);
 
     bot->setPosition(pla,baseBoard,baseHist);
-    
+
     vector<double> recentWinLossValues;
     vector<double> recentScores;
     vector<double> recentScoreStdevs;
@@ -444,7 +444,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
     auto callback = [&baseHist,&recentWinLossValues,&recentScores,&recentScoreStdevs](Search* search) {
       writeLine(search,baseHist,recentWinLossValues,recentScores,recentScoreStdevs);
     };
-    
+
     //Move loop
     int maxMovesPerGame = 1600;
     for(int i = 0; i<maxMovesPerGame; i++) {
@@ -453,7 +453,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
         break;
 
       callback(bot->getSearch());
-      
+
       double searchFactor = 1.0;
       Loc moveLoc = bot->genMoveSynchronousAnalyze(pla,tc,searchFactor,callbackPeriod,callback);
 
@@ -484,15 +484,15 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
       recentWinLossValues.push_back(winLossValue);
       recentScores.push_back(expectedScore);
       recentScoreStdevs.push_back(expectedScoreStdev);
-        
+
       bool resigned = false;
       if(allowResignation) {
         const BoardHistory hist = bot->getRootHist();
-        const Board initialBoard = hist.initialBoard; 
+        const Board initialBoard = hist.initialBoard;
 
         //Play at least some moves no matter what
         int minTurnForResignation = 1 + initialBoard.x_size * initialBoard.y_size / 6;
-          
+
         Player resignPlayerThisTurn = C_EMPTY;
         if(winLossValue < resignThreshold && expectedScore < resignScoreThreshold)
           resignPlayerThisTurn = P_WHITE;
@@ -658,8 +658,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
   auto computeSurprise = [&](Search* search) {
     vector<Loc> locs;
     vector<double> playSelectionValues;
-    int64_t unreducedNumVisitsBuf;
-    bool suc = search->getPlaySelectionValues(locs,playSelectionValues,unreducedNumVisitsBuf,0.0);
+    bool suc = search->getPlaySelectionValues(locs,playSelectionValues,0.0);
     testAssert(suc);
 
     assert(search->rootNode != NULL);
