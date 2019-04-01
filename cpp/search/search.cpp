@@ -181,6 +181,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    searchParams(params),numSearchesBegun(0),randSeed(rSeed),
+   normToTApproxZ(0.0),
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand"))
 {
@@ -780,6 +781,8 @@ void Search::beginSearch(Logger& logger) {
   numSearchesBegun++;
   computeRootValues(logger);
 
+  maybeRecomputeNormToTApproxTable();
+
   //Sanity-check a few things
   if(!rootPassLegal && searchParams.rootPruneUselessMoves)
     throw StringError("Both rootPassLegal=false and searchParams.rootPruneUselessMoves=true are specified, this could leave the bot without legal moves!");
@@ -840,6 +843,23 @@ void Search::beginSearch(Logger& logger) {
     }
 
   }
+}
+
+void Search::maybeRecomputeNormToTApproxTable() {
+  if(normToTApproxZ <= 0.0 || normToTApproxZ != searchParams.lcbStdevs || normToTApproxTable.size() <= 0) {
+    normToTApproxZ = searchParams.lcbStdevs;
+    normToTApproxTable.clear();
+    for(int i = 0; i < 512; i++)
+      normToTApproxTable.push_back(FancyMath::normToTApprox(normToTApproxZ,i+2));
+  }
+}
+
+double Search::getNormToTApproxForLCB(int64_t numVisits) const {
+  int64_t idx = numVisits-2;
+  assert(idx >= 0);
+  if(idx >= normToTApproxTable.size())
+    idx = normToTApproxTable.size()-1;
+  return normToTApproxTable[idx];
 }
 
 void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot) {
@@ -1102,6 +1122,7 @@ double Search::getExploreSelectionValue(
   return exploreComponent + valueComponent;
 }
 
+//TODO check if this or other nnOutput accesses can race!
 double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const {
   if(&parent != rootNode || child->prevMoveLoc == Board::NULL_LOC)
     return 0.0;

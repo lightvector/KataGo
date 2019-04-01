@@ -145,6 +145,10 @@ struct Search {
   //Precomputed distribution for downweighting child values based on their values
   DistributionTable* valueWeightDistribution;
 
+  //Precomputed Fancymath::normToTApprox values, for a fixed Z
+  double normToTApproxZ;
+  vector<double> normToTApproxTable; //by degrees of freedom minus 2
+
   //Mutable---------------------------------------------------------------
   SearchNode* rootNode;
 
@@ -255,7 +259,7 @@ struct Search {
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
   vector<double> getAverageTreeOwnership(int64_t minVisits);
-  
+
   int64_t numRootVisits() const;
 
   //Helpers-----------------------------------------------------------------------
@@ -300,6 +304,9 @@ private:
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);
   void recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot);
+
+  void maybeRecomputeNormToTApproxTable();
+  double getNormToTApproxForLCB(int64_t numVisits) const;
 
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
