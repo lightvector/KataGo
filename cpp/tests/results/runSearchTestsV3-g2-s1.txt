@@ -850,7 +850,7 @@ Tree:
 
 
 GAME 10 ==========================================================================
-(Tricky endgame seki invasion)
+(Tricky endgame seki invasion, testing LCB and dynamic utility recompute)
 
 MoveNum: 234 HASH: FC07D52057790672A39641451CA2E0A5
    A B C D E F G H J K L M N O P Q R S T
@@ -875,22 +875,51 @@ MoveNum: 234 HASH: FC07D52057790672A39641451CA2E0A5
  1 . . . . O O X . . X X O . . . O O O X1
 
 Root visits: 280
-NN rows: 245
-NN batches: 245
+NN rows: 241
+NN batches: 241
 NN avg batch size: 1
 PV: G2 H1 H2 J1 O3 G16 G14 H11 F15
 Tree:
-: T -34.83c W -34.06c S  -0.77c ( -1.5) N     280  --  G2 H1 H2 J1 O3 G16 G14
+: T -37.01c W -34.43c S  -2.58c ( -1.6) N     280  --  G2 H1 H2 J1 O3 G16 G14
 ---White(^)---
-G2  : T -31.41c W -30.76c S  -0.64c ( -1.3) LCB  -43.09c P  3.63% WF 11.14% PSV     186 N     186  --  G2 H1 H2 J1 O3 G16 G14 H11
-O3  : T -48.03c W -46.73c S  -1.30c ( -2.6) LCB  -74.59c P 48.68% WF  7.02% PSV      47 N      47  --  O3 H17 G14 H11 N12 N7 K6
-B13 : T -36.56c W -35.80c S  -0.76c ( -1.5) LCB  -93.47c P  3.95% WF  9.60% PSV      14 N      14  --  B13 A14 B14 A15 O3 H17 N7
-G16 : T -43.77c W -42.81c S  -0.97c ( -1.9) LCB -119.91c P  8.41% WF  8.50% PSV      10 N      10  --  G16 H17 O3 H11 N7
-S6  : T -41.72c W -40.78c S  -0.94c ( -1.9) LCB -115.69c P  4.14% WF  8.83% PSV       9 N       9  --  S6 T5 O3 G16 G14
-H17 : T -61.14c W -59.70c S  -1.43c ( -2.9) LCB -310.93c P  6.45% WF  6.72% PSV       4 N       4  --  H17 G16 O3
-F6  : T   6.94c W   7.00c S  -0.06c ( -0.1) LCB -359.21c P  1.44% WF 14.46% PSV       4 N       4  --  F6 E5 O3
-H11 : T -71.52c W -69.74c S  -1.78c ( -3.6) LCB -260.00c P  4.24% WF  6.73% PSV       1 N       1  --  H11
-N7  : T -73.22c W -71.42c S  -1.80c ( -3.6) LCB -260.00c P  3.89% WF  6.60% PSV       1 N       1  --  N7
-O13 : T -73.93c W -72.17c S  -1.76c ( -3.5) LCB -260.00c P  3.83% WF  6.54% PSV       1 N       1  --  O13
-N12 : T -69.08c W -67.46c S  -1.62c ( -3.2) LCB -260.00c P  3.55% WF  6.92% PSV       1 N       1  --  N12
-G14 : T -68.72c W -67.03c S  -1.70c ( -3.4) LCB -260.00c P  2.68% WF  6.95% PSV       1 N       1  --  G14
+G2  : T -32.96c W -30.76c S  -2.20c ( -1.3) LCB  -44.85c P  3.63% WF 13.42% PSV     190 N     190  --  G2 H1 H2 J1 O3 G16 G14 H11
+O3  : T -47.92c W -44.06c S  -3.87c ( -2.7) LCB  -74.31c P 48.68% WF  8.81% PSV      52 N      52  --  O3 G16 G14 H11 F15
+B13 : T -36.78c W -34.34c S  -2.44c ( -1.5) LCB  -91.91c P  3.95% WF 11.77% PSV      15 N      15  --  B13 A14 O3 G16 N7
+S6  : T -43.83c W -40.84c S  -2.99c ( -1.9) LCB -120.39c P  4.14% WF 10.48% PSV       9 N       9  --  S6 T5 O3 G16 G14
+G16 : T -61.35c W -57.29c S  -4.06c ( -2.7) LCB -335.81c P  8.41% WF  8.22% PSV       4 N       4  --  G16 H17 O3
+H17 : T -63.99c W -59.70c S  -4.28c ( -2.9) LCB -325.07c P  6.45% WF  7.87% PSV       4 N       4  --  H17 G16 O3
+H11 : T -74.94c W -69.74c S  -5.20c ( -3.6) LCB -300.00c P  4.24% WF  7.86% PSV       1 N       1  --  H11
+N7  : T -76.67c W -71.42c S  -5.25c ( -3.6) LCB -300.00c P  3.89% WF  7.70% PSV       1 N       1  --  N7
+O13 : T -77.31c W -72.17c S  -5.14c ( -3.5) LCB -300.00c P  3.83% WF  7.64% PSV       1 N       1  --  O13
+N12 : T -72.25c W -67.46c S  -4.79c ( -3.2) LCB -300.00c P  3.55% WF  8.10% PSV       1 N       1  --  N12
+G14 : T -72.01c W -67.03c S  -4.99c ( -3.4) LCB -300.00c P  2.68% WF  8.13% PSV       1 N       1  --  G14
+Beginning search again and then reprinting, should be same
+: T -37.01c W -34.43c S  -2.58c ( -1.6) N     280  --  G2 H1 H2 J1 O3 G16 G14
+---White(^)---
+G2  : T -32.96c W -30.76c S  -2.20c ( -1.3) LCB  -44.85c P  3.63% WF 13.42% PSV     190 N     190  --  G2 H1 H2 J1 O3 G16 G14 H11
+O3  : T -47.92c W -44.06c S  -3.87c ( -2.7) LCB  -74.31c P 48.68% WF  8.81% PSV      52 N      52  --  O3 G16 G14 H11 F15
+B13 : T -36.78c W -34.34c S  -2.44c ( -1.5) LCB  -91.91c P  3.95% WF 11.77% PSV      15 N      15  --  B13 A14 O3 G16 N7
+S6  : T -43.83c W -40.84c S  -2.99c ( -1.9) LCB -120.39c P  4.14% WF 10.48% PSV       9 N       9  --  S6 T5 O3 G16 G14
+G16 : T -61.35c W -57.29c S  -4.06c ( -2.7) LCB -335.81c P  8.41% WF  8.22% PSV       4 N       4  --  G16 H17 O3
+H17 : T -63.99c W -59.70c S  -4.28c ( -2.9) LCB -325.07c P  6.45% WF  7.87% PSV       4 N       4  --  H17 G16 O3
+H11 : T -74.94c W -69.74c S  -5.20c ( -3.6) LCB -300.00c P  4.24% WF  7.86% PSV       1 N       1  --  H11
+N7  : T -76.67c W -71.42c S  -5.25c ( -3.6) LCB -300.00c P  3.89% WF  7.70% PSV       1 N       1  --  N7
+O13 : T -77.31c W -72.17c S  -5.14c ( -3.5) LCB -300.00c P  3.83% WF  7.64% PSV       1 N       1  --  O13
+N12 : T -72.25c W -67.46c S  -4.79c ( -3.2) LCB -300.00c P  3.55% WF  8.10% PSV       1 N       1  --  N12
+G14 : T -72.01c W -67.03c S  -4.99c ( -3.4) LCB -300.00c P  2.68% WF  8.13% PSV       1 N       1  --  G14
+Making a move O3, should still be same
+: T -47.92c W -44.06c S  -3.87c ( -2.7) N      52  --  G16 G14 H11 F15
+---Black(v)---
+G16 : T -56.42c W -51.81c S  -4.62c ( -3.3) LCB   -9.40c P 14.07% WF 30.82% PSV      31 N      18  --  G16 G14 H11 F15
+H17 : T -45.84c W -42.17c S  -3.66c ( -2.5) LCB   -7.15c P 33.16% WF 25.74% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
+N7  : T  11.12c W  10.92c S   0.19c ( +0.5) LCB  300.00c P 16.32% WF 13.86% PSV       1 N       1  --  N7
+N12 : T  13.85c W  13.32c S   0.53c ( +0.8) LCB  300.00c P  7.95% WF 13.40% PSV       1 N       1  --  N12
+H11 : T  -1.53c W  -1.13c S  -0.40c ( +0.1) LCB  300.00c P  7.62% WF 16.18% PSV       1 N       1  --  H11
+Beginning search again and then reprinting, now score utils should change a little
+: T -44.75c W -44.06c S  -0.69c ( -2.7) N      52  --  G16 G14 H11 F15
+---Black(v)---
+G16 : T -53.28c W -51.82c S  -1.47c ( -3.3) LCB   -6.04c P 14.07% WF 30.85% PSV      31 N      18  --  G16 G14 H11 F15
+H17 : T -42.65c W -42.18c S  -0.47c ( -2.5) LCB   -3.87c P 33.16% WF 25.74% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
+N7  : T  14.37c W  10.92c S   3.45c ( +0.5) LCB  300.00c P 16.32% WF 13.85% PSV       1 N       1  --  N7
+N12 : T  17.09c W  13.32c S   3.78c ( +0.8) LCB  300.00c P  7.95% WF 13.39% PSV       1 N       1  --  N12
+H11 : T   1.74c W  -1.13c S   2.87c ( +0.1) LCB  300.00c P  7.62% WF 16.17% PSV       1 N       1  --  H11

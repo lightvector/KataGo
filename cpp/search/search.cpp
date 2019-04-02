@@ -917,20 +917,52 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
   children.reserve(rootBoard.x_size * rootBoard.y_size + 1);
 
   int numChildren;
+  bool noNNOutput;
   {
     std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
     lock_guard<std::mutex> lock(mutex);
     numChildren = node.numChildren;
     for(int i = 0; i<numChildren; i++)
       children.push_back(node.children[i]);
+
+    noNNOutput = node.nnOutput == nullptr;
   }
 
   for(int i = 0; i<numChildren; i++) {
     recursivelyRecomputeStats(*(children[i]),thread,false);
   }
 
-  //Then recompute this node
-  recomputeNodeStats(node, thread, 0, 0, isRoot);
+  //If this node has no nnOutput, then it must also have no children, because it's
+  //a terminal node
+  assert(!(noNNOutput && numChildren > 0));
+
+  //If the node has no children, then just update its utility directly
+  if(numChildren <= 0) {
+    while(node.statsLock.test_and_set(std::memory_order_acquire));
+    int64_t numVisits = node.stats.visits;
+    double resultUtilitySum = node.stats.getResultUtilitySum(searchParams);
+    double scoreMeanSum = node.stats.scoreMeanSum;
+    double scoreMeanSqSum = node.stats.scoreMeanSqSum;
+    double weightSum = node.stats.weightSum;
+    node.statsLock.clear(std::memory_order_release);
+
+    assert(numVisits > 0);
+    assert(weightSum > 0.0);
+    double scoreUtility = getScoreUtility(scoreMeanSum, scoreMeanSqSum, weightSum);
+
+    double newUtility = resultUtilitySum / weightSum + scoreUtility;
+    double newUtilitySum = newUtility * weightSum;
+    double newUtilitySqSum = newUtility * newUtility * weightSum;
+    
+    while(node.statsLock.test_and_set(std::memory_order_acquire));
+    node.stats.utilitySum = newUtilitySum;
+    node.stats.utilitySqSum = newUtilitySqSum;
+    node.statsLock.clear(std::memory_order_release);
+  }
+  else {
+    //Otherwise recompute it using the usual method
+    recomputeNodeStats(node, thread, 0, 0, isRoot);
+  }
 }
 
 
@@ -2233,7 +2265,7 @@ void Search::printTreeHelper(
   //Output for this node
   {
     out << prefix;
-    char buf[64];
+    char buf[128];
 
     out << ": ";
 
@@ -2287,6 +2319,17 @@ void Search::printTreeHelper(
       out << buf;
     }
 
+    if(options.printSqs_) {
+      while(node.statsLock.test_and_set(std::memory_order_acquire));
+      double scoreMeanSqSum = node.stats.scoreMeanSqSum;
+      double utilitySqSum = node.stats.utilitySqSum;
+      double weightSum = node.stats.weightSum;
+      double weightSqSum = node.stats.weightSqSum;
+      node.statsLock.clear(std::memory_order_release);
+      sprintf(buf,"SMSQ %5.1f USQ %7.5f W %6.2f WSQ %8.2f ", scoreMeanSqSum/weightSum, utilitySqSum/weightSum, weightSum, weightSqSum);
+      out << buf;
+    }
+    
     sprintf(buf,"N %7" PRIu64 "  --  ", data.numVisits);
     out << buf;
 

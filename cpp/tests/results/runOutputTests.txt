@@ -4431,6 +4431,47 @@ HASH: 6AA0C7C43BAC1D9881FC1F5BAAFF4608
 E5  : T   1.64c W   1.38c S   0.26c ( +0.2) LCB    6.22c P  1.80% WF 77.26% PSV     398 N     398  --  E5 pass B7 C1 A4 B4 F1 E7
 pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  104.68c P  3.21% WF 22.74% PSV       1 N       1  --  pass
 
+===================================================================
+Testing search tree update near terminal positions
+===================================================================
+First with no pruning
+HASH: 94959097515D55649C5B7E91CF40EBBD
+   A B C D E F G
+ 7 X . X X . X X
+ 6 X X X . X X X
+ 5 X X X X X X X
+ 4 X X X X X X X
+ 3 O O O O O O O
+ 2 O O O O O O O
+ 1 O . . O . O O
+
+
+: T  40.83c W  38.36c S   2.47c ( +0.0) SMSQ 134.4 USQ 0.44421 W 247.51 WSQ    90.85 N     400  --  B1 E7 pass D6 pass pass
+---White(^)---
+B1  : T  48.16c W  45.41c S   2.74c ( +0.0) LCB   38.99c P 12.18% WF 50.78% PSV     286 SMSQ 118.7 USQ 0.52090 W 155.11 WSQ    43.03 N     286  --  B1 E7 pass D6 pass pass
+E1  : T   8.38c W   5.90c S   2.48c ( +0.4) LCB   -4.85c P 60.64% WF 13.49% PSV      85 SMSQ 198.5 USQ 0.09245 W  39.19 WSQ    17.79 N      85  --  E1 C1 pass B1 F1 D3 A3 B2
+C1  : T   8.56c W   7.06c S   1.51c ( +0.0) LCB  -31.88c P  9.97% WF 19.89% PSV      15 SMSQ 223.9 USQ 0.09706 W  10.69 WSQ     7.22 N      15  --  C1 pass B1 B7 pass E7 pass
+pss : T  -1.98c W   4.73c S  -6.71c ( -2.9) LCB  -33.68c P 17.22% WF 15.83% PSV      13 SMSQ 235.9 USQ 0.03919 W   9.21 WSQ     6.52 N      13  --  pass D6 B1 B7 E7 A5 C5
+Begin search is idempotent?
+: T  40.83c W  38.36c S   2.47c ( +0.0) SMSQ 134.4 USQ 0.44421 W 247.51 WSQ    90.85 N     400  --  B1 E7 pass D6 pass pass
+---White(^)---
+B1  : T  48.16c W  45.41c S   2.74c ( +0.0) LCB   38.99c P 12.18% WF 50.78% PSV     286 SMSQ 118.7 USQ 0.52090 W 155.11 WSQ    43.03 N     286  --  B1 E7 pass D6 pass pass
+E1  : T   8.38c W   5.90c S   2.48c ( +0.4) LCB   -4.85c P 60.64% WF 13.49% PSV      85 SMSQ 198.5 USQ 0.09245 W  39.19 WSQ    17.79 N      85  --  E1 C1 pass B1 F1 D3 A3 B2
+C1  : T   8.56c W   7.06c S   1.51c ( +0.0) LCB  -31.88c P  9.97% WF 19.89% PSV      15 SMSQ 223.9 USQ 0.09706 W  10.69 WSQ     7.22 N      15  --  C1 pass B1 B7 pass E7 pass
+pss : T  -1.98c W   4.73c S  -6.71c ( -2.9) LCB  -33.68c P 17.22% WF 15.83% PSV      13 SMSQ 235.9 USQ 0.03919 W   9.21 WSQ     6.52 N      13  --  pass D6 B1 B7 E7 A5 C5
+: T  48.16c W  45.41c S   2.74c ( +0.0) SMSQ 118.7 USQ 0.52090 W 155.11 WSQ    43.03 N     286  --  E7 pass D6 pass pass
+---Black(v)---
+E7  : T  35.15c W  32.91c S   2.25c ( -0.0) LCB   50.21c P  1.90% WF 42.00% PSV     226 SMSQ 145.5 USQ 0.39014 W  62.25 WSQ    19.72 N     115  --  E7 pass D6 pass pass
+D6  : T  55.89c W  52.87c S   3.02c ( +0.0) LCB   68.34c P  5.27% WF 25.44% PSV     119 SMSQ  99.3 USQ 0.60112 W  65.57 WSQ    14.03 N     119  --  D6 pass B7 pass pass
+B7  : T  60.07c W  57.05c S   3.02c ( +0.0) LCB   88.00c P  9.61% WF 24.16% PSV      26 SMSQ 106.3 USQ 0.62713 W  20.40 WSQ     6.63 N      26  --  B7 pass D6 pass pass
+pss : T  98.61c W  93.75c S   4.86c ( +0.3) LCB  103.93c P 83.22% WF  8.40% PSV      25 SMSQ  17.9 USQ 1.04865 W  20.89 WSQ     0.99 N      25  --  pass pass
+: T  39.66c W  44.72c S  -5.06c ( +0.0) SMSQ 120.3 USQ 0.41330 W 154.98 WSQ    43.65 N     286  --  E7 pass D6 pass pass
+---Black(v)---
+E7  : T  27.26c W  32.03c S  -4.77c ( -0.0) LCB   41.55c P  1.90% WF 41.25% PSV     225 SMSQ 147.5 USQ 0.30890 W  62.67 WSQ    20.41 N     115  --  E7 pass D6 pass pass
+D6  : T  46.65c W  51.94c S  -5.29c ( +0.0) LCB   58.57c P  5.27% WF 25.72% PSV     119 SMSQ 101.4 USQ 0.47453 W  66.08 WSQ    14.68 N     119  --  D6 pass B7 pass pass
+B7  : T  51.19c W  56.52c S  -5.33c ( +0.0) LCB   77.65c P  9.61% WF 24.12% PSV      26 SMSQ 107.5 USQ 0.49691 W  20.28 WSQ     6.66 N      26  --  B7 pass D6 pass pass
+pss : T  87.62c W  93.65c S  -6.03c ( +0.3) LCB   92.70c P 83.22% WF  8.92% PSV      25 SMSQ  18.2 USQ 0.83549 W  20.65 WSQ     1.00 N      25  --  pass pass
+
 Running training write tests
 seedBase: testtrainingwrite-tt
 HASH: E9270262509D20A779918C0B3CC37443
