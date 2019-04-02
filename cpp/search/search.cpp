@@ -1821,18 +1821,18 @@ void Search::playoutDescend(
     child = new SearchNode(*this,thread,moveLoc);
     node.children[bestChildIdx] = child;
 
-    while(node.statsLock.test_and_set(std::memory_order_acquire));
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
     child->virtualLosses += searchParams.numVirtualLossesPerThread;
-    node.statsLock.clear(std::memory_order_release);
+    child->statsLock.clear(std::memory_order_release);
 
     lock.unlock();
   }
   else {
     child = node.children[bestChildIdx];
 
-    while(node.statsLock.test_and_set(std::memory_order_acquire));
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
     child->virtualLosses += searchParams.numVirtualLossesPerThread;
-    node.statsLock.clear(std::memory_order_release);
+    child->statsLock.clear(std::memory_order_release);
 
     //Unlock before making moves if the child already exists since we don't depend on it at this point
     lock.unlock();

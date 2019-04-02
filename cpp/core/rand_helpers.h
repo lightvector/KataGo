@@ -63,7 +63,7 @@ inline uint32_t PCG32::nextUInt()
   s = s * 6364136223846793005ULL + 1442695040888963407ULL;
   uint32_t x = (((s >> 18) ^ s) >> 27);  
   int rot = (int)(s >> 59);
-  return (x >> rot) | (x << (32-rot));
+  return rot == 0 ? x : ((x >> rot) | (x << (32-rot)));
 }
 
 #endif
