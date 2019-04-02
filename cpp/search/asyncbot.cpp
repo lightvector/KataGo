@@ -32,7 +32,10 @@ AsyncBot::~AsyncBot() {
   stopAndWait();
   assert(!isRunning);
   assert(!isKilled);
-  isKilled = true;
+  {
+    lock_guard<std::mutex> lock(controlMutex);
+    isKilled = true;
+  }
   threadWaitingToSearch.notify_all();
   searchThread.join();
   delete search;

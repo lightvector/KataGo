@@ -146,6 +146,9 @@ int Board::getNumLiberties(Loc loc) const
 //Check if moving here would be a self-capture
 bool Board::isSuicide(Loc loc, Player pla) const
 {
+  if(loc == PASS_LOC)
+    return false;
+  
   Player opp = getOpp(pla);
   for(int i = 0; i < 4; i++)
   {
@@ -507,15 +510,18 @@ Board::MoveRecord Board::playMoveRecorded(Loc loc, Player pla)
   record.ko_loc = ko_loc;
   record.capDirs = 0;
 
-  Player opp = getOpp(pla);
-  for(int i = 0; i < 4; i++)
-  {
-    int adj = loc + adj_offsets[i];
-    if(colors[adj] == opp && getNumLiberties(adj) == 1)
-      record.capDirs |= (((uint8_t)1) << i);
+  if(loc != PASS_LOC) {
+    Player opp = getOpp(pla);
+    for(int i = 0; i < 4; i++)
+    {
+      int adj = loc + adj_offsets[i];
+      if(colors[adj] == opp && getNumLiberties(adj) == 1)
+        record.capDirs |= (((uint8_t)1) << i);
+    }
+    if(record.capDirs == 0 && isSuicide(loc,pla))
+      record.capDirs = 0x10;
   }
-  if(record.capDirs == 0 && isSuicide(loc,pla))
-    record.capDirs = 0x10;
+  
   playMoveAssumeLegal(loc, pla);
   return record;
 }
@@ -1762,7 +1768,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     }
     numPlaHeads = newNumPlaHeads;
   }
-  bool plaHasBeenKilled[numPlaHeads];
+  bool plaHasBeenKilled[numPlaHeads+1]; //+1 to avoid 0 length array
   for(int i = 0; i<numPlaHeads; i++)
     plaHasBeenKilled[i] = false;
 
