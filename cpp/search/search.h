@@ -277,6 +277,7 @@ private:
   double getScoreUtilityDiff(double scoreMeanSum, double scoreMeanSqSum, double weightSum, double delta) const;
   double getUtilityFromNN(const NNOutput& nnOutput) const;
 
+  //Parent must be locked
   double getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const;
 
   void getValueChildWeights(
@@ -302,7 +303,7 @@ private:
     double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
   ) const;
 
-
+  //Parent must be locked
   double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const;
   double getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const;
 

@@ -601,15 +601,8 @@ double Search::getUtilityFromNN(const NNOutput& nnOutput) const {
 }
 
 double Search::getRootUtility() const {
-  //TODO
   assert(rootNode != NULL);
   const SearchNode& node = *rootNode;
-  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
-  unique_lock<std::mutex> lock(mutex);
-  shared_ptr<NNOutput> nnOutput = node.nnOutput;
-  lock.unlock();
-  if(nnOutput == nullptr)
-    return false;
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   double utilitySum = node.stats.utilitySum;
@@ -1217,7 +1210,7 @@ double Search::getExploreSelectionValue(
   return exploreComponent + valueComponent;
 }
 
-//TODO check if this or other nnOutput accesses can race!
+//Parent must be locked
 double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const {
   if(&parent != rootNode || child->prevMoveLoc == Board::NULL_LOC)
     return 0.0;
@@ -1285,7 +1278,7 @@ int Search::getPos(Loc moveLoc) const {
   return NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
 }
 
-
+//Parent must be locked
 double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const {
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
@@ -1338,6 +1331,7 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
 
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
+//Parent must be locked
 double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const {
   float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
   int64_t childVisits = 0;
@@ -1889,6 +1883,9 @@ void Search::printRootPolicyMap(ostream& out) {
 }
 
 void Search::printRootEndingScoreValueBonus(ostream& out) {
+  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
+  unique_lock<std::mutex> lock(mutex);
+  
   if(rootNode->nnOutput == nullptr)
     return;
   NNOutput& nnOutput = *(rootNode->nnOutput);
@@ -2221,7 +2218,6 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
   printTreeHelper(out, node, options, prefix, 0, 0, data);
 }
 
-//TODO make this also take into account score bonus
 void Search::printTreeHelper(
   ostream& out, const SearchNode* n, const PrintTreeOptions& options,
   string& prefix, int64_t origVisits, int depth, const AnalysisData& data
