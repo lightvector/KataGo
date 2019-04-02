@@ -19,6 +19,8 @@ struct PrintTreeOptions {
   int64_t minVisitsToExpand_;
   double minVisitsPropToShow_;
   double minVisitsPropToExpand_;
+  int maxPVDepth_;
+  bool printRawNN_;
   vector<Loc> branch_;
 };
 
@@ -29,6 +31,8 @@ inline PrintTreeOptions::PrintTreeOptions()
    minVisitsToExpand_(1),
    minVisitsPropToShow_(0.0),
    minVisitsPropToExpand_(0.0),
+   maxPVDepth_(7),
+   printRawNN_(false),
    branch_()
 {}
 

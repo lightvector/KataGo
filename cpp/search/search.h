@@ -252,8 +252,8 @@ struct Search {
 
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
-  void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors);
-  void getAnalysisData(const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors);
+  void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth);
+  void getAnalysisData(const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth);
   void appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth); //Append PV from position at node n onward to buf
 
   //Get the ownership map averaged throughout the search tree.
@@ -298,7 +298,8 @@ private:
   bool getPlaySelectionValuesAlreadyLocked(
     const SearchNode& node,
     vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
-    bool allowDirectPolicyMoves
+    bool allowDirectPolicyMoves, bool alwaysComputeLcb,
+    double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
   ) const;
 
 
@@ -346,7 +347,7 @@ private:
 
   void printTreeHelper(
     ostream& out, const SearchNode* node, const PrintTreeOptions& options,
-    string& prefix, int64_t origVisits, int depth, double policyProb, double valueWeight
+    string& prefix, int64_t origVisits, int depth, const AnalysisData& data
   );
 
   void getAverageTreeOwnershipHelper(int64_t& count, vector<double>& accum, int64_t minVisits, const SearchNode* node);

@@ -358,14 +358,21 @@ bool Search::getPlaySelectionValues(
 ) const {
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   lock_guard<std::mutex> lock(mutex);
-  bool result = getPlaySelectionValuesAlreadyLocked(node,locs,playSelectionValues,scaleMaxToAtLeast,allowDirectPolicyMoves);
+  double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
+  double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
+  assert(node.numChildren <= NNPos::MAX_NN_POLICY_SIZE);
+  bool result = getPlaySelectionValuesAlreadyLocked(
+    node,locs,playSelectionValues,scaleMaxToAtLeast,allowDirectPolicyMoves,
+    false,lcbBuf,radiusBuf
+  );
   return result;
 }
 
 bool Search::getPlaySelectionValuesAlreadyLocked(
   const SearchNode& node,
   vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
-  bool allowDirectPolicyMoves
+  bool allowDirectPolicyMoves, bool alwaysComputeLcb,
+  double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
 ) const {
   locs.clear();
   playSelectionValues.clear();
@@ -413,10 +420,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   }
 
   //Now compute play selection values taking into account LCB
-  if(searchParams.useLcbForSelection && numChildren > 0) {
-    assert(NNPos::MAX_NN_POLICY_SIZE > numChildren);
-    double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
-    double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
+  if(alwaysComputeLcb || (searchParams.useLcbForSelection && numChildren > 0)) {
     double bestLcb = -1e10;
     int bestLcbIndex = -1;
     for(int i = 0; i<numChildren; i++) {
@@ -431,7 +435,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
       }
     }
 
-    if(bestLcbIndex > 0) {
+    if(searchParams.useLcbForSelection && numChildren > 0 && bestLcbIndex > 0) {
       //Best LCB move gets a bonus that ensures it is large enough relative to every other child
       double adjustedVisits = playSelectionValues[bestLcbIndex];
       for(int i = 0; i<numChildren; i++) {
@@ -1975,11 +1979,7 @@ void Search::printPV(ostream& out, const vector<Loc>& buf) {
   }
 }
 
-void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options) {
-  string prefix;
-  printTreeHelper(out, node, options, prefix, 0, 0, NAN, NAN);
-}
-
+//Child should NOT be locked.
 AnalysisData Search::getAnalysisDataOfSingleChild(
   const SearchNode* child, vector<Loc>& scratchLocs, vector<double>& scratchValues,
   Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
@@ -2048,16 +2048,16 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
 }
 
 void Search::getAnalysisData(
-  vector<AnalysisData>& buf,int minMovesToTryToGet, bool includeWeightFactors
+  vector<AnalysisData>& buf,int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
 ) {
   buf.clear();
   if(rootNode == NULL)
     return;
-  getAnalysisData(*rootNode, buf, minMovesToTryToGet, includeWeightFactors);
+  getAnalysisData(*rootNode, buf, minMovesToTryToGet, includeWeightFactors, maxPVDepth);
 }
 
 void Search::getAnalysisData(
-  const SearchNode& node, vector<AnalysisData>& buf,int minMovesToTryToGet, bool includeWeightFactors
+  const SearchNode& node, vector<AnalysisData>& buf,int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
 ) {
   buf.clear();
   vector<SearchNode*> children;
@@ -2066,6 +2066,8 @@ void Search::getAnalysisData(
   int numChildren;
   vector<Loc> scratchLocs;
   vector<double> scratchValues;
+  double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
+  double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   {
     std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
     lock_guard<std::mutex> lock(mutex);
@@ -2076,7 +2078,9 @@ void Search::getAnalysisData(
     if(numChildren <= 0)
       return;
 
-    bool success = getPlaySelectionValuesAlreadyLocked(node, scratchLocs, scratchValues, 1.0, false);
+    assert(node.numChildren <= NNPos::MAX_NN_POLICY_SIZE);
+    bool alwaysComputeLcb = true;
+    bool success = getPlaySelectionValuesAlreadyLocked(node, scratchLocs, scratchValues, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
     if(!success)
       return;
   }
@@ -2122,8 +2126,6 @@ void Search::getAnalysisData(
     parentScoreStdev = getScoreStdev(parentScoreMean,scoreMeanSq);
   }
 
-  const int maxPVDepth = 9;
-
   double parentUtility;
   double fpuValue = getFpuValueForChildrenAssumeVisited(node, rootPla, true, policyProbMassVisited, parentUtility);
 
@@ -2135,6 +2137,8 @@ void Search::getAnalysisData(
       parentScoreMean, parentScoreStdev, maxPVDepth
     );
     data.playSelectionValue = playSelectionValues[i];
+    data.lcb = lcbBuf[i];
+    data.radius = radiusBuf[i];
     buf.push_back(data);
   }
 
@@ -2194,35 +2198,38 @@ void Search::getAnalysisData(
     buf[i].order = i;
 }
 
-//TODO make this also take into account score bonus
-void Search::printTreeHelper(
-  ostream& out, const SearchNode* n, const PrintTreeOptions& options,
-  string& prefix, int64_t origVisits, int depth, double policyProb, double valueWeight
-) {
-  if(n == NULL)
-    return;
-  vector<Loc> scratchLocs;
-  vector<double> scratchValues;
-
-  const SearchNode& node = *n;
-  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
-  unique_lock<std::mutex> lock(mutex,std::defer_lock);
-
+void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options) {
+  string prefix;
   AnalysisData data;
   {
-    const int maxPVDepth = 7;
-    //Use dummy values for parent, since they're only used when child has nothing
+    vector<Loc> scratchLocs;
+    vector<double> scratchValues;
+    //Use dummy values for parent
+    double policyProb = NAN;
     double fpuValue = 0;
     double parentUtility = 0;
     double parentWinLossValue = 0;
     double parentScoreMean = 0;
     double parentScoreStdev = 0;
     data = getAnalysisDataOfSingleChild(
-      &node, scratchLocs, scratchValues,
-      node.prevMoveLoc, policyProb, fpuValue, parentUtility, parentWinLossValue,
-      parentScoreMean, parentScoreStdev, maxPVDepth
+      node, scratchLocs, scratchValues,
+      node->prevMoveLoc, policyProb, fpuValue, parentUtility, parentWinLossValue,
+      parentScoreMean, parentScoreStdev, options.maxPVDepth_
     );
+    data.weightFactor = NAN;
   }
+  printTreeHelper(out, node, options, prefix, 0, 0, data);
+}
+
+//TODO make this also take into account score bonus
+void Search::printTreeHelper(
+  ostream& out, const SearchNode* n, const PrintTreeOptions& options,
+  string& prefix, int64_t origVisits, int depth, const AnalysisData& data
+) {
+  if(n == NULL)
+    return;
+
+  const SearchNode& node = *n;
 
   if(depth == 0)
     origVisits = data.numVisits;
@@ -2246,36 +2253,43 @@ void Search::printTreeHelper(
       out << buf;
     }
 
-    bool hasNNValue = false;
-    double nnResultValue;
-    double nnTotalValue;
-    lock.lock();
-    if(node.nnOutput != nullptr) {
-      nnResultValue = getResultUtilityFromNN(*node.nnOutput,searchParams);
-      nnTotalValue = getUtilityFromNN(*node.nnOutput);
-      hasNNValue = true;
-    }
-    lock.unlock();
+    // bool hasNNValue = false;
+    // double nnResultValue;
+    // double nnTotalValue;
+    // lock.lock();
+    // if(node.nnOutput != nullptr) {
+    //   nnResultValue = getResultUtilityFromNN(*node.nnOutput,searchParams);
+    //   nnTotalValue = getUtilityFromNN(*node.nnOutput);
+    //   hasNNValue = true;
+    // }
+    // lock.unlock();
 
-    if(hasNNValue) {
-      sprintf(buf,"VW %6.2fc VS %6.2fc ", nnResultValue * 100.0, (nnTotalValue - nnResultValue) * 100.0);
-      out << buf;
-    }
-    else {
-      sprintf(buf,"VW ---.--c VS ---.--c ");
+    // if(hasNNValue) {
+    //   sprintf(buf,"VW %6.2fc VS %6.2fc ", nnResultValue * 100.0, (nnTotalValue - nnResultValue) * 100.0);
+    //   out << buf;
+    // }
+    // else {
+    //   sprintf(buf,"VW ---.--c VS ---.--c ");
+    //   out << buf;
+    // }
+
+    if(depth > 0 && !isnan(data.lcb)) {
+      sprintf(buf,"LCB %7.2fc ", (node.nextPla == P_WHITE ? -1 : 1) * data.lcb * 100.0);
       out << buf;
     }
 
-    if(!isnan(policyProb)) {
-      sprintf(buf,"P %5.2f%% ", policyProb * 100.0);
+    if(!isnan(data.policyPrior)) {
+      sprintf(buf,"P %5.2f%% ", data.policyPrior * 100.0);
       out << buf;
     }
-    if(!isnan(valueWeight)) {
-      sprintf(buf,"WF %5.2f%% ", valueWeight * 100.0);
+    if(!isnan(data.weightFactor)) {
+      sprintf(buf,"WF %5.2f%% ", data.weightFactor * 100.0);
       out << buf;
     }
-    sprintf(buf,"ESS %7.0f ", data.ess);
-    out << buf;
+    if(data.playSelectionValue >= 0 && depth > 0) {
+      sprintf(buf,"PSV %7.0f ", data.playSelectionValue);
+      out << buf;
+    }
 
     sprintf(buf,"N %7" PRIu64 "  --  ", data.numVisits);
     out << buf;
@@ -2297,7 +2311,7 @@ void Search::printTreeHelper(
   }
 
   vector<AnalysisData> analysisData;
-  getAnalysisData(node,analysisData,0,true);
+  getAnalysisData(node,analysisData,0,true,options.maxPVDepth_);
 
   int numChildren = analysisData.size();
 
@@ -2326,9 +2340,6 @@ void Search::printTreeHelper(
 
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = analysisData[i].node;
-    double childPolicyProb =  analysisData[i].policyPrior;
-    double childModelProb = analysisData[i].weightFactor;
-
     Loc moveLoc = child->prevMoveLoc;
 
     if((depth >= options.branch_.size() && i < numChildrenToRecurseOn) ||
@@ -2343,7 +2354,8 @@ void Search::printTreeHelper(
       prefix += " ";
       while(prefix.length() < oldLen+4)
         prefix += " ";
-      printTreeHelper(out,child,options,prefix,origVisits,depth+1,childPolicyProb,childModelProb);
+      printTreeHelper(
+        out,child,options,prefix,origVisits,depth+1,analysisData[i]);
       prefix.erase(oldLen);
     }
   }

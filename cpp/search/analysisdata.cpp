@@ -4,6 +4,8 @@ AnalysisData::AnalysisData()
   :move(Board::NULL_LOC),
    numVisits(0),
    playSelectionValue(0.0),
+   lcb(0.0),
+   radius(0.0),
    utility(0.0),
    resultUtility(0.0),
    scoreUtility(0.0),
@@ -22,6 +24,8 @@ AnalysisData::AnalysisData(const AnalysisData& other)
   :move(other.move),
    numVisits(other.numVisits),
    playSelectionValue(other.playSelectionValue),
+   lcb(other.lcb),
+   radius(other.radius),
    utility(other.utility),
    resultUtility(other.resultUtility),
    scoreUtility(other.scoreUtility),
@@ -40,6 +44,8 @@ AnalysisData::AnalysisData(AnalysisData&& other)
   :move(other.move),
    numVisits(other.numVisits),
    playSelectionValue(other.playSelectionValue),
+   lcb(other.lcb),
+   radius(other.radius),
    utility(other.utility),
    resultUtility(other.resultUtility),
    scoreUtility(other.scoreUtility),
@@ -63,6 +69,8 @@ AnalysisData& AnalysisData::operator=(const AnalysisData& other) {
   move = other.move;
   numVisits = other.numVisits;
   playSelectionValue = other.playSelectionValue;
+  lcb = other.lcb;
+  radius = other.radius;
   utility = other.utility;
   resultUtility = other.resultUtility;
   scoreUtility = other.scoreUtility;
@@ -84,6 +92,8 @@ AnalysisData& AnalysisData::operator=(AnalysisData&& other) {
   move = other.move;
   numVisits = other.numVisits;
   playSelectionValue = other.playSelectionValue;
+  lcb = other.lcb;
+  radius = other.radius;
   utility = other.utility;
   resultUtility = other.resultUtility;
   scoreUtility = other.scoreUtility;

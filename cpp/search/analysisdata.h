@@ -9,6 +9,8 @@ struct AnalysisData {
   Loc move;
   int64_t numVisits;
   double playSelectionValue;
+  double lcb;
+  double radius;
   double utility;
   double resultUtility;
   double scoreUtility;

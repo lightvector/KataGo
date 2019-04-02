@@ -891,11 +891,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       else {
         lzAnalyzeInterval = lzAnalyzeInterval * 0.01; //Convert from centiseconds to seconds
 
+        static const int analysisPVLen = 9;
         std::function<void(Search* search)> callback;
         if(command == "lz-analyze") {
           callback = [minMoves](Search* search) {
             vector<AnalysisData> buf;
-            search->getAnalysisData(buf,minMoves,false);
+            search->getAnalysisData(buf,minMoves,false,analysisPVLen);
             if(buf.size() <= 0)
               return;
 
@@ -920,7 +921,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         else if(command == "kata-analyze") {
           callback = [minMoves](Search* search) {
             vector<AnalysisData> buf;
-            search->getAnalysisData(buf,minMoves,false);
+            search->getAnalysisData(buf,minMoves,false,analysisPVLen);
             if(buf.size() <= 0)
               return;
 
