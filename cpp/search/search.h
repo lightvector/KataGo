@@ -351,7 +351,7 @@ private:
     string& prefix, int64_t origVisits, int depth, const AnalysisData& data
   );
 
-  void getAverageTreeOwnershipHelper(int64_t& count, vector<double>& accum, int64_t minVisits, const SearchNode* node);
+  int64_t getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minVisits, const SearchNode* node);
 
 };
 
