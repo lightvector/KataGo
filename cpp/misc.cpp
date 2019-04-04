@@ -773,7 +773,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
     delete[] policySurpriseNats;
   };
 
-  std::thread threads[numThreads];
+  vector<std::thread> threads(numThreads);
   for(int threadIdx = 0; threadIdx < numThreads; threadIdx++) {
     threads[threadIdx] = std::thread(runThread, threadIdx, Global::uint64ToString(seedRand.nextUInt64()));
   }
