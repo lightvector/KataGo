@@ -403,7 +403,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     bool alwaysIncludeOwnerMap = true;
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,false,alwaysIncludeOwnerMap);
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,false,alwaysIncludeOwnerMap,NNPos::MAX_BOARD_LEN);
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
   }
@@ -616,7 +616,7 @@ int MainCmds::writeSearchValueTimeseries(int argc, const char* const* argv) {
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false);
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false,NNPos::MAX_BOARD_LEN);
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
   }

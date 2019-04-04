@@ -18,7 +18,8 @@ namespace Setup {
     Rand& seedRand,
     int maxConcurrentEvals,
     bool debugSkipNeuralNetDefault,
-    bool alwaysIncludeOwnerMap
+    bool alwaysIncludeOwnerMap,
+    int defaultPosLen
   );
 
   vector<SearchParams> loadParams(

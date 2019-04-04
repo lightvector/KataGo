@@ -22,7 +22,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   Rand& seedRand,
   int maxConcurrentEvals,
   bool debugSkipNeuralNetDefault,
-  bool alwaysIncludeOwnerMap
+  bool alwaysIncludeOwnerMap,
+  int defaultPosLen
 ) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
@@ -34,12 +35,11 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : debugSkipNeuralNetDefault;
     int modelFileIdx = i;
 
-    //TODO make GTP auto specify these based on gtp board size
-    int posLen = NNPos::MAX_BOARD_LEN;
+    int posLen = std::max(defaultPosLen,8);
     if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-      posLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 1, NNPos::MAX_BOARD_LEN);
+      posLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
     else if(cfg.contains("maxBoardSizeForNNBuffer"))
-      posLen = cfg.getInt("maxBoardSizeForNNBuffer", 1, NNPos::MAX_BOARD_LEN);
+      posLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
 
     bool requireExactPosLen = false;
     if(cfg.contains("requireMaxBoardSize" + idxStr))

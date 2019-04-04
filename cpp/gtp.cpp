@@ -106,30 +106,47 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     params = paramss[0];
   }
 
-  string searchRandSeed;
-  if(cfg.contains("searchRandSeed"))
-    searchRandSeed = cfg.getString("searchRandSeed");
-  else
-    searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
-
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
   const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
   const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
   const int whiteBonusPerHandicapStone = cfg.contains("whiteBonusPerHandicapStone") ? cfg.getInt("whiteBonusPerHandicapStone",0,1) : 0;
 
-  NNEvaluator* nnEval;
-  {
-    Setup::initializeSession(cfg);
+  NNEvaluator* nnEval = NULL;
+  AsyncBot* bot = NULL;
+
+  Setup::initializeSession(cfg);
+
+  auto maybeInitializeNNEvalAndAsyncBot = [&nnEval,&bot,&cfg,&params,&nnModelFile,&logger,&seedRand](int boardSize) {
+    if(nnEval != NULL && boardSize == nnEval->getPosLen())
+      return;
+    if(nnEval != NULL) {
+      assert(bot != NULL);
+      bot->stopAndWait();
+      delete bot;
+      delete nnEval;
+      bot = NULL;
+      nnEval = NULL;
+      logger.write("Cleaned up old neural net and bot");
+    }
+
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false);
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false,boardSize);
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
-  }
-  logger.write("Loaded neural net");
+    logger.write("Loaded neural net with posLen " + Global::intToString(nnEval->getPosLen()));
 
+    string searchRandSeed;
+    if(cfg.contains("searchRandSeed"))
+      searchRandSeed = cfg.getString("searchRandSeed");
+    else
+      searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-  AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+    bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+  };
+
+  maybeInitializeNNEvalAndAsyncBot(19);
+
   {
     Board board(19,19);
     Player pla = P_BLACK;
@@ -315,6 +332,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "unacceptable size";
       }
       else {
+        maybeInitializeNNEvalAndAsyncBot(newBSize);
         Board board(newBSize,newBSize);
         Player pla = P_BLACK;
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);

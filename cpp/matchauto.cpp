@@ -98,7 +98,7 @@ namespace {
       auto iter = loadedNets.find(nnModelFile);
       NetAndStuff* netAndStuff;
       if(iter == loadedNets.end()) {
-        vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},*cfg,logger,seedRand,maxConcurrentEvals,false,false);
+        vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},*cfg,logger,seedRand,maxConcurrentEvals,false,false,NNPos::MAX_BOARD_LEN);
         assert(nnEvals.size() == 1);
         netAndStuff = new NetAndStuff(nnEvals[0]);
         loadedNets[nnModelFile] = netAndStuff;
