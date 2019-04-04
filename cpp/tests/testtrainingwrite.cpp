@@ -18,6 +18,7 @@ static NNEvaluator* startNNEval(
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
   bool debugSkipNeuralNet = modelFile == "/dev/null";
+  bool alwaysIncludeOwnerMap = false;
   double nnPolicyTemperature = 1.0;
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
@@ -31,6 +32,7 @@ static NNEvaluator* startNNEval(
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
+    alwaysIncludeOwnerMap,
     nnPolicyTemperature
   );
   (void)inputsUseNHWC;

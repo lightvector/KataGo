@@ -123,7 +123,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   //Initialize neural net inference engine globals, and load models
   Setup::initializeSession(cfg);
   const vector<string>& nnModelNames = nnModelFiles;
-  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,false);
+  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,false,false,NNPos::MAX_BOARD_LEN);
   logger.write("Loaded neural net");
 
   vector<NNEvaluator*> nnEvalsByBot;
@@ -144,14 +144,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay, fancyModes);
 
   //Check for unused config keys
-  {
-    vector<string> unusedKeys = cfg.unusedKeys();
-    for(size_t i = 0; i<unusedKeys.size(); i++) {
-      string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in " + configFile;
-      logger.write(msg);
-      cerr << msg << endl;
-    }
-  }
+  cfg.warnUnusedKeys(cerr,&logger);
 
   //Done loading!
   //------------------------------------------------------------------------------------

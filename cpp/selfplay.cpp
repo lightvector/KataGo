@@ -325,7 +325,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
 
     Rand rand;
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelName},{modelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefault);
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelName},{modelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefault,false,NNPos::MAX_BOARD_LEN);
     assert(nnEvals.size() == 1);
     NNEvaluator* nnEval = nnEvals[0];
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
@@ -397,14 +397,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   }
 
   //Check for unused config keys
-  {
-    vector<string> unusedKeys = cfg.unusedKeys();
-    for(size_t i = 0; i<unusedKeys.size(); i++) {
-      string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in " + configFile;
-      logger.write(msg);
-      cerr << msg << endl;
-    }
-  }
+  cfg.warnUnusedKeys(cerr,&logger);
 
   auto gameLoop = [
     &gameRunner,

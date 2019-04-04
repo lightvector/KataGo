@@ -18,7 +18,11 @@ namespace FancyMath {
   double betapdf(double x, double a, double b);
   double betacdf(double x, double a, double b);
 
-
+  //Given z, compute and return an approximation for the value t
+  //such that the probability that a draw from StudentT(degreesOfFreedom) > t
+  //is the same as a probability that a draw from StandardNormal() > z
+  double normToTApprox(double z, double degreesOfFreedom);
+  
   void runTests();
 }
 

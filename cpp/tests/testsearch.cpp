@@ -15,11 +15,13 @@ struct TestSearchOptions {
   bool printRootPolicy;
   bool printEndingScoreValueBonus;
   bool printPlaySelectionValues;
+  bool noClearBot;
   TestSearchOptions()
     :numMovesInARow(1),
      printRootPolicy(false),
      printEndingScoreValueBonus(false),
-     printPlaySelectionValues(false)
+     printPlaySelectionValues(false),
+     noClearBot(false)
   {}
 };
 
@@ -98,22 +100,24 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
       double scaleMaxToAtLeast = 10.0;
       vector<Loc> locsBuf;
       vector<double> playSelectionValuesBuf;
-      int64_t unreducedNumVisitsBuf;
-      bool success = search->getPlaySelectionValues(locsBuf,playSelectionValuesBuf,unreducedNumVisitsBuf,scaleMaxToAtLeast);
+      bool success = search->getPlaySelectionValues(locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast);
       assert(success);
       for(int j = 0; j<locsBuf.size(); j++) {
         cout << Location::toString(locsBuf[j],board) << " " << playSelectionValuesBuf[j] << endl;
       }
     }
 
-    bot->makeMove(move, nextPla);
-    hist.makeBoardMoveAssumeLegal(board,move,nextPla,NULL);
-    nextPla = getOpp(nextPla);
+    if(i < opts.numMovesInARow-1) {
+      bot->makeMove(move, nextPla);
+      hist.makeBoardMoveAssumeLegal(board,move,nextPla,NULL);
+      nextPla = getOpp(nextPla);
+    }
   }
 
   search->nnEvaluator->clearCache();
   search->nnEvaluator->clearStats();
-  bot->clearSearch();
+  if(!opts.noClearBot)
+    bot->clearSearch();
 
   delete sgf;
 }
@@ -130,6 +134,7 @@ static NNEvaluator* startNNEval(
   int nnMutexPoolSizePowerOfTwo = 12;
   int maxConcurrentEvals = 1024;
   //bool debugSkipNeuralNet = false;
+  bool alwaysIncludeOwnerMap = false;
   const string& modelName = modelFile;
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
@@ -143,6 +148,7 @@ static NNEvaluator* startNNEval(
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
+    alwaysIncludeOwnerMap,
     nnPolicyTemperature
   );
   (void)inputsUseNHWC;
@@ -499,6 +505,43 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     delete bot;
   }
 
+  {
+    cout << "GAME 10 ==========================================================================" << endl;
+    cout << "(Tricky endgame seki invasion, testing LCB and dynamic utility recompute)" << endl;
+    cout << endl;
+    
+    SearchParams params;
+    params.maxVisits = 280;
+    params.staticScoreUtilityFactor = 0.2;
+    params.dynamicScoreUtilityFactor = 0.3;
+    params.useLcbForSelection = true;
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+    Rules rules = Rules::getTrompTaylorish();
+    TestSearchOptions opts;
+
+    
+    string sgfStr = "(;GM[1]FF[4]CA[UTF-8]SZ[19]HA[6]KM[0.5]AB[dc][oc][qd][ce][qo][pq];W[cp];B[ep];W[eq];B[fq];W[dq];B[fp];W[dn];B[jq];W[jp];B[ip];W[kq];B[iq];W[kp];B[fm];W[io];B[ho];W[in];B[en];W[dm];B[hn];W[oq];B[op];W[pr];B[pp];W[or];B[qr];W[mq];B[mo];W[qj];B[ql];W[qe];B[rd];W[qg];B[pe];W[ic];B[gc];W[lc];B[ch];W[cj];B[eh];W[ec];B[eb];W[dd];B[ed];W[cc];B[fc];W[db];B[cd];W[ec];B[de];W[dc];B[gb];W[ea];B[fb];W[bb];B[bd];W[ca];B[bc];W[ab];B[ee];W[nc];B[nd];W[ob];B[nb];W[mc];B[pb];W[od];B[pc];W[ne];B[md];W[le];B[oe];W[rl];B[rm];W[rk];B[qm];W[ie];B[me];W[mf];B[nf];W[ld];B[pd];W[ge];B[hd];W[he];B[fd];W[mg];B[id];W[jd];B[hh];W[bi];B[bh];W[ln];B[im];W[jm];B[jl];W[km];B[lo];W[ko];B[il];W[ek];B[dp];W[cq];B[do];W[co];B[fj];W[jh];B[ig];W[jg];B[nm];W[re];B[se];W[rf];B[pj];W[pi];B[oj];W[qk];B[oi];W[ph];B[mb];W[pk];B[ol];W[ok];B[nk];W[nj];B[mj];W[ni];B[mi];W[nh];B[mk];W[er];B[lb];W[kb];B[fr];W[fk];B[ff];W[di];B[ci];W[bj];B[ei];W[dj];B[dh];W[sf];B[jr];W[kr];B[sd];W[qs];B[rr];W[gl];B[gm];W[ib];B[ks];W[ls];B[js];W[np];B[no];W[pl];B[pm];W[if];B[mp];W[mr];B[nq];W[nr];B[gg];W[rs];B[og];W[oh];B[mn];W[ll];B[lh];W[ih];B[hg];W[ml];B[nl];W[gj];B[kl];W[lk];B[gi];W[ej];B[fi];W[hl];B[hj];W[lg];B[gk];W[fl];B[hk];W[em];B[hm];W[sm];B[sn];W[sl];B[sp];W[la];B[kj];W[pf];B[of];W[ii];B[lj];W[lm];B[kh];W[kg];B[fa];W[da];B[jj];W[fs];B[gs];W[es];B[ha];W[ia];B[ij];W[ah];B[ag];W[ai];B[pg];W[qf];B[lp];W[lq];B[hb];W[kk];B[jk];W[ac];B[ad];W[ji];B[ki];W[ka];B[oa];W[ma];B[na];W[sr];B[sq];W[ps];B[ss];W[np];B[sr];W[nq];B[mh];W[ng];B[fe];W[jn];B[mm];W[gr];B[hs];W[fn];B[eo];W[hr];B[is];W[gp];B[go];W[gq];B[hp];W[fo];B[])";
+
+    opts.noClearBot = true;
+    runBotOnSgf(bot, sgfStr, rules, 234, 0.5, opts);
+
+    //Try to check that search tree is idempotent under simply rebeginning the search
+    Search* search = bot->getSearch();
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+    cout << "Beginning search again and then reprinting, should be same" << endl;
+    search->beginSearch(logger);
+    search->printTree(cout, search->rootNode, options);
+    cout << "Making a move O3, should still be same" << endl;
+    bot->makeMove(Location::ofString("O3",19,19), P_WHITE);
+    search->printTree(cout, search->rootNode, options);
+    cout << "Beginning search again and then reprinting, now score utils should change a little" << endl;
+    search->beginSearch(logger);
+    search->printTree(cout, search->rootNode, options);
+    
+    delete bot;
+  }
+
 }
 
 
@@ -704,6 +747,7 @@ ooooooo
     cout << endl;
   }
 
+  
   {
     cout << "===================================================================" << endl;
     cout << "Testing pruning of search tree across moves due to root restrictions" << endl;
@@ -831,7 +875,7 @@ o..oo.x
       search->printTree(cout, search->rootNode, options.onlyBranch(board,"pass"));
 
       cout << endl;
-      
+
       cout << "Now play forward the pass. The tree should still have useless suicides and also other moves in it" << endl;
       search->makeMove(Board::PASS_LOC,nextPla);
       testAssert(hasSuicideRootMoves(search));
@@ -841,7 +885,7 @@ o..oo.x
       search->printTree(cout, search->rootNode, options);
 
       cout << endl;
-      
+
       cout << "But the moment we begin a search, it should no longer." << endl;
       search->beginSearch(logger);
       testAssert(!hasSuicideRootMoves(search));
@@ -851,7 +895,7 @@ o..oo.x
       search->printTree(cout, search->rootNode, options);
 
       cout << endl;
-      
+
       cout << "Continue searching a bit more" << endl;
       search->runWholeSearch(getOpp(nextPla),logger,NULL);
 
@@ -863,8 +907,62 @@ o..oo.x
       cout << endl;
     }
 
-
   }
 
+  {
+    cout << "===================================================================" << endl;
+    cout << "Testing search tree update near terminal positions" << endl;
+    cout << "===================================================================" << endl;
+
+    Board board = Board::parseBoard(7,7,R"%%(
+x.xx.xx
+xxx.xxx
+xxxxxxx
+xxxxxxx
+ooooooo
+ooooooo
+o..o.oo
+)%%");
+
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::getTrompTaylorish();
+    rules.multiStoneSuicideLegal = false;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    {
+      cout << "First with no pruning" << endl;
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
+      SearchParams params;
+      params.maxVisits = 400;
+      params.dynamicScoreUtilityFactor = 0.5;
+      params.useLcbForSelection = true;
+      
+      Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
+      TestSearchOptions opts;
+
+      search->setPosition(nextPla,board,hist);
+      search->runWholeSearch(nextPla,logger,NULL);
+      PrintTreeOptions options;
+      options = options.maxDepth(1);
+      options = options.printSqs(true);
+      cout << search->rootBoard << endl;
+      search->printTree(cout, search->rootNode, options);
+      
+      cout << "Begin search is idempotent?" << endl;
+      search->beginSearch(logger);
+      search->printTree(cout, search->rootNode, options);
+      search->makeMove(Location::ofString("B1",board),nextPla);
+      search->printTree(cout, search->rootNode, options);
+      search->beginSearch(logger);
+      search->printTree(cout, search->rootNode, options);
+
+      delete search;
+      delete nnEval;
+
+      cout << endl;
+    }
+  }
+
+  
   NeuralNet::globalCleanup();
 }

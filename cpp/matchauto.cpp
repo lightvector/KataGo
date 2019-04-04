@@ -98,20 +98,13 @@ namespace {
       auto iter = loadedNets.find(nnModelFile);
       NetAndStuff* netAndStuff;
       if(iter == loadedNets.end()) {
-        vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},*cfg,logger,seedRand,maxConcurrentEvals,false);
+        vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},*cfg,logger,seedRand,maxConcurrentEvals,false,false,NNPos::MAX_BOARD_LEN);
         assert(nnEvals.size() == 1);
         netAndStuff = new NetAndStuff(nnEvals[0]);
         loadedNets[nnModelFile] = netAndStuff;
 
         //Check for unused config keys
-        {
-          vector<string> unusedKeys = cfg->unusedKeys();
-          for(size_t i = 0; i<unusedKeys.size(); i++) {
-            string msg = "WARNING: Unused key '" + unusedKeys[i] + "' in config file";
-            logger.write(msg);
-            cerr << msg << endl;
-          }
-        }
+        cfg->warnUnusedKeys(cerr,&logger);
 
       }
       else {

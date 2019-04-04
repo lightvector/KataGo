@@ -21,7 +21,9 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   Logger& logger,
   Rand& seedRand,
   int maxConcurrentEvals,
-  bool debugSkipNeuralNetDefault
+  bool debugSkipNeuralNetDefault,
+  bool alwaysIncludeOwnerMap,
+  int defaultPosLen
 ) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
@@ -33,12 +35,11 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : debugSkipNeuralNetDefault;
     int modelFileIdx = i;
 
-    //TODO make GTP auto specify these based on gtp board size
-    int posLen = NNPos::MAX_BOARD_LEN;
+    int posLen = std::max(defaultPosLen,8);
     if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-      posLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 1, NNPos::MAX_BOARD_LEN);
+      posLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
     else if(cfg.contains("maxBoardSizeForNNBuffer"))
-      posLen = cfg.getInt("maxBoardSizeForNNBuffer", 1, NNPos::MAX_BOARD_LEN);
+      posLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
 
     bool requireExactPosLen = false;
     if(cfg.contains("requireMaxBoardSize" + idxStr))
@@ -57,7 +58,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature"+idxStr,0.01f,5.0f);
     else if(cfg.contains("nnPolicyTemperature"))
       nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature",0.01f,5.0f);
-      
+
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
@@ -70,6 +71,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24),
       debugSkipNeuralNet,
+      alwaysIncludeOwnerMap,
       nnPolicyTemperature
     );
 
@@ -91,6 +93,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
       else if(cfg.contains("cudaGpuToUseModel"+idxStr))
         cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr,0,1023));
+      else if(cfg.contains("cudaGpuToUseThread"+threadIdxStr))
+        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseThread"+threadIdxStr,0,1023));
       else if(cfg.contains("cudaGpuToUse"))
         cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUse",0,1023));
       else
@@ -160,7 +164,7 @@ vector<SearchParams> Setup::loadParams(
     else                                            params.maxPlayoutsPondering = params.maxPlayouts;
     if(cfg.contains("maxVisitsPondering"+idxStr)) params.maxVisitsPondering = cfg.getInt64("maxVisitsPondering"+idxStr, (int64_t)1, (int64_t)1 << 50);
     else if(cfg.contains("maxVisitsPondering"))   params.maxVisitsPondering = cfg.getInt64("maxVisitsPondering",        (int64_t)1, (int64_t)1 << 50);
-    else                                          params.maxVisitsPondering = params.maxVisits;    
+    else                                          params.maxVisitsPondering = params.maxVisits;
     if(cfg.contains("maxTimePondering"+idxStr)) params.maxTimePondering = cfg.getDouble("maxTimePondering"+idxStr, 0.0, 1.0e20);
     else if(cfg.contains("maxTimePondering"))   params.maxTimePondering = cfg.getDouble("maxTimePondering",        0.0, 1.0e20);
     else                                        params.maxTimePondering = params.maxTime;
@@ -173,7 +177,7 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("searchFactorAfterOnePass"))   params.searchFactorAfterOnePass = cfg.getDouble("searchFactorAfterOnePass",        0.0, 1.0);
     if(cfg.contains("searchFactorAfterTwoPass"+idxStr)) params.searchFactorAfterTwoPass = cfg.getDouble("searchFactorAfterTwoPass"+idxStr, 0.0, 1.0);
     else if(cfg.contains("searchFactorAfterTwoPass"))   params.searchFactorAfterTwoPass = cfg.getDouble("searchFactorAfterTwoPass",        0.0, 1.0);
-    
+
     if(cfg.contains("numSearchThreads"+idxStr)) params.numThreads = cfg.getInt("numSearchThreads"+idxStr, 1, 1024);
     else                                        params.numThreads = cfg.getInt("numSearchThreads",        1, 1024);
 
@@ -247,6 +251,16 @@ vector<SearchParams> Setup::loadParams(
     else                                          params.chosenMoveSubtract = cfg.getDouble("chosenMoveSubtract",        0.0, 1.0e10);
     if(cfg.contains("chosenMovePrune"+idxStr)) params.chosenMovePrune = cfg.getDouble("chosenMovePrune"+idxStr, 0.0, 1.0e10);
     else                                       params.chosenMovePrune = cfg.getDouble("chosenMovePrune",        0.0, 1.0e10);
+
+    if(cfg.contains("useLcbForSelection"+idxStr)) params.useLcbForSelection = cfg.getBool("useLcbForSelection"+idxStr);
+    else if(cfg.contains("useLcbForSelection"))   params.useLcbForSelection = cfg.getBool("useLcbForSelection");
+    else                                          params.useLcbForSelection = false;
+    if(cfg.contains("lcbStdevs"+idxStr)) params.lcbStdevs = cfg.getDouble("lcbStdevs"+idxStr, 1.0, 12.0);
+    else if(cfg.contains("lcbStdevs"))   params.lcbStdevs = cfg.getDouble("lcbStdevs",        1.0, 12.0);
+    else                                 params.lcbStdevs = 4.0;
+    if(cfg.contains("minVisitPropForLCB"+idxStr)) params.minVisitPropForLCB = cfg.getDouble("minVisitPropForLCB"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("minVisitPropForLCB"))   params.minVisitPropForLCB = cfg.getDouble("minVisitPropForLCB",        0.0, 1.0);
+    else                                          params.minVisitPropForLCB = 0.05;
 
     if(cfg.contains("rootEndingBonusPoints"+idxStr)) params.rootEndingBonusPoints = cfg.getDouble("rootEndingBonusPoints"+idxStr, -1.0, 1.0);
     else if(cfg.contains("rootEndingBonusPoints"))   params.rootEndingBonusPoints = cfg.getDouble("rootEndingBonusPoints",        -1.0, 1.0);

@@ -108,6 +108,11 @@ double FancyMath::betacdf(double x, double a, double b) {
   return regularizedIncompleteBeta(x,a,b);
 }
 
+double FancyMath::normToTApprox(double z, double degreesOfFreedom) {
+  double n = degreesOfFreedom;
+  return sqrt(n * exp(z * z * (n-1.5) / ((n-1) * (n-1))) - n);
+}
+
 void FancyMath::runTests() {
   cout << "Running fancy math tests" << endl;
   ostringstream out;
@@ -155,6 +160,46 @@ pi
     TestCommon::expect(name,out,expected);
   }
 
+  {
+    const char* name = "normToTApprox tests";
+    out << "normToTApprox(2,2)  " << normToTApprox(2,2) << endl;
+    out << "normToTApprox(2,4)  " << normToTApprox(2,4) << endl;
+    out << "normToTApprox(2,8)  " << normToTApprox(2,8) << endl;
+    out << "normToTApprox(2,16) " << normToTApprox(2,16) << endl;
+    out << "normToTApprox(2,10000) " << normToTApprox(2,10000) << endl;
+
+    out << "normToTApprox(4,2)  " << normToTApprox(4,2) << endl;
+    out << "normToTApprox(4,4)  " << normToTApprox(4,4) << endl;
+    out << "normToTApprox(4,8)  " << normToTApprox(4,8) << endl;
+    out << "normToTApprox(4,16) " << normToTApprox(4,16) << endl;
+    out << "normToTApprox(4,10000) " << normToTApprox(4,10000) << endl;
+
+    out << "normToTApprox(8,2)  " << normToTApprox(8,2) << endl;
+    out << "normToTApprox(8,4)  " << normToTApprox(8,4) << endl;
+    out << "normToTApprox(8,8)  " << normToTApprox(8,8) << endl;
+    out << "normToTApprox(8,16) " << normToTApprox(8,16) << endl;
+    out << "normToTApprox(8,10000) " << normToTApprox(8,10000) << endl;
+
+    string expected = R"%%(
+normToTApprox(2,2)  3.57464854186552161
+normToTApprox(2,4)  2.85498285635306948
+normToTApprox(2,8)  2.36638591905649642
+normToTApprox(2,16) 2.16905959247696245
+normToTApprox(2,10000) 2.00025003104416443
+normToTApprox(4,2)  77.20049205855787022
+normToTApprox(4,4)  18.34694064061386598
+normToTApprox(4,8)  7.66893227341667760
+normToTApprox(4,16) 5.37279049993877056
+normToTApprox(4,10000) 4.00170065227877014
+normToTApprox(8,2)  12566858.01484839618206024
+normToTApprox(8,4)  14501.91603376931016101
+normToTApprox(8,8)  197.25867566592546609
+normToTApprox(8,16) 31.19831990116452403
+normToTApprox(8,10000) 8.01301804270852891
+)%%";
+    TestCommon::expect(name,out,expected);
+  }
+  
   {
     const char* name = "Beta tests";
 

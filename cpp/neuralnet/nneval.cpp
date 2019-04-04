@@ -54,6 +54,7 @@ NNEvaluator::NNEvaluator(
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerofTwo,
   bool skipNeuralNet,
+  bool alwaysOwnerMap,
   float nnPolicyTemp
 )
   :modelName(mName),
@@ -65,6 +66,7 @@ NNEvaluator::NNEvaluator(
    loadedModel(NULL),
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
+   alwaysIncludeOwnerMap(alwaysOwnerMap),
    nnPolicyInvTemperature(1.0/nnPolicyTemp),
    serverThreads(),
    serverWaitingForBatchStart(),
@@ -427,6 +429,8 @@ void NNEvaluator::evaluate(
   else
     assert(false);
 
+  includeOwnerMap |= alwaysIncludeOwnerMap;
+  
   bool hadResultWithoutOwnerMap = false;
   shared_ptr<NNOutput> resultWithoutOwnerMap;
   if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {

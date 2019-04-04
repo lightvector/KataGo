@@ -55,6 +55,15 @@ class AsyncBot {
 
   //Terminate any existing searches, and then begin pondering while periodically calling the specified callback
   void analyze(Player movePla, double searchFactor, double callbackPeriod, std::function<void(Search* search)> callback);
+  //Same as genMove but with periodic analyze callbacks
+  void genMoveAnalyze(
+    Player movePla, int searchId, const TimeControls& tc, double searchFactor, std::function<void(Loc,int)> onMove,
+    double callbackPeriod, std::function<void(Search* search)> callback
+  );
+  Loc genMoveSynchronousAnalyze(
+    Player movePla, const TimeControls& tc, double searchFactor,
+    double callbackPeriod, std::function<void(Search* search)> callback
+  );
 
   
   //Signal an ongoing genMove or ponder to stop as soon as possible, and wait for the stop to happen.

@@ -86,6 +86,7 @@ class NNEvaluator {
     int nnCacheSizePowerOfTwo,
     int nnMutexPoolSizePowerofTwo,
     bool debugSkipNeuralNet,
+    bool alwaysIncludeOwnerMap,
     float nnPolicyTemperature
   );
   ~NNEvaluator();
@@ -151,6 +152,7 @@ class NNEvaluator {
   NNCacheTable* nnCacheTable;
 
   bool debugSkipNeuralNet;
+  bool alwaysIncludeOwnerMap;
   float nnPolicyInvTemperature;
 
   int modelVersion;

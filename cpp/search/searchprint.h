@@ -11,6 +11,7 @@ struct PrintTreeOptions {
   PrintTreeOptions minVisitsToExpand(int64_t);
   PrintTreeOptions minVisitsPropToShow(double);
   PrintTreeOptions minVisitsPropToExpand(double);
+  PrintTreeOptions printSqs(bool);
   PrintTreeOptions onlyBranch(const Board& board, const string& moves);
 
   int maxDepth_;
@@ -19,6 +20,9 @@ struct PrintTreeOptions {
   int64_t minVisitsToExpand_;
   double minVisitsPropToShow_;
   double minVisitsPropToExpand_;
+  int maxPVDepth_;
+  bool printRawNN_;
+  bool printSqs_;
   vector<Loc> branch_;
 };
 
@@ -29,6 +33,9 @@ inline PrintTreeOptions::PrintTreeOptions()
    minVisitsToExpand_(1),
    minVisitsPropToShow_(0.0),
    minVisitsPropToExpand_(0.0),
+   maxPVDepth_(7),
+   printRawNN_(false),
+   printSqs_(false),
    branch_()
 {}
 
@@ -38,6 +45,7 @@ inline PrintTreeOptions PrintTreeOptions::minVisitsToShow(int64_t v) { PrintTree
 inline PrintTreeOptions PrintTreeOptions::minVisitsToExpand(int64_t v) { PrintTreeOptions other = *this; other.minVisitsToExpand_ = v; return other;}
 inline PrintTreeOptions PrintTreeOptions::minVisitsPropToShow(double p) { PrintTreeOptions other = *this; other.minVisitsPropToShow_ = p; return other;}
 inline PrintTreeOptions PrintTreeOptions::minVisitsPropToExpand(double p) { PrintTreeOptions other = *this; other.minVisitsPropToExpand_ = p; return other;}
+inline PrintTreeOptions PrintTreeOptions::printSqs(bool b) { PrintTreeOptions other = *this; other.printSqs_ = b; return other;}
 inline PrintTreeOptions PrintTreeOptions::onlyBranch(const Board& board, const string& moves) {
   PrintTreeOptions other = *this; other.branch_ = Location::parseSequence(moves,board);
   return other;

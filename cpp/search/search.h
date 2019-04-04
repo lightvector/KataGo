@@ -21,13 +21,30 @@ struct SearchThread;
 struct Search;
 struct DistributionTable;
 
+struct ReportedSearchValues {
+  double winValue;
+  double lossValue;
+  double noResultValue;
+  double staticScoreValue;
+  double dynamicScoreValue;
+  double expectedScore;
+  double expectedScoreStdev;
+  double winLossValue;
+
+  ReportedSearchValues();
+  ~ReportedSearchValues();
+};
+
 struct NodeStats {
   int64_t visits;
   double winValueSum;
   double noResultValueSum;
   double scoreMeanSum;
   double scoreMeanSqSum;
-  double valueSumWeight;
+  double utilitySum;
+  double utilitySqSum;
+  double weightSum;
+  double weightSqSum;
 
   NodeStats();
   ~NodeStats();
@@ -86,12 +103,16 @@ struct SearchThread {
   ostream* logStream;
   Logger* logger;
 
-  vector<double> valueChildWeightsBuf;
+  vector<double> weightFactorBuf;
+  vector<double> weightBuf;
+  vector<double> weightSqBuf;
   vector<double> winValuesBuf;
   vector<double> noResultValuesBuf;
   vector<double> scoreMeansBuf;
   vector<double> scoreMeanSqsBuf;
   vector<double> utilityBuf;
+  vector<double> utilitySqBuf;
+  vector<double> selfUtilityBuf;
   vector<int64_t> visitsBuf;
 
   SearchThread(int threadIdx, const Search& search, Logger* logger);
@@ -123,6 +144,10 @@ struct Search {
 
   //Precomputed distribution for downweighting child values based on their values
   DistributionTable* valueWeightDistribution;
+
+  //Precomputed Fancymath::normToTApprox values, for a fixed Z
+  double normToTApproxZ;
+  vector<double> normToTApproxTable;
 
   //Mutable---------------------------------------------------------------
   SearchNode* rootNode;
@@ -175,29 +200,27 @@ struct Search {
   //Does take into account chosenMoveSubtract but does NOT apply temperature.
   //If somehow the max value is less than scaleMaxToAtLeast, scale it to at least that value.
   bool getPlaySelectionValues(
-    vector<Loc>& locs, vector<double>& playSelectionValues, int64_t& unreducedNumVisitsBuf, double scaleMaxToAtLeast
+    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
   ) const;
   //Same, but works on a node within the search, not just the root
   bool getPlaySelectionValues(
     const SearchNode& node,
-    vector<Loc>& locs, vector<double>& playSelectionValues, int64_t& unreducedNumVisitsBuf, double scaleMaxToAtLeast
+    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+    bool allowDirectPolicyMoves
   ) const;
 
   //Useful utility function exposed for outside use
   static uint32_t chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature);
 
   //Get the values recorded for the root node
-  bool getRootValues(
-    double& winValue, double& lossValue, double& noResultValue, double& staticScoreValue, double& dynamicScoreValue, double& expectedScore
-  ) const;
+  bool getRootValues(ReportedSearchValues& values) const;
   //Same, but works on a node within the search, not just the root
-  bool getNodeValues(
-    const SearchNode& node,
-    double& winValue, double& lossValue, double& noResultValue, double& staticScoreValue, double& dynamicScoreValue, double& expectedScore
-  ) const;
+  bool getNodeValues(const SearchNode& node, ReportedSearchValues& values) const;
 
   //Get the combined utility recorded for the root node
   double getRootUtility() const;
+  //Get the number of visits recorded for the root node
+  int64_t getRootVisits() const;
 
   //Run an entire search from start to finish
   //If recordUtilities is provided, and we're doing a singlethreaded search, will fill recordUtilities
@@ -229,9 +252,16 @@ struct Search {
 
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
-  void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet);
-  void appendPV(vector<Loc>& buf, const SearchNode* n, int maxDepth); //Append PV from position at node n onward to buf
-  
+  void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth);
+  void getAnalysisData(const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth);
+  void appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth); //Append PV from position at node n onward to buf
+
+  //Get the ownership map averaged throughout the search tree.
+  //Must have ownership present on all neural net evals.
+  //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
+  //or changing parameters or clearing search.
+  vector<double> getAverageTreeOwnership(int64_t minVisits);
+
   int64_t numRootVisits() const;
 
   //Helpers-----------------------------------------------------------------------
@@ -243,9 +273,11 @@ private:
 
   void computeRootValues(Logger& logger);
 
-  double getUtility(double resultUtilitySum, double scoreMeanSum, double scoreMeanSqSum, double valueSumWeight) const;
+  double getScoreUtility(double scoreMeanSum, double scoreMeanSqSum, double weightSum) const;
+  double getScoreUtilityDiff(double scoreMeanSum, double scoreMeanSqSum, double weightSum, double delta) const;
   double getUtilityFromNN(const NNOutput& nnOutput) const;
 
+  //Parent must be locked
   double getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const;
 
   void getValueChildWeights(
@@ -255,25 +287,37 @@ private:
     vector<double>& resultBuf
   ) const;
 
-  double getPlaySelectionValue(
-    double nnPolicyProb, int64_t childVisits, Player pla
-  ) const;
+  //Parent must be locked
+  void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, double& lcbBuf, double& radiusBuf) const;
+
   double getExploreSelectionValue(
     double nnPolicyProb, int64_t totalChildVisits, int64_t childVisits,
     double childUtility, Player pla
   ) const;
   double getPassingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
 
-  double getPlaySelectionValue(const SearchNode& parent, const SearchNode* child) const;
+  bool getPlaySelectionValuesAlreadyLocked(
+    const SearchNode& node,
+    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+    bool allowDirectPolicyMoves, bool alwaysComputeLcb,
+    double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
+  ) const;
+
+  //Parent must be locked
   double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const;
   double getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const;
 
-  double getReducedPlaySelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const;
+  //Parent must be locked
+  int64_t getReducedPlaySelectionVisits(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const;
 
   double getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const;
-  
+
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);
+  void recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot);
+
+  void maybeRecomputeNormToTApproxTable();
+  double getNormToTApproxForLCB(int64_t numVisits) const;
 
   void selectBestChildToDescend(
     const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
@@ -281,7 +325,7 @@ private:
     bool isRoot
   ) const;
 
-  void setTerminalValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, int32_t virtualLossesToSubtract);
+  void addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, int32_t virtualLossesToSubtract, bool isCertain);
 
   void initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
@@ -294,10 +338,20 @@ private:
     bool isRoot, int32_t virtualLossesToSubtract
   );
 
+  AnalysisData getAnalysisDataOfSingleChild(
+    const SearchNode* child, vector<Loc>& scratchLocs, vector<double>& scratchValues,
+    Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
+    double parentScoreMean, double parentScoreStdev, int maxPVDepth
+  );
+
+  void printPV(ostream& out, const vector<Loc>& buf);
+
   void printTreeHelper(
     ostream& out, const SearchNode* node, const PrintTreeOptions& options,
-    string& prefix, int64_t origVisits, int depth, double policyProb, double valueWeight
+    string& prefix, int64_t origVisits, int depth, const AnalysisData& data
   );
+
+  int64_t getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minVisits, const SearchNode* node);
 
 };
 

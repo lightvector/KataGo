@@ -40,6 +40,10 @@ struct SearchParams {
   double chosenMoveSubtract; //Try to subtract this many visits from every move prior to applying temperature
   double chosenMovePrune; //Outright prune moves that have fewer than this many visits
 
+  bool useLcbForSelection; //Using LCB for move selection?
+  double lcbStdevs; //How many stdevs a move needs to be better than another for LCB selection
+  double minVisitPropForLCB; //Only use LCB override when a move has this proportion of visits as the top move
+  
   //Mild behavior hackery
   double rootEndingBonusPoints; //Extra bonus (or penalty) to encourage good passing behavior at the end of the game.
   bool rootPruneUselessMoves; //Prune moves that are entirely useless moves that prolong the game.
