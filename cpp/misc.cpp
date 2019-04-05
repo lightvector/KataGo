@@ -413,6 +413,9 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
   const double resignScoreThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignScoreThreshold",-10000.0,0.0) : -10000.0;
 
+  const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
+  const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
+  
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
@@ -454,7 +457,12 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
       callback(bot->getSearch());
 
-      double searchFactor = 1.0;
+      double searchFactor =
+        //Speed up when either player is winning confidently, not just the winner only
+        std::min(
+          Play::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,P_BLACK),
+          Play::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,P_WHITE)
+        );
       Loc moveLoc = bot->genMoveSynchronousAnalyze(pla,tc,searchFactor,callbackPeriod,callback);
 
       bool isLegal = bot->isLegal(moveLoc,pla);

@@ -456,6 +456,32 @@ void Play::adjustKomiToEven(
   }
 }
 
+double Play::getSearchFactor(
+  double searchFactorWhenWinningThreshold,
+  double searchFactorWhenWinning,
+  const SearchParams& params,
+  const vector<double>& recentWinLossValues,
+  Player pla
+) {
+  double searchFactor = 1.0;
+  if(recentWinLossValues.size() >= 3 && params.winLossUtilityFactor - searchFactorWhenWinningThreshold > 1e-10) {
+    double recentLeastWinning = pla == P_BLACK ? -params.winLossUtilityFactor : params.winLossUtilityFactor;
+    for(int i = recentWinLossValues.size()-3; i < recentWinLossValues.size(); i++) {
+      if(pla == P_BLACK && recentWinLossValues[i] > recentLeastWinning)
+        recentLeastWinning = recentWinLossValues[i];
+      if(pla == P_WHITE && recentWinLossValues[i] < recentLeastWinning)
+        recentLeastWinning = recentWinLossValues[i];
+    }
+    double excessWinning = pla == P_BLACK ? -searchFactorWhenWinningThreshold - recentLeastWinning : recentLeastWinning - searchFactorWhenWinningThreshold;
+    if(excessWinning > 0) {
+      double lambda = excessWinning / (params.winLossUtilityFactor - searchFactorWhenWinningThreshold);
+      searchFactor = 1.0 + lambda * (searchFactorWhenWinning - 1.0);
+    }
+  }
+  return searchFactor;
+}
+
+
 
 //Place black handicap stones, free placement
 void Play::playExtraBlack(

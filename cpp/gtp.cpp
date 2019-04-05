@@ -157,7 +157,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   TimeControls bTimeControls;
   TimeControls wTimeControls;
 
-  vector<double> recentWinValues;
+  vector<double> recentWinLossValues;
   const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   double lastSearchFactor = 1.0;
@@ -167,11 +167,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   //Komi without whiteBonusPerHandicapStone hack
   float unhackedKomi = bot->getRootHist().rules.komi;
-  auto updateKomiIfNew = [&bot,&unhackedKomi,&whiteBonusPerHandicapStone,&recentWinValues]() {
+  auto updateKomiIfNew = [&bot,&unhackedKomi,&whiteBonusPerHandicapStone,&recentWinLossValues]() {
     float newKomi = unhackedKomi;
     newKomi += numHandicapStones(bot->getRootHist()) * whiteBonusPerHandicapStone;
     if(newKomi != bot->getRootHist().rules.komi)
-      recentWinValues.clear();
+      recentWinLossValues.clear();
     bot->setKomiIfNew(newKomi);
   };
 
@@ -338,7 +338,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
         bot->setPosition(pla,board,hist);
         updateKomiIfNew();
-        recentWinValues.clear();
+        recentWinLossValues.clear();
       }
     }
 
@@ -350,7 +350,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       BoardHistory hist(board,pla,bot->getRootHist().rules,0);
       bot->setPosition(pla,board,hist);
       updateKomiIfNew();
-      recentWinValues.clear();
+      recentWinLossValues.clear();
     }
 
     else if(command == "komi") {
@@ -523,21 +523,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
         //Play faster when winning
-        double searchFactor = 1.0;
-        if(recentWinValues.size() >= 3 && params.winLossUtilityFactor - searchFactorWhenWinningThreshold > 1e-10) {
-          double recentLeastWinning = pla == P_BLACK ? -params.winLossUtilityFactor : params.winLossUtilityFactor;
-          for(int i = recentWinValues.size()-3; i < recentWinValues.size(); i++) {
-            if(pla == P_BLACK && recentWinValues[i] > recentLeastWinning)
-              recentLeastWinning = recentWinValues[i];
-            if(pla == P_WHITE && recentWinValues[i] < recentLeastWinning)
-              recentLeastWinning = recentWinValues[i];
-          }
-          double excessWinning = pla == P_BLACK ? -searchFactorWhenWinningThreshold - recentLeastWinning : recentLeastWinning - searchFactorWhenWinningThreshold;
-          if(excessWinning > 0) {
-            double lambda = excessWinning / (params.winLossUtilityFactor - searchFactorWhenWinningThreshold);
-            searchFactor = 1.0 + lambda * (searchFactorWhenWinning - 1.0);
-          }
-        }
+        double searchFactor = Play::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
         lastSearchFactor = searchFactor;
 
         Loc moveLoc = bot->genMoveSynchronous(pla,tc,searchFactor);
@@ -586,7 +572,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           expectedScore = values.expectedScore;
         }
 
-        recentWinValues.push_back(winLossValue);
+        recentWinLossValues.push_back(winLossValue);
 
         bool resigned = false;
         if(allowResignation) {

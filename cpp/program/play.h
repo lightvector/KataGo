@@ -245,6 +245,13 @@ namespace Play {
     Logger& logger
   );
 
+  double getSearchFactor(
+    double searchFactorWhenWinningThreshold,
+    double searchFactorWhenWinning,
+    const SearchParams& params,
+    const vector<double>& recentWinLossValues,
+    Player pla
+  );
 }
 
 
