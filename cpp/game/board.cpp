@@ -239,7 +239,7 @@ int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
   Player opp = getOpp(pla);
 
   int numLibs = 0;
-  Loc libs[max];
+  Loc libs[MAX_PLAY_SIZE];
   int numCapturedGroups = 0;
   Loc capturedGroupHeads[4];
 
@@ -956,7 +956,7 @@ void Board::removeSingleStone(Loc loc)
 
   //Save the entire chain's stone locations
   int num_locs = chain_data[chain_head[loc]].num_locs;
-  int locs[num_locs];
+  int locs[MAX_PLAY_SIZE];
   int idx = 0;
   Loc cur = loc;
   do
@@ -1224,8 +1224,8 @@ int Board::findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, i
   Player opp = getOpp(colors[loc]);
 
   //For performance, avoid checking for captures on any chain twice
-  int arrSize = x_size*y_size;
-  Loc chainHeadsChecked[arrSize];
+  //int arrSize = x_size*y_size;
+  Loc chainHeadsChecked[MAX_PLAY_SIZE];
   int numChainHeadsChecked = 0;
 
   int numFound = 0;
@@ -1344,7 +1344,8 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
     ko_loc = NULL_LOC;
 
   //Stack for the search. These point to lists of possible moves to search at each level of the stack, indices refer to indices in [buf].
-  int arrSize = x_size*y_size*3/2+1; //A bit bigger due to paranoia about recaptures making the sequence longer.
+  int stackSize = x_size*y_size*3/2+1; //A bit bigger due to paranoia about recaptures making the sequence longer.
+  static constexpr int arrSize = MAX_PLAY_SIZE * 3 / 2 + 1;
   int moveListStarts[arrSize]; //Buf idx of start of list
   int moveListLens[arrSize]; //Len of list
   int moveListCur[arrSize]; //Current move list idx searched, equal to -1 if list has not been generated.
@@ -1371,7 +1372,7 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
     }
 
     //If we hit the stack limit, just consider it a failed ladder.
-    if(stackIdx >= arrSize-1) {
+    if(stackIdx >= stackSize-1) {
       returnValue = true; returnedFromDeeper = true; stackIdx--; continue;
     }
     //If we hit a total node count limit, then just assume it doesn't work.
@@ -1592,8 +1593,8 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   //A region is vital for a pla group if all its spaces are adjacent to that pla group.
   //All lists are concatenated together, the most we can have is bounded by (MAX_LEN * MAX_LEN+1) / 2
   //independent regions, each one vital for at most 4 pla groups, add some extra just in case.
-  int maxRegions = (MAX_LEN * MAX_LEN + 1)/2 + 1;
-  int vitalForPlaHeadsListsMaxLen = maxRegions * 4;
+  static constexpr int maxRegions = (MAX_LEN * MAX_LEN + 1)/2 + 1;
+  static constexpr int vitalForPlaHeadsListsMaxLen = maxRegions * 4;
   Loc vitalForPlaHeadsLists[vitalForPlaHeadsListsMaxLen];
   int vitalForPlaHeadsListsTotal = 0;
 
@@ -1768,7 +1769,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     }
     numPlaHeads = newNumPlaHeads;
   }
-  bool plaHasBeenKilled[numPlaHeads+1]; //+1 to avoid 0 length array
+  bool plaHasBeenKilled[MAX_PLAY_SIZE];
   for(int i = 0; i<numPlaHeads; i++)
     plaHasBeenKilled[i] = false;
 

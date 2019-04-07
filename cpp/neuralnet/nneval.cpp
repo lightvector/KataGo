@@ -551,7 +551,7 @@ void NNEvaluator::evaluate(
     int ySize = board.y_size;
 
     float maxPolicy = -1e25f;
-    bool isLegal[policySize];
+    bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
     for(int i = 0; i<policySize; i++) {
       Loc loc = NNPos::posToLoc(i,xSize,ySize,posLen);

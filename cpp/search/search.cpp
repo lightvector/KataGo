@@ -628,7 +628,7 @@ int64_t Search::getRootVisits() const {
 uint32_t Search::chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature) {
   assert(numRelativeProbs > 0);
   assert(numRelativeProbs < 1024); //We're just doing this on the stack
-  double processedRelProbs[numRelativeProbs];
+  double processedRelProbs[1024];
 
   double maxValue = 0.0;
   for(int i = 0; i<numRelativeProbs; i++) {
@@ -1058,7 +1058,7 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
     //Generate gamma draw on each move
     double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
     double rSum = 0.0;
-    double r[policySize];
+    double r[NNPos::MAX_NN_POLICY_SIZE];
     for(int i = 0; i<policySize; i++) {
       if(node.nnOutput->policyProbs[i] >= 0) {
         r[i] = thread.rand.nextGamma(alpha);
@@ -1132,7 +1132,8 @@ void Search::getValueChildWeights(
     return;
   }
 
-  double stdevs[numChildren];
+  assert(numChildren <= NNPos::MAX_NN_POLICY_SIZE);
+  double stdevs[NNPos::MAX_NN_POLICY_SIZE];
   for(int i = 0; i<numChildren; i++) {
     int64_t numVisits = childVisitsBuf[i];
     assert(numVisits >= 0);
@@ -1157,7 +1158,7 @@ void Search::getValueChildWeights(
 
   double simpleValue = simpleValueSum / numChildVisits;
 
-  double weight[numChildren];
+  double weight[NNPos::MAX_NN_POLICY_SIZE];
   for(int i = 0; i<numChildren; i++) {
     if(childVisitsBuf[i] == 0) {
       weight[i] = 0.0;

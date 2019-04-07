@@ -301,7 +301,7 @@ namespace {
         logger.write(out.str());
       }
 
-      int botIdxsShuffled[numBots];
+      vector<int> botIdxsShuffled(numBots);
       for(int i = 0; i<numBots; i++)
         botIdxsShuffled[i] = i;
       for(int i = numBots-1; i>0; i--) {
@@ -325,7 +325,7 @@ namespace {
         }
         assert(bestBot >= 0);
 
-        double relProbs[numBots];
+        vector<double> relProbs(numBots);
         double probSum = 0.0;
         for(int b = 0; b<numBots; b++) {
           if(b == bestBot)
@@ -345,7 +345,7 @@ namespace {
         assert(numBots > 1);
         assert(probSum > 0);
 
-        int otherBot = rand.nextUInt(relProbs,numBots);
+        int otherBot = rand.nextUInt(relProbs.data(),numBots);
         if(otherBot == bestBot) //Just in case
           continue;
 

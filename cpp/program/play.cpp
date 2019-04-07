@@ -1331,7 +1331,8 @@ void Play::maybeForkGame(
 
   //Generate a selection of a small random number of choices
   int numChoices = gameRand.nextInt(fancyModes.earlyForkGameMinChoices,fancyModes.earlyForkGameMaxChoices);
-  Loc possibleMoves[numChoices];
+  assert(numChoices <= NNPos::MAX_NN_POLICY_SIZE);
+  Loc possibleMoves[NNPos::MAX_NN_POLICY_SIZE];
   int numPossible = chooseRandomLegalMoves(board,hist,pla,gameRand,possibleMoves,numChoices);
   if(numPossible <= 0)
     return;
