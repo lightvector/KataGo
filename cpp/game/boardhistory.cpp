@@ -738,7 +738,7 @@ KoHashTable::KoHashTable()
   :koHashHistorySortedByLowBits(),
    koHistoryLastClearedBeginningMoveIdx(0)
 {
-  idxTable = new uint16_t[TABLE_SIZE];
+  idxTable = new uint32_t[TABLE_SIZE];
 }
 KoHashTable::~KoHashTable() {
   delete[] idxTable;
@@ -762,11 +762,12 @@ void KoHashTable::recompute(const BoardHistory& history) {
 
   std::sort(koHashHistorySortedByLowBits.begin(),koHashHistorySortedByLowBits.end(),cmpFirstByLowBits);
 
-  //Just in case, since we're using 16 bits for indices.
-  assert(koHashHistorySortedByLowBits.size() < 30000);
-  uint16_t size = (uint16_t)koHashHistorySortedByLowBits.size();
+  //Just in case, since we're using 32 bits for indices.
+  if(koHashHistorySortedByLowBits.size() > 1000000000)
+    throw StringError("Board history length longer than 1000000000, not supported");
+  uint32_t size = (uint32_t)koHashHistorySortedByLowBits.size();
 
-  uint16_t idx = 0;
+  uint32_t idx = 0;
   for(uint32_t bits = 0; bits<TABLE_SIZE; bits++) {
     while(idx < size && ((koHashHistorySortedByLowBits[idx].hash0 & TABLE_MASK) < bits))
       idx++;

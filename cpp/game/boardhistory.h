@@ -122,7 +122,7 @@ private:
 };
 
 struct KoHashTable {
-  uint16_t* idxTable;
+  uint32_t* idxTable;
   vector<Hash128> koHashHistorySortedByLowBits;
   int koHistoryLastClearedBeginningMoveIdx;
 
