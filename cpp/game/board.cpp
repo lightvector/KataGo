@@ -1293,6 +1293,7 @@ bool Board::searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, 
 
   int numLibs = findLiberties(loc,buf,0,0);
   assert(numLibs == 2);
+  (void)numLibs; //Avoid warning when asserts are off
 
   Loc move0 = buf[0];
   Loc move1 = buf[1];

@@ -240,6 +240,15 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     sgfOutputDir = sgfOutputDirArg.getValue();
     acceptedModelsDir = acceptedModelsDirArg.getValue();
     rejectedModelsDir = rejectedModelsDirArg.getValue();
+
+    auto checkDirNonEmpty = [](const char* flag, const string& s) {
+      if(s.length() <= 0)
+        throw StringError("Empty directory specified for " + string(flag));
+    };
+    checkDirNonEmpty("test-models-dir",testModelsDir);
+    checkDirNonEmpty("sgf-output-dir",sgfOutputDir);
+    checkDirNonEmpty("accepted-models-dir",acceptedModelsDir);
+    checkDirNonEmpty("rejected-models-dir",rejectedModelsDir);
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -366,8 +375,6 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     }
 
     string sgfOutputDirThisModel = sgfOutputDir + "/" + testModelName;
-    assert(sgfOutputDir != string());
-
     MakeDir::make(sgfOutputDirThisModel);
     {
       ofstream out(sgfOutputDirThisModel + "/" + "gatekeeper-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");

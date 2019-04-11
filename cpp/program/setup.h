@@ -22,6 +22,8 @@ namespace Setup {
     int defaultPosLen
   );
 
+  //Loads search parameters for bot from config, by bot idx.
+  //Fails if no parameters are found.
   vector<SearchParams> loadParams(
     ConfigParser& cfg
   );

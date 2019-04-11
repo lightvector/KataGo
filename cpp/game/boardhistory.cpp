@@ -408,7 +408,7 @@ void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_
   else if(rules.scoringRule == Rules::SCORING_TERRITORY)
     boardScore = countTerritoryAreaScoreWhiteMinusBlack(board,area);
   else
-    assert(false);
+    ASSERT_UNREACHABLE;
 
   finalWhiteMinusBlackScore = boardScore + whiteBonusScore + rules.komi;
   if(finalWhiteMinusBlackScore > 0.0f)

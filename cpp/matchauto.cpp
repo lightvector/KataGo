@@ -343,7 +343,8 @@ namespace {
           probSum += relProbs[b];
         }
         assert(numBots > 1);
-        assert(probSum > 0);
+        if(probSum <= 0)
+          throw StringError("Negative relative probabilities for matchauto");
 
         int otherBot = rand.nextUInt(relProbs.data(),numBots);
         if(otherBot == bestBot) //Just in case

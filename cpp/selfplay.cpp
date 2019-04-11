@@ -180,6 +180,13 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     inputsVersion = inputsVersionArg.getValue();
     modelsDir = modelsDirArg.getValue();
     outputDir = outputDirArg.getValue();
+
+    auto checkDirNonEmpty = [](const char* flag, const string& s) {
+      if(s.length() <= 0)
+        throw StringError("Empty directory specified for " + string(flag));
+    };
+    checkDirNonEmpty("models-dir",modelsDir);
+    checkDirNonEmpty("output-dir",outputDir);
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -278,6 +285,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       }
     }
     assert(found);
+    (void)found; //Avoid warning when asserts are disabled
     lock.unlock();
 
     //Do logging and cleanup while unlocked, so that our freeing and stopping of this neural net doesn't
@@ -334,7 +342,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     string sgfOutputDir = modelOutputDir + "/sgfs";
     string tdataOutputDir = modelOutputDir + "/tdata";
     string vdataOutputDir = modelOutputDir + "/vdata";
-    assert(outputDir != string());
 
     //Try repeatedly to make directories, in case the filesystem is unhappy with us as we try to make the same dirs as another process.
     //Wait a random amount of time in between each failure.

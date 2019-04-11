@@ -565,9 +565,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         double winLossValue;
         double expectedScore;
         {
-          ReportedSearchValues values;
-          bool success = bot->getSearch()->getRootValues(values);
-          assert(success);
+          ReportedSearchValues values = bot->getSearch()->getRootValuesAssertSuccess();
           winLossValue = values.winLossValue;
           expectedScore = values.expectedScore;
         }
@@ -644,9 +642,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           logger.write(sout.str());
         }
 
-        if(!resigned) {
+        if(!resigned && moveLoc != Board::NULL_LOC && isLegal) {
           bool suc = bot->makeMove(moveLoc,pla);
           assert(suc);
+          (void)suc; //Avoid warning when asserts are off
           maybeStartPondering = true;
         }
 
@@ -759,7 +758,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       else if(hist.winner == C_WHITE)
         response = "W+" + Global::strprintf("%.1f",hist.finalWhiteMinusBlackScore);
       else
-        assert(false);
+        ASSERT_UNREACHABLE;
     }
 
     else if(command == "final_status_list") {
@@ -952,7 +951,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
         }
         else
-          assert(false);
+          ASSERT_UNREACHABLE;
 
         double searchFactor = 1e40; //go basically forever
         bot->analyze(pla, searchFactor, lzAnalyzeInterval, callback);

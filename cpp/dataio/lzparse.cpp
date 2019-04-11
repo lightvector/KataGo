@@ -172,7 +172,7 @@ void LZSample::parse(
   else if(sideStr[0] == '1')
     pla = P_WHITE;
   else
-    assert(false);
+    throw StringError("Could not parse player in LZ data row");
   Player opp = getOpp(pla);
 
   //Parse all stones

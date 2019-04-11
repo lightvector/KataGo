@@ -214,6 +214,7 @@ struct Search {
 
   //Get the values recorded for the root node
   bool getRootValues(ReportedSearchValues& values) const;
+  ReportedSearchValues getRootValuesAssertSuccess() const;
   //Same, but works on a node within the search, not just the root
   bool getNodeValues(const SearchNode& node, ReportedSearchValues& values) const;
 

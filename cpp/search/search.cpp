@@ -524,6 +524,15 @@ bool Search::getRootValues(ReportedSearchValues& values) const {
   return getNodeValues(*rootNode,values);
 }
 
+ReportedSearchValues Search::getRootValuesAssertSuccess() const {
+  ReportedSearchValues values;
+  assert(rootNode != NULL);
+  bool success = getNodeValues(*rootNode,values);
+  if(!success)
+    throw StringError("Bug? Bot search returned no root values");
+  return values;
+}
+
 bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values) const {
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);

@@ -682,6 +682,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
 
   //Some sanity checks
+  #ifndef NDEBUG
   {
     const ValueTargets& lastTargets = data.whiteValueTargetsByTurn[data.whiteValueTargetsByTurn.size()-1];
     if(!data.endHist.isGameFinished)
@@ -698,6 +699,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     assert(data.finalWhiteOwnership != NULL);
     assert(!data.endHist.isResignation);
   }
+  #endif
 
   Board board(data.startBoard);
   BoardHistory hist(data.startHist);

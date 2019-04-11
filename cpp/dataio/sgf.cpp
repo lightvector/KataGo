@@ -205,25 +205,30 @@ Rules SgfNode::getRules(const Rules& defaultRules) const {
         str = str.substr(prefix.length());
       return matches;
     };
+    auto fail = [&origS]() {
+      throw StringError("Could not parse rules: " + origS);
+    };
+      
     if(startsWithAndStrip(s,"ko")) {
       if(startsWithAndStrip(s,"simple")) rules.koRule = Rules::KO_SIMPLE;
       else if(startsWithAndStrip(s,"positional")) rules.koRule = Rules::KO_POSITIONAL;
       else if(startsWithAndStrip(s,"situational")) rules.koRule = Rules::KO_SITUATIONAL;
       else if(startsWithAndStrip(s,"spight")) rules.koRule = Rules::KO_SPIGHT;
-      else throw StringError("Could not parse rules: " + origS);
+      else fail();
 
       bool b;
       b = startsWithAndStrip(s,"score");
-      assert(b);
+      if(!b) fail();
+      
       if(startsWithAndStrip(s,"area")) rules.scoringRule = Rules::SCORING_AREA;
       else if(startsWithAndStrip(s,"territory")) rules.scoringRule = Rules::SCORING_TERRITORY;
-      else throw StringError("Could not parse rules: " + origS);
+      else fail();
 
       b = startsWithAndStrip(s,"sui");
-      assert(b);
+      if(!b) fail();
       if(startsWithAndStrip(s,"1")) rules.multiStoneSuicideLegal = true;
       else if(startsWithAndStrip(s,"0")) rules.multiStoneSuicideLegal = false;
-      else throw StringError("Could not parse rules: " + origS);
+      else fail();
     }
   }
   return rules;
