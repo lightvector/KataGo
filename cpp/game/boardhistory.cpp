@@ -484,7 +484,7 @@ void BoardHistory::setKoProhibited(Player pla, Loc loc, bool b) {
     }
   }
   else
-    assert(false);
+    ASSERT_UNREACHABLE;
 }
 
 bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) const {
@@ -529,7 +529,7 @@ int BoardHistory::newConsecutiveEndingPasses(Loc moveLoc, Loc koLocBeforeMove) c
       newConsecutiveEndingPasses = 0;
       break;
     default:
-      assert(false);
+      ASSERT_UNREACHABLE;
       break;
     }
   }
@@ -678,7 +678,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     else if(movePla == P_WHITE)
       hashesAfterWhitePass.push_back(koHashAfterThisMove);
     else
-      assert(false);
+      ASSERT_UNREACHABLE;
   }
 
   //Territory scoring - chill 1 point per move in main phase and first encore
@@ -688,7 +688,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     else if(movePla == P_WHITE)
       whiteBonusScore -= 1;
     else
-      assert(false);
+      ASSERT_UNREACHABLE;
   }
 
   //Phase transitions and game end
@@ -720,7 +720,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
       }
     }
     else
-      assert(false);
+      ASSERT_UNREACHABLE;
   }
 
   //Break long cycles with no-result

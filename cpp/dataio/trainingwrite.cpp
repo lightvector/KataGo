@@ -305,7 +305,7 @@ void TrainingWriteBuffers::addRow(
       NNInputs::fillRowV5(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, posLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
-      assert(false);
+      ASSERT_UNREACHABLE;
 
     //Pack bools bitwise into uint8_t
     uint8_t* rowBinPacked = binaryInputNCHWPacked.data + curRows * numBinaryChannels * packedBoardArea;

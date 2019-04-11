@@ -31,14 +31,15 @@ static int parseHexChar(char c) {
   else if (c >= 'a' && c <= 'f')
     d = c-'a'+10;
   else
-    assert(false);
+    throw StringError(string("Expected hexadecimal char parsing LZ data row, got: ") + c);
   return d;
 }
 
 static void decodeStones(const string& linePla, const string& lineOpp, Color* stones, Player pla)
 {
-  assert(linePla.length() == 91);
-  assert(lineOpp.length() == 91);
+  if(linePla.length() != 91 || lineOpp.length() != 91) 
+    throw StringError("LZ data row stones are not 91 characters long (hex-encoded 361 bits)");
+
   Player opp = getOpp(pla);
   //The first 90 characters are a hex-encoding of the first 360 points
   for(int i = 0; i<90; i++) {
@@ -60,8 +61,8 @@ static void decodeStones(const string& linePla, const string& lineOpp, Color* st
     int cPla = linePla[90];
     int cOpp = lineOpp[90];
 
-    assert(cPla == '1' || cPla == '0');
-    assert(cOpp == '1' || cOpp == '0');
+    if(!(cPla == '1' || cPla == '0') || !(cOpp == '1' || cOpp == '0')) 
+      throw StringError("Last char of LZ data 91-char stones is not 0 or 1");
 
     Color stone;
     if(cPla == '1') stone = pla; else if(cOpp == '1') stone = opp; else stone = C_EMPTY;
@@ -142,7 +143,8 @@ void LZSample::iterSamples(
 
     //Next line is which color, 0 = black, 1 = white
     getLine(in,sample.sideStr);
-    assert(sample.sideStr.length() == 1);
+    if(sample.sideStr.length() != 1)
+      throw StringError("Expected single-char line for LZ data row indicating side to move, got line of length: " + Global::intToString(sample.sideStr.length()));
 
     //Next we have 362 floats indicating moves
     getLine(in,sample.policyStr);
@@ -243,7 +245,7 @@ void LZSample::parse(
   else if(resultStr == "-1")
     winner = opp;
   else
-    assert(false);
+    throw StringError("LZ data row result is not 1 or -1");
 
   nextPlayer = pla;
 }

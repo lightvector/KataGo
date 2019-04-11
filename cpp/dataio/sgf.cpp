@@ -72,7 +72,8 @@ static Loc parseSgfLocOrPass(const string& s, int bSize) {
 }
 
 static void writeSgfLoc(ostream& out, Loc loc, int bSize) {
-  assert(bSize < 26);
+  if(bSize >= 26)
+    throw StringError("Writing coordinates for SGF files for board sizes >= 26 is not implemented");
   if(loc == Board::PASS_LOC || loc == Board::NULL_LOC)
     return;
   int x = Location::getX(loc,bSize);
@@ -206,7 +207,7 @@ Rules SgfNode::getRules(const Rules& defaultRules) const {
       return matches;
     };
     auto fail = [&origS]() {
-      throw StringError("Could not parse rules: " + origS);
+      throw StringError("Could not parse rules in sgf: " + origS);
     };
       
     if(startsWithAndStrip(s,"ko")) {
@@ -255,19 +256,30 @@ int Sgf::depth() const {
   return maxChildDepth + nodes.size();
 }
 
+static void checkNonEmpty(const vector<SgfNode*>& nodes) {
+  if(nodes.size() <= 0)
+    throw StringError("Empty sgf");
+}
+
 int Sgf::getBSize() const {
-  assert(nodes.size() > 0);
+  checkNonEmpty(nodes);
   int bSize;
   if(!nodes[0]->hasProperty("SZ"))
     return 19; //Some SGF files don't specify, in that case assume 19
   bool suc = Global::tryStringToInt(nodes[0]->getSingleProperty("SZ"), bSize);
   if(!suc)
     propertyFail("Could not parse board size in sgf");
+  if(bSize <= 0)
+    propertyFail("Board size in sgf is <= 0");
+  if(bSize > Board::MAX_LEN)
+    propertyFail(
+      Global::strprintf("Board size in sgf is > Board::MAX_LEN = %d, if larger sizes are desired, consider increasing and recompiling", Board::MAX_LEN)
+    );
   return bSize;
 }
 
 float Sgf::getKomi() const {
-  assert(nodes.size() > 0);
+  checkNonEmpty(nodes);
   float komi;
   bool suc = Global::tryStringToFloat(nodes[0]->getSingleProperty("KM"), komi);
   if(!suc)
@@ -276,13 +288,13 @@ float Sgf::getKomi() const {
 }
 
 Rules Sgf::getRules(const Rules& defaultRules) const {
-  assert(nodes.size() > 0);
+  checkNonEmpty(nodes);
   return nodes[0]->getRules(defaultRules);
 }
 
 void Sgf::getPlacements(vector<Move>& moves, int bSize) const {
   moves.clear();
-  assert(nodes.size() > 0);
+  checkNonEmpty(nodes);
   nodes[0]->accumPlacements(moves,bSize);
 }
 
@@ -293,7 +305,7 @@ void Sgf::getMoves(vector<Move>& moves, int bSize) const {
 }
 
 void Sgf::getMovesHelper(vector<Move>& moves, int bSize) const {
-  assert(nodes.size() > 0);
+  checkNonEmpty(nodes);
   for(int i = 0; i<nodes.size(); i++) {
     if(i > 0 && nodes[i]->hasPlacements())
       propertyFail("Found stone placements after the root");
@@ -585,7 +597,7 @@ CompactSgf::CompactSgf(const Sgf* sgf)
   sgf->getPlacements(placements, bSize);
   sgf->getMoves(moves, bSize);
 
-  assert(sgf->nodes.size() > 0);
+  checkNonEmpty(sgf->nodes);
   rootNode = *(sgf->nodes[0]);
 }
 
@@ -606,7 +618,7 @@ CompactSgf::CompactSgf(Sgf&& sgf)
   sgf.getMoves(moves, bSize);
 
   fileName = std::move(sgf.fileName);
-  assert(sgf.nodes.size() > 0);
+  checkNonEmpty(sgf.nodes);
   rootNode = std::move(*sgf.nodes[0]);
   for(int i = 0; i<sgf.nodes.size(); i++) {
     delete sgf.nodes[i];
@@ -687,7 +699,14 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
 void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
 
-  assert(turnNumber <= moves.size());
+  if(turnNumber <= 0 || turnNumber > moves.size())
+    throw StringError(
+      Global::strprintf(
+        "Attempting to set up position from SGF for invalid turn number %d, valid values are %d to %d",
+        turnNumber, 0, (int)moves.size()
+      )
+    );
+  
   for(size_t i = 0; i<turnNumber; i++) {
     hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
     nextPla = getOpp(moves[i].pla);
@@ -710,7 +729,7 @@ void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
     else if(hist.winner == C_EMPTY)
       out << "0";
     else
-      assert(false);
+      ASSERT_UNREACHABLE;
     out << "]";
   }
 }

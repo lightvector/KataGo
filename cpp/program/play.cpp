@@ -107,7 +107,7 @@ void GameInitializer::initShared(ConfigParser& cfg) {
   if(allowedMultiStoneSuicideLegals.size() <= 0)
     throw IOError("multiStoneSuicideLegals must have at least one value in " + cfg.getFileName());
 
-  allowedBSizes = cfg.getInts("bSizes", 9, 19);
+  allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
   komiMean = cfg.getFloat("komiMean",-60.0f,60.0f);

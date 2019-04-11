@@ -59,7 +59,8 @@ Board::Board(const Board& other)
 void Board::init(int xS, int yS)
 {
   assert(IS_ZOBRIST_INITALIZED);
-  assert(xS <= MAX_LEN && yS <= MAX_LEN);
+  if(xS < 0 || yS < 0 || xS > MAX_LEN || yS > MAX_LEN)
+    throw StringError("Board::init - invalid board size");
 
   x_size = xS;
   y_size = yS;
@@ -1427,16 +1428,16 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
       }
       else {
         moveListLen += findLiberties(loc,buf,start,start);
-        if(moveListLen != 2) {
-          cout << *this << endl;
-          cout << stackIdx << endl;
-          for(int i = 0; i<stackIdx; i++) {
-            cout << moveListCur[stackIdx] << " " << moveListStarts[stackIdx] << " " << moveListLens[stackIdx] << " "
-                 << Location::toString(buf[moveListStarts[stackIdx] + moveListCur[stackIdx]],*this) << endl;
-          }
-          cout << "===" << endl;
-          checkConsistency();
-        }
+        // if(moveListLen != 2) {
+        //   cout << *this << endl;
+        //   cout << stackIdx << endl;
+        //   for(int i = 0; i<stackIdx; i++) {
+        //     cout << moveListCur[stackIdx] << " " << moveListStarts[stackIdx] << " " << moveListLens[stackIdx] << " "
+        //          << Location::toString(buf[moveListStarts[stackIdx] + moveListCur[stackIdx]],*this) << endl;
+        //   }
+        //   cout << "===" << endl;
+        //   checkConsistency();
+        // }
         assert(moveListLen == 2);
 
         int libs0 = getNumImmediateLiberties(buf[start]);
@@ -2217,7 +2218,7 @@ Board Board::parseBoard(int xSize, int ySize, const string& s) {
       else if(c == 'x' || c == 'X')
         board.setStone(loc,P_BLACK);
       else
-        assert(false);
+        throw StringError(string("Board::parseBoard - could not parse board character: ") + c);
     }
   }
   return board;

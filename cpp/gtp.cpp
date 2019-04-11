@@ -327,9 +327,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         responseIsError = true;
         response = "Expected single int argument for boardsize but got '" + Global::concat(pieces," ") + "'";
       }
-      else if(newBSize < 3 || newBSize > Board::MAX_LEN) {
+      else if(newBSize < 2) {
         responseIsError = true;
         response = "unacceptable size";
+      }
+      else if(newBSize > Board::MAX_LEN) {
+        responseIsError = true;
+        response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",Board::MAX_LEN);
       }
       else {
         maybeInitializeNNEvalAndAsyncBot(newBSize);
