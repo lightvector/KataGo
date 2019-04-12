@@ -779,9 +779,9 @@ static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, c
   }
 
   //In practice, this should never happen, but in theory, a very badly-behaved net that rounds
-  //all legal moves to zero could result in this.
+  //all legal moves to zero could result in this. We still go ahead and fail, since this more likely some sort of bug.
   if(playSelectionValues.size() <= 0)
-    return Board::NULL_LOC;
+    throw StringError("getGameInitializationMove: playSelectionValues.size() <= 0");
 
   //With a tiny probability, choose a uniformly random move instead of a policy move, to also
   //add a bit more outlierish variety
@@ -912,8 +912,6 @@ FinishedGameData* Play::runGame(
       assert(numInitialMovesToPlay >= 0);
       for(int i = 0; i<numInitialMovesToPlay; i++) {
         Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand);
-        if(loc == Board::NULL_LOC)
-          break;
 
         //Make the move!
         assert(hist.isLegal(board,loc,pla));

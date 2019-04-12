@@ -591,7 +591,7 @@ xoox..xo.
     }
     out << endl;
     board.checkConsistency();
-    assert(boardsSeemEqual(board,startBoard));
+    testAssert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 01.0..010
@@ -638,7 +638,7 @@ xoox..xo.
     }
     out << endl;
     board.checkConsistency();
-    assert(boardsSeemEqual(board,startBoard));
+    testAssert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 11.1..000
@@ -686,7 +686,7 @@ xoox..xo.
     }
     out << endl;
     board.checkConsistency();
-    assert(boardsSeemEqual(board,startBoard));
+    testAssert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 ..................
@@ -903,7 +903,7 @@ o.ooo.ox.
     }
     out << endl;
     board.checkConsistency();
-    assert(boardsSeemEqual(board,startBoard));
+    testAssert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 ...................
@@ -971,7 +971,7 @@ o.ooo.ox.
     }
     out << endl;
     board.checkConsistency();
-    assert(boardsSeemEqual(board,startBoard));
+    testAssert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 ....0..............
@@ -1040,7 +1040,7 @@ o.ooo.ox.
     }
     out << endl;
     board.checkConsistency();
-    assert(boardsSeemEqual(board,startBoard));
+    testAssert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 ...00000000.....0.0
@@ -1109,7 +1109,7 @@ o.ooo.ox.
     }
     out << endl;
     board.checkConsistency();
-    assert(boardsSeemEqual(board,startBoard));
+    testAssert(boardsSeemEqual(board,startBoard));
 
     string expected = R"%%(
 0.00000.00000.00000
@@ -1181,7 +1181,7 @@ void Tests::runBoardUndoTest() {
     Board board = boards[steps];
     for(int n = steps-1; n >= 0; n--) {
       board.undo(records[n]);
-      assert(boardsSeemEqual(boards[n],board));
+      testAssert(boardsSeemEqual(boards[n],board));
       board.checkConsistency();
     }
     delete[] boards;

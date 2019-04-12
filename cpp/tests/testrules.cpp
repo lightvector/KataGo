@@ -52,11 +52,11 @@ static double finalScoreIfGameEndedNow(const BoardHistory& baseHist, const Board
   double score = hist.finalWhiteMinusBlackScore;
 
   hist.endAndScoreGameNow(board);
-  assert(hist.finalWhiteMinusBlackScore == score);
+  testAssert(hist.finalWhiteMinusBlackScore == score);
 
   BoardHistory hist2(baseHist);
   hist2.endAndScoreGameNow(baseBoard);
-  assert(hist2.finalWhiteMinusBlackScore == score);
+  testAssert(hist2.finalWhiteMinusBlackScore == score);
 
   return score;
 }
@@ -1326,7 +1326,7 @@ Score: -3.5
     printIllegalMoves(out,board,hist,P_BLACK);
     makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
-    assert(hashd == hist.koHashHistory[hist.koHashHistory.size()-1]);
+    testAssert(hashd == hist.koHashHistory[hist.koHashHistory.size()-1]);
     out << "And is still illegal due to only-once" << endl;
     printIllegalMoves(out,board,hist,P_BLACK);
     makeMoveAssertLegal(hist, board, Location::getLoc(1,1,board.x_size), P_BLACK, __LINE__);
@@ -1365,11 +1365,11 @@ Score: -3.5
     makeMoveAssertLegal(hist, board, Location::getLoc(5,0,board.x_size), P_WHITE, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(5,0,board.x_size), P_WHITE, __LINE__);
-    assert(hashd == hist.koHashHistory[hist.koHashHistory.size()-1]);
+    testAssert(hashd == hist.koHashHistory[hist.koHashHistory.size()-1]);
     makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_BLACK, __LINE__);
-    assert(hashe == hist.koHashHistory[hist.koHashHistory.size()-1]);
+    testAssert(hashe == hist.koHashHistory[hist.koHashHistory.size()-1]);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
-    assert(hashf == hist.koHashHistory[hist.koHashHistory.size()-1]);
+    testAssert(hashf == hist.koHashHistory[hist.koHashHistory.size()-1]);
     out << "And see the only-once for black" << endl;
     printIllegalMoves(out,board,hist,P_BLACK);
 
@@ -1654,7 +1654,7 @@ isResignation: 0
         if(hist.isGameFinished)
           break;
 
-        assert(numLegal > 0);
+        testAssert(numLegal > 0);
         move = legalMoves[rand.nextUInt(numLegal)];
         if(prolongGame && move == Board::PASS_LOC)
           move = legalMoves[rand.nextUInt(numLegal)];
@@ -2188,11 +2188,11 @@ isResignation: 0
       out << hist.getRecentBoard(5).pos_hash <<  " " << hist2.getRecentBoard(5).pos_hash << endl;
 
       for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
-        assert(hist.wasEverOccupiedOrPlayed[i] == hist2.wasEverOccupiedOrPlayed[i]);
+        testAssert(hist.wasEverOccupiedOrPlayed[i] == hist2.wasEverOccupiedOrPlayed[i]);
       for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
-        assert(hist.superKoBanned[i] == false);
+        testAssert(hist.superKoBanned[i] == false);
       for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
-        assert(hist2.superKoBanned[i] == false);
+        testAssert(hist2.superKoBanned[i] == false);
 
       out << hist.consecutiveEndingPasses << " " << hist2.consecutiveEndingPasses << endl;
       out << hist.hashesAfterBlackPass.size() << " " << hist2.hashesAfterBlackPass.size() << endl;
@@ -2200,13 +2200,13 @@ isResignation: 0
       out << hist.encorePhase << " " << hist2.encorePhase << endl;
 
       for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
-        assert(hist.blackKoProhibited[i] == false);
+        testAssert(hist.blackKoProhibited[i] == false);
       for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
-        assert(hist2.blackKoProhibited[i] == false);
+        testAssert(hist2.blackKoProhibited[i] == false);
       for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
-        assert(hist.whiteKoProhibited[i] == false);
+        testAssert(hist.whiteKoProhibited[i] == false);
       for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
-        assert(hist2.whiteKoProhibited[i] == false);
+        testAssert(hist2.whiteKoProhibited[i] == false);
 
       out << hist.koProhibitHash << " " << hist2.koProhibitHash << endl;
       out << hist.koCapturesInEncore.size() << " " << hist2.koCapturesInEncore.size() << endl;

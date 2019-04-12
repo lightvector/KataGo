@@ -65,8 +65,11 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
   
   //Fischer or absolute time handling
   if(increment > 0 || numPeriodsLeftIncludingCurrent <= 0) {
-    assert(!inOvertime);
-    assert(numPeriodsLeftIncludingCurrent == 0);
+    if(inOvertime)
+      throw StringError("TimeControls: inOvertime with Fischer or absolute time, inconsistent time control?");
+    if(numPeriodsLeftIncludingCurrent != 0)
+      throw StringError("TimeControls: numPeriodsLeftIncludingCurrent != 0 with Fischer or absolute time, inconsistent time control?");
+      
     if(mainTimeLeft <= increment) {
       minTime = 0.0;
       recommendedTime = mainTimeLeft;
@@ -82,7 +85,8 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
   }
   //Byo yomi time handling
   else {
-    assert(numStonesPerPeriod > 0);
+    if(numStonesPerPeriod <= 0)
+      throw StringError("TimeControls: numStonesPerPeriod <= 0 with byo-yomiish periods, inconsistent time control?");
     
     //Crudely treat all but the last 3 periods as main time.
     double effectiveMainTimeLeft = mainTimeLeft;
@@ -103,7 +107,8 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
       maxTime = perPeriodTime / (0.75 * numStonesPerPeriod + 0.25) + effectiveMainTimeLeft / 5.0;
     }
     else {
-      assert(numStonesLeftInPeriod >= 1);
+      if(numStonesLeftInPeriod < 1)
+        throw StringError("TimeControls: numStonesLeftInPeriod < 1 while in overtime, inconsistent time control?");
 
       minTime = (numStonesLeftInPeriod <= 1) ? timeLeftInPeriod : 0.0;
       recommendedTime = timeLeftInPeriod / numStonesLeftInPeriod;

@@ -284,7 +284,7 @@ void Tests::runNNInputsV3V4Tests() {
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V5];
     }
     else
-      assert(false);
+      testAssert(false);
   };
 
   auto fillRows = [](int version, Hash128& hash,
@@ -303,7 +303,7 @@ void Tests::runNNInputsV3V4Tests() {
       NNInputs::fillRowV5(board,hist,nextPla,drawEquivalentWinsForWhite,posLen,inputsUseNHWC,rowBin,rowGlobal);
     }
     else
-      assert(false);
+      testAssert(false);
   };
 
   int minVersion = 3;
@@ -700,7 +700,7 @@ xxx..xx
       allocateRows(version,posLen,numFeaturesBin,numFeaturesGlobal,rowBin,rowGlobal);
 
       for(size_t i = 0; i<moves.size(); i++) {
-        assert(hist.isLegal(board,moves[i].loc,moves[i].pla));
+        testAssert(hist.isLegal(board,moves[i].loc,moves[i].pla));
         hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
         nextPla = getOpp(moves[i].pla);
 
@@ -768,7 +768,7 @@ xxx..xx
       allocateRows(version,posLen,numFeaturesBin,numFeaturesGlobal,rowBin,rowGlobal);
 
       for(size_t i = 0; i<moves.size(); i++) {
-        assert(hist.isLegal(board,moves[i].loc,moves[i].pla));
+        testAssert(hist.isLegal(board,moves[i].loc,moves[i].pla));
         hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
         nextPla = getOpp(moves[i].pla);
 

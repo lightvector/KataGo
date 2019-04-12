@@ -946,18 +946,17 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
   //If this node has no nnOutput, then it must also have no children, because it's
   //a terminal node
   assert(!(noNNOutput && numChildren > 0));
+  (void)noNNOutput; //avoid warning when we have no asserts
 
   //If the node has no children, then just update its utility directly
   if(numChildren <= 0) {
     while(node.statsLock.test_and_set(std::memory_order_acquire));
-    int64_t numVisits = node.stats.visits;
     double resultUtilitySum = node.stats.getResultUtilitySum(searchParams);
     double scoreMeanSum = node.stats.scoreMeanSum;
     double scoreMeanSqSum = node.stats.scoreMeanSqSum;
     double weightSum = node.stats.weightSum;
     node.statsLock.clear(std::memory_order_release);
 
-    assert(numVisits > 0);
     assert(weightSum > 0.0);
     double scoreUtility = getScoreUtility(scoreMeanSum, scoreMeanSqSum, weightSum);
 
@@ -1427,12 +1426,10 @@ int64_t Search::getReducedPlaySelectionVisits(const SearchNode& parent, const Se
 double Search::getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const {
   if(searchParams.fpuUseParentAverage) {
     while(node.statsLock.test_and_set(std::memory_order_acquire));
-    int64_t parentVisits = node.stats.visits;
     double utilitySum = node.stats.utilitySum;
     double weightSum = node.stats.weightSum;
     node.statsLock.clear(std::memory_order_release);
 
-    assert(parentVisits > 0);
     assert(weightSum > 0.0);
     parentUtility = utilitySum / weightSum;
   }

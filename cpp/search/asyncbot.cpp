@@ -130,6 +130,7 @@ Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc, double 
   Loc moveLoc = Board::NULL_LOC;
   std::function<void(Loc,int)> onMove = [&moveLoc](Loc loc, int searchId) {
     assert(searchId == 0);
+    (void)searchId; //avoid warning when asserts disabled
     moveLoc = loc;
   };
   genMove(movePla,0,tc,sf,onMove);
@@ -214,6 +215,7 @@ Loc AsyncBot::genMoveSynchronousAnalyze(
   Loc moveLoc = Board::NULL_LOC;
   std::function<void(Loc,int)> onMove = [&moveLoc](Loc loc, int searchId) {
     assert(searchId == 0);
+    (void)searchId; //avoid warning when asserts disabled
     moveLoc = loc;
   };
   genMoveAnalyze(movePla,0,tc,sf,onMove,callbackPeriod,callback);
