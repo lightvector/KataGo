@@ -427,7 +427,7 @@ void NNEvaluator::evaluate(
   else if(inputsVersion == 5)
     nnHash = NNInputs::getHashV5(board, history, nextPlayer, drawEquivalentWinsForWhite);
   else
-    assert(false);
+    ASSERT_UNREACHABLE;
 
   includeOwnerMap |= alwaysIncludeOwnerMap;
   
@@ -502,7 +502,7 @@ void NNEvaluator::evaluate(
       NNInputs::fillRowV5(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
     }
     else
-      assert(false);
+      ASSERT_UNREACHABLE;
   }
 
   unique_lock<std::mutex> lock(bufferMutex);
@@ -523,6 +523,7 @@ void NNEvaluator::evaluate(
   //This should only fire if we have more than maxConcurrentEvals evaluating, such that they wrap the
   //circular buffer.
   assert(!overlooped);
+  (void)overlooped; //Avoid unused variable when asserts disabled
 
   unique_lock<std::mutex> resultLock(buf.resultMutex);
   while(!buf.hasResult)

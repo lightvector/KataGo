@@ -1980,7 +1980,7 @@ struct Trunk {
         blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,(void*)block));
       }
       else {
-        assert(false);
+        ASSERT_UNREACHABLE;
       }
     }
   }
@@ -2061,7 +2061,7 @@ struct Trunk {
         bytes = std::max(bytes,b);
       }
       else {
-        assert(false);
+        ASSERT_UNREACHABLE;
       }
     }
     return bytes;
@@ -2184,7 +2184,7 @@ struct Trunk {
         );
       }
       else {
-        assert(false);
+        ASSERT_UNREACHABLE;
       }
 
     }
@@ -4192,7 +4192,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       output->whiteWinProb = inputBuffers->valueResults[row * numValueChannels];
       output->whiteLossProb = inputBuffers->valueResults[row * numValueChannels + 1];
       output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
-      output->whiteScoreMean = inputBuffers->scoreValueResults[row];
+      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
       //Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the mean squared
       output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
 

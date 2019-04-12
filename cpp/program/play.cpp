@@ -64,7 +64,7 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
       komi = lower;
   }
 
-  assert((float)((int)(komi * 2)) == komi * 2);
+  assert(Rules::komiIsIntOrHalfInt(komi));
   return ExtraBlackAndKomi(extraBlack,komi,base);
 }
 
@@ -366,7 +366,7 @@ static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
   sout << "Loc: " << Location::toString(loc,bot->getRootBoard()) << "\n";
   logger.write(sout.str());
   bot->getRootBoard().checkConsistency();
-  assert(false);
+  ASSERT_UNREACHABLE;
 }
 
 static void logSearch(Search* bot, Logger& logger, Loc loc) {
@@ -433,9 +433,7 @@ static double getWhiteScoreEstimate(Search* bot, const Board& board, const Board
   bot->setPosition(pla,board,hist);
   bot->runWholeSearch(pla,logger,NULL);
 
-  ReportedSearchValues values;
-  bool suc = bot->getRootValues(values);
-  assert(suc);
+  ReportedSearchValues values = bot->getRootValuesAssertSuccess();
   bot->setParams(oldParams);
   return values.expectedScore;
 }
@@ -597,6 +595,7 @@ static void extractPolicyTarget(
   bool allowDirectPolicyMoves = false;
   bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast,allowDirectPolicyMoves);
   assert(success);
+  (void)success; //Avoid warning when asserts are disabled
 
   assert(locsBuf.size() == playSelectionValuesBuf.size());
   assert(locsBuf.size() <= toMoveBot->rootBoard.x_size * toMoveBot->rootBoard.y_size + 1);
@@ -624,6 +623,7 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
   ReportedSearchValues values;
   bool success = toMoveBot->getNodeValues(*node,values);
   assert(success);
+  (void)success; //Avoid warning when asserts are disabled  
 
   buf.win = values.winValue;
   buf.loss = values.lossValue;
@@ -778,7 +778,10 @@ static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, c
     playSelectionValues.push_back(policyProb);
   }
 
-  assert(playSelectionValues.size() > 0);
+  //In practice, this should never happen, but in theory, a very badly-behaved net that rounds
+  //all legal moves to zero could result in this.
+  if(playSelectionValues.size() <= 0)
+    return Board::NULL_LOC;
 
   //With a tiny probability, choose a uniformly random move instead of a policy move, to also
   //add a bit more outlierish variety
@@ -909,6 +912,8 @@ FinishedGameData* Play::runGame(
       assert(numInitialMovesToPlay >= 0);
       for(int i = 0; i<numInitialMovesToPlay; i++) {
         Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand);
+        if(loc == Board::NULL_LOC)
+          break;
 
         //Make the move!
         assert(hist.isLegal(board,loc,pla));
@@ -1082,7 +1087,9 @@ FinishedGameData* Play::runGame(
 
       //If enabled, also record subtree positions from the search as training positions
       if(fancyModes.recordTreePositions && fancyModes.recordTreeTargetWeight > 0.0f) {
-        assert(fancyModes.recordTreeTargetWeight <= 1.0f);
+        if(fancyModes.recordTreeTargetWeight > 1.0f)
+          throw StringError("fancyModes.recordTreeTargetWeight > 1.0f");
+          
         recordTreePositions(
           gameData,
           board,hist,pla,
@@ -1096,9 +1103,7 @@ FinishedGameData* Play::runGame(
     }
 
     if(fancyModes.allowResignation || fancyModes.reduceVisits) {
-      ReportedSearchValues values;
-      bool success = toMoveBot->getRootValues(values);
-      assert(success);
+      ReportedSearchValues values = toMoveBot->getRootValuesAssertSuccess();
       historicalMctsWinLossValues.push_back(values.winLossValue);
     }
 
@@ -1110,6 +1115,7 @@ FinishedGameData* Play::runGame(
       suc = botW->makeMove(loc,pla);
       assert(suc);
     }
+    (void)suc; //Avoid warning when asserts disabled
 
     //And make the move on our copy of the board
     assert(hist.isLegal(board,loc,pla));
@@ -1117,7 +1123,9 @@ FinishedGameData* Play::runGame(
 
     //Check for resignation
     if(fancyModes.allowResignation && historicalMctsWinLossValues.size() >= fancyModes.resignConsecTurns) {
-      assert(fancyModes.resignThreshold <= 0);
+      if(fancyModes.resignThreshold > 0)
+        throw StringError("fancyModes.resignThreshold > 0");
+      
       bool shouldResign = true;
       for(int j = 0; j<fancyModes.resignConsecTurns; j++) {
         double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-j-1];
@@ -1150,7 +1158,8 @@ FinishedGameData* Play::runGame(
     gameData->hitTurnLimit = true;
 
   if(recordFullData) {
-    assert(!hist.isResignation); //Recording full data currently incompatible with resignation
+    if(hist.isResignation)
+      throw StringError("Recording full data currently incompatible with resignation");
 
     ValueTargets finalValueTargets;
     Color area[Board::MAX_ARR_SIZE];
@@ -1195,10 +1204,10 @@ FinishedGameData* Play::runGame(
           gameData->finalWhiteOwnership[pos] = -1;
         else if(area[loc] == P_WHITE)
           gameData->finalWhiteOwnership[pos] = 1;
-        else if(area[loc] == C_EMPTY)
+        else {
+          assert(area[loc] == C_EMPTY);
           gameData->finalWhiteOwnership[pos] = 0;
-        else
-          assert(false);
+        }
       }
     }
 
@@ -1229,7 +1238,8 @@ FinishedGameData* Play::runGame(
 
       //If enabled, also record subtree positions from the search as training positions
       if(fancyModes.recordTreePositions && fancyModes.recordTreeTargetWeight > 0.0f) {
-        assert(fancyModes.recordTreeTargetWeight <= 1.0f);
+        if(fancyModes.recordTreeTargetWeight > 1.0f)
+          throw StringError("fancyModes.recordTreeTargetWeight > 1.0f");
         recordTreePositions(
           gameData,
           sp->board,sp->hist,sp->pla,
@@ -1328,6 +1338,9 @@ void Play::maybeForkGame(
   }
 
   //Pick a move!
+
+  if(fancyModes.earlyForkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE)
+    throw StringError("fancyModes.earlyForkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE");
 
   //Generate a selection of a small random number of choices
   int numChoices = gameRand.nextInt(fancyModes.earlyForkGameMinChoices,fancyModes.earlyForkGameMaxChoices);

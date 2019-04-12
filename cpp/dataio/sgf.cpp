@@ -284,6 +284,8 @@ float Sgf::getKomi() const {
   bool suc = Global::tryStringToFloat(nodes[0]->getSingleProperty("KM"), komi);
   if(!suc)
     propertyFail("Could not parse komi in sgf");
+  if(!Rules::komiIsIntOrHalfInt(komi))
+    propertyFail("Komi in sgf is not integer or half-integer");    
   return komi;
 }
 

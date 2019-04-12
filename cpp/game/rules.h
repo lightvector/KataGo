@@ -33,6 +33,8 @@ struct Rules {
   static string writeKoRule(int koRule);
   static string writeScoringRule(int scoringRule);
 
+  static bool komiIsIntOrHalfInt(float komi);
+
   friend ostream& operator<<(ostream& out, const Rules& rules);
 
   static const Hash128 ZOBRIST_KO_RULE_HASH[4];

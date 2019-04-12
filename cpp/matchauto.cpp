@@ -343,6 +343,7 @@ namespace {
           probSum += relProbs[b];
         }
         assert(numBots > 1);
+        assert(!std::isnan(probSum));
         if(probSum <= 0)
           throw StringError("Negative relative probabilities for matchauto");
 

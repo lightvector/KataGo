@@ -37,9 +37,9 @@ double ScoreValue::whiteWinsOfWinner(Player winner, double drawEquivalentWinsFor
     return 1.0;
   else if(winner == P_BLACK)
     return 0.0;
-  else if(winner == C_EMPTY)
-    return drawEquivalentWinsForWhite;
-  assert(false);
+
+  assert(winner == C_EMPTY);
+  return drawEquivalentWinsForWhite;
 }
 
 static const double twoOverPi = 0.63661977236758134308;
@@ -1128,7 +1128,7 @@ void NNInputs::fillRowV3(
     board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
   }
   else {
-    assert(false);
+    ASSERT_UNREACHABLE;
   }
 
   for(int y = 0; y<ySize; y++) {
@@ -1181,7 +1181,7 @@ void NNInputs::fillRowV3(
     rowGlobal[7] = -0.5f;
   }
   else
-    assert(false);
+    ASSERT_UNREACHABLE;
 
   //Suicide
   if(hist.rules.multiStoneSuicideLegal)
@@ -1192,7 +1192,7 @@ void NNInputs::fillRowV3(
   else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY)
     rowGlobal[9] = 1.0f;
   else
-    assert(false);
+    ASSERT_UNREACHABLE;
 
   //Encore phase
   if(hist.encorePhase > 0)
@@ -1563,7 +1563,7 @@ void NNInputs::fillRowV4(
     rowGlobal[7] = -0.5f;
   }
   else
-    assert(false);
+    ASSERT_UNREACHABLE;
 
   //Suicide
   if(hist.rules.multiStoneSuicideLegal)
@@ -1574,7 +1574,7 @@ void NNInputs::fillRowV4(
   else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY)
     rowGlobal[9] = 1.0f;
   else
-    assert(false);
+    ASSERT_UNREACHABLE;
 
   //Encore phase
   if(hist.encorePhase > 0)
@@ -1883,7 +1883,7 @@ void NNInputs::fillRowV5(
     rowGlobal[7] = -0.5f;
   }
   else
-    assert(false);
+    ASSERT_UNREACHABLE;
 
   //Suicide
   if(hist.rules.multiStoneSuicideLegal)
@@ -1894,7 +1894,7 @@ void NNInputs::fillRowV5(
   else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY)
     rowGlobal[9] = 1.0f;
   else
-    assert(false);
+    ASSERT_UNREACHABLE;
 
   //Encore phase
   if(hist.encorePhase > 0)

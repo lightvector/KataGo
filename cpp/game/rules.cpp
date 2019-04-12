@@ -33,6 +33,10 @@ Rules Rules::getSimpleTerritory() {
   return rules;
 }
 
+bool Rules::komiIsIntOrHalfInt(float komi) {
+  return komi * 2 == (int)(komi * 2);
+}
+
 
 set<string> Rules::koRuleStrings() {
   return {"SIMPLE","POSITIONAL","SITUATIONAL","SPIGHT"};

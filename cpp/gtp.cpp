@@ -368,7 +368,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         responseIsError = true;
         response = "unacceptable komi";
       }
-      else if(newKomi * 2 != (int)(newKomi * 2)) {
+      else if(!Rules::komiIsIntOrHalfInt(newKomi)) {
         responseIsError = true;
         response = "komi must be an integer or half-integer";
       }

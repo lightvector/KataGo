@@ -789,6 +789,8 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
         numPlayouts = numPlayoutsShared.fetch_add((int64_t)1, std::memory_order_relaxed);
         numPlayouts += 1;
 
+        //TODO fix this so that it does something sane when the search doesn't complete 256 playouts!
+        //Test and see if the altered training target has an effect in a real training run.
         if(searchParams.numThreads == 1 && recordUtilities != NULL) {
           if(numPlayouts <= recordUtilities->size()) {
             assert(numPlayouts >= 1);
