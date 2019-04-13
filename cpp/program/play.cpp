@@ -1121,8 +1121,8 @@ FinishedGameData* Play::runGame(
 
     //Check for resignation
     if(fancyModes.allowResignation && historicalMctsWinLossValues.size() >= fancyModes.resignConsecTurns) {
-      if(fancyModes.resignThreshold > 0)
-        throw StringError("fancyModes.resignThreshold > 0");
+      if(fancyModes.resignThreshold > 0 || std::isnan(fancyModes.resignThreshold))
+        throw StringError("fancyModes.resignThreshold > 0 || std::isnan(fancyModes.resignThreshold)");
       
       bool shouldResign = true;
       for(int j = 0; j<fancyModes.resignConsecTurns; j++) {

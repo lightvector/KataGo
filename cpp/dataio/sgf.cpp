@@ -273,7 +273,10 @@ int Sgf::getBSize() const {
     propertyFail("Board size in sgf is <= 0");
   if(bSize > Board::MAX_LEN)
     propertyFail(
-      Global::strprintf("Board size in sgf is > Board::MAX_LEN = %d, if larger sizes are desired, consider increasing and recompiling", Board::MAX_LEN)
+      Global::strprintf(
+        "Board size in sgf %d is > Board::MAX_LEN = %d, if larger sizes are desired, consider increasing and recompiling",
+        (int)bSize,(int)Board::MAX_LEN
+      )
     );
   return bSize;
 }
@@ -705,7 +708,7 @@ void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Play
     throw StringError(
       Global::strprintf(
         "Attempting to set up position from SGF for invalid turn number %d, valid values are %d to %d",
-        turnNumber, 0, (int)moves.size()
+        (int)turnNumber, 0, (int)moves.size()
       )
     );
   

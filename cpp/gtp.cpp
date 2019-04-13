@@ -333,7 +333,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
       else if(newBSize > Board::MAX_LEN) {
         responseIsError = true;
-        response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",Board::MAX_LEN);
+        response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",(int)Board::MAX_LEN);
       }
       else {
         maybeInitializeNNEvalAndAsyncBot(newBSize);
@@ -901,7 +901,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         static const int analysisPVLen = 9;
         std::function<void(Search* search)> callback;
         if(command == "lz-analyze") {
-          callback = [minMoves](Search* search) {
+          callback = [minMoves,pla](Search* search) {
             vector<AnalysisData> buf;
             search->getAnalysisData(buf,minMoves,false,analysisPVLen);
             if(buf.size() <= 0)
@@ -913,7 +913,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
                 cout << " ";
               const AnalysisData& data = buf[i];
               double winrate = 0.5 * (1.0 + data.winLossValue);
-              winrate = search->getRootPla() == P_BLACK ? -winrate : winrate;
+              winrate = pla == P_BLACK ? -winrate : winrate;
               cout << "info";
               cout << " move " << Location::toString(data.move,board);
               cout << " visits " << data.numVisits;
@@ -928,7 +928,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           };
         }
         else if(command == "kata-analyze") {
-          callback = [minMoves](Search* search) {
+          callback = [minMoves,pla](Search* search) {
             vector<AnalysisData> buf;
             search->getAnalysisData(buf,minMoves,false,analysisPVLen);
             if(buf.size() <= 0)
@@ -940,7 +940,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
                 cout << " ";
               const AnalysisData& data = buf[i];
               double winrate = 0.5 * (1.0 + data.winLossValue);
-              winrate = search->getRootPla() == P_BLACK ? -winrate : winrate;
+              winrate = pla == P_BLACK ? -winrate : winrate;
               cout << "info";
               cout << " move " << Location::toString(data.move,board);
               cout << " visits " << data.numVisits;
