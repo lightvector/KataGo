@@ -912,10 +912,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
               if(i > 0)
                 cout << " ";
               const AnalysisData& data = buf[i];
+              double winrate = 0.5 * (1.0 + data.winLossValue);
+              winrate = search->getRootPla() == P_BLACK ? -winrate : winrate;
               cout << "info";
               cout << " move " << Location::toString(data.move,board);
               cout << " visits " << data.numVisits;
-              cout << " winrate " << round((0.5 * (1.0 + data.winLossValue)) * 10000.0);
+              cout << " winrate " << round(winrate * 10000.0);
               cout << " prior " << round(data.policyPrior * 10000.0);
               cout << " order " << data.order;
               cout << " pv";
@@ -937,11 +939,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
               if(i > 0)
                 cout << " ";
               const AnalysisData& data = buf[i];
+              double winrate = 0.5 * (1.0 + data.winLossValue);
+              winrate = search->getRootPla() == P_BLACK ? -winrate : winrate;
               cout << "info";
               cout << " move " << Location::toString(data.move,board);
               cout << " visits " << data.numVisits;
               cout << " utility " << data.utility;
-              cout << " winrate " << (0.5 * (1.0 + data.winLossValue));
+              cout << " winrate " << winrate;
               cout << " scoreMean " << data.scoreMean;
               cout << " scoreStdev " << data.scoreStdev;
               cout << " prior " << data.policyPrior;
