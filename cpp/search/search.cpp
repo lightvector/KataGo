@@ -768,6 +768,12 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
   beginSearch(logger);
   int64_t numNonPlayoutVisits = numRootVisits();
 
+  //Clear utility record vector
+  if(recordUtilities != NULL) {
+    for(int i = 0; i<recordUtilities->size(); i++)
+      (*recordUtilities)[i] = NAN;
+  }
+
   auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities,maxVisits,maxPlayouts,maxTime](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
 
@@ -789,7 +795,6 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
         numPlayouts = numPlayoutsShared.fetch_add((int64_t)1, std::memory_order_relaxed);
         numPlayouts += 1;
 
-        //TODO fix this so that it does something sane when the search doesn't complete 256 playouts!
         //Test and see if the altered training target has an effect in a real training run.
         if(searchParams.numThreads == 1 && recordUtilities != NULL) {
           if(numPlayouts <= recordUtilities->size()) {
@@ -963,7 +968,7 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
     double newUtility = resultUtilitySum / weightSum + scoreUtility;
     double newUtilitySum = newUtility * weightSum;
     double newUtilitySqSum = newUtility * newUtility * weightSum;
-    
+
     while(node.statsLock.test_and_set(std::memory_order_acquire));
     node.stats.utilitySum = newUtilitySum;
     node.stats.utilitySqSum = newUtilitySqSum;
@@ -1926,7 +1931,7 @@ void Search::printRootPolicyMap(ostream& out) {
 void Search::printRootEndingScoreValueBonus(ostream& out) {
   std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
   unique_lock<std::mutex> lock(mutex);
-  
+
   if(rootNode->nnOutput == nullptr)
     return;
   NNOutput& nnOutput = *(rootNode->nnOutput);
@@ -2338,7 +2343,7 @@ void Search::printTreeHelper(
       sprintf(buf,"SMSQ %5.1f USQ %7.5f W %6.2f WSQ %8.2f ", scoreMeanSqSum/weightSum, utilitySqSum/weightSum, weightSum, weightSqSum);
       out << buf;
     }
-    
+
     sprintf(buf,"N %7" PRIu64 "  --  ", data.numVisits);
     out << buf;
 
@@ -2454,7 +2459,7 @@ int64_t Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t min
   //Due to multithreading, children visits can add up to as much or more than the parent, so fix that
   if(numVisitsContributingToOwnership >= nodeVisits)
     nodeVisits = numVisitsContributingToOwnership + 1;
-  
+
   //If the children didn't contribute as much to ownership as we have visits, make up the difference
   //to equal up to our actual visits.
   double weight = nodeVisits - numVisitsContributingToOwnership;

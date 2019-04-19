@@ -356,7 +356,16 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
     rowGlobal[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
     rowGlobal[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
-    rowGlobal[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
+    //TODO hack hack hack, proper fix in savepropermctsutilfix
+    assert(!std::isnan(thisTargets.mctsUtility64));
+    if(std::isnan(thisTargets.mctsUtility256)) {
+      rowGlobal[30] = 0.0f;
+      rowGlobal[24] = 0.0f;
+    }
+    else {
+      rowGlobal[30] = 1.0f;
+      rowGlobal[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
+    }
   }
   else {
     rowGlobal[28] = 0.0f;
@@ -364,10 +373,8 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[22] = 0.0f;
     rowGlobal[23] = 0.0f;
     rowGlobal[24] = 0.0f;
+    rowGlobal[30] = 0.0f;
   }
-
-  //Unused
-  rowGlobal[30] = 0.0f;
 
   //Fill in whether we should use history or not
   bool useHist0 = rand.nextDouble() < 0.98;

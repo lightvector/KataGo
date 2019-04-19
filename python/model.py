@@ -63,6 +63,8 @@ class Model:
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
     self.utilityvar_target_weight_shape = []
+    #TODO hacky, fix with savepropermctsutilfix
+    self.utilityvar_last_target_weight_shape = []
 
     self.pass_pos = self.pos_len * self.pos_len
 
@@ -1220,6 +1222,8 @@ class Target_vars:
                                     tf.placeholder(tf.float32, [None] + model.ownership_target_weight))
     self.utilityvar_target_weight = (placeholders["utilityvar_target_weight"] if "utilityvar_target_weight" in placeholders else
                                    tf.placeholder(tf.float32, [None] + model.utilityvar_target_weight))
+    self.utilityvar_last_target_weight = (placeholders["utilityvar_last_target_weight"] if "utilityvar_last_target_weight" in placeholders else
+                                   tf.placeholder(tf.float32, [None] + model.utilityvar_last_target_weight))
     self.selfkomi = (placeholders["selfkomi"] if "selfkomi" in placeholders else
                      tf.placeholder(tf.float32, [None]))
 
@@ -1236,6 +1240,7 @@ class Target_vars:
     model.assert_batched_shape("target_weight_from_data", self.target_weight_from_data, model.target_weight_shape)
     model.assert_batched_shape("ownership_target_weight", self.ownership_target_weight, model.ownership_target_weight_shape)
     model.assert_batched_shape("utilityvar_target_weight", self.utilityvar_target_weight, model.utilityvar_target_weight_shape)
+    model.assert_batched_shape("utilityvar_last_target_weight", self.utilityvar_last_target_weight, model.utilityvar_last_target_weight_shape)
     model.assert_batched_shape("selfkomi", self.selfkomi, [])
 
     self.target_weight_used = self.target_weight_from_data
@@ -1284,8 +1289,13 @@ class Target_vars:
       )
     )
 
-    self.utilityvar_loss_unreduced = 0.2 * self.utilityvar_target_weight * (
-      tf.reduce_sum(tf.square(self.utilityvar_target - tf.math.softplus(miscvalues_output[:,2:6])),axis=1)
+    self.utilityvar_loss_unreduced = (
+      0.2 * self.utilityvar_target_weight * (
+        tf.reduce_sum(tf.square(self.utilityvar_target[0:3] - tf.math.softplus(miscvalues_output[:,2:5])),axis=1)
+      ) +
+      0.2 * self.utilityvar_target_weight * self.utilityvar_last_target_weight * (
+        tf.reduce_sum(tf.square(self.utilityvar_target[3:4] - tf.math.softplus(miscvalues_output[:,5:6])),axis=1)
+      )
     )
 
     #This uses a formulation where each batch element cares about its average loss.
@@ -1498,6 +1508,7 @@ class ModelUtils:
     placeholders["target_weight_from_data"] = features["gtnc"][:,25]
     placeholders["ownership_target_weight"] = features["gtnc"][:,27]
     placeholders["utilityvar_target_weight"] = features["gtnc"][:,28]
+    placeholders["utilityvar_last_target_weight"] = features["gtnc"][:,30]
 
     placeholders["selfkomi"] = features["gtnc"][:,42]
     placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
