@@ -151,7 +151,7 @@ void FinishedGameData::printDebug(ostream& out) const {
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 2;
-static const int GLOBAL_TARGET_NUM_CHANNELS = 56;
+static const int GLOBAL_TARGET_NUM_CHANNELS = 64;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
 static const int BONUS_SCORE_RADIUS = 30;
 
@@ -338,11 +338,11 @@ void TrainingWriteBuffers::addRow(
 
   if(policyTarget1 != NULL) {
     fillPolicyTarget(*policyTarget1, policySize, dataXLen, dataYLen, board.x_size, rowPolicy + 1 * policySize);
-    rowGlobal[29] = 1.0f;
+    rowGlobal[28] = 1.0f;
   }
   else {
     uniformPolicyTarget(policySize, rowPolicy + 1 * policySize);
-    rowGlobal[29] = 0.0f;
+    rowGlobal[28] = 0.0f;
   }
 
   //Fill td-like value targets
@@ -354,31 +354,39 @@ void TrainingWriteBuffers::addRow(
   fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0, rowGlobal+16);
 
   //Fill short-term variance info
+  rowGlobal[21] = 0.0f;
+  rowGlobal[22] = 0.0f;
+  rowGlobal[23] = 0.0f;
+  rowGlobal[24] = 0.0f;
+  rowGlobal[29] = 0.0f;
+  rowGlobal[30] = 0.0f;
+  rowGlobal[31] = 0.0f;
+  rowGlobal[32] = 0.0f;
   const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
   if(thisTargets.hasMctsUtility) {
-    rowGlobal[28] = 1.0f;
-    rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
-    rowGlobal[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
-    rowGlobal[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
-    //TODO hack hack hack, proper fix in savepropermctsutilfix
-    assert(!std::isnan(thisTargets.mctsUtility64));
-    if(std::isnan(thisTargets.mctsUtility256)) {
-      rowGlobal[30] = 0.0f;
-      rowGlobal[24] = 0.0f;
-    }
-    else {
-      rowGlobal[30] = 1.0f;
-      rowGlobal[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
+    assert(!std::isnan(thisTargets.mctsUtility1));
+    if(!std::isnan(thisTargets.mctsUtility4)) {
+      rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
+      rowGlobal[29] = 1.0f;
+      if(!std::isnan(thisTargets.mctsUtility16)) {
+        rowGlobal[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
+        rowGlobal[30] = 1.0f;
+        if(!std::isnan(thisTargets.mctsUtility64)) {
+          rowGlobal[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
+          rowGlobal[31] = 1.0f;
+          if(!std::isnan(thisTargets.mctsUtility256)) {
+            rowGlobal[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
+            rowGlobal[32] = 1.0f;
+          }
+        }
+      }
     }
   }
-  else {
-    rowGlobal[28] = 0.0f;
-    rowGlobal[21] = 0.0f;
-    rowGlobal[22] = 0.0f;
-    rowGlobal[23] = 0.0f;
-    rowGlobal[24] = 0.0f;
-    rowGlobal[30] = 0.0f;
-  }
+
+  //Unused
+  rowGlobal[33] = 0.0f;
+  rowGlobal[34] = 0.0f;
+  rowGlobal[35] = 0.0f;
 
   //Fill in whether we should use history or not
   bool useHist0 = rand.nextDouble() < 0.98;
@@ -386,48 +394,53 @@ void TrainingWriteBuffers::addRow(
   bool useHist2 = useHist1 && rand.nextDouble() < 0.98;
   bool useHist3 = useHist2 && rand.nextDouble() < 0.98;
   bool useHist4 = useHist3 && rand.nextDouble() < 0.98;
-  rowGlobal[31] = useHist0 ? 1.0f : 0.0f;
-  rowGlobal[32] = useHist1 ? 1.0f : 0.0f;
-  rowGlobal[33] = useHist2 ? 1.0f : 0.0f;
-  rowGlobal[34] = useHist3 ? 1.0f : 0.0f;
-  rowGlobal[35] = useHist4 ? 1.0f : 0.0f;
+  rowGlobal[36] = useHist0 ? 1.0f : 0.0f;
+  rowGlobal[37] = useHist1 ? 1.0f : 0.0f;
+  rowGlobal[38] = useHist2 ? 1.0f : 0.0f;
+  rowGlobal[39] = useHist3 ? 1.0f : 0.0f;
+  rowGlobal[40] = useHist4 ? 1.0f : 0.0f;
 
   //Fill in hash of game
   Hash128 gameHash = data.gameHash;
-  rowGlobal[36] = (float)(gameHash.hash0 & 0x3FFFFF);
-  rowGlobal[37] = (float)((gameHash.hash0 >> 22) & 0x3FFFFF);
-  rowGlobal[38] = (float)((gameHash.hash0 >> 44) & 0xFFFFF);
-  rowGlobal[39] = (float)(gameHash.hash1 & 0x3FFFFF);
-  rowGlobal[40] = (float)((gameHash.hash1 >> 22) & 0x3FFFFF);
-  rowGlobal[41] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
+  rowGlobal[41] = (float)(gameHash.hash0 & 0x3FFFFF);
+  rowGlobal[42] = (float)((gameHash.hash0 >> 22) & 0x3FFFFF);
+  rowGlobal[43] = (float)((gameHash.hash0 >> 44) & 0xFFFFF);
+  rowGlobal[44] = (float)(gameHash.hash1 & 0x3FFFFF);
+  rowGlobal[45] = (float)((gameHash.hash1 >> 22) & 0x3FFFFF);
+  rowGlobal[46] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
 
   //Various other data
-  rowGlobal[42] = hist.currentSelfKomi(nextPlayer,data.drawEquivalentWinsForWhite);
-  rowGlobal[43] = (hist.encorePhase == 2 || hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
+  rowGlobal[47] = hist.currentSelfKomi(nextPlayer,data.drawEquivalentWinsForWhite);
+  rowGlobal[48] = (hist.encorePhase == 2 || hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
 
   //Earlier neural net metadata
-  rowGlobal[44] = data.changedNeuralNets.size() > 0 ? 1.0f : 0.0f;
-  rowGlobal[45] = (float)numNeuralNetsBehindLatest;
+  rowGlobal[49] = data.changedNeuralNets.size() > 0 ? 1.0f : 0.0f;
+  rowGlobal[50] = (float)numNeuralNetsBehindLatest;
 
   //Some misc metadata
-  rowGlobal[46] = absoluteTurnNumber;
-  rowGlobal[47] = data.hitTurnLimit ? 1.0f : 0.0f;
-  rowGlobal[48] = data.startHist.moveHistory.size();
-  rowGlobal[49] = data.numExtraBlack;
+  rowGlobal[51] = absoluteTurnNumber;
+  rowGlobal[52] = data.hitTurnLimit ? 1.0f : 0.0f;
+  rowGlobal[53] = data.startHist.moveHistory.size();
+  rowGlobal[54] = data.numExtraBlack;
 
   //Metadata about how the game was initialized
-  rowGlobal[50] = data.mode;
-  rowGlobal[51] = data.modeMeta1;
-  rowGlobal[52] = data.modeMeta2;
-  rowGlobal[53] = isSidePosition ? 1.0f : 0.0f;
+  rowGlobal[55] = data.mode;
+  rowGlobal[56] = data.modeMeta1;
+  rowGlobal[57] = data.modeMeta2;
+  rowGlobal[58] = isSidePosition ? 1.0f : 0.0f;
 
   //Unused
-  rowGlobal[54] = 0.0f;
+  rowGlobal[59] = 0.0f;
 
   //Original number of visits
-  rowGlobal[55] = (float)unreducedNumVisits;
+  rowGlobal[60] = (float)unreducedNumVisits;
 
-  assert(56 == GLOBAL_TARGET_NUM_CHANNELS);
+  //Unused
+  rowGlobal[61] = 0.0f;
+  rowGlobal[62] = 0.0f;
+  rowGlobal[63] = 0.0f;
+
+  assert(64 == GLOBAL_TARGET_NUM_CHANNELS);
 
   int scoreDistrLen = posArea*2 + NNPos::EXTRA_SCORE_DISTR_RADIUS*2;
   int scoreDistrMid = posArea + NNPos::EXTRA_SCORE_DISTR_RADIUS;

@@ -125,34 +125,37 @@ struct TrainingWriteBuffers {
 
   //C26 Weight assigned to the policy target
   //C27 Weight assigned to the final board ownership target and score distr and bonus score targets. Most training rows will have this be 1, some will be 0.
-  //C28: Weight assigned to the utilityvariance target
-  //C29: Weight assigned to the next move policy target
-  //C30: Unused
+  //C28: Weight assigned to the next move policy target
+  //C29-32: Weight assigned to the utilityvariance target C21-C24
+  //C33-35: Unused
 
-  //C31-35: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
+  //C36-40: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
   //1 means use, 0 means don't use.
 
-  //C36-41: 128-bit hash identifying the game which should also be output in the SGF data.
+  //C41-46: 128-bit hash identifying the game which should also be output in the SGF data.
   //Split into chunks of 22, 22, 20, 22, 22, 20 bits, little-endian style (since floats have > 22 bits of precision).
 
-  //C42: Komi, adjusted for draw utility and points costed or paid so far, from the perspective of the player to move.
-  //C43: 1 if we're in an area-scoring-like phase of the game (area scoring or second encore territory scoring)
+  //C47: Komi, adjusted for draw utility and points costed or paid so far, from the perspective of the player to move.
+  //C48: 1 if we're in an area-scoring-like phase of the game (area scoring or second encore territory scoring)
 
-  //C44: 1 if an earlier neural net started this game, compared to the latest in this data file.
-  //C45: If positive, an earlier neural net was playing this specific move, compared to the latest in this data file.
+  //C49: 1 if an earlier neural net started this game, compared to the latest in this data file.
+  //C50: If positive, an earlier neural net was playing this specific move, compared to the latest in this data file.
 
-  //C46: Turn number of the game, zero-indexed.
-  //C47: Did this game end via hitting turn limit?
-  //C48: First turn of this game that was selfplay for training rather than initialization (e.g. handicap stones, random init of the starting board pos)
-  //C49: Number of extra moves black got at the start (i.e. handicap games)
+  //C51: Turn number of the game, zero-indexed.
+  //C52: Did this game end via hitting turn limit?
+  //C53: First turn of this game that was selfplay for training rather than initialization (e.g. handicap stones, random init of the starting board pos)
+  //C54: Number of extra moves black got at the start (i.e. handicap games)
 
-  //C50-51: Game type, game typesource metadata
+  //C55-56: Game type, game typesource metadata
   // 0 = normal self-play game. C51 unused
   // 1 = encore-training game. C51 is the starting encore phase
-  //C52: 0 = normal, 1 = whole game was forked with an experimental move in the opening
-  //C53: 0 = normal, 1 = training sample was an isolated side position forked off of main game
-  //C54: Unused
-  //C55: Number of visits in the search generating this row, prior to any reduction.
+  //C57: 0 = normal, 1 = whole game was forked with an experimental move in the opening
+  //C58: 0 = normal, 1 = training sample was an isolated side position forked off of main game
+  //C59: Unused
+  //C60: Number of visits in the search generating this row, prior to any reduction.
+  //C61: Unused
+  //C62: Unused
+  //C63: Unused
 
   NumpyBuffer<float> globalTargetsNC;
 

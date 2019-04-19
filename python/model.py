@@ -62,9 +62,7 @@ class Model:
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
-    self.utilityvar_target_weight_shape = []
-    #TODO hacky, fix with savepropermctsutilfix
-    self.utilityvar_last_target_weight_shape = []
+    self.utilityvar_target_weight_shape = [4]
 
     self.pass_pos = self.pos_len * self.pos_len
 
@@ -1227,8 +1225,6 @@ class Target_vars:
                                     tf.placeholder(tf.float32, [None] + model.ownership_target_weight))
     self.utilityvar_target_weight = (placeholders["utilityvar_target_weight"] if "utilityvar_target_weight" in placeholders else
                                    tf.placeholder(tf.float32, [None] + model.utilityvar_target_weight))
-    self.utilityvar_last_target_weight = (placeholders["utilityvar_last_target_weight"] if "utilityvar_last_target_weight" in placeholders else
-                                   tf.placeholder(tf.float32, [None] + model.utilityvar_last_target_weight))
     self.selfkomi = (placeholders["selfkomi"] if "selfkomi" in placeholders else
                      tf.placeholder(tf.float32, [None]))
 
@@ -1245,7 +1241,6 @@ class Target_vars:
     model.assert_batched_shape("target_weight_from_data", self.target_weight_from_data, model.target_weight_shape)
     model.assert_batched_shape("ownership_target_weight", self.ownership_target_weight, model.ownership_target_weight_shape)
     model.assert_batched_shape("utilityvar_target_weight", self.utilityvar_target_weight, model.utilityvar_target_weight_shape)
-    model.assert_batched_shape("utilityvar_last_target_weight", self.utilityvar_last_target_weight, model.utilityvar_last_target_weight_shape)
     model.assert_batched_shape("selfkomi", self.selfkomi, [])
 
     self.target_weight_used = self.target_weight_from_data
@@ -1294,13 +1289,9 @@ class Target_vars:
       )
     )
 
-    self.utilityvar_loss_unreduced = (
-      0.2 * self.utilityvar_target_weight * (
-        tf.reduce_sum(tf.square(self.utilityvar_target[:,0:3] - tf.math.softplus(miscvalues_output[:,2:5])),axis=1)
-      ) +
-      0.2 * self.utilityvar_target_weight * self.utilityvar_last_target_weight * (
-        tf.square(self.utilityvar_target[:,3] - tf.math.softplus(miscvalues_output[:,5]))
-      )
+    self.utilityvar_loss_unreduced = 0.2 * tf.reduce_sum(
+      self.utilityvar_target_weight * tf.square(self.utilityvar_target - tf.math.softplus(miscvalues_output[:,2:6])),
+      axis=1
     )
 
     #This uses a formulation where each batch element cares about its average loss.
@@ -1492,7 +1483,7 @@ class ModelUtils:
       model = Model(model_config,pos_len,placeholders)
       return model
 
-    placeholders["include_history"] = features["gtnc"][:,31:36]
+    placeholders["include_history"] = features["gtnc"][:,36:41]
 
     policy_target0 = features["ptncm"][:,0,:]
     policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
@@ -1501,7 +1492,7 @@ class ModelUtils:
     policy_target1 = features["ptncm"][:,1,:]
     policy_target1 = policy_target1 / tf.reduce_sum(policy_target1,axis=1,keepdims=True)
     placeholders["policy_target1"] = policy_target1
-    placeholders["policy_target_weight1"] = features["gtnc"][:,29]
+    placeholders["policy_target_weight1"] = features["gtnc"][:,28]
 
     placeholders["value_target"] = features["gtnc"][:,0:3]
     placeholders["scoremean_target"] = features["gtnc"][:,3]
@@ -1512,10 +1503,9 @@ class ModelUtils:
 
     placeholders["target_weight_from_data"] = features["gtnc"][:,25]
     placeholders["ownership_target_weight"] = features["gtnc"][:,27]
-    placeholders["utilityvar_target_weight"] = features["gtnc"][:,28]
-    placeholders["utilityvar_last_target_weight"] = features["gtnc"][:,30]
+    placeholders["utilityvar_target_weight"] = features["gtnc"][:,29:33]
 
-    placeholders["selfkomi"] = features["gtnc"][:,42]
+    placeholders["selfkomi"] = features["gtnc"][:,47]
     placeholders["l2_reg_coeff"] = tf.constant(l2_coeff_value,dtype=tf.float32)
 
     if mode == tf.estimator.ModeKeys.EVAL:
