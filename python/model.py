@@ -1291,10 +1291,10 @@ class Target_vars:
 
     self.utilityvar_loss_unreduced = (
       0.2 * self.utilityvar_target_weight * (
-        tf.reduce_sum(tf.square(self.utilityvar_target[0:3] - tf.math.softplus(miscvalues_output[:,2:5])),axis=1)
+        tf.reduce_sum(tf.square(self.utilityvar_target[:,0:3] - tf.math.softplus(miscvalues_output[:,2:5])),axis=1)
       ) +
       0.2 * self.utilityvar_target_weight * self.utilityvar_last_target_weight * (
-        tf.reduce_sum(tf.square(self.utilityvar_target[3:4] - tf.math.softplus(miscvalues_output[:,5:6])),axis=1)
+        tf.square(self.utilityvar_target[:,3] - tf.math.softplus(miscvalues_output[:,5]))
       )
     )
 
