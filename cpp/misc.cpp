@@ -341,7 +341,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 
       int numVisits = 20;
       Play::adjustKomiToEven(bot->getSearch(),board,hist,pla,numVisits,logger);
-      float komi = hist.rules.komi + rand.nextGaussian();
+      float komi = hist.rules.komi + 0.3 * rand.nextGaussian();
       komi = (float)(0.5 * round(2.0 * komi));
       hist.setKomi(komi);
       bot->setPosition(pla,board,hist);
@@ -512,17 +512,26 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
       if(resigned) {
         baseHist.setWinnerByResignation(getOpp(pla));
+        break;
       }
       else {
-        bool suc = bot->makeMove(moveLoc,pla);
-        assert(suc);
-        (void)suc; //Avoid warning when asserts are off
         //And make the move on our copy of the board
         assert(baseHist.isLegal(baseBoard,moveLoc,pla));
         baseHist.makeBoardMoveAssumeLegal(baseBoard,moveLoc,pla,NULL);
 
+        //If the game is over, skip making the move on the bot, to preserve
+        //the last known value of the search tree for display purposes
+        //Just immediately terminate the game loop
+        if(baseHist.isGameFinished)
+          break;
+          
+        bool suc = bot->makeMove(moveLoc,pla);
+        assert(suc);
+        (void)suc; //Avoid warning when asserts are off
+        
         pla = getOpp(pla);
       }
+        
     }
 
     //End of game display line

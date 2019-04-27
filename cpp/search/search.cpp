@@ -2412,23 +2412,12 @@ void Search::printTreeHelper(
 
 vector<double> Search::getAverageTreeOwnership(int64_t minVisits) {
   vector<double> vec(posLen*posLen,0.0);
-  int64_t count = getAverageTreeOwnershipHelper(vec,minVisits,rootNode);
-  if(count > 0) {
-    for(int pos = 0; pos<posLen*posLen; pos++) {
-      vec[pos] = vec[pos] / count;
-    }
-  }
+  getAverageTreeOwnershipHelper(vec,minVisits,1.0,rootNode);
   return vec;
 }
 
-int64_t Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minVisits, const SearchNode* node) {
+double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minVisits, double desiredWeight, const SearchNode* node) {
   if(node == NULL)
-    return 0;
-
-  while(node->statsLock.test_and_set(std::memory_order_acquire));
-  int64_t nodeVisits = node->stats.visits;
-  node->statsLock.clear(std::memory_order_release);
-  if(node != rootNode && nodeVisits < minVisits)
     return 0;
 
   std::mutex& mutex = mutexPool->getMutex(node->lockIdx);
@@ -2446,21 +2435,42 @@ int64_t Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t min
   //We can unlock now - during a search, children are never deallocated
   lock.unlock();
 
-  //Recurse
-  int64_t numVisitsContributingToOwnership = 0;
-  for(int i = 0; i<numChildren; i++)
-    numVisitsContributingToOwnership += getAverageTreeOwnershipHelper(accum,minVisits,children[i]);
+  vector<int64_t> visitsBuf(numChildren);
+  for(int i = 0; i<numChildren; i++) {
+    const SearchNode* child = children[i];
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
+    int64_t childVisits = child->stats.visits;
+    child->statsLock.clear(std::memory_order_release);
+    visitsBuf[i] = childVisits;
+  }
 
-  //Due to multithreading, children visits can add up to as much or more than the parent, so fix that
-  if(numVisitsContributingToOwnership >= nodeVisits)
-    nodeVisits = numVisitsContributingToOwnership + 1;
+  double relativeChildrenWeightSum = 0.0;
+  int64_t usedChildrenVisitSum = 0;
+  for(int i = 0; i<numChildren; i++) {
+    int64_t visits = visitsBuf[i];
+    if(visits < minVisits)
+      continue;
+    relativeChildrenWeightSum += (double)visits * visits;
+    usedChildrenVisitSum += visits;
+  }
+
+  double desiredWeightFromChildren = desiredWeight * usedChildrenVisitSum / (usedChildrenVisitSum + 1);
   
-  //If the children didn't contribute as much to ownership as we have visits, make up the difference
-  //to equal up to our actual visits.
-  double weight = nodeVisits - numVisitsContributingToOwnership;
+  //Recurse
+  double actualWeightFromChildren = 0.0;
+  for(int i = 0; i<numChildren; i++) {
+    int64_t visits = visitsBuf[i];
+    if(visits < minVisits)
+      continue;
+    double desiredWeightFromChild = (double)visits * visits / relativeChildrenWeightSum * desiredWeightFromChildren;
+    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minVisits,desiredWeightFromChild,children[i]);
+  }
+
+  double selfWeight = desiredWeight - actualWeightFromChildren;
   float* ownerMap = nnOutput->whiteOwnerMap;
   for(int pos = 0; pos<posLen*posLen; pos++)
-    accum[pos] += weight * ownerMap[pos];
+    accum[pos] += selfWeight * ownerMap[pos];
 
-  return nodeVisits;
+  return desiredWeight;
 }
+
