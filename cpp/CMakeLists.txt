@@ -6,6 +6,12 @@ set(CMAKE_CXX_STANDARD 14)
 include_directories(external)
 include_directories(external/tclap-1.2.1/include)
 
+if(APPLE)
+  # Fix linking on 10.14+. See https://stackoverflow.com/questions/54068035
+  include_directories(/usr/local/include)
+  link_directories(/usr/local/lib)
+endif()
+
 #------------------------------------------------------------------------------------
 
 if(BUILD_WRITE)
@@ -179,6 +185,7 @@ if(BUILD_MCTS)
   target_link_libraries(main ${LIBZIP_LIBRARY})
 
   find_package(Boost COMPONENTS system filesystem REQUIRED)
+  include_directories(${Boost_INCLUDE_DIRS})
   target_link_libraries(main ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
 
   if(USE_TCMALLOC)
