@@ -134,6 +134,8 @@ struct Search {
   //Used to center for dynamic scorevalue
   double recentScoreCenter;
 
+  bool alwaysIncludeOwnerMap;
+  
   SearchParams searchParams;
   int64_t numSearchesBegun;
 
@@ -180,6 +182,7 @@ struct Search {
   void setRulesAndClearHistory(Rules rules, int encorePhase);
   void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootPassLegal(bool b);
+  void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search
   void setNNEval(NNEvaluator* nnEval);

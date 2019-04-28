@@ -182,6 +182,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
+   alwaysIncludeOwnerMap(false),
    searchParams(params),numSearchesBegun(0),randSeed(rSeed),
    normToTApproxZ(0.0),
    nnEvaluator(nnEval),
@@ -261,6 +262,12 @@ void Search::setKomiIfNew(float newKomi) {
 void Search::setRootPassLegal(bool b) {
   clearSearch();
   rootPassLegal = b;
+}
+
+void Search::setAlwaysIncludeOwnerMap(bool b) {
+  if(!alwaysIncludeOwnerMap && b)
+    clearSearch();
+  alwaysIncludeOwnerMap = b;
 }
 
 void Search::setParams(SearchParams params) {
@@ -1737,7 +1744,7 @@ void Search::initNodeNNOutput(
   SearchThread& thread, SearchNode& node,
   bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
 ) {
-  bool includeOwnerMap = isRoot;
+  bool includeOwnerMap = isRoot || alwaysIncludeOwnerMap;
   nnEvaluator->evaluate(
     thread.board, thread.history, thread.pla,
     searchParams.drawEquivalentWinsForWhite,
@@ -2411,6 +2418,8 @@ void Search::printTreeHelper(
 
 
 vector<double> Search::getAverageTreeOwnership(int64_t minVisits) {
+  if(!alwaysIncludeOwnerMap)
+    throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(posLen*posLen,0.0);
   getAverageTreeOwnershipHelper(vec,minVisits,1.0,rootNode);
   return vec;
@@ -2468,6 +2477,7 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
 
   double selfWeight = desiredWeight - actualWeightFromChildren;
   float* ownerMap = nnOutput->whiteOwnerMap;
+  assert(ownerMap != NULL);
   for(int pos = 0; pos<posLen*posLen; pos++)
     accum[pos] += selfWeight * ownerMap[pos];
 

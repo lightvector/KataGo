@@ -420,6 +420,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   cfg.warnUnusedKeys(cerr,&logger);
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+  bot->setAlwaysIncludeOwnerMap(true);
   Rand gameRand;
 
   //Done loading!

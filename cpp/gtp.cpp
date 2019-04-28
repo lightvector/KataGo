@@ -834,57 +834,67 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       Player pla = bot->getRootPla();
       double lzAnalyzeInterval = 1e30;
       int minMoves = 0;
+      bool showOwnership = false;
       bool parseFailed = false;
 
+      //Format:
+      //lz-analyze [optional player] [optional interval float] <keys and values>
+      //Keys and values consists of zero or more of:
+
+      //interval <float interval in centiseconds>
+      //avoid <player> <comma-separated moves> <until movenum>
+      //minmoves <int min number of moves to show>
+      //ownership <bool whether to show ownership or not>
+      
+      //Parse optional player
       if(pieces.size() > numArgsParsed && tryParsePlayer(pieces[numArgsParsed],pla))
         numArgsParsed += 1;
-
+      
+      //Parse optional interval float
       if(pieces.size() > numArgsParsed &&
          Global::tryStringToDouble(pieces[numArgsParsed],lzAnalyzeInterval) &&
          !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20)
         numArgsParsed += 1;
 
+      //Now loop and handle all key value pairs
       while(pieces.size() > numArgsParsed) {
-        if(pieces[numArgsParsed] == "interval") {
-          numArgsParsed += 1;
-          if(pieces.size() > numArgsParsed &&
-             Global::tryStringToDouble(pieces[numArgsParsed],lzAnalyzeInterval) &&
-             !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20) {
-            numArgsParsed += 1;
-            continue;
-          }
-          else {
-            parseFailed = true;
-            break;
-          }
+        const string& key = pieces[numArgsParsed];
+        numArgsParsed += 1;
+        //Make sure we have a value. If not, then we fail.
+        if(pieces.size() <= numArgsParsed) {
+          parseFailed = true;
+          break;
         }
 
-        //Parse it but ignore it since we don't support excluding moves right now
-        else if(pieces[numArgsParsed] == "avoid" || pieces[numArgsParsed] == "allow") {
-          numArgsParsed += 1;
-          for(int r = 0; r<3; r++) {
-            if(pieces.size() > numArgsParsed)
-              numArgsParsed += 1;
-            else
-              parseFailed = true;
-          }
-          if(parseFailed)
-            break;
+        const string& value = pieces[numArgsParsed];
+        numArgsParsed += 1;
+
+        if(key == "interval" && Global::tryStringToDouble(value,lzAnalyzeInterval) &&
+           !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20) {
           continue;
         }
-
-        else if(pieces[numArgsParsed] == "minmoves") {
-          numArgsParsed += 1;
-          if(pieces.size() > numArgsParsed &&
-             Global::tryStringToInt(pieces[numArgsParsed],minMoves) &&
-             minMoves >= 0 && minMoves < 1000000000) {
-            numArgsParsed += 1;
-            continue;
-          }
-          else {
+        //Parse it but ignore it since we don't support excluding moves right now
+        else if(key == "avoid" || key == "allow") {
+          //Parse two more arguments, and ignore them
+          if(pieces.size() <= numArgsParsed+1) {
             parseFailed = true;
             break;
           }
+          const string& moves = pieces[numArgsParsed];
+          (void)moves;
+          numArgsParsed += 1;
+          const string& untilMove = pieces[numArgsParsed];
+          (void)untilMove;
+          numArgsParsed += 1;
+          continue;
+        }
+        else if(key == "minmoves" && Global::tryStringToInt(value,minMoves) &&
+                minMoves >= 0 && minMoves < 1000000000) {
+          continue;
+        }
+        
+        else if(command == "kata-analyze" && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
+          continue;
         }
 
         parseFailed = true;
@@ -893,7 +903,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
       if(parseFailed) {
         responseIsError = true;
-        response = "Could not parse lz-analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
+        response = "Could not parse analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
       }
       else {
         lzAnalyzeInterval = lzAnalyzeInterval * 0.01; //Convert from centiseconds to seconds
@@ -928,11 +938,17 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           };
         }
         else if(command == "kata-analyze") {
-          callback = [minMoves,pla](Search* search) {
+          callback = [minMoves,pla,showOwnership](Search* search) {
             vector<AnalysisData> buf;
             search->getAnalysisData(buf,minMoves,false,analysisPVLen);
             if(buf.size() <= 0)
               return;
+
+            vector<double> ownership;
+            if(showOwnership) {
+              static constexpr int ownershipMinVisits = 3;
+              ownership = search->getAverageTreeOwnership(ownershipMinVisits);
+            }
 
             const Board board = search->getRootBoard();
             for(int i = 0; i<buf.size(); i++) {
@@ -954,6 +970,20 @@ int MainCmds::gtp(int argc, const char* const* argv) {
               for(int j = 0; j<data.pv.size(); j++)
                 cout << " " << Location::toString(data.pv[j],board);
             }
+
+            if(showOwnership) {
+              cout << " ";
+
+              cout << "ownership";
+              int posLen = search->posLen;
+              for(int y = 0; y<board.y_size; y++) {
+                for(int x = 0; x<board.x_size; x++) {
+                  int pos = NNPos::xyToPos(x,y,posLen);
+                  cout << " " << ownership[pos];
+                }
+              }
+            }
+            
             cout << endl;
           };
 
@@ -961,6 +991,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         else
           ASSERT_UNREACHABLE;
 
+        if(showOwnership)
+          bot->setAlwaysIncludeOwnerMap(true);
+        else
+          bot->setAlwaysIncludeOwnerMap(false);
+          
         double searchFactor = 1e40; //go basically forever
         bot->analyze(pla, searchFactor, lzAnalyzeInterval, callback);
         currentlyAnalyzing = true;

@@ -27,6 +27,7 @@ class AsyncBot {
   void setRulesAndClearHistory(Rules rules, int encorePhase);
   void setKomiIfNew(float newKomi);
   void setRootPassLegal(bool b);
+  void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setPlayerIfNew(Player movePla);
   void clearSearch();
