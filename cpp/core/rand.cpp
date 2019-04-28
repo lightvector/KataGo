@@ -287,8 +287,8 @@ public:
   ~RandToURNGWrapper()
   {}
 
-  static size_t min() { return 0; }
-  static size_t max() { return (size_t)0xFFFFFFFF; }
+  static constexpr size_t min() { return 0; }
+  static constexpr size_t max() { return (size_t)0xFFFFFFFF; }
   size_t operator()() {
     return (size_t)rand->nextUInt();
   }
