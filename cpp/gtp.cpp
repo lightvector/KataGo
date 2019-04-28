@@ -41,9 +41,73 @@ static int numHandicapStones(const BoardHistory& hist) {
         startBoardNumWhiteStones += 1;
     }
   }
+  //If we set up in a nontrivial position, then consider it a non-handicap game.
   if(startBoardNumWhiteStones == 0)
     return startBoardNumBlackStones;
   return 0;
+}
+
+static bool shouldResign(
+  const AsyncBot* bot,
+  Player pla,
+  const vector<double>& recentWinLossValues,
+  double expectedScore,
+  const double resignThreshold,
+  const int resignConsecTurns
+) {
+  const BoardHistory hist = bot->getRootHist();
+  const Board initialBoard = hist.initialBoard;
+
+  //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
+  int extraBlackStones = numHandicapStones(hist);
+  if(hist.initialPla == P_WHITE && extraBlackStones > 0)
+    extraBlackStones -= 1;
+  double handicapBlackAdvantage = 15.0 * extraBlackStones + (7.5 - hist.rules.komi);
+
+  int minTurnForResignation = 0;
+  double noResignationWhenWhiteScoreAbove = initialBoard.x_size * initialBoard.y_size;
+  if(handicapBlackAdvantage > 0.9 && pla == P_WHITE) {
+    //Play at least some moves no matter what
+    minTurnForResignation = 1 + initialBoard.x_size * initialBoard.y_size / 5;
+
+    //In a handicap game, also only resign if the expected score difference is well behind schedule assuming
+    //that we're supposed to catch up over many moves.
+    double numTurnsToCatchUp = 0.60 * initialBoard.x_size * initialBoard.y_size - minTurnForResignation;
+    double numTurnsSpent = (double)(hist.moveHistory.size()) - minTurnForResignation;
+    if(numTurnsToCatchUp <= 1.0)
+      numTurnsToCatchUp = 1.0;
+    if(numTurnsSpent <= 0.0)
+      numTurnsSpent = 0.0;
+    if(numTurnsSpent > numTurnsToCatchUp)
+      numTurnsSpent = numTurnsToCatchUp;
+
+    double resignScore = -handicapBlackAdvantage * ((numTurnsToCatchUp - numTurnsSpent) / numTurnsToCatchUp);
+    resignScore -= 5.0; //Always require at least a 5 point buffer
+    resignScore -= handicapBlackAdvantage * 0.15; //And also require a 15% of the initial handicap
+
+    noResignationWhenWhiteScoreAbove = resignScore;
+  }
+
+  if(hist.moveHistory.size() < minTurnForResignation)
+    return false;
+  if(pla == P_WHITE && expectedScore > noResignationWhenWhiteScoreAbove)
+    return false;
+  if(resignConsecTurns > recentWinLossValues.size())
+    return false;
+  
+  for(int i = 0; i<resignConsecTurns; i++) {
+    double winLossValue = recentWinLossValues[recentWinLossValues.size()-1-i];
+    Player resignPlayerThisTurn = C_EMPTY;
+    if(winLossValue < resignThreshold)
+      resignPlayerThisTurn = P_WHITE;
+    else if(winLossValue > -resignThreshold)
+      resignPlayerThisTurn = P_BLACK;
+
+    if(resignPlayerThisTurn != pla)
+      return false;
+  }
+    
+  return true;
 }
 
 
@@ -110,6 +174,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
   const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
+  const int resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
   const int whiteBonusPerHandicapStone = cfg.contains("whiteBonusPerHandicapStone") ? cfg.getInt("whiteBonusPerHandicapStone",0,1) : 0;
 
   NNEvaluator* nnEval = NULL;
@@ -576,52 +641,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
         recentWinLossValues.push_back(winLossValue);
 
-        bool resigned = false;
-        if(allowResignation) {
-          const BoardHistory hist = bot->getRootHist();
-          const Board initialBoard = hist.initialBoard;
-
-          //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
-          int extraBlackStones = numHandicapStones(hist);
-          if(hist.initialPla == P_WHITE && extraBlackStones > 0)
-            extraBlackStones -= 1;
-          double handicapBlackAdvantage = 15.0 * extraBlackStones + (7.5 - hist.rules.komi);
-
-          int minTurnForResignation = 0;
-          double noResignationWhenWhiteScoreAbove = initialBoard.x_size * initialBoard.y_size;
-          if(handicapBlackAdvantage > 2.0 && pla == P_WHITE) {
-            //Play at least some moves no matter what
-            minTurnForResignation = 1 + initialBoard.x_size * initialBoard.y_size / 6;
-
-            //In a handicap game, also only resign if the expected score difference is well behind schedule assuming
-            //that we're supposed to catch up over many moves.
-            double numTurnsToCatchUp = 0.60 * initialBoard.x_size * initialBoard.y_size - minTurnForResignation;
-            double numTurnsSpent = (double)(hist.moveHistory.size()) - minTurnForResignation;
-            if(numTurnsToCatchUp <= 1.0)
-              numTurnsToCatchUp = 1.0;
-            if(numTurnsSpent <= 0.0)
-              numTurnsSpent = 0.0;
-            if(numTurnsSpent > numTurnsToCatchUp)
-              numTurnsSpent = numTurnsToCatchUp;
-
-            double resignScore = -handicapBlackAdvantage * ((numTurnsToCatchUp - numTurnsSpent) / numTurnsToCatchUp);
-            resignScore -= 5.0; //Always require at least a 5 point buffer
-            resignScore -= handicapBlackAdvantage * 0.15; //And also require a 15% of the initial handicap
-
-            noResignationWhenWhiteScoreAbove = resignScore;
-          }
-
-          Player resignPlayerThisTurn = C_EMPTY;
-          if(winLossValue < resignThreshold)
-            resignPlayerThisTurn = P_WHITE;
-          else if(winLossValue > -resignThreshold)
-            resignPlayerThisTurn = P_BLACK;
-
-          if(resignPlayerThisTurn == pla &&
-             bot->getRootHist().moveHistory.size() >= minTurnForResignation &&
-             !(pla == P_WHITE && expectedScore > noResignationWhenWhiteScoreAbove))
-            resigned = true;
-        }
+        bool resigned = allowResignation && shouldResign(bot,pla,recentWinLossValues,expectedScore,resignThreshold,resignConsecTurns);
 
         if(resigned)
           response = "resign";
