@@ -79,7 +79,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
    initialBoard(other.initialBoard),
    initialPla(other.initialPla),
-   recentBoards(other.recentBoards),
+   recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
    consecutiveEndingPasses(other.consecutiveEndingPasses),
    hashesAfterBlackPass(other.hashesAfterBlackPass),hashesAfterWhitePass(other.hashesAfterWhitePass),
@@ -89,6 +89,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
    isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
+  std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   std::copy(other.superKoBanned, other.superKoBanned+Board::MAX_ARR_SIZE, superKoBanned);
   std::copy(other.blackKoProhibited, other.blackKoProhibited+Board::MAX_ARR_SIZE, blackKoProhibited);
@@ -136,7 +137,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
   initialBoard(other.initialBoard),
   initialPla(other.initialPla),
-  recentBoards(other.recentBoards),
+  recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
   consecutiveEndingPasses(other.consecutiveEndingPasses),
   hashesAfterBlackPass(std::move(other.hashesAfterBlackPass)),hashesAfterWhitePass(std::move(other.hashesAfterWhitePass)),
@@ -146,6 +147,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
   isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
+  std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   std::copy(other.superKoBanned, other.superKoBanned+Board::MAX_ARR_SIZE, superKoBanned);
   std::copy(other.blackKoProhibited, other.blackKoProhibited+Board::MAX_ARR_SIZE, blackKoProhibited);
