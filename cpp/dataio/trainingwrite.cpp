@@ -731,12 +731,13 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       }
     }
 
-    if(targetWeight != 0.0) {
+    assert(targetWeight >= 0.0 && targetWeight <= 1.0);
+    if(targetWeight != 0.0 && (targetWeight >= 1.0 || rand.nextBool(targetWeight))) {
       if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
         writeBuffers->addRow(
           board,hist,nextPlayer,
           absoluteTurnNumber,
-          targetWeight,
+          1.0,
           unreducedNumVisits,
           policyTarget0,
           policyTarget1,
@@ -767,6 +768,9 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
 
     if(sp->targetWeight == 0.0)
       continue;
+    assert(sp->targetWeight >= 0.0 && sp->targetWeight <= 1.0);
+    if(sp->targetWeight < 1.0 && !rand.nextBool(sp->targetWeight))
+      continue;
 
     int absoluteTurnNumber = sp->hist.moveHistory.size();
     assert(absoluteTurnNumber >= data.startHist.moveHistory.size());
@@ -777,7 +781,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       writeBuffers->addRow(
         sp->board,sp->hist,sp->pla,
         absoluteTurnNumber,
-        sp->targetWeight,
+        1.0,
         sp->unreducedNumVisits,
         &(sp->policyTarget),
         NULL,
