@@ -582,6 +582,8 @@ def run_gtp(session):
       }
       (loc,value) = genmove_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       pla = board.pla
+      if len(command) > 1:
+        pla = (Board.BLACK if command[1] == "B" or command[1] == "b" else Board.WHITE)
       board.play(pla,loc)
       moves.append((pla,loc))
       boards.append(board.copy())
