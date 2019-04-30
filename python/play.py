@@ -15,22 +15,19 @@ import numpy as np
 
 from board import Board
 from model import Model
+import common
 
 description = """
 Play go with a trained neural net!
-Implements a basic GTP engine that uses the neural net directly to play moves..
+Implements a basic GTP engine that uses the neural net directly to play moves.
 """
 
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-model', help='Path to model weights to use', required=True)
-parser.add_argument('-model-config', help='Path to model config json to use', required=False)
+common.add_model_load_args(parser)
 parser.add_argument('-name-scope', help='Name scope for model variables', required=False)
 args = vars(parser.parse_args())
 
-modelpath = args["model"]
-modelconfigpath = args["model_config"]
-if modelconfigpath is None:
-  modelconfigpath = os.path.join(os.path.dirname(modelpath),"model.config.json")
+(model_variables_prefix, model_config_json) = common.load_model_paths(args)
 name_scope = args["name_scope"]
 
 #Hardcoded max board size
@@ -40,7 +37,7 @@ pos_len = 19
 
 two_over_pi = 0.63661977236758134308
 
-with open(modelconfigpath) as f:
+with open(model_config_json) as f:
   model_config = json.load(f)
 
 if name_scope is not None:
@@ -581,7 +578,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": True,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+        "whiteKomi": 7.5
       }
       (loc,value) = genmove_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       pla = board.pla
@@ -609,7 +606,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": True,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+        "whiteKomi": 7.5
       }
       (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
@@ -622,7 +619,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": True,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+        "whiteKomi": 7.5
       }
       (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
@@ -636,7 +633,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": True,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+        "whiteKomi": 7.5
       }
       (moves_and_probs,value) = get_moves_and_probs1_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
@@ -649,7 +646,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": False,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
+        "whiteKomi": 7.5
       }
       (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
@@ -662,7 +659,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": False,
         "encorePhase": 1,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
+        "whiteKomi": 7.5
       }
       (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
@@ -675,7 +672,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": False,
         "encorePhase": 2,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
+        "whiteKomi": 7.5
       }
       (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
@@ -688,7 +685,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": True,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+        "whiteKomi": 7.5
       }
       (moves_and_probs,value) = get_moves_and_probs_and_value(session, board, boards, moves, use_history_prop=0.0, rules=rules)
       gfx_commands = []
@@ -701,7 +698,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": True,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+        "whiteKomi": 7.5
       }
       locs_and_values = get_ownership_values(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
@@ -714,7 +711,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": False,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
+        "whiteKomi": 7.5
       }
       locs_and_values = get_ownership_values(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       gfx_commands = []
@@ -728,7 +725,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": True,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+        "whiteKomi": 7.5
       }
       locs_and_values = get_layer_values(session, board, boards, moves, rules, layer, channel)
       gfx_commands = []
@@ -743,7 +740,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": True,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+        "whiteKomi": 7.5
       }
       locs_and_values = get_input_feature(board, boards, moves, rules, feature_idx)
       gfx_commands = []
@@ -757,7 +754,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": False,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+        "whiteKomi": 7.5
       }
       locs_and_values = get_pass_alive(board, rules)
       gfx_commands = []
@@ -771,7 +768,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": True,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+        "whiteKomi": 7.5
       }
       [scorebelief,scoremean,scorestdev,sbscale] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       ret = print_scorebelief(board,scorebelief,scoremean,scorestdev,sbscale)
@@ -783,7 +780,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": False,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
+        "whiteKomi": 7.5
       }
       [scorebelief,scoremean,scorestdev,sbscale] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       ret = print_scorebelief(board,scorebelief,scoremean,scorestdev,sbscale)
@@ -795,7 +792,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": True,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -7.5)
+        "whiteKomi": 7.5
       }
       [bonusbelief,bbscale] = get_bonusbelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       ret = print_bonusbelief(board,bonusbelief,bbscale)
@@ -807,7 +804,7 @@ def run_gtp(session):
         "multiStoneSuicideLegal": False,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (7.5 if board.pla == Board.WHITE else -6.5)
+        "whiteKomi": 7.5
       }
       [bonusbelief,bbscale] = get_bonusbelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       ret = print_bonusbelief(board,bonusbelief,bbscale)
@@ -833,7 +830,7 @@ saver = tf.train.Saver(
 )
 
 with tf.Session() as session:
-  saver.restore(session, modelpath)
+  saver.restore(session, model_variables_prefix)
   run_gtp(session)
 
 

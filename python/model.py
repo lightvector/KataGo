@@ -315,7 +315,12 @@ class Model:
 
     #Not quite right, japanese rules aren't really implemented in the python
     bArea = board.size * board.size
-    selfKomi = rules["selfKomi"]
+    whiteKomi = rules["whiteKomi"]
+    if rules["scoringRule"] == "SCORING_TERRITORY":
+      selfKomi = (whiteKomi if pla == Board.WHITE else -whiteKomi+1)
+    else:
+      selfKomi = (whiteKomi if pla == Board.WHITE else -whiteKomi)
+
     if selfKomi > bArea+1:
       selfKomi = bArea+1
     if selfKomi < -bArea-1:

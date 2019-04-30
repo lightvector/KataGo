@@ -99,7 +99,7 @@ def load_sgf_moves_exn(path):
         "multiStoneSuicideLegal": False,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (komi if board.pla == Board.WHITE else -komi+1)
+        "whiteKomi": komi
       }
     elif rulesstr.lower() == "chinese":
       rules = {
@@ -108,7 +108,7 @@ def load_sgf_moves_exn(path):
         "multiStoneSuicideLegal": False,
         "encorePhase": 0,
         "passWouldEndPhase": False,
-        "selfKomi": (komi if board.pla == Board.WHITE else -komi)
+        "whiteKomi": komi
       }
     elif rulesstr.startswith("ko"):
       rules = {}
