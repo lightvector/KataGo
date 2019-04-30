@@ -406,6 +406,7 @@ def run_gtp(session):
   known_commands = [
     'boardsize',
     'clear_board',
+    'showboard',
     'komi',
     'play',
     'genmove',
@@ -451,7 +452,7 @@ def run_gtp(session):
   board_size = 19
   board = Board(size=board_size)
   moves = []
-  boards = []
+  boards = [board.copy()]
 
   layerdict = dict(model.outputs_by_layer)
   weightdict = dict()
@@ -563,6 +564,8 @@ def run_gtp(session):
       board = Board(size=board_size)
       moves = []
       boards = [board.copy()]
+    elif command[0] == "showboard":
+      ret = "\n" + board.to_string().strip()
     elif command[0] == "komi":
       pass
     elif command[0] == "play":

@@ -26,12 +26,14 @@ This is mostly a sandbox for random ideas for things that might be cool to visua
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-checkpoint-file-prefix', help='model checkpoint file prefix to load', required=False)
 parser.add_argument('-saved-model-dir', help='tf SavedModel dir to load', required=False)
+parser.add_argument('-name-scope', help='Name scope for model variables', required=False)
 parser.add_argument('-show-all-weight-magnitudes', help='sumsq and meansq and rmse of weights', action="store_true", required=False)
 parser.add_argument('-dump', help='weights name -> dump weights', required=False)
 args = vars(parser.parse_args())
 
 checkpoint_file_prefix = args["checkpoint_file_prefix"]
 saved_model_dir = args["saved_model_dir"]
+name_scope = args["name_scope"]
 show_all_weight_magnitudes = args["show_all_weight_magnitudes"]
 dump = args["dump"]
 
@@ -55,7 +57,11 @@ else:
   assert(False)
 
 pos_len = 19 # shouldn't matter, all we're doing is exporting weights that don't depend on this
-model = Model(model_config,pos_len,{})
+if name_scope is not None:
+  with tf.name_scope(name_scope):
+    model = Model(model_config,pos_len,{})
+else:
+  model = Model(model_config,pos_len,{})
 
 def volume(variable):
   shape = variable.get_shape()
