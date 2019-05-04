@@ -1974,6 +1974,10 @@ void Search::printRootEndingScoreValueBonus(ostream& out) {
 }
 
 void Search::appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth) {
+  appendPVForMove(buf,scratchLocs,scratchValues,n,Board::NULL_LOC,maxDepth);
+}
+
+void Search::appendPVForMove(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) {
   if(n == NULL)
     return;
 
@@ -1989,6 +1993,14 @@ void Search::appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>
     for(int i = 0; i<scratchValues.size(); i++) {
       Loc moveLoc = scratchLocs[i];
       double selectionValue = scratchValues[i];
+
+      if(depth == 0 && moveLoc == move) {
+        maxSelectionValue = selectionValue;
+        bestChildIdx = i;
+        bestChildMoveLoc = moveLoc;
+        break;
+      }
+
       if(selectionValue > maxSelectionValue) {
         maxSelectionValue = selectionValue;
         bestChildIdx = i;
@@ -1997,6 +2009,8 @@ void Search::appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>
     }
 
     if(bestChildIdx < 0 || bestChildMoveLoc == Board::NULL_LOC)
+      return;
+    if(depth == 0 && move != Board::NULL_LOC && bestChildMoveLoc != move)
       return;
 
     const SearchNode& node = *n;
@@ -2250,6 +2264,18 @@ void Search::getAnalysisData(
 
   for(int i = 0; i<buf.size(); i++)
     buf[i].order = i;
+}
+
+void Search::printPVForMove(ostream& out, const SearchNode* n, Loc move, int maxDepth) {
+  vector<Loc> buf;
+  vector<Loc> scratchLocs;
+  vector<double> scratchValues;
+  appendPVForMove(buf,scratchLocs,scratchValues,n,move,maxDepth);
+  for(int i = 0; i<buf.size(); i++) {
+    if(i > 0)
+      out << " ";
+    out << Location::toString(buf[i],rootBoard);
+  }
 }
 
 void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options) {

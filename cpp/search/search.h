@@ -249,6 +249,7 @@ struct Search {
 
   //Tree-inspection functions---------------------------------------------------------------
   void printPV(ostream& out, const SearchNode* node, int maxDepth);
+  void printPVForMove(ostream& out, const SearchNode* node, Loc move, int maxDepth);
   void printTree(ostream& out, const SearchNode* node, PrintTreeOptions options);
   void printRootPolicyMap(ostream& out);
   void printRootOwnershipMap(ostream& out);
@@ -258,7 +259,10 @@ struct Search {
   //or changing parameters or clearing search.
   void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth);
   void getAnalysisData(const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth);
-  void appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth); //Append PV from position at node n onward to buf
+  //Append the PV from node n onward (not including node n's move)
+  void appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth);
+  //Append the PV from node n for specified move, assuming move is a child move of node n
+  void appendPVForMove(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth);
 
   //Get the ownership map averaged throughout the search tree.
   //Must have ownership present on all neural net evals.
