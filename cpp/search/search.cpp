@@ -962,19 +962,28 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
     double scoreMeanSum = node.stats.scoreMeanSum;
     double scoreMeanSqSum = node.stats.scoreMeanSqSum;
     double weightSum = node.stats.weightSum;
+    int64_t numVisits = node.stats.visits;
     node.statsLock.clear(std::memory_order_release);
 
-    assert(weightSum > 0.0);
-    double scoreUtility = getScoreUtility(scoreMeanSum, scoreMeanSqSum, weightSum);
+    //It's possible that this node has 0 weight in the case where it's the root node
+    //and has 0 visits because we began a search and then stopped it before any playouts happened.
+    //In that case, there's not much to recompute.
+    if(weightSum <= 0.0) {
+      assert(numVisits == 0);
+      assert(isRoot);
+    }
+    else {
+      double scoreUtility = getScoreUtility(scoreMeanSum, scoreMeanSqSum, weightSum);
 
-    double newUtility = resultUtilitySum / weightSum + scoreUtility;
-    double newUtilitySum = newUtility * weightSum;
-    double newUtilitySqSum = newUtility * newUtility * weightSum;
+      double newUtility = resultUtilitySum / weightSum + scoreUtility;
+      double newUtilitySum = newUtility * weightSum;
+      double newUtilitySqSum = newUtility * newUtility * weightSum;
     
-    while(node.statsLock.test_and_set(std::memory_order_acquire));
-    node.stats.utilitySum = newUtilitySum;
-    node.stats.utilitySqSum = newUtilitySqSum;
-    node.statsLock.clear(std::memory_order_release);
+      while(node.statsLock.test_and_set(std::memory_order_acquire));
+      node.stats.utilitySum = newUtilitySum;
+      node.stats.utilitySqSum = newUtilitySqSum;
+      node.statsLock.clear(std::memory_order_release);
+    }
   }
   else {
     //Otherwise recompute it using the usual method
