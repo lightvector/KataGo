@@ -227,6 +227,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   double lastSearchFactor = 1.0;
 
+  const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
+  
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
@@ -630,13 +632,31 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           }
         }
 
-
+        ReportedSearchValues values;
         double winLossValue;
         double expectedScore;
         {
-          ReportedSearchValues values = bot->getSearch()->getRootValuesAssertSuccess();
+          values = bot->getSearch()->getRootValuesAssertSuccess();
           winLossValue = values.winLossValue;
           expectedScore = values.expectedScore;
+        }
+
+        //Chat
+        if(ogsChatToStderr) {
+          int64_t visits = bot->getSearch()->getRootVisits();
+          double winrate = 0.5 * (1.0 + (values.winValue - values.lossValue));
+          if(pla == P_BLACK) {
+            winrate = 1.0 - winrate;
+            expectedScore = - expectedScore;
+          }
+          cerr << "CHAT:"
+               << "Visits " << visits
+               << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0)
+               << " ScoreMean " << Global::strprintf("%.1f", expectedScore)
+               << " ScoreStdev " << Global::strprintf("%.1f", values.expectedScoreStdev);
+          cerr << " PV ";
+          bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, 6);
+          cerr << endl;
         }
 
         recentWinLossValues.push_back(winLossValue);
