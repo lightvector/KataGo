@@ -17,10 +17,10 @@ struct SgfNode {
   ~SgfNode();
 
   SgfNode(const SgfNode& other);
-  SgfNode(SgfNode&& other);
+  SgfNode(SgfNode&& other) noexcept;
 
   SgfNode& operator=(const SgfNode&);
-  SgfNode& operator=(SgfNode&&);
+  SgfNode& operator=(SgfNode&&) noexcept;
 
   bool hasProperty(const char* key) const;
   string getSingleProperty(const char* key) const;

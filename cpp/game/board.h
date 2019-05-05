@@ -130,7 +130,7 @@ struct Board
 
   //Constructors---------------------------------
   Board();  //Create Board of size (19,19)
-  Board(int x, int y); //Create Fastboard of size (x,y)
+  Board(int x, int y); //Create Board of size (x,y)
   Board(const Board& other);
 
   //Functions------------------------------------

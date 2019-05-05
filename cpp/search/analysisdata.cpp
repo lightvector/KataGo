@@ -40,7 +40,7 @@ AnalysisData::AnalysisData(const AnalysisData& other)
    node(other.node)
 {}
 
-AnalysisData::AnalysisData(AnalysisData&& other)
+AnalysisData::AnalysisData(AnalysisData&& other) noexcept
   :move(other.move),
    numVisits(other.numVisits),
    playSelectionValue(other.playSelectionValue),
@@ -86,7 +86,7 @@ AnalysisData& AnalysisData::operator=(const AnalysisData& other) {
   return *this;
 }
 
-AnalysisData& AnalysisData::operator=(AnalysisData&& other) {
+AnalysisData& AnalysisData::operator=(AnalysisData&& other) noexcept {
   if(this == &other)
     return *this;
   move = other.move;

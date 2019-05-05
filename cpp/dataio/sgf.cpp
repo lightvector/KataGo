@@ -11,7 +11,7 @@ SgfNode::SgfNode(const SgfNode& other)
     props = new map<string,vector<string>>(*(other.props));
   move = other.move;
 }
-SgfNode::SgfNode(SgfNode&& other)
+SgfNode::SgfNode(SgfNode&& other) noexcept
   :props(NULL),move(0,0,C_EMPTY)
 {
   props = other.props;
@@ -36,7 +36,7 @@ SgfNode& SgfNode::operator=(const SgfNode& other) {
   move = other.move;
   return *this;
 }
-SgfNode& SgfNode::operator=(SgfNode&& other) {
+SgfNode& SgfNode::operator=(SgfNode&& other) noexcept {
   if(props != NULL)
     delete props;
   props = other.props;

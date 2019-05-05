@@ -1907,7 +1907,7 @@ void Search::playoutDescend(
 }
 
 
-void Search::printRootOwnershipMap(ostream& out) {
+void Search::printRootOwnershipMap(ostream& out) const {
   if(rootNode->nnOutput == nullptr)
     return;
   NNOutput& nnOutput = *(rootNode->nnOutput);
@@ -1924,7 +1924,7 @@ void Search::printRootOwnershipMap(ostream& out) {
   out << endl;
 }
 
-void Search::printRootPolicyMap(ostream& out) {
+void Search::printRootPolicyMap(ostream& out) const {
   if(rootNode->nnOutput == nullptr)
     return;
   NNOutput& nnOutput = *(rootNode->nnOutput);
@@ -1939,7 +1939,7 @@ void Search::printRootPolicyMap(ostream& out) {
   out << endl;
 }
 
-void Search::printRootEndingScoreValueBonus(ostream& out) {
+void Search::printRootEndingScoreValueBonus(ostream& out) const {
   std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
   unique_lock<std::mutex> lock(mutex);
   
@@ -1973,11 +1973,11 @@ void Search::printRootEndingScoreValueBonus(ostream& out) {
   }
 }
 
-void Search::appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth) {
+void Search::appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth) const {
   appendPVForMove(buf,scratchLocs,scratchValues,n,Board::NULL_LOC,maxDepth);
 }
 
-void Search::appendPVForMove(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) {
+void Search::appendPVForMove(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) const {
   if(n == NULL)
     return;
 
@@ -2027,7 +2027,7 @@ void Search::appendPVForMove(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<
 }
 
 
-void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
+void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) const {
   vector<Loc> buf;
   vector<Loc> scratchLocs;
   vector<double> scratchValues;
@@ -2035,7 +2035,7 @@ void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) {
   printPV(out,buf);
 }
 
-void Search::printPV(ostream& out, const vector<Loc>& buf) {
+void Search::printPV(ostream& out, const vector<Loc>& buf) const {
   bool printedAnything = false;
   for(int i = 0; i<buf.size(); i++) {
     if(printedAnything)
@@ -2052,7 +2052,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   const SearchNode* child, vector<Loc>& scratchLocs, vector<double>& scratchValues,
   Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
   double parentScoreMean, double parentScoreStdev, int maxPVDepth
-) {
+) const {
   uint64_t numVisits = 0;
   double winValueSum = 0.0;
   double noResultValueSum = 0.0;
@@ -2117,7 +2117,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
 
 void Search::getAnalysisData(
   vector<AnalysisData>& buf,int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
-) {
+) const {
   buf.clear();
   if(rootNode == NULL)
     return;
@@ -2126,7 +2126,7 @@ void Search::getAnalysisData(
 
 void Search::getAnalysisData(
   const SearchNode& node, vector<AnalysisData>& buf,int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
-) {
+) const {
   buf.clear();
   vector<SearchNode*> children;
   children.reserve(rootBoard.x_size * rootBoard.y_size + 1);
@@ -2266,7 +2266,7 @@ void Search::getAnalysisData(
     buf[i].order = i;
 }
 
-void Search::printPVForMove(ostream& out, const SearchNode* n, Loc move, int maxDepth) {
+void Search::printPVForMove(ostream& out, const SearchNode* n, Loc move, int maxDepth) const {
   vector<Loc> buf;
   vector<Loc> scratchLocs;
   vector<double> scratchValues;
@@ -2278,7 +2278,7 @@ void Search::printPVForMove(ostream& out, const SearchNode* n, Loc move, int max
   }
 }
 
-void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options) {
+void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options) const {
   string prefix;
   AnalysisData data;
   {
@@ -2304,7 +2304,7 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
 void Search::printTreeHelper(
   ostream& out, const SearchNode* n, const PrintTreeOptions& options,
   string& prefix, int64_t origVisits, int depth, const AnalysisData& data
-) {
+) const {
   if(n == NULL)
     return;
 
@@ -2452,7 +2452,7 @@ void Search::printTreeHelper(
 }
 
 
-vector<double> Search::getAverageTreeOwnership(int64_t minVisits) {
+vector<double> Search::getAverageTreeOwnership(int64_t minVisits) const {
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(posLen*posLen,0.0);
@@ -2460,7 +2460,7 @@ vector<double> Search::getAverageTreeOwnership(int64_t minVisits) {
   return vec;
 }
 
-double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minVisits, double desiredWeight, const SearchNode* node) {
+double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minVisits, double desiredWeight, const SearchNode* node) const {
   if(node == NULL)
     return 0;
 
