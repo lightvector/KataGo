@@ -1,42 +1,50 @@
 #include "../neuralnet/nneval.h"
 
+#include "../neuralnet/modelversion.h"
+
 using namespace std;
 
 //-------------------------------------------------------------------------------------
 
 NNResultBuf::NNResultBuf()
-  :clientWaitingForResult(),resultMutex(),hasResult(false),includeOwnerMap(false),
-   boardXSizeForServer(0),boardYSizeForServer(0),rowBinSize(0),rowGlobalSize(0),rowBin(NULL),rowGlobal(NULL),
-   result(nullptr),errorLogLockout(false)
-{}
+    : clientWaitingForResult(),
+      resultMutex(),
+      hasResult(false),
+      includeOwnerMap(false),
+      boardXSizeForServer(0),
+      boardYSizeForServer(0),
+      rowBinSize(0),
+      rowGlobalSize(0),
+      rowBin(NULL),
+      rowGlobal(NULL),
+      result(nullptr),
+      errorLogLockout(false) {}
 
-NNResultBuf::~NNResultBuf()
-{
-  if(rowBin != NULL)
+NNResultBuf::~NNResultBuf() {
+  if (rowBin != NULL)
     delete[] rowBin;
-  if(rowGlobal != NULL)
+  if (rowGlobal != NULL)
     delete[] rowGlobal;
 }
 
 //-------------------------------------------------------------------------------------
 
 NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model)
-  :inputBuffers(NULL),
-   resultBufs(NULL)
-{
+    : inputBuffers(NULL), resultBufs(NULL) {
   int maxNumRows = nnEval.getMaxBatchSize();
   if(model != NULL)
     inputBuffers = NeuralNet::createInputBuffers(model,maxNumRows,nnEval.getNNXLen(),nnEval.getNNYLen());
   resultBufs = new NNResultBuf*[maxNumRows];
-  for(int i = 0; i < maxNumRows; i++)
+  for (int i = 0; i < maxNumRows; i++)
     resultBufs[i] = NULL;
 }
 
 NNServerBuf::~NNServerBuf() {
-  if(inputBuffers != NULL)
+  if (inputBuffers != NULL)
     NeuralNet::freeInputBuffers(inputBuffers);
   inputBuffers = NULL;
-  //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
+  // Pointers inside here don't need to be deleted, they simply point to the
+  // clients waiting for results
   delete[] resultBufs;
   resultBufs = NULL;
 }
@@ -98,46 +106,47 @@ NNEvaluator::NNEvaluator(
   numResultBufss = maxConcurrentEvals / maxBatchSize + 3;
   {
     int x = 1;
-    while(x < numResultBufss) x *= 2;
+    while (x < numResultBufss)
+      x *= 2;
     numResultBufss = x;
   }
-  numResultBufssMask = numResultBufss-1;
+  numResultBufssMask = numResultBufss - 1;
 
-  if(nnCacheSizePowerOfTwo >= 0)
-    nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo,nnMutexPoolSizePowerofTwo);
+  if (nnCacheSizePowerOfTwo >= 0)
+    nnCacheTable =
+        new NNCacheTable(nnCacheSizePowerOfTwo, nnMutexPoolSizePowerofTwo);
 
-  if(!debugSkipNeuralNet) {
+  if (!debugSkipNeuralNet) {
     loadedModel = NeuralNet::loadModelFile(modelFileName, modelFileIdx);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
-  }
-  else {
+  } else {
     modelVersion = NNModelVersion::defaultModelVersion;
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
   }
 
   m_resultBufss = new NNResultBuf**[numResultBufss];
-  for(int i = 0; i<numResultBufss; i++) {
+  for (int i = 0; i < numResultBufss; i++) {
     m_resultBufss[i] = new NNResultBuf*[maxBatchSize];
-    for(int j = 0; j < maxBatchSize; j++)
+    for (int j = 0; j < maxBatchSize; j++)
       m_resultBufss[i][j] = NULL;
   }
 }
 
-NNEvaluator::~NNEvaluator()
-{
+NNEvaluator::~NNEvaluator() {
   killServerThreads();
 
-  for(int i = 0; i<numResultBufss; i++) {
+  for (int i = 0; i < numResultBufss; i++) {
     NNResultBuf** resultBufs = m_resultBufss[i];
-    //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
+    // Pointers inside here don't need to be deleted, they simply point to the
+    // clients waiting for results
     delete[] resultBufs;
     m_resultBufss[i] = NULL;
   }
   delete[] m_resultBufss;
   m_resultBufss = NULL;
 
-  if(loadedModel != NULL)
+  if (loadedModel != NULL)
     NeuralNet::freeLoadedModel(loadedModel);
   loadedModel = NULL;
 
@@ -242,9 +251,9 @@ void NNEvaluator::serve(
   int cudaGpuIdxForThisThread, bool cudaUseFP16, bool cudaUseNHWC
 ) {
 
-  LocalGpuHandle* gpuHandle = NULL;
+  ComputeHandle* gpuHandle = NULL;
   if(loadedModel != NULL)
-    gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, nnXLen, nnYLen, requireExactNNLen, inputsUseNHWC, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
+    gpuHandle = NeuralNet::createComputeHandle(loadedModel, logger, maxNumRows, nnXLen, nnYLen, requireExactNNLen, inputsUseNHWC, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
 
   vector<NNOutput*> outputBuf;
 
@@ -343,7 +352,7 @@ void NNEvaluator::serve(
     int symmetry = defaultSymmetry;
     if(doRandomize)
       symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
-    bool* symmetriesBuffer = NeuralNet::getSymmetriesInplace(buf.inputBuffers);
+    bool* symmetriesBuffer = buf.inputBuffers->getSymmetriesInplace();
     symmetriesBuffer[0] = (symmetry & 0x1) != 0;
     symmetriesBuffer[1] = (symmetry & 0x2) != 0;
     symmetriesBuffer[2] = (symmetry & 0x4) != 0;
@@ -365,12 +374,12 @@ void NNEvaluator::serve(
     int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
     int rowBinLen = numSpatialFeatures * nnXLen * nnYLen;
     int rowGlobalLen = numGlobalFeatures;
-    assert(rowBinLen == NeuralNet::getRowLen(buf.inputBuffers));
-    assert(rowGlobalLen == NeuralNet::getRowGlobalLen(buf.inputBuffers));
+    assert(rowBinLen == buf.inputBuffers->getBatchLen());
+    assert(rowGlobalLen == buf.inputBuffers->getGlobalLen());
 
     for(int row = 0; row<numRows; row++) {
-      float* rowInput = NeuralNet::getRowInplace(buf.inputBuffers,row);
-      float* rowGlobalInput = NeuralNet::getRowGlobalInplace(buf.inputBuffers,row);
+      float* rowInput = buf.inputBuffers->getBatchInplace(row);
+      float* rowGlobalInput = buf.inputBuffers->getBatchGlobalInplace(row);
 
       const float* rowBin = buf.resultBufs[row]->rowBin;
       const float* rowGlobal = buf.resultBufs[row]->rowGlobal;
@@ -400,7 +409,7 @@ void NNEvaluator::serve(
     continue;
   }
 
-  NeuralNet::freeLocalGpuHandle(gpuHandle);
+  NeuralNet::freeComputeHandle(gpuHandle);
 }
 
 void NNEvaluator::evaluate(

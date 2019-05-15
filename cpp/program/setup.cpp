@@ -5,16 +5,7 @@
 using namespace std;
 
 void Setup::initializeSession(ConfigParser& cfg) {
-
-  string tensorflowGpuVisibleDeviceList;
-  if(cfg.contains("tensorflowGpuVisibleDeviceList"))
-    tensorflowGpuVisibleDeviceList = cfg.getString("tensorflowGpuVisibleDeviceList");
-
-  double tensorflowPerProcessGpuMemoryFraction = -1;
-  if(cfg.contains("tensorflowPerProcessGpuMemoryFraction"))
-    tensorflowPerProcessGpuMemoryFraction = cfg.getDouble("tensorflowPerProcessGpuMemoryFraction",0.0,1.0);
-
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 }
 
 vector<NNEvaluator*> Setup::initializeNNEvaluators(

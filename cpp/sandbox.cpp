@@ -202,7 +202,7 @@ int MainCmds::sandbox() {
 
   string tensorflowGpuVisibleDeviceList = ""; //use default
   double tensorflowPerProcessGpuMemoryFraction = -1; //use default
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 
   LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/selfplay/run0/modelstobetested//s9999360-d1178745-b8c128/model.txt.gz", 0);
   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
@@ -215,13 +215,13 @@ int MainCmds::sandbox() {
   bool requireExactNNLen = false;
   bool inputsUseNHWC = true;
   int cudaGpuIdxForThisThread = 0;
-  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(
+  ComputeHandle* gpuHandle = NeuralNet::createComputeHandle(
     loadedModel,&logger,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,
     cudaGpuIdxForThisThread,cudaUseFP16,cudaUseNHWC
   );
   InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
 
-  bool* syms = NeuralNet::getSymmetriesInplace(inputBuffers);
+  bool* syms = inputBuffers->getSymmetriesInplace();
   syms[0] = false;
   syms[1] = false;
   syms[2] = false;
@@ -254,8 +254,8 @@ int MainCmds::sandbox() {
   // int batchSize = maxBatchSize;
   // int batchSize = 32;
   for(int i = 0; i<batchSize; i++) {
-    float* row = NeuralNet::getRowInplace(inputBuffers,i);
-    float* rowGlobalInput = NeuralNet::getRowGlobalInplace(inputBuffers,i);
+    float* row = inputBuffers->getBatchInplace(i);
+    float* rowGlobalInput = inputBuffers->getBatchGlobalInplace(i);
 
     double drawEquivalentWinsForWhite = 0.5;
     NNInputs::fillRowV3(board, hist, pla, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, row, rowGlobalInput);
@@ -297,7 +297,7 @@ int MainCmds::sandbox() {
     delete outputs[i];
 
   NeuralNet::freeInputBuffers(inputBuffers);
-  NeuralNet::freeLocalGpuHandle(gpuHandle);
+  NeuralNet::freeComputeHandle(gpuHandle);
   NeuralNet::freeLoadedModel(loadedModel);
 
   cout << "Done" << endl;

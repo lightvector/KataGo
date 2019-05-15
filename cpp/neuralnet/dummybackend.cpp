@@ -1,14 +1,12 @@
 #include "../neuralnet/nninterface.h"
+
 #include "../neuralnet/nninputs.h"
 
 using namespace std;
 
-void NeuralNet::globalInitialize(const string& tensorflowGpuVisibleGpuList,
-                                 double tensorflowPerProcessGpuMemoryFraction) {
+void NeuralNet::globalInitialize() {
   //Do nothing, calling this is okay even if there is no neural net
   //as long as we don't attempt to actually load a net file and use one.
-  (void)tensorflowGpuVisibleGpuList;
-  (void)tensorflowPerProcessGpuMemoryFraction;
 }
 
 void NeuralNet::globalCleanup() {
@@ -19,20 +17,23 @@ void NeuralNet::globalCleanup() {
 LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
   (void)file;
   (void)modelFileIdx;
-  throw StringError("Dummy neural net backend: NeuralNet::loadModelFile unimplemented");
+  throw StringError(
+      "Dummy neural net backend: NeuralNet::loadModelFile unimplemented");
 }
 
 void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   (void)loadedModel;
-  throw StringError("Dummy neural net backend: NeuralNet::freeLoadedModel unimplemented");
+  throw StringError(
+      "Dummy neural net backend: NeuralNet::freeLoadedModel unimplemented");
 }
 
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   (void)loadedModel;
-  throw StringError("Dummy neural net backend: NeuralNet::getModelVersion unimplemented");
+  throw StringError(
+      "Dummy neural net backend: NeuralNet::getModelVersion unimplemented");
 }
 
-LocalGpuHandle* NeuralNet::createLocalGpuHandle(
+ComputeHandle* NeuralNet::createComputeHandle(
   const LoadedModel* loadedModel,
   Logger* logger,
   int maxBatchSize,
@@ -54,12 +55,16 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   (void)cudaGpuIdxForThisThread;
   (void)cudaUseFP16;
   (void)cudaUseNHWC;
-  throw StringError("Dummy neural net backend: NeuralNet::createLocalGpuHandle unimplemented");
+  throw StringError(
+      "Dummy neural net backend: NeuralNet::createLocalGpuHandle "
+      "unimplemented");
 }
 
-void NeuralNet::freeLocalGpuHandle(LocalGpuHandle* gpuHandle) {
+void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
   if(gpuHandle != NULL)
-    throw StringError("Dummy neural net backend: NeuralNet::freeLocalGpuHandle unimplemented");
+    throw StringError(
+        "Dummy neural net backend: NeuralNet::freeLocalGpuHandle "
+        "unimplemented");
 }
 
 InputBuffers* NeuralNet::createInputBuffers(
@@ -71,43 +76,18 @@ InputBuffers* NeuralNet::createInputBuffers(
   (void)maxBatchSize;
   (void)nnXLen;
   (void)nnYLen;
-  throw StringError("Dummy neural net backend: NeuralNet::createInputBuffers unimplemented");
+  throw StringError(
+      "Dummy neural net backend: NeuralNet::createInputBuffers unimplemented");
 }
 
 void NeuralNet::freeInputBuffers(InputBuffers* buffers) {
   if(buffers != NULL)
-    throw StringError("Dummy neural net backend: NeuralNet::freeInputBuffers unimplemented");
-}
-
-float* NeuralNet::getRowInplace(InputBuffers* buffers, int rowIdx) {
-  (void)buffers;
-  (void)rowIdx;
-  throw StringError("Dummy neural net backend: NeuralNet::getRowInplace unimplemented");
-}
-
-float* NeuralNet::getRowGlobalInplace(InputBuffers* buffers, int rowIdx) {
-  (void)buffers;
-  (void)rowIdx;
-  throw StringError("Dummy neural net backend: NeuralNet::getRowGlobalInplace unimplemented");
-}
-
-bool* NeuralNet::getSymmetriesInplace(InputBuffers* buffers) {
-  (void)buffers;
-  throw StringError("Dummy neural net backend: NeuralNet::getSymmetriesInplace unimplemented");
-}
-
-int NeuralNet::getRowLen(const InputBuffers* buffers) {
-  (void)buffers;
-  throw StringError("Dummy neural net backend: NeuralNet::getRowLen unimplemented");
-}
-
-int NeuralNet::getRowGlobalLen(const InputBuffers* buffers) {
-  (void)buffers;
-  throw StringError("Dummy neural net backend: NeuralNet::getRowGlobalLen unimplemented");
+    throw StringError(
+        "Dummy neural net backend: NeuralNet::freeInputBuffers unimplemented");
 }
 
 void NeuralNet::getOutput(
-  LocalGpuHandle* gpuHandle,
+  ComputeHandle* gpuHandle,
   InputBuffers* buffers,
   int numFilledRows,
   vector<NNOutput*>& outputs
@@ -116,5 +96,6 @@ void NeuralNet::getOutput(
   (void)buffers;
   (void)numFilledRows;
   (void)outputs;
-  throw StringError("Dummy neural net backend: NeuralNet::getOutput unimplemented");
+  throw StringError(
+      "Dummy neural net backend: NeuralNet::getOutput unimplemented");
 }

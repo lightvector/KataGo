@@ -618,7 +618,7 @@ void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNH
   cout << "Running search tests" << endl;
   string tensorflowGpuVisibleDeviceList = "";
   double tensorflowPerProcessGpuMemoryFraction = 0.3;
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 
   Logger logger;
   logger.setLogToStdout(true);
@@ -635,7 +635,7 @@ void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool cuda
   cout << "Running search tests specifically for v3 or later nets" << endl;
   string tensorflowGpuVisibleDeviceList = "";
   double tensorflowPerProcessGpuMemoryFraction = 0.3;
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 
   Logger logger;
   logger.setLogToStdout(true);
@@ -658,7 +658,7 @@ void Tests::runNNLessSearchTests() {
   cout << "Running neuralnetless search tests" << endl;
   string tensorflowGpuVisibleDeviceList = "";
   double tensorflowPerProcessGpuMemoryFraction = 0.3;
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 
   //Placeholder, doesn't actually do anything since we have debugSkipNeuralNet = true
   string modelFile = "/dev/null";

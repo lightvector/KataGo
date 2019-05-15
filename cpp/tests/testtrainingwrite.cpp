@@ -63,7 +63,7 @@ void Tests::runTrainingWriteTests() {
   cout << "Running training write tests" << endl;
   string tensorflowGpuVisibleDeviceList = "";
   double tensorflowPerProcessGpuMemoryFraction = 0.3;
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 
   int maxRows = 256;
   double firstFileMinRandProp = 1.0;
@@ -164,7 +164,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   cout << "Running test for selfplay initialization with NN" << endl;
   string tensorflowGpuVisibleDeviceList = "";
   double tensorflowPerProcessGpuMemoryFraction = 0.3;
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 
   int nnXLen = 11;
   int nnYLen = 11;

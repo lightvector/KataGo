@@ -35,7 +35,6 @@ if(BUILD_MCTS)
     set(CMAKE_CUDA_FLAGS
       "-gencode arch=compute_30,code=sm_30 -gencode arch=compute_30,code=compute_30 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_53,code=sm_53 -gencode arch=compute_53,code=compute_53 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_70,code=compute_70"
       )
-
   else()
     message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. Specify -DUSE_CUDA_BACKEND=1 to compile with CUDA to use neural net.${ColorReset}")
     set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
@@ -149,6 +148,7 @@ if(BUILD_MCTS)
     neuralnet/nninputs.cpp
     neuralnet/modelversion.cpp
     neuralnet/nneval.cpp
+    neuralnet/desc.cpp
     ${NEURALNET_BACKEND_SOURCES}
     search/timecontrols.cpp
     search/searchparams.cpp

@@ -8,6 +8,7 @@
 #include "../neuralnet/cudahelpers.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/desc.h"
 
 using namespace std;
 
@@ -93,87 +94,6 @@ static void mallocAndCopyToDevice(const string& name, float* weights, int numWei
 }
 
 //---------------------------------------------------------------------------------
-
-struct ConvLayerDesc {
-  string name;
-  int convYSize;
-  int convXSize;
-  int inChannels;
-  int outChannels;
-  int dilationY;
-  int dilationX;
-  vector<float> weights;
-
-  ConvLayerDesc()
-    :convYSize(0),convXSize(0),inChannels(0),outChannels(0),dilationY(1),dilationX(1)
-  {}
-
-  ConvLayerDesc(istream& in) {
-    in >> name;
-    in >> convYSize;
-    in >> convXSize;
-    in >> inChannels;
-    in >> outChannels;
-    in >> dilationY;
-    in >> dilationX;
-
-    if(in.fail())
-      throw StringError(name + ": convlayer failed to parse sizes and channels and dilations");
-
-    if(convXSize <= 0 || convYSize <= 0)
-      throw StringError(name + ": convolution filter sizes must be positive");
-    if(inChannels <= 0 || outChannels <= 0)
-      throw StringError(name + ": number of in and out channels must be positive");
-    if(dilationX <= 0 || dilationY <= 0)
-      throw StringError(name + ": dilation factors must be positive");
-    if(convXSize % 2 != 1 || convYSize % 2 != 1)
-      throw StringError(name + ": convolution filter sizes must be odd, found even sizes");
-
-    //Model file order is y,x,ic,oc
-    //Cuda's order is oc,ic,y,x
-    int numWeights = convYSize * convXSize * inChannels * outChannels;
-    weights.resize(numWeights);
-    int ocStride = convYSize * convXSize * inChannels;
-    int icStride = convYSize * convXSize;
-    int yStride = convXSize;
-    int xStride = 1;
-
-    for(int y = 0; y < convYSize; y++) {
-      for(int x = 0; x < convXSize; x++) {
-        for(int ic = 0; ic < inChannels; ic++) {
-          for(int oc = 0; oc < outChannels; oc++) {
-            float w;
-            in >> w;
-            CHECKFINITE(w,name);
-            weights[oc * ocStride + ic * icStride + y * yStride + x * xStride] = w;
-          }
-        }
-      }
-    }
-    if(in.fail())
-      throw StringError(name + ": convlayer failed to expected number of float weights");
-  }
-
-  ConvLayerDesc(const ConvLayerDesc&) = delete;
-  ConvLayerDesc& operator=(const ConvLayerDesc&) = delete;
-
-  ConvLayerDesc(ConvLayerDesc&& other) {
-    *this = std::move(other);
-  }
-
-  ConvLayerDesc& operator=(ConvLayerDesc&& other) {
-    name = std::move(other.name);
-    convYSize = other.convYSize;
-    convXSize = other.convXSize;
-    inChannels = other.inChannels;
-    outChannels = other.outChannels;
-    dilationY = other.dilationY;
-    dilationX = other.dilationX;
-    weights = std::move(other.weights);
-    return *this;
-  }
-
-};
 
 struct ConvLayer {
   string name;
@@ -444,89 +364,7 @@ struct ConvLayer {
 
 //---------------------------------------------------------------------------------
 
-struct BNLayerDesc {
-  string name;
-  int numChannels;
-  float epsilon;
-  bool hasScale;
-  bool hasBias;
-  vector<float> mean;
-  vector<float> variance;
-  vector<float> scale;
-  vector<float> bias;
-
-  BNLayerDesc()
-    :numChannels(0),epsilon(0.001),hasScale(false),hasBias(false)
-  {}
-
-  BNLayerDesc(istream& in) {
-    in >> name;
-    in >> numChannels;
-    in >> epsilon;
-    in >> hasScale;
-    in >> hasBias;
-
-    if(in.fail())
-      throw StringError(name + ": bnlayer failed to parse num channels and epsilon and hasScale and hasBias");
-
-    if(numChannels < 1)
-      throw StringError(name + ": numChannels (" + Global::intToString(numChannels) + ") < 1");
-    if(epsilon <= 0)
-      throw StringError(name + ": epsilon (" + Global::floatToString(epsilon) + ") <= 0");
-
-    float w;
-    mean.resize(numChannels);
-    for(int c = 0; c < numChannels; c++) {
-      in >> w;
-      CHECKFINITE(w,name);
-      mean[c] = w;
-    }
-    variance.resize(numChannels);
-    for(int c = 0; c < numChannels; c++) {
-      in >> w;
-      CHECKFINITE(w,name);
-      variance[c] = w;
-    }
-    scale.resize(numChannels);
-    for(int c = 0; c < numChannels; c++) {
-      if(hasScale) in >> w; else w = 1.0;
-      CHECKFINITE(w,name);
-      scale[c] = w;
-    }
-    bias.resize(numChannels);
-    for(int c = 0; c < numChannels; c++) {
-      if(hasBias) in >> w; else w = 1.0;
-      CHECKFINITE(w,name);
-      bias[c] = w;
-    }
-
-    if(in.fail())
-      throw StringError(name + ": bnlayer failed to parse expected number of batch norm mean, variance, bias, scale values");
-  }
-
-  BNLayerDesc(const BNLayerDesc&) = delete;
-  BNLayerDesc& operator=(const BNLayerDesc&) = delete;
-
-  BNLayerDesc(BNLayerDesc&& other) {
-    *this = std::move(other);
-  }
-
-  BNLayerDesc& operator=(BNLayerDesc&& other) {
-    name = std::move(other.name);
-    numChannels = other.numChannels;
-    epsilon = other.epsilon;
-    hasScale = other.hasScale;
-    hasBias = other.hasBias;
-    mean = std::move(other.mean);
-    variance = std::move(other.variance);
-    scale = std::move(other.scale);
-    bias = std::move(other.bias);
-    return *this;
-  }
-
-};
-
-struct BNLayer {
+struct BatchNormLayer {
   string name;
   int numChannels;
   float epsilon;
@@ -545,13 +383,13 @@ struct BNLayer {
   bool usingFP16;
   bool usingNHWC;
 
-  BNLayer() = delete;
-  BNLayer(const BNLayer&) = delete;
-  BNLayer& operator=(const BNLayer&) = delete;
+  BatchNormLayer() = delete;
+  BatchNormLayer(const BatchNormLayer&) = delete;
+  BatchNormLayer& operator=(const BatchNormLayer&) = delete;
 
-  BNLayer(
+  BatchNormLayer(
     CudaHandles* cudaHandles,
-    const BNLayerDesc* desc,
+    const BatchNormLayerDesc* desc,
     int xS,
     int yS,
     bool useFP16,
@@ -599,7 +437,7 @@ struct BNLayer {
     mallocAndCopyToDevice(name,mergedScale,mergedScaleBuf,useFP16);
     mallocAndCopyToDevice(name,mergedBias,mergedBiasBuf,useFP16);
   }
-  ~BNLayer() {
+  ~BatchNormLayer() {
     cudaFree(meanBuf);
     cudaFree(varianceBuf);
     cudaFree(scaleBuf);
@@ -646,29 +484,6 @@ struct BNLayer {
 
 
 //---------------------------------------------------------------------------------
-
-struct ActivationLayerDesc {
-  string name;
-
-  ActivationLayerDesc() {}
-
-  ActivationLayerDesc(istream& in) {
-    in >> name;
-  }
-
-  ActivationLayerDesc(const ActivationLayerDesc&) = delete;
-  ActivationLayerDesc& operator=(const ActivationLayerDesc&) = delete;
-
-  ActivationLayerDesc(ActivationLayerDesc&& other) {
-    *this = std::move(other);
-  }
-
-  ActivationLayerDesc& operator=(ActivationLayerDesc&& other) {
-    name = std::move(other.name);
-    return *this;
-  }
-
-};
 
 struct ActivationLayer {
   string name;
@@ -724,62 +539,6 @@ struct ActivationLayer {
 
 
 //---------------------------------------------------------------------------------
-
-struct MatMulLayerDesc {
-  string name;
-  int inChannels;
-  int outChannels;
-  vector<float> weights;
-
-  MatMulLayerDesc()
-    :inChannels(0),outChannels(0)
-  {}
-
-  MatMulLayerDesc(istream& in) {
-    in >> name;
-    in >> inChannels;
-    in >> outChannels;
-
-    if(in.fail())
-      throw StringError(name + ": matmullayer failed to parse num channels");
-    if(inChannels <= 0 || outChannels <= 0)
-      throw StringError(name + ": number of in and out channels must be positive");
-
-    //Model file order is ic,oc
-    //Cublas order used is also ic,oc since we transpose
-    int numWeights = inChannels * outChannels;
-    weights.resize(numWeights);
-    int icStride = outChannels;
-    int ocStride = 1;
-
-    for(int ic = 0; ic < inChannels; ic++) {
-      for(int oc = 0; oc < outChannels; oc++) {
-        float w;
-        in >> w;
-        CHECKFINITE(w,name);
-        weights[oc * ocStride + ic * icStride] = w;
-      }
-    }
-    if(in.fail())
-      throw StringError(name + ": matmullayer failed to parse expected number of matmul weights");
-  }
-
-  MatMulLayerDesc(const MatMulLayerDesc&) = delete;
-  MatMulLayerDesc& operator=(const MatMulLayerDesc&) = delete;
-
-  MatMulLayerDesc(MatMulLayerDesc&& other) {
-    *this = std::move(other);
-  }
-
-  MatMulLayerDesc& operator=(MatMulLayerDesc&& other) {
-    name = std::move(other.name);
-    inChannels = other.inChannels;
-    outChannels = other.outChannels;
-    weights = std::move(other.weights);
-    return *this;
-  }
-
-};
 
 struct MatMulLayer {
   string name;
@@ -873,51 +632,6 @@ struct MatMulLayer {
 
 //---------------------------------------------------------------------------------
 
-struct MatBiasLayerDesc {
-  string name;
-  int numChannels;
-  vector<float> weights;
-
-  MatBiasLayerDesc()
-    :numChannels(0)
-  {}
-
-  MatBiasLayerDesc(istream& in) {
-    in >> name;
-    in >> numChannels;
-
-    if(in.fail())
-      throw StringError(name + ": matbiaslayer failed to parse num channels");
-    if(numChannels <= 0)
-      throw StringError(name + ": number of channels must be positive");
-
-    weights.resize(numChannels);
-
-    for(int c = 0; c < numChannels; c++) {
-      float w;
-      in >> w;
-      CHECKFINITE(w,name);
-      weights[c] = w;
-    }
-    if(in.fail())
-      throw StringError(name + ": matbiaslayer failed to parse expected number of matbias weights");
-  }
-
-  MatBiasLayerDesc(const MatBiasLayerDesc&) = delete;
-  MatBiasLayerDesc& operator=(const MatBiasLayerDesc&) = delete;
-
-  MatBiasLayerDesc(MatBiasLayerDesc&& other) {
-    *this = std::move(other);
-  }
-
-  MatBiasLayerDesc& operator=(MatBiasLayerDesc&& other) {
-    name = std::move(other.name);
-    numChannels = other.numChannels;
-    weights = std::move(other.weights);
-    return *this;
-  }
-};
-
 struct MatBiasLayer {
   string name;
   int numChannels;
@@ -964,76 +678,14 @@ struct MatBiasLayer {
 
 };
 
-
-
 //---------------------------------------------------------------------------------
-
-struct ResidualBlockDesc {
-  string name;
-  BNLayerDesc preBN;
-  ActivationLayerDesc preActivation;
-  ConvLayerDesc regularConv;
-  BNLayerDesc midBN;
-  ActivationLayerDesc midActivation;
-  ConvLayerDesc finalConv;
-
-  ResidualBlockDesc() {}
-
-  ResidualBlockDesc(istream& in) {
-    in >> name;
-    if(in.fail())
-      throw StringError(name + ": res block failed to parse name");
-
-    preBN = BNLayerDesc(in);
-    preActivation = ActivationLayerDesc(in);
-    regularConv = ConvLayerDesc(in);
-    midBN = BNLayerDesc(in);
-    midActivation = ActivationLayerDesc(in);
-    finalConv = ConvLayerDesc(in);
-
-    if(preBN.numChannels != regularConv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": preBN.numChannels (%d) != regularConv.inChannels (%d)", preBN.numChannels, regularConv.inChannels
-      ));
-    if(midBN.numChannels != regularConv.outChannels)
-      throw StringError(name+Global::strprintf(
-        ": midBN.numChannels (%d) != regularConv.outChannels (%d)", midBN.numChannels, regularConv.outChannels
-      ));
-    if(midBN.numChannels != finalConv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": midBN.numChannels (%d) != finalConv.inChannels (%d)", midBN.numChannels, finalConv.inChannels
-      ));
-
-    if(in.fail())
-      throw StringError(name + ": res block parse failure (istream fail() return true)");
-  }
-
-  ResidualBlockDesc(const ResidualBlockDesc&) = delete;
-  ResidualBlockDesc& operator=(const ResidualBlockDesc&) = delete;
-
-  ResidualBlockDesc(ResidualBlockDesc&& other) {
-    *this = std::move(other);
-  }
-
-  ResidualBlockDesc& operator=(ResidualBlockDesc&& other) {
-    name = std::move(other.name);
-    preBN = std::move(other.preBN);
-    preActivation = std::move(other.preActivation);
-    regularConv = std::move(other.regularConv);
-    midBN = std::move(other.midBN);
-    midActivation = std::move(other.midActivation);
-    finalConv = std::move(other.finalConv);
-    return *this;
-  }
-
-};
 
 struct ResidualBlock {
   string name;
-  BNLayer preBN;
+  BatchNormLayer preBN;
   ActivationLayer preActivation;
   ConvLayer regularConv;
-  BNLayer midBN;
+  BatchNormLayer midBN;
   ActivationLayer midActivation;
   ConvLayer finalConv;
 
@@ -1113,80 +765,13 @@ struct ResidualBlock {
 
 //-----------------------------------------------------------------------------
 
-struct DilatedResidualBlockDesc {
-  string name;
-  BNLayerDesc preBN;
-  ActivationLayerDesc preActivation;
-  ConvLayerDesc regularConv;
-  ConvLayerDesc dilatedConv;
-  BNLayerDesc midBN;
-  ActivationLayerDesc midActivation;
-  ConvLayerDesc finalConv;
-
-  DilatedResidualBlockDesc() {}
-
-  DilatedResidualBlockDesc(istream& in) {
-    in >> name;
-    if(in.fail())
-      throw StringError(name + ": dilated res block failed to parse name");
-
-    preBN = BNLayerDesc(in);
-    preActivation = ActivationLayerDesc(in);
-    regularConv = ConvLayerDesc(in);
-    dilatedConv = ConvLayerDesc(in);
-    midBN = BNLayerDesc(in);
-    midActivation = ActivationLayerDesc(in);
-    finalConv = ConvLayerDesc(in);
-
-    if(preBN.numChannels != regularConv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": preBN.numChannels (%d) != regularConv.inChannels (%d)", preBN.numChannels, regularConv.inChannels
-      ));
-    if(preBN.numChannels != dilatedConv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": preBN.numChannels (%d) != dilatedConv.inChannels (%d)", preBN.numChannels, dilatedConv.inChannels
-      ));
-    if(midBN.numChannels != regularConv.outChannels + dilatedConv.outChannels)
-      throw StringError(name+Global::strprintf(
-        ": midBN.numChannels (%d) != regularConv.outChannels (%d) + dilatedConv.outChannels (%d)", midBN.numChannels, regularConv.outChannels, dilatedConv.outChannels
-      ));
-    if(midBN.numChannels != finalConv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": midBN.numChannels (%d) != finalConv.inChannels (%d)", midBN.numChannels, finalConv.inChannels
-      ));
-
-    if(in.fail())
-      throw StringError(name + ": dilated res block parse failure (istream fail() return true)");
-  }
-
-  DilatedResidualBlockDesc(const DilatedResidualBlockDesc&) = delete;
-  DilatedResidualBlockDesc& operator=(const DilatedResidualBlockDesc&) = delete;
-
-  DilatedResidualBlockDesc(DilatedResidualBlockDesc&& other) {
-    *this = std::move(other);
-  }
-
-  DilatedResidualBlockDesc& operator=(DilatedResidualBlockDesc&& other) {
-    name = std::move(other.name);
-    preBN = std::move(other.preBN);
-    preActivation = std::move(other.preActivation);
-    regularConv = std::move(other.regularConv);
-    dilatedConv = std::move(other.dilatedConv);
-    midBN = std::move(other.midBN);
-    midActivation = std::move(other.midActivation);
-    finalConv = std::move(other.finalConv);
-    return *this;
-  }
-
-};
-
 struct DilatedResidualBlock {
   string name;
-  BNLayer preBN;
+  BatchNormLayer preBN;
   ActivationLayer preActivation;
   ConvLayer regularConv;
   ConvLayer dilatedConv;
-  BNLayer midBN;
+  BatchNormLayer midBN;
   ActivationLayer midActivation;
   ConvLayer finalConv;
 
@@ -1316,115 +901,17 @@ struct DilatedResidualBlock {
 
 //----------------------------------------------------------------------------
 
-struct GlobalPoolingResidualBlockDesc {
-  string name;
-  int version;
-  BNLayerDesc preBN;
-  ActivationLayerDesc preActivation;
-  ConvLayerDesc regularConv;
-  ConvLayerDesc gpoolConv;
-  BNLayerDesc gpoolBN;
-  ActivationLayerDesc gpoolActivation;
-  MatMulLayerDesc gpoolToBiasMul;
-  BNLayerDesc midBN;
-  ActivationLayerDesc midActivation;
-  ConvLayerDesc finalConv;
-
-  GlobalPoolingResidualBlockDesc() {}
-
-  GlobalPoolingResidualBlockDesc(istream& in, int vrsn) {
-    in >> name;
-    if(in.fail())
-      throw StringError(name + ": gpool res block failed to parse name");
-    version = vrsn;
-    preBN = BNLayerDesc(in);
-    preActivation = ActivationLayerDesc(in);
-    regularConv = ConvLayerDesc(in);
-    gpoolConv = ConvLayerDesc(in);
-    gpoolBN = BNLayerDesc(in);
-    gpoolActivation = ActivationLayerDesc(in);
-    gpoolToBiasMul = MatMulLayerDesc(in);
-    midBN = BNLayerDesc(in);
-    midActivation = ActivationLayerDesc(in);
-    finalConv = ConvLayerDesc(in);
-
-    if(preBN.numChannels != regularConv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": preBN.numChannels (%d) != regularConv.inChannels (%d)", preBN.numChannels, regularConv.inChannels
-      ));
-    if(preBN.numChannels != gpoolConv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": preBN.numChannels (%d) != gpoolConv.inChannels (%d)", preBN.numChannels, gpoolConv.inChannels
-      ));
-    if(gpoolBN.numChannels != gpoolConv.outChannels)
-      throw StringError(name+Global::strprintf(
-        ": gpoolBN.numChannels (%d) != gpoolConv.outChannels (%d)", gpoolBN.numChannels, gpoolConv.outChannels
-      ));
-    if(version >= 3) {
-      if(gpoolBN.numChannels * 3 != gpoolToBiasMul.inChannels)
-        throw StringError(name+Global::strprintf(
-          ": gpoolBN.numChannels * 3 (%d) != gpoolToBiasMul.inChannels (%d)", gpoolBN.numChannels * 3, gpoolToBiasMul.inChannels
-        ));
-    }
-    else {
-      if(gpoolBN.numChannels * 2 != gpoolToBiasMul.inChannels)
-        throw StringError(name+Global::strprintf(
-          ": gpoolBN.numChannels * 2 (%d) != gpoolToBiasMul.inChannels (%d)", gpoolBN.numChannels * 2, gpoolToBiasMul.inChannels
-        ));
-    }
-    if(midBN.numChannels != regularConv.outChannels)
-      throw StringError(name+Global::strprintf(
-        ": midBN.numChannels (%d) != regularConv.outChannels (%d)", midBN.numChannels, regularConv.outChannels
-      ));
-    if(midBN.numChannels != gpoolToBiasMul.outChannels)
-      throw StringError(name+Global::strprintf(
-        ": midBN.numChannels (%d) != gpoolToBiasMul.outChannels (%d)", midBN.numChannels, gpoolToBiasMul.outChannels
-      ));
-    if(midBN.numChannels != finalConv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": midBN.numChannels (%d) != finalConv.inChannels (%d)", midBN.numChannels, finalConv.inChannels
-      ));
-
-    if(in.fail())
-      throw StringError(name + ": gpool res block parse failure (istream fail() return true)");
-
-  }
-
-
-  GlobalPoolingResidualBlockDesc(const GlobalPoolingResidualBlockDesc&) = delete;
-  GlobalPoolingResidualBlockDesc& operator=(const GlobalPoolingResidualBlockDesc&) = delete;
-
-  GlobalPoolingResidualBlockDesc(GlobalPoolingResidualBlockDesc&& other) {
-    *this = std::move(other);
-  }
-
-  GlobalPoolingResidualBlockDesc& operator=(GlobalPoolingResidualBlockDesc&& other) {
-    name = std::move(other.name);
-    preBN = std::move(other.preBN);
-    preActivation = std::move(other.preActivation);
-    regularConv = std::move(other.regularConv);
-    gpoolConv = std::move(other.gpoolConv);
-    gpoolBN = std::move(other.gpoolBN);
-    gpoolActivation = std::move(other.gpoolActivation);
-    gpoolToBiasMul = std::move(other.gpoolToBiasMul);
-    midBN = std::move(other.midBN);
-    midActivation = std::move(other.midActivation);
-    finalConv = std::move(other.finalConv);
-    return *this;
-  }
-
-};
 
 struct GlobalPoolingResidualBlock {
   string name;
-  BNLayer preBN;
+  BatchNormLayer preBN;
   ActivationLayer preActivation;
   ConvLayer regularConv;
   ConvLayer gpoolConv;
-  BNLayer gpoolBN;
+  BatchNormLayer gpoolBN;
   ActivationLayer gpoolActivation;
   MatMulLayer gpoolToBiasMul;
-  BNLayer midBN;
+  BatchNormLayer midBN;
   ActivationLayer midActivation;
   ConvLayer finalConv;
 
@@ -1581,209 +1068,6 @@ struct GlobalPoolingResidualBlock {
 
 //------------------------------------------------------------------------------
 
-static const int ORDINARY_BLOCK_KIND = 0;
-static const int DILATED_BLOCK_KIND = 1;
-static const int GLOBAL_POOLING_BLOCK_KIND = 2;
-
-struct TrunkDesc {
-  string name;
-  int version;
-  int numBlocks;
-  int trunkNumChannels;
-  int midNumChannels;     //Currently every plain residual block must have the same number of mid conv channels
-  int regularNumChannels; //Currently every dilated or gpool residual block must have the same number of regular conv channels
-  int dilatedNumChannels; //Currently every dilated residual block must have the same number of dilated conv channels
-  int gpoolNumChannels;   //Currently every gpooling residual block must have the same number of gpooling conv channels
-  ConvLayerDesc initialConv;
-  MatMulLayerDesc initialMatMul;
-  vector<pair<int,void*>> blocks;
-  BNLayerDesc trunkTipBN;
-  ActivationLayerDesc trunkTipActivation;
-
-  TrunkDesc()
-    :version(-1),numBlocks(0),trunkNumChannels(0),midNumChannels(0),regularNumChannels(0),dilatedNumChannels(0),gpoolNumChannels(0)
-  {}
-
-  TrunkDesc(istream& in, int vrsn) {
-    in >> name;
-    version = vrsn;
-    in >> numBlocks;
-    in >> trunkNumChannels;
-    in >> midNumChannels;
-    in >> regularNumChannels;
-    in >> dilatedNumChannels;
-    in >> gpoolNumChannels;
-
-    if(in.fail())
-      throw StringError(name + ": trunk failed to parse num blocks or various channel parameters");
-    if(numBlocks < 1)
-      throw StringError(name + ": trunk num blocks must be positive");
-    if(trunkNumChannels <= 0 || midNumChannels <= 0 || regularNumChannels <= 0 || dilatedNumChannels <= 0 || gpoolNumChannels <= 0)
-      throw StringError(name + ": all numbers of channels must be positive");
-    if(midNumChannels != regularNumChannels + dilatedNumChannels)
-      throw StringError(name + ": midNumChannels != regularNumChannels + dilatedNumChannels");
-
-    initialConv = ConvLayerDesc(in);
-    if(initialConv.outChannels != trunkNumChannels)
-      throw StringError(name+Global::strprintf(
-        ": %s initialConv.outChannels (%d) != trunkNumChannels (%d)", initialConv.name.c_str(), initialConv.outChannels, trunkNumChannels
-        ));
-
-    if(version >= 3) {
-      initialMatMul = MatMulLayerDesc(in);
-      if(initialMatMul.outChannels != trunkNumChannels)
-        throw StringError(name+Global::strprintf(
-          ": %s initialMatMul.outChannels (%d) != trunkNumChannels (%d)", initialMatMul.name.c_str(), initialMatMul.outChannels, trunkNumChannels
-          ));
-    }
-
-    string kind;
-    for(int i = 0; i<numBlocks; i++) {
-      in >> kind;
-      if(in.fail())
-        throw StringError(name + ": failed to parse block kind");
-      if(kind == "ordinary_block") {
-        ResidualBlockDesc* desc = new ResidualBlockDesc(in);
-
-        if(desc->preBN.numChannels != trunkNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s preBN.numChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->preBN.numChannels, trunkNumChannels
-          ));
-        if(desc->regularConv.outChannels != midNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s regularConv.outChannels (%d) != regularNumChannels+dilatedNumChannels (%d)",
-            desc->name.c_str(), desc->regularConv.outChannels, regularNumChannels+dilatedNumChannels
-          ));
-        if(desc->regularConv.outChannels != midNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s regularConv.outChannels (%d) != midNumChannels (%d)", desc->name.c_str(), desc->regularConv.outChannels, midNumChannels
-          ));
-        if(desc->finalConv.outChannels != trunkNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s finalConv.outChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->finalConv.outChannels, trunkNumChannels
-          ));
-
-        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,(void*)desc));
-      }
-      else if(kind == "dilated_block") {
-        DilatedResidualBlockDesc* desc = new DilatedResidualBlockDesc(in);
-
-        if(desc->preBN.numChannels != trunkNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s preBN.numChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->preBN.numChannels, trunkNumChannels
-          ));
-        if(desc->regularConv.outChannels != regularNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s regularConv.outChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->regularConv.outChannels, regularNumChannels
-          ));
-        if(desc->dilatedConv.outChannels != dilatedNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s dilatedConv.outChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->dilatedConv.outChannels, dilatedNumChannels
-          ));
-        if(desc->finalConv.outChannels != trunkNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s finalConv.outChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->finalConv.outChannels, trunkNumChannels
-          ));
-
-        blocks.push_back(make_pair(DILATED_BLOCK_KIND,(void*)desc));
-      }
-      else if(kind == "gpool_block") {
-        GlobalPoolingResidualBlockDesc* desc = new GlobalPoolingResidualBlockDesc(in,version);
-
-        if(desc->preBN.numChannels != trunkNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s preBN.numChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->preBN.numChannels, trunkNumChannels
-          ));
-        if(desc->regularConv.outChannels != regularNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s regularConv.outChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->regularConv.outChannels, regularNumChannels
-          ));
-        if(desc->gpoolConv.outChannels != gpoolNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s gpoolConv.outChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->gpoolConv.outChannels, gpoolNumChannels
-          ));
-        if(desc->finalConv.outChannels != trunkNumChannels)
-          throw StringError(name+Global::strprintf(
-            ": %s finalConv.outChannels (%d) != trunkNumChannels (%d)", desc->name.c_str(), desc->finalConv.outChannels, trunkNumChannels
-          ));
-
-        blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,(void*)desc));
-      }
-      else
-        throw StringError(name + ": found unknown block kind: " + kind);
-
-      if(in.fail())
-        throw StringError(name + ": trunk istream fail after parsing block");
-    }
-
-    trunkTipBN = BNLayerDesc(in);
-    trunkTipActivation = ActivationLayerDesc(in);
-
-    if(trunkTipBN.numChannels != trunkNumChannels)
-      throw StringError(name+Global::strprintf(
-        ": trunkTipBN.numChannels (%d) != trunkNumChannels (%d)", trunkTipBN.numChannels, trunkNumChannels
-      ));
-
-    if(in.fail())
-      throw StringError(name + ": trunk istream fail after parsing tip");
-  }
-
-  ~TrunkDesc() {
-    for(int i = 0; i<blocks.size(); i++) {
-      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second;
-        delete desc;
-      }
-      else if(blocks[i].first == DILATED_BLOCK_KIND) {
-        DilatedResidualBlockDesc* desc = (DilatedResidualBlockDesc*)blocks[i].second;
-        delete desc;
-      }
-      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second;
-        delete desc;
-      }
-    }
-  }
-
-  TrunkDesc(const TrunkDesc&) = delete;
-  TrunkDesc& operator=(const TrunkDesc&) = delete;
-
-  TrunkDesc(TrunkDesc&& other) {
-    name = std::move(other.name);
-    version = other.version;
-    numBlocks = other.numBlocks;
-    trunkNumChannels = other.trunkNumChannels;
-    midNumChannels = other.midNumChannels;
-    regularNumChannels = other.regularNumChannels;
-    dilatedNumChannels = other.dilatedNumChannels;
-    gpoolNumChannels = other.gpoolNumChannels;
-    initialConv = std::move(other.initialConv);
-    initialMatMul = std::move(other.initialMatMul);
-    blocks = std::move(other.blocks);
-    trunkTipBN = std::move(other.trunkTipBN);
-    trunkTipActivation = std::move(other.trunkTipActivation);
-  }
-
-  TrunkDesc& operator=(TrunkDesc&& other) {
-    name = std::move(other.name);
-    version = other.version;
-    numBlocks = other.numBlocks;
-    trunkNumChannels = other.trunkNumChannels;
-    midNumChannels = other.midNumChannels;
-    regularNumChannels = other.regularNumChannels;
-    dilatedNumChannels = other.dilatedNumChannels;
-    gpoolNumChannels = other.gpoolNumChannels;
-    initialConv = std::move(other.initialConv);
-    initialMatMul = std::move(other.initialMatMul);
-    blocks = std::move(other.blocks);
-    trunkTipBN = std::move(other.trunkTipBN);
-    trunkTipActivation = std::move(other.trunkTipActivation);
-    return *this;
-  }
-
-};
-
-
 struct Trunk {
   string name;
   int version;
@@ -1809,7 +1093,7 @@ struct Trunk {
   ConvLayer* initialConv;
   MatMulLayer* initialMatMul;
   vector<pair<int,void*>> blocks;
-  BNLayer* trunkTipBN;
+  BatchNormLayer* trunkTipBN;
   ActivationLayer* trunkTipActivation;
 
   Trunk() = delete;
@@ -1915,7 +1199,7 @@ struct Trunk {
     if(version >= 3)
       initialMatMul = new MatMulLayer(cudaHandles,&desc->initialMatMul,useFP16);
 
-    trunkTipBN = new BNLayer(cudaHandles,&desc->trunkTipBN,xSize,ySize,useFP16,useNHWC);
+    trunkTipBN = new BatchNormLayer(cudaHandles,&desc->trunkTipBN,xSize,ySize,useFP16,useNHWC);
     trunkTipActivation = new ActivationLayer(cudaHandles,&desc->trunkTipActivation);
 
     assert(desc->blocks.size() == numBlocks);
@@ -2248,128 +1532,6 @@ static void applySymmetriesNHWC(
 
 //------------------------------------------------------------------------------
 
-struct PolicyHeadDesc {
-  string name;
-  int version;
-  ConvLayerDesc p1Conv;
-  ConvLayerDesc g1Conv;
-  BNLayerDesc g1BN;
-  ActivationLayerDesc g1Activation;
-  MatMulLayerDesc gpoolToBiasMul;
-  BNLayerDesc p1BN;
-  ActivationLayerDesc p1Activation;
-  ConvLayerDesc p2Conv;
-  MatMulLayerDesc gpoolToPassMul;
-
-  PolicyHeadDesc()
-    :version(-1)
-  {}
-
-  PolicyHeadDesc(istream& in, int vrsn) {
-    in >> name;
-    version = vrsn;
-
-    if(in.fail())
-      throw StringError(name + ": policy head failed to parse name");
-
-    p1Conv = ConvLayerDesc(in);
-    g1Conv = ConvLayerDesc(in);
-    g1BN = BNLayerDesc(in);
-    g1Activation = ActivationLayerDesc(in);
-    gpoolToBiasMul = MatMulLayerDesc(in);
-    p1BN = BNLayerDesc(in);
-    p1Activation = ActivationLayerDesc(in);
-    p2Conv = ConvLayerDesc(in);
-    gpoolToPassMul = MatMulLayerDesc(in);
-
-    if(in.fail())
-      throw StringError(name + ": policy head istream fail after parsing layers");
-
-    if(p1Conv.outChannels != p1BN.numChannels)
-      throw StringError(name+Global::strprintf(
-        ": p1Conv.outChannels (%d) != p1BN.numChannels (%d)", p1Conv.outChannels, p1BN.numChannels
-      ));
-    if(g1Conv.outChannels != g1BN.numChannels)
-      throw StringError(name+Global::strprintf(
-        ": g1Conv.outChannels (%d) != g1BN.numChannels (%d)", g1Conv.outChannels, g1BN.numChannels
-      ));
-    if(version >= 3) {
-      if(gpoolToBiasMul.inChannels != g1BN.numChannels*3)
-        throw StringError(name+Global::strprintf(
-          ": gpoolToBiasMul.inChannels (%d) != g1BN.numChannels*3 (%d)", gpoolToBiasMul.inChannels, g1BN.numChannels*3
-        ));
-    }
-    else {
-      if(gpoolToBiasMul.inChannels != g1BN.numChannels*2)
-        throw StringError(name+Global::strprintf(
-          ": gpoolToBiasMul.inChannels (%d) != g1BN.numChannels*2 (%d)", gpoolToBiasMul.inChannels, g1BN.numChannels*2
-        ));
-    }
-    if(gpoolToBiasMul.outChannels != p1BN.numChannels)
-      throw StringError(name+Global::strprintf(
-        ": gpoolToBiasMul.outChannels (%d) != p1BN.numChannels (%d)", gpoolToBiasMul.outChannels, p1BN.numChannels
-      ));
-    if(version >= 1) {
-      if(p2Conv.inChannels != p1BN.numChannels)
-        throw StringError(name+Global::strprintf(
-          ": p2Conv.inChannels (%d) != p1BN.numChannels (%d)", p2Conv.inChannels, p1BN.numChannels
-        ));
-    }
-    else {
-      if(p2Conv.inChannels != p1BN.numChannels*2)
-        throw StringError(name+Global::strprintf(
-          ": p2Conv.inChannels (%d) != p1BN.numChannels*2 (%d)", p2Conv.inChannels, p1BN.numChannels*2
-        ));
-    }
-    if(p2Conv.outChannels != 1)
-      throw StringError(name+Global::strprintf(
-        ": p2Conv.outChannels (%d) != 1", p2Conv.outChannels
-      ));
-    if(version >= 3) {
-      if(gpoolToPassMul.inChannels != g1BN.numChannels*3)
-        throw StringError(name+Global::strprintf(
-          ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*3 (%d)", gpoolToPassMul.inChannels, g1BN.numChannels*3
-        ));
-    }
-    else {
-      if(gpoolToPassMul.inChannels != g1BN.numChannels*2)
-        throw StringError(name+Global::strprintf(
-          ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*2 (%d)", gpoolToPassMul.inChannels, g1BN.numChannels*2
-        ));
-    }
-    if(gpoolToPassMul.outChannels != 1)
-      throw StringError(name+Global::strprintf(
-        ": gpoolToPassMul.outChannels (%d) != 1", gpoolToPassMul.outChannels
-      ));
-  }
-
-  ~PolicyHeadDesc() {
-  }
-
-  PolicyHeadDesc(const PolicyHeadDesc&) = delete;
-  PolicyHeadDesc& operator=(const PolicyHeadDesc&) = delete;
-
-  PolicyHeadDesc(PolicyHeadDesc&& other) {
-    *this = std::move(other);
-  }
-
-  PolicyHeadDesc& operator=(PolicyHeadDesc&& other) {
-    name = std::move(other.name);
-    version = other.version;
-    p1Conv = std::move(other.p1Conv);
-    g1Conv = std::move(other.g1Conv);
-    g1BN = std::move(other.g1BN);
-    g1Activation = std::move(other.g1Activation);
-    gpoolToBiasMul = std::move(other.gpoolToBiasMul);
-    p1BN = std::move(other.p1BN);
-    p1Activation = std::move(other.p1Activation);
-    p2Conv = std::move(other.p2Conv);
-    gpoolToPassMul = std::move(other.gpoolToPassMul);
-    return *this;
-  }
-
-};
-
 struct PolicyHead {
   string name;
   int version;
@@ -2389,10 +1551,10 @@ struct PolicyHead {
 
   ConvLayer* p1Conv;
   ConvLayer* g1Conv;
-  BNLayer* g1BN;
+  BatchNormLayer* g1BN;
   ActivationLayer* g1Activation;
   MatMulLayer* gpoolToBiasMul;
-  BNLayer* p1BN;
+  BatchNormLayer* p1BN;
   ActivationLayer* p1Activation;
   ConvLayer* p2Conv;
   MatMulLayer* gpoolToPassMul;
@@ -2481,10 +1643,10 @@ struct PolicyHead {
 
     p1Conv = new ConvLayer(cudaHandles,&desc->p1Conv,maxBatchSize,trunkDescriptors,p1OutDescriptors,useFP16,useNHWC);
     g1Conv = new ConvLayer(cudaHandles,&desc->g1Conv,maxBatchSize,trunkDescriptors,g1OutDescriptors,useFP16,useNHWC);
-    g1BN = new BNLayer(cudaHandles,&desc->g1BN,xSize,ySize,useFP16,useNHWC);
+    g1BN = new BatchNormLayer(cudaHandles,&desc->g1BN,xSize,ySize,useFP16,useNHWC);
     g1Activation = new ActivationLayer(cudaHandles,&desc->g1Activation);
     gpoolToBiasMul = new MatMulLayer(cudaHandles,&desc->gpoolToBiasMul,false);
-    p1BN = new BNLayer(cudaHandles,&desc->p1BN,xSize,ySize,false,useNHWC);
+    p1BN = new BatchNormLayer(cudaHandles,&desc->p1BN,xSize,ySize,false,useNHWC);
     p1Activation = new ActivationLayer(cudaHandles,&desc->p1Activation);
     p2Conv = new ConvLayer(cudaHandles,&desc->p2Conv,maxBatchSize,p2InDescriptors,p2OutDescriptors,false,useNHWC);
     gpoolToPassMul = new MatMulLayer(cudaHandles,&desc->gpoolToPassMul,false);
@@ -2658,179 +1820,7 @@ struct PolicyHead {
 
 };
 
-
-
 //------------------------------------------------------------------------------
-
-
-struct ValueHeadDesc {
-  string name;
-  int version;
-  ConvLayerDesc v1Conv;
-  BNLayerDesc v1BN;
-  ActivationLayerDesc v1Activation;
-  MatMulLayerDesc v2Mul;
-  MatBiasLayerDesc v2Bias;
-  ActivationLayerDesc v2Activation;
-  MatMulLayerDesc v3Mul;
-  MatBiasLayerDesc v3Bias;
-  MatMulLayerDesc sv3Mul;
-  MatBiasLayerDesc sv3Bias;
-  ConvLayerDesc vOwnershipConv;
-
-  ValueHeadDesc()
-    :version(-1)
-  {}
-
-  ValueHeadDesc(istream& in, int vrsn) {
-    in >> name;
-    version = vrsn;
-
-    if(in.fail())
-      throw StringError(name + ": value head failed to parse name");
-
-    v1Conv = ConvLayerDesc(in);
-    v1BN = BNLayerDesc(in);
-    v1Activation = ActivationLayerDesc(in);
-    v2Mul = MatMulLayerDesc(in);
-    v2Bias = MatBiasLayerDesc(in);
-    v2Activation = ActivationLayerDesc(in);
-    v3Mul = MatMulLayerDesc(in);
-    v3Bias = MatBiasLayerDesc(in);
-
-    if(version >= 3) {
-      sv3Mul = MatMulLayerDesc(in);
-      sv3Bias = MatBiasLayerDesc(in);
-      vOwnershipConv = ConvLayerDesc(in);
-    }
-
-    if(in.fail())
-      throw StringError(name + ": value head istream fail after parsing layers");
-
-    if(v1Conv.outChannels != v1BN.numChannels)
-      throw StringError(name+Global::strprintf(
-        ": v1Conv.outChannels (%d) != v1BN.numChannels (%d)", v1Conv.outChannels, v1BN.numChannels
-      ));
-
-    if(version >= 3) {
-      if(v2Mul.inChannels != v1BN.numChannels*3)
-        throw StringError(name+Global::strprintf(
-          ": v2Mul.inChannels (%d) != v1BN.numChannels*3 (%d)", v2Mul.inChannels, v1BN.numChannels*3
-        ));
-    }
-    else {
-      if(v2Mul.inChannels != v1BN.numChannels)
-        throw StringError(name+Global::strprintf(
-          ": v2Mul.inChannels (%d) != v1BN.numChannels (%d)", v2Mul.inChannels, v1BN.numChannels
-        ));
-    }
-
-    if(v2Mul.outChannels != v2Bias.numChannels)
-      throw StringError(name+Global::strprintf(
-        ": v2Mul.outChannels (%d) != v2Bias.numChannels (%d)", v2Mul.outChannels, v2Bias.numChannels
-      ));
-    if(version >= 1) {
-      if(v2Mul.outChannels != v3Mul.inChannels)
-        throw StringError(name+Global::strprintf(
-          ": v2Mul.outChannels (%d) != v3Mul.inChannels (%d)", v2Mul.outChannels, v3Mul.inChannels
-        ));
-    }
-    else {
-      if(v2Mul.outChannels*2 != v3Mul.inChannels)
-        throw StringError(name+Global::strprintf(
-          ": v2Mul.outChannels*2 (%d) != v3Mul.inChannels (%d)", v2Mul.outChannels*2, v3Mul.inChannels
-        ));
-    }
-    if(version >= 3) {
-      if(v3Mul.outChannels != 3)
-        throw StringError(name+Global::strprintf(
-          ": v3Mul.outChannels (%d) != 3", v3Mul.outChannels
-        ));
-      if(v3Bias.numChannels != 3)
-        throw StringError(name+Global::strprintf(
-          ": v3Bias.numChannels (%d) != 3", v3Bias.numChannels
-        ));
-    }
-    else {
-      if(v3Mul.outChannels != 1)
-        throw StringError(name+Global::strprintf(
-          ": v3Mul.outChannels (%d) != 1", v3Mul.outChannels
-        ));
-      if(v3Bias.numChannels != 1)
-        throw StringError(name+Global::strprintf(
-          ": v3Bias.numChannels (%d) != 1", v3Bias.numChannels
-        ));
-    }
-
-    if(version >= 3) {
-      if(sv3Mul.inChannels != v2Mul.outChannels)
-        throw StringError(name+Global::strprintf(
-          ": sv3Mul.inChannels (%d) != v2Mul.outChannels (%d)", sv3Mul.inChannels, v2Mul.outChannels
-        ));
-
-      if(version >= 4) {
-        if(sv3Mul.outChannels != 2)
-          throw StringError(name+Global::strprintf(
-            ": sv3Mul.outChannels (%d) != 2", sv3Mul.outChannels
-          ));
-        if(sv3Bias.numChannels != 2)
-          throw StringError(name+Global::strprintf(
-            ": sv3Bias.numChannels (%d) != 2", sv3Bias.numChannels
-          ));
-      }
-      else {
-        if(sv3Mul.outChannels != 1)
-          throw StringError(name+Global::strprintf(
-            ": sv3Mul.outChannels (%d) != 1", sv3Mul.outChannels
-          ));
-        if(sv3Bias.numChannels != 1)
-          throw StringError(name+Global::strprintf(
-            ": sv3Bias.numChannels (%d) != 1", sv3Bias.numChannels
-          ));
-      }
-
-      if(vOwnershipConv.inChannels != v1Conv.outChannels)
-        throw StringError(name+Global::strprintf(
-          ": vOwnershipConv.outChannels (%d) != v1Conv.outChannels (%d)", vOwnershipConv.inChannels, v1Conv.outChannels
-        ));
-      if(vOwnershipConv.outChannels != 1)
-        throw StringError(name+Global::strprintf(
-          ": vOwnershipConv.outChannels (%d) != 1", vOwnershipConv.outChannels
-        ));
-    }
-
-  }
-
-  ~ValueHeadDesc() {
-  }
-
-  ValueHeadDesc(const ValueHeadDesc&) = delete;
-  ValueHeadDesc& operator=(const ValueHeadDesc&) = delete;
-
-  ValueHeadDesc(ValueHeadDesc&& other) {
-    *this = std::move(other);
-  }
-
-  ValueHeadDesc& operator=(ValueHeadDesc&& other) {
-    name = std::move(other.name);
-    version = other.version;
-    v1Conv = std::move(other.v1Conv);
-    v1BN = std::move(other.v1BN);
-    v1Activation = std::move(other.v1Activation);
-    v2Mul = std::move(other.v2Mul);
-    v2Bias = std::move(other.v2Bias);
-    v2Activation = std::move(other.v2Activation);
-    v3Mul = std::move(other.v3Mul);
-    v3Bias = std::move(other.v3Bias);
-    sv3Mul = std::move(other.sv3Mul);
-    sv3Bias = std::move(other.sv3Bias);
-    vOwnershipConv = std::move(other.vOwnershipConv);
-    return *this;
-  }
-
-};
-
-
 
 struct ValueHead {
   string name;
@@ -2851,7 +1841,7 @@ struct ValueHead {
   cudnnTensorDescriptor_t* vOwnershipOutDescriptors;
 
   ConvLayer* v1Conv;
-  BNLayer* v1BN;
+  BatchNormLayer* v1BN;
   ActivationLayer* v1Activation;
   MatMulLayer* v2Mul;
   MatBiasLayer* v2Bias;
@@ -2939,7 +1929,7 @@ struct ValueHead {
     }
 
     v1Conv = new ConvLayer(cudaHandles,&desc->v1Conv,maxBatchSize,trunkDescriptors,v1OutDescriptors,useFP16,useNHWC);
-    v1BN = new BNLayer(cudaHandles,&desc->v1BN,xSize,ySize,useFP16,useNHWC);
+    v1BN = new BatchNormLayer(cudaHandles,&desc->v1BN,xSize,ySize,useFP16,useNHWC);
     v1Activation = new ActivationLayer(cudaHandles,&desc->v1Activation);
     v2Mul = new MatMulLayer(cudaHandles,&desc->v2Mul,false);
     v2Bias = new MatBiasLayer(cudaHandles,&desc->v2Bias,false);
@@ -3108,130 +2098,7 @@ struct ValueHead {
 
 };
 
-
 //------------------------------------------------------------------------------
-
-struct ModelDesc {
-  string name;
-  int version;
-  int xSizePreV3;
-  int ySizePreV3;
-  int numInputChannels;
-  int numInputGlobalChannels;
-  int numValueChannels;
-  int numScoreValueChannels;
-  int numOwnershipChannels;
-
-  TrunkDesc trunk;
-  PolicyHeadDesc policyHead;
-  ValueHeadDesc valueHead;
-
-  ModelDesc()
-    :version(-1),xSizePreV3(0),ySizePreV3(0),numInputChannels(0),numInputGlobalChannels(0),numValueChannels(0),numScoreValueChannels(0),numOwnershipChannels(0)
-  {}
-
-  ModelDesc(istream& in) {
-    in >> name;
-    in >> version;
-    if(in.fail())
-      throw StringError(name + ": model failed to parse name or version");
-
-    if(version < 0 || version > NNModelVersion::latestModelVersionImplemented)
-      throw StringError(name + ": model found unsupported version " + Global::intToString(version));
-    if(version < 1)
-      throw StringError("Version 0 neural nets no longer supported in cuda backend");
-
-    if(version >= 3) {
-      xSizePreV3 = 0; //Unused, V3 uses nnXLen instead
-      ySizePreV3 = 0; //Unused, V3 uses nnYLen instead
-    }
-    else {
-      in >> xSizePreV3;
-      in >> ySizePreV3;
-      if(in.fail())
-        throw StringError(name + ": model failed to parse xSize or ySize");
-      if(xSizePreV3 <= 0 || ySizePreV3 <= 0)
-        throw StringError(name + ": model xSize and ySize must be positive");
-    }
-
-    in >> numInputChannels;
-    if(in.fail())
-      throw StringError(name + ": model failed to parse numInputChannels");
-    if(numInputChannels <= 0)
-      throw StringError(name + ": model numInputChannels must be positive");
-
-    if(version >= 3) {
-      in >> numInputGlobalChannels;
-      if(in.fail())
-        throw StringError(name + ": model failed to parse numInputGlobalChannels");
-      if(numInputGlobalChannels <= 0)
-        throw StringError(name + ": model numInputGlobalChannels must be positive");
-    }
-    else
-      numInputGlobalChannels = 0;
-
-    trunk = TrunkDesc(in,version);
-    policyHead = PolicyHeadDesc(in,version);
-    valueHead = ValueHeadDesc(in,version);
-
-    numValueChannels = valueHead.v3Mul.outChannels;
-    numScoreValueChannels = valueHead.sv3Mul.outChannels;
-    numOwnershipChannels = valueHead.vOwnershipConv.outChannels;
-
-    if(in.fail())
-      throw StringError(name + ": model desc istream fail after parsing model");
-
-    if(numInputChannels != trunk.initialConv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": numInputChannels (%d) != trunk.initialConv.inChannels (%d)", numInputChannels, trunk.initialConv.inChannels
-      ));
-    if(version >= 3) {
-      if(numInputGlobalChannels != trunk.initialMatMul.inChannels)
-        throw StringError(name+Global::strprintf(
-          ": numInputChannels (%d) != trunk.initialMatMul.inChannels (%d)", numInputGlobalChannels, trunk.initialMatMul.inChannels
-        ));
-    }
-
-    if(trunk.trunkNumChannels != policyHead.p1Conv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": trunk.trunkNumChannels (%d) != policyHead.p1Conv.inChannels (%d)", trunk.trunkNumChannels, policyHead.p1Conv.inChannels
-      ));
-    if(trunk.trunkNumChannels != policyHead.g1Conv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": trunk.trunkNumChannels (%d) != policyHead.g1Conv.inChannels (%d)", trunk.trunkNumChannels, policyHead.g1Conv.inChannels
-      ));
-    if(trunk.trunkNumChannels != valueHead.v1Conv.inChannels)
-      throw StringError(name+Global::strprintf(
-        ": trunk.trunkNumChannels (%d) != valueHead.v1Conv.inChannels (%d)", trunk.trunkNumChannels, valueHead.v1Conv.inChannels
-      ));
-  }
-
-  ~ModelDesc() {
-  }
-
-  ModelDesc(const ModelDesc&) = delete;
-  ModelDesc& operator=(const ModelDesc&) = delete;
-
-  ModelDesc(ModelDesc&& other) {
-    *this = std::move(other);
-  }
-  ModelDesc& operator=(ModelDesc&& other) {
-    name = std::move(other.name);
-    version = other.version;
-    xSizePreV3 = other.xSizePreV3;
-    ySizePreV3 = other.ySizePreV3;
-    numInputChannels = other.numInputChannels;
-    numInputGlobalChannels = other.numInputGlobalChannels;
-    numValueChannels = other.numValueChannels;
-    numScoreValueChannels = other.numScoreValueChannels;
-    numOwnershipChannels = other.numOwnershipChannels;
-    trunk = std::move(other.trunk);
-    policyHead = std::move(other.policyHead);
-    valueHead = std::move(other.valueHead);
-    return *this;
-  }
-};
-
 
 struct Model {
   string name;
@@ -3298,7 +2165,7 @@ struct Model {
       if(nnXLen != xSize)
         throw StringError(Global::strprintf("For V2 models and lower nnXLen (%d) must match xSize (%d)",
           nnXLen, xSize
-        ));
+       ));
       if(nnYLen != ySize)
         throw StringError(Global::strprintf("For V2 models and lower nnYLen (%d) must match ySize (%d)",
           nnYLen, ySize
@@ -3828,7 +2695,7 @@ struct Buffers {
 
 //------------------------------------------------------------------------------
 
-struct LocalGpuHandle {
+struct ComputeHandle {
   CudaHandles* cudaHandles;
   Model* model;
   Buffers* buffers;
@@ -3838,31 +2705,40 @@ struct LocalGpuHandle {
   bool requireExactNNLen;
   int policySize;
 
-  LocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int xLen, int yLen, bool rExactNNLen, bool inputsUseNHWC, bool useFP16, bool useNHWC) {
+  ComputeHandle(const LoadedModel* loadedModel,
+                int maxBatchSize,
+                int xLen,
+                int yLen,
+                bool rExactNNLen,
+                bool inputsUseNHWC,
+                bool useFP16,
+                bool useNHWC) {
     cudaHandles = new CudaHandles();
-    model = new Model(cudaHandles,&(loadedModel->modelDesc),maxBatchSize,xLen,yLen,inputsUseNHWC,useFP16,useNHWC);
-    buffers = new Buffers(cudaHandles,*model,useFP16);
+    model = new Model(cudaHandles, &(loadedModel->modelDesc), maxBatchSize,
+                      xLen, yLen, inputsUseNHWC, useFP16, useNHWC);
+    buffers = new Buffers(cudaHandles, *model, useFP16);
     usingFP16 = useFP16;
     nnXLen = xLen;
     nnYLen = yLen;
     requireExactNNLen = rExactNNLen;
-    policySize = NNPos::getPolicySize(nnXLen,nnYLen);
+    policySize = NNPos::getPolicySize(nnXLen, nnYLen);
 
-    //Synchronize after creating all the buffers and copying all the weights, just in case
-    CUDA_ERR("LocalGpuHandle",cudaDeviceSynchronize());
+    // Synchronize after creating all the buffers and copying all the weights,
+    // just in case
+    CUDA_ERR("ComputeHandle", cudaDeviceSynchronize());
   }
-  ~LocalGpuHandle() {
+  ~ComputeHandle() {
     delete buffers;
     delete model;
     delete cudaHandles;
   }
 
-  LocalGpuHandle() = delete;
-  LocalGpuHandle(const LocalGpuHandle&) = delete;
-  LocalGpuHandle& operator=(const LocalGpuHandle&) = delete;
+  ComputeHandle() = delete;
+  ComputeHandle(const ComputeHandle&) = delete;
+  ComputeHandle& operator=(const ComputeHandle&) = delete;
 };
 
-LocalGpuHandle* NeuralNet::createLocalGpuHandle(
+ComputeHandle* NeuralNet::createComputeHandle(
   const LoadedModel* loadedModel,
   Logger* logger,
   int maxBatchSize,
@@ -3874,7 +2750,7 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   bool cudaUseFP16,
   bool cudaUseNHWC
 ) {
-  CUDA_ERR("createLocalGpuHandle",cudaSetDevice(cudaDeviceIdxForThisThread));
+  CUDA_ERR("createComputeHandle",cudaSetDevice(cudaDeviceIdxForThisThread));
 
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop,cudaDeviceIdxForThisThread);
@@ -3890,17 +2766,17 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   if(cudaUseFP16 && (prop.major < 5 || (prop.major == 5 && prop.minor < 3)))
     throw StringError("Cuda device versions below 5.3 do not support cudaUseFP16=true");
 
-  LocalGpuHandle* gpuHandle = new LocalGpuHandle(loadedModel,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,cudaUseFP16,cudaUseNHWC);
+  ComputeHandle* gpuHandle = new ComputeHandle(loadedModel,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,cudaUseFP16,cudaUseNHWC);
   return gpuHandle;
 }
 
-void NeuralNet::freeLocalGpuHandle(LocalGpuHandle* gpuHandle) {
+void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
   delete gpuHandle;
 }
 
 //------------------------------------------------------------------------------
 
-struct InputBuffers {
+struct CudaInputBuffers : public InputBuffers {
   int maxBatchSize;
 
   size_t singleInputElts;
@@ -3981,7 +2857,7 @@ struct InputBuffers {
     }
   }
 
-  ~InputBuffers() {
+  virtual ~InputBuffers() {
     delete[] userInputBuffer;
     delete[] userInputGlobalBuffer;
     delete[] symmetriesBuffer;
@@ -3994,41 +2870,44 @@ struct InputBuffers {
   InputBuffers() = delete;
   InputBuffers(const InputBuffers&) = delete;
   InputBuffers& operator=(const InputBuffers&) = delete;
+
+  float* getRowInplace(int rowIdx) {
+    assert(rowIdx < this->maxBatchSize);
+    return this->userInputBuffer + (this->singleInputElts * rowIdx);
+  }
+
+  float* getRowGlobalInplace(int rowIdx) {
+    assert(rowIdx < this->maxBatchSize);
+    return this->userInputGlobalBuffer + (this->singleInputGlobalElts * rowIdx);
+  }
+
+  int getRowLen() const {
+    return this->singleInputElts;
+  }
+  int getRowGlobalLen() const {
+    return this->singleInputGlobalElts;
+  }
+
+  bool* getSymmetriesInplace() {
+    return this->symmetriesBuffer;
+  }
 };
 
-InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
-  return new InputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
+InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel,
+                                            int maxBatchSize,
+                                            int nnXLen,
+                                            int nnYLen) {
+  return new InputBuffers(loadedModel, maxBatchSize, nnXLen, nnYLen);
 }
+
 void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
-float* NeuralNet::getRowInplace(InputBuffers* inputBuffers, int rowIdx) {
-  assert(rowIdx < inputBuffers->maxBatchSize);
-  return inputBuffers->userInputBuffer + (inputBuffers->singleInputElts * rowIdx);
-}
-
-float* NeuralNet::getRowGlobalInplace(InputBuffers* inputBuffers, int rowIdx) {
-  assert(rowIdx < inputBuffers->maxBatchSize);
-  return inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * rowIdx);
-}
-
-int NeuralNet::getRowLen(const InputBuffers* inputBuffers) {
-  return inputBuffers->singleInputElts;
-}
-int NeuralNet::getRowGlobalLen(const InputBuffers* inputBuffers) {
-  return inputBuffers->singleInputGlobalElts;
-}
-
-bool* NeuralNet::getSymmetriesInplace(InputBuffers* inputBuffers) {
-  return inputBuffers->symmetriesBuffer;
-}
-
-
 //---------------------------------------------------------------------------------------
 
 
-void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers, int numFilledRows, vector<NNOutput*>& outputs) {
+void NeuralNet::getOutput(ComputeHandle* gpuHandle, InputBuffers* inputBuffers, int numFilledRows, vector<NNOutput*>& outputs) {
   assert(numFilledRows <= inputBuffers->maxBatchSize);
   assert(numFilledRows > 0);
   int batchSize = numFilledRows;
