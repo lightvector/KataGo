@@ -442,15 +442,13 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
         if(i != bestLcbIndex) {
           double excessValue = bestLcb - lcbBuf[i];
           double radius = radiusBuf[i];
-          //TODO test this factor
           //How many times wider would the radius have to be before the lcb would be worse?
-          //Add adjust the denom so that we cannot possibly gain more than a factor of 5.
+          //Add adjust the denom so that we cannot possibly gain more than a factor of 5, just as a guard
           double radiusFactor = (radius + excessValue) / (radius + 0.20 * excessValue);
 
-          //TODO test this squaring or not
           //That factor, squared, is the number of "visits" more that we should pretend we have, for
-          //the purpose of selection. But actually, we be a little conservative and don't square it.
-          double lbound = radiusFactor * playSelectionValues[i];
+          //the purpose of selection, since normally stdev is proportional to 1/visits^2.
+          double lbound = radiusFactor * radiusFactor * playSelectionValues[i];
           if(lbound > adjustedVisits)
             adjustedVisits = lbound;
         }
