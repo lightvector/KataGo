@@ -1,6 +1,8 @@
+#include "../game/boardhistory.h"
 
 #include <algorithm>
-#include "../game/boardhistory.h"
+
+using namespace std;
 
 static Hash128 getKoHash(const Rules& rules, const Board& board, Player pla, int encorePhase, Hash128 koProhibitHash) {
   if(rules.koRule == Rules::KO_SITUATIONAL || encorePhase > 0)

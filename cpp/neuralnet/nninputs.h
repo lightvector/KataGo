@@ -1,12 +1,12 @@
-#ifndef NNINPUTS_H
-#define NNINPUTS_H
+#ifndef NEURALNET_NNINPUTS_H_
+#define NEURALNET_NNINPUTS_H_
 
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../core/rand.h"
 #include "../game/board.h"
-#include "../game/rules.h"
 #include "../game/boardhistory.h"
+#include "../game/rules.h"
 
 namespace NNPos {
   const int MAX_BOARD_LEN = Board::MAX_LEN;
@@ -46,13 +46,13 @@ namespace NNInputs {
   const int NUM_FEATURES_GLOBAL_V5 = 12;
 
   Hash128 getHashV0(
-    const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
+    const Board& board, const std::vector<Move>& moveHistory, int moveHistoryLen,
     Player nextPlayer, float selfKomi
   );
   //Neural net input format that was pre-rules-implementation, doesn't handle superko and
   //doesn't get told about the rules
   void fillRowV0(
-    const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
+    const Board& board, const std::vector<Move>& moveHistory, int moveHistoryLen,
     Player nextPlayer, float selfKomi, int nnXLen, int nnYLen, bool useNHWC, float* row
   );
 
@@ -162,7 +162,4 @@ namespace ScoreValue {
   double expectedWhiteScoreValue(double whiteScoreMean, double whiteScoreStdev, double center, double scale, const Board& b);
 }
 
-#endif
-
-
-
+#endif  // NEURALNET_NNINPUTS_H_

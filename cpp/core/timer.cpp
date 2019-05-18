@@ -1,3 +1,5 @@
+#include "timer.h"
+
 /*
  * timer.cpp
  * Author: David Wu
@@ -22,8 +24,6 @@
 
 #include <stdint.h>
 #include <ctime>
-#include "timer.h"
-using namespace std;
 
 //WINDOWS IMPLMENTATIION-------------------------------------------------------------
 

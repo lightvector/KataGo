@@ -1,23 +1,22 @@
-
 #ifdef USE_CUDA_BACKEND
+#include "../neuralnet/cudaerrorcheck.h"
 
 #define CUDA_API_PER_THREAD_DEFAULT_STREAM
 
-#include <cuda.h>
 #include <cublas_v2.h>
-#include <cudnn.h>
+#include <cuda.h>
 #include <cuda_fp16.h>
+#include <cudnn.h>
 
-#include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
-#include <thrust/generate.h>
-#include <thrust/reduce.h>
 #include <thrust/functional.h>
+#include <thrust/generate.h>
+#include <thrust/host_vector.h>
+#include <thrust/reduce.h>
 
 #include <fstream>
 #include <zstr/src/zstr.hpp>
 
-#include "../neuralnet/cudaerrorcheck.h"
 #include "../neuralnet/cudahelpers.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nninputs.h"
@@ -4238,8 +4237,4 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
 
 }
 
-
-
-
-
-#endif
+#endif  // USE_CUDA_BACKEND

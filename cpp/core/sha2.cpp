@@ -1,3 +1,5 @@
+#include "../core/sha2.h"
+
 /*
  * FILE:	sha2.cpp
  * ORIGINAL AUTHOR:	Aaron D. Gifford - http://www.aarongifford.com/
@@ -35,10 +37,8 @@
  *
  */
 
-#include <string.h>	/* memcpy()/memset() or bcopy()/bzero() */
 #include <assert.h>	/* assert() */
-#include "../core/sha2.h"
-
+#include <string.h>	/* memcpy()/memset() or bcopy()/bzero() */
 
 /*
  * FILE:  sha2.h

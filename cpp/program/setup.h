@@ -1,8 +1,8 @@
-#ifndef SETUP_H
-#define SETUP_H
+#ifndef PROGRAM_SETUP_H_
+#define PROGRAM_SETUP_H_
 
-#include "../core/global.h"
 #include "../core/config_parser.h"
+#include "../core/global.h"
 #include "../search/asyncbot.h"
 
 //Some bits of initialization and main function logic shared between various programs
@@ -10,9 +10,9 @@ namespace Setup {
 
   void initializeSession(ConfigParser& cfg);
 
-  vector<NNEvaluator*> initializeNNEvaluators(
-    const vector<string>& nnModelNames,
-    const vector<string>& nnModelFiles,
+  std::vector<NNEvaluator*> initializeNNEvaluators(
+    const std::vector<std::string>& nnModelNames,
+    const std::vector<std::string>& nnModelFiles,
     ConfigParser& cfg,
     Logger& logger,
     Rand& seedRand,
@@ -25,10 +25,10 @@ namespace Setup {
 
   //Loads search parameters for bot from config, by bot idx.
   //Fails if no parameters are found.
-  vector<SearchParams> loadParams(
+  std::vector<SearchParams> loadParams(
     ConfigParser& cfg
   );
 
 }
 
-#endif
+#endif  // PROGRAM_SETUP_H_

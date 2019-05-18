@@ -1,5 +1,8 @@
-#include "../core/sha2.h"
 #include "../dataio/sgf.h"
+
+#include "../core/sha2.h"
+
+using namespace std;
 
 SgfNode::SgfNode()
   :props(NULL),move(0,0,C_EMPTY)
@@ -941,5 +944,4 @@ void WriteSgf::writeSgf(
     }
   }
   out << ")";
-
 }

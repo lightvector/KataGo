@@ -1,8 +1,9 @@
-#ifndef LOGGER_H
-#define LOGGER_H
+#ifndef CORE_LOGGER_H
+#define CORE_LOGGER_H
 
-#include <sstream>
 #include <fstream>
+#include <sstream>
+
 #include "../core/global.h"
 #include "../core/multithread.h"
 
@@ -19,26 +20,26 @@ class Logger {
   void setLogToStdout(bool b);
   void setLogToStderr(bool b);
   void setLogTime(bool b);
-  void addOStream(ostream& out); //User responsible for cleaning up the ostream, logger does not take ownership
-  void addFile(const string& file);
+  void addOStream(std::ostream& out); //User responsible for cleaning up the ostream, logger does not take ownership
+  void addFile(const std::string& file);
 
   //write and ostreams returned are synchronized with other calls to write and other ostream calls
   //The lifetime of the Logger must exceed the lifetimes of any of the ostreams created from it.
   //The caller is responsible for freeing the ostreams
-  void write(const string& str);
-  void writeNoEndline(const string& str);
-  ostream* createOStream();
+  void write(const std::string& str);
+  void writeNoEndline(const std::string& str);
+  std::ostream* createOStream();
 
  private:
   bool logToStdout;
   bool logToStderr;
   bool logTime;
-  vector<ostream*> ostreams;
-  vector<ofstream*> files;
-  vector<LogBuf*> logBufs;
+  std::vector<std::ostream*> ostreams;
+  std::vector<std::ofstream*> files;
+  std::vector<LogBuf*> logBufs;
   std::mutex mutex;
 
-  void write(const string& str, bool endLine);
+  void write(const std::string& str, bool endLine);
 };
 
 class LogBuf final : public std::stringbuf {
@@ -54,4 +55,4 @@ class LogBuf final : public std::stringbuf {
   Logger* logger;
 };
 
-#endif
+#endif  // CORE_LOGGER_H_

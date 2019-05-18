@@ -20,6 +20,8 @@
 
 #include <cerrno>
 
+using namespace std;
+
 //WINDOWS IMPLMENTATIION-------------------------------------------------------------
 
 #ifdef _IS_WINDOWS

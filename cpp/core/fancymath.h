@@ -1,5 +1,5 @@
-#ifndef FANCYMATH
-#define FANCYMATH
+#ifndef CORE_FANCYMATH_H_
+#define CORE_FANCYMATH_H_
 
 #include "../core/global.h"
 
@@ -10,7 +10,7 @@ namespace FancyMath {
   double incompleteBeta(double x, double a, double b);
   double regularizedIncompleteBeta(double x, double a, double b);
 
-  double evaluateContinuedFraction(const function<double(int)>& numer, const function<double(int)>& denom, double tolerance, int maxTerms);
+  double evaluateContinuedFraction(const std::function<double(int)>& numer, const std::function<double(int)>& denom, double tolerance, int maxTerms);
 
   //For large or extreme values these might not be too accurate, use GSL or Boost for more accuracy
   double tdistpdf(double x, double degreesOfFreedom);
@@ -27,4 +27,4 @@ namespace FancyMath {
 }
 
 
-#endif
+#endif  // CORE_FANCYMATH_H_

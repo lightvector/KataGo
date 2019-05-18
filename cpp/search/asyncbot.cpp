@@ -1,6 +1,8 @@
+#include "../search/asyncbot.h"
 
 #include "../core/timer.h"
-#include "../search/asyncbot.h"
+
+using namespace std;
 
 static void searchThreadLoop(AsyncBot* asyncBot, Logger* logger) {
   try {

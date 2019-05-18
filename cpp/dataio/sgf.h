@@ -1,17 +1,17 @@
-#ifndef SGF_H_
-#define SGF_H_
+#ifndef DATAIO_SGF_H_
+#define DATAIO_SGF_H_
 
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../dataio/trainingwrite.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
-#include "../dataio/trainingwrite.h"
 
 STRUCT_NAMED_TRIPLE(uint8_t,x,uint8_t,y,Player,pla,MoveNoBSize);
 STRUCT_NAMED_PAIR(int,x,int,y,XYSize);
 
 struct SgfNode {
-  map<string,vector<string>>* props;
+  std::map<std::string,std::vector<std::string>>* props;
   MoveNoBSize move;
 
   SgfNode();
@@ -24,20 +24,20 @@ struct SgfNode {
   SgfNode& operator=(SgfNode&&) noexcept;
 
   bool hasProperty(const char* key) const;
-  string getSingleProperty(const char* key) const;
+  std::string getSingleProperty(const char* key) const;
 
   bool hasPlacements() const;
-  void accumPlacements(vector<Move>& moves, int xSize, int ySize) const;
-  void accumMoves(vector<Move>& moves, int xSize, int ySize) const;
+  void accumPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
+  void accumMoves(std::vector<Move>& moves, int xSize, int ySize) const;
 
   Color getPLSpecifiedColor() const;
   Rules getRules(const Rules& defaultRules) const;
 };
 
 struct Sgf {
-  string fileName;
-  vector<SgfNode*> nodes;
-  vector<Sgf*> children;
+  std::string fileName;
+  std::vector<SgfNode*> nodes;
+  std::vector<Sgf*> children;
   Hash128 hash;
 
   Sgf();
@@ -46,31 +46,31 @@ struct Sgf {
   Sgf(const Sgf&) = delete;
   Sgf& operator=(const Sgf&) = delete;
 
-  static Sgf* parse(const string& str);
-  static Sgf* loadFile(const string& file);
-  static vector<Sgf*> loadFiles(const vector<string>& files);
-  static vector<Sgf*> loadSgfsFile(const string& file);
-  static vector<Sgf*> loadSgfsFiles(const vector<string>& files);
+  static Sgf* parse(const std::string& str);
+  static Sgf* loadFile(const std::string& file);
+  static std::vector<Sgf*> loadFiles(const std::vector<std::string>& files);
+  static std::vector<Sgf*> loadSgfsFile(const std::string& file);
+  static std::vector<Sgf*> loadSgfsFiles(const std::vector<std::string>& files);
 
   XYSize getXYSize() const;
   float getKomi() const;
   Rules getRules(const Rules& defaultRules) const;
 
-  void getPlacements(vector<Move>& moves, int xSize, int ySize) const;
-  void getMoves(vector<Move>& moves, int xSize, int ySize) const;
+  void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
+  void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;
 
   int depth() const;
 
   private:
-  void getMovesHelper(vector<Move>& moves, int xSize, int ySize) const;
+  void getMovesHelper(std::vector<Move>& moves, int xSize, int ySize) const;
 
 };
 
 struct CompactSgf {
-  string fileName;
+  std::string fileName;
   SgfNode rootNode;
-  vector<Move> placements;
-  vector<Move> moves;
+  std::vector<Move> placements;
+  std::vector<Move> moves;
   int xSize;
   int ySize;
   int depth;
@@ -84,9 +84,9 @@ struct CompactSgf {
   CompactSgf(const CompactSgf&) = delete;
   CompactSgf& operator=(const CompactSgf&) = delete;
 
-  static CompactSgf* parse(const string& str);
-  static CompactSgf* loadFile(const string& file);
-  static vector<CompactSgf*> loadFiles(const vector<string>& files);
+  static CompactSgf* parse(const std::string& str);
+  static CompactSgf* loadFile(const std::string& file);
+  static std::vector<CompactSgf*> loadFiles(const std::vector<std::string>& files);
 
   void setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist);
   void setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber);
@@ -98,13 +98,13 @@ namespace WriteSgf {
   //indicate the index of the first turn that should be used for training data. (0 means the whole SGF, 1 means skipping black's first move, etc).
   //If valueTargets is not NULL, also write down after each move the MCTS values following that search move.
   void writeSgf(
-    ostream& out, const string& bName, const string& wName, const Rules& rules,
+    std::ostream& out, const std::string& bName, const std::string& wName, const Rules& rules,
     const BoardHistory& hist,
     const FinishedGameData* gameData
   );
 
   //If hist is a finished game, print the result to out, else do nothing
-  void printGameResult(ostream& out, const BoardHistory& hist);
+  void printGameResult(std::ostream& out, const BoardHistory& hist);
 }
 
-#endif
+#endif  // DATAIO_SGF_H_

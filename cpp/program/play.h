@@ -1,16 +1,16 @@
-#ifndef PLAY_H
-#define PLAY_H
+#ifndef PROGRAM_PLAY_H_
+#define PROGRAM_PLAY_H_
 
+#include "../core/config_parser.h"
 #include "../core/global.h"
 #include "../core/multithread.h"
 #include "../core/rand.h"
-#include "../core/config_parser.h"
 #include "../core/threadsafequeue.h"
+#include "../dataio/trainingwrite.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
-#include "../dataio/trainingwrite.h"
-#include "../search/searchparams.h"
 #include "../search/search.h"
+#include "../search/searchparams.h"
 
 struct InitialPosition {
   Board board;
@@ -50,15 +50,15 @@ class GameInitializer {
   std::mutex createGameMutex;
   Rand rand;
 
-  vector<string> allowedKoRuleStrs;
-  vector<string> allowedScoringRuleStrs;
-  vector<bool> allowedMultiStoneSuicideLegals;
+  std::vector<std::string> allowedKoRuleStrs;
+  std::vector<std::string> allowedScoringRuleStrs;
+  std::vector<bool> allowedMultiStoneSuicideLegals;
 
-  vector<int> allowedKoRules;
-  vector<int> allowedScoringRules;
+  std::vector<int> allowedKoRules;
+  std::vector<int> allowedScoringRules;
 
-  vector<int> allowedBSizes;
-  vector<double> allowedBSizeRelProbs;
+  std::vector<int> allowedBSizes;
+  std::vector<double> allowedBSizeRelProbs;
 
   float komiMean;
   float komiStdev;
@@ -80,28 +80,28 @@ class MatchPairer {
   MatchPairer(
     ConfigParser& cfg,
     int numBots,
-    const vector<string>& botNames,
-    const vector<NNEvaluator*>& nnEvals,
-    const vector<SearchParams>& baseParamss,
+    const std::vector<std::string>& botNames,
+    const std::vector<NNEvaluator*>& nnEvals,
+    const std::vector<SearchParams>& baseParamss,
     bool forSelfPlay,
     bool forGateKeeper
   );
   MatchPairer(
     ConfigParser& cfg,
     int numBots,
-    const vector<string>& botNames,
-    const vector<NNEvaluator*>& nnEvals,
-    const vector<SearchParams>& baseParamss,
+    const std::vector<std::string>& botNames,
+    const std::vector<NNEvaluator*>& nnEvals,
+    const std::vector<SearchParams>& baseParamss,
     bool forSelfPlay,
     bool forGateKeeper,
-    const vector<bool>& excludeBot
+    const std::vector<bool>& excludeBot
   );
 
   ~MatchPairer();
 
   struct BotSpec {
     int botIdx;
-    string botName;
+    std::string botName;
     NNEvaluator* nnEval;
     SearchParams baseParams;
   };
@@ -119,14 +119,14 @@ class MatchPairer {
 
  private:
   int numBots;
-  vector<string> botNames;
-  vector<NNEvaluator*> nnEvals;
-  vector<SearchParams> baseParamss;
+  std::vector<std::string> botNames;
+  std::vector<NNEvaluator*> nnEvals;
+  std::vector<SearchParams> baseParamss;
 
-  vector<bool> excludeBot;
-  vector<int> secondaryBots;
-  vector<pair<int,int>> nextMatchups;
-  vector<pair<int,int>> nextMatchupsBuf;
+  std::vector<bool> excludeBot;
+  std::vector<int> secondaryBots;
+  std::vector<std::pair<int,int>> nextMatchups;
+  std::vector<std::pair<int,int>> nextMatchupsBuf;
   Rand rand;
 
   int matchRepFactor;
@@ -138,7 +138,7 @@ class MatchPairer {
 
   std::mutex getMatchupMutex;
 
-  pair<int,int> getMatchupPairUnsynchronized();
+  std::pair<int,int> getMatchupPairUnsynchronized();
 };
 
 struct FancyModes {
@@ -203,10 +203,10 @@ namespace Play {
   FinishedGameData* runGame(
     const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
-    const string& searchRandSeed,
+    const std::string& searchRandSeed,
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
-    int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
+    int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
     bool allowPolicyInit,
     Rand& gameRand,
@@ -220,7 +220,7 @@ namespace Play {
     Search* botB, Search* botW,
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
-    int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
+    int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
     bool allowPolicyInit,
     Rand& gameRand,
@@ -260,7 +260,7 @@ namespace Play {
     double searchFactorWhenWinningThreshold,
     double searchFactorWhenWinning,
     const SearchParams& params,
-    const vector<double>& recentWinLossValues,
+    const std::vector<double>& recentWinLossValues,
     Player pla
   );
 }
@@ -274,12 +274,12 @@ class GameRunner {
   bool forSelfPlay;
   int maxMovesPerGame;
   bool clearBotBeforeSearch;
-  string searchRandSeedBase;
+  std::string searchRandSeedBase;
   FancyModes fancyModes;
   GameInitializer* gameInit;
 
 public:
-  GameRunner(ConfigParser& cfg, const string& searchRandSeedBase, bool forSelfPlay, FancyModes fancyModes);
+  GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, bool forSelfPlay, FancyModes fancyModes);
   ~GameRunner();
 
   //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data
@@ -293,11 +293,11 @@ public:
     Logger& logger,
     int dataXLen,
     int dataYLen,
-    vector<std::atomic<bool>*>& stopConditions,
+    std::vector<std::atomic<bool>*>& stopConditions,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
 
 };
 
 
-#endif
+#endif  // PROGRAM_PLAY_H_

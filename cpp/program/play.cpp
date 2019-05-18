@@ -1,7 +1,10 @@
-#include "../core/global.h"
-#include "../search/asyncbot.h"
 #include "../program/play.h"
+
+#include "../core/global.h"
 #include "../program/setup.h"
+#include "../search/asyncbot.h"
+
+using namespace std;
 
 static double nextGaussianTruncated(Rand& rand, double bound) {
   double d = rand.nextGaussian();

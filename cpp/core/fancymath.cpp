@@ -1,9 +1,12 @@
-#include <cmath>
-#include <sstream>
-#include <iomanip>
-
 #include "../core/fancymath.h"
+
+#include <cmath>
+#include <iomanip>
+#include <sstream>
+
 #include "../core/test.h"
+
+using namespace std;
 
 //https://en.wikipedia.org/wiki/Beta_function
 double FancyMath::beta(double a, double b) {

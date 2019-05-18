@@ -1,5 +1,5 @@
-#ifndef ANALYSISDATA_H
-#define ANALYSISDATA_H
+#ifndef SEARCH_ANALYSISDATA_H_
+#define SEARCH_ANALYSISDATA_H_
 
 #include "../game/board.h"
 
@@ -21,7 +21,7 @@ struct AnalysisData {
   double ess;
   double weightFactor;
   int order;
-  vector<Loc> pv;
+  std::vector<Loc> pv;
 
   const SearchNode* node; //ONLY valid so long as search is not cleared
 
@@ -38,4 +38,4 @@ struct AnalysisData {
 bool operator<(const AnalysisData& a0, const AnalysisData& a1);
 
 
-#endif
+#endif  // SEARCH_ANALYSISDATA_H_

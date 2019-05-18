@@ -1,6 +1,7 @@
+#include "../dataio/datapool.h"
+
 #include <functional>
 #include <cstring>
-#include "../dataio/datapool.h"
 
 DataPool::DataPool(size_t rowWidth_, size_t poolCapacity_, size_t writeBufCapacity_, std::function<void(const float*,size_t)> writeRow_)
   :rowWidth(rowWidth_),

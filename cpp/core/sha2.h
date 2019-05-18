@@ -3,8 +3,8 @@
  * Author: David Wu
  */
 
-#ifndef SHA2_H_
-#define SHA2_H_
+#ifndef CORE_SHA2_H_
+#define CORE_SHA2_H_
 
 #include <stdint.h>
 #include <cstdlib>
@@ -57,5 +57,5 @@ namespace SHA2
   void get512(const uint32_t* msg, size_t len, uint64_t hash[8]);
 }
 
-#endif /* SHA2_H_ */
+#endif  // CORE_SHA2_H_
 

@@ -1,5 +1,4 @@
 #include "core/global.h"
-using namespace std;
 
 namespace MainCmds {
   int evalsgf(int argc, const char* const* argv);

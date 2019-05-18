@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef TIMER_H_
-#define TIMER_H_
+#ifndef CORE_TIMER_H_
+#define CORE_TIMER_H_
 
 #include <stdint.h>
 
@@ -31,4 +31,4 @@ class ClockTimer
 };
 
 
-#endif /* TIMER_H_ */
+#endif  // CORE_TIMER_H_

@@ -12,16 +12,15 @@
  * XorShift1024Mult (period 2^1024-1)
  */
 
-#ifndef RAND_H
-#define RAND_H
+#ifndef CORE_RAND_H_
+#define CORE_RAND_H_
 
 #include <cassert>
 #include <cmath>
-#include <stdint.h>
 #include <iostream>
-#include "../core/rand_helpers.h"
+#include <stdint.h>
 
-using namespace std;
+#include "../core/rand_helpers.h"
 
 class Rand
 {
@@ -32,7 +31,7 @@ class Rand
   bool hasGaussian;
   double storedGaussian;
 
-  string initSeed;
+  std::string initSeed;
   uint64_t numCalls;
 
  public:
@@ -42,14 +41,14 @@ class Rand
   Rand();
   //Intializes according to the provided seed
   Rand(const char* seed);
-  Rand(const string& seed);
+  Rand(const std::string& seed);
   Rand(uint64_t seed);
 
   //Reinitialize according to system time and some other unique junk
   void init();
   //Reinitialize according to the provided seed
   void init(const char* seed);
-  void init(const string& seed);
+  void init(const std::string& seed);
   void init(uint64_t seed);
 
   ~Rand();
@@ -60,7 +59,7 @@ class Rand
   public:
 
   //MISC-------------------------------------------------
-  string getSeed() const;
+  std::string getSeed() const;
   uint64_t getNumCalls() const;
 
   //UNSIGNED INTEGER-------------------------------------
@@ -114,7 +113,7 @@ class Rand
   static void runTests();
 };
 
-inline string Rand::getSeed() const
+inline std::string Rand::getSeed() const
 {
   return initSeed;
 }
@@ -287,4 +286,4 @@ inline double Rand::nextLogistic()
   return log(x / (1.0 - x));
 }
 
-#endif
+#endif  // CORE_RAND_H_

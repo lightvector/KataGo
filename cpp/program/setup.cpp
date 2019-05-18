@@ -1,5 +1,8 @@
 #include "../program/setup.h"
+
 #include "../neuralnet/nninterface.h"
+
+using namespace std;
 
 void Setup::initializeSession(ConfigParser& cfg) {
 

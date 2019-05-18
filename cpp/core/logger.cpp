@@ -1,6 +1,9 @@
 #include "../core/logger.h"
-#include <iomanip>
+
 #include <chrono>
+#include <iomanip>
+
+using namespace std;
 
 Logger::Logger()
   :logToStdout(false),logToStderr(false),logTime(true),ostreams(),files()

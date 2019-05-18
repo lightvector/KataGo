@@ -1,5 +1,6 @@
-
 #include "../neuralnet/nninputs.h"
+
+using namespace std;
 
 int NNPos::xyToPos(int x, int y, int nnXLen) {
   return y * nnXLen + x;

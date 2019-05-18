@@ -1,5 +1,6 @@
-
 #include "../dataio/trainingwrite.h"
+
+using namespace std;
 
 ValueTargets::ValueTargets()
   :win(0),

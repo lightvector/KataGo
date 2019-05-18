@@ -11,6 +11,8 @@
 #include "search/asyncbot.h"
 #include "main.h"
 
+using namespace std;
+
 // int MainCmds::sandbox() {
 //   Board::initHash();
 

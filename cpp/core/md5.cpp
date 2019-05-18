@@ -1,3 +1,5 @@
+#include "../core/md5.h"
+
 /*
  * md5.cpp
  * Implementation from wikipedia
@@ -8,9 +10,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include "../core/md5.h"
-
-using namespace std;
 
 // leftrotate function definition
 #define LEFTROTATE(x, c) (((x) << (c)) | ((x) >> (32 - (c))))

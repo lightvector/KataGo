@@ -27,9 +27,10 @@ if(BUILD_MCTS)
     set(CMAKE_CUDA_FLAGS
       "-gencode arch=compute_30,code=sm_30 -gencode arch=compute_30,code=compute_30 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_53,code=sm_53 -gencode arch=compute_53,code=compute_53 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_70,code=compute_70"
       )
-
+      
   else()
-    message(FATAL_ERROR "Please specify -DUSE_CUDA_BACKEND=1 (right now CUDA the only option, but in the future there may be others)")
+    message("WARNING: Using dummy neural net backend, will not be able to run neural network.")
+    set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
   endif()
 endif()
 
@@ -114,6 +115,7 @@ endif()
 if(BUILD_MCTS)
   add_executable(main
     core/global.cpp
+    core/config.cpp
     core/config_parser.cpp
     core/elo.cpp
     core/fancymath.cpp
@@ -121,8 +123,12 @@ if(BUILD_MCTS)
     core/logger.cpp
     core/makedir.cpp
     core/md5.cpp
+    core/multithread.cpp
     core/rand.cpp
+    core/rand_helpers.cpp
     core/sha2.cpp
+    core/test.cpp
+    core/threadsafequeue.cpp
     core/timer.cpp
     game/board.cpp
     game/rules.cpp

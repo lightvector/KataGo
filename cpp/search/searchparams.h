@@ -1,5 +1,5 @@
-#ifndef SEARCH_PARAMS_H
-#define SEARCH_PARAMS_H
+#ifndef SEARCH_SEARCHPARAMS_H_
+#define SEARCH_SEARCHPARAMS_H_
 
 #include "../core/global.h"
 
@@ -74,4 +74,4 @@ struct SearchParams {
   ~SearchParams();
 };
 
-#endif
+#endif  // SEARCH_SEARCHPARAMS_H_

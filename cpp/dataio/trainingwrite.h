@@ -1,12 +1,12 @@
-#ifndef TRAINING_WRITE_H
-#define TRAINING_WRITE_H
+#ifndef DATAIO_TRAINING_WRITE_H_
+#define DATAIO_TRAINING_WRITE_H_
 
+#include "../dataio/numpywrite.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
-#include "../dataio/numpywrite.h"
 
 STRUCT_NAMED_PAIR(Loc,loc,int16_t,policyTarget,PolicyTargetMove);
-STRUCT_NAMED_PAIR(vector<PolicyTargetMove>*,policyTargets,int64_t,unreducedNumVisits,PolicyTarget);
+STRUCT_NAMED_PAIR(std::vector<PolicyTargetMove>*,policyTargets,int64_t,unreducedNumVisits,PolicyTarget);
 
 struct ValueTargets {
   //As usual, these are from the perspective of white.
@@ -30,7 +30,7 @@ struct SidePosition {
   BoardHistory hist;
   Player pla;
   int64_t unreducedNumVisits;
-  vector<PolicyTargetMove> policyTarget;
+  std::vector<PolicyTargetMove> policyTarget;
   ValueTargets whiteValueTargets;
   float targetWeight;
   int numNeuralNetChangesSoFar; //Number of neural net changes this game before the creation of this side position
@@ -40,11 +40,11 @@ struct SidePosition {
   ~SidePosition();
 };
 
-STRUCT_NAMED_PAIR(string,name,int,turnNumber,ChangedNeuralNet);
+STRUCT_NAMED_PAIR(std::string,name,int,turnNumber,ChangedNeuralNet);
 
 struct FinishedGameData {
-  string bName;
-  string wName;
+  std::string bName;
+  std::string wName;
   int bIdx;
   int wIdx;
 
@@ -67,18 +67,18 @@ struct FinishedGameData {
   bool hasFullData;
   int dataXLen;
   int dataYLen;
-  vector<float> targetWeightByTurn;
-  vector<PolicyTarget> policyTargetsByTurn;
-  vector<ValueTargets> whiteValueTargetsByTurn;
+  std::vector<float> targetWeightByTurn;
+  std::vector<PolicyTarget> policyTargetsByTurn;
+  std::vector<ValueTargets> whiteValueTargetsByTurn;
   int8_t* finalWhiteOwnership;
 
-  vector<SidePosition*> sidePositions;
-  vector<ChangedNeuralNet*> changedNeuralNets;
+  std::vector<SidePosition*> sidePositions;
+  std::vector<ChangedNeuralNet*> changedNeuralNets;
 
   FinishedGameData();
   ~FinishedGameData();
 
-  void printDebug(ostream& out) const;
+  void printDebug(std::ostream& out) const;
 };
 
 struct TrainingWriteBuffers {
@@ -187,9 +187,9 @@ struct TrainingWriteBuffers {
     int turnNumberAfterStart,
     float targetWeight,
     int64_t unreducedNumVisits,
-    const vector<PolicyTargetMove>* policyTarget0, //can be null
-    const vector<PolicyTargetMove>* policyTarget1, //can be null
-    const vector<ValueTargets>& whiteValueTargets,
+    const std::vector<PolicyTargetMove>* policyTarget0, //can be null
+    const std::vector<PolicyTargetMove>* policyTarget1, //can be null
+    const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
     int8_t* finalWhiteOwnership,
     bool isSidePosition,
@@ -198,28 +198,28 @@ struct TrainingWriteBuffers {
     Rand& rand
   );
 
-  void writeToZipFile(const string& fileName);
-  void writeToTextOstream(ostream& out);
+  void writeToZipFile(const std::string& fileName);
+  void writeToTextOstream(std::ostream& out);
 
 };
 
 class TrainingDataWriter {
  public:
-  TrainingDataWriter(const string& outputDir, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, const string& randSeed);
-  TrainingDataWriter(ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyWriteEvery, const string& randSeed);
-  TrainingDataWriter(const string& outputDir, ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyWriteEvery, const string& randSeed);
+  TrainingDataWriter(const std::string& outputDir, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, const std::string& randSeed);
+  TrainingDataWriter(std::ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyWriteEvery, const std::string& randSeed);
+  TrainingDataWriter(const std::string& outputDir, std::ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyWriteEvery, const std::string& randSeed);
   ~TrainingDataWriter();
 
   void writeGame(const FinishedGameData& data);
   void flushIfNonempty();
 
  private:
-  string outputDir;
+  std::string outputDir;
   int inputsVersion;
   Rand rand;
   TrainingWriteBuffers* writeBuffers;
 
-  ostream* debugOut;
+  std::ostream* debugOut;
   int debugOnlyWriteEvery;
   int64_t rowCount;
 
@@ -231,4 +231,4 @@ class TrainingDataWriter {
 };
 
 
-#endif
+#endif  // DATAIO_TRAININGWRITE_H_

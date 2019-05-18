@@ -1,7 +1,9 @@
 #include "../tests/tests.h"
-#include "../search/timecontrols.h"
-using namespace TestCommon;
 
+#include "../search/timecontrols.h"
+
+using namespace std;
+using namespace TestCommon;
 
 void Tests::runTimeControlsTests() {
   Board board9Early = Board::parseBoard(9,9,R"%%(

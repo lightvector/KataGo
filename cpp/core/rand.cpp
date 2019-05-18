@@ -1,3 +1,4 @@
+#include "../core/rand.h"
 
 #ifdef _WIN32
  #define _RAND_IS_WINDOWS
@@ -16,16 +17,18 @@
   #include <unistd.h>
 #endif
 
-#include <ctime>
-#include <cstdlib>
-#include <sstream>
 #include <atomic>
-#include "../core/timer.h"
+#include <cstdlib>
+#include <ctime>
+#include <sstream>
+
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../core/sha2.h"
-#include "../core/rand.h"
 #include "../core/test.h"
+#include "../core/timer.h"
+
+using namespace std;
 
 XorShift1024Mult::XorShift1024Mult(const uint64_t* init_a)
 {

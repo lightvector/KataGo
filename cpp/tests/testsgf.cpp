@@ -1,8 +1,12 @@
 #include "../tests/tests.h"
-#include "../search/asyncbot.h"
-#include "../dataio/sgf.h"
+
 #include <algorithm>
 #include <iterator>
+
+#include "../dataio/sgf.h"
+#include "../search/asyncbot.h"
+
+using namespace std;
 using namespace TestCommon;
 
 void Tests::runSgfTests() {

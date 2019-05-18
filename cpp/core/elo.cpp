@@ -1,7 +1,10 @@
 #include "../core/elo.h"
-#include "../core/test.h"
 
 #include <cmath>
+
+#include "../core/test.h"
+
+using namespace std;
 
 static const double ELO_PER_LOG_GAMMA = 173.717792761;
 

@@ -1,9 +1,11 @@
 #include "../tests/tests.h"
-using namespace TestCommon;
 
-#include "../neuralnet/nneval.h"
 #include "../dataio/trainingwrite.h"
+#include "../neuralnet/nneval.h"
 #include "../program/play.h"
+
+using namespace std;
+using namespace TestCommon;
 
 static NNEvaluator* startNNEval(
   const string& modelFile, const string& seed, Logger& logger,

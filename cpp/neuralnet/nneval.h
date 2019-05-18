@@ -1,5 +1,5 @@
-#ifndef NNEVAL_H
-#define NNEVAL_H
+#ifndef NEURALNET_NNEVAL_H_
+#define NEURALNET_NNEVAL_H_
 
 #include <memory>
 
@@ -16,7 +16,7 @@ class NNEvaluator;
 
 class NNCacheTable {
   struct Entry {
-    shared_ptr<NNOutput> ptr;
+    std::shared_ptr<NNOutput> ptr;
     Entry();
     ~Entry();
   };
@@ -35,15 +35,15 @@ class NNCacheTable {
   NNCacheTable& operator=(const NNCacheTable& other) = delete;
 
   //These are thread-safe. For get, ret will be set to nullptr upon a failure to find.
-  bool get(Hash128 nnHash, shared_ptr<NNOutput>& ret);
-  void set(const shared_ptr<NNOutput>& p);
+  bool get(Hash128 nnHash, std::shared_ptr<NNOutput>& ret);
+  void set(const std::shared_ptr<NNOutput>& p);
   void clear();
 };
 
 //Each thread should allocate and re-use one of these
 struct NNResultBuf {
-  condition_variable clientWaitingForResult;
-  mutex resultMutex;
+  std::condition_variable clientWaitingForResult;
+  std::mutex resultMutex;
   bool hasResult;
   bool includeOwnerMap;
   int boardXSizeForServer;
@@ -52,7 +52,7 @@ struct NNResultBuf {
   int rowGlobalSize;
   float* rowBin;
   float* rowGlobal;
-  shared_ptr<NNOutput> result;
+  std::shared_ptr<NNOutput> result;
   bool errorLogLockout; //error flag to restrict log to 1 error to prevent spam
 
   NNResultBuf();
@@ -75,8 +75,8 @@ struct NNServerBuf {
 class NNEvaluator {
  public:
   NNEvaluator(
-    const string& modelName,
-    const string& modelFileName,
+    const std::string& modelName,
+    const std::string& modelFileName,
     int modelFileIdx,
     int maxBatchSize,
     int maxConcurrentEvals,
@@ -92,8 +92,8 @@ class NNEvaluator {
   );
   ~NNEvaluator();
 
-  string getModelName() const;
-  string getModelFileName() const;
+  std::string getModelName() const;
+  std::string getModelFileName() const;
   int getMaxBatchSize() const;
   int getNNXLen() const;
   int getNNYLen() const;
@@ -123,10 +123,10 @@ class NNEvaluator {
   void spawnServerThreads(
     int numThreads,
     bool doRandomize,
-    string randSeed,
+    std::string randSeed,
     int defaultSymmetry,
     Logger& logger,
-    vector<int> cudaGpuIdxByServerThread,
+    std::vector<int> cudaGpuIdxByServerThread,
     bool cudaUseFP16,
     bool cudaUseNHWC
   );
@@ -143,8 +143,8 @@ class NNEvaluator {
   void clearStats();
 
  private:
-  string modelName;
-  string modelFileName;
+  std::string modelName;
+  std::string modelFileName;
   int nnXLen;
   int nnYLen;
   bool requireExactNNLen;
@@ -161,18 +161,18 @@ class NNEvaluator {
   int modelVersion;
   int inputsVersion;
 
-  vector<thread*> serverThreads;
+  std::vector<std::thread*> serverThreads;
 
-  condition_variable serverWaitingForBatchStart;
-  mutex bufferMutex;
+  std::condition_variable serverWaitingForBatchStart;
+  std::mutex bufferMutex;
   bool isKilled;
 
   int maxNumRows;
   int numResultBufss;
   int numResultBufssMask;
 
-  atomic<uint64_t> m_numRowsProcessed;
-  atomic<uint64_t> m_numBatchesProcessed;
+  std::atomic<uint64_t> m_numRowsProcessed;
+  std::atomic<uint64_t> m_numBatchesProcessed;
 
   //An array of NNResultBuf** of length numResultBufss, each NNResultBuf** is an array of NNResultBuf* of length maxNumRows.
   //If a full resultBufs array fills up, client threads can move on to fill up more without waiting. Implemented basically
@@ -190,4 +190,4 @@ class NNEvaluator {
   );
 };
 
-#endif
+#endif  // NEURALNET_NNEVAL_H_

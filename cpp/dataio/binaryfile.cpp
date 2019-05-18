@@ -1,8 +1,7 @@
+#include "../dataio/binaryfile.h"
 
 #include <blosc.h>
 #include <cstring>
-
-#include "../dataio/binaryfile.h"
 
 static bool initialized = false;
 

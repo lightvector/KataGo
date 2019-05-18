@@ -1,9 +1,10 @@
-#ifndef CONFIG_PARSER_H
-#define CONFIG_PARSER_H
+#ifndef CORE_CONFIG_PARSER_H_
+#define CORE_CONFIG_PARSER_H_
+
+#include <mutex>
 
 #include "../core/global.h"
 #include "../core/logger.h"
-#include <mutex>
 
 /* Parses simple configs like:
 
@@ -16,59 +17,59 @@ baz = yay
 
 class ConfigParser {
  public:
-  ConfigParser(const string& file);
+  ConfigParser(const std::string& file);
   ~ConfigParser();
 
   ConfigParser(const ConfigParser& other) = delete;
   ConfigParser& operator=(const ConfigParser& other) = delete;
 
-  void warnUnusedKeys(ostream& out, Logger* logger) const;
+  void warnUnusedKeys(std::ostream& out, Logger* logger) const;
   
-  vector<string> unusedKeys() const;
-  string getFileName() const;
-  string getContents() const;
+  std::vector<std::string> unusedKeys() const;
+  std::string getFileName() const;
+  std::string getContents() const;
 
-  bool contains(const string& key) const;
+  bool contains(const std::string& key) const;
 
-  string getString(const string& key);
-  bool getBool(const string& key);
-  int getInt(const string& key);
-  int64_t getInt64(const string& key);
-  uint64_t getUInt64(const string& key);
-  float getFloat(const string& key);
-  double getDouble(const string& key);
+  std::string getString(const std::string& key);
+  bool getBool(const std::string& key);
+  int getInt(const std::string& key);
+  int64_t getInt64(const std::string& key);
+  uint64_t getUInt64(const std::string& key);
+  float getFloat(const std::string& key);
+  double getDouble(const std::string& key);
 
-  string getString(const string& key, const set<string>& possibles);
-  int getInt(const string& key, int min, int max);
-  int64_t getInt64(const string& key, int64_t min, int64_t max);
-  uint64_t getUInt64(const string& key, uint64_t min, uint64_t max);
-  float getFloat(const string& key, float min, float max);
-  double getDouble(const string& key, double min, double max);
+  std::string getString(const std::string& key, const std::set<std::string>& possibles);
+  int getInt(const std::string& key, int min, int max);
+  int64_t getInt64(const std::string& key, int64_t min, int64_t max);
+  uint64_t getUInt64(const std::string& key, uint64_t min, uint64_t max);
+  float getFloat(const std::string& key, float min, float max);
+  double getDouble(const std::string& key, double min, double max);
 
-  vector<string> getStrings(const string& key);
-  vector<bool> getBools(const string& key);
-  vector<int> getInts(const string& key);
-  vector<int64_t> getInt64s(const string& key);
-  vector<uint64_t> getUInt64s(const string& key);
-  vector<float> getFloats(const string& key);
-  vector<double> getDoubles(const string& key);
+  std::vector<std::string> getStrings(const std::string& key);
+  std::vector<bool> getBools(const std::string& key);
+  std::vector<int> getInts(const std::string& key);
+  std::vector<int64_t> getInt64s(const std::string& key);
+  std::vector<uint64_t> getUInt64s(const std::string& key);
+  std::vector<float> getFloats(const std::string& key);
+  std::vector<double> getDoubles(const std::string& key);
 
-  vector<string> getStrings(const string& key, const set<string>& possibles);
-  vector<int> getInts(const string& key, int min, int max);
-  vector<int64_t> getInt64s(const string& key, int64_t min, int64_t max);
-  vector<uint64_t> getUInt64s(const string& key, uint64_t min, uint64_t max);
-  vector<float> getFloats(const string& key, float min, float max);
-  vector<double> getDoubles(const string& key, double min, double max);
+  std::vector<std::string> getStrings(const std::string& key, const std::set<std::string>& possibles);
+  std::vector<int> getInts(const std::string& key, int min, int max);
+  std::vector<int64_t> getInt64s(const std::string& key, int64_t min, int64_t max);
+  std::vector<uint64_t> getUInt64s(const std::string& key, uint64_t min, uint64_t max);
+  std::vector<float> getFloats(const std::string& key, float min, float max);
+  std::vector<double> getDoubles(const std::string& key, double min, double max);
 
  private:
-  string fileName;
-  string contents;
-  map<string,string> keyValues;
+  std::string fileName;
+  std::string contents;
+  std::map<std::string, std::string> keyValues;
 
   mutable std::mutex usedKeysMutex;
-  set<string> usedKeys;
+  std::set<std::string> usedKeys;
 };
 
 
 
-#endif
+#endif  // CORE_CONFIG_PARSER_H_

@@ -11,6 +11,8 @@
 #include "tests/tests.h"
 #include "main.h"
 
+using namespace std;
+
 int MainCmds::runtests(int argc, const char* const* argv) {
   (void)argc;
   (void)argv;

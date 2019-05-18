@@ -15,6 +15,8 @@ using namespace H5;
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
+using namespace std;
+
 //Data and feature row parameters
 static const int maxBoardSize = NNPos::MAX_BOARD_LEN;
 static const int numFeatures = NNInputs::NUM_FEATURES_V2;

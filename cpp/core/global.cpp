@@ -1,22 +1,26 @@
+#include "../core/global.h"
+
 /*
  * global.cpp
  * Author: David Wu
  */
 
-#include <cstdio>
-#include <cstdarg>
-#include <fstream>
-#include <sstream>
-#include <cstdlib>
-#include <ctime>
 #include <cctype>
-#include <cstring>
-#include <dirent.h> //TODO this is not portable to windows, use C++17 filesystem library when C++17 is available
-#include <inttypes.h>
-#include <sys/types.h>
 #include <chrono>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <dirent.h> //TODO this is not portable to windows, use C++17 filesystem library when C++17 is available
+#include <fstream>
+#include <inttypes.h>
 #include <iomanip>
+#include <sstream>
+#include <sys/types.h>
+
 #include "global.h"
+
 using namespace std;
 
 //ERRORS----------------------------------

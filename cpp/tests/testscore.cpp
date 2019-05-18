@@ -1,7 +1,8 @@
+#include "../tests/tests.h"
 
 #include "../neuralnet/nninputs.h"
 
-#include "../tests/tests.h"
+using namespace std;
 using namespace TestCommon;
 
 void Tests::runScoreTests() {

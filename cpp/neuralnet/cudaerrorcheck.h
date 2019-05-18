@@ -1,5 +1,5 @@
-#ifndef CUDAERRORCHECK_H
-#define CUDAERRORCHECK_H
+#ifndef NEURALNET_CUDAERRORCHECK_H_
+#define NEURALNET_CUDAERRORCHECK_H_
 
 #define CUDA_API_PER_THREAD_DEFAULT_STREAM
 
@@ -49,4 +49,4 @@ static void checkCudnnError(const cudnnStatus_t status, const char* opName, cons
 }
 #define CUDNN_ERR(opName,x) { checkCudnnError((x),opName,__FILE__,#x,__LINE__); }
 
-#endif
+#endif  // NEURALNET_CUDAERRORCHECK_H_

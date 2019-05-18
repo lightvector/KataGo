@@ -4,8 +4,8 @@
  * Authors: brettharrison (original), David Wu (original and later modificationss).
  */
 
-#ifndef FASTBOARD_H_
-#define FASTBOARD_H_
+#ifndef GAME_BOARD_H_
+#define GAME_BOARD_H_
 
 #include "../core/global.h"
 #include "../core/hash.h"
@@ -31,7 +31,7 @@ static inline Color getOpp(Color c)
 {return c ^ 3;}
 
 char colorToChar(Color c);
-string playerToString(Player p);
+std::string playerToString(Player p);
 
 //Location of a point on the board
 //(x,y) is represented as (x+1) + (y+1)*(x_size+1)
@@ -45,17 +45,17 @@ namespace Location
   void getAdjacentOffsets(short adj_offsets[8], int x_size);
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);
 
-  string toString(Loc loc, int x_size, int y_size);
-  string toString(Loc loc, const Board& b);
-  string toStringMach(Loc loc, int x_size);
-  string toStringMach(Loc loc, const Board& b);
+  std::string toString(Loc loc, int x_size, int y_size);
+  std::string toString(Loc loc, const Board& b);
+  std::string toStringMach(Loc loc, int x_size);
+  std::string toStringMach(Loc loc, const Board& b);
 
-  bool tryOfString(const string& str, int x_size, int y_size, Loc& result);
-  bool tryOfString(const string& str, const Board& b, Loc& result);
-  Loc ofString(const string& str, int x_size, int y_size);
-  Loc ofString(const string& str, const Board& b);
+  bool tryOfString(const std::string& str, int x_size, int y_size, Loc& result);
+  bool tryOfString(const std::string& str, const Board& b, Loc& result);
+  Loc ofString(const std::string& str, int x_size, int y_size);
+  Loc ofString(const std::string& str, const Board& b);
 
-  vector<Loc> parseSequence(const string& str, const Board& b);
+  std::vector<Loc> parseSequence(const std::string& str, const Board& b);
 }
 
 //Simple structure for storing moves. Not used below, but this is a convenient place to define it.
@@ -196,8 +196,8 @@ struct Board
 
   //Check if the given stone is in unescapable atari or can be put into unescapable atari.
   //WILL perform a mutable search - may alter the linked lists or heads, etc.
-  bool searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf);
-  bool searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, vector<Loc>& workingMoves);
+  bool searchIsLadderCaptured(Loc loc, bool defenderFirst, std::vector<Loc>& buf);
+  bool searchIsLadderCapturedAttackerFirst2Libs(Loc loc, std::vector<Loc>& buf, std::vector<Loc>& workingMoves);
 
   //If a point is a pass-alive stone or pass-alive territory for a color, mark it that color.
   //If nonPassAliveStones, also marks non-pass-alive stones that are not part of the opposing pass-alive territory.
@@ -210,8 +210,8 @@ struct Board
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
 
-  static Board parseBoard(int xSize, int ySize, const string& s);
-  static void printBoard(ostream& out, const Board& board, Loc markLoc, const vector<Move>* hist);
+  static Board parseBoard(int xSize, int ySize, const std::string& s);
+  static void printBoard(std::ostream& out, const Board& board, Loc markLoc, const std::vector<Move>* hist);
 
   //Data--------------------------------------------
 
@@ -249,10 +249,10 @@ struct Board
   Loc rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Color color);
   void changeSurroundingLiberties(Loc loc, Color color, int delta);
 
-  friend ostream& operator<<(ostream& out, const Board& board);
+  friend std::ostream& operator<<(std::ostream& out, const Board& board);
 
-  int findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
-  int findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) const;
+  int findLiberties(Loc loc, std::vector<Loc>& buf, int bufStart, int bufIdx) const;
+  int findLibertyGainingCaptures(Loc loc, std::vector<Loc>& buf, int bufStart, int bufIdx) const;
   bool hasLibertyGainingCaptures(Loc loc) const;
 
   void calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal, Color* result) const;
@@ -263,4 +263,4 @@ struct Board
 
 
 
-#endif /* BOARD_H_ */
+#endif // GAME_BOARD_H_

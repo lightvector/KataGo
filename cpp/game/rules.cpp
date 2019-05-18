@@ -1,5 +1,7 @@
 #include "../game/rules.h"
 
+using namespace std;
+
 Rules::Rules() {
   //Defaults if not set - closest match to TT rules
   koRule = KO_POSITIONAL;

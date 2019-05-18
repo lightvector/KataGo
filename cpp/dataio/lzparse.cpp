@@ -1,8 +1,9 @@
-
-#include <zstr/src/zstr.hpp>
-#include <cstdlib>
-
 #include "../dataio/lzparse.h"
+
+#include <cstdlib>
+#include <zstr/src/zstr.hpp>
+
+using namespace std;
 
 LZSample::LZSample()
   :emptyBoard(19,19),plaStones(),oppStones(),sideStr(),policyStr(),resultStr()

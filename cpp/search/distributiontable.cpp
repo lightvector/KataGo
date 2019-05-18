@@ -1,5 +1,7 @@
 #include "../search/distributiontable.h"
 
+using namespace std;
+
 DistributionTable::DistributionTable(function<double(double)> pdf, function<double(double)> cdf, double minz, double maxz, int sz) {
   size = sz;
   minZ = minz;

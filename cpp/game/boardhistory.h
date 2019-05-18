@@ -1,5 +1,5 @@
-#ifndef BOARDHISTORY_H_
-#define BOARDHISTORY_H_
+#ifndef GAME_BOARDHISTORY_H_
+#define GAME_BOARDHISTORY_H_
 
 #include "../core/global.h"
 #include "../core/hash.h"
@@ -13,10 +13,10 @@ struct BoardHistory {
   Rules rules;
 
   //Chronological history of moves
-  vector<Move> moveHistory;
+  std::vector<Move> moveHistory;
   //Chronological history of hashes, including the latest board's hash.
   //Cleared on a pass if passes clear ko bans
-  vector<Hash128> koHashHistory;
+  std::vector<Hash128> koHashHistory;
   int koHistoryLastClearedBeginningMoveIdx;
 
   //The board and player to move as of the very start, before moveHistory.
@@ -36,8 +36,8 @@ struct BoardHistory {
   //Number of consecutive passes made that count for ending the game or phase
   int consecutiveEndingPasses;
   //All ko hashes that have occurred after player's pass
-  vector<Hash128> hashesAfterBlackPass;
-  vector<Hash128> hashesAfterWhitePass;
+  std::vector<Hash128> hashesAfterBlackPass;
+  std::vector<Hash128> hashesAfterWhitePass;
 
   //Encore phase 0,1,2 for territory scoring
   int encorePhase;
@@ -48,7 +48,7 @@ struct BoardHistory {
 
   //Used to implement once-only rules for ko captures in encore
   STRUCT_NAMED_TRIPLE(Hash128,posHashBeforeMove,Loc,moveLoc,Player,movePla,EncoreKoCapture);
-  vector<EncoreKoCapture> koCapturesInEncore;
+  std::vector<EncoreKoCapture> koCapturesInEncore;
 
   //State of the grid as of the start of encore phase 2 for territory scoring
   Color secondEncoreStartColors[Board::MAX_ARR_SIZE];
@@ -109,7 +109,7 @@ struct BoardHistory {
 
   void setWinnerByResignation(Player pla);
 
-  void printDebugInfo(ostream& out, const Board& board) const;
+  void printDebugInfo(std::ostream& out, const Board& board) const;
 
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
@@ -123,7 +123,7 @@ private:
 
 struct KoHashTable {
   uint32_t* idxTable;
-  vector<Hash128> koHashHistorySortedByLowBits;
+  std::vector<Hash128> koHashHistorySortedByLowBits;
   int koHistoryLastClearedBeginningMoveIdx;
 
   static const int TABLE_SIZE = 1 << 10;
@@ -144,4 +144,4 @@ struct KoHashTable {
 };
 
 
-#endif
+#endif  // GAME_BOARDHISTORY_H_

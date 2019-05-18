@@ -1,5 +1,5 @@
-#ifndef CUDAHELPERS_H
-#define CUDAHELPERS_H
+#ifndef NEURALNET_CUDAHELPERS_H_
+#define NEURALNET_CUDAHELPERS_H_
 
 //Given two tensors with shapes inA: [n,cA,h,w] and inB: [n,cB,h,w], that are on the GPU
 //Copy them into a single tensor out: [n,cA+cB,h,w] that is also allocated on the gpu
@@ -74,4 +74,4 @@ void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* sca
 void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, const half* mask, int n, int xy, int c, bool applyRelu);
 
 
-#endif
+#endif  // NEURALNET_CUDAHELPERS_H_

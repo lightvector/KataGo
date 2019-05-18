@@ -9,6 +9,8 @@
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
+using namespace std;
+
 //a must be smaller than b
 static double approxGCD(double a, double b) {
   while(true) {

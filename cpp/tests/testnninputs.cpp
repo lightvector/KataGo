@@ -1,9 +1,12 @@
 #include "../tests/tests.h"
-#include "../neuralnet/nninputs.h"
-#include "../dataio/sgf.h"
-using namespace TestCommon;
 
 #include <iomanip>
+
+#include "../neuralnet/nninputs.h"
+#include "../dataio/sgf.h"
+
+using namespace std;
+using namespace TestCommon;
 
 template <typename T>
 static void printNNInputHWAndBoard(

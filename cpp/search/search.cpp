@@ -1,10 +1,13 @@
-
-#include <inttypes.h>
-#include <algorithm>
 #include "../search/search.h"
+
+#include <algorithm>
+#include <inttypes.h>
+
 #include "../core/fancymath.h"
 #include "../core/timer.h"
 #include "../search/distributiontable.h"
+
+using namespace std;
 
 ReportedSearchValues::ReportedSearchValues()
 {}

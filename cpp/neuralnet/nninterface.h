@@ -1,5 +1,5 @@
-#ifndef NNINTERFACE_H
-#define NNINTERFACE_H
+#ifndef NEURALNET_NNINTERFACE_H_
+#define NEURALNET_NNINTERFACE_H_
 
 #include "../core/global.h"
 #include "../core/hash.h"
@@ -16,12 +16,12 @@ struct InputBuffers;
 
 namespace NeuralNet {
   void globalInitialize(
-    const string& tensorflowGpuVisibleGpuList,
+    const std::string& tensorflowGpuVisibleGpuList,
     double tensorflowPerProcessGpuMemoryFraction
   );
   void globalCleanup();
 
-  LoadedModel* loadModelFile(const string& file, int modelFileIdx);
+  LoadedModel* loadModelFile(const std::string& file, int modelFileIdx);
   void freeLoadedModel(LoadedModel* loadedModel);
 
   int getModelVersion(const LoadedModel* loadedModel);
@@ -55,7 +55,7 @@ namespace NeuralNet {
   int getRowLen(const InputBuffers* buffers);
   int getRowGlobalLen(const InputBuffers* buffers);
 
-  void getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int numFilledRows, vector<NNOutput*>& outputs);
+  void getOutput(LocalGpuHandle* gpuHandle, InputBuffers* buffers, int numFilledRows, std::vector<NNOutput*>& outputs);
 }
 
 //Model versions
@@ -72,4 +72,4 @@ namespace NNModelVersion {
 }
 
 
-#endif
+#endif  // NEURALNET_NNINTERFACE_H_

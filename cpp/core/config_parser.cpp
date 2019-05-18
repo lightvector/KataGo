@@ -1,8 +1,10 @@
+#include "../core/config_parser.h"
 
 #include <cmath>
 #include <fstream>
 #include <sstream>
-#include "../core/config_parser.h"
+
+using namespace std;
 
 ConfigParser::ConfigParser(const string& fname)
   :fileName(fname),contents(),keyValues(),usedKeysMutex(),usedKeys()
