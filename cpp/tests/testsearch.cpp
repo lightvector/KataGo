@@ -58,16 +58,9 @@ static void printPolicyValueOwnership(const Board& board, const NNResultBuf& buf
   cout << endl;
 }
 
-static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules, int turnNumber, double overrideKomi, TestSearchOptions opts) {
-  CompactSgf* sgf = CompactSgf::parse(sgfStr);
+static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHistory hist, TestSearchOptions opts) {
 
-  Board board;
-  Player nextPla;
-  BoardHistory hist;
-  sgf->setupBoardAndHist(rules, board, nextPla, hist, turnNumber);
-  hist.setKomi(overrideKomi);
   bot->setPosition(nextPla,board,hist);
-
   Search* search = bot->getSearch();
 
   for(int i = 0; i<opts.numMovesInARow; i++) {
@@ -118,7 +111,17 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
   search->nnEvaluator->clearStats();
   if(!opts.noClearBot)
     bot->clearSearch();
+}
 
+static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules, int turnNumber, double overrideKomi, TestSearchOptions opts) {
+  CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+  Board board;
+  Player nextPla;
+  BoardHistory hist;
+  sgf->setupBoardAndHist(rules, board, nextPla, hist, turnNumber);
+  hist.setKomi(overrideKomi);
+  runBotOnPosition(bot,board,nextPla,hist,opts);
   delete sgf;
 }
 
@@ -544,6 +547,65 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     delete bot;
   }
 
+
+  {
+    cout << "GAME 11 ==========================================================================" << endl;
+    cout << "(Non-square board)" << endl;
+    cout << endl;
+
+    Rules rules = Rules::getTrompTaylorish();
+    Player nextPla = P_BLACK;
+    Board boardA = Board::parseBoard(7,11,R"%%(
+.......
+.......
+..x.o..
+.......
+.......
+...xo..
+.......
+..xx...
+..oox..
+....o..
+.......
+)%%");
+    BoardHistory histA(boardA,nextPla,rules,0);
+
+    Board boardB = Board::parseBoard(11,7,R"%%(
+...........
+...........
+..x.o.ox...
+.......ox..
+.......ox..
+...........
+...........
+)%%");
+    BoardHistory histB(boardB,nextPla,rules,0);
+
+    SearchParams params;
+    params.maxVisits = 200;
+    params.dynamicScoreUtilityFactor = 0.25;
+
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, getSearchRandSeed());
+
+    TestSearchOptions opts;
+    runBotOnPosition(botA,boardA,nextPla,histA,opts);
+    runBotOnPosition(botB,boardB,nextPla,histB,opts);
+    delete botA;
+    delete botB;
+
+    cout << endl;
+    cout << "NNLen 11" << endl;
+    cout << endl;
+    AsyncBot* botA11 = new AsyncBot(params, nnEval11, &logger, getSearchRandSeed());
+    AsyncBot* botB11 = new AsyncBot(params, nnEval11, &logger, getSearchRandSeed());
+    runBotOnPosition(botA11,boardA,nextPla,histA,opts);
+    runBotOnPosition(botB11,boardB,nextPla,histB,opts);
+    
+    delete botA11;
+    delete botB11;
+  }
+
 }
 
 
@@ -965,6 +1027,53 @@ o..o.oo
     }
   }
 
+  {
+    cout << "===================================================================" << endl;
+    cout << "Non-square board search" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,17,0,true,false,false,true,1.0);
+    SearchParams params;
+    params.maxVisits = 100;
+    Search* search = new Search(params, nnEval, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    TestSearchOptions opts;
+
+    Board board = Board::parseBoard(7,17,R"%%(
+.......
+.......
+..x.o..
+.......
+...o...
+.......
+.......
+.......
+.......
+.......
+...x...
+.......
+.......
+..xx...
+..oox..
+....o..
+.......
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla,logger,NULL);
+
+    cout << search->rootBoard << endl;
+    
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+    search->printTree(cout, search->rootNode, options);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
   
   NeuralNet::globalCleanup();
 }
