@@ -203,7 +203,11 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false,std::max(board.x_size,board.y_size));
+    vector<NNEvaluator*> nnEvals =
+      Setup::initializeNNEvaluators(
+        {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,
+        false,false,board.x_size,board.y_size
+      );
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
   }

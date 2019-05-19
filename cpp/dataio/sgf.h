@@ -8,6 +8,7 @@
 #include "../dataio/trainingwrite.h"
 
 STRUCT_NAMED_TRIPLE(uint8_t,x,uint8_t,y,Player,pla,MoveNoBSize);
+STRUCT_NAMED_PAIR(int,x,int,y,XYSize);
 
 struct SgfNode {
   map<string,vector<string>>* props;
@@ -26,8 +27,8 @@ struct SgfNode {
   string getSingleProperty(const char* key) const;
 
   bool hasPlacements() const;
-  void accumPlacements(vector<Move>& moves, int bSize) const;
-  void accumMoves(vector<Move>& moves, int bSize) const;
+  void accumPlacements(vector<Move>& moves, int xSize, int ySize) const;
+  void accumMoves(vector<Move>& moves, int xSize, int ySize) const;
 
   Rules getRules(const Rules& defaultRules) const;
 };
@@ -50,17 +51,17 @@ struct Sgf {
   static vector<Sgf*> loadSgfsFile(const string& file);
   static vector<Sgf*> loadSgfsFiles(const vector<string>& files);
 
-  int getBSize() const;
+  XYSize getXYSize() const;
   float getKomi() const;
   Rules getRules(const Rules& defaultRules) const;
 
-  void getPlacements(vector<Move>& moves, int bSize) const;
-  void getMoves(vector<Move>& moves, int bSize) const;
+  void getPlacements(vector<Move>& moves, int xSize, int ySize) const;
+  void getMoves(vector<Move>& moves, int xSize, int ySize) const;
 
   int depth() const;
 
   private:
-  void getMovesHelper(vector<Move>& moves, int bSize) const;
+  void getMovesHelper(vector<Move>& moves, int xSize, int ySize) const;
 
 };
 
@@ -69,7 +70,8 @@ struct CompactSgf {
   SgfNode rootNode;
   vector<Move> placements;
   vector<Move> moves;
-  int bSize;
+  int xSize;
+  int ySize;
   int depth;
   float komi;
   Hash128 hash;

@@ -898,6 +898,62 @@ XXXXXXXXXXXXXXXXXXX
 )%%";
     expect(name,out,expected);
   }
+  
+  //============================================================================
+  {
+    const char* name = "Area Rect";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(12,3,R"%%(
+x.ooxxxo.xx.
+oo.ox.xoox.x
+ooxox.xo.ox.
+)%%");
+
+    printAreas(board,result);
+
+    string expected = R"%%(
+Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Suicide 0
+OOOO.....XXX
+OOOO.....XXX
+OOOO......XX
+
+Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Suicide 1
+.........XXX
+.........XXX
+..........XX
+
+Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Suicide 0
+OOOO.....XXX
+OOOO.....XXX
+OOOO......XX
+
+Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Suicide 1
+.........XXX
+.........XXX
+..........XX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Suicide 0
+OOOO.....XXX
+OOOO.X...XXX
+OOOO.X..O.XX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Suicide 1
+.........XXX
+.....X...XXX
+.....X..O.XX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Suicide 0
+OOOOXXXO.XXX
+OOOOXXXOOXXX
+OOOOXXXOOOXX
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Suicide 1
+X.OOXXXO.XXX
+OO.OXXXOOXXX
+OOXOXXXOOOXX
+)%%";
+    expect(name,out,expected);
+  }
 
   //============================================================================
   {

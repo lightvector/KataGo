@@ -24,8 +24,9 @@
 
 //   int modelFileIdx = 0;
 //   int maxBatchSize = 1;
-//   int posLen = 19;
-//   bool requireExactPosLen = false;
+//   int nnXLen = 19;
+//   int nnYLen = 19;
+//   bool requireExactNNLen = false;
 //   bool inputsUseNHWC = true;
 //   int nnCacheSizePowerOfTwo = 16;
 //   bool debugSkipNeuralNet = false;
@@ -35,8 +36,9 @@
 //     // "/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt",
 //     modelFileIdx,
 //     maxBatchSize,
-//     posLen,
-//     requireExactPosLen,
+//     nnXLen,
+//     nnYLen,
+//     requireExactNNLen,
 //     inputsUseNHWC,
 //     nnCacheSizePowerOfTwo,
 //     debugSkipNeuralNet
@@ -206,15 +208,16 @@ int MainCmds::sandbox() {
   bool cudaUseFP16 = true;
   bool cudaUseNHWC = true;
   int maxBatchSize = 128;
-  int posLen = 14;
-  bool requireExactPosLen = false;
+  int nnXLen = 14;
+  int nnYLen = 14;
+  bool requireExactNNLen = false;
   bool inputsUseNHWC = true;
   int cudaGpuIdxForThisThread = 0;
   LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(
-                                                              loadedModel,&logger,maxBatchSize,posLen,requireExactPosLen,inputsUseNHWC,
-                                                              cudaGpuIdxForThisThread,cudaUseFP16,cudaUseNHWC
-                                                              );
-  InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,posLen);
+    loadedModel,&logger,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,
+    cudaGpuIdxForThisThread,cudaUseFP16,cudaUseNHWC
+  );
+  InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
 
   bool* syms = NeuralNet::getSymmetriesInplace(inputBuffers);
   syms[0] = false;
@@ -253,7 +256,7 @@ int MainCmds::sandbox() {
     float* rowGlobalInput = NeuralNet::getRowGlobalInplace(inputBuffers,i);
 
     double drawEquivalentWinsForWhite = 0.5;
-    NNInputs::fillRowV3(board, hist, pla, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, row, rowGlobalInput);
+    NNInputs::fillRowV3(board, hist, pla, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, row, rowGlobalInput);
     // if(i % 3 == 0)
       // NNInputs::fillRowV3(board, hist, pla, row);
     // else if(i % 3 == 1)
@@ -265,7 +268,8 @@ int MainCmds::sandbox() {
   vector<NNOutput*> outputs;
   for(int row = 0; row<batchSize; row++) {
     NNOutput* emptyOutput = new NNOutput();
-    emptyOutput->posLen = posLen;
+    emptyOutput->nnXLen = nnXLen;
+    emptyOutput->nnYLen = nnYLen;
     outputs.push_back(emptyOutput);
   }
 
@@ -274,13 +278,13 @@ int MainCmds::sandbox() {
 
   for(int i = 0; i<outputs.size(); i++) {
     NNOutput* result = outputs[i];
-    for(int y = 0; y<posLen; y++) {
-      for(int x = 0; x<posLen; x++) {
-        printf("%7.4f ", result->policyProbs[x+y*posLen]);
+    for(int y = 0; y<nnYLen; y++) {
+      for(int x = 0; x<nnXLen; x++) {
+        printf("%7.4f ", result->policyProbs[x+y*nnXLen]);
       }
       cout << endl;
     }
-    printf("%6.4f ", result->policyProbs[posLen*posLen]);
+    printf("%6.4f ", result->policyProbs[nnXLen*nnYLen]);
     cout << endl;
     cout << result->whiteWinProb << endl;
     cout << result->whiteLossProb << endl;

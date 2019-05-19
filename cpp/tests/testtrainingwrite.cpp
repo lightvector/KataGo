@@ -13,8 +13,9 @@ static NNEvaluator* startNNEval(
   int modelFileIdx = 0;
   int maxBatchSize = 16;
   int maxConcurrentEvals = 1024;
-  int posLen = NNPos::MAX_BOARD_LEN;
-  bool requireExactPosLen = false;
+  int nnXLen = NNPos::MAX_BOARD_LEN;
+  int nnYLen = NNPos::MAX_BOARD_LEN;
+  bool requireExactNNLen = false;
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
   bool debugSkipNeuralNet = modelFile == "/dev/null";
@@ -26,8 +27,9 @@ static NNEvaluator* startNNEval(
     modelFileIdx,
     maxBatchSize,
     maxConcurrentEvals,
-    posLen,
-    requireExactPosLen,
+    nnXLen,
+    nnYLen,
+    requireExactNNLen,
     inputsUseNHWC,
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
@@ -62,7 +64,8 @@ void Tests::runTrainingWriteTests() {
   NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
 
   int maxRows = 256;
-  int posLen = 5;
+  int nnXLen = 5;
+  int nnYLen = 5;
   double firstFileMinRandProp = 1.0;
   int debugOnlyWriteEvery = 5;
 
@@ -72,7 +75,7 @@ void Tests::runTrainingWriteTests() {
   logger.addOStream(cout);
 
   auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite, int inputsVersion) {
-    TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, posLen, debugOnlyWriteEvery, seedBase+"dwriter");
+    TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, nnXLen, nnYLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
     NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,true,false,false);
 
@@ -108,7 +111,7 @@ void Tests::runTrainingWriteTests() {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, recordFullData, posLen,
+      fancyModes, recordFullData, nnXLen, nnYLen,
       true,
       rand,
       NULL
@@ -155,7 +158,8 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   double tensorflowPerProcessGpuMemoryFraction = 0.3;
   NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
 
-  int posLen = 11;
+  int nnXLen = 11;
+  int nnYLen = 11;
 
   Logger logger;
   logger.setLogToStdout(false);
@@ -211,7 +215,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, recordFullData, posLen,
+      fancyModes, recordFullData, nnXLen, nnYLen,
       true,
       rand,
       NULL

@@ -98,7 +98,8 @@ namespace {
       auto iter = loadedNets.find(nnModelFile);
       NetAndStuff* netAndStuff;
       if(iter == loadedNets.end()) {
-        vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},*cfg,logger,seedRand,maxConcurrentEvals,false,false,NNPos::MAX_BOARD_LEN);
+        vector<NNEvaluator*> nnEvals =
+          Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},*cfg,logger,seedRand,maxConcurrentEvals,false,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN);
         assert(nnEvals.size() == 1);
         netAndStuff = new NetAndStuff(nnEvals[0]);
         loadedNets[nnModelFile] = netAndStuff;
@@ -518,7 +519,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
       if(sigReceived.load())
         break;
 
-      int dataPosLen = 19; //Doesn't matter, we don't actually write training data
+      int dataBoardLen = 19; //Doesn't matter, we don't actually write training data
       FinishedGameData* gameData = NULL;
 
       int64_t gameIdx;
@@ -528,7 +529,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
       if(autoMatchPairer->getMatchup(manager, gameIdx, forBot, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
           gameIdx, botSpecB, botSpecW, NULL, NULL, logger,
-          dataPosLen, stopConditions, NULL
+          dataBoardLen, dataBoardLen, stopConditions, NULL
         );
       }
 

@@ -23,7 +23,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   int maxConcurrentEvals,
   bool debugSkipNeuralNetDefault,
   bool alwaysIncludeOwnerMap,
-  int defaultPosLen
+  int defaultNNXLen,
+  int defaultNNYLen
 ) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
@@ -35,17 +36,31 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : debugSkipNeuralNetDefault;
     int modelFileIdx = i;
 
-    int posLen = std::max(defaultPosLen,8);
-    if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-      posLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+    int nnXLen = std::max(defaultNNXLen,7);
+    int nnYLen = std::max(defaultNNYLen,7);
+    if(cfg.contains("maxBoardXSizeForNNBuffer" + idxStr))
+      nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+    else if(cfg.contains("maxBoardXSizeForNNBuffer"))
+      nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+    else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
+      nnXLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
     else if(cfg.contains("maxBoardSizeForNNBuffer"))
-      posLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+      nnXLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
 
-    bool requireExactPosLen = false;
+    if(cfg.contains("maxBoardYSizeForNNBuffer" + idxStr))
+      nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+    else if(cfg.contains("maxBoardYSizeForNNBuffer"))
+      nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+    else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
+      nnYLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+    else if(cfg.contains("maxBoardSizeForNNBuffer"))
+      nnYLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+
+    bool requireExactNNLen = false;
     if(cfg.contains("requireMaxBoardSize" + idxStr))
-      requireExactPosLen = cfg.getBool("requireMaxBoardSize" + idxStr);
+      requireExactNNLen = cfg.getBool("requireMaxBoardSize" + idxStr);
     else if(cfg.contains("requireMaxBoardSize"))
-      requireExactPosLen = cfg.getBool("requireMaxBoardSize");
+      requireExactNNLen = cfg.getBool("requireMaxBoardSize");
 
     bool inputsUseNHWC = true;
     if(cfg.contains("inputsUseNHWC"+idxStr))
@@ -65,8 +80,9 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       modelFileIdx,
       cfg.getInt("nnMaxBatchSize", 1, 65536),
       maxConcurrentEvals,
-      posLen,
-      requireExactPosLen,
+      nnXLen,
+      nnYLen,
+      requireExactNNLen,
       inputsUseNHWC,
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24),

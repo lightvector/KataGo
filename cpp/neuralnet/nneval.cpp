@@ -25,7 +25,7 @@ NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model)
 {
   int maxNumRows = nnEval.getMaxBatchSize();
   if(model != NULL)
-    inputBuffers = NeuralNet::createInputBuffers(model,maxNumRows,nnEval.getPosLen());
+    inputBuffers = NeuralNet::createInputBuffers(model,maxNumRows,nnEval.getNNXLen(),nnEval.getNNYLen());
   resultBufs = new NNResultBuf*[maxNumRows];
   for(int i = 0; i < maxNumRows; i++)
     resultBufs[i] = NULL;
@@ -48,8 +48,9 @@ NNEvaluator::NNEvaluator(
   int modelFileIdx,
   int maxBatchSize,
   int maxConcurrentEvals,
-  int pLen,
-  bool rExactPosLen,
+  int xLen,
+  int yLen,
+  bool rExactNNLen,
   bool iUseNHWC,
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerofTwo,
@@ -59,9 +60,10 @@ NNEvaluator::NNEvaluator(
 )
   :modelName(mName),
    modelFileName(mFileName),
-   posLen(pLen),
-   requireExactPosLen(rExactPosLen),
-   policySize(NNPos::getPolicySize(pLen)),
+   nnXLen(xLen),
+   nnYLen(yLen),
+   requireExactNNLen(rExactNNLen),
+   policySize(NNPos::getPolicySize(xLen,yLen)),
    inputsUseNHWC(iUseNHWC),
    loadedModel(NULL),
    nnCacheTable(NULL),
@@ -82,7 +84,9 @@ NNEvaluator::NNEvaluator(
    m_currentResultBufsIdx(0),
    m_oldestResultBufsIdx(0)
 {
-  if(posLen > NNPos::MAX_BOARD_LEN)
+  if(nnXLen > NNPos::MAX_BOARD_LEN)
+    throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
+  if(nnYLen > NNPos::MAX_BOARD_LEN)
     throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
   if(maxConcurrentEvals <= 0)
     throw StringError("maxConcurrentEvals is negative: " + Global::intToString(maxConcurrentEvals));
@@ -148,8 +152,11 @@ string NNEvaluator::getModelFileName() const {
 int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
 }
-int NNEvaluator::getPosLen() const {
-  return posLen;
+int NNEvaluator::getNNXLen() const {
+  return nnXLen;
+}
+int NNEvaluator::getNNYLen() const {
+  return nnYLen;
 }
 
 uint64_t NNEvaluator::numRowsProcessed() const {
@@ -236,7 +243,7 @@ void NNEvaluator::serve(
 
   LocalGpuHandle* gpuHandle = NULL;
   if(loadedModel != NULL)
-    gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, posLen, requireExactPosLen, inputsUseNHWC, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
+    gpuHandle = NeuralNet::createLocalGpuHandle(loadedModel, logger, maxNumRows, nnXLen, nnYLen, requireExactNNLen, inputsUseNHWC, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
 
   vector<NNOutput*> outputBuf;
 
@@ -289,20 +296,21 @@ void NNEvaluator::serve(
         //Illegal move filtering happens later.
         for(int y = 0; y<boardYSize; y++) {
           for(int x = 0; x<boardXSize; x++) {
-            int pos = NNPos::xyToPos(x,y,posLen);
+            int pos = NNPos::xyToPos(x,y,nnXLen);
             policyProbs[pos] = rand.nextGaussian();
           }
         }
-        policyProbs[NNPos::locToPos(Board::PASS_LOC,boardXSize,posLen)] = rand.nextGaussian();
+        policyProbs[NNPos::locToPos(Board::PASS_LOC,boardXSize,nnXLen,nnYLen)] = rand.nextGaussian();
 
-        resultBuf->result->posLen = posLen;
+        resultBuf->result->nnXLen = nnXLen;
+        resultBuf->result->nnYLen = nnYLen;
         if(resultBuf->includeOwnerMap) {
-          float* whiteOwnerMap = new float[posLen*posLen];
-          for(int i = 0; i<posLen*posLen; i++)
+          float* whiteOwnerMap = new float[nnXLen*nnYLen];
+          for(int i = 0; i<nnXLen*nnYLen; i++)
             whiteOwnerMap[i] = 0.0;
           for(int y = 0; y<boardYSize; y++) {
             for(int x = 0; x<boardXSize; x++) {
-              int pos = NNPos::xyToPos(x,y,posLen);
+              int pos = NNPos::xyToPos(x,y,nnXLen);
               whiteOwnerMap[pos] = rand.nextGaussian() * 0.20;
             }
           }
@@ -343,9 +351,10 @@ void NNEvaluator::serve(
     for(int row = 0; row<numRows; row++) {
       NNOutput* emptyOutput = new NNOutput();
       assert(buf.resultBufs[row] != NULL);
-      emptyOutput->posLen = posLen;
+      emptyOutput->nnXLen = nnXLen;
+      emptyOutput->nnYLen = nnYLen;
       if(buf.resultBufs[row]->includeOwnerMap)
-        emptyOutput->whiteOwnerMap = new float[posLen*posLen];
+        emptyOutput->whiteOwnerMap = new float[nnXLen*nnYLen];
       else
         emptyOutput->whiteOwnerMap = NULL;
       outputBuf.push_back(emptyOutput);
@@ -353,7 +362,7 @@ void NNEvaluator::serve(
 
     int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
     int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
-    int rowBinLen = numSpatialFeatures * posLen * posLen;
+    int rowBinLen = numSpatialFeatures * nnXLen * nnYLen;
     int rowGlobalLen = numGlobalFeatures;
     assert(rowBinLen == NeuralNet::getRowLen(buf.inputBuffers));
     assert(rowGlobalLen == NeuralNet::getRowGlobalLen(buf.inputBuffers));
@@ -406,13 +415,15 @@ void NNEvaluator::evaluate(
   assert(!isKilled);
   buf.hasResult = false;
 
-  if(board.x_size > posLen || board.y_size > posLen)
-    throw StringError("NNEvaluator was configured with posLen = " + Global::intToString(posLen) +
+  if(board.x_size > nnXLen || board.y_size > nnYLen)
+    throw StringError("NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +
+                      " nnYLen = " + Global::intToString(nnYLen) +
                       " but was asked to evaluate board with larger x or y size");
-  if(requireExactPosLen) {
-    if(board.x_size != posLen || board.y_size != posLen)
-      throw StringError("NNEvaluator was configured with posLen = " + Global::intToString(posLen) +
-                        " and requireExactPosLen, but was asked to evaluate board with different x or y size");
+  if(requireExactNNLen) {
+    if(board.x_size != nnXLen || board.y_size != nnYLen)
+      throw StringError("NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +
+                        " nnYLen = " + Global::intToString(nnYLen) +
+                        " and requireExactNNLen, but was asked to evaluate board with different x or y size");
   }
 
   Hash128 nnHash;
@@ -451,20 +462,20 @@ void NNEvaluator::evaluate(
   buf.boardYSizeForServer = board.y_size;
   
   if(!debugSkipNeuralNet) {
-    int rowBinLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * posLen * posLen;
+    int rowBinLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
     if(buf.rowBin == NULL) {
       buf.rowBin = new float[rowBinLen];
       buf.rowBinSize = rowBinLen;
     }
     else {
       if(buf.rowBinSize != rowBinLen)
-        throw StringError("Cannot reuse an nnResultBuf with a different posLen or model version");
+        throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
 
     if(inputsVersion == 1)
-      NNInputs::fillRowV1(board, history, nextPlayer, posLen, inputsUseNHWC, buf.rowBin);
+      NNInputs::fillRowV1(board, history, nextPlayer, nnXLen, nnYLen, inputsUseNHWC, buf.rowBin);
     else if(inputsVersion == 2)
-      NNInputs::fillRowV2(board, history, nextPlayer, posLen, inputsUseNHWC, buf.rowBin);
+      NNInputs::fillRowV2(board, history, nextPlayer, nnXLen, nnYLen, inputsUseNHWC, buf.rowBin);
     else if(inputsVersion == 3) {
       int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
       if(buf.rowGlobal == NULL) {
@@ -473,9 +484,9 @@ void NNEvaluator::evaluate(
       }
       else {
         if(buf.rowGlobalSize != rowGlobalLen)
-          throw StringError("Cannot reuse an nnResultBuf with a different posLen or model version");
+          throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
       }
-      NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
+      NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
     }
     else if(inputsVersion == 4) {
       int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
@@ -485,9 +496,9 @@ void NNEvaluator::evaluate(
       }
       else {
         if(buf.rowGlobalSize != rowGlobalLen)
-          throw StringError("Cannot reuse an nnResultBuf with a different posLen or model version");
+          throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
       }
-      NNInputs::fillRowV4(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
+      NNInputs::fillRowV4(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
     }
     else if(inputsVersion == 5) {
       int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
@@ -497,9 +508,9 @@ void NNEvaluator::evaluate(
       }
       else {
         if(buf.rowGlobalSize != rowGlobalLen)
-          throw StringError("Cannot reuse an nnResultBuf with a different posLen or model version");
+          throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
       }
-      NNInputs::fillRowV5(board, history, nextPlayer, drawEquivalentWinsForWhite, posLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
+      NNInputs::fillRowV5(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
     }
     else
       ASSERT_UNREACHABLE;
@@ -542,7 +553,8 @@ void NNEvaluator::evaluate(
     buf.result->whiteScoreMean = resultWithoutOwnerMap->whiteScoreMean;
     buf.result->whiteScoreMeanSq = resultWithoutOwnerMap->whiteScoreMeanSq;
     std::copy(resultWithoutOwnerMap->policyProbs, resultWithoutOwnerMap->policyProbs + NNPos::MAX_NN_POLICY_SIZE, buf.result->policyProbs);
-    buf.result->posLen = resultWithoutOwnerMap->posLen;
+    buf.result->nnXLen = resultWithoutOwnerMap->nnXLen;
+    buf.result->nnYLen = resultWithoutOwnerMap->nnYLen;
     assert(buf.result->whiteOwnerMap != NULL);
   }
   else {
@@ -555,7 +567,7 @@ void NNEvaluator::evaluate(
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
     for(int i = 0; i<policySize; i++) {
-      Loc loc = NNPos::posToLoc(i,xSize,ySize,posLen);
+      Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
       isLegal[i] = history.isLegal(board,loc,nextPlayer);
 
       float policyValue;
@@ -755,9 +767,9 @@ void NNEvaluator::evaluate(
       //No postprocessing needed, cudabackend fills with zeros, which is exactly fine.
     }
     else if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5 || modelVersion == 6) {
-      for(int pos = 0; pos<posLen*posLen; pos++) {
-        int y = pos / posLen;
-        int x = pos % posLen;
+      for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
+        int y = pos / nnXLen;
+        int x = pos % nnXLen;
         if(y >= board.y_size || x >= board.x_size)
           buf.result->whiteOwnerMap[pos] = 0.0f;
         else {

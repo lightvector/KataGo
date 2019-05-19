@@ -80,8 +80,9 @@ class NNEvaluator {
     int modelFileIdx,
     int maxBatchSize,
     int maxConcurrentEvals,
-    int posLen,
-    bool requireExactPosLen,
+    int nnXLen,
+    int nnYLen,
+    bool requireExactNNLen,
     bool inputsUseNHWC,
     int nnCacheSizePowerOfTwo,
     int nnMutexPoolSizePowerofTwo,
@@ -94,7 +95,8 @@ class NNEvaluator {
   string getModelName() const;
   string getModelFileName() const;
   int getMaxBatchSize() const;
-  int getPosLen() const;
+  int getNNXLen() const;
+  int getNNYLen() const;
 
   //Clear all entires cached in the table
   void clearCache();
@@ -143,8 +145,9 @@ class NNEvaluator {
  private:
   string modelName;
   string modelFileName;
-  int posLen;
-  bool requireExactPosLen;
+  int nnXLen;
+  int nnYLen;
+  bool requireExactNNLen;
   int policySize;
   bool inputsUseNHWC;
 

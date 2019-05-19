@@ -16,7 +16,8 @@ static void writeLine(
   const vector<double>& winLossHistory, const vector<double>& scoreHistory, const vector<double>& scoreStdevHistory
 ) {
   const Board board = search->getRootBoard();
-  int posLen = search->posLen;
+  int nnXLen = search->nnXLen;
+  int nnYLen = search->nnYLen;
 
   // cout << baseHist.rules << endl;
   // cout << board << endl;
@@ -32,8 +33,8 @@ static void writeLine(
 
   cout << board.x_size << " ";
   cout << board.y_size << " ";
-  cout << posLen << " "; //in the future we may have posLenX
-  cout << posLen << " "; //in the future we may have posLenY
+  cout << nnXLen << " ";
+  cout << nnYLen << " ";
   cout << baseHist.rules.komi << " ";
   if(baseHist.isGameFinished) {
     cout << playerToString(baseHist.winner) << " ";
@@ -50,7 +51,7 @@ static void writeLine(
   Loc moveLoc = Board::NULL_LOC;
   if(baseHist.moveHistory.size() > 0)
     moveLoc = baseHist.moveHistory[baseHist.moveHistory.size()-1].loc;
-  cout << NNPos::locToPos(moveLoc,board.x_size,posLen) << " ";
+  cout << NNPos::locToPos(moveLoc,board.x_size,nnXLen,nnYLen) << " ";
 
   cout << baseHist.moveHistory.size() << " ";
   cout << board.numBlackCaptures << " ";
@@ -77,7 +78,7 @@ static void writeLine(
   cout << buf.size() << " ";
   for(int i = 0; i<buf.size(); i++) {
     const AnalysisData& data = buf[i];
-    cout << NNPos::locToPos(data.move,board.x_size,posLen) << " ";
+    cout << NNPos::locToPos(data.move,board.x_size,nnXLen,nnYLen) << " ";
     cout << data.numVisits << " ";
     cout << data.winLossValue << " ";
     cout << data.scoreMean << " ";
@@ -89,7 +90,7 @@ static void writeLine(
   vector<double> ownership = search->getAverageTreeOwnership(minVisits);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,posLen);
+      int pos = NNPos::xyToPos(x,y,nnXLen);
       cout << ownership[pos] << " ";
     }
   }
@@ -403,7 +404,10 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     bool alwaysIncludeOwnerMap = true;
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,false,alwaysIncludeOwnerMap,NNPos::MAX_BOARD_LEN);
+    vector<NNEvaluator*> nnEvals =
+      Setup::initializeNNEvaluators(
+        {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,false,alwaysIncludeOwnerMap,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+      );
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
   }

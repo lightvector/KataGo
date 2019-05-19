@@ -16,11 +16,11 @@ namespace NNPos {
   //Extra score distribution radius, used for writing score in data rows and for the neural net score belief output
   const int EXTRA_SCORE_DISTR_RADIUS = 60;
 
-  int xyToPos(int x, int y, int posLen);
-  int locToPos(Loc loc, int boardXSize, int posLen);
-  Loc posToLoc(int pos, int boardXSize, int boardYSize, int posLen);
-  bool isPassPos(int pos, int posLen);
-  int getPolicySize(int posLen);
+  int xyToPos(int x, int y, int nnXLen);
+  int locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen);
+  Loc posToLoc(int pos, int boardXSize, int boardYSize, int nnXLen, int nnYLen);
+  bool isPassPos(int pos, int nnXLen, int nnYLen);
+  int getPolicySize(int nnXLen, int nnYLen);
 }
 
 namespace NNInputs {
@@ -53,7 +53,7 @@ namespace NNInputs {
   //doesn't get told about the rules
   void fillRowV0(
     const Board& board, const vector<Move>& moveHistory, int moveHistoryLen,
-    Player nextPlayer, float selfKomi, int posLen, bool useNHWC, float* row
+    Player nextPlayer, float selfKomi, int nnXLen, int nnYLen, bool useNHWC, float* row
   );
 
   //Handles superko and works for tromp-taylor, but otherwise not all rules implemented
@@ -62,7 +62,7 @@ namespace NNInputs {
   );
   void fillRowV1(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    int posLen, bool useNHWC, float* row
+    int nnXLen, int nnYLen, bool useNHWC, float* row
   );
 
   //Slightly more complete rules support, new ladder features, compressed some features
@@ -71,7 +71,7 @@ namespace NNInputs {
   );
   void fillRowV2(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    int posLen, bool useNHWC, float* row
+    int nnXLen, int nnYLen, bool useNHWC, float* row
   );
 
   //Ongoing sandbox for full rules support for self play
@@ -81,7 +81,7 @@ namespace NNInputs {
   );
   void fillRowV3(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite, int posLen, bool useNHWC, float* rowBin, float* rowGlobal
+    double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
   Hash128 getHashV4(
@@ -90,7 +90,7 @@ namespace NNInputs {
   );
   void fillRowV4(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite, int posLen, bool useNHWC, float* rowBin, float* rowGlobal
+    double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
   Hash128 getHashV5(
@@ -99,7 +99,7 @@ namespace NNInputs {
   );
   void fillRowV5(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite, int posLen, bool useNHWC, float* rowBin, float* rowGlobal
+    double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
 }
@@ -122,8 +122,9 @@ struct NNOutput {
   //Values in here will be set to negative for illegal moves, including superko
   float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
 
-  int posLen;
-  //If not NULL, then this contains a posLen*posLen-sized map of expected ownership on the board.
+  int nnXLen;
+  int nnYLen;
+  //If not NULL, then this contains a nnXLen*nnYLen-sized map of expected ownership on the board.
   float* whiteOwnerMap;
 
   NNOutput(); //Does NOT initialize values

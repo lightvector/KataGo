@@ -123,7 +123,8 @@ int MainCmds::match(int argc, const char* const* argv) {
   //Initialize neural net inference engine globals, and load models
   Setup::initializeSession(cfg);
   const vector<string>& nnModelNames = nnModelFiles;
-  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,false,false,NNPos::MAX_BOARD_LEN);
+  vector<NNEvaluator*> nnEvals =
+    Setup::initializeNNEvaluators(nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,false,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN);
   logger.write("Loaded neural net");
 
   vector<NNEvaluator*> nnEvalsByBot;
@@ -172,7 +173,7 @@ int MainCmds::match(int argc, const char* const* argv) {
       if(sigReceived.load())
         break;
 
-      int dataPosLen = 19; //Doesn't matter, we don't actually write training data
+      int dataBoardLen = 19; //Doesn't matter, we don't actually write training data
       FinishedGameData* gameData = NULL;
 
       int64_t gameIdx;
@@ -181,7 +182,7 @@ int MainCmds::match(int argc, const char* const* argv) {
       if(matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
           gameIdx, botSpecB, botSpecW, NULL, NULL, logger,
-          dataPosLen, stopConditions, NULL
+          dataBoardLen, dataBoardLen, stopConditions, NULL
         );
       }
 

@@ -150,6 +150,7 @@ if(BUILD_MCTS)
     tests/testboardbasic.cpp
     tests/testrules.cpp
     tests/testscore.cpp
+    tests/testsgf.cpp
     tests/testnninputs.cpp
     tests/testsearch.cpp
     tests/testtime.cpp

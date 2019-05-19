@@ -151,7 +151,7 @@ Policy
 
 
 GAME 6 ==========================================================================
-(A simple smaller game, also testing invariance under poslen)
+(A simple smaller game, also testing invariance under nnlen)
 HASH: 4C9FC5A01FEE957760D54502B286F0C1
    A B C D E F G H J K L
 11 . X . . . . . . O . .
@@ -197,7 +197,7 @@ Policy
  -787  -801  -780  -659  -666   241   452  -861  -901  -985  -939 
  -803  -815  -770  -587  -248   -89  -209  -549  -970  -942  -949 
 
-PosLen 11
+NNLen 11
 HASH: 4C9FC5A01FEE957760D54502B286F0C1
    A B C D E F G H J K L
 11 . X . . . . . . O . .

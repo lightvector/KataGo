@@ -188,9 +188,11 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand"))
 {
-  posLen = nnEval->getPosLen();
-  assert(posLen > 0 && posLen <= NNPos::MAX_BOARD_LEN);
-  policySize = NNPos::getPolicySize(posLen);
+  nnXLen = nnEval->getNNXLen();
+  nnYLen = nnEval->getNNYLen();
+  assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
+  assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
+  policySize = NNPos::getPolicySize(nnXLen,nnYLen);
   rootKoHashTable = new KoHashTable();
 
   rootSafeArea = new Color[Board::MAX_ARR_SIZE];
@@ -282,9 +284,11 @@ void Search::setParamsNoClearing(SearchParams params) {
 void Search::setNNEval(NNEvaluator* nnEval) {
   clearSearch();
   nnEvaluator = nnEval;
-  posLen = nnEval->getPosLen();
-  assert(posLen > 0 && posLen <= NNPos::MAX_BOARD_LEN);
-  policySize = NNPos::getPolicySize(posLen);
+  nnXLen = nnEval->getNNXLen();
+  nnYLen = nnEval->getNNYLen();
+  assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
+  assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
+  policySize = NNPos::getPolicySize(nnXLen,nnYLen);
 }
 
 void Search::clearSearch() {
@@ -475,7 +479,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     if(nnOutput == nullptr || &node != rootNode || !allowDirectPolicyMoves)
       return false;
     for(int movePos = 0; movePos<policySize; movePos++) {
-      Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,posLen);
+      Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
       double policyProb = nnOutput->policyProbs[movePos];
       if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || !isAllowedRootMove(moveLoc))
         continue;
@@ -841,8 +845,9 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
 
 
 void Search::beginSearch(Logger& logger) {
-  if(rootBoard.x_size > posLen || rootBoard.y_size > posLen)
-    throw StringError("Search got from NNEval posLen = " + Global::intToString(posLen) + " but was asked to search board with larger x or y size");
+  if(rootBoard.x_size > nnXLen || rootBoard.y_size > nnYLen)
+    throw StringError("Search got from NNEval nnXLen = " + Global::intToString(nnXLen) +
+                      " nnYLen = " + Global::intToString(nnYLen) + " but was asked to search board with larger x or y size");
   rootBoard.checkConsistency();
 
   numSearchesBegun++;
@@ -1278,7 +1283,8 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
 
   bool isAreaIsh = rootHistory.rules.scoringRule == Rules::SCORING_AREA
     || (rootHistory.rules.scoringRule == Rules::SCORING_TERRITORY && rootHistory.encorePhase >= 2);
-  assert(parent.nnOutput->posLen == posLen);
+  assert(parent.nnOutput->nnXLen == nnXLen);
+  assert(parent.nnOutput->nnYLen == nnYLen);
   float* whiteOwnerMap = parent.nnOutput->whiteOwnerMap;
   Loc moveLoc = child->prevMoveLoc;
 
@@ -1291,7 +1297,7 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     // * On a spot that the player almost surely owns and it is not adjacent to opponent stones and is not a connection of non-pass-alive groups.
     //These conditions should still make it so that "cleanup" and dame-filling moves are not discouraged.
     if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
-      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
+      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
       if(plaOwnership <= -0.95)
         extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.95 - plaOwnership) / 0.05);
@@ -1314,7 +1320,7 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     if(moveLoc == Board::PASS_LOC)
       extraRootPoints -= searchParams.rootEndingBonusPoints * (2.0/3.0);
     else if(rootBoard.ko_loc == Board::NULL_LOC) {
-      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
+      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
       if(plaOwnership <= -0.95)
         extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.95 - plaOwnership) / 0.05);
@@ -1334,7 +1340,7 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
 }
 
 int Search::getPos(Loc moveLoc) const {
-  return NNPos::locToPos(moveLoc,rootBoard.x_size,posLen);
+  return NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
 }
 
 //Parent must be locked
@@ -1529,7 +1535,7 @@ void Search::selectBestChildToDescend(
     if(alreadyTried)
       continue;
 
-    Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,thread.board.y_size,posLen);
+    Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,thread.board.y_size,nnXLen,nnYLen);
     if(moveLoc == Board::NULL_LOC)
       continue;
 
@@ -1916,7 +1922,7 @@ void Search::printRootOwnershipMap(ostream& out) const {
 
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,nnOutput.posLen);
+      int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
       out << Global::strprintf("%6.1f ", nnOutput.whiteOwnerMap[pos]*100);
     }
     out << endl;
@@ -1931,7 +1937,7 @@ void Search::printRootPolicyMap(ostream& out) const {
 
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,nnOutput.posLen);
+      int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
       out << Global::strprintf("%6.1f ", nnOutput.policyProbs[pos]*100);
     }
     out << endl;
@@ -2252,7 +2258,7 @@ void Search::getAnalysisData(
       if(bestPos < 0 || bestPolicy < 0.0)
         break;
 
-      Loc bestMove = NNPos::posToLoc(bestPos,rootBoard.x_size,rootBoard.y_size,posLen);
+      Loc bestMove = NNPos::posToLoc(bestPos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
       AnalysisData data = getAnalysisDataOfSingleChild(
         NULL, scratchLocs, scratchValues, bestMove, bestPolicy, fpuValue, parentUtility, parentWinLossValue,
         parentScoreMean, parentScoreStdev, maxPVDepth
@@ -2455,7 +2461,7 @@ void Search::printTreeHelper(
 vector<double> Search::getAverageTreeOwnership(int64_t minVisits) const {
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
-  vector<double> vec(posLen*posLen,0.0);
+  vector<double> vec(nnXLen*nnYLen,0.0);
   getAverageTreeOwnershipHelper(vec,minVisits,1.0,rootNode);
   return vec;
 }
@@ -2513,7 +2519,7 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
   double selfWeight = desiredWeight - actualWeightFromChildren;
   float* ownerMap = nnOutput->whiteOwnerMap;
   assert(ownerMap != NULL);
-  for(int pos = 0; pos<posLen*posLen; pos++)
+  for(int pos = 0; pos<nnXLen*nnYLen; pos++)
     accum[pos] += selfWeight * ownerMap[pos];
 
   return desiredWeight;

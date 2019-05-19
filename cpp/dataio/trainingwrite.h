@@ -65,7 +65,8 @@ struct FinishedGameData {
 
   //If false, then we don't have these below vectors and ownership information
   bool hasFullData;
-  int posLen;
+  int dataXLen;
+  int dataYLen;
   vector<float> targetWeightByTurn;
   vector<PolicyTarget> policyTargetsByTurn;
   vector<ValueTargets> whiteValueTargetsByTurn;
@@ -85,7 +86,8 @@ struct TrainingWriteBuffers {
   int maxRows;
   int numBinaryChannels;
   int numGlobalChannels;
-  int posLen;
+  int dataXLen;
+  int dataYLen;
   int packedBoardArea;
 
   int curRows;
@@ -155,8 +157,8 @@ struct TrainingWriteBuffers {
   NumpyBuffer<float> globalTargetsNC;
 
   //Score target
-  //Indices correspond to scores, from (-posLen^2-EXTRA_SCORE_DISTR_RADIUS)-0.5 to (posLen^2+EXTRA_SCORE_DISTR_RADIUS)+0.5,
-  //making 2*posLen^2+2*EXTRA_SCORE_DISTR_RADIUS indices in total.
+  //Indices correspond to scores, from (-dataXLen*dataYLen-EXTRA_SCORE_DISTR_RADIUS)-0.5 to (dataXLen*dataYLen+EXTRA_SCORE_DISTR_RADIUS)+0.5,
+  //making 2*dataXLen*dataYLen+2*EXTRA_SCORE_DISTR_RADIUS indices in total.
   //Index of the actual score is labeled with 100, the rest labeled with 0, from the perspective of the player to move.
   //Except in case of integer komi, the value can be split between two adjacent labels based on value of draw.
   //Arbitrary if C26 has weight 0.
@@ -169,7 +171,7 @@ struct TrainingWriteBuffers {
   //C0 - Final board ownership (-1,0,1), from the perspective of the player to move. All 0 if C26 has weight 0.
   NumpyBuffer<int8_t> valueTargetsNCHW;
 
-  TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numGlobalChannels, int posLen);
+  TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numGlobalChannels, int dataXLen, int dataYLen);
   ~TrainingWriteBuffers();
 
   TrainingWriteBuffers(const TrainingWriteBuffers&) = delete;
@@ -200,9 +202,9 @@ struct TrainingWriteBuffers {
 
 class TrainingDataWriter {
  public:
-  TrainingDataWriter(const string& outputDir, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int posLen, const string& randSeed);
-  TrainingDataWriter(ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int posLen, int onlyWriteEvery, const string& randSeed);
-  TrainingDataWriter(const string& outputDir, ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int posLen, int onlyWriteEvery, const string& randSeed);
+  TrainingDataWriter(const string& outputDir, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, const string& randSeed);
+  TrainingDataWriter(ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyWriteEvery, const string& randSeed);
+  TrainingDataWriter(const string& outputDir, ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyWriteEvery, const string& randSeed);
   ~TrainingDataWriter();
 
   void writeGame(const FinishedGameData& data);

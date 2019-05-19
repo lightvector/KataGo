@@ -182,8 +182,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   Setup::initializeSession(cfg);
 
-  auto maybeInitializeNNEvalAndAsyncBot = [&nnEval,&bot,&cfg,&params,&nnModelFile,&logger,&seedRand](int boardSize) {
-    if(nnEval != NULL && boardSize == nnEval->getPosLen())
+  auto maybeInitializeNNEvalAndAsyncBot = [&nnEval,&bot,&cfg,&params,&nnModelFile,&logger,&seedRand](int boardXSize, int boardYSize) {
+    if(nnEval != NULL && boardXSize == nnEval->getNNXLen() && boardYSize == nnEval->getNNYLen())
       return;
     if(nnEval != NULL) {
       assert(bot != NULL);
@@ -194,23 +194,25 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       nnEval = NULL;
       logger.write("Cleaned up old neural net and bot");
     }
-
+    
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false,boardSize);
+    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
+      {nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false,boardXSize,boardYSize
+    );
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
-    logger.write("Loaded neural net with posLen " + Global::intToString(nnEval->getPosLen()));
-
+    logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
+    
     string searchRandSeed;
     if(cfg.contains("searchRandSeed"))
       searchRandSeed = cfg.getString("searchRandSeed");
     else
       searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
-
+    
     bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
   };
 
-  maybeInitializeNNEvalAndAsyncBot(19);
+  maybeInitializeNNEvalAndAsyncBot(19,19);
 
   {
     Board board(19,19);
@@ -403,7 +405,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",(int)Board::MAX_LEN);
       }
       else {
-        maybeInitializeNNEvalAndAsyncBot(newBSize);
+        maybeInitializeNNEvalAndAsyncBot(newBSize,newBSize);
         Board board(newBSize,newBSize);
         Player pla = P_BLACK;
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
@@ -414,9 +416,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
 
     else if(command == "clear_board") {
-      assert(bot->getRootBoard().x_size == bot->getRootBoard().y_size);
-      int newBSize = bot->getRootBoard().x_size;
-      Board board(newBSize,newBSize);
+      int newXSize = bot->getRootBoard().x_size;
+      int newYSize = bot->getRootBoard().y_size;
+      Board board(newXSize,newYSize);
       Player pla = P_BLACK;
       BoardHistory hist(board,pla,bot->getRootHist().rules,0);
       bot->setPosition(pla,board,hist);
@@ -1015,10 +1017,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
               cout << " ";
 
               cout << "ownership";
-              int posLen = search->posLen;
+              int nnXLen = search->nnXLen;
               for(int y = 0; y<board.y_size; y++) {
                 for(int x = 0; x<board.x_size; x++) {
-                  int pos = NNPos::xyToPos(x,y,posLen);
+                  int pos = NNPos::xyToPos(x,y,nnXLen);
                   cout << " " << ownership[pos];
                 }
               }

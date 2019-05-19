@@ -157,7 +157,8 @@ struct Search {
   //Services--------------------------------------------------------------
   MutexPool* mutexPool;
   NNEvaluator* nnEvaluator; //externally owned
-  int posLen;
+  int nnXLen;
+  int nnYLen;
   int policySize;
   Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
 

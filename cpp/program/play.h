@@ -196,7 +196,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-    FancyModes fancyModes, bool recordFullData, int dataPosLen,
+    FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
     bool allowPolicyInit,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
@@ -210,7 +210,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-    FancyModes fancyModes, bool recordFullData, int dataPosLen,
+    FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
     bool allowPolicyInit,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
@@ -280,7 +280,8 @@ public:
     const InitialPosition* initialPosition,
     const InitialPosition** nextInitialPosition,
     Logger& logger,
-    int dataPosLen,
+    int dataXLen,
+    int dataYLen,
     vector<std::atomic<bool>*>& stopConditions,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
