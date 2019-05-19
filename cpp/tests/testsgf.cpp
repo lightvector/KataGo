@@ -42,6 +42,8 @@ void Tests::runSgfTests() {
     out << "Final board hist " << endl;
     out << "pla " << playerToString(pla) << endl;    
     hist.printDebugInfo(out,board);
+
+    delete sgf;
   };
   
   //============================================================================
@@ -183,6 +185,84 @@ Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0
 Last moves F1 C1 M3
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    const char* name = "Sgf parsing with whitespace and placements and comments";
+    string sgfStr = R"%%((;GM[1]FF[4]SZ[9]
+GN[]
+C[Diagram
+
+]
+PL[W]
+
+AB[bc][dc][fc]
+AW[ac][cc]AW[ec]
+
+
+;
+))%%";
+    parseAndPrintSgf(sgfStr);
+    string expected = R"%%(
+xSize 9
+ySize 9
+depth 2
+komi 7.5
+placements
+X B7
+X D7
+X F7
+O A7
+O C7
+O E7
+moves
+Initial board hist
+pla White
+HASH: B9DEED0632FD395A12CA242D89060D3B
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 O X O X O X . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Initial pla White
+Encore phase 0
+Rules koPOSITIONALscoreAREAsui1komi7.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 0
+Game result 0 Empty 0 0 0
+Last moves
+Final board hist
+pla White
+HASH: B9DEED0632FD395A12CA242D89060D3B
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 O X O X O X . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Initial pla White
+Encore phase 0
+Rules koPOSITIONALscoreAREAsui1komi7.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 0
+Game result 0 Empty 0 0 0
+Last moves
 )%%";
     expect(name,out,expected);
   }

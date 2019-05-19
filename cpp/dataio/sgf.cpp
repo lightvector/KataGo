@@ -335,6 +335,11 @@ XYSize Sgf::getXYSize() const {
 
 float Sgf::getKomi() const {
   checkNonEmpty(nodes);
+
+  //Default, if SGF doesn't specify
+  if(!nodes[0]->hasProperty("KM"))
+    return 7.5f;
+  
   float komi;
   bool suc = Global::tryStringToFloat(nodes[0]->getSingleProperty("KM"), komi);
   if(!suc)
@@ -389,26 +394,34 @@ void Sgf::getMovesHelper(vector<Move>& moves, int xSize, int ySize) const {
 //PARSING---------------------------------------------------------------------
 
 static void sgfFail(const string& msg, const string& str, int pos) {
-  throw IOError(msg + " (pos " + Global::intToString(pos) + "):" + str);
+  throw IOError(msg + " (pos " + Global::intToString(pos) + "):\n" + str);
 }
 static void sgfFail(const char* msg, const string& str, int pos) {
   sgfFail(string(msg),str,pos);
 }
 static void sgfFail(const string& msg, const string& str, int entryPos, int pos) {
-  throw IOError(msg + " (entryPos " + Global::intToString(entryPos) + "):" + " (pos " + Global::intToString(pos) + "):" + str);
+  throw IOError(msg + " (entryPos " + Global::intToString(entryPos) + "):" + " (pos " + Global::intToString(pos) + "):\n" + str);
 }
 static void sgfFail(const char* msg, const string& str, int entryPos, int pos) {
   sgfFail(string(msg),str,entryPos,pos);
 }
 
-static char nextSgfTextChar(const string& str, int& pos) {
-  if(pos >= str.length()) sgfFail("Unexpected end of str", str,pos);
-  return str[pos++];
+static void consume(const string& str, int& pos, int& newPos) {
+  (void)str;
+  pos = newPos;
+  //cout << "CHAR: " << str[newPos-1] << endl;
 }
-static char nextSgfChar(const string& str, int& pos) {
+
+static char peekSgfTextChar(const string& str, int& pos, int& newPos) {
+  newPos = pos;
+  if(newPos >= str.length()) sgfFail("Unexpected end of str", str,newPos);
+  return str[newPos++];
+}
+static char peekSgfChar(const string& str, int& pos, int& newPos) {
+  newPos = pos;
   while(true) {
-    if(pos >= str.length()) sgfFail("Unexpected end of str", str,pos);
-    char c = str[pos++];
+    if(newPos >= str.length()) sgfFail("Unexpected end of str", str,newPos);
+    char c = str[newPos++];
     if(!Global::isWhitespace(c))
       return c;
   }
@@ -417,29 +430,36 @@ static char nextSgfChar(const string& str, int& pos) {
 static string parseTextValue(const string& str, int& pos) {
   string acc;
   bool escaping = false;
+  int newPos;
   while(true) {
-    char c = nextSgfTextChar(str,pos);
+    char c = peekSgfTextChar(str,pos,newPos);
     if(!escaping && c == ']') {
-      pos--;
       break;
     }
+    consume(str,pos,newPos);
+
     if(!escaping && c == '\\') {
       escaping = true;
       continue;
     }
-    if(escaping && (c == '\n' || c == '\r')) {
-      while(c == '\n' || c == '\r')
-        c = nextSgfTextChar(str,pos);
-      pos--;
+    if(c == '\n' || c == '\r') {
+      while(true) {
+        c = peekSgfTextChar(str,pos,newPos);
+        if(c == '\n' || c == '\r')
+          consume(str,pos,newPos);
+        else
+          break;
+      }
+      if(!escaping)
+        acc += '\n';
       escaping = false;
       continue;
     }
-    if(c == '\t') {
+    if(c == '\t' || c == '\v' || c == '\f') {
       escaping = false;
       acc += ' ';
       continue;
     }
-
     escaping = false;
     acc += c;
   }
@@ -447,20 +467,27 @@ static string parseTextValue(const string& str, int& pos) {
 }
 
 static bool maybeParseProperty(SgfNode* node, const string& str, int& pos) {
-  int keystart = pos;
-  while(Global::isAlpha(nextSgfChar(str,pos))) {}
-  pos--;
-  int keystop = pos;
-  string key = str.substr(keystart,keystop-keystart);
+  string key;
+  while(true) {
+    int newPos;
+    char c = peekSgfChar(str,pos,newPos);
+    if(Global::isAlpha(c)) {
+      key += c;
+      consume(str,pos,newPos);
+    }
+    else
+      break;
+  }
   if(key.length() <= 0)
     return false;
 
   bool parsedAtLeastOne = false;
   while(true) {
-    if(nextSgfChar(str,pos) != '[') {
-      pos--;
+    int newPos;
+    if(peekSgfChar(str,pos,newPos) != '[')
       break;
-    }
+    consume(str,pos,newPos);
+    
     if(node->move.pla == C_EMPTY && key == "B") {
       node->move = parseSgfLocOrPassNoSize(parseTextValue(str,pos),P_BLACK);
     }
@@ -471,22 +498,27 @@ static bool maybeParseProperty(SgfNode* node, const string& str, int& pos) {
       if(node->props == NULL)
         node->props = new map<string,vector<string>>();
       vector<string>& contents = (*(node->props))[key];
-      contents.push_back(parseTextValue(str,pos));
+      string value = parseTextValue(str,pos);
+      contents.push_back(value);
     }
-    if(nextSgfChar(str,pos) != ']') sgfFail("Expected closing bracket",str,pos);
+    if(peekSgfChar(str,pos,newPos) != ']')
+      sgfFail("Expected closing bracket",str,pos);
+    consume(str,pos,newPos);
 
     parsedAtLeastOne = true;
   }
   if(!parsedAtLeastOne)
     sgfFail("No property values for property " + key,str,pos);
+  
   return true;
 }
 
 static SgfNode* maybeParseNode(const string& str, int& pos) {
-  if(nextSgfChar(str,pos) != ';') {
-    pos--;
+  int newPos;
+  if(peekSgfChar(str,pos,newPos) != ';')
     return NULL;
-  }
+  consume(str,pos,newPos);
+  
   SgfNode* node = new SgfNode();
   try {
     while(true) {
@@ -505,11 +537,12 @@ static SgfNode* maybeParseNode(const string& str, int& pos) {
 static Sgf* maybeParseSgf(const string& str, int& pos) {
   if(pos >= str.length())
     return NULL;
-  char c = nextSgfChar(str,pos);
-  if(c != '(') {
-    pos--;
+  int newPos;
+  char c = peekSgfChar(str,pos,newPos);
+  if(c != '(')
     return NULL;
-  }
+  consume(str,pos,newPos);
+  
   int entryPos = pos;
   Sgf* sgf = new Sgf();
   try {
@@ -525,9 +558,10 @@ static Sgf* maybeParseSgf(const string& str, int& pos) {
         break;
       sgf->children.push_back(child);
     }
-    c = nextSgfChar(str,pos);
+    c = peekSgfChar(str,pos,newPos);
     if(c != ')')
       sgfFail("Expected closing paren for sgf tree",str,entryPos,pos);
+    consume(str,pos,newPos);
   }
   catch (...) {
     delete sgf;
@@ -542,9 +576,9 @@ Sgf* Sgf::parse(const string& str) {
   Sgf* sgf = maybeParseSgf(str,pos);
   uint64_t hash[4];
   SHA2::get256(str.c_str(),hash);
-  sgf->hash = Hash128(hash[0],hash[1]);
   if(sgf == NULL || sgf->nodes.size() == 0)
-    sgfFail("Empty sgf",str,0);
+    sgfFail("Empty or invalid sgf (is the opening parenthesis missing?)",str,0);
+  sgf->hash = Hash128(hash[0],hash[1]);
   return sgf;
 }
 
@@ -760,7 +794,7 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
 void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
 
-  if(turnNumber <= 0 || turnNumber > moves.size())
+  if(turnNumber < 0 || turnNumber > moves.size())
     throw StringError(
       Global::strprintf(
         "Attempting to set up position from SGF for invalid turn number %d, valid values are %d to %d",
