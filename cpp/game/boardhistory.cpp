@@ -257,6 +257,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
 void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << board << endl;
+  out << "Initial pla " << playerToString(initialPla) << endl;
   out << "Encore phase " << encorePhase << endl;
   out << "Rules " << rules << endl;
   out << "Ko prohib hash " << koProhibitHash << endl;

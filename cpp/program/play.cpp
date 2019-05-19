@@ -483,6 +483,7 @@ double Play::getSearchFactor(
 
 
 //Place black handicap stones, free placement
+//Does NOT switch the initial player of the board history to white
 void Play::playExtraBlack(
   Search* bot,
   Logger& logger,

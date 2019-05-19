@@ -742,6 +742,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         ExtraBlackAndKomi extraBlackAndKomi(n,hist.rules.komi,hist.rules.komi);
         Play::playExtraBlack(bot->getSearch(), logger, extraBlackAndKomi, board, hist, extraBlackTemperature, rand, adjustKomi, numVisitsForKomi);
 
+        //Also switch the initial player, expecting white should be next.
+        {
+          Rules rules = hist.rules;
+          hist.clear(board,P_WHITE,rules,0);
+        }
+
         response = "";
         for(int y = 0; y<board.y_size; y++) {
           for(int x = 0; x<board.x_size; x++) {

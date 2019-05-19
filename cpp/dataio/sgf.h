@@ -30,6 +30,7 @@ struct SgfNode {
   void accumPlacements(vector<Move>& moves, int xSize, int ySize) const;
   void accumMoves(vector<Move>& moves, int xSize, int ySize) const;
 
+  Color getPLSpecifiedColor() const;
   Rules getRules(const Rules& defaultRules) const;
 };
 

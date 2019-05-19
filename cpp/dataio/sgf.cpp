@@ -196,6 +196,17 @@ void SgfNode::accumMoves(vector<Move>& moves, int xSize, int ySize) const {
   }
 }
 
+Color SgfNode::getPLSpecifiedColor() const {
+  if(!hasProperty("PL"))
+    return C_EMPTY;
+  string s = Global::toLower(getSingleProperty("PL"));
+  if(s == "b" || s == "black")
+    return C_BLACK;
+  if(s == "w" || s == "white")
+    return C_WHITE;
+  return C_EMPTY;
+}
+
 Rules SgfNode::getRules(const Rules& defaultRules) const {
   Rules rules = defaultRules;
   if(!hasProperty("RU"))
@@ -720,22 +731,30 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   rules.komi = komi;
   rules = rootNode.getRules(rules);
 
+  Color plPlayer = rootNode.getPLSpecifiedColor();
+  if(plPlayer == P_BLACK || plPlayer == P_WHITE)
+    nextPla = plPlayer;
+  else {
+    bool hasBlack = false;
+    bool allBlack = true;
+    for(int i = 0; i<placements.size(); i++) {
+      if(placements[i].pla == P_BLACK)
+        hasBlack = true;
+      else
+        allBlack = false;
+    }
+    if(hasBlack && !allBlack)
+      nextPla = P_WHITE;
+    else
+      nextPla = P_BLACK;
+  }
+  
   board = Board(xSize,ySize);
-  nextPla = P_BLACK;
-  hist = BoardHistory(board,nextPla,rules,0);
-
-  bool hasBlack = false;
-  bool allBlack = true;
   for(int i = 0; i<placements.size(); i++) {
     board.setStone(placements[i].loc,placements[i].pla);
-    if(placements[i].pla == P_BLACK)
-      hasBlack = true;
-    else
-      allBlack = false;
   }
 
-  if(hasBlack && !allBlack)
-    nextPla = P_WHITE;
+  hist = BoardHistory(board,nextPla,rules,0);
 }
 
 void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) {
