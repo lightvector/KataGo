@@ -2207,7 +2207,7 @@ static void applySymmetriesNCHW(
     return;
 
   if(inverse) {
-    if(symmetriesBuffer[2])
+    if(symmetriesBuffer[2] && xSize == ySize)
       customCudaNCHWTranspose(inputBuf,inputScratchBuf,xSize,ySize,batchSize*cSize);
     else
       cudaMemcpyAsync(inputScratchBuf,inputBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
@@ -2219,7 +2219,7 @@ static void applySymmetriesNCHW(
   else {
     customCudaMirrorNCHW(inputBuf, inputScratchBuf, batchSize, cSize, ySize, xSize, symmetriesBuffer[0], symmetriesBuffer[1]);
     CUDA_ERR("applySymmetriesNCHW",cudaPeekAtLastError());
-    if(symmetriesBuffer[2])
+    if(symmetriesBuffer[2] && xSize == ySize)
       customCudaNCHWTranspose(inputScratchBuf,inputBuf,xSize,ySize,batchSize*cSize);
     else
       cudaMemcpyAsync(inputBuf,inputScratchBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
@@ -2236,7 +2236,7 @@ static void applySymmetriesNHWC(
     return;
 
   if(inverse) {
-    if(symmetriesBuffer[2])
+    if(symmetriesBuffer[2] && xSize == ySize)
       customCudaNHWCTranspose(inputBuf,inputScratchBuf,xSize,ySize,cSize,batchSize);
     else
       cudaMemcpyAsync(inputScratchBuf,inputBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
@@ -2248,7 +2248,7 @@ static void applySymmetriesNHWC(
   else {
     customCudaMirrorNHWC(inputBuf, inputScratchBuf, batchSize, ySize, xSize, cSize, symmetriesBuffer[0], symmetriesBuffer[1]);
     CUDA_ERR("applySymmetriesNHWC",cudaPeekAtLastError());
-    if(symmetriesBuffer[2])
+    if(symmetriesBuffer[2] && xSize == ySize)
       customCudaNHWCTranspose(inputScratchBuf,inputBuf,xSize,ySize,cSize,batchSize);
     else
       cudaMemcpyAsync(inputBuf,inputScratchBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
