@@ -20,6 +20,7 @@ class AsyncBot {
   SearchParams getParams() const;
 
   Search* getSearch();
+  const Search* getSearch() const;
 
   //Setup, same as in search.h
   //Calling any of these will stop any ongoing search, waiting for a full stop.

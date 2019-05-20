@@ -110,6 +110,22 @@ static bool shouldResign(
   return true;
 }
 
+static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken) {
+  const Search* search = bot->getSearch();
+  Board::printBoard(out, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
+  out << bot->getRootHist().rules << "\n";
+  out << "Time taken: " << timeTaken << "\n";
+  out << "Root visits: " << search->numRootVisits() << "\n";
+  out << "NN rows: " << nnEval->numRowsProcessed() << endl;
+  out << "NN batches: " << nnEval->numBatchesProcessed() << endl;
+  out << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
+  out << "PV: ";
+  search->printPV(out, search->rootNode, 25);
+  out << "\n";
+  out << "Tree:\n";
+  search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
+}
+
 
 int MainCmds::gtp(int argc, const char* const* argv) {
   Board::initHash();
@@ -254,10 +270,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     "list_commands",
     "quit",
     "boardsize",
+    "rectangular_boardsize",
     "clear_board",
     "komi",
     "play",
     "genmove",
+    "genmove-debug",
+    "clear-nn-cache",
     "showboard",
     "place_free_handicap",
     "set_free_handicap",
@@ -390,23 +409,44 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       logger.write("Quit requested by controller");
     }
 
-    else if(command == "boardsize") {
-      int newBSize = 0;
-      if(pieces.size() != 1 || !Global::tryStringToInt(pieces[0],newBSize)) {
-        responseIsError = true;
-        response = "Expected single int argument for boardsize but got '" + Global::concat(pieces," ") + "'";
+    else if(command == "boardsize" || command == "rectangular_boardsize") {
+      int newXSize = 0;
+      int newYSize = 0;
+      bool suc = false;
+
+      if(pieces.size() == 1) {
+        if(contains(pieces[0],':')) {
+          vector<string> subpieces = Global::split(pieces[0],':');
+          if(subpieces.size() == 2 && Global::tryStringToInt(subpieces[0], newXSize) && Global::tryStringToInt(subpieces[1], newYSize))
+            suc = true;
+        }
+        else {
+          if(Global::tryStringToInt(pieces[0], newXSize)) {
+            suc = true;
+            newYSize = newXSize;
+          }
+        }
       }
-      else if(newBSize < 2) {
+      else if(pieces.size() == 2) {
+        if(Global::tryStringToInt(pieces[0], newXSize) && Global::tryStringToInt(pieces[1], newYSize))
+          suc = true;
+      }
+      
+      if(!suc) {
+        responseIsError = true;
+        response = "Expected int argument for boardsize or pair of ints but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(newXSize < 2 || newYSize < 2) {
         responseIsError = true;
         response = "unacceptable size";
       }
-      else if(newBSize > Board::MAX_LEN) {
+      else if(newXSize > Board::MAX_LEN || newYSize > Board::MAX_LEN) {
         responseIsError = true;
         response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",(int)Board::MAX_LEN);
       }
       else {
-        maybeInitializeNNEvalAndAsyncBot(newBSize,newBSize);
-        Board board(newBSize,newBSize);
+        maybeInitializeNNEvalAndAsyncBot(newXSize,newYSize);
+        Board board(newXSize,newYSize);
         Player pla = P_BLACK;
         BoardHistory hist(board,pla,bot->getRootHist().rules,0);
         bot->setPosition(pla,board,hist);
@@ -580,7 +620,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
-    else if(command == "genmove") {
+    else if(command == "genmove" || command == "genmove-debug") {
       Player pla;
       if(pieces.size() != 1) {
         responseIsError = true;
@@ -643,6 +683,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           expectedScore = values.expectedScore;
         }
 
+        double timeTaken = timer.getSeconds();
+        
+        //---------------
+        
         //Chat
         if(ogsChatToStderr) {
           int64_t visits = bot->getSearch()->getRootVisits();
@@ -670,22 +714,14 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         else
           response = Location::toString(moveLoc,bot->getRootBoard());
 
+        
         if(logSearchInfo) {
-          Search* search = bot->getSearch();
           ostringstream sout;
-          Board::printBoard(sout, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
-          sout << bot->getRootHist().rules << "\n";
-          sout << "Time taken: " << timer.getSeconds() << "\n";
-          sout << "Root visits: " << search->numRootVisits() << "\n";
-          sout << "NN rows: " << nnEval->numRowsProcessed() << endl;
-          sout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
-          sout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
-          sout << "PV: ";
-          search->printPV(sout, search->rootNode, 25);
-          sout << "\n";
-          sout << "Tree:\n";
-          search->printTree(sout, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
+          printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken);
           logger.write(sout.str());
+        }
+        if(command == "genmove-debug") {
+          printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken);
         }
 
         if(!resigned && moveLoc != Board::NULL_LOC && isLegal) {
@@ -697,7 +733,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
       }
     }
-
+    
+    else if(command == "clear-nn-cache") {
+      nnEval->clearCache();
+    }
     else if(command == "showboard") {
       ostringstream sout;
       Board::printBoard(sout, bot->getRootBoard(), Board::NULL_LOC, &(bot->getRootHist().moveHistory));
