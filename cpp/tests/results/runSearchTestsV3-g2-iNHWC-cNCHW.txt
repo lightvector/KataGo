@@ -904,7 +904,7 @@ PV: F6 E5 S6 T5 B13 A14 G2 H1 H2 J1 B14 A15
 Tree:
 : T  -9.28c W  -9.17c S  -0.11c ( -0.6) N     280  --  F6 E5 S6 T5 B13 A14 G2
 ---White(^)---
-F6  : T  -2.44c W  -2.79c S   0.35c ( -0.2) LCB  -20.89c P  1.79% WF 15.00% PSV     179 N      86  --  F6 E5 S6 T5 B13 A14 G2 H1
+F6  : T  -2.44c W  -2.79c S   0.35c ( -0.2) LCB  -20.89c P  1.79% WF 15.00% PSV     214 N      86  --  F6 E5 S6 T5 B13 A14 G2 H1
 O3  : T  -9.34c W  -9.15c S  -0.19c ( -0.6) LCB  -24.97c P 27.44% WF 12.72% PSV     149 N     149  --  O3 H17 B13 A14 B14 A15 G2 H1
 G2  : T -13.81c W -13.50c S  -0.32c ( -0.7) LCB  -58.89c P 10.01% WF 11.56% PSV      20 N      20  --  G2 H1 H2 J1 B13 A14 B14 A15
 B13 : T -20.06c W -19.48c S  -0.59c ( -0.9) LCB -118.99c P  8.28% WF 10.53% PSV       9 N       9  --  B13 A14 B14 A15 O3 H17
@@ -918,7 +918,7 @@ N12 : T -61.09c W -58.33c S  -2.76c ( -2.6) LCB -300.00c P  3.33% WF  7.18% PSV 
 Beginning search again and then reprinting, should be same
 : T  -9.28c W  -9.17c S  -0.11c ( -0.6) N     280  --  F6 E5 S6 T5 B13 A14 G2
 ---White(^)---
-F6  : T  -2.44c W  -2.79c S   0.35c ( -0.2) LCB  -20.89c P  1.79% WF 15.00% PSV     179 N      86  --  F6 E5 S6 T5 B13 A14 G2 H1
+F6  : T  -2.44c W  -2.79c S   0.35c ( -0.2) LCB  -20.89c P  1.79% WF 15.00% PSV     214 N      86  --  F6 E5 S6 T5 B13 A14 G2 H1
 O3  : T  -9.34c W  -9.15c S  -0.19c ( -0.6) LCB  -24.97c P 27.44% WF 12.72% PSV     149 N     149  --  O3 H17 B13 A14 B14 A15 G2 H1
 G2  : T -13.81c W -13.50c S  -0.32c ( -0.7) LCB  -58.89c P 10.01% WF 11.56% PSV      20 N      20  --  G2 H1 H2 J1 B13 A14 B14 A15
 B13 : T -20.06c W -19.48c S  -0.59c ( -0.9) LCB -118.99c P  8.28% WF 10.53% PSV       9 N       9  --  B13 A14 B14 A15 O3 H17

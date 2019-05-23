@@ -912,7 +912,7 @@ G14 : T -71.45c W -66.49c S  -4.96c ( -3.4) LCB -300.00c P  2.68% WF  8.21% PSV 
 Making a move O3, should still be same
 : T -48.88c W -44.98c S  -3.90c ( -2.7) N      53  --  G16 G14 H11 F15
 ---Black(v)---
-G16 : T -58.34c W -53.67c S  -4.67c ( -3.3) LCB  -14.54c P 14.06% WF 31.36% PSV      34 N      19  --  G16 G14 H11 F15
+G16 : T -58.34c W -53.67c S  -4.67c ( -3.3) LCB  -14.54c P 14.06% WF 31.36% PSV      39 N      19  --  G16 G14 H11 F15
 H17 : T -45.78c W -42.14c S  -3.65c ( -2.5) LCB   -7.35c P 33.20% WF 25.22% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
 N7  : T  10.34c W  10.16c S   0.18c ( +0.5) LCB  300.00c P 16.36% WF 13.84% PSV       1 N       1  --  N7
 N12 : T  13.38c W  12.86c S   0.52c ( +0.8) LCB  300.00c P  7.93% WF 13.33% PSV       1 N       1  --  N12
@@ -920,7 +920,7 @@ H11 : T  -2.75c W  -2.31c S  -0.44c ( +0.0) LCB  300.00c P  7.62% WF 16.25% PSV 
 Beginning search again and then reprinting, now score utils should change a little
 : T -45.72c W -44.99c S  -0.73c ( -2.7) N      53  --  G16 G14 H11 F15
 ---Black(v)---
-G16 : T -55.21c W -53.68c S  -1.53c ( -3.3) LCB  -11.21c P 14.06% WF 31.39% PSV      34 N      19  --  G16 G14 H11 F15
+G16 : T -55.21c W -53.68c S  -1.53c ( -3.3) LCB  -11.21c P 14.06% WF 31.39% PSV      39 N      19  --  G16 G14 H11 F15
 H17 : T -42.61c W -42.14c S  -0.47c ( -2.5) LCB   -4.08c P 33.20% WF 25.22% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
 N7  : T  13.58c W  10.16c S   3.42c ( +0.5) LCB  300.00c P 16.36% WF 13.83% PSV       1 N       1  --  N7
 N12 : T  16.62c W  12.86c S   3.76c ( +0.8) LCB  300.00c P  7.93% WF 13.32% PSV       1 N       1  --  N12
