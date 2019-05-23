@@ -1531,7 +1531,7 @@ class ModelUtils:
         tf.constant(lr_base) * tf.train.piecewise_constant(
           global_epoch,
           boundaries = [5.0],
-          values = [0.2,1.0]
+          values = [1.0/3.0, 1.0]
         )
       )
 
