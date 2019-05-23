@@ -1339,23 +1339,23 @@ class Target_vars:
     self.scale_reg_loss_unreduced = tf.reshape(0.0005 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
     #self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
 
-    self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced)
-    self.policy1_loss = tf.reduce_sum(self.target_weight_used * self.policy1_loss_unreduced)
-    self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced)
-    self.scoremean_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_loss_unreduced)
-    self.scorebelief_pdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_pdf_loss_unreduced)
-    self.scorebelief_cdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_cdf_loss_unreduced)
-    self.bonusbelief_pdf_loss = tf.reduce_sum(self.target_weight_used * self.bonusbelief_pdf_loss_unreduced)
-    self.bonusbelief_cdf_loss = tf.reduce_sum(self.target_weight_used * self.bonusbelief_cdf_loss_unreduced)
-    self.utilityvar_loss = tf.reduce_sum(self.target_weight_used * self.utilityvar_loss_unreduced)
-    self.ownership_loss = tf.reduce_sum(self.target_weight_used * self.ownership_loss_unreduced)
-    self.ownership_reg_loss = tf.reduce_sum(self.target_weight_used * self.ownership_reg_loss_unreduced)
-    self.scoremean_reg_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_reg_loss_unreduced)
-    self.scorestdev_reg_loss = tf.reduce_sum(self.target_weight_used * self.scorestdev_reg_loss_unreduced)
-    self.winloss_reg_loss = tf.reduce_sum(self.target_weight_used * self.winloss_reg_loss_unreduced)
-    self.scale_reg_loss = tf.reduce_sum(self.target_weight_used * self.scale_reg_loss_unreduced)
+    self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced, name="losses/policy_loss")
+    self.policy1_loss = tf.reduce_sum(self.target_weight_used * self.policy1_loss_unreduced, name="losses/policy1_loss")
+    self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced, name="losses/value_loss")
+    self.scoremean_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_loss_unreduced, name="losses/scoremean_loss")
+    self.scorebelief_pdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_pdf_loss_unreduced, name="losses/scorebelief_pdf_loss")
+    self.scorebelief_cdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_cdf_loss_unreduced, name="losses/scorebelief_cdf_loss")
+    self.bonusbelief_pdf_loss = tf.reduce_sum(self.target_weight_used * self.bonusbelief_pdf_loss_unreduced, name="losses/bonusbelief_pdf_loss")
+    self.bonusbelief_cdf_loss = tf.reduce_sum(self.target_weight_used * self.bonusbelief_cdf_loss_unreduced, name="losses/bonusbelief_cdf_loss")
+    self.utilityvar_loss = tf.reduce_sum(self.target_weight_used * self.utilityvar_loss_unreduced, name="losses/utilityvar_loss")
+    self.ownership_loss = tf.reduce_sum(self.target_weight_used * self.ownership_loss_unreduced, name="losses/ownership_loss")
+    self.ownership_reg_loss = tf.reduce_sum(self.target_weight_used * self.ownership_reg_loss_unreduced, name="losses/ownership_reg_loss")
+    self.scoremean_reg_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_reg_loss_unreduced, name="losses/scoremean_reg_loss")
+    self.scorestdev_reg_loss = tf.reduce_sum(self.target_weight_used * self.scorestdev_reg_loss_unreduced, name="losses/scorestdev_reg_loss")
+    self.winloss_reg_loss = tf.reduce_sum(self.target_weight_used * self.winloss_reg_loss_unreduced, name="losses/winloss_reg_loss")
+    self.scale_reg_loss = tf.reduce_sum(self.target_weight_used * self.scale_reg_loss_unreduced, name="losses/scale_reg_loss")
 
-    self.weight_sum = tf.reduce_sum(self.target_weight_used)
+    self.weight_sum = tf.reduce_sum(self.target_weight_used, name="losses/weight_sum")
 
     if for_optimization:
       #Prior/Regularization
@@ -1406,11 +1406,11 @@ class Metrics:
     self.policy_target_entropy_unreduced = target_vars.policy_target_weight * (
       -tf.reduce_sum(target_vars.policy_target * tf.log(target_vars.policy_target+(1e-20)), axis=1)
     )
-    self.accuracy1 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy1_unreduced)
-    self.accuracy4 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy4_unreduced)
-    self.value_entropy = tf.reduce_sum(target_vars.target_weight_used * self.value_entropy_unreduced)
-    self.value_conf = tf.reduce_sum(target_vars.target_weight_used * self.value_conf_unreduced)
-    self.policy_target_entropy = tf.reduce_sum(target_vars.target_weight_used * self.policy_target_entropy_unreduced)
+    self.accuracy1 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy1_unreduced, name="metrics/accuracy1")
+    self.accuracy4 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy4_unreduced, name="metrics/accuracy4")
+    self.value_entropy = tf.reduce_sum(target_vars.target_weight_used * self.value_entropy_unreduced, name="metrics/value_entropy")
+    self.value_conf = tf.reduce_sum(target_vars.target_weight_used * self.value_conf_unreduced, name="metrics/value_conf")
+    self.policy_target_entropy = tf.reduce_sum(target_vars.target_weight_used * self.policy_target_entropy_unreduced, name="metrics/policy_target_entropy")
 
     #Debugging stats
     if include_debug_stats:
