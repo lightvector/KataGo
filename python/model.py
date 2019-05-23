@@ -1222,9 +1222,9 @@ class Target_vars:
     self.policy_target_weight1 = (placeholders["policy_target_weight1"] if "policy_target_weight1" in placeholders else
                                  tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.ownership_target_weight = (placeholders["ownership_target_weight"] if "ownership_target_weight" in placeholders else
-                                    tf.placeholder(tf.float32, [None] + model.ownership_target_weight))
+                                    tf.placeholder(tf.float32, [None] + model.ownership_target_weight_shape))
     self.utilityvar_target_weight = (placeholders["utilityvar_target_weight"] if "utilityvar_target_weight" in placeholders else
-                                   tf.placeholder(tf.float32, [None] + model.utilityvar_target_weight))
+                                   tf.placeholder(tf.float32, [None] + model.utilityvar_target_weight_shape))
     self.selfkomi = (placeholders["selfkomi"] if "selfkomi" in placeholders else
                      tf.placeholder(tf.float32, [None]))
 
