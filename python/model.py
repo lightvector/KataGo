@@ -1530,7 +1530,7 @@ class ModelUtils:
       per_sample_learning_rate = (
         tf.constant(lr_base) * tf.train.piecewise_constant(
           global_epoch,
-          boundaries = [5],
+          boundaries = [5.0],
           values = [0.2,1.0]
         )
       )

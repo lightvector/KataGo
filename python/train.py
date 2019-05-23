@@ -301,7 +301,7 @@ num_bin_input_features = Model.get_num_bin_input_features(model_config)
 num_global_input_features = Model.get_num_global_input_features(model_config)
 
 NUM_POLICY_TARGETS = 2
-NUM_GLOBAL_TARGETS = 56
+NUM_GLOBAL_TARGETS = 64
 NUM_VALUE_SPATIAL_TARGETS = 1
 EXTRA_SCORE_DISTR_RADIUS = 60
 BONUS_SCORE_RADIUS = 30
