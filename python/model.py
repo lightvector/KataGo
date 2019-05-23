@@ -1454,7 +1454,7 @@ class ModelUtils:
     logf("Model: %d total parameters" % total_parameters)
 
   @staticmethod
-  def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_epoch_offset=None,lr_epoch_scale=None,lr_epoch_cap=None,lr_scale=None):
+  def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_scale=None):
     trainlog("Building model")
 
     num_bin_input_features = Model.get_num_bin_input_features(model_config)
@@ -1526,13 +1526,13 @@ class ModelUtils:
       global_step_float = tf.cast(global_step, tf.float32)
       global_epoch = global_step_float / tf.constant(num_batches_per_epoch,dtype=tf.float32)
 
-      lr_epoch_offset = 0.0 if lr_epoch_offset is None else float(lr_epoch_offset)
-      lr_epoch_scale = 0.1 if lr_epoch_scale is None else float(lr_epoch_scale)
-      lr_epoch_cap = 150.0 if lr_epoch_cap is None else float(lr_epoch_cap)
-      lr_scale = 0.00006 if lr_scale is None else float(lr_scale)
-      global_epoch_float_capped = tf.math.minimum(tf.constant(lr_epoch_cap),global_epoch + tf.constant(lr_epoch_offset,dtype=tf.float32))
+      lr_base = 0.00006 * lr_scale
       per_sample_learning_rate = (
-        tf.constant(lr_scale) / tf.pow(global_epoch_float_capped * tf.constant(lr_epoch_scale) + tf.constant(1.0), tf.constant(1.333333))
+        tf.constant(lr_base) * tf.train.piecewise_constant(
+          global_epoch,
+          boundaries = [5],
+          values = [0.2,1.0]
+        )
       )
 
       lr_adjusted_variables = model.lr_adjusted_variables
