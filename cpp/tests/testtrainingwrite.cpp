@@ -13,8 +13,9 @@ static NNEvaluator* startNNEval(
   int modelFileIdx = 0;
   int maxBatchSize = 16;
   int maxConcurrentEvals = 1024;
-  int posLen = NNPos::MAX_BOARD_LEN;
-  bool requireExactPosLen = false;
+  int nnXLen = NNPos::MAX_BOARD_LEN;
+  int nnYLen = NNPos::MAX_BOARD_LEN;
+  bool requireExactNNLen = false;
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
   bool debugSkipNeuralNet = modelFile == "/dev/null";
@@ -26,8 +27,9 @@ static NNEvaluator* startNNEval(
     modelFileIdx,
     maxBatchSize,
     maxConcurrentEvals,
-    posLen,
-    requireExactPosLen,
+    nnXLen,
+    nnYLen,
+    requireExactNNLen,
     inputsUseNHWC,
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
@@ -62,7 +64,6 @@ void Tests::runTrainingWriteTests() {
   NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
 
   int maxRows = 256;
-  int posLen = 5;
   double firstFileMinRandProp = 1.0;
   int debugOnlyWriteEvery = 5;
 
@@ -71,8 +72,11 @@ void Tests::runTrainingWriteTests() {
   logger.setLogTime(false);
   logger.addOStream(cout);
 
-  auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite, int inputsVersion) {
-    TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, posLen, debugOnlyWriteEvery, seedBase+"dwriter");
+  auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite, int inputsVersion, int nnXLen, int nnYLen, int boardXLen, int boardYLen) {
+    int dataXLen = nnXLen;
+    int dataYLen = nnYLen;
+    
+    TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, nnXLen, nnYLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
     NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,true,false,false);
 
@@ -86,7 +90,7 @@ void Tests::runTrainingWriteTests() {
     botSpec.nnEval = nnEval;
     botSpec.baseParams = params;
 
-    Board initialBoard(5,5);
+    Board initialBoard(boardXLen,boardYLen);
     Player initialPla = P_BLACK;
     int initialEncorePhase = 0;
     BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
@@ -108,7 +112,7 @@ void Tests::runTrainingWriteTests() {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, recordFullData, posLen,
+      fancyModes, recordFullData, dataXLen, dataYLen,
       true,
       rand,
       NULL
@@ -129,22 +133,27 @@ void Tests::runTrainingWriteTests() {
 
   int inputsVersion = 3;
 
-  run("testtrainingwrite-tt",Rules::getTrompTaylorish(),0.5,inputsVersion);
+  run("testtrainingwrite-tt",Rules::getTrompTaylorish(),0.5,inputsVersion,5,5,5,5);
 
   Rules rules;
   rules.koRule = Rules::KO_SIMPLE;
   rules.scoringRule = Rules::SCORING_TERRITORY;
   rules.multiStoneSuicideLegal = false;
   rules.komi = 5;
-  run("testtrainingwrite-jp",rules,0.5,inputsVersion);
+  run("testtrainingwrite-jp",rules,0.5,inputsVersion,5,5,5,5);
 
   rules = Rules::getTrompTaylorish();
   rules.komi = 7;
-  run("testtrainingwrite-gooddraws",rules,0.7,inputsVersion);
+  run("testtrainingwrite-gooddraws",rules,0.7,inputsVersion,5,5,5,5);
 
   inputsVersion = 5;
-  run("testtrainingwrite-tt-v5",Rules::getTrompTaylorish(),0.5,inputsVersion);
+  run("testtrainingwrite-tt-v5",Rules::getTrompTaylorish(),0.5,inputsVersion,5,5,5,5);
 
+  //Non-square v4
+  inputsVersion = 4;
+  run("testtrainingwrite-rect-v4",Rules::getTrompTaylorish(),0.5,inputsVersion,9,3,7,3);
+
+  
   NeuralNet::globalCleanup();
 }
 
@@ -155,7 +164,8 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   double tensorflowPerProcessGpuMemoryFraction = 0.3;
   NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
 
-  int posLen = 11;
+  int nnXLen = 11;
+  int nnYLen = 11;
 
   Logger logger;
   logger.setLogToStdout(false);
@@ -211,7 +221,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, recordFullData, posLen,
+      fancyModes, recordFullData, nnXLen, nnYLen,
       true,
       rand,
       NULL

@@ -19,7 +19,8 @@ namespace Setup {
     int maxConcurrentEvals,
     bool debugSkipNeuralNetDefault,
     bool alwaysIncludeOwnerMap,
-    int defaultPosLen
+    int defaultNNXLen,
+    int defaultNNYLen
   );
 
   //Loads search parameters for bot from config, by bot idx.

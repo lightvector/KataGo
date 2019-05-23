@@ -586,6 +586,10 @@ while True:
       dump_and_flush_json(trainhistory,os.path.join(savepathtmp,"trainhistory.json"))
       with open(os.path.join(savepathtmp,"model.config.json"),"w") as f:
         json.dump(model_config,f)
+      with open(os.path.join(savepathtmp,"saved_model","model.config.json"),"w") as f:
+        json.dump(model_config,f)
+      with open(os.path.join(savepathtmp,"non_swa_saved_model","model.config.json"),"w") as f:
+        json.dump(model_config,f)
 
       time.sleep(1)
       os.rename(savepathtmp,savepath)

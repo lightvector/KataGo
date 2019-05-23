@@ -385,12 +385,13 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
 
 Loc Play::chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, double temperature, bool allowPass, Loc banMove) {
   const float* policyProbs = nnOutput->policyProbs;
-  int posLen = nnOutput->posLen;
+  int nnXLen = nnOutput->nnXLen;
+  int nnYLen = nnOutput->nnYLen;
   int numLegalMoves = 0;
   double relProbs[NNPos::MAX_NN_POLICY_SIZE];
   int locs[NNPos::MAX_NN_POLICY_SIZE];
   for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
-    Loc loc = NNPos::posToLoc(pos,board.x_size,board.y_size,posLen);
+    Loc loc = NNPos::posToLoc(pos,board.x_size,board.y_size,nnXLen,nnYLen);
     if((loc == Board::PASS_LOC && !allowPass) || loc == banMove)
       continue;
     if(policyProbs[pos] > 0.0 && hist.isLegal(board,loc,pla)) {
@@ -482,6 +483,7 @@ double Play::getSearchFactor(
 
 
 //Place black handicap stones, free placement
+//Does NOT switch the initial player of the board history to white
 void Play::playExtraBlack(
   Search* bot,
   Logger& logger,
@@ -764,13 +766,15 @@ static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, c
 
   vector<Loc> locs;
   vector<double> playSelectionValues;
-  int posLen = nnOutput->posLen;
-  assert(posLen >= board.x_size);
-  assert(posLen >= board.y_size);
-  assert(posLen > 0 && posLen < 100);
-  int policySize = NNPos::getPolicySize(posLen);
+  int nnXLen = nnOutput->nnXLen;
+  int nnYLen = nnOutput->nnYLen;
+  assert(nnXLen >= board.x_size);
+  assert(nnYLen >= board.y_size);
+  assert(nnXLen > 0 && nnXLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
+  assert(nnYLen > 0 && nnYLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
+  int policySize = NNPos::getPolicySize(nnXLen,nnYLen);
   for(int movePos = 0; movePos<policySize; movePos++) {
-    Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,posLen);
+    Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,nnXLen,nnYLen);
     double policyProb = nnOutput->policyProbs[movePos];
     if(!hist.isLegal(board,moveLoc,pla) || policyProb <= 0)
       continue;
@@ -803,7 +807,7 @@ FinishedGameData* Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-  FancyModes fancyModes, bool recordFullData, int dataPosLen,
+  FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
   bool allowPolicyInit,
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
@@ -826,7 +830,7 @@ FinishedGameData* Play::runGame(
     doEndGameIfAllPassAlive, clearBotBeforeSearch,
     logger, logSearchInfo, logMoves,
     maxMovesPerGame, stopConditions,
-    fancyModes, recordFullData, dataPosLen,
+    fancyModes, recordFullData, dataXLen, dataYLen,
     allowPolicyInit,
     gameRand,
     checkForNewNNEval
@@ -846,7 +850,7 @@ FinishedGameData* Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-  FancyModes fancyModes, bool recordFullData, int dataPosLen,
+  FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
   bool allowPolicyInit,
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
@@ -1197,13 +1201,14 @@ FinishedGameData* Play::runGame(
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
 
-    assert(dataPosLen > 0);
+    assert(dataXLen > 0);
+    assert(dataYLen > 0);
     assert(gameData->finalWhiteOwnership == NULL);
-    gameData->finalWhiteOwnership = new int8_t[dataPosLen*dataPosLen];
-    std::fill(gameData->finalWhiteOwnership, gameData->finalWhiteOwnership + dataPosLen*dataPosLen, 0);
+    gameData->finalWhiteOwnership = new int8_t[dataXLen*dataYLen];
+    std::fill(gameData->finalWhiteOwnership, gameData->finalWhiteOwnership + dataXLen*dataYLen, 0);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,dataPosLen);
+        int pos = NNPos::xyToPos(x,y,dataXLen);
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(area[loc] == P_BLACK)
           gameData->finalWhiteOwnership[pos] = -1;
@@ -1217,7 +1222,8 @@ FinishedGameData* Play::runGame(
     }
 
     gameData->hasFullData = true;
-    gameData->posLen = dataPosLen;
+    gameData->dataXLen = dataXLen;
+    gameData->dataYLen = dataYLen;
 
     //Also evaluate all the side positions as well that we queued up to be searched
     NNResultBuf nnResultBuf;
@@ -1424,7 +1430,8 @@ FinishedGameData* GameRunner::runGame(
   const InitialPosition* initialPosition,
   const InitialPosition** nextInitialPosition,
   Logger& logger,
-  int dataPosLen,
+  int dataXLen,
+  int dataYLen,
   vector<std::atomic<bool>*>& stopConditions,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
@@ -1483,7 +1490,7 @@ FinishedGameData* GameRunner::runGame(
     doEndGameIfAllPassAlive,clearBotBeforeSearchThisGame,
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,stopConditions,
-    fancyModes,recordFullData,dataPosLen,
+    fancyModes,recordFullData,dataXLen,dataYLen,
     allowPolicyInit,
     gameRand,
     checkForNewNNEval //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame

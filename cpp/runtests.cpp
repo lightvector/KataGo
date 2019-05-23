@@ -32,6 +32,8 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Tests::runBoardUndoTest();
   Tests::runBoardStressTest();
 
+  Tests::runSgfTests();
+  
   cout << "All tests passed" << endl;
   return 0;
 }

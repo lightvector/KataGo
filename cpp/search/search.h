@@ -134,6 +134,8 @@ struct Search {
   //Used to center for dynamic scorevalue
   double recentScoreCenter;
 
+  bool alwaysIncludeOwnerMap;
+  
   SearchParams searchParams;
   int64_t numSearchesBegun;
 
@@ -155,7 +157,8 @@ struct Search {
   //Services--------------------------------------------------------------
   MutexPool* mutexPool;
   NNEvaluator* nnEvaluator; //externally owned
-  int posLen;
+  int nnXLen;
+  int nnYLen;
   int policySize;
   Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
 
@@ -180,6 +183,7 @@ struct Search {
   void setRulesAndClearHistory(Rules rules, int encorePhase);
   void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootPassLegal(bool b);
+  void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search
   void setNNEval(NNEvaluator* nnEval);
@@ -245,23 +249,27 @@ struct Search {
   void runSinglePlayout(SearchThread& thread);
 
   //Tree-inspection functions---------------------------------------------------------------
-  void printPV(ostream& out, const SearchNode* node, int maxDepth);
-  void printTree(ostream& out, const SearchNode* node, PrintTreeOptions options);
-  void printRootPolicyMap(ostream& out);
-  void printRootOwnershipMap(ostream& out);
-  void printRootEndingScoreValueBonus(ostream& out);
+  void printPV(ostream& out, const SearchNode* node, int maxDepth) const;
+  void printPVForMove(ostream& out, const SearchNode* node, Loc move, int maxDepth) const;
+  void printTree(ostream& out, const SearchNode* node, PrintTreeOptions options) const;
+  void printRootPolicyMap(ostream& out) const;
+  void printRootOwnershipMap(ostream& out) const;
+  void printRootEndingScoreValueBonus(ostream& out) const;
 
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
-  void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth);
-  void getAnalysisData(const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth);
-  void appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth); //Append PV from position at node n onward to buf
+  void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
+  void getAnalysisData(const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
+  //Append the PV from node n onward (not including node n's move)
+  void appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth) const;
+  //Append the PV from node n for specified move, assuming move is a child move of node n
+  void appendPVForMove(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) const;
 
   //Get the ownership map averaged throughout the search tree.
   //Must have ownership present on all neural net evals.
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
-  vector<double> getAverageTreeOwnership(int64_t minVisits);
+  vector<double> getAverageTreeOwnership(int64_t minVisits) const;
 
   int64_t numRootVisits() const;
 
@@ -343,16 +351,16 @@ private:
     const SearchNode* child, vector<Loc>& scratchLocs, vector<double>& scratchValues,
     Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
     double parentScoreMean, double parentScoreStdev, int maxPVDepth
-  );
+  ) const;
 
-  void printPV(ostream& out, const vector<Loc>& buf);
+  void printPV(ostream& out, const vector<Loc>& buf) const;
 
   void printTreeHelper(
     ostream& out, const SearchNode* node, const PrintTreeOptions& options,
     string& prefix, int64_t origVisits, int depth, const AnalysisData& data
-  );
+  ) const;
 
-  int64_t getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minVisits, const SearchNode* node);
+  double getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minVisits, double desiredWeight, const SearchNode* node) const;
 
 };
 

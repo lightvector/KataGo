@@ -20,6 +20,7 @@ class AsyncBot {
   SearchParams getParams() const;
 
   Search* getSearch();
+  const Search* getSearch() const;
 
   //Setup, same as in search.h
   //Calling any of these will stop any ongoing search, waiting for a full stop.
@@ -27,6 +28,7 @@ class AsyncBot {
   void setRulesAndClearHistory(Rules rules, int encorePhase);
   void setKomiIfNew(float newKomi);
   void setRootPassLegal(bool b);
+  void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setPlayerIfNew(Player movePla);
   void clearSearch();

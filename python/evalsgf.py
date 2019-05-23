@@ -16,23 +16,22 @@ import numpy as np
 import data
 from board import Board
 from model import Model, Target_vars, Metrics
+import common
 
 description = """
-Evaluate raw neural net output directly on a position in an sgf
+Evaluate raw neural net output directly on a position in an sgf, mostly a low-level debugging tool
 """
 
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-model', help='Path to model to use', required=True)
-parser.add_argument('-model-config', help='Path to model config json to use', required=False)
+common.add_model_load_args(parser)
+parser.add_argument('-name-scope', help='Name scope for model variables', required=False)
 parser.add_argument('-sgf', help="SGF file to evaluate", required=True)
 parser.add_argument('-move', help="Move number to evaluate, 0-indexed", required=True)
 parser.add_argument('-debug', help="Debug sandbox", action="store_true", required=False)
 args = vars(parser.parse_args())
 
-modelpath = args["model"]
-modelconfigpath = args["model_config"]
-if modelconfigpath is None:
-  modelconfigpath = os.path.join(os.path.dirname(modelpath),"model.config.json")
+(model_variables_prefix, model_config_json) = common.load_model_paths(args)
+name_scope = args["name_scope"]
 sgf_file = args["sgf"]
 movenum = int(args["move"])
 debug = args["debug"]
@@ -44,13 +43,17 @@ np.set_printoptions(linewidth=150)
 two_over_pi = 0.63661977236758134308
 
 pos_len = 19
-with open(modelconfigpath) as f:
+with open(model_config_json) as f:
   model_config = json.load(f)
-model = Model(model_config,pos_len,{})
-policy_output = tf.nn.softmax(model.policy_output)
+if name_scope is not None:
+  with tf.name_scope(name_scope):
+    model = Model(model_config,pos_len,{})
+else:
+  model = Model(model_config,pos_len,{})
+policy_output = tf.nn.softmax(model.policy_output[:,:,0])
 value_output = tf.nn.softmax(model.value_output)
 scorevalue_output = two_over_pi*tf.atan(model.miscvalues_output[:,0])
-scorebelief_output = tf.nn.softmax(scorebelief_output)
+scorebelief_output = tf.nn.softmax(model.scorebelief_output)
 ownership_output = tf.tanh(model.ownership_output)
 
 # Moves ----------------------------------------------------------------
@@ -93,7 +96,7 @@ def str_coord(loc,board):
   y = board.loc_y(loc)
   return '%c%d' % (colstr[x], board.size - y)
 
-(metadata,setups,moves,rules) = data.load_sgf_moves_exn(sgf_file)
+(metadata,setups,sgfmoves,rules) = data.load_sgf_moves_exn(sgf_file)
 
 board_size = metadata.size
 board = Board(size=board_size)
@@ -114,7 +117,7 @@ for (pla,loc) in setups:
   setstone(pla,loc)
 
 for i in range(movenum):
-  (pla,loc) = moves[i]
+  (pla,loc) = sgfmoves[i]
   play(pla,loc)
 
 print(board.to_string())
@@ -127,7 +130,7 @@ saver = tf.train.Saver(
 with tf.Session() as session:
 
   if not debug:
-    saver.restore(session, modelpath)
+    saver.restore(session, model_variables_prefix)
     (policy,value,scorevalue,scorebelief,ownership) = fetch_output(session, board, boards, moves, 1.0, rules, (
       policy_output,
       value_output,
@@ -138,6 +141,7 @@ with tf.Session() as session:
 
     moves_and_probs = get_moves_and_probs_of_policy(policy)
     moves_and_probs = sorted(moves_and_probs, key=lambda moveandprob: moveandprob[1], reverse=True)
+    ownership = ownership.reshape([model.pos_len * model.pos_len])
 
     print("Value: " + str(value))
     print("ScoreValue: " + str(scorevalue))
@@ -153,13 +157,13 @@ with tf.Session() as session:
 
     print("ScoreBelief: ")
     for i in range(17,-1,-1):
-      print("%+6.1" % (-(i*20+0.5)),end="")
+      print("%+6.1f" % (-(i*20+0.5)),end="")
       for j in range(20):
         idx = 360-(i*20+j)
         print(" %5.0f" % (scorebelief[idx] * 10000),end="")
       print()
     for i in range(18):
-      print("%+6.1" % ((i*20+0.5)),end="")
+      print("%+6.1f" % ((i*20+0.5)),end="")
       for j in range(20):
         idx = 361+(i*20+j)
         print(" %5.0f" % (scorebelief[idx] * 10000),end="")

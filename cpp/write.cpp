@@ -163,10 +163,11 @@ static void fillRow(const Board& board, const BoardHistory& hist, const vector<M
   Player pla = nextPlayer;
   int xSize = board.x_size;
   int ySize = board.y_size;
-  int posLen = NNPos::MAX_BOARD_LEN;
+  int nnXLen = NNPos::MAX_BOARD_LEN;
+  int nnYLen = NNPos::MAX_BOARD_LEN;
 
   bool inputsUseNHWC = true;
-  NNInputs::fillRowV2(board,hist,nextPlayer,posLen,inputsUseNHWC,row);
+  NNInputs::fillRowV2(board,hist,nextPlayer,nnXLen,nnYLen,inputsUseNHWC,row);
 
   //Optionally some stuff we can multiply the history planes by to randomly exclude history from a few training samples
   bool includeHistory[5];
@@ -211,7 +212,7 @@ static void fillRow(const Board& board, const BoardHistory& hist, const vector<M
       for(int x = 0; x<xSize; x++) {
         Loc loc = Location::getLoc(x,y,xSize);
         if(b.colors[loc] == C_EMPTY && bPrev.colors[loc] != C_EMPTY) {
-          int pos = NNPos::xyToPos(x,y,posLen);
+          int pos = NNPos::xyToPos(x,y,nnXLen);
           row[recentCapturesStart+pos] = i+1;
         }
       }
@@ -222,9 +223,9 @@ static void fillRow(const Board& board, const BoardHistory& hist, const vector<M
   for(int i = 0; i<nextMovesLen; i++) {
     int idx = nextMoveIdx + i;
     if(idx >= moves.size())
-      row[nextMovesStart+i] = NNPos::locToPos(Board::NULL_LOC,xSize,posLen);
+      row[nextMovesStart+i] = NNPos::locToPos(Board::NULL_LOC,xSize,nnXLen,nnYLen);
     else {
-      row[nextMovesStart+i] = NNPos::locToPos(moves[idx].loc,xSize,posLen);
+      row[nextMovesStart+i] = NNPos::locToPos(moves[idx].loc,xSize,nnXLen,nnYLen);
     }
   }
 
@@ -612,12 +613,13 @@ static void iterSgfMoves(
 
     float policyTarget[policyTargetLen];
     {
-      int posLen = NNPos::MAX_BOARD_LEN;
+      int nnXLen = NNPos::MAX_BOARD_LEN;
+      int nnYLen = NNPos::MAX_BOARD_LEN;
       for(int k = 0; k<policyTargetLen; k++)
         policyTarget[k] = 0.0;
 
       assert(m.loc != Board::NULL_LOC);
-      int nextMovePos = NNPos::locToPos(m.loc,board.x_size,posLen);
+      int nextMovePos = NNPos::locToPos(m.loc,board.x_size,nnXLen,nnYLen);
       assert(nextMovePos >= 0 && nextMovePos < policyTargetLen);
       policyTarget[nextMovePos] = 1.0;
     }

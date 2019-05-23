@@ -15,6 +15,7 @@ import numpy as np
 import data
 from board import Board
 from model import Model
+import common
 
 #Command and args-------------------------------------------------------------------
 
@@ -24,38 +25,31 @@ This is mostly a sandbox for random ideas for things that might be cool to visua
 """
 
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-checkpoint-file-prefix', help='model checkpoint file prefix to load', required=False)
-parser.add_argument('-saved-model-dir', help='tf SavedModel dir to load', required=False)
+common.add_model_load_args(parser)
+parser.add_argument('-name-scope', help='Name scope for model variables', required=False)
 parser.add_argument('-show-all-weight-magnitudes', help='sumsq and meansq and rmse of weights', action="store_true", required=False)
 parser.add_argument('-dump', help='weights name -> dump weights', required=False)
 args = vars(parser.parse_args())
 
-checkpoint_file_prefix = args["checkpoint_file_prefix"]
-saved_model_dir = args["saved_model_dir"]
+(model_variables_prefix, model_config_json) = common.load_model_paths(args)
+name_scope = args["name_scope"]
 show_all_weight_magnitudes = args["show_all_weight_magnitudes"]
 dump = args["dump"]
-
-if checkpoint_file_prefix is None and saved_model_dir is None:
-  raise Exception("Must specify one of -checkpoint-file-prefix or -saved-model-dir")
-if checkpoint_file_prefix is not None and saved_model_dir is not None:
-  raise Exception("Must specify only one of -checkpoint-file-prefix or -saved-model-dir")
 
 def log(s):
   print(s,flush=True)
 
 # Model ----------------------------------------------------------------
 print("Building model", flush=True)
-if checkpoint_file_prefix is not None:
-  with open(os.path.join(os.path.dirname(checkpoint_file_prefix),"model.config.json")) as f:
-    model_config = json.load(f)
-elif saved_model_dir is not None:
-  with open(os.path.join(saved_model_dir,"model.config.json")) as f:
-    model_config = json.load(f)
-else:
-  assert(False)
+with open(model_config_json) as f:
+  model_config = json.load(f)
 
 pos_len = 19 # shouldn't matter, all we're doing is exporting weights that don't depend on this
-model = Model(model_config,pos_len,{})
+if name_scope is not None:
+  with tf.name_scope(name_scope):
+    model = Model(model_config,pos_len,{})
+else:
+  model = Model(model_config,pos_len,{})
 
 def volume(variable):
   shape = variable.get_shape()
@@ -85,12 +79,7 @@ saver = tf.train.Saver(
 tfconfig = tf.ConfigProto(log_device_placement=False)
 tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.1
 with tf.Session(config=tfconfig) as session:
-  if checkpoint_file_prefix is not None:
-    saver.restore(session, checkpoint_file_prefix)
-  elif saved_model_dir is not None:
-    saver.restore(session, os.path.join(saved_model_dir,"saved_model","variables","variables"))
-  else:
-    assert(False)
+  saver.restore(session, model_variables_prefix)
 
   sys.stdout.flush()
   sys.stderr.flush()

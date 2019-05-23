@@ -15,6 +15,7 @@ import numpy as np
 import data
 from board import Board
 from model import Model, Target_vars, Metrics, ModelUtils
+import common
 
 #Command and args-------------------------------------------------------------------
 
@@ -25,41 +26,22 @@ Computes average loss and accuracy the same as in training.
 
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-data-files', help='tfrecords or npz file', required=True, nargs='+')
-parser.add_argument('-checkpoint-file-prefix', help='model checkpoint file prefix to load', required=False)
-parser.add_argument('-saved-model-dir', help='tf SavedModel dir to load', required=False)
-parser.add_argument('-model-config-json', help='Explicitly specify model.config.json', required=False)
+common.add_model_load_args(parser)
 parser.add_argument('-name-scope', help='Name scope for model variables', required=False)
 parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
 parser.add_argument('-batch-size', help='Expected batch size of the input data, must match tfrecords', type=int, required=True)
 args = vars(parser.parse_args())
 
-data_files = args["data_files"]
-checkpoint_file_prefix = args["checkpoint_file_prefix"]
-saved_model_dir = args["saved_model_dir"]
-model_config_json = args["model_config_json"]
+(model_variables_prefix, model_config_json) = common.load_model_paths(args)
 name_scope = args["name_scope"]
 pos_len = args["pos_len"]
 batch_size = args["batch_size"]
 
-if checkpoint_file_prefix is None and saved_model_dir is None:
-  raise Exception("Must specify one of -checkpoint-file-prefix or -saved-model-dir")
-if checkpoint_file_prefix is not None and saved_model_dir is not None:
-  raise Exception("Must specify only one of -checkpoint-file-prefix or -saved-model-dir")
-
 def log(s):
   print(s,flush=True)
 
-if model_config_json is not None:
-  with open(model_config_json) as f:
-    model_config = json.load(f)
-elif checkpoint_file_prefix is not None:
-  with open(os.path.join(os.path.dirname(checkpoint_file_prefix),"model.config.json")) as f:
-    model_config = json.load(f)
-elif saved_model_dir is not None:
-  with open(os.path.join(saved_model_dir,"model.config.json")) as f:
-    model_config = json.load(f)
-else:
-  assert(False)
+with open(model_config_json) as f:
+  model_config = json.load(f)
 
 num_bin_input_features = Model.get_num_bin_input_features(model_config)
 num_global_input_features = Model.get_num_global_input_features(model_config)
@@ -158,12 +140,7 @@ tfconfig = tf.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.allow_growth = True
 tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.2
 with tf.Session(config=tfconfig) as session:
-  if checkpoint_file_prefix is not None:
-    saver.restore(session, checkpoint_file_prefix)
-  elif saved_model_dir is not None:
-    saver.restore(session, os.path.join(saved_model_dir,"saved_model","variables","variables"))
-  else:
-    assert(False)
+  saver.restore(session, model_variables_prefix)
 
   log("Began session")
 

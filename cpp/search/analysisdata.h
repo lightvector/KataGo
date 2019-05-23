@@ -27,11 +27,11 @@ struct AnalysisData {
 
   AnalysisData();
   AnalysisData(const AnalysisData& other);
-  AnalysisData(AnalysisData&& other);
+  AnalysisData(AnalysisData&& other) noexcept;
   ~AnalysisData();
 
   AnalysisData& operator=(const AnalysisData& other);
-  AnalysisData& operator=(AnalysisData&& other);
+  AnalysisData& operator=(AnalysisData&& other) noexcept;
 
 };
 

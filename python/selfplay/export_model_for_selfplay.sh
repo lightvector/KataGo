@@ -45,7 +45,7 @@ do
 
             set -x
             python3 ./export_model.py \
-                    -saved-model-dir $SRC \
+                    -saved-model-dir $SRC/saved_model \
                     -export-dir $TMPDST \
                     -model-name $NAME \
                     -name-scope "swa_model" \

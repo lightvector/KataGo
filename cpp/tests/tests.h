@@ -25,6 +25,9 @@ namespace Tests {
   //testscore.cpp
   void runScoreTests();
 
+  //testsgf.cpp
+  void runSgfTests();
+  
   //testnninputs.cpp
   void runNNInputsV2Tests();
   void runNNInputsV3V4Tests();

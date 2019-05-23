@@ -2207,7 +2207,7 @@ static void applySymmetriesNCHW(
     return;
 
   if(inverse) {
-    if(symmetriesBuffer[2])
+    if(symmetriesBuffer[2] && xSize == ySize)
       customCudaNCHWTranspose(inputBuf,inputScratchBuf,xSize,ySize,batchSize*cSize);
     else
       cudaMemcpyAsync(inputScratchBuf,inputBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
@@ -2219,7 +2219,7 @@ static void applySymmetriesNCHW(
   else {
     customCudaMirrorNCHW(inputBuf, inputScratchBuf, batchSize, cSize, ySize, xSize, symmetriesBuffer[0], symmetriesBuffer[1]);
     CUDA_ERR("applySymmetriesNCHW",cudaPeekAtLastError());
-    if(symmetriesBuffer[2])
+    if(symmetriesBuffer[2] && xSize == ySize)
       customCudaNCHWTranspose(inputScratchBuf,inputBuf,xSize,ySize,batchSize*cSize);
     else
       cudaMemcpyAsync(inputBuf,inputScratchBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
@@ -2236,7 +2236,7 @@ static void applySymmetriesNHWC(
     return;
 
   if(inverse) {
-    if(symmetriesBuffer[2])
+    if(symmetriesBuffer[2] && xSize == ySize)
       customCudaNHWCTranspose(inputBuf,inputScratchBuf,xSize,ySize,cSize,batchSize);
     else
       cudaMemcpyAsync(inputScratchBuf,inputBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
@@ -2248,7 +2248,7 @@ static void applySymmetriesNHWC(
   else {
     customCudaMirrorNHWC(inputBuf, inputScratchBuf, batchSize, ySize, xSize, cSize, symmetriesBuffer[0], symmetriesBuffer[1]);
     CUDA_ERR("applySymmetriesNHWC",cudaPeekAtLastError());
-    if(symmetriesBuffer[2])
+    if(symmetriesBuffer[2] && xSize == ySize)
       customCudaNHWCTranspose(inputScratchBuf,inputBuf,xSize,ySize,cSize,batchSize);
     else
       cudaMemcpyAsync(inputBuf,inputScratchBuf,sizeof(T)*batchSize*cSize*ySize*xSize,cudaMemcpyDeviceToDevice);
@@ -3153,8 +3153,8 @@ struct ModelDesc {
       throw StringError("Version 0 neural nets no longer supported in cuda backend");
 
     if(version >= 3) {
-      xSizePreV3 = 0; //Unused, V3 uses posLen instead
-      ySizePreV3 = 0; //Unused, V3 uses posLen instead
+      xSizePreV3 = 0; //Unused, V3 uses nnXLen instead
+      ySizePreV3 = 0; //Unused, V3 uses nnYLen instead
     }
     else {
       in >> xSizePreV3;
@@ -3272,7 +3272,8 @@ struct Model {
     CudaHandles* cudaHandles,
     const ModelDesc* desc,
     int maxBatchSz,
-    int posLen,
+    int nnXLen,
+    int nnYLen,
     bool inputsUseNHWC,
     bool useFP16,
     bool useNHWC
@@ -3282,11 +3283,15 @@ struct Model {
     maxBatchSize = maxBatchSz;
 
     if(version >= 3) {
-      xSize = posLen;
-      ySize = posLen;
-      if(posLen > NNPos::MAX_BOARD_LEN)
-        throw StringError(Global::strprintf("posLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
-          posLen, NNPos::MAX_BOARD_LEN
+      xSize = nnXLen;
+      ySize = nnYLen;
+      if(nnXLen > NNPos::MAX_BOARD_LEN)
+        throw StringError(Global::strprintf("nnXLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
+          nnXLen, NNPos::MAX_BOARD_LEN
+        ));
+      if(nnYLen > NNPos::MAX_BOARD_LEN)
+        throw StringError(Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
+          nnYLen, NNPos::MAX_BOARD_LEN
         ));
     }
     else {
@@ -3301,9 +3306,13 @@ struct Model {
         throw StringError(Global::strprintf("For V2 models and lower ySize (%d) must be NNPos::MAX_BOARD_LEN (%d)",
           ySize, NNPos::MAX_BOARD_LEN
         ));
-      if(posLen != xSize)
-        throw StringError(Global::strprintf("For V2 models and lower posLen (%d) must match xSize (%d)",
-          posLen, xSize
+      if(nnXLen != xSize)
+        throw StringError(Global::strprintf("For V2 models and lower nnXLen (%d) must match xSize (%d)",
+          nnXLen, xSize
+        ));
+      if(nnYLen != ySize)
+        throw StringError(Global::strprintf("For V2 models and lower nnYLen (%d) must match ySize (%d)",
+          nnYLen, ySize
         ));
     }
 
@@ -3384,7 +3393,7 @@ struct Model {
   void apply(
     CudaHandles* cudaHandles,
     int batchSize,
-    bool requireExactPosLen,
+    bool requireExactNNLen,
     bool* symmetriesBuffer,
 
     void* inputBuf,
@@ -3472,7 +3481,7 @@ struct Model {
       }
 
       //Don't do any masking if we know the board is exactly the desired size
-      if(requireExactPosLen) {
+      if(requireExactNNLen) {
         //Set to NULL to signal downstream that this buf doesn't need to be used
         maskBuf = NULL;
         maskFloatBuf = NULL;
@@ -3835,18 +3844,20 @@ struct LocalGpuHandle {
   Model* model;
   Buffers* buffers;
   bool usingFP16;
-  int posLen;
-  bool requireExactPosLen;
+  int nnXLen;
+  int nnYLen;
+  bool requireExactNNLen;
   int policySize;
 
-  LocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int pLen, bool rExactPosLen, bool inputsUseNHWC, bool useFP16, bool useNHWC) {
+  LocalGpuHandle(const LoadedModel* loadedModel, int maxBatchSize, int xLen, int yLen, bool rExactNNLen, bool inputsUseNHWC, bool useFP16, bool useNHWC) {
     cudaHandles = new CudaHandles();
-    model = new Model(cudaHandles,&(loadedModel->modelDesc),maxBatchSize,pLen,inputsUseNHWC,useFP16,useNHWC);
+    model = new Model(cudaHandles,&(loadedModel->modelDesc),maxBatchSize,xLen,yLen,inputsUseNHWC,useFP16,useNHWC);
     buffers = new Buffers(cudaHandles,*model,useFP16);
     usingFP16 = useFP16;
-    posLen = pLen;
-    requireExactPosLen = rExactPosLen;
-    policySize = NNPos::getPolicySize(posLen);
+    nnXLen = xLen;
+    nnYLen = yLen;
+    requireExactNNLen = rExactNNLen;
+    policySize = NNPos::getPolicySize(nnXLen,nnYLen);
 
     //Synchronize after creating all the buffers and copying all the weights, just in case
     CUDA_ERR("LocalGpuHandle",cudaDeviceSynchronize());
@@ -3866,8 +3877,9 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   const LoadedModel* loadedModel,
   Logger* logger,
   int maxBatchSize,
-  int posLen,
-  bool requireExactPosLen,
+  int nnXLen,
+  int nnYLen,
+  bool requireExactNNLen,
   bool inputsUseNHWC,
   int cudaDeviceIdxForThisThread,
   bool cudaUseFP16,
@@ -3889,7 +3901,7 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   if(cudaUseFP16 && (prop.major < 5 || (prop.major == 5 && prop.minor < 3)))
     throw StringError("Cuda device versions below 5.3 do not support cudaUseFP16=true");
 
-  LocalGpuHandle* gpuHandle = new LocalGpuHandle(loadedModel,maxBatchSize,posLen,requireExactPosLen,inputsUseNHWC,cudaUseFP16,cudaUseNHWC);
+  LocalGpuHandle* gpuHandle = new LocalGpuHandle(loadedModel,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,cudaUseFP16,cudaUseNHWC);
   return gpuHandle;
 }
 
@@ -3931,11 +3943,11 @@ struct InputBuffers {
   float* scoreValueResults; //Host pointer
   float* ownershipResults; //Host pointer
 
-  InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int posLen) {
+  InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
-    int xSize = m.version >= 3 ? posLen : m.xSizePreV3;
-    int ySize = m.version >= 3 ? posLen : m.ySizePreV3;
+    int xSize = m.version >= 3 ? nnXLen : m.xSizePreV3;
+    int ySize = m.version >= 3 ? nnYLen : m.ySizePreV3;
 
     maxBatchSize = maxBatchSz;
     singleInputElts = m.numInputChannels * xSize * ySize;
@@ -3995,8 +4007,8 @@ struct InputBuffers {
   InputBuffers& operator=(const InputBuffers&) = delete;
 };
 
-InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int posLen) {
-  return new InputBuffers(loadedModel,maxBatchSize,posLen);
+InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
+  return new InputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
 }
 void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
   delete inputBuffers;
@@ -4031,7 +4043,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
   assert(numFilledRows <= inputBuffers->maxBatchSize);
   assert(numFilledRows > 0);
   int batchSize = numFilledRows;
-  int posLen = gpuHandle->posLen;
+  int nnXLen = gpuHandle->nnXLen;
+  int nnYLen = gpuHandle->nnYLen;
   int version = gpuHandle->model->version;
   Buffers* buffers = gpuHandle->buffers;
 
@@ -4047,8 +4060,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     if(version >= 3) {
       assert(inputBuffers->scoreValueResultBufferBytes == buffers->scoreValueBufBytes);
       assert(inputBuffers->ownershipResultBufferBytes == buffers->ownershipBufBytes);
-      assert(inputBuffers->singleOwnershipResultElts == posLen*posLen);
-      assert(inputBuffers->singleOwnershipResultBytes == posLen*posLen * sizeof(float));
+      assert(inputBuffers->singleOwnershipResultElts == nnXLen*nnYLen);
+      assert(inputBuffers->singleOwnershipResultBytes == nnXLen*nnYLen * sizeof(float));
     }
 
     CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBuf, inputBuffers->userInputBuffer, inputBuffers->singleInputBytes*batchSize, cudaMemcpyHostToDevice));
@@ -4069,8 +4082,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
     if(version >= 3) {
       assert(inputBuffers->scoreValueResultBufferBytes == buffers->scoreValueBufBytes);
       assert(inputBuffers->ownershipResultBufferBytes == buffers->ownershipBufBytes);
-      assert(inputBuffers->singleOwnershipResultElts == posLen*posLen);
-      assert(inputBuffers->singleOwnershipResultBytes == posLen*posLen * sizeof(float));
+      assert(inputBuffers->singleOwnershipResultElts == nnXLen*nnYLen);
+      assert(inputBuffers->singleOwnershipResultBytes == nnXLen*nnYLen * sizeof(float));
     }
 
     CUDA_ERR("getOutput",cudaMemcpy(buffers->inputBufFloat, inputBuffers->userInputBuffer, inputBuffers->singleInputBytes*batchSize, cudaMemcpyHostToDevice));
@@ -4088,7 +4101,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
   gpuHandle->model->apply(
     gpuHandle->cudaHandles,
     batchSize,
-    gpuHandle->requireExactPosLen,
+    gpuHandle->requireExactNNLen,
     inputBuffers->symmetriesBuffer,
 
     buffers->inputBuf,
@@ -4148,7 +4161,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
 
   for(int row = 0; row < batchSize; row++) {
     NNOutput* output = outputs[row];
-    assert(output->posLen == posLen);
+    assert(output->nnXLen == nnXLen);
+    assert(output->nnYLen == nnYLen);
 
     float* policyProbs = output->policyProbs;
 
@@ -4177,8 +4191,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       if(output->whiteOwnerMap != NULL) {
         assert(gpuHandle->model->numOwnershipChannels == 1);
         std::copy(
-          inputBuffers->ownershipResults + row * posLen * posLen,
-          inputBuffers->ownershipResults + (row+1) * posLen * posLen,
+          inputBuffers->ownershipResults + row * nnXLen * nnYLen,
+          inputBuffers->ownershipResults + (row+1) * nnXLen * nnYLen,
           output->whiteOwnerMap
         );
       }
@@ -4201,8 +4215,8 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
       if(output->whiteOwnerMap != NULL) {
         assert(gpuHandle->model->numOwnershipChannels == 1);
         std::copy(
-          inputBuffers->ownershipResults + row * posLen * posLen,
-          inputBuffers->ownershipResults + (row+1) * posLen * posLen,
+          inputBuffers->ownershipResults + row * nnXLen * nnYLen,
+          inputBuffers->ownershipResults + (row+1) * nnXLen * nnYLen,
           output->whiteOwnerMap
         );
       }
@@ -4217,7 +4231,7 @@ void NeuralNet::getOutput(LocalGpuHandle* gpuHandle, InputBuffers* inputBuffers,
 
       //Older versions don't have an ownership map, so zero fill
       if(output->whiteOwnerMap != NULL)
-        std::fill(output->whiteOwnerMap, output->whiteOwnerMap + posLen * posLen, 0.0f);
+        std::fill(output->whiteOwnerMap, output->whiteOwnerMap + nnXLen * nnYLen, 0.0f);
 
     }
   }

@@ -29,14 +29,15 @@ namespace NeuralNet {
   //Any given thread should only ever create one of these at a time.
   //When using the CUDA backend, will mutably set the GPU that this thread is associated with to the specified index.
   //If logger is specified, may output some info messages to it.
-  //If requireExactPosLen is true, the backend is allowed to assume that all boards to evaluate will be of size exactly
-  //equal to posLen rather than smaller, and skip any masking operations.
+  //If requireExactNNLen is true, the backend is allowed to assume that all boards to evaluate will be of size exactly
+  //equal to (nnXLen,nnYLen) rather than smaller, and skip any masking operations.
   LocalGpuHandle* createLocalGpuHandle(
     const LoadedModel* loadedModel,
     Logger* logger,
     int maxBatchSize,
-    int posLen,
-    bool requireExactPosLen,
+    int nnXLen,
+    int nnYLen,
+    bool requireExactNNLen,
     bool inputsUseNHWC,
     int cudaGpuIdxForThisThread,
     bool cudaUseFP16,
@@ -44,7 +45,7 @@ namespace NeuralNet {
   );
   void freeLocalGpuHandle(LocalGpuHandle* gpuHandle);
 
-  InputBuffers* createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int posLen);
+  InputBuffers* createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen);
   void freeInputBuffers(InputBuffers* buffers);
 
   float* getRowInplace(InputBuffers* buffers, int rowIdx);
