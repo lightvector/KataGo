@@ -198,11 +198,25 @@ MatchPairer::MatchPairer(
   const vector<SearchParams>& bParamss,
   bool forSelfPlay,
   bool forGateKeeper
+): MatchPairer(cfg,nBots,bNames,nEvals,bParamss,forSelfPlay,forGateKeeper,vector<bool>(nBots))
+{}
+
+
+MatchPairer::MatchPairer(
+  ConfigParser& cfg,
+  int nBots,
+  const vector<string>& bNames,
+  const vector<NNEvaluator*>& nEvals,
+  const vector<SearchParams>& bParamss,
+  bool forSelfPlay,
+  bool forGateKeeper,
+  const vector<bool>& exclude
 )
   :numBots(nBots),
    botNames(bNames),
    nnEvals(nEvals),
    baseParamss(bParamss),
+   excludeBot(exclude),
    secondaryBots(),
    nextMatchups(),
    nextMatchupsBuf(),
@@ -218,6 +232,7 @@ MatchPairer::MatchPairer(
   assert(botNames.size() == numBots);
   assert(nnEvals.size() == numBots);
   assert(baseParamss.size() == numBots);
+  assert(exclude.size() == numBots);
   if(forSelfPlay) {
     assert(numBots == 1);
     numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
@@ -293,7 +308,11 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
     nextMatchupsBuf.clear();
     //First generate the pairs only in a one-sided manner
     for(int i = 0; i<numBots; i++) {
+      if(excludeBot[i])
+        continue;
       for(int j = 0; j<numBots; j++) {
+        if(excludeBot[j])
+          continue;
         if(i < j && !(contains(secondaryBots,i) && contains(secondaryBots,j))) {
           nextMatchupsBuf.push_back(make_pair(i,j));
         }

@@ -62,29 +62,42 @@ int MainCmds::match(int argc, const char* const* argv) {
   assert(paramss.size() > 0);
   int numBots = paramss.size();
 
+  //Load a filter on what bots we actually want to run
+  vector<bool> excludeBot(numBots);
+  if(cfg.contains("includeBots")) {
+    vector<int> includeBots = cfg.getInts("includeBots",0,4096);
+    for(int i = 0; i<numBots; i++) {
+      if(!contains(includeBots,i))
+        excludeBot[i] = true;
+    }
+  }
+  
   //Load the names of the bots and which model each bot is using
-  vector<string> nnModelFilesByBot;
-  vector<string> botNames;
+  vector<string> nnModelFilesByBot(numBots);
+  vector<string> botNames(numBots);
   for(int i = 0; i<numBots; i++) {
     string idxStr = Global::intToString(i);
 
     if(cfg.contains("botName"+idxStr))
-      botNames.push_back(cfg.getString("botName"+idxStr));
+      botNames[i] = cfg.getString("botName"+idxStr);
     else if(numBots == 1)
-      botNames.push_back(cfg.getString("botName"));
+      botNames[i] = cfg.getString("botName");
     else
       throw StringError("If more than one bot, must specify botName0, botName1,... individually");
 
     if(cfg.contains("nnModelFile"+idxStr))
-      nnModelFilesByBot.push_back(cfg.getString("nnModelFile"+idxStr));
+      nnModelFilesByBot[i] = cfg.getString("nnModelFile"+idxStr);
     else
-      nnModelFilesByBot.push_back(cfg.getString("nnModelFile"));
+      nnModelFilesByBot[i] = cfg.getString("nnModelFile");
   }
 
   //Dedup and load each necessary model exactly once
   vector<string> nnModelFiles;
-  vector<int> whichNNModel;
+  vector<int> whichNNModel(numBots);
   for(int i = 0; i<numBots; i++) {
+    if(excludeBot[i])
+      continue;
+    
     const string& desiredFile = nnModelFilesByBot[i];
     int alreadyFoundIdx = -1;
     for(int j = 0; j<nnModelFiles.size(); j++) {
@@ -94,9 +107,9 @@ int MainCmds::match(int argc, const char* const* argv) {
       }
     }
     if(alreadyFoundIdx != -1)
-      whichNNModel.push_back(alreadyFoundIdx);
+      whichNNModel[i] = alreadyFoundIdx;
     else {
-      whichNNModel.push_back(nnModelFiles.size());
+      whichNNModel[i] = nnModelFiles.size();
       nnModelFiles.push_back(desiredFile);
     }
   }
@@ -127,15 +140,17 @@ int MainCmds::match(int argc, const char* const* argv) {
     Setup::initializeNNEvaluators(nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,false,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN);
   logger.write("Loaded neural net");
 
-  vector<NNEvaluator*> nnEvalsByBot;
-  for(int i = 0; i<numBots; i++)
-    nnEvalsByBot.push_back(nnEvals[whichNNModel[i]]);
-
+  vector<NNEvaluator*> nnEvalsByBot(numBots);
+  for(int i = 0; i<numBots; i++) {
+    if(excludeBot[i])
+      continue;
+    nnEvalsByBot[i] = nnEvals[whichNNModel[i]];
+  }
 
   //Initialize object for randomly pairing bots
   bool forSelfPlay = false;
   bool forGateKeeper = false;
-  MatchPairer* matchPairer = new MatchPairer(cfg,numBots,botNames,nnEvalsByBot,paramss,forSelfPlay,forGateKeeper);
+  MatchPairer* matchPairer = new MatchPairer(cfg,numBots,botNames,nnEvalsByBot,paramss,forSelfPlay,forGateKeeper,excludeBot);
 
   //Initialize object for randomizing game settings and running games
   FancyModes fancyModes;

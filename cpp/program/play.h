@@ -86,6 +86,16 @@ class MatchPairer {
     bool forSelfPlay,
     bool forGateKeeper
   );
+  MatchPairer(
+    ConfigParser& cfg,
+    int numBots,
+    const vector<string>& botNames,
+    const vector<NNEvaluator*>& nnEvals,
+    const vector<SearchParams>& baseParamss,
+    bool forSelfPlay,
+    bool forGateKeeper,
+    const vector<bool>& excludeBot
+  );
 
   ~MatchPairer();
 
@@ -113,6 +123,7 @@ class MatchPairer {
   vector<NNEvaluator*> nnEvals;
   vector<SearchParams> baseParamss;
 
+  vector<bool> excludeBot;
   vector<int> secondaryBots;
   vector<pair<int,int>> nextMatchups;
   vector<pair<int,int>> nextMatchupsBuf;
