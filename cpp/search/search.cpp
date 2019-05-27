@@ -478,7 +478,8 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
       return false;
     for(int movePos = 0; movePos<policySize; movePos++) {
       Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
-      double policyProb = nnOutput->policyProbs[movePos];
+      float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+      double policyProb = policyProbs[movePos];
       if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || !isAllowedRootMove(moveLoc))
         continue;
       locs.push_back(moveLoc);
@@ -1067,21 +1068,29 @@ int64_t Search::numRootVisits() const {
 }
 
 //Assumes node is locked
-void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const {
+void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const {
   if(!isRoot)
     return;
   if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0)
     return;
+  if(node.nnOutput->noisedPolicyProbs != NULL)
+    return;
 
   //Copy nnOutput as we're about to modify its policy to add noise or temperature
-  shared_ptr<NNOutput> newNNOutput = std::make_shared<NNOutput>(*(node.nnOutput));
-  //Replace the old pointer
-  node.nnOutput = newNNOutput;
+  {
+    shared_ptr<NNOutput> newNNOutput = std::make_shared<NNOutput>(*(node.nnOutput));
+    //Replace the old pointer
+    node.nnOutput = newNNOutput;
+  }
 
+  float* noisedPolicyProbs = new float[NNPos::MAX_NN_POLICY_SIZE];
+  node.nnOutput->noisedPolicyProbs = noisedPolicyProbs;
+  std::copy(node.nnOutput->policyProbs, node.nnOutput->policyProbs + NNPos::MAX_NN_POLICY_SIZE, noisedPolicyProbs);
+  
   if(searchParams.rootPolicyTemperature != 1.0) {
     double maxValue = 0.0;
     for(int i = 0; i<policySize; i++) {
-      double prob = node.nnOutput->policyProbs[i];
+      double prob = noisedPolicyProbs[i];
       if(prob > maxValue)
         maxValue = prob;
     }
@@ -1092,17 +1101,17 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
     double sum = 0.0;
 
     for(int i = 0; i<policySize; i++) {
-      if(node.nnOutput->policyProbs[i] > 0) {
+      if(noisedPolicyProbs[i] > 0) {
         //Numerically stable way to raise to power and normalize
-        double p = exp((log((double)node.nnOutput->policyProbs[i]) - logMaxValue) * invTemp);
-        node.nnOutput->policyProbs[i] = p;
+        double p = exp((log((double)noisedPolicyProbs[i]) - logMaxValue) * invTemp);
+        noisedPolicyProbs[i] = p;
         sum += p;
       }
     }
     assert(sum > 0.0);
     for(int i = 0; i<policySize; i++) {
-      if(node.nnOutput->policyProbs[i] >= 0) {
-        node.nnOutput->policyProbs[i] = (double)node.nnOutput->policyProbs[i] / sum;
+      if(noisedPolicyProbs[i] >= 0) {
+        noisedPolicyProbs[i] = (double)noisedPolicyProbs[i] / sum;
       }
     }
   }
@@ -1110,19 +1119,19 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   if(searchParams.rootNoiseEnabled) {
     int legalCount = 0;
     for(int i = 0; i<policySize; i++) {
-      if(node.nnOutput->policyProbs[i] >= 0)
+      if(noisedPolicyProbs[i] >= 0)
         legalCount += 1;
     }
 
     if(legalCount <= 0)
-      throw StringError("maybeAddPolicyNoise: No move with nonnegative policy value - can't even pass?");
+      throw StringError("maybeAddPolicyNoiseAndTempAlreadyLocked: No move with nonnegative policy value - can't even pass?");
 
     //Generate gamma draw on each move
     double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
     double rSum = 0.0;
     double r[NNPos::MAX_NN_POLICY_SIZE];
     for(int i = 0; i<policySize; i++) {
-      if(node.nnOutput->policyProbs[i] >= 0) {
+      if(noisedPolicyProbs[i] >= 0) {
         r[i] = thread.rand.nextGamma(alpha);
         rSum += r[i];
       }
@@ -1136,9 +1145,9 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
 
     //At this point, r[i] contains a dirichlet distribution draw, so add it into the nnOutput.
     for(int i = 0; i<policySize; i++) {
-      if(node.nnOutput->policyProbs[i] >= 0) {
+      if(noisedPolicyProbs[i] >= 0) {
         double weight = searchParams.rootDirichletNoiseWeight;
-        node.nnOutput->policyProbs[i] = r[i] * weight + node.nnOutput->policyProbs[i] * (1.0-weight);
+        noisedPolicyProbs[i] = r[i] * weight + noisedPolicyProbs[i] * (1.0-weight);
       }
     }
   }
@@ -1378,7 +1387,8 @@ int Search::getPos(Loc moveLoc) const {
 double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const {
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
-  float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
+  float* policyProbs = parent.nnOutput->getPolicyProbsMaybeNoised();
+  float nnPolicyProb = policyProbs[movePos];
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   int64_t childVisits = child->stats.visits;
@@ -1429,7 +1439,8 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
 }
 //Parent must be locked
 double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const {
-  float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
+  float* policyProbs = parent.nnOutput->getPolicyProbsMaybeNoised();
+  float nnPolicyProb = policyProbs[movePos];
   int64_t childVisits = 0;
   double childUtility = fpuValue;
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
@@ -1440,7 +1451,8 @@ int64_t Search::getReducedPlaySelectionVisits(const SearchNode& parent, const Se
   assert(&parent == rootNode);
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
-  float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
+  float* policyProbs = parent.nnOutput->getPolicyProbsMaybeNoised();
+  float nnPolicyProb = policyProbs[movePos];
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   int64_t childVisits = child->stats.visits;
@@ -1522,11 +1534,12 @@ void Search::selectBestChildToDescend(
 
   double policyProbMassVisited = 0.0;
   int64_t totalChildVisits = 0;
+  float* policyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
     int movePos = getPos(moveLoc);
-    float nnPolicyProb = node.nnOutput->policyProbs[movePos];
+    float nnPolicyProb = policyProbs[movePos];
     policyProbMassVisited += nnPolicyProb;
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
@@ -1798,7 +1811,7 @@ void Search::initNodeNNOutput(
   );
 
   node.nnOutput = std::move(thread.nnResultBuf.result);
-  maybeAddPolicyNoise(thread,node,isRoot);
+  maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
 
   //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.
   //Also don't bother updating any of the stats. Technically we should do so because winValueSum
@@ -1966,10 +1979,11 @@ void Search::printRootPolicyMap(ostream& out) const {
     return;
   NNOutput& nnOutput = *(rootNode->nnOutput);
 
+  float* policyProbs = nnOutput.getPolicyProbsMaybeNoised();  
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
-      out << Global::strprintf("%6.1f ", nnOutput.policyProbs[pos]*100);
+      out << Global::strprintf("%6.1f ", policyProbs[pos]*100);
     }
     out << endl;
   }
@@ -2197,8 +2211,9 @@ void Search::getAnalysisData(
   double policyProbMassVisited = 0.0;
   {
     NNOutput& nnOutput = *(node.nnOutput);
+    float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
     for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
-      policyProbs[i] = nnOutput.policyProbs[i];
+      policyProbs[i] = policyProbsFromNN[i];
 
     for(int i = 0; i<numChildren; i++) {
       const SearchNode* child = children[i];

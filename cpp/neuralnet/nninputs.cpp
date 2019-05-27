@@ -193,7 +193,7 @@ double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteSc
 
 
 NNOutput::NNOutput()
-  :whiteOwnerMap(NULL)
+  :whiteOwnerMap(NULL),noisedPolicyProbs(NULL)
 {}
 NNOutput::NNOutput(const NNOutput& other) {
   nnHash = other.nnHash;
@@ -212,6 +212,13 @@ NNOutput::NNOutput(const NNOutput& other) {
   else
     whiteOwnerMap = NULL;
 
+  if(other.noisedPolicyProbs != NULL) {
+    noisedPolicyProbs = new float[NNPos::MAX_NN_POLICY_SIZE];
+    std::copy(other.noisedPolicyProbs, other.noisedPolicyProbs + NNPos::MAX_NN_POLICY_SIZE, noisedPolicyProbs);
+  }
+  else
+    noisedPolicyProbs = NULL;
+
   std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
 }
 
@@ -227,15 +234,22 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
 
   nnXLen = other.nnXLen;
   nnYLen = other.nnYLen;
-  if(whiteOwnerMap != NULL) {
+  if(whiteOwnerMap != NULL)
     delete[] whiteOwnerMap;
-  }
   if(other.whiteOwnerMap != NULL) {
     whiteOwnerMap = new float[nnXLen * nnYLen];
     std::copy(other.whiteOwnerMap, other.whiteOwnerMap + nnXLen * nnYLen, whiteOwnerMap);
   }
   else
     whiteOwnerMap = NULL;
+  if(noisedPolicyProbs != NULL)
+    delete[] noisedPolicyProbs;
+  if(other.noisedPolicyProbs != NULL) {
+    noisedPolicyProbs = new float[NNPos::MAX_NN_POLICY_SIZE];
+    std::copy(other.noisedPolicyProbs, other.noisedPolicyProbs + NNPos::MAX_NN_POLICY_SIZE, noisedPolicyProbs);
+  }
+  else
+    noisedPolicyProbs = NULL;
 
   std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
 
@@ -247,6 +261,10 @@ NNOutput::~NNOutput() {
   if(whiteOwnerMap != NULL) {
     delete[] whiteOwnerMap;
     whiteOwnerMap = NULL;
+  }
+  if(noisedPolicyProbs != NULL) {
+    delete[] noisedPolicyProbs;
+    noisedPolicyProbs = NULL;
   }
 }
 

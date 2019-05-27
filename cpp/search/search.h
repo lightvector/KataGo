@@ -66,7 +66,11 @@ struct SearchNode {
 
   //Mutable---------------------------------------------------------------------------
   //All of these values are protected under the mutex indicated by lockIdx
-  shared_ptr<NNOutput> nnOutput; //Once set, constant thereafter
+
+  //nnOutput at a given node MAY be mutated during search, but of course will always be done under the lock.
+  //The actual NNOutput object itself will NOT be mutated once set here, so having obtained a shared_ptr to
+  //it while locked, it's safe to read it while unlocked.
+  shared_ptr<NNOutput> nnOutput;
 
   SearchNode** children;
   uint16_t numChildren;
@@ -275,7 +279,7 @@ struct Search {
 
   //Helpers-----------------------------------------------------------------------
 private:
-  void maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const;
+  void maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const;
   int getPos(Loc moveLoc) const;
 
   bool isAllowedRootMove(Loc moveLoc) const;
