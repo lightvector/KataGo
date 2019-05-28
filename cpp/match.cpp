@@ -234,11 +234,13 @@ int MainCmds::match(int argc, const char* const* argv) {
 
   nnEvalsByBot.clear();
   for(int i = 0; i<nnEvals.size(); i++) {
-    logger.write(nnEvals[i]->getModelFileName());
-    logger.write("NN rows: " + Global::int64ToString(nnEvals[i]->numRowsProcessed()));
-    logger.write("NN batches: " + Global::int64ToString(nnEvals[i]->numBatchesProcessed()));
-    logger.write("NN avg batch size: " + Global::doubleToString(nnEvals[i]->averageProcessedBatchSize()));
-    delete nnEvals[i];
+    if(nnEvals[i] != NULL) {
+      logger.write(nnEvals[i]->getModelFileName());
+      logger.write("NN rows: " + Global::int64ToString(nnEvals[i]->numRowsProcessed()));
+      logger.write("NN batches: " + Global::int64ToString(nnEvals[i]->numBatchesProcessed()));
+      logger.write("NN avg batch size: " + Global::doubleToString(nnEvals[i]->averageProcessedBatchSize()));
+      delete nnEvals[i];
+    }
   }
   NeuralNet::globalCleanup();
   ScoreValue::freeTables();
