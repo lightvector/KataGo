@@ -1235,6 +1235,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   delete engine;
   engine = NULL;
   NeuralNet::globalCleanup();
+  ScoreValue::freeTables();
 
   logger.write("All cleaned up, quitting");
   return 0;

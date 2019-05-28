@@ -588,6 +588,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   //Delete and clean up everything else
   NeuralNet::globalCleanup();
   delete gameRunner;
+  ScoreValue::freeTables();
 
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");

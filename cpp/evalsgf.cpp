@@ -315,6 +315,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   delete nnEval;
   NeuralNet::globalCleanup();
   delete sgf;
+  ScoreValue::freeTables();
 
   return 0;
 }

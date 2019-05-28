@@ -1411,6 +1411,8 @@ int main(int argc, const char* argv[]) {
   for(int i = 0; i<sgfs.size(); i++) {
     delete sgfs[i];
   }
+  ScoreValue::freeTables();
+
   cout << "Everything cleaned up" << endl;
 
   return 0;

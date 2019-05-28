@@ -584,6 +584,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   delete manager;
 
   NeuralNet::globalCleanup();
+  ScoreValue::freeTables();
 
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");

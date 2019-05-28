@@ -241,7 +241,8 @@ int MainCmds::match(int argc, const char* const* argv) {
     delete nnEvals[i];
   }
   NeuralNet::globalCleanup();
-
+  ScoreValue::freeTables();
+  
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");
   logger.write("All cleaned up, quitting");

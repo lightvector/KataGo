@@ -150,6 +150,9 @@ int MainCmds::lzcost(int argc, const char* const* argv) {
       printLZCost(lzFiles[i],out);
   }
   out.close();
+
+  ScoreValue::freeTables();
+
   cerr << "Done" << endl;
   return 0;
 }

@@ -139,6 +139,7 @@ struct NNOutput {
 namespace ScoreValue {
   //MUST BE CALLED AT PROGRAM START!
   void initTables();
+  void freeTables();
 
   //The number of wins a game result should count as
   double whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite);

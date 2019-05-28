@@ -33,7 +33,9 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Tests::runBoardStressTest();
 
   Tests::runSgfTests();
-  
+
+  ScoreValue::freeTables();
+
   cout << "All tests passed" << endl;
   return 0;
 }
@@ -50,6 +52,9 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   Tests::runTrainingWriteTests();
   Tests::runTimeControlsTests();
   Tests::runScoreTests();
+
+  ScoreValue::freeTables();
+
   return 0;
 }
 
@@ -68,6 +73,9 @@ int MainCmds::runsearchtests(int argc, const char* const* argv) {
     Global::stringToInt(argv[4]),
     Global::stringToBool(argv[5])
   );
+
+  ScoreValue::freeTables();
+
   return 0;
 }
 
@@ -86,6 +94,9 @@ int MainCmds::runsearchtestsv3(int argc, const char* const* argv) {
     Global::stringToInt(argv[4]),
     Global::stringToBool(argv[5])
   );
+
+  ScoreValue::freeTables();
+
   return 0;
 }
 
@@ -100,5 +111,8 @@ int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
   Tests::runSelfplayInitTestsWithNN(
     string(argv[1])
   );
+
+  ScoreValue::freeTables();
+
   return 0;
 }

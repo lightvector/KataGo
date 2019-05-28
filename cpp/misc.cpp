@@ -550,6 +550,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   delete bot;
   delete nnEval;
   NeuralNet::globalCleanup();
+  ScoreValue::freeTables();
 
   logger.write("All cleaned up, quitting");
   return 0;

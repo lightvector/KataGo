@@ -641,6 +641,8 @@ void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool cuda
   NNEvaluator* nnEvalPTemp = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.5);
   runOwnershipAndMisc(nnEval,nnEval11,nnEvalPTemp,logger);
   delete nnEval;
+  delete nnEval11;
+  delete nnEvalPTemp;
 
   NeuralNet::globalCleanup();
 }
