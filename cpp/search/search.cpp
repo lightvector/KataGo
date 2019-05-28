@@ -422,11 +422,16 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     const SearchNode* bestChild = node.children[mostVisitedIdx];
     double fpuValue = -10.0; //dummy, not actually used since these childs all should actually have visits
     bool isRootDuringSearch = false;
-    double bestChildExploreSelectionValue = getExploreSelectionValue(node,bestChild,totalChildVisits,fpuValue,isRootDuringSearch);
+
+    float* maybeNoisedPolicyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
+    //TODO test this - reduce play selection values based on the ORIGINAL policy rather than the noised one!
+    //float* policyProbs = node.nnOutput->policyProbs;
+    float* policyProbs = maybeNoisedPolicyProbs;
+    double bestChildExploreSelectionValue = getExploreSelectionValue(node,policyProbs,bestChild,totalChildVisits,fpuValue,isRootDuringSearch);
 
     for(int i = 0; i<numChildren; i++) {
       if(i != mostVisitedIdx)
-        playSelectionValues[i] = getReducedPlaySelectionVisits(node, node.children[i], totalChildVisits, bestChildExploreSelectionValue);
+        playSelectionValues[i] = getReducedPlaySelectionVisits(node,policyProbs,maybeNoisedPolicyProbs,node.children[i], totalChildVisits, bestChildExploreSelectionValue);
     }
   }
 
@@ -1126,13 +1131,61 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
     if(legalCount <= 0)
       throw StringError("maybeAddPolicyNoiseAndTempAlreadyLocked: No move with nonnegative policy value - can't even pass?");
 
-    //Generate gamma draw on each move
-    double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
-    double rSum = 0.0;
+    //We're going to generate a gamma draw on each move with alphas that sum up to searchParams.rootDirichletNoiseTotalConcentration.
+    //Half of the alpha weight are uniform.
+    //The other half are shaped based on the log of the existing policy.
     double r[NNPos::MAX_NN_POLICY_SIZE];
+    double logPolicySum = 0.0;
     for(int i = 0; i<policySize; i++) {
       if(noisedPolicyProbs[i] >= 0) {
-        r[i] = thread.rand.nextGamma(alpha);
+        r[i] = log(std::min(0.01, (double)noisedPolicyProbs[i]) + 1e-20);
+        logPolicySum += r[i];
+      }
+    }
+    double logPolicyMean = logPolicySum / legalCount;
+    double alphaPropSum = 0.0;
+    for(int i = 0; i<policySize; i++) {
+      if(noisedPolicyProbs[i] >= 0) {
+        r[i] = std::max(0.0, r[i] - logPolicyMean);
+        alphaPropSum += r[i];
+      }
+    }
+    double uniformProb = 1.0 / legalCount;
+    if(alphaPropSum <= 0.0) {
+      for(int i = 0; i<policySize; i++) {
+        if(noisedPolicyProbs[i] >= 0)
+          r[i] = uniformProb;
+      }
+    }
+    else {
+      for(int i = 0; i<policySize; i++) {
+        if(noisedPolicyProbs[i] >= 0)
+          r[i] = 0.5 * (r[i] / alphaPropSum + uniformProb);
+      }
+    }
+
+    //TODO debug printing
+    // for(int y = 0; y<rootBoard.y_size; y++) {
+    //   for(int x = 0; x<rootBoard.x_size; x++) {
+    //     int pos = NNPos::xyToPos(x,y,node.nnOutput->nnXLen);
+    //     double prob = r[pos] * searchParams.rootDirichletNoiseTotalConcentration;
+    //     if(noisedPolicyProbs[pos] < 0)
+    //       cout << "   -  " << " ";
+    //     else
+    //       cout << Global::strprintf("%6.3f",prob) << " ";
+    //   }
+    //   cout << endl;
+    // }
+    // double prob = r[NNPos::locToPos(Board::PASS_LOC,rootBoard.x_size,node.nnOutput->nnXLen,node.nnOutput->nnYLen)] * searchParams.rootDirichletNoiseTotalConcentration;
+    // cout << "Pass " << Global::strprintf("%6.3f",prob) << endl;
+    
+    //r now contains the proportions with which we would like to split the alpha
+    //The total of the alphas is searchParams.rootDirichletNoiseTotalConcentration
+    //Generate gamma draw on each move
+    double rSum = 0.0;    
+    for(int i = 0; i<policySize; i++) {
+      if(noisedPolicyProbs[i] >= 0) {
+        r[i] = thread.rand.nextGamma(r[i] * searchParams.rootDirichletNoiseTotalConcentration);
         rSum += r[i];
       }
       else
@@ -1384,11 +1437,13 @@ int Search::getPos(Loc moveLoc) const {
 }
 
 //Parent must be locked
-double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const {
+double Search::getExploreSelectionValue(
+  const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+  int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch
+) const {
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
-  float* policyProbs = parent.nnOutput->getPolicyProbsMaybeNoised();
-  float nnPolicyProb = policyProbs[movePos];
+  float nnPolicyProb = parentPolicyProbs[movePos];
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   int64_t childVisits = child->stats.visits;
@@ -1447,12 +1502,15 @@ double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos
 }
 
 //Parent must be locked
-int64_t Search::getReducedPlaySelectionVisits(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const {
+int64_t Search::getReducedPlaySelectionVisits(
+  const SearchNode& parent, const float* parentPolicyProbs, const float* maybeNoisedPolicyProbs, const SearchNode* child,
+  int64_t totalChildVisits, double bestChildExploreSelectionValue
+) const {
   assert(&parent == rootNode);
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
-  float* policyProbs = parent.nnOutput->getPolicyProbsMaybeNoised();
-  float nnPolicyProb = policyProbs[movePos];
+  float nnPolicyProb = parentPolicyProbs[movePos];
+  float maybeNoisedNNPolicyProb = maybeNoisedPolicyProbs[movePos];
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   int64_t childVisits = child->stats.visits;
@@ -1472,7 +1530,7 @@ int64_t Search::getReducedPlaySelectionVisits(const SearchNode& parent, const Se
   if(endingScoreBonus != 0)
     childUtility += getScoreUtilityDiff(scoreMeanSum, scoreMeanSqSum, weightSum, endingScoreBonus);
 
-  int64_t desiredVisits = (int64_t)ceil(sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff));
+  int64_t desiredVisits = (int64_t)ceil(sqrt(maybeNoisedNNPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff));
   for(int i = 0; i<desiredVisits; i++) {
     if(childVisits <= 0)
       break;
@@ -1563,7 +1621,7 @@ void Search::selectBestChildToDescend(
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
     bool isRootDuringSearch = isRoot;
-    double selectionValue = getExploreSelectionValue(node,child,totalChildVisits,fpuValue,isRootDuringSearch);
+    double selectionValue = getExploreSelectionValue(node,policyProbs,child,totalChildVisits,fpuValue,isRootDuringSearch);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = i;

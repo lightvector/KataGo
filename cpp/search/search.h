@@ -317,11 +317,17 @@ private:
   ) const;
 
   //Parent must be locked
-  double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const;
+  double getExploreSelectionValue(
+    const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+    int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch
+  ) const;
   double getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const;
 
   //Parent must be locked
-  int64_t getReducedPlaySelectionVisits(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const;
+  int64_t getReducedPlaySelectionVisits(
+    const SearchNode& parent, const float* parentPolicyProbs, const float* maybeNoisedPolicyProbs, const SearchNode* child,
+    int64_t totalChildVisits, double bestChildExploreSelectionValue
+  ) const;
 
   double getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const;
 
