@@ -279,10 +279,12 @@ bool MatchPairer::getMatchup(
   int logNNEvery = logGamesEvery*100 > 1000 ? logGamesEvery*100 : 1000;
   if(numGamesStartedSoFar % logNNEvery == 0) {
     for(int i = 0; i<nnEvals.size(); i++) {
-      logger.write(nnEvals[i]->getModelFileName());
-      logger.write("NN rows: " + Global::int64ToString(nnEvals[i]->numRowsProcessed()));
-      logger.write("NN batches: " + Global::int64ToString(nnEvals[i]->numBatchesProcessed()));
-      logger.write("NN avg batch size: " + Global::doubleToString(nnEvals[i]->averageProcessedBatchSize()));
+      if(nnEvals[i] != NULL) {
+        logger.write(nnEvals[i]->getModelFileName());
+        logger.write("NN rows: " + Global::int64ToString(nnEvals[i]->numRowsProcessed()));
+        logger.write("NN batches: " + Global::int64ToString(nnEvals[i]->numBatchesProcessed()));
+        logger.write("NN avg batch size: " + Global::doubleToString(nnEvals[i]->averageProcessedBatchSize()));
+      }
     }
   }
 
