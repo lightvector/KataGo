@@ -473,7 +473,8 @@ static void iterSgfMoves(
   CompactSgf* sgf,
   HandleRowFunc f
 ) {
-  int bSize;
+  int xSize;
+  int ySize;
   int source;
   int wRank;
   int bRank;
@@ -484,7 +485,8 @@ static void iterSgfMoves(
   const vector<Move>* placementsBuf = NULL;
   const vector<Move>* movesBuf = NULL;
   try {
-    bSize = sgf->bSize;
+    xSize = sgf->xSize;
+    ySize = sgf->ySize;
     const SgfNode& root = sgf->rootNode;
 
     source = parseSource(sgf);
@@ -530,8 +532,12 @@ static void iterSgfMoves(
       date = root.getSingleProperty("DT");
 
     //Apply some filters
-    if(bSize != 19)
+    //For human games 19x19 has good quality games, other sizes are uncommon and of mixed quality
+    //If specifically training on a small board game collection for a neural net that handles that size, can edit this
+    if(xSize != 19 || ySize != 19) {
+      cout << "Skipping sgf file due to not being 19x19: " << sgf->fileName << endl;
       return;
+    }
 
     placementsBuf = &(sgf->placements);
     movesBuf = &(sgf->moves);
@@ -551,7 +557,7 @@ static void iterSgfMoves(
   const vector<Move>& placements = *placementsBuf;
   const vector<Move>& moves = *movesBuf;
 
-  Board initialBoard(bSize,bSize);
+  Board initialBoard(xSize,ySize);
   bool multiStoneSuicideLegal = false; //False for KGS,GoGoD, etc
   for(int j = 0; j<placements.size(); j++) {
     Move m = placements[j];
