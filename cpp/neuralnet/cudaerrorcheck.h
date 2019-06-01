@@ -11,7 +11,7 @@
 
 static void checkCudaError(const cudaError_t status, const char* opName, const char* file, const char* func, int line) {
   if(status != cudaSuccess)
-    throw StringError(string("CUDA Error, for ") + opName + " file " + file + ", func " + func + ", line " + Global::intToString(line) + ", error " + cudaGetErrorString(status));
+    throw StringError(std::string("CUDA Error, for ") + opName + " file " + file + ", func " + func + ", line " + Global::intToString(line) + ", error " + cudaGetErrorString(status));
 }
 #define CUDA_ERR(opName,x) { checkCudaError((x),opName,__FILE__,#x,__LINE__); }
 
@@ -38,14 +38,14 @@ static const char* cublasGetErrorString(const cublasStatus_t status)
 static void checkCublasError(const cublasStatus_t status, const char* opName, const char* file, const char* func, int line) {
   (void)checkCublasError;
   if(status != CUBLAS_STATUS_SUCCESS)
-    throw StringError(string("CUBLAS Error, for ") + opName + " file " + file + ", func " + func + ", line " + Global::intToString(line) + ", error " + cublasGetErrorString(status));
+    throw StringError(std::string("CUBLAS Error, for ") + opName + " file " + file + ", func " + func + ", line " + Global::intToString(line) + ", error " + cublasGetErrorString(status));
 }
 #define CUBLAS_ERR(opName,x) { checkCublasError((x),opName,__FILE__,#x,__LINE__); }
 
 static void checkCudnnError(const cudnnStatus_t status, const char* opName, const char* file, const char* func, int line) {
   (void)checkCudnnError;
   if(status != CUDNN_STATUS_SUCCESS)
-    throw StringError(string("CUDNN Error, for ") + opName + " file " + file + ", func " + func  + ", line " + Global::intToString(line) + ", error " + cudnnGetErrorString(status));
+    throw StringError(std::string("CUDNN Error, for ") + opName + " file " + file + ", func " + func  + ", line " + Global::intToString(line) + ", error " + cudnnGetErrorString(status));
 }
 #define CUDNN_ERR(opName,x) { checkCudnnError((x),opName,__FILE__,#x,__LINE__); }
 

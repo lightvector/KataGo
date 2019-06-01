@@ -29,7 +29,7 @@ if(BUILD_MCTS)
       )
       
   else()
-    message("WARNING: Using dummy neural net backend, will not be able to run neural network.")
+    message("WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. Specify -DUSE_CUDA_BACKEND=1 to compile with CUDA to use neural net.")
     set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
   endif()
 endif()

@@ -1,7 +1,7 @@
 /*
  * board.h
  * Originally from an unreleased project back in 2010, modified since.
- * Authors: brettharrison (original), David Wu (original and later modificationss).
+ * Authors: brettharrison (original), David Wu (original and later modifications).
  */
 
 #ifndef GAME_BOARD_H_

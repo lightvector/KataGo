@@ -5,25 +5,25 @@ using namespace std;
 
 void NeuralNet::globalInitialize(const string& tensorflowGpuVisibleGpuList,
                                  double tensorflowPerProcessGpuMemoryFraction) {
-  assert(false);
+  //Do nothing, calling this is okay even if there is no neural net
+  //as long as we don't attempt to actually load a net file and use one.
 }
 
 void NeuralNet::globalCleanup() {
-  assert(false);
+  //Do nothing, calling this is okay even if there is no neural net
+  //as long as we don't attempt to actually load a net file and use one.
 }
 
 LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
-  assert(false);
-  return nullptr;
+  throw StringError("Dummy neural net backend: NeuralNet::loadModelFile unimplemented");
 }
 
 void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
-  assert(false);
+  throw StringError("Dummy neural net backend: NeuralNet::freeLoadedModel unimplemented");
 }
 
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
-  assert(false);
-  return 0;
+  throw StringError("Dummy neural net backend: NeuralNet::getModelVersion unimplemented");
 }
 
 LocalGpuHandle* NeuralNet::createLocalGpuHandle(
@@ -38,53 +38,50 @@ LocalGpuHandle* NeuralNet::createLocalGpuHandle(
   bool cudaUseFP16,
   bool cudaUseNHWC
 ) {
-  assert(false);
-  return nullptr;
+  throw StringError("Dummy neural net backend: NeuralNet::createLocalGpuHandle unimplemented");
 }
 
 void NeuralNet::freeLocalGpuHandle(LocalGpuHandle* gpuHandle) {
-  assert(false);
+  throw StringError("Dummy neural net backend: NeuralNet::freeLocalGpuHandle unimplemented");
 }
 
-InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel,
-                                            int maxBatchSize,
-                                            int nnXLen, int nnYLen) {
-  assert(false);
-  return nullptr;
+InputBuffers* NeuralNet::createInputBuffers(
+  const LoadedModel* loadedModel,
+  int maxBatchSize,
+  int nnXLen, int nnYLen
+) {
+  throw StringError("Dummy neural net backend: NeuralNet::createInputBuffers unimplemented");
 }
 
 void NeuralNet::freeInputBuffers(InputBuffers* buffers) {
-  assert(false);
+  throw StringError("Dummy neural net backend: NeuralNet::freeInputBuffers unimplemented");
 }
 
 float* NeuralNet::getRowInplace(InputBuffers* buffers, int rowIdx) {
-  assert(false);
-  return nullptr;
+  throw StringError("Dummy neural net backend: NeuralNet::getRowInplace unimplemented");
 }
 
 float* NeuralNet::getRowGlobalInplace(InputBuffers* buffers, int rowIdx) {
-  assert(false);
-  return nullptr;
+  throw StringError("Dummy neural net backend: NeuralNet::getRowGlobalInplace unimplemented");
 }
 
 bool* NeuralNet::getSymmetriesInplace(InputBuffers* buffers) {
-  assert(false);
-  return nullptr;
+  throw StringError("Dummy neural net backend: NeuralNet::getSymmetriesInplace unimplemented");
 }
 
 int NeuralNet::getRowLen(const InputBuffers* buffers) {
-  assert(false);
-  return 0;
+  throw StringError("Dummy neural net backend: NeuralNet::getRowLen unimplemented");
 }
 
 int NeuralNet::getRowGlobalLen(const InputBuffers* buffers) {
-  assert(false);
-  return 0;
+  throw StringError("Dummy neural net backend: NeuralNet::getRowGlobalLen unimplemented");
 }
 
-void NeuralNet::getOutput(LocalGpuHandle* gpuHandle,
-                          InputBuffers* buffers,
-                          int numFilledRows,
-                          vector<NNOutput*>& outputs) {
-  assert(false);
+void NeuralNet::getOutput(
+  LocalGpuHandle* gpuHandle,
+  InputBuffers* buffers,
+  int numFilledRows,
+  vector<NNOutput*>& outputs
+) {
+  throw StringError("Dummy neural net backend: NeuralNet::getOutput unimplemented");
 }

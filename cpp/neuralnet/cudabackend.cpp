@@ -8,18 +8,14 @@
 #include <cuda_fp16.h>
 #include <cudnn.h>
 
-#include <thrust/device_vector.h>
-#include <thrust/functional.h>
-#include <thrust/generate.h>
-#include <thrust/host_vector.h>
-#include <thrust/reduce.h>
-
 #include <fstream>
 #include <zstr/src/zstr.hpp>
 
 #include "../neuralnet/cudahelpers.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nninputs.h"
+
+using namespace std;
 
 void NeuralNet::globalInitialize(
   const string& tensorflowGpuVisibleDeviceList,
