@@ -367,7 +367,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   string logFile;
   string modelFile;
   try {
-    TCLAP::CmdLine cmd("Self-play demo dumping status to stdout", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Self-play demo dumping status to stdout", ' ', Version::getKataGoVersion(),true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
@@ -421,7 +421,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
   const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
-  
+
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
@@ -531,14 +531,14 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
         //Just immediately terminate the game loop
         if(baseHist.isGameFinished)
           break;
-          
+
         bool suc = bot->makeMove(moveLoc,pla);
         assert(suc);
         (void)suc; //Avoid warning when asserts are off
-        
+
         pla = getOpp(pla);
       }
-        
+
     }
 
     //End of game display line
@@ -558,4 +558,3 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   return 0;
 
 }
-

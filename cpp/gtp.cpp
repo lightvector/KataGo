@@ -136,7 +136,7 @@ static bool shouldResign(
     return false;
   if(resignConsecTurns > recentWinLossValues.size())
     return false;
-  
+
   for(int i = 0; i<resignConsecTurns; i++) {
     double winLossValue = recentWinLossValues[recentWinLossValues.size()-1-i];
     Player resignPlayerThisTurn = C_EMPTY;
@@ -148,7 +148,7 @@ static bool shouldResign(
     if(resignPlayerThisTurn != pla)
       return false;
   }
-    
+
   return true;
 }
 
@@ -174,7 +174,7 @@ struct GTPEngine {
 
   const string nnModelFile;
   const double whiteBonusPerHandicapStone;
-  
+
   NNEvaluator* nnEval;
   AsyncBot* bot;
 
@@ -207,11 +207,11 @@ struct GTPEngine {
     delete bot;
     delete nnEval;
   }
-  
+
   void stopAndWait() {
     bot->stopAndWait();
   }
-  
+
   void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize) {
     if(nnEval != NULL && boardXSize == nnEval->getNNXLen() && boardYSize == nnEval->getNNYLen())
       return;
@@ -224,7 +224,7 @@ struct GTPEngine {
       nnEval = NULL;
       logger.write("Cleaned up old neural net and bot");
     }
-    
+
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
       {nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false,boardXSize,boardYSize
@@ -232,13 +232,13 @@ struct GTPEngine {
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
-    
+
     string searchRandSeed;
     if(cfg.contains("searchRandSeed"))
       searchRandSeed = cfg.getString("searchRandSeed");
     else
       searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
-    
+
     bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
 
     Board board(boardXSize,boardYSize);
@@ -261,11 +261,11 @@ struct GTPEngine {
     BoardHistory hist(board,pla,bot->getRootHist().rules,0);
     setPosition(pla,board,hist);
   }
-  
+
   void updateKomiIfNew(double newUnhackedKomi) {
     //Komi without whiteBonusPerHandicapStone hack
     unhackedKomi = newUnhackedKomi;
-    
+
     float newKomi = unhackedKomi;
     newKomi += numHandicapStones(bot->getRootHist()) * whiteBonusPerHandicapStone;
     if(newKomi != bot->getRootHist().rules.komi)
@@ -281,7 +281,7 @@ struct GTPEngine {
   void ponder() {
     bot->ponder(lastSearchFactor);
   }
-  
+
   void genMove(
     Player pla,
     Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
@@ -293,7 +293,7 @@ struct GTPEngine {
     response = "";
     responseIsError = false;
     maybeStartPondering = false;
-    
+
     ClockTimer timer;
     nnEval->clearStats();
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
@@ -348,9 +348,9 @@ struct GTPEngine {
     }
 
     double timeTaken = timer.getSeconds();
-        
+
     //-------------------------------
-        
+
     //Chat
     if(ogsChatToStderr) {
       int64_t visits = bot->getSearch()->getRootVisits();
@@ -395,7 +395,7 @@ struct GTPEngine {
     }
     return;
   }
-  
+
   void clearCache() {
     bot->clearSearch();
     nnEval->clearCache();
@@ -523,7 +523,7 @@ struct GTPEngine {
             }
           }
         }
-            
+
         cout << endl;
       };
     }
@@ -532,11 +532,11 @@ struct GTPEngine {
       bot->setAlwaysIncludeOwnerMap(true);
     else
       bot->setAlwaysIncludeOwnerMap(false);
-          
+
     double searchFactor = 1e40; //go basically forever
     bot->analyze(pla, searchFactor, secondsPerReport, callback);
   }
-  
+
 };
 
 
@@ -549,7 +549,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string nnModelFile;
   string overrideVersion;
   try {
-    TCLAP::CmdLine cmd("Run GTP engine", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Run GTP engine", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> nnModelFileArg("","model","Neural net model file",true,string(),"FILE");
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
@@ -614,7 +614,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone);
   engine->setOrResetBoardSize(cfg,logger,seedRand,19,19);
-  
+
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
@@ -713,7 +713,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       if(overrideVersion.size() > 0)
         response = overrideVersion;
       else
-        response = "1.1";
+        response = Version::getKataGoVersion();
     }
 
     else if(command == "known_command") {
@@ -761,7 +761,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         if(Global::tryStringToInt(pieces[0], newXSize) && Global::tryStringToInt(pieces[1], newYSize))
           suc = true;
       }
-      
+
       if(!suc) {
         responseIsError = true;
         response = "Expected int argument for boardsize or pair of ints but got '" + Global::concat(pieces," ") + "'";
@@ -952,7 +952,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       else {
         bool debug = command == "genmove-debug" || command == "search-debug";
         bool playChosenMove = command != "search-debug";
-        
+
         engine->genMove(
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
@@ -963,7 +963,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         );
       }
     }
-    
+
     else if(command == "clear-cache") {
       engine->clearCache();
     }
@@ -1124,11 +1124,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       //avoid <player> <comma-separated moves> <until movenum>
       //minmoves <int min number of moves to show>
       //ownership <bool whether to show ownership or not>
-      
+
       //Parse optional player
       if(pieces.size() > numArgsParsed && tryParsePlayer(pieces[numArgsParsed],pla))
         numArgsParsed += 1;
-      
+
       //Parse optional interval float
       if(pieces.size() > numArgsParsed &&
          Global::tryStringToDouble(pieces[numArgsParsed],lzAnalyzeInterval) &&
@@ -1171,7 +1171,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
                 minMoves >= 0 && minMoves < 1000000000) {
           continue;
         }
-        
+
         else if(command == "kata-analyze" && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
           continue;
         }
@@ -1240,4 +1240,3 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   logger.write("All cleaned up, quitting");
   return 0;
 }
-

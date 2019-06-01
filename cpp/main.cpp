@@ -62,7 +62,7 @@ int main(int argc, const char* argv[]) {
   else if(cmdArg == "sandbox")
     return MainCmds::sandbox();
   else if(cmdArg == "version") {
-    cout << "Git revision: " << GIT_REVISION << endl;
+    cout << "Git revision: " << Version::getGitRevision() << endl;
     cout << "Compile Time: " << __DATE__ << " " << __TIME__ << endl;
     return 0;
   }
@@ -72,4 +72,16 @@ int main(int argc, const char* argv[]) {
     return 1;
   }
   return 0;
+}
+
+string Version::getKataGoVersion() {
+  return string("1.1");
+}
+
+string Version::getKataGoVersionForHelp() {
+  return string("KataGo v1.1");
+}
+
+string Version::getGitRevision() {
+  return string(GIT_REVISION);
 }

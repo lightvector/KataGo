@@ -31,7 +31,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   string logFile;
   string sgfOutputDir;
   try {
-    TCLAP::CmdLine cmd("Play different nets against each other with different search settings", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Play different nets against each other with different search settings", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/match_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",false,string(),"DIR");
@@ -55,7 +55,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   logger.setLogToStdout(logToStdout);
 
   logger.write("Match Engine starting...");
-  logger.write(string("Git revision: ") + GIT_REVISION);
+  logger.write(string("Git revision: ") + Version::getGitRevision());
 
   //Load per-bot search config, first, which also tells us how many bots we're running
   vector<SearchParams> paramss = Setup::loadParams(cfg);
@@ -71,7 +71,7 @@ int MainCmds::match(int argc, const char* const* argv) {
         excludeBot[i] = true;
     }
   }
-  
+
   //Load the names of the bots and which model each bot is using
   vector<string> nnModelFilesByBot(numBots);
   vector<string> botNames(numBots);
@@ -97,7 +97,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   for(int i = 0; i<numBots; i++) {
     if(excludeBot[i])
       continue;
-    
+
     const string& desiredFile = nnModelFilesByBot[i];
     int alreadyFoundIdx = -1;
     for(int j = 0; j<nnModelFiles.size(); j++) {
@@ -244,10 +244,9 @@ int MainCmds::match(int argc, const char* const* argv) {
   }
   NeuralNet::globalCleanup();
   ScoreValue::freeTables();
-  
+
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");
   logger.write("All cleaned up, quitting");
   return 0;
 }
-

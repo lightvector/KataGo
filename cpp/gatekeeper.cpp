@@ -223,7 +223,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   string rejectedModelsDir;
   string sgfOutputDir;
   try {
-    TCLAP::CmdLine cmd("Test neural nets to see if they should be accepted", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Test neural nets to see if they should be accepted", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> testModelsDirArg("","test-models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");
@@ -268,7 +268,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   logger.setLogToStdout(logToStdout);
 
   logger.write("Gatekeeper Engine starting...");
-  logger.write(string("Git revision: ") + GIT_REVISION);
+  logger.write(string("Git revision: ") + Version::getGitRevision());
 
   //Load runner settings
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);

@@ -166,7 +166,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   string modelsDir;
   string outputDir;
   try {
-    TCLAP::CmdLine cmd("Generate training data via self play", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Generate training data via self play", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
     TCLAP::ValueArg<int>    inputsVersionArg("","inputs-version","Version of neural net input features to use for data",true,0,"INT");
     TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
@@ -204,7 +204,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   logger.setLogToStdout(logToStdout);
 
   logger.write("Self Play Engine starting...");
-  logger.write(string("Git revision: ") + GIT_REVISION);
+  logger.write(string("Git revision: ") + Version::getGitRevision());
 
   //Load runner settings
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);

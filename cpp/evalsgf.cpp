@@ -30,7 +30,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printScoreNow;
   bool printRootEndingBonus;
   try {
-    TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
@@ -192,7 +192,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   else {
     params.numThreads = numThreads;
   }
-  
+
   string searchRandSeed;
   if(cfg.contains("searchRandSeed"))
     searchRandSeed = cfg.getString("searchRandSeed");
@@ -319,4 +319,3 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
 
   return 0;
 }
-

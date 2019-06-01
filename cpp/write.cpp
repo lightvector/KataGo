@@ -6,6 +6,7 @@
 #include "dataio/lzparse.h"
 #include "dataio/datapool.h"
 #include "program/gitinfo.h"
+#include "main.h"
 #include <fstream>
 #include <algorithm>
 

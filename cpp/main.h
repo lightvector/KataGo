@@ -18,3 +18,9 @@ namespace MainCmds {
 
   int sandbox();
 }
+
+namespace Version {
+  std::string getKataGoVersion();
+  std::string getKataGoVersionForHelp();
+  std::string getGitRevision();
+}
