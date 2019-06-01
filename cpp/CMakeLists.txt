@@ -12,6 +12,14 @@ if(APPLE)
   link_directories(/usr/local/lib)
 endif()
 
+if(NOT WIN32)
+  string(ASCII 27 Esc)
+  set(ColorReset   "${Esc}[m")
+  set(ColorBold    "${Esc}[1m")
+  set(ColorRed     "${Esc}[31m")
+  set(ColorBoldRed "${ColorRed}${ColorBold}")
+endif()
+
 #------------------------------------------------------------------------------------
 
 if(BUILD_WRITE)
@@ -27,9 +35,9 @@ if(BUILD_MCTS)
     set(CMAKE_CUDA_FLAGS
       "-gencode arch=compute_30,code=sm_30 -gencode arch=compute_30,code=compute_30 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_53,code=sm_53 -gencode arch=compute_53,code=compute_53 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_70,code=compute_70"
       )
-      
+
   else()
-    message("WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. Specify -DUSE_CUDA_BACKEND=1 to compile with CUDA to use neural net.")
+    message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. Specify -DUSE_CUDA_BACKEND=1 to compile with CUDA to use neural net.${ColorReset}")
     set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
   endif()
 endif()
@@ -198,6 +206,14 @@ if(BUILD_MCTS)
   if(USE_TCMALLOC)
     target_link_libraries(main ${TCMALLOC_LIB})
   endif(USE_TCMALLOC)
+
+  # On g++ it seems like we need to explicitly link threads as well.
+  # It seems sometimes this is implied by other options automatically like when we enable CUDA, but we get link errors
+  # if we don't explicitly require threads it when attempting to build without CUDA
+  if(CMAKE_COMPILER_IS_GNUCC AND (NOT USE_CUDA_BACKEND))
+    find_package (Threads REQUIRED)
+    target_link_libraries(main Threads::Threads)
+  endif()
 
 endif()
 

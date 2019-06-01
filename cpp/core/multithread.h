@@ -12,6 +12,9 @@
 #define IS_MULTITHREADING_ENABLED true
 #else
 #define IS_MULTITHREADING_ENABLED false
+
+namespace std {
+
 class mutex
 { public:
   inline void lock() {};

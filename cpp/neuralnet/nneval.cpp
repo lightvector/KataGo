@@ -283,7 +283,7 @@ void NNEvaluator::serve(
 
         int boardXSize = resultBuf->boardXSizeForServer;
         int boardYSize = resultBuf->boardYSizeForServer;
-        
+
         unique_lock<std::mutex> resultLock(resultBuf->resultMutex);
         assert(resultBuf->hasResult == false);
         resultBuf->result = std::make_shared<NNOutput>();
@@ -291,7 +291,7 @@ void NNEvaluator::serve(
         float* policyProbs = resultBuf->result->policyProbs;
         for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
           policyProbs[i] = 0;
-        
+
         //At this point, these aren't probabilities, since this is before the postprocessing
         //that happens for each result. These just need to be unnormalized log probabilities.
         //Illegal move filtering happens later.
@@ -442,7 +442,7 @@ void NNEvaluator::evaluate(
     ASSERT_UNREACHABLE;
 
   includeOwnerMap |= alwaysIncludeOwnerMap;
-  
+
   bool hadResultWithoutOwnerMap = false;
   shared_ptr<NNOutput> resultWithoutOwnerMap;
   if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
@@ -461,7 +461,7 @@ void NNEvaluator::evaluate(
 
   buf.boardXSizeForServer = board.x_size;
   buf.boardYSizeForServer = board.y_size;
-  
+
   if(!debugSkipNeuralNet) {
     int rowBinLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
     if(buf.rowBin == NULL) {
@@ -884,4 +884,3 @@ void NNCacheTable::clear() {
     buf.reset();
   }
 }
-
