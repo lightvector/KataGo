@@ -9,7 +9,6 @@
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
-#include "program/gitinfo.h"
 #include "main.h"
 
 #include <sstream>
