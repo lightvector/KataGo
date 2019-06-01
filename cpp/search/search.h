@@ -216,7 +216,8 @@ struct Search {
 
   //Useful utility function exposed for outside use
   static uint32_t chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature);
-
+  static void addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs);
+  
   //Get the values recorded for the root node
   bool getRootValues(ReportedSearchValues& values) const;
   ReportedSearchValues getRootValuesAssertSuccess() const;

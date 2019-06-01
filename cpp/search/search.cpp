@@ -1041,6 +1041,43 @@ int64_t Search::numRootVisits() const {
   return n;
 }
 
+void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs) {
+  int legalCount = 0;
+  for(int i = 0; i<policySize; i++) {
+    if(policyProbs[i] >= 0)
+      legalCount += 1;
+  }
+
+  if(legalCount <= 0)
+    throw StringError("addDirichletNoise: No move with nonnegative policy value - can't even pass?");
+
+  //Generate gamma draw on each move
+  double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
+  double rSum = 0.0;
+  double r[NNPos::MAX_NN_POLICY_SIZE];
+  for(int i = 0; i<policySize; i++) {
+    if(policyProbs[i] >= 0) {
+      r[i] = rand.nextGamma(alpha);
+      rSum += r[i];
+    }
+    else
+      r[i] = 0.0;
+  }
+  
+  //Normalized gamma draws -> dirichlet noise
+  for(int i = 0; i<policySize; i++)
+    r[i] /= rSum;
+  
+  //At this point, r[i] contains a dirichlet distribution draw, so add it into the nnOutput.
+  for(int i = 0; i<policySize; i++) {
+    if(policyProbs[i] >= 0) {
+      double weight = searchParams.rootDirichletNoiseWeight;
+      policyProbs[i] = r[i] * weight + policyProbs[i] * (1.0-weight);
+    }
+  }
+}
+  
+
 //Assumes node is locked
 void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const {
   if(!isRoot)
@@ -1083,39 +1120,7 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
   }
 
   if(searchParams.rootNoiseEnabled) {
-    int legalCount = 0;
-    for(int i = 0; i<policySize; i++) {
-      if(node.nnOutput->policyProbs[i] >= 0)
-        legalCount += 1;
-    }
-
-    if(legalCount <= 0)
-      throw StringError("maybeAddPolicyNoise: No move with nonnegative policy value - can't even pass?");
-
-    //Generate gamma draw on each move
-    double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
-    double rSum = 0.0;
-    double r[NNPos::MAX_NN_POLICY_SIZE];
-    for(int i = 0; i<policySize; i++) {
-      if(node.nnOutput->policyProbs[i] >= 0) {
-        r[i] = thread.rand.nextGamma(alpha);
-        rSum += r[i];
-      }
-      else
-        r[i] = 0.0;
-    }
-
-    //Normalized gamma draws -> dirichlet noise
-    for(int i = 0; i<policySize; i++)
-      r[i] /= rSum;
-
-    //At this point, r[i] contains a dirichlet distribution draw, so add it into the nnOutput.
-    for(int i = 0; i<policySize; i++) {
-      if(node.nnOutput->policyProbs[i] >= 0) {
-        double weight = searchParams.rootDirichletNoiseWeight;
-        node.nnOutput->policyProbs[i] = r[i] * weight + node.nnOutput->policyProbs[i] * (1.0-weight);
-      }
-    }
+    addDirichletNoise(searchParams, thread.rand, policySize, node.nnOutput->policyProbs);
   }
 
 }

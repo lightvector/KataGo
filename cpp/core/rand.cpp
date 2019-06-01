@@ -280,28 +280,44 @@ void Rand::init(const string& seed)
   numCalls = 0;
 }
 
-class RandToURNGWrapper {
-public:
-  typedef size_t result_type;
-  Rand* rand;
-  RandToURNGWrapper(Rand* r)
-    :rand(r)
-  {}
-  ~RandToURNGWrapper()
-  {}
-
-  static constexpr size_t min() { return 0; }
-  static constexpr size_t max() { return (size_t)0xFFFFFFFF; }
-  size_t operator()() {
-    return (size_t)rand->nextUInt();
-  }
-};
-
-#include <random>
+//Marsaglia and Tsang's algorithm
 double Rand::nextGamma(double a) {
-  std::gamma_distribution<double> distribution(a,1.0);
-  RandToURNGWrapper wrapped(this);
-  return distribution(wrapped);
+  if(!(a > 0.0))
+    throw StringError("Rand::nextGamma: invalid value for a: " + Global::doubleToString(a));
+  
+  if(a <= 1.0) {
+    double r = nextGamma(a + 1.0);
+    double inva = 1.0 / a;
+    //Technically in C++, pow(0,0) could be implementation-dependent or result in an error
+    //so we explicitly force the desired behavior
+    double scale = inva == 0.0 ? 1.0 : pow(nextDouble(), inva);
+    return r * scale;
+  }
+  
+  double d = a - 1.0/3.0;
+  double c = (1.0/3.0) / sqrt(d);
+
+  while(true) {
+    double x = nextGaussian();
+    double vtmp = 1.0 + c * x;
+    if(vtmp <= 0.0)
+      continue;
+    double v = vtmp * vtmp * vtmp;
+    double u = nextDouble();
+    double xx = x * x;
+    if(u < 1.0 - 0.0331 * xx * xx)
+      return d * v;
+    if(log(u) < 0.5 * xx + d * (1.0 - v + log(v)))
+      return d * v;
+  }
+
+  //Numeric analysis notes:
+  // d >= 2/3
+  // c:  0 <= 1/sqrt(9d) <= 0.4 ish
+  // vtmp > 0  vtmp < some large number since gaussian can't return infinity
+  // u [0,1)
+  // v > 0  < some large number
+  // xx >= 0 < some large number
 }
 
 static void simpleTest()
@@ -461,15 +477,6 @@ void Rand::runTests() {
 
     out << "rand.nextLogistic()" << endl;
     for(int i = 0; i<16; i++) out << rand.nextLogistic() << endl;
-
-    out << "rand.nextGamma(1)" << endl;
-    for(int i = 0; i<16; i++) out << rand.nextGamma(1) << endl;
-
-    out << "rand.nextGamma(0.1)" << endl;
-    for(int i = 0; i<16; i++) out << rand.nextGamma(0.1) << endl;
-
-    out << "rand.nextGamma(4)" << endl;
-    for(int i = 0; i<16; i++) out << rand.nextGamma(4) << endl;
 
     string expected = R"%%(
 rand.nextUInt()
@@ -659,65 +666,231 @@ rand.nextLogistic()
 -0.208472
 -1.73322
 -0.607461
-rand.nextGamma(1)
-0.274704
-0.0744126
-0.471163
-0.0774803
-0.963182
-0.165412
-0.213661
-0.730311
-2.24201
-0.468865
-0.0571607
-0.905897
-2.60238
-0.64582
-0.158352
-0.685324
-rand.nextGamma(0.1)
-0.000316875
-3.15072e-09
-1.08349e-06
-0.108733
-0.00341049
-2.32469e-11
-4.49661e-07
-0.0029474
-0.669966
-1.00563e-08
-0.64905
-7.22175e-13
-1.2857e-07
-0.0177569
-1.85445e-09
-3.17753e-07
-rand.nextGamma(4)
-1.57075
-4.32638
-1.22375
-2.30653
-2.28736
-5.2053
-3.4774
-3.89106
-3.4363
-1.49415
-3.48808
-6.74786
-3.68859
-1.31681
-2.39111
-2.90081
 )%%";
     TestCommon::expect(name,out,expected);
   }
 
   {
+    const char* name = "Gamma tests";
+    Rand rand("def");
+
+    double tinySubnormal = 4.9406564584124654e-324;
+    double tinyNormal = 2.2250738585072014e-308;
+    double maxDouble = 1.7976931348623157e308;
+    out << "pow(0.5,inf) " << pow(0.5, 1.0 / 0.0) << endl;
+    out << "pow(0.5,1e300) " << pow(0.5, 1.0e300) << endl;
+    out << "pow(1.0,inf) " << pow(1.0, 1.0 / 0.0) << endl;
+    out << "log(0) " << Global::doubleToString(log(0.0)) << endl;    
+    out << "tinySubnormal " << Global::strprintf("%.10g",tinySubnormal) << endl;
+    out << "tinyNormal " << Global::strprintf("%.10g",tinyNormal) << endl;
+    out << "maxDouble " << Global::strprintf("%.10g",maxDouble) << endl;
+    out << "log(tinySubnormal) " << Global::strprintf("%.10g",log(tinySubnormal)) << endl;
+    out << "log(tinyNormal) " << Global::strprintf("%.10g",log(tinyNormal)) << endl;
+
+    out << "rand.nextGamma(tinySubnormal)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(tinySubnormal) << endl;
+    out << "rand.nextGamma(tinyNormal)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(tinyNormal) << endl;
+    out << "rand.nextGamma(0.001)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(0.001) << endl;
+    out << "rand.nextGamma(0.1)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(0.1) << endl;
+    out << "rand.nextGamma(1)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(1) << endl;
+    out << "rand.nextGamma(1.0000000000001)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(1.0000000000001) << endl;
+    out << "rand.nextGamma(4)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(4) << endl;
+    out << "rand.nextGamma(100)" << endl;
+    for(int i = 0; i<16; i++) out << rand.nextGamma(100) << endl;
+    out << "rand.nextGamma(1e308)" << endl;
+    for(int i = 0; i<8; i++) out << rand.nextGamma(1e308) << endl;
+    out << "rand.nextGamma(maxDouble)" << endl;
+    for(int i = 0; i<8; i++) out << rand.nextGamma(maxDouble) << endl;
+    out << "rand.nextGamma(inf)" << endl;
+    for(int i = 0; i<8; i++) out << rand.nextGamma(1.0/0.0) << endl;
+
+    string expected = R"%%(
+pow(0.5,inf) 0
+pow(0.5,1e300) 0
+pow(1.0,inf) 1
+log(0) -inf
+tinySubnormal 4.940656458e-324
+tinyNormal 2.225073859e-308
+maxDouble 1.797693135e+308
+log(tinySubnormal) -744.4400719
+log(tinyNormal) -708.3964185
+rand.nextGamma(tinySubnormal)
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+rand.nextGamma(tinyNormal)
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+rand.nextGamma(0.001)
+2.2614e-50
+9.96742e-313
+1.3826e-108
+7.87652e-122
+0
+2.03447e-11
+1.5557e-279
+2.58747e-21
+2.61065e-178
+4.04449e-28
+5.81616e-130
+0
+0
+0
+1.53298e-191
+6.27216e-168
+rand.nextGamma(0.1)
+5.51222e-16
+4.43929e-06
+0.0773508
+0.00782258
+5.2919e-08
+0.00313286
+3.57398e-07
+0.00070997
+0.148518
+0.482672
+3.67879e-08
+7.09867e-07
+0.000129619
+1.73554e-09
+3.00459e-13
+8.84503e-06
+rand.nextGamma(1)
+0.0890296
+1.10171
+1.12646
+0.499211
+2.7984
+0.0527892
+1.15226
+0.205225
+1.05157
+1.27773
+1.80892
+0.0994477
+0.152736
+1.39057
+0.723262
+0.583845
+rand.nextGamma(1.0000000000001)
+0.266783
+0.132508
+0.155085
+0.764842
+0.106026
+0.171462
+0.673321
+0.507538
+1.74343
+0.282138
+0.330054
+0.870787
+1.92904
+0.341152
+0.54647
+0.901534
+rand.nextGamma(4)
+6.25682
+2.56804
+4.15599
+2.09491
+2.27533
+5.30467
+5.01413
+4.44831
+4.21901
+3.80814
+5.40393
+3.79325
+4.18196
+2.41238
+5.46956
+2.71948
+rand.nextGamma(100)
+109.944
+116.714
+119.685
+99.7834
+98.995
+88.0576
+108.889
+94.7097
+108.072
+99.0977
+81.9145
+111.613
+97.8741
+106.23
+98.7757
+120.252
+rand.nextGamma(1e308)
+1e+308
+1e+308
+1e+308
+1e+308
+1e+308
+1e+308
+1e+308
+1e+308
+rand.nextGamma(maxDouble)
+1.79769e+308
+1.79769e+308
+1.79769e+308
+1.79769e+308
+1.79769e+308
+1.79769e+308
+1.79769e+308
+1.79769e+308
+rand.nextGamma(inf)
+inf
+inf
+inf
+inf
+inf
+inf
+inf
+inf
+)%%";
+    TestCommon::expect(name,out,expected);
+  }
+  
+  {
     const char* name = "Rand moment tests";
 
-    int bufLen = 100000;
+    int bufLen = 200000;
     double* buf = new double[bufLen];
 
     auto printMoments = [&out,&buf,bufLen](const string& distrName, double expectedMean, double expectedVariance, double expectedSkew, double expectedExcessKurt) {
@@ -768,31 +941,43 @@ rand.nextGamma(4)
     printMoments("Logistic", 0, pi*pi/3.0, 0, 1.2);
 
     for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextExponential();
+    printMoments("Exponential", 1.0, 1.0, 2.0, 6.0);
+
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextGamma(0.05);
+    printMoments("Gamma(0.05)", 0.05, 0.05, 2.0/sqrt(0.05), 6.0/0.05);
+
+    for(int i = 0; i<bufLen; i++)
       buf[i] = rand.nextGamma(0.5);
-    printMoments("Gamma", 0.5, 0.5, 2.0/sqrt(0.5), 6.0/0.5);
+    printMoments("Gamma(0,5)", 0.5, 0.5, 2.0/sqrt(0.5), 6.0/0.5);
+
+    for(int i = 0; i<bufLen; i++)
+      buf[i] = rand.nextGamma(1.01);
+    printMoments("Gamma(1.01)", 1.01, 1.01, 2.0/sqrt(1.01), 6.0/1.01);
 
     for(int i = 0; i<bufLen; i++)
       buf[i] = rand.nextGamma(4.0);
-    printMoments("Gamma", 4.0, 4.0, 2.0/sqrt(4.0), 6.0/4.0);
+    printMoments("Gamma(4.0)", 4.0, 4.0, 2.0/sqrt(4.0), 6.0/4.0);
 
-    for(int i = 0; i<bufLen; i++)
-      buf[i] = rand.nextExponential();
-    printMoments("Exponential", 1.0, 1.0, 2.0, 6.0);
-    
     delete[] buf;
     string expected = R"%%(
-Uniform sample: Mean 0.499714 Variance 0.083704 Skew 0.003446 ExcessKurt -1.202311
+Uniform sample: Mean 0.499487 Variance 0.083527 Skew 0.003921 ExcessKurt -1.200270
 Uniform expected: Mean 0.500000 Variance 0.083333 Skew 0.000000 ExcessKurt -1.200000
-Gaussian sample: Mean -0.000782 Variance 1.001046 Skew 0.015581 ExcessKurt 0.012558
+Gaussian sample: Mean 0.002375 Variance 0.993754 Skew 0.003321 ExcessKurt 0.010545
 Gaussian expected: Mean 0.000000 Variance 1.000000 Skew 0.000000 ExcessKurt 0.000000
-Logistic sample: Mean 0.003819 Variance 3.283142 Skew 0.003153 ExcessKurt 1.149271
+Logistic sample: Mean 0.008843 Variance 3.279959 Skew -0.001570 ExcessKurt 1.195578
 Logistic expected: Mean 0.000000 Variance 3.289868 Skew 0.000000 ExcessKurt 1.200000
-Gamma sample: Mean 0.499243 Variance 0.497366 Skew 2.832579 ExcessKurt 12.005515
-Gamma expected: Mean 0.500000 Variance 0.500000 Skew 2.828427 ExcessKurt 12.000000
-Gamma sample: Mean 3.998701 Variance 3.992548 Skew 0.986482 ExcessKurt 1.410314
-Gamma expected: Mean 4.000000 Variance 4.000000 Skew 1.000000 ExcessKurt 1.500000
-Exponential sample: Mean 0.993535 Variance 0.978654 Skew 1.999058 ExcessKurt 5.925246
+Exponential sample: Mean 0.999537 Variance 0.993184 Skew 1.979995 ExcessKurt 5.814454
 Exponential expected: Mean 1.000000 Variance 1.000000 Skew 2.000000 ExcessKurt 6.000000
+Gamma(0.05) sample: Mean 0.049902 Variance 0.049744 Skew 8.938561 ExcessKurt 117.118329
+Gamma(0.05) expected: Mean 0.050000 Variance 0.050000 Skew 8.944272 ExcessKurt 120.000000
+Gamma(0,5) sample: Mean 0.497075 Variance 0.491764 Skew 2.791519 ExcessKurt 11.567346
+Gamma(0,5) expected: Mean 0.500000 Variance 0.500000 Skew 2.828427 ExcessKurt 12.000000
+Gamma(1.01) sample: Mean 1.013508 Variance 1.012360 Skew 1.968515 ExcessKurt 5.729139
+Gamma(1.01) expected: Mean 1.010000 Variance 1.010000 Skew 1.990074 ExcessKurt 5.940594
+Gamma(4.0) sample: Mean 4.007731 Variance 4.012717 Skew 0.985423 ExcessKurt 1.435526
+Gamma(4.0) expected: Mean 4.000000 Variance 4.000000 Skew 1.000000 ExcessKurt 1.500000
 )%%";
 
     TestCommon::expect(name,out,expected);

@@ -4,6 +4,7 @@
 #include <iterator>
 
 #include "../dataio/sgf.h"
+#include "../neuralnet/nninputs.h"
 #include "../search/asyncbot.h"
 
 using namespace std;
@@ -1079,6 +1080,64 @@ o..o.oo
     delete search;
     delete nnEval;
     cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Visualize dirichlet noise" << endl;
+    cout << "===================================================================" << endl;
+
+    SearchParams params;
+    params.rootNoiseEnabled = true;
+    Rand rand("noiseVisualize");
+
+    auto run = [&](int xSize, int ySize) {
+      Board board(xSize,ySize);
+      int nnXLen = 19;
+      int nnYLen = 19;
+      float sum = 0.0;
+      int counter = 0;
+
+      float origPolicyProbs[NNPos::MAX_NN_POLICY_SIZE];
+      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+      std::fill(policyProbs,policyProbs+NNPos::MAX_NN_POLICY_SIZE,-1.0f);
+      {
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            int pos = NNPos::xyToPos(x,y,nnXLen);
+            policyProbs[pos] = pow(0.9,counter++);
+            sum += policyProbs[pos];
+          }
+        }
+        int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,nnXLen,nnYLen);
+        policyProbs[pos] = pow(0.9,counter++);
+        sum += policyProbs[pos];
+
+        for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++) {
+          if(policyProbs[i] >= 0.0)
+            policyProbs[i] /= sum;
+        }
+      }
+      
+      std::copy(policyProbs,policyProbs+NNPos::MAX_NN_POLICY_SIZE,origPolicyProbs);      
+      Search::addDirichletNoise(params, rand, NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+
+      {
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            int pos = NNPos::xyToPos(x,y,nnXLen);
+            cout << Global::strprintf("%+6.2f ", 100.0*(policyProbs[pos] - origPolicyProbs[pos]));
+          }
+          cout << endl;
+        }
+        int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,nnXLen,nnYLen);
+        cout << Global::strprintf("%+6.2f ", 100.0*(policyProbs[pos] - origPolicyProbs[pos]));
+        cout << endl;
+      }
+    };
+
+    run(19,19);
+    run(11,7);
   }
   
   NeuralNet::globalCleanup();
