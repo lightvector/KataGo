@@ -1,20 +1,7 @@
 
-#define CUDA_API_PER_THREAD_DEFAULT_STREAM
-
-#include <cuda_fp16.h>
-#include <cublas_v2.h>
-
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
-#include <thrust/generate.h>
-#include <thrust/reduce.h>
-#include <thrust/functional.h>
-#include <thrust/sequence.h>
-#include <thrust/iterator/discard_iterator.h>
+#include "../neuralnet/cudahelpers.h"
 
 #include <stdexcept>
-
-#include "../neuralnet/cudahelpers.h"
 
 #if __CUDA_ARCH__ >= 530
 #define CUDA_SUPPORTS_FP16

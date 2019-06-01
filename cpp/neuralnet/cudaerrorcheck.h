@@ -1,11 +1,7 @@
 #ifndef NEURALNET_CUDAERRORCHECK_H_
 #define NEURALNET_CUDAERRORCHECK_H_
 
-#define CUDA_API_PER_THREAD_DEFAULT_STREAM
-
-#include <cuda.h>
-#include <cublas_v2.h>
-#include <cudnn.h>
+#include "../neuralnet/cudaincludes.h"
 
 #include "../core/global.h"
 

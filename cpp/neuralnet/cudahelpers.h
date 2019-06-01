@@ -1,6 +1,8 @@
 #ifndef NEURALNET_CUDAHELPERS_H_
 #define NEURALNET_CUDAHELPERS_H_
 
+#include "../neuralnet/cudaincludes.h"
+
 //Given two tensors with shapes inA: [n,cA,h,w] and inB: [n,cB,h,w], that are on the GPU
 //Copy them into a single tensor out: [n,cA+cB,h,w] that is also allocated on the gpu
 void customCudaChannelConcat(const float* inA, const float* inB, float* out, int chwA, int chwB, int n);

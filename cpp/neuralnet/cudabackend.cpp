@@ -1,12 +1,6 @@
 #ifdef USE_CUDA_BACKEND
 #include "../neuralnet/cudaerrorcheck.h"
-
-#define CUDA_API_PER_THREAD_DEFAULT_STREAM
-
-#include <cublas_v2.h>
-#include <cuda.h>
-#include <cuda_fp16.h>
-#include <cudnn.h>
+#include "../neuralnet/cudaincludes.h"
 
 #include <fstream>
 #include <zstr/src/zstr.hpp>
