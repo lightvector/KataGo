@@ -1,5 +1,8 @@
 // -*- Mode: c++; c-basic-offset: 4; tab-width: 4; -*-
 
+//Edited by David Wu in Jun 2019 to fix one minor bug where the help flag was 
+//incorrectly displayed as "--help" regardless of TCLAP_NAMESTARTSTRING
+
 /****************************************************************************** 
  * 
  *  file:  StdOutput.h
@@ -143,7 +146,7 @@ inline void StdOutput::failure( CmdLineInterface& _cmd,
 			_shortUsage( _cmd, std::cerr );	
 
 			std::cerr << std::endl << "For complete USAGE and HELP type: " 
-					  << std::endl << "   " << progName << " --help" 
+					  << std::endl << "   " << progName << " " << TCLAP_NAMESTARTSTRING << "help" 
 					  << std::endl << std::endl;
 		}
 	else
