@@ -28,9 +28,8 @@ namespace Tests {
 
   //testsgf.cpp
   void runSgfTests();
-  
+
   //testnninputs.cpp
-  void runNNInputsV2Tests();
   void runNNInputsV3V4Tests();
 
   //testsearch.cpp
@@ -40,7 +39,7 @@ namespace Tests {
 
   //testtime.cpp
   void runTimeControlsTests();
-  
+
   //testtrainingwrite.cpp
   void runTrainingWriteTests();
   void runSelfplayInitTestsWithNN(const std::string& modelFile);

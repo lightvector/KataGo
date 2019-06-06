@@ -331,7 +331,6 @@ void NNEvaluator::serve(
         }
 
         //These aren't really probabilities. Win/Loss/NoResult will get softmaxed later
-        //(or in the case of model version 2, it will only just pay attention to the value of whiteWinProb and tanh it)
         double whiteWinProb = 0.0 + rand.nextGaussian() * 0.20;
         double whiteLossProb = 0.0 + rand.nextGaussian() * 0.20;
         double whiteScoreMean = 0.0 + rand.nextGaussian() * 0.20;
@@ -437,11 +436,7 @@ void NNEvaluator::evaluate(
   }
 
   Hash128 nnHash;
-  if(inputsVersion == 1)
-    nnHash = NNInputs::getHashV1(board, history, nextPlayer);
-  else if(inputsVersion == 2)
-    nnHash = NNInputs::getHashV2(board, history, nextPlayer);
-  else if(inputsVersion == 3)
+  if(inputsVersion == 3)
     nnHash = NNInputs::getHashV3(board, history, nextPlayer, drawEquivalentWinsForWhite);
   else if(inputsVersion == 4)
     nnHash = NNInputs::getHashV4(board, history, nextPlayer, drawEquivalentWinsForWhite);
@@ -481,45 +476,23 @@ void NNEvaluator::evaluate(
       if(buf.rowSpatialSize != rowSpatialLen)
         throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
+    int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
+    if(buf.rowGlobal == NULL) {
+      buf.rowGlobal = new float[rowGlobalLen];
+      buf.rowGlobalSize = rowGlobalLen;
+    }
+    else {
+      if(buf.rowGlobalSize != rowGlobalLen)
+        throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
+    }
 
-    if(inputsVersion == 1)
-      NNInputs::fillRowV1(board, history, nextPlayer, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial);
-    else if(inputsVersion == 2)
-      NNInputs::fillRowV2(board, history, nextPlayer, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial);
-    else if(inputsVersion == 3) {
-      int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
-      if(buf.rowGlobal == NULL) {
-        buf.rowGlobal = new float[rowGlobalLen];
-        buf.rowGlobalSize = rowGlobalLen;
-      }
-      else {
-        if(buf.rowGlobalSize != rowGlobalLen)
-          throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
-      }
+    if(inputsVersion == 3) {
       NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }
     else if(inputsVersion == 4) {
-      int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
-      if(buf.rowGlobal == NULL) {
-        buf.rowGlobal = new float[rowGlobalLen];
-        buf.rowGlobalSize = rowGlobalLen;
-      }
-      else {
-        if(buf.rowGlobalSize != rowGlobalLen)
-          throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
-      }
       NNInputs::fillRowV4(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }
     else if(inputsVersion == 5) {
-      int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
-      if(buf.rowGlobal == NULL) {
-        buf.rowGlobal = new float[rowGlobalLen];
-        buf.rowGlobalSize = rowGlobalLen;
-      }
-      else {
-        if(buf.rowGlobalSize != rowGlobalLen)
-          throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
-      }
       NNInputs::fillRowV5(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }
     else
@@ -633,24 +606,7 @@ void NNEvaluator::evaluate(
     //For model version 2 and less, we only have single value output that returns tanh, stuffed
     //ad-hocly into the whiteWinProb field.
 
-    if(modelVersion <= 2) {
-      double winProb = 0.5 * tanh(buf.result->whiteWinProb) + 0.5;
-      if(nextPlayer == P_WHITE) {
-        buf.result->whiteWinProb = winProb;
-        buf.result->whiteLossProb = 1.0 - winProb;
-        buf.result->whiteNoResultProb = 0.0;
-        buf.result->whiteScoreMean = 0.0;
-        buf.result->whiteScoreMeanSq = 0.0;
-      }
-      else {
-        buf.result->whiteWinProb = 1.0 - winProb;
-        buf.result->whiteLossProb = winProb;
-        buf.result->whiteNoResultProb = 0.0;
-        buf.result->whiteScoreMean = 0.0;
-        buf.result->whiteScoreMeanSq = 0.0;
-      }
-    }
-    else if(modelVersion == 3) {
+    if(modelVersion == 3) {
       const double twoOverPi = 0.63661977236758134308;
 
       double winProb;
@@ -773,10 +729,7 @@ void NNEvaluator::evaluate(
 
   //Postprocess ownermap
   if(buf.result->whiteOwnerMap != NULL) {
-    if(modelVersion <= 2) {
-      //No postprocessing needed, cudabackend fills with zeros, which is exactly fine.
-    }
-    else if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5 || modelVersion == 6) {
+    if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5 || modelVersion == 6) {
       for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
         int y = pos / nnXLen;
         int x = pos % nnXLen;

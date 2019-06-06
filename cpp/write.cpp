@@ -20,7 +20,7 @@ using namespace std;
 
 //Data and feature row parameters
 static const int maxBoardSize = NNPos::MAX_BOARD_LEN;
-static const int numFeatures = NNInputs::NUM_FEATURES_V2;
+static const int numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V3;
 
 //Different segments of the data row
 static const int inputStart = 0;
@@ -170,7 +170,9 @@ static void fillRow(const Board& board, const BoardHistory& hist, const vector<M
   int nnYLen = NNPos::MAX_BOARD_LEN;
 
   bool inputsUseNHWC = true;
-  NNInputs::fillRowV2(board,hist,nextPlayer,nnXLen,nnYLen,inputsUseNHWC,row);
+  (void)inputsUseNHWC;
+  throw StringError("Not implemented, need a bit of work to swtich write to use v3 features");
+  // NNInputs::fillRowV2(board,hist,nextPlayer,nnXLen,nnYLen,inputsUseNHWC,row);
 
   //Optionally some stuff we can multiply the history planes by to randomly exclude history from a few training samples
   bool includeHistory[5];

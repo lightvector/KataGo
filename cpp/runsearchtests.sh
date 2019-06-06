@@ -1,9 +1,9 @@
 #!/bin/bash -eux
 {
-./main runsearchtests models/v53-140-5x64.txt.gz false false 0 false | tee tests/results/runSearchTests-iNCHW-cNCHW.txt
-./main runsearchtests models/v53-140-5x64.txt.gz true false 0 false | tee tests/results/runSearchTests-iNHWC-cNCHW.txt
-./main runsearchtests models/v53-140-5x64.txt.gz true true 0 false | tee tests/results/runSearchTests-iNHWC-cNHWC.txt
-./main runsearchtests models/v53-140-5x64.txt.gz true false 1 false | tee tests/results/runSearchTests-s1.txt
+./main runsearchtests models/g103-b6c96-s103408384-d26419149.txt.gz false false 0 false | tee tests/results/runSearchTests-iNCHW-cNCHW.txt
+./main runsearchtests models/g103-b6c96-s103408384-d26419149.txt.gz true false 0 false | tee tests/results/runSearchTests-iNHWC-cNCHW.txt
+./main runsearchtests models/g103-b6c96-s103408384-d26419149.txt.gz true true 0 false | tee tests/results/runSearchTests-iNHWC-cNHWC.txt
+./main runsearchtests models/g103-b6c96-s103408384-d26419149.txt.gz true false 1 false | tee tests/results/runSearchTests-s1.txt
 
 ./main runsearchtests models/run4-s67105280-d24430742-b6c96.txt.gz false false 0 false | tee tests/results/runSearchTests-r4-iNCHW-cNCHW.txt
 ./main runsearchtests models/run4-s67105280-d24430742-b6c96.txt.gz true false 0 false | tee tests/results/runSearchTests-r4-iNHWC-cNCHW.txt

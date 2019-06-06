@@ -61,8 +61,6 @@ static NNEvaluator* startNNEval(
 
 void Tests::runTrainingWriteTests() {
   cout << "Running training write tests" << endl;
-  string tensorflowGpuVisibleDeviceList = "";
-  double tensorflowPerProcessGpuMemoryFraction = 0.3;
   NeuralNet::globalInitialize();
 
   int maxRows = 256;
@@ -77,7 +75,7 @@ void Tests::runTrainingWriteTests() {
   auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite, int inputsVersion, int nnXLen, int nnYLen, int boardXLen, int boardYLen) {
     int dataXLen = nnXLen;
     int dataYLen = nnYLen;
-    
+
     TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, nnXLen, nnYLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
     NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,true,false,false);
@@ -155,15 +153,13 @@ void Tests::runTrainingWriteTests() {
   inputsVersion = 4;
   run("testtrainingwrite-rect-v4",Rules::getTrompTaylorish(),0.5,inputsVersion,9,3,7,3);
 
-  
+
   NeuralNet::globalCleanup();
 }
 
 
 void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   cout << "Running test for selfplay initialization with NN" << endl;
-  string tensorflowGpuVisibleDeviceList = "";
-  double tensorflowPerProcessGpuMemoryFraction = 0.3;
   NeuralNet::globalInitialize();
 
   int nnXLen = 11;

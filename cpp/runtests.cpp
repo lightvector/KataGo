@@ -23,7 +23,7 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Rand::runTests();
   FancyMath::runTests();
   ComputeElos::runTests();
-  
+
 
   Tests::runBoardIOTests();
   Tests::runBoardBasicTests();
@@ -48,7 +48,6 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
 
-  Tests::runNNInputsV2Tests();
   Tests::runNNInputsV3V4Tests();
   Tests::runNNLessSearchTests();
   Tests::runTrainingWriteTests();

@@ -14,7 +14,6 @@ namespace NNModelVersion {
   // the row vector that the net takes as input
   int getNumSpatialFeatures(int modelVersion);
   int getNumGlobalFeatures(int modelVersion);
-  int getRowSize(int modelVersion);
 
 }  // namespace NNModelVersion
 

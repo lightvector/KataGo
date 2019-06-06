@@ -27,15 +27,6 @@ namespace NNInputs {
   const int NUM_SYMMETRY_BOOLS = 3;
   const int NUM_SYMMETRY_COMBINATIONS = 8;
 
-  const int NUM_FEATURES_V0 = 19;
-  const int ROW_SIZE_V0 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_V0;
-
-  const int NUM_FEATURES_V1 = 19;
-  const int ROW_SIZE_V1 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_V1;
-
-  const int NUM_FEATURES_V2 = 17;
-  const int ROW_SIZE_V2 = NNPos::MAX_BOARD_LEN * NNPos::MAX_BOARD_LEN * NUM_FEATURES_V2;
-
   const int NUM_FEATURES_SPATIAL_V3 = 22;
   const int NUM_FEATURES_GLOBAL_V3 = 14;
 
@@ -44,35 +35,6 @@ namespace NNInputs {
 
   const int NUM_FEATURES_SPATIAL_V5 = 13;
   const int NUM_FEATURES_GLOBAL_V5 = 12;
-
-  Hash128 getHashV0(
-    const Board& board, const std::vector<Move>& moveHistory, int moveHistoryLen,
-    Player nextPlayer, float selfKomi
-  );
-  //Neural net input format that was pre-rules-implementation, doesn't handle superko and
-  //doesn't get told about the rules
-  void fillRowV0(
-    const Board& board, const std::vector<Move>& moveHistory, int moveHistoryLen,
-    Player nextPlayer, float selfKomi, int nnXLen, int nnYLen, bool useNHWC, float* row
-  );
-
-  //Handles superko and works for tromp-taylor, but otherwise not all rules implemented
-  Hash128 getHashV1(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer
-  );
-  void fillRowV1(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    int nnXLen, int nnYLen, bool useNHWC, float* row
-  );
-
-  //Slightly more complete rules support, new ladder features, compressed some features
-  Hash128 getHashV2(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer
-  );
-  void fillRowV2(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    int nnXLen, int nnYLen, bool useNHWC, float* row
-  );
 
   //Ongoing sandbox for full rules support for self play
   Hash128 getHashV3(
