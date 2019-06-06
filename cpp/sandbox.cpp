@@ -200,8 +200,6 @@ int MainCmds::sandbox() {
   logger.setLogToStdout(true);
   logger.addFile("tmp.txt");
 
-  string tensorflowGpuVisibleDeviceList = ""; //use default
-  double tensorflowPerProcessGpuMemoryFraction = -1; //use default
   NeuralNet::globalInitialize();
 
   LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/selfplay/run0/modelstobetested//s9999360-d1178745-b8c128/model.txt.gz", 0);
@@ -221,7 +219,7 @@ int MainCmds::sandbox() {
   );
   InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
 
-  bool* syms = inputBuffers->getSymmetriesInplace();
+  bool* syms = NeuralNet::getSymmetriesInplace(inputBuffers);
   syms[0] = false;
   syms[1] = false;
   syms[2] = false;
@@ -254,8 +252,8 @@ int MainCmds::sandbox() {
   // int batchSize = maxBatchSize;
   // int batchSize = 32;
   for(int i = 0; i<batchSize; i++) {
-    float* row = inputBuffers->getBatchInplace(i);
-    float* rowGlobalInput = inputBuffers->getBatchGlobalInplace(i);
+    float* row = NeuralNet::getBatchEltSpatialInplace(inputBuffers,i);
+    float* rowGlobalInput = NeuralNet::getBatchEltGlobalInplace(inputBuffers,i);
 
     double drawEquivalentWinsForWhite = 0.5;
     NNInputs::fillRowV3(board, hist, pla, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, row, rowGlobalInput);
@@ -275,7 +273,7 @@ int MainCmds::sandbox() {
     outputs.push_back(emptyOutput);
   }
 
-  
+
   NeuralNet::getOutput(gpuHandle,inputBuffers,batchSize,outputs);
 
   for(int i = 0; i<outputs.size(); i++) {

@@ -48,9 +48,9 @@ struct NNResultBuf {
   bool includeOwnerMap;
   int boardXSizeForServer;
   int boardYSizeForServer;
-  int rowBinSize;
+  int rowSpatialSize;
   int rowGlobalSize;
-  float* rowBin;
+  float* rowSpatial;
   float* rowGlobal;
   std::shared_ptr<NNOutput> result;
   bool errorLogLockout; //error flag to restrict log to 1 error to prevent spam

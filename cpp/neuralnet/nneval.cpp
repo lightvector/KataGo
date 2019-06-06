@@ -1,5 +1,4 @@
 #include "../neuralnet/nneval.h"
-
 #include "../neuralnet/modelversion.h"
 
 using namespace std;
@@ -7,44 +6,46 @@ using namespace std;
 //-------------------------------------------------------------------------------------
 
 NNResultBuf::NNResultBuf()
-    : clientWaitingForResult(),
-      resultMutex(),
-      hasResult(false),
-      includeOwnerMap(false),
-      boardXSizeForServer(0),
-      boardYSizeForServer(0),
-      rowBinSize(0),
-      rowGlobalSize(0),
-      rowBin(NULL),
-      rowGlobal(NULL),
-      result(nullptr),
-      errorLogLockout(false) {}
+  : clientWaitingForResult(),
+    resultMutex(),
+    hasResult(false),
+    includeOwnerMap(false),
+    boardXSizeForServer(0),
+    boardYSizeForServer(0),
+    rowSpatialSize(0),
+    rowGlobalSize(0),
+    rowSpatial(NULL),
+    rowGlobal(NULL),
+    result(nullptr),
+    errorLogLockout(false)
+{}
 
 NNResultBuf::~NNResultBuf() {
-  if (rowBin != NULL)
-    delete[] rowBin;
-  if (rowGlobal != NULL)
+  if(rowSpatial != NULL)
+    delete[] rowSpatial;
+  if(rowGlobal != NULL)
     delete[] rowGlobal;
 }
 
 //-------------------------------------------------------------------------------------
 
 NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model)
-    : inputBuffers(NULL), resultBufs(NULL) {
+  :inputBuffers(NULL),
+   resultBufs(NULL)
+{
   int maxNumRows = nnEval.getMaxBatchSize();
   if(model != NULL)
     inputBuffers = NeuralNet::createInputBuffers(model,maxNumRows,nnEval.getNNXLen(),nnEval.getNNYLen());
   resultBufs = new NNResultBuf*[maxNumRows];
-  for (int i = 0; i < maxNumRows; i++)
+  for(int i = 0; i < maxNumRows; i++)
     resultBufs[i] = NULL;
 }
 
 NNServerBuf::~NNServerBuf() {
-  if (inputBuffers != NULL)
+  if(inputBuffers != NULL)
     NeuralNet::freeInputBuffers(inputBuffers);
   inputBuffers = NULL;
-  // Pointers inside here don't need to be deleted, they simply point to the
-  // clients waiting for results
+  //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
   delete[] resultBufs;
   resultBufs = NULL;
 }
@@ -112,23 +113,23 @@ NNEvaluator::NNEvaluator(
   }
   numResultBufssMask = numResultBufss - 1;
 
-  if (nnCacheSizePowerOfTwo >= 0)
-    nnCacheTable =
-        new NNCacheTable(nnCacheSizePowerOfTwo, nnMutexPoolSizePowerofTwo);
+  if(nnCacheSizePowerOfTwo >= 0)
+    nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo, nnMutexPoolSizePowerofTwo);
 
-  if (!debugSkipNeuralNet) {
+  if(!debugSkipNeuralNet) {
     loadedModel = NeuralNet::loadModelFile(modelFileName, modelFileIdx);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
-  } else {
+  }
+  else {
     modelVersion = NNModelVersion::defaultModelVersion;
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
   }
 
   m_resultBufss = new NNResultBuf**[numResultBufss];
-  for (int i = 0; i < numResultBufss; i++) {
+  for(int i = 0; i < numResultBufss; i++) {
     m_resultBufss[i] = new NNResultBuf*[maxBatchSize];
-    for (int j = 0; j < maxBatchSize; j++)
+    for(int j = 0; j < maxBatchSize; j++)
       m_resultBufss[i][j] = NULL;
   }
 }
@@ -136,17 +137,16 @@ NNEvaluator::NNEvaluator(
 NNEvaluator::~NNEvaluator() {
   killServerThreads();
 
-  for (int i = 0; i < numResultBufss; i++) {
+  for(int i = 0; i < numResultBufss; i++) {
     NNResultBuf** resultBufs = m_resultBufss[i];
-    // Pointers inside here don't need to be deleted, they simply point to the
-    // clients waiting for results
+    //Pointers inside here don't need to be deleted, they simply point to the clients waiting for results
     delete[] resultBufs;
     m_resultBufss[i] = NULL;
   }
   delete[] m_resultBufss;
   m_resultBufss = NULL;
 
-  if (loadedModel != NULL)
+  if(loadedModel != NULL)
     NeuralNet::freeLoadedModel(loadedModel);
   loadedModel = NULL;
 
@@ -352,7 +352,7 @@ void NNEvaluator::serve(
     int symmetry = defaultSymmetry;
     if(doRandomize)
       symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
-    bool* symmetriesBuffer = buf.inputBuffers->getSymmetriesInplace();
+    bool* symmetriesBuffer = NeuralNet::getSymmetriesInplace(buf.inputBuffers);
     symmetriesBuffer[0] = (symmetry & 0x1) != 0;
     symmetriesBuffer[1] = (symmetry & 0x2) != 0;
     symmetriesBuffer[2] = (symmetry & 0x4) != 0;
@@ -372,18 +372,18 @@ void NNEvaluator::serve(
 
     int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
     int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
-    int rowBinLen = numSpatialFeatures * nnXLen * nnYLen;
+    int rowSpatialLen = numSpatialFeatures * nnXLen * nnYLen;
     int rowGlobalLen = numGlobalFeatures;
-    assert(rowBinLen == buf.inputBuffers->getBatchLen());
-    assert(rowGlobalLen == buf.inputBuffers->getGlobalLen());
+    assert(rowSpatialLen == NeuralNet::getBatchEltSpatialLen(buf.inputBuffers));
+    assert(rowGlobalLen == NeuralNet::getBatchEltGlobalLen(buf.inputBuffers));
 
     for(int row = 0; row<numRows; row++) {
-      float* rowInput = buf.inputBuffers->getBatchInplace(row);
-      float* rowGlobalInput = buf.inputBuffers->getBatchGlobalInplace(row);
+      float* rowSpatialInput = NeuralNet::getBatchEltSpatialInplace(buf.inputBuffers,row);
+      float* rowGlobalInput = NeuralNet::getBatchEltGlobalInplace(buf.inputBuffers,row);
 
-      const float* rowBin = buf.resultBufs[row]->rowBin;
+      const float* rowSpatial = buf.resultBufs[row]->rowSpatial;
       const float* rowGlobal = buf.resultBufs[row]->rowGlobal;
-      std::copy(rowBin,rowBin+rowBinLen,rowInput);
+      std::copy(rowSpatial,rowSpatial+rowSpatialLen,rowSpatialInput);
       std::copy(rowGlobal,rowGlobal+rowGlobalLen,rowGlobalInput);
     }
 
@@ -472,20 +472,20 @@ void NNEvaluator::evaluate(
   buf.boardYSizeForServer = board.y_size;
 
   if(!debugSkipNeuralNet) {
-    int rowBinLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
-    if(buf.rowBin == NULL) {
-      buf.rowBin = new float[rowBinLen];
-      buf.rowBinSize = rowBinLen;
+    int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
+    if(buf.rowSpatial == NULL) {
+      buf.rowSpatial = new float[rowSpatialLen];
+      buf.rowSpatialSize = rowSpatialLen;
     }
     else {
-      if(buf.rowBinSize != rowBinLen)
+      if(buf.rowSpatialSize != rowSpatialLen)
         throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
 
     if(inputsVersion == 1)
-      NNInputs::fillRowV1(board, history, nextPlayer, nnXLen, nnYLen, inputsUseNHWC, buf.rowBin);
+      NNInputs::fillRowV1(board, history, nextPlayer, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial);
     else if(inputsVersion == 2)
-      NNInputs::fillRowV2(board, history, nextPlayer, nnXLen, nnYLen, inputsUseNHWC, buf.rowBin);
+      NNInputs::fillRowV2(board, history, nextPlayer, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial);
     else if(inputsVersion == 3) {
       int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
       if(buf.rowGlobal == NULL) {
@@ -496,7 +496,7 @@ void NNEvaluator::evaluate(
         if(buf.rowGlobalSize != rowGlobalLen)
           throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
       }
-      NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
+      NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }
     else if(inputsVersion == 4) {
       int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
@@ -508,7 +508,7 @@ void NNEvaluator::evaluate(
         if(buf.rowGlobalSize != rowGlobalLen)
           throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
       }
-      NNInputs::fillRowV4(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
+      NNInputs::fillRowV4(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }
     else if(inputsVersion == 5) {
       int rowGlobalLen = NNModelVersion::getNumGlobalFeatures(modelVersion);
@@ -520,7 +520,7 @@ void NNEvaluator::evaluate(
         if(buf.rowGlobalSize != rowGlobalLen)
           throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
       }
-      NNInputs::fillRowV5(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowBin, buf.rowGlobal);
+      NNInputs::fillRowV5(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }
     else
       ASSERT_UNREACHABLE;

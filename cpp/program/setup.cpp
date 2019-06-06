@@ -5,6 +5,7 @@
 using namespace std;
 
 void Setup::initializeSession(ConfigParser& cfg) {
+  (void)cfg;
   NeuralNet::globalInitialize();
 }
 

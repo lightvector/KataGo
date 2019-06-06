@@ -150,13 +150,10 @@ struct GlobalPoolingResidualBlockDesc {
   GlobalPoolingResidualBlockDesc(std::istream& in, int vrsn);
   GlobalPoolingResidualBlockDesc(GlobalPoolingResidualBlockDesc&& other);
 
-  GlobalPoolingResidualBlockDesc(const GlobalPoolingResidualBlockDesc&) =
-      delete;
-  GlobalPoolingResidualBlockDesc& operator=(
-      const GlobalPoolingResidualBlockDesc&) = delete;
+  GlobalPoolingResidualBlockDesc(const GlobalPoolingResidualBlockDesc&) = delete;
+  GlobalPoolingResidualBlockDesc& operator=(const GlobalPoolingResidualBlockDesc&) = delete;
 
-  GlobalPoolingResidualBlockDesc& operator=(
-      GlobalPoolingResidualBlockDesc&& other);
+  GlobalPoolingResidualBlockDesc& operator=(GlobalPoolingResidualBlockDesc&& other);
 };
 
 constexpr int ORDINARY_BLOCK_KIND = 0;
@@ -168,15 +165,10 @@ struct TrunkDesc {
   int version;
   int numBlocks;
   int trunkNumChannels;
-  int midNumChannels;      // Currently every plain residual block must have the
-                           // same number of mid conv channels
-  int regularNumChannels;  // Currently every dilated or gpool residual block
-                           // must have the same number of regular conv
-                           // channels
-  int dilatedNumChannels;  // Currently every dilated residual block must have
-                           // the same number of dilated conv channels
-  int gpoolNumChannels;    // Currently every gpooling residual block must have
-                           // the same number of gpooling conv channels
+  int midNumChannels;      // Currently every plain residual block must have the same number of mid conv channels
+  int regularNumChannels;  // Currently every dilated or gpool residual block must have the same number of regular conv hannels
+  int dilatedNumChannels;  // Currently every dilated residual block must have the same number of dilated conv channels
+  int gpoolNumChannels;    // Currently every gpooling residual block must have the same number of gpooling conv channels
   ConvLayerDesc initialConv;
   MatMulLayerDesc initialMatMul;
   std::vector<std::pair<int, void*>> blocks;

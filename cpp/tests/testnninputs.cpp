@@ -17,11 +17,11 @@ static void printNNInputHWAndBoard(
   if(inputsVersion == 2)
     numFeatures = NNInputs::NUM_FEATURES_V2;
   else if(inputsVersion == 3)
-    numFeatures = NNInputs::NUM_FEATURES_BIN_V3;
+    numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V3;
   else if(inputsVersion == 4)
-    numFeatures = NNInputs::NUM_FEATURES_BIN_V4;
+    numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V4;
   else if(inputsVersion == 5)
-    numFeatures = NNInputs::NUM_FEATURES_BIN_V5;
+    numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V5;
   else
     testAssert(false);
 
@@ -276,21 +276,21 @@ void Tests::runNNInputsV3V4Tests() {
 
   auto allocateRows = [](int version, int nnXLen, int nnYLen, int& numFeaturesBin, int& numFeaturesGlobal, float*& rowBin, float*& rowGlobal) {
     if(version == 3) {
-      numFeaturesBin = NNInputs::NUM_FEATURES_BIN_V3;
+      numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V3;
       numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V3;
-      rowBin = new float[NNInputs::NUM_FEATURES_BIN_V3 * nnXLen * nnYLen];
+      rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V3 * nnXLen * nnYLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
     }
     else if(version == 4) {
-      numFeaturesBin = NNInputs::NUM_FEATURES_BIN_V4;
+      numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V4;
       numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V4;
-      rowBin = new float[NNInputs::NUM_FEATURES_BIN_V4 * nnXLen * nnYLen];
+      rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V4 * nnXLen * nnYLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V4];
     }
     else if(version == 5) {
-      numFeaturesBin = NNInputs::NUM_FEATURES_BIN_V5;
+      numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V5;
       numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V5;
-      rowBin = new float[NNInputs::NUM_FEATURES_BIN_V5 * nnXLen * nnYLen];
+      rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V5 * nnXLen * nnYLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V5];
     }
     else

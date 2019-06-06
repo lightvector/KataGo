@@ -6,18 +6,14 @@
 #include <zstr/src/zstr.hpp>
 
 #include "../neuralnet/cudahelpers.h"
+#include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/desc.h"
 
 using namespace std;
 
-void NeuralNet::globalInitialize(
-  const string& tensorflowGpuVisibleDeviceList,
-  double tensorflowPerProcessGpuMemoryFraction
-) {
-  (void)tensorflowGpuVisibleDeviceList;
-  (void)tensorflowPerProcessGpuMemoryFraction;
+void NeuralNet::globalInitialize() {
   //Empty for cudnn backend
 }
 
@@ -2165,7 +2161,7 @@ struct Model {
       if(nnXLen != xSize)
         throw StringError(Global::strprintf("For V2 models and lower nnXLen (%d) must match xSize (%d)",
           nnXLen, xSize
-       ));
+        ));
       if(nnYLen != ySize)
         throw StringError(Global::strprintf("For V2 models and lower nnYLen (%d) must match ySize (%d)",
           nnYLen, ySize
@@ -2779,7 +2775,7 @@ void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
 
 //------------------------------------------------------------------------------
 
-struct CudaInputBuffers : public InputBuffers {
+struct InputBuffers {
   int maxBatchSize;
 
   size_t singleInputElts;
@@ -2860,7 +2856,7 @@ struct CudaInputBuffers : public InputBuffers {
     }
   }
 
-  virtual ~InputBuffers() {
+  ~InputBuffers() {
     delete[] userInputBuffer;
     delete[] userInputGlobalBuffer;
     delete[] symmetriesBuffer;
@@ -2874,46 +2870,44 @@ struct CudaInputBuffers : public InputBuffers {
   InputBuffers(const InputBuffers&) = delete;
   InputBuffers& operator=(const InputBuffers&) = delete;
 
-  float* getRowInplace(int rowIdx) {
-    assert(rowIdx < this->maxBatchSize);
-    return this->userInputBuffer + (this->singleInputElts * rowIdx);
-  }
-
-  float* getRowGlobalInplace(int rowIdx) {
-    assert(rowIdx < this->maxBatchSize);
-    return this->userInputGlobalBuffer + (this->singleInputGlobalElts * rowIdx);
-  }
-
-  int getRowLen() const {
-    return this->singleInputElts;
-  }
-  int getRowGlobalLen() const {
-    return this->singleInputGlobalElts;
-  }
-
-  bool* getSymmetriesInplace() {
-    return this->symmetriesBuffer;
-  }
 };
 
-InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel,
-                                            int maxBatchSize,
-                                            int nnXLen,
-                                            int nnYLen) {
-  return new InputBuffers(loadedModel, maxBatchSize, nnXLen, nnYLen);
+InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
+  return new InputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
 }
-
 void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
+float* NeuralNet::getBatchEltSpatialInplace(InputBuffers* inputBuffers, int nIdx) {
+  assert(nIdx < inputBuffers->maxBatchSize);
+  return inputBuffers->userInputBuffer + (inputBuffers->singleInputElts * nIdx);
+}
+
+float* NeuralNet::getBatchEltGlobalInplace(InputBuffers* inputBuffers, int nIdx) {
+  assert(nIdx < inputBuffers->maxBatchSize);
+  return inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * nIdx);
+}
+
+int NeuralNet::getBatchEltSpatialLen(const InputBuffers* inputBuffers) {
+  return inputBuffers->singleInputElts;
+}
+int NeuralNet::getBatchEltGlobalLen(const InputBuffers* inputBuffers) {
+  return inputBuffers->singleInputGlobalElts;
+}
+
+bool* NeuralNet::getSymmetriesInplace(InputBuffers* inputBuffers) {
+  return inputBuffers->symmetriesBuffer;
+}
+
+
 //---------------------------------------------------------------------------------------
 
 
-void NeuralNet::getOutput(ComputeHandle* gpuHandle, InputBuffers* inputBuffers, int numFilledRows, vector<NNOutput*>& outputs) {
-  assert(numFilledRows <= inputBuffers->maxBatchSize);
-  assert(numFilledRows > 0);
-  int batchSize = numFilledRows;
+void NeuralNet::getOutput(ComputeHandle* gpuHandle, InputBuffers* inputBuffers, int numBatchEltsFilled, vector<NNOutput*>& outputs) {
+  assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
+  assert(numBatchEltsFilled > 0);
+  int batchSize = numBatchEltsFilled;
   int nnXLen = gpuHandle->nnXLen;
   int nnYLen = gpuHandle->nnYLen;
   int version = gpuHandle->model->version;

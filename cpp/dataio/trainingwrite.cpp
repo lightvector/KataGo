@@ -295,17 +295,17 @@ void TrainingWriteBuffers::addRow(
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
     if(inputsVersion == 3) {
-      assert(NNInputs::NUM_FEATURES_BIN_V3 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_SPATIAL_V3 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V3 == numGlobalChannels);
       NNInputs::fillRowV3(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else if(inputsVersion == 4) {
-      assert(NNInputs::NUM_FEATURES_BIN_V4 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_SPATIAL_V4 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V4 == numGlobalChannels);
       NNInputs::fillRowV4(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else if(inputsVersion == 5) {
-      assert(NNInputs::NUM_FEATURES_BIN_V5 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_SPATIAL_V5 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V5 == numGlobalChannels);
       NNInputs::fillRowV5(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
@@ -642,15 +642,15 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
   //to feed into a model during selfplay
   if(inputsVersion == 3) {
-    numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V3;
+    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V3;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V3;
   }
   else if(inputsVersion == 4) {
-    numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V4;
+    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V4;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V4;
   }
   else if(inputsVersion == 5) {
-    numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V5;
+    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V5;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V5;
   }
   else {
@@ -818,5 +818,3 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   }
 
 }
-
-

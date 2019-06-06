@@ -1,4 +1,5 @@
-#include "../neuralnet/nninterface.h"
+#include "../neuralnet/nninputs.h"
+#include "../neuralnet/modelversion.h"
 
 //Model versions:
 //0 = V1 features, with old head architecture using crelus (no longer supported)
@@ -38,11 +39,11 @@ int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
   else if(modelVersion == 2)
     return NNInputs::NUM_FEATURES_V2;
   else if(modelVersion == 3 || modelVersion == 4)
-    return NNInputs::NUM_FEATURES_BIN_V3;
+    return NNInputs::NUM_FEATURES_SPATIAL_V3;
   else if(modelVersion == 5)
-    return NNInputs::NUM_FEATURES_BIN_V4;
+    return NNInputs::NUM_FEATURES_SPATIAL_V4;
   else if(modelVersion == 6)
-    return NNInputs::NUM_FEATURES_BIN_V5;
+    return NNInputs::NUM_FEATURES_SPATIAL_V5;
 
   fail(modelVersion);
   return -1;
@@ -73,6 +74,3 @@ int NNModelVersion::getRowSize(int modelVersion) {
   fail(modelVersion);
   return -1;
 }
-
-
-

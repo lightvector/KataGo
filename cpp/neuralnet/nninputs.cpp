@@ -966,7 +966,7 @@ void NNInputs::fillRowV3(
   assert(nnYLen <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size <= nnXLen);
   assert(board.y_size <= nnYLen);
-  std::fill(rowBin,rowBin+NUM_FEATURES_BIN_V3*nnXLen*nnYLen,false);
+  std::fill(rowBin,rowBin+NUM_FEATURES_SPATIAL_V3*nnXLen*nnYLen,false);
   std::fill(rowGlobal,rowGlobal+NUM_FEATURES_GLOBAL_V3,0.0f);
 
   Player pla = nextPlayer;
@@ -978,7 +978,7 @@ void NNInputs::fillRowV3(
   int posStride;
   if(useNHWC) {
     featureStride = 1;
-    posStride = NNInputs::NUM_FEATURES_BIN_V3;
+    posStride = NNInputs::NUM_FEATURES_SPATIAL_V3;
   }
   else {
     featureStride = nnXLen * nnYLen;
@@ -1358,7 +1358,7 @@ void NNInputs::fillRowV4(
   assert(nnYLen <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size <= nnXLen);
   assert(board.y_size <= nnYLen);
-  std::fill(rowBin,rowBin+NUM_FEATURES_BIN_V4*nnXLen*nnYLen,false);
+  std::fill(rowBin,rowBin+NUM_FEATURES_SPATIAL_V4*nnXLen*nnYLen,false);
   std::fill(rowGlobal,rowGlobal+NUM_FEATURES_GLOBAL_V4,0.0f);
 
   Player pla = nextPlayer;
@@ -1370,7 +1370,7 @@ void NNInputs::fillRowV4(
   int posStride;
   if(useNHWC) {
     featureStride = 1;
-    posStride = NNInputs::NUM_FEATURES_BIN_V4;
+    posStride = NNInputs::NUM_FEATURES_SPATIAL_V4;
   }
   else {
     featureStride = nnXLen * nnYLen;
@@ -1742,7 +1742,7 @@ void NNInputs::fillRowV5(
   assert(nnYLen <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size <= nnXLen);
   assert(board.y_size <= nnYLen);
-  std::fill(rowBin,rowBin+NUM_FEATURES_BIN_V5*nnXLen*nnYLen,false);
+  std::fill(rowBin,rowBin+NUM_FEATURES_SPATIAL_V5*nnXLen*nnYLen,false);
   std::fill(rowGlobal,rowGlobal+NUM_FEATURES_GLOBAL_V5,0.0f);
 
   Player pla = nextPlayer;
@@ -1754,7 +1754,7 @@ void NNInputs::fillRowV5(
   int posStride;
   if(useNHWC) {
     featureStride = 1;
-    posStride = NNInputs::NUM_FEATURES_BIN_V5;
+    posStride = NNInputs::NUM_FEATURES_SPATIAL_V5;
   }
   else {
     featureStride = nnXLen * nnYLen;
