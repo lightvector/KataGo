@@ -2705,17 +2705,21 @@ struct ComputeHandle {
   bool requireExactNNLen;
   int policySize;
 
-  ComputeHandle(const LoadedModel* loadedModel,
-                int maxBatchSize,
-                int xLen,
-                int yLen,
-                bool rExactNNLen,
-                bool inputsUseNHWC,
-                bool useFP16,
-                bool useNHWC) {
+  ComputeHandle(
+    const LoadedModel* loadedModel,
+    int maxBatchSize,
+    int xLen,
+    int yLen,
+    bool rExactNNLen,
+    bool inputsUseNHWC,
+    bool useFP16,
+    bool useNHWC
+  ) {
     cudaHandles = new CudaHandles();
-    model = new Model(cudaHandles, &(loadedModel->modelDesc), maxBatchSize,
-                      xLen, yLen, inputsUseNHWC, useFP16, useNHWC);
+    model = new Model(
+      cudaHandles, &(loadedModel->modelDesc), maxBatchSize,
+      xLen, yLen, inputsUseNHWC, useFP16, useNHWC
+    );
     buffers = new Buffers(cudaHandles, *model, useFP16);
     usingFP16 = useFP16;
     nnXLen = xLen;
@@ -2723,8 +2727,7 @@ struct ComputeHandle {
     requireExactNNLen = rExactNNLen;
     policySize = NNPos::getPolicySize(nnXLen, nnYLen);
 
-    // Synchronize after creating all the buffers and copying all the weights,
-    // just in case
+    //Synchronize after creating buffers and copying all the weights, just in case
     CUDA_ERR("ComputeHandle", cudaDeviceSynchronize());
   }
   ~ComputeHandle() {

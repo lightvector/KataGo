@@ -2,10 +2,10 @@
 Language:        Cpp
 # BasedOnStyle:  Chromium
 AccessModifierOffset: -1
-AlignAfterOpenBracket: Align
+AlignAfterOpenBracket: AlwaysBreak
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
-AlignEscapedNewlines: Left
+AlignEscapedNewlines: DontAlign
 AlignOperands:   true
 AlignTrailingComments: true
 AllowAllParametersOfDeclarationOnNextLine: false
@@ -18,9 +18,9 @@ AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: true
 AlwaysBreakTemplateDeclarations: Yes
-BinPackArguments: true
+BinPackArguments: false
 BinPackParameters: false
-BraceWrapping:   
+BraceWrapping:
   AfterClass:      false
   AfterControlStatement: false
   AfterEnum:       false
@@ -45,23 +45,23 @@ BreakConstructorInitializersBeforeComma: false
 BreakConstructorInitializers: BeforeColon
 BreakAfterJavaFieldAnnotations: false
 BreakStringLiterals: true
-ColumnLimit:     80
+ColumnLimit:     120
 CommentPragmas:  '^ IWYU pragma:'
 CompactNamespaces: false
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
-ConstructorInitializerIndentWidth: 4
-ContinuationIndentWidth: 4
+ConstructorInitializerIndentWidth: 2
+ContinuationIndentWidth: 2
 Cpp11BracedListStyle: true
 DerivePointerAlignment: false
 DisableFormat:   false
 ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: true
-ForEachMacros:   
+ForEachMacros:
   - foreach
   - Q_FOREACH
   - BOOST_FOREACH
 IncludeBlocks:   Preserve
-IncludeCategories: 
+IncludeCategories:
   - Regex:           '^<ext/.*\.h>'
     Priority:        2
   - Regex:           '^<.*\.h>'
@@ -86,18 +86,18 @@ ObjCBinPackProtocolList: Never
 ObjCBlockIndentWidth: 2
 ObjCSpaceAfterProperty: false
 ObjCSpaceBeforeProtocolList: true
-PenaltyBreakAssignment: 2
-PenaltyBreakBeforeFirstCallParameter: 1
+PenaltyBreakAssignment: 1
+PenaltyBreakBeforeFirstCallParameter: 2
 PenaltyBreakComment: 300
 PenaltyBreakFirstLessLess: 120
-PenaltyBreakString: 1000
+PenaltyBreakString: 500000
 PenaltyBreakTemplateDeclaration: 10
-PenaltyExcessCharacter: 1000000
+PenaltyExcessCharacter: 10000
 PenaltyReturnTypeOnItsOwnLine: 200
 PointerAlignment: Left
-RawStringFormats: 
+RawStringFormats:
   - Language:        Cpp
-    Delimiters:      
+    Delimiters:
       - cc
       - CC
       - cpp
@@ -108,12 +108,12 @@ RawStringFormats:
     CanonicalDelimiter: ''
     BasedOnStyle:    google
   - Language:        TextProto
-    Delimiters:      
+    Delimiters:
       - pb
       - PB
       - proto
       - PROTO
-    EnclosingFunctions: 
+    EnclosingFunctions:
       - EqualsProto
       - EquivToProto
       - PARSE_PARTIAL_TEXT_PROTO
@@ -127,25 +127,24 @@ ReflowComments:  true
 SortIncludes:    true
 SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
-SpaceAfterTemplateKeyword: true
+SpaceAfterTemplateKeyword: false
 SpaceBeforeAssignmentOperators: true
 SpaceBeforeCpp11BracedList: false
 SpaceBeforeCtorInitializerColon: true
 SpaceBeforeInheritanceColon: true
-SpaceBeforeParens: ControlStatements
-SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeParens: Never
+SpaceBeforeRangeBasedForLoopColon: false
 SpaceInEmptyParentheses: false
 SpacesBeforeTrailingComments: 2
 SpacesInAngles:  false
-SpacesInContainerLiterals: true
+SpacesInContainerLiterals: false
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
 Standard:        Auto
-StatementMacros: 
+StatementMacros:
   - Q_UNUSED
   - QT_REQUIRE_VERSION
-TabWidth:        8
+TabWidth:        4
 UseTab:          Never
 ...
-
