@@ -114,6 +114,43 @@ namespace NeuralNet {
     std::vector<float>& outputBuffer
   );
 
+  //Mask should be in 'NHW' format (no "C" channel).
+  bool testEvaluateBatchNorm(
+    const BatchNormLayerDesc* desc,
+    int desiredBatchSize,
+    int nnXLen,
+    int nnYLen,
+    bool useFP16,
+    bool useNHWC,
+    const std::vector<float>& inputBuffer,
+    const std::vector<float>& maskBuffer,
+    std::vector<float>& outputBuffer
+  );
+
+  bool testEvaluateResidualBlock(
+    const ResidualBlockDesc* desc,
+    int desiredBatchSize,
+    int nnXLen,
+    int nnYLen,
+    bool useFP16,
+    bool useNHWC,
+    const std::vector<float>& inputBuffer,
+    const std::vector<float>& maskBuffer,
+    std::vector<float>& outputBuffer
+  );
+
+  bool testEvaluateGlobalPoolingResidualBlock(
+    const GlobalPoolingResidualBlockDesc* desc,
+    int desiredBatchSize,
+    int nnXLen,
+    int nnYLen,
+    bool useFP16,
+    bool useNHWC,
+    const std::vector<float>& inputBuffer,
+    const std::vector<float>& maskBuffer,
+    std::vector<float>& outputBuffer
+  );
+
 }  // namespace NeuralNet
 
 

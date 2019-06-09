@@ -114,6 +114,7 @@ static void checkBufferSize(int batchSize, int xSize, int ySize, int channels) {
     throw StringError("Batch size too large, resulting GPU buffers might exceed 2^31 entries which is not currently supported");
 }
 
+
 //---------------------------------------------------------------------------------
 
 struct ConvLayer {
@@ -1455,6 +1456,44 @@ static void applySymmetriesNHWC(
   }
 }
 
+static void fillMaskFloatBufAndMaskSumBuf(void* maskBuf, float*& maskFloatBuf, float*& maskSumBuf, bool usingFP16, int batchSize, int xSize, int ySize) {
+  if(!usingFP16) {
+    maskFloatBuf = (float*)maskBuf;
+    customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,xSize*ySize,1.0);
+    CUDA_ERR("sumMask",cudaPeekAtLastError());
+  }
+  else {
+    customCudaCopyFromHalf((const half*)maskBuf,maskFloatBuf,batchSize*xSize*ySize);
+    CUDA_ERR("copyMaskFromHalf",cudaPeekAtLastError());
+    customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,xSize*ySize,1.0);
+    CUDA_ERR("sumMask",cudaPeekAtLastError());
+  }
+}
+
+static void hostMallocZeroOneBufs(void*& zeroBuf, void*& oneBuf, bool useFP16) {
+  if(!useFP16) {
+    zeroBuf = malloc(sizeof(float));
+    oneBuf = malloc(sizeof(float));
+    *((float*)zeroBuf) = 0.0f;
+    *((float*)oneBuf) = 1.0f;
+  }
+  else {
+    //Convert to FP16 on the device, then copy back so we have it in host memory
+    float zero = 0.0f;
+    float one = 1.0f;
+    void* zeroTmp;
+    void* oneTmp;
+    mallocAndCopyToDevice("Buffers",&zero,1,zeroTmp,useFP16);
+    mallocAndCopyToDevice("Buffers",&one,1,oneTmp,useFP16);
+    zeroBuf = malloc(sizeof(half));
+    oneBuf = malloc(sizeof(half));
+    CUDA_ERR("Buffers",cudaMemcpy(zeroBuf,zeroTmp,sizeof(half),cudaMemcpyDeviceToHost));
+    CUDA_ERR("Buffers",cudaMemcpy(oneBuf,oneTmp,sizeof(half),cudaMemcpyDeviceToHost));
+    cudaFree(zeroTmp);
+    cudaFree(oneTmp);
+  }
+}
+
 
 //------------------------------------------------------------------------------
 
@@ -2210,9 +2249,6 @@ struct Model {
       else
         customCudaChannel0ExtractNCHW((const float*)inputBuf, (float*)maskBuf, batchSize, numInputChannels, xSize*ySize);
       CUDA_ERR("modelExtractMask",cudaPeekAtLastError());
-      maskFloatBuf = (float*)maskBuf;
-      customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,xSize*ySize,1.0);
-      CUDA_ERR("sumMask",cudaPeekAtLastError());
     }
     else {
       if(inputsUsingNHWC)
@@ -2220,11 +2256,9 @@ struct Model {
       else
         customCudaChannel0ExtractNCHW((const half*)inputBuf, (half*)maskBuf, batchSize, numInputChannels, xSize*ySize);
       CUDA_ERR("modelExtractMask",cudaPeekAtLastError());
-      customCudaCopyFromHalf((const half*)maskBuf,maskFloatBuf,batchSize*xSize*ySize);
-      CUDA_ERR("copyMaskFromHalf",cudaPeekAtLastError());
-      customCudaPoolRowsSumNCHW((const float*)maskFloatBuf,maskSumBuf,batchSize,1,xSize*ySize,1.0);
-      CUDA_ERR("sumMask",cudaPeekAtLastError());
     }
+
+    fillMaskFloatBufAndMaskSumBuf(maskBuf,maskFloatBuf,maskSumBuf,usingFP16,batchSize,xSize,ySize);
 
     //Don't do any masking if we know the board is exactly the desired size
     if(requireExactNNLen) {
@@ -2459,27 +2493,7 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&ownershipBuf, ownershipBufBytes));
     CUDA_ERR("Buffers",cudaMalloc(&ownershipScratchBuf, ownershipBufBytes));
 
-    if(!useFP16) {
-      zeroBuf = malloc(sizeof(float));
-      oneBuf = malloc(sizeof(float));
-      *((float*)zeroBuf) = 0.0f;
-      *((float*)oneBuf) = 1.0f;
-    }
-    else {
-      //Convert to FP16 on the device, then copy back so we have it in host memory
-      float zero = 0.0f;
-      float one = 1.0f;
-      void* zeroTmp;
-      void* oneTmp;
-      mallocAndCopyToDevice("Buffers",&zero,1,zeroTmp,useFP16);
-      mallocAndCopyToDevice("Buffers",&one,1,oneTmp,useFP16);
-      zeroBuf = malloc(sizeof(half));
-      oneBuf = malloc(sizeof(half));
-      CUDA_ERR("Buffers",cudaMemcpy(zeroBuf,zeroTmp,sizeof(half),cudaMemcpyDeviceToHost));
-      CUDA_ERR("Buffers",cudaMemcpy(oneBuf,oneTmp,sizeof(half),cudaMemcpyDeviceToHost));
-      cudaFree(zeroTmp);
-      cudaFree(oneTmp);
-    }
+    hostMallocZeroOneBufs(zeroBuf, oneBuf, useFP16);
 
     //In theory the requiredWorkspaceBytes calls could give us values non-monotone in batch size
     //such as if the convolution algorithm changes between batch size 1 and larger.
@@ -3015,6 +3029,354 @@ bool NeuralNet::testEvaluateConv(
   delete[] outputDescriptors;
   cudaFree(deviceInput);
   cudaFree(deviceOutput);
+  delete cudaHandles;
+
+  return true;
+}
+
+
+bool NeuralNet::testEvaluateBatchNorm(
+  const BatchNormLayerDesc* desc,
+  int desiredBatchSize,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const vector<float>& inputBuffer,
+  const vector<float>& maskBuffer,
+  vector<float>& outputBuffer
+) {
+  cudaDeviceSynchronize();
+  CudaHandles* cudaHandles = new CudaHandles();
+
+  int xSize = nnXLen;
+  int ySize = nnYLen;
+
+  size_t numInputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->numChannels;
+  size_t numMaskFloats = (size_t)desiredBatchSize * xSize * ySize;
+  size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->numChannels;
+  if(numInputFloats != inputBuffer.size())
+    throw StringError("testEvaluateBatchNorm: unexpected input buffer size");
+  if(numMaskFloats != maskBuffer.size())
+    throw StringError("testEvaluateBatchNorm: unexpected mask buffer size");
+
+  void* deviceInput;
+  void* deviceMask;
+  void* deviceOutput;
+  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
+  mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
+
+  BatchNormLayer* batchNormLayer = new BatchNormLayer(cudaHandles,desc,xSize,ySize,useFP16,useNHWC);
+
+  bool applyRelu = false;
+  batchNormLayer->apply(
+    cudaHandles,
+    desiredBatchSize,
+    applyRelu,
+    deviceInput,
+    deviceMask,
+    deviceOutput
+  );
+
+  outputBuffer.resize(numOutputFloats);
+  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceOutput, useFP16);
+
+  delete batchNormLayer;
+
+  cudaFree(deviceInput);
+  cudaFree(deviceMask);
+  cudaFree(deviceOutput);
+  delete cudaHandles;
+
+  return true;
+}
+
+
+bool NeuralNet::testEvaluateResidualBlock(
+  const ResidualBlockDesc* desc,
+  int desiredBatchSize,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const vector<float>& inputBuffer,
+  const vector<float>& maskBuffer,
+  vector<float>& outputBuffer
+) {
+  cudaDeviceSynchronize();
+  CudaHandles* cudaHandles = new CudaHandles();
+
+  int xSize = nnXLen;
+  int ySize = nnYLen;
+
+  size_t numInputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->preBN.numChannels;
+  size_t numMaskFloats = (size_t)desiredBatchSize * xSize * ySize;
+  size_t numMidFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.inChannels;
+  size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.outChannels;
+  if(numInputFloats != inputBuffer.size())
+    throw StringError("testEvaluateResidualBlock: unexpected input buffer size");
+  if(numMaskFloats != maskBuffer.size())
+    throw StringError("testEvaluateResidualBlock: unexpected mask buffer size");
+
+  void* deviceInput;
+  void* deviceMask;
+  void* deviceScratch;
+  void* deviceMidInput;
+  void* deviceMidScratch;
+  void* deviceOutput;
+  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
+  mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
+  mallocOnDevice("deviceMid", numMidFloats, deviceMidInput, useFP16);
+  mallocOnDevice("deviceMidScratch", numMidFloats, deviceMidScratch, useFP16);
+  mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
+
+  int maxBatchSize = desiredBatchSize;
+  cudnnTensorDescriptor_t* trunkDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+  cudnnTensorDescriptor_t* midInDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+
+  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+    cudnnTensorDescriptor_t& trunkDescriptor = trunkDescriptors[batchSize-1];
+    cudnnTensorDescriptor_t& midInDescriptor = midInDescriptors[batchSize-1];
+
+    CUDNN_ERR("trunkDescriptor",cudnnCreateTensorDescriptor(&trunkDescriptor));
+    CUDNN_ERR("trunkDescriptor",cudnnSetTensor4dDescriptor(
+      trunkDescriptor,
+      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
+      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
+      batchSize,
+      desc->preBN.numChannels,
+      ySize,
+      xSize
+    ));
+    CUDNN_ERR("midInDescriptor",cudnnCreateTensorDescriptor(&midInDescriptor));
+    CUDNN_ERR("midInDescriptor",cudnnSetTensor4dDescriptor(
+      midInDescriptor,
+      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
+      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
+      batchSize,
+      desc->midBN.numChannels,
+      ySize,
+      xSize
+    ));
+  }
+
+  ResidualBlock* residualBlock = new ResidualBlock(cudaHandles,desc,maxBatchSize,xSize,ySize,trunkDescriptors,midInDescriptors,useFP16,useNHWC);
+
+  size_t workspaceBytes =
+    residualBlock->requiredWorkspaceBytes(cudaHandles,trunkDescriptors[desiredBatchSize-1],midInDescriptors[desiredBatchSize-1],desiredBatchSize);
+  void* deviceWorkspace;
+  CUDA_ERR("deviceWorkspace",cudaMalloc(&deviceWorkspace, workspaceBytes));
+
+  residualBlock->apply(
+    cudaHandles,
+    trunkDescriptors[desiredBatchSize-1],
+    midInDescriptors[desiredBatchSize-1],
+    desiredBatchSize,
+    deviceInput,
+    deviceScratch,
+    deviceMidInput,
+    deviceMidScratch,
+    deviceMask,
+    deviceWorkspace,
+    workspaceBytes
+  );
+
+  outputBuffer.resize(numOutputFloats);
+  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
+
+  cudaFree(deviceWorkspace);
+
+  delete residualBlock;
+
+  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+    cudnnDestroyTensorDescriptor(trunkDescriptors[batchSize-1]);
+    cudnnDestroyTensorDescriptor(midInDescriptors[batchSize-1]);
+  }
+  delete[] trunkDescriptors;
+  delete[] midInDescriptors;
+  cudaFree(deviceInput);
+  cudaFree(deviceMask);
+  cudaFree(deviceScratch);
+  cudaFree(deviceMidInput);
+  cudaFree(deviceMidScratch);
+  delete cudaHandles;
+
+  return true;
+}
+
+bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
+  const GlobalPoolingResidualBlockDesc* desc,
+  int desiredBatchSize,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const vector<float>& inputBuffer,
+  const vector<float>& maskBuffer,
+  vector<float>& outputBuffer
+) {
+  cudaDeviceSynchronize();
+  CudaHandles* cudaHandles = new CudaHandles();
+
+  int xSize = nnXLen;
+  int ySize = nnYLen;
+
+  size_t numInputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->preBN.numChannels;
+  size_t numMaskFloats = (size_t)desiredBatchSize * xSize * ySize;
+  size_t numMaskSumFloats = (size_t)desiredBatchSize;
+  size_t numRegularOutFloats = (size_t)desiredBatchSize * xSize * ySize * desc->regularConv.outChannels;
+  size_t numGPoolOutFloats = (size_t)desiredBatchSize * xSize * ySize * desc->gpoolConv.outChannels;
+  size_t numGPoolConcatFloats = (size_t)desiredBatchSize * 3 * desc->gpoolConv.outChannels;
+  size_t numGPoolBiasFloats = (size_t)desiredBatchSize * desc->regularConv.outChannels;
+  size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.outChannels;
+
+  if(numInputFloats != inputBuffer.size())
+    throw StringError("testEvaluateGlobalPoolingResidualBlock: unexpected input buffer size");
+  if(numMaskFloats != maskBuffer.size())
+    throw StringError("testEvaluateGlobalPoolingResidualBlock: unexpected mask buffer size");
+
+  void* deviceInput;
+  void* deviceMask;
+  float* deviceMaskFloatOrig;
+  float* deviceMaskFloat;
+  float* deviceMaskSum;
+  void* deviceScratch;
+  void* deviceRegularOut;
+  void* deviceRegularScratch;
+  void* deviceGPoolOut;
+  void* deviceGPoolOut2;
+  void* deviceGPoolConcat;
+  void* deviceGPoolBias;
+
+  void* deviceOutput;
+  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
+  CUDA_ERR("deviceMaskFloat",cudaMalloc(&deviceMaskFloat, numMaskFloats * sizeof(float)));
+  CUDA_ERR("deviceMaskSum",cudaMalloc(&deviceMaskSum, numMaskSumFloats * sizeof(float)));
+  deviceMaskFloatOrig = deviceMaskFloat;
+  mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
+  mallocOnDevice("deviceRegularOut", numRegularOutFloats, deviceRegularOut, useFP16);
+  mallocOnDevice("deviceRegularScratch", numRegularOutFloats, deviceRegularScratch, useFP16);
+  mallocOnDevice("deviceGPoolOut", numGPoolOutFloats, deviceGPoolOut, useFP16);
+  mallocOnDevice("deviceGPoolOut2", numGPoolOutFloats, deviceGPoolOut2, useFP16);
+  mallocOnDevice("deviceGPoolConcat", numGPoolConcatFloats, deviceGPoolConcat, useFP16);
+  mallocOnDevice("deviceGPoolBias", numGPoolBiasFloats, deviceGPoolBias, useFP16);
+  mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
+
+  fillMaskFloatBufAndMaskSumBuf(deviceMask, deviceMaskFloat, deviceMaskSum, useFP16, desiredBatchSize, xSize, ySize);
+
+  void* zeroBuf;
+  void* oneBuf;
+  hostMallocZeroOneBufs(zeroBuf, oneBuf, useFP16);
+
+  int maxBatchSize = desiredBatchSize;
+  cudnnTensorDescriptor_t* trunkDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+  cudnnTensorDescriptor_t* regularOutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+  cudnnTensorDescriptor_t* gpoolOutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+
+  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+    cudnnTensorDescriptor_t& trunkDescriptor = trunkDescriptors[batchSize-1];
+    cudnnTensorDescriptor_t& regularOutDescriptor = regularOutDescriptors[batchSize-1];
+    cudnnTensorDescriptor_t& gpoolOutDescriptor = gpoolOutDescriptors[batchSize-1];
+
+    CUDNN_ERR("trunkDescriptor",cudnnCreateTensorDescriptor(&trunkDescriptor));
+    CUDNN_ERR("trunkDescriptor",cudnnSetTensor4dDescriptor(
+      trunkDescriptor,
+      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
+      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
+      batchSize,
+      desc->preBN.numChannels,
+      ySize,
+      xSize
+    ));
+    CUDNN_ERR("regularOutDescriptor",cudnnCreateTensorDescriptor(&regularOutDescriptor));
+    CUDNN_ERR("regularOutDescriptor",cudnnSetTensor4dDescriptor(
+      regularOutDescriptor,
+      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
+      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
+      batchSize,
+      desc->regularConv.outChannels,
+      ySize,
+      xSize
+    ));
+    CUDNN_ERR("gpoolOutDescriptor",cudnnCreateTensorDescriptor(&gpoolOutDescriptor));
+    CUDNN_ERR("gpoolOutDescriptor",cudnnSetTensor4dDescriptor(
+      gpoolOutDescriptor,
+      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
+      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
+      batchSize,
+      desc->gpoolConv.outChannels,
+      ySize,
+      xSize
+    ));
+  }
+
+  GlobalPoolingResidualBlock* residualBlock = new GlobalPoolingResidualBlock(
+    cudaHandles,desc,maxBatchSize,xSize,ySize,trunkDescriptors,regularOutDescriptors,gpoolOutDescriptors,useFP16,useNHWC
+  );
+
+  size_t workspaceBytes =
+    residualBlock->requiredWorkspaceBytes(
+      cudaHandles,trunkDescriptors[desiredBatchSize-1],regularOutDescriptors[desiredBatchSize-1],gpoolOutDescriptors[desiredBatchSize-1],desiredBatchSize
+    );
+
+  void* deviceWorkspace;
+  CUDA_ERR("deviceWorkspace",cudaMalloc(&deviceWorkspace, workspaceBytes));
+
+  residualBlock->apply(
+    cudaHandles,
+    trunkDescriptors[desiredBatchSize-1],
+    regularOutDescriptors[desiredBatchSize-1],
+    gpoolOutDescriptors[desiredBatchSize-1],
+    desiredBatchSize,
+    deviceInput,
+    deviceScratch,
+    deviceRegularOut,
+    deviceGPoolOut,
+    deviceGPoolOut2,
+    deviceGPoolConcat,
+    deviceGPoolBias,
+    deviceRegularScratch,
+    deviceMask,
+    deviceMaskSum,
+    zeroBuf,
+    oneBuf,
+    deviceWorkspace,
+    workspaceBytes
+  );
+
+  outputBuffer.resize(numOutputFloats);
+  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
+
+  cudaFree(deviceWorkspace);
+
+  delete residualBlock;
+
+  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+    cudnnDestroyTensorDescriptor(trunkDescriptors[batchSize-1]);
+    cudnnDestroyTensorDescriptor(regularOutDescriptors[batchSize-1]);
+    cudnnDestroyTensorDescriptor(gpoolOutDescriptors[batchSize-1]);
+  }
+  delete[] trunkDescriptors;
+  delete[] regularOutDescriptors;
+  delete[] gpoolOutDescriptors;
+
+  free(zeroBuf);
+  free(oneBuf);
+
+  cudaFree(deviceInput);
+  cudaFree(deviceMask);
+  cudaFree(deviceMaskFloatOrig);
+  cudaFree(deviceMaskSum);
+  cudaFree(deviceScratch);
+  cudaFree(deviceRegularOut);
+  cudaFree(deviceRegularScratch);
+  cudaFree(deviceGPoolOut);
+  cudaFree(deviceGPoolOut2);
+  cudaFree(deviceGPoolConcat);
+  cudaFree(deviceGPoolBias);
   delete cudaHandles;
 
   return true;
