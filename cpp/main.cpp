@@ -12,6 +12,7 @@ static void printHelp() {
   cout << "matchauto" << endl;
   cout << "selfplay" << endl;
   cout << "runtests" << endl;
+  cout << "runnnlayertests" << endl;
   cout << "runoutputtests" << endl;
   cout << "runsearchtests" << endl;
   cout << "runsearchtestsv3" << endl;
@@ -47,6 +48,8 @@ int main(int argc, const char* argv[]) {
     return MainCmds::selfplay(argc-1,&argv[1]);
   else if(cmdArg == "runtests")
     return MainCmds::runtests(argc-1,&argv[1]);
+  else if(cmdArg == "runnnlayertests")
+    return MainCmds::runnnlayertests(argc-1,&argv[1]);
   else if(cmdArg == "runoutputtests")
     return MainCmds::runoutputtests(argc-1,&argv[1]);
   else if(cmdArg == "runsearchtests")

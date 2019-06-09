@@ -38,6 +38,17 @@ struct CudaHandles {
 
 //---------------------------------------------------------------------------------
 
+static void mallocOnDevice(const string& name, int numWeights, void*& deviceBuf, bool useFP16) {
+  if(useFP16) {
+    size_t halfBytes = numWeights * sizeof(half);
+    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
+  }
+  else {
+    size_t floatBytes = numWeights * sizeof(float);
+    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
+  }
+}
+
 static void mallocAndCopyToDevice(const string& name, const vector<float>& weights, void*& deviceBuf, bool useFP16) {
   size_t numWeights = weights.size();
   if(useFP16) {
@@ -59,7 +70,7 @@ static void mallocAndCopyToDevice(const string& name, const vector<float>& weigh
   }
 }
 
-static void mallocAndCopyToDevice(const string& name, float* weights, int numWeights, void*& deviceBuf, bool useFP16) {
+static void mallocAndCopyToDevice(const string& name, const float* weights, int numWeights, void*& deviceBuf, bool useFP16) {
   if(useFP16) {
     size_t halfBytes = numWeights * sizeof(half);
     size_t floatBytes = numWeights * sizeof(float);
@@ -77,6 +88,30 @@ static void mallocAndCopyToDevice(const string& name, float* weights, int numWei
     CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
     CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weights, floatBytes, cudaMemcpyHostToDevice));
   }
+}
+
+//Only use in testing, allocates an intermediate buffer in the case of FP16 which will be very slow.
+static void expensiveCopyFromDevice(const string& name, float* weights, int numWeights, void* deviceBuf, bool useFP16) {
+  if(useFP16) {
+    size_t floatBytes = numWeights * sizeof(float);
+    float* buf;
+    CUDA_ERR(name.c_str(),cudaMalloc(&buf, floatBytes));
+    customCudaCopyFromHalf((const half*)deviceBuf,(float*)buf,numWeights);
+    CUDA_ERR(name.c_str(),cudaMemcpy(weights, buf, floatBytes, cudaMemcpyDeviceToHost));
+    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
+    CUDA_ERR(name.c_str(),cudaDeviceSynchronize());
+    cudaFree(buf);
+  }
+  else {
+    size_t floatBytes = numWeights * sizeof(float);
+    CUDA_ERR(name.c_str(),cudaMemcpy(weights, deviceBuf, floatBytes, cudaMemcpyDeviceToHost));
+  }
+}
+
+
+static void checkBufferSize(int batchSize, int xSize, int ySize, int channels) {
+  if((int64_t)batchSize * xSize * ySize * channels >= (int64_t)1 << 31)
+    throw StringError("Batch size too large, resulting GPU buffers might exceed 2^31 entries which is not currently supported");
 }
 
 //---------------------------------------------------------------------------------
@@ -244,105 +279,6 @@ struct ConvLayer {
       outputDescriptor,
       outputBuf
     ));
-
-    // cudaDeviceSynchronize();
-    // cout << name << endl;
-    // float* inputsTmp = new float[224*19*19];
-    // CUDA_ERR("DEBUG",cudaMemcpy(inputsTmp, inputBuf, sizeof(float)*224*19*19/5, cudaMemcpyDeviceToHost));
-    // cout << name << " inputs ";
-    // for(int c = 0; c<2; c++)
-    //   for(int y = 0; y<2; y++)
-    //     for(int x = 0; x<2; x++)
-    //       cout << inputsTmp[y*19*224+x*224+c] << " ";
-    // cout << endl;
-    // float* filterTmp = new float[3*3*3];
-    // CUDA_ERR("DEBUG",cudaMemcpy(filterTmp, filterBuf, sizeof(float)*3*3*3, cudaMemcpyDeviceToHost));
-    // cout << name << " filter ";
-    // for(int i = 0; i<18; i++)
-    //   cout << filterTmp[i] << " ";
-    // cout << endl;
-    // float* outputsTmp = new float[224*19*19];
-    // CUDA_ERR("DEBUG",cudaMemcpy(outputsTmp, outputBuf, sizeof(float)*224*19*19/5, cudaMemcpyDeviceToHost));
-    // cout << name << " outputs ";
-    // for(int c = 0; c<2; c++)
-    //   for(int y = 0; y<2; y++)
-    //     for(int x = 0; x<2; x++)
-    //       cout << outputsTmp[y*19*224+x*224+c] << " ";
-    // cout << endl;
-
-    // cudaDeviceSynchronize();
-    // cout << name << endl;
-    // float* inputsTmp = new float[224*19*19];
-    // CUDA_ERR("DEBUG",cudaMemcpy(inputsTmp, inputBuf, sizeof(float)*224*19*19/5, cudaMemcpyDeviceToHost));
-    // cout << name << " inputs ";
-    // for(int c = 0; c<2; c++)
-    //   for(int y = 0; y<2; y++)
-    //     for(int x = 0; x<2; x++)
-    //       cout << inputsTmp[c*19*19+y*19+x] << " ";
-    // cout << endl;
-    // float* filterTmp = new float[3*3*3];
-    // CUDA_ERR("DEBUG",cudaMemcpy(filterTmp, filterBuf, sizeof(float)*3*3*3, cudaMemcpyDeviceToHost));
-    // cout << name << " filter ";
-    // for(int i = 0; i<18; i++)
-    //   cout << filterTmp[i] << " ";
-    // cout << endl;
-    // float* outputsTmp = new float[224*19*19];
-    // CUDA_ERR("DEBUG",cudaMemcpy(outputsTmp, outputBuf, sizeof(float)*224*19*19/5, cudaMemcpyDeviceToHost));
-    // cout << name << " outputs ";
-    // for(int c = 0; c<2; c++)
-    //   for(int y = 0; y<2; y++)
-    //     for(int x = 0; x<2; x++)
-    //       cout << outputsTmp[c*19*19+y*19+x] << " ";
-    // cout << endl;
-
-    // cudaDeviceSynchronize();
-    // cout << name << endl;
-    // float tmp[12];
-    // customCudaCopyFromHalf((const half*)inputBuf,(float*)workspaceBuf,12);
-    // CUDA_ERR("DEBUG",cudaMemcpy(tmp, workspaceBuf, sizeof(float)*12, cudaMemcpyDeviceToHost));
-    // for(int i = 0; i<12; i++)
-    //   cout << tmp[i] << " ";
-    // cout << endl;
-
-    // customCudaCopyFromHalf((const half*)filterBuf,(float*)workspaceBuf,12);
-    // CUDA_ERR("DEBUG",cudaMemcpy(tmp, workspaceBuf, sizeof(float)*12, cudaMemcpyDeviceToHost));
-    // for(int i = 0; i<12; i++)
-    //   cout << tmp[i] << " ";
-    // cout << endl;
-
-    // customCudaCopyFromHalf((const half*)outputBuf,(float*)workspaceBuf,12);
-    // CUDA_ERR("DEBUG",cudaMemcpy(tmp, workspaceBuf, sizeof(float)*12, cudaMemcpyDeviceToHost));
-    // for(int i = 0; i<12; i++)
-    //   cout << tmp[i] << " ";
-    // cout << endl;
-
-    // if(name == "conv1") {
-    //   float* outputsTmp = new float[224*19*19];
-    //   CUDA_ERR("DEBUG",cudaMemcpy(outputsTmp, outputBuf, sizeof(float)*224*19*19, cudaMemcpyDeviceToHost));
-    //   for(int ic = 0; ic < 224; ic++) {
-    //     for(int dy = 0; dy <= 1; dy++) {
-    //       for(int dx = 0; dx <= 1; dx++) {
-    //         float x = outputsTmp[19*19*ic + dy*19 + dx];
-    //         cout << "TEST " << ic << " " << dy << " " << dx << " " << x << endl;
-    //       }
-    //     }
-    //   }
-    // }
-
-    // if(name == "conv1") {
-    //   float* outputsTmp = new float[224*19*19];
-    //   customCudaCopyFromHalf((const half*)outputBuf,(float*)workspaceBuf,224*19*19);
-    //   CUDA_ERR("DEBUG",cudaMemcpy(outputsTmp, workspaceBuf, sizeof(float)*224*19*19, cudaMemcpyDeviceToHost));
-    //   for(int ic = 0; ic < 224; ic++) {
-    //     for(int dy = 0; dy <= 1; dy++) {
-    //       for(int dx = 0; dx <= 1; dx++) {
-    //         float x = outputsTmp[19*19*ic + dy*19 + dx];
-    //         cout << "TEST " << ic << " " << dy << " " << dx << " " << x << endl;
-    //       }
-    //     }
-    //   }
-    // }
-
   }
 
 };
@@ -1110,6 +1046,12 @@ struct Trunk {
     ySize = yS;
     usingFP16 = useFP16;
     usingNHWC = useNHWC;
+
+    checkBufferSize(maxBatchSize,xSize,ySize,trunkNumChannels);
+    checkBufferSize(maxBatchSize,xSize,ySize,midNumChannels);
+    checkBufferSize(maxBatchSize,xSize,ySize,regularNumChannels);
+    checkBufferSize(maxBatchSize,xSize,ySize,dilatedNumChannels);
+    checkBufferSize(maxBatchSize,xSize,ySize,gpoolNumChannels);
 
     trunkDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     regularOutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
@@ -2134,6 +2076,12 @@ struct Model {
         numInputGlobalChannels, numGlobalFeatures
       ));
 
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputGlobalChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numValueChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numScoreValueChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numOwnershipChannels);
+
     inputDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
@@ -2449,11 +2397,11 @@ struct Buffers {
   Buffers& operator=(const Buffers&) = delete;
 
   Buffers(CudaHandles* cudaHandles, const Model& m, bool useFP16) {
-    size_t batchXYFloatBytes = m.maxBatchSize * m.xSize * m.ySize * sizeof(float);
-    size_t batchFloatBytes = m.maxBatchSize * sizeof(float);
+    size_t batchXYFloatBytes = (size_t)m.maxBatchSize * m.xSize * m.ySize * sizeof(float);
+    size_t batchFloatBytes = (size_t)m.maxBatchSize * sizeof(float);
 
-    size_t batchXYBytes = m.maxBatchSize * m.xSize * m.ySize * (useFP16 ? sizeof(half) : sizeof(float));
-    size_t batchBytes = m.maxBatchSize * (useFP16 ? sizeof(half) : sizeof(float));
+    size_t batchXYBytes = (size_t)m.maxBatchSize * m.xSize * m.ySize * (useFP16 ? sizeof(half) : sizeof(float));
+    size_t batchBytes = (size_t)m.maxBatchSize * (useFP16 ? sizeof(half) : sizeof(float));
 
     inputBufBytesFloat = m.numInputChannels * batchXYFloatBytes;
     inputBufBytes = m.numInputChannels * batchXYBytes;
@@ -2727,38 +2675,38 @@ struct InputBuffers {
     int ySize = nnYLen;
 
     maxBatchSize = maxBatchSz;
-    singleInputElts = m.numInputChannels * xSize * ySize;
-    singleInputBytes = m.numInputChannels * xSize * ySize * sizeof(float);
-    singleInputGlobalElts = m.numInputGlobalChannels;
-    singleInputGlobalBytes = m.numInputGlobalChannels * sizeof(float);
-    singlePolicyResultElts = (1 + xSize * ySize);
-    singlePolicyResultBytes = (1 + xSize * ySize) * sizeof(float);
-    singleValueResultElts = m.numValueChannels;
-    singleValueResultBytes = m.numValueChannels * sizeof(float);
-    singleScoreValueResultElts = m.numScoreValueChannels;
-    singleScoreValueResultBytes = m.numScoreValueChannels * sizeof(float);
-    singleOwnershipResultElts = m.numOwnershipChannels * xSize * ySize;
-    singleOwnershipResultBytes = m.numOwnershipChannels * xSize * ySize * sizeof(float);
+    singleInputElts = (size_t)m.numInputChannels * xSize * ySize;
+    singleInputBytes = (size_t)m.numInputChannels * xSize * ySize * sizeof(float);
+    singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
+    singleInputGlobalBytes = (size_t)m.numInputGlobalChannels * sizeof(float);
+    singlePolicyResultElts = (size_t)(1 + xSize * ySize);
+    singlePolicyResultBytes = (size_t)(1 + xSize * ySize) * sizeof(float);
+    singleValueResultElts = (size_t)m.numValueChannels;
+    singleValueResultBytes = (size_t)m.numValueChannels * sizeof(float);
+    singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
+    singleScoreValueResultBytes = (size_t)m.numScoreValueChannels * sizeof(float);
+    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * xSize * ySize;
+    singleOwnershipResultBytes = (size_t)m.numOwnershipChannels * xSize * ySize * sizeof(float);
 
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
 
-    userInputBufferBytes = m.numInputChannels * maxBatchSize * xSize * ySize * sizeof(float);
-    userInputGlobalBufferBytes = m.numInputGlobalChannels * maxBatchSize * sizeof(float);
-    policyResultBufferBytes = maxBatchSize * (1 + xSize * ySize) * sizeof(float);
-    valueResultBufferBytes = maxBatchSize * m.numValueChannels * sizeof(float);
-    scoreValueResultBufferBytes = maxBatchSize * m.numScoreValueChannels * sizeof(float);
-    ownershipResultBufferBytes = maxBatchSize * xSize * ySize * m.numOwnershipChannels * sizeof(float);
+    userInputBufferBytes = (size_t)m.numInputChannels * maxBatchSize * xSize * ySize * sizeof(float);
+    userInputGlobalBufferBytes = (size_t)m.numInputGlobalChannels * maxBatchSize * sizeof(float);
+    policyResultBufferBytes = (size_t)maxBatchSize * (1 + xSize * ySize) * sizeof(float);
+    valueResultBufferBytes = (size_t)maxBatchSize * m.numValueChannels * sizeof(float);
+    scoreValueResultBufferBytes = (size_t)maxBatchSize * m.numScoreValueChannels * sizeof(float);
+    ownershipResultBufferBytes = (size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels * sizeof(float);
 
-    userInputBuffer = new float[m.numInputChannels * maxBatchSize * xSize * ySize];
-    userInputGlobalBuffer = new float[m.numInputGlobalChannels * maxBatchSize];
+    userInputBuffer = new float[(size_t)m.numInputChannels * maxBatchSize * xSize * ySize];
+    userInputGlobalBuffer = new float[(size_t)m.numInputGlobalChannels * maxBatchSize];
     symmetriesBuffer = new bool[NNInputs::NUM_SYMMETRY_BOOLS];
 
-    policyResults = new float[maxBatchSize * (1 + xSize * ySize)];
-    valueResults = new float[maxBatchSize * m.numValueChannels];
+    policyResults = new float[(size_t)maxBatchSize * (1 + xSize * ySize)];
+    valueResults = new float[(size_t)maxBatchSize * m.numValueChannels];
 
-    scoreValueResults = new float[maxBatchSize * m.numScoreValueChannels];
-    ownershipResults = new float[maxBatchSize * xSize * ySize * m.numOwnershipChannels];
+    scoreValueResults = new float[(size_t)maxBatchSize * m.numScoreValueChannels];
+    ownershipResults = new float[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
   }
 
   ~InputBuffers() {
@@ -2971,5 +2919,106 @@ void NeuralNet::getOutput(ComputeHandle* gpuHandle, InputBuffers* inputBuffers, 
   }
 
 }
+
+//TESTING ----------------------------------------------------------------------------------
+
+
+bool NeuralNet::testEvaluateConv(
+  const ConvLayerDesc* desc,
+  int desiredBatchSize,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const vector<float>& inputBuffer,
+  vector<float>& outputBuffer
+) {
+  cudaDeviceSynchronize();
+  CudaHandles* cudaHandles = new CudaHandles();
+
+  int xSize = nnXLen;
+  int ySize = nnYLen;
+
+  size_t numInputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->inChannels;
+  size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->outChannels;
+  if(numInputFloats != inputBuffer.size())
+    throw StringError("testEvaluateConv: unexpected input buffer size");
+
+  void* deviceInput;
+  void* deviceOutput;
+  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
+
+  int maxBatchSize = desiredBatchSize;
+  cudnnTensorDescriptor_t* inputDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+  cudnnTensorDescriptor_t* outputDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
+
+  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+    cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
+    cudnnTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize-1];
+
+    CUDNN_ERR("inputDescriptor",cudnnCreateTensorDescriptor(&inputDescriptor));
+    CUDNN_ERR("inputDescriptor",cudnnSetTensor4dDescriptor(
+      inputDescriptor,
+      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
+      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
+      batchSize,
+      desc->inChannels,
+      ySize,
+      xSize
+    ));
+    CUDNN_ERR("outputDescriptor",cudnnCreateTensorDescriptor(&outputDescriptor));
+    CUDNN_ERR("outputDescriptor",cudnnSetTensor4dDescriptor(
+      outputDescriptor,
+      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
+      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
+      batchSize,
+      desc->outChannels,
+      ySize,
+      xSize
+    ));
+  }
+
+  ConvLayer* convLayer = new ConvLayer(cudaHandles,desc,maxBatchSize,inputDescriptors,outputDescriptors,useFP16,useNHWC);
+
+  size_t workspaceBytes =
+    convLayer->requiredWorkspaceBytes(cudaHandles,inputDescriptors[desiredBatchSize-1],outputDescriptors[desiredBatchSize-1],desiredBatchSize);
+  void* deviceWorkspace;
+  CUDA_ERR("deviceWorkspace",cudaMalloc(&deviceWorkspace, workspaceBytes));
+
+
+  bool accumulate = false;
+  convLayer->apply(
+    cudaHandles,
+    inputDescriptors[desiredBatchSize-1],
+    outputDescriptors[desiredBatchSize-1],
+    desiredBatchSize,
+    accumulate,
+    deviceInput,
+    deviceOutput,
+    deviceWorkspace,
+    workspaceBytes
+  );
+
+  outputBuffer.resize(numOutputFloats);
+  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceOutput, useFP16);
+
+  cudaFree(deviceWorkspace);
+
+  delete convLayer;
+
+  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+    cudnnDestroyTensorDescriptor(inputDescriptors[batchSize-1]);
+    cudnnDestroyTensorDescriptor(outputDescriptors[batchSize-1]);
+  }
+  delete[] inputDescriptors;
+  delete[] outputDescriptors;
+  cudaFree(deviceInput);
+  cudaFree(deviceOutput);
+  delete cudaHandles;
+
+  return true;
+}
+
 
 #endif  // USE_CUDA_BACKEND

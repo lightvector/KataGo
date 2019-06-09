@@ -96,9 +96,25 @@ namespace NeuralNet {
 
 
   //FOR TESTING -----------------------------------------------------------------------
+  //For all of the below, the input buffers must have exactly the size expected of the input for the operation.
+  //If useNHWC, assumes inputBuffer and outputBuffer are NHWC format, else assumes NCHW format.
 
-  /* void debugEvaluateConv(ComputeHandle* computeHandle, const ConvLayerDesc* desc */
+  //If the operation is implemented for testing, a backend should return true and evaluate the
+  //specific operation on the input buffer, resizing the output buffer and writing the result.
+  //If it is not implemented, backend should return false.
+
+  bool testEvaluateConv(
+    const ConvLayerDesc* desc,
+    int batchSize,
+    int nnXLen,
+    int nnYLen,
+    bool useFP16,
+    bool useNHWC,
+    const std::vector<float>& inputBuffer,
+    std::vector<float>& outputBuffer
+  );
 
 }  // namespace NeuralNet
+
 
 #endif  // NEURALNET_NNINTERFACE_H_

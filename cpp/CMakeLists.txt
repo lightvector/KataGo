@@ -169,6 +169,7 @@ if(BUILD_MCTS)
     tests/testsearch.cpp
     tests/testtime.cpp
     tests/testtrainingwrite.cpp
+    tests/testnn.cpp
     evalsgf.cpp
     gatekeeper.cpp
     gtp.cpp

@@ -117,3 +117,11 @@ int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
 
   return 0;
 }
+
+
+int MainCmds::runnnlayertests(int argc, const char* const* argv) {
+  (void)argc;
+  (void)argv;
+  Tests::runNNLayerTests();
+  return 0;
+}
