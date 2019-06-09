@@ -1,6 +1,8 @@
 #include "../neuralnet/desc.h"
 
 #include <cmath>
+#include <fstream>
+#include <zstr/src/zstr.hpp>
 
 #include "../core/global.h"
 #include "../neuralnet/modelversion.h"
@@ -1009,4 +1011,22 @@ ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
   policyHead = std::move(other.policyHead);
   valueHead = std::move(other.valueHead);
   return *this;
+}
+
+void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& descBuf) {
+  try {
+    //zstr has a bad property of simply aborting the program if the file doesn't exist
+    //So we try to catch this common error by explicitly testing first if the file exists by trying to open it normally
+    //to turn it into a regular C++ exception.
+    {
+      ifstream testIn(fileName);
+      if(!testIn.good())
+        throw StringError("File does not exist or could not be opened: " + fileName);
+    }
+    zstr::ifstream in(fileName);
+    descBuf = std::move(ModelDesc(in));
+  }
+  catch(const StringError& e) {
+    throw StringError("Error parsing model file " + fileName + ": " + e.what());
+  }
 }

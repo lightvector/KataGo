@@ -2,9 +2,6 @@
 #include "../neuralnet/cudaerrorcheck.h"
 #include "../neuralnet/cudaincludes.h"
 
-#include <fstream>
-#include <zstr/src/zstr.hpp>
-
 #include "../neuralnet/cudahelpers.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninterface.h"
@@ -20,13 +17,6 @@ void NeuralNet::globalInitialize() {
 void NeuralNet::globalCleanup() {
   cudaDeviceReset();
 }
-
-static void checkWeightFinite(float f, const string& name) {
-  if(!isfinite(f))
-    throw StringError(name + ": Nan or infinite neural net weight or parameter");
-}
-#define CHECKFINITE(x,name) { checkWeightFinite((x),name); }
-
 
 struct CudaHandles {
   cublasHandle_t cublas;
@@ -2371,8 +2361,8 @@ struct Model {
 struct LoadedModel {
   ModelDesc modelDesc;
 
-  LoadedModel(istream& in) {
-    modelDesc = std::move(ModelDesc(in));
+  LoadedModel(const string& fileName) {
+    ModelDesc::loadFromFileMaybeGZipped(fileName,modelDesc);
   }
 
   LoadedModel() = delete;
@@ -2382,23 +2372,8 @@ struct LoadedModel {
 
 LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
   (void)modelFileIdx;
-
-  try {
-    //zstr has a bad property of simply aborting if the file doesn't exist
-    //So we try to catch this common error by explicitly testing first if the file exists by trying to open it normally
-    //to turn it into a regular C++ exception.
-    {
-      ifstream testIn(file);
-      if(!testIn.good())
-        throw StringError("File does not exist or could not be opened");
-    }
-    zstr::ifstream in(file);
-    LoadedModel* loadedModel = new LoadedModel(in);
-    return loadedModel;
-  }
-  catch(const StringError& e) {
-    throw StringError("Error parsing model file " + file + ": " + e.what());
-  }
+  LoadedModel* loadedModel = new LoadedModel(file);
+  return loadedModel;
 }
 
 void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {

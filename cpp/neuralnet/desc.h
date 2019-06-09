@@ -260,6 +260,9 @@ struct ModelDesc {
   ModelDesc& operator=(const ModelDesc&) = delete;
 
   ModelDesc& operator=(ModelDesc&& other);
+
+  //Loads a model from a file that may or may not be gzipped, storing it in descBuf
+  static void loadFromFileMaybeGZipped(const std::string& fileName, ModelDesc& descBuf);
 };
 
 #endif  // #ifndef DESC_H

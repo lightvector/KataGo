@@ -92,7 +92,12 @@ namespace NeuralNet {
   // Result: mutably writes the results of the numBatchEltsFilled many parallel neural net evaluations
   // into the NNOutput structs.
   // All outputs are in logits - all final activation functions softmax, tanh, etc. are NOT applied.
-  void getOutput(ComputeHandle* gpuHandle, InputBuffers* buffers, int numBatchEltsFilled, std::vector<NNOutput*>& outputs);
+  void getOutput(ComputeHandle* computeHandle, InputBuffers* buffers, int numBatchEltsFilled, std::vector<NNOutput*>& outputs);
+
+
+  //FOR TESTING -----------------------------------------------------------------------
+
+  /* void debugEvaluateConv(ComputeHandle* computeHandle, const ConvLayerDesc* desc */
 
 }  // namespace NeuralNet
 
