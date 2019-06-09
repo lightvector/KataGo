@@ -117,7 +117,7 @@ namespace NeuralNet {
   //Mask should be in 'NHW' format (no "C" channel).
   bool testEvaluateBatchNorm(
     const BatchNormLayerDesc* desc,
-    int desiredBatchSize,
+    int batchSize,
     int nnXLen,
     int nnYLen,
     bool useFP16,
@@ -129,7 +129,7 @@ namespace NeuralNet {
 
   bool testEvaluateResidualBlock(
     const ResidualBlockDesc* desc,
-    int desiredBatchSize,
+    int batchSize,
     int nnXLen,
     int nnYLen,
     bool useFP16,
@@ -141,7 +141,7 @@ namespace NeuralNet {
 
   bool testEvaluateGlobalPoolingResidualBlock(
     const GlobalPoolingResidualBlockDesc* desc,
-    int desiredBatchSize,
+    int batchSize,
     int nnXLen,
     int nnYLen,
     bool useFP16,
