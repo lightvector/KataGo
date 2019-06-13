@@ -502,7 +502,34 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     return false;
 
   //Sanity check - if somehow we had more than this, something must have overflowed or gone wrong
-  assert(maxValue < 1e16);
+  if(!(maxValue < 1e9)) {
+    cout << rootBoard << endl;
+    cout << maxValue << endl;
+    for(int i = 0; i<numChildren; i++) {
+      SearchNode* child = node.children[i];
+      Loc moveLoc = child->prevMoveLoc;
+      int movePos = getPos(moveLoc);
+      double policyProb = nnOutput->policyProbs[movePos];
+
+      while(child->statsLock.test_and_set(std::memory_order_acquire));
+      uint64_t numVisits = child->stats.visits;
+      double winValueSum = child->stats.winValueSum;
+      double noResultValueSum = child->stats.noResultValueSum;
+      double scoreMeanSum = child->stats.scoreMeanSum;
+      double scoreMeanSqSum = child->stats.scoreMeanSqSum;
+      double weightSum = child->stats.weightSum;
+      double weightSqSum = child->stats.weightSqSum;
+      double utilitySum = child->stats.utilitySum;
+      child->statsLock.clear(std::memory_order_release);
+
+      cout << Location::toString(moveLoc,rootBoard) << " ";
+      cout << policyProb << " ";
+      cout << numVisits << " " << winValueSum << " " << noResultValueSum << " " << scoreMeanSum << " " << scoreMeanSqSum << " " << weightSum << " "
+           << weightSqSum << " " << utilitySum;
+      cout << endl;
+    }
+  }
+  assert(maxValue < 1e24);
 
   double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/64.0);
   double amountToPrune = std::min(searchParams.chosenMovePrune, maxValue/64.0);
