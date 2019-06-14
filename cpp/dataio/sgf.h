@@ -88,6 +88,7 @@ struct CompactSgf {
   static CompactSgf* loadFile(const std::string& file);
   static std::vector<CompactSgf*> loadFiles(const std::vector<std::string>& files);
 
+  Rules getRulesFromSgf(const Rules& defaultRules);
   void setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist);
   void setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber);
 };

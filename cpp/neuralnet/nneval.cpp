@@ -168,6 +168,9 @@ int NNEvaluator::getNNXLen() const {
 int NNEvaluator::getNNYLen() const {
   return nnYLen;
 }
+Rules NNEvaluator::getSupportedRules(const Rules& desiredRules, bool& supported) {
+  return NeuralNet::getSupportedRules(loadedModel, desiredRules, supported);
+}
 
 uint64_t NNEvaluator::numRowsProcessed() const {
   return m_numRowsProcessed.load(std::memory_order_relaxed);
@@ -435,6 +438,7 @@ void NNEvaluator::evaluate(
                         " and requireExactNNLen, but was asked to evaluate board with different x or y size");
   }
 
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
   Hash128 nnHash;
   if(inputsVersion == 3)
     nnHash = NNInputs::getHashV3(board, history, nextPlayer, drawEquivalentWinsForWhite);
@@ -486,6 +490,7 @@ void NNEvaluator::evaluate(
         throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
 
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
     if(inputsVersion == 3) {
       NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }

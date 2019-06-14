@@ -215,7 +215,7 @@ Rules SgfNode::getRules(const Rules& defaultRules) const {
   if(!hasProperty("RU"))
     return rules;
   string s = Global::toLower(getSingleProperty("RU"));
-  if(s == "japansese") {
+  if(s == "japanese") {
     rules.scoringRule = Rules::SCORING_TERRITORY;
     rules.koRule = Rules::KO_SIMPLE;
     rules.multiStoneSuicideLegal = false;
@@ -251,7 +251,7 @@ Rules SgfNode::getRules(const Rules& defaultRules) const {
     auto fail = [&origS]() {
       throw StringError("Could not parse rules in sgf: " + origS);
     };
-      
+
     if(startsWithAndStrip(s,"ko")) {
       if(startsWithAndStrip(s,"simple")) rules.koRule = Rules::KO_SIMPLE;
       else if(startsWithAndStrip(s,"positional")) rules.koRule = Rules::KO_POSITIONAL;
@@ -262,7 +262,7 @@ Rules SgfNode::getRules(const Rules& defaultRules) const {
       bool b;
       b = startsWithAndStrip(s,"score");
       if(!b) fail();
-      
+
       if(startsWithAndStrip(s,"area")) rules.scoringRule = Rules::SCORING_AREA;
       else if(startsWithAndStrip(s,"territory")) rules.scoringRule = Rules::SCORING_TERRITORY;
       else fail();
@@ -325,7 +325,7 @@ XYSize Sgf::getXYSize() const {
       propertyFail("Could not parse board size in sgf: " + s);
     ySize = xSize;
   }
-  
+
   if(xSize <= 0 || ySize <= 0)
     propertyFail("Board size in sgf is <= 0: " + s);
   if(xSize > Board::MAX_LEN || ySize > Board::MAX_LEN)
@@ -342,13 +342,13 @@ float Sgf::getKomi() const {
   //Default, if SGF doesn't specify
   if(!nodes[0]->hasProperty("KM"))
     return 7.5f;
-  
+
   float komi;
   bool suc = Global::tryStringToFloat(nodes[0]->getSingleProperty("KM"), komi);
   if(!suc)
     propertyFail("Could not parse komi in sgf");
   if(!Rules::komiIsIntOrHalfInt(komi))
-    propertyFail("Komi in sgf is not integer or half-integer");    
+    propertyFail("Komi in sgf is not integer or half-integer");
   return komi;
 }
 
@@ -490,7 +490,7 @@ static bool maybeParseProperty(SgfNode* node, const string& str, int& pos) {
     if(peekSgfChar(str,pos,newPos) != '[')
       break;
     consume(str,pos,newPos);
-    
+
     if(node->move.pla == C_EMPTY && key == "B") {
       node->move = parseSgfLocOrPassNoSize(parseTextValue(str,pos),P_BLACK);
     }
@@ -512,7 +512,7 @@ static bool maybeParseProperty(SgfNode* node, const string& str, int& pos) {
   }
   if(!parsedAtLeastOne)
     sgfFail("No property values for property " + key,str,pos);
-  
+
   return true;
 }
 
@@ -521,7 +521,7 @@ static SgfNode* maybeParseNode(const string& str, int& pos) {
   if(peekSgfChar(str,pos,newPos) != ';')
     return NULL;
   consume(str,pos,newPos);
-  
+
   SgfNode* node = new SgfNode();
   try {
     while(true) {
@@ -545,7 +545,7 @@ static Sgf* maybeParseSgf(const string& str, int& pos) {
   if(c != '(')
     return NULL;
   consume(str,pos,newPos);
-  
+
   int entryPos = pos;
   Sgf* sgf = new Sgf();
   try {
@@ -762,12 +762,14 @@ vector<CompactSgf*> CompactSgf::loadFiles(const vector<string>& files) {
   return sgfs;
 }
 
-
-void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) {
-  Rules rules = initialRules;
+Rules CompactSgf::getRulesFromSgf(const Rules& defaultRules) {
+  Rules rules = defaultRules;
   rules.komi = komi;
   rules = rootNode.getRules(rules);
+  return rules;
+}
 
+void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) {
   Color plPlayer = rootNode.getPLSpecifiedColor();
   if(plPlayer == P_BLACK || plPlayer == P_WHITE)
     nextPla = plPlayer;
@@ -785,13 +787,13 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
     else
       nextPla = P_BLACK;
   }
-  
+
   board = Board(xSize,ySize);
   for(int i = 0; i<placements.size(); i++) {
     board.setStone(placements[i].loc,placements[i].pla);
   }
 
-  hist = BoardHistory(board,nextPla,rules,0);
+  hist = BoardHistory(board,nextPla,initialRules,0);
 }
 
 void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) {
@@ -804,7 +806,7 @@ void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Play
         (int)turnNumber, 0, (int)moves.size()
       )
     );
-  
+
   for(size_t i = 0; i<turnNumber; i++) {
     hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
     nextPla = getOpp(moves[i].pla);

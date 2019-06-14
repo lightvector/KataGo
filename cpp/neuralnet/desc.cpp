@@ -1030,3 +1030,25 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
     throw StringError("Error parsing model file " + fileName + ": " + e.what());
   }
 }
+
+
+Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
+  static_assert(NNModelVersion::latestModelVersionImplemented == 6, "");
+  Rules rules = desiredRules;
+  supported = true;
+  if(version <= 6) {
+    if(rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT) {
+      rules.koRule = Rules::KO_SITUATIONAL;
+      supported = false;
+    }
+    if(rules.scoringRule == Rules::SCORING_TERRITORY) {
+      rules.scoringRule = Rules::SCORING_AREA;
+      supported = false;
+    }
+  }
+  else {
+    ASSERT_UNREACHABLE;
+  }
+
+  return rules;
+}

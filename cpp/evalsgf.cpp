@@ -100,7 +100,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   //Parse config and rules -------------------------------------------------------------------
 
   ConfigParser cfg(configFile);
-  Rules initialRules;
+  Rules defaultRules;
   {
     //All of these might get overwritten by the sgf
     string koRule = cfg.getString("koRule", Rules::koRuleStrings());
@@ -108,10 +108,10 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
     float komi = 7.5f; //Default komi, sgf will generally override this
 
-    initialRules.koRule = Rules::parseKoRule(koRule);
-    initialRules.scoringRule = Rules::parseScoringRule(scoringRule);
-    initialRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-    initialRules.komi = komi;
+    defaultRules.koRule = Rules::parseKoRule(koRule);
+    defaultRules.scoringRule = Rules::parseScoringRule(scoringRule);
+    defaultRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
+    defaultRules.komi = komi;
   }
 
   //Parse sgf file and board ------------------------------------------------------------------
@@ -121,29 +121,36 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   Board board;
   Player nextPla;
   BoardHistory hist;
-  sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-  vector<Move>& moves = sgf->moves;
 
-  if(!isnan(overrideKomi)) {
-    if(overrideKomi > board.x_size * board.y_size || overrideKomi < -board.x_size * board.y_size)
-      throw StringError("Invalid komi, greater than the area of the board");
-    hist.setKomi(overrideKomi);
-  }
+  auto setUpBoardUsingRules = [&board,&nextPla,&hist,overrideKomi,moveNum,&sgf](const Rules& initialRules) {
+    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+    vector<Move>& moves = sgf->moves;
 
-  if(moveNum < 0)
-    throw StringError("Move num " + Global::intToString(moveNum) + " requested but must be non-negative");
-  if(moveNum > moves.size())
-    throw StringError("Move num " + Global::intToString(moveNum) + " requested but sgf has only " + Global::intToString(moves.size()));
-
-  for(int i = 0; i<moveNum; i++) {
-    if(!board.isLegal(moves[i].loc,moves[i].pla,hist.rules.multiStoneSuicideLegal)) {
-      cerr << board << endl;
-      cerr << "SGF Illegal move " << (i+1) << " for " << colorToChar(moves[i].pla) << ": " << Location::toString(moves[i].loc,board) << endl;
-      return 1;
+    if(!isnan(overrideKomi)) {
+      if(overrideKomi > board.x_size * board.y_size || overrideKomi < -board.x_size * board.y_size)
+        throw StringError("Invalid komi, greater than the area of the board");
+      hist.setKomi(overrideKomi);
     }
-    hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
-    nextPla = getOpp(moves[i].pla);
-  }
+
+    if(moveNum < 0)
+      throw StringError("Move num " + Global::intToString(moveNum) + " requested but must be non-negative");
+    if(moveNum > moves.size())
+      throw StringError("Move num " + Global::intToString(moveNum) + " requested but sgf has only " + Global::intToString(moves.size()));
+
+    for(int i = 0; i<moveNum; i++) {
+      //Tolerate suicide moves in an sgf, regardless of what the nominal rules were
+      bool multiStoneSuicideLegal = true;
+      if(!board.isLegal(moves[i].loc,moves[i].pla,multiStoneSuicideLegal)) {
+        cerr << board << endl;
+        cerr << "SGF Illegal move " << (i+1) << " for " << colorToChar(moves[i].pla) << ": " << Location::toString(moves[i].loc,board) << endl;
+        throw StringError("Illegal move in SGF");
+      }
+      hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
+      nextPla = getOpp(moves[i].pla);
+    }
+  };
+  Rules initialRules = sgf->getRulesFromSgf(defaultRules);
+  setUpBoardUsingRules(initialRules);
 
   //Parse move sequence arguments------------------------------------------
 
@@ -212,6 +219,16 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     nnEval = nnEvals[0];
   }
   logger.write("Loaded neural net");
+
+  {
+    bool rulesWereSupported;
+    Rules supportedRules = nnEval->getSupportedRules(initialRules,rulesWereSupported);
+    if(!rulesWereSupported) {
+      cout << "Warning: Rules " << initialRules << " from sgf not supported by neural net, using " << supportedRules << " instead" << endl;
+      //Attempt to re-set-up the board using supported rules
+      setUpBoardUsingRules(supportedRules);
+    }
+  }
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);

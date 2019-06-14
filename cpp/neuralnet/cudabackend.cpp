@@ -2366,6 +2366,10 @@ int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   return loadedModel->modelDesc.version;
 }
 
+Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
+  return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
+}
+
 //------------------------------------------------------------------------------
 
 struct Buffers {

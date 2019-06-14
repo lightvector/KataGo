@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "../game/rules.h"
+
 struct ConvLayerDesc {
   std::string name;
   int convYSize;
@@ -263,6 +265,10 @@ struct ModelDesc {
 
   //Loads a model from a file that may or may not be gzipped, storing it in descBuf
   static void loadFromFileMaybeGZipped(const std::string& fileName, ModelDesc& descBuf);
+
+  //Return the "nearest" supported ruleset to desiredRules by this model.
+  //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
+  Rules getSupportedRules(const Rules& desiredRules, bool& supported) const;
 };
 
 #endif  // #ifndef DESC_H

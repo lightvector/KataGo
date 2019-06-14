@@ -16,8 +16,8 @@ static void fail(int modelVersion) {
   throw StringError("NNModelVersion: Model version not currently implemented or supported: " + Global::intToString(modelVersion));
 }
 
-const int NNModelVersion::latestModelVersionImplemented = 6;
-const int NNModelVersion::defaultModelVersion = 5;
+static_assert(NNModelVersion::latestModelVersionImplemented == 6, "");
+static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
 
 int NNModelVersion::getInputsVersion(int modelVersion) {
   if(modelVersion == 3 || modelVersion == 4)

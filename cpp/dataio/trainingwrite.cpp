@@ -1,4 +1,5 @@
 #include "../dataio/trainingwrite.h"
+#include "../neuralnet/modelversion.h"
 
 using namespace std;
 
@@ -281,6 +282,7 @@ void TrainingWriteBuffers::addRow(
   const FinishedGameData& data,
   Rand& rand
 ) {
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
   if(inputsVersion < 3 || inputsVersion > 5)
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 

@@ -118,13 +118,14 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
     bot->clearSearch();
 }
 
-static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules, int turnNumber, double overrideKomi, TestSearchOptions opts) {
+static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnNumber, double overrideKomi, TestSearchOptions opts) {
   CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
   Board board;
   Player nextPla;
   BoardHistory hist;
-  sgf->setupBoardAndHist(rules, board, nextPla, hist, turnNumber);
+  Rules initialRules = sgf->getRulesFromSgf(defaultRules);
+  sgf->setupBoardAndHist(initialRules, board, nextPla, hist, turnNumber);
   hist.setKomi(overrideKomi);
   runBotOnPosition(bot,board,nextPla,hist,opts);
   delete sgf;
@@ -353,7 +354,8 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     Board board;
     Player nextPla;
     BoardHistory hist;
-    sgf->setupBoardAndHist(Rules::getTrompTaylorish(), board, nextPla, hist, 40);
+    Rules initialRules = sgf->getRulesFromSgf(Rules::getTrompTaylorish());
+    sgf->setupBoardAndHist(initialRules, board, nextPla, hist, 40);
 
     double drawEquivalentWinsForWhite = 0.5;
     NNResultBuf buf;
@@ -389,7 +391,8 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     Board board;
     Player nextPla;
     BoardHistory hist;
-    sgf->setupBoardAndHist(Rules::getTrompTaylorish(), board, nextPla, hist, 43);
+    Rules initialRules = sgf->getRulesFromSgf(Rules::getTrompTaylorish());
+    sgf->setupBoardAndHist(initialRules, board, nextPla, hist, 43);
 
     double drawEquivalentWinsForWhite = 0.5;
     NNResultBuf buf;

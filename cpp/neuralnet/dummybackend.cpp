@@ -30,6 +30,13 @@ int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   throw StringError("Dummy neural net backend: NeuralNet::getModelVersion unimplemented");
 }
 
+Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
+  (void)loadedModel;
+  (void)desiredRules;
+  (void)supported;
+  throw StringError("Dummy neural net backend: NeuralNet::getSupportedRules unimplemented");
+}
+
 ComputeHandle* NeuralNet::createComputeHandle(
   const LoadedModel* loadedModel,
   Logger* logger,
