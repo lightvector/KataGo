@@ -7,6 +7,10 @@
 #include "../neuralnet/desc.h"
 #include "../neuralnet/nninputs.h"
 
+// A handle to cross-thread cross-gpu initialization state.
+// Create one of these per process, although creating more is fine.
+struct ComputeContext;
+
 // A handle to the local compute backend. Not thread-safe, each handle should
 // only be used by one thread.
 struct ComputeHandle;
@@ -25,6 +29,16 @@ namespace NeuralNet {
   void globalInitialize();
   // Call globalCleanup() at program termination.
   void globalCleanup();
+
+  // Context -------------------------------------------------------------------
+
+  ComputeContext* createComputeContext(
+    //The indices of all gpus that this context will be used for.
+    const std::vector<int>& gpuIdxs,
+    Logger* logger
+  );
+  //A ComputeContext should NOT be freed until all ComputeHandles created using it have also been freed.
+  void freeComputeContext(ComputeContext* computeContext);
 
   // Model I/O -----------------------------------------------------------------
 
@@ -46,6 +60,7 @@ namespace NeuralNet {
   // allowed to assume that all boards to evaluate will be of size exactly equal
   // to (nnXLen,nnYLen) rather than smaller, and skip any masking operations.
   ComputeHandle* createComputeHandle(
+    ComputeContext* context,
     const LoadedModel* loadedModel,
     Logger* logger,
     int maxBatchSize,
@@ -53,7 +68,7 @@ namespace NeuralNet {
     int nnYLen,
     bool requireExactNNLen,
     bool inputsUseNHWC,
-    int cudaGpuIdxForThisThread,
+    int gpuIdxForThisThread,
     bool useFP16,
     bool cudaUseNHWC
   );

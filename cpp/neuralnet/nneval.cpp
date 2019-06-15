@@ -55,6 +55,8 @@ NNServerBuf::~NNServerBuf() {
 NNEvaluator::NNEvaluator(
   const string& mName,
   const string& mFileName,
+  const vector<int>& gpuIdxs,
+  Logger* logger,
   int modelFileIdx,
   int maxBatchSize,
   int maxConcurrentEvals,
@@ -75,6 +77,7 @@ NNEvaluator::NNEvaluator(
    requireExactNNLen(rExactNNLen),
    policySize(NNPos::getPolicySize(xLen,yLen)),
    inputsUseNHWC(iUseNHWC),
+   computeContext(NULL),
    loadedModel(NULL),
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
@@ -116,6 +119,8 @@ NNEvaluator::NNEvaluator(
   if(nnCacheSizePowerOfTwo >= 0)
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo, nnMutexPoolSizePowerofTwo);
 
+  computeContext = NeuralNet::createComputeContext(gpuIdxs,logger);
+
   if(!debugSkipNeuralNet) {
     loadedModel = NeuralNet::loadModelFile(modelFileName, modelFileIdx);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
@@ -149,6 +154,9 @@ NNEvaluator::~NNEvaluator() {
   if(loadedModel != NULL)
     NeuralNet::freeLoadedModel(loadedModel);
   loadedModel = NULL;
+
+  NeuralNet::freeComputeContext(computeContext);
+  computeContext = NULL;
 
   delete nnCacheTable;
 }
@@ -195,8 +203,8 @@ void NNEvaluator::clearCache() {
 static void serveEvals(
   int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger,
   NNEvaluator* nnEval, const LoadedModel* loadedModel,
-  int cudaGpuIdxForThisThread,
-  bool cudaUseFP16,
+  int gpuIdxForThisThread,
+  bool useFP16,
   bool cudaUseNHWC
 ) {
   NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
@@ -205,7 +213,7 @@ static void serveEvals(
   //Used to have a try catch around this but actually we're in big trouble if this raises an exception
   //and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
   //toplevel for easier debugging
-  nnEval->serve(*buf,rand,logger,doRandomize,defaultSymmetry,cudaGpuIdxForThisThread,cudaUseFP16,cudaUseNHWC);
+  nnEval->serve(*buf,rand,logger,doRandomize,defaultSymmetry,gpuIdxForThisThread,useFP16,cudaUseNHWC);
   delete buf;
 }
 
@@ -215,19 +223,19 @@ void NNEvaluator::spawnServerThreads(
   string randSeed,
   int defaultSymmetry,
   Logger& logger,
-  vector<int> cudaGpuIdxByServerThread,
-  bool cudaUseFP16,
+  vector<int> gpuIdxByServerThread,
+  bool useFP16,
   bool cudaUseNHWC
 ) {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
-  if(cudaGpuIdxByServerThread.size() != numThreads)
-    throw StringError("cudaGpuIdxByServerThread.size() != numThreads");
+  if(gpuIdxByServerThread.size() != numThreads)
+    throw StringError("gpuIdxByServerThread.size() != numThreads");
 
   for(int i = 0; i<numThreads; i++) {
-    int cudaGpuIdxForThisThread = cudaGpuIdxByServerThread[i];
+    int gpuIdxForThisThread = gpuIdxByServerThread[i];
     std::thread* thread = new std::thread(
-      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,loadedModel,cudaGpuIdxForThisThread,cudaUseFP16,cudaUseNHWC
+      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,loadedModel,gpuIdxForThisThread,useFP16,cudaUseNHWC
     );
     serverThreads.push_back(thread);
   }
@@ -251,12 +259,24 @@ void NNEvaluator::killServerThreads() {
 
 void NNEvaluator::serve(
   NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry,
-  int cudaGpuIdxForThisThread, bool cudaUseFP16, bool cudaUseNHWC
+  int gpuIdxForThisThread, bool useFP16, bool cudaUseNHWC
 ) {
 
   ComputeHandle* gpuHandle = NULL;
   if(loadedModel != NULL)
-    gpuHandle = NeuralNet::createComputeHandle(loadedModel, logger, maxNumRows, nnXLen, nnYLen, requireExactNNLen, inputsUseNHWC, cudaGpuIdxForThisThread, cudaUseFP16, cudaUseNHWC);
+    gpuHandle = NeuralNet::createComputeHandle(
+      computeContext,
+      loadedModel,
+      logger,
+      maxNumRows,
+      nnXLen,
+      nnYLen,
+      requireExactNNLen,
+      inputsUseNHWC,
+      gpuIdxForThisThread,
+      useFP16,
+      cudaUseNHWC
+    );
 
   vector<NNOutput*> outputBuf;
 

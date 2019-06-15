@@ -1,5 +1,4 @@
 #include "../neuralnet/nninterface.h"
-
 #include "../neuralnet/nninputs.h"
 
 using namespace std;
@@ -12,6 +11,17 @@ void NeuralNet::globalInitialize() {
 void NeuralNet::globalCleanup() {
   // Do nothing, calling this is okay even if there is no neural net
   // as long as we don't attempt to actually load a net file and use one.
+}
+
+ComputeContext* NeuralNet::createComputeContext(
+  const std::vector<int>& gpuIdxs
+) {
+  (void)gpuIdxs;
+  throw StringError("Dummy neural net backend: NeuralNet::createComputeContext unimplemented");
+}
+void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
+  (void)computeContext;
+  throw StringError("Dummy neural net backend: NeuralNet::freeComputeContext unimplemented");
 }
 
 LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
@@ -38,6 +48,7 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
 }
 
 ComputeHandle* NeuralNet::createComputeHandle(
+  ComputeContext* context,
   const LoadedModel* loadedModel,
   Logger* logger,
   int maxBatchSize,
@@ -45,10 +56,11 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int nnYLen,
   bool requireExactNNLen,
   bool inputsUseNHWC,
-  int cudaGpuIdxForThisThread,
-  bool cudaUseFP16,
+  int gpuIdxForThisThread,
+  bool useFP16,
   bool cudaUseNHWC
 ) {
+  (void)context;
   (void)loadedModel;
   (void)logger;
   (void)maxBatchSize;
@@ -56,8 +68,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
   (void)nnYLen;
   (void)requireExactNNLen;
   (void)inputsUseNHWC;
-  (void)cudaGpuIdxForThisThread;
-  (void)cudaUseFP16;
+  (void)gpuIdxForThisThread;
+  (void)useFP16;
   (void)cudaUseNHWC;
   throw StringError("Dummy neural net backend: NeuralNet::createLocalGpuHandle unimplemented");
 }
@@ -111,7 +123,8 @@ void NeuralNet::getOutput(
   ComputeHandle* gpuHandle,
   InputBuffers* buffers,
   int numBatchEltsFilled,
-  vector<NNOutput*>& outputs) {
+  vector<NNOutput*>& outputs
+) {
   (void)gpuHandle;
   (void)buffers;
   (void)numBatchEltsFilled;

@@ -133,8 +133,10 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaul
 
 static NNEvaluator* startNNEval(
   const string& modelFile, Logger& logger, const string& seed, int nnXLen, int nnYLen,
-  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16, bool debugSkipNeuralNet, double nnPolicyTemperature
+  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool useFP16, bool debugSkipNeuralNet, double nnPolicyTemperature
 ) {
+  vector<int> gpuIdxByServerThread = {0};
+  vector<int> gpuIdxs = {0};
   int modelFileIdx = 0;
   int maxBatchSize = 16;
   bool requireExactNNLen = false;
@@ -148,6 +150,8 @@ static NNEvaluator* startNNEval(
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
+    gpuIdxs,
+    &logger,
     modelFileIdx,
     maxBatchSize,
     maxConcurrentEvals,
@@ -167,8 +171,7 @@ static NNEvaluator* startNNEval(
   bool nnRandomize = false;
   string nnRandSeed = "runSearchTestsRandSeed"+seed;
   //int defaultSymmetry = 0;
-  vector<int> cudaGpuIdxByServerThread = {0};
-  //bool cudaUseFP16 = false;
+  //bool useFP16 = false;
   //bool cudaUseNHWC = false;
 
   nnEval->spawnServerThreads(
@@ -177,8 +180,8 @@ static NNEvaluator* startNNEval(
     nnRandSeed,
     defaultSymmetry,
     logger,
-    cudaGpuIdxByServerThread,
-    cudaUseFP16,
+    gpuIdxByServerThread,
+    useFP16,
     cudaUseNHWC
   );
 

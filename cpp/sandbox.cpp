@@ -50,11 +50,11 @@ using namespace std;
 //   bool doRandomize = true;
 //   string randSeed = "abc";
 //   int defaultSymmetry = 0;
-//   vector<int> cudaGpuIdxByServerThread = {0};
-//   bool cudaUseFP16 = false;
+//   vector<int> gpuIdxByServerThread = {0};
+//   bool useFP16 = false;
 //   bool cudaUseNHWC = false;
 //   nnEval->spawnServerThreads(
-//     numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,cudaGpuIdxByServerThread,cudaUseFP16,cudaUseNHWC
+//     numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,gpuIdxByServerThread,useFP16,cudaUseNHWC
 //   );
 
 //   Rules rules;
@@ -205,17 +205,18 @@ int MainCmds::sandbox() {
   LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/selfplay/run0/modelstobetested//s9999360-d1178745-b8c128/model.txt.gz", 0);
   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb", 0);
-  bool cudaUseFP16 = true;
+  bool useFP16 = true;
   bool cudaUseNHWC = true;
   int maxBatchSize = 128;
   int nnXLen = 14;
   int nnYLen = 14;
   bool requireExactNNLen = false;
   bool inputsUseNHWC = true;
-  int cudaGpuIdxForThisThread = 0;
+  int gpuIdxForThisThread = 0;
+  ComputeContext* context = NeuralNet::createComputeContext({gpuIdxForThisThread},&logger);
   ComputeHandle* gpuHandle = NeuralNet::createComputeHandle(
-    loadedModel,&logger,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,
-    cudaGpuIdxForThisThread,cudaUseFP16,cudaUseNHWC
+    context,loadedModel,&logger,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,
+    gpuIdxForThisThread,useFP16,cudaUseNHWC
   );
   InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
 
@@ -296,6 +297,7 @@ int MainCmds::sandbox() {
 
   NeuralNet::freeInputBuffers(inputBuffers);
   NeuralNet::freeComputeHandle(gpuHandle);
+  NeuralNet::freeComputeContext(context);
   NeuralNet::freeLoadedModel(loadedModel);
 
   cout << "Done" << endl;

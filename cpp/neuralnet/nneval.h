@@ -77,6 +77,8 @@ class NNEvaluator {
   NNEvaluator(
     const std::string& modelName,
     const std::string& modelFileName,
+    const std::vector<int>& gpuIdxs,
+    Logger* logger,
     int modelFileIdx,
     int maxBatchSize,
     int maxConcurrentEvals,
@@ -130,8 +132,8 @@ class NNEvaluator {
     std::string randSeed,
     int defaultSymmetry,
     Logger& logger,
-    std::vector<int> cudaGpuIdxByServerThread,
-    bool cudaUseFP16,
+    std::vector<int> gpuIdxByServerThread,
+    bool useFP16,
     bool cudaUseNHWC
   );
 
@@ -155,6 +157,7 @@ class NNEvaluator {
   int policySize;
   bool inputsUseNHWC;
 
+  ComputeContext* computeContext;
   LoadedModel* loadedModel;
   NNCacheTable* nnCacheTable;
 
@@ -190,7 +193,7 @@ class NNEvaluator {
   //Helper, for internal use only
   void serve(
     NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry,
-    int cudaGpuIdxForThisThread, bool cudaUseFP16, bool cudaUseNHWC
+    int gpuIdxForThisThread, bool useFP16, bool cudaUseNHWC
   );
 };
 

@@ -69,9 +69,74 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("nnPolicyTemperature"))
       nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature",0.01f,5.0f);
 
+    bool nnRandomize = cfg.getBool("nnRandomize");
+    string nnRandSeed;
+    if(cfg.contains("nnRandSeed" + idxStr))
+      nnRandSeed = cfg.getString("nnRandSeed" + idxStr);
+    else if(cfg.contains("nnRandSeed"))
+      nnRandSeed = cfg.getString("nnRandSeed");
+    else
+      nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+    logger.write("nnRandSeed" + idxStr + " = " + nnRandSeed);
+
+    //Parse cuda versions of the various cfg arguments below
+    //as a way to support legacy configs. They are equivalent to non-cuda versions of those args.
+
+    int numNNServerThreadsPerModel = cfg.getInt("numNNServerThreadsPerModel",1,1024);
+    vector<int> gpuIdxByServerThread;
+    for(int j = 0; j<numNNServerThreadsPerModel; j++) {
+      string threadIdxStr = Global::intToString(j);
+      if(cfg.contains("gpuToUseModel"+idxStr+"Thread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains("gpuToUseModel"+idxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseModel"+idxStr,0,1023));
+      else if(cfg.contains("cudaGpuToUseModel"+idxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr,0,1023));
+      else if(cfg.contains("gpuToUseThread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseThread"+threadIdxStr,0,1023));
+      else if(cfg.contains("cudaGpuToUseThread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseThread"+threadIdxStr,0,1023));
+      else if(cfg.contains("gpuToUse"))
+        gpuIdxByServerThread.push_back(cfg.getInt("gpuToUse",0,1023));
+      else if(cfg.contains("cudaGpuToUse"))
+        gpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUse",0,1023));
+      else
+        gpuIdxByServerThread.push_back(0);
+    }
+
+    vector<int> gpuIdxs = gpuIdxByServerThread;
+    std::sort(gpuIdxs.begin(), gpuIdxs.end());
+    std::unique(gpuIdxs.begin(), gpuIdxs.end());
+
+    bool useFP16 = false;
+    if(cfg.contains("useFP16-"+idxStr))
+      useFP16 = cfg.getBool("useFP16-"+idxStr);
+    else if(cfg.contains("cudaUseFP16-"+idxStr))
+      useFP16 = cfg.getBool("cudaUseFP16-"+idxStr);
+    else if(cfg.contains("useFP16"))
+      useFP16 = cfg.getBool("useFP16");
+    else if(cfg.contains("cudaUseFP16"))
+      useFP16 = cfg.getBool("cudaUseFP16");
+
+    bool cudaUseNHWC = false;
+    if(cfg.contains("cudaUseNHWC"+idxStr))
+      cudaUseNHWC = cfg.getBool("cudaUseNHWC"+idxStr);
+    else if(cfg.contains("cudaUseNHWC"))
+      cudaUseNHWC = cfg.getBool("cudaUseNHWC");
+
+    logger.write(
+      "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
+      + " useFP16 " + Global::boolToString(useFP16)
+      + " cudaUseNHWC " + Global::boolToString(cudaUseNHWC)
+    );
+
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
+      gpuIdxs,
+      &logger,
       modelFileIdx,
       cfg.getInt("nnMaxBatchSize", 1, 65536),
       maxConcurrentEvals,
@@ -86,50 +151,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnPolicyTemperature
     );
 
-    bool nnRandomize = cfg.getBool("nnRandomize");
-    string nnRandSeed;
-    if(cfg.contains("nnRandSeed" + idxStr))
-      nnRandSeed = cfg.getString("nnRandSeed" + idxStr);
-    else if(cfg.contains("nnRandSeed"))
-      nnRandSeed = cfg.getString("nnRandSeed");
-    else
-      nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
-    logger.write("nnRandSeed" + idxStr + " = " + nnRandSeed);
-
-    int numNNServerThreadsPerModel = cfg.getInt("numNNServerThreadsPerModel",1,1024);
-    vector<int> cudaGpuIdxByServerThread;
-    for(int j = 0; j<numNNServerThreadsPerModel; j++) {
-      string threadIdxStr = Global::intToString(j);
-      if(cfg.contains("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr))
-        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
-      else if(cfg.contains("cudaGpuToUseModel"+idxStr))
-        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr,0,1023));
-      else if(cfg.contains("cudaGpuToUseThread"+threadIdxStr))
-        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseThread"+threadIdxStr,0,1023));
-      else if(cfg.contains("cudaGpuToUse"))
-        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUse",0,1023));
-      else
-        cudaGpuIdxByServerThread.push_back(0);
-    }
-
-    bool cudaUseFP16 = false;
-    if(cfg.contains("cudaUseFP16-"+idxStr))
-      cudaUseFP16 = cfg.getBool("cudaUseFP16-"+idxStr);
-    else if(cfg.contains("cudaUseFP16"))
-      cudaUseFP16 = cfg.getBool("cudaUseFP16");
-
-    bool cudaUseNHWC = false;
-    if(cfg.contains("cudaUseNHWC"+idxStr))
-      cudaUseNHWC = cfg.getBool("cudaUseNHWC"+idxStr);
-    else if(cfg.contains("cudaUseNHWC"))
-      cudaUseNHWC = cfg.getBool("cudaUseNHWC");
-
-    logger.write(
-      "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
-      + " useFP16 " + Global::boolToString(cudaUseFP16)
-      + " useNHWC " + Global::boolToString(cudaUseNHWC)
-    );
-
     int defaultSymmetry = 0;
     nnEval->spawnServerThreads(
       numNNServerThreadsPerModel,
@@ -137,8 +158,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed,
       defaultSymmetry,
       logger,
-      cudaGpuIdxByServerThread,
-      cudaUseFP16,
+      gpuIdxByServerThread,
+      useFP16,
       cudaUseNHWC
     );
 

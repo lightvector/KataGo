@@ -2566,6 +2566,19 @@ struct Buffers {
 
 };
 
+//------------------------------------------------------------------------------
+
+//Cuda implementation doesn't need this
+ComputeContext* NeuralNet::createComputeContext(
+  const std::vector<int>& gpuIdxs
+) {
+  (void)gpuIdxs;
+  return NULL;
+}
+
+void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
+  assert(computeContext == NULL);
+}
 
 
 //------------------------------------------------------------------------------
@@ -2617,6 +2630,7 @@ struct ComputeHandle {
 };
 
 ComputeHandle* NeuralNet::createComputeHandle(
+  ComputeContext* context,
   const LoadedModel* loadedModel,
   Logger* logger,
   int maxBatchSize,
@@ -2624,14 +2638,16 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int nnYLen,
   bool requireExactNNLen,
   bool inputsUseNHWC,
-  int cudaDeviceIdxForThisThread,
-  bool cudaUseFP16,
+  int gpuIdxForThisThread,
+  bool useFP16,
   bool cudaUseNHWC
 ) {
-  CUDA_ERR("createComputeHandle",cudaSetDevice(cudaDeviceIdxForThisThread));
+  (void)context;
+
+  CUDA_ERR("createComputeHandle",cudaSetDevice(gpuIdxForThisThread));
 
   cudaDeviceProp prop;
-  cudaGetDeviceProperties(&prop,cudaDeviceIdxForThisThread);
+  cudaGetDeviceProperties(&prop,gpuIdxForThisThread);
   if(logger != NULL) {
     logger->write(
       "Cuda backend: Found GPU " + string(prop.name)
@@ -2641,10 +2657,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
     );
     logger->write("Cuda backend: Model version " + Global::intToString(loadedModel->modelDesc.version));
   }
-  if(cudaUseFP16 && (prop.major < 5 || (prop.major == 5 && prop.minor < 3)))
-    throw StringError("Cuda device versions below 5.3 do not support cudaUseFP16=true");
+  if(useFP16 && (prop.major < 5 || (prop.major == 5 && prop.minor < 3)))
+    throw StringError("Cuda device versions below 5.3 do not support useFP16=true");
 
-  ComputeHandle* gpuHandle = new ComputeHandle(loadedModel,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,cudaUseFP16,cudaUseNHWC);
+  ComputeHandle* gpuHandle = new ComputeHandle(loadedModel,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,useFP16,cudaUseNHWC);
   return gpuHandle;
 }
 

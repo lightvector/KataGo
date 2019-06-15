@@ -842,8 +842,10 @@ static void testGlobalPoolingResidualBlock() {
 
 
 void Tests::runNNLayerTests() {
+  NeuralNet::globalInitialize();
   testConvLayer();
   testBatchNormLayer();
   testResidualBlock();
   testGlobalPoolingResidualBlock();
+  NeuralNet::globalCleanup();
 }

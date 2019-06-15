@@ -9,9 +9,11 @@ using namespace TestCommon;
 
 static NNEvaluator* startNNEval(
   const string& modelFile, const string& seed, Logger& logger,
-  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16
+  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool useFP16
 ) {
   const string& modelName = modelFile;
+  vector<int> gpuIdxByServerThread = {0};
+  vector<int> gpuIdxs = {0};
   int modelFileIdx = 0;
   int maxBatchSize = 16;
   int maxConcurrentEvals = 1024;
@@ -26,6 +28,8 @@ static NNEvaluator* startNNEval(
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
+    gpuIdxs,
+    &logger,
     modelFileIdx,
     maxBatchSize,
     maxConcurrentEvals,
@@ -43,7 +47,6 @@ static NNEvaluator* startNNEval(
 
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
-  vector<int> cudaGpuIdxByServerThread = {0};
 
   nnEval->spawnServerThreads(
     numNNServerThreadsPerModel,
@@ -51,8 +54,8 @@ static NNEvaluator* startNNEval(
     seed,
     defaultSymmetry,
     logger,
-    cudaGpuIdxByServerThread,
-    cudaUseFP16,
+    gpuIdxByServerThread,
+    useFP16,
     cudaUseNHWC
   );
 
