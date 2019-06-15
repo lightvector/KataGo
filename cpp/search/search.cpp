@@ -520,12 +520,13 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
       double weightSum = child->stats.weightSum;
       double weightSqSum = child->stats.weightSqSum;
       double utilitySum = child->stats.utilitySum;
+      double utilitySqSum = child->stats.utilitySqSum;
       child->statsLock.clear(std::memory_order_release);
 
       cout << Location::toString(moveLoc,rootBoard) << " ";
       cout << policyProb << " ";
       cout << numVisits << " " << winValueSum << " " << noResultValueSum << " " << scoreMeanSum << " " << scoreMeanSqSum << " " << weightSum << " "
-           << weightSqSum << " " << utilitySum;
+           << weightSqSum << " " << utilitySum << " " << utilitySqSum;
       cout << endl;
     }
   }

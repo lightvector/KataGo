@@ -610,6 +610,13 @@ static void extractPolicyTarget(
     if(value > maxValue)
       maxValue = value;
   }
+
+  if(maxValue > 1e9) {
+    cout << toMoveBot->rootBoard << endl;
+    cout << "LARGE PLAY SELECTION VALUE " << maxValue << endl;
+    toMoveBot->printTree(cout, node, PrintTreeOptions());
+  }
+  
   double factor = 1.0;
   if(maxValue > 30000.0)
     factor = 30000.0 / maxValue;
