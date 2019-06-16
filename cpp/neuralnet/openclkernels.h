@@ -5,6 +5,9 @@
 
 namespace OpenCLKernels {
   extern std::string conv2dNCHW;
+  extern std::string scaleBiasMaskNCHW;
+  extern std::string scaleBiasMaskReluNCHW;
+  extern std::string addPointWise;
 
 
 }

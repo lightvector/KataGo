@@ -156,6 +156,10 @@ static cl_program compileProgram(const string& name, cl_context context, const v
   return program;
 }
 
+
+//---------------------------------------------------------------------------------------------------------
+
+
 struct ComputeContext {
   cl_context context;
   vector<cl_platform_id> platformIds;
@@ -168,6 +172,9 @@ struct ComputeContext {
   vector<cl_command_queue> commandQueues;
 
   cl_program conv2dNCHWProgram;
+  cl_program scaleBiasMaskNCHWProgram;
+  cl_program scaleBiasMaskReluNCHWProgram;
+  cl_program addPointWiseProgram;
 
   ComputeContext(const vector<int>& gIdxs, Logger* logger)
     : platformIds(32),
@@ -234,10 +241,16 @@ struct ComputeContext {
     }
 
     conv2dNCHWProgram = compileProgram("conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHW);
+    scaleBiasMaskNCHWProgram = compileProgram("scaleBiasMaskNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskNCHW);
+    scaleBiasMaskReluNCHWProgram = compileProgram("scaleBiasMaskReluNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskReluNCHW);
+    addPointWiseProgram = compileProgram("addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise);
   }
 
   ~ComputeContext() {
     clReleaseProgram(conv2dNCHWProgram);
+    clReleaseProgram(scaleBiasMaskNCHWProgram);
+    clReleaseProgram(scaleBiasMaskReluNCHWProgram);
+    clReleaseProgram(addPointWiseProgram);
     for(int i = 0; i<commandQueues.size(); i++) {
       clFlush(commandQueues[i]);
       clFinish(commandQueues[i]);
@@ -311,6 +324,9 @@ struct ComputeHandle {
   cl_command_queue commandQueue;
 
   cl_kernel conv2dNCHWKernel;
+  cl_kernel scaleBiasMaskNCHWKernel;
+  cl_kernel scaleBiasMaskReluNCHWKernel;
+  cl_kernel addPointWiseKernel;
 
   ComputeHandle(ComputeContext* context, const LoadedModel* loadedModel, int gpuIdx, int maxBatchSize, int nnXLen, int nnYLen) {
     clContext = context->context;
@@ -319,6 +335,9 @@ struct ComputeHandle {
 
     cl_int err;
     conv2dNCHWKernel = clCreateKernel(context->conv2dNCHWProgram, "conv2dNCHW", &err);
+    scaleBiasMaskNCHWKernel = clCreateKernel(context->scaleBiasMaskNCHWProgram, "scaleBiasMaskNCHW", &err);
+    scaleBiasMaskReluNCHWKernel = clCreateKernel(context->scaleBiasMaskReluNCHWProgram, "scaleBiasMaskReluNCHW", &err);
+    addPointWiseKernel = clCreateKernel(context->addPointWiseProgram, "addPointWise", &err);
     CHECK_ERR(err);
 
     //TODO note that loaded model can be null, in which case we're just testing one thing
@@ -330,6 +349,9 @@ struct ComputeHandle {
 
   ~ComputeHandle() {
     clReleaseKernel(conv2dNCHWKernel);
+    clReleaseKernel(scaleBiasMaskNCHWKernel);
+    clReleaseKernel(scaleBiasMaskReluNCHWKernel);
+    clReleaseKernel(addPointWiseKernel);
   }
 
   ComputeHandle() = delete;
@@ -370,9 +392,50 @@ void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
   delete gpuHandle;
 }
 
+static cl_mem createReadOnlyBuffer(ComputeHandle* handle, vector<float>& data) {
+  cl_int err;
+  cl_mem buf = clCreateBuffer(
+    handle->clContext,
+    CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+    byteSizeofVectorContents(data),
+    data.data(),
+    &err
+  );
+  CHECK_ERR(err);
+  return buf;
+}
+
+static cl_mem createReadWriteBuffer(ComputeHandle* handle, vector<float>& data) {
+  cl_int err;
+  cl_mem buf = clCreateBuffer(
+    handle->clContext,
+    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+    byteSizeofVectorContents(data),
+    data.data(),
+    &err
+  );
+  CHECK_ERR(err);
+  return buf;
+}
+
+static cl_mem createReadWriteBuffer(ComputeHandle* handle, size_t numFloats) {
+  cl_int err;
+  cl_mem buf = clCreateBuffer(
+    handle->clContext,
+    CL_MEM_READ_WRITE,
+    numFloats * sizeof(float),
+    NULL,
+    &err
+  );
+  CHECK_ERR(err);
+  return buf;
+}
+
+
 //--------------------------------------------------------------
 
 struct ConvLayer {
+  string name;
   int convYSize;
   int convXSize;
   int convYRadius;
@@ -390,6 +453,7 @@ struct ConvLayer {
   size_t globalSizes[nKernelDims];
 
   ConvLayer(ComputeHandle* handle, const ConvLayerDesc* desc, int nnX, int nnY) {
+    name = desc->name;
     convYSize = desc->convYSize;
     convXSize = desc->convXSize;
     convYRadius = convYSize / 2;
@@ -407,16 +471,8 @@ struct ConvLayer {
     if(dilationX != 1 || dilationY != 1)
       throw StringError("OpenCL backend: Encountered convolution dilation factors other than 1, not supported");
 
-    cl_int err;
     vector<float> weights = desc->weights;
-    filter = clCreateBuffer(
-      handle->clContext,
-      CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-      byteSizeofVectorContents(weights),
-      weights.data(),
-      &err
-    );
-    CHECK_ERR(err);
+    filter = createReadOnlyBuffer(handle,weights);
 
     globalSizes[0] = powerOf2ify(nnXLen);
     globalSizes[1] = powerOf2ify(nnYLen);
@@ -453,6 +509,175 @@ struct ConvLayer {
   ConvLayer& operator=(const ConvLayer&) = delete;
 };
 
+//--------------------------------------------------------------
+
+struct BatchNormLayer {
+  string name;
+  int numChannels;
+  float epsilon;
+
+  int nnXLen;
+  int nnYLen;
+  int nnYXLen;
+  cl_mem mergedScaleBuf;
+  cl_mem mergedBiasBuf;
+
+  static constexpr int nKernelDims = 2;
+  size_t globalSizes[nKernelDims];
+
+  BatchNormLayer(ComputeHandle* handle, const BatchNormLayerDesc* desc, int nnX, int nnY) {
+    name = desc->name;
+    numChannels = desc->numChannels;
+    epsilon = desc->epsilon;
+
+    nnXLen = nnX;
+    nnYLen = nnY;
+    nnYXLen = nnX * nnY;
+
+    assert(desc->mean.size() == numChannels);
+    assert(desc->variance.size() == numChannels);
+    assert(desc->scale.size() == numChannels);
+    assert(desc->bias.size() == numChannels);
+
+    vector<float> mergedScale(numChannels);
+    vector<float> mergedBias(numChannels);
+    for(int i = 0; i<numChannels; i++) {
+      mergedScale[i] = desc->scale[i] / sqrt(desc->variance[i] + epsilon);
+      mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
+    }
+
+    mergedScaleBuf = createReadOnlyBuffer(handle,mergedScale);
+    mergedBiasBuf = createReadOnlyBuffer(handle,mergedBias);
+
+    globalSizes[0] = powerOf2ify(nnXLen * nnYLen);
+    globalSizes[1] = powerOf2ify(numChannels);
+  }
+
+  ~BatchNormLayer() {
+    clReleaseMemObject(mergedScaleBuf);
+    clReleaseMemObject(mergedBiasBuf);
+  }
+
+  void apply(ComputeHandle* handle, cl_mem input, cl_mem output, cl_mem mask, int batchSize, bool applyRelu) {
+    cl_kernel kernel;
+    if(!applyRelu)
+      kernel = handle->scaleBiasMaskNCHWKernel;
+    else
+      kernel = handle->scaleBiasMaskReluNCHWKernel;
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&mergedScaleBuf);
+    clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&mergedBiasBuf);
+    clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&mask);
+    clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
+    clSetKernelArg(kernel, 6, sizeof(int), (void *)&numChannels);
+    clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnYXLen);
+
+    cl_int err;
+    size_t* localSizes = NULL; //TODO actually pick these
+    err = clEnqueueNDRangeKernel(
+      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+  }
+
+  BatchNormLayer() = delete;
+  BatchNormLayer(const BatchNormLayer&) = delete;
+  BatchNormLayer& operator=(const BatchNormLayer&) = delete;
+};
+
+//--------------------------------------------------------------
+
+struct ActivationLayer {
+  string name;
+
+  ActivationLayer(
+    ComputeHandle* handle, const ActivationLayerDesc* desc
+  ) {
+    (void)handle;
+    name = desc->name;
+  }
+
+  ~ActivationLayer() {
+  }
+
+  ActivationLayer() = delete;
+  ActivationLayer(const ActivationLayer&) = delete;
+  ActivationLayer& operator=(const ActivationLayer&) = delete;
+};
+
+
+//--------------------------------------------------------------
+
+struct ResidualBlock {
+  string name;
+  BatchNormLayer preBN;
+  ActivationLayer preActivation;
+  ConvLayer regularConv;
+  BatchNormLayer midBN;
+  ActivationLayer midActivation;
+  ConvLayer finalConv;
+
+  int nnXLen;
+  int nnYLen;
+  int regularChannels;
+
+  ResidualBlock(
+    ComputeHandle* handle,
+    const ResidualBlockDesc* desc,
+    int nnX, int nnY
+  ): name(desc->name),
+     preBN(handle,&desc->preBN,nnX,nnY),
+     preActivation(handle,&desc->preActivation),
+     regularConv(handle,&desc->regularConv,nnX,nnY),
+     midBN(handle,&desc->midBN,nnX,nnY),
+     midActivation(handle,&desc->midActivation),
+     finalConv(handle,&desc->finalConv,nnX,nnY),
+     nnXLen(nnX),
+     nnYLen(nnY),
+     regularChannels(desc->regularConv.outChannels)
+  {
+  }
+
+  ~ResidualBlock() {
+  }
+
+  void apply(
+    ComputeHandle* handle,
+    cl_mem trunk,
+    cl_mem trunkScratch,
+    cl_mem mid,
+    cl_mem midScratch,
+    cl_mem mask,
+    int batchSize
+  ) {
+    preBN.apply(handle,trunk,trunkScratch,mask,batchSize,true);
+    regularConv.apply(handle,trunkScratch,mid,batchSize);
+    midBN.apply(handle,mid,midScratch,mask,batchSize,true);
+    finalConv.apply(handle,midScratch,trunkScratch,batchSize);
+
+    cl_kernel kernel = handle->addPointWiseKernel;
+    int totalSize = batchSize * finalConv.outChannels * nnYLen * nnXLen;
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&trunk);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&trunkScratch);
+    clSetKernelArg(kernel, 2, sizeof(int), (void *)&totalSize);
+
+    cl_int err;
+    constexpr int nKernelDims = 1;
+    size_t globalSizes[nKernelDims] = {(size_t)totalSize};
+    size_t* localSizes = NULL; //TODO actually pick these
+    err = clEnqueueNDRangeKernel(
+      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+  }
+
+  ResidualBlock() = delete;
+  ResidualBlock(const ResidualBlock&) = delete;
+  ResidualBlock& operator=(const ResidualBlock&) = delete;
+
+};
 
 //--------------------------------------------------------------
 
@@ -526,7 +751,6 @@ bool NeuralNet::testEvaluateConv(
   Logger* logger = NULL;
   cl_int err;
   int gpuIdx = 0;
-  ComputeContext* context = createComputeContext({gpuIdx}, logger);
 
   if(useFP16 != false)
     return false;
@@ -536,6 +760,7 @@ bool NeuralNet::testEvaluateConv(
   LoadedModel* loadedModel = NULL;
   bool requireExactNNLen = false;
   bool inputsUseNHWC = useNHWC;
+  ComputeContext* context = createComputeContext({gpuIdx}, logger);
   ComputeHandle* handle = createComputeHandle(
     context, loadedModel, logger, batchSize, nnXLen, nnYLen, requireExactNNLen, inputsUseNHWC, gpuIdx, useFP16, useNHWC
   );
@@ -549,14 +774,7 @@ bool NeuralNet::testEvaluateConv(
   outputBuffer.resize(numOutputFloats);
 
   vector<float> inputTmp = inputBuffer;
-  cl_mem input = clCreateBuffer(
-    handle->clContext,
-    CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-    byteSizeofVectorContents(inputTmp),
-    inputTmp.data(),
-    &err
-  );
-  CHECK_ERR(err);
+  cl_mem input = createReadOnlyBuffer(handle,inputTmp);
 
   cl_mem output = clCreateBuffer(handle->clContext, CL_MEM_WRITE_ONLY, byteSizeofVectorContents(outputBuffer), NULL, &err);
   CHECK_ERR(err);
@@ -564,6 +782,7 @@ bool NeuralNet::testEvaluateConv(
 
   cl_bool blocking = CL_TRUE;
   err = clEnqueueReadBuffer(handle->commandQueue, output, blocking, 0, byteSizeofVectorContents(outputBuffer), outputBuffer.data(), 0, NULL, NULL);
+  CHECK_ERR(err);
 
   clReleaseMemObject(output);
   clReleaseMemObject(input);
@@ -586,16 +805,53 @@ bool NeuralNet::testEvaluateBatchNorm(
   const std::vector<float>& maskBuffer,
   std::vector<float>& outputBuffer
 ) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)maskBuffer;
-  (void)outputBuffer;
-  return false;
+  Logger* logger = NULL;
+  cl_int err;
+  int gpuIdx = 0;
+
+  if(useFP16 != false)
+    return false;
+  if(useNHWC != false)
+    return false;
+
+  LoadedModel* loadedModel = NULL;
+  bool requireExactNNLen = false;
+  bool inputsUseNHWC = useNHWC;
+  ComputeContext* context = createComputeContext({gpuIdx}, logger);
+  ComputeHandle* handle = createComputeHandle(
+    context, loadedModel, logger, batchSize, nnXLen, nnYLen, requireExactNNLen, inputsUseNHWC, gpuIdx, useFP16, useNHWC
+  );
+
+  BatchNormLayer* layer = new BatchNormLayer(handle, desc, nnXLen, nnYLen);
+
+  size_t numInputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
+  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
+  if(numInputFloats != inputBuffer.size())
+    throw StringError("testEvaluateBatchNorm: unexpected input buffer size");
+  outputBuffer.resize(numOutputFloats);
+
+  vector<float> inputTmp = inputBuffer;
+  vector<float> maskTmp = maskBuffer;
+  cl_mem input = createReadOnlyBuffer(handle,inputTmp);
+  cl_mem mask = createReadOnlyBuffer(handle,maskTmp);
+
+  cl_mem output = clCreateBuffer(handle->clContext, CL_MEM_WRITE_ONLY, byteSizeofVectorContents(outputBuffer), NULL, &err);
+  CHECK_ERR(err);
+  bool applyRelu = false;
+  layer->apply(handle, input, output, mask, batchSize, applyRelu);
+
+  cl_bool blocking = CL_TRUE;
+  err = clEnqueueReadBuffer(handle->commandQueue, output, blocking, 0, byteSizeofVectorContents(outputBuffer), outputBuffer.data(), 0, NULL, NULL);
+  CHECK_ERR(err);
+
+  clReleaseMemObject(input);
+  clReleaseMemObject(mask);
+  clReleaseMemObject(output);
+  delete layer;
+  freeComputeHandle(handle);
+  freeComputeContext(context);
+
+  return true;
 }
 
 bool NeuralNet::testEvaluateResidualBlock(
@@ -609,16 +865,58 @@ bool NeuralNet::testEvaluateResidualBlock(
   const std::vector<float>& maskBuffer,
   std::vector<float>& outputBuffer
 ) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)maskBuffer;
-  (void)outputBuffer;
-  return false;
+  Logger* logger = NULL;
+  cl_int err;
+  int gpuIdx = 0;
+
+  if(useFP16 != false)
+    return false;
+  if(useNHWC != false)
+    return false;
+
+  LoadedModel* loadedModel = NULL;
+  bool requireExactNNLen = false;
+  bool inputsUseNHWC = useNHWC;
+  ComputeContext* context = createComputeContext({gpuIdx}, logger);
+  ComputeHandle* handle = createComputeHandle(
+    context, loadedModel, logger, batchSize, nnXLen, nnYLen, requireExactNNLen, inputsUseNHWC, gpuIdx, useFP16, useNHWC
+  );
+
+  ResidualBlock* layer = new ResidualBlock(handle, desc, nnXLen, nnYLen);
+
+  size_t numTrunkFloats = (size_t)batchSize * nnXLen * nnYLen * desc->preBN.numChannels;
+  size_t numMaskFloats = (size_t)batchSize * nnXLen * nnYLen;
+  size_t numMidFloats = (size_t)batchSize * nnXLen * nnYLen * desc->finalConv.inChannels;
+  if(numTrunkFloats != inputBuffer.size())
+    throw StringError("testEvaluateResidualBlock: unexpected input buffer size");
+  if(numMaskFloats != maskBuffer.size())
+    throw StringError("testEvaluateResidualBlock: unexpected mask buffer size");
+  outputBuffer.resize(numTrunkFloats);
+
+  vector<float> inputTmp = inputBuffer;
+  vector<float> maskTmp = maskBuffer;
+  cl_mem trunk = createReadWriteBuffer(handle,inputTmp);
+  cl_mem mask = createReadOnlyBuffer(handle,maskTmp);
+  cl_mem trunkScratch = createReadWriteBuffer(handle,numTrunkFloats);
+  cl_mem mid = createReadWriteBuffer(handle,numMidFloats);
+  cl_mem midScratch = createReadWriteBuffer(handle,numMidFloats);
+
+  layer->apply(handle, trunk, trunkScratch, mid, midScratch, mask, batchSize);
+
+  cl_bool blocking = CL_TRUE;
+  err = clEnqueueReadBuffer(handle->commandQueue, trunk, blocking, 0, byteSizeofVectorContents(outputBuffer), outputBuffer.data(), 0, NULL, NULL);
+  CHECK_ERR(err);
+
+  clReleaseMemObject(trunk);
+  clReleaseMemObject(mask);
+  clReleaseMemObject(trunkScratch);
+  clReleaseMemObject(mid);
+  clReleaseMemObject(midScratch);
+  delete layer;
+  freeComputeHandle(handle);
+  freeComputeContext(context);
+
+  return true;
 }
 
 bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(

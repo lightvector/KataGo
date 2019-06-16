@@ -14,7 +14,7 @@ __kernel void conv2dNCHW(
   int icSize,
   int filterYRadius,
   int filterXRadius
-){
+) {
   const int ox = get_global_id(0);
   const int oy = get_global_id(1);
   const int oc = get_global_id(2);
@@ -53,4 +53,63 @@ __kernel void conv2dNCHW(
   }
 }
 
+)%%";
+
+string OpenCLKernels::scaleBiasMaskNCHW = R"%%(
+__kernel void scaleBiasMaskNCHW(
+  __global float* input,  //N, c, H, W
+  __global float* output, //N, c, H, W
+  __global float* scale,  //c
+  __global float* bias,   //c
+  __global float* mask,   //N, H, W
+  int nSize,
+  int cSize,
+  int yxSize
+) {
+  const int yx = get_global_id(0);
+  const int c = get_global_id(1);
+
+  if(c < cSize && yx < yxSize) {
+    for(int n = 0; n < nSize; n++) {
+      int idx = (n * cSize + c) * yxSize + yx;
+      output[idx] = (input[idx] * scale[c] + bias[c]) * mask[n * yxSize + yx];
+    }
+  }
+}
+)%%";
+
+string OpenCLKernels::scaleBiasMaskReluNCHW = R"%%(
+__kernel void scaleBiasMaskReluNCHW(
+  __global float* input,  //N, c, H, W
+  __global float* output, //N, c, H, W
+  __global float* scale,  //c
+  __global float* bias,   //c
+  __global float* mask,   //N, H, W
+  int nSize,
+  int cSize,
+  int yxSize
+) {
+  const int yx = get_global_id(0);
+  const int c = get_global_id(1);
+
+  if(c < cSize && yx < yxSize) {
+    for(int n = 0; n < nSize; n++) {
+      int idx = (n * cSize + c) * yxSize + yx;
+      output[idx] = fmax(input[idx] * scale[c] + bias[c], 0.0f) * mask[n * yxSize + yx];
+    }
+  }
+}
+)%%";
+
+string OpenCLKernels::addPointWise = R"%%(
+__kernel void addPointWise(
+  __global float* accum,
+  __global float* value,
+  int size
+) {
+  const int s = get_global_id(0);
+
+  if(s < size)
+    accum[s] += value[s];
+}
 )%%";
