@@ -33,34 +33,7 @@ struct TestSearchOptions {
 static void printPolicyValueOwnership(const Board& board, const NNResultBuf& buf) {
   cout << board << endl;
   cout << endl;
-  cout << "Win " << Global::strprintf("%.2fc",buf.result->whiteWinProb*100) << endl;
-  cout << "Loss " << Global::strprintf("%.2fc",buf.result->whiteLossProb*100) << endl;
-  cout << "NoResult " << Global::strprintf("%.2fc",buf.result->whiteNoResultProb*100) << endl;
-  cout << "ScoreMean " << Global::strprintf("%.1f",buf.result->whiteScoreMean) << endl;
-  cout << "ScoreMeanSq " << Global::strprintf("%.1f",buf.result->whiteScoreMeanSq) << endl;
-
-  cout << "Policy" << endl;
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,buf.result->nnXLen);
-      float prob = buf.result->policyProbs[pos];
-      if(prob < 0)
-        cout << "   - ";
-      else
-        cout << Global::strprintf("%4d ", (int)round(prob * 1000));
-    }
-    cout << endl;
-  }
-
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,buf.result->nnXLen);
-      float whiteOwn = buf.result->whiteOwnerMap[pos];
-      cout << Global::strprintf("%5d ", (int)round(whiteOwn * 1000));
-    }
-    cout << endl;
-  }
-  cout << endl;
+  buf.result->debugPrint(cout,board);
 }
 
 static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHistory hist, TestSearchOptions opts) {

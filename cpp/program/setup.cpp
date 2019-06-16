@@ -9,6 +9,7 @@ void Setup::initializeSession(ConfigParser& cfg) {
   NeuralNet::globalInitialize();
 }
 
+//TODO allow the same config to specify differing cuda and opencl options
 vector<NNEvaluator*> Setup::initializeNNEvaluators(
   const vector<string>& nnModelNames,
   const vector<string>& nnModelFiles,
@@ -19,7 +20,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   bool debugSkipNeuralNetDefault,
   bool alwaysIncludeOwnerMap,
   int defaultNNXLen,
-  int defaultNNYLen
+  int defaultNNYLen,
+  int forcedSymmetry
 ) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
@@ -151,10 +153,10 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnPolicyTemperature
     );
 
-    int defaultSymmetry = 0;
+    int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;
     nnEval->spawnServerThreads(
       numNNServerThreadsPerModel,
-      nnRandomize,
+      (forcedSymmetry >= 0 ? false : nnRandomize),
       nnRandSeed,
       defaultSymmetry,
       logger,

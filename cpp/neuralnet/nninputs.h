@@ -94,6 +94,8 @@ struct NNOutput {
   ~NNOutput();
 
   NNOutput& operator=(const NNOutput&);
+
+  void debugPrint(std::ostream& out, const Board& board);
 };
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by

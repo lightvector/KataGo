@@ -20,7 +20,8 @@ namespace Setup {
     bool debugSkipNeuralNetDefault,
     bool alwaysIncludeOwnerMap,
     int defaultNNXLen,
-    int defaultNNYLen
+    int defaultNNYLen,
+    int forcedSymmetry //-1 if not forcing a symmetry
   );
 
   //Loads search parameters for bot from config, by bot idx.

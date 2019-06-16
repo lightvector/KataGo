@@ -91,7 +91,7 @@ static void mallocAndCopyToDevice(const string& name, const float* weights, int 
 }
 
 //Only use in testing, allocates an intermediate buffer in the case of FP16 which will be very slow.
-static void expensiveCopyFromDevice(const string& name, float* weights, int numWeights, void* deviceBuf, bool useFP16) {
+static void expensiveCopyFromDevice(const string& name, float* weights, int numWeights, const void* deviceBuf, bool useFP16) {
   if(useFP16) {
     size_t floatBytes = numWeights * sizeof(float);
     float* buf;
@@ -933,14 +933,12 @@ struct GlobalPoolingResidualBlock {
     gpoolBN.apply(cudaHandles,batchSize,applyBNRelu,gpoolOutBuf,maskBuf,gpoolOutBuf2);
 
     if(!usingFP16) {
-      const float meanScale = 1.0f / (xSize*ySize);
       if(!usingNHWC)
         customCudaPoolRowsGPoolNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
       else
         customCudaPoolRowsGPoolNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
     }
     else {
-      const float meanScale = 1.0f / (xSize*ySize);
       if(!usingNHWC)
         customCudaPoolRowsGPoolNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
       else
@@ -1680,7 +1678,6 @@ struct PolicyHead {
     g1Conv->apply(cudaHandles,trunkDescriptor,g1OutDescriptor,batchSize,false,trunkBuf,g1OutBuf,workspaceBuf,workspaceBytes);
     g1BN->apply(cudaHandles,batchSize,applyBNRelu,g1OutBuf,maskBuf,g1OutBuf2);
 
-    const float meanScale = 1.0f / (xSize*ySize);
     if(!usingFP16) {
       if(!usingNHWC)
         customCudaPoolRowsGPoolNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
@@ -1943,8 +1940,6 @@ struct ValueHead {
 
     v1Conv->apply(cudaHandles,trunkDescriptor,v1OutDescriptor,batchSize,false,trunkBuf,v1OutBuf,workspaceBuf,workspaceBytes);
     v1BN->apply(cudaHandles,batchSize,applyBNRelu,v1OutBuf,maskBuf,v1OutBuf2);
-
-    const float meanScale = 1.0f / (xSize*ySize);
 
     void* bufToBePooled = v1OutBuf2;
     if(usingFP16) {

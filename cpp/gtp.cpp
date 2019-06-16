@@ -227,7 +227,7 @@ struct GTPEngine {
 
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
-      {nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false,boardXSize,boardYSize
+      {nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false,boardXSize,boardYSize,-1
     );
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];

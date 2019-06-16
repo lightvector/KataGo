@@ -334,7 +334,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     Rand rand;
     vector<NNEvaluator*> nnEvals =
       Setup::initializeNNEvaluators(
-        {modelName},{modelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefault,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+        {modelName},{modelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefault,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
       );
     assert(nnEvals.size() == 1);
     NNEvaluator* nnEval = nnEvals[0];

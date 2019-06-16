@@ -259,6 +259,44 @@ NNOutput::~NNOutput() {
   }
 }
 
+
+void NNOutput::debugPrint(ostream& out, const Board& board) {
+  out << "Win " << Global::strprintf("%.2fc",whiteWinProb*100) << endl;
+  out << "Loss " << Global::strprintf("%.2fc",whiteLossProb*100) << endl;
+  out << "NoResult " << Global::strprintf("%.2fc",whiteNoResultProb*100) << endl;
+  out << "ScoreMean " << Global::strprintf("%.1f",whiteScoreMean) << endl;
+  out << "ScoreMeanSq " << Global::strprintf("%.1f",whiteScoreMeanSq) << endl;
+
+  out << "Policy" << endl;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      int pos = NNPos::xyToPos(x,y,nnXLen);
+      float prob = policyProbs[pos];
+      if(prob < 0)
+        out << "   - ";
+      else
+        out << Global::strprintf("%4d ", (int)round(prob * 1000));
+    }
+    out << endl;
+  }
+
+  if(whiteOwnerMap != NULL) {
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        float whiteOwn = whiteOwnerMap[pos];
+        out << Global::strprintf("%5d ", (int)round(whiteOwn * 1000));
+      }
+      out << endl;
+    }
+    out << endl;
+  }
+}
+
+
+//-------------------------------------------------------------------------------------------------------------
+
+
 static void setRowBinV3(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
   rowBin[pos * posStride + feature * featureStride] = value;
 }

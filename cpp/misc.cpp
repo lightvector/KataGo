@@ -408,7 +408,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
     bool alwaysIncludeOwnerMap = true;
     vector<NNEvaluator*> nnEvals =
       Setup::initializeNNEvaluators(
-        {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,false,alwaysIncludeOwnerMap,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+        {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,false,alwaysIncludeOwnerMap,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
       );
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
