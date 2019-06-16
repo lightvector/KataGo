@@ -467,6 +467,23 @@ static cl_mem createReadWriteBuffer(ComputeHandle* handle, size_t numFloats) {
   return buf;
 }
 
+static void addChannelBiases(ComputeHandle* handle, cl_mem src, cl_mem bias, int ncSize, int nnXYLen) {
+  cl_int err;
+  static constexpr int nKernelDims = 2;
+  size_t globalSizes[nKernelDims] = {powerOf2ify(nnXYLen),powerOf2ify(ncSize)};
+  size_t* localSizes = NULL; //TODO actually pick these
+
+  cl_kernel kernel = handle->addChannelBiasesNCHWKernel;
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&src);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&bias);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&ncSize);
+  clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnXYLen);
+
+  err = clEnqueueNDRangeKernel(
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+  );
+  CHECK_ERR(err);
+}
 
 //--------------------------------------------------------------
 
@@ -519,7 +536,7 @@ struct ConvLayer {
     clReleaseMemObject(filter);
   }
 
-  void apply(ComputeHandle* handle, cl_mem input, cl_mem output, int batchSize) {
+  void apply(ComputeHandle* handle, int batchSize, cl_mem input, cl_mem output) {
     cl_kernel kernel = handle->conv2dNCHWKernel;
     clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&filter);
@@ -594,7 +611,7 @@ struct BatchNormLayer {
     clReleaseMemObject(mergedBiasBuf);
   }
 
-  void apply(ComputeHandle* handle, cl_mem input, cl_mem output, cl_mem mask, int batchSize, bool applyRelu) {
+  void apply(ComputeHandle* handle, int batchSize, bool applyRelu, cl_mem input, cl_mem output, cl_mem mask) {
     cl_kernel kernel;
     if(!applyRelu)
       kernel = handle->scaleBiasMaskNCHWKernel;
@@ -666,7 +683,7 @@ struct MatMulLayer {
     clReleaseMemObject(matBuf);
   }
 
-  void apply(ComputeHandle* handle, cl_mem input, cl_mem output, int batchSize) {
+  void apply(ComputeHandle* handle, int batchSize, cl_mem input, cl_mem output) {
     cl_kernel kernel = handle->matMulKernel;
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
@@ -729,17 +746,17 @@ struct ResidualBlock {
 
   void apply(
     ComputeHandle* handle,
+    int batchSize,
     cl_mem trunk,
     cl_mem trunkScratch,
     cl_mem mid,
     cl_mem midScratch,
-    cl_mem mask,
-    int batchSize
+    cl_mem mask
   ) {
-    preBN.apply(handle,trunk,trunkScratch,mask,batchSize,true);
-    regularConv.apply(handle,trunkScratch,mid,batchSize);
-    midBN.apply(handle,mid,midScratch,mask,batchSize,true);
-    finalConv.apply(handle,midScratch,trunkScratch,batchSize);
+    preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
+    regularConv.apply(handle,batchSize,trunkScratch,mid);
+    midBN.apply(handle,batchSize,true,mid,midScratch,mask);
+    finalConv.apply(handle,batchSize,midScratch,trunkScratch);
 
     cl_kernel kernel = handle->addPointWiseKernel;
     int totalSize = batchSize * finalConv.outChannels * nnYLen * nnXLen;
@@ -812,6 +829,7 @@ struct GlobalPoolingResidualBlock {
 
   void apply(
     ComputeHandle* handle,
+    int batchSize,
     cl_mem trunk,
     cl_mem trunkScratch,
     cl_mem mid,
@@ -821,13 +839,12 @@ struct GlobalPoolingResidualBlock {
     cl_mem gpoolConcat,
     cl_mem gpoolBias,
     cl_mem mask,
-    cl_mem maskSumBuf,
-    int batchSize
+    cl_mem maskSumBuf
   ) {
-    preBN.apply(handle,trunk,trunkScratch,mask,batchSize,true);
-    regularConv.apply(handle,trunkScratch,mid,batchSize);
-    gpoolConv.apply(handle,trunkScratch,gpoolOut,batchSize);
-    gpoolBN.apply(handle,gpoolOut,gpoolOut2,mask,batchSize,true);
+    preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
+    regularConv.apply(handle,batchSize,trunkScratch,mid);
+    gpoolConv.apply(handle,batchSize,trunkScratch,gpoolOut);
+    gpoolBN.apply(handle,batchSize,true,gpoolOut,gpoolOut2,mask);
 
     {
       cl_int err;
@@ -852,26 +869,8 @@ struct GlobalPoolingResidualBlock {
       CHECK_ERR(err);
     }
 
-    gpoolToBiasMul.apply(handle,gpoolConcat,gpoolBias,batchSize);
-
-    {
-      cl_int err;
-      static constexpr int nKernelDims = 2;
-      int ncSize = batchSize * regularChannels;
-      size_t globalSizes[nKernelDims] = {powerOf2ify(nnXYLen),powerOf2ify(ncSize)};
-      size_t* localSizes = NULL; //TODO actually pick these
-
-      cl_kernel kernel = handle->addChannelBiasesNCHWKernel;
-      clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mid);
-      clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolBias);
-      clSetKernelArg(kernel, 2, sizeof(int), (void *)&ncSize);
-      clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnXYLen);
-
-      err = clEnqueueNDRangeKernel(
-        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
-      );
-      CHECK_ERR(err);
-    }
+    gpoolToBiasMul.apply(handle,batchSize,gpoolConcat,gpoolBias);
+    addChannelBiases(handle, mid, gpoolBias, batchSize * regularChannels, nnXYLen);
 
     // vector<float> tmp(batchSize*regularChannels);
     // clEnqueueReadBuffer(handle->commandQueue, gpoolBias, CL_TRUE, 0, byteSizeofVectorContents(tmp), tmp.data(), 0, NULL, NULL);
@@ -879,8 +878,8 @@ struct GlobalPoolingResidualBlock {
     // for(int i = 0; i<tmp.size(); i++)
     //   cout << tmp[i] << endl;
 
-    midBN.apply(handle,mid,midScratch,mask,batchSize,true);
-    finalConv.apply(handle,midScratch,trunkScratch,batchSize);
+    midBN.apply(handle,batchSize,true,mid,midScratch,mask);
+    finalConv.apply(handle,batchSize,midScratch,trunkScratch);
 
     {
       cl_kernel kernel = handle->addPointWiseKernel;
@@ -905,6 +904,191 @@ struct GlobalPoolingResidualBlock {
   GlobalPoolingResidualBlock& operator=(const GlobalPoolingResidualBlock&) = delete;
 
 };
+
+//--------------------------------------------------------------
+
+struct Trunk {
+  string name;
+  int version;
+  int numBlocks;
+  int trunkNumChannels;
+  int midNumChannels;
+  int regularNumChannels;
+  int dilatedNumChannels;
+  int gpoolNumChannels;
+
+  int maxBatchSize;
+  int nnXLen;
+  int nnYLen;
+
+  ConvLayer* initialConv;
+  MatMulLayer* initialMatMul;
+  vector<pair<int,void*>> blocks;
+  BatchNormLayer* trunkTipBN;
+  ActivationLayer* trunkTipActivation;
+
+  Trunk() = delete;
+  Trunk(const Trunk&) = delete;
+  Trunk& operator=(const Trunk&) = delete;
+
+  Trunk(
+    ComputeHandle* handle,
+    const TrunkDesc* desc,
+    int maxBatchSz,
+    int nnX,
+    int nnY
+  ) {
+    name = desc->name;
+    version = desc->version;
+    numBlocks = desc->numBlocks;
+    trunkNumChannels = desc->trunkNumChannels;
+    midNumChannels = desc->midNumChannels;
+    regularNumChannels = desc->regularNumChannels;
+    dilatedNumChannels = desc->dilatedNumChannels;
+    gpoolNumChannels = desc->gpoolNumChannels;
+
+    maxBatchSize = maxBatchSz;
+    nnXLen = nnX;
+    nnYLen = nnY;
+
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,trunkNumChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,midNumChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,regularNumChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,dilatedNumChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,gpoolNumChannels);
+
+    initialConv = new ConvLayer(handle,&desc->initialConv,nnXLen,nnYLen);
+    initialMatMul = new MatMulLayer(handle,&desc->initialMatMul);
+
+    trunkTipBN = new BatchNormLayer(handle,&desc->trunkTipBN,nnXLen,nnYLen);
+    trunkTipActivation = new ActivationLayer(handle,&desc->trunkTipActivation);
+
+    assert(desc->blocks.size() == numBlocks);
+    for(int i = 0; i<numBlocks; i++) {
+      if(desc->blocks[i].first == ORDINARY_BLOCK_KIND) {
+        ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc->blocks[i].second;
+        ResidualBlock* block = new ResidualBlock(
+          handle,
+          blockDesc,
+          nnXLen,
+          nnYLen
+        );
+        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,(void*)block));
+      }
+      else if(desc->blocks[i].first == DILATED_BLOCK_KIND) {
+        throw StringError("Neural net use dilated convolutions but OpenCL implementation dues not currently support them");
+      }
+      else if(desc->blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+        GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc->blocks[i].second;
+        GlobalPoolingResidualBlock* block = new GlobalPoolingResidualBlock(
+          handle,
+          blockDesc,
+          nnXLen,
+          nnYLen
+        );
+        blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,(void*)block));
+      }
+      else {
+        ASSERT_UNREACHABLE;
+      }
+    }
+  }
+
+  ~Trunk()
+  {
+    for(int i = 0; i<blocks.size(); i++) {
+      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+        ResidualBlock* block = (ResidualBlock*)blocks[i].second;
+        delete block;
+      }
+      else if(blocks[i].first == DILATED_BLOCK_KIND) {
+        ASSERT_UNREACHABLE;
+      }
+      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second;
+        delete block;
+      }
+    }
+
+    delete initialConv;
+    delete initialMatMul;
+    delete trunkTipBN;
+    delete trunkTipActivation;
+  }
+
+  void apply(
+    ComputeHandle* handle,
+    int batchSize,
+    cl_mem input,
+    cl_mem inputGlobal,
+    cl_mem trunk,
+    cl_mem trunkScratch,
+    cl_mem mid,
+    cl_mem midScratch,
+    cl_mem gpoolOut,
+    cl_mem gpoolOut2,
+    cl_mem gpoolConcat,
+    cl_mem gpoolBias,
+    cl_mem mask,
+    cl_mem maskSumBuf
+  ) const {
+
+    //Feed the conv into trunkScratch, not trunk
+    initialConv->apply(handle,batchSize,input,trunkScratch);
+
+    if(initialMatMul != NULL) {
+      //Feed the matmul into trunk
+      initialMatMul->apply(handle,batchSize,inputGlobal,trunk);
+      //Then accumulate it into trunkScratch, broadcasting during the process
+      addChannelBiases(handle, trunkScratch, trunk, batchSize * trunkNumChannels, nnXLen*nnYLen);
+    }
+
+    for(int i = 0; i<blocks.size(); i++) {
+      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+        ResidualBlock* block = (ResidualBlock*)blocks[i].second;
+        block->apply(
+          handle,
+          batchSize,
+          trunkScratch, //Flip trunk and trunkScratch so that the result gets accumulated in trunkScratch
+          trunk,
+          mid,
+          midScratch,
+          mask
+        );
+      }
+      else if(blocks[i].first == DILATED_BLOCK_KIND) {
+        ASSERT_UNREACHABLE;
+      }
+      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second;
+        block->apply(
+          handle,
+          batchSize,
+          trunkScratch, //Flip trunk and trunkScratch so that the result gets accumulated in trunkScratch
+          trunk,
+          mid,
+          midScratch,
+          gpoolOut,
+          gpoolOut2,
+          gpoolConcat,
+          gpoolBias,
+          mask,
+          maskSumBuf
+        );
+      }
+      else {
+        ASSERT_UNREACHABLE;
+      }
+
+    }
+
+    //And now with the final BN port it from trunkScratch to trunk.
+    bool applyBNRelu = true;
+    trunkTipBN->apply(handle,batchSize,applyBNRelu,trunkScratch,mask,trunk);
+  }
+
+};
+
 
 //--------------------------------------------------------------
 
@@ -1038,7 +1222,7 @@ bool NeuralNet::testEvaluateConv(
 
   cl_mem output = clCreateBuffer(handle->clContext, CL_MEM_WRITE_ONLY, byteSizeofVectorContents(outputBuffer), NULL, &err);
   CHECK_ERR(err);
-  layer->apply(handle, input, output, batchSize);
+  layer->apply(handle, batchSize, input, output);
 
   cl_bool blocking = CL_TRUE;
   err = clEnqueueReadBuffer(handle->commandQueue, output, blocking, 0, byteSizeofVectorContents(outputBuffer), outputBuffer.data(), 0, NULL, NULL);
@@ -1098,7 +1282,7 @@ bool NeuralNet::testEvaluateBatchNorm(
   cl_mem output = clCreateBuffer(handle->clContext, CL_MEM_WRITE_ONLY, byteSizeofVectorContents(outputBuffer), NULL, &err);
   CHECK_ERR(err);
   bool applyRelu = false;
-  layer->apply(handle, input, output, mask, batchSize, applyRelu);
+  layer->apply(handle, batchSize, applyRelu, input, output, mask);
 
   cl_bool blocking = CL_TRUE;
   err = clEnqueueReadBuffer(handle->commandQueue, output, blocking, 0, byteSizeofVectorContents(outputBuffer), outputBuffer.data(), 0, NULL, NULL);
@@ -1161,7 +1345,7 @@ bool NeuralNet::testEvaluateResidualBlock(
   cl_mem mid = createReadWriteBuffer(handle,numMidFloats);
   cl_mem midScratch = createReadWriteBuffer(handle,numMidFloats);
 
-  layer->apply(handle, trunk, trunkScratch, mid, midScratch, mask, batchSize);
+  layer->apply(handle, batchSize, trunk, trunkScratch, mid, midScratch, mask);
 
   cl_bool blocking = CL_TRUE;
   err = clEnqueueReadBuffer(handle->commandQueue, trunk, blocking, 0, byteSizeofVectorContents(outputBuffer), outputBuffer.data(), 0, NULL, NULL);
@@ -1240,6 +1424,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 
   layer->apply(
     handle,
+    batchSize,
     trunk,
     trunkScratch,
     mid,
@@ -1249,8 +1434,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
     gpoolConcat,
     gpoolBias,
     mask,
-    maskSumBuf,
-    batchSize
+    maskSumBuf
   );
 
   cl_bool blocking = CL_TRUE;
