@@ -94,9 +94,9 @@ static vector<float> NCHWtoNHWC(const vector<float>& vec, int nSize, int cSize, 
 }
 
 
-static void testConvLayer() {
+static void testConvLayer(int64_t& numTestsRun) {
 
-  auto testConfigurations = [](
+  auto testConfigurations = [&](
     const string& label,
     int batchSize, int nnXLen, int nnYLen,
     const ConvLayerDesc& desc, const vector<float>& input, const vector<float>& expected
@@ -112,6 +112,7 @@ static void testConvLayer() {
         );
 
         if(supported) {
+          numTestsRun += 1;
           string subLabel = label + Global::strprintf(" useNHWC %d useFP16 %d", useNHWC, useFP16);
           if(useNHWC)
             CHECK_APPROX_EQUAL(subLabel,outputThisLoop,expectedThisLoop,batchSize,nnYLen,nnXLen,desc.outChannels,useFP16);
@@ -269,9 +270,9 @@ static void testConvLayer() {
 }
 
 
-static void testBatchNormLayer() {
+static void testBatchNormLayer(int64_t& numTestsRun) {
 
-  auto testConfigurations = [](
+  auto testConfigurations = [&](
     const string& label,
     int batchSize, int nnXLen, int nnYLen,
     const BatchNormLayerDesc& desc, const vector<float>& input, const vector<float>& mask, const vector<float>& expected
@@ -288,6 +289,7 @@ static void testBatchNormLayer() {
         );
 
         if(supported) {
+          numTestsRun += 1;
           string subLabel = label + Global::strprintf(" useNHWC %d useFP16 %d", useNHWC, useFP16);
           if(useNHWC)
             CHECK_APPROX_EQUAL(subLabel,outputThisLoop,expectedThisLoop,batchSize,nnYLen,nnXLen,desc.numChannels,useFP16);
@@ -401,9 +403,9 @@ static void testBatchNormLayer() {
 }
 
 
-static void testResidualBlock() {
+static void testResidualBlock(int64_t& numTestsRun) {
 
-  auto testConfigurations = [](
+  auto testConfigurations = [&](
     const string& label,
     int batchSize, int nnXLen, int nnYLen,
     const ResidualBlockDesc& desc, const vector<float>& input, const vector<float>& mask, const vector<float>& expected
@@ -420,6 +422,7 @@ static void testResidualBlock() {
         );
 
         if(supported) {
+          numTestsRun += 1;
           string subLabel = label + Global::strprintf(" useNHWC %d useFP16 %d", useNHWC, useFP16);
           if(useNHWC)
             CHECK_APPROX_EQUAL(subLabel,outputThisLoop,expectedThisLoop,batchSize,nnYLen,nnXLen,desc.preBN.numChannels,useFP16);
@@ -602,9 +605,9 @@ static void testResidualBlock() {
 
 }
 
-static void testGlobalPoolingResidualBlock() {
+static void testGlobalPoolingResidualBlock(int64_t& numTestsRun) {
 
-  auto testConfigurations = [](
+  auto testConfigurations = [&](
     const string& label,
     int batchSize, int nnXLen, int nnYLen,
     const GlobalPoolingResidualBlockDesc& desc, const vector<float>& input, const vector<float>& mask, const vector<float>& expected
@@ -621,6 +624,7 @@ static void testGlobalPoolingResidualBlock() {
         );
 
         if(supported) {
+          numTestsRun += 1;
           string subLabel = label + Global::strprintf(" useNHWC %d useFP16 %d", useNHWC, useFP16);
           if(useNHWC)
             CHECK_APPROX_EQUAL(subLabel,outputThisLoop,expectedThisLoop,batchSize,nnYLen,nnXLen,desc.preBN.numChannels,useFP16);
@@ -843,9 +847,12 @@ static void testGlobalPoolingResidualBlock() {
 
 void Tests::runNNLayerTests() {
   NeuralNet::globalInitialize();
-  testConvLayer();
-  testBatchNormLayer();
-  testResidualBlock();
-  testGlobalPoolingResidualBlock();
+  int64_t numTestsRun = 0;
+  testConvLayer(numTestsRun);
+  testBatchNormLayer(numTestsRun);
+  testResidualBlock(numTestsRun);
+  testGlobalPoolingResidualBlock(numTestsRun);
   NeuralNet::globalCleanup();
+  cout << "Tested " << numTestsRun << " configurations" << endl;
+  cout << "Done" << endl;
 }

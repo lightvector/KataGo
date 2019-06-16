@@ -1115,3 +1115,37 @@ o..o.oo
 
   NeuralNet::globalCleanup();
 }
+
+void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
+  NeuralNet::globalInitialize();
+
+  Board board = Board::parseBoard(5,5,R"%%(
+.....
+...x.
+..o..
+.xxo.
+.....
+)%%");
+
+  Player nextPla = P_WHITE;
+  Rules rules = Rules::getTrompTaylorish();
+  BoardHistory hist(board,nextPla,rules,0);
+
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.setLogTime(false);
+
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",6,6,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0);
+
+  double drawEquivalentWinsForWhite = 0.5;
+  NNResultBuf buf;
+  bool skipCache = true;
+  bool includeOwnerMap = true;
+  nnEval->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
+
+  printPolicyValueOwnership(board,buf);
+  cout << endl << endl;
+
+  delete nnEval;
+  NeuralNet::globalCleanup();
+}

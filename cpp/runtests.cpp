@@ -102,13 +102,14 @@ int MainCmds::runsearchtestsv3(int argc, const char* const* argv) {
 }
 
 int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
-  Board::initHash();
-  ScoreValue::initTables();
-
   if(argc != 2) {
     cerr << "Must supply exactly one argument: MODEL_FILE" << endl;
     return 1;
   }
+
+  Board::initHash();
+  ScoreValue::initTables();
+
   Tests::runSelfplayInitTestsWithNN(
     string(argv[1])
   );
@@ -123,5 +124,26 @@ int MainCmds::runnnlayertests(int argc, const char* const* argv) {
   (void)argc;
   (void)argv;
   Tests::runNNLayerTests();
+  return 0;
+}
+
+int MainCmds::runnnontinyboardtest(int argc, const char* const* argv) {
+  if(argc != 6) {
+    cerr << "Must supply exactly five arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16" << endl;
+    return 1;
+  }
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Tests::runNNOnTinyBoard(
+    string(argv[1]),
+    Global::stringToBool(argv[2]),
+    Global::stringToBool(argv[3]),
+    Global::stringToInt(argv[4]),
+    Global::stringToBool(argv[5])
+  );
+
+  ScoreValue::freeTables();
+
   return 0;
 }
