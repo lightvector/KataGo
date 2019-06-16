@@ -10,6 +10,7 @@
 #endif
 
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/modelversion.h"
 #include "../neuralnet/openclkernels.h"
 
 using namespace std;
@@ -189,6 +190,7 @@ struct ComputeContext {
   cl_program addCBiasesNCReluProgram;
   cl_program transposeNCHWProgram;
   cl_program mirrorProgram;
+  cl_program extractChannel0NCHWProgram;
 
   ComputeContext(const vector<int>& gIdxs, Logger* logger)
     : platformIds(32),
@@ -267,6 +269,7 @@ struct ComputeContext {
     addCBiasesNCReluProgram = compileProgram("addCBiasesNCReluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCRelu);
     transposeNCHWProgram = compileProgram("transposeNCHWProgram", context, deviceIdsToUse, OpenCLKernels::transposeNCHW);
     mirrorProgram = compileProgram("mirrorProgram", context, deviceIdsToUse, OpenCLKernels::mirror);
+    extractChannel0NCHWProgram = compileProgram("extractChannel0NCHWProgram", context, deviceIdsToUse, OpenCLKernels::extractChannel0NCHW);
   }
 
   ~ComputeContext() {
@@ -283,6 +286,7 @@ struct ComputeContext {
     clReleaseProgram(addCBiasesNCReluProgram);
     clReleaseProgram(transposeNCHWProgram);
     clReleaseProgram(mirrorProgram);
+    clReleaseProgram(extractChannel0NCHWProgram);
     for(int i = 0; i<commandQueues.size(); i++) {
       clFlush(commandQueues[i]);
       clFinish(commandQueues[i]);
@@ -368,6 +372,7 @@ struct ComputeHandle {
   cl_kernel addCBiasesNCReluKernel;
   cl_kernel transposeNCHWKernel;
   cl_kernel mirrorKernel;
+  cl_kernel extractChannel0NCHWKernel;
 
   ComputeHandle(ComputeContext* context, const LoadedModel* loadedModel, int gpuIdx, int maxBatchSize, int nnXLen, int nnYLen) {
     clContext = context->context;
@@ -401,6 +406,8 @@ struct ComputeHandle {
     CHECK_ERR(err);
     mirrorKernel = clCreateKernel(context->mirrorProgram, "mirror", &err);
     CHECK_ERR(err);
+    extractChannel0NCHWKernel = clCreateKernel(context->extractChannel0NCHWProgram, "extractChannel0NCHW", &err);
+    CHECK_ERR(err);
 
     //TODO note that loaded model can be null, in which case we're just testing one thing
     (void)loadedModel;
@@ -423,6 +430,7 @@ struct ComputeHandle {
     clReleaseKernel(addCBiasesNCReluKernel);
     clReleaseKernel(transposeNCHWKernel);
     clReleaseKernel(mirrorKernel);
+    clReleaseKernel(extractChannel0NCHWKernel);
   }
 
   ComputeHandle() = delete;
@@ -520,7 +528,7 @@ static void addChannelBiases(ComputeHandle* handle, cl_mem src, cl_mem bias, int
   CHECK_ERR(err);
 }
 
-static void performGPool(ComputeHandle* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSumBuf) {
+static void performGPool(ComputeHandle* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum) {
   cl_int err;
   static constexpr int nKernelDims = 3;
   //TODO optimize/tune, dehardcode numbers
@@ -530,7 +538,7 @@ static void performGPool(ComputeHandle* handle, int batchSize, int gpoolChannels
   cl_kernel kernel = handle->gPoolChannelsNCHWKernel;
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolConvOut);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
-  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSumBuf);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSum);
   clSetKernelArg(kernel, 3, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
   clSetKernelArg(kernel, 4, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
   clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
@@ -543,7 +551,7 @@ static void performGPool(ComputeHandle* handle, int batchSize, int gpoolChannels
   CHECK_ERR(err);
 }
 
-static void performValueHeadPool(ComputeHandle* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSumBuf) {
+static void performValueHeadPool(ComputeHandle* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum) {
   cl_int err;
   static constexpr int nKernelDims = 3;
   //TODO optimize/tune, dehardcode numbers
@@ -553,7 +561,7 @@ static void performValueHeadPool(ComputeHandle* handle, int batchSize, int gpool
   cl_kernel kernel = handle->valueHeadPoolChannelsNCHWKernel;
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolConvOut);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
-  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSumBuf);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSum);
   clSetKernelArg(kernel, 3, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
   clSetKernelArg(kernel, 4, sizeof(int), (void *)&batchSize);
   clSetKernelArg(kernel, 5, sizeof(int), (void *)&gpoolChannels);
@@ -1054,14 +1062,14 @@ struct GlobalPoolingResidualBlock {
     cl_mem gpoolConcat,
     cl_mem gpoolBias,
     cl_mem mask,
-    cl_mem maskSumBuf
+    cl_mem maskSum
   ) {
     preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
     regularConv.apply(handle,batchSize,trunkScratch,mid);
     gpoolConv.apply(handle,batchSize,trunkScratch,gpoolOut);
     gpoolBN.apply(handle,batchSize,true,gpoolOut,gpoolOut2,mask);
 
-    performGPool(handle, batchSize, gpoolChannels, nnXYLen, gpoolOut2, gpoolConcat, maskSumBuf);
+    performGPool(handle, batchSize, gpoolChannels, nnXYLen, gpoolOut2, gpoolConcat, maskSum);
 
     gpoolToBiasMul.apply(handle,batchSize,gpoolConcat,gpoolBias);
     addChannelBiases(handle, mid, gpoolBias, batchSize * regularChannels, nnXYLen);
@@ -1224,7 +1232,7 @@ struct Trunk {
     cl_mem gpoolConcat,
     cl_mem gpoolBias,
     cl_mem mask,
-    cl_mem maskSumBuf
+    cl_mem maskSum
   ) const {
 
     //Feed the conv into trunkScratch, not trunk
@@ -1267,7 +1275,7 @@ struct Trunk {
           gpoolConcat,
           gpoolBias,
           mask,
-          maskSumBuf
+          maskSum
         );
       }
       else {
@@ -1351,7 +1359,7 @@ struct PolicyHead {
     const bool* symmetriesBuffer,
     int batchSize,
     cl_mem mask,
-    cl_mem maskSumBuf,
+    cl_mem maskSum,
     cl_mem trunk,
     cl_mem p1Out,
     cl_mem p1Out2,
@@ -1369,7 +1377,7 @@ struct PolicyHead {
     g1Conv->apply(handle,batchSize,trunk,gpoolOut);
     g1BN->apply(handle,batchSize,applyBNRelu,gpoolOut,gpoolOut2,mask);
 
-    performGPool(handle, batchSize, g1Channels, nnXLen*nnYLen, gpoolOut2, gpoolConcat, maskSumBuf);
+    performGPool(handle, batchSize, g1Channels, nnXLen*nnYLen, gpoolOut2, gpoolConcat, maskSum);
 
     gpoolToBiasMul->apply(handle,batchSize,gpoolConcat,gpoolBias);
 
@@ -1470,7 +1478,7 @@ struct ValueHead {
     const bool* symmetriesBuffer,
     int batchSize,
     cl_mem mask,
-    cl_mem maskSumBuf,
+    cl_mem maskSum,
     cl_mem trunk,
     cl_mem v1Out,
     cl_mem v1Out2,
@@ -1486,7 +1494,7 @@ struct ValueHead {
     v1Conv->apply(handle,batchSize,trunk,v1Out);
     v1BN->apply(handle,batchSize,applyBNRelu,v1Out,v1Out2,mask);
 
-    performValueHeadPool(handle, batchSize, v1Channels, nnXLen*nnYLen, v1Out2, v1Mean, maskSumBuf);
+    performValueHeadPool(handle, batchSize, v1Channels, nnXLen*nnYLen, v1Out2, v1Mean, maskSum);
 
     v2Mul->apply(handle,batchSize,v1Mean,v2Out);
     v2Bias->apply(handle,batchSize,true,v2Out);
@@ -1504,13 +1512,12 @@ struct ValueHead {
 
 };
 
-
 //--------------------------------------------------------------
 
 static void computeMaskSums(
   ComputeHandle* handle,
   cl_mem mask,
-  cl_mem maskSumBuf,
+  cl_mem maskSum,
   int batchSize,
   int nnXLen,
   int nnYLen
@@ -1525,7 +1532,7 @@ static void computeMaskSums(
   int numChannels = 1;
   int nnXYLen = nnXLen * nnYLen;
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mask);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&maskSumBuf);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&maskSum);
   clSetKernelArg(kernel, 2, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
   clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
   clSetKernelArg(kernel, 4, sizeof(int), (void *)&numChannels);
@@ -1536,6 +1543,198 @@ static void computeMaskSums(
   );
   CHECK_ERR(err);
 }
+
+
+//--------------------------------------------------------------
+
+struct Model {
+  string name;
+  int version;
+  int maxBatchSize;
+  int nnXLen;
+  int nnYLen;
+  int numInputChannels;
+  int numInputGlobalChannels;
+  int numValueChannels;
+  int numScoreValueChannels;
+  int numOwnershipChannels;
+
+  Trunk* trunk;
+  PolicyHead* policyHead;
+  ValueHead* valueHead;
+
+  Model() = delete;
+  Model(const Model&) = delete;
+  Model& operator=(const Model&) = delete;
+
+  Model(
+    ComputeHandle* handle,
+    const ModelDesc* desc,
+    int maxBatchSz,
+    int nnX,
+    int nnY
+  ) {
+    name = desc->name;
+    version = desc->version;
+    maxBatchSize = maxBatchSz;
+
+    nnXLen = nnX;
+    nnYLen = nnY;
+    if(nnXLen > NNPos::MAX_BOARD_LEN)
+      throw StringError(Global::strprintf("nnXLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
+        nnXLen, NNPos::MAX_BOARD_LEN
+      ));
+    if(nnYLen > NNPos::MAX_BOARD_LEN)
+      throw StringError(Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
+        nnYLen, NNPos::MAX_BOARD_LEN
+      ));
+
+    numInputChannels = desc->numInputChannels;
+    numInputGlobalChannels = desc->numInputGlobalChannels;
+    numValueChannels = desc->numValueChannels;
+    numScoreValueChannels = desc->numScoreValueChannels;
+    numOwnershipChannels = desc->numOwnershipChannels;
+
+    int numFeatures = NNModelVersion::getNumSpatialFeatures(version);
+    if(numInputChannels != numFeatures)
+      throw StringError(Global::strprintf("Neural net numInputChannels (%d) was not the expected number based on version (%d)",
+        numInputChannels, numFeatures
+      ));
+    int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
+    if(numInputGlobalChannels != numGlobalFeatures)
+      throw StringError(Global::strprintf("Neural net numInputGlobalChannels (%d) was not the expected number based on version (%d)",
+        numInputGlobalChannels, numGlobalFeatures
+      ));
+
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputGlobalChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numValueChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numScoreValueChannels);
+    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numOwnershipChannels);
+
+    trunk = new Trunk(handle,&desc->trunk,maxBatchSize,nnXLen,nnYLen);
+    policyHead = new PolicyHead(handle,&desc->policyHead,nnXLen,nnYLen);
+    valueHead = new ValueHead(handle,&desc->valueHead,nnXLen,nnYLen);
+  }
+
+  ~Model()
+  {
+    delete valueHead;
+    delete policyHead;
+    delete trunk;
+  }
+
+  void apply(
+    ComputeHandle* handle,
+    int batchSize,
+    bool* symmetriesBuffer,
+
+    cl_mem input,
+    cl_mem inputScratch,
+    cl_mem inputGlobal,
+    cl_mem mask,
+    cl_mem maskSum,
+    cl_mem trunkBuf,
+    cl_mem trunkScratch,
+    cl_mem mid,
+    cl_mem midScratch,
+    cl_mem gpoolOut,
+    cl_mem gpoolOut2,
+    cl_mem gpoolConcat,
+    cl_mem gpoolBias,
+
+    cl_mem p1Out,
+    cl_mem p1Out2,
+    cl_mem p2Out,
+    cl_mem policyPass,
+    cl_mem policy,
+
+    cl_mem v1Out,
+    cl_mem v1Out2,
+    cl_mem v1Mean,
+    cl_mem v2Out,
+    cl_mem value,
+    cl_mem scoreValue,
+    cl_mem ownership,
+    cl_mem ownershipScratch
+  ) {
+
+    bool inverse = false;
+    applySymmetriesNCHW(handle, symmetriesBuffer, inverse, batchSize, numInputChannels, nnXLen, nnYLen, input, inputScratch);
+
+    {
+      cl_kernel kernel = handle->extractChannel0NCHWKernel;
+      int nnXYLen = nnXLen * nnYLen;
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&mask);
+      clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
+      clSetKernelArg(kernel, 3, sizeof(int), (void *)&numInputChannels);
+      clSetKernelArg(kernel, 4, sizeof(int), (void *)&nnXYLen);
+
+      cl_int err;
+      static constexpr int nKernelDims = 2;
+      size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)nnXYLen), powerOf2ify((size_t)batchSize)};
+      size_t* localSizes = NULL; //TODO actually pick these
+      err = clEnqueueNDRangeKernel(
+        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+      );
+      CHECK_ERR(err);
+    }
+
+    computeMaskSums(handle,mask,maskSum,batchSize,nnXLen,nnYLen);
+
+    trunk->apply(
+      handle,
+      batchSize,
+      input,
+      inputGlobal,
+      trunkBuf,
+      trunkScratch,
+      mid,
+      midScratch,
+      gpoolOut,
+      gpoolOut2,
+      gpoolConcat,
+      gpoolBias,
+      mask,
+      maskSum
+    );
+    policyHead->apply(
+      handle,
+      symmetriesBuffer,
+      batchSize,
+      mask,
+      maskSum,
+      trunkBuf,
+      p1Out,
+      p1Out2,
+      gpoolOut,
+      gpoolOut2,
+      gpoolConcat,
+      gpoolBias,
+      p2Out,
+      policyPass,
+      policy
+    );
+    valueHead->apply(
+      handle,
+      symmetriesBuffer,
+      batchSize,
+      mask,
+      maskSum,
+      trunkBuf,
+      v1Out,
+      v1Out2,
+      v1Mean,
+      v2Out,
+      value,
+      scoreValue,
+      ownership,
+      ownershipScratch
+    );
+  }
+
+};
 
 
 //--------------------------------------------------------------
@@ -1826,7 +2025,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   vector<float> maskTmp = maskBuffer;
   cl_mem trunk = createReadWriteBuffer(handle,inputTmp);
   cl_mem mask = createReadOnlyBuffer(handle,maskTmp);
-  cl_mem maskSumBuf = createReadWriteBuffer(handle,numMaskSumFloats);
+  cl_mem maskSum = createReadWriteBuffer(handle,numMaskSumFloats);
   cl_mem trunkScratch = createReadWriteBuffer(handle,numTrunkFloats);
   cl_mem mid = createReadWriteBuffer(handle,numMidFloats);
   cl_mem midScratch = createReadWriteBuffer(handle,numMidFloats);
@@ -1835,7 +2034,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   cl_mem gpoolConcat = createReadWriteBuffer(handle,numGPoolConcatFloats);
   cl_mem gpoolBias = createReadWriteBuffer(handle,numGPoolBiasFloats);
 
-  computeMaskSums(handle,mask,maskSumBuf,batchSize,nnXLen,nnYLen);
+  computeMaskSums(handle,mask,maskSum,batchSize,nnXLen,nnYLen);
 
   layer->apply(
     handle,
@@ -1849,7 +2048,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
     gpoolConcat,
     gpoolBias,
     mask,
-    maskSumBuf
+    maskSum
   );
 
   cl_bool blocking = CL_TRUE;
@@ -1858,7 +2057,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 
   clReleaseMemObject(trunk);
   clReleaseMemObject(mask);
-  clReleaseMemObject(maskSumBuf);
+  clReleaseMemObject(maskSum);
   clReleaseMemObject(trunkScratch);
   clReleaseMemObject(mid);
   clReleaseMemObject(midScratch);

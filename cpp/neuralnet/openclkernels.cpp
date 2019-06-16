@@ -417,3 +417,15 @@ __kernel void mirror(__global float* in, __global float* out, int batchSize, int
   }
 }
 )%%";
+
+
+string OpenCLKernels::extractChannel0NCHW = R"%%(
+__kernel void extractChannel0NCHW(__global float* in, __global float* out, int nSize, int cSize, int xySize)
+{
+  const int xyIdx = get_global_id(0);
+  const int nIdx = get_global_id(1);
+  if(xyIdx < xySize && nIdx < nSize) {
+    out[nIdx * xySize + xyIdx] = in[nIdx * cSize * xySize + xyIdx];
+  }
+}
+)%%";

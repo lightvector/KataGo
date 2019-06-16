@@ -17,6 +17,7 @@ namespace OpenCLKernels {
   extern std::string addCBiasesNCRelu;
   extern std::string transposeNCHW;
   extern std::string mirror;
+  extern std::string extractChannel0NCHW;
 }
 
 
