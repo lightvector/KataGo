@@ -18,6 +18,7 @@ struct ConvLayerDesc {
   int outChannels;
   int dilationY;
   int dilationX;
+  // outC x inC x H x W (col-major order - W has least stride, outC greatest)
   std::vector<float> weights;
 
   ConvLayerDesc();

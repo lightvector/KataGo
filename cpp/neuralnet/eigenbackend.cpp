@@ -22,6 +22,32 @@ using namespace std;
 
 using Eigen::Tensor;
 
+// Debugging -----------------------------------------------------------------------------------------------------------
+void printTensor4Size(const string& name, const Tensor<SCALAR, 4>& t) {
+  cout << name << " rank=" << t.NumDimensions << " - ";
+  for(int i = 0; i < t.NumDimensions; i++) {
+    cout << t.dimension(i) << "x";
+  }
+  cout << endl;
+}
+
+// NHWC
+void printTensor4(const string& name, const Tensor<SCALAR, 4>& t) {
+  printTensor4Size(name, t);
+  for(int n = 0; n < t.dimension(3); n++) {
+    cout << "n = " << n << endl;
+    for(int h = 0; h < t.dimension(2); h++) {
+      for(int w = 0; w < t.dimension(1); w++) {
+        for(int c = 0; c < t.dimension(0); c++) {
+          cout << t(c, w, h, n) << (c == t.dimension(0) - 1 ? ", " : " ");
+        }
+      }
+      cout << endl;
+    }
+    cout << endl;
+  }
+}
+
 // LoadedModel / ModelDesc ---------------------------------------------------------------------------------------------
 
 struct LoadedModel {
@@ -36,12 +62,14 @@ struct LoadedModel {
 
 // Layers --------------------------------------------------------------------------------------------------------------
 
-// Convolution layer with zero-padding and dilation filtering.
+// Convolution layer with zero-padding.
 struct ConvLayer {
   string name;
 
   Eigen::array<pair<int, int>, 4> paddings;
-  Tensor<SCALAR, 4> kernel;  // outC x fW x fH x inC
+  Tensor<SCALAR, 4> kernel;
+  int inChannels, outChannels;
+  int paddingX, paddingY;
 
   ConvLayer() = delete;
   ConvLayer(const ConvLayer&) = delete;
@@ -51,8 +79,9 @@ struct ConvLayer {
     name = desc.name;
     int convYSize = desc.convYSize;
     int convXSize = desc.convXSize;
-    int inChannels = desc.inChannels;
-    int outChannels = desc.outChannels;
+    inChannels = desc.inChannels;
+    outChannels = desc.outChannels;
+    // CR lpuchallafiore: dilation?
     int dilationY = desc.dilationY;
     int dilationX = desc.dilationX;
     int paddingX = (convXSize / 2) * dilationX;
@@ -66,33 +95,32 @@ struct ConvLayer {
     paddings[2] = make_pair(paddingY, paddingY);  // H
     paddings[3] = make_pair(0, 0);                // N
 
-    bool filterNHWC = dilationY == 1 && dilationX == 1;
-    if(filterNHWC) {
-      vector<float> weightsTransposed(desc.weights.size());
-      for(int y = 0; y < convYSize; y++) {
-        for(int x = 0; x < convXSize; x++) {
-          for(int ic = 0; ic < inChannels; ic++) {
-            for(int oc = 0; oc < outChannels; oc++) {
-              weightsTransposed[((oc * convYSize + y) * convXSize + x) * inChannels + ic] =
-                desc.weights[((oc * inChannels + ic) * convYSize + y) * convXSize + x];
-            }
-          }
-        }
-      }
-      // CR lpuchallafiore: double-check this forces a copy to kernel, otherwise weightsTranspose will be deleted and
-      // this will not work.
-      kernel =
-        Eigen::TensorMap<const Tensor<SCALAR, 4>>(&weightsTransposed[0], outChannels, convXSize, convYSize, inChannels);
-    } else {
-      kernel =
-        Eigen::TensorMap<const Tensor<SCALAR, 4>>((float *)&desc.weights[0], outChannels, convXSize, convYSize, inChannels);
-    }
+    // CR-someday lpuchallafiore: optimize NHWC vs NCHW, etc.
+    kernel = Eigen::TensorMap<const Tensor<SCALAR, 4>>(
+      (float*)&desc.weights[0], convXSize, convYSize, inChannels, outChannels);
   }
 
   // CR lpuchallafiore: accumulate?
   void apply(const Tensor<SCALAR, 4>& input, Tensor<SCALAR, 4>* output, bool accumulate) const {
-    Eigen::array<ptrdiff_t, 2> dims({1, 2});  // Specify second (W) and third (H) dimensions for convolution.
-    *output = input.pad(paddings).convolve(kernel, dims);
+    auto padded = input.pad(paddings);
+
+    *output = Tensor<SCALAR, 4>(outChannels, input.dimension(1), input.dimension(2), input.dimension(3));
+    for(int n = 0; n < input.dimension(3); n++) {
+      auto inN = padded.chip(n, 3);
+      for(int oc = 0; oc < outChannels; oc++) {
+        Tensor<SCALAR, 2> sum(input.dimension(1), input.dimension(2));
+        sum.setZero();
+
+        for(int ic = 0; ic < inChannels; ic++) {
+          Eigen::array<ptrdiff_t, 2> dims({0, 1});
+          auto kChip = kernel.chip(oc, 3).chip(ic, 2);
+          auto inNC = inN.chip(ic, 0);
+          sum += inNC.convolve(kChip, dims);
+        }
+
+        output->chip(n, 3).chip(oc, 0) = sum;
+      }
+    }
   }
 };
 
@@ -192,6 +220,10 @@ int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   return loadedModel->modelDesc.version;
 }
 
+Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
+  return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
+}
+
 // NeuralNet -----------------------------------------------------------------------------------------------------------
 
 void NeuralNet::globalInitialize() {
@@ -244,4 +276,70 @@ void NeuralNet::getOutput(
   int numFilledRows,
   vector<NNOutput*>& outputs) {
   assert(false);
+}
+
+// FOR TESTING ---------------------------------------------------------------------------------------------------------
+bool NeuralNet::testEvaluateConv(
+  const ConvLayerDesc* desc,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const std::vector<float>& inputBuffer,
+  std::vector<float>& outputBuffer) {
+  if(useNHWC && !useFP16) {
+    ConvLayer layer(*desc, batchSize);
+    Eigen::TensorMap<const Tensor<SCALAR, 4>> inTensor(
+      (float*)&inputBuffer[0], desc->inChannels, nnXLen, nnYLen, batchSize);
+    Tensor<SCALAR, 4> outTensor;
+
+    layer.apply(inTensor, &outTensor, false);
+
+    outputBuffer.resize(outTensor.size());
+    memcpy(&outputBuffer[0], outTensor.data(), sizeof(float) * outTensor.size());
+    return true;
+  } else {
+    return false;
+  }
+}
+
+// Mask should be in 'NHW' format (no "C" channel).
+bool NeuralNet::testEvaluateBatchNorm(
+  const BatchNormLayerDesc* desc,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const std::vector<float>& inputBuffer,
+  const std::vector<float>& maskBuffer,
+  std::vector<float>& outputBuffer) {
+  return false;
+}
+
+bool NeuralNet::testEvaluateResidualBlock(
+  const ResidualBlockDesc* desc,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const std::vector<float>& inputBuffer,
+  const std::vector<float>& maskBuffer,
+  std::vector<float>& outputBuffer) {
+  return false;
+}
+
+bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
+  const GlobalPoolingResidualBlockDesc* desc,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const std::vector<float>& inputBuffer,
+  const std::vector<float>& maskBuffer,
+  std::vector<float>& outputBuffer) {
+  return false;
 }
