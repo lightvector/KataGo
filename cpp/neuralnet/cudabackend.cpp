@@ -2513,9 +2513,11 @@ struct Buffers {
 
 //Cuda implementation doesn't need this
 ComputeContext* NeuralNet::createComputeContext(
-  const std::vector<int>& gpuIdxs
+  const std::vector<int>& gpuIdxs,
+  Logger* logger
 ) {
   (void)gpuIdxs;
+  (void)logger;
   return NULL;
 }
 

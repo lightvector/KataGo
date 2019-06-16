@@ -14,9 +14,11 @@ void NeuralNet::globalCleanup() {
 }
 
 ComputeContext* NeuralNet::createComputeContext(
-  const std::vector<int>& gpuIdxs
+  const std::vector<int>& gpuIdxs,
+  Logger* logger
 ) {
   (void)gpuIdxs;
+  (void)logger;
   throw StringError("Dummy neural net backend: NeuralNet::createComputeContext unimplemented");
 }
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
