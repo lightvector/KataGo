@@ -15,6 +15,9 @@
 
 using namespace std;
 
+//Define this to print out some of the intermediate values of the neural net
+//#define DEBUG_INTERMEDIATE_VALUES
+
 static const char* getErrorString(cl_int error)
 {
   switch(error){
@@ -630,6 +633,63 @@ static void applySymmetriesNCHW(
   }
 }
 
+#ifdef DEBUG_INTERMEDIATE_VALUES
+static void debugPrint2D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize) {
+  cl_int err;
+  vector<float> values(batchSize * cSize);
+  cl_bool blocking = CL_TRUE;
+  err = clEnqueueReadBuffer(handle->commandQueue, deviceBuf, blocking, 0, byteSizeofVectorContents(values), values.data(), 0, NULL, NULL);
+  CHECK_ERR(err);
+  cout << "=========================================================" << endl;
+  cout << name << endl;
+  int i = 0;
+  for(int n = 0; n<batchSize; n++) {
+    cout << "-(n=" << n << ")--------------------" << endl;
+    for(int c = 0; c<cSize; c++)
+      cout << values[i++] << " ";
+    cout << endl;
+  }
+  cout << endl;
+  cout << "=========================================================" << endl;
+}
+
+static void debugPrint4D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize, int xSize, int ySize, bool useNHWC) {
+  cl_int err;
+  vector<float> values(batchSize * cSize * xSize * ySize);
+  cl_bool blocking = CL_TRUE;
+  err = clEnqueueReadBuffer(handle->commandQueue, deviceBuf, blocking, 0, byteSizeofVectorContents(values), values.data(), 0, NULL, NULL);
+  CHECK_ERR(err);
+  cout << "=========================================================" << endl;
+  cout << name << endl;
+  int i = 0;
+  for(int n = 0; n<batchSize; n++) {
+    cout << "-(n=" << n << ")--------------------" << endl;
+    if(useNHWC) {
+      for(int y = 0; y<ySize; y++) {
+        cout << "(y=" << y << ")" << endl;
+        for(int x = 0; x<xSize; x++) {
+          for(int c = 0; c<cSize; c++)
+            cout << values[i++] << " ";
+          cout << endl;
+        }
+        cout << endl;
+      }
+    }
+    else {
+      for(int c = 0; c<cSize; c++) {
+        cout << "(c=" << c << ")" << endl;
+        for(int y = 0; y<ySize; y++) {
+          for(int x = 0; x<xSize; x++)
+            cout << values[i++] << " ";
+          cout << endl;
+        }
+        cout << endl;
+      }
+    }
+  }
+  cout << "=========================================================" << endl;
+}
+#endif
 
 //--------------------------------------------------------------
 
@@ -1213,6 +1273,11 @@ struct Trunk {
     }
 
     for(int i = 0; i<blocks.size(); i++) {
+      #ifdef DEBUG_INTERMEDIATE_VALUES
+      bool usingNHWC = false;
+      debugPrint4D(string("Trunk before block " + Global::intToString(i)), handle, trunkScratch, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
+      #endif
+
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
         ResidualBlock* block = (ResidualBlock*)blocks[i].second;
         block->apply(
@@ -1254,6 +1319,10 @@ struct Trunk {
     //And now with the final BN port it from trunkScratch to trunk.
     bool applyBNRelu = true;
     trunkTipBN->apply(handle,batchSize,applyBNRelu,trunkScratch,trunk,mask);
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    bool usingNHWC = false;
+    debugPrint4D(string("Trunk tip"), handle, trunk, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
+    #endif
   }
 
 };
@@ -1348,6 +1417,14 @@ struct PolicyHead {
 
     gpoolToBiasMul->apply(handle,batchSize,gpoolConcat,gpoolBias);
 
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    bool usingNHWC = false;
+    debugPrint4D(string("p1 pre-gpool-sum"), handle, p1Out, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint4D(string("g1 pre-gpool"), handle, gpoolOut, batchSize, g1Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint2D(string("g1 pooled"), handle, gpoolConcat, batchSize, g1Channels*3);
+    debugPrint2D(string("g1 biases"), handle, gpoolBias, batchSize, p1Channels);
+    #endif
+
     cl_mem p1OutA;
     cl_mem p1OutB;
     p1OutA = p1Out;
@@ -1356,12 +1433,18 @@ struct PolicyHead {
     addChannelBiases(handle, p1OutA, gpoolBias, batchSize * p1Channels, nnXLen*nnYLen);
 
     p1BN->apply(handle,batchSize,true,p1OutA,p1OutB,mask);
-    p2Conv->apply(handle,batchSize,p1OutB,p2Out);
+    p2Conv->apply(handle,batchSize,p1OutB,policy);
 
     bool inverse = true;
-    applySymmetriesNCHW(handle, symmetriesBuffer, inverse, batchSize, p2Channels, nnXLen, nnYLen, p2Out, policy);
+    applySymmetriesNCHW(handle, symmetriesBuffer, inverse, batchSize, p2Channels, nnXLen, nnYLen, policy, p2Out);
 
     gpoolToPassMul->apply(handle,batchSize,gpoolConcat,policyPass);
+
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint4D(string("p1 after-gpool-sum"), handle, p1Out, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint4D(string("p2"), handle, policy, batchSize, p2Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint2D(string("p2pass"), handle, policyPass, batchSize, 1);
+    #endif
   }
 
 };
@@ -1470,6 +1553,13 @@ struct ValueHead {
 
     sv3Mul->apply(handle,batchSize,v2Out,scoreValue);
     sv3Bias->apply(handle,batchSize,false,scoreValue);
+
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    bool usingNHWC = false;
+    debugPrint4D(string("v1"), handle, v1Out, batchSize, v1Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint2D(string("v1 pooled"), handle, v1Mean, batchSize, v1Channels);
+    debugPrint2D(string("v2"), handle, v2Out, batchSize, v1Channels);
+    #endif
 
     vOwnershipConv->apply(handle,batchSize,v1Out2,ownership);
 
