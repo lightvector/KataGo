@@ -183,7 +183,12 @@ struct ComputeContext {
   cl_program matMulProgram;
   cl_program sumChannelsNCHWProgram;
   cl_program gPoolChannelsNCHWProgram;
+  cl_program valueHeadPoolChannelsNCHWProgram;
   cl_program addChannelBiasesNCHWProgram;
+  cl_program addCBiasesNCProgram;
+  cl_program addCBiasesNCReluProgram;
+  cl_program transposeNCHWProgram;
+  cl_program mirrorProgram;
 
   ComputeContext(const vector<int>& gIdxs, Logger* logger)
     : platformIds(32),
@@ -256,7 +261,12 @@ struct ComputeContext {
     matMulProgram = compileProgram("matMulProgram", context, deviceIdsToUse, OpenCLKernels::matMul);
     sumChannelsNCHWProgram = compileProgram("sumChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::sumChannelsNCHW);
     gPoolChannelsNCHWProgram = compileProgram("gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW);
+    valueHeadPoolChannelsNCHWProgram = compileProgram("valueHeadPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::valueHeadPoolChannelsNCHW);
     addChannelBiasesNCHWProgram = compileProgram("addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW);
+    addCBiasesNCProgram = compileProgram("addCBiasesNCProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNC);
+    addCBiasesNCReluProgram = compileProgram("addCBiasesNCReluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCRelu);
+    transposeNCHWProgram = compileProgram("transposeNCHWProgram", context, deviceIdsToUse, OpenCLKernels::transposeNCHW);
+    mirrorProgram = compileProgram("mirrorProgram", context, deviceIdsToUse, OpenCLKernels::mirror);
   }
 
   ~ComputeContext() {
@@ -267,7 +277,12 @@ struct ComputeContext {
     clReleaseProgram(matMulProgram);
     clReleaseProgram(sumChannelsNCHWProgram);
     clReleaseProgram(gPoolChannelsNCHWProgram);
+    clReleaseProgram(valueHeadPoolChannelsNCHWProgram);
     clReleaseProgram(addChannelBiasesNCHWProgram);
+    clReleaseProgram(addCBiasesNCProgram);
+    clReleaseProgram(addCBiasesNCReluProgram);
+    clReleaseProgram(transposeNCHWProgram);
+    clReleaseProgram(mirrorProgram);
     for(int i = 0; i<commandQueues.size(); i++) {
       clFlush(commandQueues[i]);
       clFinish(commandQueues[i]);
@@ -347,7 +362,12 @@ struct ComputeHandle {
   cl_kernel matMulKernel;
   cl_kernel sumChannelsNCHWKernel;
   cl_kernel gPoolChannelsNCHWKernel;
+  cl_kernel valueHeadPoolChannelsNCHWKernel;
   cl_kernel addChannelBiasesNCHWKernel;
+  cl_kernel addCBiasesNCKernel;
+  cl_kernel addCBiasesNCReluKernel;
+  cl_kernel transposeNCHWKernel;
+  cl_kernel mirrorKernel;
 
   ComputeHandle(ComputeContext* context, const LoadedModel* loadedModel, int gpuIdx, int maxBatchSize, int nnXLen, int nnYLen) {
     clContext = context->context;
@@ -369,7 +389,17 @@ struct ComputeHandle {
     CHECK_ERR(err);
     gPoolChannelsNCHWKernel = clCreateKernel(context->gPoolChannelsNCHWProgram, "gPoolChannelsNCHW", &err);
     CHECK_ERR(err);
+    valueHeadPoolChannelsNCHWKernel = clCreateKernel(context->valueHeadPoolChannelsNCHWProgram, "valueHeadPoolChannelsNCHW", &err);
+    CHECK_ERR(err);
     addChannelBiasesNCHWKernel = clCreateKernel(context->addChannelBiasesNCHWProgram, "addChannelBiasesNCHW", &err);
+    CHECK_ERR(err);
+    addCBiasesNCKernel = clCreateKernel(context->addCBiasesNCProgram, "addCBiasesNC", &err);
+    CHECK_ERR(err);
+    addCBiasesNCReluKernel = clCreateKernel(context->addCBiasesNCReluProgram, "addCBiasesNCRelu", &err);
+    CHECK_ERR(err);
+    transposeNCHWKernel = clCreateKernel(context->transposeNCHWProgram, "transposeNCHW", &err);
+    CHECK_ERR(err);
+    mirrorKernel = clCreateKernel(context->mirrorProgram, "mirror", &err);
     CHECK_ERR(err);
 
     //TODO note that loaded model can be null, in which case we're just testing one thing
@@ -387,7 +417,12 @@ struct ComputeHandle {
     clReleaseKernel(matMulKernel);
     clReleaseKernel(sumChannelsNCHWKernel);
     clReleaseKernel(gPoolChannelsNCHWKernel);
+    clReleaseKernel(valueHeadPoolChannelsNCHWKernel);
     clReleaseKernel(addChannelBiasesNCHWKernel);
+    clReleaseKernel(addCBiasesNCKernel);
+    clReleaseKernel(addCBiasesNCReluKernel);
+    clReleaseKernel(transposeNCHWKernel);
+    clReleaseKernel(mirrorKernel);
   }
 
   ComputeHandle() = delete;
@@ -484,6 +519,142 @@ static void addChannelBiases(ComputeHandle* handle, cl_mem src, cl_mem bias, int
   );
   CHECK_ERR(err);
 }
+
+static void performGPool(ComputeHandle* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSumBuf) {
+  cl_int err;
+  static constexpr int nKernelDims = 3;
+  //TODO optimize/tune, dehardcode numbers
+  size_t globalSizes[nKernelDims] = {32,powerOf2ify(gpoolChannels),powerOf2ify(batchSize)};
+  size_t localSizes[nKernelDims] = {32,std::min((size_t)8,globalSizes[1]),1};
+
+  cl_kernel kernel = handle->gPoolChannelsNCHWKernel;
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolConvOut);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSumBuf);
+  clSetKernelArg(kernel, 3, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
+  clSetKernelArg(kernel, 4, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
+  clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
+  clSetKernelArg(kernel, 6, sizeof(int), (void *)&gpoolChannels);
+  clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXYLen);
+
+  err = clEnqueueNDRangeKernel(
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+  );
+  CHECK_ERR(err);
+}
+
+static void performValueHeadPool(ComputeHandle* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSumBuf) {
+  cl_int err;
+  static constexpr int nKernelDims = 3;
+  //TODO optimize/tune, dehardcode numbers
+  size_t globalSizes[nKernelDims] = {32,powerOf2ify(gpoolChannels),powerOf2ify(batchSize)};
+  size_t localSizes[nKernelDims] = {32,std::min((size_t)8,globalSizes[1]),1};
+
+  cl_kernel kernel = handle->valueHeadPoolChannelsNCHWKernel;
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolConvOut);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSumBuf);
+  clSetKernelArg(kernel, 3, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&batchSize);
+  clSetKernelArg(kernel, 5, sizeof(int), (void *)&gpoolChannels);
+  clSetKernelArg(kernel, 6, sizeof(int), (void *)&nnXYLen);
+
+  err = clEnqueueNDRangeKernel(
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+  );
+  CHECK_ERR(err);
+}
+
+static void transposeNCHW(ComputeHandle* handle, int batchSize, int cSize, int nnXLen, int nnYLen, cl_mem input, cl_mem output) {
+  cl_int err;
+  static constexpr int nKernelDims = 3;
+  //TODO optimize/tune, dehardcode numbers
+  int tileDim = 32;
+  int targetNumThreads = 256;
+  int tileStride = targetNumThreads/tileDim;
+  int ncLen = batchSize*cSize;
+  size_t globalSizes[nKernelDims] = {(size_t)(nnXLen+tileDim-1)/tileDim*tileDim,(size_t)(nnYLen+tileDim-1)/tileDim*tileDim,powerOf2ify(ncLen)};
+  size_t localSizes[nKernelDims] = {(size_t)tileDim,std::min((size_t)8,globalSizes[1]),1};
+
+  cl_kernel kernel = handle->transposeNCHWKernel;
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
+  clSetKernelArg(kernel, 2, sizeof(float) * tileDim * (tileDim+1) * localSizes[2], NULL);
+  clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnXLen);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&nnYLen);
+  clSetKernelArg(kernel, 5, sizeof(int), (void *)&tileDim);
+  clSetKernelArg(kernel, 6, sizeof(int), (void *)&tileStride);
+  clSetKernelArg(kernel, 7, sizeof(int), (void *)&ncLen);
+
+  err = clEnqueueNDRangeKernel(
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+  );
+  CHECK_ERR(err);
+}
+
+static void doMirror(ComputeHandle* handle, int batchSize, int mSize, int subSize, cl_mem input, cl_mem output) {
+  cl_int err;
+  static constexpr int nKernelDims = 3;
+  size_t globalSizes[nKernelDims] = {powerOf2ify(subSize),powerOf2ify(mSize),powerOf2ify(batchSize)};
+  size_t* localSizes = NULL; //TODO actually pick these
+
+  cl_kernel kernel = handle->mirrorKernel;
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
+  clSetKernelArg(kernel, 3, sizeof(int), (void *)&mSize);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&subSize);
+
+  err = clEnqueueNDRangeKernel(
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+  );
+  CHECK_ERR(err);
+}
+
+static void doMirrorNCHW(ComputeHandle* handle, int batchSize, int cSize, int nnXLen, int nnYLen, bool mirrorY, bool mirrorX, cl_mem input, cl_mem output) {
+  if(mirrorY && mirrorX)
+    doMirror(handle,batchSize*cSize,nnYLen*nnXLen,1,input,output);
+  else if(mirrorY)
+    doMirror(handle,batchSize*cSize,nnYLen,nnXLen,input,output);
+  else if(mirrorX)
+    doMirror(handle,batchSize*cSize*nnYLen,nnXLen,1,input,output);
+  else {
+    cl_int err;
+    err = clEnqueueCopyBuffer(handle->commandQueue, input, output, 0, 0, sizeof(float)*batchSize*cSize*nnYLen*nnXLen, 0, NULL, NULL);
+    CHECK_ERR(err);
+  }
+}
+
+static void applySymmetriesNCHW(
+  ComputeHandle* handle,
+  const bool* symmetriesBuffer, bool inverse, int batchSize, int cSize, int nnXLen, int nnYLen,
+  cl_mem input, cl_mem inputScratch
+) {
+  if(!symmetriesBuffer[0] && !symmetriesBuffer[1] && !symmetriesBuffer[2])
+    return;
+
+  cl_int err;
+  if(inverse) {
+    if(symmetriesBuffer[2] && nnXLen == nnYLen)
+      transposeNCHW(handle, batchSize, cSize, nnXLen, nnYLen, input, inputScratch);
+    else {
+      err = clEnqueueCopyBuffer(handle->commandQueue, input, inputScratch, 0, 0, sizeof(float)*batchSize*cSize*nnYLen*nnXLen, 0, NULL, NULL);
+      CHECK_ERR(err);
+    }
+    doMirrorNCHW(handle, batchSize, cSize, nnYLen, nnXLen, symmetriesBuffer[0], symmetriesBuffer[1], inputScratch, input);
+  }
+  else {
+    doMirrorNCHW(handle, batchSize, cSize, nnYLen, nnXLen, symmetriesBuffer[0], symmetriesBuffer[1], input, inputScratch);
+
+    if(symmetriesBuffer[2] && nnXLen == nnYLen)
+      transposeNCHW(handle, batchSize, cSize, nnXLen, nnYLen, inputScratch, input);
+    else {
+      err = clEnqueueCopyBuffer(handle->commandQueue, inputScratch, input, 0, 0, sizeof(float)*batchSize*cSize*nnYLen*nnXLen, 0, NULL, NULL);
+      CHECK_ERR(err);
+    }
+  }
+}
+
 
 //--------------------------------------------------------------
 
@@ -695,7 +866,7 @@ struct MatMulLayer {
 
     cl_int err;
     static constexpr int nKernelDims = 2;
-    size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)batchSize), powerOf2ify((size_t)outChannels)};
+    size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)outChannels), powerOf2ify((size_t)batchSize)};
     size_t* localSizes = NULL; //TODO actually pick these
     err = clEnqueueNDRangeKernel(
       handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
@@ -706,6 +877,50 @@ struct MatMulLayer {
   MatMulLayer() = delete;
   MatMulLayer(const MatMulLayer&) = delete;
   MatMulLayer& operator=(const MatMulLayer&) = delete;
+};
+
+//--------------------------------------------------------------
+
+struct MatBiasLayer {
+  string name;
+  int numChannels;
+
+  cl_mem biasBuf;
+
+  MatBiasLayer(ComputeHandle* handle, const MatBiasLayerDesc* desc) {
+    name = desc->name;
+    numChannels = desc->numChannels;
+
+    assert(desc->weights.size() == numChannels);
+    vector<float> weights = desc->weights;
+    biasBuf = createReadOnlyBuffer(handle,weights);
+  }
+
+  ~MatBiasLayer() {
+    clReleaseMemObject(biasBuf);
+  }
+
+  void apply(ComputeHandle* handle, int batchSize, bool applyRelu, cl_mem input) {
+    cl_kernel kernel = applyRelu ? handle->addCBiasesNCReluKernel : handle->addCBiasesNCKernel;
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&biasBuf);
+    clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
+    clSetKernelArg(kernel, 3, sizeof(int), (void *)&numChannels);
+
+    cl_int err;
+    static constexpr int nKernelDims = 2;
+    size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)numChannels), powerOf2ify((size_t)batchSize)};
+    size_t* localSizes = NULL; //TODO actually pick these
+    err = clEnqueueNDRangeKernel(
+      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+  }
+
+  MatBiasLayer() = delete;
+  MatBiasLayer(const MatBiasLayer&) = delete;
+  MatBiasLayer& operator=(const MatBiasLayer&) = delete;
 };
 
 
@@ -846,28 +1061,7 @@ struct GlobalPoolingResidualBlock {
     gpoolConv.apply(handle,batchSize,trunkScratch,gpoolOut);
     gpoolBN.apply(handle,batchSize,true,gpoolOut,gpoolOut2,mask);
 
-    {
-      cl_int err;
-      static constexpr int nKernelDims = 3;
-      //TODO optimize/tune, dehardcode numbers
-      size_t globalSizes[nKernelDims] = {32,powerOf2ify(gpoolChannels),powerOf2ify(batchSize)};
-      size_t localSizes[nKernelDims] = {32,std::min((size_t)8,globalSizes[1]),1};
-
-      cl_kernel kernel = handle->gPoolChannelsNCHWKernel;
-      clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolOut2);
-      clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
-      clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSumBuf);
-      clSetKernelArg(kernel, 3, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
-      clSetKernelArg(kernel, 4, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
-      clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
-      clSetKernelArg(kernel, 6, sizeof(int), (void *)&gpoolChannels);
-      clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXYLen);
-
-      err = clEnqueueNDRangeKernel(
-        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
-      );
-      CHECK_ERR(err);
-    }
+    performGPool(handle, batchSize, gpoolChannels, nnXYLen, gpoolOut2, gpoolConcat, maskSumBuf);
 
     gpoolToBiasMul.apply(handle,batchSize,gpoolConcat,gpoolBias);
     addChannelBiases(handle, mid, gpoolBias, batchSize * regularChannels, nnXYLen);
@@ -1084,7 +1278,228 @@ struct Trunk {
 
     //And now with the final BN port it from trunkScratch to trunk.
     bool applyBNRelu = true;
-    trunkTipBN->apply(handle,batchSize,applyBNRelu,trunkScratch,mask,trunk);
+    trunkTipBN->apply(handle,batchSize,applyBNRelu,trunkScratch,trunk,mask);
+  }
+
+};
+
+//--------------------------------------------------------------
+
+struct PolicyHead {
+  string name;
+  int version;
+  int nnXLen;
+  int nnYLen;
+  int p1Channels;
+  int g1Channels;
+  int p2Channels;
+
+  ConvLayer* p1Conv;
+  ConvLayer* g1Conv;
+  BatchNormLayer* g1BN;
+  ActivationLayer* g1Activation;
+  MatMulLayer* gpoolToBiasMul;
+  BatchNormLayer* p1BN;
+  ActivationLayer* p1Activation;
+  ConvLayer* p2Conv;
+  MatMulLayer* gpoolToPassMul;
+
+  PolicyHead() = delete;
+  PolicyHead(const PolicyHead&) = delete;
+  PolicyHead& operator=(const PolicyHead&) = delete;
+
+  PolicyHead(
+    ComputeHandle* handle,
+    const PolicyHeadDesc* desc,
+    int nnX,
+    int nnY
+  ) {
+    name = desc->name;
+    version = desc->version;
+    nnXLen = nnX;
+    nnYLen = nnY;
+    p1Channels = desc->p1Conv.outChannels;
+    g1Channels = desc->g1Conv.outChannels;
+    p2Channels = desc->p2Conv.outChannels;
+
+    p1Conv = new ConvLayer(handle,&desc->p1Conv,nnXLen,nnYLen);
+    g1Conv = new ConvLayer(handle,&desc->g1Conv,nnXLen,nnYLen);
+    g1BN = new BatchNormLayer(handle,&desc->g1BN,nnXLen,nnYLen);
+    g1Activation = new ActivationLayer(handle,&desc->g1Activation);
+    gpoolToBiasMul = new MatMulLayer(handle,&desc->gpoolToBiasMul);
+    p1BN = new BatchNormLayer(handle,&desc->p1BN,nnXLen,nnYLen);
+    p1Activation = new ActivationLayer(handle,&desc->p1Activation);
+    p2Conv = new ConvLayer(handle,&desc->p2Conv,nnXLen,nnYLen);
+    gpoolToPassMul = new MatMulLayer(handle,&desc->gpoolToPassMul);
+  }
+
+  ~PolicyHead()
+  {
+    delete p1Conv;
+    delete g1Conv;
+    delete g1BN;
+    delete g1Activation;
+    delete gpoolToBiasMul;
+    delete p1BN;
+    delete p1Activation;
+    delete p2Conv;
+    delete gpoolToPassMul;
+  }
+
+  void apply(
+    ComputeHandle* handle,
+    const bool* symmetriesBuffer,
+    int batchSize,
+    cl_mem mask,
+    cl_mem maskSumBuf,
+    cl_mem trunk,
+    cl_mem p1Out,
+    cl_mem p1Out2,
+    cl_mem gpoolOut,
+    cl_mem gpoolOut2,
+    cl_mem gpoolConcat,
+    cl_mem gpoolBias,
+    cl_mem p2Out,
+    cl_mem policyPass,
+    cl_mem policy
+  ) const {
+
+    bool applyBNRelu = true;
+    p1Conv->apply(handle,batchSize,trunk,p1Out);
+    g1Conv->apply(handle,batchSize,trunk,gpoolOut);
+    g1BN->apply(handle,batchSize,applyBNRelu,gpoolOut,gpoolOut2,mask);
+
+    performGPool(handle, batchSize, g1Channels, nnXLen*nnYLen, gpoolOut2, gpoolConcat, maskSumBuf);
+
+    gpoolToBiasMul->apply(handle,batchSize,gpoolConcat,gpoolBias);
+
+    cl_mem p1OutA;
+    cl_mem p1OutB;
+    p1OutA = p1Out;
+    p1OutB = p1Out2;
+
+    addChannelBiases(handle, p1OutA, gpoolBias, batchSize * p1Channels, nnXLen*nnYLen);
+
+    p1BN->apply(handle,batchSize,true,p1OutA,p1OutB,mask);
+    p2Conv->apply(handle,batchSize,p1OutB,p2Out);
+
+    bool inverse = true;
+    applySymmetriesNCHW(handle, symmetriesBuffer, inverse, batchSize, p2Channels, nnXLen, nnYLen, p2Out, policy);
+
+    gpoolToPassMul->apply(handle,batchSize,gpoolConcat,policyPass);
+  }
+
+};
+
+//--------------------------------------------------------------
+
+struct ValueHead {
+  string name;
+  int version;
+  int nnXLen;
+  int nnYLen;
+  int v1Channels;
+  int v2Channels;
+  int valueChannels;
+  int scoreValueChannels;
+  int ownershipChannels;
+
+  ConvLayer* v1Conv;
+  BatchNormLayer* v1BN;
+  ActivationLayer* v1Activation;
+  MatMulLayer* v2Mul;
+  MatBiasLayer* v2Bias;
+  ActivationLayer* v2Activation;
+  MatMulLayer* v3Mul;
+  MatBiasLayer* v3Bias;
+  MatMulLayer* sv3Mul;
+  MatBiasLayer* sv3Bias;
+  ConvLayer* vOwnershipConv;
+
+  ValueHead() = delete;
+  ValueHead(const ValueHead&) = delete;
+  ValueHead& operator=(const ValueHead&) = delete;
+
+  ValueHead(
+    ComputeHandle* handle,
+    const ValueHeadDesc* desc,
+    int nnX,
+    int nnY
+  ) {
+    name = desc->name;
+    version = desc->version;
+    nnXLen = nnX;
+    nnYLen = nnY;
+    v1Channels = desc->v1Conv.outChannels;
+    v2Channels = desc->v2Mul.outChannels;
+    valueChannels = desc->v3Mul.outChannels;
+    scoreValueChannels = desc->sv3Mul.outChannels;
+    ownershipChannels = desc->vOwnershipConv.outChannels;
+
+    v1Conv = new ConvLayer(handle,&desc->v1Conv,nnXLen,nnYLen);
+    v1BN = new BatchNormLayer(handle,&desc->v1BN,nnXLen,nnYLen);
+    v1Activation = new ActivationLayer(handle,&desc->v1Activation);
+    v2Mul = new MatMulLayer(handle,&desc->v2Mul);
+    v2Bias = new MatBiasLayer(handle,&desc->v2Bias);
+    v2Activation = new ActivationLayer(handle,&desc->v2Activation);
+    v3Mul = new MatMulLayer(handle,&desc->v3Mul);
+    v3Bias = new MatBiasLayer(handle,&desc->v3Bias);
+    sv3Mul = new MatMulLayer(handle,&desc->sv3Mul);
+    sv3Bias = new MatBiasLayer(handle,&desc->sv3Bias);
+    vOwnershipConv = new ConvLayer(handle,&desc->vOwnershipConv,nnXLen,nnYLen);
+  }
+
+  ~ValueHead()
+  {
+    delete v1Conv;
+    delete v1BN;
+    delete v1Activation;
+    delete v2Mul;
+    delete v2Bias;
+    delete v2Activation;
+    delete v3Mul;
+    delete v3Bias;
+    delete sv3Mul;
+    delete sv3Bias;
+    delete vOwnershipConv;
+  }
+
+
+  void apply(
+    ComputeHandle* handle,
+    const bool* symmetriesBuffer,
+    int batchSize,
+    cl_mem mask,
+    cl_mem maskSumBuf,
+    cl_mem trunk,
+    cl_mem v1Out,
+    cl_mem v1Out2,
+    cl_mem v1Mean,
+    cl_mem v2Out,
+    cl_mem value,
+    cl_mem scoreValue,
+    cl_mem ownership,
+    cl_mem ownershipScratch
+  ) const {
+
+    bool applyBNRelu = true;
+    v1Conv->apply(handle,batchSize,trunk,v1Out);
+    v1BN->apply(handle,batchSize,applyBNRelu,v1Out,v1Out2,mask);
+
+    performValueHeadPool(handle, batchSize, v1Channels, nnXLen*nnYLen, v1Out2, v1Mean, maskSumBuf);
+
+    v2Mul->apply(handle,batchSize,v1Mean,v2Out);
+    v2Bias->apply(handle,batchSize,true,v2Out);
+    v3Mul->apply(handle,batchSize,v2Out,value);
+    v3Bias->apply(handle,batchSize,false,value);
+
+    sv3Mul->apply(handle,batchSize,v2Out,scoreValue);
+    sv3Bias->apply(handle,batchSize,false,scoreValue);
+
+    vOwnershipConv->apply(handle,batchSize,v1Out2,ownership);
+
+    bool inverse = true;
+    applySymmetriesNCHW(handle, symmetriesBuffer, inverse, batchSize, ownershipChannels, nnXLen, nnYLen, ownership, ownershipScratch);
   }
 
 };

@@ -11,8 +11,12 @@ namespace OpenCLKernels {
   extern std::string matMul;
   extern std::string sumChannelsNCHW;
   extern std::string gPoolChannelsNCHW;
+  extern std::string valueHeadPoolChannelsNCHW;
   extern std::string addChannelBiasesNCHW;
-
+  extern std::string addCBiasesNC;
+  extern std::string addCBiasesNCRelu;
+  extern std::string transposeNCHW;
+  extern std::string mirror;
 }
 
 
