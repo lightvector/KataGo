@@ -175,6 +175,10 @@ struct ComputeContext {
   cl_program scaleBiasMaskNCHWProgram;
   cl_program scaleBiasMaskReluNCHWProgram;
   cl_program addPointWiseProgram;
+  cl_program matMulProgram;
+  cl_program sumChannelsNCHWProgram;
+  cl_program gPoolChannelsNCHWProgram;
+  cl_program addChannelBiasesNCHWProgram;
 
   ComputeContext(const vector<int>& gIdxs, Logger* logger)
     : platformIds(32),
@@ -244,6 +248,10 @@ struct ComputeContext {
     scaleBiasMaskNCHWProgram = compileProgram("scaleBiasMaskNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskNCHW);
     scaleBiasMaskReluNCHWProgram = compileProgram("scaleBiasMaskReluNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskReluNCHW);
     addPointWiseProgram = compileProgram("addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise);
+    matMulProgram = compileProgram("matMulProgram", context, deviceIdsToUse, OpenCLKernels::matMul);
+    sumChannelsNCHWProgram = compileProgram("sumChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::sumChannelsNCHW);
+    gPoolChannelsNCHWProgram = compileProgram("gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW);
+    addChannelBiasesNCHWProgram = compileProgram("addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW);
   }
 
   ~ComputeContext() {
@@ -251,6 +259,10 @@ struct ComputeContext {
     clReleaseProgram(scaleBiasMaskNCHWProgram);
     clReleaseProgram(scaleBiasMaskReluNCHWProgram);
     clReleaseProgram(addPointWiseProgram);
+    clReleaseProgram(matMulProgram);
+    clReleaseProgram(sumChannelsNCHWProgram);
+    clReleaseProgram(gPoolChannelsNCHWProgram);
+    clReleaseProgram(addChannelBiasesNCHWProgram);
     for(int i = 0; i<commandQueues.size(); i++) {
       clFlush(commandQueues[i]);
       clFinish(commandQueues[i]);
@@ -327,6 +339,10 @@ struct ComputeHandle {
   cl_kernel scaleBiasMaskNCHWKernel;
   cl_kernel scaleBiasMaskReluNCHWKernel;
   cl_kernel addPointWiseKernel;
+  cl_kernel matMulKernel;
+  cl_kernel sumChannelsNCHWKernel;
+  cl_kernel gPoolChannelsNCHWKernel;
+  cl_kernel addChannelBiasesNCHWKernel;
 
   ComputeHandle(ComputeContext* context, const LoadedModel* loadedModel, int gpuIdx, int maxBatchSize, int nnXLen, int nnYLen) {
     clContext = context->context;
@@ -335,9 +351,20 @@ struct ComputeHandle {
 
     cl_int err;
     conv2dNCHWKernel = clCreateKernel(context->conv2dNCHWProgram, "conv2dNCHW", &err);
+    CHECK_ERR(err);
     scaleBiasMaskNCHWKernel = clCreateKernel(context->scaleBiasMaskNCHWProgram, "scaleBiasMaskNCHW", &err);
+    CHECK_ERR(err);
     scaleBiasMaskReluNCHWKernel = clCreateKernel(context->scaleBiasMaskReluNCHWProgram, "scaleBiasMaskReluNCHW", &err);
+    CHECK_ERR(err);
     addPointWiseKernel = clCreateKernel(context->addPointWiseProgram, "addPointWise", &err);
+    CHECK_ERR(err);
+    matMulKernel = clCreateKernel(context->matMulProgram, "matMul", &err);
+    CHECK_ERR(err);
+    sumChannelsNCHWKernel = clCreateKernel(context->sumChannelsNCHWProgram, "sumChannelsNCHW", &err);
+    CHECK_ERR(err);
+    gPoolChannelsNCHWKernel = clCreateKernel(context->gPoolChannelsNCHWProgram, "gPoolChannelsNCHW", &err);
+    CHECK_ERR(err);
+    addChannelBiasesNCHWKernel = clCreateKernel(context->addChannelBiasesNCHWProgram, "addChannelBiasesNCHW", &err);
     CHECK_ERR(err);
 
     //TODO note that loaded model can be null, in which case we're just testing one thing
@@ -352,6 +379,10 @@ struct ComputeHandle {
     clReleaseKernel(scaleBiasMaskNCHWKernel);
     clReleaseKernel(scaleBiasMaskReluNCHWKernel);
     clReleaseKernel(addPointWiseKernel);
+    clReleaseKernel(matMulKernel);
+    clReleaseKernel(sumChannelsNCHWKernel);
+    clReleaseKernel(gPoolChannelsNCHWKernel);
+    clReleaseKernel(addChannelBiasesNCHWKernel);
   }
 
   ComputeHandle() = delete;
@@ -607,6 +638,54 @@ struct ActivationLayer {
   ActivationLayer& operator=(const ActivationLayer&) = delete;
 };
 
+//--------------------------------------------------------------
+
+struct MatMulLayer {
+  string name;
+  int inChannels;
+  int outChannels;
+
+  cl_mem matBuf;
+
+  MatMulLayer(ComputeHandle* handle, const MatMulLayerDesc* desc) {
+    name = desc->name;
+    inChannels = desc->inChannels;
+    outChannels = desc->outChannels;
+
+    assert(desc->weights.size() == inChannels * outChannels);
+    vector<float> weights = desc->weights;
+    matBuf = createReadOnlyBuffer(handle,weights);
+  }
+
+  ~MatMulLayer() {
+    clReleaseMemObject(matBuf);
+  }
+
+  void apply(ComputeHandle* handle, cl_mem input, cl_mem output, int batchSize) {
+    cl_kernel kernel = handle->matMulKernel;
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&matBuf);
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&output);
+    clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
+    clSetKernelArg(kernel, 4, sizeof(int), (void *)&inChannels);
+    clSetKernelArg(kernel, 5, sizeof(int), (void *)&outChannels);
+
+    cl_int err;
+    static constexpr int nKernelDims = 2;
+    size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)batchSize), powerOf2ify((size_t)outChannels)};
+    size_t* localSizes = NULL; //TODO actually pick these
+    err = clEnqueueNDRangeKernel(
+      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+  }
+
+  MatMulLayer() = delete;
+  MatMulLayer(const MatMulLayer&) = delete;
+  MatMulLayer& operator=(const MatMulLayer&) = delete;
+};
+
 
 //--------------------------------------------------------------
 
@@ -664,8 +743,8 @@ struct ResidualBlock {
     clSetKernelArg(kernel, 2, sizeof(int), (void *)&totalSize);
 
     cl_int err;
-    constexpr int nKernelDims = 1;
-    size_t globalSizes[nKernelDims] = {(size_t)totalSize};
+    static constexpr int nKernelDims = 1;
+    size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
     size_t* localSizes = NULL; //TODO actually pick these
     err = clEnqueueNDRangeKernel(
       handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
@@ -678,6 +757,182 @@ struct ResidualBlock {
   ResidualBlock& operator=(const ResidualBlock&) = delete;
 
 };
+
+//--------------------------------------------------------------
+
+struct GlobalPoolingResidualBlock {
+  string name;
+  BatchNormLayer preBN;
+  ActivationLayer preActivation;
+  ConvLayer regularConv;
+  ConvLayer gpoolConv;
+  BatchNormLayer gpoolBN;
+  ActivationLayer gpoolActivation;
+  MatMulLayer gpoolToBiasMul;
+  BatchNormLayer midBN;
+  ActivationLayer midActivation;
+  ConvLayer finalConv;
+
+  int nnXLen;
+  int nnYLen;
+  int nnYXLen;
+  int regularChannels;
+  int gpoolChannels;
+
+  GlobalPoolingResidualBlock(
+    ComputeHandle* handle,
+    const GlobalPoolingResidualBlockDesc* desc,
+    int nnX, int nnY
+  ): name(desc->name),
+     preBN(handle,&desc->preBN,nnX,nnY),
+     preActivation(handle,&desc->preActivation),
+     regularConv(handle,&desc->regularConv,nnX,nnY),
+     gpoolConv(handle,&desc->gpoolConv,nnX,nnY),
+     gpoolBN(handle,&desc->gpoolBN,nnX,nnY),
+     gpoolActivation(handle,&desc->gpoolActivation),
+     gpoolToBiasMul(handle,&desc->gpoolToBiasMul),
+     midBN(handle,&desc->midBN,nnX,nnY),
+     midActivation(handle,&desc->midActivation),
+     finalConv(handle,&desc->finalConv,nnX,nnY),
+     nnXLen(nnX),
+     nnYLen(nnY),
+     nnYXLen(nnY*nnX),
+     regularChannels(desc->regularConv.outChannels),
+     gpoolChannels(desc->gpoolConv.outChannels)
+  {
+  }
+
+  ~GlobalPoolingResidualBlock() {
+  }
+
+  void apply(
+    ComputeHandle* handle,
+    cl_mem trunk,
+    cl_mem trunkScratch,
+    cl_mem mid,
+    cl_mem midScratch,
+    cl_mem gpoolOut,
+    cl_mem gpoolOut2,
+    cl_mem gpoolConcat,
+    cl_mem gpoolBias,
+    cl_mem mask,
+    cl_mem maskSumBuf,
+    int batchSize
+  ) {
+    preBN.apply(handle,trunk,trunkScratch,mask,batchSize,true);
+    regularConv.apply(handle,trunkScratch,mid,batchSize);
+    gpoolConv.apply(handle,trunkScratch,gpoolOut,batchSize);
+    gpoolBN.apply(handle,gpoolOut,gpoolOut2,mask,batchSize,true);
+
+    {
+      cl_int err;
+      static constexpr int nKernelDims = 3;
+      //TODO optimize/tune, dehardcode numbers
+      size_t globalSizes[nKernelDims] = {32,powerOf2ify(gpoolChannels),powerOf2ify(batchSize)};
+      size_t localSizes[nKernelDims] = {32,std::min((size_t)8,globalSizes[1]),1};
+
+      cl_kernel kernel = handle->gPoolChannelsNCHWKernel;
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolOut2);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
+      clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSumBuf);
+      clSetKernelArg(kernel, 3, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
+      clSetKernelArg(kernel, 4, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
+      clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
+      clSetKernelArg(kernel, 6, sizeof(int), (void *)&gpoolChannels);
+      clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnYXLen);
+
+      err = clEnqueueNDRangeKernel(
+        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+      );
+      CHECK_ERR(err);
+    }
+
+    gpoolToBiasMul.apply(handle,gpoolConcat,gpoolBias,batchSize);
+
+    {
+      cl_int err;
+      static constexpr int nKernelDims = 2;
+      int ncSize = batchSize * regularChannels;
+      size_t globalSizes[nKernelDims] = {powerOf2ify(nnYXLen),powerOf2ify(ncSize)};
+      size_t* localSizes = NULL; //TODO actually pick these
+
+      cl_kernel kernel = handle->addChannelBiasesNCHWKernel;
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mid);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolBias);
+      clSetKernelArg(kernel, 2, sizeof(int), (void *)&ncSize);
+      clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnYXLen);
+
+      err = clEnqueueNDRangeKernel(
+        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+      );
+      CHECK_ERR(err);
+    }
+
+    // vector<float> tmp(batchSize*regularChannels);
+    // clEnqueueReadBuffer(handle->commandQueue, gpoolBias, CL_TRUE, 0, byteSizeofVectorContents(tmp), tmp.data(), 0, NULL, NULL);
+    // cout << "TEST" << endl;
+    // for(int i = 0; i<tmp.size(); i++)
+    //   cout << tmp[i] << endl;
+
+    midBN.apply(handle,mid,midScratch,mask,batchSize,true);
+    finalConv.apply(handle,midScratch,trunkScratch,batchSize);
+
+    {
+      cl_kernel kernel = handle->addPointWiseKernel;
+      int totalSize = batchSize * finalConv.outChannels * nnYLen * nnXLen;
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&trunk);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&trunkScratch);
+      clSetKernelArg(kernel, 2, sizeof(int), (void *)&totalSize);
+
+      cl_int err;
+      static constexpr int nKernelDims = 1;
+      size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
+      size_t* localSizes = NULL; //TODO actually pick these
+      err = clEnqueueNDRangeKernel(
+        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+      );
+      CHECK_ERR(err);
+    }
+  }
+
+  GlobalPoolingResidualBlock() = delete;
+  GlobalPoolingResidualBlock(const GlobalPoolingResidualBlock&) = delete;
+  GlobalPoolingResidualBlock& operator=(const GlobalPoolingResidualBlock&) = delete;
+
+};
+
+//--------------------------------------------------------------
+
+static void computeMaskSums(
+  ComputeHandle* handle,
+  cl_mem mask,
+  cl_mem maskSumBuf,
+  int batchSize,
+  int nnXLen,
+  int nnYLen
+) {
+  cl_int err;
+  static constexpr int nKernelDims = 3;
+  //TODO optimize/tune, dehardcode numbers
+  size_t globalSizes[nKernelDims] = {32,1,powerOf2ify(batchSize)};
+  size_t localSizes[nKernelDims] = {32,1,std::min((size_t)8,powerOf2ify(batchSize))};
+
+  cl_kernel kernel = handle->sumChannelsNCHWKernel;
+  int numChannels = 1;
+  int nnYXLen = nnYLen * nnXLen;
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mask);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&maskSumBuf);
+  clSetKernelArg(kernel, 2, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
+  clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&numChannels);
+  clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnYXLen);
+
+  err = clEnqueueNDRangeKernel(
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+  );
+  CHECK_ERR(err);
+}
+
 
 //--------------------------------------------------------------
 
@@ -930,14 +1185,86 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   const std::vector<float>& maskBuffer,
   std::vector<float>& outputBuffer
 ) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)maskBuffer;
-  (void)outputBuffer;
-  return false;
+  Logger* logger = NULL;
+  cl_int err;
+  int gpuIdx = 0;
+
+  if(useFP16 != false)
+    return false;
+  if(useNHWC != false)
+    return false;
+
+  LoadedModel* loadedModel = NULL;
+  bool requireExactNNLen = false;
+  bool inputsUseNHWC = useNHWC;
+  ComputeContext* context = createComputeContext({gpuIdx}, logger);
+  ComputeHandle* handle = createComputeHandle(
+    context, loadedModel, logger, batchSize, nnXLen, nnYLen, requireExactNNLen, inputsUseNHWC, gpuIdx, useFP16, useNHWC
+  );
+
+  GlobalPoolingResidualBlock* layer = new GlobalPoolingResidualBlock(handle, desc, nnXLen, nnYLen);
+
+  size_t numTrunkFloats = (size_t)batchSize * nnXLen * nnYLen * desc->preBN.numChannels;
+  size_t numMaskFloats = (size_t)batchSize * nnXLen * nnYLen;
+  size_t numMaskSumFloats = (size_t)batchSize;
+  size_t numMidFloats = (size_t)batchSize * nnXLen * nnYLen * desc->finalConv.inChannels;
+  size_t numGPoolOutFloats = (size_t)batchSize * nnXLen * nnYLen * desc->gpoolConv.outChannels;
+  size_t numGPoolConcatFloats = (size_t)batchSize * 3 * desc->gpoolConv.outChannels;
+  size_t numGPoolBiasFloats = (size_t)batchSize * desc->regularConv.outChannels;
+
+  if(numTrunkFloats != inputBuffer.size())
+    throw StringError("testEvaluateResidualBlock: unexpected input buffer size");
+  if(numMaskFloats != maskBuffer.size())
+    throw StringError("testEvaluateResidualBlock: unexpected mask buffer size");
+  outputBuffer.resize(numTrunkFloats);
+
+  vector<float> inputTmp = inputBuffer;
+  vector<float> maskTmp = maskBuffer;
+  cl_mem trunk = createReadWriteBuffer(handle,inputTmp);
+  cl_mem mask = createReadOnlyBuffer(handle,maskTmp);
+  cl_mem maskSumBuf = createReadWriteBuffer(handle,numMaskSumFloats);
+  cl_mem trunkScratch = createReadWriteBuffer(handle,numTrunkFloats);
+  cl_mem mid = createReadWriteBuffer(handle,numMidFloats);
+  cl_mem midScratch = createReadWriteBuffer(handle,numMidFloats);
+  cl_mem gpoolOut = createReadWriteBuffer(handle,numGPoolOutFloats);
+  cl_mem gpoolOut2 = createReadWriteBuffer(handle,numGPoolOutFloats);
+  cl_mem gpoolConcat = createReadWriteBuffer(handle,numGPoolConcatFloats);
+  cl_mem gpoolBias = createReadWriteBuffer(handle,numGPoolBiasFloats);
+
+  computeMaskSums(handle,mask,maskSumBuf,batchSize,nnXLen,nnYLen);
+
+  layer->apply(
+    handle,
+    trunk,
+    trunkScratch,
+    mid,
+    midScratch,
+    gpoolOut,
+    gpoolOut2,
+    gpoolConcat,
+    gpoolBias,
+    mask,
+    maskSumBuf,
+    batchSize
+  );
+
+  cl_bool blocking = CL_TRUE;
+  err = clEnqueueReadBuffer(handle->commandQueue, trunk, blocking, 0, byteSizeofVectorContents(outputBuffer), outputBuffer.data(), 0, NULL, NULL);
+  CHECK_ERR(err);
+
+  clReleaseMemObject(trunk);
+  clReleaseMemObject(mask);
+  clReleaseMemObject(maskSumBuf);
+  clReleaseMemObject(trunkScratch);
+  clReleaseMemObject(mid);
+  clReleaseMemObject(midScratch);
+  clReleaseMemObject(gpoolOut);
+  clReleaseMemObject(gpoolOut2);
+  clReleaseMemObject(gpoolConcat);
+  clReleaseMemObject(gpoolBias);
+  delete layer;
+  freeComputeHandle(handle);
+  freeComputeContext(context);
+
+  return true;
 }

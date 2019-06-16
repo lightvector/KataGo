@@ -2,6 +2,9 @@
 
 using namespace std;
 
+//TODO these are all fairly naive implementations just to get things working
+//optimize them or find a library with more optimized implementations
+
 string OpenCLKernels::conv2dNCHW = R"%%(
 __kernel void conv2dNCHW(
   __global float* input,  //N, ic, H, W
@@ -111,5 +114,158 @@ __kernel void addPointWise(
 
   if(s < size)
     accum[s] += value[s];
+}
+)%%";
+
+
+string OpenCLKernels::matMul = R"%%(
+__kernel void matMul(
+  __global float* input,  //N, ic
+  __global float* weights, //oc, ic
+  __global float* output,  //N, oc
+  int nSize,
+  int icSize,
+  int ocSize
+) {
+  const int n = get_global_id(0);
+  const int oc = get_global_id(1);
+
+  if(n < nSize && oc < ocSize) {
+    float acc = 0.0f;
+    for(int ic = 0; ic < icSize; ic++)
+      acc += input[n * icSize + ic] * weights[oc * icSize + ic];
+    output[n * ocSize + oc] = acc;
+  }
+}
+)%%";
+
+string OpenCLKernels::sumChannelsNCHW = R"%%(
+__kernel void sumChannelsNCHW(
+  __global float* input,  //N, c, HW
+  __global float* output, //N, c
+  __local float* partialSums, //size = get_local_size(0) * get_local_size(1) * get_local_size(2)
+  int nSize,
+  int cSize,
+  int yxSize
+) {
+  //PRECONDIION: Kernel is being run where get_num_groups(0) == 1, so that global id and local id are identical for dim 0
+  const int yxBase = get_local_id(0);
+  const int yxStride = get_local_size(0);
+  const int c = get_global_id(1);
+  const int n = get_global_id(2);
+  const int localId1 = get_local_id(1);
+  const int localSize1 = get_local_size(1);
+  const int localId2 = get_local_id(2);
+
+  float sum = 0.0f;
+  if(n < nSize && c < cSize) {
+    //Sum up the elements that this group member is responsible for
+    for(int yx = yxBase; yx < yxSize; yx += yxStride) {
+      int idx = (n * cSize + c) * yxSize + yx;
+      float v = input[idx];
+      sum += v;
+    }
+  }
+
+  //Write to local memory for performing the reduction
+  int localIdx = (localId2 * localSize1 + localId1) * yxStride + yxBase;
+  partialSums[localIdx] = sum;
+
+  //Parallel folding downward
+  for(int span = yxStride / 2; span > 0; span /= 2) {
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if(yxBase < span) {
+      partialSums[localIdx] += partialSums[localIdx + span];
+    }
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+
+  if(n < nSize && c < cSize && yxBase == 0) {
+    float finalSum = partialSums[localIdx];
+    int outBase = n * cSize + c;
+    output[outBase] = finalSum;
+  }
+}
+)%%";
+
+
+string OpenCLKernels::gPoolChannelsNCHW = R"%%(
+__kernel void gPoolChannelsNCHW(
+  __global float* input,  //N, c, HW
+  __global float* output, //N, c
+  __global float* maskSums, //N
+  __local float* partialSums, //size = get_local_size(0) * get_local_size(1) * get_local_size(2)
+  __local float* partialMaxes, //size = get_local_size(0) * get_local_size(1) * get_local_size(2)
+  int nSize,
+  int cSize,
+  int yxSize
+) {
+  //PRECONDIION: Kernel is being run where get_num_groups(0) == 1, so that global id and local id are identical for dim 0
+  const int yxBase = get_local_id(0);
+  const int yxStride = get_local_size(0);
+  const int c = get_global_id(1);
+  const int n = get_global_id(2);
+  const int localId1 = get_local_id(1);
+  const int localSize1 = get_local_size(1);
+  const int localId2 = get_local_id(2);
+
+  float sum = 0.0f;
+  float max = 0.0f;
+  if(n < nSize && c < cSize) {
+    //Sum up the elements that this group member is responsible for
+    for(int yx = yxBase; yx < yxSize; yx += yxStride) {
+      int idx = (n * cSize + c) * yxSize + yx;
+      float v = input[idx];
+      sum += v;
+      max = fmax(max,v);
+    }
+  }
+
+  //Write to local memory for performing the reduction
+  int localIdx = (localId2 * localSize1 + localId1) * yxStride + yxBase;
+  partialSums[localIdx] = sum;
+  partialMaxes[localIdx] = max;
+
+  //Parallel folding downward
+  for(int span = yxStride / 2; span > 0; span /= 2) {
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if(yxBase < span) {
+      partialSums[localIdx] += partialSums[localIdx + span];
+      partialMaxes[localIdx] = fmax(partialMaxes[localIdx], partialMaxes[localIdx + span]);
+    }
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+
+  if(n < nSize && c < cSize && yxBase == 0) {
+    float finalSum = partialSums[localIdx];
+    float finalMax = partialMaxes[localIdx];
+
+    float div = maskSums[n];
+    float sqrtdiv = sqrt(div);
+    float finalMean = finalSum/div;
+
+    int outBase = n * cSize * 3 + c;
+    output[outBase] = finalMean;
+    output[outBase + cSize] = finalMean * (sqrtdiv - 14.0f) * 0.1f;
+    output[outBase + cSize*2] = finalMax;
+  }
+}
+)%%";
+
+
+string OpenCLKernels::addChannelBiasesNCHW = R"%%(
+__kernel void addChannelBiasesNCHW(
+  __global float* accum,  //NC, HW
+  __global float* biases, //NC
+  int ncSize,
+  int yxSize
+) {
+  const int yx = get_global_id(0);
+  const int nc = get_global_id(1);
+
+  if(nc < ncSize && yx < yxSize)
+    accum[nc * yxSize + yx] += biases[nc];
 }
 )%%";

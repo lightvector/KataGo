@@ -772,11 +772,9 @@ static void testGlobalPoolingResidualBlock(int64_t& numTestsRun) {
     //Pooling - mean, mean * (sqrt(masksum) - 14) * 0.1, max
 
     //14.0/9.0, 14.0/9.0*(-11)*0.1, 5
-
     //1.0/9.0, 1.0/9.0*(-11)*0.1, 1
 
     //2.0/6.0, 2.0/6.0*(sqrt(6)-14)*0.1, 1
-
     //3.0/6.0, 3.0/6.0*(sqrt(6)-14)*0.1, 3
 
     //Recombine values
