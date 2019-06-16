@@ -11,24 +11,24 @@ __kernel void conv2dNCHW(
   __global float* filter, //oc, ic, fy, fx
   __global float* output, //N, oc, H, W
   int nSize,
-  int ySize,
   int xSize,
+  int ySize,
   int ocSize,
   int icSize,
-  int filterYRadius,
-  int filterXRadius
+  int filterXRadius,
+  int filterYRadius
 ) {
   const int ox = get_global_id(0);
   const int oy = get_global_id(1);
   const int oc = get_global_id(2);
 
-  const int yxSize = ySize * xSize;
-  const int ocyxSize = ocSize * yxSize;
-  const int icyxSize = icSize * yxSize;
+  const int xySize = xSize * ySize;
+  const int ocxySize = ocSize * xySize;
+  const int icxySize = icSize * xySize;
 
   const int fxSize = (2 * filterXRadius + 1);
-  const int fyxSize = (2 * filterYRadius + 1) * fxSize;
-  const int ficyxSize = icSize * fyxSize;
+  const int fxySize = (2 * filterYRadius + 1) * fxSize;
+  const int ficxySize = icSize * fxySize;
 
   if(oc < ocSize && ox < xSize && oy < ySize) {
     for(int n = 0; n < nSize; n++) {
@@ -43,15 +43,15 @@ __kernel void conv2dNCHW(
               int fx = dx + filterXRadius;
               if(x >= 0 && x < xSize) {
                 acc +=
-                  input[n * icyxSize + ic * yxSize + y * xSize + x]
-                  * filter[oc * ficyxSize + ic * fyxSize + fy * fxSize + fx];
+                  input[n * icxySize + ic * xySize + y * xSize + x]
+                  * filter[oc * ficxySize + ic * fxySize + fy * fxSize + fx];
               }
             }
           }
         }
       }
 
-      output[n * ocyxSize + oc * yxSize + oy * xSize + ox] = acc;
+      output[n * ocxySize + oc * xySize + oy * xSize + ox] = acc;
     }
   }
 }
@@ -67,15 +67,15 @@ __kernel void scaleBiasMaskNCHW(
   __global float* mask,   //N, H, W
   int nSize,
   int cSize,
-  int yxSize
+  int xySize
 ) {
-  const int yx = get_global_id(0);
+  const int xy = get_global_id(0);
   const int c = get_global_id(1);
 
-  if(c < cSize && yx < yxSize) {
+  if(c < cSize && xy < xySize) {
     for(int n = 0; n < nSize; n++) {
-      int idx = (n * cSize + c) * yxSize + yx;
-      output[idx] = (input[idx] * scale[c] + bias[c]) * mask[n * yxSize + yx];
+      int idx = (n * cSize + c) * xySize + xy;
+      output[idx] = (input[idx] * scale[c] + bias[c]) * mask[n * xySize + xy];
     }
   }
 }
@@ -90,15 +90,15 @@ __kernel void scaleBiasMaskReluNCHW(
   __global float* mask,   //N, H, W
   int nSize,
   int cSize,
-  int yxSize
+  int xySize
 ) {
-  const int yx = get_global_id(0);
+  const int xy = get_global_id(0);
   const int c = get_global_id(1);
 
-  if(c < cSize && yx < yxSize) {
+  if(c < cSize && xy < xySize) {
     for(int n = 0; n < nSize; n++) {
-      int idx = (n * cSize + c) * yxSize + yx;
-      output[idx] = fmax(input[idx] * scale[c] + bias[c], 0.0f) * mask[n * yxSize + yx];
+      int idx = (n * cSize + c) * xySize + xy;
+      output[idx] = fmax(input[idx] * scale[c] + bias[c], 0.0f) * mask[n * xySize + xy];
     }
   }
 }
@@ -146,11 +146,11 @@ __kernel void sumChannelsNCHW(
   __local float* partialSums, //size = get_local_size(0) * get_local_size(1) * get_local_size(2)
   int nSize,
   int cSize,
-  int yxSize
+  int xySize
 ) {
   //PRECONDIION: Kernel is being run where get_num_groups(0) == 1, so that global id and local id are identical for dim 0
-  const int yxBase = get_local_id(0);
-  const int yxStride = get_local_size(0);
+  const int xyBase = get_local_id(0);
+  const int xyStride = get_local_size(0);
   const int c = get_global_id(1);
   const int n = get_global_id(2);
   const int localId1 = get_local_id(1);
@@ -160,28 +160,28 @@ __kernel void sumChannelsNCHW(
   float sum = 0.0f;
   if(n < nSize && c < cSize) {
     //Sum up the elements that this group member is responsible for
-    for(int yx = yxBase; yx < yxSize; yx += yxStride) {
-      int idx = (n * cSize + c) * yxSize + yx;
+    for(int xy = xyBase; xy < xySize; xy += xyStride) {
+      int idx = (n * cSize + c) * xySize + xy;
       float v = input[idx];
       sum += v;
     }
   }
 
   //Write to local memory for performing the reduction
-  int localIdx = (localId2 * localSize1 + localId1) * yxStride + yxBase;
+  int localIdx = (localId2 * localSize1 + localId1) * xyStride + xyBase;
   partialSums[localIdx] = sum;
 
   //Parallel folding downward
-  for(int span = yxStride / 2; span > 0; span /= 2) {
+  for(int span = xyStride / 2; span > 0; span /= 2) {
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    if(yxBase < span) {
+    if(xyBase < span) {
       partialSums[localIdx] += partialSums[localIdx + span];
     }
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
-  if(n < nSize && c < cSize && yxBase == 0) {
+  if(n < nSize && c < cSize && xyBase == 0) {
     float finalSum = partialSums[localIdx];
     int outBase = n * cSize + c;
     output[outBase] = finalSum;
@@ -199,11 +199,11 @@ __kernel void gPoolChannelsNCHW(
   __local float* partialMaxes, //size = get_local_size(0) * get_local_size(1) * get_local_size(2)
   int nSize,
   int cSize,
-  int yxSize
+  int xySize
 ) {
   //PRECONDIION: Kernel is being run where get_num_groups(0) == 1, so that global id and local id are identical for dim 0
-  const int yxBase = get_local_id(0);
-  const int yxStride = get_local_size(0);
+  const int xyBase = get_local_id(0);
+  const int xyStride = get_local_size(0);
   const int c = get_global_id(1);
   const int n = get_global_id(2);
   const int localId1 = get_local_id(1);
@@ -214,8 +214,8 @@ __kernel void gPoolChannelsNCHW(
   float max = 0.0f;
   if(n < nSize && c < cSize) {
     //Sum up the elements that this group member is responsible for
-    for(int yx = yxBase; yx < yxSize; yx += yxStride) {
-      int idx = (n * cSize + c) * yxSize + yx;
+    for(int xy = xyBase; xy < xySize; xy += xyStride) {
+      int idx = (n * cSize + c) * xySize + xy;
       float v = input[idx];
       sum += v;
       max = fmax(max,v);
@@ -223,22 +223,22 @@ __kernel void gPoolChannelsNCHW(
   }
 
   //Write to local memory for performing the reduction
-  int localIdx = (localId2 * localSize1 + localId1) * yxStride + yxBase;
+  int localIdx = (localId2 * localSize1 + localId1) * xyStride + xyBase;
   partialSums[localIdx] = sum;
   partialMaxes[localIdx] = max;
 
   //Parallel folding downward
-  for(int span = yxStride / 2; span > 0; span /= 2) {
+  for(int span = xyStride / 2; span > 0; span /= 2) {
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    if(yxBase < span) {
+    if(xyBase < span) {
       partialSums[localIdx] += partialSums[localIdx + span];
       partialMaxes[localIdx] = fmax(partialMaxes[localIdx], partialMaxes[localIdx + span]);
     }
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
-  if(n < nSize && c < cSize && yxBase == 0) {
+  if(n < nSize && c < cSize && xyBase == 0) {
     float finalSum = partialSums[localIdx];
     float finalMax = partialMaxes[localIdx];
 
@@ -260,12 +260,12 @@ __kernel void addChannelBiasesNCHW(
   __global float* accum,  //NC, HW
   __global float* biases, //NC
   int ncSize,
-  int yxSize
+  int xySize
 ) {
-  const int yx = get_global_id(0);
+  const int xy = get_global_id(0);
   const int nc = get_global_id(1);
 
-  if(nc < ncSize && yx < yxSize)
-    accum[nc * yxSize + yx] += biases[nc];
+  if(nc < ncSize && xy < xySize)
+    accum[nc * xySize + xy] += biases[nc];
 }
 )%%";

@@ -118,6 +118,11 @@ static size_t byteSizeofVectorContents(const typename std::vector<T>& vec) {
     return sizeof(T) * vec.size();
 }
 
+static void checkBufferSize(int batchSize, int nnXLen, int nnYLen, int channels) {
+  if((int64_t)batchSize * nnXLen * nnYLen * channels >= (int64_t)1 << 31)
+    throw StringError("Batch size too large, resulting GPU buffers might exceed 2^31 entries which is not currently supported");
+}
+
 //---------------------------------------------------------------------------------------------------------
 
 void NeuralNet::globalInitialize() {
@@ -520,12 +525,12 @@ struct ConvLayer {
     clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&filter);
     clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&output);
     clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
-    clSetKernelArg(kernel, 4, sizeof(int), (void *)&nnYLen);
-    clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnXLen);
+    clSetKernelArg(kernel, 4, sizeof(int), (void *)&nnXLen);
+    clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnYLen);
     clSetKernelArg(kernel, 6, sizeof(int), (void *)&outChannels);
     clSetKernelArg(kernel, 7, sizeof(int), (void *)&inChannels);
-    clSetKernelArg(kernel, 8, sizeof(int), (void *)&convYRadius);
-    clSetKernelArg(kernel, 9, sizeof(int), (void *)&convXRadius);
+    clSetKernelArg(kernel, 8, sizeof(int), (void *)&convXRadius);
+    clSetKernelArg(kernel, 9, sizeof(int), (void *)&convYRadius);
 
     cl_int err;
     size_t* localSizes = NULL; //TODO actually pick these
@@ -549,7 +554,7 @@ struct BatchNormLayer {
 
   int nnXLen;
   int nnYLen;
-  int nnYXLen;
+  int nnXYLen;
   cl_mem mergedScaleBuf;
   cl_mem mergedBiasBuf;
 
@@ -563,7 +568,7 @@ struct BatchNormLayer {
 
     nnXLen = nnX;
     nnYLen = nnY;
-    nnYXLen = nnX * nnY;
+    nnXYLen = nnX * nnY;
 
     assert(desc->mean.size() == numChannels);
     assert(desc->variance.size() == numChannels);
@@ -603,7 +608,7 @@ struct BatchNormLayer {
     clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&mask);
     clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
     clSetKernelArg(kernel, 6, sizeof(int), (void *)&numChannels);
-    clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnYXLen);
+    clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXYLen);
 
     cl_int err;
     size_t* localSizes = NULL; //TODO actually pick these
@@ -775,7 +780,7 @@ struct GlobalPoolingResidualBlock {
 
   int nnXLen;
   int nnYLen;
-  int nnYXLen;
+  int nnXYLen;
   int regularChannels;
   int gpoolChannels;
 
@@ -796,7 +801,7 @@ struct GlobalPoolingResidualBlock {
      finalConv(handle,&desc->finalConv,nnX,nnY),
      nnXLen(nnX),
      nnYLen(nnY),
-     nnYXLen(nnY*nnX),
+     nnXYLen(nnX*nnY),
      regularChannels(desc->regularConv.outChannels),
      gpoolChannels(desc->gpoolConv.outChannels)
   {
@@ -839,7 +844,7 @@ struct GlobalPoolingResidualBlock {
       clSetKernelArg(kernel, 4, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
       clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
       clSetKernelArg(kernel, 6, sizeof(int), (void *)&gpoolChannels);
-      clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnYXLen);
+      clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXYLen);
 
       err = clEnqueueNDRangeKernel(
         handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
@@ -853,14 +858,14 @@ struct GlobalPoolingResidualBlock {
       cl_int err;
       static constexpr int nKernelDims = 2;
       int ncSize = batchSize * regularChannels;
-      size_t globalSizes[nKernelDims] = {powerOf2ify(nnYXLen),powerOf2ify(ncSize)};
+      size_t globalSizes[nKernelDims] = {powerOf2ify(nnXYLen),powerOf2ify(ncSize)};
       size_t* localSizes = NULL; //TODO actually pick these
 
       cl_kernel kernel = handle->addChannelBiasesNCHWKernel;
       clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mid);
       clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolBias);
       clSetKernelArg(kernel, 2, sizeof(int), (void *)&ncSize);
-      clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnYXLen);
+      clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnXYLen);
 
       err = clEnqueueNDRangeKernel(
         handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
@@ -919,13 +924,13 @@ static void computeMaskSums(
 
   cl_kernel kernel = handle->sumChannelsNCHWKernel;
   int numChannels = 1;
-  int nnYXLen = nnYLen * nnXLen;
+  int nnXYLen = nnXLen * nnYLen;
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mask);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&maskSumBuf);
   clSetKernelArg(kernel, 2, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
   clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
   clSetKernelArg(kernel, 4, sizeof(int), (void *)&numChannels);
-  clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnYXLen);
+  clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnXYLen);
 
   err = clEnqueueNDRangeKernel(
     handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
