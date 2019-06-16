@@ -1220,10 +1220,8 @@ struct Trunk {
     b = initialConv->requiredWorkspaceBytes(cudaHandles,inputDescriptor,trunkDescriptor,batchSize);
     bytes = std::max(bytes,b);
 
-    if(initialMatMul != NULL) {
-      b = initialMatMul->requiredWorkspaceBytes(cudaHandles);
-      bytes = std::max(bytes,b);
-    }
+    b = initialMatMul->requiredWorkspaceBytes(cudaHandles);
+    bytes = std::max(bytes,b);
 
     for(int i = 0; i<blocks.size(); i++) {
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
@@ -1284,24 +1282,22 @@ struct Trunk {
     //Feed the conv into trunkScratchBuf, not trunkBuf
     initialConv->apply(cudaHandles,inputDescriptor,trunkDescriptor,batchSize,false,inputBuf,trunkScratchBuf,workspaceBuf,workspaceBytes);
 
-    if(initialMatMul != NULL) {
-      //Feed the matmul into trunkBuf
-      initialMatMul->apply(cudaHandles,batchSize,inputGlobalBuf,trunkBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
-      //Then accumulate it into trunkScratchBuf, broadcasting during the process
-      if(!usingFP16) {
-        if(!usingNHWC)
-          customCudaAddNCBiasInplaceNCHW((float*)trunkScratchBuf,(const float*)trunkBuf,batchSize,trunkNumChannels,xSize*ySize);
-        else
-          customCudaAddNCBiasInplaceNHWC((float*)trunkScratchBuf,(const float*)trunkBuf,batchSize,xSize*ySize,trunkNumChannels);
-      }
-      else {
-        if(!usingNHWC)
-          customCudaAddNCBiasInplaceNCHW((half*)trunkScratchBuf,(const half*)trunkBuf,batchSize,trunkNumChannels,xSize*ySize);
-        else
-          customCudaAddNCBiasInplaceNHWC((half*)trunkScratchBuf,(const half*)trunkBuf,batchSize,xSize*ySize,trunkNumChannels);
-      }
-      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
+    //Feed the matmul into trunkBuf
+    initialMatMul->apply(cudaHandles,batchSize,inputGlobalBuf,trunkBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
+    //Then accumulate it into trunkScratchBuf, broadcasting during the process
+    if(!usingFP16) {
+      if(!usingNHWC)
+        customCudaAddNCBiasInplaceNCHW((float*)trunkScratchBuf,(const float*)trunkBuf,batchSize,trunkNumChannels,xSize*ySize);
+      else
+        customCudaAddNCBiasInplaceNHWC((float*)trunkScratchBuf,(const float*)trunkBuf,batchSize,xSize*ySize,trunkNumChannels);
     }
+    else {
+      if(!usingNHWC)
+        customCudaAddNCBiasInplaceNCHW((half*)trunkScratchBuf,(const half*)trunkBuf,batchSize,trunkNumChannels,xSize*ySize);
+      else
+        customCudaAddNCBiasInplaceNHWC((half*)trunkScratchBuf,(const half*)trunkBuf,batchSize,xSize*ySize,trunkNumChannels);
+    }
+    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
     for(int i = 0; i<blocks.size(); i++) {
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
@@ -2506,12 +2502,9 @@ struct Buffers {
     cudaFree(v1MeanBuf);
     cudaFree(v2OutBuf);
     cudaFree(valueBuf);
-    if(scoreValueBuf != NULL)
-      cudaFree(scoreValueBuf);
-    if(ownershipBuf != NULL)
-      cudaFree(ownershipBuf);
-    if(ownershipScratchBuf != NULL)
-      cudaFree(ownershipScratchBuf);
+    cudaFree(scoreValueBuf);
+    cudaFree(ownershipBuf);
+    cudaFree(ownershipScratchBuf);
 
     free(zeroBuf);
     free(oneBuf);
