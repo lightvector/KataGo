@@ -10,6 +10,9 @@
 
 using namespace std;
 
+//Define this to print out some of the intermediate values of the neural net
+//#define DEBUG_INTERMEDIATE_VALUES
+
 void NeuralNet::globalInitialize() {
   //Empty for cudnn backend
 }
@@ -108,6 +111,57 @@ static void expensiveCopyFromDevice(const string& name, float* weights, int numW
   }
 }
 
+#ifdef DEBUG_INTERMEDIATE_VALUES
+static void debugPrint2D(const string& name, const void* deviceBuf, int batchSize, int cSize, bool useFP16) {
+  vector<float> values(batchSize * cSize);
+  expensiveCopyFromDevice(name, values.data(), values.size(), deviceBuf, useFP16);
+  cout << "=========================================================" << endl;
+  cout << name << endl;
+  int i = 0;
+  for(int n = 0; n<batchSize; n++) {
+    cout << "-(n=" << n << ")--------------------" << endl;
+    for(int c = 0; c<cSize; c++)
+      cout << values[i++] << " ";
+    cout << endl;
+  }
+  cout << endl;
+  cout << "=========================================================" << endl;
+}
+
+static void debugPrint4D(const string& name, const void* deviceBuf, int batchSize, int cSize, int xSize, int ySize, bool useNHWC, bool useFP16) {
+  vector<float> values(batchSize * cSize * xSize * ySize);
+  expensiveCopyFromDevice(name, values.data(), values.size(), deviceBuf, useFP16);
+  cout << "=========================================================" << endl;
+  cout << name << endl;
+  int i = 0;
+  for(int n = 0; n<batchSize; n++) {
+    cout << "-(n=" << n << ")--------------------" << endl;
+    if(useNHWC) {
+      for(int y = 0; y<ySize; y++) {
+        cout << "(y=" << y << ")" << endl;
+        for(int x = 0; x<xSize; x++) {
+          for(int c = 0; c<cSize; c++)
+            cout << values[i++] << " ";
+          cout << endl;
+        }
+        cout << endl;
+      }
+    }
+    else {
+      for(int c = 0; c<cSize; c++) {
+        cout << "(c=" << c << ")" << endl;
+        for(int y = 0; y<ySize; y++) {
+          for(int x = 0; x<xSize; x++)
+            cout << values[i++] << " ";
+          cout << endl;
+        }
+        cout << endl;
+      }
+    }
+  }
+  cout << "=========================================================" << endl;
+}
+#endif
 
 static void checkBufferSize(int batchSize, int xSize, int ySize, int channels) {
   if((int64_t)batchSize * xSize * ySize * channels >= (int64_t)1 << 31)
@@ -1298,6 +1352,10 @@ struct Trunk {
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
     for(int i = 0; i<blocks.size(); i++) {
+      #ifdef DEBUG_INTERMEDIATE_VALUES
+      debugPrint4D(string("Trunk before block " + Global::intToString(i)), trunkScratchBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
+      #endif
+
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
         ResidualBlock* block = (ResidualBlock*)blocks[i].second;
         block->apply(
@@ -1367,6 +1425,9 @@ struct Trunk {
     //And now with the final BN port it from trunkScratchBuf to trunkBuf.
     bool applyBNRelu = true;
     trunkTipBN->apply(cudaHandles,batchSize,applyBNRelu,trunkScratchBuf,maskBuf,trunkBuf);
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint4D(string("Trunk tip"), trunkBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
+    #endif
   }
 
 };
@@ -1699,6 +1760,13 @@ struct PolicyHead {
     float one = 1.0f;
     gpoolToBiasMul->apply(cudaHandles,batchSize,g1ConcatBuf,g1BiasBuf,&zero,&one,workspaceBuf,workspaceBytes);
 
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint4D(string("p1 pre-gpool-sum"), p1OutBuf, batchSize, p1Channels, xSize, ySize, usingNHWC, usingFP16);
+    debugPrint4D(string("g1 pre-gpool"), g1OutBuf, batchSize, g1Channels, xSize, ySize, usingNHWC, usingFP16);
+    debugPrint2D(string("g1 pooled"), g1ConcatBuf, batchSize, g1Channels*3, usingFP16);
+    debugPrint2D(string("g1 biases"), g1BiasBuf, batchSize, p1Channels, usingFP16);
+    #endif
+
     float* p1OutBufA;
     float* p1OutBufB;
     if(!usingFP16) {
@@ -1728,6 +1796,12 @@ struct PolicyHead {
       applySymmetriesNHWC<float>(symmetriesBuffer, inverse, batchSize, p2Channels, xSize, ySize, p2OutBuf, policyBuf);
 
     gpoolToPassMul->apply(cudaHandles,batchSize,g1ConcatBuf,g1PassBuf,&zero,&one,workspaceBuf,workspaceBytes);
+
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint4D(string("p1 after-gpool-sum"), p1OutBuf, batchSize, p1Channels, xSize, ySize, usingNHWC, usingFP16);
+    debugPrint4D(string("p2"), p2OutBuf, batchSize, p2Channels, xSize, ySize, usingNHWC, usingFP16);
+    debugPrint2D(string("p2pass"), g1PassBuf, batchSize, 1, usingFP16);
+    #endif
 
     customCudaChannelConcat(
       p2OutBuf,g1PassBuf,policyBuf,
@@ -1954,7 +2028,6 @@ struct ValueHead {
       customCudaValueHeadPoolNHWC((const float*)bufToBePooled,v1MeanBuf,batchSize,xSize*ySize,v1Channels,maskSumBuf);
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-
     float zero = 0.0f;
     float one = 1.0f;
     v2Mul->apply(cudaHandles,batchSize,v1MeanBuf,v2OutBuf,&zero,&one,workspaceBuf,workspaceBytes);
@@ -1965,6 +2038,12 @@ struct ValueHead {
 
     sv3Mul->apply(cudaHandles,batchSize,v2OutBuf,scoreValueBuf,&zero,&one,workspaceBuf,workspaceBytes);
     sv3Bias->apply(cudaHandles,batchSize,scoreValueBuf);
+
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint4D(string("v1"), v1OutBuf, batchSize, v1Channels, xSize, ySize, usingNHWC, usingFP16);
+    debugPrint2D(string("v1 pooled"), v1MeanBuf, batchSize, v1Channels, usingFP16);
+    debugPrint2D(string("v2"), v2OutBuf, batchSize, v1Channels, usingFP16);
+    #endif
 
     const cudnnTensorDescriptor_t& vOwnershipOutDescriptor = vOwnershipOutDescriptors[batchSize-1];
 
