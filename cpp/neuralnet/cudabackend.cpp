@@ -173,6 +173,8 @@ static void checkBufferSize(int batchSize, int xSize, int ySize, int channels) {
 
 struct ConvLayer {
   string name;
+  int inChannels;
+  int outChannels;
   cudnnFilterDescriptor_t filterDescriptor;
   cudnnConvolutionDescriptor_t convolutionDescriptor;
   cudnnConvolutionFwdAlgo_t* convolutionAlgorithms; //array of one for each batch size
@@ -194,8 +196,8 @@ struct ConvLayer {
     name = desc->name;
     int convYSize = desc->convYSize;
     int convXSize = desc->convXSize;
-    int inChannels = desc->inChannels;
-    int outChannels = desc->outChannels;
+    inChannels = desc->inChannels;
+    outChannels = desc->outChannels;
     int dilationY = desc->dilationY;
     int dilationX = desc->dilationX;
     int paddingX = (convXSize / 2) * dilationX;
@@ -1329,10 +1331,13 @@ struct Trunk {
     const cudnnTensorDescriptor_t& dilatedOutDescriptor = dilatedOutDescriptors[batchSize-1];
     const cudnnTensorDescriptor_t& midInDescriptor = midInDescriptors[batchSize-1];
 
-    //int trunkBufSize = batchSize * trunkNumChannels * xSize * ySize;
-
     //Feed the conv into trunkScratchBuf, not trunkBuf
     initialConv->apply(cudaHandles,inputDescriptor,trunkDescriptor,batchSize,false,inputBuf,trunkScratchBuf,workspaceBuf,workspaceBytes);
+
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint4D(string("Initial bin features"), inputBuf, batchSize, initialConv->inChannels, xSize, ySize, usingNHWC, usingFP16);
+    debugPrint4D(string("After initial conv"), trunkScratchBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
+    #endif
 
     //Feed the matmul into trunkBuf
     initialMatMul->apply(cudaHandles,batchSize,inputGlobalBuf,trunkBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);

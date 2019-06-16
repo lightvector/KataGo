@@ -881,7 +881,13 @@ struct MatMulLayer {
     outChannels = desc->outChannels;
 
     assert(desc->weights.size() == inChannels * outChannels);
-    vector<float> weights = desc->weights;
+    vector<float> weights(desc->weights.size());
+    //Transpose weights, we implemented the opencl kernel to expect oc,ic
+    for(int oc = 0; oc < outChannels; oc++) {
+      for(int ic = 0; ic < inChannels; ic++) {
+        weights[oc * inChannels + ic] = desc->weights[ic * outChannels + oc];
+      }
+    }
     matBuf = createReadOnlyBuffer(handle,weights);
   }
 
@@ -1265,16 +1271,19 @@ struct Trunk {
     //Feed the conv into trunkScratch, not trunk
     initialConv->apply(handle,batchSize,input,trunkScratch);
 
-    if(initialMatMul != NULL) {
-      //Feed the matmul into trunk
-      initialMatMul->apply(handle,batchSize,inputGlobal,trunk);
-      //Then accumulate it into trunkScratch, broadcasting during the process
-      addChannelBiases(handle, trunkScratch, trunk, batchSize * trunkNumChannels, nnXLen*nnYLen);
-    }
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    bool usingNHWC = false;
+    debugPrint4D(string("Initial bin features"), handle, input, batchSize, initialConv->inChannels, nnXLen, nnYLen, usingNHWC);
+    debugPrint4D(string("After initial conv"), handle, trunkScratch, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
+    #endif
+
+    //Feed the matmul into trunk, which will certainly be a big enough buffer
+    initialMatMul->apply(handle,batchSize,inputGlobal,trunk);
+    //Then accumulate it into trunkScratch, broadcasting during the process
+    addChannelBiases(handle, trunkScratch, trunk, batchSize * trunkNumChannels, nnXLen*nnYLen);
 
     for(int i = 0; i<blocks.size(); i++) {
       #ifdef DEBUG_INTERMEDIATE_VALUES
-      bool usingNHWC = false;
       debugPrint4D(string("Trunk before block " + Global::intToString(i)), handle, trunkScratch, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
       #endif
 
@@ -1319,8 +1328,8 @@ struct Trunk {
     //And now with the final BN port it from trunkScratch to trunk.
     bool applyBNRelu = true;
     trunkTipBN->apply(handle,batchSize,applyBNRelu,trunkScratch,trunk,mask);
+
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    bool usingNHWC = false;
     debugPrint4D(string("Trunk tip"), handle, trunk, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
     #endif
   }
