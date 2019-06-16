@@ -934,38 +934,19 @@ struct GlobalPoolingResidualBlock {
 
     if(!usingFP16) {
       const float meanScale = 1.0f / (xSize*ySize);
-      if(!usingNHWC) {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsGPoolNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
-        else
-          customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,meanScale);
-        CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      }
-      else {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsGPoolNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
-        else
-          customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,meanScale);
-        CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      }
+      if(!usingNHWC)
+        customCudaPoolRowsGPoolNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+      else
+        customCudaPoolRowsGPoolNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
     }
     else {
       const float meanScale = 1.0f / (xSize*ySize);
-      if(!usingNHWC) {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsGPoolNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
-        else
-          customCudaPoolRowsSumAndMaxPositiveNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,meanScale);
-        CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      }
-      else {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsGPoolNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
-        else
-          customCudaPoolRowsSumAndMaxPositiveNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,meanScale);
-        CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      }
+      if(!usingNHWC)
+        customCudaPoolRowsGPoolNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+      else
+        customCudaPoolRowsGPoolNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
     }
+    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
     gpoolToBiasMul.apply(cudaHandles,batchSize,gpoolConcatBuf,gpoolBiasBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
 
@@ -1705,38 +1686,20 @@ struct PolicyHead {
 
     const float meanScale = 1.0f / (xSize*ySize);
     if(!usingFP16) {
-      if(!usingNHWC) {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsGPoolNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
-        else
-          customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,meanScale);
-        CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      }
-      else {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsGPoolNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
-        else
-          customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,meanScale);
-        CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      }
+      if(!usingNHWC)
+        customCudaPoolRowsGPoolNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+      else
+        customCudaPoolRowsGPoolNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
     else {
       customCudaCopyFromHalf((const half*)g1OutBuf2,(float*)workspaceBuf,batchSize*g1Channels*xSize*ySize);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      if(!usingNHWC) {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsGPoolNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
-        else
-          customCudaPoolRowsSumAndMaxPositiveNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,meanScale);
-        CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      }
-      else {
-        if(maskSumBuf != NULL)
-          customCudaPoolRowsGPoolNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
-        else
-          customCudaPoolRowsSumAndMaxPositiveNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,meanScale);
-        CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-      }
+      if(!usingNHWC)
+        customCudaPoolRowsGPoolNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+      else
+        customCudaPoolRowsGPoolNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
     float zero = 0.0f;
@@ -1994,18 +1957,10 @@ struct ValueHead {
       bufToBePooled = workspaceBuf;
     }
 
-    if(!usingNHWC) {
-      if(maskSumBuf != NULL)
-        customCudaValueHeadPoolNCHW((float*)bufToBePooled,v1MeanBuf,batchSize,v1Channels,xSize*ySize,maskSumBuf);
-      else
-        customCudaPoolRowsSumNCHW((float*)bufToBePooled,v1MeanBuf,batchSize,v1Channels,xSize*ySize,meanScale);
-    }
-    else {
-      if(maskSumBuf != NULL)
-        customCudaValueHeadPoolNHWC((const float*)bufToBePooled,v1MeanBuf,batchSize,xSize*ySize,v1Channels,maskSumBuf);
-      else
-        customCudaPoolRowsSumNHWC((const float*)bufToBePooled,v1MeanBuf,batchSize,xSize*ySize,v1Channels,meanScale);
-    }
+    if(!usingNHWC)
+      customCudaValueHeadPoolNCHW((float*)bufToBePooled,v1MeanBuf,batchSize,v1Channels,xSize*ySize,maskSumBuf);
+    else
+      customCudaValueHeadPoolNHWC((const float*)bufToBePooled,v1MeanBuf,batchSize,xSize*ySize,v1Channels,maskSumBuf);
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
 

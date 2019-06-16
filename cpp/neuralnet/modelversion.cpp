@@ -7,7 +7,7 @@
 //2 = V2 features, no internal architecture change.
 
 //Supported model versions:
-//3 = V3 features, many architecture changes for new selfplay loop
+//3 = V3 features, many architecture changes for new selfplay loop, including multiple board sizes
 //4 = V3 features, scorebelief head
 //5 = V4 features, changed current territory feature to just indicate pass-alive
 //6 = V5 features, disable fancy features
