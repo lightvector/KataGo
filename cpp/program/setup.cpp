@@ -26,9 +26,9 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
 
-  #ifdef USE_CUDA_BACKEND
+  #if defined(USE_CUDA_BACKEND)
   string backendPrefix = "cuda";
-  #elseif USE_OPENCL_BACKEND
+  #elif defined(USE_OPENCL_BACKEND)
   string backendPrefix = "opencl";
   #else
   string backendPrefix = "dummybackend";

@@ -1,3 +1,4 @@
+#ifdef USE_OPENCL_BACKEND
 
 #include "../neuralnet/nninterface.h"
 
@@ -2551,3 +2552,6 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 
   return true;
 }
+
+
+#endif  // USE_OPENCL_BACKEND

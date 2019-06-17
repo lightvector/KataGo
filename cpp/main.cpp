@@ -91,9 +91,9 @@ int main(int argc, const char* argv[]) {
     cout << Version::getKataGoVersionForHelp() << endl;
     cout << "Git revision: " << Version::getGitRevision() << endl;
     cout << "Compile Time: " << __DATE__ << " " << __TIME__ << endl;
-    #ifdef USE_CUDA_BACKEND
+    #if defined(USE_CUDA_BACKEND)
     cout << "Using CUDA backend" << endl;
-    #elseif USE_OPENCL_BACKEND
+    #elif defined(USE_OPENCL_BACKEND)
     cout << "Using OpenCL backend" << endl;
     #else
     cout << "Using dummy backend" << endl;
