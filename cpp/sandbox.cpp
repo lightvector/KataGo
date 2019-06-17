@@ -52,9 +52,9 @@ using namespace std;
 //   int defaultSymmetry = 0;
 //   vector<int> gpuIdxByServerThread = {0};
 //   bool useFP16 = false;
-//   bool cudaUseNHWC = false;
+//   bool useNHWC = false;
 //   nnEval->spawnServerThreads(
-//     numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,gpuIdxByServerThread,useFP16,cudaUseNHWC
+//     numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,gpuIdxByServerThread,useFP16,useNHWC
 //   );
 
 //   Rules rules;
@@ -206,7 +206,7 @@ int MainCmds::sandbox() {
   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb", 0);
   bool useFP16 = true;
-  bool cudaUseNHWC = true;
+  bool useNHWC = true;
   int maxBatchSize = 128;
   int nnXLen = 14;
   int nnYLen = 14;
@@ -216,7 +216,7 @@ int MainCmds::sandbox() {
   ComputeContext* context = NeuralNet::createComputeContext({gpuIdxForThisThread},&logger);
   ComputeHandle* gpuHandle = NeuralNet::createComputeHandle(
     context,loadedModel,&logger,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,
-    gpuIdxForThisThread,useFP16,cudaUseNHWC
+    gpuIdxForThisThread,useFP16,useNHWC
   );
   InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
 

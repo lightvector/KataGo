@@ -25,6 +25,24 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 ) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
+
+  #ifdef USE_CUDA_BACKEND
+  string backendPrefix = "cuda";
+  #elseif USE_OPENCL_BACKEND
+  string backendPrefix = "opencl";
+  #else
+  string backendPrefix = "dummybackend";
+  #endif
+
+  //Automatically flag keys that are for other backends as used so that we don't warn about unused keys
+  //for those options
+  if(backendPrefix != "cuda")
+    cfg.markAllKeysUsedWithPrefix("cuda");
+  if(backendPrefix != "opencl")
+    cfg.markAllKeysUsedWithPrefix("opencl");
+  if(backendPrefix != "dummybackend")
+    cfg.markAllKeysUsedWithPrefix("dummybackend");
+
   for(size_t i = 0; i<nnModelFiles.size(); i++) {
     string idxStr = Global::intToString(i);
     const string& nnModelName = nnModelNames[i];
@@ -59,9 +77,13 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("requireMaxBoardSize"))
       requireExactNNLen = cfg.getBool("requireMaxBoardSize");
 
-    bool inputsUseNHWC = true;
-    if(cfg.contains("inputsUseNHWC"+idxStr))
+    bool inputsUseNHWC = backendPrefix == "opencl" ? false : true;
+    if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
+      inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
+    else if(cfg.contains("inputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool("inputsUseNHWC"+idxStr);
+    else if(cfg.contains(backendPrefix+"InputsUseNHWC"))
+      inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC");
     else if(cfg.contains("inputsUseNHWC"))
       inputsUseNHWC = cfg.getBool("inputsUseNHWC");
 
@@ -81,29 +103,28 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
     logger.write("nnRandSeed" + idxStr + " = " + nnRandSeed);
 
-    //Parse cuda versions of the various cfg arguments below
-    //as a way to support legacy configs. They are equivalent to non-cuda versions of those args.
 
     int numNNServerThreadsPerModel = cfg.getInt("numNNServerThreadsPerModel",1,1024);
+
     vector<int> gpuIdxByServerThread;
     for(int j = 0; j<numNNServerThreadsPerModel; j++) {
       string threadIdxStr = Global::intToString(j);
-      if(cfg.contains("gpuToUseModel"+idxStr+"Thread"+threadIdxStr))
+      if(cfg.contains(backendPrefix+"GpuToUseModel"+idxStr+"Thread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains("gpuToUseModel"+idxStr+"Thread"+threadIdxStr))
         gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
-      else if(cfg.contains("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr))
-        gpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"GpuToUseModel"+idxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUseModel"+idxStr,0,1023));
       else if(cfg.contains("gpuToUseModel"+idxStr))
         gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseModel"+idxStr,0,1023));
-      else if(cfg.contains("cudaGpuToUseModel"+idxStr))
-        gpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"GpuToUseThread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUseThread"+threadIdxStr,0,1023));
       else if(cfg.contains("gpuToUseThread"+threadIdxStr))
         gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseThread"+threadIdxStr,0,1023));
-      else if(cfg.contains("cudaGpuToUseThread"+threadIdxStr))
-        gpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseThread"+threadIdxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"GpuToUse"))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUse",0,1023));
       else if(cfg.contains("gpuToUse"))
         gpuIdxByServerThread.push_back(cfg.getInt("gpuToUse",0,1023));
-      else if(cfg.contains("cudaGpuToUse"))
-        gpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUse",0,1023));
       else
         gpuIdxByServerThread.push_back(0);
     }
@@ -113,25 +134,29 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     std::unique(gpuIdxs.begin(), gpuIdxs.end());
 
     bool useFP16 = false;
-    if(cfg.contains("useFP16-"+idxStr))
+    if(cfg.contains(backendPrefix+"UseFP16-"+idxStr))
+      useFP16 = cfg.getBool(backendPrefix+"UseFP16-"+idxStr);
+    else if(cfg.contains("useFP16-"+idxStr))
       useFP16 = cfg.getBool("useFP16-"+idxStr);
-    else if(cfg.contains("cudaUseFP16-"+idxStr))
-      useFP16 = cfg.getBool("cudaUseFP16-"+idxStr);
+    else if(cfg.contains(backendPrefix+"UseFP16"))
+      useFP16 = cfg.getBool(backendPrefix+"UseFP16");
     else if(cfg.contains("useFP16"))
       useFP16 = cfg.getBool("useFP16");
-    else if(cfg.contains("cudaUseFP16"))
-      useFP16 = cfg.getBool("cudaUseFP16");
 
-    bool cudaUseNHWC = false;
-    if(cfg.contains("cudaUseNHWC"+idxStr))
-      cudaUseNHWC = cfg.getBool("cudaUseNHWC"+idxStr);
-    else if(cfg.contains("cudaUseNHWC"))
-      cudaUseNHWC = cfg.getBool("cudaUseNHWC");
+    bool useNHWC = false;
+    if(cfg.contains(backendPrefix+"UseNHWC"+idxStr))
+      useNHWC = cfg.getBool(backendPrefix+"UseNHWC"+idxStr);
+    else if(cfg.contains("useNHWC"+idxStr))
+      useNHWC = cfg.getBool("useNHWC"+idxStr);
+    else if(cfg.contains(backendPrefix+"UseNHWC"))
+      useNHWC = cfg.getBool(backendPrefix+"UseNHWC");
+    else if(cfg.contains("useNHWC"))
+      useNHWC = cfg.getBool("useNHWC");
 
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
       + " useFP16 " + Global::boolToString(useFP16)
-      + " cudaUseNHWC " + Global::boolToString(cudaUseNHWC)
+      + " useNHWC " + Global::boolToString(useNHWC)
     );
 
     NNEvaluator* nnEval = new NNEvaluator(
@@ -162,7 +187,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       logger,
       gpuIdxByServerThread,
       useFP16,
-      cudaUseNHWC
+      useNHWC
     );
 
     nnEvals.push_back(nnEval);

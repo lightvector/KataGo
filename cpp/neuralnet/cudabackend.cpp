@@ -2669,7 +2669,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool inputsUseNHWC,
   int gpuIdxForThisThread,
   bool useFP16,
-  bool cudaUseNHWC
+  bool useNHWC
 ) {
   (void)context;
 
@@ -2689,7 +2689,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   if(useFP16 && (prop.major < 5 || (prop.major == 5 && prop.minor < 3)))
     throw StringError("Cuda device versions below 5.3 do not support useFP16=true");
 
-  ComputeHandle* gpuHandle = new ComputeHandle(loadedModel,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,useFP16,cudaUseNHWC);
+  ComputeHandle* gpuHandle = new ComputeHandle(loadedModel,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC);
   return gpuHandle;
 }
 

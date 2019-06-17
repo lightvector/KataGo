@@ -70,7 +70,7 @@ namespace NeuralNet {
     bool inputsUseNHWC,
     int gpuIdxForThisThread,
     bool useFP16,
-    bool cudaUseNHWC
+    bool useNHWC
   );
   void freeComputeHandle(ComputeHandle* computeHandle);
 

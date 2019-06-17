@@ -106,7 +106,7 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaul
 
 static NNEvaluator* startNNEval(
   const string& modelFile, Logger& logger, const string& seed, int nnXLen, int nnYLen,
-  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool useFP16, bool debugSkipNeuralNet, double nnPolicyTemperature
+  int defaultSymmetry, bool inputsUseNHWC, bool useNHWC, bool useFP16, bool debugSkipNeuralNet, double nnPolicyTemperature
 ) {
   vector<int> gpuIdxByServerThread = {0};
   vector<int> gpuIdxs = {0};
@@ -145,7 +145,7 @@ static NNEvaluator* startNNEval(
   string nnRandSeed = "runSearchTestsRandSeed"+seed;
   //int defaultSymmetry = 0;
   //bool useFP16 = false;
-  //bool cudaUseNHWC = false;
+  //bool useNHWC = false;
 
   nnEval->spawnServerThreads(
     numNNServerThreadsPerModel,
@@ -155,7 +155,7 @@ static NNEvaluator* startNNEval(
     logger,
     gpuIdxByServerThread,
     useFP16,
-    cudaUseNHWC
+    useNHWC
   );
 
   return nnEval;

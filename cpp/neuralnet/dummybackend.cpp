@@ -60,7 +60,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool inputsUseNHWC,
   int gpuIdxForThisThread,
   bool useFP16,
-  bool cudaUseNHWC
+  bool useNHWC
 ) {
   (void)context;
   (void)loadedModel;
@@ -72,7 +72,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   (void)inputsUseNHWC;
   (void)gpuIdxForThisThread;
   (void)useFP16;
-  (void)cudaUseNHWC;
+  (void)useNHWC;
   throw StringError("Dummy neural net backend: NeuralNet::createLocalGpuHandle unimplemented");
 }
 

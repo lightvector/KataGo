@@ -9,7 +9,7 @@ using namespace TestCommon;
 
 static NNEvaluator* startNNEval(
   const string& modelFile, const string& seed, Logger& logger,
-  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool useFP16
+  int defaultSymmetry, bool inputsUseNHWC, bool useNHWC, bool useFP16
 ) {
   const string& modelName = modelFile;
   vector<int> gpuIdxByServerThread = {0};
@@ -56,7 +56,7 @@ static NNEvaluator* startNNEval(
     logger,
     gpuIdxByServerThread,
     useFP16,
-    cudaUseNHWC
+    useNHWC
   );
 
   return nnEval;

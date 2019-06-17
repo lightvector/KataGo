@@ -377,10 +377,12 @@ struct ComputeHandleInternal {
   cl_kernel mirrorKernel;
   cl_kernel extractChannel0NCHWKernel;
 
-  ComputeHandleInternal(ComputeContext* context, int gpuIdx, bool inputsUseNHWC, bool useFP16) {
+  ComputeHandleInternal(ComputeContext* context, int gpuIdx, bool inputsUseNHWC, bool useNHWC, bool useFP16) {
 
     if(inputsUseNHWC != false)
       throw StringError("OpenCL backend: inputsUseNHWC = false required, other configurations not supported");
+    if(useNHWC != false)
+      throw StringError("OpenCL backend: useNHWC = false required, other configurations not supported");
     if(useFP16 != false)
       throw StringError("OpenCL backend: useFP16 = false required, other configurations not supported");
 
@@ -1945,9 +1947,9 @@ struct ComputeHandle {
   int policySize;
 
   ComputeHandle(
-    ComputeContext* context, const LoadedModel* loadedModel, int maxBatchSize, int nnX, int nnY, int gpuIdx, bool inputsUseNHWC, bool useFP16
+    ComputeContext* context, const LoadedModel* loadedModel, int maxBatchSize, int nnX, int nnY, int gpuIdx, bool inputsUseNHWC, bool useNHWC, bool useFP16
   ) {
-    handle = new ComputeHandleInternal(context, gpuIdx, inputsUseNHWC, useFP16);
+    handle = new ComputeHandleInternal(context, gpuIdx, inputsUseNHWC, useNHWC, useFP16);
     model = new Model(handle, &(loadedModel->modelDesc), maxBatchSize, nnX, nnY);
     buffers = new Buffers(handle, *model);
     nnXLen = nnX;
@@ -1977,17 +1979,15 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool inputsUseNHWC,
   int gpuIdxForThisThread,
   bool useFP16,
-  bool cudaUseNHWC
+  bool useNHWC
 ) {
-  (void)cudaUseNHWC;
-
   if(logger != NULL)
     logger->write("OpenCL backend: Model version " + Global::intToString(loadedModel->modelDesc.version));
 
   //Current implementation always tolerates excess nn len
   (void)requireExactNNLen;
 
-  return new ComputeHandle(context,loadedModel,maxBatchSize,nnXLen,nnYLen,gpuIdxForThisThread,inputsUseNHWC,useFP16);
+  return new ComputeHandle(context,loadedModel,maxBatchSize,nnXLen,nnYLen,gpuIdxForThisThread,inputsUseNHWC,useNHWC,useFP16);
 }
 
 void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
@@ -2316,7 +2316,7 @@ bool NeuralNet::testEvaluateConv(
     return false;
 
   ComputeContext* context = createComputeContext({gpuIdx}, logger);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC, useNHWC);
 
   ConvLayer* layer = new ConvLayer(handle, desc, nnXLen, nnYLen);
 
@@ -2368,7 +2368,7 @@ bool NeuralNet::testEvaluateBatchNorm(
     return false;
 
   ComputeContext* context = createComputeContext({gpuIdx}, logger);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC, useNHWC);
 
   BatchNormLayer* layer = new BatchNormLayer(handle, desc, nnXLen, nnYLen);
 
@@ -2423,7 +2423,7 @@ bool NeuralNet::testEvaluateResidualBlock(
     return false;
 
   ComputeContext* context = createComputeContext({gpuIdx}, logger);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC, useNHWC);
 
   ResidualBlock* layer = new ResidualBlock(handle, desc, nnXLen, nnYLen);
 
@@ -2483,7 +2483,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
     return false;
 
   ComputeContext* context = createComputeContext({gpuIdx}, logger);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC, useNHWC);
 
   GlobalPoolingResidualBlock* layer = new GlobalPoolingResidualBlock(handle, desc, nnXLen, nnYLen);
 

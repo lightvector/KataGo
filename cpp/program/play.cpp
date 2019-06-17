@@ -649,7 +649,7 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
   ReportedSearchValues values;
   bool success = toMoveBot->getNodeValues(*node,values);
   assert(success);
-  (void)success; //Avoid warning when asserts are disabled  
+  (void)success; //Avoid warning when asserts are disabled
 
   buf.win = values.winValue;
   buf.loss = values.lossValue;
@@ -1055,7 +1055,7 @@ FinishedGameData* Play::runGame(
     //HACK - Disable LCB for making the move (it will still affect the policy target gen)
     bool lcb = toMoveBot->searchParams.useLcbForSelection;
     toMoveBot->searchParams.useLcbForSelection = false;
-    
+
     if(doCapVisitsPlayouts) {
       assert(numCapVisits > 0);
       assert(numCapPlayouts > 0);
@@ -1081,7 +1081,7 @@ FinishedGameData* Play::runGame(
     }
 
     //HACK - restore LCB so that it affects policy target gen
-    toMoveBot->searchParams.useLcbForSelection = lcb;      
+    toMoveBot->searchParams.useLcbForSelection = lcb;
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegal(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
@@ -1122,7 +1122,7 @@ FinishedGameData* Play::runGame(
       if(fancyModes.recordTreePositions && fancyModes.recordTreeTargetWeight > 0.0f) {
         if(fancyModes.recordTreeTargetWeight > 1.0f)
           throw StringError("fancyModes.recordTreeTargetWeight > 1.0f");
-          
+
         recordTreePositions(
           gameData,
           board,hist,pla,
@@ -1158,7 +1158,7 @@ FinishedGameData* Play::runGame(
     if(fancyModes.allowResignation && historicalMctsWinLossValues.size() >= fancyModes.resignConsecTurns) {
       if(fancyModes.resignThreshold > 0 || std::isnan(fancyModes.resignThreshold))
         throw StringError("fancyModes.resignThreshold > 0 || std::isnan(fancyModes.resignThreshold)");
-      
+
       bool shouldResign = true;
       for(int j = 0; j<fancyModes.resignConsecTurns; j++) {
         double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-j-1];
@@ -1475,6 +1475,18 @@ FinishedGameData* GameRunner::runGame(
   }
   else {
     gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition);
+
+    bool rulesWereSupported;
+    if(botSpecB.nnEval != NULL) {
+      botSpecB.nnEval->getSupportedRules(hist.rules,rulesWereSupported);
+      if(!rulesWereSupported)
+        logger.write("WARNING: Match is running bot on rules that it does not support: " + botSpecB.botName);
+    }
+    if(botSpecW.nnEval != NULL) {
+      botSpecW.nnEval->getSupportedRules(hist.rules,rulesWereSupported);
+      if(!rulesWereSupported)
+        logger.write("WARNING: Match is running bot on rules that it does not support: " + botSpecW.botName);
+    }
   }
 
   bool clearBotBeforeSearchThisGame = clearBotBeforeSearch;
@@ -1542,4 +1554,3 @@ FinishedGameData* GameRunner::runGame(
 
   return finishedGameData;
 }
-

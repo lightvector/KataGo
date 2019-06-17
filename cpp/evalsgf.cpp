@@ -108,19 +108,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   //Parse config and rules -------------------------------------------------------------------
 
   ConfigParser cfg(configFile);
-  Rules defaultRules;
-  {
-    //All of these might get overwritten by the sgf
-    string koRule = cfg.getString("koRule", Rules::koRuleStrings());
-    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-    bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
-    float komi = 7.5f; //Default komi, sgf will generally override this
-
-    defaultRules.koRule = Rules::parseKoRule(koRule);
-    defaultRules.scoringRule = Rules::parseScoringRule(scoringRule);
-    defaultRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-    defaultRules.komi = komi;
-  }
+  Rules defaultRules = Rules::getTrompTaylorish();
 
   //Parse sgf file and board ------------------------------------------------------------------
 
