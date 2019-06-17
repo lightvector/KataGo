@@ -1,5 +1,7 @@
 # KataGo
 
+**This is an under-development branch to add OpenCL support to KataGo. To try the OpenCL backend, follow the same compile instructions as below except you will need to have OpenCL libraries installed instead of CUDA, and provide `-DUSE_OPENCL_BACKEND=1` instead of `-DUSE_CUDA_BACKEND=1`**
+
 Research and experimentation with self-play training in Go. Contains a working implementation of AlphaZero-like training with a lot of modifications and enhancements. Due to these enhancements, early training is immensely faster than in other zero-style bots - with a only few strong GPUs for a few days, even a single person should be able to train to mid or even high amateur dan strength on the full 19x19 board on consumer hardware. Also contains a GTP engine and pre-trained neural nets competitive with other top open-source Go engines. KataGo is also capable of estimating score and territory, and due to this right-out-of-the-box plays handicap games somewhat better than many other zero trained bots, without any special hacks. 
 
 The latest KataGo network is a 20-block network that at visit parity is probably slightly stronger than ELF and is comparable to LZ200. See the [releases page](https://github.com/lightvector/KataGo/releases) for the final trained models. The self-play training data from the run and full history of accepted models is available [here](https://d3dndmfyhecmj0.cloudfront.net/).
@@ -26,6 +28,8 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, Kata
 
 ### OpenCL branch
 There is an experimental [branch](https://github.com/lightvector/KataGo/tree/opencl) with an OpenCL implementation, so as to no longer be dependent on CUDA. It should be functional as of now, but the implementations of the GPU kernels are some of the simplest and most un-optimized possible (just to first get it working), making it more than 10x slower than the current CUDA implementation. Additionally, it makes a few assumptions about possible block sizes that may not be entirely general across devices. Work is in-progress.
+
+**This branch is in fact the OpenCL branch. To attempt to compile with OpenCL, follow the same compile instructions as below except you will need to have OpenCL libraries installed instead of CUDA, and provide `-DUSE_OPENCL_BACKEND=1` instead of `-DUSE_CUDA_BACKEND=1`**
 
 ### Compiling
 KataGo is written in C++ and has a fully working GTP engine. Once compiled, you should be able to run it using the trained neural nets for KataGo that you can download from the releases page. See also LICENSE for the software license for this repo. Additionally, if you end up using any of the code in this repo to do any of your own cool new self-play or neural net training experiments, I (lightvector) would to love hear about it.
