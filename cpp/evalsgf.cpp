@@ -108,19 +108,9 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   //Parse config and rules -------------------------------------------------------------------
 
   ConfigParser cfg(configFile);
-  Rules defaultRules;
-  {
-    //All of these might get overwritten by the sgf
-    string koRule = cfg.getString("koRule", Rules::koRuleStrings());
-    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-    bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
-    float komi = 7.5f; //Default komi, sgf will generally override this
+  Rules defaultRules = Rules::getTrompTaylorish();
 
-    defaultRules.koRule = Rules::parseKoRule(koRule);
-    defaultRules.scoringRule = Rules::parseScoringRule(scoringRule);
-    defaultRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-    defaultRules.komi = komi;
-  }
+  Player perspective = Setup::parseReportAnalysisWinrates(cfg,P_BLACK);
 
   //Parse sgf file and board ------------------------------------------------------------------
 
@@ -297,7 +287,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
 
   if(printOwnership) {
     sout << "Ownership map (ROOT position):\n";
-    search->printRootOwnershipMap(sout);
+    search->printRootOwnershipMap(sout,perspective);
   }
 
   if(printRootNNValues) {
@@ -329,7 +319,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
 
     sout << "Komi: " << copyHist.rules.komi << endl;
     sout << "WBonus: " << copyHist.whiteBonusScore << endl;
-    sout << "Final: " << copyHist.finalWhiteMinusBlackScore << endl;
+    sout << "Final: "; WriteSgf::printGameResult(sout, copyHist); sout << endl;
   }
 
   if(printRootEndingBonus) {
@@ -346,7 +336,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   search->printPV(sout, search->rootNode, 25);
   sout << "\n";
   sout << "Tree:\n";
-  search->printTree(sout, search->rootNode, options);
+  search->printTree(sout, search->rootNode, options, perspective);
   logger.write(sout.str());
 
   delete bot;

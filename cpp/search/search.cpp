@@ -386,6 +386,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   const SearchNode& node,
   vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
   bool allowDirectPolicyMoves, bool alwaysComputeLcb,
+  //Note: lcbBuf is signed from the player to move's perspective
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
 ) const {
   locs.clear();
@@ -989,7 +990,7 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
       double newUtility = resultUtilitySum / weightSum + scoreUtility;
       double newUtilitySum = newUtility * weightSum;
       double newUtilitySqSum = newUtility * newUtility * weightSum;
-    
+
       while(node.statsLock.test_and_set(std::memory_order_acquire));
       node.stats.utilitySum = newUtilitySum;
       node.stats.utilitySqSum = newUtilitySqSum;
@@ -1063,11 +1064,11 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
     else
       r[i] = 0.0;
   }
-  
+
   //Normalized gamma draws -> dirichlet noise
   for(int i = 0; i<policySize; i++)
     r[i] /= rSum;
-  
+
   //At this point, r[i] contains a dirichlet distribution draw, so add it into the nnOutput.
   for(int i = 0; i<policySize; i++) {
     if(policyProbs[i] >= 0) {
@@ -1076,7 +1077,7 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
     }
   }
 }
-  
+
 
 //Assumes node is locked
 void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const {
@@ -1924,17 +1925,20 @@ void Search::playoutDescend(
 }
 
 
-void Search::printRootOwnershipMap(ostream& out) const {
+void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
   if(rootNode->nnOutput == nullptr)
     return;
   NNOutput& nnOutput = *(rootNode->nnOutput);
   if(nnOutput.whiteOwnerMap == NULL)
     return;
 
+  Player perspectiveToUse = (perspective != P_BLACK && perspective != P_WHITE) ? rootPla : perspective;
+  double perspectiveFactor = perspectiveToUse == P_BLACK ? -1.0 : 1.0;
+
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
-      out << Global::strprintf("%6.1f ", nnOutput.whiteOwnerMap[pos]*100);
+      out << Global::strprintf("%6.1f ", perspectiveFactor * nnOutput.whiteOwnerMap[pos]*100);
     }
     out << endl;
   }
@@ -2222,7 +2226,9 @@ void Search::getAnalysisData(
       parentScoreMean, parentScoreStdev, maxPVDepth
     );
     data.playSelectionValue = playSelectionValues[i];
-    data.lcb = lcbBuf[i];
+    //Make sure data.lcb is from white's perspective, for consistency with everything else
+    //In lcbBuf, it's from self perspective, unlike values at nodes.
+    data.lcb = node.nextPla == P_BLACK ? -lcbBuf[i] : lcbBuf[i];
     data.radius = radiusBuf[i];
     buf.push_back(data);
   }
@@ -2295,7 +2301,7 @@ void Search::printPVForMove(ostream& out, const SearchNode* n, Loc move, int max
   }
 }
 
-void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options) const {
+void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options, Player perspective) const {
   string prefix;
   AnalysisData data;
   {
@@ -2315,17 +2321,20 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
     );
     data.weightFactor = NAN;
   }
-  printTreeHelper(out, node, options, prefix, 0, 0, data);
+  printTreeHelper(out, node, options, prefix, 0, 0, data, perspective);
 }
 
 void Search::printTreeHelper(
   ostream& out, const SearchNode* n, const PrintTreeOptions& options,
-  string& prefix, int64_t origVisits, int depth, const AnalysisData& data
+  string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
 ) const {
   if(n == NULL)
     return;
 
   const SearchNode& node = *n;
+
+  Player perspectiveToUse = (perspective != P_BLACK && perspective != P_WHITE) ? n->nextPla : perspective;
+  double perspectiveFactor = perspectiveToUse == P_BLACK ? -1.0 : 1.0;
 
   if(depth == 0)
     origVisits = data.numVisits;
@@ -2338,13 +2347,13 @@ void Search::printTreeHelper(
     out << ": ";
 
     if(data.numVisits > 0) {
-      sprintf(buf,"T %6.2fc ",(data.utility * 100.0));
+      sprintf(buf,"T %6.2fc ",(perspectiveFactor * data.utility * 100.0));
       out << buf;
-      sprintf(buf,"W %6.2fc ",(data.resultUtility * 100.0));
+      sprintf(buf,"W %6.2fc ",(perspectiveFactor * data.resultUtility * 100.0));
       out << buf;
       sprintf(buf,"S %6.2fc (%+5.1f) ",
-              data.scoreUtility * 100.0,
-              data.scoreMean
+              perspectiveFactor * data.scoreUtility * 100.0,
+              perspectiveFactor * data.scoreMean
       );
       out << buf;
     }
@@ -2370,7 +2379,7 @@ void Search::printTreeHelper(
     // }
 
     if(depth > 0 && !isnan(data.lcb)) {
-      sprintf(buf,"LCB %7.2fc ", (node.nextPla == P_WHITE ? -1 : 1) * data.lcb * 100.0);
+      sprintf(buf,"LCB %7.2fc ", perspectiveFactor * data.lcb * 100.0);
       out << buf;
     }
 
@@ -2414,7 +2423,7 @@ void Search::printTreeHelper(
       return;
   }
   if(depth == options.branch_.size()) {
-    out << "---" << playerToString(node.nextPla) << "(" << (node.nextPla == P_WHITE ? "^" : "v") << ")---" << endl;
+    out << "---" << playerToString(node.nextPla) << "(" << (node.nextPla == perspectiveToUse ? "^" : "v") << ")---" << endl;
   }
 
   vector<AnalysisData> analysisData;
@@ -2462,7 +2471,7 @@ void Search::printTreeHelper(
       while(prefix.length() < oldLen+4)
         prefix += " ";
       printTreeHelper(
-        out,child,options,prefix,origVisits,depth+1,analysisData[i]);
+        out,child,options,prefix,origVisits,depth+1,analysisData[i], perspective);
       prefix.erase(oldLen);
     }
   }
@@ -2516,7 +2525,7 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
   }
 
   double desiredWeightFromChildren = desiredWeight * usedChildrenVisitSum / (usedChildrenVisitSum + 1);
-  
+
   //Recurse
   double actualWeightFromChildren = 0.0;
   for(int i = 0; i<numChildren; i++) {
@@ -2535,4 +2544,3 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
 
   return desiredWeight;
 }
-

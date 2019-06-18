@@ -30,6 +30,9 @@ namespace Setup {
     ConfigParser& cfg
   );
 
+  Player parseReportAnalysisWinrates(
+    ConfigParser& cfg, Player defaultPerspective
+  );
 }
 
 #endif  // PROGRAM_SETUP_H_

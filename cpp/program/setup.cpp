@@ -313,3 +313,21 @@ vector<SearchParams> Setup::loadParams(
 
   return paramss;
 }
+
+Player Setup::parseReportAnalysisWinrates(
+  ConfigParser& cfg, Player defaultPerspective
+) {
+  if(!cfg.contains("reportAnalysisWinratesAs"))
+    return defaultPerspective;
+
+  string sOrig = cfg.getString("reportAnalysisWinratesAs");
+  string s = Global::toLower(sOrig);
+  if(s == "b" || s == "black")
+    return P_BLACK;
+  else if(s == "w" || s == "white")
+    return P_WHITE;
+  else if(s == "sidetomove")
+    return C_EMPTY;
+
+  throw StringError("Could not parse config value for reportAnalysisWinratesAs: " + sOrig);
+}
