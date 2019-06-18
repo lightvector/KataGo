@@ -28,6 +28,7 @@ static const vector<string> knownCommands = {
   "clear_board",
   "komi",
   "play",
+  "undo",
 
   "genmove",
   "genmove-debug", //Prints additional info to stderr
@@ -184,6 +185,12 @@ struct GTPEngine {
   TimeControls bTimeControls;
   TimeControls wTimeControls;
 
+  //This move history doesn't get cleared upon consecutive moves by the same side, and is used
+  //for undo, whereas the one in search does.
+  Board initialBoard;
+  Player initialPla;
+  vector<Move> moveHistory;
+
   vector<double> recentWinLossValues;
   double lastSearchFactor;
 
@@ -199,6 +206,9 @@ struct GTPEngine {
      unhackedKomi(initialRules.komi),
      bTimeControls(),
      wTimeControls(),
+     initialBoard(),
+     initialPla(P_BLACK),
+     moveHistory(),
      recentWinLossValues(),
      lastSearchFactor(1.0),
      perspective(persp)
@@ -247,13 +257,17 @@ struct GTPEngine {
     Board board(boardXSize,boardYSize);
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,baseRules,0);
-    setPosition(pla,board,hist);
+    vector<Move> newMoveHistory;
+    setPosition(pla,board,hist,board,pla,newMoveHistory);
   }
 
-  void setPosition(Player pla, const Board& board, const BoardHistory& hist) {
+  void setPosition(Player pla, const Board& board, const BoardHistory& hist, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
     bot->setPosition(pla,board,hist);
     updateKomiIfNew(unhackedKomi);
     recentWinLossValues.clear();
+    initialBoard = newInitialBoard;
+    initialPla = newInitialPla;
+    moveHistory = newMoveHistory;
   }
 
   void clearBoard() {
@@ -262,7 +276,8 @@ struct GTPEngine {
     Board board(newXSize,newYSize);
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,bot->getRootHist().rules,0);
-    setPosition(pla,board,hist);
+    vector<Move> newMoveHistory;
+    setPosition(pla,board,hist,board,pla,newMoveHistory);
   }
 
   void updateKomiIfNew(double newUnhackedKomi) {
@@ -278,7 +293,30 @@ struct GTPEngine {
 
   bool play(Loc loc, Player pla) {
     bool suc = bot->makeMove(loc,pla);
+    if(suc)
+      moveHistory.push_back(Move(loc,pla));
     return suc;
+  }
+
+  bool undo() {
+    if(moveHistory.size() <= 0)
+      return false;
+
+    vector<Move> moveHistoryCopy = moveHistory;
+
+    Board undoneBoard = initialBoard;
+    BoardHistory undoneHist(undoneBoard,initialPla,bot->getRootHist().rules,0);
+    vector<Move> emptyMoveHistory;
+    setPosition(initialPla,undoneBoard,undoneHist,initialBoard,initialPla,emptyMoveHistory);
+
+    for(int i = 0; i<moveHistoryCopy.size()-1; i++) {
+      Loc moveLoc = moveHistoryCopy[i].loc;
+      Loc movePla = moveHistoryCopy[i].pla;
+      bool suc = play(moveLoc,movePla);
+      assert(suc);
+      (void)suc; //Avoid warning when asserts are off
+    }
+    return true;
   }
 
   void ponder() {
@@ -393,6 +431,8 @@ struct GTPEngine {
 
     if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
       bool suc = bot->makeMove(moveLoc,pla);
+      if(suc)
+        moveHistory.push_back(Move(moveLoc,pla));
       assert(suc);
       (void)suc; //Avoid warning when asserts are off
       maybeStartPondering = true;
@@ -429,6 +469,7 @@ struct GTPEngine {
     {
       Rules rules = hist.rules;
       hist.clear(board,P_WHITE,rules,0);
+      pla = P_WHITE;
     }
 
     response = "";
@@ -443,7 +484,8 @@ struct GTPEngine {
     response = Global::trim(response);
     (void)responseIsError;
 
-    setPosition(pla,board,hist);
+    vector<Move> newMoveHistory;
+    setPosition(pla,board,hist,board,pla,newMoveHistory);
   }
 
 
@@ -586,9 +628,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   logger.addFile(cfg.getString("logFile"));
   bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   bool logSearchInfo = cfg.getBool("logSearchInfo");
+  bool loggingToStderr = false;
 
-  if(cfg.contains("logToStderr") && cfg.getBool("logToStderr"))
+  if(cfg.contains("logToStderr") && cfg.getBool("logToStderr")) {
+    loggingToStderr = true;
     logger.setLogToStderr(true);
+  }
 
   logger.write("GTP Engine starting...");
 
@@ -626,6 +671,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
 
+  bool startupPrintMessageToStderr = true;
+  if(cfg.contains("startupPrintMessageToStderr"))
+    startupPrintMessageToStderr = cfg.getBool("startupPrintMessageToStderr");
+
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone,perspective);
@@ -634,7 +683,15 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
-  logger.write("Beginning main protocol loop");
+  logger.write(Version::getKataGoVersionForHelp());
+  logger.write("Loaded model "+ nnModelFile);
+  logger.write("GTP ready, beginning main protocol loop");
+  //Also check loggingToStderr so that we don't duplicate the message from the log file
+  if(startupPrintMessageToStderr && !loggingToStderr) {
+    cerr << Version::getKataGoVersionForHelp() << endl;
+    cerr << "Loaded model " << nnModelFile << endl;
+    cerr << "GTP ready, beginning main protocol loop" << endl;
+  }
 
   bool currentlyAnalyzing = false;
   string line;
@@ -955,6 +1012,14 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
+    else if(command == "undo") {
+      bool suc = engine->undo();
+      if(!suc) {
+        responseIsError = true;
+        response = "cannot undo";
+      }
+    }
+
     else if(command == "genmove" || command == "genmove-debug" || command == "search-debug") {
       Player pla;
       if(pieces.size() != 1) {
@@ -1033,10 +1098,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         }
         for(int i = 0; i<locs.size(); i++)
           board.setStone(locs[i],P_BLACK);
-        Player pla = P_BLACK;
-        BoardHistory hist(board,pla,engine->bot->getRootHist().rules,0);
 
-        engine->setPosition(pla,board,hist);
+        Player pla = P_WHITE;
+        BoardHistory hist(board,pla,engine->bot->getRootHist().rules,0);
+        vector<Move> newMoveHistory;
+        engine->setPosition(pla,board,hist,board,pla,newMoveHistory);
       }
     }
 
