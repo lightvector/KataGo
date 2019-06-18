@@ -402,7 +402,7 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
   bot->printPV(sout, bot->rootNode, 25);
   sout << "\n";
   sout << "Tree:\n";
-  bot->printTree(sout, bot->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
+  bot->printTree(sout, bot->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),P_WHITE);
   logger.write(sout.str());
 }
 

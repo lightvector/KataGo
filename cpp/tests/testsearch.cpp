@@ -57,13 +57,13 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
-    search->printTree(cout, search->rootNode, options);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
 
     if(opts.printRootPolicy) {
       search->printRootPolicyMap(cout);
     }
     if(opts.printEndingScoreValueBonus) {
-      search->printRootOwnershipMap(cout);
+      search->printRootOwnershipMap(cout, P_WHITE);
       search->printRootEndingScoreValueBonus(cout);
     }
     if(opts.printPlaySelectionValues) {
@@ -520,13 +520,13 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     options = options.maxDepth(1);
     cout << "Beginning search again and then reprinting, should be same" << endl;
     search->beginSearch(logger);
-    search->printTree(cout, search->rootNode, options);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Making a move O3, should still be same" << endl;
     bot->makeMove(Location::ofString("O3",19,19), P_WHITE);
-    search->printTree(cout, search->rootNode, options);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Beginning search again and then reprinting, now score utils should change a little" << endl;
     search->beginSearch(logger);
-    search->printTree(cout, search->rootNode, options);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
 
     delete bot;
   }
@@ -672,7 +672,7 @@ void Tests::runNNLessSearchTests() {
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
-    search->printTree(cout, search->rootNode, options);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
 
     auto sampleChosenMoves = [&]() {
       std::map<Loc,int> moveLocsAndCounts;
@@ -762,8 +762,8 @@ ooooooo
       PrintTreeOptions options;
       options = options.maxDepth(1);
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
-      search->printTree(cout, search->rootNode, options.onlyBranch(board,Location::toString(locToDescend,board)));
+      search->printTree(cout, search->rootNode, options, P_WHITE);
+      search->printTree(cout, search->rootNode, options.onlyBranch(board,Location::toString(locToDescend,board)), P_WHITE);
 
       cout << endl;
 
@@ -774,14 +774,14 @@ ooooooo
       nextPla = getOpp(nextPla);
 
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
       cout << endl;
 
       //--------------------------------------
       cout << "Then continue the search to complete 50 visits." << endl;
 
       search->runWholeSearch(nextPla,logger,NULL);
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
       cout << endl;
     }
 
@@ -855,7 +855,7 @@ o..oo.x
       PrintTreeOptions options;
       options = options.maxDepth(1);
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       testAssert(hasSuicideRootMoves(search));
 
@@ -879,7 +879,7 @@ o..oo.x
       PrintTreeOptions options;
       options = options.maxDepth(1);
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       testAssert(!hasSuicideRootMoves(search));
 
@@ -915,8 +915,8 @@ o..oo.x
       PrintTreeOptions options;
       options = options.maxDepth(1);
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
-      search->printTree(cout, search->rootNode, options.onlyBranch(board,"pass"));
+      search->printTree(cout, search->rootNode, options, P_WHITE);
+      search->printTree(cout, search->rootNode, options.onlyBranch(board,"pass"), P_WHITE);
 
       cout << endl;
 
@@ -926,7 +926,7 @@ o..oo.x
       testAssert(hasPassAliveRootMoves(search));
 
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       cout << endl;
 
@@ -936,7 +936,7 @@ o..oo.x
       testAssert(!hasPassAliveRootMoves(search));
 
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       cout << endl;
 
@@ -944,7 +944,7 @@ o..oo.x
       search->runWholeSearch(getOpp(nextPla),logger,NULL);
 
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       delete search;
       delete nnEval;
@@ -990,15 +990,15 @@ o..o.oo
       options = options.maxDepth(1);
       options = options.printSqs(true);
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       cout << "Begin search is idempotent?" << endl;
       search->beginSearch(logger);
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
       search->makeMove(Location::ofString("B1",board),nextPla);
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
       search->beginSearch(logger);
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       delete search;
       delete nnEval;
@@ -1048,7 +1048,7 @@ o..o.oo
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
-    search->printTree(cout, search->rootNode, options);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
 
     delete search;
     delete nnEval;

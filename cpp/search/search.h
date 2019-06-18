@@ -136,7 +136,7 @@ struct Search {
   double recentScoreCenter;
 
   bool alwaysIncludeOwnerMap;
-  
+
   SearchParams searchParams;
   int64_t numSearchesBegun;
 
@@ -217,7 +217,7 @@ struct Search {
   //Useful utility function exposed for outside use
   static uint32_t chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature);
   static void addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs);
-  
+
   //Get the values recorded for the root node
   bool getRootValues(ReportedSearchValues& values) const;
   ReportedSearchValues getRootValuesAssertSuccess() const;
@@ -253,9 +253,9 @@ struct Search {
   //Tree-inspection functions---------------------------------------------------------------
   void printPV(std::ostream& out, const SearchNode* node, int maxDepth) const;
   void printPVForMove(std::ostream& out, const SearchNode* node, Loc move, int maxDepth) const;
-  void printTree(std::ostream& out, const SearchNode* node, PrintTreeOptions options) const;
+  void printTree(std::ostream& out, const SearchNode* node, PrintTreeOptions options, Player perspective) const;
   void printRootPolicyMap(std::ostream& out) const;
-  void printRootOwnershipMap(std::ostream& out) const;
+  void printRootOwnershipMap(std::ostream& out, Player perspective) const;
   void printRootEndingScoreValueBonus(std::ostream& out) const;
 
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
@@ -359,7 +359,7 @@ private:
 
   void printTreeHelper(
     std::ostream& out, const SearchNode* node, const PrintTreeOptions& options,
-    std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data
+    std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
 
   double getAverageTreeOwnershipHelper(std::vector<double>& accum, int64_t minVisits, double desiredWeight, const SearchNode* node) const;

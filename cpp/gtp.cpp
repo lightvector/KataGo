@@ -152,7 +152,7 @@ static bool shouldResign(
   return true;
 }
 
-static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken) {
+static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective) {
   const Search* search = bot->getSearch();
   Board::printBoard(out, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
   out << bot->getRootHist().rules << "\n";
@@ -165,7 +165,7 @@ static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator
   search->printPV(out, search->rootNode, 25);
   out << "\n";
   out << "Tree:\n";
-  search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
+  search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
 }
 
 struct GTPEngine {
@@ -187,7 +187,9 @@ struct GTPEngine {
   vector<double> recentWinLossValues;
   double lastSearchFactor;
 
-  GTPEngine(const string& modelFile, SearchParams initialParams, Rules initialRules, double wBonusPerHandicapStone)
+  Player perspective;
+
+  GTPEngine(const string& modelFile, SearchParams initialParams, Rules initialRules, double wBonusPerHandicapStone, Player persp)
     :nnModelFile(modelFile),
      whiteBonusPerHandicapStone(wBonusPerHandicapStone),
      nnEval(NULL),
@@ -198,7 +200,8 @@ struct GTPEngine {
      bTimeControls(),
      wTimeControls(),
      recentWinLossValues(),
-     lastSearchFactor(1.0)
+     lastSearchFactor(1.0),
+     perspective(persp)
   {
   }
 
@@ -355,9 +358,10 @@ struct GTPEngine {
     if(ogsChatToStderr) {
       int64_t visits = bot->getSearch()->getRootVisits();
       double winrate = 0.5 * (1.0 + (values.winValue - values.lossValue));
-      if(pla == P_BLACK) {
+      //Print winrate from desired perspective
+      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
         winrate = 1.0 - winrate;
-        expectedScore = - expectedScore;
+        expectedScore = -expectedScore;
       }
       cerr << "CHAT:"
            << "Visits " << visits
@@ -380,11 +384,11 @@ struct GTPEngine {
 
     if(logSearchInfo) {
       ostringstream sout;
-      printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken);
+      printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective);
       logger.write(sout.str());
     }
     if(debug) {
-      printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken);
+      printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
     }
 
     if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
@@ -450,7 +454,7 @@ struct GTPEngine {
 
     //lz-analyze
     if(!kata) {
-      callback = [minMoves,pla](Search* search) {
+      callback = [minMoves,pla,this](Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,minMoves,false,analysisPVLen);
         if(buf.size() <= 0)
@@ -462,7 +466,9 @@ struct GTPEngine {
             cout << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
-          winrate = pla == P_BLACK ? -winrate : winrate;
+          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+            winrate = 1.0-winrate;
+          }
           cout << "info";
           cout << " move " << Location::toString(data.move,board);
           cout << " visits " << data.numVisits;
@@ -478,7 +484,7 @@ struct GTPEngine {
     }
     //kata-analyze
     else {
-      callback = [minMoves,pla,showOwnership](Search* search) {
+      callback = [minMoves,pla,showOwnership,this](Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,minMoves,false,analysisPVLen);
         if(buf.size() <= 0)
@@ -496,13 +502,18 @@ struct GTPEngine {
             cout << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
-          winrate = pla == P_BLACK ? -winrate : winrate;
+          double scoreMean = data.scoreMean;
+          //Analysis displays winrate from bot's perspective
+          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+            winrate = 1.0-winrate;
+            scoreMean = -scoreMean;
+          }
           cout << "info";
           cout << " move " << Location::toString(data.move,board);
           cout << " visits " << data.numVisits;
           cout << " utility " << data.utility;
           cout << " winrate " << winrate;
-          cout << " scoreMean " << data.scoreMean;
+          cout << " scoreMean " << scoreMean;
           cout << " scoreStdev " << data.scoreStdev;
           cout << " prior " << data.policyPrior;
           cout << " order " << data.order;
@@ -519,7 +530,10 @@ struct GTPEngine {
           for(int y = 0; y<board.y_size; y++) {
             for(int x = 0; x<board.x_size; x++) {
               int pos = NNPos::xyToPos(x,y,nnXLen);
-              cout << " " << ownership[pos];
+              if(pla == P_BLACK)
+                cout << " " << -ownership[pos];
+              else
+                cout << " " << ownership[pos];
             }
           }
         }
@@ -612,7 +626,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
 
-  GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone);
+  Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
+
+  GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone,perspective);
   engine->setOrResetBoardSize(cfg,logger,seedRand,19,19);
 
   //Check for unused config keys
