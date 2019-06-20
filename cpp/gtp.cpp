@@ -488,6 +488,23 @@ struct GTPEngine {
     setPosition(pla,board,hist,board,pla,newMoveHistory);
   }
 
+  double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
+    double winrate = 0.5 * (1.0 + data.winLossValue);
+    //Super hacky - in KataGo, lcb is on utility (i.e. also weighting score), not winrate, but if you're using
+    //lz-analyze you probably don't know about utility and expect LCB to be about winrate. So we apply the LCB
+    //radius to the winrate in order to get something reasonable to display, and also scale it proportionally
+    //by how much winrate is supposed to matter relative to score.
+    double radiusScaleHackFactor = search->searchParams.winLossUtilityFactor / (
+      search->searchParams.winLossUtilityFactor +
+      search->searchParams.staticScoreUtilityFactor +
+      search->searchParams.dynamicScoreUtilityFactor +
+      1.0e-20 //avoid divide by 0
+    );
+    //Also another factor of 0.5 because winrate goes from only 0 to 1 instead of -1 to 1 when it's part of utility
+    radiusScaleHackFactor *= 0.5;
+    double lcb = pla == P_WHITE ? winrate - data.radius * radiusScaleHackFactor : winrate + data.radius * radiusScaleHackFactor;
+    return lcb;
+  }
 
   void analyze(Player pla, bool kata, double secondsPerReport, int minMoves, bool showOwnership) {
 
@@ -508,14 +525,17 @@ struct GTPEngine {
             cout << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
+          double lcb = getHackedLCBForWinrate(search,data,pla);
           if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
             winrate = 1.0-winrate;
+            lcb = 1.0 - lcb;
           }
           cout << "info";
           cout << " move " << Location::toString(data.move,board);
           cout << " visits " << data.numVisits;
           cout << " winrate " << round(winrate * 10000.0);
           cout << " prior " << round(data.policyPrior * 10000.0);
+          cout << " lcb " << round(lcb * 10000.0);
           cout << " order " << data.order;
           cout << " pv";
           for(int j = 0; j<data.pv.size(); j++)
@@ -544,20 +564,31 @@ struct GTPEngine {
             cout << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
+          double utility = data.utility;
+          //We still hack the LCB for consistency with LZ-analyze
+          double lcb = getHackedLCBForWinrate(search,data,pla);
+          ///But now we also offer the proper LCB that KataGo actually uses.
+          double utilityLcb = data.lcb;
           double scoreMean = data.scoreMean;
           //Analysis displays winrate from bot's perspective
           if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
             winrate = 1.0-winrate;
+            lcb = 1.0 - lcb;
+            utility = -utility;
             scoreMean = -scoreMean;
+            utilityLcb = -utilityLcb;
           }
           cout << "info";
           cout << " move " << Location::toString(data.move,board);
           cout << " visits " << data.numVisits;
-          cout << " utility " << data.utility;
+          cout << " utility " << utility;
+          cout << " radius " << data.radius;
           cout << " winrate " << winrate;
           cout << " scoreMean " << scoreMean;
           cout << " scoreStdev " << data.scoreStdev;
           cout << " prior " << data.policyPrior;
+          cout << " lcb " << lcb;
+          cout << " utilityLcb " << utilityLcb;
           cout << " order " << data.order;
           cout << " pv";
           for(int j = 0; j<data.pv.size(); j++)
