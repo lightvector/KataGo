@@ -765,6 +765,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
     //Upon any command, stop any analysis and output a newline
     if(currentlyAnalyzing) {
+      currentlyAnalyzing = false;
       engine->stopAndWait();
       cout << endl;
     }
@@ -803,8 +804,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
 
     else if(command == "list_commands") {
-      for(size_t i = 0; i<knownCommands.size(); i++)
-        response += knownCommands[i] + "\n";
+      for(size_t i = 0; i<knownCommands.size(); i++) {
+        response += knownCommands[i];
+        if(i < knownCommands.size()-1)
+          response += "\n";
+      }
     }
 
     else if(command == "quit") {
