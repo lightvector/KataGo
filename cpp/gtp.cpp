@@ -570,7 +570,6 @@ struct GTPEngine {
           ///But now we also offer the proper LCB that KataGo actually uses.
           double utilityLcb = data.lcb;
           double scoreMean = data.scoreMean;
-          //Analysis displays winrate from bot's perspective
           if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
             winrate = 1.0-winrate;
             lcb = 1.0 - lcb;
@@ -603,7 +602,7 @@ struct GTPEngine {
           for(int y = 0; y<board.y_size; y++) {
             for(int x = 0; x<board.x_size; x++) {
               int pos = NNPos::xyToPos(x,y,nnXLen);
-              if(pla == P_BLACK)
+              if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
                 cout << " " << -ownership[pos];
               else
                 cout << " " << ownership[pos];
