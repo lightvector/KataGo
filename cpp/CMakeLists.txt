@@ -54,23 +54,29 @@ endif()
 
 #------------------------------------------------------------------------------------
 
-find_package(Git)
-set(GIT_HEADER_FILE_TEMPLATE_BARE program/gitinfotemplate.h)
-set(GIT_HEADER_FILE_ALWAYS_UPDATED_BARE program/gitinfoupdated.h)
-set(GIT_HEADER_FILE_BARE program/gitinfo.h)
-set(GIT_HEADER_FILE_TEMPLATE ${CMAKE_SOURCE_DIR}/${GIT_HEADER_FILE_TEMPLATE_BARE})
-set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
-set(GIT_HEADER_FILE ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_BARE})
+if(NO_GIT_REVISION)
+  message("-DNO_GIT_REVISION=1 is set, avoiding including the Git revision in compiled executable")
+  unset(GIT_HEADER_FILE_ALWAYS_UPDATED)
+else()
+  message("Including Git revision in the compiled executable, specify -DNO_GIT_REVISION=1 to disable")
+  find_package(Git)
+  set(GIT_HEADER_FILE_TEMPLATE_BARE program/gitinfotemplate.h)
+  set(GIT_HEADER_FILE_ALWAYS_UPDATED_BARE program/gitinfoupdated.h)
+  set(GIT_HEADER_FILE_BARE program/gitinfo.h)
+  set(GIT_HEADER_FILE_TEMPLATE ${CMAKE_SOURCE_DIR}/${GIT_HEADER_FILE_TEMPLATE_BARE})
+  set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
+  set(GIT_HEADER_FILE ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_BARE})
 
-add_custom_command(
-  OUTPUT ${GIT_HEADER_FILE_ALWAYS_UPDATED}
-  COMMAND ${CMAKE_COMMAND} -E copy ${GIT_HEADER_FILE_TEMPLATE} ${GIT_HEADER_FILE_ALWAYS_UPDATED}
-  COMMAND ${GIT_EXECUTABLE} describe --match=DummyTagNotExisting --always --abbrev=40 --dirty >> ${GIT_HEADER_FILE_ALWAYS_UPDATED}
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${GIT_HEADER_FILE_ALWAYS_UPDATED} ${GIT_HEADER_FILE}
-  COMMAND ${CMAKE_COMMAND} -E remove ${GIT_HEADER_FILE_ALWAYS_UPDATED}
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  VERBATIM
-  )
+  add_custom_command(
+    OUTPUT ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+    COMMAND ${CMAKE_COMMAND} -E copy ${GIT_HEADER_FILE_TEMPLATE} ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+    COMMAND ${GIT_EXECUTABLE} describe --match=DummyTagNotExisting --always --abbrev=40 --dirty >> ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${GIT_HEADER_FILE_ALWAYS_UPDATED} ${GIT_HEADER_FILE}
+    COMMAND ${CMAKE_COMMAND} -E remove ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    VERBATIM
+    )
+endif()
 
 #------------------------------------------------------------------------------------
 
@@ -108,6 +114,10 @@ if(BUILD_WRITE)
     include_directories(${HDF5_INCLUDE_DIRS})
     target_link_libraries (write ${HDF5_LIBRARIES})
   endif (HDF5_FOUND)
+
+  if(NO_GIT_REVISION)
+    add_definitions(-DNO_GIT_REVISION)
+  endif()
 
   # find_package(ZLIB REQUIRED)
   # if(ZLIB_FOUND)
@@ -189,6 +199,10 @@ if(BUILD_MCTS)
     find_library(CUDNN_LIBRARY libcudnn.so PATHS /usr/local/cuda/lib64 /opt/cuda/lib64)
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
     target_link_libraries(main ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+  endif()
+
+  if(NO_GIT_REVISION)
+    add_definitions(-DNO_GIT_REVISION)
   endif()
 
   find_package(ZLIB REQUIRED)

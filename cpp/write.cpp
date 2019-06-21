@@ -5,10 +5,15 @@
 #include "dataio/sgf.h"
 #include "dataio/lzparse.h"
 #include "dataio/datapool.h"
-#include "program/gitinfo.h"
 #include "main.h"
 #include <fstream>
 #include <algorithm>
+
+#ifdef NO_GIT_REVISION
+#define GIT_REVISION "<omitted>"
+#else
+#include "program/gitinfo.h"
+#endif
 
 #include <H5Cpp.h>
 using namespace H5;
