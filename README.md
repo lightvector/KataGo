@@ -30,6 +30,8 @@ There is an experimental [branch](https://github.com/lightvector/KataGo/tree/ope
 ### Compiling
 KataGo is written in C++ and has a fully working GTP engine. Once compiled, you should be able to run it using the trained neural nets for KataGo that you can download from the releases page. See also LICENSE for the software license for this repo. Additionally, if you end up using any of the code in this repo to do any of your own cool new self-play or neural net training experiments, I (lightvector) would to love hear about it.
 
+NOTE: These instructions are for Linux (and possibly MacOS). If you're looking for a Windows version, take a look at https://github.com/lightvector/KataGo/issues/2 for some very generous work by another user in figuring out how to get it working on Windows, with a modified and pre-compiled version for download. You may need to explicitly ungzip the neural net ".txt.gz" file to get KataGo to load the neural net properly, since in that version, zlib is not working for an unknown reason. You may also need to make sure your GPU drivers are up to date. More official windows support is still being worked on and will be coming before too long.
+
    * Requirements
       * CMake with a minimum version of 3.12.3 (https://cmake.org/download/)
       * CUDA 10.0 and CUDNN 7.4.1 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
