@@ -75,7 +75,7 @@ static double getScoreStdev(double scoreMean, double scoreMeanSq) {
 //-----------------------------------------------------------------------------------------
 
 SearchNode::SearchNode(Search& search, SearchThread& thread, Loc moveLoc)
-  :lockIdx(),statsLock(ATOMIC_FLAG_INIT),nextPla(thread.pla),prevMoveLoc(moveLoc),
+  :lockIdx(),nextPla(thread.pla),prevMoveLoc(moveLoc),
    nnOutput(),
    children(NULL),numChildren(0),childrenCapacity(0),
    stats(),virtualLosses(0)
@@ -91,7 +91,7 @@ SearchNode::~SearchNode() {
 }
 
 SearchNode::SearchNode(SearchNode&& other) noexcept
-:lockIdx(other.lockIdx),statsLock(),
+:lockIdx(other.lockIdx),
   nextPla(other.nextPla),prevMoveLoc(other.prevMoveLoc),
   nnOutput(std::move(other.nnOutput)),
   stats(other.stats),virtualLosses(other.virtualLosses)
