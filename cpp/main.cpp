@@ -1,5 +1,10 @@
 #include "main.h"
+
+#ifdef NO_GIT_REVISION
+#define GIT_REVISION "<omitted>"
+#else
 #include "program/gitinfo.h"
+#endif
 
 using namespace std;
 

@@ -225,6 +225,7 @@ struct GTPEngine {
     bot->stopAndWait();
   }
 
+  //Specify -1 for the sizes for a default
   void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize) {
     if(nnEval != NULL && boardXSize == nnEval->getNNXLen() && boardYSize == nnEval->getNNYLen())
       return;
@@ -238,6 +239,14 @@ struct GTPEngine {
       logger.write("Cleaned up old neural net and bot");
     }
 
+    //Initial setup
+    bool wasDefault = false;
+    if(boardXSize == -1 || boardYSize == -1) {
+      boardXSize = 19;
+      boardYSize = 19;
+      wasDefault = true;
+    }
+
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
       {nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false,boardXSize,boardYSize,-1
@@ -245,6 +254,13 @@ struct GTPEngine {
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
+
+    //On initial setup, size the board to whatever the neural net was initialized with
+    //So that if the net was initalized smaller, we don't fail with a big board
+    if(wasDefault) {
+      boardXSize = nnEval->getNNXLen();
+      boardYSize = nnEval->getNNYLen();
+    }
 
     string searchRandSeed;
     if(cfg.contains("searchRandSeed"))
@@ -708,7 +724,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone,perspective);
-  engine->setOrResetBoardSize(cfg,logger,seedRand,19,19);
+  engine->setOrResetBoardSize(cfg,logger,seedRand,-1,-1);
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);

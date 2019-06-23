@@ -59,7 +59,7 @@ struct NodeStats {
 struct SearchNode {
   //Locks------------------------------------------------------------------------------
   uint32_t lockIdx;
-  mutable std::atomic_flag statsLock;
+  mutable std::atomic_flag statsLock = ATOMIC_FLAG_INIT;
 
   //Constant during search--------------------------------------------------------------
   Player nextPla;
