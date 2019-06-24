@@ -118,6 +118,10 @@ static size_t powerOf2ify(size_t size) {
   return s * 4;
 }
 
+static size_t roundUpToMultiple(size_t size, size_t ofThis) {
+  return (size + ofThis - 1) / ofThis * ofThis;
+}
+
 template<typename T>
 static size_t byteSizeofVectorContents(const typename std::vector<T>& vec) {
     return sizeof(T) * vec.size();
@@ -145,9 +149,7 @@ static cl_program compileProgram(const string& name, cl_context context, const v
   cl_int err;
   cl_program program = clCreateProgramWithSource(context,1,lines,sizes,&err);
   CHECK_ERR(err);
-  const char* options = NULL;
-  //TODO test
-  // const char* options = "-cl-mad-enable -cl-fast-relaxed-math -cl-no-signed-zeros -cl-denorms-are-zero";
+  const char* options = "-cl-mad-enable -cl-fast-relaxed-math -cl-no-signed-zeros -cl-denorms-are-zero";
   err = clBuildProgram(program, 0, NULL, options, NULL, NULL);
   if(err != 0) {
     for(int i = 0; i<devices.size(); i++) {
@@ -712,7 +714,6 @@ struct ConvLayer {
   cl_mem filter;
 
   static constexpr int nKernelDims = 3;
-  size_t globalSizes[nKernelDims];
 
   ConvLayer(ComputeHandleInternal* handle, const ConvLayerDesc* desc, int nnX, int nnY) {
     name = desc->name;
@@ -735,10 +736,6 @@ struct ConvLayer {
 
     vector<float> weights = desc->weights;
     filter = createReadOnlyBuffer(handle,weights);
-
-    globalSizes[0] = powerOf2ify(nnXLen);
-    globalSizes[1] = powerOf2ify(nnYLen);
-    globalSizes[2] = powerOf2ify(outChannels);
   }
 
   ~ConvLayer() {
@@ -750,18 +747,40 @@ struct ConvLayer {
     clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&filter);
     clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&output);
-    clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
-    clSetKernelArg(kernel, 4, sizeof(int), (void *)&nnXLen);
-    clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnYLen);
-    clSetKernelArg(kernel, 6, sizeof(int), (void *)&outChannels);
-    clSetKernelArg(kernel, 7, sizeof(int), (void *)&inChannels);
-    clSetKernelArg(kernel, 8, sizeof(int), (void *)&convXRadius);
-    clSetKernelArg(kernel, 9, sizeof(int), (void *)&convYRadius);
+
+    //TODO
+    static const size_t TILE_XSIZE = 8;
+    static const size_t TILE_YSIZE = 4;
+    static const size_t TILE_CHANNELS = 4;
+    const size_t inputTileXSize = TILE_XSIZE + 2*convXRadius;
+    const size_t inputTileYSize = TILE_YSIZE + 2*convYRadius;
+    clSetKernelArg(kernel, 3, sizeof(float) * TILE_CHANNELS * inputTileXSize * inputTileYSize, NULL);
+    clSetKernelArg(kernel, 4, sizeof(float) * TILE_CHANNELS * convXSize * convYSize, NULL);
+    clSetKernelArg(kernel, 5, sizeof(float) * TILE_XSIZE * TILE_YSIZE, NULL);
+    clSetKernelArg(kernel, 6, sizeof(int), (void *)&batchSize);
+    clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXLen);
+    clSetKernelArg(kernel, 8, sizeof(int), (void *)&nnYLen);
+    clSetKernelArg(kernel, 9, sizeof(int), (void *)&outChannels);
+    clSetKernelArg(kernel, 10, sizeof(int), (void *)&inChannels);
+    clSetKernelArg(kernel, 11, sizeof(int), (void *)&convXRadius);
+    clSetKernelArg(kernel, 12, sizeof(int), (void *)&convYRadius);
+
+    //TODO
+    static const int workPerThreadX = 1;
+    static const int workPerThreadY = 1;
+    size_t localSizes[nKernelDims];
+    localSizes[0] = TILE_XSIZE / workPerThreadX;
+    localSizes[1] = TILE_YSIZE / workPerThreadY;
+    localSizes[2] = 1;
+
+    size_t globalSizesToUse[nKernelDims];
+    globalSizesToUse[0] = roundUpToMultiple(nnXLen,TILE_XSIZE);
+    globalSizesToUse[1] = roundUpToMultiple(nnYLen,TILE_YSIZE);
+    globalSizesToUse[2] = outChannels;
 
     cl_int err;
-    size_t* localSizes = NULL; //TODO actually pick these
     err = clEnqueueNDRangeKernel(
-      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+      handle->commandQueue, kernel, nKernelDims, NULL, globalSizesToUse, localSizes, 0, NULL, NULL
     );
     CHECK_ERR(err);
   }

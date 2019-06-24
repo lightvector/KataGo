@@ -6,10 +6,35 @@ using namespace std;
 //optimize them or find a library with more optimized implementations
 
 string OpenCLKernels::conv2dNCHW = R"%%(
+
+//Spatial size of tile loaded into local memory, not counting filterRadius
+#ifndef TILE_XSIZE
+#define TILE_XSIZE 8
+#endif
+#ifndef TILE_YSIZE
+#define TILE_YSIZE 4
+#endif
+
+//Channel depth of tile loaded into local memory
+#ifndef TILE_CHANNELS
+#define TILE_CHANNELS 4
+#endif
+
+//group id 0 indexes different tiles along x dimension
+//group id 1 indexes different tiles along y dimension
+//local id 0 indexes threads that parallelize xwise across the internal of a tile, must be a factor of TILE_XSIZE
+//local id 1 indexes threads that parallelize ywise across the internal of a tile, must be a factor of TILE_YSIZE
+//group id 2 indexes different output channels
+//local id 2 is ASSUMED to be always 0, with local size 2 ASSUMED to be 1, so that we don't need to index these local memory space on this dimension
 __kernel void conv2dNCHW(
   __global float* input,  //N, ic, H, W
   __global float* filter, //oc, ic, fy, fx
   __global float* output, //N, oc, H, W
+
+  __local float* inputTile, //ic, H, W      size = TILE_CHANNELS * inputTileXSize * inputTileYSize
+  __local float* filterTile, //ic, fy, fx   size = TILE_CHANNELS * fxySize
+  __local float* outputTile, //H, W         size = TILE_XSIZE * TILE_YSIZE
+
   int nSize,
   int xSize,
   int ySize,
@@ -18,42 +43,103 @@ __kernel void conv2dNCHW(
   int filterXRadius,
   int filterYRadius
 ) {
-  const int ox = get_global_id(0);
-  const int oy = get_global_id(1);
+  const int xBase = get_group_id(0) * TILE_XSIZE;
+  const int yBase = get_group_id(1) * TILE_YSIZE;
   const int oc = get_global_id(2);
 
+  const int lx = get_local_id(0);
+  const int ly = get_local_id(1);
+  const int lxSize = get_local_size(0);
+  const int lySize = get_local_size(1);
+
+  //The input tile is filterXRadius*2 or filterYRadius*2 larger than the tile size
+  const int inputTileXSize = TILE_XSIZE + filterXRadius * 2;
+  const int inputTileYSize = TILE_YSIZE + filterYRadius * 2;
+
   const int xySize = xSize * ySize;
-  const int ocxySize = ocSize * xySize;
-  const int icxySize = icSize * xySize;
 
   const int fxSize = (2 * filterXRadius + 1);
-  const int fxySize = (2 * filterYRadius + 1) * fxSize;
-  const int ficxySize = icSize * fxySize;
+  const int fySize = (2 * filterYRadius + 1);
 
-  if(oc < ocSize && ox < xSize && oy < ySize) {
-    for(int n = 0; n < nSize; n++) {
-      float acc = 0.0f;
-      for(int ic = 0; ic < icSize; ic++) {
-        for(int dy = -filterYRadius; dy <= filterYRadius; dy++) {
-          int y = oy + dy;
-          int fy = dy + filterYRadius;
-          if(y >= 0 && y < ySize) {
-            for(int dx = -filterXRadius; dx <= filterXRadius; dx++) {
-              int x = ox + dx;
-              int fx = dx + filterXRadius;
-              if(x >= 0 && x < xSize) {
-                acc +=
-                  input[n * icxySize + ic * xySize + y * xSize + x]
-                  * filter[oc * ficxySize + ic * fxySize + fy * fxSize + fx];
-              }
+#define INPUT(_n,_ic,_y,_x) input[((_n) * icSize + (_ic)) * xySize + (_y) * xSize + (_x)]
+#define INPUTTILE(_ic,_ity,_itx) inputTile[((_ic) * inputTileYSize + (_ity)) * inputTileXSize + (_itx)]
+
+#define FILTER(_oc,_ic,_y,_x) filter[(((_oc) * icSize + (_ic)) * fySize + (_y)) * fxSize + (_x)]
+#define FILTERTILE(_ic,_y,_x) filterTile[((_ic) * fySize + (_y)) * fxSize + (_x)]
+
+#define OUTPUT(_n,_oc,_y,_x) output[((_n) * ocSize + (_oc)) * xySize + (_y) * xSize + (_x)]
+#define OUTPUTTILE(_oty,_otx) outputTile[(_oty) * TILE_XSIZE + (_otx)]
+
+  for(int n = 0; n < nSize; n++) {
+    float acc = 0.0f;
+
+    //Initialize outputTile. No need to sync for this tile since each thread only ever reads its own spots
+    for(int oty = ly; oty<TILE_YSIZE; oty += lySize) {
+      for(int otx = lx; otx<TILE_XSIZE; otx += lxSize) {
+        OUTPUTTILE(oty,otx) = 0.0f;
+      }
+    }
+
+    //Walk over chunks of TILE_CHANNELS many input channels at a time
+    for(int icBase = 0; icBase<icSize; icBase += TILE_CHANNELS) {
+
+      //Copy input tile using local threads in parallel
+      for(int dic = 0; dic<TILE_CHANNELS && icBase+dic < icSize; dic += 1) {
+        for(int ity = ly; ity<inputTileYSize; ity += lySize) {
+          int iy = ity+yBase-filterYRadius;
+          for(int itx = lx; itx<inputTileXSize; itx += lxSize) {
+            int ix = itx+xBase-filterXRadius;
+            float inputValue = 0.0f;
+            if(iy >= 0 && iy < ySize && ix >= 0 && ix < xSize) {
+              inputValue = INPUT(n,icBase+dic,iy,ix);
             }
+            INPUTTILE(dic,ity,itx) = inputValue;
           }
         }
       }
 
-      output[n * ocxySize + oc * xySize + oy * xSize + ox] = acc;
+      //Copy filter tile using local threads in parallel
+      for(int dic = 0; dic<TILE_CHANNELS && icBase+dic < icSize; dic += 1) {
+        for(int fy = ly; fy<fySize; fy += lySize) {
+          for(int fx = lx; fx<fxSize; fx += lxSize) {
+            FILTERTILE(dic,fy,fx) = FILTER(oc,icBase+dic,fy,fx);
+          }
+        }
+      }
+
+      //Synchronize!
+      barrier(CLK_LOCAL_MEM_FENCE);
+
+      //Accumulate this convolution block into output tile.
+      //Iterate over the bits in this tile that the thread is responsible for
+      for(int oty = ly; oty<TILE_YSIZE; oty += lySize) {
+        for(int otx = lx; otx<TILE_XSIZE; otx += lxSize) {
+
+          //And then perform the convolution to accumulate that bit
+          float acc = 0.0f;
+          for(int dic = 0; dic<TILE_CHANNELS && icBase+dic < icSize; dic += 1) {
+            for(int fy = 0; fy < fySize; fy++) {
+              for(int fx = 0; fx < fxSize; fx++) {
+                acc += INPUTTILE(dic,oty+fy,otx+fx) * FILTERTILE(dic,fy,fx);
+              }
+            }
+          }
+          OUTPUTTILE(oty,otx) += acc;
+        }
+      }
+    } //close loop over input channel chunks
+
+    //Now, write tile contents back into output
+    for(int oty = ly; oty<TILE_YSIZE; oty += lySize) {
+      int oy = yBase+oty;
+      for(int otx = lx; otx<TILE_XSIZE; otx += lxSize) {
+        int ox = xBase+otx;
+        if(oy >= 0 && oy < ySize && ox >= 0 && ox < xSize) {
+          OUTPUT(n, oc, yBase+oty, xBase+otx) = OUTPUTTILE(oty,otx);
+        }
+      }
     }
-  }
+  } //Close loop over batch
 }
 
 )%%";
