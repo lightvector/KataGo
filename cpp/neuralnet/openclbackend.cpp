@@ -755,15 +755,14 @@ struct ConvLayer {
     const size_t inputTileXSize = TILE_XSIZE + 2*convXRadius;
     const size_t inputTileYSize = TILE_YSIZE + 2*convYRadius;
     clSetKernelArg(kernel, 3, sizeof(float) * TILE_CHANNELS * inputTileXSize * inputTileYSize, NULL);
-    clSetKernelArg(kernel, 4, sizeof(float) * TILE_CHANNELS * convXSize * convYSize, NULL);
-    clSetKernelArg(kernel, 5, sizeof(float) * TILE_XSIZE * TILE_YSIZE, NULL);
-    clSetKernelArg(kernel, 6, sizeof(int), (void *)&batchSize);
-    clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXLen);
-    clSetKernelArg(kernel, 8, sizeof(int), (void *)&nnYLen);
-    clSetKernelArg(kernel, 9, sizeof(int), (void *)&outChannels);
-    clSetKernelArg(kernel, 10, sizeof(int), (void *)&inChannels);
-    clSetKernelArg(kernel, 11, sizeof(int), (void *)&convXRadius);
-    clSetKernelArg(kernel, 12, sizeof(int), (void *)&convYRadius);
+    clSetKernelArg(kernel, 4, sizeof(float) * TILE_XSIZE * TILE_YSIZE, NULL);
+    clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
+    clSetKernelArg(kernel, 6, sizeof(int), (void *)&nnXLen);
+    clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnYLen);
+    clSetKernelArg(kernel, 8, sizeof(int), (void *)&outChannels);
+    clSetKernelArg(kernel, 9, sizeof(int), (void *)&inChannels);
+    clSetKernelArg(kernel, 10, sizeof(int), (void *)&convXRadius);
+    clSetKernelArg(kernel, 11, sizeof(int), (void *)&convYRadius);
 
     //TODO
     static const int workPerThreadX = 1;

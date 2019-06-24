@@ -27,13 +27,12 @@ string OpenCLKernels::conv2dNCHW = R"%%(
 //group id 2 indexes different output channels
 //local id 2 is ASSUMED to be always 0, with local size 2 ASSUMED to be 1, so that we don't need to index these local memory space on this dimension
 __kernel void conv2dNCHW(
-  __global float* input,  //N, ic, H, W
-  __global float* filter, //oc, ic, fy, fx
-  __global float* output, //N, oc, H, W
+  __global float* restrict input,  //N, ic, H, W
+  __global float* restrict filter, //oc, ic, fy, fx
+  __global float* restrict output, //N, oc, H, W
 
-  __local float* inputTile, //ic, H, W      size = TILE_CHANNELS * inputTileXSize * inputTileYSize
-  __local float* filterTile, //ic, fy, fx   size = TILE_CHANNELS * fxySize
-  __local float* outputTile, //H, W         size = TILE_XSIZE * TILE_YSIZE
+  __local float* restrict inputTile, //ic, H, W      size = TILE_CHANNELS * inputTileXSize * inputTileYSize
+  __local float* restrict outputTile, //H, W         size = TILE_XSIZE * TILE_YSIZE
 
   int nSize,
   int xSize,
@@ -65,7 +64,6 @@ __kernel void conv2dNCHW(
 #define INPUTTILE(_ic,_ity,_itx) inputTile[((_ic) * inputTileYSize + (_ity)) * inputTileXSize + (_itx)]
 
 #define FILTER(_oc,_ic,_y,_x) filter[(((_oc) * icSize + (_ic)) * fySize + (_y)) * fxSize + (_x)]
-#define FILTERTILE(_ic,_y,_x) filterTile[((_ic) * fySize + (_y)) * fxSize + (_x)]
 
 #define OUTPUT(_n,_oc,_y,_x) output[((_n) * ocSize + (_oc)) * xySize + (_y) * xSize + (_x)]
 #define OUTPUTTILE(_oty,_otx) outputTile[(_oty) * TILE_XSIZE + (_otx)]
@@ -97,15 +95,6 @@ __kernel void conv2dNCHW(
           }
         }
       }
-
-      // //Copy filter tile using local threads in parallel
-      // for(int dic = 0; dic<TILE_CHANNELS && icBase+dic < icSize; dic += 1) {
-      //   for(int fy = ly; fy<fySize; fy += lySize) {
-      //     for(int fx = lx; fx<fxSize; fx += lxSize) {
-      //       FILTERTILE(dic,fy,fx) = FILTER(oc,icBase+dic,fy,fx);
-      //     }
-      //   }
-      // }
 
       //Synchronize!
       barrier(CLK_LOCAL_MEM_FENCE);
