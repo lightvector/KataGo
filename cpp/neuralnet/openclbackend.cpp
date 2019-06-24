@@ -749,7 +749,7 @@ struct ConvLayer {
     clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&output);
 
     //TODO
-    static const size_t TILE_XSIZE = 8;
+    static const size_t TILE_XSIZE = 32;
     static const size_t TILE_YSIZE = 4;
     static const size_t TILE_CHANNELS = 4;
     const size_t inputTileXSize = TILE_XSIZE + 2*convXRadius;

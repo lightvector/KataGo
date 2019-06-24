@@ -9,7 +9,7 @@ string OpenCLKernels::conv2dNCHW = R"%%(
 
 //Spatial size of tile loaded into local memory, not counting filterRadius
 #ifndef TILE_XSIZE
-#define TILE_XSIZE 8
+#define TILE_XSIZE 32
 #endif
 #ifndef TILE_YSIZE
 #define TILE_YSIZE 4
@@ -98,14 +98,14 @@ __kernel void conv2dNCHW(
         }
       }
 
-      //Copy filter tile using local threads in parallel
-      for(int dic = 0; dic<TILE_CHANNELS && icBase+dic < icSize; dic += 1) {
-        for(int fy = ly; fy<fySize; fy += lySize) {
-          for(int fx = lx; fx<fxSize; fx += lxSize) {
-            FILTERTILE(dic,fy,fx) = FILTER(oc,icBase+dic,fy,fx);
-          }
-        }
-      }
+      // //Copy filter tile using local threads in parallel
+      // for(int dic = 0; dic<TILE_CHANNELS && icBase+dic < icSize; dic += 1) {
+      //   for(int fy = ly; fy<fySize; fy += lySize) {
+      //     for(int fx = lx; fx<fxSize; fx += lxSize) {
+      //       FILTERTILE(dic,fy,fx) = FILTER(oc,icBase+dic,fy,fx);
+      //     }
+      //   }
+      // }
 
       //Synchronize!
       barrier(CLK_LOCAL_MEM_FENCE);
@@ -120,7 +120,7 @@ __kernel void conv2dNCHW(
           for(int dic = 0; dic<TILE_CHANNELS && icBase+dic < icSize; dic += 1) {
             for(int fy = 0; fy < fySize; fy++) {
               for(int fx = 0; fx < fxSize; fx++) {
-                acc += INPUTTILE(dic,oty+fy,otx+fx) * FILTERTILE(dic,fy,fx);
+                acc += INPUTTILE(dic,oty+fy,otx+fx) * FILTER(oc,icBase+dic,fy,fx);
               }
             }
           }
