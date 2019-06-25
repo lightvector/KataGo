@@ -133,6 +133,185 @@ __kernel void conv2dNCHW(
 
 )%%";
 
+
+string OpenCLKernels::winogradConvNCHW = R"%%(
+
+//Expected defines---------------------------------
+
+//Dimension of input tile
+//INTILE_XSIZE 4 for F(2x2,3x3)
+//INTILE_YSIZE 4 for F(2x2,3x3)
+
+//Dimension of conv
+//CONV_XSIZE 3 for F(2x2,3x3)
+//CONV_YSIZE 3 for F(2x2,3x3)
+
+//Output tile size
+//OUTTILE_XSIZE 2 for F(2x2,3x3)
+//OUTTILE_YSIZE 2 for F(2x2,3x3)
+
+//Location of the upper left corner of the zeroth tile
+//INTILE_XOFFSET (-1) for F(2x2,3x3)
+//INTILE_YOFFSET (-1) for F(2x2,3x3)
+
+__kernel void transform(
+  __global float* restrict input,  //N, ic, H, W
+  __global float* restrict transformed, //INTILE_YSIZE, INTILE_XSIZE, ic, batch, tileY, tileX
+  int nSize,
+  int xSize,
+  int ySize,
+  int numTilesX,
+  int numTilesY,
+  int icSize
+) {
+  const int tileX = get_global_id(0);
+  const int tileY = get_global_id(1);
+  const int nic = get_global_id(2);
+  const int n = nic / icSize;
+  const int ic = nic % icSize;
+
+#define INPUT(_n,_ic,_y,_x) input[(((_n) * icSize + (_ic)) * ySize + (_y)) * xSize + (_x)]
+#define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
+
+  //TODO bank conflicts on private tiles?
+  __private float wTile[INTILE_XSIZE * INTILE_YSIZE];
+
+  //Copy input into private tile
+  for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+    int y = tileY * OUTTILE_YSIZE + subY + INTILE_YOFFSET;
+    for(int subX = 0; subX < INTILE_XSIZE; subX++) {
+      int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
+      float value = 0.0f;
+      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY) {
+        value = INPUT(n,ic,y,x);
+      }
+      WTILE(subY,subX) = value;
+    }
+  }
+
+#if CONV_XSIZE == 3 && OUTTILE_XSIZE == 2
+  for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+    float z0 = WTILE(subY,0);
+    float z1 = WTILE(subY,1);
+    float z2 = WTILE(subY,2);
+    float z3 = WTILE(subY,3);
+    WTILE(subY,0) = z0 - z2;
+    WTILE(subY,1) = z1 + z2;
+    WTILE(subY,2) = z2 - z1;
+    WTILE(subY,3) = z1 - z3;
+  }
+#else
+  #error "No X winograd implemented for this conv and tile size"
+#endif
+
+#if CONV_YSIZE == 3 && OUTTILE_YSIZE == 2
+  for(int subX = 0; subX < INTILE_XSIZE; subX++) {
+    float z0 = WTILE(0,subX);
+    float z1 = WTILE(1,subX);
+    float z2 = WTILE(2,subX);
+    float z3 = WTILE(3,subX);
+    WTILE(0,subX) = z0 - z2;
+    WTILE(1,subX) = z1 + z2;
+    WTILE(2,subX) = z2 - z1;
+    WTILE(3,subX) = z1 - z3;
+  }
+#else
+  #error "No Y winograd implemented for this conv and tile size"
+#endif
+
+#define TRANS(_suby,_subx,_ic,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*icSize + (_ic)) * ntxtySize + (_ntile)]
+
+  if(tileX < numTilesX && tileY < numTilesY) {
+    const int ntxtySize = nSize * numTilesX * numTilesY;
+    const int ntile = (n * numTilesY + tileY) * numTilesX + tileX;
+
+    //Copy private tile out to transformed output
+    for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+      for(int subX = 0; subX < INTILE_XSIZE; subX++) {
+        TRANS(subY,subX,ic,ntile) = WTILE(subY,subX);
+      }
+    }
+  }
+
+}
+
+__kernel void untransform(
+  __global float* restrict transformed, //INTILE_YSIZE, INTILE_XSIZE, oc, batch, tileY, tileX
+  __global float* restrict output,  //N, oc, H, W
+  int nSize,
+  int xSize,
+  int ySize,
+  int numTilesX,
+  int numTilesY,
+  int ocSize
+) {
+  const int tileX = get_global_id(0);
+  const int tileY = get_global_id(1);
+  const int noc = get_global_id(2);
+  const int n = noc / ocSize;
+  const int oc = noc % ocSize;
+
+  const int ntxtySize = nSize * numTilesX * numTilesY;
+  const int ntile = (n * numTilesY + tileY) * numTilesX + tileX;
+
+#define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
+#define TRANS(_suby,_subx,_oc,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*ocSize + (_oc)) * ntxtySize + (_ntile)]
+#define OUTPUT(_n,_oc,_y,_x) output[(((_n) * ocSize + (_oc)) * ySize + (_y)) * xSize + (_x)]
+
+  //TODO bank conflicts on private tiles?
+  __private float wTile[INTILE_XSIZE * INTILE_YSIZE];
+
+  //Copy into private tile
+  if(tileX < numTilesX && tileY < numTilesY) {
+    for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+      for(int subX = 0; subX < INTILE_XSIZE; subX++) {
+        WTILE(subY,subX) = TRANS(subY,subX,oc,ntile);
+      }
+    }
+  }
+
+#if CONV_XSIZE == 3 && OUTTILE_XSIZE == 2
+  for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+    float z0 = WTILE(subY,0);
+    float z1 = WTILE(subY,1);
+    float z2 = WTILE(subY,2);
+    float z3 = WTILE(subY,3);
+    WTILE(subY,0) = z0 + z1 + z2;
+    WTILE(subY,1) = z1 - z2 - z3;
+  }
+#else
+  #error "No X winograd implemented for this conv and tile size"
+#endif
+
+#if CONV_YSIZE == 3 && OUTTILE_YSIZE == 2
+  for(int subX = 0; subX < OUTTILE_XSIZE; subX++) {
+    float z0 = WTILE(0,subX);
+    float z1 = WTILE(1,subX);
+    float z2 = WTILE(2,subX);
+    float z3 = WTILE(3,subX);
+    WTILE(0,subX) = z0 + z1 + z2;
+    WTILE(1,subX) = z1 - z2 - z3;
+  }
+#else
+  #error "No Y winograd implemented for this conv and tile size"
+#endif
+
+  //Copy into output
+  for(int subY = 0; subY < OUTTILE_YSIZE; subY++) {
+    int y = tileY * OUTTILE_YSIZE + subY;
+    for(int subX = 0; subX < OUTTILE_XSIZE; subX++) {
+      int x = tileX * OUTTILE_XSIZE + subX;
+      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY) {
+        OUTPUT(n,oc,y,x) = WTILE(subY,subX);
+      }
+    }
+  }
+
+}
+
+)%%";
+
+
 string OpenCLKernels::scaleBiasMaskNCHW = R"%%(
 __kernel void scaleBiasMaskNCHW(
   __global float* input,  //N, c, H, W
@@ -210,6 +389,29 @@ __kernel void matMul(
     for(int ic = 0; ic < icSize; ic++)
       acc += input[n * icSize + ic] * weights[oc * icSize + ic];
     output[n * ocSize + oc] = acc;
+  }
+}
+)%%";
+
+string OpenCLKernels::matMulTransBatched = R"%%(
+__kernel void matMulTransBatched(
+  __global float* input,  //n, ic, a
+  __global float* weights, //n, ic, b
+  __global float* output,  //n, a, b
+  int nSize,
+  int icSize,
+  int aSize,
+  int bSize
+) {
+  const int b = get_global_id(0);
+  const int a = get_global_id(1);
+  const int n = get_global_id(2);
+
+  if(n < nSize && a < aSize && b < bSize) {
+    float acc = 0.0f;
+    for(int ic = 0; ic < icSize; ic++)
+      acc += input[(n * icSize + ic) * aSize + a] * weights[(n * icSize + ic) * bSize + b];
+    output[(n * aSize + a) * bSize + b] = acc;
   }
 }
 )%%";
