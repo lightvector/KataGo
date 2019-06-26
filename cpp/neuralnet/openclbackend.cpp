@@ -103,21 +103,31 @@ static void checkErrors(cl_int error, const char* file, const char* func, int li
 #define CHECK_ERR(x) { checkErrors((x),__FILE__,#x,__LINE__); }
 
 #ifdef PROFILE_KERNELS
-#define MAYBE_PROFILE(name) {                                           \
-    cl_int profileErr;                                                  \
+#define MAYBE_EVENT cl_event event
+#define MAYBE_EVENTREF &event
+#define MAYBE_FREE_EVENT (void)0
+
+#define MAYBE_PROFILE(_name,period) {                                   \
     static int counter = 0;                                             \
     static double timeTaken = 0;                                        \
-    cl_ulong time_start, time_end;                                      \
-    profileErr = clWaitForEvents(1, &event); CHECK_ERR(profileErr);     \
-    profileErr = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL); CHECK_ERR(profileErr); \
-    profileErr = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL); CHECK_ERR(profileErr) ; \
-    timeTaken += (time_end - time_start) * 1e-9;                        \
-    counter++;                                                          \
-    if(counter % 100 == 0)                                              \
-      cout << name << " " << counter << " " << timeTaken/counter << " " << timeTaken << "\n"; \
+    const char* _profileName = (_name);                                 \
+    handle->profileEvents.push_back(event);                             \
+    handle->profileCallbacks.push_back(std::function<void()>([event,_profileName]() { \
+          cl_int profileErr;                                            \
+          cl_ulong time_start, time_end;                                \
+          profileErr = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL); CHECK_ERR(profileErr); \
+          profileErr = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL); CHECK_ERR(profileErr) ; \
+          timeTaken += (time_end - time_start) * 1e-9;                  \
+          counter++;                                                    \
+          if(counter % (period) == 0)                                   \
+            cout << _profileName << " " << counter << " " << timeTaken/counter << " " << timeTaken << "\n"; \
+        }));                                                            \
   }
 #else
-#define MAYBE_PROFILE(name) (void)0;
+#define MAYBE_EVENT (void)0
+#define MAYBE_EVENTREF NULL
+#define MAYBE_FREE_EVENT (void)0
+#define MAYBE_PROFILE(name,period) (void)0
 #endif
 
 static size_t powerOf2ify(size_t size) {
@@ -446,6 +456,9 @@ struct ComputeHandleInternal {
   cl_kernel xgemmDirectBatchedNNKernel;
   cl_kernel xgemmDirectBatchedTTKernel;
 
+  vector<cl_event> profileEvents;
+  vector<std::function<void()>> profileCallbacks;
+
   ComputeHandleInternal(ComputeContext* context, int gpuIdx, bool inputsUseNHWC, bool useNHWC, bool useFP16) {
     computeContext = context;
 
@@ -507,6 +520,11 @@ struct ComputeHandleInternal {
   }
 
   ~ComputeHandleInternal() {
+    for(int i = 0; i<profileEvents.size(); i++) {
+      if(profileEvents[i] != NULL)
+        clReleaseEvent(profileEvents[i]);
+    }
+
     clReleaseKernel(conv2dNCHWKernel);
     clReleaseKernel(winogradConv3x3NCHWTransformKernel);
     clReleaseKernel(winogradConv3x3NCHWUntransformKernel);
@@ -588,10 +606,32 @@ static void addChannelBiases(ComputeHandleInternal* handle, cl_mem src, cl_mem b
   clSetKernelArg(kernel, 2, sizeof(int), (void *)&ncSize);
   clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnXYLen);
 
+  MAYBE_EVENT;
   err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
   );
   CHECK_ERR(err);
+  MAYBE_PROFILE("AddChannelBiases",50);
+  MAYBE_FREE_EVENT;
+}
+
+static void addPointWise(ComputeHandleInternal* handle, cl_mem acc, cl_mem value, int totalSize) {
+  cl_kernel kernel = handle->addPointWiseKernel;
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&acc);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&value);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&totalSize);
+
+  cl_int err;
+  static constexpr int nKernelDims = 1;
+  size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
+  size_t* localSizes = NULL; //TODO actually pick these
+  MAYBE_EVENT;
+  err = clEnqueueNDRangeKernel(
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+  );
+  CHECK_ERR(err);
+  MAYBE_PROFILE("AddPointWise",100);
+  MAYBE_FREE_EVENT;
 }
 
 static void performGPool(ComputeHandleInternal* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum) {
@@ -611,10 +651,13 @@ static void performGPool(ComputeHandleInternal* handle, int batchSize, int gpool
   clSetKernelArg(kernel, 6, sizeof(int), (void *)&gpoolChannels);
   clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXYLen);
 
+  MAYBE_EVENT;
   err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
   );
   CHECK_ERR(err);
+  MAYBE_PROFILE("PerformGPool",50);
+  MAYBE_FREE_EVENT;
 }
 
 static void performValueHeadPool(ComputeHandleInternal* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum) {
@@ -633,10 +676,13 @@ static void performValueHeadPool(ComputeHandleInternal* handle, int batchSize, i
   clSetKernelArg(kernel, 5, sizeof(int), (void *)&gpoolChannels);
   clSetKernelArg(kernel, 6, sizeof(int), (void *)&nnXYLen);
 
+  MAYBE_EVENT;
   err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
   );
   CHECK_ERR(err);
+  MAYBE_PROFILE("PerformVHPool",30);
+  MAYBE_FREE_EVENT;
 }
 
 static void transposeNCHW(ComputeHandleInternal* handle, int batchSize, int cSize, int nnXLen, int nnYLen, cl_mem input, cl_mem output) {
@@ -660,10 +706,13 @@ static void transposeNCHW(ComputeHandleInternal* handle, int batchSize, int cSiz
   clSetKernelArg(kernel, 6, sizeof(int), (void *)&tileStride);
   clSetKernelArg(kernel, 7, sizeof(int), (void *)&ncLen);
 
+  MAYBE_EVENT;
   err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
   );
   CHECK_ERR(err);
+  MAYBE_PROFILE("TransposeNCHW",30);
+  MAYBE_FREE_EVENT;
 }
 
 static void doMirror(ComputeHandleInternal* handle, int batchSize, int mSize, int subSize, cl_mem input, cl_mem output) {
@@ -679,10 +728,13 @@ static void doMirror(ComputeHandleInternal* handle, int batchSize, int mSize, in
   clSetKernelArg(kernel, 3, sizeof(int), (void *)&mSize);
   clSetKernelArg(kernel, 4, sizeof(int), (void *)&subSize);
 
+  MAYBE_EVENT;
   err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
   );
   CHECK_ERR(err);
+  MAYBE_PROFILE("DoMirror",30);
+  MAYBE_FREE_EVENT;
 }
 
 static void doMirrorNCHW(ComputeHandleInternal* handle, int batchSize, int cSize, int nnXLen, int nnYLen, bool mirrorY, bool mirrorX, cl_mem input, cl_mem output) {
@@ -762,14 +814,14 @@ static void doBatchedXGemm_KM_KN_MN(
   size_t globalSizes[nKernelDims] = {mCeiled * MDIMCD / WGD, nCeiled * NDIMCD / WGD, (size_t)numBatchElts};
   size_t localSizes[nKernelDims] = {MDIMCD, NDIMCD, 1};
 
-  cl_event event;
+  MAYBE_EVENT;
   err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
   );
   CHECK_ERR(err);
   (void)profileName;
-  MAYBE_PROFILE(profileName);
-  clReleaseEvent(event);
+  MAYBE_PROFILE(profileName,250);
+  MAYBE_FREE_EVENT;
 }
 
 static void doBatchedXGemm_MK_NK_MN(
@@ -805,14 +857,14 @@ static void doBatchedXGemm_MK_NK_MN(
   size_t globalSizes[nKernelDims] = {mCeiled * MDIMCD / WGD, nCeiled * NDIMCD / WGD, (size_t)numBatchElts};
   size_t localSizes[nKernelDims] = {MDIMCD, NDIMCD, 1};
 
-  cl_event event;
+  MAYBE_EVENT;
   err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
   );
   CHECK_ERR(err);
   (void)profileName;
-  MAYBE_PROFILE(profileName);
-  clReleaseEvent(event);
+  MAYBE_PROFILE(profileName,50);
+  MAYBE_FREE_EVENT;
 }
 
 
@@ -1008,13 +1060,13 @@ struct ConvLayer {
         globalSizes[2] = batchSize * inChannels;
 
         cl_int err;
-        cl_event event;
+        MAYBE_EVENT;
         err = clEnqueueNDRangeKernel(
-          handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+          handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        MAYBE_PROFILE("3x3 TRANSFORM");
-        clReleaseEvent(event);
+        MAYBE_PROFILE("3x3TRANSFORM",250);
+        MAYBE_FREE_EVENT;
       }
 
       {
@@ -1027,33 +1079,6 @@ struct ConvLayer {
           "MATMULCONV"
         );
       }
-
-
-      // {
-      //   cl_kernel kernel = handle->matMulTransBatchedKernel;
-      //   int numTilesTotal = batchSize * numTilesX * numTilesY;
-
-      //   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&filter);
-      //   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&convWorkspace);
-      //   clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&convWorkspace2);
-      //   clSetKernelArg(kernel, 3, sizeof(int), (void *)&inTileXYSize);
-      //   clSetKernelArg(kernel, 4, sizeof(int), (void *)&inChannels);
-      //   clSetKernelArg(kernel, 5, sizeof(int), (void *)&outChannels);
-      //   clSetKernelArg(kernel, 6, sizeof(int), (void *)&numTilesTotal);
-
-      //   cl_int err;
-      //   static constexpr int nKernelDims = 3;
-      //   size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)numTilesTotal), powerOf2ify((size_t)outChannels), powerOf2ify((size_t)inTileXYSize)};
-      //   size_t* localSizes = NULL; //TODO actually pick these
-
-      //   cl_event event;
-      //   err = clEnqueueNDRangeKernel(
-      //     handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
-      //   );
-      //   CHECK_ERR(err);
-      //   MAYBE_PROFILE("MATMUL CONV");
-      //   clReleaseEvent(event);
-      // }
 
       {
         cl_kernel kernel = handle->winogradConv3x3NCHWUntransformKernel;
@@ -1074,13 +1099,13 @@ struct ConvLayer {
         globalSizes[2] = batchSize * outChannels;
 
         cl_int err;
-        cl_event event;
+        MAYBE_EVENT;
         err = clEnqueueNDRangeKernel(
-          handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+          handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        MAYBE_PROFILE("3x3 UNTRANSFORM");
-        clReleaseEvent(event);
+        MAYBE_PROFILE("3x3UNTRANSFORM",250);
+        MAYBE_FREE_EVENT;
       }
 
     }
@@ -1121,13 +1146,13 @@ struct ConvLayer {
       globalSizes[2] = outChannels;
 
       cl_int err;
-      cl_event event;
+      MAYBE_EVENT;
       err = clEnqueueNDRangeKernel(
-        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
       );
       CHECK_ERR(err);
-      MAYBE_PROFILE("CONV");
-      clReleaseEvent(event);
+      MAYBE_PROFILE("CONV",50);
+      MAYBE_FREE_EVENT;
     }
   }
 
@@ -1203,10 +1228,13 @@ struct BatchNormLayer {
 
     cl_int err;
     size_t* localSizes = NULL; //TODO actually pick these
+    MAYBE_EVENT;
     err = clEnqueueNDRangeKernel(
-      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
     );
     CHECK_ERR(err);
+    MAYBE_PROFILE("BatchNorm",250);
+    MAYBE_FREE_EVENT;
   }
 
   BatchNormLayer() = delete;
@@ -1271,27 +1299,6 @@ struct MatMulLayer {
       1,
       "PLAINMATMUL"
     );
-
-    // cl_kernel kernel = handle->matMulKernel;
-    // clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
-    // clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&matBuf);
-    // clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&output);
-    // clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
-    // clSetKernelArg(kernel, 4, sizeof(int), (void *)&inChannels);
-    // clSetKernelArg(kernel, 5, sizeof(int), (void *)&outChannels);
-
-    // cl_int err;
-    // static constexpr int nKernelDims = 2;
-    // size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)outChannels), powerOf2ify((size_t)batchSize)};
-    // size_t* localSizes = NULL; //TODO actually pick these
-
-    // cl_event event;
-    // err = clEnqueueNDRangeKernel(
-    //   handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
-    // );
-    // CHECK_ERR(err);
-    // MAYBE_PROFILE("MATMUL");
-    // clReleaseEvent(event);
   }
 
   MatMulLayer() = delete;
@@ -1332,10 +1339,13 @@ struct MatBiasLayer {
     static constexpr int nKernelDims = 2;
     size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)numChannels), powerOf2ify((size_t)batchSize)};
     size_t* localSizes = NULL; //TODO actually pick these
+    MAYBE_EVENT;
     err = clEnqueueNDRangeKernel(
-      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
     );
     CHECK_ERR(err);
+    MAYBE_PROFILE("MatBias",50);
+    MAYBE_FREE_EVENT;
   }
 
   MatBiasLayer() = delete;
@@ -1398,21 +1408,7 @@ struct ResidualBlock {
     regularConv.apply(handle,batchSize,trunkScratch,mid,convWorkspace,convWorkspace2);
     midBN.apply(handle,batchSize,true,mid,midScratch,mask);
     finalConv.apply(handle,batchSize,midScratch,trunkScratch,convWorkspace,convWorkspace2);
-
-    cl_kernel kernel = handle->addPointWiseKernel;
-    int totalSize = batchSize * finalConv.outChannels * nnYLen * nnXLen;
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&trunk);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&trunkScratch);
-    clSetKernelArg(kernel, 2, sizeof(int), (void *)&totalSize);
-
-    cl_int err;
-    static constexpr int nKernelDims = 1;
-    size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
-    size_t* localSizes = NULL; //TODO actually pick these
-    err = clEnqueueNDRangeKernel(
-      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
-    );
-    CHECK_ERR(err);
+    addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
   }
 
   ResidualBlock() = delete;
@@ -1511,22 +1507,7 @@ struct GlobalPoolingResidualBlock {
     midBN.apply(handle,batchSize,true,mid,midScratch,mask);
     finalConv.apply(handle,batchSize,midScratch,trunkScratch,convWorkspace,convWorkspace2);
 
-    {
-      cl_kernel kernel = handle->addPointWiseKernel;
-      int totalSize = batchSize * finalConv.outChannels * nnYLen * nnXLen;
-      clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&trunk);
-      clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&trunkScratch);
-      clSetKernelArg(kernel, 2, sizeof(int), (void *)&totalSize);
-
-      cl_int err;
-      static constexpr int nKernelDims = 1;
-      size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
-      size_t* localSizes = NULL; //TODO actually pick these
-      err = clEnqueueNDRangeKernel(
-        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
-      );
-      CHECK_ERR(err);
-    }
+    addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
   }
 
   GlobalPoolingResidualBlock() = delete;
@@ -2045,10 +2026,13 @@ static void computeMaskSums(
   clSetKernelArg(kernel, 4, sizeof(int), (void *)&numChannels);
   clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnXYLen);
 
+  MAYBE_EVENT;
   err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
   );
   CHECK_ERR(err);
+  MAYBE_PROFILE("MaskSums",30);
+  MAYBE_FREE_EVENT;
 }
 
 
@@ -2195,10 +2179,13 @@ struct Model {
       static constexpr int nKernelDims = 2;
       size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)nnXYLen), powerOf2ify((size_t)batchSize)};
       size_t* localSizes = NULL; //TODO actually pick these
+      MAYBE_EVENT;
       err = clEnqueueNDRangeKernel(
-        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, NULL
+        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
       );
       CHECK_ERR(err);
+      MAYBE_PROFILE("ExtractMask",30);
+      MAYBE_FREE_EVENT;
     }
 
     computeMaskSums(handle,mask,maskSum,batchSize,nnXLen,nnYLen);
@@ -2709,6 +2696,25 @@ void NeuralNet::getOutput(
     handle->commandQueue, buffers->ownership, blocking, 0, inputBuffers->singleOwnershipResultBytes*batchSize, inputBuffers->ownershipResults, 0, NULL, NULL
   );
   CHECK_ERR(err);
+
+  #ifdef PROFILE_KERNELS
+  {
+    cl_int profileErr;
+    profileErr = clWaitForEvents(handle->profileEvents.size(), handle->profileEvents.data());
+    CHECK_ERR(profileErr);
+    for(int i = 0; i<handle->profileCallbacks.size(); i++) {
+      handle->profileCallbacks[i]();
+    }
+    for(int i = 0; i<handle->profileEvents.size(); i++) {
+      clReleaseEvent(handle->profileEvents[i]);
+    }
+    handle->profileEvents.clear();
+    handle->profileCallbacks.clear();
+  }
+  #else
+  assert(handle->profileEvents.size() == 0);
+  assert(handle->profileCallbacks.size() == 0);
+  #endif
 
   assert(outputs.size() == batchSize);
 
