@@ -706,3 +706,13 @@ __kernel void extractChannel0NCHW(__global float* in, __global float* out, int n
   }
 }
 )%%";
+
+
+string OpenCLKernels::xgemmDirect =
+"#define ROUTINE_GEMMBATCHED"
+#include "../external/clblast/common.opencl"
+#include "../external/clblast/xgemm_direct_part1.opencl"
+#include "../external/clblast/xgemm_direct_part2.opencl"
+#include "../external/clblast/xgemm_direct_part3.opencl"
+#include "../external/clblast/xgemm_direct_batched.opencl"
+;

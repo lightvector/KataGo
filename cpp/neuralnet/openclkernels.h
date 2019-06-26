@@ -20,6 +20,9 @@ namespace OpenCLKernels {
   extern std::string transposeNCHW;
   extern std::string mirror;
   extern std::string extractChannel0NCHW;
+
+  extern std::string xgemmDirect;
+
 }
 
 
