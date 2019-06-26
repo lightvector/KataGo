@@ -443,7 +443,8 @@ struct ComputeHandleInternal {
   cl_kernel transposeNCHWKernel;
   cl_kernel mirrorKernel;
   cl_kernel extractChannel0NCHWKernel;
-  cl_kernel xgemmDirectKernel;
+  cl_kernel xgemmDirectBatchedNNKernel;
+  cl_kernel xgemmDirectBatchedTTKernel;
 
   ComputeHandleInternal(ComputeContext* context, int gpuIdx, bool inputsUseNHWC, bool useNHWC, bool useFP16) {
     computeContext = context;
@@ -499,7 +500,9 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     extractChannel0NCHWKernel = clCreateKernel(context->extractChannel0NCHWProgram, "extractChannel0NCHW", &err);
     CHECK_ERR(err);
-    xgemmDirectKernel = clCreateKernel(context->xgemmDirectProgram, "XgemmDirectBatchedNN", &err);
+    xgemmDirectBatchedNNKernel = clCreateKernel(context->xgemmDirectProgram, "XgemmDirectBatchedNN", &err);
+    CHECK_ERR(err);
+    xgemmDirectBatchedTTKernel = clCreateKernel(context->xgemmDirectProgram, "XgemmDirectBatchedTT", &err);
     CHECK_ERR(err);
   }
 
@@ -521,7 +524,8 @@ struct ComputeHandleInternal {
     clReleaseKernel(transposeNCHWKernel);
     clReleaseKernel(mirrorKernel);
     clReleaseKernel(extractChannel0NCHWKernel);
-    clReleaseKernel(xgemmDirectKernel);
+    clReleaseKernel(xgemmDirectBatchedNNKernel);
+    clReleaseKernel(xgemmDirectBatchedTTKernel);
   }
 
   ComputeHandleInternal() = delete;
@@ -725,6 +729,93 @@ static void applySymmetriesNCHW(
   }
 }
 
+static void doBatchedXGemm_KM_KN_MN(
+  ComputeHandleInternal* handle,
+  int M, int N, int K,
+  cl_mem A, cl_mem B, cl_mem C,
+  int numBatchElts,
+  const char* profileName
+) {
+  cl_kernel kernel = handle->xgemmDirectBatchedNNKernel;
+  int cTranspose = 1;
+
+  clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
+  clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&K);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&M);
+  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&B);
+  clSetKernelArg(kernel, 6, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&C);
+  clSetKernelArg(kernel, 8, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 9, sizeof(int), (void *)&cTranspose);
+
+  cl_int err;
+  static constexpr int nKernelDims = 3;
+  const size_t WGD = 8;
+  const size_t MDIMCD = 8;
+  const size_t NDIMCD = 8;
+
+  size_t mCeiled = roundUpToMultiple(M,WGD);
+  size_t nCeiled = roundUpToMultiple(N,WGD);
+
+  size_t globalSizes[nKernelDims] = {mCeiled * MDIMCD / WGD, nCeiled * NDIMCD / WGD, (size_t)numBatchElts};
+  size_t localSizes[nKernelDims] = {MDIMCD, NDIMCD, 1};
+
+  cl_event event;
+  err = clEnqueueNDRangeKernel(
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+  );
+  CHECK_ERR(err);
+  (void)profileName;
+  MAYBE_PROFILE(profileName);
+  clReleaseEvent(event);
+}
+
+static void doBatchedXGemm_MK_NK_MN(
+  ComputeHandleInternal* handle,
+  int M, int N, int K,
+  cl_mem A, cl_mem B, cl_mem C,
+  int numBatchElts,
+  const char* profileName
+) {
+  cl_kernel kernel = handle->xgemmDirectBatchedTTKernel;
+  int cTranspose = 1;
+
+  clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
+  clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&K);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&K);
+  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&B);
+  clSetKernelArg(kernel, 6, sizeof(int), (void *)&K);
+  clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&C);
+  clSetKernelArg(kernel, 8, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 9, sizeof(int), (void *)&cTranspose);
+
+  cl_int err;
+  static constexpr int nKernelDims = 3;
+  const size_t WGD = 8;
+  const size_t MDIMCD = 8;
+  const size_t NDIMCD = 8;
+
+  size_t mCeiled = roundUpToMultiple(M,WGD);
+  size_t nCeiled = roundUpToMultiple(N,WGD);
+
+  size_t globalSizes[nKernelDims] = {mCeiled * MDIMCD / WGD, nCeiled * NDIMCD / WGD, (size_t)numBatchElts};
+  size_t localSizes[nKernelDims] = {MDIMCD, NDIMCD, 1};
+
+  cl_event event;
+  err = clEnqueueNDRangeKernel(
+    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+  );
+  CHECK_ERR(err);
+  (void)profileName;
+  MAYBE_PROFILE(profileName);
+  clReleaseEvent(event);
+}
+
+
 #ifdef DEBUG_INTERMEDIATE_VALUES
 static void debugPrint2D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize) {
   cl_int err;
@@ -927,41 +1018,14 @@ struct ConvLayer {
       }
 
       {
-        cl_kernel kernel = handle->xgemmDirectKernel;
         int numTilesTotal = batchSize * numTilesX * numTilesY;
-        int cTranspose = 1;
-
-        clSetKernelArg(kernel, 0, sizeof(int), (void *)&outChannels);
-        clSetKernelArg(kernel, 1, sizeof(int), (void *)&numTilesTotal);
-        clSetKernelArg(kernel, 2, sizeof(int), (void *)&inChannels);
-        clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&filter);
-        clSetKernelArg(kernel, 4, sizeof(int), (void *)&outChannels);
-        clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&convWorkspace);
-        clSetKernelArg(kernel, 6, sizeof(int), (void *)&numTilesTotal);
-        clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&convWorkspace2);
-        clSetKernelArg(kernel, 8, sizeof(int), (void *)&numTilesTotal);
-        clSetKernelArg(kernel, 9, sizeof(int), (void *)&inTileXYSize);
-        clSetKernelArg(kernel, 10, sizeof(int), (void *)&cTranspose);
-
-        cl_int err;
-        static constexpr int nKernelDims = 3;
-        const size_t WGD = 8;
-        const size_t MDIMCD = 8;
-        const size_t NDIMCD = 8;
-
-        size_t mCeiled = roundUpToMultiple(outChannels,WGD);
-        size_t nCeiled = roundUpToMultiple(numTilesTotal,WGD);
-
-        size_t globalSizes[nKernelDims] = {mCeiled * MDIMCD / WGD, nCeiled * NDIMCD / WGD, (size_t)inTileXYSize};
-        size_t localSizes[nKernelDims] = {MDIMCD, NDIMCD, 1};
-
-        cl_event event;
-        err = clEnqueueNDRangeKernel(
-          handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+        doBatchedXGemm_KM_KN_MN(
+          handle,
+          outChannels, numTilesTotal, inChannels,
+          filter, convWorkspace, convWorkspace2,
+          inTileXYSize,
+          "MATMULCONV"
         );
-        CHECK_ERR(err);
-        MAYBE_PROFILE("MATMUL CONV");
-        clReleaseEvent(event);
       }
 
 
@@ -1200,27 +1264,34 @@ struct MatMulLayer {
   }
 
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output) {
-    cl_kernel kernel = handle->matMulKernel;
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&matBuf);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&output);
-    clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
-    clSetKernelArg(kernel, 4, sizeof(int), (void *)&inChannels);
-    clSetKernelArg(kernel, 5, sizeof(int), (void *)&outChannels);
-
-    cl_int err;
-    static constexpr int nKernelDims = 2;
-    size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)outChannels), powerOf2ify((size_t)batchSize)};
-    size_t* localSizes = NULL; //TODO actually pick these
-
-    cl_event event;
-    err = clEnqueueNDRangeKernel(
-      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+    doBatchedXGemm_MK_NK_MN(
+      handle,
+      batchSize, outChannels, inChannels,
+      input, matBuf, output,
+      1,
+      "PLAINMATMUL"
     );
-    CHECK_ERR(err);
-    MAYBE_PROFILE("MATMUL");
-    clReleaseEvent(event);
+
+    // cl_kernel kernel = handle->matMulKernel;
+    // clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
+    // clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&matBuf);
+    // clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&output);
+    // clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
+    // clSetKernelArg(kernel, 4, sizeof(int), (void *)&inChannels);
+    // clSetKernelArg(kernel, 5, sizeof(int), (void *)&outChannels);
+
+    // cl_int err;
+    // static constexpr int nKernelDims = 2;
+    // size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)outChannels), powerOf2ify((size_t)batchSize)};
+    // size_t* localSizes = NULL; //TODO actually pick these
+
+    // cl_event event;
+    // err = clEnqueueNDRangeKernel(
+    //   handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+    // );
+    // CHECK_ERR(err);
+    // MAYBE_PROFILE("MATMUL");
+    // clReleaseEvent(event);
   }
 
   MatMulLayer() = delete;
