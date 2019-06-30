@@ -1,4 +1,7 @@
+#ifdef USE_OPENCL_BACKEND
+
 #include "../neuralnet/openclhelpers.h"
+#include "../neuralnet/opencltuner.h"
 
 using namespace std;
 
@@ -157,6 +160,7 @@ cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, size_t numFloa
   return buf;
 }
 
+//----------------------------------------------------------------------------------------
 
 
 DevicesContext::DevicesContext(const vector<int>& gIdxs, Logger* logger, bool enableProfiling)
@@ -246,3 +250,110 @@ int DevicesContext::findWhichGpu(int gpuIdx) const {
   }
   throw StringError("BUG? Attempted to create ComputeHandle for a gpuIdx that was not part of the DevicesContext: " + Global::intToString(gpuIdx));
 }
+
+//----------------------------------------------------------------------------------------
+
+size_t OpenCLHelpers::powerOf2ify(size_t size) {
+  if(size <= 2)
+    return size;
+  if(size <= 4)
+    return 4;
+  size_t s = 1;
+  while(s * 4 < size)
+    s *= 2;
+
+  if(s >= size)
+    return s;
+  if(s * 2 >= size)
+    return s * 2;
+  if(s * 3 >= size)
+    return s * 3;
+  assert(s * 4 >= size);
+  return s * 4;
+}
+
+size_t OpenCLHelpers::roundUpToMultiple(size_t size, size_t ofThis) {
+  return (size + ofThis - 1) / ofThis * ofThis;
+}
+
+cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_MN(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  int M, int N, int K,
+  cl_mem A, cl_mem B, cl_mem C,
+  int numBatchElts,
+  cl_event* eventBuf
+) {
+  int cTranspose = 1;
+
+  clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
+  clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&K);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&M);
+  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&B);
+  clSetKernelArg(kernel, 6, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&C);
+  clSetKernelArg(kernel, 8, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 9, sizeof(int), (void *)&cTranspose);
+
+  cl_int err;
+  static constexpr int nKernelDims = 3;
+  const size_t WGD = tuneParams.xGemmDirect.WGD;
+  const size_t MDIMCD = tuneParams.xGemmDirect.MDIMCD;
+  const size_t NDIMCD = tuneParams.xGemmDirect.NDIMCD;
+
+  size_t mCeiled = roundUpToMultiple(M,WGD);
+  size_t nCeiled = roundUpToMultiple(N,WGD);
+
+  size_t globalSizes[nKernelDims] = {mCeiled * MDIMCD / WGD, nCeiled * NDIMCD / WGD, (size_t)numBatchElts};
+  size_t localSizes[nKernelDims] = {MDIMCD, NDIMCD, 1};
+
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
+cl_int OpenCLHelpers::doBatchedXGemm_MK_NK_MN(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  int M, int N, int K,
+  cl_mem A, cl_mem B, cl_mem C,
+  int numBatchElts,
+  cl_event* eventBuf
+) {
+  int cTranspose = 1;
+
+  clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
+  clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&K);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&K);
+  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&B);
+  clSetKernelArg(kernel, 6, sizeof(int), (void *)&K);
+  clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&C);
+  clSetKernelArg(kernel, 8, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 9, sizeof(int), (void *)&cTranspose);
+
+  cl_int err;
+  static constexpr int nKernelDims = 3;
+  const size_t WGD = tuneParams.xGemmDirect.WGD;
+  const size_t MDIMCD = tuneParams.xGemmDirect.MDIMCD;
+  const size_t NDIMCD = tuneParams.xGemmDirect.NDIMCD;
+
+  size_t mCeiled = roundUpToMultiple(M,WGD);
+  size_t nCeiled = roundUpToMultiple(N,WGD);
+
+  size_t globalSizes[nKernelDims] = {mCeiled * MDIMCD / WGD, nCeiled * NDIMCD / WGD, (size_t)numBatchElts};
+  size_t localSizes[nKernelDims] = {MDIMCD, NDIMCD, 1};
+
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
+#endif

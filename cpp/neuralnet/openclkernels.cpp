@@ -1,3 +1,5 @@
+#ifdef USE_OPENCL_BACKEND
+
 #include "../neuralnet/openclkernels.h"
 
 using namespace std;
@@ -716,3 +718,5 @@ string OpenCLKernels::xgemmDirect =
 #include "../external/clblast/xgemm_direct_part3.opencl"
 #include "../external/clblast/xgemm_direct_batched.opencl"
 ;
+
+#endif

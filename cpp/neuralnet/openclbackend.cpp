@@ -5,6 +5,7 @@
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/openclkernels.h"
+#include "../neuralnet/opencltuner.h"
 
 #include "../neuralnet/openclhelpers.h"
 
@@ -44,29 +45,6 @@ using namespace OpenCLHelpers;
 #define MAYBE_FREE_EVENT (void)0
 #define MAYBE_PROFILE(name,period) (void)0
 #endif
-
-static size_t powerOf2ify(size_t size) {
-  if(size <= 2)
-    return size;
-  if(size <= 4)
-    return 4;
-  size_t s = 1;
-  while(s * 4 < size)
-    s *= 2;
-
-  if(s >= size)
-    return s;
-  if(s * 2 >= size)
-    return s * 2;
-  if(s * 3 >= size)
-    return s * 3;
-  assert(s * 4 >= size);
-  return s * 4;
-}
-
-static size_t roundUpToMultiple(size_t size, size_t ofThis) {
-  return (size + ofThis - 1) / ofThis * ofThis;
-}
 
 template<typename T>
 static size_t byteSizeofVectorContents(const typename std::vector<T>& vec) {
@@ -117,12 +95,14 @@ struct ComputeContext {
 
   cl_program xgemmDirectProgram;
 
-  ComputeContext(const vector<int>& gIdxs, Logger* logger)
 #ifdef PROFILE_KERNELS
-    : devicesContext(gIdxs,logger,true)
+  static constexpr bool liveProfilingKernels = true;
 #else
-    : devicesContext(gIdxs,logger,false)
+  static constexpr bool liveProfilingKernels = false;
 #endif
+
+  ComputeContext(const vector<int>& gIdxs, Logger* logger)
+    : devicesContext(gIdxs,logger,liveProfilingKernels)
   {
     const cl_context& context = devicesContext.context;
     const std::vector<cl_device_id>& deviceIdsToUse = devicesContext.deviceIdsToUse;
@@ -551,92 +531,6 @@ static void applySymmetriesNCHW(
   }
 }
 
-static void doBatchedXGemm_KM_KN_MN(
-  ComputeHandleInternal* handle,
-  int M, int N, int K,
-  cl_mem A, cl_mem B, cl_mem C,
-  int numBatchElts,
-  const char* profileName
-) {
-  cl_kernel kernel = handle->xgemmDirectBatchedNNKernel;
-  int cTranspose = 1;
-
-  clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
-  clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
-  clSetKernelArg(kernel, 2, sizeof(int), (void *)&K);
-  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
-  clSetKernelArg(kernel, 4, sizeof(int), (void *)&M);
-  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&B);
-  clSetKernelArg(kernel, 6, sizeof(int), (void *)&N);
-  clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&C);
-  clSetKernelArg(kernel, 8, sizeof(int), (void *)&N);
-  clSetKernelArg(kernel, 9, sizeof(int), (void *)&cTranspose);
-
-  cl_int err;
-  static constexpr int nKernelDims = 3;
-  const size_t WGD = 8;
-  const size_t MDIMCD = 8;
-  const size_t NDIMCD = 8;
-
-  size_t mCeiled = roundUpToMultiple(M,WGD);
-  size_t nCeiled = roundUpToMultiple(N,WGD);
-
-  size_t globalSizes[nKernelDims] = {mCeiled * MDIMCD / WGD, nCeiled * NDIMCD / WGD, (size_t)numBatchElts};
-  size_t localSizes[nKernelDims] = {MDIMCD, NDIMCD, 1};
-
-  MAYBE_EVENT;
-  err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
-  );
-  CHECK_ERR(err);
-  (void)profileName;
-  MAYBE_PROFILE(profileName,250);
-  MAYBE_FREE_EVENT;
-}
-
-static void doBatchedXGemm_MK_NK_MN(
-  ComputeHandleInternal* handle,
-  int M, int N, int K,
-  cl_mem A, cl_mem B, cl_mem C,
-  int numBatchElts,
-  const char* profileName
-) {
-  cl_kernel kernel = handle->xgemmDirectBatchedTTKernel;
-  int cTranspose = 1;
-
-  clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
-  clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
-  clSetKernelArg(kernel, 2, sizeof(int), (void *)&K);
-  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
-  clSetKernelArg(kernel, 4, sizeof(int), (void *)&K);
-  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&B);
-  clSetKernelArg(kernel, 6, sizeof(int), (void *)&K);
-  clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&C);
-  clSetKernelArg(kernel, 8, sizeof(int), (void *)&N);
-  clSetKernelArg(kernel, 9, sizeof(int), (void *)&cTranspose);
-
-  cl_int err;
-  static constexpr int nKernelDims = 3;
-  const size_t WGD = 8;
-  const size_t MDIMCD = 8;
-  const size_t NDIMCD = 8;
-
-  size_t mCeiled = roundUpToMultiple(M,WGD);
-  size_t nCeiled = roundUpToMultiple(N,WGD);
-
-  size_t globalSizes[nKernelDims] = {mCeiled * MDIMCD / WGD, nCeiled * NDIMCD / WGD, (size_t)numBatchElts};
-  size_t localSizes[nKernelDims] = {MDIMCD, NDIMCD, 1};
-
-  MAYBE_EVENT;
-  err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
-  );
-  CHECK_ERR(err);
-  (void)profileName;
-  MAYBE_PROFILE(profileName,50);
-  MAYBE_FREE_EVENT;
-}
-
 
 #ifdef DEBUG_INTERMEDIATE_VALUES
 static void debugPrint2D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize) {
@@ -841,13 +735,20 @@ struct ConvLayer {
 
       {
         int numTilesTotal = batchSize * numTilesX * numTilesY;
-        doBatchedXGemm_KM_KN_MN(
-          handle,
+        cl_int err;
+        MAYBE_EVENT;
+        err = doBatchedXGemm_KM_KN_MN(
+          handle->xgemmDirectBatchedNNKernel,
+          handle->commandQueue,
+          OpenCLTuneParams(), //TODO
           outChannels, numTilesTotal, inChannels,
           filter, convWorkspace, convWorkspace2,
           inTileXYSize,
-          "MATMULCONV"
+          MAYBE_EVENTREF
         );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("MATMULCONV",250);
+        MAYBE_FREE_EVENT;
       }
 
       {
@@ -1062,13 +963,20 @@ struct MatMulLayer {
   }
 
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output) {
-    doBatchedXGemm_MK_NK_MN(
-      handle,
+    MAYBE_EVENT;
+    cl_int err = doBatchedXGemm_MK_NK_MN(
+      handle->xgemmDirectBatchedTTKernel,
+      handle->commandQueue,
+      OpenCLTuneParams(), //TODO
       batchSize, outChannels, inChannels,
       input, matBuf, output,
       1,
-      "PLAINMATMUL"
+      MAYBE_EVENTREF
+
     );
+    CHECK_ERR(err);
+    MAYBE_PROFILE("PLAINMATMUL",250);
+    MAYBE_FREE_EVENT;
   }
 
   MatMulLayer() = delete;

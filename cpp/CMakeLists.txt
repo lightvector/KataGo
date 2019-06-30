@@ -203,6 +203,7 @@ if(BUILD_MCTS)
     runtests.cpp
     lzcost.cpp
     sandbox.cpp
+    tune.cpp
     main.cpp
     )
 

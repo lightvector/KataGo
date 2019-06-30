@@ -4,6 +4,7 @@ namespace MainCmds {
   int evalsgf(int argc, const char* const* argv);
   int gatekeeper(int argc, const char* const* argv);
   int gtp(int argc, const char* const* argv);
+  int tuner(int argc, const char* const* argv);
   int match(int argc, const char* const* argv);
   int matchauto(int argc, const char* const* argv);
   int selfplay(int argc, const char* const* argv);

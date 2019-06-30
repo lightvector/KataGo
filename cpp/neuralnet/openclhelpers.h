@@ -7,6 +7,8 @@
 
 #define CHECK_ERR(x) { OpenCLHelpers::checkErrors((x),__FILE__,#x,__LINE__); }
 
+struct OpenCLTuneParams;
+
 //Wrapper around cl_context for sharing initialization code
 struct DevicesContext {
   cl_context context;
@@ -37,6 +39,29 @@ namespace OpenCLHelpers {
   cl_mem createReadOnlyBuffer(cl_context context, std::vector<float>& data);
   cl_mem createReadWriteBuffer(cl_context context, std::vector<float>& data);
   cl_mem createReadWriteBuffer(cl_context context, size_t numFloats);
+
+  size_t powerOf2ify(size_t size);
+  size_t roundUpToMultiple(size_t size, size_t ofThis);
+
+  cl_int doBatchedXGemm_KM_KN_MN(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    int M, int N, int K,
+    cl_mem A, cl_mem B, cl_mem C,
+    int numBatchElts,
+    cl_event* eventBuf
+  );
+
+  cl_int doBatchedXGemm_MK_NK_MN(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    int M, int N, int K,
+    cl_mem A, cl_mem B, cl_mem C,
+    int numBatchElts,
+    cl_event* eventBuf
+  );
 
 }
 

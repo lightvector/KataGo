@@ -24,6 +24,8 @@ match : Run self-play match games based on a config, more efficient than gtp due
 evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
 version : Print version and exit.
 
+tuner : (OpenCL only) Run tuning to find and optimize parameters that work on your GPU.
+
 ---Selfplay training subcommands---------
 
 selfplay : Play selfplay games and generate training data.
@@ -66,6 +68,8 @@ int main(int argc, const char* argv[]) {
     return MainCmds::gatekeeper(argc-1,&argv[1]);
   else if(cmdArg == "gtp")
     return MainCmds::gtp(argc-1,&argv[1]);
+  else if(cmdArg == "tuner")
+    return MainCmds::tuner(argc-1,&argv[1]);
   else if(cmdArg == "match")
     return MainCmds::match(argc-1,&argv[1]);
   else if(cmdArg == "matchauto")
