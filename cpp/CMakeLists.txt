@@ -42,7 +42,12 @@ if(BUILD_MCTS)
       )
   elseif(USE_OPENCL_BACKEND)
     message("-DUSE_OPENCL_BACKEND=1 is set, using OpenCL backend")
-    set(NEURALNET_BACKEND_SOURCES neuralnet/openclbackend.cpp neuralnet/openclkernels.cpp)
+    set(NEURALNET_BACKEND_SOURCES
+      neuralnet/openclbackend.cpp
+      neuralnet/openclkernels.cpp
+      neuralnet/openclhelpers.cpp
+      neuralnet/opencltuner.cpp
+      )
   else()
     message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. Specify -DUSE_CUDA_BACKEND=1 to compile with CUDA to use neural net.${ColorReset}")
     set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
