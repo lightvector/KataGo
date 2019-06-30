@@ -770,10 +770,16 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           line[i] = ' ';
 
       line = Global::trim(line);
+
+      //Upon any input line at all, stop any analysis and output a newline
+      if(currentlyAnalyzing) {
+        currentlyAnalyzing = false;
+        engine->stopAndWait();
+        cout << endl;
+      }
+
       if(line.length() == 0)
         continue;
-
-      assert(line.length() > 0);
 
       if(logAllGTPCommunication)
         logger.write("Controller: " + line);
@@ -807,13 +813,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
       command = pieces[0];
       pieces.erase(pieces.begin());
-    }
-
-    //Upon any command, stop any analysis and output a newline
-    if(currentlyAnalyzing) {
-      currentlyAnalyzing = false;
-      engine->stopAndWait();
-      cout << endl;
     }
 
     bool responseIsError = false;
