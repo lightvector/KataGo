@@ -120,7 +120,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   Player nextPla;
   BoardHistory hist;
 
-  auto setUpBoardUsingRules = [&board,&nextPla,&hist,overrideKomi,moveNum,&sgf](const Rules& initialRules) {
+  auto setUpBoardUsingRules = [&board,&nextPla,&hist,overrideKomi,moveNum,&sgf,&extraMoves](const Rules& initialRules) {
     sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
     vector<Move>& moves = sgf->moves;
 
@@ -146,6 +146,18 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
       nextPla = getOpp(moves[i].pla);
     }
+
+    vector<Loc> extraMoveLocs = Location::parseSequence(extraMoves,board);
+    for(size_t i = 0; i<extraMoveLocs.size(); i++) {
+      Loc loc = extraMoveLocs[i];
+      if(!board.isLegal(loc,nextPla,hist.rules.multiStoneSuicideLegal)) {
+        cerr << board << endl;
+        cerr << "Extra illegal move for " << colorToChar(nextPla) << ": " << Location::toString(loc,board) << endl;
+        throw StringError("Illegal extra move");
+      }
+      hist.makeBoardMoveAssumeLegal(board,loc,nextPla,NULL);
+      nextPla = getOpp(nextPla);
+    }
   };
   Rules initialRules = sgf->getRulesFromSgf(defaultRules);
   setUpBoardUsingRules(initialRules);
@@ -156,18 +168,6 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   options = options.maxDepth(1);
   if(printBranch.length() > 0)
     options = options.onlyBranch(board,printBranch);
-
-  vector<Loc> extraMoveLocs = Location::parseSequence(extraMoves,board);
-  for(size_t i = 0; i<extraMoveLocs.size(); i++) {
-    Loc loc = extraMoveLocs[i];
-    if(!board.isLegal(loc,nextPla,hist.rules.multiStoneSuicideLegal)) {
-      cerr << board << endl;
-      cerr << "Extra illegal move for " << colorToChar(nextPla) << ": " << Location::toString(loc,board) << endl;
-      return 1;
-    }
-    hist.makeBoardMoveAssumeLegal(board,loc,nextPla,NULL);
-    nextPla = getOpp(nextPla);
-  }
 
   //Load neural net and start bot------------------------------------------
 
