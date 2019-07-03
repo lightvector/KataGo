@@ -168,6 +168,7 @@ if(BUILD_MCTS)
     dataio/trainingwrite.cpp
     dataio/loadmodel.cpp
     dataio/lzparse.cpp
+    dataio/homedata.cpp
     neuralnet/nninputs.cpp
     neuralnet/modelversion.cpp
     neuralnet/nneval.cpp

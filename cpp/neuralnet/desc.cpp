@@ -916,7 +916,7 @@ ModelDesc::ModelDesc(istream& in) {
   if(version < 0 || version > NNModelVersion::latestModelVersionImplemented)
     throw StringError(name + ": model found unsupported version " + Global::intToString(version));
   if(version < 1)
-    throw StringError("Version 0 neural nets no longer supported in cuda backend");
+    throw StringError("Version 0 neural nets no longer supported");
 
   if(version >= 3) {
     xSizePreV3 = 0;  // Unused, V3 uses posLen instead

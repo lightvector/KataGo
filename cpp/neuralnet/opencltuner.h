@@ -20,6 +20,7 @@ struct OpenCLTuneParams {
     int PADB = 1;
     std::string desc() const;
     std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
   };
   XGemmDirectParams xGemmDirect = XGemmDirectParams();
 
@@ -30,22 +31,31 @@ struct OpenCLTuneParams {
     int winograd_3x3_OUTTILE_YSIZE = 2;
     std::string desc() const;
     std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
   };
   Conv3x3Params conv3x3 = Conv3x3Params();
 
   bool operator==(const OpenCLTuneParams& other) const;
+
+  static void save(const std::string& filename, const OpenCLTuneParams& config);
+  static OpenCLTuneParams load(const std::string& filename);
 };
 
 namespace OpenCLTuner {
-  OpenCLTuneParams tune(
+  void tune(
     const OpenCLTuneParams& initialConfig,
     int gpuIdx,
     Logger* logger,
     const int batchSize,
     const int nnXLen,
     const int nnYLen,
-    const ModelDesc* model
+    const ModelDesc* model,
+    bool full,
+    std::function<void(const OpenCLTuneParams&)> handleBestSoFar
   );
+
+  std::string defaultDirectory(bool makeDir);
+  std::string defaultFileName(int gpuIdx, int nnXLen, int nnYLen, const ModelDesc* model);
 
 }
 

@@ -4,11 +4,46 @@
 #include "../neuralnet/opencltuner.h"
 #include "../neuralnet/openclkernels.h"
 #include "../core/rand.h"
+#include "../core/makedir.h"
+#include "../dataio/homedata.h"
 
 #include <cstring>
 
 using namespace std;
 using namespace OpenCLHelpers;
+
+static map<string,int> readDescKeyValues(const string& fileName, const string& desc) {
+  istringstream kvIn(desc);
+  string kvChunk;
+  map<string,int> keyValues;
+  while(getline(kvIn,kvChunk,' '))
+  {
+    if(kvChunk.length() <= 0) continue;
+    size_t equalsPos = kvChunk.find_first_of('=');
+    if(equalsPos == string::npos) continue;
+    string leftChunk = Global::trim(kvChunk.substr(0,equalsPos));
+    string rightChunk = Global::trim(kvChunk.substr(equalsPos+1));
+    if(leftChunk.length() == 0)
+      throw IOError("OpenCLTuner readDescKeyValues: key value pair without key in: " + desc + " in file " + fileName);
+    if(rightChunk.length() == 0)
+      throw IOError("OpenCLTuner readDescKeyValues: key value pair without value in: " + desc + " in file " + fileName);
+    if(keyValues.find(leftChunk) != keyValues.end())
+      throw IOError("OpenCLTuner readDescKeyValues: duplicate key: " + leftChunk);
+    int value;
+    bool suc = Global::tryStringToInt(rightChunk, value);
+    if(!suc)
+      throw IOError("OpenCLTuner readDescKeyValues: could not parse value for key " + leftChunk + " in file " + fileName);
+
+    keyValues[leftChunk] = value;
+  }
+  return keyValues;
+}
+
+static int getInt(const map<string,int> map, const string& key, int defaultValue) {
+  if(!contains(map,key))
+    return defaultValue;
+  return map_get(map,key);
+}
 
 string OpenCLTuneParams::XGemmDirectParams::desc() const {
   string s;
@@ -38,6 +73,19 @@ string OpenCLTuneParams::XGemmDirectParams::compileOptions() const {
   s += " -DPADB=" + Global::intToString(PADB);
   return s;
 }
+void OpenCLTuneParams::XGemmDirectParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  WGD = getInt(kvs,"WGD",WGD);
+  MDIMCD = getInt(kvs,"MDIMCD",MDIMCD);
+  NDIMCD = getInt(kvs,"NDIMCD",NDIMCD);
+  MDIMAD = getInt(kvs,"MDIMAD",MDIMAD);
+  NDIMBD = getInt(kvs,"NDIMBD",NDIMBD);
+  KWID = getInt(kvs,"KWID",KWID);
+  VWMD = getInt(kvs,"VWMD",VWMD);
+  VWND = getInt(kvs,"VWND",VWND);
+  PADA = getInt(kvs,"PADA",PADA);
+  PADB = getInt(kvs,"PADB",PADB);
+}
 
 string OpenCLTuneParams::Conv3x3Params::desc() const {
   string s;
@@ -55,13 +103,56 @@ string OpenCLTuneParams::Conv3x3Params::compileOptions() const {
   s += " -DOUTTILE_YSIZE=" + Global::intToString(winograd_3x3_OUTTILE_YSIZE);
   return s;
 }
-
+void OpenCLTuneParams::Conv3x3Params::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  winograd_3x3_INTILE_XSIZE = getInt(kvs,"INTILE_XSIZE",winograd_3x3_INTILE_XSIZE);
+  winograd_3x3_INTILE_YSIZE = getInt(kvs,"INTILE_YSIZE",winograd_3x3_INTILE_YSIZE);
+  winograd_3x3_OUTTILE_XSIZE = getInt(kvs,"OUTTILE_XSIZE",winograd_3x3_OUTTILE_XSIZE);
+  winograd_3x3_OUTTILE_YSIZE = getInt(kvs,"OUTTILE_YSIZE",winograd_3x3_OUTTILE_YSIZE);
+}
 
 bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
   if(this == &other)
     return true;
   return std::memcmp(this,&other,sizeof(OpenCLTuneParams)) == 0;
 }
+
+
+void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
+  ofstream out(filename);
+  if(out.fail())
+    throw IOError("Could not create file: " + filename);
+  out << "VERSION=1" << "\n";
+  out << "#xGemmDirect" << "\n";
+  out << config.xGemmDirect.desc() << "\n";
+  out << "#conv3x3" << "\n";
+  out << config.conv3x3.desc() << "\n";
+  out.flush();
+  out.close();
+}
+
+OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
+  vector<string> lines = Global::readFileLines(filename, '\n');
+  vector<string> filteredLines;
+  for(size_t i = 0; i<lines.size(); i++) {
+    string line = Global::stripComments(lines[i]);
+    line = Global::trim(line);
+    if(line.length() > 0)
+      filteredLines.push_back(line);
+  }
+  if(filteredLines.size() <= 0)
+    throw IOError("OpenCLTuneParams::load: no params in file " + filename);
+  if(filteredLines[0] != "VERSION=1")
+    throw IOError("OpenCLTuneParams::load: expected first line to be VERSION=1 in " + filename);
+  if(filteredLines.size() != 3)
+    throw IOError("OpenCLTuneParams::load: unexpected number of parameter lines in file " + filename);
+
+  OpenCLTuneParams config;
+  config.xGemmDirect.fillFromDesc(filename,filteredLines[1]);
+  config.conv3x3.fillFromDesc(filename,filteredLines[2]);
+  return config;
+}
+
 
 
 static cl_mem randomReadOnlyBuffer(const char* seed, cl_context context, int numFloats, double scale) {
@@ -92,20 +183,23 @@ static void addConfigs(
 
 #define SETTER(field) std::function<void(OpenCLTuneParams&, int value)>([](OpenCLTuneParams& p, int value){ p.field = value; })
 
-OpenCLTuneParams OpenCLTuner::tune(
+void OpenCLTuner::tune(
   const OpenCLTuneParams& initialConfig,
   int gpuIdx,
   Logger* logger,
   const int batchSize,
   const int nnXLen,
   const int nnYLen,
-  const ModelDesc* model
+  const ModelDesc* model,
+  bool full,
+  std::function<void(const OpenCLTuneParams&)> handleBestSoFar
 ) {
   bool enableProfiling = true;
   DevicesContext devicesContext({gpuIdx}, logger, enableProfiling);
   const cl_context& context = devicesContext.context;
-  const std::vector<cl_device_id>& deviceIdsToUse = devicesContext.deviceIdsToUse;
+  const vector<cl_device_id>& deviceIdsToUse = devicesContext.deviceIdsToUse;
 
+  OpenCLTuneParams untunedConfig = OpenCLTuneParams();
   OpenCLTuneParams currentConfig = initialConfig;
 
   //Tune xGemmDirect
@@ -114,34 +208,42 @@ OpenCLTuneParams OpenCLTuner::tune(
 
     vector<OpenCLTuneParams> configs;
     configs.push_back(initialConfig);
-    addConfigs(configs,SETTER(xGemmDirect.WGD),{8,16,32,64});
-    addConfigs(configs,SETTER(xGemmDirect.MDIMCD),{8,16,32});
-    addConfigs(configs,SETTER(xGemmDirect.NDIMCD),{8,16,32});
-    addConfigs(configs,SETTER(xGemmDirect.MDIMAD),{8,16,32});
-    addConfigs(configs,SETTER(xGemmDirect.NDIMBD),{8,16,32});
-    addConfigs(configs,SETTER(xGemmDirect.KWID),{2,8});
-    addConfigs(configs,SETTER(xGemmDirect.VWMD),{1,2,4,8});
-    addConfigs(configs,SETTER(xGemmDirect.VWND),{1,2,4,8});
-    // addConfigs(configs,SETTER(xGemmDirect.PADA),{1,0});
-    // addConfigs(configs,SETTER(xGemmDirect.PADB),{1,0});
+    if(full) {
+      addConfigs(configs,SETTER(xGemmDirect.WGD),{8,16,32});
+      addConfigs(configs,SETTER(xGemmDirect.MDIMCD),{8,16,32});
+      addConfigs(configs,SETTER(xGemmDirect.NDIMCD),{8,16,32});
+      addConfigs(configs,SETTER(xGemmDirect.MDIMAD),{8,16,32});
+      addConfigs(configs,SETTER(xGemmDirect.NDIMBD),{8,16,32});
+      addConfigs(configs,SETTER(xGemmDirect.KWID),{2,8});
+      addConfigs(configs,SETTER(xGemmDirect.VWMD),{2,4,8});
+      addConfigs(configs,SETTER(xGemmDirect.VWND),{2,4,8});
+      // addConfigs(configs,SETTER(xGemmDirect.PADA),{1,0});
+      // addConfigs(configs,SETTER(xGemmDirect.PADB),{1,0});
+    }
+    else {
+      addConfigs(configs,SETTER(xGemmDirect.WGD),{8,16});
+      addConfigs(configs,SETTER(xGemmDirect.MDIMCD),{8,16,32});
+      addConfigs(configs,SETTER(xGemmDirect.NDIMCD),{8,16});
+      addConfigs(configs,SETTER(xGemmDirect.MDIMAD),{8,16,32});
+      addConfigs(configs,SETTER(xGemmDirect.NDIMBD),{8,16});
+      addConfigs(configs,SETTER(xGemmDirect.KWID),{2,8});
+      addConfigs(configs,SETTER(xGemmDirect.VWMD),{2,4});
+      addConfigs(configs,SETTER(xGemmDirect.VWND),{2,4});
+      // addConfigs(configs,SETTER(xGemmDirect.PADA),{1,0});
+      // addConfigs(configs,SETTER(xGemmDirect.PADB),{1,0});
+    }
 
     Rand rand;
     for(int i = configs.size()-1; i > 0; i--) {
       int j = rand.nextUInt(i+1);
       std::swap(configs[i],configs[j]);
     }
-    //Make sure initial params is at the front
-    bool foundIntital = false;
-    for(int i = 0; i<configs.size(); i++) {
-      if(configs[i] == initialConfig) {
-        foundIntital = true;
-        std::swap(configs[0],configs[i]);
-      }
-    }
-    if(!foundIntital) {
-      configs.push_back(initialConfig);
-      std::swap(configs[0],configs[configs.size()-1]);
-    }
+
+    //Make sure we have the vanilla default config
+    //Make sure we have the initial config
+    configs.insert(configs.begin(),untunedConfig);
+    configs.insert(configs.begin(),initialConfig);
+
 
     auto test = [&](OpenCLTuneParams& cfg, double& ret) {
       cl_int err;
@@ -168,18 +270,23 @@ OpenCLTuneParams OpenCLTuner::tune(
       cl_mem output = createReadWriteBuffer(context, ioNumFloats);
 
       bool bad = false;
-      int numKernelsCounted = 0;
-      double timeTaken = 0;
+      double weightCounted = 0;
+      double weightedTimeTaken = 0;
 
-      const int reps = 9;
+      const int reps = 5;
       for(int i = 0; i<reps; i++) {
-        int inChannels = model->trunk.trunkNumChannels;
-        int outChannels =
-          i % 8 == 6 ? model->trunk.regularNumChannels :
-          i % 8 == 7 ? model->trunk.gpoolNumChannels :
-          model->trunk.midNumChannels;
-        if(i % 8 == 1 || i % 8 == 3 || i % 8 == 5)
-          std::swap(inChannels, outChannels);
+        int inChannels;
+        int outChannels;
+        double weight;
+        switch(i) {
+        //Weight 0 on first kernel call to warm up
+        case 0: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.midNumChannels; weight = 0; break;
+        case 1: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.midNumChannels; weight = 1; break;
+        case 2: inChannels = model->trunk.midNumChannels; outChannels = model->trunk.trunkNumChannels; weight = 1; break;
+        case 3: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.regularNumChannels; weight = 0.2; break;
+        case 4: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.gpoolNumChannels; weight = 0.2; break;
+        default: ASSERT_UNREACHABLE; break;
+        }
 
         cl_event event;
         err = doBatchedXGemm_KM_KN_MN(
@@ -203,11 +310,8 @@ OpenCLTuneParams OpenCLTuner::tune(
         err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL); CHECK_ERR(err);
         err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL); CHECK_ERR(err);
 
-        //Skip first kernel call to warm up
-        if(i > 0) {
-          timeTaken += (time_end - time_start) * 1e-9;
-          numKernelsCounted++;
-        }
+        weightedTimeTaken += (time_end - time_start) * 1e-9 * weight;
+        weightCounted += weight;
 
         clReleaseEvent(event);
       }
@@ -222,7 +326,7 @@ OpenCLTuneParams OpenCLTuner::tune(
       if(bad)
         return false;
 
-      double kernelsPerSecond = numKernelsCounted / timeTaken;
+      double kernelsPerSecond = weightCounted / weightedTimeTaken;
       ret = kernelsPerSecond;
       return true;
     };
@@ -240,13 +344,26 @@ OpenCLTuneParams OpenCLTuner::tune(
           bestKernelsPerSecond = kernelsPerSecond;
           currentConfig = configs[i];
           cout << "Tuning " << i << "/"  << configs.size() << " Calls/sec " << bestKernelsPerSecond << " " << currentConfig.xGemmDirect.desc() << endl;
+          handleBestSoFar(currentConfig);
         }
       }
     }
 
   }
 
-  return currentConfig;
 }
+
+string OpenCLTuner::defaultDirectory(bool makeDir) {
+  string dir = HomeData::getHomeDataDir(true);
+  dir += "/opencltuning";
+  if(makeDir)
+    MakeDir::make(dir);
+  return dir;
+}
+
+string OpenCLTuner::defaultFileName(int gpuIdx, int nnXLen, int nnYLen, const ModelDesc* model) {
+  return Global::strprintf("tune_gpu%d_x%d_y%d_mv%d.txt", gpuIdx, nnXLen, nnYLen, model->version);
+}
+
 
 #endif
