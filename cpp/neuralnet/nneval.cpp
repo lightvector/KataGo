@@ -68,7 +68,8 @@ NNEvaluator::NNEvaluator(
   int nnMutexPoolSizePowerofTwo,
   bool skipNeuralNet,
   bool alwaysOwnerMap,
-  float nnPolicyTemp
+  float nnPolicyTemp,
+  string openCLTunerFile
 )
   :modelName(mName),
    modelFileName(mFileName),
@@ -119,12 +120,11 @@ NNEvaluator::NNEvaluator(
   if(nnCacheSizePowerOfTwo >= 0)
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo, nnMutexPoolSizePowerofTwo);
 
-  computeContext = NeuralNet::createComputeContext(gpuIdxs,logger);
-
   if(!debugSkipNeuralNet) {
     loadedModel = NeuralNet::loadModelFile(modelFileName, modelFileIdx);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
+    computeContext = NeuralNet::createComputeContext(gpuIdxs,logger,nnXLen,nnYLen,openCLTunerFile,loadedModel);
   }
   else {
     modelVersion = NNModelVersion::defaultModelVersion;
@@ -155,7 +155,8 @@ NNEvaluator::~NNEvaluator() {
     NeuralNet::freeLoadedModel(loadedModel);
   loadedModel = NULL;
 
-  NeuralNet::freeComputeContext(computeContext);
+  if(computeContext != NULL)
+    NeuralNet::freeComputeContext(computeContext);
   computeContext = NULL;
 
   delete nnCacheTable;

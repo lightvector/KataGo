@@ -129,6 +129,10 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         gpuIdxByServerThread.push_back(0);
     }
 
+    string openCLTunerFile;
+    if(cfg.contains("openclTunerFile"))
+      openCLTunerFile = cfg.getString("openclTunerFile");
+
     vector<int> gpuIdxs = gpuIdxByServerThread;
     std::sort(gpuIdxs.begin(), gpuIdxs.end());
     std::unique(gpuIdxs.begin(), gpuIdxs.end());
@@ -175,7 +179,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24),
       debugSkipNeuralNet,
       alwaysIncludeOwnerMap,
-      nnPolicyTemperature
+      nnPolicyTemperature,
+      openCLTunerFile
     );
 
     int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;

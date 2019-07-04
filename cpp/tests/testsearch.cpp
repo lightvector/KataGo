@@ -120,6 +120,7 @@ static NNEvaluator* startNNEval(
   //bool debugSkipNeuralNet = false;
   bool alwaysIncludeOwnerMap = false;
   const string& modelName = modelFile;
+  const string openCLTunerFile = "";
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
@@ -136,7 +137,8 @@ static NNEvaluator* startNNEval(
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
     alwaysIncludeOwnerMap,
-    nnPolicyTemperature
+    nnPolicyTemperature,
+    openCLTunerFile
   );
   (void)inputsUseNHWC;
 

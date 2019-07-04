@@ -64,115 +64,6 @@ void NeuralNet::globalInitialize() {
 void NeuralNet::globalCleanup() {
 }
 
-//---------------------------------------------------------------------------------------------------------
-
-
-struct ComputeContext {
-  DevicesContext devicesContext;
-
-  cl_program conv2dNCHWProgram;
-
-  cl_program winogradConv3x3NCHWProgram;
-  int winograd_3x3_INTILE_XSIZE;
-  int winograd_3x3_INTILE_YSIZE;
-  int winograd_3x3_OUTTILE_XSIZE;
-  int winograd_3x3_OUTTILE_YSIZE;
-
-  cl_program scaleBiasMaskNCHWProgram;
-  cl_program scaleBiasMaskReluNCHWProgram;
-  cl_program addPointWiseProgram;
-  cl_program matMulProgram;
-  cl_program matMulTransBatchedProgram;
-  cl_program sumChannelsNCHWProgram;
-  cl_program gPoolChannelsNCHWProgram;
-  cl_program valueHeadPoolChannelsNCHWProgram;
-  cl_program addChannelBiasesNCHWProgram;
-  cl_program addCBiasesNCProgram;
-  cl_program addCBiasesNCReluProgram;
-  cl_program transposeNCHWProgram;
-  cl_program mirrorProgram;
-  cl_program extractChannel0NCHWProgram;
-
-  cl_program xgemmDirectProgram;
-
-#ifdef PROFILE_KERNELS
-  static constexpr bool liveProfilingKernels = true;
-#else
-  static constexpr bool liveProfilingKernels = false;
-#endif
-
-  ComputeContext(const vector<int>& gIdxs, Logger* logger)
-    : devicesContext(gIdxs,logger,liveProfilingKernels)
-  {
-    const cl_context& context = devicesContext.context;
-    const std::vector<cl_device_id>& deviceIdsToUse = devicesContext.deviceIdsToUse;
-
-    conv2dNCHWProgram = compileProgram("conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHW, "");
-    winogradConv3x3NCHWProgram = compileProgram(
-      "winogradConv3x3NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
-      "-DINTILE_XSIZE=4 -DINTILE_YSIZE=4 -DCONV_XSIZE=3 -DCONV_YSIZE=3 -DOUTTILE_XSIZE=2 -DOUTTILE_YSIZE=2 -DINTILE_XOFFSET=(-1) -DINTILE_YOFFSET=(-1)"
-    );
-    winograd_3x3_INTILE_XSIZE = 4;
-    winograd_3x3_INTILE_YSIZE = 4;
-    winograd_3x3_OUTTILE_XSIZE = 2;
-    winograd_3x3_OUTTILE_YSIZE = 2;
-
-    scaleBiasMaskNCHWProgram = compileProgram("scaleBiasMaskNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskNCHW, "");
-    scaleBiasMaskReluNCHWProgram = compileProgram("scaleBiasMaskReluNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskReluNCHW, "");
-    addPointWiseProgram = compileProgram("addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise, "");
-    matMulProgram = compileProgram("matMulProgram", context, deviceIdsToUse, OpenCLKernels::matMul, "");
-    matMulTransBatchedProgram = compileProgram("matMulTransBatchedProgram", context, deviceIdsToUse, OpenCLKernels::matMulTransBatched, "");
-    sumChannelsNCHWProgram = compileProgram("sumChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::sumChannelsNCHW, "");
-    gPoolChannelsNCHWProgram = compileProgram("gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW, "");
-    valueHeadPoolChannelsNCHWProgram = compileProgram("valueHeadPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::valueHeadPoolChannelsNCHW, "");
-    addChannelBiasesNCHWProgram = compileProgram("addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW, "");
-    addCBiasesNCProgram = compileProgram("addCBiasesNCProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNC, "");
-    addCBiasesNCReluProgram = compileProgram("addCBiasesNCReluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCRelu, "");
-    transposeNCHWProgram = compileProgram("transposeNCHWProgram", context, deviceIdsToUse, OpenCLKernels::transposeNCHW, "");
-    mirrorProgram = compileProgram("mirrorProgram", context, deviceIdsToUse, OpenCLKernels::mirror, "");
-    extractChannel0NCHWProgram = compileProgram("extractChannel0NCHWProgram", context, deviceIdsToUse, OpenCLKernels::extractChannel0NCHW, "");
-    xgemmDirectProgram = compileProgram("xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect, "");
-  }
-
-  ~ComputeContext() {
-    clReleaseProgram(conv2dNCHWProgram);
-    clReleaseProgram(winogradConv3x3NCHWProgram);
-    clReleaseProgram(scaleBiasMaskNCHWProgram);
-    clReleaseProgram(scaleBiasMaskReluNCHWProgram);
-    clReleaseProgram(addPointWiseProgram);
-    clReleaseProgram(matMulProgram);
-    clReleaseProgram(matMulTransBatchedProgram);
-    clReleaseProgram(sumChannelsNCHWProgram);
-    clReleaseProgram(gPoolChannelsNCHWProgram);
-    clReleaseProgram(valueHeadPoolChannelsNCHWProgram);
-    clReleaseProgram(addChannelBiasesNCHWProgram);
-    clReleaseProgram(addCBiasesNCProgram);
-    clReleaseProgram(addCBiasesNCReluProgram);
-    clReleaseProgram(transposeNCHWProgram);
-    clReleaseProgram(mirrorProgram);
-    clReleaseProgram(extractChannel0NCHWProgram);
-    clReleaseProgram(xgemmDirectProgram);
-  }
-
-  ComputeContext() = delete;
-  ComputeContext(const ComputeContext&) = delete;
-  ComputeContext& operator=(const ComputeContext&) = delete;
-
-};
-
-
-ComputeContext* NeuralNet::createComputeContext(
-  const std::vector<int>& gpuIdxs,
-  Logger* logger
-) {
-  return new ComputeContext(gpuIdxs,logger);
-}
-
-void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
-  delete computeContext;
-}
-
-
 //------------------------------------------------------------------------------
 
 struct LoadedModel {
@@ -205,6 +96,127 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
   return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
 }
 
+//---------------------------------------------------------------------------------------------------------
+
+struct ComputeContext {
+  DevicesContext devicesContext;
+
+  OpenCLTuneParams tuneParams;
+
+  cl_program conv2dNCHWProgram;
+  cl_program winogradConv3x3NCHWProgram;
+  cl_program scaleBiasMaskNCHWProgram;
+  cl_program scaleBiasMaskReluNCHWProgram;
+  cl_program addPointWiseProgram;
+  cl_program matMulProgram;
+  cl_program matMulTransBatchedProgram;
+  cl_program sumChannelsNCHWProgram;
+  cl_program gPoolChannelsNCHWProgram;
+  cl_program valueHeadPoolChannelsNCHWProgram;
+  cl_program addChannelBiasesNCHWProgram;
+  cl_program addCBiasesNCProgram;
+  cl_program addCBiasesNCReluProgram;
+  cl_program transposeNCHWProgram;
+  cl_program mirrorProgram;
+  cl_program extractChannel0NCHWProgram;
+  cl_program xgemmDirectProgram;
+
+#ifdef PROFILE_KERNELS
+  static constexpr bool liveProfilingKernels = true;
+#else
+  static constexpr bool liveProfilingKernels = false;
+#endif
+
+  ComputeContext(const vector<int>& gIdxs, Logger* logger, const OpenCLTuneParams& tParams)
+    : devicesContext(gIdxs,logger,liveProfilingKernels)
+  {
+    const cl_context& context = devicesContext.context;
+    const std::vector<cl_device_id>& deviceIdsToUse = devicesContext.deviceIdsToUse;
+
+    tuneParams = tParams;
+
+    conv2dNCHWProgram = compileProgram("conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHW, "");
+    winogradConv3x3NCHWProgram = compileProgram(
+      "winogradConv3x3NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
+      tuneParams.conv3x3.compileOptions()
+    );
+
+    scaleBiasMaskNCHWProgram = compileProgram("scaleBiasMaskNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskNCHW, "");
+    scaleBiasMaskReluNCHWProgram = compileProgram("scaleBiasMaskReluNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskReluNCHW, "");
+    addPointWiseProgram = compileProgram("addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise, "");
+    matMulProgram = compileProgram("matMulProgram", context, deviceIdsToUse, OpenCLKernels::matMul, "");
+    matMulTransBatchedProgram = compileProgram("matMulTransBatchedProgram", context, deviceIdsToUse, OpenCLKernels::matMulTransBatched, "");
+    sumChannelsNCHWProgram = compileProgram("sumChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::sumChannelsNCHW, "");
+    gPoolChannelsNCHWProgram = compileProgram("gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW, "");
+    valueHeadPoolChannelsNCHWProgram = compileProgram("valueHeadPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::valueHeadPoolChannelsNCHW, "");
+    addChannelBiasesNCHWProgram = compileProgram("addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW, "");
+    addCBiasesNCProgram = compileProgram("addCBiasesNCProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNC, "");
+    addCBiasesNCReluProgram = compileProgram("addCBiasesNCReluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCRelu, "");
+    transposeNCHWProgram = compileProgram("transposeNCHWProgram", context, deviceIdsToUse, OpenCLKernels::transposeNCHW, "");
+    mirrorProgram = compileProgram("mirrorProgram", context, deviceIdsToUse, OpenCLKernels::mirror, "");
+    extractChannel0NCHWProgram = compileProgram("extractChannel0NCHWProgram", context, deviceIdsToUse, OpenCLKernels::extractChannel0NCHW, "");
+    xgemmDirectProgram = compileProgram("xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect, tuneParams.xGemmDirect.compileOptions());
+  }
+
+  ~ComputeContext() {
+    clReleaseProgram(conv2dNCHWProgram);
+    clReleaseProgram(winogradConv3x3NCHWProgram);
+    clReleaseProgram(scaleBiasMaskNCHWProgram);
+    clReleaseProgram(scaleBiasMaskReluNCHWProgram);
+    clReleaseProgram(addPointWiseProgram);
+    clReleaseProgram(matMulProgram);
+    clReleaseProgram(matMulTransBatchedProgram);
+    clReleaseProgram(sumChannelsNCHWProgram);
+    clReleaseProgram(gPoolChannelsNCHWProgram);
+    clReleaseProgram(valueHeadPoolChannelsNCHWProgram);
+    clReleaseProgram(addChannelBiasesNCHWProgram);
+    clReleaseProgram(addCBiasesNCProgram);
+    clReleaseProgram(addCBiasesNCReluProgram);
+    clReleaseProgram(transposeNCHWProgram);
+    clReleaseProgram(mirrorProgram);
+    clReleaseProgram(extractChannel0NCHWProgram);
+    clReleaseProgram(xgemmDirectProgram);
+  }
+
+  ComputeContext() = delete;
+  ComputeContext(const ComputeContext&) = delete;
+  ComputeContext& operator=(const ComputeContext&) = delete;
+
+};
+
+static ComputeContext* createComputeContextForTesting(
+  const std::vector<int>& gpuIdxs,
+  Logger* logger
+) {
+  OpenCLTuneParams tuneParams; //Just use default values
+  return new ComputeContext(gpuIdxs,logger,tuneParams);
+}
+
+
+ComputeContext* NeuralNet::createComputeContext(
+  const std::vector<int>& gpuIdxs,
+  Logger* logger,
+  int nnXLen,
+  int nnYLen,
+  string openCLTunerFile,
+  const LoadedModel* loadedModel
+) {
+  if(gpuIdxs.size() <= 0)
+    throw StringError("NeuralNet::createComputeContext - specified no gpus to use");
+  //TODO maybe we shouldn't make the gpu idx part of the tuning file...?
+  //And just punt on when the user wants to mix devices or gpus of different kinds?
+  //Or maybe it's fine to use gpuIdxs[0] as an indicator of what kind of device they want??
+
+  bool full = false;
+  OpenCLTuneParams tuneParams = OpenCLTuner::loadOrAutoTune(openCLTunerFile,gpuIdxs[0],logger,nnXLen,nnYLen,&(loadedModel->modelDesc),full);
+  return new ComputeContext(gpuIdxs,logger,tuneParams);
+}
+
+void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
+  delete computeContext;
+}
+
+
 //--------------------------------------------------------------
 
 struct ComputeHandleInternal {
@@ -217,11 +229,6 @@ struct ComputeHandleInternal {
 
   cl_kernel winogradConv3x3NCHWTransformKernel;
   cl_kernel winogradConv3x3NCHWUntransformKernel;
-  int winograd_3x3_INTILE_XSIZE;
-  int winograd_3x3_INTILE_YSIZE;
-  int winograd_3x3_OUTTILE_XSIZE;
-  int winograd_3x3_OUTTILE_YSIZE;
-
   cl_kernel scaleBiasMaskNCHWKernel;
   cl_kernel scaleBiasMaskReluNCHWKernel;
   cl_kernel addPointWiseKernel;
@@ -263,10 +270,6 @@ struct ComputeHandleInternal {
     winogradConv3x3NCHWTransformKernel = clCreateKernel(computeContext->winogradConv3x3NCHWProgram, "transform", &err);
     winogradConv3x3NCHWUntransformKernel = clCreateKernel(computeContext->winogradConv3x3NCHWProgram, "untransform", &err);
     CHECK_ERR(err);
-    winograd_3x3_INTILE_XSIZE = computeContext->winograd_3x3_INTILE_XSIZE;
-    winograd_3x3_INTILE_YSIZE = computeContext->winograd_3x3_INTILE_YSIZE;
-    winograd_3x3_OUTTILE_XSIZE = computeContext->winograd_3x3_OUTTILE_YSIZE;
-    winograd_3x3_OUTTILE_YSIZE = computeContext->winograd_3x3_OUTTILE_YSIZE;
 
     scaleBiasMaskNCHWKernel = clCreateKernel(computeContext->scaleBiasMaskNCHWProgram, "scaleBiasMaskNCHW", &err);
     CHECK_ERR(err);
@@ -634,12 +637,15 @@ struct ConvLayer {
       throw StringError("OpenCL backend: Encountered convolution dilation factors other than 1, not supported");
 
     if(convXSize == 3 && convYSize == 3) {
-      numTilesX = (nnXLen + handle->winograd_3x3_OUTTILE_XSIZE - 1) / handle->winograd_3x3_OUTTILE_XSIZE;
-      numTilesY = (nnYLen + handle->winograd_3x3_OUTTILE_YSIZE - 1) / handle->winograd_3x3_OUTTILE_YSIZE;
-      int inTileXSize = handle->winograd_3x3_INTILE_XSIZE;
-      int inTileYSize = handle->winograd_3x3_INTILE_YSIZE;
+      int inTileXSize = handle->computeContext->tuneParams.conv3x3.INTILE_XSIZE;
+      int inTileYSize = handle->computeContext->tuneParams.conv3x3.INTILE_YSIZE;
+      int outTileXSize = handle->computeContext->tuneParams.conv3x3.OUTTILE_XSIZE;
+      int outTileYSize = handle->computeContext->tuneParams.conv3x3.OUTTILE_YSIZE;
+
+      numTilesX = (nnXLen + outTileXSize - 1) / outTileXSize;
+      numTilesY = (nnYLen + outTileYSize - 1) / outTileYSize;
       inTileXYSize = inTileXSize * inTileYSize;
-      outTileXYSize = handle->winograd_3x3_OUTTILE_XSIZE * handle->winograd_3x3_OUTTILE_YSIZE;
+      outTileXYSize = outTileXSize * outTileYSize;
 
       assert(inTileXSize == 4);
       assert(inTileYSize == 4);
@@ -740,7 +746,7 @@ struct ConvLayer {
         err = doBatchedXGemm_KM_KN_MN(
           handle->xgemmDirectBatchedNNKernel,
           handle->commandQueue,
-          OpenCLTuneParams(), //TODO
+          handle->computeContext->tuneParams,
           outChannels, numTilesTotal, inChannels,
           filter, convWorkspace, convWorkspace2,
           inTileXYSize,
@@ -967,7 +973,7 @@ struct MatMulLayer {
     cl_int err = doBatchedXGemm_MK_NK_MN(
       handle->xgemmDirectBatchedTTKernel,
       handle->commandQueue,
-      OpenCLTuneParams(), //TODO
+      handle->computeContext->tuneParams,
       batchSize, outChannels, inChannels,
       input, matBuf, output,
       1,
@@ -2471,7 +2477,7 @@ bool NeuralNet::testEvaluateConv(
   if(useNHWC != false)
     return false;
 
-  ComputeContext* context = createComputeContext({gpuIdx}, logger);
+  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger);
   ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC, useNHWC);
 
   ConvLayer* layer = new ConvLayer(handle, desc, nnXLen, nnYLen);
@@ -2528,7 +2534,7 @@ bool NeuralNet::testEvaluateBatchNorm(
   if(useNHWC != false)
     return false;
 
-  ComputeContext* context = createComputeContext({gpuIdx}, logger);
+  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger);
   ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC, useNHWC);
 
   BatchNormLayer* layer = new BatchNormLayer(handle, desc, nnXLen, nnYLen);
@@ -2583,7 +2589,7 @@ bool NeuralNet::testEvaluateResidualBlock(
   if(useNHWC != false)
     return false;
 
-  ComputeContext* context = createComputeContext({gpuIdx}, logger);
+  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger);
   ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC, useNHWC);
 
   ResidualBlock* layer = new ResidualBlock(handle, desc, nnXLen, nnYLen);
@@ -2649,7 +2655,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   if(useNHWC != false)
     return false;
 
-  ComputeContext* context = createComputeContext({gpuIdx}, logger);
+  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger);
   ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC, useNHWC);
 
   GlobalPoolingResidualBlock* layer = new GlobalPoolingResidualBlock(handle, desc, nnXLen, nnYLen);

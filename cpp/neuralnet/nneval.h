@@ -90,7 +90,8 @@ class NNEvaluator {
     int nnMutexPoolSizePowerofTwo,
     bool debugSkipNeuralNet,
     bool alwaysIncludeOwnerMap,
-    float nnPolicyTemperature
+    float nnPolicyTemperature,
+    std::string openCLTunerFile
   );
   ~NNEvaluator();
 

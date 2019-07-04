@@ -39,6 +39,10 @@ static map<string,int> readDescKeyValues(const string& fileName, const string& d
   return keyValues;
 }
 
+static bool isMultipleOf(int x, int y) {
+  return x % y == 0;
+}
+
 static int getInt(const map<string,int> map, const string& key, int defaultValue) {
   if(!contains(map,key))
     return defaultValue;
@@ -86,29 +90,61 @@ void OpenCLTuneParams::XGemmDirectParams::fillFromDesc(const string& fileName, c
   PADA = getInt(kvs,"PADA",PADA);
   PADB = getInt(kvs,"PADB",PADB);
 }
+bool OpenCLTuneParams::XGemmDirectParams::isValid() const {
+  if(WGD <= 0) return false;
+  if(MDIMCD <= 0) return false;
+  if(NDIMCD <= 0) return false;
+  if(MDIMAD <= 0) return false;
+  if(NDIMBD <= 0) return false;
+  if(KWID <= 0) return false;
+  if(VWMD <= 0) return false;
+  if(VWND <= 0) return false;
+  if(PADA < 0) return false;
+  if(PADB < 0) return false;
+  if(!isMultipleOf(WGD,KWID)) return false;
+  if(!isMultipleOf(WGD,MDIMCD*VWMD)) return false;
+  if(!isMultipleOf(WGD,NDIMCD*VWND)) return false;
+  if(!isMultipleOf(WGD,MDIMAD*VWMD)) return false;
+  if(!isMultipleOf(WGD,NDIMBD*VWND)) return false;
+  if(!isMultipleOf(WGD,MDIMCD*NDIMCD/MDIMAD)) return false;
+  if(!isMultipleOf(WGD,MDIMCD*NDIMCD/NDIMBD)) return false;
+  return true;
+}
+
 
 string OpenCLTuneParams::Conv3x3Params::desc() const {
   string s;
-  s += "INTILE_XSIZE=" + Global::intToString(winograd_3x3_INTILE_XSIZE);
-  s += " INTILE_YSIZE=" + Global::intToString(winograd_3x3_INTILE_YSIZE);
-  s += " OUTTILE_XSIZE=" + Global::intToString(winograd_3x3_OUTTILE_XSIZE);
-  s += " OUTTILE_YSIZE=" + Global::intToString(winograd_3x3_OUTTILE_YSIZE);
+  s += "INTILE_XSIZE=" + Global::intToString(INTILE_XSIZE);
+  s += " INTILE_YSIZE=" + Global::intToString(INTILE_YSIZE);
+  s += " OUTTILE_XSIZE=" + Global::intToString(OUTTILE_XSIZE);
+  s += " OUTTILE_YSIZE=" + Global::intToString(OUTTILE_YSIZE);
   return s;
 }
 string OpenCLTuneParams::Conv3x3Params::compileOptions() const {
   string s;
-  s += "-DINTILE_XSIZE=" + Global::intToString(winograd_3x3_INTILE_XSIZE);
-  s += " -DINTILE_YSIZE=" + Global::intToString(winograd_3x3_INTILE_YSIZE);
-  s += " -DOUTTILE_XSIZE=" + Global::intToString(winograd_3x3_OUTTILE_XSIZE);
-  s += " -DOUTTILE_YSIZE=" + Global::intToString(winograd_3x3_OUTTILE_YSIZE);
+  s += "-DINTILE_XSIZE=" + Global::intToString(INTILE_XSIZE);
+  s += " -DINTILE_YSIZE=" + Global::intToString(INTILE_YSIZE);
+  s += " -DOUTTILE_XSIZE=" + Global::intToString(OUTTILE_XSIZE);
+  s += " -DOUTTILE_YSIZE=" + Global::intToString(OUTTILE_YSIZE);
+  s += " -DCONV_XSIZE=3 -DCONV_YSIZE=3 -DINTILE_XOFFSET=(-1) -DINTILE_YOFFSET=(-1)";
   return s;
 }
 void OpenCLTuneParams::Conv3x3Params::fillFromDesc(const string& fileName, const string& desc) {
   map<string,int> kvs = readDescKeyValues(fileName, desc);
-  winograd_3x3_INTILE_XSIZE = getInt(kvs,"INTILE_XSIZE",winograd_3x3_INTILE_XSIZE);
-  winograd_3x3_INTILE_YSIZE = getInt(kvs,"INTILE_YSIZE",winograd_3x3_INTILE_YSIZE);
-  winograd_3x3_OUTTILE_XSIZE = getInt(kvs,"OUTTILE_XSIZE",winograd_3x3_OUTTILE_XSIZE);
-  winograd_3x3_OUTTILE_YSIZE = getInt(kvs,"OUTTILE_YSIZE",winograd_3x3_OUTTILE_YSIZE);
+  INTILE_XSIZE = getInt(kvs,"INTILE_XSIZE",INTILE_XSIZE);
+  INTILE_YSIZE = getInt(kvs,"INTILE_YSIZE",INTILE_YSIZE);
+  OUTTILE_XSIZE = getInt(kvs,"OUTTILE_XSIZE",OUTTILE_XSIZE);
+  OUTTILE_YSIZE = getInt(kvs,"OUTTILE_YSIZE",OUTTILE_YSIZE);
+}
+bool OpenCLTuneParams::Conv3x3Params::isValid() const {
+  //Currently, the only supported winograd tile sizes
+  if(INTILE_XSIZE == 4 && OUTTILE_XSIZE == 2 && INTILE_YSIZE == 4 && OUTTILE_YSIZE == 2)
+    return true;
+  return false;
+}
+
+bool OpenCLTuneParams::isValid() const {
+  return xGemmDirect.isValid() && conv3x3.isValid();
 }
 
 bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
@@ -181,17 +217,32 @@ static void addConfigs(
   configs = newCfgs;
 }
 
+static void filterConfigs(
+  vector<OpenCLTuneParams>& configs,
+  std::function<bool(const OpenCLTuneParams&)> isValid
+) {
+  vector<OpenCLTuneParams> newCfgs;
+  for(int j = 0; j<configs.size(); j++) {
+    if(isValid(configs[j]))
+      newCfgs.push_back(configs[j]);
+  }
+  configs = newCfgs;
+}
+
+
 #define SETTER(field) std::function<void(OpenCLTuneParams&, int value)>([](OpenCLTuneParams& p, int value){ p.field = value; })
+#define ISVALID(field) std::function<bool(const OpenCLTuneParams&)>([](const OpenCLTuneParams& p){ return p.field.isValid(); })
 
 void OpenCLTuner::tune(
   const OpenCLTuneParams& initialConfig,
   int gpuIdx,
   Logger* logger,
-  const int batchSize,
-  const int nnXLen,
-  const int nnYLen,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
   const ModelDesc* model,
   bool full,
+  ostream& out,
   std::function<void(const OpenCLTuneParams&)> handleBestSoFar
 ) {
   bool enableProfiling = true;
@@ -204,34 +255,36 @@ void OpenCLTuner::tune(
 
   //Tune xGemmDirect
   {
-    cout << "Tuning xGemmDirect for convolutions" << endl;
+    out << "Tuning xGemmDirect for convolutions" << endl;
 
     vector<OpenCLTuneParams> configs;
     configs.push_back(initialConfig);
     if(full) {
+      addConfigs(configs,SETTER(xGemmDirect.WGD),{8,16,32,64});
+      addConfigs(configs,SETTER(xGemmDirect.MDIMCD),{8,16,32});
+      addConfigs(configs,SETTER(xGemmDirect.NDIMCD),{8,16,32});
+      addConfigs(configs,SETTER(xGemmDirect.MDIMAD),{8,16,32});
+      addConfigs(configs,SETTER(xGemmDirect.NDIMBD),{8,16,32});
+      addConfigs(configs,SETTER(xGemmDirect.KWID),{2,8,16});
+      addConfigs(configs,SETTER(xGemmDirect.VWMD),{1,2,4,8});
+      addConfigs(configs,SETTER(xGemmDirect.VWND),{1,2,4,8});
+      // addConfigs(configs,SETTER(xGemmDirect.PADA),{1,0});
+      // addConfigs(configs,SETTER(xGemmDirect.PADB),{1,0});
+    }
+    else {
       addConfigs(configs,SETTER(xGemmDirect.WGD),{8,16,32});
       addConfigs(configs,SETTER(xGemmDirect.MDIMCD),{8,16,32});
       addConfigs(configs,SETTER(xGemmDirect.NDIMCD),{8,16,32});
       addConfigs(configs,SETTER(xGemmDirect.MDIMAD),{8,16,32});
       addConfigs(configs,SETTER(xGemmDirect.NDIMBD),{8,16,32});
       addConfigs(configs,SETTER(xGemmDirect.KWID),{2,8});
-      addConfigs(configs,SETTER(xGemmDirect.VWMD),{2,4,8});
-      addConfigs(configs,SETTER(xGemmDirect.VWND),{2,4,8});
-      // addConfigs(configs,SETTER(xGemmDirect.PADA),{1,0});
-      // addConfigs(configs,SETTER(xGemmDirect.PADB),{1,0});
-    }
-    else {
-      addConfigs(configs,SETTER(xGemmDirect.WGD),{8,16});
-      addConfigs(configs,SETTER(xGemmDirect.MDIMCD),{8,16,32});
-      addConfigs(configs,SETTER(xGemmDirect.NDIMCD),{8,16});
-      addConfigs(configs,SETTER(xGemmDirect.MDIMAD),{8,16,32});
-      addConfigs(configs,SETTER(xGemmDirect.NDIMBD),{8,16});
-      addConfigs(configs,SETTER(xGemmDirect.KWID),{2,8});
       addConfigs(configs,SETTER(xGemmDirect.VWMD),{2,4});
       addConfigs(configs,SETTER(xGemmDirect.VWND),{2,4});
       // addConfigs(configs,SETTER(xGemmDirect.PADA),{1,0});
       // addConfigs(configs,SETTER(xGemmDirect.PADB),{1,0});
     }
+
+    filterConfigs(configs,ISVALID(xGemmDirect));
 
     Rand rand;
     for(int i = configs.size()-1; i > 0; i--) {
@@ -244,6 +297,7 @@ void OpenCLTuner::tune(
     configs.insert(configs.begin(),untunedConfig);
     configs.insert(configs.begin(),initialConfig);
 
+    out << "Testing " << configs.size() << " different configs" << endl;
 
     auto test = [&](OpenCLTuneParams& cfg, double& ret) {
       cl_int err;
@@ -251,18 +305,20 @@ void OpenCLTuner::tune(
       cl_kernel kernel = clCreateKernel(program, "XgemmDirectBatchedTT", &err);
       CHECK_ERR(err);
 
-      int numTilesX = (nnXLen + cfg.conv3x3.winograd_3x3_OUTTILE_XSIZE - 1) / cfg.conv3x3.winograd_3x3_OUTTILE_XSIZE;
-      int numTilesY = (nnYLen + cfg.conv3x3.winograd_3x3_OUTTILE_YSIZE - 1) / cfg.conv3x3.winograd_3x3_OUTTILE_YSIZE;
+      int numTilesX = (nnXLen + cfg.conv3x3.OUTTILE_XSIZE - 1) / cfg.conv3x3.OUTTILE_XSIZE;
+      int numTilesY = (nnYLen + cfg.conv3x3.OUTTILE_YSIZE - 1) / cfg.conv3x3.OUTTILE_YSIZE;
       int numTilesTotal = batchSize * numTilesX * numTilesY;
 
-      int inTileXSize = cfg.conv3x3.winograd_3x3_INTILE_XSIZE;
-      int inTileYSize = cfg.conv3x3.winograd_3x3_INTILE_YSIZE;
+      int inTileXSize = cfg.conv3x3.INTILE_XSIZE;
+      int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
       int inTileXYSize = inTileXSize * inTileYSize;
 
-      int maxChannels = std::max(
-        std::max(model->trunk.trunkNumChannels, model->trunk.midNumChannels),
-        std::max(model->trunk.regularNumChannels, model->trunk.gpoolNumChannels)
-      );
+      int maxChannels = model->maxConvChannels(3,3);
+      maxChannels = std::max(model->trunk.trunkNumChannels,maxChannels);
+      maxChannels = std::max(model->trunk.midNumChannels,maxChannels);
+      maxChannels = std::max(model->trunk.regularNumChannels,maxChannels);
+      maxChannels = std::max(model->trunk.gpoolNumChannels,maxChannels);
+
       int ioNumFloats = numTilesTotal * maxChannels * inTileXYSize;
       int filterNumFloats = maxChannels * maxChannels * inTileXYSize;
       cl_mem input = randomReadOnlyBuffer("tune3x3Input", context, ioNumFloats, 1.0);
@@ -273,7 +329,8 @@ void OpenCLTuner::tune(
       double weightCounted = 0;
       double weightedTimeTaken = 0;
 
-      const int reps = 5;
+      //TODO need a reference implementation to compare error against!
+      const int reps = 6;
       for(int i = 0; i<reps; i++) {
         int inChannels;
         int outChannels;
@@ -285,6 +342,7 @@ void OpenCLTuner::tune(
         case 2: inChannels = model->trunk.midNumChannels; outChannels = model->trunk.trunkNumChannels; weight = 1; break;
         case 3: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.regularNumChannels; weight = 0.2; break;
         case 4: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.gpoolNumChannels; weight = 0.2; break;
+        case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
         default: ASSERT_UNREACHABLE; break;
         }
 
@@ -334,6 +392,7 @@ void OpenCLTuner::tune(
     double bestKernelsPerSecond = 0.0;
     int numTested = 0;
     int numTestedRunnable = 0;
+    int lastBestIdx = 0;
     for(int i = 0; i<configs.size(); i++) {
       double kernelsPerSecond;
       bool suc = test(configs[i],kernelsPerSecond);
@@ -343,10 +402,13 @@ void OpenCLTuner::tune(
         if(kernelsPerSecond > bestKernelsPerSecond) {
           bestKernelsPerSecond = kernelsPerSecond;
           currentConfig = configs[i];
-          cout << "Tuning " << i << "/"  << configs.size() << " Calls/sec " << bestKernelsPerSecond << " " << currentConfig.xGemmDirect.desc() << endl;
+          out << "Tuning " << i << "/"  << configs.size() << " Calls/sec " << bestKernelsPerSecond << " " << currentConfig.xGemmDirect.desc() << endl;
           handleBestSoFar(currentConfig);
+          lastBestIdx = i;
         }
       }
+      if(i % 20 == 0 && i >= lastBestIdx+20)
+        out << "Tuning " << i << "/" << configs.size() << " ..." << endl;
     }
 
   }
@@ -362,8 +424,66 @@ string OpenCLTuner::defaultDirectory(bool makeDir) {
 }
 
 string OpenCLTuner::defaultFileName(int gpuIdx, int nnXLen, int nnYLen, const ModelDesc* model) {
-  return Global::strprintf("tune_gpu%d_x%d_y%d_mv%d.txt", gpuIdx, nnXLen, nnYLen, model->version);
+  return Global::strprintf("tune_gpu%d_x%d_y%d_c%d_mv%d.txt", gpuIdx, nnXLen, nnYLen, model->trunk.trunkNumChannels,model->version);
 }
 
+OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
+  string openCLTunerFile,
+  int gpuIdx,
+  Logger* logger,
+  int nnXLen,
+  int nnYLen,
+  const ModelDesc* model,
+  bool full
+) {
+  if(openCLTunerFile != "") {
+    if(logger != NULL)
+      logger->write("Loading tuning parameters from: " + openCLTunerFile);
+    return OpenCLTuneParams::load(openCLTunerFile);
+  }
+
+  string dir = OpenCLTuner::defaultDirectory(true);
+  openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuIdx, nnXLen, nnYLen, model);
+
+  try {
+    OpenCLTuneParams loadedParams = OpenCLTuneParams::load(openCLTunerFile);
+    if(!loadedParams.isValid())
+      throw StringError("Loaded parmameters were not valid");
+    if(logger != NULL)
+      logger->write("Loaded tuning parameters from: " + openCLTunerFile);
+    return loadedParams;
+  }
+  catch(const StringError& e) {
+    if(logger != NULL) {
+      logger->write("No existing tuning parameters found or parseable or valid at: " + openCLTunerFile);
+      logger->write("Performing autotuning");
+    }
+    OpenCLTuneParams results;
+    auto handleBestSoFar = [&results](const OpenCLTuneParams& bestSoFar) {
+      results = bestSoFar;
+    };
+
+    OpenCLTuneParams initialParams;
+    int batchSize = OpenCLTuner::DEFAULT_BATCH_SIZE;
+    OpenCLTuner::tune(
+      initialParams,
+      gpuIdx,
+      logger,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      model,
+      full,
+      cerr,
+      std::function<void(const OpenCLTuneParams&)>(handleBestSoFar)
+    );
+
+    OpenCLTuneParams::save(openCLTunerFile, results);
+    if(logger != NULL)
+      logger->write("Done tuning, saved results to " + openCLTunerFile);
+    return results;
+  };
+
+}
 
 #endif

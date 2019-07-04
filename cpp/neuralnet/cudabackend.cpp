@@ -2598,10 +2598,18 @@ struct Buffers {
 //Cuda implementation doesn't need this
 ComputeContext* NeuralNet::createComputeContext(
   const std::vector<int>& gpuIdxs,
-  Logger* logger
+  Logger* logger,
+  int nnXLen,
+  int nnYLen,
+  string openCLTunerFile,
+  const LoadedModel* loadedModel
 ) {
   (void)gpuIdxs;
   (void)logger;
+  (void)nnXLen;
+  (void)nnYLen;
+  (void)openCLTunerFile;
+  (void)loadedModel;
   return NULL;
 }
 

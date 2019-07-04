@@ -30,16 +30,6 @@ namespace NeuralNet {
   // Call globalCleanup() at program termination.
   void globalCleanup();
 
-  // Context -------------------------------------------------------------------
-
-  ComputeContext* createComputeContext(
-    //The indices of all gpus that this context will be used for.
-    const std::vector<int>& gpuIdxs,
-    Logger* logger
-  );
-  //A ComputeContext should NOT be freed until all ComputeHandles created using it have also been freed.
-  void freeComputeContext(ComputeContext* computeContext);
-
   // Model I/O -----------------------------------------------------------------
 
   LoadedModel* loadModelFile(const std::string& file, int modelFileIdx);
@@ -50,6 +40,20 @@ namespace NeuralNet {
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
   Rules getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported);
+
+  // Context -------------------------------------------------------------------
+
+  ComputeContext* createComputeContext(
+    //The indices of all gpus that this context will be used for.
+    const std::vector<int>& gpuIdxs,
+    Logger* logger,
+    int nnXLen,
+    int nnYLen,
+    std::string openCLTunerFile,
+    const LoadedModel* loadedModel
+  );
+  //A ComputeContext should NOT be freed until all ComputeHandles created using it have also been freed.
+  void freeComputeContext(ComputeContext* computeContext);
 
   // Compute Handle -----------------------------------------------------------------
 
