@@ -53,6 +53,17 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
+  cl_int doStridedBatchedXGemm_KM_KN_MN(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    int M, int N, int K,
+    int aStride, int bStride, int cStride,
+    cl_mem A, cl_mem B, cl_mem C,
+    int numBatchElts,
+    cl_event* eventBuf
+  );
+
   cl_int doBatchedXGemm_MK_NK_MN(
     cl_kernel kernel,
     cl_command_queue commandQueue,

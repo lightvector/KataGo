@@ -245,6 +245,7 @@ struct ComputeHandleInternal {
   cl_kernel extractChannel0NCHWKernel;
   cl_kernel xgemmDirectBatchedNNKernel;
   cl_kernel xgemmDirectBatchedTTKernel;
+  cl_kernel xgemmDirectStridedBatchedNNKernel;
 
   vector<cl_event> profileEvents;
   vector<std::function<void()>> profileCallbacks;
@@ -303,6 +304,8 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     xgemmDirectBatchedTTKernel = clCreateKernel(computeContext->xgemmDirectProgram, "XgemmDirectBatchedTT", &err);
     CHECK_ERR(err);
+    xgemmDirectStridedBatchedNNKernel = clCreateKernel(computeContext->xgemmDirectProgram, "XgemmDirectStridedBatchedNN", &err);
+    CHECK_ERR(err);
   }
 
   ~ComputeHandleInternal() {
@@ -330,6 +333,7 @@ struct ComputeHandleInternal {
     clReleaseKernel(extractChannel0NCHWKernel);
     clReleaseKernel(xgemmDirectBatchedNNKernel);
     clReleaseKernel(xgemmDirectBatchedTTKernel);
+    clReleaseKernel(xgemmDirectStridedBatchedNNKernel);
   }
 
   ComputeHandleInternal() = delete;
@@ -636,7 +640,17 @@ struct ConvLayer {
     if(dilationX != 1 || dilationY != 1)
       throw StringError("OpenCL backend: Encountered convolution dilation factors other than 1, not supported");
 
-    if(convXSize == 3 && convYSize == 3) {
+    if(convXSize == 1 && convYSize == 1) {
+      //ic,oc
+      vector<float> transWeights(inChannels * outChannels);
+      for(int oc = 0; oc < outChannels; oc++) {
+        for(int ic = 0; ic < inChannels; ic++) {
+          transWeights[ic * outChannels + oc] = desc->weights[oc * inChannels + ic];
+        }
+      }
+      filter = createReadOnlyBuffer(handle,transWeights);
+    }
+    else if(convXSize == 3 && convYSize == 3) {
       int inTileXSize = handle->computeContext->tuneParams.conv3x3.INTILE_XSIZE;
       int inTileYSize = handle->computeContext->tuneParams.conv3x3.INTILE_YSIZE;
       int outTileXSize = handle->computeContext->tuneParams.conv3x3.OUTTILE_XSIZE;
@@ -709,7 +723,27 @@ struct ConvLayer {
   }
 
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem convWorkspace, cl_mem convWorkspace2) {
-    if(convXSize == 3 && convYSize == 3) {
+    if(convXSize == 1 && convYSize == 1) {
+      int filterStride = 0; //Reuse same filter for all matrices in batch
+      int inputStride = nnXLen*nnYLen * inChannels;
+      int outputStride = nnXLen*nnYLen * outChannels;
+      cl_int err;
+      MAYBE_EVENT;
+      err = doStridedBatchedXGemm_KM_KN_MN(
+        handle->xgemmDirectStridedBatchedNNKernel,
+        handle->commandQueue,
+        handle->computeContext->tuneParams,
+        outChannels, nnXLen*nnYLen, inChannels,
+        filterStride, inputStride, outputStride,
+        filter, input, output,
+        batchSize,
+        MAYBE_EVENTREF
+      );
+      CHECK_ERR(err);
+      MAYBE_PROFILE("MATMULCONV1x1",30);
+      MAYBE_FREE_EVENT;
+    }
+    else if(convXSize == 3 && convYSize == 3) {
 
       {
         cl_kernel kernel = handle->winogradConv3x3NCHWTransformKernel;
@@ -735,7 +769,7 @@ struct ConvLayer {
           handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        MAYBE_PROFILE("3x3TRANSFORM",250);
+        MAYBE_PROFILE("3x3TRANSFORM",350);
         MAYBE_FREE_EVENT;
       }
 
@@ -753,7 +787,7 @@ struct ConvLayer {
           MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        MAYBE_PROFILE("MATMULCONV",250);
+        MAYBE_PROFILE("MATMULCONV3x3",350);
         MAYBE_FREE_EVENT;
       }
 
@@ -781,7 +815,7 @@ struct ConvLayer {
           handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        MAYBE_PROFILE("3x3UNTRANSFORM",250);
+        MAYBE_PROFILE("3x3UNTRANSFORM",350);
         MAYBE_FREE_EVENT;
       }
 
@@ -828,7 +862,12 @@ struct ConvLayer {
         handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
       );
       CHECK_ERR(err);
-      MAYBE_PROFILE("CONV",50);
+      if(convXRadius == 2 && convYRadius == 2) {
+        MAYBE_PROFILE("CONV5",20);
+      }
+      else {
+        MAYBE_PROFILE("CONV",30);
+      }
       MAYBE_FREE_EVENT;
     }
   }
@@ -910,7 +949,7 @@ struct BatchNormLayer {
       handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
     );
     CHECK_ERR(err);
-    MAYBE_PROFILE("BatchNorm",250);
+    MAYBE_PROFILE("BatchNorm",350);
     MAYBE_FREE_EVENT;
   }
 
@@ -981,7 +1020,7 @@ struct MatMulLayer {
 
     );
     CHECK_ERR(err);
-    MAYBE_PROFILE("PLAINMATMUL",250);
+    MAYBE_PROFILE("PLAINMATMUL",200);
     MAYBE_FREE_EVENT;
   }
 
@@ -2494,7 +2533,7 @@ bool NeuralNet::testEvaluateConv(
   cl_mem convWorkspace = createReadWriteBuffer(handle, convWorkspaceElts);
   cl_mem convWorkspace2 = createReadWriteBuffer(handle, convWorkspaceElts);
 
-  cl_mem output = clCreateBuffer(handle->clContext, CL_MEM_WRITE_ONLY, byteSizeofVectorContents(outputBuffer), NULL, &err);
+  cl_mem output = clCreateBuffer(handle->clContext, CL_MEM_READ_WRITE, byteSizeofVectorContents(outputBuffer), NULL, &err);
   CHECK_ERR(err);
   layer->apply(handle, batchSize, input, output, convWorkspace, convWorkspace2);
 

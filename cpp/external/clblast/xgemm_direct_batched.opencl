@@ -117,15 +117,18 @@ void XgemmDirectBatchedTT(const int kSizeM, const int kSizeN, const int kSizeK,
 // Direct version of the strided-batched GEMM kernel with [A, B] = [non-transposed, non-transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectStridedBatchedNN(const int kSizeM, const int kSizeN, const int kSizeK,
-                                 const real_arg arg_alpha, const real_arg arg_beta,
-                                 const __global realMD* restrict agm, const int a_offset, const int a_ld, const int a_stride,
-                                 const __global realND* restrict bgm, const int b_offset, const int b_ld, const int b_stride,
-                                 __global real* cgm, const int c_offset, const int c_ld, const int c_stride,
-                                 const int c_transpose, const int a_conjugate, const int b_conjugate) {
+                                 const __global realMD* restrict agm, const int a_ld, const int a_stride,
+                                 const __global realND* restrict bgm, const int b_ld, const int b_stride,
+                                 __global real* cgm, const int c_ld, const int c_stride,
+                                 const int c_transpose) {
   const int batch = get_group_id(2);
-  const int a_offset_batch = a_offset + a_stride * batch;
-  const int b_offset_batch = b_offset + b_stride * batch;
-  const int c_offset_batch = c_offset + c_stride * batch;
+  const real_arg arg_alpha = 1;
+  const real_arg arg_beta = 0;
+  const int a_offset_batch = a_stride * batch;
+  const int b_offset_batch = b_stride * batch;
+  const int c_offset_batch = c_stride * batch;
+  const int a_conjugate = 0;
+  const int b_conjugate = 0;
   __local real alm[WGD * (WGD + PADA)];
   __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
@@ -136,15 +139,18 @@ void XgemmDirectStridedBatchedNN(const int kSizeM, const int kSizeN, const int k
 // Direct version of the strided-batched GEMM kernel with [A, B] = [non-transposed, transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectStridedBatchedNT(const int kSizeM, const int kSizeN, const int kSizeK,
-                                 const real_arg arg_alpha, const real_arg arg_beta,
-                                 const __global realMD* restrict agm, const int a_offset, const int a_ld, const int a_stride,
-                                 const __global realND* restrict bgm, const int b_offset, const int b_ld, const int b_stride,
-                                 __global real* cgm, const int c_offset, const int c_ld, const int c_stride,
-                                 const int c_transpose, const int a_conjugate, const int b_conjugate) {
+                                 const __global realMD* restrict agm, const int a_ld, const int a_stride,
+                                 const __global realND* restrict bgm, const int b_ld, const int b_stride,
+                                 __global real* cgm, const int c_ld, const int c_stride,
+                                 const int c_transpose) {
   const int batch = get_group_id(2);
-  const int a_offset_batch = a_offset + a_stride * batch;
-  const int b_offset_batch = b_offset + b_stride * batch;
-  const int c_offset_batch = c_offset + c_stride * batch;
+  const real_arg arg_alpha = 1;
+  const real_arg arg_beta = 0;
+  const int a_offset_batch = a_stride * batch;
+  const int b_offset_batch = b_stride * batch;
+  const int c_offset_batch = c_stride * batch;
+  const int a_conjugate = 0;
+  const int b_conjugate = 0;
   __local real alm[WGD * (WGD + PADA)];
   __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
@@ -155,15 +161,18 @@ void XgemmDirectStridedBatchedNT(const int kSizeM, const int kSizeN, const int k
 // Direct version of the strided-batched GEMM kernel with [A, B] = [transposed, non-transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectStridedBatchedTN(const int kSizeM, const int kSizeN, const int kSizeK,
-                                 const real_arg arg_alpha, const real_arg arg_beta,
-                                 const __global realMD* restrict agm, const int a_offset, const int a_ld, const int a_stride,
-                                 const __global realND* restrict bgm, const int b_offset, const int b_ld, const int b_stride,
-                                 __global real* cgm, const int c_offset, const int c_ld, const int c_stride,
-                                 const int c_transpose, const int a_conjugate, const int b_conjugate) {
+                                 const __global realMD* restrict agm, const int a_ld, const int a_stride,
+                                 const __global realND* restrict bgm, const int b_ld, const int b_stride,
+                                 __global real* cgm, const int c_ld, const int c_stride,
+                                 const int c_transpose) {
   const int batch = get_group_id(2);
-  const int a_offset_batch = a_offset + a_stride * batch;
-  const int b_offset_batch = b_offset + b_stride * batch;
-  const int c_offset_batch = c_offset + c_stride * batch;
+  const real_arg arg_alpha = 1;
+  const real_arg arg_beta = 0;
+  const int a_offset_batch = a_stride * batch;
+  const int b_offset_batch = b_stride * batch;
+  const int c_offset_batch = c_stride * batch;
+  const int a_conjugate = 0;
+  const int b_conjugate = 0;
   __local real alm[WGD * (WGD + PADA)];
   __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
@@ -174,15 +183,18 @@ void XgemmDirectStridedBatchedTN(const int kSizeM, const int kSizeN, const int k
 // Direct version of the strided-batched GEMM kernel with [A, B] = [transposed, transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectStridedBatchedTT(const int kSizeM, const int kSizeN, const int kSizeK,
-                                 const real_arg arg_alpha, const real_arg arg_beta,
-                                 const __global realMD* restrict agm, const int a_offset, const int a_ld, const int a_stride,
-                                 const __global realND* restrict bgm, const int b_offset, const int b_ld, const int b_stride,
-                                 __global real* cgm, const int c_offset, const int c_ld, const int c_stride,
-                                 const int c_transpose, const int a_conjugate, const int b_conjugate) {
+                                 const __global realMD* restrict agm, const int a_ld, const int a_stride,
+                                 const __global realND* restrict bgm, const int b_ld, const int b_stride,
+                                 __global real* cgm, const int c_ld, const int c_stride,
+                                 const int c_transpose) {
   const int batch = get_group_id(2);
-  const int a_offset_batch = a_offset + a_stride * batch;
-  const int b_offset_batch = b_offset + b_stride * batch;
-  const int c_offset_batch = c_offset + c_stride * batch;
+  const real_arg arg_alpha = 1;
+  const real_arg arg_beta = 0;
+  const int a_offset_batch = a_stride * batch;
+  const int b_offset_batch = b_stride * batch;
+  const int c_offset_batch = c_stride * batch;
+  const int a_conjugate = 0;
+  const int b_conjugate = 0;
   __local real alm[WGD * (WGD + PADA)];
   __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
