@@ -3465,16 +3465,16 @@ bool NeuralNet::testEvaluateSymmetry(
   mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numFloats, deviceInput, useFP16);
   mallocOnDevice("deviceInputScratch", numFloats, deviceInputScratch, useFP16);
 
-  if(!usingFP16) {
+  if(!useFP16) {
     bool inverse = false;
-    if(inputsUsingNHWC)
+    if(useNHWC)
       applySymmetriesNHWC<float>(symmetriesBuffer, inverse, batchSize, numChannels, xSize, ySize, (float*)deviceInput, (float*)deviceInputScratch);
     else
       applySymmetriesNCHW<float>(symmetriesBuffer, inverse, batchSize, numChannels, xSize, ySize, (float*)deviceInput, (float*)deviceInputScratch);
   }
   else {
     bool inverse = false;
-    if(inputsUsingNHWC)
+    if(useNHWC)
       applySymmetriesNHWC<half>(symmetriesBuffer, inverse, batchSize, numChannels, xSize, ySize, (half*)deviceInput, (half*)deviceInputScratch);
     else
       applySymmetriesNCHW<half>(symmetriesBuffer, inverse, batchSize, numChannels, xSize, ySize, (half*)deviceInput, (half*)deviceInputScratch);

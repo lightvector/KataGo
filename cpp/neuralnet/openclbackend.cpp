@@ -16,7 +16,7 @@ using namespace OpenCLHelpers;
 //#define DEBUG_INTERMEDIATE_VALUES
 
 //Define this to try profiling some kernels
-#define PROFILE_KERNELS
+//#define PROFILE_KERNELS
 
 #ifdef PROFILE_KERNELS
 #define MAYBE_EVENT cl_event event
