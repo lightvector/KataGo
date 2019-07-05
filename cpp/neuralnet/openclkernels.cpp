@@ -369,27 +369,32 @@ __kernel void addPointWise(
 )%%";
 
 string OpenCLKernels::sumChannelsNCHW = R"%%(
+//Defines:
+//XYSTRIDE - power of two parallelism stride for reduction, should be get_local_size(0)
+//CHANNELSTRIDE - stride for channels, should be get_local_size(1)
+//LOCALSIZE_TOTAL - should be get_local_size(0) * get_local_size(1) * get_local_size(2)
+
+//PRECONDIION: Kernel is being run where get_num_groups(0) == 1, so that global id and local id are identical for dim 0
+
 __kernel void sumChannelsNCHW(
   __global float* input,  //N, c, HW
   __global float* output, //N, c
-  __local float* partialSums, //size = get_local_size(0) * get_local_size(1) * get_local_size(2)
   int nSize,
   int cSize,
   int xySize
 ) {
-  //PRECONDIION: Kernel is being run where get_num_groups(0) == 1, so that global id and local id are identical for dim 0
   const int xyBase = get_local_id(0);
-  const int xyStride = get_local_size(0);
   const int c = get_global_id(1);
   const int n = get_global_id(2);
   const int localId1 = get_local_id(1);
-  const int localSize1 = get_local_size(1);
   const int localId2 = get_local_id(2);
+
+  __local float partialSums[LOCALSIZE_TOTAL];
 
   float sum = 0.0f;
   if(n < nSize && c < cSize) {
     //Sum up the elements that this group member is responsible for
-    for(int xy = xyBase; xy < xySize; xy += xyStride) {
+    for(int xy = xyBase; xy < xySize; xy += XYSTRIDE) {
       int idx = (n * cSize + c) * xySize + xy;
       float v = input[idx];
       sum += v;
@@ -397,11 +402,11 @@ __kernel void sumChannelsNCHW(
   }
 
   //Write to local memory for performing the reduction
-  int localIdx = (localId2 * localSize1 + localId1) * xyStride + xyBase;
+  int localIdx = (localId2 * CHANNELSTRIDE + localId1) * XYSTRIDE + xyBase;
   partialSums[localIdx] = sum;
 
   //Parallel folding downward
-  for(int span = xyStride / 2; span > 0; span /= 2) {
+  for(int span = XYSTRIDE / 2; span > 0; span /= 2) {
     barrier(CLK_LOCAL_MEM_FENCE);
 
     if(xyBase < span) {
@@ -420,30 +425,35 @@ __kernel void sumChannelsNCHW(
 
 
 string OpenCLKernels::gPoolChannelsNCHW = R"%%(
+//Defines:
+//XYSTRIDE - power of two parallelism stride for reduction, should be get_local_size(0)
+//CHANNELSTRIDE - stride for channels, should be get_local_size(1)
+//LOCALSIZE_TOTAL - should be get_local_size(0) * get_local_size(1) * get_local_size(2)
+
+//PRECONDIION: Kernel is being run where get_num_groups(0) == 1, so that global id and local id are identical for dim 0
+
 __kernel void gPoolChannelsNCHW(
   __global float* input,  //N, c, HW
   __global float* output, //N, c
   __global float* maskSums, //N
-  __local float* partialSums, //size = get_local_size(0) * get_local_size(1) * get_local_size(2)
-  __local float* partialMaxes, //size = get_local_size(0) * get_local_size(1) * get_local_size(2)
   int nSize,
   int cSize,
   int xySize
 ) {
-  //PRECONDIION: Kernel is being run where get_num_groups(0) == 1, so that global id and local id are identical for dim 0
   const int xyBase = get_local_id(0);
-  const int xyStride = get_local_size(0);
   const int c = get_global_id(1);
   const int n = get_global_id(2);
   const int localId1 = get_local_id(1);
-  const int localSize1 = get_local_size(1);
   const int localId2 = get_local_id(2);
+
+  __local float partialSums[LOCALSIZE_TOTAL];
+  __local float partialMaxes[LOCALSIZE_TOTAL];
 
   float sum = 0.0f;
   float max = 0.0f;
   if(n < nSize && c < cSize) {
     //Sum up the elements that this group member is responsible for
-    for(int xy = xyBase; xy < xySize; xy += xyStride) {
+    for(int xy = xyBase; xy < xySize; xy += XYSTRIDE) {
       int idx = (n * cSize + c) * xySize + xy;
       float v = input[idx];
       sum += v;
@@ -452,12 +462,12 @@ __kernel void gPoolChannelsNCHW(
   }
 
   //Write to local memory for performing the reduction
-  int localIdx = (localId2 * localSize1 + localId1) * xyStride + xyBase;
+  int localIdx = (localId2 * CHANNELSTRIDE + localId1) * XYSTRIDE + xyBase;
   partialSums[localIdx] = sum;
   partialMaxes[localIdx] = max;
 
   //Parallel folding downward
-  for(int span = xyStride / 2; span > 0; span /= 2) {
+  for(int span = XYSTRIDE / 2; span > 0; span /= 2) {
     barrier(CLK_LOCAL_MEM_FENCE);
 
     if(xyBase < span) {
@@ -484,28 +494,33 @@ __kernel void gPoolChannelsNCHW(
 )%%";
 
 string OpenCLKernels::valueHeadPoolChannelsNCHW = R"%%(
+//Defines:
+//XYSTRIDE - power of two parallelism stride for reduction, should be get_local_size(0)
+//CHANNELSTRIDE - stride for channels, should be get_local_size(1)
+//LOCALSIZE_TOTAL - should be get_local_size(0) * get_local_size(1) * get_local_size(2)
+
+//PRECONDIION: Kernel is being run where get_num_groups(0) == 1, so that global id and local id are identical for dim 0
+
 __kernel void valueHeadPoolChannelsNCHW(
   __global float* input,  //N, c, HW
   __global float* output, //N, c
   __global float* maskSums, //N
-  __local float* partialSums, //size = get_local_size(0) * get_local_size(1) * get_local_size(2)
   int nSize,
   int cSize,
   int xySize
 ) {
-  //PRECONDIION: Kernel is being run where get_num_groups(0) == 1, so that global id and local id are identical for dim 0
   const int xyBase = get_local_id(0);
-  const int xyStride = get_local_size(0);
   const int c = get_global_id(1);
   const int n = get_global_id(2);
   const int localId1 = get_local_id(1);
-  const int localSize1 = get_local_size(1);
   const int localId2 = get_local_id(2);
+
+  __local float partialSums[LOCALSIZE_TOTAL];
 
   float sum = 0.0f;
   if(n < nSize && c < cSize) {
     //Sum up the elements that this group member is responsible for
-    for(int xy = xyBase; xy < xySize; xy += xyStride) {
+    for(int xy = xyBase; xy < xySize; xy += XYSTRIDE) {
       int idx = (n * cSize + c) * xySize + xy;
       float v = input[idx];
       sum += v;
@@ -513,11 +528,11 @@ __kernel void valueHeadPoolChannelsNCHW(
   }
 
   //Write to local memory for performing the reduction
-  int localIdx = (localId2 * localSize1 + localId1) * xyStride + xyBase;
+  int localIdx = (localId2 * CHANNELSTRIDE + localId1) * XYSTRIDE + xyBase;
   partialSums[localIdx] = sum;
 
   //Parallel folding downward
-  for(int span = xyStride / 2; span > 0; span /= 2) {
+  for(int span = XYSTRIDE / 2; span > 0; span /= 2) {
     barrier(CLK_LOCAL_MEM_FENCE);
 
     if(xyBase < span) {

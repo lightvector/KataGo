@@ -99,6 +99,36 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
+  cl_int performGPool(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    int batchSize, int gpoolChannels, int nnXYLen,
+    cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum,
+    cl_event* eventBuf
+  );
+
+  cl_int performValueHeadPool(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    int batchSize, int gpoolChannels, int nnXYLen,
+    cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum,
+    cl_event* eventBuf
+  );
+
+  cl_int computeMaskSums(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    cl_mem mask,
+    cl_mem maskSum,
+    int batchSize,
+    int nnXLen,
+    int nnYLen,
+    cl_event* eventBuf
+  );
+
 }
 
 

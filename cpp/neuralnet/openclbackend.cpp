@@ -142,9 +142,18 @@ struct ComputeContext {
     scaleBiasMaskNCHWProgram = compileProgram("scaleBiasMaskNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskNCHW, "");
     scaleBiasMaskReluNCHWProgram = compileProgram("scaleBiasMaskReluNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskReluNCHW, "");
     addPointWiseProgram = compileProgram("addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise, "");
-    sumChannelsNCHWProgram = compileProgram("sumChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::sumChannelsNCHW, "");
-    gPoolChannelsNCHWProgram = compileProgram("gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW, "");
-    valueHeadPoolChannelsNCHWProgram = compileProgram("valueHeadPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::valueHeadPoolChannelsNCHW, "");
+    sumChannelsNCHWProgram = compileProgram(
+      "sumChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::sumChannelsNCHW,
+      tuneParams.gPool.compileOptions()
+    );
+    gPoolChannelsNCHWProgram = compileProgram(
+      "gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW,
+      tuneParams.gPool.compileOptions()
+    );
+    valueHeadPoolChannelsNCHWProgram = compileProgram(
+      "valueHeadPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::valueHeadPoolChannelsNCHW,
+      tuneParams.gPool.compileOptions()
+    );
     addChannelBiasesNCHWProgram = compileProgram("addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW, "");
     addCBiasesNCProgram = compileProgram("addCBiasesNCProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNC, "");
     addCBiasesNCReluProgram = compileProgram("addCBiasesNCReluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCRelu, "");
@@ -341,7 +350,7 @@ static void addChannelBiases(ComputeHandleInternal* handle, cl_mem src, cl_mem b
   cl_int err;
   static constexpr int nKernelDims = 2;
   size_t globalSizes[nKernelDims] = {powerOf2ify(nnXYLen),powerOf2ify(ncSize)};
-  size_t* localSizes = NULL; //TODO actually pick these
+  size_t* localSizes = NULL;
 
   cl_kernel kernel = handle->addChannelBiasesNCHWKernel;
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&src);
@@ -367,7 +376,7 @@ static void addPointWise(ComputeHandleInternal* handle, cl_mem acc, cl_mem value
   cl_int err;
   static constexpr int nKernelDims = 1;
   size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
-  size_t* localSizes = NULL; //TODO actually pick these
+  size_t* localSizes = NULL;
   MAYBE_EVENT;
   err = clEnqueueNDRangeKernel(
     handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
@@ -379,24 +388,14 @@ static void addPointWise(ComputeHandleInternal* handle, cl_mem acc, cl_mem value
 
 static void performGPool(ComputeHandleInternal* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum) {
   cl_int err;
-  static constexpr int nKernelDims = 3;
-  //TODO optimize/tune, dehardcode numbers
-  size_t globalSizes[nKernelDims] = {32,powerOf2ify(gpoolChannels),powerOf2ify(batchSize)};
-  size_t localSizes[nKernelDims] = {32,std::min((size_t)8,globalSizes[1]),1};
-
-  cl_kernel kernel = handle->gPoolChannelsNCHWKernel;
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolConvOut);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
-  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSum);
-  clSetKernelArg(kernel, 3, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
-  clSetKernelArg(kernel, 4, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
-  clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
-  clSetKernelArg(kernel, 6, sizeof(int), (void *)&gpoolChannels);
-  clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXYLen);
-
   MAYBE_EVENT;
-  err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+  err = OpenCLHelpers::performGPool(
+    handle->gPoolChannelsNCHWKernel,
+    handle->commandQueue,
+    handle->computeContext->tuneParams,
+    batchSize, gpoolChannels, nnXYLen,
+    gpoolConvOut, gpoolConcat, maskSum,
+    MAYBE_EVENTREF
   );
   CHECK_ERR(err);
   MAYBE_PROFILE("PerformGPool",50);
@@ -405,23 +404,14 @@ static void performGPool(ComputeHandleInternal* handle, int batchSize, int gpool
 
 static void performValueHeadPool(ComputeHandleInternal* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum) {
   cl_int err;
-  static constexpr int nKernelDims = 3;
-  //TODO optimize/tune, dehardcode numbers
-  size_t globalSizes[nKernelDims] = {32,powerOf2ify(gpoolChannels),powerOf2ify(batchSize)};
-  size_t localSizes[nKernelDims] = {32,std::min((size_t)8,globalSizes[1]),1};
-
-  cl_kernel kernel = handle->valueHeadPoolChannelsNCHWKernel;
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolConvOut);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
-  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSum);
-  clSetKernelArg(kernel, 3, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
-  clSetKernelArg(kernel, 4, sizeof(int), (void *)&batchSize);
-  clSetKernelArg(kernel, 5, sizeof(int), (void *)&gpoolChannels);
-  clSetKernelArg(kernel, 6, sizeof(int), (void *)&nnXYLen);
-
   MAYBE_EVENT;
-  err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+  err = OpenCLHelpers::performValueHeadPool(
+    handle->valueHeadPoolChannelsNCHWKernel,
+    handle->commandQueue,
+    handle->computeContext->tuneParams,
+    batchSize, gpoolChannels, nnXYLen,
+    gpoolConvOut, gpoolConcat, maskSum,
+    MAYBE_EVENTREF
   );
   CHECK_ERR(err);
   MAYBE_PROFILE("PerformVHPool",30);
@@ -462,7 +452,7 @@ static void doMirror(ComputeHandleInternal* handle, int batchSize, int mSize, in
   cl_int err;
   static constexpr int nKernelDims = 3;
   size_t globalSizes[nKernelDims] = {powerOf2ify(subSize),powerOf2ify(mSize),powerOf2ify(batchSize)};
-  size_t* localSizes = NULL; //TODO actually pick these
+  size_t* localSizes = NULL;
 
   cl_kernel kernel = handle->mirrorKernel;
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
@@ -694,7 +684,6 @@ struct ConvLayer {
   }
 
   size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
-    //TODO do we need this?
     static const size_t roundSizeNeeded = 1;
     return
       roundUpToMultiple(numTilesX * numTilesY * maxBatchSize, roundSizeNeeded) *
@@ -787,7 +776,7 @@ struct ConvLayer {
       clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&filter);
       clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&output);
 
-      //TODO
+      //TODO throw this all away and just use winograd entirely
       static const size_t TILE_XSIZE = 32;
       static const size_t TILE_YSIZE = 4;
       static const size_t TILE_CHANNELS = 4;
@@ -803,7 +792,6 @@ struct ConvLayer {
       clSetKernelArg(kernel, 10, sizeof(int), (void *)&convXRadius);
       clSetKernelArg(kernel, 11, sizeof(int), (void *)&convYRadius);
 
-      //TODO
       static const int workPerThreadX = 1;
       static const int workPerThreadY = 1;
       size_t localSizes[nKernelDims];
@@ -903,7 +891,7 @@ struct BatchNormLayer {
     clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXYLen);
 
     cl_int err;
-    size_t* localSizes = NULL; //TODO actually pick these
+    size_t* localSizes = NULL; //TODO actually pick these with tuning? Or fuse with conv untransform?
     MAYBE_EVENT;
     err = clEnqueueNDRangeKernel(
       handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
@@ -1021,7 +1009,7 @@ struct MatBiasLayer {
     cl_int err;
     static constexpr int nKernelDims = 2;
     size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)numChannels), powerOf2ify((size_t)batchSize)};
-    size_t* localSizes = NULL; //TODO actually pick these
+    size_t* localSizes = NULL;
     MAYBE_EVENT;
     err = clEnqueueNDRangeKernel(
       handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
@@ -1694,24 +1682,17 @@ static void computeMaskSums(
   int nnYLen
 ) {
   cl_int err;
-  static constexpr int nKernelDims = 3;
-  //TODO optimize/tune, dehardcode numbers
-  size_t globalSizes[nKernelDims] = {32,1,powerOf2ify(batchSize)};
-  size_t localSizes[nKernelDims] = {32,1,std::min((size_t)8,powerOf2ify(batchSize))};
-
-  cl_kernel kernel = handle->sumChannelsNCHWKernel;
-  int numChannels = 1;
-  int nnXYLen = nnXLen * nnYLen;
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mask);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&maskSum);
-  clSetKernelArg(kernel, 2, sizeof(float) * localSizes[0] * localSizes[1] * localSizes[2], NULL);
-  clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
-  clSetKernelArg(kernel, 4, sizeof(int), (void *)&numChannels);
-  clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnXYLen);
-
   MAYBE_EVENT;
-  err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+  err = OpenCLHelpers::computeMaskSums(
+    handle->sumChannelsNCHWKernel,
+    handle->commandQueue,
+    handle->computeContext->tuneParams,
+    mask,
+    maskSum,
+    batchSize,
+    nnXLen,
+    nnYLen,
+    MAYBE_EVENTREF
   );
   CHECK_ERR(err);
   MAYBE_PROFILE("MaskSums",30);
@@ -1861,7 +1842,7 @@ struct Model {
       cl_int err;
       static constexpr int nKernelDims = 2;
       size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)nnXYLen), powerOf2ify((size_t)batchSize)};
-      size_t* localSizes = NULL; //TODO actually pick these
+      size_t* localSizes = NULL;
       MAYBE_EVENT;
       err = clEnqueueNDRangeKernel(
         handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF

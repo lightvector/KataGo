@@ -9,7 +9,6 @@ void Setup::initializeSession(ConfigParser& cfg) {
   NeuralNet::globalInitialize();
 }
 
-//TODO allow the same config to specify differing cuda and opencl options
 vector<NNEvaluator*> Setup::initializeNNEvaluators(
   const vector<string>& nnModelNames,
   const vector<string>& nnModelFiles,

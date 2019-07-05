@@ -179,8 +179,43 @@ bool OpenCLTuneParams::Conv3x3Params::isValid() const {
   return false;
 }
 
+string OpenCLTuneParams::GPoolParams::desc() const {
+  string s;
+  s += "XYSTRIDE=" + Global::intToString(XYSTRIDE);
+  s += " CHANNELSTRIDE=" + Global::intToString(CHANNELSTRIDE);
+  s += " BATCHSTRIDE=" + Global::intToString(BATCHSTRIDE);
+  return s;
+}
+string OpenCLTuneParams::GPoolParams::compileOptions() const {
+  string s;
+  s += "-DXYSTRIDE=" + Global::intToString(XYSTRIDE);
+  s += " -DCHANNELSTRIDE=" + Global::intToString(CHANNELSTRIDE);
+  s += " -DBATCHSTRIDE=" + Global::intToString(BATCHSTRIDE);
+  s += " -DLOCALSIZE_TOTAL=" + Global::intToString(XYSTRIDE * CHANNELSTRIDE * BATCHSTRIDE);
+  return s;
+}
+void OpenCLTuneParams::GPoolParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  XYSTRIDE = getInt(kvs,"XYSTRIDE",XYSTRIDE);
+  CHANNELSTRIDE = getInt(kvs,"CHANNELSTRIDE",CHANNELSTRIDE);
+  BATCHSTRIDE = getInt(kvs,"BATCHSTRIDE",BATCHSTRIDE);
+}
+bool OpenCLTuneParams::GPoolParams::isValid() const {
+  if(XYSTRIDE <= 0) return false;
+  if(CHANNELSTRIDE <= 0) return false;
+  if(BATCHSTRIDE <= 0) return false;
+
+  //Must be power of 2
+  if((XYSTRIDE & (XYSTRIDE-1)) != 0) return false;
+
+  if(XYSTRIDE * CHANNELSTRIDE * BATCHSTRIDE > 1024) return false;
+
+  return true;
+}
+
+
 bool OpenCLTuneParams::isValid() const {
-  return xGemmDirect.isValid() && conv3x3.isValid();
+  return xGemmDirect.isValid() && conv3x3.isValid() && gPool.isValid();
 }
 
 bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
@@ -189,8 +224,8 @@ bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
   return std::memcmp(this,&other,sizeof(OpenCLTuneParams)) == 0;
 }
 
-static const char* TUNEPARAMS_VERSION_LINE = "VERSION=2";
 
+static const char* TUNEPARAMS_VERSION_LINE = "VERSION=3";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out(filename);
   if(out.fail())
@@ -200,9 +235,12 @@ void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& conf
   out << config.xGemmDirect.desc() << "\n";
   out << "#conv3x3" << "\n";
   out << config.conv3x3.desc() << "\n";
+  out << "#gPool" << "\n";
+  out << config.gPool.desc() << "\n";
   out.flush();
   out.close();
 }
+
 
 OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   vector<string> lines = Global::readFileLines(filename, '\n');
@@ -217,15 +255,22 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
     throw IOError("OpenCLTuneParams::load: no params in file " + filename);
   if(filteredLines[0] != TUNEPARAMS_VERSION_LINE)
     throw IOError("OpenCLTuneParams::load: expected first line to be " + string(TUNEPARAMS_VERSION_LINE) + " in " + filename);
-  if(filteredLines.size() != 3)
+  if(filteredLines.size() != 4)
     throw IOError("OpenCLTuneParams::load: unexpected number of parameter lines in file " + filename);
 
   OpenCLTuneParams config;
   config.xGemmDirect.fillFromDesc(filename,filteredLines[1]);
   config.conv3x3.fillFromDesc(filename,filteredLines[2]);
+  config.gPool.fillFromDesc(filename,filteredLines[3]);
   return config;
 }
 
+static cl_mem constantReadOnlyBuffer(cl_context context, int numFloats, float constant) {
+  vector<float> buf(numFloats);
+  for(int i = 0; i<numFloats; i++)
+    buf[i] = constant;
+  return createReadOnlyBuffer(context,buf);
+}
 static cl_mem randomReadOnlyBuffer(const char* seed, cl_context context, int numFloats, double scale) {
   vector<float> buf(numFloats);
   Rand rand(seed);
@@ -467,7 +512,7 @@ void OpenCLTuner::tune(
       cl_mem output = createReadWriteBuffer(context, outputNumFloats);
 
       OpenCLTuneAccums accums;
-      const int reps = 4;
+      const int reps = 10;
       for(int i = 0; i<reps; i++) {
         int inChannels;
         double weight;
@@ -477,6 +522,12 @@ void OpenCLTuner::tune(
         case 1: inChannels = model->trunk.trunkNumChannels; weight = 1; break;
         case 2: inChannels = model->trunk.midNumChannels; weight = 1; break;
         case 3: inChannels = maxChannels; weight = 1; break;
+        case 4: inChannels = model->trunk.trunkNumChannels; weight = 1; break;
+        case 5: inChannels = model->trunk.midNumChannels; weight = 1; break;
+        case 6: inChannels = maxChannels; weight = 1; break;
+        case 7: inChannels = model->trunk.trunkNumChannels; weight = 1; break;
+        case 8: inChannels = model->trunk.midNumChannels; weight = 1; break;
+        case 9: inChannels = maxChannels; weight = 1; break;
         default: ASSERT_UNREACHABLE; break;
         }
 
@@ -581,7 +632,7 @@ void OpenCLTuner::tune(
       cl_mem output = createReadWriteBuffer(context, outputNumFloats);
 
       OpenCLTuneAccums accums;
-      const int reps = 4;
+      const int reps = 10;
       for(int i = 0; i<reps; i++) {
         int outChannels;
         double weight;
@@ -591,6 +642,12 @@ void OpenCLTuner::tune(
         case 1: outChannels = model->trunk.trunkNumChannels; weight = 1; break;
         case 2: outChannels = model->trunk.midNumChannels; weight = 1; break;
         case 3: outChannels = maxChannels; weight = 1; break;
+        case 4: outChannels = model->trunk.trunkNumChannels; weight = 1; break;
+        case 5: outChannels = model->trunk.midNumChannels; weight = 1; break;
+        case 6: outChannels = maxChannels; weight = 1; break;
+        case 7: outChannels = model->trunk.trunkNumChannels; weight = 1; break;
+        case 8: outChannels = model->trunk.midNumChannels; weight = 1; break;
+        case 9: outChannels = maxChannels; weight = 1; break;
         default: ASSERT_UNREACHABLE; break;
         }
 
@@ -637,6 +694,112 @@ void OpenCLTuner::tune(
 
   }
 
+  //=======================================================================================
+  //Tune global pooling strides
+  {
+    out << "------------------------------------------------------" << endl;
+    out << "Tuning global pooling strides" << endl;
+
+    vector<OpenCLTuneParams> configs;
+    configs.push_back(currentConfig);
+
+    auto powersOfTwoUpTo = [](int n) {
+      vector<int> vec;
+      for(int i = 1; i <= n; i *= 2)
+        vec.push_back(i);
+      return vec;
+    };
+
+    int numChannels = model->trunk.gpoolNumChannels;
+    if(full) {
+      addConfigs(configs,SETTER(gPool.XYSTRIDE),{1,2,4,8,16,32,64});
+      addConfigs(configs,SETTER(gPool.CHANNELSTRIDE),powersOfTwoUpTo(std::min(64,numChannels)));
+      addConfigs(configs,SETTER(gPool.BATCHSTRIDE),powersOfTwoUpTo(std::min(4,batchSize)));
+    }
+    else {
+      addConfigs(configs,SETTER(gPool.XYSTRIDE),{1,2,4,8,16,32});
+      addConfigs(configs,SETTER(gPool.CHANNELSTRIDE),powersOfTwoUpTo(std::min(32,numChannels)));
+      addConfigs(configs,SETTER(gPool.BATCHSTRIDE),powersOfTwoUpTo(std::min(4,batchSize)));
+    }
+
+    filterConfigs(configs,ISVALID(gPool));
+    shuffleConfigs(configs);
+    configs.insert(configs.begin(),currentConfig);
+
+    OpenCLTuneParams referenceConfig = currentConfig;
+    referenceConfig.gPool.XYSTRIDE = untunedConfig.gPool.XYSTRIDE;
+    referenceConfig.gPool.CHANNELSTRIDE = untunedConfig.gPool.CHANNELSTRIDE;
+    referenceConfig.gPool.BATCHSTRIDE = untunedConfig.gPool.BATCHSTRIDE;
+
+    auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.gPool.desc(); };
+
+    auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret) {
+      cl_int err;
+      cl_program program = compileProgram(
+        "gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW,
+        cfg.gPool.compileOptions()
+      );
+      cl_kernel kernel = clCreateKernel(program, "gPoolChannelsNCHW", &err);
+      CHECK_ERR(err);
+
+      int inputNumFloats = batchSize * nnXLen * nnYLen * numChannels;
+      int outputNumFloats = batchSize * numChannels * 3;
+
+      cl_mem input = randomReadOnlyBuffer("tuneGPoolInput", context, inputNumFloats, 1.0);
+      cl_mem maskSum = constantReadOnlyBuffer(context, batchSize, (float)(nnXLen*nnYLen));
+      cl_mem output = createReadWriteBuffer(context, outputNumFloats);
+
+      OpenCLTuneAccums accums;
+      const int reps = 20;
+      for(int i = 0; i<reps; i++) {
+        double weight;
+        switch(i) {
+        //Weight 0 on first kernel call to warm up
+        case 0: weight = 0; break;
+        default: weight = 1; break;
+        }
+
+        cl_event event;
+        err = performGPool(
+          kernel,
+          commandQueue,
+          cfg,
+          batchSize, numChannels, nnXLen*nnYLen,
+          input,output,maskSum,
+          &event
+        );
+
+        accums.countResultAndFreeEvent(err,event,weight);
+        if(accums.bad)
+          break;
+      }
+
+      if(accums.bad)
+        ret.assign(outputNumFloats,0.0);
+      else
+        blockingReadBuffer(commandQueue, output, outputNumFloats, ret);
+
+      clReleaseMemObject(input);
+      clReleaseMemObject(maskSum);
+      clReleaseMemObject(output);
+
+      clReleaseKernel(kernel);
+      clReleaseProgram(program);
+
+      return accums;
+    };
+
+    testAllConfigs(
+      configs,
+      currentConfig,
+      referenceConfig,
+      out,
+      std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+      std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
+      handleBestSoFar
+    );
+
+  }
 
   //=======================================================================================
   //Tune xGemmDirect

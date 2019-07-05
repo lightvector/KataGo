@@ -50,6 +50,18 @@ struct OpenCLTuneParams {
   };
   Conv3x3Params conv3x3 = Conv3x3Params();
 
+  struct GPoolParams {
+    int XYSTRIDE = 1;
+    int CHANNELSTRIDE = 1;
+    int BATCHSTRIDE = 1;
+
+    std::string desc() const;
+    std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
+  GPoolParams gPool = GPoolParams();
+
   bool operator==(const OpenCLTuneParams& other) const;
   bool isValid() const;
 

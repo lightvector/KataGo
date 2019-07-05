@@ -230,8 +230,7 @@ DevicesContext::DevicesContext(const vector<int>& gIdxs, Logger* logger, bool en
   CHECK_ERR(err);
 
   for(size_t i = 0; i<gpuIdxsToUse.size(); i++) {
-    //TODO consider CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
-
+    //TODO - someday, maybe consider CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
     cl_command_queue commandQueue;
     if(enableProfiling)
       commandQueue = clCreateCommandQueue(context, deviceIdsToUse[i], CL_QUEUE_PROFILING_ENABLE, &err);
@@ -486,5 +485,114 @@ cl_int OpenCLHelpers::doWinogradUntransform(
   );
   return err;
 }
+
+
+
+cl_int OpenCLHelpers::performGPool(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  int batchSize, int gpoolChannels, int nnXYLen,
+  cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum,
+  cl_event* eventBuf
+) {
+  static constexpr int nKernelDims = 3;
+  size_t localSizes[nKernelDims] = {
+    (size_t)tuneParams.gPool.XYSTRIDE,
+    std::min((size_t)tuneParams.gPool.CHANNELSTRIDE,powerOf2ify(gpoolChannels)),
+    std::min((size_t)tuneParams.gPool.BATCHSTRIDE,powerOf2ify(batchSize))
+  };
+  size_t globalSizes[nKernelDims] = {
+    (size_t)tuneParams.gPool.XYSTRIDE,
+    roundUpToMultiple(gpoolChannels,localSizes[1]),
+    roundUpToMultiple(batchSize,localSizes[2])
+  };
+
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolConvOut);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSum);
+  clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&gpoolChannels);
+  clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnXYLen);
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
+cl_int OpenCLHelpers::performValueHeadPool(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  int batchSize, int gpoolChannels, int nnXYLen,
+  cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum,
+  cl_event* eventBuf
+) {
+  static constexpr int nKernelDims = 3;
+  size_t localSizes[nKernelDims] = {
+    (size_t)tuneParams.gPool.XYSTRIDE,
+    std::min((size_t)tuneParams.gPool.CHANNELSTRIDE,powerOf2ify(gpoolChannels)),
+    std::min((size_t)tuneParams.gPool.BATCHSTRIDE,powerOf2ify(batchSize))
+  };
+  size_t globalSizes[nKernelDims] = {
+    (size_t)tuneParams.gPool.XYSTRIDE,
+    roundUpToMultiple(gpoolChannels,localSizes[1]),
+    roundUpToMultiple(batchSize,localSizes[2])
+  };
+
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolConvOut);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSum);
+  clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&gpoolChannels);
+  clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnXYLen);
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
+cl_int OpenCLHelpers::computeMaskSums(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  cl_mem mask,
+  cl_mem maskSum,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  cl_event* eventBuf
+) {
+  static constexpr int nKernelDims = 3;
+  size_t localSizes[nKernelDims] = {
+    (size_t)tuneParams.gPool.XYSTRIDE,
+    1,
+    std::min((size_t)tuneParams.gPool.BATCHSTRIDE,powerOf2ify(batchSize))
+  };
+  size_t globalSizes[nKernelDims] = {
+    (size_t)tuneParams.gPool.XYSTRIDE,
+    1,
+    roundUpToMultiple(batchSize,localSizes[2])
+  };
+
+  int numChannels = 1;
+  int nnXYLen = nnXLen * nnYLen;
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mask);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&maskSum);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
+  clSetKernelArg(kernel, 3, sizeof(int), (void *)&numChannels);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&nnXYLen);
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
 
 #endif
