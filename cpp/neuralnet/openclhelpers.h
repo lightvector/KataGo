@@ -129,6 +129,15 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
+  cl_int transposeNCHW(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    int batchSize, int cSize, int nnXLen, int nnYLen,
+    cl_mem input, cl_mem output,
+    cl_event* eventBuf
+  );
+
 }
 
 

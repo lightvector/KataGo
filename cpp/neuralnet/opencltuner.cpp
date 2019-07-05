@@ -213,9 +213,44 @@ bool OpenCLTuneParams::GPoolParams::isValid() const {
   return true;
 }
 
+string OpenCLTuneParams::TransposeParams::desc() const {
+  string s;
+  s += "TILEDIM=" + Global::intToString(TILEDIM);
+  s += " TILESTRIDE=" + Global::intToString(TILESTRIDE);
+  s += " NCSTRIDE=" + Global::intToString(NCSTRIDE);
+  return s;
+}
+string OpenCLTuneParams::TransposeParams::compileOptions() const {
+  string s;
+  s += "-DTILEDIM=" + Global::intToString(TILEDIM);
+  s += " -DTILESTRIDE=" + Global::intToString(TILESTRIDE);
+  s += " -DLOCALSIZE=" + Global::intToString(TILEDIM * (TILEDIM+1) * NCSTRIDE);
+  return s;
+}
+void OpenCLTuneParams::TransposeParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  TILEDIM = getInt(kvs,"TILEDIM",TILEDIM);
+  TILESTRIDE = getInt(kvs,"TILESTRIDE",TILESTRIDE);
+  NCSTRIDE = getInt(kvs,"NCSTRIDE",NCSTRIDE);
+}
+bool OpenCLTuneParams::TransposeParams::isValid() const {
+  if(TILEDIM <= 0) return false;
+  if(TILESTRIDE <= 0) return false;
+  if(NCSTRIDE <= 0) return false;
+
+  if(!isMultipleOf(TILEDIM,TILESTRIDE)) return false;
+  if(TILEDIM * TILESTRIDE * NCSTRIDE > 1024) return false;
+
+  //Currently, the kernel actually doesn't support other values
+  if(NCSTRIDE != 1)
+    return false;
+
+  return true;
+}
+
 
 bool OpenCLTuneParams::isValid() const {
-  return xGemmDirect.isValid() && conv3x3.isValid() && gPool.isValid();
+  return xGemmDirect.isValid() && conv3x3.isValid() && gPool.isValid() && transpose.isValid();
 }
 
 bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
@@ -225,7 +260,7 @@ bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
 }
 
 
-static const char* TUNEPARAMS_VERSION_LINE = "VERSION=3";
+static const char* TUNEPARAMS_VERSION_LINE = "VERSION=4";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out(filename);
   if(out.fail())
@@ -237,6 +272,8 @@ void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& conf
   out << config.conv3x3.desc() << "\n";
   out << "#gPool" << "\n";
   out << config.gPool.desc() << "\n";
+  out << "#transpose" << "\n";
+  out << config.transpose.desc() << "\n";
   out.flush();
   out.close();
 }
@@ -255,13 +292,15 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
     throw IOError("OpenCLTuneParams::load: no params in file " + filename);
   if(filteredLines[0] != TUNEPARAMS_VERSION_LINE)
     throw IOError("OpenCLTuneParams::load: expected first line to be " + string(TUNEPARAMS_VERSION_LINE) + " in " + filename);
-  if(filteredLines.size() != 4)
+
+  if(filteredLines.size() != 5)
     throw IOError("OpenCLTuneParams::load: unexpected number of parameter lines in file " + filename);
 
   OpenCLTuneParams config;
   config.xGemmDirect.fillFromDesc(filename,filteredLines[1]);
   config.conv3x3.fillFromDesc(filename,filteredLines[2]);
   config.gPool.fillFromDesc(filename,filteredLines[3]);
+  config.transpose.fillFromDesc(filename,filteredLines[4]);
   return config;
 }
 
@@ -800,6 +839,105 @@ void OpenCLTuner::tune(
     );
 
   }
+
+  //=======================================================================================
+  //Tune transpose strides
+  {
+    out << "------------------------------------------------------" << endl;
+    out << "Tuning transpose strides" << endl;
+
+    vector<OpenCLTuneParams> configs;
+    configs.push_back(currentConfig);
+
+    int numChannels = model->numInputChannels;
+    if(full) {
+      addConfigs(configs,SETTER(transpose.TILEDIM),{1,2,4,8,16,32,64});
+      addConfigs(configs,SETTER(transpose.TILESTRIDE),{1,2,4,8,16,32,64});
+      addConfigs(configs,SETTER(transpose.NCSTRIDE),{1});
+    }
+    else {
+      addConfigs(configs,SETTER(transpose.TILEDIM),{1,2,4,8,16,32});
+      addConfigs(configs,SETTER(transpose.TILESTRIDE),{1,2,4,8,16,32});
+      addConfigs(configs,SETTER(transpose.NCSTRIDE),{1});
+    }
+
+    filterConfigs(configs,ISVALID(transpose));
+    shuffleConfigs(configs);
+    configs.insert(configs.begin(),currentConfig);
+
+    OpenCLTuneParams referenceConfig = currentConfig;
+    referenceConfig.transpose.TILEDIM = untunedConfig.transpose.TILEDIM;
+    referenceConfig.transpose.TILESTRIDE = untunedConfig.transpose.TILESTRIDE;
+    referenceConfig.transpose.NCSTRIDE = untunedConfig.transpose.NCSTRIDE;
+
+    auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.transpose.desc(); };
+
+    auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret) {
+      cl_int err;
+      cl_program program = compileProgram(
+        "transposeNCHWProgram", context, deviceIdsToUse, OpenCLKernels::transposeNCHW,
+        cfg.transpose.compileOptions()
+      );
+      cl_kernel kernel = clCreateKernel(program, "transposeNCHW", &err);
+      CHECK_ERR(err);
+
+      int numFloats = batchSize * nnXLen * nnYLen * numChannels;
+      int outputNumFloats = numFloats;
+
+      cl_mem input = randomReadOnlyBuffer("tuneTransposeInput", context, numFloats, 1.0);
+      cl_mem output = createReadWriteBuffer(context, numFloats);
+
+      OpenCLTuneAccums accums;
+      const int reps = 15;
+      for(int i = 0; i<reps; i++) {
+        double weight;
+        switch(i) {
+        //Weight 0 on first kernel call to warm up
+        case 0: weight = 0; break;
+        default: weight = 1; break;
+        }
+
+        cl_event event;
+        err = transposeNCHW(
+          kernel,
+          commandQueue,
+          cfg,
+          batchSize, numChannels, nnXLen, nnYLen,
+          input, output,
+          &event
+        );
+
+        accums.countResultAndFreeEvent(err,event,weight);
+        if(accums.bad)
+          break;
+      }
+
+      if(accums.bad)
+        ret.assign(outputNumFloats,0.0);
+      else
+        blockingReadBuffer(commandQueue, output, outputNumFloats, ret);
+
+      clReleaseMemObject(input);
+      clReleaseMemObject(output);
+
+      clReleaseKernel(kernel);
+      clReleaseProgram(program);
+
+      return accums;
+    };
+
+    testAllConfigs(
+      configs,
+      currentConfig,
+      referenceConfig,
+      out,
+      std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+      std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
+      handleBestSoFar
+    );
+
+  }
+
 
   //=======================================================================================
   //Tune xGemmDirect

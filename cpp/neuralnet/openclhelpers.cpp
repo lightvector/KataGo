@@ -595,4 +595,41 @@ cl_int OpenCLHelpers::computeMaskSums(
 }
 
 
+cl_int OpenCLHelpers::transposeNCHW(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  int batchSize, int cSize, int nnXLen, int nnYLen,
+  cl_mem input, cl_mem output,
+  cl_event* eventBuf
+) {
+  static constexpr int nKernelDims = 3;
+  int TILEDIM = tuneParams.transpose.TILEDIM;
+  int TILESTRIDE = tuneParams.transpose.TILESTRIDE;
+  size_t localSizes[nKernelDims] = {
+    (size_t)TILEDIM,
+    (size_t)TILESTRIDE,
+    std::min((size_t)tuneParams.transpose.NCSTRIDE,powerOf2ify(batchSize*cSize))
+  };
+  size_t globalSizes[nKernelDims] = {
+    (size_t)(nnXLen+TILEDIM-1)/TILEDIM*localSizes[0],
+    (size_t)(nnYLen+TILEDIM-1)/TILEDIM*localSizes[1],
+    roundUpToMultiple(batchSize*cSize,localSizes[2])
+  };
+
+  int ncLen = batchSize*cSize;
+
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&nnXLen);
+  clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnYLen);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&ncLen);
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
 #endif

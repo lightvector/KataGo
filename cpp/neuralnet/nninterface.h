@@ -175,6 +175,18 @@ namespace NeuralNet {
     std::vector<float>& outputBuffer
   );
 
+  bool testEvaluateSymmetry(
+    int batchSize,
+    int numChannels,
+    int nnXLen,
+    int nnYLen,
+    bool useFP16,
+    bool useNHWC,
+    const bool* symmetries,
+    const std::vector<float>& inputBuffer,
+    std::vector<float>& outputBuffer
+  );
+
 }  // namespace NeuralNet
 
 

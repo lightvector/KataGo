@@ -157,7 +157,10 @@ struct ComputeContext {
     addChannelBiasesNCHWProgram = compileProgram("addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW, "");
     addCBiasesNCProgram = compileProgram("addCBiasesNCProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNC, "");
     addCBiasesNCReluProgram = compileProgram("addCBiasesNCReluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCRelu, "");
-    transposeNCHWProgram = compileProgram("transposeNCHWProgram", context, deviceIdsToUse, OpenCLKernels::transposeNCHW, "");
+    transposeNCHWProgram = compileProgram(
+      "transposeNCHWProgram", context, deviceIdsToUse, OpenCLKernels::transposeNCHW,
+      tuneParams.transpose.compileOptions()
+    );
     mirrorProgram = compileProgram("mirrorProgram", context, deviceIdsToUse, OpenCLKernels::mirror, "");
     extractChannel0NCHWProgram = compileProgram("extractChannel0NCHWProgram", context, deviceIdsToUse, OpenCLKernels::extractChannel0NCHW, "");
     xgemmDirectProgram = compileProgram("xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect, tuneParams.xGemmDirect.compileOptions());
@@ -420,28 +423,15 @@ static void performValueHeadPool(ComputeHandleInternal* handle, int batchSize, i
 
 static void transposeNCHW(ComputeHandleInternal* handle, int batchSize, int cSize, int nnXLen, int nnYLen, cl_mem input, cl_mem output) {
   cl_int err;
-  static constexpr int nKernelDims = 3;
-  //TODO optimize/tune, dehardcode numbers
-  int tileDim = 32;
-  int targetNumThreads = 256;
-  int tileStride = targetNumThreads/tileDim;
-  int ncLen = batchSize*cSize;
-  size_t globalSizes[nKernelDims] = {(size_t)(nnXLen+tileDim-1)/tileDim*tileDim,(size_t)(nnYLen+tileDim-1)/tileDim*tileDim,powerOf2ify(ncLen)};
-  size_t localSizes[nKernelDims] = {(size_t)tileDim,std::min((size_t)8,globalSizes[1]),1};
-
-  cl_kernel kernel = handle->transposeNCHWKernel;
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
-  clSetKernelArg(kernel, 2, sizeof(float) * tileDim * (tileDim+1) * localSizes[2], NULL);
-  clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnXLen);
-  clSetKernelArg(kernel, 4, sizeof(int), (void *)&nnYLen);
-  clSetKernelArg(kernel, 5, sizeof(int), (void *)&tileDim);
-  clSetKernelArg(kernel, 6, sizeof(int), (void *)&tileStride);
-  clSetKernelArg(kernel, 7, sizeof(int), (void *)&ncLen);
-
   MAYBE_EVENT;
-  err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+
+  err = OpenCLHelpers::transposeNCHW(
+    handle->transposeNCHWKernel,
+    handle->commandQueue,
+    handle->computeContext->tuneParams,
+    batchSize, cSize, nnXLen, nnYLen,
+    input, output,
+    MAYBE_EVENTREF
   );
   CHECK_ERR(err);
   MAYBE_PROFILE("TransposeNCHW",30);
@@ -2703,5 +2693,47 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   return true;
 }
 
+bool NeuralNet::testEvaluateSymmetry(
+  int batchSize,
+  int numChannels,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const bool* symmetries,
+  const std::vector<float>& inputBuffer,
+  std::vector<float>& outputBuffer
+) {
+  Logger* logger = NULL;
+  int gpuIdx = 0;
+
+  if(useFP16 != false)
+    return false;
+  if(useNHWC != false)
+    return false;
+
+  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useFP16, useNHWC, useNHWC);
+
+  size_t numFloats = (size_t)batchSize * nnXLen * nnYLen * numChannels;
+  if(numFloats != inputBuffer.size())
+    throw StringError("testEvaluateSymmetry: unexpected input buffer size");
+  outputBuffer.resize(numFloats);
+
+  vector<float> inputTmp = inputBuffer;
+  cl_mem input = createReadWriteBuffer(handle,inputTmp);
+  cl_mem inputScratch = createReadWriteBuffer(handle,numFloats);
+
+  applySymmetriesNCHW(handle, symmetries, false, batchSize, numChannels, nnXLen, nnYLen, input, inputScratch);
+
+  blockingReadBuffer(handle->commandQueue, input, numFloats, outputBuffer);
+
+  clReleaseMemObject(input);
+  clReleaseMemObject(inputScratch);
+  delete handle;
+  freeComputeContext(context);
+
+  return true;
+}
 
 #endif  // USE_OPENCL_BACKEND

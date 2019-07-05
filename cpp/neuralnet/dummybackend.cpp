@@ -234,3 +234,26 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   (void)outputBuffer;
   return false;
 }
+
+bool NeuralNet::testEvaluateSymmetry(
+  int batchSize,
+  int numChannels,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const bool* symmetriesBuffer,
+  const std::vector<float>& inputBuffer,
+  std::vector<float>& outputBuffer
+) {
+  (void)batchSize;
+  (void)numChannels;
+  (void)nnXLen;
+  (void)nnYLen;
+  (void)useFP16;
+  (void)useNHWC;
+  (void)symmetriesBuffer;
+  (void)inputBuffer;
+  (void)outputBuffer;
+  return false;
+}

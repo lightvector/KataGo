@@ -3439,5 +3439,56 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   return true;
 }
 
+bool NeuralNet::testEvaluateSymmetry(
+  int batchSize,
+  int numChannels,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const bool* symmetriesBuffer,
+  const std::vector<float>& inputBuffer,
+  std::vector<float>& outputBuffer
+) {
+  cudaDeviceSynchronize();
+  CudaHandles* cudaHandles = new CudaHandles();
+
+  int xSize = nnXLen;
+  int ySize = nnYLen;
+
+  size_t numFloats = (size_t)batchSize * xSize * ySize * numChannels;
+  if(numFloats != inputBuffer.size())
+    throw StringError("testEvaluateSymmetry: unexpected input buffer size");
+
+  void* deviceInput;
+  void* deviceInputScratch;
+  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numFloats, deviceInput, useFP16);
+  mallocOnDevice("deviceInputScratch", numFloats, deviceInputScratch, useFP16);
+
+  if(!usingFP16) {
+    bool inverse = false;
+    if(inputsUsingNHWC)
+      applySymmetriesNHWC<float>(symmetriesBuffer, inverse, batchSize, numChannels, xSize, ySize, (float*)deviceInput, (float*)deviceInputScratch);
+    else
+      applySymmetriesNCHW<float>(symmetriesBuffer, inverse, batchSize, numChannels, xSize, ySize, (float*)deviceInput, (float*)deviceInputScratch);
+  }
+  else {
+    bool inverse = false;
+    if(inputsUsingNHWC)
+      applySymmetriesNHWC<half>(symmetriesBuffer, inverse, batchSize, numChannels, xSize, ySize, (half*)deviceInput, (half*)deviceInputScratch);
+    else
+      applySymmetriesNCHW<half>(symmetriesBuffer, inverse, batchSize, numChannels, xSize, ySize, (half*)deviceInput, (half*)deviceInputScratch);
+  }
+
+  outputBuffer.resize(numFloats);
+  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numFloats, deviceInput, useFP16);
+
+  cudaFree(deviceInput);
+  cudaFree(deviceInputScratch);
+  delete cudaHandles;
+
+  return true;
+}
+
 
 #endif  // USE_CUDA_BACKEND
