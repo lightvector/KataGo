@@ -108,8 +108,6 @@ struct ComputeContext {
   cl_program scaleBiasMaskNCHWProgram;
   cl_program scaleBiasMaskReluNCHWProgram;
   cl_program addPointWiseProgram;
-  cl_program matMulProgram;
-  cl_program matMulTransBatchedProgram;
   cl_program sumChannelsNCHWProgram;
   cl_program gPoolChannelsNCHWProgram;
   cl_program valueHeadPoolChannelsNCHWProgram;
@@ -144,8 +142,6 @@ struct ComputeContext {
     scaleBiasMaskNCHWProgram = compileProgram("scaleBiasMaskNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskNCHW, "");
     scaleBiasMaskReluNCHWProgram = compileProgram("scaleBiasMaskReluNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskReluNCHW, "");
     addPointWiseProgram = compileProgram("addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise, "");
-    matMulProgram = compileProgram("matMulProgram", context, deviceIdsToUse, OpenCLKernels::matMul, "");
-    matMulTransBatchedProgram = compileProgram("matMulTransBatchedProgram", context, deviceIdsToUse, OpenCLKernels::matMulTransBatched, "");
     sumChannelsNCHWProgram = compileProgram("sumChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::sumChannelsNCHW, "");
     gPoolChannelsNCHWProgram = compileProgram("gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW, "");
     valueHeadPoolChannelsNCHWProgram = compileProgram("valueHeadPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::valueHeadPoolChannelsNCHW, "");
@@ -164,8 +160,6 @@ struct ComputeContext {
     clReleaseProgram(scaleBiasMaskNCHWProgram);
     clReleaseProgram(scaleBiasMaskReluNCHWProgram);
     clReleaseProgram(addPointWiseProgram);
-    clReleaseProgram(matMulProgram);
-    clReleaseProgram(matMulTransBatchedProgram);
     clReleaseProgram(sumChannelsNCHWProgram);
     clReleaseProgram(gPoolChannelsNCHWProgram);
     clReleaseProgram(valueHeadPoolChannelsNCHWProgram);
@@ -232,8 +226,6 @@ struct ComputeHandleInternal {
   cl_kernel scaleBiasMaskNCHWKernel;
   cl_kernel scaleBiasMaskReluNCHWKernel;
   cl_kernel addPointWiseKernel;
-  cl_kernel matMulKernel;
-  cl_kernel matMulTransBatchedKernel;
   cl_kernel sumChannelsNCHWKernel;
   cl_kernel gPoolChannelsNCHWKernel;
   cl_kernel valueHeadPoolChannelsNCHWKernel;
@@ -278,10 +270,6 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     addPointWiseKernel = clCreateKernel(computeContext->addPointWiseProgram, "addPointWise", &err);
     CHECK_ERR(err);
-    matMulKernel = clCreateKernel(computeContext->matMulProgram, "matMul", &err);
-    CHECK_ERR(err);
-    matMulTransBatchedKernel = clCreateKernel(computeContext->matMulTransBatchedProgram, "matMulTransBatched", &err);
-    CHECK_ERR(err);
     sumChannelsNCHWKernel = clCreateKernel(computeContext->sumChannelsNCHWProgram, "sumChannelsNCHW", &err);
     CHECK_ERR(err);
     gPoolChannelsNCHWKernel = clCreateKernel(computeContext->gPoolChannelsNCHWProgram, "gPoolChannelsNCHW", &err);
@@ -320,8 +308,6 @@ struct ComputeHandleInternal {
     clReleaseKernel(scaleBiasMaskNCHWKernel);
     clReleaseKernel(scaleBiasMaskReluNCHWKernel);
     clReleaseKernel(addPointWiseKernel);
-    clReleaseKernel(matMulKernel);
-    clReleaseKernel(matMulTransBatchedKernel);
     clReleaseKernel(sumChannelsNCHWKernel);
     clReleaseKernel(gPoolChannelsNCHWKernel);
     clReleaseKernel(valueHeadPoolChannelsNCHWKernel);

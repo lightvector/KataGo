@@ -368,51 +368,6 @@ __kernel void addPointWise(
 }
 )%%";
 
-
-string OpenCLKernels::matMul = R"%%(
-__kernel void matMul(
-  __global float* input,  //N, ic
-  __global float* weights, //oc, ic
-  __global float* output,  //N, oc
-  int nSize,
-  int icSize,
-  int ocSize
-) {
-  const int oc = get_global_id(0);
-  const int n = get_global_id(1);
-
-  if(n < nSize && oc < ocSize) {
-    float acc = 0.0f;
-    for(int ic = 0; ic < icSize; ic++)
-      acc += input[n * icSize + ic] * weights[oc * icSize + ic];
-    output[n * ocSize + oc] = acc;
-  }
-}
-)%%";
-
-string OpenCLKernels::matMulTransBatched = R"%%(
-__kernel void matMulTransBatched(
-  __global float* input,  //n, ic, a
-  __global float* weights, //n, ic, b
-  __global float* output,  //n, a, b
-  int nSize,
-  int icSize,
-  int aSize,
-  int bSize
-) {
-  const int b = get_global_id(0);
-  const int a = get_global_id(1);
-  const int n = get_global_id(2);
-
-  if(n < nSize && a < aSize && b < bSize) {
-    float acc = 0.0f;
-    for(int ic = 0; ic < icSize; ic++)
-      acc += input[(n * icSize + ic) * aSize + a] * weights[(n * icSize + ic) * bSize + b];
-    output[(n * aSize + a) * bSize + b] = acc;
-  }
-}
-)%%";
-
 string OpenCLKernels::sumChannelsNCHW = R"%%(
 __kernel void sumChannelsNCHW(
   __global float* input,  //N, c, HW
