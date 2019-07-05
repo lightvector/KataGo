@@ -10,10 +10,10 @@
 struct OpenCLTuneParams {
   struct XGemmDirectParams {
     int WGD = 8;
-    int MDIMCD = 8;
-    int NDIMCD = 8;
-    int MDIMAD = 8;
-    int NDIMBD = 8;
+    int MDIMCD = 1;
+    int NDIMCD = 1;
+    int MDIMAD = 1;
+    int NDIMBD = 1;
     int KWID = 1;
     int VWMD = 1;
     int VWND = 1;
@@ -32,7 +32,18 @@ struct OpenCLTuneParams {
     int INTILE_YSIZE = 4;
     int OUTTILE_XSIZE = 2;
     int OUTTILE_YSIZE = 2;
+
+    int transLocalSize0 = 1;
+    int transLocalSize1 = 1;
+    int transLocalSize2 = 1;
+
+    int untransLocalSize0 = 1;
+    int untransLocalSize1 = 1;
+    int untransLocalSize2 = 1;
+
     std::string desc() const;
+    std::string transDesc() const;
+    std::string untransDesc() const;
     std::string compileOptions() const;
     void fillFromDesc(const std::string& fileName, const std::string& desc);
     bool isValid() const;

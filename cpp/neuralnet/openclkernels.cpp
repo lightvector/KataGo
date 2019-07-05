@@ -4,9 +4,6 @@
 
 using namespace std;
 
-//TODO these are all fairly naive implementations just to get things working
-//optimize them or find a library with more optimized implementations
-
 string OpenCLKernels::conv2dNCHW = R"%%(
 
 //Spatial size of tile loaded into local memory, not counting filterRadius
@@ -172,10 +169,9 @@ __kernel void transform(
   const int n = nic / icSize;
   const int ic = nic % icSize;
 
-#define INPUT(_n,_ic,_y,_x) input[(((_n) * icSize + (_ic)) * ySize + (_y)) * xSize + (_x)]
+#define INPUT(_nic,_y,_x) input[((_nic) * ySize + (_y)) * xSize + (_x)]
 #define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
 
-  //TODO bank conflicts on private tiles?
   __private float wTile[INTILE_XSIZE * INTILE_YSIZE];
 
   //Copy input into private tile
@@ -184,8 +180,8 @@ __kernel void transform(
     for(int subX = 0; subX < INTILE_XSIZE; subX++) {
       int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
       float value = 0.0f;
-      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY) {
-        value = INPUT(n,ic,y,x);
+      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY && n < nSize) {
+        value = INPUT(nic,y,x);
       }
       WTILE(subY,subX) = value;
     }
@@ -223,7 +219,7 @@ __kernel void transform(
 
 #define TRANS(_suby,_subx,_ic,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*icSize + (_ic)) * ntxtySize + (_ntile)]
 
-  if(tileX < numTilesX && tileY < numTilesY) {
+  if(tileX < numTilesX && tileY < numTilesY && n < nSize) {
     const int ntxtySize = nSize * numTilesX * numTilesY;
     const int ntile = (n * numTilesY + tileY) * numTilesX + tileX;
 
@@ -258,13 +254,12 @@ __kernel void untransform(
 
 #define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
 #define TRANS(_suby,_subx,_oc,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*ocSize + (_oc)) * ntxtySize + (_ntile)]
-#define OUTPUT(_n,_oc,_y,_x) output[(((_n) * ocSize + (_oc)) * ySize + (_y)) * xSize + (_x)]
+#define OUTPUT(_noc,_y,_x) output[((_noc) * ySize + (_y)) * xSize + (_x)]
 
-  //TODO bank conflicts on private tiles?
   __private float wTile[INTILE_XSIZE * INTILE_YSIZE];
 
   //Copy into private tile
-  if(tileX < numTilesX && tileY < numTilesY) {
+  if(tileX < numTilesX && tileY < numTilesY && n < nSize) {
     for(int subY = 0; subY < INTILE_YSIZE; subY++) {
       for(int subX = 0; subX < INTILE_XSIZE; subX++) {
         WTILE(subY,subX) = TRANS(subY,subX,oc,ntile);
@@ -303,8 +298,8 @@ __kernel void untransform(
     int y = tileY * OUTTILE_YSIZE + subY;
     for(int subX = 0; subX < OUTTILE_XSIZE; subX++) {
       int x = tileX * OUTTILE_XSIZE + subX;
-      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY) {
-        OUTPUT(n,oc,y,x) = WTILE(subY,subX);
+      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY && n < nSize) {
+        OUTPUT(noc,y,x) = WTILE(subY,subX);
       }
     }
   }

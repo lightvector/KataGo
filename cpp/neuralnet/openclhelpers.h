@@ -33,12 +33,15 @@ struct DevicesContext {
 };
 
 namespace OpenCLHelpers {
+  const char* getErrorMessage(cl_int error);
   void checkErrors(cl_int error, const char* file, const char* func, int line);
   cl_program compileProgram(const std::string& name, cl_context context, const std::vector<cl_device_id>& devices, const std::string& str, const std::string& options);
 
   cl_mem createReadOnlyBuffer(cl_context context, std::vector<float>& data);
   cl_mem createReadWriteBuffer(cl_context context, std::vector<float>& data);
   cl_mem createReadWriteBuffer(cl_context context, size_t numFloats);
+
+  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numFloats, std::vector<float>& dstBuf);
 
   size_t powerOf2ify(size_t size);
   size_t roundUpToMultiple(size_t size, size_t ofThis);
@@ -71,6 +74,28 @@ namespace OpenCLHelpers {
     int M, int N, int K,
     cl_mem A, cl_mem B, cl_mem C,
     int numBatchElts,
+    cl_event* eventBuf
+  );
+
+  cl_int doWinogradTransform(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    cl_mem input, cl_mem convWorkspace,
+    int batchSize, int nnXLen, int nnYLen,
+    int numTilesX, int numTilesY,
+    int inChannels,
+    cl_event* eventBuf
+  );
+
+  cl_int doWinogradUntransform(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    cl_mem convWorkspace2, cl_mem output,
+    int batchSize, int nnXLen, int nnYLen,
+    int numTilesX, int numTilesY,
+    int outChannels,
     cl_event* eventBuf
   );
 

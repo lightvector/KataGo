@@ -541,11 +541,8 @@ static void applySymmetriesNCHW(
 
 #ifdef DEBUG_INTERMEDIATE_VALUES
 static void debugPrint2D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize) {
-  cl_int err;
-  vector<float> values(batchSize * cSize);
-  cl_bool blocking = CL_TRUE;
-  err = clEnqueueReadBuffer(handle->commandQueue, deviceBuf, blocking, 0, byteSizeofVectorContents(values), values.data(), 0, NULL, NULL);
-  CHECK_ERR(err);
+  vector<float> values;
+  blockingReadBuffer(handle->commandQueue, deviceBuf, batchSize * cSize, values);
   cout << "=========================================================" << endl;
   cout << name << endl;
   int i = 0;
@@ -560,11 +557,8 @@ static void debugPrint2D(const string& name, ComputeHandleInternal* handle, cl_m
 }
 
 static void debugPrint4D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize, int xSize, int ySize, bool useNHWC) {
-  cl_int err;
-  vector<float> values(batchSize * cSize * xSize * ySize);
-  cl_bool blocking = CL_TRUE;
-  err = clEnqueueReadBuffer(handle->commandQueue, deviceBuf, blocking, 0, byteSizeofVectorContents(values), values.data(), 0, NULL, NULL);
-  CHECK_ERR(err);
+  vector<float> values;
+  blockingReadBuffer(handle->commandQueue, deviceBuf, batchSize * cSize * xSize * ySize, values);
   cout << "=========================================================" << endl;
   cout << name << endl;
   int i = 0;
@@ -640,6 +634,12 @@ struct ConvLayer {
     if(dilationX != 1 || dilationY != 1)
       throw StringError("OpenCL backend: Encountered convolution dilation factors other than 1, not supported");
 
+    //Initial values unless overrided below
+    numTilesX = 0;
+    numTilesY = 0;
+    inTileXYSize = 0;
+    outTileXYSize = 0;
+
     if(convXSize == 1 && convYSize == 1) {
       //ic,oc
       vector<float> transWeights(inChannels * outChannels);
@@ -698,12 +698,6 @@ struct ConvLayer {
       filter = createReadOnlyBuffer(handle,transWeights);
     }
     else {
-      //Unused
-      numTilesX = 0;
-      numTilesY = 0;
-      inTileXYSize = 0;
-      outTileXYSize = 0;
-
       vector<float> weights = desc->weights;
       filter = createReadOnlyBuffer(handle,weights);
     }
@@ -746,27 +740,17 @@ struct ConvLayer {
     else if(convXSize == 3 && convYSize == 3) {
 
       {
-        cl_kernel kernel = handle->winogradConv3x3NCHWTransformKernel;
-        clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
-        clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&convWorkspace);
-        clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
-        clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnXLen);
-        clSetKernelArg(kernel, 4, sizeof(int), (void *)&nnYLen);
-        clSetKernelArg(kernel, 5, sizeof(int), (void *)&numTilesX);
-        clSetKernelArg(kernel, 6, sizeof(int), (void *)&numTilesY);
-        clSetKernelArg(kernel, 7, sizeof(int), (void *)&inChannels);
-
-        size_t* localSizes = NULL; //TODO actually pick these
-
-        size_t globalSizes[nKernelDims];
-        globalSizes[0] = powerOf2ify(numTilesX);
-        globalSizes[1] = powerOf2ify(numTilesY);
-        globalSizes[2] = batchSize * inChannels;
-
         cl_int err;
         MAYBE_EVENT;
-        err = clEnqueueNDRangeKernel(
-          handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+        err = doWinogradTransform(
+          handle->winogradConv3x3NCHWTransformKernel,
+          handle->commandQueue,
+          handle->computeContext->tuneParams,
+          input,convWorkspace,
+          batchSize,nnXLen,nnYLen,
+          numTilesX,numTilesY,
+          inChannels,
+          MAYBE_EVENTREF
         );
         CHECK_ERR(err);
         MAYBE_PROFILE("3x3TRANSFORM",350);
@@ -792,27 +776,17 @@ struct ConvLayer {
       }
 
       {
-        cl_kernel kernel = handle->winogradConv3x3NCHWUntransformKernel;
-        clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&convWorkspace2);
-        clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
-        clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
-        clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnXLen);
-        clSetKernelArg(kernel, 4, sizeof(int), (void *)&nnYLen);
-        clSetKernelArg(kernel, 5, sizeof(int), (void *)&numTilesX);
-        clSetKernelArg(kernel, 6, sizeof(int), (void *)&numTilesY);
-        clSetKernelArg(kernel, 7, sizeof(int), (void *)&outChannels);
-
-        size_t* localSizes = NULL; //TODO actually pick these
-
-        size_t globalSizes[nKernelDims];
-        globalSizes[0] = powerOf2ify(numTilesX);
-        globalSizes[1] = powerOf2ify(numTilesY);
-        globalSizes[2] = batchSize * outChannels;
-
         cl_int err;
         MAYBE_EVENT;
-        err = clEnqueueNDRangeKernel(
-          handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+        err = doWinogradUntransform(
+          handle->winogradConv3x3NCHWUntransformKernel,
+          handle->commandQueue,
+          handle->computeContext->tuneParams,
+          convWorkspace2,output,
+          batchSize,nnXLen,nnYLen,
+          numTilesX,numTilesY,
+          outChannels,
+          MAYBE_EVENTREF
         );
         CHECK_ERR(err);
         MAYBE_PROFILE("3x3UNTRANSFORM",350);
@@ -2537,9 +2511,7 @@ bool NeuralNet::testEvaluateConv(
   CHECK_ERR(err);
   layer->apply(handle, batchSize, input, output, convWorkspace, convWorkspace2);
 
-  cl_bool blocking = CL_TRUE;
-  err = clEnqueueReadBuffer(handle->commandQueue, output, blocking, 0, byteSizeofVectorContents(outputBuffer), outputBuffer.data(), 0, NULL, NULL);
-  CHECK_ERR(err);
+  blockingReadBuffer(handle->commandQueue, output, numOutputFloats, outputBuffer);
 
   clReleaseMemObject(output);
   clReleaseMemObject(convWorkspace);
@@ -2594,9 +2566,7 @@ bool NeuralNet::testEvaluateBatchNorm(
   bool applyRelu = false;
   layer->apply(handle, batchSize, applyRelu, input, output, mask);
 
-  cl_bool blocking = CL_TRUE;
-  err = clEnqueueReadBuffer(handle->commandQueue, output, blocking, 0, byteSizeofVectorContents(outputBuffer), outputBuffer.data(), 0, NULL, NULL);
-  CHECK_ERR(err);
+  blockingReadBuffer(handle->commandQueue, output, numOutputFloats, outputBuffer);
 
   clReleaseMemObject(input);
   clReleaseMemObject(mask);
@@ -2620,7 +2590,6 @@ bool NeuralNet::testEvaluateResidualBlock(
   std::vector<float>& outputBuffer
 ) {
   Logger* logger = NULL;
-  cl_int err;
   int gpuIdx = 0;
 
   if(useFP16 != false)
@@ -2656,9 +2625,7 @@ bool NeuralNet::testEvaluateResidualBlock(
 
   layer->apply(handle, batchSize, trunk, trunkScratch, mid, midScratch, mask, convWorkspace, convWorkspace2);
 
-  cl_bool blocking = CL_TRUE;
-  err = clEnqueueReadBuffer(handle->commandQueue, trunk, blocking, 0, byteSizeofVectorContents(outputBuffer), outputBuffer.data(), 0, NULL, NULL);
-  CHECK_ERR(err);
+  blockingReadBuffer(handle->commandQueue, trunk, numTrunkFloats, outputBuffer);
 
   clReleaseMemObject(trunk);
   clReleaseMemObject(mask);
@@ -2686,7 +2653,6 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   std::vector<float>& outputBuffer
 ) {
   Logger* logger = NULL;
-  cl_int err;
   int gpuIdx = 0;
 
   if(useFP16 != false)
@@ -2749,9 +2715,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
     convWorkspace2
   );
 
-  cl_bool blocking = CL_TRUE;
-  err = clEnqueueReadBuffer(handle->commandQueue, trunk, blocking, 0, byteSizeofVectorContents(outputBuffer), outputBuffer.data(), 0, NULL, NULL);
-  CHECK_ERR(err);
+  blockingReadBuffer(handle->commandQueue, trunk, numTrunkFloats, outputBuffer);
 
   clReleaseMemObject(trunk);
   clReleaseMemObject(mask);
