@@ -98,9 +98,7 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
 
 //---------------------------------------------------------------------------------------------------------
 
-struct ComputeContext {
-  DevicesContext devicesContext;
-
+struct CompiledPrograms {
   OpenCLTuneParams tuneParams;
 
   cl_program conv2dNCHWProgram;
@@ -119,18 +117,7 @@ struct ComputeContext {
   cl_program extractChannel0NCHWProgram;
   cl_program xgemmDirectProgram;
 
-#ifdef PROFILE_KERNELS
-  static constexpr bool liveProfilingKernels = true;
-#else
-  static constexpr bool liveProfilingKernels = false;
-#endif
-
-  ComputeContext(const vector<int>& gIdxs, Logger* logger, const OpenCLTuneParams& tParams)
-    : devicesContext(gIdxs,logger,liveProfilingKernels)
-  {
-    const cl_context& context = devicesContext.context;
-    const std::vector<cl_device_id>& deviceIdsToUse = devicesContext.deviceIdsToUse;
-
+  CompiledPrograms(const cl_context& context, const vector<cl_device_id>& deviceIdsToUse, const OpenCLTuneParams& tParams) {
     tuneParams = tParams;
 
     conv2dNCHWProgram = compileProgram("conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHW, "");
@@ -166,7 +153,7 @@ struct ComputeContext {
     xgemmDirectProgram = compileProgram("xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect, tuneParams.xGemmDirect.compileOptions());
   }
 
-  ~ComputeContext() {
+  ~CompiledPrograms() {
     clReleaseProgram(conv2dNCHWProgram);
     clReleaseProgram(winogradConv3x3NCHWProgram);
     clReleaseProgram(scaleBiasMaskNCHWProgram);
@@ -184,6 +171,49 @@ struct ComputeContext {
     clReleaseProgram(xgemmDirectProgram);
   }
 
+  CompiledPrograms() = delete;
+  CompiledPrograms(const CompiledPrograms&) = delete;
+  CompiledPrograms& operator=(const CompiledPrograms&) = delete;
+};
+
+//---------------------------------------------------------------------------------------------------------
+
+struct ComputeContext {
+  DevicesContext* devicesContext;
+  map<string,CompiledPrograms*> compiledProgramsByDeviceName;
+
+#ifdef PROFILE_KERNELS
+  static constexpr bool liveProfilingKernels = true;
+#else
+  static constexpr bool liveProfilingKernels = false;
+#endif
+
+  ComputeContext(const vector<int>& gIdxs, Logger* logger, std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName) {
+    vector<DeviceInfo> allDeviceInfos = DeviceInfo::getAllDeviceInfosOnSystem(logger);
+    devicesContext = new DevicesContext(allDeviceInfos,gIdxs,liveProfilingKernels);
+
+    for(int i = 0; i<devicesContext->uniqueDeviceNamesToUse.size(); i++) {
+      const string& name = devicesContext->uniqueDeviceNamesToUse[i];
+      vector<InitializedDevice> devicesForName = devicesContext->findDevicesToUseWithName(name);
+      vector<cl_device_id> deviceIdsForName = devicesContext->findDeviceIdsToUseWithName(name);
+      assert(devicesForName.size() > 0);
+      assert(deviceIdsForName.size() > 0);
+
+      //In case we need to autotune, use the 0th device with that name that the user wants us to use
+      OpenCLTuneParams tuneParams = getParamsForDeviceName(name, devicesForName[0].info.gpuIdx);
+      CompiledPrograms* compiledPrograms = new CompiledPrograms(devicesContext->context, deviceIdsForName, tuneParams);
+      compiledProgramsByDeviceName[name] = compiledPrograms;
+    }
+  }
+
+  ~ComputeContext() {
+    for(auto it = compiledProgramsByDeviceName.begin(); it != compiledProgramsByDeviceName.end(); ++it) {
+      CompiledPrograms* compiledPrograms = it->second;
+      delete compiledPrograms;
+    }
+    delete devicesContext;
+  }
+
   ComputeContext() = delete;
   ComputeContext(const ComputeContext&) = delete;
   ComputeContext& operator=(const ComputeContext&) = delete;
@@ -194,8 +224,14 @@ static ComputeContext* createComputeContextForTesting(
   const std::vector<int>& gpuIdxs,
   Logger* logger
 ) {
-  OpenCLTuneParams tuneParams; //Just use default values
-  return new ComputeContext(gpuIdxs,logger,tuneParams);
+  std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName =
+    [](const string& name, int gpuIdxForTuning) {
+    (void)name;
+    (void)gpuIdxForTuning;
+    //Just use default values
+    return OpenCLTuneParams();
+  };
+  return new ComputeContext(gpuIdxs,logger,getParamsForDeviceName);
 }
 
 
@@ -209,13 +245,13 @@ ComputeContext* NeuralNet::createComputeContext(
 ) {
   if(gpuIdxs.size() <= 0)
     throw StringError("NeuralNet::createComputeContext - specified no gpus to use");
-  //TODO maybe we shouldn't make the gpu idx part of the tuning file...?
-  //And just punt on when the user wants to mix devices or gpus of different kinds?
-  //Or maybe it's fine to use gpuIdxs[0] as an indicator of what kind of device they want??
 
-  bool full = false;
-  OpenCLTuneParams tuneParams = OpenCLTuner::loadOrAutoTune(openCLTunerFile,gpuIdxs[0],logger,nnXLen,nnYLen,&(loadedModel->modelDesc),full);
-  return new ComputeContext(gpuIdxs,logger,tuneParams);
+  std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName =
+    [&openCLTunerFile,logger,nnXLen,nnYLen,loadedModel](const string& name, int gpuIdxForTuning) {
+    bool full = false;
+    return OpenCLTuner::loadOrAutoTune(openCLTunerFile,name,gpuIdxForTuning,logger,nnXLen,nnYLen,&(loadedModel->modelDesc),full);
+  };
+  return new ComputeContext(gpuIdxs,logger,getParamsForDeviceName);
 }
 
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
@@ -226,10 +262,10 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 //--------------------------------------------------------------
 
 struct ComputeHandleInternal {
+  ComputeContext* computeContext;
   cl_context clContext;
   cl_command_queue commandQueue;
-
-  ComputeContext* computeContext;
+  OpenCLTuneParams tuneParams;
 
   cl_kernel conv2dNCHWKernel;
 
@@ -264,47 +300,50 @@ struct ComputeHandleInternal {
     if(useFP16 != false)
       throw StringError("OpenCL backend: useFP16 = false required, other configurations not supported");
 
-    clContext = computeContext->devicesContext.context;
-    int which = computeContext->devicesContext.findWhichGpu(gpuIdx);
-    commandQueue = computeContext->devicesContext.commandQueues[which];
+    clContext = computeContext->devicesContext->context;
+    const InitializedDevice& device = computeContext->devicesContext->findGpuExn(gpuIdx);
+    commandQueue = device.commandQueue;
+    CompiledPrograms* progs = computeContext->compiledProgramsByDeviceName[device.info.name];
+    assert(progs != NULL);
+    tuneParams = progs->tuneParams;
 
     cl_int err;
-    conv2dNCHWKernel = clCreateKernel(computeContext->conv2dNCHWProgram, "conv2dNCHW", &err);
+    conv2dNCHWKernel = clCreateKernel(progs->conv2dNCHWProgram, "conv2dNCHW", &err);
     CHECK_ERR(err);
 
-    winogradConv3x3NCHWTransformKernel = clCreateKernel(computeContext->winogradConv3x3NCHWProgram, "transform", &err);
-    winogradConv3x3NCHWUntransformKernel = clCreateKernel(computeContext->winogradConv3x3NCHWProgram, "untransform", &err);
+    winogradConv3x3NCHWTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWProgram, "transform", &err);
+    winogradConv3x3NCHWUntransformKernel = clCreateKernel(progs->winogradConv3x3NCHWProgram, "untransform", &err);
     CHECK_ERR(err);
 
-    scaleBiasMaskNCHWKernel = clCreateKernel(computeContext->scaleBiasMaskNCHWProgram, "scaleBiasMaskNCHW", &err);
+    scaleBiasMaskNCHWKernel = clCreateKernel(progs->scaleBiasMaskNCHWProgram, "scaleBiasMaskNCHW", &err);
     CHECK_ERR(err);
-    scaleBiasMaskReluNCHWKernel = clCreateKernel(computeContext->scaleBiasMaskReluNCHWProgram, "scaleBiasMaskReluNCHW", &err);
+    scaleBiasMaskReluNCHWKernel = clCreateKernel(progs->scaleBiasMaskReluNCHWProgram, "scaleBiasMaskReluNCHW", &err);
     CHECK_ERR(err);
-    addPointWiseKernel = clCreateKernel(computeContext->addPointWiseProgram, "addPointWise", &err);
+    addPointWiseKernel = clCreateKernel(progs->addPointWiseProgram, "addPointWise", &err);
     CHECK_ERR(err);
-    sumChannelsNCHWKernel = clCreateKernel(computeContext->sumChannelsNCHWProgram, "sumChannelsNCHW", &err);
+    sumChannelsNCHWKernel = clCreateKernel(progs->sumChannelsNCHWProgram, "sumChannelsNCHW", &err);
     CHECK_ERR(err);
-    gPoolChannelsNCHWKernel = clCreateKernel(computeContext->gPoolChannelsNCHWProgram, "gPoolChannelsNCHW", &err);
+    gPoolChannelsNCHWKernel = clCreateKernel(progs->gPoolChannelsNCHWProgram, "gPoolChannelsNCHW", &err);
     CHECK_ERR(err);
-    valueHeadPoolChannelsNCHWKernel = clCreateKernel(computeContext->valueHeadPoolChannelsNCHWProgram, "valueHeadPoolChannelsNCHW", &err);
+    valueHeadPoolChannelsNCHWKernel = clCreateKernel(progs->valueHeadPoolChannelsNCHWProgram, "valueHeadPoolChannelsNCHW", &err);
     CHECK_ERR(err);
-    addChannelBiasesNCHWKernel = clCreateKernel(computeContext->addChannelBiasesNCHWProgram, "addChannelBiasesNCHW", &err);
+    addChannelBiasesNCHWKernel = clCreateKernel(progs->addChannelBiasesNCHWProgram, "addChannelBiasesNCHW", &err);
     CHECK_ERR(err);
-    addCBiasesNCKernel = clCreateKernel(computeContext->addCBiasesNCProgram, "addCBiasesNC", &err);
+    addCBiasesNCKernel = clCreateKernel(progs->addCBiasesNCProgram, "addCBiasesNC", &err);
     CHECK_ERR(err);
-    addCBiasesNCReluKernel = clCreateKernel(computeContext->addCBiasesNCReluProgram, "addCBiasesNCRelu", &err);
+    addCBiasesNCReluKernel = clCreateKernel(progs->addCBiasesNCReluProgram, "addCBiasesNCRelu", &err);
     CHECK_ERR(err);
-    transposeNCHWKernel = clCreateKernel(computeContext->transposeNCHWProgram, "transposeNCHW", &err);
+    transposeNCHWKernel = clCreateKernel(progs->transposeNCHWProgram, "transposeNCHW", &err);
     CHECK_ERR(err);
-    mirrorKernel = clCreateKernel(computeContext->mirrorProgram, "mirror", &err);
+    mirrorKernel = clCreateKernel(progs->mirrorProgram, "mirror", &err);
     CHECK_ERR(err);
-    extractChannel0NCHWKernel = clCreateKernel(computeContext->extractChannel0NCHWProgram, "extractChannel0NCHW", &err);
+    extractChannel0NCHWKernel = clCreateKernel(progs->extractChannel0NCHWProgram, "extractChannel0NCHW", &err);
     CHECK_ERR(err);
-    xgemmDirectBatchedNNKernel = clCreateKernel(computeContext->xgemmDirectProgram, "XgemmDirectBatchedNN", &err);
+    xgemmDirectBatchedNNKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectBatchedNN", &err);
     CHECK_ERR(err);
-    xgemmDirectBatchedTTKernel = clCreateKernel(computeContext->xgemmDirectProgram, "XgemmDirectBatchedTT", &err);
+    xgemmDirectBatchedTTKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectBatchedTT", &err);
     CHECK_ERR(err);
-    xgemmDirectStridedBatchedNNKernel = clCreateKernel(computeContext->xgemmDirectProgram, "XgemmDirectStridedBatchedNN", &err);
+    xgemmDirectStridedBatchedNNKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectStridedBatchedNN", &err);
     CHECK_ERR(err);
   }
 
@@ -395,7 +434,7 @@ static void performGPool(ComputeHandleInternal* handle, int batchSize, int gpool
   err = OpenCLHelpers::performGPool(
     handle->gPoolChannelsNCHWKernel,
     handle->commandQueue,
-    handle->computeContext->tuneParams,
+    handle->tuneParams,
     batchSize, gpoolChannels, nnXYLen,
     gpoolConvOut, gpoolConcat, maskSum,
     MAYBE_EVENTREF
@@ -411,7 +450,7 @@ static void performValueHeadPool(ComputeHandleInternal* handle, int batchSize, i
   err = OpenCLHelpers::performValueHeadPool(
     handle->valueHeadPoolChannelsNCHWKernel,
     handle->commandQueue,
-    handle->computeContext->tuneParams,
+    handle->tuneParams,
     batchSize, gpoolChannels, nnXYLen,
     gpoolConvOut, gpoolConcat, maskSum,
     MAYBE_EVENTREF
@@ -428,7 +467,7 @@ static void transposeNCHW(ComputeHandleInternal* handle, int batchSize, int cSiz
   err = OpenCLHelpers::transposeNCHW(
     handle->transposeNCHWKernel,
     handle->commandQueue,
-    handle->computeContext->tuneParams,
+    handle->tuneParams,
     batchSize, cSize, nnXLen, nnYLen,
     input, output,
     MAYBE_EVENTREF
@@ -617,10 +656,10 @@ struct ConvLayer {
       filter = createReadOnlyBuffer(handle,transWeights);
     }
     else if(convXSize == 3 && convYSize == 3) {
-      int inTileXSize = handle->computeContext->tuneParams.conv3x3.INTILE_XSIZE;
-      int inTileYSize = handle->computeContext->tuneParams.conv3x3.INTILE_YSIZE;
-      int outTileXSize = handle->computeContext->tuneParams.conv3x3.OUTTILE_XSIZE;
-      int outTileYSize = handle->computeContext->tuneParams.conv3x3.OUTTILE_YSIZE;
+      int inTileXSize = handle->tuneParams.conv3x3.INTILE_XSIZE;
+      int inTileYSize = handle->tuneParams.conv3x3.INTILE_YSIZE;
+      int outTileXSize = handle->tuneParams.conv3x3.OUTTILE_XSIZE;
+      int outTileYSize = handle->tuneParams.conv3x3.OUTTILE_YSIZE;
 
       numTilesX = (nnXLen + outTileXSize - 1) / outTileXSize;
       numTilesY = (nnYLen + outTileYSize - 1) / outTileYSize;
@@ -691,7 +730,7 @@ struct ConvLayer {
       err = doStridedBatchedXGemm_KM_KN_MN(
         handle->xgemmDirectStridedBatchedNNKernel,
         handle->commandQueue,
-        handle->computeContext->tuneParams,
+        handle->tuneParams,
         outChannels, nnXLen*nnYLen, inChannels,
         filterStride, inputStride, outputStride,
         filter, input, output,
@@ -710,7 +749,7 @@ struct ConvLayer {
         err = doWinogradTransform(
           handle->winogradConv3x3NCHWTransformKernel,
           handle->commandQueue,
-          handle->computeContext->tuneParams,
+          handle->tuneParams,
           input,convWorkspace,
           batchSize,nnXLen,nnYLen,
           numTilesX,numTilesY,
@@ -729,7 +768,7 @@ struct ConvLayer {
         err = doBatchedXGemm_KM_KN_MN(
           handle->xgemmDirectBatchedNNKernel,
           handle->commandQueue,
-          handle->computeContext->tuneParams,
+          handle->tuneParams,
           outChannels, numTilesTotal, inChannels,
           filter, convWorkspace, convWorkspace2,
           inTileXYSize,
@@ -746,7 +785,7 @@ struct ConvLayer {
         err = doWinogradUntransform(
           handle->winogradConv3x3NCHWUntransformKernel,
           handle->commandQueue,
-          handle->computeContext->tuneParams,
+          handle->tuneParams,
           convWorkspace2,output,
           batchSize,nnXLen,nnYLen,
           numTilesX,numTilesY,
@@ -950,7 +989,7 @@ struct MatMulLayer {
     cl_int err = doBatchedXGemm_MK_NK_MN(
       handle->xgemmDirectBatchedTTKernel,
       handle->commandQueue,
-      handle->computeContext->tuneParams,
+      handle->tuneParams,
       batchSize, outChannels, inChannels,
       input, matBuf, output,
       1,
@@ -1676,7 +1715,7 @@ static void computeMaskSums(
   err = OpenCLHelpers::computeMaskSums(
     handle->sumChannelsNCHWKernel,
     handle->commandQueue,
-    handle->computeContext->tuneParams,
+    handle->tuneParams,
     mask,
     maskSum,
     batchSize,

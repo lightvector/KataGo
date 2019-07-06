@@ -6,6 +6,7 @@
 #include "../neuralnet/desc.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/openclincludes.h"
+#include "../neuralnet/openclhelpers.h"
 
 struct OpenCLTuneParams {
   struct XGemmDirectParams {
@@ -89,8 +90,8 @@ namespace OpenCLTuner {
 
   void tune(
     const OpenCLTuneParams& initialConfig,
+    DevicesContext& devicesContext,
     int gpuIdx,
-    Logger* logger,
     int batchSize,
     int nnXLen,
     int nnYLen,
@@ -101,11 +102,12 @@ namespace OpenCLTuner {
   );
 
   std::string defaultDirectory(bool makeDir);
-  std::string defaultFileName(int gpuIdx, int nnXLen, int nnYLen, const ModelDesc* model);
+  std::string defaultFileName(const std::string& gpuName, int nnXLen, int nnYLen, const ModelDesc* model);
 
   OpenCLTuneParams loadOrAutoTune(
     std::string openCLTunerFile,
-    int gpuIdx,
+    const std::string& gpuName,
+    int gpuIdxForTuning,
     Logger* logger,
     int nnXLen,
     int nnYLen,

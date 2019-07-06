@@ -9,27 +9,46 @@
 
 struct OpenCLTuneParams;
 
+struct DeviceInfo {
+  //Indexes whatever order that OpenCL gives us devices, across all platforms.
+  int gpuIdx;
+
+  cl_device_id deviceId;
+  std::string name;
+  std::string vendor;
+
+  static constexpr int MAX_PLATFORMS = 32;
+  static constexpr int MAX_DEVICES = 512;
+  static std::vector<DeviceInfo> getAllDeviceInfosOnSystem(Logger* logger);
+};
+
+struct InitializedDevice {
+  DeviceInfo info;
+  cl_command_queue commandQueue;
+};
+
 //Wrapper around cl_context for sharing initialization code
 struct DevicesContext {
   cl_context context;
-  std::vector<cl_platform_id> platformIds;
-  std::vector<cl_device_id> deviceIds;
-  std::vector<std::string> deviceNames;
-  std::vector<std::string> deviceVendors;
 
-  std::vector<int> gpuIdxsToUse;
-  std::vector<cl_device_id> deviceIdsToUse;
-  std::vector<cl_command_queue> commandQueues;
+  //Filtered and initialized subset of allDeviceInfos
+  std::vector<InitializedDevice> devicesToUse;
+  //All unique names of devices being used
+  std::vector<std::string> uniqueDeviceNamesToUse;
 
-  DevicesContext(const std::vector<int>& gIdxs, Logger* logger, bool enableProfiling);
+  DevicesContext(const std::vector<DeviceInfo>& allDeviceInfos, const std::vector<int>& gpuIdxsToUse, bool enableProfiling);
   ~DevicesContext();
 
   DevicesContext() = delete;
   DevicesContext(const DevicesContext&) = delete;
   DevicesContext& operator=(const DevicesContext&) = delete;
 
-  //Given the gpu identifier from the system, find the index of that gpu for the *ToUse vectors
-  int findWhichGpu(int gpuIdx) const;
+  //Given the gpuIdx, find the initialized device of that GPU. Fails if it was not a gpuIdx provided in
+  //gpuIdxsToUse upon creation of this DevicesContext.
+  const InitializedDevice& findGpuExn(int gpuIdx) const;
+  //Find devices being used with a given name
+  std::vector<InitializedDevice> findDevicesToUseWithName(const std::string& name) const;
+  std::vector<cl_device_id> findDeviceIdsToUseWithName(const std::string& name) const;
 };
 
 namespace OpenCLHelpers {

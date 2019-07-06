@@ -169,30 +169,21 @@ void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem src
   CHECK_ERR(err);
 }
 
-//----------------------------------------------------------------------------------------
-
-
-DevicesContext::DevicesContext(const vector<int>& gIdxs, Logger* logger, bool enableProfiling)
-  : platformIds(32),
-    deviceIds(512),
-    deviceNames(),
-    deviceVendors(),
-    gpuIdxsToUse(gIdxs),
-    deviceIdsToUse(),
-    commandQueues()
-{
+vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
   cl_int err;
   cl_uint numPlatforms;
+  vector<cl_platform_id> platformIds(MAX_PLATFORMS);
   err = clGetPlatformIDs(platformIds.size(), platformIds.data(), &numPlatforms);
   CHECK_ERR(err);
   assert(numPlatforms <= platformIds.size());
   platformIds.resize(numPlatforms);
 
   int numDevicesTotal = 0;
-  for(int i = 0; i<numPlatforms && numDevicesTotal < deviceIds.size(); i++) {
+  vector<cl_device_id> deviceIds(MAX_DEVICES);
+  for(int platformIdx = 0; platformIdx < numPlatforms && numDevicesTotal < deviceIds.size(); platformIdx++) {
     cl_uint numDevices;
     err = clGetDeviceIDs(
-      platformIds[i], CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR, deviceIds.size() - numDevicesTotal,
+      platformIds[platformIdx], CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR, deviceIds.size() - numDevicesTotal,
       deviceIds.data() + numDevicesTotal, &numDevices);
     CHECK_ERR(err);
     assert(numDevices <= deviceIds.size());
@@ -205,25 +196,61 @@ DevicesContext::DevicesContext(const vector<int>& gIdxs, Logger* logger, bool en
   for(int i = 0; i<bufLen; i++)
     buf[i] = '\0';
 
-  for(int i = 0; i<numDevicesTotal; i++) {
+  vector<DeviceInfo> allDeviceInfos;
+  for(int gpuIdx = 0; gpuIdx<numDevicesTotal; gpuIdx++) {
     size_t sizeRet;
-    err = clGetDeviceInfo(deviceIds[i], CL_DEVICE_NAME, bufLen, buf, &sizeRet);
+
+    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_NAME, bufLen, buf, &sizeRet);
+    assert(sizeRet < bufLen-1);
     CHECK_ERR(err);
-    deviceNames.push_back(string(buf));
-    err = clGetDeviceInfo(deviceIds[i], CL_DEVICE_VENDOR, bufLen, buf, &sizeRet);
+    string name = string(buf);
+
+    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_VENDOR, bufLen, buf, &sizeRet);
+    assert(sizeRet < bufLen-1);
     CHECK_ERR(err);
-    deviceVendors.push_back(string(buf));
+    string vendor = string(buf);
+
     if(logger != NULL)
-      logger->write("Found OpenCL Device " + Global::intToString(i) + ": " + deviceNames[i] + " (" + deviceVendors[i] + ")");
+      logger->write("Found OpenCL Device " + Global::intToString(gpuIdx) + ": " + name + " (" + vendor + ")");
+
+    DeviceInfo info;
+    info.gpuIdx = gpuIdx;
+    info.deviceId = deviceIds[gpuIdx];
+    info.name = name;
+    info.vendor = vendor;
+    allDeviceInfos.push_back(info);
   }
 
+  return allDeviceInfos;
+}
+
+//----------------------------------------------------------------------------------------
+
+
+DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const vector<int>& gIdxsToUse, bool enableProfiling)
+  : devicesToUse(),
+    uniqueDeviceNamesToUse()
+{
+  //Sort and ensure no duplicates
+  vector<int> gpuIdxsToUse = gIdxsToUse;
+  std::sort(gpuIdxsToUse.begin(),gpuIdxsToUse.end());
+  for(size_t i = 1; i<gpuIdxsToUse.size(); i++) {
+    if(gpuIdxsToUse[i-1] == gpuIdxsToUse[i])
+      throw StringError("Requested gpuIdx/device more than once: " + Global::intToString(gpuIdxsToUse[i]));
+  }
+
+  vector<cl_device_id> deviceIdsToUse;
   for(size_t i = 0; i<gpuIdxsToUse.size(); i++) {
     int gpuIdx = gpuIdxsToUse[i];
-    if(gpuIdx < 0 || gpuIdx >= numDevicesTotal)
-      throw StringError("Requested gpuIdx/device " + Global::intToString(gpuIdx) + " was not found");
-    deviceIdsToUse.push_back(deviceIds[gpuIdx]);
+    if(gpuIdx < 0 || gpuIdx >= allDeviceInfos.size())
+      throw StringError(
+        "Requested gpuIdx/device " + Global::intToString(gpuIdx) +
+        " was not found, valid devices range from 0 to " + Global::intToString((int)allDeviceInfos.size() - 1)
+      );
+    deviceIdsToUse.push_back(allDeviceInfos[gpuIdx].deviceId);
   }
 
+  cl_int err;
   cl_context_properties* properties = NULL;
   cl_uint numDevicesToUse = (cl_uint)deviceIdsToUse.size();
   context = clCreateContext(properties, numDevicesToUse, deviceIdsToUse.data(), NULL, NULL, &err);
@@ -238,26 +265,53 @@ DevicesContext::DevicesContext(const vector<int>& gIdxs, Logger* logger, bool en
       commandQueue = clCreateCommandQueue(context, deviceIdsToUse[i], 0, &err);
 
     CHECK_ERR(err);
-    commandQueues.push_back(commandQueue);
+    InitializedDevice device;
+    device.info = allDeviceInfos[gpuIdxsToUse[i]];
+    device.commandQueue = commandQueue;
+    devicesToUse.push_back(device);
+  }
+
+  for(size_t i = 0; i<gpuIdxsToUse.size(); i++) {
+    if(contains(uniqueDeviceNamesToUse, devicesToUse[i].info.name))
+      continue;
+    uniqueDeviceNamesToUse.push_back(devicesToUse[i].info.name);
   }
 }
 
 DevicesContext::~DevicesContext() {
-  for(int i = 0; i<commandQueues.size(); i++) {
-    clFlush(commandQueues[i]);
-    clFinish(commandQueues[i]);
-    clReleaseCommandQueue(commandQueues[i]);
+  for(int i = 0; i<devicesToUse.size(); i++) {
+    clFlush(devicesToUse[i].commandQueue);
+    clFinish(devicesToUse[i].commandQueue);
+    clReleaseCommandQueue(devicesToUse[i].commandQueue);
   }
   clReleaseContext(context);
 }
 
-int DevicesContext::findWhichGpu(int gpuIdx) const {
-  for(int i = 0; i<gpuIdxsToUse.size(); i++) {
-    if(gpuIdxsToUse[i] == gpuIdx)
-      return i;
+const InitializedDevice& DevicesContext::findGpuExn(int gpuIdx) const {
+  for(int i = 0; i<devicesToUse.size(); i++) {
+    if(devicesToUse[i].info.gpuIdx == gpuIdx)
+      return devicesToUse[i];
   }
   throw StringError("BUG? Attempted to create ComputeHandle for a gpuIdx that was not part of the DevicesContext: " + Global::intToString(gpuIdx));
 }
+
+vector<InitializedDevice> DevicesContext::findDevicesToUseWithName(const string& name) const {
+  vector<InitializedDevice> devices;
+  for(int i = 0; i<devicesToUse.size(); i++) {
+    if(devicesToUse[i].info.name == name)
+      devices.push_back(devicesToUse[i]);
+  }
+  return devices;
+}
+vector<cl_device_id> DevicesContext::findDeviceIdsToUseWithName(const string& name) const {
+  vector<cl_device_id> deviceIds;
+  for(int i = 0; i<devicesToUse.size(); i++) {
+    if(devicesToUse[i].info.name == name)
+      deviceIds.push_back(devicesToUse[i].info.deviceId);
+  }
+  return deviceIds;
+}
+
 
 //----------------------------------------------------------------------------------------
 
