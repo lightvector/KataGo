@@ -622,10 +622,12 @@ TrunkDesc::~TrunkDesc() {
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
       ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second;
       delete desc;
-    } else if(blocks[i].first == DILATED_BLOCK_KIND) {
+    }
+    else if(blocks[i].first == DILATED_BLOCK_KIND) {
       DilatedResidualBlockDesc* desc = (DilatedResidualBlockDesc*)blocks[i].second;
       delete desc;
-    } else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
       GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second;
       delete desc;
     }
@@ -633,6 +635,21 @@ TrunkDesc::~TrunkDesc() {
 }
 
 TrunkDesc::TrunkDesc(TrunkDesc&& other) {
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second;
+      delete desc;
+    }
+    else if(blocks[i].first == DILATED_BLOCK_KIND) {
+      DilatedResidualBlockDesc* desc = (DilatedResidualBlockDesc*)blocks[i].second;
+      delete desc;
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second;
+      delete desc;
+    }
+  }
+
   name = std::move(other.name);
   version = other.version;
   numBlocks = other.numBlocks;
