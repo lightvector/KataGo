@@ -15,10 +15,18 @@ void NeuralNet::globalCleanup() {
 
 ComputeContext* NeuralNet::createComputeContext(
   const std::vector<int>& gpuIdxs,
-  Logger* logger
+  Logger* logger,
+  int nnXLen,
+  int nnYLen,
+  string openCLTunerFile,
+  const LoadedModel* loadedModel
 ) {
   (void)gpuIdxs;
   (void)logger;
+  (void)nnXLen;
+  (void)nnYLen;
+  (void)openCLTunerFile;
+  (void)loadedModel;
   throw StringError("Dummy neural net backend: NeuralNet::createComputeContext unimplemented");
 }
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
@@ -60,7 +68,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool inputsUseNHWC,
   int gpuIdxForThisThread,
   bool useFP16,
-  bool cudaUseNHWC
+  bool useNHWC
 ) {
   (void)context;
   (void)loadedModel;
@@ -72,7 +80,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   (void)inputsUseNHWC;
   (void)gpuIdxForThisThread;
   (void)useFP16;
-  (void)cudaUseNHWC;
+  (void)useNHWC;
   throw StringError("Dummy neural net backend: NeuralNet::createLocalGpuHandle unimplemented");
 }
 
@@ -223,6 +231,29 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   (void)useNHWC;
   (void)inputBuffer;
   (void)maskBuffer;
+  (void)outputBuffer;
+  return false;
+}
+
+bool NeuralNet::testEvaluateSymmetry(
+  int batchSize,
+  int numChannels,
+  int nnXLen,
+  int nnYLen,
+  bool useFP16,
+  bool useNHWC,
+  const bool* symmetriesBuffer,
+  const std::vector<float>& inputBuffer,
+  std::vector<float>& outputBuffer
+) {
+  (void)batchSize;
+  (void)numChannels;
+  (void)nnXLen;
+  (void)nnYLen;
+  (void)useFP16;
+  (void)useNHWC;
+  (void)symmetriesBuffer;
+  (void)inputBuffer;
   (void)outputBuffer;
   return false;
 }

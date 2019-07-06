@@ -112,6 +112,8 @@ struct ResidualBlockDesc {
   ResidualBlockDesc& operator=(const ResidualBlockDesc&) = delete;
 
   ResidualBlockDesc& operator=(ResidualBlockDesc&& other);
+
+  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
 };
 
 struct DilatedResidualBlockDesc {
@@ -132,6 +134,8 @@ struct DilatedResidualBlockDesc {
   DilatedResidualBlockDesc& operator=(const DilatedResidualBlockDesc&) = delete;
 
   DilatedResidualBlockDesc& operator=(DilatedResidualBlockDesc&& other);
+
+  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
 };
 
 struct GlobalPoolingResidualBlockDesc {
@@ -156,6 +160,8 @@ struct GlobalPoolingResidualBlockDesc {
   GlobalPoolingResidualBlockDesc& operator=(const GlobalPoolingResidualBlockDesc&) = delete;
 
   GlobalPoolingResidualBlockDesc& operator=(GlobalPoolingResidualBlockDesc&& other);
+
+  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
 };
 
 constexpr int ORDINARY_BLOCK_KIND = 0;
@@ -186,6 +192,8 @@ struct TrunkDesc {
   TrunkDesc& operator=(const TrunkDesc&) = delete;
 
   TrunkDesc& operator=(TrunkDesc&& other);
+
+  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
 };
 
 struct PolicyHeadDesc {
@@ -210,6 +218,8 @@ struct PolicyHeadDesc {
   PolicyHeadDesc& operator=(const PolicyHeadDesc&) = delete;
 
   PolicyHeadDesc& operator=(PolicyHeadDesc&& other);
+
+  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
 };
 
 struct ValueHeadDesc {
@@ -236,6 +246,8 @@ struct ValueHeadDesc {
   ValueHeadDesc& operator=(const ValueHeadDesc&) = delete;
 
   ValueHeadDesc& operator=(ValueHeadDesc&& other);
+
+  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
 };
 
 struct ModelDesc {
@@ -262,6 +274,9 @@ struct ModelDesc {
   ModelDesc& operator=(const ModelDesc&) = delete;
 
   ModelDesc& operator=(ModelDesc&& other);
+
+  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  int maxConvChannels(int convXSize, int convYSize) const;
 
   //Loads a model from a file that may or may not be gzipped, storing it in descBuf
   static void loadFromFileMaybeGZipped(const std::string& fileName, ModelDesc& descBuf);

@@ -9,7 +9,7 @@ using namespace TestCommon;
 
 static NNEvaluator* startNNEval(
   const string& modelFile, const string& seed, Logger& logger,
-  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool useFP16
+  int defaultSymmetry, bool inputsUseNHWC, bool useNHWC, bool useFP16
 ) {
   const string& modelName = modelFile;
   vector<int> gpuIdxByServerThread = {0};
@@ -25,6 +25,7 @@ static NNEvaluator* startNNEval(
   bool debugSkipNeuralNet = modelFile == "/dev/null";
   bool alwaysIncludeOwnerMap = false;
   double nnPolicyTemperature = 1.0;
+  const string openCLTunerFile = "";
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
@@ -41,7 +42,8 @@ static NNEvaluator* startNNEval(
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
     alwaysIncludeOwnerMap,
-    nnPolicyTemperature
+    nnPolicyTemperature,
+    openCLTunerFile
   );
   (void)inputsUseNHWC;
 
@@ -56,7 +58,7 @@ static NNEvaluator* startNNEval(
     logger,
     gpuIdxByServerThread,
     useFP16,
-    cudaUseNHWC
+    useNHWC
   );
 
   return nnEval;

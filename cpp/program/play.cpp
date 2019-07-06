@@ -1475,6 +1475,18 @@ FinishedGameData* GameRunner::runGame(
   }
   else {
     gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition);
+
+    bool rulesWereSupported;
+    if(botSpecB.nnEval != NULL) {
+      botSpecB.nnEval->getSupportedRules(hist.rules,rulesWereSupported);
+      if(!rulesWereSupported)
+        logger.write("WARNING: Match is running bot on rules that it does not support: " + botSpecB.botName);
+    }
+    if(botSpecW.nnEval != NULL) {
+      botSpecW.nnEval->getSupportedRules(hist.rules,rulesWereSupported);
+      if(!rulesWereSupported)
+        logger.write("WARNING: Match is running bot on rules that it does not support: " + botSpecW.botName);
+    }
   }
 
   bool clearBotBeforeSearchThisGame = clearBotBeforeSearch;

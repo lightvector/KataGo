@@ -301,6 +301,11 @@ ResidualBlockDesc& ResidualBlockDesc::operator=(ResidualBlockDesc&& other) {
   return *this;
 }
 
+void ResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+  f(regularConv);
+  f(finalConv);
+}
+
 //-----------------------------------------------------------------------------
 
 DilatedResidualBlockDesc::DilatedResidualBlockDesc() {}
@@ -356,6 +361,12 @@ DilatedResidualBlockDesc& DilatedResidualBlockDesc::operator=(DilatedResidualBlo
   midActivation = std::move(other.midActivation);
   finalConv = std::move(other.finalConv);
   return *this;
+}
+
+void DilatedResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+  f(regularConv);
+  f(dilatedConv);
+  f(finalConv);
 }
 
 //-----------------------------------------------------------------------------
@@ -440,6 +451,12 @@ GlobalPoolingResidualBlockDesc& GlobalPoolingResidualBlockDesc::operator=(Global
   midActivation = std::move(other.midActivation);
   finalConv = std::move(other.finalConv);
   return *this;
+}
+
+void GlobalPoolingResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+  f(regularConv);
+  f(gpoolConv);
+  f(finalConv);
 }
 
 //-----------------------------------------------------------------------------
@@ -682,6 +699,22 @@ TrunkDesc& TrunkDesc::operator=(TrunkDesc&& other) {
   return *this;
 }
 
+void TrunkDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+  f(initialConv);
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second;
+      desc->iterConvLayers(f);
+    } else if(blocks[i].first == DILATED_BLOCK_KIND) {
+      DilatedResidualBlockDesc* desc = (DilatedResidualBlockDesc*)blocks[i].second;
+      desc->iterConvLayers(f);
+    } else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second;
+      desc->iterConvLayers(f);
+    }
+  }
+}
+
 //-----------------------------------------------------------------------------
 
 PolicyHeadDesc::PolicyHeadDesc() : version(-1) {}
@@ -785,6 +818,12 @@ PolicyHeadDesc& PolicyHeadDesc::operator=(PolicyHeadDesc&& other) {
   p2Conv = std::move(other.p2Conv);
   gpoolToPassMul = std::move(other.gpoolToPassMul);
   return *this;
+}
+
+void PolicyHeadDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+  f(p1Conv);
+  f(g1Conv);
+  f(p2Conv);
 }
 
 //-----------------------------------------------------------------------------
@@ -912,6 +951,11 @@ ValueHeadDesc& ValueHeadDesc::operator=(ValueHeadDesc&& other) {
   return *this;
 }
 
+void ValueHeadDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+  f(v1Conv);
+  f(vOwnershipConv);
+}
+
 //-----------------------------------------------------------------------------
 
 ModelDesc::ModelDesc()
@@ -933,7 +977,7 @@ ModelDesc::ModelDesc(istream& in) {
   if(version < 0 || version > NNModelVersion::latestModelVersionImplemented)
     throw StringError(name + ": model found unsupported version " + Global::intToString(version));
   if(version < 1)
-    throw StringError("Version 0 neural nets no longer supported in cuda backend");
+    throw StringError("Version 0 neural nets no longer supported");
 
   if(version >= 3) {
     xSizePreV3 = 0;  // Unused, V3 uses posLen instead
@@ -1028,6 +1072,26 @@ ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
   policyHead = std::move(other.policyHead);
   valueHead = std::move(other.valueHead);
   return *this;
+}
+
+void ModelDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+  trunk.iterConvLayers(f);
+  policyHead.iterConvLayers(f);
+  valueHead.iterConvLayers(f);
+}
+
+int ModelDesc::maxConvChannels(int convXSize, int convYSize) const {
+  int c = 0;
+  auto f = [&c,convXSize,convYSize](const ConvLayerDesc& desc) {
+    if(desc.convXSize == convXSize && desc.convYSize == convYSize) {
+      if(desc.inChannels > c)
+        c = desc.inChannels;
+      if(desc.outChannels > c)
+        c = desc.outChannels;
+    }
+  };
+  iterConvLayers(f);
+  return c;
 }
 
 void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& descBuf) {

@@ -9,12 +9,12 @@
 #include "../game/rules.h"
 
 namespace NNPos {
-  const int MAX_BOARD_LEN = Board::MAX_LEN;
-  const int MAX_BOARD_AREA = MAX_BOARD_LEN * MAX_BOARD_LEN;
+  constexpr int MAX_BOARD_LEN = Board::MAX_LEN;
+  constexpr int MAX_BOARD_AREA = MAX_BOARD_LEN * MAX_BOARD_LEN;
   //Policy output adds +1 for the pass move
-  const int MAX_NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
+  constexpr int MAX_NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
   //Extra score distribution radius, used for writing score in data rows and for the neural net score belief output
-  const int EXTRA_SCORE_DISTR_RADIUS = 60;
+  constexpr int EXTRA_SCORE_DISTR_RADIUS = 60;
 
   int xyToPos(int x, int y, int nnXLen);
   int locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen);

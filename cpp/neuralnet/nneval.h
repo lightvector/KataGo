@@ -90,7 +90,8 @@ class NNEvaluator {
     int nnMutexPoolSizePowerofTwo,
     bool debugSkipNeuralNet,
     bool alwaysIncludeOwnerMap,
-    float nnPolicyTemperature
+    float nnPolicyTemperature,
+    std::string openCLTunerFile
   );
   ~NNEvaluator();
 
@@ -134,7 +135,7 @@ class NNEvaluator {
     Logger& logger,
     std::vector<int> gpuIdxByServerThread,
     bool useFP16,
-    bool cudaUseNHWC
+    bool useNHWC
   );
 
   //Kill spawned server threads and join and free them. This function is not threadsafe, and along with spawnServerThreads
@@ -193,7 +194,7 @@ class NNEvaluator {
   //Helper, for internal use only
   void serve(
     NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry,
-    int gpuIdxForThisThread, bool useFP16, bool cudaUseNHWC
+    int gpuIdxForThisThread, bool useFP16, bool useNHWC
   );
 };
 

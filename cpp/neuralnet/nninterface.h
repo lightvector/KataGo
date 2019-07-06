@@ -30,16 +30,6 @@ namespace NeuralNet {
   // Call globalCleanup() at program termination.
   void globalCleanup();
 
-  // Context -------------------------------------------------------------------
-
-  ComputeContext* createComputeContext(
-    //The indices of all gpus that this context will be used for.
-    const std::vector<int>& gpuIdxs,
-    Logger* logger
-  );
-  //A ComputeContext should NOT be freed until all ComputeHandles created using it have also been freed.
-  void freeComputeContext(ComputeContext* computeContext);
-
   // Model I/O -----------------------------------------------------------------
 
   LoadedModel* loadModelFile(const std::string& file, int modelFileIdx);
@@ -50,6 +40,20 @@ namespace NeuralNet {
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
   Rules getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported);
+
+  // Context -------------------------------------------------------------------
+
+  ComputeContext* createComputeContext(
+    //The indices of all gpus that this context will be used for.
+    const std::vector<int>& gpuIdxs,
+    Logger* logger,
+    int nnXLen,
+    int nnYLen,
+    std::string openCLTunerFile,
+    const LoadedModel* loadedModel
+  );
+  //A ComputeContext should NOT be freed until all ComputeHandles created using it have also been freed.
+  void freeComputeContext(ComputeContext* computeContext);
 
   // Compute Handle -----------------------------------------------------------------
 
@@ -70,7 +74,7 @@ namespace NeuralNet {
     bool inputsUseNHWC,
     int gpuIdxForThisThread,
     bool useFP16,
-    bool cudaUseNHWC
+    bool useNHWC
   );
   void freeComputeHandle(ComputeHandle* computeHandle);
 
@@ -168,6 +172,18 @@ namespace NeuralNet {
     bool useNHWC,
     const std::vector<float>& inputBuffer,
     const std::vector<float>& maskBuffer,
+    std::vector<float>& outputBuffer
+  );
+
+  bool testEvaluateSymmetry(
+    int batchSize,
+    int numChannels,
+    int nnXLen,
+    int nnYLen,
+    bool useFP16,
+    bool useNHWC,
+    const bool* symmetries,
+    const std::vector<float>& inputBuffer,
     std::vector<float>& outputBuffer
   );
 

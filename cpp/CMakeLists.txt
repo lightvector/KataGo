@@ -28,12 +28,25 @@ endif()
 if(BUILD_MCTS)
   message("-DBUILD_MCTS=1 is set, building 'main' executable for mcts-backed GTP engine and other tools")
 
+  if((USE_CUDA_BACKEND) AND (USE_OPENCL_BACKEND))
+    message(FATAL_ERROR "Please specify only one of -DUSE_CUDA_BACKEND=1 and -DUSE_OPENCL_BACKEND=1")
+  endif()
+
   if(USE_CUDA_BACKEND)
+    message("-DUSE_CUDA_BACKEND=1 is set, using CUDA backend")
     enable_language(CUDA)
     set(CUDA_STANDARD 11)
     set(NEURALNET_BACKEND_SOURCES neuralnet/cudabackend.cpp neuralnet/cudahelpers.cu)
     set(CMAKE_CUDA_FLAGS
       "-gencode arch=compute_30,code=sm_30 -gencode arch=compute_30,code=compute_30 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_53,code=sm_53 -gencode arch=compute_53,code=compute_53 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_70,code=compute_70"
+      )
+  elseif(USE_OPENCL_BACKEND)
+    message("-DUSE_OPENCL_BACKEND=1 is set, using OpenCL backend")
+    set(NEURALNET_BACKEND_SOURCES
+      neuralnet/openclbackend.cpp
+      neuralnet/openclkernels.cpp
+      neuralnet/openclhelpers.cpp
+      neuralnet/opencltuner.cpp
       )
   else()
     message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. Specify -DUSE_CUDA_BACKEND=1 to compile with CUDA to use neural net.${ColorReset}")
@@ -155,6 +168,7 @@ if(BUILD_MCTS)
     dataio/trainingwrite.cpp
     dataio/loadmodel.cpp
     dataio/lzparse.cpp
+    dataio/homedata.cpp
     neuralnet/nninputs.cpp
     neuralnet/modelversion.cpp
     neuralnet/nneval.cpp
@@ -190,6 +204,7 @@ if(BUILD_MCTS)
     runtests.cpp
     lzcost.cpp
     sandbox.cpp
+    tune.cpp
     main.cpp
     )
 
@@ -199,6 +214,12 @@ if(BUILD_MCTS)
     find_library(CUDNN_LIBRARY libcudnn.so PATHS /usr/local/cuda/lib64 /opt/cuda/lib64)
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
     target_link_libraries(main ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+  elseif(USE_OPENCL_BACKEND)
+    add_definitions(-DUSE_OPENCL_BACKEND)
+    find_package(OpenCL REQUIRED)
+    include_directories(${OpenCL_INCLUDE_DIRS})
+    link_directories(${OpenCL_LIBRARY})
+    target_link_libraries (main ${OpenCL_LIBRARY})
   endif()
 
   if(NO_GIT_REVISION)

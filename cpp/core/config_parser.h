@@ -24,7 +24,8 @@ class ConfigParser {
   ConfigParser& operator=(const ConfigParser& other) = delete;
 
   void warnUnusedKeys(std::ostream& out, Logger* logger) const;
-  
+  void markAllKeysUsedWithPrefix(const std::string& prefix);
+
   std::vector<std::string> unusedKeys() const;
   std::string getFileName() const;
   std::string getContents() const;
