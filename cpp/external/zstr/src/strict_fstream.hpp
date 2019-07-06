@@ -125,7 +125,7 @@ struct static_method_holder
             is_p->peek();
             peek_failed = is_p->fail();
         }
-        catch (std::ios_base::failure e) {}
+        catch (std::ios_base::failure& e) {}
         if (peek_failed)
         {
             throw Exception(std::string("strict_fstream: open('")
