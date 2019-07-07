@@ -175,6 +175,7 @@ struct GTPEngine {
 
   const string nnModelFile;
   const double whiteBonusPerHandicapStone;
+  const int analysisPVLen;
 
   NNEvaluator* nnEval;
   AsyncBot* bot;
@@ -196,9 +197,10 @@ struct GTPEngine {
 
   Player perspective;
 
-  GTPEngine(const string& modelFile, SearchParams initialParams, Rules initialRules, double wBonusPerHandicapStone, Player persp)
+  GTPEngine(const string& modelFile, SearchParams initialParams, Rules initialRules, double wBonusPerHandicapStone, Player persp, int pvLen)
     :nnModelFile(modelFile),
      whiteBonusPerHandicapStone(wBonusPerHandicapStone),
+     analysisPVLen(pvLen),
      nnEval(NULL),
      bot(NULL),
      baseRules(initialRules),
@@ -423,7 +425,7 @@ struct GTPEngine {
            << " ScoreMean " << Global::strprintf("%.1f", expectedScore)
            << " ScoreStdev " << Global::strprintf("%.1f", values.expectedScoreStdev);
       cerr << " PV ";
-      bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, 6);
+      bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, analysisPVLen);
       cerr << endl;
     }
 
@@ -524,7 +526,6 @@ struct GTPEngine {
 
   void analyze(Player pla, bool kata, double secondsPerReport, int minMoves, bool showOwnership) {
 
-    static const int analysisPVLen = 9;
     std::function<void(Search* search)> callback;
 
     //lz-analyze
@@ -716,6 +717,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
+  const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,50) : 9;
 
   bool startupPrintMessageToStderr = true;
   if(cfg.contains("startupPrintMessageToStderr"))
@@ -723,7 +725,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
-  GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone,perspective);
+  GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone,perspective,analysisPVLen);
   engine->setOrResetBoardSize(cfg,logger,seedRand,-1,-1);
 
   //Check for unused config keys
