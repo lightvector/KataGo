@@ -124,6 +124,56 @@ struct ConvLayer {
   }
 };
 
+struct BatchNormLayer {
+  string name;
+  int numChannels;
+  float epsilon;
+  int xSize;
+  int ySize;
+
+  vector<float> mergedScale;
+  vector<float> mergedBias;
+
+  BatchNormLayer() = delete;
+  BatchNormLayer(const BatchNormLayer&) = delete;
+  BatchNormLayer& operator=(const BatchNormLayer&) = delete;
+
+  BatchNormLayer(const BatchNormLayerDesc& desc) {
+    name = desc.name;
+    numChannels = desc.numChannels;
+    epsilon = desc.epsilon;
+
+    mergedScale.resize(numChannels);
+    mergedBias.resize(numChannels);
+    for(int c = 0; c < numChannels; c++) {
+      mergedScale[c] = desc.scale[c] / sqrt(desc.variance[c] + epsilon);
+      mergedBias[c] = desc.bias[c] - mergedScale[c] * desc.mean[c];
+    }
+  }
+
+  ~BatchNormLayer() {}
+
+  // Mask should be in 'NHW' format (no "C" channel).
+  void apply(
+    bool applyRelu,
+    const Tensor<SCALAR, 4>& input,
+    const Tensor<SCALAR, 3>& mask,
+    Tensor<SCALAR, 4>* output) const {
+
+    *output = Tensor<SCALAR, 4>(input.dimension(0), input.dimension(1), input.dimension(2), input.dimension(3));
+    for (int c = 0; c < input.dimension(0); c++) {
+      auto inC = input.chip(c, 0);
+      auto x = inC * mergedScale[c] + mergedBias[c];
+      if (applyRelu) {
+        auto z = Tensor<SCALAR, 3>(mask.dimension(0), mask.dimension(1), mask.dimension(2)).setZero();
+        output->chip(c, 0) = (mask == 1.f).select(x.cwiseMax(0.f), z);
+      } else {
+        auto z = Tensor<SCALAR, 3>(mask.dimension(0), mask.dimension(1), mask.dimension(2)).setZero();
+        output->chip(c, 0) = (mask == 1.f).select(x, z);
+      }
+    }
+  }
+};
 // Model and Buffer I/O ------------------------------------------------------------------------------------------------
 
 struct InputBuffers {
@@ -297,7 +347,7 @@ bool NeuralNet::testEvaluateConv(
     layer.apply(inTensor, &outTensor, false);
 
     outputBuffer.resize(outTensor.size());
-    memcpy(&outputBuffer[0], outTensor.data(), sizeof(float) * outTensor.size());
+    memcpy(&outputBuffer[0], outTensor.data(), sizeof(SCALAR) * outTensor.size());
     return true;
   } else {
     return false;
@@ -315,7 +365,21 @@ bool NeuralNet::testEvaluateBatchNorm(
   const std::vector<float>& inputBuffer,
   const std::vector<float>& maskBuffer,
   std::vector<float>& outputBuffer) {
-  return false;
+  if(useNHWC && !useFP16) {
+    BatchNormLayer layer(*desc);
+    Eigen::TensorMap<const Tensor<SCALAR, 4>> inTensor(
+      (float*)&inputBuffer[0], desc->numChannels, nnXLen, nnYLen, batchSize);
+    Eigen::TensorMap<const Tensor<SCALAR, 3>> maskTensor((float*)&maskBuffer[0], nnXLen, nnYLen, batchSize);
+    Tensor<SCALAR, 4> outTensor;
+
+    layer.apply(false, inTensor, maskTensor, &outTensor);
+
+    outputBuffer.resize(outTensor.size());
+    memcpy(&outputBuffer[0], outTensor.data(), sizeof(SCALAR) * outTensor.size());
+    return true;
+  } else {
+    return false;
+  }
 }
 
 bool NeuralNet::testEvaluateResidualBlock(
