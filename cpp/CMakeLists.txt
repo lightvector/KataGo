@@ -129,7 +129,12 @@ if(BUILD_WRITE)
   endif (HDF5_FOUND)
 
   if(NO_GIT_REVISION)
-    add_definitions(-DNO_GIT_REVISION)
+    add_compile_definitions(NO_GIT_REVISION)
+  endif()
+
+  #Suppress min and max macros on windows
+  if(MSVC)
+    add_compile_definitions(NOMINMAX)
   endif()
 
   # find_package(ZLIB REQUIRED)
@@ -145,7 +150,6 @@ endif()
 if(BUILD_MCTS)
   add_executable(main
     core/global.cpp
-    core/config.cpp
     core/config_parser.cpp
     core/elo.cpp
     core/fancymath.cpp
@@ -209,13 +213,13 @@ if(BUILD_MCTS)
     )
 
   if(USE_CUDA_BACKEND)
-    add_definitions(-DUSE_CUDA_BACKEND)
+    add_compile_definitions(USE_CUDA_BACKEND)
     find_package(CUDA REQUIRED)
     find_library(CUDNN_LIBRARY libcudnn.so PATHS /usr/local/cuda/lib64 /opt/cuda/lib64)
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
     target_link_libraries(main ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
   elseif(USE_OPENCL_BACKEND)
-    add_definitions(-DUSE_OPENCL_BACKEND)
+    add_compile_definitions(USE_OPENCL_BACKEND)
     find_package(OpenCL REQUIRED)
     include_directories(${OpenCL_INCLUDE_DIRS})
     link_directories(${OpenCL_LIBRARY})
@@ -223,7 +227,7 @@ if(BUILD_MCTS)
   endif()
 
   if(NO_GIT_REVISION)
-    add_definitions(-DNO_GIT_REVISION)
+    add_compile_definitions(NO_GIT_REVISION)
   endif()
 
   find_package(ZLIB REQUIRED)
@@ -243,6 +247,15 @@ if(BUILD_MCTS)
     target_link_libraries(main ${TCMALLOC_LIB})
   endif(USE_TCMALLOC)
 
+  #Suppress min and max macros on windows
+  #Also define a few other things for windows
+  if(MSVC)
+    add_compile_definitions(NOMINMAX)
+    add_compile_definitions(BYTE_ORDER=1234)
+    add_compile_definitions(LITTLE_ENDIAN=1234)
+    add_compile_definitions(BIG_ENDIAN=4321)
+  endif()
+
   # On g++ it seems like we need to explicitly link threads as well.
   # It seems sometimes this is implied by other options automatically like when we enable CUDA, but we get link errors
   # if we don't explicitly require threads it when attempting to build without CUDA
@@ -256,7 +269,7 @@ endif()
 
 #------------------------------------------------------------------------------------
 
-# add_definitions(-DNDEBUG)
+# add_compile_definitions(NDEBUG)
 
 if(CMAKE_COMPILER_IS_GNUCC)
   if(USE_TCMALLOC)

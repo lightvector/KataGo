@@ -1,22 +1,28 @@
 #include "../dataio/homedata.h"
-#include "../core/makedir.h"
+#include "../core/os.h"
 
-#if __unix || __APPLE__
+#ifdef OS_IS_UNIX_OR_APPLE
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
 #endif
 
+#include "../core/makedir.h"
+
 using namespace std;
 
+#ifdef OS_IS_WINDOWS
 string HomeData::getHomeDataDir(bool makeDir) {
-  string homeDataDir;
-#if defined(_WIN32) || defined(_WIN64)
   //Just make something inside current directory
-  homeDataDir = "./KataGoData";
+  string homeDataDir = "./KataGoData";
   if(makeDir) MakeDir::make(homeDataDir);
   return homeDataDir;
-#elif __unix || __APPLE__
+}
+#endif
+
+#ifdef OS_IS_UNIX_OR_APPLE
+string HomeData::getHomeDataDir(bool makeDir) {
+  string homeDataDir;
   const char* home =  getenv("HOME");
   if(home != NULL) {
     homeDataDir = string(home) + "/.katago";
@@ -47,8 +53,5 @@ string HomeData::getHomeDataDir(bool makeDir) {
   homeDataDir += "/.katago";
   if(makeDir) MakeDir::make(homeDataDir);
   return homeDataDir;
-
-#else
- #error Unknown OS!
-#endif
 }
+#endif

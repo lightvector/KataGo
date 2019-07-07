@@ -1,8 +1,10 @@
 #ifndef CORE_MULTITHREAD_H_
 #define CORE_MULTITHREAD_H_
 
-#include "../core/config.h"
 #include "../core/global.h"
+
+//Enable multithreading
+#define MULTITHREADING
 
 #ifdef MULTITHREADING
 #include <atomic>

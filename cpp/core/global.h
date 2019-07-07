@@ -9,6 +9,7 @@
 #define CORE_GLOBAL_H_
 
 #include <algorithm>
+#include <cassert>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -16,8 +17,6 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
-
-#include "../core/config.h"
 
 //GLOBAL DEFINES AND FLAGS----------------------------------------------------
 #ifdef __GNUG__  //On g++ only

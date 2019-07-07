@@ -1,19 +1,10 @@
 #include "../core/rand.h"
+#include "../core/os.h"
 
-#ifdef _WIN32
- #define _RAND_IS_WINDOWS
-#elif _WIN64
- #define _RAND_IS_WINDOWS
-#elif __unix || __APPLE__
-  #define _RAND_IS_UNIX
-#else
- #error Unknown OS!
-#endif
-
-#ifdef _RAND_IS_WINDOWS
+#ifdef OS_IS_WINDOWS
   #include <winsock.h>
 #endif
-#ifdef _RAND_IS_UNIX
+#ifdef OS_IS_UNIX_OR_APPLE
   #include <unistd.h>
 #endif
 
@@ -208,7 +199,7 @@ void Rand::init()
 
   //Mix the hostname and pid into the seed so that starting two things on different computers almost certainly
   //pick different seeds.
-#ifdef _RAND_IS_WINDOWS
+#ifdef OS_IS_WINDOWS
   {
     s += "|";
     DWORD processId = GetCurrentProcessId();
@@ -221,7 +212,7 @@ void Rand::init()
       s += string(hostNameBuf);
   }
 #endif
-#ifdef _RAND_IS_UNIX
+#ifdef OS_IS_UNIX_OR_APPLE
   {
     s += "|";
     pid_t processId = getpid();
@@ -284,7 +275,7 @@ void Rand::init(const string& seed)
 double Rand::nextGamma(double a) {
   if(!(a > 0.0))
     throw StringError("Rand::nextGamma: invalid value for a: " + Global::doubleToString(a));
-  
+
   if(a <= 1.0) {
     double r = nextGamma(a + 1.0);
     double inva = 1.0 / a;
@@ -293,7 +284,7 @@ double Rand::nextGamma(double a) {
     double scale = inva == 0.0 ? 1.0 : pow(nextDouble(), inva);
     return r * scale;
   }
-  
+
   double d = a - 1.0/3.0;
   double c = (1.0/3.0) / sqrt(d);
 
@@ -680,7 +671,7 @@ rand.nextLogistic()
     out << "pow(0.5,inf) " << pow(0.5, 1.0 / 0.0) << endl;
     out << "pow(0.5,1e300) " << pow(0.5, 1.0e300) << endl;
     out << "pow(1.0,inf) " << pow(1.0, 1.0 / 0.0) << endl;
-    out << "log(0) " << Global::doubleToString(log(0.0)) << endl;    
+    out << "log(0) " << Global::doubleToString(log(0.0)) << endl;
     out << "tinySubnormal " << Global::strprintf("%.10g",tinySubnormal) << endl;
     out << "tinyNormal " << Global::strprintf("%.10g",tinyNormal) << endl;
     out << "maxDouble " << Global::strprintf("%.10g",maxDouble) << endl;
@@ -886,7 +877,7 @@ inf
 )%%";
     TestCommon::expect(name,out,expected);
   }
-  
+
   {
     const char* name = "Rand moment tests";
 
@@ -984,4 +975,3 @@ Gamma(4.0) expected: Mean 4.000000 Variance 4.000000 Skew 1.000000 ExcessKurt 1.
   }
 
 }
-

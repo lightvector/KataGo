@@ -1,33 +1,16 @@
-#include "timer.h"
+#include "../core/timer.h"
+#include "../core/os.h"
 
 /*
  * timer.cpp
  * Author: David Wu
  */
 
-#ifdef _WIN32
- #define _TIMER_IS_WINDOWS
-#elif _WIN64
- #define _TIMER_IS_WINDOWS
-#elif __unix || __APPLE__
-  #define _TIMER_IS_UNIX
-#else
- #error Unknown OS!
-#endif
-
-#ifdef _TIMER_IS_WINDOWS
-  #include <windows.h>
-#endif
-#ifdef _TIMER_IS_UNIX
-  #include <sys/time.h>
-#endif
-
-#include <stdint.h>
-#include <ctime>
-
 //WINDOWS IMPLMENTATIION-------------------------------------------------------------
 
-#ifdef _TIMER_IS_WINDOWS
+#ifdef OS_IS_WINDOWS
+#include <windows.h>
+#include <ctime>
 
 ClockTimer::ClockTimer()
 {
@@ -59,7 +42,9 @@ int64_t ClockTimer::getPrecisionSystemTime()
 
 //UNIX IMPLEMENTATION------------------------------------------------------------------
 
-#ifdef _TIMER_IS_UNIX
+#ifdef OS_IS_UNIX_OR_APPLE
+#include <sys/time.h>
+#include <ctime>
 
 ClockTimer::ClockTimer()
 {
@@ -94,5 +79,3 @@ int64_t ClockTimer::getPrecisionSystemTime()
 }
 
 #endif
-
-
