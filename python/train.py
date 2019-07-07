@@ -420,7 +420,7 @@ def save_history(global_step_value):
   savepath = os.path.join(traindir,"trainhistory.json")
   savepathtmp = os.path.join(traindir,"trainhistory.json.tmp")
   dump_and_flush_json(trainhistory,savepathtmp)
-  os.rename(savepathtmp,savepath)
+  os.replace(savepathtmp,savepath)
   trainlog("Wrote " + savepath)
 
 
@@ -559,6 +559,7 @@ while True:
     if os.path.exists(savepath):
       trainlog("NOT saving model, already exists at: " + savepath)
     else:
+      os.mkdir(savepathtmp)
       trainlog("SAVING MODEL TO: " + savepath)
       if swa_sub_epoch_scale is not None:
         #Also save non-swa model
@@ -608,6 +609,3 @@ while True:
     for ckpt_part in glob.glob(ckpt_path + "*"):
       print("Copying checkpoint longterm: " + ckpt_part)
       shutil.copy(ckpt_part, longterm_checkpoints_dir)
-
-
-
