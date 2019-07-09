@@ -22,6 +22,15 @@ endif()
 
 #------------------------------------------------------------------------------------
 
+set(BUILD_WRITE 0 CACHE BOOL "Build 'write' executable for neural net training data (deprecated)")
+set(BUILD_MCTS 1 CACHE BOOL "Build 'main' for GTP engine and other tools (you probably want this)")
+set(USE_OPENCL_BACKEND 0 CACHE BOOL "Use OpenCL backend")
+set(USE_CUDA_BACKEND 0 CACHE BOOL "Use CUDA backend")
+set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
+set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
+
+#------------------------------------------------------------------------------------
+
 if(BUILD_WRITE)
   message("-DBUILD_WRITE=1 is set, building 'write' executable for writing neural net training data from sgfs or LZ data files")
 endif()
@@ -137,12 +146,6 @@ if(BUILD_WRITE)
     add_compile_definitions(NOMINMAX)
   endif()
 
-  # find_package(ZLIB REQUIRED)
-  # if(ZLIB_FOUND)
-  #   include_directories(${ZLIB_INCLUDE_DIRS})
-  #   target_link_libraries(write ${ZLIB_LIBRARIES})
-  # endif(ZLIB_FOUND)
-
 endif()
 
 #------------------------------------------------------------------------------------
@@ -237,7 +240,12 @@ if(BUILD_MCTS)
   endif(ZLIB_FOUND)
 
   find_library(LIBZIP_LIBRARY NAMES zip)
-  target_link_libraries(main ${LIBZIP_LIBRARY})
+  if(LIBZIP_LIBRARY STREQUAL "LIBZIP_LIBRARY-NOTFOUND")
+    add_compile_definitions(NO_LIBZIP)
+    message(WARNING "${ColorBoldRed}WARNING: libzip library was NOT found. KataGo should still work for GTP/matches/analysis if everything else is good, but selfplay for writing training data will not be possible.${ColorReset}")
+  else()
+    target_link_libraries(main ${LIBZIP_LIBRARY})
+  endif()
 
   find_package(Boost COMPONENTS system filesystem REQUIRED)
   include_directories(${Boost_INCLUDE_DIRS})
