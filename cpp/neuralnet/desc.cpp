@@ -972,7 +972,7 @@ ModelDesc::ModelDesc(istream& in) {
   in >> name;
   in >> version;
   if(in.fail())
-    throw StringError(name + ": model failed to parse name or version");
+    throw StringError("Model failed to parse name or version. Is this a valid model file?");
 
   if(version < 0 || version > NNModelVersion::latestModelVersionImplemented)
     throw StringError(name + ": model found unsupported version " + Global::intToString(version));
@@ -1096,19 +1096,14 @@ int ModelDesc::maxConvChannels(int convXSize, int convYSize) const {
 
 void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& descBuf) {
   try {
-    //zstr has a bad property of simply aborting the program if the file doesn't exist
-    //So we try to catch this common error by explicitly testing first if the file exists by trying to open it normally
-    //to turn it into a regular C++ exception.
-    {
-      ifstream testIn(fileName);
-      if(!testIn.good())
-        throw StringError("File does not exist or could not be opened: " + fileName);
-    }
     zstr::ifstream in(fileName);
     descBuf = std::move(ModelDesc(in));
   }
   catch(const StringError& e) {
-    throw StringError("Error parsing model file " + fileName + ": " + e.what());
+    throw StringError("Error loading or parsing model file " + fileName + ": " + e.what());
+  }
+  catch(const strict_fstream::Exception& e) {
+    throw StringError("Error loading or parsing model file " + fileName + ": " + e.what());
   }
 }
 
