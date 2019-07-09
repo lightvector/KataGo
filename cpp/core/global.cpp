@@ -12,12 +12,17 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <dirent.h> //TODO this is not portable to windows, use C++17 filesystem library when C++17 is available
 #include <fstream>
 #include <inttypes.h>
 #include <iomanip>
 #include <sstream>
 #include <sys/types.h>
+
+//TODO this is not portable to windows, use C++17 filesystem library when C++17 is available
+//It's also actually not used for anything important, so we can gate this away
+#ifndef NO_DIRENT_H
+#include <dirent.h>
+#endif
 
 #include "global.h"
 
@@ -703,6 +708,14 @@ vector<string> Global::readFileLines(const string& filename, char delimiter)
 
 
 //TODO this is not portable to windows, reimplement with C++17 filesystem library when C++17 is available
+#ifdef NO_DIRENT_H
+void Global::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected) {
+  (void)dirname;
+  (void)fileFilter;
+  (void)collected;
+  throw StringError("collectFiles not implemented due to no dirent.h");
+}
+#else
 void Global::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected)
 {
   DIR *dir;
@@ -728,7 +741,7 @@ void Global::collectFiles(const string& dirname, std::function<bool(const string
   }
   closedir(dir);
 }
-
+#endif
 
 //USER IO----------------------------
 
@@ -737,11 +750,3 @@ void Global::pauseForKey()
   cout << "Press any key to continue..." << endl;
   cin.get();
 }
-
-
-
-
-
-
-
-

@@ -100,6 +100,14 @@ else()
     )
 endif()
 
+include(CheckIncludeFile)
+check_include_file("dirent.h" HAVE_DIRENT)
+if(NOT HAVE_DIRENT)
+  unset(HAVE_DIRENT CACHE)
+  message(WARNING "dirent.h not found, compiling without it (KataGo should still work fine except for some rare dev-only test tools)")
+  add_compile_definitions(NO_DIRENT_H)
+endif()
+
 #------------------------------------------------------------------------------------
 
 if(USE_TCMALLOC)
@@ -138,12 +146,12 @@ if(BUILD_WRITE)
   endif (HDF5_FOUND)
 
   if(NO_GIT_REVISION)
-    add_compile_definitions(NO_GIT_REVISION)
+    target_compile_definitions(write PRIVATE NO_GIT_REVISION)
   endif()
 
   #Suppress min and max macros on windows
   if(MSVC)
-    add_compile_definitions(NOMINMAX)
+    target_compile_definitions(write PRIVATE NOMINMAX)
   endif()
 
 endif()
@@ -216,13 +224,13 @@ if(BUILD_MCTS)
     )
 
   if(USE_CUDA_BACKEND)
-    add_compile_definitions(USE_CUDA_BACKEND)
+    target_compile_definitions(main PRIVATE USE_CUDA_BACKEND)
     find_package(CUDA REQUIRED)
     find_library(CUDNN_LIBRARY libcudnn.so PATHS /usr/local/cuda/lib64 /opt/cuda/lib64)
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
     target_link_libraries(main ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
   elseif(USE_OPENCL_BACKEND)
-    add_compile_definitions(USE_OPENCL_BACKEND)
+    target_compile_definitions(main PRIVATE USE_OPENCL_BACKEND)
     find_package(OpenCL REQUIRED)
     include_directories(${OpenCL_INCLUDE_DIRS})
     link_directories(${OpenCL_LIBRARY})
@@ -230,7 +238,7 @@ if(BUILD_MCTS)
   endif()
 
   if(NO_GIT_REVISION)
-    add_compile_definitions(NO_GIT_REVISION)
+    target_compile_definitions(main PRIVATE NO_GIT_REVISION)
   endif()
 
   find_package(ZLIB REQUIRED)
@@ -240,8 +248,8 @@ if(BUILD_MCTS)
   endif(ZLIB_FOUND)
 
   find_library(LIBZIP_LIBRARY NAMES zip)
-  if(LIBZIP_LIBRARY STREQUAL "LIBZIP_LIBRARY-NOTFOUND")
-    add_compile_definitions(NO_LIBZIP)
+  if(NOT LIBZIP_LIBRARY)
+    target_compile_definitions(main PRIVATE NO_LIBZIP)
     message(WARNING "${ColorBoldRed}WARNING: libzip library was NOT found. KataGo should still work for GTP/matches/analysis if everything else is good, but selfplay for writing training data will not be possible.${ColorReset}")
   else()
     target_link_libraries(main ${LIBZIP_LIBRARY})
@@ -258,10 +266,10 @@ if(BUILD_MCTS)
   #Suppress min and max macros on windows
   #Also define a few other things for windows
   if(MSVC)
-    add_compile_definitions(NOMINMAX)
-    add_compile_definitions(BYTE_ORDER=1234)
-    add_compile_definitions(LITTLE_ENDIAN=1234)
-    add_compile_definitions(BIG_ENDIAN=4321)
+    target_compile_definitions(main PRIVATE NOMINMAX)
+    target_compile_definitions(main PRIVATE BYTE_ORDER=1234)
+    target_compile_definitions(main PRIVATE LITTLE_ENDIAN=1234)
+    target_compile_definitions(main PRIVATE BIG_ENDIAN=4321)
   endif()
 
   # On g++ it seems like we need to explicitly link threads as well.
