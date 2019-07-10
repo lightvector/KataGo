@@ -282,8 +282,13 @@ inline double Rand::nextExponential()
 
 inline double Rand::nextLogistic()
 {
-  double x = nextDouble();
-  return log(x / (1.0 - x));
+  double num = 0.0;
+  double denom = 0.0;
+  while(num <= 0.0 || denom <= 0.0) {
+    num = nextDouble();
+    denom = 1.0 - num;
+  }
+  return log(num / denom);
 }
 
 #endif  // CORE_RAND_H_

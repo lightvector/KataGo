@@ -66,8 +66,12 @@ static double incompleteBetaContinuedFraction(double x, double a, double b) {
 
 //https://en.wikipedia.org/wiki/Beta_function#Incomplete_beta_function
 double FancyMath::incompleteBeta(double x, double a, double b) {
-  if(x < 0.0 || x > 1.0 || a <= 0.0 || b <= 0.0)
+  if(!(x >= 0.0 && x <= 1.0 && a > 0.0 && b > 0.0))
     return NAN;
+  if(x <= 0.0)
+    return 0.0;
+  if(x >= 1.0)
+    return beta(a,b);
   double logx = log(x);
   double logy = log(1-x);
   if(x <= (a+1.0)/(a+b+2.0))
@@ -78,8 +82,12 @@ double FancyMath::incompleteBeta(double x, double a, double b) {
 
 //https://en.wikipedia.org/wiki/Beta_function#Incomplete_beta_function
 double FancyMath::regularizedIncompleteBeta(double x, double a, double b) {
-  if(x < 0.0 || x > 1.0 || a <= 0.0 || b <= 0.0)
+  if(!(x >= 0.0 && x <= 1.0 && a > 0.0 && b > 0.0))
     return NAN;
+  if(x <= 0.0)
+    return 0.0;
+  if(x >= 1.0)
+    return 1.0;
   double logx = log(x);
   double logy = log(1-x);
   if(x <= (a+1.0)/(a+b+2.0))
@@ -92,11 +100,15 @@ static const double PI = 3.1415926535897932384626433832795;
 
 double FancyMath::tdistpdf(double x, double degreesOfFreedom) {
   double v = degreesOfFreedom;
+  if(!(v > 0))
+    return NAN;
   return 1.0 / sqrt(v*PI) / exp(lgamma(v/2.0) - lgamma((v+1.0)/2.0)) / pow(1.0 + x*x/v, (v+1.0)/2.0);
 }
 
 double FancyMath::tdistcdf(double x, double degreesOfFreedom) {
   double v = degreesOfFreedom;
+  if(!(v > 0))
+    return NAN;
   if(x >= 0)
     return 1.0 - regularizedIncompleteBeta(v/(x*x+v), v/2.0, 0.5) / 2.0;
   else
@@ -104,6 +116,12 @@ double FancyMath::tdistcdf(double x, double degreesOfFreedom) {
 }
 
 double FancyMath::betapdf(double x, double a, double b) {
+  if(!(x >= 0.0 && x <= 1.0 && a > 0.0 && b > 0.0))
+    return NAN;
+  if(x == 0.0)
+    return a < 1.0 ? INFINITY : a > 1.0 ? 0.0 : 1.0/beta(a,b);
+  if(x == 1.0)
+    return b < 1.0 ? INFINITY : b > 1.0 ? 0.0 : 1.0/beta(a,b);
   return exp(-logbeta(a,b) + log(x)*(a-1.0) + log(1.0-x)*(b-1.0));
 }
 
@@ -116,6 +134,7 @@ double FancyMath::normToTApprox(double z, double degreesOfFreedom) {
   return sqrt(n * exp(z * z * (n-1.5) / ((n-1) * (n-1))) - n);
 }
 
+//TODO - redo these and similar tests with numeric tolerance
 void FancyMath::runTests() {
   cout << "Running fancy math tests" << endl;
   ostringstream out;
@@ -202,7 +221,7 @@ normToTApprox(8,10000) 8.01301804270852891
 )%%";
     TestCommon::expect(name,out,expected);
   }
-  
+
   {
     const char* name = "Beta tests";
 
@@ -305,11 +324,11 @@ normToTApprox(8,10000) 8.01301804270852891
 
     string expected = R"%%(
 a=1 b=1 uniform
-betapdf(0.00,1,1)-nan
+betapdf(0.00,1,1)1.00000000000000000
 betapdf(0.25,1,1)1.00000000000000000
 betapdf(0.50,1,1)1.00000000000000000
 betapdf(0.75,1,1)1.00000000000000000
-betapdf(1.00,1,1)-nan
+betapdf(1.00,1,1)1.00000000000000000
 betacdf(0.00,1,1)0.00000000000000000
 betacdf(0.25,1,1)0.25000000000000000
 betacdf(0.50,1,1)0.50000000000000000
@@ -320,7 +339,7 @@ betapdf(0.00,2,1)0.00000000000000000
 betapdf(0.25,2,1)0.50000000000000000
 betapdf(0.50,2,1)1.00000000000000000
 betapdf(0.75,2,1)1.50000000000000000
-betapdf(1.00,2,1)-nan
+betapdf(1.00,2,1)2.00000000000000000
 betacdf(0.00,2,1)0.00000000000000000
 betacdf(0.25,2,1)0.06250000000000001
 betacdf(0.50,2,1)0.25000000000000006
@@ -331,7 +350,7 @@ betapdf(0.00,3,1)0.00000000000000000
 betapdf(0.25,3,1)0.18750000000000000
 betapdf(0.50,3,1)0.74999999999999989
 betapdf(0.75,3,1)1.68749999999999978
-betapdf(1.00,3,1)-nan
+betapdf(1.00,3,1)2.99999999999999956
 betacdf(0.00,3,1)0.00000000000000000
 betacdf(0.25,3,1)0.01562500000000001
 betacdf(0.50,3,1)0.12500000000000000

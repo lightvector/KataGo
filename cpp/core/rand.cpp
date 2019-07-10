@@ -298,7 +298,7 @@ double Rand::nextGamma(double a) {
     double xx = x * x;
     if(u < 1.0 - 0.0331 * xx * xx)
       return d * v;
-    if(log(u) < 0.5 * xx + d * (1.0 - v + log(v)))
+    if(u == 0.0 || log(u) < 0.5 * xx + d * (1.0 - v + log(v)))
       return d * v;
   }
 
@@ -668,10 +668,7 @@ rand.nextLogistic()
     double tinySubnormal = 4.9406564584124654e-324;
     double tinyNormal = 2.2250738585072014e-308;
     double maxDouble = 1.7976931348623157e308;
-    out << "pow(0.5,inf) " << pow(0.5, 1.0 / 0.0) << endl;
     out << "pow(0.5,1e300) " << pow(0.5, 1.0e300) << endl;
-    out << "pow(1.0,inf) " << pow(1.0, 1.0 / 0.0) << endl;
-    out << "log(0) " << Global::doubleToString(log(0.0)) << endl;
     out << "tinySubnormal " << Global::strprintf("%.10g",tinySubnormal) << endl;
     out << "tinyNormal " << Global::strprintf("%.10g",tinyNormal) << endl;
     out << "maxDouble " << Global::strprintf("%.10g",maxDouble) << endl;
@@ -698,14 +695,9 @@ rand.nextLogistic()
     for(int i = 0; i<8; i++) out << rand.nextGamma(1e308) << endl;
     out << "rand.nextGamma(maxDouble)" << endl;
     for(int i = 0; i<8; i++) out << rand.nextGamma(maxDouble) << endl;
-    out << "rand.nextGamma(inf)" << endl;
-    for(int i = 0; i<8; i++) out << rand.nextGamma(1.0/0.0) << endl;
 
     string expected = R"%%(
-pow(0.5,inf) 0
 pow(0.5,1e300) 0
-pow(1.0,inf) 1
-log(0) -inf
 tinySubnormal 4.940656458e-324
 tinyNormal 2.225073859e-308
 maxDouble 1.797693135e+308
@@ -865,6 +857,20 @@ rand.nextGamma(maxDouble)
 1.79769e+308
 1.79769e+308
 1.79769e+308
+)%%";
+    TestCommon::expect(name,out,expected);
+
+    if(std::numeric_limits<double>::is_iec559 && std::numeric_limits<double>::has_infinity) {
+      double inf = INFINITY;
+      out << "pow(0.5,inf) " << pow(0.5, inf) << endl;
+      out << "pow(1.0,inf) " << pow(1.0, inf) << endl;
+      out << "log(0) " << Global::doubleToString(log(0.0)) << endl;
+      out << "rand.nextGamma(inf)" << endl;
+      for(int i = 0; i<8; i++) out << rand.nextGamma(inf) << endl;
+      expected = R"%%(
+pow(0.5,inf) 0
+pow(1.0,inf) 1
+log(0) -inf
 rand.nextGamma(inf)
 inf
 inf
@@ -875,7 +881,9 @@ inf
 inf
 inf
 )%%";
-    TestCommon::expect(name,out,expected);
+      TestCommon::expect(name,out,expected);
+    }
+
   }
 
   {
