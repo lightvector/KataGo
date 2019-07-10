@@ -8,6 +8,7 @@ struct SearchParams {
   double winLossUtilityFactor;     //Scaling for [-1,1] value for winning/losing
   double staticScoreUtilityFactor; //Scaling for a [-1,1] "scoreValue" for having more/fewer points, centered at 0.
   double dynamicScoreUtilityFactor; //Scaling for a [-1,1] "scoreValue" for having more/fewer points, centered at recent estimated expected score.
+  double dynamicScoreCenterZeroWeight; //Adjust dynamic score center this proportion of the way towards zero, capped at a reasonable amount.
   double noResultUtilityForWhite; //Utility of having a no-result game (simple ko rules or nonterminating territory encore)
   double drawEquivalentWinsForWhite; //Consider a draw to be this many wins and one minus this many losses.
 
@@ -43,7 +44,7 @@ struct SearchParams {
   bool useLcbForSelection; //Using LCB for move selection?
   double lcbStdevs; //How many stdevs a move needs to be better than another for LCB selection
   double minVisitPropForLCB; //Only use LCB override when a move has this proportion of visits as the top move
-  
+
   //Mild behavior hackery
   double rootEndingBonusPoints; //Extra bonus (or penalty) to encourage good passing behavior at the end of the game.
   bool rootPruneUselessMoves; //Prune moves that are entirely useless moves that prolong the game.
@@ -59,8 +60,8 @@ struct SearchParams {
   double maxTime; //Max number of seconds to think for
 
   //Same caps but when pondering
-  int64_t maxVisitsPondering; 
-  int64_t maxPlayoutsPondering; 
+  int64_t maxVisitsPondering;
+  int64_t maxPlayoutsPondering;
   double maxTimePondering;
 
   //Amount of time to reserve for lag when using a time control

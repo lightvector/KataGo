@@ -1030,7 +1030,12 @@ void Search::computeRootValues(Logger& logger) {
     nnResultBuf, &logger, skipCache, includeOwnerMap
   );
   double expectedScore = nnResultBuf.result->whiteScoreMean;
-  recentScoreCenter = expectedScore;
+  recentScoreCenter = expectedScore * (1.0 - searchParams.dynamicScoreCenterZeroWeight);
+  double cap =  sqrt(board.x_size * board.y_size);
+  if(recentScoreCenter > expectedScore + cap)
+    recentScoreCenter = expectedScore + cap;
+  if(recentScoreCenter < expectedScore - cap)
+    recentScoreCenter = expectedScore - cap;
 }
 
 int64_t Search::numRootVisits() const {
