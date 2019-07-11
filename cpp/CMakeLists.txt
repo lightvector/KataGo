@@ -262,18 +262,26 @@ if(BUILD_MCTS)
   find_package(Boost COMPONENTS system filesystem REQUIRED)
   include_directories(${Boost_INCLUDE_DIRS})
   target_link_libraries(main ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
-
+  # Getting boost to work on MSVC seems to require forcing it to link
+  # with dlls instead of static, and needs these options
+  if(MSVC)
+    target_compile_definitions(main PRIVATE BOOST_ALL_NO_LIB)
+    target_compile_definitions(main PRIVATE BOOST_ALL_DYN_LINK)
+  endif()
+  
   if(USE_TCMALLOC)
     target_link_libraries(main ${TCMALLOC_LIB})
   endif(USE_TCMALLOC)
 
-  #Suppress min and max macros on windows
-  #Also define a few other things for windows
+  # Suppress min and max macros on windows
+  # Also define a few other things for windows
   if(MSVC)
     target_compile_definitions(main PRIVATE NOMINMAX)
     target_compile_definitions(main PRIVATE BYTE_ORDER=1234)
     target_compile_definitions(main PRIVATE LITTLE_ENDIAN=1234)
     target_compile_definitions(main PRIVATE BIG_ENDIAN=4321)
+    # core/rand.cpp uses winsock for a gethostname
+    target_link_libraries(main ws2_32)
   endif()
 
   # On g++ it seems like we need to explicitly link threads as well.
