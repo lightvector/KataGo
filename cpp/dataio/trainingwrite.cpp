@@ -258,8 +258,8 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
     const ValueTargets& targets = whiteValueTargetsByTurn[i];
     winValue += weightNow * (nextPlayer == P_WHITE ? targets.win : targets.loss);
     lossValue += weightNow * (nextPlayer == P_WHITE ? targets.loss : targets.win);
-    noResultValue = weightNow * targets.noResult;
-    score = weightNow * (nextPlayer == P_WHITE ? targets.score : -targets.score);
+    noResultValue += weightNow * targets.noResult;
+    score += weightNow * (nextPlayer == P_WHITE ? targets.score : -targets.score);
   }
   buf[0] = (float)winValue;
   buf[1] = (float)lossValue;
