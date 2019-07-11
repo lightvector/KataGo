@@ -1,5 +1,7 @@
 #include "main.h"
 
+#include "core/os.h"
+
 #ifdef NO_GIT_REVISION
 #define GIT_REVISION "<omitted>"
 #else
@@ -51,52 +53,42 @@ sandbox
 )%%" << endl;
 }
 
-int main(int argc, const char* argv[]) {
-  if(argc < 2) {
-    printHelp(argc,argv);
-    return 0;
-  }
-  string cmdArg = string(argv[1]);
-  if(cmdArg == "-h" || cmdArg == "--h" || cmdArg == "-help" || cmdArg == "--help" || cmdArg == "help") {
-    printHelp(argc,argv);
-    return 0;
-  }
-
-  if(cmdArg == "evalsgf")
+static int handleSubcommand(const string& subcommand, int argc, const char* argv[]) {
+  if(subcommand == "evalsgf")
     return MainCmds::evalsgf(argc-1,&argv[1]);
-  else if(cmdArg == "gatekeeper")
+  else if(subcommand == "gatekeeper")
     return MainCmds::gatekeeper(argc-1,&argv[1]);
-  else if(cmdArg == "gtp")
+  else if(subcommand == "gtp")
     return MainCmds::gtp(argc-1,&argv[1]);
-  else if(cmdArg == "tuner")
+  else if(subcommand == "tuner")
     return MainCmds::tuner(argc-1,&argv[1]);
-  else if(cmdArg == "match")
+  else if(subcommand == "match")
     return MainCmds::match(argc-1,&argv[1]);
-  else if(cmdArg == "matchauto")
+  else if(subcommand == "matchauto")
     return MainCmds::matchauto(argc-1,&argv[1]);
-  else if(cmdArg == "selfplay")
+  else if(subcommand == "selfplay")
     return MainCmds::selfplay(argc-1,&argv[1]);
-  else if(cmdArg == "runtests")
+  else if(subcommand == "runtests")
     return MainCmds::runtests(argc-1,&argv[1]);
-  else if(cmdArg == "runnnlayertests")
+  else if(subcommand == "runnnlayertests")
     return MainCmds::runnnlayertests(argc-1,&argv[1]);
-  else if(cmdArg == "runnnontinyboardtest")
+  else if(subcommand == "runnnontinyboardtest")
     return MainCmds::runnnontinyboardtest(argc-1,&argv[1]);
-  else if(cmdArg == "runoutputtests")
+  else if(subcommand == "runoutputtests")
     return MainCmds::runoutputtests(argc-1,&argv[1]);
-  else if(cmdArg == "runsearchtests")
+  else if(subcommand == "runsearchtests")
     return MainCmds::runsearchtests(argc-1,&argv[1]);
-  else if(cmdArg == "runsearchtestsv3")
+  else if(subcommand == "runsearchtestsv3")
     return MainCmds::runsearchtestsv3(argc-1,&argv[1]);
-  else if(cmdArg == "runselfplayinittests")
+  else if(subcommand == "runselfplayinittests")
     return MainCmds::runselfplayinittests(argc-1,&argv[1]);
-  else if(cmdArg == "lzcost")
+  else if(subcommand == "lzcost")
     return MainCmds::lzcost(argc-1,&argv[1]);
-  else if(cmdArg == "demoplay")
+  else if(subcommand == "demoplay")
     return MainCmds::demoplay(argc-1,&argv[1]);
-  else if(cmdArg == "sandbox")
+  else if(subcommand == "sandbox")
     return MainCmds::sandbox();
-  else if(cmdArg == "version") {
+  else if(subcommand == "version") {
     cout << Version::getKataGoVersionForHelp() << endl;
     cout << "Git revision: " << Version::getGitRevision() << endl;
     cout << "Compile Time: " << __DATE__ << " " << __TIME__ << endl;
@@ -110,12 +102,46 @@ int main(int argc, const char* argv[]) {
     return 0;
   }
   else {
-    cout << "Unknown subcommand: " << cmdArg << endl;
+    cout << "Unknown subcommand: " << subcommand << endl;
     printHelp(argc,argv);
     return 1;
   }
   return 0;
 }
+
+
+int main(int argc, const char* argv[]) {
+  if(argc < 2) {
+    printHelp(argc,argv);
+    return 0;
+  }
+  string cmdArg = string(argv[1]);
+  if(cmdArg == "-h" || cmdArg == "--h" || cmdArg == "-help" || cmdArg == "--help" || cmdArg == "help") {
+    printHelp(argc,argv);
+    return 0;
+  }
+
+#if defined(OS_IS_WINDOWS)
+  //On windows, uncaught exceptions reaching toplevel don't normally get printed out,
+  //so explicitly catch everything and print
+  int result;
+  try {
+    result = handleSubcommand(cmdArg, argc, argv);
+  }
+  catch(std::exception& e) {
+    cerr << "Uncaught exception: " << e.what() << endl;
+    return 1;
+  }
+  catch(...) {
+    cerr << "Uncaught exception that is not a std::exception... exiting due to unknown error" << endl;
+    return 1;
+  }
+  return result;
+#else
+  return handleSubcommand(cmdArg, argc, argv);
+#endif
+}
+
 
 string Version::getKataGoVersion() {
   return string("1.1");
