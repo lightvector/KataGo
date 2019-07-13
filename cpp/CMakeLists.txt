@@ -22,7 +22,7 @@ endif()
 
 #------------------------------------------------------------------------------------
 
-set(BUILD_WRITE 0 CACHE BOOL "Build 'write' executable for neural net training data (deprecated)")
+# set(BUILD_WRITE 0 CACHE BOOL "Build 'write' executable for neural net training data (deprecated)")
 set(BUILD_MCTS 1 CACHE BOOL "Build 'katago' for GTP engine and other tools (you probably want this)")
 set(USE_OPENCL_BACKEND 0 CACHE BOOL "Use OpenCL backend")
 set(USE_CUDA_BACKEND 0 CACHE BOOL "Use CUDA backend")

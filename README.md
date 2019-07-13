@@ -1,7 +1,5 @@
 # KataGo
 
-**This is an under-development branch to add OpenCL support to KataGo. To try the OpenCL backend, follow the same compile instructions as below except you will need to have OpenCL libraries installed instead of CUDA, and provide `-DUSE_OPENCL_BACKEND=1` instead of `-DUSE_CUDA_BACKEND=1`**
-
 Research and experimentation with self-play training in Go. Contains a working implementation of AlphaZero-like training with a lot of modifications and enhancements. Due to these enhancements, early training is immensely faster than in other zero-style bots - with a only few strong GPUs for a few days, even a single person should be able to train to mid or even high amateur dan strength on the full 19x19 board on consumer hardware. Also contains a GTP engine and pre-trained neural nets competitive with other top open-source Go engines. KataGo is also capable of estimating score and territory, and due to this right-out-of-the-box plays handicap games somewhat better than many other zero trained bots, without any special hacks.
 
 The latest KataGo network is a 20-block network that at visit parity is probably slightly stronger than ELF and is comparable to LZ200. See the [releases page](https://github.com/lightvector/KataGo/releases) for the final trained models. The self-play training data from the run and full history of accepted models is available [here](https://d3dndmfyhecmj0.cloudfront.net/).
@@ -11,7 +9,6 @@ Many thanks to [Jane Street](https://www.janestreet.com/) for providing the comp
 Paper about the major new ideas and techniques used in KataGo: [Accelerating Self-Play Learning in Go (arXiv)](https://arxiv.org/abs/1902.10565).
 
 ### Current Status and History
-
 The first serious run of KataGo ran for 7 days in Februrary 2019 on up to 35xV100 GPUs. This is the run featured in the paper. It achieved close to LZ130 strength before it was halted, or up to just barely superhuman.
 
 Following some further improvements and much-improved hyperparameters, KataGo performed a second serious run in May-June a max of 28xV100 GPUs, surpassing the February run after just three and a half days. The run was halted after 19 days, with the final 20-block networks reaching a final strength slightly stronger than LZ-ELFv2! (This is Facebook's very strong 20-block ELF network, running on Leela Zero's search architecture). Comparing to the yet larger Leela Zero 40-block networks, KataGo's network falls somewhere around LZ200 at visit parity, despite only itself being 20 blocks. An updated paper is forthcoming.
@@ -23,11 +20,11 @@ See also https://github.com/lightvector/GoNN for some earlier research. KataGo i
 ### Compatibility with other Tools
 KataGo is written in C++ and has a fully working GTP engine. Once compiled, KataGo should be able to work with any GUI program that supports GTP, as well as any analysis program that supports Leela Zero's `lz-analyze` command, such as [Lizzie](https://github.com/featurecat/lizzie).
 
-   * One slight detail with Lizzie - as of June 2019, the tip of Lizzie currently performs a hardcoded check for Leela Zero's version number. To work around this issue, you can pass `-override-version 0.16` or `-override-version 0.17` to make KataGo pretend to be different versions of Leela Zero when Lizzie attempts to query the version number.
    * For developers: KataGo also exposes a GTP command `kata-analyze` that in addition to policy and winrate, also reports an estimate of the *expected score* and a heatmap of the predicted territory ownership of every location of the board. Expected score should be particularly useful for reviewing handicap games or games of weaker players. Whereas the winrate for black will often remain pinned at nearly 100% in a handicap game even as black makes major mistakes (until finally the game becomes very close), expected score should make it more clear which earlier moves are losing points that allow white to catch up, and exactly how much or little those mistakes lose. If you're interested in adding support for this to any analysis tool, feel free to reach out, I'd be happy to answer questions and help.
+   * One slight detail with Lizzie - as of July 2019, the latest release of Lizzie currently performs a hardcoded check for Leela Zero's version number. To work around this issue, you can pass `-override-version 0.16` or `-override-version 0.17` to make KataGo pretend to be different versions of Leela Zero when Lizzie attempts to query the version number. However, the (unreleased) tip of the master branch of Lizzie has implemented explicit KataGo support, including score visualization, and also no longer requires this hack.
 
 ### OpenCL vs CUDA, Supported Operating Systems
-KataGo has both an OpenCL backend and a CUDA backend. The OpenCL backend will likely be significantly easier to compile, as it doesn't require downloading and installing CUDA and CUDNN. It should be usable on systems with non-NVIDIA GPUs, Intel integrated gratphics, etc., as long as they have a working OpenCL installation. And for match play, depending on hardware and settings, in practice the OpenCL version of KataGo can easily similarly fast or even faster. It has not been tested for self-play training however, which makes use of extremely large batch sizes to run hundreds of games in parallel, and all of KataGo's main training runs have been performed with the CUDA implementation.
+KataGo has both an OpenCL backend and a CUDA backend. The OpenCL backend may be easier to compile and get working, as it doesn't require downloading and installing CUDA and CUDNN. It should be usable on systems with non-NVIDIA GPUs, Intel integrated graphics, etc., as long as they have a working OpenCL installation. For match play, depending on hardware and settings, in practice the OpenCL version of KataGo seems to range from anywhere to several times slower to about similarly fast as the CUDA implementation. More optimization work may happen in the future though - the OpenCL version has not definitely reached the limit of how well the implementation can be optimized. It also has not been tested for self-play training however, which makes use of extremely large batch sizes to run hundreds of games in parallel, and all of KataGo's main training runs so far have been performed with the CUDA implementation.
 
     * The OpenCL version should compile on Linux or OSX via g++, and should compile on Windows via Cygwin or MinGW.
     * The CUDA version should compile on Linux or OSX via g++ (and nvcc).
@@ -46,31 +43,59 @@ See [here](GTP_Extensions.md) for details.
 ### Compiling
 KataGo is written in C++ and has a fully working GTP engine. Once compiled, you should be able to run it using the trained neural nets for KataGo that you can download from the releases page. See also LICENSE for the software license for this repo. Additionally, if you end up using any of the code in this repo to do any of your own cool new self-play or neural net training experiments, I (lightvector) would to love hear about it.
 
+##### Linux
    * Requirements
       * CMake with a minimum version of 3.12.3 (https://cmake.org/download/)
+      * Some version of g++ that supports at least C++14.
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. (Of course, CPU implementations may be quite slow).
       * If using the CUDA backend, CUDA 10.1 and CUDNN 7.6.1 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
-      * zlib (zlib1g-dev), libzip (libzip-dev), boost filesystem (libboost-filesystem-dev).
+      * zlib, libzip, boost filesystem. With Debian packages (i.e. apt or apt-get), these should be zlib1g-dev, libzip-dev, libboost-filesystem-dev.
       * If you want to do self-play, probably Google perftools (google-perftools, libgoogle-perftools-dev) for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc, but better mallocs handle it fine.
-      * Some version of g++ that supports at least C++14.
+   * Clone this repo:
+      * `git clone https://github.com/lightvector/KataGo.git`
    * Compile using CMake and make in the cpp directory:
-      * `cd cpp`
+      * `cd KataGo/cpp`
       * `cmake . -DBUILD_MCTS=1 -DUSE_OPENCL_BACKEND=1` or `cmake . -DBUILD_MCTS=1 -DUSE_CUDA_BACKEND=1` depending on which backend you want. Specify also `-DUSE_TCMALLOC=1` if using TCMalloc. Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
       * `make`
-   * You can now run the compiled `main` executable to do various things. Edit the configs to change parameters as desired.
-      * Example: `./main gtp -model <NEURALNET>.txt.gz -config configs/gtp_example.cfg` - Run a simple GTP engine using a given neural net and example provided config.
-      * Example: `./main evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/eval_sgf.cfg` - Have the bot analyze the specified move of the specified SGF.
+   * You can now run the compiled `katago` executable to do various things. You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
+      * Example: `./katago gtp -model <NEURALNET>.txt.gz -config configs/gtp_example.cfg` - Run a simple GTP engine using a given neural net and example provided config.
+      * Example: `./katago tuner -model <NEURALNET>.txt.gz` - (For OpenCL) run or re-run the tuner to optimize for your particular GPU.
+      * Example: `./katago evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/eval_sgf.cfg` - Have the bot analyze the specified move of the specified SGF.
    * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases).
+   * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
+
+##### Windows
+   * Requirements
+      * CMake with a minimum version of 3.12.3, GUI version strongly recommended (https://cmake.org/download/)
+      * Microsoft Visual Studio for C++. Version 15 (2017) has been tested and should work, other versions might work as well.
+      * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. (Of course, CPU implementations may be quite slow).
+      * If using the CUDA backend, CUDA 10.1 and CUDNN 7.6.1 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
+      * Boost. You can obtain prebuilt libraries for Windows at: https://www.boost.org/users/download/ -> "Prebuilt windows binaries" -> "1.70.0". For example, boost_1_70_0-msvc-14.1-64.exe if you're on 64-bit windows. Note that MSVC 14.1 libraries (2015) are directly-compatible with MSVC 15 (2017).
+      * zlib. The following package might work, https://www.nuget.org/packages/zlib-vc140-static-64/, or alternatively you can build it yourself via something like: https://github.com/kiyolee/zlib-win-build
+      * libzip (optional, needed only for self-play training) - for example https://github.com/kiyolee/libzip-win-build
+   * Download/clone this repo to some folder `KataGo`.
+   * Configure using CMake GUI and compile in MSVC:
+      * Select `KataGo/cpp` as the source code directory in [CMake GUI](https://cmake.org/runningcmake/).
+      * Set the build directory to wherever you would like the built executable to be produced.
+      * Click "Configure". For the generator select your MSVC version, and also select "x64" for the optional toolset if you're on 64-bit windows.
+      * If you get errors where CMake has not automatically found Boost, ZLib, etc, point it to the appropriate places according to the error messages (by setting `BOOST_ROOT`, `ZLIB_INCLUDE_DIR`, `ZLIB_LIBRARY`, etc). Also select one of `USE_OPENCL_BACKEND` or `USE_CUDA_BACKEND`, and adjust options like `NO_GIT_REVISION` if needed, and run "Configure" again as needed.
+      * Once running "Configure" looks good, run "Generate" and then open MSVC and build as normal in MSVC.
+   * You can now run the compiled `katago.exe` executable to do various things.
+      * Example: `katago.exe gtp -model <NEURALNET>.txt.gz -config configs/gtp_example.cfg` - Run a simple GTP engine using a given neural net and example provided config.
+      * Example: `katago.exe tuner -model <NEURALNET>.txt.gz` - (For OpenCL) run or re-run the tuner to optimize for your particular GPU.
+      * Example: `katago.exe evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/eval_sgf.cfg` - Have the bot analyze the specified move of the specified SGF.
+   * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases).
+   * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
 
 ### Selfplay training:
 If you'd also like to run the full self-play loop and train your own neural nets you must have [Python3](https://www.python.org/) and [Tensorflow](https://www.tensorflow.org/install/) installed. The version of Tensorflow known to work with the current code and with which KataGo's main run was trained is 1.12.0. Possibly later or earlier versions could work too, but they have not been tested. You'll also probably need a decent amount of GPU power.
 
 There are 5 things that need to all run concurrently to form a closed self-play training loop.
-   * Selfplay engine (C++ - `cpp/main selfplay`) - continously plays games using the latest neural net in some directory of accepted models, writing the data to some directory.
+   * Selfplay engine (C++ - `cpp/katago selfplay`) - continously plays games using the latest neural net in some directory of accepted models, writing the data to some directory.
    * Shuffler (python - `python/shuffle.py`) - scans directories of data from selfplay and shuffles it to produce TFRecord files to write to some directory.
    * Training (python - `python/train.py`) - continuously trains a neural net using TFRecord files from some directory, saving models periodically to some directory.
    * Exporter (python - `python/export_model.py`) - scans a directory of saved models and converts from Tensorflow's format to the format that all the C++ uses, exporting to some directory.
-   * Gatekeeper (C++ - `cpp/main gatekeeper`) - polls a directory of newly exported models, plays games against the latest model in an accepted models directory, and if the new model passes, moves it to the accepted models directory.
+   * Gatekeeper (C++ - `cpp/katago gatekeeper`) - polls a directory of newly exported models, plays games against the latest model in an accepted models directory, and if the new model passes, moves it to the accepted models directory.
 
 On the cloud, a reasonable small-scale setup for all these things might be:
    * A machine with a decent amount of cores and memory to run the shuffler and exporter.
@@ -82,7 +107,7 @@ On the cloud, a reasonable small-scale setup for all these things might be:
 You may need to play with learning rates, batch sizes, and the balance between training and self-play. If the training GPU is too strong, you may overfit more since it will be on the same data over and over because self-play won't be generating new data fast enough, and it's possible you will want to adjust hyperparmeters or even add an artifical delay for each loop of training. Overshooting the other way and having too much GPU power on self-play is harder since generally you need at least an order of magnitude more power on self-play than training. If you do though maybe you'll start seeing diminishing returns as the training becomes the limiting factor in improvement.
 
 Example instructions to start up these things (assuming you have appropriate machines set up), with some base directory $BASEDIR to hold the all the models and training data generated with a few hundred GB of disk space. The below commands assume you're running from the root of the repo and that you can run bash scripts.
-   * `cpp/main selfplay -output-dir $BASEDIR/selfplay -models-dir $BASEDIR/models -config-file cpp/configs/SELFPLAYCONFIG.cfg -inputs-version 4 >> log.txt 2>&1 & disown`
+   * `cpp/katago selfplay -output-dir $BASEDIR/selfplay -models-dir $BASEDIR/models -config-file cpp/configs/SELFPLAYCONFIG.cfg -inputs-version 4 >> log.txt 2>&1 & disown`
      * Some example configs for different numbers of GPUs are: configs/selfplay{1,2,4,8a,8b,8c}.cfg. You may want to edit them depending on your specs - for example to change the sizes of various tables depending on how much memory you have, or to specify gpu indices if you're doing things like putting some mix of training, gatekeeper, and self-play on the same machines or GPUs instead of on separate ones. Note that the number of game threads in these configs is very large, probably far larger than the number of cores on your machine. This is intentional, as each thread only currently runs synchronously with respect to neural net queries, so a large number of parallel games is needed to take advantage of batching.
      * Inputs version 4 is the version of input features KataGo currently uses, to be written down for training.
    * `cd python; ./selfplay/shuffle_and_export_loop.sh $BASEDIR/ $SCRATCH_DIRECTORY $NUM_THREADS`
@@ -90,5 +115,5 @@ Example instructions to start up these things (assuming you have appropriate mac
      * Also, if you're low on disk space, take a look also at the `./selfplay/shuffle.sh` script (which is called by `shuffle_and_export_loop.sh`). Right now it's *very* conservative about cleaning up old shuffles but you could tweak it to be a bit more aggressive.
    * `cd python; ./selfplay/train.sh $BASEDIR/ $TRAININGNAME b6c96 >> log.txt 2>&1 & disown`
      * This starts the training. You may want to look at or edit the train.sh script, it also snapshots the state of the repo for logging, as well as contains some training parameters that can be tweaked.
-   * `cpp/main gatekeeper -rejected-models-dir $BASEDIR/rejectedmodels -accepted-models-dir $BASEDIR/models/ -sgf-output-dir $BASEDIR/gatekeepersgf/ -test-models-dir $BASEDIR/modelstobetested/ -config-file cpp/configs/GATEKEEPERCONFIG.cfg >> log.txt 2>&1 & disown`
+   * `cpp/katago gatekeeper -rejected-models-dir $BASEDIR/rejectedmodels -accepted-models-dir $BASEDIR/models/ -sgf-output-dir $BASEDIR/gatekeepersgf/ -test-models-dir $BASEDIR/modelstobetested/ -config-file cpp/configs/GATEKEEPERCONFIG.cfg >> log.txt 2>&1 & disown`
      * This starts the gatekeeper. Some example configs for different numbers of GPUs are: configs/gatekeeper{1,2a,2b,2c}.cfg. Again, you may want to edit these. The number of simultaneous game threads here is also large for the same reasons as for selfplay.
