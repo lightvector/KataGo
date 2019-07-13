@@ -23,12 +23,14 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, Kata
    * One slight detail with Lizzie - as of July 2019, the latest release of Lizzie currently performs a hardcoded check for Leela Zero's version number. To work around this issue, you can pass `-override-version 0.16` or `-override-version 0.17` to make KataGo pretend to be different versions of Leela Zero when Lizzie attempts to query the version number. However, the (unreleased) tip of the master branch of Lizzie has implemented explicit KataGo support, including score visualization, and also no longer requires this hack.
 
 #### OpenCL vs CUDA, Supported Operating Systems
-KataGo has both an OpenCL backend and a CUDA backend. The OpenCL backend may be easier to compile and get working, as it doesn't require downloading and installing CUDA and CUDNN. It should be usable on systems with non-NVIDIA GPUs, Intel integrated graphics, etc., as long as they have a working OpenCL installation. For match play, depending on hardware and settings, in practice the OpenCL version of KataGo seems to range from anywhere to several times slower to about similarly fast as the CUDA implementation. More optimization work may happen in the future though - the OpenCL version has not definitely reached the limit of how well the implementation can be optimized. It also has not been tested for self-play training however, which makes use of extremely large batch sizes to run hundreds of games in parallel, and all of KataGo's main training runs so far have been performed with the CUDA implementation.
+KataGo has both an OpenCL backend and a CUDA backend. The OpenCL backend may be easier to compile and get working, as it doesn't require downloading and installing CUDA and CUDNN. It should be usable on systems with non-NVIDIA GPUs, Intel integrated graphics, etc., as long as they have a working OpenCL installation.
 
    * The OpenCL version should compile on Linux or OSX via g++, and should compile on Windows via Cygwin or MinGW.
    * The CUDA version should compile on Linux or OSX via g++ (and nvcc).
-   * Windows compilation for the CUDA version is not officially supported. However, it is possible to do so via MSVC with some work and hackery.
+   * Windows compilation for the CUDA version is not yet officially supported. However, it is very likely possible to do so via MSVC similar to the OpenCL version.
    * Other compilers and systems have not been tested yet.
+
+Depending on hardware and settings, in practice the OpenCL version seems to range from anywhere to several times slower to about similarly fast as the CUDA version. More optimization work may happen in the future though - the OpenCL version has definitely not reached the limit of how well it can be optimized. It also has not been tested for self-play training with extremely large batch sizes to run hundreds of games in parallel, all of KataGo's main training runs so far have been performed with the CUDA implementation.
 
 Extensive testing across different OSs and versions and compilers has not been done, so if you encounter issues, feel free to open an issue, and if compiling is not working for some system or compiler but would only require relatively minor changes to make it work, I'd be happy to add support.
 
@@ -37,9 +39,9 @@ Regardless of whether compiled yourself or using a precompiled version, you will
 
 #### GTP Extensions (for developers):
 In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/gtp/), KataGo supports a few additional commands, for use with analysis tools and other programs.
-See [here](GTP_Extensions.md) for details.
+KataGo's GTP extensions are documented [here](GTP_Extensions.md).
 
-   * KataGo also exposes a GTP command `kata-analyze` that in addition to policy and winrate, also reports an estimate of the *expected score* and a heatmap of the predicted territory ownership of every location of the board. Expected score should be particularly useful for reviewing handicap games or games of weaker players. Whereas the winrate for black will often remain pinned at nearly 100% in a handicap game even as black makes major mistakes (until finally the game becomes very close), expected score should make it more clear which earlier moves are losing points that allow white to catch up, and exactly how much or little those mistakes lose. If you're interested in adding support for this to any analysis tool, feel free to reach out, I'd be happy to answer questions and help.
+   * Notably: KataGo exposes a GTP command `kata-analyze` that in addition to policy and winrate, also reports an estimate of the *expected score* and a heatmap of the predicted territory ownership of every location of the board. Expected score should be particularly useful for reviewing handicap games or games of weaker players. Whereas the winrate for black will often remain pinned at nearly 100% in a handicap game even as black makes major mistakes (until finally the game becomes very close), expected score should make it more clear which earlier moves are losing points that allow white to catch up, and exactly how much or little those mistakes lose. If you're interested in adding support for this to any analysis tool, feel free to reach out, I'd be happy to answer questions and help.
 
 
 ### Compiling
@@ -51,7 +53,7 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, you 
       * Some version of g++ that supports at least C++14.
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. (Of course, CPU implementations may be quite slow).
       * If using the CUDA backend, CUDA 10.1 and CUDNN 7.6.1 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
-      * zlib, libzip, boost filesystem. With Debian packages (i.e. apt or apt-get), these should be zlib1g-dev, libzip-dev, libboost-filesystem-dev.
+      * zlib, libzip, boost filesystem. With Debian packages (i.e. apt or apt-get), these should be `zlib1g-dev`, `libzip-dev`, `libboost-filesystem-dev`.
       * If you want to do self-play, probably Google perftools (google-perftools, libgoogle-perftools-dev) for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc, but better mallocs handle it fine.
    * Clone this repo:
       * `git clone https://github.com/lightvector/KataGo.git`
