@@ -17,33 +17,35 @@ Several promising possibilities for major further improvements are still being r
 
 See also https://github.com/lightvector/GoNN for some earlier research. KataGo is essentially a continuation of that research, but that old repo has been preserved since the changes in this repo are not backwards compatible, and to leave the old repo intact to continue as a showcase of the many earlier experiments performed there.
 
-### Compatibility with other Tools
-KataGo is written in C++ and has a fully working GTP engine. Once compiled, KataGo should be able to work with any GUI program that supports GTP, as well as any analysis program that supports Leela Zero's `lz-analyze` command, such as [Lizzie](https://github.com/featurecat/lizzie).
+### Running KataGo
+KataGo is written in C++ and has a fully working GTP engine. Once compiled, KataGo should be able to work with any GUI program that supports GTP, as well as any analysis program that supports Leela Zero's `lz-analyze` command, such as [Lizzie](https://github.com/featurecat/lizzie) or [Sabaki](https://sabaki.yichuanshen.de/).
 
-   * For developers: KataGo also exposes a GTP command `kata-analyze` that in addition to policy and winrate, also reports an estimate of the *expected score* and a heatmap of the predicted territory ownership of every location of the board. Expected score should be particularly useful for reviewing handicap games or games of weaker players. Whereas the winrate for black will often remain pinned at nearly 100% in a handicap game even as black makes major mistakes (until finally the game becomes very close), expected score should make it more clear which earlier moves are losing points that allow white to catch up, and exactly how much or little those mistakes lose. If you're interested in adding support for this to any analysis tool, feel free to reach out, I'd be happy to answer questions and help.
    * One slight detail with Lizzie - as of July 2019, the latest release of Lizzie currently performs a hardcoded check for Leela Zero's version number. To work around this issue, you can pass `-override-version 0.16` or `-override-version 0.17` to make KataGo pretend to be different versions of Leela Zero when Lizzie attempts to query the version number. However, the (unreleased) tip of the master branch of Lizzie has implemented explicit KataGo support, including score visualization, and also no longer requires this hack.
 
-### OpenCL vs CUDA, Supported Operating Systems
+#### OpenCL vs CUDA, Supported Operating Systems
 KataGo has both an OpenCL backend and a CUDA backend. The OpenCL backend may be easier to compile and get working, as it doesn't require downloading and installing CUDA and CUDNN. It should be usable on systems with non-NVIDIA GPUs, Intel integrated graphics, etc., as long as they have a working OpenCL installation. For match play, depending on hardware and settings, in practice the OpenCL version of KataGo seems to range from anywhere to several times slower to about similarly fast as the CUDA implementation. More optimization work may happen in the future though - the OpenCL version has not definitely reached the limit of how well the implementation can be optimized. It also has not been tested for self-play training however, which makes use of extremely large batch sizes to run hundreds of games in parallel, and all of KataGo's main training runs so far have been performed with the CUDA implementation.
 
-    * The OpenCL version should compile on Linux or OSX via g++, and should compile on Windows via Cygwin or MinGW.
-    * The CUDA version should compile on Linux or OSX via g++ (and nvcc).
-    * Windows compilation for the CUDA version is not officially supported. However, it is possible to do so via MSVC with some work and hackery.
-    * Other compilers and systems have not been tested yet.
+   * The OpenCL version should compile on Linux or OSX via g++, and should compile on Windows via Cygwin or MinGW.
+   * The CUDA version should compile on Linux or OSX via g++ (and nvcc).
+   * Windows compilation for the CUDA version is not officially supported. However, it is possible to do so via MSVC with some work and hackery.
+   * Other compilers and systems have not been tested yet.
 
 Extensive testing across different OSs and versions and compilers has not been done, so if you encounter issues, feel free to open an issue, and if compiling is not working for some system or compiler but would only require relatively minor changes to make it work, I'd be happy to add support.
 
-### Tuning for Performance
-Regardless of whether compiled yourself or using a precompiled version, you will very likely want to tune some of the parameters in `gtp_example.cfg` for your system for good performance, including the number of threads, fp16 usage (CUDA only), NN cache size, pondering settings, and so on. You can also adjust things like KataGo's resign threshold or utility function. Most of the relevant parameters should be be reasonably well documented directly inline in the config file.
+#### Tuning for Performance
+Regardless of whether compiled yourself or using a precompiled version, you will very likely want to tune some of the parameters in `gtp_example.cfg` or `configs/gtp_example.cfg` for your system for good performance, including the number of threads, fp16 usage (CUDA only), NN cache size, pondering settings, and so on. You can also adjust things like KataGo's resign threshold or utility function. Most of the relevant parameters should be be reasonably well documented directly inline in that [example config file](cpp/configs/gtp_example.cfg).
 
-### GTP Extensions (for developers):
+#### GTP Extensions (for developers):
 In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/gtp/), KataGo supports a few additional commands, for use with analysis tools and other programs.
 See [here](GTP_Extensions.md) for details.
+
+   * KataGo also exposes a GTP command `kata-analyze` that in addition to policy and winrate, also reports an estimate of the *expected score* and a heatmap of the predicted territory ownership of every location of the board. Expected score should be particularly useful for reviewing handicap games or games of weaker players. Whereas the winrate for black will often remain pinned at nearly 100% in a handicap game even as black makes major mistakes (until finally the game becomes very close), expected score should make it more clear which earlier moves are losing points that allow white to catch up, and exactly how much or little those mistakes lose. If you're interested in adding support for this to any analysis tool, feel free to reach out, I'd be happy to answer questions and help.
+
 
 ### Compiling
 KataGo is written in C++ and has a fully working GTP engine. Once compiled, you should be able to run it using the trained neural nets for KataGo that you can download from the releases page. See also LICENSE for the software license for this repo. Additionally, if you end up using any of the code in this repo to do any of your own cool new self-play or neural net training experiments, I (lightvector) would to love hear about it.
 
-##### Linux
+#### Linux
    * Requirements
       * CMake with a minimum version of 3.12.3 (https://cmake.org/download/)
       * Some version of g++ that supports at least C++14.
@@ -64,7 +66,7 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, you 
    * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
 
-##### Windows
+#### Windows
    * Requirements
       * CMake with a minimum version of 3.12.3, GUI version strongly recommended (https://cmake.org/download/)
       * Microsoft Visual Studio for C++. Version 15 (2017) has been tested and should work, other versions might work as well.
@@ -78,9 +80,11 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, you 
       * Select `KataGo/cpp` as the source code directory in [CMake GUI](https://cmake.org/runningcmake/).
       * Set the build directory to wherever you would like the built executable to be produced.
       * Click "Configure". For the generator select your MSVC version, and also select "x64" for the optional toolset if you're on 64-bit windows.
-      * If you get errors where CMake has not automatically found Boost, ZLib, etc, point it to the appropriate places according to the error messages (by setting `BOOST_ROOT`, `ZLIB_INCLUDE_DIR`, `ZLIB_LIBRARY`, etc). Also select one of `USE_OPENCL_BACKEND` or `USE_CUDA_BACKEND`, and adjust options like `NO_GIT_REVISION` if needed, and run "Configure" again as needed.
+      * If you get errors where CMake has not automatically found Boost, ZLib, etc, point it to the appropriate places according to the error messages (by setting `BOOST_ROOT`, `ZLIB_INCLUDE_DIR`, `ZLIB_LIBRARY`, etc). Note that "*_LIBRARY" expects to be pointed to the ".lib" file, whereas the ".dll" file is what you actually need to run.
+      * Also select one of `USE_OPENCL_BACKEND` or `USE_CUDA_BACKEND`, and adjust options like `NO_GIT_REVISION` if needed, and run "Configure" again as needed.
       * Once running "Configure" looks good, run "Generate" and then open MSVC and build as normal in MSVC.
    * You can now run the compiled `katago.exe` executable to do various things.
+      * Note: You may need to copy the ".dll" files corresponding to the various ".lib" files you compiled with into the directory containing katago.exe.
       * Example: `katago.exe gtp -model <NEURALNET>.txt.gz -config configs/gtp_example.cfg` - Run a simple GTP engine using a given neural net and example provided config.
       * Example: `katago.exe tuner -model <NEURALNET>.txt.gz` - (For OpenCL) run or re-run the tuner to optimize for your particular GPU.
       * Example: `katago.exe evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/eval_sgf.cfg` - Have the bot analyze the specified move of the specified SGF.
