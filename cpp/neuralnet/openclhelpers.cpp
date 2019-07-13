@@ -178,23 +178,52 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
   assert(numPlatforms <= platformIds.size());
   platformIds.resize(numPlatforms);
 
-  int numDevicesTotal = 0;
-  vector<cl_device_id> deviceIds(MAX_DEVICES);
-  for(int platformIdx = 0; platformIdx < numPlatforms && numDevicesTotal < deviceIds.size(); platformIdx++) {
-    cl_uint numDevices;
-    err = clGetDeviceIDs(
-      platformIds[platformIdx], CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR, deviceIds.size() - numDevicesTotal,
-      deviceIds.data() + numDevicesTotal, &numDevices);
-    CHECK_ERR(err);
-    assert(numDevices <= deviceIds.size());
-    numDevicesTotal += numDevices;
-  }
-  deviceIds.resize(numDevicesTotal);
-
   constexpr int bufLen = 2048;
   char buf[bufLen];
   for(int i = 0; i<bufLen; i++)
     buf[i] = '\0';
+  
+  int numDevicesTotal = 0;
+  vector<cl_device_id> deviceIds(MAX_DEVICES);
+  for(int platformIdx = 0; platformIdx < numPlatforms && numDevicesTotal < deviceIds.size(); platformIdx++) {
+    size_t sizeRet;
+
+    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_NAME, bufLen, buf, &sizeRet);
+    assert(sizeRet < bufLen-1);
+    CHECK_ERR(err);
+    string name = string(buf);
+
+    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_VENDOR, bufLen, buf, &sizeRet);
+    assert(sizeRet < bufLen-1);
+    CHECK_ERR(err);
+    string vendor = string(buf);
+
+    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_VERSION, bufLen, buf, &sizeRet);
+    assert(sizeRet < bufLen-1);
+    CHECK_ERR(err);
+    string version = string(buf);
+
+    if(logger != NULL)
+      logger->write("Found OpenCL Platform " + Global::intToString(platformIdx) + ": " + name + " (" + vendor + ") (" + version + ")");
+    
+    cl_uint numDevices;
+    err = clGetDeviceIDs(
+      platformIds[platformIdx], CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR, deviceIds.size() - numDevicesTotal,
+      deviceIds.data() + numDevicesTotal, &numDevices);
+    //Allow there to be 0 devices on this platform, just move on to the next
+    if(err == CL_DEVICE_NOT_FOUND) {
+      if(logger != NULL)
+        logger->write("Found 0 devices on platform with type GPU or Accelerator, skipping");  
+      continue;
+    }
+    
+    CHECK_ERR(err);
+    assert(numDevices <= deviceIds.size());
+    numDevicesTotal += numDevices;
+    if(logger != NULL)
+      logger->write("Found " + Global::intToString(numDevices) + " devices on platform with type GPU or Accelerator");  
+  }
+  deviceIds.resize(numDevicesTotal);
 
   vector<DeviceInfo> allDeviceInfos;
   for(int gpuIdx = 0; gpuIdx<numDevicesTotal; gpuIdx++) {
