@@ -26,7 +26,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
          * `pv` - The principal variation following this move. May be of variable length or even empty.
       * All output values are from the perspective of the current player, unless otherwise configured in KataGo's gtp config.
-      * This command will terminate upon any new GTP command being received, as well as upon a raw newline being receivedl, including outputting the usual double-newline that signals a completed GTP response.
+      * This command will terminate upon any new GTP command being received, as well as upon a raw newline being received, including outputting the usual double-newline that signals a completed GTP response.
 
    * `kata-analyze KEYVALUEPAIR KEYVALUEPAIR ...`
       * Same as `lz-analyze` except a slightly different output format and some additional options and fields.
