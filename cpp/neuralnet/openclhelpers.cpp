@@ -213,7 +213,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     //Allow there to be 0 devices on this platform, just move on to the next
     if(err == CL_DEVICE_NOT_FOUND) {
       if(logger != NULL)
-        logger->write("Found 0 devices on platform with type GPU or Accelerator, skipping");  
+        logger->write("Found 0 device(s) on platform " + Global::intToString(platformIdx) + " with type GPU or Accelerator, skipping");  
       continue;
     }
     
@@ -221,7 +221,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     assert(numDevices <= deviceIds.size());
     numDevicesTotal += numDevices;
     if(logger != NULL)
-      logger->write("Found " + Global::intToString(numDevices) + " devices on platform with type GPU or Accelerator");  
+      logger->write("Found " + Global::intToString(numDevices) + " device(s) on platform " + Global::intToString(platformIdx) + " with type GPU or Accelerator");  
   }
   deviceIds.resize(numDevicesTotal);
 
