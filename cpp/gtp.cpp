@@ -704,7 +704,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       throw StringError("Can only specify examply one search bot in gtp mode");
     params = paramss[0];
   }
-  logger.write("Using " + Global::intToString(params.numThreads) + "CPU threads for search");
+  logger.write("Using " + Global::intToString(params.numThreads) + " CPU thread(s) for search");
 
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
   const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;

@@ -1098,7 +1098,7 @@ static void readEntireFileIntoString(const string& fileName, string& str) {
   ifstream in(fileName.c_str(), ios::in | ios::binary | ios::ate);
   if(!in.good())
     throw StringError("Could not open file - does not exist or invalid permissions?");
-  
+
   ifstream::pos_type fileSize = in.tellg();
   if(fileSize < 0)
     throw StringError("tellg failed to determine size");
@@ -1149,7 +1149,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
         delete compressed;
         throw StringError("Error while ungzipping file");
       }
-    
+
       zs.avail_in = compressed->size();
       zs.next_in = (Bytef*)(&(*compressed)[0]);
       while(true) {
@@ -1172,6 +1172,8 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
           (void)inflateEnd(&zs);
           delete compressed;
           throw StringError("Error while ungzipping file, Z_MEM_ERROR");
+        default:
+          break;
         }
         //Output buffer space remaining?
         if(zs.avail_out != 0) {
@@ -1191,7 +1193,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
       (void)inflateEnd(&zs);
       //Free up memory for compressed string
       delete compressed;
-    
+
       //Now, initialize an istream to read from the string
       NonCopyingStreamBuf uncompressedStreamBuf(uncompressed);
       std::istream uncompressedIn(&uncompressedStreamBuf);

@@ -66,7 +66,7 @@ namespace OpenCLHelpers {
   bool tryCompileProgram(
     const std::string& name,
     cl_context context,
-    const std::vector<cl_device_id>& devices, const
+    const std::vector<cl_device_id>& devices,
     const std::string& str,
     const std::string& options,
     cl_program& buf
