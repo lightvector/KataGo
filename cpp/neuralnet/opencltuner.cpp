@@ -523,13 +523,17 @@ void OpenCLTuner::tune(
     auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.conv3x3.transDesc(); };
 
     auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret) {
+      OpenCLTuneAccums accums;
+      
       cl_int err;
-      cl_program program = compileProgram(
+      cl_program program;
+      bool compileSuc = tryCompileProgram(
         "winogradConv3x3NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
-        cfg.conv3x3.compileOptions()
+        cfg.conv3x3.compileOptions(), program
       );
+      if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
       cl_kernel kernel = clCreateKernel(program, "transform", &err);
-      CHECK_ERR(err);
+      if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
       int numTilesX = (nnXLen + cfg.conv3x3.OUTTILE_XSIZE - 1) / cfg.conv3x3.OUTTILE_XSIZE;
       int numTilesY = (nnYLen + cfg.conv3x3.OUTTILE_YSIZE - 1) / cfg.conv3x3.OUTTILE_YSIZE;
@@ -549,7 +553,6 @@ void OpenCLTuner::tune(
       cl_mem input = randomReadOnlyBuffer("tune3x3TransInput", context, inputNumFloats, 1.0);
       cl_mem output = createReadWriteBuffer(context, outputNumFloats);
 
-      OpenCLTuneAccums accums;
       const int reps = 10;
       for(int i = 0; i<reps; i++) {
         int inChannels;
@@ -643,13 +646,17 @@ void OpenCLTuner::tune(
     auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.conv3x3.untransDesc(); };
 
     auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret) {
+      OpenCLTuneAccums accums;
+
       cl_int err;
-      cl_program program = compileProgram(
+      cl_program program;
+      bool compileSuc = tryCompileProgram(
         "winogradConv3x3NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
-        cfg.conv3x3.compileOptions()
+        cfg.conv3x3.compileOptions(), program
       );
+      if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
       cl_kernel kernel = clCreateKernel(program, "untransform", &err);
-      CHECK_ERR(err);
+      if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
       int numTilesX = (nnXLen + cfg.conv3x3.OUTTILE_XSIZE - 1) / cfg.conv3x3.OUTTILE_XSIZE;
       int numTilesY = (nnYLen + cfg.conv3x3.OUTTILE_YSIZE - 1) / cfg.conv3x3.OUTTILE_YSIZE;
@@ -669,7 +676,6 @@ void OpenCLTuner::tune(
       cl_mem input = randomReadOnlyBuffer("tune3x3UntransInput", context, inputNumFloats, 1.0);
       cl_mem output = createReadWriteBuffer(context, outputNumFloats);
 
-      OpenCLTuneAccums accums;
       const int reps = 10;
       for(int i = 0; i<reps; i++) {
         int outChannels;
@@ -772,13 +778,17 @@ void OpenCLTuner::tune(
     auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.gPool.desc(); };
 
     auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret) {
+      OpenCLTuneAccums accums;
+
       cl_int err;
-      cl_program program = compileProgram(
+      cl_program program;
+      bool compileSuc = tryCompileProgram(
         "gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW,
-        cfg.gPool.compileOptions()
+        cfg.gPool.compileOptions(), program
       );
+      if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
       cl_kernel kernel = clCreateKernel(program, "gPoolChannelsNCHW", &err);
-      CHECK_ERR(err);
+      if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
       int inputNumFloats = batchSize * nnXLen * nnYLen * numChannels;
       int outputNumFloats = batchSize * numChannels * 3;
@@ -787,7 +797,6 @@ void OpenCLTuner::tune(
       cl_mem maskSum = constantReadOnlyBuffer(context, batchSize, (float)(nnXLen*nnYLen));
       cl_mem output = createReadWriteBuffer(context, outputNumFloats);
 
-      OpenCLTuneAccums accums;
       const int reps = 20;
       for(int i = 0; i<reps; i++) {
         double weight;
@@ -872,13 +881,17 @@ void OpenCLTuner::tune(
     auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.transpose.desc(); };
 
     auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret) {
+      OpenCLTuneAccums accums;
+
       cl_int err;
-      cl_program program = compileProgram(
+      cl_program program;
+      bool compileSuc = tryCompileProgram(
         "transposeNCHWProgram", context, deviceIdsToUse, OpenCLKernels::transposeNCHW,
-        cfg.transpose.compileOptions()
+        cfg.transpose.compileOptions(), program
       );
+      if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
       cl_kernel kernel = clCreateKernel(program, "transposeNCHW", &err);
-      CHECK_ERR(err);
+      if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
       int numFloats = batchSize * nnXLen * nnYLen * numChannels;
       int outputNumFloats = numFloats;
@@ -886,7 +899,6 @@ void OpenCLTuner::tune(
       cl_mem input = randomReadOnlyBuffer("tuneTransposeInput", context, numFloats, 1.0);
       cl_mem output = createReadWriteBuffer(context, numFloats);
 
-      OpenCLTuneAccums accums;
       const int reps = 15;
       for(int i = 0; i<reps; i++) {
         double weight;
@@ -1000,10 +1012,17 @@ void OpenCLTuner::tune(
     auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.xGemmDirect.desc(); };
 
     auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret) {
+      OpenCLTuneAccums accums;
+
       cl_int err;
-      cl_program program = compileProgram("xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect, cfg.xGemmDirect.compileOptions());
+      cl_program program;
+      bool compileSuc = tryCompileProgram(
+        "xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect,
+        cfg.xGemmDirect.compileOptions(), program
+      );
+      if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
       cl_kernel kernel = clCreateKernel(program, "XgemmDirectBatchedNN", &err);
-      CHECK_ERR(err);
+      if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
       int numTilesX = (nnXLen + cfg.conv3x3.OUTTILE_XSIZE - 1) / cfg.conv3x3.OUTTILE_XSIZE;
       int numTilesY = (nnYLen + cfg.conv3x3.OUTTILE_YSIZE - 1) / cfg.conv3x3.OUTTILE_YSIZE;
@@ -1024,7 +1043,6 @@ void OpenCLTuner::tune(
       cl_mem filter = randomReadOnlyBuffer("tuneXGemm3x3Filter", context, filterNumFloats, 1.0 / sqrt(maxChannels * 3 * 3));
       cl_mem output = createReadWriteBuffer(context, ioNumFloats);
 
-      OpenCLTuneAccums accums;
       const int reps = 6;
       for(int i = 0; i<reps; i++) {
         int inChannels;

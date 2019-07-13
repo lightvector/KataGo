@@ -100,22 +100,33 @@ cl_program OpenCLHelpers::compileProgram(const string& name, cl_context context,
 
   err = clBuildProgram(program, 0, NULL, opts.c_str(), NULL, NULL);
   if(err != 0) {
+    string s;
+    s += OpenCLHelpers::getErrorMessage(err) + string("\n");
     for(int i = 0; i<devices.size(); i++) {
       cl_int err2;
       vector<char> buf(100000);
       size_t retSize;
       err2 = clGetProgramBuildInfo(program, devices[i], CL_PROGRAM_BUILD_LOG, byteSizeofVectorContents(buf), buf.data(), &retSize);
       CHECK_ERR(err2);
-      cout << "BUILD LOG FOR " << name << " ON DEVICE " << i << endl;
-      cout << buf.data() << endl;
+      s += "BUILD LOG FOR " + name + " ON DEVICE " + Global::intToString(i) + "\n";
+      s += buf.data() + string("\n");
     }
-    CHECK_ERR(err);
+    clReleaseProgram(program);
+    throw CompileError(s);
   }
-
-  CHECK_ERR(err);
   return program;
 }
 
+bool OpenCLHelpers::tryCompileProgram(const string& name, cl_context context, const vector<cl_device_id>& devices, const string& str, const string& options, cl_program& buf) {
+  try {
+    buf = compileProgram(name,context,devices,str,options);
+  }
+  catch(CompileError& e) {
+    (void)e;
+    return false;
+  }
+  return true;
+}
 
 cl_mem OpenCLHelpers::createReadOnlyBuffer(cl_context clContext, vector<float>& data) {
   cl_int err;

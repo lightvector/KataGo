@@ -54,7 +54,23 @@ struct DevicesContext {
 namespace OpenCLHelpers {
   const char* getErrorMessage(cl_int error);
   void checkErrors(cl_int error, const char* file, const char* func, int line);
-  cl_program compileProgram(const std::string& name, cl_context context, const std::vector<cl_device_id>& devices, const std::string& str, const std::string& options);
+
+  struct CompileError final : public StringError { CompileError(const char* msg):StringError(msg) {}; CompileError(const std::string& msg):StringError(msg) {}; };
+  cl_program compileProgram(
+    const std::string& name,
+    cl_context context,
+    const std::vector<cl_device_id>& devices,
+    const std::string& str,
+    const std::string& options
+  );
+  bool tryCompileProgram(
+    const std::string& name,
+    cl_context context,
+    const std::vector<cl_device_id>& devices, const
+    const std::string& str,
+    const std::string& options,
+    cl_program& buf
+  );
 
   cl_mem createReadOnlyBuffer(cl_context context, std::vector<float>& data);
   cl_mem createReadWriteBuffer(cl_context context, std::vector<float>& data);
