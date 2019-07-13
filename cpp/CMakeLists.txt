@@ -23,7 +23,7 @@ endif()
 #------------------------------------------------------------------------------------
 
 set(BUILD_WRITE 0 CACHE BOOL "Build 'write' executable for neural net training data (deprecated)")
-set(BUILD_MCTS 1 CACHE BOOL "Build 'main' for GTP engine and other tools (you probably want this)")
+set(BUILD_MCTS 1 CACHE BOOL "Build 'katago' for GTP engine and other tools (you probably want this)")
 set(USE_OPENCL_BACKEND 0 CACHE BOOL "Use OpenCL backend")
 set(USE_CUDA_BACKEND 0 CACHE BOOL "Use CUDA backend")
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
@@ -35,7 +35,7 @@ if(BUILD_WRITE)
   message("-DBUILD_WRITE=1 is set, building 'write' executable for writing neural net training data from sgfs or LZ data files")
 endif()
 if(BUILD_MCTS)
-  message("-DBUILD_MCTS=1 is set, building 'main' executable for mcts-backed GTP engine and other tools")
+  message("-DBUILD_MCTS=1 is set, building 'katago' executable for mcts-backed GTP engine and other tools")
 
   if((USE_CUDA_BACKEND) AND (USE_OPENCL_BACKEND))
     message(FATAL_ERROR "Please specify only one of -DUSE_CUDA_BACKEND=1 and -DUSE_OPENCL_BACKEND=1")
@@ -159,7 +159,7 @@ endif()
 #------------------------------------------------------------------------------------
 
 if(BUILD_MCTS)
-  add_executable(main
+  add_executable(katago
     core/global.cpp
     core/config_parser.cpp
     core/elo.cpp
@@ -224,64 +224,64 @@ if(BUILD_MCTS)
     )
 
   if(USE_CUDA_BACKEND)
-    target_compile_definitions(main PRIVATE USE_CUDA_BACKEND)
+    target_compile_definitions(katago PRIVATE USE_CUDA_BACKEND)
     find_package(CUDA REQUIRED)
     find_library(CUDNN_LIBRARY libcudnn.so PATHS /usr/local/cuda/lib64 /opt/cuda/lib64)
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
-    target_link_libraries(main ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+    target_link_libraries(katago ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
   elseif(USE_OPENCL_BACKEND)
-    target_compile_definitions(main PRIVATE USE_OPENCL_BACKEND)
+    target_compile_definitions(katago PRIVATE USE_OPENCL_BACKEND)
     find_package(OpenCL REQUIRED)
     include_directories(${OpenCL_INCLUDE_DIRS})
     link_directories(${OpenCL_LIBRARY})
-    target_link_libraries (main ${OpenCL_LIBRARY})
+    target_link_libraries (katago ${OpenCL_LIBRARY})
   endif()
 
   if(NO_GIT_REVISION)
-    target_compile_definitions(main PRIVATE NO_GIT_REVISION)
+    target_compile_definitions(katago PRIVATE NO_GIT_REVISION)
   endif()
 
   find_package(ZLIB REQUIRED)
   if(ZLIB_FOUND)
     include_directories(${ZLIB_INCLUDE_DIRS})
-    target_link_libraries(main ${ZLIB_LIBRARIES})
+    target_link_libraries(katago ${ZLIB_LIBRARIES})
   endif(ZLIB_FOUND)
 
   find_library(LIBZIP_LIBRARY NAMES zip)
   find_path(LIBZIP_INCLUDE_DIR_ZIP NAMES zip.h)
   find_path(LIBZIP_INCLUDE_DIR_ZIPCONF NAMES zipconf.h)
   if((NOT LIBZIP_LIBRARY) OR (NOT LIBZIP_INCLUDE_DIR_ZIP) OR (NOT LIBZIP_INCLUDE_DIR_ZIPCONF))
-    target_compile_definitions(main PRIVATE NO_LIBZIP)
+    target_compile_definitions(katago PRIVATE NO_LIBZIP)
     message(WARNING "${ColorBoldRed}WARNING: libzip library was NOT found. KataGo should still work for GTP/matches/analysis if everything else is good, but selfplay for writing training data will not be possible.${ColorReset}")
   else()
     include_directories(${LIBZIP_INCLUDE_DIR_ZIP})
     include_directories(${LIBZIP_INCLUDE_DIR_ZIPCONF})
-    target_link_libraries(main ${LIBZIP_LIBRARY})
+    target_link_libraries(katago ${LIBZIP_LIBRARY})
   endif()
 
   find_package(Boost COMPONENTS system filesystem REQUIRED)
   include_directories(${Boost_INCLUDE_DIRS})
-  target_link_libraries(main ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
+  target_link_libraries(katago ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
   # Getting boost to work on MSVC seems to require forcing it to link
   # with dlls instead of static, and needs these options
   if(MSVC)
-    target_compile_definitions(main PRIVATE BOOST_ALL_NO_LIB)
-    target_compile_definitions(main PRIVATE BOOST_ALL_DYN_LINK)
+    target_compile_definitions(katago PRIVATE BOOST_ALL_NO_LIB)
+    target_compile_definitions(katago PRIVATE BOOST_ALL_DYN_LINK)
   endif()
   
   if(USE_TCMALLOC)
-    target_link_libraries(main ${TCMALLOC_LIB})
+    target_link_libraries(katago ${TCMALLOC_LIB})
   endif(USE_TCMALLOC)
 
   # Suppress min and max macros on windows
   # Also define a few other things for windows
   if(MSVC)
-    target_compile_definitions(main PRIVATE NOMINMAX)
-    target_compile_definitions(main PRIVATE BYTE_ORDER=1234)
-    target_compile_definitions(main PRIVATE LITTLE_ENDIAN=1234)
-    target_compile_definitions(main PRIVATE BIG_ENDIAN=4321)
+    target_compile_definitions(katago PRIVATE NOMINMAX)
+    target_compile_definitions(katago PRIVATE BYTE_ORDER=1234)
+    target_compile_definitions(katago PRIVATE LITTLE_ENDIAN=1234)
+    target_compile_definitions(katago PRIVATE BIG_ENDIAN=4321)
     # core/rand.cpp uses winsock for a gethostname
-    target_link_libraries(main ws2_32)
+    target_link_libraries(katago ws2_32)
   endif()
 
   # On g++ it seems like we need to explicitly link threads as well.
@@ -289,7 +289,7 @@ if(BUILD_MCTS)
   # if we don't explicitly require threads it when attempting to build without CUDA
   if(CMAKE_COMPILER_IS_GNUCC AND (NOT USE_CUDA_BACKEND))
     find_package (Threads REQUIRED)
-    target_link_libraries(main Threads::Threads)
+    target_link_libraries(katago Threads::Threads)
   endif()
 
 endif()
@@ -308,4 +308,4 @@ if(CMAKE_COMPILER_IS_GNUCC)
   endif()
 endif()
 
-target_include_directories(main PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
