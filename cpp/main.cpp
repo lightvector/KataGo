@@ -46,6 +46,7 @@ runsearchtestsv3 : Run a bunch more things using a neural net and dump details t
 runselfplayinittests : Run some tests involving selfplay training init using a neural net and dump details to stdout
 
 ---Dev/experimental subcommands-------------
+nnerror
 demoplay
 lzcost
 matchauto
@@ -82,6 +83,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::runsearchtestsv3(argc-1,&argv[1]);
   else if(subcommand == "runselfplayinittests")
     return MainCmds::runselfplayinittests(argc-1,&argv[1]);
+  else if(subcommand == "runnnonmanyposestest")
+    return MainCmds::runnnonmanyposestest(argc-1,&argv[1]);
   else if(subcommand == "lzcost")
     return MainCmds::lzcost(argc-1,&argv[1]);
   else if(subcommand == "demoplay")

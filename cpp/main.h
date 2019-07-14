@@ -15,6 +15,7 @@ namespace MainCmds {
   int runsearchtests(int argc, const char* const* argv);
   int runsearchtestsv3(int argc, const char* const* argv);
   int runselfplayinittests(int argc, const char* const* argv);
+  int runnnonmanyposestest(int argc, const char* const* argv);
 
   int lzcost(int argc, const char* const* argv);
   int demoplay(int argc, const char* const* argv);

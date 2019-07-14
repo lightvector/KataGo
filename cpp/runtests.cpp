@@ -147,3 +147,37 @@ int MainCmds::runnnontinyboardtest(int argc, const char* const* argv) {
 
   return 0;
 }
+
+int MainCmds::runnnonmanyposestest(int argc, const char* const* argv) {
+  if(argc != 6 && argc != 7) {
+    cerr << "Must supply five or six arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16 [COMPARISONFILE]" << endl;
+    return 1;
+  }
+  Board::initHash();
+  ScoreValue::initTables();
+
+  if(argc == 6) {
+    Tests::runNNOnManyPoses(
+      string(argv[1]),
+      Global::stringToBool(argv[2]),
+      Global::stringToBool(argv[3]),
+      Global::stringToInt(argv[4]),
+      Global::stringToBool(argv[5]),
+      ""
+    );
+  }
+  else if(argc == 7) {
+    Tests::runNNOnManyPoses(
+      string(argv[1]),
+      Global::stringToBool(argv[2]),
+      Global::stringToBool(argv[3]),
+      Global::stringToInt(argv[4]),
+      Global::stringToBool(argv[5]),
+      string(argv[6])
+    );
+  }
+
+  ScoreValue::freeTables();
+
+  return 0;
+}

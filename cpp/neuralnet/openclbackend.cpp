@@ -23,9 +23,10 @@ using namespace OpenCLHelpers;
 #define MAYBE_EVENTREF &event
 #define MAYBE_FREE_EVENT (void)0
 
-#define MAYBE_PROFILE(_name,period) {                                   \
+#define MAYBE_PROFILE(_name) {                                          \
     static int counter = 0;                                             \
     static double timeTaken = 0;                                        \
+    static bool profilePrintAdded = false;                              \
     const char* _profileName = (_name);                                 \
     handle->profileEvents.push_back(event);                             \
     handle->profileCallbacks.push_back(std::function<void()>([event,_profileName]() { \
@@ -35,15 +36,19 @@ using namespace OpenCLHelpers;
           profileErr = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL); CHECK_ERR(profileErr) ; \
           timeTaken += (time_end - time_start) * 1e-9;                  \
           counter++;                                                    \
-          if(counter % (period) == 0)                                   \
-            cout << _profileName << " " << counter << " " << timeTaken/counter << " " << timeTaken << "\n"; \
         }));                                                            \
+    if(!profilePrintAdded) {                                            \
+      profilePrintAdded = true;                                         \
+      handle->profileResultPrinters.push_back(std::function<void()>([_profileName]() { \
+            cout << _profileName << " " << counter << " " << timeTaken/counter << " " << timeTaken << "\n"; \
+          }));                                                          \
+    }                                                                   \
   }
 #else
 #define MAYBE_EVENT (void)0
 #define MAYBE_EVENTREF NULL
 #define MAYBE_FREE_EVENT (void)0
-#define MAYBE_PROFILE(name,period) (void)0
+#define MAYBE_PROFILE(name) (void)0
 #endif
 
 template<typename T>
@@ -289,6 +294,7 @@ struct ComputeHandleInternal {
 
   vector<cl_event> profileEvents;
   vector<std::function<void()>> profileCallbacks;
+  vector<std::function<void()>> profileResultPrinters;
 
   ComputeHandleInternal(ComputeContext* ctx, int gpuIdx, bool inputsUseNHWC, bool useNHWC, bool useFP16) {
     computeContext = ctx;
@@ -405,7 +411,7 @@ static void addChannelBiases(ComputeHandleInternal* handle, cl_mem src, cl_mem b
     handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
   );
   CHECK_ERR(err);
-  MAYBE_PROFILE("AddChannelBiases",50);
+  MAYBE_PROFILE("AddChannelBiases");
   MAYBE_FREE_EVENT;
 }
 
@@ -424,7 +430,7 @@ static void addPointWise(ComputeHandleInternal* handle, cl_mem acc, cl_mem value
     handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
   );
   CHECK_ERR(err);
-  MAYBE_PROFILE("AddPointWise",100);
+  MAYBE_PROFILE("AddPointWise");
   MAYBE_FREE_EVENT;
 }
 
@@ -440,7 +446,7 @@ static void performGPool(ComputeHandleInternal* handle, int batchSize, int gpool
     MAYBE_EVENTREF
   );
   CHECK_ERR(err);
-  MAYBE_PROFILE("PerformGPool",50);
+  MAYBE_PROFILE("PerformGPool");
   MAYBE_FREE_EVENT;
 }
 
@@ -456,7 +462,7 @@ static void performValueHeadPool(ComputeHandleInternal* handle, int batchSize, i
     MAYBE_EVENTREF
   );
   CHECK_ERR(err);
-  MAYBE_PROFILE("PerformVHPool",30);
+  MAYBE_PROFILE("PerformVHPool");
   MAYBE_FREE_EVENT;
 }
 
@@ -473,7 +479,7 @@ static void transposeNCHW(ComputeHandleInternal* handle, int batchSize, int cSiz
     MAYBE_EVENTREF
   );
   CHECK_ERR(err);
-  MAYBE_PROFILE("TransposeNCHW",30);
+  MAYBE_PROFILE("TransposeNCHW");
   MAYBE_FREE_EVENT;
 }
 
@@ -495,7 +501,7 @@ static void doMirror(ComputeHandleInternal* handle, int batchSize, int mSize, in
     handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
   );
   CHECK_ERR(err);
-  MAYBE_PROFILE("DoMirror",30);
+  MAYBE_PROFILE("DoMirror");
   MAYBE_FREE_EVENT;
 }
 
@@ -771,7 +777,7 @@ struct ConvLayer {
         MAYBE_EVENTREF
       );
       CHECK_ERR(err);
-      MAYBE_PROFILE("MATMULCONV1x1",30);
+      MAYBE_PROFILE("MATMULCONV1x1");
       MAYBE_FREE_EVENT;
     }
     else if(convXSize == 3 && convYSize == 3) {
@@ -790,7 +796,7 @@ struct ConvLayer {
           MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        MAYBE_PROFILE("3x3TRANSFORM",350);
+        MAYBE_PROFILE("3x3TRANSFORM");
         MAYBE_FREE_EVENT;
       }
 
@@ -808,7 +814,7 @@ struct ConvLayer {
           MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        MAYBE_PROFILE("MATMULCONV3x3",350);
+        MAYBE_PROFILE("MATMULCONV3x3");
         MAYBE_FREE_EVENT;
       }
 
@@ -826,7 +832,7 @@ struct ConvLayer {
           MAYBE_EVENTREF
         );
         CHECK_ERR(err);
-        MAYBE_PROFILE("3x3UNTRANSFORM",350);
+        MAYBE_PROFILE("3x3UNTRANSFORM");
         MAYBE_FREE_EVENT;
       }
 
@@ -873,10 +879,10 @@ struct ConvLayer {
       );
       CHECK_ERR(err);
       if(convXRadius == 2 && convYRadius == 2) {
-        MAYBE_PROFILE("CONV5",20);
+        MAYBE_PROFILE("CONV5");
       }
       else {
-        MAYBE_PROFILE("CONV",30);
+        MAYBE_PROFILE("CONV");
       }
       MAYBE_FREE_EVENT;
     }
@@ -959,7 +965,7 @@ struct BatchNormLayer {
       handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
     );
     CHECK_ERR(err);
-    MAYBE_PROFILE("BatchNorm",350);
+    MAYBE_PROFILE("BatchNorm");
     MAYBE_FREE_EVENT;
   }
 
@@ -1030,7 +1036,7 @@ struct MatMulLayer {
 
     );
     CHECK_ERR(err);
-    MAYBE_PROFILE("PLAINMATMUL",200);
+    MAYBE_PROFILE("PLAINMATMUL");
     MAYBE_FREE_EVENT;
   }
 
@@ -1077,7 +1083,7 @@ struct MatBiasLayer {
       handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
     );
     CHECK_ERR(err);
-    MAYBE_PROFILE("MatBias",50);
+    MAYBE_PROFILE("MatBias");
     MAYBE_FREE_EVENT;
   }
 
@@ -1757,7 +1763,7 @@ static void computeMaskSums(
     MAYBE_EVENTREF
   );
   CHECK_ERR(err);
-  MAYBE_PROFILE("MaskSums",30);
+  MAYBE_PROFILE("MaskSums");
   MAYBE_FREE_EVENT;
 }
 
@@ -1910,7 +1916,7 @@ struct Model {
         handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
       );
       CHECK_ERR(err);
-      MAYBE_PROFILE("ExtractMask",30);
+      MAYBE_PROFILE("ExtractMask");
       MAYBE_FREE_EVENT;
     }
 
@@ -2436,10 +2442,19 @@ void NeuralNet::getOutput(
     }
     handle->profileEvents.clear();
     handle->profileCallbacks.clear();
+
+    static int profileResultPrintCounter = 0;
+    profileResultPrintCounter += 1;
+    if(profileResultPrintCounter % 100 == 0) {
+      for(int i = 0; i<handle->profileResultPrinters.size(); i++) {
+        handle->profileResultPrinters[i]();
+      }
+    }
   }
   #else
   assert(handle->profileEvents.size() == 0);
   assert(handle->profileCallbacks.size() == 0);
+  assert(handle->profileResultPrinters.size() == 0);
   #endif
 
   assert(outputs.size() == batchSize);
