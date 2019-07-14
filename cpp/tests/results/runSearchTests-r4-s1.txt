@@ -637,7 +637,7 @@ Tree:
 O4  : T  25.58c W  25.11c S   0.48c ( +0.9) LCB   30.08c P  6.54% WF  9.22% PSV     102 N     102  --  O4 pass O2 pass N2 pass N4 pass
 O2  : T  27.18c W  26.67c S   0.51c ( +1.0) LCB   35.39c P  3.72% WF  8.70% PSV      27 N      27  --  O2 pass O4 pass N4 pass pass
 N4  : T  38.22c W  37.80c S   0.42c ( +0.8) LCB   41.94c P 25.09% WF  6.85% PSV      26 N      26  --  N4 pass pass
-N2  : T  34.35c W  33.55c S   0.80c ( +1.6) LCB   64.89c P  3.34% WF  7.75% PSV       6 N       6  --  N2 pass N4 pass
+N2  : T  34.36c W  33.55c S   0.80c ( +1.6) LCB   64.89c P  3.34% WF  7.75% PSV       6 N       6  --  N2 pass N4 pass
 O3  : T  32.31c W  31.55c S   0.77c ( +1.5) LCB   66.19c P  2.57% WF  7.99% PSV       6 N       6  --  O3 pass N4 pass
 H10 : T  31.58c W  30.92c S   0.66c ( +1.3) LCB   59.39c P  2.22% WF  8.07% PSV       6 N       6  --  H10 pass N4 pass pass
 N3  : T  31.72c W  31.02c S   0.70c ( +1.4) LCB   66.22c P  2.07% WF  8.05% PSV       6 N       6  --  N3 pass N4

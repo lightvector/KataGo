@@ -504,9 +504,9 @@ P5  : T  28.33c W  27.93c S   0.40c ( +0.8) LCB   62.51c P  1.71% WF  7.59% PSV 
 O2  : T  34.84c W  34.37c S   0.47c ( +0.9) LCB   79.65c P  2.93% WF  6.78% PSV      12 N      12  --  O2 pass H10 pass N4 pass pass
 N4  : T  47.02c W  46.51c S   0.51c ( +1.0) LCB   94.06c P 16.95% WF  5.40% PSV      11 N      11  --  N4 pass H10 pass K12 pass pass
 H10 : T  32.88c W  32.46c S   0.42c ( +0.8) LCB   84.07c P  5.26% WF  7.02% PSV      11 N      11  --  H10 pass O4 pass N4 pass pass
-K12 : T  35.10c W  34.61c S   0.49c ( +1.0) LCB   84.73c P  2.86% WF  6.76% PSV      11 N      11  --  K12 pass H10 pass N4 pass pass
+K12 : T  35.11c W  34.61c S   0.49c ( +1.0) LCB   84.73c P  2.86% WF  6.76% PSV      11 N      11  --  K12 pass H10 pass N4 pass pass
 N3  : T  28.01c W  27.50c S   0.50c ( +1.0) LCB   67.11c P  1.67% WF  7.60% PSV      11 N      11  --  N3 pass O4 pass H10 pass
-F16 : T  30.47c W  29.81c S   0.67c ( +1.3) LCB   69.89c P  1.60% WF  7.29% PSV       6 N       6  --  F16 C19 N4 pass
+F16 : T  30.48c W  29.81c S   0.67c ( +1.3) LCB   69.89c P  1.60% WF  7.29% PSV       6 N       6  --  F16 C19 N4 pass
 G10 : T  34.74c W  34.31c S   0.43c ( +0.9) LCB  169.53c P  2.76% WF  6.88% PSV       5 N       5  --  G10 pass N4 pass pass
 C19 : T  40.28c W  39.74c S   0.54c ( +1.1) LCB  167.53c P  2.36% WF  6.34% PSV       5 N       5  --  C19 B19 N4 pass pass
 O3  : T  37.41c W  36.89c S   0.52c ( +1.0) LCB  166.13c P  2.29% WF  6.62% PSV       5 N       5  --  O3 pass N4 pass pass
@@ -600,9 +600,9 @@ P5  : T  28.33c W  27.93c S   0.40c ( +0.8) LCB   62.51c P  1.71% WF  7.59% PSV 
 O2  : T  34.84c W  34.37c S   0.47c ( +0.9) LCB   79.65c P  2.93% WF  6.78% PSV      12 N      12  --  O2 pass H10 pass N4 pass pass
 N4  : T  47.02c W  46.51c S   0.51c ( +1.0) LCB   94.06c P 16.95% WF  5.40% PSV      11 N      11  --  N4 pass H10 pass K12 pass pass
 H10 : T  32.88c W  32.46c S   0.42c ( +0.8) LCB   84.07c P  5.26% WF  7.02% PSV      11 N      11  --  H10 pass O4 pass N4 pass pass
-K12 : T  35.10c W  34.61c S   0.49c ( +1.0) LCB   84.73c P  2.86% WF  6.76% PSV      11 N      11  --  K12 pass H10 pass N4 pass pass
+K12 : T  35.11c W  34.61c S   0.49c ( +1.0) LCB   84.73c P  2.86% WF  6.76% PSV      11 N      11  --  K12 pass H10 pass N4 pass pass
 N3  : T  28.01c W  27.50c S   0.50c ( +1.0) LCB   67.11c P  1.67% WF  7.60% PSV      11 N      11  --  N3 pass O4 pass H10 pass
-F16 : T  30.47c W  29.81c S   0.67c ( +1.3) LCB   69.89c P  1.60% WF  7.29% PSV       6 N       6  --  F16 C19 N4 pass
+F16 : T  30.48c W  29.81c S   0.67c ( +1.3) LCB   69.89c P  1.60% WF  7.29% PSV       6 N       6  --  F16 C19 N4 pass
 G10 : T  34.74c W  34.31c S   0.43c ( +0.9) LCB  169.53c P  2.76% WF  6.88% PSV       5 N       5  --  G10 pass N4 pass pass
 C19 : T  40.28c W  39.74c S   0.54c ( +1.1) LCB  167.53c P  2.36% WF  6.34% PSV       5 N       5  --  C19 B19 N4 pass pass
 O3  : T  37.41c W  36.89c S   0.52c ( +1.0) LCB  166.13c P  2.29% WF  6.62% PSV       5 N       5  --  O3 pass N4 pass pass
@@ -1098,7 +1098,7 @@ N5  : T  18.01c W  16.13c S   1.88c ( +3.8) LCB   46.04c P  0.49% WF  2.89% PSV 
 M13 : T  20.27c W  18.23c S   2.04c ( +4.1) LCB   48.28c P  0.80% WF  2.80% PSV       4 N       4  --  M13 P14 Q13 P13
 N1  : T  31.57c W  28.31c S   3.26c ( +6.6) LCB   87.01c P  2.93% WF  2.40% PSV       3 N       4  --  N1 P14 Q13
 S12 : T  26.86c W  24.12c S   2.74c ( +5.5) LCB   71.05c P  1.82% WF  2.57% PSV       3 N       4  --  S12 P14 S2
-R5  : T  25.53c W  22.93c S   2.60c ( +5.2) LCB  142.82c P  1.35% WF  2.62% PSV       3 N       3  --  R5 R6 Q5
+R5  : T  25.53c W  22.93c S   2.60c ( +5.2) LCB  142.83c P  1.35% WF  2.62% PSV       3 N       3  --  R5 R6 Q5
 D17 : T  24.58c W  22.09c S   2.49c ( +5.0) LCB   65.40c P  1.27% WF  2.65% PSV       3 N       3  --  D17 C17 C18
 E7  : T  23.69c W  21.24c S   2.45c ( +4.9) LCB  110.37c P  1.08% WF  2.68% PSV       3 N       3  --  E7 D7 S2
 S13 : T  27.15c W  24.43c S   2.72c ( +5.5) LCB  161.87c P  1.30% WF  2.57% PSV       2 N       3  --  S13 R8 S2

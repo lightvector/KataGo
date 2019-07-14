@@ -697,7 +697,7 @@ dataXLen 11
 dataYLen 11
 targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 G9 10 G8 10 J6 1 
-whiteValueTargetsByTurn 0 0.489236 0.510764 0 -0.0560727 
+whiteValueTargetsByTurn 0 0.489236 0.510764 0 -0.0560741 
 whiteValueTargetsByTurn 1 1 0 0 7.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
@@ -1747,7 +1747,7 @@ dataXLen 11
 dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 E3 32 D4 40 E4 18 H3 7 H7 1 H5 1 
-whiteValueTargetsByTurn 0 0.493987 0.506013 0 0.632307 
+whiteValueTargetsByTurn 0 0.493987 0.506013 0 0.632306 
 whiteValueTargetsByTurn 1 1 0 0 20 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
@@ -2085,7 +2085,7 @@ dataXLen 11
 dataYLen 11
 targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 G6 12 J10 6 J6 1 
-whiteValueTargetsByTurn 0 0.708075 0.291925 0 9.11981 
+whiteValueTargetsByTurn 0 0.708075 0.291925 0 9.1198 
 whiteValueTargetsByTurn 1 1 0 0 21.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
@@ -2377,7 +2377,7 @@ dataXLen 11
 dataYLen 11
 targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 D3 14 C4 3 D4 2 
-whiteValueTargetsByTurn 0 0.506135 0.493865 0 1.38981 
+whiteValueTargetsByTurn 0 0.506135 0.493866 0 1.38981 
 whiteValueTargetsByTurn 1 1 0 0 32 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
@@ -2564,7 +2564,7 @@ dataXLen 11
 dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 D3 47 D4 19 C4 23 C3 10 
-whiteValueTargetsByTurn 0 0.478745 0.521255 0 -0.0490589 
+whiteValueTargetsByTurn 0 0.478745 0.521255 0 -0.0490587 
 whiteValueTargetsByTurn 1 1 0 0 34.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
@@ -2669,7 +2669,7 @@ dataXLen 11
 dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H9 99 
-whiteValueTargetsByTurn 0 0.487421 0.512579 0 -0.0539511 
+whiteValueTargetsByTurn 0 0.487421 0.512579 0 -0.0539512 
 whiteValueTargetsByTurn 1 1 0 0 34.5 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0   -1    1    0
@@ -3135,7 +3135,7 @@ dataXLen 11
 dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G9 44 E7 29 H6 16 E6 4 F8 5 D8 1 
-whiteValueTargetsByTurn 0 0.496277 0.503723 0 0.746574 
+whiteValueTargetsByTurn 0 0.496277 0.503723 0 0.746573 
 whiteValueTargetsByTurn 1 1 0 0 32 
     0    0    0    0    0    0    0    0    0    0    0
     0    0    0    0    0    0    0    0    0    0    0
