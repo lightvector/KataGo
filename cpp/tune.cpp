@@ -28,6 +28,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
   int nnXLen;
   int nnYLen;
   int batchSize;
+  int winograd3x3TileSize;
   bool full;
   try {
     TCLAP::CmdLine cmd("Perform GPU tuning", ' ', Version::getKataGoVersionForHelp(),true);
@@ -37,6 +38,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     TCLAP::ValueArg<int> nnXLenArg("","xsize","Width of board to tune for",false,OpenCLTuner::DEFAULT_X_SIZE,"INT");
     TCLAP::ValueArg<int> nnYLenArg("","ysize","Height of board to tune for",false,OpenCLTuner::DEFAULT_Y_SIZE,"INT");
     TCLAP::ValueArg<int> batchSizeArg("","batchsize","Batch size to tune for",false,OpenCLTuner::DEFAULT_BATCH_SIZE,"INT");
+    TCLAP::ValueArg<int> winograd3x3TileSizeArg("","winograd3x3tilesize","Batch size to tune for",false,OpenCLTuner::DEFAULT_WINOGRAD_3X3_TILE_SIZE,"INT");
     TCLAP::SwitchArg fullArg("","full","Test more possible configurations");
     cmd.add(modelFileArg);
     cmd.add(outputFileArg);
@@ -52,6 +54,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     nnXLen = nnXLenArg.getValue();
     nnYLen = nnYLenArg.getValue();
     batchSize = batchSizeArg.getValue();
+    winograd3x3TileSize = winograd3x3TileSizeArg.getValue();
     full = fullArg.getValue();
 
     if(gpuIdxsStr.size() > 0) {
@@ -146,6 +149,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
       nnYLen,
       &modelDesc,
       full,
+      winograd3x3TileSize,
       cout,
       std::function<void(const OpenCLTuneParams&)>(handleBestSoFar)
     );

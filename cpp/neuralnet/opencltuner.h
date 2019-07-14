@@ -87,6 +87,7 @@ namespace OpenCLTuner {
   constexpr int DEFAULT_X_SIZE = NNPos::MAX_BOARD_LEN;
   constexpr int DEFAULT_Y_SIZE = NNPos::MAX_BOARD_LEN;
   constexpr int DEFAULT_BATCH_SIZE = 2;
+  constexpr int DEFAULT_WINOGRAD_3X3_TILE_SIZE = 4;
 
   void tune(
     const OpenCLTuneParams& initialConfig,
@@ -97,6 +98,7 @@ namespace OpenCLTuner {
     int nnYLen,
     const ModelDesc* model,
     bool full,
+    int winograd3x3TileSize,
     std::ostream& out,
     std::function<void(const OpenCLTuneParams&)> handleBestSoFar
   );

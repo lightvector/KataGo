@@ -176,6 +176,8 @@ bool OpenCLTuneParams::Conv3x3Params::isValid() const {
   //Currently, the only supported winograd tile sizes
   if(INTILE_XSIZE == 4 && OUTTILE_XSIZE == 2 && INTILE_YSIZE == 4 && OUTTILE_YSIZE == 2)
     return true;
+  if(INTILE_XSIZE == 6 && OUTTILE_XSIZE == 4 && INTILE_YSIZE == 6 && OUTTILE_YSIZE == 4)
+    return true;
   return false;
 }
 
@@ -477,6 +479,7 @@ void OpenCLTuner::tune(
   int nnYLen,
   const ModelDesc* model,
   bool full,
+  int winograd3x3TileSize,
   ostream& out,
   std::function<void(const OpenCLTuneParams&)> handleBestSoFar
 ) {
@@ -485,8 +488,32 @@ void OpenCLTuner::tune(
   cl_command_queue commandQueue = device.commandQueue;
   const vector<cl_device_id>& deviceIdsToUse = { device.info.deviceId };
 
-  const OpenCLTuneParams untunedConfig = OpenCLTuneParams();
+  OpenCLTuneParams untunedConfig = OpenCLTuneParams();
   OpenCLTuneParams currentConfig = initialConfig;
+
+  if(winograd3x3TileSize == 2) {
+    out << "Setting winograd3x3TileSize = 2" << endl;
+    untunedConfig.conv3x3.INTILE_XSIZE = 4;
+    untunedConfig.conv3x3.INTILE_YSIZE = 4;
+    untunedConfig.conv3x3.OUTTILE_XSIZE = 2;
+    untunedConfig.conv3x3.OUTTILE_YSIZE = 2;
+    currentConfig.conv3x3.INTILE_XSIZE = 4;
+    currentConfig.conv3x3.INTILE_YSIZE = 4;
+    currentConfig.conv3x3.OUTTILE_XSIZE = 2;
+    currentConfig.conv3x3.OUTTILE_YSIZE = 2;
+  }
+  else if(winograd3x3TileSize == 4) {
+    out << "Setting winograd3x3TileSize = 4" << endl;
+    untunedConfig.conv3x3.INTILE_XSIZE = 6;
+    untunedConfig.conv3x3.INTILE_YSIZE = 6;
+    untunedConfig.conv3x3.OUTTILE_XSIZE = 4;
+    untunedConfig.conv3x3.OUTTILE_YSIZE = 4;
+    currentConfig.conv3x3.INTILE_XSIZE = 6;
+    currentConfig.conv3x3.INTILE_YSIZE = 6;
+    currentConfig.conv3x3.OUTTILE_XSIZE = 4;
+    currentConfig.conv3x3.OUTTILE_YSIZE = 4;
+  }
+
   if(!currentConfig.isValid()) {
     out << "Loaded a config but the config was invalid, starting tuning from basic config" << endl;
     currentConfig = untunedConfig;
@@ -524,7 +551,7 @@ void OpenCLTuner::tune(
 
     auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret) {
       OpenCLTuneAccums accums;
-      
+
       cl_int err;
       cl_program program;
       bool compileSuc = tryCompileProgram(
@@ -1185,6 +1212,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
       nnYLen,
       model,
       full,
+      DEFAULT_WINOGRAD_3X3_TILE_SIZE,
       cerr,
       std::function<void(const OpenCLTuneParams&)>(handleBestSoFar)
     );

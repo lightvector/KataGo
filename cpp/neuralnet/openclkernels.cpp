@@ -172,6 +172,11 @@ __kernel void transform(
 #define INPUT(_nic,_y,_x) input[((_nic) * ySize + (_y)) * xSize + (_x)]
 #define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
 
+#define SQRT8 2.82842712475f
+#define SQRT2 1.41421356237f
+#define SQRTHALF 0.70710678118f
+#define SQRTEIGHTH 0.35355339059f
+
   __private float wTile[INTILE_XSIZE * INTILE_YSIZE];
 
   //Copy input into private tile
@@ -198,6 +203,28 @@ __kernel void transform(
     WTILE(subY,2) = z2 - z1;
     WTILE(subY,3) = z1 - z3;
   }
+#elif CONV_XSIZE == 3 && OUTTILE_XSIZE == 4
+  for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+    float z0 = WTILE(subY,0);
+    float z1 = WTILE(subY,1);
+    float z2 = WTILE(subY,2);
+    float z3 = WTILE(subY,3);
+    float z4 = WTILE(subY,4);
+    float z5 = WTILE(subY,5);
+    // Low error winograd
+    // WTILE(subY,0) = z0 - 2.5f*z2 + z4;
+    // WTILE(subY,1) = - SQRT2*z1 - 2.0f*z2 + SQRTHALF*z3 + z4;
+    // WTILE(subY,2) =   SQRT2*z1 - 2.0f*z2 - SQRTHALF*z3 + z4;
+    // WTILE(subY,3) = - SQRTHALF*z1 - 0.5f*z2 + SQRT2*z3 + z4;
+    // WTILE(subY,4) =   SQRTHALF*z1 - 0.5f*z2 - SQRT2*z3 + z4;
+    // WTILE(subY,5) = z1 - 2.5f*z3 + z5;
+    WTILE(subY,0) = 4.0f*z0 - 5.0f*z2 + z4;
+    WTILE(subY,1) = - 4.0f*z1 - 4.0f*z2 + z3 + z4;
+    WTILE(subY,2) =   4.0f*z1 - 4.0f*z2 - z3 + z4;
+    WTILE(subY,3) = - 2.0f*z1 - z2 + 2.0f*z3 + z4;
+    WTILE(subY,4) =   2.0f*z1 - z2 - 2.0f*z3 + z4;
+    WTILE(subY,5) = 4.0f*z1 - 5.0f*z3 + z5;
+  }
 #else
   #error "No X winograd implemented for this conv and tile size"
 #endif
@@ -212,6 +239,28 @@ __kernel void transform(
     WTILE(1,subX) = z1 + z2;
     WTILE(2,subX) = z2 - z1;
     WTILE(3,subX) = z1 - z3;
+  }
+#elif CONV_YSIZE == 3 && OUTTILE_YSIZE == 4
+  for(int subX = 0; subX < INTILE_XSIZE; subX++) {
+    float z0 = WTILE(0,subX);
+    float z1 = WTILE(1,subX);
+    float z2 = WTILE(2,subX);
+    float z3 = WTILE(3,subX);
+    float z4 = WTILE(4,subX);
+    float z5 = WTILE(5,subX);
+    // Low error winograd
+    // WTILE(0,subX) = z0 - 2.5f*z2 + z4;
+    // WTILE(1,subX) = - SQRT2*z1 - 2.0f*z2 + SQRTHALF*z3 + z4;
+    // WTILE(2,subX) =   SQRT2*z1 - 2.0f*z2 - SQRTHALF*z3 + z4;
+    // WTILE(3,subX) = - SQRTHALF*z1 - 0.5f*z2 + SQRT2*z3 + z4;
+    // WTILE(4,subX) =   SQRTHALF*z1 - 0.5f*z2 - SQRT2*z3 + z4;
+    // WTILE(5,subX) = z1 - 2.5f*z3 + z5;
+    WTILE(0,subX) = 4.0f*z0 - 5.0f*z2 + z4;
+    WTILE(1,subX) = - 4.0f*z1 - 4.0f*z2 + z3 + z4;
+    WTILE(2,subX) =   4.0f*z1 - 4.0f*z2 - z3 + z4;
+    WTILE(3,subX) = - 2.0f*z1 - z2 + 2.0f*z3 + z4;
+    WTILE(4,subX) =   2.0f*z1 - z2 - 2.0f*z3 + z4;
+    WTILE(5,subX) = 4.0f*z1 - 5.0f*z3 + z5;
   }
 #else
   #error "No Y winograd implemented for this conv and tile size"
@@ -276,6 +325,23 @@ __kernel void untransform(
     WTILE(subY,0) = z0 + z1 + z2;
     WTILE(subY,1) = z1 - z2 - z3;
   }
+#elif CONV_XSIZE == 3 && OUTTILE_XSIZE == 4
+  for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+    float z0 = WTILE(subY,0);
+    float z1 = WTILE(subY,1);
+    float z2 = WTILE(subY,2);
+    float z3 = WTILE(subY,3);
+    float z4 = WTILE(subY,4);
+    float z5 = WTILE(subY,5);
+    WTILE(subY,0) = z0 + z1 + z2 + z3 + z4;
+    // Low error winograd
+    // WTILE(subY,1) = SQRTHALF*(z1 - z2) + SQRT2*(z3 - z4);
+    // WTILE(subY,2) = 0.5f*(z1 + z2) + 2.0f*(z3 + z4);
+    // WTILE(subY,3) = SQRTEIGHTH*(z1 - z2) + SQRT8*(z3 - z4) + z5;
+    WTILE(subY,1) = (z1 - z2) + 2.0f*(z3 - z4);
+    WTILE(subY,2) = (z1 + z2) + 4.0f*(z3 + z4);
+    WTILE(subY,3) = (z1 - z2) + 8.0f*(z3 - z4) + z5;
+  }
 #else
   #error "No X winograd implemented for this conv and tile size"
 #endif
@@ -288,6 +354,23 @@ __kernel void untransform(
     float z3 = WTILE(3,subX);
     WTILE(0,subX) = z0 + z1 + z2;
     WTILE(1,subX) = z1 - z2 - z3;
+  }
+#elif CONV_YSIZE == 3 && OUTTILE_YSIZE == 4
+  for(int subX = 0; subX < OUTTILE_XSIZE; subX++) {
+    float z0 = WTILE(0,subX);
+    float z1 = WTILE(1,subX);
+    float z2 = WTILE(2,subX);
+    float z3 = WTILE(3,subX);
+    float z4 = WTILE(4,subX);
+    float z5 = WTILE(5,subX);
+    WTILE(0,subX) = z0 + z1 + z2 + z3 + z4;
+    // Low error winograd
+    // WTILE(1,subX) = SQRTHALF*(z1 - z2) + SQRT2*(z3 - z4);
+    // WTILE(2,subX) = 0.5f*(z1 + z2) + 2.0f*(z3 + z4);
+    // WTILE(3,subX) = SQRTEIGHTH*(z1 - z2) + SQRT8*(z3 - z4) + z5;
+    WTILE(1,subX) = (z1 - z2) + 2.0f*(z3 - z4);
+    WTILE(2,subX) = (z1 + z2) + 4.0f*(z3 + z4);
+    WTILE(3,subX) = (z1 - z2) + 8.0f*(z3 - z4) + z5;
   }
 #else
   #error "No Y winograd implemented for this conv and tile size"

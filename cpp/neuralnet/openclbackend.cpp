@@ -666,34 +666,67 @@ struct ConvLayer {
       inTileXYSize = inTileXSize * inTileYSize;
       outTileXYSize = outTileXSize * outTileYSize;
 
-      assert(inTileXSize == 4);
-      assert(inTileYSize == 4);
+      static constexpr int maxTileXSize = 6;
+      static constexpr int maxTileYSize = 6;
+      assert((inTileXSize == 4 && outTileXSize == 2) || (inTileXSize == 6 && outTileXSize == 4));
+      assert((inTileYSize == 4 && outTileYSize == 2) || (inTileYSize == 6 && outTileYSize == 4));
 
       //INTILE_YSIZE, INTILE_XSIZE, ic, oc
       vector<float> transWeights(inTileXYSize * inChannels * outChannels);
-      auto transform = [](float& a0, float& a1, float& a2, float& a3) {
+      auto transform4 = [](float& a0, float& a1, float& a2, float& a3) {
         float z0 = a0; float z1 = a1; float z2 = a2;
         a0 = z0;
         a1 = 0.5f * (z0 + z1 + z2);
         a2 = 0.5f * (z0 - z1 + z2);
         a3 = z2;
       };
+      auto transform6 = [](float& a0, float& a1, float& a2, float& a3, float& a4, float& a5) {
+        float z0 = a0; float z1 = a1; float z2 = a2;
+        // Low error winograd
+        // double sqrt2 = sqrt(2.0);
+        // a0 = z0;
+        // a1 = (float)( (1.0 / 3.0) * (-2.0*z0 - sqrt2*z1 - z2) );
+        // a2 = (float)( (1.0 / 3.0) * (-2.0*z0 + sqrt2*z1 - z2) );
+        // a3 = (float)( (1.0 / 6.0) * (z0 + sqrt2*z1 + 2.0*z2) );
+        // a4 = (float)( (1.0 / 6.0) * (z0 - sqrt2*z1 + 2.0*z2) );
+        // a5 = z2;
+        a0 = 0.25f * z0;
+        a1 = (float)( (1.0 / 6.0) * (-z0 - z1 - z2) );
+        a2 = (float)( (1.0 / 6.0) * (-z0 + z1 - z2) );
+        a3 = (float)( (1.0 / 24.0) * (z0 + 2.0*z1 + 4.0*z2) );
+        a4 = (float)( (1.0 / 24.0) * (z0 - 2.0*z1 + 4.0*z2) );
+        a5 = 1.0f * z2;
+      };
 
       for(int oc = 0; oc < outChannels; oc++) {
         for(int ic = 0; ic < inChannels; ic++) {
-          float tmp[4][4];
-          for(int subY = 0; subY < 3; subY++) {
-            for(int subX = 0; subX < 3; subX++) {
+          float tmp[maxTileYSize][maxTileXSize];
+          for(int subY = 0; subY < convYSize; subY++) {
+            for(int subX = 0; subX < convXSize; subX++) {
               tmp[subY][subX] = desc->weights[((oc * inChannels + ic) * convYSize + subY) * convXSize + subX];
             }
           }
-          for(int subY = 0; subY < 3; subY++)
-            transform(tmp[subY][0], tmp[subY][1], tmp[subY][2], tmp[subY][3]);
-          for(int subX = 0; subX < 4; subX++)
-            transform(tmp[0][subX], tmp[1][subX], tmp[2][subX], tmp[3][subX]);
 
-          for(int subY = 0; subY < 4; subY++) {
-            for(int subX = 0; subX < 4; subX++) {
+          if(inTileXSize == 4) {
+            for(int subY = 0; subY < convYSize; subY++)
+              transform4(tmp[subY][0], tmp[subY][1], tmp[subY][2], tmp[subY][3]);
+          }
+          else if(inTileXSize == 6) {
+            for(int subY = 0; subY < convYSize; subY++)
+              transform6(tmp[subY][0], tmp[subY][1], tmp[subY][2], tmp[subY][3], tmp[subY][4], tmp[subY][5]);
+          }
+
+          if(inTileYSize == 4) {
+            for(int subX = 0; subX < inTileXSize; subX++)
+              transform4(tmp[0][subX], tmp[1][subX], tmp[2][subX], tmp[3][subX]);
+          }
+          else if(inTileYSize == 6) {
+            for(int subX = 0; subX < inTileXSize; subX++)
+              transform6(tmp[0][subX], tmp[1][subX], tmp[2][subX], tmp[3][subX], tmp[4][subX], tmp[5][subX]);
+          }
+
+          for(int subY = 0; subY < inTileYSize; subY++) {
+            for(int subX = 0; subX < inTileXSize; subX++) {
               transWeights[((subY*inTileXSize + subX)*inChannels + ic)*outChannels + oc] = tmp[subY][subX];
             }
           }
