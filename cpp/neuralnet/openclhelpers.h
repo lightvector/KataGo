@@ -120,6 +120,7 @@ namespace OpenCLHelpers {
     int batchSize, int nnXLen, int nnYLen,
     int numTilesX, int numTilesY,
     int inChannels,
+    int convSize,
     cl_event* eventBuf
   );
 
@@ -131,6 +132,7 @@ namespace OpenCLHelpers {
     int batchSize, int nnXLen, int nnYLen,
     int numTilesX, int numTilesY,
     int outChannels,
+    int convSize,
     cl_event* eventBuf
   );
 

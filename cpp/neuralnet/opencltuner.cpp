@@ -181,6 +181,75 @@ bool OpenCLTuneParams::Conv3x3Params::isValid() const {
   return false;
 }
 
+
+string OpenCLTuneParams::Conv5x5Params::desc() const {
+  string s;
+  s += "INTILE_XSIZE=" + Global::intToString(INTILE_XSIZE);
+  s += " INTILE_YSIZE=" + Global::intToString(INTILE_YSIZE);
+  s += " OUTTILE_XSIZE=" + Global::intToString(OUTTILE_XSIZE);
+  s += " OUTTILE_YSIZE=" + Global::intToString(OUTTILE_YSIZE);
+  s += " transLocalSize0=" + Global::intToString(transLocalSize0);
+  s += " transLocalSize1=" + Global::intToString(transLocalSize1);
+  s += " transLocalSize2=" + Global::intToString(transLocalSize2);
+  s += " untransLocalSize0=" + Global::intToString(untransLocalSize0);
+  s += " untransLocalSize1=" + Global::intToString(untransLocalSize1);
+  s += " untransLocalSize2=" + Global::intToString(untransLocalSize2);
+  return s;
+}
+string OpenCLTuneParams::Conv5x5Params::transDesc() const {
+  string s;
+  s += " transLocalSize0=" + Global::intToString(transLocalSize0);
+  s += " transLocalSize1=" + Global::intToString(transLocalSize1);
+  s += " transLocalSize2=" + Global::intToString(transLocalSize2);
+  return s;
+}
+string OpenCLTuneParams::Conv5x5Params::untransDesc() const {
+  string s;
+  s += " untransLocalSize0=" + Global::intToString(untransLocalSize0);
+  s += " untransLocalSize1=" + Global::intToString(untransLocalSize1);
+  s += " untransLocalSize2=" + Global::intToString(untransLocalSize2);
+  return s;
+}
+string OpenCLTuneParams::Conv5x5Params::compileOptions() const {
+  string s;
+  s += "-DINTILE_XSIZE=" + Global::intToString(INTILE_XSIZE);
+  s += " -DINTILE_YSIZE=" + Global::intToString(INTILE_YSIZE);
+  s += " -DOUTTILE_XSIZE=" + Global::intToString(OUTTILE_XSIZE);
+  s += " -DOUTTILE_YSIZE=" + Global::intToString(OUTTILE_YSIZE);
+  s += " -DCONV_XSIZE=5 -DCONV_YSIZE=5 -DINTILE_XOFFSET=(-2) -DINTILE_YOFFSET=(-2)";
+  return s;
+}
+void OpenCLTuneParams::Conv5x5Params::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  INTILE_XSIZE = getInt(kvs,"INTILE_XSIZE",INTILE_XSIZE);
+  INTILE_YSIZE = getInt(kvs,"INTILE_YSIZE",INTILE_YSIZE);
+  OUTTILE_XSIZE = getInt(kvs,"OUTTILE_XSIZE",OUTTILE_XSIZE);
+  OUTTILE_YSIZE = getInt(kvs,"OUTTILE_YSIZE",OUTTILE_YSIZE);
+  transLocalSize0 = getInt(kvs,"transLocalSize0",transLocalSize0);
+  transLocalSize1 = getInt(kvs,"transLocalSize1",transLocalSize1);
+  transLocalSize2 = getInt(kvs,"transLocalSize2",transLocalSize2);
+  untransLocalSize0 = getInt(kvs,"untransLocalSize0",untransLocalSize0);
+  untransLocalSize1 = getInt(kvs,"untransLocalSize1",untransLocalSize1);
+  untransLocalSize2 = getInt(kvs,"untransLocalSize2",untransLocalSize2);
+}
+bool OpenCLTuneParams::Conv5x5Params::isValid() const {
+  if(transLocalSize0 <= 0) return false;
+  if(transLocalSize1 <= 0) return false;
+  if(transLocalSize2 <= 0) return false;
+  if(untransLocalSize0 <= 0) return false;
+  if(untransLocalSize1 <= 0) return false;
+  if(untransLocalSize2 <= 0) return false;
+
+  if(transLocalSize0 * transLocalSize1 * transLocalSize2 > 1024) return false;
+  if(untransLocalSize0 * untransLocalSize1 * untransLocalSize2 > 1024) return false;
+
+  //Currently, the only supported winograd tile sizes
+  if(INTILE_XSIZE == 6 && OUTTILE_XSIZE == 2 && INTILE_YSIZE == 6 && OUTTILE_YSIZE == 2)
+    return true;
+  return false;
+}
+
+
 string OpenCLTuneParams::GPoolParams::desc() const {
   string s;
   s += "XYSTRIDE=" + Global::intToString(XYSTRIDE);
@@ -252,7 +321,7 @@ bool OpenCLTuneParams::TransposeParams::isValid() const {
 
 
 bool OpenCLTuneParams::isValid() const {
-  return xGemmDirect.isValid() && conv3x3.isValid() && gPool.isValid() && transpose.isValid();
+  return xGemmDirect.isValid() && conv3x3.isValid() && conv5x5.isValid() && gPool.isValid() && transpose.isValid();
 }
 
 bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
@@ -262,7 +331,7 @@ bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
 }
 
 
-static const char* TUNEPARAMS_VERSION_LINE = "VERSION=4";
+static const char* TUNEPARAMS_VERSION_LINE = "VERSION=5";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out(filename);
   if(out.fail())
@@ -272,6 +341,8 @@ void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& conf
   out << config.xGemmDirect.desc() << "\n";
   out << "#conv3x3" << "\n";
   out << config.conv3x3.desc() << "\n";
+  out << "#conv5x5" << "\n";
+  out << config.conv5x5.desc() << "\n";
   out << "#gPool" << "\n";
   out << config.gPool.desc() << "\n";
   out << "#transpose" << "\n";
@@ -295,14 +366,15 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   if(filteredLines[0] != TUNEPARAMS_VERSION_LINE)
     throw IOError("OpenCLTuneParams::load: expected first line to be " + string(TUNEPARAMS_VERSION_LINE) + " in " + filename);
 
-  if(filteredLines.size() != 5)
+  if(filteredLines.size() != 6)
     throw IOError("OpenCLTuneParams::load: unexpected number of parameter lines in file " + filename);
 
   OpenCLTuneParams config;
   config.xGemmDirect.fillFromDesc(filename,filteredLines[1]);
   config.conv3x3.fillFromDesc(filename,filteredLines[2]);
-  config.gPool.fillFromDesc(filename,filteredLines[3]);
-  config.transpose.fillFromDesc(filename,filteredLines[4]);
+  config.conv5x5.fillFromDesc(filename,filteredLines[3]);
+  config.gPool.fillFromDesc(filename,filteredLines[4]);
+  config.transpose.fillFromDesc(filename,filteredLines[5]);
   return config;
 }
 
@@ -562,6 +634,7 @@ void OpenCLTuner::tune(
       cl_kernel kernel = clCreateKernel(program, "transform", &err);
       if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
+      int convSize = 3;
       int numTilesX = (nnXLen + cfg.conv3x3.OUTTILE_XSIZE - 1) / cfg.conv3x3.OUTTILE_XSIZE;
       int numTilesY = (nnYLen + cfg.conv3x3.OUTTILE_YSIZE - 1) / cfg.conv3x3.OUTTILE_YSIZE;
       int numTilesTotal = batchSize * numTilesX * numTilesY;
@@ -608,6 +681,7 @@ void OpenCLTuner::tune(
           batchSize,nnXLen,nnYLen,
           numTilesX,numTilesY,
           inChannels,
+          convSize,
           &event
         );
 
@@ -685,6 +759,7 @@ void OpenCLTuner::tune(
       cl_kernel kernel = clCreateKernel(program, "untransform", &err);
       if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
+      int convSize = 3;
       int numTilesX = (nnXLen + cfg.conv3x3.OUTTILE_XSIZE - 1) / cfg.conv3x3.OUTTILE_XSIZE;
       int numTilesY = (nnYLen + cfg.conv3x3.OUTTILE_YSIZE - 1) / cfg.conv3x3.OUTTILE_YSIZE;
       int numTilesTotal = batchSize * numTilesX * numTilesY;
@@ -731,6 +806,7 @@ void OpenCLTuner::tune(
           batchSize,nnXLen,nnYLen,
           numTilesX,numTilesY,
           outChannels,
+          convSize,
           &event
         );
 
@@ -1127,6 +1203,15 @@ void OpenCLTuner::tune(
       handleBestSoFar
     );
   }
+
+  //Copy 5x5 conv parameters over from 3x3 conv parameters
+  currentConfig.conv5x5.transLocalSize0 = currentConfig.conv3x3.transLocalSize0;
+  currentConfig.conv5x5.transLocalSize1 = currentConfig.conv3x3.transLocalSize1;
+  currentConfig.conv5x5.transLocalSize2 = currentConfig.conv3x3.transLocalSize2;
+  currentConfig.conv5x5.untransLocalSize0 = currentConfig.conv3x3.untransLocalSize0;
+  currentConfig.conv5x5.untransLocalSize1 = currentConfig.conv3x3.untransLocalSize1;
+  currentConfig.conv5x5.untransLocalSize2 = currentConfig.conv3x3.untransLocalSize2;
+  handleBestSoFar(currentConfig);
 
   out << "Done tuning" << endl;
   out << "------------------------------------------------------" << endl;

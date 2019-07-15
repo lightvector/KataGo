@@ -264,6 +264,67 @@ static void testConvLayer(int64_t& numTestsRun) {
       testConfigurations(label,batchSize,nnXLen,nnYLen,desc,input,expected);
     }
 
+    {
+      string label("5x5 convolution");
+
+      //oc,ic,y,x
+      vector<float> convWeights({
+          0,0,0,0,1,
+          0,0,0,1,0,
+          0,0,1,0,0,
+          0,0,0,0,0,
+          0,0,0,0,0,
+
+          0,0,0,0,0,
+          0,0,0,0,0,
+          0,0,1,0,0,
+          0,1,0,0,0,
+          1,0,0,0,0,
+
+          0,0,0,0,0,
+          0,0,0,0,0,
+          0,0,0,0,0,
+          0,0,0,0,0,
+          0,0,0,0,2,
+
+          0,0,0,0,0,
+          0,0,1,0,0,
+          2,0,0,0,0,
+          0,0,0,0,0,
+          0,0,0,0,0,
+      });
+
+      //NCHW
+      vector<float> expected({
+        5, 9,18,19,
+       13,21,20,16,
+       18,16,18,13,
+
+       16,16, 0, 2,
+        0, 1, 8,11,
+        3, 4,21,20,
+
+        1, 1, 2, 8,
+        4, 2,10, 2,
+        0,13, 2, 6,
+
+        0,12, 2, 0,
+        1, 0, 0, 6,
+        0, 2, 2, 4,
+      });
+
+      ConvLayerDesc desc;
+      desc.convYSize = 5;
+      desc.convXSize = 5;
+      desc.inChannels = inChannels;
+      desc.outChannels = 2;
+      desc.dilationY = 1;
+      desc.dilationX = 1;
+      desc.weights = convWeights;
+
+      testConfigurations(label,batchSize,nnXLen,nnYLen,desc,input,expected);
+    }
+
   }
 
 

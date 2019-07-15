@@ -193,7 +193,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
   char buf[bufLen];
   for(int i = 0; i<bufLen; i++)
     buf[i] = '\0';
-  
+
   int numDevicesTotal = 0;
   vector<cl_device_id> deviceIds(MAX_DEVICES);
   for(int platformIdx = 0; platformIdx < numPlatforms && numDevicesTotal < deviceIds.size(); platformIdx++) {
@@ -216,7 +216,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
 
     if(logger != NULL)
       logger->write("Found OpenCL Platform " + Global::intToString(platformIdx) + ": " + name + " (" + vendor + ") (" + version + ")");
-    
+
     cl_uint numDevices;
     err = clGetDeviceIDs(
       platformIds[platformIdx], CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR, deviceIds.size() - numDevicesTotal,
@@ -224,15 +224,15 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     //Allow there to be 0 devices on this platform, just move on to the next
     if(err == CL_DEVICE_NOT_FOUND) {
       if(logger != NULL)
-        logger->write("Found 0 device(s) on platform " + Global::intToString(platformIdx) + " with type GPU or Accelerator, skipping");  
+        logger->write("Found 0 device(s) on platform " + Global::intToString(platformIdx) + " with type GPU or Accelerator, skipping");
       continue;
     }
-    
+
     CHECK_ERR(err);
     assert(numDevices <= deviceIds.size());
     numDevicesTotal += numDevices;
     if(logger != NULL)
-      logger->write("Found " + Global::intToString(numDevices) + " device(s) on platform " + Global::intToString(platformIdx) + " with type GPU or Accelerator");  
+      logger->write("Found " + Global::intToString(numDevices) + " device(s) on platform " + Global::intToString(platformIdx) + " with type GPU or Accelerator");
   }
   deviceIds.resize(numDevicesTotal);
 
@@ -510,6 +510,7 @@ cl_int OpenCLHelpers::doWinogradTransform(
   int batchSize, int nnXLen, int nnYLen,
   int numTilesX, int numTilesY,
   int inChannels,
+  int convSize,
   cl_event* eventBuf
 ) {
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
@@ -523,9 +524,9 @@ cl_int OpenCLHelpers::doWinogradTransform(
 
   static constexpr int nKernelDims = 3;
   size_t localSizes[nKernelDims] = {
-    (size_t)tuneParams.conv3x3.transLocalSize0,
-    (size_t)tuneParams.conv3x3.transLocalSize1,
-    (size_t)tuneParams.conv3x3.transLocalSize2
+    (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize0 : tuneParams.conv5x5.transLocalSize0),
+    (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize1 : tuneParams.conv5x5.transLocalSize1),
+    (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize2 : tuneParams.conv5x5.transLocalSize2)
   };
 
   size_t globalSizes[nKernelDims] = {
@@ -549,6 +550,7 @@ cl_int OpenCLHelpers::doWinogradUntransform(
   int batchSize, int nnXLen, int nnYLen,
   int numTilesX, int numTilesY,
   int outChannels,
+  int convSize,
   cl_event* eventBuf
 ) {
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&convWorkspace2);
@@ -562,9 +564,9 @@ cl_int OpenCLHelpers::doWinogradUntransform(
 
   static constexpr int nKernelDims = 3;
   size_t localSizes[nKernelDims] = {
-    (size_t)tuneParams.conv3x3.untransLocalSize0,
-    (size_t)tuneParams.conv3x3.untransLocalSize1,
-    (size_t)tuneParams.conv3x3.untransLocalSize2
+    (size_t)(convSize == 3 ? tuneParams.conv3x3.untransLocalSize0 : tuneParams.conv5x5.untransLocalSize0),
+    (size_t)(convSize == 3 ? tuneParams.conv3x3.untransLocalSize1 : tuneParams.conv5x5.untransLocalSize1),
+    (size_t)(convSize == 3 ? tuneParams.conv3x3.untransLocalSize2 : tuneParams.conv5x5.untransLocalSize2)
   };
 
   size_t globalSizes[nKernelDims] = {
