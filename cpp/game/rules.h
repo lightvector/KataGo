@@ -23,6 +23,9 @@ struct Rules {
   Rules(int koRule, int scoringRule, bool multiStoneSuicideLegal, float komi);
   ~Rules();
 
+  bool operator==(const Rules& other) const;
+  bool operator!=(const Rules& other) const;
+
   static Rules getTrompTaylorish();
   static Rules getSimpleTerritory();
 

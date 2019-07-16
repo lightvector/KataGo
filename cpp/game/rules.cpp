@@ -17,6 +17,22 @@ Rules::Rules(int kRule, int sRule, bool suic, float km)
 Rules::~Rules() {
 }
 
+bool Rules::operator==(const Rules& other) const {
+  return
+    koRule == other.koRule &&
+    scoringRule == other.scoringRule &&
+    multiStoneSuicideLegal == other.multiStoneSuicideLegal &&
+    komi == other.komi;
+}
+
+bool Rules::operator!=(const Rules& other) const {
+  return
+    koRule != other.koRule ||
+    scoringRule != other.scoringRule ||
+    multiStoneSuicideLegal != other.multiStoneSuicideLegal ||
+    komi != other.komi;
+}
+
 Rules Rules::getTrompTaylorish() {
   Rules rules;
   rules.koRule = KO_POSITIONAL;

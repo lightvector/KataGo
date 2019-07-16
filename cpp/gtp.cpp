@@ -1,6 +1,7 @@
 #include "core/global.h"
 #include "core/config_parser.h"
 #include "core/timer.h"
+#include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
@@ -44,6 +45,8 @@ static const vector<string> knownCommands = {
   "time_left",
   "final_score",
   "final_status_list",
+
+  "loadsgf",
 
   //GTP extensions for board analysis
   "lz-analyze",
@@ -1236,6 +1239,83 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             if(i > 0)
               response += " ";
             response += Location::toString(loc,board);
+          }
+        }
+      }
+    }
+
+    else if(command == "loadsgf") {
+      if(pieces.size() != 1 && pieces.size() != 2) {
+        responseIsError = true;
+        response = "Expected one or two arguments for loadsgf but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        string filename = pieces[0];
+        bool parseFailed = false;
+        bool moveNumberSpecified = false;
+        int moveNumber = 0;
+        if(pieces.size() == 2) {
+          bool suc = Global::tryStringToInt(pieces[1],moveNumber);
+          if(!suc || moveNumber < 0 || moveNumber > 10000000)
+            parseFailed = true;
+          else {
+            moveNumberSpecified = true;
+          }
+        }
+        if(parseFailed) {
+          responseIsError = true;
+          response = "Invalid value for moveNumber for loadsgf";
+        }
+        else {
+          Board sgfInitialBoard;
+          Player sgfInitialNextPla;
+          BoardHistory sgfInitialHist;
+          Board sgfBoard;
+          Player sgfNextPla;
+          BoardHistory sgfHist;
+
+          bool sgfParseSuccess = false;
+          CompactSgf* sgf = NULL;
+          try {
+            sgf = CompactSgf::loadFile(filename);
+
+            if(!moveNumberSpecified || moveNumber > sgf->moves.size())
+              moveNumber = sgf->moves.size();
+
+            sgf->setupInitialBoardAndHist(engine->bot->getRootHist().rules, sgfInitialBoard, sgfInitialNextPla, sgfInitialHist);
+            sgfBoard = sgfInitialBoard;
+            sgfNextPla = sgfInitialNextPla;
+            sgfHist = sgfInitialHist;
+            for(size_t i = 0; i<moveNumber; i++) {
+              Loc moveLoc = sgf->moves[i].loc;
+              Player movePla = sgf->moves[i].pla;
+              bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of our own rules
+              if(!sgfBoard.isLegal(moveLoc,movePla,multiStoneSuicideLegal)) {
+                throw StringError("Illegal move");
+              }
+              sgfHist.makeBoardMoveAssumeLegal(sgfBoard,moveLoc,movePla,NULL);
+              sgfNextPla = getOpp(movePla);
+            }
+
+            Rules sgfRules = sgf->getRulesFromSgf(sgfHist.rules);
+            if(sgfRules != sgfHist.rules)
+              cerr << "WARNING: Loaded sgf has rules " << sgfRules << " but GTP is set to rules " << sgfHist.rules << endl;
+
+            delete sgf;
+            sgf = NULL;
+            sgfParseSuccess = true;
+          }
+          catch(...) {
+            delete sgf;
+            sgf = NULL;
+          }
+
+          if(sgfParseSuccess) {
+            engine->setPosition(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
+          }
+          else {
+            responseIsError = true;
+            response = "cannot load file";
           }
         }
       }
