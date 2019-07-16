@@ -9,8 +9,12 @@ namespace DateTime {
   //Get the current time
   time_t getNow();
 
-  //Return a tm struct expressing the local time
+  //Return a tm struct expressing the gm time or local time
+  std::tm gmTime(time_t time);
   std::tm localTime(time_t time);
+
+  //Get a string representation of the date
+  std::string getDateString();
 
   //Get a compact string representation of the date and time usable in filenames
   std::string getCompactDateTimeString();

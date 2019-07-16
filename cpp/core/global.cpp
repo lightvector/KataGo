@@ -42,21 +42,6 @@ void Global::fatalError(const string& s)
   exit(EXIT_FAILURE);
 }
 
-//TIME------------------------------------
-
-string Global::getDateString()
-{
-  time_t rawtime;
-  time(&rawtime);
-  tm* ptm = gmtime(&rawtime);
-
-  ostringstream out;
-  out << (ptm->tm_year+1900) << "-"
-      << (ptm->tm_mon+1) << "-"
-      << (ptm->tm_mday);
-  return out.str();
-}
-
 //STRINGS---------------------------------
 
 string Global::boolToString(bool b)

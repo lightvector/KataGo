@@ -11,6 +11,20 @@ time_t DateTime::getNow() {
   return time;
 }
 
+std::tm DateTime::gmTime(time_t time) {
+  std::tm buf{};
+#if defined(OS_IS_UNIX_OR_APPLE)
+  gmtime_r(&time, &buf);
+#elif defined(OS_IS_WINDOWS)
+  gmtime_s(&buf, &time);
+#else
+  static std::mutex gmTimeMutex;
+  std::lock_guard<std::mutex> lock(gmTimeMutex);
+  buf = *(std::gmtime(&time));
+#endif
+  return buf;
+}
+
 std::tm DateTime::localTime(time_t time) {
   std::tm buf{};
 #if defined(OS_IS_UNIX_OR_APPLE)
@@ -23,6 +37,17 @@ std::tm DateTime::localTime(time_t time) {
   buf = *(std::localtime(&time));
 #endif
   return buf;
+}
+
+std::string DateTime::getDateString()
+{
+  time_t time = getNow();
+  std::tm ptm = gmTime(time);
+  std::ostringstream out;
+  out << (ptm.tm_year+1900) << "-"
+      << (ptm.tm_mon+1) << "-"
+      << (ptm.tm_mday);
+  return out.str();
 }
 
 std::string DateTime::getCompactDateTimeString() {
