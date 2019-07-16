@@ -1395,7 +1395,7 @@ struct Trunk {
         delete block;
       }
       else if(blocks[i].first == DILATED_BLOCK_KIND) {
-        ASSERT_UNREACHABLE;
+        //ASSERT_UNREACHABLE;
       }
       else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
         GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second;

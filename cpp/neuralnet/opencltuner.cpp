@@ -1264,6 +1264,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
     return loadedParams;
   }
   catch(const StringError& e) {
+    (void)e;
     if(logger != NULL) {
       logger->write("No existing tuning parameters found or parseable or valid at: " + openCLTunerFile);
       logger->write("Performing autotuning");

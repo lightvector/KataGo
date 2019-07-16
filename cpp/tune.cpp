@@ -132,6 +132,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
       cout << "Starting from existing parameters in: " + outputFile << endl;
     }
     catch(const StringError& e) {
+      (void)e;
       cout << "File does not alrady exist or unable to parse parameters in: " + outputFile << endl;
       cout << "Starting fresh tuning, saving results to " << outputFile << endl;
     }

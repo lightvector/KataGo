@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <iomanip>
+#include <sstream>
 
 #include "../core/os.h"
 #include "../core/multithread.h"
