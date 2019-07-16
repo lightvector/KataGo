@@ -615,13 +615,6 @@ string Global::stripComments(const string& str)
   return result;
 }
 
-string Global::getCompactDateTimeString() {
-  time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  ostringstream out;
-  out << std::put_time(std::localtime(&time), "%Y%m%d-%H%M%S");
-  return out.str();
-}
-
 uint64_t Global::readMem(const string& str)
 {
   if(str.size() < 2)

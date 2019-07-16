@@ -1,7 +1,6 @@
 #include "../core/logger.h"
 
-#include <chrono>
-#include <iomanip>
+#include "../core/datetime.h"
 
 using namespace std;
 
@@ -38,35 +37,29 @@ void Logger::addFile(const string& file) {
 
 void Logger::write(const string& str, bool endLine) {
   lock_guard<std::mutex> lock(mutex);
-  time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  time_t time = DateTime::getNow();
+  const char* timeFormat = "%F %T%z: ";
+
   if(logToStdout) {
-    if(logTime)
-      cout << std::put_time(std::localtime(&time), "%F %T%z: ") << str;
-    else
-      cout << ": " << str;
+    if(logTime) { DateTime::writeTimeToStream(cout, timeFormat, time); cout << str; }
+    else cout << ": " << str;
     if(endLine) cout << std::endl; else cout << std::flush;
   }
   if(logToStderr) {
-    if(logTime)
-      cerr << std::put_time(std::localtime(&time), "%F %T%z: ") << str;
-    else
-      cerr << ": " << str;
+    if(logTime) { DateTime::writeTimeToStream(cerr, timeFormat, time); cerr << str; }
+    else cerr << ": " << str;
     if(endLine) cerr << std::endl; else cerr << std::flush;
   }
   for(size_t i = 0; i<ostreams.size(); i++) {
     ostream& out = *(ostreams[i]);
-    if(logTime)
-      out << std::put_time(std::localtime(&time), "%F %T%z: ") << str;
-    else
-      out << ": " << str;
+    if(logTime) { DateTime::writeTimeToStream(out, timeFormat, time); out << str; }
+    else out << ": " << str;
     if(endLine) out << std::endl; else out << std::flush;
   }
   for(size_t i = 0; i<files.size(); i++) {
     ofstream& out = *(files[i]);
-    if(logTime)
-      out << std::put_time(std::localtime(&time), "%F %T%z: ") << str;
-    else
-      out << ": " << str;
+    if(logTime) { DateTime::writeTimeToStream(out, timeFormat, time); out << str; }
+    else out << ": " << str;
     if(endLine) out << std::endl; else out << std::flush;
   }
 }

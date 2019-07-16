@@ -1,4 +1,5 @@
 #include "core/global.h"
+#include "core/datetime.h"
 #include "core/makedir.h"
 #include "core/config_parser.h"
 #include "core/timer.h"
@@ -198,7 +199,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   Logger logger;
   //Log to random file name to better support starting/stopping as well as multiple parallel runs
-  logger.addFile(outputDir + "/log" + Global::getCompactDateTimeString() + "-" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
+  logger.addFile(outputDir + "/log" + DateTime::getCompactDateTimeString() + "-" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
   bool logToStdout = cfg.getBool("logToStdout");
   logger.setLogToStdout(logToStdout);
 

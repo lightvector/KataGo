@@ -121,6 +121,7 @@ endif()
 
 if(BUILD_WRITE)
   add_executable(write
+    core/datetime.cpp
     core/global.cpp
     core/hash.cpp
     core/md5.cpp
@@ -162,6 +163,7 @@ if(BUILD_MCTS)
   add_executable(katago
     core/global.cpp
     core/config_parser.cpp
+    core/datetime.cpp
     core/elo.cpp
     core/fancymath.cpp
     core/hash.cpp
