@@ -298,12 +298,12 @@ struct GTPEngine {
     setPosition(pla,board,hist,board,pla,newMoveHistory);
   }
 
-  void updateKomiIfNew(double newUnhackedKomi) {
+  void updateKomiIfNew(float newUnhackedKomi) {
     //Komi without whiteBonusPerHandicapStone hack
     unhackedKomi = newUnhackedKomi;
 
     float newKomi = unhackedKomi;
-    newKomi += numHandicapStones(bot->getRootHist()) * whiteBonusPerHandicapStone;
+    newKomi += (float)(numHandicapStones(bot->getRootHist()) * whiteBonusPerHandicapStone);
     if(newKomi != bot->getRootHist().rules.komi)
       recentWinLossValues.clear();
     bot->setKomiIfNew(newKomi);

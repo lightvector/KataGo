@@ -84,7 +84,7 @@ ConvLayerDesc& ConvLayerDesc::operator=(ConvLayerDesc&& other) {
 
 //-----------------------------------------------------------------------------
 
-BatchNormLayerDesc::BatchNormLayerDesc() : numChannels(0), epsilon(0.001), hasScale(false), hasBias(false) {}
+BatchNormLayerDesc::BatchNormLayerDesc() : numChannels(0), epsilon(0.001f), hasScale(false), hasBias(false) {}
 
 BatchNormLayerDesc::BatchNormLayerDesc(istream& in) {
   in >> name;

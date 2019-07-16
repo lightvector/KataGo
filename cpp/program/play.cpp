@@ -651,10 +651,10 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
   assert(success);
   (void)success; //Avoid warning when asserts are disabled
 
-  buf.win = values.winValue;
-  buf.loss = values.lossValue;
-  buf.noResult = values.noResultValue;
-  buf.score = values.expectedScore;
+  buf.win = (float)values.winValue;
+  buf.loss = (float)values.lossValue;
+  buf.noResult = (float)values.noResultValue;
+  buf.score = (float)values.expectedScore;
 
   if(recordUtilities != NULL) {
     buf.hasMctsUtility = true;
@@ -1214,7 +1214,7 @@ FinishedGameData* Play::runGame(
       finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
-      finalValueTargets.score = ScoreValue::whiteScoreDrawAdjust(hist.finalWhiteMinusBlackScore,gameData->drawEquivalentWinsForWhite,hist);
+      finalValueTargets.score = (float)ScoreValue::whiteScoreDrawAdjust(hist.finalWhiteMinusBlackScore,gameData->drawEquivalentWinsForWhite,hist);
 
       //Dummy values, doesn't matter since we didn't do a search for the final values
       finalValueTargets.mctsUtility1 = 0.0f;

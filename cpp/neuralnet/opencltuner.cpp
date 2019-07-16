@@ -388,7 +388,7 @@ static cl_mem randomReadOnlyBuffer(const char* seed, cl_context context, int num
   vector<float> buf(numFloats);
   Rand rand(seed);
   for(int i = 0; i<numFloats; i++)
-    buf[i] = rand.nextDouble(scale);
+    buf[i] = (float)rand.nextDouble(scale);
   return createReadOnlyBuffer(context,buf);
 }
 

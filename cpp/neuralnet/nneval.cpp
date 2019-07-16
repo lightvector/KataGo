@@ -83,7 +83,7 @@ NNEvaluator::NNEvaluator(
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
    alwaysIncludeOwnerMap(alwaysOwnerMap),
-   nnPolicyInvTemperature(1.0/nnPolicyTemp),
+   nnPolicyInvTemperature(1.0f/nnPolicyTemp),
    serverThreads(),
    serverWaitingForBatchStart(),
    bufferMutex(),
@@ -331,10 +331,10 @@ void NNEvaluator::serve(
         for(int y = 0; y<boardYSize; y++) {
           for(int x = 0; x<boardXSize; x++) {
             int pos = NNPos::xyToPos(x,y,nnXLen);
-            policyProbs[pos] = rand.nextGaussian();
+            policyProbs[pos] = (float)rand.nextGaussian();
           }
         }
-        policyProbs[NNPos::locToPos(Board::PASS_LOC,boardXSize,nnXLen,nnYLen)] = rand.nextGaussian();
+        policyProbs[NNPos::locToPos(Board::PASS_LOC,boardXSize,nnXLen,nnYLen)] = (float)rand.nextGaussian();
 
         resultBuf->result->nnXLen = nnXLen;
         resultBuf->result->nnYLen = nnYLen;
@@ -345,7 +345,7 @@ void NNEvaluator::serve(
           for(int y = 0; y<boardYSize; y++) {
             for(int x = 0; x<boardXSize; x++) {
               int pos = NNPos::xyToPos(x,y,nnXLen);
-              whiteOwnerMap[pos] = rand.nextGaussian() * 0.20;
+              whiteOwnerMap[pos] = (float)rand.nextGaussian() * 0.20f;
             }
           }
           resultBuf->result->whiteOwnerMap = whiteOwnerMap;
@@ -360,11 +360,11 @@ void NNEvaluator::serve(
         double whiteScoreMean = 0.0 + rand.nextGaussian() * 0.20;
         double whiteScoreMeanSq = 0.0 + rand.nextGaussian() * 0.20;
         double whiteNoResultProb = 0.0 + rand.nextGaussian() * 0.20;
-        resultBuf->result->whiteWinProb = whiteWinProb;
-        resultBuf->result->whiteLossProb = whiteLossProb;
-        resultBuf->result->whiteNoResultProb = whiteNoResultProb;
-        resultBuf->result->whiteScoreMean = whiteScoreMean;
-        resultBuf->result->whiteScoreMeanSq = whiteScoreMeanSq;
+        resultBuf->result->whiteWinProb = (float)whiteWinProb;
+        resultBuf->result->whiteLossProb = (float)whiteLossProb;
+        resultBuf->result->whiteNoResultProb = (float)whiteNoResultProb;
+        resultBuf->result->whiteScoreMean = (float)whiteScoreMean;
+        resultBuf->result->whiteScoreMeanSq = (float)whiteScoreMeanSq;
         resultBuf->hasResult = true;
         resultBuf->clientWaitingForResult.notify_all();
         resultLock.unlock();
@@ -664,17 +664,17 @@ void NNEvaluator::evaluate(
       }
 
       if(nextPlayer == P_WHITE) {
-        buf.result->whiteWinProb = winProb;
-        buf.result->whiteLossProb = lossProb;
-        buf.result->whiteNoResultProb = noResultProb;
-        buf.result->whiteScoreMean = ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board);
+        buf.result->whiteWinProb = (float)winProb;
+        buf.result->whiteLossProb = (float)lossProb;
+        buf.result->whiteNoResultProb = (float)noResultProb;
+        buf.result->whiteScoreMean = (float)ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board);
         buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
       }
       else {
-        buf.result->whiteWinProb = lossProb;
-        buf.result->whiteLossProb = winProb;
-        buf.result->whiteNoResultProb = noResultProb;
-        buf.result->whiteScoreMean = -ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board);
+        buf.result->whiteWinProb = (float)lossProb;
+        buf.result->whiteLossProb = (float)winProb;
+        buf.result->whiteNoResultProb = (float)noResultProb;
+        buf.result->whiteScoreMean = -(float)ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board);
         buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
       }
 
@@ -733,18 +733,18 @@ void NNEvaluator::evaluate(
       }
 
       if(nextPlayer == P_WHITE) {
-        buf.result->whiteWinProb = winProb;
-        buf.result->whiteLossProb = lossProb;
-        buf.result->whiteNoResultProb = noResultProb;
-        buf.result->whiteScoreMean = scoreMean;
-        buf.result->whiteScoreMeanSq = scoreMeanSq;
+        buf.result->whiteWinProb = (float)winProb;
+        buf.result->whiteLossProb = (float)lossProb;
+        buf.result->whiteNoResultProb = (float)noResultProb;
+        buf.result->whiteScoreMean = (float)scoreMean;
+        buf.result->whiteScoreMeanSq = (float)scoreMeanSq;
       }
       else {
-        buf.result->whiteWinProb = lossProb;
-        buf.result->whiteLossProb = winProb;
-        buf.result->whiteNoResultProb = noResultProb;
-        buf.result->whiteScoreMean = -scoreMean;
-        buf.result->whiteScoreMeanSq = scoreMeanSq;
+        buf.result->whiteWinProb = (float)lossProb;
+        buf.result->whiteLossProb = (float)winProb;
+        buf.result->whiteNoResultProb = (float)noResultProb;
+        buf.result->whiteScoreMean = -(float)scoreMean;
+        buf.result->whiteScoreMeanSq = (float)scoreMeanSq;
       }
 
     }

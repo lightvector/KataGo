@@ -236,7 +236,7 @@ static float fsq(float x) {
   return x * x;
 }
 
-static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTurn, int idx, Player nextPlayer, float nowFactor, float* buf) {
+static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTurn, int idx, Player nextPlayer, double nowFactor, float* buf) {
   double winValue = 0.0;
   double lossValue = 0.0;
   double noResultValue = 0.0;
@@ -494,7 +494,7 @@ void TrainingWriteBuffers::addRow(
       rowScoreDistr[scoreDistrLen] = 100;
     else {
       float lambda = score - (centerScore-0.5f);
-      int upperProp = round(lambda*100.0f);
+      int upperProp = (int)round(lambda*100.0f);
       rowScoreDistr[lowerIdx] = 100-upperProp;
       rowScoreDistr[upperIdx] = upperProp;
     }

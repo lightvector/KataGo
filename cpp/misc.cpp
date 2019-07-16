@@ -344,9 +344,9 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 
       int numVisits = 20;
       Play::adjustKomiToEven(bot->getSearch(),board,hist,pla,numVisits,logger);
-      float komi = hist.rules.komi + 0.3 * rand.nextGaussian();
-      komi = (float)(0.5 * round(2.0 * komi));
-      hist.setKomi(komi);
+      double komi = hist.rules.komi + 0.3 * rand.nextGaussian();
+      komi = 0.5 * round(2.0 * komi);
+      hist.setKomi((float)komi);
       bot->setPosition(pla,board,hist);
     }
   }
