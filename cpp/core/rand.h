@@ -156,7 +156,9 @@ inline int32_t Rand::nextInt(int32_t a, int32_t b)
 
 inline uint64_t Rand::nextUInt64()
 {
-  return ((uint64_t)nextUInt()) | ((uint64_t)nextUInt() << 32);
+  uint64_t lower = (uint64_t)nextUInt();
+  uint64_t upper = (uint64_t)nextUInt() << 32;
+  return lower | upper;
 }
 
 inline uint64_t Rand::nextUInt64(uint64_t n)
