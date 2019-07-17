@@ -81,7 +81,7 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, you 
    * Configure using CMake GUI and compile in MSVC:
       * Select `KataGo/cpp` as the source code directory in [CMake GUI](https://cmake.org/runningcmake/).
       * Set the build directory to wherever you would like the built executable to be produced.
-      * Click "Configure". For the generator select your MSVC version, and also select "x64" for the optional toolset if you're on 64-bit windows.
+      * Click "Configure". For the generator select your MSVC version, and also select "x64" for the platform if you're on 64-bit windows.
       * If you get errors where CMake has not automatically found Boost, ZLib, etc, point it to the appropriate places according to the error messages (by setting `BOOST_ROOT`, `ZLIB_INCLUDE_DIR`, `ZLIB_LIBRARY`, etc). Note that "*_LIBRARY" expects to be pointed to the ".lib" file, whereas the ".dll" file is what you actually need to run.
       * Also select one of `USE_OPENCL_BACKEND` or `USE_CUDA_BACKEND`, and adjust options like `NO_GIT_REVISION` if needed, and run "Configure" again as needed.
       * Once running "Configure" looks good, run "Generate" and then open MSVC and build as normal in MSVC.
