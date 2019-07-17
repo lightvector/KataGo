@@ -1,0 +1,11 @@
+
+Primary author and project maintainer (https://github.com/lightvector/KataGo):
+David J Wu ("lightvector")
+
+Many thanks to these additional authors:
+Tycho Tatitscheff ("tychota") - for documentation and build improvements
+Bernd Schmidt ("bernds") - for minor build improvements
+Loren Puchalla Fiore ("lpuchallafiore") - for a wide variety of code refactors and fixes
+
+Separately from the authors of the content in this repo, additional special thanks to:
+Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support
