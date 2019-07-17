@@ -288,6 +288,8 @@ if(BUILD_MCTS)
     target_compile_definitions(katago PRIVATE BIG_ENDIAN=4321)
     # core/rand.cpp uses winsock for a gethostname
     target_link_libraries(katago ws2_32)
+    
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
   endif()
 
   # On g++ it seems like we need to explicitly link threads as well.
