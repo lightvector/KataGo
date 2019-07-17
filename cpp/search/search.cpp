@@ -506,7 +506,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     return false;
 
   //Sanity check - if somehow we had more than this, something must have overflowed or gone wrong
-  assert(maxValue < 1e16);
+  assert(maxValue < 1e40);
 
   double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/64.0);
   double amountToPrune = std::min(searchParams.chosenMovePrune, maxValue/64.0);
