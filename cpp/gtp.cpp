@@ -332,7 +332,7 @@ struct GTPEngine {
 
     for(int i = 0; i<moveHistoryCopy.size()-1; i++) {
       Loc moveLoc = moveHistoryCopy[i].loc;
-      Loc movePla = moveHistoryCopy[i].pla;
+      Player movePla = moveHistoryCopy[i].pla;
       bool suc = play(moveLoc,movePla);
       assert(suc);
       (void)suc; //Avoid warning when asserts are off
