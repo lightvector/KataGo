@@ -11,7 +11,7 @@ Paper about the major new ideas and techniques used in KataGo: [Accelerating Sel
 ### Current Status and History
 The first serious run of KataGo ran for 7 days in Februrary 2019 on up to 35xV100 GPUs. This is the run featured in the paper. It achieved close to LZ130 strength before it was halted, or up to just barely superhuman.
 
-Following some further improvements and much-improved hyperparameters, KataGo performed a second serious run in May-June a max of 28xV100 GPUs, surpassing the February run after just three and a half days. The run was halted after 19 days, with the final 20-block networks reaching a final strength slightly stronger than LZ-ELFv2! (This is Facebook's very strong 20-block ELF network, running on Leela Zero's search architecture). Comparing to the yet larger Leela Zero 40-block networks, KataGo's network falls somewhere around LZ200 at visit parity, despite only itself being 20 blocks. An updated paper is forthcoming.
+Following some further improvements and much-improved hyperparameters, KataGo performed a second serious run in May-June a max of 28xV100 GPUs, surpassing the February run after just three and a half days. The run was halted after 19 days, with the final 20-block networks reaching a final strength slightly stronger than LZ-ELFv2! (This is Facebook's very strong 20-block ELF network, running on Leela Zero's search architecture). Comparing to the yet larger Leela Zero 40-block networks, KataGo's network falls somewhere around LZ200 at visit parity, despite only itself being 20 blocks. An updated paper is forthcoming. Training data and models are [here](https://d3dndmfyhecmj0.cloudfront.net/).
 
 Several promising possibilities for major further improvements are still being researched. In the next few months, I hope to conduct a third run that should surpass both of the previous two. KataGo also in theory supports Japanese rules self-play training, with a fully working implementation of those rules, *including* details like "no points in seki" and "bent-four-in-the-corner is dead even if there are unremovable ko threats". Many short internal test runs did observe neural nets trained with these rules behaving consistent with learning Japanese rules, but it was not fully tested, since Japanese rules training was turned off in later and longer runs to reduce the complexity of moving parts for the paper. I hope to revisit this and other alternative rulesets (ancient group tax rules, non-square boards, button Go) in the future.
 
@@ -22,12 +22,13 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, Kata
 
    * One slight detail with Lizzie - as of July 2019, the latest release of Lizzie currently performs a hardcoded check for Leela Zero's version number. To work around this issue, you can pass `-override-version 0.16` or `-override-version 0.17` to make KataGo pretend to be different versions of Leela Zero when Lizzie attempts to query the version number. However, the (unreleased) tip of the master branch of Lizzie has implemented explicit KataGo support, including score visualization, and also no longer requires this hack.
 
+Trained models AND precompiled executables are available on the [releases page](https://github.com/lightvector/KataGo/releases)!
+
 #### OpenCL vs CUDA, Supported Operating Systems
 KataGo has both an OpenCL backend and a CUDA backend. The OpenCL backend may be easier to compile and get working, as it doesn't require downloading and installing CUDA and CUDNN. It should be usable on systems with non-NVIDIA GPUs, Intel integrated graphics, etc., as long as they have a working OpenCL installation.
 
-   * The OpenCL version should compile on Linux or OSX via g++, and should compile on Windows via Cygwin or MinGW.
-   * The CUDA version should compile on Linux or OSX via g++ (and nvcc).
-   * Windows compilation for the CUDA version is not yet officially supported. However, it is very likely possible to do so via MSVC similar to the OpenCL version.
+   * KataGo should compile on Linux or OSX via g++ that supports at least C++14.
+   * KataGo should compile on Windows via MSVC 15 (2017) and later.
    * Other compilers and systems have not been tested yet.
 
 Depending on hardware and settings, in practice the OpenCL version seems to range from anywhere to several times slower to about similarly fast as the CUDA version. More optimization work may happen in the future though - the OpenCL version has definitely not reached the limit of how well it can be optimized. It also has not been tested for self-play training with extremely large batch sizes to run hundreds of games in parallel, all of KataGo's main training runs so far have been performed with the CUDA implementation.
@@ -64,7 +65,7 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, you 
    * You can now run the compiled `katago` executable to do various things. You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
       * Example: `./katago gtp -model <NEURALNET>.txt.gz -config configs/gtp_example.cfg` - Run a simple GTP engine using a given neural net and example provided config.
       * Example: `./katago tuner -model <NEURALNET>.txt.gz` - (For OpenCL) run or re-run the tuner to optimize for your particular GPU.
-      * Example: `./katago evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/eval_sgf.cfg` - Have the bot analyze the specified move of the specified SGF.
+      * Example: `./katago evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/evalsgf_example.cfg` - Have the bot analyze the specified move of the specified SGF.
    * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
 
@@ -87,9 +88,10 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, you 
       * Once running "Configure" looks good, run "Generate" and then open MSVC and build as normal in MSVC.
    * You can now run the compiled `katago.exe` executable to do various things.
       * Note: You may need to copy the ".dll" files corresponding to the various ".lib" files you compiled with into the directory containing katago.exe.
+      * Note: If you had to update or install CUDA or GPU drivers, you will likely need to reboot before they will work.
       * Example: `katago.exe gtp -model <NEURALNET>.txt.gz -config configs/gtp_example.cfg` - Run a simple GTP engine using a given neural net and example provided config.
       * Example: `katago.exe tuner -model <NEURALNET>.txt.gz` - (For OpenCL) run or re-run the tuner to optimize for your particular GPU.
-      * Example: `katago.exe evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/eval_sgf.cfg` - Have the bot analyze the specified move of the specified SGF.
+      * Example: `katago.exe evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/evalsgf_example.cfg` - Have the bot analyze the specified move of the specified SGF.
    * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
 
