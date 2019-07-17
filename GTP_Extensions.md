@@ -4,7 +4,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
 
    * `rectangular_boardsize X Y`
       * Sets the board size to a potentially non-square size, width `X` and height `Y`. KataGo's official neural nets are currently not actually trained with non-square sizes, but they actually seem to generalize to them pretty well.
-   * `clear-cache`
+   * `clear_cache`
       * Clears the search tree and the NN cache. Can be used to force KataGo to re-search a position freshly, re-randomizing the search on that position, or to free up memory.
    * `stop`
       * Halts any ongoing pondering, if pondering was enabled in the gtp config.

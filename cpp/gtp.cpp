@@ -32,11 +32,11 @@ static const vector<string> knownCommands = {
   "undo",
 
   "genmove",
-  "genmove-debug", //Prints additional info to stderr
-  "search-debug", //Prints additional info to stderr, doesn't actually make the move
+  "genmove_debug", //Prints additional info to stderr
+  "search_debug", //Prints additional info to stderr, doesn't actually make the move
 
   //Clears neural net cached evaluations and bot search tree, allows fresh randomization
-  "clear-cache",
+  "clear_cache",
 
   "showboard",
   "place_free_handicap",
@@ -1075,7 +1075,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
-    else if(command == "genmove" || command == "genmove-debug" || command == "search-debug") {
+    else if(command == "genmove" || command == "genmove_debug" || command == "search_debug") {
       Player pla;
       if(pieces.size() != 1) {
         responseIsError = true;
@@ -1086,8 +1086,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Could not parse color: '" + pieces[0] + "'";
       }
       else {
-        bool debug = command == "genmove-debug" || command == "search-debug";
-        bool playChosenMove = command != "search-debug";
+        bool debug = command == "genmove_debug" || command == "search_debug";
+        bool playChosenMove = command != "search_debug";
 
         engine->genMove(
           pla,
@@ -1100,7 +1100,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
-    else if(command == "clear-cache") {
+    else if(command == "clear_cache") {
       engine->clearCache();
     }
     else if(command == "showboard") {
