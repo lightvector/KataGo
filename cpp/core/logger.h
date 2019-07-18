@@ -17,6 +17,9 @@ class Logger {
   Logger(const Logger& other) = delete;
   Logger& operator=(const Logger& other) = delete;
 
+  bool isLoggingToStdout() const;
+  bool isLoggingToStderr() const;
+
   void setLogToStdout(bool b);
   void setLogToStderr(bool b);
   void setLogTime(bool b);

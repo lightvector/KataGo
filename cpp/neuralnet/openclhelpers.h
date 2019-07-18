@@ -36,7 +36,7 @@ struct DevicesContext {
   //All unique names of devices being used
   std::vector<std::string> uniqueDeviceNamesToUse;
 
-  DevicesContext(const std::vector<DeviceInfo>& allDeviceInfos, const std::vector<int>& gpuIdxsToUse, bool enableProfiling);
+  DevicesContext(const std::vector<DeviceInfo>& allDeviceInfos, const std::vector<int>& gpuIdxsToUse, Logger* logger, bool enableProfiling);
   ~DevicesContext();
 
   DevicesContext() = delete;

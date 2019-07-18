@@ -19,6 +19,14 @@ Logger::~Logger()
   }
 }
 
+bool Logger::isLoggingToStdout() const {
+  return logToStdout;
+}
+
+bool Logger::isLoggingToStderr() const {
+  return logToStderr;
+}
+
 void Logger::setLogToStdout(bool b) {
   logToStdout = b;
 }

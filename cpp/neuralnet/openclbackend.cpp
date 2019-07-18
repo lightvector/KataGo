@@ -201,7 +201,7 @@ struct ComputeContext {
 
   ComputeContext(const vector<int>& gIdxs, Logger* logger, std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName) {
     vector<DeviceInfo> allDeviceInfos = DeviceInfo::getAllDeviceInfosOnSystem(logger);
-    devicesContext = new DevicesContext(allDeviceInfos,gIdxs,liveProfilingKernels);
+    devicesContext = new DevicesContext(allDeviceInfos,gIdxs,logger,liveProfilingKernels);
 
     for(int i = 0; i<devicesContext->uniqueDeviceNamesToUse.size(); i++) {
       const string& name = devicesContext->uniqueDeviceNamesToUse[i];

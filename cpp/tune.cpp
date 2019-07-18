@@ -109,7 +109,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     int gpuIdx = gpuIdxs[i];
 
     bool enableProfiling = true;
-    DevicesContext devicesContext(allDeviceInfos, {gpuIdx}, enableProfiling);
+    DevicesContext devicesContext(allDeviceInfos, {gpuIdx}, &logger, enableProfiling);
 
     cout << "==============================================================================" << endl;
     const InitializedDevice& device = devicesContext.findGpuExn(gpuIdx);

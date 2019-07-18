@@ -680,13 +680,22 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool loggingToStderr = false;
 
+  bool startupPrintMessageToStderr = true;
+  if(cfg.contains("startupPrintMessageToStderr"))
+    startupPrintMessageToStderr = cfg.getBool("startupPrintMessageToStderr");
+  
   if(cfg.contains("logToStderr") && cfg.getBool("logToStderr")) {
     loggingToStderr = true;
     logger.setLogToStderr(true);
   }
 
   logger.write("GTP Engine starting...");
-
+  logger.write(Version::getKataGoVersionForHelp());
+  //Also check loggingToStderr so that we don't duplicate the message from the log file
+  if(startupPrintMessageToStderr && !loggingToStderr) {
+    cerr << Version::getKataGoVersionForHelp() << endl;
+  }
+  
   Rules initialRules;
   {
     string koRule = cfg.getString("koRule", Rules::koRuleStrings());
@@ -723,10 +732,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,50) : 9;
 
-  bool startupPrintMessageToStderr = true;
-  if(cfg.contains("startupPrintMessageToStderr"))
-    startupPrintMessageToStderr = cfg.getBool("startupPrintMessageToStderr");
-
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone,perspective,analysisPVLen);
@@ -735,12 +740,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
-  logger.write(Version::getKataGoVersionForHelp());
   logger.write("Loaded model "+ nnModelFile);
   logger.write("GTP ready, beginning main protocol loop");
   //Also check loggingToStderr so that we don't duplicate the message from the log file
   if(startupPrintMessageToStderr && !loggingToStderr) {
-    cerr << Version::getKataGoVersionForHelp() << endl;
     cerr << "Loaded model " << nnModelFile << endl;
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }

@@ -1285,7 +1285,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
 
 
     bool enableProfiling = true;
-    DevicesContext devicesContext(allDeviceInfos, {gpuIdxForTuning}, enableProfiling);
+    DevicesContext devicesContext(allDeviceInfos, {gpuIdxForTuning}, logger, enableProfiling);
 
     OpenCLTuneParams initialParams;
     int batchSize = OpenCLTuner::DEFAULT_BATCH_SIZE;

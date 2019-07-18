@@ -267,7 +267,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
 //----------------------------------------------------------------------------------------
 
 
-DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const vector<int>& gIdxsToUse, bool enableProfiling)
+DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const vector<int>& gIdxsToUse, Logger* logger, bool enableProfiling)
   : devicesToUse(),
     uniqueDeviceNamesToUse()
 {
@@ -309,6 +309,13 @@ DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const v
     device.info = allDeviceInfos[gpuIdxsToUse[i]];
     device.commandQueue = commandQueue;
     devicesToUse.push_back(device);
+
+    string message = ("Using OpenCL Device " + Global::intToString(gpuIdxsToUse[i]) + ": " + device.info.name + " (" + device.info.vendor + ")");
+    if(logger != NULL) {
+      logger->write(message);
+      if(!logger->isLoggingToStdout() && !logger->isLoggingToStderr())
+        cerr << message << endl;
+    }
   }
 
   for(size_t i = 0; i<gpuIdxsToUse.size(); i++) {

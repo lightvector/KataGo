@@ -68,6 +68,7 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, you 
       * Example: `./katago evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/evalsgf_example.cfg` - Have the bot analyze the specified move of the specified SGF.
    * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
+   * If using OpenCL, you will want to verify that KataGo is picking up the correct device (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
 
 ### Windows
    * Requirements
@@ -94,6 +95,7 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, you 
       * Example: `katago.exe evalsgf <SGF>.sgf -model <NEURALNET>.txt.gz -move-num <MOVENUM> -config configs/evalsgf_example.cfg` - Have the bot analyze the specified move of the specified SGF.
    * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
+   * If using OpenCL, you will want to verify that KataGo is picking up the correct device (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
 
 ## Selfplay training:
 If you'd also like to run the full self-play loop and train your own neural nets you must have [Python3](https://www.python.org/) and [Tensorflow](https://www.tensorflow.org/install/) installed. The version of Tensorflow known to work with the current code and with which KataGo's main run was trained is 1.12.0. Possibly later or earlier versions could work too, but they have not been tested. You'll also probably need a decent amount of GPU power.
