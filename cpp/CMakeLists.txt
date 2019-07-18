@@ -28,6 +28,7 @@ set(USE_OPENCL_BACKEND 0 CACHE BOOL "Use OpenCL backend")
 set(USE_CUDA_BACKEND 0 CACHE BOOL "Use CUDA backend")
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
+set(Boost_USE_STATIC_LIBS_ON 0 CACHE BOOL "Compile against boost statically instead of dynamically")
 
 #------------------------------------------------------------------------------------
 
@@ -265,13 +266,15 @@ if(BUILD_MCTS)
     target_link_libraries(katago ${LIBZIP_LIBRARY})
   endif()
 
+  if(Boost_USE_STATIC_LIBS_ON)
+    set(Boost_USE_STATIC_LIBS ON)
+  endif()
   find_package(Boost COMPONENTS system filesystem REQUIRED)
   include_directories(${Boost_INCLUDE_DIRS})
   target_link_libraries(katago ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
   # Getting boost to work on MSVC seems to require forcing it to link
-  # with dlls instead of static, and needs these options
-  if(MSVC)
-    target_compile_definitions(katago PRIVATE BOOST_ALL_NO_LIB)
+  # with dlls instead of static, and needs this option
+  if(MSVC AND (NOT Boost_USE_STATIC_LIBS_ON))
     target_compile_definitions(katago PRIVATE BOOST_ALL_DYN_LINK)
   endif()
 
