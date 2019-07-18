@@ -44,7 +44,30 @@ if(BUILD_MCTS)
 
   if(USE_CUDA_BACKEND)
     message("-DUSE_CUDA_BACKEND=1 is set, using CUDA backend")
+
+    # Ensure dynamic cuda linking
+    set(CMAKE_CUDA_FLAGS "" CACHE STRING "")
+    if(CMAKE_CUDA_FLAGS)
+      list(REMOVE_ITEM CMAKE_CUDA_FLAGS "-cudart static")
+    endif()
+    string(APPEND CMAKE_CUDA_FLAGS "-cudart shared")
+
     enable_language(CUDA)
+
+    if(MSVC)
+      # Ensure dynamic cuda linking
+      if(CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES)
+        list(REMOVE_ITEM CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES "cudart_static")
+        list(REMOVE_ITEM CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES "cudadevrt")
+        list(APPEND CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES "cudart")
+      endif()
+      if(CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES)
+        list(REMOVE_ITEM CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES "cudart_static")
+        list(REMOVE_ITEM CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES "cudadevrt")
+        list(APPEND CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES "cudart")
+      endif()
+    endif()
+
     set(CUDA_STANDARD 11)
     set(NEURALNET_BACKEND_SOURCES neuralnet/cudabackend.cpp neuralnet/cudahelpers.cu)
     set(CMAKE_CUDA_FLAGS
