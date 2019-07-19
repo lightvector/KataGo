@@ -1236,78 +1236,103 @@ string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLe
   return Global::strprintf("tune_gpu%s_x%d_y%d_c%d_mv%d.txt", gpuNameForFile.c_str(), nnXLen, nnYLen, model->trunk.trunkNumChannels,model->version);
 }
 
+static OpenCLTuneParams loadFromTunerFile(const string& fileName, Logger* logger) {
+  OpenCLTuneParams loadedParams = OpenCLTuneParams::load(fileName);
+  if(!loadedParams.isValid())
+    throw StringError("Loaded parmameters in " + fileName + " were not valid!");
+  if(logger != NULL) {
+    string message = "Loaded tuning parameters from: " + fileName;
+    logger->write(message);
+    if(!logger->isLoggingToStdout() && !logger->isLoggingToStderr())
+      cerr << message << endl;
+  }
+  return loadedParams;
+}
+
 OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   string openCLTunerFile,
   const string& gpuName,
   int gpuIdxForTuning,
   Logger* logger,
+  bool openCLReTunePerBoardSize,
   int nnXLen,
   int nnYLen,
   const ModelDesc* model,
   bool full
 ) {
   if(openCLTunerFile != "") {
-    if(logger != NULL)
-      logger->write("Loading tuning parameters from: " + openCLTunerFile);
-    return OpenCLTuneParams::load(openCLTunerFile);
+    return loadFromTunerFile(openCLTunerFile,logger);
   }
 
   string dir = OpenCLTuner::defaultDirectory(true);
   openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuName, nnXLen, nnYLen, model);
 
+  //Try loading the config for the proper size
   try {
-    OpenCLTuneParams loadedParams = OpenCLTuneParams::load(openCLTunerFile);
-    if(!loadedParams.isValid())
-      throw StringError("Loaded parmameters were not valid");
-    if(logger != NULL)
-      logger->write("Loaded tuning parameters from: " + openCLTunerFile);
+    OpenCLTuneParams loadedParams = loadFromTunerFile(openCLTunerFile,logger);
     return loadedParams;
   }
   catch(const StringError& e) {
     (void)e;
-    if(logger != NULL) {
-      logger->write("No existing tuning parameters found or parseable or valid at: " + openCLTunerFile);
-      logger->write("Performing autotuning");
+  };
+
+  //If not re-tuning per board size, then check if the tune config for the full size is there
+  //And set the nnXLen and nnYLen we'll use for tuning to the full size
+  if(!openCLReTunePerBoardSize) {
+    nnXLen = NNPos::MAX_BOARD_LEN;
+    nnYLen = NNPos::MAX_BOARD_LEN;
+    openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuName, nnXLen, nnYLen, model);
+    try {
+      OpenCLTuneParams loadedParams = loadFromTunerFile(openCLTunerFile,logger);
+      return loadedParams;
     }
-    OpenCLTuneParams results;
-    auto handleBestSoFar = [&results](const OpenCLTuneParams& bestSoFar) {
-      results = bestSoFar;
+    catch(const StringError& e) {
+      (void)e;
     };
+  }
 
-    vector<DeviceInfo> allDeviceInfos = DeviceInfo::getAllDeviceInfosOnSystem(logger);
-    if(gpuIdxForTuning < 0 || gpuIdxForTuning >= allDeviceInfos.size())
-      throw StringError("Requested gpuIdxForTuning for autotuning was not a valid device: " + Global::intToString(gpuIdxForTuning));
-    if(allDeviceInfos[gpuIdxForTuning].name != gpuName)
-      throw StringError(
-        "Requested gpuIdxForTuning for autotuning expected a device with name " +
-        gpuName + " but found a device with name " + allDeviceInfos[gpuIdxForTuning].name
-      );
+  //No configs found at all, so now autotune
+  if(logger != NULL) {
+    logger->write("No existing tuning parameters found or parseable or valid at: " + openCLTunerFile);
+    logger->write("Performing autotuning");
+  }
+  OpenCLTuneParams results;
+  auto handleBestSoFar = [&results](const OpenCLTuneParams& bestSoFar) {
+    results = bestSoFar;
+  };
 
-
-    bool enableProfiling = true;
-    DevicesContext devicesContext(allDeviceInfos, {gpuIdxForTuning}, logger, enableProfiling);
-
-    OpenCLTuneParams initialParams;
-    int batchSize = OpenCLTuner::DEFAULT_BATCH_SIZE;
-    OpenCLTuner::tune(
-      initialParams,
-      devicesContext,
-      gpuIdxForTuning,
-      batchSize,
-      nnXLen,
-      nnYLen,
-      model,
-      full,
-      DEFAULT_WINOGRAD_3X3_TILE_SIZE,
-      cerr,
-      std::function<void(const OpenCLTuneParams&)>(handleBestSoFar)
+  vector<DeviceInfo> allDeviceInfos = DeviceInfo::getAllDeviceInfosOnSystem(logger);
+  if(gpuIdxForTuning < 0 || gpuIdxForTuning >= allDeviceInfos.size())
+    throw StringError("Requested gpuIdxForTuning for autotuning was not a valid device: " + Global::intToString(gpuIdxForTuning));
+  if(allDeviceInfos[gpuIdxForTuning].name != gpuName)
+    throw StringError(
+      "Requested gpuIdxForTuning for autotuning expected a device with name " +
+      gpuName + " but found a device with name " + allDeviceInfos[gpuIdxForTuning].name
     );
 
-    OpenCLTuneParams::save(openCLTunerFile, results);
-    if(logger != NULL)
-      logger->write("Done tuning, saved results to " + openCLTunerFile);
-    return results;
-  };
+  bool enableProfiling = true;
+  DevicesContext devicesContext(allDeviceInfos, {gpuIdxForTuning}, logger, enableProfiling);
+
+  OpenCLTuneParams initialParams;
+  int batchSize = OpenCLTuner::DEFAULT_BATCH_SIZE;
+  OpenCLTuner::tune(
+    initialParams,
+    devicesContext,
+    gpuIdxForTuning,
+    batchSize,
+    nnXLen,
+    nnYLen,
+    model,
+    full,
+    DEFAULT_WINOGRAD_3X3_TILE_SIZE,
+    cerr,
+    std::function<void(const OpenCLTuneParams&)>(handleBestSoFar)
+  );
+
+  OpenCLTuneParams::save(openCLTunerFile, results);
+  if(logger != NULL)
+    logger->write("Done tuning, saved results to " + openCLTunerFile);
+  return results;
 
 }
 

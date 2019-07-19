@@ -26,6 +26,7 @@ static NNEvaluator* startNNEval(
   bool alwaysIncludeOwnerMap = false;
   float nnPolicyTemperature = 1.0;
   const string openCLTunerFile = "";
+  bool openCLReTunePerBoardSize = false;
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
@@ -43,7 +44,8 @@ static NNEvaluator* startNNEval(
     debugSkipNeuralNet,
     alwaysIncludeOwnerMap,
     nnPolicyTemperature,
-    openCLTunerFile
+    openCLTunerFile,
+    openCLReTunePerBoardSize
   );
   (void)inputsUseNHWC;
 

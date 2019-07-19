@@ -135,6 +135,7 @@ namespace OpenCLTuner {
     const std::string& gpuName,
     int gpuIdxForTuning,
     Logger* logger,
+    bool openCLReTunePerBoardSize,
     int nnXLen,
     int nnYLen,
     const ModelDesc* model,
