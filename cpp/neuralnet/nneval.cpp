@@ -69,7 +69,8 @@ NNEvaluator::NNEvaluator(
   bool skipNeuralNet,
   bool alwaysOwnerMap,
   float nnPolicyTemp,
-  string openCLTunerFile
+  string openCLTunerFile,
+  bool openCLReTunePerBoardSize
 )
   :modelName(mName),
    modelFileName(mFileName),
@@ -124,7 +125,7 @@ NNEvaluator::NNEvaluator(
     loadedModel = NeuralNet::loadModelFile(modelFileName, modelFileIdx);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
-    computeContext = NeuralNet::createComputeContext(gpuIdxs,logger,nnXLen,nnYLen,openCLTunerFile,loadedModel);
+    computeContext = NeuralNet::createComputeContext(gpuIdxs,logger,nnXLen,nnYLen,openCLTunerFile,openCLReTunePerBoardSize,loadedModel);
   }
   else {
     modelVersion = NNModelVersion::defaultModelVersion;

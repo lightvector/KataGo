@@ -91,7 +91,8 @@ class NNEvaluator {
     bool debugSkipNeuralNet,
     bool alwaysIncludeOwnerMap,
     float nnPolicyTemperature,
-    std::string openCLTunerFile
+    std::string openCLTunerFile,
+    bool openCLReTunePerBoardSize
   );
   ~NNEvaluator();
 

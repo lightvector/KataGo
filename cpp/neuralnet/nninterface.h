@@ -50,6 +50,7 @@ namespace NeuralNet {
     int nnXLen,
     int nnYLen,
     std::string openCLTunerFile,
+    bool openCLReTunePerBoardSize,
     const LoadedModel* loadedModel
   );
   //A ComputeContext should NOT be freed until all ComputeHandles created using it have also been freed.
