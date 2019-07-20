@@ -250,14 +250,56 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     CHECK_ERR(err);
     string vendor = string(buf);
 
+    cl_device_type deviceType;
+    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_TYPE, sizeof(cl_device_type), &deviceType, &sizeRet);
+    assert(sizeRet <= sizeof(cl_device_type));
+    CHECK_ERR(err);
+
+    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_VERSION, bufLen, buf, &sizeRet);
+    assert(sizeRet < bufLen-1);
+    CHECK_ERR(err);
+    string openCLVersion = string(buf);
+
     if(logger != NULL)
       logger->write("Found OpenCL Device " + Global::intToString(gpuIdx) + ": " + name + " (" + vendor + ")");
+
+    int defaultDesirability = 0;
+    //Compute desirability for this device for default device selection
+    {
+      string lowercaseVendor = Global::toLower(vendor);
+      if(lowercaseVendor.find("advanced micro devices") != string::npos) defaultDesirability += 1000000;
+      else if(lowercaseVendor.find("amd") != string::npos) defaultDesirability += 1000000;
+      else if(lowercaseVendor.find("nvidia") != string::npos) defaultDesirability += 1000000;
+      else if(lowercaseVendor.find("intel") != string::npos) defaultDesirability += 500000;
+
+      if(deviceType == CL_DEVICE_TYPE_GPU) defaultDesirability += 100000;
+      else if(deviceType == CL_DEVICE_TYPE_ACCELERATOR) defaultDesirability += 50000;
+      else if((deviceType & CL_DEVICE_TYPE_GPU) != 0) defaultDesirability += 20000;
+      else if(deviceType == CL_DEVICE_TYPE_DEFAULT) defaultDesirability += 10000;
+
+      vector<string> versionPieces = Global::split(Global::trim(openCLVersion));
+      if(versionPieces.size() >= 2) {
+        vector<string> majorMinor = Global::split(Global::trim(versionPieces[1]),'.');
+        if(majorMinor.size() == 2) {
+          int major = 0;
+          int minor = 0;
+          bool sucMajor = Global::tryStringToInt(majorMinor[0],major);
+          bool sucMinor = Global::tryStringToInt(majorMinor[1],minor);
+          if(sucMajor && sucMinor && major >= 0 && major < 100 && minor >= 0 && minor < 100) {
+            defaultDesirability += major * 100 + minor;
+          }
+        }
+      }
+    }
 
     DeviceInfo info;
     info.gpuIdx = gpuIdx;
     info.deviceId = deviceIds[gpuIdx];
     info.name = name;
     info.vendor = vendor;
+    info.deviceType = deviceType;
+    info.openCLVersion = openCLVersion;
+    info.defaultDesirability = defaultDesirability;
     allDeviceInfos.push_back(info);
   }
 
@@ -271,12 +313,30 @@ DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const v
   : devicesToUse(),
     uniqueDeviceNamesToUse()
 {
+  defaultGpuIdx = 0;
+  int bestDesirability = 0;
+  for(int gpuIdx = 0; gpuIdx<allDeviceInfos.size(); gpuIdx++) {
+    if(allDeviceInfos[gpuIdx].defaultDesirability > bestDesirability) {
+      defaultGpuIdx = gpuIdx;
+      bestDesirability = allDeviceInfos[gpuIdx].defaultDesirability;
+    }
+  }
+
   //Sort and ensure no duplicates
   vector<int> gpuIdxsToUse = gIdxsToUse;
   std::sort(gpuIdxsToUse.begin(),gpuIdxsToUse.end());
   for(size_t i = 1; i<gpuIdxsToUse.size(); i++) {
     if(gpuIdxsToUse[i-1] == gpuIdxsToUse[i])
       throw StringError("Requested gpuIdx/device more than once: " + Global::intToString(gpuIdxsToUse[i]));
+  }
+
+  //Handle default gpu idx
+  if(gpuIdxsToUse.size() > 0 && gpuIdxsToUse[0] == -1) {
+    if(contains(gpuIdxsToUse,defaultGpuIdx))
+      gpuIdxsToUse.erase(gpuIdxsToUse.begin());
+    else
+      gpuIdxsToUse[0] = defaultGpuIdx;
+    std::sort(gpuIdxsToUse.begin(),gpuIdxsToUse.end());
   }
 
   vector<cl_device_id> deviceIdsToUse;
@@ -310,7 +370,10 @@ DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const v
     device.commandQueue = commandQueue;
     devicesToUse.push_back(device);
 
-    string message = ("Using OpenCL Device " + Global::intToString(gpuIdxsToUse[i]) + ": " + device.info.name + " (" + device.info.vendor + ")");
+    string message =
+      "Using OpenCL Device " + Global::intToString(gpuIdxsToUse[i]) + ": " + device.info.name +
+      " (" + device.info.vendor + ") " +
+      device.info.openCLVersion;
     if(logger != NULL) {
       logger->write(message);
       if(!logger->isLoggingToStdout() && !logger->isLoggingToStderr())
@@ -335,6 +398,8 @@ DevicesContext::~DevicesContext() {
 }
 
 const InitializedDevice& DevicesContext::findGpuExn(int gpuIdx) const {
+  if(gpuIdx == -1)
+    gpuIdx = defaultGpuIdx;
   for(int i = 0; i<devicesToUse.size(); i++) {
     if(devicesToUse[i].info.gpuIdx == gpuIdx)
       return devicesToUse[i];

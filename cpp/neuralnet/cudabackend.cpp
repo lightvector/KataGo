@@ -2683,6 +2683,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
 ) {
   (void)context;
 
+  //Use whatever CUDA believes GPU 0 to be.
+  if(gpuIdxForThisThread == -1)
+    gpuIdxForThisThread = 0;
+
   CUDA_ERR("createComputeHandle",cudaSetDevice(gpuIdxForThisThread));
 
   cudaDeviceProp prop;

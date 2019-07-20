@@ -16,6 +16,10 @@ struct DeviceInfo {
   cl_device_id deviceId;
   std::string name;
   std::string vendor;
+  cl_device_type deviceType;
+  std::string openCLVersion;
+
+  int defaultDesirability;
 
   static constexpr int MAX_PLATFORMS = 32;
   static constexpr int MAX_DEVICES = 512;
@@ -30,6 +34,9 @@ struct InitializedDevice {
 //Wrapper around cl_context for sharing initialization code
 struct DevicesContext {
   cl_context context;
+
+  //Index of the default device to use if not specified (user-provided gpuIdx == -1)
+  int defaultGpuIdx;
 
   //Filtered and initialized subset of allDeviceInfos
   std::vector<InitializedDevice> devicesToUse;

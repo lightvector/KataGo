@@ -108,24 +108,40 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     vector<int> gpuIdxByServerThread;
     for(int j = 0; j<numNNServerThreadsPerModel; j++) {
       string threadIdxStr = Global::intToString(j);
-      if(cfg.contains(backendPrefix+"GpuToUseModel"+idxStr+"Thread"+threadIdxStr))
+      if(cfg.contains(backendPrefix+"DeviceToUseModel"+idxStr+"Thread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"DeviceToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"GpuToUseModel"+idxStr+"Thread"+threadIdxStr))
         gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains("deviceToUseModel"+idxStr+"Thread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("deviceToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
       else if(cfg.contains("gpuToUseModel"+idxStr+"Thread"+threadIdxStr))
         gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"DeviceToUseModel"+idxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"DeviceToUseModel"+idxStr,0,1023));
       else if(cfg.contains(backendPrefix+"GpuToUseModel"+idxStr))
         gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUseModel"+idxStr,0,1023));
+      else if(cfg.contains("deviceToUseModel"+idxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("deviceToUseModel"+idxStr,0,1023));
       else if(cfg.contains("gpuToUseModel"+idxStr))
         gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseModel"+idxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"DeviceToUseThread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"DeviceToUseThread"+threadIdxStr,0,1023));
       else if(cfg.contains(backendPrefix+"GpuToUseThread"+threadIdxStr))
         gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUseThread"+threadIdxStr,0,1023));
+      else if(cfg.contains("deviceToUseThread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("deviceToUseThread"+threadIdxStr,0,1023));
       else if(cfg.contains("gpuToUseThread"+threadIdxStr))
         gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseThread"+threadIdxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"DeviceToUse"))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"DeviceToUse",0,1023));
       else if(cfg.contains(backendPrefix+"GpuToUse"))
         gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUse",0,1023));
+      else if(cfg.contains("deviceToUse"))
+        gpuIdxByServerThread.push_back(cfg.getInt("deviceToUse",0,1023));
       else if(cfg.contains("gpuToUse"))
         gpuIdxByServerThread.push_back(cfg.getInt("gpuToUse",0,1023));
       else
-        gpuIdxByServerThread.push_back(0);
+        gpuIdxByServerThread.push_back(-1);
     }
 
     string openCLTunerFile;
