@@ -196,7 +196,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
   initialBoard = board;
   initialPla = pla;
-  
+
   //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
   //we simply return copies of the starting board.
   for(int i = 0; i<NUM_RECENT_BOARDS; i++)
@@ -804,5 +804,3 @@ int KoHashTable::numberOfOccurrencesOfHash(Hash128 hash) const {
   }
   return count;
 }
-
-

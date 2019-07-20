@@ -855,6 +855,16 @@ void Search::beginSearch(Logger& logger) {
   if(rootBoard.x_size > nnXLen || rootBoard.y_size > nnYLen)
     throw StringError("Search got from NNEval nnXLen = " + Global::intToString(nnXLen) +
                       " nnYLen = " + Global::intToString(nnYLen) + " but was asked to search board with larger x or y size");
+
+  //If we're being asked to search from a position where the game is over, clear all the history state that had us
+  //believe the game was over and do a normal search
+  if(rootHistory.isGameFinished) {
+    clearSearch();
+    Rules rules = rootHistory.rules;
+    rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
+    rootKoHashTable->recompute(rootHistory);
+  }
+
   rootBoard.checkConsistency();
 
   numSearchesBegun++;

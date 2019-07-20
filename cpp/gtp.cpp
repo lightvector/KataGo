@@ -74,8 +74,21 @@ static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
 }
 
-static int numHandicapStones(const BoardHistory& hist) {
-  const Board board = hist.initialBoard;
+static int numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory) {
+  //Make the longest possible contiguous sequence of black moves - treat a string of consecutive black
+  //moves at the start of the game as "handicap"
+  Board board = initialBoard;
+  for(int i = 0; i<moveHistory.size(); i++) {
+    Loc moveLoc = moveHistory[i].loc;
+    Player movePla = moveHistory[i].pla;
+    if(movePla != P_BLACK)
+      break;
+    bool isMultiStoneSuicideLegal = true;
+    bool suc = board.playMove(moveLoc,movePla,isMultiStoneSuicideLegal);
+    if(!suc)
+      break;
+  }
+
   int startBoardNumBlackStones = 0;
   int startBoardNumWhiteStones = 0;
   for(int y = 0; y<board.y_size; y++) {
@@ -88,27 +101,30 @@ static int numHandicapStones(const BoardHistory& hist) {
     }
   }
   //If we set up in a nontrivial position, then consider it a non-handicap game.
-  if(startBoardNumWhiteStones == 0)
-    return startBoardNumBlackStones;
-  return 0;
+  if(startBoardNumWhiteStones != 0)
+    return 0;
+  //If there was only one "handicap" stone, then it was a regular game
+  if(startBoardNumBlackStones <= 1)
+    return 0;
+  return startBoardNumBlackStones;
 }
 
 static bool shouldResign(
-  const AsyncBot* bot,
+  const Board initialBoard,
+  const vector<Move>& moveHistory,
+  const Rules& rules,
   Player pla,
   const vector<double>& recentWinLossValues,
   double expectedScore,
   const double resignThreshold,
   const int resignConsecTurns
 ) {
-  const BoardHistory hist = bot->getRootHist();
-  const Board initialBoard = hist.initialBoard;
-
   //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
-  int extraBlackStones = numHandicapStones(hist);
-  if(hist.initialPla == P_WHITE && extraBlackStones > 0)
+  int extraBlackStones = numHandicapStones(initialBoard,moveHistory);
+  //Subtract one since white gets the first move afterward
+  if(extraBlackStones > 0)
     extraBlackStones -= 1;
-  double handicapBlackAdvantage = 15.0 * extraBlackStones + (7.5 - hist.rules.komi);
+  double handicapBlackAdvantage = 15.0 * extraBlackStones + (7.5 - rules.komi);
 
   int minTurnForResignation = 0;
   double noResignationWhenWhiteScoreAbove = initialBoard.x_size * initialBoard.y_size;
@@ -119,7 +135,7 @@ static bool shouldResign(
     //In a handicap game, also only resign if the expected score difference is well behind schedule assuming
     //that we're supposed to catch up over many moves.
     double numTurnsToCatchUp = 0.60 * initialBoard.x_size * initialBoard.y_size - minTurnForResignation;
-    double numTurnsSpent = (double)(hist.moveHistory.size()) - minTurnForResignation;
+    double numTurnsSpent = (double)(moveHistory.size()) - minTurnForResignation;
     if(numTurnsToCatchUp <= 1.0)
       numTurnsToCatchUp = 1.0;
     if(numTurnsSpent <= 0.0)
@@ -134,7 +150,7 @@ static bool shouldResign(
     noResignationWhenWhiteScoreAbove = resignScore;
   }
 
-  if(hist.moveHistory.size() < minTurnForResignation)
+  if(moveHistory.size() < minTurnForResignation)
     return false;
   if(pla == P_WHITE && expectedScore > noResignationWhenWhiteScoreAbove)
     return false;
@@ -284,11 +300,11 @@ struct GTPEngine {
 
   void setPosition(Player pla, const Board& board, const BoardHistory& hist, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
     bot->setPosition(pla,board,hist);
-    updateKomiIfNew(unhackedKomi);
-    recentWinLossValues.clear();
     initialBoard = newInitialBoard;
     initialPla = newInitialPla;
     moveHistory = newMoveHistory;
+    recentWinLossValues.clear();
+    updateKomiIfNew(unhackedKomi);
   }
 
   void clearBoard() {
@@ -306,7 +322,8 @@ struct GTPEngine {
     unhackedKomi = newUnhackedKomi;
 
     float newKomi = unhackedKomi;
-    newKomi += (float)(numHandicapStones(bot->getRootHist()) * whiteBonusPerHandicapStone);
+    int nHandicapStones = numHandicapStones(initialBoard,moveHistory);
+    newKomi += (float)(nHandicapStones * whiteBonusPerHandicapStone);
     if(newKomi != bot->getRootHist().rules.komi)
       recentWinLossValues.clear();
     bot->setKomiIfNew(newKomi);
@@ -316,6 +333,9 @@ struct GTPEngine {
     bool suc = bot->makeMove(loc,pla);
     if(suc)
       moveHistory.push_back(Move(loc,pla));
+
+    //Black consecutive moves at the start can change the "handicap" which can cause us to adjust komi
+    updateKomiIfNew(unhackedKomi);
     return suc;
   }
 
@@ -434,7 +454,9 @@ struct GTPEngine {
 
     recentWinLossValues.push_back(winLossValue);
 
-    bool resigned = allowResignation && shouldResign(bot,pla,recentWinLossValues,expectedScore,resignThreshold,resignConsecTurns);
+    bool resigned = allowResignation && shouldResign(
+      initialBoard,moveHistory,bot->getRootHist().rules,pla,recentWinLossValues,expectedScore,resignThreshold,resignConsecTurns
+    );
 
     if(resigned)
       response = "resign";
@@ -456,6 +478,10 @@ struct GTPEngine {
         moveHistory.push_back(Move(moveLoc,pla));
       assert(suc);
       (void)suc; //Avoid warning when asserts are off
+
+      //Black consecutive moves at the start can change the "handicap" which can cause us to adjust komi
+      updateKomiIfNew(unhackedKomi);
+
       maybeStartPondering = true;
     }
     return;
@@ -683,7 +709,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   bool startupPrintMessageToStderr = true;
   if(cfg.contains("startupPrintMessageToStderr"))
     startupPrintMessageToStderr = cfg.getBool("startupPrintMessageToStderr");
-  
+
   if(cfg.contains("logToStderr") && cfg.getBool("logToStderr")) {
     loggingToStderr = true;
     logger.setLogToStderr(true);
@@ -695,7 +721,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   if(startupPrintMessageToStderr && !loggingToStderr) {
     cerr << Version::getKataGoVersionForHelp() << endl;
   }
-  
+
   Rules initialRules;
   {
     string koRule = cfg.getString("koRule", Rules::koRuleStrings());
