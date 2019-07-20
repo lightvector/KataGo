@@ -2336,6 +2336,7 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
     );
     data.weightFactor = NAN;
   }
+  perspective = (perspective != P_BLACK && perspective != P_WHITE) ? node->nextPla : perspective;
   printTreeHelper(out, node, options, prefix, 0, 0, data, perspective);
 }
 
