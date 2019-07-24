@@ -24,8 +24,9 @@ endif()
 
 # set(BUILD_WRITE 0 CACHE BOOL "Build 'write' executable for neural net training data (deprecated)")
 set(BUILD_MCTS 1 CACHE BOOL "Build 'katago' for GTP engine and other tools (you probably want this)")
-set(USE_OPENCL_BACKEND 0 CACHE BOOL "Use OpenCL backend")
-set(USE_CUDA_BACKEND 0 CACHE BOOL "Use CUDA backend")
+set(USE_BACKEND CACHE STRING "Neural net backend")
+string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA OPENGL)
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
 set(Boost_USE_STATIC_LIBS_ON 0 CACHE BOOL "Compile against boost statically instead of dynamically")
@@ -38,12 +39,8 @@ endif()
 if(BUILD_MCTS)
   message("-DBUILD_MCTS=1 is set, building 'katago' executable for mcts-backed GTP engine and other tools")
 
-  if((USE_CUDA_BACKEND) AND (USE_OPENCL_BACKEND))
-    message(FATAL_ERROR "Please specify only one of -DUSE_CUDA_BACKEND=1 and -DUSE_OPENCL_BACKEND=1")
-  endif()
-
-  if(USE_CUDA_BACKEND)
-    message("-DUSE_CUDA_BACKEND=1 is set, using CUDA backend")
+  if(USE_BACKEND STREQUAL "CUDA")
+    message("-DUSE_BACKEND=CUDA, using CUDA backend")
 
     # Ensure dynamic cuda linking
     set(CMAKE_CUDA_FLAGS "" CACHE STRING "")
@@ -73,17 +70,19 @@ if(BUILD_MCTS)
     set(CMAKE_CUDA_FLAGS
       "-gencode arch=compute_30,code=sm_30 -gencode arch=compute_30,code=compute_30 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_53,code=sm_53 -gencode arch=compute_53,code=compute_53 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_70,code=compute_70"
       )
-  elseif(USE_OPENCL_BACKEND)
-    message("-DUSE_OPENCL_BACKEND=1 is set, using OpenCL backend")
+  elseif(USE_BACKEND STREQUAL "OPENCL")
+    message("-DUSE_BACKEND=OPENCL, using OpenCL backend")
     set(NEURALNET_BACKEND_SOURCES
       neuralnet/openclbackend.cpp
       neuralnet/openclkernels.cpp
       neuralnet/openclhelpers.cpp
       neuralnet/opencltuner.cpp
       )
-  else()
-    message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. Specify -DUSE_CUDA_BACKEND=1 to compile with CUDA to use neural net.${ColorReset}")
+  elseif(USE_BACKEND STREQUAL "")
+    message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=OPENCL to compile with the respective backend.${ColorReset}")
     set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
+  else()
+    message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
   endif()
 endif()
 
@@ -249,7 +248,7 @@ if(BUILD_MCTS)
     main.cpp
     )
 
-  if(USE_CUDA_BACKEND)
+  if(USE_BACKEND STREQUAL "CUDA")
     target_compile_definitions(katago PRIVATE USE_CUDA_BACKEND)
     find_package(CUDA REQUIRED)
     find_path(CUDNN_INCLUDE_DIR cudnn.h HINTS ${CUDNN_ROOT_DIR} ${CUDA_TOOLKIT_ROOT_DIR} PATH_SUFFIXES cuda/include include)
@@ -259,7 +258,7 @@ if(BUILD_MCTS)
     find_library(CUDNN_LIBRARY libcudnn.so PATHS /usr/local/cuda/lib64 /opt/cuda/lib64)
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS} ${CUDNN_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
     target_link_libraries(katago ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
-  elseif(USE_OPENCL_BACKEND)
+  elseif(USE_BACKEND STREQUAL "OPENCL")
     target_compile_definitions(katago PRIVATE USE_OPENCL_BACKEND)
     find_package(OpenCL REQUIRED)
     include_directories(${OpenCL_INCLUDE_DIRS})
@@ -321,7 +320,7 @@ if(BUILD_MCTS)
   # On g++ it seems like we need to explicitly link threads as well.
   # It seems sometimes this is implied by other options automatically like when we enable CUDA, but we get link errors
   # if we don't explicitly require threads it when attempting to build without CUDA
-  if(CMAKE_COMPILER_IS_GNUCC AND (NOT USE_CUDA_BACKEND))
+  if(CMAKE_COMPILER_IS_GNUCC AND (NOT USE_BACKEND STREQUAL "CUDA"))
     find_package (Threads REQUIRED)
     target_link_libraries(katago Threads::Threads)
   endif()

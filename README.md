@@ -62,7 +62,7 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, you 
       * `git clone https://github.com/lightvector/KataGo.git`
    * Compile using CMake and make in the cpp directory:
       * `cd KataGo/cpp`
-      * `cmake . -DBUILD_MCTS=1 -DUSE_OPENCL_BACKEND=1` or `cmake . -DBUILD_MCTS=1 -DUSE_CUDA_BACKEND=1` depending on which backend you want. Specify also `-DUSE_TCMALLOC=1` if using TCMalloc. Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
+      * `cmake . -DBUILD_MCTS=1 -DUSE_BACKEND=OPENCL` or `cmake . -DBUILD_MCTS=1 -DUSE_BACKEND=CUDA` depending on which backend you want. Specify also `-DUSE_TCMALLOC=1` if using TCMalloc. Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
       * `make`
    * You can now run the compiled `katago` executable to do various things. You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
       * Example: `./katago gtp -model <NEURALNET>.txt.gz -config configs/gtp_example.cfg` - Run a simple GTP engine using a given neural net and example provided config.
@@ -87,7 +87,7 @@ KataGo is written in C++ and has a fully working GTP engine. Once compiled, you 
       * Set the build directory to wherever you would like the built executable to be produced.
       * Click "Configure". For the generator select your MSVC version, and also select "x64" for the platform if you're on 64-bit windows.
       * If you get errors where CMake has not automatically found Boost, ZLib, etc, point it to the appropriate places according to the error messages (by setting `BOOST_ROOT`, `ZLIB_INCLUDE_DIR`, `ZLIB_LIBRARY`, etc). Note that "*_LIBRARY" expects to be pointed to the ".lib" file, whereas the ".dll" file is what you actually need to run.
-      * Also select one of `USE_OPENCL_BACKEND` or `USE_CUDA_BACKEND`, and adjust options like `NO_GIT_REVISION` if needed, and run "Configure" again as needed.
+      * Also set `USE_BACKEND` to `OPENCL` or `CUDA`, and adjust options like `NO_GIT_REVISION` if needed, and run "Configure" again as needed.
       * Once running "Configure" looks good, run "Generate" and then open MSVC and build as normal in MSVC.
    * You can now run the compiled `katago.exe` executable to do various things.
       * Note: You may need to copy the ".dll" files corresponding to the various ".lib" files you compiled with into the directory containing katago.exe.
