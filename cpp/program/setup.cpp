@@ -9,6 +9,24 @@ void Setup::initializeSession(ConfigParser& cfg) {
   NeuralNet::globalInitialize();
 }
 
+NNEvaluator* Setup::initializeNNEvaluator(
+  const string& nnModelName,
+  const string& nnModelFile,
+  ConfigParser& cfg,
+  Logger& logger,
+  Rand& seedRand,
+  int maxConcurrentEvals,
+  int defaultNNXLen,
+  int defaultNNYLen
+) {
+  vector<NNEvaluator*> nnEvals =
+    initializeNNEvaluators(
+      {nnModelName},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,defaultNNXLen,defaultNNYLen
+    );
+  assert(nnEvals.size() == 1);
+  return nnEvals[0];
+}
+
 vector<NNEvaluator*> Setup::initializeNNEvaluators(
   const vector<string>& nnModelNames,
   const vector<string>& nnModelFiles,
@@ -17,8 +35,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   Rand& seedRand,
   int maxConcurrentEvals,
   int defaultNNXLen,
-  int defaultNNYLen,
-  int forcedSymmetry
+  int defaultNNYLen
 ) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
@@ -174,6 +191,10 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("useNHWC"))
       useNHWC = cfg.getBool("useNHWC");
 
+    int forcedSymmetry = -1;
+    if(cfg.contains("nnForcedSymmetry"))
+      forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,7);
+
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
       + " useFP16 " + Global::boolToString(useFP16)
@@ -218,6 +239,14 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   return nnEvals;
 }
 
+SearchParams Setup::loadSingleParams(
+  ConfigParser& cfg
+) {
+  vector<SearchParams> paramss = loadParams(cfg);
+  if(paramss.size() != 1)
+    throw StringError("Config contains parameters for multiple bot configurations, but this KataGo command only supports a single configuration");
+  return paramss[0];
+}
 
 vector<SearchParams> Setup::loadParams(
   ConfigParser& cfg

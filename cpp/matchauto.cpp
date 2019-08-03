@@ -98,10 +98,9 @@ namespace {
       auto iter = loadedNets.find(nnModelFile);
       NetAndStuff* netAndStuff;
       if(iter == loadedNets.end()) {
-        vector<NNEvaluator*> nnEvals =
-          Setup::initializeNNEvaluators({nnModelFile},{nnModelFile},*cfg,logger,seedRand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1);
-        assert(nnEvals.size() == 1);
-        netAndStuff = new NetAndStuff(nnEvals[0]);
+        NNEvaluator* nnEval =
+          Setup::initializeNNEvaluator(nnModelFile,nnModelFile,*cfg,logger,seedRand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN);
+        netAndStuff = new NetAndStuff(nnEval);
         loadedNets[nnModelFile] = netAndStuff;
 
         //Check for unused config keys

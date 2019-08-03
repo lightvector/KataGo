@@ -392,25 +392,15 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-  SearchParams params;
-  {
-    vector<SearchParams> paramss = Setup::loadParams(cfg);
-    assert(paramss.size() > 0);
-    if(paramss.size() != 1)
-      throw StringError("Config specifies more than one bot but demoplay supports only one");
-    params = paramss[0];
-  }
+  SearchParams params = Setup::loadSingleParams(cfg);
 
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    vector<NNEvaluator*> nnEvals =
-      Setup::initializeNNEvaluators(
-        {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
-      );
-    assert(nnEvals.size() == 1);
-    nnEval = nnEvals[0];
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+    );
   }
   logger.write("Loaded neural net");
 

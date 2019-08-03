@@ -276,11 +276,9 @@ struct GTPEngine {
     }
 
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
-      {nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,boardXSize,boardYSize,-1
+    nnEval = Setup::initializeNNEvaluator(
+      nnModelFile,nnModelFile,cfg,logger,seedRand,maxConcurrentEvals,boardXSize,boardYSize
     );
-    assert(nnEvals.size() == 1);
-    nnEval = nnEvals[0];
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
 
     {
@@ -792,13 +790,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     initialRules.komi = komi;
   }
 
-  SearchParams params;
-  {
-    vector<SearchParams> paramss = Setup::loadParams(cfg);
-    if(paramss.size() != 1)
-      throw StringError("Can only specify exactly one search bot in gtp mode");
-    params = paramss[0];
-  }
+  SearchParams params = Setup::loadSingleParams(cfg);
   logger.write("Using " + Global::intToString(params.numThreads) + " CPU thread(s) for search");
 
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");

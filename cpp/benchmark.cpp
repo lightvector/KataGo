@@ -178,13 +178,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
   std::sort(possiblePositionIdxs.begin(),possiblePositionIdxs.end());
 
-  SearchParams params;
-  {
-    vector<SearchParams> paramss = Setup::loadParams(cfg);
-    if(paramss.size() != 1)
-      throw StringError("Can only specify exactly one search bot in benchmark mode");
-    params = paramss[0];
-  }
+  SearchParams params = Setup::loadSingleParams(cfg);
   params.maxVisits = maxVisits;
   params.maxPlayouts = maxVisits;
   params.maxTime = 1e20;
@@ -193,13 +187,10 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = maxNumThreadsInATest * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    vector<NNEvaluator*> nnEvals =
-      Setup::initializeNNEvaluators(
-        {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,
-        sgf->xSize,sgf->ySize,-1
-      );
-    assert(nnEvals.size() == 1);
-    nnEval = nnEvals[0];
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,
+      sgf->xSize,sgf->ySize
+    );
   }
   logger.write("Loaded neural net");
 

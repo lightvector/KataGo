@@ -71,10 +71,7 @@ namespace {
        sgfOut(sOut),
        rand()
     {
-      vector<SearchParams> paramss = Setup::loadParams(cfg);
-      if(paramss.size() != 1)
-        throw StringError("Can only specify one set of search parameters for self-play");
-      SearchParams baseParams = paramss[0];
+      SearchParams baseParams = Setup::loadSingleParams(cfg);
 
       //Initialize object for randomly pairing bots. Actually since this is only selfplay, this only
       //ever gives is the trivial self-pairing, but we use it also for keeping the game count and some logging.
@@ -332,12 +329,9 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
 
     Rand rand;
-    vector<NNEvaluator*> nnEvals =
-      Setup::initializeNNEvaluators(
-        {modelName},{modelFile},cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
-      );
-    assert(nnEvals.size() == 1);
-    NNEvaluator* nnEval = nnEvals[0];
+    NNEvaluator* nnEval = Setup::initializeNNEvaluator(
+      modelName,modelFile,cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+    );
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
 
     string modelOutputDir = outputDir + "/" + modelName;

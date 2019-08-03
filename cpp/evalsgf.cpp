@@ -29,7 +29,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printRootNNValues;
   bool printScoreNow;
   bool printRootEndingBonus;
-  int rawNNSymmetry;
+  bool rawNN;
   try {
     TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
@@ -47,7 +47,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printRootNNValuesArg("","print-root-nn-values","Print root nn values");
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
-    TCLAP::ValueArg<int> rawNNSymmetryArg("","raw-nn","Perform single raw neural net eval with given symmetry (0-7)", false, -1, "INT");
+    TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
     cmd.add(sgfFileArg);
@@ -63,7 +63,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printRootNNValuesArg);
     cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
-    cmd.add(rawNNSymmetryArg);
+    cmd.add(rawNNArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     modelFile = modelFileArg.getValue();
@@ -80,7 +80,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printRootNNValues = printRootNNValuesArg.getValue();
     printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
-    rawNNSymmetry = rawNNSymmetryArg.getValue();
+    rawNN = rawNNArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
       cerr << "Error: -print-branch and -print both specified" << endl;
@@ -95,10 +95,6 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     }
     if(extraMoves.length() <= 0)
       extraMoves = extra;
-    if(rawNNSymmetry < -1 || rawNNSymmetry >= 8) {
-      cerr << "Error: invalid value for raw-nn" << endl;
-      return 1;
-    }
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -179,13 +175,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   logger.setLogToStdout(true);
   logger.write("Engine starting...");
 
-  SearchParams params;
-  {
-    vector<SearchParams> paramss = Setup::loadParams(cfg);
-    if(paramss.size() != 1)
-      throw StringError("Can only specify exactly one bot in for searching in an sgf");
-    params = paramss[0];
-  }
+  SearchParams params = Setup::loadSingleParams(cfg);
   if(maxVisits < -1 || maxVisits == 0)
     throw StringError("maxVisits: invalid value");
   else if(maxVisits == -1)
@@ -212,13 +202,10 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    vector<NNEvaluator*> nnEvals =
-      Setup::initializeNNEvaluators(
-        {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,
-        board.x_size,board.y_size,rawNNSymmetry
-      );
-    assert(nnEvals.size() == 1);
-    nnEval = nnEvals[0];
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,
+      board.x_size,board.y_size
+    );
   }
   logger.write("Loaded neural net");
 
@@ -235,7 +222,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
-  if(rawNNSymmetry >= 0) {
+  if(rawNN) {
     NNResultBuf buf;
     bool skipCache = true;
     bool includeOwnerMap = true;

@@ -84,10 +84,7 @@ namespace {
        sgfOut(sOut),
        terminated(false)
     {
-      vector<SearchParams> paramss = Setup::loadParams(cfg);
-      if(paramss.size() != 1)
-        throw StringError("Can only specify one set of search parameters for gatekeeper");
-      SearchParams baseParams = paramss[0];
+      SearchParams baseParams = Setup::loadSingleParams(cfg);
 
       drawEquivalentWinsForWhite = baseParams.drawEquivalentWinsForWhite;
       noResultUtilityForWhite = baseParams.noResultUtilityForWhite;
@@ -352,27 +349,15 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     // * 2 + 16 just in case to have plenty of room
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
 
-    NNEvaluator* testNNEval;
-    {
-      vector<NNEvaluator*> nnEvals =
-        Setup::initializeNNEvaluators(
-          {testModelName},{testModelFile},cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
-        );
-      assert(nnEvals.size() == 1);
-      logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
-      testNNEval = nnEvals[0];
-    }
+    NNEvaluator* testNNEval = Setup::initializeNNEvaluator(
+      testModelName,testModelFile,cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+    );
+    logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
 
-    NNEvaluator* acceptedNNEval;
-    {
-      vector<NNEvaluator*> nnEvals =
-        Setup::initializeNNEvaluators(
-          {acceptedModelName},{acceptedModelFile},cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
-        );
-      assert(nnEvals.size() == 1);
-      logger.write("Loaded accepted neural net " + acceptedModelName + " from: " + acceptedModelFile);
-      acceptedNNEval = nnEvals[0];
-    }
+    NNEvaluator* acceptedNNEval = Setup::initializeNNEvaluator(
+      acceptedModelName,acceptedModelFile,cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+    );
+    logger.write("Loaded accepted neural net " + acceptedModelName + " from: " + acceptedModelFile);
 
     string sgfOutputDirThisModel = sgfOutputDir + "/" + testModelName;
     MakeDir::make(sgfOutputDirThisModel);
