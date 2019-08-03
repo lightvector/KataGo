@@ -270,11 +270,22 @@ struct GTPEngine {
 
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
-      {nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false,boardXSize,boardYSize,-1
+      {nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,boardXSize,boardYSize,-1
     );
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
+
+    {
+      bool rulesWereSupported;
+      nnEval->getSupportedRules(baseRules,rulesWereSupported);
+      if(!rulesWereSupported) {
+        ostringstream out;
+        out << "WARNING: Rules " << baseRules << " from config file are NOT supported by neural net, moves and evaluations are likely to be bad";
+        logger.write(out.str());
+        cerr << out.str() << endl;
+      }
+    }
 
     //On initial setup, size the board to whatever the neural net was initialized with
     //So that if the net was initalized smaller, we don't fail with a big board

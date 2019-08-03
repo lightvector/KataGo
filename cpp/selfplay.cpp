@@ -328,14 +328,13 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     logger.write("Found new neural net " + modelName);
 
-    bool debugSkipNeuralNetDefault = (modelFile == "/dev/null");
     // * 2 + 16 just in case to have plenty of room
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
 
     Rand rand;
     vector<NNEvaluator*> nnEvals =
       Setup::initializeNNEvaluators(
-        {modelName},{modelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefault,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
+        {modelName},{modelFile},cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
       );
     assert(nnEvals.size() == 1);
     NNEvaluator* nnEval = nnEvals[0];

@@ -16,8 +16,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   Logger& logger,
   Rand& seedRand,
   int maxConcurrentEvals,
-  bool debugSkipNeuralNetDefault,
-  bool alwaysIncludeOwnerMap,
   int defaultNNXLen,
   int defaultNNYLen,
   int forcedSymmetry
@@ -47,6 +45,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     const string& nnModelName = nnModelNames[i];
     const string& nnModelFile = nnModelFiles[i];
 
+    bool debugSkipNeuralNetDefault = (nnModelFile == "/dev/null");
     bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : debugSkipNeuralNetDefault;
     int modelFileIdx = i;
 
@@ -196,7 +195,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24),
       debugSkipNeuralNet,
-      alwaysIncludeOwnerMap,
       nnPolicyTemperature,
       openCLTunerFile,
       openCLReTunePerBoardSize

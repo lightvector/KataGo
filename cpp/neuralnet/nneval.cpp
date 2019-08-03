@@ -67,7 +67,6 @@ NNEvaluator::NNEvaluator(
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerofTwo,
   bool skipNeuralNet,
-  bool alwaysOwnerMap,
   float nnPolicyTemp,
   string openCLTunerFile,
   bool openCLReTunePerBoardSize
@@ -83,7 +82,6 @@ NNEvaluator::NNEvaluator(
    loadedModel(NULL),
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
-   alwaysIncludeOwnerMap(alwaysOwnerMap),
    nnPolicyInvTemperature(1.0f/nnPolicyTemp),
    serverThreads(),
    serverWaitingForBatchStart(),
@@ -470,8 +468,6 @@ void NNEvaluator::evaluate(
     nnHash = NNInputs::getHashV5(board, history, nextPlayer, drawEquivalentWinsForWhite);
   else
     ASSERT_UNREACHABLE;
-
-  includeOwnerMap |= alwaysIncludeOwnerMap;
 
   bool hadResultWithoutOwnerMap = false;
   shared_ptr<NNOutput> resultWithoutOwnerMap;

@@ -350,7 +350,6 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       return NULL;
     }
 
-    bool debugSkipNeuralNetDefaultTest = (testModelFile == "/dev/null");
     // * 2 + 16 just in case to have plenty of room
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
 
@@ -358,20 +357,18 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     {
       vector<NNEvaluator*> nnEvals =
         Setup::initializeNNEvaluators(
-          {testModelName},{testModelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefaultTest,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
+          {testModelName},{testModelFile},cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
         );
       assert(nnEvals.size() == 1);
       logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
       testNNEval = nnEvals[0];
     }
 
-    bool debugSkipNeuralNetDefaultAccepted = (acceptedModelFile == "/dev/null");
-
     NNEvaluator* acceptedNNEval;
     {
       vector<NNEvaluator*> nnEvals =
         Setup::initializeNNEvaluators(
-          {acceptedModelName},{acceptedModelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefaultAccepted,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
+          {acceptedModelName},{acceptedModelFile},cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
         );
       assert(nnEvals.size() == 1);
       logger.write("Loaded accepted neural net " + acceptedModelName + " from: " + acceptedModelFile);

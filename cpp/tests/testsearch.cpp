@@ -119,7 +119,6 @@ static NNEvaluator* startNNEval(
   int nnMutexPoolSizePowerOfTwo = 12;
   int maxConcurrentEvals = 1024;
   //bool debugSkipNeuralNet = false;
-  bool alwaysIncludeOwnerMap = false;
   bool openCLReTunePerBoardSize = false;
   const string& modelName = modelFile;
   const string openCLTunerFile = "";
@@ -138,7 +137,6 @@ static NNEvaluator* startNNEval(
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
-    alwaysIncludeOwnerMap,
     nnPolicyTemperature,
     openCLTunerFile,
     openCLReTunePerBoardSize

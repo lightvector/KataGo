@@ -405,10 +405,9 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    bool alwaysIncludeOwnerMap = true;
     vector<NNEvaluator*> nnEvals =
       Setup::initializeNNEvaluators(
-        {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,false,alwaysIncludeOwnerMap,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
+        {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1
       );
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];

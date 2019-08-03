@@ -211,7 +211,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     vector<NNEvaluator*> nnEvals =
       Setup::initializeNNEvaluators(
         {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,
-        false,false,board.x_size,board.y_size,rawNNSymmetry
+        board.x_size,board.y_size,rawNNSymmetry
       );
     assert(nnEvals.size() == 1);
     nnEval = nnEvals[0];

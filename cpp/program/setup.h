@@ -17,8 +17,6 @@ namespace Setup {
     Logger& logger,
     Rand& seedRand,
     int maxConcurrentEvals,
-    bool debugSkipNeuralNetDefault,
-    bool alwaysIncludeOwnerMap,
     int defaultNNXLen,
     int defaultNNYLen,
     int forcedSymmetry //-1 if not forcing a symmetry

@@ -136,7 +136,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   Setup::initializeSession(cfg);
   const vector<string>& nnModelNames = nnModelFiles;
   vector<NNEvaluator*> nnEvals =
-    Setup::initializeNNEvaluators(nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,false,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1);
+    Setup::initializeNNEvaluators(nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,-1);
   logger.write("Loaded neural net");
 
   vector<NNEvaluator*> nnEvalsByBot(numBots);
