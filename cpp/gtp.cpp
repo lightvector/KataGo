@@ -796,7 +796,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   {
     vector<SearchParams> paramss = Setup::loadParams(cfg);
     if(paramss.size() != 1)
-      throw StringError("Can only specify examply one search bot in gtp mode");
+      throw StringError("Can only specify exactly one search bot in gtp mode");
     params = paramss[0];
   }
   logger.write("Using " + Global::intToString(params.numThreads) + " CPU thread(s) for search");
