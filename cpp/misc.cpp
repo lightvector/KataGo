@@ -471,7 +471,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
         );
       Loc moveLoc = bot->genMoveSynchronousAnalyze(pla,tc,searchFactor,callbackPeriod,callback);
 
-      bool isLegal = bot->isLegal(moveLoc,pla);
+      bool isLegal = bot->isLegalStrict(moveLoc,pla);
       if(moveLoc == Board::NULL_LOC || !isLegal) {
         ostringstream sout;
         sout << "genmove null location or illegal move!?!" << "\n";

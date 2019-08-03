@@ -593,6 +593,47 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     delete botB11;
   }
 
+
+  {
+    cout << "GAME 12 ==========================================================================" << endl;
+    cout << "(MultiStoneSuicide rules)" << endl;
+    cout << endl;
+
+    string seed = getSearchRandSeed();
+    for(int i = 0; i <= 1; i++) {
+      Rules rules = Rules::getTrompTaylorish();
+      rules.komi = 0.5;
+      if(i == 1)
+        rules.multiStoneSuicideLegal = false;
+      cout << rules << endl;
+
+      Player nextPla = P_WHITE;
+      Board board = Board::parseBoard(9,9,R"%%(
+..ox..xx.
+.ooxxxx.x
+o..o..oxo
+.oooooooo
+.xxxxxxxx
+....x.x..
+.x.x.x.oo
+....x.oox
+......ox.
+)%%");
+      BoardHistory hist(board,nextPla,rules,0);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("H8",board),nextPla,NULL);
+      nextPla = P_BLACK;
+
+      SearchParams params;
+      params.maxVisits = 200;
+
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, seed);
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+  }
+
 }
 
 

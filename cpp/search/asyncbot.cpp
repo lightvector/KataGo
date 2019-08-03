@@ -103,8 +103,11 @@ bool AsyncBot::makeMove(Loc moveLoc, Player movePla) {
   return search->makeMove(moveLoc,movePla);
 }
 
-bool AsyncBot::isLegal(Loc moveLoc, Player movePla) const {
-  return search->isLegal(moveLoc,movePla);
+bool AsyncBot::isLegalTolerant(Loc moveLoc, Player movePla) const {
+  return search->isLegalTolerant(moveLoc,movePla);
+}
+bool AsyncBot::isLegalStrict(Loc moveLoc, Player movePla) const {
+  return search->isLegalStrict(moveLoc,movePla);
 }
 
 void AsyncBot::genMove(Player movePla, int searchId, const TimeControls& tc, std::function<void(Loc,int)> onMove) {
@@ -214,7 +217,7 @@ void AsyncBot::genMoveAnalyze(
   analyzeCallbackPeriod = callbackPeriod;
   analyzeCallback = callback;
   lock.unlock();
-  threadWaitingToSearch.notify_all();  
+  threadWaitingToSearch.notify_all();
 }
 
 Loc AsyncBot::genMoveSynchronousAnalyze(
@@ -286,7 +289,7 @@ void AsyncBot::internalSearchThreadLoop() {
         if(callbackLoopShouldStop.load())
           break;
         callbackLock.unlock();
-        callback(search);        
+        callback(search);
         callbackLock.lock();
       }
       callbackLock.unlock();
@@ -301,13 +304,13 @@ void AsyncBot::internalSearchThreadLoop() {
     Loc moveLoc = search->getChosenMoveLoc();
 
     if(callbackPeriod >= 0) {
-      lock.lock();      
+      lock.lock();
       callbackLoopShouldStop.store(true);
       callbackLoopWaiting.notify_all();
       lock.unlock();
       callbackLoopThread.join();
     }
-      
+
     lock.lock();
     //Call queuedOnMove under the lock just in case
     queuedOnMove(moveLoc,queuedSearchId);
@@ -316,5 +319,3 @@ void AsyncBot::internalSearchThreadLoop() {
     userWaitingForStop.notify_all();
   }
 }
-
-

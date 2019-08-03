@@ -299,13 +299,16 @@ void Search::clearSearch() {
   rootNode = NULL;
 }
 
-bool Search::isLegal(Loc moveLoc, Player movePla) const {
+bool Search::isLegalTolerant(Loc moveLoc, Player movePla) const {
+  //Tolerate sgf files or GTP reporting suicide moves, even if somehow the rules are set to disallow them.
+  bool multiStoneSuicideLegal = true;
+
   //If we somehow have the same player making multiple moves in a row (possible in GTP or an sgf file),
   //clear the ko loc - the simple ko loc of a player should not prohibit the opponent playing there!
   if(movePla != rootPla) {
     Board copy = rootBoard;
     copy.clearSimpleKoLoc();
-    return copy.isLegal(moveLoc,movePla,rootHistory.rules.multiStoneSuicideLegal);
+    return copy.isLegal(moveLoc,movePla,multiStoneSuicideLegal);
   }
   else {
     //Don't require that the move is legal for the history, merely the board, so that
@@ -313,14 +316,18 @@ bool Search::isLegal(Loc moveLoc, Player movePla) const {
     //In the encore, we also need to ignore the simple ko loc, since the board itself will report a move as illegal
     //when actually it is a legal pass-for-ko.
     if(rootHistory.encorePhase >= 1)
-      return rootBoard.isLegalIgnoringKo(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+      return rootBoard.isLegalIgnoringKo(moveLoc,rootPla,multiStoneSuicideLegal);
     else
-      return rootBoard.isLegal(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+      return rootBoard.isLegal(moveLoc,rootPla,multiStoneSuicideLegal);
   }
 }
 
+bool Search::isLegalStrict(Loc moveLoc, Player movePla) const {
+  return movePla == rootPla && rootHistory.isLegal(rootBoard,moveLoc,movePla);
+}
+
 bool Search::makeMove(Loc moveLoc, Player movePla) {
-  if(!isLegal(moveLoc,movePla))
+  if(!isLegalTolerant(moveLoc,movePla))
     return false;
 
   if(movePla != rootPla)

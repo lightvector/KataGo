@@ -1065,3 +1065,71 @@ D4  : T  38.86c W  29.50c S   9.36c ( +2.6) LCB  130.20c P 15.46% WF 11.07% PSV 
 G6  : T  22.66c W  16.16c S   6.49c ( +1.5) LCB  310.00c P  3.30% WF 15.34% PSV       2 N       2  --  G6 J5
 J5  : T  29.42c W  22.35c S   7.06c ( +1.7) LCB  310.00c P  3.28% WF 14.73% PSV       1 N       1  --  J5
 G4  : T  27.40c W  20.21c S   7.20c ( +1.7) LCB  310.00c P  1.94% WF 15.05% PSV       1 N       1  --  G4
+GAME 12 ==========================================================================
+(MultiStoneSuicide rules)
+
+koPOSITIONALscoreAREAsui1komi0.5
+MoveNum: 1 HASH: 008C285A13FEE4D3591950343BD8BE91
+   A B C D E F G H J
+ 9 . . O X . . X X .
+ 8 . O O X X X X O X
+ 7 O . . O . . O . O
+ 6 . O O O O O O O O
+ 5 . X X X X X X X X
+ 4 . . . . X . X . .
+ 3 . X . X . X . O O
+ 2 . . . . X . O O X
+ 1 . . . . . . O X .
+
+Root visits: 200
+NN rows: 148
+NN batches: 148
+NN avg batch size: 1
+PV: J1 J1 H7 E7 H8 F7 G3 E9 F2 F1 E1
+Tree:
+: T -75.83c W -68.39c S  -7.44c ( -7.8) N     200  --  J1 J1 H7 E7 H8 F7 G3
+---Black(v)---
+J1  : T -80.58c W -72.69c S  -7.89c ( -8.2) LCB  -66.85c P 14.77% WF 53.08% PSV     183 N     183  --  J1 J1 H7 E7 H8 F7 G3 E9
+J9  : T  98.33c W  89.57c S   8.76c ( +9.1) LCB  168.10c P 19.26% WF  1.89% PSV       6 N       6  --  J9 J1 H7 F7 H8
+F2  : T 106.46c W  97.17c S   9.28c ( +9.5) LCB  260.00c P 11.60% WF  4.61% PSV       1 N       1  --  F2
+G3  : T 108.14c W  97.98c S  10.16c (+10.6) LCB  260.00c P 10.61% WF  4.52% PSV       1 N       1  --  G3
+F1  : T 106.95c W  97.36c S   9.58c ( +9.9) LCB  260.00c P  6.26% WF  4.58% PSV       1 N       1  --  F1
+A5  : T 108.15c W  98.16c S   9.99c (+10.4) LCB  260.00c P  3.62% WF  4.52% PSV       1 N       1  --  A5
+H4  : T 107.44c W  97.58c S   9.86c (+10.2) LCB  260.00c P  3.10% WF  4.55% PSV       1 N       1  --  H4
+J4  : T 107.83c W  97.85c S   9.99c (+10.4) LCB  260.00c P  3.05% WF  4.53% PSV       1 N       1  --  J4
+E1  : T 108.33c W  98.21c S  10.12c (+10.6) LCB  260.00c P  2.08% WF  4.51% PSV       1 N       1  --  E1
+F7  : T 110.42c W  99.06c S  11.35c (+12.2) LCB  260.00c P  1.81% WF  4.40% PSV       1 N       1  --  F7
+C7  : T 109.98c W  98.86c S  11.12c (+11.9) LCB  260.00c P  1.75% WF  4.42% PSV       1 N       1  --  C7
+E7  : T 110.42c W  99.10c S  11.32c (+12.1) LCB  260.00c P  1.71% WF  4.40% PSV       1 N       1  --  E7
+koPOSITIONALscoreAREAsui0komi0.5
+MoveNum: 1 HASH: 008C285A13FEE4D3591950343BD8BE91
+   A B C D E F G H J
+ 9 . . O X . . X X .
+ 8 . O O X X X X O X
+ 7 O . . O . . O . O
+ 6 . O O O O O O O O
+ 5 . X X X X X X X X
+ 4 . . . . X . X . .
+ 3 . X . X . X . O O
+ 2 . . . . X . O O X
+ 1 . . . . . . O X .
+
+Root visits: 200
+NN rows: 134
+NN batches: 134
+NN avg batch size: 1
+PV: J9 H7 A5 J1 A6 E7
+Tree:
+: T 100.30c W  91.97c S   8.33c ( +8.5) N     200  --  J9 H7 A5 J1 A6 E7
+---Black(v)---
+J9  : T 101.26c W  92.35c S   8.92c ( +9.2) LCB  112.54c P 19.59% WF  9.10% PSV      43 N      43  --  J9 H7 A5 J1 A6 E7
+F2  : T 100.77c W  92.47c S   8.30c ( +8.5) LCB  118.16c P 15.57% WF  9.21% PSV      41 N      41  --  F2 J9 F1 J1 J8 H7 J9 F7
+G3  : T 101.27c W  92.77c S   8.50c ( +8.7) LCB  122.85c P 13.23% WF  9.11% PSV      32 N      32  --  G3 J9 F2 J1 J8 H7 J9 F7
+F1  : T  99.11c W  91.14c S   7.98c ( +8.1) LCB  123.39c P  7.70% WF  9.53% PSV      28 N      28  --  F1 J9 F2 J1 J8 H7 J9 F7
+A5  : T  98.85c W  91.11c S   7.74c ( +7.8) LCB  116.32c P  4.59% WF  9.55% PSV      18 N      18  --  A5 J9 F2 J1 J8 H7
+H4  : T  98.83c W  91.11c S   7.71c ( +7.8) LCB  124.43c P  3.93% WF  9.54% PSV      15 N      15  --  H4 J9 F2 J1 J8 H7
+J4  : T 100.22c W  92.24c S   7.98c ( +8.1) LCB  123.80c P  3.87% WF  9.31% PSV      13 N      13  --  J4 J9 F2 J1 J8
+E1  : T 100.57c W  91.87c S   8.70c ( +8.9) LCB  166.85c P  2.56% WF  9.25% PSV       6 N       6  --  E1 J9 G3
+F7  : T 110.13c W  98.97c S  11.16c (+11.9) LCB  260.00c P  1.92% WF  8.46% PSV       1 N       1  --  F7
+E7  : T 110.19c W  99.03c S  11.16c (+11.9) LCB  260.00c P  1.91% WF  8.46% PSV       1 N       1  --  E7
+C7  : T 109.78c W  98.79c S  10.99c (+11.7) LCB  260.00c P  1.70% WF  8.49% PSV       1 N       1  --  C7

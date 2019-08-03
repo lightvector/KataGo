@@ -1083,7 +1083,7 @@ FinishedGameData* Play::runGame(
     //HACK - restore LCB so that it affects policy target gen
     toMoveBot->searchParams.useLcbForSelection = lcb;
 
-    if(loc == Board::NULL_LOC || !toMoveBot->isLegal(loc,pla))
+    if(loc == Board::NULL_LOC || !toMoveBot->isLegalStrict(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
     if(logSearchInfo)
       logSearch(toMoveBot,logger,loc);
