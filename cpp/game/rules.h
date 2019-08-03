@@ -38,7 +38,10 @@ struct Rules {
 
   static bool komiIsIntOrHalfInt(float komi);
 
+  static bool tryParseRules(const std::string& str, Rules& buf);
+
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
+  std::string toString() const;
 
   static const Hash128 ZOBRIST_KO_RULE_HASH[4];
   static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];

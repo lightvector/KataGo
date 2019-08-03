@@ -210,73 +210,17 @@ Color SgfNode::getPLSpecifiedColor() const {
   return C_EMPTY;
 }
 
-Rules SgfNode::getRules(const Rules& defaultRules) const {
-  Rules rules = defaultRules;
+Rules SgfNode::getRulesFromRUTagOrFail() const {
   if(!hasProperty("RU"))
-    return rules;
-  string s = Global::toLower(getSingleProperty("RU"));
-  if(s == "japanese") {
-    rules.scoringRule = Rules::SCORING_TERRITORY;
-    rules.koRule = Rules::KO_SIMPLE;
-    rules.multiStoneSuicideLegal = false;
-  }
-  else if(s == "chinese") {
-    rules.scoringRule = Rules::SCORING_AREA;
-    rules.koRule = Rules::KO_SIMPLE;
-    rules.multiStoneSuicideLegal = false;
-  }
-  else if(s == "aga") {
-    rules.scoringRule = Rules::SCORING_AREA;
-    rules.koRule = Rules::KO_SITUATIONAL;
-    rules.multiStoneSuicideLegal = false;
-  }
-  else if(s == "nz") {
-    rules.scoringRule = Rules::SCORING_AREA;
-    rules.koRule = Rules::KO_SITUATIONAL;
-    rules.multiStoneSuicideLegal = true;
-  }
-  else if(s == "tromp-taylor" || s == "tromp taylor" || s == "tromptaylor") {
-    rules.scoringRule = Rules::SCORING_AREA;
-    rules.koRule = Rules::KO_POSITIONAL;
-    rules.multiStoneSuicideLegal = true;
-  }
-  else {
-    string origS = s;
-    auto startsWithAndStrip = [](string& str, const string& prefix) {
-      bool matches = str.length() >= prefix.length() && str.substr(0,prefix.length()) == prefix;
-      if(matches)
-        str = str.substr(prefix.length());
-      return matches;
-    };
-    auto fail = [&origS]() {
-      throw StringError("Could not parse rules in sgf: " + origS);
-    };
+    throw StringError("SGF file does not specify rules");
+  string s = getSingleProperty("RU");
 
-    if(startsWithAndStrip(s,"ko")) {
-      if(startsWithAndStrip(s,"simple")) rules.koRule = Rules::KO_SIMPLE;
-      else if(startsWithAndStrip(s,"positional")) rules.koRule = Rules::KO_POSITIONAL;
-      else if(startsWithAndStrip(s,"situational")) rules.koRule = Rules::KO_SITUATIONAL;
-      else if(startsWithAndStrip(s,"spight")) rules.koRule = Rules::KO_SPIGHT;
-      else fail();
-
-      bool b;
-      b = startsWithAndStrip(s,"score");
-      if(!b) fail();
-
-      if(startsWithAndStrip(s,"area")) rules.scoringRule = Rules::SCORING_AREA;
-      else if(startsWithAndStrip(s,"territory")) rules.scoringRule = Rules::SCORING_TERRITORY;
-      else fail();
-
-      b = startsWithAndStrip(s,"sui");
-      if(!b) fail();
-      if(startsWithAndStrip(s,"1")) rules.multiStoneSuicideLegal = true;
-      else if(startsWithAndStrip(s,"0")) rules.multiStoneSuicideLegal = false;
-      else fail();
-    }
-  }
-  return rules;
+  Rules parsed;
+  bool suc = Rules::tryParseRules(s,parsed);
+  if(!suc)
+    throw StringError("Could not parse rules in sgf: " + s);
+  return parsed;
 }
-
 
 Sgf::Sgf()
 {}
@@ -352,9 +296,17 @@ float Sgf::getKomi() const {
   return komi;
 }
 
-Rules Sgf::getRules(const Rules& defaultRules) const {
+bool Sgf::hasRules() const {
   checkNonEmpty(nodes);
-  return nodes[0]->getRules(defaultRules);
+  return nodes[0]->hasProperty("RU");
+}
+
+Rules Sgf::getRulesOrFail() const {
+  checkNonEmpty(nodes);
+  Rules rules = nodes[0]->getRulesFromRUTagOrFail();
+  //In SGF files the komi comes from the KM tag.
+  rules.komi = getKomi();
+  return rules;
 }
 
 void Sgf::getPlacements(vector<Move>& moves, int xSize, int ySize) const {
@@ -762,14 +714,47 @@ vector<CompactSgf*> CompactSgf::loadFiles(const vector<string>& files) {
   return sgfs;
 }
 
-Rules CompactSgf::getRulesFromSgf(const Rules& defaultRules) {
-  Rules rules = defaultRules;
+bool CompactSgf::hasRules() const {
+  return rootNode.hasProperty("RU");
+}
+
+Rules CompactSgf::getRulesOrFail() const {
+  Rules rules = rootNode.getRulesFromRUTagOrFail();
   rules.komi = komi;
-  rules = rootNode.getRules(rules);
   return rules;
 }
 
-void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) {
+Rules CompactSgf::getRulesOrFailAllowUnspecified(const Rules& defaultRules) const {
+  //But still carry over the komi no matter what!
+  Rules rules = defaultRules;
+  rules.komi = komi;
+
+  if(!hasRules()) {
+    return rules;
+  }
+  return getRulesOrFail();
+}
+
+Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, std::function<void(const string& msg)> f) const {
+  //But still carry over the komi no matter what!
+  Rules rules = defaultRules;
+  rules.komi = komi;
+
+  if(!hasRules()) {
+    f("Sgf has no rules, using default rules: " + rules.toString());
+    return rules;
+  }
+  try {
+    return getRulesOrFail();
+  }
+  catch(const std::exception& e) {
+    f("WARNING: using default rules " + rules.toString() + " because could not parse sgf rules: " + e.what());
+  }
+  return rules;
+}
+
+
+void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) const {
   Color plPlayer = rootNode.getPLSpecifiedColor();
   if(plPlayer == P_BLACK || plPlayer == P_WHITE)
     nextPla = plPlayer;
@@ -796,7 +781,7 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   hist = BoardHistory(board,nextPla,initialRules,0);
 }
 
-void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) {
+void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) const {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
 
   if(turnNumber < 0 || turnNumber > moves.size())

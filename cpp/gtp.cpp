@@ -199,9 +199,8 @@ struct GTPEngine {
   NNEvaluator* nnEval;
   AsyncBot* bot;
 
-  Rules baseRules; //Not including komi, which is always overridden with unhackedKomi + hacks
+  Rules baseRules; //Note that komi here is PRE-hacking where we account for handicap stones and such
   SearchParams params;
-  float unhackedKomi;
   TimeControls bTimeControls;
   TimeControls wTimeControls;
 
@@ -224,7 +223,6 @@ struct GTPEngine {
      bot(NULL),
      baseRules(initialRules),
      params(initialParams),
-     unhackedKomi(initialRules.komi),
      bTimeControls(),
      wTimeControls(),
      initialBoard(),
@@ -244,6 +242,10 @@ struct GTPEngine {
 
   void stopAndWait() {
     bot->stopAndWait();
+  }
+
+  Rules getBaseRules() {
+    return baseRules;
   }
 
   //Specify -1 for the sizes for a default
@@ -280,10 +282,7 @@ struct GTPEngine {
       bool rulesWereSupported;
       nnEval->getSupportedRules(baseRules,rulesWereSupported);
       if(!rulesWereSupported) {
-        ostringstream out;
-        out << "WARNING: Rules " << baseRules << " from config file are NOT supported by neural net, moves and evaluations are likely to be bad";
-        logger.write(out.str());
-        cerr << out.str() << endl;
+        throw StringError("Rules " + baseRules.toString() + " from config file " + cfg.getFileName() + " are NOT supported by neural net");
       }
     }
 
@@ -306,16 +305,24 @@ struct GTPEngine {
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,baseRules,0);
     vector<Move> newMoveHistory;
-    setPosition(pla,board,hist,board,pla,newMoveHistory);
+    setPositionAndRulesExceptKomi(pla,board,hist,board,pla,newMoveHistory);
   }
 
-  void setPosition(Player pla, const Board& board, const BoardHistory& hist, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
+  //IGNORES the komi in hist's rules, but otherwise adopts its rules
+  void setPositionAndRulesExceptKomi(Player pla, const Board& board, const BoardHistory& hist, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
+    //Swap in the new rules, except for the komi
+    Rules r = hist.rules;
+    r.komi = baseRules.komi;
+    baseRules = r;
+
     bot->setPosition(pla,board,hist);
     initialBoard = newInitialBoard;
     initialPla = newInitialPla;
     moveHistory = newMoveHistory;
     recentWinLossValues.clear();
-    updateKomiIfNew(unhackedKomi);
+
+    //This call will re-override whatever komi that bot->setPosition put in for the bot.
+    updateKomiIfNew(baseRules.komi);
   }
 
   void clearBoard() {
@@ -325,14 +332,14 @@ struct GTPEngine {
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,bot->getRootHist().rules,0);
     vector<Move> newMoveHistory;
-    setPosition(pla,board,hist,board,pla,newMoveHistory);
+    setPositionAndRulesExceptKomi(pla,board,hist,board,pla,newMoveHistory);
   }
 
   void updateKomiIfNew(float newUnhackedKomi) {
     //Komi without whiteBonusPerHandicapStone hack
-    unhackedKomi = newUnhackedKomi;
+    baseRules.komi = newUnhackedKomi;
 
-    float newKomi = unhackedKomi;
+    float newKomi = baseRules.komi;
     int nHandicapStones = numHandicapStones(initialBoard,moveHistory);
     newKomi += (float)(nHandicapStones * whiteBonusPerHandicapStone);
     if(newKomi != bot->getRootHist().rules.komi)
@@ -346,7 +353,7 @@ struct GTPEngine {
       moveHistory.push_back(Move(loc,pla));
 
     //Black consecutive moves at the start can change the "handicap" which can cause us to adjust komi
-    updateKomiIfNew(unhackedKomi);
+    updateKomiIfNew(baseRules.komi);
     return suc;
   }
 
@@ -359,7 +366,7 @@ struct GTPEngine {
     Board undoneBoard = initialBoard;
     BoardHistory undoneHist(undoneBoard,initialPla,bot->getRootHist().rules,0);
     vector<Move> emptyMoveHistory;
-    setPosition(initialPla,undoneBoard,undoneHist,initialBoard,initialPla,emptyMoveHistory);
+    setPositionAndRulesExceptKomi(initialPla,undoneBoard,undoneHist,initialBoard,initialPla,emptyMoveHistory);
 
     for(int i = 0; i<moveHistoryCopy.size()-1; i++) {
       Loc moveLoc = moveHistoryCopy[i].loc;
@@ -491,7 +498,7 @@ struct GTPEngine {
       (void)suc; //Avoid warning when asserts are off
 
       //Black consecutive moves at the start can change the "handicap" which can cause us to adjust komi
-      updateKomiIfNew(unhackedKomi);
+      updateKomiIfNew(baseRules.komi);
 
       maybeStartPondering = true;
     }
@@ -543,7 +550,7 @@ struct GTPEngine {
     (void)responseIsError;
 
     vector<Move> newMoveHistory;
-    setPosition(pla,board,hist,board,pla,newMoveHistory);
+    setPositionAndRulesExceptKomi(pla,board,hist,board,pla,newMoveHistory);
   }
 
   double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
@@ -1197,7 +1204,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         Player pla = P_WHITE;
         BoardHistory hist(board,pla,engine->bot->getRootHist().rules,0);
         vector<Move> newMoveHistory;
-        engine->setPosition(pla,board,hist,board,pla,newMoveHistory);
+        engine->setPositionAndRulesExceptKomi(pla,board,hist,board,pla,newMoveHistory);
       }
     }
 
@@ -1313,6 +1320,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           Board sgfBoard;
           Player sgfNextPla;
           BoardHistory sgfHist;
+          float sgfKomi;
 
           bool sgfParseSuccess = false;
           CompactSgf* sgf = NULL;
@@ -1322,7 +1330,36 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             if(!moveNumberSpecified || moveNumber > sgf->moves.size())
               moveNumber = sgf->moves.size();
 
-            sgf->setupInitialBoardAndHist(engine->bot->getRootHist().rules, sgfInitialBoard, sgfInitialNextPla, sgfInitialHist);
+            Rules baseRules = engine->getBaseRules();
+            Rules sgfRules = sgf->getRulesOrWarn(
+              baseRules,
+              [&logger](const string& msg) { logger.write(msg); cerr << msg << endl; }
+            );
+            if(engine->nnEval != NULL) {
+              bool rulesWereSupported;
+              Rules supportedRules = engine->nnEval->getSupportedRules(sgfRules,rulesWereSupported);
+              if(!rulesWereSupported) {
+                ostringstream out;
+                out << "WARNING: Rules " << sgfRules << " from sgf not supported by neural net, using " << supportedRules << " instead";
+                logger.write(out.str());
+                if(!loggingToStderr)
+                  cerr << out.str() << endl;
+                sgfRules = supportedRules;
+              }
+            }
+
+            sgfKomi = sgfRules.komi;
+            //Go ahead and copy over sgf komi so that we only warn about other rules differences
+            baseRules.komi = sgfRules.komi;
+            if(sgfRules != baseRules) {
+              ostringstream out;
+              out << "Changing rules to " << sgfRules;
+              logger.write(out.str());
+              if(!loggingToStderr)
+                cerr << out.str() << endl;
+            }
+
+            sgf->setupInitialBoardAndHist(sgfRules, sgfInitialBoard, sgfInitialNextPla, sgfInitialHist);
             sgfBoard = sgfInitialBoard;
             sgfNextPla = sgfInitialNextPla;
             sgfHist = sgfInitialHist;
@@ -1337,10 +1374,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
               sgfNextPla = getOpp(movePla);
             }
 
-            Rules sgfRules = sgf->getRulesFromSgf(sgfHist.rules);
-            if(sgfRules != sgfHist.rules)
-              cerr << "WARNING: Loaded sgf has rules " << sgfRules << " but GTP is set to rules " << sgfHist.rules << endl;
-
             delete sgf;
             sgf = NULL;
             sgfParseSuccess = true;
@@ -1351,7 +1384,15 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           }
 
           if(sgfParseSuccess) {
-            engine->setPosition(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
+            if(sgfKomi != engine->getBaseRules().komi) {
+              ostringstream out;
+              out << "Changing komi to " << sgfKomi;
+              logger.write(out.str());
+              if(!loggingToStderr)
+                cerr << out.str() << endl;
+            }
+            engine->updateKomiIfNew(sgfKomi);
+            engine->setPositionAndRulesExceptKomi(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
           }
           else {
             responseIsError = true;

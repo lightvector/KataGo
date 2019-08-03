@@ -31,7 +31,7 @@ struct SgfNode {
   void accumMoves(std::vector<Move>& moves, int xSize, int ySize) const;
 
   Color getPLSpecifiedColor() const;
-  Rules getRules(const Rules& defaultRules) const;
+  Rules getRulesFromRUTagOrFail() const;
 };
 
 struct Sgf {
@@ -54,7 +54,8 @@ struct Sgf {
 
   XYSize getXYSize() const;
   float getKomi() const;
-  Rules getRules(const Rules& defaultRules) const;
+  bool hasRules() const;
+  Rules getRulesOrFail() const;
 
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;
@@ -88,9 +89,13 @@ struct CompactSgf {
   static CompactSgf* loadFile(const std::string& file);
   static std::vector<CompactSgf*> loadFiles(const std::vector<std::string>& files);
 
-  Rules getRulesFromSgf(const Rules& defaultRules);
-  void setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist);
-  void setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber);
+  bool hasRules() const;
+  Rules getRulesOrFail() const;
+  Rules getRulesOrFailAllowUnspecified(const Rules& defaultRules) const;
+  Rules getRulesOrWarn(const Rules& defaultRules, std::function<void(const std::string& msg)> f) const;
+
+  void setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) const;
+  void setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) const;
 };
 
 namespace WriteSgf {

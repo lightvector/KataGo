@@ -162,7 +162,7 @@ void Tests::runNNInputsV3V4Tests() {
       Player nextPla;
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
-      initialRules = sgf->getRulesFromSgf(initialRules);
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
       vector<Move>& moves = sgf->moves;
 
@@ -221,7 +221,7 @@ void Tests::runNNInputsV3V4Tests() {
       Player nextPla;
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
-      initialRules = sgf->getRulesFromSgf(initialRules);
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
       vector<Move>& moves = sgf->moves;
 
@@ -281,7 +281,7 @@ void Tests::runNNInputsV3V4Tests() {
       Player nextPla;
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
-      initialRules = sgf->getRulesFromSgf(initialRules);
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
       vector<Move>& moves = sgf->moves;
 
@@ -340,7 +340,7 @@ void Tests::runNNInputsV3V4Tests() {
       Player nextPla;
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
-      initialRules = sgf->getRulesFromSgf(initialRules);
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
       vector<Move>& moves = sgf->moves;
 
@@ -535,7 +535,7 @@ xxx..xx
       Player nextPla;
       BoardHistory hist;
       Rules initialRules = Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 0.0f);
-      initialRules = sgf->getRulesFromSgf(initialRules);
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
 
       int nnXLen = 6;
@@ -604,7 +604,7 @@ xxx..xx
       Player nextPla;
       BoardHistory hist;
       Rules initialRules;
-      initialRules = sgf->getRulesFromSgf(initialRules);
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
       vector<Move>& moves = sgf->moves;
 

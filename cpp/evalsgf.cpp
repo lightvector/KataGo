@@ -159,7 +159,11 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       nextPla = getOpp(nextPla);
     }
   };
-  Rules initialRules = sgf->getRulesFromSgf(defaultRules);
+
+  Rules initialRules = sgf->getRulesOrWarn(
+    defaultRules,
+    [](const string& msg) { cout << msg << endl; }
+  );
   setUpBoardUsingRules(initialRules);
 
   //Parse move sequence arguments------------------------------------------

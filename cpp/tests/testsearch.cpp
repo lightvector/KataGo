@@ -98,7 +98,7 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaul
   Board board;
   Player nextPla;
   BoardHistory hist;
-  Rules initialRules = sgf->getRulesFromSgf(defaultRules);
+  Rules initialRules = sgf->getRulesOrFailAllowUnspecified(defaultRules);
   sgf->setupBoardAndHist(initialRules, board, nextPla, hist, turnNumber);
   hist.setKomi(overrideKomi);
   runBotOnPosition(bot,board,nextPla,hist,opts);
@@ -333,7 +333,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     Board board;
     Player nextPla;
     BoardHistory hist;
-    Rules initialRules = sgf->getRulesFromSgf(Rules::getTrompTaylorish());
+    Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
     sgf->setupBoardAndHist(initialRules, board, nextPla, hist, 40);
 
     double drawEquivalentWinsForWhite = 0.5;
@@ -370,7 +370,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     Board board;
     Player nextPla;
     BoardHistory hist;
-    Rules initialRules = sgf->getRulesFromSgf(Rules::getTrompTaylorish());
+    Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
     sgf->setupBoardAndHist(initialRules, board, nextPla, hist, 43);
 
     double drawEquivalentWinsForWhite = 0.5;
@@ -1182,7 +1182,7 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cuda
     Board board;
     Player nextPla;
     BoardHistory hist;
-    Rules initialRules = sgf->getRulesFromSgf(Rules());
+    Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
     sgf->setupBoardAndHist(initialRules, board, nextPla, hist, turnNumber);
     nnEval->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
 

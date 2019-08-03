@@ -25,7 +25,7 @@ void Tests::runSgfTests() {
     BoardHistory hist;
     Rules rules;
     Player pla;
-    rules = sgf->getRulesFromSgf(rules);
+    rules = sgf->getRulesOrFailAllowUnspecified(rules);
     sgf->setupInitialBoardAndHist(rules,board,pla,hist);
 
     out << "placements" << endl;
