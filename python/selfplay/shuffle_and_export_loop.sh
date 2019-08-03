@@ -10,12 +10,13 @@ then
 fi
 BASEDIRRAW=$1
 shift
-TMPDIR=$1
+TMPDIRRAW=$1
 shift
 NTHREADS=$1
 shift
 
 basedir=$(realpath $BASEDIRRAW)
+tmpdir=$(realpath $TMPDIRRAW)
 
 mkdir -p $basedir/scripts
 cp ./*.py ./selfplay/*.sh $basedir/scripts
@@ -24,7 +25,7 @@ cp ./*.py ./selfplay/*.sh $basedir/scripts
     cd $basedir/scripts
     while true
     do
-        ./shuffle.sh $basedir $TMPDIR $NTHREADS
+        ./shuffle.sh $basedir $tmpdir $NTHREADS
         sleep 20
     done
 ) >> outshuffle.txt 2>&1 & disown
