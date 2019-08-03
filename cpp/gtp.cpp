@@ -31,6 +31,11 @@ static const vector<string> knownCommands = {
   "play",
   "undo",
 
+  //GTP extension - specify rules
+  //TODO document this in gtp extensions once we support JP rules and also modify gtp.cfg
+  //to mention this, and also suggest that the config params are defaults since this command can override them
+  "set_rules",
+
   "genmove",
   "genmove_debug", //Prints additional info to stderr
   "search_debug", //Prints additional info to stderr, doesn't actually make the move
@@ -374,6 +379,40 @@ struct GTPEngine {
       bool suc = play(moveLoc,movePla);
       assert(suc);
       (void)suc; //Avoid warning when asserts are off
+    }
+    return true;
+  }
+
+  bool setRulesNotIncludingKomi(Rules newRules, string& error) {
+    assert(nnEval != NULL);
+    newRules.komi = baseRules.komi;
+
+    bool rulesWereSupported;
+    nnEval->getSupportedRules(newRules,rulesWereSupported);
+    if(!rulesWereSupported) {
+      error = "Rules " + newRules.toString() + " are not supported by this neural net version";
+      return false;
+    }
+
+    vector<Move> moveHistoryCopy = moveHistory;
+
+    Board board = initialBoard;
+    BoardHistory hist(board,initialPla,newRules,0);
+    vector<Move> emptyMoveHistory;
+    setPositionAndRulesExceptKomi(initialPla,board,hist,initialBoard,initialPla,emptyMoveHistory);
+
+    for(int i = 0; i<moveHistoryCopy.size(); i++) {
+      Loc moveLoc = moveHistoryCopy[i].loc;
+      Player movePla = moveHistoryCopy[i].pla;
+      bool suc = play(moveLoc,movePla);
+
+      //Because internally we use a highly tolerant test, we don't expect this to actually trigger
+      //even if a rules change did make some earlier moves illegal. But this check simply futureproofs
+      //things in case we ever do
+      if(!suc) {
+        error = "Could not make the rules change, some earlier moves in the game would now become illegal.";
+        return false;
+      }
     }
     return true;
   }
@@ -977,6 +1016,25 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         engine->updateKomiIfNew(newKomi);
         //In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
+      }
+    }
+
+    else if(command == "set_rules") {
+      Rules newRules;
+      if(pieces.size() != 1) {
+        response = "Expected single argument for rules but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(!Rules::tryParseRules(pieces[0],newRules)) {
+        responseIsError = true;
+        response = "Unknown rules '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        string error;
+        bool suc = engine->setRulesNotIncludingKomi(newRules,error);
+        if(!suc) {
+          responseIsError = true;
+          response = error;
+        }
       }
     }
 
