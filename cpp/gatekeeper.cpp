@@ -14,16 +14,15 @@
 
 #include <sstream>
 
-using namespace std;
-
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
 #include <cstdio>
-
 #include <chrono>
-
 #include <csignal>
+
+using namespace std;
+
 static std::atomic<bool> sigReceived(false);
 static std::atomic<bool> shouldStop(false);
 static void signalHandler(int signal)

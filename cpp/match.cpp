@@ -8,12 +8,14 @@
 #include "program/play.h"
 #include "main.h"
 
-using namespace std;
-
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
 #include <csignal>
+
+using namespace std;
+
+
 static std::atomic<bool> sigReceived(false);
 static void signalHandler(int signal)
 {

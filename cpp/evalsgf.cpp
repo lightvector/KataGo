@@ -6,10 +6,10 @@
 #include "program/setup.h"
 #include "main.h"
 
-using namespace std;
-
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
+
+using namespace std;
 
 int MainCmds::evalsgf(int argc, const char* const* argv) {
   Board::initHash();
