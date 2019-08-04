@@ -1430,9 +1430,8 @@ double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNo
 
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
-//Parent must be locked
-double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const {
-  float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
+
+double Search::getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue) const {
   int64_t childVisits = 0;
   double childUtility = fpuValue;
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
@@ -1563,7 +1562,9 @@ void Search::selectBestChildToDescend(
     posesWithChildBuf[getPos(moveLoc)] = true;
   }
 
-  //Try all new children
+  //Try the new child with the best policy value
+  Loc bestNewMoveLoc = Board::NULL_LOC;
+  float bestNewNNPolicyProb = -1.0f;
   for(int movePos = 0; movePos<policySize; movePos++) {
     bool alreadyTried = posesWithChildBuf[movePos];
     if(alreadyTried)
@@ -1581,11 +1582,18 @@ void Search::selectBestChildToDescend(
         continue;
     }
 
-    double selectionValue = getNewExploreSelectionValue(node,movePos,totalChildVisits,fpuValue);
+    float nnPolicyProb = node.nnOutput->policyProbs[movePos];
+    if(nnPolicyProb > bestNewNNPolicyProb) {
+      bestNewNNPolicyProb = nnPolicyProb;
+      bestNewMoveLoc = moveLoc;
+    }
+  }
+  if(bestNewMoveLoc != Board::NULL_LOC) {
+    double selectionValue = getNewExploreSelectionValue(node,bestNewNNPolicyProb,totalChildVisits,fpuValue);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = numChildren;
-      bestChildMoveLoc = moveLoc;
+      bestChildMoveLoc = bestNewMoveLoc;
     }
   }
 
