@@ -162,7 +162,7 @@ struct CompiledPrograms {
     mirrorProgram = compileProgram("mirrorProgram", context, deviceIdsToUse, OpenCLKernels::mirror, "");
     extractChannel0NCHWProgram = compileProgram("extractChannel0NCHWProgram", context, deviceIdsToUse, OpenCLKernels::extractChannel0NCHW, "");
     xgemmDirectProgram = compileProgram("xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect, tuneParams.xGemmDirect.compileOptions());
-    xgemmProgram = compileProgram("xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm, "");
+    xgemmProgram = compileProgram("xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm, tuneParams.xGemm.compileOptions());
   }
 
   ~CompiledPrograms() {
@@ -951,7 +951,7 @@ struct ConvLayer {
         cl_int err;
         MAYBE_EVENT;
         err = doBatchedXGemm_KM_KN_NM(
-          handle->xgemmDirectBatchedNNKernel,
+          handle->xgemmBatchedNNKernel,
           handle->commandQueue,
           handle->tuneParams,
           numTilesTotalPadded, outChannelsPadded, inChannelsPadded,
