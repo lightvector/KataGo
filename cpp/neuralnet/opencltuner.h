@@ -36,7 +36,6 @@ struct OpenCLTuneParams {
 
     int transLocalSize0 = 1;
     int transLocalSize1 = 1;
-    int transLocalSize2 = 1;
 
     int untransLocalSize0 = 1;
     int untransLocalSize1 = 1;
@@ -60,7 +59,6 @@ struct OpenCLTuneParams {
 
     int transLocalSize0 = 1;
     int transLocalSize1 = 1;
-    int transLocalSize2 = 1;
 
     int untransLocalSize0 = 1;
     int untransLocalSize1 = 1;

@@ -168,11 +168,15 @@ __kernel void transform(
   int numTilesY,
   int icSize
 ) {
-  const int tileX = get_global_id(0);
-  const int tileY = get_global_id(1);
-  const int nic = get_global_id(2);
-  const int n = nic / icSize;
-  const int ic = nic % icSize;
+  int id0 = get_global_id(0);
+  const int ntxty = id0;
+  const int tileX = id0 % numTilesX;
+  id0 = id0 / numTilesX;
+  const int tileY = id0 % numTilesY;
+  id0 = id0 / numTilesY;
+  const int n = id0;
+  const int ic = get_global_id(1);
+  const int nic = n * icSize + ic;
   const int xySize = xSize * ySize;
 
 #define INPUT(_nic,_xy) input[((_nic) * xySize) + (_xy)]
@@ -186,7 +190,7 @@ __kernel void transform(
     for(int subX = 0; subX < INTILE_XSIZE; subX++) {
       int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
       float value = 0.0f;
-      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY && n < nSize) {
+      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY && n < nSize && ic < icSize) {
         int xy = y * xSize + x;
         value = INPUT(nic,xy);
       }
@@ -300,7 +304,7 @@ __kernel void transform(
 
 #define TRANS(_suby,_subx,_ic,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*icSize + (_ic)) * ntxtySize + (_ntile)]
 
-  if(tileX < numTilesX && tileY < numTilesY && n < nSize) {
+  if(tileX < numTilesX && tileY < numTilesY && n < nSize && ic < icSize) {
     const int ntxtySize = nSize * numTilesX * numTilesY;
     const int ntile = (n * numTilesY + tileY) * numTilesX + tileX;
 
@@ -327,11 +331,15 @@ __kernel void bnReluTransform(
   int numTilesY,
   int icSize
 ) {
-  const int tileX = get_global_id(0);
-  const int tileY = get_global_id(1);
-  const int nic = get_global_id(2);
-  const int n = nic / icSize;
-  const int ic = nic % icSize;
+  int id0 = get_global_id(0);
+  const int ntxty = id0;
+  const int tileX = id0 % numTilesX;
+  id0 = id0 / numTilesX;
+  const int tileY = id0 % numTilesY;
+  id0 = id0 / numTilesY;
+  const int n = id0;
+  const int ic = get_global_id(1);
+  const int nic = n * icSize + ic;
   const int xySize = xSize * ySize;
 
 #define INPUT(_nic,_xy) input[((_nic) * xySize) + (_xy)]
@@ -345,7 +353,7 @@ __kernel void bnReluTransform(
     for(int subX = 0; subX < INTILE_XSIZE; subX++) {
       int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
       float value = 0.0f;
-      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY && n < nSize) {
+      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY && n < nSize && ic < icSize) {
         int xy = y * xSize + x;
         value = fmax(INPUT(nic,xy) * scale[ic] + bias[ic], 0.0f) * mask[n * xySize + xy];
       }
@@ -459,7 +467,7 @@ __kernel void bnReluTransform(
 
 #define TRANS(_suby,_subx,_ic,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*icSize + (_ic)) * ntxtySize + (_ntile)]
 
-  if(tileX < numTilesX && tileY < numTilesY && n < nSize) {
+  if(tileX < numTilesX && tileY < numTilesY && n < nSize && ic < icSize) {
     const int ntxtySize = nSize * numTilesX * numTilesY;
     const int ntile = (n * numTilesY + tileY) * numTilesX + tileX;
 

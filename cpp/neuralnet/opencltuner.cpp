@@ -120,7 +120,6 @@ string OpenCLTuneParams::Conv3x3Params::desc() const {
   s += " OUTTILE_YSIZE=" + Global::intToString(OUTTILE_YSIZE);
   s += " transLocalSize0=" + Global::intToString(transLocalSize0);
   s += " transLocalSize1=" + Global::intToString(transLocalSize1);
-  s += " transLocalSize2=" + Global::intToString(transLocalSize2);
   s += " untransLocalSize0=" + Global::intToString(untransLocalSize0);
   s += " untransLocalSize1=" + Global::intToString(untransLocalSize1);
   s += " untransLocalSize2=" + Global::intToString(untransLocalSize2);
@@ -130,7 +129,6 @@ string OpenCLTuneParams::Conv3x3Params::transDesc() const {
   string s;
   s += " transLocalSize0=" + Global::intToString(transLocalSize0);
   s += " transLocalSize1=" + Global::intToString(transLocalSize1);
-  s += " transLocalSize2=" + Global::intToString(transLocalSize2);
   return s;
 }
 string OpenCLTuneParams::Conv3x3Params::untransDesc() const {
@@ -157,7 +155,6 @@ void OpenCLTuneParams::Conv3x3Params::fillFromDesc(const string& fileName, const
   OUTTILE_YSIZE = getInt(kvs,"OUTTILE_YSIZE",OUTTILE_YSIZE);
   transLocalSize0 = getInt(kvs,"transLocalSize0",transLocalSize0);
   transLocalSize1 = getInt(kvs,"transLocalSize1",transLocalSize1);
-  transLocalSize2 = getInt(kvs,"transLocalSize2",transLocalSize2);
   untransLocalSize0 = getInt(kvs,"untransLocalSize0",untransLocalSize0);
   untransLocalSize1 = getInt(kvs,"untransLocalSize1",untransLocalSize1);
   untransLocalSize2 = getInt(kvs,"untransLocalSize2",untransLocalSize2);
@@ -165,12 +162,11 @@ void OpenCLTuneParams::Conv3x3Params::fillFromDesc(const string& fileName, const
 bool OpenCLTuneParams::Conv3x3Params::isValid() const {
   if(transLocalSize0 <= 0) return false;
   if(transLocalSize1 <= 0) return false;
-  if(transLocalSize2 <= 0) return false;
   if(untransLocalSize0 <= 0) return false;
   if(untransLocalSize1 <= 0) return false;
   if(untransLocalSize2 <= 0) return false;
 
-  if(transLocalSize0 * transLocalSize1 * transLocalSize2 > 1024) return false;
+  if(transLocalSize0 * transLocalSize1 > 1024) return false;
   if(untransLocalSize0 * untransLocalSize1 * untransLocalSize2 > 1024) return false;
 
   //Currently, the only supported winograd tile sizes
@@ -190,7 +186,6 @@ string OpenCLTuneParams::Conv5x5Params::desc() const {
   s += " OUTTILE_YSIZE=" + Global::intToString(OUTTILE_YSIZE);
   s += " transLocalSize0=" + Global::intToString(transLocalSize0);
   s += " transLocalSize1=" + Global::intToString(transLocalSize1);
-  s += " transLocalSize2=" + Global::intToString(transLocalSize2);
   s += " untransLocalSize0=" + Global::intToString(untransLocalSize0);
   s += " untransLocalSize1=" + Global::intToString(untransLocalSize1);
   s += " untransLocalSize2=" + Global::intToString(untransLocalSize2);
@@ -200,7 +195,6 @@ string OpenCLTuneParams::Conv5x5Params::transDesc() const {
   string s;
   s += " transLocalSize0=" + Global::intToString(transLocalSize0);
   s += " transLocalSize1=" + Global::intToString(transLocalSize1);
-  s += " transLocalSize2=" + Global::intToString(transLocalSize2);
   return s;
 }
 string OpenCLTuneParams::Conv5x5Params::untransDesc() const {
@@ -227,7 +221,6 @@ void OpenCLTuneParams::Conv5x5Params::fillFromDesc(const string& fileName, const
   OUTTILE_YSIZE = getInt(kvs,"OUTTILE_YSIZE",OUTTILE_YSIZE);
   transLocalSize0 = getInt(kvs,"transLocalSize0",transLocalSize0);
   transLocalSize1 = getInt(kvs,"transLocalSize1",transLocalSize1);
-  transLocalSize2 = getInt(kvs,"transLocalSize2",transLocalSize2);
   untransLocalSize0 = getInt(kvs,"untransLocalSize0",untransLocalSize0);
   untransLocalSize1 = getInt(kvs,"untransLocalSize1",untransLocalSize1);
   untransLocalSize2 = getInt(kvs,"untransLocalSize2",untransLocalSize2);
@@ -235,12 +228,11 @@ void OpenCLTuneParams::Conv5x5Params::fillFromDesc(const string& fileName, const
 bool OpenCLTuneParams::Conv5x5Params::isValid() const {
   if(transLocalSize0 <= 0) return false;
   if(transLocalSize1 <= 0) return false;
-  if(transLocalSize2 <= 0) return false;
   if(untransLocalSize0 <= 0) return false;
   if(untransLocalSize1 <= 0) return false;
   if(untransLocalSize2 <= 0) return false;
 
-  if(transLocalSize0 * transLocalSize1 * transLocalSize2 > 1024) return false;
+  if(transLocalSize0 * transLocalSize1 > 1024) return false;
   if(untransLocalSize0 * untransLocalSize1 * untransLocalSize2 > 1024) return false;
 
   //Currently, the only supported winograd tile sizes
@@ -331,7 +323,7 @@ bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
 }
 
 
-static const char* TUNEPARAMS_VERSION_LINE = "VERSION=5";
+static const char* TUNEPARAMS_VERSION_LINE = "VERSION=6";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out(filename);
   if(out.fail())
@@ -600,14 +592,12 @@ void OpenCLTuner::tune(
     vector<OpenCLTuneParams> configs;
     configs.push_back(currentConfig);
     if(full) {
-      addConfigs(configs,SETTER(conv3x3.transLocalSize0),{1,2,4,8,16,32,64});
+      addConfigs(configs,SETTER(conv3x3.transLocalSize0),{1,2,4,8,16,32,64,128});
       addConfigs(configs,SETTER(conv3x3.transLocalSize1),{1,2,4,8,16,32,64});
-      addConfigs(configs,SETTER(conv3x3.transLocalSize2),{1,2,4,8,16,32,64});
     }
     else {
-      addConfigs(configs,SETTER(conv3x3.transLocalSize0),{1,2,4,8,16,32});
+      addConfigs(configs,SETTER(conv3x3.transLocalSize0),{1,2,4,8,16,32,64,128});
       addConfigs(configs,SETTER(conv3x3.transLocalSize1),{1,2,4,8,16,32});
-      addConfigs(configs,SETTER(conv3x3.transLocalSize2),{1,2,4,8,16,32});
     }
 
     filterConfigs(configs,ISVALID(conv3x3));
@@ -617,7 +607,6 @@ void OpenCLTuner::tune(
     OpenCLTuneParams referenceConfig = currentConfig;
     referenceConfig.conv3x3.transLocalSize0 = untunedConfig.conv3x3.transLocalSize0;
     referenceConfig.conv3x3.transLocalSize1 = untunedConfig.conv3x3.transLocalSize1;
-    referenceConfig.conv3x3.transLocalSize2 = untunedConfig.conv3x3.transLocalSize2;
 
     auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.conv3x3.transDesc(); };
 
@@ -1207,7 +1196,6 @@ void OpenCLTuner::tune(
   //Copy 5x5 conv parameters over from 3x3 conv parameters
   currentConfig.conv5x5.transLocalSize0 = currentConfig.conv3x3.transLocalSize0;
   currentConfig.conv5x5.transLocalSize1 = currentConfig.conv3x3.transLocalSize1;
-  currentConfig.conv5x5.transLocalSize2 = currentConfig.conv3x3.transLocalSize2;
   currentConfig.conv5x5.untransLocalSize0 = currentConfig.conv3x3.untransLocalSize0;
   currentConfig.conv5x5.untransLocalSize1 = currentConfig.conv3x3.untransLocalSize1;
   currentConfig.conv5x5.untransLocalSize2 = currentConfig.conv3x3.untransLocalSize2;

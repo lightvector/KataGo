@@ -594,17 +594,15 @@ cl_int OpenCLHelpers::doWinogradTransform(
   clSetKernelArg(kernel, 6, sizeof(int), (void *)&numTilesY);
   clSetKernelArg(kernel, 7, sizeof(int), (void *)&inChannels);
 
-  static constexpr int nKernelDims = 3;
+  static constexpr int nKernelDims = 2;
   size_t localSizes[nKernelDims] = {
     (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize0 : tuneParams.conv5x5.transLocalSize0),
     (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize1 : tuneParams.conv5x5.transLocalSize1),
-    (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize2 : tuneParams.conv5x5.transLocalSize2)
   };
 
   size_t globalSizes[nKernelDims] = {
-    roundUpToMultiple(powerOf2ify(numTilesX),localSizes[0]),
-    roundUpToMultiple(powerOf2ify(numTilesY),localSizes[1]),
-    roundUpToMultiple(batchSize * inChannels,localSizes[2])
+    roundUpToMultiple(powerOf2ify(batchSize * numTilesX * numTilesY), localSizes[0]),
+    roundUpToMultiple(inChannels,localSizes[1])
   };
 
   cl_int err;
@@ -638,17 +636,15 @@ cl_int OpenCLHelpers::doWinogradTransformWithBNRelu(
   clSetKernelArg(kernel, 9, sizeof(int), (void *)&numTilesY);
   clSetKernelArg(kernel, 10, sizeof(int), (void *)&inChannels);
 
-  static constexpr int nKernelDims = 3;
+  static constexpr int nKernelDims = 2;
   size_t localSizes[nKernelDims] = {
     (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize0 : tuneParams.conv5x5.transLocalSize0),
     (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize1 : tuneParams.conv5x5.transLocalSize1),
-    (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize2 : tuneParams.conv5x5.transLocalSize2)
   };
 
   size_t globalSizes[nKernelDims] = {
-    roundUpToMultiple(powerOf2ify(numTilesX),localSizes[0]),
-    roundUpToMultiple(powerOf2ify(numTilesY),localSizes[1]),
-    roundUpToMultiple(batchSize * inChannels,localSizes[2])
+    roundUpToMultiple(powerOf2ify(batchSize * numTilesX * numTilesY), localSizes[0]),
+    roundUpToMultiple(inChannels,localSizes[1])
   };
 
   cl_int err;
