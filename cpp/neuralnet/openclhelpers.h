@@ -98,7 +98,17 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
-  cl_int doStridedBatchedXGemm_KM_KN_MN(
+  cl_int doBatchedXGemmDirect_KM_KN_MN(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    int M, int N, int K,
+    cl_mem A, cl_mem B, cl_mem C,
+    int numBatchElts,
+    cl_event* eventBuf
+  );
+
+  cl_int doStridedBatchedXGemmDirect_KM_KN_MN(
     cl_kernel kernel,
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
@@ -109,7 +119,7 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
-  cl_int doBatchedXGemm_MK_NK_MN(
+  cl_int doBatchedXGemmDirect_MK_NK_MN(
     cl_kernel kernel,
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
@@ -124,9 +134,9 @@ namespace OpenCLHelpers {
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
     cl_mem input, cl_mem convWorkspace,
-    int batchSize, int nnXLen, int nnYLen,
-    int numTilesX, int numTilesY,
-    int inChannels,
+    int nnXLen, int nnYLen,
+    int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
+    int inChannels, int inChannelsPadMultiple,
     int convSize,
     cl_event* eventBuf
   );
@@ -137,9 +147,9 @@ namespace OpenCLHelpers {
     const OpenCLTuneParams& tuneParams,
     cl_mem input, cl_mem convWorkspace,
     cl_mem scaleBuf, cl_mem biasBuf, cl_mem mask,
-    int batchSize, int nnXLen, int nnYLen,
-    int numTilesX, int numTilesY,
-    int inChannels,
+    int nnXLen, int nnYLen,
+    int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
+    int inChannels, int inChannelsPadMultiple,
     int convSize,
     cl_event* eventBuf
   );
@@ -149,9 +159,9 @@ namespace OpenCLHelpers {
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
     cl_mem convWorkspace2, cl_mem output,
-    int batchSize, int nnXLen, int nnYLen,
-    int numTilesX, int numTilesY,
-    int outChannels,
+    int nnXLen, int nnYLen,
+    int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
+    int outChannels, int outChannelsPadMultiple,
     int convSize,
     cl_event* eventBuf
   );

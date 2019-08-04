@@ -160,13 +160,15 @@ string OpenCLKernels::winogradConvNCHW = R"%%(
 
 __kernel void transform(
   __global float* restrict input,  //N, ic, H, W
-  __global float* restrict transformed, //INTILE_YSIZE, INTILE_XSIZE, ic, batch, tileY, tileX
+  __global float* restrict transformed, //(INTILE_YSIZE, INTILE_XSIZE), (ic), (batch, tileY, tileX) where the last two dimenions are padded
   int nSize,
   int xSize,
   int ySize,
   int numTilesX,
   int numTilesY,
-  int icSize
+  int icSize,
+  int icSizePadded,
+  int ntxtySizePadded
 ) {
   int id0 = get_global_id(0);
   const int ntxty = id0;
@@ -190,7 +192,7 @@ __kernel void transform(
     for(int subX = 0; subX < INTILE_XSIZE; subX++) {
       int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
       float value = 0.0f;
-      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY && n < nSize && ic < icSize) {
+      if(y >= 0 && y < ySize && x >= 0 && x < xSize && n < nSize && ic < icSize) {
         int xy = y * xSize + x;
         value = INPUT(nic,xy);
       }
@@ -302,16 +304,13 @@ __kernel void transform(
   #error "No Y winograd implemented for this conv and tile size"
 #endif
 
-#define TRANS(_suby,_subx,_ic,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*icSize + (_ic)) * ntxtySize + (_ntile)]
+#define TRANS(_suby,_subx,_ic,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*icSizePadded + (_ic))*ntxtySizePadded + (_ntile)]
 
-  if(tileX < numTilesX && tileY < numTilesY && n < nSize && ic < icSize) {
-    const int ntxtySize = nSize * numTilesX * numTilesY;
-    const int ntile = (n * numTilesY + tileY) * numTilesX + tileX;
-
+  if(ntxty < ntxtySizePadded && ic < icSizePadded) {
     //Copy private tile out to transformed output
     for(int subY = 0; subY < INTILE_YSIZE; subY++) {
       for(int subX = 0; subX < INTILE_XSIZE; subX++) {
-        TRANS(subY,subX,ic,ntile) = WTILE(subY,subX);
+        TRANS(subY,subX,ic,ntxty) = WTILE(subY,subX);
       }
     }
   }
@@ -320,7 +319,7 @@ __kernel void transform(
 
 __kernel void bnReluTransform(
   __global float* restrict input,  //N, ic, H, W
-  __global float* restrict transformed, //INTILE_YSIZE, INTILE_XSIZE, ic, batch, tileY, tileX
+  __global float* restrict transformed, //(INTILE_YSIZE, INTILE_XSIZE), (ic), (batch, tileY, tileX) where the last two dimenions are padded
   __global float* restrict scale, //ic
   __global float* restrict bias, //ic
   __global float* restrict mask, //N, H, W
@@ -329,7 +328,9 @@ __kernel void bnReluTransform(
   int ySize,
   int numTilesX,
   int numTilesY,
-  int icSize
+  int icSize,
+  int icSizePadded,
+  int ntxtySizePadded
 ) {
   int id0 = get_global_id(0);
   const int ntxty = id0;
@@ -353,7 +354,7 @@ __kernel void bnReluTransform(
     for(int subX = 0; subX < INTILE_XSIZE; subX++) {
       int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
       float value = 0.0f;
-      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY && n < nSize && ic < icSize) {
+      if(y >= 0 && y < ySize && x >= 0 && x < xSize && n < nSize && ic < icSize) {
         int xy = y * xSize + x;
         value = fmax(INPUT(nic,xy) * scale[ic] + bias[ic], 0.0f) * mask[n * xySize + xy];
       }
@@ -465,16 +466,13 @@ __kernel void bnReluTransform(
   #error "No Y winograd implemented for this conv and tile size"
 #endif
 
-#define TRANS(_suby,_subx,_ic,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*icSize + (_ic)) * ntxtySize + (_ntile)]
+#define TRANS(_suby,_subx,_ic,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*icSizePadded + (_ic))*ntxtySizePadded + (_ntile)]
 
-  if(tileX < numTilesX && tileY < numTilesY && n < nSize && ic < icSize) {
-    const int ntxtySize = nSize * numTilesX * numTilesY;
-    const int ntile = (n * numTilesY + tileY) * numTilesX + tileX;
-
+  if(ntxty < ntxtySizePadded && ic < icSizePadded) {
     //Copy private tile out to transformed output
     for(int subY = 0; subY < INTILE_YSIZE; subY++) {
       for(int subX = 0; subX < INTILE_XSIZE; subX++) {
-        TRANS(subY,subX,ic,ntile) = WTILE(subY,subX);
+        TRANS(subY,subX,ic,ntxty) = WTILE(subY,subX);
       }
     }
   }
@@ -483,14 +481,16 @@ __kernel void bnReluTransform(
 
 
 __kernel void untransform(
-  __global float* restrict transformed, //INTILE_YSIZE, INTILE_XSIZE, oc, batch, tileY, tileX
+  __global float* restrict transformed, //(INTILE_YSIZE, INTILE_XSIZE), (oc), (batch, tileY, tileX) //where the last two dims are padded
   __global float* restrict output,  //N, oc, H, W
   int nSize,
   int xSize,
   int ySize,
   int numTilesX,
   int numTilesY,
-  int ocSize
+  int ocSize,
+  int ocSizePadded,
+  int ntxtySizePadded
 ) {
   const int tileX = get_global_id(0);
   const int tileY = get_global_id(1);
@@ -498,11 +498,10 @@ __kernel void untransform(
   const int n = noc / ocSize;
   const int oc = noc % ocSize;
 
-  const int ntxtySize = nSize * numTilesX * numTilesY;
   const int ntile = (n * numTilesY + tileY) * numTilesX + tileX;
 
 #define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
-#define TRANS(_suby,_subx,_oc,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*ocSize + (_oc)) * ntxtySize + (_ntile)]
+#define TRANS(_suby,_subx,_oc,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*ocSizePadded + (_oc)) * ntxtySizePadded + (_ntile)]
 #define OUTPUT(_noc,_y,_x) output[((_noc) * ySize + (_y)) * xSize + (_x)]
 
   __private float wTile[INTILE_XSIZE * INTILE_YSIZE];

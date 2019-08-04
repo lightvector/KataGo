@@ -111,6 +111,33 @@ bool OpenCLTuneParams::XGemmDirectParams::isValid() const {
   return true;
 }
 
+string OpenCLTuneParams::XGemmParams::desc() const {
+  string s;
+  s += "MWG=" + Global::intToString(MWG);
+  s += " NWG=" + Global::intToString(NWG);
+  s += " KWG=" + Global::intToString(KWG);
+  return s;
+}
+string OpenCLTuneParams::XGemmParams::compileOptions() const {
+  string s;
+  s += "-DMWG=" + Global::intToString(MWG);
+  s += " -DNWG=" + Global::intToString(NWG);
+  s += " -DKWG=" + Global::intToString(KWG);
+  return s;
+}
+void OpenCLTuneParams::XGemmParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  MWG = getInt(kvs,"MWG",MWG);
+  NWG = getInt(kvs,"NWG",NWG);
+  KWG = getInt(kvs,"KWG",KWG);
+}
+bool OpenCLTuneParams::XGemmParams::isValid() const {
+  if(MWG <= 0) return false;
+  if(NWG <= 0) return false;
+  if(KWG <= 0) return false;
+  return true;
+}
+
 
 string OpenCLTuneParams::Conv3x3Params::desc() const {
   string s;
@@ -313,7 +340,7 @@ bool OpenCLTuneParams::TransposeParams::isValid() const {
 
 
 bool OpenCLTuneParams::isValid() const {
-  return xGemmDirect.isValid() && conv3x3.isValid() && conv5x5.isValid() && gPool.isValid() && transpose.isValid();
+  return xGemmDirect.isValid() && xGemm.isValid() && conv3x3.isValid() && conv5x5.isValid() && gPool.isValid() && transpose.isValid();
 }
 
 bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
@@ -331,6 +358,8 @@ void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& conf
   out << TUNEPARAMS_VERSION_LINE << "\n";
   out << "#xGemmDirect" << "\n";
   out << config.xGemmDirect.desc() << "\n";
+  out << "#xGemm" << "\n";
+  out << config.xGemm.desc() << "\n";
   out << "#conv3x3" << "\n";
   out << config.conv3x3.desc() << "\n";
   out << "#conv5x5" << "\n";
@@ -358,15 +387,16 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   if(filteredLines[0] != TUNEPARAMS_VERSION_LINE)
     throw IOError("OpenCLTuneParams::load: expected first line to be " + string(TUNEPARAMS_VERSION_LINE) + " in " + filename);
 
-  if(filteredLines.size() != 6)
+  if(filteredLines.size() != 7)
     throw IOError("OpenCLTuneParams::load: unexpected number of parameter lines in file " + filename);
 
   OpenCLTuneParams config;
   config.xGemmDirect.fillFromDesc(filename,filteredLines[1]);
-  config.conv3x3.fillFromDesc(filename,filteredLines[2]);
-  config.conv5x5.fillFromDesc(filename,filteredLines[3]);
-  config.gPool.fillFromDesc(filename,filteredLines[4]);
-  config.transpose.fillFromDesc(filename,filteredLines[5]);
+  config.xGemm.fillFromDesc(filename,filteredLines[2]);
+  config.conv3x3.fillFromDesc(filename,filteredLines[3]);
+  config.conv5x5.fillFromDesc(filename,filteredLines[4]);
+  config.gPool.fillFromDesc(filename,filteredLines[5]);
+  config.transpose.fillFromDesc(filename,filteredLines[6]);
   return config;
 }
 
@@ -667,9 +697,9 @@ void OpenCLTuner::tune(
           commandQueue,
           cfg,
           input,output,
-          batchSize,nnXLen,nnYLen,
-          numTilesX,numTilesY,
-          inChannels,
+          nnXLen,nnYLen,
+          batchSize,numTilesX,numTilesY,cfg.xGemm.NWG,
+          inChannels,cfg.xGemm.KWG,
           convSize,
           &event
         );
@@ -792,9 +822,9 @@ void OpenCLTuner::tune(
           commandQueue,
           cfg,
           input,output,
-          batchSize,nnXLen,nnYLen,
-          numTilesX,numTilesY,
-          outChannels,
+          nnXLen,nnYLen,
+          batchSize,numTilesX,numTilesY,cfg.xGemm.NWG,
+          outChannels,cfg.xGemm.MWG,
           convSize,
           &event
         );
@@ -1152,7 +1182,7 @@ void OpenCLTuner::tune(
         }
 
         cl_event event;
-        err = doBatchedXGemm_KM_KN_MN(
+        err = doBatchedXGemmDirect_KM_KN_MN(
           kernel,
           commandQueue,
           cfg,

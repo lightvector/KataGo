@@ -27,6 +27,17 @@ struct OpenCLTuneParams {
   };
   XGemmDirectParams xGemmDirect = XGemmDirectParams();
 
+  struct XGemmParams {
+    int MWG = 1;
+    int NWG = 1;
+    int KWG = 1;
+    std::string desc() const;
+    std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
+  XGemmParams xGemm = XGemmParams();
+
   struct Conv3x3Params {
     //Winograd input and output tile sizes
     int INTILE_XSIZE = 4;

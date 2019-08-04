@@ -472,6 +472,10 @@ cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_MN(
   clSetKernelArg(kernel, 8, sizeof(int), (void *)&N);
   clSetKernelArg(kernel, 9, sizeof(int), (void *)&cTranspose);
 
+  assert(M % tuneParams.xGemm.MWG == 0);
+  assert(N % tuneParams.xGemm.NWG == 0);
+  assert(K % tuneParams.xGemm.KWG == 0);
+
   static constexpr int nKernelDims = 3;
   const size_t WGD = tuneParams.xGemmDirect.WGD;
   const size_t MDIMCD = tuneParams.xGemmDirect.MDIMCD;
@@ -490,7 +494,47 @@ cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_MN(
   return err;
 }
 
-cl_int OpenCLHelpers::doStridedBatchedXGemm_KM_KN_MN(
+cl_int OpenCLHelpers::doBatchedXGemmDirect_KM_KN_MN(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  int M, int N, int K,
+  cl_mem A, cl_mem B, cl_mem C,
+  int numBatchElts,
+  cl_event* eventBuf
+) {
+  int cTranspose = 1;
+
+  clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
+  clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&K);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&M);
+  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&B);
+  clSetKernelArg(kernel, 6, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&C);
+  clSetKernelArg(kernel, 8, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 9, sizeof(int), (void *)&cTranspose);
+
+  static constexpr int nKernelDims = 3;
+  const size_t WGD = tuneParams.xGemmDirect.WGD;
+  const size_t MDIMCD = tuneParams.xGemmDirect.MDIMCD;
+  const size_t NDIMCD = tuneParams.xGemmDirect.NDIMCD;
+
+  size_t mCeiled = roundUpToMultiple(M,WGD);
+  size_t nCeiled = roundUpToMultiple(N,WGD);
+
+  size_t globalSizes[nKernelDims] = {mCeiled * MDIMCD / WGD, nCeiled * NDIMCD / WGD, (size_t)numBatchElts};
+  size_t localSizes[nKernelDims] = {MDIMCD, NDIMCD, 1};
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
+cl_int OpenCLHelpers::doStridedBatchedXGemmDirect_KM_KN_MN(
   cl_kernel kernel,
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
@@ -534,7 +578,7 @@ cl_int OpenCLHelpers::doStridedBatchedXGemm_KM_KN_MN(
   return err;
 }
 
-cl_int OpenCLHelpers::doBatchedXGemm_MK_NK_MN(
+cl_int OpenCLHelpers::doBatchedXGemmDirect_MK_NK_MN(
   cl_kernel kernel,
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
@@ -579,12 +623,15 @@ cl_int OpenCLHelpers::doWinogradTransform(
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
   cl_mem input, cl_mem convWorkspace,
-  int batchSize, int nnXLen, int nnYLen,
-  int numTilesX, int numTilesY,
-  int inChannels,
+  int nnXLen, int nnYLen,
+  int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
+  int inChannels, int inChannelsPadMultiple,
   int convSize,
   cl_event* eventBuf
 ) {
+  int inChannelsPadded = roundUpToMultiple(inChannels, inChannelsPadMultiple);
+  int batchNumTilesPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, batchNumTilesPadMultiple);
+
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&convWorkspace);
   clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
@@ -593,6 +640,8 @@ cl_int OpenCLHelpers::doWinogradTransform(
   clSetKernelArg(kernel, 5, sizeof(int), (void *)&numTilesX);
   clSetKernelArg(kernel, 6, sizeof(int), (void *)&numTilesY);
   clSetKernelArg(kernel, 7, sizeof(int), (void *)&inChannels);
+  clSetKernelArg(kernel, 8, sizeof(int), (void *)&inChannelsPadded);
+  clSetKernelArg(kernel, 9, sizeof(int), (void *)&batchNumTilesPadded);
 
   static constexpr int nKernelDims = 2;
   size_t localSizes[nKernelDims] = {
@@ -601,8 +650,8 @@ cl_int OpenCLHelpers::doWinogradTransform(
   };
 
   size_t globalSizes[nKernelDims] = {
-    roundUpToMultiple(powerOf2ify(batchSize * numTilesX * numTilesY), localSizes[0]),
-    roundUpToMultiple(inChannels,localSizes[1])
+    roundUpToMultiple(batchNumTilesPadded, localSizes[0]),
+    roundUpToMultiple(inChannelsPadded,localSizes[1])
   };
 
   cl_int err;
@@ -618,12 +667,15 @@ cl_int OpenCLHelpers::doWinogradTransformWithBNRelu(
   const OpenCLTuneParams& tuneParams,
   cl_mem input, cl_mem convWorkspace,
   cl_mem scaleBuf, cl_mem biasBuf, cl_mem mask,
-  int batchSize, int nnXLen, int nnYLen,
-  int numTilesX, int numTilesY,
-  int inChannels,
+  int nnXLen, int nnYLen,
+  int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
+  int inChannels, int inChannelsPadMultiple,
   int convSize,
   cl_event* eventBuf
 ) {
+  int inChannelsPadded = roundUpToMultiple(inChannels, inChannelsPadMultiple);
+  int batchNumTilesPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, batchNumTilesPadMultiple);
+
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&convWorkspace);
   clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&scaleBuf);
@@ -635,6 +687,8 @@ cl_int OpenCLHelpers::doWinogradTransformWithBNRelu(
   clSetKernelArg(kernel, 8, sizeof(int), (void *)&numTilesX);
   clSetKernelArg(kernel, 9, sizeof(int), (void *)&numTilesY);
   clSetKernelArg(kernel, 10, sizeof(int), (void *)&inChannels);
+  clSetKernelArg(kernel, 11, sizeof(int), (void *)&inChannelsPadded);
+  clSetKernelArg(kernel, 12, sizeof(int), (void *)&batchNumTilesPadded);
 
   static constexpr int nKernelDims = 2;
   size_t localSizes[nKernelDims] = {
@@ -643,8 +697,8 @@ cl_int OpenCLHelpers::doWinogradTransformWithBNRelu(
   };
 
   size_t globalSizes[nKernelDims] = {
-    roundUpToMultiple(powerOf2ify(batchSize * numTilesX * numTilesY), localSizes[0]),
-    roundUpToMultiple(inChannels,localSizes[1])
+    roundUpToMultiple(batchNumTilesPadded, localSizes[0]),
+    roundUpToMultiple(inChannelsPadded,localSizes[1])
   };
 
   cl_int err;
@@ -659,12 +713,15 @@ cl_int OpenCLHelpers::doWinogradUntransform(
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
   cl_mem convWorkspace2, cl_mem output,
-  int batchSize, int nnXLen, int nnYLen,
-  int numTilesX, int numTilesY,
-  int outChannels,
+  int nnXLen, int nnYLen,
+  int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
+  int outChannels, int outChannelsPadMultiple,
   int convSize,
   cl_event* eventBuf
 ) {
+  int outChannelsPadded = roundUpToMultiple(outChannels, outChannelsPadMultiple);
+  int batchNumTilesPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, batchNumTilesPadMultiple);
+
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&convWorkspace2);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
   clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
@@ -673,6 +730,8 @@ cl_int OpenCLHelpers::doWinogradUntransform(
   clSetKernelArg(kernel, 5, sizeof(int), (void *)&numTilesX);
   clSetKernelArg(kernel, 6, sizeof(int), (void *)&numTilesY);
   clSetKernelArg(kernel, 7, sizeof(int), (void *)&outChannels);
+  clSetKernelArg(kernel, 8, sizeof(int), (void *)&outChannelsPadded);
+  clSetKernelArg(kernel, 9, sizeof(int), (void *)&batchNumTilesPadded);
 
   static constexpr int nKernelDims = 3;
   size_t localSizes[nKernelDims] = {

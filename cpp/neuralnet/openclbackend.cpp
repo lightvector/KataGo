@@ -780,6 +780,9 @@ struct ConvLayer {
       int outTileXSize = convXSize == 3 ? handle->tuneParams.conv3x3.OUTTILE_XSIZE : handle->tuneParams.conv5x5.OUTTILE_XSIZE;
       int outTileYSize = convYSize == 3 ? handle->tuneParams.conv3x3.OUTTILE_YSIZE : handle->tuneParams.conv5x5.OUTTILE_YSIZE;
 
+      int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.MWG);
+      int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
+
       numTilesX = (nnXLen + outTileXSize - 1) / outTileXSize;
       numTilesY = (nnYLen + outTileYSize - 1) / outTileYSize;
       inTileXYSize = inTileXSize * inTileYSize;
@@ -792,7 +795,7 @@ struct ConvLayer {
       assert((convXSize == 5 && convYSize == 5) ? (inTileYSize == 6 && outTileYSize == 2) : true);
 
       //INTILE_YSIZE, INTILE_XSIZE, ic, oc
-      vector<float> transWeights(inTileXYSize * inChannels * outChannels);
+      vector<float> transWeights(inTileXYSize * inChannelsPadded * outChannelsPadded);
       auto transform3x3_4 = [](float& a0, float& a1, float& a2, float& a3) {
         float z0 = a0; float z1 = a1; float z2 = a2;
         a0 = z0;
@@ -827,12 +830,15 @@ struct ConvLayer {
         a5 = 1.0f * z4;
       };
 
-      for(int oc = 0; oc < outChannels; oc++) {
-        for(int ic = 0; ic < inChannels; ic++) {
+      for(int oc = 0; oc < outChannelsPadded; oc++) {
+        for(int ic = 0; ic < inChannelsPadded; ic++) {
           float tmp[maxTileYSize][maxTileXSize];
           for(int subY = 0; subY < convYSize; subY++) {
             for(int subX = 0; subX < convXSize; subX++) {
-              tmp[subY][subX] = desc->weights[((oc * inChannels + ic) * convYSize + subY) * convXSize + subX];
+              if(oc < outChannels && ic < inChannels)
+                tmp[subY][subX] = desc->weights[((oc * inChannels + ic) * convYSize + subY) * convXSize + subX];
+              else
+                tmp[subY][subX] = 0.0f;
             }
           }
 
@@ -864,7 +870,7 @@ struct ConvLayer {
 
           for(int subY = 0; subY < inTileYSize; subY++) {
             for(int subX = 0; subX < inTileXSize; subX++) {
-              transWeights[((subY*inTileXSize + subX)*inChannels + ic)*outChannels + oc] = tmp[subY][subX];
+              transWeights[((subY*inTileXSize + subX)*inChannelsPadded + ic)*outChannelsPadded + oc] = tmp[subY][subX];
             }
           }
         }
@@ -882,11 +888,13 @@ struct ConvLayer {
     clReleaseMemObject(filter);
   }
 
-  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
-    static const size_t roundSizeNeeded = 1;
+  size_t requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+    int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.MWG);
+    int numTilesTotalPadded = roundUpToMultiple(maxBatchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.NWG);
+    int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
     return
-      roundUpToMultiple(numTilesX * numTilesY * maxBatchSize, roundSizeNeeded) *
-      roundUpToMultiple(std::max(inChannels,outChannels),roundSizeNeeded) *
+      numTilesTotalPadded *
+      std::max(inChannelsPadded,outChannelsPadded) *
       inTileXYSize;
   }
 
@@ -897,7 +905,7 @@ struct ConvLayer {
       int outputStride = nnXLen*nnYLen * outChannels;
       cl_int err;
       MAYBE_EVENT;
-      err = doStridedBatchedXGemm_KM_KN_MN(
+      err = doStridedBatchedXGemmDirect_KM_KN_MN(
         handle->xgemmDirectStridedBatchedNNKernel,
         handle->commandQueue,
         handle->tuneParams,
@@ -923,9 +931,9 @@ struct ConvLayer {
           handle->commandQueue,
           handle->tuneParams,
           input,convWorkspace,
-          batchSize,nnXLen,nnYLen,
-          numTilesX,numTilesY,
-          inChannels,
+          nnXLen,nnYLen,
+          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.NWG, //N in gemm
+          inChannels,handle->tuneParams.xGemm.KWG,                    //K in gemm
           convXSize,
           MAYBE_EVENTREF
         );
@@ -936,14 +944,17 @@ struct ConvLayer {
       }
 
       {
-        int numTilesTotal = batchSize * numTilesX * numTilesY;
+        int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.MWG);
+        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.NWG);
+        int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
+
         cl_int err;
         MAYBE_EVENT;
         err = doBatchedXGemm_KM_KN_MN(
           handle->xgemmDirectBatchedNNKernel,
           handle->commandQueue,
           handle->tuneParams,
-          outChannels, numTilesTotal, inChannels,
+          outChannelsPadded, numTilesTotalPadded, inChannelsPadded,
           filter, convWorkspace, convWorkspace2,
           inTileXYSize,
           MAYBE_EVENTREF
@@ -964,9 +975,9 @@ struct ConvLayer {
           handle->commandQueue,
           handle->tuneParams,
           convWorkspace2,output,
-          batchSize,nnXLen,nnYLen,
-          numTilesX,numTilesY,
-          outChannels,
+          nnXLen,nnYLen,
+          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.NWG, //N in gemm
+          outChannels,handle->tuneParams.xGemm.MWG,                   //M in gemm
           convXSize,
           MAYBE_EVENTREF
         );
@@ -1046,9 +1057,9 @@ struct ConvLayer {
           bnLayer->mergedScaleBuf,
           bnLayer->mergedBiasBuf,
           mask,
-          batchSize,nnXLen,nnYLen,
-          numTilesX,numTilesY,
-          inChannels,
+          nnXLen,nnYLen,
+          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.NWG, //N in gemm
+          inChannels,handle->tuneParams.xGemm.KWG,                    //K in gemm
           convXSize,
           MAYBE_EVENTREF
         );
@@ -1059,14 +1070,17 @@ struct ConvLayer {
       }
 
       {
-        int numTilesTotal = batchSize * numTilesX * numTilesY;
+        int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.MWG);
+        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.NWG);
+        int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
+
         cl_int err;
         MAYBE_EVENT;
         err = doBatchedXGemm_KM_KN_MN(
           handle->xgemmDirectBatchedNNKernel,
           handle->commandQueue,
           handle->tuneParams,
-          outChannels, numTilesTotal, inChannels,
+          outChannelsPadded, numTilesTotalPadded, inChannelsPadded,
           filter, convWorkspace, convWorkspace2,
           inTileXYSize,
           MAYBE_EVENTREF
@@ -1087,9 +1101,9 @@ struct ConvLayer {
           handle->commandQueue,
           handle->tuneParams,
           convWorkspace2,output,
-          batchSize,nnXLen,nnYLen,
-          numTilesX,numTilesY,
-          outChannels,
+          nnXLen,nnYLen,
+          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.NWG, //N in gemm
+          outChannels,handle->tuneParams.xGemm.MWG,                   //M in gemm
           convXSize,
           MAYBE_EVENTREF
         );
@@ -1141,7 +1155,7 @@ struct MatMulLayer {
 
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output) {
     MAYBE_EVENT;
-    cl_int err = doBatchedXGemm_MK_NK_MN(
+    cl_int err = doBatchedXGemmDirect_MK_NK_MN(
       handle->xgemmDirectBatchedTTKernel,
       handle->commandQueue,
       handle->tuneParams,
@@ -1240,8 +1254,11 @@ struct ResidualBlock {
   ~ResidualBlock() {
   }
 
-  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
-    return std::max(regularConv.requiredConvWorkspaceElts(maxBatchSize), finalConv.requiredConvWorkspaceElts(maxBatchSize));
+  size_t requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+    return std::max(
+      regularConv.requiredConvWorkspaceElts(handle,maxBatchSize),
+      finalConv.requiredConvWorkspaceElts(handle,maxBatchSize)
+    );
   }
 
   void apply(
@@ -1318,11 +1335,11 @@ struct GlobalPoolingResidualBlock {
   ~GlobalPoolingResidualBlock() {
   }
 
-  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
+  size_t requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
     size_t maxElts = 0;
-    maxElts = std::max(maxElts,regularConv.requiredConvWorkspaceElts(maxBatchSize));
-    maxElts = std::max(maxElts,gpoolConv.requiredConvWorkspaceElts(maxBatchSize));
-    maxElts = std::max(maxElts,finalConv.requiredConvWorkspaceElts(maxBatchSize));
+    maxElts = std::max(maxElts,regularConv.requiredConvWorkspaceElts(handle,maxBatchSize));
+    maxElts = std::max(maxElts,gpoolConv.requiredConvWorkspaceElts(handle,maxBatchSize));
+    maxElts = std::max(maxElts,finalConv.requiredConvWorkspaceElts(handle,maxBatchSize));
     return maxElts;
   }
 
@@ -1482,20 +1499,20 @@ struct Trunk {
     delete trunkTipBN;
   }
 
-  size_t requiredConvWorkspaceElts() const {
-    size_t maxElts = initialConv->requiredConvWorkspaceElts(maxBatchSize);
+  size_t requiredConvWorkspaceElts(ComputeHandleInternal* handle) const {
+    size_t maxElts = initialConv->requiredConvWorkspaceElts(handle,maxBatchSize);
 
     for(int i = 0; i<blocks.size(); i++) {
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
         ResidualBlock* block = (ResidualBlock*)blocks[i].second;
-        maxElts = std::max(maxElts,block->requiredConvWorkspaceElts(maxBatchSize));
+        maxElts = std::max(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
       }
       else if(blocks[i].first == DILATED_BLOCK_KIND) {
         ASSERT_UNREACHABLE;
       }
       else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
         GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second;
-        maxElts = std::max(maxElts,block->requiredConvWorkspaceElts(maxBatchSize));
+        maxElts = std::max(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
       }
       else {
         ASSERT_UNREACHABLE;
@@ -1652,11 +1669,11 @@ struct PolicyHead {
     delete gpoolToPassMul;
   }
 
-  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
+  size_t requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
     size_t maxElts = 0;
-    maxElts = std::max(maxElts,p1Conv->requiredConvWorkspaceElts(maxBatchSize));
-    maxElts = std::max(maxElts,g1Conv->requiredConvWorkspaceElts(maxBatchSize));
-    maxElts = std::max(maxElts,p2Conv->requiredConvWorkspaceElts(maxBatchSize));
+    maxElts = std::max(maxElts,p1Conv->requiredConvWorkspaceElts(handle,maxBatchSize));
+    maxElts = std::max(maxElts,g1Conv->requiredConvWorkspaceElts(handle,maxBatchSize));
+    maxElts = std::max(maxElts,p2Conv->requiredConvWorkspaceElts(handle,maxBatchSize));
     return maxElts;
   }
 
@@ -1788,10 +1805,10 @@ struct ValueHead {
     delete vOwnershipConv;
   }
 
-  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
+  size_t requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
     size_t maxElts = 0;
-    maxElts = std::max(maxElts,v1Conv->requiredConvWorkspaceElts(maxBatchSize));
-    maxElts = std::max(maxElts,vOwnershipConv->requiredConvWorkspaceElts(maxBatchSize));
+    maxElts = std::max(maxElts,v1Conv->requiredConvWorkspaceElts(handle,maxBatchSize));
+    maxElts = std::max(maxElts,vOwnershipConv->requiredConvWorkspaceElts(handle,maxBatchSize));
     return maxElts;
   }
 
@@ -1952,11 +1969,11 @@ struct Model {
   }
 
 
-  size_t requiredConvWorkspaceElts() const {
+  size_t requiredConvWorkspaceElts(ComputeHandleInternal* handle) const {
     size_t maxElts = 0;
-    maxElts = std::max(maxElts,trunk->requiredConvWorkspaceElts());
-    maxElts = std::max(maxElts,policyHead->requiredConvWorkspaceElts(maxBatchSize));
-    maxElts = std::max(maxElts,valueHead->requiredConvWorkspaceElts(maxBatchSize));
+    maxElts = std::max(maxElts,trunk->requiredConvWorkspaceElts(handle));
+    maxElts = std::max(maxElts,policyHead->requiredConvWorkspaceElts(handle,maxBatchSize));
+    maxElts = std::max(maxElts,valueHead->requiredConvWorkspaceElts(handle,maxBatchSize));
     return maxElts;
   }
 
@@ -2182,7 +2199,7 @@ struct Buffers {
     ownership = createReadWriteBuffer(handle, ownershipElts);
     ownershipScratch = createReadWriteBuffer(handle, ownershipElts);
 
-    size_t convWorkspaceElts = m.requiredConvWorkspaceElts();
+    size_t convWorkspaceElts = m.requiredConvWorkspaceElts(handle);
     convWorkspace = createReadWriteBuffer(handle, convWorkspaceElts);
     convWorkspace2 = createReadWriteBuffer(handle, convWorkspaceElts);
   }
@@ -2663,7 +2680,7 @@ bool NeuralNet::testEvaluateConv(
 
   vector<float> inputTmp = inputBuffer;
   cl_mem input = createReadOnlyBuffer(handle,inputTmp);
-  size_t convWorkspaceElts = layer->requiredConvWorkspaceElts(batchSize);
+  size_t convWorkspaceElts = layer->requiredConvWorkspaceElts(handle,batchSize);
   cl_mem convWorkspace = createReadWriteBuffer(handle, convWorkspaceElts);
   cl_mem convWorkspace2 = createReadWriteBuffer(handle, convWorkspaceElts);
 
@@ -2779,7 +2796,7 @@ bool NeuralNet::testEvaluateResidualBlock(
   cl_mem mid = createReadWriteBuffer(handle,numMidFloats);
   cl_mem midScratch = createReadWriteBuffer(handle,numMidFloats);
 
-  size_t convWorkspaceElts = layer->requiredConvWorkspaceElts(batchSize);
+  size_t convWorkspaceElts = layer->requiredConvWorkspaceElts(handle,batchSize);
   cl_mem convWorkspace = createReadWriteBuffer(handle, convWorkspaceElts);
   cl_mem convWorkspace2 = createReadWriteBuffer(handle, convWorkspaceElts);
 
@@ -2852,7 +2869,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   cl_mem gpoolConcat = createReadWriteBuffer(handle,numGPoolConcatFloats);
   cl_mem gpoolBias = createReadWriteBuffer(handle,numGPoolBiasFloats);
 
-  size_t convWorkspaceElts = layer->requiredConvWorkspaceElts(batchSize);
+  size_t convWorkspaceElts = layer->requiredConvWorkspaceElts(handle,batchSize);
   cl_mem convWorkspace = createReadWriteBuffer(handle, convWorkspaceElts);
   cl_mem convWorkspace2 = createReadWriteBuffer(handle, convWorkspaceElts);
 
