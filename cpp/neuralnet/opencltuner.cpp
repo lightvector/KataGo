@@ -698,7 +698,7 @@ void OpenCLTuner::tune(
           cfg,
           input,output,
           nnXLen,nnYLen,
-          batchSize,numTilesX,numTilesY,cfg.xGemm.NWG,
+          batchSize,numTilesX,numTilesY,cfg.xGemm.MWG,
           inChannels,cfg.xGemm.KWG,
           convSize,
           &event
@@ -823,8 +823,8 @@ void OpenCLTuner::tune(
           cfg,
           input,output,
           nnXLen,nnYLen,
-          batchSize,numTilesX,numTilesY,cfg.xGemm.NWG,
-          outChannels,cfg.xGemm.MWG,
+          batchSize,numTilesX,numTilesY,cfg.xGemm.MWG,
+          outChannels,cfg.xGemm.NWG,
           convSize,
           &event
         );
@@ -1182,12 +1182,12 @@ void OpenCLTuner::tune(
         }
 
         cl_event event;
-        err = doBatchedXGemmDirect_KM_KN_MN(
+        err = doBatchedXGemmDirect_KM_KN_NM(
           kernel,
           commandQueue,
           cfg,
-          outChannels, numTilesTotal, inChannels,
-          filter, input, output,
+          numTilesTotal, outChannels, inChannels,
+          input, filter, output,
           inTileXSize * inTileYSize,
           &event
         );

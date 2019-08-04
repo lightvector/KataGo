@@ -450,7 +450,7 @@ size_t OpenCLHelpers::roundUpToMultiple(size_t size, size_t ofThis) {
   return (size + ofThis - 1) / ofThis * ofThis;
 }
 
-cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_MN(
+cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_NM(
   cl_kernel kernel,
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
@@ -459,7 +459,7 @@ cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_MN(
   int numBatchElts,
   cl_event* eventBuf
 ) {
-  int cTranspose = 1;
+  int cTranspose = 0;
 
   clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
   clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
@@ -469,7 +469,7 @@ cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_MN(
   clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&B);
   clSetKernelArg(kernel, 6, sizeof(int), (void *)&N);
   clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&C);
-  clSetKernelArg(kernel, 8, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 8, sizeof(int), (void *)&M);
   clSetKernelArg(kernel, 9, sizeof(int), (void *)&cTranspose);
 
   assert(M % tuneParams.xGemm.MWG == 0);
@@ -494,7 +494,7 @@ cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_MN(
   return err;
 }
 
-cl_int OpenCLHelpers::doBatchedXGemmDirect_KM_KN_MN(
+cl_int OpenCLHelpers::doBatchedXGemmDirect_KM_KN_NM(
   cl_kernel kernel,
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
@@ -503,7 +503,7 @@ cl_int OpenCLHelpers::doBatchedXGemmDirect_KM_KN_MN(
   int numBatchElts,
   cl_event* eventBuf
 ) {
-  int cTranspose = 1;
+  int cTranspose = 0;
 
   clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
   clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
@@ -513,7 +513,7 @@ cl_int OpenCLHelpers::doBatchedXGemmDirect_KM_KN_MN(
   clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&B);
   clSetKernelArg(kernel, 6, sizeof(int), (void *)&N);
   clSetKernelArg(kernel, 7, sizeof(cl_mem), (void *)&C);
-  clSetKernelArg(kernel, 8, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 8, sizeof(int), (void *)&M);
   clSetKernelArg(kernel, 9, sizeof(int), (void *)&cTranspose);
 
   static constexpr int nKernelDims = 3;
@@ -534,7 +534,7 @@ cl_int OpenCLHelpers::doBatchedXGemmDirect_KM_KN_MN(
   return err;
 }
 
-cl_int OpenCLHelpers::doStridedBatchedXGemmDirect_KM_KN_MN(
+cl_int OpenCLHelpers::doStridedBatchedXGemmDirect_KM_KN_NM(
   cl_kernel kernel,
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
@@ -544,7 +544,7 @@ cl_int OpenCLHelpers::doStridedBatchedXGemmDirect_KM_KN_MN(
   int numBatchElts,
   cl_event* eventBuf
 ) {
-  int cTranspose = 1;
+  int cTranspose = 0;
 
   clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
   clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
@@ -556,7 +556,7 @@ cl_int OpenCLHelpers::doStridedBatchedXGemmDirect_KM_KN_MN(
   clSetKernelArg(kernel, 7, sizeof(int), (void *)&N);
   clSetKernelArg(kernel, 8, sizeof(int), (void *)&bStride);
   clSetKernelArg(kernel, 9, sizeof(cl_mem), (void *)&C);
-  clSetKernelArg(kernel,10, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel,10, sizeof(int), (void *)&M);
   clSetKernelArg(kernel,11, sizeof(int), (void *)&cStride);
   clSetKernelArg(kernel,12, sizeof(int), (void *)&cTranspose);
 

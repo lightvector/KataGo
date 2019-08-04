@@ -88,7 +88,7 @@ namespace OpenCLHelpers {
   size_t powerOf2ify(size_t size);
   size_t roundUpToMultiple(size_t size, size_t ofThis);
 
-  cl_int doBatchedXGemm_KM_KN_MN(
+  cl_int doBatchedXGemm_KM_KN_NM(
     cl_kernel kernel,
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
@@ -98,7 +98,7 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
-  cl_int doBatchedXGemmDirect_KM_KN_MN(
+  cl_int doBatchedXGemmDirect_KM_KN_NM(
     cl_kernel kernel,
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
@@ -108,7 +108,7 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
-  cl_int doStridedBatchedXGemmDirect_KM_KN_MN(
+  cl_int doStridedBatchedXGemmDirect_KM_KN_NM(
     cl_kernel kernel,
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,

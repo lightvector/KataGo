@@ -780,7 +780,7 @@ struct ConvLayer {
       int outTileXSize = convXSize == 3 ? handle->tuneParams.conv3x3.OUTTILE_XSIZE : handle->tuneParams.conv5x5.OUTTILE_XSIZE;
       int outTileYSize = convYSize == 3 ? handle->tuneParams.conv3x3.OUTTILE_YSIZE : handle->tuneParams.conv5x5.OUTTILE_YSIZE;
 
-      int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.MWG);
+      int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.NWG);
       int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
 
       numTilesX = (nnXLen + outTileXSize - 1) / outTileXSize;
@@ -889,8 +889,8 @@ struct ConvLayer {
   }
 
   size_t requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
-    int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.MWG);
-    int numTilesTotalPadded = roundUpToMultiple(maxBatchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.NWG);
+    int numTilesTotalPadded = roundUpToMultiple(maxBatchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.MWG);
+    int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.NWG);
     int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
     return
       numTilesTotalPadded *
@@ -905,13 +905,13 @@ struct ConvLayer {
       int outputStride = nnXLen*nnYLen * outChannels;
       cl_int err;
       MAYBE_EVENT;
-      err = doStridedBatchedXGemmDirect_KM_KN_MN(
+      err = doStridedBatchedXGemmDirect_KM_KN_NM(
         handle->xgemmDirectStridedBatchedNNKernel,
         handle->commandQueue,
         handle->tuneParams,
-        outChannels, nnXLen*nnYLen, inChannels,
-        filterStride, inputStride, outputStride,
-        filter, input, output,
+        nnXLen*nnYLen, outChannels, inChannels,
+        inputStride, filterStride, outputStride,
+        input, filter, output,
         batchSize,
         MAYBE_EVENTREF
       );
@@ -932,7 +932,7 @@ struct ConvLayer {
           handle->tuneParams,
           input,convWorkspace,
           nnXLen,nnYLen,
-          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.NWG, //N in gemm
+          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.MWG, //M in gemm
           inChannels,handle->tuneParams.xGemm.KWG,                    //K in gemm
           convXSize,
           MAYBE_EVENTREF
@@ -944,18 +944,18 @@ struct ConvLayer {
       }
 
       {
-        int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.MWG);
-        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.NWG);
+        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.MWG);
+        int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.NWG);
         int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
 
         cl_int err;
         MAYBE_EVENT;
-        err = doBatchedXGemm_KM_KN_MN(
+        err = doBatchedXGemm_KM_KN_NM(
           handle->xgemmDirectBatchedNNKernel,
           handle->commandQueue,
           handle->tuneParams,
-          outChannelsPadded, numTilesTotalPadded, inChannelsPadded,
-          filter, convWorkspace, convWorkspace2,
+          numTilesTotalPadded, outChannelsPadded, inChannelsPadded,
+          convWorkspace, filter, convWorkspace2,
           inTileXYSize,
           MAYBE_EVENTREF
         );
@@ -976,8 +976,8 @@ struct ConvLayer {
           handle->tuneParams,
           convWorkspace2,output,
           nnXLen,nnYLen,
-          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.NWG, //N in gemm
-          outChannels,handle->tuneParams.xGemm.MWG,                   //M in gemm
+          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.MWG, //M in gemm
+          outChannels,handle->tuneParams.xGemm.NWG,                   //N in gemm
           convXSize,
           MAYBE_EVENTREF
         );
@@ -1070,18 +1070,18 @@ struct ConvLayer {
       }
 
       {
-        int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.MWG);
-        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.NWG);
+        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.MWG);
+        int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.NWG);
         int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
 
         cl_int err;
         MAYBE_EVENT;
-        err = doBatchedXGemm_KM_KN_MN(
+        err = doBatchedXGemm_KM_KN_NM(
           handle->xgemmDirectBatchedNNKernel,
           handle->commandQueue,
           handle->tuneParams,
-          outChannelsPadded, numTilesTotalPadded, inChannelsPadded,
-          filter, convWorkspace, convWorkspace2,
+          numTilesTotalPadded, outChannelsPadded, inChannelsPadded,
+          convWorkspace, filter, convWorkspace2,
           inTileXYSize,
           MAYBE_EVENTREF
         );
@@ -1102,8 +1102,8 @@ struct ConvLayer {
           handle->tuneParams,
           convWorkspace2,output,
           nnXLen,nnYLen,
-          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.NWG, //N in gemm
-          outChannels,handle->tuneParams.xGemm.MWG,                   //M in gemm
+          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.MWG, //M in gemm
+          outChannels,handle->tuneParams.xGemm.NWG,                   //N in gemm
           convXSize,
           MAYBE_EVENTREF
         );
