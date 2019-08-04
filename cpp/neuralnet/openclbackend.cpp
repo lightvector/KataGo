@@ -122,6 +122,7 @@ struct CompiledPrograms {
   cl_program mirrorProgram;
   cl_program extractChannel0NCHWProgram;
   cl_program xgemmDirectProgram;
+  cl_program xgemmProgram;
 
   CompiledPrograms(const cl_context& context, const vector<cl_device_id>& deviceIdsToUse, const OpenCLTuneParams& tParams) {
     tuneParams = tParams;
@@ -161,6 +162,7 @@ struct CompiledPrograms {
     mirrorProgram = compileProgram("mirrorProgram", context, deviceIdsToUse, OpenCLKernels::mirror, "");
     extractChannel0NCHWProgram = compileProgram("extractChannel0NCHWProgram", context, deviceIdsToUse, OpenCLKernels::extractChannel0NCHW, "");
     xgemmDirectProgram = compileProgram("xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect, tuneParams.xGemmDirect.compileOptions());
+    xgemmProgram = compileProgram("xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm, "");
   }
 
   ~CompiledPrograms() {
@@ -180,6 +182,7 @@ struct CompiledPrograms {
     clReleaseProgram(mirrorProgram);
     clReleaseProgram(extractChannel0NCHWProgram);
     clReleaseProgram(xgemmDirectProgram);
+    clReleaseProgram(xgemmProgram);
   }
 
   CompiledPrograms() = delete;
@@ -302,6 +305,7 @@ struct ComputeHandleInternal {
   cl_kernel xgemmDirectBatchedNNKernel;
   cl_kernel xgemmDirectBatchedTTKernel;
   cl_kernel xgemmDirectStridedBatchedNNKernel;
+  cl_kernel xgemmBatchedNNKernel;
 
   vector<cl_event> profileEvents;
   vector<std::function<void()>> profileCallbacks;
@@ -372,6 +376,8 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     xgemmDirectStridedBatchedNNKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectStridedBatchedNN", &err);
     CHECK_ERR(err);
+    xgemmBatchedNNKernel = clCreateKernel(progs->xgemmProgram, "XgemmBatched", &err);
+    CHECK_ERR(err);
   }
 
   ~ComputeHandleInternal() {
@@ -402,6 +408,7 @@ struct ComputeHandleInternal {
     clReleaseKernel(xgemmDirectBatchedNNKernel);
     clReleaseKernel(xgemmDirectBatchedTTKernel);
     clReleaseKernel(xgemmDirectStridedBatchedNNKernel);
+    clReleaseKernel(xgemmBatchedNNKernel);
   }
 
   ComputeHandleInternal() = delete;

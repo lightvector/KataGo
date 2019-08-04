@@ -987,4 +987,14 @@ string OpenCLKernels::xgemmDirect =
 #include "../external/clblast/xgemm_direct_batched.opencl"
 ;
 
+string OpenCLKernels::xgemm =
+"#define ROUTINE_GEMMBATCHED\n"
+"#define ROUTINE_GEMMSTRIDEDBATCHED\n"
+#include "../external/clblast/common.opencl"
+#include "../external/clblast/xgemm_part1.opencl"
+#include "../external/clblast/xgemm_part2.opencl"
+#include "../external/clblast/xgemm_part3.opencl"
+#include "../external/clblast/xgemm_batched.opencl"
+;
+
 #endif

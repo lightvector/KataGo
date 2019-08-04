@@ -22,6 +22,7 @@ namespace OpenCLKernels {
   extern std::string extractChannel0NCHW;
 
   extern std::string xgemmDirect;
+  extern std::string xgemm;
 
 }
 
