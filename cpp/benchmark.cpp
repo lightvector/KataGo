@@ -40,6 +40,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     cmd.add(boardSizeArg);
     cmd.add(visitsArg);
     cmd.add(threadsArg);
+    cmd.add(numPositionsPerGameArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     modelFile = modelFileArg.getValue();
