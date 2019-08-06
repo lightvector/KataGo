@@ -54,8 +54,9 @@ ConvLayerDesc::ConvLayerDesc(istream& in) {
     for(int x = 0; x < convXSize; x++) {
       for(int ic = 0; ic < inChannels; ic++) {
         for(int oc = 0; oc < outChannels; oc++) {
-          float w;
-          in >> w;
+          string t;
+          in >> t;
+          float w = strtof(t.c_str(), nullptr);
           CHECKFINITE(w, name);
           weights[oc * ocStride + ic * icStride + y * yStride + x * xStride] = w;
         }
