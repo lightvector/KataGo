@@ -1,5 +1,5 @@
-#ifndef RULES_H
-#define RULES_H
+#ifndef GAME_RULES_H_
+#define GAME_RULES_H_
 
 #include "../core/global.h"
 #include "../core/hash.h"
@@ -23,19 +23,25 @@ struct Rules {
   Rules(int koRule, int scoringRule, bool multiStoneSuicideLegal, float komi);
   ~Rules();
 
+  bool operator==(const Rules& other) const;
+  bool operator!=(const Rules& other) const;
+
   static Rules getTrompTaylorish();
   static Rules getSimpleTerritory();
 
-  static set<string> koRuleStrings();
-  static set<string> scoringRuleStrings();
-  static int parseKoRule(const string& s);
-  static int parseScoringRule(const string& s);
-  static string writeKoRule(int koRule);
-  static string writeScoringRule(int scoringRule);
+  static std::set<std::string> koRuleStrings();
+  static std::set<std::string> scoringRuleStrings();
+  static int parseKoRule(const std::string& s);
+  static int parseScoringRule(const std::string& s);
+  static std::string writeKoRule(int koRule);
+  static std::string writeScoringRule(int scoringRule);
 
   static bool komiIsIntOrHalfInt(float komi);
 
-  friend ostream& operator<<(ostream& out, const Rules& rules);
+  static bool tryParseRules(const std::string& str, Rules& buf);
+
+  friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
+  std::string toString() const;
 
   static const Hash128 ZOBRIST_KO_RULE_HASH[4];
   static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];
@@ -43,4 +49,4 @@ struct Rules {
 
 };
 
-#endif
+#endif  // GAME_RULES_H_

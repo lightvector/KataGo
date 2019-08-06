@@ -1,11 +1,11 @@
-#ifndef MAKEDIR_H_
-#define MAKEDIR_H_
+#ifndef CORE_MAKEDIR_H_
+#define CORE_MAKEDIR_H_
 
 #include "../core/global.h"
 
 namespace MakeDir {
   //Does nothing if already exists
-  void make(const string& path);
+  void make(const std::string& path);
 }
 
-#endif
+#endif  // CORE_MAKEDIR_H_

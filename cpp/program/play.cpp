@@ -1,7 +1,10 @@
-#include "../core/global.h"
-#include "../search/asyncbot.h"
 #include "../program/play.h"
+
+#include "../core/global.h"
 #include "../program/setup.h"
+#include "../search/asyncbot.h"
+
+using namespace std;
 
 static double nextGaussianTruncated(Rand& rand, double bound) {
   double d = rand.nextGaussian();
@@ -198,11 +201,25 @@ MatchPairer::MatchPairer(
   const vector<SearchParams>& bParamss,
   bool forSelfPlay,
   bool forGateKeeper
+): MatchPairer(cfg,nBots,bNames,nEvals,bParamss,forSelfPlay,forGateKeeper,vector<bool>(nBots))
+{}
+
+
+MatchPairer::MatchPairer(
+  ConfigParser& cfg,
+  int nBots,
+  const vector<string>& bNames,
+  const vector<NNEvaluator*>& nEvals,
+  const vector<SearchParams>& bParamss,
+  bool forSelfPlay,
+  bool forGateKeeper,
+  const vector<bool>& exclude
 )
   :numBots(nBots),
    botNames(bNames),
    nnEvals(nEvals),
    baseParamss(bParamss),
+   excludeBot(exclude),
    secondaryBots(),
    nextMatchups(),
    nextMatchupsBuf(),
@@ -218,6 +235,7 @@ MatchPairer::MatchPairer(
   assert(botNames.size() == numBots);
   assert(nnEvals.size() == numBots);
   assert(baseParamss.size() == numBots);
+  assert(exclude.size() == numBots);
   if(forSelfPlay) {
     assert(numBots == 1);
     numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
@@ -264,10 +282,12 @@ bool MatchPairer::getMatchup(
   int logNNEvery = logGamesEvery*100 > 1000 ? logGamesEvery*100 : 1000;
   if(numGamesStartedSoFar % logNNEvery == 0) {
     for(int i = 0; i<nnEvals.size(); i++) {
-      logger.write(nnEvals[i]->getModelFileName());
-      logger.write("NN rows: " + Global::int64ToString(nnEvals[i]->numRowsProcessed()));
-      logger.write("NN batches: " + Global::int64ToString(nnEvals[i]->numBatchesProcessed()));
-      logger.write("NN avg batch size: " + Global::doubleToString(nnEvals[i]->averageProcessedBatchSize()));
+      if(nnEvals[i] != NULL) {
+        logger.write(nnEvals[i]->getModelFileName());
+        logger.write("NN rows: " + Global::int64ToString(nnEvals[i]->numRowsProcessed()));
+        logger.write("NN batches: " + Global::int64ToString(nnEvals[i]->numBatchesProcessed()));
+        logger.write("NN avg batch size: " + Global::doubleToString(nnEvals[i]->averageProcessedBatchSize()));
+      }
     }
   }
 
@@ -293,7 +313,11 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
     nextMatchupsBuf.clear();
     //First generate the pairs only in a one-sided manner
     for(int i = 0; i<numBots; i++) {
+      if(excludeBot[i])
+        continue;
       for(int j = 0; j<numBots; j++) {
+        if(excludeBot[j])
+          continue;
         if(i < j && !(contains(secondaryBots,i) && contains(secondaryBots,j))) {
           nextMatchupsBuf.push_back(make_pair(i,j));
         }
@@ -378,7 +402,7 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
   bot->printPV(sout, bot->rootNode, 25);
   sout << "\n";
   sout << "Tree:\n";
-  bot->printTree(sout, bot->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
+  bot->printTree(sout, bot->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),P_WHITE);
   logger.write(sout.str());
 }
 
@@ -611,11 +635,12 @@ static void extractPolicyTarget(
       maxValue = value;
   }
 
-  if(maxValue > 1e9) {
-    cout << toMoveBot->rootBoard << endl;
-    cout << "LARGE PLAY SELECTION VALUE " << maxValue << endl;
-    toMoveBot->printTree(cout, node, PrintTreeOptions());
-  }
+  //TODO
+  // if(maxValue > 1e9) {
+  //   cout << toMoveBot->rootBoard << endl;
+  //   cout << "LARGE PLAY SELECTION VALUE " << maxValue << endl;
+  //   toMoveBot->printTree(cout, node, PrintTreeOptions(), P_WHITE);
+  // }
   
   double factor = 1.0;
   if(maxValue > 30000.0)
@@ -632,12 +657,12 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
   ReportedSearchValues values;
   bool success = toMoveBot->getNodeValues(*node,values);
   assert(success);
-  (void)success; //Avoid warning when asserts are disabled  
+  (void)success; //Avoid warning when asserts are disabled
 
-  buf.win = values.winValue;
-  buf.loss = values.lossValue;
-  buf.noResult = values.noResultValue;
-  buf.score = values.expectedScore;
+  buf.win = (float)values.winValue;
+  buf.loss = (float)values.lossValue;
+  buf.noResult = (float)values.noResultValue;
+  buf.score = (float)values.expectedScore;
 
   if(recordUtilities != NULL) {
     buf.hasMctsUtility = true;
@@ -1038,7 +1063,7 @@ FinishedGameData* Play::runGame(
     //HACK - Disable LCB for making the move (it will still affect the policy target gen)
     bool lcb = toMoveBot->searchParams.useLcbForSelection;
     toMoveBot->searchParams.useLcbForSelection = false;
-    
+
     if(doCapVisitsPlayouts) {
       assert(numCapVisits > 0);
       assert(numCapPlayouts > 0);
@@ -1064,9 +1089,9 @@ FinishedGameData* Play::runGame(
     }
 
     //HACK - restore LCB so that it affects policy target gen
-    toMoveBot->searchParams.useLcbForSelection = lcb;      
+    toMoveBot->searchParams.useLcbForSelection = lcb;
 
-    if(loc == Board::NULL_LOC || !toMoveBot->isLegal(loc,pla))
+    if(loc == Board::NULL_LOC || !toMoveBot->isLegalStrict(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
     if(logSearchInfo)
       logSearch(toMoveBot,logger,loc);
@@ -1105,7 +1130,7 @@ FinishedGameData* Play::runGame(
       if(fancyModes.recordTreePositions && fancyModes.recordTreeTargetWeight > 0.0f) {
         if(fancyModes.recordTreeTargetWeight > 1.0f)
           throw StringError("fancyModes.recordTreeTargetWeight > 1.0f");
-          
+
         recordTreePositions(
           gameData,
           board,hist,pla,
@@ -1141,7 +1166,7 @@ FinishedGameData* Play::runGame(
     if(fancyModes.allowResignation && historicalMctsWinLossValues.size() >= fancyModes.resignConsecTurns) {
       if(fancyModes.resignThreshold > 0 || std::isnan(fancyModes.resignThreshold))
         throw StringError("fancyModes.resignThreshold > 0 || std::isnan(fancyModes.resignThreshold)");
-      
+
       bool shouldResign = true;
       for(int j = 0; j<fancyModes.resignConsecTurns; j++) {
         double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-j-1];
@@ -1197,7 +1222,7 @@ FinishedGameData* Play::runGame(
       finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
-      finalValueTargets.score = ScoreValue::whiteScoreDrawAdjust(hist.finalWhiteMinusBlackScore,gameData->drawEquivalentWinsForWhite,hist);
+      finalValueTargets.score = (float)ScoreValue::whiteScoreDrawAdjust(hist.finalWhiteMinusBlackScore,gameData->drawEquivalentWinsForWhite,hist);
 
       //Dummy values, doesn't matter since we didn't do a search for the final values
       finalValueTargets.mctsUtility1 = 0.0f;
@@ -1458,6 +1483,18 @@ FinishedGameData* GameRunner::runGame(
   }
   else {
     gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition);
+
+    bool rulesWereSupported;
+    if(botSpecB.nnEval != NULL) {
+      botSpecB.nnEval->getSupportedRules(hist.rules,rulesWereSupported);
+      if(!rulesWereSupported)
+        logger.write("WARNING: Match is running bot on rules that it does not support: " + botSpecB.botName);
+    }
+    if(botSpecW.nnEval != NULL) {
+      botSpecW.nnEval->getSupportedRules(hist.rules,rulesWereSupported);
+      if(!rulesWereSupported)
+        logger.write("WARNING: Match is running bot on rules that it does not support: " + botSpecW.botName);
+    }
   }
 
   bool clearBotBeforeSearchThisGame = clearBotBeforeSearch;
@@ -1525,4 +1562,3 @@ FinishedGameData* GameRunner::runGame(
 
   return finishedGameData;
 }
-

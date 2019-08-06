@@ -1,5 +1,7 @@
-#ifndef CUDAHELPERS_H
-#define CUDAHELPERS_H
+#ifndef NEURALNET_CUDAHELPERS_H_
+#define NEURALNET_CUDAHELPERS_H_
+
+#include "../neuralnet/cudaincludes.h"
 
 //Given two tensors with shapes inA: [n,cA,h,w] and inB: [n,cB,h,w], that are on the GPU
 //Copy them into a single tensor out: [n,cA+cB,h,w] that is also allocated on the gpu
@@ -14,17 +16,8 @@ void customCudaChannel0ExtractNHWC(const float* in, float* out, int n, int hw, i
 void customCudaChannel0ExtractNHWC(const half* in, half* out, int n, int hw, int c);
 
 //Given an input tensor and an output buffer of shape [n,c], fill output buffer with sum or max over c.
-//Max is POSITIVE max - only computes the max of positive entries, and if there are none, then evaluates to 0.
 void customCudaPoolRowsSumNCHW(const float* in, float* out, int nSize, int cSize, int xySize, float scaleSum);
-void customCudaPoolRowsMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize);
 void customCudaPoolRowsSumNHWC(const float* in, float* out, int nSize, int xySize, int cSize, float scaleSum);
-void customCudaPoolRowsMaxPositiveNHWC(const float* in, float* out, int nSize, int xySize, int cSize);
-
-//Same, except fills an output buffer of shape [n,c*2] with the sum over c and the max over c, in that order.
-void customCudaPoolRowsSumAndMaxPositiveNCHW(const float* in, float* out, int nSize, int cSize, int xySize, float scaleSum);
-void customCudaPoolRowsSumAndMaxPositiveNHWC(const float* in, float* out, int nSize, int xySize, int cSize, float scaleSum);
-void customCudaPoolRowsSumAndMaxPositiveNCHW(const half* in, half* out, int nSize, int cSize, int xySize, float scaleSum);
-void customCudaPoolRowsSumAndMaxPositiveNHWC(const half* in, half* out, int nSize, int xySize, int cSize, float scaleSum);
 
 //Specialized operations for value head and general global pooling. Same as the other pooling, but fusedly fills
 //an output buffer of shape [n,c*3].
@@ -74,4 +67,4 @@ void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* sca
 void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, const half* mask, int n, int xy, int c, bool applyRelu);
 
 
-#endif
+#endif  // NEURALNET_CUDAHELPERS_H_

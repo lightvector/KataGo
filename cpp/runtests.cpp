@@ -11,6 +11,8 @@
 #include "tests/tests.h"
 #include "main.h"
 
+using namespace std;
+
 int MainCmds::runtests(int argc, const char* const* argv) {
   (void)argc;
   (void)argv;
@@ -21,7 +23,7 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Rand::runTests();
   FancyMath::runTests();
   ComputeElos::runTests();
-  
+
 
   Tests::runBoardIOTests();
   Tests::runBoardBasicTests();
@@ -33,7 +35,9 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Tests::runBoardStressTest();
 
   Tests::runSgfTests();
-  
+
+  ScoreValue::freeTables();
+
   cout << "All tests passed" << endl;
   return 0;
 }
@@ -44,12 +48,14 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
 
-  Tests::runNNInputsV2Tests();
   Tests::runNNInputsV3V4Tests();
   Tests::runNNLessSearchTests();
   Tests::runTrainingWriteTests();
   Tests::runTimeControlsTests();
   Tests::runScoreTests();
+
+  ScoreValue::freeTables();
+
   return 0;
 }
 
@@ -68,6 +74,9 @@ int MainCmds::runsearchtests(int argc, const char* const* argv) {
     Global::stringToInt(argv[4]),
     Global::stringToBool(argv[5])
   );
+
+  ScoreValue::freeTables();
+
   return 0;
 }
 
@@ -86,19 +95,89 @@ int MainCmds::runsearchtestsv3(int argc, const char* const* argv) {
     Global::stringToInt(argv[4]),
     Global::stringToBool(argv[5])
   );
+
+  ScoreValue::freeTables();
+
   return 0;
 }
 
 int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
-  Board::initHash();
-  ScoreValue::initTables();
-
   if(argc != 2) {
     cerr << "Must supply exactly one argument: MODEL_FILE" << endl;
     return 1;
   }
+
+  Board::initHash();
+  ScoreValue::initTables();
+
   Tests::runSelfplayInitTestsWithNN(
     string(argv[1])
   );
+
+  ScoreValue::freeTables();
+
+  return 0;
+}
+
+
+int MainCmds::runnnlayertests(int argc, const char* const* argv) {
+  (void)argc;
+  (void)argv;
+  Tests::runNNLayerTests();
+  return 0;
+}
+
+int MainCmds::runnnontinyboardtest(int argc, const char* const* argv) {
+  if(argc != 6) {
+    cerr << "Must supply exactly five arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16" << endl;
+    return 1;
+  }
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Tests::runNNOnTinyBoard(
+    string(argv[1]),
+    Global::stringToBool(argv[2]),
+    Global::stringToBool(argv[3]),
+    Global::stringToInt(argv[4]),
+    Global::stringToBool(argv[5])
+  );
+
+  ScoreValue::freeTables();
+
+  return 0;
+}
+
+int MainCmds::runnnonmanyposestest(int argc, const char* const* argv) {
+  if(argc != 6 && argc != 7) {
+    cerr << "Must supply five or six arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16 [COMPARISONFILE]" << endl;
+    return 1;
+  }
+  Board::initHash();
+  ScoreValue::initTables();
+
+  if(argc == 6) {
+    Tests::runNNOnManyPoses(
+      string(argv[1]),
+      Global::stringToBool(argv[2]),
+      Global::stringToBool(argv[3]),
+      Global::stringToInt(argv[4]),
+      Global::stringToBool(argv[5]),
+      ""
+    );
+  }
+  else if(argc == 7) {
+    Tests::runNNOnManyPoses(
+      string(argv[1]),
+      Global::stringToBool(argv[2]),
+      Global::stringToBool(argv[3]),
+      Global::stringToInt(argv[4]),
+      Global::stringToBool(argv[5]),
+      string(argv[6])
+    );
+  }
+
+  ScoreValue::freeTables();
+
   return 0;
 }

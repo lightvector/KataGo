@@ -6,10 +6,10 @@
 #include "program/setup.h"
 #include "main.h"
 
-using namespace std;
-
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
+
+using namespace std;
 
 int MainCmds::evalsgf(int argc, const char* const* argv) {
   Board::initHash();
@@ -30,8 +30,9 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printPolicy;
   bool printScoreNow;
   bool printRootEndingBonus;
+  bool rawNN;
   try {
-    TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
@@ -48,6 +49,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printPolicyArg("","print-policy","Print policy");
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
+    TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
     cmd.add(sgfFileArg);
@@ -64,6 +66,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printPolicyArg);
     cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
+    cmd.add(rawNNArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     modelFile = modelFileArg.getValue();
@@ -81,6 +84,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printPolicy = printPolicyArg.getValue();
     printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
+    rawNN = rawNNArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
       cerr << "Error: -print-branch and -print both specified" << endl;
@@ -104,19 +108,9 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   //Parse config and rules -------------------------------------------------------------------
 
   ConfigParser cfg(configFile);
-  Rules initialRules;
-  {
-    //All of these might get overwritten by the sgf
-    string koRule = cfg.getString("koRule", Rules::koRuleStrings());
-    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-    bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
-    float komi = 7.5f; //Default komi, sgf will generally override this
+  Rules defaultRules = Rules::getTrompTaylorish();
 
-    initialRules.koRule = Rules::parseKoRule(koRule);
-    initialRules.scoringRule = Rules::parseScoringRule(scoringRule);
-    initialRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-    initialRules.komi = komi;
-  }
+  Player perspective = Setup::parseReportAnalysisWinrates(cfg,P_BLACK);
 
   //Parse sgf file and board ------------------------------------------------------------------
 
@@ -125,29 +119,52 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   Board board;
   Player nextPla;
   BoardHistory hist;
-  sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-  vector<Move>& moves = sgf->moves;
 
-  if(!isnan(overrideKomi)) {
-    if(overrideKomi > board.x_size * board.y_size || overrideKomi < -board.x_size * board.y_size)
-      throw StringError("Invalid komi, greater than the area of the board");
-    hist.setKomi(overrideKomi);
-  }
+  auto setUpBoardUsingRules = [&board,&nextPla,&hist,overrideKomi,moveNum,&sgf,&extraMoves](const Rules& initialRules) {
+    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+    vector<Move>& moves = sgf->moves;
 
-  if(moveNum < 0)
-    throw StringError("Move num " + Global::intToString(moveNum) + " requested but must be non-negative");
-  if(moveNum > moves.size())
-    throw StringError("Move num " + Global::intToString(moveNum) + " requested but sgf has only " + Global::intToString(moves.size()));
-
-  for(int i = 0; i<moveNum; i++) {
-    if(!board.isLegal(moves[i].loc,moves[i].pla,hist.rules.multiStoneSuicideLegal)) {
-      cerr << board << endl;
-      cerr << "SGF Illegal move " << (i+1) << " for " << colorToChar(moves[i].pla) << ": " << Location::toString(moves[i].loc,board) << endl;
-      return 1;
+    if(!isnan(overrideKomi)) {
+      if(overrideKomi > board.x_size * board.y_size || overrideKomi < -board.x_size * board.y_size)
+        throw StringError("Invalid komi, greater than the area of the board");
+      hist.setKomi(overrideKomi);
     }
-    hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
-    nextPla = getOpp(moves[i].pla);
-  }
+
+    if(moveNum < 0)
+      throw StringError("Move num " + Global::intToString(moveNum) + " requested but must be non-negative");
+    if(moveNum > moves.size())
+      throw StringError("Move num " + Global::intToString(moveNum) + " requested but sgf has only " + Global::intToString(moves.size()));
+
+    for(int i = 0; i<moveNum; i++) {
+      //Tolerate suicide moves in an sgf, regardless of what the nominal rules were
+      bool multiStoneSuicideLegal = true;
+      if(!board.isLegal(moves[i].loc,moves[i].pla,multiStoneSuicideLegal)) {
+        cerr << board << endl;
+        cerr << "SGF Illegal move " << (i+1) << " for " << colorToChar(moves[i].pla) << ": " << Location::toString(moves[i].loc,board) << endl;
+        throw StringError("Illegal move in SGF");
+      }
+      hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
+      nextPla = getOpp(moves[i].pla);
+    }
+
+    vector<Loc> extraMoveLocs = Location::parseSequence(extraMoves,board);
+    for(size_t i = 0; i<extraMoveLocs.size(); i++) {
+      Loc loc = extraMoveLocs[i];
+      if(!board.isLegal(loc,nextPla,hist.rules.multiStoneSuicideLegal)) {
+        cerr << board << endl;
+        cerr << "Extra illegal move for " << colorToChar(nextPla) << ": " << Location::toString(loc,board) << endl;
+        throw StringError("Illegal extra move");
+      }
+      hist.makeBoardMoveAssumeLegal(board,loc,nextPla,NULL);
+      nextPla = getOpp(nextPla);
+    }
+  };
+
+  Rules initialRules = sgf->getRulesOrWarn(
+    defaultRules,
+    [](const string& msg) { cout << msg << endl; }
+  );
+  setUpBoardUsingRules(initialRules);
 
   //Parse move sequence arguments------------------------------------------
 
@@ -156,31 +173,13 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   if(printBranch.length() > 0)
     options = options.onlyBranch(board,printBranch);
 
-  vector<Loc> extraMoveLocs = Location::parseSequence(extraMoves,board);
-  for(size_t i = 0; i<extraMoveLocs.size(); i++) {
-    Loc loc = extraMoveLocs[i];
-    if(!board.isLegal(loc,nextPla,hist.rules.multiStoneSuicideLegal)) {
-      cerr << board << endl;
-      cerr << "Extra illegal move for " << colorToChar(nextPla) << ": " << Location::toString(loc,board) << endl;
-      return 1;
-    }
-    hist.makeBoardMoveAssumeLegal(board,loc,nextPla,NULL);
-    nextPla = getOpp(nextPla);
-  }
-
   //Load neural net and start bot------------------------------------------
 
   Logger logger;
   logger.setLogToStdout(true);
   logger.write("Engine starting...");
 
-  SearchParams params;
-  {
-    vector<SearchParams> paramss = Setup::loadParams(cfg);
-    if(paramss.size() != 1)
-      throw StringError("Can only specify exactly one bot in for searching in an sgf");
-    params = paramss[0];
-  }
+  SearchParams params = Setup::loadSingleParams(cfg);
   if(maxVisits < -1 || maxVisits == 0)
     throw StringError("maxVisits: invalid value");
   else if(maxVisits == -1)
@@ -196,7 +195,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   else {
     params.numThreads = numThreads;
   }
-  
+
   string searchRandSeed;
   if(cfg.contains("searchRandSeed"))
     searchRandSeed = cfg.getString("searchRandSeed");
@@ -207,18 +206,38 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    vector<NNEvaluator*> nnEvals =
-      Setup::initializeNNEvaluators(
-        {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,
-        false,false,board.x_size,board.y_size
-      );
-    assert(nnEvals.size() == 1);
-    nnEval = nnEvals[0];
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,
+      board.x_size,board.y_size
+    );
   }
   logger.write("Loaded neural net");
 
+  {
+    bool rulesWereSupported;
+    Rules supportedRules = nnEval->getSupportedRules(initialRules,rulesWereSupported);
+    if(!rulesWereSupported) {
+      cout << "Warning: Rules " << initialRules << " from sgf not supported by neural net, using " << supportedRules << " instead" << endl;
+      //Attempt to re-set-up the board using supported rules
+      setUpBoardUsingRules(supportedRules);
+    }
+  }
+
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
+
+  if(rawNN) {
+    NNResultBuf buf;
+    bool skipCache = true;
+    bool includeOwnerMap = true;
+    nnEval->evaluate(board,hist,nextPla,params.drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
+
+    cout << "Rules: " << hist.rules << endl;
+    cout << "Encore phase " << hist.encorePhase << endl;
+    Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
+    buf.result->debugPrint(cout,board);
+    return 0;
+  }
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
 
@@ -263,7 +282,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
 
   if(printOwnership) {
     sout << "Ownership map (ROOT position):\n";
-    search->printRootOwnershipMap(sout);
+    search->printRootOwnershipMap(sout,perspective);
   }
 
   if(printRootNNValues) {
@@ -316,7 +335,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
 
     sout << "Komi: " << copyHist.rules.komi << endl;
     sout << "WBonus: " << copyHist.whiteBonusScore << endl;
-    sout << "Final: " << copyHist.finalWhiteMinusBlackScore << endl;
+    sout << "Final: "; WriteSgf::printGameResult(sout, copyHist); sout << endl;
   }
 
   if(printRootEndingBonus) {
@@ -333,14 +352,14 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   search->printPV(sout, search->rootNode, 25);
   sout << "\n";
   sout << "Tree:\n";
-  search->printTree(sout, search->rootNode, options);
+  search->printTree(sout, search->rootNode, options, perspective);
   logger.write(sout.str());
 
   delete bot;
   delete nnEval;
   NeuralNet::globalCleanup();
   delete sgf;
+  ScoreValue::freeTables();
 
   return 0;
 }
-

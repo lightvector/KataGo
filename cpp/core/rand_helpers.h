@@ -1,8 +1,7 @@
-#ifndef RAND_HELPERS_H
-#define RAND_HELPERS_H
+#ifndef CORE_RAND_HELPERS_H_
+#define CORE_RAND_HELPERS_H_
 
 #include <stdint.h>
-using namespace std;
 
 //-------------------------------------------------------------------------------------
 
@@ -66,4 +65,4 @@ inline uint32_t PCG32::nextUInt()
   return rot == 0 ? x : ((x >> rot) | (x << (32-rot)));
 }
 
-#endif
+#endif  // CORE_RAND_HELPERS_H_

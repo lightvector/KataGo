@@ -1,5 +1,9 @@
 #include "../game/rules.h"
 
+#include <sstream>
+
+using namespace std;
+
 Rules::Rules() {
   //Defaults if not set - closest match to TT rules
   koRule = KO_POSITIONAL;
@@ -13,6 +17,22 @@ Rules::Rules(int kRule, int sRule, bool suic, float km)
 {}
 
 Rules::~Rules() {
+}
+
+bool Rules::operator==(const Rules& other) const {
+  return
+    koRule == other.koRule &&
+    scoringRule == other.scoringRule &&
+    multiStoneSuicideLegal == other.multiStoneSuicideLegal &&
+    komi == other.komi;
+}
+
+bool Rules::operator!=(const Rules& other) const {
+  return
+    koRule != other.koRule ||
+    scoringRule != other.scoringRule ||
+    multiStoneSuicideLegal != other.multiStoneSuicideLegal ||
+    komi != other.komi;
 }
 
 Rules Rules::getTrompTaylorish() {
@@ -36,7 +56,6 @@ Rules Rules::getSimpleTerritory() {
 bool Rules::komiIsIntOrHalfInt(float komi) {
   return komi * 2 == (int)(komi * 2);
 }
-
 
 set<string> Rules::koRuleStrings() {
   return {"SIMPLE","POSITIONAL","SITUATIONAL","SPIGHT"};
@@ -76,6 +95,116 @@ ostream& operator<<(ostream& out, const Rules& rules) {
       << "sui" << rules.multiStoneSuicideLegal
       << "komi" << rules.komi;
   return out;
+}
+
+string Rules::toString() const {
+  ostringstream out;
+  out << (*this);
+  return out.str();
+}
+
+bool Rules::tryParseRules(const string& ss, Rules& buf) {
+  Rules rules;
+  string s = Global::toLower(ss);
+  if(s == "japanese" || s == "korean") {
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.multiStoneSuicideLegal = false;
+    rules.komi = 6.5;
+  }
+  else if(s == "chinese") {
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.multiStoneSuicideLegal = false;
+    rules.komi = 7.5;
+  }
+  else if(s == "aga" || s == "bga" || s == "french") {
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.multiStoneSuicideLegal = false;
+    rules.komi = 7.5;
+  }
+  else if(s == "nz" || s == "new zealand" || s == "new-zealand" || s == "new_zealand") {
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.multiStoneSuicideLegal = true;
+    rules.komi = 7.5;
+  }
+  else if(s == "tromp-taylor" || s == "tromp_taylor" || s == "tromp taylor" || s == "tromptaylor") {
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.multiStoneSuicideLegal = true;
+    rules.komi = 7.5;
+  }
+  else if(s == "goe" || s == "ing") {
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.multiStoneSuicideLegal = true;
+    rules.komi = 7.5;
+  }
+  else {
+    auto startsWithAndStrip = [](string& str, const string& prefix) {
+      bool matches = str.length() >= prefix.length() && str.substr(0,prefix.length()) == prefix;
+      if(matches)
+        str = str.substr(prefix.length());
+      str = Global::trim(str);
+      return matches;
+    };
+
+    //Default if not specified
+    rules = getTrompTaylorish();
+
+    s = Global::trim(s);
+
+    //But don't allow the empty string
+    if(s.length() <= 0)
+      return false;
+
+    while(true) {
+      if(s.length() <= 0)
+        break;
+
+      if(startsWithAndStrip(s,"ko")) {
+        if(startsWithAndStrip(s,"simple")) rules.koRule = Rules::KO_SIMPLE;
+        else if(startsWithAndStrip(s,"positional")) rules.koRule = Rules::KO_POSITIONAL;
+        else if(startsWithAndStrip(s,"situational")) rules.koRule = Rules::KO_SITUATIONAL;
+        else if(startsWithAndStrip(s,"spight")) rules.koRule = Rules::KO_SPIGHT;
+        else return false;
+        continue;
+      }
+      if(startsWithAndStrip(s,"score")) {
+        if(startsWithAndStrip(s,"area")) rules.scoringRule = Rules::SCORING_AREA;
+        else if(startsWithAndStrip(s,"territory")) rules.scoringRule = Rules::SCORING_TERRITORY;
+        else return false;
+        continue;
+      }
+      if(startsWithAndStrip(s,"sui")) {
+        if(startsWithAndStrip(s,"1")) rules.multiStoneSuicideLegal = true;
+        else if(startsWithAndStrip(s,"0")) rules.multiStoneSuicideLegal = false;
+        else return false;
+        continue;
+      }
+      if(startsWithAndStrip(s,"komi")) {
+        int endIdx = 0;
+        while(endIdx < s.length() && !Global::isAlpha(s[endIdx] && !Global::isWhitespace(s[endIdx])))
+          endIdx++;
+        float komi;
+        bool suc = Global::tryStringToFloat(s.substr(endIdx),komi);
+        if(!suc)
+          return false;
+        rules.komi = komi;
+        s = s.substr(endIdx);
+        s = Global::trim(s);
+        continue;
+      }
+
+      //Unknown rules format
+      return false;
+    }
+  }
+
+  buf = rules;
+  return true;
 }
 
 const Hash128 Rules::ZOBRIST_KO_RULE_HASH[4] = {

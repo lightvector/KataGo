@@ -1,10 +1,13 @@
-
-#include <inttypes.h>
-#include <algorithm>
 #include "../search/search.h"
+
+#include <algorithm>
+#include <inttypes.h>
+
 #include "../core/fancymath.h"
 #include "../core/timer.h"
 #include "../search/distributiontable.h"
+
+using namespace std;
 
 ReportedSearchValues::ReportedSearchValues()
 {}
@@ -72,7 +75,7 @@ static double getScoreStdev(double scoreMean, double scoreMeanSq) {
 //-----------------------------------------------------------------------------------------
 
 SearchNode::SearchNode(Search& search, SearchThread& thread, Loc moveLoc)
-  :lockIdx(),statsLock(ATOMIC_FLAG_INIT),nextPla(thread.pla),prevMoveLoc(moveLoc),
+  :lockIdx(),nextPla(thread.pla),prevMoveLoc(moveLoc),
    nnOutput(),
    children(NULL),numChildren(0),childrenCapacity(0),
    stats(),virtualLosses(0)
@@ -88,7 +91,7 @@ SearchNode::~SearchNode() {
 }
 
 SearchNode::SearchNode(SearchNode&& other) noexcept
-:lockIdx(other.lockIdx),statsLock(),
+:lockIdx(other.lockIdx),
   nextPla(other.nextPla),prevMoveLoc(other.prevMoveLoc),
   nnOutput(std::move(other.nnOutput)),
   stats(other.stats),virtualLosses(other.virtualLosses)
@@ -296,13 +299,16 @@ void Search::clearSearch() {
   rootNode = NULL;
 }
 
-bool Search::isLegal(Loc moveLoc, Player movePla) const {
+bool Search::isLegalTolerant(Loc moveLoc, Player movePla) const {
+  //Tolerate sgf files or GTP reporting suicide moves, even if somehow the rules are set to disallow them.
+  bool multiStoneSuicideLegal = true;
+
   //If we somehow have the same player making multiple moves in a row (possible in GTP or an sgf file),
   //clear the ko loc - the simple ko loc of a player should not prohibit the opponent playing there!
   if(movePla != rootPla) {
     Board copy = rootBoard;
     copy.clearSimpleKoLoc();
-    return copy.isLegal(moveLoc,movePla,rootHistory.rules.multiStoneSuicideLegal);
+    return copy.isLegal(moveLoc,movePla,multiStoneSuicideLegal);
   }
   else {
     //Don't require that the move is legal for the history, merely the board, so that
@@ -310,14 +316,18 @@ bool Search::isLegal(Loc moveLoc, Player movePla) const {
     //In the encore, we also need to ignore the simple ko loc, since the board itself will report a move as illegal
     //when actually it is a legal pass-for-ko.
     if(rootHistory.encorePhase >= 1)
-      return rootBoard.isLegalIgnoringKo(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+      return rootBoard.isLegalIgnoringKo(moveLoc,rootPla,multiStoneSuicideLegal);
     else
-      return rootBoard.isLegal(moveLoc,rootPla,rootHistory.rules.multiStoneSuicideLegal);
+      return rootBoard.isLegal(moveLoc,rootPla,multiStoneSuicideLegal);
   }
 }
 
+bool Search::isLegalStrict(Loc moveLoc, Player movePla) const {
+  return movePla == rootPla && rootHistory.isLegal(rootBoard,moveLoc,movePla);
+}
+
 bool Search::makeMove(Loc moveLoc, Player movePla) {
-  if(!isLegal(moveLoc,movePla))
+  if(!isLegalTolerant(moveLoc,movePla))
     return false;
 
   if(movePla != rootPla)
@@ -383,6 +393,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   const SearchNode& node,
   vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
   bool allowDirectPolicyMoves, bool alwaysComputeLcb,
+  //Note: lcbBuf is signed from the player to move's perspective
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
 ) const {
   locs.clear();
@@ -507,36 +518,37 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   if(maxValue <= 1e-50)
     return false;
 
+  //TODO
   //Sanity check - if somehow we had more than this, something must have overflowed or gone wrong
-  if(!(maxValue < 1e9)) {
-    cout << rootBoard << endl;
-    cout << maxValue << endl;
-    for(int i = 0; i<numChildren; i++) {
-      SearchNode* child = node.children[i];
-      Loc moveLoc = child->prevMoveLoc;
-      int movePos = getPos(moveLoc);
-      double policyProb = nnOutput->policyProbs[movePos];
+  // if(!(maxValue < 1e9)) {
+  //   cout << rootBoard << endl;
+  //   cout << maxValue << endl;
+  //   for(int i = 0; i<numChildren; i++) {
+  //     SearchNode* child = node.children[i];
+  //     Loc moveLoc = child->prevMoveLoc;
+  //     int movePos = getPos(moveLoc);
+  //     double policyProb = nnOutput->policyProbs[movePos];
 
-      while(child->statsLock.test_and_set(std::memory_order_acquire));
-      uint64_t numVisits = child->stats.visits;
-      double winValueSum = child->stats.winValueSum;
-      double noResultValueSum = child->stats.noResultValueSum;
-      double scoreMeanSum = child->stats.scoreMeanSum;
-      double scoreMeanSqSum = child->stats.scoreMeanSqSum;
-      double weightSum = child->stats.weightSum;
-      double weightSqSum = child->stats.weightSqSum;
-      double utilitySum = child->stats.utilitySum;
-      double utilitySqSum = child->stats.utilitySqSum;
-      child->statsLock.clear(std::memory_order_release);
+  //     while(child->statsLock.test_and_set(std::memory_order_acquire));
+  //     uint64_t numVisits = child->stats.visits;
+  //     double winValueSum = child->stats.winValueSum;
+  //     double noResultValueSum = child->stats.noResultValueSum;
+  //     double scoreMeanSum = child->stats.scoreMeanSum;
+  //     double scoreMeanSqSum = child->stats.scoreMeanSqSum;
+  //     double weightSum = child->stats.weightSum;
+  //     double weightSqSum = child->stats.weightSqSum;
+  //     double utilitySum = child->stats.utilitySum;
+  //     double utilitySqSum = child->stats.utilitySqSum;
+  //     child->statsLock.clear(std::memory_order_release);
 
-      cout << Location::toString(moveLoc,rootBoard) << " ";
-      cout << policyProb << " ";
-      cout << numVisits << " " << winValueSum << " " << noResultValueSum << " " << scoreMeanSum << " " << scoreMeanSqSum << " " << weightSum << " "
-           << weightSqSum << " " << utilitySum << " " << utilitySqSum;
-      cout << endl;
-    }
-  }
-  assert(maxValue < 1e24);
+  //     cout << Location::toString(moveLoc,rootBoard) << " ";
+  //     cout << policyProb << " ";
+  //     cout << numVisits << " " << winValueSum << " " << noResultValueSum << " " << scoreMeanSum << " " << scoreMeanSqSum << " " << weightSum << " "
+  //          << weightSqSum << " " << utilitySum << " " << utilitySqSum;
+  //     cout << endl;
+  //   }
+  // }
+  assert(maxValue < 1e40);
 
   double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/64.0);
   double amountToPrune = std::min(searchParams.chosenMovePrune, maxValue/64.0);
@@ -707,7 +719,7 @@ uint32_t Search::chooseIndexWithTemperature(Rand& rand, const double* relativePr
     double sum = 0.0;
     for(int i = 0; i<numRelativeProbs; i++) {
       //Numerically stable way to raise to power and normalize
-      processedRelProbs[i] = exp((log(relativeProbs[i]) - logMaxValue) / temperature);
+      processedRelProbs[i] = relativeProbs[i] <= 0.0 ? 0.0 : exp((log(relativeProbs[i]) - logMaxValue) / temperature);
       sum += processedRelProbs[i];
     }
     assert(sum > 0.0);
@@ -885,6 +897,16 @@ void Search::beginSearch(Logger& logger) {
   if(rootBoard.x_size > nnXLen || rootBoard.y_size > nnYLen)
     throw StringError("Search got from NNEval nnXLen = " + Global::intToString(nnXLen) +
                       " nnYLen = " + Global::intToString(nnYLen) + " but was asked to search board with larger x or y size");
+
+  //If we're being asked to search from a position where the game is over, clear all the history state that had us
+  //believe the game was over and do a normal search
+  if(rootHistory.isGameFinished) {
+    clearSearch();
+    Rules rules = rootHistory.rules;
+    rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
+    rootKoHashTable->recompute(rootHistory);
+  }
+
   rootBoard.checkConsistency();
 
   numSearchesBegun++;
@@ -1020,7 +1042,7 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
       double newUtility = resultUtilitySum / weightSum + scoreUtility;
       double newUtilitySum = newUtility * weightSum;
       double newUtilitySqSum = newUtility * newUtility * weightSum;
-    
+
       while(node.statsLock.test_and_set(std::memory_order_acquire));
       node.stats.utilitySum = newUtilitySum;
       node.stats.utilitySqSum = newUtilitySqSum;
@@ -1060,7 +1082,12 @@ void Search::computeRootValues(Logger& logger) {
     nnResultBuf, &logger, skipCache, includeOwnerMap
   );
   double expectedScore = nnResultBuf.result->whiteScoreMean;
-  recentScoreCenter = expectedScore;
+  recentScoreCenter = expectedScore * (1.0 - searchParams.dynamicScoreCenterZeroWeight);
+  double cap =  sqrt(board.x_size * board.y_size);
+  if(recentScoreCenter > expectedScore + cap)
+    recentScoreCenter = expectedScore + cap;
+  if(recentScoreCenter < expectedScore - cap)
+    recentScoreCenter = expectedScore - cap;
 }
 
 int64_t Search::numRootVisits() const {
@@ -1071,6 +1098,91 @@ int64_t Search::numRootVisits() const {
   rootNode->statsLock.clear(std::memory_order_release);
   return n;
 }
+
+void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs) {  
+  int legalCount = 0;
+  for(int i = 0; i<policySize; i++) {
+    if(policyProbs[i] >= 0)
+      legalCount += 1;
+  }
+
+  if(legalCount <= 0)
+    throw StringError("addDirichletNoise: No move with nonnegative policy value - can't even pass?");
+
+  //We're going to generate a gamma draw on each move with alphas that sum up to searchParams.rootDirichletNoiseTotalConcentration.
+  //Half of the alpha weight are uniform.
+  //The other half are shaped based on the log of the existing policy.
+  double r[NNPos::MAX_NN_POLICY_SIZE];
+  double logPolicySum = 0.0;
+  for(int i = 0; i<policySize; i++) {
+    if(policyProbs[i] >= 0) {
+      r[i] = log(std::min(0.01, (double)policyProbs[i]) + 1e-20);
+      logPolicySum += r[i];
+    }
+  }
+  double logPolicyMean = logPolicySum / legalCount;
+  double alphaPropSum = 0.0;
+  for(int i = 0; i<policySize; i++) {
+    if(policyProbs[i] >= 0) {
+      r[i] = std::max(0.0, r[i] - logPolicyMean);
+      alphaPropSum += r[i];
+    }
+  }
+  double uniformProb = 1.0 / legalCount;
+  if(alphaPropSum <= 0.0) {
+    for(int i = 0; i<policySize; i++) {
+      if(policyProbs[i] >= 0)
+        r[i] = uniformProb;
+    }
+  }
+  else {
+    for(int i = 0; i<policySize; i++) {
+      if(policyProbs[i] >= 0)
+        r[i] = 0.5 * (r[i] / alphaPropSum + uniformProb);
+    }
+  }
+
+  //TODO debug printing
+  // for(int y = 0; y<rootBoard.y_size; y++) {
+  //   for(int x = 0; x<rootBoard.x_size; x++) {
+  //     int pos = NNPos::xyToPos(x,y,node.nnOutput->nnXLen);
+  //     double prob = r[pos] * searchParams.rootDirichletNoiseTotalConcentration;
+  //     if(policyProbs[pos] < 0)
+  //       cout << "   -  " << " ";
+  //     else
+  //       cout << Global::strprintf("%6.3f",prob) << " ";
+  //   }
+  //   cout << endl;
+  // }
+  // double prob = r[NNPos::locToPos(Board::PASS_LOC,rootBoard.x_size,node.nnOutput->nnXLen,node.nnOutput->nnYLen)] * searchParams.rootDirichletNoiseTotalConcentration;
+  // cout << "Pass " << Global::strprintf("%6.3f",prob) << endl;
+    
+  //r now contains the proportions with which we would like to split the alpha
+  //The total of the alphas is searchParams.rootDirichletNoiseTotalConcentration
+  //Generate gamma draw on each move
+  double rSum = 0.0;    
+  for(int i = 0; i<policySize; i++) {
+    if(policyProbs[i] >= 0) {
+      r[i] = rand.nextGamma(r[i] * searchParams.rootDirichletNoiseTotalConcentration);
+      rSum += r[i];
+    }
+    else
+      r[i] = 0.0;
+  }
+
+  //Normalized gamma draws -> dirichlet noise
+  for(int i = 0; i<policySize; i++)
+    r[i] /= rSum;
+
+  //At this point, r[i] contains a dirichlet distribution draw, so add it into the nnOutput.
+  for(int i = 0; i<policySize; i++) {
+    if(policyProbs[i] >= 0) {
+      double weight = searchParams.rootDirichletNoiseWeight;
+      policyProbs[i] = (float)(r[i] * weight + policyProbs[i] * (1.0-weight));
+    }
+  }
+}
+
 
 //Assumes node is locked
 void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const {
@@ -1108,7 +1220,7 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
     for(int i = 0; i<policySize; i++) {
       if(noisedPolicyProbs[i] > 0) {
         //Numerically stable way to raise to power and normalize
-        double p = exp((log((double)noisedPolicyProbs[i]) - logMaxValue) * invTemp);
+        float p = (float)exp((log((double)noisedPolicyProbs[i]) - logMaxValue) * invTemp);
         noisedPolicyProbs[i] = p;
         sum += p;
       }
@@ -1116,93 +1228,13 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
     assert(sum > 0.0);
     for(int i = 0; i<policySize; i++) {
       if(noisedPolicyProbs[i] >= 0) {
-        noisedPolicyProbs[i] = (double)noisedPolicyProbs[i] / sum;
+        noisedPolicyProbs[i] = (float)(noisedPolicyProbs[i] / sum);
       }
     }
   }
 
   if(searchParams.rootNoiseEnabled) {
-    int legalCount = 0;
-    for(int i = 0; i<policySize; i++) {
-      if(noisedPolicyProbs[i] >= 0)
-        legalCount += 1;
-    }
-
-    if(legalCount <= 0)
-      throw StringError("maybeAddPolicyNoiseAndTempAlreadyLocked: No move with nonnegative policy value - can't even pass?");
-
-    //We're going to generate a gamma draw on each move with alphas that sum up to searchParams.rootDirichletNoiseTotalConcentration.
-    //Half of the alpha weight are uniform.
-    //The other half are shaped based on the log of the existing policy.
-    double r[NNPos::MAX_NN_POLICY_SIZE];
-    double logPolicySum = 0.0;
-    for(int i = 0; i<policySize; i++) {
-      if(noisedPolicyProbs[i] >= 0) {
-        r[i] = log(std::min(0.01, (double)noisedPolicyProbs[i]) + 1e-20);
-        logPolicySum += r[i];
-      }
-    }
-    double logPolicyMean = logPolicySum / legalCount;
-    double alphaPropSum = 0.0;
-    for(int i = 0; i<policySize; i++) {
-      if(noisedPolicyProbs[i] >= 0) {
-        r[i] = std::max(0.0, r[i] - logPolicyMean);
-        alphaPropSum += r[i];
-      }
-    }
-    double uniformProb = 1.0 / legalCount;
-    if(alphaPropSum <= 0.0) {
-      for(int i = 0; i<policySize; i++) {
-        if(noisedPolicyProbs[i] >= 0)
-          r[i] = uniformProb;
-      }
-    }
-    else {
-      for(int i = 0; i<policySize; i++) {
-        if(noisedPolicyProbs[i] >= 0)
-          r[i] = 0.5 * (r[i] / alphaPropSum + uniformProb);
-      }
-    }
-
-    //TODO debug printing
-    // for(int y = 0; y<rootBoard.y_size; y++) {
-    //   for(int x = 0; x<rootBoard.x_size; x++) {
-    //     int pos = NNPos::xyToPos(x,y,node.nnOutput->nnXLen);
-    //     double prob = r[pos] * searchParams.rootDirichletNoiseTotalConcentration;
-    //     if(noisedPolicyProbs[pos] < 0)
-    //       cout << "   -  " << " ";
-    //     else
-    //       cout << Global::strprintf("%6.3f",prob) << " ";
-    //   }
-    //   cout << endl;
-    // }
-    // double prob = r[NNPos::locToPos(Board::PASS_LOC,rootBoard.x_size,node.nnOutput->nnXLen,node.nnOutput->nnYLen)] * searchParams.rootDirichletNoiseTotalConcentration;
-    // cout << "Pass " << Global::strprintf("%6.3f",prob) << endl;
-    
-    //r now contains the proportions with which we would like to split the alpha
-    //The total of the alphas is searchParams.rootDirichletNoiseTotalConcentration
-    //Generate gamma draw on each move
-    double rSum = 0.0;    
-    for(int i = 0; i<policySize; i++) {
-      if(noisedPolicyProbs[i] >= 0) {
-        r[i] = thread.rand.nextGamma(r[i] * searchParams.rootDirichletNoiseTotalConcentration);
-        rSum += r[i];
-      }
-      else
-        r[i] = 0.0;
-    }
-
-    //Normalized gamma draws -> dirichlet noise
-    for(int i = 0; i<policySize; i++)
-      r[i] /= rSum;
-
-    //At this point, r[i] contains a dirichlet distribution draw, so add it into the nnOutput.
-    for(int i = 0; i<policySize; i++) {
-      if(noisedPolicyProbs[i] >= 0) {
-        double weight = searchParams.rootDirichletNoiseWeight;
-        noisedPolicyProbs[i] = r[i] * weight + noisedPolicyProbs[i] * (1.0-weight);
-      }
-    }
+    addDirichletNoise(searchParams, thread.rand, policySize, noisedPolicyProbs);
   }
 
 }
@@ -1492,10 +1524,8 @@ double Search::getExploreSelectionValue(
 
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
-//Parent must be locked
-double Search::getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const {
-  float* policyProbs = parent.nnOutput->getPolicyProbsMaybeNoised();
-  float nnPolicyProb = policyProbs[movePos];
+
+double Search::getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue) const {
   int64_t childVisits = 0;
   double childUtility = fpuValue;
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
@@ -1631,7 +1661,9 @@ void Search::selectBestChildToDescend(
     posesWithChildBuf[getPos(moveLoc)] = true;
   }
 
-  //Try all new children
+  //Try the new child with the best policy value
+  Loc bestNewMoveLoc = Board::NULL_LOC;
+  float bestNewNNPolicyProb = -1.0f;
   for(int movePos = 0; movePos<policySize; movePos++) {
     bool alreadyTried = posesWithChildBuf[movePos];
     if(alreadyTried)
@@ -1649,11 +1681,18 @@ void Search::selectBestChildToDescend(
         continue;
     }
 
-    double selectionValue = getNewExploreSelectionValue(node,movePos,totalChildVisits,fpuValue);
+    float nnPolicyProb = policyProbs[movePos];
+    if(nnPolicyProb > bestNewNNPolicyProb) {
+      bestNewNNPolicyProb = nnPolicyProb;
+      bestNewMoveLoc = moveLoc;
+    }
+  }
+  if(bestNewMoveLoc != Board::NULL_LOC) {
+    double selectionValue = getNewExploreSelectionValue(node,bestNewNNPolicyProb,totalChildVisits,fpuValue);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = numChildren;
-      bestChildMoveLoc = moveLoc;
+      bestChildMoveLoc = bestNewMoveLoc;
     }
   }
 
@@ -2015,17 +2054,20 @@ void Search::playoutDescend(
 }
 
 
-void Search::printRootOwnershipMap(ostream& out) const {
+void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
   if(rootNode->nnOutput == nullptr)
     return;
   NNOutput& nnOutput = *(rootNode->nnOutput);
   if(nnOutput.whiteOwnerMap == NULL)
     return;
 
+  Player perspectiveToUse = (perspective != P_BLACK && perspective != P_WHITE) ? rootPla : perspective;
+  double perspectiveFactor = perspectiveToUse == P_BLACK ? -1.0 : 1.0;
+
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
-      out << Global::strprintf("%6.1f ", nnOutput.whiteOwnerMap[pos]*100);
+      out << Global::strprintf("%6.1f ", perspectiveFactor * nnOutput.whiteOwnerMap[pos]*100);
     }
     out << endl;
   }
@@ -2315,7 +2357,9 @@ void Search::getAnalysisData(
       parentScoreMean, parentScoreStdev, maxPVDepth
     );
     data.playSelectionValue = playSelectionValues[i];
-    data.lcb = lcbBuf[i];
+    //Make sure data.lcb is from white's perspective, for consistency with everything else
+    //In lcbBuf, it's from self perspective, unlike values at nodes.
+    data.lcb = node.nextPla == P_BLACK ? -lcbBuf[i] : lcbBuf[i];
     data.radius = radiusBuf[i];
     buf.push_back(data);
   }
@@ -2388,7 +2432,7 @@ void Search::printPVForMove(ostream& out, const SearchNode* n, Loc move, int max
   }
 }
 
-void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options) const {
+void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options, Player perspective) const {
   string prefix;
   AnalysisData data;
   {
@@ -2408,17 +2452,21 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
     );
     data.weightFactor = NAN;
   }
-  printTreeHelper(out, node, options, prefix, 0, 0, data);
+  perspective = (perspective != P_BLACK && perspective != P_WHITE) ? node->nextPla : perspective;
+  printTreeHelper(out, node, options, prefix, 0, 0, data, perspective);
 }
 
 void Search::printTreeHelper(
   ostream& out, const SearchNode* n, const PrintTreeOptions& options,
-  string& prefix, int64_t origVisits, int depth, const AnalysisData& data
+  string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
 ) const {
   if(n == NULL)
     return;
 
   const SearchNode& node = *n;
+
+  Player perspectiveToUse = (perspective != P_BLACK && perspective != P_WHITE) ? n->nextPla : perspective;
+  double perspectiveFactor = perspectiveToUse == P_BLACK ? -1.0 : 1.0;
 
   if(depth == 0)
     origVisits = data.numVisits;
@@ -2431,13 +2479,13 @@ void Search::printTreeHelper(
     out << ": ";
 
     if(data.numVisits > 0) {
-      sprintf(buf,"T %6.2fc ",(data.utility * 100.0));
+      sprintf(buf,"T %6.2fc ",(perspectiveFactor * data.utility * 100.0));
       out << buf;
-      sprintf(buf,"W %6.2fc ",(data.resultUtility * 100.0));
+      sprintf(buf,"W %6.2fc ",(perspectiveFactor * data.resultUtility * 100.0));
       out << buf;
       sprintf(buf,"S %6.2fc (%+5.1f) ",
-              data.scoreUtility * 100.0,
-              data.scoreMean
+              perspectiveFactor * data.scoreUtility * 100.0,
+              perspectiveFactor * data.scoreMean
       );
       out << buf;
     }
@@ -2463,7 +2511,7 @@ void Search::printTreeHelper(
     // }
 
     if(depth > 0 && !isnan(data.lcb)) {
-      sprintf(buf,"LCB %7.2fc ", (node.nextPla == P_WHITE ? -1 : 1) * data.lcb * 100.0);
+      sprintf(buf,"LCB %7.2fc ", perspectiveFactor * data.lcb * 100.0);
       out << buf;
     }
 
@@ -2507,7 +2555,7 @@ void Search::printTreeHelper(
       return;
   }
   if(depth == options.branch_.size()) {
-    out << "---" << playerToString(node.nextPla) << "(" << (node.nextPla == P_WHITE ? "^" : "v") << ")---" << endl;
+    out << "---" << playerToString(node.nextPla) << "(" << (node.nextPla == perspectiveToUse ? "^" : "v") << ")---" << endl;
   }
 
   vector<AnalysisData> analysisData;
@@ -2555,7 +2603,7 @@ void Search::printTreeHelper(
       while(prefix.length() < oldLen+4)
         prefix += " ";
       printTreeHelper(
-        out,child,options,prefix,origVisits,depth+1,analysisData[i]);
+        out,child,options,prefix,origVisits,depth+1,analysisData[i], perspective);
       prefix.erase(oldLen);
     }
   }
@@ -2609,7 +2657,7 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
   }
 
   double desiredWeightFromChildren = desiredWeight * usedChildrenVisitSum / (usedChildrenVisitSum + 1);
-  
+
   //Recurse
   double actualWeightFromChildren = 0.0;
   for(int i = 0; i<numChildren; i++) {
@@ -2628,4 +2676,3 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
 
   return desiredWeight;
 }
-

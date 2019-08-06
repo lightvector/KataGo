@@ -1,28 +1,21 @@
 #include "../core/makedir.h"
+#include "../core/os.h"
 
-#ifdef _WIN32
- #define _IS_WINDOWS
-#elif _WIN64
- #define _IS_WINDOWS
-#elif __unix || __APPLE__
-  #define _IS_UNIX
-#else
- #error Unknown OS!
-#endif
-
-#ifdef _IS_WINDOWS
+#ifdef OS_IS_WINDOWS
   #include <windows.h>
 #endif
-#ifdef _IS_UNIX
+#ifdef OS_IS_UNIX_OR_APPLE
   #include <sys/types.h>
   #include <sys/stat.h>
 #endif
 
 #include <cerrno>
 
+using namespace std;
+
 //WINDOWS IMPLMENTATIION-------------------------------------------------------------
 
-#ifdef _IS_WINDOWS
+#ifdef OS_IS_WINDOWS
 
 void MakeDir::make(const string& path) {
   CreateDirectory(path.c_str(),NULL);
@@ -32,7 +25,7 @@ void MakeDir::make(const string& path) {
 
 //UNIX IMPLEMENTATION------------------------------------------------------------------
 
-#ifdef _IS_UNIX
+#ifdef OS_IS_UNIX_OR_APPLE
 
 void MakeDir::make(const string& path) {
   int result = mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);

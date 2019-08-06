@@ -11,6 +11,8 @@
 #include "search/asyncbot.h"
 #include "main.h"
 
+using namespace std;
+
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
@@ -48,11 +50,11 @@
 //   bool doRandomize = true;
 //   string randSeed = "abc";
 //   int defaultSymmetry = 0;
-//   vector<int> cudaGpuIdxByServerThread = {0};
-//   bool cudaUseFP16 = false;
-//   bool cudaUseNHWC = false;
+//   vector<int> gpuIdxByServerThread = {0};
+//   bool useFP16 = false;
+//   bool useNHWC = false;
 //   nnEval->spawnServerThreads(
-//     numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,cudaGpuIdxByServerThread,cudaUseFP16,cudaUseNHWC
+//     numNNServerThreads,doRandomize,randSeed,defaultSymmetry,logger,gpuIdxByServerThread,useFP16,useNHWC
 //   );
 
 //   Rules rules;
@@ -192,111 +194,111 @@
 
 
 int MainCmds::sandbox() {
-  Board::initHash();
+//   Board::initHash();
 
-  Logger logger;
-  logger.setLogToStdout(true);
-  logger.addFile("tmp.txt");
+//   Logger logger;
+//   logger.setLogToStdout(true);
+//   logger.addFile("tmp.txt");
 
-  string tensorflowGpuVisibleDeviceList = ""; //use default
-  double tensorflowPerProcessGpuMemoryFraction = -1; //use default
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+//   NeuralNet::globalInitialize();
 
-  LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/selfplay/run0/modelstobetested//s9999360-d1178745-b8c128/model.txt.gz", 0);
-  // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
-  // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb", 0);
-  bool cudaUseFP16 = true;
-  bool cudaUseNHWC = true;
-  int maxBatchSize = 128;
-  int nnXLen = 14;
-  int nnYLen = 14;
-  bool requireExactNNLen = false;
-  bool inputsUseNHWC = true;
-  int cudaGpuIdxForThisThread = 0;
-  LocalGpuHandle* gpuHandle = NeuralNet::createLocalGpuHandle(
-    loadedModel,&logger,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,
-    cudaGpuIdxForThisThread,cudaUseFP16,cudaUseNHWC
-  );
-  InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
+//   LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/selfplay/run0/modelstobetested//s9999360-d1178745-b8c128/model.txt.gz", 0);
+//   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
+//   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb", 0);
+//   bool useFP16 = true;
+//   bool useNHWC = true;
+//   int maxBatchSize = 128;
+//   int nnXLen = 14;
+//   int nnYLen = 14;
+//   bool requireExactNNLen = false;
+//   bool inputsUseNHWC = true;
+//   int gpuIdxForThisThread = 0;
+//   ComputeContext* context = NeuralNet::createComputeContext({gpuIdxForThisThread},&logger);
+//   ComputeHandle* gpuHandle = NeuralNet::createComputeHandle(
+//     context,loadedModel,&logger,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,
+//     gpuIdxForThisThread,useFP16,useNHWC
+//   );
+//   InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
 
-  bool* syms = NeuralNet::getSymmetriesInplace(inputBuffers);
-  syms[0] = false;
-  syms[1] = false;
-  syms[2] = false;
+//   bool* syms = NeuralNet::getSymmetriesInplace(inputBuffers);
+//   syms[0] = false;
+//   syms[1] = false;
+//   syms[2] = false;
 
-  Rules rules;
-  rules.koRule = Rules::KO_POSITIONAL;
-  rules.scoringRule = Rules::SCORING_AREA;
-  rules.multiStoneSuicideLegal = true;
-  rules.komi = 7.5f;
+//   Rules rules;
+//   rules.koRule = Rules::KO_POSITIONAL;
+//   rules.scoringRule = Rules::SCORING_AREA;
+//   rules.multiStoneSuicideLegal = true;
+//   rules.komi = 7.5f;
 
-  Player pla = P_WHITE;
-  Board board = Board::parseBoard(9,9,R"(
-...x.....
-.........
-.........
-.........
-.........
-..o......
-.........
-....x....
-.x.....o.
-)");
+//   Player pla = P_WHITE;
+//   Board board = Board::parseBoard(9,9,R"(
+// ...x.....
+// .........
+// .........
+// .........
+// .........
+// ..o......
+// .........
+// ....x....
+// .x.....o.
+// )");
 
-  int encorePhase = 0;
-  BoardHistory hist(board,pla,rules,encorePhase);
-  // BoardHistory hist2(board2,pla,rules);
-  // BoardHistory hist3(board3,pla,rules);
+//   int encorePhase = 0;
+//   BoardHistory hist(board,pla,rules,encorePhase);
+//   // BoardHistory hist2(board2,pla,rules);
+//   // BoardHistory hist3(board3,pla,rules);
 
-  int batchSize = 5;
-  // int batchSize = maxBatchSize;
-  // int batchSize = 32;
-  for(int i = 0; i<batchSize; i++) {
-    float* row = NeuralNet::getRowInplace(inputBuffers,i);
-    float* rowGlobalInput = NeuralNet::getRowGlobalInplace(inputBuffers,i);
+//   int batchSize = 5;
+//   // int batchSize = maxBatchSize;
+//   // int batchSize = 32;
+//   for(int i = 0; i<batchSize; i++) {
+//     float* row = NeuralNet::getBatchEltSpatialInplace(inputBuffers,i);
+//     float* rowGlobalInput = NeuralNet::getBatchEltGlobalInplace(inputBuffers,i);
 
-    double drawEquivalentWinsForWhite = 0.5;
-    NNInputs::fillRowV3(board, hist, pla, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, row, rowGlobalInput);
-    // if(i % 3 == 0)
-      // NNInputs::fillRowV3(board, hist, pla, row);
-    // else if(i % 3 == 1)
-    //   NNInputs::fillRowV1(board2, hist2, pla, row);
-    // else
-    //   NNInputs::fillRowV1(board3, hist3, pla, row);
-  }
+//     double drawEquivalentWinsForWhite = 0.5;
+//     NNInputs::fillRowV3(board, hist, pla, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, row, rowGlobalInput);
+//     // if(i % 3 == 0)
+//       // NNInputs::fillRowV3(board, hist, pla, row);
+//     // else if(i % 3 == 1)
+//     //   NNInputs::fillRowV1(board2, hist2, pla, row);
+//     // else
+//     //   NNInputs::fillRowV1(board3, hist3, pla, row);
+//   }
 
-  vector<NNOutput*> outputs;
-  for(int row = 0; row<batchSize; row++) {
-    NNOutput* emptyOutput = new NNOutput();
-    emptyOutput->nnXLen = nnXLen;
-    emptyOutput->nnYLen = nnYLen;
-    outputs.push_back(emptyOutput);
-  }
+//   vector<NNOutput*> outputs;
+//   for(int row = 0; row<batchSize; row++) {
+//     NNOutput* emptyOutput = new NNOutput();
+//     emptyOutput->nnXLen = nnXLen;
+//     emptyOutput->nnYLen = nnYLen;
+//     outputs.push_back(emptyOutput);
+//   }
 
-  
-  NeuralNet::getOutput(gpuHandle,inputBuffers,batchSize,outputs);
 
-  for(int i = 0; i<outputs.size(); i++) {
-    NNOutput* result = outputs[i];
-    for(int y = 0; y<nnYLen; y++) {
-      for(int x = 0; x<nnXLen; x++) {
-        printf("%7.4f ", result->policyProbs[x+y*nnXLen]);
-      }
-      cout << endl;
-    }
-    printf("%6.4f ", result->policyProbs[nnXLen*nnYLen]);
-    cout << endl;
-    cout << result->whiteWinProb << endl;
-    cout << result->whiteLossProb << endl;
-    cout << result->whiteNoResultProb << endl;
-  }
+//   NeuralNet::getOutput(gpuHandle,inputBuffers,batchSize,outputs);
 
-  for(int i = 0; i<outputs.size(); i++)
-    delete outputs[i];
+//   for(int i = 0; i<outputs.size(); i++) {
+//     NNOutput* result = outputs[i];
+//     for(int y = 0; y<nnYLen; y++) {
+//       for(int x = 0; x<nnXLen; x++) {
+//         printf("%7.4f ", result->policyProbs[x+y*nnXLen]);
+//       }
+//       cout << endl;
+//     }
+//     printf("%6.4f ", result->policyProbs[nnXLen*nnYLen]);
+//     cout << endl;
+//     cout << result->whiteWinProb << endl;
+//     cout << result->whiteLossProb << endl;
+//     cout << result->whiteNoResultProb << endl;
+//   }
 
-  NeuralNet::freeInputBuffers(inputBuffers);
-  NeuralNet::freeLocalGpuHandle(gpuHandle);
-  NeuralNet::freeLoadedModel(loadedModel);
+//   for(int i = 0; i<outputs.size(); i++)
+//     delete outputs[i];
+
+//   NeuralNet::freeInputBuffers(inputBuffers);
+//   NeuralNet::freeComputeHandle(gpuHandle);
+//   NeuralNet::freeComputeContext(context);
+//   NeuralNet::freeLoadedModel(loadedModel);
 
   cout << "Done" << endl;
   return 0;

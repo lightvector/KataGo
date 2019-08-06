@@ -5,20 +5,18 @@
  * Various generic useful things used throughout the program.
  */
 
-#ifndef GLOBAL_H_
-#define GLOBAL_H_
+#ifndef CORE_GLOBAL_H_
+#define CORE_GLOBAL_H_
 
-#include <map>
-#include <vector>
-#include <set>
-#include <iostream>
-#include <string>
-#include <stdint.h>
-#include <functional>
 #include <algorithm>
-using namespace std;
-
-#include "../core/config.h"
+#include <cassert>
+#include <functional>
+#include <iostream>
+#include <map>
+#include <set>
+#include <stdint.h>
+#include <string>
+#include <vector>
 
 //GLOBAL DEFINES AND FLAGS----------------------------------------------------
 #ifdef __GNUG__  //On g++ only
@@ -38,7 +36,7 @@ using namespace std;
 //presence of NDEBUG without the compiler complaining about uniniitalized values.
 //Ideally sparingly, since the point of NDEBUG presumably is to avoid unnecessary
 //runtime checks, but often this is still convenient.
-class asserted_unreachable: public exception {
+class asserted_unreachable: public std::exception {
   const char* what() const throw() final {
     return "BUG? Reached asserted-unreachable point of the code!";
   }
@@ -55,114 +53,111 @@ namespace Global
 
   //Report fatal error message and exit
   void fatalError(const char* s) NORETURN;
-  void fatalError(const string& s) NORETURN;
+  void fatalError(const std::string& s) NORETURN;
 
   //TIME------------------------------------
 
   //Get string describing the current date, suitable for filenames
-  string getDateString();
+  std::string getDateString();
 
   //STRINGS---------------------------------
 
   //To string conversions
-  string boolToString(bool b);
-  string charToString(char c);
-  string intToString(int x);
-  string floatToString(float x);
-  string doubleToString(double x);
-  string int64ToString(int64_t x);
-  string uint32ToString(uint32_t x);
-  string uint64ToString(uint64_t x);
-  string uint32ToHexString(uint32_t x);
-  string uint64ToHexString(uint64_t x);
+  std::string boolToString(bool b);
+  std::string charToString(char c);
+  std::string intToString(int x);
+  std::string floatToString(float x);
+  std::string doubleToString(double x);
+  std::string int64ToString(int64_t x);
+  std::string uint32ToString(uint32_t x);
+  std::string uint64ToString(uint64_t x);
+  std::string uint32ToHexString(uint32_t x);
+  std::string uint64ToHexString(uint64_t x);
 
   //String to conversions using the standard library parsing
-  int stringToInt(const string& str);
-  int64_t stringToInt64(const string& str);
-  uint64_t stringToUInt64(const string& str);
-  float stringToFloat(const string& str);
-  double stringToDouble(const string& str);
-  bool stringToBool(const string& str);
-  bool tryStringToInt(const string& str, int& x);
-  bool tryStringToInt64(const string& str, int64_t& x);
-  bool tryStringToUInt64(const string& str, uint64_t& x);
-  bool tryStringToFloat(const string& str, float& x);
-  bool tryStringToDouble(const string& str, double& x);
-  bool tryStringToBool(const string& str, bool& x);
+  int stringToInt(const std::string& str);
+  int64_t stringToInt64(const std::string& str);
+  uint64_t stringToUInt64(const std::string& str);
+  float stringToFloat(const std::string& str);
+  double stringToDouble(const std::string& str);
+  bool stringToBool(const std::string& str);
+  bool tryStringToInt(const std::string& str, int& x);
+  bool tryStringToInt64(const std::string& str, int64_t& x);
+  bool tryStringToUInt64(const std::string& str, uint64_t& x);
+  bool tryStringToFloat(const std::string& str, float& x);
+  bool tryStringToDouble(const std::string& str, double& x);
+  bool tryStringToBool(const std::string& str, bool& x);
 
   //Check if string is all whitespace
   bool isWhitespace(char c);
-  bool isWhitespace(const string& s);
+  bool isWhitespace(const std::string& s);
 
   //Check prefix/suffix
-  bool isPrefix(const string& s, const string& prefix);
-  bool isSuffix(const string& s, const string& suffix);
+  bool isPrefix(const std::string& s, const std::string& prefix);
+  bool isSuffix(const std::string& s, const std::string& suffix);
 
   //Trim whitespace off both ends of string
-  string trim(const string& s);
+  std::string trim(const std::string& s);
 
   //Join strings with a delimiter between each one, from [start,end)
-  string concat(const char* const* strs, size_t len, const char* delim);
-  string concat(const vector<string>& strs, const char* delim);
-  string concat(const vector<string>& strs, const char* delim, size_t start, size_t end);
-  string concat(const set<string>& strs, const char* delim);
+  std::string concat(const char* const* strs, size_t len, const char* delim);
+  std::string concat(const std::vector<std::string>& strs, const char* delim);
+  std::string concat(const std::vector<std::string>& strs, const char* delim, std::size_t start, std::size_t end);
+  std::string concat(const std::set<std::string>& strs, const char* delim);
 
   //Split string into tokens, trimming off whitespace
-  vector<string> split(const string& s);
+  std::vector<std::string> split(const std::string& s);
   //Split string based on the given delim, no trimming
-  vector<string> split(const string& s, char delim);
+  std::vector<std::string> split(const std::string& s, char delim);
 
   //Convert to upper or lower case
-  string toUpper(const string& s);
-  string toLower(const string& s);
+  std::string toUpper(const std::string& s);
+  std::string toLower(const std::string& s);
 
-  bool isEqualCaseInsensitive(const string& s0, const string& s1);
+  bool isEqualCaseInsensitive(const std::string& s0, const std::string& s1);
 
   //Like sprintf, but returns a string
-  string strprintf(const char* fmt, ...);
+  std::string strprintf(const char* fmt, ...);
 
   //Check if a string consists entirely of digits, and parse the integer, checking for overflow
-  bool isDigits(const string& str);
-  bool isDigits(const string& str, int start, int end);
-  int parseDigits(const string& str);
-  int parseDigits(const string& str, int start, int end);
+  bool isDigits(const std::string& str);
+  bool isDigits(const std::string& str, int start, int end);
+  int parseDigits(const std::string& str);
+  int parseDigits(const std::string& str, int start, int end);
 
   //Character properties
   bool isDigit(char c);
   bool isAlpha(char c);
 
   //Check if every char in the string is in the allowed list
-  bool stringCharsAllAllowed(const string& str, const char* allowedChars);
+  bool stringCharsAllAllowed(const std::string& str, const char* allowedChars);
 
   //Strips "#" rest-of-line style comments from a string
-  string stripComments(const string& str);
-
-  //Get a compact string representation of the date and time usable in filenames
-  string getCompactDateTimeString();
+  std::string stripComments(const std::string& str);
 
   //Key value pairs are of the form "x=y" or "x = y".
   //Multiple key value pairs are allowed on one line if comma separated.
   //Key value pairs are also broken by newlines.
-  map<string,string> readKeyValues(const string& contents);
+  std::map<std::string, std::string> readKeyValues(const std::string& contents);
 
   //Read a memory value, like 16G or 256K.
   uint64_t readMem(const char* str);
-  uint64_t readMem(const string& str);
+  uint64_t readMem(const std::string& str);
 
   //IO-------------------------------------
 
   //Read entire file whole
-  string readFile(const char* filename);
-  string readFile(const string& filename);
+  std::string readFile(const char* filename);
+  std::string readFile(const std::string& filename);
 
   //Read file into separate lines, using the specified delimiter character(s).
   //The delimiter characters are NOT included.
-  vector<string> readFileLines(const char* filename, char delimiter);
-  vector<string> readFileLines(const string& filename, char delimiter);
+  std::vector<std::string> readFileLines(const char* filename, char delimiter);
+  std::vector<std::string> readFileLines(const std::string& filename, char delimiter);
 
   //Recursively walk a directory and find all the files that match fileFilter.
   //fileFilter receives just the file name and not the full path, but collected contains the paths.
-  void collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected);
+  void collectFiles(const std::string& dirname, std::function<bool(const std::string&)> fileFilter, std::vector<std::string>& collected);
 
   //USER IO----------------------------
 
@@ -170,12 +165,12 @@ namespace Global
   void pauseForKey();
 }
 
-struct StringError : public exception {
-  string message;
+struct StringError : public std::exception {
+  std::string message;
   StringError(const char* m)
     :exception(),message(m)
   {}
-  StringError(const string& m)
+  StringError(const std::string& m)
     :exception(),message(m)
   {}
 
@@ -184,11 +179,11 @@ struct StringError : public exception {
 };
 
 //Common exception for IO
-struct IOError final : public StringError { IOError(const char* msg):StringError(msg) {}; IOError(const string& msg):StringError(msg) {}; };
+struct IOError final : public StringError { IOError(const char* msg):StringError(msg) {}; IOError(const std::string& msg):StringError(msg) {}; };
 //Common exception for parameter values
-struct ValueError final : public StringError { ValueError(const char* msg):StringError(msg) {}; ValueError(const string& msg):StringError(msg) {}; };
+struct ValueError final : public StringError { ValueError(const char* msg):StringError(msg) {}; ValueError(const std::string& msg):StringError(msg) {}; };
 //Common exception for command line argument handling
-struct CommandError final : public StringError { CommandError(const char* msg):StringError(msg) {}; CommandError(const string& msg):StringError(msg) {}; };
+struct CommandError final : public StringError { CommandError(const char* msg):StringError(msg) {}; CommandError(const std::string& msg):StringError(msg) {}; };
 
 //Named pairs and triples of data values
 #define STRUCT_NAMED_SINGLE(A,B,C) struct C {A B; inline C(): B() {} inline C(A s_n_p_arg_0): B(s_n_p_arg_0) {}}
@@ -199,10 +194,10 @@ struct CommandError final : public StringError { CommandError(const char* msg):S
 //SHORTCUTS FOR std::map and other containers------------------------------------------------
 
 bool contains(const char* str, char c);
-bool contains(const string& str, char c);
+bool contains(const std::string& str, char c);
 
 template<typename A>
-bool contains(const vector<A>& vec, const A& elt)
+bool contains(const std::vector<A>& vec, const A& elt)
 {
   for(const A& x: vec)
     if(x == elt)
@@ -210,66 +205,66 @@ bool contains(const vector<A>& vec, const A& elt)
   return false;
 }
 
-bool contains(const vector<string>& vec, const char* elt);
+bool contains(const std::vector<std::string>& vec, const char* elt);
 
 template<typename A>
-size_t indexOf(const vector<A>& vec, const A& elt)
+size_t indexOf(const std::vector<A>& vec, const A& elt)
 {
   size_t size = vec.size();
   for(size_t i = 0; i<size; i++)
     if(vec[i] == elt)
       return i;
-  return string::npos;
+  return std::string::npos;
 }
 
-size_t indexOf(const vector<string>& vec, const char* elt);
+size_t indexOf(const std::vector<std::string>& vec, const char* elt);
 
 template<typename A>
-bool contains(const set<A>& set, const A& elt)
+bool contains(const std::set<A>& set, const A& elt)
 {
   return set.find(elt) != set.end();
 }
 
-bool contains(const set<string>& set, const char* elt);
+bool contains(const std::set<std::string>& set, const char* elt);
 
 template<typename A, typename B>
-bool contains(const map<A,B>& m, const A& key)
+bool contains(const std::map<A,B>& m, const A& key)
 {
   return m.find(key) != m.end();
 }
 
 template<typename B>
-bool contains(const map<string,B>& m, const char* key)
+bool contains(const std::map<std::string,B>& m, const char* key)
 {
-  return m.find(string(key)) != m.end();
+  return m.find(std::string(key)) != m.end();
 }
 
 template<typename A, typename B>
-B map_get(const map<A,B>& m, const A& key)
+B map_get(const std::map<A,B>& m, const A& key)
 {
-  typename map<A,B>::const_iterator it = m.find(key);
+  typename std::map<A,B>::const_iterator it = m.find(key);
   if(it == m.end())
     Global::fatalError("map_get: key not found");
   return it->second;
 }
 
 template<typename B>
-B map_get(const map<string,B>& m, const char* key)
+B map_get(const std::map<std::string,B>& m, const char* key)
 {
-  typename map<string,B>::const_iterator it = m.find(string(key));
+  typename std::map<std::string,B>::const_iterator it = m.find(std::string(key));
   if(it == m.end())
-    Global::fatalError(string("map_get: key \"") + string(key) + string("\" not found"));
+    Global::fatalError(std::string("map_get: key \"") + std::string(key) + std::string("\" not found"));
   return it->second;
 }
 
 template<typename A, typename B>
-B map_get_defaulting(const map<A,B>& m, const A& key, const B& def)
+B map_get_defaulting(const std::map<A,B>& m, const A& key, const B& def)
 {
-  typename map<A,B>::const_iterator it = m.find(key);
+  typename std::map<A,B>::const_iterator it = m.find(key);
   if(it == m.end())
     return def;
   return it->second;
 }
 
 
-#endif
+#endif  // CORE_GLOBAL_H_

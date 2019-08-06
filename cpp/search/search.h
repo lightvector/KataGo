@@ -1,7 +1,8 @@
-#ifndef SEARCH_H
-#define SEARCH_H
+#ifndef SEARCH_SEARCH_H_
+#define SEARCH_SEARCH_H_
 
 #include <memory>
+
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../core/logger.h"
@@ -10,10 +11,10 @@
 #include "../game/boardhistory.h"
 #include "../game/rules.h"
 #include "../neuralnet/nneval.h"
+#include "../search/analysisdata.h"
 #include "../search/mutexpool.h"
 #include "../search/searchparams.h"
 #include "../search/searchprint.h"
-#include "../search/analysisdata.h"
 #include "../search/timecontrols.h"
 
 struct SearchNode;
@@ -58,7 +59,7 @@ struct NodeStats {
 struct SearchNode {
   //Locks------------------------------------------------------------------------------
   uint32_t lockIdx;
-  mutable std::atomic_flag statsLock;
+  mutable std::atomic_flag statsLock = ATOMIC_FLAG_INIT;
 
   //Constant during search--------------------------------------------------------------
   Player nextPla;
@@ -66,11 +67,10 @@ struct SearchNode {
 
   //Mutable---------------------------------------------------------------------------
   //All of these values are protected under the mutex indicated by lockIdx
-
   //nnOutput at a given node MAY be mutated during search, but of course will always be done under the lock.
   //The actual NNOutput object itself will NOT be mutated once set here, so having obtained a shared_ptr to
   //it while locked, it's safe to read it while unlocked.
-  shared_ptr<NNOutput> nnOutput;
+  std::shared_ptr<NNOutput> nnOutput;
 
   SearchNode** children;
   uint16_t numChildren;
@@ -104,20 +104,20 @@ struct SearchThread {
   Rand rand;
 
   NNResultBuf nnResultBuf;
-  ostream* logStream;
+  std::ostream* logStream;
   Logger* logger;
 
-  vector<double> weightFactorBuf;
-  vector<double> weightBuf;
-  vector<double> weightSqBuf;
-  vector<double> winValuesBuf;
-  vector<double> noResultValuesBuf;
-  vector<double> scoreMeansBuf;
-  vector<double> scoreMeanSqsBuf;
-  vector<double> utilityBuf;
-  vector<double> utilitySqBuf;
-  vector<double> selfUtilityBuf;
-  vector<int64_t> visitsBuf;
+  std::vector<double> weightFactorBuf;
+  std::vector<double> weightBuf;
+  std::vector<double> weightSqBuf;
+  std::vector<double> winValuesBuf;
+  std::vector<double> noResultValuesBuf;
+  std::vector<double> scoreMeansBuf;
+  std::vector<double> scoreMeanSqsBuf;
+  std::vector<double> utilityBuf;
+  std::vector<double> utilitySqBuf;
+  std::vector<double> selfUtilityBuf;
+  std::vector<int64_t> visitsBuf;
 
   SearchThread(int threadIdx, const Search& search, Logger* logger);
   ~SearchThread();
@@ -139,11 +139,11 @@ struct Search {
   double recentScoreCenter;
 
   bool alwaysIncludeOwnerMap;
-  
+
   SearchParams searchParams;
   int64_t numSearchesBegun;
 
-  string randSeed;
+  std::string randSeed;
 
   //Contains all koHashes of positions/situations up to and including the root
   KoHashTable* rootKoHashTable;
@@ -153,7 +153,7 @@ struct Search {
 
   //Precomputed Fancymath::normToTApprox values, for a fixed Z
   double normToTApproxZ;
-  vector<double> normToTApproxTable;
+  std::vector<double> normToTApproxTable;
 
   //Mutable---------------------------------------------------------------
   SearchNode* rootNode;
@@ -168,7 +168,7 @@ struct Search {
 
   //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
   //random symmetries of the neural net evaluations, see nneval.h
-  Search(SearchParams params, NNEvaluator* nnEval, const string& randSeed);
+  Search(SearchParams params, NNEvaluator* nnEval, const std::string& randSeed);
   ~Search();
 
   Search(const Search&) = delete;
@@ -199,7 +199,8 @@ struct Search {
   //If the move is not legal for the specified player, returns false and does nothing, else returns true
   //In the case where the player was not the expected one moving next, also clears history.
   bool makeMove(Loc moveLoc, Player movePla);
-  bool isLegal(Loc moveLoc, Player movePla) const;
+  bool isLegalTolerant(Loc moveLoc, Player movePla) const;
+  bool isLegalStrict(Loc moveLoc, Player movePla) const;
 
   //Choose a move at the root of the tree, with randomization, if possible.
   //Might return Board::NULL_LOC if there is no root.
@@ -208,17 +209,18 @@ struct Search {
   //Does take into account chosenMoveSubtract but does NOT apply temperature.
   //If somehow the max value is less than scaleMaxToAtLeast, scale it to at least that value.
   bool getPlaySelectionValues(
-    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
+    std::vector<Loc>& locs, std::vector<double>& playSelectionValues, double scaleMaxToAtLeast
   ) const;
   //Same, but works on a node within the search, not just the root
   bool getPlaySelectionValues(
     const SearchNode& node,
-    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+    std::vector<Loc>& locs, std::vector<double>& playSelectionValues, double scaleMaxToAtLeast,
     bool allowDirectPolicyMoves
   ) const;
 
   //Useful utility function exposed for outside use
   static uint32_t chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature);
+  static void addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs);
 
   //Get the values recorded for the root node
   bool getRootValues(ReportedSearchValues& values) const;
@@ -234,15 +236,15 @@ struct Search {
   //Run an entire search from start to finish
   //If recordUtilities is provided, and we're doing a singlethreaded search, will fill recordUtilities
   //with the root utility as of the end of each playout performed, up to the length of recordUtilities.
-  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities);
-  void runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities);
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities);
+  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, std::vector<double>* recordUtilities);
+  void runWholeSearch(Player movePla, Logger& logger, std::vector<double>* recordUtilities);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, std::vector<double>* recordUtilities);
 
-  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities, bool pondering);
-  void runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities, bool pondering);
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering);
+  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, std::vector<double>* recordUtilities, bool pondering);
+  void runWholeSearch(Player movePla, Logger& logger, std::vector<double>* recordUtilities, bool pondering);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, std::vector<double>* recordUtilities, bool pondering);
 
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering, const TimeControls& tc, double searchFactor);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, std::vector<double>* recordUtilities, bool pondering, const TimeControls& tc, double searchFactor);
 
   //Manual playout-by-playout interface------------------------------------------------
 
@@ -253,27 +255,27 @@ struct Search {
   void runSinglePlayout(SearchThread& thread);
 
   //Tree-inspection functions---------------------------------------------------------------
-  void printPV(ostream& out, const SearchNode* node, int maxDepth) const;
-  void printPVForMove(ostream& out, const SearchNode* node, Loc move, int maxDepth) const;
-  void printTree(ostream& out, const SearchNode* node, PrintTreeOptions options) const;
-  void printRootPolicyMap(ostream& out) const;
-  void printRootOwnershipMap(ostream& out) const;
-  void printRootEndingScoreValueBonus(ostream& out) const;
+  void printPV(std::ostream& out, const SearchNode* node, int maxDepth) const;
+  void printPVForMove(std::ostream& out, const SearchNode* node, Loc move, int maxDepth) const;
+  void printTree(std::ostream& out, const SearchNode* node, PrintTreeOptions options, Player perspective) const;
+  void printRootPolicyMap(std::ostream& out) const;
+  void printRootOwnershipMap(std::ostream& out, Player perspective) const;
+  void printRootEndingScoreValueBonus(std::ostream& out) const;
 
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
-  void getAnalysisData(vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
-  void getAnalysisData(const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
+  void getAnalysisData(std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
+  void getAnalysisData(const SearchNode& node, std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
   //Append the PV from node n onward (not including node n's move)
-  void appendPV(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth) const;
+  void appendPV(std::vector<Loc>& buf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, int maxDepth) const;
   //Append the PV from node n for specified move, assuming move is a child move of node n
-  void appendPVForMove(vector<Loc>& buf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) const;
+  void appendPVForMove(std::vector<Loc>& buf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) const;
 
   //Get the ownership map averaged throughout the search tree.
   //Must have ownership present on all neural net evals.
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
-  vector<double> getAverageTreeOwnership(int64_t minVisits) const;
+  std::vector<double> getAverageTreeOwnership(int64_t minVisits) const;
 
   int64_t numRootVisits() const;
 
@@ -295,9 +297,9 @@ private:
 
   void getValueChildWeights(
     int numChildren,
-    const vector<double>& childSelfValuesBuf,
-    const vector<int64_t>& childVisitsBuf,
-    vector<double>& resultBuf
+    const std::vector<double>& childSelfValuesBuf,
+    const std::vector<int64_t>& childVisitsBuf,
+    std::vector<double>& resultBuf
   ) const;
 
   //Parent must be locked
@@ -311,7 +313,7 @@ private:
 
   bool getPlaySelectionValuesAlreadyLocked(
     const SearchNode& node,
-    vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+    std::vector<Loc>& locs, std::vector<double>& playSelectionValues, double scaleMaxToAtLeast,
     bool allowDirectPolicyMoves, bool alwaysComputeLcb,
     double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
   ) const;
@@ -321,7 +323,7 @@ private:
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch
   ) const;
-  double getNewExploreSelectionValue(const SearchNode& parent, int movePos, int64_t totalChildVisits, double fpuValue) const;
+  double getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue) const;
 
   //Parent must be locked
   int64_t getReducedPlaySelectionVisits(
@@ -358,20 +360,20 @@ private:
   );
 
   AnalysisData getAnalysisDataOfSingleChild(
-    const SearchNode* child, vector<Loc>& scratchLocs, vector<double>& scratchValues,
+    const SearchNode* child, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues,
     Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
     double parentScoreMean, double parentScoreStdev, int maxPVDepth
   ) const;
 
-  void printPV(ostream& out, const vector<Loc>& buf) const;
+  void printPV(std::ostream& out, const std::vector<Loc>& buf) const;
 
   void printTreeHelper(
-    ostream& out, const SearchNode* node, const PrintTreeOptions& options,
-    string& prefix, int64_t origVisits, int depth, const AnalysisData& data
+    std::ostream& out, const SearchNode* node, const PrintTreeOptions& options,
+    std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
 
-  double getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minVisits, double desiredWeight, const SearchNode* node) const;
+  double getAverageTreeOwnershipHelper(std::vector<double>& accum, int64_t minVisits, double desiredWeight, const SearchNode* node) const;
 
 };
 
-#endif
+#endif  // SEARCH_SEARCH_H_

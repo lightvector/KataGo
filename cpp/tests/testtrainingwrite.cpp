@@ -1,15 +1,19 @@
 #include "../tests/tests.h"
-using namespace TestCommon;
 
-#include "../neuralnet/nneval.h"
 #include "../dataio/trainingwrite.h"
+#include "../neuralnet/nneval.h"
 #include "../program/play.h"
+
+using namespace std;
+using namespace TestCommon;
 
 static NNEvaluator* startNNEval(
   const string& modelFile, const string& seed, Logger& logger,
-  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16
+  int defaultSymmetry, bool inputsUseNHWC, bool useNHWC, bool useFP16
 ) {
   const string& modelName = modelFile;
+  vector<int> gpuIdxByServerThread = {0};
+  vector<int> gpuIdxs = {0};
   int modelFileIdx = 0;
   int maxBatchSize = 16;
   int maxConcurrentEvals = 1024;
@@ -19,11 +23,14 @@ static NNEvaluator* startNNEval(
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
   bool debugSkipNeuralNet = modelFile == "/dev/null";
-  bool alwaysIncludeOwnerMap = false;
-  double nnPolicyTemperature = 1.0;
+  float nnPolicyTemperature = 1.0;
+  const string openCLTunerFile = "";
+  bool openCLReTunePerBoardSize = false;
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
+    gpuIdxs,
+    &logger,
     modelFileIdx,
     maxBatchSize,
     maxConcurrentEvals,
@@ -34,14 +41,14 @@ static NNEvaluator* startNNEval(
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
-    alwaysIncludeOwnerMap,
-    nnPolicyTemperature
+    nnPolicyTemperature,
+    openCLTunerFile,
+    openCLReTunePerBoardSize
   );
   (void)inputsUseNHWC;
 
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
-  vector<int> cudaGpuIdxByServerThread = {0};
 
   nnEval->spawnServerThreads(
     numNNServerThreadsPerModel,
@@ -49,9 +56,9 @@ static NNEvaluator* startNNEval(
     seed,
     defaultSymmetry,
     logger,
-    cudaGpuIdxByServerThread,
-    cudaUseFP16,
-    cudaUseNHWC
+    gpuIdxByServerThread,
+    useFP16,
+    useNHWC
   );
 
   return nnEval;
@@ -59,9 +66,7 @@ static NNEvaluator* startNNEval(
 
 void Tests::runTrainingWriteTests() {
   cout << "Running training write tests" << endl;
-  string tensorflowGpuVisibleDeviceList = "";
-  double tensorflowPerProcessGpuMemoryFraction = 0.3;
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 
   int maxRows = 256;
   double firstFileMinRandProp = 1.0;
@@ -75,7 +80,7 @@ void Tests::runTrainingWriteTests() {
   auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite, int inputsVersion, int nnXLen, int nnYLen, int boardXLen, int boardYLen) {
     int dataXLen = nnXLen;
     int dataYLen = nnYLen;
-    
+
     TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, nnXLen, nnYLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
     NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,true,false,false);
@@ -153,16 +158,14 @@ void Tests::runTrainingWriteTests() {
   inputsVersion = 4;
   run("testtrainingwrite-rect-v4",Rules::getTrompTaylorish(),0.5,inputsVersion,9,3,7,3);
 
-  
+
   NeuralNet::globalCleanup();
 }
 
 
 void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   cout << "Running test for selfplay initialization with NN" << endl;
-  string tensorflowGpuVisibleDeviceList = "";
-  double tensorflowPerProcessGpuMemoryFraction = 0.3;
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 
   int nnXLen = 11;
   int nnYLen = 11;
@@ -201,7 +204,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     fancyModes.forkSidePositionProb = 0.40;
     fancyModes.cheapSearchProb = 0.5;
     fancyModes.cheapSearchVisits = 20;
-    fancyModes.cheapSearchTargetWeight = 0.123;
+    fancyModes.cheapSearchTargetWeight = 0.123f;
     fancyModes.earlyForkGameProb = 0.5;
     fancyModes.earlyForkGameExpectedMoveProp = 0.05;
     fancyModes.earlyForkGameMinChoices = 2;

@@ -1,7 +1,8 @@
-#ifndef BINARYFILE_H
-#define BINARYFILE_H
+#ifndef DATAIO_BINARYFILE_H_
+#define DATAIO_BINARYFILE_H_
 
 #include <fstream>
+
 #include "../core/global.h"
 
 /*
@@ -69,4 +70,4 @@ class BinaryFileAutoChunking {
   BinaryFile* binaryFile;
 };
 
-#endif
+#endif  // DATAIO_BINARYFILE_H_

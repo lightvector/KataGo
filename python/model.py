@@ -110,7 +110,7 @@ class Model:
     x = pos % pos_len
     y = pos // pos_len
     if x < 0 or x >= bsize or y < 0 or y >= bsize:
-      return board.loc(-1,-1) #Return an illegal move since this is offboard
+      return board.loc(-10,-10) #Return an illegal move since this is offboard
     return board.loc(x,y)
 
   def sym_tensor_pos(self,pos,symmetry):

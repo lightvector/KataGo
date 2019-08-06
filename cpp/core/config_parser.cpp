@@ -1,8 +1,10 @@
+#include "../core/config_parser.h"
 
 #include <cmath>
 #include <fstream>
 #include <sstream>
-#include "../core/config_parser.h"
+
+using namespace std;
 
 ConfigParser::ConfigParser(const string& fname)
   :fileName(fname),contents(),keyValues(),usedKeysMutex(),usedKeys()
@@ -47,6 +49,15 @@ string ConfigParser::getContents() const {
   return contents;
 }
 
+void ConfigParser::markAllKeysUsedWithPrefix(const string& prefix) {
+  std::lock_guard<std::mutex> lock(usedKeysMutex);
+  for(auto iter = keyValues.begin(); iter != keyValues.end(); ++iter) {
+    const string& key = iter->first;
+    if(Global::isPrefix(key,prefix))
+      usedKeys.insert(key);
+  }
+}
+
 void ConfigParser::warnUnusedKeys(ostream& out, Logger* logger) const {
   vector<string> unused = unusedKeys();
   for(size_t i = 0; i<unused.size(); i++) {
@@ -81,7 +92,7 @@ string ConfigParser::getString(const string& key) {
     std::lock_guard<std::mutex> lock(usedKeysMutex);
     usedKeys.insert(key);
   }
-  
+
   return iter->second;
 }
 

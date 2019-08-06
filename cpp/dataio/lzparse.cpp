@@ -1,8 +1,9 @@
-
-#include <zstr/src/zstr.hpp>
-#include <cstdlib>
-
 #include "../dataio/lzparse.h"
+
+#include <cstdlib>
+#include <zstr/src/zstr.hpp>
+
+using namespace std;
 
 LZSample::LZSample()
   :emptyBoard(19,19),plaStones(),oppStones(),sideStr(),policyStr(),resultStr()
@@ -37,7 +38,7 @@ static int parseHexChar(char c) {
 
 static void decodeStones(const string& linePla, const string& lineOpp, Color* stones, Player pla)
 {
-  if(linePla.length() != 91 || lineOpp.length() != 91) 
+  if(linePla.length() != 91 || lineOpp.length() != 91)
     throw StringError("LZ data row stones are not 91 characters long (hex-encoded 361 bits)");
 
   Player opp = getOpp(pla);
@@ -61,7 +62,7 @@ static void decodeStones(const string& linePla, const string& lineOpp, Color* st
     int cPla = linePla[90];
     int cOpp = lineOpp[90];
 
-    if(!(cPla == '1' || cPla == '0') || !(cOpp == '1' || cOpp == '0')) 
+    if(!(cPla == '1' || cPla == '0') || !(cOpp == '1' || cOpp == '0'))
       throw StringError("Last char of LZ data 91-char stones is not 0 or 1");
 
     Color stone;
@@ -220,7 +221,7 @@ void LZSample::parse(
     float maxProb = 0;
     int maxI = 0;
     for(int i = 0; i<362; i++) {
-      float prob = std::strtod(s,&end);
+      float prob = (float)std::strtod(s,&end);
       policyTarget[i] = prob;
       s = end;
       if(prob > maxProb) {
@@ -249,4 +250,3 @@ void LZSample::parse(
 
   nextPlayer = pla;
 }
-

@@ -11,6 +11,8 @@
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
+using namespace std;
+
 static void writeLine(
   Search* search, const BoardHistory& baseHist,
   const vector<double>& winLossHistory, const vector<double>& scoreHistory, const vector<double>& scoreStdevHistory
@@ -342,9 +344,9 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 
       int numVisits = 20;
       Play::adjustKomiToEven(bot->getSearch(),board,hist,pla,numVisits,logger);
-      float komi = hist.rules.komi + 0.3 * rand.nextGaussian();
-      komi = (float)(0.5 * round(2.0 * komi));
-      hist.setKomi(komi);
+      double komi = hist.rules.komi + 0.3 * rand.nextGaussian();
+      komi = 0.5 * round(2.0 * komi);
+      hist.setKomi((float)komi);
       bot->setPosition(pla,board,hist);
     }
   }
@@ -365,7 +367,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   string logFile;
   string modelFile;
   try {
-    TCLAP::CmdLine cmd("Self-play demo dumping status to stdout", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Self-play demo dumping status to stdout", ' ', Version::getKataGoVersion(),true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
@@ -390,26 +392,15 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-  SearchParams params;
-  {
-    vector<SearchParams> paramss = Setup::loadParams(cfg);
-    assert(paramss.size() > 0);
-    if(paramss.size() != 1)
-      throw StringError("Config specifies more than one bot but demoplay supports only one");
-    params = paramss[0];
-  }
+  SearchParams params = Setup::loadSingleParams(cfg);
 
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    bool alwaysIncludeOwnerMap = true;
-    vector<NNEvaluator*> nnEvals =
-      Setup::initializeNNEvaluators(
-        {modelFile},{modelFile},cfg,logger,seedRand,maxConcurrentEvals,false,alwaysIncludeOwnerMap,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
-      );
-    assert(nnEvals.size() == 1);
-    nnEval = nnEvals[0];
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+    );
   }
   logger.write("Loaded neural net");
 
@@ -419,7 +410,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
   const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
-  
+
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
@@ -470,7 +461,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
         );
       Loc moveLoc = bot->genMoveSynchronousAnalyze(pla,tc,searchFactor,callbackPeriod,callback);
 
-      bool isLegal = bot->isLegal(moveLoc,pla);
+      bool isLegal = bot->isLegalStrict(moveLoc,pla);
       if(moveLoc == Board::NULL_LOC || !isLegal) {
         ostringstream sout;
         sout << "genmove null location or illegal move!?!" << "\n";
@@ -529,14 +520,14 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
         //Just immediately terminate the game loop
         if(baseHist.isGameFinished)
           break;
-          
+
         bool suc = bot->makeMove(moveLoc,pla);
         assert(suc);
         (void)suc; //Avoid warning when asserts are off
-        
+
         pla = getOpp(pla);
       }
-        
+
     }
 
     //End of game display line
@@ -550,9 +541,9 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   delete bot;
   delete nnEval;
   NeuralNet::globalCleanup();
+  ScoreValue::freeTables();
 
   logger.write("All cleaned up, quitting");
   return 0;
 
 }
-

@@ -1,27 +1,28 @@
-#ifndef ANALYSISDATA_H
-#define ANALYSISDATA_H
+#ifndef SEARCH_ANALYSISDATA_H_
+#define SEARCH_ANALYSISDATA_H_
 
 #include "../game/board.h"
 
 struct SearchNode;
 
 struct AnalysisData {
+  //Utilities and scores should all be from white's perspective
   Loc move;
   int64_t numVisits;
-  double playSelectionValue;
-  double lcb;
-  double radius;
-  double utility;
-  double resultUtility;
-  double scoreUtility;
-  double winLossValue;
-  double policyPrior;
-  double scoreMean;
-  double scoreStdev;
-  double ess;
-  double weightFactor;
-  int order;
-  vector<Loc> pv;
+  double playSelectionValue; //Similar units to visits, but might have LCB adjustments
+  double lcb; //In units of utility
+  double radius; //In units of utility
+  double utility; //From -1 to 1 or -1.25 to -1.25 or other similar bounds, depending on score utility
+  double resultUtility; //Utility from winloss result
+  double scoreUtility; //Utility from score. Summing with resultUtility gives utility.
+  double winLossValue; //From -1 to 1
+  double policyPrior; //From 0 to 1
+  double scoreMean; //In units of points
+  double scoreStdev; //In units of points
+  double ess; //Effective sample size taking into account weighting, could be somewhat smaller than visits
+  double weightFactor; //Due to child value weighting
+  int order; //Preference order of the moves, 0 is best
+  std::vector<Loc> pv;
 
   const SearchNode* node; //ONLY valid so long as search is not cleared
 
@@ -38,4 +39,4 @@ struct AnalysisData {
 bool operator<(const AnalysisData& a0, const AnalysisData& a1);
 
 
-#endif
+#endif  // SEARCH_ANALYSISDATA_H_

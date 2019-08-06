@@ -1,5 +1,5 @@
-#ifndef DISTRIBUTIONTABLE_H
-#define DISTRIBUTIONTABLE_H
+#ifndef SEARCH_DISTRIBUTIONTABLE_H
+#define SEARCH_DISTRIBUTIONTABLE_H
 
 #include "../core/global.h"
 
@@ -10,7 +10,7 @@ struct DistributionTable {
   double minZ;
   double maxZ;
 
-  DistributionTable(function<double(double)> pdf, function<double(double)> cdf, double minZ, double maxZ, int size);
+  DistributionTable(std::function<double(double)> pdf, std::function<double(double)> cdf, double minZ, double maxZ, int size);
   ~DistributionTable();
 
   DistributionTable(const DistributionTable& other) = delete;
@@ -66,4 +66,4 @@ struct DistributionTable {
 };
 
 
-#endif
+#endif  // SEARCH_DISTRIBUTION_TABLE_H_

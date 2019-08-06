@@ -1,17 +1,30 @@
 #include "../program/setup.h"
+
 #include "../neuralnet/nninterface.h"
 
+using namespace std;
+
 void Setup::initializeSession(ConfigParser& cfg) {
+  (void)cfg;
+  NeuralNet::globalInitialize();
+}
 
-  string tensorflowGpuVisibleDeviceList;
-  if(cfg.contains("tensorflowGpuVisibleDeviceList"))
-    tensorflowGpuVisibleDeviceList = cfg.getString("tensorflowGpuVisibleDeviceList");
-
-  double tensorflowPerProcessGpuMemoryFraction = -1;
-  if(cfg.contains("tensorflowPerProcessGpuMemoryFraction"))
-    tensorflowPerProcessGpuMemoryFraction = cfg.getDouble("tensorflowPerProcessGpuMemoryFraction",0.0,1.0);
-
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+NNEvaluator* Setup::initializeNNEvaluator(
+  const string& nnModelName,
+  const string& nnModelFile,
+  ConfigParser& cfg,
+  Logger& logger,
+  Rand& seedRand,
+  int maxConcurrentEvals,
+  int defaultNNXLen,
+  int defaultNNYLen
+) {
+  vector<NNEvaluator*> nnEvals =
+    initializeNNEvaluators(
+      {nnModelName},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,defaultNNXLen,defaultNNYLen
+    );
+  assert(nnEvals.size() == 1);
+  return nnEvals[0];
 }
 
 vector<NNEvaluator*> Setup::initializeNNEvaluators(
@@ -21,18 +34,35 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   Logger& logger,
   Rand& seedRand,
   int maxConcurrentEvals,
-  bool debugSkipNeuralNetDefault,
-  bool alwaysIncludeOwnerMap,
   int defaultNNXLen,
   int defaultNNYLen
 ) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
+
+  #if defined(USE_CUDA_BACKEND)
+  string backendPrefix = "cuda";
+  #elif defined(USE_OPENCL_BACKEND)
+  string backendPrefix = "opencl";
+  #else
+  string backendPrefix = "dummybackend";
+  #endif
+
+  //Automatically flag keys that are for other backends as used so that we don't warn about unused keys
+  //for those options
+  if(backendPrefix != "cuda")
+    cfg.markAllKeysUsedWithPrefix("cuda");
+  if(backendPrefix != "opencl")
+    cfg.markAllKeysUsedWithPrefix("opencl");
+  if(backendPrefix != "dummybackend")
+    cfg.markAllKeysUsedWithPrefix("dummybackend");
+
   for(size_t i = 0; i<nnModelFiles.size(); i++) {
     string idxStr = Global::intToString(i);
     const string& nnModelName = nnModelNames[i];
     const string& nnModelFile = nnModelFiles[i];
 
+    bool debugSkipNeuralNetDefault = (nnModelFile == "/dev/null");
     bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : debugSkipNeuralNetDefault;
     int modelFileIdx = i;
 
@@ -62,9 +92,13 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("requireMaxBoardSize"))
       requireExactNNLen = cfg.getBool("requireMaxBoardSize");
 
-    bool inputsUseNHWC = true;
-    if(cfg.contains("inputsUseNHWC"+idxStr))
+    bool inputsUseNHWC = backendPrefix == "opencl" ? false : true;
+    if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
+      inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
+    else if(cfg.contains("inputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool("inputsUseNHWC"+idxStr);
+    else if(cfg.contains(backendPrefix+"InputsUseNHWC"))
+      inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC");
     else if(cfg.contains("inputsUseNHWC"))
       inputsUseNHWC = cfg.getBool("inputsUseNHWC");
 
@@ -73,23 +107,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature"+idxStr,0.01f,5.0f);
     else if(cfg.contains("nnPolicyTemperature"))
       nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature",0.01f,5.0f);
-
-    NNEvaluator* nnEval = new NNEvaluator(
-      nnModelName,
-      nnModelFile,
-      modelFileIdx,
-      cfg.getInt("nnMaxBatchSize", 1, 65536),
-      maxConcurrentEvals,
-      nnXLen,
-      nnYLen,
-      requireExactNNLen,
-      inputsUseNHWC,
-      cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
-      cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24),
-      debugSkipNeuralNet,
-      alwaysIncludeOwnerMap,
-      nnPolicyTemperature
-    );
 
     bool nnRandomize = cfg.getBool("nnRandomize");
     string nnRandSeed;
@@ -101,50 +118,119 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
     logger.write("nnRandSeed" + idxStr + " = " + nnRandSeed);
 
+
     int numNNServerThreadsPerModel = cfg.getInt("numNNServerThreadsPerModel",1,1024);
-    vector<int> cudaGpuIdxByServerThread;
+
+    vector<int> gpuIdxByServerThread;
     for(int j = 0; j<numNNServerThreadsPerModel; j++) {
       string threadIdxStr = Global::intToString(j);
-      if(cfg.contains("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr))
-        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
-      else if(cfg.contains("cudaGpuToUseModel"+idxStr))
-        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseModel"+idxStr,0,1023));
-      else if(cfg.contains("cudaGpuToUseThread"+threadIdxStr))
-        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUseThread"+threadIdxStr,0,1023));
-      else if(cfg.contains("cudaGpuToUse"))
-        cudaGpuIdxByServerThread.push_back(cfg.getInt("cudaGpuToUse",0,1023));
+      if(cfg.contains(backendPrefix+"DeviceToUseModel"+idxStr+"Thread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"DeviceToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"GpuToUseModel"+idxStr+"Thread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains("deviceToUseModel"+idxStr+"Thread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("deviceToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains("gpuToUseModel"+idxStr+"Thread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseModel"+idxStr+"Thread"+threadIdxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"DeviceToUseModel"+idxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"DeviceToUseModel"+idxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"GpuToUseModel"+idxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUseModel"+idxStr,0,1023));
+      else if(cfg.contains("deviceToUseModel"+idxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("deviceToUseModel"+idxStr,0,1023));
+      else if(cfg.contains("gpuToUseModel"+idxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseModel"+idxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"DeviceToUseThread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"DeviceToUseThread"+threadIdxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"GpuToUseThread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUseThread"+threadIdxStr,0,1023));
+      else if(cfg.contains("deviceToUseThread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("deviceToUseThread"+threadIdxStr,0,1023));
+      else if(cfg.contains("gpuToUseThread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseThread"+threadIdxStr,0,1023));
+      else if(cfg.contains(backendPrefix+"DeviceToUse"))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"DeviceToUse",0,1023));
+      else if(cfg.contains(backendPrefix+"GpuToUse"))
+        gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUse",0,1023));
+      else if(cfg.contains("deviceToUse"))
+        gpuIdxByServerThread.push_back(cfg.getInt("deviceToUse",0,1023));
+      else if(cfg.contains("gpuToUse"))
+        gpuIdxByServerThread.push_back(cfg.getInt("gpuToUse",0,1023));
       else
-        cudaGpuIdxByServerThread.push_back(0);
+        gpuIdxByServerThread.push_back(-1);
     }
 
-    bool cudaUseFP16 = false;
-    if(cfg.contains("cudaUseFP16-"+idxStr))
-      cudaUseFP16 = cfg.getBool("cudaUseFP16-"+idxStr);
-    else if(cfg.contains("cudaUseFP16"))
-      cudaUseFP16 = cfg.getBool("cudaUseFP16");
+    string openCLTunerFile;
+    if(cfg.contains("openclTunerFile"))
+      openCLTunerFile = cfg.getString("openclTunerFile");
+    bool openCLReTunePerBoardSize = false;
+    if(cfg.contains("openclReTunePerBoardSize"))
+      openCLReTunePerBoardSize = cfg.getBool("openclReTunePerBoardSize");
 
-    bool cudaUseNHWC = false;
-    if(cfg.contains("cudaUseNHWC"+idxStr))
-      cudaUseNHWC = cfg.getBool("cudaUseNHWC"+idxStr);
-    else if(cfg.contains("cudaUseNHWC"))
-      cudaUseNHWC = cfg.getBool("cudaUseNHWC");
+    vector<int> gpuIdxs = gpuIdxByServerThread;
+    std::sort(gpuIdxs.begin(), gpuIdxs.end());
+    std::unique(gpuIdxs.begin(), gpuIdxs.end());
+
+    bool useFP16 = false;
+    if(cfg.contains(backendPrefix+"UseFP16-"+idxStr))
+      useFP16 = cfg.getBool(backendPrefix+"UseFP16-"+idxStr);
+    else if(cfg.contains("useFP16-"+idxStr))
+      useFP16 = cfg.getBool("useFP16-"+idxStr);
+    else if(cfg.contains(backendPrefix+"UseFP16"))
+      useFP16 = cfg.getBool(backendPrefix+"UseFP16");
+    else if(cfg.contains("useFP16"))
+      useFP16 = cfg.getBool("useFP16");
+
+    bool useNHWC = false;
+    if(cfg.contains(backendPrefix+"UseNHWC"+idxStr))
+      useNHWC = cfg.getBool(backendPrefix+"UseNHWC"+idxStr);
+    else if(cfg.contains("useNHWC"+idxStr))
+      useNHWC = cfg.getBool("useNHWC"+idxStr);
+    else if(cfg.contains(backendPrefix+"UseNHWC"))
+      useNHWC = cfg.getBool(backendPrefix+"UseNHWC");
+    else if(cfg.contains("useNHWC"))
+      useNHWC = cfg.getBool("useNHWC");
+
+    int forcedSymmetry = -1;
+    if(cfg.contains("nnForcedSymmetry"))
+      forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,7);
 
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
-      + " useFP16 " + Global::boolToString(cudaUseFP16)
-      + " useNHWC " + Global::boolToString(cudaUseNHWC)
+      + " useFP16 " + Global::boolToString(useFP16)
+      + " useNHWC " + Global::boolToString(useNHWC)
     );
 
-    int defaultSymmetry = 0;
+    NNEvaluator* nnEval = new NNEvaluator(
+      nnModelName,
+      nnModelFile,
+      gpuIdxs,
+      &logger,
+      modelFileIdx,
+      cfg.getInt("nnMaxBatchSize", 1, 65536),
+      maxConcurrentEvals,
+      nnXLen,
+      nnYLen,
+      requireExactNNLen,
+      inputsUseNHWC,
+      cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
+      cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24),
+      debugSkipNeuralNet,
+      nnPolicyTemperature,
+      openCLTunerFile,
+      openCLReTunePerBoardSize
+    );
+
+    int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;
     nnEval->spawnServerThreads(
       numNNServerThreadsPerModel,
-      nnRandomize,
+      (forcedSymmetry >= 0 ? false : nnRandomize),
       nnRandSeed,
       defaultSymmetry,
       logger,
-      cudaGpuIdxByServerThread,
-      cudaUseFP16,
-      cudaUseNHWC
+      gpuIdxByServerThread,
+      useFP16,
+      useNHWC
     );
 
     nnEvals.push_back(nnEval);
@@ -153,6 +239,14 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   return nnEvals;
 }
 
+SearchParams Setup::loadSingleParams(
+  ConfigParser& cfg
+) {
+  vector<SearchParams> paramss = loadParams(cfg);
+  if(paramss.size() != 1)
+    throw StringError("Config contains parameters for multiple bot configurations, but this KataGo command only supports a single configuration");
+  return paramss[0];
+}
 
 vector<SearchParams> Setup::loadParams(
   ConfigParser& cfg
@@ -206,7 +300,11 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("noResultUtilityForWhite"+idxStr)) params.noResultUtilityForWhite = cfg.getDouble("noResultUtilityForWhite"+idxStr, -1.0, 1.0);
     else                                               params.noResultUtilityForWhite = cfg.getDouble("noResultUtilityForWhite",        -1.0, 1.0);
     if(cfg.contains("drawEquivalentWinsForWhite"+idxStr)) params.drawEquivalentWinsForWhite = cfg.getDouble("drawEquivalentWinsForWhite"+idxStr, 0.0, 1.0);
-    else                                           params.drawEquivalentWinsForWhite = cfg.getDouble("drawEquivalentWinsForWhite",        0.0, 1.0);
+    else                                                  params.drawEquivalentWinsForWhite = cfg.getDouble("drawEquivalentWinsForWhite",        0.0, 1.0);
+
+    if(cfg.contains("dynamicScoreCenterZeroWeight"+idxStr)) params.dynamicScoreCenterZeroWeight = cfg.getDouble("dynamicScoreCenterZeroWeight"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("dynamicScoreCenterZeroWeight"))   params.dynamicScoreCenterZeroWeight = cfg.getDouble("dynamicScoreCenterZeroWeight",        0.0, 1.0);
+    else params.dynamicScoreCenterZeroWeight = 0.0;
 
     if(cfg.contains("cpuctExploration"+idxStr)) params.cpuctExploration = cfg.getDouble("cpuctExploration"+idxStr, 0.0, 10.0);
     else                                        params.cpuctExploration = cfg.getDouble("cpuctExploration",        0.0, 10.0);
@@ -294,4 +392,22 @@ vector<SearchParams> Setup::loadParams(
   }
 
   return paramss;
+}
+
+Player Setup::parseReportAnalysisWinrates(
+  ConfigParser& cfg, Player defaultPerspective
+) {
+  if(!cfg.contains("reportAnalysisWinratesAs"))
+    return defaultPerspective;
+
+  string sOrig = cfg.getString("reportAnalysisWinratesAs");
+  string s = Global::toLower(sOrig);
+  if(s == "b" || s == "black")
+    return P_BLACK;
+  else if(s == "w" || s == "white")
+    return P_WHITE;
+  else if(s == "sidetomove")
+    return C_EMPTY;
+
+  throw StringError("Could not parse config value for reportAnalysisWinratesAs: " + sOrig);
 }

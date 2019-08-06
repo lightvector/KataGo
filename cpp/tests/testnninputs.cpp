@@ -1,9 +1,13 @@
 #include "../tests/tests.h"
-#include "../neuralnet/nninputs.h"
-#include "../dataio/sgf.h"
-using namespace TestCommon;
 
 #include <iomanip>
+
+#include "../neuralnet/nninputs.h"
+#include "../neuralnet/modelversion.h"
+#include "../dataio/sgf.h"
+
+using namespace std;
+using namespace TestCommon;
 
 template <typename T>
 static void printNNInputHWAndBoard(
@@ -11,14 +15,13 @@ static void printNNInputHWAndBoard(
   int nnXLen, int nnYLen, bool inputsUseNHWC, T* row, int c
 ) {
   int numFeatures;
-  if(inputsVersion == 2)
-    numFeatures = NNInputs::NUM_FEATURES_V2;
-  else if(inputsVersion == 3)
-    numFeatures = NNInputs::NUM_FEATURES_BIN_V3;
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+  if(inputsVersion == 3)
+    numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V3;
   else if(inputsVersion == 4)
-    numFeatures = NNInputs::NUM_FEATURES_BIN_V4;
+    numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V4;
   else if(inputsVersion == 5)
-    numFeatures = NNInputs::NUM_FEATURES_BIN_V5;
+    numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V5;
   else
     testAssert(false);
 
@@ -61,6 +64,7 @@ static void printNNInputHWAndBoard(
 template <typename T>
 static void printNNInputGlobal(ostream& out, int inputsVersion, T* row, int c) {
   int numFeatures;
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
   if(inputsVersion == 3)
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V3;
   else if(inputsVersion == 4)
@@ -82,183 +86,6 @@ static string getAndClear(ostringstream& out) {
   return result;
 }
 
-void Tests::runNNInputsV2Tests() {
-  cout << "Running NN inputs V2 tests" << endl;
-  ostringstream out;
-  out << std::setprecision(3);
-
-  {
-    const char* name = "NN Inputs V2 Basic";
-
-    const string sgfStr = "(;FF[4]KM[7.5];B[pd];W[pq];B[dq];W[dd];B[qo];W[pl];B[qq];W[qr];B[pp];W[rq];B[oq];W[qp];B[pr];W[qq];B[oo];W[ro];B[qn];W[do];B[dl];W[gp];B[eo];W[en];B[fo];W[dp];B[eq];W[cq];B[cr];W[br];B[dn];W[bp];B[cn];W[ep];B[fp];W[fq];B[gq];W[fr];B[gr];W[er];B[hp];W[go];B[fn];W[ho];B[ip];W[io];B[jp];W[jo];B[lp];W[kp];B[kq];W[ko];B[lq];W[ir];B[hq];W[jq];B[jr];W[em];B[gm];W[el];B[hl];W[kl];B[ek];W[fk];B[ej];W[fl];B[fj];W[gk];B[ik];W[gj];B[jj];W[dm];B[lk];W[mm];B[nl];W[nm];B[om];W[ol];B[nk];W[ll];B[kk];W[jl];B[im];W[jk];B[ij];W[kj];B[mk];W[ki];B[ih];W[jh];B[ig];W[jg];B[if];W[oi];B[mi];W[mh];B[lh];W[li];B[nh];W[mj];B[ni];W[nj];B[oj];W[lj];B[ok];W[oh];B[ng];W[pj];B[ji];W[kh];B[jf];W[lg];B[cm];W[cl];B[dk];W[bl];B[bk];W[bn];B[ck];W[bm];B[cc];W[cd];B[dc];W[ec];B[eb];W[fb];B[fc];W[ed];B[gb];W[bc];B[cb];W[cg];B[be];W[bd];B[bg];W[bh];B[cf];W[df];B[ch];W[dg];B[bi];W[qd];B[qc];W[rc];B[rd];W[qe];B[re];W[rb];B[pc];W[qb];B[qf];W[ff];B[sc];W[pb];B[bo];W[ob];B[nc];W[nb];B[mb];W[mc];B[lb])";
-
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
-
-    Board board;
-    Player nextPla;
-    BoardHistory hist;
-    Rules initialRules = Rules::getTrompTaylorish();
-    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-    vector<Move>& moves = sgf->moves;
-
-    for(size_t i = 0; i<moves.size(); i++) {
-      hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
-      nextPla = getOpp(moves[i].pla);
-    }
-
-    int nnXLen = 19;
-    int nnYLen = 19;
-    Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
-    float* row = new float[NNInputs::ROW_SIZE_V2];
-
-    auto run = [&](bool inputsUseNHWC) {
-      NNInputs::fillRowV2(board,hist,nextPla,nnXLen,nnYLen,inputsUseNHWC,row);
-      out << hash << endl;
-      for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++)
-        printNNInputHWAndBoard(out,2,board,hist,nnXLen,nnYLen,inputsUseNHWC,row,c);
-      return getAndClear(out);
-    };
-
-    string actualNHWC = run(true);
-    string actualNCHW = run(false);
-    expect(name,actualNHWC,actualNCHW);
-    cout << actualNHWC << endl;
-
-    delete[] row;
-    delete sgf;
-  }
-
-  {
-    const char* name = "NN Inputs V2 Ko and Komi";
-
-    const string sgfStr = "(;FF[4]KM[0.5];B[rj];W[ri];B[si];W[rh];B[sh];W[sg];B[rk];W[sk];B[sl];W[sj];B[eg];W[fg];B[ff];W[gf];B[fh];W[gh];B[gg];W[hg];B[si];W[fg];B[sh];W[sk];B[gg])";
-
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
-
-    Board board;
-    Player nextPla;
-    BoardHistory hist;
-    Rules initialRules = Rules::getTrompTaylorish();
-    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-    vector<Move>& moves = sgf->moves;
-
-    for(size_t i = 0; i<moves.size(); i++) {
-      hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
-      nextPla = getOpp(moves[i].pla);
-    }
-
-    int nnXLen = 19;
-    int nnYLen = 19;
-    Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
-    float* row = new float[NNInputs::ROW_SIZE_V2];
-
-    auto run = [&](bool inputsUseNHWC) {
-      NNInputs::fillRowV2(board,hist,nextPla,nnXLen,nnYLen,inputsUseNHWC,row);
-
-      out << hash << endl;
-      int c = 6;
-      printNNInputHWAndBoard(out,2,board,hist,nnXLen,nnYLen,inputsUseNHWC,row,c);
-      c = 16;
-      printNNInputHWAndBoard(out,2,board,hist,nnXLen,nnYLen,inputsUseNHWC,row,c);
-      return getAndClear(out);
-    };
-
-    string actualNHWC = run(true);
-    string actualNCHW = run(false);
-
-    delete[] row;
-    delete sgf;
-
-    expect(name,actualNHWC,actualNCHW);
-    cout << actualNHWC << endl;
-  }
-
-  {
-    const char* name = "NN Inputs V2 7x7";
-
-    const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Japanese]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
-
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
-
-    Board board;
-    Player nextPla;
-    BoardHistory hist;
-    Rules initialRules = Rules::getTrompTaylorish();
-    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-    vector<Move>& moves = sgf->moves;
-
-    for(size_t i = 0; i<moves.size(); i++) {
-      hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
-      nextPla = getOpp(moves[i].pla);
-    }
-
-    int nnXLen = 7;
-    int nnYLen = 7;
-    Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
-    float* row = new float[NNInputs::ROW_SIZE_V2];
-
-    auto run = [&](bool inputsUseNHWC) {
-      NNInputs::fillRowV2(board,hist,nextPla,nnXLen,nnYLen,inputsUseNHWC,row);
-      out << hash << endl;
-      for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++)
-        printNNInputHWAndBoard(out,2,board,hist,nnXLen,nnYLen,inputsUseNHWC,row,c);
-      return getAndClear(out);
-    };
-
-    string actualNHWC = run(true);
-    string actualNCHW = run(false);
-
-    delete[] row;
-    delete sgf;
-
-    expect(name,actualNHWC,actualNCHW);
-    cout << actualNHWC << endl;
-  }
-
-  {
-    const char* name = "NN Inputs V2 7x7 embedded in 9x9";
-
-    const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Japanese]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
-
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
-
-    Board board;
-    Player nextPla;
-    BoardHistory hist;
-    Rules initialRules = Rules::getTrompTaylorish();
-    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-    vector<Move>& moves = sgf->moves;
-
-    for(size_t i = 0; i<moves.size(); i++) {
-      hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
-      nextPla = getOpp(moves[i].pla);
-    }
-
-    int nnXLen = 9;
-    int nnYLen = 9;
-    Hash128 hash = NNInputs::getHashV2(board,hist,nextPla);
-    float* row = new float[NNInputs::ROW_SIZE_V2];
-
-    auto run = [&](bool inputsUseNHWC) {
-      NNInputs::fillRowV2(board,hist,nextPla,nnXLen,nnYLen,inputsUseNHWC,row);
-      out << hash << endl;
-      for(int c = 0; c<NNInputs::NUM_FEATURES_V2; c++)
-        printNNInputHWAndBoard(out,2,board,hist,nnXLen,nnYLen,inputsUseNHWC,row,c);
-      return getAndClear(out);
-    };
-
-    string actualNHWC = run(true);
-    string actualNCHW = run(false);
-
-    delete[] row;
-    delete sgf;
-
-    expect(name,actualNHWC,actualNCHW);
-    cout << actualNHWC << endl;
-  }
-
-}
-
 
 //==================================================================================================================
 //==================================================================================================================
@@ -272,22 +99,23 @@ void Tests::runNNInputsV3V4Tests() {
   out << std::setprecision(5);
 
   auto allocateRows = [](int version, int nnXLen, int nnYLen, int& numFeaturesBin, int& numFeaturesGlobal, float*& rowBin, float*& rowGlobal) {
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
     if(version == 3) {
-      numFeaturesBin = NNInputs::NUM_FEATURES_BIN_V3;
+      numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V3;
       numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V3;
-      rowBin = new float[NNInputs::NUM_FEATURES_BIN_V3 * nnXLen * nnYLen];
+      rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V3 * nnXLen * nnYLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V3];
     }
     else if(version == 4) {
-      numFeaturesBin = NNInputs::NUM_FEATURES_BIN_V4;
+      numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V4;
       numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V4;
-      rowBin = new float[NNInputs::NUM_FEATURES_BIN_V4 * nnXLen * nnYLen];
+      rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V4 * nnXLen * nnYLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V4];
     }
     else if(version == 5) {
-      numFeaturesBin = NNInputs::NUM_FEATURES_BIN_V5;
+      numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V5;
       numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V5;
-      rowBin = new float[NNInputs::NUM_FEATURES_BIN_V5 * nnXLen * nnYLen];
+      rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V5 * nnXLen * nnYLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V5];
     }
     else
@@ -297,6 +125,7 @@ void Tests::runNNInputsV3V4Tests() {
   auto fillRows = [](int version, Hash128& hash,
                      Board& board, const BoardHistory& hist, Player nextPla, double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool inputsUseNHWC,
                      float* rowBin, float* rowGlobal) {
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
     if(version == 3) {
       hash = NNInputs::getHashV3(board,hist,nextPla,drawEquivalentWinsForWhite);
       NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
@@ -313,6 +142,7 @@ void Tests::runNNInputsV3V4Tests() {
       testAssert(false);
   };
 
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
   int minVersion = 3;
   int maxVersion = 5;
 
@@ -332,6 +162,7 @@ void Tests::runNNInputsV3V4Tests() {
       Player nextPla;
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
       vector<Move>& moves = sgf->moves;
 
@@ -390,6 +221,7 @@ void Tests::runNNInputsV3V4Tests() {
       Player nextPla;
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
       vector<Move>& moves = sgf->moves;
 
@@ -439,7 +271,7 @@ void Tests::runNNInputsV3V4Tests() {
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
 
-    const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Japanese]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
+    const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Tromp-Taylor]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
 
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
@@ -449,6 +281,7 @@ void Tests::runNNInputsV3V4Tests() {
       Player nextPla;
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
       vector<Move>& moves = sgf->moves;
 
@@ -497,7 +330,7 @@ void Tests::runNNInputsV3V4Tests() {
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
 
-    const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Japanese]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
+    const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Tromp-Taylor]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
 
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
@@ -507,6 +340,7 @@ void Tests::runNNInputsV3V4Tests() {
       Player nextPla;
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
       vector<Move>& moves = sgf->moves;
 
@@ -701,6 +535,7 @@ xxx..xx
       Player nextPla;
       BoardHistory hist;
       Rules initialRules = Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 0.0f);
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
 
       int nnXLen = 6;
@@ -769,6 +604,7 @@ xxx..xx
       Player nextPla;
       BoardHistory hist;
       Rules initialRules;
+      initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
       vector<Move>& moves = sgf->moves;
 

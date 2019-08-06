@@ -1,6 +1,8 @@
+#include "../game/boardhistory.h"
 
 #include <algorithm>
-#include "../game/boardhistory.h"
+
+using namespace std;
 
 static Hash128 getKoHash(const Rules& rules, const Board& board, Player pla, int encorePhase, Hash128 koProhibitHash) {
   if(rules.koRule == Rules::KO_SITUATIONAL || encorePhase > 0)
@@ -194,7 +196,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
   initialBoard = board;
   initialPla = pla;
-  
+
   //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
   //we simply return copies of the starting board.
   for(int i = 0; i<NUM_RECENT_BOARDS; i++)
@@ -802,5 +804,3 @@ int KoHashTable::numberOfOccurrencesOfHash(Hash128 hash) const {
   }
   return count;
 }
-
-

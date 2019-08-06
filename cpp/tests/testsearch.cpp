@@ -1,8 +1,14 @@
 #include "../tests/tests.h"
-#include "../search/asyncbot.h"
-#include "../dataio/sgf.h"
+
 #include <algorithm>
 #include <iterator>
+#include <iomanip>
+
+#include "../dataio/sgf.h"
+#include "../neuralnet/nninputs.h"
+#include "../search/asyncbot.h"
+
+using namespace std;
 using namespace TestCommon;
 
 static string getSearchRandSeed() {
@@ -28,34 +34,7 @@ struct TestSearchOptions {
 static void printPolicyValueOwnership(const Board& board, const NNResultBuf& buf) {
   cout << board << endl;
   cout << endl;
-  cout << "Win " << Global::strprintf("%.2fc",buf.result->whiteWinProb*100) << endl;
-  cout << "Loss " << Global::strprintf("%.2fc",buf.result->whiteLossProb*100) << endl;
-  cout << "NoResult " << Global::strprintf("%.2fc",buf.result->whiteNoResultProb*100) << endl;
-  cout << "ScoreMean " << Global::strprintf("%.1f",buf.result->whiteScoreMean) << endl;
-  cout << "ScoreMeanSq " << Global::strprintf("%.1f",buf.result->whiteScoreMeanSq) << endl;
-
-  cout << "Policy" << endl;
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,buf.result->nnXLen);
-      float prob = buf.result->policyProbs[pos];
-      if(prob < 0)
-        cout << "   - ";
-      else
-        cout << Global::strprintf("%4d ", (int)round(prob * 1000));
-    }
-    cout << endl;
-  }
-
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,buf.result->nnXLen);
-      float whiteOwn = buf.result->whiteOwnerMap[pos];
-      cout << Global::strprintf("%5d ", (int)round(whiteOwn * 1000));
-    }
-    cout << endl;
-  }
-  cout << endl;
+  buf.result->debugPrint(cout,board);
 }
 
 static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHistory hist, TestSearchOptions opts) {
@@ -79,13 +58,13 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
-    search->printTree(cout, search->rootNode, options);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
 
     if(opts.printRootPolicy) {
       search->printRootPolicyMap(cout);
     }
     if(opts.printEndingScoreValueBonus) {
-      search->printRootOwnershipMap(cout);
+      search->printRootOwnershipMap(cout, P_WHITE);
       search->printRootEndingScoreValueBonus(cout);
     }
     if(opts.printPlaySelectionValues) {
@@ -113,13 +92,14 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
     bot->clearSearch();
 }
 
-static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules, int turnNumber, double overrideKomi, TestSearchOptions opts) {
+static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnNumber, float overrideKomi, TestSearchOptions opts) {
   CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
   Board board;
   Player nextPla;
   BoardHistory hist;
-  sgf->setupBoardAndHist(rules, board, nextPla, hist, turnNumber);
+  Rules initialRules = sgf->getRulesOrFailAllowUnspecified(defaultRules);
+  sgf->setupBoardAndHist(initialRules, board, nextPla, hist, turnNumber);
   hist.setKomi(overrideKomi);
   runBotOnPosition(bot,board,nextPla,hist,opts);
   delete sgf;
@@ -127,8 +107,10 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& rules,
 
 static NNEvaluator* startNNEval(
   const string& modelFile, Logger& logger, const string& seed, int nnXLen, int nnYLen,
-  int defaultSymmetry, bool inputsUseNHWC, bool cudaUseNHWC, bool cudaUseFP16, bool debugSkipNeuralNet, double nnPolicyTemperature
+  int defaultSymmetry, bool inputsUseNHWC, bool useNHWC, bool useFP16, bool debugSkipNeuralNet, float nnPolicyTemperature
 ) {
+  vector<int> gpuIdxByServerThread = {0};
+  vector<int> gpuIdxs = {0};
   int modelFileIdx = 0;
   int maxBatchSize = 16;
   bool requireExactNNLen = false;
@@ -137,11 +119,14 @@ static NNEvaluator* startNNEval(
   int nnMutexPoolSizePowerOfTwo = 12;
   int maxConcurrentEvals = 1024;
   //bool debugSkipNeuralNet = false;
-  bool alwaysIncludeOwnerMap = false;
+  bool openCLReTunePerBoardSize = false;
   const string& modelName = modelFile;
+  const string openCLTunerFile = "";
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
+    gpuIdxs,
+    &logger,
     modelFileIdx,
     maxBatchSize,
     maxConcurrentEvals,
@@ -152,8 +137,9 @@ static NNEvaluator* startNNEval(
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
-    alwaysIncludeOwnerMap,
-    nnPolicyTemperature
+    nnPolicyTemperature,
+    openCLTunerFile,
+    openCLReTunePerBoardSize
   );
   (void)inputsUseNHWC;
 
@@ -161,9 +147,8 @@ static NNEvaluator* startNNEval(
   bool nnRandomize = false;
   string nnRandSeed = "runSearchTestsRandSeed"+seed;
   //int defaultSymmetry = 0;
-  vector<int> cudaGpuIdxByServerThread = {0};
-  //bool cudaUseFP16 = false;
-  //bool cudaUseNHWC = false;
+  //bool useFP16 = false;
+  //bool useNHWC = false;
 
   nnEval->spawnServerThreads(
     numNNServerThreadsPerModel,
@@ -171,9 +156,9 @@ static NNEvaluator* startNNEval(
     nnRandSeed,
     defaultSymmetry,
     logger,
-    cudaGpuIdxByServerThread,
-    cudaUseFP16,
-    cudaUseNHWC
+    gpuIdxByServerThread,
+    useFP16,
+    useNHWC
   );
 
   return nnEval;
@@ -348,7 +333,8 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     Board board;
     Player nextPla;
     BoardHistory hist;
-    sgf->setupBoardAndHist(Rules::getTrompTaylorish(), board, nextPla, hist, 40);
+    Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+    sgf->setupBoardAndHist(initialRules, board, nextPla, hist, 40);
 
     double drawEquivalentWinsForWhite = 0.5;
     NNResultBuf buf;
@@ -384,7 +370,8 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     Board board;
     Player nextPla;
     BoardHistory hist;
-    sgf->setupBoardAndHist(Rules::getTrompTaylorish(), board, nextPla, hist, 43);
+    Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+    sgf->setupBoardAndHist(initialRules, board, nextPla, hist, 43);
 
     double drawEquivalentWinsForWhite = 0.5;
     NNResultBuf buf;
@@ -514,7 +501,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     cout << "GAME 10 ==========================================================================" << endl;
     cout << "(Tricky endgame seki invasion, testing LCB and dynamic utility recompute)" << endl;
     cout << endl;
-    
+
     SearchParams params;
     params.maxVisits = 280;
     params.staticScoreUtilityFactor = 0.2;
@@ -524,7 +511,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     Rules rules = Rules::getTrompTaylorish();
     TestSearchOptions opts;
 
-    
+
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]SZ[19]HA[6]KM[0.5]AB[dc][oc][qd][ce][qo][pq];W[cp];B[ep];W[eq];B[fq];W[dq];B[fp];W[dn];B[jq];W[jp];B[ip];W[kq];B[iq];W[kp];B[fm];W[io];B[ho];W[in];B[en];W[dm];B[hn];W[oq];B[op];W[pr];B[pp];W[or];B[qr];W[mq];B[mo];W[qj];B[ql];W[qe];B[rd];W[qg];B[pe];W[ic];B[gc];W[lc];B[ch];W[cj];B[eh];W[ec];B[eb];W[dd];B[ed];W[cc];B[fc];W[db];B[cd];W[ec];B[de];W[dc];B[gb];W[ea];B[fb];W[bb];B[bd];W[ca];B[bc];W[ab];B[ee];W[nc];B[nd];W[ob];B[nb];W[mc];B[pb];W[od];B[pc];W[ne];B[md];W[le];B[oe];W[rl];B[rm];W[rk];B[qm];W[ie];B[me];W[mf];B[nf];W[ld];B[pd];W[ge];B[hd];W[he];B[fd];W[mg];B[id];W[jd];B[hh];W[bi];B[bh];W[ln];B[im];W[jm];B[jl];W[km];B[lo];W[ko];B[il];W[ek];B[dp];W[cq];B[do];W[co];B[fj];W[jh];B[ig];W[jg];B[nm];W[re];B[se];W[rf];B[pj];W[pi];B[oj];W[qk];B[oi];W[ph];B[mb];W[pk];B[ol];W[ok];B[nk];W[nj];B[mj];W[ni];B[mi];W[nh];B[mk];W[er];B[lb];W[kb];B[fr];W[fk];B[ff];W[di];B[ci];W[bj];B[ei];W[dj];B[dh];W[sf];B[jr];W[kr];B[sd];W[qs];B[rr];W[gl];B[gm];W[ib];B[ks];W[ls];B[js];W[np];B[no];W[pl];B[pm];W[if];B[mp];W[mr];B[nq];W[nr];B[gg];W[rs];B[og];W[oh];B[mn];W[ll];B[lh];W[ih];B[hg];W[ml];B[nl];W[gj];B[kl];W[lk];B[gi];W[ej];B[fi];W[hl];B[hj];W[lg];B[gk];W[fl];B[hk];W[em];B[hm];W[sm];B[sn];W[sl];B[sp];W[la];B[kj];W[pf];B[of];W[ii];B[lj];W[lm];B[kh];W[kg];B[fa];W[da];B[jj];W[fs];B[gs];W[es];B[ha];W[ia];B[ij];W[ah];B[ag];W[ai];B[pg];W[qf];B[lp];W[lq];B[hb];W[kk];B[jk];W[ac];B[ad];W[ji];B[ki];W[ka];B[oa];W[ma];B[na];W[sr];B[sq];W[ps];B[ss];W[np];B[sr];W[nq];B[mh];W[ng];B[fe];W[jn];B[mm];W[gr];B[hs];W[fn];B[eo];W[hr];B[is];W[gp];B[go];W[gq];B[hp];W[fo];B[])";
 
     opts.noClearBot = true;
@@ -536,14 +523,14 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     options = options.maxDepth(1);
     cout << "Beginning search again and then reprinting, should be same" << endl;
     search->beginSearch(logger);
-    search->printTree(cout, search->rootNode, options);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Making a move O3, should still be same" << endl;
     bot->makeMove(Location::ofString("O3",19,19), P_WHITE);
-    search->printTree(cout, search->rootNode, options);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Beginning search again and then reprinting, now score utils should change a little" << endl;
     search->beginSearch(logger);
-    search->printTree(cout, search->rootNode, options);
-    
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
     delete bot;
   }
 
@@ -601,9 +588,50 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     AsyncBot* botB11 = new AsyncBot(params, nnEval11, &logger, getSearchRandSeed());
     runBotOnPosition(botA11,boardA,nextPla,histA,opts);
     runBotOnPosition(botB11,boardB,nextPla,histB,opts);
-    
+
     delete botA11;
     delete botB11;
+  }
+
+
+  {
+    cout << "GAME 12 ==========================================================================" << endl;
+    cout << "(MultiStoneSuicide rules)" << endl;
+    cout << endl;
+
+    string seed = getSearchRandSeed();
+    for(int i = 0; i <= 1; i++) {
+      Rules rules = Rules::getTrompTaylorish();
+      rules.komi = 0.5;
+      if(i == 1)
+        rules.multiStoneSuicideLegal = false;
+      cout << rules << endl;
+
+      Player nextPla = P_WHITE;
+      Board board = Board::parseBoard(9,9,R"%%(
+..ox..xx.
+.ooxxxx.x
+o..o..oxo
+.oooooooo
+.xxxxxxxx
+....x.x..
+.x.x.x.oo
+....x.oox
+......ox.
+)%%");
+      BoardHistory hist(board,nextPla,rules,0);
+      hist.makeBoardMoveAssumeLegal(board,Location::ofString("H8",board),nextPla,NULL);
+      nextPla = P_BLACK;
+
+      SearchParams params;
+      params.maxVisits = 200;
+
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, seed);
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
   }
 
 }
@@ -611,15 +639,13 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
 
 void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
   cout << "Running search tests" << endl;
-  string tensorflowGpuVisibleDeviceList = "";
-  double tensorflowPerProcessGpuMemoryFraction = 0.3;
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 
   Logger logger;
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
   runBasicPositions(nnEval, logger);
   delete nnEval;
 
@@ -628,19 +654,19 @@ void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNH
 
 void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
   cout << "Running search tests specifically for v3 or later nets" << endl;
-  string tensorflowGpuVisibleDeviceList = "";
-  double tensorflowPerProcessGpuMemoryFraction = 0.3;
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 
   Logger logger;
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0);
-  NNEvaluator* nnEval11 = startNNEval(modelFile,logger,"",11,11,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0);
-  NNEvaluator* nnEvalPTemp = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.5);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
+  NNEvaluator* nnEval11 = startNNEval(modelFile,logger,"",11,11,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
+  NNEvaluator* nnEvalPTemp = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.5f);
   runOwnershipAndMisc(nnEval,nnEval11,nnEvalPTemp,logger);
   delete nnEval;
+  delete nnEval11;
+  delete nnEvalPTemp;
 
   NeuralNet::globalCleanup();
 }
@@ -649,9 +675,7 @@ void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool cuda
 
 void Tests::runNNLessSearchTests() {
   cout << "Running neuralnetless search tests" << endl;
-  string tensorflowGpuVisibleDeviceList = "";
-  double tensorflowPerProcessGpuMemoryFraction = 0.3;
-  NeuralNet::globalInitialize(tensorflowGpuVisibleDeviceList,tensorflowPerProcessGpuMemoryFraction);
+  NeuralNet::globalInitialize();
 
   //Placeholder, doesn't actually do anything since we have debugSkipNeuralNet = true
   string modelFile = "/dev/null";
@@ -666,7 +690,7 @@ void Tests::runNNLessSearchTests() {
     cout << "Basic search with debugSkipNeuralNet and chosen move randomization" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
     SearchParams params;
     params.maxVisits = 100;
     Search* search = new Search(params, nnEval, "autoSearchRandSeed");
@@ -692,7 +716,7 @@ void Tests::runNNLessSearchTests() {
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
-    search->printTree(cout, search->rootNode, options);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
 
     auto sampleChosenMoves = [&]() {
       std::map<Loc,int> moveLocsAndCounts;
@@ -749,7 +773,7 @@ void Tests::runNNLessSearchTests() {
     cout << "Testing preservation of search tree across moves" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
     SearchParams params;
     params.maxVisits = 50;
     Search* search = new Search(params, nnEval, "autoSearchRandSeed");
@@ -782,8 +806,8 @@ ooooooo
       PrintTreeOptions options;
       options = options.maxDepth(1);
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
-      search->printTree(cout, search->rootNode, options.onlyBranch(board,Location::toString(locToDescend,board)));
+      search->printTree(cout, search->rootNode, options, P_WHITE);
+      search->printTree(cout, search->rootNode, options.onlyBranch(board,Location::toString(locToDescend,board)), P_WHITE);
 
       cout << endl;
 
@@ -794,14 +818,14 @@ ooooooo
       nextPla = getOpp(nextPla);
 
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
       cout << endl;
 
       //--------------------------------------
       cout << "Then continue the search to complete 50 visits." << endl;
 
       search->runWholeSearch(nextPla,logger,NULL);
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
       cout << endl;
     }
 
@@ -811,7 +835,7 @@ ooooooo
     cout << endl;
   }
 
-  
+
   {
     cout << "===================================================================" << endl;
     cout << "Testing pruning of search tree across moves due to root restrictions" << endl;
@@ -864,7 +888,7 @@ o..oo.x
 
     {
       cout << "First with no pruning" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
       SearchParams params;
       params.maxVisits = 400;
       Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
@@ -875,7 +899,7 @@ o..oo.x
       PrintTreeOptions options;
       options = options.maxDepth(1);
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       testAssert(hasSuicideRootMoves(search));
 
@@ -887,7 +911,7 @@ o..oo.x
 
     {
       cout << "Next, with rootPruneUselessMoves" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
       SearchParams params;
       params.maxVisits = 400;
       params.rootPruneUselessMoves = true;
@@ -899,7 +923,7 @@ o..oo.x
       PrintTreeOptions options;
       options = options.maxDepth(1);
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       testAssert(!hasSuicideRootMoves(search));
 
@@ -923,7 +947,7 @@ o..oo.x
 
     {
       cout << "Searching on the opponent, the move before" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1b",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1b",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
       SearchParams params;
       params.maxVisits = 400;
       params.rootPruneUselessMoves = true;
@@ -935,8 +959,8 @@ o..oo.x
       PrintTreeOptions options;
       options = options.maxDepth(1);
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
-      search->printTree(cout, search->rootNode, options.onlyBranch(board,"pass"));
+      search->printTree(cout, search->rootNode, options, P_WHITE);
+      search->printTree(cout, search->rootNode, options.onlyBranch(board,"pass"), P_WHITE);
 
       cout << endl;
 
@@ -946,7 +970,7 @@ o..oo.x
       testAssert(hasPassAliveRootMoves(search));
 
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       cout << endl;
 
@@ -956,7 +980,7 @@ o..oo.x
       testAssert(!hasPassAliveRootMoves(search));
 
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       cout << endl;
 
@@ -964,7 +988,7 @@ o..oo.x
       search->runWholeSearch(getOpp(nextPla),logger,NULL);
 
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       delete search;
       delete nnEval;
@@ -995,12 +1019,12 @@ o..o.oo
 
     {
       cout << "First with no pruning" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
       SearchParams params;
       params.maxVisits = 400;
       params.dynamicScoreUtilityFactor = 0.5;
       params.useLcbForSelection = true;
-      
+
       Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
       TestSearchOptions opts;
 
@@ -1010,15 +1034,15 @@ o..o.oo
       options = options.maxDepth(1);
       options = options.printSqs(true);
       cout << search->rootBoard << endl;
-      search->printTree(cout, search->rootNode, options);
-      
+      search->printTree(cout, search->rootNode, options, P_WHITE);
+
       cout << "Begin search is idempotent?" << endl;
       search->beginSearch(logger);
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
       search->makeMove(Location::ofString("B1",board),nextPla);
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
       search->beginSearch(logger);
-      search->printTree(cout, search->rootNode, options);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
 
       delete search;
       delete nnEval;
@@ -1032,7 +1056,7 @@ o..o.oo
     cout << "Non-square board search" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,17,0,true,false,false,true,1.0);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,17,0,true,false,false,true,1.0f);
     SearchParams params;
     params.maxVisits = 100;
     Search* search = new Search(params, nnEval, "autoSearchRandSeed");
@@ -1065,15 +1089,183 @@ o..o.oo
     search->runWholeSearch(nextPla,logger,NULL);
 
     cout << search->rootBoard << endl;
-    
+
     PrintTreeOptions options;
     options = options.maxDepth(1);
-    search->printTree(cout, search->rootNode, options);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
 
     delete search;
     delete nnEval;
     cout << endl;
   }
-  
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Visualize dirichlet noise" << endl;
+    cout << "===================================================================" << endl;
+
+    SearchParams params;
+    params.rootNoiseEnabled = true;
+    Rand rand("noiseVisualize");
+
+    auto run = [&](int xSize, int ySize) {
+      Board board(xSize,ySize);
+      int nnXLen = 19;
+      int nnYLen = 19;
+      float sum = 0.0;
+      int counter = 0;
+
+      float origPolicyProbs[NNPos::MAX_NN_POLICY_SIZE];
+      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+      std::fill(policyProbs,policyProbs+NNPos::MAX_NN_POLICY_SIZE,-1.0f);
+      {
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            int pos = NNPos::xyToPos(x,y,nnXLen);
+            policyProbs[pos] = (float)pow(0.9,counter++);
+            sum += policyProbs[pos];
+          }
+        }
+        int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,nnXLen,nnYLen);
+        policyProbs[pos] = (float)pow(0.9,counter++);
+        sum += policyProbs[pos];
+
+        for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++) {
+          if(policyProbs[i] >= 0.0)
+            policyProbs[i] /= sum;
+        }
+      }
+
+      std::copy(policyProbs,policyProbs+NNPos::MAX_NN_POLICY_SIZE,origPolicyProbs);
+      Search::addDirichletNoise(params, rand, NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+
+      {
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            int pos = NNPos::xyToPos(x,y,nnXLen);
+            cout << Global::strprintf("%+6.2f ", 100.0*(policyProbs[pos] - origPolicyProbs[pos]));
+          }
+          cout << endl;
+        }
+        int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,nnXLen,nnYLen);
+        cout << Global::strprintf("%+6.2f ", 100.0*(policyProbs[pos] - origPolicyProbs[pos]));
+        cout << endl;
+      }
+    };
+
+    run(19,19);
+    run(11,7);
+  }
+
   NeuralNet::globalCleanup();
+}
+
+void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
+  NeuralNet::globalInitialize();
+
+  Board board = Board::parseBoard(5,5,R"%%(
+.....
+...x.
+..o..
+.xxo.
+.....
+)%%");
+
+  Player nextPla = P_WHITE;
+  Rules rules = Rules::getTrompTaylorish();
+  BoardHistory hist(board,nextPla,rules,0);
+
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.setLogTime(false);
+
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",6,6,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
+
+  double drawEquivalentWinsForWhite = 0.5;
+  NNResultBuf buf;
+  bool skipCache = true;
+  bool includeOwnerMap = true;
+  nnEval->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
+
+  printPolicyValueOwnership(board,buf);
+  cout << endl << endl;
+
+  delete nnEval;
+  NeuralNet::globalCleanup();
+}
+
+
+void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16, const string& comparisonFile) {
+  NeuralNet::globalInitialize();
+
+  string sgfStr = "(;SZ[19]FF[3]PW[Go Seigen]WR[9d]PB[Takagawa Shukaku]BR[8d]DT[1957-09-26]KM[0]RE[W+R];B[qd];W[dc];B[pp];W[cp];B[eq];W[oc];B[ce];W[dh];B[fe];W[gc];B[do];W[co];B[dn];W[cm];B[jq];W[qn];B[pn];W[pm];B[on];W[qq];B[qo];W[or];B[mr];W[mq];B[nr];W[oq];B[lq];W[qm];B[rp];W[rq];B[qg];W[mp];B[lp];W[mo];B[om];W[pk];B[kn];W[mm];B[ok];W[pj];B[mk];W[op];B[dm];W[cl];B[dl];W[dk];B[ek];W[ll];B[cn];W[bn];B[bo];W[bm];B[cq];W[bp];B[oj];W[ph];B[qh];W[oi];B[qi];W[pi];B[mi];W[of];B[ki];W[qc];B[rc];W[qe];B[re];W[pd];B[rd];W[de];B[df];W[cd];B[ee];W[dd];B[fg];W[hd];B[jl];W[dj];B[bf];W[fj];B[hg];W[dp];B[ep];W[jk];B[il];W[fk];B[ie];W[he];B[hf];W[gm];B[ke];W[fo];B[eo];W[in];B[ho];W[hn];B[fn];W[gn];B[go];W[io];B[ip];W[jp];B[hq];W[qf];B[rf];W[qb];B[ik];W[lr];B[id];W[kr];B[jr];W[bq];B[ib];W[hb];B[cr];W[rj];B[rb];W[kk];B[ij];W[ic];B[jc];W[jb];B[hc];W[iq];B[ir];W[ic];B[kq];W[kc];B[hc];W[nj];B[nk];W[ic];B[oe];W[jd];B[pe];W[pf];B[od];W[pc];B[md];W[mc];B[me];W[ld];B[ng];W[ri];B[rh];W[pg];B[fl];W[je];B[kg];W[be];B[cf];W[bh];B[bd];W[bc];B[ae];W[kl];B[rn];W[mj];B[lj];W[ni];B[lk];W[mh];B[li];W[mg];B[mf];W[nh];B[jf];W[qj];B[sh];W[rm];B[km];W[if];B[ig];W[dq];B[dr];W[br];B[ci];W[gi];B[ei];W[ej];B[di];W[gl];B[bi];W[cj];B[sq];W[sr];B[so];W[sp];B[fc];W[fb];B[sq];W[lo];B[rr];W[sp];B[ec];W[eb];B[sq];W[ko];B[jn];W[sp];B[nc];W[nb];B[sq];W[nd];B[jo];W[sp];B[qr];W[pq];B[sq];W[ns];B[ks];W[sp];B[bk];W[bj];B[sq];W[ol];B[nl];W[sp];B[aj];W[ck];B[sq];W[nq];B[ls];W[sp];B[gk];W[qp];B[po];W[ro];B[gj];W[eh];B[rp];W[fi];B[sq];W[pl];B[nm];W[sp];B[ch];W[ro];B[dg];W[sn];B[ne];W[er];B[fr];W[cs];B[es];W[fh];B[bb];W[cb];B[ac];W[ba];B[cc];W[el];B[fm];W[bc])";
+
+  CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+  Logger logger;
+  logger.setLogToStdout(false);
+  logger.setLogToStderr(true);
+  logger.setLogTime(false);
+
+  int nnXLen = 19;
+  int nnYLen = 19;
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",nnXLen,nnYLen,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
+  double drawEquivalentWinsForWhite = 0.5;
+  NNResultBuf buf;
+  bool skipCache = true;
+  bool includeOwnerMap = true;
+
+  vector<float> winProbs;
+  vector<float> scoreMeans;
+  vector<float> policyProbs;
+
+  for(int turnNumber = 0; turnNumber<sgf->moves.size(); turnNumber++) {
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
+    sgf->setupBoardAndHist(initialRules, board, nextPla, hist, turnNumber);
+    nnEval->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
+
+    winProbs.push_back(buf.result->whiteWinProb);
+    scoreMeans.push_back(buf.result->whiteScoreMean);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnEval->getNNXLen());
+        policyProbs.push_back(buf.result->policyProbs[pos]);
+      }
+    }
+  }
+
+  if(comparisonFile == "") {
+    cout << std::setprecision(17);
+    cout << std::fixed;
+    for(int i = 0; i<winProbs.size(); i++)
+      cout << winProbs[i] << endl;
+    for(int i = 0; i<scoreMeans.size(); i++)
+      cout << scoreMeans[i] << endl;
+    for(int i = 0; i<policyProbs.size(); i++)
+      cout << policyProbs[i] << endl;
+  }
+  else {
+    ifstream in(comparisonFile);
+    double d;
+    double winProbSquerr = 0.0;
+    for(int i = 0; i<winProbs.size(); i++)
+    { in >> d; winProbSquerr += (d - winProbs[i]) * (d - winProbs[i]); }
+    double scoreMeanSquerr = 0.0;
+    for(int i = 0; i<scoreMeans.size(); i++)
+    { in >> d; scoreMeanSquerr += (d - scoreMeans[i]) * (d - scoreMeans[i]); }
+    double policyProbSquerr = 0.0;
+    for(int i = 0; i<policyProbs.size(); i++)
+    { in >> d; policyProbSquerr += (d - policyProbs[i]) * (d - policyProbs[i]); }
+    cout << "winProbSquerr " << winProbSquerr << endl;
+    cout << "scoreMeanSquerr " << scoreMeanSquerr << endl;
+    cout << "policyProbSquerr " << policyProbSquerr << endl;
+  }
+
+  delete nnEval;
+  delete sgf;
+  NeuralNet::globalCleanup();
+
 }

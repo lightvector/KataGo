@@ -3,8 +3,8 @@
  * Author: davidwu
  */
 
-#ifndef THREADSAFEQUEUE_H
-#define THREADSAFEQUEUE_H
+#ifndef CORE_THREADSAFEQUEUE_H_
+#define CORE_THREADSAFEQUEUE_H_
 
 #include "../core/global.h"
 #include "../core/multithread.h"
@@ -12,7 +12,7 @@
 template<typename T>
 class ThreadSafeQueue
 {
-  vector<T> elts;
+  std::vector<T> elts;
   size_t headIdx;
   size_t maxSize;
   std::mutex mutex;
@@ -103,4 +103,4 @@ class ThreadSafeQueue
 
 };
 
-#endif
+#endif  // CORE_THREADSAFEQUEUE_H_

@@ -1,18 +1,22 @@
-
-#ifndef MULTITHREAD_H_
-#define MULTITHREAD_H_
+#ifndef CORE_MULTITHREAD_H_
+#define CORE_MULTITHREAD_H_
 
 #include "../core/global.h"
-#include "../core/config.h"
+
+//Enable multithreading
+#define MULTITHREADING
 
 #ifdef MULTITHREADING
-#include <thread>
-#include <mutex>
-#include <condition_variable>
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 #define IS_MULTITHREADING_ENABLED true
 #else
 #define IS_MULTITHREADING_ENABLED false
+
+namespace std {
+
 class mutex
 { public:
   inline void lock() {};
@@ -67,4 +71,4 @@ class atomic
 }
 #endif
 
-#endif
+#endif  // CORE_MULTITHREAD_H_

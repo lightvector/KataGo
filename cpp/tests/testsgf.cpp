@@ -1,8 +1,12 @@
 #include "../tests/tests.h"
-#include "../search/asyncbot.h"
-#include "../dataio/sgf.h"
+
 #include <algorithm>
 #include <iterator>
+
+#include "../dataio/sgf.h"
+#include "../search/asyncbot.h"
+
+using namespace std;
 using namespace TestCommon;
 
 void Tests::runSgfTests() {
@@ -21,6 +25,7 @@ void Tests::runSgfTests() {
     BoardHistory hist;
     Rules rules;
     Player pla;
+    rules = sgf->getRulesOrFailAllowUnspecified(rules);
     sgf->setupInitialBoardAndHist(rules,board,pla,hist);
 
     out << "placements" << endl;
@@ -35,21 +40,21 @@ void Tests::runSgfTests() {
     }
 
     out << "Initial board hist " << endl;
-    out << "pla " << playerToString(pla) << endl;    
+    out << "pla " << playerToString(pla) << endl;
     hist.printDebugInfo(out,board);
 
     sgf->setupBoardAndHist(rules,board,pla,hist,sgf->moves.size());
     out << "Final board hist " << endl;
-    out << "pla " << playerToString(pla) << endl;    
+    out << "pla " << playerToString(pla) << endl;
     hist.printDebugInfo(out,board);
 
     delete sgf;
   };
-  
+
   //============================================================================
   {
     const char* name = "Basic Sgf parse test";
-    string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Japanese]SZ[19]KM[5.00]PW[White]PB[Black]AB[dd][pd][dp][pp]PL[W];W[qf];W[md];B[pf];W[pg];B[of];W[];B[tt])";
+    string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Tromp-Taylor]SZ[19]KM[5.00]PW[White]PB[Black]AB[dd][pd][dp][pp]PL[W];W[qf];W[md];B[pf];W[pg];B[of];W[];B[tt])";
     parseAndPrintSgf(sgfStr);
     string expected = R"%%(
 xSize 19
@@ -132,6 +137,97 @@ Rules koPOSITIONALscoreAREAsui1komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 1 White 2 0 0
+Last moves R14 N16 Q14 Q13 P14 pass pass
+
+)%%";
+    expect(name,out,expected);
+  }
+
+    {
+    const char* name = "Japansese Sgf parse test";
+    string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Japanese]SZ[19]KM[5.00]PW[White]PB[Black]AB[dd][pd][dp][pp]PL[W];W[qf];W[md];B[pf];W[pg];B[of];W[];B[tt])";
+    parseAndPrintSgf(sgfStr);
+    string expected = R"%%(
+xSize 19
+ySize 19
+depth 8
+komi 5
+placements
+X D16
+X Q16
+X D4
+X Q4
+moves
+O R14
+O N16
+X Q14
+O Q13
+X P14
+O pass
+X pass
+Initial board hist
+pla White
+HASH: B7F8C756D3C44C031B6A7CDF9164EDA7
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . X . . . . . . . . . . . X . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . X . . . . . . . . . . . X . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+
+Initial pla White
+Encore phase 0
+Rules koSIMPLEscoreTERRITORYsui0komi5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 4
+Game result 0 Empty 0 0 0
+Last moves
+Final board hist
+pla White
+HASH: DD088CF25D937776F4CC6E2CBC169CD4
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . X . . . . . . . . O . . X . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . X X O . .
+13 . . . . . . . . . . . . . . . O . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . X . . . . . . . . . . . X . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+
+Initial pla White
+Encore phase 1
+Rules koSIMPLEscoreTERRITORYsui0komi5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 3
+Game result 0 Empty 0 0 0
 Last moves R14 N16 Q14 Q13 P14 pass pass
 
 )%%";

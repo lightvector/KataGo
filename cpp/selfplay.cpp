@@ -1,4 +1,5 @@
 #include "core/global.h"
+#include "core/datetime.h"
 #include "core/makedir.h"
 #include "core/config_parser.h"
 #include "core/timer.h"
@@ -9,17 +10,16 @@
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
-#include "program/gitinfo.h"
 #include "main.h"
-
-using namespace std;
 
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
 #include <chrono>
-
 #include <csignal>
+
+using namespace std;
+
 static std::atomic<bool> sigReceived(false);
 static std::atomic<bool> shouldStop(false);
 static void signalHandler(int signal)
@@ -71,10 +71,7 @@ namespace {
        sgfOut(sOut),
        rand()
     {
-      vector<SearchParams> paramss = Setup::loadParams(cfg);
-      if(paramss.size() != 1)
-        throw StringError("Can only specify one set of search parameters for self-play");
-      SearchParams baseParams = paramss[0];
+      SearchParams baseParams = Setup::loadSingleParams(cfg);
 
       //Initialize object for randomly pairing bots. Actually since this is only selfplay, this only
       //ever gives is the trivial self-pairing, but we use it also for keeping the game count and some logging.
@@ -166,7 +163,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   string modelsDir;
   string outputDir;
   try {
-    TCLAP::CmdLine cmd("Generate training data via self play", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Generate training data via self play", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
     TCLAP::ValueArg<int>    inputsVersionArg("","inputs-version","Version of neural net input features to use for data",true,0,"INT");
     TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
@@ -199,12 +196,12 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   Logger logger;
   //Log to random file name to better support starting/stopping as well as multiple parallel runs
-  logger.addFile(outputDir + "/log" + Global::getCompactDateTimeString() + "-" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
+  logger.addFile(outputDir + "/log" + DateTime::getCompactDateTimeString() + "-" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
   bool logToStdout = cfg.getBool("logToStdout");
   logger.setLogToStdout(logToStdout);
 
   logger.write("Self Play Engine starting...");
-  logger.write(string("Git revision: ") + GIT_REVISION);
+  logger.write(string("Git revision: ") + Version::getGitRevision());
 
   //Load runner settings
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
@@ -328,17 +325,13 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     logger.write("Found new neural net " + modelName);
 
-    bool debugSkipNeuralNetDefault = (modelFile == "/dev/null");
     // * 2 + 16 just in case to have plenty of room
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
 
     Rand rand;
-    vector<NNEvaluator*> nnEvals =
-      Setup::initializeNNEvaluators(
-        {modelName},{modelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefault,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
-      );
-    assert(nnEvals.size() == 1);
-    NNEvaluator* nnEval = nnEvals[0];
+    NNEvaluator* nnEval = Setup::initializeNNEvaluator(
+      modelName,modelFile,cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+    );
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
 
     string modelOutputDir = outputDir + "/" + modelName;
@@ -588,6 +581,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   //Delete and clean up everything else
   NeuralNet::globalCleanup();
   delete gameRunner;
+  ScoreValue::freeTables();
 
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");

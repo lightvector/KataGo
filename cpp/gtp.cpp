@@ -1,15 +1,16 @@
 #include "core/global.h"
 #include "core/config_parser.h"
 #include "core/timer.h"
+#include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
 #include "main.h"
 
-using namespace std;
-
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
+
+using namespace std;
 
 static const vector<string> knownCommands = {
   //Basic GTP commands
@@ -28,13 +29,19 @@ static const vector<string> knownCommands = {
   "clear_board",
   "komi",
   "play",
+  "undo",
+
+  //GTP extension - specify rules
+  //TODO document this in gtp extensions once we support JP rules and also modify gtp.cfg
+  //to mention this, and also suggest that the config params are defaults since this command can override them
+  "set_rules",
 
   "genmove",
-  "genmove-debug", //Prints additional info to stderr
-  "search-debug", //Prints additional info to stderr, doesn't actually make the move
+  "genmove_debug", //Prints additional info to stderr
+  "search_debug", //Prints additional info to stderr, doesn't actually make the move
 
   //Clears neural net cached evaluations and bot search tree, allows fresh randomization
-  "clear-cache",
+  "clear_cache",
 
   "showboard",
   "place_free_handicap",
@@ -43,6 +50,8 @@ static const vector<string> knownCommands = {
   "time_left",
   "final_score",
   "final_status_list",
+
+  "loadsgf",
 
   //GTP extensions for board analysis
   "lz-analyze",
@@ -70,8 +79,21 @@ static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
 }
 
-static int numHandicapStones(const BoardHistory& hist) {
-  const Board board = hist.initialBoard;
+static int numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory) {
+  //Make the longest possible contiguous sequence of black moves - treat a string of consecutive black
+  //moves at the start of the game as "handicap"
+  Board board = initialBoard;
+  for(int i = 0; i<moveHistory.size(); i++) {
+    Loc moveLoc = moveHistory[i].loc;
+    Player movePla = moveHistory[i].pla;
+    if(movePla != P_BLACK)
+      break;
+    bool isMultiStoneSuicideLegal = true;
+    bool suc = board.playMove(moveLoc,movePla,isMultiStoneSuicideLegal);
+    if(!suc)
+      break;
+  }
+
   int startBoardNumBlackStones = 0;
   int startBoardNumWhiteStones = 0;
   for(int y = 0; y<board.y_size; y++) {
@@ -84,27 +106,30 @@ static int numHandicapStones(const BoardHistory& hist) {
     }
   }
   //If we set up in a nontrivial position, then consider it a non-handicap game.
-  if(startBoardNumWhiteStones == 0)
-    return startBoardNumBlackStones;
-  return 0;
+  if(startBoardNumWhiteStones != 0)
+    return 0;
+  //If there was only one "handicap" stone, then it was a regular game
+  if(startBoardNumBlackStones <= 1)
+    return 0;
+  return startBoardNumBlackStones;
 }
 
 static bool shouldResign(
-  const AsyncBot* bot,
+  const Board initialBoard,
+  const vector<Move>& moveHistory,
+  const Rules& rules,
   Player pla,
   const vector<double>& recentWinLossValues,
   double expectedScore,
   const double resignThreshold,
   const int resignConsecTurns
 ) {
-  const BoardHistory hist = bot->getRootHist();
-  const Board initialBoard = hist.initialBoard;
-
   //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
-  int extraBlackStones = numHandicapStones(hist);
-  if(hist.initialPla == P_WHITE && extraBlackStones > 0)
+  int extraBlackStones = numHandicapStones(initialBoard,moveHistory);
+  //Subtract one since white gets the first move afterward
+  if(extraBlackStones > 0)
     extraBlackStones -= 1;
-  double handicapBlackAdvantage = 15.0 * extraBlackStones + (7.5 - hist.rules.komi);
+  double handicapBlackAdvantage = 15.0 * extraBlackStones + (7.5 - rules.komi);
 
   int minTurnForResignation = 0;
   double noResignationWhenWhiteScoreAbove = initialBoard.x_size * initialBoard.y_size;
@@ -115,7 +140,7 @@ static bool shouldResign(
     //In a handicap game, also only resign if the expected score difference is well behind schedule assuming
     //that we're supposed to catch up over many moves.
     double numTurnsToCatchUp = 0.60 * initialBoard.x_size * initialBoard.y_size - minTurnForResignation;
-    double numTurnsSpent = (double)(hist.moveHistory.size()) - minTurnForResignation;
+    double numTurnsSpent = (double)(moveHistory.size()) - minTurnForResignation;
     if(numTurnsToCatchUp <= 1.0)
       numTurnsToCatchUp = 1.0;
     if(numTurnsSpent <= 0.0)
@@ -130,13 +155,13 @@ static bool shouldResign(
     noResignationWhenWhiteScoreAbove = resignScore;
   }
 
-  if(hist.moveHistory.size() < minTurnForResignation)
+  if(moveHistory.size() < minTurnForResignation)
     return false;
   if(pla == P_WHITE && expectedScore > noResignationWhenWhiteScoreAbove)
     return false;
   if(resignConsecTurns > recentWinLossValues.size())
     return false;
-  
+
   for(int i = 0; i<resignConsecTurns; i++) {
     double winLossValue = recentWinLossValues[recentWinLossValues.size()-1-i];
     Player resignPlayerThisTurn = C_EMPTY;
@@ -148,11 +173,11 @@ static bool shouldResign(
     if(resignPlayerThisTurn != pla)
       return false;
   }
-    
+
   return true;
 }
 
-static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken) {
+static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective) {
   const Search* search = bot->getSearch();
   Board::printBoard(out, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
   out << bot->getRootHist().rules << "\n";
@@ -165,7 +190,7 @@ static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator
   search->printPV(out, search->rootNode, 25);
   out << "\n";
   out << "Tree:\n";
-  search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10));
+  search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
 }
 
 struct GTPEngine {
@@ -174,31 +199,43 @@ struct GTPEngine {
 
   const string nnModelFile;
   const double whiteBonusPerHandicapStone;
-  
+  const int analysisPVLen;
+
   NNEvaluator* nnEval;
   AsyncBot* bot;
 
-  Rules baseRules; //Not including komi, which is always overridden with unhackedKomi + hacks
+  Rules baseRules; //Note that komi here is PRE-hacking where we account for handicap stones and such
   SearchParams params;
-  float unhackedKomi;
   TimeControls bTimeControls;
   TimeControls wTimeControls;
+
+  //This move history doesn't get cleared upon consecutive moves by the same side, and is used
+  //for undo, whereas the one in search does.
+  Board initialBoard;
+  Player initialPla;
+  vector<Move> moveHistory;
 
   vector<double> recentWinLossValues;
   double lastSearchFactor;
 
-  GTPEngine(const string& modelFile, SearchParams initialParams, Rules initialRules, double wBonusPerHandicapStone)
+  Player perspective;
+
+  GTPEngine(const string& modelFile, SearchParams initialParams, Rules initialRules, double wBonusPerHandicapStone, Player persp, int pvLen)
     :nnModelFile(modelFile),
      whiteBonusPerHandicapStone(wBonusPerHandicapStone),
+     analysisPVLen(pvLen),
      nnEval(NULL),
      bot(NULL),
      baseRules(initialRules),
      params(initialParams),
-     unhackedKomi(initialRules.komi),
      bTimeControls(),
      wTimeControls(),
+     initialBoard(),
+     initialPla(P_BLACK),
+     moveHistory(),
      recentWinLossValues(),
-     lastSearchFactor(1.0)
+     lastSearchFactor(1.0),
+     perspective(persp)
   {
   }
 
@@ -207,11 +244,16 @@ struct GTPEngine {
     delete bot;
     delete nnEval;
   }
-  
+
   void stopAndWait() {
     bot->stopAndWait();
   }
-  
+
+  Rules getBaseRules() {
+    return baseRules;
+  }
+
+  //Specify -1 for the sizes for a default
   void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize) {
     if(nnEval != NULL && boardXSize == nnEval->getNNXLen() && boardYSize == nnEval->getNNYLen())
       return;
@@ -224,33 +266,66 @@ struct GTPEngine {
       nnEval = NULL;
       logger.write("Cleaned up old neural net and bot");
     }
-    
+
+    //Initial setup
+    bool wasDefault = false;
+    if(boardXSize == -1 || boardYSize == -1) {
+      boardXSize = 19;
+      boardYSize = 19;
+      wasDefault = true;
+    }
+
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
-      {nnModelFile},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,false,false,boardXSize,boardYSize
+    nnEval = Setup::initializeNNEvaluator(
+      nnModelFile,nnModelFile,cfg,logger,seedRand,maxConcurrentEvals,boardXSize,boardYSize
     );
-    assert(nnEvals.size() == 1);
-    nnEval = nnEvals[0];
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
-    
+
+    {
+      bool rulesWereSupported;
+      nnEval->getSupportedRules(baseRules,rulesWereSupported);
+      if(!rulesWereSupported) {
+        throw StringError("Rules " + baseRules.toString() + " from config file " + cfg.getFileName() + " are NOT supported by neural net");
+      }
+    }
+
+    //On initial setup, size the board to whatever the neural net was initialized with
+    //So that if the net was initalized smaller, we don't fail with a big board
+    if(wasDefault) {
+      boardXSize = nnEval->getNNXLen();
+      boardYSize = nnEval->getNNYLen();
+    }
+
     string searchRandSeed;
     if(cfg.contains("searchRandSeed"))
       searchRandSeed = cfg.getString("searchRandSeed");
     else
       searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
-    
+
     bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
 
     Board board(boardXSize,boardYSize);
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,baseRules,0);
-    setPosition(pla,board,hist);
+    vector<Move> newMoveHistory;
+    setPositionAndRulesExceptKomi(pla,board,hist,board,pla,newMoveHistory);
   }
 
-  void setPosition(Player pla, const Board& board, const BoardHistory& hist) {
+  //IGNORES the komi in hist's rules, but otherwise adopts its rules
+  void setPositionAndRulesExceptKomi(Player pla, const Board& board, const BoardHistory& hist, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
+    //Swap in the new rules, except for the komi
+    Rules r = hist.rules;
+    r.komi = baseRules.komi;
+    baseRules = r;
+
     bot->setPosition(pla,board,hist);
-    updateKomiIfNew(unhackedKomi);
+    initialBoard = newInitialBoard;
+    initialPla = newInitialPla;
+    moveHistory = newMoveHistory;
     recentWinLossValues.clear();
+
+    //This call will re-override whatever komi that bot->setPosition put in for the bot.
+    updateKomiIfNew(baseRules.komi);
   }
 
   void clearBoard() {
@@ -259,15 +334,17 @@ struct GTPEngine {
     Board board(newXSize,newYSize);
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,bot->getRootHist().rules,0);
-    setPosition(pla,board,hist);
+    vector<Move> newMoveHistory;
+    setPositionAndRulesExceptKomi(pla,board,hist,board,pla,newMoveHistory);
   }
-  
-  void updateKomiIfNew(double newUnhackedKomi) {
+
+  void updateKomiIfNew(float newUnhackedKomi) {
     //Komi without whiteBonusPerHandicapStone hack
-    unhackedKomi = newUnhackedKomi;
-    
-    float newKomi = unhackedKomi;
-    newKomi += numHandicapStones(bot->getRootHist()) * whiteBonusPerHandicapStone;
+    baseRules.komi = newUnhackedKomi;
+
+    float newKomi = baseRules.komi;
+    int nHandicapStones = numHandicapStones(initialBoard,moveHistory);
+    newKomi += (float)(nHandicapStones * whiteBonusPerHandicapStone);
     if(newKomi != bot->getRootHist().rules.komi)
       recentWinLossValues.clear();
     bot->setKomiIfNew(newKomi);
@@ -275,13 +352,73 @@ struct GTPEngine {
 
   bool play(Loc loc, Player pla) {
     bool suc = bot->makeMove(loc,pla);
+    if(suc)
+      moveHistory.push_back(Move(loc,pla));
+
+    //Black consecutive moves at the start can change the "handicap" which can cause us to adjust komi
+    updateKomiIfNew(baseRules.komi);
     return suc;
+  }
+
+  bool undo() {
+    if(moveHistory.size() <= 0)
+      return false;
+
+    vector<Move> moveHistoryCopy = moveHistory;
+
+    Board undoneBoard = initialBoard;
+    BoardHistory undoneHist(undoneBoard,initialPla,bot->getRootHist().rules,0);
+    vector<Move> emptyMoveHistory;
+    setPositionAndRulesExceptKomi(initialPla,undoneBoard,undoneHist,initialBoard,initialPla,emptyMoveHistory);
+
+    for(int i = 0; i<moveHistoryCopy.size()-1; i++) {
+      Loc moveLoc = moveHistoryCopy[i].loc;
+      Player movePla = moveHistoryCopy[i].pla;
+      bool suc = play(moveLoc,movePla);
+      assert(suc);
+      (void)suc; //Avoid warning when asserts are off
+    }
+    return true;
+  }
+
+  bool setRulesNotIncludingKomi(Rules newRules, string& error) {
+    assert(nnEval != NULL);
+    newRules.komi = baseRules.komi;
+
+    bool rulesWereSupported;
+    nnEval->getSupportedRules(newRules,rulesWereSupported);
+    if(!rulesWereSupported) {
+      error = "Rules " + newRules.toString() + " are not supported by this neural net version";
+      return false;
+    }
+
+    vector<Move> moveHistoryCopy = moveHistory;
+
+    Board board = initialBoard;
+    BoardHistory hist(board,initialPla,newRules,0);
+    vector<Move> emptyMoveHistory;
+    setPositionAndRulesExceptKomi(initialPla,board,hist,initialBoard,initialPla,emptyMoveHistory);
+
+    for(int i = 0; i<moveHistoryCopy.size(); i++) {
+      Loc moveLoc = moveHistoryCopy[i].loc;
+      Player movePla = moveHistoryCopy[i].pla;
+      bool suc = play(moveLoc,movePla);
+
+      //Because internally we use a highly tolerant test, we don't expect this to actually trigger
+      //even if a rules change did make some earlier moves illegal. But this check simply futureproofs
+      //things in case we ever do
+      if(!suc) {
+        error = "Could not make the rules change, some earlier moves in the game would now become illegal.";
+        return false;
+      }
+    }
+    return true;
   }
 
   void ponder() {
     bot->ponder(lastSearchFactor);
   }
-  
+
   void genMove(
     Player pla,
     Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
@@ -293,7 +430,7 @@ struct GTPEngine {
     response = "";
     responseIsError = false;
     maybeStartPondering = false;
-    
+
     ClockTimer timer;
     nnEval->clearStats();
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
@@ -303,7 +440,7 @@ struct GTPEngine {
     lastSearchFactor = searchFactor;
 
     Loc moveLoc = bot->genMoveSynchronous(pla,tc,searchFactor);
-    bool isLegal = bot->isLegal(moveLoc,pla);
+    bool isLegal = bot->isLegalStrict(moveLoc,pla);
     if(moveLoc == Board::NULL_LOC || !isLegal) {
       responseIsError = true;
       response = "genmove returned null location or illegal move";
@@ -348,16 +485,17 @@ struct GTPEngine {
     }
 
     double timeTaken = timer.getSeconds();
-        
+
     //-------------------------------
-        
+
     //Chat
     if(ogsChatToStderr) {
       int64_t visits = bot->getSearch()->getRootVisits();
       double winrate = 0.5 * (1.0 + (values.winValue - values.lossValue));
-      if(pla == P_BLACK) {
+      //Print winrate from desired perspective
+      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
         winrate = 1.0 - winrate;
-        expectedScore = - expectedScore;
+        expectedScore = -expectedScore;
       }
       cerr << "CHAT:"
            << "Visits " << visits
@@ -365,13 +503,15 @@ struct GTPEngine {
            << " ScoreMean " << Global::strprintf("%.1f", expectedScore)
            << " ScoreStdev " << Global::strprintf("%.1f", values.expectedScoreStdev);
       cerr << " PV ";
-      bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, 6);
+      bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, analysisPVLen);
       cerr << endl;
     }
 
     recentWinLossValues.push_back(winLossValue);
 
-    bool resigned = allowResignation && shouldResign(bot,pla,recentWinLossValues,expectedScore,resignThreshold,resignConsecTurns);
+    bool resigned = allowResignation && shouldResign(
+      initialBoard,moveHistory,bot->getRootHist().rules,pla,recentWinLossValues,expectedScore,resignThreshold,resignConsecTurns
+    );
 
     if(resigned)
       response = "resign";
@@ -380,22 +520,28 @@ struct GTPEngine {
 
     if(logSearchInfo) {
       ostringstream sout;
-      printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken);
+      printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective);
       logger.write(sout.str());
     }
     if(debug) {
-      printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken);
+      printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
     }
 
     if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
       bool suc = bot->makeMove(moveLoc,pla);
+      if(suc)
+        moveHistory.push_back(Move(moveLoc,pla));
       assert(suc);
       (void)suc; //Avoid warning when asserts are off
+
+      //Black consecutive moves at the start can change the "handicap" which can cause us to adjust komi
+      updateKomiIfNew(baseRules.komi);
+
       maybeStartPondering = true;
     }
     return;
   }
-  
+
   void clearCache() {
     bot->clearSearch();
     nnEval->clearCache();
@@ -425,6 +571,7 @@ struct GTPEngine {
     {
       Rules rules = hist.rules;
       hist.clear(board,P_WHITE,rules,0);
+      pla = P_WHITE;
     }
 
     response = "";
@@ -439,18 +586,35 @@ struct GTPEngine {
     response = Global::trim(response);
     (void)responseIsError;
 
-    setPosition(pla,board,hist);
+    vector<Move> newMoveHistory;
+    setPositionAndRulesExceptKomi(pla,board,hist,board,pla,newMoveHistory);
   }
 
+  double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
+    double winrate = 0.5 * (1.0 + data.winLossValue);
+    //Super hacky - in KataGo, lcb is on utility (i.e. also weighting score), not winrate, but if you're using
+    //lz-analyze you probably don't know about utility and expect LCB to be about winrate. So we apply the LCB
+    //radius to the winrate in order to get something reasonable to display, and also scale it proportionally
+    //by how much winrate is supposed to matter relative to score.
+    double radiusScaleHackFactor = search->searchParams.winLossUtilityFactor / (
+      search->searchParams.winLossUtilityFactor +
+      search->searchParams.staticScoreUtilityFactor +
+      search->searchParams.dynamicScoreUtilityFactor +
+      1.0e-20 //avoid divide by 0
+    );
+    //Also another factor of 0.5 because winrate goes from only 0 to 1 instead of -1 to 1 when it's part of utility
+    radiusScaleHackFactor *= 0.5;
+    double lcb = pla == P_WHITE ? winrate - data.radius * radiusScaleHackFactor : winrate + data.radius * radiusScaleHackFactor;
+    return lcb;
+  }
 
   void analyze(Player pla, bool kata, double secondsPerReport, int minMoves, bool showOwnership) {
 
-    static const int analysisPVLen = 9;
     std::function<void(Search* search)> callback;
 
     //lz-analyze
     if(!kata) {
-      callback = [minMoves,pla](Search* search) {
+      callback = [minMoves,pla,this](Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,minMoves,false,analysisPVLen);
         if(buf.size() <= 0)
@@ -462,12 +626,17 @@ struct GTPEngine {
             cout << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
-          winrate = pla == P_BLACK ? -winrate : winrate;
+          double lcb = getHackedLCBForWinrate(search,data,pla);
+          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+            winrate = 1.0-winrate;
+            lcb = 1.0 - lcb;
+          }
           cout << "info";
           cout << " move " << Location::toString(data.move,board);
           cout << " visits " << data.numVisits;
           cout << " winrate " << round(winrate * 10000.0);
           cout << " prior " << round(data.policyPrior * 10000.0);
+          cout << " lcb " << round(lcb * 10000.0);
           cout << " order " << data.order;
           cout << " pv";
           for(int j = 0; j<data.pv.size(); j++)
@@ -478,7 +647,7 @@ struct GTPEngine {
     }
     //kata-analyze
     else {
-      callback = [minMoves,pla,showOwnership](Search* search) {
+      callback = [minMoves,pla,showOwnership,this](Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,minMoves,false,analysisPVLen);
         if(buf.size() <= 0)
@@ -496,15 +665,30 @@ struct GTPEngine {
             cout << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
-          winrate = pla == P_BLACK ? -winrate : winrate;
+          double utility = data.utility;
+          //We still hack the LCB for consistency with LZ-analyze
+          double lcb = getHackedLCBForWinrate(search,data,pla);
+          ///But now we also offer the proper LCB that KataGo actually uses.
+          double utilityLcb = data.lcb;
+          double scoreMean = data.scoreMean;
+          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+            winrate = 1.0-winrate;
+            lcb = 1.0 - lcb;
+            utility = -utility;
+            scoreMean = -scoreMean;
+            utilityLcb = -utilityLcb;
+          }
           cout << "info";
           cout << " move " << Location::toString(data.move,board);
           cout << " visits " << data.numVisits;
-          cout << " utility " << data.utility;
+          cout << " utility " << utility;
+          cout << " radius " << data.radius;
           cout << " winrate " << winrate;
-          cout << " scoreMean " << data.scoreMean;
+          cout << " scoreMean " << scoreMean;
           cout << " scoreStdev " << data.scoreStdev;
           cout << " prior " << data.policyPrior;
+          cout << " lcb " << lcb;
+          cout << " utilityLcb " << utilityLcb;
           cout << " order " << data.order;
           cout << " pv";
           for(int j = 0; j<data.pv.size(); j++)
@@ -519,11 +703,14 @@ struct GTPEngine {
           for(int y = 0; y<board.y_size; y++) {
             for(int x = 0; x<board.x_size; x++) {
               int pos = NNPos::xyToPos(x,y,nnXLen);
-              cout << " " << ownership[pos];
+              if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
+                cout << " " << -ownership[pos];
+              else
+                cout << " " << ownership[pos];
             }
           }
         }
-            
+
         cout << endl;
       };
     }
@@ -532,11 +719,11 @@ struct GTPEngine {
       bot->setAlwaysIncludeOwnerMap(true);
     else
       bot->setAlwaysIncludeOwnerMap(false);
-          
+
     double searchFactor = 1e40; //go basically forever
     bot->analyze(pla, searchFactor, secondsPerReport, callback);
   }
-  
+
 };
 
 
@@ -549,7 +736,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string nnModelFile;
   string overrideVersion;
   try {
-    TCLAP::CmdLine cmd("Run GTP engine", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Run GTP engine", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> nnModelFileArg("","model","Neural net model file",true,string(),"FILE");
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
@@ -572,11 +759,23 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   logger.addFile(cfg.getString("logFile"));
   bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   bool logSearchInfo = cfg.getBool("logSearchInfo");
+  bool loggingToStderr = false;
 
-  if(cfg.contains("logToStderr") && cfg.getBool("logToStderr"))
+  bool startupPrintMessageToStderr = true;
+  if(cfg.contains("startupPrintMessageToStderr"))
+    startupPrintMessageToStderr = cfg.getBool("startupPrintMessageToStderr");
+
+  if(cfg.contains("logToStderr") && cfg.getBool("logToStderr")) {
+    loggingToStderr = true;
     logger.setLogToStderr(true);
+  }
 
   logger.write("GTP Engine starting...");
+  logger.write(Version::getKataGoVersionForHelp());
+  //Also check loggingToStderr so that we don't duplicate the message from the log file
+  if(startupPrintMessageToStderr && !loggingToStderr) {
+    cerr << Version::getKataGoVersionForHelp() << endl;
+  }
 
   Rules initialRules;
   {
@@ -591,13 +790,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     initialRules.komi = komi;
   }
 
-  SearchParams params;
-  {
-    vector<SearchParams> paramss = Setup::loadParams(cfg);
-    if(paramss.size() != 1)
-      throw StringError("Can only specify examply one search bot in gtp mode");
-    params = paramss[0];
-  }
+  SearchParams params = Setup::loadSingleParams(cfg);
+  logger.write("Using " + Global::intToString(params.numThreads) + " CPU thread(s) for search");
 
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
   const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
@@ -611,14 +805,23 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
+  const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,50) : 9;
 
-  GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone);
-  engine->setOrResetBoardSize(cfg,logger,seedRand,19,19);
-  
+  Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
+
+  GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone,perspective,analysisPVLen);
+  engine->setOrResetBoardSize(cfg,logger,seedRand,-1,-1);
+
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
-  logger.write("Beginning main protocol loop");
+  logger.write("Loaded model "+ nnModelFile);
+  logger.write("GTP ready, beginning main protocol loop");
+  //Also check loggingToStderr so that we don't duplicate the message from the log file
+  if(startupPrintMessageToStderr && !loggingToStderr) {
+    cerr << "Loaded model " << nnModelFile << endl;
+    cerr << "GTP ready, beginning main protocol loop" << endl;
+  }
 
   bool currentlyAnalyzing = false;
   string line;
@@ -651,10 +854,16 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           line[i] = ' ';
 
       line = Global::trim(line);
+
+      //Upon any input line at all, stop any analysis and output a newline
+      if(currentlyAnalyzing) {
+        currentlyAnalyzing = false;
+        engine->stopAndWait();
+        cout << endl;
+      }
+
       if(line.length() == 0)
         continue;
-
-      assert(line.length() > 0);
 
       if(logAllGTPCommunication)
         logger.write("Controller: " + line);
@@ -690,12 +899,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       pieces.erase(pieces.begin());
     }
 
-    //Upon any command, stop any analysis and output a newline
-    if(currentlyAnalyzing) {
-      engine->stopAndWait();
-      cout << endl;
-    }
-
     bool responseIsError = false;
     bool shouldQuitAfterResponse = false;
     bool maybeStartPondering = false;
@@ -713,7 +916,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       if(overrideVersion.size() > 0)
         response = overrideVersion;
       else
-        response = "1.1";
+        response = Version::getKataGoVersion();
     }
 
     else if(command == "known_command") {
@@ -730,8 +933,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
 
     else if(command == "list_commands") {
-      for(size_t i = 0; i<knownCommands.size(); i++)
-        response += knownCommands[i] + "\n";
+      for(size_t i = 0; i<knownCommands.size(); i++) {
+        response += knownCommands[i];
+        if(i < knownCommands.size()-1)
+          response += "\n";
+      }
     }
 
     else if(command == "quit") {
@@ -761,7 +967,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         if(Global::tryStringToInt(pieces[0], newXSize) && Global::tryStringToInt(pieces[1], newYSize))
           suc = true;
       }
-      
+
       if(!suc) {
         responseIsError = true;
         response = "Expected int argument for boardsize or pair of ints but got '" + Global::concat(pieces," ") + "'";
@@ -802,6 +1008,25 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         engine->updateKomiIfNew(newKomi);
         //In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
+      }
+    }
+
+    else if(command == "set_rules") {
+      Rules newRules;
+      if(pieces.size() != 1) {
+        response = "Expected single argument for rules but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(!Rules::tryParseRules(pieces[0],newRules)) {
+        responseIsError = true;
+        response = "Unknown rules '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        string error;
+        bool suc = engine->setRulesNotIncludingKomi(newRules,error);
+        if(!suc) {
+          responseIsError = true;
+          response = error;
+        }
       }
     }
 
@@ -939,7 +1164,15 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
-    else if(command == "genmove" || command == "genmove-debug" || command == "search-debug") {
+    else if(command == "undo") {
+      bool suc = engine->undo();
+      if(!suc) {
+        responseIsError = true;
+        response = "cannot undo";
+      }
+    }
+
+    else if(command == "genmove" || command == "genmove_debug" || command == "search_debug") {
       Player pla;
       if(pieces.size() != 1) {
         responseIsError = true;
@@ -950,9 +1183,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Could not parse color: '" + pieces[0] + "'";
       }
       else {
-        bool debug = command == "genmove-debug" || command == "search-debug";
-        bool playChosenMove = command != "search-debug";
-        
+        bool debug = command == "genmove_debug" || command == "search_debug";
+        bool playChosenMove = command != "search_debug";
+
         engine->genMove(
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
@@ -963,8 +1196,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         );
       }
     }
-    
-    else if(command == "clear-cache") {
+
+    else if(command == "clear_cache") {
       engine->clearCache();
     }
     else if(command == "showboard") {
@@ -1017,10 +1250,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         }
         for(int i = 0; i<locs.size(); i++)
           board.setStone(locs[i],P_BLACK);
-        Player pla = P_BLACK;
-        BoardHistory hist(board,pla,engine->bot->getRootHist().rules,0);
 
-        engine->setPosition(pla,board,hist);
+        Player pla = P_WHITE;
+        BoardHistory hist(board,pla,engine->bot->getRootHist().rules,0);
+        vector<Move> newMoveHistory;
+        engine->setPositionAndRulesExceptKomi(pla,board,hist,board,pla,newMoveHistory);
       }
     }
 
@@ -1107,6 +1341,117 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
+    else if(command == "loadsgf") {
+      if(pieces.size() != 1 && pieces.size() != 2) {
+        responseIsError = true;
+        response = "Expected one or two arguments for loadsgf but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        string filename = pieces[0];
+        bool parseFailed = false;
+        bool moveNumberSpecified = false;
+        int moveNumber = 0;
+        if(pieces.size() == 2) {
+          bool suc = Global::tryStringToInt(pieces[1],moveNumber);
+          if(!suc || moveNumber < 0 || moveNumber > 10000000)
+            parseFailed = true;
+          else {
+            moveNumberSpecified = true;
+          }
+        }
+        if(parseFailed) {
+          responseIsError = true;
+          response = "Invalid value for moveNumber for loadsgf";
+        }
+        else {
+          Board sgfInitialBoard;
+          Player sgfInitialNextPla;
+          BoardHistory sgfInitialHist;
+          Board sgfBoard;
+          Player sgfNextPla;
+          BoardHistory sgfHist;
+          float sgfKomi;
+
+          bool sgfParseSuccess = false;
+          CompactSgf* sgf = NULL;
+          try {
+            sgf = CompactSgf::loadFile(filename);
+
+            if(!moveNumberSpecified || moveNumber > sgf->moves.size())
+              moveNumber = sgf->moves.size();
+
+            Rules baseRules = engine->getBaseRules();
+            Rules sgfRules = sgf->getRulesOrWarn(
+              baseRules,
+              [&logger](const string& msg) { logger.write(msg); cerr << msg << endl; }
+            );
+            if(engine->nnEval != NULL) {
+              bool rulesWereSupported;
+              Rules supportedRules = engine->nnEval->getSupportedRules(sgfRules,rulesWereSupported);
+              if(!rulesWereSupported) {
+                ostringstream out;
+                out << "WARNING: Rules " << sgfRules << " from sgf not supported by neural net, using " << supportedRules << " instead";
+                logger.write(out.str());
+                if(!loggingToStderr)
+                  cerr << out.str() << endl;
+                sgfRules = supportedRules;
+              }
+            }
+
+            sgfKomi = sgfRules.komi;
+            //Go ahead and copy over sgf komi so that we only warn about other rules differences
+            baseRules.komi = sgfRules.komi;
+            if(sgfRules != baseRules) {
+              ostringstream out;
+              out << "Changing rules to " << sgfRules;
+              logger.write(out.str());
+              if(!loggingToStderr)
+                cerr << out.str() << endl;
+            }
+
+            sgf->setupInitialBoardAndHist(sgfRules, sgfInitialBoard, sgfInitialNextPla, sgfInitialHist);
+            sgfBoard = sgfInitialBoard;
+            sgfNextPla = sgfInitialNextPla;
+            sgfHist = sgfInitialHist;
+            for(size_t i = 0; i<moveNumber; i++) {
+              Loc moveLoc = sgf->moves[i].loc;
+              Player movePla = sgf->moves[i].pla;
+              bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of our own rules
+              if(!sgfBoard.isLegal(moveLoc,movePla,multiStoneSuicideLegal)) {
+                throw StringError("Illegal move");
+              }
+              sgfHist.makeBoardMoveAssumeLegal(sgfBoard,moveLoc,movePla,NULL);
+              sgfNextPla = getOpp(movePla);
+            }
+
+            delete sgf;
+            sgf = NULL;
+            sgfParseSuccess = true;
+          }
+          catch(...) {
+            delete sgf;
+            sgf = NULL;
+          }
+
+          if(sgfParseSuccess) {
+            if(sgfKomi != engine->getBaseRules().komi) {
+              ostringstream out;
+              out << "Changing komi to " << sgfKomi;
+              logger.write(out.str());
+              if(!loggingToStderr)
+                cerr << out.str() << endl;
+            }
+            engine->updateKomiIfNew(sgfKomi);
+            engine->setPositionAndRulesExceptKomi(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
+          }
+          else {
+            responseIsError = true;
+            response = "cannot load file";
+          }
+        }
+      }
+    }
+
     else if(command == "lz-analyze" || command == "kata-analyze") {
       int numArgsParsed = 0;
 
@@ -1124,11 +1469,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       //avoid <player> <comma-separated moves> <until movenum>
       //minmoves <int min number of moves to show>
       //ownership <bool whether to show ownership or not>
-      
+
       //Parse optional player
       if(pieces.size() > numArgsParsed && tryParsePlayer(pieces[numArgsParsed],pla))
         numArgsParsed += 1;
-      
+
       //Parse optional interval float
       if(pieces.size() > numArgsParsed &&
          Global::tryStringToDouble(pieces[numArgsParsed],lzAnalyzeInterval) &&
@@ -1171,7 +1516,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
                 minMoves >= 0 && minMoves < 1000000000) {
           continue;
         }
-        
+
         else if(command == "kata-analyze" && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
           continue;
         }
@@ -1235,8 +1580,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   delete engine;
   engine = NULL;
   NeuralNet::globalCleanup();
+  ScoreValue::freeTables();
 
   logger.write("All cleaned up, quitting");
   return 0;
 }
-

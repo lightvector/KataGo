@@ -1,5 +1,7 @@
-
 #include "../dataio/trainingwrite.h"
+#include "../neuralnet/modelversion.h"
+
+using namespace std;
 
 ValueTargets::ValueTargets()
   :win(0),
@@ -234,7 +236,7 @@ static float fsq(float x) {
   return x * x;
 }
 
-static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTurn, int idx, Player nextPlayer, float nowFactor, float* buf) {
+static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTurn, int idx, Player nextPlayer, double nowFactor, float* buf) {
   double winValue = 0.0;
   double lossValue = 0.0;
   double noResultValue = 0.0;
@@ -256,8 +258,8 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
     const ValueTargets& targets = whiteValueTargetsByTurn[i];
     winValue += weightNow * (nextPlayer == P_WHITE ? targets.win : targets.loss);
     lossValue += weightNow * (nextPlayer == P_WHITE ? targets.loss : targets.win);
-    noResultValue = weightNow * targets.noResult;
-    score = weightNow * (nextPlayer == P_WHITE ? targets.score : -targets.score);
+    noResultValue += weightNow * targets.noResult;
+    score += weightNow * (nextPlayer == P_WHITE ? targets.score : -targets.score);
   }
   buf[0] = (float)winValue;
   buf[1] = (float)lossValue;
@@ -280,6 +282,7 @@ void TrainingWriteBuffers::addRow(
   const FinishedGameData& data,
   Rand& rand
 ) {
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
   if(inputsVersion < 3 || inputsVersion > 5)
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 
@@ -294,17 +297,17 @@ void TrainingWriteBuffers::addRow(
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
     if(inputsVersion == 3) {
-      assert(NNInputs::NUM_FEATURES_BIN_V3 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_SPATIAL_V3 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V3 == numGlobalChannels);
       NNInputs::fillRowV3(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else if(inputsVersion == 4) {
-      assert(NNInputs::NUM_FEATURES_BIN_V4 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_SPATIAL_V4 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V4 == numGlobalChannels);
       NNInputs::fillRowV4(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else if(inputsVersion == 5) {
-      assert(NNInputs::NUM_FEATURES_BIN_V5 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_SPATIAL_V5 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V5 == numGlobalChannels);
       NNInputs::fillRowV5(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
@@ -491,7 +494,7 @@ void TrainingWriteBuffers::addRow(
       rowScoreDistr[scoreDistrLen] = 100;
     else {
       float lambda = score - (centerScore-0.5f);
-      int upperProp = round(lambda*100.0f);
+      int upperProp = (int)round(lambda*100.0f);
       rowScoreDistr[lowerIdx] = 100-upperProp;
       rowScoreDistr[upperIdx] = upperProp;
     }
@@ -641,15 +644,15 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
   //to feed into a model during selfplay
   if(inputsVersion == 3) {
-    numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V3;
+    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V3;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V3;
   }
   else if(inputsVersion == 4) {
-    numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V4;
+    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V4;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V4;
   }
   else if(inputsVersion == 5) {
-    numBinaryChannels = NNInputs::NUM_FEATURES_BIN_V5;
+    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V5;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V5;
   }
   else {
@@ -817,5 +820,3 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   }
 
 }
-
-

@@ -1,11 +1,11 @@
-#ifndef ASYNCBOT_H
-#define ASYNCBOT_H
+#ifndef SEARCH_ASYNCBOT_H_
+#define SEARCH_ASYNCBOT_H_
 
 #include "../search/search.h"
 
 class AsyncBot {
  public:
-  AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* logger, const string& randSeed);
+  AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* logger, const std::string& randSeed);
   ~AsyncBot();
 
   AsyncBot(const AsyncBot& other) = delete;
@@ -37,7 +37,8 @@ class AsyncBot {
   //Will stop any ongoing search, waiting for a full stop.
   //If the move is not legal for the current player, returns false and does nothing, else returns true
   bool makeMove(Loc moveLoc, Player movePla);
-  bool isLegal(Loc moveLoc, Player movePla) const;
+  bool isLegalTolerant(Loc moveLoc, Player movePla) const;
+  bool isLegalStrict(Loc moveLoc, Player movePla) const;
 
   //Begin searching and produce a move.
   //Will stop any ongoing search, waiting for a full stop.
@@ -67,7 +68,7 @@ class AsyncBot {
     double callbackPeriod, std::function<void(Search* search)> callback
   );
 
-  
+
   //Signal an ongoing genMove or ponder to stop as soon as possible, and wait for the stop to happen.
   //Safe to call even if nothing is running.
   void stopAndWait();
@@ -77,15 +78,15 @@ class AsyncBot {
   Search* search;
   Logger* logger;
 
-  mutex controlMutex;
-  condition_variable threadWaitingToSearch;
-  condition_variable userWaitingForStop;
-  thread searchThread;
+  std::mutex controlMutex;
+  std::condition_variable threadWaitingToSearch;
+  std::condition_variable userWaitingForStop;
+  std::thread searchThread;
 
   bool isRunning;
   bool isPondering;
   bool isKilled;
-  atomic<bool> shouldStopNow;
+  std::atomic<bool> shouldStopNow;
   int queuedSearchId;
   std::function<void(Loc,int)> queuedOnMove;
   TimeControls timeControls;
@@ -93,9 +94,9 @@ class AsyncBot {
   double analyzeCallbackPeriod;
   std::function<void(Search* search)> analyzeCallback;
 
-  void stopAndWaitAlreadyLocked(unique_lock<std::mutex>& lock);
+  void stopAndWaitAlreadyLocked(std::unique_lock<std::mutex>& lock);
   void waitForSearchToEnd();
-  void waitForSearchToEndAlreadyLocked(unique_lock<std::mutex>& lock);
+  void waitForSearchToEndAlreadyLocked(std::unique_lock<std::mutex>& lock);
 
  public:
   //Only for internal use
@@ -103,4 +104,4 @@ class AsyncBot {
 };
 
 
-#endif
+#endif  // SEARCH_ASYNCBOT_H_

@@ -15,7 +15,7 @@ import multiprocessing
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python_io import *
+from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
 
 keys = [
   "binaryInputNCHWPacked",

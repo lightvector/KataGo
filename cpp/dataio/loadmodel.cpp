@@ -1,6 +1,8 @@
-
 #include "../dataio/loadmodel.h"
+
 #include <boost/filesystem.hpp>
+
+using namespace std;
 
 bool LoadModel::findLatestModel(const string& modelsDir, Logger& logger, string& modelName, string& modelFile, string& modelDir, time_t& modelTime) {
   namespace bfs = boost::filesystem;

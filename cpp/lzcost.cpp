@@ -9,6 +9,8 @@
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
+using namespace std;
+
 //a must be smaller than b
 static double approxGCD(double a, double b) {
   while(true) {
@@ -46,7 +48,7 @@ static void printLZCost(const string& lzFile, ofstream& out) {
 
     const double maxReasonableVisits = 20000.0;
 
-    //Find the smallest several distinct reasonable values 
+    //Find the smallest several distinct reasonable values
     double prob0 = 1.0;
     double prob1 = 1.0;
     double prob2 = 1.0;
@@ -85,16 +87,16 @@ static void printLZCost(const string& lzFile, ofstream& out) {
 
     //Invert as the estimate of visits
     double estVisits = 1.0 / gcd;
-    
+
     if(estVisits > maxEstimatedVisits)
       maxEstimatedVisits = estVisits;
     sumEstimatedVisits += estVisits;
     sumMaxProb += maxProb;
     rowCount++;
   };
-  
+
   LZSample::iterSamples(lzFile,f);
-  
+
   //Basically, lzfile, probable max visits, probable based on avg, number of rows, proportion of playouts that might be reusable
   cout << lzFile << "," << (maxEstimatedVisits) << "," << (sumEstimatedVisits/rowCount) << "," << rowCount << "," << (sumMaxProb / rowCount) << endl;
   out << lzFile << "," << (maxEstimatedVisits) << "," << (sumEstimatedVisits/rowCount) << "," << rowCount << "," << (sumMaxProb / rowCount) << endl;
@@ -114,7 +116,7 @@ int MainCmds::lzcost(int argc, const char* const* argv) {
   double sampleProb;
   string outFile;
   try {
-    TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::MultiArg<string> lzdirArg("","lzdir","Directory of leela zero gzipped data files",false,"DIR");
     TCLAP::ValueArg<double> sampleProbArg("","sampleprob","Probability to sample a file",true,0.0,"PROB");
     TCLAP::ValueArg<string> outFileArg("","out","File to write results",true,string(),"FILE");
@@ -150,6 +152,9 @@ int MainCmds::lzcost(int argc, const char* const* argv) {
       printLZCost(lzFiles[i],out);
   }
   out.close();
+
+  ScoreValue::freeTables();
+
   cerr << "Done" << endl;
   return 0;
 }

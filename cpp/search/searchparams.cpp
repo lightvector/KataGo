@@ -8,6 +8,7 @@ SearchParams::SearchParams()
   :winLossUtilityFactor(1.0),
    staticScoreUtilityFactor(0.3),
    dynamicScoreUtilityFactor(0.0),
+   dynamicScoreCenterZeroWeight(0.0),
    noResultUtilityForWhite(0.0),
    drawEquivalentWinsForWhite(0.5),
    cpuctExploration(1.0),

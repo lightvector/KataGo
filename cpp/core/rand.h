@@ -12,16 +12,15 @@
  * XorShift1024Mult (period 2^1024-1)
  */
 
-#ifndef RAND_H
-#define RAND_H
+#ifndef CORE_RAND_H_
+#define CORE_RAND_H_
 
 #include <cassert>
 #include <cmath>
-#include <stdint.h>
 #include <iostream>
-#include "../core/rand_helpers.h"
+#include <stdint.h>
 
-using namespace std;
+#include "../core/rand_helpers.h"
 
 class Rand
 {
@@ -32,7 +31,7 @@ class Rand
   bool hasGaussian;
   double storedGaussian;
 
-  string initSeed;
+  std::string initSeed;
   uint64_t numCalls;
 
  public:
@@ -42,14 +41,14 @@ class Rand
   Rand();
   //Intializes according to the provided seed
   Rand(const char* seed);
-  Rand(const string& seed);
+  Rand(const std::string& seed);
   Rand(uint64_t seed);
 
   //Reinitialize according to system time and some other unique junk
   void init();
   //Reinitialize according to the provided seed
   void init(const char* seed);
-  void init(const string& seed);
+  void init(const std::string& seed);
   void init(uint64_t seed);
 
   ~Rand();
@@ -60,7 +59,7 @@ class Rand
   public:
 
   //MISC-------------------------------------------------
-  string getSeed() const;
+  std::string getSeed() const;
   uint64_t getNumCalls() const;
 
   //UNSIGNED INTEGER-------------------------------------
@@ -114,7 +113,7 @@ class Rand
   static void runTests();
 };
 
-inline string Rand::getSeed() const
+inline std::string Rand::getSeed() const
 {
   return initSeed;
 }
@@ -157,7 +156,9 @@ inline int32_t Rand::nextInt(int32_t a, int32_t b)
 
 inline uint64_t Rand::nextUInt64()
 {
-  return ((uint64_t)nextUInt()) | ((uint64_t)nextUInt() << 32);
+  uint64_t lower = (uint64_t)nextUInt();
+  uint64_t upper = (uint64_t)nextUInt() << 32;
+  return lower | upper;
 }
 
 inline uint64_t Rand::nextUInt64(uint64_t n)
@@ -283,8 +284,13 @@ inline double Rand::nextExponential()
 
 inline double Rand::nextLogistic()
 {
-  double x = nextDouble();
-  return log(x / (1.0 - x));
+  double num = 0.0;
+  double denom = 0.0;
+  while(num <= 0.0 || denom <= 0.0) {
+    num = nextDouble();
+    denom = 1.0 - num;
+  }
+  return log(num / denom);
 }
 
-#endif
+#endif  // CORE_RAND_H_

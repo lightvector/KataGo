@@ -1,14 +1,14 @@
-#ifndef LOADMODEL_H
-#define LOADMODEL_H
+#ifndef DATAIO_LOADMODEL_H_
+#define DATAIO_LOADMODEL_H_
 
 #include "../core/global.h"
 #include "../core/logger.h"
 
 namespace LoadModel {
 
-  bool findLatestModel(const string& modelsDir, Logger& logger, string& modelName, string& modelFile, string& modelDir, time_t& modelTime);
+  bool findLatestModel(const std::string& modelsDir, Logger& logger, std::string& modelName, std::string& modelFile, std::string& modelDir, time_t& modelTime);
 
 }
 
 
-#endif
+#endif  // DATAIO_LOADMODEL_H_

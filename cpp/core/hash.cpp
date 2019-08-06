@@ -1,9 +1,11 @@
+#include "../core/hash.h"
+
 /*
  * hash.cpp
  * Author: David Wu
  */
 
-#include "../core/hash.h"
+using namespace std;
 
 //BITS-----------------------------------
 

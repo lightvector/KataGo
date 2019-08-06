@@ -17,9 +17,13 @@ cpp/matchcuda
 cpp/matchtensorflow
 cpp/match.log
 cpp/main
+cpp/maincuda
+cpp/mainopencl
+cpp/katago
 cpp/configs
 cpp/evalsgf
 cpp/runmatch.sh
+cpp/runmatchauto.sh
 cpp/runstuff.sh
 cpp/runwrite.sh
 
@@ -32,8 +36,11 @@ export_model_cuda.sh
 mixmodels.sh
 runfindposes.sh
 runtraining.sh
+runlztest*.sh
 
 tmp
+tmp.txt
+test.txt
 cpp/tmp
 out.txt
 
@@ -46,3 +53,7 @@ CMakeFiles/
 Makefile
 cmake_install.cmake
 
+.DS_Store
+GPATH
+GRTAGS
+GTAGS

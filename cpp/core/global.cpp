@@ -1,22 +1,31 @@
+#include "../core/global.h"
+
 /*
  * global.cpp
  * Author: David Wu
  */
 
-#include <cstdio>
-#include <cstdarg>
-#include <fstream>
-#include <sstream>
-#include <cstdlib>
-#include <ctime>
 #include <cctype>
-#include <cstring>
-#include <dirent.h> //TODO this is not portable to windows, use C++17 filesystem library when C++17 is available
-#include <inttypes.h>
-#include <sys/types.h>
 #include <chrono>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <fstream>
+#include <inttypes.h>
 #include <iomanip>
+#include <sstream>
+#include <sys/types.h>
+
+//TODO this is not portable to windows, use C++17 filesystem library when C++17 is available
+//It's also actually not used for anything important, so we can gate this away
+#ifndef NO_DIRENT_H
+#include <dirent.h>
+#endif
+
 #include "global.h"
+
 using namespace std;
 
 //ERRORS----------------------------------
@@ -31,21 +40,6 @@ void Global::fatalError(const string& s)
 {
   cout << "\nFATAL ERROR:\n" << s << endl;
   exit(EXIT_FAILURE);
-}
-
-//TIME------------------------------------
-
-string Global::getDateString()
-{
-  time_t rawtime;
-  time(&rawtime);
-  tm* ptm = gmtime(&rawtime);
-
-  ostringstream out;
-  out << (ptm->tm_year+1900) << "-"
-      << (ptm->tm_mon+1) << "-"
-      << (ptm->tm_mday);
-  return out.str();
 }
 
 //STRINGS---------------------------------
@@ -606,13 +600,6 @@ string Global::stripComments(const string& str)
   return result;
 }
 
-string Global::getCompactDateTimeString() {
-  time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  ostringstream out;
-  out << std::put_time(std::localtime(&time), "%Y%m%d-%H%M%S");
-  return out.str();
-}
-
 uint64_t Global::readMem(const string& str)
 {
   if(str.size() < 2)
@@ -699,6 +686,14 @@ vector<string> Global::readFileLines(const string& filename, char delimiter)
 
 
 //TODO this is not portable to windows, reimplement with C++17 filesystem library when C++17 is available
+#ifdef NO_DIRENT_H
+void Global::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected) {
+  (void)dirname;
+  (void)fileFilter;
+  (void)collected;
+  throw StringError("collectFiles not implemented due to no dirent.h");
+}
+#else
 void Global::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected)
 {
   DIR *dir;
@@ -724,7 +719,7 @@ void Global::collectFiles(const string& dirname, std::function<bool(const string
   }
   closedir(dir);
 }
-
+#endif
 
 //USER IO----------------------------
 
@@ -733,11 +728,3 @@ void Global::pauseForKey()
   cout << "Press any key to continue..." << endl;
   cin.get();
 }
-
-
-
-
-
-
-
-

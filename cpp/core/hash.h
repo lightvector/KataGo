@@ -3,10 +3,11 @@
  * Author: David Wu
  */
 
-#ifndef HASH_H_
-#define HASH_H_
+#ifndef CORE_HASH_H_
+#define CORE_HASH_H_
 
 #include <iostream>
+
 #include "../core/global.h"
 
 namespace Hash
@@ -51,7 +52,7 @@ struct Hash128
   Hash128& operator|=(const Hash128 other);
   Hash128& operator&=(const Hash128 other);
 
-  friend ostream& operator<<(ostream& out, const Hash128 other);
+  friend std::ostream& operator<<(std::ostream& out, const Hash128 other);
 };
 
 inline Hash128::Hash128()
@@ -121,4 +122,4 @@ inline Hash128& Hash128::operator&=(const Hash128 other) {
 }
 
 
-#endif /* HASH_H_ */
+#endif  // CORE_HASH_H_

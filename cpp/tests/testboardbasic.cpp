@@ -1,4 +1,6 @@
 #include "../tests/tests.h"
+
+using namespace std;
 using namespace TestCommon;
 
 void Tests::runBoardIOTests() {

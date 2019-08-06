@@ -1,4 +1,5 @@
 #include "core/global.h"
+#include "core/datetime.h"
 #include "core/makedir.h"
 #include "core/config_parser.h"
 #include "core/timer.h"
@@ -9,21 +10,19 @@
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
-#include "program/gitinfo.h"
 #include "main.h"
 
 #include <sstream>
-
-using namespace std;
 
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
 
 #include <cstdio>
-
 #include <chrono>
-
 #include <csignal>
+
+using namespace std;
+
 static std::atomic<bool> sigReceived(false);
 static std::atomic<bool> shouldStop(false);
 static void signalHandler(int signal)
@@ -85,10 +84,7 @@ namespace {
        sgfOut(sOut),
        terminated(false)
     {
-      vector<SearchParams> paramss = Setup::loadParams(cfg);
-      if(paramss.size() != 1)
-        throw StringError("Can only specify one set of search parameters for gatekeeper");
-      SearchParams baseParams = paramss[0];
+      SearchParams baseParams = Setup::loadSingleParams(cfg);
 
       drawEquivalentWinsForWhite = baseParams.drawEquivalentWinsForWhite;
       noResultUtilityForWhite = baseParams.noResultUtilityForWhite;
@@ -223,7 +219,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   string rejectedModelsDir;
   string sgfOutputDir;
   try {
-    TCLAP::CmdLine cmd("Test neural nets to see if they should be accepted", ' ', "1.0",true);
+    TCLAP::CmdLine cmd("Test neural nets to see if they should be accepted", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> testModelsDirArg("","test-models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");
@@ -263,12 +259,12 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
   Logger logger;
   //Log to random file name to better support starting/stopping as well as multiple parallel runs
-  logger.addFile(sgfOutputDir + "/log" + Global::getCompactDateTimeString() + "-" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
+  logger.addFile(sgfOutputDir + "/log" + DateTime::getCompactDateTimeString() + "-" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
   bool logToStdout = cfg.getBool("logToStdout");
   logger.setLogToStdout(logToStdout);
 
   logger.write("Gatekeeper Engine starting...");
-  logger.write(string("Git revision: ") + GIT_REVISION);
+  logger.write(string("Git revision: ") + Version::getGitRevision());
 
   //Load runner settings
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
@@ -350,33 +346,18 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       return NULL;
     }
 
-    bool debugSkipNeuralNetDefaultTest = (testModelFile == "/dev/null");
     // * 2 + 16 just in case to have plenty of room
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
 
-    NNEvaluator* testNNEval;
-    {
-      vector<NNEvaluator*> nnEvals =
-        Setup::initializeNNEvaluators(
-          {testModelName},{testModelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefaultTest,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
-        );
-      assert(nnEvals.size() == 1);
-      logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
-      testNNEval = nnEvals[0];
-    }
+    NNEvaluator* testNNEval = Setup::initializeNNEvaluator(
+      testModelName,testModelFile,cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+    );
+    logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
 
-    bool debugSkipNeuralNetDefaultAccepted = (acceptedModelFile == "/dev/null");
-
-    NNEvaluator* acceptedNNEval;
-    {
-      vector<NNEvaluator*> nnEvals =
-        Setup::initializeNNEvaluators(
-          {acceptedModelName},{acceptedModelFile},cfg,logger,rand,maxConcurrentEvals,debugSkipNeuralNetDefaultAccepted,false,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
-        );
-      assert(nnEvals.size() == 1);
-      logger.write("Loaded accepted neural net " + acceptedModelName + " from: " + acceptedModelFile);
-      acceptedNNEval = nnEvals[0];
-    }
+    NNEvaluator* acceptedNNEval = Setup::initializeNNEvaluator(
+      acceptedModelName,acceptedModelFile,cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+    );
+    logger.write("Loaded accepted neural net " + acceptedModelName + " from: " + acceptedModelFile);
 
     string sgfOutputDirThisModel = sgfOutputDir + "/" + testModelName;
     MakeDir::make(sgfOutputDirThisModel);
@@ -540,6 +521,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   //Delete and clean up everything else
   NeuralNet::globalCleanup();
   delete gameRunner;
+  ScoreValue::freeTables();
 
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");

@@ -1,7 +1,8 @@
-#ifndef DATAPOOL_H
-#define DATAPOOL_H
+#ifndef DATAIO_DATAPOOL_H_
+#define DATAIO_DATAPOOL_H_
 
 #include <functional>
+
 #include "../core/global.h"
 #include "../core/rand.h"
 
@@ -39,4 +40,4 @@ private:
 };
 
 
-#endif
+#endif  // DATAIO_DATAPOOL_H_

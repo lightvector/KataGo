@@ -1,5 +1,5 @@
-#ifndef TIMECONTROLS_H
-#define TIMECONTROLS_H
+#ifndef SEARCH_TIMECONTROLS_H
+#define SEARCH_TIMECONTROLS_H
 
 #include "../core/global.h"
 #include "../game/board.h"
@@ -38,5 +38,4 @@ struct TimeControls {
   void getTime(const Board& board, const BoardHistory& hist, double lagBuffer, double& minTime, double& recommendedTime, double& maxTime) const;
 };
 
-
-#endif
+#endif  // SEARCH_TIMECONTROLS_H_

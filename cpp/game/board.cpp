@@ -1,16 +1,20 @@
+#include "../game/board.h"
+
 /*
  * board.cpp
  * Originally from an unreleased project back in 2010, modified since.
  * Authors: brettharrison (original), David Wu (original and later modificationss).
  */
 
-#include <cassert>
-#include <iostream>
-#include <cstring>
-#include <vector>
 #include <algorithm>
+#include <cassert>
+#include <cstring>
+#include <iostream>
+#include <vector>
+
 #include "../core/rand.h"
-#include "../game/board.h"
+
+using namespace std;
 
 //STATIC VARS-----------------------------------------------------------------------------
 bool Board::IS_ZOBRIST_INITALIZED = false;
