@@ -57,3 +57,7 @@ cmake_install.cmake
 GPATH
 GRTAGS
 GTAGS
+/bin
+/cpp/out/build/x64-Debug/.cmake/api/v1/query/client-MicrosoftVS/query.json
+/.vs/KataGo/v16/.suo
+/.vs/KataGo/v16/Browse.VC.db

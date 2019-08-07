@@ -50,7 +50,7 @@ static const vector<string> knownCommands = {
   "time_left",
   "final_score",
   "final_status_list",
-
+  "kgs-chat",
   "loadsgf",
 
   //GTP extensions for board analysis
@@ -1542,6 +1542,58 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       //Stop any ongoing ponder or analysis
       engine->stopAndWait();
     }
+	// Code for KGS-Chat
+	else if (command.find("kgs-chat") == 0 && pieces.size() == 3) {
+		if (Global::toLower(pieces[2]) == "wr") {
+			bool isplaying = true;
+			ReportedSearchValues values;
+			double winLossValue;
+			double expectedScore;
+			double dynamicScoreValue;
+			if (engine->bot->getSearch()->numRootVisits() > 0)
+			{
+				values = engine->bot->getSearch()->getRootValuesAssertSuccess();
+				winLossValue = values.winLossValue;
+				expectedScore = values.expectedScore;
+				dynamicScoreValue = values.dynamicScoreValue;
+			}
+			else
+			{
+				isplaying = false;
+			}
+			if (isplaying)
+			{
+				//double timeTaken = timer.getSeconds();
+				int64_t visits = engine->bot->getSearch()->getRootVisits();
+				double winrate = 0.5 * (1.0 + (values.winValue - values.lossValue));
+				//Print winrate from desired perspective
+				if (perspective == P_WHITE || (perspective != P_WHITE && perspective != P_BLACK && engine->bot->getRootPla() == P_WHITE)) {
+					winrate = 1.0 - winrate;
+					expectedScore = -expectedScore;
+					dynamicScoreValue = -dynamicScoreValue;
+				}
+				ostringstream sout;
+
+				sout << "Hi " + pieces[1] + "! I reached " << visits
+					<< " visits, my winrate is " << Global::strprintf("%.2f%%", winrate * 100.0)
+					<< " ScoreMean " << Global::strprintf("%.1f", expectedScore)
+					<< " ScoreStdev " << Global::strprintf("%.1f", values.expectedScoreStdev)
+					<< " at dynScVal " << Global::strprintf("%.3f", dynamicScoreValue)
+					;
+				//cerr << " PV ";
+				//engine->bot->getSearch()->printPVForMove(cerr, engine->bot->getSearch()->rootNode, moveloc, analysisPVLen);
+				sout << endl;
+				response = sout.str();
+			}
+			else
+			{
+				response = "Hello " + pieces[1] + "! I'm not playing, no values atm.";
+			}
+		}
+		else {
+			response = "Hello " + pieces[1] + "! Excuse me. I only know wr (=winrate) for chatting.";
+		}
+	}
 
     else {
       responseIsError = true;
