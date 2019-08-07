@@ -62,7 +62,7 @@ namespace Location
 STRUCT_NAMED_PAIR(Loc,loc,Player,pla,Move);
 
 //Fast lightweight board designed for playouts and simulations, where speed is essential.
-//Undo, hashing, history, not supported. Simple ko rule only.
+//Simple ko rule only.
 //Does not enforce player turn order.
 
 struct Board
