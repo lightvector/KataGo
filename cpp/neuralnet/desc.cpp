@@ -17,6 +17,18 @@ static void checkWeightFinite(float f, const string& name) {
 #define CHECKFINITE(x, name) \
   { checkWeightFinite((x), name); }
 
+//For some strange reason, this function is noticeably faster than
+//float x; in >> x;
+static float readFloatFast(istream& in, string& tmp) {
+  in >> tmp;
+  char* endPtr;
+  const char* cstr = tmp.c_str();
+  float x = strtof(cstr,&endPtr);
+  if(endPtr == cstr)
+    in.setstate(ios_base::failbit);
+  return x;
+}
+
 ConvLayerDesc::ConvLayerDesc()
   : convYSize(0), convXSize(0), inChannels(0), outChannels(0), dilationY(1), dilationX(1) {}
 
@@ -50,12 +62,12 @@ ConvLayerDesc::ConvLayerDesc(istream& in) {
   int yStride = convXSize;
   int xStride = 1;
 
+  string tmp;
   for(int y = 0; y < convYSize; y++) {
     for(int x = 0; x < convXSize; x++) {
       for(int ic = 0; ic < inChannels; ic++) {
         for(int oc = 0; oc < outChannels; oc++) {
-          float w;
-          in >> w;
+          float w = readFloatFast(in,tmp);
           CHECKFINITE(w, name);
           weights[oc * ocStride + ic * icStride + y * yStride + x * xStride] = w;
         }
@@ -101,23 +113,24 @@ BatchNormLayerDesc::BatchNormLayerDesc(istream& in) {
   if(epsilon <= 0)
     throw StringError(name + ": epsilon (" + Global::floatToString(epsilon) + ") <= 0");
 
+  string tmp;
   float w;
   mean.resize(numChannels);
   for(int c = 0; c < numChannels; c++) {
-    in >> w;
+    w = readFloatFast(in,tmp);
     CHECKFINITE(w, name);
     mean[c] = w;
   }
   variance.resize(numChannels);
   for(int c = 0; c < numChannels; c++) {
-    in >> w;
+    w = readFloatFast(in,tmp);
     CHECKFINITE(w, name);
     variance[c] = w;
   }
   scale.resize(numChannels);
   for(int c = 0; c < numChannels; c++) {
     if(hasScale)
-      in >> w;
+      w = readFloatFast(in,tmp);
     else
       w = 1.0;
     CHECKFINITE(w, name);
@@ -126,7 +139,7 @@ BatchNormLayerDesc::BatchNormLayerDesc(istream& in) {
   bias.resize(numChannels);
   for(int c = 0; c < numChannels; c++) {
     if(hasBias)
-      in >> w;
+      w = readFloatFast(in,tmp);
     else
       w = 1.0;
     CHECKFINITE(w, name);
@@ -193,10 +206,10 @@ MatMulLayerDesc::MatMulLayerDesc(istream& in) {
   int icStride = outChannels;
   int ocStride = 1;
 
+  string tmp;
   for(int ic = 0; ic < inChannels; ic++) {
     for(int oc = 0; oc < outChannels; oc++) {
-      float w;
-      in >> w;
+      float w = readFloatFast(in,tmp);
       CHECKFINITE(w, name);
       weights[oc * ocStride + ic * icStride] = w;
     }
@@ -232,9 +245,9 @@ MatBiasLayerDesc::MatBiasLayerDesc(istream& in) {
 
   weights.resize(numChannels);
 
+  string tmp;
   for(int c = 0; c < numChannels; c++) {
-    float w;
-    in >> w;
+    float w = readFloatFast(in,tmp);
     CHECKFINITE(w, name);
     weights[c] = w;
   }
