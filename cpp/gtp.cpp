@@ -51,6 +51,7 @@ static const vector<string> knownCommands = {
   "final_score",
   "final_status_list",
   "kgs-chat",
+  "kgs-time_settings",
   "loadsgf",
 
   //GTP extensions for board analysis
@@ -1029,67 +1030,126 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         }
       }
     }
+	else if (command == "kgs-time_settings" && pieces[0] != "canadian") {
+		double mainTime;
+		double byoYomiTime;
+		int originalNumPeriods;
+		if (pieces.size() != 4
+			|| pieces[0] != "byoyomi"
+			|| !Global::tryStringToDouble(pieces[1], mainTime)
+			|| !Global::tryStringToDouble(pieces[2], byoYomiTime)
+			|| !Global::tryStringToInt(pieces[3], originalNumPeriods)
+			) {
+			if (pieces.size() != 2
+				|| pieces[0] != "absolut"
+				|| !Global::tryStringToDouble(pieces[1], mainTime)
+				) {
+				responseIsError = true;
+				response = "Expected byoyomi 3 ints for kgs-time_settings but got '" + Global::concat(pieces, " ") + "'";
+			}
+			else
+			{
+				byoYomiTime = 0.0;
+				originalNumPeriods = 0;
+			}
+		}
+		else if (isnan(mainTime) || mainTime < 0.0 || mainTime > 1e50) {
+			responseIsError = true;
+			response = "invalid main_time";
+		}
+		else if (isnan(byoYomiTime) || byoYomiTime < 0.0 || byoYomiTime > 1e50) {
+			responseIsError = true;
+			response = "invalid byo_yomi_time";
+		}
+		else if (originalNumPeriods < 0 || originalNumPeriods > 200) {
+			responseIsError = true;
+			response = "invalid byo_yomi_originalNumPeriods";
+		}
+		else
+		{
+			TimeControls tc;
+			tc.originalMainTime = mainTime;
+			tc.increment = 0.0;
+			tc.originalNumPeriods = originalNumPeriods;
+			tc.numStonesPerPeriod = 1;
+			if (pieces[0] == "absolut")
+			{
+				tc.numStonesPerPeriod = 0;
+			}
+			tc.perPeriodTime = byoYomiTime;
+			tc.mainTimeLeft = mainTime;
+			tc.inOvertime = false;
+			tc.numPeriodsLeftIncludingCurrent = originalNumPeriods;
+			tc.numStonesLeftInPeriod = 0;
+			tc.timeLeftInPeriod = byoYomiTime;
+			engine->bTimeControls = tc;
+			engine->wTimeControls = tc;
+		}
+	}
+	else if (command == "time_settings" || (command == "kgs-time_settings" && pieces[0] == "canadian")) {
+		if (command == "kgs-time_settings" && pieces[0] == "canadian")
+		{
+			pieces.erase(pieces.begin());
+		}
+		double mainTime;
+		double byoYomiTime;
+		int byoYomiStones;
+		if (pieces.size() != 3
+			|| !Global::tryStringToDouble(pieces[0], mainTime)
+			|| !Global::tryStringToDouble(pieces[1], byoYomiTime)
+			|| !Global::tryStringToInt(pieces[2], byoYomiStones)
+			) {
+			responseIsError = true;
+			response = "Expected 2 floats and an int for time_settings but got '" + Global::concat(pieces, " ") + "'";
+		}
+		else if (isnan(mainTime) || mainTime < 0.0 || mainTime > 1e50) {
+			responseIsError = true;
+			response = "invalid main_time";
+		}
+		else if (isnan(byoYomiTime) || byoYomiTime < 0.0 || byoYomiTime > 1e50) {
+			responseIsError = true;
+			response = "invalid byo_yomi_time";
+		}
+		else if (byoYomiStones < 0 || byoYomiStones > 100000) {
+			responseIsError = true;
+			response = "invalid byo_yomi_stones";
+		}
+		else {
+			TimeControls tc;
+			//This means no time limits, according to gtp spec
+			if (byoYomiStones == 0 && byoYomiTime > 0.0) {
+				//do nothing, tc already no limits by default
+			}
+			//Absolute time
+			else if (byoYomiStones == 0) {
+				tc.originalMainTime = mainTime;
+				tc.increment = 0.0;
+				tc.originalNumPeriods = 0;
+				tc.numStonesPerPeriod = 0;
+				tc.perPeriodTime = 0.0;
+				tc.mainTimeLeft = mainTime;
+				tc.inOvertime = false;
+				tc.numPeriodsLeftIncludingCurrent = 0;
+				tc.numStonesLeftInPeriod = 0;
+				tc.timeLeftInPeriod = 0;
+			}
+			else {
+				tc.originalMainTime = mainTime;
+				tc.increment = 0.0;
+				tc.originalNumPeriods = 1;
+				tc.numStonesPerPeriod = byoYomiStones;
+				tc.perPeriodTime = byoYomiTime;
+				tc.mainTimeLeft = mainTime;
+				tc.inOvertime = false;
+				tc.numPeriodsLeftIncludingCurrent = 1;
+				tc.numStonesLeftInPeriod = 0;
+				tc.timeLeftInPeriod = 0;
+			}
 
-    else if(command == "time_settings") {
-      double mainTime;
-      double byoYomiTime;
-      int byoYomiStones;
-      if(pieces.size() != 3
-         || !Global::tryStringToDouble(pieces[0],mainTime)
-         || !Global::tryStringToDouble(pieces[1],byoYomiTime)
-         || !Global::tryStringToInt(pieces[2],byoYomiStones)
-         ) {
-        responseIsError = true;
-        response = "Expected 2 floats and an int for time_settings but got '" + Global::concat(pieces," ") + "'";
-      }
-      else if(isnan(mainTime) || mainTime < 0.0 || mainTime > 1e50) {
-        responseIsError = true;
-        response = "invalid main_time";
-      }
-      else if(isnan(byoYomiTime) || byoYomiTime < 0.0 || byoYomiTime > 1e50) {
-        responseIsError = true;
-        response = "invalid byo_yomi_time";
-      }
-      else if(byoYomiStones < 0 || byoYomiStones > 100000) {
-        responseIsError = true;
-        response = "invalid byo_yomi_stones";
-      }
-      else {
-        TimeControls tc;
-        //This means no time limits, according to gtp spec
-        if(byoYomiStones == 0 && byoYomiTime > 0.0) {
-          //do nothing, tc already no limits by default
-        }
-        //Absolute time
-        else if(byoYomiStones == 0) {
-          tc.originalMainTime = mainTime;
-          tc.increment = 0.0;
-          tc.originalNumPeriods = 0;
-          tc.numStonesPerPeriod = 0;
-          tc.perPeriodTime = 0.0;
-          tc.mainTimeLeft = mainTime;
-          tc.inOvertime = false;
-          tc.numPeriodsLeftIncludingCurrent = 0;
-          tc.numStonesLeftInPeriod = 0;
-          tc.timeLeftInPeriod = 0;
-        }
-        else {
-          tc.originalMainTime = mainTime;
-          tc.increment = 0.0;
-          tc.originalNumPeriods = 1;
-          tc.numStonesPerPeriod = byoYomiStones;
-          tc.perPeriodTime = byoYomiTime;
-          tc.mainTimeLeft = mainTime;
-          tc.inOvertime = false;
-          tc.numPeriodsLeftIncludingCurrent = 1;
-          tc.numStonesLeftInPeriod = 0;
-          tc.timeLeftInPeriod = 0;
-        }
-
-        engine->bTimeControls = tc;
-        engine->wTimeControls = tc;
-      }
-    }
+			engine->bTimeControls = tc;
+			engine->wTimeControls = tc;
+		}
+	}
 
     else if(command == "time_left") {
       Player pla;
@@ -1123,11 +1183,23 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           tc.timeLeftInPeriod = 0;
         }
         else {
-          tc.mainTimeLeft = 0.9;
-          tc.inOvertime = true;
-          tc.numPeriodsLeftIncludingCurrent = 1;
-          tc.numStonesLeftInPeriod = stones;
-          tc.timeLeftInPeriod = time;
+			if (tc.perPeriodTime > 0.0)
+			{
+				// byo-yomi
+				tc.mainTimeLeft = 0;
+				tc.inOvertime = true;
+				tc.numPeriodsLeftIncludingCurrent = stones;
+				tc.numStonesLeftInPeriod = 1;
+				tc.timeLeftInPeriod = time;
+			}
+			else
+			{
+				tc.mainTimeLeft = 0.9;
+				tc.inOvertime = true;
+				tc.numPeriodsLeftIncludingCurrent = 1;
+				tc.numStonesLeftInPeriod = stones;
+				tc.timeLeftInPeriod = time;
+			}
         }
         if(pla == P_BLACK)
           engine->bTimeControls = tc;
@@ -1594,7 +1666,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 			response = "Hello " + pieces[1] + "! Excuse me. I only know wr (=winrate) for chatting.";
 		}
 	}
-
+	
     else {
       responseIsError = true;
       response = "unknown command";
