@@ -79,41 +79,6 @@ static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
 }
 
-static int numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory) {
-  //Make the longest possible contiguous sequence of black moves - treat a string of consecutive black
-  //moves at the start of the game as "handicap"
-  Board board = initialBoard;
-  for(int i = 0; i<moveHistory.size(); i++) {
-    Loc moveLoc = moveHistory[i].loc;
-    Player movePla = moveHistory[i].pla;
-    if(movePla != P_BLACK)
-      break;
-    bool isMultiStoneSuicideLegal = true;
-    bool suc = board.playMove(moveLoc,movePla,isMultiStoneSuicideLegal);
-    if(!suc)
-      break;
-  }
-
-  int startBoardNumBlackStones = 0;
-  int startBoardNumWhiteStones = 0;
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(board.colors[loc] == C_BLACK)
-        startBoardNumBlackStones += 1;
-      else if(board.colors[loc] == C_WHITE)
-        startBoardNumWhiteStones += 1;
-    }
-  }
-  //If we set up in a nontrivial position, then consider it a non-handicap game.
-  if(startBoardNumWhiteStones != 0)
-    return 0;
-  //If there was only one "handicap" stone, then it was a regular game
-  if(startBoardNumBlackStones <= 1)
-    return 0;
-  return startBoardNumBlackStones;
-}
-
 static bool shouldResign(
   const Board initialBoard,
   const vector<Move>& moveHistory,
@@ -125,7 +90,7 @@ static bool shouldResign(
   const int resignConsecTurns
 ) {
   //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
-  int extraBlackStones = numHandicapStones(initialBoard,moveHistory);
+  int extraBlackStones = Play::numHandicapStones(initialBoard,moveHistory);
   //Subtract one since white gets the first move afterward
   if(extraBlackStones > 0)
     extraBlackStones -= 1;
@@ -343,7 +308,7 @@ struct GTPEngine {
     baseRules.komi = newUnhackedKomi;
 
     float newKomi = baseRules.komi;
-    int nHandicapStones = numHandicapStones(initialBoard,moveHistory);
+    int nHandicapStones = Play::numHandicapStones(initialBoard,moveHistory);
     newKomi += (float)(nHandicapStones * whiteBonusPerHandicapStone);
     if(newKomi != bot->getRootHist().rules.komi)
       recentWinLossValues.clear();

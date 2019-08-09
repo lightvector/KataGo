@@ -131,7 +131,7 @@ class MatchPairer {
 
   int matchRepFactor;
   int repsOfLastMatchup;
-  
+
   int64_t numGamesStartedSoFar;
   int64_t numGamesTotal;
   int64_t logGamesEvery;
@@ -151,13 +151,13 @@ struct FancyModes {
   double noCompensateKomiProb;
   //Use this many visits in a short search to estimate the score, for adjusting komi
   int compensateKomiVisits;
-  
+
   //Occasionally fork an entire new game to try out an experimental move in the opening
   double earlyForkGameProb; //Expected number of forked games per game
   double earlyForkGameExpectedMoveProp; //Fork on average within the first board area * this prop moves
   int earlyForkGameMinChoices; //Fork between the favorite of this many random legal moves, at minimum
   int earlyForkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
-  
+
   //With this probability, use only this many visits for a move, and record it with only this weight
   double cheapSearchProb;
   int cheapSearchVisits;
@@ -169,7 +169,7 @@ struct FancyModes {
   int reduceVisitsThresholdLookback; //Value must be more extreme over the last this many turns
   int reducedVisitsMin; //Number of visits at the most extreme winrate
   float reducedVisitsWeight; //Amount of weight to put on the training sample at minimum visits winrate.
-  
+
   //Record positions from within the search tree that had at least this many visits, recording only with this weight.
   bool recordTreePositions;
   int recordTreeThreshold;
@@ -226,7 +226,7 @@ namespace Play {
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
-  
+
   void maybeForkGame(
     const FinishedGameData* finishedGameData,
     const InitialPosition** nextInitialPosition,
@@ -263,6 +263,8 @@ namespace Play {
     const std::vector<double>& recentWinLossValues,
     Player pla
   );
+
+  int numHandicapStones(const Board& initialBoard, const std::vector<Move>& moveHistory);
 }
 
 
