@@ -26,6 +26,7 @@ match : Run self-play match games based on a config, more efficient than gtp due
 evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
 version : Print version and exit.
 
+analysis : Runs an engine designed to analyze entire games in parallel.
 benchmark : Test speed with different numbers of search threads.
 tuner : (OpenCL only) Run tuning to find and optimize parameters that work on your GPU.
 
@@ -56,6 +57,8 @@ sandbox
 }
 
 static int handleSubcommand(const string& subcommand, int argc, const char* argv[]) {
+  if(subcommand == "analysis")
+    return MainCmds::analysis(argc-1,&argv[1]);
   if(subcommand == "benchmark")
     return MainCmds::benchmark(argc-1,&argv[1]);
   if(subcommand == "evalsgf")
