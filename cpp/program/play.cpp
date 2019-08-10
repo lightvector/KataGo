@@ -421,7 +421,7 @@ static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
   sout << "Bot returned null location or illegal move!?!" << "\n";
   sout << board << "\n";
   sout << bot->getRootBoard() << "\n";
-  sout << "Pla: " << playerToString(bot->getRootPla()) << "\n";
+  sout << "Pla: " << PlayerIO::playerToString(bot->getRootPla()) << "\n";
   sout << "Loc: " << Location::toString(loc,bot->getRootBoard()) << "\n";
   logger.write(sout.str());
   bot->getRootBoard().checkConsistency();
@@ -1392,7 +1392,7 @@ void Play::maybeForkGame(
     Loc loc = finishedGameData->endHist.moveHistory[i].loc;
     if(!hist.isLegal(board,loc,pla)) {
       cout << board << endl;
-      cout << colorToChar(pla) << endl;
+      cout << PlayerIO::colorToChar(pla) << endl;
       cout << Location::toString(loc,board) << endl;
       hist.printDebugInfo(cout,board);
       cout << endl;

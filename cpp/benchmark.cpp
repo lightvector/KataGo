@@ -256,7 +256,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
         if(!board.isLegal(moves[moveNum].loc,moves[moveNum].pla,multiStoneSuicideLegal)) {
           cerr << endl;
           cerr << board << endl;
-          cerr << "SGF Illegal move " << (moveNum+1) << " for " << colorToChar(moves[moveNum].pla) << ": " << Location::toString(moves[moveNum].loc,board) << endl;
+          cerr << "SGF Illegal move " << (moveNum+1) << " for " << PlayerIO::colorToChar(moves[moveNum].pla) << ": " << Location::toString(moves[moveNum].loc,board) << endl;
           throw StringError("Illegal move in SGF");
         }
         hist.makeBoardMoveAssumeLegal(board,moves[moveNum].loc,moves[moveNum].pla,NULL);

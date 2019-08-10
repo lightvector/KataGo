@@ -73,10 +73,10 @@ void Tests::runRulesTests() {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(board.colors[loc] == C_EMPTY && !board.isIllegalSuicide(loc,pla,hist.rules.multiStoneSuicideLegal) && !hist.isLegal(board,loc,pla)) {
-          o << "Illegal: " << Location::toStringMach(loc,board.x_size) << " " << colorToChar(pla) << endl;
+          o << "Illegal: " << Location::toStringMach(loc,board.x_size) << " " << PlayerIO::colorToChar(pla) << endl;
         }
         if((pla == P_BLACK && hist.blackKoProhibited[loc]) || (pla == P_WHITE && hist.whiteKoProhibited[loc])) {
-          o << "Ko-prohibited: " << Location::toStringMach(loc,board.x_size) << " " << colorToChar(pla) << endl;
+          o << "Ko-prohibited: " << Location::toStringMach(loc,board.x_size) << " " << PlayerIO::colorToChar(pla) << endl;
         }
       }
     }
@@ -98,7 +98,7 @@ void Tests::runRulesTests() {
     if(!hist.isGameFinished)
       o << "Game is not over";
     else {
-      o << "Winner: " << playerToString(hist.winner) << endl;
+      o << "Winner: " << PlayerIO::playerToString(hist.winner) << endl;
       o << "W-B Score: " << hist.finalWhiteMinusBlackScore << endl;
       o << "isNoResult: " << hist.isNoResult << endl;
       o << "isResignation: " << hist.isResignation << endl;
@@ -1634,8 +1634,8 @@ isResignation: 0
         out << " ";
         for(int y = 0; y<board.y_size; y++)
           for(int x = 0; x<board.x_size; x++)
-            out << colorToChar(board.colors[Location::getLoc(x,y,board.x_size)]);
-        out << " NP" << colorToChar(nextPla);
+            out << PlayerIO::colorToChar(board.colors[Location::getLoc(x,y,board.x_size)]);
+        out << " NP" << PlayerIO::colorToChar(nextPla);
         out << " PS" << hist.consecutiveEndingPasses;
         out << " E" << hist.encorePhase;
         out << " ";
@@ -2349,5 +2349,5 @@ HASH: C377EB251DBAB5E2F6C1BABE18EEE392
   }
 
 
-       
+
 }

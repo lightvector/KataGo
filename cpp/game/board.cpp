@@ -153,7 +153,7 @@ bool Board::isSuicide(Loc loc, Player pla) const
 {
   if(loc == PASS_LOC)
     return false;
-  
+
   Player opp = getOpp(pla);
   for(int i = 0; i < 4; i++)
   {
@@ -526,7 +526,7 @@ Board::MoveRecord Board::playMoveRecorded(Loc loc, Player pla)
     if(record.capDirs == 0 && isSuicide(loc,pla))
       record.capDirs = 0x10;
   }
-  
+
   playMoveAssumeLegal(loc, pla);
   return record;
 }
@@ -1992,7 +1992,7 @@ void Board::checkConsistency() const {
 
 //IO FUNCS------------------------------------------------------------------------------------------
 
-char colorToChar(Color c)
+char PlayerIO::colorToChar(Color c)
 {
   switch(c) {
   case C_BLACK: return 'X';
@@ -2002,7 +2002,7 @@ char colorToChar(Color c)
   }
 }
 
-string playerToString(Color c)
+string PlayerIO::playerToString(Color c)
 {
   switch(c) {
   case C_BLACK: return "Black";
@@ -2010,6 +2010,19 @@ string playerToString(Color c)
   case C_EMPTY: return "Empty";
   default:  return "Wall";
   }
+}
+
+bool PlayerIO::tryParsePlayer(const string& s, Player& pla) {
+  string str = Global::toLower(s);
+  if(str == "black" || str == "b") {
+    pla = P_BLACK;
+    return true;
+  }
+  else if(str == "white" || str == "w") {
+    pla = P_WHITE;
+    return true;
+  }
+  return false;
 }
 
 string Location::toStringMach(Loc loc, int x_size)
@@ -2025,7 +2038,7 @@ string Location::toStringMach(Loc loc, int x_size)
 
 string Location::toString(Loc loc, int x_size, int y_size)
 {
-  if(x_size > 25)
+  if(x_size > 25*25)
     return toStringMach(loc,x_size);
   if(loc == Board::PASS_LOC)
     return string("pass");
@@ -2034,11 +2047,14 @@ string Location::toString(Loc loc, int x_size, int y_size)
   const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
   int x = getX(loc,x_size);
   int y = getY(loc,x_size);
-  if(x >= x_size || x < 0 || y < 0)
+  if(x >= x_size || x < 0 || y < 0 || y >= y_size)
     return toStringMach(loc,x_size);
 
   char buf[128];
-  sprintf(buf,"%c%d",xChar[x],y_size-y);
+  if(x <= 24)
+    sprintf(buf,"%c%d",xChar[x],y_size-y);
+  else
+    sprintf(buf,"%c%c%d",xChar[x/25-1],xChar[x%25],y_size-y);
   return string(buf);
 }
 
@@ -2048,6 +2064,20 @@ string Location::toString(Loc loc, const Board& b) {
 
 string Location::toStringMach(Loc loc, const Board& b) {
   return toStringMach(loc,b.x_size);
+}
+
+static bool tryParseLetterCoordinate(char c, int& x) {
+  if(c >= 'A' && c <= 'H')
+    x = c-'A';
+  else if(c >= 'a' && c <= 'h')
+    x = c-'a';
+  else if(c >= 'J' && c <= 'Z')
+    x = c-'A'-1;
+  else if(c >= 'j' && c <= 'z')
+    x = c-'a'-1;
+  else
+    return false;
+  return true;
 }
 
 bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& result) {
@@ -2076,18 +2106,21 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
   }
   else {
     int x;
-    if(s[0] >= 'A' && s[0] <= 'H')
-      x = s[0]-'A';
-    else if(s[0] >= 'a' && s[0] <= 'h')
-      x = s[0]-'a';
-    else if(s[0] >= 'J' && s[0] <= 'Z')
-      x = s[0]-'A'-1;
-    else if(s[0] >= 'j' && s[0] <= 'z')
-      x = s[0]-'a'-1;
-    else
+    if(!tryParseLetterCoordinate(s[0],x))
       return false;
 
-    s = s.substr(1,s.length()-1);
+    //Extended format
+    if((s[1] >= 'A' && s[1] <= 'Z') || (s[1] >= 'a' && s[1] <= 'z')) {
+      int x1;
+      if(!tryParseLetterCoordinate(s[1],x1))
+        return false;
+      x = (x+1) * 25 + x1;
+      s = s.substr(2,s.length()-2);
+    }
+    else {
+      s = s.substr(1,s.length()-1);
+    }
+
     int y;
     bool sucY = Global::tryStringToInt(s,y);
     if(!sucY)
@@ -2153,7 +2186,7 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
     for(int x = 0; x < board.x_size; x++)
     {
       Loc loc = Location::getLoc(x,y,board.x_size);
-      char s = colorToChar(board.colors[loc]);
+      char s = PlayerIO::colorToChar(board.colors[loc]);
       if(board.colors[loc] == C_EMPTY && markLoc == loc)
         out << '@';
       else

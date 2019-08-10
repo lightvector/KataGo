@@ -39,7 +39,7 @@ static void writeLine(
   cout << nnYLen << " ";
   cout << baseHist.rules.komi << " ";
   if(baseHist.isGameFinished) {
-    cout << playerToString(baseHist.winner) << " ";
+    cout << PlayerIO::playerToString(baseHist.winner) << " ";
     cout << baseHist.isResignation << " ";
     cout << baseHist.finalWhiteMinusBlackScore << " ";
   }
@@ -466,7 +466,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
         ostringstream sout;
         sout << "genmove null location or illegal move!?!" << "\n";
         sout << bot->getRootBoard() << "\n";
-        sout << "Pla: " << playerToString(pla) << "\n";
+        sout << "Pla: " << PlayerIO::playerToString(pla) << "\n";
         sout << "MoveLoc: " << Location::toString(moveLoc,bot->getRootBoard()) << "\n";
         logger.write(sout.str());
         cerr << sout.str() << endl;

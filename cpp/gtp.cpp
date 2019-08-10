@@ -61,20 +61,6 @@ static const vector<string> knownCommands = {
   "stop",
 };
 
-
-static bool tryParsePlayer(const string& s, Player& pla) {
-  string str = Global::toLower(s);
-  if(str == "black" || str == "b") {
-    pla = P_BLACK;
-    return true;
-  }
-  else if(str == "white" || str == "w") {
-    pla = P_WHITE;
-    return true;
-  }
-  return false;
-}
-
 static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
 }
@@ -412,7 +398,7 @@ struct GTPEngine {
       ostringstream sout;
       sout << "genmove null location or illegal move!?!" << "\n";
       sout << bot->getRootBoard() << "\n";
-      sout << "Pla: " << playerToString(pla) << "\n";
+      sout << "Pla: " << PlayerIO::playerToString(pla) << "\n";
       sout << "MoveLoc: " << Location::toString(moveLoc,bot->getRootBoard()) << "\n";
       logger.write(sout.str());
       return;
@@ -1061,7 +1047,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       double time;
       int stones;
       if(pieces.size() != 3
-         || !tryParsePlayer(pieces[0],pla)
+         || !PlayerIO::tryParsePlayer(pieces[0],pla)
          || !Global::tryStringToDouble(pieces[1],time)
          || !Global::tryStringToInt(pieces[2],stones)
          ) {
@@ -1111,7 +1097,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         responseIsError = true;
         response = "Expected two arguments for play but got '" + Global::concat(pieces," ") + "'";
       }
-      else if(!tryParsePlayer(pieces[0],pla)) {
+      else if(!PlayerIO::tryParsePlayer(pieces[0],pla)) {
         responseIsError = true;
         response = "Could not parse color: '" + pieces[0] + "'";
       }
@@ -1143,7 +1129,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         responseIsError = true;
         response = "Expected one argument for genmove but got '" + Global::concat(pieces," ") + "'";
       }
-      else if(!tryParsePlayer(pieces[0],pla)) {
+      else if(!PlayerIO::tryParsePlayer(pieces[0],pla)) {
         responseIsError = true;
         response = "Could not parse color: '" + pieces[0] + "'";
       }
@@ -1436,7 +1422,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       //ownership <bool whether to show ownership or not>
 
       //Parse optional player
-      if(pieces.size() > numArgsParsed && tryParsePlayer(pieces[numArgsParsed],pla))
+      if(pieces.size() > numArgsParsed && PlayerIO::tryParsePlayer(pieces[numArgsParsed],pla))
         numArgsParsed += 1;
 
       //Parse optional interval float

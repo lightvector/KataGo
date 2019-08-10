@@ -136,7 +136,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       bool multiStoneSuicideLegal = true;
       if(!board.isLegal(moves[i].loc,moves[i].pla,multiStoneSuicideLegal)) {
         cerr << board << endl;
-        cerr << "SGF Illegal move " << (i+1) << " for " << colorToChar(moves[i].pla) << ": " << Location::toString(moves[i].loc,board) << endl;
+        cerr << "SGF Illegal move " << (i+1) << " for " << PlayerIO::colorToChar(moves[i].pla) << ": " << Location::toString(moves[i].loc,board) << endl;
         throw StringError("Illegal move in SGF");
       }
       hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
@@ -148,7 +148,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       Loc loc = extraMoveLocs[i];
       if(!board.isLegal(loc,nextPla,hist.rules.multiStoneSuicideLegal)) {
         cerr << board << endl;
-        cerr << "Extra illegal move for " << colorToChar(nextPla) << ": " << Location::toString(loc,board) << endl;
+        cerr << "Extra illegal move for " << PlayerIO::colorToChar(nextPla) << ": " << Location::toString(loc,board) << endl;
         throw StringError("Illegal extra move");
       }
       hist.makeBoardMoveAssumeLegal(board,loc,nextPla,NULL);
@@ -254,7 +254,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       Loc loc = options.branch_[i];
       if(!copy.isLegal(loc,pla,copyHist.rules.multiStoneSuicideLegal)) {
         cerr << board << endl;
-        cerr << "Branch Illegal move for " << colorToChar(pla) << ": " << Location::toString(loc,board) << endl;
+        cerr << "Branch Illegal move for " << PlayerIO::colorToChar(pla) << ": " << Location::toString(loc,board) << endl;
         return 1;
       }
       copyHist.makeBoardMoveAssumeLegal(copy,loc,pla,NULL);
@@ -302,7 +302,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     for(int y = 0; y<copy.y_size; y++) {
       for(int x = 0; x<copy.x_size; x++) {
         Loc l = Location::getLoc(x,y,copy.x_size);
-        sout << colorToChar(area[l]);
+        sout << PlayerIO::colorToChar(area[l]);
       }
       sout << endl;
     }
