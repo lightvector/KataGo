@@ -412,8 +412,6 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
     vector<bool> shouldAnalyze(moveHistory.size()+1,false);
     if(input.find("analyzeTurns") != input.end()) {
-      reportErrorForId(rbase.id, "analyzeTurns", "Must specify an array of integers indicating turns to analyze");
-
       vector<int> analyzeTurns;
       try {
         analyzeTurns = input["analyzeTurns"].get<vector<int> >();
