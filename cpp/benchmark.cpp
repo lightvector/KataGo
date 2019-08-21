@@ -266,6 +266,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
       bot->clearSearch();
       bot->setPosition(nextPla,board,hist);
+      nnEval->clearCache();
 
       ClockTimer timer;
       bot->genMoveSynchronous(nextPla,TimeControls());
