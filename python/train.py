@@ -77,6 +77,7 @@ fh.setFormatter(bareformatter)
 trainlogger = logging.getLogger("trainlogger")
 trainlogger.setLevel(logging.INFO)
 trainlogger.addHandler(fh)
+trainlogger.propagate=False
 
 np.set_printoptions(linewidth=150)
 
@@ -84,7 +85,7 @@ def trainlog(s):
   print(s,flush=True)
   trainlogger.info(s)
 
-tf.logging.set_verbosity(tf.logging.INFO)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
 num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
 
@@ -101,9 +102,9 @@ initial_weights_already_loaded = False
 
 if swa_sub_epoch_scale is not None:
   with tf.device("/cpu:0"):
-    with tf.name_scope("swa_model"):
+    with tf.compat.v1.variable_scope("swa_model"):
       swa_model = Model(model_config,pos_len,placeholders={})
-      swa_saver = tf.train.Saver(
+      swa_saver = tf.compat.v1.train.Saver(
         max_to_keep = 10000000,
         save_relative_paths = True,
       )
@@ -111,9 +112,9 @@ if swa_sub_epoch_scale is not None:
     swa_wvalues = {}
     swa_weight = 0.0
     assign_ops = []
-    for variable in itertools.chain(tf.model_variables(), tf.trainable_variables()):
-      placeholder = tf.placeholder(variable.dtype,variable.shape)
-      assign_ops.append(tf.assign(variable,placeholder))
+    for variable in itertools.chain(tf.compat.v1.model_variables(), tf.compat.v1.trainable_variables()):
+      placeholder = tf.compat.v1.placeholder(variable.dtype,variable.shape)
+      assign_ops.append(tf.compat.v1.assign(variable,placeholder))
       swa_assign_placeholders[variable.name] = placeholder
       swa_wvalues[variable.name] = np.zeros([elt.value for elt in variable.shape])
     swa_assign_op = tf.group(*assign_ops)
@@ -144,8 +145,8 @@ def save_swa(savedir):
     assert(swa_variable_name.startswith("swa_model/"))
     assignments[swa_assign_placeholders[swa_variable_name]] = swa_wvalues[swa_variable_name] / swa_weight
 
-  with tf.Session(config=tf.ConfigProto(device_count={'GPU':0})) as sess:
-    sess.run(tf.global_variables_initializer())
+  with tf.compat.v1.Session(config=tf.ConfigProto(device_count={'GPU':0})) as sess:
+    sess.run(tf.compat.v1.global_variables_initializer())
     sess.run(swa_assign_op, assignments)
     if not os.path.exists(savedir):
       os.mkdir(savedir)
@@ -172,7 +173,7 @@ def model_fn(features,labels,mode,params):
     (model,target_vars,metrics) = built
     wsum = tf.Variable(
       0.0,dtype=tf.float32,name="wsum",trainable=False,
-      collections=[tf.GraphKeys.LOCAL_VARIABLES, tf.GraphKeys.METRIC_VARIABLES],
+      collections=[tf.compat.v1.GraphKeys.LOCAL_VARIABLES, tf.compat.v1.GraphKeys.METRIC_VARIABLES],
       synchronization=tf.VariableSynchronization.ON_READ,
       aggregation=tf.VariableAggregation.SUM
     )
@@ -182,25 +183,25 @@ def model_fn(features,labels,mode,params):
       loss=target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32),
       eval_metric_ops={
         "wsum": (wsum.read_value(),wsum_op),
-        "p0loss": tf.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
-        "p1loss": tf.metrics.mean(target_vars.policy1_loss_unreduced, weights=target_vars.target_weight_used),
-        "vloss": tf.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
-        "smloss": tf.metrics.mean(target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used),
-        "sbpdfloss": tf.metrics.mean(target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
-        "sbcdfloss": tf.metrics.mean(target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
-        "bbpdfloss": tf.metrics.mean(target_vars.bonusbelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
-        "bbcdfloss": tf.metrics.mean(target_vars.bonusbelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
-        "uvloss": tf.metrics.mean(target_vars.utilityvar_loss_unreduced, weights=target_vars.target_weight_used),
-        "oloss": tf.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
-        "rwlloss": tf.metrics.mean(target_vars.winloss_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "rsmloss": tf.metrics.mean(target_vars.scoremean_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "rsdloss": tf.metrics.mean(target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "roloss": tf.metrics.mean(target_vars.ownership_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "rloss": tf.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
-        "rscloss": tf.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "pacc1": tf.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
-        "ventr": tf.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used),
-        "ptentr": tf.metrics.mean(metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
+        "p0loss": tf.compat.v1.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
+        "p1loss": tf.compat.v1.metrics.mean(target_vars.policy1_loss_unreduced, weights=target_vars.target_weight_used),
+        "vloss": tf.compat.v1.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
+        "smloss": tf.compat.v1.metrics.mean(target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used),
+        "sbpdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
+        "sbcdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
+        "bbpdfloss": tf.compat.v1.metrics.mean(target_vars.bonusbelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
+        "bbcdfloss": tf.compat.v1.metrics.mean(target_vars.bonusbelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
+        "uvloss": tf.compat.v1.metrics.mean(target_vars.utilityvar_loss_unreduced, weights=target_vars.target_weight_used),
+        "oloss": tf.compat.v1.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
+        "rwlloss": tf.compat.v1.metrics.mean(target_vars.winloss_reg_loss_unreduced, weights=target_vars.target_weight_used),
+        "rsmloss": tf.compat.v1.metrics.mean(target_vars.scoremean_reg_loss_unreduced, weights=target_vars.target_weight_used),
+        "rsdloss": tf.compat.v1.metrics.mean(target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used),
+        "roloss": tf.compat.v1.metrics.mean(target_vars.ownership_reg_loss_unreduced, weights=target_vars.target_weight_used),
+        "rloss": tf.compat.v1.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
+        "rscloss": tf.compat.v1.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
+        "pacc1": tf.compat.v1.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
+        "ventr": tf.compat.v1.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used),
+        "ptentr": tf.compat.v1.metrics.mean(metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
       }
     )
 
@@ -235,11 +236,11 @@ def model_fn(features,labels,mode,params):
     (pacc1,pacc1_op) = moving_mean("pacc1",metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
     (ventr,ventr_op) = moving_mean("ventr",metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
     (ptentr,ptentr_op) = moving_mean("ptentr",metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
-    (wmean,wmean_op) = tf.metrics.mean(target_vars.weight_sum)
+    (wmean,wmean_op) = tf.compat.v1.metrics.mean(target_vars.weight_sum)
 
     print_train_loss_every_batches = 100
 
-    logging_hook = tf.train.LoggingTensorHook({
+    logging_hook = tf.estimator.LoggingTensorHook({
       "nsamp": global_step * tf.constant(batch_size,dtype=tf.int64),
       "wsum": global_step_float * wmean,
       "p0loss": p0loss,
@@ -290,8 +291,11 @@ def model_fn(features,labels,mode,params):
     return tf.estimator.EstimatorSpec(
       mode,
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
-      train_op=tf.group(train_step,p0loss_op,p1loss_op,vloss_op,smloss_op,sbpdfloss_op,sbcdfloss_op,bbpdfloss_op,bbcdfloss_op,
-                        uvloss_op,oloss_op,rwlloss_op,rsmloss_op,rsdloss_op,roloss_op,rloss_op,rscloss_op,pacc1_op,ventr_op,ptentr_op,wmean_op),
+      train_op=tf.group(
+        train_step,
+        p0loss_op,p1loss_op,vloss_op,smloss_op,sbpdfloss_op,sbcdfloss_op,bbpdfloss_op,bbcdfloss_op,
+        uvloss_op,oloss_op,rwlloss_op,rsmloss_op,rsdloss_op,roloss_op,rloss_op,rscloss_op,pacc1_op,ventr_op,ptentr_op,wmean_op
+      ),
       training_hooks = [logging_hook]
     )
 
@@ -307,26 +311,26 @@ EXTRA_SCORE_DISTR_RADIUS = 60
 BONUS_SCORE_RADIUS = 30
 
 raw_input_features = {
-  "binchwp": tf.FixedLenFeature([],tf.string),
-  "ginc": tf.FixedLenFeature([batch_size*num_global_input_features],tf.float32),
-  "ptncm": tf.FixedLenFeature([batch_size*NUM_POLICY_TARGETS*(pos_len*pos_len+1)],tf.float32),
-  "gtnc": tf.FixedLenFeature([batch_size*NUM_GLOBAL_TARGETS],tf.float32),
-  "sdn": tf.FixedLenFeature([batch_size*(pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2)],tf.float32),
-  "sbsn": tf.FixedLenFeature([batch_size*(BONUS_SCORE_RADIUS*2+1)],tf.float32),
-  "vtnchw": tf.FixedLenFeature([batch_size*NUM_VALUE_SPATIAL_TARGETS*pos_len*pos_len],tf.float32)
+  "binchwp": tf.io.FixedLenFeature([],tf.string),
+  "ginc": tf.io.FixedLenFeature([batch_size*num_global_input_features],tf.float32),
+  "ptncm": tf.io.FixedLenFeature([batch_size*NUM_POLICY_TARGETS*(pos_len*pos_len+1)],tf.float32),
+  "gtnc": tf.io.FixedLenFeature([batch_size*NUM_GLOBAL_TARGETS],tf.float32),
+  "sdn": tf.io.FixedLenFeature([batch_size*(pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2)],tf.float32),
+  "sbsn": tf.io.FixedLenFeature([batch_size*(BONUS_SCORE_RADIUS*2+1)],tf.float32),
+  "vtnchw": tf.io.FixedLenFeature([batch_size*NUM_VALUE_SPATIAL_TARGETS*pos_len*pos_len],tf.float32)
 }
 raw_input_feature_placeholders = {
-  "binchwp": tf.placeholder(tf.uint8,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
-  "ginc": tf.placeholder(tf.float32,[batch_size,num_global_input_features]),
-  "ptncm": tf.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
-  "gtnc": tf.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
-  "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
-  "sbsn": tf.placeholder(tf.float32,[batch_size,BONUS_SCORE_RADIUS*2+1]),
-  "vtnchw": tf.placeholder(tf.float32,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
+  "binchwp": tf.compat.v1.placeholder(tf.uint8,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
+  "ginc": tf.compat.v1.placeholder(tf.float32,[batch_size,num_global_input_features]),
+  "ptncm": tf.compat.v1.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
+  "gtnc": tf.compat.v1.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
+  "sdn": tf.compat.v1.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
+  "sbsn": tf.compat.v1.placeholder(tf.float32,[batch_size,BONUS_SCORE_RADIUS*2+1]),
+  "vtnchw": tf.compat.v1.placeholder(tf.float32,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
 }
 
 def parse_input(serialized_example):
-  example = tf.parse_single_example(serialized_example,raw_input_features)
+  example = tf.io.parse_single_example(serialized_example,raw_input_features)
   binchwp = tf.decode_raw(example["binchwp"],tf.uint8)
   ginc = example["ginc"]
   ptncm = example["ptncm"]
@@ -381,7 +385,7 @@ estimator = tf.estimator.Estimator(
   )
 )
 
-class CheckpointSaverListenerFunction(tf.train.CheckpointSaverListener):
+class CheckpointSaverListenerFunction(tf.estimator.CheckpointSaverListener):
   def __init__(self,f):
     self.func_to_call = f
 

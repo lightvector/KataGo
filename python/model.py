@@ -69,7 +69,7 @@ class Model:
     self.reg_variables = []
     self.prescale_variables = []
     self.lr_adjusted_variables = {}
-    self.is_training = (placeholders["is_training"] if "is_training" in placeholders else tf.placeholder(tf.bool,name="is_training"))
+    self.is_training = (placeholders["is_training"] if "is_training" in placeholders else tf.compat.v1.placeholder(tf.bool,name="is_training"))
 
     #Accumulates outputs for printing stats about their activations
     self.outputs_by_layer = []
@@ -389,7 +389,7 @@ class Model:
   # Build model -------------------------------------------------------------
 
   def ensure_variable_exists(self,name):
-    for v in tf.trainable_variables():
+    for v in tf.compat.v1.trainable_variables():
       if v.name == name:
         return name
     raise Exception("Could not find variable " + name)
@@ -408,7 +408,7 @@ class Model:
     self.batch_norms[name] = (tensor.shape[-1].value,epsilon,has_bias,has_scale)
 
     num_channels = tensor.shape[3].value
-    collections = [tf.GraphKeys.GLOBAL_VARIABLES,tf.GraphKeys.MODEL_VARIABLES,tf.GraphKeys.MOVING_AVERAGE_VARIABLES]
+    collections = [tf.compat.v1.GraphKeys.GLOBAL_VARIABLES,tf.compat.v1.GraphKeys.MODEL_VARIABLES,tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES]
 
     #Define variables to keep track of the mean and variance
     moving_mean = tf.Variable(tf.zeros([num_channels]),name=(name+"/moving_mean"),trainable=False,collections=collections)
@@ -423,8 +423,8 @@ class Model:
     var = tf.reduce_sum(tf.square(zmtensor * mask),axis=[0,1,2]) / mask_sum
     mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.998)
     var_op = tf.keras.backend.moving_average_update(moving_var,var,0.998)
-    tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, mean_op)
-    tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, var_op)
+    tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, mean_op)
+    tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, var_op)
 
     def training_f():
       return (mean,var)
@@ -458,13 +458,13 @@ class Model:
 
   def init_weights(self, shape, num_inputs, num_outputs):
     stdev = self.init_stdev(num_inputs,num_outputs) / 1.0
-    return tf.truncated_normal(shape=shape, stddev=stdev)
+    return tf.random.truncated_normal(shape=shape, stddev=stdev)
 
   def weight_variable_init_constant(self, name, shape, constant, reg=True):
     init = tf.zeros(shape)
     if constant != 0.0:
       init = init + constant
-    variable = tf.Variable(init,name=name)
+    variable = tf.compat.v1.get_variable(initializer=init,name=name)
     if reg:
       self.reg_variables.append(variable)
     return variable
@@ -475,7 +475,7 @@ class Model:
       initial = initial + extra_initial_weight
     initial = initial * scale_initial_weights
 
-    variable = tf.Variable(initial,name=name)
+    variable = tf.compat.v1.get_variable(initializer=initial,name=name)
     if reg:
       self.reg_variables.append(variable)
     return variable
@@ -719,13 +719,13 @@ class Model:
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
-                  tf.placeholder(tf.float32, [None] + self.bin_input_shape, name="bin_inputs"))
+                  tf.compat.v1.placeholder(tf.float32, [None] + self.bin_input_shape, name="bin_inputs"))
     global_inputs = (placeholders["global_inputs"] if "global_inputs" in placeholders else
-                    tf.placeholder(tf.float32, [None] + self.global_input_shape, name="global_inputs"))
+                    tf.compat.v1.placeholder(tf.float32, [None] + self.global_input_shape, name="global_inputs"))
     symmetries = (placeholders["symmetries"] if "symmetries" in placeholders else
-                  tf.placeholder(tf.bool, [3], name="symmetries"))
+                  tf.compat.v1.placeholder(tf.bool, [3], name="symmetries"))
     include_history = (placeholders["include_history"] if "include_history" in placeholders else
-                       tf.placeholder(tf.float32, [None] + [5], name="include_history"))
+                       tf.compat.v1.placeholder(tf.float32, [None] + [5], name="include_history"))
 
     self.assert_batched_shape("bin_inputs",bin_inputs,self.bin_input_shape)
     self.assert_batched_shape("global_inputs",global_inputs,self.global_input_shape)
@@ -1046,7 +1046,7 @@ class Model:
       #tf.where has a bug where nan values on the non-chosen side will still propagate nans back in gradients.
       #So we also abs the tensor, so that we never get a log of a negative value
       abstensor = tf.abs(tensor)
-      return tf.where(tensor > 0, 1.0 + tf.log(abstensor + 1.0), 1.0 / (1.0 + tf.log(abstensor + 1.0)))
+      return tf.where(tensor > 0, 1.0 + tf.math.log(abstensor + 1.0), 1.0 / (1.0 + tf.math.log(abstensor + 1.0)))
 
     scorebelief_len = self.scorebelief_target_shape[0]
     scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
@@ -1195,38 +1195,38 @@ class Target_vars:
 
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
-                          tf.placeholder(tf.float32, [None] + model.policy_target_shape))
+                          tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_shape))
     self.policy_target1 = (placeholders["policy_target1"] if "policy_target1" in placeholders else
-                          tf.placeholder(tf.float32, [None] + model.policy_target_shape))
+                          tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_shape))
     #Unconditional game result prediction
     self.value_target = (placeholders["value_target"] if "value_target" in placeholders else
-                         tf.placeholder(tf.float32, [None] + model.value_target_shape))
+                         tf.compat.v1.placeholder(tf.float32, [None] + model.value_target_shape))
     #Unconditional expected score prediction, noResult is treated as 0
     self.scoremean_target = (placeholders["scoremean_target"] if "scoremean_target" in placeholders else
-                              tf.placeholder(tf.float32, [None] + model.scoremean_target_shape))
+                              tf.compat.v1.placeholder(tf.float32, [None] + model.scoremean_target_shape))
     #Score belief distributions CONDITIONAL on result
     self.scorebelief_target = (placeholders["scorebelief_target"] if "scorebelief_target" in placeholders else
-                              tf.placeholder(tf.float32, [None] + model.scorebelief_target_shape))
+                              tf.compat.v1.placeholder(tf.float32, [None] + model.scorebelief_target_shape))
     self.bonusbelief_target = (placeholders["bonusbelief_target"] if "bonusbelief_target" in placeholders else
-                              tf.placeholder(tf.float32, [None] + model.bonusbelief_target_shape))
+                              tf.compat.v1.placeholder(tf.float32, [None] + model.bonusbelief_target_shape))
     #MCTS utility variance out to different marks
     self.utilityvar_target = (placeholders["utilityvar_target"] if "utilityvar_target" in placeholders else
-                              tf.placeholder(tf.float32, [None] + model.utilityvar_target_shape))
+                              tf.compat.v1.placeholder(tf.float32, [None] + model.utilityvar_target_shape))
     #Ownership of board, CONDITIONAL on result
     self.ownership_target = (placeholders["ownership_target"] if "ownership_target" in placeholders else
-                             tf.placeholder(tf.float32, [None] + model.ownership_target_shape))
+                             tf.compat.v1.placeholder(tf.float32, [None] + model.ownership_target_shape))
     self.target_weight_from_data = (placeholders["target_weight_from_data"] if "target_weight_from_data" in placeholders else
-                                    tf.placeholder(tf.float32, [None] + model.target_weight_shape))
+                                    tf.compat.v1.placeholder(tf.float32, [None] + model.target_weight_shape))
     self.policy_target_weight = (placeholders["policy_target_weight"] if "policy_target_weight" in placeholders else
-                                 tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
+                                 tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.policy_target_weight1 = (placeholders["policy_target_weight1"] if "policy_target_weight1" in placeholders else
-                                 tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
+                                 tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.ownership_target_weight = (placeholders["ownership_target_weight"] if "ownership_target_weight" in placeholders else
-                                    tf.placeholder(tf.float32, [None] + model.ownership_target_weight_shape))
+                                    tf.compat.v1.placeholder(tf.float32, [None] + model.ownership_target_weight_shape))
     self.utilityvar_target_weight = (placeholders["utilityvar_target_weight"] if "utilityvar_target_weight" in placeholders else
-                                   tf.placeholder(tf.float32, [None] + model.utilityvar_target_weight_shape))
+                                   tf.compat.v1.placeholder(tf.float32, [None] + model.utilityvar_target_weight_shape))
     self.selfkomi = (placeholders["selfkomi"] if "selfkomi" in placeholders else
-                     tf.placeholder(tf.float32, [None]))
+                     tf.compat.v1.placeholder(tf.float32, [None]))
 
     model.assert_batched_shape("policy_target", self.policy_target, model.policy_target_shape)
     model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
@@ -1360,7 +1360,7 @@ class Target_vars:
     if for_optimization:
       #Prior/Regularization
       self.l2_reg_coeff = (placeholders["l2_reg_coeff"] if "l2_reg_coeff" in placeholders else
-                           tf.placeholder(tf.float32))
+                           tf.compat.v1.placeholder(tf.float32))
       self.reg_loss_per_weight = self.l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables])
       self.reg_loss = self.reg_loss_per_weight * self.weight_sum
 
@@ -1404,7 +1404,7 @@ class Metrics:
     self.value_entropy_unreduced = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.nn.softmax(model.value_output,axis=1), logits=model.value_output)
     self.value_conf_unreduced = 4 * tf.square(tf.nn.sigmoid(model.value_output[:,0] - model.value_output[:,1]) - 0.5)
     self.policy_target_entropy_unreduced = target_vars.policy_target_weight * (
-      -tf.reduce_sum(target_vars.policy_target * tf.log(target_vars.policy_target+(1e-20)), axis=1)
+      -tf.reduce_sum(target_vars.policy_target * tf.math.log(target_vars.policy_target+(1e-20)), axis=1)
     )
     self.accuracy1 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy1_unreduced, name="metrics/accuracy1")
     self.accuracy4 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy4_unreduced, name="metrics/accuracy4")
@@ -1433,17 +1433,17 @@ class Metrics:
         (name,reduce_stdev(layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
       ])
       self.mean_weights_by_var = dict([
-        (v.name,tf.reduce_mean(v)) for v in tf.trainable_variables()
+        (v.name,tf.reduce_mean(v)) for v in tf.compat.v1.trainable_variables()
       ])
       self.norm_weights_by_var = dict([
-        (v.name,reduce_norm(v)) for v in tf.trainable_variables()
+        (v.name,reduce_norm(v)) for v in tf.compat.v1.trainable_variables()
       ])
 
 class ModelUtils:
   @staticmethod
   def print_trainable_variables(logf):
     total_parameters = 0
-    for variable in tf.trainable_variables():
+    for variable in tf.compat.v1.trainable_variables():
       shape = variable.get_shape()
       variable_parameters = 1
       for dim in shape:
@@ -1476,7 +1476,7 @@ class ModelUtils:
     placeholders["bin_inputs"] = binhwc
 
     placeholders["global_inputs"] = features["ginc"]
-    placeholders["symmetries"] = tf.greater(tf.random_uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
+    placeholders["symmetries"] = tf.greater(tf.random.uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
 
     if mode == tf.estimator.ModeKeys.PREDICT:
       placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
@@ -1522,13 +1522,13 @@ class ModelUtils:
 
       target_vars = Target_vars(model,for_optimization=True,placeholders=placeholders)
       metrics = Metrics(model,target_vars,include_debug_stats=False)
-      global_step = tf.train.get_global_step()
+      global_step = tf.compat.v1.train.get_global_step()
       global_step_float = tf.cast(global_step, tf.float32)
       global_epoch = global_step_float / tf.constant(num_batches_per_epoch,dtype=tf.float32)
 
       lr_base = 0.00006 * (1.0 if lr_scale is None else lr_scale)
       per_sample_learning_rate = (
-        tf.constant(lr_base) * tf.train.piecewise_constant(
+        tf.constant(lr_base) * tf.compat.v1.train.piecewise_constant(
           global_epoch,
           boundaries = [5.0],
           values = [1.0/3.0, 1.0]
@@ -1536,9 +1536,9 @@ class ModelUtils:
       )
 
       lr_adjusted_variables = model.lr_adjusted_variables
-      update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
+      update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS) #collect batch norm update operations
       with tf.control_dependencies(update_ops):
-        optimizer = tf.train.MomentumOptimizer(per_sample_learning_rate, momentum=0.9, use_nesterov=True)
+        optimizer = tf.compat.v1.train.MomentumOptimizer(per_sample_learning_rate, momentum=0.9, use_nesterov=True)
         gradients = optimizer.compute_gradients(target_vars.opt_loss)
         adjusted_gradients = []
         for (grad,x) in gradients:
@@ -1555,7 +1555,7 @@ class ModelUtils:
 
       if print_model:
         ModelUtils.print_trainable_variables(trainlog)
-        for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
+        for update_op in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS):
           trainlog("Additional update op on train step: %s" % update_op.name)
         trainlog("Supporting japanese rules: " + str(model.support_japanese_rules))
 
