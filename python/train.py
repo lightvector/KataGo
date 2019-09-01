@@ -36,6 +36,7 @@ parser.add_argument('-exportprefix', help='Prefix to append to names of models',
 parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
 parser.add_argument('-batch-size', help='Expected batch size of the input data, must match tfrecords', type=int, required=True)
 parser.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=True)
+parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
 parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
 parser.add_argument('-model-kind', help='String name for what model to use', required=True)
 parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
@@ -52,6 +53,7 @@ exportprefix = args["exportprefix"]
 pos_len = args["pos_len"]
 batch_size = args["batch_size"]
 samples_per_epoch = args["samples_per_epoch"]
+multi_gpus = args["multi_gpus"]
 gpu_memory_frac = args["gpu_memory_frac"]
 model_kind = args["model_kind"]
 lr_scale = args["lr_scale"]
@@ -113,11 +115,13 @@ if swa_sub_epoch_scale is not None:
     swa_weight = 0.0
     assign_ops = []
     for variable in itertools.chain(tf.compat.v1.model_variables(), tf.compat.v1.trainable_variables()):
-      placeholder = tf.compat.v1.placeholder(variable.dtype,variable.shape)
-      assign_ops.append(tf.compat.v1.assign(variable,placeholder))
-      swa_assign_placeholders[variable.name] = placeholder
-      swa_wvalues[variable.name] = np.zeros([elt.value for elt in variable.shape])
+      if variable.name.startswith("swa_model/"):
+        placeholder = tf.compat.v1.placeholder(variable.dtype,variable.shape)
+        assign_ops.append(tf.compat.v1.assign(variable,placeholder))
+        swa_assign_placeholders[variable.name] = placeholder
+        swa_wvalues[variable.name] = np.zeros([elt.value for elt in variable.shape])
     swa_assign_op = tf.group(*assign_ops)
+  trainlog("Build SWA graph for SWA update and saving, %d variables" % len(swa_assign_placeholders))
 
 def accumulate_swa(estimator):
   global swa_weight
@@ -210,11 +214,17 @@ def model_fn(features,labels,mode,params):
     printed_model_yet = True
 
     def moving_mean(name,x,weights):
-      sumwx = tf.reduce_sum(x*weights)
-      sumw = tf.reduce_sum(weights,name="printstats/"+name)
-      ema = tf.train.ExponentialMovingAverage(decay=0.999)
-      op = ema.apply([sumwx,sumw])
-      avg = ema.average(sumwx) / ema.average(sumw)
+      sumwx = tf.reduce_sum(x*weights,name="printstats/wx/"+name)
+      sumw = tf.reduce_sum(weights,name="printstats/w/"+name)
+      moving_wx = tf.compat.v1.get_variable(initializer=tf.zeros([]),name=(name+"/moving_wx"),trainable=False)
+      moving_w = tf.compat.v1.get_variable(initializer=tf.zeros([]),name=(name+"/moving_w"),trainable=False)
+
+      with tf.name_scope(name):
+        wx_op = tf.keras.backend.moving_average_update(moving_wx,sumwx,0.999)
+        w_op = tf.keras.backend.moving_average_update(moving_w,sumw,0.999)
+        op = tf.group(wx_op,w_op)
+
+      avg = (moving_wx + sumwx) / (moving_w + sumw)
       return (avg,op)
 
     (p0loss,p0loss_op) = moving_mean("p0loss",target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used)
@@ -348,7 +358,10 @@ def parse_input(serialized_example):
     "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 
-def train_input_fn(train_files_to_use,total_num_train_files,batches_to_use):
+def train_input_fn(train_files_to_use,total_num_train_files,batches_to_use,mode,input_context):
+  assert(mode == tf.estimator.ModeKeys.TRAIN)
+  if input_context:
+    assert(input_context.num_input_pipelines == 1)
   trainlog("Constructing train input pipe, %d/%d files used (%d batches)" % (len(train_files_to_use),total_num_train_files,batches_to_use))
   dataset = tf.data.Dataset.from_tensor_slices(train_files_to_use)
   dataset = dataset.shuffle(65536)
@@ -371,19 +384,42 @@ def val_input_fn(vdatadir):
 
 trainlog("Beginning training")
 
-session_config = tf.ConfigProto()
-session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
-estimator = tf.estimator.Estimator(
-  model_fn=model_fn,
-  model_dir=traindir,
-  params={},
-  config=tf.estimator.RunConfig(
-    save_checkpoints_steps=1000000000, #We get checkpoints every time we complete an epoch anyways
-    keep_checkpoint_every_n_hours = 1000000,
-    keep_checkpoint_max = 10,
-    session_config = session_config
+if multi_gpus is None:
+  session_config = tf.ConfigProto()
+  session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
+  estimator = tf.estimator.Estimator(
+    model_fn=model_fn,
+    model_dir=traindir,
+    params={},
+    config=tf.estimator.RunConfig(
+      save_checkpoints_steps=1000000000, #We get checkpoints every time we complete an epoch anyways
+      keep_checkpoint_every_n_hours = 1000000,
+      keep_checkpoint_max = 10,
+      session_config = session_config
+    )
   )
-)
+else:
+  device_ids = []
+  for piece in multi_gpus.split(","):
+    piece = piece.strip()
+    device_ids.append("/GPU:" + str(int(piece)))
+  session_config = tf.ConfigProto(allow_soft_placement=True)
+  session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
+  multigpu_strategy = tf.distribute.MirroredStrategy(devices=device_ids)
+  estimator = tf.estimator.Estimator(
+    model_fn=model_fn,
+    model_dir=traindir,
+    params={},
+    config=tf.estimator.RunConfig(
+      save_checkpoints_steps=1000000000, #We get checkpoints every time we complete an epoch anyways
+      keep_checkpoint_every_n_hours = 1000000,
+      keep_checkpoint_max = 10,
+      session_config = session_config,
+      train_distribute = multigpu_strategy,
+      eval_distribute = multigpu_strategy,
+    )
+  )
+
 
 class CheckpointSaverListenerFunction(tf.estimator.CheckpointSaverListener):
   def __init__(self,f):
@@ -538,7 +574,7 @@ while True:
     trainlog("Beginning training epoch!")
     trainlog("Currently up to data row " + str(last_datainfo_row))
     estimator.train(
-      (lambda: train_input_fn(train_files_to_use,num_train_files,batches_to_use_so_far)),
+      (lambda mode, input_context=None: train_input_fn(train_files_to_use,num_train_files,batches_to_use_so_far,mode,input_context)),
       saving_listeners=[
         CheckpointSaverListenerFunction(save_history)
       ]

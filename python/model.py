@@ -411,8 +411,8 @@ class Model:
     collections = [tf.compat.v1.GraphKeys.GLOBAL_VARIABLES,tf.compat.v1.GraphKeys.MODEL_VARIABLES,tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES]
 
     #Define variables to keep track of the mean and variance
-    moving_mean = tf.Variable(tf.zeros([num_channels]),name=(name+"/moving_mean"),trainable=False,collections=collections)
-    moving_var = tf.Variable(tf.ones([num_channels]),name=(name+"/moving_variance"),trainable=False,collections=collections)
+    moving_mean = tf.compat.v1.get_variable(initializer=tf.zeros([num_channels]),name=(name+"/moving_mean"),trainable=False,collections=collections)
+    moving_var = tf.compat.v1.get_variable(initializer=tf.ones([num_channels]),name=(name+"/moving_variance"),trainable=False,collections=collections)
     beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg=False)
 
     #This is the mean, computed only over exactly the areas of the mask, weighting each spot equally,
@@ -421,8 +421,11 @@ class Model:
     zmtensor = tensor-mean
     #Similarly, the variance computed exactly only over those spots
     var = tf.reduce_sum(tf.square(zmtensor * mask),axis=[0,1,2]) / mask_sum
-    mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.998)
-    var_op = tf.keras.backend.moving_average_update(moving_var,var,0.998)
+
+    with tf.name_scope(name):
+      mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.998)
+      var_op = tf.keras.backend.moving_average_update(moving_var,var,0.998)
+
     tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, mean_op)
     tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, var_op)
 
