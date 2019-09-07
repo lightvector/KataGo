@@ -626,9 +626,6 @@ void NNEvaluator::evaluate(
 
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.
-    //For model version 2 and less, we only have single value output that returns tanh, stuffed
-    //ad-hocly into the whiteWinProb field.
-
     if(modelVersion == 3) {
       const double twoOverPi = 0.63661977236758134308;
 

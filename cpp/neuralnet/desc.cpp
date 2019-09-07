@@ -401,21 +401,12 @@ GlobalPoolingResidualBlockDesc::GlobalPoolingResidualBlockDesc(istream& in, int 
     throw StringError(
       name + Global::strprintf(
                ": gpoolBN.numChannels (%d) != gpoolConv.outChannels (%d)", gpoolBN.numChannels, gpoolConv.outChannels));
-  if(version >= 3) {
-    if(gpoolBN.numChannels * 3 != gpoolToBiasMul.inChannels)
-      throw StringError(
-        name + Global::strprintf(
-                 ": gpoolBN.numChannels * 3 (%d) != gpoolToBiasMul.inChannels (%d)",
-                 gpoolBN.numChannels * 3,
-                 gpoolToBiasMul.inChannels));
-  } else {
-    if(gpoolBN.numChannels * 2 != gpoolToBiasMul.inChannels)
-      throw StringError(
-        name + Global::strprintf(
-                 ": gpoolBN.numChannels * 2 (%d) != gpoolToBiasMul.inChannels (%d)",
-                 gpoolBN.numChannels * 2,
-                 gpoolToBiasMul.inChannels));
-  }
+  if(gpoolBN.numChannels * 3 != gpoolToBiasMul.inChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": gpoolBN.numChannels * 3 (%d) != gpoolToBiasMul.inChannels (%d)",
+               gpoolBN.numChannels * 3,
+               gpoolToBiasMul.inChannels));
   if(midBN.numChannels != regularConv.outChannels)
     throw StringError(
       name + Global::strprintf(
@@ -500,16 +491,14 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn) {
                initialConv.outChannels,
                trunkNumChannels));
 
-  if(version >= 3) {
-    initialMatMul = MatMulLayerDesc(in);
-    if(initialMatMul.outChannels != trunkNumChannels)
-      throw StringError(
-        name + Global::strprintf(
-                 ": %s initialMatMul.outChannels (%d) != trunkNumChannels (%d)",
-                 initialMatMul.name.c_str(),
-                 initialMatMul.outChannels,
-                 trunkNumChannels));
-  }
+  initialMatMul = MatMulLayerDesc(in);
+  if(initialMatMul.outChannels != trunkNumChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": %s initialMatMul.outChannels (%d) != trunkNumChannels (%d)",
+               initialMatMul.name.c_str(),
+               initialMatMul.outChannels,
+               trunkNumChannels));
 
   string kind;
   for(int i = 0; i < numBlocks; i++) {
@@ -747,54 +736,29 @@ PolicyHeadDesc::PolicyHeadDesc(istream& in, int vrsn) {
     throw StringError(
       name +
       Global::strprintf(": g1Conv.outChannels (%d) != g1BN.numChannels (%d)", g1Conv.outChannels, g1BN.numChannels));
-  if(version >= 3) {
-    if(gpoolToBiasMul.inChannels != g1BN.numChannels * 3)
-      throw StringError(
-        name + Global::strprintf(
-                 ": gpoolToBiasMul.inChannels (%d) != g1BN.numChannels*3 (%d)",
-                 gpoolToBiasMul.inChannels,
-                 g1BN.numChannels * 3));
-  } else {
-    if(gpoolToBiasMul.inChannels != g1BN.numChannels * 2)
-      throw StringError(
-        name + Global::strprintf(
-                 ": gpoolToBiasMul.inChannels (%d) != g1BN.numChannels*2 (%d)",
-                 gpoolToBiasMul.inChannels,
-                 g1BN.numChannels * 2));
-  }
+  if(gpoolToBiasMul.inChannels != g1BN.numChannels * 3)
+    throw StringError(
+      name + Global::strprintf(
+               ": gpoolToBiasMul.inChannels (%d) != g1BN.numChannels*3 (%d)",
+               gpoolToBiasMul.inChannels,
+               g1BN.numChannels * 3));
   if(gpoolToBiasMul.outChannels != p1BN.numChannels)
     throw StringError(
       name +
       Global::strprintf(
         ": gpoolToBiasMul.outChannels (%d) != p1BN.numChannels (%d)", gpoolToBiasMul.outChannels, p1BN.numChannels));
-  if(version >= 1) {
-    if(p2Conv.inChannels != p1BN.numChannels)
-      throw StringError(
-        name +
-        Global::strprintf(": p2Conv.inChannels (%d) != p1BN.numChannels (%d)", p2Conv.inChannels, p1BN.numChannels));
-  } else {
-    if(p2Conv.inChannels != p1BN.numChannels * 2)
-      throw StringError(
-        name + Global::strprintf(
-                 ": p2Conv.inChannels (%d) != p1BN.numChannels*2 (%d)", p2Conv.inChannels, p1BN.numChannels * 2));
-  }
+  if(p2Conv.inChannels != p1BN.numChannels)
+    throw StringError(
+      name +
+      Global::strprintf(": p2Conv.inChannels (%d) != p1BN.numChannels (%d)", p2Conv.inChannels, p1BN.numChannels));
   if(p2Conv.outChannels != 1)
     throw StringError(name + Global::strprintf(": p2Conv.outChannels (%d) != 1", p2Conv.outChannels));
-  if(version >= 3) {
-    if(gpoolToPassMul.inChannels != g1BN.numChannels * 3)
-      throw StringError(
-        name + Global::strprintf(
-                 ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*3 (%d)",
-                 gpoolToPassMul.inChannels,
-                 g1BN.numChannels * 3));
-  } else {
-    if(gpoolToPassMul.inChannels != g1BN.numChannels * 2)
-      throw StringError(
-        name + Global::strprintf(
-                 ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*2 (%d)",
-                 gpoolToPassMul.inChannels,
-                 g1BN.numChannels * 2));
-  }
+  if(gpoolToPassMul.inChannels != g1BN.numChannels * 3)
+    throw StringError(
+      name + Global::strprintf(
+               ": gpoolToPassMul.inChannels (%d) != g1BN.numChannels*3 (%d)",
+               gpoolToPassMul.inChannels,
+               g1BN.numChannels * 3));
   if(gpoolToPassMul.outChannels != 1)
     throw StringError(name + Global::strprintf(": gpoolToPassMul.outChannels (%d) != 1", gpoolToPassMul.outChannels));
 }
@@ -846,11 +810,9 @@ ValueHeadDesc::ValueHeadDesc(istream& in, int vrsn) {
   v3Mul = MatMulLayerDesc(in);
   v3Bias = MatBiasLayerDesc(in);
 
-  if(version >= 3) {
-    sv3Mul = MatMulLayerDesc(in);
-    sv3Bias = MatBiasLayerDesc(in);
-    vOwnershipConv = ConvLayerDesc(in);
-  }
+  sv3Mul = MatMulLayerDesc(in);
+  sv3Bias = MatBiasLayerDesc(in);
+  vOwnershipConv = ConvLayerDesc(in);
 
   if(in.fail())
     throw StringError(name + ": value head istream fail after parsing layers");
@@ -860,72 +822,49 @@ ValueHeadDesc::ValueHeadDesc(istream& in, int vrsn) {
       name +
       Global::strprintf(": v1Conv.outChannels (%d) != v1BN.numChannels (%d)", v1Conv.outChannels, v1BN.numChannels));
 
-  if(version >= 3) {
-    if(v2Mul.inChannels != v1BN.numChannels * 3)
-      throw StringError(
-        name + Global::strprintf(
-                 ": v2Mul.inChannels (%d) != v1BN.numChannels*3 (%d)", v2Mul.inChannels, v1BN.numChannels * 3));
-  } else {
-    if(v2Mul.inChannels != v1BN.numChannels)
-      throw StringError(
-        name +
-        Global::strprintf(": v2Mul.inChannels (%d) != v1BN.numChannels (%d)", v2Mul.inChannels, v1BN.numChannels));
-  }
+  if(v2Mul.inChannels != v1BN.numChannels * 3)
+    throw StringError(
+      name + Global::strprintf(
+               ": v2Mul.inChannels (%d) != v1BN.numChannels*3 (%d)", v2Mul.inChannels, v1BN.numChannels * 3));
 
   if(v2Mul.outChannels != v2Bias.numChannels)
     throw StringError(
       name +
       Global::strprintf(": v2Mul.outChannels (%d) != v2Bias.numChannels (%d)", v2Mul.outChannels, v2Bias.numChannels));
-  if(version >= 1) {
-    if(v2Mul.outChannels != v3Mul.inChannels)
-      throw StringError(
-        name +
-        Global::strprintf(": v2Mul.outChannels (%d) != v3Mul.inChannels (%d)", v2Mul.outChannels, v3Mul.inChannels));
+  if(v2Mul.outChannels != v3Mul.inChannels)
+    throw StringError(
+      name +
+      Global::strprintf(": v2Mul.outChannels (%d) != v3Mul.inChannels (%d)", v2Mul.outChannels, v3Mul.inChannels));
+  if(v3Mul.outChannels != 3)
+    throw StringError(name + Global::strprintf(": v3Mul.outChannels (%d) != 3", v3Mul.outChannels));
+  if(v3Bias.numChannels != 3)
+    throw StringError(name + Global::strprintf(": v3Bias.numChannels (%d) != 3", v3Bias.numChannels));
+
+  if(sv3Mul.inChannels != v2Mul.outChannels)
+    throw StringError(
+      name +
+      Global::strprintf(": sv3Mul.inChannels (%d) != v2Mul.outChannels (%d)", sv3Mul.inChannels, v2Mul.outChannels));
+
+  if(version >= 4) {
+    if(sv3Mul.outChannels != 2)
+      throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 2", sv3Mul.outChannels));
+    if(sv3Bias.numChannels != 2)
+      throw StringError(name + Global::strprintf(": sv3Bias.numChannels (%d) != 2", sv3Bias.numChannels));
   } else {
-    if(v2Mul.outChannels * 2 != v3Mul.inChannels)
-      throw StringError(
-        name + Global::strprintf(
-                 ": v2Mul.outChannels*2 (%d) != v3Mul.inChannels (%d)", v2Mul.outChannels * 2, v3Mul.inChannels));
-  }
-  if(version >= 3) {
-    if(v3Mul.outChannels != 3)
-      throw StringError(name + Global::strprintf(": v3Mul.outChannels (%d) != 3", v3Mul.outChannels));
-    if(v3Bias.numChannels != 3)
-      throw StringError(name + Global::strprintf(": v3Bias.numChannels (%d) != 3", v3Bias.numChannels));
-  } else {
-    if(v3Mul.outChannels != 1)
-      throw StringError(name + Global::strprintf(": v3Mul.outChannels (%d) != 1", v3Mul.outChannels));
-    if(v3Bias.numChannels != 1)
-      throw StringError(name + Global::strprintf(": v3Bias.numChannels (%d) != 1", v3Bias.numChannels));
+    if(sv3Mul.outChannels != 1)
+      throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 1", sv3Mul.outChannels));
+    if(sv3Bias.numChannels != 1)
+      throw StringError(name + Global::strprintf(": sv3Bias.numChannels (%d) != 1", sv3Bias.numChannels));
   }
 
-  if(version >= 3) {
-    if(sv3Mul.inChannels != v2Mul.outChannels)
-      throw StringError(
-        name +
-        Global::strprintf(": sv3Mul.inChannels (%d) != v2Mul.outChannels (%d)", sv3Mul.inChannels, v2Mul.outChannels));
-
-    if(version >= 4) {
-      if(sv3Mul.outChannels != 2)
-        throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 2", sv3Mul.outChannels));
-      if(sv3Bias.numChannels != 2)
-        throw StringError(name + Global::strprintf(": sv3Bias.numChannels (%d) != 2", sv3Bias.numChannels));
-    } else {
-      if(sv3Mul.outChannels != 1)
-        throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 1", sv3Mul.outChannels));
-      if(sv3Bias.numChannels != 1)
-        throw StringError(name + Global::strprintf(": sv3Bias.numChannels (%d) != 1", sv3Bias.numChannels));
-    }
-
-    if(vOwnershipConv.inChannels != v1Conv.outChannels)
-      throw StringError(
-        name + Global::strprintf(
-                 ": vOwnershipConv.outChannels (%d) != v1Conv.outChannels (%d)",
-                 vOwnershipConv.inChannels,
-                 v1Conv.outChannels));
-    if(vOwnershipConv.outChannels != 1)
-      throw StringError(name + Global::strprintf(": vOwnershipConv.outChannels (%d) != 1", vOwnershipConv.outChannels));
-  }
+  if(vOwnershipConv.inChannels != v1Conv.outChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": vOwnershipConv.outChannels (%d) != v1Conv.outChannels (%d)",
+               vOwnershipConv.inChannels,
+               v1Conv.outChannels));
+  if(vOwnershipConv.outChannels != 1)
+    throw StringError(name + Global::strprintf(": vOwnershipConv.outChannels (%d) != 1", vOwnershipConv.outChannels));
 }
 
 ValueHeadDesc::~ValueHeadDesc() {}
@@ -960,8 +899,6 @@ void ValueHeadDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)
 
 ModelDesc::ModelDesc()
   : version(-1),
-    xSizePreV3(0),
-    ySizePreV3(0),
     numInputChannels(0),
     numInputGlobalChannels(0),
     numValueChannels(0),
@@ -976,20 +913,8 @@ ModelDesc::ModelDesc(istream& in) {
 
   if(version < 0 || version > NNModelVersion::latestModelVersionImplemented)
     throw StringError(name + ": model found unsupported version " + Global::intToString(version));
-  if(version < 1)
-    throw StringError("Version 0 neural nets no longer supported");
-
-  if(version >= 3) {
-    xSizePreV3 = 0;  // Unused, V3 uses posLen instead
-    ySizePreV3 = 0;  // Unused, V3 uses posLen instead
-  } else {
-    in >> xSizePreV3;
-    in >> ySizePreV3;
-    if(in.fail())
-      throw StringError(name + ": model failed to parse xSize or ySize");
-    if(xSizePreV3 <= 0 || ySizePreV3 <= 0)
-      throw StringError(name + ": model xSize and ySize must be positive");
-  }
+  if(version < 3)
+    throw StringError("Version 0-2 neural nets no longer supported");
 
   in >> numInputChannels;
   if(in.fail())
@@ -997,14 +922,11 @@ ModelDesc::ModelDesc(istream& in) {
   if(numInputChannels <= 0)
     throw StringError(name + ": model numInputChannels must be positive");
 
-  if(version >= 3) {
-    in >> numInputGlobalChannels;
-    if(in.fail())
-      throw StringError(name + ": model failed to parse numInputGlobalChannels");
-    if(numInputGlobalChannels <= 0)
-      throw StringError(name + ": model numInputGlobalChannels must be positive");
-  } else
-    numInputGlobalChannels = 0;
+  in >> numInputGlobalChannels;
+  if(in.fail())
+    throw StringError(name + ": model failed to parse numInputGlobalChannels");
+  if(numInputGlobalChannels <= 0)
+    throw StringError(name + ": model numInputGlobalChannels must be positive");
 
   trunk = TrunkDesc(in, version);
   policyHead = PolicyHeadDesc(in, version);
@@ -1023,14 +945,12 @@ ModelDesc::ModelDesc(istream& in) {
                ": numInputChannels (%d) != trunk.initialConv.inChannels (%d)",
                numInputChannels,
                trunk.initialConv.inChannels));
-  if(version >= 3) {
-    if(numInputGlobalChannels != trunk.initialMatMul.inChannels)
-      throw StringError(
-        name + Global::strprintf(
-                 ": numInputChannels (%d) != trunk.initialMatMul.inChannels (%d)",
-                 numInputGlobalChannels,
-                 trunk.initialMatMul.inChannels));
-  }
+  if(numInputGlobalChannels != trunk.initialMatMul.inChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": numInputChannels (%d) != trunk.initialMatMul.inChannels (%d)",
+               numInputGlobalChannels,
+               trunk.initialMatMul.inChannels));
 
   if(trunk.trunkNumChannels != policyHead.p1Conv.inChannels)
     throw StringError(
@@ -1061,8 +981,6 @@ ModelDesc::ModelDesc(ModelDesc&& other) {
 ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
   name = std::move(other.name);
   version = other.version;
-  xSizePreV3 = other.xSizePreV3;
-  ySizePreV3 = other.ySizePreV3;
   numInputChannels = other.numInputChannels;
   numInputGlobalChannels = other.numInputGlobalChannels;
   numValueChannels = other.numValueChannels;
