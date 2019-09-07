@@ -184,9 +184,9 @@ def model_fn(features,labels,mode,params):
     wsum_op = tf.assign_add(wsum,target_vars.weight_sum)
     return tf.estimator.EstimatorSpec(
       mode,
-      loss=target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32),
+      loss=target_vars.opt_loss / tf.constant(batch_size*num_gpus_used,dtype=tf.float32),
       eval_metric_ops={
-        "wsum": (wsum.read_value(),wsum_op),
+        #"wsum": (wsum.read_value(),wsum_op),
         "p0loss": tf.compat.v1.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
         "p1loss": tf.compat.v1.metrics.mean(target_vars.policy1_loss_unreduced, weights=target_vars.target_weight_used),
         "vloss": tf.compat.v1.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
@@ -251,8 +251,8 @@ def model_fn(features,labels,mode,params):
     print_train_loss_every_batches = 100
 
     logging_hook = tf.estimator.LoggingTensorHook({
-      "nsamp": global_step * tf.constant(batch_size,dtype=tf.int64),
-      "wsum": global_step_float * wmean,
+      "nsamp": global_step * tf.constant(batch_size*num_gpus_used,dtype=tf.int64),
+      "wsum": global_step_float * wmean * tf.constant(float(num_gpus_used)),
       "p0loss": p0loss,
       "p1loss": p1loss,
       "vloss": vloss,
@@ -384,6 +384,7 @@ def val_input_fn(vdatadir):
 
 trainlog("Beginning training")
 
+num_gpus_used = 1
 if multi_gpus is None:
   session_config = tf.ConfigProto()
   session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
@@ -403,6 +404,7 @@ else:
   for piece in multi_gpus.split(","):
     piece = piece.strip()
     device_ids.append("/GPU:" + str(int(piece)))
+  num_gpus_used = len(device_ids)
   session_config = tf.ConfigProto(allow_soft_placement=True)
   session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
   multigpu_strategy = tf.distribute.MirroredStrategy(devices=device_ids)
@@ -456,7 +458,7 @@ else:
   trainhistory["history"].append(("initialized",model_config))
 
 def save_history(global_step_value):
-  trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
+  trainhistory["history"].append(("nsamp",int(global_step_value * batch_size * num_gpus_used)))
   savepath = os.path.join(traindir,"trainhistory.json")
   savepathtmp = os.path.join(traindir,"trainhistory.json.tmp")
   dump_and_flush_json(trainhistory,savepathtmp)
@@ -537,7 +539,7 @@ while True:
   trainlog("=========================================================================")
   trainlog("Current time: " + str(datetime.datetime.now()))
   if globalstep is not None:
-    trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
+    trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size*num_gpus_used))
 
   #SUB EPOCH LOOP -----------
   num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
@@ -592,7 +594,7 @@ while True:
     #Export a model for testing, unless somehow it already exists
     modelname = "%s-s%d-d%d" % (
       exportprefix,
-      globalstep*batch_size,
+      globalstep*batch_size*num_gpus_used,
       last_datainfo_row,
     )
     savepath = os.path.join(exportdir,modelname)
