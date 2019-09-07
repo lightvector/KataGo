@@ -12,32 +12,32 @@ then
     echo "MODELKIND what size model to train"
     exit 0
 fi
-BASEDIR=$1
+BASEDIR="$1"
 shift
-TRAININGNAME=$1
+TRAININGNAME="$1"
 shift
-MODELKIND=$1
+MODELKIND="$1"
 shift
 
 #------------------------------------------------------------------------------
 set -x
 
-mkdir -p $BASEDIR/train/$TRAININGNAME
-git show --no-patch --no-color > $BASEDIR/train/$TRAININGNAME/version.txt
-git diff --no-color > $BASEDIR/train/$TRAININGNAME/diff.txt
-git diff --staged --no-color > $BASEDIR/train/$TRAININGNAME/diffstaged.txt
+mkdir -p "$BASEDIR"/train/"$TRAININGNAME"
+git show --no-patch --no-color > "$BASEDIR"/train/"$TRAININGNAME"/version.txt
+git diff --no-color > "$BASEDIR"/train/"$TRAININGNAME"/diff.txt
+git diff --staged --no-color > "$BASEDIR"/train/"$TRAININGNAME"/diffstaged.txt
 
 time python3 ./train.py \
-     -traindir $BASEDIR/train/$TRAININGNAME \
-     -datadir $BASEDIR/shuffleddata/current/ \
-     -exportdir $BASEDIR/tfsavedmodels_toexport \
-     -exportprefix $TRAININGNAME \
+     -traindir "$BASEDIR"/train/"$TRAININGNAME" \
+     -datadir "$BASEDIR"/shuffleddata/current/ \
+     -exportdir "$BASEDIR"/tfsavedmodels_toexport \
+     -exportprefix "$TRAININGNAME" \
      -pos-len 19 \
      -batch-size 256 \
      -samples-per-epoch 1000000 \
      -gpu-memory-frac 0.6 \
-     -model-kind $MODELKIND \
+     -model-kind "$MODELKIND" \
      -sub-epochs 4 \
      -swa-sub-epoch-scale 4 \
      "$@" \
-     2>&1 | tee -a $BASEDIR/train/$TRAININGNAME/stdout.txt
+     2>&1 | tee -a "$BASEDIR"/train/"$TRAININGNAME"/stdout.txt

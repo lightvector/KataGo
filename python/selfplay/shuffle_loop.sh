@@ -8,15 +8,18 @@ then
     echo "NTHREADS number of parallel threads/processes to use in shuffle"
     exit 0
 fi
-BASEDIR=$1
+BASEDIR="$1"
 shift
-TMPDIR=$1
+TMPDIR="$1"
 shift
-NTHREADS=$1
+NTHREADS="$1"
 shift
+
+basedir="$(realpath "$BASEDIRRAW")"
+tmpdir="$(realpath "$TMPDIRRAW")"
 
 while true
 do
-    ./selfplay/shuffle.sh $BASEDIR $TMPDIR $NTHREADS
+    ./selfplay/shuffle.sh "$basedir" "$tmpdir" "$NTHREADS"
     sleep 20
 done
