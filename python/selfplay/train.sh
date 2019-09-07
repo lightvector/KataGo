@@ -33,7 +33,7 @@ time python3 ./train.py \
      -exportdir "$BASEDIR"/tfsavedmodels_toexport \
      -exportprefix "$TRAININGNAME" \
      -pos-len 19 \
-     -batch-size 256 \
+     -batch-size 128 \
      -samples-per-epoch 1000000 \
      -gpu-memory-frac 0.6 \
      -model-kind "$MODELKIND" \

@@ -42,7 +42,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -out-tmp-dir "$TMPDIR"/train \
          -approx-rows-per-out-file 70000 \
          -num-processes "$NTHREADS" \
-         -batch-size 256 \
+         -batch-size 128 \
          -keep-target-rows 2000000 \
          2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outtrain.txt &
 
@@ -56,7 +56,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -out-tmp-dir "$TMPDIR"/val \
          -approx-rows-per-out-file 70000 \
          -num-processes "$NTHREADS" \
-         -batch-size 256 \
+         -batch-size 128 \
          -keep-target-rows 20000 \
          2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outval.txt &
 
