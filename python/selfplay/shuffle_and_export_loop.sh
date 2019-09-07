@@ -28,7 +28,7 @@ cp ./*.py ./selfplay/*.sh "$basedir"/scripts
     cd "$basedir"/scripts
     while true
     do
-        ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS"
+        ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$@"
         sleep 20
     done
 ) >> outshuffle.txt 2>&1 & disown

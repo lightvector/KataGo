@@ -571,7 +571,7 @@ while True:
         break
 
     #Train
-    trainlog("Beginning training epoch!")
+    trainlog("Beginning training subepoch!")
     trainlog("Currently up to data row " + str(last_datainfo_row))
     estimator.train(
       (lambda mode, input_context=None: train_input_fn(train_files_to_use,num_train_files,batches_to_use_so_far,mode,input_context)),
@@ -579,6 +579,7 @@ while True:
         CheckpointSaverListenerFunction(save_history)
       ]
     )
+    trainlog("Finished training subepoch!")
 
     if swa_sub_epoch_scale is not None:
       accumulate_swa(estimator)

@@ -44,6 +44,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -num-processes "$NTHREADS" \
          -batch-size 128 \
          -keep-target-rows 2000000 \
+         "$@" \
          2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outtrain.txt &
 
     time python3 ./shuffle.py \
@@ -58,6 +59,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -num-processes "$NTHREADS" \
          -batch-size 128 \
          -keep-target-rows 20000 \
+         "$@" \
          2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outval.txt &
 
     wait
