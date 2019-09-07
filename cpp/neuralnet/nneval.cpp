@@ -177,6 +177,10 @@ int NNEvaluator::getNNYLen() const {
   return nnYLen;
 }
 Rules NNEvaluator::getSupportedRules(const Rules& desiredRules, bool& supported) {
+  if(loadedModel == NULL) {
+    supported = true;
+    return desiredRules;
+  }
   return NeuralNet::getSupportedRules(loadedModel, desiredRules, supported);
 }
 
