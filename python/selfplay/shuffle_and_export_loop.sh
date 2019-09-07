@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-if [[ $# -ne 4 ]]
+if [[ $# -lt 4 ]]
 then
     echo "Usage: $0 BASEDIR TMPDIR NTHREADS USEGATING"
     echo "BASEDIR containing selfplay data and models and related directories"
