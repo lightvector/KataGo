@@ -1464,7 +1464,7 @@ class ModelUtils:
     logf("Model: %d total parameters" % total_parameters)
 
   @staticmethod
-  def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_scale=None):
+  def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_globalsteps_per_epoch,lr_scale=None):
     trainlog("Building model")
 
     num_bin_input_features = Model.get_num_bin_input_features(model_config)
@@ -1534,7 +1534,7 @@ class ModelUtils:
       metrics = Metrics(model,target_vars,include_debug_stats=False)
       global_step = tf.compat.v1.train.get_global_step()
       global_step_float = tf.cast(global_step, tf.float32)
-      global_epoch = global_step_float / tf.constant(num_batches_per_epoch,dtype=tf.float32)
+      global_epoch = global_step_float / tf.constant(num_globalsteps_per_epoch,dtype=tf.float32)
 
       lr_base = 0.00006 * (1.0 if lr_scale is None else lr_scale)
       per_sample_learning_rate = (

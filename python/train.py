@@ -164,7 +164,8 @@ def model_fn(features,labels,mode,params):
 
   print_model = not printed_model_yet
 
-  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_batches_per_epoch,lr_scale)
+  num_globalsteps_per_epoch = num_batches_per_epoch / num_gpus_used
+  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_globalsteps_per_epoch,lr_scale)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
     model = built
