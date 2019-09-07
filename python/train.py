@@ -220,12 +220,13 @@ def model_fn(features,labels,mode,params):
       moving_wx = tf.compat.v1.get_variable(initializer=tf.zeros([]),name=(name+"/moving_wx"),trainable=False)
       moving_w = tf.compat.v1.get_variable(initializer=tf.zeros([]),name=(name+"/moving_w"),trainable=False)
 
+      decay = 0.999
       with tf.name_scope(name):
-        wx_op = tf.keras.backend.moving_average_update(moving_wx,sumwx,0.999)
-        w_op = tf.keras.backend.moving_average_update(moving_w,sumw,0.999)
+        wx_op = tf.keras.backend.moving_average_update(moving_wx,sumwx,decay)
+        w_op = tf.keras.backend.moving_average_update(moving_w,sumw,decay)
         op = tf.group(wx_op,w_op)
 
-      avg = (moving_wx + sumwx) / (moving_w + sumw)
+      avg = (moving_wx + sumwx * (1.0-decay)) / (moving_w + sumw * (1.0-decay))
       return (avg,op)
 
     (p0loss,p0loss_op) = moving_mean("p0loss",target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used)
