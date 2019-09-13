@@ -399,11 +399,13 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
   Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
   sout << "\n";
   sout << "Root visits: " << bot->numRootVisits() << "\n";
+  sout << "Policy surprise " << bot->getPolicySurprise() << "\n";
   sout << "PV: ";
   bot->printPV(sout, bot->rootNode, 25);
   sout << "\n";
   sout << "Tree:\n";
   bot->printTree(sout, bot->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),P_WHITE);
+
   logger.write(sout.str());
 }
 
@@ -642,7 +644,7 @@ static void extractPolicyTarget(
   //   cout << "LARGE PLAY SELECTION VALUE " << maxValue << endl;
   //   toMoveBot->printTree(cout, node, PrintTreeOptions(), P_WHITE);
   // }
-  
+
   double factor = 1.0;
   if(maxValue > 30000.0)
     factor = 30000.0 / maxValue;

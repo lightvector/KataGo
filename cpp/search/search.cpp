@@ -1099,7 +1099,7 @@ int64_t Search::numRootVisits() const {
   return n;
 }
 
-void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs) {  
+void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs) {
   int legalCount = 0;
   for(int i = 0; i<policySize; i++) {
     if(policyProbs[i] >= 0)
@@ -1156,11 +1156,11 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
   // }
   // double prob = r[NNPos::locToPos(Board::PASS_LOC,rootBoard.x_size,node.nnOutput->nnXLen,node.nnOutput->nnYLen)] * searchParams.rootDirichletNoiseTotalConcentration;
   // cout << "Pass " << Global::strprintf("%6.3f",prob) << endl;
-    
+
   //r now contains the proportions with which we would like to split the alpha
   //The total of the alphas is searchParams.rootDirichletNoiseTotalConcentration
   //Generate gamma draw on each move
-  double rSum = 0.0;    
+  double rSum = 0.0;
   for(int i = 0; i<policySize; i++) {
     if(policyProbs[i] >= 0) {
       r[i] = rand.nextGamma(r[i] * searchParams.rootDirichletNoiseTotalConcentration);
@@ -1203,7 +1203,7 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
   float* noisedPolicyProbs = new float[NNPos::MAX_NN_POLICY_SIZE];
   node.nnOutput->noisedPolicyProbs = noisedPolicyProbs;
   std::copy(node.nnOutput->policyProbs, node.nnOutput->policyProbs + NNPos::MAX_NN_POLICY_SIZE, noisedPolicyProbs);
-  
+
   if(searchParams.rootPolicyTemperature != 1.0) {
     double maxValue = 0.0;
     for(int i = 0; i<policySize; i++) {
@@ -2055,8 +2055,13 @@ void Search::playoutDescend(
 
 
 void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
+  if(rootNode == NULL)
+    return;
+  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
+  lock_guard<std::mutex> lock(mutex);
   if(rootNode->nnOutput == nullptr)
     return;
+
   NNOutput& nnOutput = *(rootNode->nnOutput);
   if(nnOutput.whiteOwnerMap == NULL)
     return;
@@ -2075,11 +2080,16 @@ void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
 }
 
 void Search::printRootPolicyMap(ostream& out) const {
+  if(rootNode == NULL)
+    return;
+  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
+  lock_guard<std::mutex> lock(mutex);
   if(rootNode->nnOutput == nullptr)
     return;
+
   NNOutput& nnOutput = *(rootNode->nnOutput);
 
-  float* policyProbs = nnOutput.getPolicyProbsMaybeNoised();  
+  float* policyProbs = nnOutput.getPolicyProbsMaybeNoised();
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
@@ -2090,12 +2100,52 @@ void Search::printRootPolicyMap(ostream& out) const {
   out << endl;
 }
 
+double Search::getPolicySurprise() const {
+  if(rootNode == NULL)
+    return 0.0;
+  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
+  lock_guard<std::mutex> lock(mutex);
+  if(rootNode->nnOutput == nullptr)
+    return 0.0;
+
+  NNOutput& nnOutput = *(rootNode->nnOutput);
+
+  vector<Loc> locs;
+  vector<double> playSelectionValues;
+  bool allowDirectPolicyMoves = true;
+  bool alwaysComputeLcb = false;
+  double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
+  double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
+  bool suc = getPlaySelectionValuesAlreadyLocked(
+    *rootNode,locs,playSelectionValues,1.0,allowDirectPolicyMoves,alwaysComputeLcb,lcbBuf,radiusBuf);
+  if(!suc)
+    return 0.0;
+
+  double sumPlaySelectionValues = 0.0;
+  for(int i = 0; i<playSelectionValues.size(); i++)
+    sumPlaySelectionValues += playSelectionValues[i];
+
+  float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
+
+  double surprise = 0.0;
+  for(int i = 0; i<playSelectionValues.size(); i++) {
+    int pos = getPos(locs[i]);
+    double policy = policyProbsFromNN[pos];
+    double target = playSelectionValues[i] / sumPlaySelectionValues;
+    if(target > 1e-100)
+      surprise += target * (log(target)-log(policy));
+  }
+  return surprise;
+}
+
 void Search::printRootEndingScoreValueBonus(ostream& out) const {
+  if(rootNode == NULL)
+    return;
   std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
   unique_lock<std::mutex> lock(mutex);
-
   if(rootNode->nnOutput == nullptr)
     return;
+
   NNOutput& nnOutput = *(rootNode->nnOutput);
   if(nnOutput.whiteOwnerMap == NULL)
     return;
@@ -2287,6 +2337,7 @@ void Search::getAnalysisData(
   vector<double> scratchValues;
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
+  float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
   {
     std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
     lock_guard<std::mutex> lock(mutex);
@@ -2302,19 +2353,18 @@ void Search::getAnalysisData(
     bool success = getPlaySelectionValuesAlreadyLocked(node, scratchLocs, scratchValues, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
     if(!success)
       return;
+
+    NNOutput& nnOutput = *(node.nnOutput);
+    float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
+    for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
+      policyProbs[i] = policyProbsFromNN[i];
   }
 
   //Copy to make sure we keep these values so we can reuse scratch later for PV
   vector<double> playSelectionValues = scratchValues;
 
-  float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
   double policyProbMassVisited = 0.0;
   {
-    NNOutput& nnOutput = *(node.nnOutput);
-    float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
-    for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
-      policyProbs[i] = policyProbsFromNN[i];
-
     for(int i = 0; i<numChildren; i++) {
       const SearchNode* child = children[i];
       policyProbMassVisited += policyProbs[getPos(child->prevMoveLoc)];

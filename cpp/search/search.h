@@ -271,6 +271,8 @@ struct Search {
   //Append the PV from node n for specified move, assuming move is a child move of node n
   void appendPVForMove(std::vector<Loc>& buf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) const;
 
+  double getPolicySurprise() const;
+
   //Get the ownership map averaged throughout the search tree.
   //Must have ownership present on all neural net evals.
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
