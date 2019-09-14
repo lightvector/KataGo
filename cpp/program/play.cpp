@@ -106,6 +106,25 @@ int Play::numHandicapStones(const Board& initialBoard, const vector<Move>& moveH
   return startBoardNumBlackStones;
 }
 
+double Play::getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
+  double winrate = 0.5 * (1.0 + data.winLossValue);
+  //Super hacky - in KataGo, lcb is on utility (i.e. also weighting score), not winrate, but if you're using
+  //lz-analyze you probably don't know about utility and expect LCB to be about winrate. So we apply the LCB
+  //radius to the winrate in order to get something reasonable to display, and also scale it proportionally
+  //by how much winrate is supposed to matter relative to score.
+  double radiusScaleHackFactor = search->searchParams.winLossUtilityFactor / (
+    search->searchParams.winLossUtilityFactor +
+    search->searchParams.staticScoreUtilityFactor +
+    search->searchParams.dynamicScoreUtilityFactor +
+    1.0e-20 //avoid divide by 0
+  );
+  //Also another factor of 0.5 because winrate goes from only 0 to 1 instead of -1 to 1 when it's part of utility
+  radiusScaleHackFactor *= 0.5;
+  double lcb = pla == P_WHITE ? winrate - data.radius * radiusScaleHackFactor : winrate + data.radius * radiusScaleHackFactor;
+  return lcb;
+}
+
+
 //----------------------------------------------------------------------------------------------------------
 
 InitialPosition::InitialPosition()

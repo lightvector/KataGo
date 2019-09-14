@@ -550,7 +550,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   std::thread modelLoadLoopThread(modelLoadLoop);
 
   //Wait for all game threads to stop
-  for(int i = 0; i<numGameThreads; i++)
+  for(int i = 0; i<threads.size(); i++)
     threads[i].join();
 
   //Wake up the model loading thread rather than waiting up to 60s for it to wake up on its own, and

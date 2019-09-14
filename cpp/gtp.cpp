@@ -541,24 +541,6 @@ struct GTPEngine {
     setPositionAndRulesExceptKomi(pla,board,hist,board,pla,newMoveHistory);
   }
 
-  double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
-    double winrate = 0.5 * (1.0 + data.winLossValue);
-    //Super hacky - in KataGo, lcb is on utility (i.e. also weighting score), not winrate, but if you're using
-    //lz-analyze you probably don't know about utility and expect LCB to be about winrate. So we apply the LCB
-    //radius to the winrate in order to get something reasonable to display, and also scale it proportionally
-    //by how much winrate is supposed to matter relative to score.
-    double radiusScaleHackFactor = search->searchParams.winLossUtilityFactor / (
-      search->searchParams.winLossUtilityFactor +
-      search->searchParams.staticScoreUtilityFactor +
-      search->searchParams.dynamicScoreUtilityFactor +
-      1.0e-20 //avoid divide by 0
-    );
-    //Also another factor of 0.5 because winrate goes from only 0 to 1 instead of -1 to 1 when it's part of utility
-    radiusScaleHackFactor *= 0.5;
-    double lcb = pla == P_WHITE ? winrate - data.radius * radiusScaleHackFactor : winrate + data.radius * radiusScaleHackFactor;
-    return lcb;
-  }
-
   void analyze(Player pla, bool kata, double secondsPerReport, int minMoves, bool showOwnership) {
 
     std::function<void(Search* search)> callback;
@@ -577,7 +559,7 @@ struct GTPEngine {
             cout << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
-          double lcb = getHackedLCBForWinrate(search,data,pla);
+          double lcb = Play::getHackedLCBForWinrate(search,data,pla);
           if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
             winrate = 1.0-winrate;
             lcb = 1.0 - lcb;
@@ -618,7 +600,7 @@ struct GTPEngine {
           double winrate = 0.5 * (1.0 + data.winLossValue);
           double utility = data.utility;
           //We still hack the LCB for consistency with LZ-analyze
-          double lcb = getHackedLCBForWinrate(search,data,pla);
+          double lcb = Play::getHackedLCBForWinrate(search,data,pla);
           ///But now we also offer the proper LCB that KataGo actually uses.
           double utilityLcb = data.lcb;
           double scoreMean = data.scoreMean;
@@ -756,7 +738,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
-  const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,50) : 9;
+  const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 9;
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 

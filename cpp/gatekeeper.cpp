@@ -456,7 +456,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     }
 
     //Wait for all game threads to stop
-    for(int i = 0; i<numGameThreads; i++)
+    for(int i = 0; i<threads.size(); i++)
       threads[i].join();
 
     //Mark as draining so the data write thread will quit

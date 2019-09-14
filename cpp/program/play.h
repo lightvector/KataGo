@@ -265,6 +265,8 @@ namespace Play {
   );
 
   int numHandicapStones(const Board& initialBoard, const std::vector<Move>& moveHistory);
+
+  double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla);
 }
 
 

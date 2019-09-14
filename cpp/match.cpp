@@ -227,7 +227,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   for(int i = 0; i<numGameThreads; i++) {
     threads.push_back(std::thread(runMatchLoop, hashRand.nextUInt64()));
   }
-  for(int i = 0; i<numGameThreads; i++)
+  for(int i = 0; i<threads.size(); i++)
     threads[i].join();
 
   delete matchPairer;
