@@ -71,19 +71,32 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   return ExtraBlackAndKomi(extraBlack,komi,base);
 }
 
-int Play::numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory) {
+int Play::numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory, bool assumeMultipleStartingBlackMovesAreHandicap) {
   //Make the longest possible contiguous sequence of black moves - treat a string of consecutive black
   //moves at the start of the game as "handicap"
+  //This is necessary because when loading sgfs or on some servers, (particularly with free placement)
+  //handicap is implemented by having black just make a bunch of moves in a row.
+  //But if white makes multiple moves in a row after that, then the plays are probably not handicap, someone's setting
+  //up a problem position by having black play all moves in a row then white play all moves in a row.
   Board board = initialBoard;
-  for(int i = 0; i<moveHistory.size(); i++) {
-    Loc moveLoc = moveHistory[i].loc;
-    Player movePla = moveHistory[i].pla;
-    if(movePla != P_BLACK)
-      break;
-    bool isMultiStoneSuicideLegal = true;
-    bool suc = board.playMove(moveLoc,movePla,isMultiStoneSuicideLegal);
-    if(!suc)
-      break;
+
+  if(assumeMultipleStartingBlackMovesAreHandicap) {
+    for(int i = 0; i<moveHistory.size(); i++) {
+      Loc moveLoc = moveHistory[i].loc;
+      Player movePla = moveHistory[i].pla;
+      if(movePla != P_BLACK) {
+        //Two white moves in a row?
+        if(i+1 < moveHistory.size() && moveHistory[i+1].pla != P_BLACK) {
+          //Re-set board, don't play these moves
+          board = initialBoard;
+        }
+        break;
+      }
+      bool isMultiStoneSuicideLegal = true;
+      bool suc = board.playMove(moveLoc,movePla,isMultiStoneSuicideLegal);
+      if(!suc)
+        break;
+    }
   }
 
   int startBoardNumBlackStones = 0;

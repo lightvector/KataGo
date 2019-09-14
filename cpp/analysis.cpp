@@ -71,6 +71,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   const int whiteBonusPerHandicapStone = cfg.contains("whiteBonusPerHandicapStone") ? cfg.getInt("whiteBonusPerHandicapStone",0,1) : 0;
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
   const Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
+  const bool assumeMultipleStartingBlackMovesAreHandicap =
+    cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
 
   NNEvaluator* nnEval;
   {
@@ -500,7 +502,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       if(moveHistory.size() > 0)
         initialPlayer = moveHistory[0].pla;
       else {
-        int nHandicapStones = Play::numHandicapStones(board,moveHistory);
+        int nHandicapStones = Play::numHandicapStones(board,moveHistory,assumeMultipleStartingBlackMovesAreHandicap);
         if(nHandicapStones > 0)
           initialPlayer = P_WHITE;
         else
@@ -508,7 +510,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
     }
 
-    int nHandicapStones = Play::numHandicapStones(board,moveHistory);
+    int nHandicapStones = Play::numHandicapStones(board,moveHistory,assumeMultipleStartingBlackMovesAreHandicap);
     rules.komi += (float)(nHandicapStones * whiteBonusPerHandicapStone);
 
     bool rulesWereSupported;

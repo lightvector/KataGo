@@ -73,10 +73,11 @@ static bool shouldResign(
   const vector<double>& recentWinLossValues,
   double expectedScore,
   const double resignThreshold,
-  const int resignConsecTurns
+  const int resignConsecTurns,
+  bool assumeMultipleStartingBlackMovesAreHandicap
 ) {
   //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
-  int extraBlackStones = Play::numHandicapStones(initialBoard,moveHistory);
+  int extraBlackStones = Play::numHandicapStones(initialBoard,moveHistory,assumeMultipleStartingBlackMovesAreHandicap);
   //Subtract one since white gets the first move afterward
   if(extraBlackStones > 0)
     extraBlackStones -= 1;
@@ -150,6 +151,7 @@ struct GTPEngine {
 
   const string nnModelFile;
   const double whiteBonusPerHandicapStone;
+  const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
 
   NNEvaluator* nnEval;
@@ -171,9 +173,14 @@ struct GTPEngine {
 
   Player perspective;
 
-  GTPEngine(const string& modelFile, SearchParams initialParams, Rules initialRules, double wBonusPerHandicapStone, Player persp, int pvLen)
+  GTPEngine(
+    const string& modelFile, SearchParams initialParams, Rules initialRules,
+    double wBonusPerHandicapStone, bool assumeMultiBlackHandicap,
+    Player persp, int pvLen
+  )
     :nnModelFile(modelFile),
      whiteBonusPerHandicapStone(wBonusPerHandicapStone),
+     assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
      nnEval(NULL),
      bot(NULL),
@@ -294,7 +301,7 @@ struct GTPEngine {
     baseRules.komi = newUnhackedKomi;
 
     float newKomi = baseRules.komi;
-    int nHandicapStones = Play::numHandicapStones(initialBoard,moveHistory);
+    int nHandicapStones = Play::numHandicapStones(initialBoard,moveHistory,assumeMultipleStartingBlackMovesAreHandicap);
     newKomi += (float)(nHandicapStones * whiteBonusPerHandicapStone);
     if(newKomi != bot->getRootHist().rules.komi)
       recentWinLossValues.clear();
@@ -461,7 +468,8 @@ struct GTPEngine {
     recentWinLossValues.push_back(winLossValue);
 
     bool resigned = allowResignation && shouldResign(
-      initialBoard,moveHistory,bot->getRootHist().rules,pla,recentWinLossValues,expectedScore,resignThreshold,resignConsecTurns
+      initialBoard,moveHistory,bot->getRootHist().rules,pla,recentWinLossValues,expectedScore,
+      resignThreshold,resignConsecTurns,assumeMultipleStartingBlackMovesAreHandicap
     );
 
     if(resigned)
@@ -739,10 +747,16 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 9;
+  const bool assumeMultipleStartingBlackMovesAreHandicap =
+    cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
-  GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone,perspective,analysisPVLen);
+  GTPEngine* engine = new GTPEngine(
+    nnModelFile,params,initialRules,
+    whiteBonusPerHandicapStone,assumeMultipleStartingBlackMovesAreHandicap,
+    perspective,analysisPVLen
+  );
   engine->setOrResetBoardSize(cfg,logger,seedRand,-1,-1);
 
   //Check for unused config keys
