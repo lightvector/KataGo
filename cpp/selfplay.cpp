@@ -220,7 +220,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
 
   //Initialize object for randomizing game settings and running games
-  bool forSelfPlay = true;
   FancyModes fancyModes;
   fancyModes.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   fancyModes.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
@@ -243,7 +242,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.recordTreePositions = cfg.getBool("recordTreePositions");
   fancyModes.recordTreeThreshold = cfg.getInt("recordTreeThreshold",1,100000000);
   fancyModes.recordTreeTargetWeight = cfg.getFloat("recordTreeTargetWeight",0.0f,1.0f);
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay, fancyModes);
+  fancyModes.forSelfPlay = true;
+  fancyModes.dataXLen = dataBoardLen;
+  fancyModes.dataYLen = dataBoardLen;
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes);
 
   Setup::initializeSession(cfg);
 
@@ -406,7 +408,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     &gameRunner,
     &logger,
     &netAndStuffsMutex,&netAndStuffs,
-    dataBoardLen,
     switchNetsMidGame,
     &fancyModes
   ](int threadIdx) {
@@ -459,7 +460,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
           gameIdx, botSpecB, botSpecW, initialPosition, &nextInitialPosition, logger,
-          dataBoardLen, dataBoardLen, stopConditions,
+          stopConditions,
           (switchNetsMidGame ? &checkForNewNNEval : NULL)
         );
       }

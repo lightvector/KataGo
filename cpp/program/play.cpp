@@ -374,7 +374,8 @@ FancyModes::FancyModes()
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
-   allowResignation(false),resignThreshold(0.0),resignConsecTurns(1)
+   allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
+   forSelfPlay(false),dataXLen(-1),dataYLen(-1)
 {}
 FancyModes::~FancyModes()
 {}
@@ -830,6 +831,160 @@ static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, c
   return loc;
 }
 
+//Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
+//and add entropy
+static void initializeGameUsingPolicy(
+  Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
+  Rand& gameRand, bool doEndGameIfAllPassAlive
+) {
+  NNResultBuf buf;
+
+  //This gives us about 15 moves on average for 19x19.
+  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size / 25.0));
+  assert(numInitialMovesToPlay >= 0);
+  for(int i = 0; i<numInitialMovesToPlay; i++) {
+    Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand);
+
+    //Make the move!
+    assert(hist.isLegal(board,loc,pla));
+    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+    pla = getOpp(pla);
+
+    //Rarely, playing the random moves out this way will end the game
+    if(doEndGameIfAllPassAlive)
+      hist.endGameIfAllPassAlive(board);
+    if(hist.isGameFinished)
+      break;
+  }
+}
+
+struct SearchLimitsThisMove {
+  bool doCapVisitsPlayouts;
+  int64_t numCapVisits;
+  int64_t numCapPlayouts;
+  bool clearBotBeforeSearchThisMove;
+  bool removeRootNoise;
+  float targetWeight;
+};
+
+static SearchLimitsThisMove getSearchLimitsThisMove(
+  const Search* toMoveBot, const FancyModes& fancyModes, Rand& gameRand,
+  const vector<double>& historicalMctsWinLossValues,
+  bool clearBotBeforeSearch
+) {
+  bool doCapVisitsPlayouts = false;
+  int64_t numCapVisits = toMoveBot->searchParams.maxVisits;
+  int64_t numCapPlayouts = toMoveBot->searchParams.maxPlayouts;
+  bool clearBotBeforeSearchThisMove = clearBotBeforeSearch;
+  bool removeRootNoise = false;
+  float targetWeight = 1.0f;
+
+  if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
+    if(fancyModes.cheapSearchVisits <= 0)
+      throw StringError("fancyModes.cheapSearchVisits <= 0");
+    doCapVisitsPlayouts = true;
+    numCapVisits = fancyModes.cheapSearchVisits;
+    numCapPlayouts = fancyModes.cheapSearchVisits;
+    targetWeight *= fancyModes.cheapSearchTargetWeight;
+
+    //If not recording cheap searches, do a few more things
+    if(fancyModes.cheapSearchTargetWeight <= 0.0) {
+      clearBotBeforeSearchThisMove = false;
+      removeRootNoise = true;
+    }
+  }
+  else if(fancyModes.reduceVisits) {
+    if(fancyModes.reducedVisitsMin <= 0)
+      throw StringError("fancyModes.reducedVisitsMin <= 0");
+    if(historicalMctsWinLossValues.size() >= fancyModes.reduceVisitsThresholdLookback) {
+      double minWinLossValue = 1e20;
+      double maxWinLossValue = -1e20;
+      for(int j = 0; j<fancyModes.reduceVisitsThresholdLookback; j++) {
+        double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-1-j];
+        if(winLossValue < minWinLossValue)
+          minWinLossValue = winLossValue;
+        if(winLossValue > maxWinLossValue)
+          maxWinLossValue = winLossValue;
+      }
+      assert(fancyModes.reduceVisitsThreshold >= 0.0);
+      double signedMostExtreme = std::max(minWinLossValue,-maxWinLossValue);
+      assert(signedMostExtreme <= 1.000001);
+      if(signedMostExtreme > 1.0)
+        signedMostExtreme = 1.0;
+      double amountThrough = signedMostExtreme - fancyModes.reduceVisitsThreshold;
+      if(amountThrough > 0) {
+        double proportionThrough = amountThrough / (1.0 - fancyModes.reduceVisitsThreshold);
+        assert(proportionThrough >= 0.0 && proportionThrough <= 1.0);
+        double visitReductionProp = proportionThrough * proportionThrough;
+        doCapVisitsPlayouts = true;
+        numCapVisits = (int64_t)round(numCapVisits + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapVisits));
+        numCapPlayouts = (int64_t)round(numCapPlayouts + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapPlayouts));
+        targetWeight = (float)(targetWeight + visitReductionProp * (fancyModes.reducedVisitsWeight - targetWeight));
+        numCapVisits = std::max(numCapVisits,(int64_t)fancyModes.reducedVisitsMin);
+        numCapPlayouts = std::max(numCapPlayouts,(int64_t)fancyModes.reducedVisitsMin);
+      }
+    }
+  }
+
+  SearchLimitsThisMove limits;
+  limits.doCapVisitsPlayouts = doCapVisitsPlayouts;
+  limits.numCapVisits = numCapVisits;
+  limits.numCapPlayouts = numCapPlayouts;
+  limits.clearBotBeforeSearchThisMove = clearBotBeforeSearchThisMove;
+  limits.removeRootNoise = removeRootNoise;
+  limits.targetWeight = targetWeight;
+  return limits;
+}
+
+//Returns the move chosen
+static Loc runBotWithLimits(
+  Search* toMoveBot, Player pla, const FancyModes& fancyModes,
+  const SearchLimitsThisMove& limits,
+  Logger& logger,
+  vector<double>* recordUtilities
+) {
+  (void)fancyModes;
+
+  if(limits.clearBotBeforeSearchThisMove)
+    toMoveBot->clearSearch();
+
+  Loc loc;
+
+  //TODO restrict to selfplay only
+  //HACK - Disable LCB for making the move (it will still affect the policy target gen)
+  bool lcb = toMoveBot->searchParams.useLcbForSelection;
+  toMoveBot->searchParams.useLcbForSelection = false;
+
+  if(limits.doCapVisitsPlayouts) {
+    assert(limits.numCapVisits > 0);
+    assert(limits.numCapPlayouts > 0);
+    SearchParams oldParams = toMoveBot->searchParams;
+
+    toMoveBot->searchParams.maxVisits = std::min(toMoveBot->searchParams.maxVisits, limits.numCapVisits);
+    toMoveBot->searchParams.maxPlayouts = std::min(toMoveBot->searchParams.maxPlayouts, limits.numCapPlayouts);
+    if(limits.removeRootNoise) {
+      toMoveBot->searchParams.rootNoiseEnabled = false;
+      toMoveBot->searchParams.rootPolicyTemperature = 1.0;
+      toMoveBot->searchParams.rootFpuLossProp = toMoveBot->searchParams.fpuLossProp;
+      toMoveBot->searchParams.rootFpuReductionMax = toMoveBot->searchParams.fpuReductionMax;
+      toMoveBot->searchParams.rootDesiredPerChildVisitsCoeff = 0.0;
+    }
+
+    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+
+    toMoveBot->searchParams = oldParams;
+  }
+  else {
+    assert(!limits.removeRootNoise);
+    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+  }
+
+  //HACK - restore LCB so that it affects policy target gen
+  toMoveBot->searchParams.useLcbForSelection = lcb;
+
+  return loc;
+}
+
 
 //Run a game between two bots. It is OK if both bots are the same bot.
 FinishedGameData* Play::runGame(
@@ -839,8 +994,7 @@ FinishedGameData* Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-  FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
-  bool allowPolicyInit,
+  const FancyModes& fancyModes, bool allowPolicyInit,
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
@@ -862,8 +1016,7 @@ FinishedGameData* Play::runGame(
     doEndGameIfAllPassAlive, clearBotBeforeSearch,
     logger, logSearchInfo, logMoves,
     maxMovesPerGame, stopConditions,
-    fancyModes, recordFullData, dataXLen, dataYLen,
-    allowPolicyInit,
+    fancyModes, allowPolicyInit,
     gameRand,
     checkForNewNNEval
   );
@@ -882,8 +1035,7 @@ FinishedGameData* Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-  FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
-  bool allowPolicyInit,
+  const FancyModes& fancyModes, bool allowPolicyInit,
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
@@ -915,6 +1067,8 @@ FinishedGameData* Play::runGame(
   gameData->modeMeta1 = 0;
   gameData->modeMeta2 = 0;
 
+  //In selfplay, record all the policy maps and evals and such as well for training data
+  bool recordFullData = fancyModes.forSelfPlay;
   if(recordFullData)
     recordUtilities = new vector<double>(256);
 
@@ -938,39 +1092,17 @@ FinishedGameData* Play::runGame(
   };
 
   if(fancyModes.initGamesWithPolicy && allowPolicyInit) {
-    //Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
-    //and add entropy
-    {
-      NNResultBuf buf;
+    initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive);
+  }
 
-      //This gives us about 15 moves on average for 19x19.
-      int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size / 25.0));
-      assert(numInitialMovesToPlay >= 0);
-      for(int i = 0; i<numInitialMovesToPlay; i++) {
-        Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand);
+  //Make sure there's some minimum tiny amount of data about how the encore phases work
+  if(fancyModes.forSelfPlay && hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.02)) {
+    int encorePhase = gameRand.nextInt(1,2);
+    hist.clear(board,pla,hist.rules,encorePhase);
 
-        //Make the move!
-        assert(hist.isLegal(board,loc,pla));
-        hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-        pla = getOpp(pla);
-
-        //Rarely, playing the random moves out this way will end the game
-        if(doEndGameIfAllPassAlive)
-          hist.endGameIfAllPassAlive(board);
-        if(hist.isGameFinished)
-          break;
-      }
-    }
-
-    //Make sure there's some minimum tiny amount of data about how the encore phases work
-    if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.02)) {
-      int encorePhase = gameRand.nextInt(1,2);
-      hist.clear(board,pla,hist.rules,encorePhase);
-
-      gameData->mode = 1;
-      gameData->modeMeta1 = encorePhase;
-      gameData->modeMeta2 = 0;
-    }
+    gameData->mode = 1;
+    gameData->modeMeta1 = encorePhase;
+    gameData->modeMeta2 = 0;
   }
 
   //Set in the starting board and history to gameData and both bots
@@ -999,97 +1131,9 @@ FinishedGameData* Play::runGame(
       break;
 
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
-    float targetWeight = 1.0;
 
-    bool doCapVisitsPlayouts = false;
-    int64_t numCapVisits = toMoveBot->searchParams.maxVisits;
-    int64_t numCapPlayouts = toMoveBot->searchParams.maxPlayouts;
-    bool clearBotBeforeSearchThisMove = clearBotBeforeSearch;
-    bool removeRootNoise = false;
-    if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
-      if(fancyModes.cheapSearchVisits <= 0)
-        throw StringError("fancyModes.cheapSearchVisits <= 0");
-      doCapVisitsPlayouts = true;
-      numCapVisits = fancyModes.cheapSearchVisits;
-      numCapPlayouts = fancyModes.cheapSearchVisits;
-      targetWeight *= fancyModes.cheapSearchTargetWeight;
-
-      //If not recording cheap searches, do a few more things
-      if(fancyModes.cheapSearchTargetWeight <= 0.0) {
-        clearBotBeforeSearchThisMove = false;
-        removeRootNoise = true;
-      }
-    }
-    else if(fancyModes.reduceVisits) {
-      if(fancyModes.reducedVisitsMin <= 0)
-        throw StringError("fancyModes.reducedVisitsMin <= 0");
-      if(historicalMctsWinLossValues.size() >= fancyModes.reduceVisitsThresholdLookback) {
-        double minWinLossValue = 1e20;
-        double maxWinLossValue = -1e20;
-        for(int j = 0; j<fancyModes.reduceVisitsThresholdLookback; j++) {
-          double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-1-j];
-          if(winLossValue < minWinLossValue)
-            minWinLossValue = winLossValue;
-          if(winLossValue > maxWinLossValue)
-            maxWinLossValue = winLossValue;
-        }
-        assert(fancyModes.reduceVisitsThreshold >= 0.0);
-        double signedMostExtreme = std::max(minWinLossValue,-maxWinLossValue);
-        assert(signedMostExtreme <= 1.000001);
-        if(signedMostExtreme > 1.0)
-          signedMostExtreme = 1.0;
-        double amountThrough = signedMostExtreme - fancyModes.reduceVisitsThreshold;
-        if(amountThrough > 0) {
-          double proportionThrough = amountThrough / (1.0 - fancyModes.reduceVisitsThreshold);
-          assert(proportionThrough >= 0.0 && proportionThrough <= 1.0);
-          double visitReductionProp = proportionThrough * proportionThrough;
-          doCapVisitsPlayouts = true;
-          numCapVisits = (int64_t)round(numCapVisits + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapVisits));
-          numCapPlayouts = (int64_t)round(numCapPlayouts + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapPlayouts));
-          targetWeight = (float)(targetWeight + visitReductionProp * (fancyModes.reducedVisitsWeight - targetWeight));
-          numCapVisits = std::max(numCapVisits,(int64_t)fancyModes.reducedVisitsMin);
-          numCapPlayouts = std::max(numCapPlayouts,(int64_t)fancyModes.reducedVisitsMin);
-        }
-      }
-    }
-
-    //In many cases, we are using root-level noise, so we want to clear the search each time so that we don't
-    //bias the search with the result of the previous...
-    if(clearBotBeforeSearchThisMove)
-      toMoveBot->clearSearch();
-
-    Loc loc;
-
-    //HACK - Disable LCB for making the move (it will still affect the policy target gen)
-    bool lcb = toMoveBot->searchParams.useLcbForSelection;
-    toMoveBot->searchParams.useLcbForSelection = false;
-
-    if(doCapVisitsPlayouts) {
-      assert(numCapVisits > 0);
-      assert(numCapPlayouts > 0);
-      SearchParams oldParams = toMoveBot->searchParams;
-
-      toMoveBot->searchParams.maxVisits = std::min(toMoveBot->searchParams.maxVisits, numCapVisits);
-      toMoveBot->searchParams.maxPlayouts = std::min(toMoveBot->searchParams.maxPlayouts, numCapPlayouts);
-      if(removeRootNoise) {
-        toMoveBot->searchParams.rootNoiseEnabled = false;
-        toMoveBot->searchParams.rootPolicyTemperature = 1.0;
-        toMoveBot->searchParams.rootFpuLossProp = toMoveBot->searchParams.fpuLossProp;
-        toMoveBot->searchParams.rootFpuReductionMax = toMoveBot->searchParams.fpuReductionMax;
-        toMoveBot->searchParams.rootDesiredPerChildVisitsCoeff = 0.0;
-      }
-
-      loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
-
-      toMoveBot->searchParams = oldParams;
-    }
-    else {
-      assert(!removeRootNoise);
-      loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
-    }
-
-    //HACK - restore LCB so that it affects policy target gen
-    toMoveBot->searchParams.useLcbForSelection = lcb;
+    SearchLimitsThisMove limits = getSearchLimitsThisMove(toMoveBot, fancyModes, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch);
+    Loc loc = runBotWithLimits(toMoveBot, pla, fancyModes, limits, logger, recordUtilities);
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegalStrict(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
@@ -1103,7 +1147,7 @@ FinishedGameData* Play::runGame(
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
       extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisits));
-      gameData->targetWeightByTurn.push_back(targetWeight);
+      gameData->targetWeightByTurn.push_back(limits.targetWeight);
 
       ValueTargets whiteValueTargets;
       extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode, recordUtilities);
@@ -1233,6 +1277,8 @@ FinishedGameData* Play::runGame(
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
 
+    int dataXLen = fancyModes.dataXLen;
+    int dataYLen = fancyModes.dataYLen;
     assert(dataXLen > 0);
     assert(dataYLen > 0);
     assert(gameData->finalWhiteOwnership == NULL);
@@ -1436,8 +1482,8 @@ void Play::maybeForkGame(
 }
 
 
-GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, bool forSelfP, FancyModes fModes)
-  :logSearchInfo(),logMoves(),forSelfPlay(forSelfP),maxMovesPerGame(),clearBotBeforeSearch(),
+GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, FancyModes fModes)
+  :logSearchInfo(),logMoves(),maxMovesPerGame(),clearBotBeforeSearch(),
    searchRandSeedBase(sRandSeedBase),
    fancyModes(fModes),
    gameInit(NULL)
@@ -1462,8 +1508,6 @@ FinishedGameData* GameRunner::runGame(
   const InitialPosition* initialPosition,
   const InitialPosition** nextInitialPosition,
   Logger& logger,
-  int dataXLen,
-  int dataYLen,
   vector<std::atomic<bool>*>& stopConditions,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
@@ -1474,7 +1518,7 @@ FinishedGameData* GameRunner::runGame(
     *nextInitialPosition = NULL;
 
   Board board; Player pla; BoardHistory hist; ExtraBlackAndKomi extraBlackAndKomi;
-  if(forSelfPlay) {
+  if(fancyModes.forSelfPlay) {
     assert(botSpecB.botIdx == botSpecW.botIdx);
     SearchParams params = botSpecB.baseParams;
     gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition);
@@ -1510,9 +1554,7 @@ FinishedGameData* GameRunner::runGame(
   //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
   //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
   //called on positions that occur after the game would have been autoterminated.
-  bool doEndGameIfAllPassAlive = forSelfPlay ? gameRand.nextBool(0.98) : true;
-  //In selfplay, record all the policy maps and evals and such as well for training data
-  bool recordFullData = forSelfPlay;
+  bool doEndGameIfAllPassAlive = fancyModes.forSelfPlay ? gameRand.nextBool(0.98) : true;
   //Allow initial moves via direct policy if we're not specially specifying the initial position for this game
   bool allowPolicyInit = initialPosition == NULL;
 
@@ -1534,8 +1576,7 @@ FinishedGameData* GameRunner::runGame(
     doEndGameIfAllPassAlive,clearBotBeforeSearchThisGame,
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,stopConditions,
-    fancyModes,recordFullData,dataXLen,dataYLen,
-    allowPolicyInit,
+    fancyModes,allowPolicyInit,
     gameRand,
     checkForNewNNEval //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame
   );

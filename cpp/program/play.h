@@ -131,7 +131,7 @@ class MatchPairer {
 
   int matchRepFactor;
   int repsOfLastMatchup;
-  
+
   int64_t numGamesStartedSoFar;
   int64_t numGamesTotal;
   int64_t logGamesEvery;
@@ -151,13 +151,13 @@ struct FancyModes {
   double noCompensateKomiProb;
   //Use this many visits in a short search to estimate the score, for adjusting komi
   int compensateKomiVisits;
-  
+
   //Occasionally fork an entire new game to try out an experimental move in the opening
   double earlyForkGameProb; //Expected number of forked games per game
   double earlyForkGameExpectedMoveProp; //Fork on average within the first board area * this prop moves
   int earlyForkGameMinChoices; //Fork between the favorite of this many random legal moves, at minimum
   int earlyForkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
-  
+
   //With this probability, use only this many visits for a move, and record it with only this weight
   double cheapSearchProb;
   int cheapSearchVisits;
@@ -169,7 +169,7 @@ struct FancyModes {
   int reduceVisitsThresholdLookback; //Value must be more extreme over the last this many turns
   int reducedVisitsMin; //Number of visits at the most extreme winrate
   float reducedVisitsWeight; //Amount of weight to put on the training sample at minimum visits winrate.
-  
+
   //Record positions from within the search tree that had at least this many visits, recording only with this weight.
   bool recordTreePositions;
   int recordTreeThreshold;
@@ -179,6 +179,11 @@ struct FancyModes {
   bool allowResignation;
   double resignThreshold; //Require that mcts win value is less than this
   double resignConsecTurns; //Require that both players have agreed on it continuously for this many turns
+
+  //Enable full data recording and a variety of other minor tweaks applying only for self-play training.
+  bool forSelfPlay;
+  int dataXLen; //When self-play data recording, the width/height of the tensor
+  int dataYLen; //When self-play data recording, the width/height of the tensor
 
   FancyModes();
   ~FancyModes();
@@ -207,8 +212,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
-    FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
-    bool allowPolicyInit,
+    const FancyModes& fancyModes, bool allowPolicyInit,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -221,12 +225,11 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
-    FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
-    bool allowPolicyInit,
+    const FancyModes& fancyModes, bool allowPolicyInit,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
-  
+
   void maybeForkGame(
     const FinishedGameData* finishedGameData,
     const InitialPosition** nextInitialPosition,
@@ -271,7 +274,6 @@ namespace Play {
 class GameRunner {
   bool logSearchInfo;
   bool logMoves;
-  bool forSelfPlay;
   int maxMovesPerGame;
   bool clearBotBeforeSearch;
   std::string searchRandSeedBase;
@@ -279,7 +281,7 @@ class GameRunner {
   GameInitializer* gameInit;
 
 public:
-  GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, bool forSelfPlay, FancyModes fancyModes);
+  GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, FancyModes fancyModes);
   ~GameRunner();
 
   //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data
@@ -291,8 +293,6 @@ public:
     const InitialPosition* initialPosition,
     const InitialPosition** nextInitialPosition,
     Logger& logger,
-    int dataXLen,
-    int dataYLen,
     std::vector<std::atomic<bool>*>& stopConditions,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );

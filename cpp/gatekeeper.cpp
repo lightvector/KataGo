@@ -270,13 +270,12 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
   const string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
-  bool forSelfPlay = false;
   FancyModes fancyModes;
   fancyModes.allowResignation = cfg.getBool("allowResignation");
   fancyModes.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
   fancyModes.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
 
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay, fancyModes);
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes);
 
   Setup::initializeSession(cfg);
 
@@ -393,7 +392,6 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
       lock.unlock();
 
-      int dataBoardLen = 19; //Doesn't matter, we don't actually write training data
       FinishedGameData* gameData = NULL;
 
       int64_t gameIdx;
@@ -402,7 +400,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
           gameIdx, botSpecB, botSpecW, NULL, NULL, logger,
-          dataBoardLen, dataBoardLen, stopConditions, NULL
+          stopConditions, NULL
         );
       }
 
