@@ -1121,7 +1121,9 @@ FinishedGameData* Play::runGame(
 
     //HACK - Disable LCB for making the move (it will still affect the policy target gen)
     bool lcb = toMoveBot->searchParams.useLcbForSelection;
-    toMoveBot->searchParams.useLcbForSelection = false;
+    if(recordFullData) {
+      toMoveBot->searchParams.useLcbForSelection = false;
+    }
 
     if(doCapVisitsPlayouts) {
       assert(numCapVisits > 0);
@@ -1148,8 +1150,10 @@ FinishedGameData* Play::runGame(
     }
 
     //HACK - restore LCB so that it affects policy target gen
-    toMoveBot->searchParams.useLcbForSelection = lcb;
-
+    if(recordFullData) {
+      toMoveBot->searchParams.useLcbForSelection = lcb;
+    }
+    
     if(loc == Board::NULL_LOC || !toMoveBot->isLegalStrict(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
     if(logSearchInfo)
