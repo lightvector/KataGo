@@ -373,6 +373,7 @@ FancyModes::FancyModes()
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),earlyForkGameMinChoices(1),earlyForkGameMaxChoices(1),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
+   policySurpriseDataWeight(0.0),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
    allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
    forSelfPlay(false),dataXLen(-1),dataYLen(-1)
@@ -867,12 +868,15 @@ struct SearchLimitsThisMove {
   bool clearBotBeforeSearchThisMove;
   bool removeRootNoise;
   float targetWeight;
+
+  bool wasReduced;
 };
 
 static SearchLimitsThisMove getSearchLimitsThisMove(
   const Search* toMoveBot, const FancyModes& fancyModes, Rand& gameRand,
   const vector<double>& historicalMctsWinLossValues,
-  bool clearBotBeforeSearch
+  bool clearBotBeforeSearch,
+  bool allowReduce
 ) {
   bool doCapVisitsPlayouts = false;
   int64_t numCapVisits = toMoveBot->searchParams.maxVisits;
@@ -880,14 +884,16 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   bool clearBotBeforeSearchThisMove = clearBotBeforeSearch;
   bool removeRootNoise = false;
   float targetWeight = 1.0f;
+  bool wasReduced = false;
 
-  if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
+  if(allowReduce && fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
     if(fancyModes.cheapSearchVisits <= 0)
       throw StringError("fancyModes.cheapSearchVisits <= 0");
     doCapVisitsPlayouts = true;
     numCapVisits = fancyModes.cheapSearchVisits;
     numCapPlayouts = fancyModes.cheapSearchVisits;
     targetWeight *= fancyModes.cheapSearchTargetWeight;
+    wasReduced = true;
 
     //If not recording cheap searches, do a few more things
     if(fancyModes.cheapSearchTargetWeight <= 0.0) {
@@ -895,7 +901,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
       removeRootNoise = true;
     }
   }
-  else if(fancyModes.reduceVisits) {
+  else if(allowReduce && fancyModes.reduceVisits) {
     if(fancyModes.reducedVisitsMin <= 0)
       throw StringError("fancyModes.reducedVisitsMin <= 0");
     if(historicalMctsWinLossValues.size() >= fancyModes.reduceVisitsThresholdLookback) {
@@ -924,6 +930,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
         targetWeight = (float)(targetWeight + visitReductionProp * (fancyModes.reducedVisitsWeight - targetWeight));
         numCapVisits = std::max(numCapVisits,(int64_t)fancyModes.reducedVisitsMin);
         numCapPlayouts = std::max(numCapPlayouts,(int64_t)fancyModes.reducedVisitsMin);
+        wasReduced = true;
       }
     }
   }
@@ -935,6 +942,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   limits.clearBotBeforeSearchThisMove = clearBotBeforeSearchThisMove;
   limits.removeRootNoise = removeRootNoise;
   limits.targetWeight = targetWeight;
+  limits.wasReduced = wasReduced;
   return limits;
 }
 
@@ -1071,8 +1079,9 @@ FinishedGameData* Play::runGame(
 
   //In selfplay, record all the policy maps and evals and such as well for training data
   bool recordFullData = fancyModes.forSelfPlay;
-  if(recordFullData)
+  if(recordFullData) {
     recordUtilities = new vector<double>(256);
+  }
 
   //NOTE: that checkForNewNNEval might also cause the old nnEval to be invalidated and freed. This is okay since the only
   //references we both hold on to and use are the ones inside the bots here, and we replace the ones in the botSpecs.
@@ -1122,6 +1131,7 @@ FinishedGameData* Play::runGame(
   vector<SidePosition*> sidePositionsToSearch;
 
   vector<double> historicalMctsWinLossValues;
+  vector<double> policySurpriseByTurn;
 
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
@@ -1134,7 +1144,9 @@ FinishedGameData* Play::runGame(
 
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
 
-    SearchLimitsThisMove limits = getSearchLimitsThisMove(toMoveBot, fancyModes, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch);
+    SearchLimitsThisMove limits = getSearchLimitsThisMove(
+      toMoveBot, fancyModes, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, true
+    );
     Loc loc = runBotWithLimits(toMoveBot, pla, fancyModes, limits, logger, recordUtilities);
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegalStrict(loc,pla))
@@ -1150,6 +1162,7 @@ FinishedGameData* Play::runGame(
       extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisits));
       gameData->targetWeightByTurn.push_back(limits.targetWeight);
+      policySurpriseByTurn.push_back(toMoveBot->getPolicySurprise());
 
       ValueTargets whiteValueTargets;
       extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode, recordUtilities);
@@ -1305,6 +1318,33 @@ FinishedGameData* Play::runGame(
     gameData->dataXLen = dataXLen;
     gameData->dataYLen = dataYLen;
 
+    //Compute desired expectation with which to write main game rows
+    if(fancyModes.policySurpriseDataWeight > 0) {
+      int numWeights = gameData->targetWeightByTurn.size();
+      assert(numWeights == policySurpriseByTurn.size());
+
+      double sumWeights = 0.0;
+      double sumPolicySurprise = 0.0;
+      for(int i = 0; i<numWeights; i++) {
+        float targetWeight = gameData->targetWeightByTurn[i];
+        assert(targetWeight >= 0.0 && targetWeight <= 1.0);
+        sumWeights += targetWeight;
+        double policySurprise = policySurpriseByTurn[i];
+        assert(policySurprise >= 0.0);
+        sumPolicySurprise += policySurprise;
+      }
+
+      //Just in case, avoid div by 0
+      if(sumPolicySurprise > 1e-20) {
+        for(int i = 0; i<numWeights; i++) {
+          gameData->targetWeightByTurn[i] =
+            (float)(
+              (1.0-fancyModes.policySurpriseDataWeight) * gameData->targetWeightByTurn[i]
+              + fancyModes.policySurpriseDataWeight * policySurpriseByTurn[i] * sumWeights / sumPolicySurprise);
+        }
+      }
+    }
+
     //Also evaluate all the side positions as well that we queued up to be searched
     NNResultBuf nnResultBuf;
     for(int i = 0; i<sidePositionsToSearch.size(); i++) {
@@ -1374,8 +1414,9 @@ FinishedGameData* Play::runGame(
     }
   }
 
-  if(recordUtilities != NULL)
+  if(recordUtilities != NULL) {
     delete recordUtilities;
+  }
 
   return gameData;
 }

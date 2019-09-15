@@ -735,7 +735,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   //Write main game rows
   int startTurnNumber = data.startHist.moveHistory.size();
   for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
-    float targetWeight = data.targetWeightByTurn[turnNumberAfterStart];
+    double targetWeight = data.targetWeightByTurn[turnNumberAfterStart];
     int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
 
     int64_t unreducedNumVisits = data.policyTargetsByTurn[turnNumberAfterStart].unreducedNumVisits;
@@ -751,28 +751,32 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       }
     }
 
-    assert(targetWeight >= 0.0 && targetWeight <= 1.0);
-    if(targetWeight != 0.0 && (targetWeight >= 1.0 || rand.nextBool(targetWeight))) {
-      if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
-        writeBuffers->addRow(
-          board,hist,nextPlayer,
-          absoluteTurnNumber,
-          1.0,
-          unreducedNumVisits,
-          policyTarget0,
-          policyTarget1,
-          data.whiteValueTargetsByTurn,
-          turnNumberAfterStart,
-          data.finalWhiteOwnership,
-          isSidePosition,
-          numNeuralNetsBehindLatest,
-          data,
-          rand
-        );
-        writeAndClearIfFull();
+    while(targetWeight > 0.0) {
+      if(targetWeight >= 1.0 || rand.nextBool(targetWeight)) {
+        if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
+          writeBuffers->addRow(
+            board,hist,nextPlayer,
+            absoluteTurnNumber,
+            1.0,
+            unreducedNumVisits,
+            policyTarget0,
+            policyTarget1,
+            data.whiteValueTargetsByTurn,
+            turnNumberAfterStart,
+            data.finalWhiteOwnership,
+            isSidePosition,
+            numNeuralNetsBehindLatest,
+            data,
+            rand
+          );
+          writeAndClearIfFull();
+        }
+        rowCount++;
       }
-      rowCount++;
+
+      targetWeight -= 1.0;
     }
+
 
     Move move = data.endHist.moveHistory[absoluteTurnNumber];
     assert(move.pla == nextPlayer);

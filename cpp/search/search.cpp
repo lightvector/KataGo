@@ -2135,6 +2135,9 @@ double Search::getPolicySurprise() const {
     if(target > 1e-100)
       surprise += target * (log(target)-log(policy));
   }
+  //Just in case, guard against float imprecision
+  if(surprise < 0.0)
+    surprise = 0.0;
   return surprise;
 }
 

@@ -239,6 +239,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.reduceVisitsThresholdLookback = cfg.getInt("reduceVisitsThresholdLookback",0,1000);
   fancyModes.reducedVisitsMin = cfg.getInt("reducedVisitsMin",1,10000000);
   fancyModes.reducedVisitsWeight = cfg.getFloat("reducedVisitsWeight",0.0f,1.0f);
+  fancyModes.policySurpriseDataWeight = cfg.getDouble("policySurpriseDataWeight",0.0f,1.0f);
   fancyModes.recordTreePositions = cfg.getBool("recordTreePositions");
   fancyModes.recordTreeThreshold = cfg.getInt("recordTreeThreshold",1,100000000);
   fancyModes.recordTreeTargetWeight = cfg.getFloat("recordTreeTargetWeight",0.0f,1.0f);

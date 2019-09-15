@@ -170,6 +170,9 @@ struct FancyModes {
   int reducedVisitsMin; //Number of visits at the most extreme winrate
   float reducedVisitsWeight; //Amount of weight to put on the training sample at minimum visits winrate.
 
+  //Probabilistically favor samples that had high policy surprise (kl divergence).
+  double policySurpriseDataWeight;
+
   //Record positions from within the search tree that had at least this many visits, recording only with this weight.
   bool recordTreePositions;
   int recordTreeThreshold;
