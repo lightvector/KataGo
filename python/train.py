@@ -21,6 +21,7 @@ import data
 from board import Board
 from model import Model, Target_vars, Metrics, ModelUtils
 import modelconfigs
+import tfrecordio
 
 #Command and args-------------------------------------------------------------------
 
@@ -297,52 +298,8 @@ def model_fn(features,labels,mode,params):
 
 # INPUTS ------------------------------------------------------------------------
 
-num_bin_input_features = Model.get_num_bin_input_features(model_config)
-num_global_input_features = Model.get_num_global_input_features(model_config)
-
-NUM_POLICY_TARGETS = 2
-NUM_GLOBAL_TARGETS = 64
-NUM_VALUE_SPATIAL_TARGETS = 1
-EXTRA_SCORE_DISTR_RADIUS = 60
-BONUS_SCORE_RADIUS = 30
-
-raw_input_features = {
-  "binchwp": tf.FixedLenFeature([],tf.string),
-  "ginc": tf.FixedLenFeature([batch_size*num_global_input_features],tf.float32),
-  "ptncm": tf.FixedLenFeature([batch_size*NUM_POLICY_TARGETS*(pos_len*pos_len+1)],tf.float32),
-  "gtnc": tf.FixedLenFeature([batch_size*NUM_GLOBAL_TARGETS],tf.float32),
-  "sdn": tf.FixedLenFeature([batch_size*(pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2)],tf.float32),
-  "sbsn": tf.FixedLenFeature([batch_size*(BONUS_SCORE_RADIUS*2+1)],tf.float32),
-  "vtnchw": tf.FixedLenFeature([batch_size*NUM_VALUE_SPATIAL_TARGETS*pos_len*pos_len],tf.float32)
-}
-raw_input_feature_placeholders = {
-  "binchwp": tf.placeholder(tf.uint8,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
-  "ginc": tf.placeholder(tf.float32,[batch_size,num_global_input_features]),
-  "ptncm": tf.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
-  "gtnc": tf.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
-  "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
-  "sbsn": tf.placeholder(tf.float32,[batch_size,BONUS_SCORE_RADIUS*2+1]),
-  "vtnchw": tf.placeholder(tf.float32,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
-}
-
-def parse_input(serialized_example):
-  example = tf.parse_single_example(serialized_example,raw_input_features)
-  binchwp = tf.decode_raw(example["binchwp"],tf.uint8)
-  ginc = example["ginc"]
-  ptncm = example["ptncm"]
-  gtnc = example["gtnc"]
-  sdn = example["sdn"]
-  sbsn = example["sbsn"]
-  vtnchw = example["vtnchw"]
-  return {
-    "binchwp": tf.reshape(binchwp,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
-    "ginc": tf.reshape(ginc,[batch_size,num_global_input_features]),
-    "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
-    "gtnc": tf.reshape(gtnc,[batch_size,NUM_GLOBAL_TARGETS]),
-    "sdn": tf.reshape(sdn,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
-    "sbsn": tf.reshape(sbsn,[batch_size,BONUS_SCORE_RADIUS*2+1]),
-    "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
-  }
+raw_input_feature_placeholders = tfrecordio.make_raw_input_feature_placeholders(model_config,pos_len,batch_size)
+parse_input = tfrecordio.make_tf_record_parser(model_config,pos_len,batch_size)
 
 def train_input_fn(train_files_to_use,total_num_train_files,batches_to_use):
   trainlog("Constructing train input pipe, %d/%d files used (%d batches)" % (len(train_files_to_use),total_num_train_files,batches_to_use))

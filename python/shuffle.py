@@ -17,6 +17,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
 
+import tfrecordio
+
 keys = [
   "binaryInputNCHWPacked",
   "globalInputNC",
@@ -149,29 +151,18 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   for i in range(num_batches):
     start = i*batch_size
     stop = (i+1)*batch_size
-    example = tf.train.Example(features=tf.train.Features(feature={
-      "binchwp": tf.train.Feature(
-        bytes_list=tf.train.BytesList(value=[binaryInputNCHWPacked[start:stop].reshape(-1).tobytes()])
-      ),
-      "ginc": tf.train.Feature(
-        float_list=tf.train.FloatList(value=globalInputNC[start:stop].reshape(-1))
-      ),
-      "ptncm": tf.train.Feature(
-        float_list=tf.train.FloatList(value=policyTargetsNCMove[start:stop].reshape(-1))
-      ),
-      "gtnc": tf.train.Feature(
-        float_list=tf.train.FloatList(value=globalTargetsNC[start:stop].reshape(-1))
-      ),
-      "sdn": tf.train.Feature(
-        float_list=tf.train.FloatList(value=scoreDistrN[start:stop].reshape(-1))
-      ),
-      "sbsn": tf.train.Feature(
-        float_list=tf.train.FloatList(value=selfBonusScoreN[start:stop].reshape(-1))
-      ),
-      "vtnchw": tf.train.Feature(
-        float_list=tf.train.FloatList(value=valueTargetsNCHW[start:stop].reshape(-1))
-      )
-    }))
+
+    example = tfrecordio.make_tf_record_example(
+      binaryInputNCHWPacked,
+      globalInputNC,
+      policyTargetsNCMove,
+      globalTargetsNC,
+      scoreDistrN,
+      selfBonusScoreN,
+      valueTargetsNCHW,
+      start,
+      stop
+    )
     record_writer.write(example.SerializeToString())
 
   jsonfilename = os.path.splitext(filename)[0] + ".json"

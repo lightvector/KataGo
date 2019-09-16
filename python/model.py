@@ -9,6 +9,11 @@ from board import Board
 #Feature extraction functions-------------------------------------------------------------------
 
 class Model:
+  # Sizes of the various array targets in the data, used also to size some of the output head dimensions
+  # for auxiliary outputs
+  NUM_POLICY_TARGETS = 2
+  NUM_GLOBAL_TARGETS = 64
+  NUM_VALUE_SPATIAL_TARGETS = 1
   EXTRA_SCORE_DISTR_RADIUS = 60
   BONUS_SCORE_RADIUS = 30
 
@@ -1567,5 +1572,3 @@ class ModelUtils:
         trainlog("Supporting japanese rules: " + str(model.support_japanese_rules))
 
       return (model,target_vars,metrics,global_step,global_step_float,per_sample_learning_rate,train_step)
-
-
