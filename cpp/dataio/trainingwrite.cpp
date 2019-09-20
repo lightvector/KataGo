@@ -349,11 +349,12 @@ void TrainingWriteBuffers::addRow(
   }
 
   //Fill td-like value targets
+  int boardArea = board.x_size * board.y_size;
   assert(whiteValueTargetsIdx >= 0 && whiteValueTargetsIdx < whiteValueTargets.size());
   fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 0.0, rowGlobal);
-  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/36.0, rowGlobal+4);
-  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/12.0, rowGlobal+8);
-  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/4.0, rowGlobal+12);
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(boardArea * 0.180), rowGlobal+4);
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(boardArea * 0.060), rowGlobal+8);
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(boardArea * 0.020), rowGlobal+12);
   fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0, rowGlobal+16);
 
   //Fill short-term variance info

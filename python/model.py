@@ -62,7 +62,8 @@ class Model:
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
     self.policy_target_weight_shape = []
     self.value_target_shape = [3]
-    self.miscvalues_target_shape = [6] #0:scoremean, #1 scorestdev, 2-5:utility variance
+    self.td_value_target_shape = [2,3]
+    self.miscvalues_target_shape = [12] #0:scoremean, #1 scorestdev, 2-5:utility variance, 6-11 td value targets
     self.scoremean_target_shape = [] #0
     self.scorestdev_target_shape = [] #1
     self.utilityvar_target_shape = [4] #2-5
@@ -1213,6 +1214,8 @@ class Target_vars:
     #Unconditional game result prediction
     self.value_target = (placeholders["value_target"] if "value_target" in placeholders else
                          tf.placeholder(tf.float32, [None] + model.value_target_shape))
+    self.td_value_target = (placeholders["td_value_target"] if "td_value_target" in placeholders else
+                            tf.placeholder(tf.float32, [None] + model.td_value_target_shape))
     #Unconditional expected score prediction, noResult is treated as 0
     self.scoremean_target = (placeholders["scoremean_target"] if "scoremean_target" in placeholders else
                               tf.placeholder(tf.float32, [None] + model.scoremean_target_shape))
@@ -1245,6 +1248,7 @@ class Target_vars:
     model.assert_batched_shape("policy_target1", self.policy_target1, model.policy_target_shape)
     model.assert_batched_shape("policy_target_weight1", self.policy_target_weight1, model.policy_target_weight_shape)
     model.assert_batched_shape("value_target", self.value_target, model.value_target_shape)
+    model.assert_batched_shape("td_value_target", self.td_value_target, model.td_value_target_shape)
     model.assert_batched_shape("scoremean_target", self.scoremean_target, model.scoremean_target_shape)
     model.assert_batched_shape("scorebelief_target", self.scorebelief_target, model.scorebelief_target_shape)
     model.assert_batched_shape("bonusbelief_target", self.bonusbelief_target, model.bonusbelief_target_shape)
@@ -1265,10 +1269,23 @@ class Target_vars:
       tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target1, logits=policy_output[:,:,1])
     )
 
-    self.value_loss_unreduced = 1.5 * tf.nn.softmax_cross_entropy_with_logits_v2(
+    self.value_loss_unreduced = 1.20 * tf.nn.softmax_cross_entropy_with_logits_v2(
       labels=self.value_target,
       logits=value_output
     )
+
+    self.td_value_loss_unreduced = 0.50 * (
+      tf.nn.softmax_cross_entropy_with_logits_v2(
+        labels=self.td_value_target,
+        logits=tf.reshape(miscvalues_output[:,6:12],[-1] + model.td_value_target_shape)
+      ) -
+      # Subtract out the entropy, so as to get loss 0 at perfect prediction
+      tf.nn.softmax_cross_entropy_with_logits_v2(
+        labels=self.td_value_target,
+        logits=tf.log(self.td_value_target + 1.0e-30)
+      )
+    )
+    self.td_value_loss_unreduced = tf.reduce_sum(self.td_value_loss_unreduced, axis=1)
 
     self.scoremean_loss_unreduced = tf.zeros_like(scoremean_prediction)
     #self.scoremean_loss_unreduced = 0.00003 * (
@@ -1354,6 +1371,7 @@ class Target_vars:
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced, name="losses/policy_loss")
     self.policy1_loss = tf.reduce_sum(self.target_weight_used * self.policy1_loss_unreduced, name="losses/policy1_loss")
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced, name="losses/value_loss")
+    self.td_value_loss = tf.reduce_sum(self.target_weight_used * self.td_value_loss_unreduced, name="losses/td_value_loss")
     self.scoremean_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_loss_unreduced, name="losses/scoremean_loss")
     self.scorebelief_pdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_pdf_loss_unreduced, name="losses/scorebelief_pdf_loss")
     self.scorebelief_cdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_cdf_loss_unreduced, name="losses/scorebelief_cdf_loss")
@@ -1381,6 +1399,7 @@ class Target_vars:
         self.policy_loss +
         self.policy1_loss +
         self.value_loss +
+        self.td_value_loss +
         self.scoremean_loss +
         self.scorebelief_pdf_loss +
         self.scorebelief_cdf_loss +
@@ -1507,6 +1526,7 @@ class ModelUtils:
     placeholders["policy_target_weight1"] = features["gtnc"][:,28]
 
     placeholders["value_target"] = features["gtnc"][:,0:3]
+    placeholders["td_value_target"] = tf.stack([features["gtnc"][:,4:7],features["gtnc"][:,8:11]],axis=1)
     placeholders["scoremean_target"] = features["gtnc"][:,3]
     placeholders["scorebelief_target"] = features["sdn"] / 100.0
     placeholders["bonusbelief_target"] = features["sbsn"]
