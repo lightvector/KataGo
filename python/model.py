@@ -1344,7 +1344,7 @@ class Target_vars:
     #causing some scaling with board size. So, I dunno, let's compromise and scale by sqrt(boardarea).
     #Also, the further out targets should be weighted a little less due to them being higher entropy
     #due to simply being farther in the future, so multiply by [1,0.5,0.25].
-    self.futurepos_loss_unreduced = 0.10 * self.futurepos_target_weight * (
+    self.futurepos_loss_unreduced = 0.15 * self.futurepos_target_weight * (
       tf.reduce_sum(
         tf.square(tf.tanh(futurepos_output) - self.futurepos_target)
         * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len,1])
