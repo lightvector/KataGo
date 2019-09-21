@@ -41,7 +41,7 @@ static void printNNInputHWAndBoard(
       out << "  ";
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
-        char s = colorToChar(board.colors[loc]);
+        char s = PlayerIO::colorToChar(board.colors[loc]);
         out << s;
 
         bool histMarked = false;

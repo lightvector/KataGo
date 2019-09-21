@@ -238,7 +238,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     cout << "seedBase: " << seedBase << endl;
     gameData->printDebug(cout);
     if(nextInitialPosition != NULL) {
-      cout << "Forking to initial position " << colorToChar(nextInitialPosition->pla) << endl;
+      cout << "Forking to initial position " << PlayerIO::colorToChar(nextInitialPosition->pla) << endl;
       nextInitialPosition->hist.printDebugInfo(cout,nextInitialPosition->board);
     }
     delete gameData;

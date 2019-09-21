@@ -259,12 +259,12 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
 void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << board << endl;
-  out << "Initial pla " << playerToString(initialPla) << endl;
+  out << "Initial pla " << PlayerIO::playerToString(initialPla) << endl;
   out << "Encore phase " << encorePhase << endl;
   out << "Rules " << rules << endl;
   out << "Ko prohib hash " << koProhibitHash << endl;
   out << "White bonus score " << whiteBonusScore << endl;
-  out << "Game result " << isGameFinished << " " << playerToString(winner) << " " << finalWhiteMinusBlackScore << " " << isNoResult << " " << isResignation << endl;
+  out << "Game result " << isGameFinished << " " << PlayerIO::playerToString(winner) << " " << finalWhiteMinusBlackScore << " " << isNoResult << " " << isResignation << endl;
   out << "Last moves ";
   for(int i = 0; i<moveHistory.size(); i++)
     out << Location::toString(moveHistory[i].loc,board) << " ";

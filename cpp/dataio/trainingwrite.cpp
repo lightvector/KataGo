@@ -99,7 +99,7 @@ void FinishedGameData::printDebug(ostream& out) const {
   out << "wName " << wName << endl;
   out << "bIdx " << bIdx << endl;
   out << "wIdx " << wIdx << endl;
-  out << "startPla " << colorToChar(startPla) << endl;
+  out << "startPla " << PlayerIO::colorToChar(startPla) << endl;
   out << "start" << endl;
   startHist.printDebugInfo(out,startBoard);
   out << "end" << endl;

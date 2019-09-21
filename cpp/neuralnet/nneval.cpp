@@ -714,7 +714,8 @@ void NNEvaluator::evaluate(
         if(scoreStdevPreSoftplus > 40.0)
           scoreStdev = scoreStdevPreSoftplus;
         else
-          scoreStdev = log(1.0 + exp(scoreStdevPreSoftplus)) * 20.0;
+          scoreStdev = log(1.0 + exp(scoreStdevPreSoftplus));
+        scoreStdev = scoreStdev * 20.0;
 
         scoreMeanSq = scoreMean * scoreMean + scoreStdev * scoreStdev;
 

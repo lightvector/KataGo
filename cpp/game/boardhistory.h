@@ -8,7 +8,8 @@
 
 struct KoHashTable;
 
-//A data structure enabling fast checking if a move would be illegal due to superko.
+//A data structure enabling checking of move legality, including optionally superko,
+//and implements scoring and support for various rulesets (see rules.h)
 struct BoardHistory {
   Rules rules;
 

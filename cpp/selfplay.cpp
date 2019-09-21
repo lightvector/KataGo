@@ -95,8 +95,9 @@ namespace {
         if(size > maxDataQueueSize / 2)
           logger.write(Global::strprintf("WARNING: Struggling to keep up writing data, %d games enqueued out of %d max",size,maxDataQueueSize));
 
-        FinishedGameData* data = finishedGameQueue.waitPop();
-        if(data == NULL)
+        FinishedGameData* data;
+        bool suc = finishedGameQueue.waitPop(data);
+        if(!suc || data == NULL)
           break;
 
         if(rand.nextBool(validationProp))
@@ -129,8 +130,6 @@ namespace {
     //Game threads finishing a game using this net call this
     void unregisterGameThread() {
       numGameThreads--;
-      if(isDraining && numGameThreads <= 0)
-        finishedGameQueue.forcePush(NULL); //forcePush so as not to block
     }
 
     //NOT threadsafe - needs to be externally synchronized
@@ -138,8 +137,7 @@ namespace {
     void markAsDraining() {
       if(!isDraining) {
         isDraining = true;
-        if(numGameThreads <= 0)
-          finishedGameQueue.forcePush(NULL); //forcePush so as not to block
+        finishedGameQueue.setReadOnly();
       }
     }
 
@@ -553,7 +551,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   std::thread modelLoadLoopThread(modelLoadLoop);
 
   //Wait for all game threads to stop
-  for(int i = 0; i<numGameThreads; i++)
+  for(int i = 0; i<threads.size(); i++)
     threads[i].join();
 
   //Wake up the model loading thread rather than waiting up to 60s for it to wake up on its own, and

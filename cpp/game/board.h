@@ -26,12 +26,15 @@ static const Color C_BLACK = 1;
 static const Color C_WHITE = 2;
 static const Color C_WALL = 3;
 
-//Conversions for players and colors
 static inline Color getOpp(Color c)
 {return c ^ 3;}
 
-char colorToChar(Color c);
-std::string playerToString(Player p);
+//Conversions for players and colors
+namespace PlayerIO {
+  char colorToChar(Color c);
+  std::string playerToString(Player p);
+  bool tryParsePlayer(const std::string& s, Player& pla);
+}
 
 //Location of a point on the board
 //(x,y) is represented as (x+1) + (y+1)*(x_size+1)
@@ -62,7 +65,7 @@ namespace Location
 STRUCT_NAMED_PAIR(Loc,loc,Player,pla,Move);
 
 //Fast lightweight board designed for playouts and simulations, where speed is essential.
-//Undo, hashing, history, not supported. Simple ko rule only.
+//Simple ko rule only.
 //Does not enforce player turn order.
 
 struct Board

@@ -23,7 +23,7 @@ void Tests::runBoardAreaTests() {
       for(int y = 0; y<copy.y_size; y++) {
         for(int x = 0; x<copy.x_size; x++) {
           Loc loc = Location::getLoc(x,y,copy.x_size);
-          out << colorToChar(result[loc]);
+          out << PlayerIO::colorToChar(result[loc]);
         }
         out << endl;
       }
@@ -900,7 +900,7 @@ XXXXXXXXXXXXXXXXXXX
 )%%";
     expect(name,out,expected);
   }
-  
+
   //============================================================================
   {
     const char* name = "Area Rect";
@@ -1270,7 +1270,7 @@ OOOOOOOOO
     expect(name,out,expected);
   }
 
-  
+
   //============================================================================
   {
     const char* name = "isNonPassAliveSelfConnection";

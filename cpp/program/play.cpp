@@ -71,6 +71,73 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   return ExtraBlackAndKomi(extraBlack,komi,base);
 }
 
+int Play::numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory, bool assumeMultipleStartingBlackMovesAreHandicap) {
+  //Make the longest possible contiguous sequence of black moves - treat a string of consecutive black
+  //moves at the start of the game as "handicap"
+  //This is necessary because when loading sgfs or on some servers, (particularly with free placement)
+  //handicap is implemented by having black just make a bunch of moves in a row.
+  //But if white makes multiple moves in a row after that, then the plays are probably not handicap, someone's setting
+  //up a problem position by having black play all moves in a row then white play all moves in a row.
+  Board board = initialBoard;
+
+  if(assumeMultipleStartingBlackMovesAreHandicap) {
+    for(int i = 0; i<moveHistory.size(); i++) {
+      Loc moveLoc = moveHistory[i].loc;
+      Player movePla = moveHistory[i].pla;
+      if(movePla != P_BLACK) {
+        //Two white moves in a row?
+        if(i+1 < moveHistory.size() && moveHistory[i+1].pla != P_BLACK) {
+          //Re-set board, don't play these moves
+          board = initialBoard;
+        }
+        break;
+      }
+      bool isMultiStoneSuicideLegal = true;
+      bool suc = board.playMove(moveLoc,movePla,isMultiStoneSuicideLegal);
+      if(!suc)
+        break;
+    }
+  }
+
+  int startBoardNumBlackStones = 0;
+  int startBoardNumWhiteStones = 0;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(board.colors[loc] == C_BLACK)
+        startBoardNumBlackStones += 1;
+      else if(board.colors[loc] == C_WHITE)
+        startBoardNumWhiteStones += 1;
+    }
+  }
+  //If we set up in a nontrivial position, then consider it a non-handicap game.
+  if(startBoardNumWhiteStones != 0)
+    return 0;
+  //If there was only one "handicap" stone, then it was a regular game
+  if(startBoardNumBlackStones <= 1)
+    return 0;
+  return startBoardNumBlackStones;
+}
+
+double Play::getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
+  double winrate = 0.5 * (1.0 + data.winLossValue);
+  //Super hacky - in KataGo, lcb is on utility (i.e. also weighting score), not winrate, but if you're using
+  //lz-analyze you probably don't know about utility and expect LCB to be about winrate. So we apply the LCB
+  //radius to the winrate in order to get something reasonable to display, and also scale it proportionally
+  //by how much winrate is supposed to matter relative to score.
+  double radiusScaleHackFactor = search->searchParams.winLossUtilityFactor / (
+    search->searchParams.winLossUtilityFactor +
+    search->searchParams.staticScoreUtilityFactor +
+    search->searchParams.dynamicScoreUtilityFactor +
+    1.0e-20 //avoid divide by 0
+  );
+  //Also another factor of 0.5 because winrate goes from only 0 to 1 instead of -1 to 1 when it's part of utility
+  radiusScaleHackFactor *= 0.5;
+  double lcb = pla == P_WHITE ? winrate - data.radius * radiusScaleHackFactor : winrate + data.radius * radiusScaleHackFactor;
+  return lcb;
+}
+
+
 //----------------------------------------------------------------------------------------------------------
 
 InitialPosition::InitialPosition()
@@ -387,7 +454,7 @@ static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
   sout << "Bot returned null location or illegal move!?!" << "\n";
   sout << board << "\n";
   sout << bot->getRootBoard() << "\n";
-  sout << "Pla: " << playerToString(bot->getRootPla()) << "\n";
+  sout << "Pla: " << PlayerIO::playerToString(bot->getRootPla()) << "\n";
   sout << "Loc: " << Location::toString(loc,bot->getRootBoard()) << "\n";
   logger.write(sout.str());
   bot->getRootBoard().checkConsistency();
@@ -945,17 +1012,16 @@ static Loc runBotWithLimits(
   Logger& logger,
   vector<double>* recordUtilities
 ) {
-  (void)fancyModes;
-
   if(limits.clearBotBeforeSearchThisMove)
     toMoveBot->clearSearch();
 
   Loc loc;
 
-  //TODO restrict to selfplay only
   //HACK - Disable LCB for making the move (it will still affect the policy target gen)
   bool lcb = toMoveBot->searchParams.useLcbForSelection;
-  toMoveBot->searchParams.useLcbForSelection = false;
+  if(fancyModes.forSelfPlay) {
+    toMoveBot->searchParams.useLcbForSelection = false;
+  }
 
   if(limits.doCapVisitsPlayouts) {
     assert(limits.numCapVisits > 0);
@@ -982,7 +1048,9 @@ static Loc runBotWithLimits(
   }
 
   //HACK - restore LCB so that it affects policy target gen
-  toMoveBot->searchParams.useLcbForSelection = lcb;
+  if(fancyModes.forSelfPlay) {
+    toMoveBot->searchParams.useLcbForSelection = lcb;
+  }
 
   return loc;
 }
@@ -1413,7 +1481,7 @@ void Play::maybeForkGame(
     Loc loc = finishedGameData->endHist.moveHistory[i].loc;
     if(!hist.isLegal(board,loc,pla)) {
       cout << board << endl;
-      cout << colorToChar(pla) << endl;
+      cout << PlayerIO::colorToChar(pla) << endl;
       cout << Location::toString(loc,board) << endl;
       hist.printDebugInfo(cout,board);
       cout << endl;

@@ -108,8 +108,9 @@ namespace {
 
     void runWriteDataLoop(Logger& logger) {
       while(true) {
-        FinishedGameData* data = finishedGameQueue.waitPop();
-        if(data == NULL)
+        FinishedGameData* data;
+        bool suc = finishedGameQueue.waitPop(data);
+        if(!suc || data == NULL)
           break;
 
         double whitePoints;
@@ -187,8 +188,6 @@ namespace {
     //Game threads finishing a game using this net call this
     void unregisterGameThread() {
       numGameThreads--;
-      if(isDraining && numGameThreads <= 0)
-        finishedGameQueue.forcePush(NULL); //forcePush so as not to block
     }
 
     //NOT threadsafe - needs to be externally synchronized
@@ -196,8 +195,7 @@ namespace {
     void markAsDraining() {
       if(!isDraining) {
         isDraining = true;
-        if(numGameThreads <= 0)
-          finishedGameQueue.forcePush(NULL); //forcePush so as not to block
+        finishedGameQueue.setReadOnly();
       }
     }
 
@@ -456,7 +454,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     }
 
     //Wait for all game threads to stop
-    for(int i = 0; i<numGameThreads; i++)
+    for(int i = 0; i<threads.size(); i++)
       threads[i].join();
 
     //Mark as draining so the data write thread will quit
