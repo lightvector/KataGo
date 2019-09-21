@@ -1274,7 +1274,7 @@ class Target_vars:
       logits=value_output
     )
 
-    self.td_value_loss_unreduced = 0.50 * (
+    self.td_value_loss_unreduced = 0.60 * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.td_value_target,
         logits=tf.reshape(miscvalues_output[:,6:12],[-1] + model.td_value_target_shape)
