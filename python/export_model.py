@@ -108,7 +108,7 @@ with tf.Session(config=tfconfig) as session:
       f.write(str(s)+"\n")
 
     writeln(model_name)
-    writeln(model.version) #version
+    writeln(7) #version
     writeln(model.get_num_bin_input_features(model_config))
     writeln(model.get_num_global_input_features(model_config))
 
@@ -218,6 +218,7 @@ with tf.Session(config=tfconfig) as session:
       regular_num_channels = model.regular_num_channels
       dilated_num_channels = model.dilated_num_channels
       gpool_num_channels = model.gpool_num_channels
+      se_mid_num_channels = model.trunk_num_channels // 8
       writeln(block[0])
       if block[0] == "ordinary_block":
         (kind,name,diam,trunk_num_channels,mid_num_channels) = block
@@ -228,6 +229,11 @@ with tf.Session(config=tfconfig) as session:
         write_bn(name+"/norm2",mid_num_channels)
         write_activation(name+"/actv2")
         write_conv(name+"/w2",diam,mid_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
+        writeln(name+"/se")
+        write_matmul(name+"/se/w1",trunk_num_channels*3,se_mid_num_channels,np.zeros([trunk_num_channels*3,se_mid_num_channels]))
+        write_matbias(name+"/se/b1",se_mid_num_channels,np.zeros([se_mid_num_channels]))
+        write_matmul(name+"/se/w2",se_mid_num_channels,trunk_num_channels,np.zeros([se_mid_num_channels,trunk_num_channels]))
+        write_matbias(name+"/se/b2",trunk_num_channels,np.ones([trunk_num_channels])*5000)
 
       elif block[0] == "dilated_block":
         (kind,name,diam,trunk_num_channels,regular_num_channels,dilated_num_channels,dilation) = block
@@ -239,6 +245,11 @@ with tf.Session(config=tfconfig) as session:
         write_bn(name+"/norm2",regular_num_channels+dilated_num_channels)
         write_activation(name+"/actv2")
         write_conv(name+"/w2",diam,regular_num_channels+dilated_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
+        writeln(name+"/se")
+        write_matmul(name+"/se/w1",trunk_num_channels*3,se_mid_num_channels,np.zeros([trunk_num_channels*3,se_mid_num_channels]))
+        write_matbias(name+"/se/b1",se_mid_num_channels,np.zeros([se_mid_num_channels]))
+        write_matmul(name+"/se/w2",se_mid_num_channels,trunk_num_channels,np.zeros([se_mid_num_channels,trunk_num_channels]))
+        write_matbias(name+"/se/b2",trunk_num_channels,np.ones([trunk_num_channels])*5000)
 
       elif block[0] == "gpool_block":
         (kind,name,diam,trunk_num_channels,regular_num_channels,gpool_num_channels) = block
@@ -253,6 +264,11 @@ with tf.Session(config=tfconfig) as session:
         write_bn(name+"/norm2",regular_num_channels)
         write_activation(name+"/actv2")
         write_conv(name+"/w2",diam,regular_num_channels,trunk_num_channels,1,get_weights(name+"/w2"))
+        writeln(name+"/se")
+        write_matmul(name+"/se/w1",trunk_num_channels*3,se_mid_num_channels,np.zeros([trunk_num_channels*3,se_mid_num_channels]))
+        write_matbias(name+"/se/b1",se_mid_num_channels,np.zeros([se_mid_num_channels]))
+        write_matmul(name+"/se/w2",se_mid_num_channels,trunk_num_channels,np.zeros([se_mid_num_channels,trunk_num_channels]))
+        write_matbias(name+"/se/b2",trunk_num_channels,np.ones([trunk_num_channels])*5000)
 
       else:
         assert(False)
@@ -265,6 +281,7 @@ with tf.Session(config=tfconfig) as session:
       writeln(model.regular_num_channels)
       writeln(model.dilated_num_channels)
       writeln(model.gpool_num_channels)
+      writeln(model.trunk_num_channels // 8)
 
       write_initial_conv()
       write_initial_matmul()
@@ -331,5 +348,3 @@ with tf.Session(config=tfconfig) as session:
 
   sys.stdout.flush()
   sys.stderr.flush()
-
-
