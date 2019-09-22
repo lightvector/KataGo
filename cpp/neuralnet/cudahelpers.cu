@@ -10,6 +10,27 @@
 //TODO maybe tune this number, it varies by GPU
 static const int targetNumThreads = 512;
 
+void splitThreadsAcrossDim01(int dim0Size, int dim1Size, int& threads0, int& blocks0, int& threads1, int& blocks1) {
+  if(dim0Size > targetNumThreads) {
+    threads0 = targetNumThreads/2;
+    blocks0 = (dim0Size + threads0 - 1) / threads0;
+    threads1 = 1;
+    blocks1 = dim1Size;
+  }
+  else if(dim0Size > targetNumThreads/2) {
+    threads0 = dim0Size;
+    blocks0 = 1;
+    threads1 = 1;
+    blocks1 = dim1Size;
+  }
+  else {
+    threads0 = dim0Size;
+    blocks0 = 1;
+    threads1 = targetNumThreads / dim0Size;
+    blocks1 = (dim1Size + threads1 - 1) / threads1;
+  }
+}
+
 //--------------------------------------------------------------------------------------------------------------
 
 template <typename T>
@@ -109,25 +130,7 @@ void customCudaChannel0ExtractNCHWTemplate(const T *in, T* out, int nSize, int c
   int hwBlocks;
   int nThreads;
   int nBlocks;
-
-  if(hwSize > targetNumThreads) {
-    hwThreads = targetNumThreads/2;
-    hwBlocks = (hwSize + hwThreads - 1) / hwThreads;
-    nThreads = 1;
-    nBlocks = nSize;
-  }
-  else if(hwSize > targetNumThreads/2) {
-    hwThreads = hwSize;
-    hwBlocks = 1;
-    nThreads = 1;
-    nBlocks = nSize;
-  }
-  else {
-    hwThreads = hwSize;
-    hwBlocks = 1;
-    nThreads = targetNumThreads / hwSize;
-    nBlocks = (nSize + nThreads - 1) / nThreads;
-  }
+  splitThreadsAcrossDim01(hwSize, nSize, hwThreads, hwBlocks, nThreads, nBlocks);
 
   if(nBlocks > 65536)
     throw std::runtime_error("customCudaChannel0ExtractNCHW: nSize too large given hwSize");
@@ -982,25 +985,7 @@ void customCudaMirrorTemplate(const T *in, T* out, int batchSize, int mSize, int
   int subBlocks;
   int mThreads;
   int mBlocks;
-
-  if(subSize > targetNumThreads) {
-    subThreads = targetNumThreads/2;
-    subBlocks = (subSize + subThreads - 1) / subThreads;
-    mThreads = 1;
-    mBlocks = mSize;
-  }
-  else if(subSize > targetNumThreads/2) {
-    subThreads = subSize;
-    subBlocks = 1;
-    mThreads = 1;
-    mBlocks = mSize;
-  }
-  else {
-    subThreads = subSize;
-    subBlocks = 1;
-    mThreads = targetNumThreads / subSize;
-    mBlocks = (mSize + mThreads - 1) / mThreads;
-  }
+  splitThreadsAcrossDim01(subSize, mSize, subThreads, subBlocks, mThreads, mBlocks);
 
   dim3 grid(subBlocks,mBlocks,batchSize);
   dim3 threads(subThreads,mThreads,1);
@@ -1144,25 +1129,7 @@ void sharedAddCBiasInplaceNC(void* buf, const void* biases, int nSize, int cSize
   int cBlocks;
   int nThreads;
   int nBlocks;
-
-  if(cSize > targetNumThreads) {
-    cThreads = targetNumThreads/2;
-    cBlocks = (cSize + cThreads - 1) / cThreads;
-    nThreads = 1;
-    nBlocks = nSize;
-  }
-  else if(cSize > targetNumThreads/2) {
-    cThreads = cSize;
-    cBlocks = 1;
-    nThreads = 1;
-    nBlocks = nSize;
-  }
-  else {
-    cThreads = cSize;
-    cBlocks = 1;
-    nThreads = targetNumThreads / cSize;
-    nBlocks = (nSize + nThreads - 1) / nThreads;
-  }
+  splitThreadsAcrossDim01(cSize, nSize, cThreads, cBlocks, nThreads, nBlocks);
 
   if(nBlocks > 65536)
     throw std::runtime_error("customCudaAddCBiasInplaceNC: nSize too large given cSize");
@@ -1228,25 +1195,7 @@ void sharedAddNCBiasInplaceNCHW(void *buf, const void* biases, int nSize, int cS
   int sBlocks;
   int cThreads;
   int cBlocks;
-
-  if(sSize > targetNumThreads) {
-    sThreads = targetNumThreads/2;
-    sBlocks = (sSize + sThreads - 1) / sThreads;
-    cThreads = 1;
-    cBlocks = cSize;
-  }
-  else if(sSize > targetNumThreads/2) {
-    sThreads = sSize;
-    sBlocks = 1;
-    cThreads = 1;
-    cBlocks = cSize;
-  }
-  else {
-    sThreads = sSize;
-    sBlocks = 1;
-    cThreads = targetNumThreads / sSize;
-    cBlocks = (cSize + cThreads - 1) / cThreads;
-  }
+  splitThreadsAcrossDim01(sSize, cSize, sThreads, sBlocks, cThreads, cBlocks);
 
   dim3 grid(sBlocks,cBlocks,nSize);
   dim3 threads(sThreads,cThreads,1);
@@ -1309,25 +1258,7 @@ void sharedAddNCBiasInplaceNHWC(void *buf, const void* biases, int nSize, int xy
   int cBlocks;
   int sThreads;
   int sBlocks;
-
-  if(cSize > targetNumThreads) {
-    cThreads = targetNumThreads/2;
-    cBlocks = (cSize + cThreads - 1) / cThreads;
-    sThreads = 1;
-    sBlocks = sSize;
-  }
-  else if(cSize > targetNumThreads/2) {
-    cThreads = cSize;
-    cBlocks = 1;
-    sThreads = 1;
-    sBlocks = sSize;
-  }
-  else {
-    cThreads = cSize;
-    cBlocks = 1;
-    sThreads = targetNumThreads / cSize;
-    sBlocks = (sSize + sThreads - 1) / sThreads;
-  }
+  splitThreadsAcrossDim01(cSize, sSize, cThreads, cBlocks, sThreads, sBlocks);
 
   dim3 grid(cBlocks,sBlocks,nSize);
   dim3 threads(cThreads,sThreads,1);
@@ -1473,25 +1404,7 @@ void sharedApplyCScaleBiasNCHW(const void* in, void* out, const void* scale, con
   int sBlocks;
   int cThreads;
   int cBlocks;
-
-  if(sSize > targetNumThreads) {
-    sThreads = targetNumThreads/2;
-    sBlocks = (sSize + sThreads - 1) / sThreads;
-    cThreads = 1;
-    cBlocks = cSize;
-  }
-  else if(sSize > targetNumThreads/2) {
-    sThreads = sSize;
-    sBlocks = 1;
-    cThreads = 1;
-    cBlocks = cSize;
-  }
-  else {
-    sThreads = sSize;
-    sBlocks = 1;
-    cThreads = targetNumThreads / sSize;
-    cBlocks = (cSize + cThreads - 1) / cThreads;
-  }
+  splitThreadsAcrossDim01(sSize, cSize, sThreads, sBlocks, cThreads, cBlocks);
 
   dim3 grid(sBlocks,cBlocks,nSize);
   dim3 threads(sThreads,cThreads,1);
@@ -1662,25 +1575,7 @@ void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, con
   int cBlocks;
   int sThreads;
   int sBlocks;
-
-  if(cSize > targetNumThreads) {
-    cThreads = targetNumThreads/2;
-    cBlocks = (cSize + cThreads - 1) / cThreads;
-    sThreads = 1;
-    sBlocks = sSize;
-  }
-  else if(cSize > targetNumThreads/2) {
-    cThreads = cSize;
-    cBlocks = 1;
-    sThreads = 1;
-    sBlocks = sSize;
-  }
-  else {
-    cThreads = cSize;
-    cBlocks = 1;
-    sThreads = targetNumThreads / cSize;
-    sBlocks = (sSize + sThreads - 1) / sThreads;
-  }
+  splitThreadsAcrossDim01(cSize, sSize, cThreads, cBlocks, sThreads, sBlocks);
 
   dim3 grid(cBlocks,sBlocks,nSize);
   dim3 threads(cThreads,sThreads,1);
