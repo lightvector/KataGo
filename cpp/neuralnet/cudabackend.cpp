@@ -3187,13 +3187,11 @@ bool NeuralNet::testEvaluateResidualBlock(
   void* deviceScratch;
   void* deviceMidInput;
   void* deviceMidScratch;
-  void* deviceOutput;
   mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
   mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
   mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
   mallocOnDevice("deviceMid", numMidFloats, deviceMidInput, useFP16);
   mallocOnDevice("deviceMidScratch", numMidFloats, deviceMidScratch, useFP16);
-  mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
 
   int maxBatchSize = desiredBatchSize;
   cudnnTensorDescriptor_t* trunkDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
@@ -3313,7 +3311,6 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   void* deviceGPoolConcat;
   void* deviceGPoolBias;
 
-  void* deviceOutput;
   mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
   mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
   CUDA_ERR("deviceMaskFloat",cudaMalloc(&deviceMaskFloat, numMaskFloats * sizeof(float)));
@@ -3326,7 +3323,6 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   mallocOnDevice("deviceGPoolOut2", numGPoolOutFloats, deviceGPoolOut2, useFP16);
   mallocOnDevice("deviceGPoolConcat", numGPoolConcatFloats, deviceGPoolConcat, useFP16);
   mallocOnDevice("deviceGPoolBias", numGPoolBiasFloats, deviceGPoolBias, useFP16);
-  mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
 
   fillMaskFloatBufAndMaskSumBuf(deviceMask, deviceMaskFloat, deviceMaskSum, useFP16, desiredBatchSize, xSize, ySize);
 
