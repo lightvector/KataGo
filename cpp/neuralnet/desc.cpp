@@ -268,19 +268,72 @@ MatBiasLayerDesc& MatBiasLayerDesc::operator=(MatBiasLayerDesc&& other) {
 
 //-----------------------------------------------------------------------------
 
+SETransformDesc::SETransformDesc()
+  :isInitialized(false)
+{}
+
+SETransformDesc::SETransformDesc(istream& in) {
+  in >> name;
+  if(in.fail())
+    throw StringError(name + ": se transform failed to parse name");
+
+  mul1 = MatMulLayerDesc(in);
+  bias1 = MatBiasLayerDesc(in);
+  mul2 = MatMulLayerDesc(in);
+  bias2 = MatBiasLayerDesc(in);
+
+  if(bias1.numChannels != mul1.outChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": bias1.numChannels (%d) != mul1.outChannels (%d)", bias1.numChannels, mul1.outChannels));
+  if(bias2.numChannels != mul2.outChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": bias2.numChannels (%d) != mul2.outChannels (%d)", bias2.numChannels, mul2.outChannels));
+  if(mul1.outChannels != mul2.inChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": mul1.outChannels (%d) != mul2.inChannels (%d)", mul1.outChannels, mul2.inChannels));
+
+  if(in.fail())
+    throw StringError(name + ": se transform parse failure (istream fail() return true)");
+
+  isInitialized = true;
+}
+
+SETransformDesc::SETransformDesc(SETransformDesc&& other) {
+  *this = std::move(other);
+}
+
+SETransformDesc& SETransformDesc::operator=(SETransformDesc&& other) {
+  name = std::move(other.name);
+  isInitialized = other.isInitialized;
+  mul1 = std::move(other.mul1);
+  bias1 = std::move(other.bias1);
+  mul2 = std::move(other.mul2);
+  bias2 = std::move(other.bias2);
+  return *this;
+}
+
+//-----------------------------------------------------------------------------
+
 ResidualBlockDesc::ResidualBlockDesc() {}
 
-ResidualBlockDesc::ResidualBlockDesc(istream& in) {
+ResidualBlockDesc::ResidualBlockDesc(istream& in, int vrsn) {
   in >> name;
   if(in.fail())
     throw StringError(name + ": res block failed to parse name");
-
+  version = vrsn;
   preBN = BatchNormLayerDesc(in);
   preActivation = ActivationLayerDesc(in);
   regularConv = ConvLayerDesc(in);
   midBN = BatchNormLayerDesc(in);
   midActivation = ActivationLayerDesc(in);
   finalConv = ConvLayerDesc(in);
+  if(version >= 7)
+    seTransform = SETransformDesc(in);
+  else
+    seTransform = SETransformDesc();
 
   if(preBN.numChannels != regularConv.inChannels)
     throw StringError(
@@ -294,6 +347,15 @@ ResidualBlockDesc::ResidualBlockDesc(istream& in) {
     throw StringError(
       name + Global::strprintf(
                ": midBN.numChannels (%d) != finalConv.inChannels (%d)", midBN.numChannels, finalConv.inChannels));
+
+  if(version >= 7 && seTransform.mul1.inChannels != finalConv.outChannels * 3)
+    throw StringError(
+      name + Global::strprintf(
+               ": seTransform.mul1.inChannels (%d) != finalConv.outChannels * 3 (%d)", seTransform.mul1.inChannels, finalConv.outChannels * 3));
+  if(version >= 7 && seTransform.mul2.outChannels != finalConv.outChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": seTransform.mul2.outChannels (%d) != finalConv.outChannels (%d)", seTransform.mul2.outChannels, finalConv.outChannels));
 
   if(in.fail())
     throw StringError(name + ": res block parse failure (istream fail() return true)");
@@ -311,6 +373,7 @@ ResidualBlockDesc& ResidualBlockDesc::operator=(ResidualBlockDesc&& other) {
   midBN = std::move(other.midBN);
   midActivation = std::move(other.midActivation);
   finalConv = std::move(other.finalConv);
+  seTransform = std::move(other.seTransform);
   return *this;
 }
 
@@ -323,11 +386,11 @@ void ResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& d
 
 DilatedResidualBlockDesc::DilatedResidualBlockDesc() {}
 
-DilatedResidualBlockDesc::DilatedResidualBlockDesc(istream& in) {
+DilatedResidualBlockDesc::DilatedResidualBlockDesc(istream& in, int vrsn) {
   in >> name;
   if(in.fail())
     throw StringError(name + ": dilated res block failed to parse name");
-
+  version = vrsn;
   preBN = BatchNormLayerDesc(in);
   preActivation = ActivationLayerDesc(in);
   regularConv = ConvLayerDesc(in);
@@ -335,6 +398,10 @@ DilatedResidualBlockDesc::DilatedResidualBlockDesc(istream& in) {
   midBN = BatchNormLayerDesc(in);
   midActivation = ActivationLayerDesc(in);
   finalConv = ConvLayerDesc(in);
+  if(version >= 7)
+    seTransform = SETransformDesc(in);
+  else
+    seTransform = SETransformDesc();
 
   if(preBN.numChannels != regularConv.inChannels)
     throw StringError(
@@ -356,6 +423,15 @@ DilatedResidualBlockDesc::DilatedResidualBlockDesc(istream& in) {
       name + Global::strprintf(
                ": midBN.numChannels (%d) != finalConv.inChannels (%d)", midBN.numChannels, finalConv.inChannels));
 
+  if(version >= 7 && seTransform.mul1.inChannels != finalConv.outChannels * 3)
+    throw StringError(
+      name + Global::strprintf(
+               ": seTransform.mul1.inChannels (%d) != finalConv.outChannels * 3 (%d)", seTransform.mul1.inChannels, finalConv.outChannels * 3));
+  if(version >= 7 && seTransform.mul2.outChannels != finalConv.outChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": seTransform.mul2.outChannels (%d) != finalConv.outChannels (%d)", seTransform.mul2.outChannels, finalConv.outChannels));
+
   if(in.fail())
     throw StringError(name + ": dilated res block parse failure (istream fail() return true)");
 }
@@ -373,6 +449,7 @@ DilatedResidualBlockDesc& DilatedResidualBlockDesc::operator=(DilatedResidualBlo
   midBN = std::move(other.midBN);
   midActivation = std::move(other.midActivation);
   finalConv = std::move(other.finalConv);
+  seTransform = std::move(other.seTransform);
   return *this;
 }
 
@@ -401,6 +478,10 @@ GlobalPoolingResidualBlockDesc::GlobalPoolingResidualBlockDesc(istream& in, int 
   midBN = BatchNormLayerDesc(in);
   midActivation = ActivationLayerDesc(in);
   finalConv = ConvLayerDesc(in);
+  if(version >= 7)
+    seTransform = SETransformDesc(in);
+  else
+    seTransform = SETransformDesc();
 
   if(preBN.numChannels != regularConv.inChannels)
     throw StringError(
@@ -434,6 +515,17 @@ GlobalPoolingResidualBlockDesc::GlobalPoolingResidualBlockDesc(istream& in, int 
       name + Global::strprintf(
                ": midBN.numChannels (%d) != finalConv.inChannels (%d)", midBN.numChannels, finalConv.inChannels));
 
+
+  if(version >= 7 && seTransform.mul1.inChannels != finalConv.outChannels * 3)
+    throw StringError(
+      name + Global::strprintf(
+               ": seTransform.mul1.inChannels (%d) != finalConv.outChannels * 3 (%d)", seTransform.mul1.inChannels, finalConv.outChannels * 3));
+  if(version >= 7 && seTransform.mul2.outChannels != finalConv.outChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": seTransform.mul2.outChannels (%d) != finalConv.outChannels (%d)", seTransform.mul2.outChannels, finalConv.outChannels));
+
+
   if(in.fail())
     throw StringError(name + ": gpool res block parse failure (istream fail() return true)");
 }
@@ -454,6 +546,7 @@ GlobalPoolingResidualBlockDesc& GlobalPoolingResidualBlockDesc::operator=(Global
   midBN = std::move(other.midBN);
   midActivation = std::move(other.midActivation);
   finalConv = std::move(other.finalConv);
+  seTransform = std::move(other.seTransform);
   return *this;
 }
 
@@ -472,7 +565,9 @@ TrunkDesc::TrunkDesc()
     midNumChannels(0),
     regularNumChannels(0),
     dilatedNumChannels(0),
-    gpoolNumChannels(0) {}
+    gpoolNumChannels(0),
+    seMidNumChannels(0)
+{}
 
 TrunkDesc::TrunkDesc(istream& in, int vrsn) {
   in >> name;
@@ -483,6 +578,11 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn) {
   in >> regularNumChannels;
   in >> dilatedNumChannels;
   in >> gpoolNumChannels;
+
+  if(version >= 7)
+    in >> seMidNumChannels;
+  else
+    seMidNumChannels = 0;
 
   if(in.fail())
     throw StringError(name + ": trunk failed to parse num blocks or various channel parameters");
@@ -519,7 +619,7 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn) {
     if(in.fail())
       throw StringError(name + ": failed to parse block kind");
     if(kind == "ordinary_block") {
-      ResidualBlockDesc* desc = new ResidualBlockDesc(in);
+      ResidualBlockDesc* desc = new ResidualBlockDesc(in, version);
 
       if(desc->preBN.numChannels != trunkNumChannels)
         throw StringError(
@@ -549,10 +649,17 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn) {
                    desc->name.c_str(),
                    desc->finalConv.outChannels,
                    trunkNumChannels));
+      if(desc->seTransform.isInitialized && desc->seTransform.mul1.outChannels != seMidNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s seTransform.mul1.outChannels (%d) != seMidNumChannels (%d)",
+                   desc->name.c_str(),
+                   desc->seTransform.mul1.outChannels,
+                   seMidNumChannels));
 
       blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, (void*)desc));
     } else if(kind == "dilated_block") {
-      DilatedResidualBlockDesc* desc = new DilatedResidualBlockDesc(in);
+      DilatedResidualBlockDesc* desc = new DilatedResidualBlockDesc(in, version);
 
       if(desc->preBN.numChannels != trunkNumChannels)
         throw StringError(
@@ -582,6 +689,13 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn) {
                    desc->name.c_str(),
                    desc->finalConv.outChannels,
                    trunkNumChannels));
+      if(desc->seTransform.isInitialized && desc->seTransform.mul1.outChannels != seMidNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s seTransform.mul1.outChannels (%d) != seMidNumChannels (%d)",
+                   desc->name.c_str(),
+                   desc->seTransform.mul1.outChannels,
+                   seMidNumChannels));
 
       blocks.push_back(make_pair(DILATED_BLOCK_KIND, (void*)desc));
     } else if(kind == "gpool_block") {
@@ -615,6 +729,13 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn) {
                    desc->name.c_str(),
                    desc->finalConv.outChannels,
                    trunkNumChannels));
+      if(desc->seTransform.isInitialized && desc->seTransform.mul1.outChannels != seMidNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s seTransform.mul1.outChannels (%d) != seMidNumChannels (%d)",
+                   desc->name.c_str(),
+                   desc->seTransform.mul1.outChannels,
+                   seMidNumChannels));
 
       blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, (void*)desc));
     } else
@@ -1140,10 +1261,10 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
-  static_assert(NNModelVersion::latestModelVersionImplemented == 6, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 7, "");
   Rules rules = desiredRules;
   supported = true;
-  if(version <= 6) {
+  if(version <= 7) {
     if(rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT) {
       rules.koRule = Rules::KO_SITUATIONAL;
       supported = false;

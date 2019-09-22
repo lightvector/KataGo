@@ -642,20 +642,135 @@ struct MatBiasLayer {
   void apply(
     CudaHandles* cudaHandles,
     int batchSize,
+    bool applyRelu,
+    bool applySigmoid,
     void* matBuf
   ) const {
     (void)cudaHandles;
     if(!usingFP16) {
-      customCudaAddCBiasInplaceNC((float*)matBuf,(const float*)biasBuf,batchSize,numChannels);
+      customCudaAddCBiasInplaceNC((float*)matBuf,(const float*)biasBuf,batchSize,numChannels,applyRelu,applySigmoid);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
     else {
-      customCudaAddCBiasInplaceNC((half*)matBuf,(const half*)biasBuf,batchSize,numChannels);
+      customCudaAddCBiasInplaceNC((half*)matBuf,(const half*)biasBuf,batchSize,numChannels,applyRelu,applySigmoid);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
   }
 
 };
+
+//---------------------------------------------------------------------------------
+
+struct SETransform {
+  string name;
+
+  MatMulLayer mul1;
+  MatBiasLayer bias1;
+  MatMulLayer mul2;
+  MatBiasLayer bias2;
+
+  int xSize;
+  int ySize;
+  int trunkChannels;
+  int seMidChannels;
+  bool usingFP16;
+  bool usingNHWC;
+
+  SETransform() = delete;
+
+  SETransform(const SETransform&) = delete;
+  SETransform& operator=(const SETransform&) = delete;
+
+  SETransform(
+    CudaHandles* cudaHandles,
+    const SETransformDesc* desc,
+    int xS,
+    int yS,
+    bool useFP16,
+    bool useNHWC
+  ): name(desc->name),
+     mul1(cudaHandles,&desc->mul1,useFP16),
+     bias1(cudaHandles,&desc->bias1,useFP16),
+     mul2(cudaHandles,&desc->mul2,useFP16),
+     bias2(cudaHandles,&desc->bias2,useFP16),
+     xSize(xS),
+     ySize(yS),
+     trunkChannels(desc->mul2.outChannels),
+     seMidChannels(desc->mul1.outChannels),
+     usingFP16(useFP16),
+     usingNHWC(useNHWC)
+  {
+  }
+
+  ~SETransform()
+  {}
+
+  size_t requiredWorkspaceBytes(
+    CudaHandles* cudaHandles,
+    int batchSize
+  ) const {
+    (void)batchSize;
+    size_t bytes = 0;
+    size_t b;
+    b = mul1.requiredWorkspaceBytes(cudaHandles);
+    bytes = std::max(bytes,b);
+    b = mul2.requiredWorkspaceBytes(cudaHandles);
+    bytes = std::max(bytes,b);
+    return bytes;
+  }
+
+  void apply(
+    CudaHandles* cudaHandles,
+    int batchSize,
+    void* trunkBuf,
+    void* trunkScratchBuf,
+    void* gpoolConcatBuf,
+    void* gpoolBiasBuf,
+    void* maskBuf,
+    float* maskSumBuf,
+    const void* zeroBuf,
+    const void* oneBuf,
+    void* workspaceBuf,
+    size_t workspaceBytes
+  ) const {
+
+    if(!usingFP16) {
+      if(!usingNHWC)
+        customCudaPoolRowsGPoolNCHW((const float*)trunkScratchBuf,(float*)gpoolConcatBuf,batchSize,trunkChannels,xSize*ySize,(const float*)maskBuf,maskSumBuf);
+      else
+        customCudaPoolRowsGPoolNHWC((const float*)trunkScratchBuf,(float*)gpoolConcatBuf,batchSize,xSize*ySize,trunkChannels,(const float*)maskBuf,maskSumBuf);
+    }
+    else {
+      if(!usingNHWC)
+        customCudaPoolRowsGPoolNCHW((const half*)trunkScratchBuf,(half*)gpoolConcatBuf,batchSize,trunkChannels,xSize*ySize,(const half*)maskBuf,maskSumBuf);
+      else
+        customCudaPoolRowsGPoolNHWC((const half*)trunkScratchBuf,(half*)gpoolConcatBuf,batchSize,xSize*ySize,trunkChannels,(const half*)maskBuf,maskSumBuf);
+    }
+    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
+
+    mul1.apply(cudaHandles,batchSize,gpoolConcatBuf,gpoolBiasBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
+    bias1.apply(cudaHandles,batchSize,true,false,gpoolBiasBuf);
+
+    mul2.apply(cudaHandles,batchSize,gpoolBiasBuf,gpoolConcatBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
+    bias2.apply(cudaHandles,batchSize,false,true,gpoolConcatBuf);
+
+    if(!usingFP16) {
+      if(!usingNHWC)
+        customCudaAddCScaledResidualInplaceNCHW((float*)trunkBuf,(const float*)trunkScratchBuf,(const float*)gpoolConcatBuf,batchSize,trunkChannels,xSize*ySize);
+      else
+        customCudaAddCScaledResidualInplaceNHWC((float*)trunkBuf,(const float*)trunkScratchBuf,(const float*)gpoolConcatBuf,batchSize,xSize*ySize,trunkChannels);
+    }
+    else {
+      if(!usingNHWC)
+        customCudaAddCScaledResidualInplaceNCHW((half*)trunkBuf,(const half*)trunkScratchBuf,(const half*)gpoolConcatBuf,batchSize,trunkChannels,xSize*ySize);
+      else
+        customCudaAddCScaledResidualInplaceNHWC((half*)trunkBuf,(const half*)trunkScratchBuf,(const half*)gpoolConcatBuf,batchSize,xSize*ySize,trunkChannels);
+    }
+    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
+  }
+
+};
+
 
 //---------------------------------------------------------------------------------
 
@@ -667,6 +782,8 @@ struct ResidualBlock {
   BatchNormLayer midBN;
   ActivationLayer midActivation;
   ConvLayer finalConv;
+
+  SETransform* seTransform;
 
   int xSize;
   int ySize;
@@ -694,15 +811,22 @@ struct ResidualBlock {
      midBN(cudaHandles,&desc->midBN,xS,yS,useFP16,useNHWC),
      midActivation(cudaHandles,&desc->midActivation),
      finalConv(cudaHandles,&desc->finalConv,maxBatchSize,midInDescriptors,trunkDescriptors,useFP16,useNHWC),
+     seTransform(NULL),
      xSize(xS),
      ySize(yS),
      regularChannels(desc->regularConv.outChannels),
      usingFP16(useFP16)
   {
+    if(desc->version >= 7) {
+      assert(desc->seTransform.isInitialized);
+      seTransform = new SETransform(cudaHandles,&desc->seTransform,xS,yS,useFP16,useNHWC);
+    }
   }
 
-  ~ResidualBlock()
-  {}
+  ~ResidualBlock() {
+    if(seTransform != NULL)
+      delete seTransform;
+  }
 
   size_t requiredWorkspaceBytes(
     CudaHandles* cudaHandles,
@@ -716,6 +840,10 @@ struct ResidualBlock {
     bytes = std::max(bytes,b);
     b = finalConv.requiredWorkspaceBytes(cudaHandles,midInDescriptor,trunkDescriptor,batchSize);
     bytes = std::max(bytes,b);
+    if(seTransform != NULL) {
+      b = seTransform->requiredWorkspaceBytes(cudaHandles,batchSize);
+      bytes = std::max(bytes,b);
+    }
     return bytes;
   }
 
@@ -728,7 +856,12 @@ struct ResidualBlock {
     void* trunkScratchBuf,
     void* midInBuf,
     void* midScratchBuf,
+    void* gpoolConcatBuf,
+    void* gpoolBiasBuf,
     void* maskBuf,
+    float* maskSumBuf,
+    const void* zeroBuf,
+    const void* oneBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
@@ -736,7 +869,13 @@ struct ResidualBlock {
     preBN.apply(cudaHandles,batchSize,applyBNRelu,trunkBuf,maskBuf,trunkScratchBuf);
     regularConv.apply(cudaHandles,trunkDescriptor,midInDescriptor,batchSize,false,trunkScratchBuf,midInBuf,workspaceBuf,workspaceBytes);
     midBN.apply(cudaHandles,batchSize,applyBNRelu,midInBuf,maskBuf,midScratchBuf);
-    finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,true,midScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
+    if(seTransform != NULL) {
+      finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,false,midScratchBuf,trunkScratchBuf,workspaceBuf,workspaceBytes);
+      seTransform->apply(cudaHandles,batchSize,trunkBuf,trunkScratchBuf,gpoolConcatBuf,gpoolBiasBuf,maskBuf,maskSumBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
+    }
+    else {
+      finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,true,midScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
+    }
   }
 
 };
@@ -753,6 +892,8 @@ struct DilatedResidualBlock {
   BatchNormLayer midBN;
   ActivationLayer midActivation;
   ConvLayer finalConv;
+
+  SETransform* seTransform;
 
   int xSize;
   int ySize;
@@ -785,6 +926,7 @@ struct DilatedResidualBlock {
      midBN(cudaHandles,&desc->midBN,xS,yS,useFP16,useNHWC),
      midActivation(cudaHandles,&desc->midActivation),
      finalConv(cudaHandles,&desc->finalConv,maxBatchSize,midInDescriptors,trunkDescriptors,useFP16,useNHWC),
+     seTransform(NULL),
      xSize(xS),
      ySize(yS),
      regularChannels(desc->regularConv.outChannels),
@@ -792,10 +934,16 @@ struct DilatedResidualBlock {
      usingFP16(useFP16),
      usingNHWC(useNHWC)
   {
+    if(desc->version >= 7) {
+      assert(desc->seTransform.isInitialized);
+      seTransform = new SETransform(cudaHandles,&desc->seTransform,xS,yS,useFP16,useNHWC);
+    }
   }
 
-  ~DilatedResidualBlock()
-  {}
+  ~DilatedResidualBlock() {
+    if(seTransform != NULL)
+      delete seTransform;
+  }
 
   size_t requiredWorkspaceBytes(
     CudaHandles* cudaHandles,
@@ -813,6 +961,10 @@ struct DilatedResidualBlock {
     bytes = std::max(bytes,b);
     b = finalConv.requiredWorkspaceBytes(cudaHandles,midInDescriptor,trunkDescriptor,batchSize);
     bytes = std::max(bytes,b);
+    if(seTransform != NULL) {
+      b = seTransform->requiredWorkspaceBytes(cudaHandles,batchSize);
+      bytes = std::max(bytes,b);
+    }
     return bytes;
   }
 
@@ -829,7 +981,12 @@ struct DilatedResidualBlock {
     void* dilatedOutBuf,
     void* midInBuf,
     void* midScratchBuf,
+    void* gpoolConcatBuf,
+    void* gpoolBiasBuf,
     void* maskBuf,
+    float* maskSumBuf,
+    const void* zeroBuf,
+    const void* oneBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
@@ -871,7 +1028,13 @@ struct DilatedResidualBlock {
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     midBN.apply(cudaHandles,batchSize,applyBNRelu,midInBuf,maskBuf,midScratchBuf);
-    finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,true,midScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
+    if(seTransform != NULL) {
+      finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,false,midScratchBuf,trunkScratchBuf,workspaceBuf,workspaceBytes);
+      seTransform->apply(cudaHandles,batchSize,trunkBuf,trunkScratchBuf,gpoolConcatBuf,gpoolBiasBuf,maskBuf,maskSumBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
+    }
+    else {
+      finalConv.apply(cudaHandles,midInDescriptor,trunkDescriptor,batchSize,true,midScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
+    }
   }
 
 };
@@ -893,6 +1056,8 @@ struct GlobalPoolingResidualBlock {
   BatchNormLayer midBN;
   ActivationLayer midActivation;
   ConvLayer finalConv;
+
+  SETransform* seTransform;
 
   int xSize;
   int ySize;
@@ -927,6 +1092,7 @@ struct GlobalPoolingResidualBlock {
      midBN(cudaHandles,&desc->midBN,xS,yS,useFP16,useNHWC),
      midActivation(cudaHandles,&desc->midActivation),
      finalConv(cudaHandles,&desc->finalConv,maxBatchSize,regularOutDescriptors,trunkDescriptors,useFP16,useNHWC),
+     seTransform(NULL),
      xSize(xS),
      ySize(yS),
      regularChannels(desc->regularConv.outChannels),
@@ -934,9 +1100,15 @@ struct GlobalPoolingResidualBlock {
      usingFP16(useFP16),
      usingNHWC(useNHWC)
   {
+    if(desc->version >= 7) {
+      assert(desc->seTransform.isInitialized);
+      seTransform = new SETransform(cudaHandles,&desc->seTransform,xS,yS,useFP16,useNHWC);
+    }
   }
 
   ~GlobalPoolingResidualBlock() {
+    if(seTransform != NULL)
+      delete seTransform;
   }
 
   size_t requiredWorkspaceBytes(
@@ -958,6 +1130,10 @@ struct GlobalPoolingResidualBlock {
     bytes = std::max(bytes,b);
     b = sizeof(float)*batchSize*gpoolChannels*xSize*ySize;
     bytes = std::max(bytes,b);
+    if(seTransform != NULL) {
+      b = seTransform->requiredWorkspaceBytes(cudaHandles,batchSize);
+      bytes = std::max(bytes,b);
+    }
     return bytes;
   }
 
@@ -970,11 +1146,11 @@ struct GlobalPoolingResidualBlock {
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
+    void* regularScratchBuf,
     void* gpoolOutBuf,
     void* gpoolOutBuf2,
     void* gpoolConcatBuf,
     void* gpoolBiasBuf,
-    void* regularScratchBuf,
     void* maskBuf,
     float* maskSumBuf,
     const void* zeroBuf,
@@ -990,15 +1166,15 @@ struct GlobalPoolingResidualBlock {
 
     if(!usingFP16) {
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,(const float*)maskBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,(const float*)maskBuf,maskSumBuf);
     }
     else {
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,(const half*)maskBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,(const half*)maskBuf,maskSumBuf);
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
@@ -1019,7 +1195,13 @@ struct GlobalPoolingResidualBlock {
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
     midBN.apply(cudaHandles,batchSize,applyBNRelu,regularOutBuf,maskBuf,regularScratchBuf);
-    finalConv.apply(cudaHandles,regularOutDescriptor,trunkDescriptor,batchSize,true,regularScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
+    if(seTransform != NULL) {
+      finalConv.apply(cudaHandles,regularOutDescriptor,trunkDescriptor,batchSize,false,regularScratchBuf,trunkScratchBuf,workspaceBuf,workspaceBytes);
+      seTransform->apply(cudaHandles,batchSize,trunkBuf,trunkScratchBuf,gpoolConcatBuf,gpoolBiasBuf,maskBuf,maskSumBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
+    }
+    else {
+      finalConv.apply(cudaHandles,regularOutDescriptor,trunkDescriptor,batchSize,true,regularScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
+    }
   }
 
 };
@@ -1035,6 +1217,7 @@ struct Trunk {
   int regularNumChannels;
   int dilatedNumChannels;
   int gpoolNumChannels;
+  int seMidNumChannels;
 
   int maxBatchSize;
   int xSize;
@@ -1076,6 +1259,7 @@ struct Trunk {
     regularNumChannels = desc->regularNumChannels;
     dilatedNumChannels = desc->dilatedNumChannels;
     gpoolNumChannels = desc->gpoolNumChannels;
+    seMidNumChannels = desc->seMidNumChannels;
 
     maxBatchSize = maxBatchSz;
     xSize = xS;
@@ -1311,6 +1495,7 @@ struct Trunk {
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
+    void* regularScratchBuf,
     void* dilatedOutBuf,
     void* midInBuf,
     void* midScratchBuf,
@@ -1318,7 +1503,6 @@ struct Trunk {
     void* gpoolOutBuf2,
     void* gpoolConcatBuf,
     void* gpoolBiasBuf,
-    void* regularScratchBuf,
     const void* zeroBuf,
     const void* oneBuf,
     void* workspaceBuf,
@@ -1372,7 +1556,12 @@ struct Trunk {
           trunkBuf,
           midInBuf,
           midScratchBuf,
+          gpoolConcatBuf,
+          gpoolBiasBuf,
           maskBuf,
+          maskSumBuf,
+          zeroBuf,
+          oneBuf,
           workspaceBuf,
           workspaceBytes
         );
@@ -1392,7 +1581,12 @@ struct Trunk {
           dilatedOutBuf,
           midInBuf,
           midScratchBuf,
+          gpoolConcatBuf,
+          gpoolBiasBuf,
           maskBuf,
+          maskSumBuf,
+          zeroBuf,
+          oneBuf,
           workspaceBuf,
           workspaceBytes
         );
@@ -1408,11 +1602,11 @@ struct Trunk {
           trunkScratchBuf, //Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
           trunkBuf,
           regularOutBuf,
+          regularScratchBuf,
           gpoolOutBuf,
           gpoolOutBuf2,
           gpoolConcatBuf,
           gpoolBiasBuf,
-          regularScratchBuf,
           maskBuf,
           maskSumBuf,
           zeroBuf,
@@ -1746,18 +1940,18 @@ struct PolicyHead {
 
     if(!usingFP16) {
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const float*)g1OutBuf2,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,(const float*)maskFloatBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const float*)g1OutBuf2,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,(const float*)maskFloatBuf,maskSumBuf);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
     else {
       customCudaCopyFromHalf((const half*)g1OutBuf2,(float*)workspaceBuf,batchSize*g1Channels*xSize*ySize);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const float*)workspaceBuf,g1ConcatBuf,batchSize,g1Channels,xSize*ySize,(const float*)maskFloatBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const float*)workspaceBuf,g1ConcatBuf,batchSize,xSize*ySize,g1Channels,(const float*)maskFloatBuf,maskSumBuf);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
@@ -1837,7 +2031,6 @@ struct ValueHead {
   bool usingNHWC;
 
   cudnnTensorDescriptor_t* v1OutDescriptors;
-  cudnnTensorDescriptor_t* v3InDescriptors;
   cudnnTensorDescriptor_t* vOwnershipOutDescriptors;
 
   ConvLayer* v1Conv;
@@ -1880,12 +2073,10 @@ struct ValueHead {
     usingNHWC = useNHWC;
 
     v1OutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
-    v3InDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
     vOwnershipOutDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
-      cudnnTensorDescriptor_t& v3InDescriptor = v3InDescriptors[batchSize-1];
 
       CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&v1OutDescriptor));
       CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
@@ -1896,17 +2087,6 @@ struct ValueHead {
         desc->v1Conv.outChannels,
         ySize,
         xSize
-      ));
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&v3InDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        v3InDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        CUDNN_DATA_FLOAT,
-        batchSize,
-        desc->v2Mul.outChannels,
-        1,
-        1
       ));
 
       cudnnTensorDescriptor_t& vOwnershipOutDescriptor = vOwnershipOutDescriptors[batchSize-1];
@@ -1952,12 +2132,10 @@ struct ValueHead {
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       cudnnDestroyTensorDescriptor(v1OutDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(v3InDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(vOwnershipOutDescriptors[batchSize-1]);
     }
 
     delete[] v1OutDescriptors;
-    delete[] v3InDescriptors;
     delete[] vOwnershipOutDescriptors;
   }
 
@@ -2013,7 +2191,6 @@ struct ValueHead {
     size_t workspaceBytes
   ) const {
     const cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& v3InDescriptor = v3InDescriptors[batchSize-1];
 
     bool applyBNRelu = true;
 
@@ -2036,13 +2213,12 @@ struct ValueHead {
     float zero = 0.0f;
     float one = 1.0f;
     v2Mul->apply(cudaHandles,batchSize,v1MeanBuf,v2OutBuf,&zero,&one,workspaceBuf,workspaceBytes);
-    v2Bias->apply(cudaHandles,batchSize,v2OutBuf);
-    v2Activation->apply(cudaHandles,v3InDescriptor,v3InDescriptor,v2OutBuf,v2OutBuf);
+    v2Bias->apply(cudaHandles,batchSize,true,false,v2OutBuf);
     v3Mul->apply(cudaHandles,batchSize,v2OutBuf,valueBuf,&zero,&one,workspaceBuf,workspaceBytes);
-    v3Bias->apply(cudaHandles,batchSize,valueBuf);
+    v3Bias->apply(cudaHandles,batchSize,false,false,valueBuf);
 
     sv3Mul->apply(cudaHandles,batchSize,v2OutBuf,scoreValueBuf,&zero,&one,workspaceBuf,workspaceBytes);
-    sv3Bias->apply(cudaHandles,batchSize,scoreValueBuf);
+    sv3Bias->apply(cudaHandles,batchSize,false,false,scoreValueBuf);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     debugPrint4D(string("v1"), v1OutBuf, batchSize, v1Channels, xSize, ySize, usingNHWC, usingFP16);
@@ -2221,6 +2397,7 @@ struct Model {
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
+    void* regularScratchBuf,
     void* dilatedOutBuf,
     void* midInBuf,
     void* midScratchBuf,
@@ -2228,7 +2405,6 @@ struct Model {
     void* gpoolOutBuf2,
     void* gpoolConcatBuf,
     void* gpoolBiasBuf,
-    void* regularScratchBuf,
 
     void* p1OutBuf,
     void* p1OutBuf2,
@@ -2310,6 +2486,7 @@ struct Model {
       trunkBuf,
       trunkScratchBuf,
       regularOutBuf,
+      regularScratchBuf,
       dilatedOutBuf,
       midInBuf,
       midScratchBuf,
@@ -2317,7 +2494,6 @@ struct Model {
       gpoolOutBuf2,
       gpoolConcatBuf,
       gpoolBiasBuf,
-      regularScratchBuf,
       zeroBuf,
       oneBuf,
       workspaceBuf,
@@ -2422,6 +2598,7 @@ struct Buffers {
   void* trunkBuf;
   void* trunkScratchBuf;
   void* regularOutBuf;
+  void* regularScratchBuf;
   void* dilatedOutBuf;
   void* midInBuf;
   void* midScratchBuf;
@@ -2429,7 +2606,6 @@ struct Buffers {
   void* gpoolOutBuf2;
   void* gpoolConcatBuf;
   void* gpoolBiasBuf;
-  void* regularScratchBuf;
 
   void* p1OutBuf;
   void* p1OutBuf2;
@@ -2489,14 +2665,18 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&trunkBuf, m.trunk->trunkNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&trunkScratchBuf, m.trunk->trunkNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&regularOutBuf, m.trunk->regularNumChannels * batchXYBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&regularScratchBuf, m.trunk->regularNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&dilatedOutBuf, m.trunk->dilatedNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&midInBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&midScratchBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&gpoolOutBuf, m.trunk->gpoolNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&gpoolOutBuf2, m.trunk->gpoolNumChannels * batchXYBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&gpoolConcatBuf, m.trunk->gpoolNumChannels * batchBytes * 3));
-    CUDA_ERR("Buffers",cudaMalloc(&gpoolBiasBuf, m.trunk->regularNumChannels * batchBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&regularScratchBuf, m.trunk->regularNumChannels * batchXYBytes));
+
+    //Since these two buffers are used in both gpooling and SE gpooling we need to make it big enough for either
+    int gpoolConcatChannels = 3 * std::max(m.trunk->gpoolNumChannels, m.trunk->trunkNumChannels);
+    int gpoolBiasChannels = std::max(m.trunk->regularNumChannels, m.trunk->seMidNumChannels);
+    CUDA_ERR("Buffers",cudaMalloc(&gpoolConcatBuf, gpoolConcatChannels * batchBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&gpoolBiasBuf, gpoolBiasChannels * batchBytes));
 
     CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf, m.policyHead->p1Channels * batchXYFloatBytes)); //need to hold floats in addition to halfs
     CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf2, m.policyHead->p1Channels * batchXYFloatBytes)); //need to hold floats in addition to halfs
@@ -2557,6 +2737,7 @@ struct Buffers {
     cudaFree(trunkBuf);
     cudaFree(trunkScratchBuf);
     cudaFree(regularOutBuf);
+    cudaFree(regularScratchBuf);
     cudaFree(dilatedOutBuf);
     cudaFree(midInBuf);
     cudaFree(midScratchBuf);
@@ -2564,7 +2745,6 @@ struct Buffers {
     cudaFree(gpoolOutBuf2);
     cudaFree(gpoolConcatBuf);
     cudaFree(gpoolBiasBuf);
-    cudaFree(regularScratchBuf);
 
     cudaFree(p1OutBuf);
     cudaFree(p1OutBuf2);
@@ -2902,6 +3082,7 @@ void NeuralNet::getOutput(ComputeHandle* gpuHandle, InputBuffers* inputBuffers, 
     buffers->trunkBuf,
     buffers->trunkScratchBuf,
     buffers->regularOutBuf,
+    buffers->regularScratchBuf,
     buffers->dilatedOutBuf,
     buffers->midInBuf,
     buffers->midScratchBuf,
@@ -2909,7 +3090,6 @@ void NeuralNet::getOutput(ComputeHandle* gpuHandle, InputBuffers* inputBuffers, 
     buffers->gpoolOutBuf2,
     buffers->gpoolConcatBuf,
     buffers->gpoolBiasBuf,
-    buffers->regularScratchBuf,
 
     buffers->p1OutBuf,
     buffers->p1OutBuf2,
@@ -3175,8 +3355,11 @@ bool NeuralNet::testEvaluateResidualBlock(
 
   size_t numInputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->preBN.numChannels;
   size_t numMaskFloats = (size_t)desiredBatchSize * xSize * ySize;
+  size_t numMaskSumFloats = (size_t)desiredBatchSize;
   size_t numMidFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.inChannels;
   size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.outChannels;
+  size_t numGPoolConcatFloats = (size_t)desiredBatchSize * desc->finalConv.outChannels * 3;
+  size_t numGPoolBiasFloats = (size_t)desiredBatchSize * (desc->seTransform.isInitialized ? desc->seTransform.mul1.outChannels : 1);
   if(numInputFloats != inputBuffer.size())
     throw StringError("testEvaluateResidualBlock: unexpected input buffer size");
   if(numMaskFloats != maskBuffer.size())
@@ -3184,14 +3367,30 @@ bool NeuralNet::testEvaluateResidualBlock(
 
   void* deviceInput;
   void* deviceMask;
+  float* deviceMaskFloatOrig;
+  float* deviceMaskFloat;
+  float* deviceMaskSum;
   void* deviceScratch;
   void* deviceMidInput;
   void* deviceMidScratch;
+  void* gpoolConcatBuf;
+  void* gpoolBiasBuf;
   mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
   mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
+  CUDA_ERR("deviceMaskFloat",cudaMalloc(&deviceMaskFloat, numMaskFloats * sizeof(float)));
+  CUDA_ERR("deviceMaskSum",cudaMalloc(&deviceMaskSum, numMaskSumFloats * sizeof(float)));
+  deviceMaskFloatOrig = deviceMaskFloat;
   mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
   mallocOnDevice("deviceMid", numMidFloats, deviceMidInput, useFP16);
   mallocOnDevice("deviceMidScratch", numMidFloats, deviceMidScratch, useFP16);
+  mallocOnDevice("gpoolConcat", numGPoolConcatFloats, gpoolConcatBuf, useFP16);
+  mallocOnDevice("gpoolBias", numGPoolBiasFloats, gpoolBiasBuf, useFP16);
+
+  fillMaskFloatBufAndMaskSumBuf(deviceMask, deviceMaskFloat, deviceMaskSum, useFP16, desiredBatchSize, xSize, ySize);
+
+  void* zeroBuf;
+  void* oneBuf;
+  hostMallocZeroOneBufs(zeroBuf, oneBuf, useFP16);
 
   int maxBatchSize = desiredBatchSize;
   cudnnTensorDescriptor_t* trunkDescriptors = new cudnnTensorDescriptor_t[maxBatchSize];
@@ -3239,7 +3438,12 @@ bool NeuralNet::testEvaluateResidualBlock(
     deviceScratch,
     deviceMidInput,
     deviceMidScratch,
+    gpoolConcatBuf,
+    gpoolBiasBuf,
     deviceMask,
+    deviceMaskSum,
+    zeroBuf,
+    oneBuf,
     deviceWorkspace,
     workspaceBytes
   );
@@ -3257,11 +3461,19 @@ bool NeuralNet::testEvaluateResidualBlock(
   }
   delete[] trunkDescriptors;
   delete[] midInDescriptors;
+
+  free(zeroBuf);
+  free(oneBuf);
+
   cudaFree(deviceInput);
   cudaFree(deviceMask);
+  cudaFree(deviceMaskFloatOrig);
+  cudaFree(deviceMaskSum);
   cudaFree(deviceScratch);
   cudaFree(deviceMidInput);
   cudaFree(deviceMidScratch);
+  cudaFree(gpoolConcatBuf);
+  cudaFree(gpoolBiasBuf);
   delete cudaHandles;
 
   return true;
@@ -3291,6 +3503,10 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   size_t numGPoolOutFloats = (size_t)desiredBatchSize * xSize * ySize * desc->gpoolConv.outChannels;
   size_t numGPoolConcatFloats = (size_t)desiredBatchSize * 3 * desc->gpoolConv.outChannels;
   size_t numGPoolBiasFloats = (size_t)desiredBatchSize * desc->regularConv.outChannels;
+  size_t numGPoolConcatFloatsSE = (size_t)desiredBatchSize * desc->finalConv.outChannels * 3;
+  size_t numGPoolBiasFloatsSE = (size_t)desiredBatchSize * (desc->seTransform.isInitialized ? desc->seTransform.mul1.outChannels : 1);
+  numGPoolConcatFloats = std::max(numGPoolConcatFloats, numGPoolConcatFloatsSE);
+  numGPoolBiasFloats = std::max(numGPoolBiasFloats, numGPoolBiasFloatsSE);
   size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.outChannels;
 
   if(numInputFloats != inputBuffer.size())
@@ -3393,11 +3609,11 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
     deviceInput,
     deviceScratch,
     deviceRegularOut,
+    deviceRegularScratch,
     deviceGPoolOut,
     deviceGPoolOut2,
     deviceGPoolConcat,
     deviceGPoolBias,
-    deviceRegularScratch,
     deviceMask,
     deviceMaskSum,
     zeroBuf,

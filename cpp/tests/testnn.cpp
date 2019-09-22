@@ -526,6 +526,8 @@ static void testResidualBlock(int64_t& numTestsRun) {
     });
 
     ResidualBlockDesc desc;
+    //TODO need test for version 7 with SE
+    desc.version = 5;
 
     //Doubles all values
     desc.preBN.name = "preBN";
@@ -620,6 +622,9 @@ static void testResidualBlock(int64_t& numTestsRun) {
     desc.finalConv.weights = vector<float>({
         1,1
     });
+
+    //No SE
+    desc.seTransform = SETransformDesc();
 
     //0,4,0,0,
     //0,0,0,2,
@@ -728,6 +733,7 @@ static void testGlobalPoolingResidualBlock(int64_t& numTestsRun) {
     });
 
     GlobalPoolingResidualBlockDesc desc;
+    desc.version = 5;
 
     //Identity map
     desc.preBN.name = "preBN";
@@ -873,6 +879,9 @@ static void testGlobalPoolingResidualBlock(int64_t& numTestsRun) {
     desc.finalConv.weights = vector<float>({
         1
     });
+
+    //No SE
+    desc.seTransform = SETransformDesc();
 
     vector<float> expected({
       3,6,0,0,

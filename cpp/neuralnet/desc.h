@@ -95,8 +95,27 @@ struct MatBiasLayerDesc {
   MatBiasLayerDesc& operator=(MatBiasLayerDesc&& other);
 };
 
+struct SETransformDesc {
+  std::string name;
+  bool isInitialized;
+  MatMulLayerDesc mul1;
+  MatBiasLayerDesc bias1;
+  MatMulLayerDesc mul2;
+  MatBiasLayerDesc bias2;
+
+  SETransformDesc();
+  SETransformDesc(std::istream& in);
+  SETransformDesc(SETransformDesc&& other);
+
+  SETransformDesc(const SETransformDesc&) = delete;
+  SETransformDesc& operator=(const SETransformDesc&) = delete;
+
+  SETransformDesc& operator=(SETransformDesc&& other);
+};
+
 struct ResidualBlockDesc {
   std::string name;
+  int version;
   BatchNormLayerDesc preBN;
   ActivationLayerDesc preActivation;
   ConvLayerDesc regularConv;
@@ -104,8 +123,10 @@ struct ResidualBlockDesc {
   ActivationLayerDesc midActivation;
   ConvLayerDesc finalConv;
 
+  SETransformDesc seTransform;
+
   ResidualBlockDesc();
-  ResidualBlockDesc(std::istream& in);
+  ResidualBlockDesc(std::istream& in, int vrsn);
   ResidualBlockDesc(ResidualBlockDesc&& other);
 
   ResidualBlockDesc(const ResidualBlockDesc&) = delete;
@@ -118,6 +139,7 @@ struct ResidualBlockDesc {
 
 struct DilatedResidualBlockDesc {
   std::string name;
+  int version;
   BatchNormLayerDesc preBN;
   ActivationLayerDesc preActivation;
   ConvLayerDesc regularConv;
@@ -126,8 +148,10 @@ struct DilatedResidualBlockDesc {
   ActivationLayerDesc midActivation;
   ConvLayerDesc finalConv;
 
+  SETransformDesc seTransform;
+
   DilatedResidualBlockDesc();
-  DilatedResidualBlockDesc(std::istream& in);
+  DilatedResidualBlockDesc(std::istream& in, int vrsn);
   DilatedResidualBlockDesc(DilatedResidualBlockDesc&& other);
 
   DilatedResidualBlockDesc(const DilatedResidualBlockDesc&) = delete;
@@ -151,6 +175,8 @@ struct GlobalPoolingResidualBlockDesc {
   BatchNormLayerDesc midBN;
   ActivationLayerDesc midActivation;
   ConvLayerDesc finalConv;
+
+  SETransformDesc seTransform;
 
   GlobalPoolingResidualBlockDesc();
   GlobalPoolingResidualBlockDesc(std::istream& in, int vrsn);
@@ -177,6 +203,7 @@ struct TrunkDesc {
   int regularNumChannels;  // Currently every dilated or gpool residual block must have the same number of regular conv hannels
   int dilatedNumChannels;  // Currently every dilated residual block must have the same number of dilated conv channels
   int gpoolNumChannels;    // Currently every gpooling residual block must have the same number of gpooling conv channels
+  int seMidNumChannels;    // Currently every SE transform must use the same number of intermediate channels
   ConvLayerDesc initialConv;
   MatMulLayerDesc initialMatMul;
   std::vector<std::pair<int, void*>> blocks;

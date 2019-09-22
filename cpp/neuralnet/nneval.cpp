@@ -628,6 +628,8 @@ void NNEvaluator::evaluate(
     for(int i = policySize; i<NNPos::MAX_NN_POLICY_SIZE; i++)
       policy[i] = -1.0f;
 
+    static_assert(NNModelVersion::latestModelVersionImplemented == 7, "");
+
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.
     if(modelVersion == 3) {
@@ -677,7 +679,7 @@ void NNEvaluator::evaluate(
       }
 
     }
-    else if(modelVersion == 4 || modelVersion == 5 || modelVersion == 6) {
+    else if(modelVersion == 4 || modelVersion == 5 || modelVersion == 6 || modelVersion == 7) {
       double winProb;
       double lossProb;
       double noResultProb;
@@ -754,7 +756,7 @@ void NNEvaluator::evaluate(
 
   //Postprocess ownermap
   if(buf.result->whiteOwnerMap != NULL) {
-    if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5 || modelVersion == 6) {
+    if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5 || modelVersion == 6 || modelVersion == 7) {
       for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
         int y = pos / nnXLen;
         int x = pos % nnXLen;

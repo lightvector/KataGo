@@ -11,16 +11,17 @@
 //4 = V3 features, scorebelief head
 //5 = V4 features, changed current territory feature to just indicate pass-alive
 //6 = V5 features, disable fancy features
+//7 = V3 features, squeeze excite
 
 static void fail(int modelVersion) {
   throw StringError("NNModelVersion: Model version not currently implemented or supported: " + Global::intToString(modelVersion));
 }
 
-static_assert(NNModelVersion::latestModelVersionImplemented == 6, "");
+static_assert(NNModelVersion::latestModelVersionImplemented == 7, "");
 static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
 
 int NNModelVersion::getInputsVersion(int modelVersion) {
-  if(modelVersion == 3 || modelVersion == 4)
+  if(modelVersion == 3 || modelVersion == 4 || modelVersion == 7)
     return 3;
   else if(modelVersion == 5)
     return 4;
@@ -32,7 +33,7 @@ int NNModelVersion::getInputsVersion(int modelVersion) {
 }
 
 int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
-  if(modelVersion == 3 || modelVersion == 4)
+  if(modelVersion == 3 || modelVersion == 4 || modelVersion == 7)
     return NNInputs::NUM_FEATURES_SPATIAL_V3;
   else if(modelVersion == 5)
     return NNInputs::NUM_FEATURES_SPATIAL_V4;
@@ -44,7 +45,7 @@ int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
 }
 
 int NNModelVersion::getNumGlobalFeatures(int modelVersion) {
-  if(modelVersion == 3 || modelVersion == 4)
+  if(modelVersion == 3 || modelVersion == 4 || modelVersion == 7)
     return NNInputs::NUM_FEATURES_GLOBAL_V3;
   else if(modelVersion == 5)
     return NNInputs::NUM_FEATURES_GLOBAL_V4;
