@@ -970,11 +970,11 @@ struct GlobalPoolingResidualBlock {
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
+    void* regularScratchBuf,
     void* gpoolOutBuf,
     void* gpoolOutBuf2,
     void* gpoolConcatBuf,
     void* gpoolBiasBuf,
-    void* regularScratchBuf,
     void* maskBuf,
     float* maskSumBuf,
     const void* zeroBuf,
@@ -1311,6 +1311,7 @@ struct Trunk {
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
+    void* regularScratchBuf,
     void* dilatedOutBuf,
     void* midInBuf,
     void* midScratchBuf,
@@ -1318,7 +1319,6 @@ struct Trunk {
     void* gpoolOutBuf2,
     void* gpoolConcatBuf,
     void* gpoolBiasBuf,
-    void* regularScratchBuf,
     const void* zeroBuf,
     const void* oneBuf,
     void* workspaceBuf,
@@ -1408,11 +1408,11 @@ struct Trunk {
           trunkScratchBuf, //Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
           trunkBuf,
           regularOutBuf,
+          regularScratchBuf,
           gpoolOutBuf,
           gpoolOutBuf2,
           gpoolConcatBuf,
           gpoolBiasBuf,
-          regularScratchBuf,
           maskBuf,
           maskSumBuf,
           zeroBuf,
@@ -2221,6 +2221,7 @@ struct Model {
     void* trunkBuf,
     void* trunkScratchBuf,
     void* regularOutBuf,
+    void* regularScratchBuf,
     void* dilatedOutBuf,
     void* midInBuf,
     void* midScratchBuf,
@@ -2228,7 +2229,6 @@ struct Model {
     void* gpoolOutBuf2,
     void* gpoolConcatBuf,
     void* gpoolBiasBuf,
-    void* regularScratchBuf,
 
     void* p1OutBuf,
     void* p1OutBuf2,
@@ -2310,6 +2310,7 @@ struct Model {
       trunkBuf,
       trunkScratchBuf,
       regularOutBuf,
+      regularScratchBuf,
       dilatedOutBuf,
       midInBuf,
       midScratchBuf,
@@ -2317,7 +2318,6 @@ struct Model {
       gpoolOutBuf2,
       gpoolConcatBuf,
       gpoolBiasBuf,
-      regularScratchBuf,
       zeroBuf,
       oneBuf,
       workspaceBuf,
@@ -2422,6 +2422,7 @@ struct Buffers {
   void* trunkBuf;
   void* trunkScratchBuf;
   void* regularOutBuf;
+  void* regularScratchBuf;
   void* dilatedOutBuf;
   void* midInBuf;
   void* midScratchBuf;
@@ -2429,7 +2430,6 @@ struct Buffers {
   void* gpoolOutBuf2;
   void* gpoolConcatBuf;
   void* gpoolBiasBuf;
-  void* regularScratchBuf;
 
   void* p1OutBuf;
   void* p1OutBuf2;
@@ -2489,6 +2489,7 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&trunkBuf, m.trunk->trunkNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&trunkScratchBuf, m.trunk->trunkNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&regularOutBuf, m.trunk->regularNumChannels * batchXYBytes));
+    CUDA_ERR("Buffers",cudaMalloc(&regularScratchBuf, m.trunk->regularNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&dilatedOutBuf, m.trunk->dilatedNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&midInBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&midScratchBuf, (m.trunk->regularNumChannels + m.trunk->dilatedNumChannels) * batchXYBytes));
@@ -2496,7 +2497,6 @@ struct Buffers {
     CUDA_ERR("Buffers",cudaMalloc(&gpoolOutBuf2, m.trunk->gpoolNumChannels * batchXYBytes));
     CUDA_ERR("Buffers",cudaMalloc(&gpoolConcatBuf, m.trunk->gpoolNumChannels * batchBytes * 3));
     CUDA_ERR("Buffers",cudaMalloc(&gpoolBiasBuf, m.trunk->regularNumChannels * batchBytes));
-    CUDA_ERR("Buffers",cudaMalloc(&regularScratchBuf, m.trunk->regularNumChannels * batchXYBytes));
 
     CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf, m.policyHead->p1Channels * batchXYFloatBytes)); //need to hold floats in addition to halfs
     CUDA_ERR("Buffers",cudaMalloc(&p1OutBuf2, m.policyHead->p1Channels * batchXYFloatBytes)); //need to hold floats in addition to halfs
@@ -2557,6 +2557,7 @@ struct Buffers {
     cudaFree(trunkBuf);
     cudaFree(trunkScratchBuf);
     cudaFree(regularOutBuf);
+    cudaFree(regularScratchBuf);
     cudaFree(dilatedOutBuf);
     cudaFree(midInBuf);
     cudaFree(midScratchBuf);
@@ -2564,7 +2565,6 @@ struct Buffers {
     cudaFree(gpoolOutBuf2);
     cudaFree(gpoolConcatBuf);
     cudaFree(gpoolBiasBuf);
-    cudaFree(regularScratchBuf);
 
     cudaFree(p1OutBuf);
     cudaFree(p1OutBuf2);
@@ -2902,6 +2902,7 @@ void NeuralNet::getOutput(ComputeHandle* gpuHandle, InputBuffers* inputBuffers, 
     buffers->trunkBuf,
     buffers->trunkScratchBuf,
     buffers->regularOutBuf,
+    buffers->regularScratchBuf,
     buffers->dilatedOutBuf,
     buffers->midInBuf,
     buffers->midScratchBuf,
@@ -2909,7 +2910,6 @@ void NeuralNet::getOutput(ComputeHandle* gpuHandle, InputBuffers* inputBuffers, 
     buffers->gpoolOutBuf2,
     buffers->gpoolConcatBuf,
     buffers->gpoolBiasBuf,
-    buffers->regularScratchBuf,
 
     buffers->p1OutBuf,
     buffers->p1OutBuf2,
@@ -3393,11 +3393,11 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
     deviceInput,
     deviceScratch,
     deviceRegularOut,
+    deviceRegularScratch,
     deviceGPoolOut,
     deviceGPoolOut2,
     deviceGPoolConcat,
     deviceGPoolBias,
-    deviceRegularScratch,
     deviceMask,
     deviceMaskSum,
     zeroBuf,
