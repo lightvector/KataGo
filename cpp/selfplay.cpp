@@ -442,8 +442,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       //Callback that runGame will call periodically to ask us if we have a new neural net
       std::function<NNEvaluator*()> checkForNewNNEval = [&netAndStuff,&netAndStuffs,&lock,&prevModelName,&logger,&threadIdx]() -> NNEvaluator* {
         lock.lock();
+        assert(netAndStuffs.size() > 0);
         NetAndStuff* newNetAndStuff = netAndStuffs[netAndStuffs.size()-1];
-        if(newNetAndStuff == netAndStuff) {
+        //Do nothing if there is no new net... or if there IS a new net but actually that net is draining for whatever reason
+        //(in the latter case, most likely everyone is quitting out right now, and we will notice and quit soon too)
+        if(newNetAndStuff == netAndStuff || newNetAndStuff->isDraining) {
           lock.unlock();
           return NULL;
         }
