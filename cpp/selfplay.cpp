@@ -49,6 +49,8 @@ namespace {
     int numGameThreads;
     bool isDraining;
 
+    std::condition_variable noGameThreadsLeftVar;
+
     TrainingDataWriter* tdataWriter;
     TrainingDataWriter* vdataWriter;
     ofstream* sgfOut;
@@ -97,8 +99,10 @@ namespace {
 
         FinishedGameData* data;
         bool suc = finishedGameQueue.waitPop(data);
-        if(!suc || data == NULL)
+        if(!suc)
           break;
+
+        assert(data != NULL);
 
         if(rand.nextBool(validationProp))
           vdataWriter->writeGame(*data);
@@ -130,6 +134,8 @@ namespace {
     //Game threads finishing a game using this net call this
     void unregisterGameThread() {
       numGameThreads--;
+      if(numGameThreads <= 0)
+        noGameThreadsLeftVar.notify_all();
     }
 
     //NOT threadsafe - needs to be externally synchronized
@@ -270,6 +276,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     logger.write("Data write loop finishing for neural net: " + netAndStuff->modelName);
 
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
+
+    //Wait for all threads to be completely done with it
+    while(netAndStuff->numGameThreads > 0)
+      netAndStuff->noGameThreadsLeftVar.wait(lock);
 
     //Find where our netAndStuff is and remove it
     string name = netAndStuff->modelName;

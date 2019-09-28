@@ -457,12 +457,13 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     for(int i = 0; i<threads.size(); i++)
       threads[i].join();
 
-    //Mark as draining so the data write thread will quit
-    netAndStuff->markAsDraining();
-
     //Wait for the data to all be written
     {
       std::unique_lock<std::mutex> lock(netAndStuffMutex);
+
+      //Mark as draining so the data write thread will quit
+      netAndStuff->markAsDraining();
+
       while(!netAndStuffDataIsWritten) {
         waitNetAndStuffDataIsWritten.wait(lock);
       }
