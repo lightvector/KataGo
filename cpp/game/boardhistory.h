@@ -16,6 +16,8 @@ struct BoardHistory {
   //Chronological history of moves
   std::vector<Move> moveHistory;
   //Chronological history of hashes, including the latest board's hash.
+  //Theses are the hashes that determine whether a board is the "same" or not given the rules
+  //(e.g. they include the player if situational superko, and not if positional)
   //Cleared on a pass if passes clear ko bans
   std::vector<Hash128> koHashHistory;
   int koHistoryLastClearedBeginningMoveIdx;
@@ -23,6 +25,9 @@ struct BoardHistory {
   //The board and player to move as of the very start, before moveHistory.
   Board initialBoard;
   Player initialPla;
+  //The "turn number" as of the initial board. Does not affect any rules, but possibly uses may
+  //care about this number, for cases where we set up a position from midgame.
+  int initialTurnNumber;
 
   static const int NUM_RECENT_BOARDS = 6;
   Board recentBoards[NUM_RECENT_BOARDS];
@@ -42,10 +47,10 @@ struct BoardHistory {
 
   //Encore phase 0,1,2 for territory scoring
   int encorePhase;
-  //Ko-prohibited locations for territory scoring
+  //Ko-prohibited locations for territory scoring in encore
   bool blackKoProhibited[Board::MAX_ARR_SIZE];
   bool whiteKoProhibited[Board::MAX_ARR_SIZE];
-  Hash128 koProhibitHash;
+  Hash128 koProhibitHash; //Hash contribution from ko-prohibit locations in encore.
 
   //Used to implement once-only rules for ko captures in encore
   STRUCT_NAMED_TRIPLE(Hash128,posHashBeforeMove,Loc,moveLoc,Player,movePla,EncoreKoCapture);
@@ -83,6 +88,8 @@ struct BoardHistory {
   void clear(const Board& board, Player pla, const Rules& rules, int encorePhase);
   //Set only the komi field of the rules, does not clear history, but does clear game-over conditions,
   void setKomi(float newKomi);
+  //Set the initial turn number. Affects nothing else.
+  void setInitialTurnNumber(int n);
 
   float whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhite) const;
   float currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const;

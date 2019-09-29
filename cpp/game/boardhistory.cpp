@@ -30,6 +30,7 @@ BoardHistory::BoardHistory()
    koHistoryLastClearedBeginningMoveIdx(0),
    initialBoard(),
    initialPla(P_BLACK),
+   initialTurnNumber(0),
    recentBoards(),
    currentRecentBoardIdx(0),
    consecutiveEndingPasses(0),
@@ -56,6 +57,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    koHistoryLastClearedBeginningMoveIdx(0),
    initialBoard(),
    initialPla(),
+   initialTurnNumber(0),
    recentBoards(),
    currentRecentBoardIdx(0),
    consecutiveEndingPasses(0),
@@ -81,6 +83,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
    initialBoard(other.initialBoard),
    initialPla(other.initialPla),
+   initialTurnNumber(other.initialTurnNumber),
    recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
    consecutiveEndingPasses(other.consecutiveEndingPasses),
@@ -110,6 +113,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
+  initialTurnNumber = other.initialTurnNumber;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
@@ -139,6 +143,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
   initialBoard(other.initialBoard),
   initialPla(other.initialPla),
+  initialTurnNumber(other.initialTurnNumber),
   recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
   consecutiveEndingPasses(other.consecutiveEndingPasses),
@@ -165,6 +170,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
+  initialTurnNumber = other.initialTurnNumber;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
@@ -196,6 +202,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
   initialBoard = board;
   initialPla = pla;
+  initialTurnNumber = 0;
 
   //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
   //we simply return copies of the starting board.
@@ -255,6 +262,10 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
   //Push hash for the new board state
   koHashHistory.push_back(getKoHash(rules,board,pla,encorePhase,koProhibitHash));
+}
+
+void BoardHistory::setInitialTurnNumber(int n) {
+  initialTurnNumber = n;
 }
 
 void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
@@ -597,7 +608,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
       if(board.ko_loc != Board::NULL_LOC) {
         setKoProhibited(getOpp(movePla),board.ko_loc,true);
         koCapturesInEncore.push_back(EncoreKoCapture(posHashBeforeMove,moveLoc,movePla));
-        //Clear simple ko loc now that we've absorved the ko loc information into the koprohib array
+        //Clear simple ko loc now that we've absorbed the ko loc information into the koprohib array
         //Once we have that, the simple ko loc plays no further role in game state or legality
         board.clearSimpleKoLoc();
       }
@@ -629,7 +640,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     koHashHistory.clear();
     koHistoryLastClearedBeginningMoveIdx = moveHistory.size()+1;
     //Does not clear hashesAfterBlackPass or hashesAfterWhitePass. Passes lift ko bans, but
-    //still repeated positions after pass wnd the game or phase, which these arrays are used to check.
+    //still repeated positions after pass end the game or phase, which these arrays are used to check.
   }
 
   Hash128 koHashAfterThisMove = getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash);

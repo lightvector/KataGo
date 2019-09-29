@@ -740,7 +740,7 @@ Loc Search::getChosenMoveLoc() {
 
   assert(locs.size() == playSelectionValues.size());
 
-  double rawHalflives = rootHistory.moveHistory.size() / searchParams.chosenMoveTemperatureHalflife;
+  double rawHalflives = (rootHistory.initialTurnNumber + rootHistory.moveHistory.size()) / searchParams.chosenMoveTemperatureHalflife;
   double halflives = rawHalflives * 19.0 / sqrt(rootBoard.x_size*rootBoard.y_size);
   double temperature = searchParams.chosenMoveTemperature +
     (searchParams.chosenMoveTemperatureEarly - searchParams.chosenMoveTemperature) *
