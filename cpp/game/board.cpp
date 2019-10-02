@@ -1658,7 +1658,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     while(buildRegionQueueHead != buildRegionQueueTail) {
       //Pop next location off queue
       Loc loc = buildRegionQueue[buildRegionQueueHead];
-      buildRegionQueueHead = (buildRegionQueueHead >= MAX_ARR_SIZE-1 ? 0 : buildRegionQueueHead+1);
+      buildRegionQueueHead += 1;
 
       //First, filter out any pla heads it turns out we're not vital for because we're not adjacent to them
       //In the case where suicide is disallowed, we only do this filtering on intersections that are actually empty
@@ -1705,11 +1705,14 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
         Loc adj = loc + adj_offsets[i];
         if((colors[adj] == C_EMPTY || colors[adj] == opp) && regionHeadByLoc[adj] == NULL_LOC) {
           buildRegionQueue[buildRegionQueueTail] = adj;
-          buildRegionQueueTail = (buildRegionQueueTail >= MAX_ARR_SIZE-1 ? 0 : buildRegionQueueTail+1);
+          buildRegionQueueTail += 1;
           regionHeadByLoc[adj] = head;
         }
       }
     }
+
+    assert(buildRegionQueueTail < MAX_ARR_SIZE);
+
     return tailTarget;
   };
 
