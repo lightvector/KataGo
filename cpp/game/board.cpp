@@ -1629,68 +1629,88 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     return false;
   };
 
-  //Recursively trace maximal non-pla regions of the board and record their properties and join them into a
+  //Breadth-first-search trace maximal non-pla regions of the board and record their properties and join them into a
   //linked list through nextEmptyOrOpp.
   //Takes as input the location serving as the head, the tip node of the linked list so far, the next loc, and the
   //numeric index of the region
   //Returns the loc serving as the current tip node ("tailTarget") of the linked list.
-  std::function<Loc(Loc,Loc,Loc,int)> buildRegion;
-  buildRegion = [pla,opp,isMultiStoneSuicideLegal,
-                 &regionHeadByLoc,
-                 &vitalForPlaHeadsLists,
-                 &vitalStart,&vitalLen,&numInternalSpacesMax2,&containsOpp,
-                 this,
-                 &isAdjacentToPlaHead,&nextEmptyOrOpp,&buildRegion](Loc head, Loc tailTarget, Loc loc, int regionIdx) -> Loc {
-    //Already traced this location, skip
-    if(regionHeadByLoc[loc] != NULL_LOC)
-      return tailTarget;
-    regionHeadByLoc[loc] = head;
 
-    //First, filter out any pla heads it turns out we're not vital for because we're not adjacent to them
-    //In the case where suicide is allowed, we only do this filtering on intersections that are actually empty
-    {
-      if(isMultiStoneSuicideLegal || colors[loc] == C_EMPTY) {
-        uint16_t vStart = vitalStart[regionIdx];
-        uint16_t oldVLen = vitalLen[regionIdx];
-        uint16_t newVLen = 0;
-        for(uint16_t i = 0; i<oldVLen; i++) {
-          if(isAdjacentToPlaHead(loc,vitalForPlaHeadsLists[vStart+i])) {
-            vitalForPlaHeadsLists[vStart+newVLen] = vitalForPlaHeadsLists[vStart+i];
-            newVLen += 1;
+  Loc buildRegionQueue[MAX_ARR_SIZE];
+
+  auto buildRegion = [
+    pla,opp,isMultiStoneSuicideLegal,
+    &regionHeadByLoc,
+    &vitalForPlaHeadsLists,
+    &vitalStart,&vitalLen,&numInternalSpacesMax2,&containsOpp,
+    &buildRegionQueue,
+    this,
+    &isAdjacentToPlaHead,&nextEmptyOrOpp](Loc head, Loc tailTarget, Loc initialLoc, int regionIdx) -> Loc {
+
+    //Already traced this location, skip
+    if(regionHeadByLoc[initialLoc] != NULL_LOC)
+      return tailTarget;
+
+    int buildRegionQueueHead = 0;
+    int buildRegionQueueTail = 1;
+    buildRegionQueue[0] = initialLoc;
+    regionHeadByLoc[initialLoc] = head;
+
+    while(buildRegionQueueHead != buildRegionQueueTail) {
+      //Pop next location off queue
+      Loc loc = buildRegionQueue[buildRegionQueueHead];
+      buildRegionQueueHead = (buildRegionQueueHead >= MAX_ARR_SIZE-1 ? 0 : buildRegionQueueHead+1);
+
+      //First, filter out any pla heads it turns out we're not vital for because we're not adjacent to them
+      //In the case where suicide is disallowed, we only do this filtering on intersections that are actually empty
+      {
+        if(isMultiStoneSuicideLegal || colors[loc] == C_EMPTY) {
+          uint16_t vStart = vitalStart[regionIdx];
+          uint16_t oldVLen = vitalLen[regionIdx];
+          uint16_t newVLen = 0;
+          for(uint16_t i = 0; i<oldVLen; i++) {
+            if(isAdjacentToPlaHead(loc,vitalForPlaHeadsLists[vStart+i])) {
+              vitalForPlaHeadsLists[vStart+newVLen] = vitalForPlaHeadsLists[vStart+i];
+              newVLen += 1;
+            }
+          }
+          vitalLen[regionIdx] = newVLen;
+        }
+      }
+
+      //Determine if this point is internal, unless we already have many internal points
+      if(numInternalSpacesMax2[regionIdx] < 2) {
+        bool isInternal = true;
+        for(int i = 0; i<4; i++)
+        {
+          Loc adj = loc + adj_offsets[i];
+          if(colors[adj] == pla) {
+            isInternal = false;
+            break;
           }
         }
-        vitalLen[regionIdx] = newVLen;
+        if(isInternal)
+          numInternalSpacesMax2[regionIdx] += 1;
       }
-    }
 
-    //Determine if this point is internal, unless we already have many internal points
-    if(numInternalSpacesMax2[regionIdx] < 2) {
-      bool isInternal = true;
+      if(colors[loc] == opp)
+        containsOpp[regionIdx] = true;
+
+      nextEmptyOrOpp[loc] = tailTarget;
+      tailTarget = loc;
+
+      //TODO Think also about how to optimize the common case of HUGE regions.
+      //Push adjacent locations on to queue
       for(int i = 0; i<4; i++)
       {
         Loc adj = loc + adj_offsets[i];
-        if(colors[adj] == pla) {
-          isInternal = false;
-          break;
+        if((colors[adj] == C_EMPTY || colors[adj] == opp) && regionHeadByLoc[adj] == NULL_LOC) {
+          buildRegionQueue[buildRegionQueueTail] = adj;
+          buildRegionQueueTail = (buildRegionQueueTail >= MAX_ARR_SIZE-1 ? 0 : buildRegionQueueTail+1);
+          regionHeadByLoc[adj] = head;
         }
       }
-      if(isInternal)
-        numInternalSpacesMax2[regionIdx] += 1;
     }
-
-    if(colors[loc] == opp)
-      containsOpp[regionIdx] = true;
-
-    //Next, recurse everywhere
-    nextEmptyOrOpp[loc] = tailTarget;
-    Loc nextTailTarget = loc;
-    for(int i = 0; i<4; i++)
-    {
-      Loc adj = loc + adj_offsets[i];
-      if(colors[adj] == C_EMPTY || colors[adj] == opp)
-        nextTailTarget = buildRegion(head,nextTailTarget,adj,regionIdx);
-    }
-    return nextTailTarget;
+    return tailTarget;
   };
 
   bool atLeastOnePla = false;
