@@ -1777,11 +1777,18 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   Loc allPlaHeads[MAX_PLAY_SIZE];
   {
     //Accumulate with duplicates
-    for(int y = 0; y < y_size; y++) {
-      for(int x = 0; x < x_size; x++) {
-        Loc loc = Location::getLoc(x,y,x_size);
-        if(colors[loc] == pla) {
-          allPlaHeads[numPlaHeads++] = chain_head[loc];
+    {
+      Loc prevHead = NULL_LOC;
+      for(int y = 0; y < y_size; y++) {
+        for(int x = 0; x < x_size; x++) {
+          Loc loc = Location::getLoc(x,y,x_size);
+          if(colors[loc] == pla) {
+            //Eagerly dedup though when we can.
+            if(numPlaHeads > 0 && chain_head[loc] == prevHead)
+              continue;
+            prevHead = chain_head[loc];
+            allPlaHeads[numPlaHeads++] = chain_head[loc];
+          }
         }
       }
     }
@@ -1791,10 +1798,10 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     Loc prevHead = NULL_LOC;
     for(int i = 0; i<numPlaHeads; i++) {
       if(allPlaHeads[i] != prevHead) {
+        prevHead = allPlaHeads[i];
         allPlaHeads[newNumPlaHeads] = allPlaHeads[i];
         newNumPlaHeads++;
       }
-      prevHead = allPlaHeads[i];
     }
     numPlaHeads = newNumPlaHeads;
   }
