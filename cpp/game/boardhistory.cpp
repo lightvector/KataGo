@@ -552,10 +552,19 @@ int BoardHistory::newConsecutiveEndingPasses(Loc moveLoc, Loc koLocBeforeMove) c
   return newConsecutiveEndingPasses;
 }
 
-//Returns true if this move would be a pass that causes spight or simple ko rules to want to end the phase
-//regardless of the number of consecutive ending passes.
-bool BoardHistory::wouldBeSimpleSpightOrEncoreEndingPass(Loc moveLoc, Player movePla, Hash128 koHashAfterMove) const {
-  if(moveLoc == Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT)) {
+//Returns true if the rules of the game specify that passes should clear history for the purposes
+//of ko rules checking and for no-result infinite cycles. Also implies that the phase will end
+//spightlight - i.e. upon a pass where the same player has passed in the same situation before.
+bool BoardHistory::phaseHasSpightlikeEndingAndPassHistoryClearing() const {
+  return encorePhase > 0
+    || rules.koRule == Rules::KO_SIMPLE
+    || rules.koRule == Rules::KO_SPIGHT;
+}
+
+//Returns true if this move would be a pass that causes spight-style ending of the phase
+//(i.e. ending that ignores the number of consecutive passes)
+bool BoardHistory::wouldBeSpightlikeEndingPass(Loc moveLoc, Player movePla, Hash128 koHashAfterMove) const {
+  if(moveLoc == Board::PASS_LOC && phaseHasSpightlikeEndingAndPassHistoryClearing()) {
     if(movePla == P_BLACK && std::find(hashesAfterBlackPass.begin(), hashesAfterBlackPass.end(), koHashAfterMove) != hashesAfterBlackPass.end())
       return true;
     if(movePla == P_WHITE && std::find(hashesAfterWhitePass.begin(), hashesAfterWhitePass.end(), koHashAfterMove) != hashesAfterWhitePass.end())
@@ -571,7 +580,7 @@ bool BoardHistory::passWouldEndPhase(const Board& board, Player movePla) const {
   Hash128 koHashAfterMove = getKoHashAfterMove(rules, posHashAfterMove, getOpp(movePla), encorePhase, koProhibitHashAfterMove);
 
   if(newConsecutiveEndingPasses(Board::PASS_LOC,koLocBeforeMove) >= 2 ||
-     wouldBeSimpleSpightOrEncoreEndingPass(Board::PASS_LOC,movePla,koHashAfterMove))
+     wouldBeSpightlikeEndingPass(Board::PASS_LOC,movePla,koHashAfterMove))
     return true;
   return false;
 }
@@ -635,8 +644,8 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
   //Passes clear ko history in the main phase with spight ko rules and in the encore
   //This lifts bans in spight ko rules and lifts 3-fold-repetition checking in the encore for no-resultifying infinite cycles
-  //They also clear in simple ko rules for the purpose of no-resulting long cycles, long cycles with passes do not no-result.
-  if(moveLoc == Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT)) {
+  //They also clear in simple ko rules for the purpose of no-resulting long cycles. Long cycles with passes do not no-result.
+  if(moveLoc == Board::PASS_LOC && phaseHasSpightlikeEndingAndPassHistoryClearing()) {
     koHashHistory.clear();
     koHistoryLastClearedBeginningMoveIdx = moveHistory.size()+1;
     //Does not clear hashesAfterBlackPass or hashesAfterWhitePass. Passes lift ko bans, but
@@ -685,7 +694,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   consecutiveEndingPasses = newConsecutiveEndingPasses(moveLoc,koLocBeforeMove);
 
   //Check if we have a game-ending pass BEFORE updating hashesAfterBlackPass and hashesAfterWhitePass
-  bool isSimpleSpightOrEncoreEndingPass = wouldBeSimpleSpightOrEncoreEndingPass(moveLoc,movePla,koHashAfterThisMove);
+  bool isSpightlikeEndingPass = wouldBeSpightlikeEndingPass(moveLoc,movePla,koHashAfterThisMove);
 
   //Update hashesAfterBlackPass and hashesAfterWhitePass
   if(moveLoc == Board::PASS_LOC) {
@@ -708,7 +717,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   }
 
   //Phase transitions and game end
-  if(consecutiveEndingPasses >= 2 || isSimpleSpightOrEncoreEndingPass) {
+  if(consecutiveEndingPasses >= 2 || isSpightlikeEndingPass) {
     if(rules.scoringRule == Rules::SCORING_AREA) {
       assert(encorePhase <= 0);
       endAndScoreGameNow(board);

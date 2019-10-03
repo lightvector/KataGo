@@ -126,7 +126,8 @@ private:
   int countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   int countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   int newConsecutiveEndingPasses(Loc moveLoc, Loc koLocBeforeMove) const;
-  bool wouldBeSimpleSpightOrEncoreEndingPass(Loc moveLoc, Player movePla, Hash128 koHashAfterMove) const;
+  bool phaseHasSpightlikeEndingAndPassHistoryClearing() const;
+  bool wouldBeSpightlikeEndingPass(Loc moveLoc, Player movePla, Hash128 koHashAfterMove) const;
 };
 
 struct KoHashTable {
