@@ -436,6 +436,7 @@ Hash128 NNInputs::getHashV3(
   //Fold in the ko, scoring, and suicide rules
   hash ^= Rules::ZOBRIST_KO_RULE_HASH[hist.rules.koRule];
   hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
+  hash ^= Rules::ZOBRIST_TAX_RULE_HASH[hist.rules.taxRule];
   if(hist.rules.multiStoneSuicideLegal)
     hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
 
@@ -737,6 +738,8 @@ void NNInputs::fillRowV3(
   //since komi is extra valuable when it turns losses into draws into wins, peaking at the komi value where you could draw + 0.5.
   //It's downsloping around the komi value where you can't draw, since the marginal komi there is nearly useless, not causing you to win
   //more games except in case of odd-dame seki.
+
+  //TODO we probably need to adjust this for encorePhase 2 depeding on the parity with which we enter...? Or do we eliminate it entirely?
   if(hist.rules.scoringRule == Rules::SCORING_AREA || hist.encorePhase >= 2) {
     bool boardAreaIsEven = (xSize*ySize) % 2 == 0;
 
@@ -830,6 +833,7 @@ Hash128 NNInputs::getHashV4(
   //Fold in the ko, scoring, and suicide rules
   hash ^= Rules::ZOBRIST_KO_RULE_HASH[hist.rules.koRule];
   hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
+  hash ^= Rules::ZOBRIST_TAX_RULE_HASH[hist.rules.taxRule];
   if(hist.rules.multiStoneSuicideLegal)
     hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
 
@@ -1121,6 +1125,8 @@ void NNInputs::fillRowV4(
   //since komi is extra valuable when it turns losses into draws into wins, peaking at the komi value where you could draw + 0.5.
   //It's downsloping around the komi value where you can't draw, since the marginal komi there is nearly useless, not causing you to win
   //more games except in case of odd-dame seki.
+
+  //TODO we probably need to adjust this for encorePhase 2 depeding on the parity with which we enter...? Or do we eliminate it entirely?
   if(hist.rules.scoringRule == Rules::SCORING_AREA || hist.encorePhase >= 2) {
     bool boardAreaIsEven = (xSize*ySize) % 2 == 0;
 
@@ -1215,6 +1221,7 @@ Hash128 NNInputs::getHashV5(
   //Fold in the ko, scoring, and suicide rules
   hash ^= Rules::ZOBRIST_KO_RULE_HASH[hist.rules.koRule];
   hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
+  hash ^= Rules::ZOBRIST_TAX_RULE_HASH[hist.rules.taxRule];
   if(hist.rules.multiStoneSuicideLegal)
     hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
 

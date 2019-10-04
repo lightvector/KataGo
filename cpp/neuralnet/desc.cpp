@@ -1152,6 +1152,10 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
       rules.scoringRule = Rules::SCORING_AREA;
       supported = false;
     }
+    if(rules.taxRule != Rules::TAX_NONE) {
+      rules.taxRule = Rules::TAX_NONE;
+      supported = false;
+    }
   }
   else {
     ASSERT_UNREACHABLE;

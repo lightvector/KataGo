@@ -1011,9 +1011,7 @@ void WriteSgf::writeSgf(
 
   out << "HA[" << handicap << "]";
   out << "KM[" << rules.komi << "]";
-  out << "RU[ko" << Rules::writeKoRule(rules.koRule)
-      << "score" << Rules::writeScoringRule(rules.scoringRule)
-      << "sui" << rules.multiStoneSuicideLegal << "]";
+  out << "RU[" << rules.toStringNoKomi() << "]";
   printGameResult(out,hist);
 
   bool hasAB = false;

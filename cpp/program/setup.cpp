@@ -411,3 +411,29 @@ Player Setup::parseReportAnalysisWinrates(
 
   throw StringError("Could not parse config value for reportAnalysisWinratesAs: " + sOrig);
 }
+
+Rules Setup::loadSingleRulesExceptForKomi(
+  ConfigParser& cfg
+) {
+  Rules rules;
+  string koRule = cfg.getString("koRule", Rules::koRuleStrings());
+  string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
+  bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
+  float komi = 7.5f;
+
+  rules.koRule = Rules::parseKoRule(koRule);
+  rules.scoringRule = Rules::parseScoringRule(scoringRule);
+  rules.multiStoneSuicideLegal = multiStoneSuicideLegal;
+  rules.komi = komi;
+
+  //TODO add to selfplay and gatekeep configs
+  if(cfg.contains("taxRule")) {
+    string taxRule = cfg.getString("taxRule", Rules::taxRuleStrings());
+    rules.taxRule = Rules::parseTaxRule(taxRule);
+  }
+  else {
+    rules.taxRule = (rules.scoringRule == Rules::SCORING_TERRITORY ? Rules::TAX_SEKI : Rules::TAX_NONE);
+  }
+
+  return rules;
+}

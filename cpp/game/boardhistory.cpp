@@ -369,10 +369,29 @@ float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhit
 
 int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
   int score = 0;
-  bool nonPassAliveStones = true;
-  bool safeBigTerritories = true;
-  bool unsafeBigTerritories = true;
-  bool recursivelyReachesSafe = false;
+  bool nonPassAliveStones;
+  bool safeBigTerritories;
+  bool unsafeBigTerritories;
+  bool recursivelyReachesSafe;
+  if(rules.taxRule == Rules::TAX_NONE) {
+    nonPassAliveStones = true;
+    safeBigTerritories = true;
+    unsafeBigTerritories = true;
+    recursivelyReachesSafe = false;
+  }
+  else if(rules.taxRule == Rules::TAX_SEKI) {
+    nonPassAliveStones = true;
+    safeBigTerritories = true;
+    unsafeBigTerritories = false;
+    recursivelyReachesSafe = true;
+  }
+  else if(rules.taxRule == Rules::TAX_ALL) {
+    //TODO
+    ASSERT_UNREACHABLE;
+  }
+  else
+    ASSERT_UNREACHABLE;
+
   board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
@@ -389,10 +408,29 @@ int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[B
 //ALSO makes area color the points that were not pass alive but were scored for a side.
 int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
   int score = 0;
-  bool nonPassAliveStones = false;
-  bool safeBigTerritories = true;
-  bool unsafeBigTerritories = false;
-  bool recursivelyReachesSafe = true;
+  bool nonPassAliveStones;
+  bool safeBigTerritories;
+  bool unsafeBigTerritories;
+  bool recursivelyReachesSafe;
+  if(rules.taxRule == Rules::TAX_NONE) {
+    nonPassAliveStones = false;
+    safeBigTerritories = true;
+    unsafeBigTerritories = true;
+    recursivelyReachesSafe = true;
+  }
+  else if(rules.taxRule == Rules::TAX_SEKI) {
+    nonPassAliveStones = false;
+    safeBigTerritories = true;
+    unsafeBigTerritories = false;
+    recursivelyReachesSafe = true;
+  }
+  else if(rules.taxRule == Rules::TAX_ALL) {
+    //TODO
+    ASSERT_UNREACHABLE;
+  }
+  else
+    ASSERT_UNREACHABLE;
+
   board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {

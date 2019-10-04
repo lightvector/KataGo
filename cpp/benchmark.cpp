@@ -140,19 +140,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   logger.setLogToStdout(true);
   logger.write("Loading model and initializing benchmark...");
 
-  Rules initialRules;
-  {
-    string koRule = cfg.getString("koRule", Rules::koRuleStrings());
-    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-    bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
-    float komi = 7.5f;
-
-    initialRules.koRule = Rules::parseKoRule(koRule);
-    initialRules.scoringRule = Rules::parseScoringRule(scoringRule);
-    initialRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-    initialRules.komi = komi;
-  }
-  //Take the komi from the sgf, otherwise ignore the rules
+  Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
+  //Take the komi from the sgf, otherwise ignore the rules in the sgf
   initialRules.komi = sgf->komi;
 
 

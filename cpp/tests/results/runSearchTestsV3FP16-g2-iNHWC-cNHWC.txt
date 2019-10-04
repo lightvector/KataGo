@@ -1068,7 +1068,7 @@ G4  : T  27.40c W  20.21c S   7.20c ( +1.7) LCB  310.00c P  1.94% WF 15.05% PSV 
 GAME 12 ==========================================================================
 (MultiStoneSuicide rules)
 
-koPOSITIONALscoreAREAsui1komi0.5
+koPOSITIONALscoreAREAtaxNONEsui1komi0.5
 MoveNum: 1 HASH: 008C285A13FEE4D3591950343BD8BE91
    A B C D E F G H J
  9 . . O X . . X X .
@@ -1101,7 +1101,7 @@ E1  : T 108.33c W  98.21c S  10.12c (+10.6) LCB  260.00c P  2.08% WF  4.51% PSV 
 F7  : T 110.42c W  99.06c S  11.35c (+12.2) LCB  260.00c P  1.81% WF  4.40% PSV       1 N       1  --  F7
 C7  : T 109.98c W  98.86c S  11.12c (+11.9) LCB  260.00c P  1.75% WF  4.42% PSV       1 N       1  --  C7
 E7  : T 110.42c W  99.10c S  11.32c (+12.1) LCB  260.00c P  1.71% WF  4.40% PSV       1 N       1  --  E7
-koPOSITIONALscoreAREAsui0komi0.5
+koPOSITIONALscoreAREAtaxNONEsui0komi0.5
 MoveNum: 1 HASH: 008C285A13FEE4D3591950343BD8BE91
    A B C D E F G H J
  9 . . O X . . X X .

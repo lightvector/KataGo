@@ -718,18 +718,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     cerr << Version::getKataGoVersionForHelp() << endl;
   }
 
-  Rules initialRules;
-  {
-    string koRule = cfg.getString("koRule", Rules::koRuleStrings());
-    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-    bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
-    float komi = 7.5f; //Default komi, gtp will generally override this
-
-    initialRules.koRule = Rules::parseKoRule(koRule);
-    initialRules.scoringRule = Rules::parseScoringRule(scoringRule);
-    initialRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-    initialRules.komi = komi;
-  }
+  //Defaults to 7.5 komi, gtp will generally override this
+  Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
 
   SearchParams params = Setup::loadSingleParams(cfg);
   logger.write("Using " + Global::intToString(params.numThreads) + " CPU thread(s) for search");

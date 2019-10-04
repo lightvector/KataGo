@@ -3817,7 +3817,7 @@ HASH: 536001F16B53FB18A4275AA9E19593B6
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 1 White 8.5 0 0
@@ -3886,7 +3886,7 @@ HASH: 75A98DFB7C9D164ED96502BE4AAD916D
 
 Initial pla Black
 Encore phase 1
-Rules koSIMPLEscoreTERRITORYsui0komi5
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score -2
 Game result 0 Empty 0 0 0
@@ -3997,7 +3997,7 @@ HASH: B49AF3282B6BF53CEF1660472959A1BA
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 1 Black -18 0 0
@@ -4108,7 +4108,7 @@ HASH: 9E7BE2EE456C449E11A253D985B67511
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 1 White 32.5 0 0
@@ -4215,7 +4215,7 @@ HASH: 7D99D84FDBCBD5BDC77E33F43D2122EF
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
 Game result 0 Empty 0 0 0

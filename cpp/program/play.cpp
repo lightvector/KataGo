@@ -163,17 +163,22 @@ void GameInitializer::initShared(ConfigParser& cfg) {
 
   allowedKoRuleStrs = cfg.getStrings("koRules", Rules::koRuleStrings());
   allowedScoringRuleStrs = cfg.getStrings("scoringRules", Rules::scoringRuleStrings());
+  allowedTaxRuleStrs = cfg.getStrings("taxRules", Rules::taxRuleStrings());
   allowedMultiStoneSuicideLegals = cfg.getBools("multiStoneSuicideLegals");
 
   for(size_t i = 0; i < allowedKoRuleStrs.size(); i++)
     allowedKoRules.push_back(Rules::parseKoRule(allowedKoRuleStrs[i]));
   for(size_t i = 0; i < allowedScoringRuleStrs.size(); i++)
     allowedScoringRules.push_back(Rules::parseScoringRule(allowedScoringRuleStrs[i]));
+  for(size_t i = 0; i < allowedTaxRuleStrs.size(); i++)
+    allowedTaxRules.push_back(Rules::parseTaxRule(allowedTaxRuleStrs[i]));
 
   if(allowedKoRules.size() <= 0)
     throw IOError("koRules must have at least one value in " + cfg.getFileName());
   if(allowedScoringRules.size() <= 0)
     throw IOError("scoringRules must have at least one value in " + cfg.getFileName());
+  if(allowedTaxRules.size() <= 0)
+    throw IOError("taxRules must have at least one value in " + cfg.getFileName());
   if(allowedMultiStoneSuicideLegals.size() <= 0)
     throw IOError("multiStoneSuicideLegals must have at least one value in " + cfg.getFileName());
 
@@ -246,6 +251,7 @@ void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, 
   Rules rules;
   rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
   rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
+  rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
   rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt(allowedMultiStoneSuicideLegals.size())];
 
   extraBlackAndKomi = chooseExtraBlackAndKomi(

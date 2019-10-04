@@ -142,6 +142,7 @@ void Tests::runTrainingWriteTests() {
   rules.koRule = Rules::KO_SIMPLE;
   rules.scoringRule = Rules::SCORING_TERRITORY;
   rules.multiStoneSuicideLegal = false;
+  rules.taxRule = Rules::TAX_SEKI;
   rules.komi = 5;
   run("testtrainingwrite-jp",rules,0.5,inputsVersion,5,5,5,5);
 

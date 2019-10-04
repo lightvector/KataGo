@@ -16,11 +16,17 @@ struct Rules {
   static const int SCORING_TERRITORY = 1;
   int scoringRule;
 
+  static const int TAX_NONE = 0;
+  static const int TAX_SEKI = 1;
+  static const int TAX_ALL = 2;
+  int taxRule;
+
   bool multiStoneSuicideLegal;
+
   float komi;
 
   Rules();
-  Rules(int koRule, int scoringRule, bool multiStoneSuicideLegal, float komi);
+  Rules(int koRule, int scoringRule, int taxRule, bool multiStoneSuicideLegal, float komi);
   ~Rules();
 
   bool operator==(const Rules& other) const;
@@ -31,10 +37,13 @@ struct Rules {
 
   static std::set<std::string> koRuleStrings();
   static std::set<std::string> scoringRuleStrings();
+  static std::set<std::string> taxRuleStrings();
   static int parseKoRule(const std::string& s);
   static int parseScoringRule(const std::string& s);
+  static int parseTaxRule(const std::string& s);
   static std::string writeKoRule(int koRule);
   static std::string writeScoringRule(int scoringRule);
+  static std::string writeTaxRule(int taxRule);
 
   static bool komiIsIntOrHalfInt(float komi);
 
@@ -42,11 +51,12 @@ struct Rules {
 
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
   std::string toString() const;
+  std::string toStringNoKomi() const;
 
   static const Hash128 ZOBRIST_KO_RULE_HASH[4];
   static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];
+  static const Hash128 ZOBRIST_TAX_RULE_HASH[3];
   static const Hash128 ZOBRIST_MULTI_STONE_SUICIDE_HASH;
-
 };
 
 #endif  // GAME_RULES_H_

@@ -458,30 +458,30 @@ xxx..xx
       Player nextPla = P_BLACK;
 
       vector<Rules> rules = {
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, false, 1.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, true, 1.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, false, 2.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, true, 2.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, false, 3.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, true, 3.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, false, 4.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, true, 4.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, false, 5.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, true, 5.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, false, 6.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, true, 6.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 1.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, true, 1.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 2.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, true, 2.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, false, 3.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, true, 3.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, false, 4.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, true, 4.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, false, 5.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, true, 5.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, false, 6.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, true, 6.5f)
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, true, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, 6.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 6.5f)
       };
 
       int nnXLen = size;
@@ -534,7 +534,7 @@ xxx..xx
       Board board;
       Player nextPla;
       BoardHistory hist;
-      Rules initialRules = Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 0.0f);
+      Rules initialRules = Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 0.0f);
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
 
