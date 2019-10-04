@@ -5,19 +5,19 @@
 using namespace std;
 
 static Hash128 getKoHash(const Rules& rules, const Board& board, Player pla, int encorePhase, Hash128 koProhibitHash) {
-  if(rules.koRule == Rules::KO_SITUATIONAL || encorePhase > 0)
+  if(rules.koRule == Rules::KO_SITUATIONAL || rules.koRule == Rules::KO_SIMPLE || encorePhase > 0)
     return board.pos_hash ^ Board::ZOBRIST_PLAYER_HASH[pla] ^ koProhibitHash;
   else
     return board.pos_hash ^ koProhibitHash;
 }
 static Hash128 getKoHashAfterMoveNonEncore(const Rules& rules, Hash128 posHashAfterMove, Player pla) {
-  if(rules.koRule == Rules::KO_SITUATIONAL)
+  if(rules.koRule == Rules::KO_SITUATIONAL || rules.koRule == Rules::KO_SIMPLE)
     return posHashAfterMove ^ Board::ZOBRIST_PLAYER_HASH[pla];
   else
     return posHashAfterMove;
 }
 static Hash128 getKoHashAfterMove(const Rules& rules, Hash128 posHashAfterMove, Player pla, int encorePhase, Hash128 koProhibitHashAfterMove) {
-  if(rules.koRule == Rules::KO_SITUATIONAL || encorePhase > 0)
+  if(rules.koRule == Rules::KO_SITUATIONAL || rules.koRule == Rules::KO_SIMPLE || encorePhase > 0)
     return posHashAfterMove ^ Board::ZOBRIST_PLAYER_HASH[pla] ^ koProhibitHashAfterMove;
   else
     return posHashAfterMove ^ koProhibitHashAfterMove;
