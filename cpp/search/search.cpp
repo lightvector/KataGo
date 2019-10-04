@@ -1061,12 +1061,14 @@ void Search::computeRootValues(Logger& logger) {
   bool nonPassAliveStones = false;
   bool safeBigTerritories = false;
   bool unsafeBigTerritories = false;
+  bool recursivelyReachesSafe = false;
   bool isMultiStoneSuicideLegal = rootHistory.rules.multiStoneSuicideLegal;
   rootBoard.calculateArea(
     rootSafeArea,
     nonPassAliveStones,
     safeBigTerritories,
     unsafeBigTerritories,
+    recursivelyReachesSafe,
     isMultiStoneSuicideLegal
   );
 

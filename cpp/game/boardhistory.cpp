@@ -372,7 +372,8 @@ int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[B
   bool nonPassAliveStones = true;
   bool safeBigTerritories = true;
   bool unsafeBigTerritories = true;
-  board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules.multiStoneSuicideLegal);
+  bool recursivelyReachesSafe = false;
+  board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
@@ -391,7 +392,8 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Col
   bool nonPassAliveStones = false;
   bool safeBigTerritories = true;
   bool unsafeBigTerritories = false;
-  board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules.multiStoneSuicideLegal);
+  bool recursivelyReachesSafe = false;
+  board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
@@ -450,8 +452,9 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
   bool nonPassAliveStones = false;
   bool safeBigTerritories = false;
   bool unsafeBigTerritories = false;
+  bool recursivelyReachesSafe = false;
   Color area[Board::MAX_ARR_SIZE];
-  board.calculateArea(area, nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, rules.multiStoneSuicideLegal);
+  board.calculateArea(area, nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, recursivelyReachesSafe, rules.multiStoneSuicideLegal);
 
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {

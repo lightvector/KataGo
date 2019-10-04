@@ -208,7 +208,14 @@ struct Board
   //If unsafeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, regardless.
   //All other points are marked as C_EMPTY.
   //[result] must be a buffer of size MAX_ARR_SIZE and will get filled with the result
-  void calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal) const;
+  void calculateArea(
+    Color* result,
+    bool nonPassAliveStones,
+    bool safeBigTerritories,
+    bool unsafeBigTerritories,
+    bool recursivelyReachesSafe,
+    bool isMultiStoneSuicideLegal
+  ) const;
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
@@ -258,7 +265,14 @@ struct Board
   int findLibertyGainingCaptures(Loc loc, std::vector<Loc>& buf, int bufStart, int bufIdx) const;
   bool hasLibertyGainingCaptures(Loc loc) const;
 
-  void calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal, Color* result) const;
+  void calculateAreaForPla(
+    Player pla,
+    bool safeBigTerritories,
+    bool unsafeBigTerritories,
+    bool recursivelyReachesSafe,
+    bool isMultiStoneSuicideLegal,
+    Color* result
+  ) const;
 
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);
 };

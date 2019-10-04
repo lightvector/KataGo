@@ -622,13 +622,15 @@ void NNInputs::fillRowV3(
     bool nonPassAliveStones = true;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = true;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
+    bool recursivelyReachesSafe = false;
+    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
   }
   else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY) {
     bool nonPassAliveStones = false;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = false;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
+    bool recursivelyReachesSafe = false;
+    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
   }
   else {
     ASSERT_UNREACHABLE;
@@ -1014,7 +1016,8 @@ void NNInputs::fillRowV4(
     bool nonPassAliveStones = false;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = false;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
+    bool recursivelyReachesSafe = false;
+    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
   }
 
   for(int y = 0; y<ySize; y++) {

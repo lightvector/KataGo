@@ -1556,11 +1556,18 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
 }
 
-void Board::calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal) const {
+void Board::calculateArea(
+  Color* result,
+  bool nonPassAliveStones,
+  bool safeBigTerritories,
+  bool unsafeBigTerritories,
+  bool recursivelyReachesSafe,
+  bool isMultiStoneSuicideLegal
+) const {
   for(int i = 0; i<MAX_ARR_SIZE; i++)
     result[i] = C_EMPTY;
-  calculateAreaForPla(P_BLACK,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
-  calculateAreaForPla(P_WHITE,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
+  calculateAreaForPla(P_BLACK,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,isMultiStoneSuicideLegal,result);
+  calculateAreaForPla(P_WHITE,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,isMultiStoneSuicideLegal,result);
 
   if(nonPassAliveStones) {
     for(int y = 0; y < y_size; y++) {
@@ -1583,13 +1590,20 @@ void Board::calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTe
 //The top left corner is black's pass-alive territory. It's also an empty region bordered only by white, but we should not mark
 //it as white's unsafeBigTerritory because it's already marked as black's pass alive territory.
 
-void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal, Color* result) const {
+void Board::calculateAreaForPla(
+  Player pla,
+  bool safeBigTerritories,
+  bool unsafeBigTerritories,
+  bool recursivelyReachesSafe,
+  bool isMultiStoneSuicideLegal,
+  Color* result
+) const {
   Color opp = getOpp(pla);
 
   //First compute all empty-or-opp regions
 
-  //For each loc, if it's empty or opp, the head of the region
-  Loc regionHeadByLoc[MAX_ARR_SIZE];
+  //For each loc, if it's empty or opp, the index of the region
+  int16_t regionIdxByLoc[MAX_ARR_SIZE];
   //For each loc, if it's empty or opp, the next empty or opp belonging to the same region
   Loc nextEmptyOrOpp[MAX_ARR_SIZE];
   //Does this border a pla group that has been marked as not pass alive?
@@ -1615,7 +1629,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   bool containsOpp[maxRegions];
 
   for(int i = 0; i<MAX_ARR_SIZE; i++) {
-    regionHeadByLoc[i] = NULL_LOC;
+    regionIdxByLoc[i] = -1;
     nextEmptyOrOpp[i] = NULL_LOC;
     bordersNonPassAlivePlaByHead[i] = false;
   }
@@ -1639,21 +1653,21 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
 
   auto buildRegion = [
     pla,opp,isMultiStoneSuicideLegal,
-    &regionHeadByLoc,
+    &regionIdxByLoc,
     &vitalForPlaHeadsLists,
     &vitalStart,&vitalLen,&numInternalSpacesMax2,&containsOpp,
     &buildRegionQueue,
     this,
-    &isAdjacentToPlaHead,&nextEmptyOrOpp](Loc head, Loc tailTarget, Loc initialLoc, int regionIdx) -> Loc {
+    &isAdjacentToPlaHead,&nextEmptyOrOpp](Loc tailTarget, Loc initialLoc, int regionIdx) -> Loc {
 
     //Already traced this location, skip
-    if(regionHeadByLoc[initialLoc] != NULL_LOC)
+    if(regionIdxByLoc[initialLoc] != -1)
       return tailTarget;
 
     int buildRegionQueueHead = 0;
     int buildRegionQueueTail = 1;
     buildRegionQueue[0] = initialLoc;
-    regionHeadByLoc[initialLoc] = head;
+    regionIdxByLoc[initialLoc] = regionIdx;
 
     while(buildRegionQueueHead != buildRegionQueueTail) {
       //Pop next location off queue
@@ -1703,10 +1717,10 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
       for(int i = 0; i<4; i++)
       {
         Loc adj = loc + adj_offsets[i];
-        if((colors[adj] == C_EMPTY || colors[adj] == opp) && regionHeadByLoc[adj] == NULL_LOC) {
+        if((colors[adj] == C_EMPTY || colors[adj] == opp) && regionIdxByLoc[adj] == -1) {
           buildRegionQueue[buildRegionQueueTail] = adj;
           buildRegionQueueTail += 1;
-          regionHeadByLoc[adj] = head;
+          regionIdxByLoc[adj] = regionIdx;
         }
       }
     }
@@ -1720,13 +1734,13 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   for(int y = 0; y < y_size; y++) {
     for(int x = 0; x < x_size; x++) {
       Loc loc = Location::getLoc(x,y,x_size);
-      if(regionHeadByLoc[loc] != NULL_LOC)
+      if(regionIdxByLoc[loc] != -1)
         continue;
       if(colors[loc] != C_EMPTY) {
         atLeastOnePla |= (colors[loc] == pla);
         continue;
       }
-      int regionIdx = numRegions;
+      int16_t regionIdx = numRegions;
       numRegions++;
       assert(numRegions <= maxRegions);
 
@@ -1762,7 +1776,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
         }
         vitalLen[regionIdx] = initialVLen;
       }
-      Loc tailTarget = buildRegion(head,head,loc,regionIdx);
+      Loc tailTarget = buildRegion(head,loc,regionIdx);
       nextEmptyOrOpp[head] = tailTarget;
 
       vitalForPlaHeadsListsTotal += vitalLen[regionIdx];
@@ -1818,8 +1832,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
 
     //Walk all regions that are still bordered only by pass-alive stuff and accumulate a vital liberty to each pla it is vital for.
     for(int i = 0; i<numRegions; i++) {
-      Loc head = regionHeads[i];
-      if(bordersNonPassAlivePlaByHead[head])
+      if(bordersNonPassAlivePlaByHead[regionHeads[i]])
         continue;
 
       int vStart = vitalStart[i];
@@ -1847,7 +1860,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
           for(int j = 0; j<4; j++) {
             Loc adj = cur + adj_offsets[j];
             if(colors[adj] == C_EMPTY || colors[adj] == opp)
-              bordersNonPassAlivePlaByHead[regionHeadByLoc[adj]] = true;
+              bordersNonPassAlivePlaByHead[regionHeads[regionIdxByLoc[adj]]] = true;
           }
           cur = next_in_chain[cur];
         } while (cur != plaHead);
@@ -1858,15 +1871,68 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
       break;
   }
 
-  //Mark result with pass-alive groups
-  for(int i = 0; i<numPlaHeads; i++) {
-    if(!plaHasBeenKilled[i]) {
-      Loc plaHead = allPlaHeads[i];
-      Loc cur = plaHead;
-      do {
-        result[cur] = pla;
-        cur = next_in_chain[cur];
-      } while (cur != plaHead);
+  //All remaining groups are pass-alive!
+  //Now, if we've requested to mark all groups that recursively reach pass-alive, we need to reexpand!
+  if(recursivelyReachesSafe) {
+    //Reuse buildRegionQueue to do bfs
+    int buildRegionQueueHead = 0;
+    int buildRegionQueueTail = 0;
+
+    //Initially, just the pass-alive groups.
+    for(int i = 0; i<numPlaHeads; i++) {
+      if(!plaHasBeenKilled[i]) {
+        //Walk this group, mark it, and add to queue
+        Loc plaHead = allPlaHeads[i];
+        Loc cur = plaHead;
+        do {
+          result[cur] = pla;
+          buildRegionQueue[buildRegionQueueTail] = cur;
+          buildRegionQueueTail++;
+          cur = next_in_chain[cur];
+        } while (cur != plaHead);
+      }
+    }
+
+    while(buildRegionQueueHead != buildRegionQueueTail) {
+      //Pop next location off queue
+      Loc loc = buildRegionQueue[buildRegionQueueHead];
+      buildRegionQueueHead += 1;
+
+      //Look all around it
+      for(int j = 0; j<4; j++) {
+        Loc adj = loc + adj_offsets[j];
+        if(result[adj] != C_EMPTY) continue;
+
+        //If it's a player stone, it always good. If it's empty or opp, it must be either pass-alive territory or an empty region with no opps.
+        if(colors[adj] == pla) {
+          result[adj] = pla;
+          buildRegionQueue[buildRegionQueueTail] = adj;
+          buildRegionQueueTail++;
+        }
+        else if(colors[adj] == opp || colors[adj] == C_EMPTY) {
+          int regionIdx = regionIdxByLoc[adj];
+          Loc emptyHead = regionHeads[regionIdx];
+          bool isPassAliveTerritory = numInternalSpacesMax2[regionIdx] <= 1 && !bordersNonPassAlivePlaByHead[emptyHead];
+          if(isPassAliveTerritory || !containsOpp[regionIdx]) {
+            result[adj] = pla;
+            buildRegionQueue[buildRegionQueueTail] = adj;
+            buildRegionQueueTail++;
+          }
+        }
+      }
+    }
+  }
+  else {
+    //Mark result with pass-alive groups
+    for(int i = 0; i<numPlaHeads; i++) {
+      if(!plaHasBeenKilled[i]) {
+        Loc plaHead = allPlaHeads[i];
+        Loc cur = plaHead;
+        do {
+          result[cur] = pla;
+          cur = next_in_chain[cur];
+        } while (cur != plaHead);
+      }
     }
   }
 
@@ -1880,7 +1946,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     //case that the opponent was marking unsafeBigTerritories and marked an empty spot surrounded by a pass-dead group.
     bool shouldMark = numInternalSpacesMax2[i] <= 1 && atLeastOnePla && !bordersNonPassAlivePlaByHead[head];
     shouldMark = shouldMark || (safeBigTerritories && atLeastOnePla && !containsOpp[i] && !bordersNonPassAlivePlaByHead[head]);
-    if(shouldMark) {
+    if(shouldMark && result[head] != pla) {
       Loc cur = head;
       do {
         result[cur] = pla;
@@ -1891,7 +1957,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
       //Mark unsafeBigTerritories only if the region is empty, to avoid overwriting regions that the opponent identified
       //as their pass-alive-territory.
       bool shouldMarkIfEmpty = (unsafeBigTerritories && atLeastOnePla && !containsOpp[i]);
-      if(shouldMarkIfEmpty) {
+      if(shouldMarkIfEmpty && result[head] != pla) {
         Loc cur = head;
         do {
           if(result[cur] == C_EMPTY)
