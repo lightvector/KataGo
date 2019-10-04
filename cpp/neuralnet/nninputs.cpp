@@ -629,7 +629,7 @@ void NNInputs::fillRowV3(
     bool nonPassAliveStones = false;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = false;
-    bool recursivelyReachesSafe = false;
+    bool recursivelyReachesSafe = true;
     board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
   }
   else {

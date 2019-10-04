@@ -392,7 +392,7 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Col
   bool nonPassAliveStones = false;
   bool safeBigTerritories = true;
   bool unsafeBigTerritories = false;
-  bool recursivelyReachesSafe = false;
+  bool recursivelyReachesSafe = true;
   board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,rules.multiStoneSuicideLegal);
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {

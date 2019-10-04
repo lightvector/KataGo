@@ -341,7 +341,7 @@ White recapture:
 Illegal: (5,1) X
 Beginning sending two returning one cycle
 Winner: White
-W-B Score: 0.5
+W-B Score: 1.5
 isNoResult: 0
 isResignation: 0
 )%%";
@@ -596,8 +596,8 @@ Can white recapture?
 Illegal: (1,0) O
 After pass
 After pass
-Winner: Black
-W-B Score: -0.5
+Winner: White
+W-B Score: 0.5
 isNoResult: 0
 isResignation: 0
 )%%";
