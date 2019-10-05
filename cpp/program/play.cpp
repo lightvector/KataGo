@@ -1324,23 +1324,47 @@ FinishedGameData* Play::runGame(
       assert(numWeights == policySurpriseByTurn.size());
 
       double sumWeights = 0.0;
-      double sumPolicySurprise = 0.0;
+      double sumPolicySurpriseWeighted = 0.0;
       for(int i = 0; i<numWeights; i++) {
         float targetWeight = gameData->targetWeightByTurn[i];
         assert(targetWeight >= 0.0 && targetWeight <= 1.0);
         sumWeights += targetWeight;
         double policySurprise = policySurpriseByTurn[i];
         assert(policySurprise >= 0.0);
-        sumPolicySurprise += policySurprise;
+        sumPolicySurpriseWeighted += policySurprise * targetWeight;
       }
 
-      //Just in case, avoid div by 0
-      if(sumPolicySurprise > 1e-20) {
+      if(sumWeights >= 1) {
+        double averagePolicySurpriseWeighted = sumPolicySurpriseWeighted / sumWeights;
+
+        //We also include some rows from non-full searches, if despite the shallow search
+        //they were quite surprising to the policy.
+        double thresholdToIncludeReduced = averagePolicySurpriseWeighted * 1.5;
+
+        //Part of the weight will be proportional to surprisePropValue which is just policySurprise on normal rows
+        //and the excess policySurprise beyond threshold on shallow searches.
+        //First pass - we sum up the surpriseValue.
+        double sumSurprisePropValue = 0.0;
         for(int i = 0; i<numWeights; i++) {
-          gameData->targetWeightByTurn[i] =
-            (float)(
-              (1.0-fancyModes.policySurpriseDataWeight) * gameData->targetWeightByTurn[i]
-              + fancyModes.policySurpriseDataWeight * policySurpriseByTurn[i] * sumWeights / sumPolicySurprise);
+          float targetWeight = gameData->targetWeightByTurn[i];
+          double policySurprise = policySurpriseByTurn[i];
+          double surprisePropValue =
+            targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
+          sumSurprisePropValue += surprisePropValue;
+        }
+
+        //Just in case, avoid div by 0
+        if(sumSurprisePropValue > 1e-10) {
+          for(int i = 0; i<numWeights; i++) {
+            float targetWeight = gameData->targetWeightByTurn[i];
+            double policySurprise = policySurpriseByTurn[i];
+            double surprisePropValue =
+              targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
+            double newValue =
+              (1.0-fancyModes.policySurpriseDataWeight) * targetWeight
+              + fancyModes.policySurpriseDataWeight * surprisePropValue * sumWeights / sumSurprisePropValue;
+            gameData->targetWeightByTurn[i] = (float)(newValue);
+          }
         }
       }
     }

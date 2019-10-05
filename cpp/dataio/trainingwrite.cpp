@@ -366,8 +366,7 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[31] = 0.0f;
   rowGlobal[32] = 0.0f;
   const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
-  if(thisTargets.hasMctsUtility) {
-    assert(!std::isnan(thisTargets.mctsUtility1));
+  if(thisTargets.hasMctsUtility && std::isnan(thisTargets.mctsUtility1)) {
     if(!std::isnan(thisTargets.mctsUtility4)) {
       rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
       rowGlobal[29] = 1.0f;
