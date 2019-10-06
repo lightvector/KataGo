@@ -157,6 +157,14 @@ void Tests::runTrainingWriteTests() {
   inputsVersion = 4;
   run("testtrainingwrite-rect-v4",Rules::getTrompTaylorish(),0.5,inputsVersion,9,3,7,3);
 
+  //V3 group taxing
+  inputsVersion = 3;
+  rules = Rules::getTrompTaylorish();
+  rules.taxRule = Rules::TAX_ALL;
+  run("testtrainingwrite-taxall-v3",rules,0.5,inputsVersion,5,5,5,5);
+  run("testtrainingwrite-taxall-v3-a",rules,0.5,inputsVersion,5,5,5,5);
+  run("testtrainingwrite-taxall-v3-b",rules,0.5,inputsVersion,5,5,5,5);
+
 
   NeuralNet::globalCleanup();
 }

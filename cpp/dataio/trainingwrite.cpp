@@ -135,7 +135,7 @@ void FinishedGameData::printDebug(ostream& out) const {
   for(int y = 0; y<startBoard.y_size; y++) {
     for(int x = 0; x<startBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,dataXLen);
-      out << Global::strprintf("%.3f",finalWhiteOwnership[pos]);
+      out << Global::strprintf(" %.3f",finalWhiteOwnership[pos]);
     }
     out << endl;
   }
@@ -482,10 +482,14 @@ void TrainingWriteBuffers::addRow(
       float ownership = (nextPlayer == P_WHITE ? data.finalWhiteOwnership[i] : -data.finalWhiteOwnership[i]);
       //We need to pack this down to 8 bits, so map into [-100,100].
       //Randomize to ensure the expectation is exactly correct.
-      int low = (int)floor(ownership * 100);
+      ownership *= 100.0f;
+      int low = (int)floor(ownership);
       int high = low >= 100 ? 100 : low+1;
       float lambda = (float)(ownership-low);
-      rowOwnership[i] = (rand.nextBool(lambda) ? low : high);
+      if(lambda == 0.0f)
+        rowOwnership[i] = low;
+      else
+        rowOwnership[i] = (rand.nextBool(lambda) ? high : low);
     }
 
     //Fill score vector "onehot"-like
