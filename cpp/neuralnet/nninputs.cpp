@@ -200,6 +200,95 @@ double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteSc
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
 
+void NNInputs::fillOwnership(
+  const Board& board,
+  const Color* area,
+  bool groupTax,
+  int nnXLen,
+  int nnYLen,
+  float* ownership
+) {
+  if(!groupTax) {
+    std::fill(ownership, ownership + nnXLen*nnYLen, 0.0f);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        int pos = NNPos::locToPos(loc,board.x_size,nnXLen,nnYLen);
+        Color areaColor = area[loc];
+        if(areaColor == P_BLACK)
+          ownership[pos] = -1.0f;
+        else if(areaColor == P_WHITE)
+          ownership[pos] = 1.0f;
+        else {
+          assert(areaColor == C_EMPTY);
+          ownership[pos] = 0;
+        }
+      }
+    }
+  }
+  else {
+    bool visited[Board::MAX_ARR_SIZE];
+    Loc queue[Board::MAX_ARR_SIZE];
+
+    std::fill(visited, visited + Board::MAX_ARR_SIZE, false);
+    std::fill(ownership, ownership + nnXLen*nnYLen, 0.0f);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(visited[loc])
+          continue;
+        Color areaColor = area[loc];
+        if(areaColor == P_BLACK || areaColor == P_WHITE) {
+          float fullValue = areaColor == P_WHITE ? 1.0f : -1.0f;
+          int queueHead = 0;
+          int queueTail = 1;
+          queue[0] = loc;
+          visited[loc] = true;
+
+          //First, count how many empty or opp locations there are
+          int territoryCount = 0;
+          while(queueHead < queueTail) {
+            Loc next = queue[queueHead];
+            queueHead++;
+            if(board.colors[next] != areaColor)
+              territoryCount++;
+            //Push adjacent locations on to queue
+            for(int i = 0; i<4; i++) {
+              Loc adj = next + board.adj_offsets[i];
+              if(area[adj] == areaColor && !visited[adj]) {
+                queue[queueTail] = adj;
+                queueTail++;
+                visited[adj] = true;
+              }
+            }
+          }
+
+          //Then, actually fill values
+          float territoryValue = territoryCount <= 2 ? 0.0f : fullValue * (territoryCount - 2.0f) / territoryCount;
+          for(int j = 0; j<queueTail; j++) {
+            Loc next = queue[j];
+            queueHead++;
+            int pos = NNPos::locToPos(next,board.x_size,nnXLen,nnYLen);
+            if(board.colors[next] != areaColor)
+              ownership[pos] = territoryValue;
+            else
+              ownership[pos] = fullValue;
+          }
+        }
+        else {
+          assert(areaColor == C_EMPTY);
+          int pos = NNPos::locToPos(loc,board.x_size,nnXLen,nnYLen);
+          ownership[pos] = 0;
+        }
+      }
+    }
+  }
+}
+
+
+//-----------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------
+
 
 NNOutput::NNOutput()
   :whiteOwnerMap(NULL),noisedPolicyProbs(NULL)
@@ -624,14 +713,16 @@ void NNInputs::fillRowV3(
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = true;
     bool recursivelyReachesSafe = false;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
+    int whiteMinusBlackSafeRegionCount = 0;
+    board.calculateArea(area,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
   }
   else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY) {
     bool nonPassAliveStones = false;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = false;
     bool recursivelyReachesSafe = true;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
+    int whiteMinusBlackSafeRegionCount = 0;
+    board.calculateArea(area,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
   }
   else {
     ASSERT_UNREACHABLE;
@@ -1021,7 +1112,8 @@ void NNInputs::fillRowV4(
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = false;
     bool recursivelyReachesSafe = false;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
+    int whiteMinusBlackSafeRegionCount = 0;
+    board.calculateArea(area,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
   }
 
   for(int y = 0; y<ySize; y++) {

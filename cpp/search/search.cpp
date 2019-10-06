@@ -1062,9 +1062,11 @@ void Search::computeRootValues(Logger& logger) {
   bool safeBigTerritories = false;
   bool unsafeBigTerritories = false;
   bool recursivelyReachesSafe = false;
+  int whiteMinusBlackSafeRegionCount = 0;
   bool isMultiStoneSuicideLegal = rootHistory.rules.multiStoneSuicideLegal;
   rootBoard.calculateArea(
     rootSafeArea,
+    whiteMinusBlackSafeRegionCount,
     nonPassAliveStones,
     safeBigTerritories,
     unsafeBigTerritories,
@@ -1415,6 +1417,15 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
   float* whiteOwnerMap = parent.nnOutput->whiteOwnerMap;
   Loc moveLoc = child->prevMoveLoc;
 
+  double extreme = 0.95;
+  double tail = 0.05;
+  if(rootHistory.rules.taxRule == Rules::TAX_ALL) {
+    //Make much more lenient in the case that we have a group tax, because ownership will be discounting territory
+    //quite a bit in many cases.
+    extreme = 0.70;
+    tail = 0.30;
+  }
+
   //Extra points from the perspective of the root player
   double extraRootPoints = 0.0;
   if(isAreaIsh) {
@@ -1426,12 +1437,15 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-      if(plaOwnership <= -0.95)
-        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.95 - plaOwnership) / 0.05);
-      else if(plaOwnership >= 0.95) {
+      //if(rootSafeArea[moveLoc] == rootPla) plaOwnership = 1.0;
+      //if(rootSafeArea[moveLoc] == getOpp(rootPla)) plaOwnership = -1.0;
+
+      if(plaOwnership <= -extreme)
+        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-extreme - plaOwnership) / tail);
+      else if(plaOwnership >= extreme) {
         if(!rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) &&
            !rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
-          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - 0.95) / 0.05);
+          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - extreme) / tail);
         }
       }
     }
@@ -1449,12 +1463,12 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     else if(rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-      if(plaOwnership <= -0.95)
-        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.95 - plaOwnership) / 0.05);
-      else if(plaOwnership >= 0.95) {
+      if(plaOwnership <= -extreme)
+        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-extreme - plaOwnership) / tail);
+      else if(plaOwnership >= extreme) {
         if(!rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) &&
            !rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
-          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - 0.95) / 0.05);
+          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - extreme) / tail);
         }
       }
     }

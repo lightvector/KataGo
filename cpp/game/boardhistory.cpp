@@ -379,20 +379,20 @@ int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[B
     unsafeBigTerritories = true;
     recursivelyReachesSafe = false;
   }
-  else if(rules.taxRule == Rules::TAX_SEKI) {
+  else if(rules.taxRule == Rules::TAX_SEKI || rules.taxRule == Rules::TAX_ALL) {
     nonPassAliveStones = true;
     safeBigTerritories = true;
     unsafeBigTerritories = false;
     recursivelyReachesSafe = true;
   }
-  else if(rules.taxRule == Rules::TAX_ALL) {
-    //TODO
-    ASSERT_UNREACHABLE;
-  }
   else
     ASSERT_UNREACHABLE;
 
-  board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,rules.multiStoneSuicideLegal);
+  int whiteMinusBlackSafeRegionCount = 0;
+  board.calculateArea(
+    area,whiteMinusBlackSafeRegionCount,
+    nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,rules.multiStoneSuicideLegal
+  );
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
@@ -402,6 +402,9 @@ int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[B
         score -= 1;
     }
   }
+  if(rules.taxRule == Rules::TAX_ALL)
+    score -= 2 * whiteMinusBlackSafeRegionCount;
+
   return score;
 }
 
@@ -418,20 +421,20 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Col
     unsafeBigTerritories = true;
     recursivelyReachesSafe = true;
   }
-  else if(rules.taxRule == Rules::TAX_SEKI) {
+  else if(rules.taxRule == Rules::TAX_SEKI || rules.taxRule == Rules::TAX_ALL) {
     nonPassAliveStones = false;
     safeBigTerritories = true;
     unsafeBigTerritories = false;
     recursivelyReachesSafe = true;
   }
-  else if(rules.taxRule == Rules::TAX_ALL) {
-    //TODO
-    ASSERT_UNREACHABLE;
-  }
   else
     ASSERT_UNREACHABLE;
 
-  board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,rules.multiStoneSuicideLegal);
+  int whiteMinusBlackSafeRegionCount = 0;
+  board.calculateArea(
+    area,whiteMinusBlackSafeRegionCount,
+    nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,rules.multiStoneSuicideLegal
+  );
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
@@ -454,6 +457,8 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Col
       }
     }
   }
+  if(rules.taxRule == Rules::TAX_ALL)
+    score -= 2 * whiteMinusBlackSafeRegionCount;
   return score;
 }
 
@@ -492,7 +497,11 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
   bool unsafeBigTerritories = false;
   bool recursivelyReachesSafe = false;
   Color area[Board::MAX_ARR_SIZE];
-  board.calculateArea(area, nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, recursivelyReachesSafe, rules.multiStoneSuicideLegal);
+  int whiteMinusBlackSafeRegionCount = 0;
+  board.calculateArea(
+    area, whiteMinusBlackSafeRegionCount,
+    nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, recursivelyReachesSafe, rules.multiStoneSuicideLegal
+  );
 
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {

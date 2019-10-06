@@ -206,10 +206,13 @@ struct Board
   //If nonPassAliveStones, also marks non-pass-alive stones that are not part of the opposing pass-alive territory.
   //If safeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
   //If unsafeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, regardless.
+  //If recursivelyReachesSafe, marks pla and enclosed empty regions that are pass-alive, their neighbors, their neighbors... recursively.
   //All other points are marked as C_EMPTY.
   //[result] must be a buffer of size MAX_ARR_SIZE and will get filled with the result
+  //whiteMinusBlackSafeRegionCount will be filled in if recursivelyReachesSafe, multiply this by two for a group tax.
   void calculateArea(
     Color* result,
+    int& whiteMinusBlackSafeRegionCount,
     bool nonPassAliveStones,
     bool safeBigTerritories,
     bool unsafeBigTerritories,
@@ -271,7 +274,8 @@ struct Board
     bool unsafeBigTerritories,
     bool recursivelyReachesSafe,
     bool isMultiStoneSuicideLegal,
-    Color* result
+    Color* result,
+    int& safeRegionCount
   ) const;
 
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);

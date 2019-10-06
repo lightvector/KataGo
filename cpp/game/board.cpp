@@ -1558,6 +1558,7 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
 void Board::calculateArea(
   Color* result,
+  int& whiteMinusBlackSafeRegionCount,
   bool nonPassAliveStones,
   bool safeBigTerritories,
   bool unsafeBigTerritories,
@@ -1566,8 +1567,17 @@ void Board::calculateArea(
 ) const {
   for(int i = 0; i<MAX_ARR_SIZE; i++)
     result[i] = C_EMPTY;
-  calculateAreaForPla(P_BLACK,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,isMultiStoneSuicideLegal,result);
-  calculateAreaForPla(P_WHITE,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,isMultiStoneSuicideLegal,result);
+  int blackSafeRegionCount = 0;
+  int whiteSafeRegionCount = 0;
+  calculateAreaForPla(
+    P_BLACK,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,isMultiStoneSuicideLegal,
+    result,blackSafeRegionCount
+  );
+  calculateAreaForPla(
+    P_WHITE,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,isMultiStoneSuicideLegal,
+    result,whiteSafeRegionCount
+  );
+  whiteMinusBlackSafeRegionCount = whiteSafeRegionCount - blackSafeRegionCount;
 
   if(nonPassAliveStones) {
     for(int y = 0; y < y_size; y++) {
@@ -1583,6 +1593,7 @@ void Board::calculateArea(
 //This marks pass-alive stones, pass-alive territory always.
 //If safeBigTerritories, marks empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
 //If unsafeBigTerritories, marks empty regions bordered by pla stones and no opp stones, but ONLY on locations in result that are C_EMPTY.
+//If recursivelyReachesSafe, marks pla and enclosed empty regions that are pass-alive, their neighbors, their neighbors... recursively.
 //The reason for this is to avoid overwriting the opponent's pass-alive territory in situations like this:
 // .ox.x.x
 // oxxxxxx
@@ -1596,7 +1607,8 @@ void Board::calculateAreaForPla(
   bool unsafeBigTerritories,
   bool recursivelyReachesSafe,
   bool isMultiStoneSuicideLegal,
-  Color* result
+  Color* result,
+  int& safeRegionCount
 ) const {
   Color opp = getOpp(pla);
 
@@ -1712,7 +1724,6 @@ void Board::calculateAreaForPla(
       nextEmptyOrOpp[loc] = tailTarget;
       tailTarget = loc;
 
-      //TODO Think also about how to optimize the common case of HUGE regions.
       //Push adjacent locations on to queue
       for(int i = 0; i<4; i++)
       {
@@ -1878,45 +1889,48 @@ void Board::calculateAreaForPla(
     int buildRegionQueueHead = 0;
     int buildRegionQueueTail = 0;
 
-    //Initially, just the pass-alive groups.
     for(int i = 0; i<numPlaHeads; i++) {
+      //Initially, just the pass-alive groups.
       if(!plaHasBeenKilled[i]) {
         //Walk this group, mark it, and add to queue
         Loc plaHead = allPlaHeads[i];
         Loc cur = plaHead;
-        do {
-          result[cur] = pla;
-          buildRegionQueue[buildRegionQueueTail] = cur;
-          buildRegionQueueTail++;
-          cur = next_in_chain[cur];
-        } while (cur != plaHead);
-      }
-    }
-
-    while(buildRegionQueueHead != buildRegionQueueTail) {
-      //Pop next location off queue
-      Loc loc = buildRegionQueue[buildRegionQueueHead];
-      buildRegionQueueHead += 1;
-
-      //Look all around it
-      for(int j = 0; j<4; j++) {
-        Loc adj = loc + adj_offsets[j];
-        if(result[adj] != C_EMPTY) continue;
-
-        //If it's a player stone, it always good. If it's empty or opp, it must be either pass-alive territory or an empty region with no opps.
-        if(colors[adj] == pla) {
-          result[adj] = pla;
-          buildRegionQueue[buildRegionQueueTail] = adj;
-          buildRegionQueueTail++;
-        }
-        else if(colors[adj] == opp || colors[adj] == C_EMPTY) {
-          int regionIdx = regionIdxByLoc[adj];
-          Loc emptyHead = regionHeads[regionIdx];
-          bool isPassAliveTerritory = numInternalSpacesMax2[regionIdx] <= 1 && !bordersNonPassAlivePlaByHead[emptyHead];
-          if(isPassAliveTerritory || !containsOpp[regionIdx]) {
-            result[adj] = pla;
-            buildRegionQueue[buildRegionQueueTail] = adj;
+        if(result[cur] != pla) {
+          safeRegionCount += 1;
+          do {
+            result[cur] = pla;
+            buildRegionQueue[buildRegionQueueTail] = cur;
             buildRegionQueueTail++;
+            cur = next_in_chain[cur];
+          } while (cur != plaHead);
+
+          while(buildRegionQueueHead != buildRegionQueueTail) {
+            //Pop next location off queue
+            Loc loc = buildRegionQueue[buildRegionQueueHead];
+            buildRegionQueueHead += 1;
+
+            //Look all around it
+            for(int j = 0; j<4; j++) {
+              Loc adj = loc + adj_offsets[j];
+              if(result[adj] != C_EMPTY) continue;
+
+              //If it's a player stone, it always good. If it's empty or opp, it must be either pass-alive territory or an empty region with no opps.
+              if(colors[adj] == pla) {
+                result[adj] = pla;
+                buildRegionQueue[buildRegionQueueTail] = adj;
+                buildRegionQueueTail++;
+              }
+              else if(colors[adj] == opp || colors[adj] == C_EMPTY) {
+                int regionIdx = regionIdxByLoc[adj];
+                Loc emptyHead = regionHeads[regionIdx];
+                bool isPassAliveTerritory = numInternalSpacesMax2[regionIdx] <= 1 && !bordersNonPassAlivePlaByHead[emptyHead];
+                if(isPassAliveTerritory || !containsOpp[regionIdx]) {
+                  result[adj] = pla;
+                  buildRegionQueue[buildRegionQueueTail] = adj;
+                  buildRegionQueueTail++;
+                }
+              }
+            }
           }
         }
       }

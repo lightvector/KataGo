@@ -1358,22 +1358,9 @@ FinishedGameData* Play::runGame(
     assert(dataXLen > 0);
     assert(dataYLen > 0);
     assert(gameData->finalWhiteOwnership == NULL);
-    gameData->finalWhiteOwnership = new int8_t[dataXLen*dataYLen];
-    std::fill(gameData->finalWhiteOwnership, gameData->finalWhiteOwnership + dataXLen*dataYLen, 0);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,dataXLen);
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        if(area[loc] == P_BLACK)
-          gameData->finalWhiteOwnership[pos] = -1;
-        else if(area[loc] == P_WHITE)
-          gameData->finalWhiteOwnership[pos] = 1;
-        else {
-          assert(area[loc] == C_EMPTY);
-          gameData->finalWhiteOwnership[pos] = 0;
-        }
-      }
-    }
+
+    gameData->finalWhiteOwnership = new float[dataXLen*dataYLen];
+    NNInputs::fillOwnership(board,area,hist.rules.taxRule == Rules::TAX_ALL,dataXLen,dataYLen,gameData->finalWhiteOwnership);
 
     gameData->hasFullData = true;
     gameData->dataXLen = dataXLen;

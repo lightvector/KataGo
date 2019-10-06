@@ -70,7 +70,7 @@ struct FinishedGameData {
   std::vector<float> targetWeightByTurn;
   std::vector<PolicyTarget> policyTargetsByTurn;
   std::vector<ValueTargets> whiteValueTargetsByTurn;
-  int8_t* finalWhiteOwnership;
+  float* finalWhiteOwnership;
 
   std::vector<SidePosition*> sidePositions;
   std::vector<ChangedNeuralNet*> changedNeuralNets;
@@ -171,7 +171,7 @@ struct TrainingWriteBuffers {
   NumpyBuffer<int8_t> selfBonusScoreN;
 
   //Spatial value-related targets
-  //C0 - Final board ownership (-1,0,1), from the perspective of the player to move. All 0 if C26 has weight 0.
+  //C0 - Final board ownership [-100,100], from the perspective of the player to move. All 0 if C26 has weight 0.
   NumpyBuffer<int8_t> valueTargetsNCHW;
 
   TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numGlobalChannels, int dataXLen, int dataYLen);
@@ -191,7 +191,7 @@ struct TrainingWriteBuffers {
     const std::vector<PolicyTargetMove>* policyTarget1, //can be null
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
-    int8_t* finalWhiteOwnership,
+    float* finalWhiteOwnership,
     bool isSidePosition,
     int numNeuralNetsBehindLatest,
     const FinishedGameData& data,

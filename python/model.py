@@ -1511,7 +1511,7 @@ class ModelUtils:
     placeholders["scorebelief_target"] = features["sdn"] / 100.0
     placeholders["bonusbelief_target"] = features["sbsn"]
     placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
-    placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
+    placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len]) / 100.0
 
     placeholders["target_weight_from_data"] = features["gtnc"][:,25]
     placeholders["ownership_target_weight"] = features["gtnc"][:,27]

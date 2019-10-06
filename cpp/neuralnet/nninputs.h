@@ -64,6 +64,15 @@ namespace NNInputs {
     double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
+  //If groupTax is specified, for each color region of area, reduce weight on empty spaces equally to reduce the total sum by 2.
+  void fillOwnership(
+    const Board& board,
+    const Color* area,
+    bool groupTax,
+    int nnXLen,
+    int nnYLen,
+    float* ownership
+  );
 }
 
 struct NNOutput {

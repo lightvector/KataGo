@@ -1,4 +1,5 @@
 #include "../tests/tests.h"
+#include "../neuralnet/nninputs.h"
 
 using namespace std;
 using namespace TestCommon;
@@ -20,13 +21,15 @@ void Tests::runBoardAreaTests() {
       bool unsafeBigTerritories = unsafeBigTerritoriesBuf[mode/2];
       bool nonPassAliveStones = nonPassAliveStonesBuf[mode/2];
       bool recursivelyReachesSafe = recursivelyReachesSafeBuf[mode/2];
+      int whiteMinusBlackSafeRegionCount = 0;
       Board copy(board);
-      copy.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,multiStoneSuicideLegal);
+      copy.calculateArea(result,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,multiStoneSuicideLegal);
       out << "Safe big territories " << safeBigTerritories << " "
       << "Unsafe big territories " << unsafeBigTerritories << " "
       << "Non pass alive stones " << nonPassAliveStones << " "
       << "Recusively reaches safe " << recursivelyReachesSafe << " "
       << "Suicide " << multiStoneSuicideLegal << endl;
+      out << "whiteMinusBlackSafeRegionCount " << whiteMinusBlackSafeRegionCount << endl;
       for(int y = 0; y<copy.y_size; y++) {
         for(int x = 0; x<copy.x_size; x++) {
           Loc loc = Location::getLoc(x,y,copy.x_size);
@@ -60,6 +63,7 @@ x.x..oo.o
 
     string expected = R"%%(
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 ......XXX
 ......XXX
 .......XX
@@ -71,6 +75,7 @@ Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .....OOOO
 
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ......XXX
 ......XXX
 .......XX
@@ -82,6 +87,7 @@ Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .....OOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 ......XXX
 ......XXX
 .......XX
@@ -93,6 +99,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .....OOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ......XXX
 ......XXX
 .......XX
@@ -104,6 +111,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .....OOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OO.O..XXX
 O.....XXX
 .......XX
@@ -115,6 +123,7 @@ X.....OOO
 X.X..OOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OO.O..XXX
 O.....XXX
 .......XX
@@ -126,6 +135,7 @@ X.....OOO
 X.X..OOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOO.XXX
 OOOOO.XXX
 OO.....XX
@@ -137,6 +147,7 @@ XXX..OOOO
 XXXX.OOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOOOO.XXX
 OOOOO.XXX
 OO.....XX
@@ -148,6 +159,7 @@ XXX..OOOO
 XXXX.OOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 ......XXX
 ......XXX
 .......XX
@@ -159,6 +171,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .....OOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ......XXX
 ......XXX
 .......XX
@@ -170,6 +183,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .....OOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OO.O..XXX
 O.....XXX
 .......XX
@@ -181,6 +195,7 @@ X.....OOO
 X.X..OOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OO.O..XXX
 O.....XXX
 .......XX
@@ -192,6 +207,7 @@ X.....OOO
 X.X..OOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOO.XXX
 OOOOO.XXX
 OO.....XX
@@ -203,6 +219,7 @@ XXX..OOOO
 XXXX.OOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOOOO.XXX
 OOOOO.XXX
 OO.....XX
@@ -249,6 +266,7 @@ o.xxx...o
 
     string expected = R"%%(
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOOOOO
 OO...XX.O
 O...XXX.O
@@ -260,6 +278,7 @@ O.XXX...O
 OOOOOOOOO
 
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .........
 .........
 .........
@@ -271,6 +290,7 @@ Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .........
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOOOOO
 OO...XX.O
 O...XXX.O
@@ -282,6 +302,7 @@ O.XXX...O
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .........
 .........
 .........
@@ -293,6 +314,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .........
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOOOOO
 OO...XX.O
 O...XXX.O
@@ -304,6 +326,7 @@ O.XXX...O
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ........O
 .........
 .........
@@ -315,6 +338,7 @@ Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusive
 O.......O
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOOOOO
 OOX..XX.O
 O...XXX.O
@@ -326,6 +350,7 @@ O.XXX...O
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 X.OOOOOOO
 OOX..XX.O
 O...XOX.O
@@ -337,6 +362,7 @@ O.XXX...O
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOOOOO
 OO...XX.O
 O...XXX.O
@@ -348,6 +374,7 @@ O.XXX...O
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .........
 .........
 .........
@@ -359,6 +386,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .........
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOOOOO
 OO...XX.O
 O...XXX.O
@@ -370,6 +398,7 @@ O.XXX...O
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ........O
 .........
 .........
@@ -381,6 +410,7 @@ Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusive
 O.......O
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOOOOO
 OOX..XX.O
 O...XXX.O
@@ -392,6 +422,7 @@ O.XXX...O
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 X.OOOOOOO
 OOX..XX.O
 O...XOX.O
@@ -404,6 +435,7 @@ OOOOOOOOO
 
 -----
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 .........
 .........
 .........
@@ -415,6 +447,7 @@ Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .........
 
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .........
 .........
 .........
@@ -426,6 +459,7 @@ Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .........
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 .........
 .........
 .........
@@ -437,6 +471,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .........
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .........
 .........
 .........
@@ -448,6 +483,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .........
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OO......O
 .........
 .........
@@ -459,6 +495,7 @@ OO......O
 O.......O
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OO......O
 .........
 .........
@@ -470,6 +507,7 @@ OO......O
 O.......O
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOOOOO
 OOX..XX.O
 O...XOX.O
@@ -481,6 +519,7 @@ O.XXX...O
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOOOOOOOO
 OOX..XX.O
 O...XOX.O
@@ -492,6 +531,7 @@ O.XXX...O
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 .........
 .........
 .........
@@ -503,6 +543,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .........
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .........
 .........
 .........
@@ -514,6 +555,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 .........
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OO......O
 .........
 .........
@@ -525,6 +567,7 @@ OO......O
 O.......O
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OO......O
 .........
 .........
@@ -536,6 +579,7 @@ OO......O
 O.......O
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOOOOO
 OOX..XX.O
 O...XOX.O
@@ -547,6 +591,7 @@ O.XXX...O
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOOOOOOOO
 OOX..XX.O
 O...XOX.O
@@ -591,6 +636,7 @@ o..o.o.oo.oo.o.o.o.
 
     string expected = R"%%(
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOO................
 OOO................
 OO.................
@@ -612,6 +658,7 @@ XXX................
 ..........OOOOOOOO.
 
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ...................
 ...................
 ...................
@@ -633,6 +680,7 @@ Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusive
 ..........OOOOOOOO.
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOO................
 OOO................
 OO.................
@@ -654,6 +702,7 @@ XXX................
 ..........OOOOOOOO.
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ...................
 ...................
 ...................
@@ -675,6 +724,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 ..........OOOOOOOO.
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOO.............OO.
 OOO....X..........O
 OO...XX............
@@ -696,6 +746,7 @@ O......O..OOO.OOOOO
 .OO.O.O...OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .O..............OO.
 .......X..........O
 .....XX............
@@ -717,6 +768,7 @@ O......O..OOO.OOOOO
 .OO.O.O...OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOO....XX......OOOO
 OOO.XXXXX......OOOO
 OO..XXXXX........OO
@@ -738,6 +790,7 @@ OOOOO.OOO.OOO.OOOOO
 OOOOOOOOO.OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOO....XX......OOOO
 .OO.XXXXX......OOOO
 XO..XXXXX........OO
@@ -759,6 +812,7 @@ OOOOO.OOO.OOO.OOOOO
 OOOOOOOOO.OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -1
 OOO................
 OOO................
 OO.................
@@ -780,6 +834,7 @@ XXX................
 ..........OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ...................
 ...................
 ...................
@@ -801,6 +856,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 ..........OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -1
 OOO.............OO.
 OOO....X..........O
 OO...XX............
@@ -822,6 +878,7 @@ O......O..OOO.OOOOO
 .OO.O.O...OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .O..............OO.
 .......X..........O
 .....XX............
@@ -843,6 +900,7 @@ O......O..OOO.OOOOO
 .OO.O.O...OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -1
 OOO....XX......OOOO
 OOO.XXXXX......OOOO
 OO..XXXXX........OO
@@ -864,6 +922,7 @@ OOOOO.OOO.OOO.OOOOO
 OOOOOOOOO.OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOO....XX......OOOO
 .OO.XXXXX......OOOO
 XO..XXXXX........OO
@@ -917,6 +976,7 @@ o.o.xo...o.o.o.o.oo
 
     string expected = R"%%(
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX..........
 XXXXXX..X..........
 XX.X....X..........
@@ -938,6 +998,7 @@ XXX.....XXXXXXXXXXX
 ...................
 
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX..........
 XXXXXX..X..........
 XX.X....X..........
@@ -959,6 +1020,7 @@ X......XX..........
 ...................
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX..........
 XXXXXX..X..........
 XX.X....X..........
@@ -980,6 +1042,7 @@ XXX.....XXXXXXXXXXX
 ...................
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX..........
 XXXXXX..X..........
 XX.X....X..........
@@ -1001,6 +1064,7 @@ X......XX..........
 ...................
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX.....X.X.X
 XXXXXXXXX..XX....X.
 XXXXXX.XX..X.XX.X.X
@@ -1022,6 +1086,7 @@ O.........OOO...OOO
 .O........O.O.O.O..
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX.....X.X.X
 XXXXXXXXX..XX....X.
 XXXXXX.XX..X.XX.X.X
@@ -1043,6 +1108,7 @@ O.........OOO...OOO
 .O........O.O.O.O..
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX.XXXXXXXXX
 XXXXXXXXX.XXXXXXXXX
 XXXXXXXXX.XXXXXXXXX
@@ -1064,6 +1130,7 @@ OO..OO...OOOOOOOOOO
 OOO.XO...OOOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX.XXXXXXXXX
 XXXXXXXXX.XXXXXXXXX
 XXXXXXXXX.XXXXXXXXX
@@ -1085,6 +1152,7 @@ OO..OO...OOOOOOOOOO
 OOO.XO...OOOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -3
 XXXXXXXXX..........
 XXXXXXXXX..........
 XXXXXXXXX..........
@@ -1106,6 +1174,7 @@ XXX.....XXXXXXXXXXX
 ...................
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount -1
 XXXXXXXXX..........
 XXXXXXXXX..........
 XXXXXXXXX..........
@@ -1127,6 +1196,7 @@ XXX................
 ...................
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -3
 XXXXXXXXX.....X.X.X
 XXXXXXXXX..XX....X.
 XXXXXXXXX..X.XX.X.X
@@ -1148,6 +1218,7 @@ O.........OOO...OOO
 .O........O.O.O.O..
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount -1
 XXXXXXXXX.....X.X.X
 XXXXXXXXX..XX....X.
 XXXXXXXXX..X.XX.X.X
@@ -1169,6 +1240,7 @@ O.........OOO...OOO
 .O........O.O.O.O..
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -3
 XXXXXXXXX.XXXXXXXXX
 XXXXXXXXX.XXXXXXXXX
 XXXXXXXXX.XXXXXXXXX
@@ -1190,6 +1262,7 @@ OO..OO...OOOOOOOOOO
 OOO.XO...OOOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount -1
 XXXXXXXXX.XXXXXXXXX
 XXXXXXXXX.XXXXXXXXX
 XXXXXXXXX.XXXXXXXXX
@@ -1237,6 +1310,7 @@ OOO.XO...OOOOOOOOOO
 
     string expected = R"%%(
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 ...................
 ...................
 ...............XX..
@@ -1252,6 +1326,7 @@ Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusive
 ...................
 
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ...................
 ...................
 ...................
@@ -1267,6 +1342,7 @@ Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusive
 ...................
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
@@ -1282,6 +1358,7 @@ XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ...................
 ...................
 ...................
@@ -1297,6 +1374,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 ...................
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
@@ -1312,6 +1390,7 @@ XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXX..XX
@@ -1327,6 +1406,7 @@ XXXX.....XXXXX..XXX
 XXXXXXXXXXXXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
@@ -1342,6 +1422,7 @@ XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
@@ -1357,6 +1438,7 @@ XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -1
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
@@ -1372,6 +1454,7 @@ XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ...................
 ...................
 ...................
@@ -1387,6 +1470,7 @@ Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusive
 ...................
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -1
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
@@ -1402,6 +1486,7 @@ XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXX..XX
@@ -1417,6 +1502,7 @@ XXXX.....XXXXX..XXX
 XXXXXXXXXXXXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -1
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
@@ -1432,6 +1518,7 @@ XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
@@ -1463,71 +1550,85 @@ ooxox.xo.ox.
 
     string expected = R"%%(
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOO.....XXX
 OOOO.....XXX
 OOOO......XX
 
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .........XXX
 .........XXX
 ..........XX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOO.....XXX
 OOOO.....XXX
 OOOO......XX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .........XXX
 .........XXX
 ..........XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOO.....XXX
 OOOO.X...XXX
 OOOO.X..O.XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .........XXX
 .....X...XXX
 .....X..O.XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOXXXO.XXX
 OOOOXXXOOXXX
 OOOOXXXOOOXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 X.OOXXXO.XXX
 OO.OXXXOOXXX
 OOXOXXXOOOXX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOO.....XXX
 OOOO.....XXX
 OOOO......XX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount -1
 .........XXX
 .........XXX
 ..........XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOO.....XXX
 OOOO.X...XXX
 OOOO.X..O.XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount -1
 .........XXX
 .....X...XXX
 .....X..O.XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOXXXO.XXX
 OOOOXXXOOXXX
 OOOOXXXOOOXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount -1
 X.OOXXXO.XXX
 OO.OXXXOOXXX
 OOXOXXXOOOXX
@@ -1555,6 +1656,7 @@ OOXOXXXOOOXX
 
     string expected = R"%%(
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1566,6 +1668,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1577,6 +1680,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1588,6 +1692,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1599,6 +1704,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1610,6 +1716,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1621,6 +1728,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1632,6 +1740,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1643,6 +1752,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1654,6 +1764,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1665,6 +1776,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1676,6 +1788,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1687,6 +1800,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1698,6 +1812,7 @@ XXXOXXXXX
 XXXXXXXXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 OOOOOXXXX
 OOOOOOXXX
 OOOOOOXXX
@@ -1728,6 +1843,7 @@ ooooox.
 
     string expected = R"%%(
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 .......
 ..XXX..
 XXXXXXX
@@ -1737,6 +1853,7 @@ XXXXXXX
 .....XX
 
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .......
 ..XXX..
 XXXXXXX
@@ -1746,6 +1863,7 @@ XXXXXXX
 .....XX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 .......
 ..XXX..
 XXXXXXX
@@ -1755,6 +1873,7 @@ XXXXXXX
 .....XX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .......
 ..XXX..
 XXXXXXX
@@ -1764,6 +1883,7 @@ XXXXXXX
 .....XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 .......
 ..XXX..
 XXXXXXX
@@ -1773,6 +1893,7 @@ XXXXXXX
 .....XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 .......
 ..XXX..
 XXXXXXX
@@ -1782,6 +1903,7 @@ XXXXXXX
 .....XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 ..OOO..
 ..XXX..
 XXXXXXX
@@ -1791,6 +1913,7 @@ OOOOOXX
 .X..OXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 ..OOO..
 ..XXX..
 XXXXXXX
@@ -1800,6 +1923,7 @@ OOOOOXX
 .X..OXX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -1
 .......
 ..XXX..
 XXXXXXX
@@ -1809,6 +1933,7 @@ XXXXXXX
 .....XX
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount -1
 .......
 ..XXX..
 XXXXXXX
@@ -1818,6 +1943,7 @@ XXXXXXX
 .....XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -1
 .......
 ..XXX..
 XXXXXXX
@@ -1827,6 +1953,7 @@ XXXXXXX
 .....XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount -1
 .......
 ..XXX..
 XXXXXXX
@@ -1836,6 +1963,7 @@ XXXXXXX
 .....XX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount -1
 ..OOO..
 ..XXX..
 XXXXXXX
@@ -1845,6 +1973,7 @@ OOOOOXX
 .X..OXX
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount -1
 ..OOO..
 ..XXX..
 XXXXXXX
@@ -1875,6 +2004,7 @@ xooxxxoxx
 
     string expected = R"%%(
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -1886,6 +2016,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -1897,6 +2028,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -1908,6 +2040,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -1919,6 +2052,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -1930,6 +2064,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -1941,6 +2076,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -1952,6 +2088,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -1963,6 +2100,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -1974,6 +2112,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -1985,6 +2124,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -1996,6 +2136,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -2007,6 +2148,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -2018,6 +2160,7 @@ OOOOOOOOO
 OOOOOOOOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXXXXXXXX
 XXXXXXXXX
 XXXXXXXXX
@@ -2062,6 +2205,7 @@ o.oo..xxoxoxox.oo.o
 
     string expected = R"%%(
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.....OOOOO...XXX
 XX.........O.....XX
@@ -2083,6 +2227,7 @@ OOOO..XX.......OOOO
 OOO.............OOO
 
 Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.....OOOOO...XXX
 XX.........O.....XX
@@ -2104,6 +2249,7 @@ OOOO..XX.......OOOO
 OOO.............OOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.....OOOOO...XXX
 XX.........O.....XX
@@ -2125,6 +2271,7 @@ OOOO..XX.......OOOO
 OOO.............OOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.....OOOOO...XXX
 XX.........O.....XX
@@ -2146,6 +2293,7 @@ OOOO..XX.......OOOO
 OOO.............OOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.....OOOOO...XXX
 XXX.....OOOO....XXX
@@ -2167,6 +2315,7 @@ OOOO..XX.......OOOO
 OOO...XX.X.X....OOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.....OOOOO...XXX
 XXX.....OOOO....XXX
@@ -2188,6 +2337,7 @@ OOOO..XX.......OOOO
 OOO...XX.X.X....OOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.X...OOOOO.X.XXX
 XXXX..OOOOOO...XXXX
@@ -2209,6 +2359,7 @@ OOOO..XXOXOXOX.OOOO
 OOO..XXXXXXXX...OOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 0 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.X...OOOOO.X.XXX
 XXXX..OOOOOO...XXXX
@@ -2230,6 +2381,7 @@ OOOO..XXOXOXOX.OOOO
 OOO..XXXXXXXX...OOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.....OOOOO...XXX
 XXXX..OOOOOO...XXXX
@@ -2251,6 +2403,7 @@ OOOO..XX.X.X...OOOO
 OOO..XXXXXXXX...OOO
 
 Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.....OOOOO...XXX
 XXXX..OOOOOO...XXXX
@@ -2272,6 +2425,7 @@ OOOO..XX.X.X...OOOO
 OOO..XXXXXXXX...OOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.....OOOOO...XXX
 XXXX..OOOOOO...XXXX
@@ -2293,6 +2447,7 @@ OOOO..XX.X.X...OOOO
 OOO..XXXXXXXX...OOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.....OOOOO...XXX
 XXXX..OOOOOO...XXXX
@@ -2314,6 +2469,7 @@ OOOO..XX.X.X...OOOO
 OOO..XXXXXXXX...OOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 0
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.X...OOOOO.X.XXX
 XXXX..OOOOOO...XXXX
@@ -2335,6 +2491,7 @@ OOOO..XXOXOXOX.OOOO
 OOO..XXXXXXXX...OOO
 
 Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Recusively reaches safe 1 Suicide 1
+whiteMinusBlackSafeRegionCount 0
 XXX.....OOOOO...XXX
 XXX.X...OOOOO.X.XXX
 XXXX..OOOOOO...XXXX
@@ -2380,7 +2537,8 @@ o.o.xxoxo
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = false;
     bool recursivelyReachesSafe = false;
-    board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,multiStoneSuicideLegal);
+    int whiteMinusBlackSafeRegionCount = 0;
+    board.calculateArea(result,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,multiStoneSuicideLegal);
 
     out << endl;
     out << "NonPassAliveSelfConn black" << endl;
@@ -2439,4 +2597,277 @@ NonPassAliveSelfConn white
 )%%";
     expect(name,out,expected);
   }
+
+  //============================================================================
+  {
+    const char* name = "groupTaxOwnership";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(13,13,R"%%(
+.xo.o.o...xx.
+xoooooo...x.x
+oo.........xx
+..xx.........
+xx..x........
+.x..x........
+ox..x........
+.xx.x........
+.x.x.........
+xxxx........x
+oooxooo...xx.
+o.oxo.o...x.x
+.o.o.o....xx.
+)%%");
+
+    int nnXLen = board.x_size;
+    int nnYLen = board.y_size;
+
+    bool multiStoneSuicideLegal = false;
+    bool nonPassAliveStones = false;
+    bool safeBigTerritories = true;
+    bool unsafeBigTerritories = false;
+    bool recursivelyReachesSafe = true;
+    int whiteMinusBlackSafeRegionCount = 0;
+    board.calculateArea(result,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,multiStoneSuicideLegal);
+
+    float ownership[NNPos::MAX_BOARD_AREA];
+
+    out << endl;
+    out << "No group tax" << endl;
+    NNInputs::fillOwnership(board,result,false,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "Group tax" << endl;
+    NNInputs::fillOwnership(board,result,true,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+
+No group tax
+ 100  100  100  100  100  100  100    0    0    0 -100 -100 -100
+ 100  100  100  100  100  100  100    0    0    0 -100 -100 -100
+ 100  100    0    0    0    0    0    0    0    0    0 -100 -100
+   0    0 -100 -100    0    0    0    0    0    0    0    0    0
+-100 -100 -100 -100 -100    0    0    0    0    0    0    0    0
+-100 -100 -100 -100 -100    0    0    0    0    0    0    0    0
+-100 -100 -100 -100 -100    0    0    0    0    0    0    0    0
+-100 -100 -100 -100 -100    0    0    0    0    0    0    0    0
+-100 -100 -100 -100    0    0    0    0    0    0    0    0    0
+-100 -100 -100 -100    0    0    0    0    0    0    0    0 -100
+ 100  100  100 -100  100  100  100    0    0    0 -100 -100 -100
+ 100  100  100 -100  100  100  100    0    0    0 -100 -100 -100
+ 100  100  100  100  100  100    0    0    0    0 -100 -100 -100
+
+Group tax
+  60   60  100   60  100   60  100    0    0    0 -100 -100    0
+  60  100  100  100  100  100  100    0    0    0 -100    0 -100
+ 100  100    0    0    0    0    0    0    0    0    0 -100 -100
+   0    0 -100 -100    0    0    0    0    0    0    0    0    0
+-100 -100  -83  -83 -100    0    0    0    0    0    0    0    0
+ -83 -100  -83  -83 -100    0    0    0    0    0    0    0    0
+ -83 -100  -83  -83 -100    0    0    0    0    0    0    0    0
+ -83 -100 -100  -83 -100    0    0    0    0    0    0    0    0
+ -83 -100  -83 -100    0    0    0    0    0    0    0    0    0
+-100 -100 -100 -100    0    0    0    0    0    0    0    0 -100
+ 100  100  100 -100  100  100  100    0    0    0 -100 -100  -33
+ 100   60  100 -100  100   60  100    0    0    0 -100  -33 -100
+  60  100   60  100   60  100    0    0    0    0 -100 -100  -33
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    const char* name = "groupTaxOwnership2";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(13,13,R"%%(
+.xo.ox.oooooo
+x.ooox.oxxxxo
+oooxxx.oxo..x
+xxxx...oxo..x
+oooxx..oxxxxo
+.o.ox..oooooo
+.ooxx........
+ooxx.........
+.............
+oooxx....o...
+oxxoxxxxxoxxx
+ox.oxooooxooo
+ox.oxo.o.x.o.
+)%%");
+
+    int nnXLen = board.x_size;
+    int nnYLen = board.y_size;
+
+    bool multiStoneSuicideLegal = true;
+    bool nonPassAliveStones = true;
+    bool safeBigTerritories = true;
+    bool unsafeBigTerritories = false;
+    bool recursivelyReachesSafe = true;
+    int whiteMinusBlackSafeRegionCount = 0;
+    board.calculateArea(result,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,multiStoneSuicideLegal);
+
+    float ownership[NNPos::MAX_BOARD_AREA];
+
+    out << endl;
+    out << "No group tax" << endl;
+    NNInputs::fillOwnership(board,result,false,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "Group tax" << endl;
+    NNInputs::fillOwnership(board,result,true,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+
+No group tax
+   0 -100  100    0  100 -100    0  100  100  100  100  100  100
+-100    0  100  100  100 -100    0  100 -100 -100 -100 -100  100
+ 100  100  100 -100 -100 -100    0  100 -100  100    0    0 -100
+-100 -100 -100 -100    0    0    0  100 -100  100    0    0 -100
+ 100  100  100 -100 -100    0    0  100 -100 -100 -100 -100  100
+   0  100    0  100 -100    0    0  100  100  100  100  100  100
+   0  100  100 -100 -100    0    0    0    0    0    0    0    0
+ 100  100 -100 -100    0    0    0    0    0    0    0    0    0
+   0    0    0    0    0    0    0    0    0    0    0    0    0
+ 100  100  100 -100 -100    0    0    0    0  100    0    0    0
+ 100 -100 -100  100 -100 -100 -100 -100 -100  100 -100 -100 -100
+ 100 -100    0  100 -100  100  100  100  100 -100  100  100  100
+ 100 -100    0  100 -100  100    0  100    0 -100    0  100    0
+
+Group tax
+   0 -100  100    0  100 -100    0  100  100  100  100  100  100
+-100    0  100  100  100 -100    0  100 -100 -100 -100 -100  100
+ 100  100  100 -100 -100 -100    0  100 -100  100    0    0 -100
+-100 -100 -100 -100    0    0    0  100 -100  100    0    0 -100
+ 100  100  100 -100 -100    0    0  100 -100 -100 -100 -100  100
+   0  100    0  100 -100    0    0  100  100  100  100  100  100
+   0  100  100 -100 -100    0    0    0    0    0    0    0    0
+ 100  100 -100 -100    0    0    0    0    0    0    0    0    0
+   0    0    0    0    0    0    0    0    0    0    0    0    0
+ 100  100  100 -100 -100    0    0    0    0  100    0    0    0
+ 100 -100 -100  100 -100 -100 -100 -100 -100  100 -100 -100 -100
+ 100 -100    0  100 -100  100  100  100  100 -100  100  100  100
+ 100 -100    0  100 -100  100    0  100    0 -100    0  100    0
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    const char* name = "groupTaxOwnership2 but with unsafe territories on";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(13,13,R"%%(
+.xo.ox.oooooo
+x.ooox.oxxxxo
+oooxxx.oxo..x
+xxxx...oxo..x
+oooxx..oxxxxo
+.o.ox..oooooo
+.ooxx........
+ooxx.........
+.............
+oooxx....o...
+oxxoxxxxxoxxx
+ox.oxooooxooo
+ox.oxo.o.x.o.
+)%%");
+
+    int nnXLen = board.x_size;
+    int nnYLen = board.y_size;
+
+    bool multiStoneSuicideLegal = true;
+    bool nonPassAliveStones = true;
+    bool safeBigTerritories = true;
+    bool unsafeBigTerritories = true;
+    bool recursivelyReachesSafe = true;
+    int whiteMinusBlackSafeRegionCount = 0;
+    board.calculateArea(result,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,multiStoneSuicideLegal);
+
+    float ownership[NNPos::MAX_BOARD_AREA];
+
+    out << endl;
+    out << "No group tax" << endl;
+    NNInputs::fillOwnership(board,result,false,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "Group tax" << endl;
+    NNInputs::fillOwnership(board,result,true,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+No group tax
+-100 -100  100  100  100 -100    0  100  100  100  100  100  100
+-100    0  100  100  100 -100    0  100 -100 -100 -100 -100  100
+ 100  100  100 -100 -100 -100    0  100 -100  100    0    0 -100
+-100 -100 -100 -100    0    0    0  100 -100  100    0    0 -100
+ 100  100  100 -100 -100    0    0  100 -100 -100 -100 -100  100
+ 100  100  100  100 -100    0    0  100  100  100  100  100  100
+ 100  100  100 -100 -100    0    0    0    0    0    0    0    0
+ 100  100 -100 -100    0    0    0    0    0    0    0    0    0
+   0    0    0    0    0    0    0    0    0    0    0    0    0
+ 100  100  100 -100 -100    0    0    0    0  100    0    0    0
+ 100 -100 -100  100 -100 -100 -100 -100 -100  100 -100 -100 -100
+ 100 -100    0  100 -100  100  100  100  100 -100  100  100  100
+ 100 -100    0  100 -100  100  100  100    0 -100    0  100  100
+
+Group tax
+   0 -100  100    0  100 -100    0  100  100  100  100  100  100
+-100    0  100  100  100 -100    0  100 -100 -100 -100 -100  100
+ 100  100  100 -100 -100 -100    0  100 -100  100    0    0 -100
+-100 -100 -100 -100    0    0    0  100 -100  100    0    0 -100
+ 100  100  100 -100 -100    0    0  100 -100 -100 -100 -100  100
+  33  100   33  100 -100    0    0  100  100  100  100  100  100
+  33  100  100 -100 -100    0    0    0    0    0    0    0    0
+ 100  100 -100 -100    0    0    0    0    0    0    0    0    0
+   0    0    0    0    0    0    0    0    0    0    0    0    0
+ 100  100  100 -100 -100    0    0    0    0  100    0    0    0
+ 100 -100 -100  100 -100 -100 -100 -100 -100  100 -100 -100 -100
+ 100 -100    0  100 -100  100  100  100  100 -100  100  100  100
+ 100 -100    0  100 -100  100    0  100    0 -100    0  100    0
+
+)%%";
+    expect(name,out,expected);
+  }
+
 }
