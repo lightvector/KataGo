@@ -1,5 +1,7 @@
 # KataGo
 
+#### This is an experimental branch that adds CUDA inference-time support for SE-like networks. It now should be quite easy to get SE network training by modifying the Tensorflow code (much easier than the CUDA), but unfortunately the CUDA implementation of it shows SE has quite significant overhead, so currently this branch on hold, as this doesn't seem promising without more optimization work.
+
 Research and experimentation with self-play training in Go. Contains a working implementation of AlphaZero-like training with a lot of modifications and enhancements. Due to these enhancements, early training is immensely faster than in other zero-style bots - with a only few strong GPUs for a few days, even a single person should be able to train to mid or even high amateur dan strength on the full 19x19 board on consumer hardware. Also contains a GTP engine and pre-trained neural nets competitive with other top open-source Go engines. KataGo is also capable of estimating score and territory, and due to this right-out-of-the-box plays handicap games somewhat better than many other zero trained bots, without any special hacks.
 
 The latest KataGo network is a 20-block network that at visit parity is probably slightly stronger than ELF and is comparable to LZ200. See the [releases page](https://github.com/lightvector/KataGo/releases) for the final trained models. The self-play training data from the run and full history of accepted models is available [here](https://d3dndmfyhecmj0.cloudfront.net/).
