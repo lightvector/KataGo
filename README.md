@@ -18,9 +18,7 @@ Several promising possibilities for major further improvements are still being r
 See also https://github.com/lightvector/GoNN for some earlier research. KataGo is essentially a continuation of that research, but that old repo has been preserved since the changes in this repo are not backwards compatible, and to leave the old repo intact to continue as a showcase of the many earlier experiments performed there.
 
 ## Running KataGo
-KataGo is written in C++ and has a fully working GTP engine. Once compiled, KataGo should be able to work with any GUI program that supports GTP, as well as any analysis program that supports Leela Zero's `lz-analyze` command, such as [Lizzie](https://github.com/featurecat/lizzie) or [Sabaki](https://sabaki.yichuanshen.de/).
-
-KataGo is now included in the (Windows) release of Lizzie, which supports score estimate visualizations.
+KataGo is written in C++ and has a fully working GTP engine. Once compiled, KataGo should be able to work with any GUI program that supports GTP, as well as any analysis program that supports Leela Zero's `lz-analyze` command, such as [Lizzie](https://github.com/featurecat/lizzie) or [Sabaki](https://sabaki.yichuanshen.de/). KataGo is also included in the (Windows) release of Lizzie, which supports KataGo score estimate visualizations.
 
 Trained models AND precompiled executables are available on the [releases page](https://github.com/lightvector/KataGo/releases)!
 
