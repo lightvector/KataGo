@@ -62,8 +62,43 @@ struct Sgf {
 
   int depth() const;
 
+  struct PositionSample {
+    Board board;
+    Player nextPla;
+    //Prior to using the sample, play these moves on to the board.
+    //This provides a little bit of history and context, which can also be relevant for setting up ko prohibitions.
+    std::vector<Move> moves;
+    //Turn number as of the start of board.
+    int initialTurnNumber;
+  };
+
+  //Loads SGF all unique positions in ALL branches of that SGF, sampling them with the specified probability.
+  //Hashes are used to filter out "identical" positions when loading many files from different SGFs that may have overlapping openings, etc.
+  //The hashes are not guaranteed to correspond to position hashes, or anything else external to this function itself.
+  //May raise an exception on illegal moves or other SGF issues, only partially appending things on to the boards and hists.
+  void loadAllUniquePositions(std::set<Hash128>& uniqueHashes, std::vector<PositionSample>& samples) const;
+  //f is allowed to mutate and consume sample.
+  void iterAllUniquePositions(std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&)> f) const;
+
   private:
   void getMovesHelper(std::vector<Move>& moves, int xSize, int ySize) const;
+
+
+  void iterAllUniquePositionsHelper(
+    Board& board, BoardHistory& hist, Player nextPla,
+    const Rules& rules, int xSize, int ySize,
+    PositionSample& sampleBuf,
+    int initialTurnNumber,
+    std::set<Hash128>& uniqueHashes,
+    std::function<void(PositionSample&)> f
+  ) const;
+  void samplePositionIfUniqueHelper(
+    Board& board, BoardHistory& hist, Player nextPla,
+    PositionSample& sampleBuf,
+    int initialTurnNumber,
+    std::set<Hash128>& uniqueHashes,
+    std::function<void(PositionSample&)> f
+  ) const;
 
 };
 

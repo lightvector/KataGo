@@ -67,7 +67,10 @@ struct SearchNode {
 
   //Mutable---------------------------------------------------------------------------
   //All of these values are protected under the mutex indicated by lockIdx
-  std::shared_ptr<NNOutput> nnOutput; //Once set, constant thereafter
+  //nnOutput at a given node MAY be mutated during search, but of course will always be done under the lock.
+  //The actual NNOutput object itself will NOT be mutated once set here, so having obtained a shared_ptr to
+  //it while locked, it's safe to read it while unlocked.
+  std::shared_ptr<NNOutput> nnOutput;
 
   SearchNode** children;
   uint16_t numChildren;
@@ -268,6 +271,8 @@ struct Search {
   //Append the PV from node n for specified move, assuming move is a child move of node n
   void appendPVForMove(std::vector<Loc>& buf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) const;
 
+  double getPolicySurprise() const;
+
   //Get the ownership map averaged throughout the search tree.
   //Must have ownership present on all neural net evals.
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
@@ -278,7 +283,7 @@ struct Search {
 
   //Helpers-----------------------------------------------------------------------
 private:
-  void maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const;
+  void maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const;
   int getPos(Loc moveLoc) const;
 
   bool isAllowedRootMove(Loc moveLoc) const;
@@ -316,11 +321,17 @@ private:
   ) const;
 
   //Parent must be locked
-  double getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const;
+  double getExploreSelectionValue(
+    const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+    int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch
+  ) const;
   double getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue) const;
 
   //Parent must be locked
-  int64_t getReducedPlaySelectionVisits(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const;
+  int64_t getReducedPlaySelectionVisits(
+    const SearchNode& parent, const float* parentPolicyProbs, const float* maybeNoisedPolicyProbs, const SearchNode* child,
+    int64_t totalChildVisits, double bestChildExploreSelectionValue
+  ) const;
 
   double getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const;
 

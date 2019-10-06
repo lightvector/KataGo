@@ -27,6 +27,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   float overrideKomi;
   bool printOwnership;
   bool printRootNNValues;
+  bool printPolicy;
   bool printScoreNow;
   bool printRootEndingBonus;
   bool rawNN;
@@ -45,6 +46,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::ValueArg<float> overrideKomiArg("","override-komi","Artificially set komi",false,std::numeric_limits<float>::quiet_NaN(),"KOMI");
     TCLAP::SwitchArg printOwnershipArg("","print-ownership","Print ownership");
     TCLAP::SwitchArg printRootNNValuesArg("","print-root-nn-values","Print root nn values");
+    TCLAP::SwitchArg printPolicyArg("","print-policy","Print policy");
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
@@ -61,6 +63,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(overrideKomiArg);
     cmd.add(printOwnershipArg);
     cmd.add(printRootNNValuesArg);
+    cmd.add(printPolicyArg);
     cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
     cmd.add(rawNNArg);
@@ -78,6 +81,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     overrideKomi = overrideKomiArg.getValue();
     printOwnership = printOwnershipArg.getValue();
     printRootNNValues = printRootNNValuesArg.getValue();
+    printPolicy = printPolicyArg.getValue();
     printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
     rawNN = rawNNArg.getValue();
@@ -289,6 +293,27 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       cout << "White noresult: " << nnOutput->whiteNoResultProb << endl;
       cout << "White score mean " << nnOutput->whiteScoreMean << endl;
       cout << "White score stdev " << sqrt(max(0.0,(double)nnOutput->whiteScoreMeanSq - nnOutput->whiteScoreMean*nnOutput->whiteScoreMean)) << endl;
+    }
+  }
+
+  if(printPolicy) {
+    if(search->rootNode->nnOutput != nullptr) {
+      NNOutput* nnOutput = search->rootNode->nnOutput.get();
+      float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+      cout << "Root policy: " << endl;
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+          double prob = policyProbs[pos];
+          if(prob < 0)
+            cout << "  -  " << " ";
+          else
+            cout << Global::strprintf("%5.2f",prob*100) << " ";
+        }
+        cout << endl;
+      }
+      double prob = policyProbs[NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen)];
+      cout << "Pass " << Global::strprintf("%5.2f",prob*100) << endl;
     }
   }
 

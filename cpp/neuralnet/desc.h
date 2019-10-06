@@ -253,8 +253,6 @@ struct ValueHeadDesc {
 struct ModelDesc {
   std::string name;
   int version;
-  int xSizePreV3;
-  int ySizePreV3;
   int numInputChannels;
   int numInputGlobalChannels;
   int numValueChannels;

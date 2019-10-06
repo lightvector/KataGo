@@ -30,6 +30,7 @@ BoardHistory::BoardHistory()
    koHistoryLastClearedBeginningMoveIdx(0),
    initialBoard(),
    initialPla(P_BLACK),
+   initialTurnNumber(0),
    recentBoards(),
    currentRecentBoardIdx(0),
    consecutiveEndingPasses(0),
@@ -56,6 +57,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    koHistoryLastClearedBeginningMoveIdx(0),
    initialBoard(),
    initialPla(),
+   initialTurnNumber(0),
    recentBoards(),
    currentRecentBoardIdx(0),
    consecutiveEndingPasses(0),
@@ -81,6 +83,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
    initialBoard(other.initialBoard),
    initialPla(other.initialPla),
+   initialTurnNumber(other.initialTurnNumber),
    recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
    consecutiveEndingPasses(other.consecutiveEndingPasses),
@@ -110,6 +113,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
+  initialTurnNumber = other.initialTurnNumber;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
@@ -139,6 +143,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
   initialBoard(other.initialBoard),
   initialPla(other.initialPla),
+  initialTurnNumber(other.initialTurnNumber),
   recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
   consecutiveEndingPasses(other.consecutiveEndingPasses),
@@ -165,6 +170,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
+  initialTurnNumber = other.initialTurnNumber;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
@@ -196,6 +202,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
   initialBoard = board;
   initialPla = pla;
+  initialTurnNumber = 0;
 
   //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
   //we simply return copies of the starting board.
@@ -255,6 +262,10 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
   //Push hash for the new board state
   koHashHistory.push_back(getKoHash(rules,board,pla,encorePhase,koProhibitHash));
+}
+
+void BoardHistory::setInitialTurnNumber(int n) {
+  initialTurnNumber = n;
 }
 
 void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
@@ -541,10 +552,19 @@ int BoardHistory::newConsecutiveEndingPasses(Loc moveLoc, Loc koLocBeforeMove) c
   return newConsecutiveEndingPasses;
 }
 
-//Returns true if this move would be a pass that causes spight or simple ko rules to want to end the phase
-//regardless of the number of consecutive ending passes.
-bool BoardHistory::wouldBeSimpleSpightOrEncoreEndingPass(Loc moveLoc, Player movePla, Hash128 koHashAfterMove) const {
-  if(moveLoc == Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT)) {
+//Returns true if the rules of the game specify that passes should clear history for the purposes
+//of ko rules checking and for no-result infinite cycles. Also implies that the phase will end
+//spightlight - i.e. upon a pass where the same player has passed in the same situation before.
+bool BoardHistory::phaseHasSpightlikeEndingAndPassHistoryClearing() const {
+  return encorePhase > 0
+    || rules.koRule == Rules::KO_SIMPLE
+    || rules.koRule == Rules::KO_SPIGHT;
+}
+
+//Returns true if this move would be a pass that causes spight-style ending of the phase
+//(i.e. ending that ignores the number of consecutive passes)
+bool BoardHistory::wouldBeSpightlikeEndingPass(Loc moveLoc, Player movePla, Hash128 koHashAfterMove) const {
+  if(moveLoc == Board::PASS_LOC && phaseHasSpightlikeEndingAndPassHistoryClearing()) {
     if(movePla == P_BLACK && std::find(hashesAfterBlackPass.begin(), hashesAfterBlackPass.end(), koHashAfterMove) != hashesAfterBlackPass.end())
       return true;
     if(movePla == P_WHITE && std::find(hashesAfterWhitePass.begin(), hashesAfterWhitePass.end(), koHashAfterMove) != hashesAfterWhitePass.end())
@@ -560,7 +580,7 @@ bool BoardHistory::passWouldEndPhase(const Board& board, Player movePla) const {
   Hash128 koHashAfterMove = getKoHashAfterMove(rules, posHashAfterMove, getOpp(movePla), encorePhase, koProhibitHashAfterMove);
 
   if(newConsecutiveEndingPasses(Board::PASS_LOC,koLocBeforeMove) >= 2 ||
-     wouldBeSimpleSpightOrEncoreEndingPass(Board::PASS_LOC,movePla,koHashAfterMove))
+     wouldBeSpightlikeEndingPass(Board::PASS_LOC,movePla,koHashAfterMove))
     return true;
   return false;
 }
@@ -597,7 +617,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
       if(board.ko_loc != Board::NULL_LOC) {
         setKoProhibited(getOpp(movePla),board.ko_loc,true);
         koCapturesInEncore.push_back(EncoreKoCapture(posHashBeforeMove,moveLoc,movePla));
-        //Clear simple ko loc now that we've absorved the ko loc information into the koprohib array
+        //Clear simple ko loc now that we've absorbed the ko loc information into the koprohib array
         //Once we have that, the simple ko loc plays no further role in game state or legality
         board.clearSimpleKoLoc();
       }
@@ -624,12 +644,12 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
   //Passes clear ko history in the main phase with spight ko rules and in the encore
   //This lifts bans in spight ko rules and lifts 3-fold-repetition checking in the encore for no-resultifying infinite cycles
-  //They also clear in simple ko rules for the purpose of no-resulting long cycles, long cycles with passes do not no-result.
-  if(moveLoc == Board::PASS_LOC && (encorePhase > 0 || rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT)) {
+  //They also clear in simple ko rules for the purpose of no-resulting long cycles. Long cycles with passes do not no-result.
+  if(moveLoc == Board::PASS_LOC && phaseHasSpightlikeEndingAndPassHistoryClearing()) {
     koHashHistory.clear();
     koHistoryLastClearedBeginningMoveIdx = moveHistory.size()+1;
     //Does not clear hashesAfterBlackPass or hashesAfterWhitePass. Passes lift ko bans, but
-    //still repeated positions after pass wnd the game or phase, which these arrays are used to check.
+    //still repeated positions after pass end the game or phase, which these arrays are used to check.
   }
 
   Hash128 koHashAfterThisMove = getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash);
@@ -674,7 +694,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   consecutiveEndingPasses = newConsecutiveEndingPasses(moveLoc,koLocBeforeMove);
 
   //Check if we have a game-ending pass BEFORE updating hashesAfterBlackPass and hashesAfterWhitePass
-  bool isSimpleSpightOrEncoreEndingPass = wouldBeSimpleSpightOrEncoreEndingPass(moveLoc,movePla,koHashAfterThisMove);
+  bool isSpightlikeEndingPass = wouldBeSpightlikeEndingPass(moveLoc,movePla,koHashAfterThisMove);
 
   //Update hashesAfterBlackPass and hashesAfterWhitePass
   if(moveLoc == Board::PASS_LOC) {
@@ -697,7 +717,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   }
 
   //Phase transitions and game end
-  if(consecutiveEndingPasses >= 2 || isSimpleSpightOrEncoreEndingPass) {
+  if(consecutiveEndingPasses >= 2 || isSpightlikeEndingPass) {
     if(rules.scoringRule == Rules::SCORING_AREA) {
       assert(encorePhase <= 0);
       endAndScoreGameNow(board);

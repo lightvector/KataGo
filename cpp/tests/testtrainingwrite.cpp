@@ -78,9 +78,6 @@ void Tests::runTrainingWriteTests() {
   logger.addOStream(cout);
 
   auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite, int inputsVersion, int nnXLen, int nnYLen, int boardXLen, int boardYLen) {
-    int dataXLen = nnXLen;
-    int dataYLen = nnYLen;
-
     TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, nnXLen, nnYLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
     NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,true,false,false);
@@ -108,7 +105,9 @@ void Tests::runTrainingWriteTests() {
     FancyModes fancyModes;
     fancyModes.initGamesWithPolicy = true;
     fancyModes.forkSidePositionProb = 0.10;
-    bool recordFullData = true;
+    fancyModes.forSelfPlay = true;
+    fancyModes.dataXLen = nnXLen;
+    fancyModes.dataYLen = nnYLen;
     Rand rand(seedBase+"play");
     FinishedGameData* gameData = Play::runGame(
       initialBoard,initialPla,initialHist,extraBlackAndKomi,
@@ -117,8 +116,7 @@ void Tests::runTrainingWriteTests() {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, recordFullData, dataXLen, dataYLen,
-      true,
+      fancyModes, true,
       rand,
       NULL
     );
@@ -211,11 +209,13 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     fancyModes.earlyForkGameMaxChoices = 2;
     fancyModes.noCompensateKomiProb = 0.25;
     fancyModes.compensateKomiVisits = 5;
+    fancyModes.forSelfPlay = true;
+    fancyModes.dataXLen = nnXLen;
+    fancyModes.dataYLen = nnYLen;
 
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
 
-    bool recordFullData = true;
     Rand rand(seedBase+"play");
     FinishedGameData* gameData = Play::runGame(
       initialBoard,initialPla,initialHist,extraBlackAndKomi,
@@ -224,8 +224,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, recordFullData, nnXLen, nnYLen,
-      true,
+      fancyModes, true,
       rand,
       NULL
     );

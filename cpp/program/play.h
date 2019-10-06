@@ -180,6 +180,11 @@ struct FancyModes {
   double resignThreshold; //Require that mcts win value is less than this
   double resignConsecTurns; //Require that both players have agreed on it continuously for this many turns
 
+  //Enable full data recording and a variety of other minor tweaks applying only for self-play training.
+  bool forSelfPlay;
+  int dataXLen; //When self-play data recording, the width/height of the tensor
+  int dataYLen; //When self-play data recording, the width/height of the tensor
+
   FancyModes();
   ~FancyModes();
 };
@@ -207,8 +212,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
-    FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
-    bool allowPolicyInit,
+    const FancyModes& fancyModes, bool allowPolicyInit,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -221,8 +225,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
-    FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
-    bool allowPolicyInit,
+    const FancyModes& fancyModes, bool allowPolicyInit,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -275,7 +278,6 @@ namespace Play {
 class GameRunner {
   bool logSearchInfo;
   bool logMoves;
-  bool forSelfPlay;
   int maxMovesPerGame;
   bool clearBotBeforeSearch;
   std::string searchRandSeedBase;
@@ -283,7 +285,7 @@ class GameRunner {
   GameInitializer* gameInit;
 
 public:
-  GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, bool forSelfPlay, FancyModes fancyModes);
+  GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, FancyModes fancyModes);
   ~GameRunner();
 
   //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data
@@ -295,8 +297,6 @@ public:
     const InitialPosition* initialPosition,
     const InitialPosition** nextInitialPosition,
     Logger& logger,
-    int dataXLen,
-    int dataYLen,
     std::vector<std::atomic<bool>*>& stopConditions,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );

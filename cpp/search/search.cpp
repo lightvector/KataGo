@@ -433,11 +433,16 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     const SearchNode* bestChild = node.children[mostVisitedIdx];
     double fpuValue = -10.0; //dummy, not actually used since these childs all should actually have visits
     bool isRootDuringSearch = false;
-    double bestChildExploreSelectionValue = getExploreSelectionValue(node,bestChild,totalChildVisits,fpuValue,isRootDuringSearch);
+
+    float* maybeNoisedPolicyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
+    //TODO test this - reduce play selection values based on the ORIGINAL policy rather than the noised one!
+    //float* policyProbs = node.nnOutput->policyProbs;
+    float* policyProbs = maybeNoisedPolicyProbs;
+    double bestChildExploreSelectionValue = getExploreSelectionValue(node,policyProbs,bestChild,totalChildVisits,fpuValue,isRootDuringSearch);
 
     for(int i = 0; i<numChildren; i++) {
       if(i != mostVisitedIdx)
-        playSelectionValues[i] = getReducedPlaySelectionVisits(node, node.children[i], totalChildVisits, bestChildExploreSelectionValue);
+        playSelectionValues[i] = getReducedPlaySelectionVisits(node,policyProbs,maybeNoisedPolicyProbs,node.children[i], totalChildVisits, bestChildExploreSelectionValue);
     }
   }
 
@@ -489,7 +494,8 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
       return false;
     for(int movePos = 0; movePos<policySize; movePos++) {
       Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
-      double policyProb = nnOutput->policyProbs[movePos];
+      float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+      double policyProb = policyProbs[movePos];
       if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || !isAllowedRootMove(moveLoc))
         continue;
       locs.push_back(moveLoc);
@@ -512,7 +518,36 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   if(maxValue <= 1e-50)
     return false;
 
+  //TODO
   //Sanity check - if somehow we had more than this, something must have overflowed or gone wrong
+  // if(!(maxValue < 1e9)) {
+  //   cout << rootBoard << endl;
+  //   cout << maxValue << endl;
+  //   for(int i = 0; i<numChildren; i++) {
+  //     SearchNode* child = node.children[i];
+  //     Loc moveLoc = child->prevMoveLoc;
+  //     int movePos = getPos(moveLoc);
+  //     double policyProb = nnOutput->policyProbs[movePos];
+
+  //     while(child->statsLock.test_and_set(std::memory_order_acquire));
+  //     uint64_t numVisits = child->stats.visits;
+  //     double winValueSum = child->stats.winValueSum;
+  //     double noResultValueSum = child->stats.noResultValueSum;
+  //     double scoreMeanSum = child->stats.scoreMeanSum;
+  //     double scoreMeanSqSum = child->stats.scoreMeanSqSum;
+  //     double weightSum = child->stats.weightSum;
+  //     double weightSqSum = child->stats.weightSqSum;
+  //     double utilitySum = child->stats.utilitySum;
+  //     double utilitySqSum = child->stats.utilitySqSum;
+  //     child->statsLock.clear(std::memory_order_release);
+
+  //     cout << Location::toString(moveLoc,rootBoard) << " ";
+  //     cout << policyProb << " ";
+  //     cout << numVisits << " " << winValueSum << " " << noResultValueSum << " " << scoreMeanSum << " " << scoreMeanSqSum << " " << weightSum << " "
+  //          << weightSqSum << " " << utilitySum << " " << utilitySqSum;
+  //     cout << endl;
+  //   }
+  // }
   assert(maxValue < 1e40);
 
   double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/64.0);
@@ -705,7 +740,7 @@ Loc Search::getChosenMoveLoc() {
 
   assert(locs.size() == playSelectionValues.size());
 
-  double rawHalflives = rootHistory.moveHistory.size() / searchParams.chosenMoveTemperatureHalflife;
+  double rawHalflives = (rootHistory.initialTurnNumber + rootHistory.moveHistory.size()) / searchParams.chosenMoveTemperatureHalflife;
   double halflives = rawHalflives * 19.0 / sqrt(rootBoard.x_size*rootBoard.y_size);
   double temperature = searchParams.chosenMoveTemperature +
     (searchParams.chosenMoveTemperatureEarly - searchParams.chosenMoveTemperature) *
@@ -1074,13 +1109,61 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
   if(legalCount <= 0)
     throw StringError("addDirichletNoise: No move with nonnegative policy value - can't even pass?");
 
-  //Generate gamma draw on each move
-  double alpha = searchParams.rootDirichletNoiseTotalConcentration / legalCount;
-  double rSum = 0.0;
+  //We're going to generate a gamma draw on each move with alphas that sum up to searchParams.rootDirichletNoiseTotalConcentration.
+  //Half of the alpha weight are uniform.
+  //The other half are shaped based on the log of the existing policy.
   double r[NNPos::MAX_NN_POLICY_SIZE];
+  double logPolicySum = 0.0;
   for(int i = 0; i<policySize; i++) {
     if(policyProbs[i] >= 0) {
-      r[i] = rand.nextGamma(alpha);
+      r[i] = log(std::min(0.01, (double)policyProbs[i]) + 1e-20);
+      logPolicySum += r[i];
+    }
+  }
+  double logPolicyMean = logPolicySum / legalCount;
+  double alphaPropSum = 0.0;
+  for(int i = 0; i<policySize; i++) {
+    if(policyProbs[i] >= 0) {
+      r[i] = std::max(0.0, r[i] - logPolicyMean);
+      alphaPropSum += r[i];
+    }
+  }
+  double uniformProb = 1.0 / legalCount;
+  if(alphaPropSum <= 0.0) {
+    for(int i = 0; i<policySize; i++) {
+      if(policyProbs[i] >= 0)
+        r[i] = uniformProb;
+    }
+  }
+  else {
+    for(int i = 0; i<policySize; i++) {
+      if(policyProbs[i] >= 0)
+        r[i] = 0.5 * (r[i] / alphaPropSum + uniformProb);
+    }
+  }
+
+  //TODO debug printing
+  // for(int y = 0; y<rootBoard.y_size; y++) {
+  //   for(int x = 0; x<rootBoard.x_size; x++) {
+  //     int pos = NNPos::xyToPos(x,y,node.nnOutput->nnXLen);
+  //     double prob = r[pos] * searchParams.rootDirichletNoiseTotalConcentration;
+  //     if(policyProbs[pos] < 0)
+  //       cout << "   -  " << " ";
+  //     else
+  //       cout << Global::strprintf("%6.3f",prob) << " ";
+  //   }
+  //   cout << endl;
+  // }
+  // double prob = r[NNPos::locToPos(Board::PASS_LOC,rootBoard.x_size,node.nnOutput->nnXLen,node.nnOutput->nnYLen)] * searchParams.rootDirichletNoiseTotalConcentration;
+  // cout << "Pass " << Global::strprintf("%6.3f",prob) << endl;
+
+  //r now contains the proportions with which we would like to split the alpha
+  //The total of the alphas is searchParams.rootDirichletNoiseTotalConcentration
+  //Generate gamma draw on each move
+  double rSum = 0.0;
+  for(int i = 0; i<policySize; i++) {
+    if(policyProbs[i] >= 0) {
+      r[i] = rand.nextGamma(r[i] * searchParams.rootDirichletNoiseTotalConcentration);
       rSum += r[i];
     }
     else
@@ -1102,21 +1185,29 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
 
 
 //Assumes node is locked
-void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool isRoot) const {
+void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const {
   if(!isRoot)
     return;
   if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0)
     return;
+  if(node.nnOutput->noisedPolicyProbs != NULL)
+    return;
 
   //Copy nnOutput as we're about to modify its policy to add noise or temperature
-  shared_ptr<NNOutput> newNNOutput = std::make_shared<NNOutput>(*(node.nnOutput));
-  //Replace the old pointer
-  node.nnOutput = newNNOutput;
+  {
+    shared_ptr<NNOutput> newNNOutput = std::make_shared<NNOutput>(*(node.nnOutput));
+    //Replace the old pointer
+    node.nnOutput = newNNOutput;
+  }
+
+  float* noisedPolicyProbs = new float[NNPos::MAX_NN_POLICY_SIZE];
+  node.nnOutput->noisedPolicyProbs = noisedPolicyProbs;
+  std::copy(node.nnOutput->policyProbs, node.nnOutput->policyProbs + NNPos::MAX_NN_POLICY_SIZE, noisedPolicyProbs);
 
   if(searchParams.rootPolicyTemperature != 1.0) {
     double maxValue = 0.0;
     for(int i = 0; i<policySize; i++) {
-      double prob = node.nnOutput->policyProbs[i];
+      double prob = noisedPolicyProbs[i];
       if(prob > maxValue)
         maxValue = prob;
     }
@@ -1127,23 +1218,23 @@ void Search::maybeAddPolicyNoise(SearchThread& thread, SearchNode& node, bool is
     double sum = 0.0;
 
     for(int i = 0; i<policySize; i++) {
-      if(node.nnOutput->policyProbs[i] > 0) {
+      if(noisedPolicyProbs[i] > 0) {
         //Numerically stable way to raise to power and normalize
-        float p = (float)exp((log((double)node.nnOutput->policyProbs[i]) - logMaxValue) * invTemp);
-        node.nnOutput->policyProbs[i] = p;
+        float p = (float)exp((log((double)noisedPolicyProbs[i]) - logMaxValue) * invTemp);
+        noisedPolicyProbs[i] = p;
         sum += p;
       }
     }
     assert(sum > 0.0);
     for(int i = 0; i<policySize; i++) {
-      if(node.nnOutput->policyProbs[i] >= 0) {
-        node.nnOutput->policyProbs[i] = (float)(node.nnOutput->policyProbs[i] / sum);
+      if(noisedPolicyProbs[i] >= 0) {
+        noisedPolicyProbs[i] = (float)(noisedPolicyProbs[i] / sum);
       }
     }
   }
 
   if(searchParams.rootNoiseEnabled) {
-    addDirichletNoise(searchParams, thread.rand, policySize, node.nnOutput->policyProbs);
+    addDirichletNoise(searchParams, thread.rand, policySize, noisedPolicyProbs);
   }
 
 }
@@ -1378,10 +1469,13 @@ int Search::getPos(Loc moveLoc) const {
 }
 
 //Parent must be locked
-double Search::getExploreSelectionValue(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch) const {
+double Search::getExploreSelectionValue(
+  const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+  int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch
+) const {
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
-  float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
+  float nnPolicyProb = parentPolicyProbs[movePos];
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   int64_t childVisits = child->stats.visits;
@@ -1438,11 +1532,15 @@ double Search::getNewExploreSelectionValue(const SearchNode& parent, float nnPol
 }
 
 //Parent must be locked
-int64_t Search::getReducedPlaySelectionVisits(const SearchNode& parent, const SearchNode* child, int64_t totalChildVisits, double bestChildExploreSelectionValue) const {
+int64_t Search::getReducedPlaySelectionVisits(
+  const SearchNode& parent, const float* parentPolicyProbs, const float* maybeNoisedPolicyProbs, const SearchNode* child,
+  int64_t totalChildVisits, double bestChildExploreSelectionValue
+) const {
   assert(&parent == rootNode);
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
-  float nnPolicyProb = parent.nnOutput->policyProbs[movePos];
+  float nnPolicyProb = parentPolicyProbs[movePos];
+  float maybeNoisedNNPolicyProb = maybeNoisedPolicyProbs[movePos];
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   int64_t childVisits = child->stats.visits;
@@ -1462,7 +1560,7 @@ int64_t Search::getReducedPlaySelectionVisits(const SearchNode& parent, const Se
   if(endingScoreBonus != 0)
     childUtility += getScoreUtilityDiff(scoreMeanSum, scoreMeanSqSum, weightSum, endingScoreBonus);
 
-  int64_t desiredVisits = (int64_t)ceil(sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff));
+  int64_t desiredVisits = (int64_t)ceil(sqrt(maybeNoisedNNPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff));
   for(int i = 0; i<desiredVisits; i++) {
     if(childVisits <= 0)
       break;
@@ -1524,11 +1622,12 @@ void Search::selectBestChildToDescend(
 
   double policyProbMassVisited = 0.0;
   int64_t totalChildVisits = 0;
+  float* policyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
     int movePos = getPos(moveLoc);
-    float nnPolicyProb = node.nnOutput->policyProbs[movePos];
+    float nnPolicyProb = policyProbs[movePos];
     policyProbMassVisited += nnPolicyProb;
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
@@ -1552,7 +1651,7 @@ void Search::selectBestChildToDescend(
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
     bool isRootDuringSearch = isRoot;
-    double selectionValue = getExploreSelectionValue(node,child,totalChildVisits,fpuValue,isRootDuringSearch);
+    double selectionValue = getExploreSelectionValue(node,policyProbs,child,totalChildVisits,fpuValue,isRootDuringSearch);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = i;
@@ -1582,7 +1681,7 @@ void Search::selectBestChildToDescend(
         continue;
     }
 
-    float nnPolicyProb = node.nnOutput->policyProbs[movePos];
+    float nnPolicyProb = policyProbs[movePos];
     if(nnPolicyProb > bestNewNNPolicyProb) {
       bestNewNNPolicyProb = nnPolicyProb;
       bestNewMoveLoc = moveLoc;
@@ -1809,7 +1908,7 @@ void Search::initNodeNNOutput(
   );
 
   node.nnOutput = std::move(thread.nnResultBuf.result);
-  maybeAddPolicyNoise(thread,node,isRoot);
+  maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
 
   //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.
   //Also don't bother updating any of the stats. Technically we should do so because winValueSum
@@ -1956,8 +2055,13 @@ void Search::playoutDescend(
 
 
 void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
+  if(rootNode == NULL)
+    return;
+  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
+  lock_guard<std::mutex> lock(mutex);
   if(rootNode->nnOutput == nullptr)
     return;
+
   NNOutput& nnOutput = *(rootNode->nnOutput);
   if(nnOutput.whiteOwnerMap == NULL)
     return;
@@ -1976,26 +2080,72 @@ void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
 }
 
 void Search::printRootPolicyMap(ostream& out) const {
+  if(rootNode == NULL)
+    return;
+  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
+  lock_guard<std::mutex> lock(mutex);
   if(rootNode->nnOutput == nullptr)
     return;
+
   NNOutput& nnOutput = *(rootNode->nnOutput);
 
+  float* policyProbs = nnOutput.getPolicyProbsMaybeNoised();
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
-      out << Global::strprintf("%6.1f ", nnOutput.policyProbs[pos]*100);
+      out << Global::strprintf("%6.1f ", policyProbs[pos]*100);
     }
     out << endl;
   }
   out << endl;
 }
 
+double Search::getPolicySurprise() const {
+  if(rootNode == NULL)
+    return 0.0;
+  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
+  lock_guard<std::mutex> lock(mutex);
+  if(rootNode->nnOutput == nullptr)
+    return 0.0;
+
+  NNOutput& nnOutput = *(rootNode->nnOutput);
+
+  vector<Loc> locs;
+  vector<double> playSelectionValues;
+  bool allowDirectPolicyMoves = true;
+  bool alwaysComputeLcb = false;
+  double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
+  double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
+  bool suc = getPlaySelectionValuesAlreadyLocked(
+    *rootNode,locs,playSelectionValues,1.0,allowDirectPolicyMoves,alwaysComputeLcb,lcbBuf,radiusBuf);
+  if(!suc)
+    return 0.0;
+
+  double sumPlaySelectionValues = 0.0;
+  for(int i = 0; i<playSelectionValues.size(); i++)
+    sumPlaySelectionValues += playSelectionValues[i];
+
+  float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
+
+  double surprise = 0.0;
+  for(int i = 0; i<playSelectionValues.size(); i++) {
+    int pos = getPos(locs[i]);
+    double policy = policyProbsFromNN[pos];
+    double target = playSelectionValues[i] / sumPlaySelectionValues;
+    if(target > 1e-100)
+      surprise += target * (log(target)-log(policy));
+  }
+  return surprise;
+}
+
 void Search::printRootEndingScoreValueBonus(ostream& out) const {
+  if(rootNode == NULL)
+    return;
   std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
   unique_lock<std::mutex> lock(mutex);
-
   if(rootNode->nnOutput == nullptr)
     return;
+
   NNOutput& nnOutput = *(rootNode->nnOutput);
   if(nnOutput.whiteOwnerMap == NULL)
     return;
@@ -2187,6 +2337,7 @@ void Search::getAnalysisData(
   vector<double> scratchValues;
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
+  float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
   {
     std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
     lock_guard<std::mutex> lock(mutex);
@@ -2202,18 +2353,18 @@ void Search::getAnalysisData(
     bool success = getPlaySelectionValuesAlreadyLocked(node, scratchLocs, scratchValues, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
     if(!success)
       return;
+
+    NNOutput& nnOutput = *(node.nnOutput);
+    float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
+    for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
+      policyProbs[i] = policyProbsFromNN[i];
   }
 
   //Copy to make sure we keep these values so we can reuse scratch later for PV
   vector<double> playSelectionValues = scratchValues;
 
-  float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
   double policyProbMassVisited = 0.0;
   {
-    NNOutput& nnOutput = *(node.nnOutput);
-    for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
-      policyProbs[i] = nnOutput.policyProbs[i];
-
     for(int i = 0; i<numChildren; i++) {
       const SearchNode* child = children[i];
       policyProbMassVisited += policyProbs[getPos(child->prevMoveLoc)];

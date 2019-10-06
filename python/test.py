@@ -16,6 +16,7 @@ import data
 from board import Board
 from model import Model, Target_vars, Metrics, ModelUtils
 import common
+import tfrecordio
 
 #Command and args-------------------------------------------------------------------
 
@@ -33,6 +34,7 @@ parser.add_argument('-batch-size', help='Expected batch size of the input data, 
 args = vars(parser.parse_args())
 
 (model_variables_prefix, model_config_json) = common.load_model_paths(args)
+data_files = args["data_files"]
 name_scope = args["name_scope"]
 pos_len = args["pos_len"]
 batch_size = args["batch_size"]
@@ -43,34 +45,7 @@ def log(s):
 with open(model_config_json) as f:
   model_config = json.load(f)
 
-num_bin_input_features = Model.get_num_bin_input_features(model_config)
-num_global_input_features = Model.get_num_global_input_features(model_config)
-
-NUM_POLICY_TARGETS = 2
-NUM_GLOBAL_TARGETS = 56
-NUM_VALUE_SPATIAL_TARGETS = 1
-EXTRA_SCORE_DISTR_RADIUS = 60
-BONUS_SCORE_RADIUS = 30
-
 log("Constructing validation input pipe")
-def parse_tf_records_input(serialized_example):
-  example = tf.parse_single_example(serialized_example,raw_input_features)
-  binchwp = tf.decode_raw(example["binchwp"],tf.uint8)
-  ginc = example["ginc"]
-  ptncm = example["ptncm"]
-  gtnc = example["gtnc"]
-  sdn = example["sdn"]
-  sbsn = example["sbsn"]
-  vtnchw = example["vtnchw"]
-  return {
-    "binchwp": tf.reshape(binchwp,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
-    "ginc": tf.reshape(ginc,[batch_size,num_global_input_features]),
-    "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
-    "gtnc": tf.reshape(gtnc,[batch_size,NUM_GLOBAL_TARGETS]),
-    "sdn": tf.reshape(sdn,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
-    "sbsn": tf.reshape(sbsn,[batch_size,BONUS_SCORE_RADIUS*2+1]),
-    "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
-  }
 
 using_tfrecords = False
 using_npz = False
@@ -88,19 +63,12 @@ if using_tfrecords and using_npz:
 if using_tfrecords:
   dataset = tf.data.Dataset.from_tensor_slices(data_files)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
-  dataset = dataset.map(parse_tf_records_input)
+  parse_input = tfrecordio.make_tf_record_parser(model_config,pos_len,batch_size)
+  dataset = dataset.map(parse_input)
   iterator = dataset.make_one_shot_iterator()
   features = iterator.get_next()
 elif using_npz:
-  features = {
-    "binchwp": tf.placeholder(tf.uint8,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
-    "ginc": tf.placeholder(tf.float32,[batch_size,num_global_input_features]),
-    "ptncm": tf.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
-    "gtnc": tf.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
-    "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
-    "sbsn": tf.placeholder(tf.float32,[batch_size,BONUS_SCORE_RADIUS*2+1]),
-    "vtnchw": tf.placeholder(tf.float32,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
-  }
+  features = tfrecordio.make_raw_input_feature_placeholders(model_config,pos_len,batch_size)
 
 
 # Model ----------------------------------------------------------------
@@ -158,7 +126,7 @@ with tf.Session(config=tfconfig) as session:
     if using_tfrecords:
       try:
         while True:
-          results = session.run(fetches)
+          result = session.run(fetches)
           results.append(result)
       except tf.errors.OutOfRangeError:
         pass
@@ -245,5 +213,3 @@ with tf.Session(config=tfconfig) as session:
 
   sys.stdout.flush()
   sys.stderr.flush()
-
-

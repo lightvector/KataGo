@@ -485,7 +485,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   fancyModes.allowResignation = cfg.getBool("allowResignation");
   fancyModes.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
   fancyModes.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, false, fancyModes);
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes);
 
 
   //Done loading!
@@ -518,7 +518,6 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
       if(sigReceived.load())
         break;
 
-      int dataBoardLen = 19; //Doesn't matter, we don't actually write training data
       FinishedGameData* gameData = NULL;
 
       int64_t gameIdx;
@@ -528,7 +527,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
       if(autoMatchPairer->getMatchup(manager, gameIdx, forBot, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
           gameIdx, botSpecB, botSpecW, NULL, NULL, logger,
-          dataBoardLen, dataBoardLen, stopConditions, NULL
+          stopConditions, NULL
         );
       }
 

@@ -89,12 +89,16 @@ struct NNOutput {
   //If not NULL, then this contains a nnXLen*nnYLen-sized map of expected ownership on the board.
   float* whiteOwnerMap;
 
+  //If not NULL, then contains policy with dirichlet noise or any other noise adjustments for this node
+  float* noisedPolicyProbs;
+
   NNOutput(); //Does NOT initialize values
   NNOutput(const NNOutput& other);
   ~NNOutput();
 
   NNOutput& operator=(const NNOutput&);
 
+  inline float* getPolicyProbsMaybeNoised() { return noisedPolicyProbs != NULL ? noisedPolicyProbs : policyProbs; }
   void debugPrint(std::ostream& out, const Board& board);
 };
 

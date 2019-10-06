@@ -9,6 +9,11 @@ from board import Board
 #Feature extraction functions-------------------------------------------------------------------
 
 class Model:
+  # Sizes of the various array targets in the data, used also to size some of the output head dimensions
+  # for auxiliary outputs
+  NUM_POLICY_TARGETS = 2
+  NUM_GLOBAL_TARGETS = 64
+  NUM_VALUE_SPATIAL_TARGETS = 1
   EXTRA_SCORE_DISTR_RADIUS = 60
   BONUS_SCORE_RADIUS = 30
 
@@ -21,7 +26,9 @@ class Model:
   @staticmethod
   def get_num_bin_input_features(config):
     version = Model.get_version(config)
-    if version == 5:
+    if version == 4:
+      return 22
+    elif version == 5:
       return 22
     elif version == 6:
       return 13
@@ -31,7 +38,9 @@ class Model:
   @staticmethod
   def get_num_global_input_features(config):
     version = Model.get_version(config)
-    if version == 5:
+    if version == 4:
+      return 14
+    elif version == 5:
       return 14
     elif version == 6:
       return 12
@@ -170,8 +179,8 @@ class Model:
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
   def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, use_history_prop, idx):
-    #Currently only support v5 features
-    assert(self.version == 5)
+    #Currently only support v4 or v5 features
+    assert(self.version == 4 or self.version == 5)
 
     bsize = board.size
     assert(self.pos_len >= bsize)
@@ -280,6 +289,9 @@ class Model:
       nonPassAliveStones = False
       safeBigTerritories = True
       unsafeBigTerritories = False
+      if self.version == 4:
+        nonPassAliveStones = True
+        unsafeBigTerritories = True
       board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
     elif rules["scoringRule"] == "SCORING_TERRITORY":
       nonPassAliveStones = False
@@ -714,8 +726,8 @@ class Model:
     #self.version = 6 #V5 features, most higher-level go features removed
 
     self.version = Model.get_version(config)
-    #These are the only two supported versions
-    assert(self.version == 5 or self.version == 6)
+    #These are the only three supported versions
+    assert(self.version == 4 or self.version == 5 or self.version == 6)
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
@@ -773,7 +785,7 @@ class Model:
     #We do this by building a matrix for each batch element, mapping input channels to possibly-turned off channels.
     #This matrix is a sum of hist_matrix_base which always turns off all the channels, and h0, h1, h2,... which perform
     #the modifications to hist_matrix_base to make it turn on channels based on whether we have move0, move1,...
-    if self.version == 5:
+    if self.version == 4 or self.version == 5:
       hist_matrix_base = np.diag(np.array([
         1.0, #0
         1.0, #1
@@ -1052,7 +1064,7 @@ class Model:
     scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
     assert(scorebelief_len == self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2)
 
-    if self.version == 5:
+    if self.version == 4 or self.version == 5:
       self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
       self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
       sbv2_size = config["sbv2_num_channels"]
@@ -1560,5 +1572,3 @@ class ModelUtils:
         trainlog("Supporting japanese rules: " + str(model.support_japanese_rules))
 
       return (model,target_vars,metrics,global_step,global_step_float,per_sample_learning_rate,train_step)
-
-

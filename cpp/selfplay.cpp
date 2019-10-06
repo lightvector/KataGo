@@ -49,6 +49,8 @@ namespace {
     int numGameThreads;
     bool isDraining;
 
+    std::condition_variable noGameThreadsLeftVar;
+
     TrainingDataWriter* tdataWriter;
     TrainingDataWriter* vdataWriter;
     ofstream* sgfOut;
@@ -97,8 +99,10 @@ namespace {
 
         FinishedGameData* data;
         bool suc = finishedGameQueue.waitPop(data);
-        if(!suc || data == NULL)
+        if(!suc)
           break;
+
+        assert(data != NULL);
 
         if(rand.nextBool(validationProp))
           vdataWriter->writeGame(*data);
@@ -130,6 +134,8 @@ namespace {
     //Game threads finishing a game using this net call this
     void unregisterGameThread() {
       numGameThreads--;
+      if(numGameThreads <= 0)
+        noGameThreadsLeftVar.notify_all();
     }
 
     //NOT threadsafe - needs to be externally synchronized
@@ -218,7 +224,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
 
   //Initialize object for randomizing game settings and running games
-  bool forSelfPlay = true;
   FancyModes fancyModes;
   fancyModes.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   fancyModes.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
@@ -241,7 +246,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.recordTreePositions = cfg.getBool("recordTreePositions");
   fancyModes.recordTreeThreshold = cfg.getInt("recordTreeThreshold",1,100000000);
   fancyModes.recordTreeTargetWeight = cfg.getFloat("recordTreeTargetWeight",0.0f,1.0f);
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay, fancyModes);
+  fancyModes.forSelfPlay = true;
+  fancyModes.dataXLen = dataBoardLen;
+  fancyModes.dataYLen = dataBoardLen;
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes);
 
   Setup::initializeSession(cfg);
 
@@ -268,6 +276,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     logger.write("Data write loop finishing for neural net: " + netAndStuff->modelName);
 
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
+
+    //Wait for all threads to be completely done with it
+    while(netAndStuff->numGameThreads > 0)
+      netAndStuff->noGameThreadsLeftVar.wait(lock);
 
     //Find where our netAndStuff is and remove it
     string name = netAndStuff->modelName;
@@ -404,7 +416,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     &gameRunner,
     &logger,
     &netAndStuffsMutex,&netAndStuffs,
-    dataBoardLen,
     switchNetsMidGame,
     &fancyModes
   ](int threadIdx) {
@@ -431,8 +442,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       //Callback that runGame will call periodically to ask us if we have a new neural net
       std::function<NNEvaluator*()> checkForNewNNEval = [&netAndStuff,&netAndStuffs,&lock,&prevModelName,&logger,&threadIdx]() -> NNEvaluator* {
         lock.lock();
+        assert(netAndStuffs.size() > 0);
         NetAndStuff* newNetAndStuff = netAndStuffs[netAndStuffs.size()-1];
-        if(newNetAndStuff == netAndStuff) {
+        //Do nothing if there is no new net... or if there IS a new net but actually that net is draining for whatever reason
+        //(in the latter case, most likely everyone is quitting out right now, and we will notice and quit soon too)
+        if(newNetAndStuff == netAndStuff || newNetAndStuff->isDraining) {
           lock.unlock();
           return NULL;
         }
@@ -457,7 +471,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
           gameIdx, botSpecB, botSpecW, initialPosition, &nextInitialPosition, logger,
-          dataBoardLen, dataBoardLen, stopConditions,
+          stopConditions,
           (switchNetsMidGame ? &checkForNewNNEval : NULL)
         );
       }
