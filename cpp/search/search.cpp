@@ -892,20 +892,14 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
   }
 }
 
-
+//TODO maybe add some tests for this too?
+//If we're being asked to search from a position where the game is over, this is fine. Just keep going, the boardhistory
+//should reasonably tolerate just continuing. We do NOT want to clear history because we could inadvertently make a move
+//that an external ruleset COULD think violated superko.
 void Search::beginSearch(Logger& logger) {
   if(rootBoard.x_size > nnXLen || rootBoard.y_size > nnYLen)
     throw StringError("Search got from NNEval nnXLen = " + Global::intToString(nnXLen) +
                       " nnYLen = " + Global::intToString(nnYLen) + " but was asked to search board with larger x or y size");
-
-  //If we're being asked to search from a position where the game is over, clear all the history state that had us
-  //believe the game was over and do a normal search
-  if(rootHistory.isGameFinished) {
-    clearSearch();
-    Rules rules = rootHistory.rules;
-    rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
-    rootKoHashTable->recompute(rootHistory);
-  }
 
   rootBoard.checkConsistency();
 
@@ -1719,6 +1713,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
 
 //Recompute all the stats of this node based on its children, except its visits and virtual losses, which are not child-dependent and
 //are updated in the manner specified.
+//Assumes this node has an nnOutput
 void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot) {
   //Find all children and compute weighting of the children based on their values
   vector<double>& weightFactors = thread.weightFactorBuf;
