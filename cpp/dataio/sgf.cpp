@@ -980,11 +980,13 @@ void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
 }
 
 void WriteSgf::writeSgf(
-  ostream& out, const string& bName, const string& wName, const Rules& rules,
-  const BoardHistory& hist,
+  ostream& out, const string& bName, const string& wName,
+  const BoardHistory& endHist,
   const FinishedGameData* gameData
 ) {
-  const Board& initialBoard = hist.initialBoard;
+  const Board& initialBoard = endHist.initialBoard;
+  const Rules& rules = endHist.rules;
+
   int xSize = initialBoard.x_size;
   int ySize = initialBoard.y_size;
   out << "(;FF[4]GM[1]";
@@ -1012,7 +1014,7 @@ void WriteSgf::writeSgf(
   out << "HA[" << handicap << "]";
   out << "KM[" << rules.komi << "]";
   out << "RU[" << rules.toStringNoKomi() << "]";
-  printGameResult(out,hist);
+  printGameResult(out,endHist);
 
   bool hasAB = false;
   for(int y = 0; y<ySize; y++) {
@@ -1047,7 +1049,7 @@ void WriteSgf::writeSgf(
   }
 
   int startTurnIdx = 0;
-  if(gameData != NULL) {
+  if(gameData != NULL && gameData->hasFullData) {
     startTurnIdx = gameData->startHist.moveHistory.size();
     out << "C[startTurnIdx=" << startTurnIdx
         << "," << "mode=" << gameData->mode
@@ -1058,20 +1060,43 @@ void WriteSgf::writeSgf(
           << "=" << gameData->changedNeuralNets[j]->name;
     }
     out << "]";
-    assert(hist.moveHistory.size() - startTurnIdx <= gameData->whiteValueTargetsByTurn.size());
+    assert(endHist.moveHistory.size() - startTurnIdx <= gameData->whiteValueTargetsByTurn.size());
   }
 
-  for(size_t i = 0; i<hist.moveHistory.size(); i++) {
-    if(hist.moveHistory[i].pla == P_BLACK)
-      out << ";B[";
+  string comment;
+  Board board(initialBoard);
+  BoardHistory hist(board,endHist.initialPla,endHist.rules,endHist.initialEncorePhase);
+  for(size_t i = 0; i<endHist.moveHistory.size(); i++) {
+    comment.clear();
+    out << ";";
+
+    Loc loc = endHist.moveHistory[i].loc;
+    Player pla = endHist.moveHistory[i].pla;
+
+    if(pla == P_BLACK)
+      out << "B[";
     else
-      out << ";W[";
-    writeSgfLoc(out,hist.moveHistory[i].loc,xSize,ySize);
+      out << "W[";
+
+    bool isPassForKo = hist.isPassForKo(board,loc,pla);
+    if(isPassForKo)
+      writeSgfLoc(out,Board::PASS_LOC,xSize,ySize);
+    else
+      writeSgfLoc(out,loc,xSize,ySize);
     out << "]";
 
-    if(gameData != NULL) {
-      if(i >= startTurnIdx) {
-        const ValueTargets& targets = gameData->whiteValueTargetsByTurn[i-startTurnIdx];
+    if(isPassForKo) {
+      out << "TR[";
+      writeSgfLoc(out,loc,xSize,ySize);
+      out << "]";
+      comment += "Pass for ko";
+    }
+
+    if(gameData != NULL && i >= startTurnIdx) {
+      if(gameData->hasFullData) {
+        int turnAfterStart = i-startTurnIdx;
+        assert(turnAfterStart < gameData->whiteValueTargetsByTurn.size());
+        const ValueTargets& targets = gameData->whiteValueTargetsByTurn[turnAfterStart];
         char winBuf[32];
         char lossBuf[32];
         char noResultBuf[32];
@@ -1080,13 +1105,23 @@ void WriteSgf::writeSgf(
         sprintf(lossBuf,"%.2f",targets.loss);
         sprintf(noResultBuf,"%.2f",targets.noResult);
         sprintf(scoreBuf,"%.1f",targets.score);
-        out << "C["
-            << winBuf << " "
-            << lossBuf << " "
-            << noResultBuf << " "
-            << scoreBuf << "]";
+        if(comment.length() > 0)
+          comment += " ";
+        comment += winBuf;
+        comment += " ";
+        comment += lossBuf;
+        comment += " ";
+        comment += noResultBuf;
+        comment += " ";
+        comment += scoreBuf;
       }
     }
+
+    if(comment.length() > 0)
+      out << "C[" << comment << "]";
+
+    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+
   }
   out << ")";
 }

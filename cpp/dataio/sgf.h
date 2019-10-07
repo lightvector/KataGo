@@ -139,8 +139,8 @@ namespace WriteSgf {
   //indicate the index of the first turn that should be used for training data. (0 means the whole SGF, 1 means skipping black's first move, etc).
   //If valueTargets is not NULL, also write down after each move the MCTS values following that search move.
   void writeSgf(
-    std::ostream& out, const std::string& bName, const std::string& wName, const Rules& rules,
-    const BoardHistory& hist,
+    std::ostream& out, const std::string& bName, const std::string& wName,
+    const BoardHistory& endHist,
     const FinishedGameData* gameData
   );
 

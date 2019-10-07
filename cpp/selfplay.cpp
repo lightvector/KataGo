@@ -111,7 +111,7 @@ namespace {
 
         if(sgfOut != NULL) {
           assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
-          WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->startHist.rules,data->endHist,data);
+          WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->endHist,data);
           (*sgfOut) << endl;
         }
         delete data;

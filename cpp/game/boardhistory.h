@@ -25,6 +25,7 @@ struct BoardHistory {
   //The board and player to move as of the very start, before moveHistory.
   Board initialBoard;
   Player initialPla;
+  int initialEncorePhase;
   //The "turn number" as of the initial board. Does not affect any rules, but possibly uses may
   //care about this number, for cases where we set up a position from midgame.
   int initialTurnNumber;
@@ -102,6 +103,8 @@ struct BoardHistory {
   bool isLegal(const Board& board, Loc moveLoc, Player movePla) const;
   //Check if passing right now would end the current phase of play
   bool passWouldEndPhase(const Board& board, Player movePla) const;
+  //Check if the specified move is a pass-for-ko encore move.
+  bool isPassForKo(const Board& board, Loc moveLoc, Player movePla) const;
 
   //For all of the below, rootKoHashTable is optional and if provided will slightly speedup superko searches
   //This function should behave gracefully so long as it is pseudolegal (board.isLegal, but also still ok if the move is on board.ko_loc)

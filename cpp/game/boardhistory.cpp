@@ -30,6 +30,7 @@ BoardHistory::BoardHistory()
    koHistoryLastClearedBeginningMoveIdx(0),
    initialBoard(),
    initialPla(P_BLACK),
+   initialEncorePhase(0),
    initialTurnNumber(0),
    recentBoards(),
    currentRecentBoardIdx(0),
@@ -57,6 +58,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    koHistoryLastClearedBeginningMoveIdx(0),
    initialBoard(),
    initialPla(),
+   initialEncorePhase(0),
    initialTurnNumber(0),
    recentBoards(),
    currentRecentBoardIdx(0),
@@ -83,6 +85,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
    initialBoard(other.initialBoard),
    initialPla(other.initialPla),
+   initialEncorePhase(other.initialEncorePhase),
    initialTurnNumber(other.initialTurnNumber),
    recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
@@ -113,6 +116,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
+  initialEncorePhase = other.initialEncorePhase;
   initialTurnNumber = other.initialTurnNumber;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
@@ -143,6 +147,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
   initialBoard(other.initialBoard),
   initialPla(other.initialPla),
+  initialEncorePhase(other.initialEncorePhase),
   initialTurnNumber(other.initialTurnNumber),
   recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
@@ -170,6 +175,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
+  initialEncorePhase = other.initialEncorePhase;
   initialTurnNumber = other.initialTurnNumber;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
@@ -202,6 +208,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
   initialBoard = board;
   initialPla = pla;
+  initialEncorePhase = ePhase;
   initialTurnNumber = 0;
 
   //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
@@ -570,6 +577,16 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
     return false;
 
   return true;
+}
+
+bool BoardHistory::isPassForKo(const Board& board, Loc moveLoc, Player movePla) const {
+  if(encorePhase > 0 && moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC) {
+    if((movePla == P_BLACK && blackKoProhibited[moveLoc] && board.wouldBeKoCapture(moveLoc,P_BLACK)) ||
+       (movePla == P_WHITE && whiteKoProhibited[moveLoc] && board.wouldBeKoCapture(moveLoc,P_WHITE))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 //Return the number of consecutive game-ending passes there would be if this move was made.

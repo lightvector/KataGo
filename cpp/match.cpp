@@ -204,7 +204,7 @@ int MainCmds::match(int argc, const char* const* argv) {
       bool shouldContinue = gameData != NULL;
       if(gameData != NULL) {
         if(sgfOut != NULL) {
-          WriteSgf::writeSgf(*sgfOut,gameData->bName,gameData->wName,gameData->startHist.rules,gameData->endHist,NULL);
+          WriteSgf::writeSgf(*sgfOut,gameData->bName,gameData->wName,gameData->endHist,gameData);
           (*sgfOut) << endl;
         }
         delete gameData;

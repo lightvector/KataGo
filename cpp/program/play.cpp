@@ -1464,7 +1464,7 @@ void Play::maybeForkGame(
 
   Board board = finishedGameData->startHist.initialBoard;
   Player pla = finishedGameData->startHist.initialPla;
-  BoardHistory hist(board,pla,finishedGameData->startHist.rules,finishedGameData->startHist.encorePhase);
+  BoardHistory hist(board,pla,finishedGameData->startHist.rules,finishedGameData->startHist.initialEncorePhase);
 
   //Pick a random move to fork from near the start
   int moveIdx = (int)floor(gameRand.nextExponential() * (fancyModes.earlyForkGameExpectedMoveProp * board.x_size * board.y_size));
