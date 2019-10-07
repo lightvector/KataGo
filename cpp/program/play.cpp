@@ -529,6 +529,7 @@ static double getWhiteScoreEstimate(Search* bot, const Board& board, const Board
   newParams.rootNoiseEnabled = false;
   newParams.rootFpuReductionMax = newParams.fpuReductionMax;
   newParams.rootFpuLossProp = newParams.fpuLossProp;
+  newParams.rootDesiredPerChildVisitsCoeff = 0.0;
 
   bot->setParams(newParams);
   bot->setPosition(pla,board,hist);
