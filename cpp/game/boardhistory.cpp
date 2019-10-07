@@ -652,6 +652,13 @@ bool BoardHistory::passWouldEndPhase(const Board& board, Player movePla) const {
   return false;
 }
 
+bool BoardHistory::passWouldEndGame(const Board& board, Player movePla) const {
+  return passWouldEndPhase(board,movePla) && (
+    rules.scoringRule == Rules::SCORING_AREA
+    || (rules.scoringRule == Rules::SCORING_TERRITORY && encorePhase >= 2)
+  );
+}
+
 void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable) {
   Loc koLocBeforeMove = board.ko_loc;
   Hash128 posHashBeforeMove = board.pos_hash;

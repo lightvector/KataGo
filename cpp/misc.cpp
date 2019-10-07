@@ -308,8 +308,9 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
           wasSpecified = false;
           Search* search = bot->getSearch();
           NNResultBuf buf;
-          double drawEquivalentWinsForWhite = search->searchParams.drawEquivalentWinsForWhite;
-          search->nnEvaluator->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
+          MiscNNInputParams nnInputParams;
+          nnInputParams.drawEquivalentWinsForWhite = search->searchParams.drawEquivalentWinsForWhite;
+          search->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,NULL,false,false);
           std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
           double temperature = 0.8;

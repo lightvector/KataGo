@@ -603,8 +603,9 @@ void Play::playExtraBlack(
 
   NNResultBuf buf;
   for(int i = 0; i<extraBlackAndKomi.extraBlack; i++) {
-    double drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
-    bot->nnEvaluator->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
+    MiscNNInputParams nnInputParams;
+    nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
+    bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,NULL,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
     bool allowPass = false;
@@ -869,8 +870,9 @@ static void recordTreePositions(
 
 static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf, Rand& gameRand) {
   NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
-  double drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
-  nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
+  MiscNNInputParams nnInputParams;
+  nnInputParams.drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
+  nnEval->evaluate(board,hist,pla,nnInputParams,buf,NULL,false,false);
   std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
   vector<Loc> locs;
@@ -1417,8 +1419,10 @@ FinishedGameData* Play::runGame(
           delete sp2;
         else {
           Search* toMoveBot2 = sp2->pla == P_BLACK ? botB : botW;
+          MiscNNInputParams nnInputParams;
+          nnInputParams.drawEquivalentWinsForWhite = toMoveBot2->searchParams.drawEquivalentWinsForWhite;
           toMoveBot2->nnEvaluator->evaluate(
-            sp2->board,sp2->hist,sp2->pla,toMoveBot2->searchParams.drawEquivalentWinsForWhite,
+            sp2->board,sp2->hist,sp2->pla,nnInputParams,
             nnResultBuf,NULL,false,false
           );
           Loc banMove = Board::NULL_LOC;
@@ -1514,7 +1518,9 @@ void Play::maybeForkGame(
     Board copy = board;
     BoardHistory copyHist = hist;
     copyHist.makeBoardMoveAssumeLegal(copy,loc,pla,NULL);
-    bot->nnEvaluator->evaluate(copy,copyHist,getOpp(pla),drawEquivalentWinsForWhite,buf,NULL,false,false);
+    MiscNNInputParams nnInputParams;
+    nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+    bot->nnEvaluator->evaluate(copy,copyHist,getOpp(pla),nnInputParams,buf,NULL,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
     double whiteScore = nnOutput->whiteScoreMean;
     if(bestMove == Board::NULL_LOC || (pla == P_WHITE && whiteScore > bestScore) || (pla == P_BLACK && whiteScore < bestScore)) {

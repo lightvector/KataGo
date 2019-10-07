@@ -477,7 +477,7 @@ static void iterLadders(const Board& board, int nnXLen, std::function<void(Loc,i
 //Currently does NOT depend on history (except for marking ko-illegal spots)
 Hash128 NNInputs::getHashV3(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
-  double drawEquivalentWinsForWhite
+  const MiscNNInputParams& nnInputParams
 ) {
   int xSize = board.x_size;
   int ySize = board.y_size;
@@ -514,7 +514,7 @@ Hash128 NNInputs::getHashV3(
     }
   }
 
-  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
 
   //Discretize the komi for the purpose of matching hash, so that extremely close effective komi we just reuse nn cache hits
   int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
@@ -539,7 +539,8 @@ Hash128 NNInputs::getHashV3(
 
 void NNInputs::fillRowV3(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
-  double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+  const MiscNNInputParams& nnInputParams,
+  int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
 ) {
   assert(nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen <= NNPos::MAX_BOARD_LEN);
@@ -622,48 +623,54 @@ void NNInputs::fillRowV3(
     }
   }
 
+  //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
+  //Or if the game is in fact over right now!
+  bool hideHistory = hist.isGameFinished || (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
+
   //Features 9,10,11,12,13
-  const vector<Move>& moveHistory = hist.moveHistory;
-  size_t moveHistoryLen = moveHistory.size();
-  if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
-    Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
-    if(prev1Loc == Board::PASS_LOC)
-      rowGlobal[0] = 1.0;
-    else if(prev1Loc != Board::NULL_LOC) {
-      int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
-      setRowBinV3(rowBin,pos,9, 1.0f, posStride, featureStride);
-    }
-    if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
-      Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
-      if(prev2Loc == Board::PASS_LOC)
-        rowGlobal[1] = 1.0;
-      else if(prev2Loc != Board::NULL_LOC) {
-        int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
-        setRowBinV3(rowBin,pos,10, 1.0f, posStride, featureStride);
+  if(!hideHistory) {
+    const vector<Move>& moveHistory = hist.moveHistory;
+    size_t moveHistoryLen = moveHistory.size();
+    if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
+      Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
+      if(prev1Loc == Board::PASS_LOC)
+        rowGlobal[0] = 1.0;
+      else if(prev1Loc != Board::NULL_LOC) {
+        int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
+        setRowBinV3(rowBin,pos,9, 1.0f, posStride, featureStride);
       }
-      if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
-        Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
-        if(prev3Loc == Board::PASS_LOC)
-          rowGlobal[2] = 1.0;
-        else if(prev3Loc != Board::NULL_LOC) {
-          int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
-          setRowBinV3(rowBin,pos,11, 1.0f, posStride, featureStride);
+      if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
+        Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
+        if(prev2Loc == Board::PASS_LOC)
+          rowGlobal[1] = 1.0;
+        else if(prev2Loc != Board::NULL_LOC) {
+          int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
+          setRowBinV3(rowBin,pos,10, 1.0f, posStride, featureStride);
         }
-        if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
-          Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
-          if(prev4Loc == Board::PASS_LOC)
-            rowGlobal[3] = 1.0;
-          else if(prev4Loc != Board::NULL_LOC) {
-            int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
-            setRowBinV3(rowBin,pos,12, 1.0f, posStride, featureStride);
+        if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
+          Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
+          if(prev3Loc == Board::PASS_LOC)
+            rowGlobal[2] = 1.0;
+          else if(prev3Loc != Board::NULL_LOC) {
+            int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
+            setRowBinV3(rowBin,pos,11, 1.0f, posStride, featureStride);
           }
-          if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
-            Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
-            if(prev5Loc == Board::PASS_LOC)
-              rowGlobal[4] = 1.0;
-            else if(prev5Loc != Board::NULL_LOC) {
-              int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
-              setRowBinV3(rowBin,pos,13, 1.0f, posStride, featureStride);
+          if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
+            Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
+            if(prev4Loc == Board::PASS_LOC)
+              rowGlobal[3] = 1.0;
+            else if(prev4Loc != Board::NULL_LOC) {
+              int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
+              setRowBinV3(rowBin,pos,12, 1.0f, posStride, featureStride);
+            }
+            if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
+              Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
+              if(prev5Loc == Board::PASS_LOC)
+                rowGlobal[4] = 1.0;
+              else if(prev5Loc != Board::NULL_LOC) {
+                int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
+                setRowBinV3(rowBin,pos,13, 1.0f, posStride, featureStride);
+              }
             }
           }
         }
@@ -686,7 +693,7 @@ void NNInputs::fillRowV3(
 
   iterLadders(board, nnXLen, addLadderFeature);
 
-  const Board& prevBoard = hist.getRecentBoard(1);
+  const Board& prevBoard = hideHistory ? board : hist.getRecentBoard(1);
   auto addPrevLadderFeature = [&prevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -696,7 +703,7 @@ void NNInputs::fillRowV3(
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
-  const Board& prevPrevBoard = hist.getRecentBoard(2);
+  const Board& prevPrevBoard = hideHistory ? board : hist.getRecentBoard(2);
   auto addPrevPrevLadderFeature = [&prevPrevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -758,7 +765,7 @@ void NNInputs::fillRowV3(
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
 
   //Komi and any score adjustments
-  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
   float bArea = xSize * ySize;
   //Bound komi just in case
   if(selfKomi > bArea+1.0f)
@@ -798,7 +805,7 @@ void NNInputs::fillRowV3(
     rowGlobal[11] = 1.0f;
 
   //Does a pass end the current phase given the ruleset and history?
-  bool passWouldEndPhase = hist.passWouldEndPhase(board,nextPlayer);
+  bool passWouldEndPhase = hideHistory ? false : hist.passWouldEndPhase(board,nextPlayer);
   rowGlobal[12] = passWouldEndPhase ? 1.0f : 0.0f;
 
   //Provide parity information about the board size and komi
@@ -876,7 +883,7 @@ void NNInputs::fillRowV3(
 //Currently does NOT depend on history (except for marking ko-illegal spots)
 Hash128 NNInputs::getHashV4(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
-  double drawEquivalentWinsForWhite
+  const MiscNNInputParams& nnInputParams
 ) {
   int xSize = board.x_size;
   int ySize = board.y_size;
@@ -913,7 +920,7 @@ Hash128 NNInputs::getHashV4(
     }
   }
 
-  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
 
   //Discretize the komi for the purpose of matching hash, so that extremely close effective komi we just reuse nn cache hits
   int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
@@ -938,7 +945,8 @@ Hash128 NNInputs::getHashV4(
 
 void NNInputs::fillRowV4(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
-  double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+  const MiscNNInputParams& nnInputParams,
+  int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
 ) {
   assert(nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen <= NNPos::MAX_BOARD_LEN);
@@ -1021,48 +1029,53 @@ void NNInputs::fillRowV4(
     }
   }
 
+  //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
+  bool hideHistory = hist.isGameFinished || (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
+
   //Features 9,10,11,12,13
-  const vector<Move>& moveHistory = hist.moveHistory;
-  size_t moveHistoryLen = moveHistory.size();
-  if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
-    Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
-    if(prev1Loc == Board::PASS_LOC)
-      rowGlobal[0] = 1.0;
-    else if(prev1Loc != Board::NULL_LOC) {
-      int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
-      setRowBinV4(rowBin,pos,9, 1.0f, posStride, featureStride);
-    }
-    if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
-      Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
-      if(prev2Loc == Board::PASS_LOC)
-        rowGlobal[1] = 1.0;
-      else if(prev2Loc != Board::NULL_LOC) {
-        int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
-        setRowBinV4(rowBin,pos,10, 1.0f, posStride, featureStride);
+  if(!hideHistory) {
+    const vector<Move>& moveHistory = hist.moveHistory;
+    size_t moveHistoryLen = moveHistory.size();
+    if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
+      Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
+      if(prev1Loc == Board::PASS_LOC)
+        rowGlobal[0] = 1.0;
+      else if(prev1Loc != Board::NULL_LOC) {
+        int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
+        setRowBinV4(rowBin,pos,9, 1.0f, posStride, featureStride);
       }
-      if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
-        Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
-        if(prev3Loc == Board::PASS_LOC)
-          rowGlobal[2] = 1.0;
-        else if(prev3Loc != Board::NULL_LOC) {
-          int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
-          setRowBinV4(rowBin,pos,11, 1.0f, posStride, featureStride);
+      if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
+        Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
+        if(prev2Loc == Board::PASS_LOC)
+          rowGlobal[1] = 1.0;
+        else if(prev2Loc != Board::NULL_LOC) {
+          int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
+          setRowBinV4(rowBin,pos,10, 1.0f, posStride, featureStride);
         }
-        if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
-          Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
-          if(prev4Loc == Board::PASS_LOC)
-            rowGlobal[3] = 1.0;
-          else if(prev4Loc != Board::NULL_LOC) {
-            int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
-            setRowBinV4(rowBin,pos,12, 1.0f, posStride, featureStride);
+        if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
+          Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
+          if(prev3Loc == Board::PASS_LOC)
+            rowGlobal[2] = 1.0;
+          else if(prev3Loc != Board::NULL_LOC) {
+            int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
+            setRowBinV4(rowBin,pos,11, 1.0f, posStride, featureStride);
           }
-          if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
-            Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
-            if(prev5Loc == Board::PASS_LOC)
-              rowGlobal[4] = 1.0;
-            else if(prev5Loc != Board::NULL_LOC) {
-              int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
-              setRowBinV4(rowBin,pos,13, 1.0f, posStride, featureStride);
+          if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
+            Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
+            if(prev4Loc == Board::PASS_LOC)
+              rowGlobal[3] = 1.0;
+            else if(prev4Loc != Board::NULL_LOC) {
+              int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
+              setRowBinV4(rowBin,pos,12, 1.0f, posStride, featureStride);
+            }
+            if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
+              Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
+              if(prev5Loc == Board::PASS_LOC)
+                rowGlobal[4] = 1.0;
+              else if(prev5Loc != Board::NULL_LOC) {
+                int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
+                setRowBinV4(rowBin,pos,13, 1.0f, posStride, featureStride);
+              }
             }
           }
         }
@@ -1085,7 +1098,7 @@ void NNInputs::fillRowV4(
 
   iterLadders(board, nnXLen, addLadderFeature);
 
-  const Board& prevBoard = hist.getRecentBoard(1);
+  const Board& prevBoard = hideHistory ? board : hist.getRecentBoard(1);
   auto addPrevLadderFeature = [&prevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -1095,7 +1108,7 @@ void NNInputs::fillRowV4(
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
-  const Board& prevPrevBoard = hist.getRecentBoard(2);
+  const Board& prevPrevBoard = hideHistory ? board : hist.getRecentBoard(2);
   auto addPrevPrevLadderFeature = [&prevPrevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
     (void)workingMoves;
     (void)loc;
@@ -1146,7 +1159,7 @@ void NNInputs::fillRowV4(
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
 
   //Komi and any score adjustments
-  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
   float bArea = xSize * ySize;
   //Bound komi just in case
   if(selfKomi > bArea+1.0f)
@@ -1186,7 +1199,7 @@ void NNInputs::fillRowV4(
     rowGlobal[11] = 1.0f;
 
   //Does a pass end the current phase given the ruleset and history?
-  bool passWouldEndPhase = hist.passWouldEndPhase(board,nextPlayer);
+  bool passWouldEndPhase = hideHistory ? false : hist.passWouldEndPhase(board,nextPlayer);
   rowGlobal[12] = passWouldEndPhase ? 1.0f : 0.0f;
 
   //Provide parity information about the board size and komi
@@ -1265,7 +1278,7 @@ void NNInputs::fillRowV4(
 //Currently does NOT depend on history (except for marking ko-illegal spots)
 Hash128 NNInputs::getHashV5(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
-  double drawEquivalentWinsForWhite
+  const MiscNNInputParams& nnInputParams
 ) {
   int xSize = board.x_size;
   int ySize = board.y_size;
@@ -1302,7 +1315,7 @@ Hash128 NNInputs::getHashV5(
     }
   }
 
-  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
 
   //Discretize the komi for the purpose of matching hash, so that extremely close effective komi we just reuse nn cache hits
   int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
@@ -1327,7 +1340,8 @@ Hash128 NNInputs::getHashV5(
 
 void NNInputs::fillRowV5(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
-  double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+  const MiscNNInputParams& nnInputParams,
+  int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
 ) {
   assert(nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen <= NNPos::MAX_BOARD_LEN);
@@ -1402,48 +1416,53 @@ void NNInputs::fillRowV5(
     }
   }
 
+  //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
+  bool hideHistory = hist.isGameFinished || (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
+
   //Features 6,7,8,9,10
-  const vector<Move>& moveHistory = hist.moveHistory;
-  size_t moveHistoryLen = moveHistory.size();
-  if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
-    Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
-    if(prev1Loc == Board::PASS_LOC)
-      rowGlobal[0] = 1.0;
-    else if(prev1Loc != Board::NULL_LOC) {
-      int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
-      setRowBinV5(rowBin,pos,6, 1.0f, posStride, featureStride);
-    }
-    if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
-      Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
-      if(prev2Loc == Board::PASS_LOC)
-        rowGlobal[1] = 1.0;
-      else if(prev2Loc != Board::NULL_LOC) {
-        int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
-        setRowBinV5(rowBin,pos,7, 1.0f, posStride, featureStride);
+  if(!hideHistory) {
+    const vector<Move>& moveHistory = hist.moveHistory;
+    size_t moveHistoryLen = moveHistory.size();
+    if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
+      Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
+      if(prev1Loc == Board::PASS_LOC)
+        rowGlobal[0] = 1.0;
+      else if(prev1Loc != Board::NULL_LOC) {
+        int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
+        setRowBinV5(rowBin,pos,6, 1.0f, posStride, featureStride);
       }
-      if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
-        Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
-        if(prev3Loc == Board::PASS_LOC)
-          rowGlobal[2] = 1.0;
-        else if(prev3Loc != Board::NULL_LOC) {
-          int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
-          setRowBinV5(rowBin,pos,8, 1.0f, posStride, featureStride);
+      if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
+        Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
+        if(prev2Loc == Board::PASS_LOC)
+          rowGlobal[1] = 1.0;
+        else if(prev2Loc != Board::NULL_LOC) {
+          int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
+          setRowBinV5(rowBin,pos,7, 1.0f, posStride, featureStride);
         }
-        if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
-          Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
-          if(prev4Loc == Board::PASS_LOC)
-            rowGlobal[3] = 1.0;
-          else if(prev4Loc != Board::NULL_LOC) {
-            int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
-            setRowBinV5(rowBin,pos,9, 1.0f, posStride, featureStride);
+        if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
+          Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
+          if(prev3Loc == Board::PASS_LOC)
+            rowGlobal[2] = 1.0;
+          else if(prev3Loc != Board::NULL_LOC) {
+            int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
+            setRowBinV5(rowBin,pos,8, 1.0f, posStride, featureStride);
           }
-          if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
-            Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
-            if(prev5Loc == Board::PASS_LOC)
-              rowGlobal[4] = 1.0;
-            else if(prev5Loc != Board::NULL_LOC) {
-              int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
-              setRowBinV5(rowBin,pos,10, 1.0f, posStride, featureStride);
+          if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
+            Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
+            if(prev4Loc == Board::PASS_LOC)
+              rowGlobal[3] = 1.0;
+            else if(prev4Loc != Board::NULL_LOC) {
+              int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
+              setRowBinV5(rowBin,pos,9, 1.0f, posStride, featureStride);
+            }
+            if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
+              Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
+              if(prev5Loc == Board::PASS_LOC)
+                rowGlobal[4] = 1.0;
+              else if(prev5Loc != Board::NULL_LOC) {
+                int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
+                setRowBinV5(rowBin,pos,10, 1.0f, posStride, featureStride);
+              }
             }
           }
         }
@@ -1470,7 +1489,7 @@ void NNInputs::fillRowV5(
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
 
   //Komi and any score adjustments
-  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
   float bArea = xSize * ySize;
   //Bound komi just in case
   if(selfKomi > bArea+1.0f)

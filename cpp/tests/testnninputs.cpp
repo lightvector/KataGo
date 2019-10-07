@@ -125,18 +125,21 @@ void Tests::runNNInputsV3V4Tests() {
   auto fillRows = [](int version, Hash128& hash,
                      Board& board, const BoardHistory& hist, Player nextPla, double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool inputsUseNHWC,
                      float* rowBin, float* rowGlobal) {
+    MiscNNInputParams nnInputParams;
+    nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+
     static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
     if(version == 3) {
-      hash = NNInputs::getHashV3(board,hist,nextPla,drawEquivalentWinsForWhite);
-      NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+      hash = NNInputs::getHashV3(board,hist,nextPla,nnInputParams);
+      NNInputs::fillRowV3(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
     }
     else if(version == 4) {
-      hash = NNInputs::getHashV4(board,hist,nextPla,drawEquivalentWinsForWhite);
-      NNInputs::fillRowV4(board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+      hash = NNInputs::getHashV4(board,hist,nextPla,nnInputParams);
+      NNInputs::fillRowV4(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
     }
     else if(version == 5) {
-      hash = NNInputs::getHashV5(board,hist,nextPla,drawEquivalentWinsForWhite);
-      NNInputs::fillRowV5(board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+      hash = NNInputs::getHashV5(board,hist,nextPla,nnInputParams);
+      NNInputs::fillRowV5(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
     }
     else
       testAssert(false);

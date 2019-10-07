@@ -1074,9 +1074,13 @@ void Search::computeRootValues(Logger& logger) {
   NNResultBuf nnResultBuf;
   bool skipCache = false;
   bool includeOwnerMap = true;
+  bool isRoot = true;
+  MiscNNInputParams nnInputParams;
+  nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
+  nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
   nnEvaluator->evaluate(
     board, hist, rootPla,
-    searchParams.drawEquivalentWinsForWhite,
+    nnInputParams,
     nnResultBuf, &logger, skipCache, includeOwnerMap
   );
   double expectedScore = nnResultBuf.result->whiteScoreMean;
@@ -1912,13 +1916,18 @@ void Search::initNodeNNOutput(
   bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
 ) {
   bool includeOwnerMap = isRoot || alwaysIncludeOwnerMap;
+  MiscNNInputParams nnInputParams;
+  nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
+  //TODO this is yet another condition for which we need to recompute the root
+  nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
   nnEvaluator->evaluate(
     thread.board, thread.history, thread.pla,
-    searchParams.drawEquivalentWinsForWhite,
+    nnInputParams,
     thread.nnResultBuf, thread.logger, skipCache, includeOwnerMap
   );
 
   node.nnOutput = std::move(thread.nnResultBuf.result);
+  //TODO and this one
   maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
 
   //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.
@@ -1945,7 +1954,16 @@ void Search::playoutDescend(
 ) {
   //Hit terminal node, finish
   //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
-  if(!isRoot && thread.history.isGameFinished) {
+  //In the case where we're conservativePass and the game just ended due to a root pass, actually let it keep going.
+  //Note that in the second case with tree reuse we can end up with a weird situation where a terminal node becomes nonterminal due
+  //to now being a child of the root! This is okay - subsequent visits to the node will fall through to initNodeNNOutput, and we will
+  //have a weird leaf node with 2 visits worth of mixed terminal and nn values, but further visits will even hit recomputeNodeStats
+  //which should clean it all it.
+  if(!isRoot && thread.history.isGameFinished &&
+     !(searchParams.conservativePass &&
+       thread.history.moveHistory.size() == rootHistory.moveHistory.size() + 1 &&
+       node.prevMoveLoc == Board::PASS_LOC)
+  ) {
     if(thread.history.isNoResult) {
       double winValue = 0.0;
       double noResultValue = 1.0;

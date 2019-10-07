@@ -23,6 +23,11 @@ namespace NNPos {
   int getPolicySize(int nnXLen, int nnYLen);
 }
 
+struct MiscNNInputParams {
+  double drawEquivalentWinsForWhite = 0.5;
+  bool conservativePass = false;
+};
+
 namespace NNInputs {
   const int NUM_SYMMETRY_BOOLS = 3;
   const int NUM_SYMMETRY_COMBINATIONS = 8;
@@ -39,29 +44,29 @@ namespace NNInputs {
   //Ongoing sandbox for full rules support for self play
   Hash128 getHashV3(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite
+    const MiscNNInputParams& nnInputParams
   );
   void fillRowV3(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
   Hash128 getHashV4(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite
+    const MiscNNInputParams& nnInputParams
   );
   void fillRowV4(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
   Hash128 getHashV5(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite
+    const MiscNNInputParams& nnInputParams
   );
   void fillRowV5(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
   //If groupTax is specified, for each color region of area, reduce weight on empty spaces equally to reduce the total sum by 2.

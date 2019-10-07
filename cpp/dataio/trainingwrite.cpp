@@ -293,23 +293,26 @@ void TrainingWriteBuffers::addRow(
   assert(curRows < maxRows);
 
   {
+    MiscNNInputParams nnInputParams;
+    nnInputParams.drawEquivalentWinsForWhite = data.drawEquivalentWinsForWhite;
+
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
     if(inputsVersion == 3) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V3 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V3 == numGlobalChannels);
-      NNInputs::fillRowV3(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+      NNInputs::fillRowV3(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else if(inputsVersion == 4) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V4 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V4 == numGlobalChannels);
-      NNInputs::fillRowV4(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+      NNInputs::fillRowV4(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else if(inputsVersion == 5) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V5 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V5 == numGlobalChannels);
-      NNInputs::fillRowV5(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+      NNInputs::fillRowV5(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
       ASSERT_UNREACHABLE;

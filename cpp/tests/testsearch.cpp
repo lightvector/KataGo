@@ -336,11 +336,11 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
     sgf->setupBoardAndHist(initialRules, board, nextPla, hist, 40);
 
-    double drawEquivalentWinsForWhite = 0.5;
+    MiscNNInputParams nnInputParams;
     NNResultBuf buf;
     bool skipCache = true;
     bool includeOwnerMap = true;
-    nnEval->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
 
     printPolicyValueOwnership(board,buf);
 
@@ -349,7 +349,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     cout << endl << endl;
 
     cout << "With root temperature===================" << endl;
-    nnEvalPTemp->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
+    nnEvalPTemp->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
 
     printPolicyValueOwnership(board,buf);
 
@@ -373,16 +373,16 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
     sgf->setupBoardAndHist(initialRules, board, nextPla, hist, 43);
 
-    double drawEquivalentWinsForWhite = 0.5;
+    MiscNNInputParams nnInputParams;
     NNResultBuf buf;
     bool skipCache = true;
     bool includeOwnerMap = true;
-    nnEval->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
     printPolicyValueOwnership(board,buf);
 
     cout << "NNLen 11" << endl;
     NNResultBuf buf11;
-    nnEval11->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf11,NULL,skipCache,includeOwnerMap);
+    nnEval11->evaluate(board,hist,nextPla,nnInputParams,buf11,NULL,skipCache,includeOwnerMap);
     testAssert(buf11.result->nnXLen == 11);
     testAssert(buf11.result->nnYLen == 11);
     printPolicyValueOwnership(board,buf11);
@@ -1181,11 +1181,11 @@ void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool cuda
 
   NNEvaluator* nnEval = startNNEval(modelFile,logger,"",6,6,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
 
-  double drawEquivalentWinsForWhite = 0.5;
+  MiscNNInputParams nnInputParams;
   NNResultBuf buf;
   bool skipCache = true;
   bool includeOwnerMap = true;
-  nnEval->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
+  nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
 
   printPolicyValueOwnership(board,buf);
   cout << endl << endl;
@@ -1210,7 +1210,7 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cuda
   int nnXLen = 19;
   int nnYLen = 19;
   NNEvaluator* nnEval = startNNEval(modelFile,logger,"",nnXLen,nnYLen,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
-  double drawEquivalentWinsForWhite = 0.5;
+  MiscNNInputParams nnInputParams;
   NNResultBuf buf;
   bool skipCache = true;
   bool includeOwnerMap = true;
@@ -1225,7 +1225,7 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cuda
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
     sgf->setupBoardAndHist(initialRules, board, nextPla, hist, turnNumber);
-    nnEval->evaluate(board,hist,nextPla,drawEquivalentWinsForWhite,buf,NULL,skipCache,includeOwnerMap);
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
 
     winProbs.push_back(buf.result->whiteWinProb);
     scoreMeans.push_back(buf.result->whiteScoreMean);

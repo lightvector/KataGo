@@ -442,7 +442,7 @@ void NNEvaluator::evaluate(
   Board& board,
   const BoardHistory& history,
   Player nextPlayer,
-  double drawEquivalentWinsForWhite,
+  const MiscNNInputParams& nnInputParams,
   NNResultBuf& buf,
   Logger* logger,
   bool skipCache,
@@ -465,11 +465,11 @@ void NNEvaluator::evaluate(
   static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
   Hash128 nnHash;
   if(inputsVersion == 3)
-    nnHash = NNInputs::getHashV3(board, history, nextPlayer, drawEquivalentWinsForWhite);
+    nnHash = NNInputs::getHashV3(board, history, nextPlayer, nnInputParams);
   else if(inputsVersion == 4)
-    nnHash = NNInputs::getHashV4(board, history, nextPlayer, drawEquivalentWinsForWhite);
+    nnHash = NNInputs::getHashV4(board, history, nextPlayer, nnInputParams);
   else if(inputsVersion == 5)
-    nnHash = NNInputs::getHashV5(board, history, nextPlayer, drawEquivalentWinsForWhite);
+    nnHash = NNInputs::getHashV5(board, history, nextPlayer, nnInputParams);
   else
     ASSERT_UNREACHABLE;
 
@@ -514,13 +514,13 @@ void NNEvaluator::evaluate(
 
     static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
     if(inputsVersion == 3) {
-      NNInputs::fillRowV3(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV3(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }
     else if(inputsVersion == 4) {
-      NNInputs::fillRowV4(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV4(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }
     else if(inputsVersion == 5) {
-      NNInputs::fillRowV5(board, history, nextPlayer, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV5(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }
     else
       ASSERT_UNREACHABLE;
