@@ -1152,6 +1152,7 @@ o..o.oo
     cout << endl;
   }
 
+
   {
     cout << "===================================================================" << endl;
     cout << "Visualize dirichlet noise" << endl;
@@ -1208,6 +1209,100 @@ o..o.oo
 
     run(19,19);
     run(11,7);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Search tolerates moving past game end" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,1.0f);
+    SearchParams params;
+    params.maxVisits = 200;
+    Search* search = new Search(params, nnEval, "autoSearchRandSeed");
+    Search* search2 = new Search(params, nnEval, "autoSearchRandSeed");
+    Search* search3 = new Search(params, nnEval, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    TestSearchOptions opts;
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    Board board = Board::parseBoard(7,7,R"%%(
+.x.xo.o
+xxxoooo
+xxxxoo.
+x.xo.oo
+xxxoooo
+xxxxooo
+.xxxooo
+)%%");
+    Player nextPla = P_WHITE;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    search->setPosition(nextPla,board,hist);
+    search2->setPosition(nextPla,board,hist);
+    search3->setPosition(nextPla,board,hist);
+
+    search->makeMove(Location::ofString("C7",board),nextPla);
+    search2->makeMove(Location::ofString("C7",board),nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    search3->setPosition(nextPla,board,hist);
+
+    search->makeMove(Location::ofString("pass",board),nextPla);
+    search2->makeMove(Location::ofString("pass",board),nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    search3->setPosition(nextPla,board,hist);
+    board.checkConsistency();
+
+    search2->runWholeSearch(nextPla,logger,NULL);
+
+    search->makeMove(Location::ofString("pass",board),nextPla);
+    search2->makeMove(Location::ofString("pass",board),nextPla);
+    board.checkConsistency();
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    search3->setPosition(nextPla,board,hist);
+
+    assert(hist.isGameFinished);
+
+    search->runWholeSearch(nextPla,logger,NULL);
+    search2->runWholeSearch(nextPla,logger,NULL);
+    search3->runWholeSearch(nextPla,logger,NULL);
+
+    hist.printDebugInfo(cout,board);
+    cout << "Search made move after gameover" << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    cout << "Search made move (carrying tree over) after gameover" << endl;
+    search2->printTree(cout, search->rootNode, options, P_WHITE);
+    cout << "Position was set after gameover" << endl;
+    search3->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Recapturing ko after two passes and supposed game over (violates superko)" << endl;
+    search->makeMove(Location::ofString("D7",board),nextPla);
+    search2->makeMove(Location::ofString("D7",board),nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("D7",board),nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    search3->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla,logger,NULL);
+    search2->runWholeSearch(nextPla,logger,NULL);
+    search3->runWholeSearch(nextPla,logger,NULL);
+
+    hist.printDebugInfo(cout,board);
+    cout << "Search made move" << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    cout << "Search made move (carrying tree over)" << endl;
+    search2->printTree(cout, search->rootNode, options, P_WHITE);
+    cout << "Position was set" << endl;
+    search3->printTree(cout, search->rootNode, options, P_WHITE);
+
+    delete search;
+    delete search2;
+    delete search3;
+    delete nnEval;
+    cout << endl;
   }
 
   NeuralNet::globalCleanup();

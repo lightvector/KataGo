@@ -3795,6 +3795,89 @@ Visualize dirichlet noise
  -0.01  -0.01  -0.01  +0.94  -0.00  +0.13  -0.00  +1.63  +0.01  -0.00  +2.14 
  +1.63  -0.00  +6.28  -0.00  -0.00  -0.00  -0.00  +0.13  +0.11  -0.00  -0.00 
  -0.00 
+===================================================================
+Search tolerates moving past game end
+===================================================================
+HASH: 482CC14A7B1C5A54B49001238836A738
+   A B C D E F G
+ 7 . X O . O . O
+ 6 X X X O O O O
+ 5 X X X X O O .
+ 4 X . X O . O O
+ 3 X X X O O O O
+ 2 X X X X O O O
+ 1 . X X X O O O
+
+
+Initial pla White
+Encore phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 0
+Game result 1 White 10.5 0 0
+Last moves C7 pass pass 
+Search made move after gameover
+: T   5.34c W   4.80c S   0.53c ( +0.4) N     200  --  A7 G5 B4 F7 A1 pass A7
+---Black(v)---
+A7  : T   3.50c W   3.43c S   0.07c ( -0.0) LCB   12.00c P 42.55% WF 33.89% PSV     129 N     129  --  A7 G5 B4 F7 A1 pass A7 C6
+A1  : T   5.93c W   5.07c S   0.87c ( +0.7) LCB   25.15c P 24.57% WF 31.55% PSV      50 N      50  --  A1 D7 B4 G5 pass F7 E4 F6
+B4  : T  12.65c W   9.73c S   2.91c ( +3.2) LCB   44.41c P 10.20% WF 27.64% PSV      18 N      18  --  B4 E4 A1 pass A7
+pss : T 112.29c W 100.00c S  12.29c (+10.5) LCB  112.29c P 22.69% WF  6.92% PSV       2 N       2  --  pass
+Search made move (carrying tree over) after gameover
+: T   5.34c W   4.80c S   0.53c ( +0.4) N     200  --  A7 G5 B4 F7 A1 pass A7
+---Black(v)---
+A7  : T   3.50c W   3.43c S   0.07c ( -0.0) LCB   12.00c P 42.55% WF 33.89% PSV     129 N     129  --  A7 G5 B4 F7 A1 pass A7 C6
+A1  : T   5.93c W   5.07c S   0.87c ( +0.7) LCB   25.15c P 24.57% WF 31.55% PSV      50 N      50  --  A1 D7 B4 G5 pass F7 E4 F6
+B4  : T  12.65c W   9.73c S   2.91c ( +3.2) LCB   44.41c P 10.20% WF 27.64% PSV      18 N      18  --  B4 E4 A1 pass A7
+pss : T 112.29c W 100.00c S  12.29c (+10.5) LCB  112.29c P 22.69% WF  6.92% PSV       2 N       2  --  pass
+Position was set after gameover
+: T   5.34c W   4.80c S   0.53c ( +0.4) N     200  --  A7 G5 B4 F7 A1 pass A7
+---Black(v)---
+A7  : T   3.50c W   3.43c S   0.07c ( -0.0) LCB   12.00c P 42.55% WF 33.89% PSV     129 N     129  --  A7 G5 B4 F7 A1 pass A7 C6
+A1  : T   5.93c W   5.07c S   0.87c ( +0.7) LCB   25.15c P 24.57% WF 31.55% PSV      50 N      50  --  A1 D7 B4 G5 pass F7 E4 F6
+B4  : T  12.65c W   9.73c S   2.91c ( +3.2) LCB   44.41c P 10.20% WF 27.64% PSV      18 N      18  --  B4 E4 A1 pass A7
+pss : T 112.29c W 100.00c S  12.29c (+10.5) LCB  112.29c P 22.69% WF  6.92% PSV       2 N       2  --  pass
+Recapturing ko after two passes and supposed game over (violates superko)
+HASH: C51B63E1D196B9A30F8CA505691B72D2
+   A B C D E F G
+ 7 . X . X O . O
+ 6 X X X O O O O
+ 5 X X X X O O .
+ 4 X . X O . O O
+ 3 X X X O O O O
+ 2 X X X X O O O
+ 1 . X X X O O O
+
+
+Initial pla White
+Encore phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 0
+Game result 0 Empty 0 0 0
+Last moves C7 pass pass D7 
+Search made move
+: T   8.27c W   7.67c S   0.60c ( +0.5) N     200  --  E4 A7 C7 B4 D7 A1 C3
+---White(^)---
+E4  : T   9.17c W   8.50c S   0.67c ( +0.6) LCB   -0.18c P 74.81% WF 27.39% PSV     168 N     168  --  E4 A7 C7 B4 D7 A1 C3 D1
+pss : T   3.80c W   3.60c S   0.19c ( +0.1) LCB  -32.49c P 10.59% WF 24.48% PSV      15 N      15  --  pass A1 C7 A7 pass
+F7  : T   0.34c W   0.30c S   0.05c ( -0.1) LCB  -38.17c P  7.52% WF 23.41% PSV       8 N       8  --  F7 pass E4 G5
+G5  : T   3.65c W   3.39c S   0.25c ( +0.3) LCB  -26.11c P  7.08% WF 24.72% PSV       8 N       8  --  G5 A7 E4
+Search made move (carrying tree over)
+: T   8.27c W   7.67c S   0.60c ( +0.5) N     200  --  E4 A7 C7 B4 D7 A1 C3
+---White(^)---
+E4  : T   9.17c W   8.50c S   0.67c ( +0.6) LCB   -0.18c P 74.81% WF 27.39% PSV     168 N     168  --  E4 A7 C7 B4 D7 A1 C3 D1
+pss : T   3.80c W   3.60c S   0.19c ( +0.1) LCB  -32.49c P 10.59% WF 24.48% PSV      15 N      15  --  pass A1 C7 A7 pass
+F7  : T   0.34c W   0.30c S   0.05c ( -0.1) LCB  -38.17c P  7.52% WF 23.41% PSV       8 N       8  --  F7 pass E4 G5
+G5  : T   3.65c W   3.39c S   0.25c ( +0.3) LCB  -26.11c P  7.08% WF 24.72% PSV       8 N       8  --  G5 A7 E4
+Position was set
+: T   8.27c W   7.67c S   0.60c ( +0.5) N     200  --  E4 A7 C7 B4 D7 A1 C3
+---White(^)---
+E4  : T   9.17c W   8.50c S   0.67c ( +0.6) LCB   -0.18c P 74.81% WF 27.39% PSV     168 N     168  --  E4 A7 C7 B4 D7 A1 C3 D1
+pss : T   3.80c W   3.60c S   0.19c ( +0.1) LCB  -32.49c P 10.59% WF 24.48% PSV      15 N      15  --  pass A1 C7 A7 pass
+F7  : T   0.34c W   0.30c S   0.05c ( -0.1) LCB  -38.17c P  7.52% WF 23.41% PSV       8 N       8  --  F7 pass E4 G5
+G5  : T   3.65c W   3.39c S   0.25c ( +0.3) LCB  -26.11c P  7.08% WF 24.72% PSV       8 N       8  --  G5 A7 E4
+
 Running training write tests
 seedBase: testtrainingwrite-tt
 HASH: E9270262509D20A779918C0B3CC37443
