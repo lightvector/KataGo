@@ -1628,6 +1628,120 @@ isResignation: 0
   }
 
   {
+    const char* name = "GroupTaxSekiScoring";
+    Board board = Board::parseBoard(9,9,R"%%(
+.x.xo.o.x
+...xooox.
+.xxxxxxoo
+xoooooxo.
+xo.o.oxoo
+xoooooxxx
+xxxo...oo
+.xxxoooo.
+.x.xo.o.o
+)%%");
+    Rules rules;
+    rules.komi = 0.5f;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.multiStoneSuicideLegal = false;
+
+    {
+      rules.scoringRule = Rules::SCORING_AREA;
+      rules.taxRule = Rules::TAX_NONE;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+    {
+      rules.scoringRule = Rules::SCORING_AREA;
+      rules.taxRule = Rules::TAX_SEKI;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+    {
+      rules.scoringRule = Rules::SCORING_AREA;
+      rules.taxRule = Rules::TAX_ALL;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+    {
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.taxRule = Rules::TAX_NONE;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+    {
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.taxRule = Rules::TAX_SEKI;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+    {
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.taxRule = Rules::TAX_ALL;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+
+    string expected = R"%%(
+Winner: White
+W-B Score: 4.5
+isNoResult: 0
+isResignation: 0
+Winner: White
+W-B Score: 2.5
+isNoResult: 0
+isResignation: 0
+Winner: White
+W-B Score: 0.5
+isNoResult: 0
+isResignation: 0
+Winner: Black
+W-B Score: -1.5
+isNoResult: 0
+isResignation: 0
+Winner: Black
+W-B Score: -3.5
+isNoResult: 0
+isResignation: 0
+Winner: Black
+W-B Score: -5.5
+isNoResult: 0
+isResignation: 0
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
     const char* name = "Stress test on tiny boards";
 
     Rand baseRand("Tiny board stress test");

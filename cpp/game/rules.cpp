@@ -8,7 +8,7 @@ Rules::Rules() {
   //Defaults if not set - closest match to TT rules
   koRule = KO_POSITIONAL;
   scoringRule = SCORING_AREA;
-  taxRule = TAX_NONE; //TODO need tests for this
+  taxRule = TAX_NONE;
   multiStoneSuicideLegal = true;
   komi = 7.5f;
 }
