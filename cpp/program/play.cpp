@@ -1040,6 +1040,10 @@ static Loc runBotWithLimits(
     toMoveBot->searchParams.maxVisits = std::min(toMoveBot->searchParams.maxVisits, limits.numCapVisits);
     toMoveBot->searchParams.maxPlayouts = std::min(toMoveBot->searchParams.maxPlayouts, limits.numCapPlayouts);
     if(limits.removeRootNoise) {
+      //Note - this is slightly sketchy to set the params directly. This works because
+      //some of the parameters like FPU are basically stateless and will just affect future playouts
+      //and because even stateful effects like rootNoiseEnabled and rootPolicyTemperature only affect
+      //the root so when we step down in the tree we get a fresh start.
       toMoveBot->searchParams.rootNoiseEnabled = false;
       toMoveBot->searchParams.rootPolicyTemperature = 1.0;
       toMoveBot->searchParams.rootFpuLossProp = toMoveBot->searchParams.fpuLossProp;

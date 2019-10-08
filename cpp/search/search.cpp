@@ -77,6 +77,7 @@ static double getScoreStdev(double scoreMean, double scoreMeanSq) {
 SearchNode::SearchNode(Search& search, SearchThread& thread, Loc moveLoc)
   :lockIdx(),nextPla(thread.pla),prevMoveLoc(moveLoc),
    nnOutput(),
+   nnOutputAge(0),
    children(NULL),numChildren(0),childrenCapacity(0),
    stats(),virtualLosses(0)
 {
@@ -91,10 +92,11 @@ SearchNode::~SearchNode() {
 }
 
 SearchNode::SearchNode(SearchNode&& other) noexcept
-:lockIdx(other.lockIdx),
-  nextPla(other.nextPla),prevMoveLoc(other.prevMoveLoc),
-  nnOutput(std::move(other.nnOutput)),
-  stats(other.stats),virtualLosses(other.virtualLosses)
+  :lockIdx(other.lockIdx),
+   nextPla(other.nextPla),prevMoveLoc(other.prevMoveLoc),
+   nnOutput(std::move(other.nnOutput)),
+   nnOutputAge(other.nnOutputAge),
+   stats(other.stats),virtualLosses(other.virtualLosses)
 {
   children = other.children;
   other.children = NULL;
@@ -106,6 +108,7 @@ SearchNode& SearchNode::operator=(SearchNode&& other) noexcept {
   nextPla = other.nextPla;
   prevMoveLoc = other.prevMoveLoc;
   nnOutput = std::move(other.nnOutput);
+  nnOutputAge = other.nnOutputAge;
   children = other.children;
   other.children = NULL;
   numChildren = other.numChildren;
@@ -186,7 +189,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    alwaysIncludeOwnerMap(false),
-   searchParams(params),numSearchesBegun(0),randSeed(rSeed),
+   searchParams(params),numSearchesBegun(0),searchNodeAge(0),randSeed(rSeed),
    normToTApproxZ(0.0),
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand"))
@@ -903,8 +906,11 @@ void Search::beginSearch(Logger& logger) {
   rootBoard.checkConsistency();
 
   numSearchesBegun++;
-  computeRootValues(logger);
+  searchNodeAge++;
+  if(searchNodeAge == 0) //Just in case, as we roll over
+    clearSearch();
 
+  computeRootValues(logger);
   maybeRecomputeNormToTApproxTable();
 
   //Sanity-check a few things
@@ -1067,6 +1073,7 @@ void Search::computeRootValues(Logger& logger) {
     isMultiStoneSuicideLegal
   );
 
+  //TODO use the existing tree if possible
   //Grab a neural net evaluation for the current position and use that as the center
   Board board = rootBoard;
   const BoardHistory& hist = rootHistory;
@@ -1910,6 +1917,33 @@ void Search::addLeafValue(SearchNode& node, double winValue, double noResultValu
   node.statsLock.clear(std::memory_order_release);
 }
 
+//Assumes node is locked
+//Assumes node already has an nnOutput
+void Search::maybeRecomputeExistingNNOutput(
+  SearchThread& thread, SearchNode& node, bool isRoot
+) {
+  //Right now only the root node currently ever needs to recompute, and only if it's old
+  if(isRoot && node.nnOutputAge != searchNodeAge) {
+    node.nnOutputAge = searchNodeAge;
+
+    //Recompute if we have no ownership map, since we need it for getEndingWhiteScoreBonus
+    //If conservative passing, then we may also need to recompute the root policy ignoring the history if a pass ends the game
+    if(node.nnOutput->whiteOwnerMap == NULL ||
+       (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla))
+    ) {
+      initNodeNNOutput(thread,node,isRoot,false,0,true);
+      assert(node.nnOutput->whiteOwnerMap != NULL);
+    }
+    //We also need to recompute the root nn if we have root noise or temperature and that's missing.
+    else {
+      //We don't need to go all the way to the nnEvaluator, we just need to maybe add those transforms
+      //to the existing policy.
+      maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
+    }
+  }
+}
+
+//Assumes node is locked
 void Search::initNodeNNOutput(
   SearchThread& thread, SearchNode& node,
   bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
@@ -1917,7 +1951,6 @@ void Search::initNodeNNOutput(
   bool includeOwnerMap = isRoot || alwaysIncludeOwnerMap;
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-  //TODO this is yet another condition for which we need to recompute the root
   nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
   nnEvaluator->evaluate(
     thread.board, thread.history, thread.pla,
@@ -1926,8 +1959,9 @@ void Search::initNodeNNOutput(
   );
 
   node.nnOutput = std::move(thread.nnResultBuf.result);
-  //TODO and this one
   maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
+
+  node.nnOutputAge = searchNodeAge;
 
   //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.
   //Also don't bother updating any of the stats. Technically we should do so because winValueSum
@@ -1989,13 +2023,8 @@ void Search::playoutDescend(
     initNodeNNOutput(thread,node,isRoot,false,virtualLossesToSubtract,false);
     return;
   }
-  //For the root node, make sure we have a whiteOwnerMap
-  if(isRoot && node.nnOutput->whiteOwnerMap == NULL) {
-    bool isReInit = true;
-    initNodeNNOutput(thread,node,isRoot,false,0,isReInit);
-    assert(node.nnOutput->whiteOwnerMap != NULL);
-    //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
-  }
+
+  maybeRecomputeExistingNNOutput(thread,node,isRoot);
 
   //Not leaf node, so recurse
 

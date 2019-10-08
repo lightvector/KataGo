@@ -22,12 +22,14 @@ struct TestSearchOptions {
   bool printEndingScoreValueBonus;
   bool printPlaySelectionValues;
   bool noClearBot;
+  bool ignorePosition;
   TestSearchOptions()
     :numMovesInARow(1),
      printRootPolicy(false),
      printEndingScoreValueBonus(false),
      printPlaySelectionValues(false),
-     noClearBot(false)
+     noClearBot(false),
+     ignorePosition(false)
   {}
 };
 
@@ -39,7 +41,8 @@ static void printPolicyValueOwnership(const Board& board, const NNResultBuf& buf
 
 static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHistory hist, TestSearchOptions opts) {
 
-  bot->setPosition(nextPla,board,hist);
+  if(!opts.ignorePosition)
+    bot->setPosition(nextPla,board,hist);
   Search* search = bot->getSearch();
 
   for(int i = 0; i<opts.numMovesInARow; i++) {
@@ -685,6 +688,49 @@ xx.o.o.o.
       runBotOnPosition(bot,board,nextPla,hist,opts);
       delete bot;
     }
+  }
+
+  {
+    cout << "GAME 14 ==========================================================================" << endl;
+    cout << "Root noise and temperature across moves" << endl;
+    cout << endl;
+
+    string seed = getSearchRandSeed();
+    Rules rules = Rules::getTrompTaylorish();
+    rules.komi = 5.5;
+    TestSearchOptions opts;
+    opts.noClearBot = true;
+
+    Player nextPla = P_WHITE;
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+....o....
+..x......
+....x.x..
+..xo.....
+.....o...
+.........
+.........
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params;
+    params.maxVisits = 200;
+    params.rootPolicyTemperature = 2.5;
+    params.rootNoiseEnabled = true;
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, seed);
+    bot->setAlwaysIncludeOwnerMap(true);
+
+    runBotOnPosition(bot,board,nextPla,hist,opts);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("D5",board),nextPla,NULL);
+    bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().onlyBranch(board,"D5"), P_WHITE);
+    bot->makeMove(Location::ofString("D5",board),nextPla);
+    nextPla = getOpp(nextPla);
+    opts.ignorePosition = true;
+    runBotOnPosition(bot,board,nextPla,hist,opts);
+
+    delete bot;
   }
 
 }
