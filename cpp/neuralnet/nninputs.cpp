@@ -33,6 +33,12 @@ int NNPos::getPolicySize(int nnXLen, int nnYLen) {
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
 
+const Hash128 MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS =
+  Hash128(0x0c2b96f4b8ae2da9ULL, 0x5a14dee208fec0edULL);
+
+//-----------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------
+
 double ScoreValue::whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite) {
   if(winner == P_WHITE)
     return 1.0;
@@ -531,8 +537,12 @@ Hash128 NNInputs::getHashV3(
 
   //Fold in whether a pass ends this phase
   bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
-  if(passEndsPhase)
+  if(passEndsPhase) {
     hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
+    //And in the case that a pass ends the phase, conservativePass also affects the result
+    if(nnInputParams.conservativePass)
+      hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
+  }
 
   return hash;
 }
@@ -937,8 +947,12 @@ Hash128 NNInputs::getHashV4(
 
   //Fold in whether a pass ends this phase
   bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
-  if(passEndsPhase)
+  if(passEndsPhase) {
     hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
+    //And in the case that a pass ends the phase, conservativePass also affects the result
+    if(nnInputParams.conservativePass)
+      hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
+  }
 
   return hash;
 }
@@ -1332,8 +1346,12 @@ Hash128 NNInputs::getHashV5(
 
   //Fold in whether a pass ends this phase
   bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
-  if(passEndsPhase)
+  if(passEndsPhase) {
     hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
+    //And in the case that a pass ends the phase, conservativePass also affects the result
+    if(nnInputParams.conservativePass)
+      hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
+  }
 
   return hash;
 }

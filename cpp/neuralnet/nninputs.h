@@ -26,6 +26,8 @@ namespace NNPos {
 struct MiscNNInputParams {
   double drawEquivalentWinsForWhite = 0.5;
   bool conservativePass = false;
+
+  static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
 };
 
 namespace NNInputs {
