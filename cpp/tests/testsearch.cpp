@@ -634,6 +634,59 @@ o..o..oxo
     }
   }
 
+  {
+    cout << "GAME 13 ==========================================================================" << endl;
+    cout << "(Conservative pass)" << endl;
+    cout << endl;
+
+    string seed = "abc";
+    Rules rules = Rules::getTrompTaylorish();
+    rules.komi = 0;
+
+    Player nextPla = P_BLACK;
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+..x...x..
+.........
+xxxxxxxx.
+ooooooooo
+...o.o.o.
+xx.o.o.o.
+.xxo.o.o.
+..xo.o.o.
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+    hist.makeBoardMoveAssumeLegal(board,Board::PASS_LOC,nextPla,NULL);
+    nextPla = P_WHITE;
+
+    {
+      cout << "conservativePass=false" << endl;
+      SearchParams params;
+      params.maxVisits = 80;
+      params.rootFpuReductionMax = 0.0;
+      params.rootPolicyTemperature = 1.5;
+      params.rootNoiseEnabled = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, seed);
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+
+    {
+      cout << "conservativePass=true" << endl;
+      SearchParams params;
+      params.maxVisits = 80;
+      params.conservativePass = true;
+      params.rootFpuReductionMax = 0.0;
+      params.rootPolicyTemperature = 1.5;
+      params.rootNoiseEnabled = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, seed);
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+  }
+
 }
 
 
