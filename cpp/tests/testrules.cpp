@@ -24,20 +24,24 @@ static void checkKoHashConsistency(BoardHistory& hist, Board& board, Player next
   testAssert(expected == hist.koHashHistory[hist.koHashHistory.size()-1]);
 }
 
-static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Player pla, int line) {
+static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Player pla, int line, bool preventEncore) {
   bool phaseWouldEnd = hist.passWouldEndPhase(board,pla);
   int oldPhase = hist.encorePhase;
 
   if(!hist.isLegal(board, loc, pla))
     throw StringError("Illegal move on line " + Global::intToString(line));
-  hist.makeBoardMoveAssumeLegal(board, loc, pla, NULL);
+  hist.makeBoardMoveAssumeLegal(board, loc, pla, NULL, preventEncore);
   checkKoHashConsistency(hist,board,getOpp(pla));
 
   if(loc == Board::PASS_LOC) {
     int newPhase = hist.encorePhase;
-    if(phaseWouldEnd != (newPhase != oldPhase || hist.isGameFinished))
+    if((phaseWouldEnd && !preventEncore) != (newPhase != oldPhase || hist.isGameFinished))
       throw StringError("hist.passWouldEndPhase returned different answer than what actually happened after a pass");
   }
+}
+
+static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Player pla, int line) {
+  makeMoveAssertLegal(hist,board,loc,pla,line,false);
 }
 
 static double finalScoreIfGameEndedNow(const BoardHistory& baseHist, const Board& baseBoard) {
@@ -96,12 +100,13 @@ void Tests::runRulesTests() {
 
   auto printGameResult = [](ostream& o, const BoardHistory& hist) {
     if(!hist.isGameFinished)
-      o << "Game is not over";
+      o << "Game is not over" << endl;
     else {
       o << "Winner: " << PlayerIO::playerToString(hist.winner) << endl;
       o << "W-B Score: " << hist.finalWhiteMinusBlackScore << endl;
       o << "isNoResult: " << hist.isNoResult << endl;
       o << "isResignation: " << hist.isResignation << endl;
+      assert((int)hist.isNoResult + (int)hist.isResignation + (int)hist.isScored == (int)hist.isGameFinished);
     }
   };
 
@@ -1737,6 +1742,176 @@ Winner: Black
 W-B Score: -5.5
 isNoResult: 0
 isResignation: 0
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "PreventEncore";
+    Board board = Board::parseBoard(3,3,R"%%(
+.x.
+xxo
+.o.
+)%%");
+    Rules rules;
+    rules.komi = 0.5f;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.multiStoneSuicideLegal = false;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.taxRule = Rules::TAX_NONE;
+
+    {
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      hist.printDebugInfo(out,board);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      hist.printDebugInfo(out,board);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      hist.printDebugInfo(out,board);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      hist.printDebugInfo(out,board);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      hist.printDebugInfo(out,board);
+      out << endl;
+    }
+    {
+      out << "-----------------------" << endl;
+      out << "Preventing encore" << endl;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__, true);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__, true);
+      hist.printDebugInfo(out,board);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__, true);
+      hist.printDebugInfo(out,board);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__, true);
+      hist.printDebugInfo(out,board);
+    }
+
+    string expected = R"%%(
+HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
+   A B C
+ 3 . X .
+ 2 X X O
+ 1 . O .
+
+
+Initial pla Black
+Encore phase 1
+Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 1
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass
+HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
+   A B C
+ 3 . X .
+ 2 X X O
+ 1 . O .
+
+
+Initial pla Black
+Encore phase 1
+Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 1
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass pass
+HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
+   A B C
+ 3 . X .
+ 2 X X O
+ 1 . O .
+
+
+Initial pla Black
+Encore phase 2
+Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 1
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass pass pass
+HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
+   A B C
+ 3 . X .
+ 2 X X O
+ 1 . O .
+
+
+Initial pla Black
+Encore phase 2
+Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 1
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass pass pass pass
+HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
+   A B C
+ 3 . X .
+ 2 X X O
+ 1 . O .
+
+
+Initial pla Black
+Encore phase 2
+Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 1
+Past normal phase end 0
+Game result 1 White 0.5 1 0 0
+Last moves pass pass pass pass pass pass
+
+-----------------------
+Preventing encore
+HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
+   A B C
+ 3 . X .
+ 2 X X O
+ 1 . O .
+
+
+Initial pla Black
+Encore phase 0
+Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 1
+Past normal phase end 1
+Game result 0 Empty 0 0 0 0
+Last moves pass pass
+HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
+   A B C
+ 3 . X .
+ 2 X X O
+ 1 . O .
+
+
+Initial pla Black
+Encore phase 0
+Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 1
+Past normal phase end 1
+Game result 0 Empty 0 0 0 0
+Last moves pass pass pass
+HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
+   A B C
+ 3 . X .
+ 2 X X O
+ 1 . O .
+
+
+Initial pla Black
+Encore phase 0
+Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 1
+Past normal phase end 1
+Game result 0 Empty 0 0 0 0
+Last moves pass pass pass pass
 )%%";
     expect(name,out,expected);
   }
