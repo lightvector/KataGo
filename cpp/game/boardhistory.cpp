@@ -39,8 +39,9 @@ BoardHistory::BoardHistory()
    encorePhase(0),koProhibitHash(),
    koCapturesInEncore(),
    whiteBonusScore(0),
+   isPastNormalPhaseEnd(false),
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
-   isNoResult(false),isResignation(false)
+   isScored(false),isNoResult(false),isResignation(false)
 {
   std::fill(wasEverOccupiedOrPlayed, wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, false);
   std::fill(superKoBanned, superKoBanned+Board::MAX_ARR_SIZE, false);
@@ -67,8 +68,9 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    encorePhase(0),koProhibitHash(),
    koCapturesInEncore(),
    whiteBonusScore(0),
+   isPastNormalPhaseEnd(false),
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
-   isNoResult(false),isResignation(false)
+   isScored(false),isNoResult(false),isResignation(false)
 {
   std::fill(wasEverOccupiedOrPlayed, wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, false);
   std::fill(superKoBanned, superKoBanned+Board::MAX_ARR_SIZE, false);
@@ -94,8 +96,9 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    encorePhase(other.encorePhase),koProhibitHash(other.koProhibitHash),
    koCapturesInEncore(other.koCapturesInEncore),
    whiteBonusScore(other.whiteBonusScore),
+   isPastNormalPhaseEnd(other.isPastNormalPhaseEnd),
    isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
-   isNoResult(other.isNoResult),isResignation(other.isResignation)
+   isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
@@ -132,9 +135,11 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   koCapturesInEncore = other.koCapturesInEncore;
   std::copy(other.secondEncoreStartColors, other.secondEncoreStartColors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
   whiteBonusScore = other.whiteBonusScore;
+  isPastNormalPhaseEnd = other.isPastNormalPhaseEnd;
   isGameFinished = other.isGameFinished;
   winner = other.winner;
   finalWhiteMinusBlackScore = other.finalWhiteMinusBlackScore;
+  isScored = other.isScored;
   isNoResult = other.isNoResult;
   isResignation = other.isResignation;
 
@@ -156,8 +161,9 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   encorePhase(other.encorePhase),koProhibitHash(other.koProhibitHash),
   koCapturesInEncore(std::move(other.koCapturesInEncore)),
   whiteBonusScore(other.whiteBonusScore),
+  isPastNormalPhaseEnd(other.isPastNormalPhaseEnd),
   isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
-  isNoResult(other.isNoResult),isResignation(other.isResignation)
+  isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
@@ -191,9 +197,11 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   koCapturesInEncore = std::move(other.koCapturesInEncore);
   std::copy(other.secondEncoreStartColors, other.secondEncoreStartColors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
   whiteBonusScore = other.whiteBonusScore;
+  isPastNormalPhaseEnd = other.isPastNormalPhaseEnd;
   isGameFinished = other.isGameFinished;
   winner = other.winner;
   finalWhiteMinusBlackScore = other.finalWhiteMinusBlackScore;
+  isScored = other.isScored;
   isNoResult = other.isNoResult;
   isResignation = other.isResignation;
 
@@ -233,9 +241,11 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   koProhibitHash = Hash128();
   koCapturesInEncore.clear();
   whiteBonusScore = 0;
+  isPastNormalPhaseEnd = false;
   isGameFinished = false;
   winner = C_EMPTY;
   finalWhiteMinusBlackScore = 0.0f;
+  isScored = false;
   isNoResult = false;
   isResignation = false;
 
@@ -282,7 +292,9 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << "Rules " << rules << endl;
   out << "Ko prohib hash " << koProhibitHash << endl;
   out << "White bonus score " << whiteBonusScore << endl;
-  out << "Game result " << isGameFinished << " " << PlayerIO::playerToString(winner) << " " << finalWhiteMinusBlackScore << " " << isNoResult << " " << isResignation << endl;
+  out << "Past normal phase end " << isPastNormalPhaseEnd << endl;
+  out << "Game result " << isGameFinished << " " << PlayerIO::playerToString(winner) << " "
+      << finalWhiteMinusBlackScore << " " << isScored << " " << isNoResult << " " << isResignation << endl;
   out << "Last moves ";
   for(int i = 0; i<moveHistory.size(); i++)
     out << Location::toString(moveHistory[i].loc,board) << " ";
@@ -298,13 +310,12 @@ const Board& BoardHistory::getRecentBoard(int numMovesAgo) const {
 
 
 void BoardHistory::setKomi(float newKomi) {
+  float oldKomi = rules.komi;
   rules.komi = newKomi;
 
-  isGameFinished = false;
-  winner = C_EMPTY;
-  finalWhiteMinusBlackScore = 0.0f;
-  isNoResult = false;
-  isResignation = false;
+  //Recompute the game result due to the new komi
+  if(isGameFinished && isScored)
+    setFinalScoreAndWinner(finalWhiteMinusBlackScore - oldKomi + newKomi);
 }
 
 
@@ -469,6 +480,16 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Col
   return score;
 }
 
+void BoardHistory::setFinalScoreAndWinner(float score) {
+  finalWhiteMinusBlackScore = score;
+  if(finalWhiteMinusBlackScore > 0.0f)
+    winner = C_WHITE;
+  else if(finalWhiteMinusBlackScore < 0.0f)
+    winner = C_BLACK;
+  else
+    winner = C_EMPTY;
+}
+
 void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) {
   int boardScore;
   if(rules.scoringRule == Rules::SCORING_AREA)
@@ -478,17 +499,12 @@ void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_
   else
     ASSERT_UNREACHABLE;
 
-  finalWhiteMinusBlackScore = boardScore + whiteBonusScore + rules.komi;
-  if(finalWhiteMinusBlackScore > 0.0f)
-    winner = C_WHITE;
-  else if(finalWhiteMinusBlackScore < 0.0f)
-    winner = C_BLACK;
-  else
-    winner = C_EMPTY;
-
+  setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
+  isScored = true;
   isNoResult = false;
   isResignation = false;
   isGameFinished = true;
+  isPastNormalPhaseEnd = false;
 }
 
 void BoardHistory::endAndScoreGameNow(const Board& board) {
@@ -522,20 +538,18 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
     }
   }
 
-  finalWhiteMinusBlackScore = boardScore + whiteBonusScore + rules.komi;
-  if(finalWhiteMinusBlackScore > 0.0f)
-    winner = C_WHITE;
-  else if(finalWhiteMinusBlackScore < 0.0f)
-    winner = C_BLACK;
-  else
-    winner = C_EMPTY;
+  setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
+  isScored = true;
   isNoResult = false;
   isResignation = false;
   isGameFinished = true;
+  isPastNormalPhaseEnd = false;
 }
 
 void BoardHistory::setWinnerByResignation(Player pla) {
   isGameFinished = true;
+  isPastNormalPhaseEnd = false;
+  isScored = false;
   isNoResult = false;
   isResignation = true;
   winner = pla;
@@ -660,13 +674,19 @@ bool BoardHistory::passWouldEndGame(const Board& board, Player movePla) const {
 }
 
 void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable) {
+  makeBoardMoveAssumeLegal(board,moveLoc,movePla,rootKoHashTable,false);
+}
+
+void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable, bool preventEncore) {
   Loc koLocBeforeMove = board.ko_loc;
   Hash128 posHashBeforeMove = board.pos_hash;
 
   //If somehow we're making a move after the game was ended, just clear those values and continue
   isGameFinished = false;
+  isPastNormalPhaseEnd = false;
   winner = C_EMPTY;
   finalWhiteMinusBlackScore = 0.0f;
+  isScored = false;
   isNoResult = false;
   isResignation = false;
 
@@ -800,22 +820,27 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
       if(encorePhase >= 2)
         endAndScoreGameNow(board);
       else {
-        encorePhase += 1;
-        if(encorePhase == 2)
-          std::copy(board.colors, board.colors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
+        if(preventEncore) {
+          isPastNormalPhaseEnd = true;
+        }
+        else {
+          encorePhase += 1;
+          if(encorePhase == 2)
+            std::copy(board.colors, board.colors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
 
-        std::fill(superKoBanned, superKoBanned+Board::MAX_ARR_SIZE, false);
-        consecutiveEndingPasses = 0;
-        hashesAfterBlackPass.clear();
-        hashesAfterWhitePass.clear();
-        std::fill(blackKoProhibited, blackKoProhibited+Board::MAX_ARR_SIZE, false);
-        std::fill(whiteKoProhibited, whiteKoProhibited+Board::MAX_ARR_SIZE, false);
-        koProhibitHash = Hash128();
-        koCapturesInEncore.clear();
+          std::fill(superKoBanned, superKoBanned+Board::MAX_ARR_SIZE, false);
+          consecutiveEndingPasses = 0;
+          hashesAfterBlackPass.clear();
+          hashesAfterWhitePass.clear();
+          std::fill(blackKoProhibited, blackKoProhibited+Board::MAX_ARR_SIZE, false);
+          std::fill(whiteKoProhibited, whiteKoProhibited+Board::MAX_ARR_SIZE, false);
+          koProhibitHash = Hash128();
+          koCapturesInEncore.clear();
 
-        koHashHistory.clear();
-        koHistoryLastClearedBeginningMoveIdx = moveHistory.size();
-        koHashHistory.push_back(getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash));
+          koHashHistory.clear();
+          koHistoryLastClearedBeginningMoveIdx = moveHistory.size();
+          koHashHistory.push_back(getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash));
+        }
       }
     }
     else

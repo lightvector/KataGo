@@ -543,6 +543,11 @@ Hash128 NNInputs::getHashV3(
     if(nnInputParams.conservativePass)
       hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
   }
+  //Fold in whether the game is over or not, since this affects how we compute input features
+  //but is not a function necessarily of previous hashed values.
+  //If the history is in a weird prolonged state, also treat it similarly.
+  if(hist.isGameFinished || hist.isPastNormalPhaseEnd)
+    hash ^= Board::ZOBRIST_GAME_IS_OVER;
 
   return hash;
 }
@@ -635,7 +640,10 @@ void NNInputs::fillRowV3(
 
   //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
   //Or if the game is in fact over right now!
-  bool hideHistory = hist.isGameFinished || (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
+  bool hideHistory =
+    hist.isGameFinished ||
+    hist.isPastNormalPhaseEnd ||
+    (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
 
   //Features 9,10,11,12,13
   if(!hideHistory) {
@@ -953,6 +961,11 @@ Hash128 NNInputs::getHashV4(
     if(nnInputParams.conservativePass)
       hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
   }
+  //Fold in whether the game is over or not, since this affects how we compute input features
+  //but is not a function necessarily of previous hashed values.
+  //If the history is in a weird prolonged state, also treat it similarly.
+  if(hist.isGameFinished || hist.isPastNormalPhaseEnd)
+    hash ^= Board::ZOBRIST_GAME_IS_OVER;
 
   return hash;
 }
@@ -1044,7 +1057,11 @@ void NNInputs::fillRowV4(
   }
 
   //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
-  bool hideHistory = hist.isGameFinished || (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
+  //Or if the game is in fact over right now!
+  bool hideHistory =
+    hist.isGameFinished ||
+    hist.isPastNormalPhaseEnd ||
+    (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
 
   //Features 9,10,11,12,13
   if(!hideHistory) {
@@ -1352,6 +1369,11 @@ Hash128 NNInputs::getHashV5(
     if(nnInputParams.conservativePass)
       hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
   }
+  //Fold in whether the game is over or not, since this affects how we compute input features
+  //but is not a function necessarily of previous hashed values.
+  //If the history is in a weird prolonged state, also treat it similarly.
+  if(hist.isGameFinished || hist.isPastNormalPhaseEnd)
+    hash ^= Board::ZOBRIST_GAME_IS_OVER;
 
   return hash;
 }
@@ -1435,7 +1457,11 @@ void NNInputs::fillRowV5(
   }
 
   //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
-  bool hideHistory = hist.isGameFinished || (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
+  //Or if the game is in fact over right now!
+  bool hideHistory =
+    hist.isGameFinished ||
+    hist.isPastNormalPhaseEnd ||
+    (nnInputParams.conservativePass && hist.passWouldEndGame(board,nextPlayer));
 
   //Features 6,7,8,9,10
   if(!hideHistory) {

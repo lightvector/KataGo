@@ -102,6 +102,10 @@ bool AsyncBot::makeMove(Loc moveLoc, Player movePla) {
   stopAndWait();
   return search->makeMove(moveLoc,movePla);
 }
+bool AsyncBot::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
+  stopAndWait();
+  return search->makeMove(moveLoc,movePla,preventEncore);
+}
 
 bool AsyncBot::isLegalTolerant(Loc moveLoc, Player movePla) const {
   return search->isLegalTolerant(moveLoc,movePla);

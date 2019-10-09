@@ -153,6 +153,7 @@ struct GTPEngine {
   const double whiteBonusPerHandicapStone;
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
+  const bool preventEncore;
 
   NNEvaluator* nnEval;
   AsyncBot* bot;
@@ -175,13 +176,14 @@ struct GTPEngine {
 
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
-    double wBonusPerHandicapStone, bool assumeMultiBlackHandicap,
+    double wBonusPerHandicapStone, bool assumeMultiBlackHandicap, bool prevtEncore,
     Player persp, int pvLen
   )
     :nnModelFile(modelFile),
      whiteBonusPerHandicapStone(wBonusPerHandicapStone),
      assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
+     preventEncore(prevtEncore),
      nnEval(NULL),
      bot(NULL),
      baseRules(initialRules),
@@ -309,7 +311,7 @@ struct GTPEngine {
   }
 
   bool play(Loc loc, Player pla) {
-    bool suc = bot->makeMove(loc,pla);
+    bool suc = bot->makeMove(loc,pla,preventEncore);
     if(suc)
       moveHistory.push_back(Move(loc,pla));
 
@@ -487,7 +489,7 @@ struct GTPEngine {
     }
 
     if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
-      bool suc = bot->makeMove(moveLoc,pla);
+      bool suc = bot->makeMove(moveLoc,pla,preventEncore);
       if(suc)
         moveHistory.push_back(Move(moveLoc,pla));
       assert(suc);
@@ -579,9 +581,11 @@ struct GTPEngine {
           cout << " prior " << round(data.policyPrior * 10000.0);
           cout << " lcb " << round(lcb * 10000.0);
           cout << " order " << data.order;
-          cout << " pv";
-          for(int j = 0; j<data.pv.size(); j++)
-            cout << " " << Location::toString(data.pv[j],board);
+          cout << " pv ";
+          if(preventEncore && data.pvContainsPass())
+            data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
+          else
+            data.writePV(cout,board);
         }
         cout << endl;
       };
@@ -631,9 +635,11 @@ struct GTPEngine {
           cout << " lcb " << lcb;
           cout << " utilityLcb " << utilityLcb;
           cout << " order " << data.order;
-          cout << " pv";
-          for(int j = 0; j<data.pv.size(); j++)
-            cout << " " << Location::toString(data.pv[j],board);
+          cout << " pv ";
+          if(preventEncore && data.pvContainsPass())
+            data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
+          else
+            data.writePV(cout,board);
         }
 
         if(showOwnership) {
@@ -739,12 +745,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 9;
   const bool assumeMultipleStartingBlackMovesAreHandicap =
     cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
+  const bool preventEncore = cfg.contains("preventEncore") ? cfg.getBool("preventEncore") : false;
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
     nnModelFile,params,initialRules,
-    whiteBonusPerHandicapStone,assumeMultipleStartingBlackMovesAreHandicap,
+    whiteBonusPerHandicapStone,assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
     perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,-1,-1);
@@ -1357,7 +1364,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
               if(!sgfBoard.isLegal(moveLoc,movePla,multiStoneSuicideLegal)) {
                 throw StringError("Illegal move");
               }
-              sgfHist.makeBoardMoveAssumeLegal(sgfBoard,moveLoc,movePla,NULL);
+              sgfHist.makeBoardMoveAssumeLegal(sgfBoard,moveLoc,movePla,NULL,preventEncore);
               sgfNextPla = getOpp(movePla);
             }
 

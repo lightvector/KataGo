@@ -96,7 +96,7 @@ struct Board
   static Hash128 ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_ENCORE_HASH[3];
   static const Hash128 ZOBRIST_PASS_ENDS_PHASE;
-
+  static const Hash128 ZOBRIST_GAME_IS_OVER;
 
   //Structs---------------------------------------
 

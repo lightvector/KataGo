@@ -3814,7 +3814,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 1 White 10.5 0 0
+Past normal phase end 0
+Game result 1 White 10.5 1 0 0
 Last moves C7 pass pass 
 Search made move after gameover
 : T   5.34c W   4.80c S   0.53c ( +0.4) N     200  --  A7 G5 B4 F7 A1 pass A7
@@ -3854,7 +3855,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C7 pass pass D7 
 Search made move
 : T   8.27c W   7.67c S   0.60c ( +0.5) N     200  --  E4 A7 C7 B4 D7 A1 C3
@@ -3903,7 +3905,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 1 White 8.5 0 0
+Past normal phase end 0
+Game result 1 White 8.5 1 0 0
 Last moves pass B2 B4 B1 C1 D3 E1 A4 D5 A1 E2 E5 pass pass 
 binaryInputNCHWPacked
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(3,22,4)}                                                                
@@ -3972,7 +3975,8 @@ Encore phase 1
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score -2
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves A3 D2 A2 B4 E4 B5 B2 C5 D4 E1 E5 A5 pass B3 C1 C2 D5 D3 C4 E3 pass A4 C3 A4 B1 C5 B3 E2 pass A5 pass pass pass B4 D1 E3 C2 pass D2 pass 
 binaryInputNCHWPacked
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(9,22,4)}                                                                
@@ -4083,7 +4087,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 1 Black -18 0 0
+Past normal phase end 0
+Game result 1 Black -18 1 0 0
 Last moves C5 C2 B5 D3 B2 D4 B3 pass D5 A4 B1 E3 C4 C1 A2 E1 A3 E4 E2 D2 A1 A5 C3 D1 E5 E2 C1 E4 D3 E1 E2 B4 pass D1 C2 A5 B4 A4 D2 
 binaryInputNCHWPacked
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(9,22,4)}                                                                
@@ -4194,7 +4199,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 1 White 32.5 0 0
+Past normal phase end 0
+Game result 1 White 32.5 1 0 0
 Last moves A2 A4 C4 E3 E1 B2 D2 E4 A5 D1 D5 D4 E5 C3 C2 A1 C5 B5 B1 B3 B4 D3 D5 C4 C5 A3 C1 E5 D5 B4 A1 E2 D1 C2 A1 B1 
 binaryInputNCHWPacked
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(9,13,4)}                                                                
@@ -4301,7 +4307,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves B1 E3 B3 C2 F2 C3 D3 G3 pass D2 A1 C1 F3 D3 F1 B2 G2 E1 G3 A3 G1 A2 E2 F3 F2 G1 G3 D1 A1 B3 F1 E2 B1 F3 D1 B3 A2 E1 D3 C1 G2 
 binaryInputNCHWPacked
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(10,22,4)}                                                               
@@ -4419,7 +4426,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxALLsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 1 Black -17.5 0 0
+Past normal phase end 0
+Game result 1 Black -17.5 1 0 0
 Last moves A1 E5 D2 A3 B1 A2 D3 E2 C2 C3 B2 D4 D1 A4 A5 E3 B3 E4 C5 D5 C4 B5 E1 pass C1 E2 D4 E3 E4 E2 E5 B4 C3 A5 A3 
 binaryInputNCHWPacked
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(7,22,4)}                                                                
@@ -4516,7 +4524,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxALLsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 1 Black -6.5 0 0
+Past normal phase end 0
+Game result 1 Black -6.5 1 0 0
 Last moves A1 D2 D5 B5 C1 A3 B2 E5 C5 E4 D4 A4 B3 pass A2 C3 B4 C4 E1 A5 E2 pass C2 E3 D1 D3 A3 pass pass 
 binaryInputNCHWPacked
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(7,22,4)}                                                                
@@ -4613,7 +4622,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxALLsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves B4 pass C1 A3 D5 A1 A4 C2 B1 D1 D3 E1 E2 E3 B5 D2 E4 C5 B2 C4 E2 pass E3 C3 A5 B3 E5 A4 A5 pass B4 pass D4 D5 A2 E3 B5 B5 E5 D3 E4 
 binaryInputNCHWPacked
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|u1','fortran_order':False,'shape':(9,22,4)}                                                                
@@ -4716,7 +4726,8 @@ Encore phase 2
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 1 White 11.5 0 0
+Past normal phase end 0
+Game result 1 White 11.5 1 0 0
 Last moves A1 D1 F1 H1 E1 G1 B1 J1 F1 J1 G1 C1 E1 B1 pass pass H1 J1 E1 G1 pass pass A1 pass D1 C1 B1 F1 H1 pass F1 C1 pass G1 F1 B1 pass E1 G1 J1 G1 D1 F1 H1 G1 A1 J1 H1 J1 F1 pass J1 pass pass 
 (;FF[4]GM[1]SZ[9:1]PB[Black]PW[White]HA[0]KM[7.5]RU[koSIMPLEscoreTERRITORYtaxSEKIsui0]RE[W+11.5]C[startTurnIdx=0,mode=0,modeM1=0,modeM2=0];B[aa]C[0.32 0.35 0.33 0.0];W[da]C[0.32 0.32 0.36 2.0];B[fa]C[0.35 0.27 0.37 1.0];W[ha]C[0.33 0.30 0.37 0.9];B[ea]C[0.30 0.36 0.35 0.4];W[ga]C[0.31 0.38 0.31 -1.8];B[ba]C[0.32 0.41 0.27 -2.3];W[ia]C[0.31 0.38 0.32 -0.6];B[fa]C[0.31 0.38 0.32 1.1];W[ia]C[0.30 0.39 0.32 -0.9];B[ga]C[0.34 0.31 0.36 -3.6];W[ca]C[0.36 0.26 0.38 0.5];B[ea]C[0.35 0.25 0.40 1.5];W[ba]C[0.36 0.25 0.40 0.9];B[]C[0.35 0.29 0.36 0.1];W[]C[0.30 0.38 0.32 -0.8];B[ha]C[0.24 0.43 0.32 1.5];W[ia]C[0.36 0.37 0.27 1.5];B[ea]C[0.38 0.29 0.34 2.0];W[ga]C[0.31 0.30 0.40 3.0];B[]C[0.34 0.34 0.32 1.6];W[]C[0.34 0.36 0.30 -1.2];B[aa]C[0.29 0.34 0.38 -2.5];W[]C[0.31 0.33 0.36 -1.3];B[da]C[0.31 0.38 0.32 -3.2];W[ca]C[0.31 0.38 0.30 -4.4];B[ba]C[0.39 0.35 0.27 -1.5];W[fa]C[0.36 0.36 0.28 -1.0];B[ha]C[0.32 0.38 0.30 1.9];W[]C[0.35 0.30 0.35 0.8];B[fa]C[0.37 0.24 0.39 -2.9];W[ca]C[0.39 0.27 0.35 1.3];B[]C[0.37 0.30 0.33 2.9];W[ga]C[0.34 0.32 0.34 1.4];B[fa]C[0.34 0.31 0.35 2.0];W[ba]C[0.32 0.35 0.34 2.0];B[]C[0.35 0.33 0.32 -0.6];W[ea]C[0.38 0.31 0.31 -2.1];B[ga]C[0.33 0.38 0.29 -1.1];W[ia]C[0.31 0.36 0.34 -0.1];B[ga]C[0.29 0.34 0.37 0.7];W[da]C[0.33 0.37 0.30 -0.9];B[fa]C[0.32 0.38 0.30 -1.3];W[ha]C[0.29 0.35 0.36 -0.7];B[ga]C[0.35 0.30 0.34 -1.1];W[aa]C[0.34 0.30 0.36 -0.0];B[ia]C[0.32 0.33 0.35 -0.8];W[ha]C[0.34 0.30 0.36 0.7];B[]TR[ia]C[Pass for ko 0.34 0.26 0.41 3.1];W[fa]C[0.30 0.31 0.38 -1.6];B[]C[0.29 0.33 0.38 -3.1];W[ia]C[0.28 0.35 0.38 -1.1];B[]C[0.33 0.38 0.29 -1.4];W[]C[0.70 0.18 0.11 5.3])
 ===================================================================

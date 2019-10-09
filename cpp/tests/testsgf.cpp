@@ -104,7 +104,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
@@ -136,7 +137,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 1 White 2 0 0
+Past normal phase end 0
+Game result 1 White 2 1 0 0
 Last moves R14 N16 Q14 Q13 P14 pass pass
 
 )%%";
@@ -195,7 +197,8 @@ Encore phase 0
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 4
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
@@ -227,7 +230,8 @@ Encore phase 1
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 3
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves R14 N16 Q14 Q13 P14 pass pass
 
 )%%";
@@ -263,7 +267,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-6.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
@@ -279,7 +284,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-6.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves F1 C1 M3
 )%%";
     expect(name,out,expected);
@@ -335,7 +341,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
@@ -357,7 +364,8 @@ Encore phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves
 )%%";
     expect(name,out,expected);
@@ -437,7 +445,8 @@ Encore phase 0
 Rules koSIMPLEscoreAREAtaxNONEsui0komi0
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
@@ -486,7 +495,8 @@ Encore phase 0
 Rules koSIMPLEscoreAREAtaxNONEsui0komi0
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves (3,3) (33,3) (33,33) (3,33) (3,32) (4,32) (4,31) (32,3) (32,4) (33,4) (4,4) (32,32) (18,18)
 )%%";
     expect(name,out,expected);

@@ -330,6 +330,10 @@ bool Search::isLegalStrict(Loc moveLoc, Player movePla) const {
 }
 
 bool Search::makeMove(Loc moveLoc, Player movePla) {
+  return makeMove(moveLoc,movePla,false);
+}
+
+bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   if(!isLegalTolerant(moveLoc,movePla))
     return false;
 
@@ -355,7 +359,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
       clearSearch();
     }
   }
-  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable);
+  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
   rootPla = getOpp(rootPla);
   rootKoHashTable->recompute(rootHistory);
   return true;
