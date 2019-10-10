@@ -462,7 +462,7 @@ void NNEvaluator::evaluate(
                         " and requireExactNNLen, but was asked to evaluate board with different x or y size");
   }
 
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
   Hash128 nnHash;
   if(inputsVersion == 3)
     nnHash = NNInputs::getHashV3(board, history, nextPlayer, nnInputParams);
@@ -470,6 +470,8 @@ void NNEvaluator::evaluate(
     nnHash = NNInputs::getHashV4(board, history, nextPlayer, nnInputParams);
   else if(inputsVersion == 5)
     nnHash = NNInputs::getHashV5(board, history, nextPlayer, nnInputParams);
+  else if(inputsVersion == 6)
+    nnHash = NNInputs::getHashV6(board, history, nextPlayer, nnInputParams);
   else
     ASSERT_UNREACHABLE;
 
@@ -512,7 +514,7 @@ void NNEvaluator::evaluate(
         throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
 
-    static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
     if(inputsVersion == 3) {
       NNInputs::fillRowV3(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }
@@ -521,6 +523,9 @@ void NNEvaluator::evaluate(
     }
     else if(inputsVersion == 5) {
       NNInputs::fillRowV5(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+    }
+    else if(inputsVersion == 6) {
+      NNInputs::fillRowV6(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     }
     else
       ASSERT_UNREACHABLE;
@@ -630,6 +635,7 @@ void NNEvaluator::evaluate(
 
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.
+    static_assert(NNModelVersion::latestModelVersionImplemented == 7, "");
     if(modelVersion == 3) {
       const double twoOverPi = 0.63661977236758134308;
 
@@ -677,7 +683,7 @@ void NNEvaluator::evaluate(
       }
 
     }
-    else if(modelVersion == 4 || modelVersion == 5 || modelVersion == 6) {
+    else if(modelVersion == 4 || modelVersion == 5 || modelVersion == 6 || modelVersion == 7) {
       double winProb;
       double lossProb;
       double noResultProb;
@@ -754,7 +760,7 @@ void NNEvaluator::evaluate(
 
   //Postprocess ownermap
   if(buf.result->whiteOwnerMap != NULL) {
-    if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5 || modelVersion == 6) {
+    if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5 || modelVersion == 6 || modelVersion == 7) {
       for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
         int y = pos / nnXLen;
         int x = pos % nnXLen;

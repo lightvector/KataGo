@@ -32,6 +32,8 @@ class Model:
       return 22
     elif version == 6:
       return 13
+    elif version == 7:
+      return 22
     else:
       assert(False)
 
@@ -44,6 +46,8 @@ class Model:
       return 14
     elif version == 6:
       return 12
+    elif version == 7:
+      return 16
     else:
       assert(False)
 
@@ -182,8 +186,8 @@ class Model:
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
   def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, use_history_prop, idx):
-    #Currently only support v4 or v5 features
-    assert(self.version == 4 or self.version == 5)
+    #Currently only support v4 or v5 or v7 MODEL features (inputs version v3 and v4 and v6)
+    assert(self.version == 4 or self.version == 5 or self.version == 7)
 
     bsize = board.size
     assert(self.pos_len >= bsize)
@@ -286,13 +290,14 @@ class Model:
       bin_input_data[idx,pos,16] = 1.0
     self.iterLadders(prevPrevBoard, addPrevPrevLadderFeature)
 
+    #TODO recursivelyreachespass-alive, currently this is wrong for model version 7
     #Features 18,19 - pass-alive stones
     area = [-1 for i in range(board.arrsize)]
     if rules["scoringRule"] == "SCORING_AREA":
       nonPassAliveStones = False
       safeBigTerritories = True
       unsafeBigTerritories = False
-      if self.version == 4:
+      if self.version != 5:
         nonPassAliveStones = True
         unsafeBigTerritories = True
       board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
@@ -314,6 +319,7 @@ class Model:
         elif area[loc] == opp:
           bin_input_data[idx,pos,19] = 1.0
 
+    #TODO python-side japanese rules?
     #Features 20,21 - second encore phase starting stones, we just set them to the current stones in pythong
     #since we don't really have a jp rules impl
     if rules["encorePhase"] >= 2:
@@ -363,13 +369,31 @@ class Model:
     else:
       assert(False)
 
-    if rules["encorePhase"] > 0:
-      global_input_data[idx,10] = 1.0
-    if rules["encorePhase"] > 1:
-      global_input_data[idx,11] = 1.0
+    if model.version >= 7:
+      if rules["taxRule"] == "TAX_NONE":
+        pass
+      elif rules["taxRule"] == "TAX_SEKI":
+        global_input_data[idx,10] = 1.0
+      elif rules["taxRule"] == "TAX_ALL":
+        global_input_data[idx,10] = 1.0
+        global_input_data[idx,11] = 1.0
+      else:
+        assert(False)
 
-    passWouldEndPhase = rules["passWouldEndPhase"]
-    global_input_data[idx,12] = (1.0 if passWouldEndPhase else 0.0)
+    if model.version >= 7:
+      if rules["encorePhase"] > 0:
+        global_input_data[idx,12] = 1.0
+      if rules["encorePhase"] > 1:
+        global_input_data[idx,13] = 1.0
+      passWouldEndPhase = rules["passWouldEndPhase"]
+      global_input_data[idx,14] = (1.0 if passWouldEndPhase else 0.0)
+    else:
+      if rules["encorePhase"] > 0:
+        global_input_data[idx,10] = 1.0
+      if rules["encorePhase"] > 1:
+        global_input_data[idx,11] = 1.0
+      passWouldEndPhase = rules["passWouldEndPhase"]
+      global_input_data[idx,12] = (1.0 if passWouldEndPhase else 0.0)
 
     if rules["scoringRule"] == "SCORING_AREA" or rules["encorePhase"] > 1:
       boardAreaIsEven = (board.size % 2 == 0)
@@ -396,7 +420,10 @@ class Model:
       else:
         wave = delta-2.0
 
-      global_input_data[idx,13] = wave
+      if model.version >= 7:
+        global_input_data[idx,15] = wave
+      else:
+        global_input_data[idx,13] = wave
 
     return idx+1
 
@@ -727,10 +754,11 @@ class Model:
     #self.version = 4 #V3 features, but supporting belief stdev and dynamic scorevalue
     #self.version = 5 #V4 features, slightly different pass-alive stones feature
     #self.version = 6 #V5 features, most higher-level go features removed
+    #self.version = 7 #V6 features, more rules support
 
     self.version = Model.get_version(config)
-    #These are the only three supported versions
-    assert(self.version == 4 or self.version == 5 or self.version == 6)
+    #These are the only four supported versions
+    assert(self.version == 4 or self.version == 5 or self.version == 6 or self.version == 7)
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
@@ -788,7 +816,7 @@ class Model:
     #We do this by building a matrix for each batch element, mapping input channels to possibly-turned off channels.
     #This matrix is a sum of hist_matrix_base which always turns off all the channels, and h0, h1, h2,... which perform
     #the modifications to hist_matrix_base to make it turn on channels based on whether we have move0, move1,...
-    if self.version == 4 or self.version == 5:
+    if self.version == 4 or self.version == 5 or self.version == 7:
       hist_matrix_base = np.diag(np.array([
         1.0, #0
         1.0, #1
@@ -1067,7 +1095,7 @@ class Model:
     scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
     assert(scorebelief_len == self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2)
 
-    if self.version == 4 or self.version == 5:
+    if self.version == 4 or self.version == 5 or self.version == 7:
       self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
       self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
       sbv2_size = config["sbv2_num_channels"]

@@ -15,13 +15,15 @@ static void printNNInputHWAndBoard(
   int nnXLen, int nnYLen, bool inputsUseNHWC, T* row, int c
 ) {
   int numFeatures;
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
   if(inputsVersion == 3)
     numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V3;
   else if(inputsVersion == 4)
     numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V4;
   else if(inputsVersion == 5)
     numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V5;
+  else if(inputsVersion == 6)
+    numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V6;
   else
     testAssert(false);
 
@@ -64,13 +66,15 @@ static void printNNInputHWAndBoard(
 template <typename T>
 static void printNNInputGlobal(ostream& out, int inputsVersion, T* row, int c) {
   int numFeatures;
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
   if(inputsVersion == 3)
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V3;
   else if(inputsVersion == 4)
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V4;
   else if(inputsVersion == 5)
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V5;
+  else if(inputsVersion == 6)
+    numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V6;
   else
     testAssert(false);
   (void)numFeatures;
@@ -94,12 +98,12 @@ static string getAndClear(ostringstream& out) {
 
 
 void Tests::runNNInputsV3V4Tests() {
-  cout << "Running NN inputs V3V4V5 tests" << endl;
+  cout << "Running NN inputs V3V4V5V6 tests" << endl;
   ostringstream out;
   out << std::setprecision(5);
 
   auto allocateRows = [](int version, int nnXLen, int nnYLen, int& numFeaturesBin, int& numFeaturesGlobal, float*& rowBin, float*& rowGlobal) {
-    static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
     if(version == 3) {
       numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V3;
       numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V3;
@@ -118,6 +122,12 @@ void Tests::runNNInputsV3V4Tests() {
       rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V5 * nnXLen * nnYLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V5];
     }
+    else if(version == 6) {
+      numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V6;
+      numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V6;
+      rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V6 * nnXLen * nnYLen];
+      rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V6];
+    }
     else
       testAssert(false);
   };
@@ -128,7 +138,7 @@ void Tests::runNNInputsV3V4Tests() {
     MiscNNInputParams nnInputParams;
     nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
 
-    static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
     if(version == 3) {
       hash = NNInputs::getHashV3(board,hist,nextPla,nnInputParams);
       NNInputs::fillRowV3(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
@@ -141,16 +151,20 @@ void Tests::runNNInputsV3V4Tests() {
       hash = NNInputs::getHashV5(board,hist,nextPla,nnInputParams);
       NNInputs::fillRowV5(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
     }
+    else if(version == 6) {
+      hash = NNInputs::getHashV6(board,hist,nextPla,nnInputParams);
+      NNInputs::fillRowV6(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+    }
     else
       testAssert(false);
   };
 
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
   int minVersion = 3;
-  int maxVersion = 5;
+  int maxVersion = 6;
 
   {
-    const char* name = "NN Inputs V3V4V5 Basic";
+    const char* name = "NN Inputs V3V4V5V6 Basic";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -209,7 +223,7 @@ void Tests::runNNInputsV3V4Tests() {
   }
 
   {
-    const char* name = "NN Inputs V3V4V5 Ko";
+    const char* name = "NN Inputs V3V4V5V6 Ko";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -247,7 +261,7 @@ void Tests::runNNInputsV3V4Tests() {
         Hash128 hash;
         fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
         out << hash << endl;
-        int c = version <= 5 ? 6 : 3;
+        int c = version != 5 ? 6 : 3;
         printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
         for(c = 0; c<numFeaturesGlobal; c++)
           printNNInputGlobal(out,version,rowGlobal,c);
@@ -269,7 +283,7 @@ void Tests::runNNInputsV3V4Tests() {
 
 
   {
-    const char* name = "NN Inputs V3 7x7";
+    const char* name = "NN Inputs V3V4V5V6 7x7";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -328,7 +342,7 @@ void Tests::runNNInputsV3V4Tests() {
   }
 
   {
-    const char* name = "NN Inputs V3 7x7 embedded in 9x9";
+    const char* name = "NN Inputs V3V4V5V6 7x7 embedded in 9x9";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -387,12 +401,14 @@ void Tests::runNNInputsV3V4Tests() {
   }
 
   {
-    const char* name = "NN Inputs V3 Area Komi";
+    const char* name = "NN Inputs V3V4V6 Area Komi";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
 
-    for(int version = minVersion; version <= 4; version++) {
+    for(int version = minVersion; version <= maxVersion; version++) {
+      if(version == 5)
+        continue;
       cout << "VERSION " << version << endl;
       Board board = Board::parseBoard(7,7,R"%%(
 .xo.oo.
@@ -451,7 +467,7 @@ xxx..xx
   }
 
   {
-    const char* name = "NN Inputs V3 Rules";
+    const char* name = "NN Inputs V3V4V5V6 Rules";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -521,7 +537,7 @@ xxx..xx
   }
 
   {
-    const char* name = "NN Inputs V3 Ko Prohib and pass hist and whitebonus and encorestart";
+    const char* name = "NN Inputs V3V4V6 Ko Prohib and pass hist and whitebonus and encorestart";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -532,7 +548,9 @@ xxx..xx
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
     vector<Move>& moves = sgf->moves;
 
-    for(int version = minVersion; version <= 4; version++) {
+    for(int version = minVersion; version <= maxVersion; version++) {
+      if(version == 5)
+        continue;
       cout << "VERSION " << version << endl;
       Board board;
       Player nextPla;
@@ -573,8 +591,14 @@ xxx..xx
             out << rowGlobal[c] << " ";
           out << endl;
           out << "Selfkomi channel times 15: " << rowGlobal[5]*15 << endl;
-          out << "EncorePhase channel 10,11: " << rowGlobal[10] << " " << rowGlobal[11] << endl;
-          out << "PassWouldEndPhase channel 12: " << rowGlobal[12] << endl;
+          if(version >= 6) {
+            out << "EncorePhase channel 12,13: " << rowGlobal[12] << " " << rowGlobal[13] << endl;
+            out << "PassWouldEndPhase channel 14: " << rowGlobal[14] << endl;
+          }
+          else {
+            out << "EncorePhase channel 10,11: " << rowGlobal[10] << " " << rowGlobal[11] << endl;
+            out << "PassWouldEndPhase channel 12: " << rowGlobal[12] << endl;
+          }
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,7);
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,8);
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,20);
@@ -592,7 +616,7 @@ xxx..xx
   }
 
   {
-    const char* name = "NN Inputs V3 some other test positions";
+    const char* name = "NN Inputs V3V4V6 some other test positions";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -601,7 +625,9 @@ xxx..xx
 
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
-    for(int version = minVersion; version <= 4; version++) {
+    for(int version = minVersion; version <= maxVersion; version++) {
+      if(version == 5)
+        continue;
       cout << "VERSION " << version << endl;
       Board board;
       Player nextPla;

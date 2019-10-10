@@ -283,8 +283,8 @@ void TrainingWriteBuffers::addRow(
   const FinishedGameData& data,
   Rand& rand
 ) {
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
-  if(inputsVersion < 3 || inputsVersion > 5)
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
+  if(inputsVersion < 3 || inputsVersion > 6)
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 
   int posArea = dataXLen*dataYLen;
@@ -300,6 +300,7 @@ void TrainingWriteBuffers::addRow(
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
     if(inputsVersion == 3) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V3 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V3 == numGlobalChannels);
@@ -314,6 +315,11 @@ void TrainingWriteBuffers::addRow(
       assert(NNInputs::NUM_FEATURES_SPATIAL_V5 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V5 == numGlobalChannels);
       NNInputs::fillRowV5(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+    }
+    else if(inputsVersion == 6) {
+      assert(NNInputs::NUM_FEATURES_SPATIAL_V6 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_GLOBAL_V6 == numGlobalChannels);
+      NNInputs::fillRowV6(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
       ASSERT_UNREACHABLE;
@@ -701,6 +707,7 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   int numGlobalChannels;
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
   //to feed into a model during selfplay
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
   if(inputsVersion == 3) {
     numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V3;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V3;
@@ -712,6 +719,10 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   else if(inputsVersion == 5) {
     numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V5;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V5;
+  }
+  else if(inputsVersion == 6) {
+    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V6;
+    numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V6;
   }
   else {
     throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(inputsVersion));
