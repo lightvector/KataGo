@@ -482,7 +482,16 @@ void Sgf::samplePositionIfUniqueHelper(
 
   //Snap the position 5 turns ago so as to include 5 moves of history.
   assert(BoardHistory::NUM_RECENT_BOARDS > 5);
-  int turnsAgoToSnap = std::min((size_t)5,hist.moveHistory.size());
+  int turnsAgoToSnap = 0;
+  while(turnsAgoToSnap < 5) {
+    if(turnsAgoToSnap >= hist.moveHistory.size())
+      break;
+    //If a player played twice in a row, then instead snap so as not to have a move history
+    //with a double move by the same player.
+    if(turnsAgoToSnap > 0 && hist.moveHistory[hist.moveHistory.size() - turnsAgoToSnap - 1].pla == hist.moveHistory[hist.moveHistory.size() - turnsAgoToSnap].pla)
+      break;
+    turnsAgoToSnap++;
+  }
   int startTurn = hist.moveHistory.size() - turnsAgoToSnap;
 
   sampleBuf.board = hist.getRecentBoard(turnsAgoToSnap);
