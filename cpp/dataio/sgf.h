@@ -72,7 +72,7 @@ struct Sgf {
     int initialTurnNumber;
   };
 
-  //Loads SGF all unique positions in ALL branches of that SGF, sampling them with the specified probability.
+  //Loads SGF all unique positions in ALL branches of that SGF.
   //Hashes are used to filter out "identical" positions when loading many files from different SGFs that may have overlapping openings, etc.
   //The hashes are not guaranteed to correspond to position hashes, or anything else external to this function itself.
   //May raise an exception on illegal moves or other SGF issues, only partially appending things on to the boards and hists.

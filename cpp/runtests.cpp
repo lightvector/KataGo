@@ -1,6 +1,7 @@
 
 #include <sstream>
 #include "core/global.h"
+#include "core/bsearch.h"
 #include "core/rand.h"
 #include "core/elo.h"
 #include "core/fancymath.h"
@@ -20,6 +21,7 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
 
+  BSearch::runTests();
   Rand::runTests();
   FancyMath::runTests();
   ComputeElos::runTests();

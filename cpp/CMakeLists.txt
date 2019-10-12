@@ -144,6 +144,7 @@ endif()
 
 if(BUILD_WRITE)
   add_executable(write
+    core/bsearch.cpp
     core/datetime.cpp
     core/global.cpp
     core/hash.cpp
@@ -185,6 +186,7 @@ endif()
 if(BUILD_MCTS)
   add_executable(katago
     core/global.cpp
+    core/bsearch.cpp
     core/config_parser.cpp
     core/datetime.cpp
     core/elo.cpp

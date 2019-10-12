@@ -107,6 +107,7 @@ void Tests::runTrainingWriteTests() {
     ExtraBlackAndKomi extraBlackAndKomi = ExtraBlackAndKomi(0,rules.komi,rules.komi);
     bool doEndGameIfAllPassAlive = cheapLongSgf ? false : true;
     bool clearBotAfterSearch = true;
+    bool alwaysMakeGameFair = false;
     int maxMovesPerGame = cheapLongSgf ? 200 : 40;
     vector<std::atomic<bool>*> stopConditions;
     FancyModes fancyModes;
@@ -124,6 +125,7 @@ void Tests::runTrainingWriteTests() {
       logger, false, false,
       maxMovesPerGame, stopConditions,
       fancyModes, true,
+      alwaysMakeGameFair,
       rand,
       NULL
     );
@@ -221,6 +223,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
+    bool alwaysMakeGameFair = false;
     int maxMovesPerGame = 1;
     vector<std::atomic<bool>*> stopConditions;
     FancyModes fancyModes;
@@ -251,6 +254,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       logger, false, false,
       maxMovesPerGame, stopConditions,
       fancyModes, true,
+      alwaysMakeGameFair,
       rand,
       NULL
     );
@@ -353,6 +357,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
+    bool alwaysMakeGameFair = false;
     int maxMovesPerGame = 1;
     vector<std::atomic<bool>*> stopConditions;
     FancyModes fancyModes;
@@ -383,6 +388,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
       logger, false, false,
       maxMovesPerGame, stopConditions,
       fancyModes, true,
+      alwaysMakeGameFair,
       rand,
       NULL
     );

@@ -252,7 +252,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.forSelfPlay = true;
   fancyModes.dataXLen = dataBoardLen;
   fancyModes.dataYLen = dataBoardLen;
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes);
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes, logger);
 
   Setup::initializeSession(cfg);
 

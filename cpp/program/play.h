@@ -7,6 +7,7 @@
 #include "../core/rand.h"
 #include "../core/threadsafequeue.h"
 #include "../dataio/trainingwrite.h"
+#include "../dataio/sgf.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../search/search.h"
@@ -41,7 +42,7 @@ STRUCT_NAMED_TRIPLE(int, extraBlack, float, komi, float, komiBase, ExtraBlackAnd
 //Object choosing random initial rules and board sizes for games. Threadsafe.
 class GameInitializer {
  public:
-  GameInitializer(ConfigParser& cfg);
+  GameInitializer(ConfigParser& cfg, Logger& logger);
   ~GameInitializer();
 
   GameInitializer(const GameInitializer&) = delete;
@@ -52,16 +53,32 @@ class GameInitializer {
   //Also, mutates params to randomize appropriate things like utilities, but does NOT fill in all the settings.
   //User should make sure the initial params provided makes sense as a mean or baseline.
   //Does NOT place handicap stones, users of this function need to place them manually
-  void createGame(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, SearchParams& params, const InitialPosition* initialPosition);
+  void createGame(
+    Board& board, Player& pla, BoardHistory& hist,
+    ExtraBlackAndKomi& extraBlackAndKomi,
+    SearchParams& params,
+    const InitialPosition* initialPosition,
+    bool& isSgfPos
+  );
 
   //A version that doesn't randomize params
-  void createGame(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition);
+  void createGame(
+    Board& board, Player& pla, BoardHistory& hist,
+    ExtraBlackAndKomi& extraBlackAndKomi,
+    const InitialPosition* initialPosition,
+    bool& isSgfPos
+  );
 
   Rules randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const;
 
  private:
-  void initShared(ConfigParser& cfg);
-  void createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition);
+  void initShared(ConfigParser& cfg, Logger& logger);
+  void createGameSharedUnsynchronized(
+    Board& board, Player& pla, BoardHistory& hist,
+    ExtraBlackAndKomi& extraBlackAndKomi,
+    const InitialPosition* initialPosition,
+    bool& isSgfPos
+  );
 
   std::mutex createGameMutex;
   Rand rand;
@@ -88,6 +105,10 @@ class GameInitializer {
 
   double noResultStdev;
   double drawRandRadius;
+
+  std::vector<Sgf::PositionSample> startPoses;
+  std::vector<double> startPosCumProbs;
+  double startPosesProb;
 };
 
 
@@ -237,6 +258,7 @@ namespace Play {
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     const FancyModes& fancyModes, bool allowPolicyInit,
+    bool alwaysMakeGameFair,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -250,6 +272,7 @@ namespace Play {
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     const FancyModes& fancyModes, bool allowPolicyInit,
+    bool alwaysMakeGameFair,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -319,7 +342,7 @@ class GameRunner {
   GameInitializer* gameInit;
 
 public:
-  GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, FancyModes fancyModes);
+  GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, FancyModes fancyModes, Logger& logger);
   ~GameRunner();
 
   //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data
