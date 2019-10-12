@@ -369,6 +369,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     return;
   }
 
+  int bSizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
   Rules rules;
   rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
   rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
@@ -397,7 +398,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     isSgfPos = true;
   }
   else {
-    int bSize = allowedBSizes[rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size())];
+    int bSize = allowedBSizes[bSizeIdx];
     board = Board(bSize,bSize);
 
     extraBlackAndKomi = chooseExtraBlackAndKomi(
@@ -691,7 +692,8 @@ static double getWhiteScoreEstimate(Search* bot, const Board& board, const Board
 }
 
 void Play::adjustKomiToEven(
-  Search* bot,
+  Search* botB,
+  Search* botW,
   const Board& board,
   BoardHistory& hist,
   Player pla,
@@ -700,7 +702,11 @@ void Play::adjustKomiToEven(
 ) {
   //Iterate a few times in case the neural net knows the bot isn't perfectly score maximizing.
   for(int i = 0; i<3; i++) {
-    double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, numVisits, logger);
+    double finalWhiteScore = getWhiteScoreEstimate(botB, board, hist, pla, numVisits, logger);
+    //If we have a second bot, average the two
+    if(botW != NULL && botW != botB) {
+      finalWhiteScore = 0.5 * finalWhiteScore + 0.5 * getWhiteScoreEstimate(botW, board, hist, pla, numVisits, logger);
+    }
     double fairKomi = hist.rules.komi - finalWhiteScore;
     hist.setKomi(roundAndClipKomi(fairKomi,board));
   }
@@ -737,22 +743,16 @@ double Play::getSearchFactor(
 //Does NOT switch the initial player of the board history to white
 void Play::playExtraBlack(
   Search* bot,
-  Logger& logger,
-  ExtraBlackAndKomi extraBlackAndKomi,
+  int numExtraBlack,
   Board& board,
   BoardHistory& hist,
   double temperature,
-  Rand& gameRand,
-  bool adjustKomi,
-  int numVisitsForKomi
+  Rand& gameRand
 ) {
   Player pla = P_BLACK;
 
-  //First, restore back to baseline komi
-  hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
-
   NNResultBuf buf;
-  for(int i = 0; i<extraBlackAndKomi.extraBlack; i++) {
+  for(int i = 0; i<numExtraBlack; i++) {
     MiscNNInputParams nnInputParams;
     nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
     bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,NULL,false,false);
@@ -767,13 +767,6 @@ void Play::playExtraBlack(
     assert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
     hist.clear(board,pla,hist.rules,0);
-  }
-
-  if(adjustKomi) {
-    //Adjust komi to be fair for the handicap according to what the bot thinks.
-    adjustKomiToEven(bot,board,hist,pla,numVisitsForKomi,logger);
-    //Then, reapply the komi offset from base that we should have had
-    hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
   }
 
   bot->setPosition(pla,board,hist);
@@ -1300,12 +1293,20 @@ FinishedGameData* Play::runGame(
   if(extraBlackAndKomi.extraBlack > 0) {
     double extraBlackTemperature = 1.0;
     bool adjustKomi = alwaysMakeGameFair || !gameRand.nextBool(fancyModes.noCompensateKomiProb);
-    playExtraBlack(botB,logger,extraBlackAndKomi,board,hist,extraBlackTemperature,gameRand,adjustKomi,fancyModes.compensateKomiVisits);
+    //First, restore back to baseline komi
+    hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
+    playExtraBlack(botB,extraBlackAndKomi.extraBlack,board,hist,extraBlackTemperature,gameRand);
+    if(adjustKomi) {
+      //Adjust komi to be fair for the handicap according to what the bot thinks.
+      adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger);
+    }
+    //Then, reapply the komi offset from base that we should have had
+    hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
     assert(hist.moveHistory.size() == 0);
   }
   else {
     if(alwaysMakeGameFair) {
-      adjustKomiToEven(botB,board,hist,pla,fancyModes.compensateKomiVisits,logger);
+      adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger);
     }
   }
 
@@ -1370,7 +1371,7 @@ FinishedGameData* Play::runGame(
 
     if(!hist.isGameFinished) {
       //Even out the game
-      adjustKomiToEven(botB, board, hist, pla, fancyModes.compensateKomiVisits, logger);
+      adjustKomiToEven(botB, botW, board, hist, pla, fancyModes.compensateKomiVisits, logger);
 
       //Randomly set to one of the encore phases
       //Since we played out the game a bunch we should get a good mix of stones that were present or not present at the start
@@ -1857,7 +1858,7 @@ void Play::maybeForkGame(
 
   //Adjust komi to be fair for the new unusual move according to what the net thinks
   if(!gameRand.nextBool(fancyModes.noCompensateKomiProb)) {
-    adjustKomiToEven(bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
+    adjustKomiToEven(bot, bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
   }
   forkData->add(new InitialPosition(board,hist,pla));
 }
@@ -1901,7 +1902,7 @@ void Play::maybeSekiForkGame(
       //Just in case if somehow the game is over now, don't actually do anything
       if(hist.isGameFinished)
         continue;
-      adjustKomiToEven(bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
+      adjustKomiToEven(bot, bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
       forkData->addSeki(new InitialPosition(board,hist,pla),gameRand);
     }
   }

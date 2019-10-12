@@ -508,7 +508,7 @@ struct GTPEngine {
     nnEval->clearCache();
   }
 
-  void placeFreeHandicap(int n, Logger& logger, string& response, bool& responseIsError) {
+  void placeFreeHandicap(int n, string& response, bool& responseIsError) {
     //If asked to place more, we just go ahead and only place up to 30, or a quarter of the board
     int xSize = bot->getRootBoard().x_size;
     int ySize = bot->getRootBoard().y_size;
@@ -522,11 +522,8 @@ struct GTPEngine {
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,bot->getRootHist().rules,0);
     double extraBlackTemperature = 0.25;
-    bool adjustKomi = false;
-    int numVisitsForKomi = 0;
     Rand rand;
-    ExtraBlackAndKomi extraBlackAndKomi(n,hist.rules.komi,hist.rules.komi);
-    Play::playExtraBlack(bot->getSearch(), logger, extraBlackAndKomi, board, hist, extraBlackTemperature, rand, adjustKomi, numVisitsForKomi);
+    Play::playExtraBlack(bot->getSearch(), n, board, hist, extraBlackTemperature, rand);
 
     //Also switch the initial player, expecting white should be next.
     {
@@ -1169,7 +1166,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Board is not empty";
       }
       else {
-        engine->placeFreeHandicap(n,logger,response,responseIsError);
+        engine->placeFreeHandicap(n,response,responseIsError);
       }
     }
 

@@ -239,14 +239,11 @@ namespace Play {
   //Use the given bot to play free handicap stones, modifying the board and hist in the process and setting the bot's position to it.
   void playExtraBlack(
     Search* bot,
-    Logger& logger,
-    ExtraBlackAndKomi extraBlackAndKomi,
+    int numExtraBlack,
     Board& board,
     BoardHistory& hist,
     double temperature,
-    Rand& gameRand,
-    bool adjustKomi,
-    int numVisitsForKomi
+    Rand& gameRand
   );
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
@@ -308,7 +305,8 @@ namespace Play {
   );
 
   void adjustKomiToEven(
-    Search* bot,
+    Search* botB,
+    Search* botW,
     const Board& board,
     BoardHistory& hist,
     Player pla,
