@@ -277,8 +277,10 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
       minInitialTurnNumber = std::min(minInitialTurnNumber, startPoses[i].initialTurnNumber);
 
     startPosCumProbs.resize(startPoses.size());
-    for(size_t i = 0; i<startPoses.size(); i++)
-      startPosCumProbs[i] = exp(-(startPoses[i].initialTurnNumber - minInitialTurnNumber) * startPosesTurnWeightLambda);
+    for(size_t i = 0; i<startPoses.size(); i++) {
+      int64_t startTurn = startPoses[i].initialTurnNumber + (int64_t)startPoses[i].moves.size() - minInitialTurnNumber;
+      startPosCumProbs[i] = exp(-startTurn * startPosesTurnWeightLambda);
+    }
     for(size_t i = 0; i<startPoses.size(); i++) {
       if(!(startPosCumProbs[i] > -1e200 && startPosCumProbs[i] < 1e200)) {
         throw StringError("startPos found bad unnormalized probability: " + Global::doubleToString(startPosCumProbs[i]));
@@ -290,6 +292,9 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     if(startPoses.size() <= 0) {
       logger.write("No start positions loaded, disabling start position logic");
       startPosesProb = 0;
+    }
+    else {
+      logger.write("Cumulative unnormalized probability for start poses: " + Global::doubleToString(startPosCumProbs[startPoses.size()-1]));
     }
   }
 

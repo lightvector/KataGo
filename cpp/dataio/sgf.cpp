@@ -413,19 +413,36 @@ void Sgf::iterAllUniquePositionsHelper(
 ) const {
   vector<Move> buf;
   for(int i = 0; i<nodes.size(); i++) {
+
+    //Handle placements
     if(nodes[i]->hasPlacements()) {
       buf.clear();
       nodes[i]->accumPlacements(buf,xSize,ySize);
       if(buf.size() > 0) {
-        for(int j = 0; j<buf.size(); j++)
+        int netStonesAdded = 0;
+        for(int j = 0; j<buf.size(); j++) {
+          if(board.colors[buf[j].loc] != C_EMPTY && buf[j].pla == C_EMPTY)
+            netStonesAdded--;
+          if(board.colors[buf[j].loc] == C_EMPTY && buf[j].pla != C_EMPTY)
+            netStonesAdded++;
           board.setStone(buf[j].loc, buf[j].pla);
+        }
         board.clearSimpleKoLoc();
+        //Clear history any time placements happen, but make sure we track the initial turn number.
         initialTurnNumber += hist.moveHistory.size();
+
+        //If stones were net added, count each such stone as half of an initial turn.
+        //Sort of hacky, but improves the correlation between initial turn and how full the board is compared
+        //to not doing it.
+        if(netStonesAdded > 0)
+          initialTurnNumber += (netStonesAdded+1)/2;
+
         hist.clear(board,nextPla,rules,0);
       }
       samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,f);
     }
 
+    //Handle actual moves
     buf.clear();
     nodes[i]->accumMoves(buf,xSize,ySize);
 
@@ -469,6 +486,14 @@ void Sgf::samplePositionIfUniqueHelper(
   std::set<Hash128>& uniqueHashes,
   std::function<void(PositionSample&)> f
 ) const {
+  //If the game is over or there were two consecutive passes, skip
+  if(hist.isGameFinished || (
+       hist.moveHistory.size() >= 2
+       && hist.moveHistory[hist.moveHistory.size()-1].loc == Board::PASS_LOC
+       && hist.moveHistory[hist.moveHistory.size()-2].loc == Board::PASS_LOC
+     ))
+    return;
+
   //Hash based on position, player, and simple ko
   Hash128 situationHash = board.pos_hash;
   situationHash ^= Board::ZOBRIST_PLAYER_HASH[nextPla];
@@ -489,6 +514,8 @@ void Sgf::samplePositionIfUniqueHelper(
     //If a player played twice in a row, then instead snap so as not to have a move history
     //with a double move by the same player.
     if(turnsAgoToSnap > 0 && hist.moveHistory[hist.moveHistory.size() - turnsAgoToSnap - 1].pla == hist.moveHistory[hist.moveHistory.size() - turnsAgoToSnap].pla)
+      break;
+    if(turnsAgoToSnap == 0 && hist.moveHistory[hist.moveHistory.size() - turnsAgoToSnap - 1].pla == nextPla)
       break;
     turnsAgoToSnap++;
   }
