@@ -1311,7 +1311,12 @@ FinishedGameData* Play::runGame(
   }
   else {
     if(alwaysMakeGameFair) {
+      //First, restore back to baseline komi
+      hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
+      //Adjust komi to be fair for the handicap according to what the bot thinks.
       adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger);
+      //Then, reapply the komi offset from base that we should have had
+      hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
     }
   }
 
