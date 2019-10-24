@@ -311,6 +311,10 @@ private:
     double nnPolicyProb, int64_t totalChildVisits, int64_t childVisits,
     double childUtility, Player pla
   ) const;
+  double getExploreSelectionValueInverse(
+    double exploreSelectionValue, double nnPolicyProb, int64_t totalChildVisits,
+    double childUtility, Player pla
+  ) const;
   double getPassingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
 
   bool getPlaySelectionValuesAlreadyLocked(

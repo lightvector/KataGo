@@ -1399,6 +1399,33 @@ double Search::getExploreSelectionValue(
   return exploreComponent + valueComponent;
 }
 
+//Return the childVisits that would make Search::getExploreSelectionValue return the given explore selection value.
+//Or return 0, if it would be less than 0.
+double Search::getExploreSelectionValueInverse(
+  double exploreSelectionValue, double nnPolicyProb, int64_t totalChildVisits,
+  double childUtility, Player pla
+) const {
+  if(nnPolicyProb < 0)
+    return 0;
+  double valueComponent = pla == P_WHITE ? childUtility : -childUtility;
+
+  double exploreComponent = exploreSelectionValue - valueComponent;
+  double exploreComponentScaling =
+    searchParams.cpuctExploration
+    * nnPolicyProb
+    * sqrt((double)totalChildVisits + 0.01); //TODO this is weird when totalChildVisits == 0, first exploration
+
+  //Guard against float weirdness
+  if(exploreComponent <= 0)
+    return 1e100;
+
+  double childVisits = exploreComponentScaling / exploreComponent - 1;
+  if(childVisits < 0)
+    childVisits = 0;
+  return childVisits;
+}
+
+
 //Parent must be locked
 double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const {
   if(&parent != rootNode || child->prevMoveLoc == Board::NULL_LOC)
@@ -1540,7 +1567,7 @@ int64_t Search::getReducedPlaySelectionVisits(
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parentPolicyProbs[movePos];
-  float maybeNoisedNNPolicyProb = maybeNoisedPolicyProbs[movePos];
+  (void)maybeNoisedPolicyProbs; //TODO cleanup
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   int64_t childVisits = child->stats.visits;
@@ -1560,19 +1587,12 @@ int64_t Search::getReducedPlaySelectionVisits(
   if(endingScoreBonus != 0)
     childUtility += getScoreUtilityDiff(scoreMeanSum, scoreMeanSqSum, weightSum, endingScoreBonus);
 
-  int64_t desiredVisits = (int64_t)ceil(sqrt(maybeNoisedNNPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff));
-  for(int i = 0; i<desiredVisits; i++) {
-    if(childVisits <= 0)
-      break;
-    double exploreSelectionValue = getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits-1,childUtility,parent.nextPla);
-    if(exploreSelectionValue < bestChildExploreSelectionValue) {
-      childVisits -= 1;
-      continue;
-    }
-    else
-      break;
-  }
-
+  //TODO this should have a mild effect on match strength too? test it
+  double childVisitsWeRetrospectivelyWanted = getExploreSelectionValueInverse(
+    bestChildExploreSelectionValue, nnPolicyProb, totalChildVisits, childUtility, parent.nextPla
+  );
+  if(childVisits > childVisitsWeRetrospectivelyWanted)
+    childVisits = (int64_t)ceil(childVisitsWeRetrospectivelyWanted);
   return childVisits;
 }
 
