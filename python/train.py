@@ -312,7 +312,7 @@ def train_input_fn(train_files_to_use,total_num_train_files,batches_to_use):
   dataset = tf.data.Dataset.from_tensor_slices(train_files_to_use)
   dataset = dataset.shuffle(65536)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
-  dataset = dataset.shuffle(1000)
+  dataset = dataset.shuffle(100)
   dataset = dataset.map(parse_input)
   dataset = dataset.prefetch(2)
   return dataset
