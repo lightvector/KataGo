@@ -13,7 +13,7 @@ class Model:
   # for auxiliary outputs
   NUM_POLICY_TARGETS = 2
   NUM_GLOBAL_TARGETS = 64
-  NUM_VALUE_SPATIAL_TARGETS = 1
+  NUM_VALUE_SPATIAL_TARGETS = 4
   EXTRA_SCORE_DISTR_RADIUS = 60
   BONUS_SCORE_RADIUS = 30
 
@@ -70,8 +70,10 @@ class Model:
     self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2]
     self.bonusbelief_target_shape = [Model.BONUS_SCORE_RADIUS*2+1]
     self.ownership_target_shape = [self.pos_len,self.pos_len]
+    self.futurepos_target_shape = [self.pos_len,self.pos_len,3]
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
+    self.futurepos_target_weight_shape = []
     self.utilityvar_target_weight_shape = [4]
 
     self.pass_pos = self.pos_len * self.pos_len
@@ -1155,6 +1157,11 @@ class Model:
     ownership_output = self.apply_symmetry(ownership_output,symmetries,inverse=True)
     ownership_output = tf.reshape(ownership_output, [-1] + self.ownership_target_shape, name = "ownership_output")
 
+    futurepos_output = self.conv_only_block("futurepos",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=3, scale_initial_weights=0.2, reg=False) * mask
+    self.futurepos_conv = ("futurepos",1,trunk_num_channels,3)
+    futurepos_output = self.apply_symmetry(futurepos_output,symmetries,inverse=True)
+    futurepos_output = tf.reshape(futurepos_output, [-1] + self.futurepos_target_shape, name = "futurepos_output")
+
     # self.add_lr_factor("v2/w:0",0.25)
     # self.add_lr_factor("v2/b:0",0.25)
     # self.add_lr_factor("v3/w:0",0.25)
@@ -1182,6 +1189,7 @@ class Model:
     self.scorebelief_output = scorebelief_output
     self.bonusbelief_output = bonusbelief_output
     self.ownership_output = ownership_output
+    self.futurepos_output = futurepos_output
 
     self.mask_before_symmetry = mask_before_symmetry
     self.mask = mask
@@ -1197,6 +1205,7 @@ class Target_vars:
     scorebelief_output = model.scorebelief_output
     bonusbelief_output = model.bonusbelief_output
     ownership_output = model.ownership_output
+    futurepos_output = model.futurepos_output
 
     value_probs = tf.nn.softmax(value_output,axis=1)
     scorebelief_probs = tf.nn.softmax(scorebelief_output,axis=1)
@@ -1230,6 +1239,10 @@ class Target_vars:
     #Ownership of board, CONDITIONAL on result
     self.ownership_target = (placeholders["ownership_target"] if "ownership_target" in placeholders else
                              tf.placeholder(tf.float32, [None] + model.ownership_target_shape))
+    #Future board positions, unconditional
+    self.futurepos_target = (placeholders["futurepos_target"] if "futurepos_target" in placeholders else
+                             tf.placeholder(tf.float32, [None] + model.futurepos_target_shape))
+
     self.target_weight_from_data = (placeholders["target_weight_from_data"] if "target_weight_from_data" in placeholders else
                                     tf.placeholder(tf.float32, [None] + model.target_weight_shape))
     self.policy_target_weight = (placeholders["policy_target_weight"] if "policy_target_weight" in placeholders else
@@ -1238,6 +1251,8 @@ class Target_vars:
                                  tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.ownership_target_weight = (placeholders["ownership_target_weight"] if "ownership_target_weight" in placeholders else
                                     tf.placeholder(tf.float32, [None] + model.ownership_target_weight_shape))
+    self.futurepos_target_weight = (placeholders["futurepos_target_weight"] if "futurepos_target_weight" in placeholders else
+                                    tf.placeholder(tf.float32, [None] + model.futurepos_target_weight_shape))
     self.utilityvar_target_weight = (placeholders["utilityvar_target_weight"] if "utilityvar_target_weight" in placeholders else
                                    tf.placeholder(tf.float32, [None] + model.utilityvar_target_weight_shape))
     self.selfkomi = (placeholders["selfkomi"] if "selfkomi" in placeholders else
@@ -1254,8 +1269,10 @@ class Target_vars:
     model.assert_batched_shape("bonusbelief_target", self.bonusbelief_target, model.bonusbelief_target_shape)
     model.assert_batched_shape("utilityvar_target", self.utilityvar_target, model.utilityvar_target_shape)
     model.assert_batched_shape("ownership_target", self.ownership_target, model.ownership_target_shape)
+    model.assert_batched_shape("futurepos_target", self.futurepos_target, model.futurepos_target_shape)
     model.assert_batched_shape("target_weight_from_data", self.target_weight_from_data, model.target_weight_shape)
     model.assert_batched_shape("ownership_target_weight", self.ownership_target_weight, model.ownership_target_weight_shape)
+    model.assert_batched_shape("futurepos_target_weight", self.futurepos_target_weight, model.futurepos_target_weight_shape)
     model.assert_batched_shape("utilityvar_target_weight", self.utilityvar_target_weight, model.utilityvar_target_weight_shape)
     model.assert_batched_shape("selfkomi", self.selfkomi, [])
 
@@ -1336,6 +1353,23 @@ class Target_vars:
       ) / model.mask_sum_hw
     )
 
+    #The futurepos targets extrapolate a fixed number of steps into the future independent
+    #of board size. So unlike the ownership above, generally a fixed number of spots are going to be
+    #"wrong" independent of board size, so we should just equal-weight the prediction per spot.
+    #However, on larger boards often the entropy of where the future moves will be should be greater
+    #and also in the event of capture, there may be large captures that don't occur on small boards,
+    #causing some scaling with board size. So, I dunno, let's compromise and scale by sqrt(boardarea).
+    #Also, the further out targets should be weighted a little less due to them being higher entropy
+    #due to simply being farther in the future, so multiply by [1,0.5,0.25].
+    self.futurepos_loss_unreduced = 0.15 * self.futurepos_target_weight * (
+      tf.reduce_sum(
+        tf.square(tf.tanh(futurepos_output) - self.futurepos_target)
+        * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len,1])
+        * tf.reshape(tf.constant([1,0.5,0.25],dtype=tf.float32),[1,1,1,3]),
+        axis=[1,2,3]
+      ) / tf.sqrt(model.mask_sum_hw)
+    )
+
     def huber_loss(x,y,delta):
       absdiff = tf.abs(x - y)
       return tf.where(absdiff > delta, (0.5 * delta*delta) + delta * (absdiff - delta), 0.5 * absdiff * absdiff)
@@ -1379,6 +1413,7 @@ class Target_vars:
     self.bonusbelief_cdf_loss = tf.reduce_sum(self.target_weight_used * self.bonusbelief_cdf_loss_unreduced, name="losses/bonusbelief_cdf_loss")
     self.utilityvar_loss = tf.reduce_sum(self.target_weight_used * self.utilityvar_loss_unreduced, name="losses/utilityvar_loss")
     self.ownership_loss = tf.reduce_sum(self.target_weight_used * self.ownership_loss_unreduced, name="losses/ownership_loss")
+    self.futurepos_loss = tf.reduce_sum(self.target_weight_used * self.futurepos_loss_unreduced, name="losses/futurepos_loss")
     self.ownership_reg_loss = tf.reduce_sum(self.target_weight_used * self.ownership_reg_loss_unreduced, name="losses/ownership_reg_loss")
     self.scoremean_reg_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_reg_loss_unreduced, name="losses/scoremean_reg_loss")
     self.scorestdev_reg_loss = tf.reduce_sum(self.target_weight_used * self.scorestdev_reg_loss_unreduced, name="losses/scorestdev_reg_loss")
@@ -1407,6 +1442,7 @@ class Target_vars:
         self.bonusbelief_cdf_loss +
         self.utilityvar_loss +
         self.ownership_loss +
+        self.futurepos_loss +
         self.scoremean_reg_loss +
         self.scorestdev_reg_loss +
         self.reg_loss +
@@ -1531,10 +1567,12 @@ class ModelUtils:
     placeholders["scorebelief_target"] = features["sdn"] / 100.0
     placeholders["bonusbelief_target"] = features["sbsn"]
     placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
-    placeholders["ownership_target"] = tf.reshape(features["vtnchw"],[-1,pos_len,pos_len])
+    placeholders["ownership_target"] = features["vtnchw"][:,0]
+    placeholders["futurepos_target"] = tf.transpose(features["vtnchw"][:,1:4], [0,2,3,1])
 
     placeholders["target_weight_from_data"] = features["gtnc"][:,25]
     placeholders["ownership_target_weight"] = features["gtnc"][:,27]
+    placeholders["futurepos_target_weight"] = features["gtnc"][:,33]
     placeholders["utilityvar_target_weight"] = features["gtnc"][:,29:33]
 
     placeholders["selfkomi"] = features["gtnc"][:,47]

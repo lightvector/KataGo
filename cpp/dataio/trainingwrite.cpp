@@ -154,7 +154,7 @@ void FinishedGameData::printDebug(ostream& out) const {
 //And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 2;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 64;
-static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
+static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 4;
 static const int BONUS_SCORE_RADIUS = 30;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int xLen, int yLen)
@@ -277,6 +277,7 @@ void TrainingWriteBuffers::addRow(
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
   int8_t* finalWhiteOwnership,
+  const vector<Board>* posHistForFutureBoards, //can be null
   bool isSidePosition,
   int numNeuralNetsBehindLatest,
   const FinishedGameData& data,
@@ -391,7 +392,6 @@ void TrainingWriteBuffers::addRow(
   }
 
   //Unused
-  rowGlobal[33] = 0.0f;
   rowGlobal[34] = 0.0f;
   rowGlobal[35] = 0.0f;
 
@@ -512,6 +512,47 @@ void TrainingWriteBuffers::addRow(
     if(idx < 0) idx = 0;
     if(idx >= bonusScoreLen) idx = bonusScoreLen-1;
     rowBonusScore[idx] = 1;
+  }
+
+  if(posHistForFutureBoards == NULL) {
+    rowGlobal[33] = 0.0f;
+    for(int i = 0; i<posArea; i++) {
+      rowOwnership[i+posArea] = 0;
+      rowOwnership[i+posArea*2] = 0;
+      rowOwnership[i+posArea*3] = 0;
+    }
+  }
+  else {
+    const vector<Board>& boards = *posHistForFutureBoards;
+    assert(boards.size() == whiteValueTargets.size());
+    assert(boards.size() > 0);
+
+    rowGlobal[33] = 1.0f;
+    int endIdx = boards.size()-1;
+    const Board& board1 = boards[std::min(whiteValueTargetsIdx+8,endIdx)];
+    const Board& board2 = boards[std::min(whiteValueTargetsIdx+16,endIdx)];
+    const Board& board3 = boards[std::min(whiteValueTargetsIdx+32,endIdx)];
+    assert(board1.y_size == board.y_size && board1.x_size == board.x_size);
+    assert(board2.y_size == board.y_size && board2.x_size == board.x_size);
+    assert(board3.y_size == board.y_size && board3.x_size == board.x_size);
+
+    for(int i = 0; i<posArea; i++) {
+      rowOwnership[i+posArea] = 0;
+      rowOwnership[i+posArea*2] = 0;
+      rowOwnership[i+posArea*3] = 0;
+    }
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,dataXLen);
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board1.colors[loc] == nextPlayer) rowOwnership[pos+posArea] = 1;
+        else if(board1.colors[loc] == getOpp(nextPlayer)) rowOwnership[pos+posArea] = -1;
+        if(board2.colors[loc] == nextPlayer) rowOwnership[pos+posArea*2] = 1;
+        else if(board2.colors[loc] == getOpp(nextPlayer)) rowOwnership[pos+posArea*2] = -1;
+        if(board3.colors[loc] == nextPlayer) rowOwnership[pos+posArea*3] = 1;
+        else if(board3.colors[loc] == getOpp(nextPlayer)) rowOwnership[pos+posArea*3] = -1;
+      }
+    }
   }
 
   curRows++;
@@ -732,6 +773,28 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   }
   #endif
 
+  //Play out all the moves in a single pass first to compute all the future board states
+  vector<Board> posHistForFutureBoards;
+  {
+    Board board(data.startBoard);
+    BoardHistory hist(data.startHist);
+    Player nextPlayer = data.startPla;
+    posHistForFutureBoards.push_back(board);
+
+    int startTurnNumber = data.startHist.moveHistory.size();
+    for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
+      int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
+
+      Move move = data.endHist.moveHistory[absoluteTurnNumber];
+      assert(move.pla == nextPlayer);
+      assert(hist.isLegal(board,move.loc,move.pla));
+      hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);
+      nextPlayer = getOpp(nextPlayer);
+
+      posHistForFutureBoards.push_back(board);
+    }
+  }
+
   Board board(data.startBoard);
   BoardHistory hist(data.startHist);
   Player nextPlayer = data.startPla;
@@ -768,6 +831,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             data.whiteValueTargetsByTurn,
             turnNumberAfterStart,
             data.finalWhiteOwnership,
+            &posHistForFutureBoards,
             isSidePosition,
             numNeuralNetsBehindLatest,
             data,
@@ -815,6 +879,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         NULL,
         whiteValueTargetsBuf,
         0,
+        NULL,
         NULL,
         isSidePosition,
         numNeuralNetsBehindLatest,
