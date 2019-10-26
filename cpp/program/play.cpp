@@ -1079,9 +1079,13 @@ FinishedGameData* Play::runGame(
 
   //In selfplay, record all the policy maps and evals and such as well for training data
   bool recordFullData = fancyModes.forSelfPlay;
-  if(recordFullData) {
-    recordUtilities = new vector<double>(256);
-  }
+
+  //Also record mcts utilities... DISABLED.
+  //Originally accidentally disabled in a change, but it's probably not worth bringing back either.
+  //TODO clean up utilityvar outputs
+  //if(recordFullData) {
+  //  recordUtilities = new vector<double>(256);
+  //}
 
   //NOTE: that checkForNewNNEval might also cause the old nnEval to be invalidated and freed. This is okay since the only
   //references we both hold on to and use are the ones inside the bots here, and we replace the ones in the botSpecs.
