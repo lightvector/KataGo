@@ -352,9 +352,13 @@ void TrainingWriteBuffers::addRow(
   int boardArea = board.x_size * board.y_size;
   assert(whiteValueTargetsIdx >= 0 && whiteValueTargetsIdx < whiteValueTargets.size());
   fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 0.0, rowGlobal);
-  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(boardArea * 0.180), rowGlobal+4);
-  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(boardArea * 0.060), rowGlobal+8);
-  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(boardArea * 0.020), rowGlobal+12);
+  //These three constants used to be 'nicer' numbers 0.18, 0.06, 0.02, but we screwed up the functional form
+  //by omitting the "1.0 +" at the front (breaks scaling to small board sizes), so when we fixed this we also
+  //decreased the other numbers slightly to try to maximally limit the impact of the fix on the numerical values
+  //on the actual board sizes 9-19, since it would be costly to retest.
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(1.0 + boardArea * 0.176), rowGlobal+4);
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(1.0 + boardArea * 0.056), rowGlobal+8);
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(1.0 + boardArea * 0.016), rowGlobal+12);
   fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0, rowGlobal+16);
 
   //Fill short-term variance info
