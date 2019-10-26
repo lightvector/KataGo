@@ -116,7 +116,7 @@ class NNEvaluator {
     Board& board,
     const BoardHistory& history,
     Player nextPlayer,
-    double drawEquivalentWinsForWhite,
+    const MiscNNInputParams& nnInputParams,
     NNResultBuf& buf,
     Logger* logger,
     bool skipCache,

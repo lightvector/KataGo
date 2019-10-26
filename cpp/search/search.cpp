@@ -77,6 +77,7 @@ static double getScoreStdev(double scoreMean, double scoreMeanSq) {
 SearchNode::SearchNode(Search& search, SearchThread& thread, Loc moveLoc)
   :lockIdx(),nextPla(thread.pla),prevMoveLoc(moveLoc),
    nnOutput(),
+   nnOutputAge(0),
    children(NULL),numChildren(0),childrenCapacity(0),
    stats(),virtualLosses(0)
 {
@@ -91,10 +92,11 @@ SearchNode::~SearchNode() {
 }
 
 SearchNode::SearchNode(SearchNode&& other) noexcept
-:lockIdx(other.lockIdx),
-  nextPla(other.nextPla),prevMoveLoc(other.prevMoveLoc),
-  nnOutput(std::move(other.nnOutput)),
-  stats(other.stats),virtualLosses(other.virtualLosses)
+  :lockIdx(other.lockIdx),
+   nextPla(other.nextPla),prevMoveLoc(other.prevMoveLoc),
+   nnOutput(std::move(other.nnOutput)),
+   nnOutputAge(other.nnOutputAge),
+   stats(other.stats),virtualLosses(other.virtualLosses)
 {
   children = other.children;
   other.children = NULL;
@@ -106,6 +108,7 @@ SearchNode& SearchNode::operator=(SearchNode&& other) noexcept {
   nextPla = other.nextPla;
   prevMoveLoc = other.prevMoveLoc;
   nnOutput = std::move(other.nnOutput);
+  nnOutputAge = other.nnOutputAge;
   children = other.children;
   other.children = NULL;
   numChildren = other.numChildren;
@@ -186,7 +189,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    alwaysIncludeOwnerMap(false),
-   searchParams(params),numSearchesBegun(0),randSeed(rSeed),
+   searchParams(params),numSearchesBegun(0),searchNodeAge(0),randSeed(rSeed),
    normToTApproxZ(0.0),
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand"))
@@ -327,6 +330,10 @@ bool Search::isLegalStrict(Loc moveLoc, Player movePla) const {
 }
 
 bool Search::makeMove(Loc moveLoc, Player movePla) {
+  return makeMove(moveLoc,movePla,false);
+}
+
+bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   if(!isLegalTolerant(moveLoc,movePla))
     return false;
 
@@ -352,7 +359,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
       clearSearch();
     }
   }
-  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable);
+  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
   rootPla = getOpp(rootPla);
   rootKoHashTable->recompute(rootHistory);
   return true;
@@ -740,7 +747,7 @@ Loc Search::getChosenMoveLoc() {
 
   assert(locs.size() == playSelectionValues.size());
 
-  double rawHalflives = rootHistory.moveHistory.size() / searchParams.chosenMoveTemperatureHalflife;
+  double rawHalflives = (rootHistory.initialTurnNumber + rootHistory.moveHistory.size()) / searchParams.chosenMoveTemperatureHalflife;
   double halflives = rawHalflives * 19.0 / sqrt(rootBoard.x_size*rootBoard.y_size);
   double temperature = searchParams.chosenMoveTemperature +
     (searchParams.chosenMoveTemperatureEarly - searchParams.chosenMoveTemperature) *
@@ -892,26 +899,22 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
   }
 }
 
-
+//If we're being asked to search from a position where the game is over, this is fine. Just keep going, the boardhistory
+//should reasonably tolerate just continuing. We do NOT want to clear history because we could inadvertently make a move
+//that an external ruleset COULD think violated superko.
 void Search::beginSearch(Logger& logger) {
   if(rootBoard.x_size > nnXLen || rootBoard.y_size > nnYLen)
     throw StringError("Search got from NNEval nnXLen = " + Global::intToString(nnXLen) +
                       " nnYLen = " + Global::intToString(nnYLen) + " but was asked to search board with larger x or y size");
 
-  //If we're being asked to search from a position where the game is over, clear all the history state that had us
-  //believe the game was over and do a normal search
-  if(rootHistory.isGameFinished) {
-    clearSearch();
-    Rules rules = rootHistory.rules;
-    rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
-    rootKoHashTable->recompute(rootHistory);
-  }
-
   rootBoard.checkConsistency();
 
   numSearchesBegun++;
-  computeRootValues(logger);
+  searchNodeAge++;
+  if(searchNodeAge == 0) //Just in case, as we roll over
+    clearSearch();
 
+  computeRootValues(logger);
   maybeRecomputeNormToTApproxTable();
 
   //Sanity-check a few things
@@ -1061,24 +1064,33 @@ void Search::computeRootValues(Logger& logger) {
   bool nonPassAliveStones = false;
   bool safeBigTerritories = false;
   bool unsafeBigTerritories = false;
+  bool recursivelyReachesSafe = false;
+  int whiteMinusBlackSafeRegionCount = 0;
   bool isMultiStoneSuicideLegal = rootHistory.rules.multiStoneSuicideLegal;
   rootBoard.calculateArea(
     rootSafeArea,
+    whiteMinusBlackSafeRegionCount,
     nonPassAliveStones,
     safeBigTerritories,
     unsafeBigTerritories,
+    recursivelyReachesSafe,
     isMultiStoneSuicideLegal
   );
 
+  //TODO use the existing tree if possible
   //Grab a neural net evaluation for the current position and use that as the center
   Board board = rootBoard;
   const BoardHistory& hist = rootHistory;
   NNResultBuf nnResultBuf;
   bool skipCache = false;
   bool includeOwnerMap = true;
+  bool isRoot = true;
+  MiscNNInputParams nnInputParams;
+  nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
+  nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
   nnEvaluator->evaluate(
     board, hist, rootPla,
-    searchParams.drawEquivalentWinsForWhite,
+    nnInputParams,
     nnResultBuf, &logger, skipCache, includeOwnerMap
   );
   double expectedScore = nnResultBuf.result->whiteScoreMean;
@@ -1440,6 +1452,15 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
   float* whiteOwnerMap = parent.nnOutput->whiteOwnerMap;
   Loc moveLoc = child->prevMoveLoc;
 
+  double extreme = 0.95;
+  double tail = 0.05;
+  if(rootHistory.rules.taxRule == Rules::TAX_ALL) {
+    //Make much more lenient in the case that we have a group tax, because ownership will be discounting territory
+    //quite a bit in many cases.
+    extreme = 0.70;
+    tail = 0.30;
+  }
+
   //Extra points from the perspective of the root player
   double extraRootPoints = 0.0;
   if(isAreaIsh) {
@@ -1451,12 +1472,15 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-      if(plaOwnership <= -0.95)
-        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.95 - plaOwnership) / 0.05);
-      else if(plaOwnership >= 0.95) {
+      //if(rootSafeArea[moveLoc] == rootPla) plaOwnership = 1.0;
+      //if(rootSafeArea[moveLoc] == getOpp(rootPla)) plaOwnership = -1.0;
+
+      if(plaOwnership <= -extreme)
+        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-extreme - plaOwnership) / tail);
+      else if(plaOwnership >= extreme) {
         if(!rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) &&
            !rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
-          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - 0.95) / 0.05);
+          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - extreme) / tail);
         }
       }
     }
@@ -1474,12 +1498,12 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     else if(rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-      if(plaOwnership <= -0.95)
-        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.95 - plaOwnership) / 0.05);
-      else if(plaOwnership >= 0.95) {
+      if(plaOwnership <= -extreme)
+        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-extreme - plaOwnership) / tail);
+      else if(plaOwnership >= extreme) {
         if(!rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) &&
            !rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
-          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - 0.95) / 0.05);
+          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - extreme) / tail);
         }
       }
     }
@@ -1723,6 +1747,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
 
 //Recompute all the stats of this node based on its children, except its visits and virtual losses, which are not child-dependent and
 //are updated in the manner specified.
+//Assumes this node has an nnOutput
 void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot) {
   //Find all children and compute weighting of the children based on their values
   vector<double>& weightFactors = thread.weightFactorBuf;
@@ -1916,19 +1941,51 @@ void Search::addLeafValue(SearchNode& node, double winValue, double noResultValu
   node.statsLock.clear(std::memory_order_release);
 }
 
+//Assumes node is locked
+//Assumes node already has an nnOutput
+void Search::maybeRecomputeExistingNNOutput(
+  SearchThread& thread, SearchNode& node, bool isRoot
+) {
+  //Right now only the root node currently ever needs to recompute, and only if it's old
+  if(isRoot && node.nnOutputAge != searchNodeAge) {
+    node.nnOutputAge = searchNodeAge;
+
+    //Recompute if we have no ownership map, since we need it for getEndingWhiteScoreBonus
+    //If conservative passing, then we may also need to recompute the root policy ignoring the history if a pass ends the game
+    if(node.nnOutput->whiteOwnerMap == NULL ||
+       (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla))
+    ) {
+      initNodeNNOutput(thread,node,isRoot,false,0,true);
+      assert(node.nnOutput->whiteOwnerMap != NULL);
+    }
+    //We also need to recompute the root nn if we have root noise or temperature and that's missing.
+    else {
+      //We don't need to go all the way to the nnEvaluator, we just need to maybe add those transforms
+      //to the existing policy.
+      maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
+    }
+  }
+}
+
+//Assumes node is locked
 void Search::initNodeNNOutput(
   SearchThread& thread, SearchNode& node,
   bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
 ) {
   bool includeOwnerMap = isRoot || alwaysIncludeOwnerMap;
+  MiscNNInputParams nnInputParams;
+  nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
+  nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
   nnEvaluator->evaluate(
     thread.board, thread.history, thread.pla,
-    searchParams.drawEquivalentWinsForWhite,
+    nnInputParams,
     thread.nnResultBuf, thread.logger, skipCache, includeOwnerMap
   );
 
   node.nnOutput = std::move(thread.nnResultBuf.result);
   maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
+
+  node.nnOutputAge = searchNodeAge;
 
   //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.
   //Also don't bother updating any of the stats. Technically we should do so because winValueSum
@@ -1954,7 +2011,16 @@ void Search::playoutDescend(
 ) {
   //Hit terminal node, finish
   //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
-  if(!isRoot && thread.history.isGameFinished) {
+  //In the case where we're conservativePass and the game just ended due to a root pass, actually let it keep going.
+  //Note that in the second case with tree reuse we can end up with a weird situation where a terminal node becomes nonterminal due
+  //to now being a child of the root! This is okay - subsequent visits to the node will fall through to initNodeNNOutput, and we will
+  //have a weird leaf node with 2 visits worth of mixed terminal and nn values, but further visits will even hit recomputeNodeStats
+  //which should clean it all it.
+  if(!isRoot && thread.history.isGameFinished &&
+     !(searchParams.conservativePass &&
+       thread.history.moveHistory.size() == rootHistory.moveHistory.size() + 1 &&
+       node.prevMoveLoc == Board::PASS_LOC)
+  ) {
     if(thread.history.isNoResult) {
       double winValue = 0.0;
       double noResultValue = 1.0;
@@ -1981,13 +2047,8 @@ void Search::playoutDescend(
     initNodeNNOutput(thread,node,isRoot,false,virtualLossesToSubtract,false);
     return;
   }
-  //For the root node, make sure we have a whiteOwnerMap
-  if(isRoot && node.nnOutput->whiteOwnerMap == NULL) {
-    bool isReInit = true;
-    initNodeNNOutput(thread,node,isRoot,false,0,isReInit);
-    assert(node.nnOutput->whiteOwnerMap != NULL);
-    //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
-  }
+
+  maybeRecomputeExistingNNOutput(thread,node,isRoot);
 
   //Not leaf node, so recurse
 
@@ -2628,7 +2689,7 @@ void Search::printTreeHelper(
       return;
   }
   if(depth == options.branch_.size()) {
-    out << "---" << playerToString(node.nextPla) << "(" << (node.nextPla == perspectiveToUse ? "^" : "v") << ")---" << endl;
+    out << "---" << PlayerIO::playerToString(node.nextPla) << "(" << (node.nextPla == perspectiveToUse ? "^" : "v") << ")---" << endl;
   }
 
   vector<AnalysisData> analysisData;

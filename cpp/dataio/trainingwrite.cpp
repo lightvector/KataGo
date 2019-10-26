@@ -99,7 +99,7 @@ void FinishedGameData::printDebug(ostream& out) const {
   out << "wName " << wName << endl;
   out << "bIdx " << bIdx << endl;
   out << "wIdx " << wIdx << endl;
-  out << "startPla " << colorToChar(startPla) << endl;
+  out << "startPla " << PlayerIO::colorToChar(startPla) << endl;
   out << "start" << endl;
   startHist.printDebugInfo(out,startBoard);
   out << "end" << endl;
@@ -135,7 +135,7 @@ void FinishedGameData::printDebug(ostream& out) const {
   for(int y = 0; y<startBoard.y_size; y++) {
     for(int x = 0; x<startBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,dataXLen);
-      out << Global::strprintf("%5d",finalWhiteOwnership[pos]);
+      out << Global::strprintf(" %.3f",finalWhiteOwnership[pos]);
     }
     out << endl;
   }
@@ -276,7 +276,7 @@ void TrainingWriteBuffers::addRow(
   const vector<PolicyTargetMove>* policyTarget1, //can be null
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
-  int8_t* finalWhiteOwnership,
+  float* finalWhiteOwnership,
   const vector<Board>* posHistForFutureBoards, //can be null
   bool isSidePosition,
   int numNeuralNetsBehindLatest,
@@ -294,23 +294,26 @@ void TrainingWriteBuffers::addRow(
   assert(curRows < maxRows);
 
   {
+    MiscNNInputParams nnInputParams;
+    nnInputParams.drawEquivalentWinsForWhite = data.drawEquivalentWinsForWhite;
+
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
     if(inputsVersion == 3) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V3 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V3 == numGlobalChannels);
-      NNInputs::fillRowV3(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+      NNInputs::fillRowV3(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else if(inputsVersion == 4) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V4 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V4 == numGlobalChannels);
-      NNInputs::fillRowV4(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+      NNInputs::fillRowV4(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else if(inputsVersion == 5) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V5 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V5 == numGlobalChannels);
-      NNInputs::fillRowV5(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+      NNInputs::fillRowV5(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
       ASSERT_UNREACHABLE;
@@ -477,9 +480,19 @@ void TrainingWriteBuffers::addRow(
 
     //Fill ownership info
     for(int i = 0; i<posArea; i++) {
-      assert(data.finalWhiteOwnership[i] == 0 || data.finalWhiteOwnership[i] == 1 || data.finalWhiteOwnership[i] == -1);
+      assert(data.finalWhiteOwnership[i] <= 1.0f && data.finalWhiteOwnership[i] >= -1.0f);
       //Training rows need things from the perspective of the player to move, so we flip as appropriate.
-      rowOwnership[i] = (nextPlayer == P_WHITE ? data.finalWhiteOwnership[i] : -data.finalWhiteOwnership[i]);
+      float ownership = (nextPlayer == P_WHITE ? data.finalWhiteOwnership[i] : -data.finalWhiteOwnership[i]);
+      //We need to pack this down to 8 bits, so map into [-100,100].
+      //Randomize to ensure the expectation is exactly correct.
+      ownership *= 100.0f;
+      int low = (int)floor(ownership);
+      int high = low >= 100 ? 100 : low+1;
+      float lambda = (float)(ownership-low);
+      if(lambda == 0.0f)
+        rowOwnership[i] = low;
+      else
+        rowOwnership[i] = (rand.nextBool(lambda) ? high : low);
     }
 
     //Fill score vector "onehot"-like

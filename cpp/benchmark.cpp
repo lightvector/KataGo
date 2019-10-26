@@ -140,19 +140,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   logger.setLogToStdout(true);
   logger.write("Loading model and initializing benchmark...");
 
-  Rules initialRules;
-  {
-    string koRule = cfg.getString("koRule", Rules::koRuleStrings());
-    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-    bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
-    float komi = 7.5f;
-
-    initialRules.koRule = Rules::parseKoRule(koRule);
-    initialRules.scoringRule = Rules::parseScoringRule(scoringRule);
-    initialRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-    initialRules.komi = komi;
-  }
-  //Take the komi from the sgf, otherwise ignore the rules
+  Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
+  //Take the komi from the sgf, otherwise ignore the rules in the sgf
   initialRules.komi = sgf->komi;
 
 
@@ -256,7 +245,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
         if(!board.isLegal(moves[moveNum].loc,moves[moveNum].pla,multiStoneSuicideLegal)) {
           cerr << endl;
           cerr << board << endl;
-          cerr << "SGF Illegal move " << (moveNum+1) << " for " << colorToChar(moves[moveNum].pla) << ": " << Location::toString(moves[moveNum].loc,board) << endl;
+          cerr << "SGF Illegal move " << (moveNum+1) << " for " << PlayerIO::colorToChar(moves[moveNum].pla) << ": " << Location::toString(moves[moveNum].loc,board) << endl;
           throw StringError("Illegal move in SGF");
         }
         hist.makeBoardMoveAssumeLegal(board,moves[moveNum].loc,moves[moveNum].pla,NULL);
@@ -266,6 +255,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
       bot->clearSearch();
       bot->setPosition(nextPla,board,hist);
+      nnEval->clearCache();
 
       ClockTimer timer;
       bot->genMoveSynchronous(nextPla,TimeControls());

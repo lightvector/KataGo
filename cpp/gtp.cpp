@@ -61,57 +61,8 @@ static const vector<string> knownCommands = {
   "stop",
 };
 
-
-static bool tryParsePlayer(const string& s, Player& pla) {
-  string str = Global::toLower(s);
-  if(str == "black" || str == "b") {
-    pla = P_BLACK;
-    return true;
-  }
-  else if(str == "white" || str == "w") {
-    pla = P_WHITE;
-    return true;
-  }
-  return false;
-}
-
 static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
-}
-
-static int numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory) {
-  //Make the longest possible contiguous sequence of black moves - treat a string of consecutive black
-  //moves at the start of the game as "handicap"
-  Board board = initialBoard;
-  for(int i = 0; i<moveHistory.size(); i++) {
-    Loc moveLoc = moveHistory[i].loc;
-    Player movePla = moveHistory[i].pla;
-    if(movePla != P_BLACK)
-      break;
-    bool isMultiStoneSuicideLegal = true;
-    bool suc = board.playMove(moveLoc,movePla,isMultiStoneSuicideLegal);
-    if(!suc)
-      break;
-  }
-
-  int startBoardNumBlackStones = 0;
-  int startBoardNumWhiteStones = 0;
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(board.colors[loc] == C_BLACK)
-        startBoardNumBlackStones += 1;
-      else if(board.colors[loc] == C_WHITE)
-        startBoardNumWhiteStones += 1;
-    }
-  }
-  //If we set up in a nontrivial position, then consider it a non-handicap game.
-  if(startBoardNumWhiteStones != 0)
-    return 0;
-  //If there was only one "handicap" stone, then it was a regular game
-  if(startBoardNumBlackStones <= 1)
-    return 0;
-  return startBoardNumBlackStones;
 }
 
 static bool shouldResign(
@@ -122,10 +73,11 @@ static bool shouldResign(
   const vector<double>& recentWinLossValues,
   double expectedScore,
   const double resignThreshold,
-  const int resignConsecTurns
+  const int resignConsecTurns,
+  bool assumeMultipleStartingBlackMovesAreHandicap
 ) {
   //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
-  int extraBlackStones = numHandicapStones(initialBoard,moveHistory);
+  int extraBlackStones = Play::numHandicapStones(initialBoard,moveHistory,assumeMultipleStartingBlackMovesAreHandicap);
   //Subtract one since white gets the first move afterward
   if(extraBlackStones > 0)
     extraBlackStones -= 1;
@@ -199,7 +151,9 @@ struct GTPEngine {
 
   const string nnModelFile;
   const double whiteBonusPerHandicapStone;
+  const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
+  const bool preventEncore;
 
   NNEvaluator* nnEval;
   AsyncBot* bot;
@@ -220,10 +174,16 @@ struct GTPEngine {
 
   Player perspective;
 
-  GTPEngine(const string& modelFile, SearchParams initialParams, Rules initialRules, double wBonusPerHandicapStone, Player persp, int pvLen)
+  GTPEngine(
+    const string& modelFile, SearchParams initialParams, Rules initialRules,
+    double wBonusPerHandicapStone, bool assumeMultiBlackHandicap, bool prevtEncore,
+    Player persp, int pvLen
+  )
     :nnModelFile(modelFile),
      whiteBonusPerHandicapStone(wBonusPerHandicapStone),
+     assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
+     preventEncore(prevtEncore),
      nnEval(NULL),
      bot(NULL),
      baseRules(initialRules),
@@ -343,7 +303,7 @@ struct GTPEngine {
     baseRules.komi = newUnhackedKomi;
 
     float newKomi = baseRules.komi;
-    int nHandicapStones = numHandicapStones(initialBoard,moveHistory);
+    int nHandicapStones = Play::numHandicapStones(initialBoard,moveHistory,assumeMultipleStartingBlackMovesAreHandicap);
     newKomi += (float)(nHandicapStones * whiteBonusPerHandicapStone);
     if(newKomi != bot->getRootHist().rules.komi)
       recentWinLossValues.clear();
@@ -351,7 +311,7 @@ struct GTPEngine {
   }
 
   bool play(Loc loc, Player pla) {
-    bool suc = bot->makeMove(loc,pla);
+    bool suc = bot->makeMove(loc,pla,preventEncore);
     if(suc)
       moveHistory.push_back(Move(loc,pla));
 
@@ -447,7 +407,7 @@ struct GTPEngine {
       ostringstream sout;
       sout << "genmove null location or illegal move!?!" << "\n";
       sout << bot->getRootBoard() << "\n";
-      sout << "Pla: " << playerToString(pla) << "\n";
+      sout << "Pla: " << PlayerIO::playerToString(pla) << "\n";
       sout << "MoveLoc: " << Location::toString(moveLoc,bot->getRootBoard()) << "\n";
       logger.write(sout.str());
       return;
@@ -510,7 +470,8 @@ struct GTPEngine {
     recentWinLossValues.push_back(winLossValue);
 
     bool resigned = allowResignation && shouldResign(
-      initialBoard,moveHistory,bot->getRootHist().rules,pla,recentWinLossValues,expectedScore,resignThreshold,resignConsecTurns
+      initialBoard,moveHistory,bot->getRootHist().rules,pla,recentWinLossValues,expectedScore,
+      resignThreshold,resignConsecTurns,assumeMultipleStartingBlackMovesAreHandicap
     );
 
     if(resigned)
@@ -528,7 +489,7 @@ struct GTPEngine {
     }
 
     if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
-      bool suc = bot->makeMove(moveLoc,pla);
+      bool suc = bot->makeMove(moveLoc,pla,preventEncore);
       if(suc)
         moveHistory.push_back(Move(moveLoc,pla));
       assert(suc);
@@ -590,24 +551,6 @@ struct GTPEngine {
     setPositionAndRulesExceptKomi(pla,board,hist,board,pla,newMoveHistory);
   }
 
-  double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
-    double winrate = 0.5 * (1.0 + data.winLossValue);
-    //Super hacky - in KataGo, lcb is on utility (i.e. also weighting score), not winrate, but if you're using
-    //lz-analyze you probably don't know about utility and expect LCB to be about winrate. So we apply the LCB
-    //radius to the winrate in order to get something reasonable to display, and also scale it proportionally
-    //by how much winrate is supposed to matter relative to score.
-    double radiusScaleHackFactor = search->searchParams.winLossUtilityFactor / (
-      search->searchParams.winLossUtilityFactor +
-      search->searchParams.staticScoreUtilityFactor +
-      search->searchParams.dynamicScoreUtilityFactor +
-      1.0e-20 //avoid divide by 0
-    );
-    //Also another factor of 0.5 because winrate goes from only 0 to 1 instead of -1 to 1 when it's part of utility
-    radiusScaleHackFactor *= 0.5;
-    double lcb = pla == P_WHITE ? winrate - data.radius * radiusScaleHackFactor : winrate + data.radius * radiusScaleHackFactor;
-    return lcb;
-  }
-
   void analyze(Player pla, bool kata, double secondsPerReport, int minMoves, bool showOwnership) {
 
     std::function<void(Search* search)> callback;
@@ -626,7 +569,7 @@ struct GTPEngine {
             cout << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
-          double lcb = getHackedLCBForWinrate(search,data,pla);
+          double lcb = Play::getHackedLCBForWinrate(search,data,pla);
           if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
             winrate = 1.0-winrate;
             lcb = 1.0 - lcb;
@@ -638,9 +581,11 @@ struct GTPEngine {
           cout << " prior " << round(data.policyPrior * 10000.0);
           cout << " lcb " << round(lcb * 10000.0);
           cout << " order " << data.order;
-          cout << " pv";
-          for(int j = 0; j<data.pv.size(); j++)
-            cout << " " << Location::toString(data.pv[j],board);
+          cout << " pv ";
+          if(preventEncore && data.pvContainsPass())
+            data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
+          else
+            data.writePV(cout,board);
         }
         cout << endl;
       };
@@ -667,7 +612,7 @@ struct GTPEngine {
           double winrate = 0.5 * (1.0 + data.winLossValue);
           double utility = data.utility;
           //We still hack the LCB for consistency with LZ-analyze
-          double lcb = getHackedLCBForWinrate(search,data,pla);
+          double lcb = Play::getHackedLCBForWinrate(search,data,pla);
           ///But now we also offer the proper LCB that KataGo actually uses.
           double utilityLcb = data.lcb;
           double scoreMean = data.scoreMean;
@@ -690,9 +635,11 @@ struct GTPEngine {
           cout << " lcb " << lcb;
           cout << " utilityLcb " << utilityLcb;
           cout << " order " << data.order;
-          cout << " pv";
-          for(int j = 0; j<data.pv.size(); j++)
-            cout << " " << Location::toString(data.pv[j],board);
+          cout << " pv ";
+          if(preventEncore && data.pvContainsPass())
+            data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
+          else
+            data.writePV(cout,board);
         }
 
         if(showOwnership) {
@@ -777,18 +724,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     cerr << Version::getKataGoVersionForHelp() << endl;
   }
 
-  Rules initialRules;
-  {
-    string koRule = cfg.getString("koRule", Rules::koRuleStrings());
-    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-    bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
-    float komi = 7.5f; //Default komi, gtp will generally override this
-
-    initialRules.koRule = Rules::parseKoRule(koRule);
-    initialRules.scoringRule = Rules::parseScoringRule(scoringRule);
-    initialRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-    initialRules.komi = komi;
-  }
+  //Defaults to 7.5 komi, gtp will generally override this
+  Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
 
   SearchParams params = Setup::loadSingleParams(cfg);
   logger.write("Using " + Global::intToString(params.numThreads) + " CPU thread(s) for search");
@@ -805,11 +742,18 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
-  const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,50) : 9;
+  const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 9;
+  const bool assumeMultipleStartingBlackMovesAreHandicap =
+    cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
+  const bool preventEncore = cfg.contains("preventEncore") ? cfg.getBool("preventEncore") : false;
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
-  GTPEngine* engine = new GTPEngine(nnModelFile,params,initialRules,whiteBonusPerHandicapStone,perspective,analysisPVLen);
+  GTPEngine* engine = new GTPEngine(
+    nnModelFile,params,initialRules,
+    whiteBonusPerHandicapStone,assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
+    perspective,analysisPVLen
+  );
   engine->setOrResetBoardSize(cfg,logger,seedRand,-1,-1);
 
   //Check for unused config keys
@@ -1096,7 +1040,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       double time;
       int stones;
       if(pieces.size() != 3
-         || !tryParsePlayer(pieces[0],pla)
+         || !PlayerIO::tryParsePlayer(pieces[0],pla)
          || !Global::tryStringToDouble(pieces[1],time)
          || !Global::tryStringToInt(pieces[2],stones)
          ) {
@@ -1146,7 +1090,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         responseIsError = true;
         response = "Expected two arguments for play but got '" + Global::concat(pieces," ") + "'";
       }
-      else if(!tryParsePlayer(pieces[0],pla)) {
+      else if(!PlayerIO::tryParsePlayer(pieces[0],pla)) {
         responseIsError = true;
         response = "Could not parse color: '" + pieces[0] + "'";
       }
@@ -1178,7 +1122,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         responseIsError = true;
         response = "Expected one argument for genmove but got '" + Global::concat(pieces," ") + "'";
       }
-      else if(!tryParsePlayer(pieces[0],pla)) {
+      else if(!PlayerIO::tryParsePlayer(pieces[0],pla)) {
         responseIsError = true;
         response = "Could not parse color: '" + pieces[0] + "'";
       }
@@ -1420,7 +1364,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
               if(!sgfBoard.isLegal(moveLoc,movePla,multiStoneSuicideLegal)) {
                 throw StringError("Illegal move");
               }
-              sgfHist.makeBoardMoveAssumeLegal(sgfBoard,moveLoc,movePla,NULL);
+              sgfHist.makeBoardMoveAssumeLegal(sgfBoard,moveLoc,movePla,NULL,preventEncore);
               sgfNextPla = getOpp(movePla);
             }
 
@@ -1471,7 +1415,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       //ownership <bool whether to show ownership or not>
 
       //Parse optional player
-      if(pieces.size() > numArgsParsed && tryParsePlayer(pieces[numArgsParsed],pla))
+      if(pieces.size() > numArgsParsed && PlayerIO::tryParsePlayer(pieces[numArgsParsed],pla))
         numArgsParsed += 1;
 
       //Parse optional interval float

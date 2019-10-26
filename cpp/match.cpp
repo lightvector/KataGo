@@ -204,7 +204,7 @@ int MainCmds::match(int argc, const char* const* argv) {
       bool shouldContinue = gameData != NULL;
       if(gameData != NULL) {
         if(sgfOut != NULL) {
-          WriteSgf::writeSgf(*sgfOut,gameData->bName,gameData->wName,gameData->startHist.rules,gameData->endHist,NULL);
+          WriteSgf::writeSgf(*sgfOut,gameData->bName,gameData->wName,gameData->endHist,gameData);
           (*sgfOut) << endl;
         }
         delete gameData;
@@ -226,7 +226,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   for(int i = 0; i<numGameThreads; i++) {
     threads.push_back(std::thread(runMatchLoop, hashRand.nextUInt64()));
   }
-  for(int i = 0; i<numGameThreads; i++)
+  for(int i = 0; i<threads.size(); i++)
     threads[i].join();
 
   delete matchPairer;

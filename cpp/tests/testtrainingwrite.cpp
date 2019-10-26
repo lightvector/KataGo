@@ -1,6 +1,7 @@
 #include "../tests/tests.h"
 
 #include "../dataio/trainingwrite.h"
+#include "../dataio/sgf.h"
 #include "../neuralnet/nneval.h"
 #include "../program/play.h"
 
@@ -77,13 +78,19 @@ void Tests::runTrainingWriteTests() {
   logger.setLogTime(false);
   logger.addOStream(cout);
 
-  auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite, int inputsVersion, int nnXLen, int nnYLen, int boardXLen, int boardYLen) {
+  auto run = [&](
+    const string& seedBase, const Rules& rules,
+    double drawEquivalentWinsForWhite, int inputsVersion,
+    int nnXLen, int nnYLen,
+    int boardXLen, int boardYLen,
+    bool cheapLongSgf
+  ) {
     TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, nnXLen, nnYLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
     NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,true,false,false);
 
     SearchParams params;
-    params.maxVisits = 100;
+    params.maxVisits = cheapLongSgf ? 2 : 100;
     params.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
 
     MatchPairer::BotSpec botSpec;
@@ -98,9 +105,9 @@ void Tests::runTrainingWriteTests() {
     BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
 
     ExtraBlackAndKomi extraBlackAndKomi = ExtraBlackAndKomi(0,rules.komi,rules.komi);
-    bool doEndGameIfAllPassAlive = true;
+    bool doEndGameIfAllPassAlive = cheapLongSgf ? false : true;
     bool clearBotAfterSearch = true;
-    int maxMovesPerGame = 40;
+    int maxMovesPerGame = cheapLongSgf ? 200 : 40;
     vector<std::atomic<bool>*> stopConditions;
     FancyModes fancyModes;
     fancyModes.initGamesWithPolicy = true;
@@ -125,37 +132,54 @@ void Tests::runTrainingWriteTests() {
     cout << gameData->startHist.getRecentBoard(0) << endl;
     gameData->endHist.printDebugInfo(cout,gameData->endHist.getRecentBoard(0));
 
-    dataWriter.writeGame(*gameData);
+    if(cheapLongSgf) {
+      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData);
+    }
+    else {
+      dataWriter.writeGame(*gameData);
+      dataWriter.flushIfNonempty();
+    }
+
     delete gameData;
-
-    dataWriter.flushIfNonempty();
-
     delete nnEval;
     cout << endl;
   };
 
   int inputsVersion = 3;
 
-  run("testtrainingwrite-tt",Rules::getTrompTaylorish(),0.5,inputsVersion,5,5,5,5);
+  run("testtrainingwrite-tt",Rules::getTrompTaylorish(),0.5,inputsVersion,5,5,5,5,false);
 
   Rules rules;
   rules.koRule = Rules::KO_SIMPLE;
   rules.scoringRule = Rules::SCORING_TERRITORY;
   rules.multiStoneSuicideLegal = false;
+  rules.taxRule = Rules::TAX_SEKI;
   rules.komi = 5;
-  run("testtrainingwrite-jp",rules,0.5,inputsVersion,5,5,5,5);
+  run("testtrainingwrite-jp",rules,0.5,inputsVersion,5,5,5,5,false);
 
   rules = Rules::getTrompTaylorish();
   rules.komi = 7;
-  run("testtrainingwrite-gooddraws",rules,0.7,inputsVersion,5,5,5,5);
+  run("testtrainingwrite-gooddraws",rules,0.7,inputsVersion,5,5,5,5,false);
 
   inputsVersion = 5;
-  run("testtrainingwrite-tt-v5",Rules::getTrompTaylorish(),0.5,inputsVersion,5,5,5,5);
+  run("testtrainingwrite-tt-v5",Rules::getTrompTaylorish(),0.5,inputsVersion,5,5,5,5,false);
 
   //Non-square v4
   inputsVersion = 4;
-  run("testtrainingwrite-rect-v4",Rules::getTrompTaylorish(),0.5,inputsVersion,9,3,7,3);
+  run("testtrainingwrite-rect-v4",Rules::getTrompTaylorish(),0.5,inputsVersion,9,3,7,3,false);
 
+  //V3 group taxing
+  inputsVersion = 3;
+  rules = Rules::getTrompTaylorish();
+  rules.taxRule = Rules::TAX_ALL;
+  run("testtrainingwrite-taxall-v3",rules,0.5,inputsVersion,5,5,5,5,false);
+  run("testtrainingwrite-taxall-v3-a",rules,0.5,inputsVersion,5,5,5,5,false);
+  run("testtrainingwrite-taxall-v3-b",rules,0.5,inputsVersion,5,5,5,5,false);
+
+  //JP 3x3 game
+  inputsVersion = 3;
+  rules = Rules::getSimpleTerritory();
+  run("testtrainingwrite-simpleterritory-sgf-c",rules,0.5,inputsVersion,9,1,9,1,true);
 
   NeuralNet::globalCleanup();
 }
@@ -238,7 +262,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     cout << "seedBase: " << seedBase << endl;
     gameData->printDebug(cout);
     if(nextInitialPosition != NULL) {
-      cout << "Forking to initial position " << colorToChar(nextInitialPosition->pla) << endl;
+      cout << "Forking to initial position " << PlayerIO::colorToChar(nextInitialPosition->pla) << endl;
       nextInitialPosition->hist.printDebugInfo(cout,nextInitialPosition->board);
     }
     delete gameData;

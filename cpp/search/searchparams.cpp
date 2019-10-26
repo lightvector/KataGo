@@ -35,6 +35,7 @@ SearchParams::SearchParams()
    minVisitPropForLCB(0.05),
    rootEndingBonusPoints(0.0),
    rootPruneUselessMoves(false),
+   conservativePass(false),
    mutexPoolSize(8192),
    numVirtualLossesPerThread(3),
    numThreads(1),

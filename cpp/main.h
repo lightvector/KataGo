@@ -1,6 +1,7 @@
 #include "core/global.h"
 
 namespace MainCmds {
+  int analysis(int argc, const char* const* argv);
   int benchmark(int argc, const char* const* argv);
   int evalsgf(int argc, const char* const* argv);
   int gatekeeper(int argc, const char* const* argv);

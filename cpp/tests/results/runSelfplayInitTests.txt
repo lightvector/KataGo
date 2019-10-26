@@ -28,10 +28,11 @@ HASH: B3D09C479D371C090E1505F915330A65
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H9 C4 H4 D8 E4 F9 C3 
 end
 HASH: DBE4B0B86D5543D6BB70CF35C9F210DC
@@ -51,10 +52,11 @@ HASH: DBE4B0B86D5543D6BB70CF35C9F210DC
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H9 C4 H4 D8 E4 F9 C3 B3 
 gameHash 7F48C0E836FB2B6C0F04DD17145EFDB5
 hitTurnLimit 1
@@ -69,17 +71,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 B3 77 J7 10 D3 3 J4 8 D4 1 
 whiteValueTargetsByTurn 0 0.555213 0.444787 0 2.28382 
 whiteValueTargetsByTurn 1 1 0 0 7.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    1    0   -1    0    0    0
-    0    0    0    1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    1    0   -1    0    0   -1    0    0    0
-    0    1   -1    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 1.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 -1.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 1.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 HASH: 98AC72F929CDB30838039BD9BB71C6A0
    A B C D E F G H J K L
@@ -98,10 +100,11 @@ HASH: 98AC72F929CDB30838039BD9BB71C6A0
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H9 C3 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -133,10 +136,11 @@ HASH: E080F7CD4E60C00BD549B8DF9C3D0093
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D3 D9 
 end
 HASH: 7B163A06027DF54EB9494FC3312B15F6
@@ -156,10 +160,11 @@ HASH: 7B163A06027DF54EB9494FC3312B15F6
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D3 D9 H9 
 gameHash 2958C4761F4F334A313EF0FAF8BB6F33
 hitTurnLimit 1
@@ -174,17 +179,17 @@ targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 J8 6 H9 10 H8 6 J4 4 H4 1 
 whiteValueTargetsByTurn 0 0.53378 0.46622 0 1.80453 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    1    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: B1CB79A8B90B066EBC4AB04D1B31E1FB
    A B C D E F G H J K L
@@ -203,10 +208,11 @@ HASH: B1CB79A8B90B066EBC4AB04D1B31E1FB
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D3 D9 J9 
 Side position 1
 HASH: 49A8335373F3F979009F9958899A0308
@@ -226,10 +232,11 @@ HASH: 49A8335373F3F979009F9958899A0308
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D3 D9 J9 J4 G3 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -261,10 +268,11 @@ HASH: FBBBF08E301863A5BCB64B483BDA3519
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D4 D9 H8 J4 C7 D3 E3 C3 
 end
 HASH: 583CBB46C6FDF80B55C6BC37D3BBB1BD
@@ -284,10 +292,11 @@ HASH: 583CBB46C6FDF80B55C6BC37D3BBB1BD
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D4 D9 H8 J4 C7 D3 E3 C3 C4 
 gameHash 25C7D373FF7C30836F5270797454D889
 hitTurnLimit 1
@@ -302,17 +311,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 E4 37 C4 58 E2 4 
 whiteValueTargetsByTurn 0 0.524619 0.475381 0 1.06717 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1    0    0    0
-    0    0   -1    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1   -1    0    0    0    0    1    0    0
-    0    0    1    1   -1    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 -1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 1.000 1.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: 3BA35A175DE65F89F3FDACC963220A9A
    A B C D E F G H J K L
@@ -331,10 +340,11 @@ HASH: 3BA35A175DE65F89F3FDACC963220A9A
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D4 D9 H8 J4 C7 D3 E3 C3 E4 
 Forking to initial position O
 HASH: 8D4B1F1362037AC4D029FB86DE915C8A
@@ -354,10 +364,11 @@ HASH: 8D4B1F1362037AC4D029FB86DE915C8A
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D4 D9 H8 J4 F8 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -389,10 +400,11 @@ HASH: 417C0B108173B405E67BD22571E6ACD6
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves 
 end
 HASH: 17752D757FF9A5B1B9E7C12C0CDA5FD3
@@ -412,10 +424,11 @@ HASH: 17752D757FF9A5B1B9E7C12C0CDA5FD3
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C8 
 gameHash 39B1487679A09D8A816FF7F111CB39E4
 hitTurnLimit 1
@@ -430,17 +443,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 13 D4 12 C4 7 D3 5 D9 6 D8 12 H8 9 H9 9 J8 8 H3 8 J4 5 H4 5 
 whiteValueTargetsByTurn 0 0.511855 0.488145 0 0.875535 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -471,10 +484,11 @@ HASH: 417C0B108173B405E67BD22571E6ACD6
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves 
 end
 HASH: 17752D757FF9A5B1B9E7C12C0CDA5FD3
@@ -494,10 +508,11 @@ HASH: 17752D757FF9A5B1B9E7C12C0CDA5FD3
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C8 
 gameHash 5957716B3684D45E721D2728ACD79642
 hitTurnLimit 1
@@ -512,17 +527,17 @@ targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 C8 10 D4 2 C4 2 D3 2 D9 2 D8 10 H8 2 H9 2 J8 2 
 whiteValueTargetsByTurn 0 0.523714 0.476286 0 1.28118 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
-   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1   -1
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
 Side position 0
 HASH: 71FD149613B841CD932AE9B5F92FD78B
    A B C D E F G H J K L
@@ -541,10 +556,11 @@ HASH: 71FD149613B841CD932AE9B5F92FD78B
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H4 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -576,10 +592,11 @@ HASH: 814CFC8ED11EC05AC3CD790844BBC6F9
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 J10 D4 H4 H9 J9 
 end
 HASH: A055B30F4082CF2C3FA3B566424D5176
@@ -599,10 +616,11 @@ HASH: A055B30F4082CF2C3FA3B566424D5176
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 J10 D4 H4 H9 J9 H8 
 gameHash B6FA504A9744852383DECB275DA70708
 hitTurnLimit 1
@@ -617,17 +635,17 @@ targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 H8 19 
 whiteValueTargetsByTurn 0 0.421813 0.578187 0 -2.89874 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    1    0    0
-    0    0    0    0    0    0    0   -1    1    0    0
-    0    0    0   -1    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0    1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -658,10 +676,11 @@ HASH: 7CD7959CAB7E48284C7EF687EABC6C0D
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 J4 D4 F4 J8 
 end
 HASH: A7FE54DE0CDB266EA5EB0559D8B6CBD8
@@ -681,10 +700,11 @@ HASH: A7FE54DE0CDB266EA5EB0559D8B6CBD8
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 J4 D4 F4 J8 G9 
 gameHash C4CA85CF93309DA12400D24AF3209C6C
 hitTurnLimit 1
@@ -699,17 +719,17 @@ targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 G9 10 G8 10 J6 1 
 whiteValueTargetsByTurn 0 0.489236 0.510764 0 -0.0560741 
 whiteValueTargetsByTurn 1 1 0 0 7.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    1    0    0    0    0
-    0    0    0   -1    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    1    0    0    1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 1.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -740,10 +760,11 @@ HASH: 0F6D8930999CB452CE6E6C4B1B298959
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 C8 
 end
 HASH: 1A6A5786DC02C964D161D8CA3D37361F
@@ -763,10 +784,11 @@ HASH: 1A6A5786DC02C964D161D8CA3D37361F
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 C8 H3 
 gameHash F0C3A205E81485880626D9CBB1F22C66
 hitTurnLimit 1
@@ -781,17 +803,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C4 21 H3 29 H4 15 D3 14 D4 15 J4 5 
 whiteValueTargetsByTurn 0 0.525839 0.474161 0 1.36822 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    1    0    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -822,10 +844,11 @@ HASH: 5547DCCC0F1228A38817F29C775EA684
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 H8 H4 
 end
 HASH: 8849743371D2B5FA65D3A41E9EC0AA47
@@ -845,10 +868,11 @@ HASH: 8849743371D2B5FA65D3A41E9EC0AA47
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 H8 H4 C4 
 gameHash B5862C4371380EA82F8ADC75B032A670
 hitTurnLimit 1
@@ -863,17 +887,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 D3 30 C4 34 D4 34 C3 1 
 whiteValueTargetsByTurn 0 0.523102 0.476898 0 1.14998 
 whiteValueTargetsByTurn 1 1 0 0 7.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0    1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    1    0    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -904,10 +928,11 @@ HASH: 12F75CB76455CF8568796D3E01062367
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 H4 D4 D8 J6 J5 G3 H3 H6 F9 
 end
 HASH: E1750A6862F023681C5826B42F0EC4BA
@@ -927,10 +952,11 @@ HASH: E1750A6862F023681C5826B42F0EC4BA
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 H4 D4 D8 J6 J5 G3 H3 H6 F9 G4 
 gameHash 18164CE8164D05B4F78F602C9AE31025
 hitTurnLimit 1
@@ -945,17 +971,17 @@ targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 G4 10 G9 6 G2 3 C8 1 H2 1 
 whiteValueTargetsByTurn 0 0.564559 0.435441 0 2.39098 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    1    0    0    0    0    0
-    0    0    0    1    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1   -1    0    0
-    0    0    0    0    0    0    0    0    1    0    0
-    0    0    0   -1    0    0   -1    1    0    0    0
-    0    0    0    0    0    0   -1    1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 -1.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 HASH: 04286592208F122B016DB39DFE7E9FD0
    A B C D E F G H J K L
@@ -974,10 +1000,11 @@ HASH: 04286592208F122B016DB39DFE7E9FD0
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi11
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi11
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 H4 D4 H2 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -1009,10 +1036,11 @@ HASH: 103BCD5FCA3BCCD3C4D008BB9DD733AB
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J6 K7 J7 D4 C8 H3 
 end
 HASH: 0F258A266C3021E83C65CC26F980520D
@@ -1032,10 +1060,11 @@ HASH: 0F258A266C3021E83C65CC26F980520D
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J6 K7 J7 D4 C8 H3 E8 
 gameHash D95FC0973336CC48E6972AF3116C5676
 hitTurnLimit 1
@@ -1050,17 +1079,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 E8 85 F3 8 E9 4 F4 1 C3 1 
 whiteValueTargetsByTurn 0 0.388763 0.611237 0 -3.89151 
 whiteValueTargetsByTurn 1 1 0 0 18.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    0   -1    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0   -1    1    0
-    0    0    0    0    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 -1.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: D02367C6A7C5F0FF8B9BEF3AC52F0C28
    A B C D E F G H J K L
@@ -1079,10 +1108,11 @@ HASH: D02367C6A7C5F0FF8B9BEF3AC52F0C28
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J6 K7 J7 D4 C8 H3 E4 
 Forking to initial position O
 HASH: BE93A1DDCBFBF5A59B043A7BE8D0FDD5
@@ -1102,10 +1132,11 @@ HASH: BE93A1DDCBFBF5A59B043A7BE8D0FDD5
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J6 K7 D7 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -1137,10 +1168,11 @@ HASH: 628DF1D511F51B6DD325ED5008E3FD9F
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves B1 
 end
 HASH: C3EA5FF9ADCAB2B3548553A17283FF51
@@ -1160,10 +1192,11 @@ HASH: C3EA5FF9ADCAB2B3548553A17283FF51
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves B1 D9 
 gameHash C955C93B23BDC7F989693877BB05C707
 hitTurnLimit 1
@@ -1178,17 +1211,17 @@ targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 C8 8 D9 10 H9 6 D8 6 J8 8 
 whiteValueTargetsByTurn 0 0.684014 0.315986 0 8.57899 
 whiteValueTargetsByTurn 1 1 0 0 19.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0   -1    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: 4DFF9195BCBD87859F800E767B1BB75C
    A B C D E F G H J K L
@@ -1207,10 +1240,11 @@ HASH: 4DFF9195BCBD87859F800E767B1BB75C
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves B1 D4 
 Forking to initial position X
 HASH: E2FBEDC15CA64B9790CCAE213523F7E6
@@ -1230,10 +1264,11 @@ HASH: E2FBEDC15CA64B9790CCAE213523F7E6
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves B1 B8 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -1265,10 +1300,11 @@ HASH: D7632EA551A25193A420A1939450E216
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J4 D3 H8 C7 
 end
 HASH: 49D39AE89FC0EBB35015FF95D1770964
@@ -1288,10 +1324,11 @@ HASH: 49D39AE89FC0EBB35015FF95D1770964
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J4 D3 H8 C7 F3 
 gameHash 96201DE2ACCCAC23493F193881269A7D
 hitTurnLimit 1
@@ -1306,17 +1343,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G3 27 C8 15 F3 28 D4 15 C5 8 G4 3 E8 3 
 whiteValueTargetsByTurn 0 0.208123 0.791877 0 -10.8809 
 whiteValueTargetsByTurn 1 1 0 0 5.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1    0    0    0
-    0    0    1    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0   -1    0    0
-    0    0    0    1    0   -1    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: 816A08C0AF284027FBBCB29AE96C1113
    A B C D E F G H J K L
@@ -1335,10 +1372,11 @@ HASH: 816A08C0AF284027FBBCB29AE96C1113
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J4 D3 H8 C7 C8 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -1370,10 +1408,11 @@ HASH: EE8522619481D97017DDC4EF88BCE3F2
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J8 
 end
 HASH: D7224CC473EF11C176324B6A33113647
@@ -1393,10 +1432,11 @@ HASH: D7224CC473EF11C176324B6A33113647
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J8 D3 
 gameHash 2BB4F269E8391F77E62A23BDA5BA4365
 hitTurnLimit 1
@@ -1411,17 +1451,17 @@ targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 D3 10 C4 6 H4 6 J4 6 D4 6 H3 4 
 whiteValueTargetsByTurn 0 0.218058 0.781942 0 -10.8467 
 whiteValueTargetsByTurn 1 1 0 0 6.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    0    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 HASH: 7E52080DCD8F282490E8804B50CF7311
    A B C D E F G H J K L
@@ -1440,10 +1480,11 @@ HASH: 7E52080DCD8F282490E8804B50CF7311
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi21
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J8 J4 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -1475,10 +1516,11 @@ HASH: 573E45F38DC1742C0C85C2E8A7F5D325
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J8 D3 J4 C6 
 end
 HASH: 4820028A2BCA9917F4300675C3A2B283
@@ -1498,10 +1540,11 @@ HASH: 4820028A2BCA9917F4300675C3A2B283
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J8 D3 J4 C6 E8 
 gameHash AC5F3AA1F3A3CB687CBE89DE85436AF0
 hitTurnLimit 1
@@ -1516,17 +1559,17 @@ targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 E8 11 E9 6 F9 2 
 whiteValueTargetsByTurn 0 0.200739 0.799261 0 -11.5364 
 whiteValueTargetsByTurn 1 1 0 0 5.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    0   -1    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    1    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0   -1    0    0
-    0    0    0    1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 -1.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: 45918362AEC1BDC13A103067F6576AD3
    A B C D E F G H J K L
@@ -1545,10 +1588,11 @@ HASH: 45918362AEC1BDC13A103067F6576AD3
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi7.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J8 D3 J4 C6 E3 
 Forking to initial position O
 HASH: 45918362AEC1BDC13A103067F6576AD3
@@ -1568,10 +1612,11 @@ HASH: 45918362AEC1BDC13A103067F6576AD3
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi19
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi19
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J8 D3 J4 C6 E3 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -1603,10 +1648,11 @@ HASH: D48D45C67C5530A7B4E7EFD486CB5448
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J2 D8 H9 J8 J9 J4 
 end
 HASH: BC392551EFA33EE48F078265CC132658
@@ -1626,10 +1672,11 @@ HASH: BC392551EFA33EE48F078265CC132658
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J2 D8 H9 J8 J9 J4 G3 
 gameHash 8A52A576B6EAB7F2E5477B5BCC2636CC
 hitTurnLimit 1
@@ -1644,17 +1691,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G3 77 F3 12 J6 8 G4 1 H4 1 
 whiteValueTargetsByTurn 0 0.513079 0.486921 0 1.34912 
 whiteValueTargetsByTurn 1 1 0 0 18 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1   -1    0    0
-    0    0    0    1    0    0    0    0    1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    0    0    0    0    0    1    0    0
-    0    0    0    0    0    0   -1    0    0    0    0
-    0    0    0    0    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position O
 HASH: FD9E1EEDEE6C5459D858AD5A9CB8FFB8
    A B C D E F G H J K L
@@ -1673,10 +1720,11 @@ HASH: FD9E1EEDEE6C5459D858AD5A9CB8FFB8
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi15.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi15.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J2 D8 H9 J8 J9 J4 F2 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -1708,10 +1756,11 @@ HASH: FDACC5AD55F57B0E83D30B3CDE39722A
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi22
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J4 C4 H9 G3 
 end
 HASH: 683FDCD3143FB0799FAA44F8BA38F767
@@ -1731,10 +1780,11 @@ HASH: 683FDCD3143FB0799FAA44F8BA38F767
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi22
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J4 C4 H9 G3 D4 
 gameHash A67FA30DCD5DB1C7C2D4E51F52D68606
 hitTurnLimit 1
@@ -1749,17 +1799,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 E3 32 D4 40 E4 18 H3 7 H7 1 H5 1 
 whiteValueTargetsByTurn 0 0.493987 0.506013 0 0.632306 
 whiteValueTargetsByTurn 1 1 0 0 20 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1    0    0    0
-    0    0   -1    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    1   -1    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    1    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 -1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: C44E9CD5AA39A043D8F2E2C427991A54
    A B C D E F G H J K L
@@ -1778,10 +1828,11 @@ HASH: C44E9CD5AA39A043D8F2E2C427991A54
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi22
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J4 C4 H9 G3 H7 
 Forking to initial position O
 HASH: 3DB46F34380B4722CC98ECBD86C14DA9
@@ -1801,10 +1852,11 @@ HASH: 3DB46F34380B4722CC98ECBD86C14DA9
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi22
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J4 C4 H9 G3 E4 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -1836,10 +1888,11 @@ HASH: 706183A8D04E20D86A9552EA40B55D5A
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J9 H3 D9 J6 H4 J4 
 end
 HASH: 18D5E33F43B82E9B51753F5B0A6D2F4A
@@ -1859,10 +1912,11 @@ HASH: 18D5E33F43B82E9B51753F5B0A6D2F4A
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J9 H3 D9 J6 H4 J4 G3 
 gameHash 6559E5DFDB9F3EE7BD5C3845E0D09191
 hitTurnLimit 1
@@ -1877,17 +1931,17 @@ targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 G3 19 
 whiteValueTargetsByTurn 0 0.449128 0.550872 0 -1.00479 
 whiteValueTargetsByTurn 1 1 0 0 18 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    0    0    0    0   -1    1    0    0
-    0    0    0    0    0    0   -1    1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: 6CE220A8ABBB489A7E0F6A67C6F18AFF
    A B C D E F G H J K L
@@ -1906,10 +1960,11 @@ HASH: 6CE220A8ABBB489A7E0F6A67C6F18AFF
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J9 H3 D9 J6 H4 J4 J3 
 Side position 1
 HASH: 27FC336FBD29F908C35D0D653B0112AF
@@ -1929,10 +1984,11 @@ HASH: 27FC336FBD29F908C35D0D653B0112AF
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J9 H3 D9 J6 H4 J4 J3 G3 J5 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -1964,10 +2020,11 @@ HASH: C225927236716CF7693DFFEB150F8901
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C8 D3 H3 
 end
 HASH: 17285421F12C36943AF27DBED7A8316F
@@ -1987,10 +2044,11 @@ HASH: 17285421F12C36943AF27DBED7A8316F
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi20.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C8 D3 H3 C5 
 gameHash AF0DF292550206975B2A6639C1A3D35B
 hitTurnLimit 1
@@ -2005,17 +2063,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C5 54 C6 38 E9 5 G9 1 H8 1 
 whiteValueTargetsByTurn 0 0.443606 0.556394 0 -1.61837 
 whiteValueTargetsByTurn 1 1 0 0 19.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    0    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    1    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    1    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -2046,10 +2104,11 @@ HASH: 810A94121094586BCE6844EC2BE4A6B0
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi23.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi23.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves L4 D3 H3 J8 H9 J9 C5 C4 D5 F9 H8 J7 H7 H6 
 end
 HASH: 69E245B7BF3A2838B8C79007A33964E8
@@ -2069,10 +2128,11 @@ HASH: 69E245B7BF3A2838B8C79007A33964E8
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi23.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi23.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves L4 D3 H3 J8 H9 J9 C5 C4 D5 F9 H8 J7 H7 H6 G6 
 gameHash 19008B1DB1B6459D38E62D5875FCBCC6
 hitTurnLimit 1
@@ -2087,17 +2147,17 @@ targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 G6 12 J10 6 J6 1 
 whiteValueTargetsByTurn 0 0.708075 0.291925 0 9.1198 
 whiteValueTargetsByTurn 1 1 0 0 21.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    1    0   -1    1    0    0
-    0    0    0    0    0    0    0   -1    1    0    0
-    0    0    0    0    0    0    0   -1    1    0    0
-    0    0    0    0    0    0   -1    1    0    0    0
-    0    0   -1   -1    0    0    0    0    0    0    0
-    0    0    1    0    0    0    0    0    0    0   -1
-    0    0    0    1    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 1.000 0.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: 89754DAE666608758F479BEC5F496444
    A B C D E F G H J K L
@@ -2116,10 +2176,11 @@ HASH: 89754DAE666608758F479BEC5F496444
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi23.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi23.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves L4 D3 H3 J8 H9 J9 C5 C4 D5 F9 H8 J7 H7 H6 H10 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -2151,10 +2212,11 @@ HASH: D74A8B6E5B7915AF2D09DBABD621E5F5
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi33.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi33.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 H3 J5 D8 
 end
 HASH: 904912FE3AB58E3E7221853A3F0F6328
@@ -2174,10 +2236,11 @@ HASH: 904912FE3AB58E3E7221853A3F0F6328
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi33.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi33.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 H3 J5 D8 D9 
 gameHash 7E84011A7DDC3872C809446E4F7FF594
 hitTurnLimit 1
@@ -2192,17 +2255,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 D9 55 C9 21 C7 17 D7 6 
 whiteValueTargetsByTurn 0 0.514224 0.485776 0 1.72103 
 whiteValueTargetsByTurn 1 1 0 0 30.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0    0    0    0    0
-    0    0   -1    1    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    1    0    0    0
-    0    0   -1    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -2233,10 +2296,11 @@ HASH: 229A3BFEC6722488AD067B5709822486
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi40.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi40.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C3 J3 H3 J4 H4 H5 
 end
 HASH: B3A53B4B8DDDB149A096D5C264B1F5B2
@@ -2256,10 +2320,11 @@ HASH: B3A53B4B8DDDB149A096D5C264B1F5B2
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi40.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi40.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C3 J3 H3 J4 H4 H5 G5 
 gameHash 6A9CEB8D996D7BAB79906B4049E78B1F
 hitTurnLimit 1
@@ -2274,17 +2339,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G5 83 J5 9 J2 7 
 whiteValueTargetsByTurn 0 0.604396 0.395604 0 5.74319 
 whiteValueTargetsByTurn 1 1 0 0 37.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0   -1    1    0    0    0
-    0    0    0    0    0    0    0   -1    1    0    0
-    0    0   -1    0    0    0    0   -1    1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: 687C46EC7C39EE537A0F5EC8CCB3DEF1
    A B C D E F G H J K L
@@ -2303,10 +2368,11 @@ HASH: 687C46EC7C39EE537A0F5EC8CCB3DEF1
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi40.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi40.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C3 J3 H3 J4 H4 H5 J5 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -2338,10 +2404,11 @@ HASH: 1DA3C3FE5779B3696F6FD479DA0AED35
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi34
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi34
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 
 end
 HASH: 2404AD5BB0177BD80E805BFC61A73880
@@ -2361,10 +2428,11 @@ HASH: 2404AD5BB0177BD80E805BFC61A73880
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi34
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi34
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 D3 
 gameHash E7EB57DE5C2CE1F2D610B58027D2087D
 hitTurnLimit 1
@@ -2379,17 +2447,17 @@ targetWeightByTurn 0 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 D3 14 C4 3 D4 2 
 whiteValueTargetsByTurn 0 0.506135 0.493866 0 1.38981 
 whiteValueTargetsByTurn 1 1 0 0 32 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0   -1    0
-    0    0    0    1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: 32D1A3BEFA312F8123CA375FA9F2A7F6
    A B C D E F G H J K L
@@ -2408,10 +2476,11 @@ HASH: 32D1A3BEFA312F8123CA375FA9F2A7F6
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi34
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi34
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 D4 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -2443,10 +2512,11 @@ HASH: 667EED05C05B191886C483D741A2F01E
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi36
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi36
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 D3 C5 C4 D5 G3 H4 G4 G5 J9 
 end
 HASH: FDE820CE8C462C5DEAC474CBECB4E57B
@@ -2466,10 +2536,11 @@ HASH: FDE820CE8C462C5DEAC474CBECB4E57B
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi36
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi36
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 D3 C5 C4 D5 G3 H4 G4 G5 J9 H9 
 gameHash DAD52EDB23D1D37CED8AAC10B7DDECB4
 hitTurnLimit 1
@@ -2484,17 +2555,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H9 90 J8 8 E3 1 
 whiteValueTargetsByTurn 0 0.585772 0.414228 0 4.12812 
 whiteValueTargetsByTurn 1 1 0 0 33 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1    1    0    0
-    0    0    0   -1    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1   -1    0    0   -1    0    0    0    0
-    0    0    1    0    0    0    1   -1    0    0    0
-    0    0    0    1    0    0    1    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 -1.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 1.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -2525,10 +2596,11 @@ HASH: BC62FF38A12F653CA0B60DA0290531EB
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi36.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H9 
 end
 HASH: 85C5919D4641AD8DC159822592A8E45E
@@ -2548,10 +2620,11 @@ HASH: 85C5919D4641AD8DC159822592A8E45E
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi36.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H9 D3 
 gameHash B76AFD8D35B1E47D4EFD571400824109
 hitTurnLimit 1
@@ -2566,17 +2639,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 D3 47 D4 19 C4 23 C3 10 
 whiteValueTargetsByTurn 0 0.478745 0.521255 0 -0.0490587 
 whiteValueTargetsByTurn 1 1 0 0 34.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1    0    0    0
-    0    0   -1    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1    0    0    0
-    0    0    0    1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 HASH: 96A36D2E9A80CF95EE0AA2347013EC8B
    A B C D E F G H J K L
@@ -2595,10 +2668,11 @@ HASH: 96A36D2E9A80CF95EE0AA2347013EC8B
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi41.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi41.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H9 B7 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -2630,10 +2704,11 @@ HASH: 01021E4933FE401A0B56C18BB53D14AA
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi36.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 
 end
 HASH: 2B570462386C33D703E049D5C7B9A7B7
@@ -2653,10 +2728,11 @@ HASH: 2B570462386C33D703E049D5C7B9A7B7
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi36.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 H9 
 gameHash B9DE6E77FD2D5F504DF3846C64D1E504
 hitTurnLimit 1
@@ -2671,17 +2747,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H9 99 
 whiteValueTargetsByTurn 0 0.487421 0.512579 0 -0.0539512 
 whiteValueTargetsByTurn 1 1 0 0 34.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0   -1    1    0
-    0    0    0    0   -1    0    1    1    1   -1    0
-    0    0   -1    0    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    1    0    0    0   -1    0    0    0
-    0    0    0    0    0    0   -1    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 -1.000 0.000 1.000 1.000 1.000 -1.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: 894ABD8DB372B6F645DBEE7CC2671F7D
    A B C D E F G H J K L
@@ -2700,10 +2776,11 @@ HASH: 894ABD8DB372B6F645DBEE7CC2671F7D
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi36.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 D8 
 Side position 1
 HASH: 4E7208F7669016150EB04A1702DD797E
@@ -2723,10 +2800,11 @@ HASH: 4E7208F7669016150EB04A1702DD797E
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi36.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 D8 H9 D9 
 Forking to initial position X
 HASH: DAD9DB66650CD7CB33BDFB5BBD2898C3
@@ -2746,10 +2824,11 @@ HASH: DAD9DB66650CD7CB33BDFB5BBD2898C3
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi44.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi44.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 C9 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -2781,10 +2860,11 @@ HASH: DA8428A86CC6F5F2FFFBCD803B243DF0
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi39.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi39.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 H3 H5 E3 C5 J9 H9 
 end
 HASH: 5180D8E78FD7030BA3B17FDB0BF211B6
@@ -2804,10 +2884,11 @@ HASH: 5180D8E78FD7030BA3B17FDB0BF211B6
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi39.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi39.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 H3 H5 E3 C5 J9 H9 J8 
 gameHash B635C197BBEACDDAB2C6E69F14460906
 hitTurnLimit 1
@@ -2822,17 +2903,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J8 99 
 whiteValueTargetsByTurn 0 0.579769 0.420231 0 4.22127 
 whiteValueTargetsByTurn 1 1 0 0 37.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0   -1    1    0    0
-    0    0    0    0    0    0    0   -1    1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    0    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    0    1    0    0    1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 1.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 HASH: 4A5302C435C804A678CE8924E357AD13
    A B C D E F G H J K L
@@ -2851,10 +2932,11 @@ HASH: 4A5302C435C804A678CE8924E357AD13
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi38
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi38
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 H3 H5 E3 C5 J9 H9 J4 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -2886,10 +2968,11 @@ HASH: 395ED5EEB4D862BD996CE362208115EA
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi35
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 H3 J5 E3 
 end
 HASH: 39C5871FC7F4BF6D2DFE3769B73ABB61
@@ -2909,10 +2992,11 @@ HASH: 39C5871FC7F4BF6D2DFE3769B73ABB61
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi35
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 H3 J5 E3 D3 
 gameHash 7034EA379A2CA8F9957D39FC5538D083
 hitTurnLimit 1
@@ -2927,17 +3011,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 D3 74 J3 24 G4 1 
 whiteValueTargetsByTurn 0 0.490951 0.509049 0 0.104879 
 whiteValueTargetsByTurn 1 1 0 0 32 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0   -1    0    0    0
-    0    0    0   -1    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0   -1    0    0
-    0    0   -1    0    0    0    0    0    0    0    0
-    0    0    0   -1    1    0    0    1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 1.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
 HASH: 76BF009E6C0CD1D4245F4321E2EF9933
    A B C D E F G H J K L
@@ -2956,10 +3040,11 @@ HASH: 76BF009E6C0CD1D4245F4321E2EF9933
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi35
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 H3 J5 E3 L2 
 Side position 1
 HASH: 95F7FB0D1E73D731B652D9D7C5BF6DD7
@@ -2979,10 +3064,11 @@ HASH: 95F7FB0D1E73D731B652D9D7C5BF6DD7
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi35
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves D8 H3 J5 E3 L2 K3 G5 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
@@ -3014,10 +3100,11 @@ HASH: ACB86650AB2D37B9F54F9698FCE73FB6
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi36.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J9 D9 F9 C7 C5 G3 H3 G4 E3 J5 K5 H5 K6 H8 H9 G8 F8 E2 D2 
 end
 HASH: 27BC961F483CC140A90524C3CC3113F0
@@ -3037,10 +3124,11 @@ HASH: 27BC961F483CC140A90524C3CC3113F0
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi36.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves J9 D9 F9 C7 C5 G3 H3 G4 E3 J5 K5 H5 K6 H8 H9 G8 F8 E2 D2 J8 
 gameHash 575B57E7CCA7198399B9823D4159B648
 hitTurnLimit 1
@@ -3055,17 +3143,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 F2 24 J8 26 F7 14 G9 7 E7 3 E6 4 D6 6 H2 9 J7 6 
 whiteValueTargetsByTurn 0 0.328982 0.671018 0 -8.43584 
 whiteValueTargetsByTurn 1 1 0 0 34.5 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    1    0   -1    0   -1   -1    0    0
-    0    0    0    0    0   -1    1    1    1    0    0
-    0    0    1    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0   -1    0
-    0    0   -1    0    0    0    0    1    1   -1    0
-    0    0    0   -1    0    0    1    0   -1    0    0
-    0    0    0    0   -1    0    1   -1    0    0    0
-    0    0    0   -1    1    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 -1.000 0.000 -1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 1.000 1.000 -1.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 1.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 -1.000 0.000 1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -3096,10 +3184,11 @@ HASH: B05B6B29EE82F2C35D150DFB41F331B1
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi35
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 C8 C6 E9 
 end
 HASH: 787080E6643B1840582E3A9FBD8038F0
@@ -3119,10 +3208,11 @@ HASH: 787080E6643B1840582E3A9FBD8038F0
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi35
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 C8 C6 E9 G9 
 gameHash 092A9EBF79E6116CB0ABF2E90249B771
 hitTurnLimit 1
@@ -3137,17 +3227,17 @@ targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G9 44 E7 29 H6 16 E6 4 F8 5 D8 1 
 whiteValueTargetsByTurn 0 0.496277 0.503723 0 0.746573 
 whiteValueTargetsByTurn 1 1 0 0 32 
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    1    0   -1    0    0    0    0
-    0    0    1    0    0    0    0   -1    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0   -1    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0   -1    0    0    0    0   -1    0    0
-    0    0    0    0    0    0    0    0    0    0    0
-    0    0    0    0    0    0    0    0    0    0    0
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 1.000 0.000 -1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position O
 HASH: 4C6DFE64053205B80D6DE45E261EEB87
    A B C D E F G H J K L
@@ -3166,9 +3256,10 @@ HASH: 4C6DFE64053205B80D6DE45E261EEB87
 
 Initial pla Black
 Encore phase 0
-Rules koPOSITIONALscoreAREAsui1komi29.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi29.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
-Game result 0 Empty 0 0 0
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
 Last moves H8 C8 K9 
 
