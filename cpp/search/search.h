@@ -310,7 +310,10 @@ private:
   //Parent must be locked
   void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, double& lcbBuf, double& radiusBuf) const;
 
-  float adjustExplorePolicyProb(const SearchThread& thread, const SearchNode& parent, Loc moveLoc, float nnPolicyProb) const;
+  float adjustExplorePolicyProb(
+    const SearchThread& thread, const SearchNode& parent, Loc moveLoc, float nnPolicyProb,
+    double parentUtility, double totalChildVisits, double childVisits, double& childUtility
+  ) const;
 
   double getExploreSelectionValue(
     double nnPolicyProb, int64_t totalChildVisits, int64_t childVisits,
