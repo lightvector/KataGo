@@ -47,6 +47,8 @@ namespace Location
 
   void getAdjacentOffsets(short adj_offsets[8], int x_size);
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);
+  int distance(Loc loc0, Loc loc1, int x_size);
+  int euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size);
 
   std::string toString(Loc loc, int x_size, int y_size);
   std::string toString(Loc loc, const Board& b);

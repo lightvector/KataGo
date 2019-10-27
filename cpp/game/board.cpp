@@ -1190,6 +1190,18 @@ bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
   return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
 }
 
+int Location::distance(Loc loc0, Loc loc1, int x_size) {
+  int dx = getX(loc1,x_size) - getX(loc0,x_size);
+  int dy = (loc1-loc0+dx) / (x_size+1);
+  return (dx >= 0 ? dx : -dx) + (dy >= 0 ? dy : -dy);
+}
+
+int Location::euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size) {
+  int dx = getX(loc1,x_size) - getX(loc0,x_size);
+  int dy = (loc1-loc0+dx) / (x_size+1);
+  return dx*dx + dy*dy;
+}
+
 //TACTICAL STUFF--------------------------------------------------------------------
 
 //Helper, find liberties of group at loc. Fills in buf, returns the number of liberties.
