@@ -1549,7 +1549,8 @@ float Search::adjustExplorePolicyProb(
   double parentUtility, double totalChildVisits, double childVisits, double& childUtility
 ) const {
   //Near the tree root, explore local moves a bit more for root player
-  if(parent.nextPla == rootPla && thread.history.moveHistory.size() > 0 &&
+  if(searchParams.localExplore &&
+     parent.nextPla == rootPla && thread.history.moveHistory.size() > 0 &&
      thread.history.moveHistory.size() <= rootHistory.moveHistory.size() + 2
   ) {
     Loc prevLoc = thread.history.moveHistory[thread.history.moveHistory.size()-1].loc;
@@ -1562,11 +1563,12 @@ float Search::adjustExplorePolicyProb(
       if(distanceSq <= 5 && board.getNumLibertiesAfterPlay(moveLoc,parent.nextPla,2) >= 2) {
         if(nearWeakStones(board, moveLoc, parent.nextPla)) {
           float averageToward = distanceSq <= 2 ? 0.06f : distanceSq <= 4 ? 0.04f : 0.03f;
-          //Behave as if policy is a few points higher, slightly slow convergence
+          //Behave as if policy is a few points higher
           if(nnPolicyProb < averageToward)
             nnPolicyProb = 0.5f * (nnPolicyProb + averageToward);
           if(childVisits > 0 && (parent.nextPla == P_WHITE ? (childUtility < parentUtility) : (childUtility > parentUtility))) {
-            double parentWeight = 2*sqrt(childVisits);
+            //Also encourage a bit more exploration even if value is bad
+            double parentWeight = sqrt(childVisits);
             childUtility = (parentUtility * parentWeight + childUtility * childVisits) / (parentWeight + childVisits);
           }
         }
@@ -1752,8 +1754,6 @@ void Search::selectBestChildToDescend(
   //First play urgency
   double parentUtility;
   double fpuValue = getFpuValueForChildrenAssumeVisited(node, thread.pla, isRoot, policyProbMassVisited, parentUtility);
-  if(thread.history.moveHistory.size() == rootHistory.moveHistory.size() + 2)
-    fpuValue = parentUtility;
 
   std::fill(posesWithChildBuf,posesWithChildBuf+NNPos::MAX_NN_POLICY_SIZE,false);
 

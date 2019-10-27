@@ -36,6 +36,7 @@ SearchParams::SearchParams()
    rootEndingBonusPoints(0.0),
    rootPruneUselessMoves(false),
    conservativePass(false),
+   localExplore(false),
    mutexPoolSize(8192),
    numVirtualLossesPerThread(3),
    numThreads(1),
