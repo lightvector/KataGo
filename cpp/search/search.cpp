@@ -2551,7 +2551,7 @@ void Search::getAnalysisData(
   }
 
   double parentUtility;
-  double fpuValue = getFpuValueForChildrenAssumeVisited(node, rootPla, true, policyProbMassVisited, parentUtility);
+  double fpuValue = getFpuValueForChildrenAssumeVisited(node, node.nextPla, true, policyProbMassVisited, parentUtility);
 
   for(int i = 0; i<numChildren; i++) {
     SearchNode* child = children[i];
