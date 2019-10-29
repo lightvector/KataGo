@@ -1516,6 +1516,7 @@ void Tests::runBoardStressTest() {
   int regularMoveCount = 0;
   for(int n = 0; n < 20000; n++) {
     Loc locs[numBoards];
+    Loc emptyBuf[Board::MAX_ARR_SIZE];
 
     //Sometimes generate garbage input
     if(n % 2 == 0) {
@@ -1527,9 +1528,14 @@ void Tests::runBoardStressTest() {
     //Sometimes select only from empty points, to greatly increase the chance of real moves
     else {
       for(int i = 0; i<numBoards; i++) {
-        int size = boards[i].empty_list.size();
-        testAssert(size > 0);
-        locs[i] = boards[i].empty_list[rand.nextUInt(size)];
+        int emptyCount = 0;
+        Loc end = Location::getLoc(boards[i].x_size-1,boards[i].y_size-1,boards[i].x_size);
+        for(Loc j = 0; j<=end; j++) {
+          if(boards[i].colors[j] == C_EMPTY)
+            emptyBuf[emptyCount++] = j;
+        }
+        testAssert(emptyCount > 0);
+        locs[i] = emptyBuf[rand.nextUInt(emptyCount)];
       }
     }
 
@@ -1605,15 +1611,15 @@ void Tests::runBoardStressTest() {
     out << "Caps " << boards[i].numBlackCaptures << " " << boards[i].numWhiteCaptures << endl;
   string expected = R"%%(
 
-regularMoveCount 37692
+regularMoveCount 37740
 passCount 280
-koCaptureCount 164
-koBanCount 25
-suicideCount 445
-Caps 4862 4732
-Caps 4590 4745
-Caps 4890 5071
-Caps 4364 4393
+koCaptureCount 188
+koBanCount 31
+suicideCount 451
+Caps 4839 4688
+Caps 4853 4672
+Caps 5002 4967
+Caps 4369 4382
 
 )%%";
   expect("Board stress test move counts",out,expected);

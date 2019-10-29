@@ -54,7 +54,7 @@ Board::Board(const Board& other)
   memcpy(next_in_chain, other.next_in_chain, sizeof(Loc)*MAX_ARR_SIZE);
 
   ko_loc = other.ko_loc;
-  empty_list = other.empty_list;
+  // empty_list = other.empty_list;
   pos_hash = other.pos_hash;
   numBlackCaptures = other.numBlackCaptures;
   numWhiteCaptures = other.numWhiteCaptures;
@@ -80,7 +80,7 @@ void Board::init(int xS, int yS)
     {
       Loc loc = (x+1) + (y+1)*(x_size+1);
       colors[loc] = C_EMPTY;
-      empty_list.add(loc);
+      // empty_list.add(loc);
     }
   }
 
@@ -575,7 +575,7 @@ void Board::undo(Board::MoveRecord record)
   //Delete the stone played here.
   pos_hash ^= ZOBRIST_BOARD_HASH[loc][colors[loc]];
   colors[loc] = C_EMPTY;
-  empty_list.add(loc);
+  // empty_list.add(loc);
 
   //Uneat opp liberties
   changeSurroundingLiberties(loc, getOpp(record.pla),+1);
@@ -758,7 +758,7 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   chain_data[loc].num_liberties = getNumImmediateLiberties(loc);
   chain_head[loc] = loc;
   next_in_chain[loc] = loc;
-  empty_list.remove(loc);
+  // empty_list.remove(loc);
 
   //Merge with surrounding friendly chains and capture any necessary opp chains
   int num_captured = 0; //Number of stones captured
@@ -944,7 +944,7 @@ int Board::removeChain(Loc loc)
     pos_hash ^= ZOBRIST_BOARD_HASH[cur][colors[cur]];
     colors[cur] = C_EMPTY;
     num_stones_removed++;
-    empty_list.add(cur);
+    // empty_list.add(cur);
 
     //For each distinct opp chain around, add a liberty to it.
     changeSurroundingLiberties(cur,opp,+1);
@@ -1010,7 +1010,7 @@ Loc Board::addChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
   chain_head[loc] = head;
   chain_data[head].num_locs++;
   next_in_chain[loc] = tailTarget;
-  empty_list.remove(loc);
+  // empty_list.remove(loc);
 
   //Eat opp liberties
   changeSurroundingLiberties(loc,getOpp(pla),-1);
@@ -1101,65 +1101,65 @@ void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
 }
 
 
-Board::PointList::PointList()
-{
-  std::memset(list_, NULL_LOC, sizeof(list_));
-  std::memset(indices_, -1, sizeof(indices_));
-  size_ = 0;
-}
+// Board::PointList::PointList()
+// {
+//   std::memset(list_, NULL_LOC, sizeof(list_));
+//   std::memset(indices_, -1, sizeof(indices_));
+//   size_ = 0;
+// }
 
-Board::PointList::PointList(const Board::PointList& other)
-{
-  std::memcpy(list_, other.list_, sizeof(list_));
-  std::memcpy(indices_, other.indices_, sizeof(indices_));
-  size_ = other.size_;
-}
+// Board::PointList::PointList(const Board::PointList& other)
+// {
+//   std::memcpy(list_, other.list_, sizeof(list_));
+//   std::memcpy(indices_, other.indices_, sizeof(indices_));
+//   size_ = other.size_;
+// }
 
-void Board::PointList::operator=(const Board::PointList& other)
-{
-  if(this == &other)
-    return;
-  std::memcpy(list_, other.list_, sizeof(list_));
-  std::memcpy(indices_, other.indices_, sizeof(indices_));
-  size_ = other.size_;
-}
+// void Board::PointList::operator=(const Board::PointList& other)
+// {
+//   if(this == &other)
+//     return;
+//   std::memcpy(list_, other.list_, sizeof(list_));
+//   std::memcpy(indices_, other.indices_, sizeof(indices_));
+//   size_ = other.size_;
+// }
 
-void Board::PointList::add(Loc loc)
-{
-  //assert (size_ < MAX_PLAY_SIZE);
-  list_[size_] = loc;
-  indices_[loc] = size_;
-  size_++;
-}
+// void Board::PointList::add(Loc loc)
+// {
+//   //assert (size_ < MAX_PLAY_SIZE);
+//   list_[size_] = loc;
+//   indices_[loc] = size_;
+//   size_++;
+// }
 
-void Board::PointList::remove(Loc loc)
-{
-  //assert(size_ >= 0);
-  int index = indices_[loc];
-  //assert(index >= 0 && index < size_);
-  //assert(list_[index] == loc);
-  Loc end_loc = list_[size_-1];
-  list_[index] = end_loc;
-  list_[size_-1] = NULL_LOC;
-  indices_[end_loc] = index;
-  indices_[loc] = -1;
-  size_--;
-}
+// void Board::PointList::remove(Loc loc)
+// {
+//   //assert(size_ >= 0);
+//   int index = indices_[loc];
+//   //assert(index >= 0 && index < size_);
+//   //assert(list_[index] == loc);
+//   Loc end_loc = list_[size_-1];
+//   list_[index] = end_loc;
+//   list_[size_-1] = NULL_LOC;
+//   indices_[end_loc] = index;
+//   indices_[loc] = -1;
+//   size_--;
+// }
 
-int Board::PointList::size() const
-{
-  return size_;
-}
+// int Board::PointList::size() const
+// {
+//   return size_;
+// }
 
-Loc& Board::PointList::operator[](int n)
-{
-  assert (n < size_);
-  return list_[n];
-}
+// Loc& Board::PointList::operator[](int n)
+// {
+//   assert (n < size_);
+//   return list_[n];
+// }
 
-bool Board::PointList::contains(Loc loc) const {
-  return indices_[loc] != -1;
-}
+// bool Board::PointList::contains(Loc loc) const {
+//   return indices_[loc] != -1;
+// }
 
 Loc Location::getLoc(int x, int y, int x_size)
 {
@@ -2055,15 +2055,15 @@ void Board::checkConsistency() const {
       if(colors[loc] == C_BLACK || colors[loc] == C_WHITE) {
         if(!chainLocChecked[loc])
           checkChainConsistency(loc);
-        if(empty_list.contains(loc))
-          throw StringError(errLabel + "Empty list contains filled location");
+        // if(empty_list.contains(loc))
+        //   throw StringError(errLabel + "Empty list contains filled location");
 
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][colors[loc]];
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][C_EMPTY];
       }
       else if(colors[loc] == C_EMPTY) {
-        if(!empty_list.contains(loc))
-          throw StringError(errLabel + "Empty list doesn't contain empty location");
+        // if(!empty_list.contains(loc))
+        //   throw StringError(errLabel + "Empty list doesn't contain empty location");
         emptyCount += 1;
       }
       else
@@ -2074,17 +2074,17 @@ void Board::checkConsistency() const {
   if(pos_hash != tmp_pos_hash)
     throw StringError(errLabel + "Pos hash does not match expected");
 
-  if(empty_list.size_ != emptyCount)
-    throw StringError(errLabel + "Empty list size is not the number of empty points");
-  for(int i = 0; i<emptyCount; i++) {
-    Loc loc = empty_list.list_[i];
-    int x = Location::getX(loc,x_size);
-    int y = Location::getY(loc,x_size);
-    if(x < 0 || x >= x_size || y < 0 || y >= y_size)
-      throw StringError(errLabel + "Invalid empty list loc");
-    if(empty_list.indices_[loc] != i)
-      throw StringError(errLabel + "Empty list index for loc in index i is not i");
-  }
+  // if(empty_list.size_ != emptyCount)
+  //   throw StringError(errLabel + "Empty list size is not the number of empty points");
+  // for(int i = 0; i<emptyCount; i++) {
+  //   Loc loc = empty_list.list_[i];
+  //   int x = Location::getX(loc,x_size);
+  //   int y = Location::getY(loc,x_size);
+  //   if(x < 0 || x >= x_size || y < 0 || y >= y_size)
+  //     throw StringError(errLabel + "Invalid empty list loc");
+  //   if(empty_list.indices_[loc] != i)
+  //     throw StringError(errLabel + "Empty list index for loc in index i is not i");
+  // }
 
   if(ko_loc != NULL_LOC) {
     int x = Location::getX(ko_loc,x_size);

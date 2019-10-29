@@ -108,20 +108,20 @@ struct Board
   };
 
   //Tracks locations for fast random selection
-  struct PointList {
-    PointList();
-    PointList(const PointList&);
-    void operator=(const PointList&);
-    void add(Loc);
-    void remove(Loc);
-    int size() const;
-    Loc& operator[](int);
-    bool contains(Loc loc) const;
+  /* struct PointList { */
+  /*   PointList(); */
+  /*   PointList(const PointList&); */
+  /*   void operator=(const PointList&); */
+  /*   void add(Loc); */
+  /*   void remove(Loc); */
+  /*   int size() const; */
+  /*   Loc& operator[](int); */
+  /*   bool contains(Loc loc) const; */
 
-    Loc list_[MAX_PLAY_SIZE];   //Locations in the list
-    int indices_[MAX_ARR_SIZE]; //Maps location to index in the list
-    int size_;
-  };
+  /*   Loc list_[MAX_PLAY_SIZE];   //Locations in the list */
+  /*   int indices_[MAX_ARR_SIZE]; //Maps location to index in the list */
+  /*   int size_; */
+  /* }; */
 
   //Move data passed back when moves are made to allow for undos
   struct MoveRecord {
@@ -195,7 +195,7 @@ struct Board
   Hash128 getPosHashAfterMove(Loc loc, Player pla) const;
 
   //Get a random legal move that does not fill a simple eye.
-  Loc getRandomMCLegal(Player pla);
+  /* Loc getRandomMCLegal(Player pla); */
 
   //Check if the given stone is in unescapable atari or can be put into unescapable atari.
   //WILL perform a mutable search - may alter the linked lists or heads, etc.
@@ -239,7 +239,7 @@ struct Board
 
   Loc ko_loc;   //A simple ko capture was made here, making it illegal to replay here next move
 
-  PointList empty_list; //List of all empty locations on board
+  /* PointList empty_list; //List of all empty locations on board */
 
   Hash128 pos_hash; //A zobrist hash of the current board position (does not include ko point or player to move)
 
