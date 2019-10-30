@@ -30,6 +30,42 @@ const Hash128 Board::ZOBRIST_PASS_ENDS_PHASE = //Based on sha256 hash of Board::
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
 
+//LOCATION--------------------------------------------------------------------------------
+Loc Location::getLoc(int x, int y, int x_size)
+{
+  return (x+1) + (y+1)*(x_size+1);
+}
+int Location::getX(Loc loc, int x_size)
+{
+  return (loc % (x_size+1)) - 1;
+}
+int Location::getY(Loc loc, int x_size)
+{
+  return (loc / (x_size+1)) - 1;
+}
+void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
+{
+  adj_offsets[0] = -(x_size+1);
+  adj_offsets[1] = -1;
+  adj_offsets[2] = 1;
+  adj_offsets[3] = (x_size+1);
+  adj_offsets[4] = -(x_size+1)-1;
+  adj_offsets[5] = -(x_size+1)+1;
+  adj_offsets[6] = (x_size+1)-1;
+  adj_offsets[7] = (x_size+1)+1;
+}
+
+bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
+{
+  return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
+}
+
+#define FOREACHADJ(BLOCK) {int ADJOFFSET = -(x_size+1); {BLOCK}; ADJOFFSET = -1; {BLOCK}; ADJOFFSET = 1; {BLOCK}; ADJOFFSET = x_size+1; {BLOCK}};
+#define ADJ0 (-(x_size+1))
+#define ADJ1 (-1)
+#define ADJ2 (1)
+#define ADJ3 (x_size+1)
+
 //CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
 
 Board::Board()
@@ -157,9 +193,8 @@ bool Board::isSuicide(Loc loc, Player pla) const
     return false;
 
   Player opp = getOpp(pla);
-  for(int i = 0; i < 4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
+  FOREACHADJ(
+    Loc adj = loc + ADJOFFSET;
 
     if(colors[adj] == C_EMPTY)
       return false;
@@ -173,7 +208,7 @@ bool Board::isSuicide(Loc loc, Player pla) const
       if(getNumLiberties(adj) == 1)
         return false;
     }
-  }
+  );
 
   return true;
 }
@@ -182,9 +217,8 @@ bool Board::isSuicide(Loc loc, Player pla) const
 bool Board::isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
 {
   Player opp = getOpp(pla);
-  for(int i = 0; i < 4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
+  FOREACHADJ(
+    Loc adj = loc + ADJOFFSET;
 
     if(colors[adj] == C_EMPTY)
       return false;
@@ -198,7 +232,7 @@ bool Board::isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
       if(getNumLiberties(adj) == 1)
         return false;
     }
-  }
+  );
 
   return true;
 }
@@ -425,12 +459,11 @@ bool Board::wouldBeKoCapture(Loc loc, Player pla) const {
 }
 
 bool Board::isAdjacentToPla(Loc loc, Player pla) const {
-  for(int i = 0; i < 4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
+  FOREACHADJ(
+    Loc adj = loc + ADJOFFSET;
     if(colors[adj] == pla)
       return true;
-  }
+  );
   return false;
 }
 
@@ -519,12 +552,20 @@ Board::MoveRecord Board::playMoveRecorded(Loc loc, Player pla)
 
   if(loc != PASS_LOC) {
     Player opp = getOpp(pla);
-    for(int i = 0; i < 4; i++)
-    {
-      int adj = loc + adj_offsets[i];
+
+    { int adj = loc + ADJ0;
       if(colors[adj] == opp && getNumLiberties(adj) == 1)
-        record.capDirs |= (((uint8_t)1) << i);
-    }
+        record.capDirs |= (((uint8_t)1) << 0); }
+    { int adj = loc + ADJ1;
+      if(colors[adj] == opp && getNumLiberties(adj) == 1)
+        record.capDirs |= (((uint8_t)1) << 1); }
+    { int adj = loc + ADJ2;
+      if(colors[adj] == opp && getNumLiberties(adj) == 1)
+        record.capDirs |= (((uint8_t)1) << 2); }
+    { int adj = loc + ADJ3;
+      if(colors[adj] == opp && getNumLiberties(adj) == 1)
+        record.capDirs |= (((uint8_t)1) << 3); }
+
     if(record.capDirs == 0 && isSuicide(loc,pla))
       record.capDirs = 0x10;
   }
@@ -584,12 +625,11 @@ void Board::undo(Board::MoveRecord record)
   if(chain_data[chain_head[loc]].num_locs > 1)
   {
     int numNeighbors = 0;
-    for(int i = 0; i<4; i++)
-    {
-      int adj = loc + adj_offsets[i];
+    FOREACHADJ(
+      int adj = loc + ADJOFFSET;
       if(colors[adj] == record.pla)
         numNeighbors++;
-    }
+    );
 
     //If the move had exactly one neighbor, we know its undoing didn't disconnect the group,
     //so don't need to rebuild the whole chain.
@@ -625,11 +665,10 @@ void Board::undo(Board::MoveRecord record)
       //Lastly, fix up liberties. Removing this stone removed all liberties next to this stone
       //that weren't already liberties of the group.
       int libertyDelta = 0;
-      for(int i = 0; i<4; i++)
-      {
-        int adj = loc + adj_offsets[i];
+      FOREACHADJ(
+        int adj = loc + ADJOFFSET;
         if(colors[adj] == C_EMPTY && !isLibertyOf(adj,head)) libertyDelta--;
-      }
+      );
       //Removing this stone itself added a liberty to the group though.
       libertyDelta++;
       chain_data[head].num_liberties += libertyDelta;
@@ -836,9 +875,10 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
 int Board::getNumImmediateLiberties(Loc loc) const
 {
   int num_libs = 0;
-  for(int i = 0; i < 4; i++)
-    if(colors[loc + adj_offsets[i]] == C_EMPTY)
-      num_libs++;
+  if(colors[loc + ADJ0] == C_EMPTY) num_libs++;
+  if(colors[loc + ADJ1] == C_EMPTY) num_libs++;
+  if(colors[loc + ADJ2] == C_EMPTY) num_libs++;
+  if(colors[loc + ADJ3] == C_EMPTY) num_libs++;
 
   return num_libs;
 }
@@ -862,16 +902,16 @@ int Board::countHeuristicConnectionLibertiesX2(Loc loc, Player pla) const
 bool Board::isLibertyOf(Loc loc, Loc head) const
 {
   Loc adj;
-  adj = loc + adj_offsets[0];
+  adj = loc + ADJ0;
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
-  adj = loc + adj_offsets[1];
+  adj = loc + ADJ1;
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
-  adj = loc + adj_offsets[2];
+  adj = loc + ADJ2;
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
-  adj = loc + adj_offsets[3];
+  adj = loc + ADJ3;
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
 
@@ -903,12 +943,11 @@ void Board::mergeChains(Loc loc1, Loc loc2)
   while(true)
   {
     //Any adjacent liberty is a new liberty for head1 if it is not adjacent to a stone of head1
-    for(int i = 0; i<4; i++)
-    {
-      Loc adj = loc + adj_offsets[i];
+    FOREACHADJ(
+      Loc adj = loc + ADJOFFSET;
       if(colors[adj] == C_EMPTY && !isLibertyOf(adj,head1))
         numNewLiberties++;
-    }
+    );
 
     //Now, add this stone to head1.
     chain_head[loc] = head1;
@@ -1049,10 +1088,10 @@ void Board::rebuildChain(Loc loc, Player pla)
 //some invalid location, such as NULL_LOC or a location not of color.
 Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 {
-  Loc adj0 = loc + adj_offsets[0];
-  Loc adj1 = loc + adj_offsets[1];
-  Loc adj2 = loc + adj_offsets[2];
-  Loc adj3 = loc + adj_offsets[3];
+  Loc adj0 = loc + ADJ0;
+  Loc adj1 = loc + ADJ1;
+  Loc adj2 = loc + ADJ2;
+  Loc adj3 = loc + ADJ3;
 
   //Count new liberties
   int numHeadLibertiesToAdd = 0;
@@ -1079,10 +1118,10 @@ Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 //Apply the specified delta to the liberties of all adjacent groups of the specified color
 void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
 {
-  Loc adj0 = loc + adj_offsets[0];
-  Loc adj1 = loc + adj_offsets[1];
-  Loc adj2 = loc + adj_offsets[2];
-  Loc adj3 = loc + adj_offsets[3];
+  Loc adj0 = loc + ADJ0;
+  Loc adj1 = loc + ADJ1;
+  Loc adj2 = loc + ADJ2;
+  Loc adj3 = loc + ADJ3;
 
   if(colors[adj0] == pla)
     chain_data[chain_head[adj0]].num_liberties += delta;
@@ -1160,35 +1199,6 @@ void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
 // bool Board::PointList::contains(Loc loc) const {
 //   return indices_[loc] != -1;
 // }
-
-Loc Location::getLoc(int x, int y, int x_size)
-{
-  return (x+1) + (y+1)*(x_size+1);
-}
-int Location::getX(Loc loc, int x_size)
-{
-  return (loc % (x_size+1)) - 1;
-}
-int Location::getY(Loc loc, int x_size)
-{
-  return (loc / (x_size+1)) - 1;
-}
-void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
-{
-  adj_offsets[0] = -(x_size+1);
-  adj_offsets[1] = -1;
-  adj_offsets[2] = 1;
-  adj_offsets[3] = (x_size+1);
-  adj_offsets[4] = -(x_size+1)-1;
-  adj_offsets[5] = -(x_size+1)+1;
-  adj_offsets[6] = (x_size+1)-1;
-  adj_offsets[7] = (x_size+1)+1;
-}
-
-bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
-{
-  return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
-}
 
 //TACTICAL STUFF--------------------------------------------------------------------
 
@@ -1272,14 +1282,14 @@ bool Board::hasLibertyGainingCaptures(Loc loc) const {
   Loc cur = loc;
   do
   {
-    for(int i = 0; i < 4; i++) {
-      Loc adj = cur + adj_offsets[i];
+    FOREACHADJ(
+      Loc adj = cur + ADJOFFSET;
       if(colors[adj] == opp) {
         Loc head = chain_head[adj];
         if(chain_data[head].num_liberties == 1)
           return true;
       }
-    }
+    );
     cur = next_in_chain[cur];
   } while (cur != loc);
 
@@ -1649,11 +1659,11 @@ void Board::calculateAreaForPla(
   }
 
   auto isAdjacentToPlaHead = [pla,this](Loc loc, Loc plaHead) {
-    for(int i = 0; i<4; i++) {
-      Loc adj = loc + adj_offsets[i];
+    FOREACHADJ(
+      Loc adj = loc + ADJOFFSET;
       if(colors[adj] == pla && chain_head[adj] == plaHead)
         return true;
-    }
+    );
     return false;
   };
 
@@ -1707,16 +1717,7 @@ void Board::calculateAreaForPla(
 
       //Determine if this point is internal, unless we already have many internal points
       if(numInternalSpacesMax2[regionIdx] < 2) {
-        bool isInternal = true;
-        for(int i = 0; i<4; i++)
-        {
-          Loc adj = loc + adj_offsets[i];
-          if(colors[adj] == pla) {
-            isInternal = false;
-            break;
-          }
-        }
-        if(isInternal)
+        if(!isAdjacentToPla(loc,pla))
           numInternalSpacesMax2[regionIdx] += 1;
       }
 
@@ -1727,15 +1728,14 @@ void Board::calculateAreaForPla(
       tailTarget = loc;
 
       //Push adjacent locations on to queue
-      for(int i = 0; i<4; i++)
-      {
-        Loc adj = loc + adj_offsets[i];
+      FOREACHADJ(
+        Loc adj = loc + ADJOFFSET;
         if((colors[adj] == C_EMPTY || colors[adj] == opp) && regionIdxByLoc[adj] == -1) {
           buildRegionQueue[buildRegionQueueTail] = adj;
           buildRegionQueueTail += 1;
           regionIdxByLoc[adj] = regionIdx;
         }
-      }
+      );
     }
 
     assert(buildRegionQueueTail < MAX_ARR_SIZE);
@@ -1870,11 +1870,11 @@ void Board::calculateAreaForPla(
         //Walk the pla chain to update bordering regions
         Loc cur = plaHead;
         do {
-          for(int j = 0; j<4; j++) {
-            Loc adj = cur + adj_offsets[j];
+          FOREACHADJ(
+            Loc adj = cur + ADJOFFSET;
             if(colors[adj] == C_EMPTY || colors[adj] == opp)
               bordersNonPassAlivePlaByHead[regionHeads[regionIdxByLoc[adj]]] = true;
-          }
+          );
           cur = next_in_chain[cur];
         } while (cur != plaHead);
       }
