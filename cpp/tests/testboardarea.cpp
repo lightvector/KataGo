@@ -1839,13 +1839,13 @@ Group tax
       bool multiStoneSuicideLegal = (mode % 2 == 1);
       bool keepTerritories = keepTerritoriesBuf[mode/2];
       bool keepStones = keepStonesBuf[mode/2];
-      int whiteMinusBlackSafeRegionCount = 0;
+      int whiteMinusBlackNonDameTouchingRegionCount = 0;
       Board copy(board);
-      copy.calculateNonDameTouchingArea(result,whiteMinusBlackSafeRegionCount,keepTerritories,keepStones,multiStoneSuicideLegal);
+      copy.calculateNonDameTouchingArea(result,whiteMinusBlackNonDameTouchingRegionCount,keepTerritories,keepStones,multiStoneSuicideLegal);
       out << "Keep Territories " << keepTerritories << " "
       << "Keep Stones " << keepStones << " "
       << "Suicide " << multiStoneSuicideLegal << endl;
-      out << "whiteMinusBlackSafeRegionCount " << whiteMinusBlackSafeRegionCount << endl;
+      out << "whiteMinusBlackNonDameTouchingRegionCount " << whiteMinusBlackNonDameTouchingRegionCount << endl;
       for(int y = 0; y<copy.y_size; y++) {
         for(int x = 0; x<copy.x_size; x++) {
           Loc loc = Location::getLoc(x,y,copy.x_size);
@@ -1890,7 +1890,7 @@ xxxo.ox....xo.ooxxx
 
     string expected = R"%%(
 Keep Territories 0 Keep Stones 0 Suicide 0
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOO...............
 OOOO...............
 OOO..............OO
@@ -1912,7 +1912,7 @@ XXXOOO.............
 XXXOOO.............
 
 Keep Territories 0 Keep Stones 0 Suicide 1
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOO...............
 OOOO...............
 OOO..............OO
@@ -1934,7 +1934,7 @@ XXXOOO.............
 XXXOOO.............
 
 Keep Territories 1 Keep Stones 0 Suicide 0
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOO....O..XX..O...
 OOOO.......XX......
 OOO........XX....OO
@@ -1956,7 +1956,7 @@ XXXOOO.X..X......XX
 XXXOOO.XXXX..O...XX
 
 Keep Territories 1 Keep Stones 0 Suicide 1
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOO....O..XX..O...
 OOOO.......XX......
 OOO........XX....OO
@@ -1978,7 +1978,7 @@ XXXOOO.X..X......XX
 XXXOOO.XXXX..O...XX
 
 Keep Territories 0 Keep Stones 1 Suicide 0
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOXOOO.OX..XO.O..
 OOOOXO.XOOX..XOOOXX
 OOOXXXOOXXX..XXXXOO
@@ -2000,7 +2000,7 @@ XXXOOOX.XX.XOOO.X..
 XXXOOOX....XO.OOX..
 
 Keep Territories 0 Keep Stones 1 Suicide 1
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOXOOO.OX..XO.O..
 OOOOXO.XOOX..XOOOXX
 OOOXXXOOXXX..XXXXOO
@@ -2022,7 +2022,7 @@ XXXOOOX.XX.XOOO.X..
 XXXOOOX....XO.OOX..
 
 Keep Territories 1 Keep Stones 1 Suicide 0
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOXOOOOOXXXXOOO..
 OOOOXO.XOOXXXXOOOXX
 OOOXXXOOXXXXXXXXXOO
@@ -2044,7 +2044,7 @@ XXXOOOXXXXXXOOO.XXX
 XXXOOOXXXXXXOOOOXXX
 
 Keep Territories 1 Keep Stones 1 Suicide 1
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOXOOOOOXXXXOOO..
 OOOOXO.XOOXXXXOOOXX
 OOOXXXOOXXXXXXXXXOO
@@ -2099,7 +2099,7 @@ xxoooxxoox.xooo.oxx
 
     string expected = R"%%(
 Keep Territories 0 Keep Stones 0 Suicide 0
-whiteMinusBlackSafeRegionCount 3
+whiteMinusBlackNonDameTouchingRegionCount 3
 ..............OOOXX
 ..............OOOOX
 ...............OOOO
@@ -2121,7 +2121,7 @@ XX.....OO...OOOOOOO
 XX.....OOO..OOOOOOO
 
 Keep Territories 0 Keep Stones 0 Suicide 1
-whiteMinusBlackSafeRegionCount 2
+whiteMinusBlackNonDameTouchingRegionCount 2
 ..............OOOXX
 ..............OOOOX
 ...............OOOO
@@ -2143,7 +2143,7 @@ XX.....OO...OOOOOOO
 XX.....OOO..OOOOOOO
 
 Keep Territories 1 Keep Stones 0 Suicide 0
-whiteMinusBlackSafeRegionCount 3
+whiteMinusBlackNonDameTouchingRegionCount 3
 ...O..........OOOXX
 ..OO..........OOOOX
 .OO............OOOO
@@ -2165,7 +2165,7 @@ XX.....OO...OOOOOOO
 XX.O...OOO..OOOOOOO
 
 Keep Territories 1 Keep Stones 0 Suicide 1
-whiteMinusBlackSafeRegionCount 2
+whiteMinusBlackNonDameTouchingRegionCount 2
 ...O..........OOOXX
 ..OO..........OOOOX
 .OO............OOOO
@@ -2187,7 +2187,7 @@ XX.....OO...OOOOOOO
 XX.O...OOO..OOOOOOO
 
 Keep Territories 0 Keep Stones 1 Suicide 0
-whiteMinusBlackSafeRegionCount 3
+whiteMinusBlackNonDameTouchingRegionCount 3
 X.O.OX.......XOOOXX
 XO..OX.......XOOOOX
 O..OX.........XOOOO
@@ -2209,7 +2209,7 @@ XXOOOXXOOX.XOOOOOOO
 XXO.O.XOOOXXOOOOOOO
 
 Keep Territories 0 Keep Stones 1 Suicide 1
-whiteMinusBlackSafeRegionCount 2
+whiteMinusBlackNonDameTouchingRegionCount 2
 X.O.OX.......XOOOXX
 XO..OX.......XOOOOX
 O..OX.........XOOOO
@@ -2231,7 +2231,7 @@ XXOOOXXOOX.XOOOOOOO
 XXO.O.XOOOXXOOOOOOO
 
 Keep Territories 1 Keep Stones 1 Suicide 0
-whiteMinusBlackSafeRegionCount 3
+whiteMinusBlackNonDameTouchingRegionCount 3
 X.OOOX.......XOOOXX
 XOOOOX.......XOOOOX
 OOOOX.........XOOOO
@@ -2253,7 +2253,7 @@ XXOOOXXOOX.XOOOOOOO
 XXOOO.XOOOXXOOOOOOO
 
 Keep Territories 1 Keep Stones 1 Suicide 1
-whiteMinusBlackSafeRegionCount 2
+whiteMinusBlackNonDameTouchingRegionCount 2
 X.OOOX.......XOOOXX
 XOOOOX.......XOOOOX
 OOOOX.........XOOOO
@@ -2312,168 +2312,168 @@ x.x.xo...oxx.x.
 
     string expected = R"%%(
 Keep Territories 0 Keep Stones 0 Suicide 0
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOOOXXXXXOOOO
 .....OXXXXXOOOO
 .....OOOOOXXXXX
 .....OOOOOXXXXX
 
 Keep Territories 0 Keep Stones 0 Suicide 1
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOOOXXXXXOOOO
 .....OXXXXXOOOO
 .....OOOOOXXXXX
 .....OOOOOXXXXX
 
 Keep Territories 1 Keep Stones 0 Suicide 0
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOOOXXXXXOOOO
 .....OXXXXXOOOO
 .....OOOOOXXXXX
 .....OOOOOXXXXX
 
 Keep Territories 1 Keep Stones 0 Suicide 1
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOOOXXXXXOOOO
 .....OXXXXXOOOO
 .....OOOOOXXXXX
 .....OOOOOXXXXX
 
 Keep Territories 0 Keep Stones 1 Suicide 0
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOOOXXXXXOOOO
 XXXXXOXXXXXOOOO
 XOOOXOOOOOXXXXX
 X.X.XOOOOOXXXXX
 
 Keep Territories 0 Keep Stones 1 Suicide 1
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOOOXXXXXOOOO
 XXXXXOXXXXXOOOO
 XOOOXOOOOOXXXXX
 X.X.XOOOOOXXXXX
 
 Keep Territories 1 Keep Stones 1 Suicide 0
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOOOXXXXXOOOO
 XXXXXOXXXXXOOOO
 XOOOXOOOOOXXXXX
 X.X.XOOOOOXXXXX
 
 Keep Territories 1 Keep Stones 1 Suicide 1
-whiteMinusBlackSafeRegionCount 1
+whiteMinusBlackNonDameTouchingRegionCount 1
 OOOOOOXXXXXOOOO
 XXXXXOXXXXXOOOO
 XOOOXOOOOOXXXXX
 X.X.XOOOOOXXXXX
 
 Keep Territories 0 Keep Stones 0 Suicide 0
-whiteMinusBlackSafeRegionCount 0
+whiteMinusBlackNonDameTouchingRegionCount 0
 OOOOOOXXXXXOOOO
 .....OXXXXXOOOO
 .....OOOOOOXXXX
 .....OOOOOXXXXX
 
 Keep Territories 0 Keep Stones 0 Suicide 1
-whiteMinusBlackSafeRegionCount 0
+whiteMinusBlackNonDameTouchingRegionCount 0
 OOOOOOXXXXXOOOO
 .....OXXXXXOOOO
 .....OOOOOOXXXX
 .....OOOOOXXXXX
 
 Keep Territories 1 Keep Stones 0 Suicide 0
-whiteMinusBlackSafeRegionCount 0
+whiteMinusBlackNonDameTouchingRegionCount 0
 OOOOOOXXXXXOOOO
 .....OXXXXXOOOO
 .....OOOOOOXXXX
 .....OOOOOXXXXX
 
 Keep Territories 1 Keep Stones 0 Suicide 1
-whiteMinusBlackSafeRegionCount 0
+whiteMinusBlackNonDameTouchingRegionCount 0
 OOOOOOXXXXXOOOO
 .....OXXXXXOOOO
 .....OOOOOOXXXX
 .....OOOOOXXXXX
 
 Keep Territories 0 Keep Stones 1 Suicide 0
-whiteMinusBlackSafeRegionCount 0
+whiteMinusBlackNonDameTouchingRegionCount 0
 OOOOOOXXXXXOOOO
 XXXXXOXXXXXOOOO
 XOOOXOOOOOOXXXX
 X.X.XOOOOOXXXXX
 
 Keep Territories 0 Keep Stones 1 Suicide 1
-whiteMinusBlackSafeRegionCount 0
+whiteMinusBlackNonDameTouchingRegionCount 0
 OOOOOOXXXXXOOOO
 XXXXXOXXXXXOOOO
 XOOOXOOOOOOXXXX
 X.X.XOOOOOXXXXX
 
 Keep Territories 1 Keep Stones 1 Suicide 0
-whiteMinusBlackSafeRegionCount 0
+whiteMinusBlackNonDameTouchingRegionCount 0
 OOOOOOXXXXXOOOO
 XXXXXOXXXXXOOOO
 XOOOXOOOOOOXXXX
 X.X.XOOOOOXXXXX
 
 Keep Territories 1 Keep Stones 1 Suicide 1
-whiteMinusBlackSafeRegionCount 0
+whiteMinusBlackNonDameTouchingRegionCount 0
 OOOOOOXXXXXOOOO
 XXXXXOXXXXXOOOO
 XOOOXOOOOOOXXXX
 X.X.XOOOOOXXXXX
 
 Keep Territories 0 Keep Stones 0 Suicide 0
-whiteMinusBlackSafeRegionCount -1
+whiteMinusBlackNonDameTouchingRegionCount -1
 OOOOOOXXXXXOOOO
 .....OXXXXOOOOO
 .....OOOOOOXXXX
 .....OOOOOXXXXX
 
 Keep Territories 0 Keep Stones 0 Suicide 1
-whiteMinusBlackSafeRegionCount -1
+whiteMinusBlackNonDameTouchingRegionCount -1
 OOOOOOXXXXXOOOO
 .....OXXXXOOOOO
 .....OOOOOOXXXX
 .....OOOOOXXXXX
 
 Keep Territories 1 Keep Stones 0 Suicide 0
-whiteMinusBlackSafeRegionCount -1
+whiteMinusBlackNonDameTouchingRegionCount -1
 OOOOOOXXXXXOOOO
 .....OXXXXOOOOO
 .....OOOOOOXXXX
 .....OOOOOXXXXX
 
 Keep Territories 1 Keep Stones 0 Suicide 1
-whiteMinusBlackSafeRegionCount -1
+whiteMinusBlackNonDameTouchingRegionCount -1
 OOOOOOXXXXXOOOO
 .....OXXXXOOOOO
 .....OOOOOOXXXX
 .....OOOOOXXXXX
 
 Keep Territories 0 Keep Stones 1 Suicide 0
-whiteMinusBlackSafeRegionCount -1
+whiteMinusBlackNonDameTouchingRegionCount -1
 OOOOOOXXXXXOOOO
 XXXXXOXXXXOOOOO
 XOOOXOOOOOOXXXX
 X.X.XOOOOOXXXXX
 
 Keep Territories 0 Keep Stones 1 Suicide 1
-whiteMinusBlackSafeRegionCount -1
+whiteMinusBlackNonDameTouchingRegionCount -1
 OOOOOOXXXXXOOOO
 XXXXXOXXXXOOOOO
 XOOOXOOOOOOXXXX
 X.X.XOOOOOXXXXX
 
 Keep Territories 1 Keep Stones 1 Suicide 0
-whiteMinusBlackSafeRegionCount -1
+whiteMinusBlackNonDameTouchingRegionCount -1
 OOOOOOXXXXXOOOO
 XXXXXOXXXXOOOOO
 XOOOXOOOOOOXXXX
 X.X.XOOOOOXXXXX
 
 Keep Territories 1 Keep Stones 1 Suicide 1
-whiteMinusBlackSafeRegionCount -1
+whiteMinusBlackNonDameTouchingRegionCount -1
 OOOOOOXXXXXOOOO
 XXXXXOXXXXOOOOO
 XOOOXOOOOOOXXXX

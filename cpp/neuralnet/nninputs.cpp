@@ -753,9 +753,9 @@ void NNInputs::fillRowV3(
     //   hasAreaFeature = true;
     //   bool keepTerritories = false;
     //   bool keepStones = false;
-    //   int whiteMinusBlackSafeRegionCount = 0;
+    //   int whiteMinusBlackNonDameTouchingRegionCount = 0;
     //   board.calculateNonDameTouchingArea(
-    //     area,whiteMinusBlackSafeRegionCount,
+    //     area,whiteMinusBlackNonDameTouchingRegionCount,
     //     keepTerritories,
     //     keepStones,
     //     hist.rules.multiStoneSuicideLegal
