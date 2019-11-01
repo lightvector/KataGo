@@ -1570,27 +1570,16 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
 void Board::calculateArea(
   Color* result,
-  int& whiteMinusBlackSafeRegionCount,
   bool nonPassAliveStones,
   bool safeBigTerritories,
   bool unsafeBigTerritories,
-  bool recursivelyReachesSafe,
   bool isMultiStoneSuicideLegal
 ) const {
-  for(int i = 0; i<MAX_ARR_SIZE; i++)
-    result[i] = C_EMPTY;
-  int blackSafeRegionCount = 0;
-  int whiteSafeRegionCount = 0;
-  calculateAreaForPla(
-    P_BLACK,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,isMultiStoneSuicideLegal,
-    result,blackSafeRegionCount
-  );
-  calculateAreaForPla(
-    P_WHITE,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,isMultiStoneSuicideLegal,
-    result,whiteSafeRegionCount
-  );
-  whiteMinusBlackSafeRegionCount = whiteSafeRegionCount - blackSafeRegionCount;
+  std::fill(result,result+MAX_ARR_SIZE,C_EMPTY);
+  calculateAreaForPla(P_BLACK,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
+  calculateAreaForPla(P_WHITE,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
 
+  //TODO can we merge this in to calculate area for pla?
   if(nonPassAliveStones) {
     for(int y = 0; y < y_size; y++) {
       for(int x = 0; x < x_size; x++) {
@@ -1602,10 +1591,55 @@ void Board::calculateArea(
   }
 }
 
+void Board::calculateNonDameTouchingArea(
+  Color* result,
+  int& whiteMinusBlackNonDameTouchingRegionCount,
+  bool keepTerritories,
+  bool keepStones,
+  bool isMultiStoneSuicideLegal
+) const {
+  //First, just compute basic area.
+  Color basicArea[MAX_ARR_SIZE];
+  std::fill(result,result+MAX_ARR_SIZE,C_EMPTY);
+  std::fill(basicArea,basicArea+MAX_ARR_SIZE,C_EMPTY);
+  calculateAreaForPla(P_BLACK,true,true,isMultiStoneSuicideLegal,basicArea);
+  calculateAreaForPla(P_WHITE,true,true,isMultiStoneSuicideLegal,basicArea);
+
+  //TODO can we merge this in to calculate area for pla?
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      if(basicArea[loc] == C_EMPTY)
+        basicArea[loc] = colors[loc];
+    }
+  }
+
+  calculateNonDameTouchingAreaHelper(basicArea,result,whiteMinusBlackNonDameTouchingRegionCount);
+
+  if(keepTerritories) {
+    for(int y = 0; y < y_size; y++) {
+      for(int x = 0; x < x_size; x++) {
+        Loc loc = Location::getLoc(x,y,x_size);
+        if(basicArea[loc] != C_EMPTY && basicArea[loc] != colors[loc])
+          result[loc] = basicArea[loc];
+      }
+    }
+  }
+  if(keepStones) {
+    for(int y = 0; y < y_size; y++) {
+      for(int x = 0; x < x_size; x++) {
+        Loc loc = Location::getLoc(x,y,x_size);
+        if(basicArea[loc] != C_EMPTY && basicArea[loc] == colors[loc])
+          result[loc] = basicArea[loc];
+      }
+    }
+  }
+
+}
+
 //This marks pass-alive stones, pass-alive territory always.
 //If safeBigTerritories, marks empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
 //If unsafeBigTerritories, marks empty regions bordered by pla stones and no opp stones, but ONLY on locations in result that are C_EMPTY.
-//If recursivelyReachesSafe, marks pla and enclosed empty regions that are pass-alive, their neighbors, their neighbors... recursively.
 //The reason for this is to avoid overwriting the opponent's pass-alive territory in situations like this:
 // .ox.x.x
 // oxxxxxx
@@ -1617,10 +1651,8 @@ void Board::calculateAreaForPla(
   Player pla,
   bool safeBigTerritories,
   bool unsafeBigTerritories,
-  bool recursivelyReachesSafe,
   bool isMultiStoneSuicideLegal,
-  Color* result,
-  int& safeRegionCount
+  Color* result
 ) const {
   Color opp = getOpp(pla);
 
@@ -1884,71 +1916,16 @@ void Board::calculateAreaForPla(
       break;
   }
 
-  //All remaining groups are pass-alive!
-  //Now, if we've requested to mark all groups that recursively reach pass-alive, we need to reexpand!
-  if(recursivelyReachesSafe) {
-    //Reuse buildRegionQueue to do bfs
-    int buildRegionQueueHead = 0;
-    int buildRegionQueueTail = 0;
 
-    for(int i = 0; i<numPlaHeads; i++) {
-      //Initially, just the pass-alive groups.
-      if(!plaHasBeenKilled[i]) {
-        //Walk this group, mark it, and add to queue
-        Loc plaHead = allPlaHeads[i];
-        Loc cur = plaHead;
-        if(result[cur] != pla) {
-          safeRegionCount += 1;
-          do {
-            result[cur] = pla;
-            buildRegionQueue[buildRegionQueueTail] = cur;
-            buildRegionQueueTail++;
-            cur = next_in_chain[cur];
-          } while (cur != plaHead);
-
-          while(buildRegionQueueHead != buildRegionQueueTail) {
-            //Pop next location off queue
-            Loc loc = buildRegionQueue[buildRegionQueueHead];
-            buildRegionQueueHead += 1;
-
-            //Look all around it
-            for(int j = 0; j<4; j++) {
-              Loc adj = loc + adj_offsets[j];
-              if(result[adj] != C_EMPTY) continue;
-
-              //If it's a player stone, it always good. If it's empty or opp, it must be either pass-alive territory or an empty region with no opps.
-              if(colors[adj] == pla) {
-                result[adj] = pla;
-                buildRegionQueue[buildRegionQueueTail] = adj;
-                buildRegionQueueTail++;
-              }
-              else if(colors[adj] == opp || colors[adj] == C_EMPTY) {
-                int regionIdx = regionIdxByLoc[adj];
-                Loc emptyHead = regionHeads[regionIdx];
-                bool isPassAliveTerritory = numInternalSpacesMax2[regionIdx] <= 1 && !bordersNonPassAlivePlaByHead[emptyHead];
-                if(isPassAliveTerritory || !containsOpp[regionIdx]) {
-                  result[adj] = pla;
-                  buildRegionQueue[buildRegionQueueTail] = adj;
-                  buildRegionQueueTail++;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  else {
-    //Mark result with pass-alive groups
-    for(int i = 0; i<numPlaHeads; i++) {
-      if(!plaHasBeenKilled[i]) {
-        Loc plaHead = allPlaHeads[i];
-        Loc cur = plaHead;
-        do {
-          result[cur] = pla;
-          cur = next_in_chain[cur];
-        } while (cur != plaHead);
-      }
+  //Mark result with pass-alive groups
+  for(int i = 0; i<numPlaHeads; i++) {
+    if(!plaHasBeenKilled[i]) {
+      Loc plaHead = allPlaHeads[i];
+      Loc cur = plaHead;
+      do {
+        result[cur] = pla;
+        cur = next_in_chain[cur];
+      } while (cur != plaHead);
     }
   }
 
@@ -1962,7 +1939,7 @@ void Board::calculateAreaForPla(
     //case that the opponent was marking unsafeBigTerritories and marked an empty spot surrounded by a pass-dead group.
     bool shouldMark = numInternalSpacesMax2[i] <= 1 && atLeastOnePla && !bordersNonPassAlivePlaByHead[head];
     shouldMark = shouldMark || (safeBigTerritories && atLeastOnePla && !containsOpp[i] && !bordersNonPassAlivePlaByHead[head]);
-    if(shouldMark && result[head] != pla) {
+    if(shouldMark) {
       Loc cur = head;
       do {
         result[cur] = pla;
@@ -1970,10 +1947,10 @@ void Board::calculateAreaForPla(
       } while (cur != head);
     }
     else {
-      //Mark unsafeBigTerritories only if the region is empty, to avoid overwriting regions that the opponent identified
-      //as their pass-alive-territory.
+      //Mark unsafeBigTerritories only if the opponent didn't already claim the very stones we're using to surround it as
+      //pass-dead and therefore the whole thing as pass-alive-territory.
       bool shouldMarkIfEmpty = (unsafeBigTerritories && atLeastOnePla && !containsOpp[i]);
-      if(shouldMarkIfEmpty && result[head] != pla) {
+      if(shouldMarkIfEmpty) {
         Loc cur = head;
         do {
           if(result[cur] == C_EMPTY)
@@ -1983,8 +1960,87 @@ void Board::calculateAreaForPla(
       }
     }
   }
-
 }
+
+
+void Board::calculateNonDameTouchingAreaHelper(
+  const Color* basicArea,
+  Color* result,
+  int& whiteMinusBlackNonDameTouchingRegionCount
+) const {
+  Loc queue[MAX_ARR_SIZE];
+  whiteMinusBlackNonDameTouchingRegionCount = 0;
+
+  //Iterate through all the regions that players own via area scoring and mark
+  //all the ones that are touching dame
+  bool isDameTouching[MAX_ARR_SIZE];
+  for(int i = 0; i<MAX_ARR_SIZE; i++)
+    isDameTouching[i] = false;
+
+  int queueHead = 0;
+  int queueTail = 0;
+
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      if(basicArea[loc] != C_EMPTY && !isDameTouching[loc]) {
+        //Touches dame?
+        if((colors[loc+ADJ0] == C_EMPTY && basicArea[loc+ADJ0] == C_EMPTY) ||
+           (colors[loc+ADJ1] == C_EMPTY && basicArea[loc+ADJ1] == C_EMPTY) ||
+           (colors[loc+ADJ2] == C_EMPTY && basicArea[loc+ADJ2] == C_EMPTY) ||
+           (colors[loc+ADJ3] == C_EMPTY && basicArea[loc+ADJ3] == C_EMPTY)) {
+
+          Player pla = basicArea[loc];
+          isDameTouching[loc] = true;
+          queue[queueTail++] = loc;
+          while(queueHead != queueTail) {
+            //Pop next location off queue
+            Loc nextLoc = queue[queueHead++];
+
+            //Look all around it, floodfill
+            FOREACHADJ(
+              Loc adj = nextLoc + ADJOFFSET;
+              if(basicArea[adj] == pla && !isDameTouching[adj]) {
+                isDameTouching[adj] = true;
+                queue[queueTail++] = adj;
+              }
+            );
+          }
+        }
+      }
+    }
+  }
+
+  queueHead = 0;
+  queueTail = 0;
+
+  //Now, walk through and copy all non-dame-touching basic areas into the result counting
+  //how many there are.
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      if(basicArea[loc] != C_EMPTY && !isDameTouching[loc] && result[loc] != basicArea[loc]) {
+        Player pla = basicArea[loc];
+        whiteMinusBlackNonDameTouchingRegionCount += (pla == P_WHITE ? 1 : -1);
+        queue[queueTail++] = loc;
+        while(queueHead != queueTail) {
+          //Pop next location off queue
+          Loc nextLoc = queue[queueHead++];
+
+          //Look all around it, floodfill
+          FOREACHADJ(
+            Loc adj = nextLoc + ADJOFFSET;
+            if(basicArea[adj] == pla && result[adj] != basicArea[adj]) {
+              result[adj] = basicArea[adj];
+              queue[queueTail++] = adj;
+            }
+          );
+        }
+      }
+    }
+  }
+}
+
 
 
 void Board::checkConsistency() const {

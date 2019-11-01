@@ -206,17 +206,28 @@ struct Board
   //If nonPassAliveStones, also marks non-pass-alive stones that are not part of the opposing pass-alive territory.
   //If safeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
   //If unsafeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, regardless.
-  //If recursivelyReachesSafe, marks pla and enclosed empty regions that are pass-alive, their neighbors, their neighbors... recursively.
   //All other points are marked as C_EMPTY.
   //[result] must be a buffer of size MAX_ARR_SIZE and will get filled with the result
-  //whiteMinusBlackSafeRegionCount will be filled in if recursivelyReachesSafe, multiply this by two for a group tax.
   void calculateArea(
     Color* result,
-    int& whiteMinusBlackSafeRegionCount,
     bool nonPassAliveStones,
     bool safeBigTerritories,
     bool unsafeBigTerritories,
-    bool recursivelyReachesSafe,
+    bool isMultiStoneSuicideLegal
+  ) const;
+
+
+  //Calculates the area (including non pass alive stones, safe and unsafe big territories)
+  //However, strips out any "seki" regions.
+  //Seki regions are that are adjacent to any remaining empty regions.
+  //If keepTerritories, then keeps the surrounded territories in seki regions, only strips points for stones.
+  //If keepStones, then keeps the stones, only strips points for surrounded territories.
+  //whiteMinusBlackNonDameTouchingRegionCount - multiply this by two for a group tax.
+  void calculateNonDameTouchingArea(
+    Color* result,
+    int& whiteMinusBlackNonDameTouchingRegionCount,
+    bool keepTerritories,
+    bool keepStones,
     bool isMultiStoneSuicideLegal
   ) const;
 
@@ -272,10 +283,14 @@ struct Board
     Player pla,
     bool safeBigTerritories,
     bool unsafeBigTerritories,
-    bool recursivelyReachesSafe,
     bool isMultiStoneSuicideLegal,
+    Color* result
+  ) const;
+
+  void calculateNonDameTouchingAreaHelper(
+    const Color* basicArea,
     Color* result,
-    int& safeRegionCount
+    int& whiteMinusBlackNonDameTouchingRegionCount
   ) const;
 
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);

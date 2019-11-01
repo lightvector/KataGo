@@ -733,34 +733,49 @@ void NNInputs::fillRowV3(
 
   //Features 18,19 - current territory
   Color area[Board::MAX_ARR_SIZE];
+  bool hasAreaFeature = false;
   if(hist.rules.scoringRule == Rules::SCORING_AREA) {
+    hasAreaFeature = true;
     bool nonPassAliveStones = true;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = true;
-    bool recursivelyReachesSafe = false;
-    int whiteMinusBlackSafeRegionCount = 0;
-    board.calculateArea(area,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
+    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
   }
   else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY) {
+    hasAreaFeature = true;
     bool nonPassAliveStones = false;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = false;
-    bool recursivelyReachesSafe = true;
-    int whiteMinusBlackSafeRegionCount = 0;
-    board.calculateArea(area,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
+    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
+
+    // TODO in proper V7 features this is how we will want it?
+    // if(hist.encorePhase >= 2) {
+    //   hasAreaFeature = true;
+    //   bool keepTerritories = false;
+    //   bool keepStones = false;
+    //   int whiteMinusBlackSafeRegionCount = 0;
+    //   board.calculateNonDameTouchingArea(
+    //     area,whiteMinusBlackSafeRegionCount,
+    //     keepTerritories,
+    //     keepStones,
+    //     hist.rules.multiStoneSuicideLegal
+    //   );
+    // }
   }
   else {
     ASSERT_UNREACHABLE;
   }
 
-  for(int y = 0; y<ySize; y++) {
-    for(int x = 0; x<xSize; x++) {
-      Loc loc = Location::getLoc(x,y,xSize);
-      int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-      if(area[loc] == pla)
-        setRowBinV3(rowBin,pos,18, 1.0f, posStride, featureStride);
-      else if(area[loc] == opp)
-        setRowBinV3(rowBin,pos,19, 1.0f, posStride, featureStride);
+  if(hasAreaFeature) {
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
+        if(area[loc] == pla)
+          setRowBinV3(rowBin,pos,18, 1.0f, posStride, featureStride);
+        else if(area[loc] == opp)
+          setRowBinV3(rowBin,pos,19, 1.0f, posStride, featureStride);
+      }
     }
   }
 
@@ -1155,9 +1170,7 @@ void NNInputs::fillRowV4(
     bool nonPassAliveStones = false;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = false;
-    bool recursivelyReachesSafe = false;
-    int whiteMinusBlackSafeRegionCount = 0;
-    board.calculateArea(area,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
+    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
   }
 
   for(int y = 0; y<ySize; y++) {
