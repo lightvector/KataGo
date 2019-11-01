@@ -538,12 +538,17 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
     }
   }
 
-  setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
-  isScored = true;
-  isNoResult = false;
-  isResignation = false;
-  isGameFinished = true;
-  isPastNormalPhaseEnd = false;
+  //In the case that we have a group tax, rescore normally to actually count the group tax
+  if(rules.taxRule == Rules::TAX_ALL)
+    endAndScoreGameNow(board);
+  else {
+    setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
+    isScored = true;
+    isNoResult = false;
+    isResignation = false;
+    isGameFinished = true;
+    isPastNormalPhaseEnd = false;
+  }
 }
 
 void BoardHistory::setWinnerByResignation(Player pla) {
