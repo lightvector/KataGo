@@ -131,6 +131,8 @@ void Tests::runTrainingWriteTests() {
     cout << "seedBase: " << seedBase << endl;
     cout << gameData->startHist.getRecentBoard(0) << endl;
     gameData->endHist.printDebugInfo(cout,gameData->endHist.getRecentBoard(0));
+    cout << "Num captured black stones " << gameData->endHist.getRecentBoard(0).numBlackCaptures << endl;
+    cout << "Num captured white stones " << gameData->endHist.getRecentBoard(0).numWhiteCaptures << endl;
 
     if(cheapLongSgf) {
       WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData);
@@ -174,7 +176,7 @@ void Tests::runTrainingWriteTests() {
   rules.taxRule = Rules::TAX_ALL;
   run("testtrainingwrite-taxall-v3",rules,0.5,inputsVersion,5,5,5,5,false);
   run("testtrainingwrite-taxall-v3-a",rules,0.5,inputsVersion,5,5,5,5,false);
-  run("testtrainingwrite-taxall-v3-b",rules,0.5,inputsVersion,5,5,5,5,false);
+  run("testtrainingwrite-taxall-v3-c",rules,0.5,inputsVersion,5,5,5,5,false);
 
   //JP 3x3 game
   inputsVersion = 3;

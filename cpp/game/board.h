@@ -108,20 +108,20 @@ struct Board
   };
 
   //Tracks locations for fast random selection
-  struct PointList {
-    PointList();
-    PointList(const PointList&);
-    void operator=(const PointList&);
-    void add(Loc);
-    void remove(Loc);
-    int size() const;
-    Loc& operator[](int);
-    bool contains(Loc loc) const;
+  /* struct PointList { */
+  /*   PointList(); */
+  /*   PointList(const PointList&); */
+  /*   void operator=(const PointList&); */
+  /*   void add(Loc); */
+  /*   void remove(Loc); */
+  /*   int size() const; */
+  /*   Loc& operator[](int); */
+  /*   bool contains(Loc loc) const; */
 
-    Loc list_[MAX_PLAY_SIZE];   //Locations in the list
-    int indices_[MAX_ARR_SIZE]; //Maps location to index in the list
-    int size_;
-  };
+  /*   Loc list_[MAX_PLAY_SIZE];   //Locations in the list */
+  /*   int indices_[MAX_ARR_SIZE]; //Maps location to index in the list */
+  /*   int size_; */
+  /* }; */
 
   //Move data passed back when moves are made to allow for undos
   struct MoveRecord {
@@ -195,7 +195,7 @@ struct Board
   Hash128 getPosHashAfterMove(Loc loc, Player pla) const;
 
   //Get a random legal move that does not fill a simple eye.
-  Loc getRandomMCLegal(Player pla);
+  /* Loc getRandomMCLegal(Player pla); */
 
   //Check if the given stone is in unescapable atari or can be put into unescapable atari.
   //WILL perform a mutable search - may alter the linked lists or heads, etc.
@@ -206,17 +206,28 @@ struct Board
   //If nonPassAliveStones, also marks non-pass-alive stones that are not part of the opposing pass-alive territory.
   //If safeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
   //If unsafeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, regardless.
-  //If recursivelyReachesSafe, marks pla and enclosed empty regions that are pass-alive, their neighbors, their neighbors... recursively.
   //All other points are marked as C_EMPTY.
   //[result] must be a buffer of size MAX_ARR_SIZE and will get filled with the result
-  //whiteMinusBlackSafeRegionCount will be filled in if recursivelyReachesSafe, multiply this by two for a group tax.
   void calculateArea(
     Color* result,
-    int& whiteMinusBlackSafeRegionCount,
     bool nonPassAliveStones,
     bool safeBigTerritories,
     bool unsafeBigTerritories,
-    bool recursivelyReachesSafe,
+    bool isMultiStoneSuicideLegal
+  ) const;
+
+
+  //Calculates the area (including non pass alive stones, safe and unsafe big territories)
+  //However, strips out any "seki" regions.
+  //Seki regions are that are adjacent to any remaining empty regions.
+  //If keepTerritories, then keeps the surrounded territories in seki regions, only strips points for stones.
+  //If keepStones, then keeps the stones, only strips points for surrounded territories.
+  //whiteMinusBlackNonDameTouchingRegionCount - multiply this by two for a group tax.
+  void calculateNonDameTouchingArea(
+    Color* result,
+    int& whiteMinusBlackNonDameTouchingRegionCount,
+    bool keepTerritories,
+    bool keepStones,
     bool isMultiStoneSuicideLegal
   ) const;
 
@@ -239,7 +250,7 @@ struct Board
 
   Loc ko_loc;   //A simple ko capture was made here, making it illegal to replay here next move
 
-  PointList empty_list; //List of all empty locations on board
+  /* PointList empty_list; //List of all empty locations on board */
 
   Hash128 pos_hash; //A zobrist hash of the current board position (does not include ko point or player to move)
 
@@ -272,10 +283,14 @@ struct Board
     Player pla,
     bool safeBigTerritories,
     bool unsafeBigTerritories,
-    bool recursivelyReachesSafe,
     bool isMultiStoneSuicideLegal,
+    Color* result
+  ) const;
+
+  void calculateNonDameTouchingAreaHelper(
+    const Color* basicArea,
     Color* result,
-    int& safeRegionCount
+    int& whiteMinusBlackNonDameTouchingRegionCount
   ) const;
 
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);

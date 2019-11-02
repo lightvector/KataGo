@@ -211,8 +211,8 @@ HASH: 5FA73DC4EC4D5C8EF52ECF27BFF1754C
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
     testAssert(hist.encorePhase == 2);
     testAssert(hist.isGameFinished == true);
-    testAssert(hist.winner == P_WHITE);
-    testAssert(hist.finalWhiteMinusBlackScore == 3.5f);
+    testAssert(hist.winner == P_BLACK);
+    testAssert(hist.finalWhiteMinusBlackScore == -0.5f);
     out << board << endl;
 
     //Resurrecting the board after pass to have black throw in a dead stone, since second encore, should make no difference
@@ -221,16 +221,27 @@ HASH: 5FA73DC4EC4D5C8EF52ECF27BFF1754C
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     testAssert(hist.encorePhase == 2);
     testAssert(hist.isGameFinished == true);
+    testAssert(hist.winner == P_BLACK);
+    testAssert(hist.finalWhiteMinusBlackScore == -0.5f);
+    out << board << endl;
+
+    //Resurrecting again to have white throw in a junk stone that makes it unclear if black has anything
+    //White gets a point for playing, but it's not there second encore, so again no difference
+    makeMoveAssertLegal(hist, board, Location::getLoc(0,1,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    testAssert(hist.encorePhase == 2);
+    testAssert(hist.isGameFinished == true);
     testAssert(hist.winner == P_WHITE);
     testAssert(hist.finalWhiteMinusBlackScore == 3.5f);
     out << board << endl;
 
     //Resurrecting again to have black solidfy his group and prove it pass-alive
+    makeMoveAssertLegal(hist, board, Location::getLoc(0,2,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(3,0,board.x_size), P_WHITE, __LINE__);
-    makeMoveAssertLegal(hist, board, Location::getLoc(0,1,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
-    //White claimed 3 points pre-second-encore, while black waited until second encore, so black gets 4 points and wins by 0.5.
+    //Back to the original result
     testAssert(hist.encorePhase == 2);
     testAssert(hist.isGameFinished == true);
     testAssert(hist.winner == P_BLACK);
@@ -254,11 +265,19 @@ HASH: D7D56E29425FCBAE79353E413C56BE86
  1 . X O .
 
 
-HASH: ED1BFE08358E833305424823D2511E60
+HASH: 6B8B39058225C530338D4A62EEB12785
+   A B C D
+ 4 . X O .
+ 3 O X O X
+ 2 . X O O
+ 1 . X O .
+
+
+HASH: 820C9E3B06A638D02CBDE734B72F2777
    A B C D
  4 . X O O
- 3 X X O .
- 2 . X O O
+ 3 O X O .
+ 2 X X O O
  1 . X O .
 
 )%%";
@@ -1723,11 +1742,125 @@ W-B Score: 4.5
 isNoResult: 0
 isResignation: 0
 Winner: White
-W-B Score: 2.5
+W-B Score: 6.5
+isNoResult: 0
+isResignation: 0
+Winner: White
+W-B Score: 6.5
+isNoResult: 0
+isResignation: 0
+Winner: Black
+W-B Score: -1.5
 isNoResult: 0
 isResignation: 0
 Winner: White
 W-B Score: 0.5
+isNoResult: 0
+isResignation: 0
+Winner: White
+W-B Score: 0.5
+isNoResult: 0
+isResignation: 0
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "GroupTaxSekiScoring2";
+    Board board = Board::parseBoard(9,9,R"%%(
+.x.xo.o.x
+...xooox.
+.xxxxxxoo
+xoooooxo.
+xo.o.oxoo
+xoooooxxx
+xxxoxxxoo
+.xxxoooo.
+.x.xo.o.o
+)%%");
+    Rules rules;
+    rules.komi = 0.5f;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.multiStoneSuicideLegal = false;
+
+    {
+      rules.scoringRule = Rules::SCORING_AREA;
+      rules.taxRule = Rules::TAX_NONE;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+    {
+      rules.scoringRule = Rules::SCORING_AREA;
+      rules.taxRule = Rules::TAX_SEKI;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+    {
+      rules.scoringRule = Rules::SCORING_AREA;
+      rules.taxRule = Rules::TAX_ALL;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+    {
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.taxRule = Rules::TAX_NONE;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+    {
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.taxRule = Rules::TAX_SEKI;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+    {
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.taxRule = Rules::TAX_ALL;
+      BoardHistory hist(board,P_BLACK,rules,0);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished == true);
+      printGameResult(out,hist);
+    }
+
+    string expected = R"%%(
+Winner: White
+W-B Score: 1.5
+isNoResult: 0
+isResignation: 0
+Winner: Black
+W-B Score: -0.5
+isNoResult: 0
+isResignation: 0
+Winner: Black
+W-B Score: -2.5
 isNoResult: 0
 isResignation: 0
 Winner: Black
@@ -1970,6 +2103,7 @@ Last moves pass pass pass pass
         makeMoveAssertLegal(hist, board, move, nextPla, __LINE__);
         nextPla = getOpp(nextPla);
       }
+      out << "White bonus score " << hist.whiteBonusScore << endl;
       printGameResult(out,hist);
     };
 
@@ -2007,8 +2141,9 @@ Last moves pass pass pass pass
 2 O.OO NPX PS0 E2 0000 0000 2022
 1 O.OO NPO PS1 E2 0000 0000 2022
 2 O.OO NPX PS2 E2 0000 0000 2022
+White bonus score -1
 Winner: White
-W-B Score: 2.5
+W-B Score: 3.5
 isNoResult: 0
 isResignation: 0
 5 .... NPX PS0 E0 0000 0000 0000
@@ -2058,6 +2193,7 @@ isResignation: 0
 3 O..X NPX PS0 E0 0000 0000 0000
 2 O.XX NPO PS0 E0 0000 0000 0000
 3 OO.. NPX PS0 E0 0000 0000 0000
+White bonus score -2
 Winner: Empty
 W-B Score: 0
 isNoResult: 1
@@ -2080,6 +2216,7 @@ isResignation: 0
 5 .... NPX PS0 E0 0000 0000 0000
 5 .... NPO PS1 E0 0000 0000 0000
 5 .... NPX PS2 E0 0000 0000 0000
+White bonus score 0
 Winner: White
 W-B Score: 0.5
 isNoResult: 0
@@ -2091,6 +2228,7 @@ isResignation: 0
 2 OOX. NPX PS0 E0 0000 0000 0000
 2 OOX. NPO PS1 E0 0000 0000 0000
 2 OOX. NPX PS2 E0 0000 0000 0000
+White bonus score 0
 Winner: White
 W-B Score: 1.5
 isNoResult: 0
@@ -2101,6 +2239,7 @@ isResignation: 0
 2 .XOX NPO PS0 E0 0000 0000 0000
 2 .XOX NPX PS1 E0 0000 0000 0000
 2 .XOX NPO PS2 E0 0000 0000 0000
+White bonus score 0
 Winner: Black
 W-B Score: -0.5
 isNoResult: 0
@@ -2110,6 +2249,7 @@ isResignation: 0
 3 ..OX NPX PS0 E0 0000 0000 0000
 3 ..OX NPO PS1 E0 0000 0000 0000
 3 ..OX NPX PS2 E0 0000 0000 0000
+White bonus score 0
 Winner: White
 W-B Score: 0.5
 isNoResult: 0
@@ -2238,8 +2378,9 @@ isResignation: 0
 2 OOOOOO. NPX PS0 E2 0000000 0000000 2020111
 1 OOOOOO. NPO PS1 E2 0000000 0000000 2020111
 2 OOOOOO. NPX PS2 E2 0000000 0000000 2020111
+White bonus score -1
 Winner: White
-W-B Score: 1.5
+W-B Score: 6.5
 isNoResult: 0
 isResignation: 0
 
@@ -2283,8 +2424,9 @@ isResignation: 0
 2 OOO. NPX PS0 E2 0000 0000 2220
 1 OOO. NPO PS1 E2 0000 0000 2220
 2 OOO. NPX PS2 E2 0000 0000 2220
+White bonus score -3
 Winner: White
-W-B Score: 0.5
+W-B Score: 1.5
 isNoResult: 0
 isResignation: 0
 
@@ -2354,8 +2496,9 @@ isResignation: 0
 2 XX.X NPO PS0 E2 0000 0000 1101
 1 XX.X NPX PS1 E2 0000 0000 1101
 2 XX.X NPO PS2 E2 0000 0000 1101
+White bonus score -1
 Winner: Black
-W-B Score: -3.5
+W-B Score: -4.5
 isNoResult: 0
 isResignation: 0
 
@@ -2409,6 +2552,7 @@ isResignation: 0
 3 OO.. NPX PS0 E0 0000 0000 0000
 2 OO.X NPO PS0 E0 0000 0000 0000
 2 OO.X NPX PS1 E0 0000 0000 0000
+White bonus score 0
 Winner: White
 W-B Score: 1.5
 isNoResult: 0
@@ -2438,6 +2582,7 @@ isResignation: 0
 1 OOO. NPX PS0 E0 0000 0000 0000
 1 OOO. NPO PS1 E0 0000 0000 0000
 1 OOO. NPX PS2 E0 0000 0000 0000
+White bonus score 0
 Winner: White
 W-B Score: 4.5
 isNoResult: 0
@@ -2463,6 +2608,7 @@ isResignation: 0
 1 .OOO NPX PS0 E0 0000 0000 0000
 1 .OOO NPO PS1 E0 0000 0000 0000
 1 .OOO NPX PS2 E0 0000 0000 0000
+White bonus score 0
 Winner: White
 W-B Score: 4.5
 isNoResult: 0
@@ -2473,6 +2619,39 @@ isResignation: 0
     expect(name,out,expected);
 
 
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = 0.5f;
+    rules.multiStoneSuicideLegal = false;
+    rules.taxRule = Rules::TAX_SEKI;
+    baseRand.init("123");
+    stressTest(koBoard71,BoardHistory(koBoard71,P_BLACK,rules,0),P_BLACK,false);
+    expected = R"%%(
+3 .O.OX.O NPX PS0 E0 0000000 0000000 0000000
+1 .OX.X.O NPO PS0 E0 0000000 0000000 0000000
+4 .OX.X.O NPX PS1 E0 0000000 0000000 0000000
+2 .OX.X.O NPO PS0 E1 0000000 0000000 0000000
+3 .O.OX.O NPX PS0 E1 0010000 0000000 0000000
+4 .O.OX.O NPO PS1 E1 0010000 0000000 0000000
+3 .OOOX.O NPX PS0 E1 0000000 0000000 0000000
+2 .OOOXX. NPO PS0 E1 0000000 0000000 0000000
+2 .OOOXX. NPX PS1 E1 0000000 0000000 0000000
+2 .OOOXX. NPO PS0 E2 0000000 0000000 0222110
+2 .OOOXX. NPX PS1 E2 0000000 0000000 0222110
+4 X...XX. NPO PS0 E2 0000000 0000000 0222110
+3 X.O.XX. NPX PS0 E2 0000000 0000000 0222110
+3 X.O.XXX NPO PS0 E2 0000000 0000000 0222110
+1 X.O.XXX NPX PS1 E2 0000000 0000000 0222110
+3 X.O.XXX NPO PS2 E2 0000000 0000000 0222110
+White bonus score -2
+Winner: Black
+W-B Score: -2.5
+isNoResult: 0
+isResignation: 0
+
+)%%";
+
+    expect(name,out,expected);
   }
 
 
