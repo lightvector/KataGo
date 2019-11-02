@@ -554,7 +554,9 @@ while True:
 
   #Validate
   trainlog("Beginning validation after epoch!")
-  val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".tfrecord")]
+  val_files = []
+  if os.path.exists(vdatadir):
+    val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".tfrecord")]
   if len(val_files) == 0:
     trainlog("No validation files, skipping validation step")
   else:
