@@ -310,7 +310,7 @@ parse_input = tfrecordio.make_tf_record_parser(model_config,pos_len,batch_size)
 def train_input_fn(train_files_to_use,total_num_train_files,batches_to_use):
   trainlog("Constructing train input pipe, %d/%d files used (%d batches)" % (len(train_files_to_use),total_num_train_files,batches_to_use))
   dataset = tf.data.Dataset.from_tensor_slices(train_files_to_use)
-  dataset = dataset.shuffle(65536)
+  dataset = dataset.shuffle(1024)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
   dataset = dataset.shuffle(100)
   dataset = dataset.map(parse_input)
