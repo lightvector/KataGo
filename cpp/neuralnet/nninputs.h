@@ -46,37 +46,22 @@ namespace NNInputs {
   const int NUM_FEATURES_SPATIAL_V6 = 22;
   const int NUM_FEATURES_GLOBAL_V6 = 16;
 
-  //Ongoing sandbox for full rules support for self play
-  Hash128 getHashV3(
+  Hash128 getHash(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     const MiscNNInputParams& nnInputParams
   );
+
   void fillRowV3(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
-  );
-
-  Hash128 getHashV4(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    const MiscNNInputParams& nnInputParams
   );
   void fillRowV4(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
-
-  Hash128 getHashV5(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    const MiscNNInputParams& nnInputParams
-  );
   void fillRowV5(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
-  );
-
-  Hash128 getHashV6(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    const MiscNNInputParams& nnInputParams
   );
   void fillRowV6(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,

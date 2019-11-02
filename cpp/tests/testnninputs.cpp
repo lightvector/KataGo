@@ -138,21 +138,19 @@ void Tests::runNNInputsV3V4Tests() {
     MiscNNInputParams nnInputParams;
     nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
 
+    hash = NNInputs::getHash(board,hist,nextPla,nnInputParams);
+
     static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
     if(version == 3) {
-      hash = NNInputs::getHashV3(board,hist,nextPla,nnInputParams);
       NNInputs::fillRowV3(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
     }
     else if(version == 4) {
-      hash = NNInputs::getHashV4(board,hist,nextPla,nnInputParams);
       NNInputs::fillRowV4(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
     }
     else if(version == 5) {
-      hash = NNInputs::getHashV5(board,hist,nextPla,nnInputParams);
       NNInputs::fillRowV5(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
     }
     else if(version == 6) {
-      hash = NNInputs::getHashV6(board,hist,nextPla,nnInputParams);
       NNInputs::fillRowV6(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
     }
     else
@@ -489,6 +487,33 @@ xxx..xx
         Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, 5.5f),
         Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, 6.0f),
         Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, 6.5f),
+
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, true, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, 6.5f),
+
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, 6.5f),
+
         Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 1.0f),
         Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 1.5f),
         Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 2.0f),
@@ -500,7 +525,33 @@ xxx..xx
         Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 5.0f),
         Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 5.5f),
         Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 6.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 6.5f)
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 6.5f),
+
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, false, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, 6.5f),
+
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, 6.5f),
       };
 
       int nnXLen = size;
@@ -516,13 +567,17 @@ xxx..xx
         float* rowGlobal;
         allocateRows(version,nnXLen,nnYLen,numFeaturesBin,numFeaturesGlobal,rowBin,rowGlobal);
 
-        for(int c = 0; c<numFeaturesGlobal; c++) {
-          for(int i = 0; i<rules.size(); i++) {
-            BoardHistory hist(board,nextPla,rules[i],0);
-            bool inputsUseNHWC = true;
-            Hash128 hash;
-            fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
-            out << rowGlobal[c] << " ";
+        for(int i = 0; i<rules.size(); i += 24) {
+          for(int c = 0; c<numFeaturesGlobal; c++) {
+            for(int j = 0; j<24; j++) {
+              testAssert(i + j < rules.size());
+              BoardHistory hist(board,nextPla,rules[i+j],0);
+              bool inputsUseNHWC = true;
+              Hash128 hash;
+              fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+              out << rowGlobal[c] << " ";
+            }
+            out << endl;
           }
           out << endl;
         }

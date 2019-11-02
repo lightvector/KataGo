@@ -462,18 +462,7 @@ void NNEvaluator::evaluate(
                         " and requireExactNNLen, but was asked to evaluate board with different x or y size");
   }
 
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
-  Hash128 nnHash;
-  if(inputsVersion == 3)
-    nnHash = NNInputs::getHashV3(board, history, nextPlayer, nnInputParams);
-  else if(inputsVersion == 4)
-    nnHash = NNInputs::getHashV4(board, history, nextPlayer, nnInputParams);
-  else if(inputsVersion == 5)
-    nnHash = NNInputs::getHashV5(board, history, nextPlayer, nnInputParams);
-  else if(inputsVersion == 6)
-    nnHash = NNInputs::getHashV6(board, history, nextPlayer, nnInputParams);
-  else
-    ASSERT_UNREACHABLE;
+  Hash128 nnHash = NNInputs::getHash(board, history, nextPlayer, nnInputParams);
 
   bool hadResultWithoutOwnerMap = false;
   shared_ptr<NNOutput> resultWithoutOwnerMap;

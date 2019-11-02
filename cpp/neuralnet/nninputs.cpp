@@ -478,13 +478,8 @@ static void iterLadders(const Board& board, int nnXLen, std::function<void(Loc,i
   }
 }
 
-
-//===========================================================================================
-//INPUTSVERSION 3
-//===========================================================================================
-
 //Currently does NOT depend on history (except for marking ko-illegal spots)
-Hash128 NNInputs::getHashV3(
+Hash128 NNInputs::getHash(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   const MiscNNInputParams& nnInputParams
 ) {
@@ -554,6 +549,10 @@ Hash128 NNInputs::getHashV3(
 
   return hash;
 }
+
+//===========================================================================================
+//INPUTSVERSION 3
+//===========================================================================================
 
 void NNInputs::fillRowV3(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
@@ -736,49 +735,32 @@ void NNInputs::fillRowV3(
 
   //Features 18,19 - current territory
   Color area[Board::MAX_ARR_SIZE];
-  bool hasAreaFeature = false;
+  bool nonPassAliveStones;
+  bool safeBigTerritories;
+  bool unsafeBigTerritories;
   if(hist.rules.scoringRule == Rules::SCORING_AREA) {
-    hasAreaFeature = true;
-    bool nonPassAliveStones = true;
-    bool safeBigTerritories = true;
-    bool unsafeBigTerritories = true;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
+    nonPassAliveStones = true;
+    safeBigTerritories = true;
+    unsafeBigTerritories = true;
   }
   else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY) {
-    hasAreaFeature = true;
-    bool nonPassAliveStones = false;
-    bool safeBigTerritories = true;
-    bool unsafeBigTerritories = false;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
-
-    // TODO in proper V7 features this is how we will want it?
-    // if(hist.encorePhase >= 2) {
-    //   hasAreaFeature = true;
-    //   bool keepTerritories = false;
-    //   bool keepStones = false;
-    //   int whiteMinusBlackNonDameTouchingRegionCount = 0;
-    //   board.calculateNonDameTouchingArea(
-    //     area,whiteMinusBlackNonDameTouchingRegionCount,
-    //     keepTerritories,
-    //     keepStones,
-    //     hist.rules.multiStoneSuicideLegal
-    //   );
-    // }
+    nonPassAliveStones = false;
+    safeBigTerritories = true;
+    unsafeBigTerritories = false;
   }
   else {
     ASSERT_UNREACHABLE;
   }
+  board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
 
-  if(hasAreaFeature) {
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-        if(area[loc] == pla)
-          setRowBinV3(rowBin,pos,18, 1.0f, posStride, featureStride);
-        else if(area[loc] == opp)
-          setRowBinV3(rowBin,pos,19, 1.0f, posStride, featureStride);
-      }
+  for(int y = 0; y<ySize; y++) {
+    for(int x = 0; x<xSize; x++) {
+      Loc loc = Location::getLoc(x,y,xSize);
+      int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
+      if(area[loc] == pla)
+        setRowBinV3(rowBin,pos,18, 1.0f, posStride, featureStride);
+      else if(area[loc] == opp)
+        setRowBinV3(rowBin,pos,19, 1.0f, posStride, featureStride);
     }
   }
 
@@ -914,78 +896,6 @@ void NNInputs::fillRowV3(
 //===========================================================================================
 //INPUTSVERSION 4
 //===========================================================================================
-
-//Currently does NOT depend on history (except for marking ko-illegal spots)
-Hash128 NNInputs::getHashV4(
-  const Board& board, const BoardHistory& hist, Player nextPlayer,
-  const MiscNNInputParams& nnInputParams
-) {
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
-  //Note that board.pos_hash also incorporates the size of the board.
-  Hash128 hash = board.pos_hash;
-  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
-
-  assert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
-  hash ^= Board::ZOBRIST_ENCORE_HASH[hist.encorePhase];
-
-  if(hist.encorePhase == 0) {
-    if(board.ko_loc != Board::NULL_LOC)
-      hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        if(hist.superKoBanned[loc] && loc != board.ko_loc)
-          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
-      }
-    }
-  }
-  else {
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        if(hist.superKoBanned[loc])
-          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
-        if(hist.blackKoProhibited[loc])
-          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK];
-        if(hist.whiteKoProhibited[loc])
-          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
-      }
-    }
-  }
-
-  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-
-  //Discretize the komi for the purpose of matching hash, so that extremely close effective komi we just reuse nn cache hits
-  int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
-  uint64_t komiHash = Hash::murmurMix((uint64_t)komiDiscretized);
-  hash.hash0 ^= komiHash;
-  hash.hash1 ^= Hash::basicLCong(komiHash);
-
-  //Fold in the ko, scoring, and suicide rules
-  hash ^= Rules::ZOBRIST_KO_RULE_HASH[hist.rules.koRule];
-  hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
-  hash ^= Rules::ZOBRIST_TAX_RULE_HASH[hist.rules.taxRule];
-  if(hist.rules.multiStoneSuicideLegal)
-    hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
-
-  //Fold in whether a pass ends this phase
-  bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
-  if(passEndsPhase) {
-    hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
-    //And in the case that a pass ends the phase, conservativePass also affects the result
-    if(nnInputParams.conservativePass)
-      hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
-  }
-  //Fold in whether the game is over or not, since this affects how we compute input features
-  //but is not a function necessarily of previous hashed values.
-  //If the history is in a weird prolonged state, also treat it similarly.
-  if(hist.isGameFinished || hist.isPastNormalPhaseEnd)
-    hash ^= Board::ZOBRIST_GAME_IS_OVER;
-
-  return hash;
-}
 
 void NNInputs::fillRowV4(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
@@ -1320,78 +1230,6 @@ void NNInputs::fillRowV4(
 //INPUTSVERSION 5
 //===========================================================================================
 
-//Currently does NOT depend on history (except for marking ko-illegal spots)
-Hash128 NNInputs::getHashV5(
-  const Board& board, const BoardHistory& hist, Player nextPlayer,
-  const MiscNNInputParams& nnInputParams
-) {
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
-  //Note that board.pos_hash also incorporates the size of the board.
-  Hash128 hash = board.pos_hash;
-  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
-
-  assert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
-  hash ^= Board::ZOBRIST_ENCORE_HASH[hist.encorePhase];
-
-  if(hist.encorePhase == 0) {
-    if(board.ko_loc != Board::NULL_LOC)
-      hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        if(hist.superKoBanned[loc] && loc != board.ko_loc)
-          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
-      }
-    }
-  }
-  else {
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        if(hist.superKoBanned[loc])
-          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
-        if(hist.blackKoProhibited[loc])
-          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK];
-        if(hist.whiteKoProhibited[loc])
-          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
-      }
-    }
-  }
-
-  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-
-  //Discretize the komi for the purpose of matching hash, so that extremely close effective komi we just reuse nn cache hits
-  int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
-  uint64_t komiHash = Hash::murmurMix((uint64_t)komiDiscretized);
-  hash.hash0 ^= komiHash;
-  hash.hash1 ^= Hash::basicLCong(komiHash);
-
-  //Fold in the ko, scoring, and suicide rules
-  hash ^= Rules::ZOBRIST_KO_RULE_HASH[hist.rules.koRule];
-  hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
-  hash ^= Rules::ZOBRIST_TAX_RULE_HASH[hist.rules.taxRule];
-  if(hist.rules.multiStoneSuicideLegal)
-    hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
-
-  //Fold in whether a pass ends this phase
-  bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
-  if(passEndsPhase) {
-    hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
-    //And in the case that a pass ends the phase, conservativePass also affects the result
-    if(nnInputParams.conservativePass)
-      hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
-  }
-  //Fold in whether the game is over or not, since this affects how we compute input features
-  //but is not a function necessarily of previous hashed values.
-  //If the history is in a weird prolonged state, also treat it similarly.
-  if(hist.isGameFinished || hist.isPastNormalPhaseEnd)
-    hash ^= Board::ZOBRIST_GAME_IS_OVER;
-
-  return hash;
-}
-
 void NNInputs::fillRowV5(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
@@ -1592,77 +1430,6 @@ void NNInputs::fillRowV5(
 //INPUTSVERSION 6
 //===========================================================================================
 
-//Currently does NOT depend on history (except for marking ko-illegal spots)
-Hash128 NNInputs::getHashV6(
-  const Board& board, const BoardHistory& hist, Player nextPlayer,
-  const MiscNNInputParams& nnInputParams
-) {
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
-  //Note that board.pos_hash also incorporates the size of the board.
-  Hash128 hash = board.pos_hash;
-  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
-
-  assert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
-  hash ^= Board::ZOBRIST_ENCORE_HASH[hist.encorePhase];
-
-  if(hist.encorePhase == 0) {
-    if(board.ko_loc != Board::NULL_LOC)
-      hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        if(hist.superKoBanned[loc] && loc != board.ko_loc)
-          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
-      }
-    }
-  }
-  else {
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        if(hist.superKoBanned[loc])
-          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
-        if(hist.blackKoProhibited[loc])
-          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK];
-        if(hist.whiteKoProhibited[loc])
-          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
-      }
-    }
-  }
-
-  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-
-  //Discretize the komi for the purpose of matching hash, so that extremely close effective komi we just reuse nn cache hits
-  int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
-  uint64_t komiHash = Hash::murmurMix((uint64_t)komiDiscretized);
-  hash.hash0 ^= komiHash;
-  hash.hash1 ^= Hash::basicLCong(komiHash);
-
-  //Fold in the ko, scoring, and suicide rules
-  hash ^= Rules::ZOBRIST_KO_RULE_HASH[hist.rules.koRule];
-  hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
-  hash ^= Rules::ZOBRIST_TAX_RULE_HASH[hist.rules.taxRule];
-  if(hist.rules.multiStoneSuicideLegal)
-    hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
-
-  //Fold in whether a pass ends this phase
-  bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
-  if(passEndsPhase) {
-    hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
-    //And in the case that a pass ends the phase, conservativePass also affects the result
-    if(nnInputParams.conservativePass)
-      hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
-  }
-  //Fold in whether the game is over or not, since this affects how we compute input features
-  //but is not a function necessarily of previous hashed values.
-  //If the history is in a weird prolonged state, also treat it similarly.
-  if(hist.isGameFinished || hist.isPastNormalPhaseEnd)
-    hash ^= Board::ZOBRIST_GAME_IS_OVER;
-
-  return hash;
-}
 
 void NNInputs::fillRowV6(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
@@ -1845,48 +1612,63 @@ void NNInputs::fillRowV6(
 
   //Features 18,19 - current territory, not counting group tax
   Color area[Board::MAX_ARR_SIZE];
-  bool nonPassAliveStones;
-  bool safeBigTerritories;
-  bool unsafeBigTerritories;
-  bool recursivelyReachesSafe;
-  int whiteMinusBlackSafeRegionCount = 0;
+  bool hasAreaFeature = false;
   if(hist.rules.scoringRule == Rules::SCORING_AREA && hist.rules.taxRule == Rules::TAX_NONE) {
-    nonPassAliveStones = true;
-    safeBigTerritories = true;
-    unsafeBigTerritories = true;
-    recursivelyReachesSafe = false;
-  }
-  else if(hist.rules.scoringRule == Rules::SCORING_AREA && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
-    nonPassAliveStones = true;
-    safeBigTerritories = true;
-    unsafeBigTerritories = false;
-    recursivelyReachesSafe = true;
-  }
-  else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.rules.taxRule == Rules::TAX_NONE) {
-    nonPassAliveStones = false;
-    safeBigTerritories = true;
-    unsafeBigTerritories = true;
-    recursivelyReachesSafe = true;
-  }
-  else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
-    nonPassAliveStones = false;
-    safeBigTerritories = true;
-    unsafeBigTerritories = false;
-    recursivelyReachesSafe = true;
+    hasAreaFeature = true;
+    bool nonPassAliveStones = true;
+    bool safeBigTerritories = true;
+    bool unsafeBigTerritories = true;
+    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
   }
   else {
-    ASSERT_UNREACHABLE;
-  }
-  board.calculateArea(area,whiteMinusBlackSafeRegionCount,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,recursivelyReachesSafe,hist.rules.multiStoneSuicideLegal);
+    bool keepTerritories = false;
+    bool keepStones = false;
+    int whiteMinusBlackNonDameTouchingRegionCount = 0;
+    if(hist.rules.scoringRule == Rules::SCORING_AREA && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
+      hasAreaFeature = true;
+      keepTerritories = false;
+      keepStones = true;
+    }
+    else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.rules.taxRule == Rules::TAX_NONE) {
+      //Territory scoring omits feature until we reach the stage where scoring matters
+      if(hist.encorePhase >= 2) {
+        hasAreaFeature = true;
+        keepTerritories = true;
+        keepStones = false;
+      }
+    }
+    else if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
+      //Territory scoring omits feature until we reach the stage where scoring matters
+      if(hist.encorePhase >= 2) {
+        hasAreaFeature = true;
+        keepTerritories = false;
+        keepStones = false;
+      }
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
 
-  for(int y = 0; y<ySize; y++) {
-    for(int x = 0; x<xSize; x++) {
-      Loc loc = Location::getLoc(x,y,xSize);
-      int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-      if(area[loc] == pla)
-        setRowBinV6(rowBin,pos,18, 1.0f, posStride, featureStride);
-      else if(area[loc] == opp)
-        setRowBinV6(rowBin,pos,19, 1.0f, posStride, featureStride);
+    if(hasAreaFeature) {
+      board.calculateNonDameTouchingArea(
+        area,whiteMinusBlackNonDameTouchingRegionCount,
+        keepTerritories,
+        keepStones,
+        hist.rules.multiStoneSuicideLegal
+      );
+    }
+  }
+
+  if(hasAreaFeature) {
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
+        if(area[loc] == pla)
+          setRowBinV6(rowBin,pos,18, 1.0f, posStride, featureStride);
+        else if(area[loc] == opp)
+          setRowBinV6(rowBin,pos,19, 1.0f, posStride, featureStride);
+      }
     }
   }
 
