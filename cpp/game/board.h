@@ -26,12 +26,15 @@ static const Color C_BLACK = 1;
 static const Color C_WHITE = 2;
 static const Color C_WALL = 3;
 
-//Conversions for players and colors
 static inline Color getOpp(Color c)
 {return c ^ 3;}
 
-char colorToChar(Color c);
-std::string playerToString(Player p);
+//Conversions for players and colors
+namespace PlayerIO {
+  char colorToChar(Color c);
+  std::string playerToString(Player p);
+  bool tryParsePlayer(const std::string& s, Player& pla);
+}
 
 //Location of a point on the board
 //(x,y) is represented as (x+1) + (y+1)*(x_size+1)
@@ -62,7 +65,7 @@ namespace Location
 STRUCT_NAMED_PAIR(Loc,loc,Player,pla,Move);
 
 //Fast lightweight board designed for playouts and simulations, where speed is essential.
-//Undo, hashing, history, not supported. Simple ko rule only.
+//Simple ko rule only.
 //Does not enforce player turn order.
 
 struct Board
@@ -93,7 +96,7 @@ struct Board
   static Hash128 ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_ENCORE_HASH[3];
   static const Hash128 ZOBRIST_PASS_ENDS_PHASE;
-
+  static const Hash128 ZOBRIST_GAME_IS_OVER;
 
   //Structs---------------------------------------
 
@@ -203,9 +206,19 @@ struct Board
   //If nonPassAliveStones, also marks non-pass-alive stones that are not part of the opposing pass-alive territory.
   //If safeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
   //If unsafeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, regardless.
+  //If recursivelyReachesSafe, marks pla and enclosed empty regions that are pass-alive, their neighbors, their neighbors... recursively.
   //All other points are marked as C_EMPTY.
   //[result] must be a buffer of size MAX_ARR_SIZE and will get filled with the result
-  void calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal) const;
+  //whiteMinusBlackSafeRegionCount will be filled in if recursivelyReachesSafe, multiply this by two for a group tax.
+  void calculateArea(
+    Color* result,
+    int& whiteMinusBlackSafeRegionCount,
+    bool nonPassAliveStones,
+    bool safeBigTerritories,
+    bool unsafeBigTerritories,
+    bool recursivelyReachesSafe,
+    bool isMultiStoneSuicideLegal
+  ) const;
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
@@ -255,7 +268,15 @@ struct Board
   int findLibertyGainingCaptures(Loc loc, std::vector<Loc>& buf, int bufStart, int bufIdx) const;
   bool hasLibertyGainingCaptures(Loc loc) const;
 
-  void calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal, Color* result) const;
+  void calculateAreaForPla(
+    Player pla,
+    bool safeBigTerritories,
+    bool unsafeBigTerritories,
+    bool recursivelyReachesSafe,
+    bool isMultiStoneSuicideLegal,
+    Color* result,
+    int& safeRegionCount
+  ) const;
 
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);
 };

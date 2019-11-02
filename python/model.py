@@ -1567,7 +1567,7 @@ class ModelUtils:
     placeholders["scorebelief_target"] = features["sdn"] / 100.0
     placeholders["bonusbelief_target"] = features["sbsn"]
     placeholders["utilityvar_target"] = features["gtnc"][:,21:25]
-    placeholders["ownership_target"] = features["vtnchw"][:,0]
+    placeholders["ownership_target"] = features["vtnchw"][:,0] / 100.0
     placeholders["futurepos_target"] = tf.transpose(features["vtnchw"][:,1:4], [0,2,3,1])
 
     placeholders["target_weight_from_data"] = features["gtnc"][:,25]

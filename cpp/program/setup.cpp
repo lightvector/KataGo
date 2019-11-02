@@ -337,8 +337,8 @@ vector<SearchParams> Setup::loadParams(
 
     if(cfg.contains("rootDirichletNoiseWeight"+idxStr)) params.rootDirichletNoiseWeight = cfg.getDouble("rootDirichletNoiseWeight"+idxStr, 0.0, 1.0);
     else                                                params.rootDirichletNoiseWeight = cfg.getDouble("rootDirichletNoiseWeight",        0.0, 1.0);
-    if(cfg.contains("rootPolicyTemperature"+idxStr)) params.rootPolicyTemperature = cfg.getDouble("rootPolicyTemperature"+idxStr, 0.01, 5.0);
-    else if(cfg.contains("rootPolicyTemperature"))   params.rootPolicyTemperature = cfg.getDouble("rootPolicyTemperature",        0.01, 5.0);
+    if(cfg.contains("rootPolicyTemperature"+idxStr)) params.rootPolicyTemperature = cfg.getDouble("rootPolicyTemperature"+idxStr, 0.01, 100.0);
+    else if(cfg.contains("rootPolicyTemperature"))   params.rootPolicyTemperature = cfg.getDouble("rootPolicyTemperature",        0.01, 100.0);
     else                                             params.rootPolicyTemperature = 1.0;
     if(cfg.contains("rootFpuReductionMax"+idxStr)) params.rootFpuReductionMax = cfg.getDouble("rootFpuReductionMax"+idxStr, 0.0, 2.0);
     else if(cfg.contains("rootFpuReductionMax"))   params.rootFpuReductionMax = cfg.getDouble("rootFpuReductionMax",        0.0, 2.0);
@@ -382,6 +382,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("rootPruneUselessMoves"+idxStr)) params.rootPruneUselessMoves = cfg.getBool("rootPruneUselessMoves"+idxStr);
     else if(cfg.contains("rootPruneUselessMoves"))   params.rootPruneUselessMoves = cfg.getBool("rootPruneUselessMoves");
     else                                             params.rootPruneUselessMoves = false;
+    if(cfg.contains("conservativePass"+idxStr)) params.conservativePass = cfg.getBool("conservativePass"+idxStr);
+    else if(cfg.contains("conservativePass"))   params.conservativePass = cfg.getBool("conservativePass");
+    else                                        params.conservativePass = false;
 
     if(cfg.contains("mutexPoolSize"+idxStr)) params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize"+idxStr, 1, 1 << 24);
     else                                     params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize",        1, 1 << 24);
@@ -410,4 +413,30 @@ Player Setup::parseReportAnalysisWinrates(
     return C_EMPTY;
 
   throw StringError("Could not parse config value for reportAnalysisWinratesAs: " + sOrig);
+}
+
+Rules Setup::loadSingleRulesExceptForKomi(
+  ConfigParser& cfg
+) {
+  Rules rules;
+  string koRule = cfg.getString("koRule", Rules::koRuleStrings());
+  string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
+  bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
+  float komi = 7.5f;
+
+  rules.koRule = Rules::parseKoRule(koRule);
+  rules.scoringRule = Rules::parseScoringRule(scoringRule);
+  rules.multiStoneSuicideLegal = multiStoneSuicideLegal;
+  rules.komi = komi;
+
+  //TODO add to selfplay and gatekeep configs
+  if(cfg.contains("taxRule")) {
+    string taxRule = cfg.getString("taxRule", Rules::taxRuleStrings());
+    rules.taxRule = Rules::parseTaxRule(taxRule);
+  }
+  else {
+    rules.taxRule = (rules.scoringRule == Rules::SCORING_TERRITORY ? Rules::TAX_SEKI : Rules::TAX_NONE);
+  }
+
+  return rules;
 }

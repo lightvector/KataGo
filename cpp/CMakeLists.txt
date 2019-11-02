@@ -234,6 +234,7 @@ if(BUILD_MCTS)
     tests/testtime.cpp
     tests/testtrainingwrite.cpp
     tests/testnn.cpp
+    analysis.cpp
     benchmark.cpp
     evalsgf.cpp
     gatekeeper.cpp

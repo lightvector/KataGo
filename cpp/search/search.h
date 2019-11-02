@@ -71,6 +71,7 @@ struct SearchNode {
   //The actual NNOutput object itself will NOT be mutated once set here, so having obtained a shared_ptr to
   //it while locked, it's safe to read it while unlocked.
   std::shared_ptr<NNOutput> nnOutput;
+  uint32_t nnOutputAge;
 
   SearchNode** children;
   uint16_t numChildren;
@@ -142,6 +143,7 @@ struct Search {
 
   SearchParams searchParams;
   int64_t numSearchesBegun;
+  uint32_t searchNodeAge;
 
   std::string randSeed;
 
@@ -199,6 +201,7 @@ struct Search {
   //If the move is not legal for the specified player, returns false and does nothing, else returns true
   //In the case where the player was not the expected one moving next, also clears history.
   bool makeMove(Loc moveLoc, Player movePla);
+  bool makeMove(Loc moveLoc, Player movePla, bool preventEncore);
   bool isLegalTolerant(Loc moveLoc, Player movePla) const;
   bool isLegalStrict(Loc moveLoc, Player movePla) const;
 
@@ -354,6 +357,9 @@ private:
 
   void addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, int32_t virtualLossesToSubtract, bool isCertain);
 
+  void maybeRecomputeExistingNNOutput(
+    SearchThread& thread, SearchNode& node, bool isRoot
+  );
   void initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
     bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit

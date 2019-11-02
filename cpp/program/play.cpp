@@ -71,6 +71,73 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   return ExtraBlackAndKomi(extraBlack,komi,base);
 }
 
+int Play::numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory, bool assumeMultipleStartingBlackMovesAreHandicap) {
+  //Make the longest possible contiguous sequence of black moves - treat a string of consecutive black
+  //moves at the start of the game as "handicap"
+  //This is necessary because when loading sgfs or on some servers, (particularly with free placement)
+  //handicap is implemented by having black just make a bunch of moves in a row.
+  //But if white makes multiple moves in a row after that, then the plays are probably not handicap, someone's setting
+  //up a problem position by having black play all moves in a row then white play all moves in a row.
+  Board board = initialBoard;
+
+  if(assumeMultipleStartingBlackMovesAreHandicap) {
+    for(int i = 0; i<moveHistory.size(); i++) {
+      Loc moveLoc = moveHistory[i].loc;
+      Player movePla = moveHistory[i].pla;
+      if(movePla != P_BLACK) {
+        //Two white moves in a row?
+        if(i+1 < moveHistory.size() && moveHistory[i+1].pla != P_BLACK) {
+          //Re-set board, don't play these moves
+          board = initialBoard;
+        }
+        break;
+      }
+      bool isMultiStoneSuicideLegal = true;
+      bool suc = board.playMove(moveLoc,movePla,isMultiStoneSuicideLegal);
+      if(!suc)
+        break;
+    }
+  }
+
+  int startBoardNumBlackStones = 0;
+  int startBoardNumWhiteStones = 0;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(board.colors[loc] == C_BLACK)
+        startBoardNumBlackStones += 1;
+      else if(board.colors[loc] == C_WHITE)
+        startBoardNumWhiteStones += 1;
+    }
+  }
+  //If we set up in a nontrivial position, then consider it a non-handicap game.
+  if(startBoardNumWhiteStones != 0)
+    return 0;
+  //If there was only one "handicap" stone, then it was a regular game
+  if(startBoardNumBlackStones <= 1)
+    return 0;
+  return startBoardNumBlackStones;
+}
+
+double Play::getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
+  double winrate = 0.5 * (1.0 + data.winLossValue);
+  //Super hacky - in KataGo, lcb is on utility (i.e. also weighting score), not winrate, but if you're using
+  //lz-analyze you probably don't know about utility and expect LCB to be about winrate. So we apply the LCB
+  //radius to the winrate in order to get something reasonable to display, and also scale it proportionally
+  //by how much winrate is supposed to matter relative to score.
+  double radiusScaleHackFactor = search->searchParams.winLossUtilityFactor / (
+    search->searchParams.winLossUtilityFactor +
+    search->searchParams.staticScoreUtilityFactor +
+    search->searchParams.dynamicScoreUtilityFactor +
+    1.0e-20 //avoid divide by 0
+  );
+  //Also another factor of 0.5 because winrate goes from only 0 to 1 instead of -1 to 1 when it's part of utility
+  radiusScaleHackFactor *= 0.5;
+  double lcb = pla == P_WHITE ? winrate - data.radius * radiusScaleHackFactor : winrate + data.radius * radiusScaleHackFactor;
+  return lcb;
+}
+
+
 //----------------------------------------------------------------------------------------------------------
 
 InitialPosition::InitialPosition()
@@ -96,17 +163,22 @@ void GameInitializer::initShared(ConfigParser& cfg) {
 
   allowedKoRuleStrs = cfg.getStrings("koRules", Rules::koRuleStrings());
   allowedScoringRuleStrs = cfg.getStrings("scoringRules", Rules::scoringRuleStrings());
+  allowedTaxRuleStrs = cfg.getStrings("taxRules", Rules::taxRuleStrings());
   allowedMultiStoneSuicideLegals = cfg.getBools("multiStoneSuicideLegals");
 
   for(size_t i = 0; i < allowedKoRuleStrs.size(); i++)
     allowedKoRules.push_back(Rules::parseKoRule(allowedKoRuleStrs[i]));
   for(size_t i = 0; i < allowedScoringRuleStrs.size(); i++)
     allowedScoringRules.push_back(Rules::parseScoringRule(allowedScoringRuleStrs[i]));
+  for(size_t i = 0; i < allowedTaxRuleStrs.size(); i++)
+    allowedTaxRules.push_back(Rules::parseTaxRule(allowedTaxRuleStrs[i]));
 
   if(allowedKoRules.size() <= 0)
     throw IOError("koRules must have at least one value in " + cfg.getFileName());
   if(allowedScoringRules.size() <= 0)
     throw IOError("scoringRules must have at least one value in " + cfg.getFileName());
+  if(allowedTaxRules.size() <= 0)
+    throw IOError("taxRules must have at least one value in " + cfg.getFileName());
   if(allowedMultiStoneSuicideLegals.size() <= 0)
     throw IOError("multiStoneSuicideLegals must have at least one value in " + cfg.getFileName());
 
@@ -179,6 +251,7 @@ void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, 
   Rules rules;
   rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
   rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
+  rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
   rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt(allowedMultiStoneSuicideLegals.size())];
 
   extraBlackAndKomi = chooseExtraBlackAndKomi(
@@ -388,7 +461,7 @@ static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
   sout << "Bot returned null location or illegal move!?!" << "\n";
   sout << board << "\n";
   sout << bot->getRootBoard() << "\n";
-  sout << "Pla: " << playerToString(bot->getRootPla()) << "\n";
+  sout << "Pla: " << PlayerIO::playerToString(bot->getRootPla()) << "\n";
   sout << "Loc: " << Location::toString(loc,bot->getRootBoard()) << "\n";
   logger.write(sout.str());
   bot->getRootBoard().checkConsistency();
@@ -457,6 +530,7 @@ static double getWhiteScoreEstimate(Search* bot, const Board& board, const Board
   newParams.rootNoiseEnabled = false;
   newParams.rootFpuReductionMax = newParams.fpuReductionMax;
   newParams.rootFpuLossProp = newParams.fpuLossProp;
+  newParams.rootDesiredPerChildVisitsCoeff = 0.0;
 
   bot->setParams(newParams);
   bot->setPosition(pla,board,hist);
@@ -530,8 +604,9 @@ void Play::playExtraBlack(
 
   NNResultBuf buf;
   for(int i = 0; i<extraBlackAndKomi.extraBlack; i++) {
-    double drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
-    bot->nnEvaluator->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
+    MiscNNInputParams nnInputParams;
+    nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
+    bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,NULL,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
     bool allowPass = false;
@@ -796,8 +871,9 @@ static void recordTreePositions(
 
 static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf, Rand& gameRand) {
   NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
-  double drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
-  nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
+  MiscNNInputParams nnInputParams;
+  nnInputParams.drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
+  nnEval->evaluate(board,hist,pla,nnInputParams,buf,NULL,false,false);
   std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
   vector<Loc> locs;
@@ -953,17 +1029,16 @@ static Loc runBotWithLimits(
   Logger& logger,
   vector<double>* recordUtilities
 ) {
-  (void)fancyModes;
-
   if(limits.clearBotBeforeSearchThisMove)
     toMoveBot->clearSearch();
 
   Loc loc;
 
-  //TODO restrict to selfplay only
   //HACK - Disable LCB for making the move (it will still affect the policy target gen)
   bool lcb = toMoveBot->searchParams.useLcbForSelection;
-  toMoveBot->searchParams.useLcbForSelection = false;
+  if(fancyModes.forSelfPlay) {
+    toMoveBot->searchParams.useLcbForSelection = false;
+  }
 
   if(limits.doCapVisitsPlayouts) {
     assert(limits.numCapVisits > 0);
@@ -973,6 +1048,10 @@ static Loc runBotWithLimits(
     toMoveBot->searchParams.maxVisits = std::min(toMoveBot->searchParams.maxVisits, limits.numCapVisits);
     toMoveBot->searchParams.maxPlayouts = std::min(toMoveBot->searchParams.maxPlayouts, limits.numCapPlayouts);
     if(limits.removeRootNoise) {
+      //Note - this is slightly sketchy to set the params directly. This works because
+      //some of the parameters like FPU are basically stateless and will just affect future playouts
+      //and because even stateful effects like rootNoiseEnabled and rootPolicyTemperature only affect
+      //the root so when we step down in the tree we get a fresh start.
       toMoveBot->searchParams.rootNoiseEnabled = false;
       toMoveBot->searchParams.rootPolicyTemperature = 1.0;
       toMoveBot->searchParams.rootFpuLossProp = toMoveBot->searchParams.fpuLossProp;
@@ -990,7 +1069,9 @@ static Loc runBotWithLimits(
   }
 
   //HACK - restore LCB so that it affects policy target gen
-  toMoveBot->searchParams.useLcbForSelection = lcb;
+  if(fancyModes.forSelfPlay) {
+    toMoveBot->searchParams.useLcbForSelection = lcb;
+  }
 
   return loc;
 }
@@ -1301,22 +1382,9 @@ FinishedGameData* Play::runGame(
     assert(dataXLen > 0);
     assert(dataYLen > 0);
     assert(gameData->finalWhiteOwnership == NULL);
-    gameData->finalWhiteOwnership = new int8_t[dataXLen*dataYLen];
-    std::fill(gameData->finalWhiteOwnership, gameData->finalWhiteOwnership + dataXLen*dataYLen, 0);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,dataXLen);
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        if(area[loc] == P_BLACK)
-          gameData->finalWhiteOwnership[pos] = -1;
-        else if(area[loc] == P_WHITE)
-          gameData->finalWhiteOwnership[pos] = 1;
-        else {
-          assert(area[loc] == C_EMPTY);
-          gameData->finalWhiteOwnership[pos] = 0;
-        }
-      }
-    }
+
+    gameData->finalWhiteOwnership = new float[dataXLen*dataYLen];
+    NNInputs::fillOwnership(board,area,hist.rules.taxRule == Rules::TAX_ALL,dataXLen,dataYLen,gameData->finalWhiteOwnership);
 
     gameData->hasFullData = true;
     gameData->dataXLen = dataXLen;
@@ -1423,8 +1491,10 @@ FinishedGameData* Play::runGame(
           delete sp2;
         else {
           Search* toMoveBot2 = sp2->pla == P_BLACK ? botB : botW;
+          MiscNNInputParams nnInputParams;
+          nnInputParams.drawEquivalentWinsForWhite = toMoveBot2->searchParams.drawEquivalentWinsForWhite;
           toMoveBot2->nnEvaluator->evaluate(
-            sp2->board,sp2->hist,sp2->pla,toMoveBot2->searchParams.drawEquivalentWinsForWhite,
+            sp2->board,sp2->hist,sp2->pla,nnInputParams,
             nnResultBuf,NULL,false,false
           );
           Loc banMove = Board::NULL_LOC;
@@ -1471,7 +1541,7 @@ void Play::maybeForkGame(
 
   Board board = finishedGameData->startHist.initialBoard;
   Player pla = finishedGameData->startHist.initialPla;
-  BoardHistory hist(board,pla,finishedGameData->startHist.rules,finishedGameData->startHist.encorePhase);
+  BoardHistory hist(board,pla,finishedGameData->startHist.rules,finishedGameData->startHist.initialEncorePhase);
 
   //Pick a random move to fork from near the start
   int moveIdx = (int)floor(gameRand.nextExponential() * (fancyModes.earlyForkGameExpectedMoveProp * board.x_size * board.y_size));
@@ -1482,7 +1552,7 @@ void Play::maybeForkGame(
     Loc loc = finishedGameData->endHist.moveHistory[i].loc;
     if(!hist.isLegal(board,loc,pla)) {
       cout << board << endl;
-      cout << colorToChar(pla) << endl;
+      cout << PlayerIO::colorToChar(pla) << endl;
       cout << Location::toString(loc,board) << endl;
       hist.printDebugInfo(cout,board);
       cout << endl;
@@ -1521,7 +1591,9 @@ void Play::maybeForkGame(
     Board copy = board;
     BoardHistory copyHist = hist;
     copyHist.makeBoardMoveAssumeLegal(copy,loc,pla,NULL);
-    bot->nnEvaluator->evaluate(copy,copyHist,getOpp(pla),drawEquivalentWinsForWhite,buf,NULL,false,false);
+    MiscNNInputParams nnInputParams;
+    nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+    bot->nnEvaluator->evaluate(copy,copyHist,getOpp(pla),nnInputParams,buf,NULL,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
     double whiteScore = nnOutput->whiteScoreMean;
     if(bestMove == Board::NULL_LOC || (pla == P_WHITE && whiteScore > bestScore) || (pla == P_BLACK && whiteScore < bestScore)) {
