@@ -475,6 +475,12 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
       for(int i = 0; i<numChildren; i++) {
         if(i != bestLcbIndex) {
           double excessValue = bestLcb - lcbBuf[i];
+          //This move is actually worse lcb than some other move, it's just that the other
+          //move failed its checks for having enough minimum visits. So don't actually
+          //try to compute how much better this one is than that one, because it's not better.
+          if(excessValue < 0)
+            continue;
+
           double radius = radiusBuf[i];
           //How many times wider would the radius have to be before the lcb would be worse?
           //Add adjust the denom so that we cannot possibly gain more than a factor of 5, just as a guard
@@ -2481,7 +2487,7 @@ void Search::getAnalysisData(
   }
 
   double parentUtility;
-  double fpuValue = getFpuValueForChildrenAssumeVisited(node, rootPla, true, policyProbMassVisited, parentUtility);
+  double fpuValue = getFpuValueForChildrenAssumeVisited(node, node.nextPla, true, policyProbMassVisited, parentUtility);
 
   for(int i = 0; i<numChildren; i++) {
     SearchNode* child = children[i];
