@@ -101,6 +101,7 @@ HASH: B7F8C756D3C44C031B6A7CDF9164EDA7
 
 Initial pla White
 Encore phase 0
+Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
@@ -134,6 +135,7 @@ HASH: DD088CF25D937776F4CC6E2CBC169CD4
 
 Initial pla White
 Encore phase 0
+Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
@@ -194,6 +196,7 @@ HASH: B7F8C756D3C44C031B6A7CDF9164EDA7
 
 Initial pla White
 Encore phase 0
+Turns this phase 0
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 4
@@ -227,6 +230,7 @@ HASH: DD088CF25D937776F4CC6E2CBC169CD4
 
 Initial pla White
 Encore phase 1
+Turns this phase 0
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 3
@@ -264,6 +268,7 @@ HASH: A8A8A5ADA4E1BFB3AEB041A4513D7405
 
 Initial pla Black
 Encore phase 0
+Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-6.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
@@ -281,6 +286,7 @@ HASH: B39271113663636A4AF3B55AFB01F6AB
 
 Initial pla Black
 Encore phase 0
+Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-6.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
@@ -338,6 +344,7 @@ HASH: B9DEED0632FD395A12CA242D89060D3B
 
 Initial pla White
 Encore phase 0
+Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
@@ -361,6 +368,7 @@ HASH: B9DEED0632FD395A12CA242D89060D3B
 
 Initial pla White
 Encore phase 0
+Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
@@ -442,6 +450,7 @@ HASH: B7D1534B9B7F9D0424902AFED43500FC
 
 Initial pla Black
 Encore phase 0
+Turns this phase 0
 Rules koSIMPLEscoreAREAtaxNONEsui0komi0
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
@@ -492,6 +501,7 @@ HASH: 04E936BD3026457C27E5E849DED6AE6A
 
 Initial pla Black
 Encore phase 0
+Turns this phase 13
 Rules koSIMPLEscoreAREAtaxNONEsui0komi0
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0

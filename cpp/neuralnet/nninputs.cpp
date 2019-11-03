@@ -1528,7 +1528,11 @@ void NNInputs::fillRowV6(
   if(!hideHistory) {
     const vector<Move>& moveHistory = hist.moveHistory;
     size_t moveHistoryLen = moveHistory.size();
-    if(moveHistoryLen >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
+    //Also effectively wipe history as we change phase
+    assert(moveHistoryLen >= hist.numTurnsThisPhase);
+    int numTurnsThisPhase = hist.numTurnsThisPhase;
+
+    if(numTurnsThisPhase >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
       Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
       if(prev1Loc == Board::PASS_LOC)
         rowGlobal[0] = 1.0;
@@ -1536,7 +1540,7 @@ void NNInputs::fillRowV6(
         int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
         setRowBinV6(rowBin,pos,9, 1.0f, posStride, featureStride);
       }
-      if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
+      if(numTurnsThisPhase >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
         if(prev2Loc == Board::PASS_LOC)
           rowGlobal[1] = 1.0;
@@ -1544,7 +1548,7 @@ void NNInputs::fillRowV6(
           int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
           setRowBinV6(rowBin,pos,10, 1.0f, posStride, featureStride);
         }
-        if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
+        if(numTurnsThisPhase >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
           if(prev3Loc == Board::PASS_LOC)
             rowGlobal[2] = 1.0;
@@ -1552,7 +1556,7 @@ void NNInputs::fillRowV6(
             int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
             setRowBinV6(rowBin,pos,11, 1.0f, posStride, featureStride);
           }
-          if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
+          if(numTurnsThisPhase >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
             if(prev4Loc == Board::PASS_LOC)
               rowGlobal[3] = 1.0;
@@ -1560,7 +1564,7 @@ void NNInputs::fillRowV6(
               int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
               setRowBinV6(rowBin,pos,12, 1.0f, posStride, featureStride);
             }
-            if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
+            if(numTurnsThisPhase >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
               if(prev5Loc == Board::PASS_LOC)
                 rowGlobal[4] = 1.0;

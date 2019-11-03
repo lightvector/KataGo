@@ -2214,6 +2214,7 @@ HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
 
 Initial pla Black
 Encore phase 1
+Turns this phase 0
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
@@ -2229,6 +2230,7 @@ HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
 
 Initial pla Black
 Encore phase 1
+Turns this phase 1
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
@@ -2244,6 +2246,7 @@ HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
 
 Initial pla Black
 Encore phase 2
+Turns this phase 0
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
@@ -2259,6 +2262,7 @@ HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
 
 Initial pla Black
 Encore phase 2
+Turns this phase 1
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
@@ -2274,6 +2278,7 @@ HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
 
 Initial pla Black
 Encore phase 2
+Turns this phase 2
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
@@ -2292,6 +2297,7 @@ HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
 
 Initial pla Black
 Encore phase 0
+Turns this phase 2
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
@@ -2307,6 +2313,7 @@ HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
 
 Initial pla Black
 Encore phase 0
+Turns this phase 3
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
@@ -2322,6 +2329,7 @@ HASH: B7CA8ABCFA02190C5AA69D0C2777E4DC
 
 Initial pla Black
 Encore phase 0
+Turns this phase 4
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1

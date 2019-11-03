@@ -48,6 +48,9 @@ struct BoardHistory {
 
   //Encore phase 0,1,2 for territory scoring
   int encorePhase;
+  //How many turns of history do we have in the current main or encore phase?
+  int numTurnsThisPhase;
+
   //Ko-prohibited locations for territory scoring in encore
   bool blackKoProhibited[Board::MAX_ARR_SIZE];
   bool whiteKoProhibited[Board::MAX_ARR_SIZE];

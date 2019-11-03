@@ -778,6 +778,20 @@ o.xoo.x
             printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
             return getAndClear(out);
           };
+          auto printOwnership = [&]() {
+            Board b(board);
+            BoardHistory h(hist);
+            Color area[Board::MAX_ARR_SIZE];
+            float ownership[Board::MAX_ARR_SIZE];
+            h.endAndScoreGameNow(b,area);
+            NNInputs::fillOwnership(b,area,false,board.x_size,board.y_size,ownership);
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++)
+                cout << Global::strprintf("%4.0f",100*ownership[x+y*board.x_size]) << " ";
+              cout << endl;
+            }
+            cout << endl;
+          };
           auto runBoth = [&]() {
             string actualNHWC = run(true);
             string actualNCHW = run(false);
@@ -787,7 +801,8 @@ o.xoo.x
             cout << "Encore phase: " << hist.encorePhase << endl;
             for(int i = 0; i<hist.moveHistory.size(); i++)
               cout << Location::toString(hist.moveHistory[i].loc,board) << " ";
-            cout << actualNHWC << endl;
+            cout << actualNHWC;
+            printOwnership();
           };
 
           cout << "=========================================== " << endl;
@@ -818,6 +833,64 @@ o.xoo.x
           runBoth();
           cout << endl;
         }
+      }
+
+      delete[] rowBin;
+      delete[] rowGlobal;
+    }
+  }
+
+  {
+    const char* name = "NN Inputs V6 Pass history";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
+
+    for(int version = 6; version <= maxVersion; version++) {
+      cout << "VERSION " << version << endl;
+
+      int nnXLen = 9;
+      int nnYLen = 1;
+      double drawEquivalentWinsForWhite = 0.5;
+      int numFeaturesBin;
+      int numFeaturesGlobal;
+      float* rowBin;
+      float* rowGlobal;
+      allocateRows(version,nnXLen,nnYLen,numFeaturesBin,numFeaturesGlobal,rowBin,rowGlobal);
+
+      Board board = Board(9,1);
+      Player nextPla = P_BLACK;
+      Rules initialRules = Rules::getSimpleTerritory();
+      BoardHistory hist(board,nextPla,initialRules,0);
+
+      auto run = [&](bool inputsUseNHWC) {
+        Hash128 hash;
+        fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,9);
+        printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,10);
+        printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,11);
+        printNNInputGlobal(out,version,rowGlobal,0);
+        printNNInputGlobal(out,version,rowGlobal,1);
+        printNNInputGlobal(out,version,rowGlobal,2);
+        return getAndClear(out);
+      };
+      auto runBoth = [&]() {
+        string actualNHWC = run(true);
+        string actualNCHW = run(false);
+        expect(name,actualNHWC,actualNCHW);
+        for(int i = 0; i<hist.moveHistory.size(); i++)
+          cout << Location::toString(hist.moveHistory[i].loc,board) << " ";
+        cout << endl;
+        cout << actualNHWC;
+        cout << "-----" << endl;
+      };
+
+      vector<Loc> locs = Location::parseSequence("pass A1 D1 F1 H1 E1 G1 B1 J1 F1 J1 G1 C1 E1 B1 pass pass H1 J1 E1 G1 pass pass A1 pass D1 C1 B1", board);
+
+      for(int i = 0; i<locs.size(); i++) {
+        runBoth();
+        hist.makeBoardMoveAssumeLegal(board,locs[i],nextPla,NULL);
+        nextPla = getOpp(nextPla);
       }
 
       delete[] rowBin;
