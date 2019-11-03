@@ -1668,6 +1668,15 @@ void NNInputs::fillRowV6(
           setRowBinV6(rowBin,pos,18, 1.0f, posStride, featureStride);
         else if(area[loc] == opp)
           setRowBinV6(rowBin,pos,19, 1.0f, posStride, featureStride);
+        else {
+          if(hist.rules.scoringRule == Rules::SCORING_TERRITORY) {
+            //Also we must be in the second encore phase, based on the logic above.
+            if(board.colors[loc] == pla && hist.secondEncoreStartColors[loc] == pla)
+              setRowBinV6(rowBin,pos,18, 1.0f, posStride, featureStride);
+            else if(board.colors[loc] == opp && hist.secondEncoreStartColors[loc] == opp)
+              setRowBinV6(rowBin,pos,19, 1.0f, posStride, featureStride);
+          }
+        }
       }
     }
   }

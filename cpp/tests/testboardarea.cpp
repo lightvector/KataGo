@@ -2279,7 +2279,7 @@ XXOOO.XOOOXXOOOOOOO
   }
 
   {
-    const char* name = "Non Dame Touching 3,4";
+    const char* name = "Non Dame Touching 3,4,5";
     Color result[Board::MAX_ARR_SIZE];
 
     {
@@ -2478,6 +2478,146 @@ OOOOOOXXXXXOOOO
 XXXXXOXXXXOOOOO
 XOOOXOOOOOOXXXX
 X.X.XOOOOOXXXXX
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Non Dame Touching 6";
+    Color result[Board::MAX_ARR_SIZE];
+
+    {
+      Board board = Board::parseBoard(15,4,R"%%(
+.xo..ox.x.x.x..
+.xo..o.xoxx.xxx
+.xo...ooooxxooo
+.xo.......oo...
+)%%");
+      printNonDameTouchingAreas(board,result);
+    }
+    {
+      Board board = Board::parseBoard(15,4,R"%%(
+.xo..ox.x.x.x..
+.xo..oxxoxx.xxx
+.xo...ooooxxooo
+.xo.......oo...
+)%%");
+      printNonDameTouchingAreas(board,result);
+    }
+
+    string expected = R"%%(
+Keep Territories 0 Keep Stones 0 Suicide 0
+whiteMinusBlackNonDameTouchingRegionCount -1
+XX.............
+XX.............
+XX.............
+XX.............
+
+Keep Territories 0 Keep Stones 0 Suicide 1
+whiteMinusBlackNonDameTouchingRegionCount -1
+XX.............
+XX.............
+XX.............
+XX.............
+
+Keep Territories 1 Keep Stones 0 Suicide 0
+whiteMinusBlackNonDameTouchingRegionCount -1
+XX.OO..X.X.X.XX
+XX.OO......X...
+XX.OOO.........
+XX.OOOOOOO..OOO
+
+Keep Territories 1 Keep Stones 0 Suicide 1
+whiteMinusBlackNonDameTouchingRegionCount -1
+XX.OO..X.X.X.XX
+XX.OO......X...
+XX.OOO.........
+XX.OOOOOOO..OOO
+
+Keep Territories 0 Keep Stones 1 Suicide 0
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXO..OX.X.X.X..
+XXO..O.XOXX.XXX
+XXO...OOOOXXOOO
+XXO.......OO...
+
+Keep Territories 0 Keep Stones 1 Suicide 1
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXO..OX.X.X.X..
+XXO..O.XOXX.XXX
+XXO...OOOOXXOOO
+XXO.......OO...
+
+Keep Territories 1 Keep Stones 1 Suicide 0
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOO.XOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 1 Keep Stones 1 Suicide 1
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOO.XOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 0 Keep Stones 0 Suicide 0
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOOXXOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 0 Keep Stones 0 Suicide 1
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOOXXOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 1 Keep Stones 0 Suicide 0
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOOXXOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 1 Keep Stones 0 Suicide 1
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOOXXOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 0 Keep Stones 1 Suicide 0
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOOXXOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 0 Keep Stones 1 Suicide 1
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOOXXOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 1 Keep Stones 1 Suicide 0
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOOXXOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 1 Keep Stones 1 Suicide 1
+whiteMinusBlackNonDameTouchingRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOOXXOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
 
 )%%";
     expect(name,out,expected);

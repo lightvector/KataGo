@@ -1156,8 +1156,11 @@ HASH: 83A43A9FDE43E4E9601FF8E2CB94D35A
   }
 
   {
-    const char* name = "Territory scoring in the main phase";
-    Board board = Board::parseBoard(7,7,R"%%(
+    const char* name = "Area scoring in the main phase";
+
+    int taxRules[3] = {Rules::TAX_NONE, Rules::TAX_SEKI, Rules::TAX_ALL};
+    for(int whichTaxRule = 0; whichTaxRule < 3; whichTaxRule++) {
+      Board board = Board::parseBoard(7,7,R"%%(
 ox.ooo.
 oxxxxxx
 ooooooo
@@ -1166,30 +1169,110 @@ ooox...
 x.oxxxx
 .xox...
 )%%");
-    Rules rules;
-    rules.koRule = Rules::KO_POSITIONAL;
-    rules.scoringRule = Rules::SCORING_TERRITORY;
-    rules.komi = 0.5f;
-    rules.multiStoneSuicideLegal = false;
-    rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_WHITE,rules,0);
+      Rules rules;
+      rules.koRule = Rules::KO_POSITIONAL;
+      rules.scoringRule = Rules::SCORING_AREA;
+      rules.komi = 0.5f;
+      rules.multiStoneSuicideLegal = false;
+      rules.taxRule = taxRules[whichTaxRule];
+      BoardHistory hist(board,P_WHITE,rules,0);
 
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(6,3,board.x_size), P_WHITE, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(6,4,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(5,4,board.x_size), P_WHITE, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(0,3,board.x_size), P_WHITE, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(6,6,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,3,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,4,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,4,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(0,3,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,6,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      out << endl;
+    }
     string expected = R"%%(
+Score: -3.5
+Score: -4.5
+Score: -3.5
+Score: -6.5
+Score: -6.5
+Score: -6.5
+Score: -3.5
+Score: -3.5
+
+Score: 0.5
+Score: -0.5
+Score: 0.5
+Score: -5.5
+Score: -5.5
+Score: -5.5
+Score: -3.5
+Score: -3.5
+
+Score: 0.5
+Score: -0.5
+Score: 0.5
+Score: -3.5
+Score: -3.5
+Score: -3.5
+Score: -1.5
+Score: -1.5
+)%%";
+    expect(name,out,expected);
+  }
+  {
+    const char* name = "Territory scoring in the main phase";
+
+    int taxRules[3] = {Rules::TAX_NONE, Rules::TAX_SEKI, Rules::TAX_ALL};
+    for(int whichTaxRule = 0; whichTaxRule < 3; whichTaxRule++) {
+      Board board = Board::parseBoard(7,7,R"%%(
+ox.ooo.
+oxxxxxx
+ooooooo
+.xoxx..
+ooox...
+x.oxxxx
+.xox...
+)%%");
+      Rules rules;
+      rules.koRule = Rules::KO_POSITIONAL;
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.komi = 0.5f;
+      rules.multiStoneSuicideLegal = false;
+      rules.taxRule = taxRules[whichTaxRule];
+      BoardHistory hist(board,P_WHITE,rules,0);
+
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,3,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,4,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,4,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(0,3,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,6,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      out << endl;
+    }
+    string expected = R"%%(
+Score: -3.5
+Score: -3.5
+Score: -3.5
+Score: -5.5
+Score: -6.5
+Score: -5.5
+Score: -3.5
+Score: -2.5
+
 Score: 0.5
 Score: 0.5
 Score: 0.5
@@ -1198,12 +1281,24 @@ Score: -5.5
 Score: -4.5
 Score: -3.5
 Score: -2.5
+
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: -2.5
+Score: -3.5
+Score: -2.5
+Score: -1.5
+Score: -0.5
 )%%";
     expect(name,out,expected);
   }
   {
     const char* name = "Territory scoring in encore 1";
-    Board board = Board::parseBoard(7,7,R"%%(
+
+    int taxRules[3] = {Rules::TAX_NONE, Rules::TAX_SEKI, Rules::TAX_ALL};
+    for(int whichTaxRule = 0; whichTaxRule < 3; whichTaxRule++) {
+      Board board = Board::parseBoard(7,7,R"%%(
 ox.ooo.
 oxxxxxx
 ooooooo
@@ -1212,32 +1307,43 @@ ooox...
 x.oxxxx
 .xox...
 )%%");
-    Rules rules;
-    rules.koRule = Rules::KO_POSITIONAL;
-    rules.scoringRule = Rules::SCORING_TERRITORY;
-    rules.komi = 0.5f;
-    rules.multiStoneSuicideLegal = false;
-    rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_WHITE,rules,0);
+      Rules rules;
+      rules.koRule = Rules::KO_POSITIONAL;
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.komi = 0.5f;
+      rules.multiStoneSuicideLegal = false;
+      rules.taxRule = taxRules[whichTaxRule];
+      BoardHistory hist(board,P_WHITE,rules,0);
 
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(6,3,board.x_size), P_WHITE, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(6,4,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
-    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
-    makeMoveAssertLegal(hist, board, Location::getLoc(5,4,board.x_size), P_WHITE, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(0,3,board.x_size), P_WHITE, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(6,6,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,3,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,4,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,4,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(0,3,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,6,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      out << endl;
+    }
     string expected = R"%%(
+Score: -3.5
+Score: -3.5
+Score: -3.5
+Score: -5.5
+Score: -6.5
+Score: -5.5
+Score: -3.5
+Score: -2.5
+
 Score: 0.5
 Score: 0.5
 Score: 0.5
@@ -1246,12 +1352,25 @@ Score: -5.5
 Score: -4.5
 Score: -3.5
 Score: -2.5
+
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: -2.5
+Score: -3.5
+Score: -2.5
+Score: -1.5
+Score: -0.5
 )%%";
     expect(name,out,expected);
   }
+
   {
     const char* name = "Territory scoring in encore 2";
-    Board board = Board::parseBoard(7,7,R"%%(
+
+    int taxRules[3] = {Rules::TAX_NONE, Rules::TAX_SEKI, Rules::TAX_ALL};
+    for(int whichTaxRule = 0; whichTaxRule < 3; whichTaxRule++) {
+      Board board = Board::parseBoard(7,7,R"%%(
 ox.ooo.
 oxxxxxx
 ooooooo
@@ -1260,34 +1379,45 @@ ooox...
 x.oxxxx
 .xox...
 )%%");
-    Rules rules;
-    rules.koRule = Rules::KO_POSITIONAL;
-    rules.scoringRule = Rules::SCORING_TERRITORY;
-    rules.komi = 0.5f;
-    rules.multiStoneSuicideLegal = false;
-    rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_WHITE,rules,0);
+      Rules rules;
+      rules.koRule = Rules::KO_POSITIONAL;
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.komi = 0.5f;
+      rules.multiStoneSuicideLegal = false;
+      rules.taxRule = taxRules[whichTaxRule];
+      BoardHistory hist(board,P_WHITE,rules,0);
 
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(6,3,board.x_size), P_WHITE, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(6,4,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
-    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
-    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
-    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
-    makeMoveAssertLegal(hist, board, Location::getLoc(5,4,board.x_size), P_WHITE, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(0,3,board.x_size), P_WHITE, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
-    makeMoveAssertLegal(hist, board, Location::getLoc(6,6,board.x_size), P_BLACK, __LINE__);
-    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,3,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,4,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,4,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(0,3,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,6,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      out << endl;
+    }
     string expected = R"%%(
+Score: -3.5
+Score: -3.5
+Score: -3.5
+Score: -5.5
+Score: -5.5
+Score: -5.5
+Score: -3.5
+Score: -3.5
+
 Score: 0.5
 Score: 0.5
 Score: 0.5
@@ -1296,6 +1426,159 @@ Score: -4.5
 Score: -4.5
 Score: -3.5
 Score: -3.5
+
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: -2.5
+Score: -2.5
+Score: -2.5
+Score: -1.5
+Score: -1.5
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Fill seki liberties in main phase";
+
+    int taxRules[3] = {Rules::TAX_NONE, Rules::TAX_SEKI, Rules::TAX_ALL};
+    for(int whichTaxRule = 0; whichTaxRule < 3; whichTaxRule++) {
+      Board board = Board::parseBoard(7,7,R"%%(
+...oxx.
+oooox.x
+xxxxoxx
+o.xoooo
+.oxox.o
+oxxo.x.
+o.xoo.x
+)%%");
+      Rules rules;
+      rules.koRule = Rules::KO_POSITIONAL;
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.komi = -0.5f;
+      rules.multiStoneSuicideLegal = false;
+      rules.taxRule = taxRules[whichTaxRule];
+      BoardHistory hist(board,P_WHITE,rules,0);
+
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,5,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,6,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(0,4,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(1,0,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,4,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      out << endl;
+    }
+    string expected = R"%%(
+Score: 1.5
+Score: 1.5
+Score: 1.5
+Score: 0.5
+Score: 1.5
+Score: 0.5
+Score: 0.5
+Score: 10.5
+
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 1.5
+Score: 0.5
+Score: 0.5
+Score: 10.5
+
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 1.5
+Score: 0.5
+Score: 0.5
+Score: 8.5
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Fill seki liberties in encore 2";
+
+    int taxRules[3] = {Rules::TAX_NONE, Rules::TAX_SEKI, Rules::TAX_ALL};
+    for(int whichTaxRule = 0; whichTaxRule < 3; whichTaxRule++) {
+      Board board = Board::parseBoard(7,7,R"%%(
+...oxx.
+oooox.x
+xxxxoxx
+o.xoooo
+.oxox.o
+oxxo.x.
+o.xoo.x
+)%%");
+      Rules rules;
+      rules.koRule = Rules::KO_POSITIONAL;
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.komi = -0.5f;
+      rules.multiStoneSuicideLegal = false;
+      rules.taxRule = taxRules[whichTaxRule];
+      BoardHistory hist(board,P_WHITE,rules,0);
+
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,5,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,6,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(0,4,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(1,0,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(5,4,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      out << endl;
+    }
+    string expected = R"%%(
+Score: 1.5
+Score: 1.5
+Score: 1.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 10.5
+
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 10.5
+
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 0.5
+Score: 8.5
 )%%";
     expect(name,out,expected);
   }

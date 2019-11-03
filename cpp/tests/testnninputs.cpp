@@ -267,7 +267,7 @@ void Tests::runNNInputsV3V4Tests() {
       };
 
       string actualNHWC = run(true);
-      string actualNCHW = run(true);
+      string actualNCHW = run(false);
 
       expect(name,actualNHWC,actualNCHW);
       cout << actualNHWC << endl;
@@ -724,6 +724,105 @@ xxx..xx
     }
 
     delete sgf;
-
   }
+
+
+  {
+    const char* name = "NN Inputs V6 Area Feature and Komi";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
+
+    for(int version = 6; version <= maxVersion; version++) {
+      cout << "VERSION " << version << endl;
+
+      int nnXLen = 7;
+      int nnYLen = 7;
+      double drawEquivalentWinsForWhite = 0.5;
+      int numFeaturesBin;
+      int numFeaturesGlobal;
+      float* rowBin;
+      float* rowGlobal;
+      allocateRows(version,nnXLen,nnYLen,numFeaturesBin,numFeaturesGlobal,rowBin,rowGlobal);
+
+      for(int goToEncore2 = 0; goToEncore2 <= 1; goToEncore2++) {
+        int scoringRules[4] = {Rules::SCORING_AREA, Rules::SCORING_AREA, Rules::SCORING_TERRITORY, Rules::SCORING_TERRITORY};
+        int taxRules[4] = {Rules::TAX_NONE, Rules::TAX_SEKI, Rules::TAX_NONE, Rules::TAX_SEKI};
+        for(int whichRules = 0; whichRules < 4; whichRules++) {
+          Board board = Board::parseBoard(7,7,R"%%(
+...oxx.
+oooox.x
+xxxxoxx
+o.xoooo
+.oxox.o
+oxxo.x.
+o.xoo.x
+)%%");
+          Rules rules;
+          rules.koRule = Rules::KO_POSITIONAL;
+          rules.scoringRule = scoringRules[whichRules];
+          rules.komi = 6.5f;
+          rules.multiStoneSuicideLegal = false;
+          rules.taxRule = taxRules[whichRules];
+          BoardHistory hist(board,P_WHITE,rules,0);
+
+          auto run = [&](bool inputsUseNHWC) {
+            Player nextPla = hist.moveHistory.size() > 0 ? getOpp(hist.moveHistory[hist.moveHistory.size()-1].pla) : hist.initialPla;
+            Hash128 hash;
+            fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+            out << hash << endl;
+            printNNInputGlobal(out,version,rowGlobal,5);
+            int c = 18;
+            printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
+            c = 19;
+            printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
+            return getAndClear(out);
+          };
+          auto runBoth = [&]() {
+            string actualNHWC = run(true);
+            string actualNCHW = run(false);
+            expect(name,actualNHWC,actualNCHW);
+            cout << "Rules: " << hist.rules << endl;
+            cout << "Komi and Bonus: " << hist.rules.komi << " " << hist.whiteBonusScore << endl;
+            cout << "Encore phase: " << hist.encorePhase << endl;
+            for(int i = 0; i<hist.moveHistory.size(); i++)
+              cout << Location::toString(hist.moveHistory[i].loc,board) << " ";
+            cout << actualNHWC << endl;
+          };
+
+          cout << "=========================================== " << endl;
+          cout << "goToEncore2 = " << goToEncore2 << endl;
+
+          runBoth();
+          if((bool)goToEncore2) {
+            hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_WHITE, NULL);
+            hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_BLACK, NULL);
+            runBoth();
+            hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_WHITE, NULL);
+            hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_BLACK, NULL);
+            runBoth();
+          }
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(6,5,board.x_size), P_WHITE, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(5,6,board.x_size), P_BLACK, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(0,4,board.x_size), P_WHITE, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(6,0,board.x_size), P_BLACK, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(1,0,board.x_size), P_WHITE, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(4,5,board.x_size), P_BLACK, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(5,4,board.x_size), P_WHITE, NULL);
+          runBoth();
+          cout << endl;
+        }
+      }
+
+      delete[] rowBin;
+      delete[] rowGlobal;
+    }
+  }
+
 }
