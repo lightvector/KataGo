@@ -869,7 +869,10 @@ static void recordTreePositions(
 }
 
 
-static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf, Rand& gameRand) {
+static Loc getGameInitializationMove(
+  Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
+  Rand& gameRand, double temperature
+) {
   NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
@@ -891,7 +894,7 @@ static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, c
     if(!hist.isLegal(board,moveLoc,pla) || policyProb <= 0)
       continue;
     locs.push_back(moveLoc);
-    playSelectionValues.push_back(policyProb);
+    playSelectionValues.push_back(pow(policyProb,1.0/temperature));
   }
 
   //In practice, this should never happen, but in theory, a very badly-behaved net that rounds
@@ -914,15 +917,16 @@ static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, c
 //and add entropy
 static void initializeGameUsingPolicy(
   Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
-  Rand& gameRand, bool doEndGameIfAllPassAlive
+  Rand& gameRand, bool doEndGameIfAllPassAlive,
+  double proportionOfBoardArea, double temperature
 ) {
   NNResultBuf buf;
 
   //This gives us about 15 moves on average for 19x19.
-  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size / 25.0));
+  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size * proportionOfBoardArea));
   assert(numInitialMovesToPlay >= 0);
   for(int i = 0; i<numInitialMovesToPlay; i++) {
-    Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand);
+    Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand, temperature);
 
     //Make the move!
     assert(hist.isLegal(board,loc,pla));
@@ -1188,17 +1192,32 @@ FinishedGameData* Play::runGame(
   };
 
   if(fancyModes.initGamesWithPolicy && allowPolicyInit) {
-    initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive);
+    double proportionOfBoardArea = 1.0 / 25.0;
+    double temperature = 1.0;
+    initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
   }
 
   //Make sure there's some minimum tiny amount of data about how the encore phases work
   if(fancyModes.forSelfPlay && hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.02)) {
-    int encorePhase = gameRand.nextInt(1,2);
-    hist.clear(board,pla,hist.rules,encorePhase);
+    //Play out to go a quite a bit later in the game.
+    double proportionOfBoardArea = 0.20;
+    double temperature = 2.0/3.0;
+    initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
 
-    gameData->mode = 1;
-    gameData->modeMeta1 = encorePhase;
-    gameData->modeMeta2 = 0;
+    if(!hist.isGameFinished) {
+      //Even out the game
+      adjustKomiToEven(botB, board, hist, pla, fancyModes.compensateKomiVisits, logger);
+
+      //Randomly set to one of the encore phases
+      //Since we played out the game a bunch we should get a good mix of stones that were present or not present at the start
+      //of the second encore phase if we're going into the second.
+      int encorePhase = gameRand.nextInt(1,2);
+      hist.clear(board,pla,hist.rules,encorePhase);
+
+      gameData->mode = 1;
+      gameData->modeMeta1 = encorePhase;
+      gameData->modeMeta2 = 0;
+    }
   }
 
   //Set in the starting board and history to gameData and both bots
