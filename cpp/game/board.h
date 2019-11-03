@@ -135,6 +135,8 @@ struct Board
   Board();  //Create Board of size (19,19)
   Board(int x, int y); //Create Board of size (x,y)
   Board(const Board& other);
+  
+  Board& operator=(const Board&) = default;
 
   //Functions------------------------------------
 
