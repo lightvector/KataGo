@@ -165,7 +165,6 @@ void FinishedGameData::printDebug(ostream& out) const {
 static const int POLICY_TARGET_NUM_CHANNELS = 2;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 64;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 5;
-static const int BONUS_SCORE_RADIUS = 30;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int xLen, int yLen)
   :inputsVersion(iVersion),
@@ -182,7 +181,6 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    policyTargetsNCMove({maxRws, POLICY_TARGET_NUM_CHANNELS, NNPos::getPolicySize(xLen,yLen)}),
    globalTargetsNC({maxRws, GLOBAL_TARGET_NUM_CHANNELS}),
    scoreDistrN({maxRws, xLen*yLen*2+NNPos::EXTRA_SCORE_DISTR_RADIUS*2}),
-   selfBonusScoreN({maxRws, BONUS_SCORE_RADIUS*2+1}),
    valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, yLen, xLen})
 {
   binaryInputNCHWUnpacked = new float[numBChannels * xLen * yLen];
@@ -484,8 +482,14 @@ void TrainingWriteBuffers::addRow(
   //Original number of visits
   rowGlobal[60] = (float)unreducedNumVisits;
 
+  //Bonus points
+  {
+    int whiteBonusPoints = data.endHist.whiteBonusScore - hist.whiteBonusScore;
+    int selfBonusPoints = (nextPlayer == P_WHITE ? whiteBonusPoints : -whiteBonusPoints);
+    rowGlobal[61] = (float)selfBonusPoints;
+  }
+
   //Unused
-  rowGlobal[61] = 0.0f;
   rowGlobal[62] = 0.0f;
   rowGlobal[63] = 0.0f;
 
@@ -493,10 +497,7 @@ void TrainingWriteBuffers::addRow(
 
   int scoreDistrLen = posArea*2 + NNPos::EXTRA_SCORE_DISTR_RADIUS*2;
   int scoreDistrMid = posArea + NNPos::EXTRA_SCORE_DISTR_RADIUS;
-  int bonusScoreLen = BONUS_SCORE_RADIUS*2 + 1;
-  int bonusScoreMid = BONUS_SCORE_RADIUS;
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;
-  int8_t* rowBonusScore = selfBonusScoreN.data + curRows * bonusScoreLen;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
   if(finalOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
@@ -506,13 +507,9 @@ void TrainingWriteBuffers::addRow(
       rowOwnership[i] = 0;
     for(int i = 0; i<scoreDistrLen; i++)
       rowScoreDistr[i] = 0;
-    for(int i = 0; i<bonusScoreLen; i++)
-      rowBonusScore[i] = 0;
     //Dummy value, to make sure it still sums to 100
     rowScoreDistr[scoreDistrMid-1] = 50;
     rowScoreDistr[scoreDistrMid] = 50;
-    //Dummy value, to make sure it still sums to 1.
-    rowBonusScore[bonusScoreMid] = 1;
   }
   else {
     rowGlobal[27] = 1.0f;
@@ -552,16 +549,6 @@ void TrainingWriteBuffers::addRow(
       rowScoreDistr[lowerIdx] = 100-upperProp;
       rowScoreDistr[upperIdx] = upperProp;
     }
-
-    //Fill bonus score vector "onehot"-like
-    for(int i = 0; i<bonusScoreLen; i++)
-      rowBonusScore[i] = 0;
-    int whiteBonusPoints = data.endHist.whiteBonusScore - hist.whiteBonusScore;
-    int selfBonusPoints = (nextPlayer == P_WHITE ? whiteBonusPoints : -whiteBonusPoints);
-    int idx = selfBonusPoints + bonusScoreMid;
-    if(idx < 0) idx = 0;
-    if(idx >= bonusScoreLen) idx = bonusScoreLen-1;
-    rowBonusScore[idx] = 1;
   }
 
   if(posHistForFutureBoards == NULL) {
@@ -648,9 +635,6 @@ void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
   numBytes = scoreDistrN.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("scoreDistrN", scoreDistrN.dataIncludingHeader, numBytes);
 
-  numBytes = selfBonusScoreN.prepareHeaderWithNumRows(curRows);
-  zipFile.writeBuffer("selfBonusScoreN", selfBonusScoreN.dataIncludingHeader, numBytes);
-
   numBytes = valueTargetsNCHW.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("valueTargetsNCHW", valueTargetsNCHW.dataIncludingHeader, numBytes);
 
@@ -717,16 +701,6 @@ void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
   len = scoreDistrN.getActualDataLen(curRows);
   for(int i = 0; i<len; i++) {
     out << (int)scoreDistrN.data[i] << " ";
-    if((i+1) % (len/curRows) == 0) out << endl;
-  }
-  out << endl;
-
-  out << "selfBonusScoreN" << endl;
-  selfBonusScoreN.prepareHeaderWithNumRows(curRows);
-  printHeader((const char*)selfBonusScoreN.dataIncludingHeader);
-  len = selfBonusScoreN.getActualDataLen(curRows);
-  for(int i = 0; i<len; i++) {
-    out << (int)selfBonusScoreN.data[i] << " ";
     if((i+1) % (len/curRows) == 0) out << endl;
   }
   out << endl;

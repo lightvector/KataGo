@@ -52,11 +52,8 @@ scoremean_output = 20.0 * model.miscvalues_output[:,0]
 scorestdev_output = 20.0 * tf.math.softplus(model.miscvalues_output[:,1])
 ownership_output = tf.tanh(model.ownership_output)
 scorebelief_output = tf.nn.softmax(model.scorebelief_output)
-bonusbelief_output = tf.nn.softmax(model.bonusbelief_output)
 sbscale = model.sbscale3_layer
-# bbscale = model.bbscale3_layer
 # sbscale = tf.zeros([1],dtype=tf.float32)
-bbscale = tf.zeros([1],dtype=tf.float32)
 
 # Moves ----------------------------------------------------------------
 
@@ -83,8 +80,6 @@ def get_policy1_output(session, board, boards, moves, use_history_prop, rules):
 
 def get_scorebelief_output(session, board, boards, moves, use_history_prop, rules):
   return fetch_output(session,board,boards,moves,use_history_prop,rules,[scorebelief_output,scoremean_output,scorestdev_output,sbscale])
-def get_bonusbelief_output(session, board, boards, moves, use_history_prop, rules):
-  return fetch_output(session,board,boards,moves,use_history_prop,rules,[bonusbelief_output,bbscale])
 
 def get_policy_and_value_output(session, board, boards, moves, use_history_prop, rules):
   (policy,value,scoremean) = fetch_output(session,board,boards,moves,use_history_prop,rules,[policy0_output,value_output,scoremean_output])
@@ -347,38 +342,6 @@ def print_scorebelief(board,scorebelief,scoremean,scorestdev,sbscale):
   ret += "TEXT ScoreStdev: %.1f\n" % (scorestdev)
   return ret
 
-def print_bonusbelief(board,bonusbelief,bbscale):
-  bonusbelief = list(bonusbelief)
-  if board.pla != Board.WHITE:
-    bonusbelief.reverse()
-  bonusdistrmid = Model.BONUS_SCORE_RADIUS
-  ret = ""
-  ret += "TEXT "
-  ret += "BBScale: " + str(bbscale) + "\n"
-  ret += "BonusBelief: \n"
-  for i in range(5,-1,-1):
-    ret += "TEXT "
-    ret += "%+6.1f" %(-(i*5)-1)
-    for j in range(5):
-      idx = bonusdistrmid-(i*5+j)-1
-      ret += " %4.0f" % (bonusbelief[idx] * 10000)
-    ret += "\n"
-
-  ret += "TEXT "
-  ret += "%+6.1f" %(0)
-  ret += " %4.0f" % (bonusbelief[bonusdistrmid] * 10000)
-  ret += "\n"
-
-  for i in range(6):
-    ret += "TEXT "
-    ret += "%+6.1f" %((i*5+1))
-    for j in range(5):
-      idx = bonusdistrmid+(i*5+j)+1
-      ret += " %4.0f" % (bonusbelief[idx] * 10000)
-    ret += "\n"
-
-  return ret
-
 
 # Basic parsing --------------------------------------------------------
 colstr = 'ABCDEFGHJKLMNOPQRST'
@@ -425,8 +388,6 @@ def run_gtp(session):
     'ownership-japanese',
     'scorebelief',
     'scorebelief-japanese',
-    'bonusbelief',
-    'bonusbelief-japanese',
     'passalive',
   ]
   known_analyze_commands = [
@@ -441,8 +402,6 @@ def run_gtp(session):
     'gfx/OwnershipJP/ownership-japanese',
     'gfx/ScoreBelief/scorebelief',
     'gfx/ScoreBeliefJP/scorebelief-japanese',
-    'gfx/BonusBelief/bonusbelief',
-    'gfx/BonusBeliefJP/bonusbelief-japanese',
     'gfx/PassAlive/passalive',
   ]
 
@@ -787,30 +746,6 @@ def run_gtp(session):
       [scorebelief,scoremean,scorestdev,sbscale] = get_scorebelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
       ret = print_scorebelief(board,scorebelief,scoremean,scorestdev,sbscale)
 
-    elif command[0] == "bonusbelief":
-      rules = {
-        "koRule": "KO_POSITIONAL",
-        "scoringRule": "SCORING_AREA",
-        "multiStoneSuicideLegal": True,
-        "encorePhase": 0,
-        "passWouldEndPhase": False,
-        "whiteKomi": 7.5
-      }
-      [bonusbelief,bbscale] = get_bonusbelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
-      ret = print_bonusbelief(board,bonusbelief,bbscale)
-
-    elif command[0] == "bonusbelief-japanese":
-      rules = {
-        "koRule": "KO_SIMPLE",
-        "scoringRule": "SCORING_TERRITORY",
-        "multiStoneSuicideLegal": False,
-        "encorePhase": 0,
-        "passWouldEndPhase": False,
-        "whiteKomi": 7.5
-      }
-      [bonusbelief,bbscale] = get_bonusbelief_output(session, board, boards, moves, use_history_prop=1.0, rules=rules)
-      ret = print_bonusbelief(board,bonusbelief,bbscale)
-
     elif command[0] == "protocol_version":
       ret = '2'
     elif command[0] == "quit":
@@ -834,6 +769,3 @@ saver = tf.train.Saver(
 with tf.Session() as session:
   saver.restore(session, model_variables_prefix)
   run_gtp(session)
-
-
-

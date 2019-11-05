@@ -125,7 +125,7 @@ struct TrainingWriteBuffers {
   //C25 Weight multiplier for row as a whole
 
   //C26 Weight assigned to the policy target
-  //C27 Weight assigned to the final board ownership target and score distr and bonus score targets. Most training rows will have this be 1, some will be 0.
+  //C27 Weight assigned to the final board ownership target and score distr targets. Most training rows will have this be 1, some will be 0.
   //C28: Weight assigned to the next move policy target
   //C29-32: Weight assigned to the utilityvariance target C21-C24
   //C33: Weight assigned to the future position targets valueTargetsNCHW C1-C3
@@ -156,7 +156,7 @@ struct TrainingWriteBuffers {
   //C58: 0 = normal, 1 = training sample was an isolated side position forked off of main game
   //C59: Unused
   //C60: Number of visits in the search generating this row, prior to any reduction.
-  //C61: Unused
+  //C61: Number of bonus points the player to move will get onward from this point in the game
   //C62: Unused
   //C63: Unused
 
@@ -169,9 +169,6 @@ struct TrainingWriteBuffers {
   //Except in case of integer komi, the value can be split between two adjacent labels based on value of draw.
   //Arbitrary if C26 has weight 0.
   NumpyBuffer<int8_t> scoreDistrN;
-  //Ranges from -30 to 30, 61 indices in total. Index of the number of bonus points the player to move will get onward from this point in the game
-  //is labeled with 1, the rest labeled with 0, from the perspective of the player to move.
-  NumpyBuffer<int8_t> selfBonusScoreN;
 
   //Spatial value-related targets
   //C0: Final board ownership [-1,1], from the perspective of the player to move. All 0 if C26 has weight 0.

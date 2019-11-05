@@ -34,7 +34,6 @@ b6c96 = {
   "g1_num_channels":32,
   "v1_num_channels":32,
   "sbv2_num_channels":48,
-  "bbv2_num_channels":32,
   "v2_size":48
 }
 
@@ -62,7 +61,6 @@ b10c128 = {
   "g1_num_channels":32,
   "v1_num_channels":32,
   "sbv2_num_channels":64,
-  "bbv2_num_channels":32,
   "v2_size":64
 }
 
@@ -95,7 +93,6 @@ b15c192 = {
   "g1_num_channels":32,
   "v1_num_channels":32,
   "sbv2_num_channels":80,
-  "bbv2_num_channels":32,
   "v2_size":80
 }
 
@@ -133,7 +130,6 @@ b20c256 = {
   "g1_num_channels":48,
   "v1_num_channels":48,
   "sbv2_num_channels":96,
-  "bbv2_num_channels":48,
   "v2_size":96
 }
 
@@ -401,16 +397,6 @@ def upgrade_net(oldweights,newweights,oldcfg,newcfg,block_map,noise_mag):
   upgrade_mat_out_channels(oldweights,newweights,"sb2_offset/w:0","sb2_offset/w:0",sb2_cmapping)
   upgrade_mat_in_channels(oldweights,newweights,"sb3/w:0","sb3/w:0",sb2_cmapping,sb2_cscaling)
   noise_mat(newweights,"sb3/w:0",noise_mag)
-
-  (bb2_cmapping,bb2_cscaling) = make_mapping_scaling("bbv2_num_channels",oldcfg,newcfg)
-  upgrade_triplemat_in_channels(oldweights,newweights,"bb2/w:0","bb2/w:0",v1_cmapping,v1_cscaling)
-  upgrade_mat_out_channels(oldweights,newweights,"bb2/w:0","bb2/w:0",bb2_cmapping)
-  noise_mat(newweights,"bb2/w:0",noise_mag)
-  upgrade_beta(oldweights,newweights,"bb2/b:0","bb2/b:0",bb2_cmapping)
-  upgrade_mat_in_channels(oldweights,newweights,"bb2_offset/w:0","bb2_offset/w:0",[0],[1.0])
-  upgrade_mat_out_channels(oldweights,newweights,"bb2_offset/w:0","bb2_offset/w:0",bb2_cmapping)
-  upgrade_mat_in_channels(oldweights,newweights,"bb3/w:0","bb3/w:0",bb2_cmapping,bb2_cscaling)
-  noise_mat(newweights,"bb3/w:0",noise_mag)
 
   upgrade_conv_in_channels(oldweights,newweights,"vownership/w:0","vownership/w:0",v1_cmapping,v1_cscaling)
   noise_conv(newweights,"vownership/w:0",noise_mag)

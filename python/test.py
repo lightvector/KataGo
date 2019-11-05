@@ -138,7 +138,6 @@ with tf.Session(config=tfconfig) as session:
           ptncm = npz["policyTargetsNCMove"].astype(np.float32)
           gtnc = npz["globalTargetsNC"]
           sdn = npz["scoreDistrN"].astype(np.float32)
-          sbsn = npz["selfBonusScoreN"].astype(np.float32)
           vtnchw = npz["valueTargetsNCHW"].astype(np.float32)
           nbatches = len(binchwp)//batch_size
           print("Iterating %d batches from %s" % (nbatches,data_file))
@@ -152,7 +151,6 @@ with tf.Session(config=tfconfig) as session:
               features["ptncm"]: np.array(ptncm[i*batch_size:(i+1)*batch_size]),
               features["gtnc"]: np.array(gtnc[i*batch_size:(i+1)*batch_size]),
               features["sdn"]: np.array(sdn[i*batch_size:(i+1)*batch_size]),
-              features["sbsn"]: np.array(sbsn[i*batch_size:(i+1)*batch_size]),
               features["vtnchw"]: np.array(vtnchw[i*batch_size:(i+1)*batch_size])
             })
             results.append(result)
@@ -169,8 +167,6 @@ with tf.Session(config=tfconfig) as session:
     "smloss": target_vars.scoremean_loss,
     "sbpdfloss": target_vars.scorebelief_pdf_loss,
     "sbcdfloss": target_vars.scorebelief_cdf_loss,
-    "bbpdfloss": target_vars.bonusbelief_pdf_loss,
-    "bbcdfloss": target_vars.bonusbelief_cdf_loss,
     "uvloss": target_vars.utilityvar_loss,
     "oloss": target_vars.ownership_loss,
     "rwlloss": target_vars.winloss_reg_loss,
@@ -184,7 +180,7 @@ with tf.Session(config=tfconfig) as session:
   }
 
   def validation_stats_str(vmetrics_evaled):
-    return "acc1 %f acc4 %f p0loss %f p1loss %f vloss %f smloss %f sbpdfloss %f sbcdfloss %f bbpdfloss %f bbcdfloss %f uvloss %f oloss %f rwlloss %f rsmloss %f rsdloss %f roloss %f rscloss %f vconf %f ventr %f" % (
+    return "acc1 %f acc4 %f p0loss %f p1loss %f vloss %f smloss %f sbpdfloss %f sbcdfloss %f uvloss %f oloss %f rwlloss %f rsmloss %f rsdloss %f roloss %f rscloss %f vconf %f ventr %f" % (
       vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
       vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
       vmetrics_evaled["p0loss"] / vmetrics_evaled["wsum"],
@@ -193,8 +189,6 @@ with tf.Session(config=tfconfig) as session:
       vmetrics_evaled["smloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["sbpdfloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["sbcdfloss"] / vmetrics_evaled["wsum"],
-      vmetrics_evaled["bbpdfloss"] / vmetrics_evaled["wsum"],
-      vmetrics_evaled["bbcdfloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["uvloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["oloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["rwlloss"] / vmetrics_evaled["wsum"],

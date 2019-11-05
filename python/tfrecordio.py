@@ -13,7 +13,6 @@ def make_raw_input_features(model_config,pos_len,batch_size):
     "ptncm": tf.FixedLenFeature([batch_size*Model.NUM_POLICY_TARGETS*(pos_len*pos_len+1)],tf.float32),
     "gtnc": tf.FixedLenFeature([batch_size*Model.NUM_GLOBAL_TARGETS],tf.float32),
     "sdn": tf.FixedLenFeature([batch_size*(pos_len*pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2)],tf.float32),
-    "sbsn": tf.FixedLenFeature([batch_size*(Model.BONUS_SCORE_RADIUS*2+1)],tf.float32),
     "vtnchw": tf.FixedLenFeature([batch_size*Model.NUM_VALUE_SPATIAL_TARGETS*pos_len*pos_len],tf.float32)
   }
 
@@ -29,7 +28,6 @@ def make_raw_input_feature_placeholders(model_config,pos_len,batch_size):
     "ptncm": tf.placeholder(tf.float32,[batch_size,Model.NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.placeholder(tf.float32,[batch_size,Model.NUM_GLOBAL_TARGETS]),
     "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2]),
-    "sbsn": tf.placeholder(tf.float32,[batch_size,Model.BONUS_SCORE_RADIUS*2+1]),
     "vtnchw": tf.placeholder(tf.float32,[batch_size,Model.NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
   }
 
@@ -48,7 +46,6 @@ def make_tf_record_parser(model_config,pos_len,batch_size):
     ptncm = example["ptncm"]
     gtnc = example["gtnc"]
     sdn = example["sdn"]
-    sbsn = example["sbsn"]
     vtnchw = example["vtnchw"]
     return {
       "binchwp": tf.reshape(binchwp,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
@@ -56,7 +53,6 @@ def make_tf_record_parser(model_config,pos_len,batch_size):
       "ptncm": tf.reshape(ptncm,[batch_size,Model.NUM_POLICY_TARGETS,pos_len*pos_len+1]),
       "gtnc": tf.reshape(gtnc,[batch_size,Model.NUM_GLOBAL_TARGETS]),
       "sdn": tf.reshape(sdn,[batch_size,pos_len*pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2]),
-      "sbsn": tf.reshape(sbsn,[batch_size,Model.BONUS_SCORE_RADIUS*2+1]),
       "vtnchw": tf.reshape(vtnchw,[batch_size,Model.NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
     }
 
@@ -71,7 +67,6 @@ def make_tf_record_example(
     policyTargetsNCMove,
     globalTargetsNC,
     scoreDistrN,
-    selfBonusScoreN,
     valueTargetsNCHW,
     start,
     stop
@@ -91,9 +86,6 @@ def make_tf_record_example(
     ),
     "sdn": tf.train.Feature(
       float_list=tf.train.FloatList(value=scoreDistrN[start:stop].reshape(-1))
-    ),
-    "sbsn": tf.train.Feature(
-      float_list=tf.train.FloatList(value=selfBonusScoreN[start:stop].reshape(-1))
     ),
     "vtnchw": tf.train.Feature(
       float_list=tf.train.FloatList(value=valueTargetsNCHW[start:stop].reshape(-1))
