@@ -1711,7 +1711,7 @@ void NNInputs::fillRowV6(
     selfKomi = bArea+1.0f;
   if(selfKomi < -bArea-1.0f)
     selfKomi = -bArea-1.0f;
-  rowGlobal[5] = selfKomi/15.0f;
+  rowGlobal[5] = selfKomi/20.0f;
 
   //Ko rule
   if(hist.rules.koRule == Rules::KO_SIMPLE) {}

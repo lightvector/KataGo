@@ -1366,7 +1366,10 @@ FinishedGameData* Play::runGame(
       throw StringError("Recording full data currently incompatible with resignation");
 
     ValueTargets finalValueTargets;
-    Color area[Board::MAX_ARR_SIZE];
+
+    assert(gameData->finalOwnership == NULL);
+    gameData->finalOwnership = new Color[Board::MAX_ARR_SIZE];
+
     if(hist.isGameFinished && hist.isNoResult) {
       finalValueTargets.win = 0.0f;
       finalValueTargets.loss = 0.0f;
@@ -1375,12 +1378,12 @@ FinishedGameData* Play::runGame(
 
       //Fill with empty so that we use "nobody owns anything" as the training target.
       //Although in practice actually the training normally weights by having a result or not, so it doesn't matter what we fill.
-      std::fill(area,area+Board::MAX_ARR_SIZE,C_EMPTY);
+      std::fill(gameData->finalOwnership,gameData->finalOwnership+Board::MAX_ARR_SIZE,C_EMPTY);
     }
     else {
       //Relying on this to be idempotent, so that we can get the final territory map
       //We also do want to call this here to force-end the game if we crossed a move limit.
-      hist.endAndScoreGameNow(board,area);
+      hist.endAndScoreGameNow(board,gameData->finalOwnership);
 
       finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
@@ -1400,10 +1403,10 @@ FinishedGameData* Play::runGame(
     int dataYLen = fancyModes.dataYLen;
     assert(dataXLen > 0);
     assert(dataYLen > 0);
-    assert(gameData->finalWhiteOwnership == NULL);
+    assert(gameData->finalWhiteScoring == NULL);
 
-    gameData->finalWhiteOwnership = new float[dataXLen*dataYLen];
-    NNInputs::fillOwnership(board,area,hist.rules.taxRule == Rules::TAX_ALL,dataXLen,dataYLen,gameData->finalWhiteOwnership);
+    gameData->finalWhiteScoring = new float[dataXLen*dataYLen];
+    NNInputs::fillOwnership(board,gameData->finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,dataXLen,dataYLen,gameData->finalWhiteScoring);
 
     gameData->hasFullData = true;
     gameData->dataXLen = dataXLen;

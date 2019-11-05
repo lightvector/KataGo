@@ -1717,7 +1717,7 @@ Channel: 1: 0
 Channel: 2: 0
 Channel: 3: 0
 Channel: 4: 0
-Channel: 5: 0.5
+Channel: 5: 0.375
 Channel: 6: 1
 Channel: 7: 0.5
 Channel: 8: 1
@@ -1872,7 +1872,7 @@ Channel: 1: 0
 Channel: 2: 0
 Channel: 3: 0
 Channel: 4: 0
-Channel: 5: 0.033333
+Channel: 5: 0.025
 Channel: 6: 1
 Channel: 7: 0.5
 Channel: 8: 1
@@ -2654,7 +2654,7 @@ Channel: 1: 0
 Channel: 2: 0
 Channel: 3: 0
 Channel: 4: 0
-Channel: 5: 0.3
+Channel: 5: 0.225
 Channel: 6: 1
 Channel: 7: 0.5
 Channel: 8: 1
@@ -3594,7 +3594,7 @@ Channel: 1: 0
 Channel: 2: 0
 Channel: 3: 0
 Channel: 4: 0
-Channel: 5: 0.3
+Channel: 5: 0.225
 Channel: 6: 1
 Channel: 7: 0.5
 Channel: 8: 1
@@ -3757,7 +3757,7 @@ Channel: 1: 0
 Channel: 2: 0
 Channel: 3: 0
 Channel: 4: 0
-Channel: 5: -0.12
+Channel: 5: -0.09
 Channel: 6: 1
 Channel: 7: 0.5
 Channel: 8: 1
@@ -3773,7 +3773,7 @@ Channel: 1: 0
 Channel: 2: 0
 Channel: 3: 0
 Channel: 4: 0
-Channel: 5: 0.12
+Channel: 5: 0.09
 Channel: 6: 1
 Channel: 7: 0.5
 Channel: 8: 1
@@ -3789,7 +3789,7 @@ Channel: 1: 0
 Channel: 2: 0
 Channel: 3: 0
 Channel: 4: 0
-Channel: 5: -0.053333
+Channel: 5: -0.04
 Channel: 6: 1
 Channel: 7: 0.5
 Channel: 8: 1
@@ -3945,7 +3945,7 @@ VERSION 6
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
--0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 -0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 
+-0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 -0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 
 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0 1 1 1 1 1 1 1 1 
 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 
 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 
@@ -3962,7 +3962,7 @@ VERSION 6
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
--0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 -0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 
+-0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 -0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 
 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0 1 1 1 1 1 1 1 1 
 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 
 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 
@@ -3979,7 +3979,7 @@ VERSION 6
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
--0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 -0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 
+-0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 -0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 
 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0 1 1 1 1 1 1 1 1 
 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 
 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 
@@ -4133,7 +4133,7 @@ VERSION 6
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
--0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 -0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 
+-0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 -0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 
 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0 1 1 1 1 1 1 1 1 
 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 
 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 
@@ -4150,7 +4150,7 @@ VERSION 6
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
--0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 -0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 
+-0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 -0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 
 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0 1 1 1 1 1 1 1 1 
 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 
 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 
@@ -4167,7 +4167,7 @@ VERSION 6
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
--0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 -0.064667 -0.1 -0.13133 -0.16667 -0.198 -0.23333 -0.26467 -0.3 -0.33133 -0.36667 -0.398 -0.43333 
+-0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 -0.0485 -0.075 -0.0985 -0.125 -0.1485 -0.175 -0.1985 -0.225 -0.2485 -0.275 -0.2985 -0.325 
 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0 1 1 1 1 1 1 1 1 
 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 0 0 0 0 0.5 0.5 0.5 0.5 -0.5 -0.5 -0.5 -0.5 
 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 
@@ -4723,7 +4723,7 @@ VERSION 6
 Move 24
 010100 001010 111000 001001 001110 010111 
 Pass Hist Channels: 0 0 1 0 0 
-Selfkomi channel times 15: -0.5
+Selfkomi channel times 15: -0.375
 EncorePhase channel 12,13: 1 0
 PassWouldEndPhase channel 14: 0
 Channel: 7
@@ -4761,7 +4761,7 @@ Channel: 21
 Move 25
 010101 001000 111010 001000 001110 010111 
 Pass Hist Channels: 0 0 0 1 0 
-Selfkomi channel times 15: 1.5
+Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 0
 PassWouldEndPhase channel 14: 0
 Channel: 7
@@ -4799,7 +4799,7 @@ Channel: 21
 Move 26
 010101 001000 111010 001001 001110 010111 
 Pass Hist Channels: 1 0 0 0 1 
-Selfkomi channel times 15: -1.5
+Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 0
 PassWouldEndPhase channel 14: 1
 Channel: 7
@@ -4837,7 +4837,7 @@ Channel: 21
 Move 30
 010100 001010 011000 001001 001110 000111 
 Pass Hist Channels: 0 0 0 0 0 
-Selfkomi channel times 15: -1.5
+Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 1
 PassWouldEndPhase channel 14: 0
 Channel: 7
@@ -4875,7 +4875,7 @@ Channel: 21
 Move 31
 010101 001010 011000 001001 001110 100111 
 Pass Hist Channels: 0 0 0 0 0 
-Selfkomi channel times 15: 1.5
+Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 1
 PassWouldEndPhase channel 14: 0
 Channel: 7
@@ -4913,7 +4913,7 @@ Channel: 21
 Move 32
 010100 001010 011000 101001 101110 000111 
 Pass Hist Channels: 0 0 0 0 0 
-Selfkomi channel times 15: -1.5
+Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 1
 PassWouldEndPhase channel 14: 0
 Channel: 7
@@ -4951,7 +4951,7 @@ Channel: 21
 Move 33
 010101 001000 011010 101000 101110 010111 
 Pass Hist Channels: 0 0 0 0 0 
-Selfkomi channel times 15: 1.5
+Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 1
 PassWouldEndPhase channel 14: 0
 Channel: 7
@@ -5099,7 +5099,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 E449CF3687CF80C648C31B5960822AB3
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -5130,7 +5130,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 A5E6899C050BC241432761832A2BE5CC
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -5161,7 +5161,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 5CBD936A0AEB0D877FA742730C66C663
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -5192,7 +5192,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 A3 F1ED3B08E0F8CDD8DDA21F4D08E05E85
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -5223,7 +5223,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 A3 G7 99B59ABE96EF4862DCEDFBF2932853CD
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X X
 1 1 1 1 0 0 0  O O O O X . X
@@ -5254,7 +5254,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 A3 G7 B7 C4005A0CDA52773EBF0F353900DBC4AC
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . O5. O X X X4
 0 0 0 0 1 1 1  O O O O X . X
@@ -5285,7 +5285,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 A3 G7 B7 E2 E29CA2A26FA53678B26C95833A5407BA
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . O4. O X X X3
 1 1 1 1 0 0 0  O O O O X . X
@@ -5316,7 +5316,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 A3 G7 B7 E2 F3 F7454A8B5558F575E2FB856E9F6B0D07
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . O3. O X X X2
 0 0 0 0 1 1 1  O O O O X . X
@@ -5350,7 +5350,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 EF43CC6766143494287629D6E810CD81
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -5381,7 +5381,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 AEEC8ACDE4D076132392530CA2B902FE
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -5412,7 +5412,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 57B7903BEB30B9D51F1270FC84F42151
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -5443,7 +5443,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 A3 FAE738590123798ABD172DC28072B9B7
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -5474,7 +5474,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 A3 G7 92BF99EF7734FC30BC58C97D1BBAB4FF
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X X
 1 1 1 1 0 0 0  O O O O X . X
@@ -5505,7 +5505,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 A3 G7 B7 CF0A595D3B89C36CDFBA07B68849239E
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . O5. O X X X4
 0 0 0 0 1 1 1  O O O O X . X
@@ -5536,7 +5536,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 A3 G7 B7 E2 E996A1F38E7E822AD2D9A70CB2C6E088
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . O4. O X X X3
 1 1 1 1 0 0 0  O O O O X . X
@@ -5567,7 +5567,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 G2 F1 A3 G7 B7 E2 F3 FC4F49DAB4834127824EB7E117F9EA35
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . O3. O X X X2
 0 0 0 0 1 1 1  O O O O X . X
@@ -5601,7 +5601,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 0
 FBE5B1EAD5AF4409B699FAD2DCEF5E4A
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -5632,7 +5632,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -2
 Encore phase: 0
 G2 47359A6A1C6C04941D71A1BA33A0971B
-Channel: 5: -0.3
+Channel: 5: -0.225
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -5663,7 +5663,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 0
 G2 F1 4311EDB6588BC94881FDA3F8B00BB29A
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -5694,7 +5694,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -2
 Encore phase: 0
 G2 F1 A3 133E28FEF99F0B0D83F4DF74116B2C52
-Channel: 5: -0.3
+Channel: 5: -0.225
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -5725,7 +5725,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 0
 G2 F1 A3 G7 8619E462C48F8CAD22B71A792F452734
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X X
 0 0 0 0 0 0 0  O O O O X . X
@@ -5756,7 +5756,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -2
 Encore phase: 0
 G2 F1 A3 G7 B7 26D349FAC335B1EBE159F5001950B67B
-Channel: 5: -0.3
+Channel: 5: -0.225
 Channel: 18
 0 0 0 0 0 0 0  . O5. O X X X4
 0 0 0 0 0 0 0  O O O O X . X
@@ -5787,7 +5787,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 0
 G2 F1 A3 G7 B7 E2 FD30DC7E3DC5F2B74C36740886397343
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . O4. O X X X3
 0 0 0 0 0 0 0  O O O O X . X
@@ -5818,7 +5818,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -2
 Encore phase: 0
 G2 F1 A3 G7 B7 E2 F3 1596597D4C3F33A0BCAD455786E07FD0
-Channel: 5: -0.3
+Channel: 5: -0.225
 Channel: 18
 0 0 0 0 0 0 0  . O3. O X X X2
 0 0 0 0 0 0 0  O O O O X . X
@@ -5852,7 +5852,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 0
 F0EFB2BB3474F05BD62CC85D547DB978
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -5883,7 +5883,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -2
 Encore phase: 0
 G2 4C3F993BFDB7B0C67DC49335BB327029
-Channel: 5: -0.3
+Channel: 5: -0.225
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -5914,7 +5914,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 0
 G2 F1 481BEEE7B9507D1AE1489177389955A8
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -5945,7 +5945,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -2
 Encore phase: 0
 G2 F1 A3 18342BAF1844BF5FE341EDFB99F9CB60
-Channel: 5: -0.3
+Channel: 5: -0.225
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -5976,7 +5976,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 0
 G2 F1 A3 G7 8D13E733255438FF420228F6A7D7C006
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X X
 0 0 0 0 0 0 0  O O O O X . X
@@ -6007,7 +6007,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -2
 Encore phase: 0
 G2 F1 A3 G7 B7 2DD94AAB22EE05B981ECC78F91C25149
-Channel: 5: -0.3
+Channel: 5: -0.225
 Channel: 18
 0 0 0 0 0 0 0  . O5. O X X X4
 0 0 0 0 0 0 0  O O O O X . X
@@ -6038,7 +6038,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 0
 G2 F1 A3 G7 B7 E2 F63ADF2FDC1E46E52C8346870EAB9471
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . O4. O X X X3
 0 0 0 0 0 0 0  O O O O X . X
@@ -6069,7 +6069,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -2
 Encore phase: 0
 G2 F1 A3 G7 B7 E2 F3 1E9C5A2CADE487F2DC1877D80E7298E2
-Channel: 5: -0.3
+Channel: 5: -0.225
 Channel: 18
 0 0 0 0 0 0 0  . O3. O X X X2
 0 0 0 0 0 0 0  O O O O X . X
@@ -6103,7 +6103,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 E449CF3687CF80C648C31B5960822AB3
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -6134,7 +6134,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass F6897100797FE8957B04F6401E66E213
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -6165,7 +6165,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass F6897100797FE8957B04F6401E66E213
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -6196,7 +6196,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 A5E6899C050BC241432761832A2BE5CC
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -6227,7 +6227,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 5CBD936A0AEB0D877FA742730C66C663
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -6258,7 +6258,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 A3 F1ED3B08E0F8CDD8DDA21F4D08E05E85
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -6289,7 +6289,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 A3 G7 99B59ABE96EF4862DCEDFBF2932853CD
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X X5
 1 1 1 1 0 0 0  O O O O X . X
@@ -6320,7 +6320,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 A3 G7 B7 C4005A0CDA52773EBF0F353900DBC4AC
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . O5. O X X X4
 0 0 0 0 1 1 1  O O O O X . X
@@ -6351,7 +6351,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 A3 G7 B7 E2 E29CA2A26FA53678B26C95833A5407BA
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . O4. O X X X3
 1 1 1 1 0 0 0  O O O O X . X
@@ -6382,7 +6382,7 @@ Rules: koPOSITIONALscoreAREAtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 A3 G7 B7 E2 F3 F7454A8B5558F575E2FB856E9F6B0D07
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . O3. O X X X2
 0 0 0 0 1 1 1  O O O O X . X
@@ -6416,7 +6416,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 EF43CC6766143494287629D6E810CD81
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -6447,7 +6447,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass FD83725198A45CC71BB1C4CF96F40521
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -6478,7 +6478,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass FD83725198A45CC71BB1C4CF96F40521
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -6509,7 +6509,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 AEEC8ACDE4D076132392530CA2B902FE
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -6540,7 +6540,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 57B7903BEB30B9D51F1270FC84F42151
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -6571,7 +6571,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 A3 FAE738590123798ABD172DC28072B9B7
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -6602,7 +6602,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 A3 G7 92BF99EF7734FC30BC58C97D1BBAB4FF
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X X5
 1 1 1 1 0 0 0  O O O O X . X
@@ -6633,7 +6633,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 A3 G7 B7 CF0A595D3B89C36CDFBA07B68849239E
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . O5. O X X X4
 0 0 0 0 1 1 1  O O O O X . X
@@ -6664,7 +6664,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 A3 G7 B7 E2 E996A1F38E7E822AD2D9A70CB2C6E088
-Channel: 5: 0.43333
+Channel: 5: 0.325
 Channel: 18
 1 1 1 1 0 0 0  . O4. O X X X3
 1 1 1 1 0 0 0  O O O O X . X
@@ -6695,7 +6695,7 @@ Rules: koPOSITIONALscoreAREAtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 0
 Encore phase: 0
 pass pass pass pass G2 F1 A3 G7 B7 E2 F3 FC4F49DAB4834127824EB7E117F9EA35
-Channel: 5: -0.43333
+Channel: 5: -0.325
 Channel: 18
 0 0 0 0 1 1 1  . O3. O X X X2
 0 0 0 0 1 1 1  O O O O X . X
@@ -6729,7 +6729,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 0
 FBE5B1EAD5AF4409B699FAD2DCEF5E4A
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -6760,7 +6760,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 1
 pass pass 46C91F188388A742DAF3D13D4F0BA77E
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -6791,7 +6791,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass 7471CEBFE0871BAD06A74AC8F1B0E7B2
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -6822,7 +6822,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 8BD79BC33C32A354DBE07293FD28885F
-Channel: 5: -0.36667
+Channel: 5: -0.275
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -6853,7 +6853,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 CC8592E36DA396EC31C313E29D540B62
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -6884,7 +6884,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 A3 DFDC2957D9C1ACCD45650C5DDFE33316
-Channel: 5: -0.36667
+Channel: 5: -0.275
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -6915,7 +6915,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 A3 G7 098D9B37F1A7D3099289AA63021A9ECC
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X X5
 1 1 1 1 0 0 0  O O O O X . X
@@ -6946,7 +6946,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 A3 G7 B7 EA314853E36B162B27C82629D7D8A93F
-Channel: 5: -0.36667
+Channel: 5: -0.275
 Channel: 18
 0 0 0 0 1 1 1  . O5. O X X X4
 0 0 0 0 1 1 1  O O O O X . X
@@ -6977,7 +6977,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 A3 G7 B7 E2 72A4A32B08EDAD13FC08C412AB66CABB
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 1 1 1 1 0 0 0  . O4. O X X X3
 1 1 1 1 0 0 0  O O O O X . X
@@ -7008,7 +7008,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 A3 G7 B7 E2 F3 D97458D46C6194607A3C967E48686094
-Channel: 5: -0.36667
+Channel: 5: -0.275
 Channel: 18
 0 0 0 0 1 1 1  . O3. O X X X2
 0 0 0 0 1 1 1  O O O O X . X
@@ -7042,7 +7042,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 0
 F0EFB2BB3474F05BD62CC85D547DB978
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -7073,7 +7073,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 1
 pass pass 4DC31C4962531310BA46E3B2C799404C
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 0 0 0 0 0 0 0  . . . O X X .
 0 0 0 0 0 0 0  O O O O X . X
@@ -7104,7 +7104,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass 7F7BCDEE015CAFFF6612784779220080
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -7135,7 +7135,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 80DD9892DDE91706BB55401C75BA6F6D
-Channel: 5: -0.36667
+Channel: 5: -0.275
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -7166,7 +7166,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 C78F91B28C7822BE5176216D15C6EC50
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X .
 1 1 1 1 0 0 0  O O O O X . X
@@ -7197,7 +7197,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 A3 D4D62A06381A189F25D03ED25771D424
-Channel: 5: -0.36667
+Channel: 5: -0.275
 Channel: 18
 0 0 0 0 1 1 1  . . . O X X .
 0 0 0 0 1 1 1  O O O O X . X
@@ -7228,7 +7228,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 A3 G7 02879866107C675BF23C98EC8A8879FE
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 1 1 1 1 0 0 0  . . . O X X X5
 1 1 1 1 0 0 0  O O O O X . X
@@ -7259,7 +7259,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 A3 G7 B7 E13B4B0202B0A279477D14A65F4A4E0D
-Channel: 5: -0.36667
+Channel: 5: -0.275
 Channel: 18
 0 0 0 0 1 1 1  . O5. O X X X4
 0 0 0 0 1 1 1  O O O O X . X
@@ -7290,7 +7290,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 A3 G7 B7 E2 79AEA07AE93619419CBDF69D23F42D89
-Channel: 5: 0.36667
+Channel: 5: 0.275
 Channel: 18
 1 1 1 1 0 0 0  . O4. O X X X3
 1 1 1 1 0 0 0  O O O O X . X
@@ -7321,7 +7321,7 @@ Rules: koPOSITIONALscoreTERRITORYtaxSEKIsui0komi6.5
 Komi and Bonus: 6.5 -1
 Encore phase: 2
 pass pass pass pass G2 F1 A3 G7 B7 E2 F3 D27E5B858DBA20321A89A4F1C0FA87A6
-Channel: 5: -0.36667
+Channel: 5: -0.275
 Channel: 18
 0 0 0 0 1 1 1  . O3. O X X X2
 0 0 0 0 1 1 1  O O O O X . X
@@ -8241,9 +8241,9 @@ policyTargetsNCMove
 
 globalTargetsNC
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(3,64)}                                                                  
-1 0 0 8.5 0.537674 0.462326 0 0.514511 0.497366 0.502634 0 -0.199774 0.498904 0.501096 0 -0.109946 0.501161 0.498839 0 -0.00425355 8.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.87864e+06 1.76596e+06 1.00937e+06 980071 3.88882e+06 1.02858e+06 7.5 1 0 0 1 0 1 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -8.5 0.386794 0.613206 0 -1.88463 0.491689 0.508311 0 -0.171185 0.504477 0.495523 0 0.00284023 0.507159 0.492841 0 0.07688 -8.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.87864e+06 1.76596e+06 1.00937e+06 980071 3.88882e+06 1.02858e+06 -7.5 1 0 0 6 0 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 8.5 0.816703 0.183297 0 5.29347 0.652586 0.347414 0 2.47326 0.533906 0.466094 0 0.541406 0.501034 0.498966 0 0.18367 8.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.87864e+06 1.76596e+06 1.00937e+06 980071 3.88882e+06 1.02858e+06 7.5 1 0 0 11 0 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 8.5 0.537674 0.462326 0 0.514511 0.497366 0.502634 0 -0.199774 0.498904 0.501096 0 -0.109946 0.501161 0.498839 0 -0.00425355 8.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.87864e+06 1.76596e+06 1.00937e+06 980071 3.88882e+06 1.02858e+06 7.5 1 0 0 1 0 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -8.5 0.386794 0.613206 0 -1.88463 0.491689 0.508311 0 -0.171185 0.504477 0.495523 0 0.00284023 0.507159 0.492841 0 0.07688 -8.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.87864e+06 1.76596e+06 1.00937e+06 980071 3.88882e+06 1.02858e+06 -7.5 1 0 0 6 0 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 8.5 0.816703 0.183297 0 5.29347 0.652586 0.347414 0 2.47326 0.533906 0.466094 0 0.541406 0.501034 0.498966 0 0.18367 8.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.87864e+06 1.76596e+06 1.00937e+06 980071 3.88882e+06 1.02858e+06 7.5 1 0 0 11 0 1 0 0 0 0 0 0 100 0 0 0 
 
 scoreDistrN
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(3,170)}                                                                 
@@ -8258,10 +8258,10 @@ selfBonusScoreN
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 valueTargetsNCHW
--109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(3,4,5,5)}                                                               
-0 0 0 -100 100 100 -100 0 0 0 0 0 0 100 0 0 100 0 0 -100 100 100 -100 0 -100 0 0 0 -1 0 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 0 0 1 -1 0 -1 0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 
-0 0 0 100 -100 -100 100 0 0 0 0 0 0 -100 0 0 -100 0 0 100 -100 -100 100 0 100 0 0 0 1 -1 -1 1 0 0 0 0 0 0 -1 0 0 -1 0 0 1 -1 -1 1 0 1 0 0 0 1 -1 -1 1 0 0 0 0 0 0 -1 0 0 -1 0 0 1 -1 -1 1 0 1 0 0 0 1 -1 -1 1 0 0 0 0 0 0 -1 0 0 -1 0 0 1 -1 -1 1 0 1 
-0 0 0 -100 100 100 -100 0 0 0 0 0 0 100 0 0 100 0 0 -100 100 100 -100 0 -100 0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(3,5,5,5)}                                                               
+0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 0 0 0 -1 0 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 0 0 1 -1 0 -1 0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 0 0 0 -120 120 120 -120 0 0 0 0 0 0 120 0 0 120 0 0 -120 120 120 -120 0 -120 
+0 0 0 1 -1 -1 1 0 0 0 0 0 0 -1 0 0 -1 0 0 1 -1 -1 1 0 1 0 0 0 1 -1 -1 1 0 0 0 0 0 0 -1 0 0 -1 0 0 1 -1 -1 1 0 1 0 0 0 1 -1 -1 1 0 0 0 0 0 0 -1 0 0 -1 0 0 1 -1 -1 1 0 1 0 0 0 1 -1 -1 1 0 0 0 0 0 0 -1 0 0 -1 0 0 1 -1 -1 1 0 1 0 0 0 120 -120 -120 120 0 0 0 0 0 0 -120 0 0 -120 0 0 120 -120 -120 120 0 120 
+0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 0 0 0 -1 1 1 -1 0 0 0 0 0 0 1 0 0 1 0 0 -1 1 1 -1 0 -1 0 0 0 -120 120 120 -120 0 0 0 0 0 0 120 0 0 120 0 0 -120 120 120 -120 0 -120 
 
 
 seedBase: testtrainingwrite-jp
@@ -8332,14 +8332,14 @@ policyTargetsNCMove
 
 globalTargetsNC
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(9,64)}                                                                  
-1 0 0 12 0.328906 0.339107 0.331987 -0.0243593 0.326956 0.341807 0.331237 -0.128943 0.326964 0.343817 0.329219 -0.200281 0.328827 0.344705 0.326468 -0.24935 12 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 -5 0 0 0 0 1 0 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -12 0.337058 0.331195 0.331747 -0.176191 0.340146 0.328801 0.331053 -0.196705 0.341981 0.327192 0.330827 -0.114477 0.343026 0.325621 0.331353 0.0277172 -12 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 6 0 0 0 5 1 0 0 0 0 0 0 0 100 0 0 0 
-1 0 0 12 0.334513 0.333052 0.332434 0.00531551 0.33177 0.335745 0.332485 -0.132399 0.331307 0.337606 0.331087 -0.187523 0.329232 0.34034 0.330428 -0.192168 12 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 -5 0 0 0 10 1 0 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -12 0.328912 0.340781 0.330307 -0.206274 0.331499 0.33567 0.332832 -0.0463865 0.331264 0.335016 0.33372 0.000699355 0.331112 0.333393 0.335494 -0.00601806 -12 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 5 0 0 0 15 1 0 0 0 0 0 0 0 100 0 0 0 
-1 0 0 12 0.351065 0.322624 0.32631 0.461191 0.34135 0.327436 0.331213 0.366065 0.342265 0.327565 0.33017 0.445757 0.343616 0.327917 0.328467 0.467719 12 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 0 0 0 0 0 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 -4 0 0 0 20 1 0 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -12 0.314544 0.368675 0.316781 -0.685501 0.32981 0.337744 0.332445 -0.0983454 0.329964 0.338392 0.331644 -0.0460738 0.329639 0.339055 0.331306 -0.0131257 -12 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 4 0 0 0 25 1 0 0 0 0 0 0 0 100 0 0 0 
-1 0 0 12 0.425571 0.287072 0.287356 1.71476 0.343567 0.324533 0.3319 0.253305 0.338741 0.323211 0.338049 0.167866 0.337832 0.321609 0.340559 0.0984018 12 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 -2 0 0 0 30 1 0 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -12 0.216514 0.573516 0.209971 -4.36306 0.315512 0.380959 0.303529 -0.85472 0.338383 0.339734 0.321883 -0.00611044 0.339503 0.340685 0.319812 0.0826191 -12 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 2 0 0 0 35 1 0 0 0 0 0 0 0 100 0 0 0 
+1 0 0 12 0.328906 0.339107 0.331987 -0.0243593 0.326956 0.341807 0.331237 -0.128943 0.326964 0.343817 0.329219 -0.200281 0.328827 0.344705 0.326468 -0.24935 12 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 -5 0 0 0 0 1 0 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -12 0.337058 0.331195 0.331747 -0.176191 0.340146 0.328801 0.331053 -0.196705 0.341981 0.327192 0.330827 -0.114477 0.343026 0.325621 0.331353 0.0277172 -12 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 6 0 0 0 5 1 0 0 0 0 0 0 0 100 0 0 0 
+1 0 0 12 0.334513 0.333052 0.332434 0.00531551 0.33177 0.335745 0.332485 -0.132399 0.331307 0.337606 0.331087 -0.187523 0.329232 0.34034 0.330428 -0.192168 12 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 -5 0 0 0 10 1 0 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -12 0.328912 0.340781 0.330307 -0.206274 0.331499 0.33567 0.332832 -0.0463865 0.331264 0.335016 0.33372 0.000699355 0.331112 0.333393 0.335494 -0.00601806 -12 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 5 0 0 0 15 1 0 0 0 0 0 0 0 100 0 0 0 
+1 0 0 12 0.351065 0.322624 0.32631 0.461191 0.34135 0.327436 0.331213 0.366065 0.342265 0.327565 0.33017 0.445757 0.343616 0.327917 0.328467 0.467719 12 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 0 0 0 0 0 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 -4 0 0 0 20 1 0 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -12 0.314544 0.368675 0.316781 -0.685501 0.32981 0.337744 0.332445 -0.0983454 0.329964 0.338392 0.331644 -0.0460738 0.329639 0.339055 0.331306 -0.0131257 -12 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 4 0 0 0 25 1 0 0 0 0 0 0 0 100 0 0 0 
+1 0 0 12 0.425571 0.287072 0.287356 1.71476 0.343567 0.324533 0.3319 0.253305 0.338741 0.323211 0.338049 0.167866 0.337832 0.321609 0.340559 0.0984018 12 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 -2 0 0 0 30 1 0 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -12 0.216514 0.573516 0.209971 -4.36306 0.315512 0.380959 0.303529 -0.85472 0.338383 0.339734 0.321883 -0.00611044 0.339503 0.340685 0.319812 0.0826191 -12 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 2 0 0 0 35 1 0 0 0 0 0 0 0 100 0 0 0 
 0.333004 0.334272 0.332723 -0.0546746 0.333004 0.334272 0.332723 -0.0546746 0.333004 0.334272 0.332723 -0.0546746 0.333004 0.334272 0.332723 -0.0546746 0.333004 0.334272 0.332723 -0.0546746 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 1 1 1 1 1 3.401e+06 3.73478e+06 585445 1.45281e+06 3.76859e+06 3244 -5 0 0 0 4 1 0 0 0 0 0 1 0 100 0 0 0 
 
 scoreDistrN
@@ -8367,16 +8367,16 @@ selfBonusScoreN
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 valueTargetsNCHW
--109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(9,4,5,5)}                                                               
--100 -100 -100 100 100 -100 -100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 0 -1 -1 0 0 0 -1 0 0 1 1 0 0 0 0 1 1 0 -1 0 0 0 0 0 0 -1 -1 -1 0 1 0 -1 0 1 1 1 -1 0 0 0 1 1 -1 -1 0 0 0 1 0 -1 -1 0 -1 1 1 -1 0 1 1 1 1 1 1 -1 -1 1 1 -1 -1 -1 0 1 1 0 -1 
-100 100 100 -100 -100 100 100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 1 1 1 0 -1 0 1 0 -1 -1 -1 0 0 0 0 -1 -1 0 1 0 0 0 0 0 1 1 1 1 -1 -1 0 1 -1 -1 -1 -1 1 0 1 1 -1 -1 1 1 0 0 0 -1 0 1 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 0 0 0 -1 -1 -1 0 
--100 -100 -100 100 100 -100 -100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 -1 -1 -1 1 1 0 -1 0 1 1 1 -1 0 -1 0 1 1 -1 -1 0 0 0 1 0 -1 0 0 -1 1 1 -1 0 1 1 1 1 0 1 -1 -1 1 1 -1 -1 0 0 1 1 0 -1 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 1 1 0 0 1 1 1 0 
-100 100 100 -100 -100 100 100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 0 0 0 -1 -1 0 0 -1 -1 -1 -1 0 -1 1 1 -1 -1 1 1 0 0 0 -1 0 1 1 0 1 -1 -1 1 0 -1 -1 -1 -1 -1 -1 1 1 -1 -1 1 1 1 0 -1 -1 0 1 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 
--100 -100 -100 100 100 -100 -100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 0 0 -1 1 1 -1 0 1 1 1 1 1 1 -1 -1 1 1 -1 -1 -1 0 1 1 0 -1 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 0 0 0 0 1 1 1 0 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 1 1 0 0 1 1 1 0 
-100 100 100 -100 -100 100 100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 1 0 1 -1 -1 1 0 -1 -1 -1 -1 -1 -1 1 1 -1 -1 1 1 1 0 -1 -1 0 1 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 
--100 -100 -100 100 100 -100 -100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 1 0 0 0 1 1 1 0 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 1 1 0 0 1 1 1 0 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 1 1 0 0 1 1 1 0 
-100 100 100 -100 -100 100 100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(9,5,5,5)}                                                               
+-1 -1 -1 1 1 -1 -1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 -1 -1 0 0 0 -1 0 0 1 1 0 0 0 0 1 1 0 -1 0 0 0 0 0 0 -1 -1 -1 0 1 0 -1 0 1 1 1 -1 0 0 0 1 1 -1 -1 0 0 0 1 0 -1 -1 0 -1 1 1 -1 0 1 1 1 1 1 1 -1 -1 1 1 -1 -1 -1 0 1 1 0 -1 -120 -120 -120 120 120 -120 -120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+1 1 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 1 1 1 0 -1 0 1 0 -1 -1 -1 0 0 0 0 -1 -1 0 1 0 0 0 0 0 1 1 1 1 -1 -1 0 1 -1 -1 -1 -1 1 0 1 1 -1 -1 1 1 0 0 0 -1 0 1 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 0 0 0 -1 -1 -1 0 120 120 120 -120 -120 120 120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+-1 -1 -1 1 1 -1 -1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 -1 -1 -1 1 1 0 -1 0 1 1 1 -1 0 -1 0 1 1 -1 -1 0 0 0 1 0 -1 0 0 -1 1 1 -1 0 1 1 1 1 0 1 -1 -1 1 1 -1 -1 0 0 1 1 0 -1 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 1 1 0 0 1 1 1 0 -120 -120 -120 120 120 -120 -120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+1 1 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 0 0 -1 -1 0 0 -1 -1 -1 -1 0 -1 1 1 -1 -1 1 1 0 0 0 -1 0 1 1 0 1 -1 -1 1 0 -1 -1 -1 -1 -1 -1 1 1 -1 -1 1 1 1 0 -1 -1 0 1 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 120 120 120 -120 -120 120 120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+-1 -1 -1 1 1 -1 -1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 -1 1 1 -1 0 1 1 1 1 1 1 -1 -1 1 1 -1 -1 -1 0 1 1 0 -1 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 0 0 0 0 1 1 1 0 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 1 1 0 0 1 1 1 0 -120 -120 -120 120 120 -120 -120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+1 1 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 1 0 1 -1 -1 1 0 -1 -1 -1 -1 -1 -1 1 1 -1 -1 1 1 1 0 -1 -1 0 1 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 120 120 120 -120 -120 120 120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+-1 -1 -1 1 1 -1 -1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 1 0 0 0 1 1 1 0 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 1 1 0 0 1 1 1 0 -1 0 -1 1 1 -1 -1 1 1 1 1 1 1 0 -1 1 1 1 1 0 0 1 1 1 0 -120 -120 -120 120 120 -120 -120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+1 1 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 1 0 1 -1 -1 1 1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 -1 -1 0 0 -1 -1 -1 0 120 120 120 -120 -120 120 120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 
 seedBase: testtrainingwrite-gooddraws
@@ -8447,14 +8447,14 @@ policyTargetsNCMove
 
 globalTargetsNC
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(9,64)}                                                                  
-0 1 0 -17.8 0.501524 0.498476 0 -0.0322207 0.500761 0.499239 0 -0.230725 0.501077 0.498923 0 -0.561089 0.499829 0.500171 0 -0.903826 -17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 7.2 1 0 0 1 0 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 17.8 0.493924 0.506076 0 -0.0793885 0.492349 0.507651 0 -0.206565 0.493345 0.506655 0 -0.26087 0.493389 0.506611 0 -0.27752 17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 -7.2 1 0 0 6 0 1 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -17.8 0.499247 0.500753 0 -0.167342 0.50047 0.49953 0 -0.24545 0.501455 0.498545 0 -0.194611 0.499583 0.500417 0 -0.0189275 -17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 7.2 1 0 0 11 0 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 17.8 0.499108 0.500892 0 0.0559223 0.497836 0.502164 0 -0.0110605 0.502098 0.497902 0 0.0495361 0.503817 0.496183 0 0.134575 17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 -7.2 1 0 0 16 0 1 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -17.8 0.494009 0.505991 0 -0.184003 0.510106 0.489894 0 0.227599 0.507621 0.492379 0 -0.0181048 0.503458 0.496542 0 -0.225176 -17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 7.2 1 0 0 21 0 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 17.8 0.538587 0.461413 0 1.22003 0.501003 0.498997 0 -0.223444 0.499625 0.500375 0 -0.471646 0.499636 0.500364 0 -0.606933 17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 -7.2 1 0 0 26 0 1 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -17.8 0.394005 0.605995 0 -3.60383 0.486538 0.513462 0 -0.52665 0.498033 0.501967 0 -0.374666 0.49957 0.50043 0 -0.451016 -17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 7.2 1 0 0 31 0 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 17.8 0.776559 0.223441 0 9.51793 0.608967 0.391033 0 3.37428 0.521047 0.478953 0 0.283029 0.505448 0.494552 0 -0.0880725 17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 -7.2 1 0 0 36 0 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -17.8 0.501524 0.498476 0 -0.0322207 0.500761 0.499239 0 -0.230725 0.501077 0.498923 0 -0.561089 0.499829 0.500171 0 -0.903826 -17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 7.2 1 0 0 1 0 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 17.8 0.493924 0.506076 0 -0.0793885 0.492349 0.507651 0 -0.206565 0.493345 0.506655 0 -0.26087 0.493389 0.506611 0 -0.27752 17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 -7.2 1 0 0 6 0 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -17.8 0.499247 0.500753 0 -0.167342 0.50047 0.49953 0 -0.24545 0.501455 0.498545 0 -0.194611 0.499583 0.500417 0 -0.0189275 -17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 7.2 1 0 0 11 0 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 17.8 0.499108 0.500892 0 0.0559223 0.497836 0.502164 0 -0.0110605 0.502098 0.497902 0 0.0495361 0.503817 0.496183 0 0.134575 17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 -7.2 1 0 0 16 0 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -17.8 0.494009 0.505991 0 -0.184003 0.510106 0.489894 0 0.227599 0.507621 0.492379 0 -0.0181048 0.503458 0.496542 0 -0.225176 -17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 7.2 1 0 0 21 0 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 17.8 0.538587 0.461413 0 1.22003 0.501003 0.498997 0 -0.223444 0.499625 0.500375 0 -0.471646 0.499636 0.500364 0 -0.606933 17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 -7.2 1 0 0 26 0 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -17.8 0.394005 0.605995 0 -3.60383 0.486538 0.513462 0 -0.52665 0.498033 0.501967 0 -0.374666 0.49957 0.50043 0 -0.451016 -17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 7.2 1 0 0 31 0 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 17.8 0.776559 0.223441 0 9.51793 0.608967 0.391033 0 3.37428 0.521047 0.478953 0 0.283029 0.505448 0.494552 0 -0.0880725 17.8 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 -7.2 1 0 0 36 0 1 0 0 0 0 0 0 100 0 0 0 
 0.494146 0.505854 0 -0.641027 0.494146 0.505854 0 -0.641027 0.494146 0.505854 0 -0.641027 0.494146 0.505854 0 -0.641027 0.494146 0.505854 0 -0.641027 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1.31547e+06 1.18374e+06 889732 542766 948709 597262 -7.2 1 0 0 12 0 1 0 0 0 0 1 0 100 0 0 0 
 
 scoreDistrN
@@ -8482,16 +8482,16 @@ selfBonusScoreN
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 valueTargetsNCHW
--109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(9,4,5,5)}                                                               
--100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 0 -1 -1 -1 0 0 0 0 1 0 0 -1 0 1 0 0 -1 1 0 0 0 0 0 0 0 0 -1 -1 -1 0 1 0 -1 1 0 -1 -1 0 1 1 -1 -1 1 0 0 0 -1 1 0 1 0 -1 -1 -1 -1 0 0 -1 0 1 -1 -1 -1 -1 0 -1 -1 0 0 -1 -1 -1 -1 0 1 
-100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 0 1 1 1 0 -1 0 1 -1 0 0 1 0 -1 -1 0 1 -1 0 0 0 1 -1 0 0 -1 1 1 1 0 -1 0 1 -1 -1 1 1 0 -1 -1 1 1 -1 -1 0 1 1 -1 0 -1 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 0 1 1 1 1 -1 -1 
--100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 0 -1 -1 -1 0 1 0 -1 1 1 -1 -1 0 1 1 -1 -1 1 0 -1 0 -1 1 0 1 1 -1 -1 -1 -1 1 0 -1 0 0 -1 -1 -1 0 0 -1 -1 0 0 0 -1 -1 -1 0 0 0 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 0 0 
-100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 -1 1 1 1 0 -1 0 1 -1 -1 1 1 1 -1 -1 1 1 -1 -1 0 1 1 -1 -1 -1 0 1 1 1 1 0 0 1 0 -1 1 1 1 1 0 1 1 0 0 1 1 1 1 0 -1 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 
--100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 1 -1 -1 -1 -1 1 0 -1 0 1 -1 -1 -1 -1 0 -1 -1 0 0 0 -1 -1 -1 0 0 1 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 0 -1 -1 -1 -1 1 1 0 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 0 0 
-100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 0 1 1 1 1 0 0 1 0 -1 1 1 1 1 0 1 1 0 0 1 1 1 1 -1 -1 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 
--100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 0 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 0 0 0 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 0 0 0 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 0 0 
-100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(9,5,5,5)}                                                               
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 0 1 0 0 -1 0 1 0 0 -1 1 0 0 0 0 0 0 0 0 -1 -1 -1 0 1 0 -1 1 0 -1 -1 0 1 1 -1 -1 1 0 0 0 -1 1 0 1 0 -1 -1 -1 -1 0 0 -1 0 1 -1 -1 -1 -1 0 -1 -1 0 0 -1 -1 -1 -1 0 1 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 1 0 -1 0 1 -1 0 0 1 0 -1 -1 0 1 -1 0 0 0 1 -1 0 0 -1 1 1 1 0 -1 0 1 -1 -1 1 1 0 -1 -1 1 1 -1 -1 0 1 1 -1 0 -1 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 0 1 1 1 1 -1 -1 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 -1 0 1 0 -1 1 1 -1 -1 0 1 1 -1 -1 1 0 -1 0 -1 1 0 1 1 -1 -1 -1 -1 1 0 -1 0 0 -1 -1 -1 0 0 -1 -1 0 0 0 -1 -1 -1 0 0 0 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 0 0 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 -1 1 1 1 0 -1 0 1 -1 -1 1 1 1 -1 -1 1 1 -1 -1 0 1 1 -1 -1 -1 0 1 1 1 1 0 0 1 0 -1 1 1 1 1 0 1 1 0 0 1 1 1 1 0 -1 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 1 -1 -1 -1 -1 1 0 -1 0 1 -1 -1 -1 -1 0 -1 -1 0 0 0 -1 -1 -1 0 0 1 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 0 -1 -1 -1 -1 1 1 0 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 0 0 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 1 1 0 0 1 0 -1 1 1 1 1 0 1 1 0 0 1 1 1 1 -1 -1 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 0 0 0 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 0 0 0 -1 -1 -1 -1 0 -1 -1 0 1 -1 -1 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 0 0 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 0 1 1 1 1 0 1 1 0 -1 1 1 1 1 0 1 1 1 1 1 1 1 1 0 0 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 
 seedBase: testtrainingwrite-tt-v5
@@ -8562,14 +8562,14 @@ policyTargetsNCMove
 
 globalTargetsNC
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(9,64)}                                                                  
-0 1 0 -32.5 0.507321 0.492679 0 0.0132092 0.512929 0.487071 0 0.253938 0.51475 0.48525 0 0.530244 0.515059 0.484941 0 0.720954 -32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 -7.5 1 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 
-1 0 0 32.5 0.503062 0.496938 0 0.175202 0.499582 0.500418 0 -0.00825379 0.499045 0.500955 0 -0.221533 0.50006 0.49994 0 -0.423764 32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 7.5 1 0 0 5 0 0 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -32.5 0.49084 0.50916 0 -0.365072 0.492603 0.507397 0 -0.260488 0.490068 0.509932 0 -0.255511 0.486582 0.513418 0 -0.169369 -32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 -7.5 1 0 0 10 0 0 0 0 0 0 0 0 100 0 0 0 
-1 0 0 32.5 0.514165 0.485835 0 0.599712 0.504237 0.495763 0 0.080491 0.501782 0.498218 0 0.0741136 0.500614 0.499386 0 0.0649505 32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 7.5 1 0 0 15 0 0 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -32.5 0.471458 0.528542 0 -1.46992 0.494784 0.505216 0 -0.0167928 0.49801 0.50199 0 0.051948 0.497694 0.502306 0 0.0532702 -32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 0 0 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 -7.5 1 0 0 20 0 0 0 0 0 0 0 0 100 0 0 0 
-1 0 0 32.5 0.567043 0.432956 0 4.26336 0.520892 0.479108 0 1.19117 0.526 0.474 0 1.11732 0.533173 0.466827 0 1.0388 32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 7.5 1 0 0 25 0 0 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -32.5 0.342118 0.657882 0 -9.88682 0.46096 0.539039 0 -1.91993 0.475822 0.524178 0 -0.91582 0.473701 0.526299 0 -1.09937 -32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 -7.5 1 0 0 30 0 0 0 0 0 0 0 0 100 0 0 0 
-1 0 0 32.5 0.90817 0.0918301 0 26.5948 0.793382 0.206618 0 19.2133 0.645798 0.354202 0 9.72277 0.504117 0.495883 0 0.611884 32.5 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 7.5 1 0 0 35 0 0 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -32.5 0.507321 0.492679 0 0.0132092 0.512929 0.487071 0 0.253938 0.51475 0.48525 0 0.530244 0.515059 0.484941 0 0.720954 -32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 -7.5 1 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 
+1 0 0 32.5 0.503062 0.496938 0 0.175202 0.499582 0.500418 0 -0.00825379 0.499045 0.500955 0 -0.221533 0.50006 0.49994 0 -0.423764 32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 7.5 1 0 0 5 0 0 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -32.5 0.49084 0.50916 0 -0.365072 0.492603 0.507397 0 -0.260488 0.490068 0.509932 0 -0.255511 0.486582 0.513418 0 -0.169369 -32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 -7.5 1 0 0 10 0 0 0 0 0 0 0 0 100 0 0 0 
+1 0 0 32.5 0.514165 0.485835 0 0.599712 0.504237 0.495763 0 0.080491 0.501782 0.498218 0 0.0741136 0.500614 0.499386 0 0.0649505 32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 7.5 1 0 0 15 0 0 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -32.5 0.471458 0.528542 0 -1.46992 0.494784 0.505216 0 -0.0167928 0.49801 0.50199 0 0.051948 0.497694 0.502306 0 0.0532702 -32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 0 0 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 -7.5 1 0 0 20 0 0 0 0 0 0 0 0 100 0 0 0 
+1 0 0 32.5 0.567043 0.432956 0 4.26336 0.520892 0.479108 0 1.19117 0.526 0.474 0 1.11732 0.533173 0.466827 0 1.0388 32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 7.5 1 0 0 25 0 0 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -32.5 0.342118 0.657882 0 -9.88682 0.46096 0.539039 0 -1.91993 0.475822 0.524178 0 -0.91582 0.473701 0.526299 0 -1.09937 -32.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 -7.5 1 0 0 30 0 0 0 0 0 0 0 0 100 0 0 0 
+1 0 0 32.5 0.90817 0.0918301 0 26.5948 0.793382 0.206618 0 19.2133 0.645798 0.354202 0 9.72277 0.504117 0.495883 0 0.611884 32.5 0 0 0 0 1 1 1 0 0 0 0 0 1 1 0 1 1 1 1 1 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 7.5 1 0 0 35 0 0 0 0 0 0 0 0 100 0 0 0 
 0.496111 0.503889 0 0.361398 0.496111 0.503889 0 0.361398 0.496111 0.503889 0 0.361398 0.496111 0.503889 0 0.361398 0.496111 0.503889 0 0.361398 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 1 0 0 0 0 4.16913e+06 4.17184e+06 387479 4.03489e+06 1.02527e+06 91283 7.5 1 0 0 23 0 0 0 0 0 0 1 0 100 0 0 0 
 
 scoreDistrN
@@ -8597,16 +8597,16 @@ selfBonusScoreN
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 valueTargetsNCHW
--109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(9,4,5,5)}                                                               
--100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 0 0 0 0 0 -1 0 1 0 -1 0 0 0 0 -1 1 -1 0 1 0 0 0 0 0 1 1 0 0 1 1 -1 0 1 -1 -1 0 0 -1 0 -1 1 -1 1 1 0 -1 0 0 -1 1 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 1 -1 1 1 -1 1 1 1 0 1 
-100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 -1 0 0 -1 -1 1 0 -1 1 1 0 0 0 0 1 -1 1 0 -1 0 0 0 0 1 -1 0 1 0 0 0 1 0 0 1 1 0 1 1 0 1 -1 1 -1 -1 0 0 -1 0 1 -1 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 
--100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 0 -1 1 1 1 -1 0 1 -1 -1 0 0 -1 0 -1 1 -1 1 1 0 -1 0 0 -1 1 0 -1 1 1 0 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 1 -1 1 1 0 0 1 0 -1 1 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 
-100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 0 1 0 -1 0 1 0 0 1 1 0 1 1 1 1 -1 1 -1 -1 0 0 -1 0 1 -1 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 -1 1 -1 -1 0 -1 -1 -1 0 -1 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 
--100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 0 -1 0 0 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 1 -1 1 1 0 0 1 1 0 1 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 
-100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 0 0 1 0 0 0 0 0 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 
--100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 -100 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 
-100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(9,5,5,5)}                                                               
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 0 0 0 0 -1 0 1 0 -1 0 0 0 0 -1 1 -1 0 1 0 0 0 0 0 1 1 0 0 1 1 -1 0 1 -1 -1 0 0 -1 0 -1 1 -1 1 1 0 -1 0 0 -1 1 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 1 -1 1 1 -1 1 1 1 0 1 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 -1 0 0 -1 -1 1 0 -1 1 1 0 0 0 0 1 -1 1 0 -1 0 0 0 0 1 -1 0 1 0 0 0 1 0 0 1 1 0 1 1 0 1 -1 1 -1 -1 0 0 -1 0 1 -1 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 1 1 1 -1 0 1 -1 -1 0 0 -1 0 -1 1 -1 1 1 0 -1 0 0 -1 1 0 -1 1 1 0 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 1 -1 1 1 0 0 1 0 -1 1 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 1 0 -1 0 1 0 0 1 1 0 1 1 1 1 -1 1 -1 -1 0 0 -1 0 1 -1 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 -1 1 -1 -1 0 -1 -1 -1 0 -1 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 0 0 -1 -1 0 -1 -1 -1 -1 -1 -1 -1 -1 1 -1 1 1 0 0 1 1 0 1 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 0 0 1 0 0 0 0 0 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 0 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 0 -1 1 -1 0 0 0 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 0 1 0 -1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0 1 -1 1 0 0 0 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 120 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 
 seedBase: testtrainingwrite-rect-v4
@@ -8676,14 +8676,14 @@ policyTargetsNCMove
 
 globalTargetsNC
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(10,64)}                                                                 
-1 0 0 1.5 0.505994 0.494006 0 0.0460586 0.506664 0.493336 0 -0.074493 0.50805 0.49195 0 -0.125898 0.50762 0.49238 0 -0.110758 1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 7.5 1 0 0 1 1 1 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -1.5 0.492045 0.507955 0 -0.179907 0.494875 0.505125 0 0.0602418 0.495976 0.504024 0 0.183833 0.494645 0.505355 0 0.244004 -1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 -7.5 1 0 0 6 1 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 1.5 0.50825 0.49175 0 0.571224 0.500973 0.499027 0 0.399899 0.49546 0.50454 0 0.308761 0.491088 0.508912 0 0.237562 1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 7.5 1 0 0 11 1 1 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -1.5 0.482153 0.517847 0 -0.911825 0.488245 0.511755 0 -0.88005 0.496643 0.503357 0 -0.762797 0.502547 0.497453 0 -0.567957 -1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 -7.5 1 0 0 16 1 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 1.5 0.521982 0.478018 0 1.1008 0.530749 0.469251 0 1.35852 0.541034 0.458966 0 1.45599 0.54302 0.45698 0 1.34453 1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 7.5 1 0 0 21 1 1 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -1.5 0.478292 0.521708 0 -0.795778 0.4974 0.5026 0 -0.835421 0.505183 0.494817 0 -0.844421 0.508463 0.491537 0 -0.962624 -1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 -7.5 1 0 0 26 1 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 1.5 0.548607 0.451393 0 0.435081 0.506407 0.493593 0 0.471544 0.509531 0.490469 0 0.735203 0.512407 0.487593 0 0.990749 1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 7.5 1 0 0 31 1 1 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -1.5 0.343957 0.656043 0 -0.750257 0.468677 0.531323 0 -0.591578 0.488551 0.511449 0 -0.619025 0.486076 0.513924 0 -0.595421 -1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 -7.5 1 0 0 36 1 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 1.5 0.505994 0.494006 0 0.0460586 0.506664 0.493336 0 -0.074493 0.50805 0.49195 0 -0.125898 0.50762 0.49238 0 -0.110758 1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 7.5 1 0 0 1 1 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -1.5 0.492045 0.507955 0 -0.179907 0.494875 0.505125 0 0.0602418 0.495976 0.504024 0 0.183833 0.494645 0.505355 0 0.244004 -1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 -7.5 1 0 0 6 1 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 1.5 0.50825 0.49175 0 0.571224 0.500973 0.499027 0 0.399899 0.49546 0.50454 0 0.308761 0.491088 0.508912 0 0.237562 1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 7.5 1 0 0 11 1 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -1.5 0.482153 0.517847 0 -0.911825 0.488245 0.511755 0 -0.88005 0.496643 0.503357 0 -0.762797 0.502547 0.497453 0 -0.567957 -1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 -7.5 1 0 0 16 1 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 1.5 0.521982 0.478018 0 1.1008 0.530749 0.469251 0 1.35852 0.541034 0.458966 0 1.45599 0.54302 0.45698 0 1.34453 1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 7.5 1 0 0 21 1 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -1.5 0.478292 0.521708 0 -0.795778 0.4974 0.5026 0 -0.835421 0.505183 0.494817 0 -0.844421 0.508463 0.491537 0 -0.962624 -1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 -7.5 1 0 0 26 1 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 1.5 0.548607 0.451393 0 0.435081 0.506407 0.493593 0 0.471544 0.509531 0.490469 0 0.735203 0.512407 0.487593 0 0.990749 1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 7.5 1 0 0 31 1 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -1.5 0.343957 0.656043 0 -0.750257 0.468677 0.531323 0 -0.591578 0.488551 0.511449 0 -0.619025 0.486076 0.513924 0 -0.595421 -1.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 -7.5 1 0 0 36 1 1 0 0 0 0 0 0 100 0 0 0 
 0.490342 0.509658 0 -0.461355 0.490342 0.509658 0 -0.461355 0.490342 0.509658 0 -0.461355 0.490342 0.509658 0 -0.461355 0.490342 0.509658 0 -0.461355 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 -7.5 1 0 0 6 1 1 0 0 0 0 1 0 100 0 0 0 
 0.501344 0.498656 0 0.74626 0.501344 0.498656 0 0.74626 0.501344 0.498656 0 0.74626 0.501344 0.498656 0 0.74626 0.501344 0.498656 0 0.74626 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 1 1 1 1 1 865109 4.09876e+06 1.02954e+06 2.12036e+06 2.40978e+06 359839 -7.5 1 0 0 8 1 1 0 0 0 0 1 0 100 0 0 0 
 
@@ -8714,17 +8714,17 @@ selfBonusScoreN
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 valueTargetsNCHW
--109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(10,4,3,9)}                                                              
-0 100 0 -100 0 100 -100 0 0 -100 0 0 0 0 -100 -100 0 0 -100 -100 100 -100 100 -100 -100 0 0 0 -1 1 -1 1 0 1 0 0 0 0 1 0 0 -1 0 0 0 0 -1 0 0 0 0 0 0 0 0 -1 1 1 1 -1 0 0 0 0 1 1 1 0 -1 -1 0 0 -1 -1 1 0 0 -1 0 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 -1 0 0 0 -1 -1 0 0 0 -1 1 0 0 
-0 -100 0 100 0 -100 100 0 0 100 0 0 0 0 100 100 0 0 100 100 -100 100 -100 100 100 0 0 0 1 -1 -1 -1 1 -1 0 0 0 0 -1 -1 0 1 0 0 0 1 1 -1 0 0 0 0 0 0 -1 0 -1 -1 -1 1 1 0 0 -1 -1 -1 -1 0 1 1 0 0 0 0 -1 0 -1 1 1 0 0 0 -1 0 0 0 -1 1 0 0 1 0 0 0 0 1 0 0 0 1 1 0 1 -1 1 -1 0 0 
-0 100 0 -100 0 100 -100 0 0 -100 0 0 0 0 -100 -100 0 0 -100 -100 100 -100 100 -100 -100 0 0 0 -1 1 1 1 -1 -1 0 0 0 1 1 1 0 -1 -1 0 0 -1 -1 1 0 1 -1 0 0 0 1 0 1 1 1 1 -1 0 0 1 1 1 1 0 -1 0 0 0 0 0 1 0 1 0 1 0 0 0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 0 0 0 
-0 -100 0 100 0 -100 100 0 0 100 0 0 0 0 100 100 0 0 100 100 -100 100 -100 100 100 0 0 -1 0 -1 -1 -1 -1 0 0 0 -1 -1 -1 -1 0 0 0 0 0 0 0 -1 0 -1 0 0 0 0 -1 -1 -1 -1 -1 -1 1 0 0 -1 -1 -1 -1 -1 1 0 0 0 1 0 -1 -1 -1 1 -1 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 
-0 100 0 -100 0 100 -100 0 0 -100 0 0 0 0 -100 -100 0 0 -100 -100 100 -100 100 -100 -100 0 0 1 0 1 1 1 1 -1 0 0 1 1 1 1 0 -1 0 0 0 -1 0 1 1 1 0 1 0 0 0 1 0 0 0 1 -1 0 0 -1 0 0 0 0 -1 0 0 0 -1 -1 0 -1 0 -1 1 0 0 0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 0 0 0 
-0 -100 0 100 0 -100 100 0 0 100 0 0 0 0 100 100 0 0 100 100 -100 100 -100 100 100 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 0 1 0 0 0 1 1 0 0 0 1 -1 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 
-0 100 0 -100 0 100 -100 0 0 -100 0 0 0 0 -100 -100 0 0 -100 -100 100 -100 100 -100 -100 0 0 0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 0 0 0 -1 -1 0 -1 1 -1 1 0 0 0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 0 0 0 0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 0 0 0 
-0 -100 0 100 0 -100 100 0 0 100 0 0 0 0 100 100 0 0 100 100 -100 100 -100 100 100 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(10,5,3,9)}                                                              
+0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 -1 0 0 0 -1 1 -1 1 0 1 0 0 0 0 1 0 0 -1 0 0 0 0 -1 0 0 0 0 0 0 0 0 -1 1 1 1 -1 0 0 0 0 1 1 1 0 -1 -1 0 0 -1 -1 1 0 0 -1 0 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 0 0 -1 0 0 0 -1 -1 0 0 0 -1 1 0 0 0 120 0 -120 0 120 -120 0 0 -120 0 0 0 0 -120 -120 0 0 -120 -120 120 -120 120 -120 -120 0 0 
+0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 1 0 0 0 1 -1 -1 -1 1 -1 0 0 0 0 -1 -1 0 1 0 0 0 1 1 -1 0 0 0 0 0 0 -1 0 -1 -1 -1 1 1 0 0 -1 -1 -1 -1 0 1 1 0 0 0 0 -1 0 -1 1 1 0 0 0 -1 0 0 0 -1 1 0 0 1 0 0 0 0 1 0 0 0 1 1 0 1 -1 1 -1 0 0 0 -120 0 120 0 -120 120 0 0 120 0 0 0 0 120 120 0 0 120 120 -120 120 -120 120 120 0 0 
+0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 -1 0 0 0 -1 1 1 1 -1 -1 0 0 0 1 1 1 0 -1 -1 0 0 -1 -1 1 0 1 -1 0 0 0 1 0 1 1 1 1 -1 0 0 1 1 1 1 0 -1 0 0 0 0 0 1 0 1 0 1 0 0 0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 0 0 0 0 120 0 -120 0 120 -120 0 0 -120 0 0 0 0 -120 -120 0 0 -120 -120 120 -120 120 -120 -120 0 0 
+0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 1 0 0 -1 0 -1 -1 -1 -1 0 0 0 -1 -1 -1 -1 0 0 0 0 0 0 0 -1 0 -1 0 0 0 0 -1 -1 -1 -1 -1 -1 1 0 0 -1 -1 -1 -1 -1 1 0 0 0 1 0 -1 -1 -1 1 -1 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 0 -120 0 120 0 -120 120 0 0 120 0 0 0 0 120 120 0 0 120 120 -120 120 -120 120 120 0 0 
+0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 -1 0 0 1 0 1 1 1 1 -1 0 0 1 1 1 1 0 -1 0 0 0 -1 0 1 1 1 0 1 0 0 0 1 0 0 0 1 -1 0 0 -1 0 0 0 0 -1 0 0 0 -1 -1 0 -1 0 -1 1 0 0 0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 0 0 0 0 120 0 -120 0 120 -120 0 0 -120 0 0 0 0 -120 -120 0 0 -120 -120 120 -120 120 -120 -120 0 0 
+0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 1 0 0 0 0 0 0 0 -1 1 0 0 0 0 0 0 0 1 0 0 0 1 1 0 0 0 1 -1 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 0 -120 0 120 0 -120 120 0 0 120 0 0 0 0 120 120 0 0 120 120 -120 120 -120 120 120 0 0 
+0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 -1 0 0 0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 0 0 0 -1 -1 0 -1 1 -1 1 0 0 0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 0 0 0 0 1 0 -1 0 1 -1 0 0 -1 0 0 0 0 -1 -1 0 0 -1 -1 1 -1 1 -1 0 0 0 0 120 0 -120 0 120 -120 0 0 -120 0 0 0 0 -120 -120 0 0 -120 -120 120 -120 120 -120 -120 0 0 
+0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 1 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 0 -1 0 1 0 -1 1 0 0 1 0 0 0 0 1 1 0 0 1 1 -1 1 -1 1 0 0 0 0 -120 0 120 0 -120 120 0 0 120 0 0 0 0 120 120 0 0 120 120 -120 120 -120 120 120 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 
 seedBase: testtrainingwrite-taxall-v3
@@ -8792,14 +8792,14 @@ policyTargetsNCMove
 
 globalTargetsNC
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(8,64)}                                                                  
-0 1 0 -15.5 0.496972 0.503028 0 -0.457165 0.493967 0.506033 0 -0.490244 0.491113 0.508887 0 -0.393829 0.489874 0.510126 0 -0.279045 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 7.5 1 0 0 1 0 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 15.5 0.499142 0.500858 0 0.282186 0.496976 0.503024 0 0.37091 0.494218 0.505782 0 0.296809 0.491584 0.508416 0 0.0965273 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 -7.5 1 0 0 6 0 1 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -15.5 0.499654 0.500346 0 -0.0731821 0.498768 0.501232 0 -0.0722076 0.495896 0.504104 0 -0.0420546 0.493558 0.506442 0 0.0086625 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 7.5 1 0 0 11 0 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 15.5 0.49989 0.50011 0 0.0237522 0.491359 0.508641 0 -0.0674052 0.493883 0.506117 0 0.00759219 0.496109 0.503891 0 0.0130745 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 -7.5 1 0 0 16 0 1 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -15.5 0.48213 0.51787 0 -0.227963 0.510406 0.489594 0 0.677471 0.517493 0.482507 0 0.811675 0.521556 0.478444 0 0.798464 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 7.5 1 0 0 21 0 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 15.5 0.561986 0.438014 0 1.7966 0.505473 0.494527 0 0.104176 0.496083 0.503917 0 0.0725357 0.488819 0.511181 0 0.108569 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 -7.5 1 0 0 26 0 1 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -15.5 0.342298 0.657702 0 -4.96764 0.467316 0.532684 0 -0.856457 0.489038 0.510962 0 0.209251 0.487417 0.512583 0 0.485471 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 7.5 1 0 0 31 0 1 0 0 0 0 0 0 100 0 0 0 
-1 0 0 15.5 0.907198 0.0928023 0 12.7499 0.791195 0.208805 0 9.31224 0.642048 0.357952 0 4.89242 0.498868 0.501132 0 0.649383 15.5 0 0 0 0 1 1 1 0 0 0 0 0 1 0 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 -7.5 1 0 0 36 0 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -15.5 0.496972 0.503028 0 -0.457165 0.493967 0.506033 0 -0.490244 0.491113 0.508887 0 -0.393829 0.489874 0.510126 0 -0.279045 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 7.5 1 0 0 1 0 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 15.5 0.499142 0.500858 0 0.282186 0.496976 0.503024 0 0.37091 0.494218 0.505782 0 0.296809 0.491584 0.508416 0 0.0965273 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 -7.5 1 0 0 6 0 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -15.5 0.499654 0.500346 0 -0.0731821 0.498768 0.501232 0 -0.0722076 0.495896 0.504104 0 -0.0420546 0.493558 0.506442 0 0.0086625 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 7.5 1 0 0 11 0 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 15.5 0.49989 0.50011 0 0.0237522 0.491359 0.508641 0 -0.0674052 0.493883 0.506117 0 0.00759219 0.496109 0.503891 0 0.0130745 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 -7.5 1 0 0 16 0 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -15.5 0.48213 0.51787 0 -0.227963 0.510406 0.489594 0 0.677471 0.517493 0.482507 0 0.811675 0.521556 0.478444 0 0.798464 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 7.5 1 0 0 21 0 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 15.5 0.561986 0.438014 0 1.7966 0.505473 0.494527 0 0.104176 0.496083 0.503917 0 0.0725357 0.488819 0.511181 0 0.108569 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 -7.5 1 0 0 26 0 1 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -15.5 0.342298 0.657702 0 -4.96764 0.467316 0.532684 0 -0.856457 0.489038 0.510962 0 0.209251 0.487417 0.512583 0 0.485471 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 7.5 1 0 0 31 0 1 0 0 0 0 0 0 100 0 0 0 
+1 0 0 15.5 0.907198 0.0928023 0 12.7499 0.791195 0.208805 0 9.31224 0.642048 0.357952 0 4.89242 0.498868 0.501132 0 0.649383 15.5 0 0 0 0 1 1 1 0 0 0 0 0 1 1 0 1 1 1 1 1 2.2016e+06 1.98307e+06 616948 2.24886e+06 880891 635862 -7.5 1 0 0 36 0 1 0 0 0 0 0 0 100 0 0 0 
 
 scoreDistrN
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(8,170)}                                                                 
@@ -8824,15 +8824,15 @@ selfBonusScoreN
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 valueTargetsNCHW
--109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(8,4,5,5)}                                                               
--71 -100 -100 -100 -71 -72 -72 -100 -100 -100 -72 -100 -100 -100 -72 -71 -100 -100 -100 -100 -100 -100 -100 -100 -100 0 0 0 0 1 0 0 0 0 0 1 0 0 -1 0 1 0 -1 -1 1 -1 -1 0 0 0 -1 0 0 0 1 1 0 0 1 0 1 -1 1 -1 1 1 -1 -1 -1 1 -1 -1 0 -1 0 0 1 -1 0 0 1 0 -1 -1 -1 1 -1 -1 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 
-72 100 100 100 71 72 71 100 100 100 72 100 100 100 72 71 100 100 100 100 100 100 100 100 100 0 0 0 0 -1 -1 0 0 -1 0 -1 0 -1 1 0 -1 1 1 1 -1 1 1 0 1 0 0 -1 1 -1 -1 -1 0 1 -1 -1 -1 1 0 1 -1 -1 1 1 1 -1 1 1 0 1 0 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 
--71 -100 -100 -100 -71 -71 -72 -100 -100 -100 -71 -100 -100 -100 -71 -71 -100 -100 -100 -100 -100 -100 -100 -100 -100 -1 0 -1 0 1 1 0 0 1 1 1 -1 1 -1 1 1 -1 -1 -1 1 -1 -1 0 -1 0 0 1 -1 0 0 1 0 -1 -1 0 1 -1 0 -1 0 1 -1 -1 -1 1 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 
-71 100 100 100 71 71 71 100 100 100 72 100 100 100 71 71 100 100 100 100 100 100 100 100 100 0 -1 1 0 0 -1 0 1 0 0 -1 1 0 1 0 -1 1 1 1 0 1 1 0 1 1 0 -1 1 0 0 -1 0 1 1 1 -1 1 1 1 0 -1 1 1 1 0 1 1 1 1 1 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 
--72 -100 -100 -100 -71 -72 -72 -100 -100 -100 -71 -100 -100 -100 -72 -72 -100 -100 -100 -100 -100 -100 -100 -100 -100 0 1 -1 0 0 1 0 -1 -1 -1 1 -1 0 -1 0 1 -1 -1 -1 0 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 
-72 100 100 100 72 72 71 100 100 100 71 100 100 100 72 71 100 100 100 100 100 100 100 100 100 -1 -1 1 0 0 -1 0 1 1 1 -1 1 1 1 0 -1 1 1 1 1 1 1 1 1 1 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 
--71 -100 -100 -100 -71 -71 -71 -100 -100 -100 -71 -100 -100 -100 -71 -71 -100 -100 -100 -100 -100 -100 -100 -100 -100 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 
-71 100 100 100 72 71 71 100 100 100 71 100 100 100 71 71 100 100 100 100 100 100 100 100 100 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(8,5,5,5)}                                                               
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 0 0 0 1 0 0 0 0 0 1 0 0 -1 0 1 0 -1 -1 1 -1 -1 0 0 0 -1 0 0 0 1 1 0 0 1 0 1 -1 1 -1 1 1 -1 -1 -1 1 -1 -1 0 -1 0 0 1 -1 0 0 1 0 -1 -1 -1 1 -1 -1 -1 0 1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -85 -120 -120 -120 -86 -86 -86 -120 -120 -120 -86 -120 -120 -120 -86 -86 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 -1 -1 0 0 -1 0 -1 0 -1 1 0 -1 1 1 1 -1 1 1 0 1 0 0 -1 1 -1 -1 -1 0 1 -1 -1 -1 1 0 1 -1 -1 1 1 1 -1 1 1 0 1 0 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 86 120 120 120 85 86 85 120 120 120 86 120 120 120 86 86 120 120 120 120 120 120 120 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 0 1 1 0 0 1 1 1 -1 1 -1 1 1 -1 -1 -1 1 -1 -1 0 -1 0 0 1 -1 0 0 1 0 -1 -1 0 1 -1 0 -1 0 1 -1 -1 -1 1 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -85 -120 -120 -120 -85 -85 -86 -120 -120 -120 -86 -120 -120 -120 -85 -86 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 -1 1 0 0 -1 0 1 0 0 -1 1 0 1 0 -1 1 1 1 0 1 1 0 1 1 0 -1 1 0 0 -1 0 1 1 1 -1 1 1 1 0 -1 1 1 1 0 1 1 1 1 1 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 85 120 120 120 86 86 85 120 120 120 86 120 120 120 86 86 120 120 120 120 120 120 120 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 1 -1 0 0 1 0 -1 -1 -1 1 -1 0 -1 0 1 -1 -1 -1 0 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -86 -120 -120 -120 -86 -86 -86 -120 -120 -120 -86 -120 -120 -120 -86 -86 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 -1 -1 1 0 0 -1 0 1 1 1 -1 1 1 1 0 -1 1 1 1 1 1 1 1 1 1 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 86 120 120 120 86 86 85 120 120 120 86 120 120 120 86 86 120 120 120 120 120 120 120 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 -1 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 -1 0 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -85 -120 -120 -120 -86 -85 -86 -120 -120 -120 -86 -120 -120 -120 -85 -86 -120 -120 -120 -120 -120 -120 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 0 1 1 1 0 0 0 1 1 1 0 1 1 1 0 0 1 1 1 1 1 1 1 1 1 86 120 120 120 86 86 86 120 120 120 86 120 120 120 86 86 120 120 120 120 120 120 120 120 120 
 
 
 seedBase: testtrainingwrite-taxall-v3-a
@@ -8897,11 +8897,11 @@ policyTargetsNCMove
 
 globalTargetsNC
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(7,64)}                                                                  
-1 0 0 15.5 0.504897 0.495103 0 -0.0698435 0.50473 0.49527 0 -0.0342016 0.503822 0.496178 0 0.160977 0.501456 0.498544 0 0.312017 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 -7.5 1 0 0 4 0 4 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -15.5 0.495196 0.504804 0 -0.0296106 0.499727 0.500273 0 0.267885 0.494627 0.505373 0 0.151818 0.490327 0.509673 0 0.0522511 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 7.5 1 0 0 9 0 4 0 0 0 0 0 0 100 0 0 0 
-1 0 0 15.5 0.515995 0.484005 0 0.707753 0.486279 0.513721 0 -0.26316 0.487745 0.512255 0 -0.395728 0.490796 0.509204 0 -0.370377 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 0 0 0 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 -7.5 1 0 0 14 0 4 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -15.5 0.427991 0.572009 0 -2.22101 0.503321 0.496679 0 -0.125678 0.507735 0.492265 0 -0.222236 0.507844 0.492156 0 -0.383576 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 7.5 1 0 0 19 0 4 0 0 0 0 0 0 100 0 0 0 
-1 0 0 15.5 0.713584 0.286416 0 6.30738 0.553464 0.446536 0 1.14997 0.50164 0.49836 0 -0.482065 0.498036 0.501964 0 -0.490988 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 -7.5 1 0 0 24 0 4 0 0 0 0 0 0 100 0 0 0 
+1 0 0 15.5 0.504897 0.495103 0 -0.0698435 0.50473 0.49527 0 -0.0342016 0.503822 0.496178 0 0.160977 0.501456 0.498544 0 0.312017 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 -7.5 1 0 0 4 0 4 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -15.5 0.495196 0.504804 0 -0.0296106 0.499727 0.500273 0 0.267885 0.494627 0.505373 0 0.151818 0.490327 0.509673 0 0.0522511 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 7.5 1 0 0 9 0 4 0 0 0 0 0 0 100 0 0 0 
+1 0 0 15.5 0.515995 0.484005 0 0.707753 0.486279 0.513721 0 -0.26316 0.487745 0.512255 0 -0.395728 0.490796 0.509204 0 -0.370377 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 0 0 0 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 -7.5 1 0 0 14 0 4 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -15.5 0.427991 0.572009 0 -2.22101 0.503321 0.496679 0 -0.125678 0.507735 0.492265 0 -0.222236 0.507844 0.492156 0 -0.383576 -15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 7.5 1 0 0 19 0 4 0 0 0 0 0 0 100 0 0 0 
+1 0 0 15.5 0.713584 0.286416 0 6.30738 0.553464 0.446536 0 1.14997 0.50164 0.49836 0 -0.482065 0.498036 0.501964 0 -0.490988 15.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 -7.5 1 0 0 24 0 4 0 0 0 0 0 0 100 0 0 0 
 0.502549 0.497451 0 0.187313 0.502549 0.497451 0 0.187313 0.502549 0.497451 0 0.187313 0.502549 0.497451 0 0.187313 0.502549 0.497451 0 0.187313 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 1 1 1 1 1 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 -7.5 1 0 0 6 0 4 0 0 0 0 1 0 100 0 0 0 
 0.518983 0.481017 0 -0.0494547 0.518983 0.481017 0 -0.0494547 0.518983 0.481017 0 -0.0494547 0.518983 0.481017 0 -0.0494547 0.518983 0.481017 0 -0.0494547 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 1 1 1 1 1 2.46872e+06 1.70934e+06 305257 3.35777e+06 2.82288e+06 943081 7.5 1 0 0 21 0 4 0 0 0 0 1 0 100 0 0 0 
 
@@ -8926,14 +8926,14 @@ selfBonusScoreN
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 valueTargetsNCHW
--109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(7,4,5,5)}                                                               
-82 82 100 100 82 82 100 82 100 82 100 100 82 82 82 100 100 100 82 100 100 82 100 100 100 0 -1 1 1 -1 -1 0 0 1 -1 -1 0 0 0 0 0 1 0 -1 0 1 0 1 0 0 0 0 1 1 -1 0 1 -1 1 -1 0 1 -1 0 0 1 1 0 -1 0 1 0 1 0 1 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 
--82 -82 -100 -100 -82 -82 -100 -82 -100 -82 -100 -100 -82 -82 -81 -100 -100 -100 -82 -100 -100 -82 -100 -100 -100 0 1 -1 -1 1 1 -1 0 -1 1 1 -1 1 0 0 -1 -1 0 1 0 -1 0 -1 0 0 0 0 -1 -1 1 0 -1 1 -1 1 0 -1 1 0 1 -1 -1 -1 1 -1 -1 0 -1 -1 -1 0 0 -1 -1 0 0 -1 0 -1 0 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 0 -1 -1 -1 
-82 82 100 100 82 82 100 82 100 82 100 100 82 82 81 100 100 100 82 100 100 81 100 100 100 0 0 1 1 -1 0 1 -1 1 -1 0 1 -1 0 0 1 1 0 -1 1 1 0 1 0 1 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 
--82 -82 -100 -100 -82 -82 -100 -82 -100 -82 -100 -100 -82 -82 -82 -100 -100 -100 -82 -100 -100 -82 -100 -100 -100 0 0 -1 -1 0 0 -1 0 -1 0 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 0 -1 -1 -1 0 0 -1 -1 0 0 -1 0 -1 0 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 0 -1 -1 -1 0 0 -1 -1 0 0 -1 0 -1 0 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 0 -1 -1 -1 
-82 81 100 100 82 82 100 81 100 82 100 100 82 81 82 100 100 100 82 100 100 81 100 100 100 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(7,5,5,5)}                                                               
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 -1 1 1 -1 -1 0 0 1 -1 -1 0 0 0 0 0 1 0 -1 0 1 0 1 0 0 0 0 1 1 -1 0 1 -1 1 -1 0 1 -1 0 0 1 1 0 -1 0 1 0 1 0 1 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 98 98 120 120 99 98 120 98 120 98 120 120 98 98 98 120 120 120 98 120 120 98 120 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 1 -1 -1 1 1 -1 0 -1 1 1 -1 1 0 0 -1 -1 0 1 0 -1 0 -1 0 0 0 0 -1 -1 1 0 -1 1 -1 1 0 -1 1 0 1 -1 -1 -1 1 -1 -1 0 -1 -1 -1 0 0 -1 -1 0 0 -1 0 -1 0 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 0 -1 -1 -1 -99 -98 -120 -120 -99 -98 -120 -99 -120 -98 -120 -120 -98 -99 -98 -120 -120 -120 -98 -120 -120 -98 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 1 1 -1 0 1 -1 1 -1 0 1 -1 0 0 1 1 0 -1 1 1 0 1 0 1 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 98 98 120 120 98 98 120 98 120 98 120 120 98 98 98 120 120 120 99 120 120 98 120 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 0 -1 -1 0 0 -1 0 -1 0 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 0 -1 -1 -1 0 0 -1 -1 0 0 -1 0 -1 0 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 0 -1 -1 -1 0 0 -1 -1 0 0 -1 0 -1 0 -1 -1 0 0 0 -1 -1 -1 0 -1 -1 0 -1 -1 -1 -98 -99 -120 -120 -98 -98 -120 -98 -120 -98 -120 -120 -98 -98 -98 -120 -120 -120 -98 -120 -120 -98 -120 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 0 0 1 1 0 0 1 0 1 0 1 1 0 0 0 1 1 1 0 1 1 0 1 1 1 98 98 120 120 98 98 120 98 120 98 120 120 99 98 98 120 120 120 98 120 120 98 120 120 120 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 
 seedBase: testtrainingwrite-taxall-v3-c
@@ -8998,12 +8998,12 @@ policyTargetsNCMove
 
 globalTargetsNC
 -109 78 85 77 80 89 1 0 -10 0 {'descr':'<f4','fortran_order':False,'shape':(7,64)}                                                                  
-0 1 0 -30.5 0.497741 0.502259 0 -0.0158839 0.49622 0.50378 0 0.212124 0.493307 0.506693 0 0.375362 0.491375 0.508625 0 0.52449 -30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 -7.5 1 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 
-1 0 0 30.5 0.501605 0.498395 0 0.254884 0.497629 0.502371 0 0.020744 0.496095 0.503905 0 -0.0589877 0.496237 0.503763 0 -0.0424606 30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 7.5 1 0 0 5 0 0 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -30.5 0.493536 0.506464 0 -0.484853 0.50161 0.498391 0 0.0483028 0.500061 0.499939 0 0.0585293 0.497679 0.502321 0 -0.00503343 -30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 -7.5 1 0 0 10 0 0 0 0 0 0 0 0 100 0 0 0 
-1 0 0 30.5 0.520794 0.479206 0 1.32151 0.496123 0.503877 0 -0.206225 0.498628 0.501373 0 -0.279405 0.499629 0.500371 0 -0.282321 30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 7.5 1 0 0 15 0 0 0 0 0 0 0 0 100 0 0 0 
-0 1 0 -30.5 0.43023 0.56977 0 -4.05861 0.500191 0.499809 0 -0.284043 0.510696 0.489304 0 -0.118341 0.513746 0.486254 0 -0.0538662 -30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 -7.5 1 0 0 20 0 0 0 0 0 0 0 0 100 0 0 0 
-1 0 0 30.5 0.691498 0.308502 0 11.049 0.553748 0.446252 0 2.21601 0.525003 0.474997 0 0.201649 0.525147 0.474853 0 0.0608322 30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 0 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 7.5 1 0 0 25 0 0 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -30.5 0.497741 0.502259 0 -0.0158839 0.49622 0.50378 0 0.212124 0.493307 0.506693 0 0.375362 0.491375 0.508625 0 0.52449 -30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 -7.5 1 0 0 0 0 0 0 0 0 0 0 0 100 0 0 0 
+1 0 0 30.5 0.501605 0.498395 0 0.254884 0.497629 0.502371 0 0.020744 0.496095 0.503905 0 -0.0589877 0.496237 0.503763 0 -0.0424606 30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 7.5 1 0 0 5 0 0 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -30.5 0.493536 0.506464 0 -0.484853 0.50161 0.498391 0 0.0483028 0.500061 0.499939 0 0.0585293 0.497679 0.502321 0 -0.00503343 -30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 -7.5 1 0 0 10 0 0 0 0 0 0 0 0 100 0 0 0 
+1 0 0 30.5 0.520794 0.479206 0 1.32151 0.496123 0.503877 0 -0.206225 0.498628 0.501373 0 -0.279405 0.499629 0.500371 0 -0.282321 30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 7.5 1 0 0 15 0 0 0 0 0 0 0 0 100 0 0 0 
+0 1 0 -30.5 0.43023 0.56977 0 -4.05861 0.500191 0.499809 0 -0.284043 0.510696 0.489304 0 -0.118341 0.513746 0.486254 0 -0.0538662 -30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 -7.5 1 0 0 20 0 0 0 0 0 0 0 0 100 0 0 0 
+1 0 0 30.5 0.691498 0.308502 0 11.049 0.553748 0.446252 0 2.21601 0.525003 0.474997 0 0.201649 0.525147 0.474853 0 0.0608322 30.5 0 0 0 0 1 1 1 1 0 0 0 0 1 1 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 7.5 1 0 0 25 0 0 0 0 0 0 0 0 100 0 0 0 
 0.523521 0.476479 0 0.451098 0.523521 0.476479 0 0.451098 0.523521 0.476479 0 0.451098 0.523521 0.476479 0 0.451098 0.523521 0.476479 0 0.451098 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 1 1 1 1 1 410186 3.70106e+06 928556 3.39242e+06 2.70089e+06 418970 7.5 1 0 0 25 0 0 0 0 0 0 1 0 100 0 0 0 
 
 scoreDistrN
@@ -9027,14 +9027,14 @@ selfBonusScoreN
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 valueTargetsNCHW
--109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(7,4,5,5)}                                                               
--82 -82 -82 -100 -100 -82 -100 -82 -100 -82 -81 -100 -100 -82 -100 -100 -100 -100 -100 -82 -82 -100 -82 -100 -100 1 0 0 -1 0 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 1 -1 0 0 -1 1 0 1 -1 0 0 -1 0 0 1 1 -1 -1 0 -1 0 0 0 0 1 1 -1 1 0 -1 0 1 0 -1 -1 0 -1 0 -1 0 0 -1 -1 0 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 
-82 81 82 100 100 82 100 81 100 82 82 100 100 82 100 100 100 100 100 82 82 100 82 100 100 -1 0 -1 1 0 0 0 0 0 -1 -1 1 1 0 1 0 0 0 0 -1 -1 1 0 0 1 -1 -1 -1 1 0 -1 1 -1 0 -1 -1 1 1 0 1 0 0 1 0 -1 -1 1 0 1 1 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 
--82 -82 -82 -100 -100 -82 -100 -82 -100 -82 -82 -100 -100 -82 -100 -100 -100 -100 -100 -82 -82 -100 -82 -100 -100 1 0 1 -1 0 1 -1 0 0 1 1 -1 -1 0 -1 0 0 0 0 1 1 -1 1 -1 -1 1 1 1 -1 0 1 -1 1 0 1 1 -1 -1 1 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 0 1 0 -1 -1 0 -1 0 -1 0 0 -1 -1 0 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 
-82 81 82 100 100 82 100 82 100 82 82 100 100 82 100 100 100 100 100 82 82 100 82 100 100 -1 -1 -1 1 0 -1 1 -1 0 -1 -1 1 1 -1 1 0 0 1 1 0 -1 1 0 1 1 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 
--82 -82 -82 -100 -100 -81 -100 -82 -100 -82 -81 -100 -100 -81 -100 -100 -100 -100 -100 -82 -82 -100 -82 -100 -100 0 0 0 -1 -1 0 -1 0 0 0 0 -1 -1 0 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 0 1 0 -1 -1 0 -1 0 -1 0 0 -1 -1 0 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 0 1 0 -1 -1 0 -1 0 -1 0 0 -1 -1 0 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 
-81 82 82 100 100 82 100 82 100 82 81 100 100 82 100 100 100 100 100 82 82 100 82 100 100 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+-109 78 85 77 80 89 1 0 -10 0 {'descr':'|i1','fortran_order':False,'shape':(7,5,5,5)}                                                               
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 1 0 0 -1 0 0 0 0 0 0 1 0 0 0 -1 0 0 0 0 0 1 -1 0 0 -1 1 0 1 -1 0 0 -1 0 0 1 1 -1 -1 0 -1 0 0 0 0 1 1 -1 1 0 -1 0 1 0 -1 -1 0 -1 0 -1 0 0 -1 -1 0 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 -98 -98 -98 -120 -120 -98 -120 -98 -120 -98 -98 -120 -120 -98 -120 -120 -120 -120 -120 -98 -99 -120 -99 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 -1 0 -1 1 0 0 0 0 0 -1 -1 1 1 0 1 0 0 0 0 -1 -1 1 0 0 1 -1 -1 -1 1 0 -1 1 -1 0 -1 -1 1 1 0 1 0 0 1 0 -1 -1 1 0 1 1 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 98 98 98 120 120 98 120 98 120 99 98 120 120 99 120 120 120 120 120 99 98 120 98 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 1 0 1 -1 0 1 -1 0 0 1 1 -1 -1 0 -1 0 0 0 0 1 1 -1 1 -1 -1 1 1 1 -1 0 1 -1 1 0 1 1 -1 -1 1 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 0 1 0 -1 -1 0 -1 0 -1 0 0 -1 -1 0 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 -98 -98 -98 -120 -120 -98 -120 -98 -120 -99 -98 -120 -120 -98 -120 -120 -120 -120 -120 -98 -98 -120 -98 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 -1 -1 -1 1 0 -1 1 -1 0 -1 -1 1 1 -1 1 0 0 1 1 0 -1 1 0 1 1 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 98 98 98 120 120 98 120 98 120 98 98 120 120 98 120 120 120 120 120 98 99 120 98 120 120 
+-1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 0 0 0 -1 -1 0 -1 0 0 0 0 -1 -1 0 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 0 1 0 -1 -1 0 -1 0 -1 0 0 -1 -1 0 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 0 1 0 -1 -1 0 -1 0 -1 0 0 -1 -1 0 -1 -1 -1 -1 -1 0 0 -1 0 -1 -1 -98 -98 -99 -120 -120 -98 -120 -98 -120 -98 -98 -120 -120 -98 -120 -120 -120 -120 -120 -98 -98 -120 -98 -120 -120 
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 0 -1 0 1 1 0 1 0 1 0 0 1 1 0 1 1 1 1 1 0 0 1 0 1 1 98 98 98 120 120 98 120 99 120 98 98 120 120 98 120 120 120 120 120 98 98 120 99 120 120 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 
 
 seedBase: testtrainingwrite-simpleterritory-sgf-c

@@ -70,7 +70,8 @@ struct FinishedGameData {
   std::vector<float> targetWeightByTurn;
   std::vector<PolicyTarget> policyTargetsByTurn;
   std::vector<ValueTargets> whiteValueTargetsByTurn;
-  float* finalWhiteOwnership;
+  Color* finalOwnership;
+  float* finalWhiteScoring;
 
   std::vector<SidePosition*> sidePositions;
   std::vector<ChangedNeuralNet*> changedNeuralNets;
@@ -127,8 +128,9 @@ struct TrainingWriteBuffers {
   //C27 Weight assigned to the final board ownership target and score distr and bonus score targets. Most training rows will have this be 1, some will be 0.
   //C28: Weight assigned to the next move policy target
   //C29-32: Weight assigned to the utilityvariance target C21-C24
-  //C33: Weight assigned to the future position targets
-  //C34-35: Unused
+  //C33: Weight assigned to the future position targets valueTargetsNCHW C1-C3
+  //C34: Weight assigned to the area/territory target valueTargetsNCHW C4
+  //C35: Unused
 
   //C36-40: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
   //1 means use, 0 means don't use.
@@ -172,8 +174,9 @@ struct TrainingWriteBuffers {
   NumpyBuffer<int8_t> selfBonusScoreN;
 
   //Spatial value-related targets
-  //C0 - Final board ownership [-100,100], from the perspective of the player to move. All 0 if C26 has weight 0.
-  //C1-3 - Future board position a certain number of turns in the future. All 0 if C33 has weight 0.
+  //C0: Final board ownership [-1,1], from the perspective of the player to move. All 0 if C26 has weight 0.
+  //C1-3: Future board position a certain number of turns in the future. All 0 if C33 has weight 0.
+  //C4: Final board area/territory [-120,120]. All 0 if C34 has weight 0. Unlike ownership, takes into account group tax and scoring rules.
   NumpyBuffer<int8_t> valueTargetsNCHW;
 
   TrainingWriteBuffers(int inputsVersion, int maxRows, int numBinaryChannels, int numGlobalChannels, int dataXLen, int dataYLen);
@@ -193,7 +196,8 @@ struct TrainingWriteBuffers {
     const std::vector<PolicyTargetMove>* policyTarget1, //can be null
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
-    float* finalWhiteOwnership,
+    Color* finalOwnership,
+    float* finalWhiteScoring,
     const std::vector<Board>* posHistForFutureBoards, //can be null
     bool isSidePosition,
     int numNeuralNetsBehindLatest,

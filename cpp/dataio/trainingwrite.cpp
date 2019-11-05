@@ -73,7 +73,8 @@ FinishedGameData::FinishedGameData()
    targetWeightByTurn(),
    policyTargetsByTurn(),
    whiteValueTargetsByTurn(),
-   finalWhiteOwnership(NULL),
+   finalOwnership(NULL),
+   finalWhiteScoring(NULL),
 
    sidePositions(),
    changedNeuralNets()
@@ -84,8 +85,10 @@ FinishedGameData::~FinishedGameData() {
   for(int i = 0; i<policyTargetsByTurn.size(); i++)
     delete policyTargetsByTurn[i].policyTargets;
 
-  if(finalWhiteOwnership != NULL)
-    delete[] finalWhiteOwnership;
+  if(finalOwnership != NULL)
+    delete[] finalOwnership;
+  if(finalWhiteScoring != NULL)
+    delete[] finalWhiteScoring;
 
   for(int i = 0; i<sidePositions.size(); i++)
     delete sidePositions[i];
@@ -134,8 +137,15 @@ void FinishedGameData::printDebug(ostream& out) const {
   }
   for(int y = 0; y<startBoard.y_size; y++) {
     for(int x = 0; x<startBoard.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,startBoard.x_size);
+      out << PlayerIO::colorToChar(finalOwnership[loc]);
+    }
+    out << endl;
+  }
+  for(int y = 0; y<startBoard.y_size; y++) {
+    for(int x = 0; x<startBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,dataXLen);
-      out << Global::strprintf(" %.3f",finalWhiteOwnership[pos]);
+      out << Global::strprintf(" %.3f",finalWhiteScoring[pos]);
     }
     out << endl;
   }
@@ -154,7 +164,7 @@ void FinishedGameData::printDebug(ostream& out) const {
 //And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 2;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 64;
-static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 4;
+static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 5;
 static const int BONUS_SCORE_RADIUS = 30;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int xLen, int yLen)
@@ -236,6 +246,28 @@ static float fsq(float x) {
   return x * x;
 }
 
+//Converts a value in [-1,1] to an integer in [-120,120] to pack down to 8 bits.
+//Randomizes to make sure the expectation is exactly correct.
+static int8_t convertRadiusOneToRadius120(float x, Rand& rand) {
+  //We need to pack this down to 8 bits, so map into [-120,120].
+  //Randomize to ensure the expectation is exactly correct.
+  x *= 120.0f;
+  int low = (int)floor(x);
+  int high = low+1;
+  if(low < -120) return -120;
+  if(high > 120) return 120;
+
+  float lambda = (float)(x-low);
+  if(lambda == 0.0f) return (int8_t)low;
+  else return (int8_t)(rand.nextBool(lambda) ? high : low);
+}
+//Same, but for [-2,2].
+// static int8_t convertRadiusTwoToRadius120(float x, Rand& rand) {
+//   return convertRadiusOneToRadius120(x*0.5,rand);
+// }
+
+
+
 static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTurn, int idx, Player nextPlayer, double nowFactor, float* buf) {
   double winValue = 0.0;
   double lossValue = 0.0;
@@ -276,7 +308,8 @@ void TrainingWriteBuffers::addRow(
   const vector<PolicyTargetMove>* policyTarget1, //can be null
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
-  float* finalWhiteOwnership,
+  Color* finalOwnership,
+  float* finalWhiteScoring,
   const vector<Board>* posHistForFutureBoards, //can be null
   bool isSidePosition,
   int numNeuralNetsBehindLatest,
@@ -466,7 +499,7 @@ void TrainingWriteBuffers::addRow(
   int8_t* rowBonusScore = selfBonusScoreN.data + curRows * bonusScoreLen;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
-  if(finalWhiteOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
+  if(finalOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
     rowGlobal[27] = 0.0f;
     rowGlobal[20] = 0.0f;
     for(int i = 0; i<posArea; i++)
@@ -488,21 +521,19 @@ void TrainingWriteBuffers::addRow(
     float score = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
     rowGlobal[20] = score;
 
+    //Fill with zeros in case the buffers differ in size
+    for(int i = 0; i<posArea; i++)
+      rowOwnership[i] = 0;
+
     //Fill ownership info
-    for(int i = 0; i<posArea; i++) {
-      assert(data.finalWhiteOwnership[i] <= 1.0f && data.finalWhiteOwnership[i] >= -1.0f);
-      //Training rows need things from the perspective of the player to move, so we flip as appropriate.
-      float ownership = (nextPlayer == P_WHITE ? data.finalWhiteOwnership[i] : -data.finalWhiteOwnership[i]);
-      //We need to pack this down to 8 bits, so map into [-100,100].
-      //Randomize to ensure the expectation is exactly correct.
-      ownership *= 100.0f;
-      int low = (int)floor(ownership);
-      int high = low >= 100 ? 100 : low+1;
-      float lambda = (float)(ownership-low);
-      if(lambda == 0.0f)
-        rowOwnership[i] = low;
-      else
-        rowOwnership[i] = (rand.nextBool(lambda) ? high : low);
+    Player opp = getOpp(nextPlayer);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,dataXLen);
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(finalOwnership[loc] == nextPlayer) rowOwnership[pos] = 1.0f;
+        else if(finalOwnership[loc] == opp) rowOwnership[pos] = -1.0f;
+      }
     }
 
     //Fill score vector "onehot"-like
@@ -560,17 +591,37 @@ void TrainingWriteBuffers::addRow(
       rowOwnership[i+posArea*2] = 0;
       rowOwnership[i+posArea*3] = 0;
     }
+    Player pla = nextPlayer;
+    Player opp = getOpp(nextPlayer);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         int pos = NNPos::xyToPos(x,y,dataXLen);
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if(board1.colors[loc] == nextPlayer) rowOwnership[pos+posArea] = 1;
-        else if(board1.colors[loc] == getOpp(nextPlayer)) rowOwnership[pos+posArea] = -1;
-        if(board2.colors[loc] == nextPlayer) rowOwnership[pos+posArea*2] = 1;
-        else if(board2.colors[loc] == getOpp(nextPlayer)) rowOwnership[pos+posArea*2] = -1;
-        if(board3.colors[loc] == nextPlayer) rowOwnership[pos+posArea*3] = 1;
-        else if(board3.colors[loc] == getOpp(nextPlayer)) rowOwnership[pos+posArea*3] = -1;
+        if(board1.colors[loc] == pla) rowOwnership[pos+posArea] = 1;
+        else if(board1.colors[loc] == opp) rowOwnership[pos+posArea] = -1;
+        if(board2.colors[loc] == pla) rowOwnership[pos+posArea*2] = 1;
+        else if(board2.colors[loc] == opp) rowOwnership[pos+posArea*2] = -1;
+        if(board3.colors[loc] == pla) rowOwnership[pos+posArea*3] = 1;
+        else if(board3.colors[loc] == opp) rowOwnership[pos+posArea*3] = -1;
       }
+    }
+  }
+
+
+  if(finalWhiteScoring == NULL
+     || (data.endHist.isGameFinished && data.endHist.isNoResult)
+  ) {
+    rowGlobal[34] = 0.0f;
+    for(int i = 0; i<posArea; i++) {
+      rowOwnership[i+posArea*4] = 0;
+    }
+  }
+  else {
+    rowGlobal[34] = 1.0f;
+    for(int i = 0; i<posArea; i++) {
+      float scoring = (nextPlayer == P_WHITE ? finalWhiteScoring[i] : -finalWhiteScoring[i]);
+      assert(scoring <= 1.0f && scoring >= -1.0f);
+      rowOwnership[i+posArea*4] = convertRadiusOneToRadius120(scoring,rand);
     }
   }
 
@@ -792,7 +843,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     else
       assert(lastTargets.noResult == 0.0f);
 
-    assert(data.finalWhiteOwnership != NULL);
+    assert(data.finalOwnership != NULL);
+    assert(data.finalWhiteScoring != NULL);
     assert(!data.endHist.isResignation);
   }
   #endif
@@ -854,7 +906,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             policyTarget1,
             data.whiteValueTargetsByTurn,
             turnNumberAfterStart,
-            data.finalWhiteOwnership,
+            data.finalOwnership,
+            data.finalWhiteScoring,
             &posHistForFutureBoards,
             isSidePosition,
             numNeuralNetsBehindLatest,
@@ -903,6 +956,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         NULL,
         whiteValueTargetsBuf,
         0,
+        NULL,
         NULL,
         NULL,
         isSidePosition,
