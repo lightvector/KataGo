@@ -7,6 +7,7 @@
 #include "dataio/sgf.h"
 #include "dataio/trainingwrite.h"
 #include "dataio/loadmodel.h"
+#include "neuralnet/modelversion.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
@@ -163,22 +164,18 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   Rand seedRand;
 
   string configFile;
-  int inputsVersion;
   string modelsDir;
   string outputDir;
   try {
     TCLAP::CmdLine cmd("Generate training data via self play", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
-    TCLAP::ValueArg<int>    inputsVersionArg("","inputs-version","Version of neural net input features to use for data",true,0,"INT");
     TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
     cmd.add(configFileArg);
-    cmd.add(inputsVersionArg);
     cmd.add(modelsDirArg);
     cmd.add(outputDirArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
-    inputsVersion = inputsVersionArg.getValue();
     modelsDir = modelsDirArg.getValue();
     outputDir = outputDirArg.getValue();
 
@@ -213,6 +210,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   //Width and height of the board to use when writing data, typically 19
   const int dataBoardLen = cfg.getInt("dataBoardLen",9,37);
+  const int inputsVersion =
+    cfg.contains("inputsVersion") ?
+    cfg.getInt("inputsVersion",0,10000) :
+    NNModelVersion::getInputsVersion(NNModelVersion::defaultModelVersion);
   //Max number of games that we will allow to be queued up and not written out
   const int maxDataQueueSize = cfg.getInt("maxDataQueueSize",1,1000000);
   const int maxRowsPerTrainFile = cfg.getInt("maxRowsPerTrainFile",1,100000000);
