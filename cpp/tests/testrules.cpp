@@ -1,4 +1,5 @@
 #include "../tests/tests.h"
+#include "../dataio/sgf.h"
 
 using namespace std;
 using namespace TestCommon;
@@ -3135,6 +3136,73 @@ HASH: C377EB251DBAB5E2F6C1BABE18EEE392
     expect(name,out,expected);
   }
 
+  {
+    const char* name = "Test basic game";
 
+    string sgfStr = "(;FF[4]GM[1]SZ[12]PB[b6c96-s49543680-d12165287]PW[b6c96-s50529536-d12424600]HA[0]KM[7.5]RU[koSIMPLEscoreTERRITORYtaxSEKIsui1]RE[B+1.5];B[di];W[ii];B[dd];W[id];B[gj];W[fc];B[jg];W[hh];B[jj];W[ji];B[ij];W[if];B[ec];W[fd];B[cf];W[cj];B[ci];W[dj];B[ej];W[ek];B[fk];W[ei];B[fj];W[bi];B[bh];W[bj];B[dk];W[cc];B[fb];W[ck];B[cd];W[gb];B[el];W[eb];B[db];W[fa];B[ki];W[kh];B[kj];W[kg];B[jf];W[je];B[eg];W[cb];B[dc];W[da];B[bc];W[bb];B[bd];W[ef];B[fg];W[dg];B[cg];W[df];B[dh];W[ff];B[gg];W[eh];B[ch];W[gf];B[gh];W[gi];B[fi];W[hi];B[jh];W[kf];B[hg];W[ig];B[ab];W[hf];B[fh];W[ca];B[de];W[li];B[lj];W[lh];B[ee];W[fe];B[hj];W[ih];B[aa];W[ed];B[ac];W[];B[ba];W[ea];B[];W[];B[];W[];B[ai];W[];B[cl];W[bl];B[ak];W[];B[aj];W[];B[bk];W[];B[cj];W[jb];B[];W[])";
+
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    Board board;
+    BoardHistory hist;
+    Player nextPla = P_BLACK;
+    int turnNumberToSetup = sgf->moves.size();
+    Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
+
+    sgf->setupBoardAndHist(initialRules, board, nextPla, hist, turnNumberToSetup);
+    string expected = R"%%(
+HASH: 328F99331CC19E0AF700EB536A83D1F4
+   A B C D E F G H J K L M
+12 X X O O O O . . . . . .
+11 X O O X O . O . . O . .
+10 X X O X X O . . . . . .
+ 9 . X X X O O . . O . . .
+ 8 . . . X X O . . . O . .
+ 7 . . X O O O O O O . O .
+ 6 . . X O X X X X O . O .
+ 5 . X X X . X X O O . O O
+ 4 X . X X . X O O O O X O
+ 3 X . X . X X X X X X X X
+ 2 X X . X . X . . . . . .
+ 1 . O X . X . . . . . . .
+
+
+Initial pla Black
+Encore phase 2
+Turns this phase 14
+Rules koSIMPLEscoreTERRITORYtaxSEKIsui1komi7.5
+Ko prohib hash 00000000000000000000000000000000
+White bonus score 1
+Past normal phase end 0
+Game result 1 Black -1.5 1 0 0
+Last moves D4 J4 D9 J9 G3 F10 K6 H5 K3 K4 J3 J7 E10 F9 C7 C3 C4 D3 E3 E2 F2 E4 F3 B4 B5 B3 D2 C10 F11 C2 C9 G11 E1 E11 D11 F12 L4 L5 L3 L6 K7 K8 E6 C11 D10 D12 B10 B11 B9 E7 F6 D6 C6 D7 D5 F7 G6 E5 C5 G7 G5 G4 F4 H4 K5 L7 H6 J6 A11 H7 F5 C12 D8 M4 M3 M5 E8 F8 H3 J5 A12 E9 A10 pass B12 E12 pass pass pass pass A4 pass C1 B1 A2 pass A3 pass B2 pass C3 K11 pass pass
+XXOOOOOOOOOO
+XOOXOOOOOOOO
+XXOXXOOOOOOO
+XXXXOOOOOOOO
+XXXXXOOOOOOO
+XXXOOOOOOOOO
+XXXOXXXXOOOO
+XXXXXXXOOOOO
+XXXXXXOOOOXO
+XXXXXXXXXXXX
+XXXXXXXXXXXX
+XXXXXXXXXXXX
+)%%";
+    hist.printDebugInfo(out,board);
+
+    Color area[Board::MAX_ARR_SIZE];
+    hist.endAndScoreGameNow(board,area);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << PlayerIO::colorToChar(area[loc]);
+      }
+      out << endl;
+    }
+    out << endl;
+
+    expect(name,out,expected);
+  }
 
 }

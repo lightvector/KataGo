@@ -202,6 +202,19 @@ bool Rules::tryParseRules(const string& ss, Rules& buf) {
       if(s.length() <= 0)
         break;
 
+      if(startsWithAndStrip(s,"komi")) {
+        int endIdx = 0;
+        while(endIdx < s.length() && !Global::isAlpha(s[endIdx] && !Global::isWhitespace(s[endIdx])))
+          endIdx++;
+        float komi;
+        bool suc = Global::tryStringToFloat(s.substr(0,endIdx),komi);
+        if(!suc)
+          return false;
+        rules.komi = komi;
+        s = s.substr(endIdx);
+        s = Global::trim(s);
+        continue;
+      }
       if(startsWithAndStrip(s,"ko")) {
         if(startsWithAndStrip(s,"simple")) rules.koRule = Rules::KO_SIMPLE;
         else if(startsWithAndStrip(s,"positional")) rules.koRule = Rules::KO_POSITIONAL;
@@ -227,19 +240,6 @@ bool Rules::tryParseRules(const string& ss, Rules& buf) {
         if(startsWithAndStrip(s,"1")) rules.multiStoneSuicideLegal = true;
         else if(startsWithAndStrip(s,"0")) rules.multiStoneSuicideLegal = false;
         else return false;
-        continue;
-      }
-      if(startsWithAndStrip(s,"komi")) {
-        int endIdx = 0;
-        while(endIdx < s.length() && !Global::isAlpha(s[endIdx] && !Global::isWhitespace(s[endIdx])))
-          endIdx++;
-        float komi;
-        bool suc = Global::tryStringToFloat(s.substr(endIdx),komi);
-        if(!suc)
-          return false;
-        rules.komi = komi;
-        s = s.substr(endIdx);
-        s = Global::trim(s);
         continue;
       }
 
