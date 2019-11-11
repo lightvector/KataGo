@@ -226,6 +226,7 @@ def model_fn(features,labels,mode,params):
     (oloss,oloss_op) = moving_mean("oloss",target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used)
     (sloss,sloss_op) = moving_mean("sloss",target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used)
     (fploss,fploss_op) = moving_mean("fploss",target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used)
+    (skloss,skloss_op) = moving_mean("skloss",target_vars.seki_loss_unreduced, weights=target_vars.target_weight_used)
     (rwlloss,rwlloss_op) = moving_mean("rwlloss",target_vars.winloss_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (rsmloss,rsmloss_op) = moving_mean("rsmloss",target_vars.scoremean_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (rsdloss,rsdloss_op) = moving_mean("rsdloss",target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used)
@@ -251,6 +252,7 @@ def model_fn(features,labels,mode,params):
       "oloss": oloss,
       "sloss": sloss,
       "fploss": fploss,
+      "skloss": skloss,
       "rwlloss": rwlloss,
       "rsmloss": rsmloss,
       "rsdloss": rsdloss,
@@ -289,7 +291,7 @@ def model_fn(features,labels,mode,params):
       mode,
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
       train_op=tf.group(train_step,p0loss_op,p1loss_op,vloss_op,tdvloss_op,smloss_op,sbpdfloss_op,sbcdfloss_op,
-                        oloss_op,sloss_op,fploss_op,rwlloss_op,rsmloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ventr_op,ptentr_op,wmean_op),
+                        oloss_op,sloss_op,fploss_op,skloss_op,rwlloss_op,rsmloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ventr_op,ptentr_op,wmean_op),
       training_hooks = [logging_hook]
     )
 
