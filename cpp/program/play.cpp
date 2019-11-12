@@ -1408,7 +1408,8 @@ FinishedGameData* Play::runGame(
         board.calculateNonDameTouchingArea(fullArea,whiteMinusBlackNonDameTouchingRegionCount, true, true, hist.rules.multiStoneSuicideLegal);
         board.calculateNonDameTouchingArea(nonDameArea,whiteMinusBlackNonDameTouchingRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
         for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
-          if(nonDameArea[i] == C_EMPTY && (fullArea[i] == C_BLACK || fullArea[i] == C_WHITE))
+          //Only fill in seki areas on rulesets that actually have seki areas.
+          if(hist.rules.taxRule != Rules::TAX_NONE && nonDameArea[i] == C_EMPTY && (fullArea[i] == C_BLACK || fullArea[i] == C_WHITE))
             gameData->finalSekiAreas[i] = true;
           else
             gameData->finalSekiAreas[i] = false;
