@@ -309,3 +309,108 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
 
   NeuralNet::globalCleanup();
 }
+
+
+void Tests::runSekiTrainWriteTests(const string& modelFile) {
+  cout << "Running test for how a seki gets recorded" << endl;
+  NeuralNet::globalInitialize();
+
+  int nnXLen = 13;
+  int nnYLen = 13;
+
+  Logger logger;
+  logger.setLogToStdout(false);
+  logger.setLogTime(false);
+  logger.addOStream(cout);
+
+  string sgfStr = "(;KM[0.0]PB[]SZ[13]PW[]AP[Sabaki:0.43.3]CA[UTF-8];B[aj];W[bi];B[bk];W[cj];B[cl];W[dk];B[dm];W[el];B[dl];W[ek];B[ck];W[dj];B[bj];W[ci];B[al];W[bm];B[fm];W[em];B[fl];W[ai];B[fk];W[dh];B[fj];W[bl];B[gi];W[eg];B[hh];W[ff];B[ig];W[ge];B[jf];W[hd];B[fi];W[di];B[gh];W[dg];B[hg];W[fe];B[ke];W[ic];B[ld];W[jb];B[fh];W[he];B[je];W[jc];B[kd];W[ja];B[md];W[la];B[mb];W[ka];B[mc];W[gc];B[jh];W[cc];B[kk];W[cf];B[jk];W[dc];B[ej];W[ei];B[eh];W[fg];B[gg];W[gf];B[hf];W[ie];B[if];W[id];B[jd];W[kc];B[lb];W[kb];B[lc])";
+
+  auto run = [&](const string& seedBase, const Rules& rules) {
+    int inputsVersion = 6;
+    int maxRows = 256;
+    double firstFileMinRandProp = 1.0;
+    int debugOnlyWriteEvery = 1000;
+    TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, nnXLen, nnYLen, debugOnlyWriteEvery, seedBase+"dwriter");
+
+    NNEvaluator* nnEval = startNNEval(modelFile,seedBase+"nneval",logger,0,true,false,false);
+
+    SearchParams params;
+    params.maxVisits = 30;
+    params.drawEquivalentWinsForWhite = 0.5;
+
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = string("test");
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = params;
+
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    Board initialBoard;
+    Player initialPla;
+    BoardHistory initialHist;
+
+    ExtraBlackAndKomi extraBlackAndKomi(0,rules.komi,rules.komi);
+    int turnNumber = 75;
+    sgf->setupBoardAndHist(rules,initialBoard,initialPla,initialHist,turnNumber);
+
+    bool doEndGameIfAllPassAlive = true;
+    bool clearBotAfterSearch = true;
+    int maxMovesPerGame = 1;
+    vector<std::atomic<bool>*> stopConditions;
+    FancyModes fancyModes;
+    fancyModes.initGamesWithPolicy = false;
+    fancyModes.forkSidePositionProb = 0;
+    fancyModes.cheapSearchProb = 0;
+    fancyModes.cheapSearchVisits = 0;
+    fancyModes.cheapSearchTargetWeight = 0;
+    fancyModes.earlyForkGameProb = 0;
+    fancyModes.earlyForkGameExpectedMoveProp = 0;
+    fancyModes.earlyForkGameMinChoices = 2;
+    fancyModes.earlyForkGameMaxChoices = 2;
+    fancyModes.noCompensateKomiProb = 0;
+    fancyModes.compensateKomiVisits = 5;
+    fancyModes.forSelfPlay = true;
+    fancyModes.dataXLen = nnXLen;
+    fancyModes.dataYLen = nnYLen;
+
+    string searchRandSeed = seedBase+"search";
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+
+    Rand rand(seedBase+"play");
+    FinishedGameData* gameData = Play::runGame(
+      initialBoard,initialPla,initialHist,extraBlackAndKomi,
+      botSpec,botSpec,
+      bot,bot,
+      doEndGameIfAllPassAlive, clearBotAfterSearch,
+      logger, false, false,
+      maxMovesPerGame, stopConditions,
+      fancyModes, true,
+      rand,
+      NULL
+    );
+
+    cout << "seedBase: " << seedBase << endl;
+    gameData->endHist.printDebugInfo(cout,gameData->endHist.getRecentBoard(0));
+    dataWriter.writeGame(*gameData);
+    dataWriter.flushIfNonempty();
+    delete gameData;
+    delete nnEval;
+    delete sgf;
+    cout << endl;
+  };
+
+  vector<Rules> ruless = {
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, 0.0f),
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, 0.0f),
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, 0.0f),
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 0.0f),
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, false, 0.0f),
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, 0.0f),
+  };
+
+  for(int r = 0; r<ruless.size(); r++) {
+    run("abc",ruless[r]);
+  }
+
+  NeuralNet::globalCleanup();
+}
