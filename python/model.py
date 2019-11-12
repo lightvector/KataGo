@@ -73,7 +73,7 @@ class Model:
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.scoring_target_shape = [self.pos_len,self.pos_len]
     self.futurepos_target_shape = [self.pos_len,self.pos_len,2]
-    self.seki_target_shape = [self.pos_len,self.pos_len,1]
+    self.seki_target_shape = [self.pos_len,self.pos_len]
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
     self.scoring_target_weight_shape = []
