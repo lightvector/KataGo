@@ -1550,6 +1550,7 @@ float Search::adjustExplorePolicyProb(
   const SearchThread& thread, const SearchNode& parent, Loc moveLoc, float nnPolicyProb,
   double parentUtility, double totalChildVisits, double childVisits, double& childUtility
 ) const {
+  (void)totalChildVisits;
   //Near the tree root, explore local moves a bit more for root player
   if(searchParams.localExplore &&
      parent.nextPla == rootPla && thread.history.moveHistory.size() > 0 &&
