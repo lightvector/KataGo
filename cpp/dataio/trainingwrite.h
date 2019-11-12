@@ -71,6 +71,7 @@ struct FinishedGameData {
   std::vector<PolicyTarget> policyTargetsByTurn;
   std::vector<ValueTargets> whiteValueTargetsByTurn;
   Color* finalOwnership;
+  bool* finalSekiAreas;
   float* finalWhiteScoring;
 
   std::vector<SidePosition*> sidePositions;
@@ -128,7 +129,7 @@ struct TrainingWriteBuffers {
   //C27 Weight assigned to the final board ownership target and score distr targets. Most training rows will have this be 1, some will be 0.
   //C28: Weight assigned to the next move policy target
   //C29-32: Weight assigned to the utilityvariance target C21-C24
-  //C33: Weight assigned to the future position targets valueTargetsNCHW C1-C3
+  //C33: Weight assigned to the future position targets valueTargetsNCHW C1-C2
   //C34: Weight assigned to the area/territory target valueTargetsNCHW C4
   //C35: Unused
 
@@ -171,8 +172,9 @@ struct TrainingWriteBuffers {
   NumpyBuffer<int8_t> scoreDistrN;
 
   //Spatial value-related targets
-  //C0: Final board ownership [-1,1], from the perspective of the player to move. All 0 if C26 has weight 0.
-  //C1-3: Future board position a certain number of turns in the future. All 0 if C33 has weight 0.
+  //C0: Final board ownership [-1,1], from the perspective of the player to move. All 0 if C27 has weight 0.
+  //C1: Final regions that touch dame (seki). All 0 if C27 has weight 0.
+  //C2-3: Future board position a certain number of turns in the future. All 0 if C33 has weight 0.
   //C4: Final board area/territory [-120,120]. All 0 if C34 has weight 0. Unlike ownership, takes into account group tax and scoring rules.
   NumpyBuffer<int8_t> valueTargetsNCHW;
 
@@ -194,6 +196,7 @@ struct TrainingWriteBuffers {
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
     Color* finalOwnership,
+    bool* finalSekiAreas,
     float* finalWhiteScoring,
     const std::vector<Board>* posHistForFutureBoards, //can be null
     bool isSidePosition,

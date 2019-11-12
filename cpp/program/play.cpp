@@ -1368,7 +1368,9 @@ FinishedGameData* Play::runGame(
     ValueTargets finalValueTargets;
 
     assert(gameData->finalOwnership == NULL);
+    assert(gameData->finalSekiAreas == NULL);
     gameData->finalOwnership = new Color[Board::MAX_ARR_SIZE];
+    gameData->finalSekiAreas = new bool[Board::MAX_ARR_SIZE];
 
     if(hist.isGameFinished && hist.isNoResult) {
       finalValueTargets.win = 0.0f;
@@ -1379,6 +1381,7 @@ FinishedGameData* Play::runGame(
       //Fill with empty so that we use "nobody owns anything" as the training target.
       //Although in practice actually the training normally weights by having a result or not, so it doesn't matter what we fill.
       std::fill(gameData->finalOwnership,gameData->finalOwnership+Board::MAX_ARR_SIZE,C_EMPTY);
+      std::fill(gameData->finalSekiAreas,gameData->finalSekiAreas+Board::MAX_ARR_SIZE,false);
     }
     else {
       //Relying on this to be idempotent, so that we can get the final territory map
@@ -1396,6 +1399,23 @@ FinishedGameData* Play::runGame(
       finalValueTargets.mctsUtility16 = 0.0f;
       finalValueTargets.mctsUtility64 = 0.0f;
       finalValueTargets.mctsUtility256 = 0.0f;
+
+      //Fill seki areas
+      {
+        Color* fullArea = new Color[Board::MAX_ARR_SIZE];
+        Color* nonDameArea = new Color[Board::MAX_ARR_SIZE];
+        int whiteMinusBlackNonDameTouchingRegionCount;
+        board.calculateNonDameTouchingArea(fullArea,whiteMinusBlackNonDameTouchingRegionCount, true, true, hist.rules.multiStoneSuicideLegal);
+        board.calculateNonDameTouchingArea(nonDameArea,whiteMinusBlackNonDameTouchingRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
+        for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
+          if(nonDameArea[i] == C_EMPTY && (fullArea[i] == C_BLACK || fullArea[i] == C_WHITE))
+            gameData->finalSekiAreas[i] = true;
+          else
+            gameData->finalSekiAreas[i] = false;
+        }
+        delete fullArea;
+        delete nonDameArea;
+      }
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
 

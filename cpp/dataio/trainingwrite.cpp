@@ -74,6 +74,7 @@ FinishedGameData::FinishedGameData()
    policyTargetsByTurn(),
    whiteValueTargetsByTurn(),
    finalOwnership(NULL),
+   finalSekiAreas(NULL),
    finalWhiteScoring(NULL),
 
    sidePositions(),
@@ -87,6 +88,8 @@ FinishedGameData::~FinishedGameData() {
 
   if(finalOwnership != NULL)
     delete[] finalOwnership;
+  if(finalSekiAreas != NULL)
+    delete[] finalSekiAreas;
   if(finalWhiteScoring != NULL)
     delete[] finalWhiteScoring;
 
@@ -139,6 +142,13 @@ void FinishedGameData::printDebug(ostream& out) const {
     for(int x = 0; x<startBoard.x_size; x++) {
       Loc loc = Location::getLoc(x,y,startBoard.x_size);
       out << PlayerIO::colorToChar(finalOwnership[loc]);
+    }
+    out << endl;
+  }
+  for(int y = 0; y<startBoard.y_size; y++) {
+    for(int x = 0; x<startBoard.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,startBoard.x_size);
+      out << (int)finalSekiAreas[loc];
     }
     out << endl;
   }
@@ -307,6 +317,7 @@ void TrainingWriteBuffers::addRow(
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
   Color* finalOwnership,
+  bool* finalSekiAreas,
   float* finalWhiteScoring,
   const vector<Board>* posHistForFutureBoards, //can be null
   bool isSidePosition,
@@ -503,7 +514,7 @@ void TrainingWriteBuffers::addRow(
   if(finalOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
     rowGlobal[27] = 0.0f;
     rowGlobal[20] = 0.0f;
-    for(int i = 0; i<posArea; i++)
+    for(int i = 0; i<posArea*2; i++)
       rowOwnership[i] = 0;
     for(int i = 0; i<scoreDistrLen; i++)
       rowScoreDistr[i] = 0;
@@ -512,6 +523,8 @@ void TrainingWriteBuffers::addRow(
     rowScoreDistr[scoreDistrMid] = 50;
   }
   else {
+    assert(finalSekiAreas != NULL);
+
     rowGlobal[27] = 1.0f;
     //Fill score info
     const ValueTargets& lastTargets = whiteValueTargets[whiteValueTargets.size()-1];
@@ -519,7 +532,7 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[20] = score;
 
     //Fill with zeros in case the buffers differ in size
-    for(int i = 0; i<posArea; i++)
+    for(int i = 0; i<posArea*2; i++)
       rowOwnership[i] = 0;
 
     //Fill ownership info
@@ -530,6 +543,7 @@ void TrainingWriteBuffers::addRow(
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(finalOwnership[loc] == nextPlayer) rowOwnership[pos] = 1.0f;
         else if(finalOwnership[loc] == opp) rowOwnership[pos] = -1.0f;
+        if(finalSekiAreas[loc]) rowOwnership[pos+posArea] = 1.0f;
       }
     }
 
@@ -554,7 +568,6 @@ void TrainingWriteBuffers::addRow(
   if(posHistForFutureBoards == NULL) {
     rowGlobal[33] = 0.0f;
     for(int i = 0; i<posArea; i++) {
-      rowOwnership[i+posArea] = 0;
       rowOwnership[i+posArea*2] = 0;
       rowOwnership[i+posArea*3] = 0;
     }
@@ -566,15 +579,12 @@ void TrainingWriteBuffers::addRow(
 
     rowGlobal[33] = 1.0f;
     int endIdx = boards.size()-1;
-    const Board& board1 = boards[std::min(whiteValueTargetsIdx+8,endIdx)];
-    const Board& board2 = boards[std::min(whiteValueTargetsIdx+16,endIdx)];
+    const Board& board2 = boards[std::min(whiteValueTargetsIdx+8,endIdx)];
     const Board& board3 = boards[std::min(whiteValueTargetsIdx+32,endIdx)];
-    assert(board1.y_size == board.y_size && board1.x_size == board.x_size);
     assert(board2.y_size == board.y_size && board2.x_size == board.x_size);
     assert(board3.y_size == board.y_size && board3.x_size == board.x_size);
 
     for(int i = 0; i<posArea; i++) {
-      rowOwnership[i+posArea] = 0;
       rowOwnership[i+posArea*2] = 0;
       rowOwnership[i+posArea*3] = 0;
     }
@@ -584,8 +594,6 @@ void TrainingWriteBuffers::addRow(
       for(int x = 0; x<board.x_size; x++) {
         int pos = NNPos::xyToPos(x,y,dataXLen);
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if(board1.colors[loc] == pla) rowOwnership[pos+posArea] = 1;
-        else if(board1.colors[loc] == opp) rowOwnership[pos+posArea] = -1;
         if(board2.colors[loc] == pla) rowOwnership[pos+posArea*2] = 1;
         else if(board2.colors[loc] == opp) rowOwnership[pos+posArea*2] = -1;
         if(board3.colors[loc] == pla) rowOwnership[pos+posArea*3] = 1;
@@ -818,6 +826,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       assert(lastTargets.noResult == 0.0f);
 
     assert(data.finalOwnership != NULL);
+    assert(data.finalSekiAreas != NULL);
     assert(data.finalWhiteScoring != NULL);
     assert(!data.endHist.isResignation);
   }
@@ -881,6 +890,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             data.whiteValueTargetsByTurn,
             turnNumberAfterStart,
             data.finalOwnership,
+            data.finalSekiAreas,
             data.finalWhiteScoring,
             &posHistForFutureBoards,
             isSidePosition,
@@ -930,6 +940,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         NULL,
         whiteValueTargetsBuf,
         0,
+        NULL,
         NULL,
         NULL,
         NULL,
