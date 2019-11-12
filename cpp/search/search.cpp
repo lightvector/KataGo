@@ -435,17 +435,27 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   }
 
   //Possibly reduce visits on children that we spend too many visits on in retrospect
-  if(&node == rootNode && searchParams.rootDesiredPerChildVisitsCoeff > 0 && numChildren > 0) {
+  if(&node == rootNode && numChildren > 0) {
 
     const SearchNode* bestChild = node.children[mostVisitedIdx];
     double fpuValue = -10.0; //dummy, not actually used since these childs all should actually have visits
-    bool isRootDuringSearch = false;
+    double parentUtility;
+    {
+      while(node.statsLock.test_and_set(std::memory_order_acquire));
+      double utilitySum = node.stats.utilitySum;
+      double weightSum = node.stats.weightSum;
+      node.statsLock.clear(std::memory_order_release);
+      assert(weightSum > 0.0);
+      parentUtility = utilitySum / weightSum;
+    }
+
+    bool isDuringSearch = false;
 
     float* maybeNoisedPolicyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
     //TODO test this - reduce play selection values based on the ORIGINAL policy rather than the noised one!
     //float* policyProbs = node.nnOutput->policyProbs;
     float* policyProbs = maybeNoisedPolicyProbs;
-    double bestChildExploreSelectionValue = getExploreSelectionValue(node,policyProbs,bestChild,totalChildVisits,fpuValue,isRootDuringSearch);
+    double bestChildExploreSelectionValue = getExploreSelectionValue(node,policyProbs,bestChild,totalChildVisits,fpuValue,parentUtility,isDuringSearch,NULL);
 
     for(int i = 0; i<numChildren; i++) {
       if(i != mostVisitedIdx)
@@ -1517,6 +1527,59 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     return -extraRootPoints;
 }
 
+static bool nearWeakStones(const Board& board, Loc loc, Player pla) {
+  Player opp = getOpp(pla);
+  for(int i = 0; i < 4; i++) {
+    Loc adj = loc + board.adj_offsets[i];
+    if(board.colors[adj] == opp && board.getNumLiberties(adj) <= 4)
+      return true;
+    else if(board.colors[adj] == C_EMPTY) {
+      for(int j = 0; j < 4; j++) {
+        Loc adjadj = adj + board.adj_offsets[j];
+        if(board.colors[adjadj] == opp) {
+          if(board.getNumLiberties(adjadj) <= 3)
+            return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+float Search::adjustExplorePolicyProb(
+  const SearchThread& thread, const SearchNode& parent, Loc moveLoc, float nnPolicyProb,
+  double parentUtility, double totalChildVisits, double childVisits, double& childUtility
+) const {
+  //Near the tree root, explore local moves a bit more for root player
+  if(searchParams.localExplore &&
+     parent.nextPla == rootPla && thread.history.moveHistory.size() > 0 &&
+     thread.history.moveHistory.size() <= rootHistory.moveHistory.size() + 2
+  ) {
+    Loc prevLoc = thread.history.moveHistory[thread.history.moveHistory.size()-1].loc;
+    if(moveLoc != Board::PASS_LOC && prevLoc != Board::PASS_LOC) {
+      //Within sqrt(5) of the opponent's move
+      //Within 2 of a group with <= 3 liberties, or touching opp stone with <= 4 liberties
+      //Not self atari
+      const Board& board = thread.board;
+      int distanceSq = Location::euclideanDistanceSquared(moveLoc,prevLoc,board.x_size);
+      if(distanceSq <= 5 && board.getNumLibertiesAfterPlay(moveLoc,parent.nextPla,2) >= 2) {
+        if(nearWeakStones(board, moveLoc, parent.nextPla)) {
+          float averageToward = distanceSq <= 2 ? 0.06f : distanceSq <= 4 ? 0.04f : 0.03f;
+          //Behave as if policy is a few points higher
+          if(nnPolicyProb < averageToward)
+            nnPolicyProb = 0.5f * (nnPolicyProb + averageToward);
+          if(childVisits > 0 && (parent.nextPla == P_WHITE ? (childUtility < parentUtility) : (childUtility > parentUtility))) {
+            //Also encourage a bit more exploration even if value is bad
+            double parentWeight = sqrt(childVisits);
+            childUtility = (parentUtility * parentWeight + childUtility * childVisits) / (parentWeight + childVisits);
+          }
+        }
+      }
+    }
+  }
+  return nnPolicyProb;
+}
+
 int Search::getPos(Loc moveLoc) const {
   return NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
 }
@@ -1524,7 +1587,8 @@ int Search::getPos(Loc moveLoc) const {
 //Parent must be locked
 double Search::getExploreSelectionValue(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
-  int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch
+  int64_t totalChildVisits, double fpuValue, double parentUtility,
+  bool isDuringSearch, const SearchThread* thread
 ) const {
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
@@ -1568,8 +1632,11 @@ double Search::getExploreSelectionValue(
     childUtility = childUtility + (virtualLossUtility - childUtility) * virtualLossVisitFrac;
   }
 
+  if(isDuringSearch)
+    nnPolicyProb = adjustExplorePolicyProb(*thread,parent,moveLoc,nnPolicyProb,parentUtility,totalChildVisits,childVisits,childUtility);
+
   //Hack to get the root to funnel more visits down child branches
-  if(isRootDuringSearch && searchParams.rootDesiredPerChildVisitsCoeff > 0.0) {
+  if(isDuringSearch && (&parent == rootNode) && searchParams.rootDesiredPerChildVisitsCoeff > 0.0) {
     if(childVisits < sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff)) {
       return 1e20;
     }
@@ -1696,8 +1763,8 @@ void Search::selectBestChildToDescend(
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
-    bool isRootDuringSearch = isRoot;
-    double selectionValue = getExploreSelectionValue(node,policyProbs,child,totalChildVisits,fpuValue,isRootDuringSearch);
+    bool isDuringSearch = true;
+    double selectionValue = getExploreSelectionValue(node,policyProbs,child,totalChildVisits,fpuValue,parentUtility,isDuringSearch,&thread);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = i;
@@ -1728,6 +1795,9 @@ void Search::selectBestChildToDescend(
     }
 
     float nnPolicyProb = policyProbs[movePos];
+    double childUtility = 0.0; //dummy, we don't care
+    nnPolicyProb = adjustExplorePolicyProb(thread,node,moveLoc,nnPolicyProb,parentUtility,totalChildVisits,0,childUtility);
+
     if(nnPolicyProb > bestNewNNPolicyProb) {
       bestNewNNPolicyProb = nnPolicyProb;
       bestNewMoveLoc = moveLoc;

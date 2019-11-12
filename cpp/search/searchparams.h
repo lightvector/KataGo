@@ -49,6 +49,7 @@ struct SearchParams {
   double rootEndingBonusPoints; //Extra bonus (or penalty) to encourage good passing behavior at the end of the game.
   bool rootPruneUselessMoves; //Prune moves that are entirely useless moves that prolong the game.
   bool conservativePass; //Never assume one's own pass will end the game.
+  bool localExplore; //Explore local tacticy moves a little more, to try to find some blind spots.
 
   //Threading-related
   uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes
