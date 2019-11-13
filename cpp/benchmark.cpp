@@ -197,7 +197,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
   //Run on a sample position just to get any initialization and logs out of the way
   {
-    Board board;
+    Board board(sgf->xSize,sgf->ySize);
     BoardHistory hist;
     Player nextPla = P_BLACK;
     SearchParams thisParams = params;
