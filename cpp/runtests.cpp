@@ -119,6 +119,23 @@ int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
   return 0;
 }
 
+int MainCmds::runsekitrainwritetests(int argc, const char* const* argv) {
+  if(argc != 2) {
+    cerr << "Must supply exactly one argument: MODEL_FILE" << endl;
+    return 1;
+  }
+
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Tests::runSekiTrainWriteTests(
+    string(argv[1])
+  );
+
+  ScoreValue::freeTables();
+
+  return 0;
+}
 
 int MainCmds::runnnlayertests(int argc, const char* const* argv) {
   (void)argc;

@@ -385,6 +385,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("conservativePass"+idxStr)) params.conservativePass = cfg.getBool("conservativePass"+idxStr);
     else if(cfg.contains("conservativePass"))   params.conservativePass = cfg.getBool("conservativePass");
     else                                        params.conservativePass = false;
+    if(cfg.contains("localExplore"+idxStr)) params.localExplore = cfg.getBool("localExplore"+idxStr);
+    else if(cfg.contains("localExplore"))   params.localExplore = cfg.getBool("localExplore");
+    else                                    params.localExplore = false;
 
     if(cfg.contains("mutexPoolSize"+idxStr)) params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize"+idxStr, 1, 1 << 24);
     else                                     params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize",        1, 1 << 24);

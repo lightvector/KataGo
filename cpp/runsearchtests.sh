@@ -16,6 +16,7 @@
 ./katago runsearchtestsv3 models/grun2-b6c96-s128700160-d49811312.txt.gz true false 1 false | tee tests/results/runSearchTestsV3-g2-s1.txt
 
 ./katago runselfplayinittests models/grun50-b6c96-s156348160-d118286860.txt.gz | tee tests/results/runSelfplayInitTests.txt
+./katago runsekitrainwritetests models/g103-b6c96-s103408384-d26419149.txt.gz | tee tests/results/runSekiTrainWriteTests.txt
 
 exit 0
 }

@@ -72,7 +72,8 @@ class Model:
     self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2]
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.scoring_target_shape = [self.pos_len,self.pos_len]
-    self.futurepos_target_shape = [self.pos_len,self.pos_len,3]
+    self.futurepos_target_shape = [self.pos_len,self.pos_len,2]
+    self.seki_target_shape = [self.pos_len,self.pos_len]
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
     self.scoring_target_weight_shape = []
@@ -1191,10 +1192,15 @@ class Model:
     scoring_output = self.apply_symmetry(scoring_output,symmetries,inverse=True)
     scoring_output = tf.reshape(scoring_output, [-1] + self.scoring_target_shape, name = "scoring_output")
 
-    futurepos_output = self.conv_only_block("futurepos",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=3, scale_initial_weights=0.2, reg=False) * mask
-    self.futurepos_conv = ("futurepos",1,trunk_num_channels,3)
+    futurepos_output = self.conv_only_block("futurepos",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=2, scale_initial_weights=0.2, reg=False) * mask
+    self.futurepos_conv = ("futurepos",1,trunk_num_channels,2)
     futurepos_output = self.apply_symmetry(futurepos_output,symmetries,inverse=True)
     futurepos_output = tf.reshape(futurepos_output, [-1] + self.futurepos_target_shape, name = "futurepos_output")
+
+    seki_output = self.conv_only_block("seki",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=1, scale_initial_weights=0.2, reg=False) * mask
+    self.seki_conv = ("seki",1,trunk_num_channels,1)
+    seki_output = self.apply_symmetry(seki_output,symmetries,inverse=True)
+    seki_output = tf.reshape(seki_output, [-1] + self.seki_target_shape, name = "seki_output")
 
     # self.add_lr_factor("v2/w:0",0.25)
     # self.add_lr_factor("v2/b:0",0.25)
@@ -1218,6 +1224,7 @@ class Model:
     self.ownership_output = ownership_output
     self.scoring_output = scoring_output
     self.futurepos_output = futurepos_output
+    self.seki_output = seki_output
 
     self.mask_before_symmetry = mask_before_symmetry
     self.mask = mask
@@ -1234,6 +1241,7 @@ class Target_vars:
     ownership_output = model.ownership_output
     scoring_output = model.scoring_output
     futurepos_output = model.futurepos_output
+    seki_output = model.seki_output
 
     value_probs = tf.nn.softmax(value_output,axis=1)
     scorebelief_probs = tf.nn.softmax(scorebelief_output,axis=1)
@@ -1267,6 +1275,9 @@ class Target_vars:
     #Future board positions, unconditional
     self.futurepos_target = (placeholders["futurepos_target"] if "futurepos_target" in placeholders else
                              tf.placeholder(tf.float32, [None] + model.futurepos_target_shape))
+    #Seki state of final board, CONDITIONAL on result
+    self.seki_target = (placeholders["seki_target"] if "seki_target" in placeholders else
+                             tf.placeholder(tf.float32, [None] + model.seki_target_shape))
 
     self.target_weight_from_data = (placeholders["target_weight_from_data"] if "target_weight_from_data" in placeholders else
                                     tf.placeholder(tf.float32, [None] + model.target_weight_shape))
@@ -1294,6 +1305,7 @@ class Target_vars:
     model.assert_batched_shape("ownership_target", self.ownership_target, model.ownership_target_shape)
     model.assert_batched_shape("scoring_target", self.scoring_target, model.scoring_target_shape)
     model.assert_batched_shape("futurepos_target", self.futurepos_target, model.futurepos_target_shape)
+    model.assert_batched_shape("seki_target", self.seki_target, model.seki_target_shape)
     model.assert_batched_shape("target_weight_from_data", self.target_weight_from_data, model.target_weight_shape)
     model.assert_batched_shape("ownership_target_weight", self.ownership_target_weight, model.ownership_target_weight_shape)
     model.assert_batched_shape("scoring_target_weight", self.scoring_target_weight, model.scoring_target_weight_shape)
@@ -1373,14 +1385,25 @@ class Target_vars:
     #and also in the event of capture, there may be large captures that don't occur on small boards,
     #causing some scaling with board size. So, I dunno, let's compromise and scale by sqrt(boardarea).
     #Also, the further out targets should be weighted a little less due to them being higher entropy
-    #due to simply being farther in the future, so multiply by [1,0.5,0.25].
-    self.futurepos_loss_unreduced = 0.15 * self.futurepos_target_weight * (
+    #due to simply being farther in the future, so multiply by [1,0.25].
+    self.futurepos_loss_unreduced = 0.25 * self.futurepos_target_weight * (
       tf.reduce_sum(
         tf.square(tf.tanh(futurepos_output) - self.futurepos_target)
         * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len,1])
-        * tf.reshape(tf.constant([1,0.5,0.25],dtype=tf.float32),[1,1,1,3]),
+        * tf.reshape(tf.constant([1,0.25],dtype=tf.float32),[1,1,1,2]),
         axis=[1,2,3]
       ) / tf.sqrt(model.mask_sum_hw)
+    )
+
+    #Seki target, same as ownership except lower weight and sigmoidy instead of tanhy
+    self.seki_loss_unreduced = 0.6 * self.ownership_target_weight * (
+      tf.reduce_sum(
+        tf.nn.softmax_cross_entropy_with_logits_v2(
+          labels=tf.stack([self.seki_target,1-self.seki_target],axis=3),
+          logits=tf.stack([seki_output,tf.zeros_like(seki_output)],axis=3)
+        ) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
+        axis=[1,2]
+      ) / model.mask_sum_hw
     )
 
     def huber_loss(x,y,delta):
@@ -1418,6 +1441,7 @@ class Target_vars:
     self.ownership_loss = tf.reduce_sum(self.target_weight_used * self.ownership_loss_unreduced, name="losses/ownership_loss")
     self.scoring_loss = tf.reduce_sum(self.target_weight_used * self.scoring_loss_unreduced, name="losses/scoring_loss")
     self.futurepos_loss = tf.reduce_sum(self.target_weight_used * self.futurepos_loss_unreduced, name="losses/futurepos_loss")
+    self.seki_loss = tf.reduce_sum(self.target_weight_used * self.seki_loss_unreduced, name="losses/seki_loss")
     self.scoremean_reg_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_reg_loss_unreduced, name="losses/scoremean_reg_loss")
     self.scorestdev_reg_loss = tf.reduce_sum(self.target_weight_used * self.scorestdev_reg_loss_unreduced, name="losses/scorestdev_reg_loss")
     self.winloss_reg_loss = tf.reduce_sum(self.target_weight_used * self.winloss_reg_loss_unreduced, name="losses/winloss_reg_loss")
@@ -1444,6 +1468,7 @@ class Target_vars:
         self.ownership_loss +
         self.scoring_loss +
         self.futurepos_loss +
+        self.seki_loss +
         self.scoremean_reg_loss +
         self.scorestdev_reg_loss +
         self.reg_loss +
@@ -1568,7 +1593,8 @@ class ModelUtils:
     placeholders["scorebelief_target"] = features["sdn"] / 100.0
     placeholders["ownership_target"] = features["vtnchw"][:,0]
     placeholders["scoring_target"] = features["vtnchw"][:,4] / 120.0
-    placeholders["futurepos_target"] = tf.transpose(features["vtnchw"][:,1:4], [0,2,3,1])
+    placeholders["futurepos_target"] = tf.transpose(features["vtnchw"][:,2:4], [0,2,3,1])
+    placeholders["seki_target"] = features["vtnchw"][:,1]
 
     placeholders["target_weight_from_data"] = features["gtnc"][:,25]
     placeholders["ownership_target_weight"] = features["gtnc"][:,27]
