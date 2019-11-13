@@ -2022,6 +2022,7 @@ void Board::calculateNonDameTouchingAreaHelper(
       if(basicArea[loc] != C_EMPTY && !isDameTouching[loc] && result[loc] != basicArea[loc]) {
         Player pla = basicArea[loc];
         whiteMinusBlackNonDameTouchingRegionCount += (pla == P_WHITE ? 1 : -1);
+        result[loc] = basicArea[loc];
         queue[queueTail++] = loc;
         while(queueHead != queueTail) {
           //Pop next location off queue
