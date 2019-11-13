@@ -1,3 +1,4 @@
+import sys
 import random
 import numpy as np
 
@@ -1095,7 +1096,7 @@ class Board:
 
   def calculateNonDameTouchingArea(self, result, keepTerritories, keepStones, isMultiStoneSuicideLegal):
     #First, just compute basic area.
-    basicArea = [0 for i in self.arrsize]
+    basicArea = [Board.EMPTY for i in range(self.arrsize)]
     for i in range(self.arrsize):
       result[i] = Board.EMPTY
     self.calculateAreaForPla(Board.BLACK,True,True,isMultiStoneSuicideLegal,basicArea)
@@ -1104,7 +1105,7 @@ class Board:
     for y in range(self.size):
       for x in range(self.size):
         loc = self.loc(x,y)
-        if result[loc] == Board.EMPTY:
+        if basicArea[loc] == Board.EMPTY:
           basicArea[loc] = self.board[loc]
 
     self.calculateNonDameTouchingAreaHelper(basicArea,result)
@@ -1375,7 +1376,7 @@ class Board:
             isDameTouching[loc] = True
             queue[queueTail] = loc
             queueTail += 1
-            while queueHead != queueTailL:
+            while queueHead != queueTail:
               #Pop next location off queue
               nextLoc = queue[queueHead]
               queueHead += 1
@@ -1398,6 +1399,7 @@ class Board:
         loc = self.loc(x,y)
         if basicArea[loc] != Board.EMPTY and not isDameTouching[loc] and result[loc] != basicArea[loc]:
           pla = basicArea[loc]
+          result[loc] = basicArea[loc]
           queue[queueTail] = loc
           queueTail += 1
           while queueHead != queueTail:

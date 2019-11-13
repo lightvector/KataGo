@@ -49,6 +49,7 @@ value_output = tf.nn.softmax(model.value_output)
 scoremean_output = 20.0 * model.miscvalues_output[:,0]
 scorestdev_output = 20.0 * tf.math.softplus(model.miscvalues_output[:,1])
 ownership_output = tf.tanh(model.ownership_output)
+scoring_output = model.scoring_output
 futurepos_output = tf.tanh(model.futurepos_output)
 scorebelief_output = tf.nn.softmax(model.scorebelief_output)
 sbscale_output = model.sbscale3_layer
@@ -86,6 +87,7 @@ def get_outputs(session, gs, rules):
    scoremean,
    scorestdev,
    ownership,
+   scoring,
    futurepos,
    scorebelief,
    sbscale
@@ -96,6 +98,7 @@ def get_outputs(session, gs, rules):
     scoremean_output,
     scorestdev_output,
     ownership_output,
+    scoring_output,
     futurepos_output,
     scorebelief_output,
     sbscale_output
@@ -129,6 +132,18 @@ def get_outputs(session, gs, rules):
         ownership_by_loc.append((loc,ownership_flat[pos]))
       else:
         ownership_by_loc.append((loc,-ownership_flat[pos]))
+
+  scoring_flat = scoring.reshape([model.pos_len * model.pos_len])
+  scoring_by_loc = []
+  board = gs.board
+  for y in range(board.size):
+    for x in range(board.size):
+      loc = board.loc(x,y)
+      pos = model.loc_to_tensor_pos(loc,board)
+      if board.pla == Board.WHITE:
+        scoring_by_loc.append((loc,scoring_flat[pos]))
+      else:
+        scoring_by_loc.append((loc,-scoring_flat[pos]))
 
   futurepos0_flat = futurepos[:,:,0].reshape([model.pos_len * model.pos_len])
   futurepos0_by_loc = []
@@ -181,6 +196,8 @@ def get_outputs(session, gs, rules):
     "scorestdev": scorestdev,
     "ownership": ownership,
     "ownership_by_loc": ownership_by_loc,
+    "scoring": scoring,
+    "scoring_by_loc": scoring_by_loc,
     "futurepos": futurepos,
     "futurepos0_by_loc": futurepos0_by_loc,
     "futurepos1_by_loc": futurepos1_by_loc,
@@ -483,6 +500,7 @@ def run_gtp(session):
     'policy1',
     'logpolicy',
     'ownership',
+    'scoring',
     'futurepos0',
     'futurepos1',
     'scorebelief',
@@ -493,6 +511,7 @@ def run_gtp(session):
     'gfx/Policy1/policy1',
     'gfx/LogPolicy/logpolicy',
     'gfx/Ownership/ownership',
+    'gfx/Scoring/scoring',
     'gfx/FuturePos0/futurepos0',
     'gfx/FuturePos1/futurepos1',
     'gfx/ScoreBelief/scorebelief',
@@ -652,19 +671,19 @@ def run_gtp(session):
       ret = '\n'.join(known_analyze_commands)
     elif command[0] == "setrule":
       ret = ""
-      if command[1] == "koRule":
-        rules["koRule"] = command[2]
-      elif command[1] == "scoringRule":
-        rules["scoringRule"] = command[2]
-      elif command[1] == "taxRule":
-        rules["taxRule"] = command[2]
-      elif command[1] == "multiStoneSuicideLegal":
-        rules["multiStoneSuicideLegal"] = bool(command[2])
-      elif command[1] == "encorePhase":
+      if command[1] == "korule":
+        rules["koRule"] = command[2].upper()
+      elif command[1] == "scoringrule":
+        rules["scoringRule"] = command[2].upper()
+      elif command[1] == "taxrule":
+        rules["taxRule"] = command[2].upper()
+      elif command[1] == "multistonesuicidelegal":
+        rules["multiStoneSuicideLegal"] = (command[2] == "true")
+      elif command[1] == "encorephase":
         rules["encorePhase"] = int(command[2])
-      elif command[1] == "passWouldEndPhase":
-        rules["passWouldEndPhase"] = bool(command[2])
-      elif command[1] == "whiteKomi" or command[1] == "komi":
+      elif command[1] == "passwouldendphase":
+        rules["passWouldEndPhase"] = (command[2] == "true")
+      elif command[1] == "whitekomi" or command[1] == "komi":
         rules["whiteKomi"] = float(command[2])
       else:
         ret = "Unknown rules setting"
@@ -684,6 +703,10 @@ def run_gtp(session):
     elif command[0] == "ownership":
       outputs = get_outputs(session, gs, rules)
       gfx_commands = get_gfx_commands_for_heatmap(outputs["ownership_by_loc"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
+      ret = "\n".join(gfx_commands)
+    elif command[0] == "scoring":
+      outputs = get_outputs(session, gs, rules)
+      gfx_commands = get_gfx_commands_for_heatmap(outputs["scoring_by_loc"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
       ret = "\n".join(gfx_commands)
     elif command[0] == "futurepos0":
       outputs = get_outputs(session, gs, rules)
