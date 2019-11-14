@@ -1335,7 +1335,7 @@ class Target_vars:
       ) / model.mask_sum_hw
     )
 
-    self.scoring_loss_unreduced = 0.4 * self.scoring_target_weight * (
+    self.scoring_loss_unreduced = 0.6 * self.scoring_target_weight * (
       tf.reduce_sum(
         tf.square(self.scoring_target - scoring_output) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
         axis=[1,2]
@@ -1360,7 +1360,7 @@ class Target_vars:
     )
 
     #Seki target, same as ownership except lower weight and sigmoidy instead of tanhy
-    self.seki_loss_unreduced = 0.6 * self.ownership_target_weight * (
+    self.seki_loss_unreduced = 1.5 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.nn.softmax_cross_entropy_with_logits_v2(
           labels=tf.stack([self.seki_target,1-self.seki_target],axis=3),
