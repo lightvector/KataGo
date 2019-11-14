@@ -51,6 +51,7 @@ scorestdev_output = 20.0 * tf.math.softplus(model.miscvalues_output[:,1])
 ownership_output = tf.tanh(model.ownership_output)
 scoring_output = model.scoring_output
 futurepos_output = tf.tanh(model.futurepos_output)
+seki_output = tf.sigmoid(model.seki_output)
 scorebelief_output = tf.nn.softmax(model.scorebelief_output)
 sbscale_output = model.sbscale3_layer
 
@@ -89,6 +90,7 @@ def get_outputs(session, gs, rules):
    ownership,
    scoring,
    futurepos,
+   seki,
    scorebelief,
    sbscale
   ] = fetch_output(session,gs,rules,[
@@ -100,6 +102,7 @@ def get_outputs(session, gs, rules):
     ownership_output,
     scoring_output,
     futurepos_output,
+    seki_output,
     scorebelief_output,
     sbscale_output
   ])
@@ -169,6 +172,15 @@ def get_outputs(session, gs, rules):
       else:
         futurepos1_by_loc.append((loc,-futurepos1_flat[pos]))
 
+  seki_flat = seki.reshape([model.pos_len * model.pos_len])
+  seki_by_loc = []
+  board = gs.board
+  for y in range(board.size):
+    for x in range(board.size):
+      loc = board.loc(x,y)
+      pos = model.loc_to_tensor_pos(loc,board)
+      seki_by_loc.append((loc,seki_flat[pos]))
+
   moves_and_probs = sorted(moves_and_probs0, key=lambda moveandprob: moveandprob[1], reverse=True)
   #Generate a random number biased small and then find the appropriate move to make
   #Interpolate from moving uniformly to choosing from the triangular distribution
@@ -201,6 +213,8 @@ def get_outputs(session, gs, rules):
     "futurepos": futurepos,
     "futurepos0_by_loc": futurepos0_by_loc,
     "futurepos1_by_loc": futurepos1_by_loc,
+    "seki": seki,
+    "seki_by_loc": seki_by_loc,
     "scorebelief": scorebelief,
     "sbscale": sbscale,
     "genmove_result": genmove_result
@@ -503,6 +517,7 @@ def run_gtp(session):
     'scoring',
     'futurepos0',
     'futurepos1',
+    'seki',
     'scorebelief',
     'passalive',
   ]
@@ -514,6 +529,7 @@ def run_gtp(session):
     'gfx/Scoring/scoring',
     'gfx/FuturePos0/futurepos0',
     'gfx/FuturePos1/futurepos1',
+    'gfx/Seki/seki',
     'gfx/ScoreBelief/scorebelief',
     'gfx/PassAlive/passalive',
   ]
@@ -715,6 +731,10 @@ def run_gtp(session):
     elif command[0] == "futurepos1":
       outputs = get_outputs(session, gs, rules)
       gfx_commands = get_gfx_commands_for_heatmap(outputs["futurepos1_by_loc"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None, hotcold=True)
+      ret = "\n".join(gfx_commands)
+    elif command[0] == "seki":
+      outputs = get_outputs(session, gs, rules)
+      gfx_commands = get_gfx_commands_for_heatmap(outputs["seki_by_loc"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None)
       ret = "\n".join(gfx_commands)
     elif command[0] in layer_command_lookup:
       (layer,channel,normalization_div) = layer_command_lookup[command[0]]
