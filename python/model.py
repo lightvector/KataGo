@@ -1405,7 +1405,7 @@ class Target_vars:
       tf.reduce_sum(
         tf.nn.softmax_cross_entropy_with_logits_v2(
           labels=tf.stack([1.0-tf.square(self.ownership_target), tf.square(self.ownership_target)],axis=3),
-          logits=tf.stack(seki_output[:,:,:,3],tf.zeros_like(self.ownership_target),axis=3)
+          logits=tf.stack([seki_output[:,:,:,3],tf.zeros_like(self.ownership_target)],axis=3)
         ) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
         axis=[1,2]
       ) / model.mask_sum_hw
