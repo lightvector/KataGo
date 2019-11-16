@@ -1341,18 +1341,13 @@ class Target_vars:
     )
     self.td_value_loss_unreduced = tf.reduce_sum(self.td_value_loss_unreduced, axis=1)
 
-    self.scoremean_loss_unreduced = tf.zeros_like(scoremean_prediction)
-    #self.scoremean_loss_unreduced = 0.00003 * (
-    #  tf.square(self.scoremean_target - scoremean_prediction * value_probs[:,2]) #Multiply by value_probs[:,2] (the no-result prob) to make it an unconditional prediction
-    #)
-
-    self.scorebelief_cdf_loss_unreduced = 0.02 * self.ownership_target_weight * (
+    self.scorebelief_cdf_loss_unreduced = 0.015 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
         axis=1
       )
     )
-    self.scorebelief_pdf_loss_unreduced = 0.02 * self.ownership_target_weight * (
+    self.scorebelief_pdf_loss_unreduced = 0.015 * self.ownership_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.scorebelief_target,
         logits=scorebelief_output
@@ -1412,8 +1407,14 @@ class Target_vars:
       return tf.where(absdiff > delta, (0.5 * delta*delta) + delta * (absdiff - delta), 0.5 * absdiff * absdiff)
 
     #This is conditional upon there being a result
-    expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
-    self.scoremean_reg_loss_unreduced = 0.004 * huber_loss(expected_score_from_belief, scoremean_prediction, delta = 10.0)
+    #expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
+    #self.scoremean_reg_loss_unreduced = 0.004 * huber_loss(expected_score_from_belief, scoremean_prediction, delta = 10.0)
+    self.scoremean_reg_loss_unreduced = tf.zeros_like(scoremean_prediction)
+
+    #Huber will incentivize this to not actually converge to the mean, but rather something meanlike locally and something medianlike
+    #for very large possible losses. This seems... okay - it might actually be what users want.
+    self.scoremean_loss_unreduced = 0.003 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 10.0)
+    #self.scoremean_loss_unreduced = tf.zeros_like(scoremean_prediction)
 
     stdev_of_belief = tf.sqrt(0.001 + tf.reduce_sum(
       scorebelief_probs * tf.square(
