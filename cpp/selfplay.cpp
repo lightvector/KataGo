@@ -299,10 +299,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     //Do logging and cleanup while unlocked, so that our freeing and stopping of this neural net doesn't
     //block anyone else
-    logger.write(netAndStuff->nnEval->getModelFileName());
-    logger.write("NN rows: " + Global::int64ToString(netAndStuff->nnEval->numRowsProcessed()));
-    logger.write("NN batches: " + Global::int64ToString(netAndStuff->nnEval->numBatchesProcessed()));
-    logger.write("NN avg batch size: " + Global::doubleToString(netAndStuff->nnEval->averageProcessedBatchSize()));
+    logger.write("Final cleanup of net: " + netAndStuff->nnEval->getModelFileName());
+    logger.write("Final NN rows: " + Global::int64ToString(netAndStuff->nnEval->numRowsProcessed()));
+    logger.write("Final NN batches: " + Global::int64ToString(netAndStuff->nnEval->numBatchesProcessed()));
+    logger.write("Final NN avg batch size: " + Global::doubleToString(netAndStuff->nnEval->averageProcessedBatchSize()));
 
     assert(netAndStuff->numGameThreads == 0);
     assert(netAndStuff->isDraining);

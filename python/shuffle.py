@@ -276,7 +276,7 @@ if __name__ == '__main__':
 
   #If we don't have enough rows, then quit out
   if num_rows_total < min_rows:
-    print("Not enough rows (fewer than %d)" % min_rows)
+    print("Not enough rows, only %d (fewer than %d)" % (num_rows_total,min_rows))
     sys.exit(0)
 
   print("Total rows found: %d (%d usable)" % (num_rows_total,num_usable_rows()))

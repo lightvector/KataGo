@@ -139,6 +139,8 @@ struct Board
   Board(int x, int y); //Create Board of size (x,y)
   Board(const Board& other);
 
+  Board& operator=(const Board&) = default;
+
   //Functions------------------------------------
 
   //Gets the number of liberties of the chain at loc. Precondition: location must be black or white.
@@ -156,9 +158,9 @@ struct Board
   bool isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
   //Check if moving here is illegal due to simple ko
   bool isKoBanned(Loc loc) const;
-  //Check if moving here is illegal.
+  //Check if moving here is legal.
   bool isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
-  //Check if moving here is illegal, ignoring simple ko
+  //Check if moving here is legal, ignoring simple ko
   bool isLegalIgnoringKo(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
   //Check if this location is on the board
   bool isOnBoard(Loc loc) const;
@@ -173,7 +175,7 @@ struct Board
   //Is this board empty?
   bool isEmpty() const;
 
-  //Configuration the board in various ways
+  //Lift any simple ko ban recorded on thie board due to an immediate prior ko capture.
   void clearSimpleKoLoc();
 
   //Sets the specified stone if possible. Returns true usually, returns false location or color were out of range.
