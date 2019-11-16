@@ -1396,7 +1396,7 @@ class Target_vars:
     )
 
     #Seki target, same as ownership except lower weight and sigmoidy instead of tanhy
-    self.seki_loss_unreduced = 1.5 * self.ownership_target_weight * (
+    self.seki_loss_unreduced = 2.0 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.nn.softmax_cross_entropy_with_logits_v2(
           labels=tf.stack([self.seki_target,1-self.seki_target],axis=3),
