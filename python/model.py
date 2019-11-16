@@ -1422,7 +1422,7 @@ class Target_vars:
 
     #Huber will incentivize this to not actually converge to the mean, but rather something meanlike locally and something medianlike
     #for very large possible losses. This seems... okay - it might actually be what users want.
-    self.scoremean_loss_unreduced = 0.001 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 10.0)
+    self.scoremean_loss_unreduced = 0.0015 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 10.0)
     #self.scoremean_loss_unreduced = tf.zeros_like(scoremean_prediction)
 
     stdev_of_belief = tf.sqrt(0.001 + tf.reduce_sum(
