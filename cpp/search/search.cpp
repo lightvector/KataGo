@@ -1671,8 +1671,9 @@ int64_t Search::getReducedPlaySelectionVisits(
   double weightSum = child->stats.weightSum;
   child->statsLock.clear(std::memory_order_release);
 
-  //getReducedPlaySelectionValue only happens after the search, so there should be no multithreading shenanigans that give us a 0-visit child.
-  assert(childVisits > 0);
+  //Child visits may be 0 if this function is called in a multithreaded context, such as during live analysis
+  if(childVisits <= 0)
+    return 0;
   assert(weightSum > 0.0);
 
   //Tiny adjustment for passing
