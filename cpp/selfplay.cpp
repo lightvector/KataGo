@@ -248,6 +248,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.recordTreePositions = cfg.getBool("recordTreePositions");
   fancyModes.recordTreeThreshold = cfg.getInt("recordTreeThreshold",1,100000000);
   fancyModes.recordTreeTargetWeight = cfg.getFloat("recordTreeTargetWeight",0.0f,1.0f);
+  fancyModes.sekiForkHack = true;
   fancyModes.forSelfPlay = true;
   fancyModes.dataXLen = dataBoardLen;
   fancyModes.dataYLen = dataBoardLen;

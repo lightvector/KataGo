@@ -444,6 +444,7 @@ FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
    noCompensateKomiProb(0.0),compensateKomiVisits(1),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),earlyForkGameMinChoices(1),earlyForkGameMaxChoices(1),
+   sekiForkHack(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
    policySurpriseDataWeight(0.0),
@@ -1367,8 +1368,10 @@ FinishedGameData* Play::runGame(
 
     ValueTargets finalValueTargets;
 
+    assert(gameData->finalFullArea == NULL);
     assert(gameData->finalOwnership == NULL);
     assert(gameData->finalSekiAreas == NULL);
+    gameData->finalFullArea = new Color[Board::MAX_ARR_SIZE];
     gameData->finalOwnership = new Color[Board::MAX_ARR_SIZE];
     gameData->finalSekiAreas = new bool[Board::MAX_ARR_SIZE];
 
@@ -1380,6 +1383,7 @@ FinishedGameData* Play::runGame(
 
       //Fill with empty so that we use "nobody owns anything" as the training target.
       //Although in practice actually the training normally weights by having a result or not, so it doesn't matter what we fill.
+      std::fill(gameData->finalFullArea,gameData->finalFullArea+Board::MAX_ARR_SIZE,C_EMPTY);
       std::fill(gameData->finalOwnership,gameData->finalOwnership+Board::MAX_ARR_SIZE,C_EMPTY);
       std::fill(gameData->finalSekiAreas,gameData->finalSekiAreas+Board::MAX_ARR_SIZE,false);
     }
@@ -1400,21 +1404,19 @@ FinishedGameData* Play::runGame(
       finalValueTargets.mctsUtility64 = 0.0f;
       finalValueTargets.mctsUtility256 = 0.0f;
 
-      //Fill seki areas
+      //Fill full and seki areas
       {
-        Color* fullArea = new Color[Board::MAX_ARR_SIZE];
+        board.calculateArea(gameData->finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
+
         Color* nonDameArea = new Color[Board::MAX_ARR_SIZE];
         int whiteMinusBlackNonDameTouchingRegionCount;
-        board.calculateNonDameTouchingArea(fullArea,whiteMinusBlackNonDameTouchingRegionCount, true, true, hist.rules.multiStoneSuicideLegal);
         board.calculateNonDameTouchingArea(nonDameArea,whiteMinusBlackNonDameTouchingRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
         for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
-          //Only fill in seki areas on rulesets that actually have seki areas.
-          if(hist.rules.taxRule != Rules::TAX_NONE && nonDameArea[i] == C_EMPTY && (fullArea[i] == C_BLACK || fullArea[i] == C_WHITE))
+          if(nonDameArea[i] == C_EMPTY && (gameData->finalFullArea[i] == C_BLACK || gameData->finalFullArea[i] == C_WHITE))
             gameData->finalSekiAreas[i] = true;
           else
             gameData->finalSekiAreas[i] = false;
         }
-        delete fullArea;
         delete nonDameArea;
       }
     }
@@ -1562,6 +1564,7 @@ FinishedGameData* Play::runGame(
   return gameData;
 }
 
+
 void Play::maybeForkGame(
   const FinishedGameData* finishedGameData,
   const InitialPosition** nextInitialPosition,
@@ -1573,14 +1576,20 @@ void Play::maybeForkGame(
   if(nextInitialPosition == NULL)
     return;
   *nextInitialPosition = NULL;
-  if(!gameRand.nextBool(fancyModes.earlyForkGameProb))
-    return;
-  //Just for conceptual simplicity, don't fork games that started in the encore
-  if(finishedGameData->startHist.encorePhase != 0)
-    return;
 
   assert(finishedGameData->startHist.initialBoard.pos_hash == finishedGameData->endHist.initialBoard.pos_hash);
   assert(finishedGameData->startHist.initialPla == finishedGameData->endHist.initialPla);
+
+  //TODO
+  // if(fancyModes.sekiForkHack && gameRand.nextBool(0.3)) {
+
+  // }
+
+  //Just for conceptual simplicity, don't early fork games that started in the encore
+  if(finishedGameData->startHist.encorePhase != 0)
+    return;
+  if(!gameRand.nextBool(fancyModes.earlyForkGameProb))
+    return;
 
   Board board = finishedGameData->startHist.initialBoard;
   Player pla = finishedGameData->startHist.initialPla;

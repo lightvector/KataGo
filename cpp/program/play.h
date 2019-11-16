@@ -160,6 +160,9 @@ struct FancyModes {
   int earlyForkGameMinChoices; //Fork between the favorite of this many random legal moves, at minimum
   int earlyForkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
 
+  //Hack to make learning of seki easier - fork positions with different rules when we have sekis
+  bool sekiForkHack;
+
   //With this probability, use only this many visits for a move, and record it with only this weight
   double cheapSearchProb;
   int cheapSearchVisits;

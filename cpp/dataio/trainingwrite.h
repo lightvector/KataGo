@@ -70,6 +70,7 @@ struct FinishedGameData {
   std::vector<float> targetWeightByTurn;
   std::vector<PolicyTarget> policyTargetsByTurn;
   std::vector<ValueTargets> whiteValueTargetsByTurn;
+  Color* finalFullArea;
   Color* finalOwnership;
   bool* finalSekiAreas;
   float* finalWhiteScoring;
@@ -195,6 +196,8 @@ struct TrainingWriteBuffers {
     const std::vector<PolicyTargetMove>* policyTarget1, //can be null
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
+    const Board* finalBoard,
+    Color* finalFullArea,
     Color* finalOwnership,
     bool* finalSekiAreas,
     float* finalWhiteScoring,

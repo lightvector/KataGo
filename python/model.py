@@ -73,6 +73,7 @@ class Model:
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.scoring_target_shape = [self.pos_len,self.pos_len]
     self.futurepos_target_shape = [self.pos_len,self.pos_len,2]
+    self.seki_output_shape = [self.pos_len,self.pos_len,3]
     self.seki_target_shape = [self.pos_len,self.pos_len]
     self.target_weight_shape = []
     self.ownership_target_weight_shape = []
@@ -1197,10 +1198,10 @@ class Model:
     futurepos_output = self.apply_symmetry(futurepos_output,symmetries,inverse=True)
     futurepos_output = tf.reshape(futurepos_output, [-1] + self.futurepos_target_shape, name = "futurepos_output")
 
-    seki_output = self.conv_only_block("seki",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=1, scale_initial_weights=0.2, reg=False) * mask
-    self.seki_conv = ("seki",1,trunk_num_channels,1)
+    seki_output = self.conv_only_block("seki",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=3, scale_initial_weights=0.2, reg=False) * mask
+    self.seki_conv = ("seki",1,trunk_num_channels,3)
     seki_output = self.apply_symmetry(seki_output,symmetries,inverse=True)
-    seki_output = tf.reshape(seki_output, [-1] + self.seki_target_shape, name = "seki_output")
+    seki_output = tf.reshape(seki_output, [-1] + self.seki_output_shape, name = "seki_output")
 
     # self.add_lr_factor("v2/w:0",0.25)
     # self.add_lr_factor("v2/b:0",0.25)
@@ -1395,12 +1396,12 @@ class Target_vars:
       ) / tf.sqrt(model.mask_sum_hw)
     )
 
-    #Seki target, same as ownership except lower weight and sigmoidy instead of tanhy
-    self.seki_loss_unreduced = 2.0 * self.ownership_target_weight * (
+    #Seki-lost-points target, same as ownership except lower weight
+    self.seki_loss_unreduced = 4.0 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.nn.softmax_cross_entropy_with_logits_v2(
-          labels=tf.stack([self.seki_target,1-self.seki_target],axis=3),
-          logits=tf.stack([seki_output,tf.zeros_like(seki_output)],axis=3)
+          labels=tf.stack([1.0-tf.square(self.seki_target), tf.nn.relu(self.seki_target), tf.nn.relu(-self.seki_target)],axis=3),
+          logits=seki_output
         ) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
         axis=[1,2]
       ) / model.mask_sum_hw
