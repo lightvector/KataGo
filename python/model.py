@@ -1138,7 +1138,7 @@ class Model:
       sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg=False)
       sb2_layer_partial = tf.matmul(v1_layer_pooled, sb2w) + sb2b
       sb2_offset_vector = tf.constant(0.05 * self.score_belief_offset_vector, dtype=tf.float32)
-      sb2_parity_vector = tf.reshape(self.score_belief_parity_vector,[1,-1]) * transformed_global_inputs[:,13:14]
+      sb2_parity_vector = tf.reshape(self.score_belief_parity_vector,[1,-1]) * transformed_global_inputs[:,self.num_global_input_features-1:self.num_global_input_features]
       sb2_offset_w = self.weight_variable("sb2_offset/w",[1,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
       sb2_offset_partial = tf.matmul(tf.reshape(sb2_offset_vector,[-1,1]), sb2_offset_w)
       sb2_parity_w = self.weight_variable("sb2_parity/w",[1,sbv2_size],v1_size*3+1,sbv2_size)
