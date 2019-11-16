@@ -1407,13 +1407,13 @@ class Target_vars:
       return tf.where(absdiff > delta, (0.5 * delta*delta) + delta * (absdiff - delta), 0.5 * absdiff * absdiff)
 
     #This is conditional upon there being a result
-    #expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
+    expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
     #self.scoremean_reg_loss_unreduced = 0.004 * huber_loss(expected_score_from_belief, scoremean_prediction, delta = 10.0)
     self.scoremean_reg_loss_unreduced = tf.zeros_like(scoremean_prediction)
 
     #Huber will incentivize this to not actually converge to the mean, but rather something meanlike locally and something medianlike
     #for very large possible losses. This seems... okay - it might actually be what users want.
-    self.scoremean_loss_unreduced = 0.003 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 10.0)
+    self.scoremean_loss_unreduced = 0.001 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 10.0)
     #self.scoremean_loss_unreduced = tf.zeros_like(scoremean_prediction)
 
     stdev_of_belief = tf.sqrt(0.001 + tf.reduce_sum(
