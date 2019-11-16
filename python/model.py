@@ -184,7 +184,7 @@ class Model:
 
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
-  def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, use_history_prop, idx):
+  def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, idx):
     #Currently only support v4 or v5 or v7 MODEL features (inputs version v3 and v4 and v6)
     assert(self.version == 4 or self.version == 5 or self.version == 7)
 
@@ -220,46 +220,45 @@ class Model:
     #Python code does NOT handle ko-prohibited encore spots or anything relating to the encore
     #so features 7 and 8 leave that blank
 
-    if use_history_prop > 0.0:
-      if move_idx >= 1 and moves[move_idx-1][0] == opp:
-        prev1_loc = moves[move_idx-1][1]
-        if prev1_loc is not None and prev1_loc != Board.PASS_LOC:
-          pos = self.loc_to_tensor_pos(prev1_loc,board)
-          bin_input_data[idx,pos,9] = use_history_prop
-        elif prev1_loc == Board.PASS_LOC:
-          global_input_data[idx,0] = use_history_prop
+    if move_idx >= 1 and moves[move_idx-1][0] == opp:
+      prev1_loc = moves[move_idx-1][1]
+      if prev1_loc is not None and prev1_loc != Board.PASS_LOC:
+        pos = self.loc_to_tensor_pos(prev1_loc,board)
+        bin_input_data[idx,pos,9] = 1.0
+      elif prev1_loc == Board.PASS_LOC:
+        global_input_data[idx,0] = 1.0
 
-        if move_idx >= 2 and moves[move_idx-2][0] == pla:
-          prev2_loc = moves[move_idx-2][1]
-          if prev2_loc is not None and prev2_loc != Board.PASS_LOC:
-            pos = self.loc_to_tensor_pos(prev2_loc,board)
-            bin_input_data[idx,pos,10] = use_history_prop
-          elif prev2_loc == Board.PASS_LOC:
-            global_input_data[idx,1] = use_history_prop
+      if move_idx >= 2 and moves[move_idx-2][0] == pla:
+        prev2_loc = moves[move_idx-2][1]
+        if prev2_loc is not None and prev2_loc != Board.PASS_LOC:
+          pos = self.loc_to_tensor_pos(prev2_loc,board)
+          bin_input_data[idx,pos,10] = 1.0
+        elif prev2_loc == Board.PASS_LOC:
+          global_input_data[idx,1] = 1.0
 
-          if move_idx >= 3 and moves[move_idx-3][0] == opp:
-            prev3_loc = moves[move_idx-3][1]
-            if prev3_loc is not None and prev3_loc != Board.PASS_LOC:
-              pos = self.loc_to_tensor_pos(prev3_loc,board)
-              bin_input_data[idx,pos,11] = use_history_prop
-            elif prev3_loc == Board.PASS_LOC:
-              global_input_data[idx,2] = use_history_prop
+        if move_idx >= 3 and moves[move_idx-3][0] == opp:
+          prev3_loc = moves[move_idx-3][1]
+          if prev3_loc is not None and prev3_loc != Board.PASS_LOC:
+            pos = self.loc_to_tensor_pos(prev3_loc,board)
+            bin_input_data[idx,pos,11] = 1.0
+          elif prev3_loc == Board.PASS_LOC:
+            global_input_data[idx,2] = 1.0
 
-            if move_idx >= 4 and moves[move_idx-4][0] == pla:
-              prev4_loc = moves[move_idx-4][1]
-              if prev4_loc is not None and prev4_loc != Board.PASS_LOC:
-                pos = self.loc_to_tensor_pos(prev4_loc,board)
-                bin_input_data[idx,pos,12] = use_history_prop
-              elif prev4_loc == Board.PASS_LOC:
-                global_input_data[idx,3] = use_history_prop
+          if move_idx >= 4 and moves[move_idx-4][0] == pla:
+            prev4_loc = moves[move_idx-4][1]
+            if prev4_loc is not None and prev4_loc != Board.PASS_LOC:
+              pos = self.loc_to_tensor_pos(prev4_loc,board)
+              bin_input_data[idx,pos,12] = 1.0
+            elif prev4_loc == Board.PASS_LOC:
+              global_input_data[idx,3] = 1.0
 
-              if move_idx >= 5 and moves[move_idx-5][0] == opp:
-                prev5_loc = moves[move_idx-5][1]
-                if prev5_loc is not None and prev5_loc != Board.PASS_LOC:
-                  pos = self.loc_to_tensor_pos(prev5_loc,board)
-                  bin_input_data[idx,pos,13] = use_history_prop
-                elif prev5_loc == Board.PASS_LOC:
-                  global_input_data[idx,4] = use_history_prop
+            if move_idx >= 5 and moves[move_idx-5][0] == opp:
+              prev5_loc = moves[move_idx-5][1]
+              if prev5_loc is not None and prev5_loc != Board.PASS_LOC:
+                pos = self.loc_to_tensor_pos(prev5_loc,board)
+                bin_input_data[idx,pos,13] = 1.0
+              elif prev5_loc == Board.PASS_LOC:
+                global_input_data[idx,4] = 1.0
 
     def addLadderFeature(loc,pos,workingMoves):
       assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE)
@@ -271,7 +270,7 @@ class Model:
 
     self.iterLadders(board, addLadderFeature)
 
-    if move_idx > 0 and use_history_prop > 0.0:
+    if move_idx > 0:
       prevBoard = boards[move_idx-1]
     else:
       prevBoard = board
@@ -280,7 +279,7 @@ class Model:
       bin_input_data[idx,pos,15] = 1.0
     self.iterLadders(prevBoard, addPrevLadderFeature)
 
-    if move_idx > 1 and use_history_prop > 0.0:
+    if move_idx > 1:
       prevPrevBoard = boards[move_idx-2]
     else:
       prevPrevBoard = prevBoard
@@ -289,24 +288,59 @@ class Model:
       bin_input_data[idx,pos,16] = 1.0
     self.iterLadders(prevPrevBoard, addPrevPrevLadderFeature)
 
-    #TODO recursivelyreachespass-alive, currently this is wrong for model version 7
-    #Features 18,19 - pass-alive stones
-    area = [-1 for i in range(board.arrsize)]
-    if rules["scoringRule"] == "SCORING_AREA":
-      nonPassAliveStones = False
-      safeBigTerritories = True
-      unsafeBigTerritories = False
-      if self.version != 5:
+    #Features 18,19 - area
+    area = [0 for i in range(board.arrsize)]
+
+    if self.version <= 6:
+      if rules["scoringRule"] == "SCORING_AREA":
+        nonPassAliveStones = False
+        safeBigTerritories = True
+        unsafeBigTerritories = False
+        if self.version != 5:
+          nonPassAliveStones = True
+          unsafeBigTerritories = True
+        board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
+      elif rules["scoringRule"] == "SCORING_TERRITORY":
+        nonPassAliveStones = False
+        safeBigTerritories = True
+        unsafeBigTerritories = False
+        board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
+      else:
+        assert(False)
+    else:
+      if rules["scoringRule"] == "SCORING_AREA" and rules["taxRule"] == "TAX_NONE":
+        safeBigTerritories = True
         nonPassAliveStones = True
         unsafeBigTerritories = True
-      board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
-    elif rules["scoringRule"] == "SCORING_TERRITORY":
-      nonPassAliveStones = False
-      safeBigTerritories = True
-      unsafeBigTerritories = False
-      board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
-    else:
-      assert(False)
+        board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
+      else:
+        hasAreaFeature = False
+        keepTerritories = False
+        keepStones = False
+        if rules["scoringRule"] == "SCORING_AREA" and (rules["taxRule"] == "TAX_SEKI" or rules["taxRule"] == "TAX_ALL"):
+          hasAreaFeature = True
+          keepTerritories = False
+          keepStones = True
+        elif rules["scoringRule"] == "SCORING_TERRITORY" and rules["taxRule"] == "TAX_NONE":
+          if rules["encorePhase"] >= 2:
+            hasAreaFeature = True
+            keepTerritories = True
+            keepStones = False
+        elif rules["scoringRule"] == "SCORING_TERRITORY" and (rules["taxRule"] == "TAX_SEKI" or rules["taxRule"] == "TAX_ALL"):
+          if rules["encorePhase"] >= 2:
+            hasAreaFeature = True
+            keepTerritories = False
+            keepStones = False
+        else:
+          assert(False)
+
+        if hasAreaFeature:
+          board.calculateNonDameTouchingArea(
+            area,
+            keepTerritories,
+            keepStones,
+            rules["multiStoneSuicideLegal"]
+          )
 
     for y in range(bsize):
       for x in range(bsize):
@@ -318,7 +352,6 @@ class Model:
         elif area[loc] == opp:
           bin_input_data[idx,pos,19] = 1.0
 
-    #TODO python-side japanese rules?
     #Features 20,21 - second encore phase starting stones, we just set them to the current stones in pythong
     #since we don't really have a jp rules impl
     if rules["encorePhase"] >= 2:
@@ -345,7 +378,10 @@ class Model:
       selfKomi = bArea+1
     if selfKomi < -bArea-1:
       selfKomi = -bArea-1
-    global_input_data[idx,5] = selfKomi/15.0
+    if self.version >= 7:
+      global_input_data[idx,5] = selfKomi/20.0
+    else:
+      global_input_data[idx,5] = selfKomi/15.0
 
     if rules["koRule"] == "KO_SIMPLE":
       pass
@@ -368,7 +404,7 @@ class Model:
     else:
       assert(False)
 
-    if model.version >= 7:
+    if self.version >= 7:
       if rules["taxRule"] == "TAX_NONE":
         pass
       elif rules["taxRule"] == "TAX_SEKI":
@@ -379,7 +415,7 @@ class Model:
       else:
         assert(False)
 
-    if model.version >= 7:
+    if self.version >= 7:
       if rules["encorePhase"] > 0:
         global_input_data[idx,12] = 1.0
       if rules["encorePhase"] > 1:
@@ -419,7 +455,7 @@ class Model:
       else:
         wave = delta-2.0
 
-      if model.version >= 7:
+      if self.version >= 7:
         global_input_data[idx,15] = wave
       else:
         global_input_data[idx,13] = wave
