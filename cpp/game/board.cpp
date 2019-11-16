@@ -25,6 +25,7 @@ Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_ENCORE_HASH[3];
+Hash128 Board::ZOBRIST_SECOND_ENCORE_START_HASH[MAX_ARR_SIZE][4];
 const Hash128 Board::ZOBRIST_PASS_ENDS_PHASE = //Based on sha256 hash of Board::ZOBRIST_PASS_ENDS_PHASE
   Hash128(0x853E097C279EBF4EULL, 0xE3153DEF9E14A62CULL);
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
@@ -162,6 +163,20 @@ void Board::initHash()
         ZOBRIST_KO_MARK_HASH[i][j] = nextHash();
     }
     ZOBRIST_KO_LOC_HASH[i] = nextHash();
+  }
+
+  //Reseed the random number generator so that these hashes are also
+  //not affected by the size of the board we compile with
+  rand.init("Board::initHash() for ZOBRIST_SECOND_ENCORE_START hashes");
+  for(int i = 0; i<MAX_ARR_SIZE; i++)
+  {
+    for(Color j = 0; j<4; j++)
+    {
+      if(j == C_EMPTY || j == C_WALL)
+        ZOBRIST_SECOND_ENCORE_START_HASH[i][j] = Hash128();
+      else
+        ZOBRIST_SECOND_ENCORE_START_HASH[i][j] = nextHash();
+    }
   }
 
   //Reseed the random number generator so that these size hashes are also

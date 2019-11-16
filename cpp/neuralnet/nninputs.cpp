@@ -516,6 +516,16 @@ Hash128 NNInputs::getHash(
           hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
       }
     }
+    if(hist.encorePhase == 2) {
+      for(int y = 0; y<ySize; y++) {
+        for(int x = 0; x<xSize; x++) {
+          Loc loc = Location::getLoc(x,y,xSize);
+          Color c = hist.secondEncoreStartColors[loc];
+          if(c != C_EMPTY)
+            hash ^= Board::ZOBRIST_SECOND_ENCORE_START_HASH[loc][c];
+        }
+      }
+    }
   }
 
   float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
