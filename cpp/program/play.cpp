@@ -1064,6 +1064,13 @@ static Loc runBotWithLimits(
       toMoveBot->searchParams.rootDesiredPerChildVisitsCoeff = 0.0;
     }
 
+    //If we cleared the search, do a very short search first to get a good dynamic score utility center
+    if(limits.clearBotBeforeSearchThisMove && toMoveBot->searchParams.maxVisits > 10 && toMoveBot->searchParams.maxPlayouts > 10) {
+      int64_t oldMaxVisits = toMoveBot->searchParams.maxVisits;
+      toMoveBot->searchParams.maxVisits = 10;
+      toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+      toMoveBot->searchParams.maxVisits = oldMaxVisits;
+    }
     loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
 
     toMoveBot->searchParams = oldParams;

@@ -1089,29 +1089,49 @@ void Search::computeRootValues(Logger& logger) {
     isMultiStoneSuicideLegal
   );
 
-  //TODO use the existing tree if possible
-  //Grab a neural net evaluation for the current position and use that as the center
-  Board board = rootBoard;
-  const BoardHistory& hist = rootHistory;
-  NNResultBuf nnResultBuf;
-  bool skipCache = false;
-  bool includeOwnerMap = true;
-  bool isRoot = true;
-  MiscNNInputParams nnInputParams;
-  nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-  nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
-  nnEvaluator->evaluate(
-    board, hist, rootPla,
-    nnInputParams,
-    nnResultBuf, &logger, skipCache, includeOwnerMap
-  );
-  double expectedScore = nnResultBuf.result->whiteScoreMean;
-  recentScoreCenter = expectedScore * (1.0 - searchParams.dynamicScoreCenterZeroWeight);
-  double cap =  sqrt(board.x_size * board.y_size) * searchParams.dynamicScoreCenterScale;
-  if(recentScoreCenter > expectedScore + cap)
-    recentScoreCenter = expectedScore + cap;
-  if(recentScoreCenter < expectedScore - cap)
-    recentScoreCenter = expectedScore - cap;
+  //Figure out how to set recentScoreCenter
+  {
+    bool foundExpectedScoreFromTree = false;
+    double expectedScore = 0.0;
+    if(rootNode != NULL) {
+      const SearchNode& node = *rootNode;
+      while(node.statsLock.test_and_set(std::memory_order_acquire));
+      double scoreMeanSum = node.stats.scoreMeanSum;
+      double weightSum = node.stats.weightSum;
+      int64_t numVisits = node.stats.visits;
+      node.statsLock.clear(std::memory_order_release);
+      if(numVisits > 0 && weightSum > 0) {
+        foundExpectedScoreFromTree = true;
+        expectedScore = scoreMeanSum / weightSum;
+      }
+    }
+
+    //Grab a neural net evaluation for the current position and use that as the center
+    if(!foundExpectedScoreFromTree) {
+      Board board = rootBoard;
+      const BoardHistory& hist = rootHistory;
+      NNResultBuf nnResultBuf;
+      bool skipCache = false;
+      bool includeOwnerMap = true;
+      bool isRoot = true;
+      MiscNNInputParams nnInputParams;
+      nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
+      nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
+      nnEvaluator->evaluate(
+        board, hist, rootPla,
+        nnInputParams,
+        nnResultBuf, &logger, skipCache, includeOwnerMap
+      );
+      expectedScore = nnResultBuf.result->whiteScoreMean;
+    }
+
+    recentScoreCenter = expectedScore * (1.0 - searchParams.dynamicScoreCenterZeroWeight);
+    double cap =  sqrt(rootBoard.x_size * rootBoard.y_size) * searchParams.dynamicScoreCenterScale;
+    if(recentScoreCenter > expectedScore + cap)
+      recentScoreCenter = expectedScore + cap;
+    if(recentScoreCenter < expectedScore - cap)
+      recentScoreCenter = expectedScore - cap;
+  }
 }
 
 int64_t Search::numRootVisits() const {

@@ -614,17 +614,17 @@ MoveNum: 91 HASH: 51638568D7DFEEFAEA8451827FA88CB9
  1 X1. X . O . O X X . .
 
 Root visits: 500
-NN rows: 349
-NN batches: 349
+NN rows: 409
+NN batches: 409
 NN avg batch size: 1
 PV: J7 D1 F1 pass pass pass pass K4 E5 L5 D5 K1
 Tree:
-: T  40.67c W  39.79c S   0.88c ( +1.0) N     500  --  J7 D1 F1 pass pass pass pass
+: T  40.19c W  39.31c S   0.88c ( +1.0) N     500  --  J7 D1 F1 pass pass pass pass
 ---White(^)---
-J7  : T  43.34c W  42.39c S   0.94c ( +1.1) LCB   37.11c P 46.86% WF 10.33% PSV     463 N     463  --  J7 D1 F1 pass pass pass pass K4
-pss : T  11.61c W  11.40c S   0.21c ( +0.2) LCB  -24.14c P 22.28% WF  4.95% PSV      14 N      14  --  pass D1 F1 J7 pass
+J7  : T  42.84c W  41.90c S   0.93c ( +1.1) LCB   36.63c P 46.86% WF 10.26% PSV     463 N     463  --  J7 D1 F1 pass pass pass pass K4
+pss : T  11.61c W  11.40c S   0.21c ( +0.2) LCB  -24.14c P 22.28% WF  4.98% PSV      14 N      14  --  pass D1 F1 J7 pass
 E5  : T -29.89c W -29.40c S  -0.49c ( -0.6) LCB -260.00c P  8.39% WF  3.44% PSV       2 N       2  --  E5 D1
-D6  : T -24.34c W -23.85c S  -0.49c ( -0.6) LCB -260.00c P  7.36% WF  3.74% PSV       2 N       2  --  D6 D1
+D6  : T -24.34c W -23.85c S  -0.49c ( -0.6) LCB -260.00c P  7.36% WF  3.75% PSV       2 N       2  --  D6 D1
 F1  : T   2.81c W   2.85c S  -0.04c ( -0.0) LCB -260.00c P  2.86% WF  6.07% PSV       1 N       1  --  F1
 D5  : T  -3.23c W  -3.38c S   0.14c ( +0.2) LCB -260.00c P  2.57% WF  5.65% PSV       1 N       1  --  D5
 K4  : T -54.59c W -52.87c S  -1.72c ( -2.0) LCB -260.00c P  3.09% WF  2.96% PSV       0 N       1  --  K4
@@ -634,7 +634,7 @@ C6  : T   7.94c W   7.76c S   0.18c ( +0.2) LCB -260.00c P  0.58% WF  6.43% PSV 
 L5  : T -51.11c W -50.04c S  -1.07c ( -1.2) LCB -260.00c P  0.50% WF  3.09% PSV       0 N       1  --  L5
 A8  : T -26.86c W -26.26c S  -0.61c ( -0.7) LCB -260.00c P  0.39% WF  4.23% PSV       0 N       1  --  A8
 F4  : T -55.87c W -54.67c S  -1.20c ( -1.4) LCB -260.00c P  0.36% WF  2.91% PSV       0 N       1  --  F4
-A6  : T -20.39c W -19.91c S  -0.48c ( -0.6) LCB -260.00c P  0.29% WF  4.58% PSV       0 N       1  --  A6
+A6  : T -20.39c W -19.91c S  -0.48c ( -0.6) LCB -260.00c P  0.29% WF  4.59% PSV       0 N       1  --  A6
 B2  : T -44.92c W -43.95c S  -0.97c ( -1.1) LCB -260.00c P  0.28% WF  3.35% PSV       0 N       1  --  B2
 B6  : T -26.75c W -26.18c S  -0.57c ( -0.7) LCB -260.00c P  0.27% WF  4.23% PSV       0 N       1  --  B6
 B7  : T -12.73c W -12.36c S  -0.37c ( -0.4) LCB -260.00c P  0.27% WF  5.04% PSV       0 N       1  --  B7
@@ -655,7 +655,7 @@ L2  : T -43.86c W -42.80c S  -1.06c ( -1.2) LCB -260.00c P  0.23% WF  3.40% PSV 
  -99.9  -99.5  -99.9  -99.8  -99.6   98.6   98.4  -99.4  -99.4  -99.8  -98.8 
  -99.8  -99.2  -99.9  -67.5   96.2   71.9   99.4  -99.5  -99.7  -99.2  -98.4 
 
-J7 visits 463 utilityNoBonus 43.34c utilityWithBonus 43.34c endingScoreBonus 0.00
+J7 visits 463 utilityNoBonus 42.84c utilityWithBonus 42.84c endingScoreBonus 0.00
 pass visits 14 utilityNoBonus 11.61c utilityWithBonus 11.61c endingScoreBonus 0.00
 E5 visits 2 utilityNoBonus -29.89c utilityWithBonus -29.89c endingScoreBonus 0.00
 D6 visits 2 utilityNoBonus -24.34c utilityWithBonus -24.34c endingScoreBonus 0.00
@@ -694,17 +694,17 @@ MoveNum: 91 HASH: 51638568D7DFEEFAEA8451827FA88CB9
  1 X1. X . O . O X X . .
 
 Root visits: 500
-NN rows: 349
-NN batches: 349
+NN rows: 409
+NN batches: 409
 NN avg batch size: 1
 PV: J7 D1 F1 pass pass pass pass K4 E5 L5 D5 K1
 Tree:
-: T  40.67c W  39.79c S   0.88c ( +1.0) N     500  --  J7 D1 F1 pass pass pass pass
+: T  40.19c W  39.31c S   0.88c ( +1.0) N     500  --  J7 D1 F1 pass pass pass pass
 ---White(^)---
-J7  : T  43.34c W  42.39c S   0.94c ( +1.1) LCB   37.11c P 46.86% WF 10.33% PSV     463 N     463  --  J7 D1 F1 pass pass pass pass K4
-pss : T  11.61c W  11.40c S   0.21c ( +0.2) LCB  -24.43c P 22.28% WF  4.95% PSV      14 N      14  --  pass D1 F1 J7 pass
+J7  : T  42.84c W  41.90c S   0.93c ( +1.1) LCB   36.63c P 46.86% WF 10.26% PSV     463 N     463  --  J7 D1 F1 pass pass pass pass K4
+pss : T  11.61c W  11.40c S   0.21c ( +0.2) LCB  -24.43c P 22.28% WF  4.98% PSV      14 N      14  --  pass D1 F1 J7 pass
 E5  : T -29.89c W -29.40c S  -0.49c ( -0.6) LCB -260.00c P  8.39% WF  3.44% PSV       2 N       2  --  E5 D1
-D6  : T -24.34c W -23.85c S  -0.49c ( -0.6) LCB -260.00c P  7.36% WF  3.74% PSV       2 N       2  --  D6 D1
+D6  : T -24.34c W -23.85c S  -0.49c ( -0.6) LCB -260.00c P  7.36% WF  3.75% PSV       2 N       2  --  D6 D1
 F1  : T   2.81c W   2.85c S  -0.04c ( -0.0) LCB -260.00c P  2.86% WF  6.07% PSV       1 N       1  --  F1
 D5  : T  -3.23c W  -3.38c S   0.14c ( +0.2) LCB -260.00c P  2.57% WF  5.65% PSV       1 N       1  --  D5
 K4  : T -54.59c W -52.87c S  -1.72c ( -2.0) LCB -260.00c P  3.09% WF  2.96% PSV       0 N       1  --  K4
@@ -714,7 +714,7 @@ C6  : T   7.94c W   7.76c S   0.18c ( +0.2) LCB -260.00c P  0.58% WF  6.43% PSV 
 L5  : T -51.11c W -50.04c S  -1.07c ( -1.2) LCB -260.00c P  0.50% WF  3.09% PSV       0 N       1  --  L5
 A8  : T -26.86c W -26.26c S  -0.61c ( -0.7) LCB -260.00c P  0.39% WF  4.23% PSV       0 N       1  --  A8
 F4  : T -55.87c W -54.67c S  -1.20c ( -1.4) LCB -260.00c P  0.36% WF  2.91% PSV       0 N       1  --  F4
-A6  : T -20.39c W -19.91c S  -0.48c ( -0.6) LCB -260.00c P  0.29% WF  4.58% PSV       0 N       1  --  A6
+A6  : T -20.39c W -19.91c S  -0.48c ( -0.6) LCB -260.00c P  0.29% WF  4.59% PSV       0 N       1  --  A6
 B2  : T -44.92c W -43.95c S  -0.97c ( -1.1) LCB -260.00c P  0.28% WF  3.35% PSV       0 N       1  --  B2
 B6  : T -26.75c W -26.18c S  -0.57c ( -0.7) LCB -260.00c P  0.27% WF  4.23% PSV       0 N       1  --  B6
 B7  : T -12.73c W -12.36c S  -0.37c ( -0.4) LCB -260.00c P  0.27% WF  5.04% PSV       0 N       1  --  B7
@@ -735,7 +735,7 @@ L2  : T -43.86c W -42.80c S  -1.06c ( -1.2) LCB -260.00c P  0.23% WF  3.40% PSV 
  -99.9  -99.5  -99.9  -99.8  -99.6   98.6   98.4  -99.4  -99.4  -99.8  -98.8 
  -99.8  -99.2  -99.9  -67.5   96.2   71.9   99.4  -99.5  -99.7  -99.2  -98.4 
 
-J7 visits 463 utilityNoBonus 43.34c utilityWithBonus 43.34c endingScoreBonus 0.00
+J7 visits 463 utilityNoBonus 42.84c utilityWithBonus 42.84c endingScoreBonus 0.00
 pass visits 14 utilityNoBonus 11.61c utilityWithBonus 11.32c endingScoreBonus -0.33
 E5 visits 2 utilityNoBonus -29.89c utilityWithBonus -29.89c endingScoreBonus 0.00
 D6 visits 2 utilityNoBonus -24.34c utilityWithBonus -24.34c endingScoreBonus 0.00
@@ -896,35 +896,35 @@ O13 : T -77.27c W -72.12c S  -5.14c ( -3.5) LCB -300.00c P  3.84% WF  7.68% PSV 
 N12 : T -71.55c W -66.80c S  -4.75c ( -3.2) LCB -300.00c P  3.55% WF  8.20% PSV       1 N       1  --  N12
 G14 : T -71.66c W -66.69c S  -4.97c ( -3.4) LCB -300.00c P  2.68% WF  8.19% PSV       1 N       1  --  G14
 Beginning search again and then reprinting, should be same
-: T -37.58c W -34.97c S  -2.61c ( -1.6) N     280  --  G2 H1 H2 J1 O3 G16 G14
+: T -35.48c W -34.97c S  -0.52c ( -1.6) N     280  --  G2 H1 H2 J1 O3 G16 G14
 ---White(^)---
-G2  : T -33.25c W -31.03c S  -2.22c ( -1.3) LCB  -45.12c P  3.62% WF 13.50% PSV     188 N     188  --  G2 H1 H2 J1 O3 G16 G14 H11
-O3  : T -48.98c W -45.07c S  -3.90c ( -2.7) LCB  -74.72c P 48.65% WF  8.66% PSV      50 N      53  --  O3 G16 G14 H11 F15
-B13 : T -39.81c W -37.20c S  -2.61c ( -1.6) LCB  -92.30c P  3.95% WF 11.24% PSV       9 N      16  --  B13 A14 O3 G16 N7
-S6  : T -43.88c W -40.89c S  -2.99c ( -1.9) LCB -119.44c P  4.16% WF 10.55% PSV       6 N       9  --  S6 T5 O3 G16 G14
-G16 : T -61.20c W -57.15c S  -4.05c ( -2.7) LCB -331.90c P  8.42% WF  8.29% PSV       4 N       4  --  G16 H17 O3
-H17 : T -63.64c W -59.39c S  -4.25c ( -2.8) LCB -322.38c P  6.45% WF  7.97% PSV       3 N       4  --  H17 G16 O3
-H11 : T -74.29c W -69.13c S  -5.16c ( -3.5) LCB -300.00c P  4.25% WF  7.95% PSV       1 N       1  --  H11
-N7  : T -76.37c W -71.14c S  -5.23c ( -3.6) LCB -300.00c P  3.90% WF  7.76% PSV       1 N       1  --  N7
-O13 : T -77.27c W -72.12c S  -5.14c ( -3.5) LCB -300.00c P  3.84% WF  7.68% PSV       1 N       1  --  O13
-N12 : T -71.55c W -66.80c S  -4.75c ( -3.2) LCB -300.00c P  3.55% WF  8.20% PSV       1 N       1  --  N12
-G14 : T -71.66c W -66.69c S  -4.97c ( -3.4) LCB -300.00c P  2.68% WF  8.19% PSV       1 N       1  --  G14
+G2  : T -31.14c W -31.02c S  -0.11c ( -1.3) LCB  -43.01c P  3.62% WF 13.51% PSV     188 N     188  --  G2 H1 H2 J1 O3 G16 G14 H11
+O3  : T -46.93c W -45.08c S  -1.86c ( -2.7) LCB  -72.74c P 48.65% WF  8.65% PSV      50 N      53  --  O3 G16 G14 H11 F15
+B13 : T -37.70c W -37.20c S  -0.50c ( -1.6) LCB  -90.21c P  3.95% WF 11.24% PSV       9 N      16  --  B13 A14 O3 G16 N7
+S6  : T -41.78c W -40.89c S  -0.88c ( -1.9) LCB -117.39c P  4.16% WF 10.55% PSV       6 N       9  --  S6 T5 O3 G16 G14
+G16 : T -59.11c W -57.15c S  -1.96c ( -2.7) LCB -330.02c P  8.42% WF  8.29% PSV       4 N       4  --  G16 H17 O3
+H17 : T -61.56c W -59.39c S  -2.17c ( -2.8) LCB -320.54c P  6.45% WF  7.97% PSV       3 N       4  --  H17 G16 O3
+H11 : T -72.22c W -69.13c S  -3.09c ( -3.5) LCB -300.00c P  4.25% WF  7.95% PSV       1 N       1  --  H11
+N7  : T -74.30c W -71.14c S  -3.16c ( -3.6) LCB -300.00c P  3.90% WF  7.76% PSV       1 N       1  --  N7
+O13 : T -75.19c W -72.12c S  -3.07c ( -3.5) LCB -300.00c P  3.84% WF  7.68% PSV       1 N       1  --  O13
+N12 : T -69.47c W -66.80c S  -2.67c ( -3.2) LCB -300.00c P  3.55% WF  8.20% PSV       1 N       1  --  N12
+G14 : T -69.59c W -66.69c S  -2.89c ( -3.4) LCB -300.00c P  2.68% WF  8.19% PSV       1 N       1  --  G14
 Making a move O3, should still be same
-: T -48.98c W -45.07c S  -3.90c ( -2.7) N      53  --  G16 G14 H11 F15
+: T -46.93c W -45.08c S  -1.86c ( -2.7) N      53  --  G16 G14 H11 F15
 ---Black(v)---
-G16 : T -58.45c W -53.77c S  -4.68c ( -3.4) LCB  -14.69c P 14.08% WF 31.33% PSV      39 N      19  --  G16 G14 H11 F15
-H17 : T -45.88c W -42.22c S  -3.65c ( -2.5) LCB   -7.48c P 33.20% WF 25.18% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
-N7  : T  10.02c W   9.85c S   0.17c ( +0.5) LCB  300.00c P 16.37% WF 13.87% PSV       1 N       1  --  N7
-H11 : T  -3.02c W  -2.57c S  -0.45c ( +0.0) LCB  300.00c P  7.61% WF 16.26% PSV       1 N       1  --  H11
-N12 : T  13.03c W  12.52c S   0.51c ( +0.8) LCB  300.00c P  7.93% WF 13.35% PSV       0 N       1  --  N12
+G16 : T -56.42c W -53.78c S  -2.65c ( -3.4) LCB  -12.52c P 14.08% WF 31.35% PSV      39 N      19  --  G16 G14 H11 F15
+H17 : T -43.82c W -42.23c S  -1.59c ( -2.5) LCB   -5.35c P 33.20% WF 25.19% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
+N7  : T  12.14c W   9.85c S   2.29c ( +0.5) LCB  300.00c P 16.37% WF 13.86% PSV       1 N       1  --  N7
+H11 : T  -0.90c W  -2.57c S   1.67c ( +0.0) LCB  300.00c P  7.61% WF 16.25% PSV       1 N       1  --  H11
+N12 : T  15.14c W  12.52c S   2.63c ( +0.8) LCB  300.00c P  7.93% WF 13.35% PSV       0 N       1  --  N12
 Beginning search again and then reprinting, now score utils should change a little
-: T -45.83c W -45.08c S  -0.75c ( -2.7) N      53  --  G16 G14 H11 F15
+: T -45.86c W -45.08c S  -0.78c ( -2.7) N      53  --  G16 G14 H11 F15
 ---Black(v)---
-G16 : T -55.32c W -53.78c S  -1.54c ( -3.3) LCB  -11.37c P 14.08% WF 31.36% PSV      39 N      19  --  G16 G14 H11 F15
-H17 : T -42.71c W -42.23c S  -0.48c ( -2.5) LCB   -4.22c P 33.20% WF 25.19% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
-N7  : T  13.26c W   9.85c S   3.41c ( +0.5) LCB  300.00c P 16.37% WF 13.86% PSV       1 N       1  --  N7
-H11 : T   0.22c W  -2.57c S   2.80c ( +0.0) LCB  300.00c P  7.61% WF 16.25% PSV       1 N       1  --  H11
-N12 : T  16.26c W  12.52c S   3.74c ( +0.8) LCB  300.00c P  7.93% WF 13.35% PSV       0 N       1  --  N12
+G16 : T -55.36c W -53.78c S  -1.58c ( -3.3) LCB  -11.40c P 14.08% WF 31.36% PSV      39 N      19  --  G16 G14 H11 F15
+H17 : T -42.75c W -42.23c S  -0.52c ( -2.5) LCB   -4.26c P 33.20% WF 25.19% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
+N7  : T  13.22c W   9.85c S   3.37c ( +0.5) LCB  300.00c P 16.37% WF 13.86% PSV       1 N       1  --  N7
+H11 : T   0.19c W  -2.57c S   2.76c ( +0.0) LCB  300.00c P  7.61% WF 16.25% PSV       1 N       1  --  H11
+N12 : T  16.22c W  12.52c S   3.71c ( +0.8) LCB  300.00c P  7.93% WF 13.35% PSV       0 N       1  --  N12
 GAME 11 ==========================================================================
 (Non-square board)
 
@@ -943,8 +943,8 @@ MoveNum: 0 HASH: 7C8496522DD3233BEF69A48BA7239C98
  1 . . . . . . .
 
 Root visits: 200
-NN rows: 195
-NN batches: 195
+NN rows: 193
+NN batches: 193
 NN avg batch size: 1
 PV: F2 D7 E4 C6 E10 F10 D10 B8 B9
 Tree:
@@ -1226,8 +1226,8 @@ MoveNum: 1 HASH: 6FD9100B107CDF8D275A4A6A85A3E75F
  1 . . . . . . . . .
 
 Root visits: 200
-NN rows: 18
-NN batches: 18
+NN rows: 17
+NN batches: 17
 NN avg batch size: 1
 PV: D6 E6 F5 C5 B5 C3 B4 D3 G7 C8 B7 B8 B3 B2 A8 D7
 Tree:
