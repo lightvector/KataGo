@@ -253,6 +253,7 @@ def model_fn(features,labels,mode,params):
       "sloss": sloss,
       "fploss": fploss,
       "skloss": skloss,
+      "skw": model.seki_weight_scale,
       "rwlloss": rwlloss,
       "rsmloss": rsmloss,
       "rsdloss": rsdloss,
@@ -262,6 +263,7 @@ def model_fn(features,labels,mode,params):
       "ventr": ventr,
       "ptentr": ptentr,
       "pslr": per_sample_learning_rate
+
     }, every_n_iter=print_train_loss_every_batches)
 
     printed_model_yet = True

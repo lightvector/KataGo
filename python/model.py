@@ -1392,7 +1392,19 @@ class Target_vars:
     )
 
     #Seki-lost-points target, same as ownership except lower weight
-    self.seki_loss_unreduced = 4.0 * self.ownership_target_weight * (
+    owned_target = tf.square(self.ownership_target)
+    unowned_target = 1.0 - owned_target
+    unowned_proportion = (
+      tf.reduce_sum(unowned_target * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),axis=[1,2])
+      / (1.0 + tf.reduce_sum(model.mask_before_symmetry,axis=[1,2]))
+    )
+    unowned_proportion = tf.reduce_mean(unowned_proportion)
+    moving_unowned_proportion = tf.Variable(1.0,name=("moving_unowned_proportion"),trainable=False)
+    moving_unowned_op = tf.keras.backend.moving_average_update(moving_unowned_proportion,unowned_proportion,0.998)
+    with tf.control_dependencies([moving_unowned_op]):
+      seki_weight_scale = 15.0 * 0.005 / (0.005 + moving_unowned_proportion)
+
+    self.seki_loss_unreduced = (
       tf.reduce_sum(
         tf.nn.softmax_cross_entropy_with_logits_v2(
           labels=tf.stack([1.0-tf.square(self.seki_target), tf.nn.relu(self.seki_target), tf.nn.relu(-self.seki_target)],axis=3),
@@ -1401,15 +1413,17 @@ class Target_vars:
         axis=[1,2]
       ) / model.mask_sum_hw
     )
-    self.seki_loss_unreduced = self.seki_loss_unreduced + 2.0 * self.ownership_target_weight * (
+    self.seki_loss_unreduced = self.seki_loss_unreduced + 0.5 * (
       tf.reduce_sum(
         tf.nn.softmax_cross_entropy_with_logits_v2(
-          labels=tf.stack([1.0-tf.square(self.ownership_target), tf.square(self.ownership_target)],axis=3),
+          labels=tf.stack([unowned_target, owned_target],axis=3),
           logits=tf.stack([seki_output[:,:,:,3],tf.zeros_like(self.ownership_target)],axis=3)
         ) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
         axis=[1,2]
       ) / model.mask_sum_hw
     )
+    self.seki_loss_unreduced = seki_weight_scale * self.ownership_target_weight * self.seki_loss_unreduced
+    self.seki_weight_scale = seki_weight_scale
 
     def huber_loss(x,y,delta):
       absdiff = tf.abs(x - y)
