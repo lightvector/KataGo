@@ -329,7 +329,6 @@ void TrainingWriteBuffers::addRow(
   const Board* finalBoard,
   Color* finalFullArea,
   Color* finalOwnership,
-  bool* finalSekiAreas,
   float* finalWhiteScoring,
   const vector<Board>* posHistForFutureBoards, //can be null
   bool isSidePosition,
@@ -536,7 +535,6 @@ void TrainingWriteBuffers::addRow(
   else {
     assert(finalFullArea != NULL);
     assert(finalBoard != NULL);
-    assert(finalSekiAreas != NULL);
 
     rowGlobal[27] = 1.0f;
     //Fill score info
@@ -556,14 +554,8 @@ void TrainingWriteBuffers::addRow(
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(finalOwnership[loc] == nextPlayer) rowOwnership[pos] = 1.0f;
         else if(finalOwnership[loc] == opp) rowOwnership[pos] = -1.0f;
-        //Mark seki areas on empty points (i.e. territory points that are in seki) when the rules would discount them
-        if(finalSekiAreas[loc] && hist.rules.taxRule != Rules::TAX_NONE &&
-           finalFullArea[loc] != C_EMPTY && finalOwnership[loc] == C_EMPTY && finalBoard->colors[loc] != finalFullArea[loc])
-          rowOwnership[pos+posArea] = (finalFullArea[loc] == nextPlayer ? 1.0f : -1.0f);
-        //Mark seki areas that are discounted due to not being present at second encore start
-        if(finalSekiAreas[loc] && hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 2 &&
-           finalFullArea[loc] != C_EMPTY && finalOwnership[loc] == C_EMPTY && finalBoard->colors[loc] == finalFullArea[loc] &&
-           hist.secondEncoreStartColors[loc] != finalBoard->colors[loc])
+        //Mark full area points that ended up not being owned
+        if(finalFullArea[loc] != C_EMPTY && finalOwnership[loc] == C_EMPTY)
           rowOwnership[pos+posArea] = (finalFullArea[loc] == nextPlayer ? 1.0f : -1.0f);
       }
     }
@@ -914,7 +906,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             &(data.endHist.getRecentBoard(0)),
             data.finalFullArea,
             data.finalOwnership,
-            data.finalSekiAreas,
             data.finalWhiteScoring,
             &posHistForFutureBoards,
             isSidePosition,
@@ -964,7 +955,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         NULL,
         whiteValueTargetsBuf,
         0,
-        NULL,
         NULL,
         NULL,
         NULL,

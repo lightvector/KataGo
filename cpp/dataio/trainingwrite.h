@@ -199,7 +199,6 @@ struct TrainingWriteBuffers {
     const Board* finalBoard,
     Color* finalFullArea,
     Color* finalOwnership,
-    bool* finalSekiAreas,
     float* finalWhiteScoring,
     const std::vector<Board>* posHistForFutureBoards, //can be null
     bool isSidePosition,
