@@ -253,7 +253,7 @@ def model_fn(features,labels,mode,params):
       "sloss": sloss,
       "fploss": fploss,
       "skloss": skloss,
-      "skw": model.seki_weight_scale,
+      "skw": target_vars.seki_weight_scale,
       "rwlloss": rwlloss,
       "rsmloss": rsmloss,
       "rsdloss": rsdloss,
