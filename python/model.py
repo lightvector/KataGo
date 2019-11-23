@@ -88,7 +88,8 @@ class Model:
     self.lr_adjusted_variables = {}
     self.is_training = (placeholders["is_training"] if "is_training" in placeholders else tf.placeholder(tf.bool,name="is_training"))
 
-    self.num_blocks = range(len(config["block_kind"]))
+    self.num_blocks = len(config["block_kind"])
+    self.use_fixup = config["use_fixup"]
 
     #Accumulates outputs for printing stats about their activations
     self.outputs_by_layer = []
@@ -482,45 +483,48 @@ class Model:
     else:
       self.lr_adjusted_variables[name] = factor
 
-  def batchnorm_and_mask(self,name,tensor,mask,mask_sum,use_gamma=False):
-    # epsilon = 0.001
-    # has_bias = True
-    # has_scale = False
-    # self.batch_norms[name] = (tensor.shape[-1].value,epsilon,has_bias,has_scale)
+  def batchnorm_and_mask(self,name,tensor,mask,mask_sum,use_gamma_in_fixup=False):
+    if self.use_fixup:
+      self.batch_norms[name] = (tensor.shape[-1].value,1e-20,True,use_gamma_in_fixup,self.use_fixup)
+      if use_gamma_in_fixup:
+        gamma = self.weight_variable_init_constant(name+"/gamma", [tensor.shape[3].value], 1.0)
+        beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg="tiny")
+        return (tensor * gamma + beta) * mask
+      else:
+        beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg="tiny")
+        return (tensor + beta) * mask
 
-    # num_channels = tensor.shape[3].value
-    # collections = [tf.GraphKeys.GLOBAL_VARIABLES,tf.GraphKeys.MODEL_VARIABLES,tf.GraphKeys.MOVING_AVERAGE_VARIABLES]
+    epsilon = 0.001
+    has_bias = True
+    has_scale = False
+    self.batch_norms[name] = (tensor.shape[-1].value,epsilon,has_bias,has_scale,self.use_fixup)
 
-    # #Define variables to keep track of the mean and variance
-    # moving_mean = tf.Variable(tf.zeros([num_channels]),name=(name+"/moving_mean"),trainable=False,collections=collections)
-    # moving_var = tf.Variable(tf.ones([num_channels]),name=(name+"/moving_variance"),trainable=False,collections=collections)
-    # beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg=False)
+    num_channels = tensor.shape[3].value
+    collections = [tf.GraphKeys.GLOBAL_VARIABLES,tf.GraphKeys.MODEL_VARIABLES,tf.GraphKeys.MOVING_AVERAGE_VARIABLES]
 
-    # #This is the mean, computed only over exactly the areas of the mask, weighting each spot equally,
-    # #even across different elements in the batch that might have different board sizes.
-    # mean = tf.reduce_sum(tensor * mask,axis=[0,1,2]) / mask_sum
-    # zmtensor = tensor-mean
-    # #Similarly, the variance computed exactly only over those spots
-    # var = tf.reduce_sum(tf.square(zmtensor * mask),axis=[0,1,2]) / mask_sum
-    # mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.998)
-    # var_op = tf.keras.backend.moving_average_update(moving_var,var,0.998)
-    # tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, mean_op)
-    # tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, var_op)
+    #Define variables to keep track of the mean and variance
+    moving_mean = tf.Variable(tf.zeros([num_channels]),name=(name+"/moving_mean"),trainable=False,collections=collections)
+    moving_var = tf.Variable(tf.ones([num_channels]),name=(name+"/moving_variance"),trainable=False,collections=collections)
+    beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg=False)
 
-    # def training_f():
-    #   return (mean,var)
-    # def inference_f():
-    #   return (moving_mean,moving_var)
+    #This is the mean, computed only over exactly the areas of the mask, weighting each spot equally,
+    #even across different elements in the batch that might have different board sizes.
+    mean = tf.reduce_sum(tensor * mask,axis=[0,1,2]) / mask_sum
+    zmtensor = tensor-mean
+    #Similarly, the variance computed exactly only over those spots
+    var = tf.reduce_sum(tf.square(zmtensor * mask),axis=[0,1,2]) / mask_sum
+    mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.998)
+    var_op = tf.keras.backend.moving_average_update(moving_var,var,0.998)
+    tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, mean_op)
+    tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, var_op)
 
-    # use_mean,use_var = tf.cond(self.is_training,training_f,inference_f)
-    # return tf.nn.batch_normalization(tensor,use_mean,use_var,beta,None,epsilon) * mask
-    if use_gamma:
-      gamma = self.weight_variable_init_constant(name+"/gamma", [tensor.shape[3].value], 1.0)
-      beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg="tiny")
-      return (tensor * gamma + beta) * mask
-    else:
-      beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg="tiny")
-      return (tensor + beta) * mask
+    def training_f():
+      return (mean,var)
+    def inference_f():
+      return (moving_mean,moving_var)
+
+    use_mean,use_var = tf.cond(self.is_training,training_f,inference_f)
+    return tf.nn.batch_normalization(tensor,use_mean,use_var,beta,None,epsilon) * mask
 
   # def batchnorm(self,name,tensor):
   #   epsilon = 0.001
@@ -688,15 +692,16 @@ class Model:
     trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
-    fixup_scale = 1.0 / math.sqrt(self.num_blocks)
+    fixup_scale = 1.0 / math.sqrt(self.num_blocks) if self.use_fixup else 1.0
     weights1 = self.conv_weight_variable(name+"/w1", diam, diam, main_channels, mid_channels, scale_initial_weights * fixup_scale, emphasize_center_weight, emphasize_center_lr)
     conv1_layer = self.conv2d(trans1_layer, weights1)
     self.outputs_by_layer.append((name+"/conv1",conv1_layer))
 
-    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask,mask_sum,use_gamma=True)))
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask,mask_sum,use_gamma_in_fixup=True)))
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
-    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights=0.0, emphasize_center_weight, emphasize_center_lr)
+    fixup_scale_last_layer = 0.0 if self.use_fixup else 1.0
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights*fixup_scale_last_layer, emphasize_center_weight, emphasize_center_lr)
     conv2_layer = self.conv2d(trans2_layer, weights2)
     self.outputs_by_layer.append((name+"/conv2",conv2_layer))
 
@@ -711,8 +716,8 @@ class Model:
     trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
-    fixup_scale2 = 1.0 / math.sqrt(self.num_blocks)
-    fixup_scale4 = 1.0 / (self.num_blocks ** (1.0 / 4.0))
+    fixup_scale2 = 1.0 / math.sqrt(self.num_blocks) if self.use_fixup else 1.0
+    fixup_scale4 = 1.0 / (self.num_blocks ** (1.0 / 4.0)) if self.use_fixup else 1.0
     weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights * fixup_scale2, emphasize_center_weight, emphasize_center_lr)
     weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, global_mid_channels, scale_initial_weights * fixup_scale4, emphasize_center_weight, emphasize_center_lr)
     conv1a_layer = self.conv2d(trans1_layer, weights1a)
@@ -726,10 +731,11 @@ class Model:
     remix_weights = self.weight_variable(name+"/w1r",[global_mid_channels*3,mid_channels],global_mid_channels*3,mid_channels, scale_initial_weights * fixup_scale4 * 0.5)
     conv1_layer = conv1a_layer + tf.tensordot(trans1b_pooled,remix_weights,axes=[[3],[0]])
 
-    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask,mask_sum,use_gamma=True)))
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask,mask_sum,use_gamma_in_fixup=True)))
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
-    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights=0.0, emphasize_center_weight, emphasize_center_lr)
+    fixup_scale_last_layer = 0.0 if self.use_fixup else 1.0
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights * fixup_scale_last_layer, emphasize_center_weight, emphasize_center_lr)
     conv2_layer = self.conv2d(trans2_layer, weights2)
     self.outputs_by_layer.append((name+"/conv2",conv2_layer))
 
@@ -740,7 +746,7 @@ class Model:
     trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
-    fixup_scale = 1.0 / math.sqrt(self.num_blocks)
+    fixup_scale = 1.0 / math.sqrt(self.num_blocks) if self.use_fixup else 1.0
     weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights*fixup_scale, emphasize_center_weight, emphasize_center_lr)
     weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, dilated_mid_channels, scale_initial_weights*fixup_scale, emphasize_center_weight, emphasize_center_lr)
     conv1a_layer = self.conv2d(trans1_layer, weights1a)
@@ -750,10 +756,11 @@ class Model:
 
     conv1_layer = tf.concat([conv1a_layer,conv1b_layer],axis=3)
 
-    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask,mask_sum,use_gamma=True)))
+    trans2_layer = self.relu(name+"/relu2",(self.batchnorm_and_mask(name+"/norm2",conv1_layer,mask,mask_sum,use_gamma_in_fixup=True)))
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
-    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels+dilated_mid_channels, main_channels, scale_initial_weights=0.0, emphasize_center_weight, emphasize_center_lr)
+    fixup_scale_last_layer = 0.0 if self.use_fixup else 1.0
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels+dilated_mid_channels, main_channels, scale_initial_weights * fixup_scale_last_layer, emphasize_center_weight, emphasize_center_lr)
     conv2_layer = self.conv2d(trans2_layer, weights2)
     self.outputs_by_layer.append((name+"/conv2",conv2_layer))
 
@@ -1032,7 +1039,6 @@ class Model:
     trunk = self.relu("trunk/relu",(self.batchnorm_and_mask("trunk/norm",trunk,mask,mask_sum)))
     self.outputs_by_layer.append(("trunk",trunk))
 
-
     #Policy head---------------------------------------------------------------------------------
     p0_layer = trunk
 
@@ -1075,7 +1081,7 @@ class Model:
     self.outputs_by_layer.append(("p1",p1_layer))
 
     #Finally, apply linear convolution to produce final output
-    p2_layer = self.conv_only_block("p2",p1_layer,diam=1,in_channels=p1_num_channels,out_channels=2,scale_initial_weights=0.01)
+    p2_layer = self.conv_only_block("p2",p1_layer,diam=1,in_channels=p1_num_channels,out_channels=2,scale_initial_weights=0.3)
     p2_layer = p2_layer - (1.0-mask) * 5000.0 # mask out parts outside the board by making them a huge neg number, so that they're 0 after softmax
     self.p2_conv = ("p2",1,p1_num_channels,2)
 
@@ -1087,7 +1093,7 @@ class Model:
     policy_output = tf.reshape(policy_output, [-1] + self.policy_output_shape_nopass)
 
     #Add pass move based on the global g values
-    matmulpass = self.weight_variable("matmulpass",[g2_num_channels,2],g2_num_channels*8,2,scale_initial_weights=0.01)
+    matmulpass = self.weight_variable("matmulpass",[g2_num_channels,2],g2_num_channels*8,2,scale_initial_weights=0.3)
     # self.add_lr_factor("matmulpass:0",0.25)
     pass_output = tf.tensordot(g2_layer,matmulpass,axes=[[3],[0]])
     self.outputs_by_layer.append(("pass",pass_output))
@@ -1117,14 +1123,14 @@ class Model:
 
     v3_size = self.value_target_shape[0]
     v3w = self.weight_variable("v3/w",[v2_size,v3_size],v2_size,v3_size)
-    v3b = self.weight_variable("v3/b",[v3_size],v2_size,v3_size,scale_initial_weights=0.01,reg="tiny")
+    v3b = self.weight_variable("v3/b",[v3_size],v2_size,v3_size,scale_initial_weights=0.2,reg="tiny")
     v3_layer = tf.matmul(v2_layer, v3w) + v3b
     self.v3_size = v3_size
     self.other_internal_outputs.append(("v3",v3_layer))
 
     mv3_size = self.miscvalues_target_shape[0]
     mv3w = self.weight_variable("mv3/w",[v2_size,mv3_size],v2_size,mv3_size)
-    mv3b = self.weight_variable("mv3/b",[mv3_size],v2_size,mv3_size,scale_initial_weights=0.01,reg="tiny")
+    mv3b = self.weight_variable("mv3/b",[mv3_size],v2_size,mv3_size,scale_initial_weights=0.2,reg="tiny")
     mv3_layer = tf.matmul(v2_layer, mv3w) + mv3b
     self.mv3_size = mv3_size
     self.other_internal_outputs.append(("mv3",mv3_layer))
@@ -1154,7 +1160,7 @@ class Model:
       self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
       sbv2_size = config["sbv2_num_channels"]
       sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
-      sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.01,reg="tiny")
+      sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg="tiny")
       sb2_layer_partial = tf.matmul(v1_layer_pooled, sb2w) + sb2b
       sb2_offset_vector = tf.constant(0.05 * self.score_belief_offset_vector, dtype=tf.float32)
       sb2_parity_vector = tf.reshape(self.score_belief_parity_vector,[1,-1]) * transformed_global_inputs[:,self.num_global_input_features-1:self.num_global_input_features]
@@ -1172,7 +1178,7 @@ class Model:
       self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
       sbv2_size = config["sbv2_num_channels"]
       sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
-      sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.01,reg="tiny")
+      sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg="tiny")
       sb2_layer_partial = tf.matmul(v1_layer_pooled, sb2w) + sb2b
       sb2_offset_vector = tf.constant(0.05 * self.score_belief_offset_vector, dtype=tf.float32)
       sb2_offset_w = self.weight_variable("sb2_offset/w",[1,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
@@ -1201,22 +1207,22 @@ class Model:
     scorebelief_output = tf.reshape(sb3_layer,[-1] + self.scorebelief_target_shape, name = "scorebelief_output")
 
     #No need for separate mask since v1_layer is already zero outside of mask bounds.
-    ownership_output = self.conv_only_block("vownership",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.01) * mask
+    ownership_output = self.conv_only_block("vownership",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2) * mask
     self.vownership_conv = ("vownership",1,v1_num_channels,1)
     ownership_output = self.apply_symmetry(ownership_output,symmetries,inverse=True)
     ownership_output = tf.reshape(ownership_output, [-1] + self.ownership_target_shape, name = "ownership_output")
 
-    scoring_output = self.conv_only_block("vscoring",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.01) * mask
+    scoring_output = self.conv_only_block("vscoring",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2) * mask
     self.vscoring_conv = ("vscoring",1,v1_num_channels,1)
     scoring_output = self.apply_symmetry(scoring_output,symmetries,inverse=True)
     scoring_output = tf.reshape(scoring_output, [-1] + self.scoring_target_shape, name = "scoring_output")
 
-    futurepos_output = self.conv_only_block("futurepos",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=2, scale_initial_weights=0.01) * mask
+    futurepos_output = self.conv_only_block("futurepos",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=2, scale_initial_weights=0.2) * mask
     self.futurepos_conv = ("futurepos",1,trunk_num_channels,2)
     futurepos_output = self.apply_symmetry(futurepos_output,symmetries,inverse=True)
     futurepos_output = tf.reshape(futurepos_output, [-1] + self.futurepos_target_shape, name = "futurepos_output")
 
-    seki_output = self.conv_only_block("seki",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=4, scale_initial_weights=0.01) * mask
+    seki_output = self.conv_only_block("seki",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=4, scale_initial_weights=0.2) * mask
     self.seki_conv = ("seki",1,trunk_num_channels,4)
     seki_output = self.apply_symmetry(seki_output,symmetries,inverse=True)
     seki_output = tf.reshape(seki_output, [-1] + self.seki_output_shape, name = "seki_output")
