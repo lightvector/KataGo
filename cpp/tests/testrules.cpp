@@ -292,7 +292,7 @@ HASH: 820C9E3B06A638D02CBDE734B72F2777
 .o.xxo
 oxxxo.
 o.x.oo
-xxxoo.
+xx.oo.
 oooo.o
 )%%");
 
@@ -318,10 +318,13 @@ oooo.o
       out << "After black ko capture and one pass:" << endl;
       printIllegalMoves(out,board,hist,P_BLACK);
 
-      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      testAssert(hist.passWouldEndPhase(board,P_BLACK));
+      testAssert(!hist.passWouldEndGame(board,P_BLACK));
+      makeMoveAssertLegal(hist, board, Location::getLoc(2,3,board.x_size), P_BLACK, __LINE__);
       testAssert(hist.encorePhase == 0);
       testAssert(hist.isGameFinished == false);
-      out << "After black ko capture and two passes:" << endl;
+
+      out << "After black ko capture and one pass and black other move:" << endl;
       printIllegalMoves(out,board,hist,P_WHITE);
 
       makeMoveAssertLegal(hist, board, Location::getLoc(5,0,board.x_size), P_WHITE, __LINE__);
@@ -364,7 +367,7 @@ oooo.o
 After black ko capture:
 Illegal: (5,0) O
 After black ko capture and one pass:
-After black ko capture and two passes:
+After black ko capture and one pass and black other move:
 White recapture:
 Illegal: (5,1) X
 Beginning sending two returning one cycle
@@ -529,6 +532,7 @@ Illegal: (0,0) X
     {
       const char* name = "Spight ko rules";
       Board board(baseBoard);
+      board.setStone(Location::getLoc(2,3,board.x_size),C_BLACK);
       Rules rules(baseRules);
       rules.koRule = Rules::KO_SPIGHT;
       BoardHistory hist(board,P_BLACK,rules,0);
@@ -2567,7 +2571,7 @@ isResignation: 0
     expected = R"%%(
 3 .O.OX.O NPX PS0 E0 0000000 0000000 0000000
 1 .OX.X.O NPO PS0 E0 0000000 0000000 0000000
-4 .OX.X.O NPX PS0 E0 0000000 0000000 0000000
+4 .OX.X.O NPX PS1 E0 0000000 0000000 0000000
 2 .OXXX.O NPO PS0 E0 0000000 0000000 0000000
 4 .O...OO NPX PS0 E0 0000000 0000000 0000000
 6 .O..X.. NPO PS0 E0 0000000 0000000 0000000
@@ -2581,7 +2585,7 @@ isResignation: 0
 2 .XXXXO. NPO PS0 E0 0000000 0000000 0000000
 2 .XXXXO. NPX PS1 E0 0000000 0000000 0000000
 1 .XXXX.X NPO PS0 E0 0000000 0000000 0000000
-3 .XXXX.X NPX PS0 E0 0000000 0000000 0000000
+3 .XXXX.X NPX PS1 E0 0000000 0000000 0000000
 2 .XXXXXX NPO PS0 E0 0000000 0000000 0000000
 7 O...... NPX PS0 E0 0000000 0000000 0000000
 5 O....X. NPO PS0 E0 0000000 0000000 0000000
@@ -2592,7 +2596,7 @@ isResignation: 0
 3 ..OOOX. NPX PS0 E0 0000000 0000000 0000000
 3 X.OOOX. NPO PS0 E0 0000000 0000000 0000000
 1 X.OOO.O NPX PS0 E0 0000000 0000000 0000000
-3 X.OOO.O NPO PS0 E0 0000000 0000000 0000000
+3 X.OOO.O NPO PS1 E0 0000000 0000000 0000000
 2 X.OOOOO NPX PS0 E0 0000000 0000000 0000000
 2 X.OOOOO NPO PS1 E0 0000000 0000000 0000000
 2 .OOOOOO NPX PS0 E0 0000000 0000000 0000000
@@ -2812,12 +2816,12 @@ isResignation: 0
 3 ..O. NPX PS0 E0 0000 0000 0000
 2 .XO. NPO PS0 E0 0000 0000 0000
 1 O.O. NPX PS0 E0 0000 0000 0000
-3 O.O. NPO PS0 E0 0000 0000 0000
+3 O.O. NPO PS1 E0 0000 0000 0000
 2 O.OO NPX PS0 E0 0000 0000 0000
 3 .X.. NPO PS0 E0 0000 0000 0000
 2 .XO. NPX PS0 E0 0000 0000 0000
 1 .X.X NPO PS0 E0 0000 0000 0000
-3 .X.X NPX PS0 E0 0000 0000 0000
+3 .X.X NPX PS1 E0 0000 0000 0000
 2 .XXX NPO PS0 E0 0000 0000 0000
 4 O... NPX PS0 E0 0000 0000 0000
 4 O... NPO PS1 E0 0000 0000 0000
@@ -2825,7 +2829,7 @@ isResignation: 0
 3 ..X. NPO PS0 E0 0000 0000 0000
 2 .OX. NPX PS0 E0 0000 0000 0000
 1 X.X. NPO PS0 E0 0000 0000 0000
-3 X.X. NPX PS0 E0 0000 0000 0000
+3 X.X. NPX PS1 E0 0000 0000 0000
 2 X.XX NPO PS0 E0 0000 0000 0000
 3 .O.. NPX PS0 E0 0000 0000 0000
 3 .O.X NPO PS0 E0 0000 0000 0000

@@ -622,7 +622,7 @@ bool BoardHistory::isPassForKo(const Board& board, Loc moveLoc, Player movePla) 
 }
 
 //Return the number of consecutive game-ending passes there would be if this move was made.
-int BoardHistory::newConsecutiveEndingPasses(Loc moveLoc, Loc koLocBeforeMove) const {
+int BoardHistory::newConsecutiveEndingPasses(Loc moveLoc) const {
   int newConsecutiveEndingPasses = consecutiveEndingPasses;
   if(moveLoc != Board::PASS_LOC)
     newConsecutiveEndingPasses = 0;
@@ -631,11 +631,6 @@ int BoardHistory::newConsecutiveEndingPasses(Loc moveLoc, Loc koLocBeforeMove) c
   else {
     switch(rules.koRule) {
     case Rules::KO_SIMPLE:
-      if(koLocBeforeMove == Board::NULL_LOC)
-        newConsecutiveEndingPasses++;
-      else
-        newConsecutiveEndingPasses = 0;
-      break;
     case Rules::KO_POSITIONAL:
     case Rules::KO_SITUATIONAL:
       newConsecutiveEndingPasses++;
@@ -673,12 +668,11 @@ bool BoardHistory::wouldBeSpightlikeEndingPass(Loc moveLoc, Player movePla, Hash
 }
 
 bool BoardHistory::passWouldEndPhase(const Board& board, Player movePla) const {
-  Loc koLocBeforeMove = board.ko_loc;
   Hash128 posHashAfterMove = board.pos_hash; //Pass cannot affect pos hash
   Hash128 koProhibitHashAfterMove =  koProhibitHash; //Pass never marks or unmarks any ko prohibitions
   Hash128 koHashAfterMove = getKoHashAfterMove(rules, posHashAfterMove, getOpp(movePla), encorePhase, koProhibitHashAfterMove);
 
-  if(newConsecutiveEndingPasses(Board::PASS_LOC,koLocBeforeMove) >= 2 ||
+  if(newConsecutiveEndingPasses(Board::PASS_LOC) >= 2 ||
      wouldBeSpightlikeEndingPass(Board::PASS_LOC,movePla,koHashAfterMove))
     return true;
   return false;
@@ -696,7 +690,6 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 }
 
 void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable, bool preventEncore) {
-  Loc koLocBeforeMove = board.ko_loc;
   Hash128 posHashBeforeMove = board.pos_hash;
 
   //If somehow we're making a move after the game was ended, just clear those values and continue
@@ -805,7 +798,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   }
 
   //Update consecutiveEndingPasses
-  consecutiveEndingPasses = newConsecutiveEndingPasses(moveLoc,koLocBeforeMove);
+  consecutiveEndingPasses = newConsecutiveEndingPasses(moveLoc);
 
   //Check if we have a game-ending pass BEFORE updating hashesAfterBlackPass and hashesAfterWhitePass
   bool isSpightlikeEndingPass = wouldBeSpightlikeEndingPass(moveLoc,movePla,koHashAfterThisMove);
