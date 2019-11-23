@@ -1674,7 +1674,7 @@ class ModelUtils:
       global_step_float = tf.cast(global_step, tf.float32)
       global_epoch = global_step_float / tf.constant(num_batches_per_epoch,dtype=tf.float32)
 
-      lr_base = 0.00006 * (1.0 if lr_scale is None else lr_scale)
+      lr_base = 0.00003 * (1.0 if lr_scale is None else lr_scale)
       per_sample_learning_rate = (
         tf.constant(lr_base) * tf.train.piecewise_constant(
           global_epoch,
