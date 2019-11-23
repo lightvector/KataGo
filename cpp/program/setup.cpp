@@ -305,6 +305,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("dynamicScoreCenterZeroWeight"+idxStr)) params.dynamicScoreCenterZeroWeight = cfg.getDouble("dynamicScoreCenterZeroWeight"+idxStr, 0.0, 1.0);
     else if(cfg.contains("dynamicScoreCenterZeroWeight"))   params.dynamicScoreCenterZeroWeight = cfg.getDouble("dynamicScoreCenterZeroWeight",        0.0, 1.0);
     else params.dynamicScoreCenterZeroWeight = 0.0;
+    if(cfg.contains("dynamicScoreCenterScale"+idxStr)) params.dynamicScoreCenterScale = cfg.getDouble("dynamicScoreCenterScale"+idxStr, 0.2, 5.0);
+    else if(cfg.contains("dynamicScoreCenterScale"))   params.dynamicScoreCenterScale = cfg.getDouble("dynamicScoreCenterScale",        0.2, 5.0);
+    else params.dynamicScoreCenterScale = 1.0;
 
     if(cfg.contains("cpuctExploration"+idxStr)) params.cpuctExploration = cfg.getDouble("cpuctExploration"+idxStr, 0.0, 10.0);
     else                                        params.cpuctExploration = cfg.getDouble("cpuctExploration",        0.0, 10.0);

@@ -894,35 +894,35 @@ O13 : T -77.31c W -72.17c S  -5.14c ( -3.5) LCB -300.00c P  3.83% WF  7.64% PSV 
 N12 : T -72.25c W -67.46c S  -4.79c ( -3.2) LCB -300.00c P  3.55% WF  8.10% PSV       1 N       1  --  N12
 G14 : T -72.01c W -67.03c S  -4.99c ( -3.4) LCB -300.00c P  2.68% WF  8.13% PSV       1 N       1  --  G14
 Beginning search again and then reprinting, should be same
-: T -37.01c W -34.43c S  -2.58c ( -1.6) N     280  --  G2 H1 H2 J1 O3 G16 G14
+: T -34.93c W -34.42c S  -0.51c ( -1.6) N     280  --  G2 H1 H2 J1 O3 G16 G14
 ---White(^)---
-G2  : T -32.96c W -30.76c S  -2.20c ( -1.3) LCB  -44.85c P  3.63% WF 13.42% PSV     190 N     190  --  G2 H1 H2 J1 O3 G16 G14 H11
-O3  : T -47.92c W -44.06c S  -3.87c ( -2.7) LCB  -74.31c P 48.68% WF  8.81% PSV      52 N      52  --  O3 G16 G14 H11 F15
-B13 : T -36.78c W -34.34c S  -2.44c ( -1.5) LCB  -91.91c P  3.95% WF 11.77% PSV      15 N      15  --  B13 A14 O3 G16 N7
-S6  : T -43.83c W -40.84c S  -2.99c ( -1.9) LCB -120.39c P  4.14% WF 10.48% PSV       6 N       9  --  S6 T5 O3 G16 G14
-G16 : T -61.35c W -57.29c S  -4.06c ( -2.7) LCB -335.81c P  8.41% WF  8.22% PSV       4 N       4  --  G16 H17 O3
-H17 : T -63.99c W -59.70c S  -4.28c ( -2.9) LCB -325.07c P  6.45% WF  7.87% PSV       3 N       4  --  H17 G16 O3
-H11 : T -74.94c W -69.74c S  -5.20c ( -3.6) LCB -300.00c P  4.24% WF  7.86% PSV       1 N       1  --  H11
-N7  : T -76.67c W -71.42c S  -5.25c ( -3.6) LCB -300.00c P  3.89% WF  7.70% PSV       1 N       1  --  N7
-O13 : T -77.31c W -72.17c S  -5.14c ( -3.5) LCB -300.00c P  3.83% WF  7.64% PSV       1 N       1  --  O13
-N12 : T -72.25c W -67.46c S  -4.79c ( -3.2) LCB -300.00c P  3.55% WF  8.10% PSV       1 N       1  --  N12
-G14 : T -72.01c W -67.03c S  -4.99c ( -3.4) LCB -300.00c P  2.68% WF  8.13% PSV       1 N       1  --  G14
+G2  : T -30.88c W -30.76c S  -0.12c ( -1.3) LCB  -42.76c P  3.63% WF 13.43% PSV     190 N     190  --  G2 H1 H2 J1 O3 G16 G14 H11
+O3  : T -45.90c W -44.06c S  -1.84c ( -2.7) LCB  -72.35c P 48.68% WF  8.80% PSV      52 N      52  --  O3 G16 G14 H11 F15
+B13 : T -34.70c W -34.34c S  -0.36c ( -1.5) LCB  -89.84c P  3.95% WF 11.77% PSV      15 N      15  --  B13 A14 O3 G16 N7
+S6  : T -41.75c W -40.84c S  -0.91c ( -1.9) LCB -118.36c P  4.14% WF 10.48% PSV       6 N       9  --  S6 T5 O3 G16 G14
+G16 : T -59.29c W -57.29c S  -2.00c ( -2.7) LCB -333.96c P  8.41% WF  8.22% PSV       4 N       4  --  G16 H17 O3
+H17 : T -61.93c W -59.70c S  -2.23c ( -2.9) LCB -323.27c P  6.45% WF  7.87% PSV       3 N       4  --  H17 G16 O3
+H11 : T -72.89c W -69.74c S  -3.15c ( -3.6) LCB -300.00c P  4.24% WF  7.86% PSV       1 N       1  --  H11
+N7  : T -74.63c W -71.42c S  -3.20c ( -3.6) LCB -300.00c P  3.89% WF  7.70% PSV       1 N       1  --  N7
+O13 : T -75.27c W -72.17c S  -3.09c ( -3.5) LCB -300.00c P  3.83% WF  7.64% PSV       1 N       1  --  O13
+N12 : T -70.19c W -67.46c S  -2.73c ( -3.2) LCB -300.00c P  3.55% WF  8.10% PSV       1 N       1  --  N12
+G14 : T -69.96c W -67.03c S  -2.93c ( -3.4) LCB -300.00c P  2.68% WF  8.13% PSV       1 N       1  --  G14
 Making a move O3, should still be same
-: T -47.92c W -44.06c S  -3.87c ( -2.7) N      52  --  G16 G14 H11 F15
+: T -45.90c W -44.06c S  -1.84c ( -2.7) N      52  --  G16 G14 H11 F15
 ---Black(v)---
-G16 : T -56.42c W -51.81c S  -4.62c ( -3.3) LCB   -9.40c P 14.07% WF 30.82% PSV      33 N      18  --  G16 G14 H11 F15
-H17 : T -45.84c W -42.17c S  -3.66c ( -2.5) LCB   -7.15c P 33.16% WF 25.74% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
-N7  : T  11.12c W  10.92c S   0.19c ( +0.5) LCB  300.00c P 16.32% WF 13.86% PSV       1 N       1  --  N7
-H11 : T  -1.53c W  -1.13c S  -0.40c ( +0.1) LCB  300.00c P  7.62% WF 16.18% PSV       1 N       1  --  H11
-N12 : T  13.85c W  13.32c S   0.53c ( +0.8) LCB  300.00c P  7.95% WF 13.40% PSV       0 N       1  --  N12
+G16 : T -54.43c W -51.81c S  -2.61c ( -3.3) LCB   -7.24c P 14.07% WF 30.84% PSV      33 N      18  --  G16 G14 H11 F15
+H17 : T -43.81c W -42.18c S  -1.63c ( -2.5) LCB   -5.05c P 33.16% WF 25.74% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
+N7  : T  13.21c W  10.92c S   2.29c ( +0.5) LCB  300.00c P 16.32% WF 13.86% PSV       1 N       1  --  N7
+H11 : T   0.57c W  -1.13c S   1.70c ( +0.1) LCB  300.00c P  7.62% WF 16.17% PSV       1 N       1  --  H11
+N12 : T  15.93c W  13.32c S   2.62c ( +0.8) LCB  300.00c P  7.95% WF 13.39% PSV       0 N       1  --  N12
 Beginning search again and then reprinting, now score utils should change a little
-: T -44.75c W -44.06c S  -0.69c ( -2.7) N      52  --  G16 G14 H11 F15
+: T -44.83c W -44.06c S  -0.77c ( -2.7) N      52  --  G16 G14 H11 F15
 ---Black(v)---
-G16 : T -53.28c W -51.82c S  -1.47c ( -3.3) LCB   -6.04c P 14.07% WF 30.85% PSV      33 N      18  --  G16 G14 H11 F15
-H17 : T -42.65c W -42.18c S  -0.47c ( -2.5) LCB   -3.87c P 33.16% WF 25.74% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
-N7  : T  14.37c W  10.92c S   3.45c ( +0.5) LCB  300.00c P 16.32% WF 13.85% PSV       1 N       1  --  N7
-H11 : T   1.74c W  -1.13c S   2.87c ( +0.1) LCB  300.00c P  7.62% WF 16.17% PSV       1 N       1  --  H11
-N12 : T  17.09c W  13.32c S   3.78c ( +0.8) LCB  300.00c P  7.95% WF 13.39% PSV       0 N       1  --  N12
+G16 : T -53.36c W -51.82c S  -1.55c ( -3.3) LCB   -6.12c P 14.07% WF 30.85% PSV      33 N      18  --  G16 G14 H11 F15
+H17 : T -42.73c W -42.18c S  -0.55c ( -2.5) LCB   -3.95c P 33.16% WF 25.74% PSV      30 N      30  --  H17 G14 H11 N12 N7 K6
+N7  : T  14.29c W  10.92c S   3.37c ( +0.5) LCB  300.00c P 16.32% WF 13.85% PSV       1 N       1  --  N7
+H11 : T   1.66c W  -1.13c S   2.79c ( +0.1) LCB  300.00c P  7.62% WF 16.17% PSV       1 N       1  --  H11
+N12 : T  17.02c W  13.32c S   3.70c ( +0.8) LCB  300.00c P  7.95% WF 13.39% PSV       0 N       1  --  N12
 GAME 11 ==========================================================================
 (Non-square board)
 
@@ -941,8 +941,8 @@ MoveNum: 0 HASH: 7C8496522DD3233BEF69A48BA7239C98
  1 . . . . . . .
 
 Root visits: 200
-NN rows: 196
-NN batches: 196
+NN rows: 194
+NN batches: 194
 NN avg batch size: 1
 PV: F2 D7 C7 E4 F3 D5 C6 C5
 Tree:
@@ -1225,8 +1225,8 @@ MoveNum: 1 HASH: 6FD9100B107CDF8D275A4A6A85A3E75F
  1 . . . . . . . . .
 
 Root visits: 200
-NN rows: 18
-NN batches: 18
+NN rows: 17
+NN batches: 17
 NN avg batch size: 1
 PV: D6 E6 F5 C5 B5 C3 B4 D3 G7 C8 B7 B8 B3 B2 A8 D7
 Tree:
