@@ -51,7 +51,7 @@ class Model:
       assert(False)
 
 
-  def __init__(self,config,pos_len,placeholders):
+  def __init__(self,config,pos_len,placeholders,is_training_bool):
     self.pos_len = pos_len
     self.num_bin_input_features = Model.get_num_bin_input_features(config)
     self.num_global_input_features = Model.get_num_global_input_features(config)
@@ -87,6 +87,7 @@ class Model:
     self.prescale_variables = []
     self.lr_adjusted_variables = {}
     self.is_training = (placeholders["is_training"] if "is_training" in placeholders else tf.placeholder(tf.bool,name="is_training"))
+    self.is_training_bool = is_training_bool
 
     self.num_blocks = len(config["block_kind"])
     self.use_fixup = config["use_fixup"]
@@ -1420,13 +1421,16 @@ class Target_vars:
     unowned_target = 1.0 - owned_target
     unowned_proportion = (
       tf.reduce_sum(unowned_target * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),axis=[1,2])
-      / (1.0 + tf.reduce_sum(model.mask_before_symmetry,axis=[1,2]))
+      / (1.0 + tf.reduce_sum(tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),axis=[1,2]))
     )
-    unowned_proportion = tf.reduce_mean(unowned_proportion)
-    moving_unowned_proportion = tf.Variable(1.0,name=("moving_unowned_proportion"),trainable=False)
-    moving_unowned_op = tf.keras.backend.moving_average_update(moving_unowned_proportion,unowned_proportion,0.998)
-    with tf.control_dependencies([moving_unowned_op]):
-      seki_weight_scale = 15.0 * 0.005 / (0.005 + moving_unowned_proportion)
+    unowned_proportion = tf.reduce_mean(unowned_proportion * self.ownership_target_weight)
+    if model.is_training_bool:
+      moving_unowned_proportion = tf.Variable(1.0,name=("moving_unowned_proportion"),trainable=False)
+      moving_unowned_op = tf.keras.backend.moving_average_update(moving_unowned_proportion,unowned_proportion,0.998)
+      with tf.control_dependencies([moving_unowned_op]):
+        seki_weight_scale = 15.0 * 0.005 / (0.005 + moving_unowned_proportion)
+    else:
+      seki_weight_scale = 1.0
 
     self.seki_loss_unreduced = (
       tf.reduce_sum(
@@ -1625,7 +1629,7 @@ class ModelUtils:
 
     if mode == tf.estimator.ModeKeys.PREDICT:
       placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
-      model = Model(model_config,pos_len,placeholders)
+      model = Model(model_config,pos_len,placeholders,is_training_bool=False)
       return model
 
     placeholders["include_history"] = features["gtnc"][:,36:41]
@@ -1658,7 +1662,7 @@ class ModelUtils:
 
     if mode == tf.estimator.ModeKeys.EVAL:
       placeholders["is_training"] = tf.constant(False,dtype=tf.bool)
-      model = Model(model_config,pos_len,placeholders)
+      model = Model(model_config,pos_len,placeholders,is_training_bool=False)
 
       target_vars = Target_vars(model,for_optimization=True,placeholders=placeholders)
       metrics = Metrics(model,target_vars,include_debug_stats=False)
@@ -1666,7 +1670,7 @@ class ModelUtils:
 
     if mode == tf.estimator.ModeKeys.TRAIN:
       placeholders["is_training"] = tf.constant(True,dtype=tf.bool)
-      model = Model(model_config,pos_len,placeholders)
+      model = Model(model_config,pos_len,placeholders,is_training_bool=True)
 
       target_vars = Target_vars(model,for_optimization=True,placeholders=placeholders)
       metrics = Metrics(model,target_vars,include_debug_stats=False)
