@@ -17,6 +17,7 @@ from model import Model
 b6c96 = {
   "version":7,
   "support_japanese_rules":True,
+  "use_fixup":True,
   "trunk_num_channels":96,
   "mid_num_channels":96,
   "regular_num_channels":64,
@@ -40,6 +41,7 @@ b6c96 = {
 b10c128 = {
   "version":7,
   "support_japanese_rules":True,
+  "use_fixup":True,
   "trunk_num_channels":128,
   "mid_num_channels":128,
   "regular_num_channels":96,
@@ -67,6 +69,7 @@ b10c128 = {
 b15c192 = {
   "version":7,
   "support_japanese_rules":True,
+  "use_fixup":True,
   "trunk_num_channels":192,
   "mid_num_channels":192,
   "regular_num_channels":128,
@@ -99,6 +102,7 @@ b15c192 = {
 b20c256 = {
   "version":7,
   "support_japanese_rules":True,
+  "use_fixup":True,
   "trunk_num_channels":256,
   "mid_num_channels":256,
   "regular_num_channels":192,
