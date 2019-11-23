@@ -273,8 +273,13 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     delete bot;
   };
 
+  //From some test matches by lightvector using g104
+  const double eloCostPerThread = 8;
+  const double eloGainPerDoubling = 250;
+
   cout << endl;
   cout << "Testing..." << endl;
+  vector<double> eloEffects;
   for(int i = 0; i<numThreadsToTest.size(); i++) {
     int numThreads = numThreadsToTest[i];
     int64_t totalVisits;
@@ -292,6 +297,25 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
          << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
          << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)"
          << std::flush;
+
+    eloEffects.push_back(eloGainPerDoubling * log(totalVisits / totalSeconds) / log(2) - eloCostPerThread * numThreads);
+  }
+  cout << endl;
+
+  if(numThreadsToTest.size() > 1) {
+    cout << endl;
+    cout << "Based on some test data, each thread costs perhaps ~" << eloCostPerThread << " Elo holding visits fixed (by making MCTS worse)" << endl;
+    cout << "Based on some test data, each speed doubling gains perhaps ~" << eloGainPerDoubling << " Elo by searching deeper" << endl;
+    cout << "So APPROXIMATELY based on this benchmark: " << endl;
+    for(int i = 0; i<numThreadsToTest.size(); i++) {
+      int numThreads = numThreadsToTest[i];
+      double eloEffect = eloEffects[i] - eloEffects[0];
+      cout << "numSearchThreads = " << Global::strprintf("%2d",numThreads) << ": ";
+      if(i == 0)
+        cout << "(baseline)" << endl;
+      else
+        cout << Global::strprintf("%+5.0f",eloEffect) << " Elo" << endl;
+    }
   }
   cout << endl;
 
