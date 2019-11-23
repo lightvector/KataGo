@@ -177,7 +177,7 @@ const InitialPosition* ForkData::get(Rand& rand) {
 
 void ForkData::addSeki(const InitialPosition* pos, Rand& rand) {
   std::unique_lock<std::mutex> lock(mutex);
-  if(sekiForks.size() >= 5000) {
+  if(sekiForks.size() >= 1000) {
     int r = rand.nextUInt(sekiForks.size());
     const InitialPosition* oldPos = sekiForks[r];
     sekiForks[r] = pos;
@@ -1847,7 +1847,7 @@ FinishedGameData* GameRunner::runGame(
   if(forkData != NULL) {
     initialPosition = forkData->get(gameRand);
 
-    if(initialPosition == NULL && fancyModes.sekiForkHack && gameRand.nextBool(0.02)) {
+    if(initialPosition == NULL && fancyModes.sekiForkHack && gameRand.nextBool(0.03)) {
       initialPosition = forkData->getSeki(gameRand);
       if(initialPosition != NULL)
         usedSekiForkHackPosition = true;
