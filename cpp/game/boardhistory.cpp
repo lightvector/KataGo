@@ -494,6 +494,17 @@ void BoardHistory::setFinalScoreAndWinner(float score) {
     winner = C_EMPTY;
 }
 
+int BoardHistory::getScoreAndAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
+  int boardScore;
+  if(rules.scoringRule == Rules::SCORING_AREA)
+    boardScore = countAreaScoreWhiteMinusBlack(board,area);
+  else if(rules.scoringRule == Rules::SCORING_TERRITORY)
+    boardScore = countTerritoryAreaScoreWhiteMinusBlack(board,area);
+  else
+    ASSERT_UNREACHABLE;
+  return boardScore;
+}
+
 void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) {
   int boardScore;
   if(rules.scoringRule == Rules::SCORING_AREA)

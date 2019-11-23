@@ -255,17 +255,17 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       NULL
     );
 
-    const InitialPosition* nextInitialPosition = NULL;
-    Play::maybeForkGame(gameData,&nextInitialPosition,fancyModes,rand,bot,logger);
+    ForkData forkData;
+    Play::maybeForkGame(gameData,&forkData,fancyModes,rand,bot,logger);
 
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;
     cout << "seedBase: " << seedBase << endl;
     gameData->printDebug(cout);
-    if(nextInitialPosition != NULL) {
-      cout << "Forking to initial position " << PlayerIO::colorToChar(nextInitialPosition->pla) << endl;
-      nextInitialPosition->hist.printDebugInfo(cout,nextInitialPosition->board);
+    if(forkData.forks.size() > 0) {
+      cout << "Forking to initial position " << PlayerIO::colorToChar(forkData.forks[0]->pla) << endl;
+      forkData.forks[0]->hist.printDebugInfo(cout,forkData.forks[0]->board);
     }
     delete gameData;
 

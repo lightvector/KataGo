@@ -196,7 +196,7 @@ int MainCmds::match(int argc, const char* const* argv) {
       MatchPairer::BotSpec botSpecW;
       if(matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, NULL, NULL, logger,
+          gameIdx, botSpecB, botSpecW, NULL, logger,
           stopConditions, NULL
         );
       }

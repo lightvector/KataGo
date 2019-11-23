@@ -128,6 +128,7 @@ struct BoardHistory {
   //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
   void endAndScoreGameNow(const Board& board);
   void endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]);
+  int getScoreAndAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
 
   void setWinnerByResignation(Player pla);
 

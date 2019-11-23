@@ -22,6 +22,20 @@ struct InitialPosition {
   ~InitialPosition();
 };
 
+//Holds various initial positions that we may start from rather than a whole new game
+struct ForkData {
+  std::mutex mutex;
+  std::vector<const InitialPosition*> forks;
+  std::vector<const InitialPosition*> sekiForks;
+  ~ForkData();
+
+  void add(const InitialPosition* pos);
+  const InitialPosition* get(Rand& rand);
+
+  void addSeki(const InitialPosition* pos, Rand& rand);
+  const InitialPosition* getSeki(Rand& rand);
+};
+
 STRUCT_NAMED_TRIPLE(int, extraBlack, float, komi, float, komiBase, ExtraBlackAndKomi);
 
 //Object choosing random initial rules and board sizes for games. Threadsafe.
@@ -42,6 +56,8 @@ class GameInitializer {
 
   //A version that doesn't randomize params
   void createGame(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition);
+
+  Rules randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const;
 
  private:
   void initShared(ConfigParser& cfg);
@@ -240,8 +256,18 @@ namespace Play {
 
   void maybeForkGame(
     const FinishedGameData* finishedGameData,
-    const InitialPosition** nextInitialPosition,
+    ForkData* forkData,
     const FancyModes& fancyModes,
+    Rand& gameRand,
+    Search* bot,
+    Logger& logger
+  );
+
+  void maybeSekiForkGame(
+    const FinishedGameData* finishedGameData,
+    ForkData* forkData,
+    const FancyModes& fancyModes,
+    const GameInitializer* gameInit,
     Rand& gameRand,
     Search* bot,
     Logger& logger
@@ -302,8 +328,7 @@ public:
     int64_t gameIdx,
     const MatchPairer::BotSpec& botSpecB,
     const MatchPairer::BotSpec& botSpecW,
-    const InitialPosition* initialPosition,
-    const InitialPosition** nextInitialPosition,
+    ForkData* forkData,
     Logger& logger,
     std::vector<std::atomic<bool>*>& stopConditions,
     std::function<NNEvaluator*()>* checkForNewNNEval

@@ -415,18 +415,20 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
+  //Shared across all game loop threads
+  ForkData* forkData = new ForkData();
   auto gameLoop = [
     &gameRunner,
     &logger,
     &netAndStuffsMutex,&netAndStuffs,
     switchNetsMidGame,
-    &fancyModes
+    &fancyModes,
+    &forkData
   ](int threadIdx) {
     vector<std::atomic<bool>*> stopConditions = {&shouldStop};
 
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     string prevModelName;
-    const InitialPosition* nextInitialPosition = NULL;
     while(true) {
       if(shouldStop.load())
         break;
@@ -465,22 +467,16 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
       FinishedGameData* gameData = NULL;
 
-      const InitialPosition* initialPosition = nextInitialPosition;
-      nextInitialPosition = NULL;
-
       int64_t gameIdx;
       MatchPairer::BotSpec botSpecB;
       MatchPairer::BotSpec botSpecW;
       if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, initialPosition, &nextInitialPosition, logger,
+          gameIdx, botSpecB, botSpecW, forkData, logger,
           stopConditions,
           (switchNetsMidGame ? &checkForNewNNEval : NULL)
         );
       }
-
-      if(initialPosition != NULL)
-        delete initialPosition;
 
       bool shouldContinue = gameData != NULL;
       //Note that if we've gotten a newNNEval, we're actually pushing the game on to the new one's queue, rather than the old one!
@@ -496,9 +492,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     }
 
     lock.unlock();
-
-    if(nextInitialPosition != NULL)
-      delete nextInitialPosition;
 
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " terminating");
   };
@@ -595,6 +588,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   //Delete and clean up everything else
   NeuralNet::globalCleanup();
+  delete forkData;
   delete gameRunner;
   ScoreValue::freeTables();
 

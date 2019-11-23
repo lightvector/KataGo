@@ -149,6 +149,57 @@ InitialPosition::InitialPosition(const Board& b, const BoardHistory& h, Player p
 InitialPosition::~InitialPosition()
 {}
 
+
+ForkData::~ForkData() {
+  for(int i = 0; i<forks.size(); i++)
+    delete forks[i];
+  forks.clear();
+  for(int i = 0; i<sekiForks.size(); i++)
+    delete sekiForks[i];
+  sekiForks.clear();
+}
+
+void ForkData::add(const InitialPosition* pos) {
+  std::lock_guard<std::mutex> lock(mutex);
+  forks.push_back(pos);
+}
+const InitialPosition* ForkData::get(Rand& rand) {
+  std::lock_guard<std::mutex> lock(mutex);
+  if(forks.size() <= 0)
+    return NULL;
+  int r = rand.nextUInt(forks.size());
+  int last = forks.size()-1;
+  const InitialPosition* pos = forks[r];
+  forks[r] = forks[last];
+  forks.resize(forks.size()-1);
+  return pos;
+}
+
+void ForkData::addSeki(const InitialPosition* pos, Rand& rand) {
+  std::unique_lock<std::mutex> lock(mutex);
+  if(sekiForks.size() >= 5000) {
+    int r = rand.nextUInt(sekiForks.size());
+    const InitialPosition* oldPos = sekiForks[r];
+    sekiForks[r] = pos;
+    lock.unlock();
+    delete oldPos;
+  }
+  else {
+    sekiForks.push_back(pos);
+  }
+}
+const InitialPosition* ForkData::getSeki(Rand& rand) {
+  std::lock_guard<std::mutex> lock(mutex);
+  if(sekiForks.size() <= 0)
+    return NULL;
+  int r = rand.nextUInt(sekiForks.size());
+  int last = sekiForks.size()-1;
+  const InitialPosition* pos = sekiForks[r];
+  sekiForks[r] = sekiForks[last];
+  sekiForks.resize(sekiForks.size()-1);
+  return pos;
+}
+
 //------------------------------------------------------------------------------------------------
 
 GameInitializer::GameInitializer(ConfigParser& cfg)
@@ -228,6 +279,12 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
     while(params.drawEquivalentWinsForWhite < 0.0 || params.drawEquivalentWinsForWhite > 1.0)
       params.drawEquivalentWinsForWhite = mean + drawRandRadius * (rand.nextDouble() * 2 - 1);
   }
+}
+
+Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const {
+  rules.scoringRule = allowedScoringRules[randToUse.nextUInt(allowedScoringRules.size())];
+  rules.taxRule = allowedTaxRules[randToUse.nextUInt(allowedTaxRules.size())];
+  return rules;
 }
 
 void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition) {
@@ -1571,26 +1628,69 @@ FinishedGameData* Play::runGame(
   return gameData;
 }
 
+static void replayGameUpToMove(const FinishedGameData* finishedGameData, int moveIdx, Rules rules, Board& board, BoardHistory& hist, Player& pla) {
+  board = finishedGameData->startHist.initialBoard;
+  pla = finishedGameData->startHist.initialPla;
+
+  if(rules.scoringRule == Rules::SCORING_AREA)
+    hist.clear(board,pla,rules,0);
+  else
+    hist.clear(board,pla,rules,finishedGameData->startHist.initialEncorePhase);
+
+  //Make sure it's prior to the last move
+  moveIdx = std::min(moveIdx,(int)(finishedGameData->endHist.moveHistory.size()-1));
+
+  //Replay all those moves
+  for(int i = 0; i<moveIdx; i++) {
+    Loc loc = finishedGameData->endHist.moveHistory[i].loc;
+    if(!hist.isLegal(board,loc,pla)) {
+      //We have a bug of some sort if we got an illegal move on replay, unless
+      //we are in encore phase (pass for ko may change) or the rules are different
+      if(rules == finishedGameData->startHist.rules && hist.encorePhase == 0) {
+        cout << board << endl;
+        cout << PlayerIO::colorToChar(pla) << endl;
+        cout << Location::toString(loc,board) << endl;
+        hist.printDebugInfo(cout,board);
+        cout << endl;
+        throw StringError("Illegal move when replaying to fork game?");
+      }
+      //Just break out due to the illegal move and stop the replay here
+      return;
+    }
+    assert(finishedGameData->endHist.moveHistory[i].pla == pla);
+    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+    pla = getOpp(pla);
+
+    if(hist.isGameFinished)
+      return;
+  }
+}
+
+static bool hasUnownedSpot(const FinishedGameData* finishedGameData) {
+  assert(finishedGameData->finalOwnership != NULL);
+  const Board& board = finishedGameData->startBoard;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(finishedGameData->finalOwnership[loc] == C_EMPTY)
+        return true;
+    }
+  }
+  return false;
+}
 
 void Play::maybeForkGame(
   const FinishedGameData* finishedGameData,
-  const InitialPosition** nextInitialPosition,
+  ForkData* forkData,
   const FancyModes& fancyModes,
   Rand& gameRand,
   Search* bot,
   Logger& logger
 ) {
-  if(nextInitialPosition == NULL)
+  if(forkData == NULL)
     return;
-  *nextInitialPosition = NULL;
-
   assert(finishedGameData->startHist.initialBoard.pos_hash == finishedGameData->endHist.initialBoard.pos_hash);
   assert(finishedGameData->startHist.initialPla == finishedGameData->endHist.initialPla);
-
-  //TODO
-  // if(fancyModes.sekiForkHack && gameRand.nextBool(0.3)) {
-
-  // }
 
   //Just for conceptual simplicity, don't early fork games that started in the encore
   if(finishedGameData->startHist.encorePhase != 0)
@@ -1598,36 +1698,22 @@ void Play::maybeForkGame(
   if(!gameRand.nextBool(fancyModes.earlyForkGameProb))
     return;
 
-  Board board = finishedGameData->startHist.initialBoard;
-  Player pla = finishedGameData->startHist.initialPla;
-  BoardHistory hist(board,pla,finishedGameData->startHist.rules,finishedGameData->startHist.initialEncorePhase);
-
   //Pick a random move to fork from near the start
-  int moveIdx = (int)floor(gameRand.nextExponential() * (fancyModes.earlyForkGameExpectedMoveProp * board.x_size * board.y_size));
-  //Make sure it's prior to the last move, so we have a real place to fork from
-  moveIdx = std::min(moveIdx,(int)(finishedGameData->endHist.moveHistory.size()-1));
-  //Replay all those moves
-  for(int i = 0; i<moveIdx; i++) {
-    Loc loc = finishedGameData->endHist.moveHistory[i].loc;
-    if(!hist.isLegal(board,loc,pla)) {
-      cout << board << endl;
-      cout << PlayerIO::colorToChar(pla) << endl;
-      cout << Location::toString(loc,board) << endl;
-      hist.printDebugInfo(cout,board);
-      cout << endl;
-      throw StringError("Illegal move when replaying to fork game?");
-    }
-    assert(finishedGameData->endHist.moveHistory[i].pla == pla);
-    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-    pla = getOpp(pla);
+  int moveIdx = (int)floor(
+    gameRand.nextExponential() * (
+      fancyModes.earlyForkGameExpectedMoveProp * finishedGameData->startBoard.x_size * finishedGameData->startBoard.y_size
+    )
+  );
 
-    //Just in case if somehow the game is over now, don't actually do anything
-    if(hist.isGameFinished)
-      return;
-  }
+  Board board;
+  Player pla;
+  BoardHistory hist;
+  replayGameUpToMove(finishedGameData, moveIdx, finishedGameData->startHist.rules, board, hist, pla);
+  //Just in case if somehow the game is over now, don't actually do anything
+  if(hist.isGameFinished)
+    return;
 
   //Pick a move!
-
   if(fancyModes.earlyForkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE)
     throw StringError("fancyModes.earlyForkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE");
 
@@ -1672,17 +1758,55 @@ void Play::maybeForkGame(
 
   //Adjust komi to be fair for the new unusual move according to what the net thinks
   if(!gameRand.nextBool(fancyModes.noCompensateKomiProb)) {
-    //Adjust komi to be fair for the handicap according to what the bot thinks. Iterate a few times in case
-    //the neural net knows the bot isn't perfectly score maximizing.
-    for(int i = 0; i<3; i++) {
-      double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
-      double fairKomi = hist.rules.komi - finalWhiteScore;
-      hist.setKomi(roundAndClipKomi(fairKomi,board));
-    }
+    adjustKomiToEven(bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
   }
-  *nextInitialPosition = new InitialPosition(board,hist,pla);
+  forkData->add(new InitialPosition(board,hist,pla));
 }
 
+
+void Play::maybeSekiForkGame(
+  const FinishedGameData* finishedGameData,
+  ForkData* forkData,
+  const FancyModes& fancyModes,
+  const GameInitializer* gameInit,
+  Rand& gameRand,
+  Search* bot,
+  Logger& logger
+) {
+  if(forkData == NULL)
+    return;
+  if(!fancyModes.sekiForkHack)
+    return;
+
+  //If there are any unowned spots, consider forking the last bit of the game, with random rules and even score
+  //Don't fork games starting in second encore though
+  const BoardHistory& endHist = finishedGameData->endHist;
+  if(endHist.isGameFinished && endHist.isScored && finishedGameData->startHist.encorePhase < 2 && hasUnownedSpot(finishedGameData)) {
+
+    for(int i = 0; i<2; i++) {
+      //Pick a random move to fork from near the end of the game
+      int moveIdx = (int)floor(endHist.moveHistory.size() * (1.0 - 0.10 * gameRand.nextExponential()) - 1.0);
+      if(moveIdx < 0)
+        moveIdx = 0;
+      if(moveIdx > endHist.moveHistory.size())
+        moveIdx = endHist.moveHistory.size();
+
+      //Randomly permute the rules
+      Rules rules = finishedGameData->startHist.rules;
+      rules = gameInit->randomizeScoringAndTaxRules(rules,gameRand);
+
+      Board board;
+      Player pla;
+      BoardHistory hist;
+      replayGameUpToMove(finishedGameData, moveIdx, rules, board, hist, pla);
+      //Just in case if somehow the game is over now, don't actually do anything
+      if(hist.isGameFinished)
+        continue;
+      adjustKomiToEven(bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
+      forkData->addSeki(new InitialPosition(board,hist,pla),gameRand);
+    }
+  }
+}
 
 GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, FancyModes fModes)
   :logSearchInfo(),logMoves(),maxMovesPerGame(),clearBotBeforeSearch(),
@@ -1707,8 +1831,7 @@ FinishedGameData* GameRunner::runGame(
   int64_t gameIdx,
   const MatchPairer::BotSpec& bSpecB,
   const MatchPairer::BotSpec& bSpecW,
-  const InitialPosition* initialPosition,
-  const InitialPosition** nextInitialPosition,
+  ForkData* forkData,
   Logger& logger,
   vector<std::atomic<bool>*>& stopConditions,
   std::function<NNEvaluator*()>* checkForNewNNEval
@@ -1716,8 +1839,20 @@ FinishedGameData* GameRunner::runGame(
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
 
-  if(nextInitialPosition != NULL)
-    *nextInitialPosition = NULL;
+  string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
+  Rand gameRand(searchRandSeed + ":" + "forGameRand");
+
+  const InitialPosition* initialPosition = NULL;
+  bool usedSekiForkHackPosition = false;
+  if(forkData != NULL) {
+    initialPosition = forkData->get(gameRand);
+
+    if(initialPosition == NULL && fancyModes.sekiForkHack && gameRand.nextBool(0.02)) {
+      initialPosition = forkData->getSeki(gameRand);
+      if(initialPosition != NULL)
+        usedSekiForkHackPosition = true;
+    }
+  }
 
   Board board; Player pla; BoardHistory hist; ExtraBlackAndKomi extraBlackAndKomi;
   if(fancyModes.forSelfPlay) {
@@ -1749,9 +1884,6 @@ FinishedGameData* GameRunner::runGame(
     //Also in self-play this makes sure root noise is effective on each new search
     clearBotBeforeSearchThisGame = true;
   }
-
-  string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
-  Rand gameRand(searchRandSeed + ":" + "forGameRand");
 
   //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
   //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
@@ -1797,11 +1929,17 @@ FinishedGameData* GameRunner::runGame(
 
   assert(finishedGameData != NULL);
 
-  Play::maybeForkGame(finishedGameData, nextInitialPosition, fancyModes, gameRand, botB, logger);
+  Play::maybeForkGame(finishedGameData, forkData, fancyModes, gameRand, botB, logger);
+  if(!usedSekiForkHackPosition) {
+    Play::maybeSekiForkGame(finishedGameData, forkData, fancyModes, gameInit, gameRand, botB, logger);
+  }
 
   if(botW != botB)
     delete botW;
   delete botB;
+
+  if(initialPosition != NULL)
+    delete initialPosition;
 
   return finishedGameData;
 }

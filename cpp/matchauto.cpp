@@ -526,7 +526,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
       MatchPairer::BotSpec botSpecW;
       if(autoMatchPairer->getMatchup(manager, gameIdx, forBot, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, NULL, NULL, logger,
+          gameIdx, botSpecB, botSpecW, NULL, logger,
           stopConditions, NULL
         );
       }
