@@ -230,7 +230,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
 
   fancyModes.noCompensateKomiProb = cfg.getDouble("noCompensateKomiProb",0.0,1.0);
-  fancyModes.compensateKomiVisits = 20;
+  fancyModes.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 20;
 
   fancyModes.earlyForkGameProb = cfg.getDouble("earlyForkGameProb",0.0,0.5);
   fancyModes.earlyForkGameExpectedMoveProp = cfg.getDouble("earlyForkGameExpectedMoveProp",0.0,1.0);

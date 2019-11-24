@@ -272,6 +272,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   fancyModes.allowResignation = cfg.getBool("allowResignation");
   fancyModes.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
   fancyModes.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
+  fancyModes.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 100;
 
   GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes, logger);
 

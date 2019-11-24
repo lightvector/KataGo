@@ -596,7 +596,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
-   noCompensateKomiProb(0.0),compensateKomiVisits(1),
+   noCompensateKomiProb(0.0),compensateKomiVisits(20),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),earlyForkGameMinChoices(1),earlyForkGameMaxChoices(1),
    sekiForkHack(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
