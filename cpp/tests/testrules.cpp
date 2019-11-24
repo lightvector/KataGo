@@ -371,8 +371,8 @@ After black ko capture and one pass and black other move:
 White recapture:
 Illegal: (5,1) X
 Beginning sending two returning one cycle
-Winner: White
-W-B Score: 1.5
+Winner: Black
+W-B Score: -1.5
 isNoResult: 0
 isResignation: 0
 )%%";
@@ -628,8 +628,8 @@ Can white recapture?
 Illegal: (1,0) O
 After pass
 After pass
-Winner: White
-W-B Score: 0.5
+Winner: Black
+W-B Score: -2.5
 isNoResult: 0
 isResignation: 0
 )%%";
@@ -1497,19 +1497,19 @@ Score: 0.5
 Score: 0.5
 Score: 0.5
 Score: 0.5
+Score: 2.5
 Score: 1.5
-Score: 0.5
-Score: 0.5
-Score: 10.5
+Score: 1.5
+Score: 11.5
 
 Score: 0.5
 Score: 0.5
 Score: 0.5
 Score: 0.5
-Score: 1.5
 Score: 0.5
-Score: 0.5
-Score: 8.5
+Score: -0.5
+Score: -0.5
+Score: 7.5
 )%%";
     expect(name,out,expected);
   }
@@ -1562,19 +1562,19 @@ Score: 1.5
 Score: 1.5
 Score: 1.5
 Score: 0.5
-Score: 0.5
-Score: 0.5
-Score: 0.5
-Score: 10.5
+Score: 1.5
+Score: 1.5
+Score: 1.5
+Score: 11.5
 
 Score: 0.5
 Score: 0.5
 Score: 0.5
 Score: 0.5
-Score: 0.5
-Score: 0.5
-Score: 0.5
-Score: 10.5
+Score: 2.5
+Score: 2.5
+Score: 2.5
+Score: 12.5
 
 Score: 0.5
 Score: 0.5
@@ -2439,7 +2439,7 @@ Last moves pass pass pass pass
 2 O.OO NPX PS2 E2 0000 0000 2022
 White bonus score -1
 Winner: White
-W-B Score: 3.5
+W-B Score: 2.5
 isNoResult: 0
 isResignation: 0
 5 .... NPX PS0 E0 0000 0000 0000
@@ -2676,7 +2676,7 @@ isResignation: 0
 2 OOOOOO. NPX PS2 E2 0000000 0000000 2020111
 White bonus score -1
 Winner: White
-W-B Score: 6.5
+W-B Score: 1.5
 isNoResult: 0
 isResignation: 0
 
@@ -2722,7 +2722,7 @@ isResignation: 0
 2 OOO. NPX PS2 E2 0000 0000 2220
 White bonus score -3
 Winner: White
-W-B Score: 1.5
+W-B Score: 0.5
 isNoResult: 0
 isResignation: 0
 
@@ -2794,7 +2794,7 @@ isResignation: 0
 2 XX.X NPO PS2 E2 0000 0000 1101
 White bonus score -1
 Winner: Black
-W-B Score: -4.5
+W-B Score: -3.5
 isNoResult: 0
 isResignation: 0
 

@@ -1472,16 +1472,16 @@ FinishedGameData* Play::runGame(
       {
         board.calculateArea(gameData->finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
 
-        Color* nonDameArea = new Color[Board::MAX_ARR_SIZE];
-        int whiteMinusBlackNonDameTouchingRegionCount;
-        board.calculateNonDameTouchingArea(nonDameArea,whiteMinusBlackNonDameTouchingRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
+        Color* independentLifeArea = new Color[Board::MAX_ARR_SIZE];
+        int whiteMinusBlackIndependentLifeRegionCount;
+        board.calculateIndependentLifeArea(independentLifeArea,whiteMinusBlackIndependentLifeRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
         for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
-          if(nonDameArea[i] == C_EMPTY && (gameData->finalFullArea[i] == C_BLACK || gameData->finalFullArea[i] == C_WHITE))
+          if(independentLifeArea[i] == C_EMPTY && (gameData->finalFullArea[i] == C_BLACK || gameData->finalFullArea[i] == C_WHITE))
             gameData->finalSekiAreas[i] = true;
           else
             gameData->finalSekiAreas[i] = false;
         }
-        delete nonDameArea;
+        delete independentLifeArea;
       }
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);

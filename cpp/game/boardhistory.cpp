@@ -407,15 +407,15 @@ int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[B
   else if(rules.taxRule == Rules::TAX_SEKI || rules.taxRule == Rules::TAX_ALL) {
     bool keepTerritories = false;
     bool keepStones = true;
-    int whiteMinusBlackNonDameTouchingRegionCount = 0;
-    board.calculateNonDameTouchingArea(
-      area,whiteMinusBlackNonDameTouchingRegionCount,
+    int whiteMinusBlackIndependentLifeRegionCount = 0;
+    board.calculateIndependentLifeArea(
+      area,whiteMinusBlackIndependentLifeRegionCount,
       keepTerritories,
       keepStones,
       rules.multiStoneSuicideLegal
     );
     if(rules.taxRule == Rules::TAX_ALL)
-      score -= 2 * whiteMinusBlackNonDameTouchingRegionCount;
+      score -= 2 * whiteMinusBlackIndependentLifeRegionCount;
   }
   else
     ASSERT_UNREACHABLE;
@@ -449,9 +449,9 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Col
   else
     ASSERT_UNREACHABLE;
 
-  int whiteMinusBlackNonDameTouchingRegionCount = 0;
-  board.calculateNonDameTouchingArea(
-    area,whiteMinusBlackNonDameTouchingRegionCount,
+  int whiteMinusBlackIndependentLifeRegionCount = 0;
+  board.calculateIndependentLifeArea(
+    area,whiteMinusBlackIndependentLifeRegionCount,
     keepTerritories,
     keepStones,
     rules.multiStoneSuicideLegal
@@ -480,7 +480,7 @@ int BoardHistory::countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Col
     }
   }
   if(rules.taxRule == Rules::TAX_ALL)
-    score -= 2 * whiteMinusBlackNonDameTouchingRegionCount;
+    score -= 2 * whiteMinusBlackIndependentLifeRegionCount;
   return score;
 }
 

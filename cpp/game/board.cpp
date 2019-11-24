@@ -1618,9 +1618,9 @@ void Board::calculateArea(
   }
 }
 
-void Board::calculateNonDameTouchingArea(
+void Board::calculateIndependentLifeArea(
   Color* result,
-  int& whiteMinusBlackNonDameTouchingRegionCount,
+  int& whiteMinusBlackIndependentLifeRegionCount,
   bool keepTerritories,
   bool keepStones,
   bool isMultiStoneSuicideLegal
@@ -1641,7 +1641,7 @@ void Board::calculateNonDameTouchingArea(
     }
   }
 
-  calculateNonDameTouchingAreaHelper(basicArea,result,whiteMinusBlackNonDameTouchingRegionCount);
+  calculateIndependentLifeAreaHelper(basicArea,result,whiteMinusBlackIndependentLifeRegionCount);
 
   if(keepTerritories) {
     for(int y = 0; y < y_size; y++) {
@@ -1990,19 +1990,19 @@ void Board::calculateAreaForPla(
 }
 
 
-void Board::calculateNonDameTouchingAreaHelper(
+void Board::calculateIndependentLifeAreaHelper(
   const Color* basicArea,
   Color* result,
-  int& whiteMinusBlackNonDameTouchingRegionCount
+  int& whiteMinusBlackIndependentLifeRegionCount
 ) const {
   Loc queue[MAX_ARR_SIZE];
-  whiteMinusBlackNonDameTouchingRegionCount = 0;
+  whiteMinusBlackIndependentLifeRegionCount = 0;
 
   //Iterate through all the regions that players own via area scoring and mark
-  //all the ones that are touching dame
-  bool isDameTouching[MAX_ARR_SIZE];
+  //all the ones that are touching dame OR that contain an atari stone
+  bool isSeki[MAX_ARR_SIZE];
   for(int i = 0; i<MAX_ARR_SIZE; i++)
-    isDameTouching[i] = false;
+    isSeki[i] = false;
 
   int queueHead = 0;
   int queueTail = 0;
@@ -2010,15 +2010,18 @@ void Board::calculateNonDameTouchingAreaHelper(
   for(int y = 0; y < y_size; y++) {
     for(int x = 0; x < x_size; x++) {
       Loc loc = Location::getLoc(x,y,x_size);
-      if(basicArea[loc] != C_EMPTY && !isDameTouching[loc]) {
-        //Touches dame?
-        if((colors[loc+ADJ0] == C_EMPTY && basicArea[loc+ADJ0] == C_EMPTY) ||
+      if(basicArea[loc] != C_EMPTY && !isSeki[loc]) {
+        if(
+          //Stone of player owning the area is in atari? Treat as seki.
+          (colors[loc] == basicArea[loc] && getNumLiberties(loc) == 1) ||
+          //Touches dame? Treat as seki
+          ((colors[loc+ADJ0] == C_EMPTY && basicArea[loc+ADJ0] == C_EMPTY) ||
            (colors[loc+ADJ1] == C_EMPTY && basicArea[loc+ADJ1] == C_EMPTY) ||
            (colors[loc+ADJ2] == C_EMPTY && basicArea[loc+ADJ2] == C_EMPTY) ||
-           (colors[loc+ADJ3] == C_EMPTY && basicArea[loc+ADJ3] == C_EMPTY)) {
-
+           (colors[loc+ADJ3] == C_EMPTY && basicArea[loc+ADJ3] == C_EMPTY))
+        ) {
           Player pla = basicArea[loc];
-          isDameTouching[loc] = true;
+          isSeki[loc] = true;
           queue[queueTail++] = loc;
           while(queueHead != queueTail) {
             //Pop next location off queue
@@ -2027,8 +2030,8 @@ void Board::calculateNonDameTouchingAreaHelper(
             //Look all around it, floodfill
             FOREACHADJ(
               Loc adj = nextLoc + ADJOFFSET;
-              if(basicArea[adj] == pla && !isDameTouching[adj]) {
-                isDameTouching[adj] = true;
+              if(basicArea[adj] == pla && !isSeki[adj]) {
+                isSeki[adj] = true;
                 queue[queueTail++] = adj;
               }
             );
@@ -2041,14 +2044,14 @@ void Board::calculateNonDameTouchingAreaHelper(
   queueHead = 0;
   queueTail = 0;
 
-  //Now, walk through and copy all non-dame-touching basic areas into the result counting
+  //Now, walk through and copy all non-seki-touching basic areas into the result counting
   //how many there are.
   for(int y = 0; y < y_size; y++) {
     for(int x = 0; x < x_size; x++) {
       Loc loc = Location::getLoc(x,y,x_size);
-      if(basicArea[loc] != C_EMPTY && !isDameTouching[loc] && result[loc] != basicArea[loc]) {
+      if(basicArea[loc] != C_EMPTY && !isSeki[loc] && result[loc] != basicArea[loc]) {
         Player pla = basicArea[loc];
-        whiteMinusBlackNonDameTouchingRegionCount += (pla == P_WHITE ? 1 : -1);
+        whiteMinusBlackIndependentLifeRegionCount += (pla == P_WHITE ? 1 : -1);
         result[loc] = basicArea[loc];
         queue[queueTail++] = loc;
         while(queueHead != queueTail) {
