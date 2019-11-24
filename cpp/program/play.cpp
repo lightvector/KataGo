@@ -676,7 +676,7 @@ static float roundAndClipKomi(double unrounded, const Board& board) {
   return (float)(0.5 * round(2.0 * unrounded));
 }
 
-static double getWhiteScoreEstimate(Search* bot, const Board& board, const BoardHistory& hist, Player pla, int numVisits, Logger& logger) {
+static ReportedSearchValues getWhiteScoreValues(Search* bot, const Board& board, const BoardHistory& hist, Player pla, int numVisits, Logger& logger) {
   assert(numVisits > 0);
   SearchParams oldParams = bot->searchParams;
   SearchParams newParams = oldParams;
@@ -693,7 +693,7 @@ static double getWhiteScoreEstimate(Search* bot, const Board& board, const Board
 
   ReportedSearchValues values = bot->getRootValuesAssertSuccess();
   bot->setParams(oldParams);
-  return values.expectedScore;
+  return values;
 }
 
 void Play::adjustKomiToEven(
@@ -703,18 +703,136 @@ void Play::adjustKomiToEven(
   BoardHistory& hist,
   Player pla,
   int64_t numVisits,
-  Logger& logger
+  Logger& logger,
+  Rand& rand
 ) {
-  //Iterate a few times in case the neural net knows the bot isn't perfectly score maximizing.
-  for(int i = 0; i<3; i++) {
-    double finalWhiteScore = getWhiteScoreEstimate(botB, board, hist, pla, numVisits, logger);
+  map<float,std::pair<double,double>> scoreWLCache;
+  auto evalKomi = [&](float roundedClippedKomi) {
+    auto iter = scoreWLCache.find(roundedClippedKomi);
+    if(iter != scoreWLCache.end())
+      return iter->second;
+
+    BoardHistory histCopy(hist);
+    histCopy.setKomi(roundedClippedKomi);
+
+    ReportedSearchValues values0 = getWhiteScoreValues(botB, board, histCopy, pla, numVisits, logger);
+    double finalScore = values0.expectedScore;
+    double finalWinLoss = values0.winLossValue;
+
     //If we have a second bot, average the two
     if(botW != NULL && botW != botB) {
-      finalWhiteScore = 0.5 * finalWhiteScore + 0.5 * getWhiteScoreEstimate(botW, board, hist, pla, numVisits, logger);
+      ReportedSearchValues values1 = getWhiteScoreValues(botB, board, histCopy, pla, numVisits, logger);
+      finalScore = 0.5 * (values0.expectedScore + values1.expectedScore);
+      finalWinLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
     }
-    double fairKomi = hist.rules.komi - finalWhiteScore;
-    hist.setKomi(roundAndClipKomi(fairKomi,board));
+    std::pair<double,double> result = std::make_pair(finalScore,finalWinLoss);
+    scoreWLCache[roundedClippedKomi] = result;
+    return result;
+  };
+
+  //A few times iterate based on expected score a few times to hopefully get a value close to fair
+  double lastShift = 0.0;
+  for(int i = 0; i<2; i++) {
+    std::pair<float,float> result = evalKomi(hist.rules.komi);
+    double finalWhiteScore = result.first;
+    double finalWinLoss = result.second;
+    //Shift by the predicted score difference... but dampen shifts slightly by scaling to 80 pct.
+    double shift = -finalWhiteScore * 0.8;
+    //Under no situations should the shift be bigger in absolute value than the last shift in the opposite direction
+    if(i > 0 && abs(shift) > abs(lastShift)) {
+      if(shift < 0) shift = -abs(lastShift);
+      else if(shift > 0) shift = abs(lastShift);
+    }
+    lastShift = shift;
+
+    //If the score and winrate would like to move in opposite directions, quit immediately.
+    if((shift > 0 && finalWinLoss > 0) || (shift < 0 && finalWhiteScore < 0))
+      break;
+
+    // cout << "Shifting by " << shift << endl;
+    float fairKomi = roundAndClipKomi(hist.rules.komi + shift, board);
+    hist.setKomi(fairKomi);
+
+    //After a small shift, break out to the binary search.
+    if(abs(shift) < 16.0)
+      break;
   }
+
+  //Try a small window and do a binary search
+  auto evalWinLoss = [&](double delta) {
+    double newKomi = hist.rules.komi + delta;
+    double winLoss = evalKomi(roundAndClipKomi(newKomi,board)).second;
+    // cout << "Delta " << delta << " wr " << winLoss << endl;
+    return winLoss;
+  };
+
+  double lowerDelta;
+  double upperDelta;
+  double lowerWinLoss;
+  double upperWinLoss;
+
+  //Grow window outward
+  {
+    double winLossZero = evalWinLoss(0);
+    if(winLossZero < 0) {
+      //Losing, so this is the lower bound
+      lowerDelta = 0.0;
+      lowerWinLoss = winLossZero;
+      for(int i = 0; i<=5; i++) {
+        upperDelta = round(pow(2.0,i));
+        upperWinLoss = evalWinLoss(upperDelta);
+        if(upperWinLoss >= 0)
+          break;
+      }
+    }
+    else {
+      //Winning, so this is the upper bound
+      upperDelta = 0.0;
+      upperWinLoss = winLossZero;
+      for(int i = 0; i<=5; i++) {
+        lowerDelta = -round(pow(2.0,i));
+        lowerWinLoss = evalWinLoss(lowerDelta);
+        if(lowerWinLoss <= 0)
+          break;
+      }
+    }
+  }
+
+  while(upperDelta - lowerDelta > 0.50001) {
+    double midDelta = 0.5 * (lowerDelta + upperDelta);
+    double midWinLoss = evalWinLoss(midDelta);
+    if(midWinLoss < 0) {
+      lowerDelta = midDelta;
+      lowerWinLoss = midWinLoss;
+    }
+    else {
+      upperDelta = midDelta;
+      upperWinLoss = midWinLoss;
+    }
+  }
+  //Floating point math should be exact to multiples of 0.5 so this should hold *exactly*.
+  assert(upperDelta - lowerDelta == 0.5);
+
+  double finalDelta;
+  //If the winLoss are crossed, potentially due to noise, then just pick one at random
+  if(lowerWinLoss >= upperWinLoss)
+    finalDelta = rand.nextBool(0.5) ? lowerDelta : upperDelta;
+  //If 0 is outside of the range, then choose the endpoint of the range.
+  else if(upperWinLoss <= 0)
+    finalDelta = upperDelta;
+  else if(lowerWinLoss >= 0)
+    finalDelta = lowerDelta;
+  //Probabilistically choose between the lower and upper bounds based on where 0 would be.
+  else {
+    if(rand.nextBool((0-lowerWinLoss) / (upperWinLoss-lowerWinLoss)))
+      finalDelta = upperDelta;
+    else
+      finalDelta = lowerDelta;
+  }
+
+  double newKomi = hist.rules.komi + finalDelta;
+  // cout << "Final " << finalDelta << " " << newKomi << endl;
+  hist.setKomi(roundAndClipKomi(newKomi,board));
 }
 
 double Play::getSearchFactor(
@@ -1303,7 +1421,7 @@ FinishedGameData* Play::runGame(
     playExtraBlack(botB,extraBlackAndKomi.extraBlack,board,hist,extraBlackTemperature,gameRand);
     if(adjustKomi) {
       //Adjust komi to be fair for the handicap according to what the bot thinks.
-      adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger);
+      adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,gameRand);
     }
     //Then, reapply the komi offset from base that we should have had
     hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
@@ -1314,7 +1432,7 @@ FinishedGameData* Play::runGame(
       //First, restore back to baseline komi
       hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
       //Adjust komi to be fair for the handicap according to what the bot thinks.
-      adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger);
+      adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,gameRand);
       //Then, reapply the komi offset from base that we should have had
       hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
     }
@@ -1381,7 +1499,7 @@ FinishedGameData* Play::runGame(
 
     if(!hist.isGameFinished) {
       //Even out the game
-      adjustKomiToEven(botB, botW, board, hist, pla, fancyModes.compensateKomiVisits, logger);
+      adjustKomiToEven(botB, botW, board, hist, pla, fancyModes.compensateKomiVisits, logger, gameRand);
 
       //Randomly set to one of the encore phases
       //Since we played out the game a bunch we should get a good mix of stones that were present or not present at the start
@@ -1868,7 +1986,7 @@ void Play::maybeForkGame(
 
   //Adjust komi to be fair for the new unusual move according to what the net thinks
   if(!gameRand.nextBool(fancyModes.noCompensateKomiProb)) {
-    adjustKomiToEven(bot, bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
+    adjustKomiToEven(bot, bot, board, hist, pla, fancyModes.compensateKomiVisits, logger, gameRand);
   }
   forkData->add(new InitialPosition(board,hist,pla));
 }
@@ -1912,7 +2030,7 @@ void Play::maybeSekiForkGame(
       //Just in case if somehow the game is over now, don't actually do anything
       if(hist.isGameFinished)
         continue;
-      adjustKomiToEven(bot, bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
+      adjustKomiToEven(bot, bot, board, hist, pla, fancyModes.compensateKomiVisits, logger, gameRand);
       forkData->addSeki(new InitialPosition(board,hist,pla),gameRand);
     }
   }

@@ -311,7 +311,8 @@ namespace Play {
     BoardHistory& hist,
     Player pla,
     int64_t numVisits,
-    Logger& logger
+    Logger& logger,
+    Rand& rand
   );
 
   double getSearchFactor(
