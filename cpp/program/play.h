@@ -37,7 +37,7 @@ struct ForkData {
   const InitialPosition* getSeki(Rand& rand);
 };
 
-STRUCT_NAMED_TRIPLE(int, extraBlack, float, komi, float, komiBase, ExtraBlackAndKomi);
+STRUCT_NAMED_QUAD(int, extraBlack, float, komi, float, komiBase, bool, makeGameFair, ExtraBlackAndKomi);
 
 //Object choosing random initial rules and board sizes for games. Threadsafe.
 class GameInitializer {
@@ -99,9 +99,11 @@ class GameInitializer {
   float komiStdev;
   double komiAllowIntegerProb;
   double handicapProb;
-  float handicapStoneValue;
+  double handicapCompensateKomiProb;
+  double forkCompensateKomiProb;
   double komiBigStdevProb;
   float komiBigStdev;
+  bool komiAuto;
 
   double noResultStdev;
   double drawRandRadius;
@@ -186,8 +188,6 @@ struct FancyModes {
   //Occasionally try some alternative moves and search the responses to them.
   double forkSidePositionProb;
 
-  //In handicap games and when forking a whole game - with this probability do NOT adjust the komi to be fair.
-  double noCompensateKomiProb;
   //Use this many visits in a short search to estimate the score, for adjusting komi
   int compensateKomiVisits;
 
@@ -255,7 +255,6 @@ namespace Play {
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     const FancyModes& fancyModes, bool allowPolicyInit,
-    bool alwaysMakeGameFair,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -269,7 +268,6 @@ namespace Play {
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     const FancyModes& fancyModes, bool allowPolicyInit,
-    bool alwaysMakeGameFair,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -279,8 +277,7 @@ namespace Play {
     ForkData* forkData,
     const FancyModes& fancyModes,
     Rand& gameRand,
-    Search* bot,
-    Logger& logger
+    Search* bot
   );
 
   void maybeSekiForkGame(
@@ -288,9 +285,7 @@ namespace Play {
     ForkData* forkData,
     const FancyModes& fancyModes,
     const GameInitializer* gameInit,
-    Rand& gameRand,
-    Search* bot,
-    Logger& logger
+    Rand& gameRand
   );
 
   Loc chooseRandomPolicyMove(

@@ -104,10 +104,9 @@ void Tests::runTrainingWriteTests() {
     int initialEncorePhase = 0;
     BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
 
-    ExtraBlackAndKomi extraBlackAndKomi = ExtraBlackAndKomi(0,rules.komi,rules.komi);
+    ExtraBlackAndKomi extraBlackAndKomi = ExtraBlackAndKomi(0,rules.komi,rules.komi,false);
     bool doEndGameIfAllPassAlive = cheapLongSgf ? false : true;
     bool clearBotAfterSearch = true;
-    bool alwaysMakeGameFair = false;
     int maxMovesPerGame = cheapLongSgf ? 200 : 40;
     vector<std::atomic<bool>*> stopConditions;
     FancyModes fancyModes;
@@ -125,7 +124,6 @@ void Tests::runTrainingWriteTests() {
       logger, false, false,
       maxMovesPerGame, stopConditions,
       fancyModes, true,
-      alwaysMakeGameFair,
       rand,
       NULL
     );
@@ -219,11 +217,10 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     int initialEncorePhase = 0;
     BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
 
-    ExtraBlackAndKomi extraBlackAndKomi(numExtraBlack,rules.komi,rules.komi);
+    ExtraBlackAndKomi extraBlackAndKomi(numExtraBlack,rules.komi,rules.komi,numExtraBlack > 0);
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
-    bool alwaysMakeGameFair = false;
     int maxMovesPerGame = 1;
     vector<std::atomic<bool>*> stopConditions;
     FancyModes fancyModes;
@@ -236,7 +233,6 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     fancyModes.earlyForkGameExpectedMoveProp = 0.05;
     fancyModes.earlyForkGameMinChoices = 2;
     fancyModes.earlyForkGameMaxChoices = 2;
-    fancyModes.noCompensateKomiProb = 0.25;
     fancyModes.compensateKomiVisits = 5;
     fancyModes.forSelfPlay = true;
     fancyModes.dataXLen = nnXLen;
@@ -254,13 +250,12 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       logger, false, false,
       maxMovesPerGame, stopConditions,
       fancyModes, true,
-      alwaysMakeGameFair,
       rand,
       NULL
     );
 
     ForkData forkData;
-    Play::maybeForkGame(gameData,&forkData,fancyModes,rand,bot,logger);
+    Play::maybeForkGame(gameData,&forkData,fancyModes,rand,bot);
 
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;
@@ -269,10 +264,18 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     gameData->printDebug(cout);
     if(forkData.forks.size() > 0) {
       cout << "Forking to initial position " << PlayerIO::colorToChar(forkData.forks[0]->pla) << endl;
-      forkData.forks[0]->hist.printDebugInfo(cout,forkData.forks[0]->board);
+      cout << "Pre-fair komi " << forkData.forks[0]->hist.rules.komi << endl;
+      Board board = forkData.forks[0]->board;
+      BoardHistory hist = forkData.forks[0]->hist;
+      Player pla = forkData.forks[0]->pla;
+      Play::adjustKomiToEven(
+        bot, bot, board, hist, pla,
+        fancyModes.cheapSearchVisits, logger, rand
+      );
+      hist.printDebugInfo(cout,board);
     }
     delete gameData;
-
+    delete bot;
     delete nnEval;
     cout << endl;
   };
@@ -351,13 +354,12 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     Player initialPla;
     BoardHistory initialHist;
 
-    ExtraBlackAndKomi extraBlackAndKomi(0,rules.komi,rules.komi);
+    ExtraBlackAndKomi extraBlackAndKomi(0,rules.komi,rules.komi,false);
     int turnNumber = sgf->moves.size();
     sgf->setupBoardAndHist(rules,initialBoard,initialPla,initialHist,turnNumber);
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
-    bool alwaysMakeGameFair = false;
     int maxMovesPerGame = 1;
     vector<std::atomic<bool>*> stopConditions;
     FancyModes fancyModes;
@@ -370,7 +372,6 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     fancyModes.earlyForkGameExpectedMoveProp = 0;
     fancyModes.earlyForkGameMinChoices = 2;
     fancyModes.earlyForkGameMaxChoices = 2;
-    fancyModes.noCompensateKomiProb = 0;
     fancyModes.compensateKomiVisits = 5;
     fancyModes.forSelfPlay = true;
     fancyModes.dataXLen = nnXLen;
@@ -388,7 +389,6 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
       logger, false, false,
       maxMovesPerGame, stopConditions,
       fancyModes, true,
-      alwaysMakeGameFair,
       rand,
       NULL
     );
@@ -398,6 +398,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     dataWriter.writeGame(*gameData);
     dataWriter.flushIfNonempty();
     delete gameData;
+    delete bot;
     delete nnEval;
     delete sgf;
     cout << endl;

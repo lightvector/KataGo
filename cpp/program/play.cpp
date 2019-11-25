@@ -26,29 +26,33 @@ static int getMaxExtraBlack(int bSize) {
 }
 
 static ExtraBlackAndKomi chooseExtraBlackAndKomi(
-  float base, float stdev, double allowIntegerProb, double handicapProb, double bigStdevProb, float bigStdev, int bSize, Rand& rand
+  float base, float stdev, double allowIntegerProb,
+  double handicapProb, double handicapCompensateKomiProb,
+  double bigStdevProb, float bigStdev, int bSize, Rand& rand
 ) {
   int extraBlack = 0;
   float komi = base;
+  bool makeGameFair = false;
 
   if(stdev > 0.0f)
     komi += stdev * (float)nextGaussianTruncated(rand,3.0);
-  if(bigStdev > 0.0f && rand.nextDouble() < bigStdevProb)
+  if(bigStdev > 0.0f && rand.nextBool(bigStdevProb))
     komi += bigStdev * (float)nextGaussianTruncated(rand,3.0);
 
   //Adjust for bSize, so that we don't give the same massive komis on smaller boards
   komi = base + (komi - base) * (float)bSize / 19.0f;
 
-  //Add handicap stones compensated with komi
+  //Add handicap stones
   int maxExtraBlack = getMaxExtraBlack(bSize);
-  if(maxExtraBlack > 0 && rand.nextDouble() < handicapProb) {
+  if(maxExtraBlack > 0 && rand.nextBool(handicapProb)) {
     extraBlack += 1+rand.nextUInt(maxExtraBlack);
+    makeGameFair = rand.nextBool(handicapCompensateKomiProb);
   }
 
   //Discretize komi
   float lower;
   float upper;
-  if(rand.nextDouble() < allowIntegerProb) {
+  if(rand.nextBool(allowIntegerProb)) {
     lower = floor(komi*2.0f) / 2.0f;
     upper = ceil(komi*2.0f) / 2.0f;
   }
@@ -68,7 +72,7 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   }
 
   assert(Rules::komiIsIntOrHalfInt(komi));
-  return ExtraBlackAndKomi(extraBlack,komi,base);
+  return ExtraBlackAndKomi(extraBlack,komi,base,makeGameFair);
 }
 
 int Play::numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory, bool assumeMultipleStartingBlackMovesAreHandicap) {
@@ -236,13 +240,23 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
-  komiMean = cfg.getFloat("komiMean",-60.0f,60.0f);
+  if(!cfg.contains("komiMean") && !(cfg.contains("komiAuto") && cfg.getBool("komiAuto")))
+    throw IOError("Must specify either komiMean=<komi value> or komiAuto=True in config");
+
+  komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean",-60.0f,60.0f) : 7.5f;
   komiStdev = cfg.getFloat("komiStdev",0.0f,60.0f);
-  komiAllowIntegerProb = cfg.getDouble("komiAllowIntegerProb",0.0,1.0);
   handicapProb = cfg.getDouble("handicapProb",0.0,1.0);
+  handicapCompensateKomiProb = cfg.getDouble("handicapCompensateKomiProb",0.0,1.0);
   komiBigStdevProb = cfg.getDouble("komiBigStdevProb",0.0,1.0);
   komiBigStdev = cfg.getFloat("komiBigStdev",0.0f,60.0f);
+  komiAuto = cfg.contains("komiAuto") ? cfg.getBool("komiAuto") : false;
 
+  forkCompensateKomiProb = cfg.contains("forkCompensateKomiProb") ? cfg.getDouble("forkCompensateKomiProb",0.0,1.0) : handicapCompensateKomiProb;
+
+  //Disabled because there are enough other things that can result in integer komi
+  //such as komiAuto that this is very confusing
+  //komiAllowIntegerProb = cfg.getDouble("komiAllowIntegerProb",0.0,1.0);
+  komiAllowIntegerProb = 1.0;
 
   startPosesProb = 0.0;
   if(cfg.contains("startPosesFromSgfDir")) {
@@ -364,13 +378,17 @@ void GameInitializer::createGameSharedUnsynchronized(
     hist = initialPosition->hist;
     pla = initialPosition->pla;
 
+    //No handicap when starting from an initial position.
+    double thisHandicapProb = 0.0;
     extraBlackAndKomi = chooseExtraBlackAndKomi(
-      hist.rules.komi, komiStdev, komiAllowIntegerProb, 0.0,
+      hist.rules.komi, komiStdev, komiAllowIntegerProb,
+      thisHandicapProb, handicapCompensateKomiProb,
       komiBigStdevProb, komiBigStdev, std::min(board.x_size,board.y_size), rand
     );
     assert(extraBlackAndKomi.extraBlack == 0);
     hist.setKomi(extraBlackAndKomi.komi);
     isSgfPos = false;
+    extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
     return;
   }
 
@@ -397,17 +415,20 @@ void GameInitializer::createGameSharedUnsynchronized(
     //No handicap when starting from a sampled position.
     double thisHandicapProb = 0.0;
     extraBlackAndKomi = chooseExtraBlackAndKomi(
-      komiMean, komiStdev, komiAllowIntegerProb, thisHandicapProb,
+      komiMean, komiStdev, komiAllowIntegerProb,
+      thisHandicapProb, handicapCompensateKomiProb,
       komiBigStdevProb, komiBigStdev, std::min(board.x_size,board.y_size), rand
     );
     isSgfPos = true;
+    extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
   }
   else {
     int bSize = allowedBSizes[bSizeIdx];
     board = Board(bSize,bSize);
 
     extraBlackAndKomi = chooseExtraBlackAndKomi(
-      komiMean, komiStdev, komiAllowIntegerProb, handicapProb,
+      komiMean, komiStdev, komiAllowIntegerProb,
+      handicapProb, handicapCompensateKomiProb,
       komiBigStdevProb, komiBigStdev, bSize, rand
     );
     rules.komi = extraBlackAndKomi.komi;
@@ -596,7 +617,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
-   noCompensateKomiProb(0.0),compensateKomiVisits(20),
+   compensateKomiVisits(20),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),earlyForkGameMinChoices(1),earlyForkGameMaxChoices(1),
    sekiForkHack(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
@@ -1362,7 +1383,6 @@ FinishedGameData* Play::runGame(
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
   const FancyModes& fancyModes, bool allowPolicyInit,
-  bool alwaysMakeGameFair,
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
@@ -1385,7 +1405,6 @@ FinishedGameData* Play::runGame(
     logger, logSearchInfo, logMoves,
     maxMovesPerGame, stopConditions,
     fancyModes, allowPolicyInit,
-    alwaysMakeGameFair,
     gameRand,
     checkForNewNNEval
   );
@@ -1405,7 +1424,6 @@ FinishedGameData* Play::runGame(
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
   const FancyModes& fancyModes, bool allowPolicyInit,
-  bool alwaysMakeGameFair,
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
@@ -1415,27 +1433,16 @@ FinishedGameData* Play::runGame(
   BoardHistory hist(startHist);
   if(extraBlackAndKomi.extraBlack > 0) {
     double extraBlackTemperature = 1.0;
-    bool adjustKomi = alwaysMakeGameFair || !gameRand.nextBool(fancyModes.noCompensateKomiProb);
-    //First, restore back to baseline komi
-    hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
     playExtraBlack(botB,extraBlackAndKomi.extraBlack,board,hist,extraBlackTemperature,gameRand);
-    if(adjustKomi) {
-      //Adjust komi to be fair for the handicap according to what the bot thinks.
-      adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,gameRand);
-    }
-    //Then, reapply the komi offset from base that we should have had
-    hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
     assert(hist.moveHistory.size() == 0);
   }
-  else {
-    if(alwaysMakeGameFair) {
-      //First, restore back to baseline komi
-      hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
-      //Adjust komi to be fair for the handicap according to what the bot thinks.
-      adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,gameRand);
-      //Then, reapply the komi offset from base that we should have had
-      hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
-    }
+  if(extraBlackAndKomi.makeGameFair) {
+    //First, restore back to baseline komi
+    hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
+    //Adjust komi to be fair for the handicap according to what the bot thinks.
+    adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,gameRand);
+    //Then, reapply the komi offset from base that we should have had
+    hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
   }
 
   vector<double>* recordUtilities = NULL;
@@ -1912,8 +1919,7 @@ void Play::maybeForkGame(
   ForkData* forkData,
   const FancyModes& fancyModes,
   Rand& gameRand,
-  Search* bot,
-  Logger& logger
+  Search* bot
 ) {
   if(forkData == NULL)
     return;
@@ -1983,11 +1989,6 @@ void Play::maybeForkGame(
   //If the game is over now, don't actually do anything
   if(hist.isGameFinished)
     return;
-
-  //Adjust komi to be fair for the new unusual move according to what the net thinks
-  if(!gameRand.nextBool(fancyModes.noCompensateKomiProb)) {
-    adjustKomiToEven(bot, bot, board, hist, pla, fancyModes.compensateKomiVisits, logger, gameRand);
-  }
   forkData->add(new InitialPosition(board,hist,pla));
 }
 
@@ -1997,9 +1998,7 @@ void Play::maybeSekiForkGame(
   ForkData* forkData,
   const FancyModes& fancyModes,
   const GameInitializer* gameInit,
-  Rand& gameRand,
-  Search* bot,
-  Logger& logger
+  Rand& gameRand
 ) {
   if(forkData == NULL)
     return;
@@ -2030,7 +2029,6 @@ void Play::maybeSekiForkGame(
       //Just in case if somehow the game is over now, don't actually do anything
       if(hist.isGameFinished)
         continue;
-      adjustKomiToEven(bot, bot, board, hist, pla, fancyModes.compensateKomiVisits, logger, gameRand);
       forkData->addSeki(new InitialPosition(board,hist,pla),gameRand);
     }
   }
@@ -2123,8 +2121,6 @@ FinishedGameData* GameRunner::runGame(
   bool doEndGameIfAllPassAlive = fancyModes.forSelfPlay ? gameRand.nextBool(0.98) : true;
   //Allow initial moves via direct policy if we're not specially specifying the initial position for this game
   bool allowPolicyInit = initialPosition == NULL && !isSgfPos;
-  //Make the bot always try to equalize the game by adjusting komi
-  bool alwaysMakeGameFair = isSgfPos;
 
   Search* botB;
   Search* botW;
@@ -2145,7 +2141,6 @@ FinishedGameData* GameRunner::runGame(
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,stopConditions,
     fancyModes,allowPolicyInit,
-    alwaysMakeGameFair,
     gameRand,
     checkForNewNNEval //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame
   );
@@ -2164,9 +2159,9 @@ FinishedGameData* GameRunner::runGame(
 
   assert(finishedGameData != NULL);
 
-  Play::maybeForkGame(finishedGameData, forkData, fancyModes, gameRand, botB, logger);
+  Play::maybeForkGame(finishedGameData, forkData, fancyModes, gameRand, botB);
   if(!usedSekiForkHackPosition) {
-    Play::maybeSekiForkGame(finishedGameData, forkData, fancyModes, gameInit, gameRand, botB, logger);
+    Play::maybeSekiForkGame(finishedGameData, forkData, fancyModes, gameInit, gameRand);
   }
 
   if(botW != botB)
