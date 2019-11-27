@@ -33,6 +33,7 @@ struct BoardHistory {
   static const int NUM_RECENT_BOARDS = 6;
   Board recentBoards[NUM_RECENT_BOARDS];
   int currentRecentBoardIdx;
+  Player presumedNextMovePla;
 
   //Did this board location ever have a stone there before, or was it ever played?
   //(Also includes locations of suicides)
@@ -42,9 +43,9 @@ struct BoardHistory {
 
   //Number of consecutive passes made that count for ending the game or phase
   int consecutiveEndingPasses;
-  //All ko hashes that have occurred after player's pass
-  std::vector<Hash128> hashesAfterBlackPass;
-  std::vector<Hash128> hashesAfterWhitePass;
+  //All ko hashes from which a player passed
+  std::vector<Hash128> hashesBeforeBlackPass;
+  std::vector<Hash128> hashesBeforeWhitePass;
 
   //Encore phase 0,1,2 for territory scoring
   int encorePhase;
@@ -64,7 +65,9 @@ struct BoardHistory {
   Color secondEncoreStartColors[Board::MAX_ARR_SIZE];
 
   //Amount that should be added to komi
-  int whiteBonusScore;
+  float whiteBonusScore;
+  //Is there a button to take?
+  bool hasButton;
 
   //Is the game been prolonged to stay in a given phase without proceeding to the next?
   bool isPastNormalPhaseEnd;
@@ -128,7 +131,7 @@ struct BoardHistory {
   //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
   void endAndScoreGameNow(const Board& board);
   void endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]);
-  int getScoreAndAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
+  void getAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
 
   void setWinnerByResignation(Player pla);
 
@@ -141,9 +144,9 @@ private:
   int countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   int countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   void setFinalScoreAndWinner(float score);
-  int newConsecutiveEndingPasses(Loc moveLoc) const;
+  int newConsecutiveEndingPassesAfterPass() const;
   bool phaseHasSpightlikeEndingAndPassHistoryClearing() const;
-  bool wouldBeSpightlikeEndingPass(Loc moveLoc, Player movePla, Hash128 koHashAfterMove) const;
+  bool wouldBeSpightlikeEndingPass(Player movePla, Hash128 koHashBeforeMove) const;
 };
 
 struct KoHashTable {

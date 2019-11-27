@@ -22,6 +22,7 @@ struct Rules {
   int taxRule;
 
   bool multiStoneSuicideLegal;
+  bool hasButton;
 
   float komi;
   //Min and max acceptable komi in various places involving user input validation
@@ -29,7 +30,7 @@ struct Rules {
   static constexpr float MAX_USER_KOMI = 150.0f;
 
   Rules();
-  Rules(int koRule, int scoringRule, int taxRule, bool multiStoneSuicideLegal, float komi);
+  Rules(int koRule, int scoringRule, int taxRule, bool multiStoneSuicideLegal, bool hasButton, float komi);
   ~Rules();
 
   bool operator==(const Rules& other) const;
@@ -63,6 +64,7 @@ struct Rules {
   static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];
   static const Hash128 ZOBRIST_TAX_RULE_HASH[3];
   static const Hash128 ZOBRIST_MULTI_STONE_SUICIDE_HASH;
+  static const Hash128 ZOBRIST_BUTTON_HASH;
 };
 
 #endif  // GAME_RULES_H_

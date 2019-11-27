@@ -16,12 +16,12 @@ static Hash128 getKoHashAfterMoveNonEncore(const Rules& rules, Hash128 posHashAf
   else
     return posHashAfterMove;
 }
-static Hash128 getKoHashAfterMove(const Rules& rules, Hash128 posHashAfterMove, Player pla, int encorePhase, Hash128 koProhibitHashAfterMove) {
-  if(rules.koRule == Rules::KO_SITUATIONAL || rules.koRule == Rules::KO_SIMPLE || encorePhase > 0)
-    return posHashAfterMove ^ Board::ZOBRIST_PLAYER_HASH[pla] ^ koProhibitHashAfterMove;
-  else
-    return posHashAfterMove ^ koProhibitHashAfterMove;
-}
+// static Hash128 getKoHashAfterMove(const Rules& rules, Hash128 posHashAfterMove, Player pla, int encorePhase, Hash128 koProhibitHashAfterMove) {
+//   if(rules.koRule == Rules::KO_SITUATIONAL || rules.koRule == Rules::KO_SIMPLE || encorePhase > 0)
+//     return posHashAfterMove ^ Board::ZOBRIST_PLAYER_HASH[pla] ^ koProhibitHashAfterMove;
+//   else
+//     return posHashAfterMove ^ koProhibitHashAfterMove;
+// }
 
 
 BoardHistory::BoardHistory()
@@ -34,12 +34,14 @@ BoardHistory::BoardHistory()
    initialTurnNumber(0),
    recentBoards(),
    currentRecentBoardIdx(0),
+   presumedNextMovePla(P_BLACK),
    consecutiveEndingPasses(0),
-   hashesAfterBlackPass(),hashesAfterWhitePass(),
+   hashesBeforeBlackPass(),hashesBeforeWhitePass(),
    encorePhase(0),numTurnsThisPhase(0),
    koProhibitHash(),
    koCapturesInEncore(),
-   whiteBonusScore(0),
+   whiteBonusScore(0.0f),
+   hasButton(false),
    isPastNormalPhaseEnd(false),
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
    isScored(false),isNoResult(false),isResignation(false)
@@ -64,12 +66,14 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    initialTurnNumber(0),
    recentBoards(),
    currentRecentBoardIdx(0),
+   presumedNextMovePla(pla),
    consecutiveEndingPasses(0),
-   hashesAfterBlackPass(),hashesAfterWhitePass(),
+   hashesBeforeBlackPass(),hashesBeforeWhitePass(),
    encorePhase(0),numTurnsThisPhase(0),
    koProhibitHash(),
    koCapturesInEncore(),
-   whiteBonusScore(0),
+   whiteBonusScore(0.0f),
+   hasButton(false),
    isPastNormalPhaseEnd(false),
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
    isScored(false),isNoResult(false),isResignation(false)
@@ -93,12 +97,14 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    initialTurnNumber(other.initialTurnNumber),
    recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
+   presumedNextMovePla(other.presumedNextMovePla),
    consecutiveEndingPasses(other.consecutiveEndingPasses),
-   hashesAfterBlackPass(other.hashesAfterBlackPass),hashesAfterWhitePass(other.hashesAfterWhitePass),
+   hashesBeforeBlackPass(other.hashesBeforeBlackPass),hashesBeforeWhitePass(other.hashesBeforeWhitePass),
    encorePhase(other.encorePhase),numTurnsThisPhase(other.numTurnsThisPhase),
    koProhibitHash(other.koProhibitHash),
    koCapturesInEncore(other.koCapturesInEncore),
    whiteBonusScore(other.whiteBonusScore),
+   hasButton(other.hasButton),
    isPastNormalPhaseEnd(other.isPastNormalPhaseEnd),
    isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
    isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
@@ -126,11 +132,12 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   initialTurnNumber = other.initialTurnNumber;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
+  presumedNextMovePla = other.presumedNextMovePla;
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   std::copy(other.superKoBanned, other.superKoBanned+Board::MAX_ARR_SIZE, superKoBanned);
   consecutiveEndingPasses = other.consecutiveEndingPasses;
-  hashesAfterBlackPass = other.hashesAfterBlackPass;
-  hashesAfterWhitePass = other.hashesAfterWhitePass;
+  hashesBeforeBlackPass = other.hashesBeforeBlackPass;
+  hashesBeforeWhitePass = other.hashesBeforeWhitePass;
   encorePhase = other.encorePhase;
   numTurnsThisPhase = other.numTurnsThisPhase;
   std::copy(other.blackKoProhibited, other.blackKoProhibited+Board::MAX_ARR_SIZE, blackKoProhibited);
@@ -139,6 +146,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   koCapturesInEncore = other.koCapturesInEncore;
   std::copy(other.secondEncoreStartColors, other.secondEncoreStartColors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
   whiteBonusScore = other.whiteBonusScore;
+  hasButton = other.hasButton;
   isPastNormalPhaseEnd = other.isPastNormalPhaseEnd;
   isGameFinished = other.isGameFinished;
   winner = other.winner;
@@ -160,12 +168,14 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   initialTurnNumber(other.initialTurnNumber),
   recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
+  presumedNextMovePla(other.presumedNextMovePla),
   consecutiveEndingPasses(other.consecutiveEndingPasses),
-  hashesAfterBlackPass(std::move(other.hashesAfterBlackPass)),hashesAfterWhitePass(std::move(other.hashesAfterWhitePass)),
+  hashesBeforeBlackPass(std::move(other.hashesBeforeBlackPass)),hashesBeforeWhitePass(std::move(other.hashesBeforeWhitePass)),
   encorePhase(other.encorePhase),numTurnsThisPhase(other.numTurnsThisPhase),
   koProhibitHash(other.koProhibitHash),
   koCapturesInEncore(std::move(other.koCapturesInEncore)),
   whiteBonusScore(other.whiteBonusScore),
+  hasButton(other.hasButton),
   isPastNormalPhaseEnd(other.isPastNormalPhaseEnd),
   isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
   isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
@@ -190,11 +200,12 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   initialTurnNumber = other.initialTurnNumber;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
+  presumedNextMovePla = other.presumedNextMovePla;
   std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   std::copy(other.superKoBanned, other.superKoBanned+Board::MAX_ARR_SIZE, superKoBanned);
   consecutiveEndingPasses = other.consecutiveEndingPasses;
-  hashesAfterBlackPass = std::move(other.hashesAfterBlackPass);
-  hashesAfterWhitePass = std::move(other.hashesAfterWhitePass);
+  hashesBeforeBlackPass = std::move(other.hashesBeforeBlackPass);
+  hashesBeforeWhitePass = std::move(other.hashesBeforeWhitePass);
   encorePhase = other.encorePhase;
   numTurnsThisPhase = other.numTurnsThisPhase;
   std::copy(other.blackKoProhibited, other.blackKoProhibited+Board::MAX_ARR_SIZE, blackKoProhibited);
@@ -203,6 +214,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   koCapturesInEncore = std::move(other.koCapturesInEncore);
   std::copy(other.secondEncoreStartColors, other.secondEncoreStartColors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
   whiteBonusScore = other.whiteBonusScore;
+  hasButton = other.hasButton;
   isPastNormalPhaseEnd = other.isPastNormalPhaseEnd;
   isGameFinished = other.isGameFinished;
   winner = other.winner;
@@ -231,6 +243,8 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
     recentBoards[i] = board;
   currentRecentBoardIdx = 0;
 
+  presumedNextMovePla = pla;
+
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
@@ -240,14 +254,15 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
   std::fill(superKoBanned, superKoBanned+Board::MAX_ARR_SIZE, false);
   consecutiveEndingPasses = 0;
-  hashesAfterBlackPass.clear();
-  hashesAfterWhitePass.clear();
+  hashesBeforeBlackPass.clear();
+  hashesBeforeWhitePass.clear();
   numTurnsThisPhase = 0;
   std::fill(blackKoProhibited, blackKoProhibited+Board::MAX_ARR_SIZE, false);
   std::fill(whiteKoProhibited, whiteKoProhibited+Board::MAX_ARR_SIZE, false);
   koProhibitHash = Hash128();
   koCapturesInEncore.clear();
-  whiteBonusScore = 0;
+  whiteBonusScore = 0.0f;
+  hasButton = rules.hasButton && encorePhase == 0;
   isPastNormalPhaseEnd = false;
   isGameFinished = false;
   winner = C_EMPTY;
@@ -262,15 +277,15 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(board.colors[loc] == P_BLACK)
-          whiteBonusScore += 1;
+          whiteBonusScore += 1.0f;
         else if(board.colors[loc] == P_WHITE)
-          whiteBonusScore -= 1;
+          whiteBonusScore -= 1.0f;
       }
     }
     //If white actually played extra moves that got captured so we don't see them,
     //then chill for those too
     int netWhiteCaptures = board.numWhiteCaptures - board.numBlackCaptures;
-    whiteBonusScore -= netWhiteCaptures;
+    whiteBonusScore -= (float)netWhiteCaptures;
   }
 
   //Handle encore phase
@@ -300,6 +315,8 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << "Rules " << rules << endl;
   out << "Ko prohib hash " << koProhibitHash << endl;
   out << "White bonus score " << whiteBonusScore << endl;
+  out << "Has button " << hasButton << endl;
+  out << "Presumed next pla " << PlayerIO::playerToString(presumedNextMovePla) << endl;
   out << "Past normal phase end " << isPastNormalPhaseEnd << endl;
   out << "Game result " << isGameFinished << " " << PlayerIO::playerToString(winner) << " "
       << finalWhiteMinusBlackScore << " " << isScored << " " << isNoResult << " " << isResignation << endl;
@@ -494,15 +511,13 @@ void BoardHistory::setFinalScoreAndWinner(float score) {
     winner = C_EMPTY;
 }
 
-int BoardHistory::getScoreAndAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
-  int boardScore;
+void BoardHistory::getAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
   if(rules.scoringRule == Rules::SCORING_AREA)
-    boardScore = countAreaScoreWhiteMinusBlack(board,area);
+    countAreaScoreWhiteMinusBlack(board,area);
   else if(rules.scoringRule == Rules::SCORING_TERRITORY)
-    boardScore = countTerritoryAreaScoreWhiteMinusBlack(board,area);
+    countTerritoryAreaScoreWhiteMinusBlack(board,area);
   else
     ASSERT_UNREACHABLE;
-  return boardScore;
 }
 
 void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) {
@@ -513,6 +528,11 @@ void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_
     boardScore = countTerritoryAreaScoreWhiteMinusBlack(board,area);
   else
     ASSERT_UNREACHABLE;
+
+  if(hasButton) {
+    hasButton = false;
+    whiteBonusScore += (presumedNextMovePla == P_WHITE ? 0.5f : -0.5f);
+  }
 
   setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
   isScored = true;
@@ -526,7 +546,6 @@ void BoardHistory::endAndScoreGameNow(const Board& board) {
   Color area[Board::MAX_ARR_SIZE];
   endAndScoreGameNow(board,area);
 }
-
 
 void BoardHistory::endGameIfAllPassAlive(const Board& board) {
   int boardScore = 0;
@@ -555,6 +574,10 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
   if(rules.taxRule == Rules::TAX_ALL)
     endAndScoreGameNow(board);
   else {
+    if(hasButton) {
+      hasButton = false;
+      whiteBonusScore += (presumedNextMovePla == P_WHITE ? 0.5f : -0.5f);
+    }
     setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
     isScored = true;
     isNoResult = false;
@@ -574,7 +597,7 @@ void BoardHistory::setWinnerByResignation(Player pla) {
   finalWhiteMinusBlackScore = 0.0f;
 }
 
-
+//TODO rename this and other things to be less confusing
 void BoardHistory::setKoProhibited(Player pla, Loc loc, bool b) {
   if(pla == P_BLACK) {
     if(blackKoProhibited[loc] != b) {
@@ -621,12 +644,10 @@ bool BoardHistory::isPassForKo(const Board& board, Loc moveLoc, Player movePla) 
   return false;
 }
 
-//Return the number of consecutive game-ending passes there would be if this move was made.
-int BoardHistory::newConsecutiveEndingPasses(Loc moveLoc) const {
+//Return the number of consecutive game-ending passes there would be if a pass was made
+int BoardHistory::newConsecutiveEndingPassesAfterPass() const {
   int newConsecutiveEndingPasses = consecutiveEndingPasses;
-  if(moveLoc != Board::PASS_LOC)
-    newConsecutiveEndingPasses = 0;
-  else if(encorePhase > 0)
+  if(encorePhase > 0)
     newConsecutiveEndingPasses++;
   else {
     switch(rules.koRule) {
@@ -657,23 +678,20 @@ bool BoardHistory::phaseHasSpightlikeEndingAndPassHistoryClearing() const {
 
 //Returns true if this move would be a pass that causes spight-style ending of the phase
 //(i.e. ending that ignores the number of consecutive passes)
-bool BoardHistory::wouldBeSpightlikeEndingPass(Loc moveLoc, Player movePla, Hash128 koHashAfterMove) const {
-  if(moveLoc == Board::PASS_LOC && phaseHasSpightlikeEndingAndPassHistoryClearing()) {
-    if(movePla == P_BLACK && std::find(hashesAfterBlackPass.begin(), hashesAfterBlackPass.end(), koHashAfterMove) != hashesAfterBlackPass.end())
+bool BoardHistory::wouldBeSpightlikeEndingPass(Player movePla, Hash128 koHashBeforeMove) const {
+  if(phaseHasSpightlikeEndingAndPassHistoryClearing()) {
+    if(movePla == P_BLACK && std::find(hashesBeforeBlackPass.begin(), hashesBeforeBlackPass.end(), koHashBeforeMove) != hashesBeforeBlackPass.end())
       return true;
-    if(movePla == P_WHITE && std::find(hashesAfterWhitePass.begin(), hashesAfterWhitePass.end(), koHashAfterMove) != hashesAfterWhitePass.end())
+    if(movePla == P_WHITE && std::find(hashesBeforeWhitePass.begin(), hashesBeforeWhitePass.end(), koHashBeforeMove) != hashesBeforeWhitePass.end())
       return true;
   }
   return false;
 }
 
 bool BoardHistory::passWouldEndPhase(const Board& board, Player movePla) const {
-  Hash128 posHashAfterMove = board.pos_hash; //Pass cannot affect pos hash
-  Hash128 koProhibitHashAfterMove =  koProhibitHash; //Pass never marks or unmarks any ko prohibitions
-  Hash128 koHashAfterMove = getKoHashAfterMove(rules, posHashAfterMove, getOpp(movePla), encorePhase, koProhibitHashAfterMove);
-
-  if(newConsecutiveEndingPasses(Board::PASS_LOC) >= 2 ||
-     wouldBeSpightlikeEndingPass(Board::PASS_LOC,movePla,koHashAfterMove))
+  Hash128 koHashBeforeMove = getKoHash(rules, board, movePla, encorePhase, koProhibitHash);
+  if(newConsecutiveEndingPassesAfterPass() >= 2 ||
+     wouldBeSpightlikeEndingPass(movePla,koHashBeforeMove))
     return true;
   return false;
 }
@@ -700,6 +718,47 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   isScored = false;
   isNoResult = false;
   isResignation = false;
+
+  //Update consecutiveEndingPasses and button
+  bool isSpightlikeEndingPass = false;
+  if(moveLoc != Board::PASS_LOC)
+    consecutiveEndingPasses = 0;
+  else if(hasButton) {
+    assert(encorePhase == 0 && rules.hasButton);
+    hasButton = false;
+    whiteBonusScore += (movePla == P_WHITE ? 0.5f : -0.5f);
+    consecutiveEndingPasses = 0;
+    //Taking the button clears all ko hash histories (this is equivalent to not clearing them and treating buttonless
+    //state as different than buttonful state)
+    hashesBeforeBlackPass.clear();
+    hashesBeforeWhitePass.clear();
+    koHashHistory.clear();
+    koHistoryLastClearedBeginningMoveIdx = moveHistory.size();
+  }
+  else {
+    //Passes clear ko history in the main phase with spight ko rules and in the encore
+    //This lifts bans in spight ko rules and lifts 3-fold-repetition checking in the encore for no-resultifying infinite cycles
+    //They also clear in simple ko rules for the purpose of no-resulting long cycles. Long cycles with passes do not no-result.
+    if(phaseHasSpightlikeEndingAndPassHistoryClearing()) {
+      koHashHistory.clear();
+      koHistoryLastClearedBeginningMoveIdx = moveHistory.size();
+      //Does not clear hashesBeforeBlackPass or hashesBeforeWhitePass. Passes lift ko bans, but
+      //still repeated positions after pass end the game or phase, which these arrays are used to check.
+    }
+
+    Hash128 koHashBeforeThisMove = getKoHash(rules,board,movePla,encorePhase,koProhibitHash);
+    consecutiveEndingPasses = newConsecutiveEndingPassesAfterPass();
+    //Check if we have a game-ending pass BEFORE updating hashesBeforeBlackPass and hashesBeforeWhitePass
+    isSpightlikeEndingPass = wouldBeSpightlikeEndingPass(movePla,koHashBeforeThisMove);
+
+    //Update hashesBeforeBlackPass and hashesBeforeWhitePass
+    if(movePla == P_BLACK)
+      hashesBeforeBlackPass.push_back(koHashBeforeThisMove);
+    else if(movePla == P_WHITE)
+      hashesBeforeWhitePass.push_back(koHashBeforeThisMove);
+    else
+      ASSERT_UNREACHABLE;
+  }
 
   //Handle pass-for-ko moves in the encore. Pass for ko lifts a ko prohibition and does nothing else.
   bool wasPassForKo = false;
@@ -747,20 +806,11 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   currentRecentBoardIdx = (currentRecentBoardIdx + 1) % NUM_RECENT_BOARDS;
   recentBoards[currentRecentBoardIdx] = board;
 
-  //Passes clear ko history in the main phase with spight ko rules and in the encore
-  //This lifts bans in spight ko rules and lifts 3-fold-repetition checking in the encore for no-resultifying infinite cycles
-  //They also clear in simple ko rules for the purpose of no-resulting long cycles. Long cycles with passes do not no-result.
-  if(moveLoc == Board::PASS_LOC && phaseHasSpightlikeEndingAndPassHistoryClearing()) {
-    koHashHistory.clear();
-    koHistoryLastClearedBeginningMoveIdx = moveHistory.size()+1;
-    //Does not clear hashesAfterBlackPass or hashesAfterWhitePass. Passes lift ko bans, but
-    //still repeated positions after pass end the game or phase, which these arrays are used to check.
-  }
-
   Hash128 koHashAfterThisMove = getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash);
   koHashHistory.push_back(koHashAfterThisMove);
   moveHistory.push_back(Move(moveLoc,movePla));
   numTurnsThisPhase += 1;
+  presumedNextMovePla = getOpp(movePla);
 
   if(moveLoc != Board::PASS_LOC)
     wasEverOccupiedOrPlayed[moveLoc] = true;
@@ -797,28 +847,12 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     }
   }
 
-  //Update consecutiveEndingPasses
-  consecutiveEndingPasses = newConsecutiveEndingPasses(moveLoc);
-
-  //Check if we have a game-ending pass BEFORE updating hashesAfterBlackPass and hashesAfterWhitePass
-  bool isSpightlikeEndingPass = wouldBeSpightlikeEndingPass(moveLoc,movePla,koHashAfterThisMove);
-
-  //Update hashesAfterBlackPass and hashesAfterWhitePass
-  if(moveLoc == Board::PASS_LOC) {
-    if(movePla == P_BLACK)
-      hashesAfterBlackPass.push_back(koHashAfterThisMove);
-    else if(movePla == P_WHITE)
-      hashesAfterWhitePass.push_back(koHashAfterThisMove);
-    else
-      ASSERT_UNREACHABLE;
-  }
-
   //Territory scoring - chill 1 point per move in main phase and first encore
   if(rules.scoringRule == Rules::SCORING_TERRITORY && encorePhase <= 1 && moveLoc != Board::PASS_LOC && !wasPassForKo) {
     if(movePla == P_BLACK)
-      whiteBonusScore += 1;
+      whiteBonusScore += 1.0f;
     else if(movePla == P_WHITE)
-      whiteBonusScore -= 1;
+      whiteBonusScore -= 1.0f;
     else
       ASSERT_UNREACHABLE;
   }
@@ -844,8 +878,8 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
           std::fill(superKoBanned, superKoBanned+Board::MAX_ARR_SIZE, false);
           consecutiveEndingPasses = 0;
-          hashesAfterBlackPass.clear();
-          hashesAfterWhitePass.clear();
+          hashesBeforeBlackPass.clear();
+          hashesBeforeWhitePass.clear();
           std::fill(blackKoProhibited, blackKoProhibited+Board::MAX_ARR_SIZE, false);
           std::fill(whiteKoProhibited, whiteKoProhibited+Board::MAX_ARR_SIZE, false);
           koProhibitHash = Hash128();
@@ -871,7 +905,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 }
 
-
+//TODO add some tests for this
 KoHashTable::KoHashTable()
   :koHashHistorySortedByLowBits(),
    koHistoryLastClearedBeginningMoveIdx(0)

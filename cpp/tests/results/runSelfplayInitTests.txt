@@ -32,6 +32,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H9 C4 H4 D8 E4 F9 C3 
@@ -57,6 +58,7 @@ Turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H9 C4 H4 D8 E4 F9 C3 B3 
@@ -139,6 +141,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H9 C3 
@@ -176,6 +179,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D3 D9 
@@ -201,6 +205,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D3 D9 H9 
@@ -283,6 +288,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D3 D9 J9 
@@ -308,6 +314,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D3 D9 J9 J4 G3 
@@ -345,6 +352,7 @@ Turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D4 D9 H8 J4 C7 D3 E3 C3 
@@ -370,6 +378,7 @@ Turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D4 D9 H8 J4 C7 D3 E3 C3 C4 
@@ -452,6 +461,7 @@ Turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D4 D9 H8 J4 C7 D3 E3 C3 E4 
@@ -477,6 +487,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D4 D9 H8 J4 F8 
@@ -514,6 +525,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves 
@@ -539,6 +551,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 
@@ -633,6 +646,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves 
@@ -658,6 +672,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 
@@ -740,6 +755,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H4 
@@ -777,6 +793,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 J10 D4 H4 H9 J9 
@@ -802,6 +819,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 J10 D4 H4 H9 J9 H8 
@@ -896,6 +914,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 J4 D4 F4 J8 
@@ -921,6 +940,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 J4 D4 F4 J8 G9 
@@ -1015,6 +1035,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 C8 
@@ -1040,6 +1061,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 C8 H3 
@@ -1134,6 +1156,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 H8 H4 
@@ -1159,6 +1182,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 H8 H4 C4 
@@ -1253,6 +1277,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 H4 D4 D8 J6 J5 G3 H3 H6 F9 
@@ -1278,6 +1303,7 @@ Turns this phase 11
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 H4 D4 D8 J6 J5 G3 H3 H6 F9 G4 
@@ -1360,6 +1386,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi11
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 H4 D4 H2 
@@ -1397,6 +1424,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J6 K7 J7 D4 C8 H3 
@@ -1422,6 +1450,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J6 K7 J7 D4 C8 H3 E8 
@@ -1504,6 +1533,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J6 K7 J7 D4 C8 H3 E4 
@@ -1529,6 +1559,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J6 K7 D7 
@@ -1566,6 +1597,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves B1 
@@ -1591,6 +1623,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves B1 D9 
@@ -1673,6 +1706,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves B1 D4 
@@ -1698,6 +1732,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves B1 B8 
@@ -1735,6 +1770,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J4 D3 H8 C7 
@@ -1760,6 +1796,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J4 D3 H8 C7 F3 
@@ -1842,6 +1879,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J4 D3 H8 C7 C8 
@@ -1879,6 +1917,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J8 
@@ -1904,6 +1943,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J8 D3 
@@ -1986,6 +2026,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J8 J4 
@@ -2023,6 +2064,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J8 D3 J4 C6 
@@ -2048,6 +2090,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J8 D3 J4 C6 E8 
@@ -2130,6 +2173,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J8 D3 J4 C6 E3 
@@ -2155,6 +2199,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi19
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J8 D3 J4 C6 E3 
@@ -2192,6 +2237,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J2 D8 H9 J8 J9 J4 
@@ -2217,6 +2263,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J2 D8 H9 J8 J9 J4 G3 
@@ -2299,6 +2346,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi15.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J2 D8 H9 J8 J9 J4 F2 
@@ -2336,6 +2384,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J4 C4 H9 G3 
@@ -2361,6 +2410,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J4 C4 H9 G3 D4 
@@ -2443,6 +2493,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J4 C4 H9 G3 H7 
@@ -2468,6 +2519,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi22
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J4 C4 H9 G3 E4 
@@ -2505,6 +2557,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J9 H3 D9 J6 H4 J4 
@@ -2530,6 +2583,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J9 H3 D9 J6 H4 J4 G3 
@@ -2612,6 +2666,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J9 H3 D9 J6 H4 J4 J3 
@@ -2637,6 +2692,7 @@ Turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J9 H3 D9 J6 H4 J4 J3 G3 J5 
@@ -2674,6 +2730,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D3 H3 
@@ -2699,6 +2756,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D3 H3 C5 
@@ -2793,6 +2851,7 @@ Turns this phase 14
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi23.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves L4 D3 H3 J8 H9 J9 C5 C4 D5 F9 H8 J7 H7 H6 
@@ -2818,6 +2877,7 @@ Turns this phase 15
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi23.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves L4 D3 H3 J8 H9 J9 C5 C4 D5 F9 H8 J7 H7 H6 G6 
@@ -2900,6 +2960,7 @@ Turns this phase 15
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi23.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves L4 D3 H3 J8 H9 J9 C5 C4 D5 F9 H8 J7 H7 H6 H10 
@@ -2937,6 +2998,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi33.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 H3 J5 D8 
@@ -2962,6 +3024,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi33.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 H3 J5 D8 D9 
@@ -3056,6 +3119,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi40.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C3 J3 H3 J4 H4 H5 
@@ -3081,6 +3145,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi40.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C3 J3 H3 J4 H4 H5 G5 
@@ -3163,6 +3228,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi40.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C3 J3 H3 J4 H4 H5 J5 
@@ -3200,6 +3266,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi34
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 
@@ -3225,6 +3292,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi34
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 D3 
@@ -3307,6 +3375,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi34
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 D4 
@@ -3344,6 +3413,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 D3 C5 C4 D5 G3 H4 G4 G5 J9 
@@ -3369,6 +3439,7 @@ Turns this phase 11
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 D3 C5 C4 D5 G3 H4 G4 G5 J9 H9 
@@ -3463,6 +3534,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H9 
@@ -3488,6 +3560,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H9 D3 
@@ -3570,6 +3643,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H9 B7 
@@ -3607,6 +3681,7 @@ Turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 
@@ -3632,6 +3707,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 H9 
@@ -3714,6 +3790,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 D8 
@@ -3739,6 +3816,7 @@ Turns this phase 12
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 D8 H9 D9 
@@ -3764,6 +3842,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi44.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D4 G3 G9 E9 J9 K9 K10 J10 C9 
@@ -3801,6 +3880,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi39.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 H3 H5 E3 C5 J9 H9 
@@ -3826,6 +3906,7 @@ Turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi39.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 H3 H5 E3 C5 J9 H9 J8 
@@ -3908,6 +3989,7 @@ Turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi38
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 H3 H5 E3 C5 J9 H9 J4 
@@ -3945,6 +4027,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 H3 J5 E3 
@@ -3970,6 +4053,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 H3 J5 E3 D3 
@@ -4052,6 +4136,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 H3 J5 E3 L2 
@@ -4077,6 +4162,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves D8 H3 J5 E3 L2 K3 G5 
@@ -4114,6 +4200,7 @@ Turns this phase 19
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J9 D9 F9 C7 C5 G3 H3 G4 E3 J5 K5 H5 K6 H8 H9 G8 F8 E2 D2 
@@ -4139,6 +4226,7 @@ Turns this phase 20
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J9 D9 F9 C7 C5 G3 H3 G4 E3 J5 K5 H5 K6 H8 H9 G8 F8 E2 D2 J8 
@@ -4233,6 +4321,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 C8 C6 E9 
@@ -4258,6 +4347,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 C8 C6 E9 G9 
@@ -4340,6 +4430,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi29.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 0
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 C8 K9 

@@ -2223,6 +2223,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves pass pass
@@ -2239,6 +2240,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves pass pass pass
@@ -2255,6 +2257,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves pass pass pass pass
@@ -2271,6 +2274,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
+Has button 0
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves pass pass pass pass pass
@@ -2287,6 +2291,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
+Has button 0
 Past normal phase end 0
 Game result 1 White 0.5 1 0 0
 Last moves pass pass pass pass pass pass
@@ -2306,6 +2311,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
+Has button 0
 Past normal phase end 1
 Game result 0 Empty 0 0 0 0
 Last moves pass pass
@@ -2322,6 +2328,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
+Has button 0
 Past normal phase end 1
 Game result 0 Empty 0 0 0 0
 Last moves pass pass pass
@@ -2338,6 +2345,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
+Has button 0
 Past normal phase end 1
 Game result 0 Empty 0 0 0 0
 Last moves pass pass pass pass
@@ -2988,8 +2996,8 @@ isResignation: 0
         testAssert(hist2.superKoBanned[i] == false);
 
       out << hist.consecutiveEndingPasses << " " << hist2.consecutiveEndingPasses << endl;
-      out << hist.hashesAfterBlackPass.size() << " " << hist2.hashesAfterBlackPass.size() << endl;
-      out << hist.hashesAfterWhitePass.size() << " " << hist2.hashesAfterWhitePass.size() << endl;
+      out << hist.hashesBeforeBlackPass.size() << " " << hist2.hashesBeforeBlackPass.size() << endl;
+      out << hist.hashesBeforeWhitePass.size() << " " << hist2.hashesBeforeWhitePass.size() << endl;
       out << hist.encorePhase << " " << hist2.encorePhase << endl;
 
       for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
@@ -3177,6 +3185,7 @@ Turns this phase 14
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
+Has button 0
 Past normal phase end 0
 Game result 1 Black -1.5 1 0 0
 Last moves D4 J4 D9 J9 G3 F10 K6 H5 K3 K4 J3 J7 E10 F9 C7 C3 C4 D3 E3 E2 F2 E4 F3 B4 B5 B3 D2 C10 F11 C2 C9 G11 E1 E11 D11 F12 L4 L5 L3 L6 K7 K8 E6 C11 D10 D12 B10 B11 B9 E7 F6 D6 C6 D7 D5 F7 G6 E5 C5 G7 G5 G4 F4 H4 K5 L7 H6 J6 A11 H7 F5 C12 D8 M4 M3 M5 E8 F8 H3 J5 A12 E9 A10 pass B12 E12 pass pass pass pass A4 pass C1 B1 A2 pass A3 pass B2 pass C3 K11 pass pass
@@ -3212,31 +3221,43 @@ XXXXXXXXXXXX
   {
     //const char* name = "Test some roundtripping of rules strings";
     vector<Rules> rules = {
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, 1.0f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, 3.0f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, 5.5f),
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, 1.0f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, 4.5f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, 6.5f),
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 2.0f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 5.5f),
-      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, 2.5f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, 3.0f),
-      Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, 4.0f),
-      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, 6.5f),
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, 1.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, 3.0f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, 5.5f),
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, 1.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, false, 4.5f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, true, 6.5f),
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, true, 2.0f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, true, 5.5f),
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, false, 2.5f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, true, 3.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, true, 4.0f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, false, 6.5f),
     };
 
     for(int i = 0; i<rules.size(); i++) {
+      bool suc;
+
       Rules parsed;
-      bool suc = Rules::tryParseRules(rules[i].toString(),parsed);
+      suc = Rules::tryParseRules(rules[i].toString(),parsed);
       testAssert(suc);
       testAssert(rules[i] == parsed);
 
       Rules parsed2;
       suc = Rules::tryParseRulesWithoutKomi(rules[i].toStringNoKomi(),parsed2,rules[i].komi);
+      testAssert(suc);
       testAssert(rules[i] == parsed2);
+
+      Rules parsed3;
+      suc = Rules::tryParseRules(rules[i].toJsonString(),parsed3);
+      testAssert(suc);
+      testAssert(rules[i] == parsed3);
+
+      Rules parsed4;
+      suc = Rules::tryParseRulesWithoutKomi(rules[i].toJsonStringNoKomi(),parsed4,rules[i].komi);
+      testAssert(suc);
+      testAssert(rules[i] == parsed4);
     }
   }
-
 
 }
