@@ -49,6 +49,8 @@ struct OtherGameProperties {
   Player playoutDoublingAdvantagePla = C_EMPTY;
 };
 
+struct FancyModes;
+
 //Object choosing random initial rules and board sizes for games. Threadsafe.
 class GameInitializer {
  public:
@@ -68,6 +70,7 @@ class GameInitializer {
     ExtraBlackAndKomi& extraBlackAndKomi,
     SearchParams& params,
     const InitialPosition* initialPosition,
+    const FancyModes& fancyModes,
     OtherGameProperties& otherGameProps
   );
 
@@ -76,6 +79,7 @@ class GameInitializer {
     Board& board, Player& pla, BoardHistory& hist,
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
+    const FancyModes& fancyModes,
     OtherGameProperties& otherGameProps
   );
 
@@ -87,6 +91,7 @@ class GameInitializer {
     Board& board, Player& pla, BoardHistory& hist,
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
+    const FancyModes& fancyModes,
     OtherGameProperties& otherGameProps
   );
 
@@ -239,6 +244,11 @@ struct FancyModes {
   bool forSelfPlay;
   int dataXLen; //When self-play data recording, the width/height of the tensor
   int dataYLen; //When self-play data recording, the width/height of the tensor
+
+  //Asymmetric playouts training
+  double handicapAsymmetricPlayoutProb; //Probability of asymmetric playouts on handicap games
+  double normalAsymmetricPlayoutProb; //Probability of asymmetric playouts on normal games
+  double maxAsymmetricRatio;
 
   FancyModes();
   ~FancyModes();

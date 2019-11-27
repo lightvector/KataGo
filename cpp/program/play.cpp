@@ -325,11 +325,12 @@ void GameInitializer::createGame(
   Board& board, Player& pla, BoardHistory& hist,
   ExtraBlackAndKomi& extraBlackAndKomi,
   const InitialPosition* initialPosition,
+  const FancyModes& fancyModes,
   OtherGameProperties& otherGameProps
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,otherGameProps);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,fancyModes,otherGameProps);
   if(noResultStdev != 0.0 || drawRandRadius != 0.0)
     throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
@@ -339,11 +340,12 @@ void GameInitializer::createGame(
   ExtraBlackAndKomi& extraBlackAndKomi,
   SearchParams& params,
   const InitialPosition* initialPosition,
+  const FancyModes& fancyModes,
   OtherGameProperties& otherGameProps
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,otherGameProps);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,fancyModes,otherGameProps);
 
   if(noResultStdev > 1e-30) {
     double mean = params.noResultUtilityForWhite;
@@ -371,6 +373,7 @@ void GameInitializer::createGameSharedUnsynchronized(
   Board& board, Player& pla, BoardHistory& hist,
   ExtraBlackAndKomi& extraBlackAndKomi,
   const InitialPosition* initialPosition,
+  const FancyModes& fancyModes,
   OtherGameProperties& otherGameProps
 ) {
   if(initialPosition != NULL) {
@@ -439,6 +442,21 @@ void GameInitializer::createGameSharedUnsynchronized(
     hist.clear(board,pla,rules,0);
     otherGameProps.isSgfPos = false;
     otherGameProps.allowPolicyInit = true;
+  }
+
+  double asymmetricProb = (extraBlackAndKomi.extraBlack > 0) ? fancyModes.handicapAsymmetricPlayoutProb : fancyModes.normalAsymmetricPlayoutProb;
+  if(asymmetricProb > 0 && rand.nextBool(asymmetricProb)) {
+    assert(fancyModes.maxAsymmetricRatio >= 1.0);
+    double maxNumDoublings = log(fancyModes.maxAsymmetricRatio) / log(2.0);
+    double numDoublings = rand.nextDouble(maxNumDoublings);
+    if(extraBlackAndKomi.extraBlack > 0 || rand.nextBool(0.5)) {
+      otherGameProps.playoutDoublingAdvantagePla = C_WHITE;
+      otherGameProps.playoutDoublingAdvantage = numDoublings;
+    }
+    else {
+      otherGameProps.playoutDoublingAdvantagePla = C_BLACK;
+      otherGameProps.playoutDoublingAdvantage = numDoublings;
+    }
   }
 }
 
@@ -628,7 +646,8 @@ FancyModes::FancyModes()
    policySurpriseDataWeight(0.0),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
    allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
-   forSelfPlay(false),dataXLen(-1),dataYLen(-1)
+   forSelfPlay(false),dataXLen(-1),dataYLen(-1),
+   handicapAsymmetricPlayoutProb(0.0),normalAsymmetricPlayoutProb(0.0),maxAsymmetricRatio(2.0)
 {}
 FancyModes::~FancyModes()
 {}
@@ -1306,7 +1325,6 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
     }
   }
 
-  //TODO still need config params for specifying how these vary, and GTP options to try them out
   if(otherGameProps.playoutDoublingAdvantage != 0.0 && otherGameProps.playoutDoublingAdvantagePla != C_EMPTY) {
     assert(pla == otherGameProps.playoutDoublingAdvantagePla || getOpp(pla) == otherGameProps.playoutDoublingAdvantagePla);
 
@@ -1315,9 +1333,9 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
 
     double factor = pow(2.0, otherGameProps.playoutDoublingAdvantage);
     if(pla == otherGameProps.playoutDoublingAdvantagePla)
-      factor = factor * 2.0 * (factor / (factor + 1.0));
+      factor = 2.0 * (factor / (factor + 1.0));
     else
-      factor = factor * 2.0 * (1.0 / (factor + 1.0));
+      factor = 2.0 * (1.0 / (factor + 1.0));
 
 
     doAlterVisitsPlayouts = true;
@@ -1325,9 +1343,12 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
     clearBotBeforeSearchThisMove = true;
     numAlterVisits = (int64_t)round(numAlterVisits * factor);
     numAlterPlayouts = (int64_t)round(numAlterPlayouts * factor);
-    //NOTE: hardcoded limit here
-    numAlterVisits = std::max(numAlterVisits,(int64_t)10);
-    numAlterPlayouts = std::max(numAlterPlayouts,(int64_t)10);
+
+    //Hardcoded limit here to ensure sanity
+    if(numAlterVisits < 5)
+      throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 visits");
+    if(numAlterPlayouts < 5)
+      throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 playouts");
   }
 
   SearchLimitsThisMove limits;
@@ -2126,12 +2147,12 @@ FinishedGameData* GameRunner::runGame(
   if(fancyModes.forSelfPlay) {
     assert(botSpecB.botIdx == botSpecW.botIdx);
     SearchParams params = botSpecB.baseParams;
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,otherGameProps);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,fancyModes,otherGameProps);
     botSpecB.baseParams = params;
     botSpecW.baseParams = params;
   }
   else {
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,otherGameProps);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,fancyModes,otherGameProps);
 
     bool rulesWereSupported;
     if(botSpecB.nnEval != NULL) {

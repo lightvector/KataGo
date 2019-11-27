@@ -2177,7 +2177,12 @@ void NNInputs::fillRowV7(
   rowGlobal[14] = passWouldEndPhase ? 1.0f : 0.0f;
 
   //Used for handicap play
-  rowGlobal[15] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
+  //Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
+  //nonzero, no matter how slightly.
+  if(nnInputParams.playoutDoublingAdvantage != 0) {
+    rowGlobal[15] = 1.0;
+    rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
+  }
 
   //Provide parity information about the board size and komi
   //This comes from the following observation:
@@ -2240,7 +2245,7 @@ void NNInputs::fillRowV7(
       wave = delta-2.0f;
 
     //NOTE: If ever changing which feature this is, must also update index in model.py where we multiply it into the scorebelief parity vector
-    rowGlobal[16] = wave;
+    rowGlobal[17] = wave;
   }
 
 }

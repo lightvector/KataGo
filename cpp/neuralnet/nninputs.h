@@ -49,7 +49,7 @@ namespace NNInputs {
   const int NUM_FEATURES_GLOBAL_V6 = 16;
 
   const int NUM_FEATURES_SPATIAL_V7 = 22;
-  const int NUM_FEATURES_GLOBAL_V7 = 17;
+  const int NUM_FEATURES_GLOBAL_V7 = 18;
 
   Hash128 getHash(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
