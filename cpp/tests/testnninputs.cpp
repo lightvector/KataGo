@@ -15,7 +15,7 @@ static void printNNInputHWAndBoard(
   int nnXLen, int nnYLen, bool inputsUseNHWC, T* row, int c
 ) {
   int numFeatures;
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
   if(inputsVersion == 3)
     numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V3;
   else if(inputsVersion == 4)
@@ -24,6 +24,8 @@ static void printNNInputHWAndBoard(
     numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V5;
   else if(inputsVersion == 6)
     numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V6;
+  else if(inputsVersion == 7)
+    numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V7;
   else
     testAssert(false);
 
@@ -66,7 +68,7 @@ static void printNNInputHWAndBoard(
 template <typename T>
 static void printNNInputGlobal(ostream& out, int inputsVersion, T* row, int c) {
   int numFeatures;
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
   if(inputsVersion == 3)
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V3;
   else if(inputsVersion == 4)
@@ -75,6 +77,8 @@ static void printNNInputGlobal(ostream& out, int inputsVersion, T* row, int c) {
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V5;
   else if(inputsVersion == 6)
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V6;
+  else if(inputsVersion == 7)
+    numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V7;
   else
     testAssert(false);
   (void)numFeatures;
@@ -103,7 +107,7 @@ void Tests::runNNInputsV3V4Tests() {
   out << std::setprecision(5);
 
   auto allocateRows = [](int version, int nnXLen, int nnYLen, int& numFeaturesBin, int& numFeaturesGlobal, float*& rowBin, float*& rowGlobal) {
-    static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
     if(version == 3) {
       numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V3;
       numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V3;
@@ -128,6 +132,12 @@ void Tests::runNNInputsV3V4Tests() {
       rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V6 * nnXLen * nnYLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V6];
     }
+    else if(version == 7) {
+      numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V7;
+      numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V7;
+      rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V7 * nnXLen * nnYLen];
+      rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V7];
+    }
     else
       testAssert(false);
   };
@@ -140,26 +150,24 @@ void Tests::runNNInputsV3V4Tests() {
 
     hash = NNInputs::getHash(board,hist,nextPla,nnInputParams);
 
-    static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
-    if(version == 3) {
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
+    if(version == 3)
       NNInputs::fillRowV3(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
-    }
-    else if(version == 4) {
+    else if(version == 4)
       NNInputs::fillRowV4(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
-    }
-    else if(version == 5) {
+    else if(version == 5)
       NNInputs::fillRowV5(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
-    }
-    else if(version == 6) {
+    else if(version == 6)
       NNInputs::fillRowV6(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
-    }
+    else if(version == 7)
+      NNInputs::fillRowV7(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
     else
       testAssert(false);
   };
 
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
   int minVersion = 3;
-  int maxVersion = 6;
+  int maxVersion = 7;
 
   {
     const char* name = "NN Inputs V3V4V5V6 Basic";

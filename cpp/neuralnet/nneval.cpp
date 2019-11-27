@@ -503,19 +503,17 @@ void NNEvaluator::evaluate(
         throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
 
-    static_assert(NNModelVersion::latestInputsVersionImplemented == 6, "");
-    if(inputsVersion == 3) {
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
+    if(inputsVersion == 3)
       NNInputs::fillRowV3(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
-    }
-    else if(inputsVersion == 4) {
+    else if(inputsVersion == 4)
       NNInputs::fillRowV4(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
-    }
-    else if(inputsVersion == 5) {
+    else if(inputsVersion == 5)
       NNInputs::fillRowV5(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
-    }
-    else if(inputsVersion == 6) {
+    else if(inputsVersion == 6)
       NNInputs::fillRowV6(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
-    }
+    else if(inputsVersion == 7)
+      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else
       ASSERT_UNREACHABLE;
   }
@@ -624,7 +622,7 @@ void NNEvaluator::evaluate(
 
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.
-    static_assert(NNModelVersion::latestModelVersionImplemented == 7, "");
+    static_assert(NNModelVersion::latestModelVersionImplemented == 8, "");
     if(modelVersion == 3) {
       const double twoOverPi = 0.63661977236758134308;
 
@@ -672,7 +670,7 @@ void NNEvaluator::evaluate(
       }
 
     }
-    else if(modelVersion == 4 || modelVersion == 5 || modelVersion == 6 || modelVersion == 7) {
+    else if(modelVersion == 4 || modelVersion == 5 || modelVersion == 6 || modelVersion == 7 || modelVersion == 8) {
       double winProb;
       double lossProb;
       double noResultProb;
@@ -749,7 +747,7 @@ void NNEvaluator::evaluate(
 
   //Postprocess ownermap
   if(buf.result->whiteOwnerMap != NULL) {
-    if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5 || modelVersion == 6 || modelVersion == 7) {
+    if(modelVersion == 3 || modelVersion == 4 || modelVersion == 5 || modelVersion == 6 || modelVersion == 7 || modelVersion == 8) {
       for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
         int y = pos / nnXLen;
         int x = pos % nnXLen;

@@ -1110,6 +1110,7 @@ void Search::computeRootValues(Logger& logger) {
     if(!foundExpectedScoreFromTree) {
       Board board = rootBoard;
       const BoardHistory& hist = rootHistory;
+      Player pla = rootPla;
       NNResultBuf nnResultBuf;
       bool skipCache = false;
       bool includeOwnerMap = true;
@@ -1117,8 +1118,11 @@ void Search::computeRootValues(Logger& logger) {
       MiscNNInputParams nnInputParams;
       nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
       nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
+      nnInputParams.playoutDoublingAdvantage = (
+        getOpp(pla) == searchParams.playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
+      );
       nnEvaluator->evaluate(
-        board, hist, rootPla,
+        board, hist, pla,
         nnInputParams,
         nnResultBuf, &logger, skipCache, includeOwnerMap
       );
@@ -2070,6 +2074,9 @@ void Search::initNodeNNOutput(
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
   nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
+  nnInputParams.playoutDoublingAdvantage = (
+    getOpp(thread.pla) == searchParams.playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
+  );
   nnEvaluator->evaluate(
     thread.board, thread.history, thread.pla,
     nnInputParams,

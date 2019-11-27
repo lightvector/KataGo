@@ -39,6 +39,16 @@ struct ForkData {
 
 STRUCT_NAMED_QUAD(int, extraBlack, float, komi, float, komiBase, bool, makeGameFair, ExtraBlackAndKomi);
 
+struct OtherGameProperties {
+  bool isSgfPos = false;
+  bool allowPolicyInit = true;
+
+  //Note: these two behave slightly differently than the ones in searchParams - as properties for the whole
+  //game, they make the playouts *actually* vary instead of only making the neural net think they do.
+  double playoutDoublingAdvantage = 0.0;
+  Player playoutDoublingAdvantagePla = C_EMPTY;
+};
+
 //Object choosing random initial rules and board sizes for games. Threadsafe.
 class GameInitializer {
  public:
@@ -58,7 +68,7 @@ class GameInitializer {
     ExtraBlackAndKomi& extraBlackAndKomi,
     SearchParams& params,
     const InitialPosition* initialPosition,
-    bool& isSgfPos
+    OtherGameProperties& otherGameProps
   );
 
   //A version that doesn't randomize params
@@ -66,7 +76,7 @@ class GameInitializer {
     Board& board, Player& pla, BoardHistory& hist,
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
-    bool& isSgfPos
+    OtherGameProperties& otherGameProps
   );
 
   Rules randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const;
@@ -77,7 +87,7 @@ class GameInitializer {
     Board& board, Player& pla, BoardHistory& hist,
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
-    bool& isSgfPos
+    OtherGameProperties& otherGameProps
   );
 
   std::mutex createGameMutex;
@@ -254,7 +264,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
-    const FancyModes& fancyModes, bool allowPolicyInit,
+    const FancyModes& fancyModes, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -267,7 +277,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
-    const FancyModes& fancyModes, bool allowPolicyInit,
+    const FancyModes& fancyModes, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );

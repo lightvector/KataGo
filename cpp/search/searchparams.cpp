@@ -39,6 +39,8 @@ SearchParams::SearchParams()
    rootPruneUselessMoves(false),
    conservativePass(false),
    localExplore(false),
+   playoutDoublingAdvantage(0.0),
+   playoutDoublingAdvantagePla(C_EMPTY),
    mutexPoolSize(8192),
    numVirtualLossesPerThread(3),
    numThreads(1),

@@ -1140,7 +1140,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
-  static_assert(NNModelVersion::latestModelVersionImplemented == 7, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 8, "");
   Rules rules = desiredRules;
   supported = true;
   if(version <= 6) {
@@ -1157,7 +1157,7 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
       supported = false;
     }
   }
-  else if(version <= 7) {
+  else if(version <= 8) {
     if(rules.koRule == Rules::KO_SPIGHT) {
       rules.koRule = Rules::KO_SITUATIONAL;
       supported = false;

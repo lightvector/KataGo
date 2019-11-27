@@ -116,6 +116,7 @@ void Tests::runTrainingWriteTests() {
     fancyModes.dataXLen = nnXLen;
     fancyModes.dataYLen = nnYLen;
     Rand rand(seedBase+"play");
+    OtherGameProperties otherGameProps;
     FinishedGameData* gameData = Play::runGame(
       initialBoard,initialPla,initialHist,extraBlackAndKomi,
       botSpec,botSpec,
@@ -123,7 +124,7 @@ void Tests::runTrainingWriteTests() {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, true,
+      fancyModes, otherGameProps,
       rand,
       NULL
     );
@@ -242,6 +243,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
 
     Rand rand(seedBase+"play");
+    OtherGameProperties otherGameProps;
     FinishedGameData* gameData = Play::runGame(
       initialBoard,initialPla,initialHist,extraBlackAndKomi,
       botSpec,botSpec,
@@ -249,7 +251,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, true,
+      fancyModes, otherGameProps,
       rand,
       NULL
     );
@@ -381,6 +383,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
 
     Rand rand(seedBase+"play");
+    OtherGameProperties otherGameProps;
     FinishedGameData* gameData = Play::runGame(
       initialBoard,initialPla,initialHist,extraBlackAndKomi,
       botSpec,botSpec,
@@ -388,7 +391,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, true,
+      fancyModes, otherGameProps,
       rand,
       NULL
     );

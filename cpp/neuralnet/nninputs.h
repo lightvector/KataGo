@@ -26,8 +26,10 @@ namespace NNPos {
 struct MiscNNInputParams {
   double drawEquivalentWinsForWhite = 0.5;
   bool conservativePass = false;
+  double playoutDoublingAdvantage = 0.0;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
+  static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;
 };
 
 namespace NNInputs {
@@ -45,6 +47,9 @@ namespace NNInputs {
 
   const int NUM_FEATURES_SPATIAL_V6 = 22;
   const int NUM_FEATURES_GLOBAL_V6 = 16;
+
+  const int NUM_FEATURES_SPATIAL_V7 = 22;
+  const int NUM_FEATURES_GLOBAL_V7 = 17;
 
   Hash128 getHash(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
@@ -67,8 +72,13 @@ namespace NNInputs {
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
+  void fillRowV7(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+  );
 
   //If groupTax is specified, for each color region of area, reduce weight on empty spaces equally to reduce the total sum by 2.
+  //(but should handle seki correctly)
   void fillOwnership(
     const Board& board,
     const Color* area,
@@ -80,7 +90,7 @@ namespace NNInputs {
 }
 
 struct NNOutput {
-  Hash128 nnHash; //NNInputs - getHashV0 or getHashV1, etc.
+  Hash128 nnHash; //NNInputs - getHash
 
   //Initially from the perspective of the player to move at the time of the eval, fixed up later in nnEval.cpp
   //to be the value from white's perspective.

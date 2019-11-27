@@ -2,6 +2,7 @@
 #define SEARCH_SEARCHPARAMS_H_
 
 #include "../core/global.h"
+#include "../game/board.h"
 
 struct SearchParams {
   //Utility function parameters
@@ -51,6 +52,9 @@ struct SearchParams {
   bool rootPruneUselessMoves; //Prune moves that are entirely useless moves that prolong the game.
   bool conservativePass; //Never assume one's own pass will end the game.
   bool localExplore; //Explore local tacticy moves a little more, to try to find some blind spots.
+
+  double playoutDoublingAdvantage; //Play as if we have this many doublings of playouts vs the opponent
+  Player playoutDoublingAdvantagePla; //Negate playoutDoublingAdvantage when making a move for the opponent of this player
 
   //Threading-related
   uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes

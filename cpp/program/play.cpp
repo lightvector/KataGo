@@ -325,11 +325,11 @@ void GameInitializer::createGame(
   Board& board, Player& pla, BoardHistory& hist,
   ExtraBlackAndKomi& extraBlackAndKomi,
   const InitialPosition* initialPosition,
-  bool& isSgfPos
+  OtherGameProperties& otherGameProps
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,isSgfPos);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,otherGameProps);
   if(noResultStdev != 0.0 || drawRandRadius != 0.0)
     throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
@@ -339,11 +339,11 @@ void GameInitializer::createGame(
   ExtraBlackAndKomi& extraBlackAndKomi,
   SearchParams& params,
   const InitialPosition* initialPosition,
-  bool& isSgfPos
+  OtherGameProperties& otherGameProps
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,isSgfPos);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,otherGameProps);
 
   if(noResultStdev > 1e-30) {
     double mean = params.noResultUtilityForWhite;
@@ -371,7 +371,7 @@ void GameInitializer::createGameSharedUnsynchronized(
   Board& board, Player& pla, BoardHistory& hist,
   ExtraBlackAndKomi& extraBlackAndKomi,
   const InitialPosition* initialPosition,
-  bool& isSgfPos
+  OtherGameProperties& otherGameProps
 ) {
   if(initialPosition != NULL) {
     board = initialPosition->board;
@@ -387,7 +387,8 @@ void GameInitializer::createGameSharedUnsynchronized(
     );
     assert(extraBlackAndKomi.extraBlack == 0);
     hist.setKomi(extraBlackAndKomi.komi);
-    isSgfPos = false;
+    otherGameProps.isSgfPos = false;
+    otherGameProps.allowPolicyInit = false; //On initial positions, don't play extra moves at start
     extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
     return;
   }
@@ -419,7 +420,8 @@ void GameInitializer::createGameSharedUnsynchronized(
       thisHandicapProb, handicapCompensateKomiProb,
       komiBigStdevProb, komiBigStdev, std::min(board.x_size,board.y_size), rand
     );
-    isSgfPos = true;
+    otherGameProps.isSgfPos = true;
+    otherGameProps.allowPolicyInit = false; //On sgf positions, don't play extra moves at start
     extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
   }
   else {
@@ -435,7 +437,8 @@ void GameInitializer::createGameSharedUnsynchronized(
 
     pla = P_BLACK;
     hist.clear(board,pla,rules,0);
-    isSgfPos = false;
+    otherGameProps.isSgfPos = false;
+    otherGameProps.allowPolicyInit = true;
   }
 }
 
@@ -1228,38 +1231,41 @@ static void initializeGameUsingPolicy(
 }
 
 struct SearchLimitsThisMove {
-  bool doCapVisitsPlayouts;
-  int64_t numCapVisits;
-  int64_t numCapPlayouts;
+  bool doAlterVisitsPlayouts;
+  int64_t numAlterVisits;
+  int64_t numAlterPlayouts;
   bool clearBotBeforeSearchThisMove;
   bool removeRootNoise;
   float targetWeight;
 
-  bool wasReduced;
+  //Note: these two behave slightly differently than the ones in searchParams - derived from OtherGameProperties
+  //game, they make the playouts *actually* vary instead of only making the neural net think they do.
+  double playoutDoublingAdvantage;
+  Player playoutDoublingAdvantagePla;
 };
 
 static SearchLimitsThisMove getSearchLimitsThisMove(
-  const Search* toMoveBot, const FancyModes& fancyModes, Rand& gameRand,
+  const Search* toMoveBot, Player pla, const FancyModes& fancyModes, Rand& gameRand,
   const vector<double>& historicalMctsWinLossValues,
   bool clearBotBeforeSearch,
-  bool allowReduce
+  OtherGameProperties otherGameProps
 ) {
-  bool doCapVisitsPlayouts = false;
-  int64_t numCapVisits = toMoveBot->searchParams.maxVisits;
-  int64_t numCapPlayouts = toMoveBot->searchParams.maxPlayouts;
+  bool doAlterVisitsPlayouts = false;
+  int64_t numAlterVisits = toMoveBot->searchParams.maxVisits;
+  int64_t numAlterPlayouts = toMoveBot->searchParams.maxPlayouts;
   bool clearBotBeforeSearchThisMove = clearBotBeforeSearch;
   bool removeRootNoise = false;
   float targetWeight = 1.0f;
-  bool wasReduced = false;
+  double playoutDoublingAdvantage = 0.0;
+  Player playoutDoublingAdvantagePla = C_EMPTY;
 
-  if(allowReduce && fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
+  if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
     if(fancyModes.cheapSearchVisits <= 0)
       throw StringError("fancyModes.cheapSearchVisits <= 0");
-    doCapVisitsPlayouts = true;
-    numCapVisits = fancyModes.cheapSearchVisits;
-    numCapPlayouts = fancyModes.cheapSearchVisits;
+    doAlterVisitsPlayouts = true;
+    numAlterVisits = std::min(numAlterVisits,(int64_t)fancyModes.cheapSearchVisits);
+    numAlterPlayouts = std::min(numAlterPlayouts,(int64_t)fancyModes.cheapSearchVisits);
     targetWeight *= fancyModes.cheapSearchTargetWeight;
-    wasReduced = true;
 
     //If not recording cheap searches, do a few more things
     if(fancyModes.cheapSearchTargetWeight <= 0.0) {
@@ -1267,7 +1273,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
       removeRootNoise = true;
     }
   }
-  else if(allowReduce && fancyModes.reduceVisits) {
+  else if(fancyModes.reduceVisits) {
     if(fancyModes.reducedVisitsMin <= 0)
       throw StringError("fancyModes.reducedVisitsMin <= 0");
     if(historicalMctsWinLossValues.size() >= fancyModes.reduceVisitsThresholdLookback) {
@@ -1290,25 +1296,49 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
         double proportionThrough = amountThrough / (1.0 - fancyModes.reduceVisitsThreshold);
         assert(proportionThrough >= 0.0 && proportionThrough <= 1.0);
         double visitReductionProp = proportionThrough * proportionThrough;
-        doCapVisitsPlayouts = true;
-        numCapVisits = (int64_t)round(numCapVisits + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapVisits));
-        numCapPlayouts = (int64_t)round(numCapPlayouts + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapPlayouts));
+        doAlterVisitsPlayouts = true;
+        numAlterVisits = (int64_t)round(numAlterVisits + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numAlterVisits));
+        numAlterPlayouts = (int64_t)round(numAlterPlayouts + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numAlterPlayouts));
         targetWeight = (float)(targetWeight + visitReductionProp * (fancyModes.reducedVisitsWeight - targetWeight));
-        numCapVisits = std::max(numCapVisits,(int64_t)fancyModes.reducedVisitsMin);
-        numCapPlayouts = std::max(numCapPlayouts,(int64_t)fancyModes.reducedVisitsMin);
-        wasReduced = true;
+        numAlterVisits = std::max(numAlterVisits,(int64_t)fancyModes.reducedVisitsMin);
+        numAlterPlayouts = std::max(numAlterPlayouts,(int64_t)fancyModes.reducedVisitsMin);
       }
     }
   }
 
+  //TODO still need config params for specifying how these vary, and GTP options to try them out
+  if(otherGameProps.playoutDoublingAdvantage != 0.0 && otherGameProps.playoutDoublingAdvantagePla != C_EMPTY) {
+    assert(pla == otherGameProps.playoutDoublingAdvantagePla || getOpp(pla) == otherGameProps.playoutDoublingAdvantagePla);
+
+    playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
+    playoutDoublingAdvantagePla = otherGameProps.playoutDoublingAdvantagePla;
+
+    double factor = pow(2.0, otherGameProps.playoutDoublingAdvantage);
+    if(pla == otherGameProps.playoutDoublingAdvantagePla)
+      factor = factor * 2.0 * (factor / (factor + 1.0));
+    else
+      factor = factor * 2.0 * (1.0 / (factor + 1.0));
+
+
+    doAlterVisitsPlayouts = true;
+    //Set this back to true - we need to always clear the search if we are doing asymmetric playouts
+    clearBotBeforeSearchThisMove = true;
+    numAlterVisits = (int64_t)round(numAlterVisits * factor);
+    numAlterPlayouts = (int64_t)round(numAlterPlayouts * factor);
+    //NOTE: hardcoded limit here
+    numAlterVisits = std::max(numAlterVisits,(int64_t)10);
+    numAlterPlayouts = std::max(numAlterPlayouts,(int64_t)10);
+  }
+
   SearchLimitsThisMove limits;
-  limits.doCapVisitsPlayouts = doCapVisitsPlayouts;
-  limits.numCapVisits = numCapVisits;
-  limits.numCapPlayouts = numCapPlayouts;
+  limits.doAlterVisitsPlayouts = doAlterVisitsPlayouts;
+  limits.numAlterVisits = numAlterVisits;
+  limits.numAlterPlayouts = numAlterPlayouts;
   limits.clearBotBeforeSearchThisMove = clearBotBeforeSearchThisMove;
   limits.removeRootNoise = removeRootNoise;
   limits.targetWeight = targetWeight;
-  limits.wasReduced = wasReduced;
+  limits.playoutDoublingAdvantage = playoutDoublingAdvantage;
+  limits.playoutDoublingAdvantagePla = playoutDoublingAdvantagePla;
   return limits;
 }
 
@@ -1330,13 +1360,13 @@ static Loc runBotWithLimits(
     toMoveBot->searchParams.useLcbForSelection = false;
   }
 
-  if(limits.doCapVisitsPlayouts) {
-    assert(limits.numCapVisits > 0);
-    assert(limits.numCapPlayouts > 0);
+  if(limits.doAlterVisitsPlayouts) {
+    assert(limits.numAlterVisits > 0);
+    assert(limits.numAlterPlayouts > 0);
     SearchParams oldParams = toMoveBot->searchParams;
 
-    toMoveBot->searchParams.maxVisits = std::min(toMoveBot->searchParams.maxVisits, limits.numCapVisits);
-    toMoveBot->searchParams.maxPlayouts = std::min(toMoveBot->searchParams.maxPlayouts, limits.numCapPlayouts);
+    toMoveBot->searchParams.maxVisits = limits.numAlterVisits;
+    toMoveBot->searchParams.maxPlayouts = limits.numAlterPlayouts;
     if(limits.removeRootNoise) {
       //Note - this is slightly sketchy to set the params directly. This works because
       //some of the parameters like FPU are basically stateless and will just affect future playouts
@@ -1347,6 +1377,10 @@ static Loc runBotWithLimits(
       toMoveBot->searchParams.rootFpuLossProp = toMoveBot->searchParams.fpuLossProp;
       toMoveBot->searchParams.rootFpuReductionMax = toMoveBot->searchParams.fpuReductionMax;
       toMoveBot->searchParams.rootDesiredPerChildVisitsCoeff = 0.0;
+    }
+    if(limits.playoutDoublingAdvantagePla != C_EMPTY) {
+      toMoveBot->searchParams.playoutDoublingAdvantagePla = limits.playoutDoublingAdvantagePla;
+      toMoveBot->searchParams.playoutDoublingAdvantage = limits.playoutDoublingAdvantage;
     }
 
     //If we cleared the search, do a very short search first to get a good dynamic score utility center
@@ -1382,7 +1416,7 @@ FinishedGameData* Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-  const FancyModes& fancyModes, bool allowPolicyInit,
+  const FancyModes& fancyModes, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
@@ -1404,7 +1438,7 @@ FinishedGameData* Play::runGame(
     doEndGameIfAllPassAlive, clearBotBeforeSearch,
     logger, logSearchInfo, logMoves,
     maxMovesPerGame, stopConditions,
-    fancyModes, allowPolicyInit,
+    fancyModes, otherGameProps,
     gameRand,
     checkForNewNNEval
   );
@@ -1423,7 +1457,7 @@ FinishedGameData* Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-  const FancyModes& fancyModes, bool allowPolicyInit,
+  const FancyModes& fancyModes, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
@@ -1456,6 +1490,8 @@ FinishedGameData* Play::runGame(
   gameData->gameHash.hash1 = gameRand.nextUInt64();
 
   gameData->drawEquivalentWinsForWhite = botSpecB.baseParams.drawEquivalentWinsForWhite;
+  gameData->playoutDoublingAdvantagePla = otherGameProps.playoutDoublingAdvantagePla;
+  gameData->playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
 
   gameData->numExtraBlack = extraBlackAndKomi.extraBlack;
   gameData->mode = 0;
@@ -1491,7 +1527,7 @@ FinishedGameData* Play::runGame(
     }
   };
 
-  if(fancyModes.initGamesWithPolicy && allowPolicyInit) {
+  if(fancyModes.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double proportionOfBoardArea = 1.0 / 25.0;
     double temperature = 1.0;
     initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
@@ -1549,7 +1585,7 @@ FinishedGameData* Play::runGame(
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
 
     SearchLimitsThisMove limits = getSearchLimitsThisMove(
-      toMoveBot, fancyModes, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, true
+      toMoveBot, pla, fancyModes, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, otherGameProps
     );
     Loc loc = runBotWithLimits(toMoveBot, pla, fancyModes, limits, logger, recordUtilities);
 
@@ -1797,6 +1833,8 @@ FinishedGameData* Play::runGame(
 
       Search* toMoveBot = sp->pla == P_BLACK ? botB : botW;
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
+      //We do NOT apply playoutDoublingAdvantage here. If changing this, note that it is coordinated with train data writing
+      //not using playoutDoublingAdvantage for these rows too.
       Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,recordUtilities);
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
@@ -2084,16 +2122,16 @@ FinishedGameData* GameRunner::runGame(
   Player pla;
   BoardHistory hist;
   ExtraBlackAndKomi extraBlackAndKomi;
-  bool isSgfPos;
+  OtherGameProperties otherGameProps;
   if(fancyModes.forSelfPlay) {
     assert(botSpecB.botIdx == botSpecW.botIdx);
     SearchParams params = botSpecB.baseParams;
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,isSgfPos);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,otherGameProps);
     botSpecB.baseParams = params;
     botSpecW.baseParams = params;
   }
   else {
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,isSgfPos);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,otherGameProps);
 
     bool rulesWereSupported;
     if(botSpecB.nnEval != NULL) {
@@ -2119,8 +2157,6 @@ FinishedGameData* GameRunner::runGame(
   //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
   //called on positions that occur after the game would have been autoterminated.
   bool doEndGameIfAllPassAlive = fancyModes.forSelfPlay ? gameRand.nextBool(0.98) : true;
-  //Allow initial moves via direct policy if we're not specially specifying the initial position for this game
-  bool allowPolicyInit = initialPosition == NULL && !isSgfPos;
 
   Search* botB;
   Search* botW;
@@ -2140,7 +2176,7 @@ FinishedGameData* GameRunner::runGame(
     doEndGameIfAllPassAlive,clearBotBeforeSearchThisGame,
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,stopConditions,
-    fancyModes,allowPolicyInit,
+    fancyModes,otherGameProps,
     gameRand,
     checkForNewNNEval //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame
   );

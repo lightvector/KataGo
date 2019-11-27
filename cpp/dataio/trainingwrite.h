@@ -55,6 +55,8 @@ struct FinishedGameData {
   Hash128 gameHash;
 
   double drawEquivalentWinsForWhite;
+  Player playoutDoublingAdvantagePla;
+  double playoutDoublingAdvantage;
   bool hitTurnLimit;
 
   //Metadata about how the game was initialized
