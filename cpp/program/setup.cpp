@@ -435,7 +435,6 @@ Rules Setup::loadSingleRulesExceptForKomi(
   rules.multiStoneSuicideLegal = multiStoneSuicideLegal;
   rules.komi = komi;
 
-  //TODO add to selfplay and gatekeep configs
   if(cfg.contains("taxRule")) {
     string taxRule = cfg.getString("taxRule", Rules::taxRuleStrings());
     rules.taxRule = Rules::parseTaxRule(taxRule);

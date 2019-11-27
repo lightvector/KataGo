@@ -3209,4 +3209,34 @@ XXXXXXXXXXXX
     expect(name,out,expected);
   }
 
+  {
+    //const char* name = "Test some roundtripping of rules strings";
+    vector<Rules> rules = {
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, 1.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, 3.0f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, 5.5f),
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, 1.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, 4.5f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, 6.5f),
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, 2.0f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, 5.5f),
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, 2.5f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, 3.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, 4.0f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, 6.5f),
+    };
+
+    for(int i = 0; i<rules.size(); i++) {
+      Rules parsed;
+      bool suc = Rules::tryParseRules(rules[i].toString(),parsed);
+      testAssert(suc);
+      testAssert(rules[i] == parsed);
+
+      Rules parsed2;
+      suc = Rules::tryParseRulesWithoutKomi(rules[i].toStringNoKomi(),parsed2,rules[i].komi);
+      testAssert(rules[i] == parsed2);
+    }
+  }
+
+
 }

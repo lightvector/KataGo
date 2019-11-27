@@ -940,7 +940,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Expected single float argument for komi but got '" + Global::concat(pieces," ") + "'";
       }
       //GTP spec says that we should accept any komi, but we're going to ignore that.
-      else if(isnan(newKomi) || newKomi < -100.0 || newKomi > 100.0) {
+      else if(isnan(newKomi) || newKomi < Rules::MIN_USER_KOMI || newKomi > Rules::MAX_USER_KOMI) {
         responseIsError = true;
         response = "unacceptable komi";
       }

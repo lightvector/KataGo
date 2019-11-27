@@ -236,7 +236,7 @@ void GameInitializer::initShared(ConfigParser& cfg) {
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
-  komiMean = cfg.getFloat("komiMean",-60.0f,60.0f);
+  komiMean = cfg.getFloat("komiMean",Rules::MIN_USER_KOMI,Rules::MAX_USER_KOMI);
   komiStdev = cfg.getFloat("komiStdev",0.0f,60.0f);
   komiAllowIntegerProb = cfg.getDouble("komiAllowIntegerProb",0.0,1.0);
   handicapProb = cfg.getDouble("handicapProb",0.0,1.0);

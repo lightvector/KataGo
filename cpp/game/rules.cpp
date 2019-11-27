@@ -1,8 +1,11 @@
 #include "../game/rules.h"
 
+#include "../external/nlohmann_json/json.hpp"
+
 #include <sstream>
 
 using namespace std;
+using json = nlohmann::json;
 
 Rules::Rules() {
   //Defaults if not set - closest match to TT rules
@@ -59,7 +62,7 @@ Rules Rules::getSimpleTerritory() {
 }
 
 bool Rules::komiIsIntOrHalfInt(float komi) {
-  return komi * 2 == (int)(komi * 2);
+  return std::isfinite(komi) && komi * 2 == (int)(komi * 2);
 }
 
 set<string> Rules::koRuleStrings() {
@@ -134,51 +137,114 @@ string Rules::toString() const {
   return out.str();
 }
 
-bool Rules::tryParseRules(const string& ss, Rules& buf) {
+string Rules::toJsonString() const {
+  json ret;
+  ret["ko"] = writeKoRule(koRule);
+  ret["score"] = writeScoringRule(scoringRule);
+  ret["tax"] = writeTaxRule(taxRule);
+  ret["suicide"] = multiStoneSuicideLegal;
+  ret["komi"] = komi;
+  return ret.dump();
+}
+
+string Rules::toJsonStringNoKomi() const {
+  json ret;
+  ret["ko"] = writeKoRule(koRule);
+  ret["score"] = writeScoringRule(scoringRule);
+  ret["tax"] = writeTaxRule(taxRule);
+  ret["suicide"] = multiStoneSuicideLegal;
+  return ret.dump();
+}
+
+static bool tryParseRulesHelper(const string& sOrig, Rules& buf, bool allowKomi) {
   Rules rules;
-  string s = Global::toLower(ss);
-  if(s == "japanese" || s == "korean") {
+  string lowercased = Global::toLower(sOrig);
+  if(lowercased == "japanese" || lowercased == "korean") {
     rules.scoringRule = Rules::SCORING_TERRITORY;
     rules.koRule = Rules::KO_SIMPLE;
     rules.taxRule = Rules::TAX_SEKI;
     rules.multiStoneSuicideLegal = false;
     rules.komi = 6.5;
   }
-  else if(s == "chinese") {
+  else if(lowercased == "chinese") {
     rules.scoringRule = Rules::SCORING_AREA;
     rules.koRule = Rules::KO_SIMPLE;
     rules.taxRule = Rules::TAX_NONE;
     rules.multiStoneSuicideLegal = false;
     rules.komi = 7.5;
   }
-  else if(s == "aga" || s == "bga" || s == "french") {
+  else if(lowercased == "aga" || lowercased == "bga" || lowercased == "french") {
     rules.scoringRule = Rules::SCORING_AREA;
     rules.koRule = Rules::KO_SITUATIONAL;
     rules.taxRule = Rules::TAX_NONE;
     rules.multiStoneSuicideLegal = false;
     rules.komi = 7.5;
   }
-  else if(s == "nz" || s == "new zealand" || s == "new-zealand" || s == "new_zealand") {
+  else if(lowercased == "nz" || lowercased == "new zealand" || lowercased == "new-zealand" || lowercased == "new_zealand") {
     rules.scoringRule = Rules::SCORING_AREA;
     rules.koRule = Rules::KO_SITUATIONAL;
     rules.taxRule = Rules::TAX_NONE;
     rules.multiStoneSuicideLegal = true;
     rules.komi = 7.5;
   }
-  else if(s == "tromp-taylor" || s == "tromp_taylor" || s == "tromp taylor" || s == "tromptaylor") {
+  else if(lowercased == "tromp-taylor" || lowercased == "tromp_taylor" || lowercased == "tromp taylor" || lowercased == "tromptaylor") {
     rules.scoringRule = Rules::SCORING_AREA;
     rules.koRule = Rules::KO_POSITIONAL;
     rules.taxRule = Rules::TAX_NONE;
     rules.multiStoneSuicideLegal = true;
     rules.komi = 7.5;
   }
-  else if(s == "goe" || s == "ing") {
+  else if(lowercased == "goe" || lowercased == "ing") {
     rules.scoringRule = Rules::SCORING_AREA;
     rules.koRule = Rules::KO_POSITIONAL;
     rules.taxRule = Rules::TAX_NONE;
     rules.multiStoneSuicideLegal = true;
     rules.komi = 7.5;
   }
+  else if(sOrig.length() > 0 && sOrig[0] == '{') {
+    //Default if not specified
+    rules = Rules::getTrompTaylorish();
+    bool taxSpecified = false;
+    try {
+      json input = json::parse(sOrig);
+      string s;
+      if(input.find("ko") != input.end()) {
+        try { rules.koRule = Rules::parseKoRule(input["ko"].get<string>()); }
+        catch(const StringError&) { return false; }
+      }
+      if(input.find("score") != input.end()) {
+        try { rules.scoringRule = Rules::parseScoringRule(input["score"].get<string>()); }
+        catch(const StringError&) { return false; }
+      }
+      if(input.find("tax") != input.end()) {
+        try { rules.taxRule = Rules::parseTaxRule(input["tax"].get<string>()); taxSpecified = true; }
+        catch(const StringError&) { return false; }
+      }
+      if(input.find("suicide") != input.end()) {
+        try { rules.multiStoneSuicideLegal = input["suicide"].get<bool>(); }
+        catch(const StringError&) { return false; }
+      }
+      if(input.find("sui") != input.end()) {
+        try { rules.multiStoneSuicideLegal = input["sui"].get<bool>(); }
+        catch(const StringError&) { return false; }
+      }
+      if(input.find("komi") != input.end()) {
+        if(!allowKomi)
+          return false;
+        try { rules.komi = input["komi"].get<float>(); }
+        catch(const StringError&) { return false; }
+        if(rules.komi < Rules::MIN_USER_KOMI || rules.komi > Rules::MAX_USER_KOMI || !Rules::komiIsIntOrHalfInt(rules.komi))
+          return false;
+      }
+    }
+    catch(nlohmann::detail::exception& e) {
+      return false;
+    }
+
+    if(!taxSpecified)
+      rules.taxRule = (rules.scoringRule == Rules::SCORING_TERRITORY ? Rules::TAX_SEKI : Rules::TAX_NONE);
+  }
+
   else {
     auto startsWithAndStrip = [](string& str, const string& prefix) {
       bool matches = str.length() >= prefix.length() && str.substr(0,prefix.length()) == prefix;
@@ -189,8 +255,9 @@ bool Rules::tryParseRules(const string& ss, Rules& buf) {
     };
 
     //Default if not specified
-    rules = getTrompTaylorish();
+    rules = Rules::getTrompTaylorish();
 
+    string s = sOrig;
     s = Global::trim(s);
 
     //But don't allow the empty string
@@ -203,6 +270,8 @@ bool Rules::tryParseRules(const string& ss, Rules& buf) {
         break;
 
       if(startsWithAndStrip(s,"komi")) {
+        if(!allowKomi)
+          return false;
         int endIdx = 0;
         while(endIdx < s.length() && !Global::isAlpha(s[endIdx] && !Global::isWhitespace(s[endIdx])))
           endIdx++;
@@ -210,29 +279,31 @@ bool Rules::tryParseRules(const string& ss, Rules& buf) {
         bool suc = Global::tryStringToFloat(s.substr(0,endIdx),komi);
         if(!suc)
           return false;
+        if(!std::isfinite(komi) || komi > 1e6 || komi < -1e6)
+          return false;
         rules.komi = komi;
         s = s.substr(endIdx);
         s = Global::trim(s);
         continue;
       }
       if(startsWithAndStrip(s,"ko")) {
-        if(startsWithAndStrip(s,"simple")) rules.koRule = Rules::KO_SIMPLE;
-        else if(startsWithAndStrip(s,"positional")) rules.koRule = Rules::KO_POSITIONAL;
-        else if(startsWithAndStrip(s,"situational")) rules.koRule = Rules::KO_SITUATIONAL;
-        else if(startsWithAndStrip(s,"spight")) rules.koRule = Rules::KO_SPIGHT;
+        if(startsWithAndStrip(s,"SIMPLE")) rules.koRule = Rules::KO_SIMPLE;
+        else if(startsWithAndStrip(s,"POSITIONAL")) rules.koRule = Rules::KO_POSITIONAL;
+        else if(startsWithAndStrip(s,"SITUATIONAL")) rules.koRule = Rules::KO_SITUATIONAL;
+        else if(startsWithAndStrip(s,"SPIGHT")) rules.koRule = Rules::KO_SPIGHT;
         else return false;
         continue;
       }
       if(startsWithAndStrip(s,"score")) {
-        if(startsWithAndStrip(s,"area")) rules.scoringRule = Rules::SCORING_AREA;
-        else if(startsWithAndStrip(s,"territory")) rules.scoringRule = Rules::SCORING_TERRITORY;
+        if(startsWithAndStrip(s,"AREA")) rules.scoringRule = Rules::SCORING_AREA;
+        else if(startsWithAndStrip(s,"TERRITORY")) rules.scoringRule = Rules::SCORING_TERRITORY;
         else return false;
         continue;
       }
       if(startsWithAndStrip(s,"tax")) {
-        if(startsWithAndStrip(s,"none")) {rules.taxRule = Rules::TAX_NONE; taxSpecified = true;}
-        else if(startsWithAndStrip(s,"seki")) {rules.taxRule = Rules::TAX_SEKI; taxSpecified = true;}
-        else if(startsWithAndStrip(s,"all")) {rules.taxRule = Rules::TAX_ALL; taxSpecified = true;}
+        if(startsWithAndStrip(s,"NONE")) {rules.taxRule = Rules::TAX_NONE; taxSpecified = true;}
+        else if(startsWithAndStrip(s,"SEKI")) {rules.taxRule = Rules::TAX_SEKI; taxSpecified = true;}
+        else if(startsWithAndStrip(s,"ALL")) {rules.taxRule = Rules::TAX_ALL; taxSpecified = true;}
         else return false;
         continue;
       }
@@ -253,6 +324,18 @@ bool Rules::tryParseRules(const string& ss, Rules& buf) {
   buf = rules;
   return true;
 }
+
+bool Rules::tryParseRules(const string& sOrig, Rules& buf) {
+  return tryParseRulesHelper(sOrig,buf,true);
+}
+bool Rules::tryParseRulesWithoutKomi(const string& sOrig, Rules& buf, float komi) {
+  bool suc = tryParseRulesHelper(sOrig,buf,false);
+  if(!suc)
+    return false;
+  buf.komi = komi;
+  return true;
+}
+
 
 const Hash128 Rules::ZOBRIST_KO_RULE_HASH[4] = {
   Hash128(0x3cc7e0bf846820f6ULL, 0x1fb7fbde5fc6ba4eULL),  //Based on sha256 hash of Rules::KO_SIMPLE

@@ -455,12 +455,15 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     }
     if(input.find("komi") != input.end()) {
       double komi;
-      bool suc = parseDouble("komi", komi, -100.0, 100.0, "Must be a integer or half-integer from -100.0 to 100.0");
+      static_assert(Rules::MIN_USER_KOMI == -150.0f, "");
+      static_assert(Rules::MAX_USER_KOMI == 150.0f, "");
+      const char* msg = "Must be a integer or half-integer from -150.0 to 150.0";
+      bool suc = parseDouble("komi", komi, Rules::MIN_USER_KOMI, Rules::MAX_USER_KOMI, msg);
       if(!suc)
         continue;
       rules.komi = (float)komi;
       if(!Rules::komiIsIntOrHalfInt(rules.komi)) {
-        reportErrorForId(rbase.id, "rules", "Must be a integer or half-integer from -100.0 to 100.0");
+        reportErrorForId(rbase.id, "rules", msg);
         continue;
       }
     }
