@@ -342,7 +342,7 @@ The main phase ends after:
 <li class="koRule koSimple"><span class="condition">(if KoRule is Simple)</span>: Additionally the game also ends if:
 <ol>
 <li>A player passes from a state that the player has already passed from once before.<a href="#note4" id="ref4">[4]</a></li>
-<li>OR at the start of a player's turn, the same state has occurred twice before since the most recent pass by either player. In this case the not only the main phase ends but the entire game immediately ends as well, with a result of "no result".<a href="#note5" id="ref5">[5]</a></li>
+<li>OR at the start of a player's turn, the current state has already occurred twice before since the most recent pass by either player. In this case the not only the main phase ends but the entire game immediately ends as well, with a result of "no result".<a href="#note5" id="ref5">[5]</a></li>
 </ol>
 </li>
 <li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition">(if SelfPlayOpts is Enabled)</span>: Additionally, the phase also ends at the end of a turn if every point on the board belongs to a pass-alive-group or pass-alive-territory. In this case the entire game ends immediately as well and is scored exactly as if the game had ended by both players repeatedly passing with no further legal moves or other actions.</li>
@@ -457,7 +457,7 @@ A cleanup phase ends after any of:
 <ol>
 <li>There are two consecutive passes.</li>
 <li>OR a player passes from a state that the player has already passed from once before during the same phase.<a href="#note10" id="ref10">[10]</a></li>
-<li>OR at the start of a player's turn, the same state has occurred twice before since the most recent pass by either player during this phase. In this case the not only the phase ends but the entire game immediately ends as well, with a result of "no result".</li>
+<li>OR at the start of a player's turn, the current state has already occurred twice before since the most recent pass by either player during this phase. In this case the not only the phase ends but the entire game immediately ends as well, with a result of "no result".</li>
 </ol>
 
 <p>
