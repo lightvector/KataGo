@@ -254,7 +254,7 @@ Basic Definitions
 <li> Each point on the grid can be colored black or white or be empty. </li>
 <li> Points are <span class="definition">adjacent/bordering</span> if they are horizontally or vertically touching.</li>
 <li> Within a set of points, two points are <span class="definition">connected</span> if one is adjacent to the other or is connected to a point adjacent to the other. The set itself is <span class="definition">connected</span> if every pair of points in it is connected within that set.</li>
-<li> A set of points and a single point are <span class="definition">adjacent/bordering</span> if that single point is adjacent to any member of the set. Two sets of points are <span class="definition">adjacent/bordering</span> if one borders any points of the other. A set of points <span class="definition">borders a color</span> if it borders any points of that color.</li>
+<li> A set of points and a point not in that set are <span class="definition">adjacent/bordering</span> if that point is adjacent to some member of the set. Two disjoint sets of points are <span class="definition">adjacent/bordering</span> if one borders at least one point of the other. A set of points <span class="definition">borders a color</span> if it borders at least one point of that color.</li>
 <li> A {black, white, empty, maximal-non-black, maximal-non-white} <span class="definition">region</span> is any maximal connected set of {black, white, empty, non-black, non-white} points, respectively. <span class="definition">Maximal</span> means there is no strictly larger connected set of such points that contains it.
 </ol>
 
@@ -264,7 +264,7 @@ Basic Definitions
 Pseudolegal moves
 </h3>
 <ol>
-<li> A <span class="definition">liberty</span> of a black or white region is any point that empty point that borders it. </li>
+<li> A <span class="definition">liberty</span> of a black or white region is any empty point that borders it. </li>
 <li> <span class="definition">Resolving captures</span> of a color consists of emptying all points of regions of that color with no liberties. Every emptying of a point this way during the game adds to the total <span class="definition">number of captures</span> of that color. </li>
 <li> A <span class="definition">pseudolegal move</span> consists of a player performing the following:
   <ul>
@@ -272,7 +272,7 @@ Pseudolegal moves
   <li>Then resolving captures of the opponent's color.</li>
   <li>Then resolving captures of the player's color.</li>
   </ul>
-...subject the restriction that this must NOT result in same total grid coloring as prior to these steps.
+...subject the restriction that this must NOT result in same grid coloring as prior to these steps.
 <span class="multiStoneSuicide multiStoneSuicideDisallowed">
 <br/>
 ...<span class="condition">(if MultiStoneSuicide Disallowed)</span> and also subject to the restriction that resolving captures of the player's own color must NOT empty any points.
@@ -292,7 +292,7 @@ Additional Definitions
 
 <li>A black or white region is in <span class="definition">atari</span> if it is has exactly one liberty.</li>
 
-<li>A {maximal-non-white, maximal-non-black} region is a {black, white} <span class="definition">independent-life area</span> if it does NOT contain any dame regions or any regions in atari.<a href="#note1" id="ref1">[1]</a></li>
+<li>A {maximal-non-white, maximal-non-black} region is a {black, white} <span class="definition">independent-life-region</span> if it does NOT contain any dame regions or any regions in atari.<a href="#note1" id="ref1">[1]</a></li>
 </ol>
 </span>
 
@@ -378,7 +378,7 @@ The game ends and is scored as follows:
 <li class="taxRule taxSeki"><span class="condition">(if TaxRule is Seki)</span> A player's score is the sum of:
 <ul>
 <li>+1 for every point of their color.</li>
-<li>+1 for every empty point within independent-life-areas of their color.</li>
+<li>+1 for every empty point within independent-life-regions of their color.</li>
 <li>If the player is White, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass.</li>
 </ul>
@@ -387,8 +387,8 @@ The game ends and is scored as follows:
 <li class="taxRule taxAll"><span class="condition">(if TaxRule is All)</span> A player's score is the sum of:
 <ul>
 <li>+1 for every point of their color.</li>
-<li>+1 for every empty point within independent-life-areas of their color.</li>
-<li>-2 points for every independent-life-area of their color.</li>
+<li>+1 for every empty point within independent-life-regions of their color.</li>
+<li>-2 points for every independent-life-region of their color.</li>
 <li>If the player is White, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass.</li>
 </ul>
@@ -409,7 +409,7 @@ Cleanup Phases
 <span class="condition"> These phases only occur if <span class="scoringRule">scoringRule is Territory</span>.</span>
 
 <p>
-Cleanup is designed to try to match most of the ways that positions would be ruled and scored under normal Japanese rules, so long as players self-interestedly maximize their score during cleanup. Broadly, this is done by giving players 1 point of compensation per move during the (second) cleanup phase, such that they players can now capture dead stones and resolve all disputes without loss of points for filling in territory. 
+Cleanup is designed to try to match most of the ways that positions would be ruled and scored under normal Japanese rules, so long as players self-interestedly maximize their score during cleanup. Broadly, this is done by giving players 1 point of compensation per move during the (second) cleanup phase, such that the players can now capture dead stones and resolve all disputes without loss of points for filling in territory. 
 
 <p>
 A variety of details are also managed to implement other quirks of Japanese rules. Including there-are-no-points-in-seki, and the Japanese conception of each position as "independent", such that ko threats in one part of the board do not affect the status of the rest of the board. For example, a bent-four-in-the-corner will still resolve as dead under optimal play with these rules even if there are unremovable ko threats on the rest of the board. A lot of the mechanism to do this is based on the Japanese rules themselves, attempting to formalize their spirit to try to make them rigorous enough for self-play.
@@ -421,7 +421,7 @@ We do not aim for a 100% perfect match, however. For example, under this ruleset
 <h4> Cleanup Phase Basics and Definitions </h4>
 
 <ol>
-<li>A <span class="definition">ko-move</span> for a player in a position is any pseudolegal move M where the opponent would have a pseudolegal move, the <span class="definition">ko-reply</span>, in response that would result in exactly the grid coloring prior to M.</li>
+<li>A <span class="definition">ko-move</span> for a player in a position is any pseudolegal move M where the opponent would have a pseudolegal move in response, the <span class="definition">ko-reply</span>, that would result in exactly the grid coloring prior to M.</li>
 
 <li>In addition to the grid coloring, for each player, points on the grid may be marked as <span class="definition">ko-blocked</span> for that player.</li>
 
@@ -440,7 +440,7 @@ Cleanup lasts for two phases<a href="#note6" id="ref6">[6]</a>. In each phase, s
   <li>Is a ko-move that both...
     <ul>
     <li>Is NOT on a point marked as ko-blocked for the player.</li>
-    <li>AND where that player did NOT on any earlier turn during the same cleanup phase make a legal move on exactly the same point with exactly the same total grid coloring.<a href="#note8" id="ref8">[8]</a></li>
+    <li>AND where that player did NOT on any earlier turn during the same cleanup phase make a legal move on exactly the same point with exactly the same grid coloring.<a href="#note8" id="ref8">[8]</a></li>
     </ul>
   Then, followed by marking the point of the potential ko-reply as ko-blocked for the opponent.
   </li>
@@ -474,28 +474,28 @@ After the second cleanup phase ends, the game ends and is scored as follows:
 <li>+1 for every point in empty regions bordered by their color and not by the opposing color.</li>
 <li>+ The total number of captures of the opposing color.</li>
 <li>+1 for every move made by that player during the second cleanup phase.</li>
-<li>-1 for every point of that their color not within independent-life-areas and that was not that their color at the start of the second cleanup phase.</li>
+<li>-1 for every point of that their color not within independent-life-regions and that was not that their color at the start of the second cleanup phase.</li>
 <li>If the player is white, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
 </li>
 <li class="taxRule taxSeki"><span class="condition">(if TaxRule is Seki)</span> A player's score is the sum of:
 <ul>
-<li>+1 for every empty point within independent-life-areas of their color.</li>
+<li>+1 for every empty point within independent-life-regions of their color.</li>
 <li>+ The total number of captures of the opposing color.</li>
 <li>+1 for every move made by that player during the second cleanup phase.</li>
-<li>-1 for every point of that their color not within independent-life-areas and that was not that their color at the start of the second cleanup phase.</li>
+<li>-1 for every point of that their color not within independent-life-regions and that was not that their color at the start of the second cleanup phase.</li>
 <li>If the player is white, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
 </li>
 <li class="taxRule taxAll"><span class="condition">(if TaxRule is All)</span> A player's score is the sum of:
 <ul>
-<li>+1 for every empty point within independent-life-areas of their color.</li>
+<li>+1 for every empty point within independent-life-regions of their color.</li>
 <li>+ The total number of captures of the opposing color.</li>
 <li>+1 for every move made by that player during the second cleanup phase.</li>
-<li>-1 for every point of that their color not within independent-life-areas and that was not that their color at the start of the second cleanup phase.</li>
-<li>-2 points for every independent-life-area of their color.</li>
+<li>-1 for every point of that their color not within independent-life-regions and that was not that their color at the start of the second cleanup phase.</li>
+<li>-2 points for every independent-life-region of their color.</li>
 <li>If the player is white, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
@@ -511,14 +511,14 @@ See <a href="#note11" id="ref11">[11]</a> for some remarks about the scoring.
 
 <p>
 <span class="condition">For computer AI training</span>, the following equivalent formulation for a player's score could also be used if desired.
-This formulation is much more similar to area scoring, in that it factors over the board as simply a sum of +1/0/-1 for each point on the board, and moves within independent-life-areas by either player do not affect this "ownership" sum whatsoever (so long as dead stones are cleaned up and borders and dame are finished).
+This formulation is much more similar to area scoring, in that it factors over the board as simply a sum of +1/0/-1 for each point on the board, and moves within independent-life-regions by either player do not affect this "ownership" sum whatsoever (so long as dead stones are cleaned up and borders and dame are finished).
 
 <ul>
 <li class="taxRule taxNone"><span class="condition">(if TaxRule is None)</span> A player's score is the sum of:
 <ul>
 <li>-1 for every move made by that player in the main phase OR first cleanup phase.</li>
 <li>+1 for every point in empty regions bordered by their color and not by the opposing color.</li>
-<li>+1 for every point of their color that is within independent-life-areas OR that was their color at the start of the second cleanup phase.</li>
+<li>+1 for every point of their color that is within independent-life-regions OR that was their color at the start of the second cleanup phase.</li>
 <li>If the player is white, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
@@ -526,8 +526,8 @@ This formulation is much more similar to area scoring, in that it factors over t
 <li class="taxRule taxSeki"><span class="condition">(if TaxRule is Seki)</span> A player's score is the sum of:
 <ul>
 <li>-1 for every move made by that player in the main phase OR first cleanup phase.</li>
-<li>+1 for every empty point within independent-life-areas of their color.</li>
-<li>+1 for every point of their color that is within independent-life-areas OR that was their color at the start of the second cleanup phase.</li>
+<li>+1 for every empty point within independent-life-regions of their color.</li>
+<li>+1 for every point of their color that is within independent-life-regions OR that was their color at the start of the second cleanup phase.</li>
 <li>If the player is white, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
@@ -535,9 +535,9 @@ This formulation is much more similar to area scoring, in that it factors over t
 <li class="taxRule taxAll"><span class="condition">(if TaxRule is All)</span> A player's score is the sum of:
 <ul>
 <li>-1 for every move made by that player in the main phase OR first cleanup phase.</li>
-<li>+1 for every empty point within independent-life-areas of their color.</li>
-<li>+1 for every point of their color that is within independent-life-areas OR that was their color at the start of the second cleanup phase.</li>
-<li>-2 points for every independent-life-area of their color.</li>
+<li>+1 for every empty point within independent-life-regions of their color.</li>
+<li>+1 for every point of their color that is within independent-life-regions OR that was their color at the start of the second cleanup phase.</li>
+<li>-2 points for every independent-life-region of their color.</li>
 <li>If the player is white, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
@@ -551,7 +551,7 @@ This formulation is much more similar to area scoring, in that it factors over t
 <div class="flex-vertical">
 <span class="note scoringTerritory taxSeki taxAll">
 <span id="note1">[1] 
-The intent is "independent life areas" indicate areas that are not seki, so long as both players finish all borders and fill all dame. This is motivated by the way Japanese rules attempt to define "seki" using dame. Using the presence of dame to determine seki is actually a pretty clever solution - my original idea had only been to use ability-to-make-pass-aliveness, but this is considerably more awkward in practice than using dame. 
+The intent is "independent life regions" indicate regions that are not seki, so long as both players finish all borders and fill all dame. This is motivated by the way Japanese rules attempt to define "seki" using dame. Using the presence of dame to determine seki is actually a pretty clever solution - my original idea had only been to use ability-to-make-pass-aliveness, but this is considerably more awkward in practice than using dame. 
 We also include the condition of "atari" to handle groups that have no dame but still survive without two eyes by virtue of having ko mouths. This handles <a href="https://senseis.xmp.net/?DoubleKoSeki">double ko seki</a>. 
 (<a href="#ref1">Back</a>)</span></span>
 
@@ -595,7 +595,7 @@ Unfortunately, as stated, this rule still allows quite a large amount of game-pr
 
 <span class="note scoringTerritory">
 <span id="note9">[9]
-Clearing here avoids weirdness in certain cases involving multi-step kos.
+Unmarking non-ko-moves here avoids weirdness in certain cases involving multi-stage kos.
 (<a href="#ref9">Back</a>)</span></span>
 
 
