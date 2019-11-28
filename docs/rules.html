@@ -251,7 +251,7 @@ Basic Definitions
 
 <ol>
 <li> Go is played on an X by Y rectangular grid of points by two opposing players, Black and White. </li>
-<li> Each point on the grid can be colored black or white or be empty. </li>
+<li> Each point on the grid can be colored black or white or be empty. The coloring status of all points together is the <span class="definition">grid coloring</span>.</li>
 <li> Points are <span class="definition">adjacent/bordering</span> if they are horizontally or vertically touching.</li>
 <li> Within a set of points, two points are <span class="definition">connected</span> if one is adjacent to the other or is connected to a point adjacent to the other. The set itself is <span class="definition">connected</span> if every pair of points in it is connected within that set.</li>
 <li> A set of points and a point not in that set are <span class="definition">adjacent/bordering</span> if that point is adjacent to some member of the set. Two disjoint sets of points are <span class="definition">adjacent/bordering</span> if one borders at least one point of the other. A set of points <span class="definition">borders a color</span> if it borders at least one point of that color.</li>
@@ -275,7 +275,7 @@ Pseudolegal moves
 ...subject the restriction that this must NOT result in same grid coloring as prior to these steps.
 <span class="multiStoneSuicide multiStoneSuicideDisallowed">
 <br/>
-...<span class="condition">(if MultiStoneSuicide Disallowed)</span> and also subject to the restriction that resolving captures of the player's own color must NOT empty any points.
+...<span class="condition">(if MultiStoneSuicide is Disallowed)</span> and also subject to the restriction that resolving captures of the player's own color must NOT empty any points.
 </span>
 </li>
 </ol>
@@ -337,15 +337,15 @@ Starting with an empty grid, the players alternate turns, starting with Black. A
 <p>
 The main phase ends after:
 <ol>
-<li class="hasButton buttonNotUsed"><span class="condition">(if Button is NotUsed)</span> There are 2 consecutive passes.</li>
-<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> There are 2 consecutive passes, ignoring the first pass of the game.</li>
-<li class="koRule koSimple"><span class="condition">(if KoRule is Simple)</span> Additionally the game also ends if:
+<li class="hasButton buttonNotUsed"><span class="condition">(if Button is NotUsed)</span>: There are 2 consecutive passes.</li>
+<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: There are 2 consecutive passes, ignoring the first pass of the game.</li>
+<li class="koRule koSimple"><span class="condition">(if KoRule is Simple)</span>: Additionally the game also ends if:
 <ol>
 <li>A player passes from a state that the player has already passed from once before.<a href="#note4" id="ref4">[4]</a></li>
 <li>OR at the start of a player's turn, the same state has occurred twice before since the most recent pass by either player. In this case the not only the main phase ends but the entire game immediately ends as well, with a result of "no result".<a href="#note5" id="ref5">[5]</a></li>
 </ol>
 </li>
-<li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition">(if SelfPlayOpts is Enabled)</span> Additionally, the phase also ends at the end of a turn if every point on the board belongs to a pass-alive-group or pass-alive-territory. In this case the entire game ends immediately as well and is scored exactly as if the game had ended by both players repeatedly passing with no further legal moves or other actions.</li>
+<li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition">(if SelfPlayOpts is Enabled)</span>: Additionally, the phase also ends at the end of a turn if every point on the board belongs to a pass-alive-group or pass-alive-territory. In this case the entire game ends immediately as well and is scored exactly as if the game had ended by both players repeatedly passing with no further legal moves or other actions.</li>
 </ol>
 
 <p>
@@ -364,33 +364,33 @@ The game is NOT ended or scored and instead continues with two cleanup phases (s
 The game ends and is scored as follows:
 <ul>
 
-<li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition">(if SelfPlayOpts is Enabled)</span> Before scoring, for each color, empty all points of that color within pass-alive-territory of the opposing color.</li>
+<li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition">(if SelfPlayOpts is Enabled)</span>: Before scoring, for each color, empty all points of that color within pass-alive-territory of the opposing color.</li>
    
-<li class="taxRule taxNone"><span class="condition">(if TaxRule is None)</span> A player's score is the sum of:
+<li class="taxRule taxNone"><span class="condition">(if TaxRule is None)</span>: A player's score is the sum of:
 <ul>
 <li>+1 for every point of their color.</li>
 <li>+1 for every point in empty regions bordered by their color and not by the opposing color.</li>
 <li>If the player is White, Komi.</li>
-<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass.</li>
+<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass.</li>
 </ul>
 </li>
 
-<li class="taxRule taxSeki"><span class="condition">(if TaxRule is Seki)</span> A player's score is the sum of:
+<li class="taxRule taxSeki"><span class="condition">(if TaxRule is Seki)</span>: A player's score is the sum of:
 <ul>
 <li>+1 for every point of their color.</li>
 <li>+1 for every empty point within independent-life-regions of their color.</li>
 <li>If the player is White, Komi.</li>
-<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass.</li>
+<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass.</li>
 </ul>
 </li>
 
-<li class="taxRule taxAll"><span class="condition">(if TaxRule is All)</span> A player's score is the sum of:
+<li class="taxRule taxAll"><span class="condition">(if TaxRule is All)</span>: A player's score is the sum of:
 <ul>
 <li>+1 for every point of their color.</li>
 <li>+1 for every empty point within independent-life-regions of their color.</li>
 <li>-2 points for every independent-life-region of their color.</li>
 <li>If the player is White, Komi.</li>
-<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass.</li>
+<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass.</li>
 </ul>
 </li>
 
@@ -467,29 +467,29 @@ After the first cleanup phase ends, the second cleanup phase begins immediately 
 After the second cleanup phase ends, the game ends and is scored as follows:
 <ul>
 
-<li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition">(if SelfPlayOpts is Enabled)</span> Before scoring, for each color, empty all points of that color within pass-alive-territory of the opposing color. Points emptied this way also add to the total number of captures of that point's color.</li>
+<li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition">(if SelfPlayOpts is Enabled)</span>: Before scoring, for each color, empty all points of that color within pass-alive-territory of the opposing color. Points emptied this way also add to the total number of captures of that point's color.</li>
 
-<li class="taxRule taxNone"><span class="condition">(if TaxRule is None)</span> A player's score is the sum of:
+<li class="taxRule taxNone"><span class="condition">(if TaxRule is None)</span>: A player's score is the sum of:
 <ul>
 <li>+1 for every point in empty regions bordered by their color and not by the opposing color.</li>
 <li>+ The total number of captures of the opposing color.</li>
 <li>+1 for every move made by that player during the second cleanup phase.</li>
 <li>-1 for every point of that their color not within independent-life-regions and that was not that their color at the start of the second cleanup phase.</li>
 <li>If the player is white, Komi.</li>
-<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
+<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
 </li>
-<li class="taxRule taxSeki"><span class="condition">(if TaxRule is Seki)</span> A player's score is the sum of:
+<li class="taxRule taxSeki"><span class="condition">(if TaxRule is Seki)</span>: A player's score is the sum of:
 <ul>
 <li>+1 for every empty point within independent-life-regions of their color.</li>
 <li>+ The total number of captures of the opposing color.</li>
 <li>+1 for every move made by that player during the second cleanup phase.</li>
 <li>-1 for every point of that their color not within independent-life-regions and that was not that their color at the start of the second cleanup phase.</li>
 <li>If the player is white, Komi.</li>
-<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
+<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
 </li>
-<li class="taxRule taxAll"><span class="condition">(if TaxRule is All)</span> A player's score is the sum of:
+<li class="taxRule taxAll"><span class="condition">(if TaxRule is All)</span>: A player's score is the sum of:
 <ul>
 <li>+1 for every empty point within independent-life-regions of their color.</li>
 <li>+ The total number of captures of the opposing color.</li>
@@ -497,7 +497,7 @@ After the second cleanup phase ends, the game ends and is scored as follows:
 <li>-1 for every point of that their color not within independent-life-regions and that was not that their color at the start of the second cleanup phase.</li>
 <li>-2 points for every independent-life-region of their color.</li>
 <li>If the player is white, Komi.</li>
-<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
+<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
 </li>
 </ul>
@@ -514,32 +514,32 @@ See <a href="#note11" id="ref11">[11]</a> for some remarks about the scoring.
 This formulation is much more similar to area scoring, in that it factors over the board as simply a sum of +1/0/-1 for each point on the board, and moves within independent-life-regions by either player do not affect this "ownership" sum whatsoever (so long as dead stones are cleaned up and borders and dame are finished).
 
 <ul>
-<li class="taxRule taxNone"><span class="condition">(if TaxRule is None)</span> A player's score is the sum of:
+<li class="taxRule taxNone"><span class="condition">(if TaxRule is None)</span>: A player's score is the sum of:
 <ul>
 <li>-1 for every move made by that player in the main phase OR first cleanup phase.</li>
 <li>+1 for every point in empty regions bordered by their color and not by the opposing color.</li>
 <li>+1 for every point of their color that is within independent-life-regions OR that was their color at the start of the second cleanup phase.</li>
 <li>If the player is white, Komi.</li>
-<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
+<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
 </li>
-<li class="taxRule taxSeki"><span class="condition">(if TaxRule is Seki)</span> A player's score is the sum of:
+<li class="taxRule taxSeki"><span class="condition">(if TaxRule is Seki)</span>: A player's score is the sum of:
 <ul>
 <li>-1 for every move made by that player in the main phase OR first cleanup phase.</li>
 <li>+1 for every empty point within independent-life-regions of their color.</li>
 <li>+1 for every point of their color that is within independent-life-regions OR that was their color at the start of the second cleanup phase.</li>
 <li>If the player is white, Komi.</li>
-<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
+<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
 </li>
-<li class="taxRule taxAll"><span class="condition">(if TaxRule is All)</span> A player's score is the sum of:
+<li class="taxRule taxAll"><span class="condition">(if TaxRule is All)</span>: A player's score is the sum of:
 <ul>
 <li>-1 for every move made by that player in the main phase OR first cleanup phase.</li>
 <li>+1 for every empty point within independent-life-regions of their color.</li>
 <li>+1 for every point of their color that is within independent-life-regions OR that was their color at the start of the second cleanup phase.</li>
 <li>-2 points for every independent-life-region of their color.</li>
 <li>If the player is white, Komi.</li>
-<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span> +0.5 if this player was the first to pass during the main phase.</li>
+<li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
 </li>
 </ul>   
@@ -551,7 +551,7 @@ This formulation is much more similar to area scoring, in that it factors over t
 <div class="flex-vertical">
 <span class="note scoringTerritory taxSeki taxAll">
 <span id="note1">[1] 
-The intent is "independent life regions" indicate regions that are not seki, so long as both players finish all borders and fill all dame. This is motivated by the way Japanese rules attempt to define "seki" using dame. Using the presence of dame to determine seki is actually a pretty clever solution - my original idea had only been to use ability-to-make-pass-aliveness, but this is considerably more awkward in practice than using dame. 
+The intent is "independent-life-regions" indicate regions that are not seki, so long as both players finish all borders and fill all dame. This is motivated by the way Japanese rules attempt to define "seki" using dame. Using the presence of dame to determine seki is actually a pretty clever solution - my original idea had only been to use ability-to-make-pass-alive-ness, but this is considerably more awkward in practice than using dame. 
 We also include the condition of "atari" to handle groups that have no dame but still survive without two eyes by virtue of having ko mouths. This handles <a href="https://senseis.xmp.net/?DoubleKoSeki">double ko seki</a>. 
 (<a href="#ref1">Back</a>)</span></span>
 
