@@ -197,7 +197,7 @@ Click the buttons or individually uncheck some of the boxes to hide parts of the
 
 <ul>
 <li class="genericRule"><span class="definition">X,Y</span>: <br/> Integers indicating the board size.</li>
-<li class="genericRule"><span class="definition">Komi</span>: <br/> Integer or half-integer indicating compensation given to white for going second.</li>
+<li class="genericRule"><span class="definition">Komi</span>: <br/> Integer or half-integer indicating compensation given to White for going second.</li>
 <li class="koRule"><span class="definition">KoRule</span>: <br/> The variant of the rule prohibiting repetition. <a href="https://senseis.xmp.net/?KoRules">https://senseis.xmp.net/?KoRules</a>
 <div class="flex-vertical">
 <span><input type="checkbox" id="koSimple" name="koRule" value="koSimple"><label for="koSimple">Simple</label></span>
@@ -288,11 +288,11 @@ Additional Definitions
 
 <span class="scoringTerritory taxSeki taxAll">
 <ol>
-<li>An empty region that borders both black and white stones is a <span class="definition">dame region</span>.</li>
+<li>An empty region that borders both black and white is a <span class="definition">dame region</span>.</li>
 
 <li>A black or white region is in <span class="definition">atari</span> if it is has exactly one liberty.</li>
 
-<li>A {maximal-non-white,maximal-non-black} region is a {black,white} <span class="definition">independent-life area</span> if it does NOT contain any dame regions or any regions in atari.<a href="#note1" id="ref1">[1]</a></li>
+<li>A {maximal-non-white, maximal-non-black} region is a {black, white} <span class="definition">independent-life area</span> if it does NOT contain any dame regions or any regions in atari.<a href="#note1" id="ref1">[1]</a></li>
 </ol>
 </span>
 
@@ -300,7 +300,7 @@ Additional Definitions
 <ol start="4">
 <li>A black or white region R is a <span class="definition">pass-alive-group</span> if there does not exist any sequence of consecutive pseudo-legal moves of the opposing color that results in emptying R.<a href="#note2" id="ref2">[2]</a></li>
 
-<li>A {maximal-non-black, maximal-non-white} region R is <span class="definition">pass-alive-territory</span> for {Black, White} if if all {black, white} regions bordering it are pass-alive-groups, and all or all but one point in R is adjacent to a {black, white} pass-alive-group, respectively.<a href="#note3" id="ref3">[3]</a>
+<li>A {maximal-non-black, maximal-non-white} region R is <span class="definition">pass-alive-territory</span> for {Black, White} if all {black, white} regions bordering it are pass-alive-groups, and all or all but one point in R is adjacent to a {black, white} pass-alive-group, respectively.<a href="#note3" id="ref3">[3]</a>
 </li>
 </ol>
 </span>
@@ -453,7 +453,7 @@ Cleanup lasts for two phases<a href="#note6" id="ref6">[6]</a>. In each phase, s
 <h4> Cleanup Phase Ending and Scoring </h4>
 
 <p>
-A cleanup phase of ends after any of:
+A cleanup phase ends after any of:
 <ol>
 <li>There are two consecutive passes.</li>
 <li>OR a player passes from a state that the player has already passed from once before during the same phase.<a href="#note10" id="ref10">[10]</a></li>
