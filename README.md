@@ -40,7 +40,7 @@ The OpenCL version will also automatically run a tuner on the first startup to o
 
 ### GTP Extensions (for developers):
 In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/gtp/), KataGo supports a few additional commands, for use with analysis tools and other programs.
-KataGo's GTP extensions are documented [here](GTP_Extensions.md).
+KataGo's GTP extensions are documented [here](docs/GTP_Extensions.md).
 
    * Notably: KataGo exposes a GTP command `kata-analyze` that in addition to policy and winrate, also reports an estimate of the *expected score* and a heatmap of the predicted territory ownership of every location of the board. Expected score should be particularly useful for reviewing handicap games or games of weaker players. Whereas the winrate for black will often remain pinned at nearly 100% in a handicap game even as black makes major mistakes (until finally the game becomes very close), expected score should make it more clear which earlier moves are losing points that allow white to catch up, and exactly how much or little those mistakes lose. If you're interested in adding support for this to any analysis tool, feel free to reach out, I'd be happy to answer questions and help.
 
