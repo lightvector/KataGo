@@ -416,7 +416,7 @@ A variety of details are also managed to implement other quirks of Japanese rule
 
 <p>
 
-We do not aim for a 100% perfect match, however. For example, under our ruleset, <a href="https://senseis.xmp.net/?TorazuSanmoku"> three-points-without-capturing</a> will (usually) entirely naturally be three points without capturing with no need for any special ruling, matching the traditional Japanese ruling (and in effect, justifying it). But the modern Japanese rules instead regard it as a seki, so black must concede down to two points.
+We do not aim for a 100% perfect match, however. For example, under this ruleset, <a href="https://senseis.xmp.net/?TorazuSanmoku"> three-points-without-capturing</a> will (usually) entirely naturally be three points without capturing with no need for any special ruling, matching the traditional Japanese ruling (and in effect, justifying it). But the modern Japanese rules instead regard it as a seki, in which black must concede down to two points to get anything. More exotic kinds of positions will also differ between these rules and Japanese rules.
 
 <h4> Cleanup Phase Basics and Definitions </h4>
 
@@ -507,8 +507,10 @@ See <a href="#note11" id="ref11">[11]</a> for some remarks about the scoring.
 <p>
 <span class="gameEnd">The player with the higher score wins, or the game is a draw if equal score.</span>
 
+<hr>
+
 <p>
-For the purposes of computer AI training, the following equivalent formulation for a player's score could also be used if desired.
+<span class="condition">For computer AI training</span>, the following equivalent formulation for a player's score could also be used if desired.
 This formulation is much more similar to area scoring, in that it factors over the board as simply a sum of +1/0/-1 for each point on the board, and moves within independent-life-areas by either player do not affect this "ownership" sum whatsoever (so long as dead stones are cleaned up and borders and dame are finished).
 
 <ul>
@@ -549,7 +551,7 @@ This formulation is much more similar to area scoring, in that it factors over t
 <div class="flex-vertical">
 <span class="note scoringTerritory taxSeki taxAll">
 <span id="note1">[1] 
-The intent is "independent life areas" indicate areas that are not seki, so long as both players finish all borders and fill all dame. This is motivated by the way Japanese rules attempt to define "seki". Using presence of dame to determine seki is actually a pretty clever solution - my original idea had only been to use pass-aliveness, but this is considerably more awkward in practice. 
+The intent is "independent life areas" indicate areas that are not seki, so long as both players finish all borders and fill all dame. This is motivated by the way Japanese rules attempt to define "seki" using dame. Using the presence of dame to determine seki is actually a pretty clever solution - my original idea had only been to use ability-to-make-pass-aliveness, but this is considerably more awkward in practice than using dame. 
 We also include the condition of "atari" to handle groups that have no dame but still survive without two eyes by virtue of having ko mouths. This handles <a href="https://senseis.xmp.net/?DoubleKoSeki">double ko seki</a>. 
 (<a href="#ref1">Back</a>)</span></span>
 
