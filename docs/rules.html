@@ -179,7 +179,7 @@ window.onload = function() {
 <body>
 
 <h1>KataGo's Planned-To-Be-Supported Go Rules</h1>
-A hope also is that this document can serve as a reference for anyone implement any subset of such rules themselves - including a rigorous nearly-Japanese-rules that bots can use for self-play or for competitive matches completely without need for outside adjudication or dispute resolution or any other protocol besides just the bots making ordinary plays.
+A hope also is that this document can serve as a reference for anyone to implement any subset of such rules themselves - including a rigorous nearly-Japanese-rules that bots can use for self-play or for competitive matches completely without need for outside adjudication or dispute resolution or any other protocol besides just the bots making ordinary plays.
 
 <hr>
 <h2>Parameters</h2>
@@ -345,7 +345,7 @@ The main phase ends after:
 <li>OR at the start of a player's turn, the same state has occurred twice before since the most recent pass by either player. In this case the not only the main phase ends but the entire game immediately ends as well, with a result of "no result".<a href="#note5" id="ref5">[5]</a></li>
 </ol>
 </li>
-<li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition">(if SelfPlayOpts is Enabled)</span> Additionally the game also ends if at the end of a turn every location on the board belongs to a pass-alive-group or pass-alive-territory. In this case the whole game ends immediately and is scored exactly as if the game had ended by both players repeatedly passing with no further legal moves or other actions.</li>
+<li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition">(if SelfPlayOpts is Enabled)</span> Additionally, the phase also ends at the end of a turn if every point on the board belongs to a pass-alive-group or pass-alive-territory. In this case the entire game ends immediately as well and is scored exactly as if the game had ended by both players repeatedly passing with no further legal moves or other actions.</li>
 </ol>
 
 <p>
@@ -428,6 +428,8 @@ We do not aim for a 100% perfect match, however. For example, under our ruleset,
 <li>The <span class="definition">state</span> during cleanup phases consists of the grid coloring together with the ko-blocked status of all points for both players and the color of the player next to take a turn.</li>
 </ol>
 
+<h4> Cleanup Phase Play </h4>
+
 <p>
 Cleanup lasts for two phases<a href="#note6" id="ref6">[6]</a>. In each phase, starting with the grid coloring from the end of the previous phase, the players alternate turns, starting with the opponent of the player who took the last turn of the previous phase. A turn in the cleanup is either a pass, a legal move, or an unblock-ko action.<a href="#note7" id="ref7">[7]</a>
 <ul>
@@ -447,6 +449,8 @@ Cleanup lasts for two phases<a href="#note6" id="ref6">[6]</a>. In each phase, s
 </li>
 <li>An <span class="definition">unblock-ko</span> action consists of a player choosing a point marked as ko-blocked for that player and removing that mark.</li>
 </ul>
+
+<h4> Cleanup Phase Ending and Scoring </h4>
 
 <p>
 A cleanup phase of ends after any of:
