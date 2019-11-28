@@ -434,12 +434,12 @@ We do not aim for a 100% perfect match, however. For example, under this ruleset
 Cleanup lasts for two phases<a href="#note6" id="ref6">[6]</a>. In each phase, starting with the grid coloring from the end of the previous phase, the players alternate turns, starting with the opponent of the player who took the last turn of the previous phase. A turn in the cleanup is either a pass, a legal move, or an unblock-ko action.<a href="#note7" id="ref7">[7]</a>
 <ul>
 <li>A <span class="definition">pass</span> cedes the turn with no effect (but may possibly end the phase, as described below).</li>
-<li>A <span class="definition">legal move</span> during a cleanup phase is any pseudolegal move that either...
+<li>A <span class="definition">legal move</span> by a player during a cleanup phase is any pseudolegal move that either...
   <ul>
   <li>Is NOT a ko-move.</li>
   <li>Is a ko-move that both...
     <ul>
-    <li>Is NOT on a point marked as ko-blocked for the player.</li>
+    <li>Is NOT on a point marked as ko-blocked for that player.</li>
     <li>AND where that player did NOT on any earlier turn during the same cleanup phase make a legal move on exactly the same point with exactly the same grid coloring.<a href="#note8" id="ref8">[8]</a></li>
     </ul>
   Then, followed by marking the point of the potential ko-reply as ko-blocked for the opponent.
@@ -474,7 +474,7 @@ After the second cleanup phase ends, the game ends and is scored as follows:
 <li>+1 for every point in empty regions bordered by their color and not by the opposing color.</li>
 <li>+ The total number of captures of the opposing color.</li>
 <li>+1 for every move made by that player during the second cleanup phase.</li>
-<li>-1 for every point of that their color not within independent-life-regions and that was not that their color at the start of the second cleanup phase.</li>
+<li>-1 for every point of their color not within independent-life-regions and that was not their color at the start of the second cleanup phase.</li>
 <li>If the player is white, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
@@ -484,7 +484,7 @@ After the second cleanup phase ends, the game ends and is scored as follows:
 <li>+1 for every empty point within independent-life-regions of their color.</li>
 <li>+ The total number of captures of the opposing color.</li>
 <li>+1 for every move made by that player during the second cleanup phase.</li>
-<li>-1 for every point of that their color not within independent-life-regions and that was not that their color at the start of the second cleanup phase.</li>
+<li>-1 for every point of their color not within independent-life-regions and that was not their color at the start of the second cleanup phase.</li>
 <li>If the player is white, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
@@ -494,7 +494,7 @@ After the second cleanup phase ends, the game ends and is scored as follows:
 <li>+1 for every empty point within independent-life-regions of their color.</li>
 <li>+ The total number of captures of the opposing color.</li>
 <li>+1 for every move made by that player during the second cleanup phase.</li>
-<li>-1 for every point of that their color not within independent-life-regions and that was not that their color at the start of the second cleanup phase.</li>
+<li>-1 for every point of their color not within independent-life-regions and that was not their color at the start of the second cleanup phase.</li>
 <li>-2 points for every independent-life-region of their color.</li>
 <li>If the player is white, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass during the main phase.</li>
