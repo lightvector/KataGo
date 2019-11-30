@@ -107,7 +107,7 @@ void Tests::runRulesTests() {
       o << "W-B Score: " << hist.finalWhiteMinusBlackScore << endl;
       o << "isNoResult: " << hist.isNoResult << endl;
       o << "isResignation: " << hist.isResignation << endl;
-      assert((int)hist.isNoResult + (int)hist.isResignation + (int)hist.isScored == (int)hist.isGameFinished);
+      testAssert((int)hist.isNoResult + (int)hist.isResignation + (int)hist.isScored == (int)hist.isGameFinished);
     }
   };
 
@@ -1589,6 +1589,73 @@ Score: 8.5
   }
 
   {
+    const char* name = "Area scoring with button";
+
+    bool buttonRule[2] = {false, true};
+    for(int whichRule = 0; whichRule < 2; whichRule++) {
+      Board board = Board::parseBoard(7,7,R"%%(
+..x.xo.
+..xxoo.
+...xo..
+..xxo..
+..x.o..
+..xxo..
+...xo..
+)%%");
+      Rules rules;
+      rules.koRule = Rules::KO_SIMPLE;
+      rules.scoringRule = Rules::SCORING_AREA;
+      rules.taxRule = Rules::TAX_NONE;
+      rules.multiStoneSuicideLegal = false;
+      rules.komi = 2.5f;
+      rules.hasButton = buttonRule[whichRule];
+      BoardHistory hist(board,P_BLACK,rules,0);
+
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(3,4,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(3,0,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(1,2,board.x_size), P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(4,0,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Location::getLoc(6,2,board.x_size), P_WHITE, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+      testAssert(hist.isGameFinished);
+      out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      out << endl;
+    }
+    string expected = R"%%(
+Score: -5.5
+Score: -6.5
+Score: -2.5
+Score: -2.5
+Score: -2.5
+Score: -2.5
+Score: -2.5
+Score: -2.5
+Score: -2.5
+
+Score: -6
+Score: -6
+Score: -3
+Score: -2
+Score: -3
+Score: -3
+Score: -3
+Score: -3
+Score: -3
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
     const char* name = "Pass for ko";
     Board board = Board::parseBoard(7,7,R"%%(
 ..ox.oo
@@ -2224,6 +2291,7 @@ Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
+Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves pass pass
@@ -2241,6 +2309,7 @@ Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
+Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves pass pass pass
@@ -2258,6 +2327,7 @@ Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
+Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves pass pass pass pass
@@ -2275,6 +2345,7 @@ Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
+Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves pass pass pass pass pass
@@ -2292,6 +2363,7 @@ Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
+Presumed next pla Black
 Past normal phase end 0
 Game result 1 White 0.5 1 0 0
 Last moves pass pass pass pass pass pass
@@ -2312,6 +2384,7 @@ Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
+Presumed next pla Black
 Past normal phase end 1
 Game result 0 Empty 0 0 0 0
 Last moves pass pass
@@ -2329,6 +2402,7 @@ Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
+Presumed next pla White
 Past normal phase end 1
 Game result 0 Empty 0 0 0 0
 Last moves pass pass pass
@@ -2346,6 +2420,7 @@ Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
+Presumed next pla Black
 Past normal phase end 1
 Game result 0 Empty 0 0 0 0
 Last moves pass pass pass pass
@@ -3186,6 +3261,7 @@ Rules koSIMPLEscoreTERRITORYtaxSEKIsui1komi7.5
 Ko prohib hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
+Presumed next pla Black
 Past normal phase end 0
 Game result 1 Black -1.5 1 0 0
 Last moves D4 J4 D9 J9 G3 F10 K6 H5 K3 K4 J3 J7 E10 F9 C7 C3 C4 D3 E3 E2 F2 E4 F3 B4 B5 B3 D2 C10 F11 C2 C9 G11 E1 E11 D11 F12 L4 L5 L3 L6 K7 K8 E6 C11 D10 D12 B10 B11 B9 E7 F6 D6 C6 D7 D5 F7 G6 E5 C5 G7 G5 G4 F4 H4 K5 L7 H6 J6 A11 H7 F5 C12 D8 M4 M3 M5 E8 F8 H3 J5 A12 E9 A10 pass B12 E12 pass pass pass pass A4 pass C1 B1 A2 pass A3 pass B2 pass C3 K11 pass pass
@@ -3215,6 +3291,199 @@ XXXXXXXXXXXX
     }
     out << endl;
 
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Sending two returning one initial pass WITHOUT button, simple";
+
+    Board board = Board::parseBoard(5,6,R"%%(
+.....
+..xxx
+xx.oo
+xooo.
+xo.ox
+xoxx.
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.taxRule = Rules::TAX_SEKI;
+    rules.multiStoneSuicideLegal = false;
+    rules.komi = 0.0f;
+    rules.hasButton = false;
+    BoardHistory hist(board,P_BLACK,rules,0);
+
+    makeMoveAssertLegal(hist, board, Location::getLoc(2,2,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,3,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
+    testAssert(!hist.isGameFinished);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    testAssert(hist.isGameFinished);
+    printGameResult(out,hist);
+    out << endl;
+    string expected = R"%%(
+Winner: Black
+W-B Score: -11
+isNoResult: 0
+isResignation: 0
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Sending two returning one initial pass WITH button, simple";
+
+    Board board = Board::parseBoard(5,6,R"%%(
+.....
+..xxx
+xx.oo
+xooo.
+xo.ox
+xoxx.
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.taxRule = Rules::TAX_SEKI;
+    rules.multiStoneSuicideLegal = false;
+    rules.komi = 0.5f;
+    rules.hasButton = true;
+    BoardHistory hist(board,P_BLACK,rules,0);
+
+    makeMoveAssertLegal(hist, board, Location::getLoc(2,2,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,3,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
+    testAssert(!hist.isGameFinished);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    testAssert(!hist.isGameFinished);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,3,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
+    testAssert(!hist.isGameFinished);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    testAssert(hist.isGameFinished);
+    printGameResult(out,hist);
+    out << endl;
+    string expected = R"%%(
+Winner: Black
+W-B Score: -10
+isNoResult: 0
+isResignation: 0
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Sending two returning one NO initial pass WITHOUT button, SSK";
+
+    Board board = Board::parseBoard(5,6,R"%%(
+.....
+..xxx
+xxxoo
+xooo.
+xo.ox
+xoxx.
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.taxRule = Rules::TAX_SEKI;
+    rules.multiStoneSuicideLegal = false;
+    rules.komi = 0.0f;
+    rules.hasButton = false;
+    BoardHistory hist(board,P_BLACK,rules,0);
+
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,3,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    printIllegalMoves(out,board,hist,P_BLACK);
+    testAssert(!hist.isGameFinished);
+    out << endl;
+    string expected = R"%%(
+Illegal: (4,3) X
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Sending two returning one NO initial pass WITH button, SSK";
+
+    Board board = Board::parseBoard(5,6,R"%%(
+.....
+..xxx
+xxxoo
+xooo.
+xo.ox
+xoxx.
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.taxRule = Rules::TAX_SEKI;
+    rules.multiStoneSuicideLegal = false;
+    rules.komi = 0.5f;
+    rules.hasButton = true;
+    BoardHistory hist(board,P_BLACK,rules,0);
+
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,3,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    printIllegalMoves(out,board,hist,P_BLACK);
+    testAssert(!hist.isGameFinished);
+    out << "--" << endl;
+    testAssert(!hist.isGameFinished);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,3,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    printIllegalMoves(out,board,hist,P_BLACK);
+    out << endl;
+    string expected = R"%%(
+--
+Illegal: (4,3) X
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Sending two returning one initial pass WITH button, SSK";
+
+    Board board = Board::parseBoard(5,6,R"%%(
+.....
+..xxx
+xx.oo
+xooo.
+xo.ox
+xoxx.
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.taxRule = Rules::TAX_SEKI;
+    rules.multiStoneSuicideLegal = false;
+    rules.komi = 0.5f;
+    rules.hasButton = true;
+    BoardHistory hist(board,P_BLACK,rules,0);
+
+    makeMoveAssertLegal(hist, board, Location::getLoc(2,2,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,3,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    printIllegalMoves(out,board,hist,P_BLACK);
+    testAssert(!hist.isGameFinished);
+    out << endl;
+    string expected = R"%%(
+Illegal: (4,3) X
+)%%";
     expect(name,out,expected);
   }
 
