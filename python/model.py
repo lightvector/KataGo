@@ -1413,7 +1413,7 @@ class Target_vars:
     moving_unowned_proportion = tf.Variable(1.0,name=("moving_unowned_proportion"),trainable=False)
     moving_unowned_op = tf.keras.backend.moving_average_update(moving_unowned_proportion,unowned_proportion,0.998)
     with tf.control_dependencies([moving_unowned_op]):
-      seki_weight_scale = 15.0 * 0.005 / (0.005 + moving_unowned_proportion)
+      seki_weight_scale = 12.0 * 0.005 / (0.005 + moving_unowned_proportion)
 
     self.seki_loss_unreduced = (
       tf.reduce_sum(
