@@ -1611,7 +1611,7 @@ class ModelUtils:
     num_global_input_features = Model.get_num_global_input_features(model_config)
 
     #L2 regularization coefficient
-    if model.use_fixup:
+    if model_config["use_fixup"]:
       l2_coeff_value = 0.000006
     else:
       l2_coeff_value = 0.00003
