@@ -33,6 +33,8 @@ class Model:
       return 13
     elif version == 7:
       return 22
+    elif version == 8:
+      return 22
     else:
       assert(False)
 
@@ -47,6 +49,8 @@ class Model:
       return 12
     elif version == 7:
       return 16
+    elif version == 8:
+      return 18
     else:
       assert(False)
 
@@ -187,7 +191,7 @@ class Model:
   #Returns the new idx, which could be the same as idx if this isn't a good training row
   def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, idx):
     #Currently only support v4 or v5 or v7 MODEL features (inputs version v3 and v4 and v6)
-    assert(self.version == 4 or self.version == 5 or self.version == 7)
+    assert(self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8)
 
     bsize = board.size
     assert(self.pos_len >= bsize)
@@ -431,6 +435,10 @@ class Model:
       passWouldEndPhase = rules["passWouldEndPhase"]
       global_input_data[idx,12] = (1.0 if passWouldEndPhase else 0.0)
 
+    if self.version >= 8 and "asymPowersOfTwo" in rules:
+      global_input_data[idx,15] = 1.0
+      global_input_data[idx,16] = rules["asymPowersOfTwo"]
+
     if rules["scoringRule"] == "SCORING_AREA" or rules["encorePhase"] > 1:
       boardAreaIsEven = (board.size % 2 == 0)
 
@@ -456,7 +464,9 @@ class Model:
       else:
         wave = delta-2.0
 
-      if self.version >= 7:
+      if self.version >= 8:
+        global_input_data[idx,17] = wave
+      elif self.version >= 7:
         global_input_data[idx,15] = wave
       else:
         global_input_data[idx,13] = wave
@@ -791,10 +801,11 @@ class Model:
     #self.version = 5 #V4 features, slightly different pass-alive stones feature
     #self.version = 6 #V5 features, most higher-level go features removed
     #self.version = 7 #V6 features, more rules support
+    #self.version = 8 #V7 features, asym
 
     self.version = Model.get_version(config)
     #These are the only four supported versions
-    assert(self.version == 4 or self.version == 5 or self.version == 6 or self.version == 7)
+    assert(self.version == 4 or self.version == 5 or self.version == 6 or self.version == 7 or self.version == 8)
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
@@ -852,7 +863,7 @@ class Model:
     #We do this by building a matrix for each batch element, mapping input channels to possibly-turned off channels.
     #This matrix is a sum of hist_matrix_base which always turns off all the channels, and h0, h1, h2,... which perform
     #the modifications to hist_matrix_base to make it turn on channels based on whether we have move0, move1,...
-    if self.version == 4 or self.version == 5 or self.version == 7:
+    if self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8:
       hist_matrix_base = np.diag(np.array([
         1.0, #0
         1.0, #1
@@ -1131,7 +1142,7 @@ class Model:
     scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
     assert(scorebelief_len == self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2)
 
-    if self.version == 4 or self.version == 5 or self.version == 7:
+    if self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8:
       self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
       self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
       sbv2_size = config["sbv2_num_channels"]
