@@ -115,6 +115,9 @@ int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
   Tests::runSelfplayInitTestsWithNN(
     string(argv[1])
   );
+  Tests::runMoreSelfplayTestsWithNN(
+    string(argv[1])
+  );
 
   ScoreValue::freeTables();
 

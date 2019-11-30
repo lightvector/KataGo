@@ -203,7 +203,13 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   logger.setLogTime(false);
   logger.addOStream(cout);
 
-  auto run = [&](const string& seedBase, const Rules& rules, double drawEquivalentWinsForWhite, int numExtraBlack) {
+  auto run = [&](
+    const string& seedBase,
+    const Rules& rules,
+    double drawEquivalentWinsForWhite,
+    int numExtraBlack,
+    bool makeGameFairForEmptyBoard
+  ) {
     NNEvaluator* nnEval = startNNEval(modelFile,seedBase+"nneval",logger,0,true,false,false);
 
     SearchParams params;
@@ -225,7 +231,8 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     extraBlackAndKomi.extraBlack = numExtraBlack;
     extraBlackAndKomi.komiBase = rules.komi;
     extraBlackAndKomi.komi = rules.komi;
-    extraBlackAndKomi.makeGameFair = numExtraBlack > 0;
+    extraBlackAndKomi.makeGameFair = numExtraBlack > 0 && !makeGameFairForEmptyBoard;
+    extraBlackAndKomi.makeGameFairForEmptyBoard = makeGameFairForEmptyBoard;
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
@@ -290,38 +297,139 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   };
 
 
-  run("testselfplayinit0",Rules::getTrompTaylorish(),0.5,0);
-  run("testselfplayinit1",Rules::getTrompTaylorish(),0.5,0);
-  run("testselfplayinit2",Rules::getTrompTaylorish(),0.5,0);
-  run("testselfplayinit3",Rules::getTrompTaylorish(),0.5,0);
-  run("testselfplayinit4",Rules::getTrompTaylorish(),0.5,0);
-  run("testselfplayinit5",Rules::getTrompTaylorish(),0.5,0);
-  run("testselfplayinit6",Rules::getTrompTaylorish(),0.5,0);
-  run("testselfplayinit7",Rules::getTrompTaylorish(),0.5,0);
-  run("testselfplayinit8",Rules::getTrompTaylorish(),0.5,0);
-  run("testselfplayinit9",Rules::getTrompTaylorish(),0.5,0);
+  run("testselfplayinit0",Rules::getTrompTaylorish(),0.5,0,false);
+  run("testselfplayinit1",Rules::getTrompTaylorish(),0.5,0,false);
+  run("testselfplayinit2",Rules::getTrompTaylorish(),0.5,0,false);
+  run("testselfplayinit3",Rules::getTrompTaylorish(),0.5,0,false);
+  run("testselfplayinit4",Rules::getTrompTaylorish(),0.5,0,false);
+  run("testselfplayinit5",Rules::getTrompTaylorish(),0.5,0,false);
+  run("testselfplayinit6",Rules::getTrompTaylorish(),0.5,0,false);
+  run("testselfplayinit7",Rules::getTrompTaylorish(),0.5,0,false);
+  run("testselfplayinit8",Rules::getTrompTaylorish(),0.5,0,false);
+  run("testselfplayinit9",Rules::getTrompTaylorish(),0.5,0,false);
 
-  run("testselfplayinith1-0",Rules::getTrompTaylorish(),0.5,1);
-  run("testselfplayinith1-1",Rules::getTrompTaylorish(),0.5,1);
-  run("testselfplayinith1-2",Rules::getTrompTaylorish(),0.5,1);
-  run("testselfplayinith1-3",Rules::getTrompTaylorish(),0.5,1);
-  run("testselfplayinith1-4",Rules::getTrompTaylorish(),0.5,1);
-  run("testselfplayinith1-5",Rules::getTrompTaylorish(),0.5,1);
-  run("testselfplayinith1-6",Rules::getTrompTaylorish(),0.5,1);
-  run("testselfplayinith1-7",Rules::getTrompTaylorish(),0.5,1);
-  run("testselfplayinith1-8",Rules::getTrompTaylorish(),0.5,1);
-  run("testselfplayinith1-9",Rules::getTrompTaylorish(),0.5,1);
+  run("testselfplayinith1-0",Rules::getTrompTaylorish(),0.5,1,false);
+  run("testselfplayinith1-1",Rules::getTrompTaylorish(),0.5,1,false);
+  run("testselfplayinith1-2",Rules::getTrompTaylorish(),0.5,1,false);
+  run("testselfplayinith1-3",Rules::getTrompTaylorish(),0.5,1,false);
+  run("testselfplayinith1-4",Rules::getTrompTaylorish(),0.5,1,false);
+  run("testselfplayinith1-5",Rules::getTrompTaylorish(),0.5,1,false);
+  run("testselfplayinith1-6",Rules::getTrompTaylorish(),0.5,1,false);
+  run("testselfplayinith1-7",Rules::getTrompTaylorish(),0.5,1,false);
+  run("testselfplayinith1-8",Rules::getTrompTaylorish(),0.5,1,false);
+  run("testselfplayinith1-9",Rules::getTrompTaylorish(),0.5,1,false);
 
-  run("testselfplayinith2-0",Rules::getTrompTaylorish(),0.5,2);
-  run("testselfplayinith2-1",Rules::getTrompTaylorish(),0.5,2);
-  run("testselfplayinith2-2",Rules::getTrompTaylorish(),0.5,2);
-  run("testselfplayinith2-3",Rules::getTrompTaylorish(),0.5,2);
-  run("testselfplayinith2-4",Rules::getTrompTaylorish(),0.5,2);
-  run("testselfplayinith2-5",Rules::getTrompTaylorish(),0.5,2);
-  run("testselfplayinith2-6",Rules::getTrompTaylorish(),0.5,2);
-  run("testselfplayinith2-7",Rules::getTrompTaylorish(),0.5,2);
-  run("testselfplayinith2-8",Rules::getTrompTaylorish(),0.5,2);
-  run("testselfplayinith2-9",Rules::getTrompTaylorish(),0.5,2);
+  run("testselfplayinith2-0",Rules::getTrompTaylorish(),0.5,2,false);
+  run("testselfplayinith2-1",Rules::getTrompTaylorish(),0.5,2,false);
+  run("testselfplayinith2-2",Rules::getTrompTaylorish(),0.5,2,false);
+  run("testselfplayinith2-3",Rules::getTrompTaylorish(),0.5,2,false);
+  run("testselfplayinith2-4",Rules::getTrompTaylorish(),0.5,2,false);
+  run("testselfplayinith2-5",Rules::getTrompTaylorish(),0.5,2,false);
+  run("testselfplayinith2-6",Rules::getTrompTaylorish(),0.5,2,false);
+  run("testselfplayinith2-7",Rules::getTrompTaylorish(),0.5,2,false);
+  run("testselfplayinith2-8",Rules::getTrompTaylorish(),0.5,2,false);
+  run("testselfplayinith2-9",Rules::getTrompTaylorish(),0.5,2,false);
+
+  run("testselfplayinithE0",Rules::getTrompTaylorish(),0.5,0,true);
+  run("testselfplayinithE1",Rules::getTrompTaylorish(),0.5,1,true);
+  run("testselfplayinithE2",Rules::getTrompTaylorish(),0.5,2,true);
+
+  NeuralNet::globalCleanup();
+}
+
+void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
+  cout << "Running more tests for selfplay" << endl;
+  NeuralNet::globalInitialize();
+
+  int nnXLen = 11;
+  int nnYLen = 11;
+
+  Logger logger;
+  logger.setLogToStdout(false);
+  logger.setLogTime(false);
+  logger.addOStream(cout);
+
+  auto run = [&](
+    const string& seedBase,
+    const Rules& rules,
+    bool testAsym
+  ) {
+    NNEvaluator* nnEval = startNNEval(modelFile,seedBase+"nneval",logger,0,true,false,false);
+
+    SearchParams params;
+    params.maxVisits = 100;
+    params.drawEquivalentWinsForWhite = 0.5;
+
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = string("test");
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = params;
+
+    Board initialBoard(11,11);
+    Player initialPla = P_BLACK;
+    int initialEncorePhase = 0;
+    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
+
+    ExtraBlackAndKomi extraBlackAndKomi;
+    extraBlackAndKomi.extraBlack = 0;
+    extraBlackAndKomi.komiBase = rules.komi;
+    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.makeGameFair = false;
+    extraBlackAndKomi.makeGameFairForEmptyBoard = false;
+
+    bool doEndGameIfAllPassAlive = true;
+    bool clearBotAfterSearch = true;
+    int maxMovesPerGame = 15;
+    vector<std::atomic<bool>*> stopConditions;
+    FancyModes fancyModes;
+    fancyModes.initGamesWithPolicy = true;
+    fancyModes.forkSidePositionProb = 0.0;
+    fancyModes.cheapSearchProb = 0.5;
+    fancyModes.cheapSearchVisits = 50;
+    fancyModes.cheapSearchTargetWeight = 0.456f;
+    fancyModes.compensateKomiVisits = 10;
+    fancyModes.minAsymmetricCompensateKomiProb = 0.5;
+
+    fancyModes.forSelfPlay = true;
+    fancyModes.dataXLen = nnXLen;
+    fancyModes.dataYLen = nnYLen;
+
+    string searchRandSeed = seedBase+"search";
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+
+    Rand rand(seedBase+"play");
+    OtherGameProperties otherGameProps;
+    if(testAsym) {
+      otherGameProps.playoutDoublingAdvantage = log(3.0) / log(2.0);
+      otherGameProps.playoutDoublingAdvantagePla = P_WHITE;
+    }
+
+    FinishedGameData* gameData = Play::runGame(
+      initialBoard,initialPla,initialHist,extraBlackAndKomi,
+      botSpec,botSpec,
+      bot,bot,
+      doEndGameIfAllPassAlive, clearBotAfterSearch,
+      logger, false, false,
+      maxMovesPerGame, stopConditions,
+      fancyModes, otherGameProps,
+      rand,
+      NULL
+    );
+
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "seedBase: " << seedBase << endl;
+    gameData->printDebug(cout);
+    delete gameData;
+    delete bot;
+    delete nnEval;
+    cout << endl;
+  };
+
+
+  run("testasym!",Rules::getTrompTaylorish(),true);
 
   NeuralNet::globalCleanup();
 }

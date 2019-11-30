@@ -126,8 +126,7 @@ void FinishedGameData::printDebug(ostream& out) const {
   out << "dataXLen " << dataXLen << endl;
   out << "dataYLen " << dataYLen << endl;
   for(int i = 0; i<targetWeightByTurn.size(); i++)
-    out << "targetWeightByTurn " << i << " " << targetWeightByTurn[i];
-  out << endl;
+    out << "targetWeightByTurn " << i << " " << targetWeightByTurn[i] << endl;
   for(int i = 0; i<policyTargetsByTurn.size(); i++) {
     out << "policyTargetsByTurn " << i << " ";
     out << "unreducedNumVisits " << policyTargetsByTurn[i].unreducedNumVisits << " ";
