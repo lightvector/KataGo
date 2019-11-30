@@ -1560,6 +1560,7 @@ class Metrics:
     self.value_entropy = tf.reduce_sum(target_vars.target_weight_used * self.value_entropy_unreduced, name="metrics/value_entropy")
     self.value_conf = tf.reduce_sum(target_vars.target_weight_used * self.value_conf_unreduced, name="metrics/value_conf")
     self.policy_target_entropy = tf.reduce_sum(target_vars.target_weight_used * self.policy_target_entropy_unreduced, name="metrics/policy_target_entropy")
+    self.gnorm = None
 
     #Debugging stats
     if include_debug_stats:
@@ -1699,8 +1700,13 @@ class ModelUtils:
               trainlog("Adjusting gradient for " + x.name + " by " + str(adj_factor))
 
           adjusted_gradients.append((adjusted_grad,x))
-        train_step = optimizer.apply_gradients(adjusted_gradients, global_step=global_step)
 
+        gnorm_cap = 2500.0
+        (adjusted_gradients_clipped,gnorm) = tf.clip_by_global_norm([x[0] for x in adjusted_gradients],gnorm_cap)
+        adjusted_gradients_clipped = list(zip(adjusted_gradients_clipped,[x[1] for x in adjusted_gradients]))
+        metrics.gnorm = gnorm
+        metrics.excess_gnorm = tf.nn.relu(gnorm-gnorm_cap)
+        train_step = optimizer.apply_gradients(adjusted_gradients_clipped, global_step=global_step)
 
       if print_model:
         ModelUtils.print_trainable_variables(trainlog)
