@@ -2182,7 +2182,7 @@ FinishedGameData* GameRunner::runGame(
   if(forkData != NULL) {
     initialPosition = forkData->get(gameRand);
 
-    if(initialPosition == NULL && fancyModes.sekiForkHack && gameRand.nextBool(0.03)) {
+    if(initialPosition == NULL && fancyModes.sekiForkHack && gameRand.nextBool(0.04)) {
       initialPosition = forkData->getSeki(gameRand);
       if(initialPosition != NULL)
         usedSekiForkHackPosition = true;
