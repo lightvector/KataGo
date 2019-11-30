@@ -15,38 +15,38 @@ static double nextGaussianTruncated(Rand& rand, double bound) {
   return d;
 }
 
-static int getMaxExtraBlack(int bSize) {
-  if(bSize <= 10)
+static int getMaxExtraBlack(double sqrtBoardArea) {
+  if(sqrtBoardArea <= 10.00001)
     return 0;
-  if(bSize <= 14)
+  if(sqrtBoardArea <= 14.00001)
     return 1;
-  if(bSize <= 18)
+  if(sqrtBoardArea <= 17.00001)
     return 2;
-  return 3;
+  if(sqrtBoardArea <= 18.00001)
+    return 3;
+  return 4;
 }
 
 static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   float base, float stdev, double allowIntegerProb,
-  double handicapProb, double handicapCompensateKomiProb,
-  double bigStdevProb, float bigStdev, int bSize, Rand& rand
+  double handicapProb,
+  double bigStdevProb, float bigStdev, double sqrtBoardArea, Rand& rand
 ) {
   int extraBlack = 0;
   float komi = base;
-  bool makeGameFair = false;
 
   if(stdev > 0.0f)
     komi += stdev * (float)nextGaussianTruncated(rand,3.0);
   if(bigStdev > 0.0f && rand.nextBool(bigStdevProb))
     komi += bigStdev * (float)nextGaussianTruncated(rand,3.0);
 
-  //Adjust for bSize, so that we don't give the same massive komis on smaller boards
-  komi = base + (komi - base) * (float)bSize / 19.0f;
+  //Adjust for board size, so that we don't give the same massive komis on smaller boards
+  komi = base + (komi - base) * (float)(sqrtBoardArea / 19.0);
 
   //Add handicap stones
-  int maxExtraBlack = getMaxExtraBlack(bSize);
+  int maxExtraBlack = getMaxExtraBlack(sqrtBoardArea);
   if(maxExtraBlack > 0 && rand.nextBool(handicapProb)) {
     extraBlack += 1+rand.nextUInt(maxExtraBlack);
-    makeGameFair = rand.nextBool(handicapCompensateKomiProb);
   }
 
   //Discretize komi
@@ -72,7 +72,14 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   }
 
   assert(Rules::komiIsIntOrHalfInt(komi));
-  return ExtraBlackAndKomi(extraBlack,komi,base,makeGameFair);
+  ExtraBlackAndKomi ret;
+  ret.extraBlack = extraBlack;
+  ret.komi = komi;
+  ret.komiBase = base;
+  //These two are set later
+  ret.makeGameFair = false;
+  ret.makeGameFairForEmptyBoard = false;
+  return ret;
 }
 
 int Play::numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory, bool assumeMultipleStartingBlackMovesAreHandicap) {
@@ -242,6 +249,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
 
   if(!cfg.contains("komiMean") && !(cfg.contains("komiAuto") && cfg.getBool("komiAuto")))
     throw IOError("Must specify either komiMean=<komi value> or komiAuto=True in config");
+  if(cfg.contains("komiMean") && (cfg.contains("komiAuto") && cfg.getBool("komiAuto")))
+    throw IOError("Must specify only one of komiMean=<komi value> or komiAuto=True in config");
 
   komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean",-60.0f,60.0f) : 7.5f;
   komiStdev = cfg.getFloat("komiStdev",0.0f,60.0f);
@@ -385,16 +394,19 @@ void GameInitializer::createGameSharedUnsynchronized(
     double thisHandicapProb = 0.0;
     extraBlackAndKomi = chooseExtraBlackAndKomi(
       hist.rules.komi, komiStdev, komiAllowIntegerProb,
-      thisHandicapProb, handicapCompensateKomiProb,
-      komiBigStdevProb, komiBigStdev, std::min(board.x_size,board.y_size), rand
+      thisHandicapProb,
+      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
     assert(extraBlackAndKomi.extraBlack == 0);
     hist.setKomi(extraBlackAndKomi.komi);
     otherGameProps.isSgfPos = false;
     otherGameProps.allowPolicyInit = false; //On initial positions, don't play extra moves at start
     extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
+    extraBlackAndKomi.makeGameFairForEmptyBoard = false;
     return;
   }
+
+  double makeGameFairProb = 0.0;
 
   int bSizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
   Rules rules;
@@ -420,12 +432,12 @@ void GameInitializer::createGameSharedUnsynchronized(
     double thisHandicapProb = 0.0;
     extraBlackAndKomi = chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
-      thisHandicapProb, handicapCompensateKomiProb,
-      komiBigStdevProb, komiBigStdev, std::min(board.x_size,board.y_size), rand
+      thisHandicapProb,
+      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
     otherGameProps.isSgfPos = true;
     otherGameProps.allowPolicyInit = false; //On sgf positions, don't play extra moves at start
-    extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
+    makeGameFairProb = forkCompensateKomiProb;
   }
   else {
     int bSize = allowedBSizes[bSizeIdx];
@@ -433,8 +445,8 @@ void GameInitializer::createGameSharedUnsynchronized(
 
     extraBlackAndKomi = chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
-      handicapProb, handicapCompensateKomiProb,
-      komiBigStdevProb, komiBigStdev, bSize, rand
+      handicapProb,
+      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
     rules.komi = extraBlackAndKomi.komi;
 
@@ -442,6 +454,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     hist.clear(board,pla,rules,0);
     otherGameProps.isSgfPos = false;
     otherGameProps.allowPolicyInit = true;
+    makeGameFairProb = extraBlackAndKomi.extraBlack > 0 ? handicapCompensateKomiProb : 0.0;
   }
 
   double asymmetricProb = (extraBlackAndKomi.extraBlack > 0) ? fancyModes.handicapAsymmetricPlayoutProb : fancyModes.normalAsymmetricPlayoutProb;
@@ -457,6 +470,18 @@ void GameInitializer::createGameSharedUnsynchronized(
       otherGameProps.playoutDoublingAdvantagePla = C_BLACK;
       otherGameProps.playoutDoublingAdvantage = numDoublings;
     }
+    makeGameFairProb = std::max(makeGameFairProb,fancyModes.minAsymmetricCompensateKomiProb);
+  }
+
+  if(komiAuto) {
+    if(makeGameFairProb > 0.0)
+      extraBlackAndKomi.makeGameFair = rand.nextBool(makeGameFairProb);
+    extraBlackAndKomi.makeGameFairForEmptyBoard = !extraBlackAndKomi.makeGameFair;
+  }
+  else {
+    if(makeGameFairProb > 0.0)
+      extraBlackAndKomi.makeGameFair = rand.nextBool(makeGameFairProb);
+    extraBlackAndKomi.makeGameFairForEmptyBoard = false;
   }
 }
 
@@ -719,7 +744,15 @@ static float roundAndClipKomi(double unrounded, const Board& board) {
   return (float)(0.5 * round(2.0 * unrounded));
 }
 
-static ReportedSearchValues getWhiteScoreValues(Search* bot, const Board& board, const BoardHistory& hist, Player pla, int numVisits, Logger& logger) {
+static ReportedSearchValues getWhiteScoreValues(
+  Search* bot,
+  const Board& board,
+  const BoardHistory& hist,
+  Player pla,
+  int numVisits,
+  Logger& logger,
+  const OtherGameProperties& otherGameProps
+) {
   assert(numVisits > 0);
   SearchParams oldParams = bot->searchParams;
   SearchParams newParams = oldParams;
@@ -729,6 +762,13 @@ static ReportedSearchValues getWhiteScoreValues(Search* bot, const Board& board,
   newParams.rootFpuReductionMax = newParams.fpuReductionMax;
   newParams.rootFpuLossProp = newParams.fpuLossProp;
   newParams.rootDesiredPerChildVisitsCoeff = 0.0;
+
+  if(otherGameProps.playoutDoublingAdvantage != 0.0 && otherGameProps.playoutDoublingAdvantagePla != C_EMPTY) {
+    //Don't actually adjust playouts, but DO tell the bot what it's up against, so that it gives estimates
+    //appropriate to the asymmetric game about to be played
+    newParams.playoutDoublingAdvantagePla = otherGameProps.playoutDoublingAdvantagePla;
+    newParams.playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
+  }
 
   bot->setParams(newParams);
   bot->setPosition(pla,board,hist);
@@ -747,6 +787,7 @@ void Play::adjustKomiToEven(
   Player pla,
   int64_t numVisits,
   Logger& logger,
+  const OtherGameProperties& otherGameProps,
   Rand& rand
 ) {
   map<float,std::pair<double,double>> scoreWLCache;
@@ -758,13 +799,13 @@ void Play::adjustKomiToEven(
     BoardHistory histCopy(hist);
     histCopy.setKomi(roundedClippedKomi);
 
-    ReportedSearchValues values0 = getWhiteScoreValues(botB, board, histCopy, pla, numVisits, logger);
+    ReportedSearchValues values0 = getWhiteScoreValues(botB, board, histCopy, pla, numVisits, logger, otherGameProps);
     double finalScore = values0.expectedScore;
     double finalWinLoss = values0.winLossValue;
 
     //If we have a second bot, average the two
     if(botW != NULL && botW != botB) {
-      ReportedSearchValues values1 = getWhiteScoreValues(botB, board, histCopy, pla, numVisits, logger);
+      ReportedSearchValues values1 = getWhiteScoreValues(botB, board, histCopy, pla, numVisits, logger, otherGameProps);
       finalScore = 0.5 * (values0.expectedScore + values1.expectedScore);
       finalWinLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
     }
@@ -1486,6 +1527,15 @@ FinishedGameData* Play::runGame(
 
   Board board(startBoard);
   BoardHistory hist(startHist);
+  assert(!(extraBlackAndKomi.makeGameFair && extraBlackAndKomi.makeGameFairForEmptyBoard));
+
+  if(extraBlackAndKomi.makeGameFairForEmptyBoard) {
+    Board b(startBoard.x_size,startBoard.y_size);
+    BoardHistory h(b,pla,startHist.rules,startHist.encorePhase);
+    h.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
+    adjustKomiToEven(botB,botW,b,h,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
+    hist.setKomi(roundAndClipKomi(h.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
+  }
   if(extraBlackAndKomi.extraBlack > 0) {
     double extraBlackTemperature = 1.0;
     playExtraBlack(botB,extraBlackAndKomi.extraBlack,board,hist,extraBlackTemperature,gameRand);
@@ -1495,7 +1545,7 @@ FinishedGameData* Play::runGame(
     //First, restore back to baseline komi
     hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
     //Adjust komi to be fair for the handicap according to what the bot thinks.
-    adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,gameRand);
+    adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
     //Then, reapply the komi offset from base that we should have had
     hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
   }
@@ -1563,7 +1613,7 @@ FinishedGameData* Play::runGame(
 
     if(!hist.isGameFinished) {
       //Even out the game
-      adjustKomiToEven(botB, botW, board, hist, pla, fancyModes.compensateKomiVisits, logger, gameRand);
+      adjustKomiToEven(botB, botW, board, hist, pla, fancyModes.compensateKomiVisits, logger, otherGameProps, gameRand);
 
       //Randomly set to one of the encore phases
       //Since we played out the game a bunch we should get a good mix of stones that were present or not present at the start

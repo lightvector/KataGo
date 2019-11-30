@@ -250,6 +250,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.handicapAsymmetricPlayoutProb = cfg.getDouble("handicapAsymmetricPlayoutProb",0.0,1.0);
   fancyModes.normalAsymmetricPlayoutProb = cfg.getDouble("normalAsymmetricPlayoutProb",0.0,1.0);
   fancyModes.maxAsymmetricRatio = cfg.getDouble("maxAsymmetricRatio",1.0,100.0);
+  fancyModes.minAsymmetricCompensateKomiProb = cfg.getDouble("minAsymmetricCompensateKomiProb",0.0,1.0);
   fancyModes.sekiForkHack = true;
   fancyModes.forSelfPlay = true;
   fancyModes.dataXLen = dataBoardLen;

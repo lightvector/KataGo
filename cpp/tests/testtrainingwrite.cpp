@@ -104,7 +104,10 @@ void Tests::runTrainingWriteTests() {
     int initialEncorePhase = 0;
     BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
 
-    ExtraBlackAndKomi extraBlackAndKomi = ExtraBlackAndKomi(0,rules.komi,rules.komi,false);
+    ExtraBlackAndKomi extraBlackAndKomi;
+    extraBlackAndKomi.extraBlack = 0;
+    extraBlackAndKomi.komiBase = rules.komi;
+    extraBlackAndKomi.komi = rules.komi;
     bool doEndGameIfAllPassAlive = cheapLongSgf ? false : true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = cheapLongSgf ? 200 : 40;
@@ -218,7 +221,11 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     int initialEncorePhase = 0;
     BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
 
-    ExtraBlackAndKomi extraBlackAndKomi(numExtraBlack,rules.komi,rules.komi,numExtraBlack > 0);
+    ExtraBlackAndKomi extraBlackAndKomi;
+    extraBlackAndKomi.extraBlack = numExtraBlack;
+    extraBlackAndKomi.komiBase = rules.komi;
+    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.makeGameFair = numExtraBlack > 0;
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
@@ -272,7 +279,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       Player pla = forkData.forks[0]->pla;
       Play::adjustKomiToEven(
         bot, bot, board, hist, pla,
-        fancyModes.cheapSearchVisits, logger, rand
+        fancyModes.cheapSearchVisits, logger, OtherGameProperties(), rand
       );
       hist.printDebugInfo(cout,board);
     }
@@ -356,7 +363,10 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     Player initialPla;
     BoardHistory initialHist;
 
-    ExtraBlackAndKomi extraBlackAndKomi(0,rules.komi,rules.komi,false);
+    ExtraBlackAndKomi extraBlackAndKomi;
+    extraBlackAndKomi.extraBlack = 0;
+    extraBlackAndKomi.komiBase = rules.komi;
+    extraBlackAndKomi.komi = rules.komi;
     int turnNumber = sgf->moves.size();
     sgf->setupBoardAndHist(rules,initialBoard,initialPla,initialHist,turnNumber);
 

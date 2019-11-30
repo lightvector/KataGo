@@ -37,7 +37,13 @@ struct ForkData {
   const InitialPosition* getSeki(Rand& rand);
 };
 
-STRUCT_NAMED_QUAD(int, extraBlack, float, komi, float, komiBase, bool, makeGameFair, ExtraBlackAndKomi);
+struct ExtraBlackAndKomi {
+  int extraBlack = 0;
+  float komi = 7.5;
+  float komiBase = 7.5;
+  bool makeGameFair = false;
+  bool makeGameFairForEmptyBoard = false;
+};
 
 struct OtherGameProperties {
   bool isSgfPos = false;
@@ -249,6 +255,7 @@ struct FancyModes {
   double handicapAsymmetricPlayoutProb; //Probability of asymmetric playouts on handicap games
   double normalAsymmetricPlayoutProb; //Probability of asymmetric playouts on normal games
   double maxAsymmetricRatio;
+  double minAsymmetricCompensateKomiProb; //Minimum probability to make game fair if asymmetric (other probs will also override)
 
   FancyModes();
   ~FancyModes();
@@ -327,6 +334,7 @@ namespace Play {
     Player pla,
     int64_t numVisits,
     Logger& logger,
+    const OtherGameProperties& otherGameProps,
     Rand& rand
   );
 
