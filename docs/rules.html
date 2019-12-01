@@ -298,7 +298,7 @@ Additional Definitions
 
 <span class="selfPlayOpts selfPlayOptsEnabled">
 <ol start="4">
-<li>A black or white region R is a <span class="definition">pass-alive-group</span> if there does not exist any sequence of consecutive pseudo-legal moves of the opposing color that results in emptying R.<a href="#note2" id="ref2">[2]</a></li>
+<li>A black or white region R is a <span class="definition">pass-alive-group</span> if there does not exist any sequence of consecutive pseudolegal moves of the opposing color that results in emptying R.<a href="#note2" id="ref2">[2]</a></li>
 
 <li>A {maximal-non-black, maximal-non-white} region R is <span class="definition">pass-alive-territory</span> for {Black, White} if all {black, white} regions bordering it are pass-alive-groups, and all or all but one point in R is adjacent to a {black, white} pass-alive-group, respectively.<a href="#note3" id="ref3">[3]</a>
 </li>
@@ -582,13 +582,13 @@ Why have two phases instead of just one? The intent is that the first phase intr
 
 <span class="note scoringTerritory">
 <span id="note7">[7] 
-The unblock-ko action is effectively the Japanese rules's "pass for ko". We name it this way to avoid calling it a pass, since it shares little else in common with a pass with regard to the rules necessary to make cleanup work. Also, highly conveniently, an unblock-ko for a location is always mutually exclusive with a legal move for that location, which means we have no need to change the protocol for GTP or introduce new move encodings - which we can continue to use the exact same 19x19 + 1 space in all existing protocols to represent moves.
+The unblock-ko action is effectively the Japanese rules's "pass for ko". We name it this way to avoid calling it a pass, since it shares little else in common with a pass with regard to the rules necessary to make cleanup work. Also, highly conveniently, an unblock-ko for a location is always mutually exclusive with a legal move for that location, which means we have no need to change the protocol for GTP or introduce new move encodings. We can continue to use the exact same 19x19 + 1 encodings in all existing protocols to represent moves.
 (<a href="#ref7">Back</a>)</span></span>
 
 
 <span class="note scoringTerritory">
 <span id="note8">[8]
-This condition prevents a <a href="https://senseis.xmp.net/?DoubleKoSeki">double ko seki</a> from looping forever in the cleanup phase, at least in the simplest cases, in theory. It must depend on the exact grid coloring rather than be a general prohibition on continuing to pass-for-ko and recapture a ko over and over because if the seki is temporary such that one side can capture a surrounding group to collapse it, we must make sure capturing into the ko is not prohibited at that point.
+This condition prevents a <a href="https://senseis.xmp.net/?DoubleKoSeki">double ko seki</a> from looping forever in the cleanup phase, at least in the simplest cases, in theory. It must depend on the exact grid coloring rather than be a general prohibition on continuing to unblock-ko and recapture a ko or kos over and over because if the seki is temporary such that one side can capture a surrounding group to collapse it, we must make sure capturing into the ko is not prohibited at that point.
 
 Unfortunately, as stated, this rule still allows quite a large amount of game-prolonging due to double-ko-seki, which makes it not ideal for selfplay. Is there a better formulation that is still clean to state and implement, that limits the ability of the attacker to fruitlessly cycle the double-ko-seki?
 (<a href="#ref8">Back</a>)</span></span>
