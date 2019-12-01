@@ -20,7 +20,9 @@ struct BoardHistory {
   //(e.g. they include the player if situational superko, and not if positional)
   //Cleared on a pass if passes clear ko bans
   std::vector<Hash128> koHashHistory;
-  int koHistoryLastClearedBeginningMoveIdx;
+  //The index of the first turn for which we have a koHashHistory (since depending on rules, passes may clear it).
+  //Index 0 = starting state, index 1 = state after move 0, index 2 = state after move 1, etc...
+  int firstTurnIdxWithKoHistory;
 
   //The board and player to move as of the very start, before moveHistory.
   Board initialBoard;
@@ -137,9 +139,9 @@ struct BoardHistory {
 
   void printDebugInfo(std::ostream& out, const Board& board) const;
 
+  int numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
-  int numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   void setKoProhibited(Player pla, Loc loc, bool b);
   int countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   int countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
@@ -152,7 +154,7 @@ private:
 struct KoHashTable {
   uint32_t* idxTable;
   std::vector<Hash128> koHashHistorySortedByLowBits;
-  int koHistoryLastClearedBeginningMoveIdx;
+  int firstTurnIdxWithKoHistory;
 
   static const int TABLE_SIZE = 1 << 10;
   static const uint64_t TABLE_MASK = TABLE_SIZE-1;

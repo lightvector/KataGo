@@ -507,7 +507,7 @@ void TrainingWriteBuffers::addRow(
   {
     float whiteBonusPoints = data.endHist.whiteBonusScore - hist.whiteBonusScore;
     float selfBonusPoints = (nextPlayer == P_WHITE ? whiteBonusPoints : -whiteBonusPoints);
-    rowGlobal[61] = selfBonusPoints != 0 ? selfBonusPoints : 0.0f;
+    rowGlobal[61] = selfBonusPoints != 0 ? selfBonusPoints : 0.0f; //Conditional avoids negative zero
   }
 
   //Unused

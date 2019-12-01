@@ -25,13 +25,13 @@ static void checkKoHashConsistency(BoardHistory& hist, Board& board, Player next
   testAssert(expected == hist.koHashHistory[hist.koHashHistory.size()-1]);
 }
 
-static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Player pla, int line, bool preventEncore) {
+static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Player pla, int line, bool preventEncore, const KoHashTable* table) {
   bool phaseWouldEnd = hist.passWouldEndPhase(board,pla);
   int oldPhase = hist.encorePhase;
 
   if(!hist.isLegal(board, loc, pla))
     throw StringError("Illegal move on line " + Global::intToString(line));
-  hist.makeBoardMoveAssumeLegal(board, loc, pla, NULL, preventEncore);
+  hist.makeBoardMoveAssumeLegal(board, loc, pla, table, preventEncore);
   checkKoHashConsistency(hist,board,getOpp(pla));
 
   if(loc == Board::PASS_LOC) {
@@ -41,8 +41,16 @@ static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Playe
   }
 }
 
+static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Player pla, int line, bool preventEncore) {
+  makeMoveAssertLegal(hist,board,loc,pla,line,preventEncore,NULL);
+}
+
+static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Player pla, int line, const KoHashTable* table) {
+  makeMoveAssertLegal(hist,board,loc,pla,line,false,table);
+}
+
 static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Player pla, int line) {
-  makeMoveAssertLegal(hist,board,loc,pla,line,false);
+  makeMoveAssertLegal(hist,board,loc,pla,line,false,NULL);
 }
 
 static double finalScoreIfGameEndedNow(const BoardHistory& baseHist, const Board& baseBoard) {
@@ -3055,7 +3063,7 @@ isResignation: 0
       out << hist.moveHistory.size() << " " << hist2.moveHistory.size() << endl;
       out << hist.koHashHistory.size() << " " << hist2.koHashHistory.size() << endl;
       out << hist.koHashHistory[0] << " " << hist2.koHashHistory[0] << endl;
-      out << hist.koHistoryLastClearedBeginningMoveIdx << " " << hist2.koHistoryLastClearedBeginningMoveIdx << endl;
+      out << hist.firstTurnIdxWithKoHistory << " " << hist2.firstTurnIdxWithKoHistory << endl;
       out << hist.getRecentBoard(0).pos_hash <<  " " << hist2.getRecentBoard(0).pos_hash << endl;
       out << hist.getRecentBoard(1).pos_hash <<  " " << hist2.getRecentBoard(1).pos_hash << endl;
       out << hist.getRecentBoard(2).pos_hash <<  " " << hist2.getRecentBoard(2).pos_hash << endl;
@@ -3485,6 +3493,101 @@ xoxx.
 Illegal: (4,3) X
 )%%";
     expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Brute force testing of ko hash table";
+    vector<Rules> rules = {
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, 1.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, 3.0f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, 5.5f),
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, 1.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, false, 4.5f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, true, 6.5f),
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, true, 2.0f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, true, 5.5f),
+      Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, false, 2.5f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, true, 3.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, true, 4.0f),
+      Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, false, 6.5f),
+    };
+    Rand baseRand(name);
+
+    constexpr int numBoards = 6;
+    Board boards[numBoards] = {
+      Board(2,2),
+      Board(5,1),
+      Board(6,1),
+      Board(2,3),
+      Board(4,2),
+    };
+    for(int i = 0; i<numBoards; i++) {
+      for(int j = 0; j<rules.size(); j++) {
+        Player nextPla = P_BLACK;
+        Board board = boards[i];
+        BoardHistory hist(board,nextPla,rules[j],0);
+        Board board2 = boards[i];
+        BoardHistory hist2(board2,nextPla,rules[j],0);
+        KoHashTable* table = new KoHashTable();
+
+        Rand rand(baseRand.nextUInt64());
+        int k;
+        for(k = 0; k<300; k++) {
+          int numLegal = 0;
+          static constexpr int MAX_LEGAL_MOVES = Board::MAX_PLAY_SIZE + 1;
+          Loc legalMoves[MAX_LEGAL_MOVES];
+          for(int y = 0; y<board.y_size; y++) {
+            for(int x = 0; x<board.x_size; x++) {
+              Loc move = Location::getLoc(x,y,board.x_size);
+              bool isLegal = hist.isLegal(board, move, nextPla);
+              bool isLegal2 = hist2.isLegal(board2, move, nextPla);
+              testAssert(isLegal == isLegal2);
+              if(isLegal) legalMoves[numLegal++] = move;
+            }
+          }
+          {
+            Loc move = Board::PASS_LOC;
+            bool isLegal = hist.isLegal(board, move, nextPla);
+            bool isLegal2 = hist2.isLegal(board2, move, nextPla);
+            testAssert(isLegal == isLegal2);
+            if(isLegal) legalMoves[numLegal++] = move;
+          }
+          if(hist.isGameFinished)
+            break;
+
+          testAssert(numLegal > 0);
+          Loc move = legalMoves[rand.nextUInt(numLegal)];
+          if(move == Board::PASS_LOC)
+            move = legalMoves[rand.nextUInt(numLegal)];
+          if(move == Board::PASS_LOC)
+            move = legalMoves[rand.nextUInt(numLegal)];
+          makeMoveAssertLegal(hist, board, move, nextPla, __LINE__);
+          makeMoveAssertLegal(hist2, board2, move, nextPla, __LINE__, table);
+          nextPla = getOpp(nextPla);
+
+          bool justRecomputed = false;
+          if(rand.nextBool(0.10)) {
+            table->recompute(hist2);
+            justRecomputed = true;
+          }
+
+          for(int m = 0; m < hist.koHashHistory.size(); m++) {
+            Hash128 hash = hist.koHashHistory[m];
+            testAssert(
+              hist.numberOfKoHashOccurrencesInHistory(hash,NULL) ==
+              hist2.numberOfKoHashOccurrencesInHistory(hash,table)
+            );
+            if(justRecomputed) {
+              testAssert(
+                hist.numberOfKoHashOccurrencesInHistory(hash,NULL) ==
+                table->numberOfOccurrencesOfHash(hash)
+              );
+            }
+          }
+        }
+        delete table;
+      }
+    }
   }
 
   {

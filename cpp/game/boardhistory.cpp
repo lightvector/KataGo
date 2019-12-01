@@ -27,7 +27,7 @@ static Hash128 getKoHashAfterMoveNonEncore(const Rules& rules, Hash128 posHashAf
 BoardHistory::BoardHistory()
   :rules(),
    moveHistory(),koHashHistory(),
-   koHistoryLastClearedBeginningMoveIdx(0),
+   firstTurnIdxWithKoHistory(0),
    initialBoard(),
    initialPla(P_BLACK),
    initialEncorePhase(0),
@@ -59,7 +59,7 @@ BoardHistory::~BoardHistory()
 BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int ePhase)
   :rules(r),
    moveHistory(),koHashHistory(),
-   koHistoryLastClearedBeginningMoveIdx(0),
+   firstTurnIdxWithKoHistory(0),
    initialBoard(),
    initialPla(),
    initialEncorePhase(0),
@@ -90,7 +90,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
 BoardHistory::BoardHistory(const BoardHistory& other)
   :rules(other.rules),
    moveHistory(other.moveHistory),koHashHistory(other.koHashHistory),
-   koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
+   firstTurnIdxWithKoHistory(other.firstTurnIdxWithKoHistory),
    initialBoard(other.initialBoard),
    initialPla(other.initialPla),
    initialEncorePhase(other.initialEncorePhase),
@@ -125,7 +125,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   rules = other.rules;
   moveHistory = other.moveHistory;
   koHashHistory = other.koHashHistory;
-  koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
+  firstTurnIdxWithKoHistory = other.firstTurnIdxWithKoHistory;
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
   initialEncorePhase = other.initialEncorePhase;
@@ -161,7 +161,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
 BoardHistory::BoardHistory(BoardHistory&& other) noexcept
  :rules(other.rules),
   moveHistory(std::move(other.moveHistory)),koHashHistory(std::move(other.koHashHistory)),
-  koHistoryLastClearedBeginningMoveIdx(other.koHistoryLastClearedBeginningMoveIdx),
+  firstTurnIdxWithKoHistory(other.firstTurnIdxWithKoHistory),
   initialBoard(other.initialBoard),
   initialPla(other.initialPla),
   initialEncorePhase(other.initialEncorePhase),
@@ -193,7 +193,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   rules = other.rules;
   moveHistory = std::move(other.moveHistory);
   koHashHistory = std::move(other.koHashHistory);
-  koHistoryLastClearedBeginningMoveIdx = other.koHistoryLastClearedBeginningMoveIdx;
+  firstTurnIdxWithKoHistory = other.firstTurnIdxWithKoHistory;
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
   initialEncorePhase = other.initialEncorePhase;
@@ -230,7 +230,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   rules = r;
   moveHistory.clear();
   koHashHistory.clear();
-  koHistoryLastClearedBeginningMoveIdx = 0;
+  firstTurnIdxWithKoHistory = 0;
 
   initialBoard = board;
   initialPla = pla;
@@ -324,6 +324,7 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   for(int i = 0; i<moveHistory.size(); i++)
     out << Location::toString(moveHistory[i].loc,board) << " ";
   out << endl;
+  assert(firstTurnIdxWithKoHistory + koHashHistory.size() == moveHistory.size() + 1);
 }
 
 
@@ -349,17 +350,17 @@ void BoardHistory::setKomi(float newKomi) {
 //ALSO counts the most recent ko hash!
 bool BoardHistory::koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const {
   size_t start = 0;
+  size_t koHashHistorySize = koHashHistory.size();
   if(rootKoHashTable != NULL &&
-     koHistoryLastClearedBeginningMoveIdx == rootKoHashTable->koHistoryLastClearedBeginningMoveIdx
+     firstTurnIdxWithKoHistory == rootKoHashTable->firstTurnIdxWithKoHistory
   ) {
     size_t tableSize = rootKoHashTable->size();
-    assert(tableSize < koHashHistory.size());
+    assert(firstTurnIdxWithKoHistory + koHashHistory.size() == moveHistory.size() + 1);
+    assert(tableSize <= koHashHistorySize);
     if(rootKoHashTable->containsHash(koHash))
       return true;
     start = tableSize;
   }
-
-  size_t koHashHistorySize = koHashHistory.size();
   for(size_t i = start; i < koHashHistorySize; i++)
     if(koHashHistory[i] == koHash)
       return true;
@@ -372,15 +373,16 @@ bool BoardHistory::koHashOccursInHistory(Hash128 koHash, const KoHashTable* root
 int BoardHistory::numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const {
   int count = 0;
   size_t start = 0;
+  size_t koHashHistorySize = koHashHistory.size();
   if(rootKoHashTable != NULL &&
-     koHistoryLastClearedBeginningMoveIdx == rootKoHashTable->koHistoryLastClearedBeginningMoveIdx
+     firstTurnIdxWithKoHistory == rootKoHashTable->firstTurnIdxWithKoHistory
   ) {
     size_t tableSize = rootKoHashTable->size();
-    assert(tableSize < koHashHistory.size());
+    assert(firstTurnIdxWithKoHistory + koHashHistory.size() == moveHistory.size() + 1);
+    assert(tableSize <= koHashHistorySize);
     count += rootKoHashTable->numberOfOccurrencesOfHash(koHash);
     start = tableSize;
   }
-  size_t koHashHistorySize = koHashHistory.size();
   for(size_t i = start; i < koHashHistorySize; i++)
     if(koHashHistory[i] == koHash)
       count++;
@@ -733,7 +735,8 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     hashesBeforeBlackPass.clear();
     hashesBeforeWhitePass.clear();
     koHashHistory.clear();
-    koHistoryLastClearedBeginningMoveIdx = moveHistory.size();
+    //The first turn idx with history will be the one RESULTING from this move.
+    firstTurnIdxWithKoHistory = moveHistory.size()+1;
   }
   else {
     //Passes clear ko history in the main phase with spight ko rules and in the encore
@@ -741,7 +744,8 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     //They also clear in simple ko rules for the purpose of no-resulting long cycles. Long cycles with passes do not no-result.
     if(phaseHasSpightlikeEndingAndPassHistoryClearing()) {
       koHashHistory.clear();
-      koHistoryLastClearedBeginningMoveIdx = moveHistory.size();
+      //The first turn idx with history will be the one RESULTING from this move.
+      firstTurnIdxWithKoHistory = moveHistory.size()+1;
       //Does not clear hashesBeforeBlackPass or hashesBeforeWhitePass. Passes lift ko bans, but
       //still repeated positions after pass end the game or phase, which these arrays are used to check.
     }
@@ -886,8 +890,9 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
           koCapturesInEncore.clear();
 
           koHashHistory.clear();
-          koHistoryLastClearedBeginningMoveIdx = moveHistory.size();
           koHashHistory.push_back(getKoHash(rules,board,getOpp(movePla),encorePhase,koProhibitHash));
+          //The first ko hash history is the one for the move we JUST appended to the move history earlier.
+          firstTurnIdxWithKoHistory = moveHistory.size();
         }
       }
     }
@@ -908,7 +913,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 //TODO add some tests for this
 KoHashTable::KoHashTable()
   :koHashHistorySortedByLowBits(),
-   koHistoryLastClearedBeginningMoveIdx(0)
+   firstTurnIdxWithKoHistory(0)
 {
   idxTable = new uint32_t[TABLE_SIZE];
 }
@@ -922,7 +927,7 @@ size_t KoHashTable::size() const {
 
 void KoHashTable::recompute(const BoardHistory& history) {
   koHashHistorySortedByLowBits = history.koHashHistory;
-  koHistoryLastClearedBeginningMoveIdx = history.koHistoryLastClearedBeginningMoveIdx;
+  firstTurnIdxWithKoHistory = history.firstTurnIdxWithKoHistory;
 
   auto cmpFirstByLowBits = [](const Hash128& a, const Hash128& b) {
     if((a.hash0 & TABLE_MASK) < (b.hash0 & TABLE_MASK))
