@@ -61,6 +61,25 @@ bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
   return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
 }
 
+Loc Location::getMirrorLoc(Loc loc, int x_size, int y_size) {
+  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
+    return loc;
+  return getLoc(x_size-1-getX(loc,x_size),y_size-1-getY(loc,x_size),x_size);
+}
+
+Loc Location::getCenterLoc(int x_size, int y_size) {
+  if(x_size % 2 == 0 || y_size % 2 == 0)
+    return Board::NULL_LOC;
+  return getLoc(x_size / 2, y_size / 2, x_size);
+}
+
+bool Location::isCentral(Loc loc, int x_size, int y_size) {
+  int x = getX(loc,x_size);
+  int y = getY(loc,x_size);
+  return x >= (x_size-1)/2 && x <= x_size/2 && y >= (y_size-1)/2 && y <= y_size/2;
+}
+
+
 #define FOREACHADJ(BLOCK) {int ADJOFFSET = -(x_size+1); {BLOCK}; ADJOFFSET = -1; {BLOCK}; ADJOFFSET = 1; {BLOCK}; ADJOFFSET = x_size+1; {BLOCK}};
 #define ADJ0 (-(x_size+1))
 #define ADJ1 (-1)
@@ -507,6 +526,27 @@ bool Board::isAdjacentToPla(Loc loc, Player pla) const {
   );
   return false;
 }
+
+bool Board::isAdjacentOrDiagonalToPla(Loc loc, Player pla) const {
+  for(int i = 0; i<8; i++) {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] == pla)
+      return true;
+  }
+  return false;
+}
+
+bool Board::isAdjacentToChain(Loc loc, Loc chain) const {
+  if(colors[chain] == C_EMPTY)
+    return false;
+  FOREACHADJ(
+    Loc adj = loc + ADJOFFSET;
+    if(colors[adj] == colors[chain] && chain_head[adj] == chain_head[chain])
+      return true;
+  );
+  return false;
+}
+
 
 //Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
 bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const {

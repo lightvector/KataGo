@@ -49,6 +49,9 @@ namespace Location
 
   void getAdjacentOffsets(short adj_offsets[8], int x_size);
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);
+  Loc getMirrorLoc(Loc loc, int x_size, int y_size);
+  Loc getCenterLoc(int x_size, int y_size);
+  bool isCentral(Loc loc, int x_size, int y_size);
   int distance(Loc loc0, Loc loc1, int x_size);
   int euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size);
 
@@ -173,6 +176,9 @@ struct Board
   Loc getKoCaptureLoc(Loc loc, Player pla) const;
   //Check if this location is adjacent to stones of the specified color
   bool isAdjacentToPla(Loc loc, Player pla) const;
+  bool isAdjacentOrDiagonalToPla(Loc loc, Player pla) const;
+  //Check if this location is adjacent a given chain.
+  bool isAdjacentToChain(Loc loc, Loc chain) const;
   //Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
   bool isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const;
   //Is this board empty?
