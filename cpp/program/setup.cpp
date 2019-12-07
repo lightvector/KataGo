@@ -392,6 +392,10 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("localExplore"))   params.localExplore = cfg.getBool("localExplore");
     else                                    params.localExplore = false;
 
+    if(cfg.contains("playoutDoublingAdvantage"+idxStr)) params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage"+idxStr,-3.0,3.0);
+    else if(cfg.contains("playoutDoublingAdvantage"))   params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage",-3.0,3.0);
+    else                                                params.playoutDoublingAdvantage = 0.0;
+    
     if(cfg.contains("mutexPoolSize"+idxStr)) params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize"+idxStr, 1, 1 << 24);
     else                                     params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize",        1, 1 << 24);
     if(cfg.contains("numVirtualLossesPerThread"+idxStr)) params.numVirtualLossesPerThread = (int32_t)cfg.getInt("numVirtualLossesPerThread"+idxStr, 1, 1000);
