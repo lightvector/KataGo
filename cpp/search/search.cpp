@@ -189,7 +189,9 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    alwaysIncludeOwnerMap(false),
-   searchParams(params),numSearchesBegun(0),searchNodeAge(0),randSeed(rSeed),
+   searchParams(params),numSearchesBegun(0),searchNodeAge(0),
+   rootPlaDuringLastSearch(C_EMPTY),
+   randSeed(rSeed),
    normToTApproxZ(0.0),
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand"))
@@ -929,6 +931,11 @@ void Search::beginSearch(Logger& logger) {
   searchNodeAge++;
   if(searchNodeAge == 0) //Just in case, as we roll over
     clearSearch();
+  //In the case we are doing playoutDoublingAdvantage without a specific player (so, doing the root player)
+  //and the root player changes, we need to clear the tree since we need new evals for the new way around
+  if(rootPlaDuringLastSearch != rootPla && searchParams.playoutDoublingAdvantage != 0 && searchParams.playoutDoublingAdvantagePla == C_EMPTY)
+    clearSearch();
+  rootPlaDuringLastSearch = rootPla;
 
   computeRootValues(logger);
   maybeRecomputeNormToTApproxTable();
@@ -1118,9 +1125,12 @@ void Search::computeRootValues(Logger& logger) {
       MiscNNInputParams nnInputParams;
       nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
       nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
-      nnInputParams.playoutDoublingAdvantage = (
-        getOpp(pla) == searchParams.playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
-      );
+      if(searchParams.playoutDoublingAdvantage != 0) {
+        Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
+        nnInputParams.playoutDoublingAdvantage = (
+          getOpp(pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
+        );
+      }
       nnEvaluator->evaluate(
         board, hist, pla,
         nnInputParams,
@@ -2074,9 +2084,12 @@ void Search::initNodeNNOutput(
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
   nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
-  nnInputParams.playoutDoublingAdvantage = (
-    getOpp(thread.pla) == searchParams.playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
-  );
+  if(searchParams.playoutDoublingAdvantage != 0) {
+    Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
+    nnInputParams.playoutDoublingAdvantage = (
+      getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
+    );
+  }
   nnEvaluator->evaluate(
     thread.board, thread.history, thread.pla,
     nnInputParams,

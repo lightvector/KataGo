@@ -54,7 +54,7 @@ struct SearchParams {
   bool localExplore; //Explore local tacticy moves a little more, to try to find some blind spots.
 
   double playoutDoublingAdvantage; //Play as if we have this many doublings of playouts vs the opponent
-  Player playoutDoublingAdvantagePla; //Negate playoutDoublingAdvantage when making a move for the opponent of this player
+  Player playoutDoublingAdvantagePla; //Negate playoutDoublingAdvantage when making a move for the opponent of this player. If empty, opponent of the root player.
 
   //Threading-related
   uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes

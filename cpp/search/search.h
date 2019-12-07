@@ -144,6 +144,7 @@ struct Search {
   SearchParams searchParams;
   int64_t numSearchesBegun;
   uint32_t searchNodeAge;
+  Player rootPlaDuringLastSearch;
 
   std::string randSeed;
 
