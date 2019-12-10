@@ -227,10 +227,10 @@ struct Board
   //Seki regions are that are adjacent to any remaining empty regions.
   //If keepTerritories, then keeps the surrounded territories in seki regions, only strips points for stones.
   //If keepStones, then keeps the stones, only strips points for surrounded territories.
-  //whiteMinusBlackNonDameTouchingRegionCount - multiply this by two for a group tax.
-  void calculateNonDameTouchingArea(
+  //whiteMinusBlackIndependentLifeRegionCount - multiply this by two for a group tax.
+  void calculateIndependentLifeArea(
     Color* result,
-    int& whiteMinusBlackNonDameTouchingRegionCount,
+    int& whiteMinusBlackIndependentLifeRegionCount,
     bool keepTerritories,
     bool keepStones,
     bool isMultiStoneSuicideLegal
@@ -292,10 +292,10 @@ struct Board
     Color* result
   ) const;
 
-  void calculateNonDameTouchingAreaHelper(
+  void calculateIndependentLifeAreaHelper(
     const Color* basicArea,
     Color* result,
-    int& whiteMinusBlackNonDameTouchingRegionCount
+    int& whiteMinusBlackIndependentLifeRegionCount
   ) const;
 
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);

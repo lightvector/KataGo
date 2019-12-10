@@ -22,11 +22,15 @@ struct Rules {
   int taxRule;
 
   bool multiStoneSuicideLegal;
+  bool hasButton;
 
   float komi;
+  //Min and max acceptable komi in various places involving user input validation
+  static constexpr float MIN_USER_KOMI = -150.0f;
+  static constexpr float MAX_USER_KOMI = 150.0f;
 
   Rules();
-  Rules(int koRule, int scoringRule, int taxRule, bool multiStoneSuicideLegal, float komi);
+  Rules(int koRule, int scoringRule, int taxRule, bool multiStoneSuicideLegal, bool hasButton, float komi);
   ~Rules();
 
   bool operator==(const Rules& other) const;
@@ -48,15 +52,19 @@ struct Rules {
   static bool komiIsIntOrHalfInt(float komi);
 
   static bool tryParseRules(const std::string& str, Rules& buf);
+  static bool tryParseRulesWithoutKomi(const std::string& str, Rules& buf, float komi);
 
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
   std::string toString() const;
   std::string toStringNoKomi() const;
+  std::string toJsonString() const;
+  std::string toJsonStringNoKomi() const;
 
   static const Hash128 ZOBRIST_KO_RULE_HASH[4];
   static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];
   static const Hash128 ZOBRIST_TAX_RULE_HASH[3];
   static const Hash128 ZOBRIST_MULTI_STONE_SUICIDE_HASH;
+  static const Hash128 ZOBRIST_BUTTON_HASH;
 };
 
 #endif  // GAME_RULES_H_

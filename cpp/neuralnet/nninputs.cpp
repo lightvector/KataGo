@@ -1649,7 +1649,7 @@ void NNInputs::fillRowV6(
   else {
     bool keepTerritories = false;
     bool keepStones = false;
-    int whiteMinusBlackNonDameTouchingRegionCount = 0;
+    int whiteMinusBlackIndependentLifeRegionCount = 0;
     if(hist.rules.scoringRule == Rules::SCORING_AREA && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
       hasAreaFeature = true;
       keepTerritories = false;
@@ -1676,8 +1676,8 @@ void NNInputs::fillRowV6(
     }
 
     if(hasAreaFeature) {
-      board.calculateNonDameTouchingArea(
-        area,whiteMinusBlackNonDameTouchingRegionCount,
+      board.calculateIndependentLifeArea(
+        area,whiteMinusBlackIndependentLifeRegionCount,
         keepTerritories,
         keepStones,
         hist.rules.multiStoneSuicideLegal
@@ -2046,7 +2046,7 @@ void NNInputs::fillRowV7(
   else {
     bool keepTerritories = false;
     bool keepStones = false;
-    int whiteMinusBlackNonDameTouchingRegionCount = 0;
+    int whiteMinusBlackIndependentLifeRegionCount = 0;
     if(hist.rules.scoringRule == Rules::SCORING_AREA && (hist.rules.taxRule == Rules::TAX_SEKI || hist.rules.taxRule == Rules::TAX_ALL)) {
       hasAreaFeature = true;
       keepTerritories = false;
@@ -2073,8 +2073,8 @@ void NNInputs::fillRowV7(
     }
 
     if(hasAreaFeature) {
-      board.calculateNonDameTouchingArea(
-        area,whiteMinusBlackNonDameTouchingRegionCount,
+      board.calculateIndependentLifeArea(
+        area,whiteMinusBlackIndependentLifeRegionCount,
         keepTerritories,
         keepStones,
         hist.rules.multiStoneSuicideLegal

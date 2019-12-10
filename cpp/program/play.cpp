@@ -252,7 +252,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   if(cfg.contains("komiMean") && (cfg.contains("komiAuto") && cfg.getBool("komiAuto")))
     throw IOError("Must specify only one of komiMean=<komi value> or komiAuto=True in config");
 
-  komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean",-60.0f,60.0f) : 7.5f;
+  komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean",Rules::MIN_USER_KOMI,Rules::MAX_USER_KOMI) : 7.5f;
   komiStdev = cfg.getFloat("komiStdev",0.0f,60.0f);
   handicapProb = cfg.getDouble("handicapProb",0.0,1.0);
   handicapCompensateKomiProb = cfg.getDouble("handicapCompensateKomiProb",0.0,1.0);
@@ -1814,16 +1814,16 @@ FinishedGameData* Play::runGame(
       {
         board.calculateArea(gameData->finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
 
-        Color* nonDameArea = new Color[Board::MAX_ARR_SIZE];
-        int whiteMinusBlackNonDameTouchingRegionCount;
-        board.calculateNonDameTouchingArea(nonDameArea,whiteMinusBlackNonDameTouchingRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
+        Color* independentLifeArea = new Color[Board::MAX_ARR_SIZE];
+        int whiteMinusBlackIndependentLifeRegionCount;
+        board.calculateIndependentLifeArea(independentLifeArea,whiteMinusBlackIndependentLifeRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
         for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
-          if(nonDameArea[i] == C_EMPTY && (gameData->finalFullArea[i] == C_BLACK || gameData->finalFullArea[i] == C_WHITE))
+          if(independentLifeArea[i] == C_EMPTY && (gameData->finalFullArea[i] == C_BLACK || gameData->finalFullArea[i] == C_WHITE))
             gameData->finalSekiAreas[i] = true;
           else
             gameData->finalSekiAreas[i] = false;
         }
-        delete nonDameArea;
+        delete independentLifeArea;
       }
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
