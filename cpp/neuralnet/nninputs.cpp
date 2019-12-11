@@ -2184,6 +2184,10 @@ void NNInputs::fillRowV7(
     rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
   }
 
+  //Button
+  if(hist.hasButton)
+    rowGlobal[17] = 1.0;
+
   //Provide parity information about the board size and komi
   //This comes from the following observation:
   //From white's perspective:
@@ -2245,7 +2249,7 @@ void NNInputs::fillRowV7(
       wave = delta-2.0f;
 
     //NOTE: If ever changing which feature this is, must also update index in model.py where we multiply it into the scorebelief parity vector
-    rowGlobal[17] = wave;
+    rowGlobal[18] = wave;
   }
 
 }

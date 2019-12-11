@@ -12,7 +12,7 @@
 //5 = V4 features, changed current territory feature to just indicate pass-alive
 //6 = V5 features, disable fancy features
 //7 = V6 features, support new rules configurations
-//8 = V7 features, unbalanced training
+//8 = V7 features, unbalanced training, button go
 
 static void fail(int modelVersion) {
   throw StringError("NNModelVersion: Model version not currently implemented or supported: " + Global::intToString(modelVersion));

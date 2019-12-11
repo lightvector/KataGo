@@ -50,7 +50,7 @@ class Model:
     elif version == 7:
       return 16
     elif version == 8:
-      return 18
+      return 19
     else:
       assert(False)
 
@@ -440,6 +440,10 @@ class Model:
       global_input_data[idx,15] = 1.0
       global_input_data[idx,16] = rules["asymPowersOfTwo"]
 
+    if self.version >= 8:
+      if "hasButton" in rules and rules["hasButton"] and Board.PASS_LOC not in [move[1] for move in moves]:
+        global_input_data[idx,17] = 1.0
+
     if rules["scoringRule"] == "SCORING_AREA" or rules["encorePhase"] > 1:
       boardAreaIsEven = (board.size % 2 == 0)
 
@@ -466,7 +470,7 @@ class Model:
         wave = delta-2.0
 
       if self.version >= 8:
-        global_input_data[idx,17] = wave
+        global_input_data[idx,18] = wave
       elif self.version >= 7:
         global_input_data[idx,15] = wave
       else:
