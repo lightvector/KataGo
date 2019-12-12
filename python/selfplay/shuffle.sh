@@ -34,7 +34,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 (
     time python3 ./shuffle.py \
          "$BASEDIR"/selfplay/*/tdata/ \
-         -min-rows 250000 \
+         -min-rows 375000 \
          -max-rows 1000000000 \
          -expand-window-per-row 0.4 \
          -taper-window-exponent 0.675 \
