@@ -20,11 +20,13 @@ static int getMaxExtraBlack(double sqrtBoardArea) {
     return 0;
   if(sqrtBoardArea <= 14.00001)
     return 1;
-  if(sqrtBoardArea <= 17.00001)
+  if(sqrtBoardArea <= 16.00001)
     return 2;
-  if(sqrtBoardArea <= 18.00001)
+  if(sqrtBoardArea <= 17.00001)
     return 3;
-  return 4;
+  if(sqrtBoardArea <= 18.00001)
+    return 4;
+  return 5;
 }
 
 static ExtraBlackAndKomi chooseExtraBlackAndKomi(
@@ -699,7 +701,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
    compensateKomiVisits(20),
-   earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),earlyForkGameMinChoices(1),earlyForkGameMaxChoices(1),
+   earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),forkGameProb(0.0),forkGameMinChoices(1),earlyForkGameMaxChoices(1),forkGameMaxChoices(1),
    sekiForkHack(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
@@ -771,7 +773,7 @@ Loc Play::chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, c
 
 static float roundAndClipKomi(double unrounded, const Board& board) {
   //Just in case, make sure komi is reasonable
-  float range = 0.5f * board.x_size * board.y_size;
+  float range = 40.0f + 0.6f * board.x_size * board.y_size;
   if(unrounded < -range)
     unrounded = -range;
   if(unrounded > range)
@@ -2044,15 +2046,26 @@ void Play::maybeForkGame(
   //Just for conceptual simplicity, don't early fork games that started in the encore
   if(finishedGameData->startHist.encorePhase != 0)
     return;
-  if(!gameRand.nextBool(fancyModes.earlyForkGameProb))
+  bool earlyFork = gameRand.nextBool(fancyModes.earlyForkGameProb);
+  bool lateFork = !earlyFork && fancyModes.forkGameProb > 0 ? gameRand.nextBool(fancyModes.forkGameProb) : false;
+  if(!earlyFork && !lateFork)
     return;
 
   //Pick a random move to fork from near the start
-  int moveIdx = (int)floor(
-    gameRand.nextExponential() * (
-      fancyModes.earlyForkGameExpectedMoveProp * finishedGameData->startBoard.x_size * finishedGameData->startBoard.y_size
-    )
-  );
+  int moveIdx;
+  if(earlyFork) {
+    moveIdx = (int)floor(
+      gameRand.nextExponential() * (
+        fancyModes.earlyForkGameExpectedMoveProp * finishedGameData->startBoard.x_size * finishedGameData->startBoard.y_size
+      )
+    );
+  }
+  else if(lateFork) {
+    moveIdx = finishedGameData->endHist.moveHistory.size() <= 0 ? 0 : (int)gameRand.nextUInt(finishedGameData->endHist.moveHistory.size());
+  }
+  else {
+    ASSERT_UNREACHABLE;
+  }
 
   Board board;
   Player pla;
@@ -2063,11 +2076,16 @@ void Play::maybeForkGame(
     return;
 
   //Pick a move!
+  if(fancyModes.forkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE)
+    throw StringError("fancyModes.forkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE");
   if(fancyModes.earlyForkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE)
     throw StringError("fancyModes.earlyForkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE");
+  int maxChoices = earlyFork ? fancyModes.earlyForkGameMaxChoices : fancyModes.forkGameMaxChoices;
+  if(maxChoices < fancyModes.forkGameMinChoices)
+    throw StringError("fancyModes fork game max choices < fancyModes.forkGameMinChoices");
 
   //Generate a selection of a small random number of choices
-  int numChoices = gameRand.nextInt(fancyModes.earlyForkGameMinChoices,fancyModes.earlyForkGameMaxChoices);
+  int numChoices = gameRand.nextInt(fancyModes.forkGameMinChoices, maxChoices);
   assert(numChoices <= NNPos::MAX_NN_POLICY_SIZE);
   Loc possibleMoves[NNPos::MAX_NN_POLICY_SIZE];
   int numPossible = chooseRandomLegalMoves(board,hist,pla,gameRand,possibleMoves,numChoices);

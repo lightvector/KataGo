@@ -246,7 +246,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     fancyModes.cheapSearchTargetWeight = 0.123f;
     fancyModes.earlyForkGameProb = 0.5;
     fancyModes.earlyForkGameExpectedMoveProp = 0.05;
-    fancyModes.earlyForkGameMinChoices = 2;
+    fancyModes.forkGameMinChoices = 2;
     fancyModes.earlyForkGameMaxChoices = 2;
     fancyModes.compensateKomiVisits = 5;
     fancyModes.forSelfPlay = true;
@@ -490,7 +490,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     fancyModes.cheapSearchTargetWeight = 0;
     fancyModes.earlyForkGameProb = 0;
     fancyModes.earlyForkGameExpectedMoveProp = 0;
-    fancyModes.earlyForkGameMinChoices = 2;
+    fancyModes.forkGameMinChoices = 2;
     fancyModes.earlyForkGameMaxChoices = 2;
     fancyModes.compensateKomiVisits = 5;
     fancyModes.forSelfPlay = true;

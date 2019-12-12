@@ -216,10 +216,12 @@ struct FancyModes {
   int compensateKomiVisits;
 
   //Occasionally fork an entire new game to try out an experimental move in the opening
-  double earlyForkGameProb; //Expected number of forked games per game
+  double earlyForkGameProb; //Expected number of early forked games per game
   double earlyForkGameExpectedMoveProp; //Fork on average within the first board area * this prop moves
-  int earlyForkGameMinChoices; //Fork between the favorite of this many random legal moves, at minimum
+  double forkGameProb; //Expected number of forked games per game
+  int forkGameMinChoices; //Fork between the favorite of this many random legal moves, at minimum
   int earlyForkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
+  int forkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
 
   //Hack to make learning of seki easier - fork positions with different rules when we have sekis
   bool sekiForkHack;

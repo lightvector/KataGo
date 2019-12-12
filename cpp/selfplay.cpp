@@ -233,8 +233,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   fancyModes.earlyForkGameProb = cfg.getDouble("earlyForkGameProb",0.0,0.5);
   fancyModes.earlyForkGameExpectedMoveProp = cfg.getDouble("earlyForkGameExpectedMoveProp",0.0,1.0);
-  fancyModes.earlyForkGameMinChoices = cfg.getInt("earlyForkGameMinChoices",1,30);
-  fancyModes.earlyForkGameMaxChoices = cfg.getInt("earlyForkGameMaxChoices",1,30);
+  fancyModes.forkGameProb = cfg.getDouble("forkGameProb",0,0.5);
+  fancyModes.forkGameMinChoices = cfg.getInt("forkGameMinChoices",1,100);
+  fancyModes.earlyForkGameMaxChoices = cfg.getInt("earlyForkGameMaxChoices",1,100);
+  fancyModes.forkGameMaxChoices = cfg.getInt("forkGameMaxChoices",1,100);
   fancyModes.cheapSearchProb = cfg.getDouble("cheapSearchProb",0.0,1.0);
   fancyModes.cheapSearchVisits = cfg.getInt("cheapSearchVisits",1,10000000);
   fancyModes.cheapSearchTargetWeight = cfg.getFloat("cheapSearchTargetWeight",0.0f,1.0f);
