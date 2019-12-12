@@ -12,10 +12,8 @@ static void checkKoHashConsistency(BoardHistory& hist, Board& board, Player next
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if(hist.blackKoProhibited[loc])
-          expected ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK];
-        if(hist.whiteKoProhibited[loc])
-          expected ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
+        if(hist.koRecapBlocked[loc])
+          expected ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK] ^ Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
       }
     }
   }
@@ -88,21 +86,19 @@ void Tests::runRulesTests() {
         if(board.colors[loc] == C_EMPTY && !board.isIllegalSuicide(loc,pla,hist.rules.multiStoneSuicideLegal) && !hist.isLegal(board,loc,pla)) {
           o << "Illegal: " << Location::toStringMach(loc,board.x_size) << " " << PlayerIO::colorToChar(pla) << endl;
         }
-        if((pla == P_BLACK && hist.blackKoProhibited[loc]) || (pla == P_WHITE && hist.whiteKoProhibited[loc])) {
-          o << "Ko-prohibited: " << Location::toStringMach(loc,board.x_size) << " " << PlayerIO::colorToChar(pla) << endl;
+        if(hist.koRecapBlocked[loc]) {
+          o << "Ko-recap-blocked: " << Location::toStringMach(loc,board.x_size) << endl;
         }
       }
     }
   };
 
-  auto printEncoreKoProhibition = [](ostream& o, const Board& board, const BoardHistory& hist) {
+  auto printEncoreKoBlock = [](ostream& o, const Board& board, const BoardHistory& hist) {
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if(hist.blackKoProhibited[loc])
-          o << "Ko prohibited black at " << Location::toString(loc,board) << endl;
-        if(hist.whiteKoProhibited[loc])
-          o << "Ko prohibited white at " << Location::toString(loc,board) << endl;
+        if(hist.koRecapBlocked[loc])
+          o << "Ko recap blocked at " << Location::toString(loc,board) << endl;
       }
     }
   };
@@ -894,8 +890,7 @@ ooooooo
     //Should be a complete capture
     makeMoveAssertLegal(hist, board, Location::getLoc(1,1,board.x_size), P_BLACK, __LINE__);
     out << board << endl;
-    //There should be no ko marks on the board at this point.
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
 
     string expected = R"%%(
 HASH: 2FA527ADE62EF25B530B64733AFFDBF6
@@ -906,12 +901,16 @@ HASH: 2FA527ADE62EF25B530B64733AFFDBF6
  3 X X X X X X X
  2 O O O O O O O
  1 . . . . . . .
+
+
+Ko recap blocked at F5
+
 )%%";
     expect(name,out,expected);
   }
 
   {
-    const char* name = "Encore - own throwin that temporarily breaks the ko shape should not clear the ko prohibition";
+    const char* name = "Encore - own throwin that temporarily breaks the ko shape should not clear the ko recap block";
     Board board = Board::parseBoard(7,6,R"%%(
 ..o....
 ...o...
@@ -932,13 +931,13 @@ HASH: 2FA527ADE62EF25B530B64733AFFDBF6
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(3,3,board.x_size), P_WHITE, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
     makeMoveAssertLegal(hist, board, Location::getLoc(2,1,board.x_size), P_BLACK, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
     makeMoveAssertLegal(hist, board, Location::getLoc(1,1,board.x_size), P_WHITE, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
 
     string expected = R"%%(
 HASH: 7232311C746B8B9CD09B4B5E78F36FDB
@@ -951,7 +950,7 @@ HASH: 7232311C746B8B9CD09B4B5E78F36FDB
  1 . . . . . . .
 
 
-Ko prohibited black at D4
+Ko recap blocked at D3
 HASH: 51A42639B1FD03594FC9F5DCAF16D642
    A B C D E F G
  6 . . O . . . .
@@ -962,7 +961,7 @@ HASH: 51A42639B1FD03594FC9F5DCAF16D642
  1 . . . . . . .
 
 
-Ko prohibited black at D4
+Ko recap blocked at D3
 HASH: C28F759972CFA74DCA869C1EE08828C2
    A B C D E F G
  6 . . O . . . .
@@ -973,13 +972,13 @@ HASH: C28F759972CFA74DCA869C1EE08828C2
  1 . . . . . . .
 
 
-Ko prohibited black at D4
+Ko recap blocked at D3
 )%%";
     expect(name,out,expected);
   }
 
   {
-    const char* name = "Encore - ko prohibition clears if opponent moves without restoring the ko shape";
+    const char* name = "Encore - ko recap block does not stop non-ko-capture";
     Board board = Board::parseBoard(7,6,R"%%(
 ..o....
 ...o...
@@ -1000,16 +999,16 @@ Ko prohibited black at D4
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(3,3,board.x_size), P_WHITE, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
     makeMoveAssertLegal(hist, board, Location::getLoc(2,1,board.x_size), P_BLACK, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
     makeMoveAssertLegal(hist, board, Location::getLoc(0,0,board.x_size), P_WHITE, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
     makeMoveAssertLegal(hist, board, Location::getLoc(3,2,board.x_size), P_BLACK, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
 
     string expected = R"%%(
 HASH: 7232311C746B8B9CD09B4B5E78F36FDB
@@ -1022,7 +1021,7 @@ HASH: 7232311C746B8B9CD09B4B5E78F36FDB
  1 . . . . . . .
 
 
-Ko prohibited black at D4
+Ko recap blocked at D3
 HASH: 51A42639B1FD03594FC9F5DCAF16D642
    A B C D E F G
  6 . . O . . . .
@@ -1033,7 +1032,7 @@ HASH: 51A42639B1FD03594FC9F5DCAF16D642
  1 . . . . . . .
 
 
-Ko prohibited black at D4
+Ko recap blocked at D3
 HASH: 3BA8E71777E554D6E368DCEC26777E08
    A B C D E F G
  6 O . O . . . .
@@ -1044,6 +1043,7 @@ HASH: 3BA8E71777E554D6E368DCEC26777E08
  1 . . . . . . .
 
 
+Ko recap blocked at D3
 HASH: FEA42DE99C790CB13056CF1C1DE10E7C
    A B C D E F G
  6 O . O . . . .
@@ -1080,27 +1080,41 @@ HASH: FEA42DE99C790CB13056CF1C1DE10E7C
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(3,3,board.x_size), P_WHITE, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
     //Pass for ko
     makeMoveAssertLegal(hist, board, Location::getLoc(3,2,board.x_size), P_BLACK, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
     //Pass
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
     //Take ko
     makeMoveAssertLegal(hist, board, Location::getLoc(3,2,board.x_size), P_BLACK, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
     //Pass
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
     //Fill ko
     makeMoveAssertLegal(hist, board, Location::getLoc(3,3,board.x_size), P_BLACK, __LINE__);
     out << board << endl;
-    printEncoreKoProhibition(out,board,hist);
+    printEncoreKoBlock(out,board,hist);
+
+    makeMoveAssertLegal(hist, board, Location::getLoc(1,3,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(2,4,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(3,5,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
 
     string expected = R"%%(
 HASH: 7232311C746B8B9CD09B4B5E78F36FDB
@@ -1113,7 +1127,7 @@ HASH: 7232311C746B8B9CD09B4B5E78F36FDB
  1 . . . . . . .
 
 
-Ko prohibited black at D4
+Ko recap blocked at D3
 HASH: 7232311C746B8B9CD09B4B5E78F36FDB
    A B C D E F G
  6 . . O . . . .
@@ -1144,7 +1158,7 @@ HASH: A191A543B756FCD6B78EF314F5CEBE65
  1 . . . . . . .
 
 
-Ko prohibited white at D3
+Ko recap blocked at D4
 HASH: A191A543B756FCD6B78EF314F5CEBE65
    A B C D E F G
  6 . . O . . . .
@@ -1155,7 +1169,7 @@ HASH: A191A543B756FCD6B78EF314F5CEBE65
  1 . . . . . . .
 
 
-Ko prohibited white at D3
+Ko recap blocked at D4
 HASH: 83A43A9FDE43E4E9601FF8E2CB94D35A
    A B C D E F G
  6 . . O . . . .
@@ -1164,6 +1178,29 @@ HASH: 83A43A9FDE43E4E9601FF8E2CB94D35A
  3 . . X X X . .
  2 . . . X . . .
  1 . . . . . . .
+
+
+Ko recap blocked at D4
+HASH: 48CD0E7B0968186D3722ABA96E12600B
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . . O . . .
+ 4 . X O X O . .
+ 3 . O X X X . .
+ 2 . . O X O . .
+ 1 . . . O . . .
+
+
+Ko recap blocked at D4
+HASH: E91FF9270E4CC0CCC9D560FA95C81D59
+   A B C D E F G
+ 6 . . O . . . .
+ 5 . . . O . . .
+ 4 . X O . O . .
+ 3 . O . . . O .
+ 2 . . O . O . .
+ 1 . . . O . . .
+
 )%%";
     expect(name,out,expected);
   }
@@ -1779,11 +1816,11 @@ Score: -3
 
     string expected = R"%%(
 Black can't retake
-Ko-prohibited: (6,0) X
+Ko-recap-blocked: (5,0)
 Ko threat shouldn't work in the encore
-Ko-prohibited: (6,0) X
+Ko-recap-blocked: (5,0)
 Regular pass shouldn't work in the encore
-Ko-prohibited: (6,0) X
+Ko-recap-blocked: (5,0)
 Pass for ko! (Should not affect the board stones)
 HASH: 42FE4FEAAF27B840EA45877C528FEE84
    A B C D E F G
@@ -1797,18 +1834,18 @@ HASH: 42FE4FEAAF27B840EA45877C528FEE84
 
 
 Now black can retake, and white's retake isn't legal
-Ko-prohibited: (5,0) O
+Ko-recap-blocked: (6,0)
 White's retake is legal after passing for ko
 Black's retake is illegal again
-Ko-prohibited: (6,0) X
+Ko-recap-blocked: (5,0)
 And is still illegal due to only-once
 Illegal: (6,0) X
 But a ko threat fixes that
 White illegal now
-Ko-prohibited: (5,0) O
+Ko-recap-blocked: (6,0)
 Legal again in second encore
 Lastly, try black ko threat one more time
-Ko-prohibited: (6,0) X
+Ko-recap-blocked: (5,0)
 And a pass for ko
 And repeat with white
 And see the only-once for black
@@ -1818,7 +1855,7 @@ Illegal: (6,0) X
   }
 
   {
-    const char* name = "Two step ko mark clearing";
+    const char* name = "Two step ko in encore";
     Board board = Board::parseBoard(7,5,R"%%(
 x.x....
 .xx....
@@ -1856,6 +1893,11 @@ ooo....
     out << board << endl;
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(0,2,board.x_size), P_BLACK, __LINE__);
+    out << "After second pass for ko" << endl;
+    printIllegalMoves(out,board,hist,P_WHITE);
+    out << board << endl;
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(0,2,board.x_size), P_BLACK, __LINE__);
     out << "After second cap" << endl;
     printIllegalMoves(out,board,hist,P_WHITE);
     out << board << endl;
@@ -1867,10 +1909,12 @@ ooo....
 
     string expected = R"%%(
 After first cap
-Ko-prohibited: (0,2) X
+Ko-recap-blocked: (0,1)
 After second cap
-Ko-prohibited: (0,0) X
+Ko-recap-blocked: (1,0)
+Ko-recap-blocked: (0,1)
 Just after black pass for ko
+Ko-recap-blocked: (0,1)
 HASH: 3E2C923D4675E38712F67207D0B3D21B
    A B C D E F G
  5 . O X . . . .
@@ -1881,7 +1925,19 @@ HASH: 3E2C923D4675E38712F67207D0B3D21B
 
 
 After first cap
-Ko-prohibited: (1,0) O
+Ko-recap-blocked: (0,0)
+Ko-recap-blocked: (0,1)
+HASH: E51C9D5AE43BA59520B8877210F8CBED
+   A B C D E F G
+ 5 X . X . . . .
+ 4 O X X . . . .
+ 3 . O X . . . .
+ 2 O O O . . . .
+ 1 . . . . . . .
+
+
+After second pass for ko
+Ko-recap-blocked: (0,0)
 HASH: E51C9D5AE43BA59520B8877210F8CBED
    A B C D E F G
  5 X . X . . . .
@@ -1892,7 +1948,8 @@ HASH: E51C9D5AE43BA59520B8877210F8CBED
 
 
 After second cap
-Ko-prohibited: (0,1) O
+Ko-recap-blocked: (0,0)
+Ko-recap-blocked: (0,2)
 HASH: 8E15AD0AFD434346B3E4F2ED554621B7
    A B C D E F G
  5 X . X . . . .
@@ -1903,6 +1960,7 @@ HASH: 8E15AD0AFD434346B3E4F2ED554621B7
 
 
 After pass for ko
+Ko-recap-blocked: (0,0)
 Illegal: (0,1) O
 HASH: 8E15AD0AFD434346B3E4F2ED554621B7
    A B C D E F G
@@ -1916,7 +1974,7 @@ HASH: 8E15AD0AFD434346B3E4F2ED554621B7
   }
 
   {
-    const char* name = "Throw in that destroys the ko momentarily does not clear ko prohibition";
+    const char* name = "Throw in that destroys the ko momentarily does not clear ko recap block";
     Board board = Board::parseBoard(7,5,R"%%(
 x......
 oxx....
@@ -1945,7 +2003,7 @@ oo.....
     printIllegalMoves(out,board,hist,P_WHITE);
 
     string expected = R"%%(
-Ko-prohibited: (0,1) O
+Ko-recap-blocked: (0,2)
 HASH: 6CA50E111B93619273B4EEE5AC396990
    A B C D E F G
  5 X . X . . . .
@@ -1955,7 +2013,7 @@ HASH: 6CA50E111B93619273B4EEE5AC396990
  1 . . . . . . .
 
 
-Ko-prohibited: (0,1) O
+Ko-recap-blocked: (0,2)
 )%%";
     expect(name,out,expected);
   }
@@ -2296,7 +2354,7 @@ Initial pla Black
 Encore phase 1
 Turns this phase 0
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
 Presumed next pla Black
@@ -2314,7 +2372,7 @@ Initial pla Black
 Encore phase 1
 Turns this phase 1
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
 Presumed next pla White
@@ -2332,7 +2390,7 @@ Initial pla Black
 Encore phase 2
 Turns this phase 0
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
 Presumed next pla Black
@@ -2350,7 +2408,7 @@ Initial pla Black
 Encore phase 2
 Turns this phase 1
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
 Presumed next pla White
@@ -2368,7 +2426,7 @@ Initial pla Black
 Encore phase 2
 Turns this phase 2
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
 Presumed next pla Black
@@ -2389,7 +2447,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 2
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
 Presumed next pla Black
@@ -2407,7 +2465,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 3
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
 Presumed next pla White
@@ -2425,7 +2483,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 4
 Rules koPOSITIONALscoreTERRITORYtaxNONEsui0komi0.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
 Presumed next pla Black
@@ -2466,13 +2524,10 @@ Last moves pass pass pass pass
         out << " PS" << hist.consecutiveEndingPasses;
         out << " E" << hist.encorePhase;
         out << " ";
-        for(int y = 0; y<board.y_size; y++)
-          for(int x = 0; x<board.x_size; x++)
-            out << (int)(hist.blackKoProhibited[Location::getLoc(x,y,board.x_size)]);
         out << " ";
         for(int y = 0; y<board.y_size; y++)
           for(int x = 0; x<board.x_size; x++)
-            out << (int)(hist.whiteKoProhibited[Location::getLoc(x,y,board.x_size)]);
+            out << (int)(hist.koRecapBlocked[Location::getLoc(x,y,board.x_size)]);
         out << " ";
         for(int y = 0; y<board.y_size; y++)
           for(int x = 0; x<board.x_size; x++)
@@ -2511,75 +2566,75 @@ Last moves pass pass pass pass
     rules.multiStoneSuicideLegal = true;
     stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0),P_BLACK,true);
     expected = R"%%(
-5 .... NPX PS0 E0 0000 0000 0000
-4 .X.. NPO PS0 E0 0000 0000 0000
-3 .X.O NPX PS0 E0 0000 0000 0000
-1 .XX. NPO PS0 E0 0000 0000 0000
-3 .XX. NPX PS1 E0 0000 0000 0000
-2 XXX. NPO PS0 E0 0000 0000 0000
-4 ...O NPX PS0 E0 0000 0000 0000
-4 ...O NPO PS1 E0 0000 0000 0000
-1 O..O NPX PS0 E0 0000 0000 0000
-3 O..O NPO PS1 E0 0000 0000 0000
-2 O.OO NPX PS0 E0 0000 0000 0000
-1 O.OO NPO PS1 E0 0000 0000 0000
-2 O.OO NPX PS0 E1 0000 0000 0000
-1 O.OO NPO PS1 E1 0000 0000 0000
-2 O.OO NPX PS0 E2 0000 0000 2022
-1 O.OO NPO PS1 E2 0000 0000 2022
-2 O.OO NPX PS2 E2 0000 0000 2022
+5 .... NPX PS0 E0  0000 0000
+4 .X.. NPO PS0 E0  0000 0000
+3 .X.O NPX PS0 E0  0000 0000
+1 .XX. NPO PS0 E0  0000 0000
+3 .XX. NPX PS1 E0  0000 0000
+2 XXX. NPO PS0 E0  0000 0000
+4 ...O NPX PS0 E0  0000 0000
+4 ...O NPO PS1 E0  0000 0000
+1 O..O NPX PS0 E0  0000 0000
+3 O..O NPO PS1 E0  0000 0000
+2 O.OO NPX PS0 E0  0000 0000
+1 O.OO NPO PS1 E0  0000 0000
+2 O.OO NPX PS0 E1  0000 0000
+1 O.OO NPO PS1 E1  0000 0000
+2 O.OO NPX PS0 E2  0000 2022
+1 O.OO NPO PS1 E2  0000 2022
+2 O.OO NPX PS2 E2  0000 2022
 White bonus score -1
 Winner: White
 W-B Score: 2.5
 isNoResult: 0
 isResignation: 0
-5 .... NPX PS0 E0 0000 0000 0000
-4 ..X. NPO PS0 E0 0000 0000 0000
-3 .OX. NPX PS0 E0 0000 0000 0000
-2 XOX. NPO PS0 E0 0000 0000 0000
-2 XOX. NPX PS1 E0 0000 0000 0000
-2 X.XX NPO PS0 E0 0000 0000 0000
-4 .O.. NPX PS0 E0 0000 0000 0000
-3 XO.. NPO PS0 E0 0000 0000 0000
-1 .OO. NPX PS0 E0 0000 0000 0000
-3 .OO. NPO PS1 E0 0000 0000 0000
-2 .OOO NPX PS0 E0 0000 0000 0000
-4 X... NPO PS0 E0 0000 0000 0000
-3 X..O NPX PS0 E0 0000 0000 0000
-2 XX.O NPO PS0 E0 0000 0000 0000
-3 ..OO NPX PS0 E0 0000 0000 0000
-2 .XOO NPO PS0 E0 0000 0000 0000
-2 .XOO NPX PS1 E0 0000 0000 0000
-3 XX.. NPO PS0 E0 0000 0000 0000
-2 XX.O NPX PS0 E0 0000 0000 0000
-2 XXX. NPO PS0 E0 0000 0000 0000
-4 ...O NPX PS0 E0 0000 0000 0000
-3 .X.O NPO PS0 E0 0000 0000 0000
-1 O..O NPX PS0 E0 0000 0000 0000
-3 O..O NPO PS1 E0 0000 0000 0000
-2 OO.O NPX PS0 E0 0000 0000 0000
-4 ..X. NPO PS0 E0 0000 0000 0000
-3 ..XO NPX PS0 E0 0000 0000 0000
-3 ..XO NPO PS1 E0 0000 0000 0000
-2 .OXO NPX PS0 E0 0000 0000 0000
-2 .OXO NPO PS1 E0 0000 0000 0000
-2 OO.O NPX PS0 E0 0000 0000 0000
-4 ..X. NPO PS0 E0 0000 0000 0000
-3 .OX. NPX PS0 E0 0000 0000 0000
-2 .OXX NPO PS0 E0 0000 0000 0000
-3 OO.. NPX PS0 E0 0000 0000 0000
-2 OOX. NPO PS0 E0 0000 0000 0000
-2 OO.O NPX PS0 E0 0000 0000 0000
-4 ..X. NPO PS0 E0 0000 0000 0000
-3 O.X. NPX PS0 E0 0000 0000 0000
-2 O.XX NPO PS0 E0 0000 0000 0000
-3 OO.. NPX PS0 E0 0000 0000 0000
-2 OO.X NPO PS0 E0 0000 0000 0000
-2 OOO. NPX PS0 E0 0000 0000 0000
-4 ...X NPO PS0 E0 0000 0000 0000
-3 O..X NPX PS0 E0 0000 0000 0000
-2 O.XX NPO PS0 E0 0000 0000 0000
-3 OO.. NPX PS0 E0 0000 0000 0000
+5 .... NPX PS0 E0  0000 0000
+4 ..X. NPO PS0 E0  0000 0000
+3 .OX. NPX PS0 E0  0000 0000
+2 XOX. NPO PS0 E0  0000 0000
+2 XOX. NPX PS1 E0  0000 0000
+2 X.XX NPO PS0 E0  0000 0000
+4 .O.. NPX PS0 E0  0000 0000
+3 XO.. NPO PS0 E0  0000 0000
+1 .OO. NPX PS0 E0  0000 0000
+3 .OO. NPO PS1 E0  0000 0000
+2 .OOO NPX PS0 E0  0000 0000
+4 X... NPO PS0 E0  0000 0000
+3 X..O NPX PS0 E0  0000 0000
+2 XX.O NPO PS0 E0  0000 0000
+3 ..OO NPX PS0 E0  0000 0000
+2 .XOO NPO PS0 E0  0000 0000
+2 .XOO NPX PS1 E0  0000 0000
+3 XX.. NPO PS0 E0  0000 0000
+2 XX.O NPX PS0 E0  0000 0000
+2 XXX. NPO PS0 E0  0000 0000
+4 ...O NPX PS0 E0  0000 0000
+3 .X.O NPO PS0 E0  0000 0000
+1 O..O NPX PS0 E0  0000 0000
+3 O..O NPO PS1 E0  0000 0000
+2 OO.O NPX PS0 E0  0000 0000
+4 ..X. NPO PS0 E0  0000 0000
+3 ..XO NPX PS0 E0  0000 0000
+3 ..XO NPO PS1 E0  0000 0000
+2 .OXO NPX PS0 E0  0000 0000
+2 .OXO NPO PS1 E0  0000 0000
+2 OO.O NPX PS0 E0  0000 0000
+4 ..X. NPO PS0 E0  0000 0000
+3 .OX. NPX PS0 E0  0000 0000
+2 .OXX NPO PS0 E0  0000 0000
+3 OO.. NPX PS0 E0  0000 0000
+2 OOX. NPO PS0 E0  0000 0000
+2 OO.O NPX PS0 E0  0000 0000
+4 ..X. NPO PS0 E0  0000 0000
+3 O.X. NPX PS0 E0  0000 0000
+2 O.XX NPO PS0 E0  0000 0000
+3 OO.. NPX PS0 E0  0000 0000
+2 OO.X NPO PS0 E0  0000 0000
+2 OOO. NPX PS0 E0  0000 0000
+4 ...X NPO PS0 E0  0000 0000
+3 O..X NPX PS0 E0  0000 0000
+2 O.XX NPO PS0 E0  0000 0000
+3 OO.. NPX PS0 E0  0000 0000
 White bonus score -2
 Winner: Empty
 W-B Score: 0
@@ -2600,42 +2655,42 @@ isResignation: 0
     stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0),P_BLACK,false);
     stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0),P_BLACK,false);
     expected = R"%%(
-5 .... NPX PS0 E0 0000 0000 0000
-5 .... NPO PS1 E0 0000 0000 0000
-5 .... NPX PS2 E0 0000 0000 0000
+5 .... NPX PS0 E0  0000 0000
+5 .... NPO PS1 E0  0000 0000
+5 .... NPX PS2 E0  0000 0000
 White bonus score 0
 Winner: White
 W-B Score: 0.5
 isNoResult: 0
 isResignation: 0
-5 .... NPX PS0 E0 0000 0000 0000
-5 .... NPO PS1 E0 0000 0000 0000
-4 O... NPX PS0 E0 0000 0000 0000
-3 O.X. NPO PS0 E0 0000 0000 0000
-2 OOX. NPX PS0 E0 0000 0000 0000
-2 OOX. NPO PS1 E0 0000 0000 0000
-2 OOX. NPX PS2 E0 0000 0000 0000
+5 .... NPX PS0 E0  0000 0000
+5 .... NPO PS1 E0  0000 0000
+4 O... NPX PS0 E0  0000 0000
+3 O.X. NPO PS0 E0  0000 0000
+2 OOX. NPX PS0 E0  0000 0000
+2 OOX. NPO PS1 E0  0000 0000
+2 OOX. NPX PS2 E0  0000 0000
 White bonus score 0
 Winner: White
 W-B Score: 1.5
 isNoResult: 0
 isResignation: 0
-5 .... NPX PS0 E0 0000 0000 0000
-4 .X.. NPO PS0 E0 0000 0000 0000
-3 .XO. NPX PS0 E0 0000 0000 0000
-2 .XOX NPO PS0 E0 0000 0000 0000
-2 .XOX NPX PS1 E0 0000 0000 0000
-2 .XOX NPO PS2 E0 0000 0000 0000
+5 .... NPX PS0 E0  0000 0000
+4 .X.. NPO PS0 E0  0000 0000
+3 .XO. NPX PS0 E0  0000 0000
+2 .XOX NPO PS0 E0  0000 0000
+2 .XOX NPX PS1 E0  0000 0000
+2 .XOX NPO PS2 E0  0000 0000
 White bonus score 0
 Winner: Black
 W-B Score: -0.5
 isNoResult: 0
 isResignation: 0
-5 .... NPX PS0 E0 0000 0000 0000
-4 ...X NPO PS0 E0 0000 0000 0000
-3 ..OX NPX PS0 E0 0000 0000 0000
-3 ..OX NPO PS1 E0 0000 0000 0000
-3 ..OX NPX PS2 E0 0000 0000 0000
+5 .... NPX PS0 E0  0000 0000
+4 ...X NPO PS0 E0  0000 0000
+3 ..OX NPX PS0 E0  0000 0000
+3 ..OX NPO PS1 E0  0000 0000
+3 ..OX NPX PS2 E0  0000 0000
 White bonus score 0
 Winner: White
 W-B Score: 0.5
@@ -2660,111 +2715,111 @@ isResignation: 0
     stressTest(koBoard71,BoardHistory(koBoard71,P_BLACK,rules,0),P_BLACK,true);
 
     expected = R"%%(
-3 .O.OX.O NPX PS0 E0 0000000 0000000 0000000
-1 .OX.X.O NPO PS0 E0 0000000 0000000 0000000
-4 .OX.X.O NPX PS1 E0 0000000 0000000 0000000
-2 .OXXX.O NPO PS0 E0 0000000 0000000 0000000
-4 .O...OO NPX PS0 E0 0000000 0000000 0000000
-6 .O..X.. NPO PS0 E0 0000000 0000000 0000000
-4 .O..XO. NPX PS0 E0 0000000 0000000 0000000
-3 .O.XXO. NPO PS0 E0 0000000 0000000 0000000
-2 .O.XXO. NPX PS1 E0 0000000 0000000 0000000
-3 .O.XX.X NPO PS0 E0 0000000 0000000 0000000
-3 OO.XX.X NPX PS0 E0 0000000 0000000 0000000
-4 ..XXX.X NPO PS0 E0 0000000 0000000 0000000
-3 ..XXXO. NPX PS0 E0 0000000 0000000 0000000
-2 .XXXXO. NPO PS0 E0 0000000 0000000 0000000
-2 .XXXXO. NPX PS1 E0 0000000 0000000 0000000
-1 .XXXX.X NPO PS0 E0 0000000 0000000 0000000
-3 .XXXX.X NPX PS1 E0 0000000 0000000 0000000
-2 .XXXXXX NPO PS0 E0 0000000 0000000 0000000
-7 O...... NPX PS0 E0 0000000 0000000 0000000
-5 O....X. NPO PS0 E0 0000000 0000000 0000000
-5 O..O.X. NPX PS0 E0 0000000 0000000 0000000
-3 .X.O.X. NPO PS0 E0 0000000 0000000 0000000
-3 .X.OOX. NPX PS0 E0 0000000 0000000 0000000
-3 XX.OOX. NPO PS0 E0 0000000 0000000 0000000
-3 ..OOOX. NPX PS0 E0 0000000 0000000 0000000
-3 X.OOOX. NPO PS0 E0 0000000 0000000 0000000
-1 X.OOO.O NPX PS0 E0 0000000 0000000 0000000
-3 X.OOO.O NPO PS1 E0 0000000 0000000 0000000
-2 X.OOOOO NPX PS0 E0 0000000 0000000 0000000
-2 X.OOOOO NPO PS1 E0 0000000 0000000 0000000
-2 .OOOOOO NPX PS0 E0 0000000 0000000 0000000
-1 .OOOOOO NPO PS1 E0 0000000 0000000 0000000
-2 .OOOOOO NPX PS0 E1 0000000 0000000 0000000
-7 X...... NPO PS0 E1 0000000 0000000 0000000
-6 X..O... NPX PS0 E1 0000000 0000000 0000000
-5 XX.O... NPO PS0 E1 0000000 0000000 0000000
-1 XX.O.O. NPX PS0 E1 0000000 0000000 0000000
-4 XX.O.O. NPO PS1 E1 0000000 0000000 0000000
-3 ..OO.O. NPX PS0 E1 0000000 0000000 0000000
-4 .XOO.O. NPO PS0 E1 0000000 0000000 0000000
-2 O.OO.O. NPX PS0 E1 0100000 0000000 0000000
-4 O.OO.O. NPO PS0 E1 0000000 0000000 0000000
-2 OOOO.O. NPX PS0 E1 0000000 0000000 0000000
-5 ....XO. NPO PS0 E1 0000000 0000000 0000000
-4 ..O.XO. NPX PS0 E1 0000000 0000000 0000000
-5 ..O.X.X NPO PS0 E1 0000000 0000010 0000000
-4 O.O.X.X NPX PS0 E1 0000000 0000010 0000000
-3 O.O.XXX NPO PS0 E1 0000000 0000000 0000000
-2 O.O.XXX NPX PS1 E1 0000000 0000000 0000000
-3 O.O.XXX NPO PS0 E2 0000000 0000000 2020111
-2 OOO.XXX NPX PS0 E2 0000000 0000000 2020111
-2 OOO.XXX NPO PS1 E2 0000000 0000000 2020111
-4 OOOO... NPX PS0 E2 0000000 0000000 2020111
-3 OOOO..X NPO PS0 E2 0000000 0000000 2020111
-2 OOOO.O. NPX PS0 E2 0000000 0000000 2020111
-5 ....XO. NPO PS0 E2 0000000 0000000 2020111
-4 ...O.O. NPX PS0 E2 0000000 0000000 2020111
-5 X..O.O. NPO PS0 E2 0000000 0000000 2020111
-4 X..O.OO NPX PS0 E2 0000000 0000000 2020111
-5 X..OX.. NPO PS0 E2 0000000 0000000 2020111
-4 X..OX.O NPX PS0 E2 0000000 0000000 2020111
-3 XX.OX.O NPO PS0 E2 0000000 0000000 2020111
-4 ..OOX.O NPX PS0 E2 0000000 0000000 2020111
-4 ..OOXX. NPO PS0 E2 0000000 0000000 2020111
-5 ..OO..O NPX PS0 E2 0000000 0000000 2020111
-4 ..OOX.O NPO PS0 E2 0000000 0000000 2020111
-3 O.OOX.O NPX PS0 E2 0000000 0000000 2020111
-2 O.OOXX. NPO PS0 E2 0000000 0000000 2020111
-4 O.OO..O NPX PS0 E2 0000000 0000000 2020111
-2 O.OOX.O NPO PS0 E2 0000000 0000000 2020111
-3 O.OO.OO NPX PS0 E2 0000000 0000000 2020111
-2 .XOO.OO NPO PS0 E2 0000000 1000000 2020111
-2 .XOO.OO NPX PS0 E2 0000000 0000000 2020111
-2 .XOO.OO NPO PS1 E2 0000000 0000000 2020111
-3 O.OO.OO NPX PS0 E2 0100000 0000000 2020111
-3 O.OO.OO NPO PS0 E2 0000000 0000000 2020111
-2 OOOO.OO NPX PS0 E2 0000000 0000000 2020111
-7 ....X.. NPO PS0 E2 0000000 0000000 2020111
-6 ....X.O NPX PS0 E2 0000000 0000000 2020111
-4 ...XX.O NPO PS0 E2 0000000 0000000 2020111
-4 O..XX.O NPX PS0 E2 0000000 0000000 2020111
-3 O..XXX. NPO PS0 E2 0000000 0000000 2020111
-3 OO.XXX. NPX PS0 E2 0000000 0000000 2020111
-2 OO.XXXX NPO PS0 E2 0000000 0000000 2020111
-5 OOO.... NPX PS0 E2 0000000 0000000 2020111
-3 OOO.X.. NPO PS0 E2 0000000 0000000 2020111
-3 OOO.X.O NPX PS0 E2 0000000 0000000 2020111
-1 OOO.XX. NPO PS0 E2 0000000 0000000 2020111
-3 OOO.XX. NPX PS1 E2 0000000 0000000 2020111
-2 OOO.XXX NPO PS0 E2 0000000 0000000 2020111
-2 OOO.XXX NPX PS1 E2 0000000 0000000 2020111
-4 ...XXXX NPO PS0 E2 0000000 0000000 2020111
-1 .O.XXXX NPX PS0 E2 0000000 0000000 2020111
-3 .O.XXXX NPO PS1 E2 0000000 0000000 2020111
-5 .OO.... NPX PS0 E2 0000000 0000000 2020111
-4 .OOX... NPO PS0 E2 0000000 0000000 2020111
-3 .OO.O.. NPX PS0 E2 0000000 0000000 2020111
-4 .OO.O.X NPO PS0 E2 0000000 0000000 2020111
-1 .OOOO.X NPX PS0 E2 0000000 0000000 2020111
-3 .OOOO.X NPO PS1 E2 0000000 0000000 2020111
-1 .OOOOO. NPX PS0 E2 0000000 0000000 2020111
-3 .OOOOO. NPO PS1 E2 0000000 0000000 2020111
-2 OOOOOO. NPX PS0 E2 0000000 0000000 2020111
-1 OOOOOO. NPO PS1 E2 0000000 0000000 2020111
-2 OOOOOO. NPX PS2 E2 0000000 0000000 2020111
+3 .O.OX.O NPX PS0 E0  0000000 0000000
+1 .OX.X.O NPO PS0 E0  0000000 0000000
+4 .OX.X.O NPX PS1 E0  0000000 0000000
+2 .OXXX.O NPO PS0 E0  0000000 0000000
+4 .O...OO NPX PS0 E0  0000000 0000000
+6 .O..X.. NPO PS0 E0  0000000 0000000
+4 .O..XO. NPX PS0 E0  0000000 0000000
+3 .O.XXO. NPO PS0 E0  0000000 0000000
+2 .O.XXO. NPX PS1 E0  0000000 0000000
+3 .O.XX.X NPO PS0 E0  0000000 0000000
+3 OO.XX.X NPX PS0 E0  0000000 0000000
+4 ..XXX.X NPO PS0 E0  0000000 0000000
+3 ..XXXO. NPX PS0 E0  0000000 0000000
+2 .XXXXO. NPO PS0 E0  0000000 0000000
+2 .XXXXO. NPX PS1 E0  0000000 0000000
+1 .XXXX.X NPO PS0 E0  0000000 0000000
+3 .XXXX.X NPX PS1 E0  0000000 0000000
+2 .XXXXXX NPO PS0 E0  0000000 0000000
+7 O...... NPX PS0 E0  0000000 0000000
+5 O....X. NPO PS0 E0  0000000 0000000
+5 O..O.X. NPX PS0 E0  0000000 0000000
+3 .X.O.X. NPO PS0 E0  0000000 0000000
+3 .X.OOX. NPX PS0 E0  0000000 0000000
+3 XX.OOX. NPO PS0 E0  0000000 0000000
+3 ..OOOX. NPX PS0 E0  0000000 0000000
+3 X.OOOX. NPO PS0 E0  0000000 0000000
+1 X.OOO.O NPX PS0 E0  0000000 0000000
+3 X.OOO.O NPO PS1 E0  0000000 0000000
+2 X.OOOOO NPX PS0 E0  0000000 0000000
+2 X.OOOOO NPO PS1 E0  0000000 0000000
+2 .OOOOOO NPX PS0 E0  0000000 0000000
+1 .OOOOOO NPO PS1 E0  0000000 0000000
+2 .OOOOOO NPX PS0 E1  0000000 0000000
+7 X...... NPO PS0 E1  0000000 0000000
+6 X..O... NPX PS0 E1  0000000 0000000
+5 XX.O... NPO PS0 E1  0000000 0000000
+1 XX.O.O. NPX PS0 E1  0000000 0000000
+4 XX.O.O. NPO PS1 E1  0000000 0000000
+3 ..OO.O. NPX PS0 E1  0000000 0000000
+4 .XOO.O. NPO PS0 E1  0000000 0000000
+2 O.OO.O. NPX PS0 E1  1000000 0000000
+4 O.OO.O. NPO PS0 E1  0000000 0000000
+2 OOOO.O. NPX PS0 E1  0000000 0000000
+5 ....XO. NPO PS0 E1  0000000 0000000
+4 ..O.XO. NPX PS0 E1  0000000 0000000
+5 ..O.X.X NPO PS0 E1  0000001 0000000
+4 O.O.X.X NPX PS0 E1  0000001 0000000
+3 O.O.XXX NPO PS0 E1  0000001 0000000
+2 O.O.XXX NPX PS1 E1  0000001 0000000
+3 O.O.XXX NPO PS0 E2  0000000 2020111
+2 OOO.XXX NPX PS0 E2  0000000 2020111
+2 OOO.XXX NPO PS1 E2  0000000 2020111
+4 OOOO... NPX PS0 E2  0000000 2020111
+3 OOOO..X NPO PS0 E2  0000000 2020111
+2 OOOO.O. NPX PS0 E2  0000000 2020111
+5 ....XO. NPO PS0 E2  0000000 2020111
+4 ...O.O. NPX PS0 E2  0000000 2020111
+5 X..O.O. NPO PS0 E2  0000000 2020111
+4 X..O.OO NPX PS0 E2  0000000 2020111
+5 X..OX.. NPO PS0 E2  0000000 2020111
+4 X..OX.O NPX PS0 E2  0000000 2020111
+3 XX.OX.O NPO PS0 E2  0000000 2020111
+4 ..OOX.O NPX PS0 E2  0000000 2020111
+4 ..OOXX. NPO PS0 E2  0000000 2020111
+5 ..OO..O NPX PS0 E2  0000000 2020111
+4 ..OOX.O NPO PS0 E2  0000000 2020111
+3 O.OOX.O NPX PS0 E2  0000000 2020111
+2 O.OOXX. NPO PS0 E2  0000000 2020111
+4 O.OO..O NPX PS0 E2  0000000 2020111
+2 O.OOX.O NPO PS0 E2  0000000 2020111
+3 O.OO.OO NPX PS0 E2  0000000 2020111
+2 .XOO.OO NPO PS0 E2  0100000 2020111
+2 .XOO.OO NPX PS0 E2  0000000 2020111
+2 .XOO.OO NPO PS1 E2  0000000 2020111
+3 O.OO.OO NPX PS0 E2  1000000 2020111
+3 O.OO.OO NPO PS0 E2  0000000 2020111
+2 OOOO.OO NPX PS0 E2  0000000 2020111
+7 ....X.. NPO PS0 E2  0000000 2020111
+6 ....X.O NPX PS0 E2  0000000 2020111
+4 ...XX.O NPO PS0 E2  0000000 2020111
+4 O..XX.O NPX PS0 E2  0000000 2020111
+3 O..XXX. NPO PS0 E2  0000000 2020111
+3 OO.XXX. NPX PS0 E2  0000000 2020111
+2 OO.XXXX NPO PS0 E2  0000000 2020111
+5 OOO.... NPX PS0 E2  0000000 2020111
+3 OOO.X.. NPO PS0 E2  0000000 2020111
+3 OOO.X.O NPX PS0 E2  0000000 2020111
+1 OOO.XX. NPO PS0 E2  0000000 2020111
+3 OOO.XX. NPX PS1 E2  0000000 2020111
+2 OOO.XXX NPO PS0 E2  0000000 2020111
+2 OOO.XXX NPX PS1 E2  0000000 2020111
+4 ...XXXX NPO PS0 E2  0000000 2020111
+1 .O.XXXX NPX PS0 E2  0000000 2020111
+3 .O.XXXX NPO PS1 E2  0000000 2020111
+5 .OO.... NPX PS0 E2  0000000 2020111
+4 .OOX... NPO PS0 E2  0000000 2020111
+3 .OO.O.. NPX PS0 E2  0000000 2020111
+4 .OO.O.X NPO PS0 E2  0000000 2020111
+1 .OOOO.X NPX PS0 E2  0000000 2020111
+3 .OOOO.X NPO PS1 E2  0000000 2020111
+1 .OOOOO. NPX PS0 E2  0000000 2020111
+3 .OOOOO. NPO PS1 E2  0000000 2020111
+2 OOOOOO. NPX PS0 E2  0000000 2020111
+1 OOOOOO. NPO PS1 E2  0000000 2020111
+2 OOOOOO. NPX PS2 E2  0000000 2020111
 White bonus score -1
 Winner: White
 W-B Score: 1.5
@@ -2782,35 +2837,35 @@ isResignation: 0
     rules.taxRule = Rules::TAX_SEKI;
     stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0),P_BLACK,true);
     expected = R"%%(
-5 .... NPX PS0 E0 0000 0000 0000
-4 X... NPO PS0 E0 0000 0000 0000
-1 X.O. NPX PS0 E0 0000 0000 0000
-3 X.O. NPO PS1 E0 0000 0000 0000
-2 X.OO NPX PS0 E0 0000 0000 0000
-3 XX.. NPO PS0 E0 0000 0000 0000
-3 XX.. NPX PS1 E0 0000 0000 0000
-3 XX.. NPO PS0 E1 0000 0000 0000
-2 XX.O NPX PS0 E1 0000 0000 0000
-2 XXX. NPO PS0 E1 0000 0000 0000
-4 ...O NPX PS0 E1 0000 0000 0000
-3 X..O NPO PS0 E1 0000 0000 0000
-2 X.OO NPX PS0 E1 0000 0000 0000
-3 XX.. NPO PS0 E1 0000 0000 0000
-3 ..O. NPX PS0 E1 0000 0000 0000
-2 .XO. NPO PS0 E1 0000 0000 0000
-2 O.O. NPX PS0 E1 0100 0000 0000
-3 O.O. NPO PS0 E1 0000 0000 0000
-2 OOO. NPX PS0 E1 0000 0000 0000
-4 ...X NPO PS0 E1 0000 0000 0000
-3 ..O. NPX PS0 E1 0000 0000 0000
-3 X.O. NPO PS0 E1 0000 0000 0000
-1 .OO. NPX PS0 E1 0000 0000 0000
-3 .OO. NPO PS1 E1 0000 0000 0000
-2 OOO. NPX PS0 E1 0000 0000 0000
-1 OOO. NPO PS1 E1 0000 0000 0000
-2 OOO. NPX PS0 E2 0000 0000 2220
-1 OOO. NPO PS1 E2 0000 0000 2220
-2 OOO. NPX PS2 E2 0000 0000 2220
+5 .... NPX PS0 E0  0000 0000
+4 X... NPO PS0 E0  0000 0000
+1 X.O. NPX PS0 E0  0000 0000
+3 X.O. NPO PS1 E0  0000 0000
+2 X.OO NPX PS0 E0  0000 0000
+3 XX.. NPO PS0 E0  0000 0000
+3 XX.. NPX PS1 E0  0000 0000
+3 XX.. NPO PS0 E1  0000 0000
+2 XX.O NPX PS0 E1  0000 0000
+2 XXX. NPO PS0 E1  0000 0000
+4 ...O NPX PS0 E1  0000 0000
+3 X..O NPO PS0 E1  0000 0000
+2 X.OO NPX PS0 E1  0000 0000
+3 XX.. NPO PS0 E1  0000 0000
+3 ..O. NPX PS0 E1  0000 0000
+2 .XO. NPO PS0 E1  0000 0000
+2 O.O. NPX PS0 E1  1000 0000
+3 O.O. NPO PS0 E1  0000 0000
+2 OOO. NPX PS0 E1  0000 0000
+4 ...X NPO PS0 E1  0000 0000
+3 ..O. NPX PS0 E1  0000 0000
+3 X.O. NPO PS0 E1  0000 0000
+1 .OO. NPX PS0 E1  0000 0000
+3 .OO. NPO PS1 E1  0000 0000
+2 OOO. NPX PS0 E1  0000 0000
+1 OOO. NPO PS1 E1  0000 0000
+2 OOO. NPX PS0 E2  0000 2220
+1 OOO. NPO PS1 E2  0000 2220
+2 OOO. NPX PS2 E2  0000 2220
 White bonus score -3
 Winner: White
 W-B Score: 0.5
@@ -2829,60 +2884,60 @@ isResignation: 0
     stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0),P_BLACK,true);
     expected = R"%%(
 
-5 .... NPX PS0 E0 0000 0000 0000
-4 X... NPO PS0 E0 0000 0000 0000
-3 .O.. NPX PS0 E0 0000 0000 0000
-3 .O.X NPO PS0 E0 0000 0000 0000
-2 OO.X NPX PS0 E0 0000 0000 0000
-2 ..XX NPO PS0 E0 0000 0000 0000
-2 O.XX NPX PS0 E0 0000 0000 0000
-2 O.XX NPO PS1 E0 0000 0000 0000
-3 OO.. NPX PS0 E0 0000 0000 0000
-3 ..X. NPO PS0 E0 0000 0000 0000
-2 O.X. NPX PS0 E0 0000 0000 0000
-1 .XX. NPO PS0 E0 0000 0000 0000
-3 .XX. NPX PS1 E0 0000 0000 0000
-2 .XXX NPO PS0 E0 0000 0000 0000
-4 O... NPX PS0 E0 0000 0000 0000
-2 O..X NPO PS0 E0 0000 0000 0000
-2 O.O. NPX PS0 E0 0000 0000 0000
-1 .XO. NPO PS0 E0 0000 0000 0000
-2 .XO. NPX PS1 E0 0000 0000 0000
-1 .X.X NPO PS0 E0 0000 0000 0000
-2 .X.X NPX PS1 E0 0000 0000 0000
-2 .X.X NPO PS0 E1 0000 0000 0000
-2 .XO. NPX PS0 E1 0001 0000 0000
-2 .XO. NPO PS0 E1 0000 0000 0000
-2 O.O. NPX PS0 E1 0100 0000 0000
-3 O.O. NPO PS1 E1 0100 0000 0000
-2 O.OO NPX PS0 E1 0000 0000 0000
-3 .X.. NPO PS0 E1 0000 0000 0000
-3 .X.O NPX PS0 E1 0000 0000 0000
-2 XX.O NPO PS0 E1 0000 0000 0000
-3 ..OO NPX PS0 E1 0000 0000 0000
-2 X.OO NPO PS0 E1 0000 0000 0000
-2 .OOO NPX PS0 E1 0000 0000 0000
-4 X... NPO PS0 E1 0000 0000 0000
-1 X.O. NPX PS0 E1 0000 0000 0000
-3 X.O. NPO PS1 E1 0000 0000 0000
-1 .OO. NPX PS0 E1 0000 0000 0000
-3 .OO. NPO PS1 E1 0000 0000 0000
-2 .OOO NPX PS0 E1 0000 0000 0000
-4 X... NPO PS0 E1 0000 0000 0000
-3 X..O NPX PS0 E1 0000 0000 0000
-3 X..O NPO PS1 E1 0000 0000 0000
-2 X.OO NPX PS0 E1 0000 0000 0000
-3 XX.. NPO PS0 E1 0000 0000 0000
-3 ..O. NPX PS0 E1 0000 0000 0000
-1 .XO. NPO PS0 E1 0000 0000 0000
-2 .XO. NPX PS1 E1 0000 0000 0000
-2 .X.X NPO PS0 E1 0000 0010 0000
-3 .X.X NPX PS0 E1 0000 0000 0000
-2 XX.X NPO PS0 E1 0000 0000 0000
-1 XX.X NPX PS1 E1 0000 0000 0000
-2 XX.X NPO PS0 E2 0000 0000 1101
-1 XX.X NPX PS1 E2 0000 0000 1101
-2 XX.X NPO PS2 E2 0000 0000 1101
+5 .... NPX PS0 E0  0000 0000
+4 X... NPO PS0 E0  0000 0000
+3 .O.. NPX PS0 E0  0000 0000
+3 .O.X NPO PS0 E0  0000 0000
+2 OO.X NPX PS0 E0  0000 0000
+2 ..XX NPO PS0 E0  0000 0000
+2 O.XX NPX PS0 E0  0000 0000
+2 O.XX NPO PS1 E0  0000 0000
+3 OO.. NPX PS0 E0  0000 0000
+3 ..X. NPO PS0 E0  0000 0000
+2 O.X. NPX PS0 E0  0000 0000
+1 .XX. NPO PS0 E0  0000 0000
+3 .XX. NPX PS1 E0  0000 0000
+2 .XXX NPO PS0 E0  0000 0000
+4 O... NPX PS0 E0  0000 0000
+2 O..X NPO PS0 E0  0000 0000
+2 O.O. NPX PS0 E0  0000 0000
+1 .XO. NPO PS0 E0  0000 0000
+2 .XO. NPX PS1 E0  0000 0000
+1 .X.X NPO PS0 E0  0000 0000
+2 .X.X NPX PS1 E0  0000 0000
+2 .X.X NPO PS0 E1  0000 0000
+2 .XO. NPX PS0 E1  0010 0000
+2 .XO. NPO PS0 E1  0000 0000
+2 O.O. NPX PS0 E1  1000 0000
+3 O.O. NPO PS1 E1  1000 0000
+2 O.OO NPX PS0 E1  1000 0000
+3 .X.. NPO PS0 E1  0000 0000
+3 .X.O NPX PS0 E1  0000 0000
+2 XX.O NPO PS0 E1  0000 0000
+3 ..OO NPX PS0 E1  0000 0000
+2 X.OO NPO PS0 E1  0000 0000
+2 .OOO NPX PS0 E1  0000 0000
+4 X... NPO PS0 E1  0000 0000
+1 X.O. NPX PS0 E1  0000 0000
+3 X.O. NPO PS1 E1  0000 0000
+1 .OO. NPX PS0 E1  0000 0000
+3 .OO. NPO PS1 E1  0000 0000
+2 .OOO NPX PS0 E1  0000 0000
+4 X... NPO PS0 E1  0000 0000
+3 X..O NPX PS0 E1  0000 0000
+3 X..O NPO PS1 E1  0000 0000
+2 X.OO NPX PS0 E1  0000 0000
+3 XX.. NPO PS0 E1  0000 0000
+3 ..O. NPX PS0 E1  0000 0000
+1 .XO. NPO PS0 E1  0000 0000
+2 .XO. NPX PS1 E1  0000 0000
+2 .X.X NPO PS0 E1  0001 0000
+3 .X.X NPX PS0 E1  0000 0000
+2 XX.X NPO PS0 E1  0000 0000
+1 XX.X NPX PS1 E1  0000 0000
+2 XX.X NPO PS0 E2  0000 1101
+1 XX.X NPX PS1 E2  0000 1101
+2 XX.X NPO PS2 E2  0000 1101
 White bonus score -1
 Winner: Black
 W-B Score: -3.5
@@ -2902,43 +2957,43 @@ isResignation: 0
     stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0),P_BLACK,true);
 
     expected = R"%%(
-5 .... NPX PS0 E0 0000 0000 0000
-4 ...X NPO PS0 E0 0000 0000 0000
-3 ..O. NPX PS0 E0 0000 0000 0000
-2 .XO. NPO PS0 E0 0000 0000 0000
-1 O.O. NPX PS0 E0 0000 0000 0000
-3 O.O. NPO PS1 E0 0000 0000 0000
-2 O.OO NPX PS0 E0 0000 0000 0000
-3 .X.. NPO PS0 E0 0000 0000 0000
-2 .XO. NPX PS0 E0 0000 0000 0000
-1 .X.X NPO PS0 E0 0000 0000 0000
-3 .X.X NPX PS1 E0 0000 0000 0000
-2 .XXX NPO PS0 E0 0000 0000 0000
-4 O... NPX PS0 E0 0000 0000 0000
-4 O... NPO PS1 E0 0000 0000 0000
-3 OO.. NPX PS0 E0 0000 0000 0000
-3 ..X. NPO PS0 E0 0000 0000 0000
-2 .OX. NPX PS0 E0 0000 0000 0000
-1 X.X. NPO PS0 E0 0000 0000 0000
-3 X.X. NPX PS1 E0 0000 0000 0000
-2 X.XX NPO PS0 E0 0000 0000 0000
-3 .O.. NPX PS0 E0 0000 0000 0000
-3 .O.X NPO PS0 E0 0000 0000 0000
-1 .OO. NPX PS0 E0 0000 0000 0000
-3 .OO. NPO PS1 E0 0000 0000 0000
-2 OOO. NPX PS0 E0 0000 0000 0000
-4 ...X NPO PS0 E0 0000 0000 0000
-3 O..X NPX PS0 E0 0000 0000 0000
-2 O.XX NPO PS0 E0 0000 0000 0000
-3 OO.. NPX PS0 E0 0000 0000 0000
-2 OO.X NPO PS0 E0 0000 0000 0000
-2 OO.X NPX PS1 E0 0000 0000 0000
-3 ..XX NPO PS0 E0 0000 0000 0000
-2 O.XX NPX PS0 E0 0000 0000 0000
-2 O.XX NPO PS1 E0 0000 0000 0000
-3 OO.. NPX PS0 E0 0000 0000 0000
-2 OO.X NPO PS0 E0 0000 0000 0000
-2 OO.X NPX PS1 E0 0000 0000 0000
+5 .... NPX PS0 E0  0000 0000
+4 ...X NPO PS0 E0  0000 0000
+3 ..O. NPX PS0 E0  0000 0000
+2 .XO. NPO PS0 E0  0000 0000
+1 O.O. NPX PS0 E0  0000 0000
+3 O.O. NPO PS1 E0  0000 0000
+2 O.OO NPX PS0 E0  0000 0000
+3 .X.. NPO PS0 E0  0000 0000
+2 .XO. NPX PS0 E0  0000 0000
+1 .X.X NPO PS0 E0  0000 0000
+3 .X.X NPX PS1 E0  0000 0000
+2 .XXX NPO PS0 E0  0000 0000
+4 O... NPX PS0 E0  0000 0000
+4 O... NPO PS1 E0  0000 0000
+3 OO.. NPX PS0 E0  0000 0000
+3 ..X. NPO PS0 E0  0000 0000
+2 .OX. NPX PS0 E0  0000 0000
+1 X.X. NPO PS0 E0  0000 0000
+3 X.X. NPX PS1 E0  0000 0000
+2 X.XX NPO PS0 E0  0000 0000
+3 .O.. NPX PS0 E0  0000 0000
+3 .O.X NPO PS0 E0  0000 0000
+1 .OO. NPX PS0 E0  0000 0000
+3 .OO. NPO PS1 E0  0000 0000
+2 OOO. NPX PS0 E0  0000 0000
+4 ...X NPO PS0 E0  0000 0000
+3 O..X NPX PS0 E0  0000 0000
+2 O.XX NPO PS0 E0  0000 0000
+3 OO.. NPX PS0 E0  0000 0000
+2 OO.X NPO PS0 E0  0000 0000
+2 OO.X NPX PS1 E0  0000 0000
+3 ..XX NPO PS0 E0  0000 0000
+2 O.XX NPX PS0 E0  0000 0000
+2 O.XX NPO PS1 E0  0000 0000
+3 OO.. NPX PS0 E0  0000 0000
+2 OO.X NPO PS0 E0  0000 0000
+2 OO.X NPX PS1 E0  0000 0000
 White bonus score 0
 Winner: White
 W-B Score: 1.5
@@ -2956,19 +3011,19 @@ isResignation: 0
     rules.taxRule = Rules::TAX_NONE;
     stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0),P_BLACK,true);
     expected = R"%%(
-5 .... NPX PS0 E0 0000 0000 0000
-4 ...X NPO PS0 E0 0000 0000 0000
-1 .O.X NPX PS0 E0 0000 0000 0000
-3 .O.X NPO PS1 E0 0000 0000 0000
-2 OO.X NPX PS0 E0 0000 0000 0000
-3 ..XX NPO PS0 E0 0000 0000 0000
-2 .O.. NPX PS0 E0 0000 0000 0000
-4 .O.. NPO PS1 E0 0000 0000 0000
-2 OO.. NPX PS0 E0 0000 0000 0000
-3 OO.. NPO PS1 E0 0000 0000 0000
-1 OOO. NPX PS0 E0 0000 0000 0000
-1 OOO. NPO PS1 E0 0000 0000 0000
-1 OOO. NPX PS2 E0 0000 0000 0000
+5 .... NPX PS0 E0  0000 0000
+4 ...X NPO PS0 E0  0000 0000
+1 .O.X NPX PS0 E0  0000 0000
+3 .O.X NPO PS1 E0  0000 0000
+2 OO.X NPX PS0 E0  0000 0000
+3 ..XX NPO PS0 E0  0000 0000
+2 .O.. NPX PS0 E0  0000 0000
+4 .O.. NPO PS1 E0  0000 0000
+2 OO.. NPX PS0 E0  0000 0000
+3 OO.. NPO PS1 E0  0000 0000
+1 OOO. NPX PS0 E0  0000 0000
+1 OOO. NPO PS1 E0  0000 0000
+1 OOO. NPX PS2 E0  0000 0000
 White bonus score 0
 Winner: White
 W-B Score: 4.5
@@ -2986,15 +3041,15 @@ isResignation: 0
     rules.taxRule = Rules::TAX_NONE;
     stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0),P_BLACK,true);
     expected = R"%%(
-5 .... NPX PS0 E0 0000 0000 0000
-4 X... NPO PS0 E0 0000 0000 0000
-3 .O.. NPX PS0 E0 0000 0000 0000
-3 .O.X NPO PS0 E0 0000 0000 0000
-1 .OO. NPX PS0 E0 0000 0000 0000
-3 .OO. NPO PS1 E0 0000 0000 0000
-1 .OOO NPX PS0 E0 0000 0000 0000
-1 .OOO NPO PS1 E0 0000 0000 0000
-1 .OOO NPX PS2 E0 0000 0000 0000
+5 .... NPX PS0 E0  0000 0000
+4 X... NPO PS0 E0  0000 0000
+3 .O.. NPX PS0 E0  0000 0000
+3 .O.X NPO PS0 E0  0000 0000
+1 .OO. NPX PS0 E0  0000 0000
+3 .OO. NPO PS1 E0  0000 0000
+1 .OOO NPX PS0 E0  0000 0000
+1 .OOO NPO PS1 E0  0000 0000
+1 .OOO NPX PS2 E0  0000 0000
 White bonus score 0
 Winner: White
 W-B Score: 4.5
@@ -3014,22 +3069,22 @@ isResignation: 0
     baseRand.init("123");
     stressTest(koBoard71,BoardHistory(koBoard71,P_BLACK,rules,0),P_BLACK,false);
     expected = R"%%(
-3 .O.OX.O NPX PS0 E0 0000000 0000000 0000000
-1 .OX.X.O NPO PS0 E0 0000000 0000000 0000000
-4 .OX.X.O NPX PS1 E0 0000000 0000000 0000000
-2 .OX.X.O NPO PS0 E1 0000000 0000000 0000000
-3 .O.OX.O NPX PS0 E1 0010000 0000000 0000000
-4 .O.OX.O NPO PS1 E1 0010000 0000000 0000000
-3 .OOOX.O NPX PS0 E1 0000000 0000000 0000000
-2 .OOOXX. NPO PS0 E1 0000000 0000000 0000000
-2 .OOOXX. NPX PS1 E1 0000000 0000000 0000000
-2 .OOOXX. NPO PS0 E2 0000000 0000000 0222110
-2 .OOOXX. NPX PS1 E2 0000000 0000000 0222110
-4 X...XX. NPO PS0 E2 0000000 0000000 0222110
-3 X.O.XX. NPX PS0 E2 0000000 0000000 0222110
-3 X.O.XXX NPO PS0 E2 0000000 0000000 0222110
-1 X.O.XXX NPX PS1 E2 0000000 0000000 0222110
-3 X.O.XXX NPO PS2 E2 0000000 0000000 0222110
+3 .O.OX.O NPX PS0 E0  0000000 0000000
+1 .OX.X.O NPO PS0 E0  0000000 0000000
+4 .OX.X.O NPX PS1 E0  0000000 0000000
+2 .OX.X.O NPO PS0 E1  0000000 0000000
+3 .O.OX.O NPX PS0 E1  0001000 0000000
+4 .O.OX.O NPO PS1 E1  0001000 0000000
+3 .OOOX.O NPX PS0 E1  0001000 0000000
+2 .OOOXX. NPO PS0 E1  0001000 0000000
+2 .OOOXX. NPX PS1 E1  0001000 0000000
+2 .OOOXX. NPO PS0 E2  0000000 0222110
+2 .OOOXX. NPX PS1 E2  0000000 0222110
+4 X...XX. NPO PS0 E2  0000000 0222110
+3 X.O.XX. NPX PS0 E2  0000000 0222110
+3 X.O.XXX NPO PS0 E2  0000000 0222110
+1 X.O.XXX NPX PS1 E2  0000000 0222110
+3 X.O.XXX NPO PS2 E2  0000000 0222110
 White bonus score -2
 Winner: Black
 W-B Score: -2.5
@@ -3084,15 +3139,11 @@ isResignation: 0
       out << hist.encorePhase << " " << hist2.encorePhase << endl;
 
       for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
-        testAssert(hist.blackKoProhibited[i] == false);
+        testAssert(hist.koRecapBlocked[i] == false);
       for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
-        testAssert(hist2.blackKoProhibited[i] == false);
-      for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
-        testAssert(hist.whiteKoProhibited[i] == false);
-      for(int i = 0; i<Board::MAX_ARR_SIZE; i++)
-        testAssert(hist2.whiteKoProhibited[i] == false);
+        testAssert(hist2.koRecapBlocked[i] == false);
 
-      out << hist.koProhibitHash << " " << hist2.koProhibitHash << endl;
+      out << hist.koRecapBlockHash << " " << hist2.koRecapBlockHash << endl;
       out << hist.koCapturesInEncore.size() << " " << hist2.koCapturesInEncore.size() << endl;
 
       for(int y = 0; y<board.y_size; y++)
@@ -3266,7 +3317,7 @@ Initial pla Black
 Encore phase 2
 Turns this phase 14
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui1komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 1
 Has button 0
 Presumed next pla Black

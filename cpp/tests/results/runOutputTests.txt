@@ -5403,18 +5403,18 @@ Selfkomi channel times 15: -0.5
 EncorePhase channel 10,11: 1 0
 PassWouldEndPhase channel 12: 0
 Channel: 7
+1 0 0 0 0 0  O2. O . X .
+0 0 0 0 0 0  X O . X . X
+0 0 0 0 0 1  . . . O X O4
+0 0 0 0 0 0  O X5. O O .
+0 0 0 0 0 0  O X . . . O
+1 0 0 0 0 0  X1. X . . .
+
+Channel: 8
 0 0 0 0 0 0  O2. O . X .
 0 0 0 0 0 0  X O . X . X
 0 0 0 0 0 0  . . . O X O4
 0 0 0 0 0 0  O X5. O O .
-0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X1. X . . .
-
-Channel: 8
-0 1 0 0 0 0  O2. O . X .
-0 0 0 0 0 0  X O . X . X
-0 0 0 0 0 0  . . . O X O4
-0 0 0 0 0 1  O X5. O O .
 0 0 0 0 0 0  O X . . . O
 0 0 0 0 0 0  X1. X . . .
 
@@ -5441,12 +5441,12 @@ Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 0
 PassWouldEndPhase channel 12: 0
 Channel: 7
-0 1 0 0 0 0  O1. O . X .
-0 0 0 0 0 0  X O . X O5X
-0 0 0 0 1 0  . . . O . O3
+1 0 0 0 0 0  O1. O . X .
+0 0 0 0 1 0  X O . X O5X
+0 0 0 0 0 1  . . . O . O3
 0 0 0 0 0 0  O X4. O O .
 0 0 0 0 0 0  O X . . . O
-0 0 0 0 0 0  X . X . . .
+1 0 0 0 0 0  X . X . . .
 
 Channel: 8
 0 0 0 0 0 0  O1. O . X .
@@ -5454,7 +5454,7 @@ Channel: 8
 0 0 0 0 0 0  . . . O . O3
 0 0 0 0 0 0  O X4. O O .
 0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X . X . . .
+0 0 0 0 0 0  X . X . . .
 
 Channel: 20
 0 0 0 0 0 0  O1. O . X .
@@ -5479,17 +5479,17 @@ Selfkomi channel times 15: -1.5
 EncorePhase channel 10,11: 1 0
 PassWouldEndPhase channel 12: 1
 Channel: 7
+1 0 0 0 0 0  O . O . X .
+0 0 0 0 1 0  X O . X O4X
+0 0 0 0 0 1  . . . O . O2
+0 0 0 0 0 0  O X3. O O .
+0 0 0 0 0 0  O X . . . O
+1 0 0 0 0 0  X . X . . .
+
+Channel: 8
 0 0 0 0 0 0  O . O . X .
 0 0 0 0 0 0  X O . X O4X
 0 0 0 0 0 0  . . . O . O2
-0 0 0 0 0 0  O X3. O O .
-0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X . X . . .
-
-Channel: 8
-0 1 0 0 0 0  O . O . X .
-0 0 0 0 0 0  X O . X O4X
-0 0 0 0 1 0  . . . O . O2
 0 0 0 0 0 0  O X3. O O .
 0 0 0 0 0 0  O X . . . O
 0 0 0 0 0 0  X . X . . .
@@ -5518,11 +5518,11 @@ EncorePhase channel 10,11: 1 1
 PassWouldEndPhase channel 12: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
-0 0 0 0 1 0  X O . X . X
-0 0 0 0 0 0  X5. . O X3O
+0 0 0 0 0 0  X O . X . X
+0 0 0 0 1 0  X5. . O X3O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-0 0 0 0 0 0  . O4X . . .
+0 1 0 0 0 0  . O4X . . .
 
 Channel: 8
 0 0 0 0 0 0  O . O . X .
@@ -5530,7 +5530,7 @@ Channel: 8
 0 0 0 0 0 0  X5. . O X3O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-1 0 0 0 0 0  . O4X . . .
+0 0 0 0 0 0  . O4X . . .
 
 Channel: 20
 1 0 1 0 0 0  O . O . X .
@@ -5560,7 +5560,7 @@ Channel: 7
 0 0 0 0 0 0  X4. . O X2O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-1 0 0 0 0 0  . O3X . . .
+0 1 0 0 0 0  . O3X . . .
 
 Channel: 8
 0 0 0 0 0 0  O . O . X .
@@ -5632,8 +5632,8 @@ EncorePhase channel 10,11: 1 1
 PassWouldEndPhase channel 12: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
-0 0 0 0 0 0  X O . X O3X
-0 0 0 0 1 0  X2. . O . O
+0 0 0 0 1 0  X O . X O3X
+0 0 0 0 0 0  X2. . O . O
 0 0 0 0 0 0  . X . O O .
 0 0 0 0 0 0  . X . . . O
 0 0 0 0 0 0  X4.1X . . .
@@ -5671,18 +5671,18 @@ Selfkomi channel times 15: -0.5
 EncorePhase channel 10,11: 1 0
 PassWouldEndPhase channel 12: 0
 Channel: 7
+1 0 0 0 0 0  O2. O . X .
+0 0 0 0 0 0  X O . X . X
+0 0 0 0 0 1  . . . O X O4
+0 0 0 0 0 0  O X5. O O .
+0 0 0 0 0 0  O X . . . O
+1 0 0 0 0 0  X1. X . . .
+
+Channel: 8
 0 0 0 0 0 0  O2. O . X .
 0 0 0 0 0 0  X O . X . X
 0 0 0 0 0 0  . . . O X O4
 0 0 0 0 0 0  O X5. O O .
-0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X1. X . . .
-
-Channel: 8
-0 1 0 0 0 0  O2. O . X .
-0 0 0 0 0 0  X O . X . X
-0 0 0 0 0 0  . . . O X O4
-0 0 0 0 0 1  O X5. O O .
 0 0 0 0 0 0  O X . . . O
 0 0 0 0 0 0  X1. X . . .
 
@@ -5709,12 +5709,12 @@ Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 0
 PassWouldEndPhase channel 12: 0
 Channel: 7
-0 1 0 0 0 0  O1. O . X .
-0 0 0 0 0 0  X O . X O5X
-0 0 0 0 1 0  . . . O . O3
+1 0 0 0 0 0  O1. O . X .
+0 0 0 0 1 0  X O . X O5X
+0 0 0 0 0 1  . . . O . O3
 0 0 0 0 0 0  O X4. O O .
 0 0 0 0 0 0  O X . . . O
-0 0 0 0 0 0  X . X . . .
+1 0 0 0 0 0  X . X . . .
 
 Channel: 8
 0 0 0 0 0 0  O1. O . X .
@@ -5722,7 +5722,7 @@ Channel: 8
 0 0 0 0 0 0  . . . O . O3
 0 0 0 0 0 0  O X4. O O .
 0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X . X . . .
+0 0 0 0 0 0  X . X . . .
 
 Channel: 20
 0 0 0 0 0 0  O1. O . X .
@@ -5747,17 +5747,17 @@ Selfkomi channel times 15: -1.5
 EncorePhase channel 10,11: 1 0
 PassWouldEndPhase channel 12: 1
 Channel: 7
+1 0 0 0 0 0  O . O . X .
+0 0 0 0 1 0  X O . X O4X
+0 0 0 0 0 1  . . . O . O2
+0 0 0 0 0 0  O X3. O O .
+0 0 0 0 0 0  O X . . . O
+1 0 0 0 0 0  X . X . . .
+
+Channel: 8
 0 0 0 0 0 0  O . O . X .
 0 0 0 0 0 0  X O . X O4X
 0 0 0 0 0 0  . . . O . O2
-0 0 0 0 0 0  O X3. O O .
-0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X . X . . .
-
-Channel: 8
-0 1 0 0 0 0  O . O . X .
-0 0 0 0 0 0  X O . X O4X
-0 0 0 0 1 0  . . . O . O2
 0 0 0 0 0 0  O X3. O O .
 0 0 0 0 0 0  O X . . . O
 0 0 0 0 0 0  X . X . . .
@@ -5786,11 +5786,11 @@ EncorePhase channel 10,11: 1 1
 PassWouldEndPhase channel 12: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
-0 0 0 0 1 0  X O . X . X
-0 0 0 0 0 0  X5. . O X3O
+0 0 0 0 0 0  X O . X . X
+0 0 0 0 1 0  X5. . O X3O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-0 0 0 0 0 0  . O4X . . .
+0 1 0 0 0 0  . O4X . . .
 
 Channel: 8
 0 0 0 0 0 0  O . O . X .
@@ -5798,7 +5798,7 @@ Channel: 8
 0 0 0 0 0 0  X5. . O X3O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-1 0 0 0 0 0  . O4X . . .
+0 0 0 0 0 0  . O4X . . .
 
 Channel: 20
 1 0 1 0 0 0  O . O . X .
@@ -5828,7 +5828,7 @@ Channel: 7
 0 0 0 0 0 0  X4. . O X2O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-1 0 0 0 0 0  . O3X . . .
+0 1 0 0 0 0  . O3X . . .
 
 Channel: 8
 0 0 0 0 0 0  O . O . X .
@@ -5900,8 +5900,8 @@ EncorePhase channel 10,11: 1 1
 PassWouldEndPhase channel 12: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
-0 0 0 0 0 0  X O . X O3X
-0 0 0 0 1 0  X2. . O . O
+0 0 0 0 1 0  X O . X O3X
+0 0 0 0 0 0  X2. . O . O
 0 0 0 0 0 0  . X . O O .
 0 0 0 0 0 0  . X . . . O
 0 0 0 0 0 0  X4.1X . . .
@@ -5939,18 +5939,18 @@ Selfkomi channel times 15: -0.375
 EncorePhase channel 12,13: 1 0
 PassWouldEndPhase channel 14: 0
 Channel: 7
+1 0 0 0 0 0  O2. O . X .
+0 0 0 0 0 0  X O . X . X
+0 0 0 0 0 1  . . . O X O4
+0 0 0 0 0 0  O X5. O O .
+0 0 0 0 0 0  O X . . . O
+1 0 0 0 0 0  X1. X . . .
+
+Channel: 8
 0 0 0 0 0 0  O2. O . X .
 0 0 0 0 0 0  X O . X . X
 0 0 0 0 0 0  . . . O X O4
 0 0 0 0 0 0  O X5. O O .
-0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X1. X . . .
-
-Channel: 8
-0 1 0 0 0 0  O2. O . X .
-0 0 0 0 0 0  X O . X . X
-0 0 0 0 0 0  . . . O X O4
-0 0 0 0 0 1  O X5. O O .
 0 0 0 0 0 0  O X . . . O
 0 0 0 0 0 0  X1. X . . .
 
@@ -5977,12 +5977,12 @@ Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 0
 PassWouldEndPhase channel 14: 0
 Channel: 7
-0 1 0 0 0 0  O1. O . X .
-0 0 0 0 0 0  X O . X O5X
-0 0 0 0 1 0  . . . O . O3
+1 0 0 0 0 0  O1. O . X .
+0 0 0 0 1 0  X O . X O5X
+0 0 0 0 0 1  . . . O . O3
 0 0 0 0 0 0  O X4. O O .
 0 0 0 0 0 0  O X . . . O
-0 0 0 0 0 0  X . X . . .
+1 0 0 0 0 0  X . X . . .
 
 Channel: 8
 0 0 0 0 0 0  O1. O . X .
@@ -5990,7 +5990,7 @@ Channel: 8
 0 0 0 0 0 0  . . . O . O3
 0 0 0 0 0 0  O X4. O O .
 0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X . X . . .
+0 0 0 0 0 0  X . X . . .
 
 Channel: 20
 0 0 0 0 0 0  O1. O . X .
@@ -6015,17 +6015,17 @@ Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 0
 PassWouldEndPhase channel 14: 1
 Channel: 7
+1 0 0 0 0 0  O . O . X .
+0 0 0 0 1 0  X O . X O4X
+0 0 0 0 0 1  . . . O . O2
+0 0 0 0 0 0  O X3. O O .
+0 0 0 0 0 0  O X . . . O
+1 0 0 0 0 0  X . X . . .
+
+Channel: 8
 0 0 0 0 0 0  O . O . X .
 0 0 0 0 0 0  X O . X O4X
 0 0 0 0 0 0  . . . O . O2
-0 0 0 0 0 0  O X3. O O .
-0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X . X . . .
-
-Channel: 8
-0 1 0 0 0 0  O . O . X .
-0 0 0 0 0 0  X O . X O4X
-0 0 0 0 1 0  . . . O . O2
 0 0 0 0 0 0  O X3. O O .
 0 0 0 0 0 0  O X . . . O
 0 0 0 0 0 0  X . X . . .
@@ -6054,11 +6054,11 @@ EncorePhase channel 12,13: 1 1
 PassWouldEndPhase channel 14: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
-0 0 0 0 1 0  X O . X . X
-0 0 0 0 0 0  X5. . O X3O
+0 0 0 0 0 0  X O . X . X
+0 0 0 0 1 0  X5. . O X3O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-0 0 0 0 0 0  . O4X . . .
+0 1 0 0 0 0  . O4X . . .
 
 Channel: 8
 0 0 0 0 0 0  O . O . X .
@@ -6066,7 +6066,7 @@ Channel: 8
 0 0 0 0 0 0  X5. . O X3O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-1 0 0 0 0 0  . O4X . . .
+0 0 0 0 0 0  . O4X . . .
 
 Channel: 20
 1 0 1 0 0 0  O . O . X .
@@ -6096,7 +6096,7 @@ Channel: 7
 0 0 0 0 0 0  X4. . O X2O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-1 0 0 0 0 0  . O3X . . .
+0 1 0 0 0 0  . O3X . . .
 
 Channel: 8
 0 0 0 0 0 0  O . O . X .
@@ -6168,8 +6168,8 @@ EncorePhase channel 12,13: 1 1
 PassWouldEndPhase channel 14: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
-0 0 0 0 0 0  X O . X O3X
-0 0 0 0 1 0  X2. . O . O
+0 0 0 0 1 0  X O . X O3X
+0 0 0 0 0 0  X2. . O . O
 0 0 0 0 0 0  . X . O O .
 0 0 0 0 0 0  . X . . . O
 0 0 0 0 0 0  X4.1X . . .
@@ -6207,18 +6207,18 @@ Selfkomi channel times 15: -0.375
 EncorePhase channel 12,13: 1 0
 PassWouldEndPhase channel 14: 0
 Channel: 7
+1 0 0 0 0 0  O2. O . X .
+0 0 0 0 0 0  X O . X . X
+0 0 0 0 0 1  . . . O X O4
+0 0 0 0 0 0  O X5. O O .
+0 0 0 0 0 0  O X . . . O
+1 0 0 0 0 0  X1. X . . .
+
+Channel: 8
 0 0 0 0 0 0  O2. O . X .
 0 0 0 0 0 0  X O . X . X
 0 0 0 0 0 0  . . . O X O4
 0 0 0 0 0 0  O X5. O O .
-0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X1. X . . .
-
-Channel: 8
-0 1 0 0 0 0  O2. O . X .
-0 0 0 0 0 0  X O . X . X
-0 0 0 0 0 0  . . . O X O4
-0 0 0 0 0 1  O X5. O O .
 0 0 0 0 0 0  O X . . . O
 0 0 0 0 0 0  X1. X . . .
 
@@ -6245,12 +6245,12 @@ Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 0
 PassWouldEndPhase channel 14: 0
 Channel: 7
-0 1 0 0 0 0  O1. O . X .
-0 0 0 0 0 0  X O . X O5X
-0 0 0 0 1 0  . . . O . O3
+1 0 0 0 0 0  O1. O . X .
+0 0 0 0 1 0  X O . X O5X
+0 0 0 0 0 1  . . . O . O3
 0 0 0 0 0 0  O X4. O O .
 0 0 0 0 0 0  O X . . . O
-0 0 0 0 0 0  X . X . . .
+1 0 0 0 0 0  X . X . . .
 
 Channel: 8
 0 0 0 0 0 0  O1. O . X .
@@ -6258,7 +6258,7 @@ Channel: 8
 0 0 0 0 0 0  . . . O . O3
 0 0 0 0 0 0  O X4. O O .
 0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X . X . . .
+0 0 0 0 0 0  X . X . . .
 
 Channel: 20
 0 0 0 0 0 0  O1. O . X .
@@ -6283,17 +6283,17 @@ Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 0
 PassWouldEndPhase channel 14: 1
 Channel: 7
+1 0 0 0 0 0  O . O . X .
+0 0 0 0 1 0  X O . X O4X
+0 0 0 0 0 1  . . . O . O2
+0 0 0 0 0 0  O X3. O O .
+0 0 0 0 0 0  O X . . . O
+1 0 0 0 0 0  X . X . . .
+
+Channel: 8
 0 0 0 0 0 0  O . O . X .
 0 0 0 0 0 0  X O . X O4X
 0 0 0 0 0 0  . . . O . O2
-0 0 0 0 0 0  O X3. O O .
-0 0 0 0 0 0  O X . . . O
-0 1 0 0 0 0  X . X . . .
-
-Channel: 8
-0 1 0 0 0 0  O . O . X .
-0 0 0 0 0 0  X O . X O4X
-0 0 0 0 1 0  . . . O . O2
 0 0 0 0 0 0  O X3. O O .
 0 0 0 0 0 0  O X . . . O
 0 0 0 0 0 0  X . X . . .
@@ -6322,11 +6322,11 @@ EncorePhase channel 12,13: 1 1
 PassWouldEndPhase channel 14: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
-0 0 0 0 1 0  X O . X . X
-0 0 0 0 0 0  X5. . O X3O
+0 0 0 0 0 0  X O . X . X
+0 0 0 0 1 0  X5. . O X3O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-0 0 0 0 0 0  . O4X . . .
+0 1 0 0 0 0  . O4X . . .
 
 Channel: 8
 0 0 0 0 0 0  O . O . X .
@@ -6334,7 +6334,7 @@ Channel: 8
 0 0 0 0 0 0  X5. . O X3O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-1 0 0 0 0 0  . O4X . . .
+0 0 0 0 0 0  . O4X . . .
 
 Channel: 20
 1 0 1 0 0 0  O . O . X .
@@ -6364,7 +6364,7 @@ Channel: 7
 0 0 0 0 0 0  X4. . O X2O
 0 0 0 0 0 0  O X . O O .
 0 0 0 0 0 0  O X . . . O
-1 0 0 0 0 0  . O3X . . .
+0 1 0 0 0 0  . O3X . . .
 
 Channel: 8
 0 0 0 0 0 0  O . O . X .
@@ -6436,8 +6436,8 @@ EncorePhase channel 12,13: 1 1
 PassWouldEndPhase channel 14: 0
 Channel: 7
 0 0 0 0 0 0  O . O . X .
-0 0 0 0 0 0  X O . X O3X
-0 0 0 0 1 0  X2. . O . O
+0 0 0 0 1 0  X O . X O3X
+0 0 0 0 0 0  X2. . O . O
 0 0 0 0 0 0  . X . O O .
 0 0 0 0 0 0  . X . . . O
 0 0 0 0 0 0  X4.1X . . .
@@ -12284,7 +12284,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black
@@ -12328,7 +12328,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
@@ -12381,7 +12381,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 14
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black
@@ -12450,7 +12450,7 @@ Initial pla Black
 Encore phase 2
 Turns this phase 3
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score -3
 Has button 0
 Presumed next pla Black
@@ -12555,7 +12555,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 39
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
@@ -12660,7 +12660,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 36
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black
@@ -12761,7 +12761,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 41
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
@@ -12872,7 +12872,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 35
 Rules koPOSITIONALscoreAREAtaxALLsui1komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
@@ -12965,7 +12965,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 29
 Rules koPOSITIONALscoreAREAtaxALLsui1komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
@@ -13058,7 +13058,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 30
 Rules koPOSITIONALscoreAREAtaxALLsui1komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black
@@ -13143,7 +13143,7 @@ Initial pla Black
 Encore phase 2
 Turns this phase 32
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black

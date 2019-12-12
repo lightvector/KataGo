@@ -473,6 +473,32 @@ bool Board::wouldBeKoCapture(Loc loc, Player pla) const {
   return true;
 }
 
+Loc Board::getKoCaptureLoc(Loc loc, Player pla) const {
+  if(colors[loc] != C_EMPTY)
+    return NULL_LOC;
+  //Check that surounding points are are all opponent owned and exactly one of them is capturable
+  Player opp = getOpp(pla);
+  Loc oppCapturableLoc = NULL_LOC;
+  for(int i = 0; i < 4; i++)
+  {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] != C_WALL && colors[adj] != opp)
+      return NULL_LOC;
+    if(colors[adj] == opp && getNumLiberties(adj) == 1) {
+      if(oppCapturableLoc != NULL_LOC)
+        return NULL_LOC;
+      oppCapturableLoc = adj;
+    }
+  }
+  if(oppCapturableLoc == NULL_LOC)
+    return NULL_LOC;
+
+  //Check that the capturable loc has exactly one stone
+  if(chain_data[chain_head[oppCapturableLoc]].num_locs != 1)
+    return NULL_LOC;
+  return oppCapturableLoc;
+}
+
 bool Board::isAdjacentToPla(Loc loc, Player pla) const {
   FOREACHADJ(
     Loc adj = loc + ADJOFFSET;

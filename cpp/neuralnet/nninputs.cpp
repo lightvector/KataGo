@@ -515,10 +515,8 @@ Hash128 NNInputs::getHash(
         Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc])
           hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
-        if(hist.blackKoProhibited[loc])
-          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK];
-        if(hist.whiteKoProhibited[loc])
-          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
+        if(hist.koRecapBlocked[loc])
+          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK] ^ Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
       }
     }
     if(hist.encorePhase == 2) {
@@ -654,10 +652,8 @@ void NNInputs::fillRowV3(
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.superKoBanned[loc])
           setRowBinV3(rowBin,pos,6, 1.0f, posStride, featureStride);
-        if((pla == P_BLACK && hist.blackKoProhibited[loc]) || (pla == P_WHITE && hist.whiteKoProhibited[loc]))
+        if(hist.koRecapBlocked[loc])
           setRowBinV3(rowBin,pos,7, 1.0f, posStride, featureStride);
-        if((pla == P_BLACK && hist.whiteKoProhibited[loc]) || (pla == P_WHITE && hist.blackKoProhibited[loc]))
-          setRowBinV3(rowBin,pos,8, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -997,10 +993,8 @@ void NNInputs::fillRowV4(
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.superKoBanned[loc])
           setRowBinV4(rowBin,pos,6, 1.0f, posStride, featureStride);
-        if((pla == P_BLACK && hist.blackKoProhibited[loc]) || (pla == P_WHITE && hist.whiteKoProhibited[loc]))
+        if(hist.koRecapBlocked[loc])
           setRowBinV4(rowBin,pos,7, 1.0f, posStride, featureStride);
-        if((pla == P_BLACK && hist.whiteKoProhibited[loc]) || (pla == P_WHITE && hist.blackKoProhibited[loc]))
-          setRowBinV4(rowBin,pos,8, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1322,10 +1316,8 @@ void NNInputs::fillRowV5(
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.superKoBanned[loc])
           setRowBinV5(rowBin,pos,3, 1.0f, posStride, featureStride);
-        if((pla == P_BLACK && hist.blackKoProhibited[loc]) || (pla == P_WHITE && hist.whiteKoProhibited[loc]))
+        if(hist.koRecapBlocked[loc])
           setRowBinV5(rowBin,pos,4, 1.0f, posStride, featureStride);
-        if((pla == P_BLACK && hist.whiteKoProhibited[loc]) || (pla == P_WHITE && hist.blackKoProhibited[loc]))
-          setRowBinV5(rowBin,pos,5, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1531,10 +1523,8 @@ void NNInputs::fillRowV6(
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.superKoBanned[loc])
           setRowBinV6(rowBin,pos,6, 1.0f, posStride, featureStride);
-        if((pla == P_BLACK && hist.blackKoProhibited[loc]) || (pla == P_WHITE && hist.whiteKoProhibited[loc]))
+        if(hist.koRecapBlocked[loc])
           setRowBinV6(rowBin,pos,7, 1.0f, posStride, featureStride);
-        if((pla == P_BLACK && hist.whiteKoProhibited[loc]) || (pla == P_WHITE && hist.blackKoProhibited[loc]))
-          setRowBinV6(rowBin,pos,8, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1928,10 +1918,8 @@ void NNInputs::fillRowV7(
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.superKoBanned[loc])
           setRowBinV7(rowBin,pos,6, 1.0f, posStride, featureStride);
-        if((pla == P_BLACK && hist.blackKoProhibited[loc]) || (pla == P_WHITE && hist.whiteKoProhibited[loc]))
+        if(hist.koRecapBlocked[loc])
           setRowBinV7(rowBin,pos,7, 1.0f, posStride, featureStride);
-        if((pla == P_BLACK && hist.whiteKoProhibited[loc]) || (pla == P_WHITE && hist.blackKoProhibited[loc]))
-          setRowBinV7(rowBin,pos,8, 1.0f, posStride, featureStride);
       }
     }
   }

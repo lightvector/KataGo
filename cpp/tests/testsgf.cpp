@@ -103,7 +103,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
@@ -139,7 +139,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
@@ -202,7 +202,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 0
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 4
 Has button 0
 Presumed next pla White
@@ -238,7 +238,7 @@ Initial pla White
 Encore phase 1
 Turns this phase 0
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 3
 Has button 0
 Presumed next pla White
@@ -278,7 +278,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-6.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black
@@ -298,7 +298,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-6.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
@@ -358,7 +358,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
@@ -384,7 +384,7 @@ Initial pla White
 Encore phase 0
 Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
@@ -468,7 +468,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 0
 Rules koSIMPLEscoreAREAtaxNONEsui0komi0
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black
@@ -521,7 +521,7 @@ Initial pla Black
 Encore phase 0
 Turns this phase 13
 Rules koSIMPLEscoreAREAtaxNONEsui0komi0
-Ko prohib hash 00000000000000000000000000000000
+Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White

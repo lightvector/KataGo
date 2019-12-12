@@ -54,10 +54,9 @@ struct BoardHistory {
   //How many turns of history do we have in the current main or encore phase?
   int numTurnsThisPhase;
 
-  //Ko-prohibited locations for territory scoring in encore
-  bool blackKoProhibited[Board::MAX_ARR_SIZE];
-  bool whiteKoProhibited[Board::MAX_ARR_SIZE];
-  Hash128 koProhibitHash; //Hash contribution from ko-prohibit locations in encore.
+  //Ko-recapture-block locations for territory scoring in encore
+  bool koRecapBlocked[Board::MAX_ARR_SIZE];
+  Hash128 koRecapBlockHash; //Hash contribution from ko-recap-block locations in encore.
 
   //Used to implement once-only rules for ko captures in encore
   STRUCT_NAMED_TRIPLE(Hash128,posHashBeforeMove,Loc,moveLoc,Player,movePla,EncoreKoCapture);
@@ -142,7 +141,7 @@ struct BoardHistory {
   int numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
-  void setKoProhibited(Player pla, Loc loc, bool b);
+  void setKoRecapBlocked(Loc loc, bool b);
   int countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   int countTerritoryAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
   void setFinalScoreAndWinner(float score);
