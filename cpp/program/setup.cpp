@@ -395,7 +395,7 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("playoutDoublingAdvantage"+idxStr)) params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage"+idxStr,-3.0,3.0);
     else if(cfg.contains("playoutDoublingAdvantage"))   params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage",-3.0,3.0);
     else                                                params.playoutDoublingAdvantage = 0.0;
-    
+
     if(cfg.contains("mutexPoolSize"+idxStr)) params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize"+idxStr, 1, 1 << 24);
     else                                     params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize",        1, 1 << 24);
     if(cfg.contains("numVirtualLossesPerThread"+idxStr)) params.numVirtualLossesPerThread = (int32_t)cfg.getInt("numVirtualLossesPerThread"+idxStr, 1, 1000);
@@ -432,11 +432,13 @@ Rules Setup::loadSingleRulesExceptForKomi(
   string koRule = cfg.getString("koRule", Rules::koRuleStrings());
   string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
   bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
+  bool hasButton = cfg.contains("hasButton") ? cfg.getBool("hasButton") : false;
   float komi = 7.5f;
 
   rules.koRule = Rules::parseKoRule(koRule);
   rules.scoringRule = Rules::parseScoringRule(scoringRule);
   rules.multiStoneSuicideLegal = multiStoneSuicideLegal;
+  rules.hasButton = hasButton;
   rules.komi = komi;
 
   if(cfg.contains("taxRule")) {
@@ -446,6 +448,9 @@ Rules Setup::loadSingleRulesExceptForKomi(
   else {
     rules.taxRule = (rules.scoringRule == Rules::SCORING_TERRITORY ? Rules::TAX_SEKI : Rules::TAX_NONE);
   }
+
+  if(rules.hasButton && rules.scoringRule != Rules::SCORING_AREA)
+    throw StringError("Config specifies hasButton=true on a scoring system other than AREA");
 
   return rules;
 }

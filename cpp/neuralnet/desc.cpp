@@ -1156,10 +1156,18 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
       rules.taxRule = Rules::TAX_NONE;
       supported = false;
     }
+    if(rules.hasButton) {
+      rules.hasButton = false;
+      supported = false;
+    }
   }
   else if(version <= 8) {
     if(rules.koRule == Rules::KO_SPIGHT) {
       rules.koRule = Rules::KO_SITUATIONAL;
+      supported = false;
+    }
+    if(rules.hasButton && rules.scoringRule != Rules::SCORING_AREA) {
+      rules.hasButton = false;
       supported = false;
     }
   }

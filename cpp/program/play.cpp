@@ -227,6 +227,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   allowedScoringRuleStrs = cfg.getStrings("scoringRules", Rules::scoringRuleStrings());
   allowedTaxRuleStrs = cfg.getStrings("taxRules", Rules::taxRuleStrings());
   allowedMultiStoneSuicideLegals = cfg.getBools("multiStoneSuicideLegals");
+  allowedButtons = cfg.getBools("hasButtons");
 
   for(size_t i = 0; i < allowedKoRuleStrs.size(); i++)
     allowedKoRules.push_back(Rules::parseKoRule(allowedKoRuleStrs[i]));
@@ -243,6 +244,21 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     throw IOError("taxRules must have at least one value in " + cfg.getFileName());
   if(allowedMultiStoneSuicideLegals.size() <= 0)
     throw IOError("multiStoneSuicideLegals must have at least one value in " + cfg.getFileName());
+  if(allowedButtons.size() <= 0)
+    throw IOError("hasButtons must have at least one value in " + cfg.getFileName());
+
+  {
+    bool hasAreaScoring = false;
+    for(int i = 0; i<allowedScoringRules.size(); i++)
+      if(allowedScoringRules[i] == Rules::SCORING_AREA)
+        hasAreaScoring = true;
+    bool hasTrueButton = false;
+    for(int i = 0; i<allowedButtons.size(); i++)
+      if(allowedButtons[i])
+        hasTrueButton = true;
+    if(!hasAreaScoring && hasTrueButton)
+      throw IOError("If scoringRules does not include AREA, hasButtons must be false in " + cfg.getFileName());
+  }
 
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
@@ -375,6 +391,12 @@ void GameInitializer::createGame(
 Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const {
   rules.scoringRule = allowedScoringRules[randToUse.nextUInt(allowedScoringRules.size())];
   rules.taxRule = allowedTaxRules[randToUse.nextUInt(allowedTaxRules.size())];
+
+  if(rules.scoringRule == Rules::SCORING_AREA)
+    rules.hasButton = allowedButtons[randToUse.nextUInt(allowedButtons.size())];
+  else
+    rules.hasButton = false;
+
   return rules;
 }
 
@@ -414,6 +436,11 @@ void GameInitializer::createGameSharedUnsynchronized(
   rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
   rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
   rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt(allowedMultiStoneSuicideLegals.size())];
+
+  if(rules.scoringRule == Rules::SCORING_AREA)
+    rules.hasButton = allowedButtons[rand.nextUInt(allowedButtons.size())];
+  else
+    rules.hasButton = false;
 
   if(startPosesProb > 0 && rand.nextBool(startPosesProb)) {
     assert(startPoses.size() > 0);
