@@ -263,6 +263,9 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
+  //TODO add tests for nn symmetries for rectangles
+  allowRectangleProb = cfg.contains("allowRectangleProb") ? cfg.getDouble("allowRectangleProb",0.0,1.0) : 0.0;
+
   if(!cfg.contains("komiMean") && !(cfg.contains("komiAuto") && cfg.getBool("komiAuto")))
     throw IOError("Must specify either komiMean=<komi value> or komiAuto=True in config");
   if(cfg.contains("komiMean") && (cfg.contains("komiAuto") && cfg.getBool("komiAuto")))
@@ -430,7 +433,11 @@ void GameInitializer::createGameSharedUnsynchronized(
 
   double makeGameFairProb = 0.0;
 
-  int bSizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
+  int xSizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
+  int ySizeIdx = xSizeIdx;
+  if(allowRectangleProb > 0 && rand.nextBool(allowRectangleProb))
+    ySizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
+
   Rules rules;
   rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
   rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
@@ -467,8 +474,9 @@ void GameInitializer::createGameSharedUnsynchronized(
     makeGameFairProb = forkCompensateKomiProb;
   }
   else {
-    int bSize = allowedBSizes[bSizeIdx];
-    board = Board(bSize,bSize);
+    int xSize = allowedBSizes[xSizeIdx];
+    int ySize = allowedBSizes[ySizeIdx];
+    board = Board(xSize,ySize);
 
     extraBlackAndKomi = chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
