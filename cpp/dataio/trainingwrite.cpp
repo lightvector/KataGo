@@ -7,13 +7,7 @@ ValueTargets::ValueTargets()
   :win(0),
    loss(0),
    noResult(0),
-   score(0),
-   hasMctsUtility(false),
-   mctsUtility1(0),
-   mctsUtility4(0),
-   mctsUtility16(0),
-   mctsUtility64(0),
-   mctsUtility256(0)
+   score(0)
 {}
 ValueTargets::~ValueTargets()
 {}
@@ -434,7 +428,7 @@ void TrainingWriteBuffers::addRow(
   fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(1.0 + boardArea * 0.016), rowGlobal+12);
   fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0, rowGlobal+16);
 
-  //Fill short-term variance info
+  //Unused
   rowGlobal[21] = 0.0f;
   rowGlobal[22] = 0.0f;
   rowGlobal[23] = 0.0f;
@@ -443,27 +437,6 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[30] = 0.0f;
   rowGlobal[31] = 0.0f;
   rowGlobal[32] = 0.0f;
-  const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
-  if(thisTargets.hasMctsUtility && !std::isnan(thisTargets.mctsUtility1)) {
-    if(!std::isnan(thisTargets.mctsUtility4)) {
-      rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
-      rowGlobal[29] = 1.0f;
-      if(!std::isnan(thisTargets.mctsUtility16)) {
-        rowGlobal[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
-        rowGlobal[30] = 1.0f;
-        if(!std::isnan(thisTargets.mctsUtility64)) {
-          rowGlobal[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
-          rowGlobal[31] = 1.0f;
-          if(!std::isnan(thisTargets.mctsUtility256)) {
-            rowGlobal[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
-            rowGlobal[32] = 1.0f;
-          }
-        }
-      }
-    }
-  }
-
-  //Unused
   rowGlobal[35] = 0.0f;
 
   //Fill in whether we should use history or not

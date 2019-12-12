@@ -1081,7 +1081,7 @@ static void extractPolicyTarget(
   }
 }
 
-static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, const SearchNode* node, vector<double>* recordUtilities) {
+static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, const SearchNode* node) {
   ReportedSearchValues values;
   bool success = toMoveBot->getNodeValues(*node,values);
   assert(success);
@@ -1091,24 +1091,6 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
   buf.loss = (float)values.lossValue;
   buf.noResult = (float)values.noResultValue;
   buf.score = (float)values.expectedScore;
-
-  if(recordUtilities != NULL) {
-    buf.hasMctsUtility = true;
-    assert(recordUtilities->size() > 255);
-    buf.mctsUtility1 = (float)((*recordUtilities)[0]);
-    buf.mctsUtility4 = (float)((*recordUtilities)[3]);
-    buf.mctsUtility16 = (float)((*recordUtilities)[15]);
-    buf.mctsUtility64 = (float)((*recordUtilities)[63]);
-    buf.mctsUtility256 = (float)((*recordUtilities)[255]);
-  }
-  else {
-    buf.hasMctsUtility = false;
-    buf.mctsUtility1 = 0.0f;
-    buf.mctsUtility4 = 0.0f;
-    buf.mctsUtility16 = 0.0f;
-    buf.mctsUtility64 = 0.0f;
-    buf.mctsUtility256 = 0.0f;
-  }
 }
 
 //Recursively walk non-root-node subtree under node recording positions that have enough visits
@@ -1131,7 +1113,7 @@ static void recordTreePositionsRec(
   if(plaAlwaysBest && node != toMoveBot->rootNode) {
     SidePosition* sp = new SidePosition(board,hist,pla,numNeuralNetChangesSoFar);
     extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
-    extractValueTargets(sp->whiteValueTargets, toMoveBot, node, NULL);
+    extractValueTargets(sp->whiteValueTargets, toMoveBot, node);
     sp->targetWeight = recordTreeTargetWeight;
     sp->unreducedNumVisits = toMoveBot->getRootVisits();
     gameData->sidePositions.push_back(sp);
@@ -1408,8 +1390,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
 static Loc runBotWithLimits(
   Search* toMoveBot, Player pla, const FancyModes& fancyModes,
   const SearchLimitsThisMove& limits,
-  Logger& logger,
-  vector<double>* recordUtilities
+  Logger& logger
 ) {
   if(limits.clearBotBeforeSearchThisMove)
     toMoveBot->clearSearch();
@@ -1449,16 +1430,16 @@ static Loc runBotWithLimits(
     if(limits.clearBotBeforeSearchThisMove && toMoveBot->searchParams.maxVisits > 10 && toMoveBot->searchParams.maxPlayouts > 10) {
       int64_t oldMaxVisits = toMoveBot->searchParams.maxVisits;
       toMoveBot->searchParams.maxVisits = 10;
-      toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+      toMoveBot->runWholeSearchAndGetMove(pla,logger,NULL);
       toMoveBot->searchParams.maxVisits = oldMaxVisits;
     }
-    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,NULL);
 
     toMoveBot->searchParams = oldParams;
   }
   else {
     assert(!limits.removeRootNoise);
-    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
+    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,NULL);
   }
 
   //HACK - restore LCB so that it affects policy target gen
@@ -1550,8 +1531,6 @@ FinishedGameData* Play::runGame(
     hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
   }
 
-  vector<double>* recordUtilities = NULL;
-
   gameData->bName = botSpecB.botName;
   gameData->wName = botSpecW.botName;
   gameData->bIdx = botSpecB.botIdx;
@@ -1571,13 +1550,6 @@ FinishedGameData* Play::runGame(
 
   //In selfplay, record all the policy maps and evals and such as well for training data
   bool recordFullData = fancyModes.forSelfPlay;
-
-  //Also record mcts utilities... DISABLED.
-  //Originally accidentally disabled in a change, but it's probably not worth bringing back either.
-  //TODO clean up utilityvar outputs
-  //if(recordFullData) {
-  //  recordUtilities = new vector<double>(256);
-  //}
 
   //NOTE: that checkForNewNNEval might also cause the old nnEval to be invalidated and freed. This is okay since the only
   //references we both hold on to and use are the ones inside the bots here, and we replace the ones in the botSpecs.
@@ -1658,7 +1630,7 @@ FinishedGameData* Play::runGame(
     SearchLimitsThisMove limits = getSearchLimitsThisMove(
       toMoveBot, pla, fancyModes, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, otherGameProps
     );
-    Loc loc = runBotWithLimits(toMoveBot, pla, fancyModes, limits, logger, recordUtilities);
+    Loc loc = runBotWithLimits(toMoveBot, pla, fancyModes, limits, logger);
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegalStrict(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
@@ -1676,7 +1648,7 @@ FinishedGameData* Play::runGame(
       policySurpriseByTurn.push_back(toMoveBot->getPolicySurprise());
 
       ValueTargets whiteValueTargets;
-      extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode, recordUtilities);
+      extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
       gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
 
 
@@ -1803,13 +1775,6 @@ FinishedGameData* Play::runGame(
       finalValueTargets.noResult = 0.0f;
       finalValueTargets.score = (float)ScoreValue::whiteScoreDrawAdjust(hist.finalWhiteMinusBlackScore,gameData->drawEquivalentWinsForWhite,hist);
 
-      //Dummy values, doesn't matter since we didn't do a search for the final values
-      finalValueTargets.mctsUtility1 = 0.0f;
-      finalValueTargets.mctsUtility4 = 0.0f;
-      finalValueTargets.mctsUtility16 = 0.0f;
-      finalValueTargets.mctsUtility64 = 0.0f;
-      finalValueTargets.mctsUtility256 = 0.0f;
-
       //Fill full and seki areas
       {
         board.calculateArea(gameData->finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
@@ -1906,10 +1871,10 @@ FinishedGameData* Play::runGame(
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
       //We do NOT apply playoutDoublingAdvantage here. If changing this, note that it is coordinated with train data writing
       //not using playoutDoublingAdvantage for these rows too.
-      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,recordUtilities);
+      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,NULL);
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
-      extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode, recordUtilities);
+      extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode);
       sp->targetWeight = 1.0;
       sp->unreducedNumVisits = toMoveBot->getRootVisits();
       sp->numNeuralNetChangesSoFar = gameData->changedNeuralNets.size();
@@ -1963,10 +1928,6 @@ FinishedGameData* Play::runGame(
 
       maybeCheckForNewNNEval(gameData->endHist.moveHistory.size());
     }
-  }
-
-  if(recordUtilities != NULL) {
-    delete recordUtilities;
   }
 
   return gameData;

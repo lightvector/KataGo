@@ -15,12 +15,6 @@ struct ValueTargets {
   float noResult;
   float score;
 
-  bool hasMctsUtility;
-  float mctsUtility1;
-  float mctsUtility4;
-  float mctsUtility16;
-  float mctsUtility64;
-  float mctsUtility256;
   ValueTargets();
   ~ValueTargets();
 };
@@ -121,17 +115,14 @@ struct TrainingWriteBuffers {
   //C16-19: MCTS win-loss-noresult estimate td-like target, lambda = 0, nowFactor = 1 (no-temporal-averaging MCTS search result)
 
   //C20: Actual final score, from the perspective of the player to move, adjusted for draw utility, zero if C27 is zero.
-  //C21: MCTS utility variance, 1->4 visits
-  //C22: MCTS utility variance, 4->16 visits
-  //C23: MCTS utility variance, 16->64 visits
-  //C24: MCTS utility variance, 64->256 visits
+  //C21-24: Unused
 
   //C25 Weight multiplier for row as a whole
 
-  //C26 Weight assigned to the policy target
-  //C27 Weight assigned to the final board ownership target and score distr targets. Most training rows will have this be 1, some will be 0.
+  //C26: Weight assigned to the policy target
+  //C27: Weight assigned to the final board ownership target and score distr targets. Most training rows will have this be 1, some will be 0.
   //C28: Weight assigned to the next move policy target
-  //C29-32: Weight assigned to the utilityvariance target C21-C24
+  //C29-32: Unused
   //C33: Weight assigned to the future position targets valueTargetsNCHW C1-C2
   //C34: Weight assigned to the area/territory target valueTargetsNCHW C4
   //C35: Unused
