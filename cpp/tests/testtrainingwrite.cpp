@@ -288,6 +288,12 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
         bot, bot, board, hist, pla,
         fancyModes.cheapSearchVisits, logger, OtherGameProperties(), rand
       );
+      BoardHistory hist2 = forkData.forks[0]->hist;
+      double lead = Play::computeLead(
+        bot, bot, board, hist2, pla,
+        fancyModes.cheapSearchVisits, logger, OtherGameProperties(), rand
+      );
+      cout << "Lead: " << lead << endl;
       hist.printDebugInfo(cout,board);
     }
     delete gameData;

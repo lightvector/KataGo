@@ -123,6 +123,7 @@ whiteValueTargetsByTurn 1 1 0 0 7.5
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 Pre-fair komi 7.5
+Lead: 0.518791
 HASH: 98AC72F929CDB30838039BD9BB71C6A0
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -478,6 +479,7 @@ Game result 0 Empty 0 0 0 0
 Last moves D4 D9 H8 J4 C7 D3 E3 C3 E4 
 Forking to initial position O
 Pre-fair komi 7.5
+Lead: 3.31465
 HASH: 8D4B1F1362037AC4D029FB86DE915C8A
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -1394,6 +1396,7 @@ whiteValueTargetsByTurn 1 1 0 0 6.5
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 Pre-fair komi 7.5
+Lead: -3.62077
 HASH: 04286592208F122B016DB39DFE7E9FD0
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -1572,6 +1575,7 @@ Game result 0 Empty 0 0 0 0
 Last moves D8 H4 H8 E3 D4 E4 D5 
 Forking to initial position O
 Pre-fair komi 20.5
+Lead: 2.46401
 HASH: 33344AD192C0F4B6AA443888FBB04A99
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -1750,6 +1754,7 @@ Game result 0 Empty 0 0 0 0
 Last moves F1 J8 
 Forking to initial position X
 Pre-fair komi 20.5
+Lead: 4.20528
 HASH: 2906CAC8CFF8D08128C6BFD70FA2F681
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2051,6 +2056,7 @@ whiteValueTargetsByTurn 1 1 0 0 23
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 Pre-fair komi 24
+Lead: 1.91506
 HASH: 6F58B7F852C9A201905CCDD3C4DD06C9
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2229,6 +2235,7 @@ Game result 0 Empty 0 0 0 0
 Last moves C4 J4 G3 C8 J5 
 Forking to initial position O
 Pre-fair komi 22.5
+Lead: 5.48767
 HASH: EE9D58B80B2C3708BF375D585DB8C36F
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2380,6 +2387,7 @@ whiteValueTargetsByTurn 1 1 0 0 18
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position O
 Pre-fair komi 20
+Lead: 3.67655
 HASH: 987078779072ADA6B1B9692B08A1BFFD
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2558,6 +2566,7 @@ Game result 0 Empty 0 0 0 0
 Last moves C4 C8 E9 D4 D5 
 Forking to initial position O
 Pre-fair komi 21
+Lead: 0.899246
 HASH: 77DB4560C72FC73EF98A8BD77899EEF0
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -3705,6 +3714,7 @@ whiteValueTargetsByTurn 1 1 0 0 39
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 Pre-fair komi 41
+Lead: -0.00742098
 HASH: 8820CCD0B2B6B37A8F973606CF5F9CD9
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -3910,6 +3920,7 @@ Game result 0 Empty 0 0 0 0
 Last moves H8 H4 J3 J4 H3 F9 D9 F4 G7 J9 G3 H9 
 Forking to initial position X
 Pre-fair komi 39
+Lead: 0.69218
 HASH: 3CBB77D603A6F611FF076D394CE28043
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -4061,6 +4072,7 @@ whiteValueTargetsByTurn 1 1 0 0 38
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 Pre-fair komi 40
+Lead: -4.069
 HASH: 2BCD7A6F1B12DBD6E465A3F348049178
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -4512,6 +4524,7 @@ whiteValueTargetsByTurn 1 1 0 0 33.5
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position O
 Pre-fair komi 36.5
+Lead: 2.27641
 HASH: 8BD0AB71F1601EB6FA0260DD9C5D91C4
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -4690,6 +4703,7 @@ Game result 0 Empty 0 0 0 0
 Last moves H8 J4 D8 D4 G3 C6 J6 H3 G4 K6 
 Forking to initial position X
 Pre-fair komi 6
+Lead: -3.93121
 HASH: D0BB22CEADC813FC6ABFAD22E4DE6292
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -4991,6 +5005,7 @@ Game result 0 Empty 0 0 0 0
 Last moves C8 D4 B4 C6 B6 F2 
 Forking to initial position O
 Pre-fair komi 6
+Lead: -27.9704
 HASH: C655C977A48444209D4E5014089A42D7
    A B C D E F G H J K L
 11 . . . . . . . . . . .

@@ -343,6 +343,18 @@ namespace Play {
     Rand& rand
   );
 
+  double computeLead(
+    Search* botB,
+    Search* botW,
+    const Board& board,
+    BoardHistory& hist,
+    Player pla,
+    int64_t numVisits,
+    Logger& logger,
+    const OtherGameProperties& otherGameProps,
+    Rand& rand
+  );
+
   double getSearchFactor(
     double searchFactorWhenWinningThreshold,
     double searchFactorWhenWinning,

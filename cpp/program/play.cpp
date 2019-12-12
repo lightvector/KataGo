@@ -771,9 +771,9 @@ Loc Play::chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, c
   return Board::NULL_LOC;
 }
 
-static float roundAndClipKomi(double unrounded, const Board& board) {
+static float roundAndClipKomi(double unrounded, const Board& board, bool looseClipping) {
   //Just in case, make sure komi is reasonable
-  float range = 40.0f + 0.6f * board.x_size * board.y_size;
+  float range = looseClipping ? 40.0f + board.x_size * board.y_size : 40.0f + 0.6f * board.x_size * board.y_size;
   if(unrounded < -range)
     unrounded = -range;
   if(unrounded > range)
@@ -816,7 +816,8 @@ static ReportedSearchValues getWhiteScoreValues(
   return values;
 }
 
-void Play::adjustKomiToEven(
+static std::pair<double,double> evalKomi(
+  map<float,std::pair<double,double>>& scoreWLCache,
   Search* botB,
   Search* botW,
   const Board& board,
@@ -825,41 +826,54 @@ void Play::adjustKomiToEven(
   int64_t numVisits,
   Logger& logger,
   const OtherGameProperties& otherGameProps,
+  float roundedClippedKomi
+) {
+  auto iter = scoreWLCache.find(roundedClippedKomi);
+  if(iter != scoreWLCache.end())
+    return iter->second;
+
+  float oldKomi = hist.rules.komi;
+  hist.setKomi(roundedClippedKomi);
+
+  ReportedSearchValues values0 = getWhiteScoreValues(botB, board, hist, pla, numVisits, logger, otherGameProps);
+  double finalScore = values0.expectedScore;
+  double finalWinLoss = values0.winLossValue;
+
+  //If we have a second bot, average the two
+  if(botW != NULL && botW != botB) {
+    ReportedSearchValues values1 = getWhiteScoreValues(botB, board, hist, pla, numVisits, logger, otherGameProps);
+    finalScore = 0.5 * (values0.expectedScore + values1.expectedScore);
+    finalWinLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
+  }
+  std::pair<double,double> result = std::make_pair(finalScore,finalWinLoss);
+  scoreWLCache[roundedClippedKomi] = result;
+
+  hist.setKomi(oldKomi);
+  return result;
+}
+
+static void adjustKomiToEvenHelper(
+  map<float,std::pair<double,double>>& scoreWLCache,
+  Search* botB,
+  Search* botW,
+  const Board& board,
+  BoardHistory& hist,
+  Player pla,
+  int64_t numVisits,
+  Logger& logger,
+  const OtherGameProperties& otherGameProps,
+  bool looseClipping,
   Rand& rand
 ) {
-  map<float,std::pair<double,double>> scoreWLCache;
-  auto evalKomi = [&](float roundedClippedKomi) {
-    auto iter = scoreWLCache.find(roundedClippedKomi);
-    if(iter != scoreWLCache.end())
-      return iter->second;
-
-    BoardHistory histCopy(hist);
-    histCopy.setKomi(roundedClippedKomi);
-
-    ReportedSearchValues values0 = getWhiteScoreValues(botB, board, histCopy, pla, numVisits, logger, otherGameProps);
-    double finalScore = values0.expectedScore;
-    double finalWinLoss = values0.winLossValue;
-
-    //If we have a second bot, average the two
-    if(botW != NULL && botW != botB) {
-      ReportedSearchValues values1 = getWhiteScoreValues(botB, board, histCopy, pla, numVisits, logger, otherGameProps);
-      finalScore = 0.5 * (values0.expectedScore + values1.expectedScore);
-      finalWinLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
-    }
-    std::pair<double,double> result = std::make_pair(finalScore,finalWinLoss);
-    scoreWLCache[roundedClippedKomi] = result;
-    return result;
-  };
-
   //A few times iterate based on expected score a few times to hopefully get a value close to fair
   double lastShift = 0.0;
-  for(int i = 0; i<2; i++) {
-    std::pair<float,float> result = evalKomi(hist.rules.komi);
+  for(int i = 0; i<3; i++) {
+    std::pair<float,float> result = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,hist.rules.komi);
     double finalWhiteScore = result.first;
     double finalWinLoss = result.second;
     //Shift by the predicted score difference... but dampen shifts slightly by scaling to 80 pct.
     double shift = -finalWhiteScore * 0.8;
-    //Under no situations should the shift be bigger in absolute value than the last shift in the opposite direction
+    //Under no situations should the shift be bigger in absolute value than the last shift
     if(i > 0 && abs(shift) > abs(lastShift)) {
       if(shift < 0) shift = -abs(lastShift);
       else if(shift > 0) shift = abs(lastShift);
@@ -871,7 +885,7 @@ void Play::adjustKomiToEven(
       break;
 
     // cout << "Shifting by " << shift << endl;
-    float fairKomi = roundAndClipKomi(hist.rules.komi + shift, board);
+    float fairKomi = roundAndClipKomi(hist.rules.komi + shift, board, looseClipping);
     hist.setKomi(fairKomi);
 
     //After a small shift, break out to the binary search.
@@ -882,7 +896,7 @@ void Play::adjustKomiToEven(
   //Try a small window and do a binary search
   auto evalWinLoss = [&](double delta) {
     double newKomi = hist.rules.komi + delta;
-    double winLoss = evalKomi(roundAndClipKomi(newKomi,board)).second;
+    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,roundAndClipKomi(newKomi,board,looseClipping)).second;
     // cout << "Delta " << delta << " wr " << winLoss << endl;
     return winLoss;
   };
@@ -953,8 +967,113 @@ void Play::adjustKomiToEven(
 
   double newKomi = hist.rules.komi + finalDelta;
   // cout << "Final " << finalDelta << " " << newKomi << endl;
-  hist.setKomi(roundAndClipKomi(newKomi,board));
+  hist.setKomi(roundAndClipKomi(newKomi,board,looseClipping));
 }
+
+void Play::adjustKomiToEven(
+  Search* botB,
+  Search* botW,
+  const Board& board,
+  BoardHistory& hist,
+  Player pla,
+  int64_t numVisits,
+  Logger& logger,
+  const OtherGameProperties& otherGameProps,
+  Rand& rand
+) {
+  map<float,std::pair<double,double>> scoreWLCache;
+  bool looseClipping = false;
+  return adjustKomiToEvenHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping,rand);
+}
+
+double Play::computeLead(
+  Search* botB,
+  Search* botW,
+  const Board& board,
+  BoardHistory& hist,
+  Player pla,
+  int64_t numVisits,
+  Logger& logger,
+  const OtherGameProperties& otherGameProps,
+  Rand& rand
+) {
+  map<float,std::pair<double,double>> scoreWLCache;
+  bool looseClipping = true;
+  float oldKomi = hist.rules.komi;
+  adjustKomiToEvenHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping,rand);
+  float evenKomi = hist.rules.komi;
+
+  auto evalWinLoss = [&](double delta) {
+    double newKomi = hist.rules.komi + delta;
+    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,roundAndClipKomi(newKomi,board,looseClipping)).second;
+    // cout << "Delta " << delta << " wr " << winLoss << endl;
+    return winLoss;
+  };
+  //Figure out probabilities of various outcomes nearby, and compute the EV
+  //The point of doing this is to smooth over area scoring 2-point granularity
+  double fairDelta;
+  if(evenKomi == round(evenKomi)) {
+    double winLosses[6];
+    winLosses[0] = evalWinLoss(-2.5);
+    winLosses[1] = evalWinLoss(-1.5);
+    winLosses[2] = evalWinLoss(-0.5);
+    winLosses[3] = evalWinLoss(0.5);
+    winLosses[4] = evalWinLoss(1.5);
+    winLosses[5] = evalWinLoss(2.5);
+
+    double deltas[5];
+    deltas[0] = winLosses[1] - winLosses[0];
+    deltas[1] = winLosses[2] - winLosses[1];
+    deltas[2] = winLosses[3] - winLosses[2];
+    deltas[3] = winLosses[4] - winLosses[3];
+    deltas[4] = winLosses[5] - winLosses[4];
+
+    for(int i = 0; i<5; i++)
+      if(deltas[i] < 0)
+        deltas[i] = 0;
+    double wsum = 0.0;
+    double wxsum = 0.0;
+    for(int i = 0; i<5; i++) {
+      wsum += deltas[i];
+      wxsum += deltas[i] * (i-2);
+    }
+    if(wsum <= 1e-30)
+      fairDelta = 0;
+    else
+      fairDelta = wxsum / wsum;
+  }
+  else {
+    double winLosses[5];
+    winLosses[0] = evalWinLoss(-2);
+    winLosses[1] = evalWinLoss(-1);
+    winLosses[2] = evalWinLoss(0);
+    winLosses[3] = evalWinLoss(1);
+    winLosses[4] = evalWinLoss(2);
+
+    double deltas[4];
+    deltas[0] = winLosses[1] - winLosses[0];
+    deltas[1] = winLosses[2] - winLosses[1];
+    deltas[2] = winLosses[3] - winLosses[2];
+    deltas[3] = winLosses[4] - winLosses[3];
+
+    for(int i = 0; i<4; i++)
+      if(deltas[i] < 0)
+        deltas[i] = 0;
+    double wsum = 0.0;
+    double wxsum = 0.0;
+    for(int i = 0; i<4; i++) {
+      wsum += deltas[i];
+      wxsum += deltas[i] * (i-1.5);
+    }
+    if(wsum <= 1e-30)
+      fairDelta = 0;
+    else
+      fairDelta = wxsum / wsum;
+  }
+  hist.setKomi(oldKomi);
+  return oldKomi - (evenKomi + fairDelta);
+}
+
 
 double Play::getSearchFactor(
   double searchFactorWhenWinningThreshold,
@@ -1550,9 +1669,9 @@ FinishedGameData* Play::runGame(
   if(extraBlackAndKomi.makeGameFairForEmptyBoard) {
     Board b(startBoard.x_size,startBoard.y_size);
     BoardHistory h(b,pla,startHist.rules,startHist.encorePhase);
-    h.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
+    h.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board,false));
     adjustKomiToEven(botB,botW,b,h,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
-    hist.setKomi(roundAndClipKomi(h.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
+    hist.setKomi(roundAndClipKomi(h.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
   }
   if(extraBlackAndKomi.extraBlack > 0) {
     double extraBlackTemperature = 1.0;
@@ -1561,11 +1680,11 @@ FinishedGameData* Play::runGame(
   }
   if(extraBlackAndKomi.makeGameFair) {
     //First, restore back to baseline komi
-    hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
+    hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board,false));
     //Adjust komi to be fair for the handicap according to what the bot thinks.
     adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
     //Then, reapply the komi offset from base that we should have had
-    hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
+    hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
   }
 
   gameData->bName = botSpecB.botName;
