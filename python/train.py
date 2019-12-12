@@ -194,7 +194,6 @@ def model_fn(features,labels,mode,params):
         "sloss": tf.metrics.mean(target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used),
         "fploss": tf.metrics.mean(target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used),
         "rwlloss": tf.metrics.mean(target_vars.winloss_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "rsmloss": tf.metrics.mean(target_vars.scoremean_reg_loss_unreduced, weights=target_vars.target_weight_used),
         "rsdloss": tf.metrics.mean(target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used),
         "rloss": tf.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
         "rscloss": tf.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
@@ -228,13 +227,13 @@ def model_fn(features,labels,mode,params):
     (fploss,fploss_op) = moving_mean("fploss",target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used)
     (skloss,skloss_op) = moving_mean("skloss",target_vars.seki_loss_unreduced, weights=target_vars.target_weight_used)
     (rwlloss,rwlloss_op) = moving_mean("rwlloss",target_vars.winloss_reg_loss_unreduced, weights=target_vars.target_weight_used)
-    (rsmloss,rsmloss_op) = moving_mean("rsmloss",target_vars.scoremean_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (rsdloss,rsdloss_op) = moving_mean("rsdloss",target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (rloss,rloss_op) = moving_mean("rloss",target_vars.reg_loss_per_weight, weights=target_vars.weight_sum)
     (rscloss,rscloss_op) = moving_mean("rscloss",target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (pacc1,pacc1_op) = moving_mean("pacc1",metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
-    (ventr,ventr_op) = moving_mean("ventr",metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
     (ptentr,ptentr_op) = moving_mean("ptentr",metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
+    (gnorm,gnorm_op) = moving_mean("gnorm",metrics.gnorm, weights=1.0)
+    (exgnorm,exgnorm_op) = moving_mean("excessgnorm",metrics.excess_gnorm, weights=1.0)
     (wmean,wmean_op) = tf.metrics.mean(target_vars.weight_sum)
 
     print_train_loss_every_batches = 100
@@ -255,15 +254,14 @@ def model_fn(features,labels,mode,params):
       "skloss": skloss,
       "skw": target_vars.seki_weight_scale,
       "rwlloss": rwlloss,
-      "rsmloss": rsmloss,
       "rsdloss": rsdloss,
       "rloss": rloss,
       "rscloss": rscloss,
       "pacc1": pacc1,
-      "ventr": ventr,
       "ptentr": ptentr,
-      "pslr": per_sample_learning_rate
-
+      "pslr": per_sample_learning_rate,
+      "gnorm": gnorm,
+      "exgnorm": exgnorm,
     }, every_n_iter=print_train_loss_every_batches)
 
     printed_model_yet = True
@@ -293,7 +291,8 @@ def model_fn(features,labels,mode,params):
       mode,
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
       train_op=tf.group(train_step,p0loss_op,p1loss_op,vloss_op,tdvloss_op,smloss_op,sbpdfloss_op,sbcdfloss_op,
-                        oloss_op,sloss_op,fploss_op,skloss_op,rwlloss_op,rsmloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ventr_op,ptentr_op,wmean_op),
+                        oloss_op,sloss_op,fploss_op,skloss_op,rwlloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ptentr_op,wmean_op,
+                        gnorm_op,exgnorm_op),
       training_hooks = [logging_hook]
     )
 
