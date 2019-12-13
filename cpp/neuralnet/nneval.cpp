@@ -606,10 +606,10 @@ void NNEvaluator::evaluate(
       policySum += policy[i];
     }
 
-    if(isnan(policySum)) {
-      cout << "Got nan for policy sum" << endl;
+    if(!isfinite(policySum)) {
+      cout << "Got nonfinite for policy sum" << endl;
       history.printDebugInfo(cout,board);
-      throw StringError("Got nan for policy sum");
+      throw StringError("Got nonfinite for policy sum");
     }
 
     //Somehow all legal moves rounded to 0 probability
@@ -660,10 +660,10 @@ void NNEvaluator::evaluate(
         lossProb /= probSum;
         noResultProb /= probSum;
 
-        if(isnan(probSum) || isnan(scoreValue)) {
-          cout << "Got nan for nneval value" << endl;
+        if(!isfinite(probSum) || !isfinite(scoreValue)) {
+          cout << "Got nonfinite for nneval value" << endl;
           cout << winLogits << " " << lossLogits << " " << noResultLogits << " " << scoreValue << endl;
-          throw StringError("Got nan for nneval value");
+          throw StringError("Got nonfinite for nneval value");
         }
       }
 
@@ -733,12 +733,12 @@ void NNEvaluator::evaluate(
         scoreMeanSq = scoreMeanSq * (1.0-noResultProb);
         lead = lead * (1.0-noResultProb);
 
-        if(isnan(probSum) || isnan(scoreMean) || isnan(scoreMeanSq) || isnan(lead) || isnan(varTimeLeft)) {
-          cout << "Got nan for nneval value" << endl;
+        if(!isfinite(probSum) || !isfinite(scoreMean) || !isfinite(scoreMeanSq) || !isfinite(lead) || !isfinite(varTimeLeft)) {
+          cout << "Got nonfinite for nneval value" << endl;
           cout << winLogits << " " << lossLogits << " " << noResultLogits
                << " " << scoreMean << " " << scoreMeanSq
                << " " << lead << " " << varTimeLeft << endl;
-          throw StringError("Got nan for nneval value");
+          throw StringError("Got nonfinite for nneval value");
         }
       }
 
