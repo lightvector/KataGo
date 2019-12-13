@@ -14,6 +14,8 @@ struct ValueTargets {
   float loss;
   float noResult;
   float score;
+  bool hasLead;
+  float lead;
 
   ValueTargets();
   ~ValueTargets();
@@ -115,14 +117,16 @@ struct TrainingWriteBuffers {
   //C16-19: MCTS win-loss-noresult estimate td-like target, lambda = 0, nowFactor = 1 (no-temporal-averaging MCTS search result)
 
   //C20: Actual final score, from the perspective of the player to move, adjusted for draw utility, zero if C27 is zero.
-  //C21-24: Unused
+  //C21: Lead in points, number of points to make the game fair, zero if C29 is zero.
+  //C22-24: Unused
 
   //C25 Weight multiplier for row as a whole
 
   //C26: Weight assigned to the policy target
   //C27: Weight assigned to the final board ownership target and score distr targets. Most training rows will have this be 1, some will be 0.
   //C28: Weight assigned to the next move policy target
-  //C29-32: Unused
+  //C29: Weight assigned to the lead target
+  //C30-32: Unused
   //C33: Weight assigned to the future position targets valueTargetsNCHW C1-C2
   //C34: Weight assigned to the area/territory target valueTargetsNCHW C4
   //C35: Unused

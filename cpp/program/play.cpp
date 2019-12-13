@@ -700,7 +700,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
-   compensateKomiVisits(20),
+   compensateKomiVisits(20),estimateLeadProb(0.0),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),forkGameProb(0.0),forkGameMinChoices(1),earlyForkGameMaxChoices(1),forkGameMaxChoices(1),
    sekiForkHack(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
@@ -986,7 +986,7 @@ void Play::adjustKomiToEven(
   return adjustKomiToEvenHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping,rand);
 }
 
-double Play::computeLead(
+float Play::computeLead(
   Search* botB,
   Search* botW,
   const Board& board,
@@ -1071,7 +1071,7 @@ double Play::computeLead(
       fairDelta = wxsum / wsum;
   }
   hist.setKomi(oldKomi);
-  return oldKomi - (evenKomi + fairDelta);
+  return (float)(oldKomi - (evenKomi + fairDelta));
 }
 
 
@@ -1650,7 +1650,7 @@ FinishedGameData* Play::runGame(
 }
 
 FinishedGameData* Play::runGame(
-  const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
+  const Board& startBoard, Player startPla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
   MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
   Search* botB, Search* botW,
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
@@ -1664,6 +1664,7 @@ FinishedGameData* Play::runGame(
 
   Board board(startBoard);
   BoardHistory hist(startHist);
+  Player pla = startPla;
   assert(!(extraBlackAndKomi.makeGameFair && extraBlackAndKomi.makeGameFairForEmptyBoard));
 
   if(extraBlackAndKomi.makeGameFairForEmptyBoard) {
@@ -1930,6 +1931,8 @@ FinishedGameData* Play::runGame(
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
       finalValueTargets.score = (float)ScoreValue::whiteScoreDrawAdjust(hist.finalWhiteMinusBlackScore,gameData->drawEquivalentWinsForWhite,hist);
+      finalValueTargets.hasLead = true;
+      finalValueTargets.lead = finalValueTargets.score;
 
       //Fill full and seki areas
       {
@@ -2093,6 +2096,54 @@ FinishedGameData* Play::runGame(
       }
 
       maybeCheckForNewNNEval(gameData->endHist.moveHistory.size());
+    }
+
+    //Resolve probabilistic weights of things
+    {
+      auto resolveWeight = [&gameRand](float weight){
+        if(weight <= 0) weight = 0;
+        float floored = floor(weight);
+        float excess = weight - floored;
+        weight = gameRand.nextBool(excess) ? floored+1 : floored;
+        return weight;
+      };
+
+      for(int i = 0; i<gameData->targetWeightByTurn.size(); i++)
+        gameData->targetWeightByTurn[i] = resolveWeight(gameData->targetWeightByTurn[i]);
+      for(int i = 0; i<gameData->sidePositions.size(); i++)
+        gameData->sidePositions[i]->targetWeight = resolveWeight(gameData->sidePositions[i]->targetWeight);
+    }
+
+    //Fill in lead estimation on full-search positions
+    if(fancyModes.estimateLeadProb > 0.0) {
+      assert(gameData->targetWeightByTurn.size() + 1 == gameData->whiteValueTargetsByTurn.size());
+      board = startBoard;
+      hist = startHist;
+      pla = startPla;
+
+      int startTurnNumber = gameData->startHist.moveHistory.size();
+      int numMoves = gameData->endHist.moveHistory.size() - gameData->startHist.moveHistory.size();
+      for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
+        int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
+        if(gameData->targetWeightByTurn[turnNumberAfterStart] > 0 && gameRand.nextBool(fancyModes.estimateLeadProb)) {
+          gameData->whiteValueTargetsByTurn[turnNumberAfterStart].lead =
+            computeLead(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
+          gameData->whiteValueTargetsByTurn[turnNumberAfterStart].hasLead = true;
+        }
+        Move move = gameData->endHist.moveHistory[absoluteTurnNumber];
+        assert(move.pla == pla);
+        hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);
+        pla = getOpp(pla);
+      }
+
+      for(int i = 0; i<gameData->sidePositions.size(); i++) {
+        SidePosition* sp = gameData->sidePositions[i];
+        if(sp->targetWeight > 0 && gameRand.nextBool(fancyModes.estimateLeadProb)) {
+          sp->whiteValueTargets.lead =
+            computeLead(botB,botW,sp->board,sp->hist,sp->pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
+          sp->whiteValueTargets.hasLead = true;
+        }
+      }
     }
   }
 

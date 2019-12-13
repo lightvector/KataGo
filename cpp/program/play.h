@@ -214,6 +214,8 @@ struct FancyModes {
 
   //Use this many visits in a short search to estimate the score, for adjusting komi
   int compensateKomiVisits;
+  //On each train position, estimate the lead in points with this probability
+  double estimateLeadProb;
 
   //Occasionally fork an entire new game to try out an experimental move in the opening
   double earlyForkGameProb; //Expected number of early forked games per game
@@ -343,7 +345,7 @@ namespace Play {
     Rand& rand
   );
 
-  double computeLead(
+  float computeLead(
     Search* botB,
     Search* botW,
     const Board& board,

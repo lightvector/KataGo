@@ -358,13 +358,18 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   auto run = [&](
     const string& seedBase,
     const Rules& rules,
-    bool testAsym
+    bool testAsym,
+    bool testLead
   ) {
     NNEvaluator* nnEval = startNNEval(modelFile,seedBase+"nneval",logger,0,true,false,false);
 
     SearchParams params;
     params.maxVisits = 100;
     params.drawEquivalentWinsForWhite = 0.5;
+    if(testLead) {
+      params.chosenMoveTemperature = 1.0;
+      params.chosenMoveTemperatureEarly = 1.0;
+    }
 
     MatchPairer::BotSpec botSpec;
     botSpec.botIdx = 0;
@@ -386,7 +391,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
-    int maxMovesPerGame = 15;
+    int maxMovesPerGame = testLead ? 30 : 15;
     vector<std::atomic<bool>*> stopConditions;
     FancyModes fancyModes;
     fancyModes.initGamesWithPolicy = true;
@@ -396,6 +401,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     fancyModes.cheapSearchTargetWeight = 0.456f;
     fancyModes.compensateKomiVisits = 10;
     fancyModes.minAsymmetricCompensateKomiProb = 0.5;
+    if(testLead)
+      fancyModes.estimateLeadProb = 0.7;
 
     fancyModes.forSelfPlay = true;
     fancyModes.dataXLen = nnXLen;
@@ -435,7 +442,63 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   };
 
 
-  run("testasym!",Rules::getTrompTaylorish(),true);
+  run("testasym!",Rules::getTrompTaylorish(),true,false);
+  run("test lead!",Rules::getTrompTaylorish(),false,true);
+
+
+  //Test lead specifically on a final position
+  auto testLeadOnBoard = [&](
+    const string& seedBase,
+    const Board& board
+  ) {
+    NNEvaluator* nnEval = startNNEval(modelFile,seedBase+"nneval",logger,0,true,false,false);
+    SearchParams params;
+    string searchRandSeed = seedBase+"search";
+    Search* bot = new Search(params, nnEval, searchRandSeed);
+
+    Rules rules = Rules::getTrompTaylorish();
+    Player pla = P_BLACK;
+    BoardHistory hist(board,pla,rules,0);
+    int compensateKomiVisits = 50;
+    OtherGameProperties otherGameProps;
+    Rand gameRand(seedBase + "rand");
+    double lead = Play::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,logger,otherGameProps,gameRand);
+    assert(hist.rules.komi == 7.5f);
+    cout << board << endl;
+    cout << "LEAD: " << lead << endl;
+    delete bot;
+    delete nnEval;
+  };
+
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+.........
+oooooooo.
+xxxxxxxx.
+.........
+....x..x.
+..x......
+.........
+)%%");
+    testLeadOnBoard("basic9x9 lead", board);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.x.......
+ooooooooo
+xxxxxxxxx
+.........
+.x..o.xo.
+.ox.oxx..
+.x.xxo.x.
+.oxo.xxo.
+.x.....x.
+)%%");
+    testLeadOnBoard("black crushing lead", board);
+  }
+
 
   NeuralNet::globalCleanup();
 }

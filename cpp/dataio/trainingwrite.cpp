@@ -7,7 +7,9 @@ ValueTargets::ValueTargets()
   :win(0),
    loss(0),
    noResult(0),
-   score(0)
+   score(0),
+   hasLead(false),
+   lead(0)
 {}
 ValueTargets::~ValueTargets()
 {}
@@ -135,6 +137,10 @@ void FinishedGameData::printDebug(ostream& out) const {
     out << whiteValueTargetsByTurn[i].loss << " ";
     out << whiteValueTargetsByTurn[i].noResult << " ";
     out << whiteValueTargetsByTurn[i].score << " ";
+    if(whiteValueTargetsByTurn[i].hasLead)
+      out << whiteValueTargetsByTurn[i].lead << " ";
+    else
+      out << "-" << " ";
     out << endl;
   }
   for(int y = 0; y<startBoard.y_size; y++) {
@@ -254,10 +260,6 @@ static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves, 
     assert(pos >= 0 && pos < policySize);
     target[pos] = move.policyTarget;
   }
-}
-
-static float fsq(float x) {
-  return x * x;
 }
 
 //Converts a value in [-1,1] to an integer in [-120,120] to pack down to 8 bits.
@@ -428,12 +430,19 @@ void TrainingWriteBuffers::addRow(
   fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(1.0 + boardArea * 0.016), rowGlobal+12);
   fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0, rowGlobal+16);
 
-  //Unused
+  //Lead
   rowGlobal[21] = 0.0f;
+  rowGlobal[29] = 0.0f;
+  const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
+  if(thisTargets.hasLead) {
+    rowGlobal[21] = thisTargets.lead;
+    rowGlobal[29] = 1.0f;
+  }
+
+  //Unused
   rowGlobal[22] = 0.0f;
   rowGlobal[23] = 0.0f;
   rowGlobal[24] = 0.0f;
-  rowGlobal[29] = 0.0f;
   rowGlobal[30] = 0.0f;
   rowGlobal[31] = 0.0f;
   rowGlobal[32] = 0.0f;
