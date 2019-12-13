@@ -36,6 +36,8 @@ Loss 34.96c
 NoResult 0.01c
 ScoreMean 5.8
 ScoreMeanSq 33.4
+Lead 5.8
+VarTimeLeft -1.0
 Policy
    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0    0 
@@ -108,6 +110,8 @@ Loss 34.96c
 NoResult 0.01c
 ScoreMean 5.8
 ScoreMeanSq 33.4
+Lead 5.8
+VarTimeLeft -1.0
 Policy
    1    1    1    1    1    1    1    1    1    1    1    1    1    1    1    1    1    1    1 
    1    1    1    1    1    1    1    1    1    1    1    2    1    1    1    2    1    1    1 
@@ -173,6 +177,8 @@ Loss 28.86c
 NoResult 0.02c
 ScoreMean 3.4
 ScoreMeanSq 11.2
+Lead 3.4
+VarTimeLeft -1.0
 Policy
    0    -    0    1    0    0    0    1    -    4    1 
    -    -    -    3    -    0    -    -    -    -    0 
@@ -219,6 +225,8 @@ Loss 28.86c
 NoResult 0.02c
 ScoreMean 3.4
 ScoreMeanSq 11.2
+Lead 3.4
+VarTimeLeft -1.0
 Policy
    0    -    0    1    0    0    0    1    -    4    1 
    -    -    -    3    -    0    -    -    -    -    0 

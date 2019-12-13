@@ -858,12 +858,19 @@ ValueHeadDesc::ValueHeadDesc(istream& in, int vrsn) {
       name +
       Global::strprintf(": sv3Mul.inChannels (%d) != v2Mul.outChannels (%d)", sv3Mul.inChannels, v2Mul.outChannels));
 
-  if(version >= 4) {
+  if(version >= 8) {
+    if(sv3Mul.outChannels != 4)
+      throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 4", sv3Mul.outChannels));
+    if(sv3Bias.numChannels != 4)
+      throw StringError(name + Global::strprintf(": sv3Bias.numChannels (%d) != 4", sv3Bias.numChannels));
+  }
+  else if(version >= 4) {
     if(sv3Mul.outChannels != 2)
       throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 2", sv3Mul.outChannels));
     if(sv3Bias.numChannels != 2)
       throw StringError(name + Global::strprintf(": sv3Bias.numChannels (%d) != 2", sv3Bias.numChannels));
-  } else {
+  }
+  else {
     if(sv3Mul.outChannels != 1)
       throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 1", sv3Mul.outChannels));
     if(sv3Bias.numChannels != 1)

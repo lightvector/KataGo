@@ -435,12 +435,27 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[29] = 0.0f;
   const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
   if(thisTargets.hasLead) {
-    rowGlobal[21] = thisTargets.lead;
+    //Flip based on next player for training
+    rowGlobal[21] = nextPlayer == P_WHITE ? thisTargets.lead : -thisTargets.lead;
     rowGlobal[29] = 1.0f;
   }
 
+  //Expected time of arrival of winloss variance, in turns
+  {
+    double sum = 0.0;
+    for(int i = whiteValueTargetsIdx+1; i<whiteValueTargets.size(); i++) {
+      int turnsFromNow = i-whiteValueTargetsIdx;
+      const ValueTargets& prevTargets = whiteValueTargets[i-1];
+      const ValueTargets& targets = whiteValueTargets[i];
+      double prevWL = prevTargets.win - prevTargets.loss;
+      double nextWL = targets.win - targets.loss;
+      double variance = (nextWL - prevWL) * (nextWL - prevWL);
+      sum += turnsFromNow * variance;
+    }
+    rowGlobal[22] = (float)sum;
+  }
+
   //Unused
-  rowGlobal[22] = 0.0f;
   rowGlobal[23] = 0.0f;
   rowGlobal[24] = 0.0f;
   rowGlobal[30] = 0.0f;

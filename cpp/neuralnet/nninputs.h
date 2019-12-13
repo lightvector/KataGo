@@ -102,6 +102,10 @@ struct NNOutput {
   //The first two moments of the believed distribution of the expected score at the end of the game, from white's perspective.
   float whiteScoreMean;
   float whiteScoreMeanSq;
+  //Points to make game fair
+  float whiteLead;
+  //Expected arrival time of remaining game variance, in turns, weighted by variance
+  float varTimeLeft;
 
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko

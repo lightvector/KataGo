@@ -317,9 +317,9 @@ with tf.Session(config=tfconfig) as session:
         w[2] = w[2] - 5000.0
         write_matbias("v3/b",model.v3_size,w)
 
-      #For now, only output the scoremean and scorestdev channels
-      write_matmul("sv3/w",model.v2_size,2,get_weights("mv3/w")[:,0:2])
-      write_matbias("sv3/b",2,get_weights("mv3/b")[0:2])
+      #For now, only output the scoremean and scorestdev and lead and vtime channels
+      write_matmul("sv3/w",model.v2_size,2,get_weights("mv3/w")[:,0:4])
+      write_matbias("sv3/b",2,get_weights("mv3/b")[0:4])
 
       write_model_conv(model.vownership_conv)
 

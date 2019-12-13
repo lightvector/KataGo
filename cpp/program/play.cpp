@@ -2125,7 +2125,12 @@ FinishedGameData* Play::runGame(
       int numMoves = gameData->endHist.moveHistory.size() - gameData->startHist.moveHistory.size();
       for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
         int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
-        if(gameData->targetWeightByTurn[turnNumberAfterStart] > 0 && gameRand.nextBool(fancyModes.estimateLeadProb)) {
+        if(gameData->targetWeightByTurn[turnNumberAfterStart] > 0 &&
+           //Avoid computing lead when no result was considered to be very likely, since in such cases
+           //the relationship between komi and the result can somewhat break.
+           gameData->whiteValueTargetsByTurn[turnNumberAfterStart].noResult < 0.3 &&
+           gameRand.nextBool(fancyModes.estimateLeadProb)
+        ) {
           gameData->whiteValueTargetsByTurn[turnNumberAfterStart].lead =
             computeLead(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
           gameData->whiteValueTargetsByTurn[turnNumberAfterStart].hasLead = true;
@@ -2138,7 +2143,10 @@ FinishedGameData* Play::runGame(
 
       for(int i = 0; i<gameData->sidePositions.size(); i++) {
         SidePosition* sp = gameData->sidePositions[i];
-        if(sp->targetWeight > 0 && gameRand.nextBool(fancyModes.estimateLeadProb)) {
+        if(sp->targetWeight > 0 &&
+           sp->whiteValueTargets.noResult < 0.3 &&
+           gameRand.nextBool(fancyModes.estimateLeadProb)
+        ) {
           sp->whiteValueTargets.lead =
             computeLead(botB,botW,sp->board,sp->hist,sp->pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
           sp->whiteValueTargets.hasLead = true;

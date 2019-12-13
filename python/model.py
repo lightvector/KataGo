@@ -70,9 +70,11 @@ class Model:
     self.policy_target_weight_shape = []
     self.value_target_shape = [3]
     self.td_value_target_shape = [2,3]
-    self.miscvalues_target_shape = [8] #0:scoremean, #1 scorestdev, 2-7 td value targets
+    self.miscvalues_target_shape = [10] #0:scoremean, #1 scorestdev, #2 lead, #3 variance time #4-#9 td value targets
     self.scoremean_target_shape = [] #0
     self.scorestdev_target_shape = [] #1
+    self.lead_target_shape = [] #2
+    self.variance_time_target_shape = [] #3
     self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2]
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.scoring_target_shape = [self.pos_len,self.pos_len]
@@ -80,6 +82,7 @@ class Model:
     self.seki_output_shape = [self.pos_len,self.pos_len,4]
     self.seki_target_shape = [self.pos_len,self.pos_len]
     self.target_weight_shape = []
+    self.lead_target_weight_shape = []
     self.ownership_target_weight_shape = []
     self.scoring_target_weight_shape = []
     self.futurepos_target_weight_shape = []
@@ -1287,9 +1290,10 @@ class Target_vars:
     value_probs = tf.nn.softmax(value_output,axis=1)
     scorebelief_probs = tf.nn.softmax(scorebelief_output,axis=1)
 
-    #Conditional predictions on having a result
     scoremean_prediction = miscvalues_output[:,0] * 20.0
     scorestdev_prediction = tf.math.softplus(miscvalues_output[:,1]) * 20.0
+    lead_prediction = miscvalues_output[:,2] * 20.0
+    variance_time_prediction = tf.math.softplus(miscvalues_output[:,3]) * 150.0
 
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
@@ -1301,9 +1305,14 @@ class Target_vars:
                          tf.placeholder(tf.float32, [None] + model.value_target_shape))
     self.td_value_target = (placeholders["td_value_target"] if "td_value_target" in placeholders else
                             tf.placeholder(tf.float32, [None] + model.td_value_target_shape))
-    #Unconditional expected score prediction, noResult is treated as 0
+    #Expected score prediction CONDITIONAL on result
     self.scoremean_target = (placeholders["scoremean_target"] if "scoremean_target" in placeholders else
                               tf.placeholder(tf.float32, [None] + model.scoremean_target_shape))
+    self.lead_target = (placeholders["lead_target"] if "lead_target" in placeholders else
+                              tf.placeholder(tf.float32, [None] + model.lead_target_shape))
+    #Arrival time of variance in game, unconditional
+    self.variance_time_target = (placeholders["variance_time_target"] if "variance_time_target" in placeholders else
+                              tf.placeholder(tf.float32, [None] + model.variance_time_target_shape))
     #Score belief distributions CONDITIONAL on result
     self.scorebelief_target = (placeholders["scorebelief_target"] if "scorebelief_target" in placeholders else
                               tf.placeholder(tf.float32, [None] + model.scorebelief_target_shape))
@@ -1326,6 +1335,8 @@ class Target_vars:
                                  tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.policy_target_weight1 = (placeholders["policy_target_weight1"] if "policy_target_weight1" in placeholders else
                                  tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
+    self.lead_target_weight = (placeholders["lead_target_weight"] if "lead_target_weight" in placeholders else
+                                    tf.placeholder(tf.float32, [None] + model.lead_target_weight_shape))
     self.ownership_target_weight = (placeholders["ownership_target_weight"] if "ownership_target_weight" in placeholders else
                                     tf.placeholder(tf.float32, [None] + model.ownership_target_weight_shape))
     self.scoring_target_weight = (placeholders["scoring_target_weight"] if "scoring_target_weight" in placeholders else
@@ -1342,12 +1353,15 @@ class Target_vars:
     model.assert_batched_shape("value_target", self.value_target, model.value_target_shape)
     model.assert_batched_shape("td_value_target", self.td_value_target, model.td_value_target_shape)
     model.assert_batched_shape("scoremean_target", self.scoremean_target, model.scoremean_target_shape)
+    model.assert_batched_shape("lead_target", self.lead_target, model.lead_target_shape)
+    model.assert_batched_shape("variance_time_target", self.variance_time_target, model.variance_time_target_shape)
     model.assert_batched_shape("scorebelief_target", self.scorebelief_target, model.scorebelief_target_shape)
     model.assert_batched_shape("ownership_target", self.ownership_target, model.ownership_target_shape)
     model.assert_batched_shape("scoring_target", self.scoring_target, model.scoring_target_shape)
     model.assert_batched_shape("futurepos_target", self.futurepos_target, model.futurepos_target_shape)
     model.assert_batched_shape("seki_target", self.seki_target, model.seki_target_shape)
     model.assert_batched_shape("target_weight_from_data", self.target_weight_from_data, model.target_weight_shape)
+    model.assert_batched_shape("lead_target_weight", self.lead_target_weight, model.lead_target_weight_shape)
     model.assert_batched_shape("ownership_target_weight", self.ownership_target_weight, model.ownership_target_weight_shape)
     model.assert_batched_shape("scoring_target_weight", self.scoring_target_weight, model.scoring_target_weight_shape)
     model.assert_batched_shape("futurepos_target_weight", self.futurepos_target_weight, model.futurepos_target_weight_shape)
@@ -1371,7 +1385,7 @@ class Target_vars:
     self.td_value_loss_unreduced = 0.60 * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.td_value_target,
-        logits=tf.reshape(miscvalues_output[:,2:8],[-1] + model.td_value_target_shape)
+        logits=tf.reshape(miscvalues_output[:,4:10],[-1] + model.td_value_target_shape)
       ) -
       # Subtract out the entropy, so as to get loss 0 at perfect prediction
       tf.nn.softmax_cross_entropy_with_logits_v2(
@@ -1422,7 +1436,7 @@ class Target_vars:
     #causing some scaling with board size. So, I dunno, let's compromise and scale by sqrt(boardarea).
     #Also, the further out targets should be weighted a little less due to them being higher entropy
     #due to simply being farther in the future, so multiply by [1,0.25].
-    self.futurepos_loss_unreduced = 0.25 * self.futurepos_target_weight * (
+    self.futurepos_loss_unreduced = 0.20 * self.futurepos_target_weight * (
       tf.reduce_sum(
         tf.square(tf.tanh(futurepos_output) - self.futurepos_target)
         * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len,1])
@@ -1474,13 +1488,12 @@ class Target_vars:
 
     #This is conditional upon there being a result
     expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
-    #self.scoremean_reg_loss_unreduced = 0.004 * huber_loss(expected_score_from_belief, scoremean_prediction, delta = 10.0)
-    self.scoremean_reg_loss_unreduced = tf.zeros_like(scoremean_prediction)
 
     #Huber will incentivize this to not actually converge to the mean, but rather something meanlike locally and something medianlike
     #for very large possible losses. This seems... okay - it might actually be what users want.
-    self.scoremean_loss_unreduced = 0.0015 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 10.0)
-    #self.scoremean_loss_unreduced = tf.zeros_like(scoremean_prediction)
+    self.scoremean_loss_unreduced = 0.0012 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 12.0)
+    self.lead_loss_unreduced = 0.0018 * self.ownership_target_weight * self.lead_target_weight * huber_loss(self.lead_target, lead_prediction, delta = 12.0)
+    self.variance_time_loss_unreduced = 0.00002 * huber_loss(self.variance_time_target, variance_time_prediction, delta = 100.0)
 
     stdev_of_belief = tf.sqrt(0.001 + tf.reduce_sum(
       scorebelief_probs * tf.square(
@@ -1489,12 +1502,12 @@ class Target_vars:
     beliefstdevdiff = stdev_of_belief - scorestdev_prediction
     self.scorestdev_reg_loss_unreduced = 0.004 * huber_loss(stdev_of_belief, scorestdev_prediction, delta = 10.0)
 
-    winlossprob_from_belief = tf.concat([
-      tf.reduce_sum(scorebelief_probs[:,(model.scorebelief_target_shape[0]//2):],axis=1,keepdims=True),
-      tf.reduce_sum(scorebelief_probs[:,0:(model.scorebelief_target_shape[0]//2)],axis=1,keepdims=True)
-    ],axis=1) * (1.0 - tf.reshape(value_probs[:,2],[-1,1])) #Need to multiply here to convert conditional WL belief into unconditional, since noResult = 0
-    winlossprob_from_output = value_probs[:,0:2]
-    self.winloss_reg_loss_unreduced = 2.0 * tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
+    # winlossprob_from_belief = tf.concat([
+    #   tf.reduce_sum(scorebelief_probs[:,(model.scorebelief_target_shape[0]//2):],axis=1,keepdims=True),
+    #   tf.reduce_sum(scorebelief_probs[:,0:(model.scorebelief_target_shape[0]//2)],axis=1,keepdims=True)
+    # ],axis=1) * (1.0 - tf.reshape(value_probs[:,2],[-1,1])) #Need to multiply here to convert conditional WL belief into unconditional, since noResult = 0
+    # winlossprob_from_output = value_probs[:,0:2]
+    # self.winloss_reg_loss_unreduced = 2.0 * tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 
     self.scale_reg_loss_unreduced = tf.reshape(0.0005 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
     #self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
@@ -1504,15 +1517,16 @@ class Target_vars:
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced, name="losses/value_loss")
     self.td_value_loss = tf.reduce_sum(self.target_weight_used * self.td_value_loss_unreduced, name="losses/td_value_loss")
     self.scoremean_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_loss_unreduced, name="losses/scoremean_loss")
+    self.lead_loss = tf.reduce_sum(self.target_weight_used * self.lead_loss_unreduced, name="losses/lead_loss")
+    self.variance_time_loss = tf.reduce_sum(self.target_weight_used * self.variance_time_loss_unreduced, name="losses/variance_time_loss")
     self.scorebelief_pdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_pdf_loss_unreduced, name="losses/scorebelief_pdf_loss")
     self.scorebelief_cdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_cdf_loss_unreduced, name="losses/scorebelief_cdf_loss")
     self.ownership_loss = tf.reduce_sum(self.target_weight_used * self.ownership_loss_unreduced, name="losses/ownership_loss")
     self.scoring_loss = tf.reduce_sum(self.target_weight_used * self.scoring_loss_unreduced, name="losses/scoring_loss")
     self.futurepos_loss = tf.reduce_sum(self.target_weight_used * self.futurepos_loss_unreduced, name="losses/futurepos_loss")
     self.seki_loss = tf.reduce_sum(self.target_weight_used * self.seki_loss_unreduced, name="losses/seki_loss")
-    self.scoremean_reg_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_reg_loss_unreduced, name="losses/scoremean_reg_loss")
     self.scorestdev_reg_loss = tf.reduce_sum(self.target_weight_used * self.scorestdev_reg_loss_unreduced, name="losses/scorestdev_reg_loss")
-    self.winloss_reg_loss = tf.reduce_sum(self.target_weight_used * self.winloss_reg_loss_unreduced, name="losses/winloss_reg_loss")
+    # self.winloss_reg_loss = tf.reduce_sum(self.target_weight_used * self.winloss_reg_loss_unreduced, name="losses/winloss_reg_loss")
     self.scale_reg_loss = tf.reduce_sum(self.target_weight_used * self.scale_reg_loss_unreduced, name="losses/scale_reg_loss")
 
     self.weight_sum = tf.reduce_sum(self.target_weight_used, name="losses/weight_sum")
@@ -1534,13 +1548,14 @@ class Target_vars:
         self.value_loss +
         self.td_value_loss +
         self.scoremean_loss +
+        self.lead_loss +
+        self.variance_time_loss +
         self.scorebelief_pdf_loss +
         self.scorebelief_cdf_loss +
         self.ownership_loss +
         self.scoring_loss +
         self.futurepos_loss +
         self.seki_loss +
-        self.scoremean_reg_loss +
         self.scorestdev_reg_loss +
         self.reg_loss +
         self.scale_reg_loss
@@ -1664,6 +1679,8 @@ class ModelUtils:
     placeholders["value_target"] = features["gtnc"][:,0:3]
     placeholders["td_value_target"] = tf.stack([features["gtnc"][:,4:7],features["gtnc"][:,8:11]],axis=1)
     placeholders["scoremean_target"] = features["gtnc"][:,3]
+    placeholders["lead_target"] = features["gtnc"][:,21]
+    placeholders["variance_time_target"] = features["gtnc"][:,22]
     placeholders["scorebelief_target"] = features["sdn"] / 100.0
     placeholders["ownership_target"] = features["vtnchw"][:,0]
     placeholders["scoring_target"] = features["vtnchw"][:,4] / 120.0
@@ -1671,6 +1688,7 @@ class ModelUtils:
     placeholders["seki_target"] = features["vtnchw"][:,1]
 
     placeholders["target_weight_from_data"] = features["gtnc"][:,25]
+    placeholders["lead_target_weight"] = features["gtnc"][:,29]
     placeholders["ownership_target_weight"] = features["gtnc"][:,27]
     placeholders["scoring_target_weight"] = features["gtnc"][:,34]
     placeholders["futurepos_target_weight"] = features["gtnc"][:,33]

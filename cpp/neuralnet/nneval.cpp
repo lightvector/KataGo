@@ -363,11 +363,14 @@ void NNEvaluator::serve(
         double whiteScoreMean = 0.0 + rand.nextGaussian() * 0.20;
         double whiteScoreMeanSq = 0.0 + rand.nextGaussian() * 0.20;
         double whiteNoResultProb = 0.0 + rand.nextGaussian() * 0.20;
+        double varTimeLeft = 0.5 * boardXSize * boardYSize;
         resultBuf->result->whiteWinProb = (float)whiteWinProb;
         resultBuf->result->whiteLossProb = (float)whiteLossProb;
         resultBuf->result->whiteNoResultProb = (float)whiteNoResultProb;
         resultBuf->result->whiteScoreMean = (float)whiteScoreMean;
         resultBuf->result->whiteScoreMeanSq = (float)whiteScoreMeanSq;
+        resultBuf->result->whiteLead = (float)whiteScoreMean;
+        resultBuf->result->varTimeLeft = (float)varTimeLeft;
         resultBuf->hasResult = true;
         resultBuf->clientWaitingForResult.notify_all();
         resultLock.unlock();
@@ -436,6 +439,14 @@ void NNEvaluator::serve(
   }
 
   NeuralNet::freeComputeHandle(gpuHandle);
+}
+
+static double softPlus(double x) {
+  //Avoid blowup
+  if(x > 40.0)
+    return x;
+  else
+    return log(1.0 + exp(x));
 }
 
 void NNEvaluator::evaluate(
@@ -554,6 +565,8 @@ void NNEvaluator::evaluate(
     buf.result->whiteNoResultProb = resultWithoutOwnerMap->whiteNoResultProb;
     buf.result->whiteScoreMean = resultWithoutOwnerMap->whiteScoreMean;
     buf.result->whiteScoreMeanSq = resultWithoutOwnerMap->whiteScoreMeanSq;
+    buf.result->whiteLead = resultWithoutOwnerMap->whiteLead;
+    buf.result->varTimeLeft = resultWithoutOwnerMap->varTimeLeft;
     std::copy(resultWithoutOwnerMap->policyProbs, resultWithoutOwnerMap->policyProbs + NNPos::MAX_NN_POLICY_SIZE, buf.result->policyProbs);
     buf.result->nnXLen = resultWithoutOwnerMap->nnXLen;
     buf.result->nnYLen = resultWithoutOwnerMap->nnYLen;
@@ -660,6 +673,8 @@ void NNEvaluator::evaluate(
         buf.result->whiteNoResultProb = (float)noResultProb;
         buf.result->whiteScoreMean = (float)ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board);
         buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
+        buf.result->whiteLead = buf.result->whiteScoreMean;
+        buf.result->varTimeLeft = -1;
       }
       else {
         buf.result->whiteWinProb = (float)lossProb;
@@ -667,6 +682,8 @@ void NNEvaluator::evaluate(
         buf.result->whiteNoResultProb = (float)noResultProb;
         buf.result->whiteScoreMean = -(float)ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board);
         buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
+        buf.result->whiteLead = buf.result->whiteScoreMean;
+        buf.result->varTimeLeft = -1;
       }
 
     }
@@ -676,12 +693,16 @@ void NNEvaluator::evaluate(
       double noResultProb;
       double scoreMean;
       double scoreMeanSq;
+      double lead;
+      double varTimeLeft;
       {
         double winLogits = buf.result->whiteWinProb;
         double lossLogits = buf.result->whiteLossProb;
         double noResultLogits = buf.result->whiteNoResultProb;
         double scoreMeanPreScaled = buf.result->whiteScoreMean;
         double scoreStdevPreSoftplus = buf.result->whiteScoreMeanSq;
+        double leadPreScaled = buf.result->whiteLead;
+        double varTimeLeftPreSoftplus = buf.result->varTimeLeft;
 
         if(history.rules.koRule != Rules::KO_SIMPLE && history.rules.scoringRule != Rules::SCORING_TERRITORY)
           noResultLogits -= 100000.0;
@@ -701,25 +722,22 @@ void NNEvaluator::evaluate(
         noResultProb /= probSum;
 
         scoreMean = scoreMeanPreScaled * 20.0;
-
-        double scoreStdev;
-        //Avoid blowup
-        if(scoreStdevPreSoftplus > 40.0)
-          scoreStdev = scoreStdevPreSoftplus;
-        else
-          scoreStdev = log(1.0 + exp(scoreStdevPreSoftplus));
-        scoreStdev = scoreStdev * 20.0;
-
+        double scoreStdev = softPlus(scoreStdevPreSoftplus) * 20.0;
         scoreMeanSq = scoreMean * scoreMean + scoreStdev * scoreStdev;
+        lead = leadPreScaled * 20.0;
+        varTimeLeft = softPlus(varTimeLeftPreSoftplus) * 150.0;
 
         //scoreMean and scoreMeanSq are still conditional on having a result, we need to make them unconditional now
         //noResult counts as 0 score for scorevalue purposes.
         scoreMean = scoreMean * (1.0-noResultProb);
         scoreMeanSq = scoreMeanSq * (1.0-noResultProb);
+        lead = lead * (1.0-noResultProb);
 
-        if(isnan(probSum) || isnan(scoreMean) || isnan(scoreMeanSq)) {
+        if(isnan(probSum) || isnan(scoreMean) || isnan(scoreMeanSq) || isnan(lead) || isnan(varTimeLeft)) {
           cout << "Got nan for nneval value" << endl;
-          cout << winLogits << " " << lossLogits << " " << noResultLogits << " " << scoreMean << " " << scoreMeanSq << endl;
+          cout << winLogits << " " << lossLogits << " " << noResultLogits
+               << " " << scoreMean << " " << scoreMeanSq
+               << " " << lead << " " << varTimeLeft << endl;
           throw StringError("Got nan for nneval value");
         }
       }
@@ -730,6 +748,7 @@ void NNEvaluator::evaluate(
         buf.result->whiteNoResultProb = (float)noResultProb;
         buf.result->whiteScoreMean = (float)scoreMean;
         buf.result->whiteScoreMeanSq = (float)scoreMeanSq;
+        buf.result->whiteLead = (float)lead;
       }
       else {
         buf.result->whiteWinProb = (float)lossProb;
@@ -737,8 +756,13 @@ void NNEvaluator::evaluate(
         buf.result->whiteNoResultProb = (float)noResultProb;
         buf.result->whiteScoreMean = -(float)scoreMean;
         buf.result->whiteScoreMeanSq = (float)scoreMeanSq;
+        buf.result->whiteLead = -(float)lead;
       }
 
+      if(modelVersion >= 8)
+        buf.result->varTimeLeft = (float)varTimeLeft;
+      else
+        buf.result->varTimeLeft = -1;
     }
     else {
       throw StringError("NNEval value postprocessing not implemented for model version");

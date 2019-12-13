@@ -308,6 +308,8 @@ NNOutput::NNOutput(const NNOutput& other) {
   whiteNoResultProb = other.whiteNoResultProb;
   whiteScoreMean = other.whiteScoreMean;
   whiteScoreMeanSq = other.whiteScoreMeanSq;
+  whiteLead = other.whiteLead;
+  varTimeLeft = other.varTimeLeft;
 
   nnXLen = other.nnXLen;
   nnYLen = other.nnYLen;
@@ -337,6 +339,8 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
   whiteNoResultProb = other.whiteNoResultProb;
   whiteScoreMean = other.whiteScoreMean;
   whiteScoreMeanSq = other.whiteScoreMeanSq;
+  whiteLead = other.whiteLead;
+  varTimeLeft = other.varTimeLeft;
 
   nnXLen = other.nnXLen;
   nnYLen = other.nnYLen;
@@ -381,6 +385,8 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   out << "NoResult " << Global::strprintf("%.2fc",whiteNoResultProb*100) << endl;
   out << "ScoreMean " << Global::strprintf("%.1f",whiteScoreMean) << endl;
   out << "ScoreMeanSq " << Global::strprintf("%.1f",whiteScoreMeanSq) << endl;
+  out << "Lead " << Global::strprintf("%.1f",whiteLead) << endl;
+  out << "VarTimeLeft " << Global::strprintf("%.1f",varTimeLeft) << endl;
 
   out << "Policy" << endl;
   for(int y = 0; y<board.y_size; y++) {

@@ -188,12 +188,13 @@ def model_fn(features,labels,mode,params):
         "vloss": tf.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
         "tdvloss": tf.metrics.mean(target_vars.td_value_loss_unreduced, weights=target_vars.target_weight_used),
         "smloss": tf.metrics.mean(target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used),
+        "leadloss": tf.metrics.mean(target_vars.lead_loss_unreduced, weights=target_vars.target_weight_used),
+        "vtimeloss": tf.metrics.mean(target_vars.variance_time_loss_unreduced, weights=target_vars.target_weight_used),
         "sbpdfloss": tf.metrics.mean(target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
         "sbcdfloss": tf.metrics.mean(target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
         "oloss": tf.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
         "sloss": tf.metrics.mean(target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used),
         "fploss": tf.metrics.mean(target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used),
-        "rwlloss": tf.metrics.mean(target_vars.winloss_reg_loss_unreduced, weights=target_vars.target_weight_used),
         "rsdloss": tf.metrics.mean(target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used),
         "rloss": tf.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
         "rscloss": tf.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
@@ -220,13 +221,14 @@ def model_fn(features,labels,mode,params):
     (vloss,vloss_op) = moving_mean("vloss",target_vars.value_loss_unreduced, weights=target_vars.target_weight_used)
     (tdvloss,tdvloss_op) = moving_mean("tdvloss",target_vars.td_value_loss_unreduced, weights=target_vars.target_weight_used)
     (smloss,smloss_op) = moving_mean("smloss",target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used)
+    (leadloss,leadloss_op) = moving_mean("leadloss",target_vars.lead_loss_unreduced, weights=target_vars.target_weight_used)
+    (vtimeloss,vtimeloss_op) = moving_mean("vtimeloss",target_vars.variance_time_loss_unreduced, weights=target_vars.target_weight_used)
     (sbpdfloss,sbpdfloss_op) = moving_mean("sbpdfloss",target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used)
     (sbcdfloss,sbcdfloss_op) = moving_mean("sbcdfloss",target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used)
     (oloss,oloss_op) = moving_mean("oloss",target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used)
     (sloss,sloss_op) = moving_mean("sloss",target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used)
     (fploss,fploss_op) = moving_mean("fploss",target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used)
     (skloss,skloss_op) = moving_mean("skloss",target_vars.seki_loss_unreduced, weights=target_vars.target_weight_used)
-    (rwlloss,rwlloss_op) = moving_mean("rwlloss",target_vars.winloss_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (rsdloss,rsdloss_op) = moving_mean("rsdloss",target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (rloss,rloss_op) = moving_mean("rloss",target_vars.reg_loss_per_weight, weights=target_vars.weight_sum)
     (rscloss,rscloss_op) = moving_mean("rscloss",target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used)
@@ -246,6 +248,8 @@ def model_fn(features,labels,mode,params):
       "vloss": vloss,
       "tdvloss": tdvloss,
       "smloss": smloss,
+      "leadloss": leadloss,
+      "vtimeloss": vtimeloss,
       "sbpdfloss": sbpdfloss,
       "sbcdfloss": sbcdfloss,
       "oloss": oloss,
@@ -253,7 +257,6 @@ def model_fn(features,labels,mode,params):
       "fploss": fploss,
       "skloss": skloss,
       "skw": target_vars.seki_weight_scale,
-      "rwlloss": rwlloss,
       "rsdloss": rsdloss,
       "rloss": rloss,
       "rscloss": rscloss,
@@ -290,8 +293,8 @@ def model_fn(features,labels,mode,params):
     return tf.estimator.EstimatorSpec(
       mode,
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
-      train_op=tf.group(train_step,p0loss_op,p1loss_op,vloss_op,tdvloss_op,smloss_op,sbpdfloss_op,sbcdfloss_op,
-                        oloss_op,sloss_op,fploss_op,skloss_op,rwlloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ptentr_op,wmean_op,
+      train_op=tf.group(train_step,p0loss_op,p1loss_op,vloss_op,tdvloss_op,smloss_op,leadloss_op,vtimeloss_op,sbpdfloss_op,sbcdfloss_op,
+                        oloss_op,sloss_op,fploss_op,skloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ptentr_op,wmean_op,
                         gnorm_op,exgnorm_op),
       training_hooks = [logging_hook]
     )
