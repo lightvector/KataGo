@@ -12011,7 +12011,7 @@ Then continue the search to complete 50 visits.
 : T   4.30c W   4.53c S  -0.23c ( -0.4) N      50  --  C1 F7 A1 G3 F1 A5
 ---White(^)---
 C1  : T   8.85c W   9.00c S  -0.16c ( -0.2) LCB  -11.68c P 11.74% WF 12.63% PSV      13 N      13  --  C1 F7 A1 G3 F1 A5
-pss : T   9.04c W   8.89c S   0.16c ( -0.2) LCB  -61.21c P  7.82% WF 12.63% PSV       9 N      11  --  pass B7 E1 pass pass
+pss : T   9.04c W   8.89c S   0.16c ( -0.2) LCB  -68.40c P  7.82% WF 12.63% PSV       9 N      11  --  pass B7 E1 pass pass
 G1  : T   4.32c W   6.27c S  -1.95c ( -2.3) LCB  -46.07c P 12.92% WF 11.73% PSV       7 N       7  --  G1 A7 C1 F7 G3
 E1  : T   5.15c W   2.88c S   2.27c ( +2.6) LCB  -27.68c P 10.72% WF 11.87% PSV       7 N       7  --  E1 F1 B1 G7
 E5  : T  -3.42c W  -1.66c S  -1.76c ( -2.0) LCB -201.96c P 11.90% WF 10.58% PSV       4 N       4  --  E5 F1 A5 B1
@@ -12038,17 +12038,17 @@ HASH: 949A0985413C9A8ACB79BEC467CEA6DD
 
 : T  -0.35c W  -0.38c S   0.03c ( +0.0) N     400  --  A7 F1 E3 G1 E7 F3 A4
 ---Black(v)---
-A7  : T  -1.44c W  -1.67c S   0.23c ( +0.2) LCB    6.55c P 15.33% WF 10.32% PSV      85 N      85  --  A7 F1 E3 G1 E7 F3 A4
+A7  : T  -1.44c W  -1.67c S   0.23c ( +0.2) LCB    6.58c P 15.33% WF 10.32% PSV      85 N      85  --  A7 F1 E3 G1 E7 F3 A4
 E5  : T  -1.64c W  -1.43c S  -0.21c ( -0.2) LCB    5.42c P 13.30% WF 10.36% PSV      76 N      76  --  E5 pass F1 F1 A4 pass E3 pass
 C1  : T  -3.41c W  -3.18c S  -0.23c ( -0.3) LCB    4.43c P  5.35% WF 10.80% PSV      67 N      68  --  C1 E3 E5 B1 pass C1 F7
-E7  : T  -0.42c W  -0.20c S  -0.22c ( -0.3) LCB   10.13c P 13.88% WF 10.03% PSV      56 N      56  --  E7 F1 E3 G1 A7 E5
+E7  : T  -0.42c W  -0.20c S  -0.22c ( -0.3) LCB   10.20c P 13.88% WF 10.03% PSV      56 N      56  --  E7 F1 E3 G1 A7 E5
 B7  : T   0.59c W   0.07c S   0.52c ( +0.6) LCB   12.57c P  8.20% WF  9.82% PSV      28 N      28  --  B7 F7 E7 E3 G3 E5
-A4  : T   1.92c W   1.21c S   0.72c ( +0.8) LCB   26.01c P  8.11% WF  9.54% PSV      23 N      27  --  A4 E5 B7 F7 E7
+A4  : T   1.92c W   1.21c S   0.72c ( +0.8) LCB   26.81c P  8.11% WF  9.54% PSV      23 N      27  --  A4 E5 B7 F7 E7
 E3  : T   3.86c W   4.48c S  -0.62c ( -0.7) LCB   18.59c P  9.41% WF  9.19% PSV      21 N      22  --  E3 F7 E5 F3 E7
 F1  : T   2.26c W   1.31c S   0.94c ( +1.0) LCB   17.09c P  7.72% WF  9.51% PSV      21 N      21  --  F1 B1 F1 pass E7 A7
 F7  : T   1.59c W   3.03c S  -1.44c ( -1.6) LCB   31.78c P  2.95% WF  9.70% PSV       8 N       9  --  F7 C1 pass B1 pass
-B1  : T  15.35c W  14.02c S   1.33c ( +1.2) LCB  149.84c P  6.53% WF  7.84% PSV       6 N       6  --  B1 F7 pass pass
-pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  104.68c P  9.24% WF  2.89% PSV       1 N       1  --  pass
+B1  : T  15.35c W  14.02c S   1.33c ( +1.2) LCB  190.52c P  6.53% WF  7.84% PSV       6 N       6  --  B1 F7 pass pass
+pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  260.00c P  9.24% WF  2.89% PSV       1 N       1  --  pass
 
 Next, with rootPruneUselessMoves
 HASH: 949A0985413C9A8ACB79BEC467CEA6DD
@@ -12064,8 +12064,8 @@ HASH: 949A0985413C9A8ACB79BEC467CEA6DD
 
 : T   2.58c W   2.37c S   0.22c ( +0.2) N     400  --  E5 B1 B7 E7 F7 C1 E3
 ---Black(v)---
-E5  : T   2.38c W   2.17c S   0.21c ( +0.2) LCB    6.62c P 13.30% WF 77.09% PSV     398 N     398  --  E5 B1 B7 E7 F7 C1 E3 G3
-pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  104.68c P  9.24% WF 22.91% PSV       1 N       1  --  pass
+E5  : T   2.38c W   2.17c S   0.21c ( +0.2) LCB    6.66c P 13.30% WF 77.09% PSV     398 N     398  --  E5 B1 B7 E7 F7 C1 E3 G3
+pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  260.00c P  9.24% WF 22.91% PSV       1 N       1  --  pass
 
 Progress the game, having black fill space while white passes...
 Searching on the opponent, the move before
@@ -12082,14 +12082,14 @@ HASH: 6AA0C7C43BAC1D9881FC1F5BAAFF4608
 
 : T   3.35c W   3.07c S   0.28c ( +0.3) N     400  --  C1 E3 E3 E5 pass G3 B1
 ---White(^)---
-C1  : T   5.04c W   5.03c S   0.01c ( -0.1) LCB   -2.15c P 29.57% WF 18.27% PSV     185 N     185  --  C1 E3 E3 E5 pass G3 B1 A4
-pss : T   0.82c W   0.61c S   0.20c ( +0.2) LCB   -5.02c P 37.76% WF 16.05% PSV     101 N     101  --  pass F1 F1 B7 E5 B1 A4
-E5  : T   5.34c W   3.59c S   1.75c ( +1.9) LCB   -7.96c P 10.54% WF 18.18% PSV      68 N      68  --  E5 C1 F1 B7 G1 pass
+C1  : T   5.04c W   5.03c S   0.01c ( -0.1) LCB   -2.25c P 29.57% WF 18.27% PSV     185 N     185  --  C1 E3 E3 E5 pass G3 B1 A4
+pss : T   0.82c W   0.61c S   0.20c ( +0.2) LCB   -5.03c P 37.76% WF 16.05% PSV     101 N     101  --  pass F1 F1 B7 E5 B1 A4
+E5  : T   5.34c W   3.59c S   1.75c ( +1.9) LCB   -8.31c P 10.54% WF 18.18% PSV      68 N      68  --  E5 C1 F1 B7 G1 pass
 B1  : T  -1.37c W  -0.72c S  -0.65c ( -0.7) LCB  -12.66c P 13.77% WF 15.61% PSV      28 N      28  --  B1 pass E3 B7 F1 pass G1 pass
 E3  : T  -1.84c W  -1.26c S  -0.58c ( -0.6) LCB  -18.19c P  6.66% WF 15.73% PSV      13 N      14  --  E3 F3 B1 E5 C1 F1
 F1  : T  -2.11c W   0.65c S  -2.75c ( -3.3) LCB -230.85c P  1.70% WF 16.16% PSV       3 N       3  --  F1 B7 G1
 : T   3.35c W   3.07c S   0.28c ( +0.3) N     400  --  C1 E3 E3 E5 pass G3 B1
-pss : T   0.82c W   0.61c S   0.20c ( +0.2) LCB   -5.02c P 37.76% WF 16.05% PSV     101 N     101  --  pass F1 F1 B7 E5 B1 A4
+pss : T   0.82c W   0.61c S   0.20c ( +0.2) LCB   -5.03c P 37.76% WF 16.05% PSV     101 N     101  --  pass F1 F1 B7 E5 B1 A4
 ---Black(v)---
 pss F1  : T   0.29c W   0.13c S   0.16c ( +0.2) LCB    9.47c P 32.64% WF 15.94% PSV      34 N      34  --  F1 F1 B7 E5 B1 A4
 pss C1  : T   0.37c W  -1.30c S   1.67c ( +1.9) LCB   12.28c P 22.16% WF 15.89% PSV      24 N      24  --  C1 E3 B7 F3 F1
@@ -12097,7 +12097,7 @@ pss B1  : T  -2.46c W  -2.30c S  -0.16c ( -0.2) LCB   12.02c P 16.03% WF 16.72% 
 pss A4  : T   3.12c W   4.25c S  -1.13c ( -1.3) LCB   21.69c P 15.46% WF 15.14% PSV      12 N      12  --  A4 B1 B7 E3 F1
 pss B7  : T   0.85c W   1.14c S  -0.28c ( -0.3) LCB   38.22c P  5.42% WF 15.72% PSV       6 N       6  --  B7 E5 F1
 pss E3  : T  -0.62c W   0.66c S  -1.28c ( -1.4) LCB  120.64c P  3.28% WF 15.98% PSV       3 N       3  --  E3 G3
-pss pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  104.68c P  3.21% WF  4.61% PSV       1 N       1  --  pass
+pss pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  260.00c P  3.21% WF  4.61% PSV       1 N       1  --  pass
 
 Now play forward the pass. The tree should still have useless suicides and also other moves in it
 HASH: 6AA0C7C43BAC1D9881FC1F5BAAFF4608
@@ -12119,7 +12119,7 @@ B1  : T  -2.46c W  -2.30c S  -0.16c ( -0.2) LCB   12.02c P 16.03% WF 16.72% PSV 
 A4  : T   3.12c W   4.25c S  -1.13c ( -1.3) LCB   21.69c P 15.46% WF 15.14% PSV      12 N      12  --  A4 B1 B7 E3 F1
 B7  : T   0.85c W   1.14c S  -0.28c ( -0.3) LCB   38.22c P  5.42% WF 15.72% PSV       5 N       6  --  B7 E5 F1
 E3  : T  -0.62c W   0.66c S  -1.28c ( -1.4) LCB  120.64c P  3.28% WF 15.98% PSV       3 N       3  --  E3 G3
-pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  104.68c P  3.21% WF  4.61% PSV       0 N       1  --  pass
+pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  260.00c P  3.21% WF  4.61% PSV       0 N       1  --  pass
 
 But the moment we begin a search, it should no longer.
 HASH: 6AA0C7C43BAC1D9881FC1F5BAAFF4608
@@ -12135,7 +12135,7 @@ HASH: 6AA0C7C43BAC1D9881FC1F5BAAFF4608
 
 : T  61.13c W  61.60c S  -0.47c ( -1.5) N       2  --  pass
 ---Black(v)---
-pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  104.68c P  3.21% WF 100.00% PSV       1 N       1  --  pass
+pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  260.00c P  3.21% WF 100.00% PSV       1 N       1  --  pass
 
 Continue searching a bit more
 HASH: 6AA0C7C43BAC1D9881FC1F5BAAFF4608
@@ -12151,8 +12151,8 @@ HASH: 6AA0C7C43BAC1D9881FC1F5BAAFF4608
 
 : T   1.82c W   1.57c S   0.25c ( +0.2) N     400  --  E5 pass B7 C1 A4 B4 F1
 ---Black(v)---
-E5  : T   1.64c W   1.38c S   0.26c ( +0.2) LCB    6.22c P  1.80% WF 77.26% PSV     398 N     398  --  E5 pass B7 C1 A4 B4 F1 E7
-pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  104.68c P  3.21% WF 22.74% PSV       0 N       1  --  pass
+E5  : T   1.64c W   1.38c S   0.26c ( +0.2) LCB    6.28c P  1.80% WF 77.26% PSV     398 N     398  --  E5 pass B7 C1 A4 B4 F1 E7
+pss : T 104.68c W 100.00c S   4.68c ( +3.5) LCB  260.00c P  3.21% WF 22.74% PSV       0 N       1  --  pass
 
 ===================================================================
 Testing search tree update near terminal positions
@@ -12169,31 +12169,31 @@ HASH: 94959097515D55649C5B7E91CF40EBBD
  1 O . . O . O O
 
 
-: T  40.83c W  38.36c S   2.47c ( +0.0) SMSQ 134.4 USQ 0.44421 W 247.51 WSQ    90.85 N     400  --  B1 E7 pass D6 pass pass
+: T  40.83c W  38.36c S   2.47c ( +0.0) SMSQ 134.4 USQ 0.44421 W 247.51 WSQ   194.98 N     400  --  B1 E7 pass D6 pass pass
 ---White(^)---
-B1  : T  48.16c W  45.41c S   2.74c ( +0.0) LCB   38.99c P 12.18% WF 50.78% PSV     286 SMSQ 118.7 USQ 0.52090 W 155.11 WSQ    43.03 N     286  --  B1 E7 pass D6 pass pass
-E1  : T   8.38c W   5.90c S   2.48c ( +0.4) LCB   -4.85c P 60.64% WF 13.49% PSV      29 SMSQ 198.5 USQ 0.09245 W  39.19 WSQ    17.79 N      85  --  E1 C1 pass B1 F1 D3 A3 B2
+B1  : T  48.16c W  45.41c S   2.74c ( +0.0) LCB   33.83c P 12.18% WF 50.78% PSV     286 SMSQ 118.7 USQ 0.52090 W 155.11 WSQ   103.00 N     286  --  B1 E7 pass D6 pass pass
+E1  : T   8.38c W   5.90c S   2.48c ( +0.4) LCB   -5.12c P 60.64% WF 13.49% PSV      29 SMSQ 198.5 USQ 0.09245 W  39.19 WSQ    18.45 N      85  --  E1 C1 pass B1 F1 D3 A3 B2
 pss : T  -1.98c W   4.73c S  -6.71c ( -2.9) LCB  -33.68c P 17.22% WF 15.83% PSV       6 SMSQ 235.9 USQ 0.03919 W   9.21 WSQ     6.52 N      13  --  pass D6 B1 B7 E7 A5 C5
-C1  : T   8.56c W   7.06c S   1.51c ( +0.0) LCB  -31.88c P  9.97% WF 19.89% PSV       4 SMSQ 223.9 USQ 0.09706 W  10.69 WSQ     7.22 N      15  --  C1 pass B1 B7 pass E7 pass
+C1  : T   8.56c W   7.06c S   1.51c ( +0.0) LCB  -34.06c P  9.97% WF 19.89% PSV       4 SMSQ 223.9 USQ 0.09706 W  10.69 WSQ     7.68 N      15  --  C1 pass B1 B7 pass E7 pass
 Begin search is idempotent?
-: T  38.80c W  38.15c S   0.65c ( +0.0) SMSQ 134.9 USQ 0.41980 W 246.70 WSQ    90.55 N     400  --  B1 E7 pass D6 pass pass
+: T  38.80c W  38.15c S   0.65c ( +0.0) SMSQ 134.9 USQ 0.41980 W 246.70 WSQ   192.33 N     400  --  B1 E7 pass D6 pass pass
 ---White(^)---
-B1  : T  46.05c W  45.24c S   0.81c ( +0.0) LCB   36.99c P 12.18% WF 50.22% PSV     286 SMSQ 119.1 USQ 0.49278 W 155.09 WSQ    43.19 N     286  --  B1 E7 pass D6 pass pass
-E1  : T   7.10c W   5.93c S   1.17c ( +0.4) LCB   -6.03c P 60.64% WF 13.72% PSV      30 SMSQ 198.5 USQ 0.08919 W  39.17 WSQ    17.76 N      85  --  E1 C1 pass B1 F1 D3 A3 B2
+B1  : T  46.05c W  45.24c S   0.81c ( +0.0) LCB   31.97c P 12.18% WF 50.22% PSV     286 SMSQ 119.1 USQ 0.49278 W 155.09 WSQ   102.43 N     286  --  B1 E7 pass D6 pass pass
+E1  : T   7.10c W   5.93c S   1.17c ( +0.4) LCB   -6.30c P 60.64% WF 13.72% PSV      30 SMSQ 198.5 USQ 0.08919 W  39.17 WSQ    18.42 N      85  --  E1 C1 pass B1 F1 D3 A3 B2
 pss : T  -3.16c W   4.73c S  -7.89c ( -2.9) LCB  -34.77c P 17.22% WF 16.00% PSV       6 SMSQ 235.9 USQ 0.03957 W   9.21 WSQ     6.53 N      13  --  pass D6 B1 B7 E7 A5 C5
-C1  : T   7.27c W   7.06c S   0.21c ( +0.0) LCB  -32.73c P  9.97% WF 20.06% PSV       5 SMSQ 223.8 USQ 0.09310 W  10.69 WSQ     7.22 N      15  --  C1 pass B1 B7 pass E7 pass
-: T  46.05c W  45.24c S   0.81c ( +0.0) SMSQ 119.1 USQ 0.49278 W 155.09 WSQ    43.19 N     286  --  E7 pass D6 pass pass
+C1  : T   7.27c W   7.06c S   0.21c ( +0.0) LCB  -34.89c P  9.97% WF 20.06% PSV       5 SMSQ 223.8 USQ 0.09310 W  10.69 WSQ     7.67 N      15  --  C1 pass B1 B7 pass E7 pass
+: T  46.05c W  45.24c S   0.81c ( +0.0) SMSQ 119.1 USQ 0.49278 W 155.09 WSQ   102.43 N     286  --  E7 pass D6 pass pass
 ---Black(v)---
-E7  : T  33.19c W  32.69c S   0.50c ( -0.0) LCB   48.06c P  1.90% WF 41.82% PSV     429 SMSQ 146.0 USQ 0.36868 W  62.36 WSQ    19.89 N     115  --  E7 pass D6 pass pass
-D6  : T  53.60c W  52.64c S   0.96c ( +0.0) LCB   65.92c P  5.27% WF 25.51% PSV     119 SMSQ  99.8 USQ 0.56808 W  65.70 WSQ    14.19 N     119  --  D6 pass B7 pass pass
-B7  : T  57.87c W  56.92c S   0.95c ( +0.0) LCB   85.44c P  9.61% WF 24.15% PSV      26 SMSQ 106.6 USQ 0.59333 W  20.37 WSQ     6.64 N      26  --  B7 pass D6 pass pass
-pss : T  95.90c W  93.72c S   2.17c ( +0.3) LCB  101.16c P 83.22% WF  8.52% PSV      25 SMSQ  17.9 USQ 0.99384 W  20.83 WSQ     0.99 N      25  --  pass pass
-: T  46.00c W  45.24c S   0.76c ( +0.0) SMSQ 119.1 USQ 0.49211 W 155.09 WSQ    43.19 N     286  --  E7 pass D6 pass pass
+E7  : T  33.19c W  32.69c S   0.50c ( -0.0) LCB   54.63c P  1.90% WF 41.82% PSV     320 SMSQ 146.0 USQ 0.36868 W  62.36 WSQ    39.57 N     115  --  E7 pass D6 pass pass
+D6  : T  53.60c W  52.64c S   0.96c ( +0.0) LCB   75.98c P  5.27% WF 25.51% PSV     119 SMSQ  99.8 USQ 0.56808 W  65.70 WSQ    44.06 N     119  --  D6 pass B7 pass pass
+B7  : T  57.87c W  56.92c S   0.95c ( +0.0) LCB  108.22c P  9.61% WF 24.15% PSV      26 SMSQ 106.6 USQ 0.59333 W  20.37 WSQ    17.40 N      26  --  B7 pass D6 pass pass
+pss : T  95.90c W  93.72c S   2.17c ( +0.3) LCB  122.11c P 83.22% WF  8.52% PSV      25 SMSQ  17.9 USQ 0.99384 W  20.83 WSQ    17.46 N      25  --  pass pass
+: T  46.00c W  45.24c S   0.76c ( +0.0) SMSQ 119.1 USQ 0.49211 W 155.09 WSQ   102.41 N     286  --  E7 pass D6 pass pass
 ---Black(v)---
-E7  : T  33.15c W  32.69c S   0.46c ( -0.0) LCB   48.01c P  1.90% WF 41.81% PSV     429 SMSQ 146.0 USQ 0.36817 W  62.36 WSQ    19.89 N     115  --  E7 pass D6 pass pass
-D6  : T  53.54c W  52.64c S   0.91c ( +0.0) LCB   65.87c P  5.27% WF 25.51% PSV     119 SMSQ  99.8 USQ 0.56729 W  65.70 WSQ    14.19 N     119  --  D6 pass B7 pass pass
-B7  : T  57.82c W  56.92c S   0.90c ( +0.0) LCB   85.37c P  9.61% WF 24.15% PSV      26 SMSQ 106.6 USQ 0.59252 W  20.37 WSQ     6.64 N      26  --  B7 pass D6 pass pass
-pss : T  95.83c W  93.72c S   2.11c ( +0.3) LCB  101.10c P 83.22% WF  8.53% PSV      25 SMSQ  17.9 USQ 0.99252 W  20.83 WSQ     0.99 N      25  --  pass pass
+E7  : T  33.15c W  32.69c S   0.46c ( -0.0) LCB   54.58c P  1.90% WF 41.81% PSV     320 SMSQ 146.0 USQ 0.36817 W  62.36 WSQ    39.57 N     115  --  E7 pass D6 pass pass
+D6  : T  53.54c W  52.64c S   0.91c ( +0.0) LCB   75.92c P  5.27% WF 25.51% PSV     119 SMSQ  99.8 USQ 0.56729 W  65.70 WSQ    44.06 N     119  --  D6 pass B7 pass pass
+B7  : T  57.82c W  56.92c S   0.90c ( +0.0) LCB  108.14c P  9.61% WF 24.15% PSV      26 SMSQ 106.6 USQ 0.59252 W  20.37 WSQ    17.39 N      26  --  B7 pass D6 pass pass
+pss : T  95.83c W  93.72c S   2.11c ( +0.3) LCB  122.03c P 83.22% WF  8.53% PSV      25 SMSQ  17.9 USQ 0.99252 W  20.83 WSQ    17.45 N      25  --  pass pass
 
 ===================================================================
 Non-square board search
@@ -12294,24 +12294,24 @@ Last moves C7 pass pass
 Search made move after gameover
 : T   5.34c W   4.80c S   0.53c ( +0.4) N     200  --  A7 G5 B4 F7 A1 pass A7
 ---Black(v)---
-A7  : T   3.50c W   3.43c S   0.07c ( -0.0) LCB   12.00c P 42.55% WF 33.89% PSV     129 N     129  --  A7 G5 B4 F7 A1 pass A7 C6
-A1  : T   5.93c W   5.07c S   0.87c ( +0.7) LCB   25.15c P 24.57% WF 31.55% PSV      49 N      50  --  A1 D7 B4 G5 pass F7 E4 F6
-B4  : T  12.65c W   9.73c S   2.91c ( +3.2) LCB   44.41c P 10.20% WF 27.64% PSV      10 N      18  --  B4 E4 A1 pass A7
-pss : T 112.29c W 100.00c S  12.29c (+10.5) LCB  112.29c P 22.69% WF  6.92% PSV       2 N       2  --  pass
+A7  : T   3.50c W   3.43c S   0.07c ( -0.0) LCB   12.12c P 42.55% WF 33.89% PSV     129 N     129  --  A7 G5 B4 F7 A1 pass A7 C6
+A1  : T   5.93c W   5.07c S   0.87c ( +0.7) LCB   25.99c P 24.57% WF 31.55% PSV      49 N      50  --  A1 D7 B4 G5 pass F7 E4 F6
+B4  : T  12.65c W   9.73c S   2.91c ( +3.2) LCB   45.91c P 10.20% WF 27.64% PSV      10 N      18  --  B4 E4 A1 pass A7
+pss : T 112.29c W 100.00c S  12.29c (+10.5) LCB  260.00c P 22.69% WF  6.92% PSV       2 N       2  --  pass
 Search made move (carrying tree over) after gameover
 : T   5.34c W   4.80c S   0.53c ( +0.4) N     200  --  A7 G5 B4 F7 A1 pass A7
 ---Black(v)---
-A7  : T   3.50c W   3.43c S   0.07c ( -0.0) LCB   12.00c P 42.55% WF 33.89% PSV     129 N     129  --  A7 G5 B4 F7 A1 pass A7 C6
-A1  : T   5.93c W   5.07c S   0.87c ( +0.7) LCB   25.15c P 24.57% WF 31.55% PSV      50 N      50  --  A1 D7 B4 G5 pass F7 E4 F6
-B4  : T  12.65c W   9.73c S   2.91c ( +3.2) LCB   44.41c P 10.20% WF 27.64% PSV      18 N      18  --  B4 E4 A1 pass A7
-pss : T 112.29c W 100.00c S  12.29c (+10.5) LCB  112.29c P 22.69% WF  6.92% PSV       2 N       2  --  pass
+A7  : T   3.50c W   3.43c S   0.07c ( -0.0) LCB   12.12c P 42.55% WF 33.89% PSV     129 N     129  --  A7 G5 B4 F7 A1 pass A7 C6
+A1  : T   5.93c W   5.07c S   0.87c ( +0.7) LCB   25.99c P 24.57% WF 31.55% PSV      50 N      50  --  A1 D7 B4 G5 pass F7 E4 F6
+B4  : T  12.65c W   9.73c S   2.91c ( +3.2) LCB   45.91c P 10.20% WF 27.64% PSV      18 N      18  --  B4 E4 A1 pass A7
+pss : T 112.29c W 100.00c S  12.29c (+10.5) LCB  260.00c P 22.69% WF  6.92% PSV       2 N       2  --  pass
 Position was set after gameover
 : T   5.34c W   4.80c S   0.53c ( +0.4) N     200  --  A7 G5 B4 F7 A1 pass A7
 ---Black(v)---
-A7  : T   3.50c W   3.43c S   0.07c ( -0.0) LCB   12.00c P 42.55% WF 33.89% PSV     129 N     129  --  A7 G5 B4 F7 A1 pass A7 C6
-A1  : T   5.93c W   5.07c S   0.87c ( +0.7) LCB   25.15c P 24.57% WF 31.55% PSV      50 N      50  --  A1 D7 B4 G5 pass F7 E4 F6
-B4  : T  12.65c W   9.73c S   2.91c ( +3.2) LCB   44.41c P 10.20% WF 27.64% PSV      18 N      18  --  B4 E4 A1 pass A7
-pss : T 112.29c W 100.00c S  12.29c (+10.5) LCB  112.29c P 22.69% WF  6.92% PSV       2 N       2  --  pass
+A7  : T   3.50c W   3.43c S   0.07c ( -0.0) LCB   12.12c P 42.55% WF 33.89% PSV     129 N     129  --  A7 G5 B4 F7 A1 pass A7 C6
+A1  : T   5.93c W   5.07c S   0.87c ( +0.7) LCB   25.99c P 24.57% WF 31.55% PSV      50 N      50  --  A1 D7 B4 G5 pass F7 E4 F6
+B4  : T  12.65c W   9.73c S   2.91c ( +3.2) LCB   45.91c P 10.20% WF 27.64% PSV      18 N      18  --  B4 E4 A1 pass A7
+pss : T 112.29c W 100.00c S  12.29c (+10.5) LCB  260.00c P 22.69% WF  6.92% PSV       2 N       2  --  pass
 Recapturing ko after two passes and supposed game over (violates superko)
 HASH: C51B63E1D196B9A30F8CA505691B72D2
    A B C D E F G
@@ -12338,22 +12338,22 @@ Last moves C7 pass pass D7
 Search made move
 : T   8.27c W   7.67c S   0.60c ( +0.5) N     200  --  E4 A7 C7 B4 D7 A1 C3
 ---White(^)---
-E4  : T   9.17c W   8.50c S   0.67c ( +0.6) LCB   -0.18c P 74.81% WF 27.39% PSV     168 N     168  --  E4 A7 C7 B4 D7 A1 C3 D1
-pss : T   3.80c W   3.60c S   0.19c ( +0.1) LCB  -32.49c P 10.59% WF 24.48% PSV      12 N      15  --  pass A1 C7 A7 pass
+E4  : T   9.17c W   8.50c S   0.67c ( +0.6) LCB   -0.51c P 74.81% WF 27.39% PSV     168 N     168  --  E4 A7 C7 B4 D7 A1 C3 D1
+pss : T   3.80c W   3.60c S   0.19c ( +0.1) LCB  -32.84c P 10.59% WF 24.48% PSV      12 N      15  --  pass A1 C7 A7 pass
 G5  : T   3.65c W   3.39c S   0.25c ( +0.3) LCB  -26.11c P  7.08% WF 24.72% PSV       8 N       8  --  G5 A7 E4
 F7  : T   0.34c W   0.30c S   0.05c ( -0.1) LCB  -38.17c P  7.52% WF 23.41% PSV       7 N       8  --  F7 pass E4 G5
 Search made move (carrying tree over)
 : T   8.27c W   7.67c S   0.60c ( +0.5) N     200  --  E4 A7 C7 B4 D7 A1 C3
 ---White(^)---
-E4  : T   9.17c W   8.50c S   0.67c ( +0.6) LCB   -0.18c P 74.81% WF 27.39% PSV     168 N     168  --  E4 A7 C7 B4 D7 A1 C3 D1
-pss : T   3.80c W   3.60c S   0.19c ( +0.1) LCB  -32.49c P 10.59% WF 24.48% PSV      15 N      15  --  pass A1 C7 A7 pass
+E4  : T   9.17c W   8.50c S   0.67c ( +0.6) LCB   -0.51c P 74.81% WF 27.39% PSV     168 N     168  --  E4 A7 C7 B4 D7 A1 C3 D1
+pss : T   3.80c W   3.60c S   0.19c ( +0.1) LCB  -32.84c P 10.59% WF 24.48% PSV      15 N      15  --  pass A1 C7 A7 pass
 F7  : T   0.34c W   0.30c S   0.05c ( -0.1) LCB  -38.17c P  7.52% WF 23.41% PSV       8 N       8  --  F7 pass E4 G5
 G5  : T   3.65c W   3.39c S   0.25c ( +0.3) LCB  -26.11c P  7.08% WF 24.72% PSV       8 N       8  --  G5 A7 E4
 Position was set
 : T   8.27c W   7.67c S   0.60c ( +0.5) N     200  --  E4 A7 C7 B4 D7 A1 C3
 ---White(^)---
-E4  : T   9.17c W   8.50c S   0.67c ( +0.6) LCB   -0.18c P 74.81% WF 27.39% PSV     168 N     168  --  E4 A7 C7 B4 D7 A1 C3 D1
-pss : T   3.80c W   3.60c S   0.19c ( +0.1) LCB  -32.49c P 10.59% WF 24.48% PSV      15 N      15  --  pass A1 C7 A7 pass
+E4  : T   9.17c W   8.50c S   0.67c ( +0.6) LCB   -0.51c P 74.81% WF 27.39% PSV     168 N     168  --  E4 A7 C7 B4 D7 A1 C3 D1
+pss : T   3.80c W   3.60c S   0.19c ( +0.1) LCB  -32.84c P 10.59% WF 24.48% PSV      15 N      15  --  pass A1 C7 A7 pass
 F7  : T   0.34c W   0.30c S   0.05c ( -0.1) LCB  -38.17c P  7.52% WF 23.41% PSV       8 N       8  --  F7 pass E4 G5
 G5  : T   3.65c W   3.39c S   0.25c ( +0.3) LCB  -26.11c P  7.08% WF 24.72% PSV       8 N       8  --  G5 A7 E4
 

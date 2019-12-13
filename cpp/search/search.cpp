@@ -2028,12 +2028,10 @@ void Search::runSinglePlayout(SearchThread& thread) {
   thread.history = rootHistory;
 }
 
-void Search::addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, int32_t virtualLossesToSubtract, bool isCertain) {
+void Search::addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, int32_t virtualLossesToSubtract) {
   double utility =
     getResultUtility(winValue, noResultValue, searchParams)
     + getScoreUtility(scoreMean, scoreMeanSq, 1.0);
-
-  double newWeightSq = isCertain ? 0.001 : 1.0;
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
@@ -2044,7 +2042,7 @@ void Search::addLeafValue(SearchNode& node, double winValue, double noResultValu
   node.stats.utilitySum += utility;
   node.stats.utilitySqSum += utility * utility;
   node.stats.weightSum += 1.0;
-  node.stats.weightSqSum += newWeightSq;
+  node.stats.weightSqSum += 1.0;
   node.virtualLosses -= virtualLossesToSubtract;
   node.statsLock.clear(std::memory_order_release);
 }
@@ -2115,7 +2113,7 @@ void Search::initNodeNNOutput(
   double scoreMean = (double)node.nnOutput->whiteScoreMean;
   double scoreMeanSq = (double)node.nnOutput->whiteScoreMeanSq;
 
-  addLeafValue(node,winProb,noResultProb,scoreMean,scoreMeanSq,virtualLossesToSubtract,false);
+  addLeafValue(node,winProb,noResultProb,scoreMean,scoreMeanSq,virtualLossesToSubtract);
 }
 
 void Search::playoutDescend(
@@ -2140,7 +2138,7 @@ void Search::playoutDescend(
       double noResultValue = 1.0;
       double scoreMean = 0.0;
       double scoreMeanSq = 0.0;
-      addLeafValue(node, winValue, noResultValue, scoreMean, scoreMeanSq, virtualLossesToSubtract,true);
+      addLeafValue(node, winValue, noResultValue, scoreMean, scoreMeanSq, virtualLossesToSubtract);
       return;
     }
     else {
@@ -2148,7 +2146,7 @@ void Search::playoutDescend(
       double noResultValue = 0.0;
       double scoreMean = ScoreValue::whiteScoreDrawAdjust(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite,thread.history);
       double scoreMeanSq = ScoreValue::whiteScoreMeanSqOfScoreGridded(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite,thread.history);
-      addLeafValue(node, winValue, noResultValue, scoreMean, scoreMeanSq, virtualLossesToSubtract,true);
+      addLeafValue(node, winValue, noResultValue, scoreMean, scoreMeanSq, virtualLossesToSubtract);
       return;
     }
   }
