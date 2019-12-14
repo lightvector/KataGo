@@ -78,6 +78,7 @@ struct BoardHistory {
   //Winner of the game if the game is supposed to have ended now, C_EMPTY if it is a draw or isNoResult.
   Player winner;
   //Score difference of the game if the game is supposed to have ended now, does NOT take into account whiteKomiAdjustmentForDrawUtility
+  //Always an integer or half-integer.
   float finalWhiteMinusBlackScore;
   //True if this game is supposed to be ended with a score
   bool isScored;

@@ -89,12 +89,12 @@ double ScoreValue::approxWhiteScoreOfScoreValueSmooth(double scoreValue, double 
     return scoreUnscaled * (scale*sqrt(b.x_size*b.y_size)) + center;
 }
 
-double ScoreValue::whiteScoreMeanSqOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const BoardHistory& hist) {
-  bool komiIsInteger = ((int)hist.rules.komi == hist.rules.komi);
-  if(!komiIsInteger)
+double ScoreValue::whiteScoreMeanSqOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite) {
+  assert((int)(finalWhiteMinusBlackScore * 2) == finalWhiteMinusBlackScore * 2);
+  bool finalScoreIsInteger = ((int)finalWhiteMinusBlackScore == finalWhiteMinusBlackScore);
+  if(!finalScoreIsInteger)
     return finalWhiteMinusBlackScore * finalWhiteMinusBlackScore;
 
-  assert((int)finalWhiteMinusBlackScore == finalWhiteMinusBlackScore);
   double lower = finalWhiteMinusBlackScore - 0.5;
   double upper = finalWhiteMinusBlackScore + 0.5;
   double lowerSq = lower * lower;
