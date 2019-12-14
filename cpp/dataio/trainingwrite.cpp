@@ -928,7 +928,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
         }
         rowCount++;
       }
-
       targetWeight -= 1.0;
     }
 
@@ -945,40 +944,42 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   for(int i = 0; i<data.sidePositions.size(); i++) {
     SidePosition* sp = data.sidePositions[i];
 
-    if(sp->targetWeight == 0.0)
-      continue;
-    assert(sp->targetWeight >= 0.0 && sp->targetWeight <= 1.0);
-    if(sp->targetWeight < 1.0 && !rand.nextBool(sp->targetWeight))
-      continue;
+    double targetWeight = sp->targetWeight;
+    while(targetWeight > 0.0) {
+      if(targetWeight >= 1.0 || rand.nextBool(targetWeight)) {
+        if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
 
-    int absoluteTurnNumber = sp->hist.moveHistory.size();
-    assert(absoluteTurnNumber >= data.startHist.moveHistory.size());
-    whiteValueTargetsBuf[0] = sp->whiteValueTargets;
-    bool isSidePosition = true;
-    int numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size() - sp->numNeuralNetChangesSoFar;
-    if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
-      writeBuffers->addRow(
-        sp->board,sp->hist,sp->pla,
-        absoluteTurnNumber,
-        1.0,
-        sp->unreducedNumVisits,
-        &(sp->policyTarget),
-        NULL,
-        whiteValueTargetsBuf,
-        0,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        isSidePosition,
-        numNeuralNetsBehindLatest,
-        data,
-        rand
-      );
-      writeAndClearIfFull();
+          int absoluteTurnNumber = sp->hist.moveHistory.size();
+          assert(absoluteTurnNumber >= data.startHist.moveHistory.size());
+          whiteValueTargetsBuf[0] = sp->whiteValueTargets;
+          bool isSidePosition = true;
+          int numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size() - sp->numNeuralNetChangesSoFar;
+
+          writeBuffers->addRow(
+            sp->board,sp->hist,sp->pla,
+            absoluteTurnNumber,
+            1.0,
+            sp->unreducedNumVisits,
+            &(sp->policyTarget),
+            NULL,
+            whiteValueTargetsBuf,
+            0,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            isSidePosition,
+            numNeuralNetsBehindLatest,
+            data,
+            rand
+          );
+          writeAndClearIfFull();
+        }
+        rowCount++;
+      }
+      targetWeight -= 1.0;
     }
-    rowCount++;
 
   }
 
