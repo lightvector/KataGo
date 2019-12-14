@@ -627,7 +627,6 @@ struct GTPEngine {
           cout << " move " << Location::toString(data.move,board);
           cout << " visits " << data.numVisits;
           cout << " utility " << utility;
-          cout << " radius " << data.radius;
           cout << " winrate " << winrate;
           cout << " scoreMean " << lead;
           cout << " scoreStdev " << data.scoreStdev;

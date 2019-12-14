@@ -46,7 +46,6 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
          * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate, as a float in [0,1].
          * `utilityLcb` - The LCB of the move's utility.
-         * `radius` - Redundant with other values.
          * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
          * `pv` - The principal variation following this move. May be of variable length or even empty.
          * `ownership` - If `ownership true` was provided, then BoardHeight*BoardWidth many conecutive floats in [-1,1] separated by spaces, predicting the final ownership of every board location from the perspective of the current player. Floats are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
