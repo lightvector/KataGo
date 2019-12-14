@@ -30,6 +30,7 @@ struct ReportedSearchValues {
   double dynamicScoreValue;
   double expectedScore;
   double expectedScoreStdev;
+  double lead;
   double winLossValue;
 
   ReportedSearchValues();
@@ -42,6 +43,7 @@ struct NodeStats {
   double noResultValueSum;
   double scoreMeanSum;
   double scoreMeanSqSum;
+  double leadSum;
   double utilitySum;
   double utilitySqSum;
   double weightSum;
@@ -115,6 +117,7 @@ struct SearchThread {
   std::vector<double> noResultValuesBuf;
   std::vector<double> scoreMeansBuf;
   std::vector<double> scoreMeanSqsBuf;
+  std::vector<double> leadsBuf;
   std::vector<double> utilityBuf;
   std::vector<double> utilitySqBuf;
   std::vector<double> selfUtilityBuf;
@@ -362,7 +365,7 @@ private:
     bool isRoot
   ) const;
 
-  void addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, int32_t virtualLossesToSubtract);
+  void addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract);
 
   void maybeRecomputeExistingNNOutput(
     SearchThread& thread, SearchNode& node, bool isRoot
@@ -381,7 +384,7 @@ private:
   AnalysisData getAnalysisDataOfSingleChild(
     const SearchNode* child, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues,
     Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
-    double parentScoreMean, double parentScoreStdev, int maxPVDepth
+    double parentScoreMean, double parentScoreStdev, double parentLead, int maxPVDepth
   ) const;
 
   void printPV(std::ostream& out, const std::vector<Loc>& buf) const;

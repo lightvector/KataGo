@@ -13,6 +13,7 @@ AnalysisData::AnalysisData()
    policyPrior(0.0),
    scoreMean(0.0),
    scoreStdev(0.0),
+   lead(0.0),
    ess(0.0),
    weightFactor(0.0),
    order(0),
@@ -33,6 +34,7 @@ AnalysisData::AnalysisData(const AnalysisData& other)
    policyPrior(other.policyPrior),
    scoreMean(other.scoreMean),
    scoreStdev(other.scoreStdev),
+   lead(other.lead),
    ess(other.ess),
    weightFactor(other.weightFactor),
    order(other.order),
@@ -53,6 +55,7 @@ AnalysisData::AnalysisData(AnalysisData&& other) noexcept
    policyPrior(other.policyPrior),
    scoreMean(other.scoreMean),
    scoreStdev(other.scoreStdev),
+   lead(other.lead),
    ess(other.ess),
    weightFactor(other.weightFactor),
    order(other.order),
@@ -78,6 +81,7 @@ AnalysisData& AnalysisData::operator=(const AnalysisData& other) {
   policyPrior = other.policyPrior;
   scoreMean = other.scoreMean;
   scoreStdev = other.scoreStdev;
+  lead = other.lead;
   ess = other.ess;
   weightFactor = other.weightFactor;
   order = other.order;
@@ -101,6 +105,7 @@ AnalysisData& AnalysisData::operator=(AnalysisData&& other) noexcept {
   policyPrior = other.policyPrior;
   scoreMean = other.scoreMean;
   scoreStdev = other.scoreStdev;
+  lead = other.lead;
   ess = other.ess;
   weightFactor = other.weightFactor;
   order = other.order;

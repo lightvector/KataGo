@@ -71,7 +71,7 @@ static bool shouldResign(
   const Rules& rules,
   Player pla,
   const vector<double>& recentWinLossValues,
-  double expectedScore,
+  double lead,
   const double resignThreshold,
   const int resignConsecTurns,
   bool assumeMultipleStartingBlackMovesAreHandicap
@@ -89,7 +89,7 @@ static bool shouldResign(
     //Play at least some moves no matter what
     minTurnForResignation = 1 + initialBoard.x_size * initialBoard.y_size / 5;
 
-    //In a handicap game, also only resign if the expected score difference is well behind schedule assuming
+    //In a handicap game, also only resign if the lead difference is well behind schedule assuming
     //that we're supposed to catch up over many moves.
     double numTurnsToCatchUp = 0.60 * initialBoard.x_size * initialBoard.y_size - minTurnForResignation;
     double numTurnsSpent = (double)(moveHistory.size()) - minTurnForResignation;
@@ -109,7 +109,7 @@ static bool shouldResign(
 
   if(moveHistory.size() < minTurnForResignation)
     return false;
-  if(pla == P_WHITE && expectedScore > noResignationWhenWhiteScoreAbove)
+  if(pla == P_WHITE && lead > noResignationWhenWhiteScoreAbove)
     return false;
   if(resignConsecTurns > recentWinLossValues.size())
     return false;
@@ -437,11 +437,11 @@ struct GTPEngine {
 
     ReportedSearchValues values;
     double winLossValue;
-    double expectedScore;
+    double lead;
     {
       values = bot->getSearch()->getRootValuesAssertSuccess();
       winLossValue = values.winLossValue;
-      expectedScore = values.expectedScore;
+      lead = values.lead;
     }
 
     double timeTaken = timer.getSeconds();
@@ -452,15 +452,16 @@ struct GTPEngine {
     if(ogsChatToStderr) {
       int64_t visits = bot->getSearch()->getRootVisits();
       double winrate = 0.5 * (1.0 + (values.winValue - values.lossValue));
+      double leadForPrinting = lead;
       //Print winrate from desired perspective
       if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
         winrate = 1.0 - winrate;
-        expectedScore = -expectedScore;
+        leadForPrinting = -leadForPrinting;
       }
       cerr << "CHAT:"
            << "Visits " << visits
            << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0)
-           << " ScoreMean " << Global::strprintf("%.1f", expectedScore)
+           << " ScoreLead " << Global::strprintf("%.1f", leadForPrinting)
            << " ScoreStdev " << Global::strprintf("%.1f", values.expectedScoreStdev);
       cerr << " PV ";
       bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, analysisPVLen);
@@ -470,7 +471,7 @@ struct GTPEngine {
     recentWinLossValues.push_back(winLossValue);
 
     bool resigned = allowResignation && shouldResign(
-      initialBoard,moveHistory,bot->getRootHist().rules,pla,recentWinLossValues,expectedScore,
+      initialBoard,moveHistory,bot->getRootHist().rules,pla,recentWinLossValues,lead,
       resignThreshold,resignConsecTurns,assumeMultipleStartingBlackMovesAreHandicap
     );
 
@@ -613,11 +614,13 @@ struct GTPEngine {
           ///But now we also offer the proper LCB that KataGo actually uses.
           double utilityLcb = data.lcb;
           double scoreMean = data.scoreMean;
+          double lead = data.lead;
           if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
             winrate = 1.0-winrate;
             lcb = 1.0 - lcb;
             utility = -utility;
             scoreMean = -scoreMean;
+            lead = -lead;
             utilityLcb = -utilityLcb;
           }
           cout << "info";
@@ -626,8 +629,10 @@ struct GTPEngine {
           cout << " utility " << utility;
           cout << " radius " << data.radius;
           cout << " winrate " << winrate;
-          cout << " scoreMean " << scoreMean;
+          cout << " scoreMean " << lead;
           cout << " scoreStdev " << data.scoreStdev;
+          cout << " scoreLead " << lead;
+          cout << " scoreSelfplay " << scoreMean;
           cout << " prior " << data.policyPrior;
           cout << " lcb " << lcb;
           cout << " utilityLcb " << utilityLcb;

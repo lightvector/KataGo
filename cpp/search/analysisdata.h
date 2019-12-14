@@ -20,6 +20,7 @@ struct AnalysisData {
   double policyPrior; //From 0 to 1
   double scoreMean; //In units of points
   double scoreStdev; //In units of points
+  double lead; //In units of points
   double ess; //Effective sample size taking into account weighting, could be somewhat smaller than visits
   double weightFactor; //Due to child value weighting
   int order; //Preference order of the moves, 0 is best
