@@ -2117,9 +2117,9 @@ FinishedGameData* Play::runGame(
     //Fill in lead estimation on full-search positions
     if(fancyModes.estimateLeadProb > 0.0) {
       assert(gameData->targetWeightByTurn.size() + 1 == gameData->whiteValueTargetsByTurn.size());
-      board = startBoard;
-      hist = startHist;
-      pla = startPla;
+      board = gameData->startBoard;
+      hist = gameData->startHist;
+      pla = gameData->startPla;
 
       int startTurnNumber = gameData->startHist.moveHistory.size();
       int numMoves = gameData->endHist.moveHistory.size() - gameData->startHist.moveHistory.size();
