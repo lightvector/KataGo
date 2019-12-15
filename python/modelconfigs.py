@@ -35,7 +35,7 @@ b6c96 = {
   "g1_num_channels":32,
   "v1_num_channels":32,
   "sbv2_num_channels":48,
-  "v2_size":48
+  "v2_size":64
 }
 
 b10c128 = {
@@ -63,7 +63,7 @@ b10c128 = {
   "g1_num_channels":32,
   "v1_num_channels":32,
   "sbv2_num_channels":64,
-  "v2_size":64
+  "v2_size":80
 }
 
 b15c192 = {
@@ -96,7 +96,7 @@ b15c192 = {
   "g1_num_channels":32,
   "v1_num_channels":32,
   "sbv2_num_channels":80,
-  "v2_size":80
+  "v2_size":96
 }
 
 b20c256 = {
@@ -134,7 +134,7 @@ b20c256 = {
   "g1_num_channels":48,
   "v1_num_channels":48,
   "sbv2_num_channels":96,
-  "v2_size":96
+  "v2_size":112
 }
 
 config_of_name = {

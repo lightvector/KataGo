@@ -700,7 +700,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
-   compensateKomiVisits(20),estimateLeadProb(0.0),
+   compensateKomiVisits(20),estimateLeadVisits(10),estimateLeadProb(0.0),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),forkGameProb(0.0),forkGameMinChoices(1),earlyForkGameMaxChoices(1),forkGameMaxChoices(1),
    sekiForkHack(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
@@ -773,7 +773,7 @@ Loc Play::chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, c
 
 static float roundAndClipKomi(double unrounded, const Board& board, bool looseClipping) {
   //Just in case, make sure komi is reasonable
-  float range = looseClipping ? 40.0f + board.x_size * board.y_size : 40.0f + 0.6f * board.x_size * board.y_size;
+  float range = looseClipping ? 40.0f + board.x_size * board.y_size : 40.0f + 0.5f * board.x_size * board.y_size;
   if(unrounded < -range)
     unrounded = -range;
   if(unrounded > range)
@@ -2132,7 +2132,7 @@ FinishedGameData* Play::runGame(
            gameRand.nextBool(fancyModes.estimateLeadProb)
         ) {
           gameData->whiteValueTargetsByTurn[turnNumberAfterStart].lead =
-            computeLead(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
+            computeLead(botB,botW,board,hist,pla,fancyModes.estimateLeadVisits,logger,otherGameProps,gameRand);
           gameData->whiteValueTargetsByTurn[turnNumberAfterStart].hasLead = true;
         }
         Move move = gameData->endHist.moveHistory[absoluteTurnNumber];
@@ -2148,7 +2148,7 @@ FinishedGameData* Play::runGame(
            gameRand.nextBool(fancyModes.estimateLeadProb)
         ) {
           sp->whiteValueTargets.lead =
-            computeLead(botB,botW,sp->board,sp->hist,sp->pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
+            computeLead(botB,botW,sp->board,sp->hist,sp->pla,fancyModes.estimateLeadVisits,logger,otherGameProps,gameRand);
           sp->whiteValueTargets.hasLead = true;
         }
       }

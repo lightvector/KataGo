@@ -214,6 +214,7 @@ struct FancyModes {
 
   //Use this many visits in a short search to estimate the score, for adjusting komi
   int compensateKomiVisits;
+  int estimateLeadVisits;
   //On each train position, estimate the lead in points with this probability
   double estimateLeadProb;
 
