@@ -13,6 +13,7 @@ namespace MainCmds {
   int runtests(int argc, const char* const* argv);
   int runnnlayertests(int argc, const char* const* argv);
   int runnnontinyboardtest(int argc, const char* const* argv);
+  int runnnsymmetriestest(int argc, const char* const* argv);
   int runoutputtests(int argc, const char* const* argv);
   int runsearchtests(int argc, const char* const* argv);
   int runsearchtestsv3(int argc, const char* const* argv);

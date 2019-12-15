@@ -41,6 +41,7 @@ runtests : Test important board algorithms and datastructures
 runnnlayertests : Test a few subcomponents of the current neural net backend
 
 runnnontinyboardtest : Run neural net on a tiny board and dump result to stdout
+runnnsymmetriestest : Run neural net on a rectangle board and dump symmetries result
 
 runoutputtests : Run a bunch of things and dump details to stdout
 runsearchtests : Run a bunch of things using a neural net and dump details to stdout
@@ -82,6 +83,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::runnnlayertests(argc-1,&argv[1]);
   else if(subcommand == "runnnontinyboardtest")
     return MainCmds::runnnontinyboardtest(argc-1,&argv[1]);
+  else if(subcommand == "runnnsymmetriestest")
+    return MainCmds::runnnsymmetriestest(argc-1,&argv[1]);
   else if(subcommand == "runoutputtests")
     return MainCmds::runoutputtests(argc-1,&argv[1]);
   else if(subcommand == "runsearchtests")

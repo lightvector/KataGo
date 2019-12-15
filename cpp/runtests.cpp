@@ -170,6 +170,26 @@ int MainCmds::runnnontinyboardtest(int argc, const char* const* argv) {
   return 0;
 }
 
+int MainCmds::runnnsymmetriestest(int argc, const char* const* argv) {
+  if(argc != 5) {
+    cerr << "Must supply exactly four arguments: MODEL_FILE INPUTSNHWC CUDANHWC FP16" << endl;
+    return 1;
+  }
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Tests::runNNSymmetries(
+    string(argv[1]),
+    Global::stringToBool(argv[2]),
+    Global::stringToBool(argv[3]),
+    Global::stringToBool(argv[4])
+  );
+
+  ScoreValue::freeTables();
+
+  return 0;
+}
+
 int MainCmds::runnnonmanyposestest(int argc, const char* const* argv) {
   if(argc != 6 && argc != 7) {
     cerr << "Must supply five or six arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16 [COMPARISONFILE]" << endl;

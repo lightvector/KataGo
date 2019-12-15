@@ -1388,6 +1388,50 @@ void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool cuda
   NeuralNet::globalCleanup();
 }
 
+void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool cudaNHWC, bool useFP16) {
+  NeuralNet::globalInitialize();
+
+  Board board = Board::parseBoard(9,13,R"%%(
+.........
+.........
+..x.o....
+......o..
+..x......
+.........
+......o..
+.........
+..x......
+....x....
+...xoo...
+.........
+.........
+)%%");
+
+  Player nextPla = P_BLACK;
+  Rules rules = Rules::getTrompTaylorish();
+  BoardHistory hist(board,nextPla,rules,0);
+
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.setLogTime(false);
+
+  for(int symmetry = 0; symmetry<8; symmetry++) {
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",13,13,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
+
+    MiscNNInputParams nnInputParams;
+    NNResultBuf buf;
+    bool skipCache = true;
+    bool includeOwnerMap = true;
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
+
+    printPolicyValueOwnership(board,buf);
+    cout << endl << endl;
+
+    delete nnEval;
+  }
+  NeuralNet::globalCleanup();
+}
+
 
 void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16, const string& comparisonFile) {
   NeuralNet::globalInitialize();
