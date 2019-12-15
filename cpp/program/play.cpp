@@ -852,7 +852,7 @@ static std::pair<double,double> evalKomi(
   return result;
 }
 
-static void adjustKomiToEvenHelper(
+static double getNaiveEvenKomiHelper(
   map<float,std::pair<double,double>>& scoreWLCache,
   Search* botB,
   Search* botW,
@@ -862,9 +862,10 @@ static void adjustKomiToEvenHelper(
   int64_t numVisits,
   Logger& logger,
   const OtherGameProperties& otherGameProps,
-  bool looseClipping,
-  Rand& rand
+  bool looseClipping
 ) {
+  float oldKomi = hist.rules.komi;
+
   //A few times iterate based on expected score a few times to hopefully get a value close to fair
   double lastShift = 0.0;
   for(int i = 0; i<3; i++) {
@@ -949,25 +950,23 @@ static void adjustKomiToEvenHelper(
   assert(upperDelta - lowerDelta == 0.5);
 
   double finalDelta;
-  //If the winLoss are crossed, potentially due to noise, then just pick one at random
-  if(lowerWinLoss >= upperWinLoss)
-    finalDelta = rand.nextBool(0.5) ? lowerDelta : upperDelta;
+  //If the winLoss are crossed, potentially due to noise, then just pick the average
+  if(lowerWinLoss >= upperWinLoss - 1e-30)
+    finalDelta = 0.5 * (lowerDelta + upperDelta);
   //If 0 is outside of the range, then choose the endpoint of the range.
   else if(upperWinLoss <= 0)
     finalDelta = upperDelta;
   else if(lowerWinLoss >= 0)
     finalDelta = lowerDelta;
-  //Probabilistically choose between the lower and upper bounds based on where 0 would be.
-  else {
-    if(rand.nextBool((0-lowerWinLoss) / (upperWinLoss-lowerWinLoss)))
-      finalDelta = upperDelta;
-    else
-      finalDelta = lowerDelta;
-  }
+  //Interpolate
+  else
+    finalDelta = lowerDelta + (upperDelta - lowerDelta) * (0-lowerWinLoss) / (upperWinLoss-lowerWinLoss);
 
   double newKomi = hist.rules.komi + finalDelta;
   // cout << "Final " << finalDelta << " " << newKomi << endl;
-  hist.setKomi(roundAndClipKomi(newKomi,board,looseClipping));
+
+  hist.setKomi(oldKomi);
+  return newKomi;
 }
 
 void Play::adjustKomiToEven(
@@ -983,7 +982,14 @@ void Play::adjustKomiToEven(
 ) {
   map<float,std::pair<double,double>> scoreWLCache;
   bool looseClipping = false;
-  return adjustKomiToEvenHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping,rand);
+  double newKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping);
+  double lower = floor(newKomi * 2.0) * 0.5;
+  double upper = lower + 0.5;
+  if(rand.nextBool((newKomi - lower) / (upper - lower)))
+    newKomi = upper;
+  else
+    newKomi = lower;
+  hist.setKomi(roundAndClipKomi(newKomi,board,looseClipping));
 }
 
 float Play::computeLead(
@@ -994,84 +1000,49 @@ float Play::computeLead(
   Player pla,
   int64_t numVisits,
   Logger& logger,
-  const OtherGameProperties& otherGameProps,
-  Rand& rand
+  const OtherGameProperties& otherGameProps
 ) {
   map<float,std::pair<double,double>> scoreWLCache;
   bool looseClipping = true;
   float oldKomi = hist.rules.komi;
-  adjustKomiToEvenHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping,rand);
-  float evenKomi = hist.rules.komi;
+  double naiveKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping);
 
-  auto evalWinLoss = [&](double delta) {
-    double newKomi = hist.rules.komi + delta;
+  bool granularityIsCoarse = hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.hasButton;
+  if(!granularityIsCoarse)
+    return (float)naiveKomi;
+
+  auto evalWinLoss = [&](double newKomi) {
     double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,roundAndClipKomi(newKomi,board,looseClipping)).second;
     // cout << "Delta " << delta << " wr " << winLoss << endl;
     return winLoss;
   };
-  //Figure out probabilities of various outcomes nearby, and compute the EV
-  //The point of doing this is to smooth over area scoring 2-point granularity
-  double fairDelta;
-  if(evenKomi == round(evenKomi)) {
-    double winLosses[6];
-    winLosses[0] = evalWinLoss(-2.5);
-    winLosses[1] = evalWinLoss(-1.5);
-    winLosses[2] = evalWinLoss(-0.5);
-    winLosses[3] = evalWinLoss(0.5);
-    winLosses[4] = evalWinLoss(1.5);
-    winLosses[5] = evalWinLoss(2.5);
 
-    double deltas[5];
-    deltas[0] = winLosses[1] - winLosses[0];
-    deltas[1] = winLosses[2] - winLosses[1];
-    deltas[2] = winLosses[3] - winLosses[2];
-    deltas[3] = winLosses[4] - winLosses[3];
-    deltas[4] = winLosses[5] - winLosses[4];
+  //Smooth over area scoring 2-point granularity
 
-    for(int i = 0; i<5; i++)
-      if(deltas[i] < 0)
-        deltas[i] = 0;
-    double wsum = 0.0;
-    double wxsum = 0.0;
-    for(int i = 0; i<5; i++) {
-      wsum += deltas[i];
-      wxsum += deltas[i] * (i-2);
-    }
-    if(wsum <= 1e-30)
-      fairDelta = 0;
-    else
-      fairDelta = wxsum / wsum;
-  }
+  //If komi is exactly an integer, then we're good.
+  if(naiveKomi == round(naiveKomi))
+    return (float)naiveKomi;
+
+  double lower = floor(naiveKomi * 2.0) * 0.5;
+  double upper = lower + 0.5;
+
+  //Average out the oscillation
+  double lowerWinLoss = 0.5 * (evalWinLoss(upper) + evalWinLoss(lower-0.5));
+  double upperWinLoss = 0.5 * (evalWinLoss(upper + 0.5) + evalWinLoss(lower));
+
+  //If the winLoss are crossed, potentially due to noise, then just pick the average
+  double result;
+  if(lowerWinLoss >= upperWinLoss - 1e-30)
+    result = 0.5 * (lower + upper);
   else {
-    double winLosses[5];
-    winLosses[0] = evalWinLoss(-2);
-    winLosses[1] = evalWinLoss(-1);
-    winLosses[2] = evalWinLoss(0);
-    winLosses[3] = evalWinLoss(1);
-    winLosses[4] = evalWinLoss(2);
-
-    double deltas[4];
-    deltas[0] = winLosses[1] - winLosses[0];
-    deltas[1] = winLosses[2] - winLosses[1];
-    deltas[2] = winLosses[3] - winLosses[2];
-    deltas[3] = winLosses[4] - winLosses[3];
-
-    for(int i = 0; i<4; i++)
-      if(deltas[i] < 0)
-        deltas[i] = 0;
-    double wsum = 0.0;
-    double wxsum = 0.0;
-    for(int i = 0; i<4; i++) {
-      wsum += deltas[i];
-      wxsum += deltas[i] * (i-1.5);
-    }
-    if(wsum <= 1e-30)
-      fairDelta = 0;
-    else
-      fairDelta = wxsum / wsum;
+    //Interpolate
+    result = lower + (upper - lower) * (0-lowerWinLoss) / (upperWinLoss-lowerWinLoss);
+    //Bound the result to be within lower-0.5 and upper+0.5
+    if(result < lower-0.5) result = lower-0.5;
+    if(result > upper+0.5) result = upper+0.5;
   }
-  hist.setKomi(oldKomi);
-  return (float)(oldKomi - (evenKomi + fairDelta));
+  assert(hist.rules.komi == oldKomi);
+  return (float)(oldKomi - result);
 }
 
 
@@ -2132,7 +2103,7 @@ FinishedGameData* Play::runGame(
            gameRand.nextBool(fancyModes.estimateLeadProb)
         ) {
           gameData->whiteValueTargetsByTurn[turnNumberAfterStart].lead =
-            computeLead(botB,botW,board,hist,pla,fancyModes.estimateLeadVisits,logger,otherGameProps,gameRand);
+            computeLead(botB,botW,board,hist,pla,fancyModes.estimateLeadVisits,logger,otherGameProps);
           gameData->whiteValueTargetsByTurn[turnNumberAfterStart].hasLead = true;
         }
         Move move = gameData->endHist.moveHistory[absoluteTurnNumber];
@@ -2148,7 +2119,7 @@ FinishedGameData* Play::runGame(
            gameRand.nextBool(fancyModes.estimateLeadProb)
         ) {
           sp->whiteValueTargets.lead =
-            computeLead(botB,botW,sp->board,sp->hist,sp->pla,fancyModes.estimateLeadVisits,logger,otherGameProps,gameRand);
+            computeLead(botB,botW,sp->board,sp->hist,sp->pla,fancyModes.estimateLeadVisits,logger,otherGameProps);
           sp->whiteValueTargets.hasLead = true;
         }
       }

@@ -354,8 +354,7 @@ namespace Play {
     Player pla,
     int64_t numVisits,
     Logger& logger,
-    const OtherGameProperties& otherGameProps,
-    Rand& rand
+    const OtherGameProperties& otherGameProps
   );
 
   double getSearchFactor(

@@ -300,7 +300,7 @@ Game result 0 Empty 0 0 0 0
 Last moves D3 D9 J9 J4 G3 
 Forking to initial position O
 Pre-fair komi 7.5
-Lead: 9.50007
+Lead: 9.48881
 HASH: E7CDD5970FFD18F5AD0B3339A26194B3
    A B C D E F G H J K L
 11 . . . . X . . . . . .
@@ -1517,7 +1517,7 @@ Game result 0 Empty 0 0 0 0
 Last moves D8 H4 H8 E3 D4 E4 D5 
 Forking to initial position O
 Pre-fair komi 20.5
-Lead: 4.44388
+Lead: 3.96366
 HASH: F8348F44E8096CBD6772A5335BEE1794
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -1696,7 +1696,7 @@ Game result 0 Empty 0 0 0 0
 Last moves F1 J8 
 Forking to initial position X
 Pre-fair komi 20.5
-Lead: 7.45437
+Lead: 7.76581
 HASH: 2274269361BA768237654EFD02B4D0BE
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -1875,7 +1875,7 @@ Game result 0 Empty 0 0 0 0
 Last moves J8 D3 H4 C6 E9 
 Forking to initial position O
 Pre-fair komi 22.5
-Lead: 5.38943
+Lead: 5.4334
 HASH: 2287457F293D6CCBBF387CCE2167BC26
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2027,7 +2027,7 @@ whiteValueTargetsByTurn 1 1 0 0 23 23
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 Pre-fair komi 24
-Lead: 0.137698
+Lead: 0.532842
 HASH: 87A9C7E354E23A61060C683F420E2F2A
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2206,7 +2206,7 @@ Game result 0 Empty 0 0 0 0
 Last moves C4 J4 G3 C8 J5 
 Forking to initial position O
 Pre-fair komi 22.5
-Lead: 10.3814
+Lead: 10.8759
 HASH: 667459A4D6127DF887BE783549A4A62E
    A B C D E F G H J K L
 11 . X . . . . . . . . .
@@ -2358,7 +2358,7 @@ whiteValueTargetsByTurn 1 1 0 0 18 18
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position O
 Pre-fair komi 20
-Lead: 11.8594
+Lead: 11.195
 HASH: B6B867D7E1B0178F8DFAF888244C601C
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2837,7 +2837,7 @@ whiteValueTargetsByTurn 1 1 0 0 20 20
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 Pre-fair komi 21
-Lead: -10.0562
+Lead: -9.72191
 HASH: 56C5EB9814781418D1FC15A4FF9D8EAA
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -3016,7 +3016,7 @@ Game result 0 Empty 0 0 0 0
 Last moves K8 J4 H3 J8 J9 H9 H8 J7 G9 H10 J10 K7 G10 H7 H11 
 Forking to initial position O
 Pre-fair komi 20
-Lead: 13.0379
+Lead: 13.5029
 HASH: 0B988C4808CFBD45CDF60119A49FE852
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -3168,7 +3168,7 @@ whiteValueTargetsByTurn 1 1 0 0 34 34
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 Pre-fair komi 37
-Lead: -11.6188
+Lead: -11.9878
 HASH: CDCD30001318351C6E9AD3C2174F71D1
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -3347,7 +3347,7 @@ Game result 0 Empty 0 0 0 0
 Last moves J8 J3 H3 J4 F3 J6 H7 
 Forking to initial position O
 Pre-fair komi 43
-Lead: 6.02718
+Lead: 5.84665
 HASH: 0EDE614A845E1590B111EB4CAA014091
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -3526,7 +3526,7 @@ Game result 0 Empty 0 0 0 0
 Last moves K5 J7 
 Forking to initial position X
 Pre-fair komi 36.5
-Lead: 1.6343
+Lead: 1.72517
 HASH: 219C6419E43BB210A3BA1E7DB80BA24F
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -4101,7 +4101,7 @@ whiteValueTargetsByTurn 1 1 0 0 38 38
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 Pre-fair komi 40
-Lead: -5.93057
+Lead: -5.59049
 HASH: DBDE16250374A5CE4668A52589A29294
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -4826,7 +4826,7 @@ whiteValueTargetsByTurn 1 1 0 0 4.5 4.5
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position O
 Pre-fair komi 6.5
-Lead: -12.4724
+Lead: -11.9473
 HASH: D9C6E1A6FD320F55EDC9F5D6A29F5211
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -5304,35 +5304,35 @@ policyTargetsByTurn 26 unreducedNumVisits 100 F10 95 E3 0 C6 0 L8 0 D4 0
 policyTargetsByTurn 27 unreducedNumVisits 50 K6 7 C7 21 E6 4 C9 6 H6 6 H4 3 
 policyTargetsByTurn 28 unreducedNumVisits 50 K6 31 L8 13 G6 2 H7 0 
 policyTargetsByTurn 29 unreducedNumVisits 100 H7 7 G5 16 K6 59 H4 10 C7 1 C9 2 E6 0 
-whiteValueTargetsByTurn 0 0.512077 0.487923 0 0.879093 1.60057 
-whiteValueTargetsByTurn 1 0.516101 0.483899 0 1.18291 0.507934 
-whiteValueTargetsByTurn 2 0.519252 0.480748 0 1.37733 0.465768 
-whiteValueTargetsByTurn 3 0.522692 0.477308 0 1.36543 0.577798 
+whiteValueTargetsByTurn 0 0.512077 0.487923 0 0.879093 1.60288 
+whiteValueTargetsByTurn 1 0.516101 0.483899 0 1.18291 0.0755824 
+whiteValueTargetsByTurn 2 0.519252 0.480748 0 1.37733 0.330632 
+whiteValueTargetsByTurn 3 0.522692 0.477308 0 1.36543 0.813991 
 whiteValueTargetsByTurn 4 0.541658 0.458342 0 2.04705 - 
 whiteValueTargetsByTurn 5 0.542573 0.457427 0 1.93362 - 
 whiteValueTargetsByTurn 6 0.551245 0.448755 0 2.18351 - 
-whiteValueTargetsByTurn 7 0.536701 0.463299 0 1.56961 0.326035 
+whiteValueTargetsByTurn 7 0.536701 0.463299 0 1.56961 1.42587 
 whiteValueTargetsByTurn 8 0.524115 0.475885 0 1.32137 - 
-whiteValueTargetsByTurn 9 0.548198 0.451802 0 2.23671 - 
+whiteValueTargetsByTurn 9 0.548198 0.451802 0 2.23671 -0.164317 
 whiteValueTargetsByTurn 10 0.572821 0.427179 0 3.17136 - 
-whiteValueTargetsByTurn 11 0.599967 0.400033 0 4.11915 2.48536 
-whiteValueTargetsByTurn 12 0.617019 0.382981 0 4.70168 3.36249 
+whiteValueTargetsByTurn 11 0.599967 0.400033 0 4.11915 2.59392 
+whiteValueTargetsByTurn 12 0.617019 0.382981 0 4.70168 3.23863 
 whiteValueTargetsByTurn 13 0.6174 0.3826 0 4.65997 - 
-whiteValueTargetsByTurn 14 0.616412 0.383588 0 4.6274 5.23176 
-whiteValueTargetsByTurn 15 0.56301 0.43699 0 2.9377 2.67511 
-whiteValueTargetsByTurn 16 0.542251 0.457749 0 2.13314 2.51648 
+whiteValueTargetsByTurn 14 0.616412 0.383588 0 4.6274 4.51495 
+whiteValueTargetsByTurn 15 0.56301 0.43699 0 2.9377 2.8751 
+whiteValueTargetsByTurn 16 0.542251 0.457749 0 2.13314 - 
 whiteValueTargetsByTurn 17 0.539853 0.460147 0 1.99103 - 
 whiteValueTargetsByTurn 18 0.530796 0.469205 0 1.65007 - 
-whiteValueTargetsByTurn 19 0.516906 0.483094 0 1.1222 - 
-whiteValueTargetsByTurn 20 0.377789 0.622211 0 -4.87325 -0.586773 
-whiteValueTargetsByTurn 21 0.359784 0.640216 0 -5.64443 -1.5093 
+whiteValueTargetsByTurn 19 0.516906 0.483094 0 1.1222 1 
+whiteValueTargetsByTurn 20 0.377789 0.622211 0 -4.87325 -0.603088 
+whiteValueTargetsByTurn 21 0.359784 0.640216 0 -5.64443 -2.13683 
 whiteValueTargetsByTurn 22 0.384227 0.615773 0 -4.49581 - 
-whiteValueTargetsByTurn 23 0.413758 0.586242 0 -3.15037 - 
-whiteValueTargetsByTurn 24 0.463506 0.536494 0 -0.905526 - 
+whiteValueTargetsByTurn 23 0.413758 0.586242 0 -3.15037 -3.3513 
+whiteValueTargetsByTurn 24 0.463506 0.536494 0 -0.905526 -2.07957 
 whiteValueTargetsByTurn 25 0.448982 0.551018 0 -1.703 - 
-whiteValueTargetsByTurn 26 0.418981 0.581019 0 -2.97945 -2.30257 
-whiteValueTargetsByTurn 27 0.431723 0.568277 0 -2.4643 -2.76593 
-whiteValueTargetsByTurn 28 0.421023 0.578977 0 -2.93063 -2.32415 
+whiteValueTargetsByTurn 26 0.418981 0.581019 0 -2.97945 -2.17232 
+whiteValueTargetsByTurn 27 0.431723 0.568277 0 -2.4643 -2.68054 
+whiteValueTargetsByTurn 28 0.421023 0.578977 0 -2.93063 -2.06867 
 whiteValueTargetsByTurn 29 0.515252 0.484748 0 0.858426 - 
 whiteValueTargetsByTurn 30 1 0 0 7.5 7.5 
 ......O....
@@ -5395,7 +5395,7 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
  1 . . . . . . . . .
 
 
-LEAD: -3.60818
+LEAD: -3.55227
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
 HASH: E47BBD59BA73650CEBCE64675EBBF366
@@ -5411,4 +5411,4 @@ HASH: E47BBD59BA73650CEBCE64675EBBF366
  1 . X . . . . . X .
 
 
-LEAD: -40.1028
+LEAD: -40.2736

@@ -289,12 +289,14 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
         fancyModes.cheapSearchVisits, logger, OtherGameProperties(), rand
       );
       BoardHistory hist2 = forkData.forks[0]->hist;
+      float oldKomi = hist2.rules.komi;
       double lead = Play::computeLead(
         bot, bot, board, hist2, pla,
-        fancyModes.cheapSearchVisits, logger, OtherGameProperties(), rand
+        fancyModes.cheapSearchVisits, logger, OtherGameProperties()
       );
       cout << "Lead: " << lead << endl;
       hist.printDebugInfo(cout,board);
+      testAssert(hist2.rules.komi == oldKomi);
     }
     delete gameData;
     delete bot;
@@ -461,8 +463,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     BoardHistory hist(board,pla,rules,0);
     int compensateKomiVisits = 50;
     OtherGameProperties otherGameProps;
-    Rand gameRand(seedBase + "rand");
-    double lead = Play::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,logger,otherGameProps,gameRand);
+    double lead = Play::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,logger,otherGameProps);
     assert(hist.rules.komi == 7.5f);
     cout << board << endl;
     cout << "LEAD: " << lead << endl;
