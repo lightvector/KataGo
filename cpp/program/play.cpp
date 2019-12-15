@@ -1936,13 +1936,8 @@ FinishedGameData* Play::runGame(
     gameData->dataXLen = dataXLen;
     gameData->dataYLen = dataYLen;
 
-    //Scale up weights a little, to get less probabilistic discretization
-    float globalWeightScaling = 1.0f;
-
     //Compute desired expectation with which to write main game rows
     if(fancyModes.policySurpriseDataWeight > 0) {
-      globalWeightScaling = 1.5f;
-
       int numWeights = gameData->targetWeightByTurn.size();
       assert(numWeights == policySurpriseByTurn.size());
 
@@ -1992,11 +1987,6 @@ FinishedGameData* Play::runGame(
       }
     }
 
-    //Scale up weights a little, to get less probabilistic discretization
-    for(int i = 0; i<gameData->targetWeightByTurn.size(); i++) {
-      gameData->targetWeightByTurn[i] = gameData->targetWeightByTurn[i] * globalWeightScaling;
-    }
-
     //Also evaluate all the side positions as well that we queued up to be searched
     NNResultBuf nnResultBuf;
     for(int i = 0; i<sidePositionsToSearch.size(); i++) {
@@ -2015,7 +2005,7 @@ FinishedGameData* Play::runGame(
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode);
-      sp->targetWeight = 1.0f * globalWeightScaling;
+      sp->targetWeight = 1.0f;
       sp->unreducedNumVisits = toMoveBot->getRootVisits();
       sp->numNeuralNetChangesSoFar = gameData->changedNeuralNets.size();
 
@@ -2029,7 +2019,7 @@ FinishedGameData* Play::runGame(
           gameData,
           sp->board,sp->hist,sp->pla,
           toMoveBot,
-          fancyModes.recordTreeThreshold,fancyModes.recordTreeTargetWeight*globalWeightScaling,
+          fancyModes.recordTreeThreshold,fancyModes.recordTreeTargetWeight,
           gameData->changedNeuralNets.size(),
           locsBuf,playSelectionValuesBuf,
           Board::NULL_LOC, Board::NULL_LOC
