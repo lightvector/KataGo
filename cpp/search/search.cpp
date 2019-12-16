@@ -2073,8 +2073,10 @@ void Search::maybeRecomputeExistingNNOutput(
 
     //Recompute if we have no ownership map, since we need it for getEndingWhiteScoreBonus
     //If conservative passing, then we may also need to recompute the root policy ignoring the history if a pass ends the game
+    //If averaging a bunch of symmetries, then we need to recompute it too
     if(node.nnOutput->whiteOwnerMap == NULL ||
-       (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla))
+       (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla)) ||
+       searchParams.rootNumSymmetriesToSample > 1
     ) {
       initNodeNNOutput(thread,node,isRoot,false,0,true);
       assert(node.nnOutput->whiteOwnerMap != NULL);
@@ -2103,15 +2105,29 @@ void Search::initNodeNNOutput(
       getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );
   }
-  nnEvaluator->evaluate(
-    thread.board, thread.history, thread.pla,
-    nnInputParams,
-    thread.nnResultBuf, thread.logger, skipCache, includeOwnerMap
-  );
+  if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
+    vector<shared_ptr<NNOutput>> ptrs;
+    for(int i = 0; i<searchParams.rootNumSymmetriesToSample; i++) {
+      bool skipCacheThisIteration = skipCache || i > 0; //Skip cache on subsequent iterations to get new random draws for orientation
+      nnEvaluator->evaluate(
+        thread.board, thread.history, thread.pla,
+        nnInputParams,
+        thread.nnResultBuf, thread.logger, skipCacheThisIteration, includeOwnerMap
+      );
+      ptrs.push_back(std::move(thread.nnResultBuf.result));
+    }
+    node.nnOutput = std::shared_ptr<NNOutput>(new NNOutput(ptrs));
+  }
+  else {
+    nnEvaluator->evaluate(
+      thread.board, thread.history, thread.pla,
+      nnInputParams,
+      thread.nnResultBuf, thread.logger, skipCache, includeOwnerMap
+    );
+    node.nnOutput = std::move(thread.nnResultBuf.result);
+  }
 
-  node.nnOutput = std::move(thread.nnResultBuf.result);
   maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
-
   node.nnOutputAge = searchNodeAge;
 
   //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.

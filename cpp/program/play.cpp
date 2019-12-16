@@ -799,6 +799,7 @@ static ReportedSearchValues getWhiteScoreValues(
   newParams.rootFpuReductionMax = newParams.fpuReductionMax;
   newParams.rootFpuLossProp = newParams.fpuLossProp;
   newParams.rootDesiredPerChildVisitsCoeff = 0.0;
+  newParams.rootNumSymmetriesToSample = 1;
 
   if(otherGameProps.playoutDoublingAdvantage != 0.0 && otherGameProps.playoutDoublingAdvantagePla != C_EMPTY) {
     //Don't actually adjust playouts, but DO tell the bot what it's up against, so that it gives estimates
@@ -1547,6 +1548,7 @@ static Loc runBotWithLimits(
       toMoveBot->searchParams.rootFpuLossProp = toMoveBot->searchParams.fpuLossProp;
       toMoveBot->searchParams.rootFpuReductionMax = toMoveBot->searchParams.fpuReductionMax;
       toMoveBot->searchParams.rootDesiredPerChildVisitsCoeff = 0.0;
+      toMoveBot->searchParams.rootNumSymmetriesToSample = 1;
     }
     if(limits.playoutDoublingAdvantagePla != C_EMPTY) {
       toMoveBot->searchParams.playoutDoublingAdvantagePla = limits.playoutDoublingAdvantagePla;

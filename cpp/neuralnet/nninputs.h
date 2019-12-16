@@ -1,6 +1,8 @@
 #ifndef NEURALNET_NNINPUTS_H_
 #define NEURALNET_NNINPUTS_H_
 
+#include <memory>
+
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../core/rand.h"
@@ -122,6 +124,10 @@ struct NNOutput {
   NNOutput(); //Does NOT initialize values
   NNOutput(const NNOutput& other);
   ~NNOutput();
+
+  //Averages the others. Others must be nonempty and share the same nnHash (i.e. be for the same board, except if somehow the hash collides)
+  //Does NOT carry over noisedPolicyProbs.
+  NNOutput(const std::vector<std::shared_ptr<NNOutput>>& others);
 
   NNOutput& operator=(const NNOutput&);
 

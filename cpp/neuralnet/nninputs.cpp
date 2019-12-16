@@ -330,6 +330,92 @@ NNOutput::NNOutput(const NNOutput& other) {
   std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
 }
 
+NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
+  int len = others.size();
+  float floatLen = (float)len;
+  assert(len > 0);
+  for(int i = 1; i<len; i++) {
+    assert(others[i]->nnHash == others[0]->nnHash);
+  }
+  nnHash = others[0]->nnHash;
+
+  whiteWinProb = 0.0f;
+  whiteLossProb = 0.0f;
+  whiteNoResultProb = 0.0f;
+  whiteScoreMean = 0.0f;
+  whiteScoreMeanSq = 0.0f;
+  whiteLead = 0.0f;
+  varTimeLeft = 0.0f;
+  for(int i = 0; i<len; i++) {
+    const NNOutput& other = *(others[i]);
+    whiteWinProb += other.whiteWinProb;
+    whiteLossProb += other.whiteLossProb;
+    whiteNoResultProb += other.whiteNoResultProb;
+    whiteScoreMean += other.whiteScoreMean;
+    whiteScoreMeanSq += other.whiteScoreMeanSq;
+    whiteLead += other.whiteLead;
+    varTimeLeft += other.varTimeLeft;
+  }
+  whiteWinProb /= floatLen;
+  whiteLossProb /= floatLen;
+  whiteNoResultProb /= floatLen;
+  whiteScoreMean /= floatLen;
+  whiteScoreMeanSq /= floatLen;
+  whiteLead /= floatLen;
+  varTimeLeft /= floatLen;
+
+  nnXLen = others[0]->nnXLen;
+  nnYLen = others[0]->nnYLen;
+
+  {
+    float whiteOwnerMapCount = 0.0f;
+    whiteOwnerMap = NULL;
+    for(int i = 0; i<len; i++) {
+      const NNOutput& other = *(others[i]);
+      if(other.whiteOwnerMap != NULL) {
+        if(whiteOwnerMap == NULL)
+          whiteOwnerMap = new float[nnXLen * nnYLen];
+        whiteOwnerMapCount += 1.0f;
+        for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+          whiteOwnerMap[pos] += other.whiteOwnerMap[pos];
+      }
+    }
+    if(whiteOwnerMap != NULL) {
+      assert(whiteOwnerMapCount > 0);
+      for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+        whiteOwnerMap[pos] /= whiteOwnerMapCount;
+    }
+  }
+
+  noisedPolicyProbs = NULL;
+
+  //For technical correctness in case of impossibly rare hash collisions:
+  //Just give up if they don't all match in move legality
+  {
+    bool mismatch = false;
+    for(int i = 0; i<len; i++) {
+      const NNOutput& other = *(others[i]);
+      for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
+        if(i > 0 && (policyProbs[pos] < 0) != (other.policyProbs[pos] < 0))
+          mismatch = true;
+        policyProbs[pos] += other.policyProbs[pos];
+      }
+    }
+    //In case of mismatch, just take the first one
+    if(mismatch) {
+      //TODO
+      // const NNOutput& other = *(others[0]);
+      // std::copy(other.policyProbs, other.policyProbs + NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+      assert(false); //This should basically never happen
+    }
+    else {
+      for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+        policyProbs[pos] /= floatLen;
+    }
+  }
+
+}
+
 NNOutput& NNOutput::operator=(const NNOutput& other) {
   if(&other == this)
     return *this;

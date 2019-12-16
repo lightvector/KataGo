@@ -32,6 +32,7 @@ struct SearchParams {
   double rootPolicyTemperature; //At the root node, scale policy probs by this power
   double rootFpuReductionMax; //Same as fpuReductionMax, but at root
   double rootFpuLossProp; //Same as fpuLossProp, but at root
+  int rootNumSymmetriesToSample; //For the root node, sample this many random symmetries (WITH replacement) and average the results together.
 
   //We use the min of these two together, and also excess visits get pruned if the value turns out bad.
   double rootDesiredPerChildVisitsCoeff; //Funnel sqrt(this * policy prob * total visits) down any given child that receives any visits at all at the root
