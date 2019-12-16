@@ -373,8 +373,10 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
     for(int i = 0; i<len; i++) {
       const NNOutput& other = *(others[i]);
       if(other.whiteOwnerMap != NULL) {
-        if(whiteOwnerMap == NULL)
+        if(whiteOwnerMap == NULL) {
           whiteOwnerMap = new float[nnXLen * nnYLen];
+          std::fill(whiteOwnerMap, whiteOwnerMap + nnXLen * nnYLen, 0.0f);
+        }
         whiteOwnerMapCount += 1.0f;
         for(int pos = 0; pos<nnXLen*nnYLen; pos++)
           whiteOwnerMap[pos] += other.whiteOwnerMap[pos];
@@ -393,9 +395,10 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
   //Just give up if they don't all match in move legality
   {
     bool mismatch = false;
+    std::fill(policyProbs, policyProbs + NNPos::MAX_NN_POLICY_SIZE, 0.0f);
     for(int i = 0; i<len; i++) {
       const NNOutput& other = *(others[i]);
-      for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
+      for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
         if(i > 0 && (policyProbs[pos] < 0) != (other.policyProbs[pos] < 0))
           mismatch = true;
         policyProbs[pos] += other.policyProbs[pos];
