@@ -434,7 +434,7 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[21] = 0.0f;
   rowGlobal[29] = 0.0f;
   const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
-  if(thisTargets.hasLead) {
+  if(thisTargets.hasLead && !(data.endHist.isGameFinished && data.endHist.isNoResult)) {
     //Flip based on next player for training
     rowGlobal[21] = nextPlayer == P_WHITE ? thisTargets.lead : -thisTargets.lead;
     rowGlobal[29] = 1.0f;
