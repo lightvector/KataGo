@@ -412,7 +412,7 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
       assert(false); //This should basically never happen
     }
     else {
-      for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+      for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++)
         policyProbs[pos] /= floatLen;
     }
   }
