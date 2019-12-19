@@ -405,11 +405,10 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
       }
     }
     //In case of mismatch, just take the first one
+    //This should basically never happen, only on true hash collisions
     if(mismatch) {
-      //TODO
-      // const NNOutput& other = *(others[0]);
-      // std::copy(other.policyProbs, other.policyProbs + NNPos::MAX_NN_POLICY_SIZE, policyProbs);
-      assert(false); //This should basically never happen
+      const NNOutput& other = *(others[0]);
+      std::copy(other.policyProbs, other.policyProbs + NNPos::MAX_NN_POLICY_SIZE, policyProbs);
     }
     else {
       for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++)
@@ -506,23 +505,9 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
 
 //-------------------------------------------------------------------------------------------------------------
 
-//TODO collapse these
-static void setRowBinV3(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
+static void setRowBin(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
   rowBin[pos * posStride + feature * featureStride] = value;
 }
-static void setRowBinV4(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
-  rowBin[pos * posStride + feature * featureStride] = value;
-}
-static void setRowBinV5(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
-  rowBin[pos * posStride + feature * featureStride] = value;
-}
-static void setRowBinV6(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
-  rowBin[pos * posStride + feature * featureStride] = value;
-}
-static void setRowBinV7(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
-  rowBin[pos * posStride + feature * featureStride] = value;
-}
-
 
 //Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
 static void iterLadders(const Board& board, int nnXLen, std::function<void(Loc,int,const vector<Loc>&)> f) {
@@ -705,22 +690,22 @@ void NNInputs::fillRowV3(
       Loc loc = Location::getLoc(x,y,xSize);
 
       //Feature 0 - on board
-      setRowBinV3(rowBin,pos,0, 1.0f, posStride, featureStride);
+      setRowBin(rowBin,pos,0, 1.0f, posStride, featureStride);
 
       Color stone = board.colors[loc];
 
       //Features 1,2 - pla,opp stone
       //Features 3,4,5 - 1,2,3 libs
       if(stone == pla)
-        setRowBinV3(rowBin,pos,1, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
       else if(stone == opp)
-        setRowBinV3(rowBin,pos,2, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
 
       if(stone == pla || stone == opp) {
         int libs = board.getNumLiberties(loc);
-        if(libs == 1) setRowBinV3(rowBin,pos,3, 1.0f, posStride, featureStride);
-        else if(libs == 2) setRowBinV3(rowBin,pos,4, 1.0f, posStride, featureStride);
-        else if(libs == 3) setRowBinV3(rowBin,pos,5, 1.0f, posStride, featureStride);
+        if(libs == 1) setRowBin(rowBin,pos,3, 1.0f, posStride, featureStride);
+        else if(libs == 2) setRowBin(rowBin,pos,4, 1.0f, posStride, featureStride);
+        else if(libs == 3) setRowBin(rowBin,pos,5, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -729,14 +714,14 @@ void NNInputs::fillRowV3(
   if(hist.encorePhase == 0) {
     if(board.ko_loc != Board::NULL_LOC) {
       int pos = NNPos::locToPos(board.ko_loc,xSize,nnXLen,nnYLen);
-      setRowBinV3(rowBin,pos,6, 1.0f, posStride, featureStride);
+      setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
     }
     for(int y = 0; y<ySize; y++) {
       for(int x = 0; x<xSize; x++) {
         Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc] && loc != board.ko_loc) {
           int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-          setRowBinV3(rowBin,pos,6, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
         }
       }
     }
@@ -748,9 +733,9 @@ void NNInputs::fillRowV3(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.superKoBanned[loc])
-          setRowBinV3(rowBin,pos,6, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
         if(hist.koRecapBlocked[loc])
-          setRowBinV3(rowBin,pos,7, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,7, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -772,7 +757,7 @@ void NNInputs::fillRowV3(
         rowGlobal[0] = 1.0;
       else if(prev1Loc != Board::NULL_LOC) {
         int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
-        setRowBinV3(rowBin,pos,9, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,9, 1.0f, posStride, featureStride);
       }
       if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
@@ -780,7 +765,7 @@ void NNInputs::fillRowV3(
           rowGlobal[1] = 1.0;
         else if(prev2Loc != Board::NULL_LOC) {
           int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
-          setRowBinV3(rowBin,pos,10, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,10, 1.0f, posStride, featureStride);
         }
         if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
@@ -788,7 +773,7 @@ void NNInputs::fillRowV3(
             rowGlobal[2] = 1.0;
           else if(prev3Loc != Board::NULL_LOC) {
             int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
-            setRowBinV3(rowBin,pos,11, 1.0f, posStride, featureStride);
+            setRowBin(rowBin,pos,11, 1.0f, posStride, featureStride);
           }
           if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
@@ -796,7 +781,7 @@ void NNInputs::fillRowV3(
               rowGlobal[3] = 1.0;
             else if(prev4Loc != Board::NULL_LOC) {
               int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
-              setRowBinV3(rowBin,pos,12, 1.0f, posStride, featureStride);
+              setRowBin(rowBin,pos,12, 1.0f, posStride, featureStride);
             }
             if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
@@ -804,7 +789,7 @@ void NNInputs::fillRowV3(
                 rowGlobal[4] = 1.0;
               else if(prev5Loc != Board::NULL_LOC) {
                 int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
-                setRowBinV3(rowBin,pos,13, 1.0f, posStride, featureStride);
+                setRowBin(rowBin,pos,13, 1.0f, posStride, featureStride);
               }
             }
           }
@@ -817,11 +802,11 @@ void NNInputs::fillRowV3(
   auto addLadderFeature = [&board,xSize,nnXLen,nnYLen,posStride,featureStride,rowBin,opp](Loc loc, int pos, const vector<Loc>& workingMoves){
     assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV3(rowBin,pos,14, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,14, 1.0f, posStride, featureStride);
     if(board.colors[loc] == opp && board.getNumLiberties(loc) > 1) {
       for(size_t j = 0; j < workingMoves.size(); j++) {
         int workingPos = NNPos::locToPos(workingMoves[j],xSize,nnXLen,nnYLen);
-        setRowBinV3(rowBin,workingPos,17, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,workingPos,17, 1.0f, posStride, featureStride);
       }
     }
   };
@@ -834,7 +819,7 @@ void NNInputs::fillRowV3(
     (void)loc;
     assert(prevBoard.colors[loc] == P_BLACK || prevBoard.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV3(rowBin,pos,15, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,15, 1.0f, posStride, featureStride);
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
@@ -844,7 +829,7 @@ void NNInputs::fillRowV3(
     (void)loc;
     assert(prevPrevBoard.colors[loc] == P_BLACK || prevPrevBoard.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV3(rowBin,pos,16, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,16, 1.0f, posStride, featureStride);
   };
   iterLadders(prevPrevBoard, nnXLen, addPrevPrevLadderFeature);
 
@@ -873,9 +858,9 @@ void NNInputs::fillRowV3(
       Loc loc = Location::getLoc(x,y,xSize);
       int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
       if(area[loc] == pla)
-        setRowBinV3(rowBin,pos,18, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
       else if(area[loc] == opp)
-        setRowBinV3(rowBin,pos,19, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
     }
   }
 
@@ -886,9 +871,9 @@ void NNInputs::fillRowV3(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.secondEncoreStartColors[loc] == pla)
-          setRowBinV3(rowBin,pos,20, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,20, 1.0f, posStride, featureStride);
         else if(hist.secondEncoreStartColors[loc] == opp)
-          setRowBinV3(rowBin,pos,21, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,21, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1046,22 +1031,22 @@ void NNInputs::fillRowV4(
       Loc loc = Location::getLoc(x,y,xSize);
 
       //Feature 0 - on board
-      setRowBinV4(rowBin,pos,0, 1.0f, posStride, featureStride);
+      setRowBin(rowBin,pos,0, 1.0f, posStride, featureStride);
 
       Color stone = board.colors[loc];
 
       //Features 1,2 - pla,opp stone
       //Features 3,4,5 - 1,2,3 libs
       if(stone == pla)
-        setRowBinV4(rowBin,pos,1, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
       else if(stone == opp)
-        setRowBinV4(rowBin,pos,2, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
 
       if(stone == pla || stone == opp) {
         int libs = board.getNumLiberties(loc);
-        if(libs == 1) setRowBinV4(rowBin,pos,3, 1.0f, posStride, featureStride);
-        else if(libs == 2) setRowBinV4(rowBin,pos,4, 1.0f, posStride, featureStride);
-        else if(libs == 3) setRowBinV4(rowBin,pos,5, 1.0f, posStride, featureStride);
+        if(libs == 1) setRowBin(rowBin,pos,3, 1.0f, posStride, featureStride);
+        else if(libs == 2) setRowBin(rowBin,pos,4, 1.0f, posStride, featureStride);
+        else if(libs == 3) setRowBin(rowBin,pos,5, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1070,14 +1055,14 @@ void NNInputs::fillRowV4(
   if(hist.encorePhase == 0) {
     if(board.ko_loc != Board::NULL_LOC) {
       int pos = NNPos::locToPos(board.ko_loc,xSize,nnXLen,nnYLen);
-      setRowBinV4(rowBin,pos,6, 1.0f, posStride, featureStride);
+      setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
     }
     for(int y = 0; y<ySize; y++) {
       for(int x = 0; x<xSize; x++) {
         Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc] && loc != board.ko_loc) {
           int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-          setRowBinV4(rowBin,pos,6, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
         }
       }
     }
@@ -1089,9 +1074,9 @@ void NNInputs::fillRowV4(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.superKoBanned[loc])
-          setRowBinV4(rowBin,pos,6, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
         if(hist.koRecapBlocked[loc])
-          setRowBinV4(rowBin,pos,7, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,7, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1113,7 +1098,7 @@ void NNInputs::fillRowV4(
         rowGlobal[0] = 1.0;
       else if(prev1Loc != Board::NULL_LOC) {
         int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
-        setRowBinV4(rowBin,pos,9, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,9, 1.0f, posStride, featureStride);
       }
       if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
@@ -1121,7 +1106,7 @@ void NNInputs::fillRowV4(
           rowGlobal[1] = 1.0;
         else if(prev2Loc != Board::NULL_LOC) {
           int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
-          setRowBinV4(rowBin,pos,10, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,10, 1.0f, posStride, featureStride);
         }
         if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
@@ -1129,7 +1114,7 @@ void NNInputs::fillRowV4(
             rowGlobal[2] = 1.0;
           else if(prev3Loc != Board::NULL_LOC) {
             int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
-            setRowBinV4(rowBin,pos,11, 1.0f, posStride, featureStride);
+            setRowBin(rowBin,pos,11, 1.0f, posStride, featureStride);
           }
           if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
@@ -1137,7 +1122,7 @@ void NNInputs::fillRowV4(
               rowGlobal[3] = 1.0;
             else if(prev4Loc != Board::NULL_LOC) {
               int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
-              setRowBinV4(rowBin,pos,12, 1.0f, posStride, featureStride);
+              setRowBin(rowBin,pos,12, 1.0f, posStride, featureStride);
             }
             if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
@@ -1145,7 +1130,7 @@ void NNInputs::fillRowV4(
                 rowGlobal[4] = 1.0;
               else if(prev5Loc != Board::NULL_LOC) {
                 int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
-                setRowBinV4(rowBin,pos,13, 1.0f, posStride, featureStride);
+                setRowBin(rowBin,pos,13, 1.0f, posStride, featureStride);
               }
             }
           }
@@ -1158,11 +1143,11 @@ void NNInputs::fillRowV4(
   auto addLadderFeature = [&board,xSize,nnXLen,nnYLen,posStride,featureStride,rowBin,opp](Loc loc, int pos, const vector<Loc>& workingMoves){
     assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV4(rowBin,pos,14, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,14, 1.0f, posStride, featureStride);
     if(board.colors[loc] == opp && board.getNumLiberties(loc) > 1) {
       for(size_t j = 0; j < workingMoves.size(); j++) {
         int workingPos = NNPos::locToPos(workingMoves[j],xSize,nnXLen,nnYLen);
-        setRowBinV4(rowBin,workingPos,17, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,workingPos,17, 1.0f, posStride, featureStride);
       }
     }
   };
@@ -1175,7 +1160,7 @@ void NNInputs::fillRowV4(
     (void)loc;
     assert(prevBoard.colors[loc] == P_BLACK || prevBoard.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV4(rowBin,pos,15, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,15, 1.0f, posStride, featureStride);
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
@@ -1185,7 +1170,7 @@ void NNInputs::fillRowV4(
     (void)loc;
     assert(prevPrevBoard.colors[loc] == P_BLACK || prevPrevBoard.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV4(rowBin,pos,16, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,16, 1.0f, posStride, featureStride);
   };
   iterLadders(prevPrevBoard, nnXLen, addPrevPrevLadderFeature);
 
@@ -1203,9 +1188,9 @@ void NNInputs::fillRowV4(
       Loc loc = Location::getLoc(x,y,xSize);
       int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
       if(area[loc] == pla)
-        setRowBinV4(rowBin,pos,18, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
       else if(area[loc] == opp)
-        setRowBinV4(rowBin,pos,19, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
     }
   }
 
@@ -1216,9 +1201,9 @@ void NNInputs::fillRowV4(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.secondEncoreStartColors[loc] == pla)
-          setRowBinV4(rowBin,pos,20, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,20, 1.0f, posStride, featureStride);
         else if(hist.secondEncoreStartColors[loc] == opp)
-          setRowBinV4(rowBin,pos,21, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,21, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1377,15 +1362,15 @@ void NNInputs::fillRowV5(
       Loc loc = Location::getLoc(x,y,xSize);
 
       //Feature 0 - on board
-      setRowBinV5(rowBin,pos,0, 1.0f, posStride, featureStride);
+      setRowBin(rowBin,pos,0, 1.0f, posStride, featureStride);
 
       Color stone = board.colors[loc];
 
       //Features 1,2 - pla,opp stone
       if(stone == pla)
-        setRowBinV5(rowBin,pos,1, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
       else if(stone == opp)
-        setRowBinV5(rowBin,pos,2, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
     }
   }
 
@@ -1393,14 +1378,14 @@ void NNInputs::fillRowV5(
   if(hist.encorePhase == 0) {
     if(board.ko_loc != Board::NULL_LOC) {
       int pos = NNPos::locToPos(board.ko_loc,xSize,nnXLen,nnYLen);
-      setRowBinV5(rowBin,pos,3, 1.0f, posStride, featureStride);
+      setRowBin(rowBin,pos,3, 1.0f, posStride, featureStride);
     }
     for(int y = 0; y<ySize; y++) {
       for(int x = 0; x<xSize; x++) {
         Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc] && loc != board.ko_loc) {
           int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-          setRowBinV5(rowBin,pos,3, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,3, 1.0f, posStride, featureStride);
         }
       }
     }
@@ -1412,9 +1397,9 @@ void NNInputs::fillRowV5(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.superKoBanned[loc])
-          setRowBinV5(rowBin,pos,3, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,3, 1.0f, posStride, featureStride);
         if(hist.koRecapBlocked[loc])
-          setRowBinV5(rowBin,pos,4, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,4, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1436,7 +1421,7 @@ void NNInputs::fillRowV5(
         rowGlobal[0] = 1.0;
       else if(prev1Loc != Board::NULL_LOC) {
         int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
-        setRowBinV5(rowBin,pos,6, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
       }
       if(moveHistoryLen >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
@@ -1444,7 +1429,7 @@ void NNInputs::fillRowV5(
           rowGlobal[1] = 1.0;
         else if(prev2Loc != Board::NULL_LOC) {
           int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
-          setRowBinV5(rowBin,pos,7, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,7, 1.0f, posStride, featureStride);
         }
         if(moveHistoryLen >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
@@ -1452,7 +1437,7 @@ void NNInputs::fillRowV5(
             rowGlobal[2] = 1.0;
           else if(prev3Loc != Board::NULL_LOC) {
             int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
-            setRowBinV5(rowBin,pos,8, 1.0f, posStride, featureStride);
+            setRowBin(rowBin,pos,8, 1.0f, posStride, featureStride);
           }
           if(moveHistoryLen >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
@@ -1460,7 +1445,7 @@ void NNInputs::fillRowV5(
               rowGlobal[3] = 1.0;
             else if(prev4Loc != Board::NULL_LOC) {
               int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
-              setRowBinV5(rowBin,pos,9, 1.0f, posStride, featureStride);
+              setRowBin(rowBin,pos,9, 1.0f, posStride, featureStride);
             }
             if(moveHistoryLen >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
@@ -1468,7 +1453,7 @@ void NNInputs::fillRowV5(
                 rowGlobal[4] = 1.0;
               else if(prev5Loc != Board::NULL_LOC) {
                 int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
-                setRowBinV5(rowBin,pos,10, 1.0f, posStride, featureStride);
+                setRowBin(rowBin,pos,10, 1.0f, posStride, featureStride);
               }
             }
           }
@@ -1484,9 +1469,9 @@ void NNInputs::fillRowV5(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.secondEncoreStartColors[loc] == pla)
-          setRowBinV5(rowBin,pos,11, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,11, 1.0f, posStride, featureStride);
         else if(hist.secondEncoreStartColors[loc] == opp)
-          setRowBinV5(rowBin,pos,12, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,12, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1576,22 +1561,22 @@ void NNInputs::fillRowV6(
       Loc loc = Location::getLoc(x,y,xSize);
 
       //Feature 0 - on board
-      setRowBinV6(rowBin,pos,0, 1.0f, posStride, featureStride);
+      setRowBin(rowBin,pos,0, 1.0f, posStride, featureStride);
 
       Color stone = board.colors[loc];
 
       //Features 1,2 - pla,opp stone
       //Features 3,4,5 - 1,2,3 libs
       if(stone == pla)
-        setRowBinV6(rowBin,pos,1, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
       else if(stone == opp)
-        setRowBinV6(rowBin,pos,2, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
 
       if(stone == pla || stone == opp) {
         int libs = board.getNumLiberties(loc);
-        if(libs == 1) setRowBinV6(rowBin,pos,3, 1.0f, posStride, featureStride);
-        else if(libs == 2) setRowBinV6(rowBin,pos,4, 1.0f, posStride, featureStride);
-        else if(libs == 3) setRowBinV6(rowBin,pos,5, 1.0f, posStride, featureStride);
+        if(libs == 1) setRowBin(rowBin,pos,3, 1.0f, posStride, featureStride);
+        else if(libs == 2) setRowBin(rowBin,pos,4, 1.0f, posStride, featureStride);
+        else if(libs == 3) setRowBin(rowBin,pos,5, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1600,14 +1585,14 @@ void NNInputs::fillRowV6(
   if(hist.encorePhase == 0) {
     if(board.ko_loc != Board::NULL_LOC) {
       int pos = NNPos::locToPos(board.ko_loc,xSize,nnXLen,nnYLen);
-      setRowBinV6(rowBin,pos,6, 1.0f, posStride, featureStride);
+      setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
     }
     for(int y = 0; y<ySize; y++) {
       for(int x = 0; x<xSize; x++) {
         Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc] && loc != board.ko_loc) {
           int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-          setRowBinV6(rowBin,pos,6, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
         }
       }
     }
@@ -1619,9 +1604,9 @@ void NNInputs::fillRowV6(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.superKoBanned[loc])
-          setRowBinV6(rowBin,pos,6, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
         if(hist.koRecapBlocked[loc])
-          setRowBinV6(rowBin,pos,7, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,7, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1647,7 +1632,7 @@ void NNInputs::fillRowV6(
         rowGlobal[0] = 1.0;
       else if(prev1Loc != Board::NULL_LOC) {
         int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
-        setRowBinV6(rowBin,pos,9, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,9, 1.0f, posStride, featureStride);
       }
       if(numTurnsThisPhase >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
@@ -1655,7 +1640,7 @@ void NNInputs::fillRowV6(
           rowGlobal[1] = 1.0;
         else if(prev2Loc != Board::NULL_LOC) {
           int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
-          setRowBinV6(rowBin,pos,10, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,10, 1.0f, posStride, featureStride);
         }
         if(numTurnsThisPhase >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
@@ -1663,7 +1648,7 @@ void NNInputs::fillRowV6(
             rowGlobal[2] = 1.0;
           else if(prev3Loc != Board::NULL_LOC) {
             int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
-            setRowBinV6(rowBin,pos,11, 1.0f, posStride, featureStride);
+            setRowBin(rowBin,pos,11, 1.0f, posStride, featureStride);
           }
           if(numTurnsThisPhase >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
@@ -1671,7 +1656,7 @@ void NNInputs::fillRowV6(
               rowGlobal[3] = 1.0;
             else if(prev4Loc != Board::NULL_LOC) {
               int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
-              setRowBinV6(rowBin,pos,12, 1.0f, posStride, featureStride);
+              setRowBin(rowBin,pos,12, 1.0f, posStride, featureStride);
             }
             if(numTurnsThisPhase >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
@@ -1679,7 +1664,7 @@ void NNInputs::fillRowV6(
                 rowGlobal[4] = 1.0;
               else if(prev5Loc != Board::NULL_LOC) {
                 int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
-                setRowBinV6(rowBin,pos,13, 1.0f, posStride, featureStride);
+                setRowBin(rowBin,pos,13, 1.0f, posStride, featureStride);
               }
             }
           }
@@ -1692,11 +1677,11 @@ void NNInputs::fillRowV6(
   auto addLadderFeature = [&board,xSize,nnXLen,nnYLen,posStride,featureStride,rowBin,opp](Loc loc, int pos, const vector<Loc>& workingMoves){
     assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV6(rowBin,pos,14, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,14, 1.0f, posStride, featureStride);
     if(board.colors[loc] == opp && board.getNumLiberties(loc) > 1) {
       for(size_t j = 0; j < workingMoves.size(); j++) {
         int workingPos = NNPos::locToPos(workingMoves[j],xSize,nnXLen,nnYLen);
-        setRowBinV6(rowBin,workingPos,17, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,workingPos,17, 1.0f, posStride, featureStride);
       }
     }
   };
@@ -1709,7 +1694,7 @@ void NNInputs::fillRowV6(
     (void)loc;
     assert(prevBoard.colors[loc] == P_BLACK || prevBoard.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV6(rowBin,pos,15, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,15, 1.0f, posStride, featureStride);
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
@@ -1719,7 +1704,7 @@ void NNInputs::fillRowV6(
     (void)loc;
     assert(prevPrevBoard.colors[loc] == P_BLACK || prevPrevBoard.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV6(rowBin,pos,16, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,16, 1.0f, posStride, featureStride);
   };
   iterLadders(prevPrevBoard, nnXLen, addPrevPrevLadderFeature);
 
@@ -1778,16 +1763,16 @@ void NNInputs::fillRowV6(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(area[loc] == pla)
-          setRowBinV6(rowBin,pos,18, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
         else if(area[loc] == opp)
-          setRowBinV6(rowBin,pos,19, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
         else {
           if(hist.rules.scoringRule == Rules::SCORING_TERRITORY) {
             //Also we must be in the second encore phase, based on the logic above.
             if(board.colors[loc] == pla && hist.secondEncoreStartColors[loc] == pla)
-              setRowBinV6(rowBin,pos,18, 1.0f, posStride, featureStride);
+              setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
             else if(board.colors[loc] == opp && hist.secondEncoreStartColors[loc] == opp)
-              setRowBinV6(rowBin,pos,19, 1.0f, posStride, featureStride);
+              setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
           }
         }
       }
@@ -1801,9 +1786,9 @@ void NNInputs::fillRowV6(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.secondEncoreStartColors[loc] == pla)
-          setRowBinV6(rowBin,pos,20, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,20, 1.0f, posStride, featureStride);
         else if(hist.secondEncoreStartColors[loc] == opp)
-          setRowBinV6(rowBin,pos,21, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,21, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1971,22 +1956,22 @@ void NNInputs::fillRowV7(
       Loc loc = Location::getLoc(x,y,xSize);
 
       //Feature 0 - on board
-      setRowBinV7(rowBin,pos,0, 1.0f, posStride, featureStride);
+      setRowBin(rowBin,pos,0, 1.0f, posStride, featureStride);
 
       Color stone = board.colors[loc];
 
       //Features 1,2 - pla,opp stone
       //Features 3,4,5 - 1,2,3 libs
       if(stone == pla)
-        setRowBinV7(rowBin,pos,1, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
       else if(stone == opp)
-        setRowBinV7(rowBin,pos,2, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
 
       if(stone == pla || stone == opp) {
         int libs = board.getNumLiberties(loc);
-        if(libs == 1) setRowBinV7(rowBin,pos,3, 1.0f, posStride, featureStride);
-        else if(libs == 2) setRowBinV7(rowBin,pos,4, 1.0f, posStride, featureStride);
-        else if(libs == 3) setRowBinV7(rowBin,pos,5, 1.0f, posStride, featureStride);
+        if(libs == 1) setRowBin(rowBin,pos,3, 1.0f, posStride, featureStride);
+        else if(libs == 2) setRowBin(rowBin,pos,4, 1.0f, posStride, featureStride);
+        else if(libs == 3) setRowBin(rowBin,pos,5, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -1995,14 +1980,14 @@ void NNInputs::fillRowV7(
   if(hist.encorePhase == 0) {
     if(board.ko_loc != Board::NULL_LOC) {
       int pos = NNPos::locToPos(board.ko_loc,xSize,nnXLen,nnYLen);
-      setRowBinV7(rowBin,pos,6, 1.0f, posStride, featureStride);
+      setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
     }
     for(int y = 0; y<ySize; y++) {
       for(int x = 0; x<xSize; x++) {
         Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc] && loc != board.ko_loc) {
           int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-          setRowBinV7(rowBin,pos,6, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
         }
       }
     }
@@ -2014,9 +1999,9 @@ void NNInputs::fillRowV7(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.superKoBanned[loc])
-          setRowBinV7(rowBin,pos,6, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
         if(hist.koRecapBlocked[loc])
-          setRowBinV7(rowBin,pos,7, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,7, 1.0f, posStride, featureStride);
       }
     }
   }
@@ -2042,7 +2027,7 @@ void NNInputs::fillRowV7(
         rowGlobal[0] = 1.0;
       else if(prev1Loc != Board::NULL_LOC) {
         int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
-        setRowBinV7(rowBin,pos,9, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,pos,9, 1.0f, posStride, featureStride);
       }
       if(numTurnsThisPhase >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
@@ -2050,7 +2035,7 @@ void NNInputs::fillRowV7(
           rowGlobal[1] = 1.0;
         else if(prev2Loc != Board::NULL_LOC) {
           int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
-          setRowBinV7(rowBin,pos,10, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,10, 1.0f, posStride, featureStride);
         }
         if(numTurnsThisPhase >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
@@ -2058,7 +2043,7 @@ void NNInputs::fillRowV7(
             rowGlobal[2] = 1.0;
           else if(prev3Loc != Board::NULL_LOC) {
             int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
-            setRowBinV7(rowBin,pos,11, 1.0f, posStride, featureStride);
+            setRowBin(rowBin,pos,11, 1.0f, posStride, featureStride);
           }
           if(numTurnsThisPhase >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
@@ -2066,7 +2051,7 @@ void NNInputs::fillRowV7(
               rowGlobal[3] = 1.0;
             else if(prev4Loc != Board::NULL_LOC) {
               int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
-              setRowBinV7(rowBin,pos,12, 1.0f, posStride, featureStride);
+              setRowBin(rowBin,pos,12, 1.0f, posStride, featureStride);
             }
             if(numTurnsThisPhase >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
@@ -2074,7 +2059,7 @@ void NNInputs::fillRowV7(
                 rowGlobal[4] = 1.0;
               else if(prev5Loc != Board::NULL_LOC) {
                 int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
-                setRowBinV7(rowBin,pos,13, 1.0f, posStride, featureStride);
+                setRowBin(rowBin,pos,13, 1.0f, posStride, featureStride);
               }
             }
           }
@@ -2087,11 +2072,11 @@ void NNInputs::fillRowV7(
   auto addLadderFeature = [&board,xSize,nnXLen,nnYLen,posStride,featureStride,rowBin,opp](Loc loc, int pos, const vector<Loc>& workingMoves){
     assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV7(rowBin,pos,14, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,14, 1.0f, posStride, featureStride);
     if(board.colors[loc] == opp && board.getNumLiberties(loc) > 1) {
       for(size_t j = 0; j < workingMoves.size(); j++) {
         int workingPos = NNPos::locToPos(workingMoves[j],xSize,nnXLen,nnYLen);
-        setRowBinV7(rowBin,workingPos,17, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,workingPos,17, 1.0f, posStride, featureStride);
       }
     }
   };
@@ -2104,7 +2089,7 @@ void NNInputs::fillRowV7(
     (void)loc;
     assert(prevBoard.colors[loc] == P_BLACK || prevBoard.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV7(rowBin,pos,15, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,15, 1.0f, posStride, featureStride);
   };
   iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
@@ -2114,7 +2099,7 @@ void NNInputs::fillRowV7(
     (void)loc;
     assert(prevPrevBoard.colors[loc] == P_BLACK || prevPrevBoard.colors[loc] == P_WHITE);
     assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBinV7(rowBin,pos,16, 1.0f, posStride, featureStride);
+    setRowBin(rowBin,pos,16, 1.0f, posStride, featureStride);
   };
   iterLadders(prevPrevBoard, nnXLen, addPrevPrevLadderFeature);
 
@@ -2173,16 +2158,16 @@ void NNInputs::fillRowV7(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(area[loc] == pla)
-          setRowBinV7(rowBin,pos,18, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
         else if(area[loc] == opp)
-          setRowBinV7(rowBin,pos,19, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
         else {
           if(hist.rules.scoringRule == Rules::SCORING_TERRITORY) {
             //Also we must be in the second encore phase, based on the logic above.
             if(board.colors[loc] == pla && hist.secondEncoreStartColors[loc] == pla)
-              setRowBinV7(rowBin,pos,18, 1.0f, posStride, featureStride);
+              setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
             else if(board.colors[loc] == opp && hist.secondEncoreStartColors[loc] == opp)
-              setRowBinV7(rowBin,pos,19, 1.0f, posStride, featureStride);
+              setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
           }
         }
       }
@@ -2196,9 +2181,9 @@ void NNInputs::fillRowV7(
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.secondEncoreStartColors[loc] == pla)
-          setRowBinV7(rowBin,pos,20, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,20, 1.0f, posStride, featureStride);
         else if(hist.secondEncoreStartColors[loc] == opp)
-          setRowBinV7(rowBin,pos,21, 1.0f, posStride, featureStride);
+          setRowBin(rowBin,pos,21, 1.0f, posStride, featureStride);
       }
     }
   }
