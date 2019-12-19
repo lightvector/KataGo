@@ -1009,8 +1009,10 @@ float Play::computeLead(
   double naiveKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping);
 
   bool granularityIsCoarse = hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.hasButton;
-  if(!granularityIsCoarse)
-    return (float)naiveKomi;
+  if(!granularityIsCoarse) {
+    assert(hist.rules.komi == oldKomi);
+    return (float)(oldKomi - naiveKomi);
+  }
 
   auto evalWinLoss = [&](double newKomi) {
     double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,roundAndClipKomi(newKomi,board,looseClipping)).second;
@@ -1021,8 +1023,10 @@ float Play::computeLead(
   //Smooth over area scoring 2-point granularity
 
   //If komi is exactly an integer, then we're good.
-  if(naiveKomi == round(naiveKomi))
-    return (float)naiveKomi;
+  if(naiveKomi == round(naiveKomi)) {
+    assert(hist.rules.komi == oldKomi);
+    return (float)(oldKomi - naiveKomi);
+  }
 
   double lower = floor(naiveKomi * 2.0) * 0.5;
   double upper = lower + 0.5;

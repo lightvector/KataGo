@@ -342,6 +342,16 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   run("testselfplayinithE1",Rules::getTrompTaylorish(),0.5,1,true);
   run("testselfplayinithE2",Rules::getTrompTaylorish(),0.5,2,true);
 
+  Rules r = Rules::getTrompTaylorish();
+  r.hasButton = true;
+  run("testselfplayinit0button",r,0.5,0,false);
+  run("testselfplayinit1button",r,0.5,0,false);
+  run("testselfplayinith1-0button",r,0.5,1,false);
+  run("testselfplayinith1-1button",r,0.5,1,false);
+  run("testselfplayinith2-0button",r,0.5,2,false);
+  run("testselfplayinith2-1button",r,0.5,2,false);
+
+
   NeuralNet::globalCleanup();
 }
 
@@ -446,31 +456,37 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
   run("testasym!",Rules::getTrompTaylorish(),true,false);
   run("test lead!",Rules::getTrompTaylorish(),false,true);
+  Rules r = Rules::getTrompTaylorish();
+  r.hasButton = true;
+  run("test lead int button!",r,false,true);
 
 
   //Test lead specifically on a final position
   auto testLeadOnBoard = [&](
     const string& seedBase,
-    const Board& board
+    const Board& board,
+    Rules rules,
+    float komi
   ) {
     NNEvaluator* nnEval = startNNEval(modelFile,seedBase+"nneval",logger,0,true,false,false);
     SearchParams params;
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(params, nnEval, searchRandSeed);
 
-    Rules rules = Rules::getTrompTaylorish();
+    rules.komi = komi;
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,rules,0);
     int compensateKomiVisits = 50;
     OtherGameProperties otherGameProps;
     double lead = Play::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,logger,otherGameProps);
-    assert(hist.rules.komi == 7.5f);
+    assert(hist.rules.komi == komi);
     cout << board << endl;
     cout << "LEAD: " << lead << endl;
     delete bot;
     delete nnEval;
   };
 
+  Rules rules = Rules::getTrompTaylorish();
   {
     Board board = Board::parseBoard(9,9,R"%%(
 .........
@@ -483,7 +499,78 @@ xxxxxxxx.
 ..x......
 .........
 )%%");
-    testLeadOnBoard("basic9x9 lead", board);
+    testLeadOnBoard("basic9x9 lead", board, rules, 7.5f);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+.........
+oooooooo.
+xxxxxxxx.
+.........
+....x..x.
+..x......
+.........
+)%%");
+    testLeadOnBoard("basic9x9 lead komi + 0.5", board, rules, 8.0f);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+.........
+oooooooo.
+xxxxxxxx.
+.........
+....x..x.
+..x......
+.........
+)%%");
+    testLeadOnBoard("basic9x9 lead komi + 1", board, rules, 8.5f);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+.........
+oooooooo.
+xxxxxxxx.
+.........
+....x..x.
+..x......
+.........
+)%%");
+    testLeadOnBoard("basic9x9 lead komi + 1.5", board, rules, 9.0f);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+.........
+oooooooo.
+xxxxxxxx.
+.........
+....x..x.
+..x......
+.........
+)%%");
+    testLeadOnBoard("basic9x9 lead komi + 2.0", board, rules, 9.5f);
+  }
+
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.x.......
+ooooooooo
+xxxxxxxxx
+.........
+.x..o.xo.
+.ox.oxx..
+.x.xxo.x.
+.oxo.xxo.
+.x.....x.
+)%%");
+    testLeadOnBoard("black crushing lead", board, rules, 7.5f);
   }
   {
     Board board = Board::parseBoard(9,9,R"%%(
@@ -497,9 +584,123 @@ xxxxxxxxx
 .oxo.xxo.
 .x.....x.
 )%%");
-    testLeadOnBoard("black crushing lead", board);
+    testLeadOnBoard("black crushing lead komi + 0.5", board, rules, 8.0f);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.x.......
+ooooooooo
+xxxxxxxxx
+.........
+.x..o.xo.
+.ox.oxx..
+.x.xxo.x.
+.oxo.xxo.
+.x.....x.
+)%%");
+    testLeadOnBoard("black crushing lead komi + 1.0", board, rules, 8.5f);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.x.......
+ooooooooo
+xxxxxxxxx
+.........
+.x..o.xo.
+.ox.oxx..
+.x.xxo.x.
+.oxo.xxo.
+.x.....x.
+)%%");
+    testLeadOnBoard("black crushing lead komi + 1.5", board, rules, 9.0f);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.x.......
+ooooooooo
+xxxxxxxxx
+.........
+.x..o.xo.
+.ox.oxx..
+.x.xxo.x.
+.oxo.xxo.
+.x.....x.
+)%%");
+    testLeadOnBoard("black crushing lead komi + 2.0", board, rules, 9.5f);
   }
 
+  Rules buttonRules = Rules::getTrompTaylorish();
+  buttonRules.hasButton = true;
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+.........
+oooooooo.
+xxxxxxxx.
+.........
+....x..x.
+..x......
+.........
+)%%");
+    testLeadOnBoard("basic9x9 lead button", board, buttonRules, 7.5f);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+.........
+oooooooo.
+xxxxxxxx.
+.........
+....x..x.
+..x......
+.........
+)%%");
+    testLeadOnBoard("basic9x9 lead button komi + 0.5", board, buttonRules,  8.0f);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+.........
+oooooooo.
+xxxxxxxx.
+.........
+....x..x.
+..x......
+.........
+)%%");
+    testLeadOnBoard("basic9x9 lead button komi + 1", board, buttonRules,  8.5f);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+.........
+oooooooo.
+xxxxxxxx.
+.........
+....x..x.
+..x......
+.........
+)%%");
+    testLeadOnBoard("basic9x9 lead button komi + 1.5", board, buttonRules,  9.0f);
+  }
+  {
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+.........
+oooooooo.
+xxxxxxxx.
+.........
+....x..x.
+..x......
+.........
+)%%");
+    testLeadOnBoard("basic9x9 lead button komi + 2.0", board, buttonRules,  9.5f);
+  }
 
   NeuralNet::globalCleanup();
 }

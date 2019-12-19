@@ -640,6 +640,8 @@ Hash128 NNInputs::getHash(
   hash ^= Rules::ZOBRIST_TAX_RULE_HASH[hist.rules.taxRule];
   if(hist.rules.multiStoneSuicideLegal)
     hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
+  if(hist.hasButton)
+    hash ^= Rules::ZOBRIST_BUTTON_HASH;
 
   //Fold in whether a pass ends this phase
   bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);

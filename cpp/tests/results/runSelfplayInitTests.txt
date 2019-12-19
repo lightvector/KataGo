@@ -5004,6 +5004,912 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 D4 B4 C6 B6 F2 
 
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: testselfplayinit0button
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla O
+start
+HASH: 7FA41A258C47A091EF917CBC0D685135
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . X . .
+ 8 . . O . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . X . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 3
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves J9 C8 D3 
+end
+HASH: EF733049D54951C568A43818D51BC1D6
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . X . .
+ 8 . . O . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . O . .
+ 3 . . . X . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 4
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves J9 C8 D3 J4 
+gameHash 7776EFC4A6065CF09458404D8A9F94F5
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+modeMeta1 0
+modeMeta2 0
+hasFullData 1
+dataXLen 11
+dataYLen 11
+targetWeightByTurn 0 0
+policyTargetsByTurn 0 unreducedNumVisits 20 J4 10 H3 7 H4 4 
+whiteValueTargetsByTurn 0 0.552598 0.447402 0 2.5188 - 
+whiteValueTargetsByTurn 1 1 0 0 7 7 
+...........
+...........
+........X..
+..O........
+...........
+...........
+...........
+........O..
+...X.......
+...........
+...........
+...........
+...........
+........X..
+..O........
+...........
+...........
+...........
+........O..
+...X.......
+...........
+...........
+00000000000
+00000000000
+00000000100
+00100000000
+00000000000
+00000000000
+00000000000
+00000000100
+00010000000
+00000000000
+00000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+Side position 0
+HASH: 78761F48F370D1DE651DB7B91711773D
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . X . .
+ 8 . . O . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . X . . . O . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 4
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves J9 C8 D3 H3 
+Forking to initial position O
+Pre-fair komi 7.5
+Lead: 2.80821
+HASH: D9B9F3273CF713FFF0E5C1F20737B9E5
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . X . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . . . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 1
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi4.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 
+
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: testselfplayinit1button
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla O
+start
+HASH: E09F782D25B8609ED9D1729E89164C36
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . X . . .
+ 8 . . . . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . O . . . . . . .
+ 3 . . . . . . . X . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 3
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves H9 D4 H3 
+end
+HASH: 68D7DBE9A5349672975C5D69FE4C47E1
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . X . . .
+ 8 . . . O . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . O . . . . . . .
+ 3 . . . . . . . X . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 4
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves H9 D4 H3 D8 
+gameHash B4A990616A0DF276B610DBEDD12D3AB7
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+modeMeta1 0
+modeMeta2 0
+hasFullData 1
+dataXLen 11
+dataYLen 11
+targetWeightByTurn 0 0
+policyTargetsByTurn 0 unreducedNumVisits 20 D8 10 D9 7 C8 2 
+whiteValueTargetsByTurn 0 0.535342 0.464658 0 2.11885 - 
+whiteValueTargetsByTurn 1 1 0 0 7 7 
+...........
+...........
+.......X...
+...O.......
+...........
+...........
+...........
+...O.......
+.......X...
+...........
+...........
+...........
+...........
+.......X...
+...O.......
+...........
+...........
+...........
+...O.......
+.......X...
+...........
+...........
+00000000000
+00000000000
+00000001000
+00010000000
+00000000000
+00000000000
+00000000000
+00010000000
+00000001000
+00000000000
+00000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: testselfplayinith1-0button
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla O
+start
+HASH: E7CE256E791BF61AD526359A14238CEA
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . O . . . . . . . .
+ 7 . X . . . . . X . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . X . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 3
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi20.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves H7 C8 B7 
+end
+HASH: 3AC08D9107DB6B4338E26318FDBD8029
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . O . . . . . . . .
+ 7 . X . . . . . X . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . O . . . . X . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 4
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi20.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves H7 C8 B7 C4 
+gameHash BEC4490547C8EF200593CC971C46DE00
+hitTurnLimit 1
+numExtraBlack 1
+mode 0
+modeMeta1 0
+modeMeta2 0
+hasFullData 1
+dataXLen 11
+dataYLen 11
+targetWeightByTurn 0 0
+policyTargetsByTurn 0 unreducedNumVisits 20 C4 16 D4 1 H9 2 
+whiteValueTargetsByTurn 0 0.579835 0.420165 0 4.30861 - 
+whiteValueTargetsByTurn 1 1 0 0 19 19 
+...........
+...........
+...........
+..O........
+.X.....X...
+...........
+...........
+..O....X...
+...........
+...........
+...........
+...........
+...........
+...........
+..O........
+.X.....X...
+...........
+...........
+..O....X...
+...........
+...........
+...........
+00000000000
+00000000000
+00000000000
+00100000000
+01000001000
+00000000000
+00000000000
+00100001000
+00000000000
+00000000000
+00000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: testselfplayinith1-1button
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 17752D757FF9A5B1B9E7C12C0CDA5FD3
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi22.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+end
+HASH: EE8522619481D97017DDC4EF88BCE3F2
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . . . . . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 1
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi22.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves J8 
+gameHash C87A8530B346956ECA97B5FD82AF894E
+hitTurnLimit 1
+numExtraBlack 1
+mode 0
+modeMeta1 0
+modeMeta2 0
+hasFullData 1
+dataXLen 11
+dataYLen 11
+targetWeightByTurn 0 1
+policyTargetsByTurn 0 unreducedNumVisits 20 J8 16 H9 1 J9 1 H8 1 
+whiteValueTargetsByTurn 0 0.490642 0.509358 0 0.646035 - 
+whiteValueTargetsByTurn 1 0 1 0 -98 -98 
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+XXXXXXXXXXX
+00000000000
+00000000000
+00000000000
+00000000000
+00000000000
+00000000000
+00000000000
+00000000000
+00000000000
+00000000000
+00000000000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
+Side position 0
+HASH: 366C62F4EE65AAC745890D420A2CC85C
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . . . . X . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 1
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi22.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves H8 
+Forking to initial position O
+Pre-fair komi 22.5
+Lead: 1.58894
+HASH: 2E97740D80357EFCE2C628D4F57A37AD
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . . . . . . . .
+ 7 . . . . . . . X . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 1
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi21
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves H7 
+
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: testselfplayinith2-0button
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla O
+start
+HASH: F1BD63B306E1092F674ADC5348BD9A60
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . . . X . O . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . X . . . . . O . . .
+ 4 . . X . . . . . . . .
+ 3 . X O . O . X . X . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 9
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi40.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves J3 C3 B5 E3 B3 G8 E8 H5 G3 
+end
+HASH: 616A49DF5FEFF87BE07F98F790CE0A83
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . . . X . O . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . X . . . . . O . . .
+ 4 . . X . . . . . O . .
+ 3 . X O . O . X . X . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 10
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi40.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves J3 C3 B5 E3 B3 G8 E8 H5 G3 J4 
+gameHash CA1F9BC46A1FEDDC841ECC408E887FBE
+hitTurnLimit 1
+numExtraBlack 2
+mode 0
+modeMeta1 0
+modeMeta2 0
+hasFullData 1
+dataXLen 11
+dataYLen 11
+targetWeightByTurn 0 0
+policyTargetsByTurn 0 unreducedNumVisits 20 J4 10 G4 6 F5 6 J9 1 
+whiteValueTargetsByTurn 0 0.541717 0.458283 0 2.68812 - 
+whiteValueTargetsByTurn 1 1 0 0 38 38 
+...........
+...........
+...........
+....X.O.X..
+...........
+...........
+.X.....O...
+..X.....O..
+.XO.O.X.X..
+...........
+...........
+...........
+...........
+...........
+....X.O.X..
+...........
+...........
+.X.....O...
+..X.....O..
+.XO.O.X.X..
+...........
+...........
+00000000000
+00000000000
+00000000000
+00001010100
+00000000000
+00000000000
+01000001000
+00100000100
+01101010100
+00000000000
+00000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 -1.000 0.000 1.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 -1.000 1.000 0.000 1.000 0.000 -1.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+Side position 0
+HASH: 1A231CDBB244260EDE7701749CE3A03A
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . . . X . O . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . X . . . . . O . . .
+ 4 . . X . . . O . . . .
+ 3 . X O . O . X . X . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 10
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi40.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves J3 C3 B5 E3 B3 G8 E8 H5 G3 G4 
+Forking to initial position O
+Pre-fair komi 40.5
+Lead: 7.43833
+HASH: 4D05F3239FA084EAAC90F97062157BE6
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . . . . . O . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . X . . . . . . . . .
+ 4 . . X . . . . . . . .
+ 3 . X O X O . . . X . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 7
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi33
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves J3 C3 B5 E3 B3 G8 D3 
+
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: testselfplayinith2-1button
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla O
+start
+HASH: 21314AF4BB6A8C0A3487C03CC4590805
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . O . . . . . . .
+ 8 . . . . . . . X . . .
+ 7 . . X . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . X . . . . . . . .
+ 3 . . . . . . . X . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 3
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi36.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves H3 D9 C7 
+end
+HASH: 4E3987553219832BE0FCB23CA860BA05
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . O . . . . . . .
+ 8 . . O . . . . X . . .
+ 7 . . X . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . X . . . . . . . .
+ 3 . . . . . . . X . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 4
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi36.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves H3 D9 C7 C8 
+gameHash 788E431D29772F19CB9EA9ACB8775605
+hitTurnLimit 1
+numExtraBlack 2
+mode 0
+modeMeta1 0
+modeMeta2 0
+hasFullData 1
+dataXLen 11
+dataYLen 11
+targetWeightByTurn 0 0
+policyTargetsByTurn 0 unreducedNumVisits 20 C8 13 J5 5 F9 1 
+whiteValueTargetsByTurn 0 0.463259 0.536741 0 -0.734867 - 
+whiteValueTargetsByTurn 1 1 0 0 34 34 
+...........
+...........
+...O.......
+..O....X...
+..X........
+...........
+...........
+..X........
+.......X...
+...........
+...........
+...........
+...........
+...O.......
+..O....X...
+..X........
+...........
+...........
+..X........
+.......X...
+...........
+...........
+00000000000
+00000000000
+00010000000
+00100001000
+00100000000
+00000000000
+00000000000
+00100000000
+00000001000
+00000000000
+00000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+
 Running more tests for selfplay
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -5382,6 +6288,216 @@ whiteValueTargetsByTurn 30 1 0 0 7.5 7.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: test lead int button!
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 417C0B108173B405E67BD22571E6ACD6
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . . . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+end
+HASH: 6C79EBC707BB686A7E4D05DB0C0DF40A
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . X . X X O
+ 9 . . . X . O O O O O .
+ 8 . . X . . . . . O X .
+ 7 . . . . . . . X X X .
+ 6 . . O . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . O . X . . O X . .
+ 3 . . . O X . X . X . .
+ 2 . . . O O X O . . . .
+ 1 . . . . . O . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 30
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+Has button 1
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 C4 E3 D3 E4 C6 J7 J8 H7 F9 D9 H4 J3 E2 F2 D2 K8 K9 K7 G2 G3 F1 K10 L10 J10 J9 G10 G9 
+gameHash FEEA12FFA8E8B8D2AF727B35B7D0A7DE
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+modeMeta1 0
+modeMeta2 0
+hasFullData 1
+dataXLen 11
+dataYLen 11
+targetWeightByTurn 0 0
+targetWeightByTurn 1 1
+targetWeightByTurn 2 1
+targetWeightByTurn 3 0
+targetWeightByTurn 4 1
+targetWeightByTurn 5 0
+targetWeightByTurn 6 1
+targetWeightByTurn 7 1
+targetWeightByTurn 8 1
+targetWeightByTurn 9 1
+targetWeightByTurn 10 0
+targetWeightByTurn 11 0
+targetWeightByTurn 12 0
+targetWeightByTurn 13 1
+targetWeightByTurn 14 1
+targetWeightByTurn 15 1
+targetWeightByTurn 16 1
+targetWeightByTurn 17 1
+targetWeightByTurn 18 1
+targetWeightByTurn 19 1
+targetWeightByTurn 20 1
+targetWeightByTurn 21 1
+targetWeightByTurn 22 1
+targetWeightByTurn 23 1
+targetWeightByTurn 24 1
+targetWeightByTurn 25 1
+targetWeightByTurn 26 1
+targetWeightByTurn 27 1
+targetWeightByTurn 28 1
+targetWeightByTurn 29 0
+policyTargetsByTurn 0 unreducedNumVisits 50 C8 10 D4 7 C4 7 D3 7 D9 7 D8 10 H8 8 H9 8 J8 8 H3 2 J4 7 H4 2 
+policyTargetsByTurn 1 unreducedNumVisits 100 D3 15 H9 21 H3 10 J8 13 J4 9 H4 8 H8 13 D4 4 C4 3 
+policyTargetsByTurn 2 unreducedNumVisits 100 J4 28 D3 28 H4 19 H3 16 D4 5 
+policyTargetsByTurn 3 unreducedNumVisits 50 D3 33 C4 11 D4 5 
+policyTargetsByTurn 4 unreducedNumVisits 50 E3 26 F3 19 F9 1 E9 1 D3 1 
+policyTargetsByTurn 5 unreducedNumVisits 50 D3 28 E9 9 C6 4 H4 6 J7 1 D9 1 
+policyTargetsByTurn 6 unreducedNumVisits 50 E4 49 
+policyTargetsByTurn 7 unreducedNumVisits 100 C6 78 E9 7 J7 6 J6 5 
+policyTargetsByTurn 8 unreducedNumVisits 50 F9 17 E9 14 J7 9 J8 8 E8 1 
+policyTargetsByTurn 9 unreducedNumVisits 100 E9 60 J8 16 D9 22 H4 1 
+policyTargetsByTurn 10 unreducedNumVisits 50 H7 41 F9 5 E9 2 
+policyTargetsByTurn 11 unreducedNumVisits 50 E9 25 F9 18 D9 6 
+policyTargetsByTurn 12 unreducedNumVisits 50 D9 41 E8 4 E9 4 
+policyTargetsByTurn 13 unreducedNumVisits 50 E2 18 B7 6 E10 4 H4 3 H3 4 G3 8 J3 3 K7 3 
+policyTargetsByTurn 14 unreducedNumVisits 50 J3 29 H3 14 H5 4 J5 1 
+policyTargetsByTurn 15 unreducedNumVisits 100 B7 12 H3 9 E2 60 E6 4 E10 4 F6 3 K7 2 F7 1 F5 1 H5 1 
+policyTargetsByTurn 16 unreducedNumVisits 50 F2 49 
+policyTargetsByTurn 17 unreducedNumVisits 100 D2 99 
+policyTargetsByTurn 18 unreducedNumVisits 100 G3 23 K7 21 B7 3 E10 31 H8 4 G2 3 G8 3 K8 4 F3 1 D5 3 
+policyTargetsByTurn 19 unreducedNumVisits 50 K9 49 
+policyTargetsByTurn 20 unreducedNumVisits 100 H8 51 K7 46 
+policyTargetsByTurn 21 unreducedNumVisits 100 E10 73 G2 23 B7 1 
+policyTargetsByTurn 22 unreducedNumVisits 50 F3 14 G3 28 F1 6 
+policyTargetsByTurn 23 unreducedNumVisits 50 F1 47 H3 0 E10 0 
+policyTargetsByTurn 24 unreducedNumVisits 50 F3 8 E10 10 H2 3 K10 22 G10 2 J10 1 
+policyTargetsByTurn 25 unreducedNumVisits 50 L9 21 J10 6 L10 17 E10 4 H3 1 
+policyTargetsByTurn 26 unreducedNumVisits 50 J10 46 G10 1 E10 0 F3 0 
+policyTargetsByTurn 27 unreducedNumVisits 50 J9 49 
+policyTargetsByTurn 28 unreducedNumVisits 100 G10 86 E10 4 F10 1 G8 1 H10 1 F3 1 H2 0 F8 0 B7 0 
+policyTargetsByTurn 29 unreducedNumVisits 50 G9 24 F10 11 H10 12 
+whiteValueTargetsByTurn 0 0.512077 0.487923 0 0.879093 - 
+whiteValueTargetsByTurn 1 0.511456 0.488544 0 0.927791 0.300678 
+whiteValueTargetsByTurn 2 0.533659 0.466341 0 1.79214 0.387646 
+whiteValueTargetsByTurn 3 0.528029 0.471971 0 1.64933 - 
+whiteValueTargetsByTurn 4 0.52067 0.47933 0 1.28647 0.402897 
+whiteValueTargetsByTurn 5 0.520542 0.479458 0 1.2002 - 
+whiteValueTargetsByTurn 6 0.537891 0.462109 0 1.75102 0.706573 
+whiteValueTargetsByTurn 7 0.544584 0.455416 0 1.93339 - 
+whiteValueTargetsByTurn 8 0.550357 0.449643 0 2.15242 2.1536 
+whiteValueTargetsByTurn 9 0.559872 0.440128 0 2.35513 1.11149 
+whiteValueTargetsByTurn 10 0.552462 0.447538 0 1.89988 - 
+whiteValueTargetsByTurn 11 0.554548 0.445452 0 1.91054 - 
+whiteValueTargetsByTurn 12 0.560662 0.439338 0 1.90072 - 
+whiteValueTargetsByTurn 13 0.561735 0.438265 0 2.04734 - 
+whiteValueTargetsByTurn 14 0.565334 0.434666 0 2.19463 2.16329 
+whiteValueTargetsByTurn 15 0.593965 0.406035 0 2.75107 0.964717 
+whiteValueTargetsByTurn 16 0.6211 0.3789 0 3.32908 2.10557 
+whiteValueTargetsByTurn 17 0.619102 0.380898 0 3.31417 - 
+whiteValueTargetsByTurn 18 0.620683 0.379317 0 3.33981 2.144 
+whiteValueTargetsByTurn 19 0.693263 0.306737 0 5.23504 - 
+whiteValueTargetsByTurn 20 0.706143 0.293857 0 5.44386 4.32667 
+whiteValueTargetsByTurn 21 0.722521 0.277479 0 5.59535 - 
+whiteValueTargetsByTurn 22 0.703184 0.296816 0 5.01003 3.31424 
+whiteValueTargetsByTurn 23 0.662474 0.337526 0 4.13684 3.11536 
+whiteValueTargetsByTurn 24 0.673896 0.326104 0 4.44379 - 
+whiteValueTargetsByTurn 25 0.62632 0.37368 0 3.64684 - 
+whiteValueTargetsByTurn 26 0.610054 0.389946 0 2.61336 4.91245 
+whiteValueTargetsByTurn 27 0.608706 0.391295 0 2.59177 4.94966 
+whiteValueTargetsByTurn 28 0.634197 0.365803 0 3.28914 6.27257 
+whiteValueTargetsByTurn 29 0.568315 0.431685 0 1.4666 - 
+whiteValueTargetsByTurn 30 1 0 0 7 7 
+...........
+......X.XXO
+...X.OOOOO.
+..X.....OX.
+.......XXX.
+..O........
+...........
+..O.X..OX..
+...OX.X.X..
+...OOXO....
+.....O.....
+...........
+......X.XXO
+...X.OOOOO.
+..X.....OX.
+.......XXX.
+..O........
+...........
+..O.X..OX..
+...OX.X.X..
+...OOXO....
+.....O.....
+00000000000
+00000010111
+00010111110
+00100000110
+00000001110
+00100000000
+00000000000
+00101001100
+00011010100
+00011110000
+00000100000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 -1.000 -1.000 1.000
+ 0.000 0.000 0.000 -1.000 0.000 1.000 1.000 1.000 1.000 1.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 -1.000 -1.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 -1.000 0.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 -1.000 0.000 -1.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 1.000 -1.000 1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000
+
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .
@@ -5398,6 +6514,70 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
 LEAD: -3.55227
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
+HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . O . . . O . . .
+ 7 . . . . . . . . .
+ 6 O O O O O O O O .
+ 5 X X X X X X X X .
+ 4 . . . . . . . . .
+ 3 . . . . X . . X .
+ 2 . . X . . . . . .
+ 1 . . . . . . . . .
+
+
+LEAD: -3.05227
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . O . . . O . . .
+ 7 . . . . . . . . .
+ 6 O O O O O O O O .
+ 5 X X X X X X X X .
+ 4 . . . . . . . . .
+ 3 . . . . X . . X .
+ 2 . . X . . . . . .
+ 1 . . . . . . . . .
+
+
+LEAD: -2.55227
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . O . . . O . . .
+ 7 . . . . . . . . .
+ 6 O O O O O O O O .
+ 5 X X X X X X X X .
+ 4 . . . . . . . . .
+ 3 . . . . X . . X .
+ 2 . . X . . . . . .
+ 1 . . . . . . . . .
+
+
+LEAD: -2.05227
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . O . . . O . . .
+ 7 . . . . . . . . .
+ 6 O O O O O O O O .
+ 5 X X X X X X X X .
+ 4 . . . . . . . . .
+ 3 . . . . X . . X .
+ 2 . . X . . . . . .
+ 1 . . . . . . . . .
+
+
+LEAD: -1.55227
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
 HASH: E47BBD59BA73650CEBCE64675EBBF366
    A B C D E F G H J
  9 . X . . . . . . .
@@ -5412,3 +6592,147 @@ HASH: E47BBD59BA73650CEBCE64675EBBF366
 
 
 LEAD: -40.2736
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: E47BBD59BA73650CEBCE64675EBBF366
+   A B C D E F G H J
+ 9 . X . . . . . . .
+ 8 O O O O O O O O O
+ 7 X X X X X X X X X
+ 6 . . . . . . . . .
+ 5 . X . . O . X O .
+ 4 . O X . O X X . .
+ 3 . X . X X O . X .
+ 2 . O X O . X X O .
+ 1 . X . . . . . X .
+
+
+LEAD: -39.7736
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: E47BBD59BA73650CEBCE64675EBBF366
+   A B C D E F G H J
+ 9 . X . . . . . . .
+ 8 O O O O O O O O O
+ 7 X X X X X X X X X
+ 6 . . . . . . . . .
+ 5 . X . . O . X O .
+ 4 . O X . O X X . .
+ 3 . X . X X O . X .
+ 2 . O X O . X X O .
+ 1 . X . . . . . X .
+
+
+LEAD: -39.2736
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: E47BBD59BA73650CEBCE64675EBBF366
+   A B C D E F G H J
+ 9 . X . . . . . . .
+ 8 O O O O O O O O O
+ 7 X X X X X X X X X
+ 6 . . . . . . . . .
+ 5 . X . . O . X O .
+ 4 . O X . O X X . .
+ 3 . X . X X O . X .
+ 2 . O X O . X X O .
+ 1 . X . . . . . X .
+
+
+LEAD: -38.7736
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: E47BBD59BA73650CEBCE64675EBBF366
+   A B C D E F G H J
+ 9 . X . . . . . . .
+ 8 O O O O O O O O O
+ 7 X X X X X X X X X
+ 6 . . . . . . . . .
+ 5 . X . . O . X O .
+ 4 . O X . O X X . .
+ 3 . X . X X O . X .
+ 2 . O X O . X X O .
+ 1 . X . . . . . X .
+
+
+LEAD: -38.2736
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . O . . . O . . .
+ 7 . . . . . . . . .
+ 6 O O O O O O O O .
+ 5 X X X X X X X X .
+ 4 . . . . . . . . .
+ 3 . . . . X . . X .
+ 2 . . X . . . . . .
+ 1 . . . . . . . . .
+
+
+LEAD: -3.91506
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . O . . . O . . .
+ 7 . . . . . . . . .
+ 6 O O O O O O O O .
+ 5 X X X X X X X X .
+ 4 . . . . . . . . .
+ 3 . . . . X . . X .
+ 2 . . X . . . . . .
+ 1 . . . . . . . . .
+
+
+LEAD: -3.41506
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . O . . . O . . .
+ 7 . . . . . . . . .
+ 6 O O O O O O O O .
+ 5 X X X X X X X X .
+ 4 . . . . . . . . .
+ 3 . . . . X . . X .
+ 2 . . X . . . . . .
+ 1 . . . . . . . . .
+
+
+LEAD: -2.91506
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . O . . . O . . .
+ 7 . . . . . . . . .
+ 6 O O O O O O O O .
+ 5 X X X X X X X X .
+ 4 . . . . . . . . .
+ 3 . . . . X . . X .
+ 2 . . X . . . . . .
+ 1 . . . . . . . . .
+
+
+LEAD: -2.41506
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
+: Cuda backend: Model version 4
+HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . O . . . O . . .
+ 7 . . . . . . . . .
+ 6 O O O O O O O O .
+ 5 X X X X X X X X .
+ 4 . . . . . . . . .
+ 3 . . . . X . . X .
+ 2 . . X . . . . . .
+ 1 . . . . . . . . .
+
+
+LEAD: -1.91506
