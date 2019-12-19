@@ -180,10 +180,18 @@ window.onload = function() {
 
 <h1>KataGo's Planned-To-Be-Supported Go Rules (Version 1) </h1>
 A hope also is that this document can serve as a reference for anyone to implement any subset of such rules themselves - including a rigorous nearly-Japanese rules that bots can use for self-play or for competitive matches completely without need for outside adjudication or dispute resolution or any other protocol besides just the bots making ordinary plays. 
+<p>
+I believe the nearly-Japanese rules should correctly handle a wide variety of details, so long as both players play to rationally maximize their score. For example:
 
-I believe the nearly-Japanese rules should correctly handle a wide variety of details, so long as both players play to rationally maximize their score: bent-four-in-the-corner will die regardless of external ko threats, no territory in seki, no territory for one-sided dame, double-ko-seki and thousand-year-ko are sekis, double ko death is a death, one should finish a direct ko rather than leave it open, but multi-step-ko need not be finished, etc. One known difference is with <a href="https://senseis.xmp.net/?TorazuSanmoku">three-points-without-capturing</a>, and a few other exotic rules beasts are currently known that will cause a difference, but these should be very very rare. 
-
-Updated from <a href="./rulesv0.html">Version 0</a> are some details of the cleanup phase ko rules and some of the endnotes and commentary. Changes are to get slightly more consistency with Japanese rules in some very rare cases, probably less than 1 in 1000 games.
+<ul>
+<li> Bent-four-in-the-corner will die regardless of external ko threats.</li>
+<li> No territory in seki, including no territory for one-sided dame (a common quirk of simpler territory rules).
+<li> Double-ko-seki and thousand-year-ko are sekis, double ko death is a death.</li>
+<li> One should finish a direct ko rather than leave it open, even if there are enough ko threats to pass and still leave it open, but multi-step-ko need not be finished.</li>
+</ul>
+A known difference is with <a href="https://senseis.xmp.net/?TorazuSanmoku">three-points-without-capturing</a>, and a few other exotic rules beasts are also known that will cause a difference, but these should be very very rare.
+<p>
+Updated from <a href="./rulesv0.html">Version 0</a> are some details of the cleanup phase ko rules and some of the endnotes and commentary. The changes were to get slightly more consistency with Japanese rules in some very rare cases, probably less than 1 in 1000 games. Unless a major flaw is discovered, these rules should be considered reasonably stable and KataGo will be doing a full training run with them.
 
 <hr>
 <h2>Parameters</h2>
@@ -555,64 +563,78 @@ This formulation is much more similar to area scoring, in that it factors over t
 
 <div class="flex-vertical">
 <span class="note scoringTerritory taxSeki taxAll">
+<span><hr></span>
 <span id="note1">[1] 
 The intent is "independent-life-regions" indicate regions that are not seki, so long as both players finish all borders and fill all dame. This is motivated by the way Japanese rules attempt to define "seki" using dame. Using the presence of dame to determine seki is actually a pretty clever solution - my original idea had only been to use ability-to-make-pass-alive-ness, but this is considerably more awkward in practice than using dame. 
+<br/><br/>
 We also include the condition of "atari" to handle groups that have no dame but still survive without two eyes by virtue of having ko mouths. This handles <a href="https://senseis.xmp.net/?DoubleKoSeki">double ko seki</a>. 
 (<a href="#ref1">Back</a>)</span></span>
 
 <span class="note selfPlayOptsEnabled">
+<span><hr></span>
 <span id="note2">[2] 
 Pass-aliveness can be computed by a straightforward algorithm: <a href="https://en.wikipedia.org/wiki/Benson%27s_algorithm_(Go)">https://en.wikipedia.org/wiki/Benson%27s_algorithm_(Go)</a>. Note that a slight adjustment to the algorithm presented is technically needed if multi-stone suicide is allowed.
 (<a href="#ref3">Back</a>)</span></span>
 
 <span class="note selfPlayOptsEnabled">
+<span><hr></span>
 <span id="note3">[3] 
 Under this definition, it is possible that a region with one completely interior point is pass-alive-territory but the addition of a single stone on that interior point results in the region no longer being considered pass-alive-territory because the single stone is not a pass-alive-group. We ignore this minor "flaw" since it makes for a simpler definition and algorithmic implementation.
 (<a href="#ref3">Back</a>)</span></span>
 
 <span class="note koSimple">
+<span><hr></span>
 <span id="note4">[4] 
 This <a href="https://senseis.xmp.net/?SpightRules">Spight-style</a> termination condition ensures that sending-two-returning-one-like positions will terminate, even under area scoring where the cycle does not "cost" points. It also cuts it shorter under territory scoring, so that a badly behaving bot doesn't lose by ~infinity.
-
+<br/><br/>
 The approach taken taken by many Chinese tournaments is to simply prohibit sending-two-returning-one. (Chinese written rules appear to say positional superko, but this written rule is often not used for real tournaments). This would also be easy to implement and KataGo could easily choose to support it in the future, since for all practical purposes a neural net trained under simple ko rules should work fine without modification in an engine that bans sending-two-returning-one.
-
+<br/><br/>
 However, there is also <a href="https://senseis.xmp.net/?SendingThreeReturningOne"> sending-three-returning-one</a> - and perhaps there are others messy cases too, that one would imagine professional players balking at allowing despite not having formally listed and prohibited them ahead of time in written rules. Spight's condition is a much cleaner way to handle them for now.
-
+<br/><br/>
 Some <a href="https://senseis.xmp.net/?ComputerOlympiadRules"> computer tournament rules</a> handle this by simply declaring long cycles to be draws/wins/losses depending on number of stones captured. It would be easy trivial to support these too in the future if needed and probably would not in practice require retraining a neural net either. But for now, no actual human rulesets use this rule, and even in the computer world, positional or situational superko are often more popular.
 (<a href="#ref4">Back</a>)</span></span>
 
 <span class="note koSimple">
+<span><hr></span>
 <span id="note5">[5] 
 Under some real-life human rules, an unbounded cycle would not end the game in and of itself at exactly such a point, rather the game may be manually adjudicated as a no-result. But our goal here is to get a formalization of Japanese-like ko rules for computer self-play, so dictating a precise ending point is necessary. The requirement for no intervening passes makes absolutely sure that we do not no-resultify sending-two-returning-one style positions, even with weird unforeseen move orderings.
 (<a href="#ref5">Back</a>)</span></span>
 
 <span class="note scoringTerritory">
+<span><hr></span>
 <span id="note6">[6] 
-Why have two phases instead of just one? The intent is that the first phase introduces changes to the ko rules alone, allowing any positions destabilized by it to settle down. Then, the second phase additionally introduces a +1 point per move that allows players to actually begin capturing dead stones without loss of points. If both changes were introduced at once, in some cases, this leads to a highly non-intuitive "pass fight" that is absent from true Japanese rules. This can occur if a protective move becomes necessary once the ko rules change - then we may see players exchange ko threats to try to be not the second to pass and therefore to be first to play in cleanup, since being first to play in cleanup would enable making the protective move with +1 point instead of with +0 points. Introducing the ko rule and score bonus changes in separate phases eliminates this.
+Why have two phases instead of just one? 
+<br/><br/>
+The intent is that the first phase introduces changes to the ko rules alone, allowing any positions destabilized by it to settle down. Then, the second phase additionally introduces a +1 point per move that allows players to actually begin capturing dead stones without loss of points. If both changes were introduced at once, in some cases, this leads to a highly non-intuitive "pass fight" that is absent from true Japanese rules. This can occur if a protective move becomes necessary once the ko rules change - then we may see players exchange ko threats to try to be not the second to pass and therefore to be first to play in cleanup, since being first to play in cleanup would enable making the protective move with +1 point instead of with +0 points. 
+<br/><br/>
+Introducing the ko rule and score bonus changes in separate phases eliminates this issue.
 (<a href="#ref6">Back</a>)</span></span>
 
 <span class="note scoringTerritory">
+<span><hr></span>
 <span id="note7">[7] 
 The unblock-ko-recapture action is effectively the Japanese rules's "pass for ko". We name it this way to avoid calling it a pass, since it shares little else in common with a pass with regard to the rules necessary to make cleanup work. Also, highly conveniently, an unblock-ko-recapture for a ko-move location is always mutually exclusive with a legal move for that location, which means we have no need to change the protocol for GTP or introduce new move encodings. We can continue to use the exact same 19x19 + 1 encodings in all existing protocols to represent moves.
 (<a href="#ref7">Back</a>)</span></span>
 
-
 <span class="note scoringTerritory">
+<span><hr></span>
 <span id="note8">[8]
 This condition prevents a <a href="https://senseis.xmp.net/?DoubleKoSeki">double ko seki</a> from looping forever in the cleanup phase, at least in the simplest cases, in theory. It must depend on the exact grid coloring rather than be a general prohibition on continuing to unblock and recapture a ko or kos over and over because if the seki is temporary such that one side can capture a surrounding group to collapse it, we must make sure capturing into the ko is not prohibited at that point.
-
+<br/><br/>
 Unfortunately, as stated, this rule still allows quite a large amount of game-prolonging due to double-ko-seki, which makes it not ideal for selfplay. Is there a better formulation that is still clean to state and implement, that limits the ability of the attacker to fruitlessly cycle the double-ko-seki?
 (<a href="#ref8">Back</a>)</span></span>
 
 <span class="note scoringTerritory">
+<span><hr></span>
 <span id="note9">[9]
 This <a href="https://senseis.xmp.net/?SpightRules">Spight-style</a> termination condition ensures that sending-two-returning-one-type positions will terminate, even during the second cleanup phase when the cycle no longer "costs" points.
 (<a href="#ref9">Back</a>)</span></span>
 
 <span class="note scoringTerritory">
+<span><hr></span>
 <span id="note10">[10]
 The "color at the start of the second cleanup phase" condition prevents one-sided dame from granting points to the side able to fill the dame.
-
+<br/><br/>
 We go ahead and have an allowance for Button Go here too. This may seem odd, since normally the intent is as a way obtain territory-scoring granularity with area-scoring, so if already using territory-scoring, why would one want such a rule? But at least when we came to implement it in KataGo, it seemed programatically no more complex (simpler, even) to just have it as an option always, and formulating it this way makes for more natural extension to Coupon Go if desired, which *does* make sense in territory scoring. KataGo for now does NOT actually plan to support territory + button though.
 (<a href="#ref10">Back</a>)</span></span>
 
