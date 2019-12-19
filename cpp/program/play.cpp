@@ -837,16 +837,16 @@ static std::pair<double,double> evalKomi(
   hist.setKomi(roundedClippedKomi);
 
   ReportedSearchValues values0 = getWhiteScoreValues(botB, board, hist, pla, numVisits, logger, otherGameProps);
-  double finalScore = values0.expectedScore;
+  double finalLead = values0.lead;
   double finalWinLoss = values0.winLossValue;
 
   //If we have a second bot, average the two
   if(botW != NULL && botW != botB) {
     ReportedSearchValues values1 = getWhiteScoreValues(botB, board, hist, pla, numVisits, logger, otherGameProps);
-    finalScore = 0.5 * (values0.expectedScore + values1.expectedScore);
+    finalLead = 0.5 * (values0.lead + values1.lead);
     finalWinLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
   }
-  std::pair<double,double> result = std::make_pair(finalScore,finalWinLoss);
+  std::pair<double,double> result = std::make_pair(finalLead,finalWinLoss);
   scoreWLCache[roundedClippedKomi] = result;
 
   hist.setKomi(oldKomi);
@@ -871,10 +871,10 @@ static double getNaiveEvenKomiHelper(
   double lastShift = 0.0;
   for(int i = 0; i<3; i++) {
     std::pair<float,float> result = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,hist.rules.komi);
-    double finalWhiteScore = result.first;
+    double finalLead = result.first;
     double finalWinLoss = result.second;
-    //Shift by the predicted score difference... but dampen shifts slightly by scaling to 80 pct.
-    double shift = -finalWhiteScore * 0.8;
+    //Shift by the predicted lead
+    double shift = -finalLead;
     //Under no situations should the shift be bigger in absolute value than the last shift
     if(i > 0 && abs(shift) > abs(lastShift)) {
       if(shift < 0) shift = -abs(lastShift);
@@ -883,7 +883,7 @@ static double getNaiveEvenKomiHelper(
     lastShift = shift;
 
     //If the score and winrate would like to move in opposite directions, quit immediately.
-    if((shift > 0 && finalWinLoss > 0) || (shift < 0 && finalWhiteScore < 0))
+    if((shift > 0 && finalWinLoss > 0) || (shift < 0 && finalLead < 0))
       break;
 
     // cout << "Shifting by " << shift << endl;

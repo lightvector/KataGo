@@ -2085,7 +2085,7 @@ HASH: EE060A497800EAD80BA58953CA036DE4
 Initial pla Black
 Encore phase 0
 Turns this phase 4
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi22.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi21.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
@@ -2112,7 +2112,7 @@ HASH: FDDC4F30233B87344C40C996DC36201E
 Initial pla Black
 Encore phase 0
 Turns this phase 5
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi22.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi21.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
@@ -2130,9 +2130,9 @@ hasFullData 1
 dataXLen 11
 dataYLen 11
 targetWeightByTurn 0 0
-policyTargetsByTurn 0 unreducedNumVisits 20 J6 11 E9 3 D9 4 J7 1 
-whiteValueTargetsByTurn 0 0.53881 0.46119 0 2.87209 - 
-whiteValueTargetsByTurn 1 1 0 0 20.5 20.5 
+policyTargetsByTurn 0 unreducedNumVisits 20 J6 12 E9 3 D9 3 J7 1 
+whiteValueTargetsByTurn 0 0.538327 0.461673 0 2.81561 - 
+whiteValueTargetsByTurn 1 1 0 0 19.5 19.5 
 ...........
 ...........
 .......X...
@@ -2178,7 +2178,7 @@ whiteValueTargetsByTurn 1 1 0 0 20.5 20.5
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
-HASH: A4E0775BC24B2003DCACACCC0F329793
+HASH: 74559874EB0996EFA54860E7F9081D99
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
@@ -2186,7 +2186,7 @@ HASH: A4E0775BC24B2003DCACACCC0F329793
  8 . . O . . . . . . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
- 5 . . . . . . . . X . .
+ 5 . . . . . . . . . X .
  4 . . X . . . . . O . .
  3 . . . . . . X . . . .
  2 . . . . . . . . . . .
@@ -2196,17 +2196,17 @@ HASH: A4E0775BC24B2003DCACACCC0F329793
 Initial pla Black
 Encore phase 0
 Turns this phase 5
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi22.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi21.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
-Last moves C4 J4 G3 C8 J5 
+Last moves C4 J4 G3 C8 K5 
 Forking to initial position O
-Pre-fair komi 22.5
-Lead: 10.8759
+Pre-fair komi 21.5
+Lead: 9.87592
 HASH: 667459A4D6127DF887BE783549A4A62E
    A B C D E F G H J K L
 11 . X . . . . . . . . .
@@ -3812,16 +3812,16 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 990819FED5804D23AEF7233097E976BD
+HASH: 45C337D24533C67E3C846B3ED12C433F
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . O . . . . .
- 8 . . X . . . . X . . .
- 7 . . . . . . X . . . .
+ 9 . . . X . O X . . . .
+ 8 . . X . . O . X . . .
+ 7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . . . . O . O O . .
+ 4 . . . . . . . O O . .
  3 . . . X . . . X X . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
@@ -3830,26 +3830,26 @@ HASH: 990819FED5804D23AEF7233097E976BD
 Initial pla Black
 Encore phase 0
 Turns this phase 9
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi39
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi40
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
-Last moves H8 H4 J3 J4 H3 F9 D9 F4 G7 
+Last moves H8 H4 J3 J4 H3 F9 G9 F8 D9 
 end
-HASH: 98F0772B7959366AC4AC61ADAF28149A
+HASH: AE5D48BAF196E95F85B9B61905727965
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . O . . . . .
- 8 . . X . . . . X . . .
- 7 . . . . . . X . . . .
+ 9 . . . X . O X . . . .
+ 8 . . X . . O . X . . .
+ 7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . . . . O . O O . .
- 3 . . . X . . O X X . .
+ 4 . . . . . . O O O . .
+ 3 . . . X . . . X X . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
@@ -3857,14 +3857,14 @@ HASH: 98F0772B7959366AC4AC61ADAF28149A
 Initial pla Black
 Encore phase 0
 Turns this phase 10
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi39
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi40
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
-Last moves H8 H4 J3 J4 H3 F9 D9 F4 G7 G3 
+Last moves H8 H4 J3 J4 H3 F9 G9 F8 D9 G4 
 gameHash B9DE6E77FD2D5F504DF3846C64D1E504
 hitTurnLimit 1
 numExtraBlack 2
@@ -3875,64 +3875,64 @@ hasFullData 1
 dataXLen 11
 dataYLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 G3 97 J9 1 D4 0 
-whiteValueTargetsByTurn 0 0.662129 0.337871 0 8.21268 - 
-whiteValueTargetsByTurn 1 1 0 0 37 37 
+policyTargetsByTurn 0 unreducedNumVisits 100 F4 32 G3 17 G4 44 H7 0 F5 1 
+whiteValueTargetsByTurn 0 0.560364 0.439636 0 3.8811 - 
+whiteValueTargetsByTurn 1 1 0 0 38 38 
 ...........
 ...........
-...X.O.....
-..X....X...
-......X....
-...........
-...........
-.....O.OO..
-...X..OXX..
+...X.OX....
+..X..O.X...
 ...........
 ...........
 ...........
-...........
-...X.O.....
-..X....X...
-......X....
+......OOO..
+...X...XX..
 ...........
 ...........
-.....O.OO..
-...X..OXX..
+...........
+...........
+...X.OX....
+..X..O.X...
+...........
+...........
+...........
+......OOO..
+...X...XX..
 ...........
 ...........
 00000000000
 00000000000
-00010100000
-00100001000
-00000010000
+00010110000
+00100101000
 00000000000
 00000000000
-00000101100
-00010011100
+00000000000
+00000011100
+00010001100
 00000000000
 00000000000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
- 0.000 0.000 0.000 -1.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000
- 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
- 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 1.000 -1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 1.000 0.000 -1.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
- 0.000 0.000 0.000 0.000 0.000 1.000 0.000 1.000 1.000 0.000 0.000
- 0.000 0.000 0.000 -1.000 0.000 0.000 1.000 -1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 -1.000 -1.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
-HASH: 64C1CF63F040715B0E3CCEB680250715
+HASH: E829D6B95F0A9F10A1436A25F906F755
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . O . . O . .
- 8 . . X . . . . X . . .
- 7 . . . . . . X . . . .
+ 9 . . . X . O X . . . .
+ 8 . . X . . O . X . . .
+ 7 . . . . . . . . . . .
  6 . . . . . . . . . . .
- 5 . . . . . . . . . . .
- 4 . . . . . O . O O . .
+ 5 . . . . . O . . . . .
+ 4 . . . . . . . O O . .
  3 . . . X . . . X X . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
@@ -3941,26 +3941,26 @@ HASH: 64C1CF63F040715B0E3CCEB680250715
 Initial pla Black
 Encore phase 0
 Turns this phase 10
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi39
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi40
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
-Last moves H8 H4 J3 J4 H3 F9 D9 F4 G7 J9 
+Last moves H8 H4 J3 J4 H3 F9 G9 F8 D9 F5 
 Side position 1
-HASH: 2620B5DF68240CD53D6A2B59B879C618
+HASH: 8B50B469B4A81948F5BDD9A5ABED6D8F
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . . . X . O . O O . .
- 8 . . X . . . . X . . .
- 7 . . . . . . X . . . .
+ 9 . . . X . O X . O . .
+ 8 . . X . . O . X . . .
+ 7 . . . . . . . . . . .
  6 . . . . . . . . . . .
- 5 . . . . . . . . . . .
- 4 . . . . . O . O O . .
- 3 . . . X . . X X X . .
+ 5 . . . . . O . . . . .
+ 4 . . . . . . . O O . .
+ 3 . . . X . X . X X . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
@@ -3968,14 +3968,14 @@ HASH: 2620B5DF68240CD53D6A2B59B879C618
 Initial pla Black
 Encore phase 0
 Turns this phase 12
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi39
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi40
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
-Last moves H8 H4 J3 J4 H3 F9 D9 F4 G7 J9 G3 H9 
+Last moves H8 H4 J3 J4 H3 F9 G9 F8 D9 F5 F3 J9 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -3989,15 +3989,15 @@ bIdx 0
 wIdx 0
 startPla O
 start
-HASH: 9998A207E7D79786F4101BC5EE23ED87
+HASH: 7160978F085886981AC435B43C82A3E9
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
  9 . . X . . . . . X . .
- 8 . . . . . . . . . . .
- 7 . . . . . O . . . . .
+ 8 . . . . . . . X O . .
+ 7 . . . . . . . . . . .
  6 . . X X . . . . . . .
- 5 . . O X . . . . . . .
+ 5 . . O . . . . . . . .
  4 . . . . . . . . . . .
  3 . . . O . . . X . . .
  2 . . . . . . . . . . .
@@ -4007,24 +4007,24 @@ HASH: 9998A207E7D79786F4101BC5EE23ED87
 Initial pla Black
 Encore phase 0
 Turns this phase 7
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi40
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi38.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
-Last moves J9 D3 C6 C5 D6 F7 D5 
+Last moves J9 D3 C6 C5 D6 J8 H8 
 end
-HASH: 99A7E837528E06B7A769579E1BF5610A
+HASH: 715FDDBFBD0117A949BD79EFC9542F64
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
  9 . . X . . . . . X . .
- 8 . . . . . . . . . . .
- 7 . . . . . O . . O . .
+ 8 . . . . . . . X O . .
+ 7 . . . . . . . . O . .
  6 . . X X . . . . . . .
- 5 . . O X . . . . . . .
+ 5 . . O . . . . . . . .
  4 . . . . . . . . . . .
  3 . . . O . . . X . . .
  2 . . . . . . . . . . .
@@ -4034,14 +4034,14 @@ HASH: 99A7E837528E06B7A769579E1BF5610A
 Initial pla Black
 Encore phase 0
 Turns this phase 8
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi40
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi38.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
-Last moves J9 D3 C6 C5 D6 F7 D5 J7 
+Last moves J9 D3 C6 C5 D6 J8 H8 J7 
 gameHash B635C197BBEACDDAB2C6E69F14460906
 hitTurnLimit 1
 numExtraBlack 2
@@ -4052,16 +4052,16 @@ hasFullData 1
 dataXLen 11
 dataYLen 11
 targetWeightByTurn 0 1
-policyTargetsByTurn 0 unreducedNumVisits 100 J7 75 J8 17 F3 3 C4 1 H7 1 J6 1 J5 1 
-whiteValueTargetsByTurn 0 0.507681 0.492319 0 0.997366 - 
-whiteValueTargetsByTurn 1 1 0 0 38 38 
+policyTargetsByTurn 0 unreducedNumVisits 100 J7 99 
+whiteValueTargetsByTurn 0 0.485836 0.514164 0 0.148094 - 
+whiteValueTargetsByTurn 1 1 0 0 36.5 36.5 
 ...........
 ...........
 ..X.....X..
-...........
-.....O..O..
+.......XO..
+........O..
 ..XX.......
-..OX.......
+..O........
 ...........
 ...O...X...
 ...........
@@ -4069,10 +4069,10 @@ whiteValueTargetsByTurn 1 1 0 0 38 38
 ...........
 ...........
 ..X.....X..
-...........
-.....O..O..
+.......XO..
+........O..
 ..XX.......
-..OX.......
+..O........
 ...........
 ...O...X...
 ...........
@@ -4080,10 +4080,10 @@ whiteValueTargetsByTurn 1 1 0 0 38 38
 00000000000
 00000000000
 00100000100
-00000000000
-00000100100
+00000001100
+00000000100
 00110000000
-00110000000
+00100000000
 00000000000
 00010001000
 00000000000
@@ -4091,26 +4091,26 @@ whiteValueTargetsByTurn 1 1 0 0 38 38
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
- 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
- 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
  0.000 0.000 -1.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
- 0.000 0.000 1.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 1.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
-Pre-fair komi 40
-Lead: -5.59049
-HASH: DBDE16250374A5CE4668A52589A29294
+Pre-fair komi 38.5
+Lead: -10.7688
+HASH: 332623ADECFBB4D0A8BC8B545B03DCFA
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
  9 . . X . . . . . X . .
- 8 . . . . . . . . . . .
- 7 . . . . . O . . . . .
+ 8 . . . . . . . X O . .
+ 7 . . . . . . . . . . .
  6 . . X X . . . . . . .
- 5 . . O X . . . . . . .
+ 5 . . O . . . . . . . .
  4 . . . . . . . . . . .
  3 . . O O . . . X . . .
  2 . . . . . . . . . . .
@@ -4120,14 +4120,14 @@ HASH: DBDE16250374A5CE4668A52589A29294
 Initial pla Black
 Encore phase 0
 Turns this phase 8
-Rules koPOSITIONALscoreAREAtaxNONEsui1komi45
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi49
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
-Last moves J9 D3 C6 C5 D6 F7 D5 C3 
+Last moves J9 D3 C6 C5 D6 J8 H8 C3 
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16914055168 compute capability major 7 minor 0
 : Cuda backend: Model version 4
@@ -5638,7 +5638,7 @@ HASH: F1BD63B306E1092F674ADC5348BD9A60
 Initial pla Black
 Encore phase 0
 Turns this phase 9
-Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi40.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi39
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 1
@@ -5665,7 +5665,7 @@ HASH: 616A49DF5FEFF87BE07F98F790CE0A83
 Initial pla Black
 Encore phase 0
 Turns this phase 10
-Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi40.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi39
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 1
@@ -5683,9 +5683,9 @@ hasFullData 1
 dataXLen 11
 dataYLen 11
 targetWeightByTurn 0 0
-policyTargetsByTurn 0 unreducedNumVisits 20 J4 10 G4 6 F5 6 J9 1 
-whiteValueTargetsByTurn 0 0.541717 0.458283 0 2.68812 - 
-whiteValueTargetsByTurn 1 1 0 0 38 38 
+policyTargetsByTurn 0 unreducedNumVisits 20 J4 10 G4 6 F5 4 J9 1 
+whiteValueTargetsByTurn 0 0.512217 0.487783 0 1.34971 - 
+whiteValueTargetsByTurn 1 1 0 0 36.5 36.5 
 ...........
 ...........
 ...........
@@ -5749,7 +5749,7 @@ HASH: 1A231CDBB244260EDE7701749CE3A03A
 Initial pla Black
 Encore phase 0
 Turns this phase 10
-Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi40.5
+Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi39
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 Has button 1
@@ -5758,8 +5758,8 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J3 C3 B5 E3 B3 G8 E8 H5 G3 G4 
 Forking to initial position O
-Pre-fair komi 40.5
-Lead: 7.43833
+Pre-fair komi 39
+Lead: 5.93833
 HASH: 4D05F3239FA084EAAC90F97062157BE6
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -6217,7 +6217,7 @@ whiteValueTargetsByTurn 3 0.522692 0.477308 0 1.36543 0.813991
 whiteValueTargetsByTurn 4 0.541658 0.458342 0 2.04705 - 
 whiteValueTargetsByTurn 5 0.542573 0.457427 0 1.93362 - 
 whiteValueTargetsByTurn 6 0.551245 0.448755 0 2.18351 - 
-whiteValueTargetsByTurn 7 0.536701 0.463299 0 1.56961 1.42587 
+whiteValueTargetsByTurn 7 0.536701 0.463299 0 1.56961 1.5 
 whiteValueTargetsByTurn 8 0.524115 0.475885 0 1.32137 - 
 whiteValueTargetsByTurn 9 0.548198 0.451802 0 2.23671 -0.164317 
 whiteValueTargetsByTurn 10 0.572821 0.427179 0 3.17136 - 
