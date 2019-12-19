@@ -24,6 +24,7 @@ SearchParams::SearchParams()
    rootDirichletNoiseTotalConcentration(10.83),
    rootDirichletNoiseWeight(0.25),
    rootPolicyTemperature(1.0),
+   rootPolicyTemperatureEarly(1.0),
    rootFpuReductionMax(0.2),
    rootFpuLossProp(0.0),
    rootNumSymmetriesToSample(1),

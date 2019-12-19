@@ -30,6 +30,7 @@ struct SearchParams {
   double rootDirichletNoiseWeight; //Policy at root is this weight * noise + (1 - this weight) * nn policy
 
   double rootPolicyTemperature; //At the root node, scale policy probs by this power
+  double rootPolicyTemperatureEarly; //At the root node, scale policy probs by this power, early in the game
   double rootFpuReductionMax; //Same as fpuReductionMax, but at root
   double rootFpuLossProp; //Same as fpuLossProp, but at root
   int rootNumSymmetriesToSample; //For the root node, sample this many random symmetries (WITH replacement) and average the results together.

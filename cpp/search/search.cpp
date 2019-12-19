@@ -759,6 +759,12 @@ uint32_t Search::chooseIndexWithTemperature(Rand& rand, const double* relativePr
   }
 }
 
+static double interpolateEarly(const Board& rootBoard, const BoardHistory& rootHistory, double halflife, double earlyValue, double value) {
+  double rawHalflives = (rootHistory.initialTurnNumber + rootHistory.moveHistory.size()) / halflife;
+  double halflives = rawHalflives * 19.0 / sqrt(rootBoard.x_size*rootBoard.y_size);
+  return value + (earlyValue - value) * pow(0.5, halflives);
+}
+
 Loc Search::getChosenMoveLoc() {
   if(rootNode == NULL)
     return Board::NULL_LOC;
@@ -771,11 +777,9 @@ Loc Search::getChosenMoveLoc() {
 
   assert(locs.size() == playSelectionValues.size());
 
-  double rawHalflives = (rootHistory.initialTurnNumber + rootHistory.moveHistory.size()) / searchParams.chosenMoveTemperatureHalflife;
-  double halflives = rawHalflives * 19.0 / sqrt(rootBoard.x_size*rootBoard.y_size);
-  double temperature = searchParams.chosenMoveTemperature +
-    (searchParams.chosenMoveTemperatureEarly - searchParams.chosenMoveTemperature) *
-    pow(0.5, halflives);
+  double temperature = interpolateEarly(
+    rootBoard,rootHistory,searchParams.chosenMoveTemperatureHalflife, searchParams.chosenMoveTemperatureEarly, searchParams.chosenMoveTemperature
+  );
 
   uint32_t idxChosen = chooseIndexWithTemperature(nonSearchRand, playSelectionValues.data(), playSelectionValues.size(), temperature);
   return locs[idxChosen];
@@ -1252,7 +1256,7 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
 void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const {
   if(!isRoot)
     return;
-  if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0)
+  if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0 && searchParams.rootPolicyTemperatureEarly == 1.0)
     return;
   if(node.nnOutput->noisedPolicyProbs != NULL)
     return;
@@ -1268,7 +1272,11 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
   node.nnOutput->noisedPolicyProbs = noisedPolicyProbs;
   std::copy(node.nnOutput->policyProbs, node.nnOutput->policyProbs + NNPos::MAX_NN_POLICY_SIZE, noisedPolicyProbs);
 
-  if(searchParams.rootPolicyTemperature != 1.0) {
+  if(searchParams.rootPolicyTemperature != 1.0 || searchParams.rootPolicyTemperatureEarly != 1.0) {
+    double rootPolicyTemperature = interpolateEarly(
+      rootBoard,rootHistory,searchParams.chosenMoveTemperatureHalflife, searchParams.rootPolicyTemperatureEarly, searchParams.rootPolicyTemperature
+    );
+
     double maxValue = 0.0;
     for(int i = 0; i<policySize; i++) {
       double prob = noisedPolicyProbs[i];
@@ -1278,7 +1286,7 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
     assert(maxValue > 0.0);
 
     double logMaxValue = log(maxValue);
-    double invTemp = 1.0 / searchParams.rootPolicyTemperature;
+    double invTemp = 1.0 / rootPolicyTemperature;
     double sum = 0.0;
 
     for(int i = 0; i<policySize; i++) {

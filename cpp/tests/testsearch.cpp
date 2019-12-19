@@ -283,6 +283,7 @@ static void runBasicPositions(NNEvaluator* nnEval, Logger& logger)
 
       SearchParams testParams2 = params;
       testParams2.rootPolicyTemperature = 1.5;
+      testParams2.rootPolicyTemperatureEarly = 1.5;
       bot->setParams(testParams2);
       runBotOnSgf(bot, sgfStr, rules, 44, 7.5, opts);
       bot->setParams(params);
@@ -668,6 +669,7 @@ xx.o.o.o.
       params.maxVisits = 80;
       params.rootFpuReductionMax = 0.0;
       params.rootPolicyTemperature = 1.5;
+      params.rootPolicyTemperatureEarly = 1.5;
       params.rootNoiseEnabled = true;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, seed);
       TestSearchOptions opts;
@@ -682,6 +684,7 @@ xx.o.o.o.
       params.conservativePass = true;
       params.rootFpuReductionMax = 0.0;
       params.rootPolicyTemperature = 1.5;
+      params.rootPolicyTemperatureEarly = 1.5;
       params.rootNoiseEnabled = true;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, seed);
       TestSearchOptions opts;
@@ -718,6 +721,7 @@ xx.o.o.o.
     SearchParams params;
     params.maxVisits = 200;
     params.rootPolicyTemperature = 2.5;
+    params.rootPolicyTemperatureEarly = 2.5;
     params.rootNoiseEnabled = true;
     AsyncBot* bot = new AsyncBot(params, nnEval, &logger, seed);
     bot->setAlwaysIncludeOwnerMap(true);

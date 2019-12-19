@@ -343,6 +343,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("rootPolicyTemperature"+idxStr)) params.rootPolicyTemperature = cfg.getDouble("rootPolicyTemperature"+idxStr, 0.01, 100.0);
     else if(cfg.contains("rootPolicyTemperature"))   params.rootPolicyTemperature = cfg.getDouble("rootPolicyTemperature",        0.01, 100.0);
     else                                             params.rootPolicyTemperature = 1.0;
+    if(cfg.contains("rootPolicyTemperatureEarly"+idxStr)) params.rootPolicyTemperatureEarly = cfg.getDouble("rootPolicyTemperatureEarly"+idxStr, 0.01, 100.0);
+    else if(cfg.contains("rootPolicyTemperatureEarly"))   params.rootPolicyTemperatureEarly = cfg.getDouble("rootPolicyTemperatureEarly",        0.01, 100.0);
+    else                                                  params.rootPolicyTemperatureEarly = params.rootPolicyTemperature;
     if(cfg.contains("rootFpuReductionMax"+idxStr)) params.rootFpuReductionMax = cfg.getDouble("rootFpuReductionMax"+idxStr, 0.0, 2.0);
     else if(cfg.contains("rootFpuReductionMax"))   params.rootFpuReductionMax = cfg.getDouble("rootFpuReductionMax",        0.0, 2.0);
     else                                           params.rootFpuReductionMax = params.rootNoiseEnabled ? 0.0 : params.fpuReductionMax;

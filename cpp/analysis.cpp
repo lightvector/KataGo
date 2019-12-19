@@ -117,6 +117,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       thisParams.maxVisits = request->maxVisits;
       thisParams.rootFpuReductionMax = request->rootFpuReductionMax;
       thisParams.rootPolicyTemperature = request->rootPolicyTemperature;
+      thisParams.rootPolicyTemperatureEarly = request->rootPolicyTemperature;
       bot->setPosition(request->nextPla,request->board,request->hist);
       bot->setAlwaysIncludeOwnerMap(request->includeOwnership);
       bot->setParams(thisParams);

@@ -796,6 +796,8 @@ static ReportedSearchValues getWhiteScoreValues(
   newParams.maxVisits = numVisits;
   newParams.maxPlayouts = numVisits;
   newParams.rootNoiseEnabled = false;
+  newParams.rootPolicyTemperature = 1.0;
+  newParams.rootPolicyTemperatureEarly = 1.0;
   newParams.rootFpuReductionMax = newParams.fpuReductionMax;
   newParams.rootFpuLossProp = newParams.fpuLossProp;
   newParams.rootDesiredPerChildVisitsCoeff = 0.0;
@@ -1549,6 +1551,7 @@ static Loc runBotWithLimits(
       //the root so when we step down in the tree we get a fresh start.
       toMoveBot->searchParams.rootNoiseEnabled = false;
       toMoveBot->searchParams.rootPolicyTemperature = 1.0;
+      toMoveBot->searchParams.rootPolicyTemperatureEarly = 1.0;
       toMoveBot->searchParams.rootFpuLossProp = toMoveBot->searchParams.fpuLossProp;
       toMoveBot->searchParams.rootFpuReductionMax = toMoveBot->searchParams.fpuReductionMax;
       toMoveBot->searchParams.rootDesiredPerChildVisitsCoeff = 0.0;
