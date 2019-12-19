@@ -1438,6 +1438,10 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
     if(fancyModes.cheapSearchVisits <= 0)
       throw StringError("fancyModes.cheapSearchVisits <= 0");
+    if(fancyModes.cheapSearchVisits > toMoveBot->searchParams.maxVisits ||
+       fancyModes.cheapSearchVisits > toMoveBot->searchParams.maxPlayouts)
+      throw StringError("fancyModes.cheapSearchVisits > maxVisits and/or maxPlayouts");
+
     doAlterVisitsPlayouts = true;
     numAlterVisits = std::min(numAlterVisits,(int64_t)fancyModes.cheapSearchVisits);
     numAlterPlayouts = std::min(numAlterPlayouts,(int64_t)fancyModes.cheapSearchVisits);
@@ -1452,6 +1456,10 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   else if(fancyModes.reduceVisits) {
     if(fancyModes.reducedVisitsMin <= 0)
       throw StringError("fancyModes.reducedVisitsMin <= 0");
+    if(fancyModes.reducedVisitsMin > toMoveBot->searchParams.maxVisits ||
+       fancyModes.reducedVisitsMin > toMoveBot->searchParams.maxPlayouts)
+      throw StringError("fancyModes.reducedVisitsMin > maxVisits and/or maxPlayouts");
+
     if(historicalMctsWinLossValues.size() >= fancyModes.reduceVisitsThresholdLookback) {
       double minWinLossValue = 1e20;
       double maxWinLossValue = -1e20;
