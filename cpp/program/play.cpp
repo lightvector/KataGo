@@ -842,7 +842,7 @@ static std::pair<double,double> evalKomi(
 
   //If we have a second bot, average the two
   if(botW != NULL && botW != botB) {
-    ReportedSearchValues values1 = getWhiteScoreValues(botB, board, hist, pla, numVisits, logger, otherGameProps);
+    ReportedSearchValues values1 = getWhiteScoreValues(botW, board, hist, pla, numVisits, logger, otherGameProps);
     finalLead = 0.5 * (values0.lead + values1.lead);
     finalWinLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
   }
