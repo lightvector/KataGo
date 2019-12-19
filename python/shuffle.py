@@ -195,7 +195,7 @@ if __name__ == '__main__':
 
   all_files = []
   for d in dirs:
-    print(d)
+    # print(d)
     for (path,dirnames,filenames) in os.walk(d):
       filenames = [os.path.join(path,filename) for filename in filenames if filename.endswith('.npz')]
       filenames = [(filename,os.path.getmtime(filename)) for filename in filenames]
@@ -335,7 +335,7 @@ if __name__ == '__main__':
     ])
     t1 = time.time()
     print("Done sharding, number of shards by input file:",flush=True)
-    print(list(zip(desired_input_files,shard_results)),flush=True)
+    # print(list(zip(desired_input_files,shard_results)),flush=True)
     print("Time taken: " + str(t1-t0),flush=True)
     sys.stdout.flush()
 
