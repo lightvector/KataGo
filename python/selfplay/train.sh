@@ -4,12 +4,13 @@
 #Should be run once per persistent training process.
 #Outputs results in tfsavedmodels_toexport/ in an ongoing basis.
 
-if [[ $# -lt 3 ]]
+if [[ $# -lt 4 ]]
 then
-    echo "Usage: $0 BASEDIR TRAININGNAME MODELKIND OTHERARGS"
+    echo "Usage: $0 BASEDIR TRAININGNAME MODELKIND MAINOEXTRA OTHERARGS"
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "TRANINGNAME name to prefix models with, specific to this training daemon"
     echo "MODELKIND what size model to train"
+    echo "MAINOREXTRA if 'extra', outputs to tfsavedmodels_toexport_extra/ instead."
     exit 0
 fi
 BASEDIR="$1"
@@ -17,6 +18,8 @@ shift
 TRAININGNAME="$1"
 shift
 MODELKIND="$1"
+shift
+MAINOREXTRA="$1"
 shift
 
 #------------------------------------------------------------------------------
@@ -27,10 +30,17 @@ git show --no-patch --no-color > "$BASEDIR"/train/"$TRAININGNAME"/version.txt
 git diff --no-color > "$BASEDIR"/train/"$TRAININGNAME"/diff.txt
 git diff --staged --no-color > "$BASEDIR"/train/"$TRAININGNAME"/diffstaged.txt
 
+if [ "$MAINOREXTRA" == "extra" ]
+then
+    EXPORT_SUBDIR=tfsavedmodels_toexport_extra
+else
+    EXPORT_SUBDIR=tfsavedmodels_toexport
+fi
+
 time python3 ./train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
      -datadir "$BASEDIR"/shuffleddata/current/ \
-     -exportdir "$BASEDIR"/tfsavedmodels_toexport \
+     -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
      -exportprefix "$TRAININGNAME" \
      -pos-len 19 \
      -batch-size 256 \
