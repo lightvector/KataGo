@@ -89,8 +89,8 @@ function exportStuff() {
 
 if [ "$USEGATING" -eq 0 ]
 then
-    exportStuff "tfsavedmodels_toexport" "modelstobetested"
-else
     exportStuff "tfsavedmodels_toexport" "models"
+else
+    exportStuff "tfsavedmodels_toexport" "modelstobetested"
 fi
 exportStuff "tfsavedmodels_toexport_extra" "models_extra"
