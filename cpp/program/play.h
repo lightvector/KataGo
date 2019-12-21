@@ -48,6 +48,7 @@ struct ExtraBlackAndKomi {
 struct OtherGameProperties {
   bool isSgfPos = false;
   bool allowPolicyInit = true;
+  bool isFork = false;
 
   //Note: these two behave slightly differently than the ones in searchParams - as properties for the whole
   //game, they make the playouts *actually* vary instead of only making the neural net think they do.
@@ -129,6 +130,7 @@ class GameInitializer {
   float komiBigStdev;
   bool komiAuto;
 
+  int numExtraBlackFixed;
   double noResultStdev;
   double drawRandRadius;
 
@@ -228,6 +230,8 @@ struct FancyModes {
 
   //Hack to make learning of seki easier - fork positions with different rules when we have sekis
   bool sekiForkHack;
+  //Hack to improve learning of very weird komi and very lopsided positions
+  bool fancyKomiVarying;
 
   //With this probability, use only this many visits for a move, and record it with only this weight
   double cheapSearchProb;

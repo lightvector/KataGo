@@ -220,6 +220,7 @@ GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger)
 {
   initShared(cfg,logger);
   noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
+  numExtraBlackFixed = cfg.contains("numExtraBlackFixed") ? cfg.getInt("numExtraBlackFixed",1,18) : 0;
   drawRandRadius = cfg.contains("drawRandRadius") ? cfg.getDouble("drawRandRadius",0.0,1.0) : 0.0;
 }
 
@@ -265,7 +266,6 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
-  //TODO add tests for nn symmetries for rectangles
   allowRectangleProb = cfg.contains("allowRectangleProb") ? cfg.getDouble("allowRectangleProb",0.0,1.0) : 0.0;
 
   if(!cfg.contains("komiMean") && !(cfg.contains("komiAuto") && cfg.getBool("komiAuto")))
@@ -274,11 +274,11 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     throw IOError("Must specify only one of komiMean=<komi value> or komiAuto=True in config");
 
   komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean",Rules::MIN_USER_KOMI,Rules::MAX_USER_KOMI) : 7.5f;
-  komiStdev = cfg.getFloat("komiStdev",0.0f,60.0f);
-  handicapProb = cfg.getDouble("handicapProb",0.0,1.0);
-  handicapCompensateKomiProb = cfg.getDouble("handicapCompensateKomiProb",0.0,1.0);
-  komiBigStdevProb = cfg.getDouble("komiBigStdevProb",0.0,1.0);
-  komiBigStdev = cfg.getFloat("komiBigStdev",0.0f,60.0f);
+  komiStdev = cfg.contains("komiStdev") ? cfg.getFloat("komiStdev",0.0f,60.0f) : 0.0f;
+  handicapProb = cfg.contains("handicapProb") ? cfg.getDouble("handicapProb",0.0,1.0) : 0.0;
+  handicapCompensateKomiProb = cfg.contains("handicapCompensateKomiProb") ? cfg.getDouble("handicapCompensateKomiProb",0.0,1.0) : 0.0;
+  komiBigStdevProb = cfg.contains("komiBigStdevProb") ? cfg.getDouble("komiBigStdevProb",0.0,1.0) : 0.0;
+  komiBigStdev = cfg.contains("komiBigStdev") ? cfg.getFloat("komiBigStdev",0.0f,60.0f) : 10.0f;
   komiAuto = cfg.contains("komiAuto") ? cfg.getBool("komiAuto") : false;
 
   forkCompensateKomiProb = cfg.contains("forkCompensateKomiProb") ? cfg.getDouble("forkCompensateKomiProb",0.0,1.0) : handicapCompensateKomiProb;
@@ -428,6 +428,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     hist.setKomi(extraBlackAndKomi.komi);
     otherGameProps.isSgfPos = false;
     otherGameProps.allowPolicyInit = false; //On initial positions, don't play extra moves at start
+    otherGameProps.isFork = true;
     extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
     extraBlackAndKomi.makeGameFairForEmptyBoard = false;
     return;
@@ -473,6 +474,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     );
     otherGameProps.isSgfPos = true;
     otherGameProps.allowPolicyInit = false; //On sgf positions, don't play extra moves at start
+    otherGameProps.isFork = false;
     makeGameFairProb = forkCompensateKomiProb;
   }
   else {
@@ -486,11 +488,14 @@ void GameInitializer::createGameSharedUnsynchronized(
       komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
     rules.komi = extraBlackAndKomi.komi;
+    if(extraBlackAndKomi.extraBlack > 0 && numExtraBlackFixed != 0)
+      extraBlackAndKomi.extraBlack = numExtraBlackFixed;
 
     pla = P_BLACK;
     hist.clear(board,pla,rules,0);
     otherGameProps.isSgfPos = false;
     otherGameProps.allowPolicyInit = true;
+    otherGameProps.isFork = false;
     makeGameFairProb = extraBlackAndKomi.extraBlack > 0 ? handicapCompensateKomiProb : 0.0;
   }
 
@@ -702,7 +707,7 @@ FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
    compensateKomiVisits(20),estimateLeadVisits(10),estimateLeadProb(0.0),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),forkGameProb(0.0),forkGameMinChoices(1),earlyForkGameMaxChoices(1),forkGameMaxChoices(1),
-   sekiForkHack(false),
+   sekiForkHack(false),fancyKomiVarying(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
    policySurpriseDataWeight(0.0),
@@ -1674,6 +1679,20 @@ FinishedGameData* Play::runGame(
     adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
     //Then, reapply the komi offset from base that we should have had
     hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
+  }
+  else if((extraBlackAndKomi.extraBlack > 0 || otherGameProps.isFork) && fancyModes.fancyKomiVarying && gameRand.nextBool(0.5)) {
+    double origKomi = hist.rules.komi;
+    //First, restore back to baseline komi
+    hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board,false));
+    //Adjust komi to be fair for the handicap according to what the bot thinks.
+    adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
+    //Then, reapply the komi offset from base that we should have had
+    hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
+    double newKomi = hist.rules.komi;
+    //Now, randomize between the old and new komi, with extra noise
+    double randKomi = gameRand.nextDouble(min(origKomi,newKomi),max(origKomi,newKomi));
+    randKomi += 0.5 * sqrt(board.x_size * board.y_size) * nextGaussianTruncated(gameRand,3.0);
+    hist.setKomi(roundAndClipKomi(randKomi, board, false));
   }
 
   gameData->bName = botSpecB.botName;

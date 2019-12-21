@@ -231,7 +231,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   fancyModes.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 20;
   fancyModes.estimateLeadVisits = cfg.contains("estimateLeadVisits") ? cfg.getInt("estimateLeadVisits",1,10000) : 6;
-  fancyModes.estimateLeadProb = cfg.contains("estimateLeadProb") ? cfg.getDouble("estimateLeadProb",0.0,1.0) : 0.45;
+  fancyModes.estimateLeadProb = cfg.contains("estimateLeadProb") ? cfg.getDouble("estimateLeadProb",0.0,1.0) : 0.50;
 
   fancyModes.earlyForkGameProb = cfg.getDouble("earlyForkGameProb",0.0,0.5);
   fancyModes.earlyForkGameExpectedMoveProp = cfg.getDouble("earlyForkGameExpectedMoveProp",0.0,1.0);
@@ -248,9 +248,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.reducedVisitsMin = cfg.getInt("reducedVisitsMin",1,10000000);
   fancyModes.reducedVisitsWeight = cfg.getFloat("reducedVisitsWeight",0.0f,1.0f);
   fancyModes.policySurpriseDataWeight = cfg.getDouble("policySurpriseDataWeight",0.0f,1.0f);
-  fancyModes.recordTreePositions = cfg.getBool("recordTreePositions");
-  fancyModes.recordTreeThreshold = cfg.getInt("recordTreeThreshold",1,100000000);
-  fancyModes.recordTreeTargetWeight = cfg.getFloat("recordTreeTargetWeight",0.0f,1.0f);
   fancyModes.handicapAsymmetricPlayoutProb = cfg.getDouble("handicapAsymmetricPlayoutProb",0.0,1.0);
   fancyModes.normalAsymmetricPlayoutProb = cfg.getDouble("normalAsymmetricPlayoutProb",0.0,1.0);
   fancyModes.maxAsymmetricRatio = cfg.getDouble("maxAsymmetricRatio",1.0,100.0);
