@@ -1393,7 +1393,7 @@ class Target_vars:
       # Subtract out the entropy, so as to get loss 0 at perfect prediction
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.td_value_target,
-        logits=tf.log(self.td_value_target + 1.0e-30)
+        logits=tf.math.log(self.td_value_target + 1.0e-30)
       )
     )
     self.td_value_loss_unreduced = tf.reduce_sum(self.td_value_loss_unreduced, axis=1)
@@ -1637,7 +1637,7 @@ class ModelUtils:
     logf("Model: %d total parameters" % total_parameters)
 
   @staticmethod
-  def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_globalsteps_per_epoch,lr_scale=None):
+  def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_globalsteps_per_epoch,lr_scale=None,num_gpus_used=1):
     trainlog("Building model")
 
     num_bin_input_features = Model.get_num_bin_input_features(model_config)
@@ -1740,7 +1740,7 @@ class ModelUtils:
 
           adjusted_gradients.append((adjusted_grad,x))
 
-        gnorm_cap = 2500.0
+        gnorm_cap = 2500.0 / num_gpus_used
         (adjusted_gradients_clipped,gnorm) = tf.clip_by_global_norm([x[0] for x in adjusted_gradients],gnorm_cap)
         adjusted_gradients_clipped = list(zip(adjusted_gradients_clipped,[x[1] for x in adjusted_gradients]))
         metrics.gnorm = gnorm

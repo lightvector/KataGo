@@ -177,7 +177,7 @@ def model_fn(features,labels,mode,params):
   print_model = not printed_model_yet
 
   num_globalsteps_per_epoch = num_batches_per_epoch
-  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_globalsteps_per_epoch,lr_scale)
+  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_globalsteps_per_epoch,lr_scale,num_gpus_used)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
     model = built
@@ -287,8 +287,8 @@ def model_fn(features,labels,mode,params):
       "pacc1": pacc1,
       "ptentr": ptentr,
       "pslr": per_sample_learning_rate,
-      "gnorm": gnorm,
-      "exgnorm": exgnorm,
+      "gnorm": gnorm * tf.constant(float(num_gpus_used)),
+      "exgnorm": exgnorm * tf.constant(float(num_gpus_used))
     }, every_n_iter=print_train_loss_every_batches)
 
     printed_model_yet = True
