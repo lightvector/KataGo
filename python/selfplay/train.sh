@@ -37,9 +37,11 @@ then
     EXPORT_SUBDIR=tfsavedmodels_toexport
     EXTRAFLAG=""
 elif [ "$EXPORTMODE" == "extra" ]
+then
     EXPORT_SUBDIR=tfsavedmodels_toexport_extra
     EXTRAFLAG=""
 elif [ "$EXPORTMODE" == "trainonly" ]
+then
     EXPORT_SUBDIR=tfsavedmodels_toexport_extra
     EXTRAFLAG="-no-export"
 else
