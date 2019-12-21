@@ -42,6 +42,7 @@ parser.add_argument('-model-kind', help='String name for what model to use', req
 parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
 parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
 parser.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
+parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
 parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
@@ -59,6 +60,7 @@ model_kind = args["model_kind"]
 lr_scale = args["lr_scale"]
 sub_epochs = args["sub_epochs"]
 epochs_per_export = args["epochs_per_export"]
+sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
 swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
 verbose = args["verbose"]
 no_export = args["no_export"]
@@ -568,7 +570,10 @@ while True:
       (lambda: val_input_fn(vdatadir))
     )
 
-  time.sleep(1)
+  if sleep_seconds_per_epoch is None:
+    time.sleep(1)
+  else:
+    time.sleep(sleep_seconds_per_epoch)
 
   now = datetime.datetime.now()
   if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=3):
