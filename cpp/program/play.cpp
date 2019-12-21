@@ -1691,7 +1691,7 @@ FinishedGameData* Play::runGame(
     double newKomi = hist.rules.komi;
     //Now, randomize between the old and new komi, with extra noise
     double randKomi = gameRand.nextDouble(min(origKomi,newKomi),max(origKomi,newKomi));
-    randKomi += 0.5 * sqrt(board.x_size * board.y_size) * nextGaussianTruncated(gameRand,3.0);
+    randKomi += sqrt(board.x_size * board.y_size) * nextGaussianTruncated(gameRand,2.0);
     hist.setKomi(roundAndClipKomi(randKomi, board, false));
   }
 
