@@ -1680,7 +1680,9 @@ FinishedGameData* Play::runGame(
     //Then, reapply the komi offset from base that we should have had
     hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
   }
-  else if((extraBlackAndKomi.extraBlack > 0 || otherGameProps.isFork) && fancyModes.fancyKomiVarying && gameRand.nextBool(0.5)) {
+  else if((extraBlackAndKomi.extraBlack > 0 || otherGameProps.isFork) &&
+          fancyModes.fancyKomiVarying &&
+          gameRand.nextBool(extraBlackAndKomi.extraBlack > 0 ? 0.5 : 0.25)) {
     double origKomi = hist.rules.komi;
     //First, restore back to baseline komi
     hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board,false));
