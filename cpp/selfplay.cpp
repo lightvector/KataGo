@@ -232,6 +232,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 20;
   fancyModes.estimateLeadVisits = cfg.contains("estimateLeadVisits") ? cfg.getInt("estimateLeadVisits",1,10000) : 6;
   fancyModes.estimateLeadProb = cfg.contains("estimateLeadProb") ? cfg.getDouble("estimateLeadProb",0.0,1.0) : 0.0;
+  fancyModes.fancyKomiVarying = cfg.contains("fancyKomiVarying") ? cfg.getBool("fancyKomiVarying") : false;
 
   fancyModes.earlyForkGameProb = cfg.getDouble("earlyForkGameProb",0.0,0.5);
   fancyModes.earlyForkGameExpectedMoveProp = cfg.getDouble("earlyForkGameExpectedMoveProp",0.0,1.0);
