@@ -75,12 +75,11 @@ elif using_npz:
 
 mode = tf.estimator.ModeKeys.EVAL
 print_model = False
-num_batches_per_epoch = 1 #doesn't matter
 if name_scope is not None:
   with tf.name_scope(name_scope):
-    (model,target_vars,metrics) = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,log,model_config,pos_len,num_batches_per_epoch)
+    (model,target_vars,metrics) = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,log,model_config,pos_len,batch_size)
 else:
-  (model,target_vars,metrics) = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,log,model_config,pos_len,num_batches_per_epoch)
+  (model,target_vars,metrics) = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,log,model_config,pos_len,batch_size)
 
 total_parameters = 0
 for variable in tf.trainable_variables():
