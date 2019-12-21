@@ -1,6 +1,7 @@
 #include "core/global.h"
 
 namespace MainCmds {
+  int analysis(int argc, const char* const* argv);
   int benchmark(int argc, const char* const* argv);
   int evalsgf(int argc, const char* const* argv);
   int gatekeeper(int argc, const char* const* argv);
@@ -12,10 +13,12 @@ namespace MainCmds {
   int runtests(int argc, const char* const* argv);
   int runnnlayertests(int argc, const char* const* argv);
   int runnnontinyboardtest(int argc, const char* const* argv);
+  int runnnsymmetriestest(int argc, const char* const* argv);
   int runoutputtests(int argc, const char* const* argv);
   int runsearchtests(int argc, const char* const* argv);
   int runsearchtestsv3(int argc, const char* const* argv);
   int runselfplayinittests(int argc, const char* const* argv);
+  int runsekitrainwritetests(int argc, const char* const* argv);
   int runnnonmanyposestest(int argc, const char* const* argv);
 
   int lzcost(int argc, const char* const* argv);

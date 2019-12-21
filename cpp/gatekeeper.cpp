@@ -108,8 +108,9 @@ namespace {
 
     void runWriteDataLoop(Logger& logger) {
       while(true) {
-        FinishedGameData* data = finishedGameQueue.waitPop();
-        if(data == NULL)
+        FinishedGameData* data;
+        bool suc = finishedGameQueue.waitPop(data);
+        if(!suc || data == NULL)
           break;
 
         double whitePoints;
@@ -120,7 +121,7 @@ namespace {
           logger.write("Game " + Global::intToString(numGamesTallied) + ": noresult");
         }
         else {
-          BoardHistory hist = data->endHist;
+          BoardHistory hist(data->endHist);
           Board endBoard = hist.getRecentBoard(0);
           //Force game end just in caseif we crossed a move limit
           if(!hist.isGameFinished)
@@ -151,7 +152,7 @@ namespace {
 
         if(sgfOut != NULL) {
           assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
-          WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->startHist.rules,data->endHist,NULL);
+          WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->endHist,data);
           (*sgfOut) << endl;
         }
         delete data;
@@ -187,8 +188,6 @@ namespace {
     //Game threads finishing a game using this net call this
     void unregisterGameThread() {
       numGameThreads--;
-      if(isDraining && numGameThreads <= 0)
-        finishedGameQueue.forcePush(NULL); //forcePush so as not to block
     }
 
     //NOT threadsafe - needs to be externally synchronized
@@ -196,8 +195,7 @@ namespace {
     void markAsDraining() {
       if(!isDraining) {
         isDraining = true;
-        if(numGameThreads <= 0)
-          finishedGameQueue.forcePush(NULL); //forcePush so as not to block
+        finishedGameQueue.setReadOnly();
       }
     }
 
@@ -270,13 +268,13 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
   const string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
-  bool forSelfPlay = false;
   FancyModes fancyModes;
   fancyModes.allowResignation = cfg.getBool("allowResignation");
   fancyModes.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
   fancyModes.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
+  fancyModes.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 100;
 
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay, fancyModes);
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes, logger);
 
   Setup::initializeSession(cfg);
 
@@ -393,7 +391,6 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
       lock.unlock();
 
-      int dataBoardLen = 19; //Doesn't matter, we don't actually write training data
       FinishedGameData* gameData = NULL;
 
       int64_t gameIdx;
@@ -401,8 +398,8 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       MatchPairer::BotSpec botSpecW;
       if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, NULL, NULL, logger,
-          dataBoardLen, dataBoardLen, stopConditions, NULL
+          gameIdx, botSpecB, botSpecW, NULL, logger,
+          stopConditions, NULL
         );
       }
 
@@ -458,15 +455,16 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     }
 
     //Wait for all game threads to stop
-    for(int i = 0; i<numGameThreads; i++)
+    for(int i = 0; i<threads.size(); i++)
       threads[i].join();
-
-    //Mark as draining so the data write thread will quit
-    netAndStuff->markAsDraining();
 
     //Wait for the data to all be written
     {
       std::unique_lock<std::mutex> lock(netAndStuffMutex);
+
+      //Mark as draining so the data write thread will quit
+      netAndStuff->markAsDraining();
+
       while(!netAndStuffDataIsWritten) {
         waitNetAndStuffDataIsWritten.wait(lock);
       }

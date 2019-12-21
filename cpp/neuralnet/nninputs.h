@@ -1,6 +1,8 @@
 #ifndef NEURALNET_NNINPUTS_H_
 #define NEURALNET_NNINPUTS_H_
 
+#include <memory>
+
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../core/rand.h"
@@ -23,6 +25,15 @@ namespace NNPos {
   int getPolicySize(int nnXLen, int nnYLen);
 }
 
+struct MiscNNInputParams {
+  double drawEquivalentWinsForWhite = 0.5;
+  bool conservativePass = false;
+  double playoutDoublingAdvantage = 0.0;
+
+  static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
+  static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;
+};
+
 namespace NNInputs {
   const int NUM_SYMMETRY_BOOLS = 3;
   const int NUM_SYMMETRY_COMBINATIONS = 8;
@@ -36,38 +47,52 @@ namespace NNInputs {
   const int NUM_FEATURES_SPATIAL_V5 = 13;
   const int NUM_FEATURES_GLOBAL_V5 = 12;
 
-  //Ongoing sandbox for full rules support for self play
-  Hash128 getHashV3(
+  const int NUM_FEATURES_SPATIAL_V6 = 22;
+  const int NUM_FEATURES_GLOBAL_V6 = 16;
+
+  const int NUM_FEATURES_SPATIAL_V7 = 22;
+  const int NUM_FEATURES_GLOBAL_V7 = 19;
+
+  Hash128 getHash(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite
-  );
-  void fillRowV3(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+    const MiscNNInputParams& nnInputParams
   );
 
-  Hash128 getHashV4(
+  void fillRowV3(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
   void fillRowV4(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
-  );
-
-  Hash128 getHashV5(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
   void fillRowV5(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+  );
+  void fillRowV6(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+  );
+  void fillRowV7(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
+  //If groupTax is specified, for each color region of area, reduce weight on empty spaces equally to reduce the total sum by 2.
+  //(but should handle seki correctly)
+  void fillOwnership(
+    const Board& board,
+    const Color* area,
+    bool groupTax,
+    int nnXLen,
+    int nnYLen,
+    float* ownership
+  );
 }
 
 struct NNOutput {
-  Hash128 nnHash; //NNInputs - getHashV0 or getHashV1, etc.
+  Hash128 nnHash; //NNInputs - getHash
 
   //Initially from the perspective of the player to move at the time of the eval, fixed up later in nnEval.cpp
   //to be the value from white's perspective.
@@ -79,6 +104,10 @@ struct NNOutput {
   //The first two moments of the believed distribution of the expected score at the end of the game, from white's perspective.
   float whiteScoreMean;
   float whiteScoreMeanSq;
+  //Points to make game fair
+  float whiteLead;
+  //Expected arrival time of remaining game variance, in turns, weighted by variance
+  float varTimeLeft;
 
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko
@@ -95,6 +124,10 @@ struct NNOutput {
   NNOutput(); //Does NOT initialize values
   NNOutput(const NNOutput& other);
   ~NNOutput();
+
+  //Averages the others. Others must be nonempty and share the same nnHash (i.e. be for the same board, except if somehow the hash collides)
+  //Does NOT carry over noisedPolicyProbs.
+  NNOutput(const std::vector<std::shared_ptr<NNOutput>>& others);
 
   NNOutput& operator=(const NNOutput&);
 
@@ -123,7 +156,7 @@ namespace ScoreValue {
   //Compute what the scoreMeanSq should be for a final game result
   //It is NOT simply the same as finalWhiteMinusBlackScore^2 because for integer komi we model it as a distribution where with the appropriate probability
   //you gain or lose 0.5 point to achieve the desired drawEquivalentWinsForWhite, so it actually has some variance.
-  double whiteScoreMeanSqOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const BoardHistory& hist);
+  double whiteScoreMeanSqOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite);
 
   //The expected unscaled utility of the final score difference, given the mean and stdev of the distribution of that difference,
   //assuming roughly a normal distribution.

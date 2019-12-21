@@ -17,13 +17,14 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
 
+import tfrecordio
+
 keys = [
   "binaryInputNCHWPacked",
   "globalInputNC",
   "policyTargetsNCMove",
   "globalTargetsNC",
   "scoreDistrN",
-  "selfBonusScoreN",
   "valueTargetsNCHW"
 ]
 
@@ -53,18 +54,16 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   policyTargetsNCMove = npz["policyTargetsNCMove"]
   globalTargetsNC = npz["globalTargetsNC"]
   scoreDistrN = npz["scoreDistrN"]
-  selfBonusScoreN = npz["selfBonusScoreN"]
   valueTargetsNCHW = npz["valueTargetsNCHW"]
 
   #print("Shardify shuffling... (mem usage %dMB)" % memusage_mb())
-  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,selfBonusScoreN,valueTargetsNCHW))
+  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
 
   num_rows_to_keep = binaryInputNCHWPacked.shape[0]
   assert(globalInputNC.shape[0] == num_rows_to_keep)
   assert(policyTargetsNCMove.shape[0] == num_rows_to_keep)
   assert(globalTargetsNC.shape[0] == num_rows_to_keep)
   assert(scoreDistrN.shape[0] == num_rows_to_keep)
-  assert(selfBonusScoreN.shape[0] == num_rows_to_keep)
   assert(valueTargetsNCHW.shape[0] == num_rows_to_keep)
 
   if keep_prob < 1.0:
@@ -86,7 +85,6 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
       policyTargetsNCMove = policyTargetsNCMove[start:stop],
       globalTargetsNC = globalTargetsNC[start:stop],
       scoreDistrN = scoreDistrN[start:stop],
-      selfBonusScoreN = selfBonusScoreN[start:stop],
       valueTargetsNCHW = valueTargetsNCHW[start:stop]
     )
   return num_out_files
@@ -101,7 +99,6 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
   policyTargetsNCMoves = []
   globalTargetsNCs = []
   scoreDistrNs = []
-  selfBonusScoreNs = []
   valueTargetsNCHWs = []
 
   for input_idx in range(num_shards_to_merge):
@@ -116,7 +113,6 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
     policyTargetsNCMove = npz["policyTargetsNCMove"].astype(np.float32)
     globalTargetsNC = npz["globalTargetsNC"]
     scoreDistrN = npz["scoreDistrN"].astype(np.float32)
-    selfBonusScoreN = npz["selfBonusScoreN"].astype(np.float32)
     valueTargetsNCHW = npz["valueTargetsNCHW"].astype(np.float32)
 
     binaryInputNCHWPackeds.append(binaryInputNCHWPacked)
@@ -124,7 +120,6 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
     policyTargetsNCMoves.append(policyTargetsNCMove)
     globalTargetsNCs.append(globalTargetsNC)
     scoreDistrNs.append(scoreDistrN)
-    selfBonusScoreNs.append(selfBonusScoreN)
     valueTargetsNCHWs.append(valueTargetsNCHW)
 
   ###
@@ -136,11 +131,10 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
   policyTargetsNCMove = np.concatenate(policyTargetsNCMoves)
   globalTargetsNC = np.concatenate(globalTargetsNCs)
   scoreDistrN = np.concatenate(scoreDistrNs)
-  selfBonusScoreN = np.concatenate(selfBonusScoreNs)
   valueTargetsNCHW = np.concatenate(valueTargetsNCHWs)
 
   #print("Merge shuffling... (mem usage %dMB)" % memusage_mb())
-  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,selfBonusScoreN,valueTargetsNCHW))
+  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
 
   #print("Merge writing in batches...")
   num_rows = binaryInputNCHWPacked.shape[0]
@@ -149,29 +143,17 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
   for i in range(num_batches):
     start = i*batch_size
     stop = (i+1)*batch_size
-    example = tf.train.Example(features=tf.train.Features(feature={
-      "binchwp": tf.train.Feature(
-        bytes_list=tf.train.BytesList(value=[binaryInputNCHWPacked[start:stop].reshape(-1).tobytes()])
-      ),
-      "ginc": tf.train.Feature(
-        float_list=tf.train.FloatList(value=globalInputNC[start:stop].reshape(-1))
-      ),
-      "ptncm": tf.train.Feature(
-        float_list=tf.train.FloatList(value=policyTargetsNCMove[start:stop].reshape(-1))
-      ),
-      "gtnc": tf.train.Feature(
-        float_list=tf.train.FloatList(value=globalTargetsNC[start:stop].reshape(-1))
-      ),
-      "sdn": tf.train.Feature(
-        float_list=tf.train.FloatList(value=scoreDistrN[start:stop].reshape(-1))
-      ),
-      "sbsn": tf.train.Feature(
-        float_list=tf.train.FloatList(value=selfBonusScoreN[start:stop].reshape(-1))
-      ),
-      "vtnchw": tf.train.Feature(
-        float_list=tf.train.FloatList(value=valueTargetsNCHW[start:stop].reshape(-1))
-      )
-    }))
+
+    example = tfrecordio.make_tf_record_example(
+      binaryInputNCHWPacked,
+      globalInputNC,
+      policyTargetsNCMove,
+      globalTargetsNC,
+      scoreDistrN,
+      valueTargetsNCHW,
+      start,
+      stop
+    )
     record_writer.write(example.SerializeToString())
 
   jsonfilename = os.path.splitext(filename)[0] + ".json"
@@ -217,7 +199,7 @@ if __name__ == '__main__':
 
   all_files = []
   for d in dirs:
-    print(d)
+    # print(d)
     for (path,dirnames,filenames) in os.walk(d):
       filenames = [os.path.join(path,filename) for filename in filenames if filename.endswith('.npz')]
       filenames = [(filename,os.path.getmtime(filename)) for filename in filenames]
@@ -298,7 +280,7 @@ if __name__ == '__main__':
 
   #If we don't have enough rows, then quit out
   if num_rows_total < min_rows:
-    print("Not enough rows (fewer than %d)" % min_rows)
+    print("Not enough rows, only %d (fewer than %d)" % (num_rows_total,min_rows))
     sys.exit(0)
 
   print("Total rows found: %d (%d usable)" % (num_rows_total,num_usable_rows()))
@@ -357,7 +339,7 @@ if __name__ == '__main__':
     ])
     t1 = time.time()
     print("Done sharding, number of shards by input file:",flush=True)
-    print(list(zip(desired_input_files,shard_results)),flush=True)
+    # print(list(zip(desired_input_files,shard_results)),flush=True)
     print("Time taken: " + str(t1-t0),flush=True)
     sys.stdout.flush()
 

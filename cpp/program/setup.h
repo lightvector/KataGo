@@ -44,6 +44,12 @@ namespace Setup {
   Player parseReportAnalysisWinrates(
     ConfigParser& cfg, Player defaultPerspective
   );
+
+  //Komi is just set to 7.5 and is not read in from cfg
+  Rules loadSingleRulesExceptForKomi(
+    ConfigParser& cfg
+  );
+
 }
 
 #endif  // PROGRAM_SETUP_H_

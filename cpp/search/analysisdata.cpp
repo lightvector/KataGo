@@ -13,6 +13,7 @@ AnalysisData::AnalysisData()
    policyPrior(0.0),
    scoreMean(0.0),
    scoreStdev(0.0),
+   lead(0.0),
    ess(0.0),
    weightFactor(0.0),
    order(0),
@@ -33,6 +34,7 @@ AnalysisData::AnalysisData(const AnalysisData& other)
    policyPrior(other.policyPrior),
    scoreMean(other.scoreMean),
    scoreStdev(other.scoreStdev),
+   lead(other.lead),
    ess(other.ess),
    weightFactor(other.weightFactor),
    order(other.order),
@@ -53,6 +55,7 @@ AnalysisData::AnalysisData(AnalysisData&& other) noexcept
    policyPrior(other.policyPrior),
    scoreMean(other.scoreMean),
    scoreStdev(other.scoreStdev),
+   lead(other.lead),
    ess(other.ess),
    weightFactor(other.weightFactor),
    order(other.order),
@@ -78,6 +81,7 @@ AnalysisData& AnalysisData::operator=(const AnalysisData& other) {
   policyPrior = other.policyPrior;
   scoreMean = other.scoreMean;
   scoreStdev = other.scoreStdev;
+  lead = other.lead;
   ess = other.ess;
   weightFactor = other.weightFactor;
   order = other.order;
@@ -101,6 +105,7 @@ AnalysisData& AnalysisData::operator=(AnalysisData&& other) noexcept {
   policyPrior = other.policyPrior;
   scoreMean = other.scoreMean;
   scoreStdev = other.scoreStdev;
+  lead = other.lead;
   ess = other.ess;
   weightFactor = other.weightFactor;
   order = other.order;
@@ -124,4 +129,35 @@ bool operator<(const AnalysisData& a0, const AnalysisData& a1) {
   //   return false;
   else
     return a0.policyPrior > a1.policyPrior;
+}
+
+bool AnalysisData::pvContainsPass() const {
+  for(int i = 0; i<pv.size(); i++)
+    if(pv[i] == Board::PASS_LOC)
+      return true;
+  return false;
+}
+
+void AnalysisData::writePV(std::ostream& out, const Board& board) const {
+  for(int j = 0; j<pv.size(); j++) {
+    if(j > 0)
+      out << " ";
+    out << Location::toString(pv[j],board);
+  }
+}
+
+void AnalysisData::writePVUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const {
+  Board board(initialBoard);
+  BoardHistory hist(initialHist);
+  Player nextPla = initialPla;
+  for(int j = 0; j<pv.size(); j++) {
+    if(j > 0)
+      out << " ";
+    out << Location::toString(pv[j],board);
+
+    hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    if(hist.encorePhase != initialHist.encorePhase)
+      break;
+  }
 }

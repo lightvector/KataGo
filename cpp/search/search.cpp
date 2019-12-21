@@ -15,7 +15,7 @@ ReportedSearchValues::~ReportedSearchValues()
 {}
 
 NodeStats::NodeStats()
-  :visits(0),winValueSum(0.0),noResultValueSum(0.0),scoreMeanSum(0.0),scoreMeanSqSum(0.0),utilitySum(0.0),utilitySqSum(0.0),weightSum(0.0),weightSqSum(0.0)
+  :visits(0),winValueSum(0.0),noResultValueSum(0.0),scoreMeanSum(0.0),scoreMeanSqSum(0.0),leadSum(0.0),utilitySum(0.0),utilitySqSum(0.0),weightSum(0.0),weightSqSum(0.0)
 {}
 NodeStats::~NodeStats()
 {}
@@ -26,6 +26,7 @@ NodeStats::NodeStats(const NodeStats& other)
    noResultValueSum(other.noResultValueSum),
    scoreMeanSum(other.scoreMeanSum),
    scoreMeanSqSum(other.scoreMeanSqSum),
+   leadSum(other.leadSum),
    utilitySum(other.utilitySum),
    utilitySqSum(other.utilitySqSum),
    weightSum(other.weightSum),
@@ -37,6 +38,7 @@ NodeStats& NodeStats::operator=(const NodeStats& other) {
   noResultValueSum = other.noResultValueSum;
   scoreMeanSum = other.scoreMeanSum;
   scoreMeanSqSum = other.scoreMeanSqSum;
+  leadSum = other.leadSum;
   utilitySum = other.utilitySum;
   utilitySqSum = other.utilitySqSum;
   weightSum = other.weightSum;
@@ -77,6 +79,7 @@ static double getScoreStdev(double scoreMean, double scoreMeanSq) {
 SearchNode::SearchNode(Search& search, SearchThread& thread, Loc moveLoc)
   :lockIdx(),nextPla(thread.pla),prevMoveLoc(moveLoc),
    nnOutput(),
+   nnOutputAge(0),
    children(NULL),numChildren(0),childrenCapacity(0),
    stats(),virtualLosses(0)
 {
@@ -91,10 +94,11 @@ SearchNode::~SearchNode() {
 }
 
 SearchNode::SearchNode(SearchNode&& other) noexcept
-:lockIdx(other.lockIdx),
-  nextPla(other.nextPla),prevMoveLoc(other.prevMoveLoc),
-  nnOutput(std::move(other.nnOutput)),
-  stats(other.stats),virtualLosses(other.virtualLosses)
+  :lockIdx(other.lockIdx),
+   nextPla(other.nextPla),prevMoveLoc(other.prevMoveLoc),
+   nnOutput(std::move(other.nnOutput)),
+   nnOutputAge(other.nnOutputAge),
+   stats(other.stats),virtualLosses(other.virtualLosses)
 {
   children = other.children;
   other.children = NULL;
@@ -106,6 +110,7 @@ SearchNode& SearchNode::operator=(SearchNode&& other) noexcept {
   nextPla = other.nextPla;
   prevMoveLoc = other.prevMoveLoc;
   nnOutput = std::move(other.nnOutput);
+  nnOutputAge = other.nnOutputAge;
   children = other.children;
   other.children = NULL;
   numChildren = other.numChildren;
@@ -146,6 +151,7 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* lg)
    noResultValuesBuf(),
    scoreMeansBuf(),
    scoreMeanSqsBuf(),
+   leadsBuf(),
    utilityBuf(),
    utilitySqBuf(),
    selfUtilityBuf(),
@@ -162,6 +168,7 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* lg)
   noResultValuesBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
   scoreMeansBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
   scoreMeanSqsBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  leadsBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
   utilityBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
   utilitySqBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
   selfUtilityBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
@@ -186,7 +193,9 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    alwaysIncludeOwnerMap(false),
-   searchParams(params),numSearchesBegun(0),randSeed(rSeed),
+   searchParams(params),numSearchesBegun(0),searchNodeAge(0),
+   rootPlaDuringLastSearch(C_EMPTY),
+   randSeed(rSeed),
    normToTApproxZ(0.0),
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand"))
@@ -327,6 +336,10 @@ bool Search::isLegalStrict(Loc moveLoc, Player movePla) const {
 }
 
 bool Search::makeMove(Loc moveLoc, Player movePla) {
+  return makeMove(moveLoc,movePla,false);
+}
+
+bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   if(!isLegalTolerant(moveLoc,movePla))
     return false;
 
@@ -352,7 +365,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
       clearSearch();
     }
   }
-  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable);
+  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
   rootPla = getOpp(rootPla);
   rootKoHashTable->recompute(rootHistory);
   return true;
@@ -428,17 +441,27 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   }
 
   //Possibly reduce visits on children that we spend too many visits on in retrospect
-  if(&node == rootNode && searchParams.rootDesiredPerChildVisitsCoeff > 0 && numChildren > 0) {
+  if(&node == rootNode && numChildren > 0) {
 
     const SearchNode* bestChild = node.children[mostVisitedIdx];
     double fpuValue = -10.0; //dummy, not actually used since these childs all should actually have visits
-    bool isRootDuringSearch = false;
+    double parentUtility;
+    {
+      while(node.statsLock.test_and_set(std::memory_order_acquire));
+      double utilitySum = node.stats.utilitySum;
+      double weightSum = node.stats.weightSum;
+      node.statsLock.clear(std::memory_order_release);
+      assert(weightSum > 0.0);
+      parentUtility = utilitySum / weightSum;
+    }
+
+    bool isDuringSearch = false;
 
     float* maybeNoisedPolicyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
     //TODO test this - reduce play selection values based on the ORIGINAL policy rather than the noised one!
     //float* policyProbs = node.nnOutput->policyProbs;
     float* policyProbs = maybeNoisedPolicyProbs;
-    double bestChildExploreSelectionValue = getExploreSelectionValue(node,policyProbs,bestChild,totalChildVisits,fpuValue,isRootDuringSearch);
+    double bestChildExploreSelectionValue = getExploreSelectionValue(node,policyProbs,bestChild,totalChildVisits,fpuValue,parentUtility,isDuringSearch,NULL);
 
     for(int i = 0; i<numChildren; i++) {
       if(i != mostVisitedIdx)
@@ -468,6 +491,12 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
       for(int i = 0; i<numChildren; i++) {
         if(i != bestLcbIndex) {
           double excessValue = bestLcb - lcbBuf[i];
+          //This move is actually worse lcb than some other move, it's just that the other
+          //move failed its checks for having enough minimum visits. So don't actually
+          //try to compute how much better this one is than that one, because it's not better.
+          if(excessValue < 0)
+            continue;
+
           double radius = radiusBuf[i];
           //How many times wider would the radius have to be before the lcb would be worse?
           //Add adjust the denom so that we cannot possibly gain more than a factor of 5, just as a guard
@@ -601,6 +630,7 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
   double noResultValueSum = node.stats.noResultValueSum;
   double scoreMeanSum = node.stats.scoreMeanSum;
   double scoreMeanSqSum = node.stats.scoreMeanSqSum;
+  double leadSum = node.stats.leadSum;
   double weightSum = node.stats.weightSum;
   node.statsLock.clear(std::memory_order_release);
 
@@ -613,9 +643,10 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
   double scoreMeanSq = scoreMeanSqSum / weightSum;
   double scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
   values.staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
-  values.dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,1.0,rootBoard);
+  values.dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
   values.expectedScore = scoreMean;
   values.expectedScoreStdev = scoreStdev;
+  values.lead = leadSum / weightSum;
 
   //Perform a little normalization - due to tiny floating point errors, winValue and lossValue could be outside [0,1].
   //(particularly lossValue, as it was produced by subtractions from weightSum that could have lost precision).
@@ -642,7 +673,7 @@ double Search::getScoreUtility(double scoreMeanSum, double scoreMeanSqSum, doubl
   double scoreMeanSq = scoreMeanSqSum / weightSum;
   double scoreStdev = getScoreStdev(scoreMean, scoreMeanSq);
   double staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
-  double dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,1.0,rootBoard);
+  double dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
   return staticScoreValue * searchParams.staticScoreUtilityFactor + dynamicScoreValue * searchParams.dynamicScoreUtilityFactor;
 }
 
@@ -654,8 +685,8 @@ double Search::getScoreUtilityDiff(double scoreMeanSum, double scoreMeanSqSum, d
     ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,0.0,2.0,rootBoard)
     -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
   double dynamicScoreValueDiff =
-    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,recentScoreCenter,1.0,rootBoard)
-    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,1.0,rootBoard);
+    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard)
+    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
   return staticScoreValueDiff * searchParams.staticScoreUtilityFactor + dynamicScoreValueDiff * searchParams.dynamicScoreUtilityFactor;
 }
 
@@ -728,6 +759,12 @@ uint32_t Search::chooseIndexWithTemperature(Rand& rand, const double* relativePr
   }
 }
 
+static double interpolateEarly(const Board& rootBoard, const BoardHistory& rootHistory, double halflife, double earlyValue, double value) {
+  double rawHalflives = (rootHistory.initialTurnNumber + rootHistory.moveHistory.size()) / halflife;
+  double halflives = rawHalflives * 19.0 / sqrt(rootBoard.x_size*rootBoard.y_size);
+  return value + (earlyValue - value) * pow(0.5, halflives);
+}
+
 Loc Search::getChosenMoveLoc() {
   if(rootNode == NULL)
     return Board::NULL_LOC;
@@ -740,11 +777,9 @@ Loc Search::getChosenMoveLoc() {
 
   assert(locs.size() == playSelectionValues.size());
 
-  double rawHalflives = rootHistory.moveHistory.size() / searchParams.chosenMoveTemperatureHalflife;
-  double halflives = rawHalflives * 19.0 / sqrt(rootBoard.x_size*rootBoard.y_size);
-  double temperature = searchParams.chosenMoveTemperature +
-    (searchParams.chosenMoveTemperatureEarly - searchParams.chosenMoveTemperature) *
-    pow(0.5, halflives);
+  double temperature = interpolateEarly(
+    rootBoard,rootHistory,searchParams.chosenMoveTemperatureHalflife, searchParams.chosenMoveTemperatureEarly, searchParams.chosenMoveTemperature
+  );
 
   uint32_t idxChosen = chooseIndexWithTemperature(nonSearchRand, playSelectionValues.data(), playSelectionValues.size(), temperature);
   return locs[idxChosen];
@@ -892,26 +927,27 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
   }
 }
 
-
+//If we're being asked to search from a position where the game is over, this is fine. Just keep going, the boardhistory
+//should reasonably tolerate just continuing. We do NOT want to clear history because we could inadvertently make a move
+//that an external ruleset COULD think violated superko.
 void Search::beginSearch(Logger& logger) {
   if(rootBoard.x_size > nnXLen || rootBoard.y_size > nnYLen)
     throw StringError("Search got from NNEval nnXLen = " + Global::intToString(nnXLen) +
                       " nnYLen = " + Global::intToString(nnYLen) + " but was asked to search board with larger x or y size");
 
-  //If we're being asked to search from a position where the game is over, clear all the history state that had us
-  //believe the game was over and do a normal search
-  if(rootHistory.isGameFinished) {
-    clearSearch();
-    Rules rules = rootHistory.rules;
-    rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
-    rootKoHashTable->recompute(rootHistory);
-  }
-
   rootBoard.checkConsistency();
 
   numSearchesBegun++;
-  computeRootValues(logger);
+  searchNodeAge++;
+  if(searchNodeAge == 0) //Just in case, as we roll over
+    clearSearch();
+  //In the case we are doing playoutDoublingAdvantage without a specific player (so, doing the root player)
+  //and the root player changes, we need to clear the tree since we need new evals for the new way around
+  if(rootPlaDuringLastSearch != rootPla && searchParams.playoutDoublingAdvantage != 0 && searchParams.playoutDoublingAdvantagePla == C_EMPTY)
+    clearSearch();
+  rootPlaDuringLastSearch = rootPla;
 
+  computeRootValues(logger);
   maybeRecomputeNormToTApproxTable();
 
   //Sanity-check a few things
@@ -1070,24 +1106,56 @@ void Search::computeRootValues(Logger& logger) {
     isMultiStoneSuicideLegal
   );
 
-  //Grab a neural net evaluation for the current position and use that as the center
-  Board board = rootBoard;
-  const BoardHistory& hist = rootHistory;
-  NNResultBuf nnResultBuf;
-  bool skipCache = false;
-  bool includeOwnerMap = true;
-  nnEvaluator->evaluate(
-    board, hist, rootPla,
-    searchParams.drawEquivalentWinsForWhite,
-    nnResultBuf, &logger, skipCache, includeOwnerMap
-  );
-  double expectedScore = nnResultBuf.result->whiteScoreMean;
-  recentScoreCenter = expectedScore * (1.0 - searchParams.dynamicScoreCenterZeroWeight);
-  double cap =  sqrt(board.x_size * board.y_size);
-  if(recentScoreCenter > expectedScore + cap)
-    recentScoreCenter = expectedScore + cap;
-  if(recentScoreCenter < expectedScore - cap)
-    recentScoreCenter = expectedScore - cap;
+  //Figure out how to set recentScoreCenter
+  {
+    bool foundExpectedScoreFromTree = false;
+    double expectedScore = 0.0;
+    if(rootNode != NULL) {
+      const SearchNode& node = *rootNode;
+      while(node.statsLock.test_and_set(std::memory_order_acquire));
+      double scoreMeanSum = node.stats.scoreMeanSum;
+      double weightSum = node.stats.weightSum;
+      int64_t numVisits = node.stats.visits;
+      node.statsLock.clear(std::memory_order_release);
+      if(numVisits > 0 && weightSum > 0) {
+        foundExpectedScoreFromTree = true;
+        expectedScore = scoreMeanSum / weightSum;
+      }
+    }
+
+    //Grab a neural net evaluation for the current position and use that as the center
+    if(!foundExpectedScoreFromTree) {
+      Board board = rootBoard;
+      const BoardHistory& hist = rootHistory;
+      Player pla = rootPla;
+      NNResultBuf nnResultBuf;
+      bool skipCache = false;
+      bool includeOwnerMap = true;
+      bool isRoot = true;
+      MiscNNInputParams nnInputParams;
+      nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
+      nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
+      if(searchParams.playoutDoublingAdvantage != 0) {
+        Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
+        nnInputParams.playoutDoublingAdvantage = (
+          getOpp(pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
+        );
+      }
+      nnEvaluator->evaluate(
+        board, hist, pla,
+        nnInputParams,
+        nnResultBuf, &logger, skipCache, includeOwnerMap
+      );
+      expectedScore = nnResultBuf.result->whiteScoreMean;
+    }
+
+    recentScoreCenter = expectedScore * (1.0 - searchParams.dynamicScoreCenterZeroWeight);
+    double cap =  sqrt(rootBoard.x_size * rootBoard.y_size) * searchParams.dynamicScoreCenterScale;
+    if(recentScoreCenter > expectedScore + cap)
+      recentScoreCenter = expectedScore + cap;
+    if(recentScoreCenter < expectedScore - cap)
+      recentScoreCenter = expectedScore - cap;
+  }
 }
 
 int64_t Search::numRootVisits() const {
@@ -1099,7 +1167,7 @@ int64_t Search::numRootVisits() const {
   return n;
 }
 
-void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs) {  
+void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs) {
   int legalCount = 0;
   for(int i = 0; i<policySize; i++) {
     if(policyProbs[i] >= 0)
@@ -1156,11 +1224,11 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
   // }
   // double prob = r[NNPos::locToPos(Board::PASS_LOC,rootBoard.x_size,node.nnOutput->nnXLen,node.nnOutput->nnYLen)] * searchParams.rootDirichletNoiseTotalConcentration;
   // cout << "Pass " << Global::strprintf("%6.3f",prob) << endl;
-    
+
   //r now contains the proportions with which we would like to split the alpha
   //The total of the alphas is searchParams.rootDirichletNoiseTotalConcentration
   //Generate gamma draw on each move
-  double rSum = 0.0;    
+  double rSum = 0.0;
   for(int i = 0; i<policySize; i++) {
     if(policyProbs[i] >= 0) {
       r[i] = rand.nextGamma(r[i] * searchParams.rootDirichletNoiseTotalConcentration);
@@ -1188,7 +1256,7 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
 void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const {
   if(!isRoot)
     return;
-  if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0)
+  if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0 && searchParams.rootPolicyTemperatureEarly == 1.0)
     return;
   if(node.nnOutput->noisedPolicyProbs != NULL)
     return;
@@ -1203,8 +1271,12 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
   float* noisedPolicyProbs = new float[NNPos::MAX_NN_POLICY_SIZE];
   node.nnOutput->noisedPolicyProbs = noisedPolicyProbs;
   std::copy(node.nnOutput->policyProbs, node.nnOutput->policyProbs + NNPos::MAX_NN_POLICY_SIZE, noisedPolicyProbs);
-  
-  if(searchParams.rootPolicyTemperature != 1.0) {
+
+  if(searchParams.rootPolicyTemperature != 1.0 || searchParams.rootPolicyTemperatureEarly != 1.0) {
+    double rootPolicyTemperature = interpolateEarly(
+      rootBoard,rootHistory,searchParams.chosenMoveTemperatureHalflife, searchParams.rootPolicyTemperatureEarly, searchParams.rootPolicyTemperature
+    );
+
     double maxValue = 0.0;
     for(int i = 0; i<policySize; i++) {
       double prob = noisedPolicyProbs[i];
@@ -1214,7 +1286,7 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
     assert(maxValue > 0.0);
 
     double logMaxValue = log(maxValue);
-    double invTemp = 1.0 / searchParams.rootPolicyTemperature;
+    double invTemp = 1.0 / rootPolicyTemperature;
     double sum = 0.0;
 
     for(int i = 0; i<policySize; i++) {
@@ -1399,6 +1471,33 @@ double Search::getExploreSelectionValue(
   return exploreComponent + valueComponent;
 }
 
+//Return the childVisits that would make Search::getExploreSelectionValue return the given explore selection value.
+//Or return 0, if it would be less than 0.
+double Search::getExploreSelectionValueInverse(
+  double exploreSelectionValue, double nnPolicyProb, int64_t totalChildVisits,
+  double childUtility, Player pla
+) const {
+  if(nnPolicyProb < 0)
+    return 0;
+  double valueComponent = pla == P_WHITE ? childUtility : -childUtility;
+
+  double exploreComponent = exploreSelectionValue - valueComponent;
+  double exploreComponentScaling =
+    searchParams.cpuctExploration
+    * nnPolicyProb
+    * sqrt((double)totalChildVisits + 0.01); //TODO this is weird when totalChildVisits == 0, first exploration
+
+  //Guard against float weirdness
+  if(exploreComponent <= 0)
+    return 1e100;
+
+  double childVisits = exploreComponentScaling / exploreComponent - 1;
+  if(childVisits < 0)
+    childVisits = 0;
+  return childVisits;
+}
+
+
 //Parent must be locked
 double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const {
   if(&parent != rootNode || child->prevMoveLoc == Board::NULL_LOC)
@@ -1413,6 +1512,15 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
   float* whiteOwnerMap = parent.nnOutput->whiteOwnerMap;
   Loc moveLoc = child->prevMoveLoc;
 
+  double extreme = 0.95;
+  double tail = 0.05;
+  if(rootHistory.rules.taxRule == Rules::TAX_ALL) {
+    //Make much more lenient in the case that we have a group tax, because ownership will be discounting territory
+    //quite a bit in many cases.
+    extreme = 0.70;
+    tail = 0.30;
+  }
+
   //Extra points from the perspective of the root player
   double extraRootPoints = 0.0;
   if(isAreaIsh) {
@@ -1424,12 +1532,15 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-      if(plaOwnership <= -0.95)
-        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.95 - plaOwnership) / 0.05);
-      else if(plaOwnership >= 0.95) {
+      //if(rootSafeArea[moveLoc] == rootPla) plaOwnership = 1.0;
+      //if(rootSafeArea[moveLoc] == getOpp(rootPla)) plaOwnership = -1.0;
+
+      if(plaOwnership <= -extreme)
+        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-extreme - plaOwnership) / tail);
+      else if(plaOwnership >= extreme) {
         if(!rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) &&
            !rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
-          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - 0.95) / 0.05);
+          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - extreme) / tail);
         }
       }
     }
@@ -1447,12 +1558,12 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     else if(rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-      if(plaOwnership <= -0.95)
-        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-0.95 - plaOwnership) / 0.05);
-      else if(plaOwnership >= 0.95) {
+      if(plaOwnership <= -extreme)
+        extraRootPoints -= searchParams.rootEndingBonusPoints * ((-extreme - plaOwnership) / tail);
+      else if(plaOwnership >= extreme) {
         if(!rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) &&
            !rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
-          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - 0.95) / 0.05);
+          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - extreme) / tail);
         }
       }
     }
@@ -1464,6 +1575,60 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     return -extraRootPoints;
 }
 
+static bool nearWeakStones(const Board& board, Loc loc, Player pla) {
+  Player opp = getOpp(pla);
+  for(int i = 0; i < 4; i++) {
+    Loc adj = loc + board.adj_offsets[i];
+    if(board.colors[adj] == opp && board.getNumLiberties(adj) <= 4)
+      return true;
+    else if(board.colors[adj] == C_EMPTY) {
+      for(int j = 0; j < 4; j++) {
+        Loc adjadj = adj + board.adj_offsets[j];
+        if(board.colors[adjadj] == opp) {
+          if(board.getNumLiberties(adjadj) <= 3)
+            return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+float Search::adjustExplorePolicyProb(
+  const SearchThread& thread, const SearchNode& parent, Loc moveLoc, float nnPolicyProb,
+  double parentUtility, double totalChildVisits, double childVisits, double& childUtility
+) const {
+  (void)totalChildVisits;
+  //Near the tree root, explore local moves a bit more for root player
+  if(searchParams.localExplore &&
+     parent.nextPla == rootPla && thread.history.moveHistory.size() > 0 &&
+     thread.history.moveHistory.size() <= rootHistory.moveHistory.size() + 2
+  ) {
+    Loc prevLoc = thread.history.moveHistory[thread.history.moveHistory.size()-1].loc;
+    if(moveLoc != Board::PASS_LOC && prevLoc != Board::PASS_LOC) {
+      //Within sqrt(5) of the opponent's move
+      //Within 2 of a group with <= 3 liberties, or touching opp stone with <= 4 liberties
+      //Not self atari
+      const Board& board = thread.board;
+      int distanceSq = Location::euclideanDistanceSquared(moveLoc,prevLoc,board.x_size);
+      if(distanceSq <= 5 && board.getNumLibertiesAfterPlay(moveLoc,parent.nextPla,2) >= 2) {
+        if(nearWeakStones(board, moveLoc, parent.nextPla)) {
+          float averageToward = distanceSq <= 2 ? 0.06f : distanceSq <= 4 ? 0.04f : 0.03f;
+          //Behave as if policy is a few points higher
+          if(nnPolicyProb < averageToward)
+            nnPolicyProb = 0.5f * (nnPolicyProb + averageToward);
+          if(childVisits > 0 && (parent.nextPla == P_WHITE ? (childUtility < parentUtility) : (childUtility > parentUtility))) {
+            //Also encourage a bit more exploration even if value is bad
+            double parentWeight = sqrt(childVisits);
+            childUtility = (parentUtility * parentWeight + childUtility * childVisits) / (parentWeight + childVisits);
+          }
+        }
+      }
+    }
+  }
+  return nnPolicyProb;
+}
+
 int Search::getPos(Loc moveLoc) const {
   return NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
 }
@@ -1471,7 +1636,8 @@ int Search::getPos(Loc moveLoc) const {
 //Parent must be locked
 double Search::getExploreSelectionValue(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
-  int64_t totalChildVisits, double fpuValue, bool isRootDuringSearch
+  int64_t totalChildVisits, double fpuValue, double parentUtility,
+  bool isDuringSearch, const SearchThread* thread
 ) const {
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
@@ -1515,8 +1681,11 @@ double Search::getExploreSelectionValue(
     childUtility = childUtility + (virtualLossUtility - childUtility) * virtualLossVisitFrac;
   }
 
+  if(isDuringSearch)
+    nnPolicyProb = adjustExplorePolicyProb(*thread,parent,moveLoc,nnPolicyProb,parentUtility,totalChildVisits,childVisits,childUtility);
+
   //Hack to get the root to funnel more visits down child branches
-  if(isRootDuringSearch && searchParams.rootDesiredPerChildVisitsCoeff > 0.0) {
+  if(isDuringSearch && (&parent == rootNode) && searchParams.rootDesiredPerChildVisitsCoeff > 0.0) {
     if(childVisits < sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff)) {
       return 1e20;
     }
@@ -1540,7 +1709,7 @@ int64_t Search::getReducedPlaySelectionVisits(
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parentPolicyProbs[movePos];
-  float maybeNoisedNNPolicyProb = maybeNoisedPolicyProbs[movePos];
+  (void)maybeNoisedPolicyProbs; //TODO cleanup
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   int64_t childVisits = child->stats.visits;
@@ -1550,8 +1719,9 @@ int64_t Search::getReducedPlaySelectionVisits(
   double weightSum = child->stats.weightSum;
   child->statsLock.clear(std::memory_order_release);
 
-  //getReducedPlaySelectionValue only happens after the search, so there should be no multithreading shenanigans that give us a 0-visit child.
-  assert(childVisits > 0);
+  //Child visits may be 0 if this function is called in a multithreaded context, such as during live analysis
+  if(childVisits <= 0)
+    return 0;
   assert(weightSum > 0.0);
 
   //Tiny adjustment for passing
@@ -1560,19 +1730,12 @@ int64_t Search::getReducedPlaySelectionVisits(
   if(endingScoreBonus != 0)
     childUtility += getScoreUtilityDiff(scoreMeanSum, scoreMeanSqSum, weightSum, endingScoreBonus);
 
-  int64_t desiredVisits = (int64_t)ceil(sqrt(maybeNoisedNNPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff));
-  for(int i = 0; i<desiredVisits; i++) {
-    if(childVisits <= 0)
-      break;
-    double exploreSelectionValue = getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits-1,childUtility,parent.nextPla);
-    if(exploreSelectionValue < bestChildExploreSelectionValue) {
-      childVisits -= 1;
-      continue;
-    }
-    else
-      break;
-  }
-
+  //TODO this should have a mild effect on match strength too? test it
+  double childVisitsWeRetrospectivelyWanted = getExploreSelectionValueInverse(
+    bestChildExploreSelectionValue, nnPolicyProb, totalChildVisits, childUtility, parent.nextPla
+  );
+  if(childVisits > childVisitsWeRetrospectivelyWanted)
+    childVisits = (int64_t)ceil(childVisitsWeRetrospectivelyWanted);
   return childVisits;
 }
 
@@ -1650,8 +1813,8 @@ void Search::selectBestChildToDescend(
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
-    bool isRootDuringSearch = isRoot;
-    double selectionValue = getExploreSelectionValue(node,policyProbs,child,totalChildVisits,fpuValue,isRootDuringSearch);
+    bool isDuringSearch = true;
+    double selectionValue = getExploreSelectionValue(node,policyProbs,child,totalChildVisits,fpuValue,parentUtility,isDuringSearch,&thread);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = i;
@@ -1682,6 +1845,9 @@ void Search::selectBestChildToDescend(
     }
 
     float nnPolicyProb = policyProbs[movePos];
+    double childUtility = 0.0; //dummy, we don't care
+    nnPolicyProb = adjustExplorePolicyProb(thread,node,moveLoc,nnPolicyProb,parentUtility,totalChildVisits,0,childUtility);
+
     if(nnPolicyProb > bestNewNNPolicyProb) {
       bestNewNNPolicyProb = nnPolicyProb;
       bestNewMoveLoc = moveLoc;
@@ -1703,6 +1869,7 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int
 
 //Recompute all the stats of this node based on its children, except its visits and virtual losses, which are not child-dependent and
 //are updated in the manner specified.
+//Assumes this node has an nnOutput
 void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot) {
   //Find all children and compute weighting of the children based on their values
   vector<double>& weightFactors = thread.weightFactorBuf;
@@ -1710,6 +1877,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   vector<double>& noResultValues = thread.noResultValuesBuf;
   vector<double>& scoreMeans = thread.scoreMeansBuf;
   vector<double>& scoreMeanSqs = thread.scoreMeanSqsBuf;
+  vector<double>& leads = thread.leadsBuf;
   vector<double>& utilitySums = thread.utilityBuf;
   vector<double>& utilitySqSums = thread.utilitySqBuf;
   vector<double>& selfUtilities = thread.selfUtilityBuf;
@@ -1734,6 +1902,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     double noResultValueSum = child->stats.noResultValueSum;
     double scoreMeanSum = child->stats.scoreMeanSum;
     double scoreMeanSqSum = child->stats.scoreMeanSqSum;
+    double leadSum = child->stats.leadSum;
     double weightSum = child->stats.weightSum;
     double weightSqSum = child->stats.weightSqSum;
     double utilitySum = child->stats.utilitySum;
@@ -1750,6 +1919,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     noResultValues[numGoodChildren] = noResultValueSum / weightSum;
     scoreMeans[numGoodChildren] = scoreMeanSum / weightSum;
     scoreMeanSqs[numGoodChildren] = scoreMeanSqSum / weightSum;
+    leads[numGoodChildren] = leadSum / weightSum;
     utilitySums[numGoodChildren] = utilitySum;
     utilitySqSums[numGoodChildren] = utilitySqSum;
     selfUtilities[numGoodChildren] = node.nextPla == P_WHITE ? childUtility : -childUtility;
@@ -1786,6 +1956,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   double noResultValueSum = 0.0;
   double scoreMeanSum = 0.0;
   double scoreMeanSqSum = 0.0;
+  double leadSum = 0.0;
   double utilitySum = 0.0;
   double utilitySqSum = 0.0;
   double weightSum = 0.0;
@@ -1808,6 +1979,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     noResultValueSum += desiredWeight * noResultValues[i];
     scoreMeanSum += desiredWeight * scoreMeans[i];
     scoreMeanSqSum += desiredWeight * scoreMeanSqs[i];
+    leadSum += desiredWeight * leads[i];
     utilitySum += weightScaling * utilitySums[i];
     utilitySqSum += weightScaling * utilitySqSums[i];
     weightSum += desiredWeight;
@@ -1833,6 +2005,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     double noResultProb = (double)node.nnOutput->whiteNoResultProb;
     double scoreMean = (double)node.nnOutput->whiteScoreMean;
     double scoreMeanSq = (double)node.nnOutput->whiteScoreMeanSq;
+    double lead = (double)node.nnOutput->whiteLead;
     double utility =
       getResultUtility(winProb, noResultProb, searchParams)
       + getScoreUtility(scoreMean, scoreMeanSq, 1.0);
@@ -1841,6 +2014,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     noResultValueSum += noResultProb * desiredWeight;
     scoreMeanSum += scoreMean * desiredWeight;
     scoreMeanSqSum += scoreMeanSq * desiredWeight;
+    leadSum += lead * desiredWeight;
     utilitySum += utility * desiredWeight;
     utilitySqSum += utility * utility * desiredWeight;
     weightSum += desiredWeight;
@@ -1857,6 +2031,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   node.stats.noResultValueSum = noResultValueSum;
   node.stats.scoreMeanSum = scoreMeanSum;
   node.stats.scoreMeanSqSum = scoreMeanSqSum;
+  node.stats.leadSum = leadSum;
   node.stats.utilitySum = utilitySum;
   node.stats.utilitySqSum = utilitySqSum;
   node.stats.weightSum = weightSum;
@@ -1875,12 +2050,10 @@ void Search::runSinglePlayout(SearchThread& thread) {
   thread.history = rootHistory;
 }
 
-void Search::addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, int32_t virtualLossesToSubtract, bool isCertain) {
+void Search::addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract) {
   double utility =
     getResultUtility(winValue, noResultValue, searchParams)
     + getScoreUtility(scoreMean, scoreMeanSq, 1.0);
-
-  double newWeightSq = isCertain ? 0.001 : 1.0;
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits += 1;
@@ -1888,27 +2061,82 @@ void Search::addLeafValue(SearchNode& node, double winValue, double noResultValu
   node.stats.noResultValueSum += noResultValue;
   node.stats.scoreMeanSum += scoreMean;
   node.stats.scoreMeanSqSum += scoreMeanSq;
+  node.stats.leadSum += lead;
   node.stats.utilitySum += utility;
   node.stats.utilitySqSum += utility * utility;
   node.stats.weightSum += 1.0;
-  node.stats.weightSqSum += newWeightSq;
+  node.stats.weightSqSum += 1.0;
   node.virtualLosses -= virtualLossesToSubtract;
   node.statsLock.clear(std::memory_order_release);
 }
 
+//Assumes node is locked
+//Assumes node already has an nnOutput
+void Search::maybeRecomputeExistingNNOutput(
+  SearchThread& thread, SearchNode& node, bool isRoot
+) {
+  //Right now only the root node currently ever needs to recompute, and only if it's old
+  if(isRoot && node.nnOutputAge != searchNodeAge) {
+    node.nnOutputAge = searchNodeAge;
+
+    //Recompute if we have no ownership map, since we need it for getEndingWhiteScoreBonus
+    //If conservative passing, then we may also need to recompute the root policy ignoring the history if a pass ends the game
+    //If averaging a bunch of symmetries, then we need to recompute it too
+    if(node.nnOutput->whiteOwnerMap == NULL ||
+       (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla)) ||
+       searchParams.rootNumSymmetriesToSample > 1
+    ) {
+      initNodeNNOutput(thread,node,isRoot,false,0,true);
+      assert(node.nnOutput->whiteOwnerMap != NULL);
+    }
+    //We also need to recompute the root nn if we have root noise or temperature and that's missing.
+    else {
+      //We don't need to go all the way to the nnEvaluator, we just need to maybe add those transforms
+      //to the existing policy.
+      maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
+    }
+  }
+}
+
+//Assumes node is locked
 void Search::initNodeNNOutput(
   SearchThread& thread, SearchNode& node,
   bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
 ) {
   bool includeOwnerMap = isRoot || alwaysIncludeOwnerMap;
-  nnEvaluator->evaluate(
-    thread.board, thread.history, thread.pla,
-    searchParams.drawEquivalentWinsForWhite,
-    thread.nnResultBuf, thread.logger, skipCache, includeOwnerMap
-  );
+  MiscNNInputParams nnInputParams;
+  nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
+  nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
+  if(searchParams.playoutDoublingAdvantage != 0) {
+    Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
+    nnInputParams.playoutDoublingAdvantage = (
+      getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
+    );
+  }
+  if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
+    vector<shared_ptr<NNOutput>> ptrs;
+    for(int i = 0; i<searchParams.rootNumSymmetriesToSample; i++) {
+      bool skipCacheThisIteration = skipCache || i > 0; //Skip cache on subsequent iterations to get new random draws for orientation
+      nnEvaluator->evaluate(
+        thread.board, thread.history, thread.pla,
+        nnInputParams,
+        thread.nnResultBuf, thread.logger, skipCacheThisIteration, includeOwnerMap
+      );
+      ptrs.push_back(std::move(thread.nnResultBuf.result));
+    }
+    node.nnOutput = std::shared_ptr<NNOutput>(new NNOutput(ptrs));
+  }
+  else {
+    nnEvaluator->evaluate(
+      thread.board, thread.history, thread.pla,
+      nnInputParams,
+      thread.nnResultBuf, thread.logger, skipCache, includeOwnerMap
+    );
+    node.nnOutput = std::move(thread.nnResultBuf.result);
+  }
 
-  node.nnOutput = std::move(thread.nnResultBuf.result);
   maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
+  node.nnOutputAge = searchNodeAge;
 
   //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.
   //Also don't bother updating any of the stats. Technically we should do so because winValueSum
@@ -1923,8 +2151,9 @@ void Search::initNodeNNOutput(
   double noResultProb = (double)node.nnOutput->whiteNoResultProb;
   double scoreMean = (double)node.nnOutput->whiteScoreMean;
   double scoreMeanSq = (double)node.nnOutput->whiteScoreMeanSq;
+  double lead = (double)node.nnOutput->whiteLead;
 
-  addLeafValue(node,winProb,noResultProb,scoreMean,scoreMeanSq,virtualLossesToSubtract,false);
+  addLeafValue(node,winProb,noResultProb,scoreMean,scoreMeanSq,lead,virtualLossesToSubtract);
 }
 
 void Search::playoutDescend(
@@ -1934,21 +2163,32 @@ void Search::playoutDescend(
 ) {
   //Hit terminal node, finish
   //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
-  if(!isRoot && thread.history.isGameFinished) {
+  //In the case where we're conservativePass and the game just ended due to a root pass, actually let it keep going.
+  //Note that in the second case with tree reuse we can end up with a weird situation where a terminal node becomes nonterminal due
+  //to now being a child of the root! This is okay - subsequent visits to the node will fall through to initNodeNNOutput, and we will
+  //have a weird leaf node with 2 visits worth of mixed terminal and nn values, but further visits will even hit recomputeNodeStats
+  //which should clean it all it.
+  if(!isRoot && thread.history.isGameFinished &&
+     !(searchParams.conservativePass &&
+       thread.history.moveHistory.size() == rootHistory.moveHistory.size() + 1 &&
+       node.prevMoveLoc == Board::PASS_LOC)
+  ) {
     if(thread.history.isNoResult) {
       double winValue = 0.0;
       double noResultValue = 1.0;
       double scoreMean = 0.0;
       double scoreMeanSq = 0.0;
-      addLeafValue(node, winValue, noResultValue, scoreMean, scoreMeanSq, virtualLossesToSubtract,true);
+      double lead = 0.0;
+      addLeafValue(node, winValue, noResultValue, scoreMean, scoreMeanSq, lead, virtualLossesToSubtract);
       return;
     }
     else {
       double winValue = ScoreValue::whiteWinsOfWinner(thread.history.winner, searchParams.drawEquivalentWinsForWhite);
       double noResultValue = 0.0;
       double scoreMean = ScoreValue::whiteScoreDrawAdjust(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite,thread.history);
-      double scoreMeanSq = ScoreValue::whiteScoreMeanSqOfScoreGridded(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite,thread.history);
-      addLeafValue(node, winValue, noResultValue, scoreMean, scoreMeanSq, virtualLossesToSubtract,true);
+      double scoreMeanSq = ScoreValue::whiteScoreMeanSqOfScoreGridded(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite);
+      double lead = scoreMean;
+      addLeafValue(node, winValue, noResultValue, scoreMean, scoreMeanSq, lead, virtualLossesToSubtract);
       return;
     }
   }
@@ -1961,13 +2201,8 @@ void Search::playoutDescend(
     initNodeNNOutput(thread,node,isRoot,false,virtualLossesToSubtract,false);
     return;
   }
-  //For the root node, make sure we have a whiteOwnerMap
-  if(isRoot && node.nnOutput->whiteOwnerMap == NULL) {
-    bool isReInit = true;
-    initNodeNNOutput(thread,node,isRoot,false,0,isReInit);
-    assert(node.nnOutput->whiteOwnerMap != NULL);
-    //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
-  }
+
+  maybeRecomputeExistingNNOutput(thread,node,isRoot);
 
   //Not leaf node, so recurse
 
@@ -2055,8 +2290,13 @@ void Search::playoutDescend(
 
 
 void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
+  if(rootNode == NULL)
+    return;
+  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
+  lock_guard<std::mutex> lock(mutex);
   if(rootNode->nnOutput == nullptr)
     return;
+
   NNOutput& nnOutput = *(rootNode->nnOutput);
   if(nnOutput.whiteOwnerMap == NULL)
     return;
@@ -2075,11 +2315,16 @@ void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
 }
 
 void Search::printRootPolicyMap(ostream& out) const {
+  if(rootNode == NULL)
+    return;
+  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
+  lock_guard<std::mutex> lock(mutex);
   if(rootNode->nnOutput == nullptr)
     return;
+
   NNOutput& nnOutput = *(rootNode->nnOutput);
 
-  float* policyProbs = nnOutput.getPolicyProbsMaybeNoised();  
+  float* policyProbs = nnOutput.getPolicyProbsMaybeNoised();
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
@@ -2090,12 +2335,55 @@ void Search::printRootPolicyMap(ostream& out) const {
   out << endl;
 }
 
+double Search::getPolicySurprise() const {
+  if(rootNode == NULL)
+    return 0.0;
+  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
+  lock_guard<std::mutex> lock(mutex);
+  if(rootNode->nnOutput == nullptr)
+    return 0.0;
+
+  NNOutput& nnOutput = *(rootNode->nnOutput);
+
+  vector<Loc> locs;
+  vector<double> playSelectionValues;
+  bool allowDirectPolicyMoves = true;
+  bool alwaysComputeLcb = false;
+  double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
+  double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
+  bool suc = getPlaySelectionValuesAlreadyLocked(
+    *rootNode,locs,playSelectionValues,1.0,allowDirectPolicyMoves,alwaysComputeLcb,lcbBuf,radiusBuf);
+  if(!suc)
+    return 0.0;
+
+  double sumPlaySelectionValues = 0.0;
+  for(int i = 0; i<playSelectionValues.size(); i++)
+    sumPlaySelectionValues += playSelectionValues[i];
+
+  float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
+
+  double surprise = 0.0;
+  for(int i = 0; i<playSelectionValues.size(); i++) {
+    int pos = getPos(locs[i]);
+    double policy = policyProbsFromNN[pos];
+    double target = playSelectionValues[i] / sumPlaySelectionValues;
+    if(target > 1e-100)
+      surprise += target * (log(target)-log(policy));
+  }
+  //Just in case, guard against float imprecision
+  if(surprise < 0.0)
+    surprise = 0.0;
+  return surprise;
+}
+
 void Search::printRootEndingScoreValueBonus(ostream& out) const {
+  if(rootNode == NULL)
+    return;
   std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
   unique_lock<std::mutex> lock(mutex);
-
   if(rootNode->nnOutput == nullptr)
     return;
+
   NNOutput& nnOutput = *(rootNode->nnOutput);
   if(nnOutput.whiteOwnerMap == NULL)
     return;
@@ -2202,13 +2490,14 @@ void Search::printPV(ostream& out, const vector<Loc>& buf) const {
 AnalysisData Search::getAnalysisDataOfSingleChild(
   const SearchNode* child, vector<Loc>& scratchLocs, vector<double>& scratchValues,
   Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
-  double parentScoreMean, double parentScoreStdev, int maxPVDepth
+  double parentScoreMean, double parentScoreStdev, double parentLead, int maxPVDepth
 ) const {
   uint64_t numVisits = 0;
   double winValueSum = 0.0;
   double noResultValueSum = 0.0;
   double scoreMeanSum = 0.0;
   double scoreMeanSqSum = 0.0;
+  double leadSum = 0.0;
   double weightSum = 0.0;
   double weightSqSum = 0.0;
   double utilitySum = 0.0;
@@ -2220,6 +2509,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     noResultValueSum = child->stats.noResultValueSum;
     scoreMeanSum = child->stats.scoreMeanSum;
     scoreMeanSqSum = child->stats.scoreMeanSqSum;
+    leadSum = child->stats.leadSum;
     weightSum = child->stats.weightSum;
     weightSqSum = child->stats.weightSqSum;
     utilitySum = child->stats.utilitySum;
@@ -2236,6 +2526,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.winLossValue = searchParams.winLossUtilityFactor == 1.0 ? parentWinLossValue + (fpuValue - parentUtility) : 0.0;
     data.scoreMean = parentScoreMean;
     data.scoreStdev = parentScoreStdev;
+    data.lead = parentLead;
     data.ess = 0.0;
   }
   else {
@@ -2244,6 +2535,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     double noResultValue = noResultValueSum / weightSum;
     double scoreMean = scoreMeanSum / weightSum;
     double scoreMeanSq = scoreMeanSqSum / weightSum;
+    double lead = leadSum / weightSum;
 
     data.utility = utilitySum / weightSum;
     data.resultUtility = getResultUtility(winValue, noResultValue, searchParams);
@@ -2251,6 +2543,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.winLossValue = winValue - lossValue;
     data.scoreMean = scoreMean;
     data.scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
+    data.lead = lead;
     data.ess = weightSum * weightSum / weightSqSum;
   }
 
@@ -2287,6 +2580,7 @@ void Search::getAnalysisData(
   vector<double> scratchValues;
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
+  float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
   {
     std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
     lock_guard<std::mutex> lock(mutex);
@@ -2302,19 +2596,18 @@ void Search::getAnalysisData(
     bool success = getPlaySelectionValuesAlreadyLocked(node, scratchLocs, scratchValues, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
     if(!success)
       return;
+
+    NNOutput& nnOutput = *(node.nnOutput);
+    float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
+    for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
+      policyProbs[i] = policyProbsFromNN[i];
   }
 
   //Copy to make sure we keep these values so we can reuse scratch later for PV
   vector<double> playSelectionValues = scratchValues;
 
-  float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
   double policyProbMassVisited = 0.0;
   {
-    NNOutput& nnOutput = *(node.nnOutput);
-    float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
-    for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
-      policyProbs[i] = policyProbsFromNN[i];
-
     for(int i = 0; i<numChildren; i++) {
       const SearchNode* child = children[i];
       policyProbMassVisited += policyProbs[getPos(child->prevMoveLoc)];
@@ -2327,12 +2620,14 @@ void Search::getAnalysisData(
   double parentWinLossValue;
   double parentScoreMean;
   double parentScoreStdev;
+  double parentLead;
   {
     while(node.statsLock.test_and_set(std::memory_order_acquire));
     double winValueSum = node.stats.winValueSum;
     double noResultValueSum = node.stats.noResultValueSum;
     double scoreMeanSum = node.stats.scoreMeanSum;
     double scoreMeanSqSum = node.stats.scoreMeanSqSum;
+    double leadSum = node.stats.leadSum;
     double weightSum = node.stats.weightSum;
     node.statsLock.clear(std::memory_order_release);
     assert(weightSum > 0.0);
@@ -2344,17 +2639,18 @@ void Search::getAnalysisData(
     parentScoreMean = scoreMeanSum / weightSum;
     double scoreMeanSq = scoreMeanSqSum / weightSum;
     parentScoreStdev = getScoreStdev(parentScoreMean,scoreMeanSq);
+    parentLead = leadSum / weightSum;
   }
 
   double parentUtility;
-  double fpuValue = getFpuValueForChildrenAssumeVisited(node, rootPla, true, policyProbMassVisited, parentUtility);
+  double fpuValue = getFpuValueForChildrenAssumeVisited(node, node.nextPla, true, policyProbMassVisited, parentUtility);
 
   for(int i = 0; i<numChildren; i++) {
     SearchNode* child = children[i];
     double policyProb = policyProbs[getPos(child->prevMoveLoc)];
     AnalysisData data = getAnalysisDataOfSingleChild(
       child, scratchLocs, scratchValues, child->prevMoveLoc, policyProb, fpuValue, parentUtility, parentWinLossValue,
-      parentScoreMean, parentScoreStdev, maxPVDepth
+      parentScoreMean, parentScoreStdev, parentLead, maxPVDepth
     );
     data.playSelectionValue = playSelectionValues[i];
     //Make sure data.lcb is from white's perspective, for consistency with everything else
@@ -2409,7 +2705,7 @@ void Search::getAnalysisData(
       Loc bestMove = NNPos::posToLoc(bestPos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
       AnalysisData data = getAnalysisDataOfSingleChild(
         NULL, scratchLocs, scratchValues, bestMove, bestPolicy, fpuValue, parentUtility, parentWinLossValue,
-        parentScoreMean, parentScoreStdev, maxPVDepth
+        parentScoreMean, parentScoreStdev, parentLead, maxPVDepth
       );
       buf.push_back(data);
     }
@@ -2445,10 +2741,11 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
     double parentWinLossValue = 0;
     double parentScoreMean = 0;
     double parentScoreStdev = 0;
+    double parentLead = 0;
     data = getAnalysisDataOfSingleChild(
       node, scratchLocs, scratchValues,
       node->prevMoveLoc, policyProb, fpuValue, parentUtility, parentWinLossValue,
-      parentScoreMean, parentScoreStdev, options.maxPVDepth_
+      parentScoreMean, parentScoreStdev, parentLead, options.maxPVDepth_
     );
     data.weightFactor = NAN;
   }
@@ -2483,9 +2780,10 @@ void Search::printTreeHelper(
       out << buf;
       sprintf(buf,"W %6.2fc ",(perspectiveFactor * data.resultUtility * 100.0));
       out << buf;
-      sprintf(buf,"S %6.2fc (%+5.1f) ",
+      sprintf(buf,"S %6.2fc (%+5.1f L %+5.1f) ",
               perspectiveFactor * data.scoreUtility * 100.0,
-              perspectiveFactor * data.scoreMean
+              perspectiveFactor * data.scoreMean,
+              perspectiveFactor * data.lead
       );
       out << buf;
     }
@@ -2555,7 +2853,7 @@ void Search::printTreeHelper(
       return;
   }
   if(depth == options.branch_.size()) {
-    out << "---" << playerToString(node.nextPla) << "(" << (node.nextPla == perspectiveToUse ? "^" : "v") << ")---" << endl;
+    out << "---" << PlayerIO::playerToString(node.nextPla) << "(" << (node.nextPla == perspectiveToUse ? "^" : "v") << ")---" << endl;
   }
 
   vector<AnalysisData> analysisData;

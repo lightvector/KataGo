@@ -2,6 +2,7 @@
 #define SEARCH_ANALYSISDATA_H_
 
 #include "../game/board.h"
+#include "../game/boardhistory.h"
 
 struct SearchNode;
 
@@ -19,6 +20,7 @@ struct AnalysisData {
   double policyPrior; //From 0 to 1
   double scoreMean; //In units of points
   double scoreStdev; //In units of points
+  double lead; //In units of points
   double ess; //Effective sample size taking into account weighting, could be somewhat smaller than visits
   double weightFactor; //Due to child value weighting
   int order; //Preference order of the moves, 0 is best
@@ -34,6 +36,9 @@ struct AnalysisData {
   AnalysisData& operator=(const AnalysisData& other);
   AnalysisData& operator=(AnalysisData&& other) noexcept;
 
+  bool pvContainsPass() const;
+  void writePV(std::ostream& out, const Board& board) const;
+  void writePVUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
 };
 
 bool operator<(const AnalysisData& a0, const AnalysisData& a1);

@@ -15,40 +15,46 @@ static double nextGaussianTruncated(Rand& rand, double bound) {
   return d;
 }
 
-static int getMaxExtraBlack(int bSize) {
-  if(bSize <= 10)
+static int getMaxExtraBlack(double sqrtBoardArea) {
+  if(sqrtBoardArea <= 10.00001)
     return 0;
-  if(bSize <= 14)
+  if(sqrtBoardArea <= 14.00001)
     return 1;
-  if(bSize <= 18)
+  if(sqrtBoardArea <= 16.00001)
     return 2;
-  return 3;
+  if(sqrtBoardArea <= 17.00001)
+    return 3;
+  if(sqrtBoardArea <= 18.00001)
+    return 4;
+  return 5;
 }
 
 static ExtraBlackAndKomi chooseExtraBlackAndKomi(
-  float base, float stdev, double allowIntegerProb, double handicapProb, double bigStdevProb, float bigStdev, int bSize, Rand& rand
+  float base, float stdev, double allowIntegerProb,
+  double handicapProb,
+  double bigStdevProb, float bigStdev, double sqrtBoardArea, Rand& rand
 ) {
   int extraBlack = 0;
   float komi = base;
 
   if(stdev > 0.0f)
     komi += stdev * (float)nextGaussianTruncated(rand,3.0);
-  if(bigStdev > 0.0f && rand.nextDouble() < bigStdevProb)
+  if(bigStdev > 0.0f && rand.nextBool(bigStdevProb))
     komi += bigStdev * (float)nextGaussianTruncated(rand,3.0);
 
-  //Adjust for bSize, so that we don't give the same massive komis on smaller boards
-  komi = base + (komi - base) * (float)bSize / 19.0f;
+  //Adjust for board size, so that we don't give the same massive komis on smaller boards
+  komi = base + (komi - base) * (float)(sqrtBoardArea / 19.0);
 
-  //Add handicap stones compensated with komi
-  int maxExtraBlack = getMaxExtraBlack(bSize);
-  if(maxExtraBlack > 0 && rand.nextDouble() < handicapProb) {
+  //Add handicap stones
+  int maxExtraBlack = getMaxExtraBlack(sqrtBoardArea);
+  if(maxExtraBlack > 0 && rand.nextBool(handicapProb)) {
     extraBlack += 1+rand.nextUInt(maxExtraBlack);
   }
 
   //Discretize komi
   float lower;
   float upper;
-  if(rand.nextDouble() < allowIntegerProb) {
+  if(rand.nextBool(allowIntegerProb)) {
     lower = floor(komi*2.0f) / 2.0f;
     upper = ceil(komi*2.0f) / 2.0f;
   }
@@ -68,8 +74,82 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   }
 
   assert(Rules::komiIsIntOrHalfInt(komi));
-  return ExtraBlackAndKomi(extraBlack,komi,base);
+  ExtraBlackAndKomi ret;
+  ret.extraBlack = extraBlack;
+  ret.komi = komi;
+  ret.komiBase = base;
+  //These two are set later
+  ret.makeGameFair = false;
+  ret.makeGameFairForEmptyBoard = false;
+  return ret;
 }
+
+int Play::numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory, bool assumeMultipleStartingBlackMovesAreHandicap) {
+  //Make the longest possible contiguous sequence of black moves - treat a string of consecutive black
+  //moves at the start of the game as "handicap"
+  //This is necessary because when loading sgfs or on some servers, (particularly with free placement)
+  //handicap is implemented by having black just make a bunch of moves in a row.
+  //But if white makes multiple moves in a row after that, then the plays are probably not handicap, someone's setting
+  //up a problem position by having black play all moves in a row then white play all moves in a row.
+  Board board = initialBoard;
+
+  if(assumeMultipleStartingBlackMovesAreHandicap) {
+    for(int i = 0; i<moveHistory.size(); i++) {
+      Loc moveLoc = moveHistory[i].loc;
+      Player movePla = moveHistory[i].pla;
+      if(movePla != P_BLACK) {
+        //Two white moves in a row?
+        if(i+1 < moveHistory.size() && moveHistory[i+1].pla != P_BLACK) {
+          //Re-set board, don't play these moves
+          board = initialBoard;
+        }
+        break;
+      }
+      bool isMultiStoneSuicideLegal = true;
+      bool suc = board.playMove(moveLoc,movePla,isMultiStoneSuicideLegal);
+      if(!suc)
+        break;
+    }
+  }
+
+  int startBoardNumBlackStones = 0;
+  int startBoardNumWhiteStones = 0;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(board.colors[loc] == C_BLACK)
+        startBoardNumBlackStones += 1;
+      else if(board.colors[loc] == C_WHITE)
+        startBoardNumWhiteStones += 1;
+    }
+  }
+  //If we set up in a nontrivial position, then consider it a non-handicap game.
+  if(startBoardNumWhiteStones != 0)
+    return 0;
+  //If there was only one "handicap" stone, then it was a regular game
+  if(startBoardNumBlackStones <= 1)
+    return 0;
+  return startBoardNumBlackStones;
+}
+
+double Play::getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
+  double winrate = 0.5 * (1.0 + data.winLossValue);
+  //Super hacky - in KataGo, lcb is on utility (i.e. also weighting score), not winrate, but if you're using
+  //lz-analyze you probably don't know about utility and expect LCB to be about winrate. So we apply the LCB
+  //radius to the winrate in order to get something reasonable to display, and also scale it proportionally
+  //by how much winrate is supposed to matter relative to score.
+  double radiusScaleHackFactor = search->searchParams.winLossUtilityFactor / (
+    search->searchParams.winLossUtilityFactor +
+    search->searchParams.staticScoreUtilityFactor +
+    search->searchParams.dynamicScoreUtilityFactor +
+    1.0e-20 //avoid divide by 0
+  );
+  //Also another factor of 0.5 because winrate goes from only 0 to 1 instead of -1 to 1 when it's part of utility
+  radiusScaleHackFactor *= 0.5;
+  double lcb = pla == P_WHITE ? winrate - data.radius * radiusScaleHackFactor : winrate + data.radius * radiusScaleHackFactor;
+  return lcb;
+}
+
 
 //----------------------------------------------------------------------------------------------------------
 
@@ -82,43 +162,185 @@ InitialPosition::InitialPosition(const Board& b, const BoardHistory& h, Player p
 InitialPosition::~InitialPosition()
 {}
 
+
+ForkData::~ForkData() {
+  for(int i = 0; i<forks.size(); i++)
+    delete forks[i];
+  forks.clear();
+  for(int i = 0; i<sekiForks.size(); i++)
+    delete sekiForks[i];
+  sekiForks.clear();
+}
+
+void ForkData::add(const InitialPosition* pos) {
+  std::lock_guard<std::mutex> lock(mutex);
+  forks.push_back(pos);
+}
+const InitialPosition* ForkData::get(Rand& rand) {
+  std::lock_guard<std::mutex> lock(mutex);
+  if(forks.size() <= 0)
+    return NULL;
+  int r = rand.nextUInt(forks.size());
+  int last = forks.size()-1;
+  const InitialPosition* pos = forks[r];
+  forks[r] = forks[last];
+  forks.resize(forks.size()-1);
+  return pos;
+}
+
+void ForkData::addSeki(const InitialPosition* pos, Rand& rand) {
+  std::unique_lock<std::mutex> lock(mutex);
+  if(sekiForks.size() >= 1000) {
+    int r = rand.nextUInt(sekiForks.size());
+    const InitialPosition* oldPos = sekiForks[r];
+    sekiForks[r] = pos;
+    lock.unlock();
+    delete oldPos;
+  }
+  else {
+    sekiForks.push_back(pos);
+  }
+}
+const InitialPosition* ForkData::getSeki(Rand& rand) {
+  std::lock_guard<std::mutex> lock(mutex);
+  if(sekiForks.size() <= 0)
+    return NULL;
+  int r = rand.nextUInt(sekiForks.size());
+  int last = sekiForks.size()-1;
+  const InitialPosition* pos = sekiForks[r];
+  sekiForks[r] = sekiForks[last];
+  sekiForks.resize(sekiForks.size()-1);
+  return pos;
+}
+
 //------------------------------------------------------------------------------------------------
 
-GameInitializer::GameInitializer(ConfigParser& cfg)
+GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger)
   :createGameMutex(),rand()
 {
-  initShared(cfg);
+  initShared(cfg,logger);
   noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
+  numExtraBlackFixed = cfg.contains("numExtraBlackFixed") ? cfg.getInt("numExtraBlackFixed",1,18) : 0;
   drawRandRadius = cfg.contains("drawRandRadius") ? cfg.getDouble("drawRandRadius",0.0,1.0) : 0.0;
 }
 
-void GameInitializer::initShared(ConfigParser& cfg) {
+void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
 
   allowedKoRuleStrs = cfg.getStrings("koRules", Rules::koRuleStrings());
   allowedScoringRuleStrs = cfg.getStrings("scoringRules", Rules::scoringRuleStrings());
+  allowedTaxRuleStrs = cfg.getStrings("taxRules", Rules::taxRuleStrings());
   allowedMultiStoneSuicideLegals = cfg.getBools("multiStoneSuicideLegals");
+  allowedButtons = cfg.getBools("hasButtons");
 
   for(size_t i = 0; i < allowedKoRuleStrs.size(); i++)
     allowedKoRules.push_back(Rules::parseKoRule(allowedKoRuleStrs[i]));
   for(size_t i = 0; i < allowedScoringRuleStrs.size(); i++)
     allowedScoringRules.push_back(Rules::parseScoringRule(allowedScoringRuleStrs[i]));
+  for(size_t i = 0; i < allowedTaxRuleStrs.size(); i++)
+    allowedTaxRules.push_back(Rules::parseTaxRule(allowedTaxRuleStrs[i]));
 
   if(allowedKoRules.size() <= 0)
     throw IOError("koRules must have at least one value in " + cfg.getFileName());
   if(allowedScoringRules.size() <= 0)
     throw IOError("scoringRules must have at least one value in " + cfg.getFileName());
+  if(allowedTaxRules.size() <= 0)
+    throw IOError("taxRules must have at least one value in " + cfg.getFileName());
   if(allowedMultiStoneSuicideLegals.size() <= 0)
     throw IOError("multiStoneSuicideLegals must have at least one value in " + cfg.getFileName());
+  if(allowedButtons.size() <= 0)
+    throw IOError("hasButtons must have at least one value in " + cfg.getFileName());
+
+  {
+    bool hasAreaScoring = false;
+    for(int i = 0; i<allowedScoringRules.size(); i++)
+      if(allowedScoringRules[i] == Rules::SCORING_AREA)
+        hasAreaScoring = true;
+    bool hasTrueButton = false;
+    for(int i = 0; i<allowedButtons.size(); i++)
+      if(allowedButtons[i])
+        hasTrueButton = true;
+    if(!hasAreaScoring && hasTrueButton)
+      throw IOError("If scoringRules does not include AREA, hasButtons must be false in " + cfg.getFileName());
+  }
 
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
-  komiMean = cfg.getFloat("komiMean",-60.0f,60.0f);
-  komiStdev = cfg.getFloat("komiStdev",0.0f,60.0f);
-  komiAllowIntegerProb = cfg.getDouble("komiAllowIntegerProb",0.0,1.0);
-  handicapProb = cfg.getDouble("handicapProb",0.0,1.0);
-  komiBigStdevProb = cfg.getDouble("komiBigStdevProb",0.0,1.0);
-  komiBigStdev = cfg.getFloat("komiBigStdev",0.0f,60.0f);
+  allowRectangleProb = cfg.contains("allowRectangleProb") ? cfg.getDouble("allowRectangleProb",0.0,1.0) : 0.0;
+
+  if(!cfg.contains("komiMean") && !(cfg.contains("komiAuto") && cfg.getBool("komiAuto")))
+    throw IOError("Must specify either komiMean=<komi value> or komiAuto=True in config");
+  if(cfg.contains("komiMean") && (cfg.contains("komiAuto") && cfg.getBool("komiAuto")))
+    throw IOError("Must specify only one of komiMean=<komi value> or komiAuto=True in config");
+
+  komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean",Rules::MIN_USER_KOMI,Rules::MAX_USER_KOMI) : 7.5f;
+  komiStdev = cfg.contains("komiStdev") ? cfg.getFloat("komiStdev",0.0f,60.0f) : 0.0f;
+  handicapProb = cfg.contains("handicapProb") ? cfg.getDouble("handicapProb",0.0,1.0) : 0.0;
+  handicapCompensateKomiProb = cfg.contains("handicapCompensateKomiProb") ? cfg.getDouble("handicapCompensateKomiProb",0.0,1.0) : 0.0;
+  komiBigStdevProb = cfg.contains("komiBigStdevProb") ? cfg.getDouble("komiBigStdevProb",0.0,1.0) : 0.0;
+  komiBigStdev = cfg.contains("komiBigStdev") ? cfg.getFloat("komiBigStdev",0.0f,60.0f) : 10.0f;
+  komiAuto = cfg.contains("komiAuto") ? cfg.getBool("komiAuto") : false;
+
+  forkCompensateKomiProb = cfg.contains("forkCompensateKomiProb") ? cfg.getDouble("forkCompensateKomiProb",0.0,1.0) : handicapCompensateKomiProb;
+
+  //Disabled because there are enough other things that can result in integer komi
+  //such as komiAuto that this is very confusing
+  //komiAllowIntegerProb = cfg.getDouble("komiAllowIntegerProb",0.0,1.0);
+  komiAllowIntegerProb = 1.0;
+
+  startPosesProb = 0.0;
+  if(cfg.contains("startPosesFromSgfDir")) {
+    startPoses.clear();
+    startPosCumProbs.clear();
+    startPosesProb = cfg.getDouble("startPosesProb",0.0,1.0);
+
+    string dir = cfg.getString("startPosesFromSgfDir");
+    double startPosesLoadProb = cfg.getDouble("startPosesLoadProb",0.0,1.0);
+    double startPosesTurnWeightLambda = cfg.getDouble("startPosesTurnWeightLambda",-10,10);
+
+    vector<string> files;
+    std::function<bool(const string&)> fileFilter = [](const string& fileName) {
+      return Global::isSuffix(fileName,".sgf");
+    };
+    Global::collectFiles(dir, fileFilter, files);
+    logger.write("Found " + Global::uint64ToString(files.size()) + " sgf files in " + dir);
+    std::set<Hash128> uniqueHashes;
+    std::function<void(Sgf::PositionSample&)> posHandler = [startPosesLoadProb,this](Sgf::PositionSample& posSample) {
+      if(rand.nextBool(startPosesLoadProb))
+        startPoses.push_back(posSample);
+    };
+    for(size_t i = 0; i<files.size(); i++) {
+      Sgf* sgf = Sgf::loadFile(files[i]);
+      sgf->iterAllUniquePositions(uniqueHashes, posHandler);
+      delete sgf;
+    }
+    logger.write("Loaded " + Global::uint64ToString(startPoses.size()) + " start positions from " + dir);
+
+    int minInitialTurnNumber = 0;
+    for(size_t i = 0; i<startPoses.size(); i++)
+      minInitialTurnNumber = std::min(minInitialTurnNumber, startPoses[i].initialTurnNumber);
+
+    startPosCumProbs.resize(startPoses.size());
+    for(size_t i = 0; i<startPoses.size(); i++) {
+      int64_t startTurn = startPoses[i].initialTurnNumber + (int64_t)startPoses[i].moves.size() - minInitialTurnNumber;
+      startPosCumProbs[i] = exp(-startTurn * startPosesTurnWeightLambda);
+    }
+    for(size_t i = 0; i<startPoses.size(); i++) {
+      if(!(startPosCumProbs[i] > -1e200 && startPosCumProbs[i] < 1e200)) {
+        throw StringError("startPos found bad unnormalized probability: " + Global::doubleToString(startPosCumProbs[i]));
+      }
+    }
+    for(size_t i = 1; i<startPoses.size(); i++)
+      startPosCumProbs[i] += startPosCumProbs[i-1];
+
+    if(startPoses.size() <= 0) {
+      logger.write("No start positions loaded, disabling start position logic");
+      startPosesProb = 0;
+    }
+    else {
+      logger.write("Cumulative unnormalized probability for start poses: " + Global::doubleToString(startPosCumProbs[startPoses.size()-1]));
+    }
+  }
 
   if(allowedBSizes.size() <= 0)
     throw IOError("bSizes must have at least one value in " + cfg.getFileName());
@@ -129,18 +351,31 @@ void GameInitializer::initShared(ConfigParser& cfg) {
 GameInitializer::~GameInitializer()
 {}
 
-void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition) {
+void GameInitializer::createGame(
+  Board& board, Player& pla, BoardHistory& hist,
+  ExtraBlackAndKomi& extraBlackAndKomi,
+  const InitialPosition* initialPosition,
+  const FancyModes& fancyModes,
+  OtherGameProperties& otherGameProps
+) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,fancyModes,otherGameProps);
   if(noResultStdev != 0.0 || drawRandRadius != 0.0)
     throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
 
-void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, SearchParams& params, const InitialPosition* initialPosition) {
+void GameInitializer::createGame(
+  Board& board, Player& pla, BoardHistory& hist,
+  ExtraBlackAndKomi& extraBlackAndKomi,
+  SearchParams& params,
+  const InitialPosition* initialPosition,
+  const FancyModes& fancyModes,
+  OtherGameProperties& otherGameProps
+) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,fancyModes,otherGameProps);
 
   if(noResultStdev > 1e-30) {
     double mean = params.noResultUtilityForWhite;
@@ -158,37 +393,138 @@ void GameInitializer::createGame(Board& board, Player& pla, BoardHistory& hist, 
   }
 }
 
-void GameInitializer::createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition) {
+Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const {
+  rules.scoringRule = allowedScoringRules[randToUse.nextUInt(allowedScoringRules.size())];
+  rules.taxRule = allowedTaxRules[randToUse.nextUInt(allowedTaxRules.size())];
+
+  if(rules.scoringRule == Rules::SCORING_AREA)
+    rules.hasButton = allowedButtons[randToUse.nextUInt(allowedButtons.size())];
+  else
+    rules.hasButton = false;
+
+  return rules;
+}
+
+void GameInitializer::createGameSharedUnsynchronized(
+  Board& board, Player& pla, BoardHistory& hist,
+  ExtraBlackAndKomi& extraBlackAndKomi,
+  const InitialPosition* initialPosition,
+  const FancyModes& fancyModes,
+  OtherGameProperties& otherGameProps
+) {
   if(initialPosition != NULL) {
     board = initialPosition->board;
     hist = initialPosition->hist;
     pla = initialPosition->pla;
 
+    //No handicap when starting from an initial position.
+    double thisHandicapProb = 0.0;
     extraBlackAndKomi = chooseExtraBlackAndKomi(
-      hist.rules.komi, komiStdev, komiAllowIntegerProb, 0.0,
-      komiBigStdevProb, komiBigStdev, std::min(board.x_size,board.y_size), rand
+      hist.rules.komi, komiStdev, komiAllowIntegerProb,
+      thisHandicapProb,
+      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
     assert(extraBlackAndKomi.extraBlack == 0);
     hist.setKomi(extraBlackAndKomi.komi);
+    otherGameProps.isSgfPos = false;
+    otherGameProps.allowPolicyInit = false; //On initial positions, don't play extra moves at start
+    otherGameProps.isFork = true;
+    extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
+    extraBlackAndKomi.makeGameFairForEmptyBoard = false;
     return;
   }
 
-  int bSize = allowedBSizes[rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size())];
-  board = Board(bSize,bSize);
+  double makeGameFairProb = 0.0;
+
+  int xSizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
+  int ySizeIdx = xSizeIdx;
+  if(allowRectangleProb > 0 && rand.nextBool(allowRectangleProb))
+    ySizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
 
   Rules rules;
   rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
   rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
+  rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
   rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt(allowedMultiStoneSuicideLegals.size())];
 
-  extraBlackAndKomi = chooseExtraBlackAndKomi(
-    komiMean, komiStdev, komiAllowIntegerProb, handicapProb,
-    komiBigStdevProb, komiBigStdev, bSize, rand
-  );
-  rules.komi = extraBlackAndKomi.komi;
+  if(rules.scoringRule == Rules::SCORING_AREA)
+    rules.hasButton = allowedButtons[rand.nextUInt(allowedButtons.size())];
+  else
+    rules.hasButton = false;
 
-  pla = P_BLACK;
-  hist.clear(board,pla,rules,0);
+  if(startPosesProb > 0 && rand.nextBool(startPosesProb)) {
+    assert(startPoses.size() > 0);
+    size_t r = rand.nextIndexCumulative(startPosCumProbs.data(),startPosCumProbs.size());
+    assert(r < startPosCumProbs.size());
+    const Sgf::PositionSample& startPos = startPoses[r];
+    board = startPos.board;
+    pla = startPos.nextPla;
+    hist.clear(board,pla,rules,0);
+    hist.setInitialTurnNumber(startPos.initialTurnNumber);
+    for(size_t i = 0; i<startPos.moves.size(); i++) {
+      hist.makeBoardMoveAssumeLegal(board,startPos.moves[i].loc,startPos.moves[i].pla,NULL);
+      pla = getOpp(startPos.moves[i].pla);
+    }
+    //No handicap when starting from a sampled position.
+    double thisHandicapProb = 0.0;
+    extraBlackAndKomi = chooseExtraBlackAndKomi(
+      komiMean, komiStdev, komiAllowIntegerProb,
+      thisHandicapProb,
+      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
+    );
+    otherGameProps.isSgfPos = true;
+    otherGameProps.allowPolicyInit = false; //On sgf positions, don't play extra moves at start
+    otherGameProps.isFork = false;
+    makeGameFairProb = forkCompensateKomiProb;
+  }
+  else {
+    int xSize = allowedBSizes[xSizeIdx];
+    int ySize = allowedBSizes[ySizeIdx];
+    board = Board(xSize,ySize);
+
+    extraBlackAndKomi = chooseExtraBlackAndKomi(
+      komiMean, komiStdev, komiAllowIntegerProb,
+      handicapProb,
+      komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
+    );
+    rules.komi = extraBlackAndKomi.komi;
+    if(extraBlackAndKomi.extraBlack > 0 && numExtraBlackFixed != 0)
+      extraBlackAndKomi.extraBlack = numExtraBlackFixed;
+
+    pla = P_BLACK;
+    hist.clear(board,pla,rules,0);
+    otherGameProps.isSgfPos = false;
+    otherGameProps.allowPolicyInit = true;
+    otherGameProps.isFork = false;
+    makeGameFairProb = extraBlackAndKomi.extraBlack > 0 ? handicapCompensateKomiProb : 0.0;
+  }
+
+  double asymmetricProb = (extraBlackAndKomi.extraBlack > 0) ? fancyModes.handicapAsymmetricPlayoutProb : fancyModes.normalAsymmetricPlayoutProb;
+  if(asymmetricProb > 0 && rand.nextBool(asymmetricProb)) {
+    assert(fancyModes.maxAsymmetricRatio >= 1.0);
+    double maxNumDoublings = log(fancyModes.maxAsymmetricRatio) / log(2.0);
+    double numDoublings = rand.nextDouble(maxNumDoublings);
+    if(extraBlackAndKomi.extraBlack > 0 || rand.nextBool(0.5)) {
+      otherGameProps.playoutDoublingAdvantagePla = C_WHITE;
+      otherGameProps.playoutDoublingAdvantage = numDoublings;
+    }
+    else {
+      otherGameProps.playoutDoublingAdvantagePla = C_BLACK;
+      otherGameProps.playoutDoublingAdvantage = numDoublings;
+    }
+    makeGameFairProb = std::max(makeGameFairProb,fancyModes.minAsymmetricCompensateKomiProb);
+  }
+
+  if(komiAuto) {
+    if(makeGameFairProb > 0.0)
+      extraBlackAndKomi.makeGameFair = rand.nextBool(makeGameFairProb);
+    extraBlackAndKomi.makeGameFairForEmptyBoard = !extraBlackAndKomi.makeGameFair;
+  }
+  else {
+    if(makeGameFairProb > 0.0)
+      extraBlackAndKomi.makeGameFair = rand.nextBool(makeGameFairProb);
+    extraBlackAndKomi.makeGameFairForEmptyBoard = false;
+  }
 }
 
 //----------------------------------------------------------------------------------------------------------
@@ -369,12 +705,16 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 FancyModes::FancyModes()
   :initGamesWithPolicy(false),forkSidePositionProb(0.0),
-   noCompensateKomiProb(0.0),compensateKomiVisits(1),
-   earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),earlyForkGameMinChoices(1),earlyForkGameMaxChoices(1),
+   compensateKomiVisits(20),estimateLeadVisits(10),estimateLeadProb(0.0),
+   earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),forkGameProb(0.0),forkGameMinChoices(1),earlyForkGameMaxChoices(1),forkGameMaxChoices(1),
+   sekiForkHack(false),fancyKomiVarying(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
+   policySurpriseDataWeight(0.0),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
-   allowResignation(false),resignThreshold(0.0),resignConsecTurns(1)
+   allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
+   forSelfPlay(false),dataXLen(-1),dataYLen(-1),
+   handicapAsymmetricPlayoutProb(0.0),normalAsymmetricPlayoutProb(0.0),maxAsymmetricRatio(2.0)
 {}
 FancyModes::~FancyModes()
 {}
@@ -386,7 +726,7 @@ static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
   sout << "Bot returned null location or illegal move!?!" << "\n";
   sout << board << "\n";
   sout << bot->getRootBoard() << "\n";
-  sout << "Pla: " << playerToString(bot->getRootPla()) << "\n";
+  sout << "Pla: " << PlayerIO::playerToString(bot->getRootPla()) << "\n";
   sout << "Loc: " << Location::toString(loc,bot->getRootBoard()) << "\n";
   logger.write(sout.str());
   bot->getRootBoard().checkConsistency();
@@ -398,11 +738,13 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
   Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
   sout << "\n";
   sout << "Root visits: " << bot->numRootVisits() << "\n";
+  sout << "Policy surprise " << bot->getPolicySurprise() << "\n";
   sout << "PV: ";
   bot->printPV(sout, bot->rootNode, 25);
   sout << "\n";
   sout << "Tree:\n";
   bot->printTree(sout, bot->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),P_WHITE);
+
   logger.write(sout.str());
 }
 
@@ -434,9 +776,9 @@ Loc Play::chooseRandomPolicyMove(const NNOutput* nnOutput, const Board& board, c
   return Board::NULL_LOC;
 }
 
-static float roundAndClipKomi(double unrounded, const Board& board) {
+static float roundAndClipKomi(double unrounded, const Board& board, bool looseClipping) {
   //Just in case, make sure komi is reasonable
-  float range = board.x_size * board.y_size;
+  float range = looseClipping ? 40.0f + board.x_size * board.y_size : 40.0f + 0.5f * board.x_size * board.y_size;
   if(unrounded < -range)
     unrounded = -range;
   if(unrounded > range)
@@ -444,15 +786,34 @@ static float roundAndClipKomi(double unrounded, const Board& board) {
   return (float)(0.5 * round(2.0 * unrounded));
 }
 
-static double getWhiteScoreEstimate(Search* bot, const Board& board, const BoardHistory& hist, Player pla, int numVisits, Logger& logger) {
+static ReportedSearchValues getWhiteScoreValues(
+  Search* bot,
+  const Board& board,
+  const BoardHistory& hist,
+  Player pla,
+  int numVisits,
+  Logger& logger,
+  const OtherGameProperties& otherGameProps
+) {
   assert(numVisits > 0);
   SearchParams oldParams = bot->searchParams;
   SearchParams newParams = oldParams;
   newParams.maxVisits = numVisits;
   newParams.maxPlayouts = numVisits;
   newParams.rootNoiseEnabled = false;
+  newParams.rootPolicyTemperature = 1.0;
+  newParams.rootPolicyTemperatureEarly = 1.0;
   newParams.rootFpuReductionMax = newParams.fpuReductionMax;
   newParams.rootFpuLossProp = newParams.fpuLossProp;
+  newParams.rootDesiredPerChildVisitsCoeff = 0.0;
+  newParams.rootNumSymmetriesToSample = 1;
+
+  if(otherGameProps.playoutDoublingAdvantage != 0.0 && otherGameProps.playoutDoublingAdvantagePla != C_EMPTY) {
+    //Don't actually adjust playouts, but DO tell the bot what it's up against, so that it gives estimates
+    //appropriate to the asymmetric game about to be played
+    newParams.playoutDoublingAdvantagePla = otherGameProps.playoutDoublingAdvantagePla;
+    newParams.playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
+  }
 
   bot->setParams(newParams);
   bot->setPosition(pla,board,hist);
@@ -460,24 +821,242 @@ static double getWhiteScoreEstimate(Search* bot, const Board& board, const Board
 
   ReportedSearchValues values = bot->getRootValuesAssertSuccess();
   bot->setParams(oldParams);
-  return values.expectedScore;
+  return values;
 }
 
-void Play::adjustKomiToEven(
-  Search* bot,
+static std::pair<double,double> evalKomi(
+  map<float,std::pair<double,double>>& scoreWLCache,
+  Search* botB,
+  Search* botW,
   const Board& board,
   BoardHistory& hist,
   Player pla,
   int64_t numVisits,
-  Logger& logger
+  Logger& logger,
+  const OtherGameProperties& otherGameProps,
+  float roundedClippedKomi
 ) {
-  //Iterate a few times in case the neural net knows the bot isn't perfectly score maximizing.
-  for(int i = 0; i<3; i++) {
-    double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, numVisits, logger);
-    double fairKomi = hist.rules.komi - finalWhiteScore;
-    hist.setKomi(roundAndClipKomi(fairKomi,board));
+  auto iter = scoreWLCache.find(roundedClippedKomi);
+  if(iter != scoreWLCache.end())
+    return iter->second;
+
+  float oldKomi = hist.rules.komi;
+  hist.setKomi(roundedClippedKomi);
+
+  ReportedSearchValues values0 = getWhiteScoreValues(botB, board, hist, pla, numVisits, logger, otherGameProps);
+  double finalLead = values0.lead;
+  double finalWinLoss = values0.winLossValue;
+
+  //If we have a second bot, average the two
+  if(botW != NULL && botW != botB) {
+    ReportedSearchValues values1 = getWhiteScoreValues(botW, board, hist, pla, numVisits, logger, otherGameProps);
+    finalLead = 0.5 * (values0.lead + values1.lead);
+    finalWinLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
   }
+  std::pair<double,double> result = std::make_pair(finalLead,finalWinLoss);
+  scoreWLCache[roundedClippedKomi] = result;
+
+  hist.setKomi(oldKomi);
+  return result;
 }
+
+static double getNaiveEvenKomiHelper(
+  map<float,std::pair<double,double>>& scoreWLCache,
+  Search* botB,
+  Search* botW,
+  const Board& board,
+  BoardHistory& hist,
+  Player pla,
+  int64_t numVisits,
+  Logger& logger,
+  const OtherGameProperties& otherGameProps,
+  bool looseClipping
+) {
+  float oldKomi = hist.rules.komi;
+
+  //A few times iterate based on expected score a few times to hopefully get a value close to fair
+  double lastShift = 0.0;
+  for(int i = 0; i<3; i++) {
+    std::pair<float,float> result = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,hist.rules.komi);
+    double finalLead = result.first;
+    double finalWinLoss = result.second;
+    //Shift by the predicted lead
+    double shift = -finalLead;
+    //Under no situations should the shift be bigger in absolute value than the last shift
+    if(i > 0 && abs(shift) > abs(lastShift)) {
+      if(shift < 0) shift = -abs(lastShift);
+      else if(shift > 0) shift = abs(lastShift);
+    }
+    lastShift = shift;
+
+    //If the score and winrate would like to move in opposite directions, quit immediately.
+    if((shift > 0 && finalWinLoss > 0) || (shift < 0 && finalLead < 0))
+      break;
+
+    // cout << "Shifting by " << shift << endl;
+    float fairKomi = roundAndClipKomi(hist.rules.komi + shift, board, looseClipping);
+    hist.setKomi(fairKomi);
+
+    //After a small shift, break out to the binary search.
+    if(abs(shift) < 16.0)
+      break;
+  }
+
+  //Try a small window and do a binary search
+  auto evalWinLoss = [&](double delta) {
+    double newKomi = hist.rules.komi + delta;
+    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,roundAndClipKomi(newKomi,board,looseClipping)).second;
+    // cout << "Delta " << delta << " wr " << winLoss << endl;
+    return winLoss;
+  };
+
+  double lowerDelta;
+  double upperDelta;
+  double lowerWinLoss;
+  double upperWinLoss;
+
+  //Grow window outward
+  {
+    double winLossZero = evalWinLoss(0);
+    if(winLossZero < 0) {
+      //Losing, so this is the lower bound
+      lowerDelta = 0.0;
+      lowerWinLoss = winLossZero;
+      for(int i = 0; i<=5; i++) {
+        upperDelta = round(pow(2.0,i));
+        upperWinLoss = evalWinLoss(upperDelta);
+        if(upperWinLoss >= 0)
+          break;
+      }
+    }
+    else {
+      //Winning, so this is the upper bound
+      upperDelta = 0.0;
+      upperWinLoss = winLossZero;
+      for(int i = 0; i<=5; i++) {
+        lowerDelta = -round(pow(2.0,i));
+        lowerWinLoss = evalWinLoss(lowerDelta);
+        if(lowerWinLoss <= 0)
+          break;
+      }
+    }
+  }
+
+  while(upperDelta - lowerDelta > 0.50001) {
+    double midDelta = 0.5 * (lowerDelta + upperDelta);
+    double midWinLoss = evalWinLoss(midDelta);
+    if(midWinLoss < 0) {
+      lowerDelta = midDelta;
+      lowerWinLoss = midWinLoss;
+    }
+    else {
+      upperDelta = midDelta;
+      upperWinLoss = midWinLoss;
+    }
+  }
+  //Floating point math should be exact to multiples of 0.5 so this should hold *exactly*.
+  assert(upperDelta - lowerDelta == 0.5);
+
+  double finalDelta;
+  //If the winLoss are crossed, potentially due to noise, then just pick the average
+  if(lowerWinLoss >= upperWinLoss - 1e-30)
+    finalDelta = 0.5 * (lowerDelta + upperDelta);
+  //If 0 is outside of the range, then choose the endpoint of the range.
+  else if(upperWinLoss <= 0)
+    finalDelta = upperDelta;
+  else if(lowerWinLoss >= 0)
+    finalDelta = lowerDelta;
+  //Interpolate
+  else
+    finalDelta = lowerDelta + (upperDelta - lowerDelta) * (0-lowerWinLoss) / (upperWinLoss-lowerWinLoss);
+
+  double newKomi = hist.rules.komi + finalDelta;
+  // cout << "Final " << finalDelta << " " << newKomi << endl;
+
+  hist.setKomi(oldKomi);
+  return newKomi;
+}
+
+void Play::adjustKomiToEven(
+  Search* botB,
+  Search* botW,
+  const Board& board,
+  BoardHistory& hist,
+  Player pla,
+  int64_t numVisits,
+  Logger& logger,
+  const OtherGameProperties& otherGameProps,
+  Rand& rand
+) {
+  map<float,std::pair<double,double>> scoreWLCache;
+  bool looseClipping = false;
+  double newKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping);
+  double lower = floor(newKomi * 2.0) * 0.5;
+  double upper = lower + 0.5;
+  if(rand.nextBool((newKomi - lower) / (upper - lower)))
+    newKomi = upper;
+  else
+    newKomi = lower;
+  hist.setKomi(roundAndClipKomi(newKomi,board,looseClipping));
+}
+
+float Play::computeLead(
+  Search* botB,
+  Search* botW,
+  const Board& board,
+  BoardHistory& hist,
+  Player pla,
+  int64_t numVisits,
+  Logger& logger,
+  const OtherGameProperties& otherGameProps
+) {
+  map<float,std::pair<double,double>> scoreWLCache;
+  bool looseClipping = true;
+  float oldKomi = hist.rules.komi;
+  double naiveKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping);
+
+  bool granularityIsCoarse = hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.hasButton;
+  if(!granularityIsCoarse) {
+    assert(hist.rules.komi == oldKomi);
+    return (float)(oldKomi - naiveKomi);
+  }
+
+  auto evalWinLoss = [&](double newKomi) {
+    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,roundAndClipKomi(newKomi,board,looseClipping)).second;
+    // cout << "Delta " << delta << " wr " << winLoss << endl;
+    return winLoss;
+  };
+
+  //Smooth over area scoring 2-point granularity
+
+  //If komi is exactly an integer, then we're good.
+  if(naiveKomi == round(naiveKomi)) {
+    assert(hist.rules.komi == oldKomi);
+    return (float)(oldKomi - naiveKomi);
+  }
+
+  double lower = floor(naiveKomi * 2.0) * 0.5;
+  double upper = lower + 0.5;
+
+  //Average out the oscillation
+  double lowerWinLoss = 0.5 * (evalWinLoss(upper) + evalWinLoss(lower-0.5));
+  double upperWinLoss = 0.5 * (evalWinLoss(upper + 0.5) + evalWinLoss(lower));
+
+  //If the winLoss are crossed, potentially due to noise, then just pick the average
+  double result;
+  if(lowerWinLoss >= upperWinLoss - 1e-30)
+    result = 0.5 * (lower + upper);
+  else {
+    //Interpolate
+    result = lower + (upper - lower) * (0-lowerWinLoss) / (upperWinLoss-lowerWinLoss);
+    //Bound the result to be within lower-0.5 and upper+0.5
+    if(result < lower-0.5) result = lower-0.5;
+    if(result > upper+0.5) result = upper+0.5;
+  }
+  assert(hist.rules.komi == oldKomi);
+  return (float)(oldKomi - result);
+}
+
 
 double Play::getSearchFactor(
   double searchFactorWhenWinningThreshold,
@@ -510,24 +1089,19 @@ double Play::getSearchFactor(
 //Does NOT switch the initial player of the board history to white
 void Play::playExtraBlack(
   Search* bot,
-  Logger& logger,
-  ExtraBlackAndKomi extraBlackAndKomi,
+  int numExtraBlack,
   Board& board,
   BoardHistory& hist,
   double temperature,
-  Rand& gameRand,
-  bool adjustKomi,
-  int numVisitsForKomi
+  Rand& gameRand
 ) {
   Player pla = P_BLACK;
 
-  //First, restore back to baseline komi
-  hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board));
-
   NNResultBuf buf;
-  for(int i = 0; i<extraBlackAndKomi.extraBlack; i++) {
-    double drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
-    bot->nnEvaluator->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
+  for(int i = 0; i<numExtraBlack; i++) {
+    MiscNNInputParams nnInputParams;
+    nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
+    bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,NULL,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
     bool allowPass = false;
@@ -539,13 +1113,6 @@ void Play::playExtraBlack(
     assert(hist.isLegal(board,loc,pla));
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
     hist.clear(board,pla,hist.rules,0);
-  }
-
-  if(adjustKomi) {
-    //Adjust komi to be fair for the handicap according to what the bot thinks.
-    adjustKomiToEven(bot,board,hist,pla,numVisitsForKomi,logger);
-    //Then, reapply the komi offset from base that we should have had
-    hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board));
   }
 
   bot->setPosition(pla,board,hist);
@@ -641,7 +1208,7 @@ static void extractPolicyTarget(
   //   cout << "LARGE PLAY SELECTION VALUE " << maxValue << endl;
   //   toMoveBot->printTree(cout, node, PrintTreeOptions(), P_WHITE);
   // }
-  
+
   double factor = 1.0;
   if(maxValue > 30000.0)
     factor = 30000.0 / maxValue;
@@ -653,7 +1220,7 @@ static void extractPolicyTarget(
   }
 }
 
-static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, const SearchNode* node, vector<double>* recordUtilities) {
+static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, const SearchNode* node) {
   ReportedSearchValues values;
   bool success = toMoveBot->getNodeValues(*node,values);
   assert(success);
@@ -663,24 +1230,6 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
   buf.loss = (float)values.lossValue;
   buf.noResult = (float)values.noResultValue;
   buf.score = (float)values.expectedScore;
-
-  if(recordUtilities != NULL) {
-    buf.hasMctsUtility = true;
-    assert(recordUtilities->size() > 255);
-    buf.mctsUtility1 = (float)((*recordUtilities)[0]);
-    buf.mctsUtility4 = (float)((*recordUtilities)[3]);
-    buf.mctsUtility16 = (float)((*recordUtilities)[15]);
-    buf.mctsUtility64 = (float)((*recordUtilities)[63]);
-    buf.mctsUtility256 = (float)((*recordUtilities)[255]);
-  }
-  else {
-    buf.hasMctsUtility = false;
-    buf.mctsUtility1 = 0.0f;
-    buf.mctsUtility4 = 0.0f;
-    buf.mctsUtility16 = 0.0f;
-    buf.mctsUtility64 = 0.0f;
-    buf.mctsUtility256 = 0.0f;
-  }
 }
 
 //Recursively walk non-root-node subtree under node recording positions that have enough visits
@@ -703,7 +1252,7 @@ static void recordTreePositionsRec(
   if(plaAlwaysBest && node != toMoveBot->rootNode) {
     SidePosition* sp = new SidePosition(board,hist,pla,numNeuralNetChangesSoFar);
     extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
-    extractValueTargets(sp->whiteValueTargets, toMoveBot, node, NULL);
+    extractValueTargets(sp->whiteValueTargets, toMoveBot, node);
     sp->targetWeight = recordTreeTargetWeight;
     sp->unreducedNumVisits = toMoveBot->getRootVisits();
     gameData->sidePositions.push_back(sp);
@@ -790,10 +1339,14 @@ static void recordTreePositions(
 }
 
 
-static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf, Rand& gameRand) {
+static Loc getGameInitializationMove(
+  Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
+  Rand& gameRand, double temperature
+) {
   NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
-  double drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
-  nnEval->evaluate(board,hist,pla,drawEquivalentWinsForWhite,buf,NULL,false,false);
+  MiscNNInputParams nnInputParams;
+  nnInputParams.drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
+  nnEval->evaluate(board,hist,pla,nnInputParams,buf,NULL,false,false);
   std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
   vector<Loc> locs;
@@ -811,7 +1364,7 @@ static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, c
     if(!hist.isLegal(board,moveLoc,pla) || policyProb <= 0)
       continue;
     locs.push_back(moveLoc);
-    playSelectionValues.push_back(policyProb);
+    playSelectionValues.push_back(pow(policyProb,1.0/temperature));
   }
 
   //In practice, this should never happen, but in theory, a very badly-behaved net that rounds
@@ -830,6 +1383,222 @@ static Loc getGameInitializationMove(Search* botB, Search* botW, Board& board, c
   return loc;
 }
 
+//Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
+//and add entropy
+static void initializeGameUsingPolicy(
+  Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
+  Rand& gameRand, bool doEndGameIfAllPassAlive,
+  double proportionOfBoardArea, double temperature
+) {
+  NNResultBuf buf;
+
+  //This gives us about 15 moves on average for 19x19.
+  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size * proportionOfBoardArea));
+  assert(numInitialMovesToPlay >= 0);
+  for(int i = 0; i<numInitialMovesToPlay; i++) {
+    Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand, temperature);
+
+    //Make the move!
+    assert(hist.isLegal(board,loc,pla));
+    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+    pla = getOpp(pla);
+
+    //Rarely, playing the random moves out this way will end the game
+    if(doEndGameIfAllPassAlive)
+      hist.endGameIfAllPassAlive(board);
+    if(hist.isGameFinished)
+      break;
+  }
+}
+
+struct SearchLimitsThisMove {
+  bool doAlterVisitsPlayouts;
+  int64_t numAlterVisits;
+  int64_t numAlterPlayouts;
+  bool clearBotBeforeSearchThisMove;
+  bool removeRootNoise;
+  float targetWeight;
+
+  //Note: these two behave slightly differently than the ones in searchParams - derived from OtherGameProperties
+  //game, they make the playouts *actually* vary instead of only making the neural net think they do.
+  double playoutDoublingAdvantage;
+  Player playoutDoublingAdvantagePla;
+};
+
+static SearchLimitsThisMove getSearchLimitsThisMove(
+  const Search* toMoveBot, Player pla, const FancyModes& fancyModes, Rand& gameRand,
+  const vector<double>& historicalMctsWinLossValues,
+  bool clearBotBeforeSearch,
+  OtherGameProperties otherGameProps
+) {
+  bool doAlterVisitsPlayouts = false;
+  int64_t numAlterVisits = toMoveBot->searchParams.maxVisits;
+  int64_t numAlterPlayouts = toMoveBot->searchParams.maxPlayouts;
+  bool clearBotBeforeSearchThisMove = clearBotBeforeSearch;
+  bool removeRootNoise = false;
+  float targetWeight = 1.0f;
+  double playoutDoublingAdvantage = 0.0;
+  Player playoutDoublingAdvantagePla = C_EMPTY;
+
+  if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
+    if(fancyModes.cheapSearchVisits <= 0)
+      throw StringError("fancyModes.cheapSearchVisits <= 0");
+    if(fancyModes.cheapSearchVisits > toMoveBot->searchParams.maxVisits ||
+       fancyModes.cheapSearchVisits > toMoveBot->searchParams.maxPlayouts)
+      throw StringError("fancyModes.cheapSearchVisits > maxVisits and/or maxPlayouts");
+
+    doAlterVisitsPlayouts = true;
+    numAlterVisits = std::min(numAlterVisits,(int64_t)fancyModes.cheapSearchVisits);
+    numAlterPlayouts = std::min(numAlterPlayouts,(int64_t)fancyModes.cheapSearchVisits);
+    targetWeight *= fancyModes.cheapSearchTargetWeight;
+
+    //If not recording cheap searches, do a few more things
+    if(fancyModes.cheapSearchTargetWeight <= 0.0) {
+      clearBotBeforeSearchThisMove = false;
+      removeRootNoise = true;
+    }
+  }
+  else if(fancyModes.reduceVisits) {
+    if(fancyModes.reducedVisitsMin <= 0)
+      throw StringError("fancyModes.reducedVisitsMin <= 0");
+    if(fancyModes.reducedVisitsMin > toMoveBot->searchParams.maxVisits ||
+       fancyModes.reducedVisitsMin > toMoveBot->searchParams.maxPlayouts)
+      throw StringError("fancyModes.reducedVisitsMin > maxVisits and/or maxPlayouts");
+
+    if(historicalMctsWinLossValues.size() >= fancyModes.reduceVisitsThresholdLookback) {
+      double minWinLossValue = 1e20;
+      double maxWinLossValue = -1e20;
+      for(int j = 0; j<fancyModes.reduceVisitsThresholdLookback; j++) {
+        double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-1-j];
+        if(winLossValue < minWinLossValue)
+          minWinLossValue = winLossValue;
+        if(winLossValue > maxWinLossValue)
+          maxWinLossValue = winLossValue;
+      }
+      assert(fancyModes.reduceVisitsThreshold >= 0.0);
+      double signedMostExtreme = std::max(minWinLossValue,-maxWinLossValue);
+      assert(signedMostExtreme <= 1.000001);
+      if(signedMostExtreme > 1.0)
+        signedMostExtreme = 1.0;
+      double amountThrough = signedMostExtreme - fancyModes.reduceVisitsThreshold;
+      if(amountThrough > 0) {
+        double proportionThrough = amountThrough / (1.0 - fancyModes.reduceVisitsThreshold);
+        assert(proportionThrough >= 0.0 && proportionThrough <= 1.0);
+        double visitReductionProp = proportionThrough * proportionThrough;
+        doAlterVisitsPlayouts = true;
+        numAlterVisits = (int64_t)round(numAlterVisits + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numAlterVisits));
+        numAlterPlayouts = (int64_t)round(numAlterPlayouts + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numAlterPlayouts));
+        targetWeight = (float)(targetWeight + visitReductionProp * (fancyModes.reducedVisitsWeight - targetWeight));
+        numAlterVisits = std::max(numAlterVisits,(int64_t)fancyModes.reducedVisitsMin);
+        numAlterPlayouts = std::max(numAlterPlayouts,(int64_t)fancyModes.reducedVisitsMin);
+      }
+    }
+  }
+
+  if(otherGameProps.playoutDoublingAdvantage != 0.0 && otherGameProps.playoutDoublingAdvantagePla != C_EMPTY) {
+    assert(pla == otherGameProps.playoutDoublingAdvantagePla || getOpp(pla) == otherGameProps.playoutDoublingAdvantagePla);
+
+    playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
+    playoutDoublingAdvantagePla = otherGameProps.playoutDoublingAdvantagePla;
+
+    double factor = pow(2.0, otherGameProps.playoutDoublingAdvantage);
+    if(pla == otherGameProps.playoutDoublingAdvantagePla)
+      factor = 2.0 * (factor / (factor + 1.0));
+    else
+      factor = 2.0 * (1.0 / (factor + 1.0));
+
+
+    doAlterVisitsPlayouts = true;
+    //Set this back to true - we need to always clear the search if we are doing asymmetric playouts
+    clearBotBeforeSearchThisMove = true;
+    numAlterVisits = (int64_t)round(numAlterVisits * factor);
+    numAlterPlayouts = (int64_t)round(numAlterPlayouts * factor);
+
+    //Hardcoded limit here to ensure sanity
+    if(numAlterVisits < 5)
+      throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 visits");
+    if(numAlterPlayouts < 5)
+      throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 playouts");
+  }
+
+  SearchLimitsThisMove limits;
+  limits.doAlterVisitsPlayouts = doAlterVisitsPlayouts;
+  limits.numAlterVisits = numAlterVisits;
+  limits.numAlterPlayouts = numAlterPlayouts;
+  limits.clearBotBeforeSearchThisMove = clearBotBeforeSearchThisMove;
+  limits.removeRootNoise = removeRootNoise;
+  limits.targetWeight = targetWeight;
+  limits.playoutDoublingAdvantage = playoutDoublingAdvantage;
+  limits.playoutDoublingAdvantagePla = playoutDoublingAdvantagePla;
+  return limits;
+}
+
+//Returns the move chosen
+static Loc runBotWithLimits(
+  Search* toMoveBot, Player pla, const FancyModes& fancyModes,
+  const SearchLimitsThisMove& limits,
+  Logger& logger
+) {
+  if(limits.clearBotBeforeSearchThisMove)
+    toMoveBot->clearSearch();
+
+  Loc loc;
+
+  //HACK - Disable LCB for making the move (it will still affect the policy target gen)
+  bool lcb = toMoveBot->searchParams.useLcbForSelection;
+  if(fancyModes.forSelfPlay) {
+    toMoveBot->searchParams.useLcbForSelection = false;
+  }
+
+  if(limits.doAlterVisitsPlayouts) {
+    assert(limits.numAlterVisits > 0);
+    assert(limits.numAlterPlayouts > 0);
+    SearchParams oldParams = toMoveBot->searchParams;
+
+    toMoveBot->searchParams.maxVisits = limits.numAlterVisits;
+    toMoveBot->searchParams.maxPlayouts = limits.numAlterPlayouts;
+    if(limits.removeRootNoise) {
+      //Note - this is slightly sketchy to set the params directly. This works because
+      //some of the parameters like FPU are basically stateless and will just affect future playouts
+      //and because even stateful effects like rootNoiseEnabled and rootPolicyTemperature only affect
+      //the root so when we step down in the tree we get a fresh start.
+      toMoveBot->searchParams.rootNoiseEnabled = false;
+      toMoveBot->searchParams.rootPolicyTemperature = 1.0;
+      toMoveBot->searchParams.rootPolicyTemperatureEarly = 1.0;
+      toMoveBot->searchParams.rootFpuLossProp = toMoveBot->searchParams.fpuLossProp;
+      toMoveBot->searchParams.rootFpuReductionMax = toMoveBot->searchParams.fpuReductionMax;
+      toMoveBot->searchParams.rootDesiredPerChildVisitsCoeff = 0.0;
+      toMoveBot->searchParams.rootNumSymmetriesToSample = 1;
+    }
+    if(limits.playoutDoublingAdvantagePla != C_EMPTY) {
+      toMoveBot->searchParams.playoutDoublingAdvantagePla = limits.playoutDoublingAdvantagePla;
+      toMoveBot->searchParams.playoutDoublingAdvantage = limits.playoutDoublingAdvantage;
+    }
+
+    //If we cleared the search, do a very short search first to get a good dynamic score utility center
+    if(limits.clearBotBeforeSearchThisMove && toMoveBot->searchParams.maxVisits > 10 && toMoveBot->searchParams.maxPlayouts > 10) {
+      int64_t oldMaxVisits = toMoveBot->searchParams.maxVisits;
+      toMoveBot->searchParams.maxVisits = 10;
+      toMoveBot->runWholeSearchAndGetMove(pla,logger,NULL);
+      toMoveBot->searchParams.maxVisits = oldMaxVisits;
+    }
+    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,NULL);
+
+    toMoveBot->searchParams = oldParams;
+  }
+  else {
+    assert(!limits.removeRootNoise);
+    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,NULL);
+  }
+
+  //HACK - restore LCB so that it affects policy target gen
+  if(fancyModes.forSelfPlay) {
+    toMoveBot->searchParams.useLcbForSelection = lcb;
+  }
+
+  return loc;
+}
+
 
 //Run a game between two bots. It is OK if both bots are the same bot.
 FinishedGameData* Play::runGame(
@@ -839,8 +1608,7 @@ FinishedGameData* Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-  FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
-  bool allowPolicyInit,
+  const FancyModes& fancyModes, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
@@ -862,8 +1630,7 @@ FinishedGameData* Play::runGame(
     doEndGameIfAllPassAlive, clearBotBeforeSearch,
     logger, logSearchInfo, logMoves,
     maxMovesPerGame, stopConditions,
-    fancyModes, recordFullData, dataXLen, dataYLen,
-    allowPolicyInit,
+    fancyModes, otherGameProps,
     gameRand,
     checkForNewNNEval
   );
@@ -876,14 +1643,13 @@ FinishedGameData* Play::runGame(
 }
 
 FinishedGameData* Play::runGame(
-  const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
+  const Board& startBoard, Player startPla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
   MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
   Search* botB, Search* botW,
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
-  FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
-  bool allowPolicyInit,
+  const FancyModes& fancyModes, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
@@ -891,14 +1657,45 @@ FinishedGameData* Play::runGame(
 
   Board board(startBoard);
   BoardHistory hist(startHist);
+  Player pla = startPla;
+  assert(!(extraBlackAndKomi.makeGameFair && extraBlackAndKomi.makeGameFairForEmptyBoard));
+
+  if(extraBlackAndKomi.makeGameFairForEmptyBoard) {
+    Board b(startBoard.x_size,startBoard.y_size);
+    BoardHistory h(b,pla,startHist.rules,startHist.encorePhase);
+    h.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board,false));
+    adjustKomiToEven(botB,botW,b,h,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
+    hist.setKomi(roundAndClipKomi(h.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
+  }
   if(extraBlackAndKomi.extraBlack > 0) {
     double extraBlackTemperature = 1.0;
-    bool adjustKomi = !gameRand.nextBool(fancyModes.noCompensateKomiProb);
-    playExtraBlack(botB,logger,extraBlackAndKomi,board,hist,extraBlackTemperature,gameRand,adjustKomi,fancyModes.compensateKomiVisits);
+    playExtraBlack(botB,extraBlackAndKomi.extraBlack,board,hist,extraBlackTemperature,gameRand);
     assert(hist.moveHistory.size() == 0);
   }
-
-  vector<double>* recordUtilities = NULL;
+  if(extraBlackAndKomi.makeGameFair) {
+    //First, restore back to baseline komi
+    hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board,false));
+    //Adjust komi to be fair for the handicap according to what the bot thinks.
+    adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
+    //Then, reapply the komi offset from base that we should have had
+    hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
+  }
+  else if((extraBlackAndKomi.extraBlack > 0 || otherGameProps.isFork) &&
+          fancyModes.fancyKomiVarying &&
+          gameRand.nextBool(extraBlackAndKomi.extraBlack > 0 ? 0.5 : 0.25)) {
+    double origKomi = hist.rules.komi;
+    //First, restore back to baseline komi
+    hist.setKomi(roundAndClipKomi(extraBlackAndKomi.komiBase,board,false));
+    //Adjust komi to be fair for the handicap according to what the bot thinks.
+    adjustKomiToEven(botB,botW,board,hist,pla,fancyModes.compensateKomiVisits,logger,otherGameProps,gameRand);
+    //Then, reapply the komi offset from base that we should have had
+    hist.setKomi(roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
+    double newKomi = hist.rules.komi;
+    //Now, randomize between the old and new komi, with extra noise
+    double randKomi = gameRand.nextDouble(min(origKomi,newKomi),max(origKomi,newKomi));
+    randKomi += 0.75 * sqrt(board.x_size * board.y_size) * nextGaussianTruncated(gameRand,2.5);
+    hist.setKomi(roundAndClipKomi(randKomi, board, false));
+  }
 
   gameData->bName = botSpecB.botName;
   gameData->wName = botSpecW.botName;
@@ -909,14 +1706,16 @@ FinishedGameData* Play::runGame(
   gameData->gameHash.hash1 = gameRand.nextUInt64();
 
   gameData->drawEquivalentWinsForWhite = botSpecB.baseParams.drawEquivalentWinsForWhite;
+  gameData->playoutDoublingAdvantagePla = otherGameProps.playoutDoublingAdvantagePla;
+  gameData->playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
 
   gameData->numExtraBlack = extraBlackAndKomi.extraBlack;
   gameData->mode = 0;
   gameData->modeMeta1 = 0;
   gameData->modeMeta2 = 0;
 
-  if(recordFullData)
-    recordUtilities = new vector<double>(256);
+  //In selfplay, record all the policy maps and evals and such as well for training data
+  bool recordFullData = fancyModes.forSelfPlay;
 
   //NOTE: that checkForNewNNEval might also cause the old nnEval to be invalidated and freed. This is okay since the only
   //references we both hold on to and use are the ones inside the bots here, and we replace the ones in the botSpecs.
@@ -937,33 +1736,26 @@ FinishedGameData* Play::runGame(
     }
   };
 
-  if(fancyModes.initGamesWithPolicy && allowPolicyInit) {
-    //Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
-    //and add entropy
-    {
-      NNResultBuf buf;
+  if(fancyModes.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
+    double proportionOfBoardArea = 1.0 / 25.0;
+    double temperature = 1.0;
+    initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+  }
 
-      //This gives us about 15 moves on average for 19x19.
-      int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size / 25.0));
-      assert(numInitialMovesToPlay >= 0);
-      for(int i = 0; i<numInitialMovesToPlay; i++) {
-        Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand);
+  //Make sure there's some minimum tiny amount of data about how the encore phases work
+  if(fancyModes.forSelfPlay && hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.04)) {
+    //Play out to go a quite a bit later in the game.
+    double proportionOfBoardArea = 0.25;
+    double temperature = 2.0/3.0;
+    initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
 
-        //Make the move!
-        assert(hist.isLegal(board,loc,pla));
-        hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-        pla = getOpp(pla);
+    if(!hist.isGameFinished) {
+      //Even out the game
+      adjustKomiToEven(botB, botW, board, hist, pla, fancyModes.compensateKomiVisits, logger, otherGameProps, gameRand);
 
-        //Rarely, playing the random moves out this way will end the game
-        if(doEndGameIfAllPassAlive)
-          hist.endGameIfAllPassAlive(board);
-        if(hist.isGameFinished)
-          break;
-      }
-    }
-
-    //Make sure there's some minimum tiny amount of data about how the encore phases work
-    if(hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.02)) {
+      //Randomly set to one of the encore phases
+      //Since we played out the game a bunch we should get a good mix of stones that were present or not present at the start
+      //of the second encore phase if we're going into the second.
       int encorePhase = gameRand.nextInt(1,2);
       hist.clear(board,pla,hist.rules,encorePhase);
 
@@ -988,6 +1780,7 @@ FinishedGameData* Play::runGame(
   vector<SidePosition*> sidePositionsToSearch;
 
   vector<double> historicalMctsWinLossValues;
+  vector<double> policySurpriseByTurn;
 
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
@@ -999,97 +1792,11 @@ FinishedGameData* Play::runGame(
       break;
 
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
-    float targetWeight = 1.0;
 
-    bool doCapVisitsPlayouts = false;
-    int64_t numCapVisits = toMoveBot->searchParams.maxVisits;
-    int64_t numCapPlayouts = toMoveBot->searchParams.maxPlayouts;
-    bool clearBotBeforeSearchThisMove = clearBotBeforeSearch;
-    bool removeRootNoise = false;
-    if(fancyModes.cheapSearchProb > 0.0 && gameRand.nextBool(fancyModes.cheapSearchProb)) {
-      if(fancyModes.cheapSearchVisits <= 0)
-        throw StringError("fancyModes.cheapSearchVisits <= 0");
-      doCapVisitsPlayouts = true;
-      numCapVisits = fancyModes.cheapSearchVisits;
-      numCapPlayouts = fancyModes.cheapSearchVisits;
-      targetWeight *= fancyModes.cheapSearchTargetWeight;
-
-      //If not recording cheap searches, do a few more things
-      if(fancyModes.cheapSearchTargetWeight <= 0.0) {
-        clearBotBeforeSearchThisMove = false;
-        removeRootNoise = true;
-      }
-    }
-    else if(fancyModes.reduceVisits) {
-      if(fancyModes.reducedVisitsMin <= 0)
-        throw StringError("fancyModes.reducedVisitsMin <= 0");
-      if(historicalMctsWinLossValues.size() >= fancyModes.reduceVisitsThresholdLookback) {
-        double minWinLossValue = 1e20;
-        double maxWinLossValue = -1e20;
-        for(int j = 0; j<fancyModes.reduceVisitsThresholdLookback; j++) {
-          double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-1-j];
-          if(winLossValue < minWinLossValue)
-            minWinLossValue = winLossValue;
-          if(winLossValue > maxWinLossValue)
-            maxWinLossValue = winLossValue;
-        }
-        assert(fancyModes.reduceVisitsThreshold >= 0.0);
-        double signedMostExtreme = std::max(minWinLossValue,-maxWinLossValue);
-        assert(signedMostExtreme <= 1.000001);
-        if(signedMostExtreme > 1.0)
-          signedMostExtreme = 1.0;
-        double amountThrough = signedMostExtreme - fancyModes.reduceVisitsThreshold;
-        if(amountThrough > 0) {
-          double proportionThrough = amountThrough / (1.0 - fancyModes.reduceVisitsThreshold);
-          assert(proportionThrough >= 0.0 && proportionThrough <= 1.0);
-          double visitReductionProp = proportionThrough * proportionThrough;
-          doCapVisitsPlayouts = true;
-          numCapVisits = (int64_t)round(numCapVisits + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapVisits));
-          numCapPlayouts = (int64_t)round(numCapPlayouts + visitReductionProp * ((double)fancyModes.reducedVisitsMin - (double)numCapPlayouts));
-          targetWeight = (float)(targetWeight + visitReductionProp * (fancyModes.reducedVisitsWeight - targetWeight));
-          numCapVisits = std::max(numCapVisits,(int64_t)fancyModes.reducedVisitsMin);
-          numCapPlayouts = std::max(numCapPlayouts,(int64_t)fancyModes.reducedVisitsMin);
-        }
-      }
-    }
-
-    //In many cases, we are using root-level noise, so we want to clear the search each time so that we don't
-    //bias the search with the result of the previous...
-    if(clearBotBeforeSearchThisMove)
-      toMoveBot->clearSearch();
-
-    Loc loc;
-
-    //HACK - Disable LCB for making the move (it will still affect the policy target gen)
-    bool lcb = toMoveBot->searchParams.useLcbForSelection;
-    toMoveBot->searchParams.useLcbForSelection = false;
-
-    if(doCapVisitsPlayouts) {
-      assert(numCapVisits > 0);
-      assert(numCapPlayouts > 0);
-      SearchParams oldParams = toMoveBot->searchParams;
-
-      toMoveBot->searchParams.maxVisits = std::min(toMoveBot->searchParams.maxVisits, numCapVisits);
-      toMoveBot->searchParams.maxPlayouts = std::min(toMoveBot->searchParams.maxPlayouts, numCapPlayouts);
-      if(removeRootNoise) {
-        toMoveBot->searchParams.rootNoiseEnabled = false;
-        toMoveBot->searchParams.rootPolicyTemperature = 1.0;
-        toMoveBot->searchParams.rootFpuLossProp = toMoveBot->searchParams.fpuLossProp;
-        toMoveBot->searchParams.rootFpuReductionMax = toMoveBot->searchParams.fpuReductionMax;
-        toMoveBot->searchParams.rootDesiredPerChildVisitsCoeff = 0.0;
-      }
-
-      loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
-
-      toMoveBot->searchParams = oldParams;
-    }
-    else {
-      assert(!removeRootNoise);
-      loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,recordUtilities);
-    }
-
-    //HACK - restore LCB so that it affects policy target gen
-    toMoveBot->searchParams.useLcbForSelection = lcb;
+    SearchLimitsThisMove limits = getSearchLimitsThisMove(
+      toMoveBot, pla, fancyModes, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, otherGameProps
+    );
+    Loc loc = runBotWithLimits(toMoveBot, pla, fancyModes, limits, logger);
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegalStrict(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
@@ -1103,10 +1810,11 @@ FinishedGameData* Play::runGame(
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
       extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisits));
-      gameData->targetWeightByTurn.push_back(targetWeight);
+      gameData->targetWeightByTurn.push_back(limits.targetWeight);
+      policySurpriseByTurn.push_back(toMoveBot->getPolicySurprise());
 
       ValueTargets whiteValueTargets;
-      extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode, recordUtilities);
+      extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
       gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
 
 
@@ -1203,7 +1911,14 @@ FinishedGameData* Play::runGame(
       throw StringError("Recording full data currently incompatible with resignation");
 
     ValueTargets finalValueTargets;
-    Color area[Board::MAX_ARR_SIZE];
+
+    assert(gameData->finalFullArea == NULL);
+    assert(gameData->finalOwnership == NULL);
+    assert(gameData->finalSekiAreas == NULL);
+    gameData->finalFullArea = new Color[Board::MAX_ARR_SIZE];
+    gameData->finalOwnership = new Color[Board::MAX_ARR_SIZE];
+    gameData->finalSekiAreas = new bool[Board::MAX_ARR_SIZE];
+
     if(hist.isGameFinished && hist.isNoResult) {
       finalValueTargets.win = 0.0f;
       finalValueTargets.loss = 0.0f;
@@ -1212,50 +1927,103 @@ FinishedGameData* Play::runGame(
 
       //Fill with empty so that we use "nobody owns anything" as the training target.
       //Although in practice actually the training normally weights by having a result or not, so it doesn't matter what we fill.
-      std::fill(area,area+Board::MAX_ARR_SIZE,C_EMPTY);
+      std::fill(gameData->finalFullArea,gameData->finalFullArea+Board::MAX_ARR_SIZE,C_EMPTY);
+      std::fill(gameData->finalOwnership,gameData->finalOwnership+Board::MAX_ARR_SIZE,C_EMPTY);
+      std::fill(gameData->finalSekiAreas,gameData->finalSekiAreas+Board::MAX_ARR_SIZE,false);
     }
     else {
       //Relying on this to be idempotent, so that we can get the final territory map
       //We also do want to call this here to force-end the game if we crossed a move limit.
-      hist.endAndScoreGameNow(board,area);
+      hist.endAndScoreGameNow(board,gameData->finalOwnership);
 
       finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
       finalValueTargets.score = (float)ScoreValue::whiteScoreDrawAdjust(hist.finalWhiteMinusBlackScore,gameData->drawEquivalentWinsForWhite,hist);
+      finalValueTargets.hasLead = true;
+      finalValueTargets.lead = finalValueTargets.score;
 
-      //Dummy values, doesn't matter since we didn't do a search for the final values
-      finalValueTargets.mctsUtility1 = 0.0f;
-      finalValueTargets.mctsUtility4 = 0.0f;
-      finalValueTargets.mctsUtility16 = 0.0f;
-      finalValueTargets.mctsUtility64 = 0.0f;
-      finalValueTargets.mctsUtility256 = 0.0f;
+      //Fill full and seki areas
+      {
+        board.calculateArea(gameData->finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
+
+        Color* independentLifeArea = new Color[Board::MAX_ARR_SIZE];
+        int whiteMinusBlackIndependentLifeRegionCount;
+        board.calculateIndependentLifeArea(independentLifeArea,whiteMinusBlackIndependentLifeRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
+        for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
+          if(independentLifeArea[i] == C_EMPTY && (gameData->finalFullArea[i] == C_BLACK || gameData->finalFullArea[i] == C_WHITE))
+            gameData->finalSekiAreas[i] = true;
+          else
+            gameData->finalSekiAreas[i] = false;
+        }
+        delete independentLifeArea;
+      }
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
 
+    int dataXLen = fancyModes.dataXLen;
+    int dataYLen = fancyModes.dataYLen;
     assert(dataXLen > 0);
     assert(dataYLen > 0);
-    assert(gameData->finalWhiteOwnership == NULL);
-    gameData->finalWhiteOwnership = new int8_t[dataXLen*dataYLen];
-    std::fill(gameData->finalWhiteOwnership, gameData->finalWhiteOwnership + dataXLen*dataYLen, 0);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,dataXLen);
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        if(area[loc] == P_BLACK)
-          gameData->finalWhiteOwnership[pos] = -1;
-        else if(area[loc] == P_WHITE)
-          gameData->finalWhiteOwnership[pos] = 1;
-        else {
-          assert(area[loc] == C_EMPTY);
-          gameData->finalWhiteOwnership[pos] = 0;
-        }
-      }
-    }
+    assert(gameData->finalWhiteScoring == NULL);
+
+    gameData->finalWhiteScoring = new float[dataXLen*dataYLen];
+    NNInputs::fillOwnership(board,gameData->finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,dataXLen,dataYLen,gameData->finalWhiteScoring);
 
     gameData->hasFullData = true;
     gameData->dataXLen = dataXLen;
     gameData->dataYLen = dataYLen;
+
+    //Compute desired expectation with which to write main game rows
+    if(fancyModes.policySurpriseDataWeight > 0) {
+      int numWeights = gameData->targetWeightByTurn.size();
+      assert(numWeights == policySurpriseByTurn.size());
+
+      double sumWeights = 0.0;
+      double sumPolicySurpriseWeighted = 0.0;
+      for(int i = 0; i<numWeights; i++) {
+        float targetWeight = gameData->targetWeightByTurn[i];
+        assert(targetWeight >= 0.0 && targetWeight <= 1.0);
+        sumWeights += targetWeight;
+        double policySurprise = policySurpriseByTurn[i];
+        assert(policySurprise >= 0.0);
+        sumPolicySurpriseWeighted += policySurprise * targetWeight;
+      }
+
+      if(sumWeights >= 1) {
+        double averagePolicySurpriseWeighted = sumPolicySurpriseWeighted / sumWeights;
+
+        //We also include some rows from non-full searches, if despite the shallow search
+        //they were quite surprising to the policy.
+        double thresholdToIncludeReduced = averagePolicySurpriseWeighted * 1.5;
+
+        //Part of the weight will be proportional to surprisePropValue which is just policySurprise on normal rows
+        //and the excess policySurprise beyond threshold on shallow searches.
+        //First pass - we sum up the surpriseValue.
+        double sumSurprisePropValue = 0.0;
+        for(int i = 0; i<numWeights; i++) {
+          float targetWeight = gameData->targetWeightByTurn[i];
+          double policySurprise = policySurpriseByTurn[i];
+          double surprisePropValue =
+            targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
+          sumSurprisePropValue += surprisePropValue;
+        }
+
+        //Just in case, avoid div by 0
+        if(sumSurprisePropValue > 1e-10) {
+          for(int i = 0; i<numWeights; i++) {
+            float targetWeight = gameData->targetWeightByTurn[i];
+            double policySurprise = policySurpriseByTurn[i];
+            double surprisePropValue =
+              targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
+            double newValue =
+              (1.0-fancyModes.policySurpriseDataWeight) * targetWeight
+              + fancyModes.policySurpriseDataWeight * surprisePropValue * sumWeights / sumSurprisePropValue;
+            gameData->targetWeightByTurn[i] = (float)(newValue);
+          }
+        }
+      }
+    }
 
     //Also evaluate all the side positions as well that we queued up to be searched
     NNResultBuf nnResultBuf;
@@ -1269,11 +2037,13 @@ FinishedGameData* Play::runGame(
 
       Search* toMoveBot = sp->pla == P_BLACK ? botB : botW;
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
-      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,recordUtilities);
+      //We do NOT apply playoutDoublingAdvantage here. If changing this, note that it is coordinated with train data writing
+      //not using playoutDoublingAdvantage for these rows too.
+      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,NULL);
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
-      extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode, recordUtilities);
-      sp->targetWeight = 1.0;
+      extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode);
+      sp->targetWeight = 1.0f;
       sp->unreducedNumVisits = toMoveBot->getRootVisits();
       sp->numNeuralNetChangesSoFar = gameData->changedNeuralNets.size();
 
@@ -1307,8 +2077,10 @@ FinishedGameData* Play::runGame(
           delete sp2;
         else {
           Search* toMoveBot2 = sp2->pla == P_BLACK ? botB : botW;
+          MiscNNInputParams nnInputParams;
+          nnInputParams.drawEquivalentWinsForWhite = toMoveBot2->searchParams.drawEquivalentWinsForWhite;
           toMoveBot2->nnEvaluator->evaluate(
-            sp2->board,sp2->hist,sp2->pla,toMoveBot2->searchParams.drawEquivalentWinsForWhite,
+            sp2->board,sp2->hist,sp2->pla,nnInputParams,
             nnResultBuf,NULL,false,false
           );
           Loc banMove = Board::NULL_LOC;
@@ -1324,69 +2096,173 @@ FinishedGameData* Play::runGame(
 
       maybeCheckForNewNNEval(gameData->endHist.moveHistory.size());
     }
-  }
 
-  if(recordUtilities != NULL)
-    delete recordUtilities;
+    //Resolve probabilistic weights of things
+    {
+      auto resolveWeight = [&gameRand](float weight){
+        if(weight <= 0) weight = 0;
+        float floored = floor(weight);
+        float excess = weight - floored;
+        weight = gameRand.nextBool(excess) ? floored+1 : floored;
+        return weight;
+      };
+
+      for(int i = 0; i<gameData->targetWeightByTurn.size(); i++)
+        gameData->targetWeightByTurn[i] = resolveWeight(gameData->targetWeightByTurn[i]);
+      for(int i = 0; i<gameData->sidePositions.size(); i++)
+        gameData->sidePositions[i]->targetWeight = resolveWeight(gameData->sidePositions[i]->targetWeight);
+    }
+
+    //Fill in lead estimation on full-search positions
+    if(fancyModes.estimateLeadProb > 0.0) {
+      assert(gameData->targetWeightByTurn.size() + 1 == gameData->whiteValueTargetsByTurn.size());
+      board = gameData->startBoard;
+      hist = gameData->startHist;
+      pla = gameData->startPla;
+
+      int startTurnNumber = gameData->startHist.moveHistory.size();
+      int numMoves = gameData->endHist.moveHistory.size() - gameData->startHist.moveHistory.size();
+      for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
+        int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
+        if(gameData->targetWeightByTurn[turnNumberAfterStart] > 0 &&
+           //Avoid computing lead when no result was considered to be very likely, since in such cases
+           //the relationship between komi and the result can somewhat break.
+           gameData->whiteValueTargetsByTurn[turnNumberAfterStart].noResult < 0.3 &&
+           gameRand.nextBool(fancyModes.estimateLeadProb)
+        ) {
+          gameData->whiteValueTargetsByTurn[turnNumberAfterStart].lead =
+            computeLead(botB,botW,board,hist,pla,fancyModes.estimateLeadVisits,logger,otherGameProps);
+          gameData->whiteValueTargetsByTurn[turnNumberAfterStart].hasLead = true;
+        }
+        Move move = gameData->endHist.moveHistory[absoluteTurnNumber];
+        assert(move.pla == pla);
+        hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);
+        pla = getOpp(pla);
+      }
+
+      for(int i = 0; i<gameData->sidePositions.size(); i++) {
+        SidePosition* sp = gameData->sidePositions[i];
+        if(sp->targetWeight > 0 &&
+           sp->whiteValueTargets.noResult < 0.3 &&
+           gameRand.nextBool(fancyModes.estimateLeadProb)
+        ) {
+          sp->whiteValueTargets.lead =
+            computeLead(botB,botW,sp->board,sp->hist,sp->pla,fancyModes.estimateLeadVisits,logger,otherGameProps);
+          sp->whiteValueTargets.hasLead = true;
+        }
+      }
+    }
+  }
 
   return gameData;
 }
 
-void Play::maybeForkGame(
-  const FinishedGameData* finishedGameData,
-  const InitialPosition** nextInitialPosition,
-  const FancyModes& fancyModes,
-  Rand& gameRand,
-  Search* bot,
-  Logger& logger
-) {
-  if(nextInitialPosition == NULL)
-    return;
-  *nextInitialPosition = NULL;
-  if(!gameRand.nextBool(fancyModes.earlyForkGameProb))
-    return;
-  //Just for conceptual simplicity, don't fork games that started in the encore
-  if(finishedGameData->startHist.encorePhase != 0)
-    return;
+static void replayGameUpToMove(const FinishedGameData* finishedGameData, int moveIdx, Rules rules, Board& board, BoardHistory& hist, Player& pla) {
+  board = finishedGameData->startHist.initialBoard;
+  pla = finishedGameData->startHist.initialPla;
 
-  assert(finishedGameData->startHist.initialBoard.pos_hash == finishedGameData->endHist.initialBoard.pos_hash);
-  assert(finishedGameData->startHist.initialPla == finishedGameData->endHist.initialPla);
+  if(rules.scoringRule == Rules::SCORING_AREA)
+    hist.clear(board,pla,rules,0);
+  else
+    hist.clear(board,pla,rules,finishedGameData->startHist.initialEncorePhase);
 
-  Board board = finishedGameData->startHist.initialBoard;
-  Player pla = finishedGameData->startHist.initialPla;
-  BoardHistory hist(board,pla,finishedGameData->startHist.rules,finishedGameData->startHist.encorePhase);
-
-  //Pick a random move to fork from near the start
-  int moveIdx = (int)floor(gameRand.nextExponential() * (fancyModes.earlyForkGameExpectedMoveProp * board.x_size * board.y_size));
-  //Make sure it's prior to the last move, so we have a real place to fork from
+  //Make sure it's prior to the last move
   moveIdx = std::min(moveIdx,(int)(finishedGameData->endHist.moveHistory.size()-1));
+
   //Replay all those moves
   for(int i = 0; i<moveIdx; i++) {
     Loc loc = finishedGameData->endHist.moveHistory[i].loc;
     if(!hist.isLegal(board,loc,pla)) {
-      cout << board << endl;
-      cout << colorToChar(pla) << endl;
-      cout << Location::toString(loc,board) << endl;
-      hist.printDebugInfo(cout,board);
-      cout << endl;
-      throw StringError("Illegal move when replaying to fork game?");
+      //We have a bug of some sort if we got an illegal move on replay, unless
+      //we are in encore phase (pass for ko may change) or the rules are different
+      if(rules == finishedGameData->startHist.rules && hist.encorePhase == 0) {
+        cout << board << endl;
+        cout << PlayerIO::colorToChar(pla) << endl;
+        cout << Location::toString(loc,board) << endl;
+        hist.printDebugInfo(cout,board);
+        cout << endl;
+        throw StringError("Illegal move when replaying to fork game?");
+      }
+      //Just break out due to the illegal move and stop the replay here
+      return;
     }
     assert(finishedGameData->endHist.moveHistory[i].pla == pla);
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
     pla = getOpp(pla);
 
-    //Just in case if somehow the game is over now, don't actually do anything
     if(hist.isGameFinished)
       return;
   }
+}
+
+static bool hasUnownedSpot(const FinishedGameData* finishedGameData) {
+  assert(finishedGameData->finalOwnership != NULL);
+  const Board& board = finishedGameData->startBoard;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(finishedGameData->finalOwnership[loc] == C_EMPTY)
+        return true;
+    }
+  }
+  return false;
+}
+
+void Play::maybeForkGame(
+  const FinishedGameData* finishedGameData,
+  ForkData* forkData,
+  const FancyModes& fancyModes,
+  Rand& gameRand,
+  Search* bot
+) {
+  if(forkData == NULL)
+    return;
+  assert(finishedGameData->startHist.initialBoard.pos_hash == finishedGameData->endHist.initialBoard.pos_hash);
+  assert(finishedGameData->startHist.initialPla == finishedGameData->endHist.initialPla);
+
+  //Just for conceptual simplicity, don't early fork games that started in the encore
+  if(finishedGameData->startHist.encorePhase != 0)
+    return;
+  bool earlyFork = gameRand.nextBool(fancyModes.earlyForkGameProb);
+  bool lateFork = !earlyFork && fancyModes.forkGameProb > 0 ? gameRand.nextBool(fancyModes.forkGameProb) : false;
+  if(!earlyFork && !lateFork)
+    return;
+
+  //Pick a random move to fork from near the start
+  int moveIdx;
+  if(earlyFork) {
+    moveIdx = (int)floor(
+      gameRand.nextExponential() * (
+        fancyModes.earlyForkGameExpectedMoveProp * finishedGameData->startBoard.x_size * finishedGameData->startBoard.y_size
+      )
+    );
+  }
+  else if(lateFork) {
+    moveIdx = finishedGameData->endHist.moveHistory.size() <= 0 ? 0 : (int)gameRand.nextUInt(finishedGameData->endHist.moveHistory.size());
+  }
+  else {
+    ASSERT_UNREACHABLE;
+  }
+
+  Board board;
+  Player pla;
+  BoardHistory hist;
+  replayGameUpToMove(finishedGameData, moveIdx, finishedGameData->startHist.rules, board, hist, pla);
+  //Just in case if somehow the game is over now, don't actually do anything
+  if(hist.isGameFinished)
+    return;
 
   //Pick a move!
-
+  if(fancyModes.forkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE)
+    throw StringError("fancyModes.forkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE");
   if(fancyModes.earlyForkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE)
     throw StringError("fancyModes.earlyForkGameMaxChoices > NNPos::MAX_NN_POLICY_SIZE");
+  int maxChoices = earlyFork ? fancyModes.earlyForkGameMaxChoices : fancyModes.forkGameMaxChoices;
+  if(maxChoices < fancyModes.forkGameMinChoices)
+    throw StringError("fancyModes fork game max choices < fancyModes.forkGameMinChoices");
 
   //Generate a selection of a small random number of choices
-  int numChoices = gameRand.nextInt(fancyModes.earlyForkGameMinChoices,fancyModes.earlyForkGameMaxChoices);
+  int numChoices = gameRand.nextInt(fancyModes.forkGameMinChoices, maxChoices);
   assert(numChoices <= NNPos::MAX_NN_POLICY_SIZE);
   Loc possibleMoves[NNPos::MAX_NN_POLICY_SIZE];
   int numPossible = chooseRandomLegalMoves(board,hist,pla,gameRand,possibleMoves,numChoices);
@@ -1404,7 +2280,9 @@ void Play::maybeForkGame(
     Board copy = board;
     BoardHistory copyHist = hist;
     copyHist.makeBoardMoveAssumeLegal(copy,loc,pla,NULL);
-    bot->nnEvaluator->evaluate(copy,copyHist,getOpp(pla),drawEquivalentWinsForWhite,buf,NULL,false,false);
+    MiscNNInputParams nnInputParams;
+    nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+    bot->nnEvaluator->evaluate(copy,copyHist,getOpp(pla),nnInputParams,buf,NULL,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
     double whiteScore = nnOutput->whiteScoreMean;
     if(bestMove == Board::NULL_LOC || (pla == P_WHITE && whiteScore > bestScore) || (pla == P_BLACK && whiteScore < bestScore)) {
@@ -1421,23 +2299,53 @@ void Play::maybeForkGame(
   //If the game is over now, don't actually do anything
   if(hist.isGameFinished)
     return;
-
-  //Adjust komi to be fair for the new unusual move according to what the net thinks
-  if(!gameRand.nextBool(fancyModes.noCompensateKomiProb)) {
-    //Adjust komi to be fair for the handicap according to what the bot thinks. Iterate a few times in case
-    //the neural net knows the bot isn't perfectly score maximizing.
-    for(int i = 0; i<3; i++) {
-      double finalWhiteScore = getWhiteScoreEstimate(bot, board, hist, pla, fancyModes.compensateKomiVisits, logger);
-      double fairKomi = hist.rules.komi - finalWhiteScore;
-      hist.setKomi(roundAndClipKomi(fairKomi,board));
-    }
-  }
-  *nextInitialPosition = new InitialPosition(board,hist,pla);
+  forkData->add(new InitialPosition(board,hist,pla));
 }
 
 
-GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, bool forSelfP, FancyModes fModes)
-  :logSearchInfo(),logMoves(),forSelfPlay(forSelfP),maxMovesPerGame(),clearBotBeforeSearch(),
+void Play::maybeSekiForkGame(
+  const FinishedGameData* finishedGameData,
+  ForkData* forkData,
+  const FancyModes& fancyModes,
+  const GameInitializer* gameInit,
+  Rand& gameRand
+) {
+  if(forkData == NULL)
+    return;
+  if(!fancyModes.sekiForkHack)
+    return;
+
+  //If there are any unowned spots, consider forking the last bit of the game, with random rules and even score
+  //Don't fork games starting in second encore though
+  const BoardHistory& endHist = finishedGameData->endHist;
+  if(endHist.isGameFinished && endHist.isScored && finishedGameData->startHist.encorePhase < 2 && hasUnownedSpot(finishedGameData)) {
+
+    for(int i = 0; i<2; i++) {
+      //Pick a random move to fork from near the end of the game
+      int moveIdx = (int)floor(endHist.moveHistory.size() * (1.0 - 0.10 * gameRand.nextExponential()) - 1.0);
+      if(moveIdx < 0)
+        moveIdx = 0;
+      if(moveIdx > endHist.moveHistory.size())
+        moveIdx = endHist.moveHistory.size();
+
+      //Randomly permute the rules
+      Rules rules = finishedGameData->startHist.rules;
+      rules = gameInit->randomizeScoringAndTaxRules(rules,gameRand);
+
+      Board board;
+      Player pla;
+      BoardHistory hist;
+      replayGameUpToMove(finishedGameData, moveIdx, rules, board, hist, pla);
+      //Just in case if somehow the game is over now, don't actually do anything
+      if(hist.isGameFinished)
+        continue;
+      forkData->addSeki(new InitialPosition(board,hist,pla),gameRand);
+    }
+  }
+}
+
+GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, FancyModes fModes, Logger& logger)
+  :logSearchInfo(),logMoves(),maxMovesPerGame(),clearBotBeforeSearch(),
    searchRandSeedBase(sRandSeedBase),
    fancyModes(fModes),
    gameInit(NULL)
@@ -1448,7 +2356,7 @@ GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, bool forS
   clearBotBeforeSearch = cfg.contains("clearBotBeforeSearch") ? cfg.getBool("clearBotBeforeSearch") : false;
 
   //Initialize object for randomizing game settings
-  gameInit = new GameInitializer(cfg);
+  gameInit = new GameInitializer(cfg,logger);
 }
 
 GameRunner::~GameRunner() {
@@ -1459,30 +2367,43 @@ FinishedGameData* GameRunner::runGame(
   int64_t gameIdx,
   const MatchPairer::BotSpec& bSpecB,
   const MatchPairer::BotSpec& bSpecW,
-  const InitialPosition* initialPosition,
-  const InitialPosition** nextInitialPosition,
+  ForkData* forkData,
   Logger& logger,
-  int dataXLen,
-  int dataYLen,
   vector<std::atomic<bool>*>& stopConditions,
   std::function<NNEvaluator*()>* checkForNewNNEval
 ) {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
 
-  if(nextInitialPosition != NULL)
-    *nextInitialPosition = NULL;
+  string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
+  Rand gameRand(searchRandSeed + ":" + "forGameRand");
 
-  Board board; Player pla; BoardHistory hist; ExtraBlackAndKomi extraBlackAndKomi;
-  if(forSelfPlay) {
+  const InitialPosition* initialPosition = NULL;
+  bool usedSekiForkHackPosition = false;
+  if(forkData != NULL) {
+    initialPosition = forkData->get(gameRand);
+
+    if(initialPosition == NULL && fancyModes.sekiForkHack && gameRand.nextBool(0.04)) {
+      initialPosition = forkData->getSeki(gameRand);
+      if(initialPosition != NULL)
+        usedSekiForkHackPosition = true;
+    }
+  }
+
+  Board board;
+  Player pla;
+  BoardHistory hist;
+  ExtraBlackAndKomi extraBlackAndKomi;
+  OtherGameProperties otherGameProps;
+  if(fancyModes.forSelfPlay) {
     assert(botSpecB.botIdx == botSpecW.botIdx);
     SearchParams params = botSpecB.baseParams;
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,fancyModes,otherGameProps);
     botSpecB.baseParams = params;
     botSpecW.baseParams = params;
   }
   else {
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,fancyModes,otherGameProps);
 
     bool rulesWereSupported;
     if(botSpecB.nnEval != NULL) {
@@ -1504,17 +2425,10 @@ FinishedGameData* GameRunner::runGame(
     clearBotBeforeSearchThisGame = true;
   }
 
-  string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
-  Rand gameRand(searchRandSeed + ":" + "forGameRand");
-
   //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
   //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
   //called on positions that occur after the game would have been autoterminated.
-  bool doEndGameIfAllPassAlive = forSelfPlay ? gameRand.nextBool(0.98) : true;
-  //In selfplay, record all the policy maps and evals and such as well for training data
-  bool recordFullData = forSelfPlay;
-  //Allow initial moves via direct policy if we're not specially specifying the initial position for this game
-  bool allowPolicyInit = initialPosition == NULL;
+  bool doEndGameIfAllPassAlive = fancyModes.forSelfPlay ? gameRand.nextBool(0.98) : true;
 
   Search* botB;
   Search* botW;
@@ -1534,8 +2448,7 @@ FinishedGameData* GameRunner::runGame(
     doEndGameIfAllPassAlive,clearBotBeforeSearchThisGame,
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,stopConditions,
-    fancyModes,recordFullData,dataXLen,dataYLen,
-    allowPolicyInit,
+    fancyModes,otherGameProps,
     gameRand,
     checkForNewNNEval //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame
   );
@@ -1554,11 +2467,17 @@ FinishedGameData* GameRunner::runGame(
 
   assert(finishedGameData != NULL);
 
-  Play::maybeForkGame(finishedGameData, nextInitialPosition, fancyModes, gameRand, botB, logger);
+  Play::maybeForkGame(finishedGameData, forkData, fancyModes, gameRand, botB);
+  if(!usedSekiForkHackPosition) {
+    Play::maybeSekiForkGame(finishedGameData, forkData, fancyModes, gameInit, gameRand);
+  }
 
   if(botW != botB)
     delete botW;
   delete botB;
+
+  if(initialPosition != NULL)
+    delete initialPosition;
 
   return finishedGameData;
 }

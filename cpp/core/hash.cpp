@@ -42,6 +42,15 @@ uint64_t Hash::murmurMix(uint64_t x)
   return x;
 }
 
+//Splitmix64 mixing step
+uint64_t Hash::splitMix64(uint64_t x)
+{
+  x = x + 0x9e3779b97f4a7c15ULL;
+  x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+  x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+  return x ^ (x >> 31);
+}
+
 //Robert Jenkins' 96 bit Mix Function
 uint32_t Hash::jenkinsMixSingle(uint32_t a, uint32_t b, uint32_t c)
 {
@@ -120,5 +129,3 @@ ostream& operator<<(ostream& out, const Hash128 other)
       << Global::uint64ToHexString(other.hash0);
   return out;
 }
-
-

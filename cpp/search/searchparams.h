@@ -2,6 +2,7 @@
 #define SEARCH_SEARCHPARAMS_H_
 
 #include "../core/global.h"
+#include "../game/board.h"
 
 struct SearchParams {
   //Utility function parameters
@@ -9,6 +10,7 @@ struct SearchParams {
   double staticScoreUtilityFactor; //Scaling for a [-1,1] "scoreValue" for having more/fewer points, centered at 0.
   double dynamicScoreUtilityFactor; //Scaling for a [-1,1] "scoreValue" for having more/fewer points, centered at recent estimated expected score.
   double dynamicScoreCenterZeroWeight; //Adjust dynamic score center this proportion of the way towards zero, capped at a reasonable amount.
+  double dynamicScoreCenterScale; //Adjust dynamic score scale. 1.0 indicates that score is cared about roughly up to board sizeish.
   double noResultUtilityForWhite; //Utility of having a no-result game (simple ko rules or nonterminating territory encore)
   double drawEquivalentWinsForWhite; //Consider a draw to be this many wins and one minus this many losses.
 
@@ -28,8 +30,10 @@ struct SearchParams {
   double rootDirichletNoiseWeight; //Policy at root is this weight * noise + (1 - this weight) * nn policy
 
   double rootPolicyTemperature; //At the root node, scale policy probs by this power
+  double rootPolicyTemperatureEarly; //At the root node, scale policy probs by this power, early in the game
   double rootFpuReductionMax; //Same as fpuReductionMax, but at root
   double rootFpuLossProp; //Same as fpuLossProp, but at root
+  int rootNumSymmetriesToSample; //For the root node, sample this many random symmetries (WITH replacement) and average the results together.
 
   //We use the min of these two together, and also excess visits get pruned if the value turns out bad.
   double rootDesiredPerChildVisitsCoeff; //Funnel sqrt(this * policy prob * total visits) down any given child that receives any visits at all at the root
@@ -48,6 +52,11 @@ struct SearchParams {
   //Mild behavior hackery
   double rootEndingBonusPoints; //Extra bonus (or penalty) to encourage good passing behavior at the end of the game.
   bool rootPruneUselessMoves; //Prune moves that are entirely useless moves that prolong the game.
+  bool conservativePass; //Never assume one's own pass will end the game.
+  bool localExplore; //Explore local tacticy moves a little more, to try to find some blind spots.
+
+  double playoutDoublingAdvantage; //Play as if we have this many doublings of playouts vs the opponent
+  Player playoutDoublingAdvantagePla; //Negate playoutDoublingAdvantage when making a move for the opponent of this player. If empty, opponent of the root player.
 
   //Threading-related
   uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes

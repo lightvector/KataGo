@@ -6,8 +6,12 @@ Many thanks to these additional authors:
 Tycho Tatitscheff ("tychota") - for documentation and build improvements
 Bernd Schmidt ("bernds") - for minor build improvements
 Loren Puchalla Fiore ("lpuchallafiore") - for a wide variety of code refactors and fixes
-"TFiFiE" - for a minor build improvements
+"TFiFiE" - for minor build improvements
 "iopq" - for a fix to python script imports
+Brett Harrison - coauthor of part of the original game board code
+Annie Wagner ("featurecat") - slight readme edits
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support
+Akita Noek ("anoek") - for some minor performance and api suggestions
+"petgo3" - for bugfinding and advice on supporting KGS api

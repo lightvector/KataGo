@@ -21,6 +21,7 @@ import data
 from board import Board
 from model import Model, Target_vars, Metrics, ModelUtils
 import modelconfigs
+import tfrecordio
 
 #Command and args-------------------------------------------------------------------
 
@@ -98,6 +99,17 @@ with open(os.path.join(traindir,"model.config.json"),"w") as f:
 
 trainlog(str(sys.argv))
 
+
+# FIGURE OUT MULTIGPU ------------------------------------------------------------
+num_gpus_used = 1
+multi_gpu_device_ids = []
+if multi_gpus is not None:
+  for piece in multi_gpus.split(","):
+    piece = piece.strip()
+    multi_gpu_device_ids.append("/GPU:" + str(int(piece)))
+  num_gpus_used = len(multi_gpu_device_ids)
+
+
 # MODEL ----------------------------------------------------------------
 printed_model_yet = False
 initial_weights_already_loaded = False
@@ -164,7 +176,7 @@ def model_fn(features,labels,mode,params):
 
   print_model = not printed_model_yet
 
-  num_globalsteps_per_epoch = num_batches_per_epoch / num_gpus_used
+  num_globalsteps_per_epoch = num_batches_per_epoch
   built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_globalsteps_per_epoch,lr_scale)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
@@ -185,23 +197,22 @@ def model_fn(features,labels,mode,params):
     wsum_op = tf.assign_add(wsum,target_vars.weight_sum)
     return tf.estimator.EstimatorSpec(
       mode,
-      loss=target_vars.opt_loss / tf.constant(batch_size*num_gpus_used,dtype=tf.float32),
+      loss=target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32),
       eval_metric_ops={
         #"wsum": (wsum.read_value(),wsum_op),
         "p0loss": tf.compat.v1.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
         "p1loss": tf.compat.v1.metrics.mean(target_vars.policy1_loss_unreduced, weights=target_vars.target_weight_used),
         "vloss": tf.compat.v1.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
+        "tdvloss": tf.compat.v1.metrics.mean(target_vars.td_value_loss_unreduced, weights=target_vars.target_weight_used),
         "smloss": tf.compat.v1.metrics.mean(target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used),
+        "leadloss": tf.compat.v1.metrics.mean(target_vars.lead_loss_unreduced, weights=target_vars.target_weight_used),
+        "vtimeloss": tf.compat.v1.metrics.mean(target_vars.variance_time_loss_unreduced, weights=target_vars.target_weight_used),
         "sbpdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
         "sbcdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
-        "bbpdfloss": tf.compat.v1.metrics.mean(target_vars.bonusbelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
-        "bbcdfloss": tf.compat.v1.metrics.mean(target_vars.bonusbelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
-        "uvloss": tf.compat.v1.metrics.mean(target_vars.utilityvar_loss_unreduced, weights=target_vars.target_weight_used),
         "oloss": tf.compat.v1.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
-        "rwlloss": tf.compat.v1.metrics.mean(target_vars.winloss_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "rsmloss": tf.compat.v1.metrics.mean(target_vars.scoremean_reg_loss_unreduced, weights=target_vars.target_weight_used),
+        "sloss": tf.compat.v1.metrics.mean(target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used),
+        "fploss": tf.compat.v1.metrics.mean(target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used),
         "rsdloss": tf.compat.v1.metrics.mean(target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "roloss": tf.compat.v1.metrics.mean(target_vars.ownership_reg_loss_unreduced, weights=target_vars.target_weight_used),
         "rloss": tf.compat.v1.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
         "rscloss": tf.compat.v1.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
         "pacc1": tf.compat.v1.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
@@ -232,49 +243,52 @@ def model_fn(features,labels,mode,params):
     (p0loss,p0loss_op) = moving_mean("p0loss",target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used)
     (p1loss,p1loss_op) = moving_mean("p1loss",target_vars.policy1_loss_unreduced, weights=target_vars.target_weight_used)
     (vloss,vloss_op) = moving_mean("vloss",target_vars.value_loss_unreduced, weights=target_vars.target_weight_used)
+    (tdvloss,tdvloss_op) = moving_mean("tdvloss",target_vars.td_value_loss_unreduced, weights=target_vars.target_weight_used)
     (smloss,smloss_op) = moving_mean("smloss",target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used)
+    (leadloss,leadloss_op) = moving_mean("leadloss",target_vars.lead_loss_unreduced, weights=target_vars.target_weight_used)
+    (vtimeloss,vtimeloss_op) = moving_mean("vtimeloss",target_vars.variance_time_loss_unreduced, weights=target_vars.target_weight_used)
     (sbpdfloss,sbpdfloss_op) = moving_mean("sbpdfloss",target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used)
     (sbcdfloss,sbcdfloss_op) = moving_mean("sbcdfloss",target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used)
-    (bbpdfloss,bbpdfloss_op) = moving_mean("bbpdfloss",target_vars.bonusbelief_pdf_loss_unreduced, weights=target_vars.target_weight_used)
-    (bbcdfloss,bbcdfloss_op) = moving_mean("bbcdfloss",target_vars.bonusbelief_cdf_loss_unreduced, weights=target_vars.target_weight_used)
-    (uvloss,uvloss_op) = moving_mean("uvloss",target_vars.utilityvar_loss_unreduced, weights=target_vars.target_weight_used)
     (oloss,oloss_op) = moving_mean("oloss",target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used)
-    (rwlloss,rwlloss_op) = moving_mean("rwlloss",target_vars.winloss_reg_loss_unreduced, weights=target_vars.target_weight_used)
-    (rsmloss,rsmloss_op) = moving_mean("rsmloss",target_vars.scoremean_reg_loss_unreduced, weights=target_vars.target_weight_used)
+    (sloss,sloss_op) = moving_mean("sloss",target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used)
+    (fploss,fploss_op) = moving_mean("fploss",target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used)
+    (skloss,skloss_op) = moving_mean("skloss",target_vars.seki_loss_unreduced, weights=target_vars.target_weight_used)
     (rsdloss,rsdloss_op) = moving_mean("rsdloss",target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used)
-    (roloss,roloss_op) = moving_mean("roloss",target_vars.ownership_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (rloss,rloss_op) = moving_mean("rloss",target_vars.reg_loss_per_weight, weights=target_vars.weight_sum)
     (rscloss,rscloss_op) = moving_mean("rscloss",target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (pacc1,pacc1_op) = moving_mean("pacc1",metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
-    (ventr,ventr_op) = moving_mean("ventr",metrics.value_entropy_unreduced, weights=target_vars.target_weight_used)
     (ptentr,ptentr_op) = moving_mean("ptentr",metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
+    (gnorm,gnorm_op) = moving_mean("gnorm",metrics.gnorm, weights=1.0)
+    (exgnorm,exgnorm_op) = moving_mean("excessgnorm",metrics.excess_gnorm, weights=1.0)
     (wmean,wmean_op) = tf.compat.v1.metrics.mean(target_vars.weight_sum)
 
     print_train_loss_every_batches = 100
 
     logging_hook = tf.estimator.LoggingTensorHook({
-      "nsamp": global_step * tf.constant(batch_size*num_gpus_used,dtype=tf.int64),
+      "nsamp": global_step * tf.constant(batch_size,dtype=tf.int64),
       "wsum": global_step_float * wmean * tf.constant(float(num_gpus_used)),
       "p0loss": p0loss,
       "p1loss": p1loss,
       "vloss": vloss,
+      "tdvloss": tdvloss,
       "smloss": smloss,
+      "leadloss": leadloss,
+      "vtimeloss": vtimeloss,
       "sbpdfloss": sbpdfloss,
       "sbcdfloss": sbcdfloss,
-      "bbpdfloss": bbpdfloss,
-      "bbcdfloss": bbcdfloss,
-      "uvloss": uvloss,
       "oloss": oloss,
-      "rwlloss": rwlloss,
-      "rsmloss": rsmloss,
+      "sloss": sloss,
+      "fploss": fploss,
+      "skloss": skloss,
+      "skw": target_vars.seki_weight_scale,
       "rsdloss": rsdloss,
-      "roloss": roloss,
       "rloss": rloss,
       "rscloss": rscloss,
       "pacc1": pacc1,
-      "ventr": ventr,
       "ptentr": ptentr,
-      "pslr": per_sample_learning_rate
+      "pslr": per_sample_learning_rate,
+      "gnorm": gnorm,
+      "exgnorm": exgnorm,
     }, every_n_iter=print_train_loss_every_batches)
 
     printed_model_yet = True
@@ -305,60 +319,20 @@ def model_fn(features,labels,mode,params):
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
       train_op=tf.group(
         train_step,
-        p0loss_op,p1loss_op,vloss_op,smloss_op,sbpdfloss_op,sbcdfloss_op,bbpdfloss_op,bbcdfloss_op,
-        uvloss_op,oloss_op,rwlloss_op,rsmloss_op,rsdloss_op,roloss_op,rloss_op,rscloss_op,pacc1_op,ventr_op,ptentr_op,wmean_op
+        p0loss_op,p1loss_op,vloss_op,tdvloss_op,smloss_op,leadloss_op,vtimeloss_op,sbpdfloss_op,sbcdfloss_op,
+        oloss_op,sloss_op,fploss_op,skloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ptentr_op,wmean_op,
+        gnorm_op,exgnorm_op
       ),
       training_hooks = [logging_hook]
     )
 
 # INPUTS ------------------------------------------------------------------------
 
-num_bin_input_features = Model.get_num_bin_input_features(model_config)
-num_global_input_features = Model.get_num_global_input_features(model_config)
-
-NUM_POLICY_TARGETS = 2
-NUM_GLOBAL_TARGETS = 64
-NUM_VALUE_SPATIAL_TARGETS = 1
-EXTRA_SCORE_DISTR_RADIUS = 60
-BONUS_SCORE_RADIUS = 30
-
-raw_input_features = {
-  "binchwp": tf.io.FixedLenFeature([],tf.string),
-  "ginc": tf.io.FixedLenFeature([batch_size*num_global_input_features],tf.float32),
-  "ptncm": tf.io.FixedLenFeature([batch_size*NUM_POLICY_TARGETS*(pos_len*pos_len+1)],tf.float32),
-  "gtnc": tf.io.FixedLenFeature([batch_size*NUM_GLOBAL_TARGETS],tf.float32),
-  "sdn": tf.io.FixedLenFeature([batch_size*(pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2)],tf.float32),
-  "sbsn": tf.io.FixedLenFeature([batch_size*(BONUS_SCORE_RADIUS*2+1)],tf.float32),
-  "vtnchw": tf.io.FixedLenFeature([batch_size*NUM_VALUE_SPATIAL_TARGETS*pos_len*pos_len],tf.float32)
-}
-raw_input_feature_placeholders = {
-  "binchwp": tf.compat.v1.placeholder(tf.uint8,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
-  "ginc": tf.compat.v1.placeholder(tf.float32,[batch_size,num_global_input_features]),
-  "ptncm": tf.compat.v1.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
-  "gtnc": tf.compat.v1.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
-  "sdn": tf.compat.v1.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
-  "sbsn": tf.compat.v1.placeholder(tf.float32,[batch_size,BONUS_SCORE_RADIUS*2+1]),
-  "vtnchw": tf.compat.v1.placeholder(tf.float32,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
-}
-
-def parse_input(serialized_example):
-  example = tf.io.parse_single_example(serialized_example,raw_input_features)
-  binchwp = tf.decode_raw(example["binchwp"],tf.uint8)
-  ginc = example["ginc"]
-  ptncm = example["ptncm"]
-  gtnc = example["gtnc"]
-  sdn = example["sdn"]
-  sbsn = example["sbsn"]
-  vtnchw = example["vtnchw"]
-  return {
-    "binchwp": tf.reshape(binchwp,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
-    "ginc": tf.reshape(ginc,[batch_size,num_global_input_features]),
-    "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
-    "gtnc": tf.reshape(gtnc,[batch_size,NUM_GLOBAL_TARGETS]),
-    "sdn": tf.reshape(sdn,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
-    "sbsn": tf.reshape(sbsn,[batch_size,BONUS_SCORE_RADIUS*2+1]),
-    "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
-  }
+raw_input_feature_placeholders = tfrecordio.make_raw_input_feature_placeholders(model_config,pos_len,batch_size)
+if num_gpus_used > 1:
+  parse_input = tfrecordio.make_tf_record_parser(model_config,pos_len,batch_size,multi_num_gpus = num_gpus_used)
+else:
+  parse_input = tfrecordio.make_tf_record_parser(model_config,pos_len,batch_size,multi_num_gpus = None)
 
 def train_input_fn(train_files_to_use,total_num_train_files,batches_to_use,mode,input_context):
   assert(mode == tf.estimator.ModeKeys.TRAIN)
@@ -366,11 +340,13 @@ def train_input_fn(train_files_to_use,total_num_train_files,batches_to_use,mode,
     assert(input_context.num_input_pipelines == 1)
   trainlog("Constructing train input pipe, %d/%d files used (%d batches)" % (len(train_files_to_use),total_num_train_files,batches_to_use))
   dataset = tf.data.Dataset.from_tensor_slices(train_files_to_use)
-  dataset = dataset.shuffle(65536)
+  dataset = dataset.shuffle(1024)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
-  dataset = dataset.shuffle(1000)
+  dataset = dataset.shuffle(100)
   dataset = dataset.map(parse_input)
   dataset = dataset.prefetch(2)
+  if num_gpus_used > 1:
+    dataset = dataset.unbatch()
   return dataset
 
 def val_input_fn(vdatadir):
@@ -380,13 +356,14 @@ def val_input_fn(vdatadir):
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
   dataset = dataset.map(parse_input)
   dataset = dataset.prefetch(2)
+  if num_gpus_used > 1:
+    dataset = dataset.unbatch()
   return dataset
 
 # TRAINING PARAMETERS ------------------------------------------------------------
 
 trainlog("Beginning training")
 
-num_gpus_used = 1
 if multi_gpus is None:
   session_config = tf.ConfigProto()
   session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
@@ -402,14 +379,9 @@ if multi_gpus is None:
     )
   )
 else:
-  device_ids = []
-  for piece in multi_gpus.split(","):
-    piece = piece.strip()
-    device_ids.append("/GPU:" + str(int(piece)))
-  num_gpus_used = len(device_ids)
   session_config = tf.ConfigProto(allow_soft_placement=True)
   session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
-  multigpu_strategy = tf.distribute.MirroredStrategy(devices=device_ids)
+  multigpu_strategy = tf.distribute.MirroredStrategy(devices=multi_gpu_device_ids)
   estimator = tf.estimator.Estimator(
     model_fn=model_fn,
     model_dir=traindir,
@@ -460,7 +432,7 @@ else:
   trainhistory["history"].append(("initialized",model_config))
 
 def save_history(global_step_value):
-  trainhistory["history"].append(("nsamp",int(global_step_value * batch_size * num_gpus_used)))
+  trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
   savepath = os.path.join(traindir,"trainhistory.json")
   savepathtmp = os.path.join(traindir,"trainhistory.json.tmp")
   dump_and_flush_json(trainhistory,savepathtmp)
@@ -541,7 +513,7 @@ while True:
   trainlog("=========================================================================")
   trainlog("Current time: " + str(datetime.datetime.now()))
   if globalstep is not None:
-    trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size*num_gpus_used))
+    trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
 
   #SUB EPOCH LOOP -----------
   num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
@@ -596,7 +568,7 @@ while True:
     #Export a model for testing, unless somehow it already exists
     modelname = "%s-s%d-d%d" % (
       exportprefix,
-      globalstep*batch_size*num_gpus_used,
+      globalstep*batch_size,
       last_datainfo_row,
     )
     savepath = os.path.join(exportdir,modelname)
@@ -636,7 +608,9 @@ while True:
 
   #Validate
   trainlog("Beginning validation after epoch!")
-  val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".tfrecord")]
+  val_files = []
+  if os.path.exists(vdatadir):
+    val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".tfrecord")]
   if len(val_files) == 0:
     trainlog("No validation files, skipping validation step")
   else:

@@ -7,6 +7,7 @@
 #include "../core/rand.h"
 #include "../core/threadsafequeue.h"
 #include "../dataio/trainingwrite.h"
+#include "../dataio/sgf.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../search/search.h"
@@ -22,12 +23,45 @@ struct InitialPosition {
   ~InitialPosition();
 };
 
-STRUCT_NAMED_TRIPLE(int, extraBlack, float, komi, float, komiBase, ExtraBlackAndKomi);
+//Holds various initial positions that we may start from rather than a whole new game
+struct ForkData {
+  std::mutex mutex;
+  std::vector<const InitialPosition*> forks;
+  std::vector<const InitialPosition*> sekiForks;
+  ~ForkData();
+
+  void add(const InitialPosition* pos);
+  const InitialPosition* get(Rand& rand);
+
+  void addSeki(const InitialPosition* pos, Rand& rand);
+  const InitialPosition* getSeki(Rand& rand);
+};
+
+struct ExtraBlackAndKomi {
+  int extraBlack = 0;
+  float komi = 7.5;
+  float komiBase = 7.5;
+  bool makeGameFair = false;
+  bool makeGameFairForEmptyBoard = false;
+};
+
+struct OtherGameProperties {
+  bool isSgfPos = false;
+  bool allowPolicyInit = true;
+  bool isFork = false;
+
+  //Note: these two behave slightly differently than the ones in searchParams - as properties for the whole
+  //game, they make the playouts *actually* vary instead of only making the neural net think they do.
+  double playoutDoublingAdvantage = 0.0;
+  Player playoutDoublingAdvantagePla = C_EMPTY;
+};
+
+struct FancyModes;
 
 //Object choosing random initial rules and board sizes for games. Threadsafe.
 class GameInitializer {
  public:
-  GameInitializer(ConfigParser& cfg);
+  GameInitializer(ConfigParser& cfg, Logger& logger);
   ~GameInitializer();
 
   GameInitializer(const GameInitializer&) = delete;
@@ -38,38 +72,71 @@ class GameInitializer {
   //Also, mutates params to randomize appropriate things like utilities, but does NOT fill in all the settings.
   //User should make sure the initial params provided makes sense as a mean or baseline.
   //Does NOT place handicap stones, users of this function need to place them manually
-  void createGame(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, SearchParams& params, const InitialPosition* initialPosition);
+  void createGame(
+    Board& board, Player& pla, BoardHistory& hist,
+    ExtraBlackAndKomi& extraBlackAndKomi,
+    SearchParams& params,
+    const InitialPosition* initialPosition,
+    const FancyModes& fancyModes,
+    OtherGameProperties& otherGameProps
+  );
 
   //A version that doesn't randomize params
-  void createGame(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition);
+  void createGame(
+    Board& board, Player& pla, BoardHistory& hist,
+    ExtraBlackAndKomi& extraBlackAndKomi,
+    const InitialPosition* initialPosition,
+    const FancyModes& fancyModes,
+    OtherGameProperties& otherGameProps
+  );
+
+  Rules randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const;
 
  private:
-  void initShared(ConfigParser& cfg);
-  void createGameSharedUnsynchronized(Board& board, Player& pla, BoardHistory& hist, ExtraBlackAndKomi& extraBlackAndKomi, const InitialPosition* initialPosition);
+  void initShared(ConfigParser& cfg, Logger& logger);
+  void createGameSharedUnsynchronized(
+    Board& board, Player& pla, BoardHistory& hist,
+    ExtraBlackAndKomi& extraBlackAndKomi,
+    const InitialPosition* initialPosition,
+    const FancyModes& fancyModes,
+    OtherGameProperties& otherGameProps
+  );
 
   std::mutex createGameMutex;
   Rand rand;
 
   std::vector<std::string> allowedKoRuleStrs;
   std::vector<std::string> allowedScoringRuleStrs;
+  std::vector<std::string> allowedTaxRuleStrs;
   std::vector<bool> allowedMultiStoneSuicideLegals;
+  std::vector<bool> allowedButtons;
 
   std::vector<int> allowedKoRules;
   std::vector<int> allowedScoringRules;
+  std::vector<int> allowedTaxRules;
 
   std::vector<int> allowedBSizes;
   std::vector<double> allowedBSizeRelProbs;
+
+  double allowRectangleProb;
 
   float komiMean;
   float komiStdev;
   double komiAllowIntegerProb;
   double handicapProb;
-  float handicapStoneValue;
+  double handicapCompensateKomiProb;
+  double forkCompensateKomiProb;
   double komiBigStdevProb;
   float komiBigStdev;
+  bool komiAuto;
 
+  int numExtraBlackFixed;
   double noResultStdev;
   double drawRandRadius;
+
+  std::vector<Sgf::PositionSample> startPoses;
+  std::vector<double> startPosCumProbs;
+  double startPosesProb;
 };
 
 
@@ -131,7 +198,7 @@ class MatchPairer {
 
   int matchRepFactor;
   int repsOfLastMatchup;
-  
+
   int64_t numGamesStartedSoFar;
   int64_t numGamesTotal;
   int64_t logGamesEvery;
@@ -147,17 +214,25 @@ struct FancyModes {
   //Occasionally try some alternative moves and search the responses to them.
   double forkSidePositionProb;
 
-  //In handicap games and when forking a whole game - with this probability do NOT adjust the komi to be fair.
-  double noCompensateKomiProb;
   //Use this many visits in a short search to estimate the score, for adjusting komi
   int compensateKomiVisits;
-  
+  int estimateLeadVisits;
+  //On each train position, estimate the lead in points with this probability
+  double estimateLeadProb;
+
   //Occasionally fork an entire new game to try out an experimental move in the opening
-  double earlyForkGameProb; //Expected number of forked games per game
+  double earlyForkGameProb; //Expected number of early forked games per game
   double earlyForkGameExpectedMoveProp; //Fork on average within the first board area * this prop moves
-  int earlyForkGameMinChoices; //Fork between the favorite of this many random legal moves, at minimum
+  double forkGameProb; //Expected number of forked games per game
+  int forkGameMinChoices; //Fork between the favorite of this many random legal moves, at minimum
   int earlyForkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
-  
+  int forkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
+
+  //Hack to make learning of seki easier - fork positions with different rules when we have sekis
+  bool sekiForkHack;
+  //Hack to improve learning of very weird komi and very lopsided positions
+  bool fancyKomiVarying;
+
   //With this probability, use only this many visits for a move, and record it with only this weight
   double cheapSearchProb;
   int cheapSearchVisits;
@@ -169,7 +244,10 @@ struct FancyModes {
   int reduceVisitsThresholdLookback; //Value must be more extreme over the last this many turns
   int reducedVisitsMin; //Number of visits at the most extreme winrate
   float reducedVisitsWeight; //Amount of weight to put on the training sample at minimum visits winrate.
-  
+
+  //Probabilistically favor samples that had high policy surprise (kl divergence).
+  double policySurpriseDataWeight;
+
   //Record positions from within the search tree that had at least this many visits, recording only with this weight.
   bool recordTreePositions;
   int recordTreeThreshold;
@@ -180,6 +258,17 @@ struct FancyModes {
   double resignThreshold; //Require that mcts win value is less than this
   double resignConsecTurns; //Require that both players have agreed on it continuously for this many turns
 
+  //Enable full data recording and a variety of other minor tweaks applying only for self-play training.
+  bool forSelfPlay;
+  int dataXLen; //When self-play data recording, the width/height of the tensor
+  int dataYLen; //When self-play data recording, the width/height of the tensor
+
+  //Asymmetric playouts training
+  double handicapAsymmetricPlayoutProb; //Probability of asymmetric playouts on handicap games
+  double normalAsymmetricPlayoutProb; //Probability of asymmetric playouts on normal games
+  double maxAsymmetricRatio;
+  double minAsymmetricCompensateKomiProb; //Minimum probability to make game fair if asymmetric (other probs will also override)
+
   FancyModes();
   ~FancyModes();
 };
@@ -189,14 +278,11 @@ namespace Play {
   //Use the given bot to play free handicap stones, modifying the board and hist in the process and setting the bot's position to it.
   void playExtraBlack(
     Search* bot,
-    Logger& logger,
-    ExtraBlackAndKomi extraBlackAndKomi,
+    int numExtraBlack,
     Board& board,
     BoardHistory& hist,
     double temperature,
-    Rand& gameRand,
-    bool adjustKomi,
-    int numVisitsForKomi
+    Rand& gameRand
   );
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
@@ -207,8 +293,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
-    FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
-    bool allowPolicyInit,
+    const FancyModes& fancyModes, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -221,19 +306,25 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
-    FancyModes fancyModes, bool recordFullData, int dataXLen, int dataYLen,
-    bool allowPolicyInit,
+    const FancyModes& fancyModes, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
-  
+
   void maybeForkGame(
     const FinishedGameData* finishedGameData,
-    const InitialPosition** nextInitialPosition,
+    ForkData* forkData,
     const FancyModes& fancyModes,
     Rand& gameRand,
-    Search* bot,
-    Logger& logger
+    Search* bot
+  );
+
+  void maybeSekiForkGame(
+    const FinishedGameData* finishedGameData,
+    ForkData* forkData,
+    const FancyModes& fancyModes,
+    const GameInitializer* gameInit,
+    Rand& gameRand
   );
 
   Loc chooseRandomPolicyMove(
@@ -248,12 +339,26 @@ namespace Play {
   );
 
   void adjustKomiToEven(
-    Search* bot,
+    Search* botB,
+    Search* botW,
     const Board& board,
     BoardHistory& hist,
     Player pla,
     int64_t numVisits,
-    Logger& logger
+    Logger& logger,
+    const OtherGameProperties& otherGameProps,
+    Rand& rand
+  );
+
+  float computeLead(
+    Search* botB,
+    Search* botW,
+    const Board& board,
+    BoardHistory& hist,
+    Player pla,
+    int64_t numVisits,
+    Logger& logger,
+    const OtherGameProperties& otherGameProps
   );
 
   double getSearchFactor(
@@ -263,6 +368,10 @@ namespace Play {
     const std::vector<double>& recentWinLossValues,
     Player pla
   );
+
+  int numHandicapStones(const Board& initialBoard, const std::vector<Move>& moveHistory, bool assumeMultipleStartingBlackMovesAreHandicap);
+
+  double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla);
 }
 
 
@@ -271,7 +380,6 @@ namespace Play {
 class GameRunner {
   bool logSearchInfo;
   bool logMoves;
-  bool forSelfPlay;
   int maxMovesPerGame;
   bool clearBotBeforeSearch;
   std::string searchRandSeedBase;
@@ -279,7 +387,7 @@ class GameRunner {
   GameInitializer* gameInit;
 
 public:
-  GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, bool forSelfPlay, FancyModes fancyModes);
+  GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, FancyModes fancyModes, Logger& logger);
   ~GameRunner();
 
   //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data
@@ -288,11 +396,8 @@ public:
     int64_t gameIdx,
     const MatchPairer::BotSpec& botSpecB,
     const MatchPairer::BotSpec& botSpecW,
-    const InitialPosition* initialPosition,
-    const InitialPosition** nextInitialPosition,
+    ForkData* forkData,
     Logger& logger,
-    int dataXLen,
-    int dataYLen,
     std::vector<std::atomic<bool>*>& stopConditions,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );

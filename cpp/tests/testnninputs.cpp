@@ -15,13 +15,17 @@ static void printNNInputHWAndBoard(
   int nnXLen, int nnYLen, bool inputsUseNHWC, T* row, int c
 ) {
   int numFeatures;
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
   if(inputsVersion == 3)
     numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V3;
   else if(inputsVersion == 4)
     numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V4;
   else if(inputsVersion == 5)
     numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V5;
+  else if(inputsVersion == 6)
+    numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V6;
+  else if(inputsVersion == 7)
+    numFeatures = NNInputs::NUM_FEATURES_SPATIAL_V7;
   else
     testAssert(false);
 
@@ -41,7 +45,7 @@ static void printNNInputHWAndBoard(
       out << "  ";
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
-        char s = colorToChar(board.colors[loc]);
+        char s = PlayerIO::colorToChar(board.colors[loc]);
         out << s;
 
         bool histMarked = false;
@@ -64,13 +68,17 @@ static void printNNInputHWAndBoard(
 template <typename T>
 static void printNNInputGlobal(ostream& out, int inputsVersion, T* row, int c) {
   int numFeatures;
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
   if(inputsVersion == 3)
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V3;
   else if(inputsVersion == 4)
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V4;
   else if(inputsVersion == 5)
     numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V5;
+  else if(inputsVersion == 6)
+    numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V6;
+  else if(inputsVersion == 7)
+    numFeatures = NNInputs::NUM_FEATURES_GLOBAL_V7;
   else
     testAssert(false);
   (void)numFeatures;
@@ -94,12 +102,12 @@ static string getAndClear(ostringstream& out) {
 
 
 void Tests::runNNInputsV3V4Tests() {
-  cout << "Running NN inputs V3V4V5 tests" << endl;
+  cout << "Running NN inputs V3V4V5V6 tests" << endl;
   ostringstream out;
   out << std::setprecision(5);
 
   auto allocateRows = [](int version, int nnXLen, int nnYLen, int& numFeaturesBin, int& numFeaturesGlobal, float*& rowBin, float*& rowGlobal) {
-    static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
     if(version == 3) {
       numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V3;
       numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V3;
@@ -118,6 +126,18 @@ void Tests::runNNInputsV3V4Tests() {
       rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V5 * nnXLen * nnYLen];
       rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V5];
     }
+    else if(version == 6) {
+      numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V6;
+      numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V6;
+      rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V6 * nnXLen * nnYLen];
+      rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V6];
+    }
+    else if(version == 7) {
+      numFeaturesBin = NNInputs::NUM_FEATURES_SPATIAL_V7;
+      numFeaturesGlobal = NNInputs::NUM_FEATURES_GLOBAL_V7;
+      rowBin = new float[NNInputs::NUM_FEATURES_SPATIAL_V7 * nnXLen * nnYLen];
+      rowGlobal = new float[NNInputs::NUM_FEATURES_GLOBAL_V7];
+    }
     else
       testAssert(false);
   };
@@ -125,29 +145,32 @@ void Tests::runNNInputsV3V4Tests() {
   auto fillRows = [](int version, Hash128& hash,
                      Board& board, const BoardHistory& hist, Player nextPla, double drawEquivalentWinsForWhite, int nnXLen, int nnYLen, bool inputsUseNHWC,
                      float* rowBin, float* rowGlobal) {
-    static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
-    if(version == 3) {
-      hash = NNInputs::getHashV3(board,hist,nextPla,drawEquivalentWinsForWhite);
-      NNInputs::fillRowV3(board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
-    }
-    else if(version == 4) {
-      hash = NNInputs::getHashV4(board,hist,nextPla,drawEquivalentWinsForWhite);
-      NNInputs::fillRowV4(board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
-    }
-    else if(version == 5) {
-      hash = NNInputs::getHashV5(board,hist,nextPla,drawEquivalentWinsForWhite);
-      NNInputs::fillRowV5(board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
-    }
+    MiscNNInputParams nnInputParams;
+    nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+
+    hash = NNInputs::getHash(board,hist,nextPla,nnInputParams);
+
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
+    if(version == 3)
+      NNInputs::fillRowV3(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+    else if(version == 4)
+      NNInputs::fillRowV4(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+    else if(version == 5)
+      NNInputs::fillRowV5(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+    else if(version == 6)
+      NNInputs::fillRowV6(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+    else if(version == 7)
+      NNInputs::fillRowV7(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
     else
       testAssert(false);
   };
 
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
   int minVersion = 3;
-  int maxVersion = 5;
+  int maxVersion = 7;
 
   {
-    const char* name = "NN Inputs V3V4V5 Basic";
+    const char* name = "NN Inputs V3V4V5V6 Basic";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -206,7 +229,7 @@ void Tests::runNNInputsV3V4Tests() {
   }
 
   {
-    const char* name = "NN Inputs V3V4V5 Ko";
+    const char* name = "NN Inputs V3V4V5V6 Ko";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -244,7 +267,7 @@ void Tests::runNNInputsV3V4Tests() {
         Hash128 hash;
         fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
         out << hash << endl;
-        int c = version <= 5 ? 6 : 3;
+        int c = version != 5 ? 6 : 3;
         printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
         for(c = 0; c<numFeaturesGlobal; c++)
           printNNInputGlobal(out,version,rowGlobal,c);
@@ -252,7 +275,7 @@ void Tests::runNNInputsV3V4Tests() {
       };
 
       string actualNHWC = run(true);
-      string actualNCHW = run(true);
+      string actualNCHW = run(false);
 
       expect(name,actualNHWC,actualNCHW);
       cout << actualNHWC << endl;
@@ -266,7 +289,7 @@ void Tests::runNNInputsV3V4Tests() {
 
 
   {
-    const char* name = "NN Inputs V3 7x7";
+    const char* name = "NN Inputs V3V4V5V6 7x7";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -325,7 +348,7 @@ void Tests::runNNInputsV3V4Tests() {
   }
 
   {
-    const char* name = "NN Inputs V3 7x7 embedded in 9x9";
+    const char* name = "NN Inputs V3V4V5V6 7x7 embedded in 9x9";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -384,12 +407,14 @@ void Tests::runNNInputsV3V4Tests() {
   }
 
   {
-    const char* name = "NN Inputs V3 Area Komi";
+    const char* name = "NN Inputs V3V4V6 Area Komi";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
 
-    for(int version = minVersion; version <= 4; version++) {
+    for(int version = minVersion; version <= maxVersion; version++) {
+      if(version == 5)
+        continue;
       cout << "VERSION " << version << endl;
       Board board = Board::parseBoard(7,7,R"%%(
 .xo.oo.
@@ -448,7 +473,7 @@ xxx..xx
   }
 
   {
-    const char* name = "NN Inputs V3 Rules";
+    const char* name = "NN Inputs V3V4V5V6 Rules";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -458,30 +483,83 @@ xxx..xx
       Player nextPla = P_BLACK;
 
       vector<Rules> rules = {
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, false, 1.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, true, 1.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, false, 2.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, true, 2.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, false, 3.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, true, 3.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, false, 4.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, true, 4.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, false, 5.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, true, 5.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, false, 6.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, true, 6.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 1.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, true, 1.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 2.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, true, 2.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, false, 3.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, true, 3.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, false, 4.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, true, 4.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, false, 5.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, true, 5.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, false, 6.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, true, 6.5f)
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, true, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, true, 6.5f),
+
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, true, false, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, true, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, true, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, false, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, true, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, false, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, true, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, true, 6.5f),
+
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, false, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, true, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, false, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, true, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, false, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, true, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, true, 6.5f),
+
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, false, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, true, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, false, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, true, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, false, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, true, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, true, 6.5f),
+
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, false, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, false, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, false, true, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, false, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, true, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, false, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, true, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, true, 6.5f),
+
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, false, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, false, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, true, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, true, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, false, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, false, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, true, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, true, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, false, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, false, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, true, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, true, 6.5f),
       };
 
       int nnXLen = size;
@@ -497,13 +575,17 @@ xxx..xx
         float* rowGlobal;
         allocateRows(version,nnXLen,nnYLen,numFeaturesBin,numFeaturesGlobal,rowBin,rowGlobal);
 
-        for(int c = 0; c<numFeaturesGlobal; c++) {
-          for(int i = 0; i<rules.size(); i++) {
-            BoardHistory hist(board,nextPla,rules[i],0);
-            bool inputsUseNHWC = true;
-            Hash128 hash;
-            fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
-            out << rowGlobal[c] << " ";
+        for(int i = 0; i<rules.size(); i += 24) {
+          for(int c = 0; c<numFeaturesGlobal; c++) {
+            for(int j = 0; j<24; j++) {
+              testAssert(i + j < rules.size());
+              BoardHistory hist(board,nextPla,rules[i+j],0);
+              bool inputsUseNHWC = true;
+              Hash128 hash;
+              fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+              out << rowGlobal[c] << " ";
+            }
+            out << endl;
           }
           out << endl;
         }
@@ -518,7 +600,7 @@ xxx..xx
   }
 
   {
-    const char* name = "NN Inputs V3 Ko Prohib and pass hist and whitebonus and encorestart";
+    const char* name = "NN Inputs V3V4V6 Ko Prohib and pass hist and whitebonus and encorestart";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -529,12 +611,14 @@ xxx..xx
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
     vector<Move>& moves = sgf->moves;
 
-    for(int version = minVersion; version <= 4; version++) {
+    for(int version = minVersion; version <= maxVersion; version++) {
+      if(version == 5)
+        continue;
       cout << "VERSION " << version << endl;
       Board board;
       Player nextPla;
       BoardHistory hist;
-      Rules initialRules = Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, false, 0.0f);
+      Rules initialRules = Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, 0.0f);
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
 
@@ -570,8 +654,14 @@ xxx..xx
             out << rowGlobal[c] << " ";
           out << endl;
           out << "Selfkomi channel times 15: " << rowGlobal[5]*15 << endl;
-          out << "EncorePhase channel 10,11: " << rowGlobal[10] << " " << rowGlobal[11] << endl;
-          out << "PassWouldEndPhase channel 12: " << rowGlobal[12] << endl;
+          if(version >= 6) {
+            out << "EncorePhase channel 12,13: " << rowGlobal[12] << " " << rowGlobal[13] << endl;
+            out << "PassWouldEndPhase channel 14: " << rowGlobal[14] << endl;
+          }
+          else {
+            out << "EncorePhase channel 10,11: " << rowGlobal[10] << " " << rowGlobal[11] << endl;
+            out << "PassWouldEndPhase channel 12: " << rowGlobal[12] << endl;
+          }
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,7);
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,8);
           printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,20);
@@ -589,7 +679,7 @@ xxx..xx
   }
 
   {
-    const char* name = "NN Inputs V3 some other test positions";
+    const char* name = "NN Inputs V3V4V6 some other test positions";
     cout << "-----------------------------------------------------------------" <<  endl;
     cout << name << endl;
     cout << "-----------------------------------------------------------------" <<  endl;
@@ -598,7 +688,9 @@ xxx..xx
 
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
-    for(int version = minVersion; version <= 4; version++) {
+    for(int version = minVersion; version <= maxVersion; version++) {
+      if(version == 5)
+        continue;
       cout << "VERSION " << version << endl;
       Board board;
       Player nextPla;
@@ -640,6 +732,178 @@ xxx..xx
     }
 
     delete sgf;
-
   }
+
+
+  {
+    const char* name = "NN Inputs V6 Area Feature and Komi";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
+
+    for(int version = 6; version <= maxVersion; version++) {
+      cout << "VERSION " << version << endl;
+
+      int nnXLen = 7;
+      int nnYLen = 7;
+      double drawEquivalentWinsForWhite = 0.5;
+      int numFeaturesBin;
+      int numFeaturesGlobal;
+      float* rowBin;
+      float* rowGlobal;
+      allocateRows(version,nnXLen,nnYLen,numFeaturesBin,numFeaturesGlobal,rowBin,rowGlobal);
+
+      for(int goToEncore2 = 0; goToEncore2 <= 1; goToEncore2++) {
+        int scoringRules[4] = {Rules::SCORING_AREA, Rules::SCORING_AREA, Rules::SCORING_TERRITORY, Rules::SCORING_TERRITORY};
+        int taxRules[4] = {Rules::TAX_NONE, Rules::TAX_SEKI, Rules::TAX_NONE, Rules::TAX_SEKI};
+        for(int whichRules = 0; whichRules < 4; whichRules++) {
+          Board board = Board::parseBoard(7,7,R"%%(
+...oxx.
+oooox.x
+xxxxoxx
+o.xoooo
+.oxox.o
+oxxo.x.
+o.xoo.x
+)%%");
+          Rules rules;
+          rules.koRule = Rules::KO_POSITIONAL;
+          rules.scoringRule = scoringRules[whichRules];
+          rules.komi = 6.5f;
+          rules.multiStoneSuicideLegal = false;
+          rules.taxRule = taxRules[whichRules];
+          BoardHistory hist(board,P_WHITE,rules,0);
+
+          auto run = [&](bool inputsUseNHWC) {
+            Player nextPla = hist.moveHistory.size() > 0 ? getOpp(hist.moveHistory[hist.moveHistory.size()-1].pla) : hist.initialPla;
+            Hash128 hash;
+            fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+            out << hash << endl;
+            printNNInputGlobal(out,version,rowGlobal,5);
+            int c = 18;
+            printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
+            c = 19;
+            printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
+            return getAndClear(out);
+          };
+          auto printOwnership = [&]() {
+            Board b(board);
+            BoardHistory h(hist);
+            Color area[Board::MAX_ARR_SIZE];
+            float ownership[Board::MAX_ARR_SIZE];
+            h.endAndScoreGameNow(b,area);
+            NNInputs::fillOwnership(b,area,false,board.x_size,board.y_size,ownership);
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++)
+                cout << Global::strprintf("%4.0f",100*ownership[x+y*board.x_size]) << " ";
+              cout << endl;
+            }
+            cout << endl;
+          };
+          auto runBoth = [&]() {
+            string actualNHWC = run(true);
+            string actualNCHW = run(false);
+            expect(name,actualNHWC,actualNCHW);
+            cout << "Rules: " << hist.rules << endl;
+            cout << "Komi and Bonus: " << hist.rules.komi << " " << hist.whiteBonusScore << endl;
+            cout << "Encore phase: " << hist.encorePhase << endl;
+            for(int i = 0; i<hist.moveHistory.size(); i++)
+              cout << Location::toString(hist.moveHistory[i].loc,board) << " ";
+            cout << actualNHWC;
+            printOwnership();
+          };
+
+          cout << "=========================================== " << endl;
+          cout << "goToEncore2 = " << goToEncore2 << endl;
+
+          runBoth();
+          if((bool)goToEncore2) {
+            hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_WHITE, NULL);
+            hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_BLACK, NULL);
+            runBoth();
+            hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_WHITE, NULL);
+            hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_BLACK, NULL);
+            runBoth();
+          }
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(6,5,board.x_size), P_WHITE, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(5,6,board.x_size), P_BLACK, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(0,4,board.x_size), P_WHITE, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(6,0,board.x_size), P_BLACK, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(1,0,board.x_size), P_WHITE, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(4,5,board.x_size), P_BLACK, NULL);
+          runBoth();
+          hist.makeBoardMoveAssumeLegal(board, Location::getLoc(5,4,board.x_size), P_WHITE, NULL);
+          runBoth();
+          cout << endl;
+        }
+      }
+
+      delete[] rowBin;
+      delete[] rowGlobal;
+    }
+  }
+
+  {
+    const char* name = "NN Inputs V6 Pass history";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
+
+    for(int version = 6; version <= maxVersion; version++) {
+      cout << "VERSION " << version << endl;
+
+      int nnXLen = 9;
+      int nnYLen = 1;
+      double drawEquivalentWinsForWhite = 0.5;
+      int numFeaturesBin;
+      int numFeaturesGlobal;
+      float* rowBin;
+      float* rowGlobal;
+      allocateRows(version,nnXLen,nnYLen,numFeaturesBin,numFeaturesGlobal,rowBin,rowGlobal);
+
+      Board board = Board(9,1);
+      Player nextPla = P_BLACK;
+      Rules initialRules = Rules::getSimpleTerritory();
+      BoardHistory hist(board,nextPla,initialRules,0);
+
+      auto run = [&](bool inputsUseNHWC) {
+        Hash128 hash;
+        fillRows(version,hash,board,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,9);
+        printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,10);
+        printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,11);
+        printNNInputGlobal(out,version,rowGlobal,0);
+        printNNInputGlobal(out,version,rowGlobal,1);
+        printNNInputGlobal(out,version,rowGlobal,2);
+        return getAndClear(out);
+      };
+      auto runBoth = [&]() {
+        string actualNHWC = run(true);
+        string actualNCHW = run(false);
+        expect(name,actualNHWC,actualNCHW);
+        for(int i = 0; i<hist.moveHistory.size(); i++)
+          cout << Location::toString(hist.moveHistory[i].loc,board) << " ";
+        cout << endl;
+        cout << actualNHWC;
+        cout << "-----" << endl;
+      };
+
+      vector<Loc> locs = Location::parseSequence("pass A1 D1 F1 H1 E1 G1 B1 J1 F1 J1 G1 C1 E1 B1 pass pass H1 J1 E1 G1 pass pass A1 pass D1 C1 B1", board);
+
+      for(int i = 0; i<locs.size(); i++) {
+        runBoth();
+        hist.makeBoardMoveAssumeLegal(board,locs[i],nextPla,NULL);
+        nextPla = getOpp(nextPla);
+      }
+
+      delete[] rowBin;
+      delete[] rowGlobal;
+    }
+  }
+
 }

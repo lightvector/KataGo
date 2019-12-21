@@ -17,6 +17,18 @@ static void checkWeightFinite(float f, const string& name) {
 #define CHECKFINITE(x, name) \
   { checkWeightFinite((x), name); }
 
+//For some strange reason, this function is noticeably faster than
+//float x; in >> x;
+static float readFloatFast(istream& in, string& tmp) {
+  in >> tmp;
+  char* endPtr;
+  const char* cstr = tmp.c_str();
+  float x = strtof(cstr,&endPtr);
+  if(endPtr == cstr)
+    in.setstate(ios_base::failbit);
+  return x;
+}
+
 ConvLayerDesc::ConvLayerDesc()
   : convYSize(0), convXSize(0), inChannels(0), outChannels(0), dilationY(1), dilationX(1) {}
 
@@ -50,12 +62,12 @@ ConvLayerDesc::ConvLayerDesc(istream& in) {
   int yStride = convXSize;
   int xStride = 1;
 
+  string tmp;
   for(int y = 0; y < convYSize; y++) {
     for(int x = 0; x < convXSize; x++) {
       for(int ic = 0; ic < inChannels; ic++) {
         for(int oc = 0; oc < outChannels; oc++) {
-          float w;
-          in >> w;
+          float w = readFloatFast(in,tmp);
           CHECKFINITE(w, name);
           weights[oc * ocStride + ic * icStride + y * yStride + x * xStride] = w;
         }
@@ -101,23 +113,24 @@ BatchNormLayerDesc::BatchNormLayerDesc(istream& in) {
   if(epsilon <= 0)
     throw StringError(name + ": epsilon (" + Global::floatToString(epsilon) + ") <= 0");
 
+  string tmp;
   float w;
   mean.resize(numChannels);
   for(int c = 0; c < numChannels; c++) {
-    in >> w;
+    w = readFloatFast(in,tmp);
     CHECKFINITE(w, name);
     mean[c] = w;
   }
   variance.resize(numChannels);
   for(int c = 0; c < numChannels; c++) {
-    in >> w;
+    w = readFloatFast(in,tmp);
     CHECKFINITE(w, name);
     variance[c] = w;
   }
   scale.resize(numChannels);
   for(int c = 0; c < numChannels; c++) {
     if(hasScale)
-      in >> w;
+      w = readFloatFast(in,tmp);
     else
       w = 1.0;
     CHECKFINITE(w, name);
@@ -126,7 +139,7 @@ BatchNormLayerDesc::BatchNormLayerDesc(istream& in) {
   bias.resize(numChannels);
   for(int c = 0; c < numChannels; c++) {
     if(hasBias)
-      in >> w;
+      w = readFloatFast(in,tmp);
     else
       w = 1.0;
     CHECKFINITE(w, name);
@@ -193,10 +206,10 @@ MatMulLayerDesc::MatMulLayerDesc(istream& in) {
   int icStride = outChannels;
   int ocStride = 1;
 
+  string tmp;
   for(int ic = 0; ic < inChannels; ic++) {
     for(int oc = 0; oc < outChannels; oc++) {
-      float w;
-      in >> w;
+      float w = readFloatFast(in,tmp);
       CHECKFINITE(w, name);
       weights[oc * ocStride + ic * icStride] = w;
     }
@@ -232,9 +245,9 @@ MatBiasLayerDesc::MatBiasLayerDesc(istream& in) {
 
   weights.resize(numChannels);
 
+  string tmp;
   for(int c = 0; c < numChannels; c++) {
-    float w;
-    in >> w;
+    float w = readFloatFast(in,tmp);
     CHECKFINITE(w, name);
     weights[c] = w;
   }
@@ -845,12 +858,19 @@ ValueHeadDesc::ValueHeadDesc(istream& in, int vrsn) {
       name +
       Global::strprintf(": sv3Mul.inChannels (%d) != v2Mul.outChannels (%d)", sv3Mul.inChannels, v2Mul.outChannels));
 
-  if(version >= 4) {
+  if(version >= 8) {
+    if(sv3Mul.outChannels != 4)
+      throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 4", sv3Mul.outChannels));
+    if(sv3Bias.numChannels != 4)
+      throw StringError(name + Global::strprintf(": sv3Bias.numChannels (%d) != 4", sv3Bias.numChannels));
+  }
+  else if(version >= 4) {
     if(sv3Mul.outChannels != 2)
       throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 2", sv3Mul.outChannels));
     if(sv3Bias.numChannels != 2)
       throw StringError(name + Global::strprintf(": sv3Bias.numChannels (%d) != 2", sv3Bias.numChannels));
-  } else {
+  }
+  else {
     if(sv3Mul.outChannels != 1)
       throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 1", sv3Mul.outChannels));
     if(sv3Bias.numChannels != 1)
@@ -1127,7 +1147,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
-  static_assert(NNModelVersion::latestModelVersionImplemented == 6, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 8, "");
   Rules rules = desiredRules;
   supported = true;
   if(version <= 6) {
@@ -1137,6 +1157,24 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
     }
     if(rules.scoringRule == Rules::SCORING_TERRITORY) {
       rules.scoringRule = Rules::SCORING_AREA;
+      supported = false;
+    }
+    if(rules.taxRule != Rules::TAX_NONE) {
+      rules.taxRule = Rules::TAX_NONE;
+      supported = false;
+    }
+    if(rules.hasButton) {
+      rules.hasButton = false;
+      supported = false;
+    }
+  }
+  else if(version <= 8) {
+    if(rules.koRule == Rules::KO_SPIGHT) {
+      rules.koRule = Rules::KO_SITUATIONAL;
+      supported = false;
+    }
+    if(rules.hasButton && rules.scoringRule != Rules::SCORING_AREA) {
+      rules.hasButton = false;
       supported = false;
     }
   }

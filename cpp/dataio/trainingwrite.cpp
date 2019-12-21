@@ -8,12 +8,8 @@ ValueTargets::ValueTargets()
    loss(0),
    noResult(0),
    score(0),
-   hasMctsUtility(false),
-   mctsUtility1(0),
-   mctsUtility4(0),
-   mctsUtility16(0),
-   mctsUtility64(0),
-   mctsUtility256(0)
+   hasLead(false),
+   lead(0)
 {}
 ValueTargets::~ValueTargets()
 {}
@@ -60,6 +56,9 @@ FinishedGameData::FinishedGameData()
    gameHash(),
 
    drawEquivalentWinsForWhite(0.0),
+   playoutDoublingAdvantagePla(P_BLACK),
+   playoutDoublingAdvantage(0.0),
+
    hitTurnLimit(false),
 
    numExtraBlack(0),
@@ -73,7 +72,10 @@ FinishedGameData::FinishedGameData()
    targetWeightByTurn(),
    policyTargetsByTurn(),
    whiteValueTargetsByTurn(),
-   finalWhiteOwnership(NULL),
+   finalFullArea(NULL),
+   finalOwnership(NULL),
+   finalSekiAreas(NULL),
+   finalWhiteScoring(NULL),
 
    sidePositions(),
    changedNeuralNets()
@@ -84,8 +86,14 @@ FinishedGameData::~FinishedGameData() {
   for(int i = 0; i<policyTargetsByTurn.size(); i++)
     delete policyTargetsByTurn[i].policyTargets;
 
-  if(finalWhiteOwnership != NULL)
-    delete[] finalWhiteOwnership;
+  if(finalFullArea != NULL)
+    delete[] finalFullArea;
+  if(finalOwnership != NULL)
+    delete[] finalOwnership;
+  if(finalSekiAreas != NULL)
+    delete[] finalSekiAreas;
+  if(finalWhiteScoring != NULL)
+    delete[] finalWhiteScoring;
 
   for(int i = 0; i<sidePositions.size(); i++)
     delete sidePositions[i];
@@ -99,7 +107,7 @@ void FinishedGameData::printDebug(ostream& out) const {
   out << "wName " << wName << endl;
   out << "bIdx " << bIdx << endl;
   out << "wIdx " << wIdx << endl;
-  out << "startPla " << colorToChar(startPla) << endl;
+  out << "startPla " << PlayerIO::colorToChar(startPla) << endl;
   out << "start" << endl;
   startHist.printDebugInfo(out,startBoard);
   out << "end" << endl;
@@ -114,8 +122,7 @@ void FinishedGameData::printDebug(ostream& out) const {
   out << "dataXLen " << dataXLen << endl;
   out << "dataYLen " << dataYLen << endl;
   for(int i = 0; i<targetWeightByTurn.size(); i++)
-    out << "targetWeightByTurn " << i << " " << targetWeightByTurn[i];
-  out << endl;
+    out << "targetWeightByTurn " << i << " " << targetWeightByTurn[i] << endl;
   for(int i = 0; i<policyTargetsByTurn.size(); i++) {
     out << "policyTargetsByTurn " << i << " ";
     out << "unreducedNumVisits " << policyTargetsByTurn[i].unreducedNumVisits << " ";
@@ -130,12 +137,37 @@ void FinishedGameData::printDebug(ostream& out) const {
     out << whiteValueTargetsByTurn[i].loss << " ";
     out << whiteValueTargetsByTurn[i].noResult << " ";
     out << whiteValueTargetsByTurn[i].score << " ";
+    if(whiteValueTargetsByTurn[i].hasLead)
+      out << whiteValueTargetsByTurn[i].lead << " ";
+    else
+      out << "-" << " ";
+    out << endl;
+  }
+  for(int y = 0; y<startBoard.y_size; y++) {
+    for(int x = 0; x<startBoard.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,startBoard.x_size);
+      out << PlayerIO::colorToChar(finalFullArea[loc]);
+    }
+    out << endl;
+  }
+  for(int y = 0; y<startBoard.y_size; y++) {
+    for(int x = 0; x<startBoard.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,startBoard.x_size);
+      out << PlayerIO::colorToChar(finalOwnership[loc]);
+    }
+    out << endl;
+  }
+  for(int y = 0; y<startBoard.y_size; y++) {
+    for(int x = 0; x<startBoard.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,startBoard.x_size);
+      out << (int)finalSekiAreas[loc];
+    }
     out << endl;
   }
   for(int y = 0; y<startBoard.y_size; y++) {
     for(int x = 0; x<startBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,dataXLen);
-      out << Global::strprintf("%5d",finalWhiteOwnership[pos]);
+      out << Global::strprintf(" %.3f",finalWhiteScoring[pos]);
     }
     out << endl;
   }
@@ -154,8 +186,7 @@ void FinishedGameData::printDebug(ostream& out) const {
 //And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 2;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 64;
-static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 1;
-static const int BONUS_SCORE_RADIUS = 30;
+static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 5;
 
 TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBChannels, int numFChannels, int xLen, int yLen)
   :inputsVersion(iVersion),
@@ -172,7 +203,6 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    policyTargetsNCMove({maxRws, POLICY_TARGET_NUM_CHANNELS, NNPos::getPolicySize(xLen,yLen)}),
    globalTargetsNC({maxRws, GLOBAL_TARGET_NUM_CHANNELS}),
    scoreDistrN({maxRws, xLen*yLen*2+NNPos::EXTRA_SCORE_DISTR_RADIUS*2}),
-   selfBonusScoreN({maxRws, BONUS_SCORE_RADIUS*2+1}),
    valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, yLen, xLen})
 {
   binaryInputNCHWUnpacked = new float[numBChannels * xLen * yLen];
@@ -232,9 +262,27 @@ static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves, 
   }
 }
 
-static float fsq(float x) {
-  return x * x;
+//Converts a value in [-1,1] to an integer in [-120,120] to pack down to 8 bits.
+//Randomizes to make sure the expectation is exactly correct.
+static int8_t convertRadiusOneToRadius120(float x, Rand& rand) {
+  //We need to pack this down to 8 bits, so map into [-120,120].
+  //Randomize to ensure the expectation is exactly correct.
+  x *= 120.0f;
+  int low = (int)floor(x);
+  int high = low+1;
+  if(low < -120) return -120;
+  if(high > 120) return 120;
+
+  float lambda = (float)(x-low);
+  if(lambda == 0.0f) return (int8_t)low;
+  else return (int8_t)(rand.nextBool(lambda) ? high : low);
 }
+//Same, but for [-2,2].
+// static int8_t convertRadiusTwoToRadius120(float x, Rand& rand) {
+//   return convertRadiusOneToRadius120(x*0.5,rand);
+// }
+
+
 
 static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTurn, int idx, Player nextPlayer, double nowFactor, float* buf) {
   double winValue = 0.0;
@@ -276,14 +324,18 @@ void TrainingWriteBuffers::addRow(
   const vector<PolicyTargetMove>* policyTarget1, //can be null
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
-  int8_t* finalWhiteOwnership,
+  const Board* finalBoard,
+  Color* finalFullArea,
+  Color* finalOwnership,
+  float* finalWhiteScoring,
+  const vector<Board>* posHistForFutureBoards, //can be null
   bool isSidePosition,
   int numNeuralNetsBehindLatest,
   const FinishedGameData& data,
   Rand& rand
 ) {
-  static_assert(NNModelVersion::latestInputsVersionImplemented == 5, "");
-  if(inputsVersion < 3 || inputsVersion > 5)
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
+  if(inputsVersion < 3 || inputsVersion > 7)
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 
   int posArea = dataXLen*dataYLen;
@@ -293,23 +345,40 @@ void TrainingWriteBuffers::addRow(
   assert(curRows < maxRows);
 
   {
+    MiscNNInputParams nnInputParams;
+    nnInputParams.drawEquivalentWinsForWhite = data.drawEquivalentWinsForWhite;
+    //Note: this is coordinated with the fact that selfplay does not use this feature on side positions
+    if(!isSidePosition)
+      nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == data.playoutDoublingAdvantagePla ? -data.playoutDoublingAdvantage : data.playoutDoublingAdvantage;
+
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
     if(inputsVersion == 3) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V3 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V3 == numGlobalChannels);
-      NNInputs::fillRowV3(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+      NNInputs::fillRowV3(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else if(inputsVersion == 4) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V4 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V4 == numGlobalChannels);
-      NNInputs::fillRowV4(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+      NNInputs::fillRowV4(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else if(inputsVersion == 5) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V5 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V5 == numGlobalChannels);
-      NNInputs::fillRowV5(board, hist, nextPlayer, data.drawEquivalentWinsForWhite, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+      NNInputs::fillRowV5(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+    }
+    else if(inputsVersion == 6) {
+      assert(NNInputs::NUM_FEATURES_SPATIAL_V6 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_GLOBAL_V6 == numGlobalChannels);
+      NNInputs::fillRowV6(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+    }
+    else if(inputsVersion == 7) {
+      assert(NNInputs::NUM_FEATURES_SPATIAL_V7 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_GLOBAL_V7 == numGlobalChannels);
+      NNInputs::fillRowV7(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
       ASSERT_UNREACHABLE;
@@ -349,46 +418,49 @@ void TrainingWriteBuffers::addRow(
   }
 
   //Fill td-like value targets
+  int boardArea = board.x_size * board.y_size;
   assert(whiteValueTargetsIdx >= 0 && whiteValueTargetsIdx < whiteValueTargets.size());
   fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 0.0, rowGlobal);
-  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/36.0, rowGlobal+4);
-  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/12.0, rowGlobal+8);
-  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/4.0, rowGlobal+12);
+  //These three constants used to be 'nicer' numbers 0.18, 0.06, 0.02, but we screwed up the functional form
+  //by omitting the "1.0 +" at the front (breaks scaling to small board sizes), so when we fixed this we also
+  //decreased the other numbers slightly to try to maximally limit the impact of the fix on the numerical values
+  //on the actual board sizes 9-19, since it would be costly to retest.
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(1.0 + boardArea * 0.176), rowGlobal+4);
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(1.0 + boardArea * 0.056), rowGlobal+8);
+  fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0/(1.0 + boardArea * 0.016), rowGlobal+12);
   fillValueTDTargets(whiteValueTargets, whiteValueTargetsIdx, nextPlayer, 1.0, rowGlobal+16);
 
-  //Fill short-term variance info
+  //Lead
   rowGlobal[21] = 0.0f;
-  rowGlobal[22] = 0.0f;
-  rowGlobal[23] = 0.0f;
-  rowGlobal[24] = 0.0f;
   rowGlobal[29] = 0.0f;
-  rowGlobal[30] = 0.0f;
-  rowGlobal[31] = 0.0f;
-  rowGlobal[32] = 0.0f;
   const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
-  if(thisTargets.hasMctsUtility) {
-    assert(!std::isnan(thisTargets.mctsUtility1));
-    if(!std::isnan(thisTargets.mctsUtility4)) {
-      rowGlobal[21] = fsq(thisTargets.mctsUtility4 - thisTargets.mctsUtility1);
-      rowGlobal[29] = 1.0f;
-      if(!std::isnan(thisTargets.mctsUtility16)) {
-        rowGlobal[22] = fsq(thisTargets.mctsUtility16 - thisTargets.mctsUtility4);
-        rowGlobal[30] = 1.0f;
-        if(!std::isnan(thisTargets.mctsUtility64)) {
-          rowGlobal[23] = fsq(thisTargets.mctsUtility64 - thisTargets.mctsUtility16);
-          rowGlobal[31] = 1.0f;
-          if(!std::isnan(thisTargets.mctsUtility256)) {
-            rowGlobal[24] = fsq(thisTargets.mctsUtility256 - thisTargets.mctsUtility64);
-            rowGlobal[32] = 1.0f;
-          }
-        }
-      }
+  if(thisTargets.hasLead && !(data.endHist.isGameFinished && data.endHist.isNoResult)) {
+    //Flip based on next player for training
+    rowGlobal[21] = nextPlayer == P_WHITE ? thisTargets.lead : -thisTargets.lead;
+    rowGlobal[29] = 1.0f;
+  }
+
+  //Expected time of arrival of winloss variance, in turns
+  {
+    double sum = 0.0;
+    for(int i = whiteValueTargetsIdx+1; i<whiteValueTargets.size(); i++) {
+      int turnsFromNow = i-whiteValueTargetsIdx;
+      const ValueTargets& prevTargets = whiteValueTargets[i-1];
+      const ValueTargets& targets = whiteValueTargets[i];
+      double prevWL = prevTargets.win - prevTargets.loss;
+      double nextWL = targets.win - targets.loss;
+      double variance = (nextWL - prevWL) * (nextWL - prevWL);
+      sum += turnsFromNow * variance;
     }
+    rowGlobal[22] = (float)sum;
   }
 
   //Unused
-  rowGlobal[33] = 0.0f;
-  rowGlobal[34] = 0.0f;
+  rowGlobal[23] = 0.0f;
+  rowGlobal[24] = 0.0f;
+  rowGlobal[30] = 0.0f;
+  rowGlobal[31] = 0.0f;
+  rowGlobal[32] = 0.0f;
   rowGlobal[35] = 0.0f;
 
   //Fill in whether we should use history or not
@@ -438,8 +510,14 @@ void TrainingWriteBuffers::addRow(
   //Original number of visits
   rowGlobal[60] = (float)unreducedNumVisits;
 
+  //Bonus points
+  {
+    float whiteBonusPoints = data.endHist.whiteBonusScore - hist.whiteBonusScore;
+    float selfBonusPoints = (nextPlayer == P_WHITE ? whiteBonusPoints : -whiteBonusPoints);
+    rowGlobal[61] = selfBonusPoints != 0 ? selfBonusPoints : 0.0f; //Conditional avoids negative zero
+  }
+
   //Unused
-  rowGlobal[61] = 0.0f;
   rowGlobal[62] = 0.0f;
   rowGlobal[63] = 0.0f;
 
@@ -447,39 +525,46 @@ void TrainingWriteBuffers::addRow(
 
   int scoreDistrLen = posArea*2 + NNPos::EXTRA_SCORE_DISTR_RADIUS*2;
   int scoreDistrMid = posArea + NNPos::EXTRA_SCORE_DISTR_RADIUS;
-  int bonusScoreLen = BONUS_SCORE_RADIUS*2 + 1;
-  int bonusScoreMid = BONUS_SCORE_RADIUS;
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;
-  int8_t* rowBonusScore = selfBonusScoreN.data + curRows * bonusScoreLen;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
-  if(finalWhiteOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
+  if(finalOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
     rowGlobal[27] = 0.0f;
     rowGlobal[20] = 0.0f;
-    for(int i = 0; i<posArea; i++)
+    for(int i = 0; i<posArea*2; i++)
       rowOwnership[i] = 0;
     for(int i = 0; i<scoreDistrLen; i++)
       rowScoreDistr[i] = 0;
-    for(int i = 0; i<bonusScoreLen; i++)
-      rowBonusScore[i] = 0;
     //Dummy value, to make sure it still sums to 100
     rowScoreDistr[scoreDistrMid-1] = 50;
     rowScoreDistr[scoreDistrMid] = 50;
-    //Dummy value, to make sure it still sums to 1.
-    rowBonusScore[bonusScoreMid] = 1;
   }
   else {
+    assert(finalFullArea != NULL);
+    assert(finalBoard != NULL);
+
     rowGlobal[27] = 1.0f;
     //Fill score info
     const ValueTargets& lastTargets = whiteValueTargets[whiteValueTargets.size()-1];
     float score = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
     rowGlobal[20] = score;
 
+    //Fill with zeros in case the buffers differ in size
+    for(int i = 0; i<posArea*2; i++)
+      rowOwnership[i] = 0;
+
     //Fill ownership info
-    for(int i = 0; i<posArea; i++) {
-      assert(data.finalWhiteOwnership[i] == 0 || data.finalWhiteOwnership[i] == 1 || data.finalWhiteOwnership[i] == -1);
-      //Training rows need things from the perspective of the player to move, so we flip as appropriate.
-      rowOwnership[i] = (nextPlayer == P_WHITE ? data.finalWhiteOwnership[i] : -data.finalWhiteOwnership[i]);
+    Player opp = getOpp(nextPlayer);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,dataXLen);
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(finalOwnership[loc] == nextPlayer) rowOwnership[pos] = 1.0f;
+        else if(finalOwnership[loc] == opp) rowOwnership[pos] = -1.0f;
+        //Mark full area points that ended up not being owned
+        if(finalFullArea[loc] != C_EMPTY && finalOwnership[loc] == C_EMPTY)
+          rowOwnership[pos+posArea] = (finalFullArea[loc] == nextPlayer ? 1.0f : -1.0f);
+      }
     }
 
     //Fill score vector "onehot"-like
@@ -498,16 +583,61 @@ void TrainingWriteBuffers::addRow(
       rowScoreDistr[lowerIdx] = 100-upperProp;
       rowScoreDistr[upperIdx] = upperProp;
     }
+  }
 
-    //Fill bonus score vector "onehot"-like
-    for(int i = 0; i<bonusScoreLen; i++)
-      rowBonusScore[i] = 0;
-    int whiteBonusPoints = data.endHist.whiteBonusScore - hist.whiteBonusScore;
-    int selfBonusPoints = (nextPlayer == P_WHITE ? whiteBonusPoints : -whiteBonusPoints);
-    int idx = selfBonusPoints + bonusScoreMid;
-    if(idx < 0) idx = 0;
-    if(idx >= bonusScoreLen) idx = bonusScoreLen-1;
-    rowBonusScore[idx] = 1;
+  if(posHistForFutureBoards == NULL) {
+    rowGlobal[33] = 0.0f;
+    for(int i = 0; i<posArea; i++) {
+      rowOwnership[i+posArea*2] = 0;
+      rowOwnership[i+posArea*3] = 0;
+    }
+  }
+  else {
+    const vector<Board>& boards = *posHistForFutureBoards;
+    assert(boards.size() == whiteValueTargets.size());
+    assert(boards.size() > 0);
+
+    rowGlobal[33] = 1.0f;
+    int endIdx = boards.size()-1;
+    const Board& board2 = boards[std::min(whiteValueTargetsIdx+8,endIdx)];
+    const Board& board3 = boards[std::min(whiteValueTargetsIdx+32,endIdx)];
+    assert(board2.y_size == board.y_size && board2.x_size == board.x_size);
+    assert(board3.y_size == board.y_size && board3.x_size == board.x_size);
+
+    for(int i = 0; i<posArea; i++) {
+      rowOwnership[i+posArea*2] = 0;
+      rowOwnership[i+posArea*3] = 0;
+    }
+    Player pla = nextPlayer;
+    Player opp = getOpp(nextPlayer);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,dataXLen);
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board2.colors[loc] == pla) rowOwnership[pos+posArea*2] = 1;
+        else if(board2.colors[loc] == opp) rowOwnership[pos+posArea*2] = -1;
+        if(board3.colors[loc] == pla) rowOwnership[pos+posArea*3] = 1;
+        else if(board3.colors[loc] == opp) rowOwnership[pos+posArea*3] = -1;
+      }
+    }
+  }
+
+
+  if(finalWhiteScoring == NULL
+     || (data.endHist.isGameFinished && data.endHist.isNoResult)
+  ) {
+    rowGlobal[34] = 0.0f;
+    for(int i = 0; i<posArea; i++) {
+      rowOwnership[i+posArea*4] = 0;
+    }
+  }
+  else {
+    rowGlobal[34] = 1.0f;
+    for(int i = 0; i<posArea; i++) {
+      float scoring = (nextPlayer == P_WHITE ? finalWhiteScoring[i] : -finalWhiteScoring[i]);
+      assert(scoring <= 1.0f && scoring >= -1.0f);
+      rowOwnership[i+posArea*4] = convertRadiusOneToRadius120(scoring,rand);
+    }
   }
 
   curRows++;
@@ -532,9 +662,6 @@ void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
 
   numBytes = scoreDistrN.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("scoreDistrN", scoreDistrN.dataIncludingHeader, numBytes);
-
-  numBytes = selfBonusScoreN.prepareHeaderWithNumRows(curRows);
-  zipFile.writeBuffer("selfBonusScoreN", selfBonusScoreN.dataIncludingHeader, numBytes);
 
   numBytes = valueTargetsNCHW.prepareHeaderWithNumRows(curRows);
   zipFile.writeBuffer("valueTargetsNCHW", valueTargetsNCHW.dataIncludingHeader, numBytes);
@@ -606,16 +733,6 @@ void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
   }
   out << endl;
 
-  out << "selfBonusScoreN" << endl;
-  selfBonusScoreN.prepareHeaderWithNumRows(curRows);
-  printHeader((const char*)selfBonusScoreN.dataIncludingHeader);
-  len = selfBonusScoreN.getActualDataLen(curRows);
-  for(int i = 0; i<len; i++) {
-    out << (int)selfBonusScoreN.data[i] << " ";
-    if((i+1) % (len/curRows) == 0) out << endl;
-  }
-  out << endl;
-
   out << "valueTargetsNCHW" << endl;
   valueTargetsNCHW.prepareHeaderWithNumRows(curRows);
   printHeader((const char*)valueTargetsNCHW.dataIncludingHeader);
@@ -643,6 +760,7 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   int numGlobalChannels;
   //Note that this inputsVersion is for data writing, it might be different than the inputsVersion used
   //to feed into a model during selfplay
+  static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
   if(inputsVersion == 3) {
     numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V3;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V3;
@@ -654,6 +772,14 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
   else if(inputsVersion == 5) {
     numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V5;
     numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V5;
+  }
+  else if(inputsVersion == 6) {
+    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V6;
+    numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V6;
+  }
+  else if(inputsVersion == 7) {
+    numBinaryChannels = NNInputs::NUM_FEATURES_SPATIAL_V7;
+    numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V7;
   }
   else {
     throw StringError("TrainingDataWriter: Unsupported inputs version: " + Global::intToString(inputsVersion));
@@ -723,10 +849,35 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     else
       assert(lastTargets.noResult == 0.0f);
 
-    assert(data.finalWhiteOwnership != NULL);
+    assert(data.finalFullArea != NULL);
+    assert(data.finalOwnership != NULL);
+    assert(data.finalSekiAreas != NULL);
+    assert(data.finalWhiteScoring != NULL);
     assert(!data.endHist.isResignation);
   }
   #endif
+
+  //Play out all the moves in a single pass first to compute all the future board states
+  vector<Board> posHistForFutureBoards;
+  {
+    Board board(data.startBoard);
+    BoardHistory hist(data.startHist);
+    Player nextPlayer = data.startPla;
+    posHistForFutureBoards.push_back(board);
+
+    int startTurnNumber = data.startHist.moveHistory.size();
+    for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
+      int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
+
+      Move move = data.endHist.moveHistory[absoluteTurnNumber];
+      assert(move.pla == nextPlayer);
+      assert(hist.isLegal(board,move.loc,move.pla));
+      hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);
+      nextPlayer = getOpp(nextPlayer);
+
+      posHistForFutureBoards.push_back(board);
+    }
+  }
 
   Board board(data.startBoard);
   BoardHistory hist(data.startHist);
@@ -735,7 +886,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   //Write main game rows
   int startTurnNumber = data.startHist.moveHistory.size();
   for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
-    float targetWeight = data.targetWeightByTurn[turnNumberAfterStart];
+    double targetWeight = data.targetWeightByTurn[turnNumberAfterStart];
     int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
 
     int64_t unreducedNumVisits = data.policyTargetsByTurn[turnNumberAfterStart].unreducedNumVisits;
@@ -751,28 +902,35 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       }
     }
 
-    assert(targetWeight >= 0.0 && targetWeight <= 1.0);
-    if(targetWeight != 0.0 && (targetWeight >= 1.0 || rand.nextBool(targetWeight))) {
-      if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
-        writeBuffers->addRow(
-          board,hist,nextPlayer,
-          absoluteTurnNumber,
-          1.0,
-          unreducedNumVisits,
-          policyTarget0,
-          policyTarget1,
-          data.whiteValueTargetsByTurn,
-          turnNumberAfterStart,
-          data.finalWhiteOwnership,
-          isSidePosition,
-          numNeuralNetsBehindLatest,
-          data,
-          rand
-        );
-        writeAndClearIfFull();
+    while(targetWeight > 0.0) {
+      if(targetWeight >= 1.0 || rand.nextBool(targetWeight)) {
+        if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
+          writeBuffers->addRow(
+            board,hist,nextPlayer,
+            absoluteTurnNumber,
+            1.0,
+            unreducedNumVisits,
+            policyTarget0,
+            policyTarget1,
+            data.whiteValueTargetsByTurn,
+            turnNumberAfterStart,
+            &(data.endHist.getRecentBoard(0)),
+            data.finalFullArea,
+            data.finalOwnership,
+            data.finalWhiteScoring,
+            &posHistForFutureBoards,
+            isSidePosition,
+            numNeuralNetsBehindLatest,
+            data,
+            rand
+          );
+          writeAndClearIfFull();
+        }
+        rowCount++;
       }
-      rowCount++;
+      targetWeight -= 1.0;
     }
+
 
     Move move = data.endHist.moveHistory[absoluteTurnNumber];
     assert(move.pla == nextPlayer);
@@ -786,36 +944,42 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   for(int i = 0; i<data.sidePositions.size(); i++) {
     SidePosition* sp = data.sidePositions[i];
 
-    if(sp->targetWeight == 0.0)
-      continue;
-    assert(sp->targetWeight >= 0.0 && sp->targetWeight <= 1.0);
-    if(sp->targetWeight < 1.0 && !rand.nextBool(sp->targetWeight))
-      continue;
+    double targetWeight = sp->targetWeight;
+    while(targetWeight > 0.0) {
+      if(targetWeight >= 1.0 || rand.nextBool(targetWeight)) {
+        if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
 
-    int absoluteTurnNumber = sp->hist.moveHistory.size();
-    assert(absoluteTurnNumber >= data.startHist.moveHistory.size());
-    whiteValueTargetsBuf[0] = sp->whiteValueTargets;
-    bool isSidePosition = true;
-    int numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size() - sp->numNeuralNetChangesSoFar;
-    if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
-      writeBuffers->addRow(
-        sp->board,sp->hist,sp->pla,
-        absoluteTurnNumber,
-        1.0,
-        sp->unreducedNumVisits,
-        &(sp->policyTarget),
-        NULL,
-        whiteValueTargetsBuf,
-        0,
-        NULL,
-        isSidePosition,
-        numNeuralNetsBehindLatest,
-        data,
-        rand
-      );
-      writeAndClearIfFull();
+          int absoluteTurnNumber = sp->hist.moveHistory.size();
+          assert(absoluteTurnNumber >= data.startHist.moveHistory.size());
+          whiteValueTargetsBuf[0] = sp->whiteValueTargets;
+          bool isSidePosition = true;
+          int numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size() - sp->numNeuralNetChangesSoFar;
+
+          writeBuffers->addRow(
+            sp->board,sp->hist,sp->pla,
+            absoluteTurnNumber,
+            1.0,
+            sp->unreducedNumVisits,
+            &(sp->policyTarget),
+            NULL,
+            whiteValueTargetsBuf,
+            0,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            isSidePosition,
+            numNeuralNetsBehindLatest,
+            data,
+            rand
+          );
+          writeAndClearIfFull();
+        }
+        rowCount++;
+      }
+      targetWeight -= 1.0;
     }
-    rowCount++;
 
   }
 

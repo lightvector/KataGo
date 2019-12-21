@@ -17,7 +17,7 @@ void Tests::runScoreTests() {
     out << "Black self komi wins/draw=0.75: " << hist.currentSelfKomi(P_BLACK, 0.75) << endl;
     out << "White self komi wins/draw=0.75: " << hist.currentSelfKomi(P_WHITE, 0.75) << endl;
 
-    out << "Winner: " << colorToChar(hist.winner) << endl;
+    out << "Winner: " << PlayerIO::colorToChar(hist.winner) << endl;
     double score = hist.finalWhiteMinusBlackScore;
     out << "Final score: " << score << endl;
 
@@ -26,7 +26,7 @@ void Tests::runScoreTests() {
       double drawEquiv = drawEquivsToTry[i];
       string s = Global::strprintf("%.1f", drawEquiv);
       double scoreAdjusted = ScoreValue::whiteScoreDrawAdjust(score, drawEquiv, hist);
-      double stdev = sqrt(std::max(0.0,ScoreValue::whiteScoreMeanSqOfScoreGridded(score,drawEquiv,hist) - scoreAdjusted * scoreAdjusted));
+      double stdev = sqrt(std::max(0.0,ScoreValue::whiteScoreMeanSqOfScoreGridded(score,drawEquiv) - scoreAdjusted * scoreAdjusted));
       double expectedScoreValue = ScoreValue::expectedWhiteScoreValue(scoreAdjusted, stdev, 0.0, 2.0, board);
       out << "WL Wins wins/draw=" << s << ": " << ScoreValue::whiteWinsOfWinner(hist.winner, drawEquiv) << endl;
       out << "Score wins/draw=" << s << ": " << scoreAdjusted << endl;
@@ -112,7 +112,7 @@ xxxxxxxxx
     hist.endAndScoreGameNow(board);
 
     printScoreStats(board,hist);
-    
+
     cout << name << endl;
     cout << out.str() << endl;
     cout << endl;

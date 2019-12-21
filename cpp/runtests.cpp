@@ -1,6 +1,7 @@
 
 #include <sstream>
 #include "core/global.h"
+#include "core/bsearch.h"
 #include "core/rand.h"
 #include "core/elo.h"
 #include "core/fancymath.h"
@@ -20,6 +21,7 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
 
+  BSearch::runTests();
   Rand::runTests();
   FancyMath::runTests();
   ComputeElos::runTests();
@@ -113,12 +115,32 @@ int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
   Tests::runSelfplayInitTestsWithNN(
     string(argv[1])
   );
+  Tests::runMoreSelfplayTestsWithNN(
+    string(argv[1])
+  );
 
   ScoreValue::freeTables();
 
   return 0;
 }
 
+int MainCmds::runsekitrainwritetests(int argc, const char* const* argv) {
+  if(argc != 2) {
+    cerr << "Must supply exactly one argument: MODEL_FILE" << endl;
+    return 1;
+  }
+
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Tests::runSekiTrainWriteTests(
+    string(argv[1])
+  );
+
+  ScoreValue::freeTables();
+
+  return 0;
+}
 
 int MainCmds::runnnlayertests(int argc, const char* const* argv) {
   (void)argc;
@@ -141,6 +163,26 @@ int MainCmds::runnnontinyboardtest(int argc, const char* const* argv) {
     Global::stringToBool(argv[3]),
     Global::stringToInt(argv[4]),
     Global::stringToBool(argv[5])
+  );
+
+  ScoreValue::freeTables();
+
+  return 0;
+}
+
+int MainCmds::runnnsymmetriestest(int argc, const char* const* argv) {
+  if(argc != 5) {
+    cerr << "Must supply exactly four arguments: MODEL_FILE INPUTSNHWC CUDANHWC FP16" << endl;
+    return 1;
+  }
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Tests::runNNSymmetries(
+    string(argv[1]),
+    Global::stringToBool(argv[2]),
+    Global::stringToBool(argv[3]),
+    Global::stringToBool(argv[4])
   );
 
   ScoreValue::freeTables();

@@ -140,19 +140,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   logger.setLogToStdout(true);
   logger.write("Loading model and initializing benchmark...");
 
-  Rules initialRules;
-  {
-    string koRule = cfg.getString("koRule", Rules::koRuleStrings());
-    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-    bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
-    float komi = 7.5f;
-
-    initialRules.koRule = Rules::parseKoRule(koRule);
-    initialRules.scoringRule = Rules::parseScoringRule(scoringRule);
-    initialRules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-    initialRules.komi = komi;
-  }
-  //Take the komi from the sgf, otherwise ignore the rules
+  Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
+  //Take the komi from the sgf, otherwise ignore the rules in the sgf
   initialRules.komi = sgf->komi;
 
 
@@ -197,7 +186,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
   //Run on a sample position just to get any initialization and logs out of the way
   {
-    Board board;
+    Board board(sgf->xSize,sgf->ySize);
     BoardHistory hist;
     Player nextPla = P_BLACK;
     SearchParams thisParams = params;
@@ -256,7 +245,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
         if(!board.isLegal(moves[moveNum].loc,moves[moveNum].pla,multiStoneSuicideLegal)) {
           cerr << endl;
           cerr << board << endl;
-          cerr << "SGF Illegal move " << (moveNum+1) << " for " << colorToChar(moves[moveNum].pla) << ": " << Location::toString(moves[moveNum].loc,board) << endl;
+          cerr << "SGF Illegal move " << (moveNum+1) << " for " << PlayerIO::colorToChar(moves[moveNum].pla) << ": " << Location::toString(moves[moveNum].loc,board) << endl;
           throw StringError("Illegal move in SGF");
         }
         hist.makeBoardMoveAssumeLegal(board,moves[moveNum].loc,moves[moveNum].pla,NULL);
@@ -266,6 +255,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
       bot->clearSearch();
       bot->setPosition(nextPla,board,hist);
+      nnEval->clearCache();
 
       ClockTimer timer;
       bot->genMoveSynchronous(nextPla,TimeControls());
@@ -283,8 +273,13 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     delete bot;
   };
 
+  //From some test matches by lightvector using g104
+  const double eloCostPerThread = 8;
+  const double eloGainPerDoubling = 250;
+
   cout << endl;
   cout << "Testing..." << endl;
+  vector<double> eloEffects;
   for(int i = 0; i<numThreadsToTest.size(); i++) {
     int numThreads = numThreadsToTest[i];
     int64_t totalVisits;
@@ -302,6 +297,25 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
          << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
          << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)"
          << std::flush;
+
+    eloEffects.push_back(eloGainPerDoubling * log(totalVisits / totalSeconds) / log(2) - eloCostPerThread * numThreads);
+  }
+  cout << endl;
+
+  if(numThreadsToTest.size() > 1) {
+    cout << endl;
+    cout << "Based on some test data, each thread costs perhaps ~" << eloCostPerThread << " Elo holding visits fixed (by making MCTS worse)" << endl;
+    cout << "Based on some test data, each speed doubling gains perhaps ~" << eloGainPerDoubling << " Elo by searching deeper" << endl;
+    cout << "So APPROXIMATELY based on this benchmark: " << endl;
+    for(int i = 0; i<numThreadsToTest.size(); i++) {
+      int numThreads = numThreadsToTest[i];
+      double eloEffect = eloEffects[i] - eloEffects[0];
+      cout << "numSearchThreads = " << Global::strprintf("%2d",numThreads) << ": ";
+      if(i == 0)
+        cout << "(baseline)" << endl;
+      else
+        cout << Global::strprintf("%+5.0f",eloEffect) << " Elo" << endl;
+    }
   }
   cout << endl;
 

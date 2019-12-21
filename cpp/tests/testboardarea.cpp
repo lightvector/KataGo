@@ -1,4 +1,5 @@
 #include "../tests/tests.h"
+#include "../neuralnet/nninputs.h"
 
 using namespace std;
 using namespace TestCommon;
@@ -9,11 +10,15 @@ void Tests::runBoardAreaTests() {
 
   //============================================================================
   auto printAreas = [&out](const Board& board, Color result[Board::MAX_ARR_SIZE]) {
+    bool safeBigTerritoriesBuf[4] =        {false, true,  true,  true};
+    bool unsafeBigTerritoriesBuf[4] =      {false, false, true,  true};
+    bool nonPassAliveStonesBuf[4] =        {false, false, false, true};
+
     for(int mode = 0; mode < 8; mode++) {
       bool multiStoneSuicideLegal = (mode % 2 == 1);
-      bool nonPassAliveStones = (mode >= 6);
-      bool safeBigTerritories = (mode >= 2);
-      bool unsafeBigTerritories = (mode >= 4);
+      bool safeBigTerritories = safeBigTerritoriesBuf[mode/2];
+      bool unsafeBigTerritories = unsafeBigTerritoriesBuf[mode/2];
+      bool nonPassAliveStones = nonPassAliveStonesBuf[mode/2];
       Board copy(board);
       copy.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
       out << "Safe big territories " << safeBigTerritories << " "
@@ -23,7 +28,7 @@ void Tests::runBoardAreaTests() {
       for(int y = 0; y<copy.y_size; y++) {
         for(int x = 0; x<copy.x_size; x++) {
           Loc loc = Location::getLoc(x,y,copy.x_size);
-          out << colorToChar(result[loc]);
+          out << PlayerIO::colorToChar(result[loc]);
         }
         out << endl;
       }
@@ -351,6 +356,7 @@ OXXXX...O
 O.XXX...O
 O.XXX...O
 OOOOOOOOO
+
 )%%";
     expect(name,out,expected);
   }
@@ -551,6 +557,7 @@ OO.................
 OO.....OO.OO......O
 OOOOO.OOO.OOO.OOOOO
 OOOOOOOOO.OOOOOOOOO
+
 )%%";
     expect(name,out,expected);
   }
@@ -751,6 +758,7 @@ XXX.....XXXXXXXXXXX
 OOOOO....OOOOOOOOOO
 OO..OO...OOOOOOOOOO
 OOO.XO...OOOOOOOOOO
+
 )%%";
     expect(name,out,expected);
   }
@@ -897,10 +905,11 @@ XXX.OOO.X..XXXXXXXX
 XXXXX...XXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXX
+
 )%%";
     expect(name,out,expected);
   }
-  
+
   //============================================================================
   {
     const char* name = "Area Rect";
@@ -953,6 +962,7 @@ Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Suicide 
 X.OOXXXO.XXX
 OO.OXXXOOXXX
 OOXOXXXOOOXX
+
 )%%";
     expect(name,out,expected);
   }
@@ -1270,7 +1280,208 @@ OOOOOOOOO
     expect(name,out,expected);
   }
 
-  
+
+  //============================================================================
+  {
+    const char* name = "More tests for recursive safe";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(19,19,R"%%(
+.xx.....o.o.o...xx.
+x.x.x...ooooo.x.x.x
+xx.x..oo...o...x.xx
+..x`.o.o.`.o...`x..
+.x.x..oo...o...x.x.
+.x.x....ooo....xox.
+o.x...oo...o....x..
+.x.x.o.o...o...x.x.
+..x...oo...o....x..
+.xx`....o.o....`...
+xooo.....xxxx......
+.x....xxxx..xx.....
+x.....x.x....x.....
+...o...x.x..xx.o.o.
+o.o.oo.xxxxxxoo.o.o
+.o.o...xooooo..o.o.
+oox.o..xoxo.o.o.xoo
+o.oo..xxoxoxox.oo.o
+.oo..x..x.x.x...oo.
+)%%");
+
+    printAreas(board,result);
+
+    string expected = R"%%(
+Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Suicide 0
+XXX.....OOOOO...XXX
+XXX.....OOOOO...XXX
+XX.........O.....XX
+...........O.......
+...........O.......
+...................
+...................
+...................
+...................
+...................
+.........XXXX......
+......XXXX..XX.....
+......XXX....X.....
+.......XXX..XX.....
+.......XXXXXX......
+.O.....X.........O.
+OO.....X.........OO
+OOOO..XX.......OOOO
+OOO.............OOO
+
+Safe big territories 0 Unsafe big territories 0 Non pass alive stones 0 Suicide 1
+XXX.....OOOOO...XXX
+XXX.....OOOOO...XXX
+XX.........O.....XX
+...........O.......
+...........O.......
+...................
+...................
+...................
+...................
+...................
+.........XXXX......
+......XXXX..XX.....
+......XXX....X.....
+.......XXX..XX.....
+.......XXXXXX......
+.O.....X.........O.
+OO.....X.........OO
+OOOO..XX.......OOOO
+OOO.............OOO
+
+Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Suicide 0
+XXX.....OOOOO...XXX
+XXX.....OOOOO...XXX
+XX.........O.....XX
+...........O.......
+...........O.......
+...................
+...................
+...................
+...................
+...................
+.........XXXX......
+......XXXXXXXX.....
+......XXXXXXXX.....
+.......XXXXXXX.....
+.......XXXXXX......
+.O.....X.........O.
+OO.....X.........OO
+OOOO..XX.......OOOO
+OOO.............OOO
+
+Safe big territories 1 Unsafe big territories 0 Non pass alive stones 0 Suicide 1
+XXX.....OOOOO...XXX
+XXX.....OOOOO...XXX
+XX.........O.....XX
+...........O.......
+...........O.......
+...................
+...................
+...................
+...................
+...................
+.........XXXX......
+......XXXXXXXX.....
+......XXXXXXXX.....
+.......XXXXXXX.....
+.......XXXXXX......
+.O.....X.........O.
+OO.....X.........OO
+OOOO..XX.......OOOO
+OOO.............OOO
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Suicide 0
+XXX.....OOOOO...XXX
+XXX.....OOOOO...XXX
+XXX.....OOOO....XXX
+......O.OOOO.......
+..X.....OOOO.......
+..X................
+...................
+..X...O.........X..
+...................
+...................
+.........XXXX......
+X.....XXXXXXXX.....
+......XXXXXXXX.....
+.......XXXXXXX.....
+...O...XXXXXX..O.O.
+OO.....X.........OO
+OO.....X.........OO
+OOOO..XX.......OOOO
+OOO...XX.X.X....OOO
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 0 Suicide 1
+XXX.....OOOOO...XXX
+XXX.....OOOOO...XXX
+XXX.....OOOO....XXX
+......O.OOOO.......
+..X.....OOOO.......
+..X................
+...................
+..X...O.........X..
+...................
+...................
+.........XXXX......
+X.....XXXXXXXX.....
+......XXXXXXXX.....
+.......XXXXXXX.....
+...O...XXXXXX..O.O.
+OO.....X.........OO
+OO.....X.........OO
+OOOO..XX.......OOOO
+OOO...XX.X.X....OOO
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Suicide 0
+XXX.....OOOOO...XXX
+XXX.X...OOOOO.X.XXX
+XXXX..OOOOOO...XXXX
+..X..OOOOOOO....X..
+.XXX..OOOOOO...X.X.
+.XXX....OOO....XOX.
+O.X...OO...O....X..
+.XXX.OOO...O...XXX.
+..X...OO...O....X..
+.XX.....O.O........
+XOOO.....XXXX......
+XX....XXXXXXXX.....
+X.....XXXXXXXX.....
+...O...XXXXXXX.O.O.
+O.OOOO.XXXXXXOOOOOO
+OO.O...XOOOOO..O.OO
+OOX.O..XOXO.O.O.XOO
+OOOO..XXOXOXOX.OOOO
+OOO..XXXXXXXX...OOO
+
+Safe big territories 1 Unsafe big territories 1 Non pass alive stones 1 Suicide 1
+XXX.....OOOOO...XXX
+XXX.X...OOOOO.X.XXX
+XXXX..OOOOOO...XXXX
+..X..OOOOOOO....X..
+.XXX..OOOOOO...X.X.
+.XXX....OOO....XOX.
+O.X...OO...O....X..
+.XXX.OOO...O...XXX.
+..X...OO...O....X..
+.XX.....O.O........
+XOOO.....XXXX......
+XX....XXXXXXXX.....
+X.....XXXXXXXX.....
+...O...XXXXXXX.O.O.
+O.OOOO.XXXXXXOOOOOO
+OO.O...XOOOOO..O.OO
+OOX.O..XOXO.O.O.XOO
+OOOO..XXOXOXOX.OOOO
+OOO..XXXXXXXX...OOO
+
+)%%";
+    expect(name,out,expected);
+  }
+
   //============================================================================
   {
     const char* name = "isNonPassAliveSelfConnection";
@@ -1350,4 +1561,1150 @@ NonPassAliveSelfConn white
 )%%";
     expect(name,out,expected);
   }
+
+  //============================================================================
+  {
+    const char* name = "groupTaxOwnership";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(13,13,R"%%(
+.xo.o.o...xx.
+xoooooo...x.x
+oo.........xx
+..xx.........
+xx..x........
+.x..x........
+ox..x........
+.xx.x........
+.x.x.........
+xxxx........x
+oooxooo...xx.
+o.oxo.o...x.x
+.o.o.o....xx.
+)%%");
+
+    int nnXLen = board.x_size;
+    int nnYLen = board.y_size;
+
+    bool multiStoneSuicideLegal = false;
+    bool nonPassAliveStones = true;
+    bool safeBigTerritories = true;
+    bool unsafeBigTerritories = true;
+    board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
+
+    float ownership[NNPos::MAX_BOARD_AREA];
+
+    out << endl;
+    out << "No group tax" << endl;
+    NNInputs::fillOwnership(board,result,false,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "Group tax" << endl;
+    NNInputs::fillOwnership(board,result,true,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+
+No group tax
+ 100  100  100  100  100  100  100    0    0    0 -100 -100 -100
+ 100  100  100  100  100  100  100    0    0    0 -100 -100 -100
+ 100  100    0    0    0    0    0    0    0    0    0 -100 -100
+   0    0 -100 -100    0    0    0    0    0    0    0    0    0
+-100 -100 -100 -100 -100    0    0    0    0    0    0    0    0
+-100 -100 -100 -100 -100    0    0    0    0    0    0    0    0
+-100 -100 -100 -100 -100    0    0    0    0    0    0    0    0
+-100 -100 -100 -100 -100    0    0    0    0    0    0    0    0
+-100 -100 -100 -100    0    0    0    0    0    0    0    0    0
+-100 -100 -100 -100    0    0    0    0    0    0    0    0 -100
+ 100  100  100 -100  100  100  100    0    0    0 -100 -100 -100
+ 100  100  100 -100  100  100  100    0    0    0 -100 -100 -100
+ 100  100  100  100  100  100    0    0    0    0 -100 -100 -100
+
+Group tax
+  60   60  100   60  100   60  100    0    0    0 -100 -100    0
+  60  100  100  100  100  100  100    0    0    0 -100    0 -100
+ 100  100    0    0    0    0    0    0    0    0    0 -100 -100
+   0    0 -100 -100    0    0    0    0    0    0    0    0    0
+-100 -100  -83  -83 -100    0    0    0    0    0    0    0    0
+ -83 -100  -83  -83 -100    0    0    0    0    0    0    0    0
+ -83 -100  -83  -83 -100    0    0    0    0    0    0    0    0
+ -83 -100 -100  -83 -100    0    0    0    0    0    0    0    0
+ -83 -100  -83 -100    0    0    0    0    0    0    0    0    0
+-100 -100 -100 -100    0    0    0    0    0    0    0    0 -100
+ 100  100  100 -100  100  100  100    0    0    0 -100 -100  -33
+ 100   60  100 -100  100   60  100    0    0    0 -100  -33 -100
+  60  100   60  100   60  100    0    0    0    0 -100 -100  -33
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    const char* name = "groupTaxOwnership2";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(13,13,R"%%(
+.xo.ox.oooooo
+x.ooox.oxxxxo
+oooxxx.oxo..x
+xxxx...oxo..x
+oooxx..oxxxxo
+.o.ox..oooooo
+.ooxx........
+ooxx.........
+.............
+oooxx....o...
+oxxoxxxxxoxxx
+ox.oxooooxooo
+ox.oxo.o.x.o.
+)%%");
+
+    int nnXLen = board.x_size;
+    int nnYLen = board.y_size;
+
+    bool multiStoneSuicideLegal = true;
+    bool nonPassAliveStones = true;
+    bool safeBigTerritories = true;
+    bool unsafeBigTerritories = false;
+    board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
+
+    float ownership[NNPos::MAX_BOARD_AREA];
+
+    out << endl;
+    out << "No group tax" << endl;
+    NNInputs::fillOwnership(board,result,false,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "Group tax" << endl;
+    NNInputs::fillOwnership(board,result,true,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+
+No group tax
+   0 -100  100    0  100 -100    0  100  100  100  100  100  100
+-100    0  100  100  100 -100    0  100 -100 -100 -100 -100  100
+ 100  100  100 -100 -100 -100    0  100 -100  100    0    0 -100
+-100 -100 -100 -100    0    0    0  100 -100  100    0    0 -100
+ 100  100  100 -100 -100    0    0  100 -100 -100 -100 -100  100
+   0  100    0  100 -100    0    0  100  100  100  100  100  100
+   0  100  100 -100 -100    0    0    0    0    0    0    0    0
+ 100  100 -100 -100    0    0    0    0    0    0    0    0    0
+   0    0    0    0    0    0    0    0    0    0    0    0    0
+ 100  100  100 -100 -100    0    0    0    0  100    0    0    0
+ 100 -100 -100  100 -100 -100 -100 -100 -100  100 -100 -100 -100
+ 100 -100    0  100 -100  100  100  100  100 -100  100  100  100
+ 100 -100    0  100 -100  100    0  100    0 -100    0  100    0
+
+Group tax
+   0 -100  100    0  100 -100    0  100  100  100  100  100  100
+-100    0  100  100  100 -100    0  100 -100 -100 -100 -100  100
+ 100  100  100 -100 -100 -100    0  100 -100  100    0    0 -100
+-100 -100 -100 -100    0    0    0  100 -100  100    0    0 -100
+ 100  100  100 -100 -100    0    0  100 -100 -100 -100 -100  100
+   0  100    0  100 -100    0    0  100  100  100  100  100  100
+   0  100  100 -100 -100    0    0    0    0    0    0    0    0
+ 100  100 -100 -100    0    0    0    0    0    0    0    0    0
+   0    0    0    0    0    0    0    0    0    0    0    0    0
+ 100  100  100 -100 -100    0    0    0    0  100    0    0    0
+ 100 -100 -100  100 -100 -100 -100 -100 -100  100 -100 -100 -100
+ 100 -100    0  100 -100  100  100  100  100 -100  100  100  100
+ 100 -100    0  100 -100  100    0  100    0 -100    0  100    0
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    const char* name = "groupTaxOwnership2 but with unsafe territories on";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(13,13,R"%%(
+.xo.ox.oooooo
+x.ooox.oxxxxo
+oooxxx.oxo..x
+xxxx...oxo..x
+oooxx..oxxxxo
+.o.ox..oooooo
+.ooxx........
+ooxx.........
+.............
+oooxx....o...
+oxxoxxxxxoxxx
+ox.oxooooxooo
+ox.oxo.o.x.o.
+)%%");
+
+    int nnXLen = board.x_size;
+    int nnYLen = board.y_size;
+
+    bool multiStoneSuicideLegal = true;
+    bool nonPassAliveStones = true;
+    bool safeBigTerritories = true;
+    bool unsafeBigTerritories = true;
+    board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
+
+    float ownership[NNPos::MAX_BOARD_AREA];
+
+    out << endl;
+    out << "No group tax" << endl;
+    NNInputs::fillOwnership(board,result,false,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "Group tax" << endl;
+    NNInputs::fillOwnership(board,result,true,nnXLen,nnYLen,ownership);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        int pos = NNPos::xyToPos(x,y,nnXLen);
+        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+No group tax
+-100 -100  100  100  100 -100    0  100  100  100  100  100  100
+-100    0  100  100  100 -100    0  100 -100 -100 -100 -100  100
+ 100  100  100 -100 -100 -100    0  100 -100  100    0    0 -100
+-100 -100 -100 -100    0    0    0  100 -100  100    0    0 -100
+ 100  100  100 -100 -100    0    0  100 -100 -100 -100 -100  100
+ 100  100  100  100 -100    0    0  100  100  100  100  100  100
+ 100  100  100 -100 -100    0    0    0    0    0    0    0    0
+ 100  100 -100 -100    0    0    0    0    0    0    0    0    0
+   0    0    0    0    0    0    0    0    0    0    0    0    0
+ 100  100  100 -100 -100    0    0    0    0  100    0    0    0
+ 100 -100 -100  100 -100 -100 -100 -100 -100  100 -100 -100 -100
+ 100 -100    0  100 -100  100  100  100  100 -100  100  100  100
+ 100 -100    0  100 -100  100  100  100    0 -100    0  100  100
+
+Group tax
+   0 -100  100    0  100 -100    0  100  100  100  100  100  100
+-100    0  100  100  100 -100    0  100 -100 -100 -100 -100  100
+ 100  100  100 -100 -100 -100    0  100 -100  100    0    0 -100
+-100 -100 -100 -100    0    0    0  100 -100  100    0    0 -100
+ 100  100  100 -100 -100    0    0  100 -100 -100 -100 -100  100
+  33  100   33  100 -100    0    0  100  100  100  100  100  100
+  33  100  100 -100 -100    0    0    0    0    0    0    0    0
+ 100  100 -100 -100    0    0    0    0    0    0    0    0    0
+   0    0    0    0    0    0    0    0    0    0    0    0    0
+ 100  100  100 -100 -100    0    0    0    0  100    0    0    0
+ 100 -100 -100  100 -100 -100 -100 -100 -100  100 -100 -100 -100
+ 100 -100    0  100 -100  100  100  100  100 -100  100  100  100
+ 100 -100    0  100 -100  100    0  100    0 -100    0  100    0
+
+)%%";
+    expect(name,out,expected);
+  }
+
+
+
+  //============================================================================
+  auto printIndependentLifeAreas = [&out](const Board& board, Color result[Board::MAX_ARR_SIZE]) {
+    bool keepTerritoriesBuf[4] = {false, true,  false, true};
+    bool keepStonesBuf[4] =      {false, false, true, true};
+
+    for(int mode = 0; mode < 8; mode++) {
+      bool multiStoneSuicideLegal = (mode % 2 == 1);
+      bool keepTerritories = keepTerritoriesBuf[mode/2];
+      bool keepStones = keepStonesBuf[mode/2];
+      int whiteMinusBlackIndependentLifeRegionCount = 0;
+      Board copy(board);
+      copy.calculateIndependentLifeArea(result,whiteMinusBlackIndependentLifeRegionCount,keepTerritories,keepStones,multiStoneSuicideLegal);
+      out << "Keep Territories " << keepTerritories << " "
+      << "Keep Stones " << keepStones << " "
+      << "Suicide " << multiStoneSuicideLegal << endl;
+      out << "whiteMinusBlackIndependentLifeRegionCount " << whiteMinusBlackIndependentLifeRegionCount << endl;
+      for(int y = 0; y<copy.y_size; y++) {
+        for(int x = 0; x<copy.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,copy.x_size);
+          out << PlayerIO::colorToChar(result[loc]);
+        }
+        out << endl;
+      }
+      out << endl;
+      testAssert(boardsSeemEqual(copy,board));
+      copy.checkConsistency();
+    }
+  };
+
+
+  //============================================================================
+  {
+    const char* name = "IndependentLife 1";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(19,19,R"%%(
+.oooxooo.ox..xo.o..
+o.xoxo.xoox..xoooxx
+oooxxxooxxx..xxxxoo
+xxx.xxxxx.x.....xo.
+..xxx....xx.....xoo
+................xxx
+xxxxxxxxxxxxxx..xoo
+.............x..xo.
+..oo.........x.xxox
+oo.o.......ooxxooox
+xoooo...ooooxoox.x.
+.xo.o...o.ox.xoxxxx
+xoooo...ooooxoooooo
+oo.........oooooooo
+xxxxxxxxxxxxxxxxxxx
+oooooox....xooooooo
+xxxo.ox....xo.ooxxx
+..xooox.xx.xooo.x..
+..xo.ox....xo.oox..
+)%%");
+
+    printIndependentLifeAreas(board,result);
+
+    string expected = R"%%(
+Keep Territories 0 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOO...............
+OOOO...............
+OOO................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+OOOOOO.............
+XXXOOO.............
+XXXOOO.............
+XXXOOO.............
+
+Keep Territories 0 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOO...............
+OOOO...............
+OOO................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+OOOOOO.............
+XXXOOO.............
+XXXOOO.............
+XXXOOO.............
+
+Keep Territories 1 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOO....O..XX..O...
+OOOO.......XX......
+OOO........XX......
+...X.....X.XXXXX..O
+XX...XXXX..XXXXX...
+XXXXXXXXXXXXXXXX...
+..............XX...
+..............XX...
+..............X....
+..O................
+O.................X
+OO.O.....O..X......
+O..................
+...................
+...................
+OOOOOO.XXXX........
+XXXOOO.XXXX..O.....
+XXXOOO.X..X......XX
+XXXOOO.XXXX..O...XX
+
+Keep Territories 1 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOO....O..XX..O...
+OOOO.......XX......
+OOO........XX......
+...X.....X.XXXXX..O
+XX...XXXX..XXXXX...
+XXXXXXXXXXXXXXXX...
+..............XX...
+..............XX...
+..............X....
+..O................
+O.................X
+OO.O.....O..X......
+O..................
+...................
+...................
+OOOOOO.XXXX........
+XXXOOO.XXXX..O.....
+XXXOOO.X..X......XX
+XXXOOO.XXXX..O...XX
+
+Keep Territories 0 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOXOOO.OX..XO.O..
+OOOOXO.XOOX..XOOOXX
+OOOXXXOOXXX..XXXXOO
+XXX.XXXXX.X.....XO.
+..XXX....XX.....XOO
+................XXX
+XXXXXXXXXXXXXX..XOO
+.............X..XO.
+..OO.........X.XXOX
+OO.O.......OOXXOOOX
+.OOOO...OOOOXOOX.X.
+..O.O...O.OX.XOXXXX
+.OOOO...OOOOXOOOOOO
+OO.........OOOOOOOO
+XXXXXXXXXXXXXXXXXXX
+OOOOOOX....XOOOOOOO
+XXXOOOX....XO.OOXXX
+XXXOOOX.XX.XOOO.X..
+XXXOOOX....XO.OOX..
+
+Keep Territories 0 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOXOOO.OX..XO.O..
+OOOOXO.XOOX..XOOOXX
+OOOXXXOOXXX..XXXXOO
+XXX.XXXXX.X.....XO.
+..XXX....XX.....XOO
+................XXX
+XXXXXXXXXXXXXX..XOO
+.............X..XO.
+..OO.........X.XXOX
+OO.O.......OOXXOOOX
+.OOOO...OOOOXOOX.X.
+..O.O...O.OX.XOXXXX
+.OOOO...OOOOXOOOOOO
+OO.........OOOOOOOO
+XXXXXXXXXXXXXXXXXXX
+OOOOOOX....XOOOOOOO
+XXXOOOX....XO.OOXXX
+XXXOOOX.XX.XOOO.X..
+XXXOOOX....XO.OOX..
+
+Keep Territories 1 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOXOOOOOXXXXOOO..
+OOOOXO.XOOXXXXOOOXX
+OOOXXXOOXXXXXXXXXOO
+XXXXXXXXXXXXXXXXXOO
+XXXXXXXXXXXXXXXXXOO
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXOO
+.............XXXXO.
+..OO.........XXXXOX
+OOOO.......OOXXOOOX
+OOOOO...OOOOXOOX.XX
+OOOOO...OOOXXXOXXXX
+OOOOO...OOOOXOOOOOO
+OO.........OOOOOOOO
+XXXXXXXXXXXXXXXXXXX
+OOOOOOXXXXXXOOOOOOO
+XXXOOOXXXXXXOOOOXXX
+XXXOOOXXXXXXOOO.XXX
+XXXOOOXXXXXXOOOOXXX
+
+Keep Territories 1 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOXOOOOOXXXXOOO..
+OOOOXO.XOOXXXXOOOXX
+OOOXXXOOXXXXXXXXXOO
+XXXXXXXXXXXXXXXXXOO
+XXXXXXXXXXXXXXXXXOO
+XXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXOO
+.............XXXXO.
+..OO.........XXXXOX
+OOOO.......OOXXOOOX
+OOOOO...OOOOXOOX.XX
+OOOOO...OOOXXXOXXXX
+OOOOO...OOOOXOOOOOO
+OO.........OOOOOOOO
+XXXXXXXXXXXXXXXXXXX
+OOOOOOXXXXXXOOOOOOO
+XXXOOOXXXXXXOOOOXXX
+XXXOOOXXXXXXOOO.XXX
+XXXOOOXXXXXXOOOOXXX
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    const char* name = "IndependentLife 2";
+    Color result[Board::MAX_ARR_SIZE];
+    Board board = Board::parseBoard(19,19,R"%%(
+x.o.ox.......xo.ox.
+xo..ox.......xo..ox
+o..ox.........xo..o
+..ox.....o.....xo..
+oox.............xoo
+xx...............xx
+...................
+..xx.............xx
+xxoox......xxx..xoo
+oo.ox...xxxooox.xo.
+xoooox.xooooxooxxoo
+.xo.ox.xo.ox.xoxoo.
+xoooox.xooooxooxo.x
+ooxxx...xxxoooxxoo.
+xx.........xxx..xoo
+xxx..xxx.......xxxx
+oooxxooox...xxxoooo
+xxoooxxoox.xooo.oxx
+.xo.o.xo.oxxo.ooox.
+)%%");
+
+    printIndependentLifeAreas(board,result);
+
+    string expected = R"%%(
+Keep Territories 0 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 4
+..............OOO..
+..............OOOO.
+...............OOOO
+................OOO
+.................OO
+...................
+...................
+...................
+..OO.............OO
+OOOO.............OO
+OOOOO............OO
+OOOOO...........OOO
+OOOOO...........OOO
+OO..............OOO
+.................OO
+...................
+...............OOOO
+............OOOOOOO
+............OOOOOOO
+
+Keep Territories 0 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 3
+..............OOO..
+..............OOOO.
+...............OOOO
+................OOO
+.................OO
+...................
+...................
+...................
+..OO...............
+OOOO...............
+OOOOO..............
+OOOOO..............
+OOOOO..............
+OO.................
+...................
+...................
+...............OOOO
+............OOOOOOO
+............OOOOOOO
+
+Keep Territories 1 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 4
+...O..........OOO.X
+..OO..........OOOO.
+.OO............OOOO
+OO..............OOO
+.................OO
+...................
+...................
+...................
+..OO.............OO
+OOOO.............OO
+OOOOO............OO
+OOOOO....O..X...OOO
+OOOOO...........OOO
+OO..............OOO
+.................OO
+...................
+...............OOOO
+............OOOOOOO
+X..O....O...OOOOOOO
+
+Keep Territories 1 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 3
+...O..........OOO.X
+..OO..........OOOO.
+.OO............OOOO
+OO..............OOO
+.................OO
+...................
+...................
+...................
+..OO...............
+OOOO..............O
+OOOOO..............
+OOOOO....O..X......
+OOOOO..............
+OO.................
+...................
+...................
+...............OOOO
+............OOOOOOO
+X..O....O...OOOOOOO
+
+Keep Territories 0 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 4
+X.O.OX.......XOOOX.
+XO..OX.......XOOOOX
+O..OX.........XOOOO
+..OX.....O.....XOOO
+OOX.............XOO
+XX...............XX
+...................
+..XX.............XX
+XXOOX......XXX..XOO
+OOOOX...XXXOOOX.XOO
+OOOOOX.XOOOOXOOXXOO
+OOOOOX.XO.OX.XOXOOO
+OOOOOX.XOOOOXOOXOOO
+OOXXX...XXXOOOXXOOO
+XX.........XXX..XOO
+XXX..XXX.......XXXX
+OOOXXOOOX...XXXOOOO
+XXOOOXXOOX.XOOOOOOO
+.XO.O.XO.OXXOOOOOOO
+
+Keep Territories 0 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 3
+X.O.OX.......XOOOX.
+XO..OX.......XOOOOX
+O..OX.........XOOOO
+..OX.....O.....XOOO
+OOX.............XOO
+XX...............XX
+...................
+..XX.............XX
+XXOOX......XXX..XOO
+OOOOX...XXXOOOX.XO.
+OOOOOX.XOOOOXOOXXOO
+OOOOOX.XO.OX.XOXOO.
+OOOOOX.XOOOOXOOXO.X
+OOXXX...XXXOOOXXOO.
+XX.........XXX..XOO
+XXX..XXX.......XXXX
+OOOXXOOOX...XXXOOOO
+XXOOOXXOOX.XOOOOOOO
+.XO.O.XO.OXXOOOOOOO
+
+Keep Territories 1 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 4
+X.OOOX.......XOOOXX
+XOOOOX.......XOOOOX
+OOOOX.........XOOOO
+OOOX.....O.....XOOO
+OOX.............XOO
+XX...............XX
+...................
+..XX.............XX
+XXOOX......XXX..XOO
+OOOOX...XXXOOOX.XOO
+OOOOOX.XOOOOXOOXXOO
+OOOOOX.XOOOXXXOXOOO
+OOOOOX.XOOOOXOOXOOO
+OOXXX...XXXOOOXXOOO
+XX.........XXX..XOO
+XXX..XXX.......XXXX
+OOOXXOOOX...XXXOOOO
+XXOOOXXOOX.XOOOOOOO
+XXOOO.XOOOXXOOOOOOO
+
+Keep Territories 1 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 3
+X.OOOX.......XOOOXX
+XOOOOX.......XOOOOX
+OOOOX.........XOOOO
+OOOX.....O.....XOOO
+OOX.............XOO
+XX...............XX
+...................
+..XX.............XX
+XXOOX......XXX..XOO
+OOOOX...XXXOOOX.XOO
+OOOOOX.XOOOOXOOXXOO
+OOOOOX.XOOOXXXOXOO.
+OOOOOX.XOOOOXOOXO.X
+OOXXX...XXXOOOXXOO.
+XX.........XXX..XOO
+XXX..XXX.......XXXX
+OOOXXOOOX...XXXOOOO
+XXOOOXXOOX.XOOOOOOO
+XXOOO.XOOOXXOOOOOOO
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "IndependentLife 3,4,5";
+    Color result[Board::MAX_ARR_SIZE];
+
+    {
+      Board board = Board::parseBoard(15,4,R"%%(
+oooooox.x.xo...
+xxxxxoxxxxxoooo
+xoooxoooooxxxxx
+x.x.xo...oxx.x.
+)%%");
+      printIndependentLifeAreas(board,result);
+    }
+    {
+      Board board = Board::parseBoard(15,4,R"%%(
+oooooox.x.xo...
+xxxxxoxxxxxoooo
+xoooxooooooxxxx
+x.x.xo...oxx.x.
+)%%");
+      printIndependentLifeAreas(board,result);
+    }
+    {
+      Board board = Board::parseBoard(15,4,R"%%(
+oooooox.x.xo...
+xxxxxoxxxxooooo
+xoooxooooooxxxx
+x.x.xo...oxx.x.
+)%%");
+      printIndependentLifeAreas(board,result);
+    }
+
+    string expected = R"%%(
+Keep Territories 0 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOOOXXXXXOOOO
+.....OXXXXXOOOO
+.....OOOOOXXXXX
+.....OOOOOXXXXX
+
+Keep Territories 0 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOOOXXXXXOOOO
+.....OXXXXXOOOO
+.....OOOOOXXXXX
+.....OOOOOXXXXX
+
+Keep Territories 1 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOOOXXXXXOOOO
+.....OXXXXXOOOO
+.....OOOOOXXXXX
+.....OOOOOXXXXX
+
+Keep Territories 1 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOOOXXXXXOOOO
+.....OXXXXXOOOO
+.....OOOOOXXXXX
+.....OOOOOXXXXX
+
+Keep Territories 0 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOOOXXXXXOOOO
+XXXXXOXXXXXOOOO
+XOOOXOOOOOXXXXX
+X.X.XOOOOOXXXXX
+
+Keep Territories 0 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOOOXXXXXOOOO
+XXXXXOXXXXXOOOO
+XOOOXOOOOOXXXXX
+X.X.XOOOOOXXXXX
+
+Keep Territories 1 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOOOXXXXXOOOO
+XXXXXOXXXXXOOOO
+XOOOXOOOOOXXXXX
+X.X.XOOOOOXXXXX
+
+Keep Territories 1 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 1
+OOOOOOXXXXXOOOO
+XXXXXOXXXXXOOOO
+XOOOXOOOOOXXXXX
+X.X.XOOOOOXXXXX
+
+Keep Territories 0 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOXXXXXOOOO
+.....OXXXXXOOOO
+.....OOOOOOXXXX
+.....OOOOOXXXXX
+
+Keep Territories 0 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOXXXXXOOOO
+.....OXXXXXOOOO
+.....OOOOOOXXXX
+.....OOOOOXXXXX
+
+Keep Territories 1 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOXXXXXOOOO
+.....OXXXXXOOOO
+.....OOOOOOXXXX
+.....OOOOOXXXXX
+
+Keep Territories 1 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOXXXXXOOOO
+.....OXXXXXOOOO
+.....OOOOOOXXXX
+.....OOOOOXXXXX
+
+Keep Territories 0 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOXXXXXOOOO
+XXXXXOXXXXXOOOO
+XOOOXOOOOOOXXXX
+X.X.XOOOOOXXXXX
+
+Keep Territories 0 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOXXXXXOOOO
+XXXXXOXXXXXOOOO
+XOOOXOOOOOOXXXX
+X.X.XOOOOOXXXXX
+
+Keep Territories 1 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOXXXXXOOOO
+XXXXXOXXXXXOOOO
+XOOOXOOOOOOXXXX
+X.X.XOOOOOXXXXX
+
+Keep Territories 1 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOXXXXXOOOO
+XXXXXOXXXXXOOOO
+XOOOXOOOOOOXXXX
+X.X.XOOOOOXXXXX
+
+Keep Territories 0 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOO.....OOOO
+.....O....OOOOO
+.....OOOOOOXXXX
+.....OOOOOXXXXX
+
+Keep Territories 0 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOO.....OOOO
+.....O....OOOOO
+.....OOOOOOXXXX
+.....OOOOOXXXXX
+
+Keep Territories 1 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOO.X.X.OOOO
+.....O....OOOOO
+.....OOOOOOXXXX
+.....OOOOOXXXXX
+
+Keep Territories 1 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOO.X.X.OOOO
+.....O....OOOOO
+.....OOOOOOXXXX
+.....OOOOOXXXXX
+
+Keep Territories 0 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOX.X.XOOOO
+XXXXXOXXXXOOOOO
+XOOOXOOOOOOXXXX
+X.X.XOOOOOXXXXX
+
+Keep Territories 0 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOX.X.XOOOO
+XXXXXOXXXXOOOOO
+XOOOXOOOOOOXXXX
+X.X.XOOOOOXXXXX
+
+Keep Territories 1 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOXXXXXOOOO
+XXXXXOXXXXOOOOO
+XOOOXOOOOOOXXXX
+X.X.XOOOOOXXXXX
+
+Keep Territories 1 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+OOOOOOXXXXXOOOO
+XXXXXOXXXXOOOOO
+XOOOXOOOOOOXXXX
+X.X.XOOOOOXXXXX
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "IndependentLife 6";
+    Color result[Board::MAX_ARR_SIZE];
+
+    {
+      Board board = Board::parseBoard(15,4,R"%%(
+.xo..ox.x.x.x..
+.xo..o.xoxx.xxx
+.xo...ooooxxooo
+.xo.......oo...
+)%%");
+      printIndependentLifeAreas(board,result);
+    }
+    {
+      Board board = Board::parseBoard(15,4,R"%%(
+.xo..ox.x.x.x..
+.xo..oxxoxx.xxx
+.xo...ooooxxooo
+.xo.......oo...
+)%%");
+      printIndependentLifeAreas(board,result);
+    }
+
+    string expected = R"%%(
+Keep Territories 0 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount -1
+XX.............
+XX.............
+XX.............
+XX.............
+
+Keep Territories 0 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount -1
+XX.............
+XX.............
+XX.............
+XX.............
+
+Keep Territories 1 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount -1
+XX.OO..X.X.X.XX
+XX.OO......X...
+XX.OOO.........
+XX.OOOOOOO..OOO
+
+Keep Territories 1 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount -1
+XX.OO..X.X.X.XX
+XX.OO......X...
+XX.OOO.........
+XX.OOOOOOO..OOO
+
+Keep Territories 0 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount -1
+XXO..OX.X.X.X..
+XXO..O.XOXX.XXX
+XXO...OOOOXXOOO
+XXO.......OO...
+
+Keep Territories 0 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount -1
+XXO..OX.X.X.X..
+XXO..O.XOXX.XXX
+XXO...OOOOXXOOO
+XXO.......OO...
+
+Keep Territories 1 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOO.XOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 1 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount -1
+XXOOOOXXXXXXXXX
+XXOOOO.XOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 0 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+XXOOOO.........
+XXOOOO..O......
+XXOOOOOOOO..OOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 0 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+XXOOOO.........
+XXOOOO..O......
+XXOOOOOOOO..OOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 1 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+XXOOOO.X.X.X.XX
+XXOOOO..O..X...
+XXOOOOOOOO..OOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 1 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+XXOOOO.X.X.X.XX
+XXOOOO..O..X...
+XXOOOOOOOO..OOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 0 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+XXOOOOX.X.X.X..
+XXOOOOXXOXX.XXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 0 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+XXOOOOX.X.X.X..
+XXOOOOXXOXX.XXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 1 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount 0
+XXOOOOXXXXXXXXX
+XXOOOOXXOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+Keep Territories 1 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount 0
+XXOOOOXXXXXXXXX
+XXOOOOXXOXXXXXX
+XXOOOOOOOOXXOOO
+XXOOOOOOOOOOOOO
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "IndependentLife 7";
+    Color result[Board::MAX_ARR_SIZE];
+
+    {
+      Board board = Board::parseBoard(15,5,R"%%(
+.xo.oox....xo.o
+xxxooox....xoox
+.xo.oxx...xxxo.
+xoooox....xoooo
+ooxxxx....xo.o.
+)%%");
+      printIndependentLifeAreas(board,result);
+    }
+
+    string expected = R"%%(
+Keep Territories 0 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount -1
+......XXXXXX...
+......XXXXXX...
+.....XXXXXXXX..
+.....XXXXXX....
+..XXXXXXXXX....
+
+Keep Territories 0 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount -1
+......XXXXXX...
+......XXXXXX...
+.....XXXXXXXX..
+.....XXXXXX....
+..XXXXXXXXX....
+
+Keep Territories 1 Keep Stones 0 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount -1
+X..O..XXXXXX.O.
+......XXXXXX...
+X..O.XXXXXXXX..
+.....XXXXXX....
+..XXXXXXXXX.O.O
+
+Keep Territories 1 Keep Stones 0 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount -1
+X..O..XXXXXX.O.
+......XXXXXX...
+X..O.XXXXXXXX..
+.....XXXXXX....
+..XXXXXXXXX.O.O
+
+Keep Territories 0 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount -1
+.XO.OOXXXXXXO.O
+XXXOOOXXXXXXOOX
+.XO.OXXXXXXXXO.
+XOOOOXXXXXXOOOO
+OOXXXXXXXXXO.O.
+
+Keep Territories 0 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount -1
+.XO.OOXXXXXXO.O
+XXXOOOXXXXXXOOX
+.XO.OXXXXXXXXO.
+XOOOOXXXXXXOOOO
+OOXXXXXXXXXO.O.
+
+Keep Territories 1 Keep Stones 1 Suicide 0
+whiteMinusBlackIndependentLifeRegionCount -1
+XXOOOOXXXXXXOOO
+XXXOOOXXXXXXOOX
+XXOOOXXXXXXXXO.
+XOOOOXXXXXXOOOO
+OOXXXXXXXXXOOOO
+
+Keep Territories 1 Keep Stones 1 Suicide 1
+whiteMinusBlackIndependentLifeRegionCount -1
+XXOOOOXXXXXXOOO
+XXXOOOXXXXXXOOX
+XXOOOXXXXXXXXO.
+XOOOOXXXXXXOOOO
+OOXXXXXXXXXOOOO
+
+)%%";
+    expect(name,out,expected);
+  }
+
 }

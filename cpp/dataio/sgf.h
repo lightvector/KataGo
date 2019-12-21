@@ -62,8 +62,43 @@ struct Sgf {
 
   int depth() const;
 
+  struct PositionSample {
+    Board board;
+    Player nextPla;
+    //Prior to using the sample, play these moves on to the board.
+    //This provides a little bit of history and context, which can also be relevant for setting up ko prohibitions.
+    std::vector<Move> moves;
+    //Turn number as of the start of board.
+    int initialTurnNumber;
+  };
+
+  //Loads SGF all unique positions in ALL branches of that SGF.
+  //Hashes are used to filter out "identical" positions when loading many files from different SGFs that may have overlapping openings, etc.
+  //The hashes are not guaranteed to correspond to position hashes, or anything else external to this function itself.
+  //May raise an exception on illegal moves or other SGF issues, only partially appending things on to the boards and hists.
+  void loadAllUniquePositions(std::set<Hash128>& uniqueHashes, std::vector<PositionSample>& samples) const;
+  //f is allowed to mutate and consume sample.
+  void iterAllUniquePositions(std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&)> f) const;
+
   private:
   void getMovesHelper(std::vector<Move>& moves, int xSize, int ySize) const;
+
+
+  void iterAllUniquePositionsHelper(
+    Board& board, BoardHistory& hist, Player nextPla,
+    const Rules& rules, int xSize, int ySize,
+    PositionSample& sampleBuf,
+    int initialTurnNumber,
+    std::set<Hash128>& uniqueHashes,
+    std::function<void(PositionSample&)> f
+  ) const;
+  void samplePositionIfUniqueHelper(
+    Board& board, BoardHistory& hist, Player nextPla,
+    PositionSample& sampleBuf,
+    int initialTurnNumber,
+    std::set<Hash128>& uniqueHashes,
+    std::function<void(PositionSample&)> f
+  ) const;
 
 };
 
@@ -104,8 +139,8 @@ namespace WriteSgf {
   //indicate the index of the first turn that should be used for training data. (0 means the whole SGF, 1 means skipping black's first move, etc).
   //If valueTargets is not NULL, also write down after each move the MCTS values following that search move.
   void writeSgf(
-    std::ostream& out, const std::string& bName, const std::string& wName, const Rules& rules,
-    const BoardHistory& hist,
+    std::ostream& out, const std::string& bName, const std::string& wName,
+    const BoardHistory& endHist,
     const FinishedGameData* gameData
   );
 

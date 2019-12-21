@@ -16,6 +16,7 @@ import data
 from board import Board
 from model import Model, Target_vars, Metrics, ModelUtils
 import common
+import tfrecordio
 
 #Command and args-------------------------------------------------------------------
 
@@ -33,6 +34,7 @@ parser.add_argument('-batch-size', help='Expected batch size of the input data, 
 args = vars(parser.parse_args())
 
 (model_variables_prefix, model_config_json) = common.load_model_paths(args)
+data_files = args["data_files"]
 name_scope = args["name_scope"]
 pos_len = args["pos_len"]
 batch_size = args["batch_size"]
@@ -43,34 +45,7 @@ def log(s):
 with open(model_config_json) as f:
   model_config = json.load(f)
 
-num_bin_input_features = Model.get_num_bin_input_features(model_config)
-num_global_input_features = Model.get_num_global_input_features(model_config)
-
-NUM_POLICY_TARGETS = 2
-NUM_GLOBAL_TARGETS = 56
-NUM_VALUE_SPATIAL_TARGETS = 1
-EXTRA_SCORE_DISTR_RADIUS = 60
-BONUS_SCORE_RADIUS = 30
-
 log("Constructing validation input pipe")
-def parse_tf_records_input(serialized_example):
-  example = tf.parse_single_example(serialized_example,raw_input_features)
-  binchwp = tf.decode_raw(example["binchwp"],tf.uint8)
-  ginc = example["ginc"]
-  ptncm = example["ptncm"]
-  gtnc = example["gtnc"]
-  sdn = example["sdn"]
-  sbsn = example["sbsn"]
-  vtnchw = example["vtnchw"]
-  return {
-    "binchwp": tf.reshape(binchwp,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
-    "ginc": tf.reshape(ginc,[batch_size,num_global_input_features]),
-    "ptncm": tf.reshape(ptncm,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
-    "gtnc": tf.reshape(gtnc,[batch_size,NUM_GLOBAL_TARGETS]),
-    "sdn": tf.reshape(sdn,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
-    "sbsn": tf.reshape(sbsn,[batch_size,BONUS_SCORE_RADIUS*2+1]),
-    "vtnchw": tf.reshape(vtnchw,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
-  }
 
 using_tfrecords = False
 using_npz = False
@@ -88,19 +63,12 @@ if using_tfrecords and using_npz:
 if using_tfrecords:
   dataset = tf.data.Dataset.from_tensor_slices(data_files)
   dataset = dataset.flat_map(lambda fname: tf.data.TFRecordDataset(fname,compression_type="ZLIB"))
-  dataset = dataset.map(parse_tf_records_input)
+  parse_input = tfrecordio.make_tf_record_parser(model_config,pos_len,batch_size)
+  dataset = dataset.map(parse_input)
   iterator = dataset.make_one_shot_iterator()
   features = iterator.get_next()
 elif using_npz:
-  features = {
-    "binchwp": tf.placeholder(tf.uint8,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
-    "ginc": tf.placeholder(tf.float32,[batch_size,num_global_input_features]),
-    "ptncm": tf.placeholder(tf.float32,[batch_size,NUM_POLICY_TARGETS,pos_len*pos_len+1]),
-    "gtnc": tf.placeholder(tf.float32,[batch_size,NUM_GLOBAL_TARGETS]),
-    "sdn": tf.placeholder(tf.float32,[batch_size,pos_len*pos_len*2+EXTRA_SCORE_DISTR_RADIUS*2]),
-    "sbsn": tf.placeholder(tf.float32,[batch_size,BONUS_SCORE_RADIUS*2+1]),
-    "vtnchw": tf.placeholder(tf.float32,[batch_size,NUM_VALUE_SPATIAL_TARGETS,pos_len,pos_len])
-  }
+  features = tfrecordio.make_raw_input_feature_placeholders(model_config,pos_len,batch_size)
 
 
 # Model ----------------------------------------------------------------
@@ -158,7 +126,7 @@ with tf.Session(config=tfconfig) as session:
     if using_tfrecords:
       try:
         while True:
-          results = session.run(fetches)
+          result = session.run(fetches)
           results.append(result)
       except tf.errors.OutOfRangeError:
         pass
@@ -170,7 +138,6 @@ with tf.Session(config=tfconfig) as session:
           ptncm = npz["policyTargetsNCMove"].astype(np.float32)
           gtnc = npz["globalTargetsNC"]
           sdn = npz["scoreDistrN"].astype(np.float32)
-          sbsn = npz["selfBonusScoreN"].astype(np.float32)
           vtnchw = npz["valueTargetsNCHW"].astype(np.float32)
           nbatches = len(binchwp)//batch_size
           print("Iterating %d batches from %s" % (nbatches,data_file))
@@ -184,7 +151,6 @@ with tf.Session(config=tfconfig) as session:
               features["ptncm"]: np.array(ptncm[i*batch_size:(i+1)*batch_size]),
               features["gtnc"]: np.array(gtnc[i*batch_size:(i+1)*batch_size]),
               features["sdn"]: np.array(sdn[i*batch_size:(i+1)*batch_size]),
-              features["sbsn"]: np.array(sbsn[i*batch_size:(i+1)*batch_size]),
               features["vtnchw"]: np.array(vtnchw[i*batch_size:(i+1)*batch_size])
             })
             results.append(result)
@@ -198,17 +164,16 @@ with tf.Session(config=tfconfig) as session:
     "p0loss": target_vars.policy_loss,
     "p1loss": target_vars.policy1_loss,
     "vloss": target_vars.value_loss,
+    "tdvloss": target_vars.td_value_loss,
     "smloss": target_vars.scoremean_loss,
     "sbpdfloss": target_vars.scorebelief_pdf_loss,
     "sbcdfloss": target_vars.scorebelief_cdf_loss,
-    "bbpdfloss": target_vars.bonusbelief_pdf_loss,
-    "bbcdfloss": target_vars.bonusbelief_cdf_loss,
-    "uvloss": target_vars.utilityvar_loss,
     "oloss": target_vars.ownership_loss,
-    "rwlloss": target_vars.winloss_reg_loss,
+    "sloss": target_vars.scoring_loss,
+    "fploss": target_vars.futurepos_loss,
+    "skloss": target_vars.seki_loss,
     "rsmloss": target_vars.scoremean_reg_loss,
     "rsdloss": target_vars.scorestdev_reg_loss,
-    "roloss": target_vars.ownership_reg_loss,
     "rscloss": target_vars.scale_reg_loss,
     "vconf": metrics.value_conf,
     "ventr": metrics.value_entropy,
@@ -216,23 +181,22 @@ with tf.Session(config=tfconfig) as session:
   }
 
   def validation_stats_str(vmetrics_evaled):
-    return "acc1 %f acc4 %f p0loss %f p1loss %f vloss %f smloss %f sbpdfloss %f sbcdfloss %f bbpdfloss %f bbcdfloss %f uvloss %f oloss %f rwlloss %f rsmloss %f rsdloss %f roloss %f rscloss %f vconf %f ventr %f" % (
+    return "acc1 %f acc4 %f p0loss %f p1loss %f vloss %f tdvloss %f smloss %f sbpdfloss %f sbcdfloss %f oloss %f sloss %f fploss %f skloss %f rsmloss %f rsdloss %f rscloss %f vconf %f ventr %f" % (
       vmetrics_evaled["acc1"] * 100 / vmetrics_evaled["wsum"],
       vmetrics_evaled["acc4"] * 100 / vmetrics_evaled["wsum"],
       vmetrics_evaled["p0loss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["p1loss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["vloss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["tdvloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["smloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["sbpdfloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["sbcdfloss"] / vmetrics_evaled["wsum"],
-      vmetrics_evaled["bbpdfloss"] / vmetrics_evaled["wsum"],
-      vmetrics_evaled["bbcdfloss"] / vmetrics_evaled["wsum"],
-      vmetrics_evaled["uvloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["oloss"] / vmetrics_evaled["wsum"],
-      vmetrics_evaled["rwlloss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["sloss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["fploss"] / vmetrics_evaled["wsum"],
+      vmetrics_evaled["skloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["rsmloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["rsdloss"] / vmetrics_evaled["wsum"],
-      vmetrics_evaled["roloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["rscloss"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["vconf"] / vmetrics_evaled["wsum"],
       vmetrics_evaled["ventr"] / vmetrics_evaled["wsum"],
@@ -245,5 +209,3 @@ with tf.Session(config=tfconfig) as session:
 
   sys.stdout.flush()
   sys.stderr.flush()
-
-

@@ -7,6 +7,7 @@
 #include "dataio/sgf.h"
 #include "dataio/trainingwrite.h"
 #include "dataio/loadmodel.h"
+#include "neuralnet/modelversion.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
@@ -48,6 +49,8 @@ namespace {
     ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
     int numGameThreads;
     bool isDraining;
+
+    std::condition_variable noGameThreadsLeftVar;
 
     TrainingDataWriter* tdataWriter;
     TrainingDataWriter* vdataWriter;
@@ -95,9 +98,12 @@ namespace {
         if(size > maxDataQueueSize / 2)
           logger.write(Global::strprintf("WARNING: Struggling to keep up writing data, %d games enqueued out of %d max",size,maxDataQueueSize));
 
-        FinishedGameData* data = finishedGameQueue.waitPop();
-        if(data == NULL)
+        FinishedGameData* data;
+        bool suc = finishedGameQueue.waitPop(data);
+        if(!suc)
           break;
+
+        assert(data != NULL);
 
         if(rand.nextBool(validationProp))
           vdataWriter->writeGame(*data);
@@ -106,7 +112,7 @@ namespace {
 
         if(sgfOut != NULL) {
           assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
-          WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->startHist.rules,data->endHist,data);
+          WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->endHist,data);
           (*sgfOut) << endl;
         }
         delete data;
@@ -129,8 +135,8 @@ namespace {
     //Game threads finishing a game using this net call this
     void unregisterGameThread() {
       numGameThreads--;
-      if(isDraining && numGameThreads <= 0)
-        finishedGameQueue.forcePush(NULL); //forcePush so as not to block
+      if(numGameThreads <= 0)
+        noGameThreadsLeftVar.notify_all();
     }
 
     //NOT threadsafe - needs to be externally synchronized
@@ -138,8 +144,7 @@ namespace {
     void markAsDraining() {
       if(!isDraining) {
         isDraining = true;
-        if(numGameThreads <= 0)
-          finishedGameQueue.forcePush(NULL); //forcePush so as not to block
+        finishedGameQueue.setReadOnly();
       }
     }
 
@@ -159,22 +164,18 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   Rand seedRand;
 
   string configFile;
-  int inputsVersion;
   string modelsDir;
   string outputDir;
   try {
     TCLAP::CmdLine cmd("Generate training data via self play", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
-    TCLAP::ValueArg<int>    inputsVersionArg("","inputs-version","Version of neural net input features to use for data",true,0,"INT");
     TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
     cmd.add(configFileArg);
-    cmd.add(inputsVersionArg);
     cmd.add(modelsDirArg);
     cmd.add(outputDirArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
-    inputsVersion = inputsVersionArg.getValue();
     modelsDir = modelsDirArg.getValue();
     outputDir = outputDirArg.getValue();
 
@@ -209,6 +210,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   //Width and height of the board to use when writing data, typically 19
   const int dataBoardLen = cfg.getInt("dataBoardLen",9,37);
+  const int inputsVersion =
+    cfg.contains("inputsVersion") ?
+    cfg.getInt("inputsVersion",0,10000) :
+    NNModelVersion::getInputsVersion(NNModelVersion::defaultModelVersion);
   //Max number of games that we will allow to be queued up and not written out
   const int maxDataQueueSize = cfg.getInt("maxDataQueueSize",1,1000000);
   const int maxRowsPerTrainFile = cfg.getInt("maxRowsPerTrainFile",1,100000000);
@@ -220,18 +225,21 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
 
   //Initialize object for randomizing game settings and running games
-  bool forSelfPlay = true;
   FancyModes fancyModes;
   fancyModes.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   fancyModes.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
 
-  fancyModes.noCompensateKomiProb = cfg.getDouble("noCompensateKomiProb",0.0,1.0);
-  fancyModes.compensateKomiVisits = 20;
+  fancyModes.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 20;
+  fancyModes.estimateLeadVisits = cfg.contains("estimateLeadVisits") ? cfg.getInt("estimateLeadVisits",1,10000) : 6;
+  fancyModes.estimateLeadProb = cfg.contains("estimateLeadProb") ? cfg.getDouble("estimateLeadProb",0.0,1.0) : 0.0;
+  fancyModes.fancyKomiVarying = cfg.contains("fancyKomiVarying") ? cfg.getBool("fancyKomiVarying") : false;
 
   fancyModes.earlyForkGameProb = cfg.getDouble("earlyForkGameProb",0.0,0.5);
   fancyModes.earlyForkGameExpectedMoveProp = cfg.getDouble("earlyForkGameExpectedMoveProp",0.0,1.0);
-  fancyModes.earlyForkGameMinChoices = cfg.getInt("earlyForkGameMinChoices",1,30);
-  fancyModes.earlyForkGameMaxChoices = cfg.getInt("earlyForkGameMaxChoices",1,30);
+  fancyModes.forkGameProb = cfg.getDouble("forkGameProb",0,0.5);
+  fancyModes.forkGameMinChoices = cfg.getInt("forkGameMinChoices",1,100);
+  fancyModes.earlyForkGameMaxChoices = cfg.getInt("earlyForkGameMaxChoices",1,100);
+  fancyModes.forkGameMaxChoices = cfg.getInt("forkGameMaxChoices",1,100);
   fancyModes.cheapSearchProb = cfg.getDouble("cheapSearchProb",0.0,1.0);
   fancyModes.cheapSearchVisits = cfg.getInt("cheapSearchVisits",1,10000000);
   fancyModes.cheapSearchTargetWeight = cfg.getFloat("cheapSearchTargetWeight",0.0f,1.0f);
@@ -240,10 +248,16 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.reduceVisitsThresholdLookback = cfg.getInt("reduceVisitsThresholdLookback",0,1000);
   fancyModes.reducedVisitsMin = cfg.getInt("reducedVisitsMin",1,10000000);
   fancyModes.reducedVisitsWeight = cfg.getFloat("reducedVisitsWeight",0.0f,1.0f);
-  fancyModes.recordTreePositions = cfg.getBool("recordTreePositions");
-  fancyModes.recordTreeThreshold = cfg.getInt("recordTreeThreshold",1,100000000);
-  fancyModes.recordTreeTargetWeight = cfg.getFloat("recordTreeTargetWeight",0.0f,1.0f);
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, forSelfPlay, fancyModes);
+  fancyModes.policySurpriseDataWeight = cfg.getDouble("policySurpriseDataWeight",0.0f,1.0f);
+  fancyModes.handicapAsymmetricPlayoutProb = cfg.getDouble("handicapAsymmetricPlayoutProb",0.0,1.0);
+  fancyModes.normalAsymmetricPlayoutProb = cfg.getDouble("normalAsymmetricPlayoutProb",0.0,1.0);
+  fancyModes.maxAsymmetricRatio = cfg.getDouble("maxAsymmetricRatio",1.0,100.0);
+  fancyModes.minAsymmetricCompensateKomiProb = cfg.getDouble("minAsymmetricCompensateKomiProb",0.0,1.0);
+  fancyModes.sekiForkHack = true;
+  fancyModes.forSelfPlay = true;
+  fancyModes.dataXLen = dataBoardLen;
+  fancyModes.dataYLen = dataBoardLen;
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes, logger);
 
   Setup::initializeSession(cfg);
 
@@ -271,6 +285,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
 
+    //Wait for all threads to be completely done with it
+    while(netAndStuff->numGameThreads > 0)
+      netAndStuff->noGameThreadsLeftVar.wait(lock);
+
     //Find where our netAndStuff is and remove it
     string name = netAndStuff->modelName;
     bool found = false;
@@ -287,10 +305,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     //Do logging and cleanup while unlocked, so that our freeing and stopping of this neural net doesn't
     //block anyone else
-    logger.write(netAndStuff->nnEval->getModelFileName());
-    logger.write("NN rows: " + Global::int64ToString(netAndStuff->nnEval->numRowsProcessed()));
-    logger.write("NN batches: " + Global::int64ToString(netAndStuff->nnEval->numBatchesProcessed()));
-    logger.write("NN avg batch size: " + Global::doubleToString(netAndStuff->nnEval->averageProcessedBatchSize()));
+    logger.write("Final cleanup of net: " + netAndStuff->nnEval->getModelFileName());
+    logger.write("Final NN rows: " + Global::int64ToString(netAndStuff->nnEval->numRowsProcessed()));
+    logger.write("Final NN batches: " + Global::int64ToString(netAndStuff->nnEval->numBatchesProcessed()));
+    logger.write("Final NN avg batch size: " + Global::doubleToString(netAndStuff->nnEval->averageProcessedBatchSize()));
 
     assert(netAndStuff->numGameThreads == 0);
     assert(netAndStuff->isDraining);
@@ -402,19 +420,20 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
+  //Shared across all game loop threads
+  ForkData* forkData = new ForkData();
   auto gameLoop = [
     &gameRunner,
     &logger,
     &netAndStuffsMutex,&netAndStuffs,
-    dataBoardLen,
     switchNetsMidGame,
-    &fancyModes
+    &fancyModes,
+    &forkData
   ](int threadIdx) {
     vector<std::atomic<bool>*> stopConditions = {&shouldStop};
 
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     string prevModelName;
-    const InitialPosition* nextInitialPosition = NULL;
     while(true) {
       if(shouldStop.load())
         break;
@@ -433,8 +452,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       //Callback that runGame will call periodically to ask us if we have a new neural net
       std::function<NNEvaluator*()> checkForNewNNEval = [&netAndStuff,&netAndStuffs,&lock,&prevModelName,&logger,&threadIdx]() -> NNEvaluator* {
         lock.lock();
+        assert(netAndStuffs.size() > 0);
         NetAndStuff* newNetAndStuff = netAndStuffs[netAndStuffs.size()-1];
-        if(newNetAndStuff == netAndStuff) {
+        //Do nothing if there is no new net... or if there IS a new net but actually that net is draining for whatever reason
+        //(in the latter case, most likely everyone is quitting out right now, and we will notice and quit soon too)
+        if(newNetAndStuff == netAndStuff || newNetAndStuff->isDraining) {
           lock.unlock();
           return NULL;
         }
@@ -450,22 +472,16 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
       FinishedGameData* gameData = NULL;
 
-      const InitialPosition* initialPosition = nextInitialPosition;
-      nextInitialPosition = NULL;
-
       int64_t gameIdx;
       MatchPairer::BotSpec botSpecB;
       MatchPairer::BotSpec botSpecW;
       if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, initialPosition, &nextInitialPosition, logger,
-          dataBoardLen, dataBoardLen, stopConditions,
+          gameIdx, botSpecB, botSpecW, forkData, logger,
+          stopConditions,
           (switchNetsMidGame ? &checkForNewNNEval : NULL)
         );
       }
-
-      if(initialPosition != NULL)
-        delete initialPosition;
 
       bool shouldContinue = gameData != NULL;
       //Note that if we've gotten a newNNEval, we're actually pushing the game on to the new one's queue, rather than the old one!
@@ -481,9 +497,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     }
 
     lock.unlock();
-
-    if(nextInitialPosition != NULL)
-      delete nextInitialPosition;
 
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " terminating");
   };
@@ -552,7 +565,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   std::thread modelLoadLoopThread(modelLoadLoop);
 
   //Wait for all game threads to stop
-  for(int i = 0; i<numGameThreads; i++)
+  for(int i = 0; i<threads.size(); i++)
     threads[i].join();
 
   //Wake up the model loading thread rather than waiting up to 60s for it to wake up on its own, and
@@ -580,6 +593,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   //Delete and clean up everything else
   NeuralNet::globalCleanup();
+  delete forkData;
   delete gameRunner;
   ScoreValue::freeTables();
 

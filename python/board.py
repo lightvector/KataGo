@@ -1,3 +1,4 @@
+import sys
 import random
 import numpy as np
 
@@ -802,7 +803,7 @@ class Board:
     if self.board[loc] == Board.EMPTY:
       return False
     #Check that surounding points are are all opponent owned and exactly one of them is capturable
-    opp = Board.get_opp(pla);
+    opp = Board.get_opp(pla)
     oppCapturableLoc = None
     for i in range(4):
       adj = loc + self.adj[i]
@@ -860,11 +861,11 @@ class Board:
 
     if self.would_be_legal(opp,move0):
       record = self.playRecordedUnsafe(opp,move0)
-      move0Works = self.searchIsLadderCaptured(loc,True);
+      move0Works = self.searchIsLadderCaptured(loc,True)
       self.undo(record)
     if self.would_be_legal(opp,move1):
       record = self.playRecordedUnsafe(opp,move1)
-      move1Works = self.searchIsLadderCaptured(loc,True);
+      move1Works = self.searchIsLadderCaptured(loc,True)
       self.undo(record)
 
     workingMoves = []
@@ -1091,7 +1092,38 @@ class Board:
         for x in range(self.size):
           loc = self.loc(x,y)
           if result[loc] == Board.EMPTY:
-            result[loc] = self.board[loc];
+            result[loc] = self.board[loc]
+
+  def calculateNonDameTouchingArea(self, result, keepTerritories, keepStones, isMultiStoneSuicideLegal):
+    #First, just compute basic area.
+    basicArea = [Board.EMPTY for i in range(self.arrsize)]
+    for i in range(self.arrsize):
+      result[i] = Board.EMPTY
+    self.calculateAreaForPla(Board.BLACK,True,True,isMultiStoneSuicideLegal,basicArea)
+    self.calculateAreaForPla(Board.WHITE,True,True,isMultiStoneSuicideLegal,basicArea)
+
+    for y in range(self.size):
+      for x in range(self.size):
+        loc = self.loc(x,y)
+        if basicArea[loc] == Board.EMPTY:
+          basicArea[loc] = self.board[loc]
+
+    self.calculateNonDameTouchingAreaHelper(basicArea,result)
+
+    if keepTerritories:
+      for y in range(self.size):
+        for x in range(self.size):
+          loc = self.loc(x,y)
+          if basicArea[loc] != Board.EMPTY and basicArea[loc] != self.board[loc]:
+            result[loc] = basicArea[loc]
+
+    if keepStones:
+      for y in range(self.size):
+        for x in range(self.size):
+          loc = self.loc(x,y)
+          if basicArea[loc] != Board.EMPTY and basicArea[loc] == self.board[loc]:
+            result[loc] = basicArea[loc]
+
 
   def calculateAreaForPla(self, pla, safeBigTerritories, unsafeBigTerritories, isMultiStoneSuicideLegal, result):
     opp = self.get_opp(pla)
@@ -1189,7 +1221,7 @@ class Board:
           continue
 
         regionIdx = numRegions
-        numRegions += 1;
+        numRegions += 1
         assert(numRegions <= maxRegions)
 
         #Initialize region metadata
@@ -1314,4 +1346,72 @@ class Board:
           cur = nextEmptyOrOpp[cur]
           if cur == head:
             break
+
+  def calculateNonDameTouchingAreaHelper(self, basicArea, result):
+    queue = [Board.PASS_LOC for i in range(self.arrsize)]
+
+    #Iterate through all the regions that players own via area scoring and mark
+    #all the ones that are touching dame
+    isDameTouching = [False for i in range(self.arrsize)]
+
+    queueHead = 0
+    queueTail = 0
+
+    ADJ0 = self.adj[0]
+    ADJ1 = self.adj[1]
+    ADJ2 = self.adj[2]
+    ADJ3 = self.adj[3]
+
+    for y in range(self.size):
+      for x in range(self.size):
+        loc = self.loc(x,y)
+        if basicArea[loc] != Board.EMPTY and not isDameTouching[loc]:
+          #Touches dame?
+          if((self.board[loc+ADJ0] == Board.EMPTY and basicArea[loc+ADJ0] == Board.EMPTY) or
+             (self.board[loc+ADJ1] == Board.EMPTY and basicArea[loc+ADJ1] == Board.EMPTY) or
+             (self.board[loc+ADJ2] == Board.EMPTY and basicArea[loc+ADJ2] == Board.EMPTY) or
+             (self.board[loc+ADJ3] == Board.EMPTY and basicArea[loc+ADJ3] == Board.EMPTY)):
+
+            pla = basicArea[loc]
+            isDameTouching[loc] = True
+            queue[queueTail] = loc
+            queueTail += 1
+            while queueHead != queueTail:
+              #Pop next location off queue
+              nextLoc = queue[queueHead]
+              queueHead += 1
+
+              #Look all around it, floodfill
+              for j in range(4):
+                adj = nextLoc + self.adj[j]
+                if basicArea[adj] == pla and not isDameTouching[adj]:
+                  isDameTouching[adj] = True
+                  queue[queueTail] = adj
+                  queueTail += 1
+
+    queueHead = 0
+    queueTail = 0
+
+    #Now, walk through and copy all non-dame-touching basic areas into the result counting
+    #how many there are.
+    for y in range(self.size):
+      for x in range(self.size):
+        loc = self.loc(x,y)
+        if basicArea[loc] != Board.EMPTY and not isDameTouching[loc] and result[loc] != basicArea[loc]:
+          pla = basicArea[loc]
+          result[loc] = basicArea[loc]
+          queue[queueTail] = loc
+          queueTail += 1
+          while queueHead != queueTail:
+            #Pop next location off queue
+            nextLoc = queue[queueHead]
+            queueHead += 1
+
+            #Look all around it, floodfill
+            for j in range(4):
+              adj = nextLoc + self.adj[j]
+              if basicArea[adj] == pla and result[adj] != basicArea[adj]:
+                result[adj] = basicArea[adj]
+                queue[queueTail] = adj
+                queueTail += 1
 

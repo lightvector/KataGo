@@ -25,8 +25,47 @@ Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_ENCORE_HASH[3];
+Hash128 Board::ZOBRIST_SECOND_ENCORE_START_HASH[MAX_ARR_SIZE][4];
 const Hash128 Board::ZOBRIST_PASS_ENDS_PHASE = //Based on sha256 hash of Board::ZOBRIST_PASS_ENDS_PHASE
   Hash128(0x853E097C279EBF4EULL, 0xE3153DEF9E14A62CULL);
+const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
+  Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
+
+//LOCATION--------------------------------------------------------------------------------
+Loc Location::getLoc(int x, int y, int x_size)
+{
+  return (x+1) + (y+1)*(x_size+1);
+}
+int Location::getX(Loc loc, int x_size)
+{
+  return (loc % (x_size+1)) - 1;
+}
+int Location::getY(Loc loc, int x_size)
+{
+  return (loc / (x_size+1)) - 1;
+}
+void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
+{
+  adj_offsets[0] = -(x_size+1);
+  adj_offsets[1] = -1;
+  adj_offsets[2] = 1;
+  adj_offsets[3] = (x_size+1);
+  adj_offsets[4] = -(x_size+1)-1;
+  adj_offsets[5] = -(x_size+1)+1;
+  adj_offsets[6] = (x_size+1)-1;
+  adj_offsets[7] = (x_size+1)+1;
+}
+
+bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
+{
+  return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
+}
+
+#define FOREACHADJ(BLOCK) {int ADJOFFSET = -(x_size+1); {BLOCK}; ADJOFFSET = -1; {BLOCK}; ADJOFFSET = 1; {BLOCK}; ADJOFFSET = x_size+1; {BLOCK}};
+#define ADJ0 (-(x_size+1))
+#define ADJ1 (-1)
+#define ADJ2 (1)
+#define ADJ3 (x_size+1)
 
 //CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
 
@@ -52,7 +91,7 @@ Board::Board(const Board& other)
   memcpy(next_in_chain, other.next_in_chain, sizeof(Loc)*MAX_ARR_SIZE);
 
   ko_loc = other.ko_loc;
-  empty_list = other.empty_list;
+  // empty_list = other.empty_list;
   pos_hash = other.pos_hash;
   numBlackCaptures = other.numBlackCaptures;
   numWhiteCaptures = other.numWhiteCaptures;
@@ -78,7 +117,7 @@ void Board::init(int xS, int yS)
     {
       Loc loc = (x+1) + (y+1)*(x_size+1);
       colors[loc] = C_EMPTY;
-      empty_list.add(loc);
+      // empty_list.add(loc);
     }
   }
 
@@ -126,6 +165,20 @@ void Board::initHash()
     ZOBRIST_KO_LOC_HASH[i] = nextHash();
   }
 
+  //Reseed the random number generator so that these hashes are also
+  //not affected by the size of the board we compile with
+  rand.init("Board::initHash() for ZOBRIST_SECOND_ENCORE_START hashes");
+  for(int i = 0; i<MAX_ARR_SIZE; i++)
+  {
+    for(Color j = 0; j<4; j++)
+    {
+      if(j == C_EMPTY || j == C_WALL)
+        ZOBRIST_SECOND_ENCORE_START_HASH[i][j] = Hash128();
+      else
+        ZOBRIST_SECOND_ENCORE_START_HASH[i][j] = nextHash();
+    }
+  }
+
   //Reseed the random number generator so that these size hashes are also
   //not affected by the size of the board we compile with
   rand.init("Board::initHash() for ZOBRIST_SIZE hashes");
@@ -153,11 +206,10 @@ bool Board::isSuicide(Loc loc, Player pla) const
 {
   if(loc == PASS_LOC)
     return false;
-  
+
   Player opp = getOpp(pla);
-  for(int i = 0; i < 4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
+  FOREACHADJ(
+    Loc adj = loc + ADJOFFSET;
 
     if(colors[adj] == C_EMPTY)
       return false;
@@ -171,7 +223,7 @@ bool Board::isSuicide(Loc loc, Player pla) const
       if(getNumLiberties(adj) == 1)
         return false;
     }
-  }
+  );
 
   return true;
 }
@@ -180,9 +232,8 @@ bool Board::isSuicide(Loc loc, Player pla) const
 bool Board::isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
 {
   Player opp = getOpp(pla);
-  for(int i = 0; i < 4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
+  FOREACHADJ(
+    Loc adj = loc + ADJOFFSET;
 
     if(colors[adj] == C_EMPTY)
       return false;
@@ -196,7 +247,7 @@ bool Board::isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
       if(getNumLiberties(adj) == 1)
         return false;
     }
-  }
+  );
 
   return true;
 }
@@ -422,13 +473,38 @@ bool Board::wouldBeKoCapture(Loc loc, Player pla) const {
   return true;
 }
 
-bool Board::isAdjacentToPla(Loc loc, Player pla) const {
+Loc Board::getKoCaptureLoc(Loc loc, Player pla) const {
+  if(colors[loc] != C_EMPTY)
+    return NULL_LOC;
+  //Check that surounding points are are all opponent owned and exactly one of them is capturable
+  Player opp = getOpp(pla);
+  Loc oppCapturableLoc = NULL_LOC;
   for(int i = 0; i < 4; i++)
   {
     Loc adj = loc + adj_offsets[i];
+    if(colors[adj] != C_WALL && colors[adj] != opp)
+      return NULL_LOC;
+    if(colors[adj] == opp && getNumLiberties(adj) == 1) {
+      if(oppCapturableLoc != NULL_LOC)
+        return NULL_LOC;
+      oppCapturableLoc = adj;
+    }
+  }
+  if(oppCapturableLoc == NULL_LOC)
+    return NULL_LOC;
+
+  //Check that the capturable loc has exactly one stone
+  if(chain_data[chain_head[oppCapturableLoc]].num_locs != 1)
+    return NULL_LOC;
+  return oppCapturableLoc;
+}
+
+bool Board::isAdjacentToPla(Loc loc, Player pla) const {
+  FOREACHADJ(
+    Loc adj = loc + ADJOFFSET;
     if(colors[adj] == pla)
       return true;
-  }
+  );
   return false;
 }
 
@@ -517,16 +593,24 @@ Board::MoveRecord Board::playMoveRecorded(Loc loc, Player pla)
 
   if(loc != PASS_LOC) {
     Player opp = getOpp(pla);
-    for(int i = 0; i < 4; i++)
-    {
-      int adj = loc + adj_offsets[i];
+
+    { int adj = loc + ADJ0;
       if(colors[adj] == opp && getNumLiberties(adj) == 1)
-        record.capDirs |= (((uint8_t)1) << i);
-    }
+        record.capDirs |= (((uint8_t)1) << 0); }
+    { int adj = loc + ADJ1;
+      if(colors[adj] == opp && getNumLiberties(adj) == 1)
+        record.capDirs |= (((uint8_t)1) << 1); }
+    { int adj = loc + ADJ2;
+      if(colors[adj] == opp && getNumLiberties(adj) == 1)
+        record.capDirs |= (((uint8_t)1) << 2); }
+    { int adj = loc + ADJ3;
+      if(colors[adj] == opp && getNumLiberties(adj) == 1)
+        record.capDirs |= (((uint8_t)1) << 3); }
+
     if(record.capDirs == 0 && isSuicide(loc,pla))
       record.capDirs = 0x10;
   }
-  
+
   playMoveAssumeLegal(loc, pla);
   return record;
 }
@@ -573,7 +657,7 @@ void Board::undo(Board::MoveRecord record)
   //Delete the stone played here.
   pos_hash ^= ZOBRIST_BOARD_HASH[loc][colors[loc]];
   colors[loc] = C_EMPTY;
-  empty_list.add(loc);
+  // empty_list.add(loc);
 
   //Uneat opp liberties
   changeSurroundingLiberties(loc, getOpp(record.pla),+1);
@@ -582,12 +666,11 @@ void Board::undo(Board::MoveRecord record)
   if(chain_data[chain_head[loc]].num_locs > 1)
   {
     int numNeighbors = 0;
-    for(int i = 0; i<4; i++)
-    {
-      int adj = loc + adj_offsets[i];
+    FOREACHADJ(
+      int adj = loc + ADJOFFSET;
       if(colors[adj] == record.pla)
         numNeighbors++;
-    }
+    );
 
     //If the move had exactly one neighbor, we know its undoing didn't disconnect the group,
     //so don't need to rebuild the whole chain.
@@ -623,11 +706,10 @@ void Board::undo(Board::MoveRecord record)
       //Lastly, fix up liberties. Removing this stone removed all liberties next to this stone
       //that weren't already liberties of the group.
       int libertyDelta = 0;
-      for(int i = 0; i<4; i++)
-      {
-        int adj = loc + adj_offsets[i];
+      FOREACHADJ(
+        int adj = loc + ADJOFFSET;
         if(colors[adj] == C_EMPTY && !isLibertyOf(adj,head)) libertyDelta--;
-      }
+      );
       //Removing this stone itself added a liberty to the group though.
       libertyDelta++;
       chain_data[head].num_liberties += libertyDelta;
@@ -756,7 +838,7 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   chain_data[loc].num_liberties = getNumImmediateLiberties(loc);
   chain_head[loc] = loc;
   next_in_chain[loc] = loc;
-  empty_list.remove(loc);
+  // empty_list.remove(loc);
 
   //Merge with surrounding friendly chains and capture any necessary opp chains
   int num_captured = 0; //Number of stones captured
@@ -834,9 +916,10 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
 int Board::getNumImmediateLiberties(Loc loc) const
 {
   int num_libs = 0;
-  for(int i = 0; i < 4; i++)
-    if(colors[loc + adj_offsets[i]] == C_EMPTY)
-      num_libs++;
+  if(colors[loc + ADJ0] == C_EMPTY) num_libs++;
+  if(colors[loc + ADJ1] == C_EMPTY) num_libs++;
+  if(colors[loc + ADJ2] == C_EMPTY) num_libs++;
+  if(colors[loc + ADJ3] == C_EMPTY) num_libs++;
 
   return num_libs;
 }
@@ -860,16 +943,16 @@ int Board::countHeuristicConnectionLibertiesX2(Loc loc, Player pla) const
 bool Board::isLibertyOf(Loc loc, Loc head) const
 {
   Loc adj;
-  adj = loc + adj_offsets[0];
+  adj = loc + ADJ0;
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
-  adj = loc + adj_offsets[1];
+  adj = loc + ADJ1;
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
-  adj = loc + adj_offsets[2];
+  adj = loc + ADJ2;
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
-  adj = loc + adj_offsets[3];
+  adj = loc + ADJ3;
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
 
@@ -901,12 +984,11 @@ void Board::mergeChains(Loc loc1, Loc loc2)
   while(true)
   {
     //Any adjacent liberty is a new liberty for head1 if it is not adjacent to a stone of head1
-    for(int i = 0; i<4; i++)
-    {
-      Loc adj = loc + adj_offsets[i];
+    FOREACHADJ(
+      Loc adj = loc + ADJOFFSET;
       if(colors[adj] == C_EMPTY && !isLibertyOf(adj,head1))
         numNewLiberties++;
-    }
+    );
 
     //Now, add this stone to head1.
     chain_head[loc] = head1;
@@ -942,7 +1024,7 @@ int Board::removeChain(Loc loc)
     pos_hash ^= ZOBRIST_BOARD_HASH[cur][colors[cur]];
     colors[cur] = C_EMPTY;
     num_stones_removed++;
-    empty_list.add(cur);
+    // empty_list.add(cur);
 
     //For each distinct opp chain around, add a liberty to it.
     changeSurroundingLiberties(cur,opp,+1);
@@ -1008,7 +1090,7 @@ Loc Board::addChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
   chain_head[loc] = head;
   chain_data[head].num_locs++;
   next_in_chain[loc] = tailTarget;
-  empty_list.remove(loc);
+  // empty_list.remove(loc);
 
   //Eat opp liberties
   changeSurroundingLiberties(loc,getOpp(pla),-1);
@@ -1047,10 +1129,10 @@ void Board::rebuildChain(Loc loc, Player pla)
 //some invalid location, such as NULL_LOC or a location not of color.
 Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 {
-  Loc adj0 = loc + adj_offsets[0];
-  Loc adj1 = loc + adj_offsets[1];
-  Loc adj2 = loc + adj_offsets[2];
-  Loc adj3 = loc + adj_offsets[3];
+  Loc adj0 = loc + ADJ0;
+  Loc adj1 = loc + ADJ1;
+  Loc adj2 = loc + ADJ2;
+  Loc adj3 = loc + ADJ3;
 
   //Count new liberties
   int numHeadLibertiesToAdd = 0;
@@ -1077,10 +1159,10 @@ Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 //Apply the specified delta to the liberties of all adjacent groups of the specified color
 void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
 {
-  Loc adj0 = loc + adj_offsets[0];
-  Loc adj1 = loc + adj_offsets[1];
-  Loc adj2 = loc + adj_offsets[2];
-  Loc adj3 = loc + adj_offsets[3];
+  Loc adj0 = loc + ADJ0;
+  Loc adj1 = loc + ADJ1;
+  Loc adj2 = loc + ADJ2;
+  Loc adj3 = loc + ADJ3;
 
   if(colors[adj0] == pla)
     chain_data[chain_head[adj0]].num_liberties += delta;
@@ -1099,93 +1181,76 @@ void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
 }
 
 
-Board::PointList::PointList()
-{
-  std::memset(list_, NULL_LOC, sizeof(list_));
-  std::memset(indices_, -1, sizeof(indices_));
-  size_ = 0;
+// Board::PointList::PointList()
+// {
+//   std::memset(list_, NULL_LOC, sizeof(list_));
+//   std::memset(indices_, -1, sizeof(indices_));
+//   size_ = 0;
+// }
+
+// Board::PointList::PointList(const Board::PointList& other)
+// {
+//   std::memcpy(list_, other.list_, sizeof(list_));
+//   std::memcpy(indices_, other.indices_, sizeof(indices_));
+//   size_ = other.size_;
+// }
+
+// void Board::PointList::operator=(const Board::PointList& other)
+// {
+//   if(this == &other)
+//     return;
+//   std::memcpy(list_, other.list_, sizeof(list_));
+//   std::memcpy(indices_, other.indices_, sizeof(indices_));
+//   size_ = other.size_;
+// }
+
+// void Board::PointList::add(Loc loc)
+// {
+//   //assert (size_ < MAX_PLAY_SIZE);
+//   list_[size_] = loc;
+//   indices_[loc] = size_;
+//   size_++;
+// }
+
+// void Board::PointList::remove(Loc loc)
+// {
+//   //assert(size_ >= 0);
+//   int index = indices_[loc];
+//   //assert(index >= 0 && index < size_);
+//   //assert(list_[index] == loc);
+//   Loc end_loc = list_[size_-1];
+//   list_[index] = end_loc;
+//   list_[size_-1] = NULL_LOC;
+//   indices_[end_loc] = index;
+//   indices_[loc] = -1;
+//   size_--;
+// }
+
+// int Board::PointList::size() const
+// {
+//   return size_;
+// }
+
+// Loc& Board::PointList::operator[](int n)
+// {
+//   assert (n < size_);
+//   return list_[n];
+// }
+
+// bool Board::PointList::contains(Loc loc) const {
+//   return indices_[loc] != -1;
+// }
+
+int Location::distance(Loc loc0, Loc loc1, int x_size) {
+  int dx = getX(loc1,x_size) - getX(loc0,x_size);
+  int dy = (loc1-loc0+dx) / (x_size+1);
+  return (dx >= 0 ? dx : -dx) + (dy >= 0 ? dy : -dy);
 }
 
-Board::PointList::PointList(const Board::PointList& other)
-{
-  std::memcpy(list_, other.list_, sizeof(list_));
-  std::memcpy(indices_, other.indices_, sizeof(indices_));
-  size_ = other.size_;
-}
-
-void Board::PointList::operator=(const Board::PointList& other)
-{
-  if(this == &other)
-    return;
-  std::memcpy(list_, other.list_, sizeof(list_));
-  std::memcpy(indices_, other.indices_, sizeof(indices_));
-  size_ = other.size_;
-}
-
-void Board::PointList::add(Loc loc)
-{
-  //assert (size_ < MAX_PLAY_SIZE);
-  list_[size_] = loc;
-  indices_[loc] = size_;
-  size_++;
-}
-
-void Board::PointList::remove(Loc loc)
-{
-  //assert(size_ >= 0);
-  int index = indices_[loc];
-  //assert(index >= 0 && index < size_);
-  //assert(list_[index] == loc);
-  Loc end_loc = list_[size_-1];
-  list_[index] = end_loc;
-  list_[size_-1] = NULL_LOC;
-  indices_[end_loc] = index;
-  indices_[loc] = -1;
-  size_--;
-}
-
-int Board::PointList::size() const
-{
-  return size_;
-}
-
-Loc& Board::PointList::operator[](int n)
-{
-  assert (n < size_);
-  return list_[n];
-}
-
-bool Board::PointList::contains(Loc loc) const {
-  return indices_[loc] != -1;
-}
-
-Loc Location::getLoc(int x, int y, int x_size)
-{
-  return (x+1) + (y+1)*(x_size+1);
-}
-int Location::getX(Loc loc, int x_size)
-{
-  return (loc % (x_size+1)) - 1;
-}
-int Location::getY(Loc loc, int x_size)
-{
-  return (loc / (x_size+1)) - 1;
-}
-void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
-{
-  adj_offsets[0] = -(x_size+1);
-  adj_offsets[1] = -1;
-  adj_offsets[2] = 1;
-  adj_offsets[3] = (x_size+1);
-  adj_offsets[4] = -(x_size+1)-1;
-  adj_offsets[5] = -(x_size+1)+1;
-  adj_offsets[6] = (x_size+1)-1;
-  adj_offsets[7] = (x_size+1)+1;
-}
-
-bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
-{
-  return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
+int Location::euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size) {
+  int dx = getX(loc1,x_size) - getX(loc0,x_size);
+  int dy = (loc1-loc0+dx) / (x_size+1);
+  return dx*dx + dy*dy;
 }
 
 //TACTICAL STUFF--------------------------------------------------------------------
@@ -1270,14 +1335,14 @@ bool Board::hasLibertyGainingCaptures(Loc loc) const {
   Loc cur = loc;
   do
   {
-    for(int i = 0; i < 4; i++) {
-      Loc adj = cur + adj_offsets[i];
+    FOREACHADJ(
+      Loc adj = cur + ADJOFFSET;
       if(colors[adj] == opp) {
         Loc head = chain_head[adj];
         if(chain_data[head].num_liberties == 1)
           return true;
       }
-    }
+    );
     cur = next_in_chain[cur];
   } while (cur != loc);
 
@@ -1556,12 +1621,18 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
 }
 
-void Board::calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal) const {
-  for(int i = 0; i<MAX_ARR_SIZE; i++)
-    result[i] = C_EMPTY;
+void Board::calculateArea(
+  Color* result,
+  bool nonPassAliveStones,
+  bool safeBigTerritories,
+  bool unsafeBigTerritories,
+  bool isMultiStoneSuicideLegal
+) const {
+  std::fill(result,result+MAX_ARR_SIZE,C_EMPTY);
   calculateAreaForPla(P_BLACK,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
   calculateAreaForPla(P_WHITE,safeBigTerritories,unsafeBigTerritories,isMultiStoneSuicideLegal,result);
 
+  //TODO can we merge this in to calculate area for pla?
   if(nonPassAliveStones) {
     for(int y = 0; y < y_size; y++) {
       for(int x = 0; x < x_size; x++) {
@@ -1571,6 +1642,52 @@ void Board::calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTe
       }
     }
   }
+}
+
+void Board::calculateIndependentLifeArea(
+  Color* result,
+  int& whiteMinusBlackIndependentLifeRegionCount,
+  bool keepTerritories,
+  bool keepStones,
+  bool isMultiStoneSuicideLegal
+) const {
+  //First, just compute basic area.
+  Color basicArea[MAX_ARR_SIZE];
+  std::fill(result,result+MAX_ARR_SIZE,C_EMPTY);
+  std::fill(basicArea,basicArea+MAX_ARR_SIZE,C_EMPTY);
+  calculateAreaForPla(P_BLACK,true,true,isMultiStoneSuicideLegal,basicArea);
+  calculateAreaForPla(P_WHITE,true,true,isMultiStoneSuicideLegal,basicArea);
+
+  //TODO can we merge this in to calculate area for pla?
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      if(basicArea[loc] == C_EMPTY)
+        basicArea[loc] = colors[loc];
+    }
+  }
+
+  calculateIndependentLifeAreaHelper(basicArea,result,whiteMinusBlackIndependentLifeRegionCount);
+
+  if(keepTerritories) {
+    for(int y = 0; y < y_size; y++) {
+      for(int x = 0; x < x_size; x++) {
+        Loc loc = Location::getLoc(x,y,x_size);
+        if(basicArea[loc] != C_EMPTY && basicArea[loc] != colors[loc])
+          result[loc] = basicArea[loc];
+      }
+    }
+  }
+  if(keepStones) {
+    for(int y = 0; y < y_size; y++) {
+      for(int x = 0; x < x_size; x++) {
+        Loc loc = Location::getLoc(x,y,x_size);
+        if(basicArea[loc] != C_EMPTY && basicArea[loc] == colors[loc])
+          result[loc] = basicArea[loc];
+      }
+    }
+  }
+
 }
 
 //This marks pass-alive stones, pass-alive territory always.
@@ -1583,13 +1700,19 @@ void Board::calculateArea(Color* result, bool nonPassAliveStones, bool safeBigTe
 //The top left corner is black's pass-alive territory. It's also an empty region bordered only by white, but we should not mark
 //it as white's unsafeBigTerritory because it's already marked as black's pass alive territory.
 
-void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafeBigTerritories, bool isMultiStoneSuicideLegal, Color* result) const {
+void Board::calculateAreaForPla(
+  Player pla,
+  bool safeBigTerritories,
+  bool unsafeBigTerritories,
+  bool isMultiStoneSuicideLegal,
+  Color* result
+) const {
   Color opp = getOpp(pla);
 
   //First compute all empty-or-opp regions
 
-  //For each loc, if it's empty or opp, the head of the region
-  Loc regionHeadByLoc[MAX_ARR_SIZE];
+  //For each loc, if it's empty or opp, the index of the region
+  int16_t regionIdxByLoc[MAX_ARR_SIZE];
   //For each loc, if it's empty or opp, the next empty or opp belonging to the same region
   Loc nextEmptyOrOpp[MAX_ARR_SIZE];
   //Does this border a pla group that has been marked as not pass alive?
@@ -1615,95 +1738,107 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   bool containsOpp[maxRegions];
 
   for(int i = 0; i<MAX_ARR_SIZE; i++) {
-    regionHeadByLoc[i] = NULL_LOC;
+    regionIdxByLoc[i] = -1;
     nextEmptyOrOpp[i] = NULL_LOC;
     bordersNonPassAlivePlaByHead[i] = false;
   }
 
   auto isAdjacentToPlaHead = [pla,this](Loc loc, Loc plaHead) {
-    for(int i = 0; i<4; i++) {
-      Loc adj = loc + adj_offsets[i];
+    FOREACHADJ(
+      Loc adj = loc + ADJOFFSET;
       if(colors[adj] == pla && chain_head[adj] == plaHead)
         return true;
-    }
+    );
     return false;
   };
 
-  //Recursively trace maximal non-pla regions of the board and record their properties and join them into a
+  //Breadth-first-search trace maximal non-pla regions of the board and record their properties and join them into a
   //linked list through nextEmptyOrOpp.
   //Takes as input the location serving as the head, the tip node of the linked list so far, the next loc, and the
   //numeric index of the region
   //Returns the loc serving as the current tip node ("tailTarget") of the linked list.
-  std::function<Loc(Loc,Loc,Loc,int)> buildRegion;
-  buildRegion = [pla,opp,isMultiStoneSuicideLegal,
-                 &regionHeadByLoc,
-                 &vitalForPlaHeadsLists,
-                 &vitalStart,&vitalLen,&numInternalSpacesMax2,&containsOpp,
-                 this,
-                 &isAdjacentToPlaHead,&nextEmptyOrOpp,&buildRegion](Loc head, Loc tailTarget, Loc loc, int regionIdx) -> Loc {
+
+  Loc buildRegionQueue[MAX_ARR_SIZE];
+
+  auto buildRegion = [
+    pla,opp,isMultiStoneSuicideLegal,
+    &regionIdxByLoc,
+    &vitalForPlaHeadsLists,
+    &vitalStart,&vitalLen,&numInternalSpacesMax2,&containsOpp,
+    &buildRegionQueue,
+    this,
+    &isAdjacentToPlaHead,&nextEmptyOrOpp](Loc tailTarget, Loc initialLoc, int regionIdx) -> Loc {
+
     //Already traced this location, skip
-    if(regionHeadByLoc[loc] != NULL_LOC)
+    if(regionIdxByLoc[initialLoc] != -1)
       return tailTarget;
-    regionHeadByLoc[loc] = head;
 
-    //First, filter out any pla heads it turns out we're not vital for because we're not adjacent to them
-    //In the case where suicide is allowed, we only do this filtering on intersections that are actually empty
-    {
-      if(isMultiStoneSuicideLegal || colors[loc] == C_EMPTY) {
-        uint16_t vStart = vitalStart[regionIdx];
-        uint16_t oldVLen = vitalLen[regionIdx];
-        uint16_t newVLen = 0;
-        for(uint16_t i = 0; i<oldVLen; i++) {
-          if(isAdjacentToPlaHead(loc,vitalForPlaHeadsLists[vStart+i])) {
-            vitalForPlaHeadsLists[vStart+newVLen] = vitalForPlaHeadsLists[vStart+i];
-            newVLen += 1;
-          }
-        }
-        vitalLen[regionIdx] = newVLen;
-      }
-    }
+    int buildRegionQueueHead = 0;
+    int buildRegionQueueTail = 1;
+    buildRegionQueue[0] = initialLoc;
+    regionIdxByLoc[initialLoc] = regionIdx;
 
-    //Determine if this point is internal, unless we already have many internal points
-    if(numInternalSpacesMax2[regionIdx] < 2) {
-      bool isInternal = true;
-      for(int i = 0; i<4; i++)
+    while(buildRegionQueueHead != buildRegionQueueTail) {
+      //Pop next location off queue
+      Loc loc = buildRegionQueue[buildRegionQueueHead];
+      buildRegionQueueHead += 1;
+
+      //First, filter out any pla heads it turns out we're not vital for because we're not adjacent to them
+      //In the case where suicide is disallowed, we only do this filtering on intersections that are actually empty
       {
-        Loc adj = loc + adj_offsets[i];
-        if(colors[adj] == pla) {
-          isInternal = false;
-          break;
+        if(isMultiStoneSuicideLegal || colors[loc] == C_EMPTY) {
+          uint16_t vStart = vitalStart[regionIdx];
+          uint16_t oldVLen = vitalLen[regionIdx];
+          uint16_t newVLen = 0;
+          for(uint16_t i = 0; i<oldVLen; i++) {
+            if(isAdjacentToPlaHead(loc,vitalForPlaHeadsLists[vStart+i])) {
+              vitalForPlaHeadsLists[vStart+newVLen] = vitalForPlaHeadsLists[vStart+i];
+              newVLen += 1;
+            }
+          }
+          vitalLen[regionIdx] = newVLen;
         }
       }
-      if(isInternal)
-        numInternalSpacesMax2[regionIdx] += 1;
+
+      //Determine if this point is internal, unless we already have many internal points
+      if(numInternalSpacesMax2[regionIdx] < 2) {
+        if(!isAdjacentToPla(loc,pla))
+          numInternalSpacesMax2[regionIdx] += 1;
+      }
+
+      if(colors[loc] == opp)
+        containsOpp[regionIdx] = true;
+
+      nextEmptyOrOpp[loc] = tailTarget;
+      tailTarget = loc;
+
+      //Push adjacent locations on to queue
+      FOREACHADJ(
+        Loc adj = loc + ADJOFFSET;
+        if((colors[adj] == C_EMPTY || colors[adj] == opp) && regionIdxByLoc[adj] == -1) {
+          buildRegionQueue[buildRegionQueueTail] = adj;
+          buildRegionQueueTail += 1;
+          regionIdxByLoc[adj] = regionIdx;
+        }
+      );
     }
 
-    if(colors[loc] == opp)
-      containsOpp[regionIdx] = true;
+    assert(buildRegionQueueTail < MAX_ARR_SIZE);
 
-    //Next, recurse everywhere
-    nextEmptyOrOpp[loc] = tailTarget;
-    Loc nextTailTarget = loc;
-    for(int i = 0; i<4; i++)
-    {
-      Loc adj = loc + adj_offsets[i];
-      if(colors[adj] == C_EMPTY || colors[adj] == opp)
-        nextTailTarget = buildRegion(head,nextTailTarget,adj,regionIdx);
-    }
-    return nextTailTarget;
+    return tailTarget;
   };
 
   bool atLeastOnePla = false;
   for(int y = 0; y < y_size; y++) {
     for(int x = 0; x < x_size; x++) {
       Loc loc = Location::getLoc(x,y,x_size);
-      if(regionHeadByLoc[loc] != NULL_LOC)
+      if(regionIdxByLoc[loc] != -1)
         continue;
       if(colors[loc] != C_EMPTY) {
         atLeastOnePla |= (colors[loc] == pla);
         continue;
       }
-      int regionIdx = numRegions;
+      int16_t regionIdx = numRegions;
       numRegions++;
       assert(numRegions <= maxRegions);
 
@@ -1739,7 +1874,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
         }
         vitalLen[regionIdx] = initialVLen;
       }
-      Loc tailTarget = buildRegion(head,head,loc,regionIdx);
+      Loc tailTarget = buildRegion(head,loc,regionIdx);
       nextEmptyOrOpp[head] = tailTarget;
 
       vitalForPlaHeadsListsTotal += vitalLen[regionIdx];
@@ -1754,11 +1889,18 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
   Loc allPlaHeads[MAX_PLAY_SIZE];
   {
     //Accumulate with duplicates
-    for(int y = 0; y < y_size; y++) {
-      for(int x = 0; x < x_size; x++) {
-        Loc loc = Location::getLoc(x,y,x_size);
-        if(colors[loc] == pla) {
-          allPlaHeads[numPlaHeads++] = chain_head[loc];
+    {
+      Loc prevHead = NULL_LOC;
+      for(int y = 0; y < y_size; y++) {
+        for(int x = 0; x < x_size; x++) {
+          Loc loc = Location::getLoc(x,y,x_size);
+          if(colors[loc] == pla) {
+            //Eagerly dedup though when we can.
+            if(numPlaHeads > 0 && chain_head[loc] == prevHead)
+              continue;
+            prevHead = chain_head[loc];
+            allPlaHeads[numPlaHeads++] = chain_head[loc];
+          }
         }
       }
     }
@@ -1768,10 +1910,10 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     Loc prevHead = NULL_LOC;
     for(int i = 0; i<numPlaHeads; i++) {
       if(allPlaHeads[i] != prevHead) {
+        prevHead = allPlaHeads[i];
         allPlaHeads[newNumPlaHeads] = allPlaHeads[i];
         newNumPlaHeads++;
       }
-      prevHead = allPlaHeads[i];
     }
     numPlaHeads = newNumPlaHeads;
   }
@@ -1788,8 +1930,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
 
     //Walk all regions that are still bordered only by pass-alive stuff and accumulate a vital liberty to each pla it is vital for.
     for(int i = 0; i<numRegions; i++) {
-      Loc head = regionHeads[i];
-      if(bordersNonPassAlivePlaByHead[head])
+      if(bordersNonPassAlivePlaByHead[regionHeads[i]])
         continue;
 
       int vStart = vitalStart[i];
@@ -1814,11 +1955,11 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
         //Walk the pla chain to update bordering regions
         Loc cur = plaHead;
         do {
-          for(int j = 0; j<4; j++) {
-            Loc adj = cur + adj_offsets[j];
+          FOREACHADJ(
+            Loc adj = cur + ADJOFFSET;
             if(colors[adj] == C_EMPTY || colors[adj] == opp)
-              bordersNonPassAlivePlaByHead[regionHeadByLoc[adj]] = true;
-          }
+              bordersNonPassAlivePlaByHead[regionHeads[regionIdxByLoc[adj]]] = true;
+          );
           cur = next_in_chain[cur];
         } while (cur != plaHead);
       }
@@ -1827,6 +1968,7 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
     if(!killedAnything)
       break;
   }
+
 
   //Mark result with pass-alive groups
   for(int i = 0; i<numPlaHeads; i++) {
@@ -1858,8 +2000,8 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
       } while (cur != head);
     }
     else {
-      //Mark unsafeBigTerritories only if the region is empty, to avoid overwriting regions that the opponent identified
-      //as their pass-alive-territory.
+      //Mark unsafeBigTerritories only if the opponent didn't already claim the very stones we're using to surround it as
+      //pass-dead and therefore the whole thing as pass-alive-territory.
       bool shouldMarkIfEmpty = (unsafeBigTerritories && atLeastOnePla && !containsOpp[i]);
       if(shouldMarkIfEmpty) {
         Loc cur = head;
@@ -1871,8 +2013,91 @@ void Board::calculateAreaForPla(Player pla, bool safeBigTerritories, bool unsafe
       }
     }
   }
-
 }
+
+
+void Board::calculateIndependentLifeAreaHelper(
+  const Color* basicArea,
+  Color* result,
+  int& whiteMinusBlackIndependentLifeRegionCount
+) const {
+  Loc queue[MAX_ARR_SIZE];
+  whiteMinusBlackIndependentLifeRegionCount = 0;
+
+  //Iterate through all the regions that players own via area scoring and mark
+  //all the ones that are touching dame OR that contain an atari stone
+  bool isSeki[MAX_ARR_SIZE];
+  for(int i = 0; i<MAX_ARR_SIZE; i++)
+    isSeki[i] = false;
+
+  int queueHead = 0;
+  int queueTail = 0;
+
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      if(basicArea[loc] != C_EMPTY && !isSeki[loc]) {
+        if(
+          //Stone of player owning the area is in atari? Treat as seki.
+          (colors[loc] == basicArea[loc] && getNumLiberties(loc) == 1) ||
+          //Touches dame? Treat as seki
+          ((colors[loc+ADJ0] == C_EMPTY && basicArea[loc+ADJ0] == C_EMPTY) ||
+           (colors[loc+ADJ1] == C_EMPTY && basicArea[loc+ADJ1] == C_EMPTY) ||
+           (colors[loc+ADJ2] == C_EMPTY && basicArea[loc+ADJ2] == C_EMPTY) ||
+           (colors[loc+ADJ3] == C_EMPTY && basicArea[loc+ADJ3] == C_EMPTY))
+        ) {
+          Player pla = basicArea[loc];
+          isSeki[loc] = true;
+          queue[queueTail++] = loc;
+          while(queueHead != queueTail) {
+            //Pop next location off queue
+            Loc nextLoc = queue[queueHead++];
+
+            //Look all around it, floodfill
+            FOREACHADJ(
+              Loc adj = nextLoc + ADJOFFSET;
+              if(basicArea[adj] == pla && !isSeki[adj]) {
+                isSeki[adj] = true;
+                queue[queueTail++] = adj;
+              }
+            );
+          }
+        }
+      }
+    }
+  }
+
+  queueHead = 0;
+  queueTail = 0;
+
+  //Now, walk through and copy all non-seki-touching basic areas into the result counting
+  //how many there are.
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      if(basicArea[loc] != C_EMPTY && !isSeki[loc] && result[loc] != basicArea[loc]) {
+        Player pla = basicArea[loc];
+        whiteMinusBlackIndependentLifeRegionCount += (pla == P_WHITE ? 1 : -1);
+        result[loc] = basicArea[loc];
+        queue[queueTail++] = loc;
+        while(queueHead != queueTail) {
+          //Pop next location off queue
+          Loc nextLoc = queue[queueHead++];
+
+          //Look all around it, floodfill
+          FOREACHADJ(
+            Loc adj = nextLoc + ADJOFFSET;
+            if(basicArea[adj] == pla && result[adj] != basicArea[adj]) {
+              result[adj] = basicArea[adj];
+              queue[queueTail++] = adj;
+            }
+          );
+        }
+      }
+    }
+  }
+}
+
 
 
 void Board::checkConsistency() const {
@@ -1943,15 +2168,15 @@ void Board::checkConsistency() const {
       if(colors[loc] == C_BLACK || colors[loc] == C_WHITE) {
         if(!chainLocChecked[loc])
           checkChainConsistency(loc);
-        if(empty_list.contains(loc))
-          throw StringError(errLabel + "Empty list contains filled location");
+        // if(empty_list.contains(loc))
+        //   throw StringError(errLabel + "Empty list contains filled location");
 
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][colors[loc]];
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][C_EMPTY];
       }
       else if(colors[loc] == C_EMPTY) {
-        if(!empty_list.contains(loc))
-          throw StringError(errLabel + "Empty list doesn't contain empty location");
+        // if(!empty_list.contains(loc))
+        //   throw StringError(errLabel + "Empty list doesn't contain empty location");
         emptyCount += 1;
       }
       else
@@ -1962,17 +2187,17 @@ void Board::checkConsistency() const {
   if(pos_hash != tmp_pos_hash)
     throw StringError(errLabel + "Pos hash does not match expected");
 
-  if(empty_list.size_ != emptyCount)
-    throw StringError(errLabel + "Empty list size is not the number of empty points");
-  for(int i = 0; i<emptyCount; i++) {
-    Loc loc = empty_list.list_[i];
-    int x = Location::getX(loc,x_size);
-    int y = Location::getY(loc,x_size);
-    if(x < 0 || x >= x_size || y < 0 || y >= y_size)
-      throw StringError(errLabel + "Invalid empty list loc");
-    if(empty_list.indices_[loc] != i)
-      throw StringError(errLabel + "Empty list index for loc in index i is not i");
-  }
+  // if(empty_list.size_ != emptyCount)
+  //   throw StringError(errLabel + "Empty list size is not the number of empty points");
+  // for(int i = 0; i<emptyCount; i++) {
+  //   Loc loc = empty_list.list_[i];
+  //   int x = Location::getX(loc,x_size);
+  //   int y = Location::getY(loc,x_size);
+  //   if(x < 0 || x >= x_size || y < 0 || y >= y_size)
+  //     throw StringError(errLabel + "Invalid empty list loc");
+  //   if(empty_list.indices_[loc] != i)
+  //     throw StringError(errLabel + "Empty list index for loc in index i is not i");
+  // }
 
   if(ko_loc != NULL_LOC) {
     int x = Location::getX(ko_loc,x_size);
@@ -1992,7 +2217,7 @@ void Board::checkConsistency() const {
 
 //IO FUNCS------------------------------------------------------------------------------------------
 
-char colorToChar(Color c)
+char PlayerIO::colorToChar(Color c)
 {
   switch(c) {
   case C_BLACK: return 'X';
@@ -2002,7 +2227,7 @@ char colorToChar(Color c)
   }
 }
 
-string playerToString(Color c)
+string PlayerIO::playerToString(Color c)
 {
   switch(c) {
   case C_BLACK: return "Black";
@@ -2010,6 +2235,19 @@ string playerToString(Color c)
   case C_EMPTY: return "Empty";
   default:  return "Wall";
   }
+}
+
+bool PlayerIO::tryParsePlayer(const string& s, Player& pla) {
+  string str = Global::toLower(s);
+  if(str == "black" || str == "b") {
+    pla = P_BLACK;
+    return true;
+  }
+  else if(str == "white" || str == "w") {
+    pla = P_WHITE;
+    return true;
+  }
+  return false;
 }
 
 string Location::toStringMach(Loc loc, int x_size)
@@ -2025,7 +2263,7 @@ string Location::toStringMach(Loc loc, int x_size)
 
 string Location::toString(Loc loc, int x_size, int y_size)
 {
-  if(x_size > 25)
+  if(x_size > 25*25)
     return toStringMach(loc,x_size);
   if(loc == Board::PASS_LOC)
     return string("pass");
@@ -2034,11 +2272,14 @@ string Location::toString(Loc loc, int x_size, int y_size)
   const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
   int x = getX(loc,x_size);
   int y = getY(loc,x_size);
-  if(x >= x_size || x < 0 || y < 0)
+  if(x >= x_size || x < 0 || y < 0 || y >= y_size)
     return toStringMach(loc,x_size);
 
   char buf[128];
-  sprintf(buf,"%c%d",xChar[x],y_size-y);
+  if(x <= 24)
+    sprintf(buf,"%c%d",xChar[x],y_size-y);
+  else
+    sprintf(buf,"%c%c%d",xChar[x/25-1],xChar[x%25],y_size-y);
   return string(buf);
 }
 
@@ -2048,6 +2289,20 @@ string Location::toString(Loc loc, const Board& b) {
 
 string Location::toStringMach(Loc loc, const Board& b) {
   return toStringMach(loc,b.x_size);
+}
+
+static bool tryParseLetterCoordinate(char c, int& x) {
+  if(c >= 'A' && c <= 'H')
+    x = c-'A';
+  else if(c >= 'a' && c <= 'h')
+    x = c-'a';
+  else if(c >= 'J' && c <= 'Z')
+    x = c-'A'-1;
+  else if(c >= 'j' && c <= 'z')
+    x = c-'a'-1;
+  else
+    return false;
+  return true;
 }
 
 bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& result) {
@@ -2076,18 +2331,21 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
   }
   else {
     int x;
-    if(s[0] >= 'A' && s[0] <= 'H')
-      x = s[0]-'A';
-    else if(s[0] >= 'a' && s[0] <= 'h')
-      x = s[0]-'a';
-    else if(s[0] >= 'J' && s[0] <= 'Z')
-      x = s[0]-'A'-1;
-    else if(s[0] >= 'j' && s[0] <= 'z')
-      x = s[0]-'a'-1;
-    else
+    if(!tryParseLetterCoordinate(s[0],x))
       return false;
 
-    s = s.substr(1,s.length()-1);
+    //Extended format
+    if((s[1] >= 'A' && s[1] <= 'Z') || (s[1] >= 'a' && s[1] <= 'z')) {
+      int x1;
+      if(!tryParseLetterCoordinate(s[1],x1))
+        return false;
+      x = (x+1) * 25 + x1;
+      s = s.substr(2,s.length()-2);
+    }
+    else {
+      s = s.substr(1,s.length()-1);
+    }
+
     int y;
     bool sucY = Global::tryStringToInt(s,y);
     if(!sucY)
@@ -2153,7 +2411,7 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
     for(int x = 0; x < board.x_size; x++)
     {
       Loc loc = Location::getLoc(x,y,board.x_size);
-      char s = colorToChar(board.colors[loc]);
+      char s = PlayerIO::colorToChar(board.colors[loc]);
       if(board.colors[loc] == C_EMPTY && markLoc == loc)
         out << '@';
       else

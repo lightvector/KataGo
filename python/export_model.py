@@ -157,7 +157,7 @@ with tf.Session(config=tfconfig) as session:
 
     def write_bn(name,num_channels):
       writeln(name)
-      (nc,epsilon,has_bias,has_scale) = model.batch_norms[name]
+      (nc,epsilon,has_bias,has_scale,use_fixup) = model.batch_norms[name]
       assert(nc == num_channels)
 
       writeln(num_channels)
@@ -165,11 +165,17 @@ with tf.Session(config=tfconfig) as session:
       writeln(1 if has_scale else 0)
       writeln(1 if has_bias else 0)
 
-      weights = get_weights(name+"/moving_mean")
+      if use_fixup:
+        weights = np.zeros([num_channels])
+      else:
+        weights = get_weights(name+"/moving_mean")
       assert(len(weights.shape) == 1 and weights.shape[0] == num_channels)
       write_weights(weights)
 
-      weights = get_weights(name+"/moving_variance")
+      if use_fixup:
+        weights = np.ones([num_channels])
+      else:
+        weights = get_weights(name+"/moving_variance")
       assert(len(weights.shape) == 1 and weights.shape[0] == num_channels)
       write_weights(weights)
 
@@ -311,9 +317,9 @@ with tf.Session(config=tfconfig) as session:
         w[2] = w[2] - 5000.0
         write_matbias("v3/b",model.v3_size,w)
 
-      #For now, only output the scoremean and scorestdev channels
-      write_matmul("sv3/w",model.v2_size,2,get_weights("mv3/w")[:,0:2])
-      write_matbias("sv3/b",2,get_weights("mv3/b")[0:2])
+      #For now, only output the scoremean and scorestdev and lead and vtime channels
+      write_matmul("sv3/w",model.v2_size,4,get_weights("mv3/w")[:,0:4])
+      write_matbias("sv3/b",4,get_weights("mv3/b")[0:4])
 
       write_model_conv(model.vownership_conv)
 
@@ -331,5 +337,3 @@ with tf.Session(config=tfconfig) as session:
 
   sys.stdout.flush()
   sys.stderr.flush()
-
-

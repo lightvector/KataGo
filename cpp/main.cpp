@@ -26,6 +26,7 @@ match : Run self-play match games based on a config, more efficient than gtp due
 evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
 version : Print version and exit.
 
+analysis : Runs an engine designed to analyze entire games in parallel.
 benchmark : Test speed with different numbers of search threads.
 tuner : (OpenCL only) Run tuning to find and optimize parameters that work on your GPU.
 
@@ -40,11 +41,13 @@ runtests : Test important board algorithms and datastructures
 runnnlayertests : Test a few subcomponents of the current neural net backend
 
 runnnontinyboardtest : Run neural net on a tiny board and dump result to stdout
+runnnsymmetriestest : Run neural net on a rectangle board and dump symmetries result
 
 runoutputtests : Run a bunch of things and dump details to stdout
 runsearchtests : Run a bunch of things using a neural net and dump details to stdout
 runsearchtestsv3 : Run a bunch more things using a neural net and dump details to stdout
 runselfplayinittests : Run some tests involving selfplay training init using a neural net and dump details to stdout
+runsekitrainwritetests : Run some tests involving seki train output
 
 ---Dev/experimental subcommands-------------
 nnerror
@@ -56,6 +59,8 @@ sandbox
 }
 
 static int handleSubcommand(const string& subcommand, int argc, const char* argv[]) {
+  if(subcommand == "analysis")
+    return MainCmds::analysis(argc-1,&argv[1]);
   if(subcommand == "benchmark")
     return MainCmds::benchmark(argc-1,&argv[1]);
   if(subcommand == "evalsgf")
@@ -78,6 +83,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::runnnlayertests(argc-1,&argv[1]);
   else if(subcommand == "runnnontinyboardtest")
     return MainCmds::runnnontinyboardtest(argc-1,&argv[1]);
+  else if(subcommand == "runnnsymmetriestest")
+    return MainCmds::runnnsymmetriestest(argc-1,&argv[1]);
   else if(subcommand == "runoutputtests")
     return MainCmds::runoutputtests(argc-1,&argv[1]);
   else if(subcommand == "runsearchtests")
@@ -86,6 +93,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::runsearchtestsv3(argc-1,&argv[1]);
   else if(subcommand == "runselfplayinittests")
     return MainCmds::runselfplayinittests(argc-1,&argv[1]);
+  else if(subcommand == "runsekitrainwritetests")
+    return MainCmds::runsekitrainwritetests(argc-1,&argv[1]);
   else if(subcommand == "runnnonmanyposestest")
     return MainCmds::runnnonmanyposestest(argc-1,&argv[1]);
   else if(subcommand == "lzcost")

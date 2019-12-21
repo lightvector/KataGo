@@ -305,6 +305,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("dynamicScoreCenterZeroWeight"+idxStr)) params.dynamicScoreCenterZeroWeight = cfg.getDouble("dynamicScoreCenterZeroWeight"+idxStr, 0.0, 1.0);
     else if(cfg.contains("dynamicScoreCenterZeroWeight"))   params.dynamicScoreCenterZeroWeight = cfg.getDouble("dynamicScoreCenterZeroWeight",        0.0, 1.0);
     else params.dynamicScoreCenterZeroWeight = 0.0;
+    if(cfg.contains("dynamicScoreCenterScale"+idxStr)) params.dynamicScoreCenterScale = cfg.getDouble("dynamicScoreCenterScale"+idxStr, 0.2, 5.0);
+    else if(cfg.contains("dynamicScoreCenterScale"))   params.dynamicScoreCenterScale = cfg.getDouble("dynamicScoreCenterScale",        0.2, 5.0);
+    else params.dynamicScoreCenterScale = 1.0;
 
     if(cfg.contains("cpuctExploration"+idxStr)) params.cpuctExploration = cfg.getDouble("cpuctExploration"+idxStr, 0.0, 10.0);
     else                                        params.cpuctExploration = cfg.getDouble("cpuctExploration",        0.0, 10.0);
@@ -337,15 +340,21 @@ vector<SearchParams> Setup::loadParams(
 
     if(cfg.contains("rootDirichletNoiseWeight"+idxStr)) params.rootDirichletNoiseWeight = cfg.getDouble("rootDirichletNoiseWeight"+idxStr, 0.0, 1.0);
     else                                                params.rootDirichletNoiseWeight = cfg.getDouble("rootDirichletNoiseWeight",        0.0, 1.0);
-    if(cfg.contains("rootPolicyTemperature"+idxStr)) params.rootPolicyTemperature = cfg.getDouble("rootPolicyTemperature"+idxStr, 0.01, 5.0);
-    else if(cfg.contains("rootPolicyTemperature"))   params.rootPolicyTemperature = cfg.getDouble("rootPolicyTemperature",        0.01, 5.0);
+    if(cfg.contains("rootPolicyTemperature"+idxStr)) params.rootPolicyTemperature = cfg.getDouble("rootPolicyTemperature"+idxStr, 0.01, 100.0);
+    else if(cfg.contains("rootPolicyTemperature"))   params.rootPolicyTemperature = cfg.getDouble("rootPolicyTemperature",        0.01, 100.0);
     else                                             params.rootPolicyTemperature = 1.0;
+    if(cfg.contains("rootPolicyTemperatureEarly"+idxStr)) params.rootPolicyTemperatureEarly = cfg.getDouble("rootPolicyTemperatureEarly"+idxStr, 0.01, 100.0);
+    else if(cfg.contains("rootPolicyTemperatureEarly"))   params.rootPolicyTemperatureEarly = cfg.getDouble("rootPolicyTemperatureEarly",        0.01, 100.0);
+    else                                                  params.rootPolicyTemperatureEarly = params.rootPolicyTemperature;
     if(cfg.contains("rootFpuReductionMax"+idxStr)) params.rootFpuReductionMax = cfg.getDouble("rootFpuReductionMax"+idxStr, 0.0, 2.0);
     else if(cfg.contains("rootFpuReductionMax"))   params.rootFpuReductionMax = cfg.getDouble("rootFpuReductionMax",        0.0, 2.0);
     else                                           params.rootFpuReductionMax = params.rootNoiseEnabled ? 0.0 : params.fpuReductionMax;
     if(cfg.contains("rootFpuLossProp"+idxStr)) params.rootFpuLossProp = cfg.getDouble("rootFpuLossProp"+idxStr, 0.0, 1.0);
     else if(cfg.contains("rootFpuLossProp"))   params.rootFpuLossProp = cfg.getDouble("rootFpuLossProp",        0.0, 1.0);
     else                                       params.rootFpuLossProp = params.fpuLossProp;
+    if(cfg.contains("rootNumSymmetriesToSample"+idxStr)) params.rootNumSymmetriesToSample = cfg.getInt("rootNumSymmetriesToSample"+idxStr, 1, 16);
+    else if(cfg.contains("rootNumSymmetriesToSample"))   params.rootNumSymmetriesToSample = cfg.getInt("rootNumSymmetriesToSample",        1, 16);
+    else                                                 params.rootNumSymmetriesToSample = 1;
 
     if(cfg.contains("rootDesiredPerChildVisitsCoeff"+idxStr)) params.rootDesiredPerChildVisitsCoeff = cfg.getDouble("rootDesiredPerChildVisitsCoeff"+idxStr, 0.0, 100.0);
     else if(cfg.contains("rootDesiredPerChildVisitsCoeff"))   params.rootDesiredPerChildVisitsCoeff = cfg.getDouble("rootDesiredPerChildVisitsCoeff",        0.0, 100.0);
@@ -382,6 +391,16 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("rootPruneUselessMoves"+idxStr)) params.rootPruneUselessMoves = cfg.getBool("rootPruneUselessMoves"+idxStr);
     else if(cfg.contains("rootPruneUselessMoves"))   params.rootPruneUselessMoves = cfg.getBool("rootPruneUselessMoves");
     else                                             params.rootPruneUselessMoves = false;
+    if(cfg.contains("conservativePass"+idxStr)) params.conservativePass = cfg.getBool("conservativePass"+idxStr);
+    else if(cfg.contains("conservativePass"))   params.conservativePass = cfg.getBool("conservativePass");
+    else                                        params.conservativePass = false;
+    if(cfg.contains("localExplore"+idxStr)) params.localExplore = cfg.getBool("localExplore"+idxStr);
+    else if(cfg.contains("localExplore"))   params.localExplore = cfg.getBool("localExplore");
+    else                                    params.localExplore = false;
+
+    if(cfg.contains("playoutDoublingAdvantage"+idxStr)) params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage"+idxStr,-3.0,3.0);
+    else if(cfg.contains("playoutDoublingAdvantage"))   params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage",-3.0,3.0);
+    else                                                params.playoutDoublingAdvantage = 0.0;
 
     if(cfg.contains("mutexPoolSize"+idxStr)) params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize"+idxStr, 1, 1 << 24);
     else                                     params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize",        1, 1 << 24);
@@ -410,4 +429,34 @@ Player Setup::parseReportAnalysisWinrates(
     return C_EMPTY;
 
   throw StringError("Could not parse config value for reportAnalysisWinratesAs: " + sOrig);
+}
+
+Rules Setup::loadSingleRulesExceptForKomi(
+  ConfigParser& cfg
+) {
+  Rules rules;
+  string koRule = cfg.getString("koRule", Rules::koRuleStrings());
+  string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
+  bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
+  bool hasButton = cfg.contains("hasButton") ? cfg.getBool("hasButton") : false;
+  float komi = 7.5f;
+
+  rules.koRule = Rules::parseKoRule(koRule);
+  rules.scoringRule = Rules::parseScoringRule(scoringRule);
+  rules.multiStoneSuicideLegal = multiStoneSuicideLegal;
+  rules.hasButton = hasButton;
+  rules.komi = komi;
+
+  if(cfg.contains("taxRule")) {
+    string taxRule = cfg.getString("taxRule", Rules::taxRuleStrings());
+    rules.taxRule = Rules::parseTaxRule(taxRule);
+  }
+  else {
+    rules.taxRule = (rules.scoringRule == Rules::SCORING_TERRITORY ? Rules::TAX_SEKI : Rules::TAX_NONE);
+  }
+
+  if(rules.hasButton && rules.scoringRule != Rules::SCORING_AREA)
+    throw StringError("Config specifies hasButton=true on a scoring system other than AREA");
+
+  return rules;
 }
