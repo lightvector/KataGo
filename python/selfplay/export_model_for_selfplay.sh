@@ -19,6 +19,7 @@ shift
 #------------------------------------------------------------------------------
 
 mkdir -p "$BASEDIR"/tfsavedmodels_toexport
+mkdir -p "$BASEDIR"/tfsavedmodels_toexport_extra
 mkdir -p "$BASEDIR"/modelstobetested
 mkdir -p "$BASEDIR"/models_extra
 mkdir -p "$BASEDIR"/models
