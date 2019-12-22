@@ -42,6 +42,8 @@ parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', ty
 parser.add_argument('-model-kind', help='String name for what model to use', required=True)
 parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
 parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
+parser.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
+parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
 parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
@@ -59,6 +61,8 @@ gpu_memory_frac = args["gpu_memory_frac"]
 model_kind = args["model_kind"]
 lr_scale = args["lr_scale"]
 sub_epochs = args["sub_epochs"]
+epochs_per_export = args["epochs_per_export"]
+sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
 swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
 verbose = args["verbose"]
 no_export = args["no_export"]
@@ -91,6 +95,9 @@ def trainlog(s):
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
 num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
+
+if epochs_per_export is None:
+  epochs_per_export = 1
 
 model_config = modelconfigs.config_of_name[model_kind]
 
@@ -176,8 +183,7 @@ def model_fn(features,labels,mode,params):
 
   print_model = not printed_model_yet
 
-  num_globalsteps_per_epoch = num_batches_per_epoch
-  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,num_globalsteps_per_epoch,lr_scale,num_gpus_used)
+  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale,num_gpus_used)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
     model = built
@@ -515,6 +521,7 @@ def maybe_reload_training_data():
 #Tensorflow doesn't offer a good way to save checkpoints more sparsely, so we have to manually do it.
 last_longterm_checkpoint_save_time = datetime.datetime.now()
 
+num_epochs_this_instance = 0
 globalstep = None
 while True:
   maybe_reload_training_data()
@@ -575,10 +582,11 @@ while True:
       accumulate_swa(estimator)
 
   #END SUB EPOCH LOOP ------------
+  num_epochs_this_instance += 1
 
   globalstep = int(estimator.get_variable_value("global_step:0"))
 
-  if not no_export:
+  if not no_export and num_epochs_this_instance % epochs_per_export == 0:
     #Export a model for testing, unless somehow it already exists
     modelname = "%s-s%d-d%d" % (
       exportprefix,
@@ -632,7 +640,10 @@ while True:
       (lambda: val_input_fn(vdatadir))
     )
 
-  time.sleep(1)
+  if sleep_seconds_per_epoch is None:
+    time.sleep(1)
+  else:
+    time.sleep(sleep_seconds_per_epoch)
 
   now = datetime.datetime.now()
   if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=3):
