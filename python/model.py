@@ -1738,9 +1738,17 @@ class ModelUtils:
             if print_model:
               trainlog("Adjusting gradient for " + x.name + " by " + str(adj_factor))
 
-          adjusted_gradients.append((adjusted_grad,x))
+          #Due to what seems like a tensorflow bug, it looks like when you have N gpus, the literal computed gradients
+          #that get reported are divided by a factor of N. So we go ahead and physically multiply the gradients here.
+          if num_gpus_used > 1:
+            adjusted_gradients.append((adjusted_grad * tf.constant(num_gpus_used,dtype=tf.float32),x))
+          else:
+            adjusted_gradients.append((adjusted_grad,x))
 
-        gnorm_cap = 2500.0 / num_gpus_used
+        #If gradients are roughly uncorrelated, then they should scale as the square root of batch size
+        #Since each GPU observes only a fraction of the global batch, we need to divide our gradient cap
+        #by this scaling to achieve a roughly comparable level of scaling.
+        gnorm_cap = 2500.0 / math.sqrt(num_gpus_used)
         (adjusted_gradients_clipped,gnorm) = tf.clip_by_global_norm([x[0] for x in adjusted_gradients],gnorm_cap)
         adjusted_gradients_clipped = list(zip(adjusted_gradients_clipped,[x[1] for x in adjusted_gradients]))
         metrics.gnorm = gnorm

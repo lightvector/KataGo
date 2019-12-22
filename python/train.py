@@ -161,7 +161,7 @@ def save_swa(savedir):
     assert(swa_variable_name.startswith("swa_model/"))
     assignments[swa_assign_placeholders[swa_variable_name]] = swa_wvalues[swa_variable_name] / swa_weight
 
-  with tf.compat.v1.Session(config=tf.ConfigProto(device_count={'GPU':0})) as sess:
+  with tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(device_count={'GPU':0})) as sess:
     sess.run(tf.compat.v1.global_variables_initializer())
     sess.run(swa_assign_op, assignments)
     if not os.path.exists(savedir):
@@ -258,9 +258,22 @@ def model_fn(features,labels,mode,params):
     (rscloss,rscloss_op) = moving_mean("rscloss",target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (pacc1,pacc1_op) = moving_mean("pacc1",metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
     (ptentr,ptentr_op) = moving_mean("ptentr",metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
+    #NOTE: These two are going to be smaller if using more GPUs since it's the gradient norm as measured on the instance batch
+    #rather than the global batch.
+    #Also, somewhat awkwardly, we say the weight is 1.0 rather than 1.0/num_gpus_used because tensorflow seems to have "meany"
+    #behavior where it updates sumw via the mean of the two separate updates of the gpus rather than the sum.
     (gnorm,gnorm_op) = moving_mean("gnorm",metrics.gnorm, weights=1.0)
     (exgnorm,exgnorm_op) = moving_mean("excessgnorm",metrics.excess_gnorm, weights=1.0)
     (wmean,wmean_op) = tf.compat.v1.metrics.mean(target_vars.weight_sum)
+
+    # print_op = tf.print(
+    #   metrics.gnorm,
+    #   target_vars.weight_sum,
+    #   target_vars.opt_loss,
+    #   metrics.tmp,
+    #   foo[0],
+    #   output_stream=sys.stdout
+    # )
 
     print_train_loss_every_batches = 100
 
@@ -287,8 +300,8 @@ def model_fn(features,labels,mode,params):
       "pacc1": pacc1,
       "ptentr": ptentr,
       "pslr": per_sample_learning_rate,
-      "gnorm": gnorm * tf.constant(float(num_gpus_used)),
-      "exgnorm": exgnorm * tf.constant(float(num_gpus_used))
+      "gnorm": gnorm,
+      "exgnorm": exgnorm
     }, every_n_iter=print_train_loss_every_batches)
 
     printed_model_yet = True
@@ -322,6 +335,7 @@ def model_fn(features,labels,mode,params):
         p0loss_op,p1loss_op,vloss_op,tdvloss_op,smloss_op,leadloss_op,vtimeloss_op,sbpdfloss_op,sbcdfloss_op,
         oloss_op,sloss_op,fploss_op,skloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ptentr_op,wmean_op,
         gnorm_op,exgnorm_op
+        #,print_op
       ),
       training_hooks = [logging_hook]
     )
