@@ -76,7 +76,7 @@ saver = tf.train.Saver(
   save_relative_paths = True,
 )
 
-tfconfig = tf.ConfigProto(log_device_placement=False)
+tfconfig = tf.compat.v1.ConfigProto(log_device_placement=False)
 tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.1
 with tf.Session(config=tfconfig) as session:
   saver.restore(session, model_variables_prefix)
@@ -125,5 +125,3 @@ with tf.Session(config=tfconfig) as session:
       sq = np.square(values)
       reg = np.sum(sq) if any(v.name == variable.name for v in model.reg_variables) else 0
       print("%s,%f,%f,%f,%f" % (variable.name, np.sum(sq), reg, np.mean(sq), np.sqrt(np.mean(sq))))
-
-

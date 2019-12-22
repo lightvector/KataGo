@@ -238,7 +238,7 @@ def model_fn(features,labels,mode,params):
       moving_w = tf.compat.v1.get_variable(initializer=tf.zeros([]),name=(name+"/moving_w"),trainable=False)
 
       decay = 0.999
-      with tf.name_scope(name):
+      with tf.compat.v1.variable_scope(name):
         wx_op = tf.keras.backend.moving_average_update(moving_wx,sumwx,decay)
         w_op = tf.keras.backend.moving_average_update(moving_w,sumw,decay)
         op = tf.group(wx_op,w_op)
@@ -385,7 +385,7 @@ def val_input_fn(vdatadir):
 trainlog("Beginning training")
 
 if multi_gpus is None:
-  session_config = tf.ConfigProto()
+  session_config = tf.compat.v1.ConfigProto()
   session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
   estimator = tf.estimator.Estimator(
     model_fn=model_fn,
@@ -399,7 +399,7 @@ if multi_gpus is None:
     )
   )
 else:
-  session_config = tf.ConfigProto(allow_soft_placement=True)
+  session_config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
   session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
   multigpu_strategy = tf.distribute.MirroredStrategy(devices=multi_gpu_device_ids)
   estimator = tf.estimator.Estimator(

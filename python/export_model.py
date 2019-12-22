@@ -54,7 +54,7 @@ with open(model_config_json) as f:
 
 pos_len = 19 # shouldn't matter, all we're doing is exporting weights that don't depend on this
 if name_scope is not None:
-  with tf.variable_scope(name_scope):
+  with tf.compat.v1.variable_scope(name_scope):
     model = Model(model_config,pos_len,{})
 else:
   model = Model(model_config,pos_len,{})
@@ -64,17 +64,17 @@ ModelUtils.print_trainable_variables(log)
 
 print("Testing", flush=True)
 
-saver = tf.train.Saver(
+saver = tf.compat.v1.train.Saver(
   max_to_keep = 10000,
   save_relative_paths = True,
 )
 
 #Some tensorflow options
-#tfconfig = tf.ConfigProto(log_device_placement=False,device_count={'GPU': 0})
-tfconfig = tf.ConfigProto(log_device_placement=False)
+#tfconfig = tf.compat.v1.ConfigProto(log_device_placement=False,device_count={'GPU': 0})
+tfconfig = tf.compat.v1.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.allow_growth = True
 #tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
-with tf.Session(config=tfconfig) as session:
+with tf.compat.v1.Session(config=tfconfig) as session:
   saver.restore(session, model_variables_prefix)
 
   sys.stdout.flush()
@@ -112,7 +112,7 @@ with tf.Session(config=tfconfig) as session:
     writeln(model.get_num_bin_input_features(model_config))
     writeln(model.get_num_global_input_features(model_config))
 
-    variables = dict((variable.name,variable) for variable in tf.global_variables())
+    variables = dict((variable.name,variable) for variable in tf.compat.v1.global_variables())
     def get_weights(name):
       if name_scope is not None:
         return np.array(variables[name_scope+"/"+name+":0"].eval())

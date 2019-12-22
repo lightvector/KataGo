@@ -532,7 +532,7 @@ class Model:
     #Similarly, the variance computed exactly only over those spots
     var = tf.reduce_sum(tf.square(zmtensor * mask),axis=[0,1,2]) / mask_sum
 
-    with tf.name_scope(name):
+    with tf.variable_scope(name):
       mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.998)
       var_op = tf.keras.backend.moving_average_update(moving_var,var,0.998)
 
@@ -1717,7 +1717,7 @@ class ModelUtils:
 
       lr_base = 0.00003 * (1.0 if lr_scale is None else lr_scale)
       per_sample_learning_rate = (
-        tf.constant(lr_base) * tf.train.piecewise_constant(
+        tf.constant(lr_base) * tf.compat.v1.train.piecewise_constant(
           global_step_samples,
           boundaries = [5.0e6],
           values = [1.0/3.0, 1.0]
