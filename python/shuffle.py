@@ -89,7 +89,7 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
     )
   return num_out_files
 
-def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
+def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_batch_multiple):
   #print("Merging shards for output file: %s (%d shards to merge)" % (filename,num_shards_to_merge))
   tfoptions = TFRecordOptions(TFRecordCompressionType.ZLIB)
   record_writer = TFRecordWriter(filename,tfoptions)
@@ -139,7 +139,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size):
   #print("Merge writing in batches...")
   num_rows = binaryInputNCHWPacked.shape[0]
   #Just truncate and lose the batch at the end, it's fine
-  num_batches = num_rows // batch_size
+  num_batches = (num_rows // (batch_size * ensure_batch_multiple)) * ensure_batch_multiple
   for i in range(num_batches):
     start = i*batch_size
     stop = (i+1)*batch_size
@@ -178,7 +178,8 @@ if __name__ == '__main__':
   parser.add_argument('-out-tmp-dir', required=True, help='Dir to use as scratch space')
   parser.add_argument('-approx-rows-per-out-file', type=int, required=True, help='Number of rows per output tf records file')
   parser.add_argument('-num-processes', type=int, required=True, help='Number of multiprocessing processes')
-  parser.add_argument('-batch-size', type=int, required=True, help='Batck size to write training examples in')
+  parser.add_argument('-batch-size', type=int, required=True, help='Batch size to write training examples in')
+  parser.add_argument('-ensure-batch-multiple', type=int, required=False, help='Ensure each file is a multiple of this many batches')
 
   args = parser.parse_args()
   dirs = args.dirs
@@ -192,6 +193,9 @@ if __name__ == '__main__':
   approx_rows_per_out_file = args.approx_rows_per_out_file
   num_processes = args.num_processes
   batch_size = args.batch_size
+  ensure_batch_multiple = 1
+  if args.ensure_batch_multiple is not None:
+    ensure_batch_multiple = args.ensure_batch_multiple
 
   all_files = []
   for d in dirs:
@@ -343,7 +347,7 @@ if __name__ == '__main__':
     t0 = time.time()
     num_shards_to_merge = len(desired_input_files)
     merge_results = pool.starmap(merge_shards, [
-      (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size) for idx in range(len(out_files))
+      (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple) for idx in range(len(out_files))
     ])
     t1 = time.time()
     print("Done merging, number of rows by output file:",flush=True)

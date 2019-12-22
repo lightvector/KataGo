@@ -489,7 +489,7 @@ class Model:
   # Build model -------------------------------------------------------------
 
   def ensure_variable_exists(self,name):
-    for v in tf.trainable_variables():
+    for v in tf.compat.v1.trainable_variables():
       if v.name == name:
         return name
     raise Exception("Could not find variable " + name)
@@ -518,11 +518,11 @@ class Model:
     self.batch_norms[name] = (tensor.shape[-1].value,epsilon,has_bias,has_scale,self.use_fixup)
 
     num_channels = tensor.shape[3].value
-    collections = [tf.GraphKeys.GLOBAL_VARIABLES,tf.GraphKeys.MODEL_VARIABLES,tf.GraphKeys.MOVING_AVERAGE_VARIABLES]
+    collections = [tf.compat.v1.GraphKeys.GLOBAL_VARIABLES,tf.compat.v1.GraphKeys.MODEL_VARIABLES,tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES]
 
     #Define variables to keep track of the mean and variance
-    moving_mean = tf.Variable(tf.zeros([num_channels]),name=(name+"/moving_mean"),trainable=False,collections=collections)
-    moving_var = tf.Variable(tf.ones([num_channels]),name=(name+"/moving_variance"),trainable=False,collections=collections)
+    moving_mean = tf.compat.v1.get_variable(initializer=tf.zeros([num_channels]),name=(name+"/moving_mean"),trainable=False,collections=collections)
+    moving_var = tf.compat.v1.get_variable(initializer=tf.ones([num_channels]),name=(name+"/moving_variance"),trainable=False,collections=collections)
     beta = self.weight_variable_init_constant(name+"/beta", [tensor.shape[3].value], 0.0, reg=False)
 
     #This is the mean, computed only over exactly the areas of the mask, weighting each spot equally,
@@ -531,10 +531,13 @@ class Model:
     zmtensor = tensor-mean
     #Similarly, the variance computed exactly only over those spots
     var = tf.reduce_sum(tf.square(zmtensor * mask),axis=[0,1,2]) / mask_sum
-    mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.998)
-    var_op = tf.keras.backend.moving_average_update(moving_var,var,0.998)
-    tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, mean_op)
-    tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, var_op)
+
+    with tf.name_scope(name):
+      mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.998)
+      var_op = tf.keras.backend.moving_average_update(moving_var,var,0.998)
+
+    tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, mean_op)
+    tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, var_op)
 
     def training_f():
       return (mean,var)
@@ -568,13 +571,13 @@ class Model:
 
   def init_weights(self, shape, num_inputs, num_outputs):
     stdev = self.init_stdev(num_inputs,num_outputs) / 1.0
-    return tf.truncated_normal(shape=shape, stddev=stdev)
+    return tf.random.truncated_normal(shape=shape, stddev=stdev)
 
   def weight_variable_init_constant(self, name, shape, constant, reg=True):
     init = tf.zeros(shape)
     if constant != 0.0:
       init = init + constant
-    variable = tf.Variable(init,name=name)
+    variable = tf.compat.v1.get_variable(initializer=init,name=name)
     if reg is True:
       self.reg_variables.append(variable)
     elif reg == "tiny":
@@ -587,7 +590,7 @@ class Model:
       initial = initial + extra_initial_weight
     initial = initial * scale_initial_weights
 
-    variable = tf.Variable(initial,name=name)
+    variable = tf.compat.v1.get_variable(initializer=initial,name=name)
     if reg is True:
       self.reg_variables.append(variable)
     elif reg == "tiny":
@@ -842,13 +845,13 @@ class Model:
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
-                  tf.placeholder(tf.float32, [None] + self.bin_input_shape, name="bin_inputs"))
+                  tf.compat.v1.placeholder(tf.float32, [None] + self.bin_input_shape, name="bin_inputs"))
     global_inputs = (placeholders["global_inputs"] if "global_inputs" in placeholders else
-                    tf.placeholder(tf.float32, [None] + self.global_input_shape, name="global_inputs"))
+                    tf.compat.v1.placeholder(tf.float32, [None] + self.global_input_shape, name="global_inputs"))
     symmetries = (placeholders["symmetries"] if "symmetries" in placeholders else
-                  tf.placeholder(tf.bool, [3], name="symmetries"))
+                  tf.compat.v1.placeholder(tf.bool, [3], name="symmetries"))
     include_history = (placeholders["include_history"] if "include_history" in placeholders else
-                       tf.placeholder(tf.float32, [None] + [5], name="include_history"))
+                       tf.compat.v1.placeholder(tf.float32, [None] + [5], name="include_history"))
 
     self.assert_batched_shape("bin_inputs",bin_inputs,self.bin_input_shape)
     self.assert_batched_shape("global_inputs",global_inputs,self.global_input_shape)
@@ -1168,7 +1171,7 @@ class Model:
       #tf.where has a bug where nan values on the non-chosen side will still propagate nans back in gradients.
       #So we also abs the tensor, so that we never get a log of a negative value
       abstensor = tf.abs(tensor)
-      return tf.where(tensor > 0, 1.0 + tf.log(abstensor + 1.0), 1.0 / (1.0 + tf.log(abstensor + 1.0)))
+      return tf.where(tensor > 0, 1.0 + tf.math.log(abstensor + 1.0), 1.0 / (1.0 + tf.math.log(abstensor + 1.0)))
 
     scorebelief_len = self.scorebelief_target_shape[0]
     scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
@@ -1297,54 +1300,54 @@ class Target_vars:
 
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
-                          tf.placeholder(tf.float32, [None] + model.policy_target_shape))
+                          tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_shape))
     self.policy_target1 = (placeholders["policy_target1"] if "policy_target1" in placeholders else
-                          tf.placeholder(tf.float32, [None] + model.policy_target_shape))
+                          tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_shape))
     #Unconditional game result prediction
     self.value_target = (placeholders["value_target"] if "value_target" in placeholders else
-                         tf.placeholder(tf.float32, [None] + model.value_target_shape))
+                         tf.compat.v1.placeholder(tf.float32, [None] + model.value_target_shape))
     self.td_value_target = (placeholders["td_value_target"] if "td_value_target" in placeholders else
-                            tf.placeholder(tf.float32, [None] + model.td_value_target_shape))
+                            tf.compat.v1.placeholder(tf.float32, [None] + model.td_value_target_shape))
     #Expected score prediction CONDITIONAL on result
     self.scoremean_target = (placeholders["scoremean_target"] if "scoremean_target" in placeholders else
-                              tf.placeholder(tf.float32, [None] + model.scoremean_target_shape))
+                              tf.compat.v1.placeholder(tf.float32, [None] + model.scoremean_target_shape))
     self.lead_target = (placeholders["lead_target"] if "lead_target" in placeholders else
-                              tf.placeholder(tf.float32, [None] + model.lead_target_shape))
+                              tf.compat.v1.placeholder(tf.float32, [None] + model.lead_target_shape))
     #Arrival time of variance in game, unconditional
     self.variance_time_target = (placeholders["variance_time_target"] if "variance_time_target" in placeholders else
-                              tf.placeholder(tf.float32, [None] + model.variance_time_target_shape))
+                              tf.compat.v1.placeholder(tf.float32, [None] + model.variance_time_target_shape))
     #Score belief distributions CONDITIONAL on result
     self.scorebelief_target = (placeholders["scorebelief_target"] if "scorebelief_target" in placeholders else
-                              tf.placeholder(tf.float32, [None] + model.scorebelief_target_shape))
+                              tf.compat.v1.placeholder(tf.float32, [None] + model.scorebelief_target_shape))
     #Ownership of board, CONDITIONAL on result
     self.ownership_target = (placeholders["ownership_target"] if "ownership_target" in placeholders else
-                             tf.placeholder(tf.float32, [None] + model.ownership_target_shape))
+                             tf.compat.v1.placeholder(tf.float32, [None] + model.ownership_target_shape))
     #Scoring of board, CONDITIONAL on result
     self.scoring_target = (placeholders["scoring_target"] if "scoring_target" in placeholders else
-                             tf.placeholder(tf.float32, [None] + model.scoring_target_shape))
+                             tf.compat.v1.placeholder(tf.float32, [None] + model.scoring_target_shape))
     #Future board positions, unconditional
     self.futurepos_target = (placeholders["futurepos_target"] if "futurepos_target" in placeholders else
-                             tf.placeholder(tf.float32, [None] + model.futurepos_target_shape))
+                             tf.compat.v1.placeholder(tf.float32, [None] + model.futurepos_target_shape))
     #Seki state of final board, CONDITIONAL on result
     self.seki_target = (placeholders["seki_target"] if "seki_target" in placeholders else
-                             tf.placeholder(tf.float32, [None] + model.seki_target_shape))
+                             tf.compat.v1.placeholder(tf.float32, [None] + model.seki_target_shape))
 
     self.target_weight_from_data = (placeholders["target_weight_from_data"] if "target_weight_from_data" in placeholders else
-                                    tf.placeholder(tf.float32, [None] + model.target_weight_shape))
+                                    tf.compat.v1.placeholder(tf.float32, [None] + model.target_weight_shape))
     self.policy_target_weight = (placeholders["policy_target_weight"] if "policy_target_weight" in placeholders else
-                                 tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
+                                 tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.policy_target_weight1 = (placeholders["policy_target_weight1"] if "policy_target_weight1" in placeholders else
-                                 tf.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
+                                 tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.lead_target_weight = (placeholders["lead_target_weight"] if "lead_target_weight" in placeholders else
-                                    tf.placeholder(tf.float32, [None] + model.lead_target_weight_shape))
+                                    tf.compat.v1.placeholder(tf.float32, [None] + model.lead_target_weight_shape))
     self.ownership_target_weight = (placeholders["ownership_target_weight"] if "ownership_target_weight" in placeholders else
-                                    tf.placeholder(tf.float32, [None] + model.ownership_target_weight_shape))
+                                    tf.compat.v1.placeholder(tf.float32, [None] + model.ownership_target_weight_shape))
     self.scoring_target_weight = (placeholders["scoring_target_weight"] if "scoring_target_weight" in placeholders else
-                                    tf.placeholder(tf.float32, [None] + model.scoring_target_weight_shape))
+                                    tf.compat.v1.placeholder(tf.float32, [None] + model.scoring_target_weight_shape))
     self.futurepos_target_weight = (placeholders["futurepos_target_weight"] if "futurepos_target_weight" in placeholders else
-                                    tf.placeholder(tf.float32, [None] + model.futurepos_target_weight_shape))
+                                    tf.compat.v1.placeholder(tf.float32, [None] + model.futurepos_target_weight_shape))
     self.selfkomi = (placeholders["selfkomi"] if "selfkomi" in placeholders else
-                     tf.placeholder(tf.float32, [None]))
+                     tf.compat.v1.placeholder(tf.float32, [None]))
 
     model.assert_batched_shape("policy_target", self.policy_target, model.policy_target_shape)
     model.assert_batched_shape("policy_target_weight", self.policy_target_weight, model.policy_target_weight_shape)
@@ -1390,7 +1393,7 @@ class Target_vars:
       # Subtract out the entropy, so as to get loss 0 at perfect prediction
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.td_value_target,
-        logits=tf.log(self.td_value_target + 1.0e-30)
+        logits=tf.math.log(self.td_value_target + 1.0e-30)
       )
     )
     self.td_value_loss_unreduced = tf.reduce_sum(self.td_value_loss_unreduced, axis=1)
@@ -1454,7 +1457,7 @@ class Target_vars:
     )
     unowned_proportion = tf.reduce_mean(unowned_proportion * self.ownership_target_weight)
     if model.is_training:
-      moving_unowned_proportion = tf.Variable(1.0,name=("moving_unowned_proportion"),trainable=False)
+      moving_unowned_proportion = tf.compat.v1.get_variable(initializer=1.0,name=("moving_unowned_proportion"),trainable=False)
       moving_unowned_op = tf.keras.backend.moving_average_update(moving_unowned_proportion,unowned_proportion,0.998)
       with tf.control_dependencies([moving_unowned_op]):
         seki_weight_scale = 8.0 * 0.005 / (0.005 + moving_unowned_proportion)
@@ -1534,7 +1537,7 @@ class Target_vars:
     if for_optimization:
       #Prior/Regularization
       self.l2_reg_coeff = (placeholders["l2_reg_coeff"] if "l2_reg_coeff" in placeholders else
-                           tf.placeholder(tf.float32))
+                           tf.compat.v1.placeholder(tf.float32))
       self.reg_loss_per_weight = self.l2_reg_coeff * (
         tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables]) +
         0.05 * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables_tiny])
@@ -1583,7 +1586,7 @@ class Metrics:
     self.value_entropy_unreduced = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.nn.softmax(model.value_output,axis=1), logits=model.value_output)
     self.value_conf_unreduced = 4 * tf.square(tf.nn.sigmoid(model.value_output[:,0] - model.value_output[:,1]) - 0.5)
     self.policy_target_entropy_unreduced = target_vars.policy_target_weight * (
-      -tf.reduce_sum(target_vars.policy_target * tf.log(target_vars.policy_target+(1e-20)), axis=1)
+      -tf.reduce_sum(target_vars.policy_target * tf.math.log(target_vars.policy_target+(1e-20)), axis=1)
     )
     self.accuracy1 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy1_unreduced, name="metrics/accuracy1")
     self.accuracy4 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy4_unreduced, name="metrics/accuracy4")
@@ -1613,17 +1616,17 @@ class Metrics:
         (name,reduce_stdev(layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
       ])
       self.mean_weights_by_var = dict([
-        (v.name,tf.reduce_mean(v)) for v in tf.trainable_variables()
+        (v.name,tf.reduce_mean(v)) for v in tf.compat.v1.trainable_variables()
       ])
       self.norm_weights_by_var = dict([
-        (v.name,reduce_norm(v)) for v in tf.trainable_variables()
+        (v.name,reduce_norm(v)) for v in tf.compat.v1.trainable_variables()
       ])
 
 class ModelUtils:
   @staticmethod
   def print_trainable_variables(logf):
     total_parameters = 0
-    for variable in tf.trainable_variables():
+    for variable in tf.compat.v1.trainable_variables():
       shape = variable.get_shape()
       variable_parameters = 1
       for dim in shape:
@@ -1634,7 +1637,7 @@ class ModelUtils:
     logf("Model: %d total parameters" % total_parameters)
 
   @staticmethod
-  def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale=None):
+  def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale=None,num_gpus_used=1):
     trainlog("Building model")
 
     num_bin_input_features = Model.get_num_bin_input_features(model_config)
@@ -1659,7 +1662,7 @@ class ModelUtils:
     placeholders["bin_inputs"] = binhwc
 
     placeholders["global_inputs"] = features["ginc"]
-    placeholders["symmetries"] = tf.greater(tf.random_uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
+    placeholders["symmetries"] = tf.greater(tf.random.uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
 
     if mode == tf.estimator.ModeKeys.PREDICT:
       model = Model(model_config,pos_len,placeholders,is_training=False)
@@ -1708,7 +1711,7 @@ class ModelUtils:
 
       target_vars = Target_vars(model,for_optimization=True,placeholders=placeholders)
       metrics = Metrics(model,target_vars,include_debug_stats=False)
-      global_step = tf.train.get_global_step()
+      global_step = tf.compat.v1.train.get_global_step()
       global_step_float = tf.cast(global_step, tf.float32)
       global_step_samples = global_step_float * tf.constant(batch_size,dtype=tf.float32)
 
@@ -1722,9 +1725,9 @@ class ModelUtils:
       )
 
       lr_adjusted_variables = model.lr_adjusted_variables
-      update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
+      update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS) #collect batch norm update operations
       with tf.control_dependencies(update_ops):
-        optimizer = tf.train.MomentumOptimizer(per_sample_learning_rate, momentum=0.9, use_nesterov=True)
+        optimizer = tf.compat.v1.train.MomentumOptimizer(per_sample_learning_rate, momentum=0.9, use_nesterov=True)
         gradients = optimizer.compute_gradients(target_vars.opt_loss)
         adjusted_gradients = []
         for (grad,x) in gradients:
@@ -1735,9 +1738,17 @@ class ModelUtils:
             if print_model:
               trainlog("Adjusting gradient for " + x.name + " by " + str(adj_factor))
 
-          adjusted_gradients.append((adjusted_grad,x))
+          #Due to what seems like a tensorflow bug, it looks like when you have N gpus, the literal computed gradients
+          #that get reported are divided by a factor of N. So we go ahead and physically multiply the gradients here.
+          if num_gpus_used > 1:
+            adjusted_gradients.append((adjusted_grad * tf.constant(num_gpus_used,dtype=tf.float32),x))
+          else:
+            adjusted_gradients.append((adjusted_grad,x))
 
-        gnorm_cap = 2500.0
+        #If gradients are roughly uncorrelated, then they should scale as the square root of batch size
+        #Since each GPU observes only a fraction of the global batch, we need to divide our gradient cap
+        #by this scaling to achieve a roughly comparable level of scaling.
+        gnorm_cap = 2500.0 / math.sqrt(num_gpus_used)
         (adjusted_gradients_clipped,gnorm) = tf.clip_by_global_norm([x[0] for x in adjusted_gradients],gnorm_cap)
         adjusted_gradients_clipped = list(zip(adjusted_gradients_clipped,[x[1] for x in adjusted_gradients]))
         metrics.gnorm = gnorm
@@ -1746,7 +1757,7 @@ class ModelUtils:
 
       if print_model:
         ModelUtils.print_trainable_variables(trainlog)
-        for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
+        for update_op in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS):
           trainlog("Additional update op on train step: %s" % update_op.name)
         trainlog("Supporting japanese rules: " + str(model.support_japanese_rules))
 

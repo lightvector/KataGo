@@ -3,7 +3,7 @@
 #Shuffles and copies selfplay training from selfplay/ to shuffleddata/current/
 #Should be run periodically.
 
-if [[ $# -ne 3 ]]
+if [[ $# -lt 3 ]]
 then
     echo "Usage: $0 BASEDIR TMPDIR NTHREADS"
     echo "BASEDIR containing selfplay data and models and related directories"
@@ -44,6 +44,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -num-processes "$NTHREADS" \
          -batch-size 256 \
          -keep-target-rows 1200000 \
+         "$@" \
          2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outtrain.txt &
 
     # time python3 ./shuffle.py \
@@ -58,6 +59,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
     #      -num-processes "$NTHREADS" \
     #      -batch-size 256 \
     #      -keep-target-rows 12000 \
+    #      "$@" \
     #      2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outval.txt &
 
     wait
