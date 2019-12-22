@@ -786,7 +786,7 @@ static float roundAndClipKomi(double unrounded, const Board& board, bool looseCl
   return (float)(0.5 * round(2.0 * unrounded));
 }
 
-static ReportedSearchValues getWhiteScoreValues(
+ReportedSearchValues Play::getWhiteScoreValues(
   Search* bot,
   const Board& board,
   const BoardHistory& hist,
@@ -843,13 +843,13 @@ static std::pair<double,double> evalKomi(
   float oldKomi = hist.rules.komi;
   hist.setKomi(roundedClippedKomi);
 
-  ReportedSearchValues values0 = getWhiteScoreValues(botB, board, hist, pla, numVisits, logger, otherGameProps);
+  ReportedSearchValues values0 = Play::getWhiteScoreValues(botB, board, hist, pla, numVisits, logger, otherGameProps);
   double finalLead = values0.lead;
   double finalWinLoss = values0.winLossValue;
 
   //If we have a second bot, average the two
   if(botW != NULL && botW != botB) {
-    ReportedSearchValues values1 = getWhiteScoreValues(botW, board, hist, pla, numVisits, logger, otherGameProps);
+    ReportedSearchValues values1 = Play::getWhiteScoreValues(botW, board, hist, pla, numVisits, logger, otherGameProps);
     finalLead = 0.5 * (values0.lead + values1.lead);
     finalWinLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
   }
@@ -1201,13 +1201,6 @@ static void extractPolicyTarget(
     if(value > maxValue)
       maxValue = value;
   }
-
-  //TODO
-  // if(maxValue > 1e9) {
-  //   cout << toMoveBot->rootBoard << endl;
-  //   cout << "LARGE PLAY SELECTION VALUE " << maxValue << endl;
-  //   toMoveBot->printTree(cout, node, PrintTreeOptions(), P_WHITE);
-  // }
 
   double factor = 1.0;
   if(maxValue > 30000.0)

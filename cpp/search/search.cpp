@@ -457,15 +457,12 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
 
     bool isDuringSearch = false;
 
-    float* maybeNoisedPolicyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
-    //TODO test this - reduce play selection values based on the ORIGINAL policy rather than the noised one!
-    //float* policyProbs = node.nnOutput->policyProbs;
-    float* policyProbs = maybeNoisedPolicyProbs;
+    float* policyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
     double bestChildExploreSelectionValue = getExploreSelectionValue(node,policyProbs,bestChild,totalChildVisits,fpuValue,parentUtility,isDuringSearch,NULL);
 
     for(int i = 0; i<numChildren; i++) {
       if(i != mostVisitedIdx)
-        playSelectionValues[i] = getReducedPlaySelectionVisits(node,policyProbs,maybeNoisedPolicyProbs,node.children[i], totalChildVisits, bestChildExploreSelectionValue);
+        playSelectionValues[i] = getReducedPlaySelectionVisits(node, policyProbs, node.children[i], totalChildVisits, bestChildExploreSelectionValue);
     }
   }
 
@@ -547,36 +544,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   if(maxValue <= 1e-50)
     return false;
 
-  //TODO
   //Sanity check - if somehow we had more than this, something must have overflowed or gone wrong
-  // if(!(maxValue < 1e9)) {
-  //   cout << rootBoard << endl;
-  //   cout << maxValue << endl;
-  //   for(int i = 0; i<numChildren; i++) {
-  //     SearchNode* child = node.children[i];
-  //     Loc moveLoc = child->prevMoveLoc;
-  //     int movePos = getPos(moveLoc);
-  //     double policyProb = nnOutput->policyProbs[movePos];
-
-  //     while(child->statsLock.test_and_set(std::memory_order_acquire));
-  //     uint64_t numVisits = child->stats.visits;
-  //     double winValueSum = child->stats.winValueSum;
-  //     double noResultValueSum = child->stats.noResultValueSum;
-  //     double scoreMeanSum = child->stats.scoreMeanSum;
-  //     double scoreMeanSqSum = child->stats.scoreMeanSqSum;
-  //     double weightSum = child->stats.weightSum;
-  //     double weightSqSum = child->stats.weightSqSum;
-  //     double utilitySum = child->stats.utilitySum;
-  //     double utilitySqSum = child->stats.utilitySqSum;
-  //     child->statsLock.clear(std::memory_order_release);
-
-  //     cout << Location::toString(moveLoc,rootBoard) << " ";
-  //     cout << policyProb << " ";
-  //     cout << numVisits << " " << winValueSum << " " << noResultValueSum << " " << scoreMeanSum << " " << scoreMeanSqSum << " " << weightSum << " "
-  //          << weightSqSum << " " << utilitySum << " " << utilitySqSum;
-  //     cout << endl;
-  //   }
-  // }
   assert(maxValue < 1e40);
 
   double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/64.0);
@@ -1210,21 +1178,6 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
     }
   }
 
-  //TODO debug printing
-  // for(int y = 0; y<rootBoard.y_size; y++) {
-  //   for(int x = 0; x<rootBoard.x_size; x++) {
-  //     int pos = NNPos::xyToPos(x,y,node.nnOutput->nnXLen);
-  //     double prob = r[pos] * searchParams.rootDirichletNoiseTotalConcentration;
-  //     if(policyProbs[pos] < 0)
-  //       cout << "   -  " << " ";
-  //     else
-  //       cout << Global::strprintf("%6.3f",prob) << " ";
-  //   }
-  //   cout << endl;
-  // }
-  // double prob = r[NNPos::locToPos(Board::PASS_LOC,rootBoard.x_size,node.nnOutput->nnXLen,node.nnOutput->nnYLen)] * searchParams.rootDirichletNoiseTotalConcentration;
-  // cout << "Pass " << Global::strprintf("%6.3f",prob) << endl;
-
   //r now contains the proportions with which we would like to split the alpha
   //The total of the alphas is searchParams.rootDirichletNoiseTotalConcentration
   //Generate gamma draw on each move
@@ -1512,14 +1465,8 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
   float* whiteOwnerMap = parent.nnOutput->whiteOwnerMap;
   Loc moveLoc = child->prevMoveLoc;
 
-  double extreme = 0.95;
-  double tail = 0.05;
-  if(rootHistory.rules.taxRule == Rules::TAX_ALL) {
-    //Make much more lenient in the case that we have a group tax, because ownership will be discounting territory
-    //quite a bit in many cases.
-    extreme = 0.70;
-    tail = 0.30;
-  }
+  const double extreme = 0.95;
+  const double tail = 0.05;
 
   //Extra points from the perspective of the root player
   double extraRootPoints = 0.0;
@@ -1702,14 +1649,13 @@ double Search::getNewExploreSelectionValue(const SearchNode& parent, float nnPol
 
 //Parent must be locked
 int64_t Search::getReducedPlaySelectionVisits(
-  const SearchNode& parent, const float* parentPolicyProbs, const float* maybeNoisedPolicyProbs, const SearchNode* child,
+  const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
   int64_t totalChildVisits, double bestChildExploreSelectionValue
 ) const {
   assert(&parent == rootNode);
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parentPolicyProbs[movePos];
-  (void)maybeNoisedPolicyProbs; //TODO cleanup
 
   while(child->statsLock.test_and_set(std::memory_order_acquire));
   int64_t childVisits = child->stats.visits;

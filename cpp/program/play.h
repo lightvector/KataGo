@@ -327,6 +327,16 @@ namespace Play {
     Rand& gameRand
   );
 
+  ReportedSearchValues getWhiteScoreValues(
+    Search* bot,
+    const Board& board,
+    const BoardHistory& hist,
+    Player pla,
+    int numVisits,
+    Logger& logger,
+    const OtherGameProperties& otherGameProps
+  );
+
   Loc chooseRandomPolicyMove(
     const NNOutput* nnOutput,
     const Board& board,

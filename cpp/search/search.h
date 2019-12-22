@@ -346,7 +346,7 @@ private:
 
   //Parent must be locked
   int64_t getReducedPlaySelectionVisits(
-    const SearchNode& parent, const float* parentPolicyProbs, const float* maybeNoisedPolicyProbs, const SearchNode* child,
+    const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     int64_t totalChildVisits, double bestChildExploreSelectionValue
   ) const;
 

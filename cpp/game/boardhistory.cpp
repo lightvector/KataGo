@@ -882,7 +882,6 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 }
 
-//TODO add some tests for this
 KoHashTable::KoHashTable()
   :koHashHistorySortedByLowBits(),
    firstTurnIdxWithKoHistory(0)

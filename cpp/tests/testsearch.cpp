@@ -1392,6 +1392,7 @@ void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool cuda
   NeuralNet::globalCleanup();
 }
 
+//TODO incorporate an auto test of this and one that grabs the root policy with symmetry averaging
 void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool cudaNHWC, bool useFP16) {
   NeuralNet::globalInitialize();
 
