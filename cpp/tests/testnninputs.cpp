@@ -94,6 +94,23 @@ static string getAndClear(ostringstream& out) {
   return result;
 }
 
+static double finalScoreIfGameEndedNow(const BoardHistory& baseHist, const Board& baseBoard) {
+  Player pla = P_BLACK;
+  Board board(baseBoard);
+  BoardHistory hist(baseHist);
+  if(hist.moveHistory.size() > 0)
+    pla = getOpp(hist.moveHistory[hist.moveHistory.size()-1].pla);
+  while(!hist.isGameFinished) {
+    hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, pla, NULL);
+    pla = getOpp(pla);
+  }
+
+  double score = hist.finalWhiteMinusBlackScore;
+  hist.endAndScoreGameNow(board);
+  testAssert(hist.finalWhiteMinusBlackScore == score);
+  return score;
+}
+
 
 //==================================================================================================================
 //==================================================================================================================
@@ -483,83 +500,83 @@ xxx..xx
       Player nextPla = P_BLACK;
 
       vector<Rules> rules = {
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, 1.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, 1.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, 2.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, true, true, 2.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, 3.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, 3.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, 4.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, true, 4.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, 5.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, 5.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, 6.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, true, 6.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, Rules::WHB_ZERO, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, Rules::WHB_ZERO, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, Rules::WHB_ZERO, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, true, true, Rules::WHB_ZERO, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, Rules::WHB_ZERO, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, Rules::WHB_ZERO, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, Rules::WHB_ZERO, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, true, Rules::WHB_ZERO, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, Rules::WHB_ZERO, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, Rules::WHB_ZERO, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, Rules::WHB_ZERO, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, true, Rules::WHB_ZERO, 6.5f),
 
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, 1.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, true, false, 1.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, true, 2.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, true, true, 2.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, 3.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, false, 3.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, true, 4.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, true, 4.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, 5.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, false, 5.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, true, 6.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, true, 6.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, true, false, Rules::WHB_ZERO, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, true, Rules::WHB_ZERO, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, true, true, Rules::WHB_ZERO, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, false, Rules::WHB_ZERO, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, true, Rules::WHB_ZERO, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, true, Rules::WHB_ZERO, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, false, Rules::WHB_ZERO, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, false, true, Rules::WHB_ZERO, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_SEKI, true, true, Rules::WHB_ZERO, 6.5f),
 
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, false, 1.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, false, 1.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, true, 2.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, true, 2.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, false, 3.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, false, 3.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, true, 4.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, true, 4.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, false, 5.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, false, 5.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, true, 6.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, true, 6.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, false, Rules::WHB_ZERO, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, false, Rules::WHB_ZERO, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, true, Rules::WHB_ZERO, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, true, Rules::WHB_ZERO, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, false, Rules::WHB_ZERO, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, false, Rules::WHB_ZERO, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, true, Rules::WHB_ZERO, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, true, Rules::WHB_ZERO, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, false, Rules::WHB_ZERO, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, false, Rules::WHB_ZERO, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, true, Rules::WHB_ZERO, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, true, Rules::WHB_ZERO, 6.5f),
 
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, 1.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, false, 1.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, true, 2.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, true, 2.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, 3.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, false, 3.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, true, 4.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, true, 4.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, 5.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, false, 5.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, true, 6.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, true, 6.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, false, Rules::WHB_ZERO, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, true, Rules::WHB_ZERO, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, true, Rules::WHB_ZERO, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, false, Rules::WHB_ZERO, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, true, Rules::WHB_ZERO, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, true, Rules::WHB_ZERO, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, false, Rules::WHB_ZERO, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, true, Rules::WHB_ZERO, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, true, true, Rules::WHB_ZERO, 6.5f),
 
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, false, false, 1.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, false, 1.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, false, true, 2.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, true, 2.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, false, 3.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, false, 3.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, true, 4.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, true, 4.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, false, 5.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, false, 5.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, true, 6.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, true, 6.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, false, false, Rules::WHB_ZERO, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, false, Rules::WHB_ZERO, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, false, true, Rules::WHB_ZERO, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, true, true, Rules::WHB_ZERO, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, false, Rules::WHB_ZERO, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, false, Rules::WHB_ZERO, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, true, Rules::WHB_ZERO, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, true, Rules::WHB_ZERO, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, false, Rules::WHB_ZERO, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, false, Rules::WHB_ZERO, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, false, true, Rules::WHB_ZERO, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_AREA, Rules::TAX_ALL, true, true, Rules::WHB_ZERO, 6.5f),
 
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, false, 1.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, false, 1.5f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, true, 2.0f),
-        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, true, 2.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, false, 3.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, false, 3.5f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, true, 4.0f),
-        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, true, 4.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, false, 5.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, false, 5.5f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, true, 6.0f),
-        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, true, 6.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, false, Rules::WHB_ZERO, 1.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, false, Rules::WHB_ZERO, 1.5f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, true, Rules::WHB_ZERO, 2.0f),
+        Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, true, Rules::WHB_ZERO, 2.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, false, Rules::WHB_ZERO, 3.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, false, Rules::WHB_ZERO, 3.5f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, true, Rules::WHB_ZERO, 4.0f),
+        Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, true, Rules::WHB_ZERO, 4.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, false, Rules::WHB_ZERO, 5.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, false, Rules::WHB_ZERO, 5.5f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, true, Rules::WHB_ZERO, 6.0f),
+        Rules(Rules::KO_SITUATIONAL, Rules::SCORING_TERRITORY, Rules::TAX_ALL, true, true, Rules::WHB_ZERO, 6.5f),
       };
 
       int nnXLen = size;
@@ -596,7 +613,6 @@ xxx..xx
         cout << getAndClear(out) << endl;
       }
     }
-
   }
 
   {
@@ -618,7 +634,7 @@ xxx..xx
       Board board;
       Player nextPla;
       BoardHistory hist;
-      Rules initialRules = Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, 0.0f);
+      Rules initialRules = Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, 0.0f);
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
       sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
 
@@ -901,6 +917,130 @@ o.xoo.x
         nextPla = getOpp(nextPla);
       }
 
+      delete[] rowBin;
+      delete[] rowGlobal;
+    }
+  }
+
+  {
+    const char* name = "NN Inputs SelfKomi Handicap White Bonus";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
+
+    int size = 7;
+
+    vector<Rules> rules = {
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, Rules::WHB_ZERO, 3.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, true, false, Rules::WHB_N_MINUS_ONE, 3.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_AREA, Rules::TAX_NONE, false, true, Rules::WHB_N, 3.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, true, false, Rules::WHB_N_MINUS_ONE, 3.0f),
+      Rules(Rules::KO_POSITIONAL, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, true, Rules::WHB_N, 3.0f),
+    };
+
+    int nnXLen = size;
+    int nnYLen = size;
+    double drawEquivalentWinsForWhite = 0.5;
+
+    for(int version = maxVersion; version <= maxVersion; version++) {
+      cout << "VERSION " << version << endl;
+
+      int numFeaturesBin;
+      int numFeaturesGlobal;
+      float* rowBin;
+      float* rowGlobal;
+      allocateRows(version,nnXLen,nnYLen,numFeaturesBin,numFeaturesGlobal,rowBin,rowGlobal);
+
+      auto test = [&](const Board& board, const BoardHistory& hist, Player nextPla) {
+        bool inputsUseNHWC = true;
+        Hash128 hash;
+        Board b = board;
+        fillRows(version,hash,b,hist,nextPla,drawEquivalentWinsForWhite,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        for(int c = 0; c<numFeaturesGlobal; c++)
+          cout << rowGlobal[c] << " ";
+        cout << endl;
+      };
+
+      for(int i = 0; i<rules.size(); i++) {
+        Board board = Board(size,size);
+        Player nextPla = P_BLACK;
+        Rules initialRules = rules[i];
+        BoardHistory hist(board,nextPla,initialRules,0);
+        cout << "----------------------------------------" << endl;
+        cout << "Black makes 3 moves in a row" << endl;
+        if(i >= 3) {
+          cout << "Set assumeMultipleStartingBlackMovesAreHandicap" << endl;
+          hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+        }
+        hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,3,board.x_size), P_BLACK, NULL);
+        hist.printDebugInfo(cout,board);
+        test(board,hist,nextPla);
+        cout << "Final score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+        hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,2,board.x_size), P_BLACK, NULL);
+        hist.printDebugInfo(cout,board);
+        test(board,hist,nextPla);
+        cout << "Final score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+        hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,1,board.x_size), P_BLACK, NULL);
+        hist.printDebugInfo(cout,board);
+        test(board,hist,nextPla);
+        cout << "Final score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+
+        cout << endl;
+        cout << "Set assumeMultipleStartingBlackMovesAreHandicap" << endl;
+        hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+        hist.printDebugInfo(cout,board);
+        test(board,hist,nextPla);
+        cout << "Final score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+
+        cout << endl;
+        cout << "One more move" << endl;
+        hist.makeBoardMoveAssumeLegal(board, Location::getLoc(5,1,board.x_size), P_BLACK, NULL);
+        hist.printDebugInfo(cout,board);
+        test(board,hist,nextPla);
+        cout << "Final score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+
+        cout << endl;
+        cout << "Reclear history" << endl;
+        hist.clear(board,nextPla,initialRules,0);
+        hist.printDebugInfo(cout,board);
+        test(board,hist,nextPla);
+        cout << "Final score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+
+        cout << endl;
+        cout << "One more move" << endl;
+        hist.makeBoardMoveAssumeLegal(board, Location::getLoc(2,1,board.x_size), P_BLACK, NULL);
+        hist.printDebugInfo(cout,board);
+        test(board,hist,nextPla);
+        cout << "Final score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+
+        cout << endl;
+        cout << "Set assumeMultipleStartingBlackMovesAreHandicap" << endl;
+        hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+        hist.printDebugInfo(cout,board);
+        test(board,hist,nextPla);
+        cout << "Final score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+
+        cout << endl;
+        cout << "Unset assumeMultipleStartingBlackMovesAreHandicap" << endl;
+        hist.setAssumeMultipleStartingBlackMovesAreHandicap(false);
+        hist.printDebugInfo(cout,board);
+        test(board,hist,nextPla);
+        cout << "Final score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+
+        cout << endl;
+        cout << "Play white move" << endl;
+        hist.makeBoardMoveAssumeLegal(board, Location::getLoc(4,1,board.x_size), P_WHITE, NULL);
+        hist.printDebugInfo(cout,board);
+        test(board,hist,nextPla);
+        cout << "Final score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+
+        cout << endl;
+        cout << "Reclear history" << endl;
+        hist.clear(board,nextPla,initialRules,0);
+        hist.printDebugInfo(cout,board);
+        test(board,hist,nextPla);
+        cout << "Final score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+      }
       delete[] rowBin;
       delete[] rowGlobal;
     }

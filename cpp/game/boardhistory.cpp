@@ -32,6 +32,8 @@ BoardHistory::BoardHistory()
    initialPla(P_BLACK),
    initialEncorePhase(0),
    initialTurnNumber(0),
+   assumeMultipleStartingBlackMovesAreHandicap(false),
+   whiteHasMoved(false),
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(P_BLACK),
@@ -41,6 +43,7 @@ BoardHistory::BoardHistory()
    koRecapBlockHash(),
    koCapturesInEncore(),
    whiteBonusScore(0.0f),
+   whiteHandicapBonusScore(0.0f),
    hasButton(false),
    isPastNormalPhaseEnd(false),
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
@@ -63,6 +66,8 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    initialPla(),
    initialEncorePhase(0),
    initialTurnNumber(0),
+   assumeMultipleStartingBlackMovesAreHandicap(false),
+   whiteHasMoved(false),
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(pla),
@@ -72,6 +77,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r, int e
    koRecapBlockHash(),
    koCapturesInEncore(),
    whiteBonusScore(0.0f),
+   whiteHandicapBonusScore(0.0f),
    hasButton(false),
    isPastNormalPhaseEnd(false),
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
@@ -93,6 +99,8 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    initialPla(other.initialPla),
    initialEncorePhase(other.initialEncorePhase),
    initialTurnNumber(other.initialTurnNumber),
+   assumeMultipleStartingBlackMovesAreHandicap(other.assumeMultipleStartingBlackMovesAreHandicap),
+   whiteHasMoved(other.whiteHasMoved),
    recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
    presumedNextMovePla(other.presumedNextMovePla),
@@ -102,6 +110,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    koRecapBlockHash(other.koRecapBlockHash),
    koCapturesInEncore(other.koCapturesInEncore),
    whiteBonusScore(other.whiteBonusScore),
+   whiteHandicapBonusScore(other.whiteHandicapBonusScore),
    hasButton(other.hasButton),
    isPastNormalPhaseEnd(other.isPastNormalPhaseEnd),
    isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
@@ -127,6 +136,8 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   initialPla = other.initialPla;
   initialEncorePhase = other.initialEncorePhase;
   initialTurnNumber = other.initialTurnNumber;
+  assumeMultipleStartingBlackMovesAreHandicap = other.assumeMultipleStartingBlackMovesAreHandicap;
+  whiteHasMoved = other.whiteHasMoved;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
@@ -142,6 +153,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   koCapturesInEncore = other.koCapturesInEncore;
   std::copy(other.secondEncoreStartColors, other.secondEncoreStartColors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
   whiteBonusScore = other.whiteBonusScore;
+  whiteHandicapBonusScore = other.whiteHandicapBonusScore;
   hasButton = other.hasButton;
   isPastNormalPhaseEnd = other.isPastNormalPhaseEnd;
   isGameFinished = other.isGameFinished;
@@ -162,6 +174,8 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   initialPla(other.initialPla),
   initialEncorePhase(other.initialEncorePhase),
   initialTurnNumber(other.initialTurnNumber),
+  assumeMultipleStartingBlackMovesAreHandicap(other.assumeMultipleStartingBlackMovesAreHandicap),
+  whiteHasMoved(other.whiteHasMoved),
   recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
   presumedNextMovePla(other.presumedNextMovePla),
@@ -171,6 +185,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   koRecapBlockHash(other.koRecapBlockHash),
   koCapturesInEncore(std::move(other.koCapturesInEncore)),
   whiteBonusScore(other.whiteBonusScore),
+  whiteHandicapBonusScore(other.whiteHandicapBonusScore),
   hasButton(other.hasButton),
   isPastNormalPhaseEnd(other.isPastNormalPhaseEnd),
   isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
@@ -193,6 +208,8 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   initialPla = other.initialPla;
   initialEncorePhase = other.initialEncorePhase;
   initialTurnNumber = other.initialTurnNumber;
+  assumeMultipleStartingBlackMovesAreHandicap = other.assumeMultipleStartingBlackMovesAreHandicap;
+  whiteHasMoved = other.whiteHasMoved;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
@@ -208,6 +225,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   koCapturesInEncore = std::move(other.koCapturesInEncore);
   std::copy(other.secondEncoreStartColors, other.secondEncoreStartColors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
   whiteBonusScore = other.whiteBonusScore;
+  whiteHandicapBonusScore = other.whiteHandicapBonusScore;
   hasButton = other.hasButton;
   isPastNormalPhaseEnd = other.isPastNormalPhaseEnd;
   isGameFinished = other.isGameFinished;
@@ -230,6 +248,8 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   initialPla = pla;
   initialEncorePhase = ePhase;
   initialTurnNumber = 0;
+  assumeMultipleStartingBlackMovesAreHandicap = false;
+  whiteHasMoved = false;
 
   //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
   //we simply return copies of the starting board.
@@ -255,6 +275,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   koRecapBlockHash = Hash128();
   koCapturesInEncore.clear();
   whiteBonusScore = 0.0f;
+  whiteHandicapBonusScore = 0.0f;
   hasButton = rules.hasButton && encorePhase == 0;
   isPastNormalPhaseEnd = false;
   isGameFinished = false;
@@ -263,6 +284,20 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
   isScored = false;
   isNoResult = false;
   isResignation = false;
+
+  //Handle encore phase
+  encorePhase = ePhase;
+  assert(encorePhase >= 0 && encorePhase <= 2);
+  if(encorePhase > 0)
+    assert(rules.scoringRule == Rules::SCORING_TERRITORY);
+  //Update the few parameters that depend on encore
+  if(encorePhase == 2)
+    std::copy(board.colors, board.colors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
+  else
+    std::fill(secondEncoreStartColors, secondEncoreStartColors+Board::MAX_ARR_SIZE, C_EMPTY);
+
+  //Push hash for the new board state
+  koHashHistory.push_back(getKoHash(rules,board,pla,encorePhase,koRecapBlockHash));
 
   if(rules.scoringRule == Rules::SCORING_TERRITORY) {
     //Chill 1 point for every move played
@@ -280,24 +315,84 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
     int netWhiteCaptures = board.numWhiteCaptures - board.numBlackCaptures;
     whiteBonusScore -= (float)netWhiteCaptures;
   }
-
-  //Handle encore phase
-  encorePhase = ePhase;
-  assert(encorePhase >= 0 && encorePhase <= 2);
-  if(encorePhase > 0)
-    assert(rules.scoringRule == Rules::SCORING_TERRITORY);
-  //Update the few parameters that depend on encore
-  if(encorePhase == 2)
-    std::copy(board.colors, board.colors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
-  else
-    std::fill(secondEncoreStartColors, secondEncoreStartColors+Board::MAX_ARR_SIZE, C_EMPTY);
-
-  //Push hash for the new board state
-  koHashHistory.push_back(getKoHash(rules,board,pla,encorePhase,koRecapBlockHash));
+  whiteHandicapBonusScore = computeWhiteHandicapBonus();
 }
 
 void BoardHistory::setInitialTurnNumber(int n) {
   initialTurnNumber = n;
+}
+
+void BoardHistory::setAssumeMultipleStartingBlackMovesAreHandicap(bool b) {
+  assumeMultipleStartingBlackMovesAreHandicap = b;
+  whiteHandicapBonusScore = computeWhiteHandicapBonus();
+}
+
+static int numHandicapStonesOnBoardHelper(const Board& board, int blackNonPassTurnsToStart) {
+  int startBoardNumBlackStones = 0;
+  int startBoardNumWhiteStones = 0;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(board.colors[loc] == C_BLACK)
+        startBoardNumBlackStones += 1;
+      else if(board.colors[loc] == C_WHITE)
+        startBoardNumWhiteStones += 1;
+    }
+  }
+  //If we set up in a nontrivial position, then consider it a non-handicap game.
+  if(startBoardNumWhiteStones != 0)
+    return 0;
+  //Add in additional counted stones
+  int blackTurnAdvantage = startBoardNumBlackStones + blackNonPassTurnsToStart;
+
+  //If there was only one black move/stone to start, then it was a regular game
+  if(blackTurnAdvantage <= 1)
+    return 0;
+  return blackTurnAdvantage;
+}
+
+int BoardHistory::numHandicapStonesOnBoard(const Board& b) {
+  return numHandicapStonesOnBoardHelper(b,0);
+}
+
+int BoardHistory::computeNumHandicapStones() const {
+  int blackNonPassTurnsToStart = 0;
+  if(assumeMultipleStartingBlackMovesAreHandicap) {
+    //Find the length of the initial sequence of black moves - treat a string of consecutive black
+    //moves at the start of the game as "handicap"
+    //This is necessary because when loading sgfs or on some servers, (particularly with free placement)
+    //handicap is implemented by having black just make a bunch of moves in a row.
+    //But if white makes multiple moves in a row after that, then the plays are probably not handicap, someone's setting
+    //up a problem position by having black play all moves in a row then white play all moves in a row.
+    for(int i = 0; i<moveHistory.size(); i++) {
+      Loc moveLoc = moveHistory[i].loc;
+      Player movePla = moveHistory[i].pla;
+      if(movePla != P_BLACK) {
+        //Two white moves in a row? Re-set count.
+        if(i+1 < moveHistory.size() && moveHistory[i+1].pla != P_BLACK)
+          blackNonPassTurnsToStart = 0;
+        break;
+      }
+      if(moveLoc != Board::PASS_LOC && moveLoc != Board::NULL_LOC)
+        blackNonPassTurnsToStart += 1;
+    }
+  }
+  return numHandicapStonesOnBoardHelper(initialBoard,blackNonPassTurnsToStart);
+}
+
+int BoardHistory::computeWhiteHandicapBonus() const {
+  if(rules.whiteHandicapBonusRule == Rules::WHB_ZERO)
+    return 0;
+  else {
+    int numHandicapStones = computeNumHandicapStones();
+    if(rules.whiteHandicapBonusRule == Rules::WHB_N)
+      return numHandicapStones;
+    else if(rules.whiteHandicapBonusRule == Rules::WHB_N_MINUS_ONE)
+      return (numHandicapStones > 1) ? numHandicapStones-1 : 0;
+    else
+      ASSERT_UNREACHABLE;
+    return 0;
+  }
 }
 
 void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
@@ -308,6 +403,7 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << "Rules " << rules << endl;
   out << "Ko recap block hash " << koRecapBlockHash << endl;
   out << "White bonus score " << whiteBonusScore << endl;
+  out << "White handicap bonus score " << whiteHandicapBonusScore << endl;
   out << "Has button " << hasButton << endl;
   out << "Presumed next pla " << PlayerIO::playerToString(presumedNextMovePla) << endl;
   out << "Past normal phase end " << isPastNormalPhaseEnd << endl;
@@ -393,7 +489,7 @@ float BoardHistory::whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhit
 }
 
 float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const {
-  float whiteKomiAdjusted = whiteBonusScore + rules.komi + whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
+  float whiteKomiAdjusted = whiteBonusScore + whiteHandicapBonusScore + rules.komi + whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
 
   if(pla == P_WHITE)
     return whiteKomiAdjusted;
@@ -529,7 +625,7 @@ void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_
     whiteBonusScore += (presumedNextMovePla == P_WHITE ? 0.5f : -0.5f);
   }
 
-  setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
+  setFinalScoreAndWinner(boardScore + whiteBonusScore + whiteHandicapBonusScore + rules.komi);
   isScored = true;
   isNoResult = false;
   isResignation = false;
@@ -573,7 +669,7 @@ void BoardHistory::endGameIfAllPassAlive(const Board& board) {
       hasButton = false;
       whiteBonusScore += (presumedNextMovePla == P_WHITE ? 0.5f : -0.5f);
     }
-    setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
+    setFinalScoreAndWinner(boardScore + whiteBonusScore + whiteHandicapBonusScore + rules.komi);
     isScored = true;
     isNoResult = false;
     isResignation = false;
@@ -832,6 +928,13 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
       whiteBonusScore -= 1.0f;
     else
       ASSERT_UNREACHABLE;
+  }
+
+  //Handicap bonus score
+  if(movePla == P_WHITE)
+    whiteHasMoved = true;
+  if(assumeMultipleStartingBlackMovesAreHandicap && !whiteHasMoved && movePla == P_BLACK && rules.whiteHandicapBonusRule != Rules::WHB_ZERO) {
+    whiteHandicapBonusScore = computeWhiteHandicapBonus();
   }
 
   //Phase transitions and game end

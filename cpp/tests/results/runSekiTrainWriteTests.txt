@@ -25,6 +25,7 @@ Turns this phase 76
 Rules koSIMPLEscoreAREAtaxNONEsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -81,6 +82,7 @@ Turns this phase 76
 Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -137,6 +139,7 @@ Turns this phase 76
 Rules koSIMPLEscoreAREAtaxSEKIsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -193,6 +196,7 @@ Turns this phase 76
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -249,6 +253,7 @@ Turns this phase 76
 Rules koSIMPLEscoreAREAtaxALLsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -305,6 +310,7 @@ Turns this phase 76
 Rules koSIMPLEscoreTERRITORYtaxALLsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -361,6 +367,7 @@ Turns this phase 112
 Rules koSIMPLEscoreAREAtaxNONEsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -417,6 +424,7 @@ Turns this phase 112
 Rules koSIMPLEscoreTERRITORYtaxNONEsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -473,6 +481,7 @@ Turns this phase 112
 Rules koSIMPLEscoreAREAtaxSEKIsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -529,6 +538,7 @@ Turns this phase 112
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -585,6 +595,7 @@ Turns this phase 112
 Rules koSIMPLEscoreAREAtaxALLsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -641,6 +652,7 @@ Turns this phase 112
 Rules koSIMPLEscoreTERRITORYtaxALLsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0

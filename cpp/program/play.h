@@ -379,8 +379,6 @@ namespace Play {
     Player pla
   );
 
-  int numHandicapStones(const Board& initialBoard, const std::vector<Move>& moveHistory, bool assumeMultipleStartingBlackMovesAreHandicap);
-
   double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla);
 }
 

@@ -365,9 +365,17 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
       clearSearch();
     }
   }
+  //If the white handicap bonus changes due to the move, we will also need to recompute everything since this is
+  //basically like a change to the komi.
+  float oldWhiteHandicapBonusScore = rootHistory.whiteHandicapBonusScore;
+
   rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
   rootPla = getOpp(rootPla);
   rootKoHashTable->recompute(rootHistory);
+
+  if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
+    clearSearch();
+
   return true;
 }
 

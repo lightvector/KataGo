@@ -105,6 +105,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -141,6 +142,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -151,8 +153,8 @@ Last moves R14 N16 Q14 Q13 P14 pass pass
     expect(name,out,expected);
   }
 
-    {
-    const char* name = "Japansese Sgf parse test";
+  {
+    const char* name = "Japanese Sgf parse test";
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Japanese]SZ[19]KM[5.00]PW[White]PB[Black]AB[dd][pd][dp][pp]PL[W];W[qf];W[md];B[pf];W[pg];B[of];W[];B[tt])";
     parseAndPrintSgf(sgfStr);
     string expected = R"%%(
@@ -204,6 +206,7 @@ Turns this phase 0
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 4
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -240,10 +243,213 @@ Turns this phase 0
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 3
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
+Last moves R14 N16 Q14 Q13 P14 pass pass
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Chinese Sgf parse test";
+    string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[5.00]PW[White]PB[Black]AB[dd][pd][dp][pp]PL[W];W[qf];W[md];B[pf];W[pg];B[of];W[];B[tt])";
+    parseAndPrintSgf(sgfStr);
+    string expected = R"%%(
+xSize 19
+ySize 19
+depth 8
+komi 5
+placements
+X D16
+X Q16
+X D4
+X Q4
+moves
+O R14
+O N16
+X Q14
+O Q13
+X P14
+O pass
+X pass
+Initial board hist
+pla White
+HASH: B7F8C756D3C44C031B6A7CDF9164EDA7
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . X . . . . . . . . . . . X . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . X . . . . . . . . . . . X . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 0
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 4
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves
+Final board hist
+pla White
+HASH: DD088CF25D937776F4CC6E2CBC169CD4
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . X . . . . . . . . O . . X . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . X X O . .
+13 . . . . . . . . . . . . . . . O . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . X . . . . . . . . . . . X . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 7
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 4
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 1 White 6 1 0 0
+Last moves R14 N16 Q14 Q13 P14 pass pass
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "AGA Sgf parse test";
+    string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[AGA]SZ[19]KM[5.00]PW[White]PB[Black]AB[dd][pd][dp][pp]PL[W];W[qf];W[md];B[pf];W[pg];B[of];W[];B[tt])";
+    parseAndPrintSgf(sgfStr);
+    string expected = R"%%(
+xSize 19
+ySize 19
+depth 8
+komi 5
+placements
+X D16
+X Q16
+X D4
+X Q4
+moves
+O R14
+O N16
+X Q14
+O Q13
+X P14
+O pass
+X pass
+Initial board hist
+pla White
+HASH: B7F8C756D3C44C031B6A7CDF9164EDA7
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . X . . . . . . . . . . . X . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . X . . . . . . . . . . . X . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 0
+Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1komi5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 3
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves
+Final board hist
+pla White
+HASH: DD088CF25D937776F4CC6E2CBC169CD4
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . X . . . . . . . . O . . X . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . X X O . .
+13 . . . . . . . . . . . . . . . O . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . X . . . . . . . . . . . X . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+
+Initial pla White
+Encore phase 0
+Turns this phase 7
+Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1komi5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 3
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 1 White 5 1 0 0
 Last moves R14 N16 Q14 Q13 P14 pass pass
 
 )%%";
@@ -280,6 +486,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -300,6 +507,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -360,6 +568,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -386,6 +595,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -470,6 +680,7 @@ Turns this phase 0
 Rules koSIMPLEscoreAREAtaxNONEsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -523,6 +734,7 @@ Turns this phase 13
 Rules koSIMPLEscoreAREAtaxNONEsui0komi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0

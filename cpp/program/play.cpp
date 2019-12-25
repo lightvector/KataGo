@@ -84,54 +84,6 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   return ret;
 }
 
-int Play::numHandicapStones(const Board& initialBoard, const vector<Move>& moveHistory, bool assumeMultipleStartingBlackMovesAreHandicap) {
-  //Make the longest possible contiguous sequence of black moves - treat a string of consecutive black
-  //moves at the start of the game as "handicap"
-  //This is necessary because when loading sgfs or on some servers, (particularly with free placement)
-  //handicap is implemented by having black just make a bunch of moves in a row.
-  //But if white makes multiple moves in a row after that, then the plays are probably not handicap, someone's setting
-  //up a problem position by having black play all moves in a row then white play all moves in a row.
-  Board board = initialBoard;
-
-  if(assumeMultipleStartingBlackMovesAreHandicap) {
-    for(int i = 0; i<moveHistory.size(); i++) {
-      Loc moveLoc = moveHistory[i].loc;
-      Player movePla = moveHistory[i].pla;
-      if(movePla != P_BLACK) {
-        //Two white moves in a row?
-        if(i+1 < moveHistory.size() && moveHistory[i+1].pla != P_BLACK) {
-          //Re-set board, don't play these moves
-          board = initialBoard;
-        }
-        break;
-      }
-      bool isMultiStoneSuicideLegal = true;
-      bool suc = board.playMove(moveLoc,movePla,isMultiStoneSuicideLegal);
-      if(!suc)
-        break;
-    }
-  }
-
-  int startBoardNumBlackStones = 0;
-  int startBoardNumWhiteStones = 0;
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(board.colors[loc] == C_BLACK)
-        startBoardNumBlackStones += 1;
-      else if(board.colors[loc] == C_WHITE)
-        startBoardNumWhiteStones += 1;
-    }
-  }
-  //If we set up in a nontrivial position, then consider it a non-handicap game.
-  if(startBoardNumWhiteStones != 0)
-    return 0;
-  //If there was only one "handicap" stone, then it was a regular game
-  if(startBoardNumBlackStones <= 1)
-    return 0;
-  return startBoardNumBlackStones;
-}
-
 double Play::getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
   double winrate = 0.5 * (1.0 + data.winLossValue);
   //Super hacky - in KataGo, lcb is on utility (i.e. also weighting score), not winrate, but if you're using

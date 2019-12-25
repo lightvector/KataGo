@@ -32,6 +32,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -59,6 +60,7 @@ Turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -155,6 +157,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -182,6 +185,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -266,6 +270,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -293,6 +298,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -322,6 +328,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi-2
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -361,6 +368,7 @@ Turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -388,6 +396,7 @@ Turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -472,6 +481,7 @@ Turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -511,6 +521,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -538,6 +549,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -634,6 +646,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -661,6 +674,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -745,6 +759,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -784,6 +799,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -811,6 +827,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -907,6 +924,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -934,6 +952,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -1030,6 +1049,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -1057,6 +1077,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -1153,6 +1174,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -1180,6 +1202,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -1276,6 +1299,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -1303,6 +1327,7 @@ Turns this phase 11
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -1399,6 +1424,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -1426,6 +1452,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -1510,6 +1537,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -1539,6 +1567,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi16.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -1578,6 +1607,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -1605,6 +1635,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -1689,6 +1720,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -1718,6 +1750,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi13
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -1757,6 +1790,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi22.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -1784,6 +1818,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi22.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -1868,6 +1903,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi22.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -1897,6 +1933,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi17
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -1936,6 +1973,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -1963,6 +2001,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -2049,6 +2088,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi23
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -2088,6 +2128,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -2115,6 +2156,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -2199,6 +2241,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -2228,6 +2271,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi11.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -2267,6 +2311,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -2294,6 +2339,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -2380,6 +2426,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi9
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -2419,6 +2466,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -2446,6 +2494,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -2530,6 +2579,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -2569,6 +2619,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -2596,6 +2647,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -2680,6 +2732,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -2707,6 +2760,7 @@ Turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -2746,6 +2800,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -2773,6 +2828,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -2859,6 +2915,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi31
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -2898,6 +2955,7 @@ Turns this phase 14
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -2925,6 +2983,7 @@ Turns this phase 15
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -3009,6 +3068,7 @@ Turns this phase 15
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi20
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -3038,6 +3098,7 @@ Turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -3077,6 +3138,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi37
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -3104,6 +3166,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi37
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -3190,6 +3253,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi49
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -3229,6 +3293,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi43
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -3256,6 +3321,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi43
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -3340,6 +3406,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi43
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -3369,6 +3436,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi37
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -3408,6 +3476,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -3435,6 +3504,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -3519,6 +3589,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -3548,6 +3619,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi35
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -3587,6 +3659,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -3614,6 +3687,7 @@ Turns this phase 11
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -3710,6 +3784,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -3737,6 +3812,7 @@ Turns this phase 2
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -3833,6 +3909,7 @@ Turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi40
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -3860,6 +3937,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi40
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -3944,6 +4022,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi40
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -3971,6 +4050,7 @@ Turns this phase 12
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi40
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -4010,6 +4090,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi38.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -4037,6 +4118,7 @@ Turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi38.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -4123,6 +4205,7 @@ Turns this phase 8
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi49
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -4162,6 +4245,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -4189,6 +4273,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -4273,6 +4358,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -4300,6 +4386,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi41
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -4339,6 +4426,7 @@ Turns this phase 19
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi37
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -4366,6 +4454,7 @@ Turns this phase 20
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi37
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -4462,6 +4551,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -4489,6 +4579,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi36.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -4585,6 +4676,7 @@ Turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -4612,6 +4704,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -4696,6 +4789,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -4735,6 +4829,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -4762,6 +4857,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -4848,6 +4944,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi18.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -4887,6 +4984,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -4914,6 +5012,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -4998,6 +5097,7 @@ Turns this phase 6
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi6
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -5037,6 +5137,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla White
 Past normal phase end 0
@@ -5064,6 +5165,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla Black
 Past normal phase end 0
@@ -5148,6 +5250,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla Black
 Past normal phase end 0
@@ -5177,6 +5280,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi4.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla White
 Past normal phase end 0
@@ -5216,6 +5320,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla White
 Past normal phase end 0
@@ -5243,6 +5348,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla Black
 Past normal phase end 0
@@ -5339,6 +5445,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla White
 Past normal phase end 0
@@ -5366,6 +5473,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi20.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla Black
 Past normal phase end 0
@@ -5462,6 +5570,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi22.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla Black
 Past normal phase end 0
@@ -5489,6 +5598,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi22.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla White
 Past normal phase end 0
@@ -5573,6 +5683,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi22.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla White
 Past normal phase end 0
@@ -5602,6 +5713,7 @@ Turns this phase 1
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi21
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla White
 Past normal phase end 0
@@ -5641,6 +5753,7 @@ Turns this phase 9
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi39
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla White
 Past normal phase end 0
@@ -5668,6 +5781,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi39
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla Black
 Past normal phase end 0
@@ -5752,6 +5866,7 @@ Turns this phase 10
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi39
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla Black
 Past normal phase end 0
@@ -5781,6 +5896,7 @@ Turns this phase 7
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi33
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla White
 Past normal phase end 0
@@ -5820,6 +5936,7 @@ Turns this phase 3
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi36.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla White
 Past normal phase end 0
@@ -5847,6 +5964,7 @@ Turns this phase 4
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi36.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla Black
 Past normal phase end 0
@@ -5944,6 +6062,7 @@ Turns this phase 5
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla White
 Past normal phase end 0
@@ -5971,6 +6090,7 @@ Turns this phase 20
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -6109,6 +6229,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -6136,6 +6257,7 @@ Turns this phase 30
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 0
 Presumed next pla Black
 Past normal phase end 0
@@ -6319,6 +6441,7 @@ Turns this phase 0
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla Black
 Past normal phase end 0
@@ -6346,6 +6469,7 @@ Turns this phase 30
 Rules koPOSITIONALscoreAREAtaxNONEsui1button1komi7.5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
+White handicap bonus score 0
 Has button 1
 Presumed next pla Black
 Past normal phase end 0

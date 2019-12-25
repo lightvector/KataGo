@@ -435,6 +435,7 @@ Rules Setup::loadSingleRulesExceptForKomi(
   ConfigParser& cfg
 ) {
   Rules rules;
+
   string koRule = cfg.getString("koRule", Rules::koRuleStrings());
   string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
   bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
@@ -457,6 +458,21 @@ Rules Setup::loadSingleRulesExceptForKomi(
 
   if(rules.hasButton && rules.scoringRule != Rules::SCORING_AREA)
     throw StringError("Config specifies hasButton=true on a scoring system other than AREA");
+
+  //Also handles parsing of legacy option whiteBonusPerHandicapStone
+  if(cfg.contains("whiteBonusPerHandicapStone") && cfg.contains("whiteHandicapBonus"))
+    throw StringError("May specify only one of whiteBonusPerHandicapStone and whiteHandicapBonus in config");
+  else if(cfg.contains("whiteHandicapBonus"))
+    rules.whiteHandicapBonusRule = Rules::parseWhiteHandicapBonusRule(cfg.getString("whiteHandicapBonus", Rules::whiteHandicapBonusRuleStrings()));
+  else if(cfg.contains("whiteBonusPerHandicapStone")) {
+    int whiteBonusPerHandicapStone = cfg.getInt("whiteBonusPerHandicapStone",0,1);
+    if(whiteBonusPerHandicapStone == 0)
+      rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
+    else
+      rules.whiteHandicapBonusRule = Rules::WHB_N;
+  }
+  else
+    rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
 
   return rules;
 }

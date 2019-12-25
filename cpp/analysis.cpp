@@ -68,7 +68,6 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   logger.write(Version::getKataGoVersionForHelp());
 
   SearchParams params = Setup::loadSingleParams(cfg);
-  const int whiteBonusPerHandicapStone = cfg.contains("whiteBonusPerHandicapStone") ? cfg.getInt("whiteBonusPerHandicapStone",0,1) : 0;
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
   const Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
   const bool assumeMultipleStartingBlackMovesAreHandicap =
@@ -451,7 +450,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
     }
     else {
-      reportErrorForId(rbase.id, "rules", "Must specify rules string, such as \"chinese\" or \"tromp-taylor\", or \"koPOSITIONALscoreAREAsui0\".");
+      reportErrorForId(rbase.id, "rules", "Must specify rules string, such as \"chinese\" or \"tromp-taylor\", or a JSON object with detailed rules parameters.");
       continue;
     }
     if(input.find("komi") != input.end()) {
@@ -505,17 +504,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     if(initialPlayer == C_EMPTY) {
       if(moveHistory.size() > 0)
         initialPlayer = moveHistory[0].pla;
-      else {
-        int nHandicapStones = Play::numHandicapStones(board,moveHistory,assumeMultipleStartingBlackMovesAreHandicap);
-        if(nHandicapStones > 0)
-          initialPlayer = P_WHITE;
-        else
-          initialPlayer = P_BLACK;
-      }
+      else
+        initialPlayer = BoardHistory::numHandicapStonesOnBoard(board) > 0 ? P_WHITE : P_BLACK;
     }
-
-    int nHandicapStones = Play::numHandicapStones(board,moveHistory,assumeMultipleStartingBlackMovesAreHandicap);
-    rules.komi += (float)(nHandicapStones * whiteBonusPerHandicapStone);
 
     bool rulesWereSupported;
     Rules supportedRules = nnEval->getSupportedRules(rules,rulesWereSupported);
@@ -528,6 +519,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
     Player nextPla = initialPlayer;
     BoardHistory hist(board,nextPla,rules,0);
+    hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
 
     //Build and enqueue requests
     vector<AnalyzeRequest*> newRequests;
@@ -554,6 +546,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       Loc moveLoc = moveHistory[turnNumber].loc;
       if(movePla != nextPla) {
         hist.clear(board,movePla,rules,hist.encorePhase);
+        hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
       }
 
       bool multiStoneSuicideLegal = true; //Tolerate suicide in the moves regardless of stated rules

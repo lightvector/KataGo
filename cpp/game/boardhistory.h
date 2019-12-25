@@ -31,6 +31,9 @@ struct BoardHistory {
   //The "turn number" as of the initial board. Does not affect any rules, but possibly uses may
   //care about this number, for cases where we set up a position from midgame.
   int initialTurnNumber;
+  //How we count handicap at the start of the game. Set manually by some close-to-user-level apps or subcommands
+  bool assumeMultipleStartingBlackMovesAreHandicap;
+  bool whiteHasMoved;
 
   static const int NUM_RECENT_BOARDS = 6;
   Board recentBoards[NUM_RECENT_BOARDS];
@@ -67,6 +70,7 @@ struct BoardHistory {
 
   //Amount that should be added to komi
   float whiteBonusScore;
+  float whiteHandicapBonusScore;
   //Is there a button to take?
   bool hasButton;
 
@@ -104,6 +108,8 @@ struct BoardHistory {
   void setKomi(float newKomi);
   //Set the initial turn number. Affects nothing else.
   void setInitialTurnNumber(int n);
+  //Set assumeMultipleStartingBlackMovesAreHandicap and update bonus points accordingly
+  void setAssumeMultipleStartingBlackMovesAreHandicap(bool b);
 
   float whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhite) const;
   float currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const;
@@ -138,8 +144,14 @@ struct BoardHistory {
   void setWinnerByResignation(Player pla);
 
   void printDebugInfo(std::ostream& out, const Board& board) const;
-
   int numberOfKoHashOccurrencesInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
+
+  //Does not do anything like assumeMultipleStartingBlackMovesAreHandicap, computes based on board alone
+  static int numHandicapStonesOnBoard(const Board& b);
+  //Takes into account assumeMultipleStartingBlackMovesAreHandicap
+  int computeNumHandicapStones() const;
+  int computeWhiteHandicapBonus() const;
+
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   void setKoRecapBlocked(Loc loc, bool b);
