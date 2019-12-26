@@ -123,6 +123,8 @@ struct BoardHistory {
   //Check if passing right now would end the current phase of play, or the entire game
   bool passWouldEndPhase(const Board& board, Player movePla) const;
   bool passWouldEndGame(const Board& board, Player movePla) const;
+  //Check if this is the final phase of the game, such that ending it moves to scoring.
+  bool isFinalPhase() const;
   //Check if the specified move is a pass-for-ko encore move.
   bool isPassForKo(const Board& board, Loc moveLoc, Player movePla) const;
 

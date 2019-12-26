@@ -396,7 +396,8 @@ struct GTPEngine {
     }
 
     //Implement cleanupBeforePass hack - the bot wants to pass, so instead cleanup if there is something to clean
-    if(cleanupBeforePass && moveLoc == Board::PASS_LOC) {
+    //Make sure we only do it though when it makes sense to do so.
+    if(cleanupBeforePass && moveLoc == Board::PASS_LOC && bot->getRootHist().isFinalPhase()) {
       Board board = bot->getRootBoard();
       BoardHistory hist = bot->getRootHist();
       Color* safeArea = bot->getSearch()->rootSafeArea;
@@ -710,7 +711,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   logger.write("Using " + Global::intToString(params.numThreads) + " CPU thread(s) for search");
 
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
-  const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : false;
+  const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : true;
   const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
   const int resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
