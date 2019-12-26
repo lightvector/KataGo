@@ -68,6 +68,10 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   logger.write(Version::getKataGoVersionForHelp());
 
   SearchParams params = Setup::loadSingleParams(cfg);
+  //Set a default for conservativePass that differs from matches or selfplay
+  if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
+    params.conservativePass = true;
+
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
   const Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
   const bool assumeMultipleStartingBlackMovesAreHandicap =

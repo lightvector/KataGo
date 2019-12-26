@@ -709,6 +709,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   SearchParams params = Setup::loadSingleParams(cfg);
   logger.write("Using " + Global::intToString(params.numThreads) + " CPU thread(s) for search");
+  //Set a default for conservativePass that differs from matches or selfplay
+  if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
+    params.conservativePass = true;
 
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
   const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : true;
