@@ -72,6 +72,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   const Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
   const bool assumeMultipleStartingBlackMovesAreHandicap =
     cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
+  const bool preventEncore = cfg.contains("preventCleanup") ? cfg.getBool("preventCleanup") : true;
 
   NNEvaluator* nnEval;
   {
@@ -101,7 +102,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
   ThreadSafeQueue<AnalyzeRequest*> toAnalyzeQueue;
 
-  auto analysisLoop = [&params,&nnEval,&logger,perspective,&toAnalyzeQueue,&toWriteQueue]() {
+  auto analysisLoop = [&params,&nnEval,&logger,perspective,&toAnalyzeQueue,&toWriteQueue,&preventEncore]() {
     Rand threadRand;
     string searchRandSeed = Global::uint64ToHexString(threadRand.nextUInt64());
     AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
@@ -162,7 +163,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         moveInfo["order"] = data.order;
 
         json pv = json::array();
-        for(int j = 0; j<data.pv.size(); j++)
+        int pvLen = (preventEncore && data.pvContainsPass()) ? data.getPVLenUpToPhaseEnd(request->board,request->hist,request->nextPla) : (int)data.pv.size();
+        for(int j = 0; j<pvLen; j++)
           pv.push_back(Location::toString(data.pv[j],request->board));
         moveInfo["pv"] = pv;
 
@@ -555,7 +557,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         foundIllegalMove = true;
         break;
       }
-      hist.makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL);
+      hist.makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL,preventEncore);
       nextPla = getOpp(movePla);
     }
 

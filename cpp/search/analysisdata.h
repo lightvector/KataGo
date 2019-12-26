@@ -39,6 +39,7 @@ struct AnalysisData {
   bool pvContainsPass() const;
   void writePV(std::ostream& out, const Board& board) const;
   void writePVUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
+  int getPVLenUpToPhaseEnd(const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
 };
 
 bool operator<(const AnalysisData& a0, const AnalysisData& a1);
