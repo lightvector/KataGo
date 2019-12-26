@@ -15,7 +15,7 @@ static void printHelp(int argc, const char* argv[]) {
   if(argc >= 1)
     cout << "Usage: " << argv[0] << " SUBCOMMAND ";
   else
-    cout << "Usage: " << "./main" << " SUBCOMMAND ";
+    cout << "Usage: " << "./katago" << " SUBCOMMAND ";
   cout << endl;
 
   cout << R"%%(
@@ -23,7 +23,6 @@ static void printHelp(int argc, const char* argv[]) {
 
 gtp : Runs GTP engine that can be plugged into any standard Go GUI for play/analysis.
 match : Run self-play match games based on a config, more efficient than gtp due to batching.
-evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
 version : Print version and exit.
 
 analysis : Runs an engine designed to analyze entire games in parallel.
@@ -36,12 +35,13 @@ selfplay : Play selfplay games and generate training data.
 gatekeeper : Poll directory for new nets and match them against the latest net so far.
 
 ---Testing/debugging subcommands-------------
+evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
 
 runtests : Test important board algorithms and datastructures
 runnnlayertests : Test a few subcomponents of the current neural net backend
 
 runnnontinyboardtest : Run neural net on a tiny board and dump result to stdout
-runnnsymmetriestest : Run neural net on a rectangle board and dump symmetries result
+runnnsymmetriestest : Run neural net on a hardcoded rectangle board and dump symmetries result
 
 runoutputtests : Run a bunch of things and dump details to stdout
 runsearchtests : Run a bunch of things using a neural net and dump details to stdout
