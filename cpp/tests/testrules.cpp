@@ -3303,7 +3303,7 @@ HASH: C377EB251DBAB5E2F6C1BABE18EEE392
     int turnNumberToSetup = sgf->moves.size();
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
 
-    sgf->setupBoardAndHist(initialRules, board, nextPla, hist, turnNumberToSetup);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnNumberToSetup);
     string expected = R"%%(
 HASH: 328F99331CC19E0AF700EB536A83D1F4
    A B C D E F G H J K L M

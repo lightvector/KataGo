@@ -43,7 +43,7 @@ void Tests::runSgfTests() {
     out << "pla " << PlayerIO::playerToString(pla) << endl;
     hist.printDebugInfo(out,board);
 
-    sgf->setupBoardAndHist(rules,board,pla,hist,sgf->moves.size());
+    sgf->setupBoardAndHistAssumeLegal(rules,board,pla,hist,sgf->moves.size());
     out << "Final board hist " << endl;
     out << "pla " << PlayerIO::playerToString(pla) << endl;
     hist.printDebugInfo(out,board);

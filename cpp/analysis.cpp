@@ -555,13 +555,12 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
       }
 
-      bool multiStoneSuicideLegal = true; //Tolerate suicide in the moves regardless of stated rules
-      if(!board.isLegal(moveLoc,movePla,multiStoneSuicideLegal)) {
+      bool suc = hist.makeBoardMoveTolerant(board,moveLoc,movePla,preventEncore);
+      if(!suc) {
         reportErrorForId(rbase.id, "moves", "Illegal move " + Global::intToString(turnNumber) + ": " + Location::toString(moveLoc,board));
         foundIllegalMove = true;
         break;
       }
-      hist.makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL,preventEncore);
       nextPla = getOpp(movePla);
     }
 

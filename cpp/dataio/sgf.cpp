@@ -447,18 +447,10 @@ void Sgf::iterAllUniquePositionsHelper(
     nodes[i]->accumMoves(buf,xSize,ySize);
 
     for(int j = 0; j<buf.size(); j++) {
-      bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-      Loc moveLoc = buf[j].loc;
-      Player movePla = buf[j].pla;
-      if(!board.isLegal(moveLoc,movePla,multiStoneSuicideLegal)) {
-        // hist.printDebugInfo(cout, board);
-        // cout << PlayerIO::playerToString(movePla) << endl;
-        // cout << Location::toString(moveLoc,board) << endl;
-        // cout << hist.initialBoard << endl;
-        throw StringError("Illegal move");
-      }
-      hist.makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL);
-      nextPla = getOpp(movePla);
+      bool suc = hist.makeBoardMoveTolerant(board,buf[j].loc,buf[j].pla);
+      if(!suc)
+        throw StringError("Illegal move in " + fileName + " turn " + Global::intToString(j) + " move " + Location::toString(buf[j].loc, board.x_size, board.y_size));
+      nextPla = getOpp(buf[j].pla);
       samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,f);
     }
   }
@@ -977,9 +969,7 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   hist = BoardHistory(board,nextPla,initialRules,0);
 }
 
-void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) const {
-  setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-
+void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) const {
   if(turnNumber < 0 || turnNumber > moves.size())
     throw StringError(
       Global::strprintf(
@@ -992,6 +982,33 @@ void CompactSgf::setupBoardAndHist(const Rules& initialRules, Board& board, Play
     hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
     nextPla = getOpp(moves[i].pla);
   }
+}
+
+void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int turnNumber, bool preventEncore) const {
+  if(turnNumber < 0 || turnNumber > moves.size())
+    throw StringError(
+      Global::strprintf(
+        "Attempting to set up position from SGF for invalid turn number %d, valid values are %d to %d",
+        (int)turnNumber, 0, (int)moves.size()
+      )
+    );
+
+  for(size_t i = 0; i<turnNumber; i++) {
+    bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
+    if(!suc)
+      throw StringError("Illegal move in " + fileName + " turn " + Global::intToString(i) + " move " + Location::toString(moves[i].loc, board.x_size, board.y_size));
+    nextPla = getOpp(moves[i].pla);
+  }
+}
+
+void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) const {
+  setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+  playMovesAssumeLegal(board, nextPla, hist, turnNumber);
+}
+
+void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber, bool preventEncore) const {
+  setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+  playMovesTolerant(board, nextPla, hist, turnNumber, preventEncore);
 }
 
 void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {

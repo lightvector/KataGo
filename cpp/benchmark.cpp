@@ -240,15 +240,13 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
            << std::flush;
       int nextIdx = possiblePositionIdxs[i];
       while(moveNum < moves.size() && moveNum < nextIdx) {
-        //Tolerate suicide moves in an sgf, regardless of what the nominal rules were
-        bool multiStoneSuicideLegal = true;
-        if(!board.isLegal(moves[moveNum].loc,moves[moveNum].pla,multiStoneSuicideLegal)) {
+        bool suc = hist.makeBoardMoveTolerant(board,moves[moveNum].loc,moves[moveNum].pla);
+        if(!suc) {
           cerr << endl;
           cerr << board << endl;
           cerr << "SGF Illegal move " << (moveNum+1) << " for " << PlayerIO::colorToChar(moves[moveNum].pla) << ": " << Location::toString(moves[moveNum].loc,board) << endl;
           throw StringError("Illegal move in SGF");
         }
-        hist.makeBoardMoveAssumeLegal(board,moves[moveNum].loc,moves[moveNum].pla,NULL);
         nextPla = getOpp(moves[moveNum].pla);
         moveNum += 1;
       }

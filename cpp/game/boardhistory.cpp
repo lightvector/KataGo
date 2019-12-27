@@ -786,6 +786,21 @@ bool BoardHistory::isFinalPhase() const {
     || (rules.scoringRule == Rules::SCORING_TERRITORY && encorePhase >= 2);
 }
 
+bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla) {
+  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
+  if(!board.isLegal(moveLoc,movePla,multiStoneSuicideLegal))
+    return false;
+  makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL);
+  return true;
+}
+bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla, bool preventEncore) {
+  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
+  if(!board.isLegal(moveLoc,movePla,multiStoneSuicideLegal))
+    return false;
+  makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL,preventEncore);
+  return true;
+}
+
 void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable) {
   makeBoardMoveAssumeLegal(board,moveLoc,movePla,rootKoHashTable,false);
 }

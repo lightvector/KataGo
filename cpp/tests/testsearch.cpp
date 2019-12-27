@@ -102,7 +102,7 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaul
   Player nextPla;
   BoardHistory hist;
   Rules initialRules = sgf->getRulesOrFailAllowUnspecified(defaultRules);
-  sgf->setupBoardAndHist(initialRules, board, nextPla, hist, turnNumber);
+  sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnNumber);
   hist.setKomi(overrideKomi);
   runBotOnPosition(bot,board,nextPla,hist,opts);
   delete sgf;
@@ -338,7 +338,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
-    sgf->setupBoardAndHist(initialRules, board, nextPla, hist, 40);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 40);
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -375,7 +375,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
-    sgf->setupBoardAndHist(initialRules, board, nextPla, hist, 43);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 43);
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -1467,7 +1467,7 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cuda
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
-    sgf->setupBoardAndHist(initialRules, board, nextPla, hist, turnNumber);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnNumber);
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
 
     winProbs.push_back(buf.result->whiteWinProb);

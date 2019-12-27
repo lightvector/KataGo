@@ -135,6 +135,11 @@ struct BoardHistory {
   //preventEncore artifically prevents any move from entering or advancing the encore phase when using territory scoring.
   void makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable);
   void makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla, const KoHashTable* rootKoHashTable, bool preventEncore);
+  //Make a move with legality checking, but be extremely tolerant and allow moves that can still be handled but that may not technically
+  //be legal. This is intended for reading moves from SGFs and such where maybe we're getting moves that were played in a different
+  //ruleset than ours. Returns true if successful, false if was illegal even unter tolerant rules.
+  bool makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla);
+  bool makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla, bool preventEncore);
 
   //Slightly expensive, check if the entire game is all pass-alive-territory, and if so, declare the game finished
   void endGameIfAllPassAlive(const Board& board);

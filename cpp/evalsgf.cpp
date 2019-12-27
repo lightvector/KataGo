@@ -135,17 +135,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     if(moveNum > moves.size())
       throw StringError("Move num " + Global::intToString(moveNum) + " requested but sgf has only " + Global::intToString(moves.size()));
 
-    for(int i = 0; i<moveNum; i++) {
-      //Tolerate suicide moves in an sgf, regardless of what the nominal rules were
-      bool multiStoneSuicideLegal = true;
-      if(!board.isLegal(moves[i].loc,moves[i].pla,multiStoneSuicideLegal)) {
-        cerr << board << endl;
-        cerr << "SGF Illegal move " << (i+1) << " for " << PlayerIO::colorToChar(moves[i].pla) << ": " << Location::toString(moves[i].loc,board) << endl;
-        throw StringError("Illegal move in SGF");
-      }
-      hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
-      nextPla = getOpp(moves[i].pla);
-    }
+    sgf->playMovesTolerant(board,nextPla,hist,moveNum,false);
 
     vector<Loc> extraMoveLocs = Location::parseSequence(extraMoves,board);
     for(size_t i = 0; i<extraMoveLocs.size(); i++) {

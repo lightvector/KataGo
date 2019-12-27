@@ -1381,24 +1381,23 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             sgfBoard = sgfInitialBoard;
             sgfNextPla = sgfInitialNextPla;
             sgfHist = sgfInitialHist;
-            for(size_t i = 0; i<moveNumber; i++) {
-              Loc moveLoc = sgf->moves[i].loc;
-              Player movePla = sgf->moves[i].pla;
-              bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of our own rules
-              if(!sgfBoard.isLegal(moveLoc,movePla,multiStoneSuicideLegal)) {
-                throw StringError("Illegal move");
-              }
-              sgfHist.makeBoardMoveAssumeLegal(sgfBoard,moveLoc,movePla,NULL,preventEncore);
-              sgfNextPla = getOpp(movePla);
-            }
+            sgf->playMovesTolerant(sgfBoard,sgfNextPla,sgfHist,moveNumber,preventEncore);
 
             delete sgf;
             sgf = NULL;
             sgfParseSuccess = true;
           }
+          catch(const StringError& err) {
+            delete sgf;
+            sgf = NULL;
+            responseIsError = true;
+            response = "Could not load sgf: " + string(err.what());
+          }
           catch(...) {
             delete sgf;
             sgf = NULL;
+            responseIsError = true;
+            response = "Cannot load file";
           }
 
           if(sgfParseSuccess) {
@@ -1410,10 +1409,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
                 cerr << out.str() << endl;
             }
             engine->setPositionAndRules(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
-          }
-          else {
-            responseIsError = true;
-            response = "cannot load file";
           }
         }
       }

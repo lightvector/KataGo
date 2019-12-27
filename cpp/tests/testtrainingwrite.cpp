@@ -747,7 +747,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     extraBlackAndKomi.komiBase = rules.komi;
     extraBlackAndKomi.komi = rules.komi;
     int turnNumber = sgf->moves.size();
-    sgf->setupBoardAndHist(rules,initialBoard,initialPla,initialHist,turnNumber);
+    sgf->setupBoardAndHistAssumeLegal(rules,initialBoard,initialPla,initialHist,turnNumber);
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
