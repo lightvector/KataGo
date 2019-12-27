@@ -395,6 +395,18 @@ int BoardHistory::computeWhiteHandicapBonus() const {
   }
 }
 
+void BoardHistory::printBasicInfo(ostream& out, const Board& board) const {
+  Board::printBoard(out, board, Board::NULL_LOC, &moveHistory);
+  out << "Next player: " << PlayerIO::playerToString(presumedNextMovePla) << endl;
+  if(encorePhase > 0)
+    out << "Game phase: " << encorePhase << endl;
+  out << "Rules: " << rules.toJsonString() << endl;
+  if(whiteHandicapBonusScore != 0)
+    out << "Handicap bonus score: " << whiteHandicapBonusScore << endl;
+  out << "B stones captured: " << board.numBlackCaptures << endl;
+  out << "W stones captured: " << board.numWhiteCaptures << endl;
+}
+
 void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << board << endl;
   out << "Initial pla " << PlayerIO::playerToString(initialPla) << endl;

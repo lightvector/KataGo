@@ -1168,7 +1168,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
     else if(command == "showboard") {
       ostringstream sout;
-      Board::printBoard(sout, engine->bot->getRootBoard(), Board::NULL_LOC, &(engine->bot->getRootHist().moveHistory));
+      engine->bot->getRootHist().printBasicInfo(sout, engine->bot->getRootBoard());
       response = Global::trim(sout.str());
     }
 
