@@ -1684,7 +1684,6 @@ int64_t Search::getReducedPlaySelectionVisits(
   if(endingScoreBonus != 0)
     childUtility += getScoreUtilityDiff(scoreMeanSum, scoreMeanSqSum, weightSum, endingScoreBonus);
 
-  //TODO this should have a mild effect on match strength too? test it
   double childVisitsWeRetrospectivelyWanted = getExploreSelectionValueInverse(
     bestChildExploreSelectionValue, nnPolicyProb, totalChildVisits, childUtility, parent.nextPla
   );
