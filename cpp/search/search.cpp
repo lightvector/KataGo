@@ -376,6 +376,12 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
     clearSearch();
 
+  //In the case that we are conservativePass and a pass would end the game, need to clear the search.
+  //This is because deeper in the tree, such a node would have been explored as ending the game, but now that
+  //it's a root pass, it needs to be treated as if it no longer ends the game.
+  if(searchParams.conservativePass && rootHistory.passWouldEndGame(rootBoard,rootPla))
+    clearSearch();
+
   return true;
 }
 
