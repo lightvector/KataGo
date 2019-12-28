@@ -536,7 +536,7 @@ class Model:
     #Similarly, the variance computed exactly only over those spots
     var = tf.reduce_sum(tf.square(zmtensor * mask),axis=[0,1,2]) / mask_sum
 
-    with tf.variable_scope(name):
+    with tf.compat.v1.variable_scope(name):
       mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.998)
       var_op = tf.keras.backend.moving_average_update(moving_var,var,0.998)
 
