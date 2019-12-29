@@ -4,6 +4,7 @@
 #include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
+#include "program/play.h"
 #include "main.h"
 
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
@@ -30,6 +31,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printPolicy;
   bool printScoreNow;
   bool printRootEndingBonus;
+  bool printLead;
   bool rawNN;
   try {
     TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', Version::getKataGoVersionForHelp(),true);
@@ -49,6 +51,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printPolicyArg("","print-policy","Print policy");
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
+    TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
@@ -66,6 +69,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printPolicyArg);
     cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
+    cmd.add(printLeadArg);
     cmd.add(rawNNArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
@@ -84,6 +88,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printPolicy = printPolicyArg.getValue();
     printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
+    printLead = printLeadArg.getValue();
     rawNN = rawNNArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
@@ -346,6 +351,15 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   sout << "Tree:\n";
   search->printTree(sout, search->rootNode, options, perspective);
   logger.write(sout.str());
+
+  if(printLead) {
+    BoardHistory hist2(hist);
+    double lead = Play::computeLead(
+      bot->getSearch(), bot->getSearch(), board, hist2, nextPla,
+      20, logger, OtherGameProperties()
+    );
+    cout << "LEAD: " << lead << endl;
+  }
 
   delete bot;
   delete nnEval;

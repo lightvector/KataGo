@@ -167,6 +167,9 @@ string NNEvaluator::getModelName() const {
 string NNEvaluator::getModelFileName() const {
   return modelFileName;
 }
+bool NNEvaluator::isNeuralNetLess() const {
+  return debugSkipNeuralNet;
+}
 int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
 }

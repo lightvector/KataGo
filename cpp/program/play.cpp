@@ -796,16 +796,16 @@ static std::pair<double,double> evalKomi(
   hist.setKomi(roundedClippedKomi);
 
   ReportedSearchValues values0 = Play::getWhiteScoreValues(botB, board, hist, pla, numVisits, logger, otherGameProps);
-  double finalLead = values0.lead;
-  double finalWinLoss = values0.winLossValue;
+  double lead = values0.lead;
+  double winLoss = values0.winLossValue;
 
   //If we have a second bot, average the two
   if(botW != NULL && botW != botB) {
     ReportedSearchValues values1 = Play::getWhiteScoreValues(botW, board, hist, pla, numVisits, logger, otherGameProps);
-    finalLead = 0.5 * (values0.lead + values1.lead);
-    finalWinLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
+    lead = 0.5 * (values0.lead + values1.lead);
+    winLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
   }
-  std::pair<double,double> result = std::make_pair(finalLead,finalWinLoss);
+  std::pair<double,double> result = std::make_pair(lead,winLoss);
   scoreWLCache[roundedClippedKomi] = result;
 
   hist.setKomi(oldKomi);
@@ -828,12 +828,32 @@ static double getNaiveEvenKomiHelper(
 
   //A few times iterate based on expected score a few times to hopefully get a value close to fair
   double lastShift = 0.0;
+  double lastWinLoss = 0.0;
+  double lastLead = 0.0;
   for(int i = 0; i<3; i++) {
     std::pair<float,float> result = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,hist.rules.komi);
-    double finalLead = result.first;
-    double finalWinLoss = result.second;
+    double lead = result.first;
+    double winLoss = result.second;
+
+    //If the last shift made stats go the WRONG way, and by a nontrivial amount, then revert half of it and stop immediately.
+    if(i > 0) {
+      if((lastLead > 0 && lead > lastLead + 5) ||
+         (lastLead < 0 && lead < lastLead - 5) ||
+         (lastWinLoss > 0 && winLoss > lastWinLoss - 0.1) ||
+         (lastWinLoss < 0 && winLoss < lastWinLoss + 0.1)
+      ) {
+        float fairKomi = roundAndClipKomi(hist.rules.komi - lastShift * 0.5f, board, looseClipping);
+        hist.setKomi(fairKomi);
+        break;
+      }
+    }
+    lastLead = lead;
+    lastWinLoss = winLoss;
+
+    // cout << hist.rules.komi << " " << lead << " " << winLoss << endl;
+
     //Shift by the predicted lead
-    double shift = -finalLead;
+    double shift = -lead;
     //Under no situations should the shift be bigger in absolute value than the last shift
     if(i > 0 && abs(shift) > abs(lastShift)) {
       if(shift < 0) shift = -abs(lastShift);
@@ -842,7 +862,7 @@ static double getNaiveEvenKomiHelper(
     lastShift = shift;
 
     //If the score and winrate would like to move in opposite directions, quit immediately.
-    if((shift > 0 && finalWinLoss > 0) || (shift < 0 && finalLead < 0))
+    if((shift > 0 && winLoss > 0) || (shift < 0 && lead < 0))
       break;
 
     // cout << "Shifting by " << shift << endl;
@@ -1640,6 +1660,12 @@ FinishedGameData* Play::runGame(
     double randKomi = gameRand.nextDouble(min(origKomi,newKomi),max(origKomi,newKomi));
     randKomi += 0.75 * sqrt(board.x_size * board.y_size) * nextGaussianTruncated(gameRand,2.5);
     hist.setKomi(roundAndClipKomi(randKomi, board, false));
+  }
+  //Vary komi more when things are completely random to set a better prior for how komi affects evals
+  if(fancyModes.fancyKomiVarying &&
+     botB->nnEvaluator->isNeuralNetLess() &&
+     (botW == NULL || botW->nnEvaluator->isNeuralNetLess())) {
+    hist.setKomi(roundAndClipKomi(hist.rules.komi + 1.5 * sqrt(board.x_size * board.y_size) * nextGaussianTruncated(gameRand,2.5), board, false));
   }
 
   gameData->bName = botSpecB.botName;
