@@ -109,6 +109,10 @@ class Model:
     if "support_japanese_rules" in config and config["support_japanese_rules"] == False:
       self.support_japanese_rules = False
 
+    self.use_scoremean_as_lead = False #by default
+    if "use_scoremean_as_lead" in config and config["use_scoremean_as_lead"] == True:
+      self.use_scoremean_as_lead = True
+
     self.build_model(config,placeholders)
 
   def assert_batched_shape(self,name,tensor,shape):
@@ -837,11 +841,11 @@ class Model:
     #self.version = 5 #V4 features, slightly different pass-alive stones feature
     #self.version = 6 #V5 features, most higher-level go features removed
     #self.version = 7 #V6 features, more rules support
-    #self.version = 8 #V7 features, asym
+    #self.version = 8 #V7 features, asym, lead, variance time
 
     self.version = Model.get_version(config)
-    #These are the only four supported versions
-    assert(self.version == 4 or self.version == 5 or self.version == 6 or self.version == 7 or self.version == 8)
+    #These are the only supported versions for training
+    assert(self.version == 8)
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
@@ -872,34 +876,11 @@ class Model:
     #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
     cur_layer = self.apply_symmetry(cur_layer,symmetries,inverse=False)
 
-    # #Disable various features
-    # features_active = tf.constant([
-    #   1.0, #0
-    #   1.0, #1
-    #   1.0, #2
-    #   1.0, #3
-    #   1.0, #4
-    #   1.0, #5
-    #   1.0, #6
-    #   1.0, #7
-    #   1.0, #8
-    #   1.0, #9
-    #   1.0, #10
-    #   1.0, #11
-    #   1.0, #12
-    #   1.0, #13
-    #   1.0, #14
-    #   1.0, #15
-    #   1.0, #16
-    # ])
-    # assert(features_active.dtype == tf.float32)
-    # cur_layer = cur_layer * tf.reshape(features_active,[1,1,1,-1])
-
     #Apply history transform to turn off various features randomly.
     #We do this by building a matrix for each batch element, mapping input channels to possibly-turned off channels.
     #This matrix is a sum of hist_matrix_base which always turns off all the channels, and h0, h1, h2,... which perform
     #the modifications to hist_matrix_base to make it turn on channels based on whether we have move0, move1,...
-    if self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8:
+    if self.version == 8:
       hist_matrix_base = np.diag(np.array([
         1.0, #0
         1.0, #1
@@ -949,32 +930,6 @@ class Model:
       h3[12,12] = 1.0
       h4 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
       h4[13,13] = 1.0
-    elif self.version == 6:
-      hist_matrix_base = np.diag(np.array([
-        1.0, #0
-        1.0, #1
-        1.0, #2
-        1.0, #3
-        1.0, #4
-        1.0, #5
-        0.0, #6
-        0.0, #7
-        0.0, #8
-        0.0, #9
-        0.0, #10
-        1.0, #11
-        1.0, #12
-      ],dtype=np.float32))
-      h0 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
-      h0[6,6] = 1.0
-      h1 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
-      h1[7,7] = 1.0
-      h2 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
-      h2[8,8] = 1.0
-      h3 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
-      h3[9,9] = 1.0
-      h4 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
-      h4[10,10] = 1.0
 
     hist_matrix_base = tf.reshape(tf.constant(hist_matrix_base),[1,self.num_bin_input_features,self.num_bin_input_features])
     hist_matrix_builder = tf.constant(np.array([h0,h1,h2,h3,h4]))
@@ -1177,7 +1132,7 @@ class Model:
     scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
     assert(scorebelief_len == self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2)
 
-    if self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8:
+    if self.version == 8:
       self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
       self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
       sbv2_size = config["sbv2_num_channels"]
@@ -1194,20 +1149,6 @@ class Model:
         tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) +
         tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size]) +
         tf.reshape(sb2_parity_partial,[-1,scorebelief_len,sbv2_size])
-      )
-      sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
-    elif self.version == 6:
-      self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
-      sbv2_size = config["sbv2_num_channels"]
-      sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
-      sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg="tiny")
-      sb2_layer_partial = tf.matmul(v1_layer_pooled, sb2w) + sb2b
-      sb2_offset_vector = tf.constant(0.05 * self.score_belief_offset_vector, dtype=tf.float32)
-      sb2_offset_w = self.weight_variable("sb2_offset/w",[1,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
-      sb2_offset_partial = tf.matmul(tf.reshape(sb2_offset_vector,[-1,1]), sb2_offset_w)
-      sb2_layer = (
-        tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) +
-        tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size])
       )
       sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
     else:
