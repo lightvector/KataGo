@@ -512,6 +512,8 @@ void TrainingWriteBuffers::addRow(
 
   //Bonus points
   {
+    //Possibly this should count whiteHandicapBonusScore too, but in selfplay this never changes
+    //after the start of a game
     float whiteBonusPoints = data.endHist.whiteBonusScore - hist.whiteBonusScore;
     float selfBonusPoints = (nextPlayer == P_WHITE ? whiteBonusPoints : -whiteBonusPoints);
     rowGlobal[61] = selfBonusPoints != 0 ? selfBonusPoints : 0.0f; //Conditional avoids negative zero
