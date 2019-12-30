@@ -1689,7 +1689,7 @@ class ModelUtils:
         #If gradients are roughly uncorrelated, then they should scale as the square root of batch size
         #Since each GPU observes only a fraction of the global batch, we need to divide our gradient cap
         #by this scaling to achieve a roughly comparable level of scaling.
-        gnorm_cap = 2500.0 / math.sqrt(num_gpus_used)
+        gnorm_cap = (2500.0 if model.use_fixup else 4000.0) / math.sqrt(num_gpus_used)
         (adjusted_gradients_clipped,gnorm) = tf.clip_by_global_norm([x[0] for x in adjusted_gradients],gnorm_cap)
         adjusted_gradients_clipped = list(zip(adjusted_gradients_clipped,[x[1] for x in adjusted_gradients]))
         metrics.gnorm = gnorm
