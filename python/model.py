@@ -1581,7 +1581,7 @@ class ModelUtils:
     logf("Model: %d total parameters" % total_parameters)
 
   @staticmethod
-  def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale=None,num_gpus_used=1):
+  def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale=None,gnorm_clip_scale=None,num_gpus_used=1):
     trainlog("Building model")
 
     num_bin_input_features = Model.get_num_bin_input_features(model_config)
@@ -1692,7 +1692,7 @@ class ModelUtils:
         #If gradients are roughly uncorrelated, then they should scale as the square root of batch size
         #Since each GPU observes only a fraction of the global batch, we need to divide our gradient cap
         #by this scaling to achieve a roughly comparable level of scaling.
-        gnorm_cap = (2500.0 if model.use_fixup else 4000.0) / math.sqrt(num_gpus_used)
+        gnorm_cap = (2500.0 if model.use_fixup else 4000.0) / math.sqrt(num_gpus_used) * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
         (adjusted_gradients_clipped,gnorm) = tf.clip_by_global_norm([x[0] for x in adjusted_gradients],gnorm_cap)
         adjusted_gradients_clipped = list(zip(adjusted_gradients_clipped,[x[1] for x in adjusted_gradients]))
         metrics.gnorm = gnorm

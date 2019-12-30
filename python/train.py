@@ -41,6 +41,7 @@ parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated devi
 parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
 parser.add_argument('-model-kind', help='String name for what model to use', required=True)
 parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
+parser.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
 parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
 parser.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
 parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
@@ -60,6 +61,7 @@ multi_gpus = args["multi_gpus"]
 gpu_memory_frac = args["gpu_memory_frac"]
 model_kind = args["model_kind"]
 lr_scale = args["lr_scale"]
+gnorm_clip_scale = args["gnorm_clip_scale"]
 sub_epochs = args["sub_epochs"]
 epochs_per_export = args["epochs_per_export"]
 sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
@@ -183,7 +185,7 @@ def model_fn(features,labels,mode,params):
 
   print_model = not printed_model_yet
 
-  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale,num_gpus_used)
+  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale,gnorm_clip_scale,num_gpus_used)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
     model = built
