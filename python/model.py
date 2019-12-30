@@ -1371,6 +1371,9 @@ class Target_vars:
         axis=[1,2]
       ) / model.mask_sum_hw
     )
+    #Simple huberlike transform to reduce crazy values
+    self.scoring_loss_unreduced = 4.0 * (tf.sqrt(self.scoring_loss_unreduced * 0.5 + 1.0) - 1.0)
+
 
     #The futurepos targets extrapolate a fixed number of steps into the future independent
     #of board size. So unlike the ownership above, generally a fixed number of spots are going to be
