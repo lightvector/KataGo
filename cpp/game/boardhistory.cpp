@@ -495,8 +495,7 @@ float BoardHistory::whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhit
   //Basically we model it as if the final score were jittered by a uniform draw from [-0.5,0.5].
   //E.g. if komi from self perspective is 7 and a draw counts as 0.75 wins and 0.25 losses,
   //then komi input should be as if it was 7.25, which in a jigo game when jittered by 0.5 gives white 75% wins and 25% losses.
-  bool komiIsInteger = ((int)rules.komi == rules.komi);
-  float drawAdjustment = !komiIsInteger ? 0.0f : (float)(drawEquivalentWinsForWhite - 0.5);
+  float drawAdjustment = rules.gameResultWillBeInteger() ? (float)(drawEquivalentWinsForWhite - 0.5) : 0.0f;
   return drawAdjustment;
 }
 

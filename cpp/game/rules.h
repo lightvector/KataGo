@@ -41,6 +41,8 @@ struct Rules {
   bool operator==(const Rules& other) const;
   bool operator!=(const Rules& other) const;
 
+  bool gameResultWillBeInteger() const;
+
   static Rules getTrompTaylorish();
   static Rules getSimpleTerritory();
 

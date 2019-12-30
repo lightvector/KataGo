@@ -47,6 +47,11 @@ bool Rules::operator!=(const Rules& other) const {
     komi != other.komi;
 }
 
+bool Rules::gameResultWillBeInteger() const {
+  bool komiIsInteger = ((int)komi) == komi;
+  return komiIsInteger != hasButton;
+}
+
 Rules Rules::getTrompTaylorish() {
   Rules rules;
   rules.koRule = KO_POSITIONAL;
