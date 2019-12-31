@@ -403,7 +403,11 @@ if multi_gpus is None:
 else:
   session_config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
   session_config.gpu_options.per_process_gpu_memory_fraction = gpu_memory_frac
-  multigpu_strategy = tf.distribute.MirroredStrategy(devices=multi_gpu_device_ids)
+  multigpu_strategy = tf.distribute.MirroredStrategy(
+    devices=multi_gpu_device_ids,
+    cross_device_ops=tf.distribute.ReductionToOneDevice(
+    reduce_to_device="/device:CPU:0"
+  )
   estimator = tf.estimator.Estimator(
     model_fn=model_fn,
     model_dir=traindir,
