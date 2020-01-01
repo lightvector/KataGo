@@ -303,6 +303,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
   else if(sOrig.length() > 0 && sOrig[0] == '{') {
     //Default if not specified
     rules = Rules::getTrompTaylorish();
+    bool komiSpecified = false;
     bool taxSpecified = false;
     try {
       json input = json::parse(sOrig);
@@ -328,6 +329,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
           if(!allowKomi)
             throw IOError("Unknown rules option: " + key);
           rules.komi = iter.value().get<float>();
+          komiSpecified = true;
           if(rules.komi < Rules::MIN_USER_KOMI || rules.komi > Rules::MAX_USER_KOMI || !Rules::komiIsIntOrHalfInt(rules.komi))
             throw IOError("Komi value is not a half-integer or is too extreme");
         }
@@ -340,6 +342,13 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     }
     if(!taxSpecified)
       rules.taxRule = (rules.scoringRule == Rules::SCORING_TERRITORY ? Rules::TAX_SEKI : Rules::TAX_NONE);
+    if(!komiSpecified) {
+      //Drop default komi to 6.5 for territory rules, and to 7.0 for button
+      if(rules.scoringRule == Rules::SCORING_TERRITORY)
+        rules.komi = 6.5f;
+      else if(rules.hasButton)
+        rules.komi = 7.0f;
+    }
   }
 
   //This is more of a legacy internal format, not recommended for users to provide
@@ -362,6 +371,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     if(s.length() <= 0)
       throw IOError("Could not parse rules: " + sOrig);
 
+    bool komiSpecified = false;
     bool taxSpecified = false;
     while(true) {
       if(s.length() <= 0)
@@ -380,6 +390,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
         if(!std::isfinite(komi) || komi > 1e5 || komi < -1e5)
           throw IOError("Could not parse rules: " + sOrig);
         rules.komi = komi;
+        komiSpecified = true;
         s = s.substr(endIdx);
         s = Global::trim(s);
         continue;
@@ -436,6 +447,13 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     }
     if(!taxSpecified)
       rules.taxRule = (rules.scoringRule == Rules::SCORING_TERRITORY ? Rules::TAX_SEKI : Rules::TAX_NONE);
+    if(!komiSpecified) {
+      //Drop default komi to 6.5 for territory rules, and to 7.0 for button
+      if(rules.scoringRule == Rules::SCORING_TERRITORY)
+        rules.komi = 6.5f;
+      else if(rules.hasButton)
+        rules.komi = 7.0f;
+    }
   }
 
   return rules;

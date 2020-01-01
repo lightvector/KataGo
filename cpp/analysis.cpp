@@ -146,11 +146,13 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         double lcb = Play::getHackedLCBForWinrate(search,data,pla);
         double utilityLcb = data.lcb;
         double scoreMean = data.scoreMean;
+        double lead = data.lead;
         if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
           winrate = 1.0-winrate;
           lcb = 1.0 - lcb;
           utility = -utility;
           scoreMean = -scoreMean;
+          lead = -lead;
           utilityLcb = -utilityLcb;
         }
 
@@ -159,7 +161,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         moveInfo["visits"] = data.numVisits;
         moveInfo["utility"] = utility;
         moveInfo["winrate"] = winrate;
-        moveInfo["scoreMean"] = scoreMean;
+        moveInfo["scoreMean"] = lead;
+        moveInfo["scoreSelfplay"] = scoreMean;
+        moveInfo["scoreLead"] = lead;
         moveInfo["scoreStdev"] = data.scoreStdev;
         moveInfo["prior"] = data.policyPrior;
         moveInfo["lcb"] = lcb;
@@ -411,8 +415,12 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     }
     Player initialPlayer = C_EMPTY;
     if(input.find("initialPlayer") != input.end()) {
-      string s = input["initialPlayer"].get<string>();
-      if(!PlayerIO::tryParsePlayer(s,initialPlayer)) {
+      try {
+        string s = input["initialPlayer"].get<string>();
+        PlayerIO::tryParsePlayer(s,initialPlayer);
+      }
+      catch(nlohmann::detail::exception& e) {}
+      if(initialPlayer != P_BLACK && initialPlayer != P_WHITE) {
         reportErrorForId(rbase.id, "initialPlayer", "Must be \"b\" or \"w\"");
         continue;
       }
@@ -449,9 +457,22 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
     Rules rules;
     if(input.find("rules") != input.end()) {
-      string s = input["rules"].get<string>();
-      if(!Rules::tryParseRules(s,rules)) {
-        reportErrorForId(rbase.id, "rules", "Unknown rules: " + s);
+      if(input["rules"].is_string()) {
+        string s = input["rules"].get<string>();
+        if(!Rules::tryParseRules(s,rules)) {
+          reportErrorForId(rbase.id, "rules", "Could not parse rules: " + s);
+          continue;
+        }
+      }
+      else if(input["rules"].is_object()) {
+        string s = input["rules"].dump();
+        if(!Rules::tryParseRules(s,rules)) {
+          reportErrorForId(rbase.id, "rules", "Could not parse rules: " + s);
+          continue;
+        }
+      }
+      else {
+        reportErrorForId(rbase.id, "rules", "Must specify rules string, such as \"chinese\" or \"tromp-taylor\", or a JSON object with detailed rules parameters.");
         continue;
       }
     }
