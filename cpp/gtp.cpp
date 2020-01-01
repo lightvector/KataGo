@@ -727,7 +727,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 9;
   const bool assumeMultipleStartingBlackMovesAreHandicap =
     cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
-  const bool preventEncore = cfg.contains("preventCleanup") ? cfg.getBool("preventCleanup") : true;
+  const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
