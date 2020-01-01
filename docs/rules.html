@@ -98,7 +98,7 @@ function updateName(name) {
       }
     }
 
-    elts[j].style.display = needRules ? "" : "none";           
+    elts[j].style.display = needRules ? "" : "none";
   }
 };
 
@@ -170,7 +170,7 @@ window.onload = function() {
       });
     }
   }
- 
+
   checkEverything();
 };
 </script>
@@ -178,8 +178,8 @@ window.onload = function() {
 </head>
 <body>
 
-<h1>KataGo's Planned-To-Be-Supported Go Rules (Version 1) </h1>
-A hope also is that this document can serve as a reference for anyone to implement any subset of such rules themselves - including a rigorous nearly-Japanese rules that bots can use for self-play or for competitive matches completely without need for outside adjudication or dispute resolution or any other protocol besides just the bots making ordinary plays. 
+<h1>KataGo's Supported Go Rules (Version 1) </h1>
+A hope also is that this document can serve as a reference for anyone to implement any subset of such rules themselves - including a rigorous nearly-Japanese rules that bots can use for self-play or for competitive matches completely without need for outside adjudication or dispute resolution or any other protocol besides just the bots making ordinary plays.
 <p>
 I believe the nearly-Japanese rules should correctly handle a wide variety of details, so long as both players play to rationally maximize their score. For example:
 
@@ -378,7 +378,7 @@ The game ends and is scored as follows:
 <ul>
 
 <li class="selfPlayOpts selfPlayOptsEnabled"><span class="condition">(if SelfPlayOpts is Enabled)</span>: Before scoring, for each color, empty all points of that color within pass-alive-territory of the opposing color.</li>
-   
+
 <li class="taxRule taxNone"><span class="condition">(if TaxRule is None)</span>: A player's score is the sum of:
 <ul>
 <li>+1 for every point of their color.</li>
@@ -422,7 +422,7 @@ Cleanup Phases
 <span class="condition"> These phases only occur if <span class="scoringRule">scoringRule is Territory</span>.</span>
 
 <p>
-Cleanup is designed to try to match most of the ways that positions would be ruled and scored under normal Japanese rules, so long as players self-interestedly maximize their score during cleanup. Broadly, this is done by giving players 1 point of compensation per move during the (second) cleanup phase, such that the players can now capture dead stones and resolve all disputes without loss of points for filling in territory. 
+Cleanup is designed to try to match most of the ways that positions would be ruled and scored under normal Japanese rules, so long as players self-interestedly maximize their score during cleanup. Broadly, this is done by giving players 1 point of compensation per move during the (second) cleanup phase, such that the players can now capture dead stones and resolve all disputes without loss of points for filling in territory.
 
 <p>
 A variety of details are also managed to implement other quirks of Japanese rules. Including there-are-no-points-in-seki, and the Japanese conception of each position as "independent", such that ko threats in one part of the board do not affect the status of the rest of the board. For example, a bent-four-in-the-corner will still resolve as dead under optimal play with these rules even if there are unremovable ko threats on the rest of the board. A lot of the mechanism to do this is based on the Japanese rules themselves, attempting to formalize their spirit to try to make them rigorous enough for self-play.
@@ -555,7 +555,7 @@ This formulation is much more similar to area scoring, in that it factors over t
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass during the main phase.</li>
 </ul>
 </li>
-</ul>   
+</ul>
 
 </div>
 
@@ -564,27 +564,27 @@ This formulation is much more similar to area scoring, in that it factors over t
 <div class="flex-vertical">
 <span class="note scoringTerritory taxSeki taxAll">
 <span><hr></span>
-<span id="note1">[1] 
-The intent is "independent-life-regions" indicate regions that are not seki, so long as both players finish all borders and fill all dame. This is motivated by the way Japanese rules attempt to define "seki" using dame. Using the presence of dame to determine seki is actually a pretty clever solution - my original idea had only been to use ability-to-make-pass-alive-ness, but this is considerably more awkward in practice than using dame. 
+<span id="note1">[1]
+The intent is "independent-life-regions" indicate regions that are not seki, so long as both players finish all borders and fill all dame. This is motivated by the way Japanese rules attempt to define "seki" using dame. Using the presence of dame to determine seki is actually a pretty clever solution - my original idea had only been to use ability-to-make-pass-alive-ness, but this is considerably more awkward in practice than using dame.
 <br/><br/>
-We also include the condition of "atari" to handle groups that have no dame but still survive without two eyes by virtue of having ko mouths. This handles <a href="https://senseis.xmp.net/?DoubleKoSeki">double ko seki</a>. 
+We also include the condition of "atari" to handle groups that have no dame but still survive without two eyes by virtue of having ko mouths. This handles <a href="https://senseis.xmp.net/?DoubleKoSeki">double ko seki</a>.
 (<a href="#ref1">Back</a>)</span></span>
 
 <span class="note selfPlayOptsEnabled">
 <span><hr></span>
-<span id="note2">[2] 
+<span id="note2">[2]
 Pass-aliveness can be computed by a straightforward algorithm: <a href="https://en.wikipedia.org/wiki/Benson%27s_algorithm_(Go)">https://en.wikipedia.org/wiki/Benson%27s_algorithm_(Go)</a>. Note that a slight adjustment to the algorithm presented is technically needed if multi-stone suicide is allowed.
 (<a href="#ref3">Back</a>)</span></span>
 
 <span class="note selfPlayOptsEnabled">
 <span><hr></span>
-<span id="note3">[3] 
+<span id="note3">[3]
 Under this definition, it is possible that a region with one completely interior point is pass-alive-territory but the addition of a single stone on that interior point results in the region no longer being considered pass-alive-territory because the single stone is not a pass-alive-group. We ignore this minor "flaw" since it makes for a simpler definition and algorithmic implementation.
 (<a href="#ref3">Back</a>)</span></span>
 
 <span class="note koSimple">
 <span><hr></span>
-<span id="note4">[4] 
+<span id="note4">[4]
 This <a href="https://senseis.xmp.net/?SpightRules">Spight-style</a> termination condition ensures that sending-two-returning-one-like positions will terminate, even under area scoring where the cycle does not "cost" points. It also cuts it shorter under territory scoring, so that a badly behaving bot doesn't lose by ~infinity.
 <br/><br/>
 The approach taken taken by many Chinese tournaments is to simply prohibit sending-two-returning-one. (Chinese written rules appear to say positional superko, but this written rule is often not used for real tournaments). This would also be easy to implement and KataGo could easily choose to support it in the future, since for all practical purposes a neural net trained under simple ko rules should work fine without modification in an engine that bans sending-two-returning-one.
@@ -596,23 +596,23 @@ Some <a href="https://senseis.xmp.net/?ComputerOlympiadRules"> computer tourname
 
 <span class="note koSimple">
 <span><hr></span>
-<span id="note5">[5] 
+<span id="note5">[5]
 Under some real-life human rules, an unbounded cycle would not end the game in and of itself at exactly such a point, rather the game may be manually adjudicated as a no-result. But our goal here is to get a formalization of Japanese-like ko rules for computer self-play, so dictating a precise ending point is necessary. The requirement for no intervening passes makes absolutely sure that we do not no-resultify sending-two-returning-one style positions, even with weird unforeseen move orderings.
 (<a href="#ref5">Back</a>)</span></span>
 
 <span class="note scoringTerritory">
 <span><hr></span>
-<span id="note6">[6] 
-Why have two phases instead of just one? 
+<span id="note6">[6]
+Why have two phases instead of just one?
 <br/><br/>
-The intent is that the first phase introduces changes to the ko rules alone, allowing any positions destabilized by it to settle down. Then, the second phase additionally introduces a +1 point per move that allows players to actually begin capturing dead stones without loss of points. If both changes were introduced at once, in some cases, this leads to a highly non-intuitive "pass fight" that is absent from true Japanese rules. This can occur if a protective move becomes necessary once the ko rules change - then we may see players exchange ko threats to try to be not the second to pass and therefore to be first to play in cleanup, since being first to play in cleanup would enable making the protective move with +1 point instead of with +0 points. 
+The intent is that the first phase introduces changes to the ko rules alone, allowing any positions destabilized by it to settle down. Then, the second phase additionally introduces a +1 point per move that allows players to actually begin capturing dead stones without loss of points. If both changes were introduced at once, in some cases, this leads to a highly non-intuitive "pass fight" that is absent from true Japanese rules. This can occur if a protective move becomes necessary once the ko rules change - then we may see players exchange ko threats to try to be not the second to pass and therefore to be first to play in cleanup, since being first to play in cleanup would enable making the protective move with +1 point instead of with +0 points.
 <br/><br/>
 Introducing the ko rule and score bonus changes in separate phases eliminates this issue.
 (<a href="#ref6">Back</a>)</span></span>
 
 <span class="note scoringTerritory">
 <span><hr></span>
-<span id="note7">[7] 
+<span id="note7">[7]
 The unblock-ko-recapture action is effectively the Japanese rules's "pass for ko". We name it this way to avoid calling it a pass, since it shares little else in common with a pass with regard to the rules necessary to make cleanup work. Also, highly conveniently, an unblock-ko-recapture for a ko-move location is always mutually exclusive with a legal move for that location, which means we have no need to change the protocol for GTP or introduce new move encodings. We can continue to use the exact same 19x19 + 1 encodings in all existing protocols to represent moves.
 (<a href="#ref7">Back</a>)</span></span>
 
@@ -635,7 +635,7 @@ This <a href="https://senseis.xmp.net/?SpightRules">Spight-style</a> termination
 <span id="note10">[10]
 The "color at the start of the second cleanup phase" condition prevents one-sided dame from granting points to the side able to fill the dame.
 <br/><br/>
-We go ahead and have an allowance for Button Go here too. This may seem odd, since normally the intent is as a way obtain territory-scoring granularity with area-scoring, so if already using territory-scoring, why would one want such a rule? But at least when we came to implement it in KataGo, it seemed programatically no more complex (simpler, even) to just have it as an option always, and formulating it this way makes for more natural extension to Coupon Go if desired, which *does* make sense in territory scoring. KataGo for now does NOT actually plan to support territory + button though.
+We go ahead and have an allowance for Button Go here too. This may seem odd, since normally the intent is as a way obtain territory-scoring granularity with area-scoring, so if already using territory-scoring, why would one want such a rule? But at least when we came to implement it in KataGo, it seemed programatically no more complex (simpler, even) to just have it as an option always, and formulating it this way makes for more natural extension to Coupon Go if desired, which *does* make sense in territory scoring. KataGo for now does NOT actually support territory + button though.
 (<a href="#ref10">Back</a>)</span></span>
 
 </div>
