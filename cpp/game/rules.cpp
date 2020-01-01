@@ -178,7 +178,7 @@ string Rules::toString() const {
 string Rules::toJsonString() const {
   json ret;
   ret["ko"] = writeKoRule(koRule);
-  ret["score"] = writeScoringRule(scoringRule);
+  ret["scoring"] = writeScoringRule(scoringRule);
   ret["tax"] = writeTaxRule(taxRule);
   ret["suicide"] = multiStoneSuicideLegal;
   ret["hasButton"] = hasButton;
@@ -190,7 +190,7 @@ string Rules::toJsonString() const {
 string Rules::toJsonStringNoKomi() const {
   json ret;
   ret["ko"] = writeKoRule(koRule);
-  ret["score"] = writeScoringRule(scoringRule);
+  ret["scoring"] = writeScoringRule(scoringRule);
   ret["tax"] = writeTaxRule(taxRule);
   ret["suicide"] = multiStoneSuicideLegal;
   ret["hasButton"] = hasButton;
@@ -204,6 +204,7 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   string value = Global::trim(Global::toUpper(v));
   if(key == "ko") rules.koRule = Rules::parseKoRule(value);
   else if(key == "score") rules.scoringRule = Rules::parseScoringRule(value);
+  else if(key == "scoring") rules.scoringRule = Rules::parseScoringRule(value);
   else if(key == "tax") rules.taxRule = Rules::parseTaxRule(value);
   else if(key == "suicide") rules.multiStoneSuicideLegal = Global::stringToBool(value);
   else if(key == "hasButton") rules.hasButton = Global::stringToBool(value);
@@ -233,13 +234,16 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.whiteHandicapBonusRule = Rules::WHB_N;
     rules.komi = 7.5;
   }
-  else if(lowercased == "ancient-area" || lowercased == "ancient_area" || lowercased == "ancient area") {
+  else if(
+    lowercased == "ancient-area" || lowercased == "ancient_area" || lowercased == "ancient area" ||
+    lowercased == "stone-scoring" || lowercased == "stone_scoring" || lowercased == "stone scoring"
+  ) {
     rules.scoringRule = Rules::SCORING_AREA;
     rules.koRule = Rules::KO_SIMPLE;
     rules.taxRule = Rules::TAX_ALL;
     rules.multiStoneSuicideLegal = false;
     rules.hasButton = false;
-    rules.whiteHandicapBonusRule = Rules::WHB_N;
+    rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
     rules.komi = 7.5;
   }
   else if(lowercased == "ancient-territory" || lowercased == "ancient_territory" || lowercased == "ancient territory") {
@@ -248,8 +252,17 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.taxRule = Rules::TAX_ALL;
     rules.multiStoneSuicideLegal = false;
     rules.hasButton = false;
-    rules.whiteHandicapBonusRule = Rules::WHB_N;
-    rules.komi = 7.5;
+    rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
+    rules.komi = 6.5;
+  }
+  else if(lowercased == "aga-button" || lowercased == "aga_button" || lowercased == "aga button") {
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.taxRule = Rules::TAX_NONE;
+    rules.multiStoneSuicideLegal = false;
+    rules.hasButton = true;
+    rules.whiteHandicapBonusRule = Rules::WHB_N_MINUS_ONE;
+    rules.komi = 7.0;
   }
   else if(lowercased == "aga" || lowercased == "bga" || lowercased == "french") {
     rules.scoringRule = Rules::SCORING_AREA;
@@ -299,6 +312,8 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
         if(key == "ko")
           rules.koRule = Rules::parseKoRule(iter.value().get<string>());
         else if(key == "score")
+          rules.scoringRule = Rules::parseScoringRule(iter.value().get<string>());
+        else if(key == "scoring")
           rules.scoringRule = Rules::parseScoringRule(iter.value().get<string>());
         else if(key == "tax") {
           rules.taxRule = Rules::parseTaxRule(iter.value().get<string>()); taxSpecified = true;
@@ -374,6 +389,12 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
         else if(startsWithAndStrip(s,"POSITIONAL")) rules.koRule = Rules::KO_POSITIONAL;
         else if(startsWithAndStrip(s,"SITUATIONAL")) rules.koRule = Rules::KO_SITUATIONAL;
         else if(startsWithAndStrip(s,"SPIGHT")) rules.koRule = Rules::KO_SPIGHT;
+        else throw IOError("Could not parse rules: " + sOrig);
+        continue;
+      }
+      if(startsWithAndStrip(s,"scoring")) {
+        if(startsWithAndStrip(s,"AREA")) rules.scoringRule = Rules::SCORING_AREA;
+        else if(startsWithAndStrip(s,"TERRITORY")) rules.scoringRule = Rules::SCORING_TERRITORY;
         else throw IOError("Could not parse rules: " + sOrig);
         continue;
       }
