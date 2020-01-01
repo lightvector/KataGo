@@ -44,9 +44,10 @@ static NNEvaluator* startNNEval(
     debugSkipNeuralNet,
     nnPolicyTemperature,
     openCLTunerFile,
-    openCLReTunePerBoardSize
+    openCLReTunePerBoardSize,
+    useFP16,
+    useNHWC
   );
-  (void)inputsUseNHWC;
 
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
@@ -57,9 +58,7 @@ static NNEvaluator* startNNEval(
     seed,
     defaultSymmetry,
     logger,
-    gpuIdxByServerThread,
-    useFP16,
-    useNHWC
+    gpuIdxByServerThread
   );
 
   return nnEval;

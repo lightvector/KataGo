@@ -218,7 +218,9 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       debugSkipNeuralNet,
       nnPolicyTemperature,
       openCLTunerFile,
-      openCLReTunePerBoardSize
+      openCLReTunePerBoardSize,
+      useFP16,
+      useNHWC
     );
 
     int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;
@@ -228,9 +230,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed,
       defaultSymmetry,
       logger,
-      gpuIdxByServerThread,
-      useFP16,
-      useNHWC
+      gpuIdxByServerThread
     );
 
     nnEvals.push_back(nnEval);

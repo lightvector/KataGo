@@ -142,7 +142,9 @@ static NNEvaluator* startNNEval(
     debugSkipNeuralNet,
     nnPolicyTemperature,
     openCLTunerFile,
-    openCLReTunePerBoardSize
+    openCLReTunePerBoardSize,
+    useFP16,
+    useNHWC
   );
   (void)inputsUseNHWC;
 
@@ -159,9 +161,7 @@ static NNEvaluator* startNNEval(
     nnRandSeed,
     defaultSymmetry,
     logger,
-    gpuIdxByServerThread,
-    useFP16,
-    useNHWC
+    gpuIdxByServerThread
   );
 
   return nnEval;

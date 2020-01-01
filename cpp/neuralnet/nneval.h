@@ -91,7 +91,9 @@ class NNEvaluator {
     bool debugSkipNeuralNet,
     float nnPolicyTemperature,
     std::string openCLTunerFile,
-    bool openCLReTunePerBoardSize
+    bool openCLReTunePerBoardSize,
+    bool useFP16,
+    bool useNHWC
   );
   ~NNEvaluator();
 
@@ -101,6 +103,8 @@ class NNEvaluator {
   int getMaxBatchSize() const;
   int getNNXLen() const;
   int getNNYLen() const;
+  bool getUsingFP16() const;
+  bool getUsingNHWC() const;
 
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
@@ -134,9 +138,7 @@ class NNEvaluator {
     std::string randSeed,
     int defaultSymmetry,
     Logger& logger,
-    std::vector<int> gpuIdxByServerThread,
-    bool useFP16,
-    bool useNHWC
+    std::vector<int> gpuIdxByServerThread
   );
 
   //Kill spawned server threads and join and free them. This function is not threadsafe, and along with spawnServerThreads
@@ -158,6 +160,8 @@ class NNEvaluator {
   bool requireExactNNLen;
   int policySize;
   bool inputsUseNHWC;
+  bool usingFP16;
+  bool usingNHWC;
 
   ComputeContext* computeContext;
   LoadedModel* loadedModel;

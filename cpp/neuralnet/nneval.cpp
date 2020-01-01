@@ -69,7 +69,9 @@ NNEvaluator::NNEvaluator(
   bool skipNeuralNet,
   float nnPolicyTemp,
   string openCLTunerFile,
-  bool openCLReTunePerBoardSize
+  bool openCLReTunePerBoardSize,
+  bool useFP16,
+  bool useNHWC
 )
   :modelName(mName),
    modelFileName(mFileName),
@@ -78,6 +80,8 @@ NNEvaluator::NNEvaluator(
    requireExactNNLen(rExactNNLen),
    policySize(NNPos::getPolicySize(xLen,yLen)),
    inputsUseNHWC(iUseNHWC),
+   usingFP16(useFP16),
+   usingNHWC(useNHWC),
    computeContext(NULL),
    loadedModel(NULL),
    nnCacheTable(NULL),
@@ -179,6 +183,14 @@ int NNEvaluator::getNNXLen() const {
 int NNEvaluator::getNNYLen() const {
   return nnYLen;
 }
+bool NNEvaluator::getUsingFP16() const {
+  return usingFP16;
+}
+bool NNEvaluator::getUsingNHWC() const {
+  return usingNHWC;
+}
+
+
 Rules NNEvaluator::getSupportedRules(const Rules& desiredRules, bool& supported) {
   if(loadedModel == NULL) {
     supported = true;
@@ -210,9 +222,7 @@ void NNEvaluator::clearCache() {
 static void serveEvals(
   int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger,
   NNEvaluator* nnEval, const LoadedModel* loadedModel,
-  int gpuIdxForThisThread,
-  bool useFP16,
-  bool useNHWC
+  int gpuIdxForThisThread, bool useFP16, bool useNHWC
 ) {
   NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
   Rand rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
@@ -230,9 +240,7 @@ void NNEvaluator::spawnServerThreads(
   string randSeed,
   int defaultSymmetry,
   Logger& logger,
-  vector<int> gpuIdxByServerThread,
-  bool useFP16,
-  bool useNHWC
+  vector<int> gpuIdxByServerThread
 ) {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
@@ -242,7 +250,7 @@ void NNEvaluator::spawnServerThreads(
   for(int i = 0; i<numThreads; i++) {
     int gpuIdxForThisThread = gpuIdxByServerThread[i];
     std::thread* thread = new std::thread(
-      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,loadedModel,gpuIdxForThisThread,useFP16,useNHWC
+      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,loadedModel,gpuIdxForThisThread,usingFP16,usingNHWC
     );
     serverThreads.push_back(thread);
   }

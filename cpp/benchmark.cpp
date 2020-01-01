@@ -18,6 +18,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   ScoreValue::initTables();
   Rand seedRand;
 
+  const int defaultMaxVisits = 600;
+
   string configFile;
   string modelFile;
   string sgfFile;
@@ -31,9 +33,9 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
     TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9-19), default 19",false,-1,"SIZE");
-    TCLAP::ValueArg<int> visitsArg("v","visits","How many visits to use per search (default 1000)",false,1000,"VISITS");
+    TCLAP::ValueArg<int> visitsArg("v","visits","How many visits to use per search (default " + Global::intToString(defaultMaxVisits) + ")",false,defaultMaxVisits,"VISITS");
     TCLAP::ValueArg<string> threadsArg("t","threads","Test using these many threads, comma-separated (default 1,2,4,6,8,12,16)",false,string("1,2,4,6,8,12,16"),"THREADS");
-    TCLAP::ValueArg<int> numPositionsPerGameArg("n","numpositions","How many positions to sample from a game (default 20)",false,20,"NUM");
+    TCLAP::ValueArg<int> numPositionsPerGameArg("n","numpositions","How many positions to sample from a game (default 10)",false,10,"NUM");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
     cmd.add(sgfFileArg);
@@ -276,7 +278,28 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   const double eloGainPerDoubling = 250;
 
   cout << endl;
-  cout << "Testing..." << endl;
+  cout << "Testing using " << maxVisits << " visits.";
+  if(maxVisits == defaultMaxVisits)
+    cout << " If you have a good GPU, you might increase this using -visits N to get more accurate results." << endl;
+  else
+    cout << endl;
+  cout << endl;
+#ifdef USE_CUDA_BACKEND
+  cout << "Your GTP config is currently set to cudaUseFP16 = " << Global::boolToString(nnEval->getUsingFP16())
+       << " and cudaUseNHWC = " << Global::boolToString(nnEval->getUsingNHWC()) << endl;
+  if(!nnEval->getUsingFP16())
+    cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080) setting these both to true may give a large performance boost." << endl;
+#endif
+#ifdef USE_OPENCL_BACKEND
+  cout << "You are currently using the OpenCL version." << endl;
+  //TODO update when we have FP16 opencl
+  cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080), "
+       << "switching to the Cuda version and setting cudaUseFP16=true and cudaUseNHWC=true may give a large performance boost." << endl;
+#endif
+  cout << endl;
+  cout << "Your GTP config is currently set to use numSearchThreads = " << params.numThreads << endl;
+  if(numThreadsToTest.size() > 1)
+    cout << "Testing different numbers of threads: " << endl;
   vector<double> eloEffects;
   for(int i = 0; i<numThreadsToTest.size(); i++) {
     int numThreads = numThreadsToTest[i];
@@ -287,6 +310,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     int64_t numNNBatches;
     double avgBatchSize;
     testNumThreads(numThreads,totalVisits,totalSeconds,totalPositions,numNNEvals,numNNBatches,avgBatchSize);
+    eloEffects.push_back(eloGainPerDoubling * log(totalVisits / totalSeconds) / log(2) - eloCostPerThread * numThreads);
     cout << "\rnumSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
          << " " << totalPositions << " / " << possiblePositionIdxs.size() << " positions,"
          << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
@@ -294,16 +318,15 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
          << " nnBatches/s = " << Global::strprintf("%.2f",numNNBatches / totalSeconds)
          << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
          << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)"
+         << " (EloDiff " << Global::strprintf("%+.0f",eloEffects[i] - eloEffects[0]) << ")"
          << std::flush;
-
-    eloEffects.push_back(eloGainPerDoubling * log(totalVisits / totalSeconds) / log(2) - eloCostPerThread * numThreads);
   }
   cout << endl;
 
   if(numThreadsToTest.size() > 1) {
     cout << endl;
-    cout << "Based on some test data, each thread costs perhaps ~" << eloCostPerThread << " Elo holding visits fixed (by making MCTS worse)" << endl;
-    cout << "Based on some test data, each speed doubling gains perhaps ~" << eloGainPerDoubling << " Elo by searching deeper" << endl;
+    cout << "Based on some test data, each thread costs perhaps ~" << eloCostPerThread << " Elo holding visits fixed (by making MCTS worse)." << endl;
+    cout << "Based on some test data, each speed doubling gains perhaps ~" << eloGainPerDoubling << " Elo by searching deeper." << endl;
     cout << "So APPROXIMATELY based on this benchmark: " << endl;
     for(int i = 0; i<numThreadsToTest.size(); i++) {
       int numThreads = numThreadsToTest[i];
