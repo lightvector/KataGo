@@ -406,7 +406,8 @@ else:
   multigpu_strategy = tf.distribute.MirroredStrategy(
     devices=multi_gpu_device_ids,
     cross_device_ops=tf.distribute.ReductionToOneDevice(
-    reduce_to_device="/device:CPU:0"
+      reduce_to_device="/device:CPU:0"
+    )
   )
   estimator = tf.estimator.Estimator(
     model_fn=model_fn,

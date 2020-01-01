@@ -230,7 +230,7 @@ b40c256 = {
     ["rconv27","regular"],
     ["rconv28","regular"],
     ["rconv29","regular"],
-    ["rconv30","regular"]
+    ["rconv30","regular"],
     ["rconv31","gpool"],
     ["rconv32","regular"],
     ["rconv33","regular"],
