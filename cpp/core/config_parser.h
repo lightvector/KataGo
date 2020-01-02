@@ -18,6 +18,7 @@ baz = yay
 class ConfigParser {
  public:
   ConfigParser(const std::string& file);
+  ConfigParser(const std::map<std::string, std::string>& kvs);
   ~ConfigParser();
 
   ConfigParser(const ConfigParser& other) = delete;

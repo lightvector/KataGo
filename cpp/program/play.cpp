@@ -15,7 +15,7 @@ static double nextGaussianTruncated(Rand& rand, double bound) {
   return d;
 }
 
-static int getMaxExtraBlack(double sqrtBoardArea) {
+static int getDefaultMaxExtraBlack(double sqrtBoardArea) {
   if(sqrtBoardArea <= 10.00001)
     return 0;
   if(sqrtBoardArea <= 14.00001)
@@ -31,7 +31,7 @@ static int getMaxExtraBlack(double sqrtBoardArea) {
 
 static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   float base, float stdev, double allowIntegerProb,
-  double handicapProb,
+  double handicapProb, int numExtraBlackFixed,
   double bigStdevProb, float bigStdev, double sqrtBoardArea, Rand& rand
 ) {
   int extraBlack = 0;
@@ -46,9 +46,12 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   komi = base + (komi - base) * (float)(sqrtBoardArea / 19.0);
 
   //Add handicap stones
-  int maxExtraBlack = getMaxExtraBlack(sqrtBoardArea);
-  if(maxExtraBlack > 0 && rand.nextBool(handicapProb)) {
-    extraBlack += 1+rand.nextUInt(maxExtraBlack);
+  int defaultMaxExtraBlack = getDefaultMaxExtraBlack(sqrtBoardArea);
+  if((numExtraBlackFixed > 0 || defaultMaxExtraBlack > 0) && rand.nextBool(handicapProb)) {
+    if(numExtraBlackFixed > 0)
+      extraBlack = numExtraBlackFixed;
+    else
+      extraBlack += 1+rand.nextUInt(defaultMaxExtraBlack);
   }
 
   bool allowInteger = rand.nextBool(allowIntegerProb);
@@ -365,7 +368,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     double thisHandicapProb = 0.0;
     extraBlackAndKomi = chooseExtraBlackAndKomi(
       hist.rules.komi, komiStdev, komiAllowIntegerProb,
-      thisHandicapProb,
+      thisHandicapProb, numExtraBlackFixed,
       komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
     assert(extraBlackAndKomi.extraBlack == 0);
@@ -413,7 +416,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     double thisHandicapProb = 0.0;
     extraBlackAndKomi = chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
-      thisHandicapProb,
+      thisHandicapProb, numExtraBlackFixed,
       komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
     otherGameProps.isSgfPos = true;
@@ -428,12 +431,10 @@ void GameInitializer::createGameSharedUnsynchronized(
 
     extraBlackAndKomi = chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
-      handicapProb,
+      handicapProb, numExtraBlackFixed,
       komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
     rules.komi = extraBlackAndKomi.komi;
-    if(extraBlackAndKomi.extraBlack > 0 && numExtraBlackFixed != 0)
-      extraBlackAndKomi.extraBlack = numExtraBlackFixed;
 
     pla = P_BLACK;
     hist.clear(board,pla,rules,0);

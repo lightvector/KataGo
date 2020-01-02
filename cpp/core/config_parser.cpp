@@ -38,6 +38,10 @@ ConfigParser::ConfigParser(const string& fname)
   contents = contentStream.str();
 }
 
+ConfigParser::ConfigParser(const map<string, string>& kvs)
+  :fileName(),contents(),keyValues(kvs),usedKeysMutex(),usedKeys()
+{}
+
 ConfigParser::~ConfigParser()
 {}
 

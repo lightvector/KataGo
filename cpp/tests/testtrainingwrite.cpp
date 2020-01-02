@@ -370,7 +370,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     const string& seedBase,
     const Rules& rules,
     bool testAsym,
-    bool testLead
+    bool testLead,
+    bool testSurpriseWeight
   ) {
     NNEvaluator* nnEval = startNNEval(modelFile,seedBase+"nneval",logger,0,true,false,false);
 
@@ -402,7 +403,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
-    int maxMovesPerGame = testLead ? 30 : 15;
+    int maxMovesPerGame = (testLead || testSurpriseWeight) ? 30 : 15;
     vector<std::atomic<bool>*> stopConditions;
     FancyModes fancyModes;
     fancyModes.initGamesWithPolicy = true;
@@ -414,6 +415,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     fancyModes.minAsymmetricCompensateKomiProb = 0.5;
     if(testLead)
       fancyModes.estimateLeadProb = 0.7;
+    if(testSurpriseWeight)
+      fancyModes.policySurpriseDataWeight = 0.8;
 
     fancyModes.forSelfPlay = true;
     fancyModes.dataXLen = nnXLen;
@@ -422,29 +425,30 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
 
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "seedBase: " << seedBase << endl;
+
     Rand rand(seedBase+"play");
     OtherGameProperties otherGameProps;
     if(testAsym) {
       otherGameProps.playoutDoublingAdvantage = log(3.0) / log(2.0);
       otherGameProps.playoutDoublingAdvantagePla = P_WHITE;
     }
-
+    bool logSearchInfo = testSurpriseWeight;
     FinishedGameData* gameData = Play::runGame(
       initialBoard,initialPla,initialHist,extraBlackAndKomi,
       botSpec,botSpec,
       bot,bot,
       doEndGameIfAllPassAlive, clearBotAfterSearch,
-      logger, false, false,
+      logger, logSearchInfo, false,
       maxMovesPerGame, stopConditions,
       fancyModes, otherGameProps,
       rand,
       NULL
     );
 
-    cout << "====================================================================================================" << endl;
-    cout << "====================================================================================================" << endl;
-    cout << "====================================================================================================" << endl;
-    cout << "seedBase: " << seedBase << endl;
     gameData->printDebug(cout);
     delete gameData;
     delete bot;
@@ -453,11 +457,12 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   };
 
 
-  run("testasym!",Rules::getTrompTaylorish(),true,false);
-  run("test lead!",Rules::getTrompTaylorish(),false,true);
+  run("testasym!",Rules::getTrompTaylorish(),true,false,false);
+  run("test lead!",Rules::getTrompTaylorish(),false,true,false);
   Rules r = Rules::getTrompTaylorish();
   r.hasButton = true;
-  run("test lead int button!",r,false,true);
+  run("test lead int button!",r,false,true,false);
+  run("test surprise!",Rules::getTrompTaylorish(),false,false,true);
 
 
   //Test lead specifically on a final position
@@ -699,6 +704,76 @@ xxxxxxxx.
 .........
 )%%");
     testLeadOnBoard("basic9x9 lead button komi + 2.0", board, buttonRules,  9.5f);
+  }
+
+  {
+    //Big giant test of certain fancyModes parts and game initialization
+    FancyModes fancyModes;
+    //Not testing these - covered by other tests
+    fancyModes.initGamesWithPolicy = false;
+    fancyModes.forkSidePositionProb = false;
+
+    fancyModes.compensateKomiVisits = 20;
+    fancyModes.fancyKomiVarying = true;
+
+    fancyModes.sekiForkHack = true;
+    fancyModes.forSelfPlay = true;
+    fancyModes.dataXLen = 13;
+    fancyModes.dataYLen = 13;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,"game init test nneval",logger,0,true,false,false);
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","5"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","3.0"),
+        std::make_pair("handicapProb","0.2"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.15"),
+        std::make_pair("komiBigStdev","40.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","10,11,12,13"),
+        std::make_pair("bSizeRelProbs","1,2,2,1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA,TERRITORY"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.2"),
+    });
+
+    ConfigParser cfg(cfgParams);
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = modelFile;
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = SearchParams();
+    botSpec.baseParams.maxVisits = 10;
+    ForkData* forkData = new ForkData();
+
+    GameRunner* gameRunner = new GameRunner(cfg, "game init test", fancyModes, logger);
+    std::vector<std::atomic<bool>*> stopConditions;
+    for(int i = 0; i<100; i++) {
+      FinishedGameData* data = gameRunner->runGame(i, botSpec, botSpec, forkData, logger, stopConditions, NULL);
+      cout << data->startHist.rules << endl;
+      cout << "Start moves size " << data->startHist.moveHistory.size()
+           << " Start pla " << PlayerIO::playerToString(data->startPla)
+           << " XY " << data->startBoard.x_size << " " << data->startBoard.y_size
+           << " Extra black " << data->numExtraBlack
+           << " Draw equiv " << data->drawEquivalentWinsForWhite
+           << " Modes " << data->mode << " " << data->modeMeta1 << " " << data->modeMeta2
+           << " Forkstuff " << forkData->forks.size() << " " << forkData->sekiForks.size()
+           << endl;
+      delete data;
+    }
+    delete gameRunner;
+    delete forkData;
+    delete nnEval;
   }
 
   NeuralNet::globalCleanup();
