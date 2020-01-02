@@ -51,17 +51,11 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
     extraBlack += 1+rand.nextUInt(maxExtraBlack);
   }
 
+  bool allowInteger = rand.nextBool(allowIntegerProb);
+
   //Discretize komi
-  float lower;
-  float upper;
-  if(rand.nextBool(allowIntegerProb)) {
-    lower = floor(komi*2.0f) / 2.0f;
-    upper = ceil(komi*2.0f) / 2.0f;
-  }
-  else {
-    lower = floor(komi+ 0.5f)-0.5f;
-    upper = ceil(komi+0.5f)-0.5f;
-  }
+  float lower = floor(komi*2.0f) / 2.0f;
+  float upper = ceil(komi*2.0f) / 2.0f;
 
   if(lower == upper)
     komi = lower;
@@ -81,6 +75,8 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
   //These two are set later
   ret.makeGameFair = false;
   ret.makeGameFairForEmptyBoard = false;
+  //This is recorded for application later, since other things may adjust the komi in between.
+  ret.allowInteger = allowInteger;
   return ret;
 }
 
@@ -234,11 +230,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   komiAuto = cfg.contains("komiAuto") ? cfg.getBool("komiAuto") : false;
 
   forkCompensateKomiProb = cfg.contains("forkCompensateKomiProb") ? cfg.getDouble("forkCompensateKomiProb",0.0,1.0) : handicapCompensateKomiProb;
-
-  //Disabled because there are enough other things that can result in integer komi
-  //such as komiAuto that this is very confusing
-  //komiAllowIntegerProb = cfg.getDouble("komiAllowIntegerProb",0.0,1.0);
-  komiAllowIntegerProb = 1.0;
+  komiAllowIntegerProb = cfg.contains("komiAllowIntegerProb") ? cfg.getDouble("komiAllowIntegerProb",0.0,1.0) : 1.0;
 
   startPosesProb = 0.0;
   if(cfg.contains("startPosesFromSgfDir")) {
@@ -1666,6 +1658,10 @@ FinishedGameData* Play::runGame(
      botB->nnEvaluator->isNeuralNetLess() &&
      (botW == NULL || botW->nnEvaluator->isNeuralNetLess())) {
     hist.setKomi(roundAndClipKomi(hist.rules.komi + 1.5 * sqrt(board.x_size * board.y_size) * nextGaussianTruncated(gameRand,2.5), board, false));
+  }
+  //Apply allowInteger
+  if(!extraBlackAndKomi.allowInteger && hist.rules.komi == (int)hist.rules.komi) {
+    hist.setKomi(hist.rules.komi + (gameRand.nextBool(0.5) ? (-0.5f) : (0.5f)));
   }
 
   gameData->bName = botSpecB.botName;

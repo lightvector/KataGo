@@ -43,6 +43,7 @@ struct ExtraBlackAndKomi {
   float komiBase = 7.5;
   bool makeGameFair = false;
   bool makeGameFairForEmptyBoard = false;
+  bool allowInteger = true;
 };
 
 struct OtherGameProperties {
