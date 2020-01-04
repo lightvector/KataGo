@@ -61,6 +61,8 @@ static NNEvaluator* startNNEval(
     gpuIdxByServerThread
   );
 
+  //Sleep briefly so that any debug messages printed by nnEval threads are output first
+  std::this_thread::sleep_for (std::chrono::duration<double>(0.03));
   return nnEval;
 }
 
@@ -73,9 +75,8 @@ void Tests::runTrainingWriteTests() {
   int debugOnlyWriteEvery = 5;
 
   Logger logger;
-  logger.setLogToStdout(false);
+  logger.setLogToStdout(true);
   logger.setLogTime(false);
-  logger.addOStream(cout);
 
   auto run = [&](
     const string& seedBase, const Rules& rules,
@@ -198,9 +199,8 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   int nnYLen = 11;
 
   Logger logger;
-  logger.setLogToStdout(false);
+  logger.setLogToStdout(true);
   logger.setLogTime(false);
-  logger.addOStream(cout);
 
   auto run = [&](
     const string& seedBase,
@@ -362,9 +362,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   int nnYLen = 11;
 
   Logger logger;
-  logger.setLogToStdout(false);
+  logger.setLogToStdout(true);
   logger.setLogTime(false);
-  logger.addOStream(cout);
 
   auto run = [&](
     const string& seedBase,
@@ -756,7 +755,7 @@ xxxxxxxx.
     botSpec.baseParams.maxVisits = 10;
     ForkData* forkData = new ForkData();
 
-    GameRunner* gameRunner = new GameRunner(cfg, "game init test", fancyModes, logger);
+    GameRunner* gameRunner = new GameRunner(cfg, "game init test search seed", "game init test game seed", fancyModes, logger);
     std::vector<std::atomic<bool>*> stopConditions;
     for(int i = 0; i<100; i++) {
       FinishedGameData* data = gameRunner->runGame(i, botSpec, botSpec, forkData, logger, stopConditions, NULL);
@@ -788,9 +787,8 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
   int nnYLen = 13;
 
   Logger logger;
-  logger.setLogToStdout(false);
+  logger.setLogToStdout(true);
   logger.setLogTime(false);
-  logger.addOStream(cout);
 
   auto run = [&](const string& sgfStr, const string& seedBase, const Rules& rules) {
     int inputsVersion = 6;

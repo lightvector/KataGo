@@ -63,6 +63,7 @@ struct FancyModes;
 class GameInitializer {
  public:
   GameInitializer(ConfigParser& cfg, Logger& logger);
+  GameInitializer(ConfigParser& cfg, Logger& logger, const std::string& randSeed);
   ~GameInitializer();
 
   GameInitializer(const GameInitializer&) = delete;
@@ -397,6 +398,7 @@ class GameRunner {
 
 public:
   GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, FancyModes fancyModes, Logger& logger);
+  GameRunner(ConfigParser& cfg, const std::string& earchsRandSeedBase, const std::string& gameInitRandSeed, FancyModes fModes, Logger& logger);
   ~GameRunner();
 
   //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data

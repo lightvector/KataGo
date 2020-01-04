@@ -170,9 +170,12 @@ GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger)
   :createGameMutex(),rand()
 {
   initShared(cfg,logger);
-  noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
-  numExtraBlackFixed = cfg.contains("numExtraBlackFixed") ? cfg.getInt("numExtraBlackFixed",1,18) : 0;
-  drawRandRadius = cfg.contains("drawRandRadius") ? cfg.getDouble("drawRandRadius",0.0,1.0) : 0.0;
+}
+
+GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger, const string& randSeed)
+  :createGameMutex(),rand(randSeed)
+{
+  initShared(cfg,logger);
 }
 
 void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
@@ -293,6 +296,10 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     throw IOError("bSizes must have at least one value in " + cfg.getFileName());
   if(allowedBSizes.size() != allowedBSizeRelProbs.size())
     throw IOError("bSizes and bSizeRelProbs must have same number of values in " + cfg.getFileName());
+
+  noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
+  numExtraBlackFixed = cfg.contains("numExtraBlackFixed") ? cfg.getInt("numExtraBlackFixed",1,18) : 0;
+  drawRandRadius = cfg.contains("drawRandRadius") ? cfg.getDouble("drawRandRadius",0.0,1.0) : 0.0;
 }
 
 GameInitializer::~GameInitializer()
@@ -2325,6 +2332,20 @@ GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, FancyMode
 
   //Initialize object for randomizing game settings
   gameInit = new GameInitializer(cfg,logger);
+}
+GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, const string& gameInitRandSeed, FancyModes fModes, Logger& logger)
+  :logSearchInfo(),logMoves(),maxMovesPerGame(),clearBotBeforeSearch(),
+   searchRandSeedBase(sRandSeedBase),
+   fancyModes(fModes),
+   gameInit(NULL)
+{
+  logSearchInfo = cfg.getBool("logSearchInfo");
+  logMoves = cfg.getBool("logMoves");
+  maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
+  clearBotBeforeSearch = cfg.contains("clearBotBeforeSearch") ? cfg.getBool("clearBotBeforeSearch") : false;
+
+  //Initialize object for randomizing game settings
+  gameInit = new GameInitializer(cfg,logger,gameInitRandSeed);
 }
 
 GameRunner::~GameRunner() {
