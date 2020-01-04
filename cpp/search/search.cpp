@@ -708,8 +708,8 @@ int64_t Search::getRootVisits() const {
 
 uint32_t Search::chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature) {
   assert(numRelativeProbs > 0);
-  assert(numRelativeProbs < 1024); //We're just doing this on the stack
-  double processedRelProbs[1024];
+  assert(numRelativeProbs <= Board::MAX_ARR_SIZE); //We're just doing this on the stack
+  double processedRelProbs[Board::MAX_ARR_SIZE];
 
   double maxValue = 0.0;
   for(int i = 0; i<numRelativeProbs; i++) {
