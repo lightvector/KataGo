@@ -220,6 +220,7 @@ if(BUILD_MCTS)
     search/searchparams.cpp
     search/mutexpool.cpp
     search/search.cpp
+    search/searchresults.cpp
     search/asyncbot.cpp
     search/distributiontable.cpp
     search/analysisdata.cpp

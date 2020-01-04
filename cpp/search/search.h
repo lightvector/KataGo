@@ -290,6 +290,13 @@ struct Search {
 
   //Helpers-----------------------------------------------------------------------
 private:
+  static constexpr double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
+
+  double getResultUtility(double winValue, double noResultValue) const;
+  double getResultUtilityFromNN(const NNOutput& nnOutput) const;
+  static double getScoreStdev(double scoreMean, double scoreMeanSq);
+  double interpolateEarly(double halflife, double earlyValue, double value) const;
+
   void maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const;
   int getPos(Loc moveLoc) const;
 
