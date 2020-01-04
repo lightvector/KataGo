@@ -241,17 +241,15 @@ struct Search {
   int64_t getRootVisits() const;
 
   //Run an entire search from start to finish
-  //If recordUtilities is provided, and we're doing a singlethreaded search, will fill recordUtilities
-  //with the root utility as of the end of each playout performed, up to the length of recordUtilities.
-  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, std::vector<double>* recordUtilities);
-  void runWholeSearch(Player movePla, Logger& logger, std::vector<double>* recordUtilities);
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, std::vector<double>* recordUtilities);
+  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger);
+  void runWholeSearch(Player movePla, Logger& logger);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow);
 
-  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, std::vector<double>* recordUtilities, bool pondering);
-  void runWholeSearch(Player movePla, Logger& logger, std::vector<double>* recordUtilities, bool pondering);
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, std::vector<double>* recordUtilities, bool pondering);
+  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, bool pondering);
+  void runWholeSearch(Player movePla, Logger& logger, bool pondering);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering);
 
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, std::vector<double>* recordUtilities, bool pondering, const TimeControls& tc, double searchFactor);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering, const TimeControls& tc, double searchFactor);
 
   //Manual playout-by-playout interface------------------------------------------------
 

@@ -464,35 +464,35 @@ double Search::interpolateEarly(double halflife, double earlyValue, double value
   return value + (earlyValue - value) * pow(0.5, halflives);
 }
 
-Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities) {
-  return runWholeSearchAndGetMove(movePla,logger,recordUtilities,false);
+Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger) {
+  return runWholeSearchAndGetMove(movePla,logger,false);
 }
 
-Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger, vector<double>* recordUtilities, bool pondering) {
-  runWholeSearch(movePla,logger,recordUtilities,pondering);
+Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger, bool pondering) {
+  runWholeSearch(movePla,logger,pondering);
   return getChosenMoveLoc();
 }
 
-void Search::runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities) {
-  runWholeSearch(movePla,logger,recordUtilities,false);
+void Search::runWholeSearch(Player movePla, Logger& logger) {
+  runWholeSearch(movePla,logger,false);
 }
 
-void Search::runWholeSearch(Player movePla, Logger& logger, vector<double>* recordUtilities, bool pondering) {
+void Search::runWholeSearch(Player movePla, Logger& logger, bool pondering) {
   if(movePla != rootPla)
     setPlayerAndClearHistory(movePla);
   std::atomic<bool> shouldStopNow(false);
-  runWholeSearch(logger,shouldStopNow,recordUtilities,pondering);
+  runWholeSearch(logger,shouldStopNow,pondering);
 }
 
-void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities) {
-  runWholeSearch(logger,shouldStopNow,recordUtilities, false);
+void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow) {
+  runWholeSearch(logger,shouldStopNow, false);
 }
 
-void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering) {
-  runWholeSearch(logger,shouldStopNow,recordUtilities,pondering,TimeControls(),1.0);
+void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering) {
+  runWholeSearch(logger,shouldStopNow,pondering,TimeControls(),1.0);
 }
 
-void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, vector<double>* recordUtilities, bool pondering, const TimeControls& tc, double searchFactor) {
+void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering, const TimeControls& tc, double searchFactor) {
 
   ClockTimer timer;
   atomic<int64_t> numPlayoutsShared(0);
@@ -537,13 +537,7 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
   beginSearch(logger);
   int64_t numNonPlayoutVisits = numRootVisits();
 
-  //Clear utility record vector
-  if(recordUtilities != NULL) {
-    for(int i = 0; i<recordUtilities->size(); i++)
-      (*recordUtilities)[i] = NAN;
-  }
-
-  auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,&recordUtilities,maxVisits,maxPlayouts,maxTime](int threadIdx) {
+  auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,maxVisits,maxPlayouts,maxTime](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
 
     int64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
@@ -563,16 +557,6 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, ve
 
         numPlayouts = numPlayoutsShared.fetch_add((int64_t)1, std::memory_order_relaxed);
         numPlayouts += 1;
-
-        //TODO remove
-        //Test and see if the altered training target has an effect in a real training run.
-        if(searchParams.numThreads == 1 && recordUtilities != NULL) {
-          if(numPlayouts <= recordUtilities->size()) {
-            assert(numPlayouts >= 1);
-            (*recordUtilities)[numPlayouts-1] = getRootUtility();
-          }
-        }
-
       }
     }
     catch(const exception& e) {

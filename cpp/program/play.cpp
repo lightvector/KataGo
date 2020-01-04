@@ -769,7 +769,7 @@ ReportedSearchValues Play::getWhiteScoreValues(
 
   bot->setParams(newParams);
   bot->setPosition(pla,board,hist);
-  bot->runWholeSearch(pla,logger,NULL);
+  bot->runWholeSearch(pla,logger);
 
   ReportedSearchValues values = bot->getRootValuesAssertSuccess();
   bot->setParams(oldParams);
@@ -1544,16 +1544,16 @@ static Loc runBotWithLimits(
     if(limits.clearBotBeforeSearchThisMove && toMoveBot->searchParams.maxVisits > 10 && toMoveBot->searchParams.maxPlayouts > 10) {
       int64_t oldMaxVisits = toMoveBot->searchParams.maxVisits;
       toMoveBot->searchParams.maxVisits = 10;
-      toMoveBot->runWholeSearchAndGetMove(pla,logger,NULL);
+      toMoveBot->runWholeSearchAndGetMove(pla,logger);
       toMoveBot->searchParams.maxVisits = oldMaxVisits;
     }
-    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,NULL);
+    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger);
 
     toMoveBot->searchParams = oldParams;
   }
   else {
     assert(!limits.removeRootNoise);
-    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger,NULL);
+    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger);
   }
 
   //HACK - restore LCB so that it affects policy target gen
@@ -2014,7 +2014,7 @@ FinishedGameData* Play::runGame(
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
       //We do NOT apply playoutDoublingAdvantage here. If changing this, note that it is coordinated with train data writing
       //not using playoutDoublingAdvantage for these rows too.
-      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger,NULL);
+      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger);
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode);

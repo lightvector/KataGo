@@ -815,7 +815,7 @@ void Tests::runNNLessSearchTests() {
     BoardHistory hist(board,nextPla,rules,0);
 
     search->setPosition(nextPla,board,hist);
-    search->runWholeSearch(nextPla,logger,NULL);
+    search->runWholeSearch(nextPla,logger);
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -900,7 +900,7 @@ ooooooo
       cout << "First perform a basic search." << endl;
 
       search->setPosition(nextPla,board,hist);
-      search->runWholeSearch(nextPla,logger,NULL);
+      search->runWholeSearch(nextPla,logger);
 
       //In theory nothing requires this, but it would be kind of crazy if this were false
       testAssert(search->rootNode->numChildren > 1);
@@ -927,7 +927,7 @@ ooooooo
       //--------------------------------------
       cout << "Then continue the search to complete 50 visits." << endl;
 
-      search->runWholeSearch(nextPla,logger,NULL);
+      search->runWholeSearch(nextPla,logger);
       search->printTree(cout, search->rootNode, options, P_WHITE);
       cout << endl;
     }
@@ -998,7 +998,7 @@ o..oo.x
       TestSearchOptions opts;
 
       search->setPosition(nextPla,board,hist);
-      search->runWholeSearch(nextPla,logger,NULL);
+      search->runWholeSearch(nextPla,logger);
       PrintTreeOptions options;
       options = options.maxDepth(1);
       cout << search->rootBoard << endl;
@@ -1022,7 +1022,7 @@ o..oo.x
       TestSearchOptions opts;
 
       search->setPosition(nextPla,board,hist);
-      search->runWholeSearch(nextPla,logger,NULL);
+      search->runWholeSearch(nextPla,logger);
       PrintTreeOptions options;
       options = options.maxDepth(1);
       cout << search->rootBoard << endl;
@@ -1058,7 +1058,7 @@ o..oo.x
       TestSearchOptions opts;
 
       search->setPosition(nextPla,board,hist);
-      search->runWholeSearch(nextPla,logger,NULL);
+      search->runWholeSearch(nextPla,logger);
       PrintTreeOptions options;
       options = options.maxDepth(1);
       cout << search->rootBoard << endl;
@@ -1088,7 +1088,7 @@ o..oo.x
       cout << endl;
 
       cout << "Continue searching a bit more" << endl;
-      search->runWholeSearch(getOpp(nextPla),logger,NULL);
+      search->runWholeSearch(getOpp(nextPla),logger);
 
       cout << search->rootBoard << endl;
       search->printTree(cout, search->rootNode, options, P_WHITE);
@@ -1132,7 +1132,7 @@ o..o.oo
       TestSearchOptions opts;
 
       search->setPosition(nextPla,board,hist);
-      search->runWholeSearch(nextPla,logger,NULL);
+      search->runWholeSearch(nextPla,logger);
       PrintTreeOptions options;
       options = options.maxDepth(1);
       options = options.printSqs(true);
@@ -1189,7 +1189,7 @@ o..o.oo
     BoardHistory hist(board,nextPla,rules,0);
 
     search->setPosition(nextPla,board,hist);
-    search->runWholeSearch(nextPla,logger,NULL);
+    search->runWholeSearch(nextPla,logger);
 
     cout << search->rootBoard << endl;
 
@@ -1306,7 +1306,7 @@ xxxxooo
     search3->setPosition(nextPla,board,hist);
     board.checkConsistency();
 
-    search2->runWholeSearch(nextPla,logger,NULL);
+    search2->runWholeSearch(nextPla,logger);
 
     search->makeMove(Location::ofString("pass",board),nextPla);
     search2->makeMove(Location::ofString("pass",board),nextPla);
@@ -1317,9 +1317,9 @@ xxxxooo
 
     assert(hist.isGameFinished);
 
-    search->runWholeSearch(nextPla,logger,NULL);
-    search2->runWholeSearch(nextPla,logger,NULL);
-    search3->runWholeSearch(nextPla,logger,NULL);
+    search->runWholeSearch(nextPla,logger);
+    search2->runWholeSearch(nextPla,logger);
+    search3->runWholeSearch(nextPla,logger);
 
     hist.printDebugInfo(cout,board);
     cout << "Search made move after gameover" << endl;
@@ -1336,9 +1336,9 @@ xxxxooo
     nextPla = getOpp(nextPla);
     search3->setPosition(nextPla,board,hist);
 
-    search->runWholeSearch(nextPla,logger,NULL);
-    search2->runWholeSearch(nextPla,logger,NULL);
-    search3->runWholeSearch(nextPla,logger,NULL);
+    search->runWholeSearch(nextPla,logger);
+    search2->runWholeSearch(nextPla,logger);
+    search3->runWholeSearch(nextPla,logger);
 
     hist.printDebugInfo(cout,board);
     cout << "Search made move" << endl;

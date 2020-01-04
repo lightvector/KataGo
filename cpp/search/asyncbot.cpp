@@ -304,7 +304,7 @@ void AsyncBot::internalSearchThreadLoop() {
       callbackLoopThread = std::thread(callbackLoop);
     }
 
-    search->runWholeSearch(*logger,shouldStopNow,NULL,pondering,tc,searchFactor);
+    search->runWholeSearch(*logger,shouldStopNow,pondering,tc,searchFactor);
     Loc moveLoc = search->getChosenMoveLoc();
 
     if(callbackPeriod >= 0) {
