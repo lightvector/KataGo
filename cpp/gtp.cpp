@@ -90,8 +90,13 @@ static void updatePlayoutDoublingAdvantage(
     desiredPlayoutDoublingAdvantage = 0.0;
   }
   else {
+    //What increment to adjust desiredPlayoutDoublingAdvantage at.
+    //Power of 2 to avoid any rounding issues.
+    const double increment = 0.125;
+
     //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
     double pdaCap = std::min(2.5, dynamicPlayoutDoublingAdvantageCapPerOppLead * initialBlackAdvantageInPoints);
+    pdaCap = round(pdaCap / increment) * increment;
 
     //No history? Then this is a new game or a newly set position
     if(recentWinLossValues.size() <= 0) {
@@ -103,11 +108,11 @@ static void updatePlayoutDoublingAdvantage(
       if(pla == P_BLACK)
         winLossValue = -winLossValue;
 
-      //Keep winLossValue between 5% and 40%, subject to available caps.
+      //Keep winLossValue between 5% and 25%, subject to available caps.
       if(winLossValue < -0.9)
-        desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
-      else if(winLossValue > -0.2)
         desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage + 0.125;
+      else if(winLossValue > -0.5)
+        desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
 
       desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, 0.0);
       desiredPlayoutDoublingAdvantage = std::min(desiredPlayoutDoublingAdvantage, pdaCap);
