@@ -65,6 +65,80 @@ static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
 }
 
+static bool initialBlackAdvantage(const BoardHistory& hist) {
+  //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
+  int extraBlackStones = hist.computeNumHandicapStones();
+  //Subtract one since white gets the first move afterward
+  if(extraBlackStones > 0)
+    extraBlackStones -= 1;
+  return 15.0 * extraBlackStones + (7.0 - hist.rules.komi);
+}
+
+static void updatePlayoutDoublingAdvantageInitial(
+  AsyncBot* bot, const Board& board, const BoardHistory& hist,
+  const double dynamicPlayoutDoublingAdvantageCapPerOppLead
+) {
+  (void)board;
+  if(dynamicPlayoutDoublingAdvantageCapPerOppLead <= 0.0)
+    return;
+  SearchParams params = bot->getParams();
+  double desiredPlayoutDoublingAdvantage = params.playoutDoublingAdvantage;
+  double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
+
+  if(initialBlackAdvantageInPoints < 3.0) {
+    desiredPlayoutDoublingAdvantage = 0.0;
+  }
+  else {
+    //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
+    desiredPlayoutDoublingAdvantage = std::min(2.5, dynamicPlayoutDoublingAdvantageCapPerOppLead * initialBlackAdvantageInPoints);
+  }
+  if(params.playoutDoublingAdvantage != desiredPlayoutDoublingAdvantage) {
+    params.playoutDoublingAdvantage = desiredPlayoutDoublingAdvantage;
+    bot->setParams(params);
+  }
+}
+
+static void updatePlayoutDoublingAdvantage(
+  AsyncBot* bot, const Board& board, const BoardHistory& hist, Player pla,
+  const double dynamicPlayoutDoublingAdvantageCapPerOppLead,
+  double winLossValue, double lead
+) {
+  (void)board;
+  if(dynamicPlayoutDoublingAdvantageCapPerOppLead <= 0.0)
+    return;
+  SearchParams params = bot->getParams();
+  if(pla != params.playoutDoublingAdvantagePla)
+    return;
+
+  if(pla == P_BLACK) {
+    winLossValue = -winLossValue;
+    lead = -lead;
+  }
+
+  double desiredPlayoutDoublingAdvantage = params.playoutDoublingAdvantage;
+  double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
+  if(initialBlackAdvantageInPoints < 3.0) {
+    desiredPlayoutDoublingAdvantage = 0.0;
+  }
+  else {
+    //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
+    double pdaCap = std::min(2.5, dynamicPlayoutDoublingAdvantageCapPerOppLead * initialBlackAdvantageInPoints);
+    //Keep winLossValue between 5% and 40%, subject to available caps.
+    if(winLossValue < -0.9)
+      desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
+    else if(winLossValue > -0.2)
+      desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage + 0.125;
+
+    desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, 0.0);
+    desiredPlayoutDoublingAdvantage = std::min(desiredPlayoutDoublingAdvantage, pdaCap);
+  }
+
+  if(params.playoutDoublingAdvantage != desiredPlayoutDoublingAdvantage) {
+    params.playoutDoublingAdvantage = desiredPlayoutDoublingAdvantage;
+    bot->setParams(params);
+  }
+}
+
 static bool shouldResign(
   const Board& board,
   const BoardHistory& hist,
@@ -74,16 +148,11 @@ static bool shouldResign(
   const double resignThreshold,
   const int resignConsecTurns
 ) {
-  //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
-  int extraBlackStones = hist.computeNumHandicapStones();
-  //Subtract one since white gets the first move afterward
-  if(extraBlackStones > 0)
-    extraBlackStones -= 1;
-  double handicapBlackAdvantage = 15.0 * extraBlackStones + (7.5 - hist.rules.komi);
+  double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
 
   int minTurnForResignation = 0;
   double noResignationWhenWhiteScoreAbove = board.x_size * board.y_size;
-  if(handicapBlackAdvantage > 0.9 && pla == P_WHITE) {
+  if(initialBlackAdvantageInPoints > 0.9 && pla == P_WHITE) {
     //Play at least some moves no matter what
     minTurnForResignation = 1 + board.x_size * board.y_size / 5;
 
@@ -98,9 +167,9 @@ static bool shouldResign(
     if(numTurnsSpent > numTurnsToCatchUp)
       numTurnsSpent = numTurnsToCatchUp;
 
-    double resignScore = -handicapBlackAdvantage * ((numTurnsToCatchUp - numTurnsSpent) / numTurnsToCatchUp);
+    double resignScore = -initialBlackAdvantageInPoints * ((numTurnsToCatchUp - numTurnsSpent) / numTurnsToCatchUp);
     resignScore -= 5.0; //Always require at least a 5 point buffer
-    resignScore -= handicapBlackAdvantage * 0.15; //And also require a 15% of the initial handicap
+    resignScore -= initialBlackAdvantageInPoints * 0.15; //And also require a 15% of the initial handicap
 
     noResignationWhenWhiteScoreAbove = resignScore;
   }
@@ -151,6 +220,7 @@ struct GTPEngine {
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
   const bool preventEncore;
+  const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
 
   NNEvaluator* nnEval;
   AsyncBot* bot;
@@ -173,13 +243,14 @@ struct GTPEngine {
 
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
-    bool assumeMultiBlackHandicap, bool prevtEncore,
+    bool assumeMultiBlackHandicap, bool prevtEncore, double dynamicPDACapPerOppLead,
     Player persp, int pvLen
   )
     :nnModelFile(modelFile),
      assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
      preventEncore(prevtEncore),
+     dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
      nnEval(NULL),
      bot(NULL),
      currentRules(initialRules),
@@ -274,6 +345,7 @@ struct GTPEngine {
     initialPla = newInitialPla;
     moveHistory = newMoveHistory;
     recentWinLossValues.clear();
+    updatePlayoutDoublingAdvantageInitial(bot,board,hist,dynamicPlayoutDoublingAdvantageCapPerOppLead);
   }
 
   void clearBoard() {
@@ -446,10 +518,17 @@ struct GTPEngine {
            << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0)
            << " ScoreLead " << Global::strprintf("%.1f", leadForPrinting)
            << " ScoreStdev " << Global::strprintf("%.1f", values.expectedScoreStdev);
+      if(bot->getSearch()->searchParams.playoutDoublingAdvantage != 0.0)
+        cerr << Global::strprintf(" (PDA %.2f)", bot->getSearch()->searchParams.playoutDoublingAdvantage);
       cerr << " PV ";
       bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, analysisPVLen);
       cerr << endl;
     }
+
+    //Adjust handicap games ------------------------
+    updatePlayoutDoublingAdvantage(bot,bot->getRootBoard(),bot->getRootHist(),pla,dynamicPlayoutDoublingAdvantageCapPerOppLead,winLossValue,lead);
+
+    //Resignation, logging, actual reporting of chosen move---------------------
 
     recentWinLossValues.push_back(winLossValue);
 
@@ -730,12 +809,18 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool assumeMultipleStartingBlackMovesAreHandicap =
     cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
+  const double dynamicPlayoutDoublingAdvantageCapPerOppLead =
+    cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.0;
+  if(cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") && (cfg.contains("playoutDoublingAdvantage") || cfg.contains("playoutDoublingAdvantage0")))
+    throw StringError("Cannot specify both dynamicPlayoutDoublingAdvantageCapPerOppLead and playoutDoublingAdvantage");
+  if(cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") && params.playoutDoublingAdvantagePla == C_EMPTY)
+    throw StringError("When specifying dynamicPlayoutDoublingAdvantageCapPerOppLead, must specify a player for playoutDoublingAdvantagePla");
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
     nnModelFile,params,initialRules,
-    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
+    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,dynamicPlayoutDoublingAdvantageCapPerOppLead,
     perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,-1,-1);
