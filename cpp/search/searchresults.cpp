@@ -55,6 +55,8 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   int numChildren = node.numChildren;
   int64_t totalChildVisits = 0;
 
+  const bool suppressPass = shouldSuppressPassAlreadyLocked(&node);
+
   //Store up basic visit counts
   for(int i = 0; i<numChildren; i++) {
     SearchNode* child = node.children[i];
@@ -65,8 +67,11 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     child->statsLock.clear(std::memory_order_release);
 
     locs.push_back(moveLoc);
-    playSelectionValues.push_back(childVisits);
     totalChildVisits += childVisits;
+    if(suppressPass && moveLoc == Board::PASS_LOC)
+      playSelectionValues.push_back(0);
+    else
+      playSelectionValues.push_back(childVisits);
   }
 
   //Find the best child by visits
@@ -101,6 +106,10 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     double bestChildExploreSelectionValue = getExploreSelectionValue(node,policyProbs,bestChild,totalChildVisits,fpuValue,parentUtility,isDuringSearch,NULL);
 
     for(int i = 0; i<numChildren; i++) {
+      if(suppressPass && node.children[i]->prevMoveLoc == Board::PASS_LOC) {
+        playSelectionValues[i] = 0;
+        continue;
+      }
       if(i != mostVisitedIdx)
         playSelectionValues[i] = getReducedPlaySelectionVisits(node, policyProbs, node.children[i], totalChildVisits, bestChildExploreSelectionValue);
     }
@@ -373,6 +382,111 @@ Loc Search::getChosenMoveLoc() {
   return locs[idxChosen];
 }
 
+//Hack to encourage well-behaved dame filling behavior under territory scoring
+bool Search::shouldSuppressPassAlreadyLocked(const SearchNode* n) const {
+  if(!searchParams.fillDameBeforePass || n == NULL || n != rootNode)
+    return false;
+  if(rootHistory.rules.scoringRule != Rules::SCORING_TERRITORY || rootHistory.encorePhase > 0)
+    return false;
+
+  const SearchNode& node = *n;
+
+  if(node.nnOutput == nullptr || node.nnOutput->whiteOwnerMap == NULL)
+    return false;
+  assert(node.nnOutput->nnXLen == nnXLen);
+  assert(node.nnOutput->nnYLen == nnYLen);
+  const float* whiteOwnerMap = node.nnOutput->whiteOwnerMap;
+
+  //Find the pass move
+  int numChildren = node.numChildren;
+  SearchNode* passNode = NULL;
+  for(int i = 0; i<numChildren; i++) {
+    SearchNode* child = node.children[i];
+    Loc moveLoc = child->prevMoveLoc;
+    if(moveLoc == Board::PASS_LOC) {
+      passNode = child;
+      break;
+    }
+  }
+  if(passNode == NULL)
+    return false;
+
+  int64_t passNumVisits;
+  double passUtility;
+  double passScoreMean;
+  double passLead;
+  {
+    while(node.statsLock.test_and_set(std::memory_order_acquire));
+    int64_t numVisits = node.stats.visits;
+    double utilitySum = node.stats.utilitySum;
+    double scoreMeanSum = node.stats.scoreMeanSum;
+    double leadSum = node.stats.leadSum;
+    double weightSum = node.stats.weightSum;
+    node.statsLock.clear(std::memory_order_release);
+
+    if(numVisits <= 0 || weightSum <= 1e-10)
+      return false;
+    passNumVisits = numVisits;
+    passUtility = utilitySum / weightSum;
+    passScoreMean = scoreMeanSum / weightSum;
+    passLead = leadSum / weightSum;
+  }
+
+  const double extreme = 0.95;
+
+  //Suppress pass if we find a move that is not a spot that the opponent almost certainly owns
+  //or that is adjacent to a pla owned spot, and is not greatly worse than pass.
+  for(int i = 0; i<numChildren; i++) {
+    SearchNode* child = node.children[i];
+    Loc moveLoc = child->prevMoveLoc;
+    if(moveLoc == Board::PASS_LOC)
+      continue;
+    int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
+    double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
+    bool oppOwned = plaOwnership < -extreme;
+    bool adjToPlaOwned = false;
+    for(int j = 0; j<4; j++) {
+      Loc adj = moveLoc + rootBoard.adj_offsets[j];
+      int adjPos = NNPos::locToPos(adj,rootBoard.x_size,nnXLen,nnYLen);
+      double adjPlaOwnership = rootPla == P_WHITE ? whiteOwnerMap[adjPos] : -whiteOwnerMap[adjPos];
+      if(adjPlaOwnership > extreme) {
+        adjToPlaOwned = true;
+        break;
+      }
+    }
+    if(oppOwned && !adjToPlaOwned)
+      continue;
+
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
+    int64_t numVisits = child->stats.visits;
+    double utilitySum = child->stats.utilitySum;
+    double scoreMeanSum = child->stats.scoreMeanSum;
+    double leadSum = child->stats.leadSum;
+    double weightSum = child->stats.weightSum;
+    child->statsLock.clear(std::memory_order_release);
+
+    //Too few visits - reject move
+    if((numVisits <= 500 && numVisits <= 2 * sqrt(passNumVisits)) || weightSum <= 1e-10)
+      continue;
+
+    double utility = utilitySum / weightSum;
+    double scoreMean = scoreMeanSum / weightSum;
+    double lead = leadSum / weightSum;
+
+    if(rootPla == P_WHITE
+       && utility > passUtility - 0.1
+       && scoreMean > passScoreMean - 0.5
+       && lead > passLead - 0.5)
+      return true;
+    if(rootPla == P_BLACK
+       && utility < passUtility + 0.1
+       && scoreMean < passScoreMean + 0.5
+       && lead < passLead + 0.5)
+      return true;
+  }
+  return false;
+}
+
 double Search::getPolicySurprise() const {
   if(rootNode == NULL)
     return 0.0;
@@ -576,7 +690,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
   double parentScoreMean, double parentScoreStdev, double parentLead, int maxPVDepth
 ) const {
-  uint64_t numVisits = 0;
+  int64_t numVisits = 0;
   double winValueSum = 0.0;
   double noResultValueSum = 0.0;
   double scoreMeanSum = 0.0;

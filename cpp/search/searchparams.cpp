@@ -40,6 +40,7 @@ SearchParams::SearchParams()
    rootEndingBonusPoints(0.0),
    rootPruneUselessMoves(false),
    conservativePass(false),
+   fillDameBeforePass(false),
    localExplore(false),
    playoutDoublingAdvantage(0.0),
    playoutDoublingAdvantagePla(C_EMPTY),

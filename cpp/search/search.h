@@ -386,6 +386,8 @@ private:
     bool isRoot, int32_t virtualLossesToSubtract
   );
 
+  bool shouldSuppressPassAlreadyLocked(const SearchNode* n) const;
+
   AnalysisData getAnalysisDataOfSingleChild(
     const SearchNode* child, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues,
     Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,

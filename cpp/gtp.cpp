@@ -712,6 +712,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   //Set a default for conservativePass that differs from matches or selfplay
   if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
     params.conservativePass = true;
+  if(!cfg.contains("fillDameBeforePass") && !cfg.contains("fillDameBeforePass0"))
+    params.fillDameBeforePass = true;
 
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
   const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : true;
