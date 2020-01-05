@@ -248,6 +248,14 @@ SearchParams Setup::loadSingleParams(
   return paramss[0];
 }
 
+static Player parsePlayer(const char* field, const string& s) {
+  Player pla = C_EMPTY;
+  bool suc = PlayerIO::tryParsePlayer(s,pla);
+  if(!suc)
+    throw StringError("Could not parse player in field " + string(field) + ", should be BLACK or WHITE");
+  return pla;
+}
+
 vector<SearchParams> Setup::loadParams(
   ConfigParser& cfg
 ) {
@@ -404,6 +412,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("playoutDoublingAdvantage"+idxStr)) params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage"+idxStr,-3.0,3.0);
     else if(cfg.contains("playoutDoublingAdvantage"))   params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage",-3.0,3.0);
     else                                                params.playoutDoublingAdvantage = 0.0;
+    if(cfg.contains("playoutDoublingAdvantagePla"+idxStr)) params.playoutDoublingAdvantagePla = parsePlayer("playoutDoublingAdvantagePla",cfg.getString("playoutDoublingAdvantagePla"+idxStr));
+    else if(cfg.contains("playoutDoublingAdvantagePla"))   params.playoutDoublingAdvantagePla = parsePlayer("playoutDoublingAdvantagePla",cfg.getString("playoutDoublingAdvantagePla"));
+    else                                                   params.playoutDoublingAdvantagePla = C_EMPTY;
 
     if(cfg.contains("mutexPoolSize"+idxStr)) params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize"+idxStr, 1, 1 << 24);
     else                                     params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize",        1, 1 << 24);

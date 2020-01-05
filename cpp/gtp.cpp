@@ -65,7 +65,7 @@ static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
 }
 
-static bool initialBlackAdvantage(const BoardHistory& hist) {
+static double initialBlackAdvantage(const BoardHistory& hist) {
   //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
   int extraBlackStones = hist.computeNumHandicapStones();
   //Subtract one since white gets the first move afterward
@@ -74,63 +74,44 @@ static bool initialBlackAdvantage(const BoardHistory& hist) {
   return 15.0 * extraBlackStones + (7.0 - hist.rules.komi);
 }
 
-static void updatePlayoutDoublingAdvantageInitial(
-  AsyncBot* bot, const Board& board, const BoardHistory& hist,
-  const double dynamicPlayoutDoublingAdvantageCapPerOppLead
-) {
-  (void)board;
-  if(dynamicPlayoutDoublingAdvantageCapPerOppLead <= 0.0)
-    return;
-  SearchParams params = bot->getParams();
-  double desiredPlayoutDoublingAdvantage = params.playoutDoublingAdvantage;
-  double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
-
-  if(initialBlackAdvantageInPoints < 3.0) {
-    desiredPlayoutDoublingAdvantage = 0.0;
-  }
-  else {
-    //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
-    desiredPlayoutDoublingAdvantage = std::min(2.5, dynamicPlayoutDoublingAdvantageCapPerOppLead * initialBlackAdvantageInPoints);
-  }
-  if(params.playoutDoublingAdvantage != desiredPlayoutDoublingAdvantage) {
-    params.playoutDoublingAdvantage = desiredPlayoutDoublingAdvantage;
-    bot->setParams(params);
-  }
-}
-
 static void updatePlayoutDoublingAdvantage(
   AsyncBot* bot, const Board& board, const BoardHistory& hist, Player pla,
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead,
-  double winLossValue, double lead
+  const vector<double>& recentWinLossValues,
+  double& desiredPlayoutDoublingAdvantage,
+  SearchParams& params
 ) {
   (void)board;
   if(dynamicPlayoutDoublingAdvantageCapPerOppLead <= 0.0)
     return;
-  SearchParams params = bot->getParams();
-  if(pla != params.playoutDoublingAdvantagePla)
-    return;
 
-  if(pla == P_BLACK) {
-    winLossValue = -winLossValue;
-    lead = -lead;
-  }
-
-  double desiredPlayoutDoublingAdvantage = params.playoutDoublingAdvantage;
   double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
-  if(initialBlackAdvantageInPoints < 3.0) {
+  if(initialBlackAdvantageInPoints < 3.0 || pla != params.playoutDoublingAdvantagePla) {
     desiredPlayoutDoublingAdvantage = 0.0;
   }
   else {
     //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
     double pdaCap = std::min(2.5, dynamicPlayoutDoublingAdvantageCapPerOppLead * initialBlackAdvantageInPoints);
-    //Keep winLossValue between 5% and 40%, subject to available caps.
-    if(winLossValue < -0.9)
-      desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
-    else if(winLossValue > -0.2)
-      desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage + 0.125;
 
-    desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, 0.0);
-    desiredPlayoutDoublingAdvantage = std::min(desiredPlayoutDoublingAdvantage, pdaCap);
+    //No history? Then this is a new game or a newly set position
+    if(recentWinLossValues.size() <= 0) {
+      //Just use the cap
+      desiredPlayoutDoublingAdvantage = pdaCap;
+    }
+    else {
+      double winLossValue = recentWinLossValues[recentWinLossValues.size()-1];
+      if(pla == P_BLACK)
+        winLossValue = -winLossValue;
+
+      //Keep winLossValue between 5% and 40%, subject to available caps.
+      if(winLossValue < -0.9)
+        desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
+      else if(winLossValue > -0.2)
+        desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage + 0.125;
+
+      desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, 0.0);
+      desiredPlayoutDoublingAdvantage = std::min(desiredPlayoutDoublingAdvantage, pdaCap);
+    }
   }
 
   if(params.playoutDoublingAdvantage != desiredPlayoutDoublingAdvantage) {
@@ -238,6 +219,7 @@ struct GTPEngine {
 
   vector<double> recentWinLossValues;
   double lastSearchFactor;
+  double desiredPlayoutDoublingAdvantage;
 
   Player perspective;
 
@@ -345,7 +327,12 @@ struct GTPEngine {
     initialPla = newInitialPla;
     moveHistory = newMoveHistory;
     recentWinLossValues.clear();
-    updatePlayoutDoublingAdvantageInitial(bot,board,hist,dynamicPlayoutDoublingAdvantageCapPerOppLead);
+    updatePlayoutDoublingAdvantage(
+      bot,board,hist,params.playoutDoublingAdvantagePla,
+      dynamicPlayoutDoublingAdvantageCapPerOppLead,
+      recentWinLossValues,
+      desiredPlayoutDoublingAdvantage,params
+    );
   }
 
   void clearBoard() {
@@ -449,6 +436,13 @@ struct GTPEngine {
     nnEval->clearStats();
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
+    //Make sure we have the right PDA parameters, in case someone ran analysis in the meantime.
+    if(dynamicPlayoutDoublingAdvantageCapPerOppLead != 0.0 &&
+       params.playoutDoublingAdvantage != desiredPlayoutDoublingAdvantage) {
+      params.playoutDoublingAdvantage = desiredPlayoutDoublingAdvantage;
+      bot->setParams(params);
+    }
+
     //Play faster when winning
     double searchFactor = Play::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
     lastSearchFactor = searchFactor;
@@ -518,19 +512,23 @@ struct GTPEngine {
            << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0)
            << " ScoreLead " << Global::strprintf("%.1f", leadForPrinting)
            << " ScoreStdev " << Global::strprintf("%.1f", values.expectedScoreStdev);
-      if(bot->getSearch()->searchParams.playoutDoublingAdvantage != 0.0)
-        cerr << Global::strprintf(" (PDA %.2f)", bot->getSearch()->searchParams.playoutDoublingAdvantage);
+      if(params.playoutDoublingAdvantage != 0.0)
+        cerr << Global::strprintf(" (PDA %.2f)", params.playoutDoublingAdvantage);
       cerr << " PV ";
       bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, analysisPVLen);
       cerr << endl;
     }
 
     //Adjust handicap games ------------------------
-    updatePlayoutDoublingAdvantage(bot,bot->getRootBoard(),bot->getRootHist(),pla,dynamicPlayoutDoublingAdvantageCapPerOppLead,winLossValue,lead);
+    recentWinLossValues.push_back(winLossValue);
+    updatePlayoutDoublingAdvantage(
+      bot,bot->getRootBoard(),bot->getRootHist(),pla,
+      dynamicPlayoutDoublingAdvantageCapPerOppLead,
+      recentWinLossValues,
+      desiredPlayoutDoublingAdvantage,params
+    );
 
     //Resignation, logging, actual reporting of chosen move---------------------
-
-    recentWinLossValues.push_back(winLossValue);
 
     bool resigned = allowResignation && shouldResign(
       bot->getRootBoard(),bot->getRootHist(),pla,recentWinLossValues,lead,
@@ -608,6 +606,13 @@ struct GTPEngine {
   }
 
   void analyze(Player pla, bool kata, double secondsPerReport, int minMoves, bool showOwnership) {
+
+    //In dynamic mode, analysis should ALWAYS be with 0.0, to prevent random hard-to-predict changes
+    //for users.
+    if(dynamicPlayoutDoublingAdvantageCapPerOppLead != 0.0 && params.playoutDoublingAdvantage != 0.0) {
+      params.playoutDoublingAdvantage = 0.0;
+      bot->setParams(params);
+    }
 
     std::function<void(Search* search)> callback;
 
