@@ -1693,6 +1693,8 @@ class ModelUtils:
         #Since each GPU observes only a fraction of the global batch, we need to divide our gradient cap
         #by this scaling to achieve a roughly comparable level of scaling.
         gnorm_cap = (2500.0 if model.use_fixup else 4000.0) / math.sqrt(num_gpus_used) * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+        #Loosen gradient clipping as we shift to smaller learning rates
+        gnorm_cap = gnorm_cap / math.sqrt(1.0 if lr_scale is None else lr_scale)
         (adjusted_gradients_clipped,gnorm) = tf.clip_by_global_norm([x[0] for x in adjusted_gradients],gnorm_cap)
         adjusted_gradients_clipped = list(zip(adjusted_gradients_clipped,[x[1] for x in adjusted_gradients]))
         metrics.gnorm = gnorm
