@@ -16,6 +16,8 @@ struct SearchParams {
 
   //Search tree exploration parameters
   double cpuctExploration;  //Constant factor on exploration, should also scale up linearly with magnitude of utility
+  double cpuctExplorationLog; //Constant factor on log-scaling exploration, should also scale up linearly with magnitude of utility
+  double cpuctExplorationBase; //Scale of number of visits at which log behavior starts having an effect
   double fpuReductionMax;   //Max amount to reduce fpu value for unexplore children
   double fpuLossProp; //Scale fpu this proportion of the way towards assuming a move is a loss.
   bool fpuUseParentAverage; //Use parent average value for fpu rather than parent nn value.
