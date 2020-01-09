@@ -1556,8 +1556,6 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     if(desiredWeight < 0.0)
       continue;
 
-    if(searchParams.visitsExponent != 1.0)
-      desiredWeight = pow(desiredWeight, searchParams.visitsExponent);
     if(searchParams.valueWeightExponent > 0)
       desiredWeight *= pow(weightFactors[i], searchParams.valueWeightExponent);
 
@@ -1579,15 +1577,9 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     //Since we've scaled all the child weights in some arbitrary way, adjust and make sure
     //that the direct evaluation of the node still has precisely 1/N weight.
     //Do some things to carefully avoid divide by 0.
-    double desiredWeight;
-    if(searchParams.scaleParentWeight) {
-      desiredWeight = (totalChildVisits > 0) ? weightSum / totalChildVisits : weightSum;
-      if(desiredWeight < 0.0001) //Just in case
-        desiredWeight = 0.0001;
-    }
-    else {
-      desiredWeight = 1.0;
-    }
+    double desiredWeight = (totalChildVisits > 0) ? weightSum / totalChildVisits : weightSum;
+    if(desiredWeight < 0.0001) //Just in case
+      desiredWeight = 0.0001;
 
     double winProb = (double)node.nnOutput->whiteWinProb;
     double noResultProb = (double)node.nnOutput->whiteNoResultProb;

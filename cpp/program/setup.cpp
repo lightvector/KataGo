@@ -331,14 +331,6 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
     else params.valueWeightExponent = 0.0;
 
-    if(cfg.contains("visitsExponent"+idxStr)) params.visitsExponent = cfg.getDouble("visitsExponent"+idxStr, 0.0, 1.0);
-    else if(cfg.contains("visitsExponent")) params.visitsExponent = cfg.getDouble("visitsExponent", 0.0, 1.0);
-    else params.visitsExponent = 1.0;
-
-    if(cfg.contains("scaleParentWeight"+idxStr)) params.scaleParentWeight = cfg.getBool("scaleParentWeight"+idxStr);
-    else if(cfg.contains("scaleParentWeight")) params.scaleParentWeight = cfg.getBool("scaleParentWeight");
-    else params.scaleParentWeight = true;
-
     if(cfg.contains("rootNoiseEnabled"+idxStr)) params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled"+idxStr);
     else                                        params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled");
     if(cfg.contains("rootDirichletNoiseTotalConcentration"+idxStr))

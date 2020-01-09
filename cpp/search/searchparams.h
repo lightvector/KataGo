@@ -20,9 +20,6 @@ struct SearchParams {
   double fpuLossProp; //Scale fpu this proportion of the way towards assuming a move is a loss.
   bool fpuUseParentAverage; //Use parent average value for fpu rather than parent nn value.
   double valueWeightExponent; //Amount to apply a downweighting of children with very bad values relative to good ones
-  double visitsExponent; //Power with which visits should raise the value weight on a child
-
-  bool scaleParentWeight; //Also scale parent weight when applying valueWeightExponent?
 
   //Root parameters
   bool rootNoiseEnabled;
