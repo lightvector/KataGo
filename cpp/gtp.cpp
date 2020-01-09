@@ -95,7 +95,11 @@ static void updatePlayoutDoublingAdvantage(
     const double increment = 0.125;
 
     //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
-    double pdaCap = std::min(2.5, dynamicPlayoutDoublingAdvantageCapPerOppLead * initialBlackAdvantageInPoints);
+    //Scale mildly with board size - small board a given point lead counts as "more".
+    double pdaCap = std::min(
+      2.5,
+      dynamicPlayoutDoublingAdvantageCapPerOppLead * initialBlackAdvantageInPoints * pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.25)
+    );
     pdaCap = round(pdaCap / increment) * increment;
 
     //No history? Then this is a new game or a newly set position
