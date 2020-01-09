@@ -1048,6 +1048,11 @@ void Search::getValueChildWeights(
 
 }
 
+static double cpuctExploration(int64_t totalChildVisits, const SearchParams& searchParams) {
+  return searchParams.cpuctExploration +
+    searchParams.cpuctExplorationLog * log((totalChildVisits + searchParams.cpuctExplorationBase) / searchParams.cpuctExplorationBase);
+}
+
 double Search::getExploreSelectionValue(
   double nnPolicyProb, int64_t totalChildVisits, int64_t childVisits,
   double childUtility, Player pla
@@ -1056,7 +1061,7 @@ double Search::getExploreSelectionValue(
     return POLICY_ILLEGAL_SELECTION_VALUE;
 
   double exploreComponent =
-    searchParams.cpuctExploration
+    cpuctExploration(totalChildVisits,searchParams)
     * nnPolicyProb
     * sqrt((double)totalChildVisits + 0.01) //TODO this is weird when totalChildVisits == 0, first exploration
     / (1.0 + childVisits);
@@ -1079,7 +1084,7 @@ double Search::getExploreSelectionValueInverse(
 
   double exploreComponent = exploreSelectionValue - valueComponent;
   double exploreComponentScaling =
-    searchParams.cpuctExploration
+    cpuctExploration(totalChildVisits,searchParams)
     * nnPolicyProb
     * sqrt((double)totalChildVisits + 0.01); //TODO this is weird when totalChildVisits == 0, first exploration
 

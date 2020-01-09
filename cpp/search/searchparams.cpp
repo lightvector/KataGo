@@ -14,6 +14,8 @@ SearchParams::SearchParams()
    noResultUtilityForWhite(0.0),
    drawEquivalentWinsForWhite(0.5),
    cpuctExploration(1.0),
+   cpuctExplorationLog(0.0),
+   cpuctExplorationBase(500),
    fpuReductionMax(0.2),
    fpuLossProp(0.0),
    fpuUseParentAverage(true),
