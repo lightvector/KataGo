@@ -480,6 +480,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       reportErrorForId(rbase.id, "rules", "Must specify rules string, such as \"chinese\" or \"tromp-taylor\", or a JSON object with detailed rules parameters.");
       continue;
     }
+
     if(input.find("komi") != input.end()) {
       double komi;
       static_assert(Rules::MIN_USER_KOMI == -150.0f, "");
@@ -495,11 +496,28 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
     }
 
+    if(input.find("whiteHandicapBonus") != input.end()) {
+      if(!input["whiteHandicapBonus"].is_string()) {
+        reportErrorForId(rbase.id, "whiteHandicapBonus", "Must be a string");
+        continue;
+      }
+      string s = input["whiteHandicapBonus"].get<string>();
+      try {
+        int whiteHandicapBonusRule = Rules::parseWhiteHandicapBonusRule(s);
+        rules.whiteHandicapBonusRule = whiteHandicapBonusRule;
+      }
+      catch(const StringError& err) {
+        reportErrorForId(rbase.id, "whiteHandicapBonus", err.what());
+        continue;
+      }
+    }
+
     if(input.find("maxVisits") != input.end()) {
       bool suc = parseInteger("maxVisits", rbase.maxVisits, 1, (int64_t)1 << 50, "Must be an integer from 1 to 2^50");
       if(!suc)
         continue;
     }
+
     if(input.find("analysisPVLen") != input.end()) {
       int64_t buf;
       bool suc = parseInteger("analysisPVLen", buf, 1, 100, "Must be an integer from 1 to 100");
@@ -507,6 +525,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         continue;
       rbase.analysisPVLen = (int)buf;
     }
+
     if(input.find("rootFpuReductionMax") != input.end()) {
       bool suc = parseDouble("rootFpuReductionMax", rbase.rootFpuReductionMax, 0.0, 2.0, "Must be a number from 0.0 to 2.0");
       if(!suc)
