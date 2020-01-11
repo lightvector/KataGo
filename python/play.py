@@ -39,7 +39,7 @@ with open(model_config_json) as f:
   model_config = json.load(f)
 
 if name_scope is not None:
-  with tf.name_scope(name_scope):
+  with tf.compat.v1.variable_scope(name_scope):
     model = Model(model_config,pos_len,{})
 else:
   model = Model(model_config,pos_len,{})
@@ -48,10 +48,14 @@ policy1_output = tf.nn.softmax(model.policy_output[:,:,1])
 value_output = tf.nn.softmax(model.value_output)
 scoremean_output = 20.0 * model.miscvalues_output[:,0]
 scorestdev_output = 20.0 * tf.math.softplus(model.miscvalues_output[:,1])
+lead_output = 20.0 * model.miscvalues_output[:,2]
+vtime_output = 150.0 * tf.math.softplus(model.miscvalues_output[:,3])
 ownership_output = tf.tanh(model.ownership_output)
 scoring_output = model.scoring_output
 futurepos_output = tf.tanh(model.futurepos_output)
-seki_output = tf.sigmoid(model.seki_output)
+seki_output = tf.nn.softmax(model.seki_output[:,:,:,0:3])
+seki_output = seki_output[:,:,:,1] - seki_output[:,:,:,2]
+seki_output2 = tf.sigmoid(model.seki_output[:,:,:,3])
 scorebelief_output = tf.nn.softmax(model.scorebelief_output)
 sbscale_output = model.sbscale3_layer
 
@@ -76,7 +80,6 @@ def fetch_output(session, gs, rules, fetches):
     model.bin_inputs: bin_input_data,
     model.global_inputs: global_input_data,
     model.symmetries: [False,False,False],
-    model.is_training: False,
     model.include_history: [[1.0,1.0,1.0,1.0,1.0]]
   })
   return [output[0] for output in outputs]
@@ -87,10 +90,13 @@ def get_outputs(session, gs, rules):
    value,
    scoremean,
    scorestdev,
+   lead,
+   vtime,
    ownership,
    scoring,
    futurepos,
    seki,
+   seki2,
    scorebelief,
    sbscale
   ] = fetch_output(session,gs,rules,[
@@ -99,10 +105,13 @@ def get_outputs(session, gs, rules):
     value_output,
     scoremean_output,
     scorestdev_output,
+    lead_output,
+    vtime_output,
     ownership_output,
     scoring_output,
     futurepos_output,
     seki_output,
+    seki_output2,
     scorebelief_output,
     sbscale_output
   ])
@@ -179,7 +188,19 @@ def get_outputs(session, gs, rules):
     for x in range(board.size):
       loc = board.loc(x,y)
       pos = model.loc_to_tensor_pos(loc,board)
-      seki_by_loc.append((loc,seki_flat[pos]))
+      if board.pla == Board.WHITE:
+        seki_by_loc.append((loc,seki_flat[pos]))
+      else:
+        seki_by_loc.append((loc,-seki_flat[pos]))
+
+  seki_flat2 = seki2.reshape([model.pos_len * model.pos_len])
+  seki_by_loc2 = []
+  board = gs.board
+  for y in range(board.size):
+    for x in range(board.size):
+      loc = board.loc(x,y)
+      pos = model.loc_to_tensor_pos(loc,board)
+      seki_by_loc2.append((loc,seki_flat2[pos]))
 
   moves_and_probs = sorted(moves_and_probs0, key=lambda moveandprob: moveandprob[1], reverse=True)
   #Generate a random number biased small and then find the appropriate move to make
@@ -206,6 +227,8 @@ def get_outputs(session, gs, rules):
     "value": value,
     "scoremean": scoremean,
     "scorestdev": scorestdev,
+    "lead": lead,
+    "vtime": vtime,
     "ownership": ownership,
     "ownership_by_loc": ownership_by_loc,
     "scoring": scoring,
@@ -215,6 +238,8 @@ def get_outputs(session, gs, rules):
     "futurepos1_by_loc": futurepos1_by_loc,
     "seki": seki,
     "seki_by_loc": seki_by_loc,
+    "seki2": seki2,
+    "seki_by_loc2": seki_by_loc2,
     "scorebelief": scorebelief,
     "sbscale": sbscale,
     "genmove_result": genmove_result
@@ -407,10 +432,14 @@ def get_gfx_commands_for_heatmap(locs_and_values, board, normalization_div, is_p
   if value_and_score_from is not None:
     value = value_and_score_from["value"]
     score = value_and_score_from["scoremean"]
-    texts_value.append("wv %.2fc nr %.2f%% ws %.1f" % (
+    lead = value_and_score_from["lead"]
+    vtime = value_and_score_from["vtime"]
+    texts_value.append("wv %.2fc nr %.2f%% ws %.1f wl %.1f vt %.1f" % (
       100*(value[0]-value[1] if board.pla == Board.WHITE else value[1] - value[0]),
       100*value[2],
-      (score if board.pla == Board.WHITE else -score)
+      (score if board.pla == Board.WHITE else -score),
+      (lead if board.pla == Board.WHITE else -lead),
+      vtime
     ))
 
   gfx_commands.append("TEXT " + ", ".join(texts_value + texts_rev + texts))
@@ -518,6 +547,7 @@ def run_gtp(session):
     'futurepos0',
     'futurepos1',
     'seki',
+    'seki2',
     'scorebelief',
     'passalive',
   ]
@@ -530,6 +560,7 @@ def run_gtp(session):
     'gfx/FuturePos0/futurepos0',
     'gfx/FuturePos1/futurepos1',
     'gfx/Seki/seki',
+    'gfx/Seki2/seki2',
     'gfx/ScoreBelief/scorebelief',
     'gfx/PassAlive/passalive',
   ]
@@ -542,6 +573,7 @@ def run_gtp(session):
     "scoringRule": "SCORING_AREA",
     "taxRule": "TAX_NONE",
     "multiStoneSuicideLegal": True,
+    "hasButton": False,
     "encorePhase": 0,
     "passWouldEndPhase": False,
     "whiteKomi": 7.5
@@ -694,13 +726,17 @@ def run_gtp(session):
       elif command[1] == "taxrule":
         rules["taxRule"] = command[2].upper()
       elif command[1] == "multistonesuicidelegal":
-        rules["multiStoneSuicideLegal"] = (command[2] == "true")
+        rules["multiStoneSuicideLegal"] = (command[2].lower() == "true")
+      elif command[1] == "hasbutton":
+        rules["hasButton"] = (command[2].lower() == "true")
       elif command[1] == "encorephase":
         rules["encorePhase"] = int(command[2])
       elif command[1] == "passwouldendphase":
-        rules["passWouldEndPhase"] = (command[2] == "true")
+        rules["passWouldEndPhase"] = (command[2].lower() == "true")
       elif command[1] == "whitekomi" or command[1] == "komi":
         rules["whiteKomi"] = float(command[2])
+      elif command[1] == "asym":
+        rules["asymPowersOfTwo"] = float(command[2])
       else:
         ret = "Unknown rules setting"
     elif command[0] == "policy":
@@ -735,6 +771,10 @@ def run_gtp(session):
     elif command[0] == "seki":
       outputs = get_outputs(session, gs, rules)
       gfx_commands = get_gfx_commands_for_heatmap(outputs["seki_by_loc"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None)
+      ret = "\n".join(gfx_commands)
+    elif command[0] == "seki2":
+      outputs = get_outputs(session, gs, rules)
+      gfx_commands = get_gfx_commands_for_heatmap(outputs["seki_by_loc2"], gs.board, normalization_div=None, is_percent=True, value_and_score_from=None)
       ret = "\n".join(gfx_commands)
     elif command[0] in layer_command_lookup:
       (layer,channel,normalization_div) = layer_command_lookup[command[0]]
