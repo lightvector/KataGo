@@ -18,11 +18,11 @@ class XorShift1024Mult
   XorShift1024Mult(const uint64_t* init_a);
   void init(const uint64_t* init_a);
   uint32_t nextUInt();
-  
+
   static void test();
-  
+
  private:
-  uint64_t a[XORMULT_LEN]; 
+  uint64_t a[XORMULT_LEN];
   uint64_t a_idx;
 };
 
@@ -60,7 +60,7 @@ class PCG32
 inline uint32_t PCG32::nextUInt()
 {
   s = s * 6364136223846793005ULL + 1442695040888963407ULL;
-  uint32_t x = (((s >> 18) ^ s) >> 27);  
+  uint32_t x = (uint32_t)(((s >> 18) ^ s) >> 27);
   int rot = (int)(s >> 59);
   return rot == 0 ? x : ((x >> rot) | (x << (32-rot)));
 }

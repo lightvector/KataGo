@@ -69,9 +69,9 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     locs.push_back(moveLoc);
     totalChildVisits += childVisits;
     if(suppressPass && moveLoc == Board::PASS_LOC)
-      playSelectionValues.push_back(0);
+      playSelectionValues.push_back(0.0);
     else
-      playSelectionValues.push_back(childVisits);
+      playSelectionValues.push_back((double)childVisits);
   }
 
   //Find the best child by visits

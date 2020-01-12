@@ -337,7 +337,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
           throw IOError("Unknown rules option: " + key);
       }
     }
-    catch(nlohmann::detail::exception& e) {
+    catch(nlohmann::detail::exception&) {
       throw IOError("Could not parse rules: " + sOrig);
     }
     if(!taxSpecified)

@@ -561,11 +561,11 @@ void TrainingWriteBuffers::addRow(
       for(int x = 0; x<board.x_size; x++) {
         int pos = NNPos::xyToPos(x,y,dataXLen);
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if(finalOwnership[loc] == nextPlayer) rowOwnership[pos] = 1.0f;
-        else if(finalOwnership[loc] == opp) rowOwnership[pos] = -1.0f;
+        if(finalOwnership[loc] == nextPlayer) rowOwnership[pos] = 1;
+        else if(finalOwnership[loc] == opp) rowOwnership[pos] = -1;
         //Mark full area points that ended up not being owned
         if(finalFullArea[loc] != C_EMPTY && finalOwnership[loc] == C_EMPTY)
-          rowOwnership[pos+posArea] = (finalFullArea[loc] == nextPlayer ? 1.0f : -1.0f);
+          rowOwnership[pos+posArea] = (finalFullArea[loc] == nextPlayer ? 1 : -1);
       }
     }
 
@@ -672,7 +672,7 @@ void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
 }
 
 void TrainingWriteBuffers::writeToTextOstream(ostream& out) {
-  int len;
+  int64_t len;
 
   auto printHeader = [&out](const char* dataIncludingHeader) {
     //In actuality our headers aren't that long, so we cut it off at half the total header bytes
