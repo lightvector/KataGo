@@ -2389,14 +2389,18 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
   if(hist != NULL)
     out << "MoveNum: " << hist->size() << " ";
   out << "HASH: " << board.pos_hash << "\n";
-  bool showCoords = board.x_size <= 25 && board.y_size <= 25;
+  bool showCoords = board.x_size <= 50 && board.y_size <= 50;
   if(showCoords) {
     const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
-    out << "   ";
+    out << "  ";
     for(int x = 0; x < board.x_size; x++) {
-      out << xChar[x];
-      if(x < board.x_size-1)
-        out << ' ';
+      if(x <= 24) {
+        out << " ";
+        out << xChar[x];
+      }
+      else {
+        out << "A" << xChar[x-25];
+      }
     }
     out << "\n";
   }
