@@ -291,10 +291,10 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080) setting these both to true may give a large performance boost." << endl;
 #endif
 #ifdef USE_OPENCL_BACKEND
-  cout << "You are currently using the OpenCL version." << endl;
+  cout << "You are currently using the OpenCL version of KataGo." << endl;
   //TODO update when we have FP16 opencl
   cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080), "
-       << "switching to the Cuda version and setting cudaUseFP16=true and cudaUseNHWC=true may give a large performance boost." << endl;
+       << "downloading or compiling the Cuda version of KataGo and setting cudaUseFP16=true and cudaUseNHWC=true may give a large performance boost." << endl;
 #endif
   cout << endl;
   cout << "Your GTP config is currently set to use numSearchThreads = " << params.numThreads << endl;
