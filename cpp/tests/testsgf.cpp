@@ -48,6 +48,24 @@ void Tests::runSgfTests() {
     out << "pla " << PlayerIO::playerToString(pla) << endl;
     hist.printDebugInfo(out,board);
 
+    {
+      //Test SGF writing roundtrip.
+      //This is not exactly holding if there is pass for ko, but should be good in all other cases
+      ostringstream out2;
+      WriteSgf::writeSgf(out2,"foo","bar",hist,NULL);
+      CompactSgf* sgf2 = CompactSgf::parse(out2.str());
+      Board board2;
+      BoardHistory hist2;
+      Rules rules2;
+      Player pla2;
+      rules2 = sgf2->getRulesOrFail();
+      sgf->setupBoardAndHistAssumeLegal(rules2,board2,pla2,hist2,sgf2->moves.size());
+      testAssert(rules2 == rules);
+      testAssert(board2.pos_hash == board.pos_hash);
+      testAssert(hist2.moveHistory.size() == hist.moveHistory.size());
+      delete sgf2;
+    }
+
     delete sgf;
   };
 
