@@ -195,6 +195,8 @@ static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator
   out << "NN rows: " << nnEval->numRowsProcessed() << endl;
   out << "NN batches: " << nnEval->numBatchesProcessed() << endl;
   out << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
+  if(search->searchParams.playoutDoublingAdvantage != 0)
+    out << "PlayoutDoublingAdvantage: " << search->searchParams.playoutDoublingAdvantage << endl;
   out << "PV: ";
   search->printPV(out, search->rootNode, 25);
   out << "\n";
@@ -504,9 +506,8 @@ struct GTPEngine {
 
     double timeTaken = timer.getSeconds();
 
-    //-------------------------------
+    //Chatting and logging ----------------------------
 
-    //Chat
     if(ogsChatToStderr) {
       int64_t visits = bot->getSearch()->getRootVisits();
       double winrate = 0.5 * (1.0 + (values.winValue - values.lossValue));
@@ -528,6 +529,15 @@ struct GTPEngine {
       cerr << endl;
     }
 
+    if(logSearchInfo) {
+      ostringstream sout;
+      printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective);
+      logger.write(sout.str());
+    }
+    if(debug) {
+      printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
+    }
+
     //Adjust handicap games ------------------------
     recentWinLossValues.push_back(winLossValue);
     updatePlayoutDoublingAdvantage(
@@ -537,7 +547,7 @@ struct GTPEngine {
       desiredPlayoutDoublingAdvantage,params
     );
 
-    //Resignation, logging, actual reporting of chosen move---------------------
+    //Resignation, actual reporting of chosen move---------------------
 
     bool resigned = allowResignation && shouldResign(
       bot->getRootBoard(),bot->getRootHist(),pla,recentWinLossValues,lead,
@@ -548,15 +558,6 @@ struct GTPEngine {
       response = "resign";
     else
       response = Location::toString(moveLoc,bot->getRootBoard());
-
-    if(logSearchInfo) {
-      ostringstream sout;
-      printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective);
-      logger.write(sout.str());
-    }
-    if(debug) {
-      printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
-    }
 
     if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
       bool suc = bot->makeMove(moveLoc,pla,preventEncore);
