@@ -167,7 +167,7 @@ int64_t NumpyBuffer<T>::getActualDataLen(int64_t numWriteableRows) {
 template <typename T>
 uint64_t NumpyBuffer<T>::prepareHeaderWithNumRows(int64_t numWriteableRows) {
   //Continue writing the shape
-  int idx = shapeStartByte;
+  size_t idx = shapeStartByte;
   char* s = (char*)dataIncludingHeader;
 
   //Write each number

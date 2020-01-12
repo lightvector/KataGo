@@ -121,9 +121,9 @@ namespace Global
 
   //Check if a string consists entirely of digits, and parse the integer, checking for overflow
   bool isDigits(const std::string& str);
-  bool isDigits(const std::string& str, int start, int end);
+  bool isDigits(const std::string& str, size_t start, size_t end);
   int parseDigits(const std::string& str);
-  int parseDigits(const std::string& str, int start, int end);
+  int parseDigits(const std::string& str, size_t start, size_t end);
 
   //Character properties
   bool isDigit(char c);

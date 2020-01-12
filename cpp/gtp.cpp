@@ -671,7 +671,7 @@ struct GTPEngine {
 
         vector<double> ownership;
         if(showOwnership) {
-          static constexpr int ownershipMinVisits = 3;
+          static constexpr int64_t ownershipMinVisits = 3;
           ownership = search->getAverageTreeOwnership(ownershipMinVisits);
         }
 

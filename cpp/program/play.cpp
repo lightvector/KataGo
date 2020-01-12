@@ -549,7 +549,7 @@ MatchPairer::MatchPairer(
 MatchPairer::~MatchPairer()
 {}
 
-int MatchPairer::getNumGamesTotalToGenerate() const {
+int64_t MatchPairer::getNumGamesTotalToGenerate() const {
   return numGamesTotal;
 }
 
@@ -567,7 +567,7 @@ bool MatchPairer::getMatchup(
 
   if(numGamesStartedSoFar % logGamesEvery == 0)
     logger.write("Started " + Global::int64ToString(numGamesStartedSoFar) + " games");
-  int logNNEvery = logGamesEvery*100 > 1000 ? logGamesEvery*100 : 1000;
+  int64_t logNNEvery = logGamesEvery*100 > 1000 ? logGamesEvery*100 : 1000;
   if(numGamesStartedSoFar % logNNEvery == 0) {
     for(int i = 0; i<nnEvals.size(); i++) {
       if(nnEvals[i] != NULL) {
@@ -743,7 +743,7 @@ ReportedSearchValues Play::getWhiteScoreValues(
   const Board& board,
   const BoardHistory& hist,
   Player pla,
-  int numVisits,
+  int64_t numVisits,
   Logger& logger,
   const OtherGameProperties& otherGameProps
 ) {
@@ -831,7 +831,7 @@ static double getNaiveEvenKomiHelper(
   double lastWinLoss = 0.0;
   double lastLead = 0.0;
   for(int i = 0; i<3; i++) {
-    std::pair<float,float> result = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,hist.rules.komi);
+    std::pair<double,double> result = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,hist.rules.komi);
     double lead = result.first;
     double winLoss = result.second;
 
@@ -1206,7 +1206,7 @@ static void recordTreePositionsRec(
   const Board& board, const BoardHistory& hist, Player pla,
   const Search* toMoveBot,
   const SearchNode* node, int depth, int maxDepth, bool plaAlwaysBest, bool oppAlwaysBest,
-  int minVisitsAtNode, float recordTreeTargetWeight,
+  int64_t minVisitsAtNode, float recordTreeTargetWeight,
   int numNeuralNetChangesSoFar,
   vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
   Loc excludeLoc0, Loc excludeLoc1
@@ -1280,7 +1280,7 @@ static void recordTreePositions(
   FinishedGameData* gameData,
   const Board& board, const BoardHistory& hist, Player pla,
   const Search* toMoveBot,
-  int minVisitsAtNode, float recordTreeTargetWeight,
+  int64_t minVisitsAtNode, float recordTreeTargetWeight,
   int numNeuralNetChangesSoFar,
   vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
   Loc excludeLoc0, Loc excludeLoc1

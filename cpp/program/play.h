@@ -179,7 +179,7 @@ class MatchPairer {
   MatchPairer& operator=(const MatchPairer&) = delete;
 
   //Get the total number of games that the matchpairer will generate
-  int getNumGamesTotalToGenerate() const;
+  int64_t getNumGamesTotalToGenerate() const;
 
   //Get next matchup and log stuff
   bool getMatchup(
@@ -334,7 +334,7 @@ namespace Play {
     const Board& board,
     const BoardHistory& hist,
     Player pla,
-    int numVisits,
+    int64_t numVisits,
     Logger& logger,
     const OtherGameProperties& otherGameProps
   );

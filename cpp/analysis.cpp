@@ -419,7 +419,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         string s = input["initialPlayer"].get<string>();
         PlayerIO::tryParsePlayer(s,initialPlayer);
       }
-      catch(nlohmann::detail::exception& e) {}
+      catch(nlohmann::detail::exception&) {}
       if(initialPlayer != P_BLACK && initialPlayer != P_WHITE) {
         reportErrorForId(rbase.id, "initialPlayer", "Must be \"b\" or \"w\"");
         continue;
@@ -432,8 +432,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       try {
         analyzeTurns = input["analyzeTurns"].get<vector<int> >();
       }
-      catch(nlohmann::detail::exception& e) {
-        (void)e;
+      catch(nlohmann::detail::exception&) {
         reportErrorForId(rbase.id, "analyzeTurns", "Must specify an array of integers indicating turns to analyze");
         continue;
       }

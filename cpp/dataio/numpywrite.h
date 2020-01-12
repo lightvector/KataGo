@@ -18,7 +18,7 @@ struct NumpyBuffer {
   int64_t dataLen;
   std::vector<int64_t> shape;
   std::string dtype;
-  int shapeStartByte;
+  size_t shapeStartByte;
 
   //Numpy specifies that this is must be a multiple of 64
   static const int TOTAL_HEADER_BYTES = 256;

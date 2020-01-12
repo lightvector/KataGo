@@ -162,8 +162,8 @@ void SgfNode::accumPlacements(vector<Move>& moves, int xSize, int ySize) const {
     return;
 
   auto handleRectangleList = [&](const vector<string>& elts, Player color) {
-    int len = elts.size();
-    for(int i = 0; i<len; i++) {
+    size_t len = elts.size();
+    for(size_t i = 0; i<len; i++) {
       int x1; int y1;
       int x2; int y2;
       parseSgfLocRectangle(elts[i],xSize,ySize,x1,y1,x2,y2);
@@ -202,8 +202,8 @@ void SgfNode::accumMoves(vector<Move>& moves, int xSize, int ySize) const {
   }
   if(props != NULL && contains(*props,"B")) {
     const vector<string>& b = map_get(*props,"B");
-    int len = b.size();
-    for(int i = 0; i<len; i++) {
+    size_t len = b.size();
+    for(size_t i = 0; i<len; i++) {
       Loc loc = parseSgfLocOrPass(b[i],xSize,ySize);
       moves.push_back(Move(loc,P_BLACK));
     }
@@ -219,8 +219,8 @@ void SgfNode::accumMoves(vector<Move>& moves, int xSize, int ySize) const {
   }
   if(props != NULL && contains(*props,"W")) {
     const vector<string>& w = map_get(*props,"W");
-    int len = w.size();
-    for(int i = 0; i<len; i++) {
+    size_t len = w.size();
+    for(size_t i = 0; i<len; i++) {
       Loc loc = parseSgfLocOrPass(w[i],xSize,ySize);
       moves.push_back(Move(loc,P_WHITE));
     }
@@ -996,7 +996,7 @@ void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& 
   for(size_t i = 0; i<turnNumber; i++) {
     bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
     if(!suc)
-      throw StringError("Illegal move in " + fileName + " turn " + Global::intToString(i) + " move " + Location::toString(moves[i].loc, board.x_size, board.y_size));
+      throw StringError("Illegal move in " + fileName + " turn " + Global::int64ToString(i) + " move " + Location::toString(moves[i].loc, board.x_size, board.y_size));
     nextPla = getOpp(moves[i].pla);
   }
 }
@@ -1101,7 +1101,7 @@ void WriteSgf::writeSgf(
     }
   }
 
-  int startTurnIdx = 0;
+  size_t startTurnIdx = 0;
   if(gameData != NULL && gameData->hasFullData) {
     startTurnIdx = gameData->startHist.moveHistory.size();
     out << "C[startTurnIdx=" << startTurnIdx
@@ -1113,7 +1113,7 @@ void WriteSgf::writeSgf(
           << "=" << gameData->changedNeuralNets[j]->name;
     }
     out << "]";
-    assert(endHist.moveHistory.size() - startTurnIdx <= gameData->whiteValueTargetsByTurn.size());
+    assert(endHist.moveHistory.size() <= startTurnIdx + gameData->whiteValueTargetsByTurn.size());
   }
 
   string comment;
@@ -1147,7 +1147,7 @@ void WriteSgf::writeSgf(
 
     if(gameData != NULL && i >= startTurnIdx) {
       if(gameData->hasFullData) {
-        int turnAfterStart = i-startTurnIdx;
+        size_t turnAfterStart = i-startTurnIdx;
         assert(turnAfterStart < gameData->whiteValueTargetsByTurn.size());
         const ValueTargets& targets = gameData->whiteValueTargetsByTurn[turnAfterStart];
         char winBuf[32];

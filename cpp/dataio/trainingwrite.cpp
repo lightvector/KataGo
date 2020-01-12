@@ -83,7 +83,7 @@ FinishedGameData::FinishedGameData()
 }
 
 FinishedGameData::~FinishedGameData() {
-  for(int i = 0; i<policyTargetsByTurn.size(); i++)
+  for(size_t i = 0; i<policyTargetsByTurn.size(); i++)
     delete policyTargetsByTurn[i].policyTargets;
 
   if(finalFullArea != NULL)
@@ -95,10 +95,10 @@ FinishedGameData::~FinishedGameData() {
   if(finalWhiteScoring != NULL)
     delete[] finalWhiteScoring;
 
-  for(int i = 0; i<sidePositions.size(); i++)
+  for(size_t i = 0; i<sidePositions.size(); i++)
     delete sidePositions[i];
 
-  for(int i = 0; i<changedNeuralNets.size(); i++)
+  for(size_t i = 0; i<changedNeuralNets.size(); i++)
     delete changedNeuralNets[i];
 }
 

@@ -686,7 +686,7 @@ rand.nextLogistic()
 
     int frequencies[5] = {0,0,0,0,0};
     for(int i = 0; i<10000; i++) {
-      int r = rand.nextIndexCumulative(cumProbs,5);
+      int r = (int)rand.nextIndexCumulative(cumProbs,5);
       testAssert(r >= 0 && r < 5);
       frequencies[r]++;
     }

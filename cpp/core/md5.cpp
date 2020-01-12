@@ -61,7 +61,7 @@ void MD5::get(uint8_t *initial_msg, size_t initial_len, uint64_t hash[2])
   //append "0" bit until message length in bit = 448 (mod 512)
   //append length mod (2 pow 64) to message
 
-  int new_len;
+  size_t new_len;
   for(new_len = initial_len*8 + 1; new_len%512!=448; new_len++);
   new_len /= 8;
 
@@ -75,7 +75,7 @@ void MD5::get(uint8_t *initial_msg, size_t initial_len, uint64_t hash[2])
 
   // Process the message in successive 512-bit chunks:
   //for each 512-bit chunk of message:
-  int offset;
+  size_t offset;
   for(offset=0; offset<new_len; offset += (512/8))
   {
     // break chunk into sixteen 32-bit words w[j], 0 = j = 15
@@ -127,5 +127,3 @@ void MD5::get(uint8_t *initial_msg, size_t initial_len, uint64_t hash[2])
   hash[0] = ((uint64_t)h0 << 32) | (uint64_t)h1;
   hash[1] = ((uint64_t)h2 << 32) | (uint64_t)h3;
 }
-
-

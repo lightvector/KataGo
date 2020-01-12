@@ -454,7 +454,7 @@ bool Global::isDigits(const string& str)
   return isDigits(str,0,str.size());
 }
 
-bool Global::isDigits(const string& str, int start, int end)
+bool Global::isDigits(const string& str, size_t start, size_t end)
 {
   //Too long to fit in integer for sure?
   if(end <= start)
@@ -462,9 +462,9 @@ bool Global::isDigits(const string& str, int start, int end)
   if(end-start > 9)
     return false;
 
-  int size = str.size();
+  size_t size = str.size();
   int64_t value = 0;
-  for(int i = start; i<end && i<size; i++)
+  for(size_t i = start; i<end && i<size; i++)
   {
     char c = str[i];
     if(!isDigit(c))
@@ -483,7 +483,7 @@ int Global::parseDigits(const string& str)
   return parseDigits(str,0,str.size());
 }
 
-int Global::parseDigits(const string& str, int start, int end)
+int Global::parseDigits(const string& str, size_t start, size_t end)
 {
   //Too long to fit in integer for sure?
   if(end <= start)
@@ -491,9 +491,9 @@ int Global::parseDigits(const string& str, int start, int end)
   if(end-start > 9)
     throw IOError("Could not parse digits, overflow: " + str.substr(start,end-start));
 
-  int size = str.size();
+  size_t size = str.size();
   int64_t value = 0;
-  for(int i = start; i<end && i<size; i++)
+  for(size_t i = start; i<end && i<size; i++)
   {
     char c = str[i];
     if(!isDigit(c))

@@ -158,7 +158,7 @@ namespace {
         delete data;
 
         //Terminate games if one side has won enough to guarantee the victory.
-        int numGamesRemaining = matchPairer->getNumGamesTotalToGenerate() - numGamesTallied;
+        int64_t numGamesRemaining = matchPairer->getNumGamesTotalToGenerate() - numGamesTallied;
         assert(numGamesRemaining >= 0);
         if(numGamesRemaining > 0) {
           if(numCandidateWinPoints >= (numBaselineWinPoints + numGamesRemaining)) {

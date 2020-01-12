@@ -145,7 +145,7 @@ void LZSample::iterSamples(
     //Next line is which color, 0 = black, 1 = white
     getLine(in,sample.sideStr);
     if(sample.sideStr.length() != 1)
-      throw StringError("Expected single-char line for LZ data row indicating side to move, got line of length: " + Global::intToString(sample.sideStr.length()));
+      throw StringError("Expected single-char line for LZ data row indicating side to move, got line of length: " + Global::uint64ToString(sample.sideStr.length()));
 
     //Next we have 362 floats indicating moves
     getLine(in,sample.policyStr);

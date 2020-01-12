@@ -18,13 +18,13 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   ScoreValue::initTables();
   Rand seedRand;
 
-  const int defaultMaxVisits = 600;
+  const int64_t defaultMaxVisits = 600;
 
   string configFile;
   string modelFile;
   string sgfFile;
   int boardSize;
-  int maxVisits;
+  int64_t maxVisits;
   string desiredThreadsStr;
   int numPositionsPerGame;
   try {
@@ -33,7 +33,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
     TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9-19), default 19",false,-1,"SIZE");
-    TCLAP::ValueArg<int> visitsArg("v","visits","How many visits to use per search (default " + Global::intToString(defaultMaxVisits) + ")",false,defaultMaxVisits,"VISITS");
+    TCLAP::ValueArg<int64_t> visitsArg("v","visits","How many visits to use per search (default " + Global::int64ToString(defaultMaxVisits) + ")",false,defaultMaxVisits,"VISITS");
     TCLAP::ValueArg<string> threadsArg("t","threads","Test using these many threads, comma-separated (default 1,2,4,6,8,12,16)",false,string("1,2,4,6,8,12,16"),"THREADS");
     TCLAP::ValueArg<int> numPositionsPerGameArg("n","numpositions","How many positions to sample from a game (default 10)",false,10,"NUM");
     cmd.add(configFileArg);
@@ -62,7 +62,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   if(boardSize != -1 && (boardSize < 9 || boardSize > 19))
     throw StringError("Board size to test: invalid value " + Global::intToString(boardSize));
   if(maxVisits <= 1)
-    throw StringError("Number of visits to use: invalid value " + Global::intToString(maxVisits));
+    throw StringError("Number of visits to use: invalid value " + Global::int64ToString(maxVisits));
   if(numPositionsPerGame <= 0 || numPositionsPerGame > 100000)
     throw StringError("Number of positions per game to use: invalid value " + Global::intToString(numPositionsPerGame));
 
