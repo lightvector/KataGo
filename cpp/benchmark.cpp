@@ -317,9 +317,14 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
          << " nnEvals/s = " << Global::strprintf("%.2f",numNNEvals / totalSeconds)
          << " nnBatches/s = " << Global::strprintf("%.2f",numNNBatches / totalSeconds)
          << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
-         << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)"
-         << " (EloDiff " << Global::strprintf("%+.0f",eloEffects[i] - eloEffects[0]) << ")"
-         << std::flush;
+         << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
+    if(numThreadsToTest.size() > 1) {
+      if(i == 0)
+        cout << " (EloDiff baseline)";
+      else
+        cout << " (EloDiff " << Global::strprintf("%+.0f",eloEffects[i] - eloEffects[0]) << ")";
+    }
+    cout << std::flush;
   }
   cout << endl;
 
@@ -337,6 +342,9 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
       else
         cout << Global::strprintf("%+5.0f",eloEffect) << " Elo" << endl;
     }
+    cout << endl;
+    cout << "If you care about performance, you may want to edit numSearchThreads in " << configFile << " based on the above results!" << endl;
+    cout << "If interested see also other notes about performance and mem usage in the top of that file." << endl;
   }
   cout << endl;
 
