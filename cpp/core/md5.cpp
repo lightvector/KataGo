@@ -42,7 +42,11 @@ static const uint32_t k[] = {
  0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391,
 };
 
-void MD5::get(uint8_t *initial_msg, size_t initial_len, uint64_t hash[2])
+void MD5::get(const char *initial_msg, size_t initial_len, uint32_t hash[4]) {
+  return get((const uint8_t*)initial_msg, initial_len, hash);
+}
+
+void MD5::get(const uint8_t *initial_msg, size_t initial_len, uint32_t hash[4])
 {
   // Use binary integer part of the sines of integers (in radians) as constants
   // Initialize variables:
@@ -65,13 +69,18 @@ void MD5::get(uint8_t *initial_msg, size_t initial_len, uint64_t hash[2])
   for(new_len = initial_len*8 + 1; new_len%512!=448; new_len++);
   new_len /= 8;
 
-  uint8_t* msg = (uint8_t*)calloc(new_len + 64, 1); // also appends "0" bits
-                                 // (we alloc also 64 extra bytes...)
+  // (we alloc also 128 extra bytes, just as a safety buffer)
+  uint8_t* msg = (uint8_t*)calloc(new_len + 128, 1); // also appends "0" bits
   memcpy(msg, initial_msg, initial_len);
   msg[initial_len] = 128; // write the "1" bit
 
-  uint32_t bits_len = 8*initial_len;   // note, we append the len
-  memcpy(msg + new_len, &bits_len, 4); // in bits at the end of the buffer
+  //NOTE: only works in little endian?
+  // append the len in bits at the end of the buffer
+  uint64_t bits_len = 8*(uint64_t)initial_len;
+  uint32_t lower_bits_len = (uint32_t)(bits_len);
+  uint32_t upper_bits_len = (uint32_t)(bits_len >> 32);
+  memcpy(msg + new_len, &lower_bits_len, 4);
+  memcpy(msg + new_len + 4, &upper_bits_len, 4);
 
   // Process the message in successive 512-bit chunks:
   //for each 512-bit chunk of message:
@@ -124,6 +133,8 @@ void MD5::get(uint8_t *initial_msg, size_t initial_len, uint64_t hash[2])
   // cleanup
   free(msg);
 
-  hash[0] = ((uint64_t)h0 << 32) | (uint64_t)h1;
-  hash[1] = ((uint64_t)h2 << 32) | (uint64_t)h3;
+  hash[0] = h0;
+  hash[1] = h1;
+  hash[2] = h2;
+  hash[3] = h3;
 }

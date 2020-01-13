@@ -11,7 +11,8 @@
 
 namespace MD5
 {
-  void get(uint8_t* initial_msg, std::size_t initial_len, uint64_t hash[2]);
+  void get(const char* initial_msg, std::size_t initial_len, uint32_t hash[4]);
+  void get(const uint8_t* initial_msg, std::size_t initial_len, uint32_t hash[4]);
 }
 
 

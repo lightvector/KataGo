@@ -15,6 +15,7 @@
 
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../core/md5.h"
 #include "../core/sha2.h"
 #include "../core/test.h"
 #include "../core/timer.h"
@@ -364,6 +365,16 @@ static void simpleTest()
       cout << Global::uint32ToHexString(expected[i]) << endl;
       Global::fatalError("Rand generated unexpected values");
     }
+  }
+
+  {
+    uint32_t hash[4];
+    const string s = "The quick brown fox jumps over the lazy dog.";
+    MD5::get(s.c_str(),s.length(),hash);
+    testAssert(hash[0] == 0xC209D9E4);
+    testAssert(hash[1] == 0x1CFBD090);
+    testAssert(hash[2] == 0xADFF68A0);
+    testAssert(hash[3] == 0xD0CB22DF);
   }
 
   char hash[129];
