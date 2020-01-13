@@ -279,8 +279,10 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
   cout << endl;
   cout << "Testing using " << maxVisits << " visits.";
-  if(maxVisits == defaultMaxVisits)
-    cout << " If you have a good GPU, you might increase this using -visits N to get more accurate results." << endl;
+  if(maxVisits == defaultMaxVisits) {
+    cout << " If you have a good GPU, you might increase this using \"-visits N\" to get more accurate results." << endl;
+    cout << " If you have a weak GPU and this is taking forever, you can decrease it instead to finish the benchmark faster." << endl;
+  }
   else
     cout << endl;
   cout << endl;
