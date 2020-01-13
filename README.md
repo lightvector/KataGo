@@ -27,7 +27,7 @@ See the [releases page](https://github.com/lightvector/KataGo/releases) for the 
 Here is a graph of the improvement so far as of about 16 days:
 
 <table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/jan2020vsjune2019.png" height="350"/></td></tr>
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/readme/jan2020vsjune2019.png" height="350"/></td></tr>
 <tr><td><sub>X axis is days of training, log scale. (note: hardware is about the same but not entirely identical). Y axis is relative Elo rating based on some 1200-visit test matches. The abrupt jump at the end of the June 2019 run is due to a LR drop that the Jan 2020 run mostly has not done yet, but will do in the future for hopefully a similar boost.</sub></tr></td>
 </table>
 
@@ -40,7 +40,7 @@ The first serious run of KataGo ran for 7 days in Februrary 2019 on up to 35xV10
 Following some further improvements and much-improved hyperparameters, KataGo performed a second serious run in May-June a max of 28xV100 GPUs, surpassing the February run after just three and a half days. The run was halted after 19 days, with the final 20-block networks reaching a final strength slightly stronger than LZ-ELFv2! (This is Facebook's very strong 20-block ELF network, running on Leela Zero's search architecture). Comparing to the yet larger Leela Zero 40-block networks, KataGo's network falls somewhere around LZ200 at visit parity, despite only itself being 20 blocks. [Recent versions](https://arxiv.org/abs/1902.10565) of the paper have been updated to reflect this run. Here is a graph of Elo ratings of KataGo's June run compared to Leela Zero and ELF based on a set of test games, where the X axis is an approximate measure of self-play computation required (note: log scale).
 
 <table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/GoNN/master/images/readme/katajunevslz.png" height="350"/></td></tr>
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/readme/katajunevslz.png" height="350"/></td></tr>
 <tr><td><sub>June run of KataGo vs LZ and ELF. X axis is approx selfplay compute spent, log scale. Y axis is relative Elo rating. Leela Zero goes up to LZ225 on this graph. KataGo trains efficiently compared to other bots. See paper for details.</sub></tr></td>
 </table>
 
