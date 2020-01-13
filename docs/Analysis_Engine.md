@@ -65,6 +65,7 @@ Upon an error or a warning, responses will have one of the following formats:
 In the case of a warning, the query will still proceed to generate analysis responses.
 
 An example successful analysis response might be:
+
 ```{"id":"foo","moveInfos":[{"lcb":0.7122210771137392,"move":"Q5","order":0,"prior":0.9710574746131897,"pv":["Q5","R5","Q6","R6","Q7","Q16","O3","Q3","R7","C16","E4"],"scoreLead":5.151662428174664,"scoreMean":5.151662428174664,"scoreSelfplay":6.876265583480511,"scoreStdev":24.963090370015202,"utility":0.4258535451266437,"utilityLcb":0.4459466007602151,"visits":998,"winrate":0.705044985816035},{"lcb":1.7784587604273838,"move":"D4","order":1,"prior":0.0046987771056592464,"pv":["D4"],"scoreLead":7.866552352905273,"scoreMean":7.866552352905273,"scoreSelfplay":10.166152000427246,"scoreStdev":25.506060917814644,"utility":0.595283210234703,"utilityLcb":2.8000000000000003,"visits":1,"winrate":0.7784587604273838}],"turnNumber":2}```
 
 **All values will be from the perspective of `reportAnalysisWinratesAs` as specified in the analysis config file.**
