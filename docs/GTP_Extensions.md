@@ -12,13 +12,14 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * Returns a JSON dictionary indicating the current rules KataGo is using.
       * For example: `{"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"N-1"}`
       * See https://lightvector.github.io/KataGo/rules.html for a detailed description of the rules implemented.
-      * Individual fields:
+      * Explanation of individual fields:
          * `ko: ("SIMPLE" | "POSITIONAL" | "SITUATIONAL")` - The rule used for preventing cycles.
          * `scoring: ("AREA" | "TERRITORY")` - The rule used for computing the score of the game.
          * `tax: ("NONE" | "SEKI" | "ALL")` - Modification to the scoring rule, indicating whether territory in SEKI is taxed, or whether ALL groups pay a tax of up to 2 points for eyes.
-         * `suicide: (true | false) - Whether multi-stone suicide is legal.
-         * `hasButton: (true | false) - Whether [button Go](https://senseis.xmp.net/?ButtonGo) is being used.
+         * `suicide: (true | false)` - Whether multi-stone suicide is legal.
+         * `hasButton: (true | false)` - Whether [button Go](https://senseis.xmp.net/?ButtonGo) is being used.
          * `whiteHandicapBonus` ("0" | "N-1" | "N") - In handicap games, whether white gets 0, N-1, or N bonus points, where N is the number of black handicap stones.
+      * **NOTE: It is possible that more fields and more options for these fields will be added in the future.**
    * `kata-set-rules RULES`
       * Sets the current rules KataGo should be using. Does NOT otherwise affect the board position.
       * `RULES` should either be a JSON dictionary in the same format of `kata-get-rules`, or be a shorthand string like `tromp-taylor`. Some possible shorthand strings are:
@@ -30,7 +31,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `aga           : Equivalent to {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N-1"}`
          * `bga           : Equivalent to {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N-1"}`
          * `new-zealand   : Equivalent to {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA",     "suicide":true, "tax":"NONE","whiteHandicapBonus":"0"}`
-         * `aga-button    : Equivalent to {"hasButton":true, "ko":"SITUATIONAL","scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N-1"}
+         * `aga-button    : Equivalent to {"hasButton":true, "ko":"SITUATIONAL","scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N-1"}`
       * KataGo does NOT claim that the above rules are _exactly_ a match. These are merely the _closest_ settings that KataGo has to those countries' rulesets.
       * A small number of combinations are currently not supported by even the latest neural nets, for example `scoring TERRITORY` and `hasButton true`.
       * Older neural nets for KataGo will also not support many of the options, and setting these rules will fail if these neural nets are being used.
@@ -63,16 +64,16 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * Additional possible key-value pairs:
          * `ownership true` - Output the predicted final ownership of every point on the board.
       * Output format:
-         * NOTE: Consumers of this data should attempt to be robust to the order of these fields, as well as to possible addition of new fields in the future.
+         * **NOTE: Consumers of this data should attempt to be robust to the order of these fields, as well as to possible addition of new fields in the future.**
          * Outputted lines look like `info move E4 visits 487 utility -0.0408357 winrate 0.480018 scoreMean -0.611848 scoreStdev 24.7058 scoreLead -0.611848 scoreSelfplay -0.515178 prior 0.221121 lcb 0.477221 utilityLcb -0.0486664 order 0 pv E4 E3 F3 D3 F4 P4 P3 O3 Q3 O4 K3 Q6 S6 E16 E17 info move P16 visits 470 utility -0.0414945 winrate 0.479712 scoreMean -0.63075 scoreStdev 24.7179 scoreLead -0.63075 scoreSelfplay -0.5221 prior 0.220566 lcb 0.47657 utilityLcb -0.0502929 order 1 pv P16 P17 O17 Q17 O16 E17 H17 D15 C15 D14 C13 D13 C12 D12 info move E16 visits 143 utility -0.0534071 winrate 0.474509 scoreMean -0.729858 scoreStdev 24.7991 scoreLead -0.729858 scoreSelfplay -0.735747 prior 0.104652 lcb 0.470674 utilityLcb -0.0641425 order 2 pv E16 P4 P3 O3 Q3 O4 E3 H3 D5 C5`
          * `info` - Indicates the start of information for a new possible move
          * `move` - The move being analyzed.
          * `visits` - The number of visits invested into the move so far.
          * `winrate` - The winrate of the move so far, as a float in [0,1].
          * `scoreMean` - Same as scoreLead. "Mean" is a slight misnomer, but this field exists to preserve compatibility with existing tools.
-         * `scoreStdev` - The predicted standard deviation of the final score of the game after this move, in points. (NOTE: due to the mechanics of MCTS, this value will be significantly biased high currently, although it can still be informative as *relative* indicator).
+         * `scoreStdev` - The predicted standard deviation of the final score of the game after this move, in points. (NOTE: due to the mechanics of MCTS, this value will be **significantly biased high** currently, although it can still be informative as *relative* indicator).
          * `scoreLead` - The predicted average number of points that the current side is leading by (with this many points fewer, it would be an even game).
-         * `scoreSelfplay` - The predicted average value of the final score of the game after this move during selfplay, in points. (Note: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
+         * `scoreSelfplay` - The predicted average value of the final score of the game after this move during selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
          * `prior` - The policy prior of the move, as a float in [0,1].
          * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
          * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate, as a float in [0,1].
