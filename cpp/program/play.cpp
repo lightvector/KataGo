@@ -837,13 +837,15 @@ static double getNaiveEvenKomiHelper(
 
     //If the last shift made stats go the WRONG way, and by a nontrivial amount, then revert half of it and stop immediately.
     if(i > 0) {
-      if((lastLead > 0 && lead > lastLead + 5) ||
-         (lastLead < 0 && lead < lastLead - 5) ||
-         (lastWinLoss > 0 && winLoss > lastWinLoss - 0.1) ||
-         (lastWinLoss < 0 && winLoss < lastWinLoss + 0.1)
+      if((lastLead > 0 && lead > lastLead + 5 && winLoss < 0.75) ||
+         (lastLead < 0 && lead < lastLead - 5 && winLoss > -0.75) ||
+         (lastWinLoss > 0 && winLoss > lastWinLoss + 0.1) ||
+         (lastWinLoss < 0 && winLoss < lastWinLoss - 0.1)
       ) {
         float fairKomi = roundAndClipKomi(hist.rules.komi - lastShift * 0.5f, board, looseClipping);
         hist.setKomi(fairKomi);
+        // cout << "STOP" << endl;
+        // cout << lastLead << " " << lead << " " << lastWinLoss << " " << winLoss << endl;
         break;
       }
     }
