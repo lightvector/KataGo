@@ -232,9 +232,9 @@ struct ConvLayer {
       dilationY,
       dilationX,
       CUDNN_CROSS_CORRELATION,
-      CUDNN_DATA_FLOAT
+      (useFP16 && !useNHWC ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT)
     ));
-    if(useFP16)
+    if(useFP16 && useNHWC)
       CUDNN_ERR(name.c_str(),cudnnSetConvolutionMathType(convolutionDescriptor, CUDNN_TENSOR_OP_MATH));
 
     convolutionAlgorithms = new cudnnConvolutionFwdAlgo_t[maxBatchSize];
