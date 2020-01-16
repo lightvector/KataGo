@@ -890,7 +890,8 @@ class Model:
     mask_sum_hw = tf.reduce_sum(mask,axis=[1,2,3]) # Sum per batch element
     mask_sum_hw_sqrt = tf.sqrt(mask_sum_hw)
 
-    #Initial convolutional layer-------------------------------------------------------------------------------------
+    #Initial convolutional layer -------------------------------------------------------------------------------------
+    # fan [trunk here]
     trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels)
     self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
 
