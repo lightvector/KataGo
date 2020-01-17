@@ -1271,7 +1271,15 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     else if(command == "showboard") {
       ostringstream sout;
       engine->bot->getRootHist().printBasicInfo(sout, engine->bot->getRootBoard());
-      response = Global::trim(sout.str());
+      //Filter out all double newlines, since double newline terminates GTP command responses
+      string s = sout.str();
+      string filtered;
+      for(int i = 0; i<s.length(); i++) {
+        if(i > 0 && s[i-1] == '\n' && s[i] == '\n')
+          continue;
+        filtered += s[i];
+      }
+      response = Global::trim(filtered);
     }
 
     else if(command == "place_free_handicap") {
