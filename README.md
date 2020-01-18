@@ -33,6 +33,26 @@ Here is a graph of the improvement so far as of about 21 days:
 
 As of mid January 2020, the run is still ongoing! Since surpassing the strongest prior KataGo nets, KataGo has since increased up to about 36 GPUs (from about 28) and hopes to continue to improve further.
 
+Just for fun, here's a table of the Elo strength of selected versions, based on a few tens of thousands of games between these and other versions in a pool (1200 visits). Current run:
+
+| Neural Net | Note | Approx Days Training | Elo |
+|-------------|-------|---------------|------|
+| g170-b6c96-s175395328-d26788732 | (last selfplay 6 block)   | 0.75    |      -959 |
+| g170-b10c128-s197428736-d67404019 |  (last selfplay 10 block)  | 1.75  |        -84 |
+| g170e-b10c128-s1141046784-d204142634  | (extended training 10 block)  | -  |      519 |
+| g170-b15c192-s497233664-d149638345 |   (last selfplay 15 block) | 7.5  |      700 |
+| g170-b20c256x2-s668214784-d222255714  | (20 block)  |  15.5 |   1157 |
+| g170-b20c256x2-s1039565568-d285739972  | (20 block)   | 21.5 |    1269 |
+
+And for comparison to the old 2019 June official run (Elos computed within the same pool):
+
+| Neural Net | Note | Approx Days |  Elo |
+|-------------|-------|---------------|------|
+| g104-b6c96-s97778688-d23397744 | (last selfplay 6 block)   |  0.75 |    -930 |
+| g104-b10c128-s110887936-d54937276  | (last selfplay 10 block)     |  1.75 |    -277 |
+| g104-b15c192-s297383936-d140330251  | (last selfplay 15 block)    |  7.5 |    519 |
+| g104-b20c256-s447913472-d241840887  | (last selfplay 20 block)   |  19 |    1090 |
+
 ### Older Runs
 
 The first serious run of KataGo ran for 7 days in February 2019 on up to 35xV100 GPUs. This is the run featured the [early versions](https://arxiv.org/abs/1902.10565v2) of KataGo's research paper. It achieved close to LZ130 strength before it was halted, or up to just barely superhuman.
