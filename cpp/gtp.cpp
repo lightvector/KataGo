@@ -440,6 +440,7 @@ struct GTPEngine {
     bool lz = false;
     bool kata = false;
     int minMoves = 0;
+    int maxMoves = 10000000;
     bool showOwnership = false;
     double secondsPerReport = 1e30;
   };
@@ -451,6 +452,8 @@ struct GTPEngine {
       callback = [args,pla,this](Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
+        if(buf.size() > args.maxMoves)
+          buf.resize(args.maxMoves);
         if(buf.size() <= 0)
           return;
 
@@ -477,6 +480,8 @@ struct GTPEngine {
       callback = [args,pla,this](Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
+        if(buf.size() > args.maxMoves)
+          buf.resize(args.maxMoves);
         if(buf.size() <= 0)
           return;
 
@@ -512,6 +517,8 @@ struct GTPEngine {
       callback = [args,pla,this](Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
+        if(buf.size() > args.maxMoves)
+          buf.resize(args.maxMoves);
         if(buf.size() <= 0)
           return;
 
@@ -817,6 +824,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
   bool isKata = (command == "kata-analyze" || command == "kata-genmove_analyze");
   double lzAnalyzeInterval = 1e30;
   int minMoves = 0;
+  int maxMoves = 10000000;
   bool showOwnership = false;
 
   parseFailed = false;
@@ -828,6 +836,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
   //interval <float interval in centiseconds>
   //avoid <player> <comma-separated moves> <until movenum>
   //minmoves <int min number of moves to show>
+  //maxmoves <int max number of moves to show>
   //ownership <bool whether to show ownership or not>
 
   //Parse optional player
@@ -876,7 +885,10 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
             minMoves >= 0 && minMoves < 1000000000) {
       continue;
     }
-
+    else if(key == "maxmoves" && Global::tryStringToInt(value,maxMoves) &&
+            maxMoves >= 0 && maxMoves < 1000000000) {
+      continue;
+    }
     else if(isKata && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
       continue;
     }
@@ -892,6 +904,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
   //Convert from centiseconds to seconds
   args.secondsPerReport = lzAnalyzeInterval * 0.01;
   args.minMoves = minMoves;
+  args.maxMoves = maxMoves;
   args.showOwnership = showOwnership;
   return args;
 }

@@ -44,6 +44,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * Possible key-value pairs:
          * `interval CENTISECONDS` - Output a line every this many centiseconds. Alternate way to specify interval besides as the second argument.
          * `minmoves N` - Output stats for at least N different legal moves if possible (will likely cause KataGo to output stats on 0-visit moves)
+         * `maxmoves N` - Output stats for at most N different legal moves (NOTE: Leela Zero does NOT currently support this field)
          * `allow ...` - Not currently implemented in KataGo.
          * `avoid ...` - Not currently implemented in KataGo.
       * Output format:
