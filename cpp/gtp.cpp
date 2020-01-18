@@ -54,6 +54,10 @@ static const vector<string> knownCommands = {
   "loadsgf",
 
   //GTP extensions for board analysis
+  // "genmove_analyze",
+  "lz-genmove_analyze",
+  "kata-genmove_analyze",
+  // "analyze",
   "lz-analyze",
   "kata-analyze",
 
@@ -431,13 +435,163 @@ struct GTPEngine {
     bot->ponder(lastSearchFactor);
   }
 
+  struct AnalyzeArgs {
+    bool analyzing = false;
+    bool lz = false;
+    bool kata = false;
+    int minMoves = 0;
+    bool showOwnership = false;
+    double secondsPerReport = 1e30;
+  };
+
+  std::function<void(Search* search)> getAnalyzeCallback(Player pla, AnalyzeArgs args) {
+    std::function<void(Search* search)> callback;
+    //analyze
+    if(!args.kata && !args.lz) {
+      callback = [args,pla,this](Search* search) {
+        vector<AnalysisData> buf;
+        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
+        if(buf.size() <= 0)
+          return;
+
+        const Board board = search->getRootBoard();
+        for(int i = 0; i<buf.size(); i++) {
+          if(i > 0)
+            cout << " ";
+          const AnalysisData& data = buf[i];
+          double winrate = 0.5 * (1.0 + data.winLossValue);
+          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+            winrate = 1.0-winrate;
+          }
+          cout << "info";
+          cout << " move " << Location::toString(data.move,board);
+          cout << " visits " << data.numVisits;
+          cout << " winrate " << round(winrate * 10000.0);
+          cout << " order " << data.order;
+        }
+        cout << endl;
+      };
+    }
+    //lz-analyze
+    else if(!args.kata) {
+      callback = [args,pla,this](Search* search) {
+        vector<AnalysisData> buf;
+        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
+        if(buf.size() <= 0)
+          return;
+
+        const Board board = search->getRootBoard();
+        for(int i = 0; i<buf.size(); i++) {
+          if(i > 0)
+            cout << " ";
+          const AnalysisData& data = buf[i];
+          double winrate = 0.5 * (1.0 + data.winLossValue);
+          double lcb = Play::getHackedLCBForWinrate(search,data,pla);
+          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+            winrate = 1.0-winrate;
+            lcb = 1.0 - lcb;
+          }
+          cout << "info";
+          cout << " move " << Location::toString(data.move,board);
+          cout << " visits " << data.numVisits;
+          cout << " winrate " << round(winrate * 10000.0);
+          cout << " prior " << round(data.policyPrior * 10000.0);
+          cout << " lcb " << round(lcb * 10000.0);
+          cout << " order " << data.order;
+          cout << " pv ";
+          if(preventEncore && data.pvContainsPass())
+            data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
+          else
+            data.writePV(cout,board);
+        }
+        cout << endl;
+      };
+    }
+    //kata-analyze
+    else {
+      callback = [args,pla,this](Search* search) {
+        vector<AnalysisData> buf;
+        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
+        if(buf.size() <= 0)
+          return;
+
+        vector<double> ownership;
+        if(args.showOwnership) {
+          static constexpr int64_t ownershipMinVisits = 3;
+          ownership = search->getAverageTreeOwnership(ownershipMinVisits);
+        }
+
+        const Board board = search->getRootBoard();
+        for(int i = 0; i<buf.size(); i++) {
+          if(i > 0)
+            cout << " ";
+          const AnalysisData& data = buf[i];
+          double winrate = 0.5 * (1.0 + data.winLossValue);
+          double utility = data.utility;
+          //We still hack the LCB for consistency with LZ-analyze
+          double lcb = Play::getHackedLCBForWinrate(search,data,pla);
+          ///But now we also offer the proper LCB that KataGo actually uses.
+          double utilityLcb = data.lcb;
+          double scoreMean = data.scoreMean;
+          double lead = data.lead;
+          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+            winrate = 1.0-winrate;
+            lcb = 1.0 - lcb;
+            utility = -utility;
+            scoreMean = -scoreMean;
+            lead = -lead;
+            utilityLcb = -utilityLcb;
+          }
+          cout << "info";
+          cout << " move " << Location::toString(data.move,board);
+          cout << " visits " << data.numVisits;
+          cout << " utility " << utility;
+          cout << " winrate " << winrate;
+          cout << " scoreMean " << lead;
+          cout << " scoreStdev " << data.scoreStdev;
+          cout << " scoreLead " << lead;
+          cout << " scoreSelfplay " << scoreMean;
+          cout << " prior " << data.policyPrior;
+          cout << " lcb " << lcb;
+          cout << " utilityLcb " << utilityLcb;
+          cout << " order " << data.order;
+          cout << " pv ";
+          if(preventEncore && data.pvContainsPass())
+            data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
+          else
+            data.writePV(cout,board);
+        }
+
+        if(args.showOwnership) {
+          cout << " ";
+
+          cout << "ownership";
+          int nnXLen = search->nnXLen;
+          for(int y = 0; y<board.y_size; y++) {
+            for(int x = 0; x<board.x_size; x++) {
+              int pos = NNPos::xyToPos(x,y,nnXLen);
+              if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
+                cout << " " << -ownership[pos];
+              else
+                cout << " " << ownership[pos];
+            }
+          }
+        }
+
+        cout << endl;
+      };
+    }
+    return callback;
+  }
+
   void genMove(
     Player pla,
     Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
     bool cleanupBeforePass, bool ogsChatToStderr,
     bool allowResignation, double resignThreshold, int resignConsecTurns,
     bool logSearchInfo, bool debug, bool playChosenMove,
-    string& response, bool& responseIsError, bool& maybeStartPondering
+    string& response, bool& responseIsError, bool& maybeStartPondering,
+    AnalyzeArgs args
   ) {
     response = "";
     responseIsError = false;
@@ -458,7 +612,21 @@ struct GTPEngine {
     double searchFactor = Play::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
     lastSearchFactor = searchFactor;
 
-    Loc moveLoc = bot->genMoveSynchronous(pla,tc,searchFactor);
+    Loc moveLoc;
+    if(args.analyzing) {
+      std::function<void(Search* search)> callback = getAnalyzeCallback(pla,args);
+      if(args.showOwnership)
+        bot->setAlwaysIncludeOwnerMap(true);
+      else
+        bot->setAlwaysIncludeOwnerMap(false);
+      moveLoc = bot->genMoveSynchronousAnalyze(pla, tc, searchFactor, args.secondsPerReport, callback);
+      //Make sure callback happens at least once
+      callback(bot->getSearch());
+    }
+    else {
+      moveLoc = bot->genMoveSynchronous(pla,tc,searchFactor);
+    }
+
     bool isLegal = bot->isLegalStrict(moveLoc,pla);
     if(moveLoc == Board::NULL_LOC || !isLegal) {
       responseIsError = true;
@@ -568,6 +736,10 @@ struct GTPEngine {
 
       maybeStartPondering = true;
     }
+
+    if(args.analyzing) {
+      response = "play " + response;
+    }
     return;
   }
 
@@ -615,8 +787,8 @@ struct GTPEngine {
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
   }
 
-  void analyze(Player pla, bool kata, double secondsPerReport, int minMoves, bool showOwnership) {
-
+  void analyze(Player pla, AnalyzeArgs args) {
+    assert(args.analyzing);
     //In dynamic mode, analysis should ALWAYS be with 0.0, to prevent random hard-to-predict changes
     //for users.
     if(dynamicPlayoutDoublingAdvantageCapPerOppLead != 0.0 && params.playoutDoublingAdvantage != 0.0) {
@@ -624,128 +796,105 @@ struct GTPEngine {
       bot->setParams(params);
     }
 
-    std::function<void(Search* search)> callback;
-
-    //lz-analyze
-    if(!kata) {
-      callback = [minMoves,pla,this](Search* search) {
-        vector<AnalysisData> buf;
-        search->getAnalysisData(buf,minMoves,false,analysisPVLen);
-        if(buf.size() <= 0)
-          return;
-
-        const Board board = search->getRootBoard();
-        for(int i = 0; i<buf.size(); i++) {
-          if(i > 0)
-            cout << " ";
-          const AnalysisData& data = buf[i];
-          double winrate = 0.5 * (1.0 + data.winLossValue);
-          double lcb = Play::getHackedLCBForWinrate(search,data,pla);
-          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
-            winrate = 1.0-winrate;
-            lcb = 1.0 - lcb;
-          }
-          cout << "info";
-          cout << " move " << Location::toString(data.move,board);
-          cout << " visits " << data.numVisits;
-          cout << " winrate " << round(winrate * 10000.0);
-          cout << " prior " << round(data.policyPrior * 10000.0);
-          cout << " lcb " << round(lcb * 10000.0);
-          cout << " order " << data.order;
-          cout << " pv ";
-          if(preventEncore && data.pvContainsPass())
-            data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
-          else
-            data.writePV(cout,board);
-        }
-        cout << endl;
-      };
-    }
-    //kata-analyze
-    else {
-      callback = [minMoves,pla,showOwnership,this](Search* search) {
-        vector<AnalysisData> buf;
-        search->getAnalysisData(buf,minMoves,false,analysisPVLen);
-        if(buf.size() <= 0)
-          return;
-
-        vector<double> ownership;
-        if(showOwnership) {
-          static constexpr int64_t ownershipMinVisits = 3;
-          ownership = search->getAverageTreeOwnership(ownershipMinVisits);
-        }
-
-        const Board board = search->getRootBoard();
-        for(int i = 0; i<buf.size(); i++) {
-          if(i > 0)
-            cout << " ";
-          const AnalysisData& data = buf[i];
-          double winrate = 0.5 * (1.0 + data.winLossValue);
-          double utility = data.utility;
-          //We still hack the LCB for consistency with LZ-analyze
-          double lcb = Play::getHackedLCBForWinrate(search,data,pla);
-          ///But now we also offer the proper LCB that KataGo actually uses.
-          double utilityLcb = data.lcb;
-          double scoreMean = data.scoreMean;
-          double lead = data.lead;
-          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
-            winrate = 1.0-winrate;
-            lcb = 1.0 - lcb;
-            utility = -utility;
-            scoreMean = -scoreMean;
-            lead = -lead;
-            utilityLcb = -utilityLcb;
-          }
-          cout << "info";
-          cout << " move " << Location::toString(data.move,board);
-          cout << " visits " << data.numVisits;
-          cout << " utility " << utility;
-          cout << " winrate " << winrate;
-          cout << " scoreMean " << lead;
-          cout << " scoreStdev " << data.scoreStdev;
-          cout << " scoreLead " << lead;
-          cout << " scoreSelfplay " << scoreMean;
-          cout << " prior " << data.policyPrior;
-          cout << " lcb " << lcb;
-          cout << " utilityLcb " << utilityLcb;
-          cout << " order " << data.order;
-          cout << " pv ";
-          if(preventEncore && data.pvContainsPass())
-            data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
-          else
-            data.writePV(cout,board);
-        }
-
-        if(showOwnership) {
-          cout << " ";
-
-          cout << "ownership";
-          int nnXLen = search->nnXLen;
-          for(int y = 0; y<board.y_size; y++) {
-            for(int x = 0; x<board.x_size; x++) {
-              int pos = NNPos::xyToPos(x,y,nnXLen);
-              if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
-                cout << " " << -ownership[pos];
-              else
-                cout << " " << ownership[pos];
-            }
-          }
-        }
-
-        cout << endl;
-      };
-    }
-
-    if(showOwnership)
+    std::function<void(Search* search)> callback = getAnalyzeCallback(pla,args);
+    if(args.showOwnership)
       bot->setAlwaysIncludeOwnerMap(true);
     else
       bot->setAlwaysIncludeOwnerMap(false);
 
     double searchFactor = 1e40; //go basically forever
-    bot->analyze(pla, searchFactor, secondsPerReport, callback);
+    bot->analyze(pla, searchFactor, args.secondsPerReport, callback);
   }
 
 };
+
+
+//User should pre-fill pla with a default value, as it will not get filled in if the parsed command doesn't specify
+static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const vector<string>& pieces, Player& pla, bool& parseFailed) {
+  int numArgsParsed = 0;
+
+  bool isLZ = (command == "lz-analyze" || command == "lz-genmove_analyze");
+  bool isKata = (command == "kata-analyze" || command == "kata-genmove_analyze");
+  double lzAnalyzeInterval = 1e30;
+  int minMoves = 0;
+  bool showOwnership = false;
+
+  parseFailed = false;
+
+  //Format:
+  //lz-analyze [optional player] [optional interval float] <keys and values>
+  //Keys and values consists of zero or more of:
+
+  //interval <float interval in centiseconds>
+  //avoid <player> <comma-separated moves> <until movenum>
+  //minmoves <int min number of moves to show>
+  //ownership <bool whether to show ownership or not>
+
+  //Parse optional player
+  if(pieces.size() > numArgsParsed && PlayerIO::tryParsePlayer(pieces[numArgsParsed],pla))
+    numArgsParsed += 1;
+
+  //Parse optional interval float
+  if(pieces.size() > numArgsParsed &&
+     Global::tryStringToDouble(pieces[numArgsParsed],lzAnalyzeInterval) &&
+     !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20)
+    numArgsParsed += 1;
+
+  //Now loop and handle all key value pairs
+  while(pieces.size() > numArgsParsed) {
+    const string& key = pieces[numArgsParsed];
+    numArgsParsed += 1;
+    //Make sure we have a value. If not, then we fail.
+    if(pieces.size() <= numArgsParsed) {
+      parseFailed = true;
+      break;
+    }
+
+    const string& value = pieces[numArgsParsed];
+    numArgsParsed += 1;
+
+    if(key == "interval" && Global::tryStringToDouble(value,lzAnalyzeInterval) &&
+       !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20) {
+      continue;
+    }
+    //Parse it but ignore it since we don't support excluding moves right now
+    else if(key == "avoid" || key == "allow") {
+      //Parse two more arguments, and ignore them
+      if(pieces.size() <= numArgsParsed+1) {
+        parseFailed = true;
+        break;
+      }
+      const string& moves = pieces[numArgsParsed];
+      (void)moves;
+      numArgsParsed += 1;
+      const string& untilMove = pieces[numArgsParsed];
+      (void)untilMove;
+      numArgsParsed += 1;
+      continue;
+    }
+    else if(key == "minmoves" && Global::tryStringToInt(value,minMoves) &&
+            minMoves >= 0 && minMoves < 1000000000) {
+      continue;
+    }
+
+    else if(isKata && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
+      continue;
+    }
+
+    parseFailed = true;
+    break;
+  }
+
+  GTPEngine::AnalyzeArgs args = GTPEngine::AnalyzeArgs();
+  args.analyzing = true;
+  args.lz = isLZ;
+  args.kata = isKata;
+  //Convert from centiseconds to seconds
+  args.secondsPerReport = lzAnalyzeInterval * 0.01;
+  args.minMoves = minMoves;
+  args.showOwnership = showOwnership;
+  return args;
+}
 
 
 int MainCmds::gtp(int argc, const char* const* argv) {
@@ -928,6 +1077,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
 
     bool responseIsError = false;
+    bool suppressResponse = false;
     bool shouldQuitAfterResponse = false;
     bool maybeStartPondering = false;
     string response;
@@ -1260,8 +1410,49 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           cleanupBeforePass,ogsChatToStderr,
           allowResignation,resignThreshold,resignConsecTurns,
           logSearchInfo,debug,playChosenMove,
-          response,responseIsError,maybeStartPondering
+          response,responseIsError,maybeStartPondering,
+          GTPEngine::AnalyzeArgs()
         );
+      }
+    }
+
+    else if(command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze") {
+      Player pla = engine->bot->getRootPla();
+      bool parseFailed = false;
+      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed);
+      if(parseFailed) {
+        responseIsError = true;
+        response = "Could not parse genmove_analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        bool debug = false;
+        bool playChosenMove = true;
+
+        //Make sure the "equals" for GTP is printed out prior to the first analyze line, regardless of thread racing
+        if(hasId)
+          cout << "=" << Global::intToString(id) << endl;
+        else
+          cout << "=" << endl;
+        engine->genMove(
+          pla,
+          logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
+          cleanupBeforePass,ogsChatToStderr,
+          allowResignation,resignThreshold,resignConsecTurns,
+          logSearchInfo,debug,playChosenMove,
+          response,responseIsError,maybeStartPondering,
+          args
+        );
+        //And manually handle the result as well. In case of error, don't report any play.
+        suppressResponse = true;
+        if(!responseIsError) {
+          cout << response << endl;
+          cout << endl;
+        }
+        else {
+          cout << endl;
+          if(!loggingToStderr)
+            cerr << response << endl;
+        }
       }
     }
 
@@ -1524,88 +1715,26 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
-    else if(command == "lz-analyze" || command == "kata-analyze") {
-      int numArgsParsed = 0;
-
+    else if(command == "analyze" || command == "lz-analyze" || command == "kata-analyze") {
       Player pla = engine->bot->getRootPla();
-      double lzAnalyzeInterval = 1e30;
-      int minMoves = 0;
-      bool showOwnership = false;
       bool parseFailed = false;
-
-      //Format:
-      //lz-analyze [optional player] [optional interval float] <keys and values>
-      //Keys and values consists of zero or more of:
-
-      //interval <float interval in centiseconds>
-      //avoid <player> <comma-separated moves> <until movenum>
-      //minmoves <int min number of moves to show>
-      //ownership <bool whether to show ownership or not>
-
-      //Parse optional player
-      if(pieces.size() > numArgsParsed && PlayerIO::tryParsePlayer(pieces[numArgsParsed],pla))
-        numArgsParsed += 1;
-
-      //Parse optional interval float
-      if(pieces.size() > numArgsParsed &&
-         Global::tryStringToDouble(pieces[numArgsParsed],lzAnalyzeInterval) &&
-         !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20)
-        numArgsParsed += 1;
-
-      //Now loop and handle all key value pairs
-      while(pieces.size() > numArgsParsed) {
-        const string& key = pieces[numArgsParsed];
-        numArgsParsed += 1;
-        //Make sure we have a value. If not, then we fail.
-        if(pieces.size() <= numArgsParsed) {
-          parseFailed = true;
-          break;
-        }
-
-        const string& value = pieces[numArgsParsed];
-        numArgsParsed += 1;
-
-        if(key == "interval" && Global::tryStringToDouble(value,lzAnalyzeInterval) &&
-           !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20) {
-          continue;
-        }
-        //Parse it but ignore it since we don't support excluding moves right now
-        else if(key == "avoid" || key == "allow") {
-          //Parse two more arguments, and ignore them
-          if(pieces.size() <= numArgsParsed+1) {
-            parseFailed = true;
-            break;
-          }
-          const string& moves = pieces[numArgsParsed];
-          (void)moves;
-          numArgsParsed += 1;
-          const string& untilMove = pieces[numArgsParsed];
-          (void)untilMove;
-          numArgsParsed += 1;
-          continue;
-        }
-        else if(key == "minmoves" && Global::tryStringToInt(value,minMoves) &&
-                minMoves >= 0 && minMoves < 1000000000) {
-          continue;
-        }
-
-        else if(command == "kata-analyze" && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
-          continue;
-        }
-
-        parseFailed = true;
-        break;
-      }
+      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed);
 
       if(parseFailed) {
         responseIsError = true;
         response = "Could not parse analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
       }
       else {
-        double secondsPerReport = lzAnalyzeInterval * 0.01; //Convert from centiseconds to seconds
+        //Make sure the "equals" for GTP is printed out prior to the first analyze line, regardless of thread racing
+        if(hasId)
+          cout << "=" << Global::intToString(id) << endl;
+        else
+          cout << "=" << endl;
 
-        bool kata = command == "kata-analyze";
-        engine->analyze(pla, kata, secondsPerReport, minMoves, showOwnership);
+        engine->analyze(pla, args);
+
+        //No response - currentlyAnalyzing will make sure we get a newline at the appropriate time, when stopped.
+        suppressResponse = true;
         currentlyAnalyzing = true;
       }
     }
@@ -1632,11 +1761,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     else
       response = "=" + response;
 
-    cout << response << endl;
-
-    //GTP needs extra newline, except if currently analyzing, defer the newline until we actually stop analysis
-    if(!currentlyAnalyzing)
+    if(!suppressResponse) {
+      cout << response << endl;
       cout << endl;
+    }
 
     if(logAllGTPCommunication)
       logger.write(response);
