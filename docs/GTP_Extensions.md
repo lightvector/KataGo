@@ -82,9 +82,9 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
          * `pv` - The principal variation following this move. May be of variable length or even empty.
          * `ownership` - If `ownership true` was provided, then BoardHeight*BoardWidth many consecutive floats in [-1,1] separated by spaces, predicting the final ownership of every board location from the perspective of the current player. Floats are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
-  * `lz-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR
+  * `lz-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
      * Same as `genmove` except will also produce `lz-analyze`-like output while the move is being searched.
      * Behaves like a normal synchronous GTP command, unlike `lz-analyze`. Will NOT terminate prematurely due a newline or addiional GTP command.
      * The final move made will be reported as a single line `play <vertex or "pass" or "resign">`, followed by the usual double-newline.
-  * `kata-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR
+  * `kata-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
      * Same as `lz-genmove_analyze` except with the options and fields of `kata-analyze` rather than `lz-analyze`
