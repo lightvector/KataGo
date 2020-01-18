@@ -24,15 +24,27 @@ void NeuralNet::globalCleanup() {
 struct CudaHandles {
   cublasHandle_t cublas;
   cudnnHandle_t cudnn;
+  int majorComputeCapability;
+  int minorComputeCapability;
 
-  CudaHandles() {
+  CudaHandles(int major, int minor) {
     CUBLAS_ERR("CudaHandles",cublasCreate(&cublas));
     CUDNN_ERR("CudaHandles",cudnnCreate(&cudnn));
+
+    majorComputeCapability = major;
+    minorComputeCapability = minor;
   }
 
   ~CudaHandles() {
     cublasDestroy(cublas);
     cudnnDestroy(cudnn);
+  }
+
+  static CudaHandles* cudaHandlesTesting() {
+    const int gpuIdxForThisThread = 0;
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop,gpuIdxForThisThread);
+    return new CudaHandles(prop.major, prop.minor);
   }
 
   CudaHandles(const CudaHandles&) = delete;
@@ -222,6 +234,10 @@ struct ConvLayer {
     int yStride = 1;
     int xStride = 1;
 
+    //NVIDIA compute capability 7 is when we first hit Volta architecture, with tensor cores
+    //See https://en.wikipedia.org/wiki/CUDA#Version_features_and_specifications
+    bool tensorCoresSupported = cudaHandles->majorComputeCapability >= 7;
+
     CUDNN_ERR(name.c_str(),cudnnCreateConvolutionDescriptor(&convolutionDescriptor));
     CUDNN_ERR(name.c_str(),cudnnSetConvolution2dDescriptor(
       convolutionDescriptor,
@@ -232,9 +248,9 @@ struct ConvLayer {
       dilationY,
       dilationX,
       CUDNN_CROSS_CORRELATION,
-      CUDNN_DATA_FLOAT
+      (useFP16 && !tensorCoresSupported) ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT
     ));
-    if(useFP16)
+    if(useFP16 && tensorCoresSupported)
       CUDNN_ERR(name.c_str(),cudnnSetConvolutionMathType(convolutionDescriptor, CUDNN_TENSOR_OP_MATH));
 
     convolutionAlgorithms = new cudnnConvolutionFwdAlgo_t[maxBatchSize];
@@ -2634,6 +2650,8 @@ struct ComputeHandle {
 
   ComputeHandle(
     const LoadedModel* loadedModel,
+    int majorComputeCapability,
+    int minorComputeCapability,
     int maxBatchSize,
     int xLen,
     int yLen,
@@ -2642,7 +2660,7 @@ struct ComputeHandle {
     bool useFP16,
     bool useNHWC
   ) {
-    cudaHandles = new CudaHandles();
+    cudaHandles = new CudaHandles(majorComputeCapability,minorComputeCapability);
     model = new Model(
       cudaHandles, &(loadedModel->modelDesc), maxBatchSize,
       xLen, yLen, inputsUseNHWC, useFP16, useNHWC
@@ -2703,7 +2721,9 @@ ComputeHandle* NeuralNet::createComputeHandle(
   if(useFP16 && (prop.major < 5 || (prop.major == 5 && prop.minor < 3)))
     throw StringError("Cuda device versions below 5.3 do not support useFP16=true");
 
-  ComputeHandle* gpuHandle = new ComputeHandle(loadedModel,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC);
+  ComputeHandle* gpuHandle = new ComputeHandle(
+    loadedModel,prop.major,prop.minor,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC
+  );
   return gpuHandle;
 }
 
@@ -3023,7 +3043,7 @@ bool NeuralNet::testEvaluateConv(
   vector<float>& outputBuffer
 ) {
   cudaDeviceSynchronize();
-  CudaHandles* cudaHandles = new CudaHandles();
+  CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
   int xSize = nnXLen;
   int ySize = nnYLen;
@@ -3122,7 +3142,7 @@ bool NeuralNet::testEvaluateBatchNorm(
   vector<float>& outputBuffer
 ) {
   cudaDeviceSynchronize();
-  CudaHandles* cudaHandles = new CudaHandles();
+  CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
   int xSize = nnXLen;
   int ySize = nnYLen;
@@ -3180,7 +3200,7 @@ bool NeuralNet::testEvaluateResidualBlock(
   vector<float>& outputBuffer
 ) {
   cudaDeviceSynchronize();
-  CudaHandles* cudaHandles = new CudaHandles();
+  CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
   int xSize = nnXLen;
   int ySize = nnYLen;
@@ -3291,7 +3311,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   vector<float>& outputBuffer
 ) {
   cudaDeviceSynchronize();
-  CudaHandles* cudaHandles = new CudaHandles();
+  CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
   int xSize = nnXLen;
   int ySize = nnYLen;
@@ -3465,7 +3485,7 @@ bool NeuralNet::testEvaluateSymmetry(
   std::vector<float>& outputBuffer
 ) {
   cudaDeviceSynchronize();
-  CudaHandles* cudaHandles = new CudaHandles();
+  CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
   int xSize = nnXLen;
   int ySize = nnYLen;
