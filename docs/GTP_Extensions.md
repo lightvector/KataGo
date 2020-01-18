@@ -39,11 +39,12 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * Sets a single field of the current rules, leaving other fields unaffected.
       * For example, `kata-set-rule ko SIMPLE`.
       * May fail, if setting this field would result in a combination of rules that is not supported by the current neural net.
-   * `lz-analyze KEYVALUEPAIR KEYVALUEPAIR ...`
-      * Begin searching and optionally outputting live analysis to stdout.
+   * `lz-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
+      * Begin searching and optionally outputting live analysis to stdout. Assumes the normal player to move next unless otherwise specified.
       * Possible key-value pairs:
-         * `interval CENTISECONDS` - Output a line every this many centiseconds.
+         * `interval CENTISECONDS` - Output a line every this many centiseconds. Alternate way to specify interval besides as the second argument.
          * `minmoves N` - Output stats for at least N different legal moves if possible (will likely cause KataGo to output stats on 0-visit moves)
+         * `maxmoves N` - Output stats for at most N different legal moves (NOTE: Leela Zero does NOT currently support this field)
          * `allow ...` - Not currently implemented in KataGo.
          * `avoid ...` - Not currently implemented in KataGo.
       * Output format:
@@ -59,7 +60,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * All output values are from the perspective of the current player, unless otherwise configured in KataGo's gtp config.
       * This command will terminate upon any new GTP command being received, as well as upon a raw newline being received, including outputting the usual double-newline that signals a completed GTP response.
 
-   * `kata-analyze KEYVALUEPAIR KEYVALUEPAIR ...`
+   * `kata-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
       * Same as `lz-analyze` except a slightly different output format and some additional options and fields.
       * Additional possible key-value pairs:
          * `ownership true` - Output the predicted final ownership of every point on the board.
@@ -81,3 +82,9 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
          * `pv` - The principal variation following this move. May be of variable length or even empty.
          * `ownership` - If `ownership true` was provided, then BoardHeight*BoardWidth many consecutive floats in [-1,1] separated by spaces, predicting the final ownership of every board location from the perspective of the current player. Floats are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
+  * `lz-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR
+     * Same as `genmove` except will also produce `lz-analyze`-like output while the move is being searched.
+     * Behaves like a normal synchronous GTP command, unlike `lz-analyze`. Will NOT terminate prematurely due a newline or addiional GTP command.
+     * The final move made will be reported as a single line `play <vertex or "pass" or "resign">`, followed by the usual double-newline.
+  * `kata-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR
+     * Same as `lz-genmove_analyze` except with the options and fields of `kata-analyze` rather than `lz-analyze`
