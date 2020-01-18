@@ -35,7 +35,7 @@ As of mid January 2020, the run is still ongoing! Since surpassing the strongest
 
 Just for fun, here's a table of the Elo strength of selected versions, based on a few tens of thousands of games between these and other versions in a pool (1200 visits). Current run:
 
-| Neural Net | Note | Approx Days Training | Elo |
+| Neural Net | Note | Approx Days Selfplay | Elo |
 |-------------|-------|---------------|------|
 | g170-b6c96-s175395328-d26788732 | (last selfplay 6 block)   | 0.75    |      -959 |
 | g170-b10c128-s197428736-d67404019 |  (last selfplay 10 block)  | 1.75  |        -84 |
@@ -46,7 +46,7 @@ Just for fun, here's a table of the Elo strength of selected versions, based on 
 
 And for comparison to the old 2019 June official run (Elos computed within the same pool):
 
-| Neural Net | Note | Approx Days |  Elo |
+| Neural Net | Note | Approx Days Selfplay |  Elo |
 |-------------|-------|---------------|------|
 | g104-b6c96-s97778688-d23397744 | (last selfplay 6 block)   |  0.75 |    -930 |
 | g104-b10c128-s110887936-d54937276  | (last selfplay 10 block)     |  1.75 |    -277 |
