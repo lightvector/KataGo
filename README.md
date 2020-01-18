@@ -24,7 +24,7 @@ Now available for download are a new 20 block x 256 channel network that with eq
 
 See the [releases page](https://github.com/lightvector/KataGo/releases) for the latest release and these neural nets. Download more trained neural nets [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html).
 
-Here is a graph of the improvement so far as of about 16 days:
+Here is a graph of the improvement so far as of about 21 days:
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/readme/jan2020vsjune2019.png" height="350"/></td></tr>
