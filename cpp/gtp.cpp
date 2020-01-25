@@ -44,6 +44,7 @@ static const vector<string> knownCommands = {
   "clear_cache",
 
   "showboard",
+  "fixed_handicap",
   "place_free_handicap",
   "set_free_handicap",
   "time_settings",
@@ -753,6 +754,45 @@ struct GTPEngine {
   void clearCache() {
     bot->clearSearch();
     nnEval->clearCache();
+  }
+
+  void placeFixedHandicap(int n, string& response, bool& responseIsError) {
+    //If asked to place more, we just go ahead and only place up to 30, or a quarter of the board
+    int xSize = bot->getRootBoard().x_size;
+    int ySize = bot->getRootBoard().y_size;
+    Board board(xSize,ySize);
+    try {
+      Play::placeFixedHandicap(board,n);
+    }
+    catch(const StringError& e) {
+      responseIsError = true;
+      response = string(e.what()) + ", try place_free_handicap";
+      return;
+    }
+    assert(bot->getRootHist().rules == currentRules);
+
+    Player pla = P_BLACK;
+    BoardHistory hist(board,pla,currentRules,0);
+
+    //Also switch the initial player, expecting white should be next.
+    hist.clear(board,P_WHITE,currentRules,0);
+    hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+    pla = P_WHITE;
+
+    response = "";
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] != C_EMPTY) {
+          response += " " + Location::toString(loc,board);
+        }
+      }
+    }
+    response = Global::trim(response);
+    (void)responseIsError;
+
+    vector<Move> newMoveHistory;
+    setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
   }
 
   void placeFreeHandicap(int n, string& response, bool& responseIsError) {
@@ -1484,6 +1524,29 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         filtered += s[i];
       }
       response = Global::trim(filtered);
+    }
+
+    else if(command == "fixed_handicap") {
+      int n;
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one argument for fixed_handicap but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(!Global::tryStringToInt(pieces[0],n)) {
+        responseIsError = true;
+        response = "Could not parse number of handicap stones: '" + pieces[0] + "'";
+      }
+      else if(n < 2) {
+        responseIsError = true;
+        response = "Number of handicap stones less than 2: '" + pieces[0] + "'";
+      }
+      else if(!engine->bot->getRootBoard().isEmpty()) {
+        responseIsError = true;
+        response = "Board is not empty";
+      }
+      else {
+        engine->placeFixedHandicap(n,response,responseIsError);
+      }
     }
 
     else if(command == "place_free_handicap") {

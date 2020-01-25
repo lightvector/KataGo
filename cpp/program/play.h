@@ -287,6 +287,9 @@ namespace Play {
     Rand& gameRand
   );
 
+  //Set board to empty and place fixed handicap stones, raising an exception if invalid
+  void placeFixedHandicap(Board& board, int n);
+
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
     const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
