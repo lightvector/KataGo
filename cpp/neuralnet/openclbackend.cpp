@@ -621,6 +621,87 @@ static void debugPrint4D(const string& name, ComputeHandleInternal* handle, cl_m
 
 //--------------------------------------------------------------
 
+struct BatchNormLayer {
+  string name;
+  int numChannels;
+  float epsilon;
+
+  int nnXLen;
+  int nnYLen;
+  int nnXYLen;
+  cl_mem mergedScaleBuf;
+  cl_mem mergedBiasBuf;
+
+  static constexpr int nKernelDims = 2;
+  size_t globalSizes[nKernelDims];
+
+  BatchNormLayer(ComputeHandleInternal* handle, const BatchNormLayerDesc* desc, int nnX, int nnY) {
+    name = desc->name;
+    numChannels = desc->numChannels;
+    epsilon = desc->epsilon;
+
+    nnXLen = nnX;
+    nnYLen = nnY;
+    nnXYLen = nnX * nnY;
+
+    assert(desc->mean.size() == numChannels);
+    assert(desc->variance.size() == numChannels);
+    assert(desc->scale.size() == numChannels);
+    assert(desc->bias.size() == numChannels);
+
+    vector<float> mergedScale(numChannels);
+    vector<float> mergedBias(numChannels);
+    for(int i = 0; i<numChannels; i++) {
+      mergedScale[i] = desc->scale[i] / sqrt(desc->variance[i] + epsilon);
+      mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
+    }
+
+    mergedScaleBuf = createReadOnlyBuffer(handle,mergedScale);
+    mergedBiasBuf = createReadOnlyBuffer(handle,mergedBias);
+
+    globalSizes[0] = powerOf2ify(nnXLen * nnYLen);
+    globalSizes[1] = powerOf2ify(numChannels);
+  }
+
+  ~BatchNormLayer() {
+    clReleaseMemObject(mergedScaleBuf);
+    clReleaseMemObject(mergedBiasBuf);
+  }
+
+  void apply(ComputeHandleInternal* handle, int batchSize, bool applyRelu, cl_mem input, cl_mem output, cl_mem mask) {
+    cl_kernel kernel;
+    if(!applyRelu)
+      kernel = handle->scaleBiasMaskNCHWKernel;
+    else
+      kernel = handle->scaleBiasMaskReluNCHWKernel;
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&mergedScaleBuf);
+    clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&mergedBiasBuf);
+    clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&mask);
+    clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
+    clSetKernelArg(kernel, 6, sizeof(int), (void *)&numChannels);
+    clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXYLen);
+
+    cl_int err;
+    size_t* localSizes = NULL; //TODO actually pick these with tuning? Or fuse with conv untransform?
+    MAYBE_EVENT;
+    err = clEnqueueNDRangeKernel(
+      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+    );
+    CHECK_ERR(err);
+    MAYBE_PROFILE("BatchNorm");
+    MAYBE_FREE_EVENT;
+  }
+
+  BatchNormLayer() = delete;
+  BatchNormLayer(const BatchNormLayer&) = delete;
+  BatchNormLayer& operator=(const BatchNormLayer&) = delete;
+};
+
+//--------------------------------------------------------------
+
 struct ConvLayer {
   string name;
   int convYSize;
@@ -939,107 +1020,6 @@ struct ConvLayer {
 
 //--------------------------------------------------------------
 
-struct BatchNormLayer {
-  string name;
-  int numChannels;
-  float epsilon;
-
-  int nnXLen;
-  int nnYLen;
-  int nnXYLen;
-  cl_mem mergedScaleBuf;
-  cl_mem mergedBiasBuf;
-
-  static constexpr int nKernelDims = 2;
-  size_t globalSizes[nKernelDims];
-
-  BatchNormLayer(ComputeHandleInternal* handle, const BatchNormLayerDesc* desc, int nnX, int nnY) {
-    name = desc->name;
-    numChannels = desc->numChannels;
-    epsilon = desc->epsilon;
-
-    nnXLen = nnX;
-    nnYLen = nnY;
-    nnXYLen = nnX * nnY;
-
-    assert(desc->mean.size() == numChannels);
-    assert(desc->variance.size() == numChannels);
-    assert(desc->scale.size() == numChannels);
-    assert(desc->bias.size() == numChannels);
-
-    vector<float> mergedScale(numChannels);
-    vector<float> mergedBias(numChannels);
-    for(int i = 0; i<numChannels; i++) {
-      mergedScale[i] = desc->scale[i] / sqrt(desc->variance[i] + epsilon);
-      mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
-    }
-
-    mergedScaleBuf = createReadOnlyBuffer(handle,mergedScale);
-    mergedBiasBuf = createReadOnlyBuffer(handle,mergedBias);
-
-    globalSizes[0] = powerOf2ify(nnXLen * nnYLen);
-    globalSizes[1] = powerOf2ify(numChannels);
-  }
-
-  ~BatchNormLayer() {
-    clReleaseMemObject(mergedScaleBuf);
-    clReleaseMemObject(mergedBiasBuf);
-  }
-
-  void apply(ComputeHandleInternal* handle, int batchSize, bool applyRelu, cl_mem input, cl_mem output, cl_mem mask) {
-    cl_kernel kernel;
-    if(!applyRelu)
-      kernel = handle->scaleBiasMaskNCHWKernel;
-    else
-      kernel = handle->scaleBiasMaskReluNCHWKernel;
-
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&mergedScaleBuf);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&mergedBiasBuf);
-    clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&mask);
-    clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
-    clSetKernelArg(kernel, 6, sizeof(int), (void *)&numChannels);
-    clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXYLen);
-
-    cl_int err;
-    size_t* localSizes = NULL; //TODO actually pick these with tuning? Or fuse with conv untransform?
-    MAYBE_EVENT;
-    err = clEnqueueNDRangeKernel(
-      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
-    );
-    CHECK_ERR(err);
-    MAYBE_PROFILE("BatchNorm");
-    MAYBE_FREE_EVENT;
-  }
-
-  BatchNormLayer() = delete;
-  BatchNormLayer(const BatchNormLayer&) = delete;
-  BatchNormLayer& operator=(const BatchNormLayer&) = delete;
-};
-
-//--------------------------------------------------------------
-
-struct ActivationLayer {
-  string name;
-
-  ActivationLayer(
-    ComputeHandleInternal* handle, const ActivationLayerDesc* desc
-  ) {
-    (void)handle;
-    name = desc->name;
-  }
-
-  ~ActivationLayer() {
-  }
-
-  ActivationLayer() = delete;
-  ActivationLayer(const ActivationLayer&) = delete;
-  ActivationLayer& operator=(const ActivationLayer&) = delete;
-};
-
-//--------------------------------------------------------------
-
 struct MatMulLayer {
   string name;
   int inChannels;
@@ -1142,10 +1122,8 @@ struct MatBiasLayer {
 struct ResidualBlock {
   string name;
   BatchNormLayer preBN;
-  ActivationLayer preActivation;
   ConvLayer regularConv;
   BatchNormLayer midBN;
-  ActivationLayer midActivation;
   ConvLayer finalConv;
 
   int nnXLen;
@@ -1158,10 +1136,8 @@ struct ResidualBlock {
     int nnX, int nnY
   ): name(desc->name),
      preBN(handle,&desc->preBN,nnX,nnY),
-     preActivation(handle,&desc->preActivation),
      regularConv(handle,&desc->regularConv,nnX,nnY),
      midBN(handle,&desc->midBN,nnX,nnY),
-     midActivation(handle,&desc->midActivation),
      finalConv(handle,&desc->finalConv,nnX,nnY),
      nnXLen(nnX),
      nnYLen(nnY),
@@ -1205,14 +1181,11 @@ struct ResidualBlock {
 struct GlobalPoolingResidualBlock {
   string name;
   BatchNormLayer preBN;
-  ActivationLayer preActivation;
   ConvLayer regularConv;
   ConvLayer gpoolConv;
   BatchNormLayer gpoolBN;
-  ActivationLayer gpoolActivation;
   MatMulLayer gpoolToBiasMul;
   BatchNormLayer midBN;
-  ActivationLayer midActivation;
   ConvLayer finalConv;
 
   int nnXLen;
@@ -1227,14 +1200,11 @@ struct GlobalPoolingResidualBlock {
     int nnX, int nnY
   ): name(desc->name),
      preBN(handle,&desc->preBN,nnX,nnY),
-     preActivation(handle,&desc->preActivation),
      regularConv(handle,&desc->regularConv,nnX,nnY),
      gpoolConv(handle,&desc->gpoolConv,nnX,nnY),
      gpoolBN(handle,&desc->gpoolBN,nnX,nnY),
-     gpoolActivation(handle,&desc->gpoolActivation),
      gpoolToBiasMul(handle,&desc->gpoolToBiasMul),
      midBN(handle,&desc->midBN,nnX,nnY),
-     midActivation(handle,&desc->midActivation),
      finalConv(handle,&desc->finalConv,nnX,nnY),
      nnXLen(nnX),
      nnYLen(nnY),
@@ -1319,7 +1289,6 @@ struct Trunk {
   MatMulLayer* initialMatMul;
   vector<pair<int,void*>> blocks;
   BatchNormLayer* trunkTipBN;
-  ActivationLayer* trunkTipActivation;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -1355,7 +1324,6 @@ struct Trunk {
     initialMatMul = new MatMulLayer(handle,&desc->initialMatMul);
 
     trunkTipBN = new BatchNormLayer(handle,&desc->trunkTipBN,nnXLen,nnYLen);
-    trunkTipActivation = new ActivationLayer(handle,&desc->trunkTipActivation);
 
     assert(desc->blocks.size() == numBlocks);
     for(int i = 0; i<numBlocks; i++) {
@@ -1407,7 +1375,6 @@ struct Trunk {
     delete initialConv;
     delete initialMatMul;
     delete trunkTipBN;
-    delete trunkTipActivation;
   }
 
   size_t requiredConvWorkspaceElts() const {
@@ -1537,10 +1504,8 @@ struct PolicyHead {
   ConvLayer* p1Conv;
   ConvLayer* g1Conv;
   BatchNormLayer* g1BN;
-  ActivationLayer* g1Activation;
   MatMulLayer* gpoolToBiasMul;
   BatchNormLayer* p1BN;
-  ActivationLayer* p1Activation;
   ConvLayer* p2Conv;
   MatMulLayer* gpoolToPassMul;
 
@@ -1565,10 +1530,8 @@ struct PolicyHead {
     p1Conv = new ConvLayer(handle,&desc->p1Conv,nnXLen,nnYLen);
     g1Conv = new ConvLayer(handle,&desc->g1Conv,nnXLen,nnYLen);
     g1BN = new BatchNormLayer(handle,&desc->g1BN,nnXLen,nnYLen);
-    g1Activation = new ActivationLayer(handle,&desc->g1Activation);
     gpoolToBiasMul = new MatMulLayer(handle,&desc->gpoolToBiasMul);
     p1BN = new BatchNormLayer(handle,&desc->p1BN,nnXLen,nnYLen);
-    p1Activation = new ActivationLayer(handle,&desc->p1Activation);
     p2Conv = new ConvLayer(handle,&desc->p2Conv,nnXLen,nnYLen);
     gpoolToPassMul = new MatMulLayer(handle,&desc->gpoolToPassMul);
   }
@@ -1578,10 +1541,8 @@ struct PolicyHead {
     delete p1Conv;
     delete g1Conv;
     delete g1BN;
-    delete g1Activation;
     delete gpoolToBiasMul;
     delete p1BN;
-    delete p1Activation;
     delete p2Conv;
     delete gpoolToPassMul;
   }
@@ -1670,10 +1631,8 @@ struct ValueHead {
 
   ConvLayer* v1Conv;
   BatchNormLayer* v1BN;
-  ActivationLayer* v1Activation;
   MatMulLayer* v2Mul;
   MatBiasLayer* v2Bias;
-  ActivationLayer* v2Activation;
   MatMulLayer* v3Mul;
   MatBiasLayer* v3Bias;
   MatMulLayer* sv3Mul;
@@ -1702,10 +1661,8 @@ struct ValueHead {
 
     v1Conv = new ConvLayer(handle,&desc->v1Conv,nnXLen,nnYLen);
     v1BN = new BatchNormLayer(handle,&desc->v1BN,nnXLen,nnYLen);
-    v1Activation = new ActivationLayer(handle,&desc->v1Activation);
     v2Mul = new MatMulLayer(handle,&desc->v2Mul);
     v2Bias = new MatBiasLayer(handle,&desc->v2Bias);
-    v2Activation = new ActivationLayer(handle,&desc->v2Activation);
     v3Mul = new MatMulLayer(handle,&desc->v3Mul);
     v3Bias = new MatBiasLayer(handle,&desc->v3Bias);
     sv3Mul = new MatMulLayer(handle,&desc->sv3Mul);
@@ -1717,10 +1674,8 @@ struct ValueHead {
   {
     delete v1Conv;
     delete v1BN;
-    delete v1Activation;
     delete v2Mul;
     delete v2Bias;
-    delete v2Activation;
     delete v3Mul;
     delete v3Bias;
     delete sv3Mul;
