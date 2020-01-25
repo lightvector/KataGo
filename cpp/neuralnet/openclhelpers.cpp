@@ -614,6 +614,50 @@ cl_int OpenCLHelpers::doWinogradTransform(
   return err;
 }
 
+cl_int OpenCLHelpers::doWinogradTransformWithBNRelu(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  cl_mem input, cl_mem convWorkspace,
+  cl_mem scaleBuf, cl_mem biasBuf, cl_mem mask,
+  int batchSize, int nnXLen, int nnYLen,
+  int numTilesX, int numTilesY,
+  int inChannels,
+  int convSize,
+  cl_event* eventBuf
+) {
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&convWorkspace);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&scaleBuf);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&biasBuf);
+  clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&mask);
+  clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
+  clSetKernelArg(kernel, 6, sizeof(int), (void *)&nnXLen);
+  clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnYLen);
+  clSetKernelArg(kernel, 8, sizeof(int), (void *)&numTilesX);
+  clSetKernelArg(kernel, 9, sizeof(int), (void *)&numTilesY);
+  clSetKernelArg(kernel, 10, sizeof(int), (void *)&inChannels);
+
+  static constexpr int nKernelDims = 3;
+  size_t localSizes[nKernelDims] = {
+    (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize0 : tuneParams.conv5x5.transLocalSize0),
+    (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize1 : tuneParams.conv5x5.transLocalSize1),
+    (size_t)(convSize == 3 ? tuneParams.conv3x3.transLocalSize2 : tuneParams.conv5x5.transLocalSize2)
+  };
+
+  size_t globalSizes[nKernelDims] = {
+    roundUpToMultiple(powerOf2ify(numTilesX),localSizes[0]),
+    roundUpToMultiple(powerOf2ify(numTilesY),localSizes[1]),
+    roundUpToMultiple(batchSize * inChannels,localSizes[2])
+  };
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
 cl_int OpenCLHelpers::doWinogradUntransform(
   cl_kernel kernel,
   cl_command_queue commandQueue,

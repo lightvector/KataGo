@@ -153,6 +153,11 @@ string OpenCLKernels::winogradConvNCHW = R"%%(
 //INTILE_XOFFSET (-1) for F(2x2,3x3)
 //INTILE_YOFFSET (-1) for F(2x2,3x3)
 
+#define SQRT8 2.82842712475f
+#define SQRT2 1.41421356237f
+#define SQRTHALF 0.70710678118f
+#define SQRTEIGHTH 0.35355339059f
+
 __kernel void transform(
   __global float* restrict input,  //N, ic, H, W
   __global float* restrict transformed, //INTILE_YSIZE, INTILE_XSIZE, ic, batch, tileY, tileX
@@ -168,14 +173,10 @@ __kernel void transform(
   const int nic = get_global_id(2);
   const int n = nic / icSize;
   const int ic = nic % icSize;
+  const int xySize = xSize * ySize;
 
-#define INPUT(_nic,_y,_x) input[((_nic) * ySize + (_y)) * xSize + (_x)]
+#define INPUT(_nic,_xy) input[((_nic) * xySize) + (_xy)]
 #define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
-
-#define SQRT8 2.82842712475f
-#define SQRT2 1.41421356237f
-#define SQRTHALF 0.70710678118f
-#define SQRTEIGHTH 0.35355339059f
 
   __private float wTile[INTILE_XSIZE * INTILE_YSIZE];
 
@@ -186,7 +187,8 @@ __kernel void transform(
       int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
       float value = 0.0f;
       if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY && n < nSize) {
-        value = INPUT(nic,y,x);
+        int xy = y * xSize + x;
+        value = INPUT(nic,xy);
       }
       WTILE(subY,subX) = value;
     }
@@ -311,6 +313,166 @@ __kernel void transform(
   }
 
 }
+
+__kernel void bnReluTransform(
+  __global float* restrict input,  //N, ic, H, W
+  __global float* restrict transformed, //INTILE_YSIZE, INTILE_XSIZE, ic, batch, tileY, tileX
+  __global float* restrict scale, //ic
+  __global float* restrict bias, //ic
+  __global float* restrict mask, //N, H, W
+  int nSize,
+  int xSize,
+  int ySize,
+  int numTilesX,
+  int numTilesY,
+  int icSize
+) {
+  const int tileX = get_global_id(0);
+  const int tileY = get_global_id(1);
+  const int nic = get_global_id(2);
+  const int n = nic / icSize;
+  const int ic = nic % icSize;
+  const int xySize = xSize * ySize;
+
+#define INPUT(_nic,_xy) input[((_nic) * xySize) + (_xy)]
+#define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
+
+  __private float wTile[INTILE_XSIZE * INTILE_YSIZE];
+
+  //Copy input into private tile
+  for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+    int y = tileY * OUTTILE_YSIZE + subY + INTILE_YOFFSET;
+    for(int subX = 0; subX < INTILE_XSIZE; subX++) {
+      int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
+      float value = 0.0f;
+      if(y >= 0 && y < ySize && x >= 0 && x < xSize && tileX < numTilesX && tileY < numTilesY && n < nSize) {
+        int xy = y * xSize + x;
+        value = fmax(INPUT(nic,xy) * scale[ic] + bias[ic], 0.0f) * mask[n * xySize + xy];
+      }
+      WTILE(subY,subX) = value;
+    }
+  }
+
+#if CONV_XSIZE == 3 && OUTTILE_XSIZE == 2
+  for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+    float z0 = WTILE(subY,0);
+    float z1 = WTILE(subY,1);
+    float z2 = WTILE(subY,2);
+    float z3 = WTILE(subY,3);
+    WTILE(subY,0) = z0 - z2;
+    WTILE(subY,1) = z1 + z2;
+    WTILE(subY,2) = z2 - z1;
+    WTILE(subY,3) = z1 - z3;
+  }
+#elif CONV_XSIZE == 3 && OUTTILE_XSIZE == 4
+  for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+    float z0 = WTILE(subY,0);
+    float z1 = WTILE(subY,1);
+    float z2 = WTILE(subY,2);
+    float z3 = WTILE(subY,3);
+    float z4 = WTILE(subY,4);
+    float z5 = WTILE(subY,5);
+    // Low error winograd
+    // WTILE(subY,0) = z0 - 2.5f*z2 + z4;
+    // WTILE(subY,1) = - SQRT2*z1 - 2.0f*z2 + SQRTHALF*z3 + z4;
+    // WTILE(subY,2) =   SQRT2*z1 - 2.0f*z2 - SQRTHALF*z3 + z4;
+    // WTILE(subY,3) = - SQRTHALF*z1 - 0.5f*z2 + SQRT2*z3 + z4;
+    // WTILE(subY,4) =   SQRTHALF*z1 - 0.5f*z2 - SQRT2*z3 + z4;
+    // WTILE(subY,5) = z1 - 2.5f*z3 + z5;
+    WTILE(subY,0) = 4.0f*z0 - 5.0f*z2 + z4;
+    WTILE(subY,1) = - 4.0f*z1 - 4.0f*z2 + z3 + z4;
+    WTILE(subY,2) =   4.0f*z1 - 4.0f*z2 - z3 + z4;
+    WTILE(subY,3) = - 2.0f*z1 - z2 + 2.0f*z3 + z4;
+    WTILE(subY,4) =   2.0f*z1 - z2 - 2.0f*z3 + z4;
+    WTILE(subY,5) = 4.0f*z1 - 5.0f*z3 + z5;
+  }
+#elif CONV_XSIZE == 5 && OUTTILE_XSIZE == 2
+  for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+    float z0 = WTILE(subY,0);
+    float z1 = WTILE(subY,1);
+    float z2 = WTILE(subY,2);
+    float z3 = WTILE(subY,3);
+    float z4 = WTILE(subY,4);
+    float z5 = WTILE(subY,5);
+    WTILE(subY,0) = 4.0f*z0 - 5.0f*z2 + z4;
+    WTILE(subY,1) = - 4.0f*z1 - 4.0f*z2 + z3 + z4;
+    WTILE(subY,2) =   4.0f*z1 - 4.0f*z2 - z3 + z4;
+    WTILE(subY,3) = - 2.0f*z1 - z2 + 2.0f*z3 + z4;
+    WTILE(subY,4) =   2.0f*z1 - z2 - 2.0f*z3 + z4;
+    WTILE(subY,5) = 4.0f*z1 - 5.0f*z3 + z5;
+  }
+#else
+  #error "No X winograd implemented for this conv and tile size"
+#endif
+
+#if CONV_YSIZE == 3 && OUTTILE_YSIZE == 2
+  for(int subX = 0; subX < INTILE_XSIZE; subX++) {
+    float z0 = WTILE(0,subX);
+    float z1 = WTILE(1,subX);
+    float z2 = WTILE(2,subX);
+    float z3 = WTILE(3,subX);
+    WTILE(0,subX) = z0 - z2;
+    WTILE(1,subX) = z1 + z2;
+    WTILE(2,subX) = z2 - z1;
+    WTILE(3,subX) = z1 - z3;
+  }
+#elif CONV_YSIZE == 3 && OUTTILE_YSIZE == 4
+  for(int subX = 0; subX < INTILE_XSIZE; subX++) {
+    float z0 = WTILE(0,subX);
+    float z1 = WTILE(1,subX);
+    float z2 = WTILE(2,subX);
+    float z3 = WTILE(3,subX);
+    float z4 = WTILE(4,subX);
+    float z5 = WTILE(5,subX);
+    // Low error winograd
+    // WTILE(0,subX) = z0 - 2.5f*z2 + z4;
+    // WTILE(1,subX) = - SQRT2*z1 - 2.0f*z2 + SQRTHALF*z3 + z4;
+    // WTILE(2,subX) =   SQRT2*z1 - 2.0f*z2 - SQRTHALF*z3 + z4;
+    // WTILE(3,subX) = - SQRTHALF*z1 - 0.5f*z2 + SQRT2*z3 + z4;
+    // WTILE(4,subX) =   SQRTHALF*z1 - 0.5f*z2 - SQRT2*z3 + z4;
+    // WTILE(5,subX) = z1 - 2.5f*z3 + z5;
+    WTILE(0,subX) = 4.0f*z0 - 5.0f*z2 + z4;
+    WTILE(1,subX) = - 4.0f*z1 - 4.0f*z2 + z3 + z4;
+    WTILE(2,subX) =   4.0f*z1 - 4.0f*z2 - z3 + z4;
+    WTILE(3,subX) = - 2.0f*z1 - z2 + 2.0f*z3 + z4;
+    WTILE(4,subX) =   2.0f*z1 - z2 - 2.0f*z3 + z4;
+    WTILE(5,subX) = 4.0f*z1 - 5.0f*z3 + z5;
+  }
+#elif CONV_YSIZE == 5 && OUTTILE_YSIZE == 2
+  for(int subX = 0; subX < INTILE_XSIZE; subX++) {
+    float z0 = WTILE(0,subX);
+    float z1 = WTILE(1,subX);
+    float z2 = WTILE(2,subX);
+    float z3 = WTILE(3,subX);
+    float z4 = WTILE(4,subX);
+    float z5 = WTILE(5,subX);
+    WTILE(0,subX) = 4.0f*z0 - 5.0f*z2 + z4;
+    WTILE(1,subX) = - 4.0f*z1 - 4.0f*z2 + z3 + z4;
+    WTILE(2,subX) =   4.0f*z1 - 4.0f*z2 - z3 + z4;
+    WTILE(3,subX) = - 2.0f*z1 - z2 + 2.0f*z3 + z4;
+    WTILE(4,subX) =   2.0f*z1 - z2 - 2.0f*z3 + z4;
+    WTILE(5,subX) = 4.0f*z1 - 5.0f*z3 + z5;
+  }
+#else
+  #error "No Y winograd implemented for this conv and tile size"
+#endif
+
+#define TRANS(_suby,_subx,_ic,_ntile) transformed[(((_suby) * INTILE_XSIZE + (_subx))*icSize + (_ic)) * ntxtySize + (_ntile)]
+
+  if(tileX < numTilesX && tileY < numTilesY && n < nSize) {
+    const int ntxtySize = nSize * numTilesX * numTilesY;
+    const int ntile = (n * numTilesY + tileY) * numTilesX + tileX;
+
+    //Copy private tile out to transformed output
+    for(int subY = 0; subY < INTILE_YSIZE; subY++) {
+      for(int subX = 0; subX < INTILE_XSIZE; subX++) {
+        TRANS(subY,subX,ic,ntile) = WTILE(subY,subX);
+      }
+    }
+  }
+
+}
+
 
 __kernel void untransform(
   __global float* restrict transformed, //INTILE_YSIZE, INTILE_XSIZE, oc, batch, tileY, tileX

@@ -282,8 +282,10 @@ struct ComputeHandleInternal {
   cl_kernel conv2dNCHWKernel;
 
   cl_kernel winogradConv3x3NCHWTransformKernel;
+  cl_kernel winogradConv3x3NCHWBNReluTransformKernel;
   cl_kernel winogradConv3x3NCHWUntransformKernel;
   cl_kernel winogradConv5x5NCHWTransformKernel;
+  cl_kernel winogradConv5x5NCHWBNReluTransformKernel;
   cl_kernel winogradConv5x5NCHWUntransformKernel;
   cl_kernel scaleBiasMaskNCHWKernel;
   cl_kernel scaleBiasMaskReluNCHWKernel;
@@ -328,10 +330,14 @@ struct ComputeHandleInternal {
 
     winogradConv3x3NCHWTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWProgram, "transform", &err);
     CHECK_ERR(err);
+    winogradConv3x3NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWProgram, "bnReluTransform", &err);
+    CHECK_ERR(err);
     winogradConv3x3NCHWUntransformKernel = clCreateKernel(progs->winogradConv3x3NCHWProgram, "untransform", &err);
     CHECK_ERR(err);
 
     winogradConv5x5NCHWTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWProgram, "transform", &err);
+    CHECK_ERR(err);
+    winogradConv5x5NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWProgram, "bnReluTransform", &err);
     CHECK_ERR(err);
     winogradConv5x5NCHWUntransformKernel = clCreateKernel(progs->winogradConv5x5NCHWProgram, "untransform", &err);
     CHECK_ERR(err);
@@ -376,8 +382,10 @@ struct ComputeHandleInternal {
 
     clReleaseKernel(conv2dNCHWKernel);
     clReleaseKernel(winogradConv3x3NCHWTransformKernel);
+    clReleaseKernel(winogradConv3x3NCHWBNReluTransformKernel);
     clReleaseKernel(winogradConv3x3NCHWUntransformKernel);
     clReleaseKernel(winogradConv5x5NCHWTransformKernel);
+    clReleaseKernel(winogradConv5x5NCHWBNReluTransformKernel);
     clReleaseKernel(winogradConv5x5NCHWUntransformKernel);
     clReleaseKernel(scaleBiasMaskNCHWKernel);
     clReleaseKernel(scaleBiasMaskReluNCHWKernel);
@@ -1013,6 +1021,83 @@ struct ConvLayer {
     }
   }
 
+  void applyWithBNRelu(
+    ComputeHandleInternal* handle, BatchNormLayer* bnLayer, int batchSize,
+    cl_mem input, cl_mem output, cl_mem mask, cl_mem convWorkspace, cl_mem convWorkspace2
+  ) {
+    if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
+      {
+        cl_int err;
+        MAYBE_EVENT;
+        err = doWinogradTransformWithBNRelu(
+          (convXSize == 3 && convYSize == 3) ?
+          handle->winogradConv3x3NCHWBNReluTransformKernel :
+          handle->winogradConv5x5NCHWBNReluTransformKernel,
+          handle->commandQueue,
+          handle->tuneParams,
+          input,convWorkspace,
+          bnLayer->mergedScaleBuf,
+          bnLayer->mergedBiasBuf,
+          mask,
+          batchSize,nnXLen,nnYLen,
+          numTilesX,numTilesY,
+          inChannels,
+          convXSize,
+          MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3TRANSFORM"); }
+        else { MAYBE_PROFILE("5x5TRANSFORM"); }
+        MAYBE_FREE_EVENT;
+      }
+
+      {
+        int numTilesTotal = batchSize * numTilesX * numTilesY;
+        cl_int err;
+        MAYBE_EVENT;
+        err = doBatchedXGemm_KM_KN_MN(
+          handle->xgemmDirectBatchedNNKernel,
+          handle->commandQueue,
+          handle->tuneParams,
+          outChannels, numTilesTotal, inChannels,
+          filter, convWorkspace, convWorkspace2,
+          inTileXYSize,
+          MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("MATMULCONV3x3"); }
+        else { MAYBE_PROFILE("MATMULCONV5x5"); }
+        MAYBE_FREE_EVENT;
+      }
+
+      {
+        cl_int err;
+        MAYBE_EVENT;
+        err = doWinogradUntransform(
+          (convXSize == 3 && convYSize == 3) ?
+          handle->winogradConv3x3NCHWUntransformKernel :
+          handle->winogradConv5x5NCHWUntransformKernel,
+          handle->commandQueue,
+          handle->tuneParams,
+          convWorkspace2,output,
+          batchSize,nnXLen,nnYLen,
+          numTilesX,numTilesY,
+          outChannels,
+          convXSize,
+          MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("3x3UNTRANSFORM"); }
+        else { MAYBE_PROFILE("5x5UNTRANSFORM"); }
+        MAYBE_FREE_EVENT;
+      }
+
+    }
+    else {
+      throw StringError("Attempted ConvLayer::applyWithBNRelu on non-3x3 or non-5x5 conv, implementation dues not currently support this");
+    }
+  }
+
   ConvLayer() = delete;
   ConvLayer(const ConvLayer&) = delete;
   ConvLayer& operator=(const ConvLayer&) = delete;
@@ -1163,10 +1248,11 @@ struct ResidualBlock {
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) {
-    preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
-    regularConv.apply(handle,batchSize,trunkScratch,mid,convWorkspace,convWorkspace2);
-    midBN.apply(handle,batchSize,true,mid,midScratch,mask);
-    finalConv.apply(handle,batchSize,midScratch,trunkScratch,convWorkspace,convWorkspace2);
+    (void)midScratch;
+    // preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
+    regularConv.applyWithBNRelu(handle,&preBN,batchSize,trunk,mid,mask,convWorkspace,convWorkspace2);
+    // midBN.apply(handle,batchSize,true,mid,midScratch,mask);
+    finalConv.applyWithBNRelu(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
     addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
   }
 
@@ -1241,6 +1327,7 @@ struct GlobalPoolingResidualBlock {
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) {
+    (void)midScratch;
     preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
     regularConv.apply(handle,batchSize,trunkScratch,mid,convWorkspace,convWorkspace2);
     gpoolConv.apply(handle,batchSize,trunkScratch,gpoolOut,convWorkspace,convWorkspace2);
@@ -1257,8 +1344,8 @@ struct GlobalPoolingResidualBlock {
     // for(int i = 0; i<tmp.size(); i++)
     //   cout << tmp[i] << endl;
 
-    midBN.apply(handle,batchSize,true,mid,midScratch,mask);
-    finalConv.apply(handle,batchSize,midScratch,trunkScratch,convWorkspace,convWorkspace2);
+    // midBN.apply(handle,batchSize,true,mid,midScratch,mask);
+    finalConv.applyWithBNRelu(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
 
     addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
   }

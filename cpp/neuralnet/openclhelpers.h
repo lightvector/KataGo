@@ -131,6 +131,19 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
+  cl_int doWinogradTransformWithBNRelu(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    cl_mem input, cl_mem convWorkspace,
+    cl_mem scaleBuf, cl_mem biasBuf, cl_mem mask,
+    int batchSize, int nnXLen, int nnYLen,
+    int numTilesX, int numTilesY,
+    int inChannels,
+    int convSize,
+    cl_event* eventBuf
+  );
+
   cl_int doWinogradUntransform(
     cl_kernel kernel,
     cl_command_queue commandQueue,
