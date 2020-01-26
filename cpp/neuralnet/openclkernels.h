@@ -4,6 +4,7 @@
 #include "../core/global.h"
 
 namespace OpenCLKernels {
+  extern std::string common;
   extern std::string conv2dNCHW;
   extern std::string winogradTransformNCHW;
   extern std::string winogradBNReluTransformNCHW;
