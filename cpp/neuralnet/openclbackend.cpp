@@ -1249,10 +1249,18 @@ struct ResidualBlock {
     cl_mem convWorkspace2
   ) {
     (void)midScratch;
-    // preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
-    regularConv.applyWithBNRelu(handle,&preBN,batchSize,trunk,mid,mask,convWorkspace,convWorkspace2);
-    // midBN.apply(handle,batchSize,true,mid,midScratch,mask);
-    finalConv.applyWithBNRelu(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
+    if((regularConv.convXSize == 3 && regularConv.convYSize == 3) || (regularConv.convXSize == 5 && regularConv.convYSize == 5))
+      regularConv.applyWithBNRelu(handle,&preBN,batchSize,trunk,mid,mask,convWorkspace,convWorkspace2);
+    else {
+      preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
+      regularConv.apply(handle,batchSize,trunkScratch,mid,convWorkspace,convWorkspace2);
+    }
+    if((finalConv.convXSize == 3 && finalConv.convYSize == 3) || (finalConv.convXSize == 5 && finalConv.convYSize == 5))
+      finalConv.applyWithBNRelu(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
+    else {
+      midBN.apply(handle,batchSize,true,mid,midScratch,mask);
+      finalConv.apply(handle,batchSize,midScratch,trunkScratch,convWorkspace,convWorkspace2);
+    }
     addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
   }
 
@@ -1344,9 +1352,12 @@ struct GlobalPoolingResidualBlock {
     // for(int i = 0; i<tmp.size(); i++)
     //   cout << tmp[i] << endl;
 
-    // midBN.apply(handle,batchSize,true,mid,midScratch,mask);
-    finalConv.applyWithBNRelu(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
-
+    if((finalConv.convXSize == 3 && finalConv.convYSize == 3) || (finalConv.convXSize == 5 && finalConv.convYSize == 5))
+      finalConv.applyWithBNRelu(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
+    else {
+      midBN.apply(handle,batchSize,true,mid,midScratch,mask);
+      finalConv.apply(handle,batchSize,midScratch,trunkScratch,convWorkspace,convWorkspace2);
+    }
     addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
   }
 
