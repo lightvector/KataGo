@@ -1,8 +1,8 @@
 The code in this repository currently relies on several other libraries or parts of libraries:
-clblast, nlohmann_json, sgfmill, tclap-1.2.1, and zstr. For the licenses for those libraries,
-see the readme and/or license files for those libraries separately within their respective
-subdirectories within cpp/external. Additionally, cpp/core/sha2.cpp derives from another piece
-of external code and contains its own license.
+clblast, half-2.1.0, nlohmann_json, sgfmill, tclap-1.2.1, and zstr. For the licenses for those
+libraries, see the readme and/or license files for those libraries separately within their
+respective subdirectories within cpp/external. Additionally, cpp/core/sha2.cpp derives from
+another piece of external code and contains its own license.
 
 Aside from the above, the license for all OTHER content in this repo is as follows:
 
