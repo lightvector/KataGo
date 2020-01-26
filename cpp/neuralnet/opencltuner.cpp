@@ -408,7 +408,7 @@ bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
   return std::memcmp(this,&other,sizeof(OpenCLTuneParams)) == 0;
 }
 
-
+static const int TUNER_VERSION = 6;
 static const char* TUNEPARAMS_VERSION_LINE = "VERSION=6";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out(filename);
@@ -1522,7 +1522,7 @@ string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLe
     if(contains("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", c))
       gpuNameForFile += c;
   }
-  return Global::strprintf("tune_gpu%s_x%d_y%d_c%d_mv%d.txt", gpuNameForFile.c_str(), nnXLen, nnYLen, model->trunk.trunkNumChannels,model->version);
+  return Global::strprintf("tune%d_gpu%s_x%d_y%d_c%d_mv%d.txt", TUNER_VERSION, gpuNameForFile.c_str(), nnXLen, nnYLen, model->trunk.trunkNumChannels,model->version);
 }
 
 static OpenCLTuneParams loadFromTunerFile(const string& fileName, Logger* logger) {
