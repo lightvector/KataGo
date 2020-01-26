@@ -103,6 +103,26 @@ int MainCmds::runsearchtestsv3(int argc, const char* const* argv) {
   return 0;
 }
 
+int MainCmds::runsearchtestsv8(int argc, const char* const* argv) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  if(argc != 5) {
+    cerr << "Must supply exactly four arguments: MODEL_FILE INPUTSNHWC CUDANHWC FP16" << endl;
+    return 1;
+  }
+  Tests::runSearchTestsV8(
+    string(argv[1]),
+    Global::stringToBool(argv[2]),
+    Global::stringToBool(argv[3]),
+    Global::stringToBool(argv[4])
+  );
+
+  ScoreValue::freeTables();
+
+  return 0;
+}
+
 int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
   if(argc != 2) {
     cerr << "Must supply exactly one argument: MODEL_FILE" << endl;

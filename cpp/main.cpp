@@ -46,6 +46,7 @@ runnnsymmetriestest : Run neural net on a hardcoded rectangle board and dump sym
 runoutputtests : Run a bunch of things and dump details to stdout
 runsearchtests : Run a bunch of things using a neural net and dump details to stdout
 runsearchtestsv3 : Run a bunch more things using a neural net and dump details to stdout
+runsearchtestsv8 : Run a bunch more things using a neural net and dump details to stdout
 runselfplayinittests : Run some tests involving selfplay training init using a neural net and dump details to stdout
 runsekitrainwritetests : Run some tests involving seki train output
 
@@ -91,6 +92,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::runsearchtests(argc-1,&argv[1]);
   else if(subcommand == "runsearchtestsv3")
     return MainCmds::runsearchtestsv3(argc-1,&argv[1]);
+  else if(subcommand == "runsearchtestsv8")
+    return MainCmds::runsearchtestsv8(argc-1,&argv[1]);
   else if(subcommand == "runselfplayinittests")
     return MainCmds::runselfplayinittests(argc-1,&argv[1]);
   else if(subcommand == "runsekitrainwritetests")

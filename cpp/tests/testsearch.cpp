@@ -110,13 +110,13 @@ static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaul
 
 static NNEvaluator* startNNEval(
   const string& modelFile, Logger& logger, const string& seed, int nnXLen, int nnYLen,
-  int defaultSymmetry, bool inputsUseNHWC, bool useNHWC, bool useFP16, bool debugSkipNeuralNet, float nnPolicyTemperature
+  int defaultSymmetry, bool inputsUseNHWC, bool useNHWC, bool useFP16, bool debugSkipNeuralNet, float nnPolicyTemperature,
+  bool requireExactNNLen
 ) {
   vector<int> gpuIdxByServerThread = {0};
   vector<int> gpuIdxs = {0};
   int modelFileIdx = 0;
   int maxBatchSize = 16;
-  bool requireExactNNLen = false;
   //bool inputsUseNHWC = true;
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
@@ -151,6 +151,11 @@ static NNEvaluator* startNNEval(
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
   string nnRandSeed = "runSearchTestsRandSeed"+seed;
+
+  if(defaultSymmetry == -1) {
+    nnRandomize = true;
+    defaultSymmetry = 0;
+  }
   //int defaultSymmetry = 0;
   //bool useFP16 = false;
   //bool useNHWC = false;
@@ -739,6 +744,70 @@ xx.o.o.o.
 
 }
 
+static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& logger)
+{
+  {
+    cout << "TEST EXACT (NO MASKING) VS MASKED ==========================================================================" << endl;
+
+    string sgfStr = "(;GM[1]FF[4]CA[UTF-8]RU[Japanese]SZ[19]KM[6.5];B[dd];W[qd];B[pq];W[dp];B[oc];W[pe];B[fq];W[jp];B[ph];W[cf];B[ck])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules = sgf->getRulesOrFail();
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 11);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 200;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "test exact");
+    AsyncBot* botB = new AsyncBot(params, nnEval19Exact, &logger, "test exact");
+
+    TestSearchOptions opts;
+    cout << "BASIC" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "EXACT" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete sgf;
+  }
+
+  {
+    cout << "TEST SYMMETRY AVGING ==========================================================================" << endl;
+
+    string sgfStr = "(;GM[1]FF[4]CA[UTF-8]RU[Japanese]SZ[19]KM[6.5];B[dd];W[qd];B[od];W[pq];B[dq];W[do];B[eo];W[oe])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules = sgf->getRulesOrFail();
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 8);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.rootNumSymmetriesToSample = 8;
+    params.maxVisits = 200;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "test exact");
+    AsyncBot* botB = new AsyncBot(params, nnEval19Exact, &logger, "test exact");
+
+    TestSearchOptions opts;
+    cout << "BASIC" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "EXACT" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete sgf;
+  }
+
+}
 
 void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
   cout << "Running search tests" << endl;
@@ -748,7 +817,7 @@ void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNH
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f,false);
   runBasicPositions(nnEval, logger);
   delete nnEval;
 
@@ -763,13 +832,32 @@ void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool cuda
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
-  NNEvaluator* nnEval11 = startNNEval(modelFile,logger,"",11,11,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
-  NNEvaluator* nnEvalPTemp = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.5f);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f,false);
+  NNEvaluator* nnEval11 = startNNEval(modelFile,logger,"",11,11,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f,false);
+  NNEvaluator* nnEvalPTemp = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.5f,false);
   runOwnershipAndMisc(nnEval,nnEval11,nnEvalPTemp,logger);
   delete nnEval;
   delete nnEval11;
   delete nnEvalPTemp;
+
+  NeuralNet::globalCleanup();
+}
+
+void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool cudaNHWC, bool useFP16) {
+  cout << "Running search tests introduced after v8 nets" << endl;
+  NeuralNet::globalInitialize();
+
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.setLogTime(false);
+
+  NNEvaluator* nnEval = startNNEval(
+    modelFile,logger,"v8seed",19,19,-1,inputsNHWC,cudaNHWC,useFP16,false,1.0f,false);
+  NNEvaluator* nnEval19Exact = startNNEval(
+    modelFile,logger,"v8seed",19,19,-1,inputsNHWC,cudaNHWC,useFP16,false,1.0f,true);
+  runV8Tests(nnEval,nnEval19Exact,logger);
+  delete nnEval;
+  delete nnEval19Exact;
 
   NeuralNet::globalCleanup();
 }
@@ -793,7 +881,7 @@ void Tests::runNNLessSearchTests() {
     cout << "Basic search with debugSkipNeuralNet and chosen move randomization" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f,false);
     SearchParams params;
     params.maxVisits = 100;
     Search* search = new Search(params, nnEval, "autoSearchRandSeed");
@@ -876,7 +964,7 @@ void Tests::runNNLessSearchTests() {
     cout << "Testing preservation of search tree across moves" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f,false);
     SearchParams params;
     params.maxVisits = 50;
     Search* search = new Search(params, nnEval, "autoSearchRandSeed");
@@ -991,7 +1079,7 @@ o..oo.x
 
     {
       cout << "First with no pruning" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f,false);
       SearchParams params;
       params.maxVisits = 400;
       Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
@@ -1014,7 +1102,7 @@ o..oo.x
 
     {
       cout << "Next, with rootPruneUselessMoves" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f,false);
       SearchParams params;
       params.maxVisits = 400;
       params.rootPruneUselessMoves = true;
@@ -1050,7 +1138,7 @@ o..oo.x
 
     {
       cout << "Searching on the opponent, the move before" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1b",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1b",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f,false);
       SearchParams params;
       params.maxVisits = 400;
       params.rootPruneUselessMoves = true;
@@ -1122,7 +1210,7 @@ o..o.oo
 
     {
       cout << "First with no pruning" << endl;
-      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f);
+      NNEvaluator* nnEval = startNNEval(modelFile,logger,"seed1",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,1.0f,false);
       SearchParams params;
       params.maxVisits = 400;
       params.dynamicScoreUtilityFactor = 0.5;
@@ -1159,7 +1247,7 @@ o..o.oo
     cout << "Non-square board search" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,17,0,true,false,false,true,1.0f);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,17,0,true,false,false,true,1.0f,false);
     SearchParams params;
     params.maxVisits = 100;
     Search* search = new Search(params, nnEval, "autoSearchRandSeed");
@@ -1266,7 +1354,7 @@ o..o.oo
     cout << "Search tolerates moving past game end" << endl;
     cout << "===================================================================" << endl;
 
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,1.0f);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,1.0f,false);
     SearchParams params;
     params.maxVisits = 200;
     Search* search = new Search(params, nnEval, "autoSearchRandSeed");
@@ -1377,7 +1465,7 @@ void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool cuda
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",6,6,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",6,6,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f,false);
 
   MiscNNInputParams nnInputParams;
   NNResultBuf buf;
@@ -1392,7 +1480,6 @@ void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool cuda
   NeuralNet::globalCleanup();
 }
 
-//TODO incorporate an auto test of this and one that grabs the root policy with symmetry averaging
 void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool cudaNHWC, bool useFP16) {
   NeuralNet::globalInitialize();
 
@@ -1421,7 +1508,7 @@ void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool cudaN
   logger.setLogTime(false);
 
   for(int symmetry = 0; symmetry<8; symmetry++) {
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",13,13,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",13,13,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f,false);
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -1452,7 +1539,7 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cuda
 
   int nnXLen = 19;
   int nnYLen = 19;
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",nnXLen,nnYLen,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",nnXLen,nnYLen,symmetry,inputsNHWC,cudaNHWC,useFP16,false,1.0f,false);
   MiscNNInputParams nnInputParams;
   NNResultBuf buf;
   bool skipCache = true;

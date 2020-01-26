@@ -1,0 +1,3 @@
+Final 6-block selfplay net from official Jan 2020 run.
+
+{"version": 8, "support_japanese_rules": true, "use_fixup": true, "trunk_num_channels": 96, "mid_num_channels": 96, "regular_num_channels": 64, "dilated_num_channels": 32, "gpool_num_channels": 32, "block_kind": [["rconv1", "regular"], ["rconv2", "regular"], ["rconv3", "gpool"], ["rconv4", "regular"], ["rconv5", "gpool"], ["rconv6", "regular"]], "p1_num_channels": 32, "g1_num_channels": 32, "v1_num_channels": 32, "sbv2_num_channels": 48, "v2_size": 64}
