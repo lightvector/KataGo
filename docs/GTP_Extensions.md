@@ -104,3 +104,6 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      whiteOwnership (boardXSize * boardYSize floats)
      ```
      Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values.
+  * `kata-get-param PARAM`, `kata-set-param PARAM VALUE`
+     * Get a parameter or set a parameter to a given value.
+     * Currently, the only supported PARAM is `playoutDoublingAdvantage (float)`. More may be added later.

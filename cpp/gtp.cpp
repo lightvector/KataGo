@@ -37,6 +37,10 @@ static const vector<string> knownCommands = {
   "kata-set-rule",
   "kata-set-rules",
 
+  //Get or change a few limited params dynamically
+  "kata-get-param",
+  "kata-set-param",
+
   "genmove",
   "genmove_debug", //Prints additional info to stderr
   "search_debug", //Prints additional info to stderr, doesn't actually make the move
@@ -1019,6 +1023,14 @@ struct GTPEngine {
     return Global::trim(out.str());
   }
 
+  SearchParams getParams() {
+    return params;
+  }
+
+  void setParams(SearchParams p) {
+    params = p;
+    bot->setParams(params);
+  }
 };
 
 
@@ -1169,13 +1181,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   //Defaults to 7.5 komi, gtp will generally override this
   Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
 
-  SearchParams params = Setup::loadSingleParams(cfg);
-  logger.write("Using " + Global::intToString(params.numThreads) + " CPU thread(s) for search");
+  SearchParams initialParams = Setup::loadSingleParams(cfg);
+  logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
   //Set a default for conservativePass that differs from matches or selfplay
   if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
-    params.conservativePass = true;
+    initialParams.conservativePass = true;
   if(!cfg.contains("fillDameBeforePass") && !cfg.contains("fillDameBeforePass0"))
-    params.fillDameBeforePass = true;
+    initialParams.fillDameBeforePass = true;
 
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
   const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : true;
@@ -1194,14 +1206,14 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead =
     cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.0;
-  if(cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") && params.playoutDoublingAdvantagePla == C_EMPTY)
+  if(cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") && initialParams.playoutDoublingAdvantagePla == C_EMPTY)
     throw StringError("When specifying dynamicPlayoutDoublingAdvantageCapPerOppLead, must specify a player for playoutDoublingAdvantagePla");
-  double staticPlayoutDoublingAdvantage = params.playoutDoublingAdvantage;
+  double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
-    nnModelFile,params,initialRules,
+    nnModelFile,initialParams,initialRules,
     assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPlayoutDoublingAdvantage,
@@ -1466,6 +1478,41 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             responseIsError = true;
             response = error;
           }
+        }
+      }
+    }
+
+    else if(command == "kata-get-param") {
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one arguments for kata-get-param but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        //SearchParams params = engine->getParams();
+        if(pieces[0] == "playoutDoublingAdvantage") {
+          response = Global::doubleToString(engine->staticPlayoutDoublingAdvantage);
+        }
+        else {
+          responseIsError = true;
+          response = "Invalid parameter";
+        }
+      }
+    }
+
+    else if(command == "kata-set-param") {
+      if(pieces.size() != 2) {
+        responseIsError = true;
+        response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        //SearchParams params = engine->getParams();
+        double d;
+        if(pieces[0] == "playoutDoublingAdvantage" && Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0) {
+          engine->setStaticPlayoutDoublingAdvantage(d);
+        }
+        else {
+          responseIsError = true;
+          response = "Invalid parameter or parameter value";
         }
       }
     }
