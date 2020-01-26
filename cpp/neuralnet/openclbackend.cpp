@@ -1058,7 +1058,7 @@ struct ConvLayer {
           bnLayer->mergedBiasBuf,
           mask,
           nnXLen,nnYLen,
-          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.NWG, //N in gemm
+          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.MWG, //M in gemm
           inChannels,handle->tuneParams.xGemm.KWG,                    //K in gemm
           convXSize,
           MAYBE_EVENTREF
@@ -1077,7 +1077,7 @@ struct ConvLayer {
         cl_int err;
         MAYBE_EVENT;
         err = doBatchedXGemm_KM_KN_NM(
-          handle->xgemmDirectBatchedNNKernel,
+          handle->xgemmBatchedNNKernel,
           handle->commandQueue,
           handle->tuneParams,
           numTilesTotalPadded, outChannelsPadded, inChannelsPadded,

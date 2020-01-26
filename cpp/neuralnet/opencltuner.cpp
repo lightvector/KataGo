@@ -194,6 +194,7 @@ bool OpenCLTuneParams::XGemmParams::isSimple() const {
   if(NDIMC != NDIMB) return false;
   if(SA != SB) return false;
   if(VWM != VWN) return false;
+  if(MWG != NWG) return false;
   return true;
 }
 
@@ -879,8 +880,8 @@ void OpenCLTuner::tune(
       addConfigs(configs,SETTER(xGemm.MDIMA),{8,16,32});
       addConfigs(configs,SETTER(xGemm.NDIMB),{8,16,32});
       addConfigs(configs,SETTER(xGemm.KWI),{2});
-      addConfigs(configs,SETTER(xGemm.VWM),{1,2,4});
-      addConfigs(configs,SETTER(xGemm.VWN),{1,2,4});
+      addConfigs(configs,SETTER(xGemm.VWM),{2,4});
+      addConfigs(configs,SETTER(xGemm.VWN),{2,4});
       addConfigs(configs,SETTER(xGemm.STRM),{0});
       addConfigs(configs,SETTER(xGemm.STRN),{0});
       addConfigs(configs,SETTER(xGemm.SA),{0,1});
