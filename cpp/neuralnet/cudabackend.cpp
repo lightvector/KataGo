@@ -8,7 +8,11 @@
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/desc.h"
 
+#include "../external/half-2.1.0/include/half.hpp"
+
 using namespace std;
+
+using half_t = half_float::half;
 
 //Define this to print out some of the intermediate values of the neural net
 //#define DEBUG_INTERMEDIATE_VALUES
@@ -68,15 +72,11 @@ static void mallocAndCopyToDevice(const string& name, const vector<float>& weigh
   size_t numWeights = weights.size();
   if(useFP16) {
     size_t halfBytes = numWeights * sizeof(half);
-    size_t floatBytes = numWeights * sizeof(float);
-    float* buf;
+    vector<half_t> weightsHalf(weights.size());
+    for(size_t i = 0; i<weights.size(); i++)
+      weightsHalf[i] = half_float::half_cast<half_t>(weights[i]);
     CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
-    CUDA_ERR(name.c_str(),cudaMalloc(&buf, floatBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(buf, weights.data(), floatBytes, cudaMemcpyHostToDevice));
-    customCudaCopyToHalf(buf,(half*)deviceBuf,numWeights);
-    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-    CUDA_ERR(name.c_str(),cudaDeviceSynchronize());
-    cudaFree(buf);
+    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weightsHalf.data(), halfBytes, cudaMemcpyHostToDevice));
   }
   else {
     size_t floatBytes = numWeights * sizeof(float);
@@ -88,15 +88,11 @@ static void mallocAndCopyToDevice(const string& name, const vector<float>& weigh
 static void mallocAndCopyToDevice(const string& name, const float* weights, int numWeights, void*& deviceBuf, bool useFP16) {
   if(useFP16) {
     size_t halfBytes = numWeights * sizeof(half);
-    size_t floatBytes = numWeights * sizeof(float);
-    float* buf;
+    vector<half_t> weightsHalf(numWeights);
+    for(int i = 0; i<numWeights; i++)
+      weightsHalf[i] = half_float::half_cast<half_t>(weights[i]);
     CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
-    CUDA_ERR(name.c_str(),cudaMalloc(&buf, floatBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(buf, weights, floatBytes, cudaMemcpyHostToDevice));
-    customCudaCopyToHalf(buf,(half*)deviceBuf,numWeights);
-    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-    CUDA_ERR(name.c_str(),cudaDeviceSynchronize());
-    cudaFree(buf);
+    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weightsHalf.data(), halfBytes, cudaMemcpyHostToDevice));
   }
   else {
     size_t floatBytes = numWeights * sizeof(float);
@@ -108,14 +104,11 @@ static void mallocAndCopyToDevice(const string& name, const float* weights, int 
 //Only use in testing, allocates an intermediate buffer in the case of FP16 which will be very slow.
 static void expensiveCopyFromDevice(const string& name, float* weights, int numWeights, const void* deviceBuf, bool useFP16) {
   if(useFP16) {
-    size_t floatBytes = numWeights * sizeof(float);
-    float* buf;
-    CUDA_ERR(name.c_str(),cudaMalloc(&buf, floatBytes));
-    customCudaCopyFromHalf((const half*)deviceBuf,(float*)buf,numWeights);
-    CUDA_ERR(name.c_str(),cudaMemcpy(weights, buf, floatBytes, cudaMemcpyDeviceToHost));
-    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
-    CUDA_ERR(name.c_str(),cudaDeviceSynchronize());
-    cudaFree(buf);
+    vector<half_t> weightsHalf(numWeights);
+    size_t halfBytes = numWeights * sizeof(half);
+    CUDA_ERR(name.c_str(),cudaMemcpy(weightsHalf.data(), deviceBuf, halfBytes, cudaMemcpyDeviceToHost));
+    for(int i = 0; i<numWeights; i++)
+      weights[i] = weightsHalf[i];
   }
   else {
     size_t floatBytes = numWeights * sizeof(float);

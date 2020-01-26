@@ -14,6 +14,8 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// MODIFIED by lightvector to fix some g++ compiler warnings about default switch cases.
+
 // Version 2.1.0
 
 /// \file
@@ -3104,6 +3106,7 @@ namespace half_float
 			case 0x5640: return half(detail::binary, 0x4000);
 			case 0x63D0: return half(detail::binary, 0x4200);
 			case 0x70E2: return half(detail::binary, 0x4400);
+      default: break;
 		}
 		for(; abs<0x400; abs<<=1,--exp) ;
 		exp += abs >> 10;
@@ -3504,6 +3507,7 @@ namespace half_float
 					*sin = half(detail::binary, detail::rounded<half::round_style,true>((arg.data_&0x8000)|0x0FE6, 1, 1));
 					*cos = half(detail::binary, detail::rounded<half::round_style,true>(0x3BFF, 1, 1));
 					return;
+        default: break;
 				}
 			}
 			std::pair<detail::uint32,detail::uint32> sc = detail::sincos(detail::angle_arg(abs, k), 28);
@@ -3512,6 +3516,7 @@ namespace half_float
 				case 1: sc = std::make_pair(sc.second, -sc.first); break;
 				case 2: sc = std::make_pair(-sc.first, -sc.second); break;
 				case 3: sc = std::make_pair(-sc.second, sc.first); break;
+        default: break;
 			}
 			*sin = half(detail::binary, detail::fixed2half<half::round_style,30,true,true,true>((sc.first^-static_cast<detail::uint32>(sign))+sign));
 			*cos = half(detail::binary, detail::fixed2half<half::round_style,30,true,true,true>(sc.second));
@@ -3545,6 +3550,7 @@ namespace half_float
 				case 0x48B7: return half(detail::binary, detail::rounded<half::round_style,true>((~arg.data_&0x8000)|0x1D07, 1, 1));
 				case 0x6A64: return half(detail::binary, detail::rounded<half::round_style,true>((~arg.data_&0x8000)|0x3BFE, 1, 1));
 				case 0x6D8C: return half(detail::binary, detail::rounded<half::round_style,true>((arg.data_&0x8000)|0x0FE6, 1, 1));
+        default: break;
 			}
 		std::pair<detail::uint32,detail::uint32> sc = detail::sincos(detail::angle_arg(abs, k), 28);
 		detail::uint32 sign = -static_cast<detail::uint32>(((k>>1)&1)^(arg.data_>>15));
@@ -3605,6 +3611,7 @@ namespace half_float
 			{
 				case 0x658C: return half(detail::binary, detail::rounded<half::round_style,true>((arg.data_&0x8000)|0x07E6, 1, 1));
 				case 0x7330: return half(detail::binary, detail::rounded<half::round_style,true>((~arg.data_&0x8000)|0x4B62, 1, 1));
+        default: break;
 			}
 		std::pair<detail::uint32,detail::uint32> sc = detail::sincos(detail::angle_arg(abs, k), 30);
 		if(k & 1)
@@ -3866,6 +3873,7 @@ namespace half_float
 			{
 				case 0x32D4: return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_-13, 1, 1));
 				case 0x3B5B: return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_-197, 1, 1));
+        default: break;
 			}
 		return half(detail::binary, detail::area<half::round_style,true>(arg.data_));
 	#endif
